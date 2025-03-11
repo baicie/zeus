@@ -3,22 +3,34 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "node scripts/dev.js",
     "build": "node scripts/build.js",
-    "build:zeus": "pnpm run build zeus",
-    "build:core": "pnpm run build core",
-    "build:shared": "pnpm run build shared",
-    "dev": "turbo run dev",
-    "clean": "turbo run clean"
+    "check": "tsc --incremental --noEmit",
+    "lint": "eslint --cache .",
+    "format": "prettier --write --cache .",
+    "format-check": "prettier --check --cache .",
+    "test": "vitest"
   },
   "packageManager": "pnpm@10.6.1",
   "devDependencies": {
+    "@rollup/plugin-alias": "^5.1.1",
+    "@rollup/plugin-commonjs": "^28.0.3",
     "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.0",
     "@rollup/plugin-replace": "^5.0.5",
+    "@swc/core": "^1.11.8",
     "@types/node": "^22.13.10",
+    "@vitest/eslint-plugin": "^1.1.37",
+    "eslint": "^9.22.0",
+    "eslint-plugin-import-x": "^4.6.1",
+    "picocolors": "^1.1.1",
+    "pretty-bytes": "^6.1.1",
+    "rollup": "^4.35.0",
     "rollup-plugin-esbuild": "^6.1.1",
+    "rollup-plugin-polyfill-node": "^0.13.0",
     "tsup": "^8.4.0",
-    "turbo": "^2.4.4",
     "typescript": "^5.8.2",
+    "typescript-eslint": "^8.26.1",
     "vitest": "^3.0.8"
   }
 }

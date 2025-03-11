@@ -1,0 +1,20 @@
+{
+  "name": "@zeus/compiler",
+  "version": "0.0.1",
+  "description": "JSX转换、代码优化和类型检查",
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "buildOptions": {
+    "formats": [
+      "esm",
+      "cjs"
+    ]
+  },
+  "dependencies": {
+    "@zeus/shared": "workspace:*"
+  }
+}

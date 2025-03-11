@@ -1,0 +1,24 @@
+{
+  "name": "@zeus/cli",
+  "version": "0.0.1",
+  "description": "项目脚手架、构建工具和开发服务器",
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "zeus": "./bin/zeus.js"
+  },
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "buildOptions": {
+    "formats": [
+      "esm",
+      "cjs"
+    ]
+  },
+  "dependencies": {
+    "@zeus/shared": "workspace:*"
+  }
+}

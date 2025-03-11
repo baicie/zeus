@@ -1,0 +1,20 @@
+{
+  "name": "@zeus/core",
+  "version": "0.0.1",
+  "description": "核心组件基类和装饰器系统",
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "buildOptions": {
+    "formats": [
+      "esm",
+      "cjs"
+    ]
+  },
+  "dependencies": {
+    "@zeus/shared": "workspace:*"
+  }
+}
