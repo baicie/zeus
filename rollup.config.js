@@ -195,14 +195,9 @@ function createConfig(format, output, plugins = []) {
   }
 
   function resolveExternal() {
-    const treeShakenDeps = [
-      'source-map-js',
-      '@babel/parser',
-      'estree-walker',
-      'entities/lib/decode.js',
-    ]
+    const treeShakenDeps = []
 
-    if (isGlobalBuild || isESMBuild) {
+    if (isGlobalBuild) {
       if (!packageOptions.enableNonBrowserBranches) {
         // normal browser builds - non-browser only imports are tree-shaken,
         // they are only listed here to suppress warnings.

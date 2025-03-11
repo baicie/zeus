@@ -1,0 +1,27 @@
+{
+  "name": "@zeus/components",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "rollup -c -w",
+    "build": "rollup -c",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@zeus/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@zeus/compiler": "workspace:*",
+    "@zeus/output": "workspace:*",
+    "typescript": "~5.7.2",
+    "rollup": "^4.35.0",
+    "rollup-plugin-dts": "^6.1.0",
+    "rollup-plugin-esbuild": "^6.1.1"
+  }
+}

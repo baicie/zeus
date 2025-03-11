@@ -1,13 +1,28 @@
 {
   "name": "@zeus/core",
   "version": "0.0.1",
-  "description": "核心组件基类和装饰器系统",
-  "main": "dist/index.cjs",
-  "module": "dist/index.mjs",
-  "types": "dist/index.d.ts",
+  "description": "核心运行时",
+  "main": "index.js",
+  "module": "dist/core.esm-bundler.js",
+  "types": "dist/core.d.ts",
   "files": [
+    "index.js",
     "dist"
   ],
+  "exports": {
+    ".": {
+      "types": "./dist/core.d.ts",
+      "node": {
+        "production": "./dist/core.cjs.prod.js",
+        "development": "./dist/core.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/core.esm-bundler.js",
+      "import": "./dist/core.esm-bundler.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
+  },
   "buildOptions": {
     "formats": [
       "esm",

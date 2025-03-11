@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "stripInternal": true,
+    "composite": false
+  },
+  "include": ["packages/*/src", "packages/compiler/src/type.d.ts"],
+  "exclude": ["**/__tests__", "**/dist", "**/playground"]
+}

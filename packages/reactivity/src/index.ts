@@ -1,28 +1,46 @@
 import { isObject } from '@zeus/shared'
 
-export function reactive<T extends object>(target: T): T {
-  if (!isObject(target)) {
-    return target
+export interface Signal<T> {
+  (): T
+  set: (value: T) => void
+}
+
+export interface Computed<T> {
+  (): T
+}
+
+export function createSignal<T>(value: T): Signal<T> {
+  let currentValue = value
+  const subscribers = new Set<() => void>()
+
+  const signal = () => {
+    // 编译时会被优化掉
+    return currentValue
   }
 
-  return new Proxy(target, {
-    get(target, key) {
-      const res = Reflect.get(target, key)
-      track(target, key)
-      return res
-    },
-    set(target, key, value) {
-      const res = Reflect.set(target, key, value)
-      trigger(target, key)
-      return res
-    },
-  })
+  signal.set = (newValue: T) => {
+    if (currentValue !== newValue) {
+      currentValue = newValue
+      subscribers.forEach(fn => fn())
+    }
+  }
+
+  return signal
 }
 
-function track(target: object, key: unknown) {
-  // 依赖收集
+export function createMemo<T>(fn: () => T): Computed<T> {
+  let value: T
+  let dirty = true
+
+  return () => {
+    if (dirty) {
+      value = fn()
+      dirty = false
+    }
+    return value
+  }
 }
 
-function trigger(target: object, key: unknown) {
-  // 触发更新
+export function createEffect(fn: () => void): void {
+  fn()
 }

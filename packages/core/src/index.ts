@@ -1,13 +1,14 @@
-import { isFunction } from '@zeus/shared'
+export { ZeusElement } from './base'
+export { useRef, useEvent } from './hooks'
 
-export interface Component {
-  render(): any
+// 组件装饰器
+export interface ComponentOptions {
+  tag: string
+  shadow?: boolean
 }
 
-export function defineComponent(options: any): Component {
-  return {
-    render() {
-      return isFunction(options.render) ? options.render() : null
-    },
+export function Component(options: ComponentOptions) {
+  return function (target: Function): Function {
+    return target
   }
 }
