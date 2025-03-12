@@ -1,13 +1,28 @@
-import { Component } from '@zeus/core'
+import { Component, Prop, Event, Method } from '@zeus/core'
 
 @Component({
   tag: 'zeus-button',
-  shadow: true
+  shadow: true,
 })
-export function Button(props: { label: string }) {
-  return (
-    <button class="zeus-button">
-      {props.label}
-    </button>
-  )
-} 
+export class Button {
+  @Prop()
+  label!: string
+
+  @Event('click')
+  onClick(e: MouseEvent) {
+    console.log('clicked')
+  }
+
+  @Method()
+  focus() {
+    console.log('focus')
+  }
+
+  render() {
+    return (
+      <button class="zeus-button" onClick={this.onClick}>
+        {this.label}
+      </button>
+    )
+  }
+}

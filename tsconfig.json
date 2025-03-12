@@ -29,7 +29,8 @@
       "@zeus/*": ["packages/*/src"]
     },
     "isolatedDeclarations": true,
-    "composite": true
+    "composite": true,
+    "emitDecoratorMetadata": true
   },
   "include": [
     "packages/global.d.ts",

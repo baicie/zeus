@@ -2,9 +2,8 @@ import type { Plugin } from 'rollup'
 import type { ComponentMeta, OutputOptions } from './index'
 import { generateReact } from './generators/react'
 import { generateVue } from './generators/vue'
-import { createRequire } from 'node:module'
-
-const require = createRequire(import.meta.url)
+import fs from 'node:fs'
+import path from 'node:path'
 
 export function outputPlugin(options: OutputOptions): Plugin {
   let components: ComponentMeta[] = []
@@ -15,8 +14,11 @@ export function outputPlugin(options: OutputOptions): Plugin {
     buildStart() {
       // 读取组件信息
       try {
-        const json = require('./components.json')
-        components = json
+        const componentsPath = path.resolve(process.cwd(), 'components.json')
+        if (fs.existsSync(componentsPath)) {
+          const json = fs.readFileSync(componentsPath, 'utf-8')
+          components = JSON.parse(json)
+        }
       } catch (e) {
         console.warn('No components.json found')
       }

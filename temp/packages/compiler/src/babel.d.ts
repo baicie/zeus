@@ -3,4 +3,4 @@ export interface JSXPluginOptions {
     mode?: 'dom' | 'ssr';
     dev?: boolean;
 }
-export declare function createJSXPlugin(options?: JSXPluginOptions): PluginItem[];
+export declare function createJSXPlugin(options?: JSXPluginOptions): PluginItem;

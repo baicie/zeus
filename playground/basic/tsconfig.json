@@ -24,6 +24,7 @@
     "emitDeclarationOnly": true,
     "outDir": "dist",
     "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "jsx": "preserve"
   },
   "include": ["src"]

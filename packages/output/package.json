@@ -27,6 +27,10 @@
     "formats": [
       "esm",
       "cjs"
+    ],
+    "external": [
+      "node:fs",
+      "node:path"
     ]
   },
   "dependencies": {

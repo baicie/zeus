@@ -1,9 +1,5 @@
-declare namespace JSX {
-  interface Element {
-    type: string | Function
-    props: any
-    children: any[]
-  }
+export declare namespace JSX {
+  interface Element extends Node {}
 
   interface IntrinsicElements {
     [elemName: string]: any
@@ -17,5 +13,3 @@ declare namespace JSX {
     props: {}
   }
 }
-
-export {}

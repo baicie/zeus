@@ -209,10 +209,9 @@ function createConfig(format, output, plugins = []) {
       return [
         ...Object.keys(pkg.dependencies || {}),
         ...Object.keys(pkg.peerDependencies || {}),
-        // for @vue/compiler-sfc / server-renderer
-        ...['path', 'url', 'stream'],
         // somehow these throw warnings for runtime-* package builds
         ...treeShakenDeps,
+        ...(packageOptions.external || []),
       ]
     }
   }

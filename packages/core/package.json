@@ -30,6 +30,8 @@
     ]
   },
   "dependencies": {
-    "@zeus/shared": "workspace:*"
+    "@zeus/shared": "workspace:*",
+    "dom-expressions": "^0.39.7",
+    "reflect-metadata": "^0.2.2"
   }
 }

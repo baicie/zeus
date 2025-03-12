@@ -9,8 +9,8 @@
     "dist"
   ],
   "scripts": {
-    "dev": "rollup -c -w",
-    "build": "rollup -c",
+    "dev": "rollup -c rollup.config.ts -w --configPlugin typescript",
+    "build": "rollup -c rollup.config.ts --configPlugin typescript",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
@@ -22,6 +22,7 @@
     "typescript": "~5.7.2",
     "rollup": "^4.35.0",
     "rollup-plugin-dts": "^6.1.0",
-    "rollup-plugin-esbuild": "^6.1.1"
+    "rollup-plugin-esbuild": "^6.1.1",
+    "@rollup/plugin-typescript": "^11.1.6"
   }
 }

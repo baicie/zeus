@@ -1,14 +1,7 @@
+import 'reflect-metadata'
+
 export { ZeusElement } from './base'
-export { useRef, useEvent } from './hooks'
+export { Component, Prop, Event, Method } from './decorators'
+export { For, Show } from './component'
 
-// 组件装饰器
-export interface ComponentOptions {
-  tag: string
-  shadow?: boolean
-}
-
-export function Component(options: ComponentOptions) {
-  return function (target: Function): Function {
-    return target
-  }
-}
+export * from 'dom-expressions/src/client.js'

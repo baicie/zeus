@@ -164,6 +164,7 @@ export default tseslint.config(
       '.idea/',
       'explorations/',
       'dts-build/packages',
+      'playground',
     ],
   }
 )
