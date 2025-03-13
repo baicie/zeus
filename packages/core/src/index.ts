@@ -5,3 +5,4 @@ export { Component, Prop, Event, Method } from './decorators'
 export { For, Show } from './component'
 
 export * from 'dom-expressions/src/client.js'
+export type * from 'dom-expressions/src/client.d.ts'

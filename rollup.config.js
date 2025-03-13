@@ -34,15 +34,15 @@ const masterVersion = require('./package.json').version
 const packagesDir = path.resolve(__dirname, 'packages')
 const packageDir = path.resolve(packagesDir, process.env.TARGET)
 
-const resolve = p => path.resolve(packageDir, p)
+const resolve = (/** @type {string} */ p) => path.resolve(packageDir, p)
 const pkg = require(resolve('package.json'))
 const packageOptions = pkg.buildOptions || {}
 const name = path.basename(packageDir)
 
 const banner = `/**
 * ${name} v${masterVersion}
-* (c) ${new Date().getFullYear()} ${pkg.author}
-* Released under the ${pkg.license} License.
+* (c) ${new Date().getFullYear()} baicie
+* Released under the MIT License.
 **/`
 
 /** @type {Record<PackageFormat, OutputOptions>} */
@@ -199,20 +199,21 @@ function createConfig(format, output, plugins = []) {
 
     if (isGlobalBuild) {
       if (!packageOptions.enableNonBrowserBranches) {
-        // normal browser builds - non-browser only imports are tree-shaken,
-        // they are only listed here to suppress warnings.
         return treeShakenDeps
       }
     } else {
-      // Node / esm-bundler builds.
-      // externalize all direct deps unless it's the compat build.
-      return [
-        ...Object.keys(pkg.dependencies || {}),
+      const res = [
+        ...Object.keys(pkg.dependencies || {})?.filter(
+          dep => !packageOptions.inline?.includes(dep)
+        ),
         ...Object.keys(pkg.peerDependencies || {}),
-        // somehow these throw warnings for runtime-* package builds
         ...treeShakenDeps,
         ...(packageOptions.external || []),
       ]
+      if (name.includes('core')) {
+        console.log(res)
+      }
+      return res
     }
   }
 
@@ -234,8 +235,6 @@ function createConfig(format, output, plugins = []) {
 
   return {
     input: resolve(entryFile),
-    // Global and Browser ESM builds inlines everything so that they can be
-    // used alone.
     external: resolveExternal(),
     plugins: [
       json({
@@ -244,6 +243,7 @@ function createConfig(format, output, plugins = []) {
       alias({
         entries,
       }),
+      nodeResolve(),
       ...resolveReplace(),
       esbuild({
         tsconfig: path.resolve(__dirname, 'tsconfig.json'),

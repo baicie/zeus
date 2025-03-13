@@ -27,11 +27,14 @@
     "formats": [
       "esm",
       "cjs"
+    ],
+    "inline": [
+      "dom-expressions"
     ]
   },
   "dependencies": {
     "@zeus/shared": "workspace:*",
-    "dom-expressions": "^0.39.7",
-    "reflect-metadata": "^0.2.2"
+    "reflect-metadata": "^0.2.2",
+    "dom-expressions": "^0.39.7"
   }
 }

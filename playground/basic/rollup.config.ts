@@ -1,4 +1,6 @@
 import { defineConfig } from 'rollup'
+import esbuild from 'rollup-plugin-esbuild'
+import dts from 'rollup-plugin-dts'
 import { zeusRollupPlugin } from '@zeus/compiler'
 
 export default defineConfig([
@@ -14,6 +16,14 @@ export default defineConfig([
         format: 'cjs',
       },
     ],
-    plugins: [zeusRollupPlugin()],
+    plugins: [
+      zeusRollupPlugin(),
+      esbuild({
+        target: 'es2020',
+        jsx: 'preserve',
+        tsconfig: 'tsconfig.json',
+      }),
+    ],
+    external: ['@zeus/core', 'reflect-metadata'],
   },
 ])
