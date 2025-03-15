@@ -1,0 +1,39 @@
+{
+  "name": "@zeus/runtime-dom",
+  "version": "0.0.1",
+  "description": "DOM 操作运行时",
+  "main": "index.js",
+  "module": "dist/runtime-dom.esm-bundler.js",
+  "types": "dist/runtime-dom.d.ts",
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/runtime-dom.d.ts",
+      "node": {
+        "production": "./dist/runtime-dom.cjs.prod.js",
+        "development": "./dist/runtime-dom.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/runtime-dom.esm-bundler.js",
+      "import": "./dist/runtime-dom.esm-bundler.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
+  },
+  "buildOptions": {
+    "formats": [
+      "esm",
+      "cjs"
+    ],
+    "inline": [
+      "dom-expressions"
+    ]
+  },
+  "dependencies": {
+    "@zeus/shared": "workspace:*",
+    "dom-expressions": "^0.39.7"
+  }
+}
