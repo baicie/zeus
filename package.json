@@ -11,7 +11,8 @@
     "lint": "eslint --cache .",
     "format": "prettier --write --cache .",
     "format-check": "prettier --check --cache .",
-    "test": "vitest"
+    "test": "vitest",
+    "test-unit": "vitest --project unit"
   },
   "packageManager": "pnpm@10.6.2",
   "devDependencies": {

@@ -1,0 +1,39 @@
+{
+  "name": "@zeus/compiler-core",
+  "version": "0.0.1",
+  "description": "基础编译器核心",
+  "main": "index.js",
+  "module": "dist/compiler-core.esm-bundler.js",
+  "types": "dist/compiler-core.d.ts",
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/compiler-core.d.ts",
+      "node": {
+        "production": "./dist/compiler-core.cjs.prod.js",
+        "development": "./dist/compiler-core.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/compiler-core.esm-bundler.js",
+      "import": "./dist/compiler-core.esm-bundler.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
+  },
+  "buildOptions": {
+    "formats": [
+      "esm",
+      "cjs"
+    ]
+  },
+  "dependencies": {
+    "@babel/parser": "catalog:",
+    "@zeus/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@babel/types": "catalog:"
+  }
+}
