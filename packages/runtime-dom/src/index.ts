@@ -1,9 +1,34 @@
+// DOM 渲染核心
+export { render, hydrate, createRenderer } from './renderer'
+
+// DOM 操作工具
+export {
+  createElement,
+  createTextNode,
+  insert,
+  remove,
+  setAttribute,
+  addEventListener,
+  removeEventListener,
+} from './nodeOps'
+
+// 指令系统
+export { directive, registerDirective } from './directives'
+
+// DOM 组件
+export { defineComponent, defineCustomElement } from './component'
+
+// 类型导出
+export type {
+  RendererOptions,
+  ComponentOptions,
+  DirectiveOptions,
+} from './types'
+
 export {
   template,
-  insert,
   createComponent,
   delegateEvents,
-  addEventListener,
   spread,
   effect,
   // ... 其他需要的 DOM 操作函数

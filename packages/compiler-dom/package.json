@@ -1,5 +1,5 @@
 {
-  "name": "@zeus/compiler",
+  "name": "@zeus.js/compiler",
   "version": "0.0.1",
   "description": "JSX转换、代码优化和类型检查",
   "main": "index.js",
@@ -30,11 +30,11 @@
     ]
   },
   "dependencies": {
-    "@babel/core": "^7.26.9",
+    "@babel/core": "^7.26.10",
     "@babel/plugin-syntax-decorators": "^7.25.9",
-    "@babel/preset-typescript": "^7.26.0",
-    "@babel/template": "^7.26.9",
-    "@zeus/shared": "workspace:*",
+    "@babel/preset-typescript": "^7.27.0",
+    "@babel/template": "^7.27.0",
+    "@zeus.js/shared": "workspace:*",
     "babel-plugin-jsx-dom-expressions": "^0.39.7"
   },
   "peerDependencies": {

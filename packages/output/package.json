@@ -1,5 +1,5 @@
 {
-  "name": "@zeus/output",
+  "name": "@zeus.js/output",
   "version": "0.0.1",
   "description": "生成不同框架的组件绑定",
   "main": "index.js",
@@ -34,13 +34,13 @@
     ]
   },
   "dependencies": {
-    "@zeus/shared": "workspace:*"
+    "@zeus.js/shared": "workspace:*"
   },
   "peerDependencies": {
     "rollup": "^4.0.0"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "typescript": "~5.7.2"
+    "@types/node": "^22.13.13",
+    "typescript": "~5.8.2"
   }
 }

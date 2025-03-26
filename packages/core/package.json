@@ -1,5 +1,5 @@
 {
-  "name": "@zeus/core",
+  "name": "@zeus.js/core",
   "version": "0.0.1",
   "description": "核心运行时",
   "main": "index.js",
@@ -33,7 +33,7 @@
     ]
   },
   "dependencies": {
-    "@zeus/shared": "workspace:*",
+    "@zeus.js/shared": "workspace:*",
     "reflect-metadata": "^0.2.2",
     "dom-expressions": "^0.39.7"
   }

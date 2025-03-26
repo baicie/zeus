@@ -1,6 +1,7 @@
 import {
   type Accessor,
   type Setter,
+  batch,
   createEffect,
   createRoot,
   createSignal,
@@ -8,6 +9,8 @@ import {
   onCleanup,
   untrack,
 } from './signal'
+import { isObject } from '@zeus.js/shared'
+import type { Signal } from './types'
 
 // Note: This will add Symbol.observable globally for all TypeScript users,
 // however, we are not polyfilling Symbol.observable. Ensuring the type for
@@ -111,4 +114,38 @@ export function from<T>(
     onCleanup(clean)
   }
   return s
+}
+
+const OBSERVABLE_SYMBOL = Symbol('observable')
+
+export function isObservable(obj: any): boolean {
+  return isObject(obj) && (obj as any)[OBSERVABLE_SYMBOL] === true
+}
+
+export function createObservable<T extends object>(initialState: T): T {
+  const signals = new Map<string | symbol, Signal<any>>()
+
+  function getOrCreateSignal(key: string | symbol) {
+    if (!signals.has(key)) {
+      signals.set(key, createSignal((initialState as any)[key]))
+    }
+    return signals.get(key)!
+  }
+
+  const observable = new Proxy(initialState, {
+    get(target, key) {
+      if (key === OBSERVABLE_SYMBOL) return true
+
+      const signal = getOrCreateSignal(key)
+      return signal()
+    },
+
+    set(target, key, value) {
+      const signal = getOrCreateSignal(key)
+      batch(() => signal.set(value))
+      return true
+    },
+  })
+
+  return observable
 }

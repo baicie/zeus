@@ -3,7 +3,7 @@ export function generateVue(
   options: OutputTarget
 ) {
   return `
-import { defineCustomElement } from '@zeus/vue';
+import { defineCustomElement } from '@zeus.js/vue';
 
 ${components
   .map(

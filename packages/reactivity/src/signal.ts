@@ -24,18 +24,23 @@ SOFTWARE.
 */
 
 import { type Task, requestCallback } from './scheduler'
-import { setHydrateContext, sharedConfig } from '../render/hydration'
-import type { JSX } from '../jsx'
-import type { FlowComponent, FlowProps } from '../render/index'
 
-// replaced during build
-export const IS_DEV = '_SOLID_DEV_' as string | boolean
+// 替换 hydration 相关功能
+const sharedConfig = {
+  context: null,
+  registry: null,
+  count: 0,
+  done: false,
+}
 
-export const equalFn = <T>(a: T, b: T) => a === b
-export const $PROXY = Symbol('solid-proxy')
-export const SUPPORTS_PROXY = typeof Proxy === 'function'
-export const $TRACK = Symbol('solid-track')
-export const $DEVCOMP = Symbol('solid-dev-component')
+// 替换 IS_DEV 常量
+export const IS_DEV = process.env.NODE_ENV !== 'production'
+
+export const equalFn = <T>(a: T, b: T) => a === T
+export const $PROXY: unique symbol = Symbol('solid-proxy')
+export const SUPPORTS_PROXY: boolean = typeof Proxy === 'function'
+export const $TRACK: unique symbol = Symbol('solid-track')
+export const $DEVCOMP: unique symbol = Symbol('solid-dev-component')
 const signalOptions = { equals: equalFn }
 let ERROR: symbol | null = null
 let runEffects = runQueue
@@ -1058,7 +1063,7 @@ export function on<S, Next extends Prev, Prev = Next>(
  *
  * @description https://docs.solidjs.com/reference/lifecycle/on-mount
  */
-export function onMount(fn: () => void) {
+export function onMount(fn: () => void): void {
   createEffect(() => untrack(fn))
 }
 

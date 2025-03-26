@@ -1,5 +1,5 @@
 {
-  "name": "@zeus/components",
+  "name": "@zeus.js/components",
   "version": "0.0.1",
   "type": "module",
   "main": "dist/index.cjs",
@@ -9,20 +9,22 @@
     "dist"
   ],
   "scripts": {
-    "dev": "rollup -c rollup.config.ts -w --configPlugin typescript",
-    "build": "rollup -c rollup.config.ts --configPlugin typescript",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@zeus/core": "workspace:*"
+    "@zeus.js/core": "workspace:*"
   },
   "devDependencies": {
-    "@zeus/compiler": "workspace:*",
-    "@zeus/output": "workspace:*",
-    "typescript": "~5.7.2",
-    "rollup": "^4.35.0",
-    "rollup-plugin-dts": "^6.1.0",
-    "rollup-plugin-esbuild": "^6.1.1",
-    "@rollup/plugin-typescript": "^11.1.6"
+    "@zeus.js/compiler": "workspace:*",
+    "@zeus.js/output": "workspace:*",
+    "typescript": "~5.8.2",
+    "rollup": "^4.37.0",
+    "rollup-plugin-dts": "^6.2.1",
+    "rollup-plugin-esbuild": "^6.2.1",
+    "@rollup/plugin-typescript": "^12.1.2"
   }
 }

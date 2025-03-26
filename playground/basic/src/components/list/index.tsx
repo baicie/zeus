@@ -1,5 +1,5 @@
-import { Component, Prop } from '@zeus/core'
-import { For, Show } from '@zeus/core'
+import { Component, Prop } from '@zeus.js/core'
+import { For, Show } from '@zeus.js/core'
 
 @Component({
   tag: 'zeus-list',

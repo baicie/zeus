@@ -1,7 +1,7 @@
 export interface OutputTarget {
   type: 'react' | 'vue' | 'angular' | 'web-components'
   outDir: string
-  componentCorePackage?: string // 例如 @zeus/core
+  componentCorePackage?: string // 例如 @zeus.js/core
   proxiesFile?: string // 生成的代理文件位置
 }
 
