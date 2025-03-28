@@ -1,0 +1,36 @@
+{
+  "name": "@zeusjs/runtime-core",
+  "version": "0.0.1",
+  "description": "框架核心运行时",
+  "main": "index.js",
+  "module": "dist/runtime-core.esm-bundler.js",
+  "types": "dist/runtime-core.d.ts",
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/runtime-core.d.ts",
+      "node": {
+        "production": "./dist/runtime-core.cjs.prod.js",
+        "development": "./dist/runtime-core.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/runtime-core.esm-bundler.js",
+      "import": "./dist/runtime-core.esm-bundler.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
+  },
+  "buildOptions": {
+    "formats": [
+      "esm",
+      "cjs"
+    ]
+  },
+  "dependencies": {
+    "@zeus-js/reactivity": "workspace:*",
+    "@zeus-js/shared": "workspace:*"
+  }
+}

@@ -27,7 +27,7 @@ export const commonTransform: TransformHook = (code: string, id: string) => {
           },
         ],
         jsxTransform({
-          moduleName: '@zeus.js/core',
+          moduleName: '@zeus-js/core',
           builtIns: ['For', 'Show'],
           contextToCustomElements: true,
           wrapConditionals: true,

@@ -89,7 +89,7 @@ importers:
       '@babel/parser':
         specifier: 'catalog:'
         version: 7.26.9
-      '@zeus.js/shared':
+      '@zeus-js/shared':
         specifier: workspace:*
         version: link:../shared
     devDependencies:
@@ -111,7 +111,7 @@ importers:
       '@babel/template':
         specifier: ^7.27.0
         version: 7.27.0
-      '@zeus.js/shared':
+      '@zeus-js/shared':
         specifier: workspace:*
         version: link:../shared
       babel-plugin-jsx-dom-expressions:
@@ -127,7 +127,7 @@ importers:
 
   packages/core:
     dependencies:
-      '@zeus.js/shared':
+      '@zeus-js/shared':
         specifier: workspace:*
         version: link:../shared
       dom-expressions:
@@ -139,7 +139,7 @@ importers:
 
   packages/output:
     dependencies:
-      '@zeus.js/shared':
+      '@zeus-js/shared':
         specifier: workspace:*
         version: link:../shared
       rollup:
@@ -155,13 +155,22 @@ importers:
 
   packages/reactivity:
     dependencies:
-      '@zeus.js/shared':
+      '@zeus-js/shared':
+        specifier: workspace:*
+        version: link:../shared
+
+  packages/runtime-core:
+    dependencies:
+      '@zeus-js/reactivity':
+        specifier: workspace:*
+        version: link:../reactivity
+      '@zeus-js/shared':
         specifier: workspace:*
         version: link:../shared
 
   packages/runtime-dom:
     dependencies:
-      '@zeus.js/shared':
+      '@zeus-js/shared':
         specifier: workspace:*
         version: link:../shared
       dom-expressions:
@@ -172,17 +181,17 @@ importers:
 
   playground/basic:
     dependencies:
-      '@zeus.js/core':
+      '@zeus-js/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
       '@rollup/plugin-typescript':
         specifier: ^12.1.2
         version: 12.1.2(rollup@4.37.0)(tslib@2.8.1)(typescript@5.8.2)
-      '@zeus.js/compiler':
+      '@zeus-js/compiler':
         specifier: workspace:*
         version: link:../../packages/compiler-dom
-      '@zeus.js/output':
+      '@zeus-js/output':
         specifier: workspace:*
         version: link:../../packages/output
       rollup:

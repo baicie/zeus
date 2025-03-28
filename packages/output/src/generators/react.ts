@@ -5,7 +5,7 @@ export function generateReact(
   options: OutputTarget
 ) {
   return `
-import { createComponent } from '@zeus.js/react';
+import { createComponent } from '@zeus-js/react';
 
 ${components
   .map(

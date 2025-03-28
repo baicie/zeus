@@ -1,5 +1,5 @@
 {
-  "name": "@zeus.js/compiler-core",
+  "name": "@zeus-js/compiler-core",
   "version": "0.0.1",
   "description": "基础编译器核心",
   "main": "index.js",
@@ -31,7 +31,7 @@
   },
   "dependencies": {
     "@babel/parser": "catalog:",
-    "@zeus.js/shared": "workspace:*"
+    "@zeus-js/shared": "workspace:*"
   },
   "devDependencies": {
     "@babel/types": "catalog:"

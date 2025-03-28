@@ -1,5 +1,5 @@
 {
-  "name": "@zeus.js/reactivity",
+  "name": "@zeus-js/reactivity",
   "version": "0.0.1",
   "description": "响应式系统和上下文管理",
   "main": "dist/index.cjs",
@@ -15,6 +15,6 @@
     ]
   },
   "dependencies": {
-    "@zeus.js/shared": "workspace:*"
+    "@zeus-js/shared": "workspace:*"
   }
 }

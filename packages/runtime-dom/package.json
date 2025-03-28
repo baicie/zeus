@@ -1,5 +1,5 @@
 {
-  "name": "@zeus.js/runtime-dom",
+  "name": "@zeus-js/runtime-dom",
   "version": "0.0.1",
   "description": "DOM 操作运行时",
   "main": "index.js",
@@ -33,7 +33,7 @@
     ]
   },
   "dependencies": {
-    "@zeus.js/shared": "workspace:*",
+    "@zeus-js/shared": "workspace:*",
     "dom-expressions": "^0.39.7"
   }
 }

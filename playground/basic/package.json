@@ -1,5 +1,5 @@
 {
-  "name": "@zeus.js/components",
+  "name": "@zeus-js/components",
   "version": "0.0.1",
   "type": "module",
   "main": "dist/index.cjs",
@@ -16,11 +16,11 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@zeus.js/core": "workspace:*"
+    "@zeus-js/core": "workspace:*"
   },
   "devDependencies": {
-    "@zeus.js/compiler": "workspace:*",
-    "@zeus.js/output": "workspace:*",
+    "@zeus-js/compiler": "workspace:*",
+    "@zeus-js/output": "workspace:*",
     "typescript": "~5.8.2",
     "rollup": "^4.37.0",
     "rollup-plugin-dts": "^6.2.1",

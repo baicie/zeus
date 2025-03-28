@@ -1,4 +1,4 @@
-import { isArray } from '@zeus.js/shared'
+import { isArray } from '@zeus-js/shared'
 import type { JSX } from './jsx'
 
 // For 组件的 Props 类型

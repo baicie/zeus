@@ -1,7 +1,7 @@
 import type { PluginItem } from '@babel/core'
 import type { PluginContext } from 'rollup'
 
-import type { ComponentMeta } from '@zeus.js/output'
+import type { ComponentMeta } from '@zeus-js/output'
 export interface JSXPluginOptions {
   mode?: 'dom' | 'ssr'
   dev?: boolean

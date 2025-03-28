@@ -1,7 +1,7 @@
 import { defineConfig } from 'rollup'
 import esbuild from 'rollup-plugin-esbuild'
 import dts from 'rollup-plugin-dts'
-import { zeusRollupPlugin } from '@zeus.js/compiler'
+import { zeusRollupPlugin } from '@zeus-js/compiler'
 
 export default defineConfig([
   {
@@ -24,6 +24,6 @@ export default defineConfig([
         tsconfig: 'tsconfig.json',
       }),
     ],
-    external: ['@zeus.js/core', 'reflect-metadata'],
+    external: ['@zeus-js/core', 'reflect-metadata'],
   },
 ])

@@ -26,7 +26,7 @@
     ],
     "rootDir": ".",
     "paths": {
-      "@zeus.js/*": ["packages/*/src"]
+      "@zeus-js/*": ["packages/*/src"]
     },
     "isolatedDeclarations": true,
     "composite": true,

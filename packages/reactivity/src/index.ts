@@ -5,12 +5,8 @@ export {
   createMemo,
   createRoot,
   untrack,
-  batch,
   onCleanup,
 } from './signal'
 
-// 可观察对象
-export { createObservable, isObservable } from './observable'
-
 // 数组工具
-export { createArray, mapArray, filterArray } from './array'
+export { mapArray } from './array'

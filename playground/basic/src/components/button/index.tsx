@@ -1,4 +1,4 @@
-import { Component, Prop, Event, Method } from '@zeus.js/core'
+import { Component, Prop, Event, Method } from '@zeus-js/core'
 
 @Component({
   tag: 'zeus-button',

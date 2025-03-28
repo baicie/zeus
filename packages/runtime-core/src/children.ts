@@ -1,4 +1,4 @@
-import { type Accessor, createMemo, untrack } from '@zeusjs/reactivity'
+import { type Accessor, createMemo, untrack } from '@zeus-js/reactivity'
 import { IS_DEV } from './constants'
 import type { JSX } from './jsx'
 
