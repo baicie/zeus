@@ -503,6 +503,10 @@ export function onCleanup<T extends () => any>(fn: T): T {
   return fn
 }
 
+export function batch<T>(fn: Accessor<T>): T {
+  return runUpdates(fn, false) as T
+}
+
 // Internal
 export function readSignal(
   this: SignalState<any> | Memo<any>
