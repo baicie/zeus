@@ -100,8 +100,8 @@ afterEach(() => {
   if (nonAssertedWarnings.length) {
     throw new Error(
       `test case threw unexpected warnings:\n - ${nonAssertedWarnings.join(
-        '\n - ',
-      )}`,
+        '\n - '
+      )}`
     )
   }
 })
