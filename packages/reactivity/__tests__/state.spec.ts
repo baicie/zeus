@@ -1,5 +1,4 @@
-import { useState } from '../src/state'
-import { useEffect } from '../src/effect'
+import { useEffect, useState } from '../src'
 
 describe('reactivity: state', () => {
   it('should create a state', () => {

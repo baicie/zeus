@@ -312,7 +312,28 @@ function runTop<T>(node: Computation<T>) {
     return
   }
   if (node.state === ComputationState.PENDING) {
-    return lookUpstream
+    return lookUpstream(node)
+  }
+
+  const ancestors = [node]
+  while (
+    (node = node.owner as Computation<T>) &&
+    (!node.updatedAt || node.updatedAt < ExecCount)
+  ) {
+    if (node.state) {
+      ancestors.push(node)
+    }
+  }
+  for (let i = ancestors.length - 1; i >= 0; i--) {
+    const ancestor = ancestors[i]
+    if (ancestor.state === ComputationState.STALE) {
+      updateComputation(node)
+    } else if (node.state === ComputationState.PENDING) {
+      const updates = Updates
+      Updates = null
+      runUpdates(() => lookUpstream(node, ancestors[0]), false)
+      Updates = updates
+    }
   }
 }
 
@@ -346,8 +367,7 @@ function markDownstream<T>(node: Memo<T>) {
       } else {
         Effects!.push(observer)
       }
-      // TODO: 这里需要优化
-      // observer.observers && markDownstream(observer)
+      ;(observer as Memo<T>).observers && markDownstream(observer as Memo<T>)
     }
   }
 }
@@ -359,11 +379,7 @@ export function useEffect<T, U>(fn: EffectFunction<T | U, U>, value?: U): void {
     false,
     ComputationState.STALE
   )
-  if (!Effects) {
-    Effects = [computation]
-  } else {
-    Effects.push(computation)
-  }
+  Effects ? Effects.push(computation) : updateComputation(computation)
 }
 
 function clearNode<T>(node: Owner<T>) {
