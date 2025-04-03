@@ -176,8 +176,11 @@ interface StateOptions<T> {
   equals?: false | ((prev: T, next: T) => boolean)
 }
 /**
- * @zh 创建状态
- * @en Create a state
+ * @zh 创建一个响应式状态
+ * @en Create a reactive state
+ * @param value - 初始值 / Initial value
+ * @param options - 配置选项 / Configuration options
+ * @returns 返回一个包含 getter 和 setter 的元组 / Returns a tuple containing getter and setter
  */
 export function useState<T>(): Signal<T | undefined>
 export function useState<T>(value: T): Signal<T>
@@ -203,10 +206,16 @@ export function useState<T>(
   return [getter, setter]
 }
 
-function readSignal<T>(state: State<T>): T {
+/**
+ * @zh 读取信号值并建立依赖追踪
+ * @en Read signal value and establish dependency tracking
+ * @param state - 要读取的状态 / The state to read
+ * @returns 状态的当前值 / The current value of the state
+ */
+export function readSignal<T>(state: State<T>): T {
   if (Listener) {
-    // 收集依赖
-    // 将状态添加到当前计算的sources当中
+    // 收集依赖 / Collect dependencies
+    // 将状态添加到当前计算的sources当中 / Add state to current computation's sources
     const sSlot = state.observers ? state.observers.length : 0
     if (!Listener.sources) {
       Listener.sources = [state]
@@ -216,8 +225,8 @@ function readSignal<T>(state: State<T>): T {
       Listener.sourceSlots!.push(sSlot)
     }
 
-    // 将当前计算添加到状态的观察者当中
-    // 后面state改变时，会通知当前计算
+    // 将当前计算添加到状态的观察者当中 / Add current computation to state's observers
+    // 后面state改变时，会通知当前计算 / When state changes later, it will notify current computation
     if (!state.observers) {
       state.observers = [Listener]
       state.observerSlots = [Listener.sources.length - 1]
@@ -230,7 +239,14 @@ function readSignal<T>(state: State<T>): T {
   return state.value
 }
 
-function writeSignal<T>(state: State<T> | Memo<T>, value: T): T {
+/**
+ * @zh 写入信号值并触发依赖更新
+ * @en Write signal value and trigger dependency updates
+ * @param state - 要更新的状态 / The state to update
+ * @param value - 新值 / New value
+ * @returns 更新后的值 / Updated value
+ */
+export function writeSignal<T>(state: State<T> | Memo<T>, value: T): T {
   if (
     state.comparator
       ? !state.comparator(state.value, value)
@@ -248,7 +264,18 @@ function writeSignal<T>(state: State<T> | Memo<T>, value: T): T {
             } else {
               Effects!.push(observer)
             }
-            markDownstream(observer as Memo<T>)
+            // 递归标记下游依赖为过期 / Recursively mark downstream dependencies as stale
+            if ((observer as Memo<any>).observers) {
+              markDownstream(observer as Memo<any>)
+            }
+          }
+        }
+        if (Updates && Updates.length > 10e5) {
+          Updates = []
+          if (__DEV__) {
+            throw new Error('Updates queue is too long, please check your code')
+          } else {
+            throw new Error()
           }
         }
       }, false)
@@ -260,9 +287,9 @@ function writeSignal<T>(state: State<T> | Memo<T>, value: T): T {
 /**
  * @zh 运行更新
  * @en Run updates
- * @param fn - 需要运行的函数
- * @param initial - 是否为初始化
- * @returns
+ * @param fn - 需要运行的函数 / Function to run
+ * @param initial - 是否为初始化 / Whether it's initialization
+ * @returns 函数的返回值 / Return value of the function
  */
 function runUpdates(fn: () => void, initial: boolean) {
   if (Updates) {
@@ -290,6 +317,11 @@ function runUpdates(fn: () => void, initial: boolean) {
   }
 }
 
+/**
+ * @zh 完成更新过程
+ * @en Complete the update process
+ * @param wait - 是否等待 / Whether to wait
+ */
 function completeUpdates(wait: boolean) {
   if (Updates) {
     runQueue(Updates)
@@ -304,9 +336,16 @@ function completeUpdates(wait: boolean) {
 }
 
 function runQueue<T>(queue: Computation<T>[]) {
-  for (let i = 0; i < queue.length; i++) runTop(queue[i])
+  for (let i = 0; i < queue.length; i++) {
+    runTop(queue[i])
+  }
 }
 
+/**
+ * @zh 运行计算队列中的顶层节点
+ * @en Run top-level node in computation queue
+ * @param node - 要运行的节点 / Node to run
+ */
 function runTop<T>(node: Computation<T>) {
   if (node.state === ComputationState.UN) {
     return
@@ -315,6 +354,7 @@ function runTop<T>(node: Computation<T>) {
     return lookUpstream(node)
   }
 
+  // 收集所有需要更新的祖先节点 / Collect all ancestor nodes that need updates
   const ancestors = [node]
   while (
     (node = node.owner as Computation<T>) &&
@@ -324,9 +364,11 @@ function runTop<T>(node: Computation<T>) {
       ancestors.push(node)
     }
   }
+
+  // 从最上层的祖先开始更新 / Update starting from the topmost ancestor
   for (let i = ancestors.length - 1; i >= 0; i--) {
-    const ancestor = ancestors[i]
-    if (ancestor.state === ComputationState.STALE) {
+    const node = ancestors[i]
+    if (node.state === ComputationState.STALE) {
       updateComputation(node)
     } else if (node.state === ComputationState.PENDING) {
       const updates = Updates
@@ -337,6 +379,12 @@ function runTop<T>(node: Computation<T>) {
   }
 }
 
+/**
+ * @zh 向上查找并更新依赖
+ * @en Look upstream and update dependencies
+ * @param node - 当前节点 / Current node
+ * @param ignore - 要忽略的节点 / Node to ignore
+ */
 function lookUpstream<T>(node: Computation<T>, ignore?: Computation<T>) {
   node.state = ComputationState.UN
   for (let i = 0; i < node.sources!.length; i++) {
@@ -356,6 +404,11 @@ function lookUpstream<T>(node: Computation<T>, ignore?: Computation<T>) {
   }
 }
 
+/**
+ * @zh 标记下游依赖为过期
+ * @en Mark downstream dependencies as stale
+ * @param node - 要标记的节点 / The node to mark
+ */
 function markDownstream<T>(node: Memo<T>) {
   if (!node.observers) return
   for (let i = 0; i < node.observers.length; i++) {
@@ -367,11 +420,18 @@ function markDownstream<T>(node: Memo<T>) {
       } else {
         Effects!.push(observer)
       }
+      // 递归标记观察者的观察者 / Recursively mark observer's observers
       ;(observer as Memo<T>).observers && markDownstream(observer as Memo<T>)
     }
   }
 }
 
+/**
+ * @zh 创建副作用
+ * @en Create an effect
+ * @param fn - 副作用函数 / Effect function
+ * @param value - 初始值 / Initial value
+ */
 export function useEffect<T, U>(fn: EffectFunction<T | U, U>, value?: U): void {
   const computation = createComputation(
     fn,
@@ -379,11 +439,18 @@ export function useEffect<T, U>(fn: EffectFunction<T | U, U>, value?: U): void {
     false,
     ComputationState.STALE
   )
+  // 如果已有 Effects 队列，添加到队列；否则立即更新 / If Effects queue exists, add to it; otherwise update immediately
   Effects ? Effects.push(computation) : updateComputation(computation)
 }
 
+/**
+ * @zh 清除节点的依赖关系
+ * @en Clear node's dependencies
+ * @param node - 要清除的节点 / Node to clear
+ */
 function clearNode<T>(node: Owner<T>) {
   const _node = node as Computation<T>
+  // 清除源依赖 / Clear source dependencies
   if (_node.sources) {
     while (_node.sources.length) {
       const source = _node.sources.pop()
@@ -402,12 +469,16 @@ function clearNode<T>(node: Owner<T>) {
       }
     }
   }
+
+  // 清除拥有的计算 / Clear owned computations
   if (node.owned) {
     for (let i = 0; i < node.owned.length; i++) {
       clearNode(node.owned[i])
     }
     node.owned = null
   }
+
+  // 执行清理函数 / Execute cleanup functions
   if (node.cleanups) {
     for (let i = 0; i < node.cleanups.length; i++) {
       const cleanup = node.cleanups[i]
@@ -421,6 +492,15 @@ function clearNode<T>(node: Owner<T>) {
   }
 }
 
+/**
+ * @zh 创建计算
+ * @en Create a computation
+ * @param fn - 计算函数 / Computation function
+ * @param value - 初始值 / Initial value
+ * @param pure - 是否为纯函数 / Whether it's a pure function
+ * @param state - 初始状态 / Initial state
+ * @returns 创建的计算 / Created computation
+ */
 function createComputation<T>(
   fn: EffectFunction<T>,
   value: T,
@@ -441,6 +521,7 @@ function createComputation<T>(
     value,
   }
 
+  // 将计算添加到当前所有者 / Add computation to current owner
   if (Owner && Owner !== UNOWNED) {
     if (!Owner.owned) {
       Owner.owned = [computation]
@@ -452,10 +533,16 @@ function createComputation<T>(
   return computation
 }
 
+/**
+ * @zh 更新计算
+ * @en Update computation
+ * @param node - 要更新的节点 / Node to update
+ */
 function updateComputation<T>(node: Computation<T>) {
   if (!node.fn) return
   clearNode(node)
 
+  // 保存当前上下文 / Save current context
   const owner = Owner
   const listener = Listener
   Listener = Owner = node
@@ -463,22 +550,32 @@ function updateComputation<T>(node: Computation<T>) {
   const time = ExecCount
   let nextValue
   try {
+    // 执行计算函数 / Execute computation function
     nextValue = node.fn(node.value as T)
   } finally {
+    // 恢复上下文 / Restore context
     Listener = listener
     Owner = owner
   }
 
+  // 更新计算结果 / Update computation result
   if (!node.updatedAt || node.updatedAt <= time) {
     node.value = nextValue
     node.updatedAt = time
   }
 }
 
+/**
+ * @zh 创建记忆化计算
+ * @en Create a memoized computation
+ * @param fn - 计算函数 / Computation function
+ * @returns 记忆化的 getter 函数 / Memoized getter function
+ */
 export function useMemo<T>(fn: () => T): () => T {
   const computation = createComputation(fn, undefined, true, 0)
   updateComputation(computation)
   return () => {
+    // 如果计算过期，重新计算 / If computation is stale, recompute
     if (computation.state === ComputationState.STALE) {
       updateComputation(computation)
     }
