@@ -1,0 +1,38 @@
+{
+  "name": "@zeus-js/web-components",
+  "version": "0.0.1",
+  "description": "Web Components 集成",
+  "main": "index.js",
+  "module": "dist/web-components.esm-bundler.js",
+  "types": "dist/web-components.d.ts",
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/web-components.d.ts",
+      "node": {
+        "production": "./dist/web-components.cjs.prod.js",
+        "development": "./dist/web-components.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/web-components.esm-bundler.js",
+      "import": "./dist/web-components.esm-bundler.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
+  },
+  "buildOptions": {
+    "formats": [
+      "esm",
+      "cjs"
+    ]
+  },
+  "dependencies": {
+    "@zeus-js/reactivity": "workspace:*",
+    "@zeus-js/runtime-core": "workspace:*",
+    "@zeus-js/runtime-dom": "workspace:*",
+    "@zeus-js/shared": "workspace:*"
+  }
+}

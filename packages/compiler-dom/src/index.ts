@@ -9,6 +9,7 @@ import { transformEvents } from './transforms/events'
 import { transformBindings } from './transforms/bindings'
 import { transformComponents } from './transforms/components'
 import { extend } from '@zeus-js/shared'
+import { transformSlots } from './transforms/slot-transform'
 
 export interface DOMCompilerOptions extends TransformOptions {
   // DOM 特定选项
@@ -24,6 +25,9 @@ export interface DOMCompilerOptions extends TransformOptions {
   wrapConditionals?: boolean
   // 生成目标
   generate?: 'dom' | 'ssr'
+  webComponentsMode?: 'shadow' | 'light' | 'auto'
+  slotPolyfill?: boolean
+  reflectProperties?: string[] | boolean
 }
 
 // 创建 DOM 编译器
@@ -36,6 +40,7 @@ export function createDOMCompiler(options: DOMCompilerOptions = {}): Declare {
         transformEvents,
         transformBindings,
         transformComponents,
+        options.webComponentsMode !== 'shadow' ? transformSlots : null,
         ...(options.nodeTransforms || []),
       ],
       directiveTransforms: extend(
