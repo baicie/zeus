@@ -210,9 +210,6 @@ function createConfig(format, output, plugins = []) {
         ...treeShakenDeps,
         ...(packageOptions.external || []),
       ]
-      if (name.includes('core')) {
-        console.log(res)
-      }
       return res
     }
   }

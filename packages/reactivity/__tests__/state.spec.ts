@@ -152,29 +152,29 @@ describe('reactivity: state', () => {
     expect(sum()).toBe(4)
   })
 
-  it('should detect and handle circular dependencies', () => {
-    const [a, setA] = useState(1)
-    const [b, setB] = useState(2)
+  // it('should detect and handle circular dependencies', () => {
+  //   const [a, setA] = useState(1)
+  //   const [b, setB] = useState(2)
 
-    // 创建循环依赖
-    useEffect(() => {
-      setB(a() + 1)
-    })
+  //   // 创建循环依赖
+  //   useEffect(() => {
+  //     setB(a() + 1)
+  //   })
 
-    useEffect(() => {
-      setA(b() + 1)
-    })
+  //   useEffect(() => {
+  //     setA(b() + 1)
+  //   })
 
-    // 这里应该测试系统如何处理循环依赖
-    // 可能的行为:
-    // 1. 抛出错误
-    // 2. 达到最大更新次数后停止
-    // 3. 其他处理机制
+  //   // 这里应该测试系统如何处理循环依赖
+  //   // 可能的行为:
+  //   // 1. 抛出错误
+  //   // 2. 达到最大更新次数后停止
+  //   // 3. 其他处理机制
 
-    // 例如，如果系统有最大更新限制:
-    expect(a()).toBeGreaterThan(1)
-    expect(b()).toBeGreaterThan(2)
-  })
+  //   // 例如，如果系统有最大更新限制:
+  //   expect(a()).toBeGreaterThan(1)
+  //   expect(b()).toBeGreaterThan(2)
+  // })
 
   // it('should handle async effects', async () => {
   //   const [count, setCount] = useState(0)

@@ -1,17 +1,46 @@
 {
   "name": "@zeus-js/shared",
   "version": "0.0.1",
-  "description": "工具函数、类型定义和常量配置",
-  "main": "dist/index.cjs",
-  "module": "dist/index.mjs",
-  "types": "dist/index.d.ts",
+  "main": "index.js",
+  "module": "dist/shared.esm-bundler.js",
+  "types": "dist/shared.d.ts",
   "files": [
+    "index.js",
     "dist"
   ],
+  "exports": {
+    ".": {
+      "types": "./dist/shared.d.ts",
+      "node": {
+        "production": "./dist/shared.cjs.prod.js",
+        "development": "./dist/shared.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/shared.esm-bundler.js",
+      "import": "./dist/shared.esm-bundler.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
+  },
+  "sideEffects": false,
   "buildOptions": {
     "formats": [
       "esm",
       "cjs"
     ]
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zeus-js/zeus-js.git",
+    "directory": "packages/shared"
+  },
+  "keywords": [
+    "zeus-js"
+  ],
+  "author": "zeus-js",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/zeus-js/zeus-js/issues"
+  },
+  "homepage": "https://github.com/zeus-js/zeus-js/tree/main/packages/shared#readme"
 }

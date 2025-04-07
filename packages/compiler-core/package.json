@@ -30,10 +30,16 @@
     ]
   },
   "dependencies": {
+    "@babel/helper-plugin-utils": "^7.26.5",
     "@babel/parser": "catalog:",
+    "@babel/types": "catalog:",
     "@zeus-js/shared": "workspace:*"
   },
   "devDependencies": {
-    "@babel/types": "catalog:"
+    "@types/babel__core": "^7.20.5",
+    "@types/babel__helper-plugin-utils": "^7.10.3"
+  },
+  "peerDependencies": {
+    "@babel/core": "^7.26.5"
   }
 }

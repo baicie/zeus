@@ -1,78 +1,62 @@
-import type { SourceLocation } from '@babel/types'
+import type { NodePath } from '@babel/core'
+import type * as t from '@babel/types'
+import type { declare } from '@babel/helper-plugin-utils'
+import type * as BabelCore from '@babel/core'
 
-export enum NodeTypes {
-  ROOT,
-  ELEMENT,
-  TEXT,
-  COMMENT,
-  SIMPLE_EXPRESSION,
-  INTERPOLATION,
-  ATTRIBUTE,
-  DIRECTIVE,
-  // ... 其他节点类型
-}
+// AST 节点类型
+export type NodeTypes =
+  | 'Element'
+  | 'Text'
+  | 'Expression'
+  | 'Attribute'
+  | 'Directive'
 
-export type TemplateChildNode =
-  | ElementNode
-  | TextNode
-  | CommentNode
-  | InterpolationNode
-
+// 基础节点接口
 export interface Node {
   type: NodeTypes
-  loc?: SourceLocation | null
+  loc?: t.SourceLocation
 }
 
-export interface Position {
-  offset: number // 从源码开始的偏移量
-  line: number // 行号
-  column: number // 列号
+// 转换上下文
+export interface TransformContext {
+  // 当前正在处理的节点路径
+  currentPath: NodePath
+  // 选项
+  options: TransformOptions
+  // 帮助函数集合
+  helpers: Set<string>
+  // 是否在静态模式
+  inStatic: boolean
+  // 标识符计数器（用于生成唯一标识符）
+  identifierCount: number
 }
 
-export interface RootNode extends Node {
-  type: NodeTypes.ROOT
-  children: TemplateChildNode[]
-  helpers: symbol[]
+// 转换器类型
+export type NodeTransform = (
+  node: NodePath,
+  context: TransformContext
+) => void | (() => void) | (() => void)[]
+
+// 指令转换器
+export type DirectiveTransform = (
+  dir: NodePath<t.JSXAttribute>,
+  context: TransformContext
+) => void
+
+// 转换选项
+export interface TransformOptions {
+  nodeTransforms?: NodeTransform[]
+  directiveTransforms?: Record<string, DirectiveTransform>
+  // 是否保留注释
+  comments?: boolean
+  // 是否开启 hoisting
+  hoistStatic?: boolean
+  // 前缀标识符
+  prefixIdentifiers?: boolean
+  // 目标环境
+  target?: 'module' | 'script'
+  // 内置组件
+  builtIns?: string[]
 }
 
-export interface ElementNode extends Node {
-  type: NodeTypes.ELEMENT
-  tag: string
-  props: Array<AttributeNode | DirectiveNode>
-  children: TemplateChildNode[]
-}
-
-export interface TextNode extends Node {
-  type: NodeTypes.TEXT
-  content: string
-}
-
-export interface CommentNode extends Node {
-  type: NodeTypes.COMMENT
-  content: string
-}
-
-export interface InterpolationNode extends Node {
-  type: NodeTypes.INTERPOLATION
-  content: ExpressionNode
-}
-
-export interface ExpressionNode extends Node {
-  type: NodeTypes.SIMPLE_EXPRESSION
-  content: string
-  isStatic: boolean
-}
-
-export interface AttributeNode extends Node {
-  type: NodeTypes.ATTRIBUTE
-  name: string
-  value: TextNode | undefined
-}
-
-export interface DirectiveNode extends Node {
-  type: NodeTypes.DIRECTIVE
-  name: string // 指令名称，如 'on', 'bind' 等
-  exp: ExpressionNode | undefined // 指令表达式
-  arg: ExpressionNode | undefined // 指令参数
-  modifiers: string[] // 修饰符列表
-}
+export type Declare = ReturnType<typeof declare<{}, BabelCore.PluginObj>>

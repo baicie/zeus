@@ -1,18 +1,43 @@
-// 核心 API
-export { parse, transform, generate } from './api'
+import type { NodePath } from '@babel/core'
+import type { Declare, TransformContext, TransformOptions } from './ast'
+import { createBaseTransform } from './transform'
+import { isStaticExpression } from './utils'
+import { extend } from '@zeus-js/shared'
 
-// AST 节点类型
-export { NodeTypes, ElementTypes } from './ast'
+export * from './ast'
+export * from './transform'
+export * from './utils'
 
-// 转换器
-export { createTransformContext, traverseNode } from './transform'
+// 导出一些常用的转换器
+export const baseTransforms = {
+  // 处理静态提升
+  hoistStatic(path: NodePath, context: TransformContext): void {
+    if (context.options.hoistStatic && isStaticExpression(path.node)) {
+      // 实现静态节点提升
+    }
+  },
 
-// 代码生成
-export { createCodegenContext, genNode } from './codegen'
+  // 处理标识符前缀
+  prefixIdentifiers(path: NodePath, context: TransformContext): void {
+    if (context.options.prefixIdentifiers && path.isIdentifier()) {
+      // 实现标识符前缀
+    }
+  },
+}
 
-// 错误处理
-export { createCompilerError, CompilerErrorCodes } from './errors'
-
-// 类型导出
-export type * from './ast'
-export type * from './options'
+// 创建编译器
+export function createCompiler(options: TransformOptions = {}): Declare {
+  return createBaseTransform(
+    extend(
+      {},
+      {
+        nodeTransforms: [
+          baseTransforms.hoistStatic,
+          baseTransforms.prefixIdentifiers,
+          ...(options.nodeTransforms || []),
+        ],
+      },
+      options
+    )
+  )
+}

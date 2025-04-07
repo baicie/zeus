@@ -1,131 +1,61 @@
-import { effect, reactive, shallowReactive } from '@zeusjs/reactivity'
-import { isFunction, isObject } from '@zeusjs/shared'
-import { ShapeFlags } from './constants'
-import type { VNode } from './vnode'
+// import { useMemo } from '@zeus-js/reactivity'
 
-export interface ComponentInternalInstance {
-  type: Component
-  vnode: VNode
-  props: Record<string, any>
-  attrs: Record<string, any>
-  slots: Record<string, any>
-  setupState: any
-  render: Function | null
-  isMounted: boolean
-  parent: ComponentInternalInstance | null
-  provides: Record<string, any>
-  effects: any[]
-  next: VNode | null
-  subTree: VNode | null
-  update: Function | null
-  emit: (event: string, ...args: any[]) => void
+// 组件类型定义
+export type PropsWithChildren<P = {}> = P & { children?: any }
+export type Component<P = {}> = (props: PropsWithChildren<P>) => any
+export type FunctionComponent<P = {}> = Component<P>
+
+// 创建组件（平台无关）
+export function createComponent<P>(Comp: Component<P>, props: P): any {
+  return Comp(props as PropsWithChildren<P>)
 }
 
-export type Component<P = any> = ComponentOptions<P> | Function
+// 抽象组件基础类（For、Show等的基础）
+// 这是平台无关的实现，不包含DOM特定逻辑
+export class AbstractFor<T, U> {
+  each: () => T[]
+  children: (item: T, index: number) => U
 
-export interface ComponentOptions<P = {}, RawBindings = {}> {
-  name?: string
-  props?: Record<string, any>
-  emits?: string[] | Record<string, any>
-  setup?: (props: P, ctx: { emit: any }) => RawBindings | Function
-  render?: Function
-  components?: Record<string, Component>
-  inheritAttrs?: boolean
-}
-
-// 当前实例
-let currentInstance: ComponentInternalInstance | null = null
-
-export function setCurrentInstance(instance: ComponentInternalInstance | null) {
-  currentInstance = instance
-}
-
-export function getCurrentInstance(): ComponentInternalInstance | null {
-  return currentInstance
-}
-
-export function createComponentInstance(
-  vnode: VNode,
-  parent: ComponentInternalInstance | null
-): ComponentInternalInstance {
-  const instance: ComponentInternalInstance = {
-    type: vnode.type as Component,
-    vnode,
-    props: {},
-    attrs: {},
-    slots: {},
-    setupState: {},
-    render: null,
-    isMounted: false,
-    parent,
-    provides: parent ? parent.provides : Object.create(null),
-    effects: [],
-    next: null,
-    subTree: null,
-    update: null,
-    emit: () => {},
+  constructor(props: {
+    each: T[] | (() => T[])
+    children: (item: T, index: number) => U
+  }) {
+    this.each =
+      typeof props.each === 'function'
+        ? (props.each as () => T[])
+        : () => props.each as T[]
+    this.children = props.children
   }
 
-  instance.emit = (event: string, ...args: any[]) => {
-    // 实现事件发射逻辑
-  }
-
-  return instance
-}
-
-export function setupComponent(instance: ComponentInternalInstance) {
-  const { props, children } = instance.vnode
-
-  // 初始化 props
-  instance.props = shallowReactive(props || {})
-
-  // 初始化 slots
-  instance.slots = children || {}
-
-  // 调用 setup 函数
-  setupStatefulComponent(instance)
-}
-
-function setupStatefulComponent(instance: ComponentInternalInstance) {
-  const Component = instance.type as ComponentOptions
-
-  // 创建渲染上下文
-  const setupContext = {
-    attrs: instance.attrs,
-    slots: instance.slots,
-    emit: instance.emit,
-    expose: () => {},
-  }
-
-  // 设置当前实例
-  setCurrentInstance(instance)
-
-  let setupResult
-  if (Component.setup) {
-    setupResult = Component.setup(instance.props, setupContext)
-  }
-
-  // 清除当前实例
-  setCurrentInstance(null)
-
-  // 处理 setup 返回值
-  handleSetupResult(instance, setupResult)
-}
-
-function handleSetupResult(
-  instance: ComponentInternalInstance,
-  setupResult: any
-) {
-  if (isFunction(setupResult)) {
-    // 如果返回函数，则作为 render 函数
-    instance.render = setupResult
-  } else if (isObject(setupResult)) {
-    // 如果返回对象，则作为响应式状态
-    instance.setupState = reactive(setupResult)
-  }
-
-  // 如果组件有 render 选项，使用它
-  if (!instance.render && (instance.type as ComponentOptions).render) {
-    instance.render = (instance.type as ComponentOptions).render
+  process(): U[] {
+    const items = this.each()
+    return Array.isArray(items)
+      ? items.map((item, index) => this.children(item, index))
+      : []
   }
 }
+
+export class AbstractShow<T> {
+  when: () => boolean
+  children: T
+  fallback?: T
+
+  constructor(props: {
+    when: boolean | (() => boolean)
+    children: T
+    fallback?: T
+  }) {
+    this.when =
+      typeof props.when === 'function'
+        ? (props.when as () => boolean)
+        : () => !!props.when
+    this.children = props.children
+    this.fallback = props.fallback
+  }
+
+  process(): T | undefined {
+    return this.when() ? this.children : this.fallback
+  }
+}
+
+// 其他抽象实现...

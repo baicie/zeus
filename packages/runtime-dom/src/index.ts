@@ -1,38 +1,33 @@
-// DOM 渲染核心
-export { render, hydrate, createRenderer } from './renderer'
+// 导出核心API
+export * from '@zeus-js/runtime-core'
 
-// DOM 操作工具
+// DOM特定组件
+export { For } from './components/For'
+export { Show } from './components/Show'
+export { Portal } from './components/Portal'
+export { Dynamic } from './components/Dynamic'
+export { ErrorBoundary } from './components/ErrorBoundary'
+export { Suspense, SuspenseList } from './components/Suspense'
+
+// JSX运行时
+export { jsx, jsxs, jsxDEV, Fragment } from './jsx-runtime'
+
+// DOM渲染API
+export { render, hydrate } from './render'
+
+// DOM原语 (供编译器使用)
 export {
-  createElement,
-  createTextNode,
-  insert,
-  remove,
-  setAttribute,
-  addEventListener,
-  removeEventListener,
-} from './nodeOps'
+  createElement as _$createElement,
+  setProperty as _$setProperty,
+  setClassList as _$setClassList,
+  setStyle as _$setStyle,
+  setAttribute as _$setAttribute,
+  addEventListener as _$addEventListener,
+  removeEventListener as _$removeEventListener,
+  insertExpression as _$insertExpression,
+  insert as _$insert,
+  spread as _$spread,
+} from './primitives/elements'
 
-// 指令系统
-export { directive, registerDirective } from './directives'
-
-// DOM 组件
-export { defineComponent, defineCustomElement } from './component'
-
-// 类型导出
-export type {
-  RendererOptions,
-  ComponentOptions,
-  DirectiveOptions,
-} from './types'
-
-export {
-  template,
-  createComponent,
-  delegateEvents,
-  spread,
-  effect,
-  // ... 其他需要的 DOM 操作函数
-} from 'dom-expressions/dist/dom.js'
-
-// 可能需要的类型定义
-export type * from 'dom-expressions/src/client.d.ts'
+// 委托事件
+export { delegateEvents } from './primitives/events'

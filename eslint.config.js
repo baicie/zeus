@@ -38,7 +38,7 @@ export default tseslint.config(
           selector: 'ObjectExpression > SpreadElement',
           message:
             'esbuild transpiles object spread into very verbose inline helpers.\n' +
-            'Please use the `extend` helper from @vue/shared instead.',
+            'Please use the `extend` helper from @zeus-js/shared instead.',
         },
         {
           selector: 'AwaitExpression',

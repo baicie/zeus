@@ -1,19 +1,67 @@
-import { NodeTypes } from './ast'
-import type { TransformOptions } from './options'
+import { declare } from '@babel/helper-plugin-utils'
+import type * as BabelCore from '@babel/core'
+import type { Declare, TransformContext, TransformOptions } from './ast'
+import { createTransformContext, injectHelpers } from './utils'
 
-export function transform(ast: any, options: TransformOptions = {}) {
-  const context = createTransformContext(ast, options)
-  traverseNode(ast, context)
-  return ast
-}
+export function createBaseTransform(
+  baseOptions: TransformOptions = {}
+): Declare {
+  return declare(api => {
+    api.assertVersion(7)
 
-function createTransformContext(root: any, options: TransformOptions) {
-  return {
-    root,
-    helpers: new Map(),
-    components: new Set(),
-    directives: new Set(),
-    hoists: [],
-    // ... 其他上下文信息
-  }
+    // 创建转换访问器
+    function createTransformVisitor(
+      context: TransformContext
+    ): BabelCore.Visitor {
+      return {
+        // 处理 JSX 元素
+        JSXElement: {
+          enter(path) {
+            context.currentPath = path
+            if (baseOptions.nodeTransforms) {
+              baseOptions.nodeTransforms.forEach(transform => {
+                transform(path, context)
+              })
+            }
+          },
+          exit(path) {
+            // 处理可能的清理工作
+          },
+        },
+
+        // 处理 JSX 属性
+        JSXAttribute(path) {
+          const name = path.node.name.name as string
+          // 处理指令
+          if (name.startsWith('on') || name.startsWith('bind')) {
+            if (baseOptions.directiveTransforms) {
+              const directiveTransform = baseOptions.directiveTransforms[name]
+              if (directiveTransform) {
+                directiveTransform(path, context)
+              }
+            }
+          }
+        },
+
+        // 处理程序入口
+        Program: {
+          enter(path) {
+            // 初始化转换上下文
+            context.currentPath = path
+          },
+          exit() {
+            // 注入帮助函数
+            if (context.helpers.size > 0) {
+              injectHelpers(context)
+            }
+          },
+        },
+      }
+    }
+
+    return {
+      name: '@zeus-js/compiler-core',
+      visitor: createTransformVisitor(createTransformContext(baseOptions)),
+    }
+  })
 }
