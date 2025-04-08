@@ -1,5 +1,8 @@
-import { useEffect, untrack } from '@zeus-js/reactivity'
-import { runLifecycles } from '@zeus-js/runtime-core'
+import { useEffect } from '@zeus-js/reactivity'
+
+function untrack(children: any) {}
+
+function runLifecycles(rootComponent: any, lifecycle: string) {}
 
 // 渲染到DOM
 export function render(code: any, container: HTMLElement | string): () => void {

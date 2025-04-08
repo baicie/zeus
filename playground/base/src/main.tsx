@@ -1,7 +1,6 @@
-import './style.css'
 import { render } from 'zeus-js'
 import App from './App'
 
-const root = document.getElementById('root')
+const root = document.getElementById('app')
 
 render(() => <App />, root!)

@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "框架核心运行时",
   "main": "index.js",
-  "module": "dist/runtime-core.esm-bundler.js",
+  "module": "dist/runtime-core.esm.js",
   "types": "dist/runtime-core.d.ts",
   "files": [
     "index.js",
@@ -17,8 +17,8 @@
         "development": "./dist/runtime-core.cjs.js",
         "default": "./index.js"
       },
-      "module": "./dist/runtime-core.esm-bundler.js",
-      "import": "./dist/runtime-core.esm-bundler.js",
+      "module": "./dist/runtime-core.esm.js",
+      "import": "./dist/runtime-core.esm.js",
       "require": "./index.js"
     },
     "./*": "./*"

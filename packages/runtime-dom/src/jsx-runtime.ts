@@ -1,7 +1,9 @@
-import { untrack } from '@zeus-js/reactivity'
-import { createComponent, builtInComponents } from '@zeus-js/runtime-core'
+// import { untrack } from '@zeus-js/reactivity'
+import { createComponent } from '@zeus-js/runtime-core'
 import { createElement, spread } from './primitives/elements'
+const builtInComponents = new Map()
 
+function untrack(children: any) {}
 // Fragment组件
 export const Fragment: unique symbol = Symbol('Fragment')
 

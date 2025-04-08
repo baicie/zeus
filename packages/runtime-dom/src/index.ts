@@ -1,6 +1,3 @@
-// 导出核心API
-export * from '@zeus-js/runtime-core'
-
 // DOM特定组件
 export { For } from './components/For'
 export { Show } from './components/Show'
@@ -32,3 +29,6 @@ export {
 // 委托事件
 export { delegateEvents } from './primitives/events'
 export * from './jsx'
+
+// 导出核心API
+export * from '@zeus-js/runtime-core'

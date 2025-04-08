@@ -1,4 +1,6 @@
-import { useEffect, onCleanup } from '@zeus-js/reactivity'
+import { useEffect } from '@zeus-js/reactivity'
+
+function onCleanup(fn: () => void) {}
 
 // 传送门组件 - 将内容渲染到DOM中的特定位置
 export function Portal({

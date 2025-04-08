@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "DOM 操作运行时",
   "main": "index.js",
-  "module": "dist/runtime-dom.esm-bundler.js",
+  "module": "dist/runtime-dom.esm.js",
   "types": "dist/runtime-dom.d.ts",
   "files": [
     "index.js",
@@ -17,8 +17,8 @@
         "development": "./dist/runtime-dom.cjs.js",
         "default": "./index.js"
       },
-      "module": "./dist/runtime-dom.esm-bundler.js",
-      "import": "./dist/runtime-dom.esm-bundler.js",
+      "module": "./dist/runtime-dom.esm.js",
+      "import": "./dist/runtime-dom.esm.js",
       "require": "./index.js"
     },
     "./*": "./*"
@@ -34,6 +34,7 @@
   },
   "dependencies": {
     "@zeus-js/runtime-core": "workspace:*",
+    "@zeus-js/reactivity": "workspace:*",
     "@zeus-js/shared": "workspace:*",
     "csstype": "^3.1.3"
   }

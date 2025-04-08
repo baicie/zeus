@@ -151,6 +151,9 @@ importers:
 
   packages/runtime-dom:
     dependencies:
+      '@zeus-js/reactivity':
+        specifier: workspace:*
+        version: link:../reactivity
       '@zeus-js/runtime-core':
         specifier: workspace:*
         version: link:../runtime-core
@@ -189,9 +192,6 @@ importers:
 
   packages/zeus:
     dependencies:
-      '@zeus-js/reactivity':
-        specifier: workspace:*
-        version: link:../reactivity
       '@zeus-js/runtime-core':
         specifier: workspace:*
         version: link:../runtime-core

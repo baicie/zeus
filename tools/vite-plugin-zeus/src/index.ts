@@ -97,5 +97,7 @@ export default function zeusPlugin(options: ZeusPluginOptions = {}): Plugin {
   }
 }
 
+export { zeusPlugin }
+
 // 导出类型定义
 export * from './options'
