@@ -4,7 +4,7 @@ import { useEffect, useState } from '@zeus-js/reactivity'
 // 在 Web Component 和 Zeus 组件之间桥接上下文
 export function contextBridge(contextMap: Record<string, any> = {}) {
   return {
-    provide(element: HTMLElement) {
+    provide(element: HTMLElement): void {
       // 将上下文附加到元素上
       Object.entries(contextMap).forEach(([key, context]) => {
         ;(element as any)._zeusContext = (element as any)._zeusContext || {}
@@ -19,7 +19,7 @@ export function contextBridge(contextMap: Record<string, any> = {}) {
       // 在组件挂载时尝试访问上下文
       useEffect(() => {
         // 查找最近的带有上下文的自定义元素
-        let current = document.currentScript?.parentElement
+        let current = document.currentScript.parentElement
         while (current) {
           if (
             (current as any)._zeusContext &&

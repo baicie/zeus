@@ -78,7 +78,7 @@ export default function zeusPlugin(options: ZeusPluginOptions = {}): Plugin {
           map: result.map,
         }
       } catch (e) {
-        this.error(`Zeus 编译错误: ${id}\n${e.message}`)
+        this.error(`Zeus 编译错误: ${id}\n${(e as Error).message}`)
         return null
       }
     },

@@ -1,5 +1,3 @@
-import { ssrConfig } from '.'
-
-export function hydrate(container: Element, component: any) {
+export function hydrate(container: Element, component: any): void {
   // Hydration 逻辑
 }

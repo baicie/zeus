@@ -1,13 +1,13 @@
 // packages/web-components/src/defineCustomElement.ts
 import { render } from '@zeus-js/runtime-dom'
-import { processSlotProjection } from '@zeus-js/runtime-dom/dist/primitives/web-components'
+import { processSlotProjection } from '@zeus-js/runtime-dom'
 import type { CustomElementComponent, CustomElementOptions } from './types'
 
 export function defineCustomElement(
   name: string,
   component: CustomElementComponent,
   options: CustomElementOptions = {}
-) {
+): typeof HTMLElement {
   class ZeusElement extends HTMLElement {
     static observedAttributes = Object.keys(options.props || {})
 

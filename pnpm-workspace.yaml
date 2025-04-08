@@ -9,3 +9,4 @@ catalog:
   'estree-walker': ^2.0.2
   'magic-string': ^0.30.11
   'source-map-js': ^1.2.1
+  'vite': ^6.2.4

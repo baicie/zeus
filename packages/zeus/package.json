@@ -1,0 +1,60 @@
+{
+  "name": "zeus-js",
+  "version": "0.0.1",
+  "description": "轻量级响应式前端框架",
+  "main": "index.js",
+  "module": "dist/zeus.esm-bundler.js",
+  "types": "dist/zeus.d.ts",
+  "unpkg": "dist/zeus.global.js",
+  "jsdelivr": "dist/zeus.global.js",
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/zeus.d.ts",
+      "node": {
+        "production": "./dist/zeus.cjs.prod.js",
+        "development": "./dist/zeus.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/zeus.esm-bundler.js",
+      "import": "./dist/zeus.esm-bundler.js",
+      "require": "./index.js",
+      "browser": "./dist/zeus.esm-browser.js"
+    },
+    "./dist/*": "./dist/*",
+    "./package.json": "./package.json"
+  },
+  "buildOptions": {
+    "name": "Zeus",
+    "formats": [
+      "esm",
+      "cjs"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/username/zeus.git"
+  },
+  "keywords": [
+    "framework",
+    "frontend",
+    "reactive",
+    "zeus",
+    "javascript",
+    "typescript"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/username/zeus/issues"
+  },
+  "homepage": "https://github.com/username/zeus#readme",
+  "dependencies": {
+    "@zeus-js/reactivity": "workspace:*",
+    "@zeus-js/runtime-core": "workspace:*",
+    "@zeus-js/runtime-dom": "workspace:*"
+  }
+}
