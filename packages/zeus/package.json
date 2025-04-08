@@ -5,25 +5,52 @@
   "main": "index.js",
   "module": "dist/zeus.esm-bundler.js",
   "types": "dist/zeus.d.ts",
-  "unpkg": "dist/zeus.global.js",
-  "jsdelivr": "dist/zeus.global.js",
   "files": [
     "index.js",
-    "dist"
+    "index.mjs",
+    "dist",
+    "server-renderer",
+    "jsx-runtime",
+    "jsx.d.ts"
   ],
   "exports": {
     ".": {
-      "types": "./dist/zeus.d.ts",
-      "node": {
-        "production": "./dist/zeus.cjs.prod.js",
-        "development": "./dist/zeus.cjs.js",
-        "default": "./index.js"
+      "import": {
+        "types": "./dist/zeus.d.ts",
+        "node": "./index.mjs",
+        "default": "./dist/zeus.runtime.esm-bundler.js"
       },
-      "module": "./dist/zeus.esm-bundler.js",
-      "import": "./dist/zeus.esm-bundler.js",
-      "require": "./index.js",
-      "browser": "./dist/zeus.esm-browser.js"
+      "require": {
+        "types": "./dist/zeus.d.ts",
+        "node": {
+          "production": "./dist/zeus.cjs.prod.js",
+          "development": "./dist/zeus.cjs.js",
+          "default": "./index.js"
+        },
+        "default": "./index.js"
+      }
     },
+    "./server-renderer": {
+      "import": {
+        "types": "./server-renderer/index.d.mts",
+        "default": "./server-renderer/index.mjs"
+      },
+      "require": {
+        "types": "./server-renderer/index.d.ts",
+        "default": "./server-renderer/index.js"
+      }
+    },
+    "./jsx-runtime": {
+      "types": "./jsx-runtime/index.d.ts",
+      "import": "./jsx-runtime/index.mjs",
+      "require": "./jsx-runtime/index.js"
+    },
+    "./jsx-dev-runtime": {
+      "types": "./jsx-runtime/index.d.ts",
+      "import": "./jsx-runtime/index.mjs",
+      "require": "./jsx-runtime/index.js"
+    },
+    "./jsx": "./jsx.d.ts",
     "./dist/*": "./dist/*",
     "./package.json": "./package.json"
   },

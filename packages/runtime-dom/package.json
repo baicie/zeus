@@ -35,6 +35,6 @@
   "dependencies": {
     "@zeus-js/runtime-core": "workspace:*",
     "@zeus-js/shared": "workspace:*",
-    "dom-expressions": "^0.39.7"
+    "csstype": "^3.1.3"
   }
 }

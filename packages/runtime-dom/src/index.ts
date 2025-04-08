@@ -31,3 +31,4 @@ export {
 
 // 委托事件
 export { delegateEvents } from './primitives/events'
+export * from './jsx'
