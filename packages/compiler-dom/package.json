@@ -1,24 +1,24 @@
 {
-  "name": "@zeus-js/compiler",
+  "name": "@zeus-js/compiler-dom",
   "version": "0.0.1",
   "description": "JSX转换、代码优化和类型检查",
   "main": "index.js",
-  "module": "dist/compiler.esm-bundler.js",
-  "types": "dist/compiler.d.ts",
+  "module": "dist/compiler-dom.esm-bundler.js",
+  "types": "dist/compiler-dom.d.ts",
   "files": [
     "index.js",
     "dist"
   ],
   "exports": {
     ".": {
-      "types": "./dist/compiler.d.ts",
+      "types": "./dist/compiler-dom.d.ts",
       "node": {
-        "production": "./dist/compiler.cjs.prod.js",
-        "development": "./dist/compiler.cjs.js",
+        "production": "./dist/compiler-dom.cjs.prod.js",
+        "development": "./dist/compiler-dom.cjs.js",
         "default": "./index.js"
       },
-      "module": "./dist/compiler.esm-bundler.js",
-      "import": "./dist/compiler.esm-bundler.js",
+      "module": "./dist/compiler-dom.esm-bundler.js",
+      "import": "./dist/compiler-dom.esm-bundler.js",
       "require": "./index.js"
     },
     "./*": "./*"

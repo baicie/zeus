@@ -1,0 +1,13 @@
+/packages/vite-plugin-zeus/
+├── index.js           # CJS 入口文件
+├── package.json       # 上面提供的配置
+├── README.md          # 文档
+├── src/
+│   ├── index.ts       # 主入口文件
+│   ├── options.ts     # 插件选项定义
+│   ├── transform.ts   # 代码转换逻辑
+│   ├── hmr.ts         # 热更新支持
+│   └── utils.ts       # 工具函数
+└── tests/
+    ├── fixtures/      # 测试用例
+    └── index.test.ts  # 单元测试

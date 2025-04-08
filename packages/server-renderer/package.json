@@ -1,0 +1,36 @@
+{
+  "name": "@zeus-js/server-renderer",
+  "version": "0.0.1",
+  "description": "服务端渲染支持",
+  "main": "index.js",
+  "module": "dist/server-renderer.esm-bundler.js",
+  "types": "dist/server-renderer.d.ts",
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/server-renderer.d.ts",
+      "node": {
+        "production": "./dist/server-renderer.cjs.prod.js",
+        "development": "./dist/server-renderer.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/server-renderer.esm-bundler.js",
+      "import": "./dist/server-renderer.esm-bundler.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
+  },
+  "buildOptions": {
+    "formats": [
+      "esm",
+      "cjs"
+    ]
+  },
+  "dependencies": {
+    "@zeus-js/runtime-core": "workspace:*",
+    "@zeus-js/shared": "workspace:*"
+  }
+}

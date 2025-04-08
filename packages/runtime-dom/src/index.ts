@@ -5,12 +5,12 @@ export * from '@zeus-js/runtime-core'
 export { For } from './components/For'
 export { Show } from './components/Show'
 export { Portal } from './components/Portal'
-export { Dynamic } from './components/Dynamic'
-export { ErrorBoundary } from './components/ErrorBoundary'
-export { Suspense, SuspenseList } from './components/Suspense'
+// export { Dynamic } from './components/Dynamic'
+// export { ErrorBoundary } from './components/ErrorBoundary'
+// export { Suspense, SuspenseList } from './components/Suspense'
 
 // JSX运行时
-export { jsx, jsxs, jsxDEV, Fragment } from './jsx-runtime'
+export { jsx, jsxs, Fragment } from './jsx-runtime'
 
 // DOM渲染API
 export { render, hydrate } from './render'

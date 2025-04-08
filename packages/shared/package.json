@@ -1,6 +1,7 @@
 {
   "name": "@zeus-js/shared",
   "version": "0.0.1",
+  "description": "通用工具函数和类型定义",
   "main": "index.js",
   "module": "dist/shared.esm-bundler.js",
   "types": "dist/shared.d.ts",
@@ -22,25 +23,10 @@
     },
     "./*": "./*"
   },
-  "sideEffects": false,
   "buildOptions": {
     "formats": [
       "esm",
       "cjs"
     ]
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/zeus-js/zeus-js.git",
-    "directory": "packages/shared"
-  },
-  "keywords": [
-    "zeus-js"
-  ],
-  "author": "zeus-js",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/zeus-js/zeus-js/issues"
-  },
-  "homepage": "https://github.com/zeus-js/zeus-js/tree/main/packages/shared#readme"
+  }
 }

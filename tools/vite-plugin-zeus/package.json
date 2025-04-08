@@ -1,0 +1,45 @@
+{
+  "name": "@zeus-js/vite-plugin-zeus",
+  "version": "0.0.1",
+  "description": "Vite 插件，用于 Zeus 框架的开发和构建",
+  "main": "index.js",
+  "module": "dist/vite-plugin-zeus.esm-bundler.js",
+  "types": "dist/vite-plugin-zeus.d.ts",
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/vite-plugin-zeus.d.ts",
+      "node": {
+        "production": "./dist/vite-plugin-zeus.cjs.prod.js",
+        "development": "./dist/vite-plugin-zeus.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/vite-plugin-zeus.esm-bundler.js",
+      "import": "./dist/vite-plugin-zeus.esm-bundler.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
+  },
+  "buildOptions": {
+    "formats": [
+      "esm",
+      "cjs"
+    ]
+  },
+  "dependencies": {
+    "@zeus-js/compiler-dom": "workspace:*",
+    "@zeus-js/compiler-core": "workspace:*"
+  },
+  "peerDependencies": {
+    "vite": "^5.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.5",
+    "@babel/types": "catalog:",
+    "@types/babel__core": "^7.20.5",
+    "@types/node": "^22.0.0"
+  }
+}

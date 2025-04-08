@@ -33,8 +33,8 @@ function transformLightDOMSlots(
         innerPath.node.openingElement.name.name === 'slot'
       ) {
         // 替换为 div 并添加特殊标记
-        innerPath.node.openingElement.name = t.JSXIdentifier('div')
-        innerPath.node.closingElement.name = t.JSXIdentifier('div')
+        innerPath.node.openingElement.name = t.jSXIdentifier('div')
+        innerPath.node.closingElement.name = t.jSXIdentifier('div')
 
         // 添加特殊属性 data-slot
         const slotNameAttr = innerPath.node.openingElement.attributes.find(
@@ -50,9 +50,9 @@ function transformLightDOMSlots(
             : 'default'
 
         innerPath.node.openingElement.attributes.push(
-          t.JSXAttribute(
-            t.JSXIdentifier('data-slot'),
-            t.StringLiteral(slotName)
+          t.jSXAttribute(
+            t.jSXIdentifier('data-slot'),
+            t.stringLiteral(slotName)
           )
         )
       }

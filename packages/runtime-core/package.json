@@ -1,5 +1,5 @@
 {
-  "name": "@zeusjs/runtime-core",
+  "name": "@zeus-js/runtime-core",
   "version": "0.0.1",
   "description": "框架核心运行时",
   "main": "index.js",

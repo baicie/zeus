@@ -3,10 +3,10 @@ import { createComponent, builtInComponents } from '@zeus-js/runtime-core'
 import { createElement, spread } from './primitives/elements'
 
 // Fragment组件
-export const Fragment = Symbol('Fragment')
+export const Fragment: unique symbol = Symbol('Fragment')
 
 // JSX转换函数
-export function jsx(type: any, props: any) {
+export function jsx(type: any, props: any): any {
   // 处理空props
   props = props || {}
 
@@ -82,6 +82,6 @@ function appendChildren(parent: Node, children: any) {
 }
 
 // 支持多个子元素的JSX转换函数
-export function jsxs(type: any, props: any) {
+export function jsxs(type: any, props: any): any {
   return jsx(type, props)
 }
