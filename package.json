@@ -25,6 +25,8 @@
     "@swc/core": "^1.11.13",
     "@types/node": "^22.13.13",
     "@vitest/eslint-plugin": "^1.1.38",
+    "esbuild": "^0.25.2",
+    "esbuild-plugin-polyfill-node": "^0.3.0",
     "eslint": "^9.23.0",
     "eslint-plugin-import-x": "^4.9.2",
     "jsdom": "^26.0.0",
