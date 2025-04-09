@@ -1,12 +1,11 @@
+import type { NodePath } from '@babel/core'
 import type { DOMCompilerOptions } from './index'
 import * as t from '@babel/types'
 import type { JSXAttribute } from '@babel/types'
+import { addNamed } from '@babel/helper-module-imports'
 
 // 检查是否是组件
-export function isComponent(
-  tag: string,
-  options: DOMCompilerOptions = {}
-): boolean {
+export function isComponent(tag: string, options: DOMCompilerOptions): boolean {
   // 内置组件检查
   if (options.builtIns && options.builtIns.includes(tag)) {
     return true
@@ -76,4 +75,28 @@ export function createTextNode(text: string | t.Expression): t.CallExpression {
   return createRuntimeCall('createTextNode', [
     typeof text === 'string' ? t.stringLiteral(text) : text,
   ])
+}
+
+export function registerImportMethod(
+  path: NodePath,
+  name: string,
+  moduleName: string
+): t.Identifier {
+  const data = path.scope.getProgramParent().data
+  const imports = (data.imports || (data.imports = new Map())) as Map<
+    string,
+    t.Identifier
+  >
+  const key = `${moduleName}:${name}`
+
+  if (!imports.has(key)) {
+    let id = addNamed(path, name, moduleName, {
+      nameHint: `_$${name}`,
+    })
+    imports.set(key, id)
+    return id
+  } else {
+    let iden = imports.get(key)
+    return t.cloneNode(iden!)
+  }
 }

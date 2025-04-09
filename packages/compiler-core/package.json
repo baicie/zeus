@@ -32,6 +32,7 @@
   "dependencies": {
     "@babel/helper-plugin-utils": "^7.26.5",
     "@babel/parser": "catalog:",
+    "@babel/plugin-syntax-jsx": "^7.25.9",
     "@babel/types": "catalog:",
     "@zeus-js/shared": "workspace:*"
   },

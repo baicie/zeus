@@ -1,7 +1,6 @@
 import type { Plugin, ResolvedConfig } from 'vite'
 import { createDOMCompiler } from '@zeus-js/compiler-dom'
 import { transformSync } from '@babel/core'
-import { relative } from 'node:path'
 
 export interface ZeusPluginOptions {
   /**
@@ -39,47 +38,41 @@ export interface ZeusPluginOptions {
  */
 export default function zeusPlugin(options: ZeusPluginOptions = {}): Plugin {
   let config: ResolvedConfig
-  const compiler = createDOMCompiler(options.compiler || {})
+  const compiler = createDOMCompiler(
+    options.compiler || {
+      moduleName: '@zeus-js/runtime-dom',
+    }
+  )
 
   return {
     name: 'vite-plugin-zeus',
+    enforce: 'pre',
 
     configResolved(resolvedConfig) {
       config = resolvedConfig
     },
 
     transform(code, id) {
-      // 只处理 .jsx, .tsx 文件
       if (!id.match(/\.(jsx|tsx)$/)) return null
 
-      try {
-        // 使用 Babel 和 Zeus 编译器转换代码
-        const result = transformSync(code, {
-          filename: id,
-          presets: [],
-          plugins: [
-            [
-              compiler,
-              {
-                webComponentsMode: options.webComponentsMode || 'shadow',
-                optimizeSlots: options.optimizeSlots !== false,
-                customElementsPrefix: options.customElementsPrefix,
-              },
-            ],
-          ],
-          sourceMaps: true,
-          sourceFileName: relative(config.root, id),
-        })
+      const result = transformSync(code, {
+        filename: id,
+        presets: [],
+        plugins: [compiler],
+        parserOpts: {
+          plugins: ['jsx', 'typescript'],
+        },
+        ast: false,
+        sourceMaps: true,
+        configFile: false,
+        babelrc: false,
+      })
 
-        if (!result || !result.code) return null
+      if (!result || !result.code) return null
 
-        return {
-          code: result.code,
-          map: result.map,
-        }
-      } catch (e) {
-        this.error(`Zeus 编译错误: ${id}\n${(e as Error).message}`)
-        return null
+      return {
+        code: result.code,
+        map: result.map,
       }
     },
 

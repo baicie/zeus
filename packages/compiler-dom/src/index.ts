@@ -16,7 +16,7 @@ export interface DOMCompilerOptions extends TransformOptions {
   isCustomElement?: (tag: string) => boolean
   isNativeTag?: (tag: string) => boolean
   // 模块名称 - 运行时模块
-  moduleName?: string
+  moduleName: string
   // 内置组件
   builtIns?: string[]
   // 是否开启将上下文传递给自定义元素
@@ -31,7 +31,7 @@ export interface DOMCompilerOptions extends TransformOptions {
 }
 
 // 创建 DOM 编译器
-export function createDOMCompiler(options: DOMCompilerOptions = {}): Declare {
+export function createDOMCompiler(options: DOMCompilerOptions): Declare {
   return createCompiler(
     extend({}, options, {
       nodeTransforms: [

@@ -17,7 +17,7 @@
     }
   },
   "scripts": {
-    "dev": "unbuild --stub",
+    "dev": "rollup -c --watch",
     "build": "rollup -c",
     "patch-cjs": "tsx ../../scripts/patchCJS.ts",
     "prepublishOnly": "npm run build"

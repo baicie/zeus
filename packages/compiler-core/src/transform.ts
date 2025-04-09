@@ -2,10 +2,9 @@ import { declare } from '@babel/helper-plugin-utils'
 import type * as BabelCore from '@babel/core'
 import type { Declare, TransformContext, TransformOptions } from './ast'
 import { createTransformContext, injectHelpers } from './utils'
+import SyntaxJSX from '@babel/plugin-syntax-jsx'
 
-export function createBaseTransform(
-  baseOptions: TransformOptions = {}
-): Declare {
+export function createBaseTransform(baseOptions: TransformOptions): Declare {
   return declare(api => {
     api.assertVersion(7)
 
@@ -61,6 +60,7 @@ export function createBaseTransform(
 
     return {
       name: '@zeus-js/compiler-core',
+      inherits: SyntaxJSX.default,
       visitor: createTransformVisitor(createTransformContext(baseOptions)),
     }
   })

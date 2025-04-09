@@ -40,7 +40,7 @@ const {
 })
 
 const format = rawFormat || 'global'
-const targets = positionals.length ? positionals : ['vue']
+const targets = positionals.length ? positionals : ['zeus']
 
 // resolve output
 const outputFormat = format.startsWith('global')

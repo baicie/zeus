@@ -12,6 +12,7 @@ export function createTransformContext(
     helpers: new Set(),
     inStatic: false,
     identifierCount: 0,
+    moduleName: options.moduleName,
   }
 }
 

@@ -26,7 +26,7 @@ export const baseTransforms = {
 }
 
 // 创建编译器
-export function createCompiler(options: TransformOptions = {}): Declare {
+export function createCompiler(options: TransformOptions): Declare {
   return createBaseTransform(
     extend(
       {},

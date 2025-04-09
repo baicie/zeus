@@ -29,6 +29,8 @@ export interface TransformContext {
   inStatic: boolean
   // 标识符计数器（用于生成唯一标识符）
   identifierCount: number
+  // 模块名称
+  moduleName: string
 }
 
 // 转换器类型
@@ -57,6 +59,8 @@ export interface TransformOptions {
   target?: 'module' | 'script'
   // 内置组件
   builtIns?: string[]
+  // 模块名称
+  moduleName: string
 }
 
 export type Declare = ReturnType<typeof declare<{}, BabelCore.PluginObj>>
