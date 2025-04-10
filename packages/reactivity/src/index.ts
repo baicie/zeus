@@ -1,3 +1,3 @@
-export { useState, useEffect, useMemo } from './state'
+export { useState, useEffect, useMemo, useRenderEffect } from './state'
 
-export type { Signal } from './state'
+export type { Signal, Getter, Setter } from './state'

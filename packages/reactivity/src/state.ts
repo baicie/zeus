@@ -582,3 +582,23 @@ export function useMemo<T>(fn: () => T): () => T {
     return computation.value as T
   }
 }
+
+export function useRenderEffect<Next>(
+  fn: EffectFunction<undefined | NoInfer<Next>, Next>
+): void
+export function useRenderEffect<Next, Init = Next>(
+  fn: EffectFunction<Init | Next, Next>,
+  value: Init
+): void
+export function useRenderEffect<Next, Init>(
+  fn: EffectFunction<Init | Next, Next>,
+  value?: Init
+): void {
+  const computation = createComputation(
+    fn,
+    value!,
+    false,
+    ComputationState.STALE
+  )
+  updateComputation(computation)
+}

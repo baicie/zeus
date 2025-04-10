@@ -3,11 +3,9 @@ import {
   type TransformOptions,
   createCompiler,
 } from '@zeus-js/compiler-core'
-import { DOMNodeTransforms } from './transforms/dom-transforms'
 import { transformJSX } from './transforms/jsx'
 import { transformEvents } from './transforms/events'
 import { transformBindings } from './transforms/bindings'
-import { transformComponents } from './transforms/components'
 import { extend } from '@zeus-js/shared'
 import { transformSlots } from './transforms/slot-transform'
 
@@ -38,7 +36,6 @@ export function createDOMCompiler(options: DOMCompilerOptions): Declare {
         transformJSX,
         transformEvents,
         transformBindings,
-        transformComponents,
         options.webComponentsMode !== 'shadow' ? transformSlots : null,
         ...(options.nodeTransforms || []),
       ],

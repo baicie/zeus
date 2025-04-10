@@ -1,11 +1,15 @@
-import type { MetadataConfig, NodePathHub, NodeTransform } from '@zeus-js/compiler-core'
+import type {
+  MetadataConfig,
+  NodePathHub,
+  NodeTransform,
+} from '@zeus-js/compiler-core'
 import * as t from '@babel/types'
 import { getConfig, getTagName, isComponent } from '../utils'
 
-export const transformJSX: NodeTransform = (path) => { 
+export const transformJSX: NodeTransform = path => {
   const config = getConfig(path)
   const replace = transformThis(path)
-  const result = 
+  // const result =
 }
 
 type Scope = ReturnType<NodePathHub['scope']['getFunctionParent']>
@@ -99,18 +103,22 @@ interface TransformInfo {
   lastElement?: boolean
 }
 
-function transformNode(path: NodePathHub,info:TransformInfo = {}) {
+function transformNode(path: NodePathHub, info: TransformInfo = {}) {
   const config = getConfig(path)
   const node = path.node
-  let staticValue;
-  if(t.isJSXElement(node)){
-    return transformElement(config,path,info)
+  let staticValue
+  if (t.isJSXElement(node)) {
+    return transformElement(config, path, info)
   }
 }
 
-function transformElement(config:MetadataConfig,path:NodePathHub,info:TransformInfo){
+function transformElement(
+  config: MetadataConfig,
+  path: NodePathHub,
+  info: TransformInfo
+) {
   const node = path.node
   let tagName = getTagName(node as t.JSXElement)
-  
-  if(isComponent(tagName))return 
+
+  if (isComponent(tagName)) return
 }
