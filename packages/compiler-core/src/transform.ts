@@ -4,6 +4,22 @@ import type { Declare, TransformContext, TransformOptions } from './ast'
 import { createTransformContext, injectHelpers } from './utils'
 import SyntaxJSX from '@babel/plugin-syntax-jsx'
 
+export type MetadataConfig = {
+  builtIns?: string[]
+  generate?: 'ssr' | 'ssg'
+  staticMarker?: string
+}
+
+export type NodePathHub<T = BabelCore.Node> = BabelCore.NodePath<T> & {
+  hub: {
+    file: {
+      metadata: {
+        config: MetadataConfig
+      }
+    }
+  }
+}
+
 export function createBaseTransform(baseOptions: TransformOptions): Declare {
   return declare(api => {
     api.assertVersion(7)
@@ -19,7 +35,7 @@ export function createBaseTransform(baseOptions: TransformOptions): Declare {
             context.currentPath = path
             if (baseOptions.nodeTransforms) {
               baseOptions.nodeTransforms.forEach(transform => {
-                transform(path, context)
+                transform(path as NodePathHub, context)
               })
             }
           },

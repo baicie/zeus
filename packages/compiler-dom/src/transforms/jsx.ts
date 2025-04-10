@@ -1,164 +1,116 @@
-import type { NodeTransform, TransformContext } from '@zeus-js/compiler-core'
+import type { MetadataConfig, NodePathHub, NodeTransform } from '@zeus-js/compiler-core'
 import * as t from '@babel/types'
-import type { NodePath } from '@babel/core'
-import type { JSXElement } from '@babel/types'
-import { isComponent, normalizeProps } from '../utils'
+import { getConfig, getTagName, isComponent } from '../utils'
 
-export const transformJSX: NodeTransform = (path, context) => {
-  if (!path.isJSXElement()) return
-
-  const options = context.options
-  const element = path.node as JSXElement
-  const tagName = element.openingElement.name
-
-  // 处理标签名
-  if (tagName.type === 'JSXIdentifier') {
-    const name = tagName.name
-
-    // 检查是否是组件
-    if (isComponent(name, options)) {
-      transformComponent(path, context, name)
-    } else {
-      transformDOMElement(path, context, name)
-    }
-  }
+export const transformJSX: NodeTransform = (path) => { 
+  const config = getConfig(path)
+  const replace = transformThis(path)
+  const result = 
 }
 
-// 转换 DOM 元素
-function transformDOMElement(
-  path: NodePath<JSXElement>,
-  context: TransformContext,
-  tagName: string
+type Scope = ReturnType<NodePathHub['scope']['getFunctionParent']>
+
+function getTargetFunctionParent<T = t.Node>(
+  path: NodePathHub<T>,
+  parent: Scope | null
 ) {
-  // 创建元素
-  const createElement = t.callExpression(
-    t.identifier('document.createElement'),
-    [t.stringLiteral(tagName)]
-  )
+  let current = path.scope.getFunctionParent()
+  while (
+    current !== parent &&
+    current &&
+    current.path.isArrowFunctionExpression()
+  ) {
+    current = current.path.parentPath.scope.getFunctionParent()
+  }
+  return current
+}
 
-  // 处理属性和子元素
-  const props = normalizeProps(path.node.openingElement.attributes)
-  const children = path.node.children
-
-  // 创建属性处理和子元素处理
-  const statements: t.Statement[] = [
-    t.variableDeclaration('const', [
-      t.variableDeclarator(t.identifier('el'), createElement),
-    ]),
-  ]
-
-  // 处理属性
-  if (props.length > 0) {
-    for (const prop of props) {
-      if (prop.type === 'JSXAttribute' && prop.name.type === 'JSXIdentifier') {
-        const name = prop.name.name
-        const value = prop.value
-
-        let valueExpr: t.Expression
-        if (!value) {
-          valueExpr = t.booleanLiteral(true)
-        } else if (value.type === 'StringLiteral') {
-          valueExpr = value
-        } else if (value.type === 'JSXExpressionContainer') {
-          valueExpr = value.expression as t.Expression
-        } else {
-          continue
-        }
-
-        // 设置属性
-        statements.push(
-          t.expressionStatement(
-            t.callExpression(
-              t.memberExpression(
-                t.identifier('el'),
-                t.identifier('setAttribute')
-              ),
-              [t.stringLiteral(name), valueExpr]
-            )
-          )
+function transformThis(path: NodePathHub) {
+  const parent = path.scope.getFunctionParent()
+  let thisId: t.Identifier | undefined
+  path.traverse({
+    ThisExpression(path) {
+      const current = getTargetFunctionParent(
+        path as NodePathHub<t.ThisExpression>,
+        parent
+      )
+      if (current === parent) {
+        thisId || (thisId = path.scope.generateUidIdentifier('self$'))
+        path.replaceWith(thisId)
+      }
+    },
+    JSXElement(path) {
+      let source = path.get('openingElement').get('name')
+      while (source.isJSXMemberExpression()) {
+        source = source.get('object')
+      }
+      if (source.isJSXIdentifier() && source.node.name === 'this') {
+        const current = getTargetFunctionParent(
+          path as NodePathHub<t.JSXElement>,
+          parent
         )
-      }
-    }
-  }
+        if (current === parent) {
+          thisId || (thisId = path.scope.generateUidIdentifier('self$'))
+          source.replaceWith(t.jsxIdentifier(thisId.name))
 
-  // 处理子元素
-  if (children.length > 0) {
-    for (const child of children) {
-      if (child.type === 'JSXText') {
-        if (child.value.trim()) {
-          statements.push(
-            t.expressionStatement(
-              t.callExpression(
-                t.memberExpression(
-                  t.identifier('el'),
-                  t.identifier('appendChild')
-                ),
-                [
-                  t.callExpression(
-                    t.memberExpression(
-                      t.identifier('document'),
-                      t.identifier('createTextNode')
-                    ),
-                    [t.stringLiteral(child.value.trim())]
-                  ),
-                ]
-              )
-            )
+          if (path.node.closingElement) {
+            path.node.closingElement.name = path.node.openingElement.name
+          }
+        }
+      }
+    },
+  })
+
+  return (node: t.Node) => {
+    if (thisId) {
+      if (!parent || parent.block.type === 'ClassMethod') {
+        const decl = t.variableDeclaration('const', [
+          t.variableDeclarator(thisId, t.thisExpression()),
+        ])
+        if (parent) {
+          const stmt = path.getStatementParent()
+          if (stmt) {
+            stmt.insertBefore(decl)
+          }
+        } else {
+          return t.callExpression(
+            t.arrowFunctionExpression(
+              [],
+              t.blockStatement([decl, t.returnStatement(node)])
+            ),
+            []
           )
         }
+      } else {
+        parent.push({
+          id: thisId,
+          init: t.thisExpression(),
+          kind: 'const',
+        })
       }
-      // 处理其他类型的子元素...
     }
+    return node
   }
-
-  // 返回元素
-  statements.push(t.returnStatement(t.identifier('el')))
-
-  // 使用 IIFE 包装元素创建和属性设置
-  path.replaceWith(
-    t.callExpression(
-      t.arrowFunctionExpression([], t.blockStatement(statements)),
-      []
-    )
-  )
 }
 
-// 转换组件
-function transformComponent(
-  path: NodePath<JSXElement>,
-  context: TransformContext,
-  componentName: string
-) {
-  // 处理组件渲染
-  const props = normalizeProps(path.node.openingElement.attributes)
-  const propsObj = t.objectExpression(
-    props
-      .map(prop => {
-        if (
-          prop.type === 'JSXAttribute' &&
-          prop.name.type === 'JSXIdentifier'
-        ) {
-          const name = prop.name.name
-          const value = prop.value
+interface TransformInfo {
+  doNotEscape?: boolean
+  topLevel?: boolean
+  lastElement?: boolean
+}
 
-          let valueExpr: t.Expression
-          if (!value) {
-            valueExpr = t.booleanLiteral(true)
-          } else if (value.type === 'StringLiteral') {
-            valueExpr = value
-          } else if (value.type === 'JSXExpressionContainer') {
-            valueExpr = value.expression as t.Expression
-          } else {
-            return null
-          }
+function transformNode(path: NodePathHub,info:TransformInfo = {}) {
+  const config = getConfig(path)
+  const node = path.node
+  let staticValue;
+  if(t.isJSXElement(node)){
+    return transformElement(config,path,info)
+  }
+}
 
-          return t.objectProperty(t.identifier(name), valueExpr)
-        }
-        return null
-      })
-      .filter(Boolean) as t.ObjectProperty[]
-  )
-
-  // 创建组件调用
-  path.replaceWith(t.callExpression(t.identifier(componentName), [propsObj]))
+function transformElement(config:MetadataConfig,path:NodePathHub,info:TransformInfo){
+  const node = path.node
+  let tagName = getTagName(node as t.JSXElement)
+  
+  if(isComponent(tagName))return 
 }

@@ -35,7 +35,6 @@ export function createDOMCompiler(options: DOMCompilerOptions): Declare {
   return createCompiler(
     extend({}, options, {
       nodeTransforms: [
-        ...DOMNodeTransforms,
         transformJSX,
         transformEvents,
         transformBindings,

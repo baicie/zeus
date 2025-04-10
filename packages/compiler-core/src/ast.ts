@@ -2,6 +2,7 @@ import type { NodePath } from '@babel/core'
 import type * as t from '@babel/types'
 import type { declare } from '@babel/helper-plugin-utils'
 import type * as BabelCore from '@babel/core'
+import type { NodePathHub } from './transform'
 
 // AST 节点类型
 export type NodeTypes =
@@ -35,8 +36,8 @@ export interface TransformContext {
 
 // 转换器类型
 export type NodeTransform = (
-  node: NodePath,
-  context: TransformContext
+  node: NodePathHub,
+  context?: TransformContext
 ) => void | (() => void) | (() => void)[]
 
 // 指令转换器
