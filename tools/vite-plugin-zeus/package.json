@@ -35,29 +35,25 @@
   },
   "homepage": "https://github.com/yourusername/zeus/tree/main/tools/vite-plugin-zeus#readme",
   "peerDependencies": {
-    "vite": "^5.0.0 || ^6.0.0",
-    "zeus-js": "workspace:*"
+    "vite": "^5.0.0 || ^6.0.0"
   },
-  "dependencies": {
-    "@zeus-js/compiler-core": "workspace:*",
-    "@zeus-js/compiler-dom": "workspace:*"
-  },
+  "dependencies": {},
   "devDependencies": {
-    "@babel/core": "^7.26.5",
+    "@babel/core": "^7.28.3",
     "@babel/types": "catalog:",
-    "@rollup/plugin-commonjs": "^28.0.3",
+    "@rollup/plugin-commonjs": "^28.0.6",
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^16.0.1",
     "@rollup/plugin-terser": "^0.4.4",
-    "@rollup/plugin-typescript": "^12.1.2",
+    "@rollup/plugin-typescript": "^12.1.4",
     "@types/babel__core": "^7.20.5",
-    "@types/node": "^22.0.0",
-    "debug": "^4.4.0",
-    "rollup": "^4.39.0",
-    "rollup-plugin-visualizer": "^5.14.0",
+    "@types/node": "^24.3.0",
+    "debug": "^4.4.1",
+    "rollup": "^4.50.0",
+    "rollup-plugin-visualizer": "^6.0.3",
     "slash": "^5.1.0",
     "source-map-js": "^1.2.1",
-    "typescript": "^5.8.2",
+    "typescript": "^5.9.2",
     "vite": "catalog:"
   }
 }
