@@ -1,0 +1,230 @@
+# Zeus 框架命名规范
+
+## 基本原则
+
+- 使用**完整名称**而非缩写
+- 保持命名的一致性和可读性
+- 遵循语义化命名原则
+- 避免使用下划线，优先使用连字符或驼峰命名
+
+## 文件命名规范
+
+### 组件文件
+
+- 使用 PascalCase：`Button.tsx`, `DataTable.tsx`
+- 复合组件：`ButtonGroup.tsx`, `FormItem.tsx`
+- 工具组件：`Icon.tsx`, `Spinner.tsx`
+
+### 工具文件
+
+- 使用 camelCase：`utils.ts`, `helpers.ts`
+- 常量文件：`constants.ts`, `config.ts`
+- 类型定义：`types.ts`, `interfaces.ts`
+
+### 测试文件
+
+- 单元测试：`ComponentName.test.tsx`
+- 集成测试：`ComponentName.integration.test.tsx`
+- 快照测试：`ComponentName.snapshot.test.tsx`
+
+## Props 命名规范
+
+### 基础 Props
+
+- 初始化属性：`default` + `PropName`
+  ```typescript
+  defaultValue, defaultOpen, defaultSelectedKeys
+  ```
+- 数据源：`dataSource`
+  ```typescript
+  dataSource = { items }
+  ```
+
+### 渲染相关
+
+- 强制渲染：`forceRender`
+- 子组件渲染：`SubComponentName` + `Render`
+  ```typescript
+  panelRender, headerRender, footerRender
+  ```
+- 子项渲染：`SubItemName` + `Render`
+  ```typescript
+  cellRender, itemRender, optionRender
+  ```
+
+### 显示控制
+
+- 显示/隐藏：`open`（避免使用 `visible`）
+- 额外弹窗：`popupName` + `Open`
+  ```typescript
+  tooltipOpen, dropdownOpen, modalOpen
+  ```
+- 显示相关：`show` + `PropName`
+  ```typescript
+  showIcon, showLabel, showBorder
+  ```
+
+### 功能控制
+
+- 功能开关：`PropName` + `able`
+  ```typescript
+  expandable, sortable, filterable
+  ```
+- 禁用状态：`disabled`
+- 子组件禁用：`disabled` + `SubComponentName`
+  ```typescript
+  disabledHeader, disabledFooter
+  ```
+
+### 样式和类名
+
+- 主类名：`className`
+- 额外类名：`classes`（对象形式）
+  ```typescript
+  classes={{ inner: 'custom-inner', wrapper: 'custom-wrapper' }}
+  ```
+- 额外内容：`extra`
+- 子组件额外内容：`SubComponentName` + `extra`
+  ```typescript
+  titleExtra, headerExtra, footerExtra
+  ```
+
+### 图标相关
+
+- 主图标：`icon`
+- 功能图标：`functionName: { icon }`
+  ```typescript
+  expandable: {
+    icon: <ChevronDown />
+  }
+  ```
+- 多个图标：`FunctionName` + `Icon`
+  ```typescript
+  expandIcon, collapseIcon, loadingIcon
+  ```
+
+## 事件命名规范
+
+### 基础事件
+
+- 触发事件：`on` + `EventName`
+  ```typescript
+  onClick, onChange, onSelect
+  ```
+- 子组件事件：`on` + `SubComponentName` + `EventName`
+  ```typescript
+  onSearchChange, onPanelChange, onHeaderClick
+  ```
+- 属性事件：`on` + `PropName` + `EventName`
+  ```typescript
+  onDragStart, onDragEnd, onResizeStart
+  ```
+
+### 时序事件
+
+- 前置事件：`before` + `EventName`
+  ```typescript
+  beforeOpen, beforeClose, beforeSubmit
+  ```
+- 后置事件：`after` + `EventName`
+  ```typescript
+  afterOpen, afterClose, afterSubmit
+  ```
+- 完成事件：`on` + `EventName` + `Complete`
+  ```typescript
+  onDragComplete, onResizeComplete
+  ```
+
+## 组件引用规范
+
+### Ref 结构
+
+组件应该提供 `ref` 属性，包含以下结构：
+
+```typescript
+interface ComponentRef {
+  nativeElement: HTMLElement
+  // 其他功能方法
+  focus: VoidFunction
+  blur: VoidFunction
+  scrollTo: (options: ScrollToOptions) => void
+}
+```
+
+### 使用示例
+
+```typescript
+const buttonRef = useRef<ButtonRef>(null)
+
+;<Button ref={buttonRef} />
+```
+
+## 设计 Token 规范
+
+### Token 命名结构
+
+`variant (optional)` + `semantic part` + `semantic part variant (optional)` + `css property` + `size/disabled (optional)`
+
+### 命名规则
+
+- `variant`：仅在特定变体中生效，如 `horizontal`、`borderless`
+- `semantic part`：组件的典型元素，如 `item`、`header`
+- `semantic part variant`：语义部分的变体，如 `hover`、`selected`
+- `css property`：使用的具体 CSS 属性，如 `fontSize`、`width`
+- `size/disabled`：尺寸或禁用状态，如 `LG`、`disabled`
+
+### 示例对比
+
+| 旧版本                          | 新版本           | 说明                                   |
+| ------------------------------- | ---------------- | -------------------------------------- |
+| `@menu-item-color`              | `itemColor`      | 移除组件前缀                           |
+| `@select-item-selected-bg`      | `itemSelectedBg` | `selected` 是 item 的变体              |
+| `@select-single-item-height-lg` | `itemHeightLG`   | `single` 是 Select 的变体，`LG` 是尺寸 |
+
+## API 文档规范
+
+### 属性表格格式
+
+| Property   | Description      | Type                                                     | Default     |
+| ---------- | ---------------- | -------------------------------------------------------- | ----------- |
+| `htmlType` | 按钮的 HTML 类型 | `string`                                                 | `'button'`  |
+| `type`     | 按钮类型         | `'primary' \| 'default' \| 'dashed' \| 'link' \| 'text'` | `'default'` |
+| `disabled` | 是否禁用         | `boolean`                                                | `false`     |
+| `size`     | 按钮尺寸         | `'large' \| 'middle' \| 'small'`                         | `'middle'`  |
+| `style`    | 自定义样式       | `CSSProperties`                                          | `-`         |
+| `onClick`  | 点击回调         | `(e: MouseEvent) => void`                                | `-`         |
+
+### 文档要求
+
+- 字符串类型默认值使用反引号
+- 布尔类型直接使用 `true` 或 `false`
+- 数字类型直接使用数字
+- 函数类型在 Type 列使用箭头函数表达式
+- 无默认值使用 `-`
+- Description 首字母大写，末尾不加句号
+- 属性按字母顺序排列
+
+## 最佳实践
+
+### 一致性
+
+- 在整个项目中保持命名风格一致
+- 相似功能使用相似的命名模式
+- 避免混用不同的命名约定
+
+### 可读性
+
+- 选择清晰、描述性的名称
+- 避免使用缩写或简写
+- 使用有意义的变量和函数名
+
+### 可维护性
+
+- 命名应该反映其用途和功能
+- 避免使用魔法数字或硬编码值
+- 使用常量定义重复使用的值
+
+- No period at the end of the **Description**.
+- API order is arranged in alphabetical order, and can be put together under special circumstances (such as: xs sm md).
+
+ref: [#25066](mdc:https:/github.com/ant-design/ant-design/issues/25066)

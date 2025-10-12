@@ -1,0 +1,62 @@
+# Zeus 框架项目背景
+
+Zeus 是一个现代化的 JavaScript/TypeScript 框架，采用 monorepo 结构，使用 pnpm 作为包管理器。
+
+## 项目结构
+
+```
+packages/
+├── compiler/     # 编译器相关
+├── components/   # 组件库
+├── devtools/     # 开发工具
+├── runtime/      # 运行时
+├── wc/          # Web Components
+└── zeus/        # 核心框架
+```
+
+## 技术栈
+
+- **语言**: TypeScript 和 JavaScript
+- **包管理器**: pnpm
+- **构建工具**: Rollup, esbuild
+- **测试框架**: Vitest
+- **代码检查**: ESLint, TypeScript
+- **代码格式化**: Prettier
+
+## 基本编码规范
+
+### 代码风格
+
+- 使用 2 空格缩进
+- 使用单引号
+- 行尾不使用分号
+- 使用 ES6+ 语法特性
+- 优先使用 const，其次 let，避免 var
+
+### 组件开发
+
+- 使用函数式组件和 hooks，避免类组件
+- 使用提前返回（early returns）提高代码可读性
+- 避免引入新依赖，严控打包体积
+- 兼容现代浏览器（Chrome 80+）
+- 支持服务端渲染
+- 保持向下兼容，避免 breaking change
+
+### 命名规范
+
+- 组件名使用大驼峰（PascalCase）
+- 属性名使用小驼峰（camelCase）
+- 文件名使用 kebab-case
+- 常量使用 UPPER_SNAKE_CASE
+
+### 性能优化
+
+- 合理使用 React.memo、useMemo 和 useCallback
+- 避免不必要的重渲染
+- 优化包大小和加载时间
+- 使用代码分割和懒加载
+
+- 保持向下兼容，避免 breaking change
+- 组件名使用大驼峰（PascalCase）
+- 属性名使用小驼峰（camelCase）
+- 合理使用 React.memo、useMemo 和 useCallback 优化性能

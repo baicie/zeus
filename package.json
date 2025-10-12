@@ -33,6 +33,7 @@
     "magic-string": "^0.30.18",
     "picocolors": "^1.1.1",
     "pretty-bytes": "^7.0.1",
+    "rolldown": "1.0.0-beta.34",
     "rollup": "^4.50.0",
     "rollup-plugin-dts": "^6.2.3",
     "rollup-plugin-esbuild": "^6.2.1",

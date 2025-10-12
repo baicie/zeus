@@ -106,7 +106,7 @@ export default tseslint.config(
 
   // Packages targeting DOM
   {
-    files: ['packages/{core}/**'],
+    files: ['packages/runtime/**'],
     rules: {
       'no-restricted-globals': ['error', ...NodeGlobals],
     },
