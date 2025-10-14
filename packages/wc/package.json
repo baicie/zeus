@@ -1,13 +1,35 @@
 {
   "name": "@zeus-js/wc",
-  "version": "1.0.0",
-  "description": "",
+  "version": "0.0.0",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "module": "dist/wc.esm.js",
+  "types": "dist/wc.d.ts",
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/wc.d.ts",
+      "node": {
+        "production": "./dist/wc.cjs.prod.js",
+        "development": "./dist/wc.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/wc.esm.js",
+      "import": "./dist/wc.esm.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "packageManager": "pnpm@10.15.0"
+  "sideEffects": false,
+  "buildOptions": {
+    "formats": [
+      "esm",
+      "cjs"
+    ]
+  },
+  "dependencies": {
+    "@zeus-js/runtime": "workspace:*"
+  }
 }

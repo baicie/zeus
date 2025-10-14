@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config'
+import { configDefaults, defineConfig } from 'vitest/config'
 import { entries } from './scripts/aliases.js'
 
 export default defineConfig({
@@ -25,10 +25,6 @@ export default defineConfig({
     globals: true,
     pool: 'threads',
     setupFiles: 'scripts/setup-vitest.ts',
-    // environmentMatchGlobs: [
-    //   ['packages/{vue,vue-compat,runtime-dom}/**', 'jsdom'],
-    // ],
-    environment: 'jsdom',
     sequence: {
       hooks: 'list',
     },
@@ -38,5 +34,37 @@ export default defineConfig({
       include: ['packages/*/src/**'],
       exclude: [],
     },
+
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'unit',
+          exclude: [...configDefaults.exclude, '**/e2e/**'],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'unit-jsdom',
+          include: ['packages/{zeus,runtime}/**/*.{test,spec}.*'],
+          exclude: [...configDefaults.exclude, '**/e2e/**'],
+          environment: 'jsdom',
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'e2e',
+          environment: 'jsdom',
+          poolOptions: {
+            threads: {
+              singleThread: !!process.env.CI,
+            },
+          },
+          include: ['packages/zeus/__tests__/e2e/*.spec.ts'],
+        },
+      },
+    ],
   },
 })
