@@ -1,10 +1,14 @@
-name: CI
-
+name: 'ci'
 on:
   push:
-    branches: [master, feature, next]
+    branches:
+      - '**'
+    tags:
+      - '!**'
   pull_request:
-    branches: [master, feature, next]
+    branches:
+      - main
+      - minor
 
 jobs:
   lint-and-format:
