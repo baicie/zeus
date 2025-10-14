@@ -1,0 +1,85 @@
+version: 2
+updates:
+  # Enable version updates for npm
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+    open-pull-requests-limit: 10
+    reviewers:
+      - 'maintainer1'
+      - 'maintainer2'
+    assignees:
+      - 'maintainer1'
+    commit-message:
+      prefix: 'deps'
+      include: 'scope'
+
+  # Enable version updates for pnpm
+  - package-ecosystem: 'npm'
+    directory: '/packages/compiler'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+    open-pull-requests-limit: 5
+    reviewers:
+      - 'maintainer1'
+    commit-message:
+      prefix: 'deps(compiler)'
+      include: 'scope'
+
+  - package-ecosystem: 'npm'
+    directory: '/packages/runtime'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+    open-pull-requests-limit: 5
+    reviewers:
+      - 'maintainer1'
+    commit-message:
+      prefix: 'deps(runtime)'
+      include: 'scope'
+
+  - package-ecosystem: 'npm'
+    directory: '/packages/components'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+    open-pull-requests-limit: 5
+    reviewers:
+      - 'maintainer1'
+    commit-message:
+      prefix: 'deps(components)'
+      include: 'scope'
+
+  - package-ecosystem: 'npm'
+    directory: '/packages/wc'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+    open-pull-requests-limit: 5
+    reviewers:
+      - 'maintainer1'
+    commit-message:
+      prefix: 'deps(wc)'
+      include: 'scope'
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+    open-pull-requests-limit: 5
+    reviewers:
+      - 'maintainer1'
+    commit-message:
+      prefix: 'ci'
+      include: 'scope'

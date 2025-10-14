@@ -1,5 +1,5 @@
 {
-  "name": "zeus-js/runtime",
+  "name": "@zeus-js/runtime",
   "version": "0.0.0",
   "main": "index.js",
   "module": "dist/runtime.esm.js",
@@ -30,6 +30,7 @@
     ]
   },
   "dependencies": {
-    "alien-signals": "^2.0.7 "
+    "alien-signals": "^3.0.0",
+    "csstype": "^3.1.3"
   }
 }

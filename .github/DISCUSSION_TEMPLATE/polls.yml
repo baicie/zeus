@@ -1,0 +1,88 @@
+name: Polls
+description: Create polls to gather community feedback
+title: '[Poll] '
+labels: ['poll', 'community']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 📊 投票主题
+
+        请描述您要创建的投票主题。
+
+  - type: textarea
+    id: title
+    attributes:
+      label: 投票标题
+      description: 请为您的投票起一个标题
+      placeholder: 例如：您希望 Zeus 优先支持哪个新功能？
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 投票描述
+      description: 请详细描述投票内容和背景
+      placeholder: 例如：我们正在规划 Zeus 的下一个版本，希望了解社区最期待的功能
+    validations:
+      required: true
+
+  - type: textarea
+    id: options
+    attributes:
+      label: 投票选项
+      description: 请列出投票选项
+      placeholder: |
+        1. 支持 TypeScript 4.5
+        2. 新增组件库
+        3. 性能优化
+        4. 文档改进
+        5. 其他（请在评论中说明）
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: 背景信息
+      description: 请提供相关的背景信息
+      placeholder: 例如：当前 Zeus 已经支持基本的组件开发，我们正在考虑下一步的发展方向
+    validations:
+      required: false
+
+  - type: textarea
+    id: criteria
+    attributes:
+      label: 选择标准
+      description: 请说明选择标准或考虑因素
+      placeholder: 例如：请根据以下标准进行选择：技术可行性、用户需求、开发资源等
+    validations:
+      required: false
+
+  - type: textarea
+    id: timeline
+    attributes:
+      label: 时间线
+      description: 请提供投票的时间线
+      placeholder: 例如：投票将持续 2 周，结果将在 2024 年 1 月 15 日公布
+    validations:
+      required: false
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: 影响说明
+      description: 请说明投票结果的影响
+      placeholder: 例如：投票结果将影响我们的开发优先级和资源分配
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: 其他信息
+      description: 任何其他相关信息
+      placeholder: 例如：欢迎在评论中提供更多建议和理由
+    validations:
+      required: false

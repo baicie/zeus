@@ -1,0 +1,28 @@
+# Global owners
+* @maintainer1 @maintainer2
+
+# Package-specific owners
+/packages/compiler/ @compiler-team
+/packages/runtime/ @runtime-team
+/packages/components/ @components-team
+/packages/wc/ @wc-team
+
+# Documentation
+/docs/ @docs-team
+*.md @docs-team
+
+# GitHub workflows
+/.github/ @maintainer1 @maintainer2
+
+# Configuration files
+/package.json @maintainer1
+/pnpm-lock.yaml @maintainer1
+/tsconfig.json @maintainer1
+/.eslintrc.js @maintainer1
+/.prettierrc @maintainer1
+
+# Build tools
+/tools/ @build-team
+
+# Examples
+/examples/ @examples-team

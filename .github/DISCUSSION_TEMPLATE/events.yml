@@ -1,0 +1,130 @@
+name: Events
+description: Share information about events, meetups, or conferences
+title: '[Event] '
+labels: ['event', 'community']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🎉 活动信息
+
+        请分享活动相关信息。
+
+  - type: textarea
+    id: title
+    attributes:
+      label: 活动标题
+      description: 请为您的活动起一个标题
+      placeholder: 例如：Zeus 开发者聚会 - 2024 年 1 月
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 活动描述
+      description: 请详细描述活动内容
+      placeholder: 例如：我们将举办一次 Zeus 开发者聚会，分享最新的开发经验和最佳实践
+    validations:
+      required: true
+
+  - type: textarea
+    id: type
+    attributes:
+      label: 活动类型
+      description: 请选择活动类型
+      placeholder: 例如：线下聚会、在线会议、研讨会、黑客马拉松等
+    validations:
+      required: false
+
+  - type: textarea
+    id: date
+    attributes:
+      label: 活动时间
+      description: 请提供活动时间
+      placeholder: 例如：2024 年 1 月 15 日 14:00-17:00 (UTC+8)
+    validations:
+      required: false
+
+  - type: textarea
+    id: location
+    attributes:
+      label: 活动地点
+      description: 请提供活动地点
+      placeholder: 例如：北京市朝阳区某某大厦 3 楼会议室
+    validations:
+      required: false
+
+  - type: textarea
+    id: agenda
+    attributes:
+      label: 活动议程
+      description: 请提供活动议程
+      placeholder: |
+        14:00-14:30 签到和欢迎
+        14:30-15:30 Zeus 1.0.0 新特性介绍
+        15:30-16:00 茶歇
+        16:00-17:00 最佳实践分享和讨论
+    validations:
+      required: false
+
+  - type: textarea
+    id: speakers
+    attributes:
+      label: 演讲者
+      description: 请列出演讲者信息
+      placeholder: |
+        - 张三：Zeus 核心开发者
+        - 李四：前端架构师
+        - 王五：开源贡献者
+    validations:
+      required: false
+
+  - type: textarea
+    id: topics
+    attributes:
+      label: 讨论主题
+      description: 请列出讨论主题
+      placeholder: |
+        - Zeus 1.0.0 新特性
+        - 性能优化技巧
+        - 组件开发最佳实践
+        - 社区贡献指南
+    validations:
+      required: false
+
+  - type: textarea
+    id: registration
+    attributes:
+      label: 报名信息
+      description: 请提供报名信息
+      placeholder: 例如：免费参加，需要提前报名，报名链接：https://your-registration-link.com
+    validations:
+      required: false
+
+  - type: textarea
+    id: requirements
+    attributes:
+      label: 参加要求
+      description: 请说明参加要求
+      placeholder: 例如：需要携带笔记本电脑，建议提前安装 Zeus 开发环境
+    validations:
+      required: false
+
+  - type: textarea
+    id: contact
+    attributes:
+      label: 联系方式
+      description: 请提供联系方式
+      placeholder: 例如：如有问题请联系 organizer@your-domain.com
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: 其他信息
+      description: 任何其他相关信息
+      placeholder: 例如：活动结束后会提供录播视频
+    validations:
+      required: false
