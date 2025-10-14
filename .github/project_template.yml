@@ -1,0 +1,69 @@
+# GitHub project template
+# This file is used by GitHub CLI to create project templates
+
+name: 'Zeus Development'
+body: 'Project management for Zeus framework development'
+
+columns:
+  - name: 'Backlog'
+    description: 'Items that need to be prioritized'
+  - name: 'To Do'
+    description: 'Items ready to be worked on'
+  - name: 'In Progress'
+    description: 'Items currently being worked on'
+  - name: 'In Review'
+    description: 'Items under review'
+  - name: 'Done'
+    description: 'Completed items'
+
+# Project views
+views:
+  - name: 'All Issues'
+    query: 'is:issue'
+  - name: 'All Pull Requests'
+    query: 'is:pr'
+  - name: 'My Issues'
+    query: 'is:issue author:@me'
+  - name: 'My Pull Requests'
+    query: 'is:pr author:@me'
+  - name: 'High Priority'
+    query: 'label:priority:high OR label:priority:critical'
+  - name: 'Bugs'
+    query: 'label:type:bug'
+  - name: 'Features'
+    query: 'label:type:feature'
+  - name: 'Documentation'
+    query: 'label:type:documentation'
+
+# Project settings
+settings:
+  readme: |
+    # Zeus Development Project
+
+    This project tracks the development of the Zeus framework.
+
+    ## Columns
+
+    - **Backlog**: Items that need to be prioritized
+    - **To Do**: Items ready to be worked on
+    - **In Progress**: Items currently being worked on
+    - **In Review**: Items under review
+    - **Done**: Completed items
+
+    ## Labels
+
+    Use appropriate labels to categorize issues and pull requests:
+
+    - **Priority**: critical, high, medium, low
+    - **Type**: bug, feature, enhancement, documentation, question, discussion
+    - **Status**: needs-triage, in-progress, blocked, needs-review, needs-testing, ready-to-merge
+    - **Component**: compiler, runtime, components, wc, build, docs
+    - **Size**: xs, s, m, l, xl
+
+    ## Workflow
+
+    1. Create issue or pull request
+    2. Add appropriate labels
+    3. Move to appropriate column
+    4. Update status as work progresses
+    5. Close when complete

@@ -1,0 +1,112 @@
+name: Show and Tell
+description: Share your projects, demos, or achievements
+title: '[Show & Tell] '
+labels: ['show-and-tell', 'community']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🎉 分享内容
+
+        请分享您的项目、演示或成就。
+
+  - type: textarea
+    id: title
+    attributes:
+      label: 标题
+      description: 请为您的分享起一个标题
+      placeholder: 例如：使用 Zeus 构建的在线编辑器
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 描述
+      description: 请详细描述您分享的内容
+      placeholder: 例如：我使用 Zeus 框架构建了一个在线代码编辑器，支持语法高亮、自动补全等功能
+    validations:
+      required: true
+
+  - type: textarea
+    id: features
+    attributes:
+      label: 主要功能
+      description: 请列出主要功能或特性
+      placeholder: |
+        - 语法高亮
+        - 自动补全
+        - 实时预览
+        - 代码折叠
+    validations:
+      required: false
+
+  - type: textarea
+    id: tech-stack
+    attributes:
+      label: 技术栈
+      description: 请列出使用的技术栈
+      placeholder: |
+        - Zeus Framework
+        - TypeScript
+        - Web Components
+        - Monaco Editor
+    validations:
+      required: false
+
+  - type: textarea
+    id: demo
+    attributes:
+      label: 演示链接
+      description: 请提供演示链接或截图
+      placeholder: 例如：https://your-demo-site.com
+    validations:
+      required: false
+
+  - type: textarea
+    id: code
+    attributes:
+      label: 代码示例
+      description: 如果适用，请提供关键的代码示例
+      placeholder: |
+        ```typescript
+        // 关键代码示例
+        ```
+    validations:
+      required: false
+
+  - type: textarea
+    id: challenges
+    attributes:
+      label: 遇到的挑战
+      description: 请描述开发过程中遇到的挑战和解决方案
+      placeholder: 例如：在实现语法高亮时遇到了性能问题，通过虚拟滚动解决了
+    validations:
+      required: false
+
+  - type: textarea
+    id: lessons
+    attributes:
+      label: 学到的经验
+      description: 请分享开发过程中学到的经验
+      placeholder: 例如：Zeus 的组件系统让代码复用变得非常简单
+    validations:
+      required: false
+
+  - type: textarea
+    id: feedback
+    attributes:
+      label: 反馈请求
+      description: 请描述您希望获得的反馈
+      placeholder: 例如：希望获得关于性能优化的建议
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: 其他信息
+      description: 任何其他相关信息
+      placeholder: 例如：相关文档链接、GitHub 仓库等
+    validations:
+      required: false
