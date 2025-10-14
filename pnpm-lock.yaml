@@ -140,9 +140,6 @@ importers:
 
   packages/wc:
     dependencies:
-      '@zeus-js/compiler':
-        specifier: workspace:*
-        version: link:../compiler
       '@zeus-js/runtime':
         specifier: workspace:*
         version: link:../runtime
