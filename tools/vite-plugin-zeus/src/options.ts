@@ -56,7 +56,7 @@ export interface ZeusPluginOptions {
  * 解析并设置默认选项
  */
 export function resolveOptions(
-  options: ZeusPluginOptions
+  options: ZeusPluginOptions,
 ): Required<ZeusPluginOptions> {
   return {
     hmr: options.hmr !== false,

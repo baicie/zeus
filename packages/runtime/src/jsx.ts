@@ -3,7 +3,7 @@
 
 // This file is copied from Vue 3 core repository and adapted for Zeus framework.
 // Original source: https://github.com/vuejs/core/blob/main/packages/runtime-core/src/jsx.ts
-// 
+//
 // The original Vue code is based on React definition in DefinitelyTyped published under the MIT license.
 //      Repository: https://github.com/DefinitelyTyped/DefinitelyTyped
 //      Path in the repository: types/react/index.d.ts

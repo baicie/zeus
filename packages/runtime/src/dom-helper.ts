@@ -115,7 +115,7 @@ export function setAttrs(element: DOMElement, attrs: Attrs): void {
 export function setAttr(
   element: DOMElement,
   name: string,
-  value: string | number | boolean | null | undefined
+  value: string | number | boolean | null | undefined,
 ): void {
   if (value === null || value === undefined) {
     element.removeAttribute(name)
@@ -177,7 +177,7 @@ export function setText(element: DOMElement, text: string | number): void {
 export function insertText(
   element: DOMElement,
   text: string | number,
-  index?: number
+  index?: number,
 ): void {
   const textNode = createText(text)
   const children = element.childNodes
@@ -267,7 +267,7 @@ export function addEventListener(
   element: DOMElement,
   event: string,
   handler: EventHandler,
-  options?: boolean | AddEventListenerOptions
+  options?: boolean | AddEventListenerOptions,
 ): void {
   element.addEventListener(event, handler, options)
 }
@@ -283,7 +283,7 @@ export function removeEventListener(
   element: DOMElement,
   event: string,
   handler: EventHandler,
-  options?: boolean | AddEventListenerOptions
+  options?: boolean | AddEventListenerOptions,
 ): void {
   element.removeEventListener(event, handler, options)
 }
@@ -301,7 +301,7 @@ export function delegateEvent(
   selector: string,
   event: string,
   handler: EventHandler,
-  options?: boolean | AddEventListenerOptions
+  options?: boolean | AddEventListenerOptions,
 ): () => void {
   const delegatedHandler = (e: Event) => {
     const target = e.target as Element

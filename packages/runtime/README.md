@@ -23,7 +23,7 @@ const button = createElement(
     class: 'btn btn-primary',
     disabled: false,
   },
-  'Click me'
+  'Click me',
 )
 
 // 创建文本节点
@@ -32,7 +32,7 @@ const text = createText('Hello World')
 // 创建文档片段
 const fragment = createFragment(
   createElement('div', {}, 'Item 1'),
-  createElement('div', {}, 'Item 2')
+  createElement('div', {}, 'Item 2'),
 )
 ```
 

@@ -102,7 +102,7 @@ import { cloneTemplate, bindElement } from '@zeus-js/runtime-dom'
 
 // 模板定义
 const _tmpl$1 = createTemplate(
-  `<div><h1>Hello </h1><button>Click me</button></div>`
+  `<div><h1>Hello </h1><button>Click me</button></div>`,
 )
 
 function App() {

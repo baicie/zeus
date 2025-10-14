@@ -28,7 +28,7 @@ export function useComputed<T>(fn: () => T): () => T {
  */
 export function useEffect(
   fn: () => void | (() => void),
-  deps?: any[]
+  deps?: any[],
 ): () => void {
   return effect(fn)
 }
@@ -56,7 +56,7 @@ export function useRef<T>(initialValue: T): { current: T } {
  */
 export function useCallback<T extends (...args: any[]) => any>(
   callback: T,
-  deps?: any[]
+  deps?: any[],
 ): T {
   const callbackSignal = useState(callback)
 
@@ -146,7 +146,7 @@ export function useEvents() {
       eventsSignal(
         Object.assign({}, current, {
           [eventName]: [...existingListeners, listener],
-        })
+        }),
       )
     },
     off: (eventName: string, listener: EventListener): void => {
@@ -155,9 +155,9 @@ export function useEvents() {
       eventsSignal(
         Object.assign({}, current, {
           [eventName]: existingListeners.filter(
-            (l: EventListener) => l !== listener
+            (l: EventListener) => l !== listener,
           ),
-        })
+        }),
       )
     },
   }

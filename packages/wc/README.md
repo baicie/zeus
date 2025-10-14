@@ -135,7 +135,7 @@ function MyComponent() {
     'div',
     null,
     jsx('p', null, 'Count: ', count()),
-    jsx('button', { onClick: () => count(count() + 1) }, 'Increment')
+    jsx('button', { onClick: () => count(count() + 1) }, 'Increment'),
   )
 }
 ```
@@ -153,7 +153,7 @@ function MyComponent() {
     'div',
     null,
     jsx('p', null, 'Count: ', count()),
-    jsx('p', null, 'Double: ', doubleCount())
+    jsx('p', null, 'Double: ', doubleCount()),
   )
 }
 ```
@@ -195,7 +195,7 @@ function MyComponent() {
     'div',
     null,
     jsx('input', { ref: inputRef }),
-    jsx('button', { onClick: focusInput }, 'Focus Input')
+    jsx('button', { onClick: focusInput }, 'Focus Input'),
   )
 }
 ```
@@ -343,8 +343,8 @@ function TodoList() {
   const toggleTodo = (id: number) => {
     todos(
       todos().map(todo =>
-        todo.id === id ? { ...todo, completed: !todo.completed } : todo
-      )
+        todo.id === id ? { ...todo, completed: !todo.completed } : todo,
+      ),
     )
   }
 
@@ -382,7 +382,7 @@ function TodoList() {
             textContent: todo.text,
           }),
         ],
-      })
+      }),
     ),
   })
 

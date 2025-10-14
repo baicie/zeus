@@ -12,7 +12,7 @@ export interface ComponentProps {
  * 返回 DOM 元素或字符串
  */
 export type ComponentFunction<T extends ComponentProps = ComponentProps> = (
-  props: T
+  props: T,
 ) => Element | string | null
 
 /**
@@ -48,7 +48,7 @@ export interface ComponentContext {
  */
 export function createFunctionalWC<T extends ComponentProps = ComponentProps>(
   componentFn: ComponentFunction<T>,
-  options: FunctionalWCOptions
+  options: FunctionalWCOptions,
 ): typeof HTMLElement {
   const { shadow = true, styles, observedAttributes = [], tagName } = options
 
@@ -115,7 +115,7 @@ export function createFunctionalWC<T extends ComponentProps = ComponentProps>(
           // 对于 light DOM，只清空子元素
           while (this.context.container.firstChild) {
             this.context.container.removeChild(
-              this.context.container.firstChild
+              this.context.container.firstChild,
             )
           }
         }
@@ -160,11 +160,11 @@ export function createFunctionalWC<T extends ComponentProps = ComponentProps>(
 export function defineFunctionalWC<T extends ComponentProps = ComponentProps>(
   tagName: string,
   componentFn: ComponentFunction<T>,
-  options: Omit<FunctionalWCOptions, 'tagName'> = {}
+  options: Omit<FunctionalWCOptions, 'tagName'> = {},
 ): typeof HTMLElement {
   return createFunctionalWC(
     componentFn,
-    Object.assign({}, options, { tagName })
+    Object.assign({}, options, { tagName }),
   )
 }
 
@@ -199,7 +199,7 @@ export const hooks = {
   useProps: <T extends ComponentProps = ComponentProps>(): T => {
     // 这个需要在组件上下文中使用
     throw new Error(
-      'useProps must be used within a functional component context'
+      'useProps must be used within a functional component context',
     )
   },
 }

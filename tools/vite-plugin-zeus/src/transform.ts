@@ -12,7 +12,7 @@ export async function createTransform(
   code: string,
   id: string,
   options: Required<ZeusPluginOptions>,
-  config: ResolvedConfig
+  config: ResolvedConfig,
 ) {
   // 检查文件是否需要处理
   if (!isFileIncluded(id, options.include, options.exclude)) {
@@ -28,7 +28,7 @@ export async function createTransform(
           if (!options.customElementsPrefix) return false
           return tag.startsWith(options.customElementsPrefix)
         },
-      })
+      }),
     )
 
     // 转换代码

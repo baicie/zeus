@@ -36,6 +36,7 @@
     "jsdom": "^27.0.0",
     "magic-string": "^0.30.19",
     "picocolors": "^1.1.1",
+    "prettier": "^3.6.2",
     "pretty-bytes": "^7.1.0",
     "rolldown": "1.0.0-beta.43",
     "rollup": "^4.52.4",

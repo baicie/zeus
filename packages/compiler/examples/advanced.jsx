@@ -11,19 +11,17 @@ function TodoList({ todos, onToggle, onDelete }) {
       <h2>Todo List</h2>
       <ul>
         {todos.map(todo => (
-          <li 
+          <li
             key={todo.id}
             className={todo.completed ? 'completed' : 'pending'}
           >
-            <input 
+            <input
               type="checkbox"
               checked={todo.completed}
               onChange={() => onToggle(todo.id)}
             />
             <span>{todo.text}</span>
-            <button onClick={() => onDelete(todo.id)}>
-              Delete
-            </button>
+            <button onClick={() => onDelete(todo.id)}>Delete</button>
           </li>
         ))}
       </ul>
@@ -36,25 +34,23 @@ function App() {
     { id: 1, text: 'Learn Zeus', completed: false },
     { id: 2, text: 'Build app', completed: true },
   ])
-  
-  const handleToggle = (id) => {
-    setTodos(todos.map(todo => 
-      todo.id === id ? { ...todo, completed: !todo.completed } : todo
-    ))
+
+  const handleToggle = id => {
+    setTodos(
+      todos.map(todo =>
+        todo.id === id ? { ...todo, completed: !todo.completed } : todo,
+      ),
+    )
   }
-  
-  const handleDelete = (id) => {
+
+  const handleDelete = id => {
     setTodos(todos.filter(todo => todo.id !== id))
   }
-  
+
   return (
     <div className="app">
       <h1>Zeus Todo App</h1>
-      <TodoList 
-        todos={todos}
-        onToggle={handleToggle}
-        onDelete={handleDelete}
-      />
+      <TodoList todos={todos} onToggle={handleToggle} onDelete={handleDelete} />
     </div>
   )
 }

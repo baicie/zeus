@@ -1,9 +1,8 @@
 import type { NodePath } from '@babel/traverse'
-import type { JSXElement, CallExpression, Expression } from '@babel/types'
+import type { CallExpression, JSXElement } from '@babel/types'
 import * as t from '@babel/types'
 import { generateTemplate } from './template'
 import { createDynamicBindings } from './bindings'
-import { optimizeExpression } from './optimize'
 
 /**
  * 转换 JSX 元素为 DOM 表达式
@@ -11,7 +10,7 @@ import { optimizeExpression } from './optimize'
  */
 export function transformJSX(
   path: NodePath<JSXElement>,
-  state: any
+  state: any,
 ): CallExpression | null {
   const { node } = path
   const options = state.get('options')
@@ -41,7 +40,7 @@ export function transformJSX(
     templateId,
     bindings,
     options,
-    imports
+    imports,
   )
 }
 
@@ -202,31 +201,55 @@ function analyzeChild(child: any) {
 function generateStaticElement(
   tagName: string,
   attributes: any[],
-  options: any
+  options: any,
 ): CallExpression {
   const createElement = t.memberExpression(
     t.identifier('document'),
-    t.identifier('createElement')
+    t.identifier('createElement'),
   )
 
-  const args = [t.stringLiteral(tagName)]
+  const elementVar = t.identifier('_el$')
+  const statements: any[] = [
+    t.variableDeclaration('const', [
+      t.variableDeclarator(
+        elementVar,
+        t.callExpression(createElement, [t.stringLiteral(tagName)]),
+      ),
+    ]),
+  ]
 
   // 添加属性
-  if (attributes.length > 0) {
-    const props = attributes.map(attr => {
-      if (attr.isBoolean) {
-        return t.objectProperty(t.identifier(attr.name), t.booleanLiteral(true))
-      }
-      return t.objectProperty(
-        t.identifier(attr.name),
-        t.stringLiteral(attr.value.value || '')
+  attributes.forEach(attr => {
+    if (attr.isBoolean) {
+      statements.push(
+        t.expressionStatement(
+          t.callExpression(
+            t.memberExpression(elementVar, t.identifier('setAttribute')),
+            [t.stringLiteral(attr.name), t.stringLiteral('')],
+          ),
+        ),
       )
-    })
+    } else {
+      statements.push(
+        t.expressionStatement(
+          t.callExpression(
+            t.memberExpression(elementVar, t.identifier('setAttribute')),
+            [
+              t.stringLiteral(attr.name),
+              t.stringLiteral(attr.value.value || ''),
+            ],
+          ),
+        ),
+      )
+    }
+  })
 
-    args.push(t.objectExpression(props))
-  }
+  statements.push(t.returnStatement(elementVar))
 
-  return t.callExpression(createElement, args)
+  return t.callExpression(
+    t.arrowFunctionExpression([], t.blockStatement(statements)),
+    [],
+  )
 }
 
 /**
@@ -237,7 +260,7 @@ function generateElementWithBindings(
   templateId: string,
   bindings: any[],
   options: any,
-  imports: Set<string>
+  imports: Set<string>,
 ): CallExpression {
   // 添加必要的导入
   imports.add('cloneTemplate')
@@ -246,14 +269,14 @@ function generateElementWithBindings(
   const templateVar = t.identifier('_tmpl$')
   const elementVar = t.identifier('_el$')
 
-  const statements = [
+  const statements: any[] = [
     // 获取模板
     t.variableDeclaration('const', [
       t.variableDeclarator(
         templateVar,
         t.callExpression(t.identifier('cloneTemplate'), [
           t.stringLiteral(templateId),
-        ])
+        ]),
       ),
     ]),
     // 克隆元素
@@ -262,8 +285,8 @@ function generateElementWithBindings(
         elementVar,
         t.callExpression(
           t.memberExpression(templateVar, t.identifier('content')),
-          []
-        )
+          [],
+        ),
       ),
     ]),
   ]
@@ -277,8 +300,8 @@ function generateElementWithBindings(
           t.stringLiteral(binding.type),
           t.stringLiteral(binding.name),
           binding.expression,
-        ])
-      )
+        ]),
+      ),
     )
   })
 
@@ -287,6 +310,6 @@ function generateElementWithBindings(
 
   return t.callExpression(
     t.arrowFunctionExpression([], t.blockStatement(statements)),
-    []
+    [],
   )
 }

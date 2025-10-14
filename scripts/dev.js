@@ -46,8 +46,8 @@ const targets = positionals.length ? positionals : ['zeus']
 const outputFormat = format.startsWith('global')
   ? 'iife'
   : format === 'cjs'
-  ? 'cjs'
-  : 'esm'
+    ? 'cjs'
+    : 'esm'
 
 const postfix = format.endsWith('-runtime')
   ? `runtime.${format.replace(/-runtime$/, '')}`
@@ -63,7 +63,7 @@ for (const target of targets) {
     __dirname,
     `${pkgBasePath}/dist/${
       target === 'vue-compat' ? `vue` : target
-    }.${postfix}.${prod ? `prod.` : ``}js`
+    }.${postfix}.${prod ? `prod.` : ``}js`,
   )
   const relativeOutfile = relative(process.cwd(), outfile)
 
@@ -90,10 +90,10 @@ for (const target of targets) {
         '@vue/consolidate/package.json',
         {
           paths: [resolve(__dirname, `../packages/${target}/`)],
-        }
+        },
       )
       const consolidateDeps = Object.keys(
-        require(consolidatePkgPath).devDependencies
+        require(consolidatePkgPath).devDependencies,
       )
       external = [
         ...external,
@@ -142,7 +142,7 @@ for (const target of targets) {
         __DEV__: prod ? `false` : `true`,
         __TEST__: `false`,
         __BROWSER__: String(
-          format !== 'cjs' && !pkg.buildOptions?.enableNonBrowserBranches
+          format !== 'cjs' && !pkg.buildOptions?.enableNonBrowserBranches,
         ),
         __GLOBAL__: String(format === 'global'),
         __ESM_BUNDLER__: String(format.includes('esm-bundler')),

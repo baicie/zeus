@@ -7,7 +7,7 @@ import type { FilterPattern } from 'vite'
 export function isFileIncluded(
   id: string,
   include: FilterPattern,
-  exclude: FilterPattern
+  exclude: FilterPattern,
 ): boolean {
   const filter = createFilter(include, exclude)
   return filter(id)

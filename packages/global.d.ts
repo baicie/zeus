@@ -18,7 +18,7 @@ declare module '@babel/helper-module-imports' {
     opts?: {
       nameHint?: string
       blockHoist?: boolean
-    }
+    },
   ): t.Identifier
 }
 

@@ -25,24 +25,24 @@ export default defineConfig({
       // 配置选项
       hmr: true,
       webComponentsMode: 'shadow',
-      optimizeSlots: true
-    })
-  ]
+      optimizeSlots: true,
+    }),
+  ],
 })
 ```
 
 ## 选项
 
-| 选项 | 类型 | 默认值 | 描述 |
-|------|------|--------|------|
-| `hmr` | `boolean` | `true` | 是否启用热更新 |
-| `autoImport` | `boolean` | `false` | 是否自动导入组件 |
-| `include` | `string \| RegExp \| (string \| RegExp)[]` | `['.jsx', '.tsx']` | 包含的文件匹配模式 |
-| `exclude` | `string \| RegExp \| (string \| RegExp)[]` | `[/node_modules/]` | 排除的文件匹配模式 |
-| `customElementsPrefix` | `string` | `undefined` | 自定义元素名称前缀 |
-| `webComponentsMode` | `'shadow' \| 'light' \| 'auto'` | `'shadow'` | Web Components 模式 |
-| `optimizeSlots` | `boolean` | `true` | 是否优化 slots 处理 |
-| `compiler` | `CompilerOptions` | `{}` | 传递给 Zeus 编译器的选项 |
+| 选项                   | 类型                                       | 默认值             | 描述                     |
+| ---------------------- | ------------------------------------------ | ------------------ | ------------------------ |
+| `hmr`                  | `boolean`                                  | `true`             | 是否启用热更新           |
+| `autoImport`           | `boolean`                                  | `false`            | 是否自动导入组件         |
+| `include`              | `string \| RegExp \| (string \| RegExp)[]` | `['.jsx', '.tsx']` | 包含的文件匹配模式       |
+| `exclude`              | `string \| RegExp \| (string \| RegExp)[]` | `[/node_modules/]` | 排除的文件匹配模式       |
+| `customElementsPrefix` | `string`                                   | `undefined`        | 自定义元素名称前缀       |
+| `webComponentsMode`    | `'shadow' \| 'light' \| 'auto'`            | `'shadow'`         | Web Components 模式      |
+| `optimizeSlots`        | `boolean`                                  | `true`             | 是否优化 slots 处理      |
+| `compiler`             | `CompilerOptions`                          | `{}`               | 传递给 Zeus 编译器的选项 |
 
 ## 高级用法
 
@@ -53,7 +53,7 @@ export default defineConfig({
 ```js
 zeusPlugin({
   webComponentsMode: 'light', // 使用无 Shadow DOM 模式
-  customElementsPrefix: 'z-' // 设置自定义元素前缀
+  customElementsPrefix: 'z-', // 设置自定义元素前缀
 })
 ```
 

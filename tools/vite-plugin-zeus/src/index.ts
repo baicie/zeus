@@ -41,7 +41,7 @@ export default function zeusPlugin(options: ZeusPluginOptions = {}): Plugin {
   const compiler = createDOMCompiler(
     options.compiler || {
       moduleName: '@zeus-js/runtime-dom',
-    }
+    },
   )
 
   return {

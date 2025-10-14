@@ -9,9 +9,10 @@ export function generateTemplate(
   node: JSXElement,
   analysis: any,
   templates: Map<string, any>,
-  state: any
+  state: any,
 ): string {
-  const templateId = `_tmpl$${state.get('templateCounter')++}`
+  const templateId = `_tmpl$${state.get('templateCounter')}`
+  state.set('templateCounter', state.get('templateCounter') + 1)
   const options = state.get('options')
 
   // 生成静态 HTML
@@ -103,13 +104,4 @@ function escapeHTML(text: string): string {
 function generateTemplateCode(template: any, state: any) {
   const imports = state.get('imports')
   imports.add('createTemplate')
-
-  // 在文件顶部生成模板定义
-  const templateCode = `
-// Template: ${template.id}
-const ${template.id} = createTemplate(\`${template.html}\`);
-`
-
-  // 这里可以将模板代码添加到文件顶部
-  // 实际实现中需要更复杂的逻辑来处理模板的插入位置
 }

@@ -204,7 +204,7 @@ function createConfig(format, output, plugins = []) {
     } else {
       const res = [
         ...Object.keys(pkg.dependencies || {})?.filter(
-          dep => !packageOptions.inline?.includes(dep)
+          dep => !packageOptions.inline?.includes(dep),
         ),
         ...Object.keys(pkg.peerDependencies || {}),
         ...treeShakenDeps,
@@ -299,6 +299,6 @@ function createMinifiedConfig(/** @type {PackageFormat} */ format) {
           return { code: banner + code, map: null }
         },
       },
-    ]
+    ],
   )
 }

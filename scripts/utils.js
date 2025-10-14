@@ -44,8 +44,8 @@ export function fuzzyMatchTarget(partialTargets, includeAllMatching) {
     console.log()
     console.error(
       `  ${pico.white(pico.bgRed(' ERROR '))} ${pico.red(
-        `Target ${pico.underline(partialTargets.toString())} not found!`
-      )}`
+        `Target ${pico.underline(partialTargets.toString())} not found!`,
+      )}`,
     )
     console.log()
 
@@ -102,8 +102,8 @@ export async function exec(command, args, options) {
       } else {
         reject(
           new Error(
-            `Failed to execute command: ${command} ${args.join(' ')}: ${stderr}`
-          )
+            `Failed to execute command: ${command} ${args.join(' ')}: ${stderr}`,
+          ),
         )
       }
     })

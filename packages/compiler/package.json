@@ -1,42 +1,34 @@
 {
   "name": "@zeus-js/compiler",
-  "version": "1.0.0",
-  "description": "Zeus JSX Compiler - 编译 JSX 到 Zeus 框架，无虚拟 DOM",
-  "main": "dist/index.js",
-  "module": "dist/index.mjs",
-  "types": "dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    },
-    "./babel-plugin": {
-      "import": "./dist/babel-plugin.mjs",
-      "require": "./dist/babel-plugin.js",
-      "types": "./dist/babel-plugin.d.ts"
-    }
-  },
+  "version": "0.0.0",
+  "main": "index.js",
+  "module": "dist/compiler.esm.js",
+  "types": "dist/compiler.d.ts",
   "files": [
+    "index.js",
     "dist"
   ],
-  "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
-    "test": "node test.js",
-    "clean": "rm -rf dist"
+  "exports": {
+    ".": {
+      "types": "./dist/compiler.d.ts",
+      "node": {
+        "production": "./dist/compiler.cjs.prod.js",
+        "development": "./dist/compiler.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/compiler.esm.js",
+      "import": "./dist/compiler.esm.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
   },
-  "keywords": [
-    "jsx",
-    "compiler",
-    "zeus",
-    "babel-plugin",
-    "virtual-dom",
-    "dom"
-  ],
-  "author": "Zeus Team",
-  "license": "MIT",
-  "packageManager": "pnpm@10.18.2",
+  "sideEffects": false,
+  "buildOptions": {
+    "formats": [
+      "esm",
+      "cjs"
+    ]
+  },
   "dependencies": {
     "@babel/core": "^7.28.4",
     "@babel/helper-plugin-utils": "^7.21.4",
@@ -46,6 +38,7 @@
   },
   "devDependencies": {
     "@types/babel__core": "^7.20.5",
+    "@types/babel__helper-plugin-utils": "^7.10.3",
     "@types/babel__traverse": "^7.28.0",
     "tsup": "^8.5.0",
     "typescript": "^5.9.3"

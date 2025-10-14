@@ -48,7 +48,7 @@ export class Signal<T> {
 }
 
 export function createSignal<T>(
-  initialValue: T
+  initialValue: T,
 ): [() => T, (value: T) => void] {
   const signal = new Signal(initialValue)
   return [
@@ -424,8 +424,8 @@ function Counter() {
       {
         onClick: () => setCount(count() + 1),
       },
-      'Increment'
-    )
+      'Increment',
+    ),
   )
 }
 

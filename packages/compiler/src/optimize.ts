@@ -1,4 +1,4 @@
-import type { Expression, CallExpression } from '@babel/types'
+import type { CallExpression, Expression } from '@babel/types'
 import * as t from '@babel/types'
 
 /**
@@ -33,7 +33,7 @@ export function optimizeExpression(expression: Expression): Expression {
  * 优化条件表达式
  */
 function optimizeConditionalExpression(
-  expr: t.ConditionalExpression
+  expr: t.ConditionalExpression,
 ): Expression {
   const { test, consequent, alternate } = expr
 
@@ -138,7 +138,7 @@ function optimizeBinaryExpression(expr: t.BinaryExpression): Expression {
       const result = evaluateNumericComparison(
         left.value,
         operator,
-        right.value
+        right.value,
       )
       if (result !== null) {
         return t.booleanLiteral(result)
@@ -249,7 +249,7 @@ function isUndefined(node: Expression): boolean {
 function evaluateNumericBinary(
   left: number,
   operator: string,
-  right: number
+  right: number,
 ): number | null {
   switch (operator) {
     case '+':
@@ -275,7 +275,7 @@ function evaluateNumericBinary(
 function evaluateStringComparison(
   left: string,
   operator: string,
-  right: string
+  right: string,
 ): boolean | null {
   switch (operator) {
     case '==':
@@ -305,7 +305,7 @@ function evaluateStringComparison(
 function evaluateNumericComparison(
   left: number,
   operator: string,
-  right: number
+  right: number,
 ): boolean | null {
   switch (operator) {
     case '==':

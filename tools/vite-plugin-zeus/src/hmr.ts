@@ -7,7 +7,7 @@ import { isFileIncluded } from './utils'
  */
 export function applyHMR(
   ctx: HmrContext,
-  options: Required<ZeusPluginOptions>
+  options: Required<ZeusPluginOptions>,
 ) {
   const { file, modules } = ctx
 
@@ -34,7 +34,7 @@ export function applyHMR(
  */
 function customElementHMR(
   ctx: HmrContext,
-  options: Required<ZeusPluginOptions>
+  options: Required<ZeusPluginOptions>,
 ) {
   const { modules } = ctx
 

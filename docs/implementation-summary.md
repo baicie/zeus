@@ -102,7 +102,7 @@ export class Computed<T> {
 ```typescript
 export function createEffect(
   fn: () => void | (() => void),
-  options?: { name?: string; defer?: boolean }
+  options?: { name?: string; defer?: boolean },
 ): () => void
 ```
 
@@ -238,7 +238,7 @@ function Counter() {
     'div',
     null,
     jsx('h1', null, 'Count: ', count()),
-    jsx('button', { onClick: () => setCount(count() + 1) }, 'Increment')
+    jsx('button', { onClick: () => setCount(count() + 1) }, 'Increment'),
   )
 }
 ```
@@ -330,7 +330,7 @@ function App() {
     'div',
     null,
     jsx('h1', null, 'Count: ', count()),
-    jsx('button', { onClick: () => setCount(count() + 1) }, 'Increment')
+    jsx('button', { onClick: () => setCount(count() + 1) }, 'Increment'),
   )
 }
 

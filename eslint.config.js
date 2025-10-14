@@ -169,5 +169,5 @@ export default tseslint.config(
       // 'explorations/',
       // 'dts-build/packages',
     ],
-  }
+  },
 )

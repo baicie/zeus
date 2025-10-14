@@ -88,7 +88,6 @@
 - ✅ DOM 操作工具 (完整的 createElement API 集)
 
 2. **Web Components 基类** - `packages/wc/`
-
    - ✅ Shadow DOM 和 Light DOM 基类
    - ✅ 完整的装饰器系统
    - ✅ 生命周期管理
@@ -101,7 +100,6 @@
 ### 🔄 进行中 (约 20%)
 
 1. **编译器** - `packages/compiler/`
-
    - ✅ 包配置和依赖
    - ❌ JSX/TSX 编译逻辑
 

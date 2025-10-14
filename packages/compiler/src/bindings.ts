@@ -8,7 +8,7 @@ import * as t from '@babel/types'
 export function createDynamicBindings(
   node: JSXElement,
   analysis: any,
-  state: any
+  state: any,
 ): any[] {
   const bindings: any[] = []
 
@@ -75,7 +75,9 @@ function getExpression(value: any): Expression {
   }
 
   if (t.isJSXExpressionContainer(value)) {
-    return value.expression
+    return t.isJSXEmptyExpression(value.expression)
+      ? t.booleanLiteral(true)
+      : value.expression
   }
 
   if (t.isStringLiteral(value)) {
@@ -185,7 +187,7 @@ function optimizeBinary(expr: any): Expression {
 function evaluateBinary(
   left: number,
   operator: string,
-  right: number
+  right: number,
 ): number | null {
   switch (operator) {
     case '+':

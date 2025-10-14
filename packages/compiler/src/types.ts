@@ -1,4 +1,4 @@
-import type { Node, JSXElement, JSXFragment, Expression } from '@babel/types'
+import type { Expression } from '@babel/types'
 
 /**
  * 编译器选项

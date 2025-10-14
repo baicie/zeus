@@ -1,4 +1,4 @@
-import type { PluginObj, PluginPass } from '@babel/core'
+import type { PluginPass } from '@babel/core'
 import type { NodePath } from '@babel/traverse'
 import type {
   CallExpression,
@@ -15,7 +15,7 @@ import { transformJSX } from './transform'
  * 创建 DOM 编译器
  * 参考 dom-expressions 的设计理念
  */
-export function createDOMCompiler(options: CompilerOptions = {}): PluginObj {
+export function createDOMCompiler(options: CompilerOptions = {}): any {
   const defaultOptions: Required<CompilerOptions> = {
     moduleName: '@zeus-js/runtime-dom',
     generateSourceMap: true,
@@ -26,7 +26,7 @@ export function createDOMCompiler(options: CompilerOptions = {}): PluginObj {
     ...options,
   }
 
-  return declare((api, options: CompilerOptions) => {
+  return declare((api: any, options: CompilerOptions) => {
     api.assertVersion(7)
 
     return {
@@ -92,7 +92,7 @@ export function createDOMCompiler(options: CompilerOptions = {}): PluginObj {
  */
 function transformFragment(
   path: NodePath<JSXFragment>,
-  state: PluginPass
+  state: PluginPass,
 ): CallExpression | null {
   const { children } = path.node
 
@@ -101,9 +101,9 @@ function transformFragment(
     return t.callExpression(
       t.memberExpression(
         t.identifier('document'),
-        t.identifier('createDocumentFragment')
+        t.identifier('createDocumentFragment'),
       ),
-      []
+      [],
     )
   }
 
@@ -117,17 +117,17 @@ function transformFragment(
 
   // 多个子元素，创建 DocumentFragment
   const fragmentVar = path.scope.generateUidIdentifier('fragment')
-  const statements = [
+  const statements: any[] = [
     t.variableDeclaration('const', [
       t.variableDeclarator(
         fragmentVar,
         t.callExpression(
           t.memberExpression(
             t.identifier('document'),
-            t.identifier('createDocumentFragment')
+            t.identifier('createDocumentFragment'),
           ),
-          []
-        )
+          [],
+        ),
       ),
     ]),
   ]
@@ -142,21 +142,23 @@ function transformFragment(
           t.expressionStatement(
             t.callExpression(
               t.memberExpression(fragmentVar, t.identifier('appendChild')),
-              [transformed]
-            )
-          )
+              [transformed],
+            ),
+          ),
         )
       }
     } else if (t.isJSXExpressionContainer(child)) {
       // 处理表达式
-      statements.push(
-        t.expressionStatement(
-          t.callExpression(
-            t.memberExpression(fragmentVar, t.identifier('appendChild')),
-            [child.expression]
-          )
+      if (child.expression && !t.isJSXEmptyExpression(child.expression)) {
+        statements.push(
+          t.expressionStatement(
+            t.callExpression(
+              t.memberExpression(fragmentVar, t.identifier('appendChild')),
+              [child.expression],
+            ),
+          ),
         )
-      )
+      }
     } else if (t.isJSXText(child)) {
       // 处理文本节点
       const text = child.value.trim()
@@ -169,13 +171,13 @@ function transformFragment(
                 t.callExpression(
                   t.memberExpression(
                     t.identifier('document'),
-                    t.identifier('createTextNode')
+                    t.identifier('createTextNode'),
                   ),
-                  [t.stringLiteral(text)]
+                  [t.stringLiteral(text)],
                 ),
-              ]
-            )
-          )
+              ],
+            ),
+          ),
         )
       }
     }
@@ -186,7 +188,7 @@ function transformFragment(
   // 创建 IIFE
   return t.callExpression(
     t.arrowFunctionExpression([], t.blockStatement(statements)),
-    []
+    [],
   )
 }
 
@@ -200,12 +202,12 @@ function addRuntimeImports(path: NodePath<Program>, state: PluginPass) {
   if (imports.size === 0) return
 
   const importSpecifiers = Array.from(imports).map(name =>
-    t.importSpecifier(t.identifier(name), t.identifier(name))
+    t.importSpecifier(t.identifier(name), t.identifier(name)),
   )
 
   const importDeclaration = t.importDeclaration(
     importSpecifiers,
-    t.stringLiteral(options.moduleName)
+    t.stringLiteral(options.moduleName),
   )
 
   // 在文件开头添加导入

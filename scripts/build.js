@@ -102,7 +102,7 @@ async function run() {
       ],
       {
         stdio: 'inherit',
-      }
+      },
     )
   }
 }
@@ -188,7 +188,7 @@ async function build(target) {
         .filter(Boolean)
         .join(','),
     ],
-    { stdio: 'inherit' }
+    { stdio: 'inherit' },
   )
 }
 
@@ -238,10 +238,10 @@ async function checkFileSize(filePath) {
 
   console.log(
     `${pico.gray(pico.bold(fileName))} min:${prettyBytes(
-      file.length
+      file.length,
     )} / gzip:${prettyBytes(gzipped.length)} / brotli:${prettyBytes(
-      brotli.length
-    )}`
+      brotli.length,
+    )}`,
   )
 
   if (writeSize)
@@ -253,6 +253,6 @@ async function checkFileSize(filePath) {
         gzip: gzipped.length,
         brotli: brotli.length,
       }),
-      'utf-8'
+      'utf-8',
     )
 }
