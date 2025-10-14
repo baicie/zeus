@@ -1,0 +1,29 @@
+{
+  "name": "simple-node-ts",
+  "version": "1.0.0",
+  "description": "一个简单的 Node.js + TypeScript 项目",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "node ./src/index.js"
+  },
+  "keywords": [
+    "node",
+    "typescript",
+    "simple"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@babel/core": "catalog:",
+    "@types/babel__core": "catalog:",
+    "@types/node": "^20.0.0",
+    "rimraf": "^5.0.0",
+    "rolldown": "^1.0.0-beta.42",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@zeus-js/compiler": "workspace:*",
+    "@zeus-js/runtime": "workspace:*"
+  }
+}

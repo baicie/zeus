@@ -37,7 +37,9 @@
   "peerDependencies": {
     "vite": "^5.0.0 || ^6.0.0"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@zeus-js/compiler": "workspace:*"
+  },
   "devDependencies": {
     "@babel/core": "^7.28.4",
     "@babel/types": "catalog:",

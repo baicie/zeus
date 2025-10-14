@@ -1,5 +1,5 @@
 import type { Plugin, ResolvedConfig } from 'vite'
-import { createDOMCompiler } from '@zeus-js/compiler-dom'
+import { createDOMCompiler } from '@zeus-js/compiler'
 import { transformSync } from '@babel/core'
 
 export interface ZeusPluginOptions {

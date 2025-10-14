@@ -298,7 +298,7 @@ function generateElementWithBindings(
         t.callExpression(t.identifier('bindElement'), [
           elementVar,
           t.stringLiteral(binding.type),
-          t.stringLiteral(binding.name),
+          t.stringLiteral(binding.name ?? ''),
           binding.expression,
         ]),
       ),

@@ -1,9 +1,3 @@
-/**
- * 简单的 JSX 示例
- * 展示 Zeus 编译器的转换能力
- */
-
-import React from 'react'
 
 function App() {
   const name = 'Zeus'

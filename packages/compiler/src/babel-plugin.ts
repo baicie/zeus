@@ -10,6 +10,7 @@ import { declare } from '@babel/helper-plugin-utils'
 import * as t from '@babel/types'
 import type { CompilerOptions } from './types'
 import { transformJSX } from './transform'
+import SyntaxJSX from '@babel/plugin-syntax-jsx'
 
 /**
  * 创建 DOM 编译器
@@ -31,6 +32,7 @@ export function createDOMCompiler(options: CompilerOptions = {}): any {
 
     return {
       name: 'zeus-jsx-compiler',
+      inherits: SyntaxJSX.default,
       visitor: {
         Program: {
           enter(path: NodePath<Program>, state: PluginPass) {
