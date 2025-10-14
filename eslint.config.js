@@ -106,7 +106,7 @@ export default tseslint.config(
 
   // Packages targeting DOM
   {
-    files: ['packages/runtime/**'],
+    files: ['packages/{zeus,runtime}/**'],
     rules: {
       'no-restricted-globals': ['error', ...NodeGlobals],
     },
@@ -114,7 +114,7 @@ export default tseslint.config(
 
   // Packages targeting Node
   {
-    files: ['packages/{compiler}/**'],
+    files: ['packages/compiler/**'],
     rules: {
       'no-restricted-globals': ['error', ...DOMGlobals],
       'no-restricted-syntax': ['error', banConstEnum],
@@ -122,14 +122,17 @@ export default tseslint.config(
   },
 
   // Private package, browser only + no syntax restrictions
-  {
-    files: ['packages-private/sfc-playground/**'],
-    rules: {
-      'no-restricted-globals': ['error', ...NodeGlobals],
-      'no-restricted-syntax': ['error', banConstEnum],
-      'no-console': 'off',
-    },
-  },
+  // {
+  //   files: [
+  //     'packages-private/template-explorer/**',
+  //     'packages-private/sfc-playground/**',
+  //   ],
+  //   rules: {
+  //     'no-restricted-globals': ['error', ...NodeGlobals],
+  //     'no-restricted-syntax': ['error', banConstEnum],
+  //     'no-console': 'off',
+  //   },
+  // },
 
   // JavaScript files
   {
@@ -148,6 +151,7 @@ export default tseslint.config(
       'scripts/**',
       './*.{js,ts}',
       'packages/*/*.js',
+      'packages/zeus/*/*.js',
     ],
     rules: {
       'no-restricted-globals': 'off',
@@ -162,9 +166,8 @@ export default tseslint.config(
       '**/temp/',
       '**/coverage/',
       '.idea/',
-      'explorations/',
-      'dts-build/packages',
-      'playground',
+      // 'explorations/',
+      // 'dts-build/packages',
     ],
   }
 )

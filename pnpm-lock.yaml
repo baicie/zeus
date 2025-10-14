@@ -104,6 +104,9 @@ importers:
       '@babel/core':
         specifier: ^7.28.4
         version: 7.28.4
+      '@babel/helper-plugin-utils':
+        specifier: ^7.21.4
+        version: 7.27.1
       '@babel/parser':
         specifier: ^7.28.4
         version: 7.28.4
@@ -241,6 +244,10 @@ packages:
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0
+
+  '@babel/helper-plugin-utils@7.27.1':
+    resolution: {integrity: sha512-1gn1Up5YXka3YYAHGKpbideQ5Yjf1tDa9qYcgysz+cNCXukyLl6DjPXhD3VRwSb8c0J9tA4b2+rHEZtc6R0tlw==}
+    engines: {node: '>=6.9.0'}
 
   '@babel/helper-string-parser@7.27.1':
     resolution: {integrity: sha512-qMlSxKbpRlAridDExk92nSobyDdpPijUq2DW6oDnUqd0iOGxmQjyqhMIihI9+zv4LPyZdRje2cavWPbCbWm3eA==}
@@ -3047,6 +3054,8 @@ snapshots:
       '@babel/traverse': 7.28.4
     transitivePeerDependencies:
       - supports-color
+
+  '@babel/helper-plugin-utils@7.27.1': {}
 
   '@babel/helper-string-parser@7.27.1': {}
 

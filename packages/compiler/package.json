@@ -39,6 +39,7 @@
   "packageManager": "pnpm@10.18.2",
   "dependencies": {
     "@babel/core": "^7.28.4",
+    "@babel/helper-plugin-utils": "^7.21.4",
     "@babel/parser": "^7.28.4",
     "@babel/traverse": "^7.28.4",
     "@babel/types": "^7.28.4"
