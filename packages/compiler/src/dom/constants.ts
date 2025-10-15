@@ -1,4 +1,4 @@
-export const InlineElements = [
+export const InlineElements: string[] = [
   'a',
   'abbr',
   'acronym',
@@ -54,7 +54,7 @@ export const InlineElements = [
   'video',
 ]
 
-export const BlockElements = [
+export const BlockElements: string[] = [
   'address',
   'article',
   'aside',

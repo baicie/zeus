@@ -1,37 +1,37 @@
 import * as t from '@babel/types'
 import {
   Aliases,
-  getPropAlias,
-  Properties,
   ChildProperties,
-  SVGNamespace,
   DelegatedEvents,
+  Properties,
   SVGElements,
+  SVGNamespace,
+  getPropAlias,
 } from 'dom-expressions/src/constants'
 import VoidElements from '../VoidElements'
 import {
-  getTagName,
-  isDynamic,
-  isComponent,
-  registerImportMethod,
+  canNativeSpread,
+  checkLength,
+  convertJSXIdentifier,
+  escapeHTML,
   filterChildren,
+  getConfig,
+  getRendererConfig,
+  getStaticExpression,
+  getTagName,
+  hasStaticMarker,
+  isComponent,
+  isDynamic,
+  registerImportMethod,
+  reservedNameSpaces,
   toEventName,
   toPropertyName,
-  checkLength,
-  getStaticExpression,
-  reservedNameSpaces,
-  wrappedByText,
-  getRendererConfig,
-  getConfig,
-  escapeHTML,
-  convertJSXIdentifier,
-  canNativeSpread,
   transformCondition,
   trimWhitespace,
-  hasStaticMarker,
+  wrappedByText,
 } from '../shared/utils'
 import { transformNode } from '../shared/transform'
-import { InlineElements, BlockElements } from './constants'
+import { BlockElements, InlineElements } from './constants'
 
 const alwaysClose = [
   'title',

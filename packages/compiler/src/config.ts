@@ -1,4 +1,23 @@
-export default {
+export interface CompilerConfig {
+  moduleName: string
+  generate: string
+  hydratable: boolean
+  delegateEvents: boolean
+  delegatedEvents: string[]
+  builtIns: string[]
+  requireImportSource: boolean
+  wrapConditionals: boolean
+  omitNestedClosingTags: boolean
+  omitLastClosingTag: boolean
+  omitQuotes: boolean
+  contextToCustomElements: boolean
+  staticMarker: string
+  effectWrapper: string
+  memoWrapper: string
+  validate: boolean
+}
+
+const defaultConfig: CompilerConfig = {
   moduleName: 'dom',
   generate: 'dom',
   hydratable: false,
@@ -16,3 +35,5 @@ export default {
   memoWrapper: 'memo',
   validate: true,
 }
+
+export default defaultConfig

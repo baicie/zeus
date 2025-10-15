@@ -1,17 +1,17 @@
-// import parse5 from "parse5";
-const parse5 = require('parse5')
+import { parse, parseFragment, serialize } from 'parse5'
 
 /** `bodyElement` will be used as a `context` (The place where we run `innerHTML`) */
-const bodyElement = parse5.parse(
-  `<!DOCTYPE html><html><head></head><body></body></html>`,
-).childNodes[1].childNodes[1]
+const bodyElement = (
+  parse(`<!DOCTYPE html><html><head></head><body></body></html>`)
+    .childNodes[1] as any
+).childNodes[1]
 
-function innerHTML(htmlFragment: string) {
+function innerHTML(htmlFragment: any) {
   /** `htmlFragment` will be parsed as if it was set to the `bodyElement`'s `innerHTML` property. */
-  const parsedFragment = parse5.parseFragment(bodyElement, htmlFragment)
+  const parsedFragment = parseFragment(bodyElement, htmlFragment)
 
   /** `serialize` returns back a string from the parsed nodes */
-  return parse5.serialize(parsedFragment)
+  return serialize(parsedFragment)
 }
 
 /**

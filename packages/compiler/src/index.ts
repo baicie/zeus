@@ -2,15 +2,15 @@ import SyntaxJSX from '@babel/plugin-syntax-jsx'
 import { transformJSX } from './shared/transform'
 import postprocess from './shared/postprocess'
 import preprocess from './shared/preprocess'
-import type { Visitor } from '@babel/core'
+import type * as BabelCore from '@babel/core'
 
 export default (): {
   name: string
   inherits: any
-  visitor: Visitor<{ opts: any }>
+  visitor: BabelCore.Visitor
 } => {
   return {
-    name: 'JSX DOM Expressions',
+    name: '@zeus-js/compiler',
     inherits: SyntaxJSX.default,
     visitor: {
       JSXElement: transformJSX,

@@ -1,16 +1,16 @@
 import * as t from '@babel/types'
 import {
+  canNativeSpread,
+  checkLength,
+  convertJSXIdentifier,
+  escapeStringForTemplate,
+  filterChildren,
+  getConfig,
+  getRendererConfig,
   getTagName,
   isDynamic,
   registerImportMethod,
-  filterChildren,
-  checkLength,
-  getConfig,
-  getRendererConfig,
-  convertJSXIdentifier,
-  canNativeSpread,
   transformCondition,
-  escapeStringForTemplate,
 } from '../shared/utils'
 import { transformNode } from '../shared/transform'
 
