@@ -1,0 +1,35 @@
+{
+  "name": "@zeus-js/signals",
+  "version": "0.0.0",
+  "main": "index.js",
+  "module": "dist/signals.esm.js",
+  "types": "dist/signals.d.ts",
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/signals.d.ts",
+      "node": {
+        "production": "./dist/signals.cjs.prod.js",
+        "development": "./dist/signals.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/signals.esm.js",
+      "import": "./dist/signals.esm.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
+  },
+  "sideEffects": false,
+  "buildOptions": {
+    "formats": [
+      "esm",
+      "cjs"
+    ]
+  },
+  "devDependencies": {
+    "jest-extended": "^6.0.0"
+  }
+}
