@@ -1,4 +1,3 @@
-
 function App() {
   const name = 'Zeus'
   const isVisible = true
