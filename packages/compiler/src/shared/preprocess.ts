@@ -1,14 +1,17 @@
 import config from '../config'
+import type * as t from '@babel/types'
+import type { NodePathHub, TransformState } from '../type'
 
-export default (path, state) => {
-  const merged = (path.hub.file.metadata.config = Object.assign(
+export default (path: NodePathHub<t.Node>, state: unknown): void => {
+  const s = state as TransformState
+  const merged = (path.hub.file!.metadata.config = Object.assign(
     {},
     config,
-    state.opts,
+    s.opts,
   ))
   const lib = merged.requireImportSource
   if (lib) {
-    const comments = path.hub.file.ast.comments
+    const comments = path.hub.file?.ast.comments ?? []
     let process = false
     for (let i = 0; i < comments.length; i++) {
       const comment = comments[i]
@@ -19,7 +22,7 @@ export default (path, state) => {
       }
     }
     if (!process) {
-      state.skip = true
+      s.skip = true
       return
     }
   }

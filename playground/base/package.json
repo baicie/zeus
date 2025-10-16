@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "一个简单的 Node.js + TypeScript 项目",
   "main": "dist/index.js",
+  "type": "module",
   "scripts": {
     "dev": "node ./src/index.js"
   },

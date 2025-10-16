@@ -7,7 +7,7 @@ import {
   SVGElements,
   SVGNamespace,
   getPropAlias,
-} from 'dom-expressions/src/constants'
+} from './constants'
 import VoidElements from '../VoidElements'
 import {
   canNativeSpread,
@@ -32,6 +32,12 @@ import {
 } from '../shared/utils'
 import { transformNode } from '../shared/transform'
 import { BlockElements, InlineElements } from './constants'
+import type {
+  JSXElementPath,
+  NodePathHub,
+  TransformInfo,
+  TransformResult,
+} from '../type'
 
 const alwaysClose = [
   'title',
@@ -57,7 +63,10 @@ const alwaysClose = [
   'fieldset',
 ]
 
-export function transformElement(path, info) {
+export function transformElement(
+  path: JSXElementPath,
+  info: TransformInfo,
+): TransformResult {
   let tagName = getTagName(path.node),
     config = getConfig(path),
     wrapSVG = info.topLevel && tagName != 'svg' && SVGElements.has(tagName),
@@ -67,14 +76,18 @@ export function transformElement(path, info) {
       path
         .get('openingElement')
         .get('attributes')
-        .some(a => a.node?.name?.name === 'is' || a.name?.name === 'is'),
+        .some(
+          (a: any) =>
+            (t.isJSXAttribute(a.node) && a.node?.name?.name === 'is') ||
+            a.name?.name === 'is',
+        ),
     isImportNode =
       (tagName === 'img' || tagName === 'iframe') &&
       path
         .get('openingElement')
         .get('attributes')
-        .some(a => a.node.name?.name === 'loading'),
-    results = {
+        .some(a => t.isJSXAttribute(a.node) && a.node.name?.name === 'loading'),
+    results: TransformResult = {
       template: `<${tagName}`,
       templateWithClosingTags: `<${tagName}`,
       declarations: [],
@@ -93,11 +106,13 @@ export function transformElement(path, info) {
     .get('openingElement')
     .get('attributes')
     .some(a => {
-      if (a.node.name?.name === 'data-hk') {
+      if (t.isJSXAttribute(a.node) && a.node.name?.name === 'data-hk') {
         a.remove()
         let filename = ''
         try {
-          filename = path.scope.getProgramParent().path.hub.file.opts.filename
+          filename =
+            (path.scope.getProgramParent().path.hub as any).file?.opts
+              ?.filename || ''
         } catch (e) {}
 
         console.log(
@@ -164,7 +179,7 @@ export function transformElement(path, info) {
       results.toBeClosed = new Set(info.toBeClosed || alwaysClose)
       results.toBeClosed.add(tagName)
       if (InlineElements.includes(tagName))
-        BlockElements.forEach(i => results.toBeClosed.add(i))
+        BlockElements.forEach(i => results.toBeClosed?.add(i))
     } else results.toBeClosed = info.toBeClosed
     if (tagName !== 'noscript') transformChildren(path, results, config)
     if (toBeClosed) results.template += `</${tagName}>`
@@ -187,16 +202,30 @@ export function transformElement(path, info) {
   return results
 }
 
+interface SetAttrOptions {
+  isSVG?: boolean
+  dynamic?: boolean
+  prevId?: t.Expression
+  isCE?: boolean
+  tagName: string
+}
+
 export function setAttr(
-  path,
-  elem,
-  name,
-  value,
-  { isSVG, dynamic, prevId, isCE, tagName },
-) {
+  path: NodePathHub,
+  elem: t.Expression,
+  name: string,
+  value: t.Expression,
+  {
+    isSVG = false,
+    dynamic = false,
+    prevId,
+    isCE = false,
+    tagName,
+  }: SetAttrOptions,
+): t.Expression | t.CallExpression | t.AssignmentExpression {
   // pull out namespace
   const config = getConfig(path)
-  let parts, namespace
+  let parts: string[], namespace: string | undefined
   if (
     (parts = name.split(':')) &&
     parts[1] &&
@@ -320,7 +349,7 @@ export function setAttr(
   let isNameSpaced = name.indexOf(':') > -1
   name = Aliases[name] || name
   !isSVG && (name = name.toLowerCase())
-  const ns = isNameSpaced && SVGNamespace[name.split(':')[0]]
+  const ns = isNameSpaced && (SVGNamespace as any)[name.split(':')[0]]
   if (ns) {
     return t.callExpression(
       registerImportMethod(
@@ -356,7 +385,7 @@ function detectResolvableEventHandler(attribute, handler) {
   return t.isFunction(handler)
 }
 
-function transformAttributes(path, results) {
+function transformAttributes(path: JSXElementPath, results: TransformResult) {
   let elem = results.id,
     hasHydratableEvent = false,
     children,
@@ -365,7 +394,10 @@ function transformAttributes(path, results) {
   const tagName = getTagName(path.node),
     isSVG = SVGElements.has(tagName),
     isCE =
-      tagName.includes('-') || attributes.some(a => a.node.name?.name === 'is'),
+      tagName.includes('-') ||
+      attributes.some(
+        a => t.isJSXAttribute(a.node) && a.node.name?.name === 'is',
+      ),
     hasChildren = path.node.children.length > 0,
     config = getConfig(path)
 
@@ -660,7 +692,7 @@ function transformAttributes(path, results) {
   path
     .get('openingElement')
     .get('attributes')
-    .forEach(attribute => {
+    .forEach((attribute: any) => {
       const node = attribute.node
       let value = node.value,
         key = t.isJSXNamespacedName(node.name)

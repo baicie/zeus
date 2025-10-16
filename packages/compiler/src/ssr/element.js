@@ -1,26 +1,26 @@
 import * as t from '@babel/types'
 import { decode } from 'html-entities'
 import {
-  BooleanAttributes,
   Aliases,
+  BooleanAttributes,
   ChildProperties,
   SVGElements,
-} from 'dom-expressions/src/constants'
+} from '../dom/constants'
 import VoidElements from '../VoidElements'
 import {
-  getTagName,
-  registerImportMethod,
-  filterChildren,
   checkLength,
-  escapeHTML,
-  reservedNameSpaces,
-  getConfig,
-  trimWhitespace,
-  isDynamic,
-  isComponent,
   convertJSXIdentifier,
+  escapeHTML,
+  filterChildren,
+  getConfig,
+  getTagName,
+  isComponent,
+  isDynamic,
+  registerImportMethod,
+  reservedNameSpaces,
+  trimWhitespace,
 } from '../shared/utils'
-import { transformNode, getCreateTemplate } from '../shared/transform'
+import { getCreateTemplate, transformNode } from '../shared/transform'
 import { createTemplate } from './template'
 
 function appendToTemplate(template, value) {

@@ -1,6 +1,8 @@
 import * as t from '@babel/types'
 import { addNamed } from '@babel/helper-module-imports'
-import type { BabelFile, NodePath } from '@babel/core'
+import type { NodePathHub } from '../type'
+import type { CompilerConfig } from '../config'
+import type { NodePath } from '@babel/core'
 
 export const reservedNameSpaces: Set<string> = new Set([
   'class',
@@ -22,8 +24,9 @@ export const nonSpreadNameSpaces: Set<string> = new Set([
   'bool',
 ])
 
-export function getConfig(path) {
-  return path.hub.file.metadata.config
+export function getConfig<T>(path: T): CompilerConfig {
+  return ((path as NodePathHub).hub.file?.metadata.config ??
+    {}) as CompilerConfig
 }
 
 export const getRendererConfig = (path, renderer) => {
@@ -31,27 +34,37 @@ export const getRendererConfig = (path, renderer) => {
   return config?.renderers?.find(r => r.name === renderer) ?? config
 }
 
-export function registerImportMethod(path, name, moduleName) {
-  const imports =
-    path.scope.getProgramParent().data.imports ||
-    (path.scope.getProgramParent().data.imports = new Map())
+export function registerImportMethod<T = any>(
+  path: NodePath<T>,
+  name: string,
+  moduleName?: string,
+): t.Identifier {
+  const program = path.scope.getProgramParent()
+  const imports: Map<string, t.Identifier> =
+    (program.data.imports as Map<string, t.Identifier>) ||
+    (program.data.imports = new Map())
+
   moduleName = moduleName || getConfig(path).moduleName
-  if (!imports.has(`${moduleName}:${name}`)) {
-    let id = addNamed(path, name, moduleName, {
+
+  const key = `${moduleName}:${name}`
+  if (!imports.has(key)) {
+    const id = addNamed(path, name, moduleName, {
       nameHint: `_$${name}`,
     })
-    imports.set(`${moduleName}:${name}`, id)
+    imports.set(key, id)
     return id
   } else {
-    let iden = imports.get(`${moduleName}:${name}`)
+    const id = imports.get(key)!
     // the cloning is required to play well with babel-preset-env which is
     // transpiling import as we add them and using the same identifier causes
     // problems with the multiple identifiers of the same thing
-    return t.cloneNode(iden)
+    return t.cloneNode(id)
   }
 }
 
-function jsxElementNameToString(node) {
+function jsxElementNameToString(
+  node: t.JSXMemberExpression | t.JSXIdentifier | t.JSXNamespacedName,
+): string {
   if (t.isJSXMemberExpression(node)) {
     return `${jsxElementNameToString(node.object)}.${node.property.name}`
   }
@@ -72,7 +85,7 @@ export function tagNameToIdentifier(name) {
   return base
 }
 
-export function getTagName(tag) {
+export function getTagName(tag: t.JSXElement): string {
   const jsxName = tag.openingElement.name
   return jsxElementNameToString(jsxName)
 }
@@ -96,10 +109,22 @@ export function hasStaticMarker(object, path) {
   if (object.expression) return hasStaticMarker(object.expression, path)
 }
 
+export interface IsDynamicOptions {
+  checkMember?: boolean
+  checkTags?: boolean
+  checkCallExpressions?: boolean
+  native?: boolean
+}
+
 export function isDynamic(
-  path,
-  { checkMember, checkTags, checkCallExpressions = true, native },
-) {
+  path: NodePath<any>,
+  {
+    checkMember,
+    checkTags,
+    checkCallExpressions = true,
+    native,
+  }: IsDynamicOptions,
+): boolean {
   const config = getConfig(path)
   if (config.generate === 'ssr' && native) {
     checkMember = false
@@ -222,18 +247,20 @@ export function getStaticExpression(path) {
 }
 
 // remove unnecessary JSX Text nodes
-export function filterChildren(children) {
+export function filterChildren<T = any>(
+  children: NodePath<any>[],
+): NodePath<T>[] {
   return children.filter(
     ({ node: child }) =>
       !(
         t.isJSXExpressionContainer(child) &&
         t.isJSXEmptyExpression(child.expression)
       ) &&
-      (!t.isJSXText(child) || !/^[\r\n]\s*$/.test(child.extra.raw)),
+      (!t.isJSXText(child) || !/^[\r\n]\s*$/.test(child.extra!.raw as string)),
   )
 }
 
-export function checkLength(children) {
+export function checkLength(children: NodePath[]): boolean {
   let i = 0
   children.forEach(path => {
     const child = path.node
@@ -242,8 +269,8 @@ export function checkLength(children) {
       t.isJSXEmptyExpression(child.expression)
     ) &&
       (!t.isJSXText(child) ||
-        !/^\s*$/.test(child.extra.raw) ||
-        /^ *$/.test(child.extra.raw)) &&
+        !/^\s*$/.test(child.extra!.raw as string) ||
+        /^ *$/.test(child.extra!.raw as string)) &&
       i++
   })
   return i > 1
@@ -261,15 +288,15 @@ export function trimWhitespace(text) {
   return text.replace(/\s+/g, ' ')
 }
 
-export function toEventName(name) {
+export function toEventName(name: string): string {
   return name.slice(2).toLowerCase()
 }
 
-export function toAttributeName(name) {
+export function toAttributeName(name: string): string {
   return name.replace(/([A-Z])/g, g => `-${g[0].toLowerCase()}`)
 }
 
-export function toPropertyName(name) {
+export function toPropertyName(name: string): string {
   return name.toLowerCase().replace(/-([a-z])/g, (_, w) => w.toUpperCase())
 }
 
@@ -296,11 +323,19 @@ export function wrappedByText(list, startIndex) {
   return false
 }
 
-export function transformCondition(path, inline, deep) {
+export function transformCondition(
+  path: any,
+  inline?: boolean,
+  deep?: boolean,
+): t.Expression | t.Statement[] {
   const config = getConfig(path)
   const expr = path.node
   const memo = registerImportMethod(path, config.memoWrapper)
-  let dTest, cond, id
+
+  let dTest = false
+  let cond: t.Expression | undefined
+  let id: t.Expression | t.Identifier | undefined
+
   if (
     t.isConditionalExpression(expr) &&
     (isDynamic(path.get('consequent'), {
@@ -312,78 +347,105 @@ export function transformCondition(path, inline, deep) {
     dTest = isDynamic(path.get('test'), { checkMember: true })
     if (dTest) {
       cond = expr.test
-      if (!t.isBinaryExpression(cond))
+      if (!t.isBinaryExpression(cond)) {
         cond = t.unaryExpression('!', t.unaryExpression('!', cond, true), true)
+      }
+
       id = inline
         ? t.callExpression(memo, [t.arrowFunctionExpression([], cond)])
         : path.scope.generateUidIdentifier('_c$')
-      expr.test = t.callExpression(id, [])
+
+      expr.test = t.callExpression(id as t.Expression, [])
+
       if (
         t.isConditionalExpression(expr.consequent) ||
         t.isLogicalExpression(expr.consequent)
       ) {
-        expr.consequent = transformCondition(path.get('consequent'), true, true)
+        expr.consequent = transformCondition(
+          path.get('consequent') as NodePath<t.Expression>,
+          true,
+          true,
+        ) as t.Expression
       }
+
       if (
         t.isConditionalExpression(expr.alternate) ||
         t.isLogicalExpression(expr.alternate)
       ) {
-        expr.alternate = transformCondition(path.get('alternate'), true, true)
+        expr.alternate = transformCondition(
+          path.get('alternate') as NodePath<t.Expression>,
+          true,
+          true,
+        ) as t.Expression
       }
     }
   } else if (t.isLogicalExpression(expr)) {
-    let nextPath = path
-    // handle top-level or, ie cond && <A/> || <B/>
+    let nextPath: NodePath<t.LogicalExpression> = path
+
     while (
       nextPath.node.operator !== '&&' &&
       t.isLogicalExpression(nextPath.node.left)
     ) {
-      nextPath = nextPath.get('left')
+      nextPath = nextPath.get('left') as NodePath<t.LogicalExpression>
     }
-    nextPath.node.operator === '&&' &&
-      isDynamic(nextPath.get('right'), {
-        checkTags: true,
-        checkMember: true,
-      }) &&
-      (dTest = isDynamic(nextPath.get('left'), {
-        checkMember: true,
-      }))
-    if (dTest) {
-      cond = nextPath.node.left
-      if (!t.isBinaryExpression(cond))
-        cond = t.unaryExpression('!', t.unaryExpression('!', cond, true), true)
-      id = inline
-        ? t.callExpression(memo, [t.arrowFunctionExpression([], cond)])
-        : path.scope.generateUidIdentifier('_c$')
-      nextPath.node.left = t.callExpression(id, [])
+
+    if (
+      nextPath.node.operator === '&&' &&
+      isDynamic(nextPath.get('right'), { checkTags: true, checkMember: true })
+    ) {
+      dTest = isDynamic(nextPath.get('left'), { checkMember: true })
+      if (dTest) {
+        cond = nextPath.node.left
+        if (!t.isBinaryExpression(cond)) {
+          cond = t.unaryExpression(
+            '!',
+            t.unaryExpression('!', cond, true),
+            true,
+          )
+        }
+
+        id = inline
+          ? t.callExpression(memo, [t.arrowFunctionExpression([], cond)])
+          : path.scope.generateUidIdentifier('_c$')
+
+        nextPath.node.left = t.callExpression(id as t.Expression, [])
+      }
     }
   }
-  if (dTest && !inline) {
-    const statements = [
+
+  if (dTest && !inline && cond && id) {
+    const statements: t.Statement[] = [
       t.variableDeclaration('var', [
         t.variableDeclarator(
-          id,
+          id as t.LVal,
           config.memoWrapper
             ? t.callExpression(memo, [t.arrowFunctionExpression([], cond)])
             : t.arrowFunctionExpression([], cond),
         ),
       ]),
-      t.arrowFunctionExpression([], expr),
+      t.expressionStatement(t.arrowFunctionExpression([], expr)),
     ]
+
     return deep
       ? t.callExpression(
           t.arrowFunctionExpression(
             [],
-            t.blockStatement([statements[0], t.returnStatement(statements[1])]),
+            t.blockStatement([
+              statements[0],
+              t.returnStatement(
+                (statements[1] as t.ExpressionStatement).expression,
+              ),
+            ]),
           ),
           [],
         )
       : statements
   }
+
   return deep ? expr : t.arrowFunctionExpression([], expr)
 }
 
-export function escapeHTML(s, attr) {
+export function escapeHTML<T = string>(s: T, attr?: boolean): T {
   if (typeof s !== 'string') return s
   const delim = attr ? '"' : '<'
   const escDelim = attr ? '&quot;' : '&lt;'
@@ -494,3 +556,15 @@ const templateEscapes = new Map([
   ['\u2028', '\\u2028'],
   ['\u2029', '\\u2029'],
 ])
+
+export function isJSXElementPath(
+  path: NodePathHub,
+): path is NodePathHub<t.JSXElement> {
+  return t.isJSXElement(path.node)
+}
+
+export function isJSXFragmentPath(
+  path: NodePathHub,
+): path is NodePathHub<t.JSXFragment> {
+  return t.isJSXFragment(path.node)
+}

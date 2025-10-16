@@ -3,12 +3,14 @@ import { getRendererConfig, registerImportMethod } from './utils'
 import { appendTemplates as appendTemplatesDOM } from '../dom/template'
 import { appendTemplates as appendTemplatesSSR } from '../ssr/template'
 import { isInvalidMarkup } from './validate.js'
+import type { NodePathHub, TransformState } from '../type'
 
 // add to the top/bottom of the module.
-export default (path, state) => {
-  if (state.skip) return
+export default (path: NodePathHub<t.Node>, state: unknown): void => {
+  const s = state as TransformState
+  if (s.skip) return
 
-  if (path.scope.data.events) {
+  if (path.scope.data.events && t.isProgram(path.node)) {
     path.node.body.push(
       t.expressionStatement(
         t.callExpression(
@@ -19,16 +21,18 @@ export default (path, state) => {
           ),
           [
             t.arrayExpression(
-              Array.from(path.scope.data.events).map(e => t.stringLiteral(e)),
+              Array.from((path.scope as any).data.events).map(e =>
+                t.stringLiteral(e as string),
+              ),
             ),
           ],
         ),
       ),
     )
   }
-  if (path.scope.data.templates?.length) {
-    if (path.hub.file.metadata.config.validate) {
-      for (const template of path.scope.data.templates) {
+  if ((path.scope.data.templates as any)?.length) {
+    if (path.hub.file?.metadata.config.validate) {
+      for (const template of path.scope.data.templates as any) {
         const html = template.templateWithClosingTags
         // not sure when/why this is not a string
         if (typeof html === 'string') {
@@ -45,11 +49,11 @@ export default (path, state) => {
         }
       }
     }
-    let domTemplates = path.scope.data.templates.filter(
-      temp => temp.renderer === 'dom',
+    let domTemplates = (path.scope.data.templates as any).filter(
+      (temp: any) => temp.renderer === 'dom',
     )
-    let ssrTemplates = path.scope.data.templates.filter(
-      temp => temp.renderer === 'ssr',
+    let ssrTemplates = (path.scope.data.templates as any).filter(
+      (temp: any) => temp.renderer === 'ssr',
     )
     domTemplates.length > 0 && appendTemplatesDOM(path, domTemplates)
     ssrTemplates.length > 0 && appendTemplatesSSR(path, ssrTemplates)

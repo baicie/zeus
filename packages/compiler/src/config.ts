@@ -15,6 +15,13 @@ export interface CompilerConfig {
   effectWrapper: string
   memoWrapper: string
   validate: boolean
+  renderers?: RendererConfig[]
+}
+
+export interface RendererConfig {
+  name: string
+  elements: string[]
+  moduleName: string
 }
 
 const defaultConfig: CompilerConfig = {

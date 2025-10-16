@@ -118,6 +118,7 @@ export default tseslint.config(
     rules: {
       'no-restricted-globals': ['error', ...DOMGlobals],
       'no-restricted-syntax': ['error', banConstEnum],
+      'no-console': 'off',
     },
   },
 

@@ -1,5 +1,9 @@
+import type { NodePath } from '@babel/core'
 import * as t from '@babel/types'
 import { decode } from 'html-entities'
+import type { CompilerConfig } from '../config'
+import type { JSXElementPath, TransformResult } from '../type'
+import { getCreateTemplate, transformNode } from './transform'
 import {
   convertJSXIdentifier,
   filterChildren,
@@ -9,13 +13,14 @@ import {
   transformCondition,
   trimWhitespace,
 } from './utils'
-import { getCreateTemplate, transformNode } from './transform'
 
-function convertComponentIdentifier(node) {
+function convertComponentIdentifier(node: any): any {
   if (t.isJSXIdentifier(node)) {
     if (node.name === 'this') return t.thisExpression()
-    if (t.isValidIdentifier(node.name)) node.type = 'Identifier'
-    else return t.stringLiteral(node.name)
+    if (t.isValidIdentifier(node.name)) {
+      // @ts-expect-error
+      node.type = 'Identifier'
+    } else return t.stringLiteral(node.name)
   } else if (t.isJSXMemberExpression(node)) {
     const prop = convertComponentIdentifier(node.property)
     const computed = t.isStringLiteral(prop)
@@ -29,12 +34,14 @@ function convertComponentIdentifier(node) {
   return node
 }
 
-export default function transformComponent(path) {
-  let exprs = [],
+export default function transformComponent(
+  path: JSXElementPath,
+): TransformResult {
+  let exprs: t.Expression[] = [],
     config = getConfig(path),
     tagId = convertComponentIdentifier(path.node.openingElement.name),
     props = [],
-    runningObject = [],
+    runningObject: any[] = [],
     dynamicSpread = false,
     hasChildren = path.node.children.length > 0
 
@@ -70,7 +77,7 @@ export default function transformComponent(path) {
         )
       } else {
         // handle weird babel bug around HTML entities
-        const value =
+        const value: any =
             (t.isStringLiteral(node.value)
               ? t.stringLiteral(node.value.value)
               : node.value) || t.booleanLiteral(true),
@@ -124,7 +131,9 @@ export default function transformComponent(path) {
               )
             } else if (
               !isConstant &&
-              t.isOptionalMemberExpression(value.expression)
+              t.isOptionalMemberExpression(value.expression) &&
+              t.isIdentifier(value.expression.object) &&
+              t.isIdentifier(value.expression.property)
             ) {
               const refIdentifier = path.scope.generateUidIdentifier('_ref$')
               runningObject.push(
@@ -170,7 +179,10 @@ export default function transformComponent(path) {
               )
             } else if (isConstant || t.isFunction(value.expression)) {
               runningObject.push(
-                t.objectProperty(t.identifier('ref'), value.expression),
+                t.objectProperty(
+                  t.identifier('ref'),
+                  value.expression as t.FunctionExpression,
+                ),
               )
             } else if (t.isCallExpression(value.expression)) {
               const refIdentifier = path.scope.generateUidIdentifier('_ref$')
@@ -213,7 +225,7 @@ export default function transformComponent(path) {
               const expr = transformCondition(
                 attribute.get('value').get('expression'),
                 true,
-              )
+              ) as any
 
               runningObject.push(
                 t.objectMethod(
@@ -243,12 +255,15 @@ export default function transformComponent(path) {
                   'get',
                   id,
                   [],
-                  t.blockStatement([t.returnStatement(value.expression)]),
+                  t.blockStatement([
+                    t.returnStatement((value as any).expression),
+                  ]),
                   !t.isValidIdentifier(key),
                 ),
               )
             }
-          } else runningObject.push(t.objectProperty(id, value.expression))
+          } else
+            runningObject.push(t.objectProperty(id, (value as any).expression))
         else runningObject.push(t.objectProperty(id, value))
       }
     })
@@ -299,7 +314,7 @@ export default function transformComponent(path) {
       t.callExpression(
         t.arrowFunctionExpression(
           [],
-          t.blockStatement([...exprs, t.returnStatement(ret)]),
+          t.blockStatement([...(exprs as any), t.returnStatement(ret)]),
         ),
         [],
       ),
@@ -308,21 +323,30 @@ export default function transformComponent(path) {
   return { exprs, template: '', component: true }
 }
 
-function transformComponentChildren(children, config) {
+function transformComponentChildren(
+  children: NodePath<
+    | t.JSXElement
+    | t.JSXExpressionContainer
+    | t.JSXFragment
+    | t.JSXSpreadChild
+    | t.JSXText
+  >[],
+  config: CompilerConfig,
+) {
   const filteredChildren = filterChildren(children)
   if (!filteredChildren.length) return
   let dynamic = false
-  let pathNodes = []
+  let pathNodes: t.Node[] = []
 
-  let transformedChildren = filteredChildren.reduce((memo, path) => {
+  let transformedChildren: any = filteredChildren.reduce((memo, path) => {
     if (t.isJSXText(path.node)) {
-      const v = decode(trimWhitespace(path.node.extra.raw))
+      const v = decode(trimWhitespace(path.node.extra!.raw))
       if (v.length) {
         pathNodes.push(path.node)
         memo.push(t.stringLiteral(v))
       }
     } else {
-      const child = transformNode(path, {
+      const child = transformNode(path as any, {
         topLevel: true,
         componentChild: true,
         lastElement: true,
@@ -346,7 +370,7 @@ function transformComponentChildren(children, config) {
       )
     }
     return memo
-  }, [])
+  }, [] as t.StringLiteral[])
 
   if (transformedChildren.length === 1) {
     transformedChildren = transformedChildren[0]

@@ -1,19 +1,13 @@
+import { createSignal } from 'solid-js'
+
 function App() {
-  const name = 'Zeus'
-  const isVisible = true
-  const count = 0
+  const [count, setCount] = createSignal(0)
 
   return (
-    <div className={isVisible ? 'visible' : 'hidden'}>
-      <h1>Hello {name}!</h1>
-      <p>Count: {count}</p>
-      <button
-        onClick={() => console.log('Button clicked!')}
-        disabled={count === 0}
-      >
-        Click me
+    <div class="card">
+      <button onClick={() => setCount(count => count + 1)}>
+        count is {count()}
       </button>
-      {isVisible && <div>This is visible</div>}
     </div>
   )
 }

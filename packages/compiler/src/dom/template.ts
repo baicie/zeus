@@ -8,7 +8,11 @@ import {
 } from '../shared/utils'
 import { setAttr } from './element'
 
-export function createTemplate(path, result, wrap) {
+export function createTemplate(
+  path: NodePathHub<t.JSXElement>,
+  result: any,
+  wrap: boolean,
+) {
   const config = getConfig(path)
   if (result.id) {
     registerTemplate(path, result)
