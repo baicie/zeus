@@ -191,7 +191,7 @@ export function transformElement(
       'runHydrationEvents',
       getRendererConfig(path, 'dom').moduleName,
     )
-    results.postExprs.push(
+    results.postExprs?.push(
       t.expressionStatement(t.callExpression(runHydrationEvents, [])),
     )
   }
@@ -371,7 +371,10 @@ export function setAttr(
   }
 }
 
-function detectResolvableEventHandler(attribute, handler) {
+function detectResolvableEventHandler(
+  attribute: any,
+  handler: t.Expression | t.JSXEmptyExpression,
+) {
   while (t.isIdentifier(handler)) {
     const lookup = attribute.scope.getBinding(handler.name)
     if (lookup) {
@@ -428,7 +431,7 @@ function transformAttributes(path: JSXElementPath, results: TransformResult) {
   attributes = path.get('openingElement').get('attributes')
 
   const styleAttributes = attributes.filter(
-    a => a.node.name && a.node.name.name === 'style',
+    a => (a.node as any).name && (a.node as any).name.name === 'style',
   )
   if (styleAttributes.length > 0) {
     let inlinedStyle = ''
@@ -436,7 +439,7 @@ function transformAttributes(path: JSXElementPath, results: TransformResult) {
     for (let i = 0; i < styleAttributes.length; i++) {
       const attr = styleAttributes[i]
 
-      let value = attr.node.value
+      let value = (attr.node as any).value
       if (t.isJSXExpressionContainer(value)) {
         value = value.expression
       }
@@ -1453,10 +1456,15 @@ function contextToCustomElement(path, results) {
   )
 }
 
+interface ProcessSpreadsOpt {
+  elem: boolean
+  isSVG: boolean
+}
+
 function processSpreads(
-  path,
+  path: NodePathHub,
   attributes,
-  { elem, isSVG, hasChildren, wrapConditionals },
+  { elem, isSVG, hasChildren, wrapConditionals }: ProcessSpreadsOpt,
 ) {
   const config = getConfig(path)
   // TODO: skip but collect the names of any properties after the last spread to not overwrite them

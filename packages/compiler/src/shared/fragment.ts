@@ -21,10 +21,16 @@ export default function transformFragmentChildren(
           fragmentChild: true,
           lastElement: true,
         })
-        memo.push(getCreateTemplate(config, path, child)(path, child, true))
+        memo.push(
+          getCreateTemplate(config, path as any, child!)(
+            path as any,
+            child!,
+            true,
+          ),
+        )
       }
       return memo
-    }, [] as t.StringLiteral[])
+    }, [] as any[])
   results.exprs.push(
     childNodes.length === 1 ? childNodes[0] : t.arrayExpression(childNodes),
   )

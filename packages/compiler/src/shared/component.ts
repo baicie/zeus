@@ -2,7 +2,7 @@ import type { NodePath } from '@babel/core'
 import * as t from '@babel/types'
 import { decode } from 'html-entities'
 import type { CompilerConfig } from '../config'
-import type { JSXElementPath, TransformResult } from '../type'
+import type { JSXElementPath, NodePathHub, TransformResult } from '../type'
 import { getCreateTemplate, transformNode } from './transform'
 import {
   convertJSXIdentifier,
@@ -351,20 +351,20 @@ function transformComponentChildren(
         componentChild: true,
         lastElement: true,
       })
-      dynamic = dynamic || child.dynamic
+      dynamic = dynamic || child?.dynamic || false
       if (
         config.generate === 'ssr' &&
         filteredChildren.length > 1 &&
-        child.dynamic &&
-        t.isFunction(child.exprs[0])
+        child?.dynamic &&
+        t.isFunction(child?.exprs[0])
       ) {
-        child.exprs[0] = child.exprs[0].body
+        child.exprs[0] = child.exprs[0].body as any
       }
       pathNodes.push(path.node)
       memo.push(
-        getCreateTemplate(config, path, child)(
-          path,
-          child,
+        getCreateTemplate(config, path as NodePathHub, child!)(
+          path as NodePathHub,
+          child!,
           filteredChildren.length > 1,
         ),
       )

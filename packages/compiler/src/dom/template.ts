@@ -6,23 +6,24 @@ import {
   getRendererConfig,
   registerImportMethod,
 } from '../shared/utils'
+import type { NodePathHub, TransformResult } from '../type'
 import { setAttr } from './element'
 
 export function createTemplate(
-  path: NodePathHub<t.JSXElement>,
-  result: any,
+  path: NodePathHub,
+  result: TransformResult,
   wrap: boolean,
-) {
+): any {
   const config = getConfig(path)
   if (result.id) {
     registerTemplate(path, result)
     if (
       !(
         result.exprs.length ||
-        result.dynamics.length ||
-        result.postExprs.length
+        result.dynamics?.length ||
+        result.postExprs?.length
       ) &&
-      result.decl.declarations.length === 1
+      result.decl?.declarations.length === 1
     ) {
       return result.decl.declarations[0].init
     } else {
@@ -30,7 +31,7 @@ export function createTemplate(
         t.arrowFunctionExpression(
           [],
           t.blockStatement([
-            result.decl,
+            result.decl as any,
             ...result.exprs.concat(
               wrapDynamics(path, result.dynamics) || [],
               result.postExprs || [],
@@ -44,14 +45,17 @@ export function createTemplate(
   }
   if (wrap && result.dynamic && config.memoWrapper) {
     return t.callExpression(registerImportMethod(path, config.memoWrapper), [
-      result.exprs[0],
+      result.exprs[0] as any,
     ])
   }
   return result.exprs[0]
 }
 
-export function appendTemplates(path, templates) {
-  const declarators = templates.map(template => {
+export function appendTemplates(
+  path: NodePathHub<t.Program>,
+  templates: any,
+): void {
+  const declarators = templates.map((template: any) => {
     const tmpl = {
       cooked: template.template,
       raw: escapeStringForTemplate(template.template),
@@ -74,11 +78,11 @@ export function appendTemplates(path, templates) {
           ),
           [t.templateLiteral([t.templateElement(tmpl, true)], [])].concat(
             template.isSVG || shouldUseImportNode || isMathML
-              ? [
+              ? ([
                   t.booleanLiteral(!!shouldUseImportNode),
                   t.booleanLiteral(template.isSVG),
                   t.booleanLiteral(isMathML),
-                ]
+                ] as any)
               : [],
           ),
         ),
@@ -90,15 +94,16 @@ export function appendTemplates(path, templates) {
   path.node.body.unshift(t.variableDeclaration('var', declarators))
 }
 
-function registerTemplate(path, results) {
+function registerTemplate(path: NodePathHub, results: TransformResult) {
   const { hydratable } = getConfig(path)
   let decl
   if (results.template.length) {
     let templateDef, templateId
     if (!results.skipTemplate) {
-      const templates =
-        path.scope.getProgramParent().data.templates ||
+      const templates: any[] =
+        (path.scope.getProgramParent().data.templates as any[]) ||
         (path.scope.getProgramParent().data.templates = [])
+
       if (
         (templateDef = templates.find(t => t.template === results.template))
       ) {
@@ -130,12 +135,12 @@ function registerTemplate(path, results) {
         : t.callExpression(templateId, []),
     )
   }
-  results.declarations.unshift(decl)
-  results.decl = t.variableDeclaration('var', results.declarations)
+  results.declarations?.unshift(decl as any)
+  results.decl = t.variableDeclaration('var', results.declarations as any[])
 }
 
-function wrapDynamics(path, dynamics) {
-  if (!dynamics.length) return
+function wrapDynamics(path: NodePathHub, dynamics?: any[]) {
+  if (!dynamics?.length) return
   const config = getConfig(path)
 
   const effectWrapperId = registerImportMethod(path, config.effectWrapper)
@@ -151,7 +156,7 @@ function wrapDynamics(path, dynamics) {
     if (dynamicStyle) {
       dynamics[0].value = t.assignmentExpression(
         '=',
-        prevValue,
+        prevValue as any,
         dynamics[0].value,
       )
     } else if (
@@ -183,12 +188,9 @@ function wrapDynamics(path, dynamics) {
 
   const prevId = t.identifier('_p$')
 
-  /** @type {t.VariableDeclarator[]} */
-  const declarations = []
-  /** @type {t.ExpressionStatement[]} */
-  const statements = []
-  /** @type {t.Identifier[]} */
-  const properties = []
+  const declarations: t.VariableDeclarator[] = []
+  const statements: t.ExpressionStatement[] = []
+  const properties: t.Identifier[] = []
 
   dynamics.forEach(({ elem, key, value, isSVG, isCE, tagName }, index) => {
     const varIdent = path.scope.generateUidIdentifier('v$')

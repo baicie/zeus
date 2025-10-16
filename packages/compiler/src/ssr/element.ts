@@ -6,7 +6,7 @@ import {
   ChildProperties,
   SVGElements,
 } from '../dom/constants'
-import VoidElements from '../VoidElements'
+import { getCreateTemplate, transformNode } from '../shared/transform'
 import {
   checkLength,
   convertJSXIdentifier,
@@ -20,10 +20,11 @@ import {
   reservedNameSpaces,
   trimWhitespace,
 } from '../shared/utils'
-import { getCreateTemplate, transformNode } from '../shared/transform'
+import type { NodePathHub, TransformInfo, TransformResult } from '../type'
+import VoidElements from '../VoidElements'
 import { createTemplate } from './template'
 
-function appendToTemplate(template, value) {
+function appendToTemplate(template: string[], value: string): void {
   let array
   if (Array.isArray(value)) {
     ;[value, ...array] = value
@@ -32,7 +33,10 @@ function appendToTemplate(template, value) {
   if (array && array.length) template.push.apply(template, array)
 }
 
-export function transformElement(path, info) {
+export function transformElement(
+  path: NodePathHub,
+  info: TransformInfo,
+): TransformResult {
   const config = getConfig(path)
   const tagName = getTagName(path.node)
   if (tagName === 'script' || tagName === 'style') path.doNotEscape = true

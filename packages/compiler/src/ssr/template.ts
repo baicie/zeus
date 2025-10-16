@@ -1,7 +1,8 @@
 import * as t from '@babel/types'
 import { registerImportMethod } from '../shared/utils'
+import type { NodePathHub, TransformResult } from '../type'
 
-export function createTemplate(path, result) {
+export function createTemplate(path: NodePathHub, result: TransformResult) {
   if (!result.template) {
     return result.exprs[0]
   }
@@ -68,8 +69,11 @@ export function createTemplate(path, result) {
   )
 }
 
-export function appendTemplates(path, templates) {
-  const declarators = templates.map(template => {
+export function appendTemplates(
+  path: NodePathHub<t.Program>,
+  templates: any,
+): void {
+  const declarators = templates.map((template: any) => {
     return t.variableDeclarator(template.id, template.template)
   })
   path.node.body.unshift(t.variableDeclaration('var', declarators))

@@ -6,7 +6,7 @@ import { isInvalidMarkup } from './validate.js'
 import type { NodePathHub, TransformState } from '../type'
 
 // add to the top/bottom of the module.
-export default (path: NodePathHub<t.Node>, state: unknown): void => {
+export default (path: NodePathHub<t.Program>, state: unknown): void => {
   const s = state as TransformState
   if (s.skip) return
 

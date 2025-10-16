@@ -47,6 +47,9 @@ export interface TransformResult {
   template: string
   templateWithClosingTags?: string
   declarations?: t.VariableDeclaration[]
+  decl?: {
+    declarations: any[]
+  }
   exprs: (t.Expression | t.ExpressionStatement)[]
   dynamics?: t.Expression[]
   postExprs?: (t.Expression | t.ExpressionStatement)[]
@@ -56,7 +59,7 @@ export interface TransformResult {
   tagName?: string
   renderer?: string
   skipTemplate?: boolean
-  id?: t.Identifier
+  id?: any
   toBeClosed?: Set<string>
   hasHydratableEvent?: boolean
   component?: boolean

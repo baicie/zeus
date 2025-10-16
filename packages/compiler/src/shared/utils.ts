@@ -1,6 +1,6 @@
 import * as t from '@babel/types'
 import { addNamed } from '@babel/helper-module-imports'
-import type { NodePathHub } from '../type'
+import type { JSXNode, NodePathHub } from '../type'
 import type { CompilerConfig } from '../config'
 import type { NodePath } from '@babel/core'
 

@@ -6,6 +6,7 @@ import { createTemplate as createTemplateDOM } from '../dom/template'
 import { transformElement as transformElementSSR } from '../ssr/element'
 import { createTemplate as createTemplateSSR } from '../ssr/template'
 import type {
+  JSXElementPath,
   NodePathHub,
   TransformInfo,
   TransformResult,
@@ -231,11 +232,7 @@ export function getCreateTemplate(
   config: CompilerConfig,
   _path: NodePathHub,
   result: TransformResult,
-): (
-  path: NodePathHub,
-  result: TransformResult,
-  isClosing: boolean,
-) => t.Expression {
+): (path: NodePathHub, result: TransformResult, isClosing: boolean) => any {
   if (
     (result.tagName && result.renderer === 'dom') ||
     config.generate === 'dom'
@@ -252,13 +249,13 @@ export function getCreateTemplate(
 
 export function transformElement(
   config: CompilerConfig,
-  path: NodePathHub<t.JSXElement>,
+  path: NodePathHub,
   info: TransformInfo = {},
 ): TransformResult {
   const node = path.node
-  let tagName = getTagName(node)
+  let tagName = getTagName(node as t.JSXElement)
   // <Component ...></Component>
-  if (isComponent(tagName)) return transformComponent(path)
+  if (isComponent(tagName)) return transformComponent(path as JSXElementPath)
 
   // <div ...></div>
   // const element = getTransformElemet(config, path, tagName);
@@ -268,7 +265,7 @@ export function transformElement(
   )
 
   if (tagRenderer?.name === 'dom' || getConfig(path).generate === 'dom') {
-    return transformElementDOM(path, info)
+    return transformElementDOM(path as JSXElementPath, info)
   }
 
   if (getConfig(path).generate === 'ssr') {
