@@ -1,6 +1,6 @@
 import * as t from '@babel/types'
 import { addNamed } from '@babel/helper-module-imports'
-import type { JSXNode, NodePathHub } from '../type'
+import type { NodePathHub } from '../type'
 import type { CompilerConfig } from '../config'
 import type { NodePath } from '@babel/core'
 
@@ -29,7 +29,7 @@ export function getConfig<T>(path: T): CompilerConfig {
     {}) as CompilerConfig
 }
 
-export const getRendererConfig = (path, renderer) => {
+export const getRendererConfig = (path: NodePathHub, renderer: any): any => {
   const config = getConfig(path)
   return config?.renderers?.find(r => r.name === renderer) ?? config
 }
@@ -74,13 +74,13 @@ function jsxElementNameToString(
   return `${node.namespace.name}:${node.name.name}`
 }
 
-export function tagNameToIdentifier(name) {
+export function tagNameToIdentifier(name: string): t.Identifier {
   const parts = name.split('.')
   if (parts.length === 1) return t.identifier(name)
   let part
-  let base = t.identifier(parts.shift())
+  let base = t.identifier(parts.shift()!)
   while ((part = parts.shift())) {
-    base = t.memberExpression(base, t.identifier(part))
+    base = t.memberExpression(base, t.identifier(part)) as any
   }
   return base
 }
@@ -90,7 +90,7 @@ export function getTagName(tag: t.JSXElement): string {
   return jsxElementNameToString(jsxName)
 }
 
-export function isComponent(tagName) {
+export function isComponent(tagName: string): boolean {
   return (
     (tagName[0] && tagName[0].toLowerCase() !== tagName[0]) ||
     tagName.includes('.') ||
@@ -98,7 +98,10 @@ export function isComponent(tagName) {
   )
 }
 
-export function hasStaticMarker(object, path) {
+export function hasStaticMarker(
+  object: any,
+  path: NodePathHub,
+): boolean | undefined {
   if (!object) return false
   if (
     object.leadingComments &&
@@ -151,12 +154,12 @@ export function isDynamic(
 
   if (checkMember && t.isMemberExpression(expr)) {
     // Do not assume property access on namespaced imports as dynamic.
-    const object = path.get('object').node
+    const object = (path.get('object') as any).node
 
     if (
       t.isIdentifier(object) &&
       (!expr.computed ||
-        !isDynamic(path.get('property'), {
+        !isDynamic(path.get('property') as any, {
           checkMember,
           checkTags,
           checkCallExpressions,
@@ -229,10 +232,10 @@ export function isDynamic(
         : p.skip()
     },
   })
-  return dynamic
+  return dynamic!
 }
 
-export function getStaticExpression(path) {
+export function getStaticExpression(path: NodePathHub): any {
   const node = path.node
   let value, type
   return (
@@ -276,7 +279,7 @@ export function checkLength(children: NodePath[]): boolean {
   return i > 1
 }
 
-export function trimWhitespace(text) {
+export function trimWhitespace(text: string): string {
   text = text.replace(/\r/g, '')
   if (/\n/g.test(text)) {
     text = text
@@ -300,7 +303,7 @@ export function toPropertyName(name: string): string {
   return name.toLowerCase().replace(/-([a-z])/g, (_, w) => w.toUpperCase())
 }
 
-export function wrappedByText(list, startIndex) {
+export function wrappedByText(list: any[], startIndex: number): boolean {
   let index = startIndex,
     wrapped
   while (--index >= 0) {
@@ -487,12 +490,15 @@ export function escapeHTML<T = string>(s: T, attr?: boolean): T {
     }
   }
 
-  return left < s.length ? out + s.substring(left) : out
+  return (left < s.length ? out + s.substring(left) : out) as T
 }
 
-export function convertJSXIdentifier(node) {
+export function convertJSXIdentifier(
+  node: any,
+): t.StringLiteral | t.MemberExpression {
   if (t.isJSXIdentifier(node)) {
     if (t.isValidIdentifier(node.name)) {
+      // @ts-expect-error
       node.type = 'Identifier'
     } else {
       return t.stringLiteral(node.name)
@@ -509,7 +515,14 @@ export function convertJSXIdentifier(node) {
   return node
 }
 
-export function canNativeSpread(key, { checkNameSpaces } = {}) {
+interface CanNativeSpreadOptions {
+  checkNameSpaces?: boolean
+}
+
+export function canNativeSpread(
+  key: string,
+  { checkNameSpaces }: CanNativeSpreadOptions = {},
+): boolean {
   if (
     checkNameSpaces &&
     key.includes(':') &&
@@ -524,7 +537,7 @@ export function canNativeSpread(key, { checkNameSpaces } = {}) {
 const chars = 'etaoinshrdlucwmfygpbTAOISWCBvkxjqzPHFMDRELNGUKVYJQZX_$'
 const base = chars.length
 
-export function getNumberedId(num) {
+export function getNumberedId(num: number): string {
   let out = ''
 
   do {
@@ -537,9 +550,10 @@ export function getNumberedId(num) {
   return out
 }
 
-export function escapeStringForTemplate(str) {
-  return str.replace(/[{\\`\n\t\b\f\v\r\u2028\u2029]/g, ch =>
-    templateEscapes.get(ch),
+export function escapeStringForTemplate(str: string): string {
+  return str.replace(
+    /[{\\`\n\t\b\f\v\r\u2028\u2029]/g,
+    (ch: string) => templateEscapes.get(ch)!,
   )
 }
 

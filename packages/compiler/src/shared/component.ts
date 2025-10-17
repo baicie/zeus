@@ -82,7 +82,7 @@ export default function transformComponent(
               ? t.stringLiteral(node.value.value)
               : node.value) || t.booleanLiteral(true),
           id = convertJSXIdentifier(node.name),
-          key = id.name
+          key = (id as any).name
         if (hasChildren && key === 'children') return
         if (t.isJSXExpressionContainer(value))
           if (key === 'ref') {
@@ -340,7 +340,7 @@ function transformComponentChildren(
 
   let transformedChildren: any = filteredChildren.reduce((memo, path) => {
     if (t.isJSXText(path.node)) {
-      const v = decode(trimWhitespace(path.node.extra!.raw))
+      const v = decode(trimWhitespace(path.node.extra!.raw as string))
       if (v.length) {
         pathNodes.push(path.node)
         memo.push(t.stringLiteral(v))

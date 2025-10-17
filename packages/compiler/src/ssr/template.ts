@@ -2,7 +2,10 @@ import * as t from '@babel/types'
 import { registerImportMethod } from '../shared/utils'
 import type { NodePathHub, TransformResult } from '../type'
 
-export function createTemplate(path: NodePathHub, result: TransformResult) {
+export function createTemplate(
+  path: NodePathHub,
+  result: TransformResult,
+): any {
   if (!result.template) {
     return result.exprs[0]
   }
@@ -18,17 +21,19 @@ export function createTemplate(path: NodePathHub, result: TransformResult) {
     template = t.arrayExpression(strings)
   }
 
-  const templates =
-    path.scope.getProgramParent().data.templates ||
+  const templates: any[] =
+    (path.scope.getProgramParent().data.templates as any[]) ||
     (path.scope.getProgramParent().data.templates = [])
+
   const found = templates.find(tmp => {
     if (t.isArrayExpression(tmp.template) && t.isArrayExpression(template)) {
       return tmp.template.elements.every(
-        (el, i) =>
-          template.elements[i] && el.value === template.elements[i].value,
+        (el: any, i: number) =>
+          template.elements[i] &&
+          (el as any).value === (template.elements[i] as any).value,
       )
     }
-    return tmp.template.value === template.value
+    return tmp.template.value === (template as any).value
   })
   if (!found) {
     id = path.scope.generateUidIdentifier('tmpl$')
@@ -46,8 +51,8 @@ export function createTemplate(path: NodePathHub, result: TransformResult) {
     else if (
       Array.isArray(result.template) &&
       result.template.length === 2 &&
-      result.templateValues[0].type === 'CallExpression' &&
-      result.templateValues[0].callee.name === '_$ssrHydrationKey'
+      result.templateValues?.[0]?.type === 'CallExpression' &&
+      result.templateValues?.[0]?.callee?.name === '_$ssrHydrationKey'
     ) {
       // remove unnecessary ssr call when only hydration key is used
       return t.binaryExpression(
@@ -64,7 +69,7 @@ export function createTemplate(path: NodePathHub, result: TransformResult) {
   return t.callExpression(
     registerImportMethod(path, 'ssr'),
     Array.isArray(result.template) && result.template.length > 1
-      ? [id, ...result.templateValues]
+      ? [id, ...(result.templateValues ?? [])]
       : [id],
   )
 }

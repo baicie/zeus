@@ -23,6 +23,7 @@ import {
 import type { NodePathHub, TransformInfo, TransformResult } from '../type'
 import VoidElements from '../VoidElements'
 import { createTemplate } from './template'
+import type { NodePath } from '@babel/traverse'
 
 function appendToTemplate(template: string[], value: string): void {
   let array
@@ -38,22 +39,27 @@ export function transformElement(
   info: TransformInfo,
 ): TransformResult {
   const config = getConfig(path)
-  const tagName = getTagName(path.node)
-  if (tagName === 'script' || tagName === 'style') path.doNotEscape = true
+  const tagName = getTagName(path.node as any)
+  if (tagName === 'script' || tagName === 'style')
+    (path as any).doNotEscape = true
 
   // contains spread attributes
-  if (path.node.openingElement.attributes.some(a => t.isJSXSpreadAttribute(a)))
-    return createElement(path, { ...info, ...config })
+  if (
+    (path.node as any).openingElement.attributes.some((a: any) =>
+      t.isJSXSpreadAttribute(a),
+    )
+  )
+    return createElement(path, { ...info, ...config } as any)
 
   const voidTag = VoidElements.indexOf(tagName) > -1,
-    results = {
+    results: TransformResult = {
       template: [`<${tagName}`],
       templateValues: [],
       declarations: [],
       exprs: [],
       dynamics: [],
       tagName,
-      wontEscape: path.node.wontEscape,
+      wontEscape: (path.node as any).wontEscape,
       renderer: 'ssr',
     }
 
@@ -81,27 +87,33 @@ export function transformElement(
       )
       return results
     }
-    results.template.push('')
-    results.templateValues.push(
+    ;(results.template as string[])?.push('')
+    results.templateValues?.push(
       t.callExpression(registerImportMethod(path, 'ssrHydrationKey'), []),
     )
   }
   transformAttributes(path, results, { ...config, ...info })
-  appendToTemplate(results.template, '>')
+  appendToTemplate(results.template as string[], '>')
   if (!voidTag) {
     transformChildren(path, results, { ...config, ...info })
-    appendToTemplate(results.template, `</${tagName}>`)
+    appendToTemplate(results.template as string[], `</${tagName}>`)
   }
   return results
 }
 
-function toAttribute(key, isSVG) {
+function toAttribute(key: string, isSVG: boolean) {
   key = Aliases[key] || key
   !isSVG && (key = key.toLowerCase())
   return key
 }
 
-function setAttr(attribute, results, name, value, isSVG) {
+function setAttr(
+  attribute: NodePathHub,
+  results: TransformResult,
+  name: string,
+  value: t.Expression,
+  isSVG: boolean,
+) {
   // strip out namespaces for now, everything at this point is an attribute
   let parts, namespace
   if (
@@ -119,19 +131,24 @@ function setAttr(attribute, results, name, value, isSVG) {
     [t.stringLiteral(name), value, t.booleanLiteral(false)],
   )
   if (results.template[results.template.length - 1].length) {
-    results.template.push('')
-    results.templateValues.push(attr)
+    ;(results.template as string[])?.push('')
+    results.templateValues?.push(attr)
   } else {
-    const last = results.templateValues.length - 1
-    results.templateValues[last] = t.binaryExpression(
+    const last = results.templateValues!.length - 1
+    results.templateValues![last] = t.binaryExpression(
       '+',
-      results.templateValues[last],
+      results.templateValues?.[last],
       attr,
     )
   }
 }
 
-function escapeExpression(path, expression, attr, escapeLiterals) {
+function escapeExpression(
+  path: NodePathHub,
+  expression: t.Expression,
+  attr: boolean,
+  escapeLiterals: boolean,
+) {
   if (
     t.isStringLiteral(expression) ||
     t.isNumericLiteral(expression) ||
@@ -148,7 +165,12 @@ function escapeExpression(path, expression, attr, escapeLiterals) {
     if (t.isBlockStatement(expression.body)) {
       expression.body.body = expression.body.body.map(e => {
         if (t.isReturnStatement(e))
-          e.argument = escapeExpression(path, e.argument, attr, escapeLiterals)
+          e.argument = escapeExpression(
+            path,
+            e.argument as t.Expression,
+            attr,
+            escapeLiterals,
+          )
         return e
       })
     } else
@@ -161,7 +183,7 @@ function escapeExpression(path, expression, attr, escapeLiterals) {
     return expression
   } else if (t.isTemplateLiteral(expression)) {
     expression.expressions = expression.expressions.map(e =>
-      escapeExpression(path, e, attr, escapeLiterals),
+      escapeExpression(path, e as t.Expression, attr, escapeLiterals),
     )
     return expression
   } else if (t.isUnaryExpression(expression)) {
@@ -169,7 +191,7 @@ function escapeExpression(path, expression, attr, escapeLiterals) {
   } else if (t.isBinaryExpression(expression)) {
     expression.left = escapeExpression(
       path,
-      expression.left,
+      expression.left as t.Expression,
       attr,
       escapeLiterals,
     )
@@ -217,7 +239,12 @@ function escapeExpression(path, expression, attr, escapeLiterals) {
     if (t.isBlockStatement(expression.callee.body)) {
       expression.callee.body.body = expression.callee.body.body.map(e => {
         if (t.isReturnStatement(e))
-          e.argument = escapeExpression(path, e.argument, attr, escapeLiterals)
+          e.argument = escapeExpression(
+            path,
+            e.argument as t.Expression,
+            attr,
+            escapeLiterals,
+          )
         return e
       })
     } else
@@ -232,7 +259,7 @@ function escapeExpression(path, expression, attr, escapeLiterals) {
     t.isJSXElement(expression) &&
     !isComponent(getTagName(expression))
   ) {
-    expression.wontEscape = true
+    ;(expression as any).wontEscape = true
     return expression
   }
 
@@ -242,24 +269,31 @@ function escapeExpression(path, expression, attr, escapeLiterals) {
   )
 }
 
-function transformToObject(attrName, attributes, selectedAttributes) {
+function transformToObject(
+  attrName: string,
+  attributes: NodePath<t.JSXAttribute>[],
+  selectedAttributes: NodePath<t.JSXAttribute>[],
+) {
   const properties = []
   const existingAttribute = attributes.find(a => a.node.name.name === attrName)
   for (let i = 0; i < selectedAttributes.length; i++) {
     const attr = selectedAttributes[i].node
-    const computed = !t.isValidIdentifier(attr.name.name.name)
+    const computed = !t.isValidIdentifier((attr.name.name as any).name)
     if (!computed) {
-      attr.name.name.type = 'Identifier'
+      ;(attr.name.name as any).type = 'Identifier'
     }
     properties.push(
       t.objectProperty(
-        computed ? t.stringLiteral(attr.name.name.name) : attr.name.name,
+        computed
+          ? t.stringLiteral((attr.name.name as any).name)
+          : (attr.name.name as any),
         t.isJSXExpressionContainer(attr.value)
           ? attr.value.expression
-          : attr.value,
+          : (attr.value as any),
       ),
     )
-    ;(existingAttribute || i) && attributes.splice(selectedAttributes[i].key, 1)
+    ;(existingAttribute || i) &&
+      attributes.splice(selectedAttributes[i].key as number, 1)
   }
   if (
     existingAttribute &&
@@ -275,22 +309,22 @@ function transformToObject(attrName, attributes, selectedAttributes) {
   }
 }
 
-function normalizeAttributes(path) {
+function normalizeAttributes(path: any) {
   const attributes = path.get('openingElement').get('attributes'),
     styleAttributes = attributes.filter(
-      a =>
+      (a: any) =>
         t.isJSXNamespacedName(a.node.name) &&
         a.node.name.namespace.name === 'style',
     ),
     classNamespaceAttributes = attributes.filter(
-      a =>
+      (a: any) =>
         t.isJSXNamespacedName(a.node.name) &&
         a.node.name.namespace.name === 'class',
     )
   if (classNamespaceAttributes.length)
     transformToObject('classList', attributes, classNamespaceAttributes)
   const classAttributes = attributes.filter(
-    a =>
+    (a: any) =>
       a.node.name &&
       (a.node.name.name === 'class' ||
         a.node.name.name === 'className' ||
@@ -343,8 +377,12 @@ function normalizeAttributes(path) {
   return attributes
 }
 
-function transformAttributes(path, results, info) {
-  const tagName = getTagName(path.node),
+function transformAttributes(
+  path: NodePathHub,
+  results: TransformResult,
+  info: TransformInfo,
+) {
+  const tagName = getTagName(path.node as any),
     isSVG = SVGElements.has(tagName),
     hasChildren = path.node.children.length > 0,
     attributes = normalizeAttributes(path)

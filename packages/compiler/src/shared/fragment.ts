@@ -13,7 +13,7 @@ export default function transformFragmentChildren(
   const filteredChildren = filterChildren(children),
     childNodes = filteredChildren.reduce((memo, path) => {
       if (t.isJSXText(path.node)) {
-        const v = decode(trimWhitespace(path.node.extra!.raw))
+        const v = decode(trimWhitespace(path.node.extra!.raw as string))
         if (v.length) memo.push(t.stringLiteral(v))
       } else {
         const child = transformNode(path as NodePathHub, {

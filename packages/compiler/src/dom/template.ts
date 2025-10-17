@@ -74,7 +74,7 @@ export function appendTemplates(
           registerImportMethod(
             path,
             'template',
-            getRendererConfig(path, 'dom').moduleName,
+            getRendererConfig(path as any, 'dom').moduleName,
           ),
           [t.templateLiteral([t.templateElement(tmpl, true)], [])].concat(
             template.isSVG || shouldUseImportNode || isMathML

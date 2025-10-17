@@ -1,14 +1,7 @@
 import * as t from '@babel/types'
-import {
-  Aliases,
-  ChildProperties,
-  DelegatedEvents,
-  Properties,
-  SVGElements,
-  SVGNamespace,
-  getPropAlias,
-} from './constants'
 import VoidElements from '../VoidElements'
+import type { CompilerConfig } from '../config'
+import { transformNode } from '../shared/transform'
 import {
   canNativeSpread,
   checkLength,
@@ -30,14 +23,23 @@ import {
   trimWhitespace,
   wrappedByText,
 } from '../shared/utils'
-import { transformNode } from '../shared/transform'
-import { BlockElements, InlineElements } from './constants'
 import type {
   JSXElementPath,
   NodePathHub,
   TransformInfo,
   TransformResult,
 } from '../type'
+import {
+  Aliases,
+  BlockElements,
+  ChildProperties,
+  DelegatedEvents,
+  InlineElements,
+  Properties,
+  SVGElements,
+  SVGNamespace,
+  getPropAlias,
+} from './constants'
 
 const alwaysClose = [
   'title',
@@ -492,7 +494,7 @@ function transformAttributes(path: JSXElementPath, results: TransformResult) {
     .get('attributes')
     .find(
       a =>
-        a.node.name &&
+        t.isJSXAttribute(a.node) &&
         a.node.name.name === 'style' &&
         t.isJSXExpressionContainer(a.node.value) &&
         t.isObjectExpression(a.node.value.expression) &&
@@ -500,34 +502,37 @@ function transformAttributes(path: JSXElementPath, results: TransformResult) {
     )
   if (styleAttribute) {
     let i = 0,
-      leading = styleAttribute.node.value.expression.leadingComments
-    styleAttribute.node.value.expression.properties
-      .slice()
-      .forEach((p, index) => {
-        if (!p.computed) {
-          if (leading) p.value.leadingComments = leading
-          path
-            .get('openingElement')
-            .node.attributes.splice(
-              styleAttribute.key + ++i,
-              0,
-              t.jsxAttribute(
-                t.jsxNamespacedName(
-                  t.jsxIdentifier('style'),
-                  t.jsxIdentifier(
-                    t.isIdentifier(p.key) ? p.key.name : p.key.value,
+      leading = (styleAttribute.node as any).value.expression
+        .leadingComments(styleAttribute.node as any)
+        .value.expression.properties.slice()
+        .forEach((p: any, index: number) => {
+          if (!p.computed) {
+            if (leading) p.value.leadingComments = leading
+            path
+              .get('openingElement')
+              .node.attributes.splice(
+                (styleAttribute!.key as number) + ++i,
+                0,
+                t.jsxAttribute(
+                  t.jsxNamespacedName(
+                    t.jsxIdentifier('style'),
+                    t.jsxIdentifier(
+                      t.isIdentifier(p.key) ? p.key.name : p.key.value,
+                    ),
                   ),
+                  t.jsxExpressionContainer(p.value),
                 ),
-                t.jsxExpressionContainer(p.value),
-              ),
+              )
+            // @ts-expect-error
+            styleAttribute.node.value.expression.properties.splice(
+              index - i - 1,
+              1,
             )
-          styleAttribute.node.value.expression.properties.splice(
-            index - i - 1,
-            1,
-          )
-        }
-      })
+          }
+        })
+    // @ts-expect-error
     if (!styleAttribute.node.value.expression.properties.length)
+      // @ts-expect-error
       path.get('openingElement').node.attributes.splice(styleAttribute.key, 1)
   }
 
@@ -535,7 +540,7 @@ function transformAttributes(path: JSXElementPath, results: TransformResult) {
   attributes = path.get('openingElement').get('attributes')
   const classListAttribute = attributes.find(
     a =>
-      a.node.name &&
+      t.isJSXAttribute(a.node) &&
       a.node.name.name === 'classList' &&
       t.isJSXExpressionContainer(a.node.value) &&
       t.isObjectExpression(a.node.value.expression) &&
@@ -549,20 +554,21 @@ function transformAttributes(path: JSXElementPath, results: TransformResult) {
   )
   if (classListAttribute) {
     let i = 0,
-      leading = classListAttribute.node.value.expression.leadingComments,
+      leading = (classListAttribute.node as any).value.expression
+        .leadingComments,
       classListProperties = classListAttribute
         .get('value')
         .get('expression')
         .get('properties')
     classListProperties.slice().forEach((propPath, index) => {
-      const p = propPath.node
+      const p = propPath.node as any
       const { confident, value: computed } = propPath.get('value').evaluate()
       if (leading) p.value.leadingComments = leading
       if (!confident) {
         path
           .get('openingElement')
           .node.attributes.splice(
-            classListAttribute.key + ++i,
+            (classListAttribute.key as number) + ++i,
             0,
             t.jsxAttribute(
               t.jsxNamespacedName(
@@ -578,7 +584,7 @@ function transformAttributes(path: JSXElementPath, results: TransformResult) {
         path
           .get('openingElement')
           .node.attributes.splice(
-            classListAttribute.key + ++i,
+            (classListAttribute.key as number) + ++i,
             0,
             t.jsxAttribute(
               t.jsxIdentifier('class'),
@@ -591,14 +597,14 @@ function transformAttributes(path: JSXElementPath, results: TransformResult) {
     if (!classListProperties.length)
       path
         .get('openingElement')
-        .node.attributes.splice(classListAttribute.key, 1)
+        .node.attributes.splice(classListAttribute.key as any, 1)
   }
 
   // combine class properties
   attributes = path.get('openingElement').get('attributes')
   const classAttributes = attributes.filter(
     a =>
-      a.node.name &&
+      t.isJSXAttribute(a.node) &&
       (a.node.name.name === 'class' || a.node.name.name === 'className'),
   )
   if (classAttributes.length > 1) {
@@ -608,27 +614,33 @@ function transformAttributes(path: JSXElementPath, results: TransformResult) {
     for (let i = 0; i < classAttributes.length; i++) {
       const attr = classAttributes[i].node,
         isLast = i === classAttributes.length - 1
-      if (!t.isJSXExpressionContainer(attr.value)) {
+      if (!t.isJSXExpressionContainer((attr as any).value)) {
         const prev = quasis.pop()
         quasis.push(
           t.templateElement({
             raw:
               (prev ? prev.value.raw : '') +
-              `${attr.value.value}` +
+              `${(attr as any).value.value}` +
               (isLast ? '' : ' '),
           }),
         )
       } else {
         values.push(
-          t.logicalExpression('||', attr.value.expression, t.stringLiteral('')),
+          t.logicalExpression(
+            '||',
+            (attr as any).value.expression,
+            t.stringLiteral(''),
+          ),
         )
         quasis.push(t.templateElement({ raw: isLast ? '' : ' ' }))
       }
       i && attributes.splice(attributes.indexOf(classAttributes[i]), 1)
     }
     if (values.length)
-      first.value = t.jsxExpressionContainer(t.templateLiteral(quasis, values))
-    else first.value = t.stringLiteral(quasis[0].value.raw)
+      (first as any).value = t.jsxExpressionContainer(
+        t.templateLiteral(quasis, values),
+      )
+    else (first as any).value = t.stringLiteral(quasis[0].value.raw)
   }
   path.get('openingElement').set(
     'attributes',
@@ -638,7 +650,12 @@ function transformAttributes(path: JSXElementPath, results: TransformResult) {
   let needsSpacing = true
 
   // scoped because of `needsSpacing`
-  function inlineAttributeOnTemplate(isSVG, key, results, value) {
+  function inlineAttributeOnTemplate(
+    isSVG: boolean,
+    key: string,
+    results: TransformResult,
+    value: any,
+  ) {
     !isSVG && (key = key.toLowerCase())
     results.template += `${needsSpacing ? ' ' : ''}${key}`
 
@@ -757,7 +774,7 @@ function transformAttributes(path: JSXElementPath, results: TransformResult) {
             results.exprs.unshift(
               t.variableDeclaration('var', [
                 t.variableDeclarator(refIdentifier, value.expression),
-              ]),
+              ]) as any,
               t.expressionStatement(
                 t.conditionalExpression(
                   t.binaryExpression(
@@ -794,8 +811,8 @@ function transformAttributes(path: JSXElementPath, results: TransformResult) {
             const refIdentifier = path.scope.generateUidIdentifier('_ref$')
             results.exprs.unshift(
               t.variableDeclaration('var', [
-                t.variableDeclarator(refIdentifier, value.expression),
-              ]),
+                t.variableDeclarator(refIdentifier, value.expression as any),
+              ]) as any,
               t.expressionStatement(
                 t.logicalExpression(
                   '&&',
@@ -874,7 +891,7 @@ function transformAttributes(path: JSXElementPath, results: TransformResult) {
               t.expressionStatement(
                 t.callExpression(
                   t.memberExpression(elem, t.identifier('addEventListener')),
-                  args,
+                  args as any,
                 ),
               ),
             )
@@ -898,18 +915,18 @@ function transformAttributes(path: JSXElementPath, results: TransformResult) {
                     t.assignmentExpression(
                       '=',
                       t.memberExpression(elem, t.identifier(`$$${ev}Data`)),
-                      handler.elements[1],
+                      handler.elements[1] as any,
                     ),
                   ),
                 )
               }
-              handler = handler.elements[0]
+              handler = handler.elements[0] as any
               results.exprs.unshift(
                 t.expressionStatement(
                   t.assignmentExpression(
                     '=',
                     t.memberExpression(elem, t.identifier(`$$${ev}`)),
-                    handler,
+                    handler as any,
                   ),
                 ),
               )
@@ -919,7 +936,7 @@ function transformAttributes(path: JSXElementPath, results: TransformResult) {
                   t.assignmentExpression(
                     '=',
                     t.memberExpression(elem, t.identifier(`$$${ev}`)),
-                    handler,
+                    handler as any,
                   ),
                 ),
               )
@@ -949,17 +966,17 @@ function transformAttributes(path: JSXElementPath, results: TransformResult) {
               if (handler.elements.length > 1) {
                 handler = t.arrowFunctionExpression(
                   [t.identifier('e')],
-                  t.callExpression(handler.elements[0], [
-                    handler.elements[1],
+                  t.callExpression(handler.elements[0] as any, [
+                    handler.elements[1] as any,
                     t.identifier('e'),
                   ]),
                 )
-              } else handler = handler.elements[0]
+              } else handler = handler.elements[0] as any
               results.exprs.unshift(
                 t.expressionStatement(
                   t.callExpression(
                     t.memberExpression(elem, t.identifier('addEventListener')),
-                    [t.stringLiteral(ev), handler],
+                    [t.stringLiteral(ev), handler as any],
                   ),
                 ),
               )
@@ -968,7 +985,7 @@ function transformAttributes(path: JSXElementPath, results: TransformResult) {
                 t.expressionStatement(
                   t.callExpression(
                     t.memberExpression(elem, t.identifier('addEventListener')),
-                    [t.stringLiteral(ev), handler],
+                    [t.stringLiteral(ev), handler as any],
                   ),
                 ),
               )
@@ -1014,12 +1031,12 @@ function transformAttributes(path: JSXElementPath, results: TransformResult) {
               path,
               config.effectWrapper,
             )
-            results.postExprs.push(
+            results.postExprs?.push(
               t.expressionStatement(
                 t.callExpression(effectWrapperId, [
                   t.arrowFunctionExpression(
                     [],
-                    setAttr(path, elem, key, value.expression, {
+                    setAttr(path, elem, key, value.expression as any, {
                       tagName,
                       isSVG,
                       isCE,
@@ -1034,21 +1051,21 @@ function transformAttributes(path: JSXElementPath, results: TransformResult) {
             nextElem = attribute.scope.generateUidIdentifier('el$')
             children = t.jsxText(' ')
             children.extra = { raw: ' ', rawValue: ' ' }
-            results.declarations.push(
+            results.declarations?.push(
               t.variableDeclarator(
                 nextElem,
                 t.memberExpression(elem, t.identifier('firstChild')),
-              ),
+              ) as any,
             )
           }
-          results.dynamics.push({
+          results.dynamics?.push({
             elem: nextElem,
             key,
-            value: value.expression,
+            value: value.expression as any,
             isSVG,
             isCE,
             tagName,
-          })
+          } as any)
         } else if (key.slice(0, 5) === 'attr:') {
           if (t.isJSXExpressionContainer(value)) value = value.expression
 
@@ -1065,7 +1082,7 @@ function transformAttributes(path: JSXElementPath, results: TransformResult) {
           }
         } else if (key.slice(0, 5) === 'bool:') {
           // inline it on the template when possible
-          let content = value
+          let content = value as any
 
           if (t.isJSXExpressionContainer(content)) content = content.expression
 
@@ -1105,7 +1122,9 @@ function transformAttributes(path: JSXElementPath, results: TransformResult) {
                 attribute,
                 elem,
                 key,
-                t.isJSXExpressionContainer(value) ? value.expression : value,
+                t.isJSXExpressionContainer(value)
+                  ? value.expression
+                  : (value as any),
                 { isSVG, isCE, tagName },
               ),
             ),
@@ -1113,7 +1132,7 @@ function transformAttributes(path: JSXElementPath, results: TransformResult) {
         } else {
           results.exprs.push(
             t.expressionStatement(
-              setAttr(attribute, elem, key, value.expression, {
+              setAttr(attribute, elem, key, value.expression as any, {
                 isSVG,
                 isCE,
                 tagName,
@@ -1149,7 +1168,7 @@ function transformAttributes(path: JSXElementPath, results: TransformResult) {
   results.hasHydratableEvent = results.hasHydratableEvent || hasHydratableEvent
 }
 
-function findLastElement(children, hydratable) {
+function findLastElement(children: any[], hydratable: boolean) {
   let lastElement = -1,
     tagName
   for (let i = children.length - 1; i >= 0; i--) {
@@ -1169,11 +1188,15 @@ function findLastElement(children, hydratable) {
   return lastElement
 }
 
-function transformChildren(path, results, config) {
+function transformChildren(
+  path: NodePathHub,
+  results: TransformResult,
+  config: CompilerConfig,
+) {
   let tempPath = results.id && results.id.name,
-    tagName = getTagName(path.node),
-    nextPlaceholder,
-    childPostExprs = [],
+    tagName = getTagName(path.node as any),
+    nextPlaceholder: any,
+    childPostExprs: any[] = [],
     i = 0
   const filteredChildren = filterChildren(path.get('children')),
     lastElement = findLastElement(filteredChildren, config.hydratable),
@@ -1183,7 +1206,7 @@ function transformChildren(path, results, config) {
           `Fragments can only be used top level in JSX. Not used under a <${tagName}>.`,
         )
       }
-      const transformed = transformNode(child, {
+      const transformed = transformNode(child as any, {
         toBeClosed: results.toBeClosed,
         lastElement: index === lastElement,
         skipId:
@@ -1191,13 +1214,14 @@ function transformChildren(path, results, config) {
       })
       if (!transformed) return memo
       const i = memo.length
-      if (transformed.text && i && memo[i - 1].text) {
-        memo[i - 1].template += transformed.template
-        memo[i - 1].templateWithClosingTags +=
+      if (transformed.text && i && (memo[i - 1] as any).text) {
+        ;(memo[i - 1] as any).template += (transformed.template as any)(
+          memo[i - 1] as any,
+        ).templateWithClosingTags +=
           transformed.templateWithClosingTags || transformed.template
       } else memo.push(transformed)
       return memo
-    }, [])
+    }, [] as any[])
 
   childNodes.forEach((child, index) => {
     if (!child) return
@@ -1248,20 +1272,20 @@ function transformChildren(path, results, config) {
         t.identifier(tempPath),
         t.identifier(i === 0 ? 'firstChild' : 'nextSibling'),
       )
-      results.declarations.push(
+      results.declarations?.push(
         t.variableDeclarator(
           child.id,
           config.hydratable && tagName === 'html'
-            ? t.callExpression(getNextMatch, [
+            ? t.callExpression(getNextMatch!, [
                 walk,
                 t.stringLiteral(child.tagName),
               ])
             : walk,
-        ),
+        ) as any,
       )
-      results.declarations.push(...child.declarations)
+      results.declarations?.push(...child.declarations)
       results.exprs.push(...child.exprs)
-      results.dynamics.push(...child.dynamics)
+      results.dynamics?.push(...child.dynamics)
       childPostExprs.push(...child.postExprs)
       results.hasHydratableEvent =
         results.hasHydratableEvent || child.hasHydratableEvent
@@ -1283,7 +1307,7 @@ function transformChildren(path, results, config) {
       if (markers || wrappedByText(childNodes, index)) {
         let exprId, contentId
         if (markers)
-          tempPath = createPlaceholder(path, results, tempPath, i++, '$')[0]
+          tempPath = createPlaceholder(path, results, tempPath, i++, '$')[0]!
             .name
         if (nextPlaceholder) {
           exprId = nextPlaceholder
@@ -1327,10 +1351,16 @@ function transformChildren(path, results, config) {
       }
     } else nextPlaceholder = null
   })
-  results.postExprs.unshift(...childPostExprs)
+  results.postExprs?.unshift(...childPostExprs)
 }
 
-function createPlaceholder(path, results, tempPath, i, char) {
+function createPlaceholder(
+  path: NodePathHub,
+  results: TransformResult,
+  tempPath: string,
+  i: number,
+  char: string,
+) {
   const exprId = path.scope.generateUidIdentifier('el$'),
     config = getConfig(path)
   let contentId
@@ -1338,7 +1368,7 @@ function createPlaceholder(path, results, tempPath, i, char) {
   results.templateWithClosingTags += `<!${char}>`
   if (config.hydratable && char === '/') {
     contentId = path.scope.generateUidIdentifier('co$')
-    results.declarations.push(
+    results.declarations?.push(
       t.variableDeclarator(
         t.arrayPattern([exprId, contentId]),
         t.callExpression(
@@ -1354,22 +1384,22 @@ function createPlaceholder(path, results, tempPath, i, char) {
             ),
           ],
         ),
-      ),
+      ) as any,
     )
   } else
-    results.declarations.push(
+    results.declarations?.push(
       t.variableDeclarator(
         exprId,
         t.memberExpression(
           t.identifier(tempPath),
           t.identifier(i === 0 ? 'firstChild' : 'nextSibling'),
         ),
-      ),
+      ) as any,
     )
   return [exprId, contentId]
 }
 
-function nextChild(children, index) {
+function nextChild(children: any[], index: number): any {
   return (
     children[index + 1] &&
     (children[index + 1].id || nextChild(children, index + 1))
@@ -1377,7 +1407,11 @@ function nextChild(children, index) {
 }
 
 // reduce unnecessary refs
-function detectExpressions(children, index, config) {
+function detectExpressions(
+  children: any[],
+  index: number,
+  config: CompilerConfig,
+) {
   if (children[index - 1]) {
     const node = children[index - 1].node
     if (
@@ -1409,15 +1443,17 @@ function detectExpressions(children, index, config) {
         config.contextToCustomElements &&
         (tagName === 'slot' ||
           tagName.indexOf('-') > -1 ||
-          child.openingElement.attributes.some(a => a.name?.name === 'is'))
+          child.openingElement.attributes.some(
+            (a: any) => a.name?.name === 'is',
+          ))
       )
         return true
       if (
         child.openingElement.attributes.some(
-          attr =>
+          (attr: any) =>
             t.isJSXSpreadAttribute(attr) ||
             ['textContent', 'innerHTML', 'innerText'].includes(
-              attr.name.name,
+              attr.name.name as string,
             ) ||
             (attr.name.namespace &&
               (attr.name.namespace.name === 'use' ||
@@ -1437,7 +1473,7 @@ function detectExpressions(children, index, config) {
   }
 }
 
-function contextToCustomElement(path, results) {
+function contextToCustomElement(path: NodePathHub, results: TransformResult) {
   results.exprs.push(
     t.expressionStatement(
       t.assignmentExpression(
@@ -1459,18 +1495,20 @@ function contextToCustomElement(path, results) {
 interface ProcessSpreadsOpt {
   elem: boolean
   isSVG: boolean
+  hasChildren: boolean
+  wrapConditionals: boolean
 }
 
 function processSpreads(
   path: NodePathHub,
-  attributes,
+  attributes: any[],
   { elem, isSVG, hasChildren, wrapConditionals }: ProcessSpreadsOpt,
-) {
+): [any[], t.ExpressionStatement] {
   const config = getConfig(path)
   // TODO: skip but collect the names of any properties after the last spread to not overwrite them
-  const filteredAttributes = []
+  const filteredAttributes: any[] = []
   const spreadArgs = []
-  let runningObject = []
+  let runningObject: any[] = []
   let dynamicSpread = false
   let firstSpread = false
   attributes.forEach(attribute => {
@@ -1504,7 +1542,9 @@ function processSpreads(
             : t.arrowFunctionExpression([], node.argument)
           : node.argument
 
-      spreadArgs.push(isStatic ? t.objectExpression([t.spreadElement(s)]) : s)
+      spreadArgs.push(
+        isStatic ? t.objectExpression([t.spreadElement(s as any)]) : s,
+      )
     } else if (
       (firstSpread ||
         (t.isJSXExpressionContainer(node.value) &&
@@ -1532,7 +1572,7 @@ function processSpreads(
             'get',
             id,
             [],
-            t.blockStatement([t.returnStatement(expr.body)]),
+            t.blockStatement([t.returnStatement((expr as any).body)]),
             !t.isValidIdentifier(key),
           ),
         )
@@ -1570,7 +1610,12 @@ function processSpreads(
           'spread',
           getRendererConfig(path, 'dom').moduleName,
         ),
-        [elem, props, t.booleanLiteral(isSVG), t.booleanLiteral(hasChildren)],
+        [
+          elem as any,
+          props,
+          t.booleanLiteral(isSVG),
+          t.booleanLiteral(hasChildren),
+        ],
       ),
     ),
   ]

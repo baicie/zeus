@@ -44,7 +44,7 @@ export interface TransformState {
 }
 
 export interface TransformResult {
-  template: string
+  template: string | string[]
   templateWithClosingTags?: string
   declarations?: t.VariableDeclaration[]
   decl?: {
@@ -65,4 +65,6 @@ export interface TransformResult {
   component?: boolean
   text?: boolean
   dynamic?: boolean
+  wontEscape?: boolean
+  templateValues?: any[]
 }

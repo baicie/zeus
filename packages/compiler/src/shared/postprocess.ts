@@ -17,7 +17,7 @@ export default (path: NodePathHub<t.Program>, state: unknown): void => {
           registerImportMethod(
             path,
             'delegateEvents',
-            getRendererConfig(path, 'dom').moduleName,
+            getRendererConfig(path as any, 'dom').moduleName,
           ),
           [
             t.arrayExpression(
