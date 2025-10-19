@@ -204,12 +204,12 @@ export function transformElement(
   return results
 }
 
-interface SetAttrOptions {
+export interface SetAttrOptions {
   isSVG?: boolean
   dynamic?: boolean
   prevId?: t.Expression
   isCE?: boolean
-  tagName: string
+  tagName?: string
 }
 
 export function setAttr(
@@ -327,7 +327,7 @@ export function setAttr(
 
   const isChildProp = ChildProperties.has(name)
   const isProp = Properties.has(name)
-  const alias = getPropAlias(name, tagName.toUpperCase())
+  const alias = getPropAlias(name, tagName!.toUpperCase())
   if (
     namespace !== 'attr' &&
     (isChildProp || (!isSVG && isProp) || isCE || namespace === 'prop')
@@ -1492,9 +1492,9 @@ function contextToCustomElement(path: NodePathHub, results: TransformResult) {
   )
 }
 
-interface ProcessSpreadsOpt {
+export interface ProcessSpreadsOpt {
   elem: boolean
-  isSVG: boolean
+  isSVG?: boolean
   hasChildren: boolean
   wrapConditionals: boolean
 }
@@ -1613,7 +1613,7 @@ function processSpreads(
         [
           elem as any,
           props,
-          t.booleanLiteral(isSVG),
+          t.booleanLiteral(isSVG!),
           t.booleanLiteral(hasChildren),
         ],
       ),

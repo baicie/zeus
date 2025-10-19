@@ -155,7 +155,7 @@ export function transformNode(
         ? info.doNotEscape
           ? staticValue.toString()
           : escapeHTML(staticValue.toString())
-        : trimWhitespace(node.extra!.raw)
+        : trimWhitespace(node.extra!.raw as string)
     if (!text.length) return null
     const results: TransformResult = {
       template: text,

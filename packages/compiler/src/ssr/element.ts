@@ -115,14 +115,15 @@ function setAttr(
   isSVG: boolean,
 ) {
   // strip out namespaces for now, everything at this point is an attribute
-  let parts, namespace
+  let parts
+  //  namespace
   if (
     (parts = name.split(':')) &&
     parts[1] &&
     reservedNameSpaces.has(parts[0])
   ) {
     name = parts[1]
-    namespace = parts[0]
+    // namespace = parts[0]
   }
 
   name = toAttribute(name, isSVG)
@@ -146,8 +147,8 @@ function setAttr(
 function escapeExpression(
   path: NodePathHub,
   expression: t.Expression,
-  attr: boolean,
-  escapeLiterals: boolean,
+  attr?: boolean,
+  escapeLiterals?: boolean,
 ) {
   if (
     t.isStringLiteral(expression) ||
@@ -384,11 +385,11 @@ function transformAttributes(
 ) {
   const tagName = getTagName(path.node as any),
     isSVG = SVGElements.has(tagName),
-    hasChildren = path.node.children.length > 0,
+    hasChildren = (path.node as any).children.length > 0,
     attributes = normalizeAttributes(path)
   let children
 
-  attributes.forEach(attribute => {
+  attributes.forEach((attribute: any) => {
     const node = attribute.node
 
     let value = node.value,
@@ -434,22 +435,26 @@ function transformAttributes(
         ) {
           value.expression = t.logicalExpression(
             '||',
-            value.expression,
+            value.expression as t.Expression,
             t.stringLiteral(' '),
           )
         }
-        if (key === 'innerHTML') path.doNotEscape = true
+        if (key === 'innerHTML') (path as any).doNotEscape = true
         children = value
       } else {
         let doEscape = true
         if (key.startsWith('attr:')) key = key.replace('attr:', '')
         if (BooleanAttributes.has(key)) {
-          results.template.push('')
+          ;(results.template as string[]).push('')
           const fn = t.callExpression(
             registerImportMethod(attribute, 'ssrAttribute'),
-            [t.stringLiteral(key), value.expression, t.booleanLiteral(true)],
+            [
+              t.stringLiteral(key),
+              value.expression as any,
+              t.booleanLiteral(true),
+            ],
           )
-          results.templateValues.push(fn)
+          results.templateValues?.push(fn)
           return
         }
         if (key === 'style') {
@@ -458,7 +463,7 @@ function transformAttributes(
             t.isObjectExpression(value.expression) &&
             !value.expression.properties.some(p => t.isSpreadElement(p))
           ) {
-            const props = value.expression.properties.map((p, i) =>
+            const props = value.expression.properties.map((p: any, i) =>
               t.callExpression(registerImportMethod(path, 'ssrStyleProperty'), [
                 t.stringLiteral(
                   (i ? ';' : '') +
@@ -469,7 +474,7 @@ function transformAttributes(
               ]),
             )
 
-            let res = props[0]
+            let res = props[0] as any
             for (let i = 1; i < props.length; i++) {
               res = t.binaryExpression('+', res, props[i])
             }
@@ -477,7 +482,7 @@ function transformAttributes(
           } else {
             value.expression = t.callExpression(
               registerImportMethod(path, 'ssrStyle'),
-              [value.expression],
+              [value.expression as any],
             )
           }
           doEscape = false
@@ -487,7 +492,7 @@ function transformAttributes(
             t.isObjectExpression(value.expression) &&
             !value.expression.properties.some(p => t.isSpreadElement(p))
           ) {
-            const values = [],
+            const values: t.Expression[] = [],
               quasis = [t.templateElement({ raw: '' })]
             transformClasslistObject(path, value.expression, values, quasis)
             if (!values.length)
@@ -502,21 +507,25 @@ function transformAttributes(
           } else {
             value.expression = t.callExpression(
               registerImportMethod(path, 'ssrClassList'),
-              [value.expression],
+              [value.expression as any],
             )
           }
           key = 'class'
           doEscape = false
         }
         if (doEscape)
-          value.expression = escapeExpression(path, value.expression, true)
+          value.expression = escapeExpression(
+            path,
+            value.expression as any,
+            true,
+          )
 
         if (!doEscape || t.isLiteral(value.expression)) {
           key = toAttribute(key, isSVG)
-          appendToTemplate(results.template, ` ${key}="`)
-          results.template.push(`"`)
-          results.templateValues.push(value.expression)
-        } else setAttr(attribute, results, key, value.expression, isSVG)
+          appendToTemplate(results.template as string[], ` ${key}="`)
+          ;(results.template as any).push(`"`)
+          results.templateValues?.push(value.expression)
+        } else setAttr(attribute, results, key, value.expression as any, isSVG)
       }
     } else {
       if (key === '$ServerOnly') return
@@ -524,7 +533,7 @@ function transformAttributes(
       key = toAttribute(key, isSVG)
       const isBoolean = BooleanAttributes.has(key)
       if (isBoolean && value && value.value !== '' && !value.value) return
-      appendToTemplate(results.template, ` ${key}`)
+      appendToTemplate(results.template as string[], ` ${key}`)
       if (!value) return
       let text = isBoolean ? '' : value.value
       if (key === 'style' || key === 'class') {
@@ -535,19 +544,24 @@ function transformAttributes(
       }
 
       appendToTemplate(
-        results.template,
+        results.template as string[],
         // `String(text)` is needed, as text.length will mess up `attr=10>` becomes `attr>` without it
         String(text) === '' ? `` : `="${escapeHTML(text, true)}"`,
       )
     }
   })
   if (!hasChildren && children) {
-    path.node.children.push(children)
+    ;(path.node as any).children.push(children)
   }
 }
 
-function transformClasslistObject(path, expr, values, quasis) {
-  expr.properties.forEach((prop, i) => {
+function transformClasslistObject(
+  path: NodePathHub,
+  expr: any,
+  values: t.Expression[],
+  quasis: t.TemplateElement[],
+) {
+  expr.properties.forEach((prop: any, i: number) => {
     const isLast = expr.properties.length - 1 === i
     let key = prop.key
     if (t.isIdentifier(prop.key) && !prop.computed)
@@ -583,18 +597,29 @@ function transformClasslistObject(path, expr, values, quasis) {
   })
 }
 
-function transformChildren(path, results, { hydratable }) {
-  const doNotEscape = path.doNotEscape
+interface TransformChildrenOption {
+  hydratable?: boolean
+}
+
+function transformChildren(
+  path: NodePathHub,
+  results: TransformResult,
+  { hydratable }: TransformChildrenOption,
+) {
+  const doNotEscape = (path as any).doNotEscape
   const filteredChildren = filterChildren(path.get('children'))
   const multi = checkLength(filteredChildren),
     markers = hydratable && multi
   filteredChildren.forEach(node => {
     if (t.isJSXElement(node.node) && getTagName(node.node) === 'head') {
-      const child = transformNode(node, { doNotEscape, hydratable: false })
+      const child = transformNode(node as any, {
+        doNotEscape,
+        hydratable: false,
+      })
       registerImportMethod(path, 'NoHydration')
       registerImportMethod(path, 'createComponent')
-      results.template.push('')
-      results.templateValues.push(
+      ;(results.template as any).push('')
+      results.templateValues?.push(
         t.callExpression(t.identifier('_$createComponent'), [
           t.identifier('_$NoHydration'),
           t.objectExpression([
@@ -603,7 +628,7 @@ function transformChildren(path, results, { hydratable }) {
               t.identifier('children'),
               [],
               t.blockStatement([
-                t.returnStatement(createTemplate(path, child)),
+                t.returnStatement(createTemplate(path, child as any)),
               ]),
             ),
           ]),
@@ -611,46 +636,53 @@ function transformChildren(path, results, { hydratable }) {
       )
       return
     }
-    const child = transformNode(node, { doNotEscape })
+    const child = transformNode(node as any, { doNotEscape })
     if (!child) return
-    appendToTemplate(results.template, child.template)
-    results.templateValues.push.apply(
+    appendToTemplate(results.template as string[], child.template as string)
+    results.templateValues?.push.apply(
       results.templateValues,
       child.templateValues || [],
     )
     if (child.exprs.length) {
       if (!doNotEscape && !child.spreadElement)
-        child.exprs[0] = escapeExpression(path, child.exprs[0])
+        child.exprs[0] = escapeExpression(path, child.exprs[0] as any)
 
       // boxed by textNodes
       if (markers && !child.spreadElement) {
-        appendToTemplate(results.template, `<!--$-->`)
-        results.template.push('')
-        results.templateValues.push(child.exprs[0])
-        appendToTemplate(results.template, `<!--/-->`)
+        appendToTemplate(results.template as string[], `<!--$-->`)
+        ;(results.template as any).push('')
+        results.templateValues?.push(child.exprs[0])
+        appendToTemplate(results.template as string[], `<!--/-->`)
       } else {
-        results.template.push('')
-        results.templateValues.push(child.exprs[0])
+        ;(results.template as any).push('')
+        results.templateValues?.push(child.exprs[0])
       }
     }
   })
 }
 
-function createElement(path, { topLevel, hydratable }) {
-  const tagName = getTagName(path.node),
+interface CreateComponentOption {
+  topLevel?: boolean
+  hydratable?: boolean
+}
+function createElement(
+  path: NodePath,
+  { topLevel, hydratable }: CreateComponentOption,
+) {
+  const tagName = getTagName(path.node as any),
     config = getConfig(path),
     attributes = normalizeAttributes(path),
-    doNotEscape = path.doNotEscape
+    doNotEscape = (path as any).doNotEscape
 
   const filteredChildren = filterChildren(path.get('children')),
     multi = checkLength(filteredChildren),
     markers = hydratable && multi,
-    childNodes = filteredChildren.reduce((memo, path) => {
+    childNodes = filteredChildren.reduce((memo, path: any) => {
       if (t.isJSXText(path.node)) {
-        const v = decode(trimWhitespace(path.node.extra.raw))
+        const v = decode(trimWhitespace(path.node.extra?.raw as string))
         if (v.length) memo.push(t.stringLiteral(v))
       } else {
-        const child = transformNode(path)
+        const child = transformNode(path as any) as any
         if (markers && child.exprs.length && !child.spreadElement)
           memo.push(t.stringLiteral('<!--$-->'))
         if (child.exprs.length && !doNotEscape && !child.spreadElement)
@@ -660,18 +692,18 @@ function createElement(path, { topLevel, hydratable }) {
           memo.push(t.stringLiteral('<!--/-->'))
       }
       return memo
-    }, [])
+    }, [] as any[])
 
   let props
   if (attributes.length === 1) {
     props = [attributes[0].node.argument]
   } else {
     props = []
-    let runningObject = [],
+    let runningObject: any[] = [],
       dynamicSpread = false,
-      hasChildren = path.node.children.length > 0
+      hasChildren = (path.node as any).children.length > 0
 
-    attributes.forEach(attribute => {
+    attributes.forEach((attribute: any) => {
       const node = attribute.node
       if (t.isJSXSpreadAttribute(node)) {
         if (runningObject.length) {
@@ -712,17 +744,18 @@ function createElement(path, { topLevel, hydratable }) {
               checkTags: true,
             })
           ) {
-            let expr = t.arrowFunctionExpression([], value.expression)
+            let expr = t.arrowFunctionExpression([], value.expression as any)
             runningObject.push(
               t.objectMethod(
                 'get',
                 id,
                 [],
-                t.blockStatement([t.returnStatement(expr.body)]),
+                t.blockStatement([t.returnStatement(expr.body as any)]),
                 !t.isValidIdentifier(key),
               ),
             )
-          } else runningObject.push(t.objectProperty(id, value.expression))
+          } else
+            runningObject.push(t.objectProperty(id, value.expression as any))
         else runningObject.push(t.objectProperty(id, value))
       }
     })

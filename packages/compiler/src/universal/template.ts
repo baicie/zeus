@@ -1,16 +1,21 @@
 import * as t from '@babel/types'
 import { getConfig, getNumberedId, registerImportMethod } from '../shared/utils'
 import { setAttr } from './element'
+import type { NodePathHub, TransformResult } from '../type'
 
-export function createTemplate(path, result, wrap) {
+export function createTemplate(
+  path: NodePathHub,
+  result: TransformResult,
+  wrap: boolean,
+): any {
   const config = getConfig(path)
   if (result.id) {
-    result.decl = t.variableDeclaration('var', result.declarations)
+    result.decl = t.variableDeclaration('var', result.declarations as any)
     if (
       !(
         result.exprs.length ||
-        result.dynamics.length ||
-        result.postExprs.length
+        result.dynamics?.length ||
+        result.postExprs?.length
       ) &&
       result.decl.declarations.length === 1
     ) {
@@ -22,11 +27,11 @@ export function createTemplate(path, result, wrap) {
           t.blockStatement([
             result.decl,
             ...result.exprs.concat(
-              wrapDynamics(path, result.dynamics) || [],
+              wrapDynamics(path, result.dynamics!) || [],
               result.postExprs || [],
             ),
             t.returnStatement(result.id),
-          ]),
+          ] as any),
         ),
         [],
       )
@@ -34,13 +39,16 @@ export function createTemplate(path, result, wrap) {
   }
   if (wrap && result.dynamic && config.memoWrapper) {
     return t.callExpression(registerImportMethod(path, config.memoWrapper), [
-      result.exprs[0],
+      result.exprs[0] as any,
     ])
   }
   return result.exprs[0]
 }
 
-function wrapDynamics(path, dynamics) {
+function wrapDynamics(
+  path: NodePathHub,
+  dynamics: t.Expression[],
+): t.ExpressionStatement | undefined {
   if (!dynamics.length) return
   const config = getConfig(path)
 
@@ -48,15 +56,21 @@ function wrapDynamics(path, dynamics) {
 
   if (dynamics.length === 1) {
     const prevValue = t.identifier('_$p')
-
+    const firstDynamic = dynamics[0] as any
     return t.expressionStatement(
       t.callExpression(effectWrapperId, [
         t.arrowFunctionExpression(
           [prevValue],
-          setAttr(path, dynamics[0].elem, dynamics[0].key, dynamics[0].value, {
-            dynamic: true,
-            prevId: prevValue,
-          }),
+          setAttr(
+            path,
+            firstDynamic.elem,
+            firstDynamic.key,
+            firstDynamic.value,
+            {
+              dynamic: true,
+              prevId: prevValue,
+            },
+          ),
         ),
       ]),
     )
@@ -64,14 +78,11 @@ function wrapDynamics(path, dynamics) {
 
   const prevId = t.identifier('_p$')
 
-  /** @type {t.VariableDeclarator[]} */
-  const declarations = []
-  /** @type {t.ExpressionStatement[]} */
-  const statements = []
-  /** @type {t.Identifier[]} */
-  const properties = []
+  const declarations: t.VariableDeclarator[] = []
+  const statements: t.ExpressionStatement[] = []
+  const properties: t.Identifier[] = []
 
-  dynamics.forEach(({ elem, key, value }, index) => {
+  dynamics.forEach(({ elem, key, value }: any, index) => {
     const varIdent = path.scope.generateUidIdentifier('v$')
 
     const propIdent = t.identifier(getNumberedId(index))

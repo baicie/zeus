@@ -1,4 +1,6 @@
 import * as t from '@babel/types'
+import type { ProcessSpreadsOpt, SetAttrOptions } from '../dom/element'
+import { transformNode } from '../shared/transform'
 import {
   canNativeSpread,
   checkLength,
@@ -12,11 +14,14 @@ import {
   registerImportMethod,
   transformCondition,
 } from '../shared/utils'
-import { transformNode } from '../shared/transform'
+import type { NodePathHub, TransformInfo, TransformResult } from '../type'
 
-export function transformElement(path, info) {
-  let tagName = getTagName(path.node),
-    results = {
+export function transformElement(
+  path: NodePathHub,
+  _info: TransformInfo,
+): TransformResult {
+  let tagName = getTagName(path.node as any),
+    results: TransformResult = {
       id: path.scope.generateUidIdentifier('el$'),
       declarations: [],
       exprs: [],
@@ -24,9 +29,10 @@ export function transformElement(path, info) {
       postExprs: [],
       tagName,
       renderer: 'universal',
+      template: '',
     }
 
-  results.declarations.push(
+  results.declarations?.push(
     t.variableDeclarator(
       results.id,
       t.callExpression(
@@ -37,7 +43,7 @@ export function transformElement(path, info) {
         ),
         [t.stringLiteral(tagName)],
       ),
-    ),
+    ) as any,
   )
 
   transformAttributes(path, results)
@@ -46,11 +52,11 @@ export function transformElement(path, info) {
   return results
 }
 
-function transformAttributes(path, results) {
+function transformAttributes(path: NodePathHub, results: TransformResult) {
   let children, spreadExpr
   let attributes = path.get('openingElement').get('attributes')
   const elem = results.id,
-    hasChildren = path.node.children.length > 0,
+    hasChildren = (path.node as any).children.length > 0,
     config = getConfig(path)
 
   // preprocess spreads
@@ -70,7 +76,7 @@ function transformAttributes(path, results) {
     .get('openingElement')
     .get('attributes')
     .forEach(attribute => {
-      const node = attribute.node
+      const node = attribute.node as any
 
       let value = node.value,
         key = t.isJSXNamespacedName(node.name)
@@ -106,7 +112,7 @@ function transformAttributes(path, results) {
             results.exprs.unshift(
               t.variableDeclaration('var', [
                 t.variableDeclarator(refIdentifier, value.expression),
-              ]),
+              ]) as any,
               t.expressionStatement(
                 t.conditionalExpression(
                   t.binaryExpression(
@@ -143,8 +149,8 @@ function transformAttributes(path, results) {
             const refIdentifier = path.scope.generateUidIdentifier('_ref$')
             results.exprs.unshift(
               t.variableDeclaration('var', [
-                t.variableDeclarator(refIdentifier, value.expression),
-              ]),
+                t.variableDeclarator(refIdentifier, value.expression as any),
+              ]) as any,
               t.expressionStatement(
                 t.logicalExpression(
                   '&&',
@@ -197,27 +203,37 @@ function transformAttributes(path, results) {
             checkMember: true,
           })
         ) {
-          results.dynamics.push({ elem, key, value: value.expression })
+          results.dynamics?.push({
+            elem,
+            key,
+            value: value.expression,
+          } as any)
         } else {
           results.exprs.push(
             t.expressionStatement(
-              setAttr(attribute, elem, key, value.expression),
+              setAttr(attribute as any, elem, key, value.expression as any),
             ),
           )
         }
       } else {
         results.exprs.push(
-          t.expressionStatement(setAttr(attribute, elem, key, value)),
+          t.expressionStatement(setAttr(attribute as any, elem, key, value)),
         )
       }
     })
   if (spreadExpr) results.exprs.push(spreadExpr)
   if (!hasChildren && children) {
-    path.node.children.push(children)
+    ;(path.node as any).children.push(children)
   }
 }
 
-export function setAttr(path, elem, name, value, { prevId } = {}) {
+export function setAttr(
+  path: NodePathHub,
+  elem: t.Expression,
+  name: string,
+  value: t.Expression,
+  { prevId }: SetAttrOptions = {},
+): t.Expression | t.CallExpression | t.AssignmentExpression {
   if (!value) value = t.booleanLiteral(true)
   return t.callExpression(
     registerImportMethod(
@@ -231,25 +247,27 @@ export function setAttr(path, elem, name, value, { prevId } = {}) {
   )
 }
 
-function transformChildren(path, results) {
+function transformChildren(path: NodePathHub, results: TransformResult) {
   const filteredChildren = filterChildren(path.get('children')),
     multi = checkLength(filteredChildren),
-    childNodes = filteredChildren.map(transformNode).reduce((memo, child) => {
-      if (!child) return memo
-      const i = memo.length
-      if (child.text && i && memo[i - 1].text) {
-        memo[i - 1].template += child.template
-        memo[i - 1].templateWithClosingTags +=
-          child.templateWithClosingTags || child.template
-      } else memo.push(child)
-      return memo
-    }, [])
+    childNodes = filteredChildren
+      .map(transformNode as any)
+      .reduce((memo: any, child: any) => {
+        if (!child) return memo
+        const i = memo.length
+        if (child.text && i && memo[i - 1].text) {
+          memo[i - 1].template += child.template
+          memo[i - 1].templateWithClosingTags +=
+            child.templateWithClosingTags || child.template
+        } else memo.push(child)
+        return memo
+      }, [] as any[]) as any[]
 
-  const appends = []
+  const appends: any[] = []
   childNodes.forEach((child, index) => {
     if (!child) return
     if (child.tagName && child.renderer !== 'universal') {
-      throw new Error(`<${child.tagName}> is not supported in <${getTagName(path.node)}>.
+      throw new Error(`<${child.tagName}> is not supported in <${getTagName(path.node as any)}>.
         Wrap the usage with a component that would render this element, eg. Canvas`)
     }
     if (child.id) {
@@ -266,7 +284,7 @@ function transformChildren(path, results) {
           getRendererConfig(path, 'universal').moduleName,
         )
         if (multi) {
-          results.declarations.push(
+          results.declarations?.push(
             t.variableDeclarator(
               child.id,
               t.callExpression(createTextNode, [
@@ -279,7 +297,7 @@ function transformChildren(path, results) {
                   [],
                 ),
               ]),
-            ),
+            ) as any,
           )
         } else
           insert = t.callExpression(createTextNode, [
@@ -298,9 +316,9 @@ function transformChildren(path, results) {
           t.callExpression(insertNode, [results.id, insert]),
         ),
       )
-      results.declarations.push(...child.declarations)
+      results.declarations?.push(...child.declarations)
       results.exprs.push(...child.exprs)
-      results.dynamics.push(...child.dynamics)
+      results.dynamics?.push(...child.dynamics)
     } else if (child.exprs.length) {
       let insert = registerImportMethod(
         path,
@@ -329,7 +347,7 @@ function transformChildren(path, results) {
   results.exprs.unshift(...appends)
 }
 
-function nextChild(children, index) {
+function nextChild(children: any[], index: number): any {
   return (
     children[index + 1] &&
     (children[index + 1].id || nextChild(children, index + 1))
@@ -337,14 +355,14 @@ function nextChild(children, index) {
 }
 
 function processSpreads(
-  path,
-  attributes,
-  { elem, hasChildren, wrapConditionals },
-) {
+  path: NodePathHub,
+  attributes: any[],
+  { elem, hasChildren, wrapConditionals }: ProcessSpreadsOpt,
+): [any[], t.ExpressionStatement] {
   // TODO: skip but collect the names of any properties after the last spread to not overwrite them
-  const filteredAttributes = []
+  const filteredAttributes: any[] = []
   const spreadArgs = []
-  let runningObject = []
+  let runningObject: any[] = []
   let dynamicSpread = false
   let firstSpread = false
   attributes.forEach(attribute => {
@@ -399,7 +417,7 @@ function processSpreads(
             'get',
             id,
             [],
-            t.blockStatement([t.returnStatement(expr.body)]),
+            t.blockStatement([t.returnStatement((expr as any).body)]),
             !t.isValidIdentifier(key),
           ),
         )
@@ -434,7 +452,7 @@ function processSpreads(
           'spread',
           getRendererConfig(path, 'universal').moduleName,
         ),
-        [elem, props, t.booleanLiteral(hasChildren)],
+        [elem as any, props, t.booleanLiteral(hasChildren)],
       ),
     ),
   ]

@@ -35,6 +35,7 @@ export interface TransformInfo {
   toBeClosed?: Set<string>
   componentChild?: boolean
   doNotEscape?: boolean
+  hydratable?: boolean
 }
 
 export interface TransformState {
@@ -67,4 +68,5 @@ export interface TransformResult {
   dynamic?: boolean
   wontEscape?: boolean
   templateValues?: any[]
+  spreadElement?: any
 }
