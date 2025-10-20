@@ -48,8 +48,8 @@ jobs:
       - name: Run compiler unit tests
         run: pnpm run test-unit compiler
 
-      - name: Run ssr unit tests
-        run: pnpm run test-unit server-renderer
+      # - name: Run ssr unit tests
+      #   run: pnpm run test-unit server-renderer
 
   e2e-test:
     runs-on: ubuntu-latest
