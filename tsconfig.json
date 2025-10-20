@@ -36,8 +36,8 @@
     "packages/global.d.ts",
     "packages/*/src",
     "packages/*/__tests__",
-    "packages/vue/jsx-runtime",
-    "packages/runtime-dom/types/jsx.d.ts",
+    "packages/zeus/jsx-runtime",
+    "packages/runtime/types/jsx.d.ts",
     "scripts/*",
     "rollup.*.js"
   ]

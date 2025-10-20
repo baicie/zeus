@@ -63,7 +63,7 @@ const outputConfigs = {
     file: resolve(`dist/${name}.global.js`),
     format: 'iife',
   },
-  // runtime-only builds, for main "vue" package only
+  // runtime-only builds, for main "zeus" package only
   'esm-bundler-runtime': {
     file: resolve(`dist/${name}.runtime.esm-bundler.js`),
     format: 'es',

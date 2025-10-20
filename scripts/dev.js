@@ -61,9 +61,7 @@ for (const target of targets) {
   const pkg = require(`${pkgBasePath}/package.json`)
   const outfile = resolve(
     __dirname,
-    `${pkgBasePath}/dist/${
-      target === 'vue-compat' ? `vue` : target
-    }.${postfix}.${prod ? `prod.` : ``}js`,
+    `${pkgBasePath}/dist/${target}.${postfix}.${prod ? `prod.` : ``}js`,
   )
   const relativeOutfile = relative(process.cwd(), outfile)
 
@@ -78,34 +76,10 @@ for (const target of targets) {
         ...external,
         ...Object.keys(pkg.dependencies || {}),
         ...Object.keys(pkg.peerDependencies || {}),
-        // for @vue/compiler-sfc / server-renderer
+        // for
         'path',
         'url',
         'stream',
-      ]
-    }
-
-    if (target === 'compiler-sfc') {
-      const consolidatePkgPath = require.resolve(
-        '@vue/consolidate/package.json',
-        {
-          paths: [resolve(__dirname, `../packages/${target}/`)],
-        },
-      )
-      const consolidateDeps = Object.keys(
-        require(consolidatePkgPath).devDependencies,
-      )
-      external = [
-        ...external,
-        ...consolidateDeps,
-        'fs',
-        'vm',
-        'crypto',
-        'react-dom/server',
-        'teacup/lib/express',
-        'arc-templates/dist/es5',
-        'then-pug',
-        'then-jade',
       ]
     }
   }
@@ -149,7 +123,6 @@ for (const target of targets) {
         __ESM_BROWSER__: String(format.includes('esm-browser')),
         __CJS__: String(format === 'cjs'),
         __SSR__: String(format !== 'global'),
-        __COMPAT__: String(target === 'vue-compat'),
         __FEATURE_SUSPENSE__: `true`,
         __FEATURE_OPTIONS_API__: `true`,
         __FEATURE_PROD_DEVTOOLS__: `false`,

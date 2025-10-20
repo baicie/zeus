@@ -18,9 +18,9 @@ const entries = {}
 const nonSrcPackages = ['dts-test']
 
 for (const dir of dirs) {
-  const key = `@vue/${dir}`
+  const key = `@zeus-js/${dir}`
   if (
-    dir !== 'vue' &&
+    dir !== 'zeus' &&
     !nonSrcPackages.includes(dir) &&
     !(key in entries) &&
     statSync(new URL(`../packages/${dir}`, import.meta.url)).isDirectory()

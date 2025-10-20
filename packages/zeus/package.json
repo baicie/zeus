@@ -10,11 +10,7 @@
   "files": [
     "index.js",
     "index.mjs",
-    "dist",
-    "compiler-sfc",
-    "server-renderer",
-    "jsx-runtime",
-    "jsx.d.ts"
+    "dist"
   ],
   "exports": {
     ".": {
