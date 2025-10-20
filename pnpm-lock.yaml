@@ -201,6 +201,9 @@ importers:
       '@zeus-js/wc':
         specifier: workspace:*
         version: link:../wc
+      typescript:
+        specifier: '*'
+        version: 5.9.3
 
   playground/base:
     dependencies:
