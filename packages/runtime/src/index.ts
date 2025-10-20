@@ -1,4 +1,4 @@
-export * from 'alien-signals'
+export * from '@zeus-js/signals'
 
 // DOM 操作工具
 export * from './dom-helper'

@@ -4,8 +4,6 @@ import {
   createReactiveSystem,
 } from './system.js'
 
-interface EffectScope extends ReactiveNode {}
-
 interface Effect extends ReactiveNode {
   fn(): void
 }
@@ -20,37 +18,56 @@ interface Signal<T = any> extends ReactiveNode {
   pendingValue: T
 }
 
-const queuedEffects: (Effect | EffectScope | undefined)[] = []
-const { link, unlink, propagate, checkDirty, shallowPropagate } =
-  createReactiveSystem({
-    update(signal: Signal | Computed): boolean {
-      if ('getter' in signal) {
-        return updateComputed(signal)
-      } else {
-        return updateSignal(signal)
-      }
-    },
-    notify,
-    unwatched(node: Signal | Computed | Effect | EffectScope) {
-      if ('getter' in node) {
-        if (node.depsTail !== undefined) {
-          node.depsTail = undefined
-          node.flags = 17 as ReactiveFlags.Mutable | ReactiveFlags.Dirty
-          purgeDeps(node)
-        }
-      } else if ('fn' in node) {
-        effectOper.call(node)
-      } else if (!('currentValue' in node)) {
-        effectScopeOper.call(node)
-      }
-    },
-  })
-
 let cycle = 0
 let batchDepth = 0
 let notifyIndex = 0
-let queuedEffectsLength = 0
+let queuedLength = 0
 let activeSub: ReactiveNode | undefined
+
+const queued: (Effect | undefined)[] = []
+const { link, unlink, propagate, checkDirty, shallowPropagate } =
+  createReactiveSystem({
+    update(node: Signal | Computed): boolean {
+      if (node.depsTail !== undefined) {
+        return updateComputed(node as Computed)
+      } else {
+        return updateSignal(node as Signal)
+      }
+    },
+    notify(effect: Effect) {
+      let insertIndex = queuedLength
+      let firstInsertedIndex = insertIndex
+
+      do {
+        effect.flags &= ~(2 satisfies ReactiveFlags.Watching)
+        queued[insertIndex++] = effect
+        effect = effect.subs!.sub as Effect
+        if (
+          effect === undefined ||
+          !(effect.flags & (2 satisfies ReactiveFlags.Watching))
+        ) {
+          break
+        }
+      } while (true)
+
+      queuedLength = insertIndex
+
+      while (firstInsertedIndex < --insertIndex) {
+        const left = queued[firstInsertedIndex]
+        queued[firstInsertedIndex++] = queued[insertIndex]
+        queued[insertIndex] = left
+      }
+    },
+    unwatched(node) {
+      if (!(node.flags & (1 satisfies ReactiveFlags.Mutable))) {
+        effectScopeOper.call(node)
+      } else if (node.depsTail !== undefined) {
+        node.depsTail = undefined
+        node.flags = 17 as ReactiveFlags.Mutable | ReactiveFlags.Dirty
+        purgeDeps(node)
+      }
+    },
+  })
 
 export function getActiveSub(): ReactiveNode | undefined {
   return activeSub
@@ -79,19 +96,19 @@ export function endBatch(): void {
 }
 
 export function isSignal(fn: () => void): boolean {
-  return fn.name === 'bound signalOper'
+  return fn.name === 'bound ' + signalOper.name
 }
 
 export function isComputed(fn: () => void): boolean {
-  return fn.name === 'bound computedOper'
+  return fn.name === 'bound ' + computedOper.name
 }
 
 export function isEffect(fn: () => void): boolean {
-  return fn.name === 'bound effectOper'
+  return fn.name === 'bound ' + effectOper.name
 }
 
 export function isEffectScope(fn: () => void): boolean {
-  return fn.name === 'bound effectScopeOper'
+  return fn.name === 'bound ' + effectScopeOper.name
 }
 
 export function signal<T>(): {
@@ -122,7 +139,7 @@ export function computed<T>(getter: (previousValue?: T) => T): () => T {
     subsTail: undefined,
     deps: undefined,
     depsTail: undefined,
-    flags: 0 satisfies ReactiveFlags.None,
+    flags: 0 as ReactiveFlags.None,
     getter: getter as (previousValue?: unknown) => unknown,
   }) as () => T
 }
@@ -149,7 +166,7 @@ export function effect(fn: () => void): () => void {
 }
 
 export function effectScope(fn: () => void): () => void {
-  const e: EffectScope = {
+  const e: ReactiveNode = {
     deps: undefined,
     depsTail: undefined,
     subs: undefined,
@@ -188,25 +205,11 @@ function updateSignal(s: Signal): boolean {
   return s.currentValue !== (s.currentValue = s.pendingValue)
 }
 
-function notify(e: Effect | EffectScope) {
+function run(e: Effect): void {
   const flags = e.flags
-  if (!((flags & 64) /* Queued */)) {
-    e.flags = flags | 64 /* Queued */
-    const subs = e.subs
-    if (subs !== undefined) {
-      notify(subs.sub as Effect | EffectScope)
-    } else {
-      queuedEffects[queuedEffectsLength++] = e
-    }
-  }
-}
-
-function run(e: Effect | EffectScope, flags: ReactiveFlags): void {
   if (
     flags & (16 satisfies ReactiveFlags.Dirty) ||
-    (flags & (32 satisfies ReactiveFlags.Pending) &&
-      (checkDirty(e.deps!, e) ||
-        ((e.flags = flags & ~(32 satisfies ReactiveFlags.Pending)), false)))
+    (flags & (32 satisfies ReactiveFlags.Pending) && checkDirty(e.deps!, e))
   ) {
     ++cycle
     e.depsTail = undefined
@@ -220,26 +223,18 @@ function run(e: Effect | EffectScope, flags: ReactiveFlags): void {
       purgeDeps(e)
     }
   } else {
-    let link = e.deps
-    while (link !== undefined) {
-      const dep = link.dep
-      const depFlags = dep.flags
-      if (depFlags & 64 /* Queued */) {
-        run(dep, (dep.flags = depFlags & ~(64 /* Queued */)))
-      }
-      link = link.nextDep
-    }
+    e.flags = 2 satisfies ReactiveFlags.Watching
   }
 }
 
 function flush(): void {
-  while (notifyIndex < queuedEffectsLength) {
-    const effect = queuedEffects[notifyIndex]!
-    queuedEffects[notifyIndex++] = undefined
-    run(effect, (effect.flags &= ~(64 /* Queued */)))
+  while (notifyIndex < queuedLength) {
+    const effect = queued[notifyIndex]!
+    queued[notifyIndex++] = undefined
+    run(effect)
   }
   notifyIndex = 0
-  queuedEffectsLength = 0
+  queuedLength = 0
 }
 
 function computedOper<T>(this: Computed<T>): T {
@@ -307,14 +302,12 @@ function signalOper<T>(this: Signal<T>, ...value: [T]): T | void {
 
 function effectOper(this: Effect): void {
   effectScopeOper.call(this)
-  this.flags = 0 satisfies ReactiveFlags.None
 }
 
-function effectScopeOper(this: EffectScope): void {
-  let dep = this.deps
-  while (dep !== undefined) {
-    dep = unlink(dep, this)
-  }
+function effectScopeOper(this: ReactiveNode): void {
+  this.depsTail = undefined
+  this.flags = 0 satisfies ReactiveFlags.None
+  purgeDeps(this)
   const sub = this.subs
   if (sub !== undefined) {
     unlink(sub)
@@ -323,8 +316,8 @@ function effectScopeOper(this: EffectScope): void {
 
 function purgeDeps(sub: ReactiveNode) {
   const depsTail = sub.depsTail
-  let toRemove = depsTail !== undefined ? depsTail.nextDep : sub.deps
-  while (toRemove !== undefined) {
-    toRemove = unlink(toRemove, sub)
+  let dep = depsTail !== undefined ? depsTail.nextDep : sub.deps
+  while (dep !== undefined) {
+    dep = unlink(dep, sub)
   }
 }

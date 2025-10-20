@@ -1,4 +1,4 @@
-import { computed, effect, signal } from 'alien-signals'
+import { computed, effect, signal } from '@zeus-js/signals'
 
 /**
  * 函数式组件中的 Hooks 实现

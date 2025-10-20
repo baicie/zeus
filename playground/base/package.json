@@ -19,7 +19,7 @@
     "@types/babel__core": "catalog:",
     "@types/node": "^24.8.1",
     "rimraf": "^6.0.1",
-    "rolldown": "^1.0.0-beta.43",
+    "rolldown": "^1.0.0-beta.44",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   },
