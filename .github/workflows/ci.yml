@@ -38,5 +38,5 @@ jobs:
       - name: Build
         run: pnpm build --withTypes
 
-      - name: Release
-        run: pnpx pkg-pr-new publish --compact --pnpm './packages/*'
+      # - name: Release
+      #   run: pnpx pkg-pr-new publish --compact --pnpm './packages/*'
