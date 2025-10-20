@@ -1,5 +1,5 @@
 {
-  "name": "zeus-js",
+  "name": "@baicie/zeus",
   "version": "0.1.0-alpha.1",
   "description": "The progressive JavaScript framework for building modern web applications.",
   "main": "index.js",
