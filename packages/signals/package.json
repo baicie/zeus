@@ -2,7 +2,7 @@
   "name": "@zeus-js/signals",
   "version": "0.0.0",
   "main": "index.js",
-  "module": "dist/signals.esm.js",
+  "module": "dist/signals.esm-bundler.js",
   "types": "dist/signals.d.ts",
   "files": [
     "index.js",
@@ -16,8 +16,8 @@
         "development": "./dist/signals.cjs.js",
         "default": "./index.js"
       },
-      "module": "./dist/signals.esm.js",
-      "import": "./dist/signals.esm.js",
+      "module": "./dist/signals.esm-bundler.js",
+      "import": "./dist/signals.esm-bundler.js",
       "require": "./index.js"
     },
     "./*": "./*"

@@ -250,6 +250,7 @@ function createConfig(format, output, plugins = []) {
   return {
     input: resolve(entryFile),
     external: resolveExternal(),
+    context: 'this',
     plugins: [
       json({
         namedExports: false,

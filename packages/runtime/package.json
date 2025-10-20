@@ -2,7 +2,7 @@
   "name": "@zeus-js/runtime",
   "version": "0.0.0",
   "main": "index.js",
-  "module": "dist/runtime.esm.js",
+  "module": "dist/runtime.esm-bundler.js",
   "types": "dist/runtime.d.ts",
   "files": [
     "index.js",
@@ -16,8 +16,8 @@
         "development": "./dist/runtime.cjs.js",
         "default": "./index.js"
       },
-      "module": "./dist/runtime.esm.js",
-      "import": "./dist/runtime.esm.js",
+      "module": "./dist/runtime.esm-bundler.js",
+      "import": "./dist/runtime.esm-bundler.js",
       "require": "./index.js"
     },
     "./*": "./*"

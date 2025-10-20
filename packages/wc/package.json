@@ -2,7 +2,7 @@
   "name": "@zeus-js/wc",
   "version": "0.0.0",
   "main": "index.js",
-  "module": "dist/wc.esm.js",
+  "module": "dist/wc.esm-bundler.js",
   "types": "dist/wc.d.ts",
   "files": [
     "index.js",
@@ -16,8 +16,8 @@
         "development": "./dist/wc.cjs.js",
         "default": "./index.js"
       },
-      "module": "./dist/wc.esm.js",
-      "import": "./dist/wc.esm.js",
+      "module": "./dist/wc.esm-bundler.js",
+      "import": "./dist/wc.esm-bundler.js",
       "require": "./index.js"
     },
     "./*": "./*"
