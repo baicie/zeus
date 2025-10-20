@@ -19,7 +19,7 @@ import { entries } from './scripts/aliases.js'
  * @template {keyof T} K
  * @typedef { Omit<T, K> & Required<Pick<T, K>> } MarkRequired
  */
-/** @typedef {'cjs' | 'esm'} PackageFormat */
+/** @typedef {'cjs' | 'esm-bundler' | 'global' | 'global-runtime' | 'esm-browser' | 'esm-bundler-runtime' | 'esm-browser-runtime'} PackageFormat */
 /** @typedef {MarkRequired<import('rollup').OutputOptions, 'file' | 'format'>} OutputOptions */
 
 if (!process.env.TARGET) {
@@ -47,18 +47,39 @@ const banner = `/**
 
 /** @type {Record<PackageFormat, OutputOptions>} */
 const outputConfigs = {
-  esm: {
-    file: resolve(`dist/${name}.esm.js`),
+  'esm-bundler': {
+    file: resolve(`dist/${name}.esm-bundler.js`),
+    format: 'es',
+  },
+  'esm-browser': {
+    file: resolve(`dist/${name}.esm-browser.js`),
     format: 'es',
   },
   cjs: {
     file: resolve(`dist/${name}.cjs.js`),
     format: 'cjs',
   },
+  global: {
+    file: resolve(`dist/${name}.global.js`),
+    format: 'iife',
+  },
+  // runtime-only builds, for main "vue" package only
+  'esm-bundler-runtime': {
+    file: resolve(`dist/${name}.runtime.esm-bundler.js`),
+    format: 'es',
+  },
+  'esm-browser-runtime': {
+    file: resolve(`dist/${name}.runtime.esm-browser.js`),
+    format: 'es',
+  },
+  'global-runtime': {
+    file: resolve(`dist/${name}.runtime.global.js`),
+    format: 'iife',
+  },
 }
 
 /** @type {ReadonlyArray<PackageFormat>} */
-const defaultFormats = ['esm', 'cjs']
+const defaultFormats = ['esm-bundler', 'cjs']
 /** @type {ReadonlyArray<PackageFormat>} */
 const inlineFormats = /** @type {any} */ (
   process.env.FORMATS && process.env.FORMATS.split(',')
@@ -77,7 +98,7 @@ if (process.env.NODE_ENV === 'production') {
     if (format === 'cjs') {
       packageConfigs.push(createProductionConfig(format))
     }
-    if (format === 'esm') {
+    if (/^(global|esm-browser)(-runtime)?/.test(format)) {
       packageConfigs.push(createMinifiedConfig(format))
     }
   })
@@ -100,12 +121,14 @@ function createConfig(format, output, plugins = []) {
 
   const isProductionBuild =
     process.env.__DEV__ === 'false' || /\.prod\.js$/.test(output.file)
+  const isBundlerESMBuild = /esm-bundler/.test(format)
+  const isBrowserESMBuild = /esm-browser/.test(format)
   const isServerRenderer = name === 'server-renderer'
   const isCJSBuild = format === 'cjs'
-  const isESMBuild = format === 'esm'
   const isGlobalBuild = /global/.test(format)
   const isBrowserBuild =
-    isGlobalBuild && !packageOptions.enableNonBrowserBranches
+    (isGlobalBuild || isBrowserESMBuild || isBundlerESMBuild) &&
+    !packageOptions.enableNonBrowserBranches
 
   output.banner = banner
 
@@ -132,14 +155,17 @@ function createConfig(format, output, plugins = []) {
       // this is only used during Vue's internal tests
       __TEST__: `false`,
       // If the build is expected to run directly in the browser (global / esm builds)
-      __ESM_: String(isESMBuild),
+      __BROWSER__: String(isBrowserBuild),
+      __GLOBAL__: String(isGlobalBuild),
+      __ESM_BUNDLER__: String(isBundlerESMBuild),
+      __ESM_BROWSER__: String(isBrowserESMBuild),
       // is targeting Node (SSR)?
       __CJS__: String(isCJSBuild),
       // need SSR-specific branches?
-      // __SSR__: String(!isGlobalBuild),
+      __SSR__: String(!isGlobalBuild),
     }
 
-    if (!isESMBuild) {
+    if (!isBundlerESMBuild) {
       // hard coded dev/prod builds
       replacements.__DEV__ = String(!isProductionBuild)
     }
@@ -171,19 +197,10 @@ function createConfig(format, output, plugins = []) {
       })
     }
 
-    if (isESMBuild) {
+    if (isBundlerESMBuild) {
       Object.assign(replacements, {
         // preserve to be handled by bundlers
         __DEV__: `!!(process.env.NODE_ENV !== 'production')`,
-      })
-    }
-
-    // for compiler-sfc browser build inlined deps
-    if (isESMBuild) {
-      Object.assign(replacements, {
-        'process.env': '({})',
-        'process.platform': '""',
-        'process.stdout': 'null',
       })
     }
 

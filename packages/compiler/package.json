@@ -24,9 +24,12 @@
   },
   "sideEffects": false,
   "buildOptions": {
+    "name": "ZeusCompiler",
     "formats": [
-      "esm",
-      "cjs"
+      "esm-bundler",
+      "esm-browser",
+      "cjs",
+      "global"
     ]
   },
   "dependencies": {

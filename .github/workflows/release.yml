@@ -3,178 +3,54 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version to release (e.g., v1.0.0)'
-        required: true
-        type: string
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
 
 jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
   release:
-    name: Create Release
+    # prevents this action from running on forks
+    if: github.repository == 'baicie/zeus'
+    needs: [test]
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      packages: write
+      id-token: write
+    # Use Release environment for deployment protection
+    environment: Release
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - name: Checkout
+        uses: actions/checkout@v5
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version-file: '.node-version'
           registry-url: 'https://registry.npmjs.org'
+          cache: 'pnpm'
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.18.2
+      - name: Install deps
+        run: pnpm install
 
-      - name: Get pnpm store directory
-        shell: bash
+      - name: Update npm
+        run: npm i -g npm@latest
+
+      - name: Build and publish
+        id: publish
         run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+          pnpm release --publishOnly
 
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Clean and build
-        run: |
-          pnpm clean
-          pnpm build
-          pnpm build-dts
-
-      - name: Run tests
-        run: pnpm test
-
-      - name: Get version from tag or input
-        id: get-version
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-          else
-            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Generate changelog
-        id: changelog
-        run: |
-          # Extract version number without 'v' prefix
-          VERSION_NUMBER=${GITHUB_REF#refs/tags/v}
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION_NUMBER=${{ github.event.inputs.version }}
-            VERSION_NUMBER=${VERSION_NUMBER#v}
-          fi
-
-          # Create a simple changelog entry
-          echo "## What's Changed" > CHANGELOG.md
-          echo "" >> CHANGELOG.md
-          echo "### 🚀 New Features" >> CHANGELOG.md
-          echo "- Version $VERSION_NUMBER release" >> CHANGELOG.md
-          echo "" >> CHANGELOG.md
-          echo "### 📦 Packages" >> CHANGELOG.md
-          echo "- @zeus/compiler" >> CHANGELOG.md
-          echo "- @zeus/runtime" >> CHANGELOG.md
-          echo "- @zeus/components" >> CHANGELOG.md
-          echo "- @zeus/wc" >> CHANGELOG.md
-          echo "" >> CHANGELOG.md
-          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/v$((VERSION_NUMBER-1))...v$VERSION_NUMBER" >> CHANGELOG.md
-
-      - name: Create Release
-        uses: actions/create-release@v1
+      - name: Create GitHub release
+        id: release_tag
+        uses: yyx990803/release-tag@master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.get-version.outputs.version }}
-          release_name: Release ${{ steps.get-version.outputs.version }}
-          body_path: CHANGELOG.md
-          draft: false
-          prerelease: false
-
-      - name: Publish to npm
-        run: |
-          # Configure npm registry
-          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
-
-          # Publish packages
-          pnpm -r publish --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-  build-and-upload:
-    name: Build and Upload Assets
-    runs-on: ubuntu-latest
-    needs: release
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.18.2
-
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build packages
-        run: |
-          pnpm clean
-          pnpm build
-          pnpm build-dts
-
-      - name: Create distribution archive
-        run: |
-          tar -czf zeus-dist.tar.gz packages/*/dist/ temp/
-          zip -r zeus-dist.zip packages/*/dist/ temp/
-
-      - name: Upload release assets
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.release.outputs.upload_url }}
-          asset_path: ./zeus-dist.tar.gz
-          asset_name: zeus-dist.tar.gz
-          asset_content_type: application/gzip
-
-      - name: Upload release assets (zip)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.release.outputs.upload_url }}
-          asset_path: ./zeus-dist.zip
-          asset_name: zeus-dist.zip
-          asset_content_type: application/zip
+          tag_name: ${{ github.ref }}
+          body: |
+            For stable releases, please refer to [CHANGELOG.md](https://github.com/baicie/zeus/blob/main/CHANGELOG.md) for details.
+            For pre-releases, please refer to [CHANGELOG.md](https://github.com/baicie/zeus/blob/minor/CHANGELOG.md) of the `minor` branch.

@@ -190,7 +190,17 @@ importers:
         specifier: workspace:*
         version: link:../runtime
 
-  packages/zeus: {}
+  packages/zeus:
+    dependencies:
+      '@zeus-js/compiler':
+        specifier: workspace:*
+        version: link:../compiler
+      '@zeus-js/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+      '@zeus-js/wc':
+        specifier: workspace:*
+        version: link:../wc
 
   playground/base:
     dependencies:
