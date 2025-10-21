@@ -31,7 +31,10 @@
       "cjs",
       "global"
     ],
-    "enableNonBrowserBranches": true
+    "enableNonBrowserBranches": true,
+    "inline": [
+      "parse5"
+    ]
   },
   "dependencies": {
     "@babel/core": "^7.28.4",

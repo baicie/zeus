@@ -1,4 +1,4 @@
-import * as SyntaxJSX from '@babel/plugin-syntax-jsx'
+import SyntaxJSX from '@babel/plugin-syntax-jsx'
 import { transformJSX } from './shared/transform'
 import postprocess from './shared/postprocess'
 import preprocess from './shared/preprocess'

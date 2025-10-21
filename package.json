@@ -22,6 +22,9 @@
     "test-dts": "run-s build-dts test-dts-only",
     "test-dts-only": "echo 'test-dts-only'",
     "test-coverage": "vitest run --project unit* --coverage",
+    "benchmark": "vitest run benchmarks/",
+    "benchmark:watch": "vitest watch benchmarks/",
+    "benchmark:report": "node scripts/generate-benchmark-report.js",
     "preinstall": "npx only-allow pnpm",
     "postinstall": "simple-git-hooks"
   },
