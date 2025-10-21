@@ -41,7 +41,8 @@ const { link, unlink, propagate, checkDirty, shallowPropagate } =
       do {
         effect.flags &= ~(2 satisfies ReactiveFlags.Watching)
         queued[insertIndex++] = effect
-        effect = effect.subs!.sub as Effect
+        // eslint-disable-next-line no-restricted-syntax
+        effect = effect.subs?.sub as Effect
         if (
           effect === undefined ||
           !(effect.flags & (2 satisfies ReactiveFlags.Watching))
