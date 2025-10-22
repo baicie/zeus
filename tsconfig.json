@@ -19,11 +19,7 @@
     "removeComments": false,
     "jsx": "preserve",
     "lib": ["es2016", "dom"],
-    "types": [
-      "vitest/globals",
-      "puppeteer",
-      "node"
-    ],
+    "types": ["vitest/globals", "puppeteer", "node"],
     "rootDir": ".",
     "paths": {
       "@zeus-js/*": ["packages/*/src"]
