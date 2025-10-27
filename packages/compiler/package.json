@@ -41,7 +41,7 @@
     "@babel/core": "^7.28.4",
     "@babel/parser": "^7.28.4",
     "@babel/traverse": "^7.28.4",
-    "@babel/types": "^7.28.4"
+    "@babel/types": "^7.28.5"
   },
   "devDependencies": {
     "@types/babel__core": "^7.20.5",
