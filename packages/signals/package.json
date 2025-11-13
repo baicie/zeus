@@ -33,6 +33,6 @@
     ]
   },
   "devDependencies": {
-    "jest-extended": "^6.0.0"
+    "jest-extended": "^7.0.0"
   }
 }
