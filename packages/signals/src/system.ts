@@ -23,12 +23,12 @@ interface Stack<T> {
 
 export enum ReactiveFlags {
   None = 0,
-  Mutable = 1 << 0,
-  Watching = 1 << 1,
-  RecursedCheck = 1 << 2,
-  Recursed = 1 << 3,
-  Dirty = 1 << 4,
-  Pending = 1 << 5,
+  Mutable = 1,
+  Watching = 2,
+  RecursedCheck = 4,
+  Recursed = 8,
+  Dirty = 16,
+  Pending = 32,
 }
 
 export function createReactiveSystem({
@@ -140,38 +140,34 @@ export function createReactiveSystem({
       if (
         !(
           flags &
-          (60 as
-            | ReactiveFlags.RecursedCheck
-            | ReactiveFlags.Recursed
-            | ReactiveFlags.Dirty
-            | ReactiveFlags.Pending)
+          (ReactiveFlags.RecursedCheck |
+            ReactiveFlags.Recursed |
+            ReactiveFlags.Dirty |
+            ReactiveFlags.Pending)
         )
       ) {
-        sub.flags = flags | (32 satisfies ReactiveFlags.Pending)
+        sub.flags = flags | ReactiveFlags.Pending
       } else if (
-        !(flags & (12 as ReactiveFlags.RecursedCheck | ReactiveFlags.Recursed))
+        !(flags & (ReactiveFlags.RecursedCheck | ReactiveFlags.Recursed))
       ) {
-        flags = 0 satisfies ReactiveFlags.None
-      } else if (!(flags & (4 satisfies ReactiveFlags.RecursedCheck))) {
-        sub.flags =
-          (flags & ~(8 satisfies ReactiveFlags.Recursed)) |
-          (32 satisfies ReactiveFlags.Pending)
+        flags = ReactiveFlags.None
+      } else if (!(flags & ReactiveFlags.RecursedCheck)) {
+        sub.flags = (flags & ~ReactiveFlags.Recursed) | ReactiveFlags.Pending
       } else if (
-        !(flags & (48 as ReactiveFlags.Dirty | ReactiveFlags.Pending)) &&
+        !(flags & (ReactiveFlags.Dirty | ReactiveFlags.Pending)) &&
         isValidLink(link, sub)
       ) {
-        sub.flags =
-          flags | (40 as ReactiveFlags.Recursed | ReactiveFlags.Pending)
-        flags &= 1 satisfies ReactiveFlags.Mutable
+        sub.flags = flags | (ReactiveFlags.Recursed | ReactiveFlags.Pending)
+        flags &= ReactiveFlags.Mutable
       } else {
-        flags = 0 satisfies ReactiveFlags.None
+        flags = ReactiveFlags.None
       }
 
-      if (flags & (2 satisfies ReactiveFlags.Watching)) {
+      if (flags & ReactiveFlags.Watching) {
         notify(sub)
       }
 
-      if (flags & (1 satisfies ReactiveFlags.Mutable)) {
+      if (flags & ReactiveFlags.Mutable) {
         const subSubs = sub.subs
         if (subSubs !== undefined) {
           const nextSub = (link = subSubs).nextSub
@@ -210,11 +206,11 @@ export function createReactiveSystem({
       const dep = link.dep
       const flags = dep.flags
 
-      if (sub.flags & (16 satisfies ReactiveFlags.Dirty)) {
+      if (sub.flags & ReactiveFlags.Dirty) {
         dirty = true
       } else if (
-        (flags & (17 as ReactiveFlags.Mutable | ReactiveFlags.Dirty)) ===
-        (17 as ReactiveFlags.Mutable | ReactiveFlags.Dirty)
+        (flags & (ReactiveFlags.Mutable | ReactiveFlags.Dirty)) ===
+        (ReactiveFlags.Mutable | ReactiveFlags.Dirty)
       ) {
         if (update(dep)) {
           const subs = dep.subs!
@@ -224,8 +220,8 @@ export function createReactiveSystem({
           dirty = true
         }
       } else if (
-        (flags & (33 as ReactiveFlags.Mutable | ReactiveFlags.Pending)) ===
-        (33 as ReactiveFlags.Mutable | ReactiveFlags.Pending)
+        (flags & (ReactiveFlags.Mutable | ReactiveFlags.Pending)) ===
+        (ReactiveFlags.Mutable | ReactiveFlags.Pending)
       ) {
         if (link.nextSub !== undefined || link.prevSub !== undefined) {
           stack = { value: link, prev: stack }
@@ -263,7 +259,7 @@ export function createReactiveSystem({
           }
           dirty = false
         } else {
-          sub.flags &= ~(32 satisfies ReactiveFlags.Pending)
+          sub.flags &= ~ReactiveFlags.Pending
         }
         sub = link.sub
         const nextDep = link.nextDep
@@ -282,11 +278,14 @@ export function createReactiveSystem({
       const sub = link.sub
       const flags = sub.flags
       if (
-        (flags & (48 as ReactiveFlags.Pending | ReactiveFlags.Dirty)) ===
-        (32 satisfies ReactiveFlags.Pending)
+        (flags & (ReactiveFlags.Pending | ReactiveFlags.Dirty)) ===
+        ReactiveFlags.Pending
       ) {
-        sub.flags = flags | (16 satisfies ReactiveFlags.Dirty)
-        if (flags & (2 satisfies ReactiveFlags.Watching)) {
+        sub.flags = flags | ReactiveFlags.Dirty
+        if (
+          (flags & (ReactiveFlags.Watching | ReactiveFlags.RecursedCheck)) ===
+          ReactiveFlags.Watching
+        ) {
           notify(sub)
         }
       }

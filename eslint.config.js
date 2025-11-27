@@ -167,8 +167,7 @@ export default tseslint.config(
       '**/temp/',
       '**/coverage/',
       '.idea/',
-      // 'explorations/',
-      // 'dts-build/packages',
+      'packages-private',
     ],
   },
 )

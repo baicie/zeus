@@ -4,10 +4,12 @@ import {
   effect,
   effectScope,
   endBatch,
+  getActiveSub,
   setActiveSub,
   signal,
   startBatch,
 } from '../src'
+import { ReactiveFlags } from '../src/system'
 
 test('should clear subscriptions when untracked by all subscribers', () => {
   let bRunTimes = 0
@@ -192,7 +194,7 @@ test('should duplicate subscribers do not affect the notify order', () => {
 
   effect(() => {
     order.push('a')
-    const currentSub = setActiveSub(undefined)
+    const currentSub = setActiveSub()
     const isOne = src2() === 1
     setActiveSub(currentSub)
     if (isOne) {
@@ -257,4 +259,39 @@ test('should handle flags are indirectly updated during checkDirty', () => {
   expect(triggers).toBe(1)
   a(true)
   expect(triggers).toBe(2)
+})
+
+test('should handle effect recursion for the first execution', () => {
+  const src1 = signal(0)
+  const src2 = signal(0)
+
+  let triggers1 = 0
+  let triggers2 = 0
+
+  effect(() => {
+    triggers1++
+    src1(Math.min(src1() + 1, 5))
+  })
+  effect(() => {
+    triggers2++
+    src2(Math.min(src2() + 1, 5))
+    src2()
+  })
+
+  expect(triggers1).toBe(1)
+  expect(triggers2).toBe(1)
+})
+
+test('should support custom recurse effect', () => {
+  const src = signal(0)
+
+  let triggers = 0
+
+  effect(() => {
+    getActiveSub()!.flags &= ~ReactiveFlags.RecursedCheck
+    triggers++
+    src(Math.min(src() + 1, 5))
+  })
+
+  expect(triggers).toBe(6)
 })
