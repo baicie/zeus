@@ -17,10 +17,10 @@
   "devDependencies": {
     "@babel/core": "catalog:",
     "@types/babel__core": "catalog:",
-    "@types/node": "^24.10.1",
+    "@types/node": "^25.0.3",
     "rimraf": "^6.1.2",
-    "rolldown": "^1.0.0-beta.52",
-    "tsx": "^4.20.6",
+    "rolldown": "^1.0.0-beta.59",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
   "dependencies": {
