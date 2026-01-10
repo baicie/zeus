@@ -12,6 +12,7 @@ export function createElement(
       if (key === 'className') {
         el.className = value as string
       } else if (key.startsWith('on') && typeof value === 'function') {
+        // @ts-expect-error
         el.addEventListener(key.slice(2).toLowerCase(), value)
       } else {
         el.setAttribute(key, String(value))

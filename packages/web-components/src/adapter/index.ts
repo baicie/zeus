@@ -1,6 +1,6 @@
 // packages/web-components/src/adapter/index.ts
 
-export function createWebComponentAdapter(component: any) {
+export function createWebComponentAdapter(component: any): typeof HTMLElement {
   return class extends HTMLElement {
     constructor() {
       super()
@@ -24,7 +24,7 @@ export function adaptToWebComponent(
     shadow?: boolean
     observedAttributes?: string[]
   },
-) {
+): typeof HTMLElement {
   // 适配为Web Component
   return createWebComponentAdapter(component)
 }

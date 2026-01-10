@@ -1,5 +1,5 @@
 import { configDefaults, defineConfig } from 'vitest/config'
-import { entries } from './scripts/aliases.js'
+import { entries } from './scripts/aliases.ts'
 
 export default defineConfig({
   define: {

@@ -1,4 +1,3 @@
-// @ts-check
 import fs from 'node:fs'
 import pico from 'picocolors'
 import { createRequire } from 'node:module'
@@ -6,7 +5,7 @@ import { spawn } from 'node:child_process'
 
 const require = createRequire(import.meta.url)
 
-export const targets = fs.readdirSync('packages').filter(f => {
+export const targets: string[] = fs.readdirSync('packages').filter(f => {
   if (
     !fs.statSync(`packages/${f}`).isDirectory() ||
     !fs.existsSync(`packages/${f}/package.json`)
@@ -20,14 +19,11 @@ export const targets = fs.readdirSync('packages').filter(f => {
   return true
 })
 
-/**
- *
- * @param {ReadonlyArray<string>} partialTargets
- * @param {boolean | undefined} includeAllMatching
- */
-export function fuzzyMatchTarget(partialTargets, includeAllMatching) {
-  /** @type {Array<string>} */
-  const matched = []
+export function fuzzyMatchTarget(
+  partialTargets: ReadonlyArray<string>,
+  includeAllMatching: boolean | undefined,
+): string[] {
+  const matched: string[] = []
   partialTargets.forEach(partialTarget => {
     for (const target of targets) {
       if (target.match(partialTarget)) {
@@ -53,12 +49,11 @@ export function fuzzyMatchTarget(partialTargets, includeAllMatching) {
   }
 }
 
-/**
- * @param {string} command
- * @param {ReadonlyArray<string>} args
- * @param {object} [options]
- */
-export async function exec(command, args, options) {
+export async function exec(
+  command: string,
+  args: ReadonlyArray<string>,
+  options: object,
+): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const _process = spawn(command, args, {
       stdio: [
@@ -70,14 +65,8 @@ export async function exec(command, args, options) {
       shell: process.platform === 'win32',
     })
 
-    /**
-     * @type {Buffer[]}
-     */
-    const stderrChunks = []
-    /**
-     * @type {Buffer[]}
-     */
-    const stdoutChunks = []
+    const stderrChunks: Buffer[] = []
+    const stdoutChunks: Buffer[] = []
 
     _process.stderr?.on('data', chunk => {
       stderrChunks.push(chunk)

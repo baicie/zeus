@@ -1,21 +1,3 @@
-// @ts-check
-
-/*
-Produces production builds and stitches together d.ts files.
-
-To specify the package to build, simply pass its name and the desired build
-formats to output (defaults to `buildOptions.formats` specified in that package,
-or "esm,cjs"):
-
-```
-# name supports fuzzy match. will build all packages with name containing "dom":
-nr build dom
-
-# specify the format to output
-nr build core --formats cjs
-```
-*/
-
 import fs from 'node:fs'
 import { parseArgs } from 'node:util'
 import { existsSync, readFileSync } from 'node:fs'
@@ -23,9 +5,10 @@ import path from 'node:path'
 import { brotliCompressSync, gzipSync } from 'node:zlib'
 import pico from 'picocolors'
 import { cpus } from 'node:os'
-import { targets as allTargets, exec, fuzzyMatchTarget } from './utils.js'
+import { targets as allTargets, exec, fuzzyMatchTarget } from './utils'
 import prettyBytes from 'pretty-bytes'
 import { spawnSync } from 'node:child_process'
+import { scanEnums } from './inline-enums'
 
 const commit = spawnSync('git', ['rev-parse', '--short=7', 'HEAD'])
   .stdout.toString()
@@ -64,6 +47,10 @@ const { values, positionals: targets } = parseArgs({
     size: {
       type: 'boolean',
     },
+    watch: {
+      type: 'boolean',
+      short: 'w',
+    },
   },
 })
 
@@ -76,6 +63,7 @@ const {
   sourceMap,
   release: isRelease,
   size: writeSize,
+  watch,
 } = values
 
 const sizeDir = path.resolve('temp/size')
@@ -84,51 +72,44 @@ run()
 
 async function run() {
   if (writeSize) fs.mkdirSync(sizeDir, { recursive: true })
-
-  const resolvedTargets = targets.length
-    ? fuzzyMatchTarget(targets, buildAllMatching)
-    : allTargets
-  await buildAll(resolvedTargets)
-  await checkAllSizes(resolvedTargets)
-  if (buildTypes) {
-    await exec(
-      'pnpm',
-      [
-        'run',
-        'build-dts',
-        ...(targets.length
-          ? ['--environment', `TARGETS:${resolvedTargets.join(',')}`]
-          : []),
-      ],
-      {
-        stdio: 'inherit',
-      },
-    )
+  const removeCache = scanEnums()
+  try {
+    const resolvedTargets = targets.length
+      ? fuzzyMatchTarget(targets, buildAllMatching)
+      : allTargets
+    await buildAll(resolvedTargets)
+    await checkAllSizes(resolvedTargets)
+    if (buildTypes) {
+      await exec(
+        'pnpm',
+        [
+          'run',
+          'build-dts',
+          ...(targets.length
+            ? ['--environment', `TARGETS:${resolvedTargets.join(',')}`]
+            : []),
+        ],
+        {
+          stdio: 'inherit',
+        },
+      )
+    }
+  } finally {
+    removeCache()
   }
 }
 
-/**
- * Builds all the targets in parallel.
- * @param {Array<string>} targets - An array of targets to build.
- * @returns {Promise<void>} - A promise representing the build process.
- */
-async function buildAll(targets) {
+async function buildAll(targets: string[]): Promise<void> {
   await runParallel(cpus().length, targets, build)
 }
 
-/**
- * Runs iterator function in parallel.
- * @template T - The type of items in the data source
- * @param {number} maxConcurrency - The maximum concurrency.
- * @param {Array<T>} source - The data source
- * @param {(item: T) => Promise<void>} iteratorFn - The iteratorFn
- * @returns {Promise<void[]>} - A Promise array containing all iteration results.
- */
-async function runParallel(maxConcurrency, source, iteratorFn) {
-  /**@type {Promise<void>[]} */
-  const ret = []
-  /**@type {Promise<void>[]} */
-  const executing = []
+async function runParallel<T>(
+  maxConcurrency: number,
+  source: Array<T>,
+  iteratorFn: (item: T) => Promise<void>,
+): Promise<void[]> {
+  const ret: Promise<void>[] = []
+  const executing: Promise<void>[] = []
   for (const item of source) {
     const p = Promise.resolve().then(() => iteratorFn(item))
     ret.push(p)
@@ -146,14 +127,7 @@ async function runParallel(maxConcurrency, source, iteratorFn) {
   return Promise.all(ret)
 }
 
-// const privatePackages = fs.readdirSync('packages-private')
-
-/**
- * Builds the target.
- * @param {string} target - The target to build.
- * @returns {Promise<void>} - A promise representing the build process.
- */
-async function build(target) {
+async function build(target: string): Promise<void> {
   const pkgBase = `packages`
   const pkgDir = path.resolve(`${pkgBase}/${target}`)
   const pkg = JSON.parse(readFileSync(`${pkgDir}/package.json`, 'utf-8'))
@@ -173,9 +147,10 @@ async function build(target) {
     (devOnly ? 'development' : 'production')
 
   await exec(
-    'rollup',
+    'rolldown',
     [
       '-c',
+      './scripts/rolldown.config.ts',
       '--environment',
       [
         `COMMIT:${commit}`,
@@ -187,17 +162,13 @@ async function build(target) {
       ]
         .filter(Boolean)
         .join(','),
+      watch ? `--watch` : ``,
     ],
     { stdio: 'inherit' },
   )
 }
 
-/**
- * Checks the sizes of all targets.
- * @param {string[]} targets - The targets to check sizes for.
- * @returns {Promise<void>}
- */
-async function checkAllSizes(targets) {
+async function checkAllSizes(targets: string[]): Promise<void> {
   if (devOnly || (formats && !formats.includes('global'))) {
     return
   }
@@ -208,12 +179,7 @@ async function checkAllSizes(targets) {
   console.log()
 }
 
-/**
- * Checks the size of a target.
- * @param {string} target - The target to check the size for.
- * @returns {Promise<void>}
- */
-async function checkSize(target) {
+async function checkSize(target: string): Promise<void> {
   const pkgDir = path.resolve(`packages/${target}`)
   await checkFileSize(`${pkgDir}/dist/${target}.global.prod.js`)
   if (!formats || formats.includes('global-runtime')) {
@@ -221,12 +187,7 @@ async function checkSize(target) {
   }
 }
 
-/**
- * Checks the file size.
- * @param {string} filePath - The path of the file to check the size for.
- * @returns {Promise<void>}
- */
-async function checkFileSize(filePath) {
+async function checkFileSize(filePath: string): Promise<void> {
   if (!existsSync(filePath)) {
     return
   }

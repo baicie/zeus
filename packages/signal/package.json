@@ -1,43 +1,55 @@
 {
   "name": "@zeus-js/signal",
   "version": "0.0.1",
-  "type": "commonjs",
-  "license": "MIT",
+  "description": "@zeus-js/signal",
+  "main": "index.js",
+  "module": "dist/signal.esm-bundler.js",
+  "types": "dist/signal.d.ts",
+  "unpkg": "dist/signal.global.js",
+  "jsdelivr": "dist/signal.global.js",
   "files": [
+    "index.js",
     "dist"
   ],
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs",
-      "types": "./dist/index.d.ts"
-    }
+      "types": "./dist/signal.d.ts",
+      "node": {
+        "production": "./dist/signal.cjs.prod.js",
+        "development": "./dist/signal.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/signal.esm-bundler.js",
+      "import": "./dist/signal.esm-bundler.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
   },
-  "scripts": {
-    "dev": "rollup -c ../../rollup.config.js --watch",
-    "build": "rollup -c ../../rollup.config.js",
-    "test": "vitest",
-    "test:run": "vitest run",
-    "type-check": "tsc --noEmit"
-  },
-  "engines": {
-    "node": "^18.0.0 || >=20.0.0"
-  },
+  "sideEffects": false,
   "repository": {
     "type": "git",
     "url": "git+https://github.com/baicie/zeus.git",
     "directory": "packages/signal"
   },
+  "buildOptions": {
+    "name": "ZeusSignal",
+    "formats": [
+      "esm-bundler",
+      "esm-browser",
+      "cjs",
+      "global"
+    ]
+  },
+  "keywords": [
+    "zeus"
+  ],
+  "author": "Baicie",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/baicie/zeus/issues"
   },
   "homepage": "https://github.com/baicie/zeus/tree/main/packages/signal#readme",
-  "devDependencies": {
-    "@types/node": "^25.0.3",
-    "typescript": "^5.9.3",
-    "vitest": "^2.1.8"
+  "dependencies": {
+    "alien-signals": "^3.1.2"
   }
 }

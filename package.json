@@ -4,8 +4,8 @@
   "packageManager": "pnpm@10.27.0",
   "type": "module",
   "scripts": {
-    "dev": "node scripts/dev.js",
-    "build": "node scripts/build.js",
+    "dev": "tsx scripts/build.ts --watch",
+    "build": "tsx scripts/build.ts",
     "build-dts": "tsc -p tsconfig.build.json --noCheck && rollup -c rollup.dts.config.js",
     "clean": "rimraf --glob packages/*/dist temp .eslintcache",
     "size": "run-s \"size-*\" && node scripts/usage-size.js",
@@ -25,13 +25,12 @@
     "test-coverage": "vitest run --project unit* --coverage",
     "benchmark": "vitest run benchmarks/",
     "benchmark:watch": "vitest watch benchmarks/",
-    "benchmark:report": "node scripts/generate-benchmark-report.js",
     "preinstall": "npx only-allow pnpm",
     "postinstall": "simple-git-hooks"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged && pnpm check",
-    "commit-msg": "node scripts/verify-commit.js"
+    "commit-msg": "node -e \"import('@baicie/scripts').then(m => m.verifyCommit())\""
   },
   "lint-staged": {
     "*.{js,json}": [
@@ -47,6 +46,8 @@
   },
   "devDependencies": {
     "@babel/parser": "^7.28.5",
+    "@babel/types": "catalog:",
+    "@baicie/scripts": "^0.1.2",
     "@rollup/plugin-alias": "^6.0.0",
     "@rollup/plugin-commonjs": "^29.0.0",
     "@rollup/plugin-json": "^6.1.0",
@@ -76,6 +77,7 @@
     "rollup-plugin-polyfill-node": "^0.13.0",
     "simple-git-hooks": "^2.13.1",
     "tsup": "^8.5.1",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.52.0",
     "unbuild": "^3.6.1",

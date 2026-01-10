@@ -10,7 +10,7 @@ catalogs:
       specifier: ^7.28.4
       version: 7.28.4
     '@babel/types':
-      specifier: ^7.21.4
+      specifier: ^7.28.2
       version: 7.28.2
     '@types/babel__core':
       specifier: ^7.20.5
@@ -26,6 +26,12 @@ importers:
       '@babel/parser':
         specifier: ^7.28.5
         version: 7.28.5
+      '@babel/types':
+        specifier: 'catalog:'
+        version: 7.28.2
+      '@baicie/scripts':
+        specifier: ^0.1.2
+        version: 0.1.2
       '@rollup/plugin-alias':
         specifier: ^6.0.0
         version: 6.0.0(rollup@4.55.1)
@@ -113,6 +119,9 @@ importers:
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(@swc/core@1.15.8)(jiti@2.5.1)(postcss@8.5.3)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.1)
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -130,7 +139,7 @@ importers:
     devDependencies:
       '@zeus-js/build-tools':
         specifier: workspace:*
-        version: link:../../tools/build-tools
+        version: link:../../tools/bundle-plugin
       '@zeus-js/runtime-core':
         specifier: workspace:*
         version: link:../../packages/runtime-core
@@ -214,16 +223,10 @@ importers:
         version: 2.1.9(@types/node@25.0.3)(jsdom@27.4.0)(terser@5.39.0)
 
   packages/signal:
-    devDependencies:
-      '@types/node':
-        specifier: ^25.0.3
-        version: 25.0.3
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      vitest:
-        specifier: ^2.1.8
-        version: 2.1.9(@types/node@25.0.3)(jsdom@27.4.0)(terser@5.39.0)
+    dependencies:
+      alien-signals:
+        specifier: ^3.1.2
+        version: 3.1.2
 
   packages/ssr:
     dependencies:
@@ -287,7 +290,7 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  tools/build-tools:
+  tools/bundle-plugin:
     devDependencies:
       '@babel/core':
         specifier: ^7.28.5
@@ -398,10 +401,6 @@ packages:
     resolution: {integrity: sha512-qMlSxKbpRlAridDExk92nSobyDdpPijUq2DW6oDnUqd0iOGxmQjyqhMIihI9+zv4LPyZdRje2cavWPbCbWm3eA==}
     engines: {node: '>=6.9.0'}
 
-  '@babel/helper-validator-identifier@7.27.1':
-    resolution: {integrity: sha512-D2hP9eA+Sqx1kBZgzxZh0y1trbuU+JoDkiEwqhQ36nodYqJwyEIhPSdMNd7lOm/4io72luTPWH20Yda0xOuUow==}
-    engines: {node: '>=6.9.0'}
-
   '@babel/helper-validator-identifier@7.28.5':
     resolution: {integrity: sha512-qSs4ifwzKJSV39ucNjsvc6WVHs6b7S03sOh2OcHF9UHfVPqWWALUsNUVzhSBiItjRZoLHx7nIarVjqKVusUZ1Q==}
     engines: {node: '>=6.9.0'}
@@ -434,6 +433,9 @@ packages:
   '@babel/types@7.28.5':
     resolution: {integrity: sha512-qQ5m48eI/MFLQ5PxQj4PFaprjyCTLI37ElWMmNs0K8Lk3dVeOdNpB3ks8jc7yM5CDmVC73eMVk/trk3fgmrUpA==}
     engines: {node: '>=6.9.0'}
+
+  '@baicie/scripts@0.1.2':
+    resolution: {integrity: sha512-xABSTCwUG882DjXkSFTMLNvCR4zZVL1rYEQngEXxJctw1Qf+VD45CpyYa/tf/KFcW/X3i+JdWVc/RHDcibjJ6Q==}
 
   '@bcoe/v8-coverage@1.0.2':
     resolution: {integrity: sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==}
@@ -1834,6 +1836,9 @@ packages:
 
   ajv@6.12.6:
     resolution: {integrity: sha512-j3fVLgvTo527anyYyJOGTYJbG+vnnQYvE0m5mmkc1TK+nxAppkCLMIL0aZ4dblVCNoGShhm+kzE4ZUykBoMg4g==}
+
+  alien-signals@3.1.2:
+    resolution: {integrity: sha512-d9dYqZTS90WLiU0I5c6DHj/HcKkF8ZyGN3G5x8wSbslulz70KOxaqCT0hQCo9KOyhVqzqGojvNdJXoTumZOtcw==}
 
   ansi-escapes@7.1.1:
     resolution: {integrity: sha512-Zhl0ErHcSRUaVfGUeUdDuLgpkEo8KIFjB4Y9uAc46ScOpdDiU1Dbyplh7qWJeJ/ZHpbyMSM26+X3BySgnIz40Q==}
@@ -4399,7 +4404,7 @@ snapshots:
 
   '@babel/code-frame@7.27.1':
     dependencies:
-      '@babel/helper-validator-identifier': 7.27.1
+      '@babel/helper-validator-identifier': 7.28.5
       js-tokens: 4.0.0
       picocolors: 1.1.1
 
@@ -4498,8 +4503,6 @@ snapshots:
 
   '@babel/helper-string-parser@7.27.1': {}
 
-  '@babel/helper-validator-identifier@7.27.1': {}
-
   '@babel/helper-validator-identifier@7.28.5': {}
 
   '@babel/helper-validator-option@7.27.1': {}
@@ -4540,6 +4543,10 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
+
+  '@baicie/scripts@0.1.2':
+    dependencies:
+      picocolors: 1.1.1
 
   '@bcoe/v8-coverage@1.0.2': {}
 
@@ -5631,6 +5638,8 @@ snapshots:
       fast-json-stable-stringify: 2.1.0
       json-schema-traverse: 0.4.1
       uri-js: 4.4.1
+
+  alien-signals@3.1.2: {}
 
   ansi-escapes@7.1.1:
     dependencies:

@@ -1,26 +1,28 @@
-// @ts-check
-import alias from '@rollup/plugin-alias'
 import commonJS from '@rollup/plugin-commonjs'
-import json from '@rollup/plugin-json'
 import { nodeResolve } from '@rollup/plugin-node-resolve'
 import replace from '@rollup/plugin-replace'
-import { minify as minifySwc } from '@swc/core'
-import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import pico from 'picocolors'
-import esbuild from 'rollup-plugin-esbuild'
+import type { Plugin, RolldownOptions } from 'rolldown'
 import polyfillNode from 'rollup-plugin-polyfill-node'
-import { entries } from './scripts/aliases.ts'
+import { entries } from './aliases'
+import { inlineEnums } from './inline-enums'
 
-/**
- * @template T
- * @template {keyof T} K
- * @typedef { Omit<T, K> & Required<Pick<T, K>> } MarkRequired
- */
-/** @typedef {'cjs' | 'esm-bundler' | 'global' | 'global-runtime' | 'esm-browser' | 'esm-bundler-runtime' | 'esm-browser-runtime'} PackageFormat */
-/** @typedef {MarkRequired<import('rollup').OutputOptions, 'file' | 'format'>} OutputOptions */
+type MarkRequired<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>
+type PackageFormat =
+  | 'cjs'
+  | 'esm-bundler'
+  | 'global'
+  | 'global-runtime'
+  | 'esm-browser'
+  | 'esm-bundler-runtime'
+  | 'esm-browser-runtime'
+type OutputOptions = MarkRequired<
+  import('rolldown').OutputOptions,
+  'file' | 'format'
+>
 
 if (!process.env.TARGET) {
   throw new Error('TARGET package must be specified via --environment flag.')
@@ -29,12 +31,12 @@ if (!process.env.TARGET) {
 const require = createRequire(import.meta.url)
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
-const masterVersion = require('./package.json').version
+const masterVersion = require('../package.json').version
 
-const packagesDir = path.resolve(__dirname, 'packages')
+const packagesDir = path.resolve(__dirname, '..', 'packages')
 const packageDir = path.resolve(packagesDir, process.env.TARGET)
 
-const resolve = (/** @type {string} */ p) => path.resolve(packageDir, p)
+const resolve = (p: string) => path.resolve(packageDir, p)
 const pkg = require(resolve('package.json'))
 const packageOptions = pkg.buildOptions || {}
 const name = path.basename(packageDir)
@@ -45,8 +47,9 @@ const banner = `/**
 * Released under the MIT License.
 **/`
 
-/** @type {Record<PackageFormat, OutputOptions>} */
-const outputConfigs = {
+const [enumPlugin, enumDefines] = inlineEnums()
+
+const outputConfigs: Record<PackageFormat, OutputOptions> = {
   'esm-bundler': {
     file: resolve(`dist/${name}.esm-bundler.js`),
     format: 'es',
@@ -78,15 +81,12 @@ const outputConfigs = {
   },
 }
 
-/** @type {ReadonlyArray<PackageFormat>} */
-const defaultFormats = ['esm-bundler', 'cjs']
-/** @type {ReadonlyArray<PackageFormat>} */
-const inlineFormats = /** @type {any} */ (
-  process.env.FORMATS && process.env.FORMATS.split(',')
-)
-/** @type {ReadonlyArray<PackageFormat>} */
-const packageFormats = inlineFormats || packageOptions.formats || defaultFormats
-const packageConfigs = process.env.PROD_ONLY
+const defaultFormats: ReadonlyArray<PackageFormat> = ['esm-bundler', 'cjs']
+const inlineFormats = process.env.FORMATS && process.env.FORMATS.split(',')
+const packageFormats: ReadonlyArray<PackageFormat> =
+  inlineFormats || packageOptions.formats || defaultFormats
+
+const packageConfigs: RolldownOptions[] = process.env.PROD_ONLY
   ? []
   : packageFormats.map(format => createConfig(format, outputConfigs[format]))
 
@@ -103,17 +103,13 @@ if (process.env.NODE_ENV === 'production') {
     }
   })
 }
-
 export default packageConfigs
 
-/**
- *
- * @param {PackageFormat} format
- * @param {OutputOptions} output
- * @param {ReadonlyArray<import('rollup').Plugin>} plugins
- * @returns {import('rollup').RollupOptions}
- */
-function createConfig(format, output, plugins = []) {
+function createConfig(
+  format: PackageFormat,
+  output: OutputOptions,
+  plugins: Plugin[] = [],
+): RolldownOptions {
   if (!output) {
     console.log(pico.yellow(`invalid format: "${format}"`))
     process.exit(1)
@@ -138,8 +134,6 @@ function createConfig(format, output, plugins = []) {
   }
   output.sourcemap = !!process.env.SOURCE_MAP
   output.externalLiveBindings = false
-  // https://github.com/rollup/rollup/pull/5380
-  output.reexportProtoFromExternal = false
 
   if (isGlobalBuild) {
     output.name = packageOptions.name
@@ -148,11 +142,9 @@ function createConfig(format, output, plugins = []) {
   let entryFile = `src/index.ts`
 
   function resolveDefine() {
-    /** @type {Record<string, string>} */
-    const replacements = {
+    const replacements: Record<string, string> = {
       __COMMIT__: `"${process.env.COMMIT}"`,
       __VERSION__: `"${masterVersion}"`,
-      // this is only used during Vue's internal tests
       __TEST__: `false`,
       // If the build is expected to run directly in the browser (global / esm builds)
       __BROWSER__: String(isBrowserBuild),
@@ -182,18 +174,15 @@ function createConfig(format, output, plugins = []) {
     return replacements
   }
 
-  // esbuild define is a bit strict and only allows literal json or identifiers
-  // so we still need replace plugin in some cases
   function resolveReplace() {
-    /** @type {Record<string, import('@rollup/plugin-replace').Replacement>} */
-    const replacements = {}
+    const replacements = { ...enumDefines }
 
     if (isProductionBuild && isBrowserBuild) {
       Object.assign(replacements, {
-        'context.onError(': `/*@__PURE__*/ context.onError(`,
-        'emitError(': `/*@__PURE__*/ emitError(`,
-        'createCompilerError(': `/*@__PURE__*/ createCompilerError(`,
-        'createDOMCompilerError(': `/*@__PURE__*/ createDOMCompilerError(`,
+        // 'context.onError(': `/*@__PURE__*/ context.onError(`,
+        // 'emitError(': `/*@__PURE__*/ emitError(`,
+        // 'createCompilerError(': `/*@__PURE__*/ createCompilerError(`,
+        // 'createDOMCompilerError(': `/*@__PURE__*/ createDOMCompilerError(`,
       })
     }
 
@@ -212,32 +201,56 @@ function createConfig(format, output, plugins = []) {
   }
 
   function resolveExternal() {
-    const treeShakenDeps = []
+    const treeShakenDeps = [
+      'source-map-js',
+      '@babel/parser',
+      'estree-walker',
+      'entities/decode',
+    ]
 
-    if (isGlobalBuild) {
+    if (isGlobalBuild || isBrowserESMBuild) {
       if (!packageOptions.enableNonBrowserBranches) {
+        // normal browser builds - non-browser only imports are tree-shaken,
+        // they are only listed here to suppress warnings.
         return treeShakenDeps
       }
     } else {
-      const res = [
-        ...Object.keys(pkg.dependencies || {})?.filter(
-          dep => !packageOptions.inline?.includes(dep),
-        ),
+      // Node / esm-bundler builds.
+      // externalize all direct deps unless it's the compat build.
+      return [
+        ...Object.keys(pkg.dependencies || {}),
         ...Object.keys(pkg.peerDependencies || {}),
+        ...['path', 'url', 'stream'],
+        // somehow these throw warnings for runtime-* package builds
         ...treeShakenDeps,
-        ...(packageOptions.external || []),
       ]
-      return res
     }
   }
 
   function resolveNodePlugins() {
+    // we are bundling forked consolidate.js in compiler-sfc which dynamically
+    // requires a ton of template engines which should be ignored.
+    /** @type {ReadonlyArray<string>} */
+    let cjsIgnores: ReadonlyArray<string> = []
+    if (pkg.name === '@vue/compiler-sfc') {
+      cjsIgnores = [
+        'vm',
+        'crypto',
+        'react-dom/server',
+        'teacup/lib/express',
+        'arc-templates/dist/es5',
+        'then-pug',
+        'then-jade',
+      ]
+    }
+
     const nodePlugins =
       (format === 'cjs' && Object.keys(pkg.devDependencies || {}).length) ||
       packageOptions.enableNonBrowserBranches
         ? [
             commonJS({
               sourceMap: false,
+              ignore: cjsIgnores,
             }),
             ...(format === 'cjs' ? [] : [polyfillNode()]),
             nodeResolve(),
@@ -250,23 +263,12 @@ function createConfig(format, output, plugins = []) {
   return {
     input: resolve(entryFile),
     external: resolveExternal(),
-    context: 'this',
+    resolve: {
+      alias: entries,
+    },
     plugins: [
-      json({
-        namedExports: false,
-      }),
-      alias({
-        entries,
-      }),
-      nodeResolve(),
+      enumPlugin,
       ...resolveReplace(),
-      esbuild({
-        tsconfig: path.resolve(__dirname, 'tsconfig.json'),
-        sourceMap: output.sourcemap,
-        minify: false,
-        target: isServerRenderer || isCJSBuild ? 'es2019' : 'es2016',
-        define: resolveDefine(),
-      }),
       ...resolveNodePlugins(),
       ...plugins,
     ],
@@ -279,44 +281,24 @@ function createConfig(format, output, plugins = []) {
     treeshake: {
       moduleSideEffects: false,
     },
+    transform: {
+      define: resolveDefine(),
+      target: isServerRenderer || isCJSBuild ? 'es2019' : 'es2016',
+    },
   }
 }
 
-function createProductionConfig(/** @type {PackageFormat} */ format) {
+function createProductionConfig(format: PackageFormat) {
   return createConfig(format, {
     file: resolve(`dist/${name}.${format}.prod.js`),
     format: outputConfigs[format].format,
   })
 }
 
-function createMinifiedConfig(/** @type {PackageFormat} */ format) {
-  return createConfig(
-    format,
-    {
-      file: outputConfigs[format].file.replace(/\.js$/, '.prod.js'),
-      format: outputConfigs[format].format,
-    },
-    [
-      {
-        name: 'swc-minify',
-
-        async renderChunk(contents, _, { format }) {
-          const { code } = await minifySwc(contents, {
-            module: format === 'es',
-            format: {
-              comments: false,
-            },
-            compress: {
-              ecma: 2016,
-              pure_getters: true,
-            },
-            safari10: true,
-            mangle: true,
-          })
-
-          return { code: banner + code, map: null }
-        },
-      },
-    ],
-  )
+function createMinifiedConfig(format: PackageFormat) {
+  return createConfig(format, {
+    file: outputConfigs[format].file.replace(/\.js$/, '.prod.js'),
+    format: outputConfigs[format].format,
+    minify: true,
+  })
 }

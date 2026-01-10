@@ -1,7 +1,23 @@
-// packages/signal/src/index.ts
+import {
+  computed,
+  effect,
+  effectScope,
+  isComputed,
+  isEffect,
+  isEffectScope,
+  isSignal,
+  signal,
+  trigger,
+} from 'alien-signals'
 
-// 导出响应式核心API
-export * from './reactivity'
-
-// 导出工具函数
-export * from './utils'
+export {
+  isComputed,
+  isEffect,
+  isEffectScope,
+  isSignal,
+  signal,
+  computed,
+  effect,
+  effectScope,
+  trigger,
+}
