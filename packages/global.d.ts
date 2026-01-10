@@ -9,25 +9,3 @@ declare var __CJS__: boolean
 declare var __SSR__: boolean
 declare var __VERSION__: string
 declare var __COMPAT__: boolean
-
-declare module '@babel/helper-module-imports' {
-  export function addNamed(
-    path: NodePath,
-    name: string,
-    moduleName: string,
-    opts?: {
-      nameHint?: string
-      blockHoist?: boolean
-    },
-  ): t.Identifier
-}
-
-declare module '@babel/plugin-syntax-jsx' {
-  function jsx(): {
-    manipulateOptions(opts: any, parserOpts: { plugins: string[] }): void
-  }
-  const module: {
-    default: typeof jsx
-  }
-  export default module
-}

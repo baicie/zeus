@@ -1,5 +1,0 @@
-describe('zeus', () => {
-  it('should be able to compile a simple component', () => {
-    expect(true).toBe(true)
-  })
-})

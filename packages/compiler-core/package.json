@@ -1,0 +1,56 @@
+{
+  "name": "@zeus-js/compiler-core",
+  "version": "0.0.1",
+  "type": "commonjs",
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "dev": "rollup -c ../../rollup.config.js --watch",
+    "build": "rollup -c ../../rollup.config.js",
+    "build:native": "napi build --release",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "type-check": "tsc --noEmit"
+  },
+  "engines": {
+    "node": "^18.0.0 || >=20.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baicie/zeus.git",
+    "directory": "packages/compiler-core"
+  },
+  "bugs": {
+    "url": "https://github.com/baicie/zeus/issues"
+  },
+  "homepage": "https://github.com/baicie/zeus/tree/main/packages/compiler-core#readme",
+  "devDependencies": {
+    "@napi-rs/cli": "^2.18.4",
+    "@types/node": "^25.0.3",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.8"
+  },
+  "napi": {
+    "name": "zeus-compiler-core",
+    "triples": {
+      "defaults": true,
+      "additional": [
+        "aarch64-apple-darwin",
+        "aarch64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl"
+      ]
+    }
+  }
+}

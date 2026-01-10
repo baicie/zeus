@@ -106,7 +106,7 @@ export default tseslint.config(
 
   // Packages targeting DOM
   {
-    files: ['packages/{zeus,runtime}/**'],
+    files: ['packages/{zeus,runtime-core,runtime-dom}/**'],
     rules: {
       'no-restricted-globals': ['error', ...NodeGlobals],
     },
@@ -121,19 +121,6 @@ export default tseslint.config(
       'no-console': 'off',
     },
   },
-
-  // Private package, browser only + no syntax restrictions
-  // {
-  //   files: [
-  //     'packages-private/template-explorer/**',
-  //     'packages-private/sfc-playground/**',
-  //   ],
-  //   rules: {
-  //     'no-restricted-globals': ['error', ...NodeGlobals],
-  //     'no-restricted-syntax': ['error', banConstEnum],
-  //     'no-console': 'off',
-  //   },
-  // },
 
   // JavaScript files
   {
@@ -152,7 +139,7 @@ export default tseslint.config(
       'scripts/**',
       './*.{js,ts}',
       'packages/*/*.js',
-      'packages/zeus/*/*.js',
+      'packages/{zeus,runtime-core,runtime-dom}/*/*.js',
     ],
     rules: {
       'no-restricted-globals': 'off',
@@ -168,6 +155,7 @@ export default tseslint.config(
       '**/coverage/',
       '.idea/',
       'packages-private',
+      'examples',
     ],
   },
 )

@@ -1,0 +1,15 @@
+[package]
+name = "zeus-compiler-core"
+version = "0.0.1"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { version = "2", features = ["napi6"] }
+napi-derive = "2"
+oxc = "0.35.0"
+
+[build-dependencies]
+napi-build = "2"
