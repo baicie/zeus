@@ -11,6 +11,6 @@
     "@zeus-js/runtime-core": "workspace:*",
     "@zeus-js/runtime-dom": "workspace:*",
     "@zeus-js/build-tools": "workspace:*",
-    "vite": "^6.2.4"
+    "vite": "^7.3.1"
   }
 }
