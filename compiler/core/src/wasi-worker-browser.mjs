@@ -11,11 +11,11 @@ const handler = new MessageHandler({
         '/': '/',
       },
       print: function () {
-        // eslint-disable-next-line no-console
+         
         console.log.apply(console, arguments)
       },
       printErr: function() {
-        // eslint-disable-next-line no-console
+         
         console.error.apply(console, arguments)
       },
     })

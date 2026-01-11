@@ -132,6 +132,14 @@ export default tseslint.config(
     },
   },
 
+  {
+    name: 'tools',
+    files: ['tools/**'],
+    rules: {
+      'no-restricted-syntax': 'off',
+    },
+  },
+
   // JavaScript files
   {
     files: ['*.js'],
@@ -164,8 +172,12 @@ export default tseslint.config(
       '**/temp/',
       '**/coverage/',
       '.idea/',
-      'packages-private',
       'examples',
+      'target',
+      'compiler/core/src/baicie-*',
+      'compiler/core/src/binding.*',
+      'compiler/core/src/wasi-worker*.mjs',
+      'compiler/core/src/browser.js',
     ],
   },
 )
