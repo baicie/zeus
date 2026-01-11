@@ -122,6 +122,16 @@ export default tseslint.config(
     },
   },
 
+  {
+    name: 'playground',
+    files: ['playground/**'],
+    rules: {
+      'no-restricted-globals': ['error', ...DOMGlobals],
+      'no-restricted-syntax': ['error', banConstEnum],
+      'no-console': 'off',
+    },
+  },
+
   // JavaScript files
   {
     files: ['*.js'],

@@ -108,6 +108,4 @@ const { instance: __napiInstance, module: __wasiModule, napiModule: __napiModule
   },
 })
 module.exports = __napiModule.exports
-module.exports.createPerson = __napiModule.exports.createPerson
-module.exports.hello = __napiModule.exports.hello
-module.exports.sum = __napiModule.exports.sum
+module.exports.compiler = __napiModule.exports.compiler

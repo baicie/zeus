@@ -65,6 +65,4 @@ const {
   },
 })
 export default __napiModule.exports
-export const createPerson = __napiModule.exports.createPerson
-export const hello = __napiModule.exports.hello
-export const sum = __napiModule.exports.sum
+export const compiler = __napiModule.exports.compiler

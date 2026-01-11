@@ -1,3 +1,3 @@
-import { hello, sum } from './binding.cjs'
+import { compiler } from './binding.cjs'
 
-export { sum, hello }
+export { compiler }

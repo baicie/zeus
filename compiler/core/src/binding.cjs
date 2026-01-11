@@ -576,6 +576,4 @@ if (!nativeBinding) {
 }
 
 module.exports = nativeBinding
-module.exports.createPerson = nativeBinding.createPerson
-module.exports.hello = nativeBinding.hello
-module.exports.sum = nativeBinding.sum
+module.exports.compiler = nativeBinding.compiler
