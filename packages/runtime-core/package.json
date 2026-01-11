@@ -1,46 +1,51 @@
 {
   "name": "@zeus-js/runtime-core",
   "version": "0.0.1",
-  "type": "commonjs",
-  "license": "MIT",
+  "description": "@zeus-js/runtime-core",
+  "main": "index.js",
+  "module": "dist/runtime-core.esm-bundler.js",
+  "types": "dist/runtime-core.d.ts",
   "files": [
+    "index.js",
     "dist"
   ],
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs",
-      "types": "./dist/index.d.ts"
-    }
+      "types": "./dist/runtime-core.d.ts",
+      "node": {
+        "production": "./dist/runtime-core.cjs.prod.js",
+        "development": "./dist/runtime-core.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/runtime-core.esm-bundler.js",
+      "import": "./dist/runtime-core.esm-bundler.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
   },
-  "scripts": {
-    "dev": "rollup -c ../../rollup.config.js --watch",
-    "build": "rollup -c ../../rollup.config.js",
-    "test": "vitest",
-    "test:run": "vitest run",
-    "type-check": "tsc --noEmit"
+  "buildOptions": {
+    "name": "ZeusRuntimeCore",
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ]
   },
-  "engines": {
-    "node": "^18.0.0 || >=20.0.0"
-  },
+  "sideEffects": false,
   "repository": {
     "type": "git",
     "url": "git+https://github.com/baicie/zeus.git",
     "directory": "packages/runtime-core"
   },
+  "keywords": [
+    "zeus"
+  ],
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/baicie/zeus/issues"
   },
   "homepage": "https://github.com/baicie/zeus/tree/main/packages/runtime-core#readme",
   "dependencies": {
+    "@zeus-js/shared": "workspace:*",
     "@zeus-js/signal": "workspace:*"
-  },
-  "devDependencies": {
-    "@types/node": "^25.0.6",
-    "typescript": "^5.9.3",
-    "vitest": "^4.0.16"
   }
 }

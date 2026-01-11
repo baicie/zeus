@@ -1,4 +1,5 @@
 import MagicString from 'magic-string'
+import assert from 'node:assert/strict'
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import type { Plugin, RolldownOptions } from 'rolldown'
 import { dts } from 'rolldown-plugin-dts'

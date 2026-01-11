@@ -115,7 +115,6 @@ alwaysApply: true # 是否自动应用
 
 - [Cursor 官方文档](https://cursor.sh/docs)
 - [TypeScript 官方文档](https://www.typescriptlang.org/docs/)
-- [React 官方文档](https://react.dev/)
 - [Vitest 官方文档](https://vitest.dev/)
 
 ## 🤝 贡献指南

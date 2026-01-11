@@ -126,8 +126,8 @@ export default tseslint.config(
     name: 'playground',
     files: ['playground/**'],
     rules: {
-      'no-restricted-globals': ['error', ...DOMGlobals],
-      'no-restricted-syntax': ['error', banConstEnum],
+      'no-restricted-globals': 'off',
+      'no-restricted-syntax': 'off',
       'no-console': 'off',
     },
   },
