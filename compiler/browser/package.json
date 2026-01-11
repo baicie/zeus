@@ -1,0 +1,40 @@
+{
+  "name": "@zeus-js/compiler-browser",
+  "version": "0.0.1",
+  "description": "",
+  "keywords": [],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baicie/zeus.git",
+    "directory": "compiler/browser"
+  },
+  "files": [
+    "dist",
+    "!*/.tsbuildinfo"
+  ],
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "browser": "./dist/index.browser.mjs",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "pnpm run build:debug",
+    "build:debug": "pnpm run --filter @zeus-js/compiler-core build-browser-pkg:debug",
+    "build:release": "pnpm run --filter @zeus-js/compiler-core build-browser-pkg:release",
+    "build-node": "TARGET='browser' pnpm run --filter @zeus-js/compiler-core build-node",
+    "preinstall": "npx only-allow pnpm"
+  },
+  "dependencies": {
+    "@napi-rs/wasm-runtime": "catalog:"
+  }
+}

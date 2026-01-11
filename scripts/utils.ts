@@ -3,6 +3,17 @@ import pico from 'picocolors'
 import { createRequire } from 'node:module'
 import { spawn } from 'node:child_process'
 
+export type MarkRequired<T, K extends keyof T> = Omit<T, K> &
+  Required<Pick<T, K>>
+export type PackageFormat =
+  | 'cjs'
+  | 'esm-bundler'
+  | 'global'
+  | 'global-runtime'
+  | 'esm-browser'
+  | 'esm-bundler-runtime'
+  | 'esm-browser-runtime'
+
 const require = createRequire(import.meta.url)
 
 export const targets: string[] = fs.readdirSync('packages').filter(f => {

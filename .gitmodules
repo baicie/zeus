@@ -1,6 +1,0 @@
-[submodule "packages-private/alien-signals"]
-	path = packages-private/alien-signals
-	url = https://github.com/stackblitz/alien-signals.git
-[submodule "packages-private/dom-expressions"]
-	path = packages-private/dom-expressions
-	url = https://github.com/ryansolid/dom-expressions.git

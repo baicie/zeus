@@ -39,7 +39,7 @@
     "@zeus-js/signal": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^25.0.5",
+    "@types/node": "^25.0.6",
     "typescript": "^5.9.3",
     "vitest": "^4.0.16"
   }

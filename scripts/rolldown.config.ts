@@ -9,16 +9,8 @@ import type { Plugin, RolldownOptions } from 'rolldown'
 import polyfillNode from 'rollup-plugin-polyfill-node'
 import { entries } from './aliases'
 import { inlineEnums } from './inline-enums'
+import type { MarkRequired, PackageFormat } from './utils'
 
-type MarkRequired<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>
-type PackageFormat =
-  | 'cjs'
-  | 'esm-bundler'
-  | 'global'
-  | 'global-runtime'
-  | 'esm-browser'
-  | 'esm-bundler-runtime'
-  | 'esm-browser-runtime'
 type OutputOptions = MarkRequired<
   import('rolldown').OutputOptions,
   'file' | 'format'

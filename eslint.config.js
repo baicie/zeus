@@ -114,7 +114,7 @@ export default tseslint.config(
 
   // Packages targeting Node
   {
-    files: ['packages/compiler/**'],
+    files: ['compiler/**'],
     rules: {
       'no-restricted-globals': ['error', ...DOMGlobals],
       'no-restricted-syntax': ['error', banConstEnum],
