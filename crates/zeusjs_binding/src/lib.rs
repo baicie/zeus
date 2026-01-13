@@ -1,5 +1,8 @@
 use napi_derive::napi;
+use zeus_compiler_core::{compile_source, CompileOptions};
+use oxc::span::SourceType;
 
+// 编译器选项 / Compiler options
 #[napi(object)]
 pub struct CompilerOptions {
   pub source_type: String,
@@ -8,6 +11,7 @@ pub struct CompilerOptions {
   pub minify: bool,
 }
 
+// 编译器结果 / Compiler result
 #[napi(object)]
 pub struct CompilerResult {
   pub code: String,
@@ -15,32 +19,37 @@ pub struct CompilerResult {
   pub errors: Vec<String>,
 }
 
+// 编译函数 / Compiler function
 #[napi]
 pub fn compiler(source: String, options: CompilerOptions) -> CompilerResult {
-  // TODO: Integrate with actual compiler crates
-  // For now, return a placeholder result
-
-  let mut errors = Vec::new();
-
-  // Basic validation
-  if source.trim().is_empty() {
-    errors.push("Source code cannot be empty".to_string());
-  }
-
-  if options.target.is_empty() {
-    errors.push("Target cannot be empty".to_string());
-  }
-
-  // Placeholder compilation logic
-  let compiled_code = if errors.is_empty() {
-    format!("// Compiled from: {}\nconsole.log('Hello from Zeus Compiler!');", source)
-  } else {
-    "// Compilation failed".to_string()
+  // 解析源代码类型 / Parse source type
+  let source_type = match options.source_type.as_str() {
+    "js" => SourceType::unambiguous(),
+    "jsx" => SourceType::jsx(),
+    "ts" => SourceType::ts(),
+    "tsx" => SourceType::tsx(),
+    _ => SourceType::unambiguous(),
   };
 
-  CompilerResult {
-    code: compiled_code,
-    success: errors.is_empty(),
-    errors,
+  // 构建编译选项 / Build compile options
+  let compile_options = CompileOptions {
+    source_type,
+    target: options.target.clone(),
+    minify: options.minify,
+    experimental: options.experimental,
+  };
+
+  // 调用编译器核心 / Call compiler core
+  match compile_source(&source, &compile_options) {
+    Ok(result) => CompilerResult {
+      code: result.code,
+      success: true,
+      errors: vec![],
+    },
+    Err(error) => CompilerResult {
+      code: "// Compilation failed".to_string(),
+      success: false,
+      errors: vec![format!("{}", error)],
+    },
   }
 }

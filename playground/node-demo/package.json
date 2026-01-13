@@ -1,0 +1,17 @@
+{
+  "name": "zeus-node-demo",
+  "version": "1.0.0",
+  "description": "Zeus Node.js Demo - TSX Compilation",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx ./build.ts",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@zeus-js/compiler-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.7",
+    "tsx": "^4.21.0"
+  }
+}

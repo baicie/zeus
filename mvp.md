@@ -324,6 +324,29 @@ function Counter() {
   }
 }
 
+// 或者直接定义为返回 DOM 的函数
+const SimpleCounter = () => {
+  const count = signal(0)
+  const increment = () => count(count() + 1)
+
+  const div = document.createElement('div')
+  const h1 = document.createElement('h1')
+  const button = document.createElement('button')
+
+  // 响应式绑定：count 变化时自动更新文本
+  effect(() => {
+    h1.textContent = `Count: ${count()}`
+  })
+
+  button.textContent = '+'
+  button.addEventListener('click', increment)
+
+  div.appendChild(h1)
+  div.appendChild(button)
+
+  return div
+}
+
 // 使用组件
 function App() {
   return () => {

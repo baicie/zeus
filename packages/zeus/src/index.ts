@@ -23,9 +23,6 @@ export function createApp(rootComponent: any): App {
     unmount() {
       /* TODO */
     },
-    component() {
-      return this
-    },
   }
 }
 

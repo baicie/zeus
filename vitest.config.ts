@@ -35,7 +35,17 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'unit',
+          include: ['packages/signal/**/*.{test,spec}.*'],
           exclude: [...configDefaults.exclude, '**/e2e/**'],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'unit-runtime',
+          include: ['packages/{runtime-core,runtime-dom}/**/*.{test,spec}.*'],
+          exclude: [...configDefaults.exclude, '**/e2e/**'],
+          environment: 'jsdom',
         },
       },
       {

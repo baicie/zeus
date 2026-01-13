@@ -9,6 +9,8 @@ crate-type = ["cdylib"]
 [dependencies]
 napi = { workspace = true }
 napi-derive = { workspace = true }
+zeus-compiler-core = { path = "../compiler-core" }
+oxc = { workspace = true }
 
 [build-dependencies]
 napi-build = { workspace = true }

@@ -1,100 +1,50 @@
-// 纯函数式组件类型定义
-export interface ComponentProps {
-  [key: string]: any
-}
+// 组件函数类型 / Component function type
+export type ComponentFunction = () => Element | DocumentFragment
 
-export interface ComponentContext {
-  props: ComponentProps
-  emit: (event: string, ...args: any[]) => void
-  slots: Record<string, () => any>
-  expose: (exposed: Record<string, any>) => void
-}
-
-export type ComponentFunction<T = ComponentProps> = (props: T) => any
-export type SetupFunction<T = ComponentProps> = (
-  props: T,
-  context: ComponentContext,
-) => ComponentFunction | void
-export type ComponentSetup = SetupFunction | ComponentFunction
-
-// 纯函数式组件创建
-export function h(
-  type: string | ComponentSetup,
-  props?: ComponentProps | null,
-  ...children: any[]
-): any {
-  return {
-    type,
-    props: props || {},
-    children,
-  }
-}
-
-// h 函数已经在上面声明并导出了
-
-// 函数式组件组合
-export function withProps<P extends ComponentProps>(
-  component: ComponentFunction,
-  defaultProps: Partial<P>,
-): ComponentFunction<P> {
-  return (props: P) => component(Object.assign({}, defaultProps, props))
-}
-
-// 函数式组件组合（高阶组件）
-export function withHoc<P extends ComponentProps>(
-  hoc: (component: ComponentFunction<P>) => ComponentFunction<P>,
-): (component: ComponentFunction<P>) => ComponentFunction<P> {
-  return (component: ComponentFunction<P>) => hoc(component)
-}
-
-// 纯函数式应用创建
+// 应用接口 / App interface
 export interface App {
   mount(container: Element | string): void
   unmount(): void
-  component(name: string, component: ComponentSetup): App
 }
 
-export function createApp(rootComponent: ComponentSetup): App {
-  const components = new Map<string, ComponentSetup>()
+// 创建应用 / Create app
+export function createApp(rootComponent: ComponentFunction): App {
+  // 容器元素 / Container element
   let container: Element | null = null
+  // 根组件元素 / Root component element
+  let rootElement: Element | DocumentFragment | null = null
 
   const app: App = {
     mount(containerOrSelector: Element | string) {
       if (typeof containerOrSelector === 'string') {
+        // 通过选择器查找DOM元素 / Find DOM element by selector
         const el = document.querySelector(containerOrSelector)
         if (!el) {
           throw new Error(`Container element not found: ${containerOrSelector}`)
         }
         container = el
       } else {
+        // 直接使用传入的元素 / Use the element directly
         container = containerOrSelector
       }
 
-      // 执行根组件
+      // 执行根组件并挂载到容器 / Execute root component and mount to container
       if (typeof rootComponent === 'function') {
-        rootComponent(
-          {},
-          {
-            props: {},
-            emit: () => {},
-            slots: {},
-            expose: () => {},
-          },
-        )
+        rootElement = rootComponent()
+        if (container && rootElement) {
+          container.appendChild(rootElement)
+        }
       }
     },
 
     unmount() {
-      // 清理逻辑
-      if (container) {
-        container.innerHTML = ''
+      // 从DOM中移除根元素 / Remove root element from DOM
+      if (container && rootElement) {
+        container.removeChild(rootElement)
       }
+      // 清理引用 / Clean up references
+      rootElement = null
       container = null
-    },
-
-    component(name: string, component: ComponentSetup): App {
-      components.set(name, component)
-      return app
     },
   }
 
