@@ -1,233 +1,221 @@
-import { extend } from '@zeus-js/shared'
-import {
-  type Component,
-  type App as CoreApp,
-  createApp as createCoreApp,
-} from '@zeus-js/runtime-core'
+// packages/runtime-dom/src/renderer/index.ts
 
+// 纯 DOM 操作函数库
+
+// 元素创建
+export function createElement(tag: string): Element {
+  return document.createElement(tag)
+}
+
+export function createTextNode(text: string): Text {
+  return document.createTextNode(text)
+}
+
+export function createComment(text: string): Comment {
+  return document.createComment(text)
+}
+
+export function createDocumentFragment(): DocumentFragment {
+  return document.createDocumentFragment()
+}
+
+// 元素操作
+export function insertBefore(
+  parent: Node,
+  child: Node,
+  anchor?: Node | null,
+): void {
+  parent.insertBefore(child, anchor || null)
+}
+
+export function appendChild(parent: Node, child: Node): void {
+  parent.appendChild(child)
+}
+
+export function removeChild(parent: Node, child: Node): void {
+  parent.removeChild(child)
+}
+
+export function replaceChild(
+  parent: Node,
+  newChild: Node,
+  oldChild: Node,
+): void {
+  parent.replaceChild(newChild, oldChild)
+}
+
+export function cloneNode(node: Node, deep: boolean = false): Node {
+  return node.cloneNode(deep)
+}
+
+// 文本操作
+export function setTextContent(el: Element, text: string): void {
+  el.textContent = text
+}
+
+export function getTextContent(el: Element): string | null {
+  return el.textContent
+}
+
+// 属性操作
+export function setAttribute(el: Element, name: string, value: string): void {
+  el.setAttribute(name, value)
+}
+
+export function getAttribute(el: Element, name: string): string | null {
+  return el.getAttribute(name)
+}
+
+export function removeAttribute(el: Element, name: string): void {
+  el.removeAttribute(name)
+}
+
+export function hasAttribute(el: Element, name: string): boolean {
+  return el.hasAttribute(name)
+}
+
+// 样式操作
+export function setStyle(
+  el: HTMLElement,
+  property: string,
+  value: string,
+): void {
+  el.style.setProperty(property, value)
+}
+
+export function getStyle(el: HTMLElement, property: string): string {
+  return el.style.getPropertyValue(property)
+}
+
+export function removeStyle(el: HTMLElement, property: string): void {
+  el.style.removeProperty(property)
+}
+
+export function setCSS(el: HTMLElement, styles: Record<string, string>): void {
+  Object.assign(el.style, styles)
+}
+
+// 类名操作
+export function addClass(el: Element, className: string): void {
+  el.classList.add(className)
+}
+
+export function removeClass(el: Element, className: string): void {
+  el.classList.remove(className)
+}
+
+export function toggleClass(el: Element, className: string): void {
+  el.classList.toggle(className)
+}
+
+export function hasClass(el: Element, className: string): boolean {
+  return el.classList.contains(className)
+}
+
+export function setClass(el: Element, className: string): void {
+  el.className = className
+}
+
+// 事件操作
+export function addEventListener(
+  el: Element | Window | Document,
+  type: string,
+  listener: EventListener,
+  options?: boolean | AddEventListenerOptions,
+): void {
+  el.addEventListener(type, listener, options)
+}
+
+export function removeEventListener(
+  el: Element | Window | Document,
+  type: string,
+  listener: EventListener,
+  options?: boolean | EventListenerOptions,
+): void {
+  el.removeEventListener(type, listener, options)
+}
+
+// 元素查询
+export function querySelector(selector: string): Element | null {
+  return document.querySelector(selector)
+}
+
+export function querySelectorAll(selector: string): NodeListOf<Element> {
+  return document.querySelectorAll(selector)
+}
+
+export function getElementById(id: string): HTMLElement | null {
+  return document.getElementById(id)
+}
+
+export function getElementsByClassName(
+  className: string,
+): HTMLCollectionOf<Element> {
+  return document.getElementsByClassName(className)
+}
+
+export function getElementsByTagName(
+  tagName: string,
+): HTMLCollectionOf<Element> {
+  return document.getElementsByTagName(tagName)
+}
+
+// 虚拟 DOM 创建（纯函数）
 export interface VNode {
-  type: string | Component
+  type: string
   props: Record<string, any> | null
   children: (VNode | string)[]
-  el?: Node
   key?: string | number
 }
 
-export interface RendererOptions {
-  createElement: (tag: string) => Element
-  createText: (text: string) => Text
-  createComment: (text: string) => Comment
-  insert: (child: Node, parent: Node, anchor?: Node | null) => void
-  remove: (child: Node) => void
-  setElementText: (el: Element, text: string) => void
-  setText: (node: Text, text: string) => void
-  patchProp: (el: Element, key: string, prevValue: any, nextValue: any) => void
-}
-
-export interface Renderer {
-  render: (vnode: VNode | null, container: Element) => void
-  createApp: (rootComponent: Component) => App
-}
-
-export function createRenderer(options: RendererOptions): Renderer {
-  const {
-    createElement,
-    createText,
-    createComment: _createComment,
-    insert,
-    remove,
-    setElementText,
-    setText: _setText,
-    patchProp,
-  } = options
-
-  function patch(
-    n1: VNode | null,
-    n2: VNode | null,
-    container: Element,
-    anchor?: Node | null,
-  ): void {
-    if (n1 === n2) return
-
-    if (n1 && !n2) {
-      // 卸载
-      unmount(n1)
-      return
-    }
-
-    if (!n1 && n2) {
-      // 挂载
-      mount(n2, container, anchor)
-      return
-    }
-
-    if (n1 && n2) {
-      // 更新
-      update(n1, n2, container, anchor)
-    }
-  }
-
-  function mount(vnode: VNode, container: Element, anchor?: Node | null): void {
-    const { type } = vnode
-
-    if (typeof type === 'string') {
-      // 原生元素
-      const el = createElement(type)
-      vnode.el = el
-
-      // 处理props
-      if (vnode.props) {
-        for (const key in vnode.props) {
-          patchProp(el, key, null, vnode.props[key])
-        }
-      }
-
-      // 处理children
-      if (vnode.children) {
-        for (const child of vnode.children) {
-          if (typeof child === 'string') {
-            const textNode = createText(child)
-            insert(textNode, el)
-          } else {
-            mount(child, el)
-          }
-        }
-      }
-
-      insert(el, container, anchor)
-    } else if (typeof type === 'function' || typeof type === 'object') {
-      // 组件
-      // 这里简化处理，实际需要更复杂的组件渲染逻辑
-      const el = createElement('div')
-      vnode.el = el
-      insert(el, container, anchor)
-    }
-  }
-
-  function unmount(vnode: VNode): void {
-    if (vnode.el) {
-      remove(vnode.el)
-    }
-  }
-
-  function update(
-    n1: VNode,
-    n2: VNode,
-    container: Element,
-    anchor?: Node | null,
-  ): void {
-    if (n1.type !== n2.type) {
-      // 类型不同，替换整个节点
-      unmount(n1)
-      mount(n2, container, anchor)
-      return
-    }
-
-    const el = (n2.el = n1.el!)
-
-    // 更新props
-    const oldProps = n1.props || {}
-    const newProps = n2.props || {}
-
-    for (const key in newProps) {
-      if (newProps[key] !== oldProps[key]) {
-        patchProp(el as Element, key, oldProps[key], newProps[key])
-      }
-    }
-
-    for (const key in oldProps) {
-      if (!(key in newProps)) {
-        patchProp(el as Element, key, oldProps[key], null)
-      }
-    }
-
-    // 更新children (简化版本)
-    if (typeof n2.children === 'string') {
-      setElementText(el as Element, n2.children)
-    }
-  }
-
+export function createVNode(
+  type: string,
+  props: Record<string, any> | null = null,
+  ...children: (VNode | string)[]
+): VNode {
   return {
-    render(vnode: VNode | null, container: Element) {
-      patch(null, vnode, container)
-    },
-
-    createApp(rootComponent: Component): App {
-      const coreApp = createCoreApp(rootComponent)
-
-      return extend(coreApp, {
-        mount(container: Element | string) {
-          return coreApp.mount(container)
-        },
-        unmount() {
-          return coreApp.unmount()
-        },
-        component(name: string, component: Component) {
-          return coreApp.component(name, component)
-        },
-      })
-    },
+    type,
+    props: props || {},
+    children,
   }
 }
 
-export interface App extends CoreApp {
-  mount(container: Element | string): void
-  unmount(): void
-  component(name: string, component: Component): App
+export function createTextVNode(text: string): VNode {
+  return {
+    type: 'text',
+    props: null,
+    children: [text],
+  }
 }
 
-// 默认DOM渲染器选项
-export const nodeOps: RendererOptions = {
-  createElement: (tag: string) => document.createElement(tag),
-  createText: (text: string) => document.createTextNode(text),
-  createComment: (text: string) => document.createComment(text),
-  insert: (child: Node, parent: Node, anchor?: Node | null) => {
-    parent.insertBefore(child, anchor || null)
-  },
-  remove: (child: Node) => {
-    if (child.parentNode) {
-      child.parentNode.removeChild(child)
-    }
-  },
-  setElementText: (el: Element, text: string) => {
-    el.textContent = text
-  },
-  setText: (node: Text, text: string) => {
-    node.nodeValue = text
-  },
-  patchProp: (el: Element, key: string, prevValue: any, nextValue: any) => {
-    if (key.startsWith('on')) {
-      // 事件处理
-      const eventName = key.slice(2).toLowerCase()
-      if (prevValue) {
-        el.removeEventListener(eventName, prevValue)
-      }
-      if (nextValue) {
-        el.addEventListener(eventName, nextValue)
-      }
-    } else if (key === 'class') {
-      el.className = nextValue || ''
-    } else if (key === 'style') {
-      if (typeof nextValue === 'string') {
-        el.setAttribute('style', nextValue)
-      } else if (nextValue) {
-        // Object.assign(el.style, nextValue)
-      }
-    } else if (typeof nextValue === 'boolean') {
-      if (nextValue) {
-        el.setAttribute(key, '')
-      } else {
-        el.removeAttribute(key)
-      }
-    } else {
-      if (nextValue == null) {
-        el.removeAttribute(key)
-      } else {
-        el.setAttribute(key, String(nextValue))
-      }
-    }
-  },
+// 节点比较和更新（纯函数）
+export function isSameVNode(n1: VNode, n2: VNode): boolean {
+  return n1.type === n2.type && n1.key === n2.key
 }
 
-// 默认DOM渲染器
-export const renderer: Renderer = createRenderer(nodeOps)
+export function shouldUpdate(n1: VNode, n2: VNode): boolean {
+  return (
+    n1.type !== n2.type ||
+    n1.key !== n2.key ||
+    shallowCompare(n1.props, n2.props)
+  )
+}
+
+function shallowCompare(
+  obj1: Record<string, any> | null,
+  obj2: Record<string, any> | null,
+): boolean {
+  if (obj1 === obj2) return false
+  if (!obj1 || !obj2) return true
+
+  const keys1 = Object.keys(obj1)
+  const keys2 = Object.keys(obj2)
+
+  if (keys1.length !== keys2.length) return true
+
+  for (const key of keys1) {
+    if (obj1[key] !== obj2[key]) return true
+  }
+
+  return false
+}

@@ -2,141 +2,108 @@
 
 import { effect } from '@zeus-js/signal'
 
+// 纯函数式生命周期钩子
 export interface LifecycleHooks {
-  mounted: (() => void)[]
-  updated: (() => void)[]
-  unmounted: (() => void)[]
-  beforeMount: (() => void)[]
-  beforeUpdate: (() => void)[]
-  beforeUnmount: (() => void)[]
+  onMount: (() => void)[]
+  onUpdate: (() => void)[]
+  onUnmount: (() => void)[]
+  onBeforeMount: (() => void)[]
+  onBeforeUpdate: (() => void)[]
+  onBeforeUnmount: (() => void)[]
 }
 
-export function createLifecycleHooks(): LifecycleHooks {
+// 基于作用域的生命周期管理
+const lifecycleStack: LifecycleHooks[] = []
+let currentLifecycle: LifecycleHooks | null = null
+
+export function createLifecycleScope(): LifecycleHooks {
   return {
-    mounted: [],
-    updated: [],
-    unmounted: [],
-    beforeMount: [],
-    beforeUpdate: [],
-    beforeUnmount: [],
+    onMount: [],
+    onUpdate: [],
+    onUnmount: [],
+    onBeforeMount: [],
+    onBeforeUpdate: [],
+    onBeforeUnmount: [],
   }
 }
 
-// 全局生命周期钩子存储
-const currentLifecycleHooks = new WeakMap<object, LifecycleHooks>()
-
-export function setCurrentLifecycleHooks(
-  instance: object,
-  hooks: LifecycleHooks,
-): void {
-  currentLifecycleHooks.set(instance, hooks)
+export function enterLifecycleScope(): void {
+  const scope = createLifecycleScope()
+  lifecycleStack.push(scope)
+  currentLifecycle = scope
 }
 
-export function getCurrentLifecycleHooks(
-  instance: object,
-): LifecycleHooks | undefined {
-  return currentLifecycleHooks.get(instance)
+export function exitLifecycleScope(): LifecycleHooks | null {
+  const scope = lifecycleStack.pop()
+  currentLifecycle = lifecycleStack[lifecycleStack.length - 1] || null
+  return scope || null
 }
 
+export function getCurrentLifecycle(): LifecycleHooks | null {
+  return currentLifecycle
+}
+
+// 生命周期钩子函数
 export function onMounted(callback: () => void): void {
-  const currentInstance = getCurrentInstance()
-  if (currentInstance) {
-    const hooks =
-      getCurrentLifecycleHooks(currentInstance) || createLifecycleHooks()
-    hooks.mounted.push(callback)
-    setCurrentLifecycleHooks(currentInstance, hooks)
+  if (currentLifecycle) {
+    currentLifecycle.onMount.push(callback)
   }
 }
 
 export function onUpdated(callback: () => void): void {
-  const currentInstance = getCurrentInstance()
-  if (currentInstance) {
-    const hooks =
-      getCurrentLifecycleHooks(currentInstance) || createLifecycleHooks()
-    hooks.updated.push(callback)
-    setCurrentLifecycleHooks(currentInstance, hooks)
+  if (currentLifecycle) {
+    currentLifecycle.onUpdate.push(callback)
   }
 }
 
 export function onUnmounted(callback: () => void): void {
-  const currentInstance = getCurrentInstance()
-  if (currentInstance) {
-    const hooks =
-      getCurrentLifecycleHooks(currentInstance) || createLifecycleHooks()
-    hooks.unmounted.push(callback)
-    setCurrentLifecycleHooks(currentInstance, hooks)
+  if (currentLifecycle) {
+    currentLifecycle.onUnmount.push(callback)
   }
 }
 
 export function onBeforeMount(callback: () => void): void {
-  const currentInstance = getCurrentInstance()
-  if (currentInstance) {
-    const hooks =
-      getCurrentLifecycleHooks(currentInstance) || createLifecycleHooks()
-    hooks.beforeMount.push(callback)
-    setCurrentLifecycleHooks(currentInstance, hooks)
+  if (currentLifecycle) {
+    currentLifecycle.onBeforeMount.push(callback)
   }
 }
 
 export function onBeforeUpdate(callback: () => void): void {
-  const currentInstance = getCurrentInstance()
-  if (currentInstance) {
-    const hooks =
-      getCurrentLifecycleHooks(currentInstance) || createLifecycleHooks()
-    hooks.beforeUpdate.push(callback)
-    setCurrentLifecycleHooks(currentInstance, hooks)
+  if (currentLifecycle) {
+    currentLifecycle.onBeforeUpdate.push(callback)
   }
 }
 
 export function onBeforeUnmount(callback: () => void): void {
-  const currentInstance = getCurrentInstance()
-  if (currentInstance) {
-    const hooks =
-      getCurrentLifecycleHooks(currentInstance) || createLifecycleHooks()
-    hooks.beforeUnmount.push(callback)
-    setCurrentLifecycleHooks(currentInstance, hooks)
+  if (currentLifecycle) {
+    currentLifecycle.onBeforeUnmount.push(callback)
   }
-}
-
-// 实例管理
-let currentInstance: object | null = null
-const instanceStack: object[] = []
-
-export function setCurrentInstance(instance: object | null): void {
-  currentInstance = instance
-  if (instance) {
-    instanceStack.push(instance)
-  } else {
-    instanceStack.pop()
-  }
-}
-
-export function getCurrentInstance(): object | null {
-  return currentInstance
-}
-
-export function pushCurrentInstance(instance: object): void {
-  instanceStack.push(instance)
-  currentInstance = instance
-}
-
-export function popCurrentInstance(): void {
-  instanceStack.pop()
-  currentInstance = instanceStack[instanceStack.length - 1] || null
 }
 
 // 执行生命周期钩子
 export function invokeLifecycleHooks(
-  instance: object,
-  hookType: keyof LifecycleHooks,
+  hooks: LifecycleHooks,
+  type: keyof LifecycleHooks,
 ): void {
-  const hooks = getCurrentLifecycleHooks(instance)
-  if (hooks && hooks[hookType]) {
-    hooks[hookType].forEach(callback => callback())
-  }
+  hooks[type].forEach(callback => callback())
 }
 
-// 监听更新
+// 响应式效果
 export function watchEffect(callback: () => void): () => void {
   return effect(callback)
+}
+
+// 带生命周期的 setup 函数包装器
+export function withLifecycle<T extends any[], R>(
+  setupFn: (...args: T) => R,
+): (...args: T) => R {
+  return (...args: T) => {
+    enterLifecycleScope()
+    try {
+      const result = setupFn(...args)
+      return result
+    } finally {
+      // 生命周期钩子会在组件渲染时被调用
+    }
+  }
 }

@@ -161,11 +161,12 @@ pnpm benchmark    # 运行性能基准测试
 
 由于编译目标为 ES5，以下语法应避免使用：
 
-- **对象展开运算符**：使用 `extend` helper 函数替代
+- **对象展开运算符**：使用 `@zeus-js/shared` 中的 `extend` helper 函数替代
 - **可选链操作符**（`?.`）：会导致冗长的辅助函数
 - **空值合并操作符**（`??`）：会导致冗长的辅助函数
 - **async/await**：使用 Promise 链替代
 - **const enum**：使用非 const enum
+- **对象展开运算符**：使用 `@zeus-js/shared` 中的 `extend` 函数
 
 #### Rust 语法限制
 

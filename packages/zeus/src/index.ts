@@ -13,12 +13,20 @@ export const framework = {
 }
 
 import type { App } from '@zeus-js/runtime-core'
-import { renderer } from '@zeus-js/runtime-dom'
 
 export function createApp(rootComponent: any): App {
-  return renderer.createApp(rootComponent)
+  // 纯函数式实现，暂时返回空的 App 对象
+  return {
+    mount() {
+      /* TODO */
+    },
+    unmount() {
+      /* TODO */
+    },
+    component() {
+      return this
+    },
+  }
 }
 
 export { createApp as createCoreApp } from '@zeus-js/runtime-core'
-
-export { renderer } from '@zeus-js/runtime-dom'

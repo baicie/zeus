@@ -1,23 +1,20 @@
 // packages/runtime-dom/src/directives/index.ts
 
+// 纯函数式指令处理
+
 export interface DirectiveBinding {
   value: any
   oldValue?: any
   arg?: string
   modifiers?: Record<string, boolean>
-  instance?: any
 }
+
+export type DirectiveHook = (el: Element, binding: DirectiveBinding) => void
 
 export interface Directive {
-  mounted?: (el: Element, binding: DirectiveBinding) => void
-  updated?: (el: Element, binding: DirectiveBinding) => void
-  unmounted?: (el: Element) => void
-}
-
-export interface DirectiveHook {
-  create: (el: Element, binding: DirectiveBinding) => void
-  update: (el: Element, binding: DirectiveBinding) => void
-  remove: (el: Element) => void
+  mounted?: DirectiveHook
+  updated?: DirectiveHook
+  unmounted?: DirectiveHook
 }
 
 // 指令注册表
@@ -31,33 +28,50 @@ export function getDirective(name: string): Directive | undefined {
   return directives.get(name)
 }
 
+// 应用指令到元素
+export function applyDirective(
+  el: Element,
+  directive: Directive,
+  binding: DirectiveBinding,
+): void {
+  if (directive.mounted) {
+    directive.mounted(el, binding)
+  }
+}
+
+// 更新指令
+export function updateDirective(
+  el: Element,
+  directive: Directive,
+  binding: DirectiveBinding,
+): void {
+  if (directive.updated) {
+    directive.updated(el, binding)
+  }
+}
+
+// 移除指令
+export function removeDirective(el: Element, directive: Directive): void {
+  if (directive.unmounted) {
+    directive.unmounted(el, { value: undefined })
+  }
+}
+
+// 批量应用指令
 export function withDirectives<T extends Element>(
   element: T,
   directiveBindings: [Directive, DirectiveBinding][],
 ): T {
   directiveBindings.forEach(([directive, binding]) => {
-    // 应用指令
-    if (directive.mounted) {
-      directive.mounted(element, binding)
-    }
-
-    // 如果指令有更新钩子，监听变化
-    if (directive.updated) {
-      // 这里可以添加响应式监听逻辑
-    }
+    applyDirective(element, directive, binding)
   })
-
   return element
 }
 
-// 内置指令
+// 内置指令实现（纯函数）
 export const vShow: Directive = {
-  mounted(el, binding) {
-    updateVisibility(el, binding)
-  },
-  updated(el, binding) {
-    updateVisibility(el, binding)
-  },
+  mounted: (el, binding) => updateVisibility(el, binding),
+  updated: (el, binding) => updateVisibility(el, binding),
 }
 
 function updateVisibility(el: Element, binding: DirectiveBinding): void {
@@ -75,59 +89,124 @@ function updateVisibility(el: Element, binding: DirectiveBinding): void {
   }
 }
 
-export const vModel: Directive = {
-  mounted(el, binding) {
-    if (el instanceof HTMLInputElement) {
-      el.value = binding.value
-      el.addEventListener('input', e => {
-        const target = e.target as HTMLInputElement
-        binding.instance[binding.arg || 'value'] = target.value
-      })
-    } else if (el instanceof HTMLTextAreaElement) {
-      el.value = binding.value
-      el.addEventListener('input', e => {
-        const target = e.target as HTMLTextAreaElement
-        binding.instance[binding.arg || 'value'] = target.value
-      })
-    } else if (el instanceof HTMLSelectElement) {
-      el.value = binding.value
-      el.addEventListener('change', e => {
-        const target = e.target as HTMLSelectElement
-        binding.instance[binding.arg || 'value'] = target.value
-      })
-    }
-  },
-  updated(el, binding) {
-    if (binding.value !== binding.oldValue) {
-      ;(el as any).value = binding.value
-    }
-  },
-}
-
 export const vText: Directive = {
-  mounted(el, binding) {
-    el.textContent = binding.value
+  mounted: (el, binding) => {
+    el.textContent = String(binding.value)
   },
-  updated(el, binding) {
+  updated: (el, binding) => {
     if (binding.value !== binding.oldValue) {
-      el.textContent = binding.value
+      el.textContent = String(binding.value)
     }
   },
 }
 
 export const vHtml: Directive = {
-  mounted(el, binding) {
-    el.innerHTML = binding.value
+  mounted: (el, binding) => {
+    el.innerHTML = String(binding.value)
   },
-  updated(el, binding) {
+  updated: (el, binding) => {
     if (binding.value !== binding.oldValue) {
-      el.innerHTML = binding.value
+      el.innerHTML = String(binding.value)
     }
   },
 }
 
+export const vClass: Directive = {
+  mounted: (el, binding) => updateClass(el, binding),
+  updated: (el, binding) => updateClass(el, binding),
+}
+
+function updateClass(el: Element, binding: DirectiveBinding): void {
+  const { value } = binding
+  if (typeof value === 'string') {
+    el.className = value
+  } else if (Array.isArray(value)) {
+    el.className = value.filter(Boolean).join(' ')
+  } else if (typeof value === 'object') {
+    const classes = Object.keys(value).filter(key => value[key])
+    el.className = classes.join(' ')
+  }
+}
+
+export const vStyle: Directive = {
+  mounted: (el, binding) => updateStyle(el, binding),
+  updated: (el, binding) => updateStyle(el, binding),
+}
+
+function updateStyle(el: Element, binding: DirectiveBinding): void {
+  const { value } = binding
+  const style = (el as HTMLElement).style
+
+  if (typeof value === 'string') {
+    style.cssText = value
+  } else if (typeof value === 'object') {
+    Object.assign(style, value)
+  }
+}
+
+// 双向绑定指令
+export function createVModelDirective(
+  updateValue: (value: any) => void,
+): Directive {
+  return {
+    mounted: (el, binding) => {
+      updateElementValue(el, binding.value)
+
+      const eventType = getEventType(el)
+      el.addEventListener(eventType, e => {
+        const value = getElementValue(el)
+        updateValue(value)
+      })
+    },
+    updated: (el, binding) => {
+      if (binding.value !== binding.oldValue) {
+        updateElementValue(el, binding.value)
+      }
+    },
+  }
+}
+
+function getEventType(el: Element): string {
+  if (el instanceof HTMLInputElement) {
+    return el.type === 'checkbox' || el.type === 'radio' ? 'change' : 'input'
+  }
+  if (el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) {
+    return 'change'
+  }
+  return 'input'
+}
+
+function getElementValue(el: Element): any {
+  if (el instanceof HTMLInputElement) {
+    if (el.type === 'checkbox') {
+      return el.checked
+    }
+    if (el.type === 'number') {
+      return Number(el.value)
+    }
+    return el.value
+  }
+  if (el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) {
+    return el.value
+  }
+  return (el as any).value
+}
+
+function updateElementValue(el: Element, value: any): void {
+  if (el instanceof HTMLInputElement) {
+    if (el.type === 'checkbox') {
+      el.checked = Boolean(value)
+    } else {
+      el.value = String(value)
+    }
+  } else {
+    ;(el as any).value = value
+  }
+}
+
 // 注册内置指令
 registerDirective('show', vShow)
-registerDirective('model', vModel)
 registerDirective('text', vText)
 registerDirective('html', vHtml)
+registerDirective('class', vClass)
+registerDirective('style', vStyle)

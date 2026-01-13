@@ -1,56 +1,77 @@
 // packages/runtime-core/src/scheduler/index.ts
 
-const queue: (() => void)[] = []
-const postFlushQueue: (() => void)[] = []
-let isFlushing = false
-let isFlushPending = false
-let currentFlushPromise: Promise<void> | null = null
-let resolveCurrentFlushPromise: (() => void) | null = null
+// 纯函数式调度器
+export type SchedulerJob = () => void
 
-export function nextTick(callback?: () => void): Promise<void> {
+// 调度器状态
+interface SchedulerState {
+  queue: SchedulerJob[]
+  postFlushQueue: SchedulerJob[]
+  isFlushing: boolean
+  isFlushPending: boolean
+  currentFlushPromise: Promise<void> | null
+  resolveCurrentFlushPromise: (() => void) | null
+}
+
+// 创建调度器状态
+function createSchedulerState(): SchedulerState {
+  return {
+    queue: [],
+    postFlushQueue: [],
+    isFlushing: false,
+    isFlushPending: false,
+    currentFlushPromise: null,
+    resolveCurrentFlushPromise: null,
+  }
+}
+
+// 全局调度器状态
+let schedulerState = createSchedulerState()
+
+export function nextTick(callback?: SchedulerJob): Promise<void> {
   if (callback) {
     return Promise.resolve().then(callback)
   }
 
-  if (currentFlushPromise) {
-    return currentFlushPromise
+  if (schedulerState.currentFlushPromise) {
+    return schedulerState.currentFlushPromise
   }
 
   return Promise.resolve()
 }
 
-export function queueJob(job: () => void): void {
-  if (!queue.includes(job)) {
-    queue.push(job)
+export function queueJob(job: SchedulerJob): void {
+  if (!schedulerState.queue.includes(job)) {
+    schedulerState.queue.push(job)
     queueFlush()
   }
 }
 
-export function queuePostFlushCb(callback: () => void): void {
-  if (!postFlushQueue.includes(callback)) {
-    postFlushQueue.push(callback)
+export function queuePostFlushCb(callback: SchedulerJob): void {
+  if (!schedulerState.postFlushQueue.includes(callback)) {
+    schedulerState.postFlushQueue.push(callback)
     queueFlush()
   }
 }
 
 function queueFlush(): void {
-  if (!isFlushPending && !isFlushing) {
-    isFlushPending = true
-    currentFlushPromise = new Promise(resolve => {
-      resolveCurrentFlushPromise = resolve
+  if (!schedulerState.isFlushPending && !schedulerState.isFlushing) {
+    schedulerState.isFlushPending = true
+    schedulerState.currentFlushPromise = new Promise(resolve => {
+      schedulerState.resolveCurrentFlushPromise = resolve
     })
     nextTick(flushJobs)
   }
 }
 
 function flushJobs(): void {
-  isFlushPending = false
-  isFlushing = true
+  schedulerState.isFlushPending = false
+  schedulerState.isFlushing = true
 
   try {
     // 执行所有队列中的任务
-    for (let i = 0; i < queue.length; i++) {
-      const job = queue[i]
+    for (let i = 0; i < schedulerState.queue.length; i++) {
+      const job = schedulerState.queue[i]
       try {
         job()
       } catch (error) {
@@ -59,11 +80,11 @@ function flushJobs(): void {
     }
 
     // 清空队列
-    queue.length = 0
+    schedulerState.queue.length = 0
 
     // 执行后刷新回调
-    for (let i = 0; i < postFlushQueue.length; i++) {
-      const callback = postFlushQueue[i]
+    for (let i = 0; i < schedulerState.postFlushQueue.length; i++) {
+      const callback = schedulerState.postFlushQueue[i]
       try {
         callback()
       } catch (error) {
@@ -72,25 +93,25 @@ function flushJobs(): void {
     }
 
     // 清空后刷新队列
-    postFlushQueue.length = 0
+    schedulerState.postFlushQueue.length = 0
   } finally {
-    isFlushing = false
+    schedulerState.isFlushing = false
 
     // 解析当前的flush promise
-    if (resolveCurrentFlushPromise) {
-      resolveCurrentFlushPromise()
-      currentFlushPromise = null
-      resolveCurrentFlushPromise = null
+    if (schedulerState.resolveCurrentFlushPromise) {
+      schedulerState.resolveCurrentFlushPromise()
+      schedulerState.currentFlushPromise = null
+      schedulerState.resolveCurrentFlushPromise = null
     }
 
     // 检查是否有新的任务需要处理
-    if (queue.length || postFlushQueue.length) {
+    if (schedulerState.queue.length || schedulerState.postFlushQueue.length) {
       flushJobs()
     }
   }
 }
 
-// 任务优先级
+// 任务优先级枚举
 export enum SchedulerJobFlags {
   /**
    * 同步任务
@@ -112,7 +133,7 @@ export enum SchedulerJobFlags {
 
 // 带优先级的任务队列
 export function queueJobWithPriority(
-  job: () => void,
+  job: SchedulerJob,
   priority: SchedulerJobFlags = SchedulerJobFlags.SYNC,
 ): void {
   if (priority & SchedulerJobFlags.POST_FLUSH) {
@@ -120,4 +141,9 @@ export function queueJobWithPriority(
   } else {
     queueJob(job)
   }
+}
+
+// 重置调度器状态（主要用于测试）
+export function resetScheduler(): void {
+  schedulerState = createSchedulerState()
 }
