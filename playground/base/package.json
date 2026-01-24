@@ -17,9 +17,9 @@
   "devDependencies": {
     "@babel/core": "catalog:",
     "@types/babel__core": "catalog:",
-    "@types/node": "^25.0.8",
+    "@types/node": "^25.0.10",
     "rimraf": "^6.1.2",
-    "rolldown": "^1.0.0-beta.60",
+    "rolldown": "^1.0.0-rc.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
