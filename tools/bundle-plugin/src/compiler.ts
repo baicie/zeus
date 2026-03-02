@@ -151,7 +151,49 @@ export class ZeusCompiler implements Compiler {
     }
 
     // 检查包含扩展名
-    return options.include?.some(ext => id.endsWith(ext)) ?? false
+    // 支持简单扩展名 (如: ['.jsx', '.tsx']) 和 glob 模式 (如: ['src/**/*.{js,jsx,ts,tsx}'])
+    const extensions = this.extractExtensions(options.include || [])
+
+    // 检查文件扩展名是否在允许列表中
+    return extensions.some(ext => id.endsWith(ext))
+  }
+
+  // 从 include 配置中提取所有扩展名
+  private extractExtensions(include: string[]): string[] {
+    const extensions = new Set<string>()
+
+    for (const pattern of include) {
+      if (pattern.includes('*')) {
+        // glob 模式: 提取 {...} 中的扩展名
+        const match = pattern.match(/\{([^}]+)\}/)
+        if (match) {
+          // 处理 {js,jsx,ts,tsx} 格式
+          const exts = match[1].split(',')
+          exts.forEach(ext => {
+            if (ext.startsWith('.')) {
+              extensions.add(ext)
+            } else {
+              extensions.add(`.${ext}`)
+            }
+          })
+        } else {
+          // 处理 * 开头的情况 (如 *.tsx)
+          const extMatch = pattern.match(/\*\.(\w+)/)
+          if (extMatch) {
+            extensions.add(`.${extMatch[1]}`)
+          }
+        }
+      } else {
+        // 简单扩展名
+        if (pattern.startsWith('.')) {
+          extensions.add(pattern)
+        } else {
+          extensions.add(`.${pattern}`)
+        }
+      }
+    }
+
+    return Array.from(extensions)
   }
 
   private getSourceType(id: string): 'js' | 'jsx' | 'ts' | 'tsx' {

@@ -60,6 +60,7 @@
     "eslint": "^10.0.2",
     "eslint-plugin-import-x": "^4.16.1",
     "fast-glob": "^3.3.3",
+    "glob": "^13.0.6",
     "jsdom": "^28.1.0",
     "lint-staged": "^16.3.1",
     "magic-string": "^0.30.21",
