@@ -132,21 +132,6 @@ importers:
         specifier: ^4.0.18
         version: 4.0.18(@types/node@25.3.3)(jiti@2.5.1)(jsdom@28.1.0)(lightningcss@1.30.2)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.2)
 
-  compiler/browser:
-    dependencies:
-      '@napi-rs/wasm-runtime':
-        specifier: 'catalog:'
-        version: 1.1.1
-
-  compiler/core:
-    devDependencies:
-      '@napi-rs/cli':
-        specifier: 'catalog:'
-        version: 3.5.1(@emnapi/runtime@1.8.1)(@types/node@25.3.3)(node-addon-api@7.1.1)
-      '@oxc-node/cli':
-        specifier: ^0.0.35
-        version: 0.0.35
-
   examples/counter:
     devDependencies:
       '@zeus-js/build-tools':
@@ -161,6 +146,21 @@ importers:
       vite:
         specifier: ^7.3.1
         version: 7.3.1(@types/node@25.3.3)(jiti@2.5.1)(lightningcss@1.30.2)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.2)
+
+  packages/compiler-browser:
+    dependencies:
+      '@napi-rs/wasm-runtime':
+        specifier: 'catalog:'
+        version: 1.1.1
+
+  packages/compiler-core:
+    devDependencies:
+      '@napi-rs/cli':
+        specifier: 'catalog:'
+        version: 3.5.1(@emnapi/runtime@1.8.1)(@types/node@25.3.3)(node-addon-api@7.1.1)
+      '@oxc-node/cli':
+        specifier: ^0.0.35
+        version: 0.0.35
 
   packages/runtime-core:
     dependencies:
@@ -234,7 +234,7 @@ importers:
     dependencies:
       '@zeus-js/compiler-core':
         specifier: workspace:*
-        version: link:../../compiler/core
+        version: link:../../packages/compiler-core
     devDependencies:
       '@babel/core':
         specifier: 'catalog:'
@@ -287,7 +287,7 @@ importers:
     dependencies:
       '@zeus-js/compiler-core':
         specifier: workspace:*
-        version: link:../../compiler/core
+        version: link:../../packages/compiler-core
     devDependencies:
       '@types/node':
         specifier: ^25.3.3
@@ -300,7 +300,7 @@ importers:
     dependencies:
       '@zeus-js/compiler-core':
         specifier: workspace:*
-        version: link:../../compiler/core
+        version: link:../../packages/compiler-core
     devDependencies:
       '@babel/core':
         specifier: ^7.29.0
@@ -5634,7 +5634,7 @@ snapshots:
       es-toolkit: 1.43.0
       js-yaml: 4.1.0
       obug: 2.1.1
-      semver: 7.7.3
+      semver: 7.7.4
       typanion: 3.14.0
     optionalDependencies:
       '@emnapi/runtime': 1.8.1

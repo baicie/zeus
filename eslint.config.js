@@ -2,6 +2,7 @@ import importX from 'eslint-plugin-import-x'
 import tseslint from 'typescript-eslint'
 import vitest from '@vitest/eslint-plugin'
 import { builtinModules } from 'node:module'
+import { defineConfig } from 'eslint/config'
 
 const DOMGlobals = ['window', 'document']
 const NodeGlobals = ['module', 'require']
@@ -12,7 +13,7 @@ const banConstEnum = {
     'Please use non-const enums. This project automatically inlines enums.',
 }
 
-export default tseslint.config(
+export default defineConfig(
   {
     files: ['**/*.js', '**/*.ts', '**/*.tsx'],
     extends: [tseslint.configs.base],
@@ -114,7 +115,7 @@ export default tseslint.config(
 
   // Packages targeting Node
   {
-    files: ['compiler/**'],
+    files: ['packages/compiler-*/**'],
     rules: {
       'no-restricted-globals': ['error', ...DOMGlobals],
       'no-restricted-syntax': ['error', banConstEnum],
