@@ -8,4 +8,7 @@ export default defineConfig({
       exclude: [/node_modules/],
     }),
   ],
+  build: {
+    minify: false,
+  },
 })

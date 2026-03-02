@@ -1,4 +1,4 @@
-import compiler from '@zeus-js/compiler'
+import { compiler } from '@zeus-js/compiler-core'
 import { transformSync } from '@babel/core'
 import fs from 'node:fs'
 import path from 'node:path'

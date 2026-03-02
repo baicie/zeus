@@ -1,8 +1,8 @@
 import {
-  createOnMessage as __wasmCreateOnMessageForFsProxy,
+  WASI as __WASI,
   getDefaultContext as __emnapiGetDefaultContext,
   instantiateNapiModule as __emnapiInstantiateNapiModule,
-  WASI as __WASI,
+  createOnMessage as __wasmCreateOnMessageForFsProxy,
 } from '@napi-rs/wasm-runtime'
 import { memfs } from '@napi-rs/wasm-runtime/fs'
 

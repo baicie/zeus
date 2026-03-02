@@ -1,17 +1,62 @@
-// packages/runtime-dom/src/index.ts
-
-// 导出最简化的 DOM 操作函数
+// Core compilation helpers (called by compiler-generated code)
 export {
-  createElement,
-  appendChild,
-  removeChild,
-  setTextContent,
+  template,
+  insert,
+  delegateEvents,
+  addEventListener,
   setAttribute,
-  querySelector,
-} from './renderer'
+  setProperty,
+  className,
+  style,
+  spread,
+  createComponent,
+} from './client'
 
-// 导出简化的指令系统
-export { applyDirective, updateDirective, vShow, vText } from './directives'
+// Low-level DOM utilities
+export * from './dom'
+export * from './events'
+export * from './directives'
 
-// 导出简化的事件处理
-export { addEventListener, removeEventListener } from './events'
+// Re-export signal system
+export { signal, computed, effect, effectScope } from '@zeus-js/signal'
+
+// Re-export lifecycle hooks (VNode-independent)
+export {
+  onMounted,
+  onUnmounted,
+  onUpdated,
+  onBeforeMount,
+  onBeforeUnmount,
+  watchEffect,
+} from '@zeus-js/runtime-core'
+
+// Re-export component types
+export type { ComponentFunction, App } from '@zeus-js/runtime-core'
+
+// createApp for direct-DOM components
+export function createApp(rootComponent: (props?: any) => Node) {
+  let container: Element | null = null
+  let rootNode: Node | null = null
+
+  return {
+    mount(containerOrSelector: Element | string): void {
+      if (typeof containerOrSelector === 'string') {
+        container = document.querySelector(containerOrSelector)
+        if (!container) {
+          throw new Error(`Container element not found: ${containerOrSelector}`)
+        }
+      } else {
+        container = containerOrSelector
+      }
+      container.innerHTML = ''
+      rootNode = rootComponent()
+      if (rootNode) container.appendChild(rootNode)
+    },
+    unmount(): void {
+      if (rootNode && container) {
+        container.removeChild(rootNode)
+        rootNode = null
+      }
+    },
+  }
+}

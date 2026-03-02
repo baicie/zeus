@@ -1,85 +1,102 @@
 //! Zeus Compiler DOM
 //!
-//! This crate provides DOM-specific compilation functionality for the Zeus framework.
-//! It handles JSX compilation, DOM manipulation optimizations, and browser-specific
-//! code generation.
+//! SolidJS-style JSX compilation: transforms JSX into template() + insert() + effect()
+//! code with fine-grained reactivity and no Virtual DOM.
+//!
+//! Uses string-based code generation instead of AST manipulation for simplicity.
 
-pub mod jsx;
 pub mod dom_transforms;
 pub mod event_handlers;
+pub mod jsx;
 pub mod optimizations;
+pub mod template_analyzer;
+pub mod template_ir;
 
-use zeus_compiler_core::{Compiler, CompilerOptions};
-use oxc::span::SourceType;
+use oxc::allocator::Allocator;
 use oxc::diagnostics::OxcDiagnostic;
+use oxc::span::SourceType;
+use zeus_compiler_core::{parser, Compiler, CompilerOptions};
 
 /// DOM-specific compiler options
 #[derive(Debug, Clone)]
 pub struct DomCompilerOptions {
-    /// Base compiler options
     pub base: CompilerOptions,
-    /// Enable JSX compilation
     pub jsx: bool,
-    /// JSX pragma function name
     pub jsx_pragma: Option<String>,
-    /// JSX fragment pragma function name
     pub jsx_pragma_frag: Option<String>,
-    /// Enable DOM-specific optimizations
     pub dom_optimizations: bool,
+    /// Module path for runtime imports (default: "@zeus-js/runtime-dom")
+    pub runtime_module: Option<String>,
 }
 
-/// DOM compiler struct
+/// DOM compiler — compiles JSX/TSX to SolidJS-style DOM code
 pub struct DomCompiler {
+    #[allow(dead_code)]
     base_compiler: Compiler,
 }
 
 impl DomCompiler {
-    /// Create a new DOM compiler instance
     pub fn new() -> Self {
         Self {
             base_compiler: Compiler::new(),
         }
     }
 
-    /// Compile JSX/TSX source code with DOM-specific optimizations
-    pub fn compile_dom(&self, source: &str, options: &DomCompilerOptions) -> Result<String, OxcDiagnostic> {
-        // Set source type for JSX if enabled
-        let mut compiler_options = options.base.clone();
-        if options.jsx {
-            compiler_options.source_type = SourceType::jsx();
+    /// Main compilation entry point
+    ///
+    /// Pipeline:
+    /// 1. Parse source → AST (read-only)
+    /// 2. Walk AST to find JSX elements
+    /// 3. Analyze each JSX tree → TemplateIR
+    /// 4. Generate replacement JS code as strings
+    /// 5. Apply span-based replacements to produce final output
+    pub fn compile_dom(
+        &self,
+        source: &str,
+        options: &DomCompilerOptions,
+    ) -> Result<String, OxcDiagnostic> {
+        if !options.jsx {
+            return Ok(source.to_string());
         }
 
-        // Parse the source
-        let _program = self.base_compiler.parse(source, &compiler_options)?;
+        let allocator = Allocator::default();
+        let source_type = SourceType::jsx();
 
-        // TODO: Apply DOM-specific transformations
-        // - JSX to DOM calls
-        // - Event handler optimizations
-        // - DOM manipulation optimizations
+        // 1. Parse (read-only — we don't modify the AST)
+        let program = match parser::parse_source(&allocator, source, source_type) {
+            Ok(p) => p,
+            Err(errs) => return Err(errs.into_iter().next().unwrap()),
+        };
 
-        // For now, just return the compiled output
-        self.base_compiler.compile(source, &compiler_options)
+        // 2-4. Walk AST, analyze JSX, generate code
+        let mut compiler = jsx::JsxCompiler::new(source);
+        compiler.visit_program(&program);
+
+        // 5. Apply replacements and generate final output
+        Ok(compiler.generate_output())
     }
 
-    /// Transform JSX element to DOM calls
-    pub fn transform_jsx_to_dom(&self, jsx_code: &str) -> Result<String, oxc::diagnostics::Error> {
-        // TODO: Implement JSX to DOM transformation
-        // This would convert JSX like:
-        // <div onClick={handler}>Hello</div>
-        // to:
-        // createElement('div', { onClick: handler }, 'Hello')
+    /// Legacy helper
+    pub fn transform_jsx_to_dom(
+        &self,
+        jsx_code: &str,
+    ) -> Result<String, oxc::diagnostics::Error> {
+        let options = DomCompilerOptions {
+            base: CompilerOptions {
+                source_type: SourceType::jsx(),
+                experimental: false,
+            },
+            jsx: true,
+            jsx_pragma: None,
+            jsx_pragma_frag: None,
+            dom_optimizations: true,
+            runtime_module: None,
+        };
 
-        Ok(jsx_code.to_string())
-    }
-
-    /// Optimize DOM manipulation code
-    pub fn optimize_dom_operations(&self, code: &str) -> Result<String, oxc::diagnostics::Error> {
-        // TODO: Implement DOM operation optimizations
-        // - Batch DOM updates
-        // - Virtual DOM diffing
-        // - Event delegation optimizations
-
-        Ok(code.to_string())
+        match self.compile_dom(jsx_code, &options) {
+            Ok(code) => Ok(code),
+            Err(err) => Err(err.into()),
+        }
     }
 }
 
@@ -92,29 +109,88 @@ impl Default for DomCompiler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oxc::span::SourceType;
 
-    #[test]
-    fn test_dom_compiler_creation() {
-        let _compiler = DomCompiler::new();
-        assert!(true); // Basic smoke test
-    }
-
-    #[test]
-    fn test_compile_simple_dom() {
+    fn compile(source: &str) -> String {
         let compiler = DomCompiler::new();
         let options = DomCompilerOptions {
             base: CompilerOptions {
-                source_type: SourceType::default(),
+                source_type: SourceType::default().with_module(true).with_jsx(true),
                 experimental: false,
             },
-            jsx: false,
+            jsx: true,
             jsx_pragma: None,
             jsx_pragma_frag: None,
             dom_optimizations: false,
+            runtime_module: None,
         };
+        compiler
+            .compile_dom(source, &options)
+            .expect("compilation failed")
+    }
 
-        let result = compiler.compile_dom("console.log('dom code');", &options);
-        assert!(result.is_ok());
+    #[test]
+    fn test_compile_static_jsx() {
+        let code = compile(r#"const App = () => <div>Hello</div>"#);
+        println!("Output:\n{}", code);
+        assert!(code.contains("template"), "Should contain template()");
+        assert!(
+            code.contains("<div>Hello</div>"),
+            "Template should contain static HTML"
+        );
+        assert!(
+            !code.contains("document.createElement"),
+            "Should NOT contain createElement"
+        );
+    }
+
+    #[test]
+    fn test_compile_static_attrs() {
+        let code = compile(r#"const App = () => <div class="hello">World</div>"#);
+        println!("Output:\n{}", code);
+        // The HTML is escaped in the template string
+        assert!(code.contains(r#"class=\"hello\""#) || code.contains(r#"class="hello""#));
+    }
+
+    #[test]
+    fn test_compile_nested_elements() {
+        let code = compile(
+            r#"const App = () => <div><span>Hello</span><p>World</p></div>"#,
+        );
+        println!("Output:\n{}", code);
+        assert!(code.contains("<div><span>Hello</span><p>World</p></div>"));
+    }
+
+    #[test]
+    fn test_compile_dynamic_expression() {
+        let code = compile(
+            r#"function App() { const count = signal(0); return <div>{count()}</div> }"#,
+        );
+        println!("Output:\n{}", code);
+        assert!(code.contains("template"), "Should have template");
+        assert!(code.contains("insert"), "Should have insert()");
+    }
+
+    #[test]
+    fn test_compile_event_handler() {
+        let code = compile(
+            r#"const App = () => <button onClick={() => alert("hi")}>Click</button>"#,
+        );
+        println!("Output:\n{}", code);
+        assert!(code.contains("$$click"), "Should have delegated event");
+        assert!(
+            code.contains("delegateEvents"),
+            "Should have delegateEvents()"
+        );
+    }
+
+    #[test]
+    fn test_compile_component() {
+        let code = compile(r#"const App = () => <Counter count={0} />"#);
+        println!("Output:\n{}", code);
+        assert!(
+            code.contains("createComponent"),
+            "Should have createComponent()"
+        );
+        assert!(code.contains("Counter"), "Should reference Counter");
     }
 }

@@ -14,11 +14,13 @@
 ## 演示内容
 
 ### 1. 计数器组件 (Counter)
+
 - 展示响应式数据绑定
 - 展示计算属性 (computed)
 - 展示生命周期钩子
 
 ### 2. 待办事项应用 (TodoApp)
+
 - 展示列表渲染
 - 展示事件处理
 - 展示动态数据更新
@@ -94,9 +96,9 @@ const MyComponent = defineComponent({
     return () => ({
       type: 'div',
       props: { class: 'my-component' },
-      children: ['Hello Zeus!']
+      children: ['Hello Zeus!'],
     })
-  }
+  },
 })
 ```
 

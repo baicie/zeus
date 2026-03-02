@@ -25,5 +25,3 @@ export function createApp(rootComponent: any): App {
     },
   }
 }
-
-export { createApp as createCoreApp } from '@zeus-js/runtime-core'
