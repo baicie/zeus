@@ -188,4 +188,29 @@ mod tests {
         );
         assert!(code.contains("Counter"), "Should reference Counter");
     }
+
+    #[test]
+    fn test_conditional_rendering() {
+        let code = compile(r#"const App = () => <div>{show() ? <span>Yes</span> : <span>No</span>}</div>"#);
+        println!("Conditional output:\n{}", code);
+        assert!(code.contains("insert"), "Should have insert() call");
+        assert!(code.contains("show()"), "Should contain condition");
+        assert!(code.contains("?"), "Should contain ternary operator");
+    }
+
+    #[test]
+    fn test_list_rendering() {
+        let code = compile(r#"const App = () => <ul>{items().map(item => <li>{item}</li>)}</ul>"#);
+        println!("List output:\n{}", code);
+        assert!(code.contains("insert"), "Should have insert() call");
+        assert!(code.contains("map"), "Should contain map call");
+    }
+
+    #[test]
+    fn test_logical_and_rendering() {
+        let code = compile(r#"const App = () => <div>{show() && <span>Visible</span>}</div>"#);
+        println!("Logical AND output:\n{}", code);
+        assert!(code.contains("insert"), "Should have insert() call");
+        assert!(code.contains("&&"), "Should contain logical AND");
+    }
 }
