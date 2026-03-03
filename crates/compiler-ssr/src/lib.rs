@@ -8,7 +8,7 @@ pub mod hydration;
 pub mod streaming;
 pub mod data_fetching;
 
-use zeus_compiler_core::{Compiler, CompilerOptions};
+use zeus_compiler_core::CompilerOptions;
 use zeus_compiler_dom::DomCompiler;
 use oxc::diagnostics::OxcDiagnostic;
 #[cfg(test)]
@@ -56,8 +56,6 @@ pub struct StreamingMarker {
 
 /// SSR Compiler
 pub struct SsrCompiler {
-    base_compiler: Compiler,
-    #[allow(unused)]
     dom_compiler: DomCompiler,
 }
 
@@ -65,16 +63,13 @@ impl SsrCompiler {
     /// Create a new SSR compiler instance
     pub fn new() -> Self {
         Self {
-            base_compiler: Compiler::new(),
             dom_compiler: DomCompiler::new(),
         }
     }
 
     /// Compile component for server-side rendering
-    pub fn compile_for_ssr(&self, source: &str, options: &SsrCompilerOptions) -> Result<SsrResult, OxcDiagnostic> {
-        // Parse the component source
-        let _program = self.base_compiler.parse(source, &options.base)?;
-
+    pub fn compile_for_ssr(&self, _source: &str, options: &SsrCompilerOptions) -> Result<SsrResult, OxcDiagnostic> {
+        // TODO: Use DomCompiler to compile JSX for SSR
         // TODO: Analyze component for SSR compatibility
         // TODO: Generate server-side rendering code
         // TODO: Generate hydration setup code

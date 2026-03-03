@@ -15,7 +15,7 @@ pub mod template_ir;
 use oxc::allocator::Allocator;
 use oxc::diagnostics::OxcDiagnostic;
 use oxc::span::SourceType;
-use zeus_compiler_core::{parser, Compiler, CompilerOptions};
+use zeus_compiler_core::{parser, CompilerOptions};
 
 /// DOM-specific compiler options
 #[derive(Debug, Clone)]
@@ -30,16 +30,11 @@ pub struct DomCompilerOptions {
 }
 
 /// DOM compiler — compiles JSX/TSX to SolidJS-style DOM code
-pub struct DomCompiler {
-    #[allow(dead_code)]
-    base_compiler: Compiler,
-}
+pub struct DomCompiler;
 
 impl DomCompiler {
     pub fn new() -> Self {
-        Self {
-            base_compiler: Compiler::new(),
-        }
+        Self
     }
 
     /// Main compilation entry point
