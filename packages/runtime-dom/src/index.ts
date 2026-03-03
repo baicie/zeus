@@ -9,7 +9,6 @@ export {
   className,
   style,
   spread,
-  createComponent,
 } from './client'
 
 // Low-level DOM utilities

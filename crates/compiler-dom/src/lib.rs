@@ -183,8 +183,8 @@ mod tests {
         let code = compile(r#"const App = () => <Counter count={0} />"#);
         println!("Output:\n{}", code);
         assert!(
-            code.contains("createComponent"),
-            "Should have createComponent()"
+            code.contains("Counter({ count: 0 })"),
+            "Should directly call component function"
         );
         assert!(code.contains("Counter"), "Should reference Counter");
     }

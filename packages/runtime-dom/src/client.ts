@@ -188,10 +188,3 @@ export function spread(
     applyProps(accessor)
   }
 }
-
-// =============================================================================
-// createComponent(Comp, props) — Call a component function
-// =============================================================================
-export function createComponent<T>(Comp: (props: T) => any, props: T): any {
-  return Comp(props)
-}

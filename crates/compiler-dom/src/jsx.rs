@@ -212,7 +212,7 @@ impl<'s> JsxCompiler<'s> {
 
         if TemplateAnalyzer::is_component(&tag_name) {
             let code = self.compile_component(element, &tag_name);
-            self.add_helper("createComponent");
+            // No need to add helper - components are just function calls
             self.replacements.push(Replacement {
                 start: span.start,
                 end: span.end,
@@ -405,8 +405,9 @@ impl<'s> JsxCompiler<'s> {
             }
         }
 
+        // Direct function call - no wrapper needed
         format!(
-            "createComponent({}, {{ {} }})",
+            "{}({{ {} }})",
             component_name,
             props.join(", ")
         )
