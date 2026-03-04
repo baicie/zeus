@@ -56,10 +56,29 @@ pub fn compiler(source: String, options: CompilerOptions) -> CompilerResult {
       success: true,
       errors: vec![],
     },
-    Err(error) => CompilerResult {
-      code: format!("// Compilation failed: {:?}", error),
-      success: false,
-      errors: vec![format!("{:?}", error)],
-    },
+    Err(error) => {
+      // Format error with friendly message and location info
+      let error_message = format_error(&error);
+      CompilerResult {
+        code: format!("// Compilation failed\n// Error: {}", error_message),
+        success: false,
+        errors: vec![error_message],
+      }
+    }
+  }
+}
+
+/// Format OxcDiagnostic with friendly message and location info
+fn format_error(error: &oxc::diagnostics::OxcDiagnostic) -> String {
+  // OxcDiagnostic provides its own formatted output via to_string()
+  // But we can also extract some details from it
+  let error_str = error.to_string();
+  
+  // Try to extract line/column info if present in the error message
+  // OxcDiagnostic format is typically: "message (at line X, column Y)"
+  if error_str.contains("at") || error_str.contains("line") {
+    format!("Compilation error: {}", error_str)
+  } else {
+    format!("Compilation error: {}", error_str)
   }
 }

@@ -23,6 +23,14 @@ pub struct Replacement {
     pub code: String,
 }
 
+/// A compiler warning
+#[derive(Debug, Clone)]
+pub struct Warning {
+    pub message: String,
+    pub line: u32,
+    pub column: u32,
+}
+
 /// JSX compiler that collects replacements and hoisted code
 pub struct JsxCompiler<'s> {
     source: &'s str,
@@ -35,6 +43,8 @@ pub struct JsxCompiler<'s> {
     pub replacements: Vec<Replacement>,
     /// Runtime helpers that are actually used
     pub used_helpers: Vec<String>,
+    /// Compiler warnings
+    pub warnings: Vec<Warning>,
 }
 
 impl<'s> JsxCompiler<'s> {
@@ -46,6 +56,7 @@ impl<'s> JsxCompiler<'s> {
             delegated_events: Vec::new(),
             replacements: Vec::new(),
             used_helpers: Vec::new(),
+            warnings: Vec::new(),
         }
     }
 
@@ -157,6 +168,8 @@ impl<'s> JsxCompiler<'s> {
                 }
             }
             Expression::CallExpression(call) => {
+                // Check for .map() call
+                self.check_list_rendering_warnings(call);
                 self.visit_expression(&call.callee);
                 for arg in &call.arguments {
                     self.visit_argument(arg);
@@ -184,6 +197,52 @@ impl<'s> JsxCompiler<'s> {
             }
             _ => {}
         }
+    }
+
+    /// Check for list rendering warnings (missing key, etc.)
+    fn check_list_rendering_warnings(&mut self, call: &CallExpression<'_>) {
+        // Check if this is a .map() call
+        // In oxc, MemberExpression is accessed via as_member_expression()
+        if let Some(member) = call.callee.as_member_expression() {
+            // Check if it's a static member expression (obj.prop, not obj[prop])
+            if let MemberExpression::StaticMemberExpression(static_member) = member {
+                if static_member.property.name == "map" {
+                    // This is a .map() call, check for key
+                    let has_key = call.arguments.iter().any(|arg| {
+                        if let Some(expr) = arg.as_expression() {
+                            if let Expression::ArrowFunctionExpression(arrow) = expr {
+                                // Check if the arrow function returns JSX with key
+                                return self.arrow_function_has_key(arrow);
+                            }
+                        }
+                        false
+                    });
+
+                    if !has_key {
+                        let span = call.span();
+                        self.warnings.push(Warning {
+                            message: "Missing 'key' prop in list rendering. Consider adding a unique key to each list item for better performance.".to_string(),
+                            line: span.start,
+                            column: span.end,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    /// Check if an arrow function has key in its JSX return
+    fn arrow_function_has_key(&self, arrow: &ArrowFunctionExpression<'_>) -> bool {
+        // Simple check: look for key= in the function body
+        // This is a simplified check - a full implementation would traverse the AST
+        let source = self.source;
+        let start = arrow.span.start as usize;
+        let end = arrow.span.end as usize;
+        if start < source.len() && end <= source.len() {
+            let body_source = &source[start..end];
+            return body_source.contains("key=") || body_source.contains("key={");
+        }
+        false
     }
 
     fn visit_argument(&mut self, arg: &Argument<'_>) {

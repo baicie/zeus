@@ -109,3 +109,31 @@ jobs:
 
       - name: Run type declaration tests
         run: pnpm run test-dts
+
+  playground-compile-test:
+    runs-on: ubuntu-latest
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: 'true'
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4.1.0
+
+      - name: Install Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.node-version'
+          cache: 'pnpm'
+
+      - run: pnpm install
+
+      - name: Build compiler packages
+        run: pnpm run build --filter=@zeus-js/compiler-core
+
+      - name: Run playground compile test
+        run: |
+          cd playground/conditional-demo
+          pnpm install --no-frozen-lockfile
+          pnpm run type-check
+          node ./build.mjs
