@@ -117,11 +117,15 @@ export class ZeusCompiler implements Compiler {
           code: result.code,
         }
       } else {
-        console.error(`Zeus compilation error in ${id}:`, result.errors)
+        // 输出更友好的错误信息 - 红色 + 行列号
+        const errors = result.errors
+        for (const error of errors) {
+          console.error(`\n\x1b[31m\x1b[1merror\x1b[0m (Zeus): ${error}\n`)
+        }
         return null
       }
     } catch (error) {
-      console.error(`Zeus compilation error in ${id}:`, error)
+      console.error(`\n\x1b[31m\x1b[1merror\x1b[0m (Zeus): ${error}\n`)
       return null
     }
   }
