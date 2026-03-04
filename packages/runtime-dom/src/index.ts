@@ -11,6 +11,8 @@ export {
   spread,
 } from './client'
 
+export * from './slots'
+
 // Low-level DOM utilities
 export * from './dom'
 export * from './events'

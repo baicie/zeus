@@ -57,10 +57,45 @@ pub struct Binding {
     pub kind: BindingKind,
 }
 
+/// Slot binding for Light DOM slots
+#[derive(Debug)]
+pub enum SlotBindingKind {
+    /// Named slot (e.g., <slot name="header" />)
+    Named {
+        /// Slot name
+        name: String,
+        /// Slot content expression source
+        content_source: String,
+    },
+    /// Default slot (e.g., <slot />)
+    Default {
+        /// Slot content expression source
+        content_source: String,
+    },
+    /// Slot with fallback content
+    Fallback {
+        /// Slot name
+        name: Option<String>,
+        /// Fallback content source
+        fallback_source: String,
+    },
+}
+
+/// A slot binding
+#[derive(Debug)]
+pub struct SlotBinding {
+    /// Path to the slot element
+    pub path: DomPath,
+    /// Kind of slot binding
+    pub kind: SlotBindingKind,
+}
+
 #[derive(Debug)]
 pub enum BindingKind {
     /// `insert(node, () => expr)` — reactive text/child content
     Insert { expression_source: String },
+    /// Slot rendering: `renderSlot("name", fallback?)`
+    Slot { slot_binding: SlotBinding },
     /// `node.$$click = handler` — delegated event
     DelegatedEvent {
         event_name: String,

@@ -406,6 +406,34 @@ impl<'s> JsxCompiler<'s> {
                     lines.push(format!("spread({}, {});", target, props_source));
                     self.add_helper("spread");
                 }
+                BindingKind::Slot { slot_binding } => {
+                    // Generate renderSlot call for Light DOM slots
+                    let slot_name = match &slot_binding.kind {
+                        SlotBindingKind::Named { name, .. } => format!("\"{}\"", name),
+                        SlotBindingKind::Default { .. } => "undefined".to_string(),
+                        SlotBindingKind::Fallback { name, .. } => {
+                            name.as_ref().map(|n| format!("\"{}\"", n)).unwrap_or_else(|| "undefined".to_string())
+                        }
+                    };
+                    
+                    let fallback = match &slot_binding.kind {
+                        SlotBindingKind::Fallback { fallback_source, .. } => {
+                            if !fallback_source.is_empty() {
+                                format!(", \"{}\"", fallback_source.replace('"', "\\\""))
+                            } else {
+                                String::new()
+                            }
+                        }
+                        _ => String::new(),
+                    };
+                    
+                    lines.push(format!(
+                        "insert({}, renderSlot({}{}));",
+                        target, slot_name, fallback
+                    ));
+                    self.add_helper("insert");
+                    self.add_helper("renderSlot");
+                }
             }
         }
 

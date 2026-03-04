@@ -1,6 +1,6 @@
 import { createApp } from '@zeus-js/runtime-dom'
 import { effect, signal } from '@zeus-js/signal'
-import App from './App.tsx'
+import App from './App.js'
 
 // 创建应用实例 / Create app instance
 const app = createApp(App)

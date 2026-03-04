@@ -12,5 +12,8 @@ export * from './context'
 // 导出调度器
 export * from './scheduler'
 
+// 导出插槽系统
+export * from './slots'
+
 // 导出渲染器
 export * from './renderer'

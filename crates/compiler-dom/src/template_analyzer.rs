@@ -95,6 +95,12 @@ impl<'s> TemplateAnalyzer<'s> {
     ) {
         let tag_name = TemplateAnalyzer::get_tag_name(element);
 
+        // Check for slot element - special handling for Light DOM slots
+        if tag_name == "slot" {
+            self.analyze_slot_element(element, html, bindings, current_path);
+            return;
+        }
+
         // Open tag
         html.push('<');
         html.push_str(&tag_name);
@@ -355,6 +361,150 @@ impl<'s> TemplateAnalyzer<'s> {
     /// Get all collected delegated event names
     pub fn get_delegated_events(&self) -> &[String] {
         &self.delegated_events
+    }
+
+    /// Analyze a <slot> element for Light DOM slots
+    fn analyze_slot_element(
+        &mut self,
+        element: &JSXElement<'_>,
+        html: &mut String,
+        bindings: &mut Vec<Binding>,
+        current_path: &DomPath,
+    ) {
+        // Open slot tag
+        html.push_str("<slot");
+        
+        let mut slot_name: Option<String> = None;
+        
+        // Process slot attributes
+        for attr in &element.opening_element.attributes {
+            match attr {
+                JSXAttributeItem::Attribute(attr) => {
+                    let name = match &attr.name {
+                        JSXAttributeName::Identifier(ident) => ident.name.as_str(),
+                        _ => "",
+                    };
+                    
+                    if name == "name" {
+                        // Named slot: <slot name="header" />
+                        if let Some(JSXAttributeValue::StringLiteral(s)) = &attr.value {
+                            slot_name = Some(s.value.to_string());
+                            html.push_str(" name=\"");
+                            html.push_str(&escape_html(s.value.as_str()));
+                            html.push('"');
+                        }
+                    } else if name == "children" {
+                        // Fallback content: <slot>fallback</slot>
+                        // Extract fallback content as string
+                        if let Some(JSXAttributeValue::ExpressionContainer(expr)) = &attr.value {
+                            if let JSXExpression::JSXElement(child_element) = &expr.expression {
+                                // Generate fallback content as HTML
+                                let fallback_html = self.element_to_html(child_element);
+                                html.push('>');
+                                html.push_str(&fallback_html);
+                                // Mark this as a slot with fallback
+                                bindings.push(Binding {
+                                    path: current_path.clone(),
+                                    kind: BindingKind::Slot {
+                                        slot_binding: SlotBinding {
+                                            path: current_path.clone(),
+                                            kind: SlotBindingKind::Fallback {
+                                                name: slot_name.clone(),
+                                                fallback_source: fallback_html,
+                                            },
+                                        },
+                                    },
+                                });
+                                // Close tag
+                                html.push_str("</slot>");
+                                return;
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        
+        // Close the slot tag
+        html.push('>');
+        html.push_str("</slot>");
+        
+        // Add slot binding
+        let slot_kind = if let Some(name) = slot_name {
+            SlotBindingKind::Named {
+                name,
+                content_source: String::new(),
+            }
+        } else {
+            SlotBindingKind::Default {
+                content_source: String::new(),
+            }
+        };
+        
+        bindings.push(Binding {
+            path: current_path.clone(),
+            kind: BindingKind::Slot {
+                slot_binding: SlotBinding {
+                    path: current_path.clone(),
+                    kind: slot_kind,
+                },
+            },
+        });
+    }
+
+    /// Convert a JSX element to HTML string (for slot fallback content)
+    fn element_to_html(&self, element: &JSXElement<'_>) -> String {
+        let mut html = String::new();
+        let tag_name = TemplateAnalyzer::get_tag_name(element);
+        
+        html.push('<');
+        html.push_str(&tag_name);
+        
+        // Attributes
+        for attr in &element.opening_element.attributes {
+            if let JSXAttributeItem::Attribute(attr) = attr {
+                let name = match &attr.name {
+                    JSXAttributeName::Identifier(ident) => ident.name.as_str(),
+                    _ => "",
+                };
+                if let Some(JSXAttributeValue::StringLiteral(s)) = &attr.value {
+                    html.push(' ');
+                    html.push_str(name);
+                    html.push_str("=\"");
+                    html.push_str(&escape_html(s.value.as_str()));
+                    html.push('"');
+                }
+            }
+        }
+        
+        html.push('>');
+        
+        // Children (simplified - only text and elements)
+        for child in &element.children {
+            match child {
+                JSXChild::Text(text) => {
+                    html.push_str(&escape_html(text.value.as_str()));
+                }
+                JSXChild::Element(child_el) => {
+                    html.push_str(&self.element_to_html(child_el));
+                }
+                JSXChild::Fragment(frag) => {
+                    for frag_child in &frag.children {
+                        if let JSXChild::Text(text) = frag_child {
+                            html.push_str(&escape_html(text.value.as_str()));
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        
+        html.push_str("</");
+        html.push_str(&tag_name);
+        html.push('>');
+        
+        html
     }
 }
 
