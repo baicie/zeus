@@ -84,3 +84,7 @@ export function observe<T>(
   callback: (value: T) => void,
 ): () => void
 ```
+
+1. ts编译报错
+2. 编译结果优化沿用之前的方案
+3. 编译报错优化给出行列号

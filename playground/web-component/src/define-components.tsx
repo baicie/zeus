@@ -13,28 +13,24 @@ function createCounterComponent() {
 
     const count = signal(isNaN(start) ? 0 : start)
 
-    const root = document.createElement('div')
-    root.style.display = 'inline-flex'
-    root.style.alignItems = 'center'
-    root.style.gap = '10px'
-
-    const labelEl = document.createElement('span')
-    const btn = document.createElement('button')
-    btn.textContent = 'inc'
-
-    btn.addEventListener('click', () => {
-      count(count() + 1)
-    })
-
     const prefix = (props && props.label) || 'count'
 
-    effect(() => {
-      labelEl.textContent = `${prefix}: ${count()}`
-    })
-
-    root.appendChild(labelEl)
-    root.appendChild(btn)
-    return root
+    return (
+      <div
+        style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}
+      >
+        <span>
+          {prefix}: {count()}
+        </span>
+        <button
+          onClick={() => {
+            count(count() + 1)
+          }}
+        >
+          inc
+        </button>
+      </div>
+    )
   }
 }
 
