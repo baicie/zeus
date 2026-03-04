@@ -289,6 +289,10 @@ impl<'s> JsxCompiler<'s> {
                 self.delegated_events.push(event.clone());
             }
         }
+        if !ir.delegated_events.is_empty() {
+            // Ensure delegateEvents is imported when delegated events are used
+            self.add_helper("delegateEvents");
+        }
 
         // Generate hoisted template declaration
         let escaped_html = ir.html.replace('\\', "\\\\").replace('"', "\\\"");

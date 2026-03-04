@@ -11,10 +11,13 @@
   },
   "dependencies": {
     "@zeus-js/runtime-dom": "workspace:*",
-    "@zeus-js/web-components": "workspace:*"
+    "@zeus-js/web-components": "workspace:*",
+    "@zeus-js/signal": "workspace:*"
   },
   "devDependencies": {
-    "vite": "catalog:",
-    "typescript": "^5.9.3"
+    "@types/node": "^25.3.3",
+    "@zeus-js/build-tools": "workspace:*",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
   }
 }

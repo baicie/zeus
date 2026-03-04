@@ -53,6 +53,12 @@ function insertValue(
     }
   }
 
+  // 如果 marker 已经不在 parent 下面（例如外部手动移动/删除了节点），
+  // 退化为追加到末尾，避免 insertBefore 抛出 NotFoundError。
+  if (marker && marker.parentNode !== parent) {
+    marker = null
+  }
+
   if (value == null || typeof value === 'boolean') {
     return null
   }

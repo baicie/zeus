@@ -24,9 +24,6 @@ catalogs:
     '@types/babel__core':
       specifier: 7.20.5
       version: 7.20.5
-    vite:
-      specifier: ^7.3.1
-      version: 7.3.1
 
 importers:
 
@@ -316,15 +313,24 @@ importers:
       '@zeus-js/runtime-dom':
         specifier: workspace:*
         version: link:../../packages/runtime-dom
+      '@zeus-js/signal':
+        specifier: workspace:*
+        version: link:../../packages/signal
       '@zeus-js/web-components':
         specifier: workspace:*
         version: link:../../packages/web-components
     devDependencies:
+      '@types/node':
+        specifier: ^25.3.3
+        version: 25.3.3
+      '@zeus-js/build-tools':
+        specifier: workspace:*
+        version: link:../../tools/bundle-plugin
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
       vite:
-        specifier: 'catalog:'
+        specifier: ^7.3.1
         version: 7.3.1(@types/node@25.3.3)(jiti@2.5.1)(lightningcss@1.30.2)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.2)
 
   tools/bundle-plugin:
