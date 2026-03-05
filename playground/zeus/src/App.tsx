@@ -1,11 +1,12 @@
 import { signal } from '@zeus-js/core'
 
-function App() {
-  const count = signal(0)
+// signal 必须在组件外部创建，否则每次重渲染都会重置
+const count = signal(0)
 
+function App() {
   return (
     <>
-      <h1>Vite + Solid</h1>
+      <h1>Vite + Zeus</h1>
       <div class="card">
         <button
           onClick={() => {
@@ -19,9 +20,7 @@ function App() {
           Edit <code>src/App.tsx</code> and save to test HMR
         </p>
       </div>
-      <p class="read-the-docs">
-        Click on the Vite and Solid logos to learn more
-      </p>
+      <p class="read-the-docs">Click on the Zeus logos to learn more</p>
     </>
   )
 }

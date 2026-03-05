@@ -1,3 +1,5 @@
+import { effect } from '@zeus-js/signal'
+
 // Core compilation helpers (called by compiler-generated code)
 export {
   template,
@@ -19,7 +21,7 @@ export * from './events'
 export * from './directives'
 
 // Re-export signal system
-export { signal, computed, effect, effectScope } from '@zeus-js/signal'
+export { computed, effect, effectScope, signal } from '@zeus-js/signal'
 
 // Re-export lifecycle hooks (VNode-independent)
 export {
@@ -38,6 +40,7 @@ export type { ComponentFunction, App } from '@zeus-js/runtime-core'
 export function createApp(rootComponent: (props?: any) => Node) {
   let container: Element | null = null
   let rootNode: Node | null = null
+  let disposeEffect: (() => void) | null = null
 
   return {
     mount(containerOrSelector: Element | string): void {
@@ -50,10 +53,27 @@ export function createApp(rootComponent: (props?: any) => Node) {
         container = containerOrSelector
       }
       container.innerHTML = ''
-      rootNode = rootComponent()
-      if (rootNode) container.appendChild(rootNode)
+
+      // 使用 effect 追踪 signal 变化并自动更新
+      // 创建一个 effect 来追踪所有 signal 变化
+      disposeEffect = effect(() => {
+        // 清理旧节点
+        if (rootNode && container) {
+          container.removeChild(rootNode)
+        }
+        // 重新渲染组件
+        rootNode = rootComponent()
+        if (rootNode && container) {
+          container.appendChild(rootNode)
+        }
+      })
     },
     unmount(): void {
+      // 清理 effect
+      if (disposeEffect) {
+        disposeEffect()
+        disposeEffect = null
+      }
       if (rootNode && container) {
         container.removeChild(rootNode)
         rootNode = null

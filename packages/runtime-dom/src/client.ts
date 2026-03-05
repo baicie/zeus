@@ -1,4 +1,4 @@
-import { effect as _effect } from '@zeus-js/signal'
+import { effect } from '@zeus-js/signal'
 
 // =============================================================================
 // template(html) — Creates a cached template element, returns a clone function
@@ -23,10 +23,14 @@ export function insert(
   marker?: Node | null,
 ): void {
   if (typeof accessor === 'function') {
-    let current: Node | Node[] | null = null
-    _effect(() => {
+    // 使用空数组作为初始值，与 SolidJS 思路一致
+    // 这样在处理数组类型值的更新时更高效，避免 null -> array 的类型转换开销
+    let current: Node | Node[] = []
+    effect(() => {
       const value = accessor()
-      current = insertValue(parent, value, current, marker ?? null)
+      current = insertValue(parent, value, current, marker ?? null) as
+        | Node
+        | Node[]
     })
   } else {
     insertValue(parent, accessor, null, marker ?? null)
@@ -39,7 +43,9 @@ function insertValue(
   current: Node | Node[] | null,
   marker: Node | null,
 ): Node | Node[] | null {
-  if (current !== null) {
+  // 处理 current 清理：支持数组和单节点
+  // 使用空数组 [] 作为初始值，与 SolidJS 思路一致
+  if (current != null) {
     if (Array.isArray(current)) {
       for (const node of current) {
         if (node.parentNode) {
@@ -189,7 +195,7 @@ export function spread(
   }
 
   if (typeof accessor === 'function') {
-    _effect(() => applyProps(accessor()))
+    effect(() => applyProps(accessor()))
   } else {
     applyProps(accessor)
   }

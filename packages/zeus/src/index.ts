@@ -12,16 +12,9 @@ export const framework = {
   description: 'A modern reactive framework built with Rust and TypeScript',
 }
 
+import { createApp as runtimeDomCreateApp } from '@zeus-js/runtime-dom'
 import type { App } from '@zeus-js/runtime-core'
 
 export function createApp(rootComponent: any): App {
-  // 纯函数式实现，暂时返回空的 App 对象
-  return {
-    mount() {
-      /* TODO */
-    },
-    unmount() {
-      /* TODO */
-    },
-  }
+  return runtimeDomCreateApp(rootComponent)
 }
