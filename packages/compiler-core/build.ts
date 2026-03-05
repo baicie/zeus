@@ -37,7 +37,7 @@ const buildMeta = (function makeBuildMeta() {
 
   const pkgRoot =
     target === 'browser-pkg'
-      ? nodePath.resolve(__dirname, '../browser')
+      ? nodePath.resolve(__dirname, '../compiler-browser')
       : __dirname
 
   return {
