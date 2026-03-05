@@ -70,11 +70,7 @@ export default defineConfig({
         test: {
           name: 'e2e',
           environment: 'jsdom',
-          poolOptions: {
-            threads: {
-              singleThread: !!process.env.CI,
-            },
-          },
+          pool: 'threads',
           include: ['packages/zeus/__tests__/e2e/*.spec.ts'],
         },
       },
