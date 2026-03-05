@@ -12,6 +12,9 @@ napi-derive = { workspace = true }
 zeus-compiler-core = { path = "../compiler-core" }
 zeus-compiler-dom = { path = "../compiler-dom" }
 oxc = { workspace = true }
+oxc_diagnostics = "0.107.0"
+oxc_span = "0.107.0"
+oxc_parser = "0.107.0"
 
 [build-dependencies]
 napi-build = { workspace = true }

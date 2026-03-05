@@ -36,7 +36,19 @@ pub enum CompilerError {
 impl CompilerError {
     /// Create a new OXC error
     pub fn oxc(error: &OxcDiagnostic) -> Self {
-        Self::Oxc(error.to_string())
+        let msg = error.to_string();
+
+        // Try to extract position from error string
+        let (line, column) = extract_position_from_string(&msg);
+
+        // Format with location if available
+        let formatted = if let (Some(line), Some(col)) = (line, column) {
+            format!("{} at line {}, column {}", msg, line, col)
+        } else {
+            msg
+        };
+
+        Self::Oxc(formatted)
     }
 
     /// Create a new I/O error
@@ -90,6 +102,41 @@ impl From<anyhow::Error> for CompilerError {
     fn from(error: anyhow::Error) -> Self {
         Self::other(error.to_string())
     }
+}
+
+/// Extract position (line, column) from error string
+fn extract_position_from_string(error_str: &str) -> (Option<u32>, Option<u32>) {
+    let s = error_str.to_lowercase();
+
+    // Find "line" keyword
+    if let Some(line_idx) = s.find("line") {
+        let after_line = &s[line_idx + 4..];
+        // Skip whitespace and find number
+        if let Some(num_start) = after_line.find(|c: char| c.is_ascii_digit()) {
+            let num_end = num_start
+                + after_line[num_start..]
+                    .find(|c: char| !c.is_ascii_digit())
+                    .unwrap_or(after_line.len() - num_start);
+            if let Ok(line) = after_line[num_start..num_start + num_end].parse::<u32>() {
+                // Look for column after "column"
+                if let Some(col_idx) = after_line[num_end..].find("column") {
+                    let after_col = &after_line[num_end + col_idx + 6..];
+                    if let Some(col_start) = after_col.find(|c: char| c.is_ascii_digit()) {
+                        let col_end = col_start
+                            + after_col[col_start..]
+                                .find(|c: char| !c.is_ascii_digit())
+                                .unwrap_or(after_col.len() - col_start);
+                        if let Ok(col) = after_col[col_start..col_start + col_end].parse::<u32>() {
+                            return (Some(line), Some(col));
+                        }
+                    }
+                }
+                return (Some(line), None);
+            }
+        }
+    }
+
+    (None, None)
 }
 
 /// Result type alias for compiler operations

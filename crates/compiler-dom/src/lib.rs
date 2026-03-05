@@ -14,6 +14,7 @@ pub mod template_ir;
 
 use oxc::allocator::Allocator;
 use oxc::diagnostics::OxcDiagnostic;
+use oxc::parser::Parser;
 use oxc::span::SourceType;
 use zeus_compiler_core::{parser, CompilerOptions};
 
@@ -27,6 +28,63 @@ pub struct DomCompilerOptions {
     pub dom_optimizations: bool,
     /// Module path for runtime imports (default: "@zeus-js/runtime-dom")
     pub runtime_module: Option<String>,
+}
+
+/// 编译错误结构
+#[derive(Debug, Clone)]
+pub struct CompileError {
+    pub message: String,
+    pub start_offset: u32,
+    pub end_offset: u32,
+}
+
+impl CompileError {
+    pub fn from_diagnostic(diag: OxcDiagnostic) -> Self {
+        // 从诊断消息中尝试提取位置信息
+        let msg = diag.to_string();
+        
+        // 尝试从调试输出中获取 span
+        let debug_str = format!("{:?}", diag);
+        let (start_offset, end_offset) = extract_span_from_debug(&debug_str).unwrap_or((0, 0));
+        
+        Self {
+            message: msg,
+            start_offset,
+            end_offset,
+        }
+    }
+}
+
+/// 从调试输出中提取 span 信息
+fn extract_span_from_debug(debug_str: &str) -> Option<(u32, u32)> {
+    // 尝试匹配 "span: Span { start: X, end: Y }" 格式
+    if let Some(span_start) = debug_str.find("span:") {
+        let after_span = &debug_str[span_start..];
+        
+        // 查找 start:
+        if let Some(start_key) = after_span.find("start:") {
+            let after_start = &after_span[start_key + 6..];
+            // 提取数字
+            if let Some(num_start) = after_start.find(|c: char| c.is_ascii_digit()) {
+                let num_str = &after_start[num_start..];
+                let num_end = num_str.find(|c: char| !c.is_ascii_digit()).unwrap_or(num_str.len());
+                if let Ok(start) = num_str[..num_end].parse::<u32>() {
+                    // 找 end
+                    if let Some(end_key) = num_str.find("end:") {
+                        let after_end = &num_str[end_key + 3..];
+                        if let Some(col_start) = after_end.find(|c: char| c.is_ascii_digit()) {
+                            let col_str = &after_end[col_start..];
+                            let col_end = col_str.find(|c: char| !c.is_ascii_digit()).unwrap_or(col_str.len());
+                            if let Ok(end) = col_str[..col_end].parse::<u32>() {
+                                return Some((start, end));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    None
 }
 
 /// DOM compiler — compiles JSX/TSX to SolidJS-style DOM code
@@ -92,6 +150,18 @@ impl DomCompiler {
             Ok(code) => Ok(code),
             Err(err) => Err(err.into()),
         }
+    }
+
+    /// Get parse errors with location info
+    pub fn get_parse_errors(
+        source: &str,
+        source_type: SourceType,
+    ) -> Vec<CompileError> {
+        let allocator = Allocator::default();
+        let parser = Parser::new(&allocator, source, source_type);
+        let result = parser.parse();
+        
+        result.errors.into_iter().map(CompileError::from_diagnostic).collect()
     }
 }
 

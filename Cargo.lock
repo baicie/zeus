@@ -1529,6 +1529,9 @@ dependencies = [
  "napi-build",
  "napi-derive",
  "oxc",
+ "oxc_diagnostics",
+ "oxc_parser",
+ "oxc_span",
  "zeus-compiler-core",
  "zeus-compiler-dom",
 ]
