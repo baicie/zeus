@@ -113,7 +113,11 @@ impl DomCompiler {
         }
 
         let allocator = Allocator::default();
-        let source_type = SourceType::jsx();
+
+        // 根据 options 创建正确的 source_type，支持 JSX 和 TypeScript
+        let mut source_type = options.base.source_type;
+        // 确保启用 JSX 模式
+        source_type = source_type.with_jsx(true);
 
         // 1. Parse (read-only — we don't modify the AST)
         let program = match parser::parse_source(&allocator, source, source_type) {
@@ -282,5 +286,13 @@ mod tests {
         println!("Logical AND output:\n{}", code);
         assert!(code.contains("insert"), "Should have insert() call");
         assert!(code.contains("&&"), "Should contain logical AND");
+    }
+
+    #[test]
+    fn test_fragment_with_event() {
+        let code = compile(r#"function App() { return (<><button onClick={() => alert("hi")}>Click</button></>) }"#);
+        println!("Fragment with event output:\n{}", code);
+        assert!(code.contains("$$click"), "Should have delegated event handler");
+        assert!(code.contains("delegateEvents"), "Should have delegateEvents()");
     }
 }

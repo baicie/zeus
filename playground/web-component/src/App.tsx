@@ -1,5 +1,5 @@
 const App = () => {
-  const getEl = id => {
+  const getEl = (id: string) => {
     const el = document.getElementById(id)
     if (!el) {
       return null

@@ -155,6 +155,9 @@ impl<'s> JsxCompiler<'s> {
             Expression::JSXElement(jsx) => {
                 self.compile_jsx_element(jsx);
             }
+            Expression::JSXFragment(fragment) => {
+                self.compile_jsx_fragment(fragment);
+            }
             Expression::ArrowFunctionExpression(arrow) => {
                 for stmt in &arrow.body.statements {
                     self.visit_statement(stmt);
@@ -312,6 +315,142 @@ impl<'s> JsxCompiler<'s> {
         });
     }
 
+    /// Compile a JSX fragment: <>...</> → returns DocumentFragment
+    fn compile_jsx_fragment(&mut self, fragment: &JSXFragment<'_>) {
+        let span = fragment.span();
+
+        // Fragment 只有一个 children 列表
+        let children = &fragment.children;
+
+        if children.is_empty() {
+            // 空 Fragment 返回 null
+            self.replacements.push(Replacement {
+                start: span.start,
+                end: span.end,
+                code: "null".to_string(),
+            });
+            return;
+        }
+
+        // 如果只有一个子元素
+        if children.len() == 1 {
+            if let JSXChild::Element(jsx_child) = &children[0] {
+                // 1. 先分析子元素，获取其 IR（这会收集事件等）
+                let ir = self.analyzer.analyze(jsx_child);
+                
+                // 2. 收集事件
+                for event in &ir.delegated_events {
+                    if !self.delegated_events.contains(event) {
+                        self.delegated_events.push(event.clone());
+                    }
+                }
+                if !ir.delegated_events.is_empty() {
+                    self.add_helper("delegateEvents");
+                }
+                
+                // 3. 生成子元素的代码
+                let child_code = self.generate_element_code(&ir);
+                
+                // 4. 为 Fragment 生成替换代码 - 直接使用子元素的代码
+                self.replacements.push(Replacement {
+                    start: span.start,
+                    end: span.end,
+                    code: child_code,
+                });
+                
+                return;
+            }
+        }
+
+        // 多个子元素：使用 DocumentFragment
+        // 生成代码来创建 DocumentFragment 并插入所有子节点
+        let mut children_code = Vec::new();
+
+        for child in children {
+            match child {
+                JSXChild::Element(jsx_child) => {
+                    // 递归编译这个 JSX 元素 - 这会正确处理事件绑定
+                    let tag_name = TemplateAnalyzer::get_tag_name(jsx_child);
+
+                    if TemplateAnalyzer::is_component(&tag_name) {
+                        // 组件调用 - 直接获取组件调用的代码
+                        let code = self.compile_component(jsx_child, &tag_name);
+                        children_code.push(format!("_fr.appendChild({});", code));
+                    } else {
+                        // 原生元素：使用 generate_element_code 生成完整代码
+                        let ir = self.analyzer.analyze(jsx_child);
+                        
+                        // 收集事件
+                        for event in &ir.delegated_events {
+                            if !self.delegated_events.contains(event) {
+                                self.delegated_events.push(event.clone());
+                            }
+                        }
+                        if !ir.delegated_events.is_empty() {
+                            self.add_helper("delegateEvents");
+                        }
+                        
+                        let escaped_html = ir.html.replace('\\', "\\\\").replace('"', "\\\"");
+                        let template_var = format!("_tmpl${}", self.hoisted.len());
+                        self.hoisted.push(format!(
+                            "const {} = template(\"{}\");",
+                            template_var, escaped_html
+                        ));
+                        self.add_helper("template");
+
+                        // 生成代码
+                        let element_code = self.generate_element_code_with_template(&ir, &template_var);
+                        children_code.push(format!("_fr.appendChild({});", element_code));
+                    }
+                }
+                JSXChild::Fragment(_text) => {
+                    // 文本节点 - 创建空 TextNode
+                    children_code.push(
+                        "_fr.appendChild(document.createTextNode(\"\"));".to_string()
+                    );
+                }
+                JSXChild::ExpressionContainer(expr) => {
+                    // 动态表达式 - 使用 insert
+                    let source = self.source;
+                    // JSXExpression 需要通过 .span() 获取 span
+                    let start = expr.expression.span().start as usize;
+                    let end = expr.expression.span().end as usize;
+                    if start < source.len() && end <= source.len() {
+                        let expr_code = source[start..end].to_string();
+                        children_code.push(format!(
+                            "insert(_fr, {});",
+                            expr_code
+                        ));
+                        self.add_helper("insert");
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if children_code.is_empty() {
+            // 空 Fragment
+            self.replacements.push(Replacement {
+                start: span.start,
+                end: span.end,
+                code: "document.createDocumentFragment()".to_string(),
+            });
+            return;
+        }
+
+        // 生成完整的代码
+        let code = format!(
+            "(function() {{ const _fr = document.createDocumentFragment(); {} return _fr; }})()",
+            children_code.join(" ")
+        );
+
+        self.replacements.push(Replacement {
+            start: span.start,
+            end: span.end,
+            code,
+        });
+    }
+
     /// Generate JS code for a native element from its TemplateIR
     fn generate_element_code(&mut self, ir: &TemplateIR) -> String {
         let mut lines: Vec<String> = Vec::new();
@@ -321,20 +460,56 @@ impl<'s> JsxCompiler<'s> {
         lines.push(format!("const {} = {}();", root_var, ir.template_var));
 
         // Collect unique paths → variable names
+        // Use path reuse optimization: generate ALL possible intermediate paths
         let mut path_vars: Vec<(DomPath, String)> = Vec::new();
         path_vars.push((DomPath::root(), root_var.clone()));
 
-        let mut el_counter: usize = 0;
-        for binding in &ir.bindings {
-            if binding.path != DomPath::root()
-                && !path_vars.iter().any(|(p, _)| p == &binding.path)
-            {
-                el_counter += 1;
-                let var_name = format!("_el${}", el_counter + 1);
-                let access = binding.path.to_js_access(&root_var);
-                lines.push(format!("const {} = {};", var_name, access));
-                path_vars.push((binding.path.clone(), var_name));
+        // Get all unique non-root paths that need variables (binding targets)
+        let target_paths: Vec<DomPath> = ir.bindings
+            .iter()
+            .filter(|b| b.path != DomPath::root())
+            .map(|b| b.path.clone())
+            .collect();
+
+        // Generate all possible intermediate paths from root to each target
+        // For each target path, generate all prefixes
+        let mut all_needed_paths: Vec<DomPath> = Vec::new();
+        for target_path in &target_paths {
+            // Add all prefixes of this path (excluding root)
+            for len in 1..=target_path.steps.len() {
+                let prefix = DomPath {
+                    steps: target_path.steps[..len].to_vec(),
+                };
+                all_needed_paths.push(prefix);
             }
+        }
+
+        // Sort by path length (shorter first) so we create shorter paths first
+        all_needed_paths.sort_by(|a, b| a.steps.len().cmp(&b.steps.len()));
+
+        // Remove duplicates while preserving order
+        all_needed_paths.dedup();
+
+        // Now create variables for all paths
+        for path in all_needed_paths {
+            // Find the best base path to reuse (the longest prefix that already has a variable)
+            let (base_path, base_var) = path_vars
+                .iter()
+                .rev()  // Start from the end (longest paths first)
+                .find(|(p, _)| path.is_descendant_of(p))
+                .map(|(p, v)| (p.clone(), v.clone()))
+                .unwrap_or_else(|| (DomPath::root(), root_var.clone()));
+
+            // Calculate remaining steps from the base path
+            let remaining_steps = path.steps.len() - base_path.steps.len();
+
+            if remaining_steps > 0 {
+                let var_name = format!("_el${}", path_vars.len());
+                let access = path.partial_to_js_access(&base_var, remaining_steps);
+                lines.push(format!("const {} = {};", var_name, access));
+                path_vars.push((path.clone(), var_name));
+            }
+            // If remaining_steps == 0, this path already exists as base_path
         }
 
         // Generate binding statements
@@ -448,6 +623,134 @@ impl<'s> JsxCompiler<'s> {
         if ir.bindings.is_empty() {
             // Pure static: just return the clone
             format!("{}()", ir.template_var)
+        } else {
+            format!("(() => {{\n  {}\n}})()", lines.join("\n  "))
+        }
+    }
+
+    /// Generate JS code for a native element with a specific template variable name
+    /// Used when calling from Fragment context where we need to control the template var
+    fn generate_element_code_with_template(&mut self, ir: &TemplateIR, template_var: &str) -> String {
+        let mut lines: Vec<String> = Vec::new();
+
+        // const _el$ = _tmpl$N()
+        let root_var = "_el$".to_string();
+        lines.push(format!("const {} = {}();", root_var, template_var));
+
+        // Collect unique paths → variable names
+        let mut path_vars: Vec<(DomPath, String)> = Vec::new();
+        path_vars.push((DomPath::root(), root_var.clone()));
+
+        // Get all unique non-root paths that need variables
+        let target_paths: Vec<DomPath> = ir.bindings
+            .iter()
+            .filter(|b| b.path != DomPath::root())
+            .map(|b| b.path.clone())
+            .collect();
+
+        // Generate all possible intermediate paths
+        let mut all_needed_paths: Vec<DomPath> = Vec::new();
+        for target_path in &target_paths {
+            for len in 1..=target_path.steps.len() {
+                let prefix = DomPath {
+                    steps: target_path.steps[..len].to_vec(),
+                };
+                all_needed_paths.push(prefix);
+            }
+        }
+
+        all_needed_paths.sort_by(|a, b| a.steps.len().cmp(&b.steps.len()));
+        all_needed_paths.dedup();
+
+        for path in &all_needed_paths {
+            let (base_path, base_var) = path_vars
+                .iter()
+                .rev()
+                .find(|(p, _)| path.is_descendant_of(p))
+                .map(|(p, v)| (p.clone(), v.clone()))
+                .unwrap_or_else(|| (DomPath::root(), root_var.clone()));
+
+            let remaining_steps = path.steps.len() - base_path.steps.len();
+
+            if remaining_steps > 0 {
+                let var_name = format!("_el${}", path_vars.len());
+                let access = path.partial_to_js_access(&base_var, remaining_steps);
+                lines.push(format!("const {} = {};", var_name, access));
+                path_vars.push((path.clone(), var_name));
+            }
+        }
+
+        // Generate binding statements
+        for binding in &ir.bindings {
+            let target = path_vars
+                .iter()
+                .find(|(p, _)| p == &binding.path)
+                .map(|(_, v)| v.as_str())
+                .unwrap_or("_el$");
+
+            match &binding.kind {
+                BindingKind::Insert { expression_source } => {
+                    let parent = get_parent_var(&binding.path, &path_vars, &root_var);
+                    if parent == target {
+                        lines.push(format!("insert({}, {});", target, expression_source));
+                    } else {
+                        lines.push(format!("insert({}, {}, {});", parent, expression_source, target));
+                    }
+                    self.add_helper("insert");
+                }
+                BindingKind::DelegatedEvent {
+                    event_name,
+                    handler_source,
+                } => {
+                    lines.push(format!("{}.$${}  = {};", target, event_name, handler_source));
+                }
+                BindingKind::DirectEvent {
+                    event_name,
+                    handler_source,
+                } => {
+                    lines.push(format!("{}.addEventListener(\"{}\", {});", target, event_name, handler_source));
+                }
+                BindingKind::Attribute {
+                    name,
+                    value_source,
+                    is_dynamic: _,
+                } => {
+                    lines.push(format!("setAttribute({}, \"{}\", {});", target, name, value_source));
+                    self.add_helper("setAttribute");
+                }
+                BindingKind::ClassName {
+                    value_source,
+                    is_dynamic: _,
+                } => {
+                    lines.push(format!("className({}, {});", target, value_source));
+                    self.add_helper("className");
+                }
+                BindingKind::Style {
+                    value_source,
+                    is_dynamic: _,
+                } => {
+                    lines.push(format!("style({}, {});", target, value_source));
+                    self.add_helper("style");
+                }
+                BindingKind::Ref { ref_source } => {
+                    lines.push(format!("{}({});", ref_source, target));
+                }
+                BindingKind::Spread { props_source } => {
+                    lines.push(format!("spread({}, {});", target, props_source));
+                    self.add_helper("spread");
+                }
+                BindingKind::Slot { .. } => {
+                    // Slot handling - use insert
+                    lines.push(format!("insert({}, renderSlot());", target));
+                    self.add_helper("insert");
+                }
+            }
+        }
+
+        lines.push(format!("return {};", root_var));
+
+        if ir.bindings.is_empty() {
+            format!("{}()", template_var)
         } else {
             format!("(() => {{\n  {}\n}})()", lines.join("\n  "))
         }

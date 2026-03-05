@@ -92,6 +92,20 @@ mod tests {
     }
 
     #[test]
+    fn test_compile_fragment_with_event() {
+        let source = r#"function App() { return (<><button onClick={() => alert("hi")}>Click</button></>) }"#;
+        let compiler = DomCompiler::new();
+        let options = create_options(true);
+        
+        let result = compiler.compile_dom(source, &options);
+        assert!(result.is_ok());
+        let code = result.unwrap();
+        println!("Fragment Event output:\n{}", code);
+        assert!(code.contains("$$click"), "Missing event handler");
+        assert!(code.contains("delegateEvents"), "Missing delegateEvents");
+    }
+
+    #[test]
     fn test_compile_jsx_with_props() {
         let source = r#"const App = () => <div className="container" id="app">Content</div>"#;
         let compiler = DomCompiler::new();

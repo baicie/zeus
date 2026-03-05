@@ -28,11 +28,33 @@ impl DomPath {
         Self { steps: vec![] }
     }
 
+    /// Check if this path is a descendant of (has the same prefix as) another path
+    pub fn is_descendant_of(&self, other: &DomPath) -> bool {
+        if other.steps.len() >= self.steps.len() {
+            return false;
+        }
+        self.steps[..other.steps.len()] == other.steps[..]
+    }
+
     /// Generate JS code for this path from a root variable
     /// e.g., "_el$.firstChild.nextSibling"
     pub fn to_js_access(&self, root_var: &str) -> String {
         let mut access = root_var.to_string();
         for step in &self.steps {
+            match step {
+                TraversalStep::FirstChild => access.push_str(".firstChild"),
+                TraversalStep::NextSibling => access.push_str(".nextSibling"),
+            }
+        }
+        access
+    }
+
+    /// Generate JS code for a partial path (remaining steps from a base variable)
+    /// e.g., if base is "_el$2" and remaining_steps is 2, returns "_el$2.firstChild.nextSibling"
+    pub fn partial_to_js_access(&self, base_var: &str, remaining_steps: usize) -> String {
+        let mut access = base_var.to_string();
+        let start_idx = self.steps.len() - remaining_steps;
+        for step in self.steps.iter().skip(start_idx) {
             match step {
                 TraversalStep::FirstChild => access.push_str(".firstChild"),
                 TraversalStep::NextSibling => access.push_str(".nextSibling"),

@@ -337,6 +337,11 @@ impl<'s> TemplateAnalyzer<'s> {
             JSXExpression::TemplateLiteral(lit) => {
                 self.extract_source_span(lit.span)
             }
+            // For CallExpression, we want to return just the function (not the call)
+            // so that the runtime can track dependencies properly
+            JSXExpression::CallExpression(call) => {
+                self.extract_call_expression(call)
+            }
             // For all other expressions, use span extraction
             _ => {
                 let span = match expr {
@@ -349,6 +354,29 @@ impl<'s> TemplateAnalyzer<'s> {
                 };
                 self.extract_source_span(span)
             }
+        }
+    }
+
+    /// Extract just the function name from a CallExpression
+    /// e.g., `count()` -> `count`, `items.map(item => ...)` -> `items.map(item => ...)`
+    fn extract_call_expression(&self, call: &CallExpression<'_>) -> String {
+        // Check if it's a member expression call like items.map(...)
+        if let Some(member) = call.callee.as_member_expression() {
+            if let MemberExpression::StaticMemberExpression(static_member) = member {
+                // This is a method call like obj.method()
+                // Extract the full call expression
+                return self.extract_source_span(call.span);
+            }
+        }
+        
+        // For simple calls like count(), extract just the function name
+        let full_source = self.extract_source_span(call.span);
+        
+        // Find the opening parenthesis and return everything before it
+        if let Some(paren_pos) = full_source.find('(') {
+            full_source[..paren_pos].to_string()
+        } else {
+            full_source
         }
     }
 
