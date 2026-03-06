@@ -129,6 +129,37 @@ export function normalizeChildren(
 export function isValidSlotContent(content: any): boolean {
   if (content === null || content === undefined) return false
   if (typeof content === 'function') return true
-  if (content instanceof Node) return true
+  if (content instanceof Node) return false
   return false
+}
+
+// ============================================
+// DOM-specific slot utilities
+// ============================================
+
+import { effect } from '@zeus-js/signal'
+
+/**
+ * 创建插槽上下文（DOM 特有）
+ */
+export function createSlotContext(): Map<string, SlotSignal | any> {
+  return new Map()
+}
+
+/**
+ * 动态插槽渲染（DOM 特有）
+ * 用于响应式插槽内容
+ */
+export function DynamicSlot(props: {
+  name?: string
+  getter: () => any
+}): Node | Node[] | null {
+  let currentValue: any = null
+
+  effect(() => {
+    const newValue = props.getter()
+    currentValue = newValue
+  })
+
+  return currentValue
 }

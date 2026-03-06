@@ -9,10 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@zeus-js/core": "workspace:*",
-    "@zeus-js/runtime-core": "workspace:*",
-    "@zeus-js/runtime-dom": "workspace:*",
-    "@zeus-js/signal": "workspace:*"
+    "@zeus-js/core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^25.3.5",

@@ -1,4 +1,4 @@
-import { createApp } from '@zeus-js/runtime-dom'
+import { createApp } from '@zeus-js/core'
 import App from './App.js'
 
 // 创建应用实例 / Create app instance

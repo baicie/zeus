@@ -1,8 +1,4 @@
-export * from '@zeus-js/runtime-core'
-
-export * from '@zeus-js/signal'
-
-export * from '@zeus-js/web-components'
+export * from '@zeus-js/runtime-dom'
 
 export const version = '__VERSION__'
 

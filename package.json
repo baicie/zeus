@@ -7,7 +7,7 @@
     "dev": "tsx scripts/build.ts --watch",
     "build": "tsx scripts/build.ts",
     "build-all": "pnpm build-pkg && pnpm build-napi && pnpm build-tools",
-    "build-pkg": "pnpm build && pnpm build-dts",
+    "build-pkg": "pnpm build -t",
     "build-napi": "pnpm --filter @zeus-js/compiler-core build-native:debug && pnpm --filter @zeus-js/compiler-browser build:debug",
     "build-tools": "pnpm --filter @zeus-js/build-tools build",
     "build-dts": "tsc -p tsconfig.build.json --noCheck && rolldown -c ./scripts/rolldown.dts.config.ts",

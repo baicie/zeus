@@ -13,25 +13,13 @@ export {
   spread,
 } from './client'
 
-export * from './slots'
-
 // Low-level DOM utilities
 export * from './dom'
 export * from './events'
 export * from './directives'
 
-// Re-export signal system
-export { computed, effect, effectScope, signal } from '@zeus-js/signal'
-
-// Re-export lifecycle hooks (VNode-independent)
-export {
-  onMounted,
-  onUnmounted,
-  onUpdated,
-  onBeforeMount,
-  onBeforeUnmount,
-  watchEffect,
-} from '@zeus-js/runtime-core'
+// Re-export everything from runtime-core (including slots)
+export * from '@zeus-js/runtime-core'
 
 // Re-export component types
 export type { ComponentFunction, App } from '@zeus-js/runtime-core'
