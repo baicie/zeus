@@ -34,8 +34,8 @@ pub mod path {
     /// Get relative path from base to target
     pub fn relative(from: &str, to: &str) -> String {
         // Simple implementation - in practice, you'd use a proper path library
-        if to.starts_with(from) {
-            to[from.len()..].trim_start_matches('/').to_string()
+        if let Some(stripped) = to.strip_prefix(from) {
+            stripped.trim_start_matches('/').to_string()
         } else {
             to.to_string()
         }

@@ -104,9 +104,10 @@ impl Default for PluginContext {
 }
 
 /// Build mode
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum BuildMode {
     /// Development mode
+    #[default]
     Development,
     /// Production mode
     Production,
@@ -114,11 +115,6 @@ pub enum BuildMode {
     Test,
 }
 
-impl Default for BuildMode {
-    fn default() -> Self {
-        Self::Development
-    }
-}
 
 /// Cache entry for compilation results
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -173,7 +169,7 @@ impl FileSystem for DefaultFileSystem {
     fn file_modified(&self, path: &str) -> super::error::Result<u64> {
         let metadata = std::fs::metadata(path).map_err(super::error::CompilerError::io)?;
         let modified = metadata.modified()
-            .map_err(|e| super::error::CompilerError::io(e))?;
+            .map_err(super::error::CompilerError::io)?;
         Ok(modified.duration_since(std::time::UNIX_EPOCH)
             .map_err(|e| super::error::CompilerError::other(e.to_string()))?
             .as_secs())

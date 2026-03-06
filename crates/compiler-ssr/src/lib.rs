@@ -52,6 +52,7 @@ pub struct StreamingMarker {
 }
 
 /// SSR Compiler
+#[allow(dead_code)]
 pub struct SsrCompiler {
     dom_compiler: DomCompiler,
 }

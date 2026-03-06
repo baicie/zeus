@@ -43,9 +43,10 @@ impl Default for BaseCompilerOptions {
 }
 
 /// Output format options
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum OutputFormat {
     /// ES modules
+    #[default]
     Esm,
     /// CommonJS
     Cjs,
@@ -55,18 +56,14 @@ pub enum OutputFormat {
     Umd,
 }
 
-impl Default for OutputFormat {
-    fn default() -> Self {
-        Self::Esm
-    }
-}
 
 /// Optimization level
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum OptimizationLevel {
     /// No optimizations
     None,
     /// Basic optimizations
+    #[default]
     Basic,
     /// Advanced optimizations
     Advanced,
@@ -74,11 +71,6 @@ pub enum OptimizationLevel {
     Aggressive,
 }
 
-impl Default for OptimizationLevel {
-    fn default() -> Self {
-        Self::Basic
-    }
-}
 
 /// Platform target
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

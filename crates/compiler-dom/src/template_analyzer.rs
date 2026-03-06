@@ -435,12 +435,12 @@ impl<'s> TemplateAnalyzer<'s> {
     /// e.g., `count()` -> `count`, `items.map(item => ...)` -> `items.map(item => ...)`
     fn extract_call_expression(&self, call: &CallExpression<'_>) -> String {
         // Check if it's a member expression call like items.map(...)
-        if let Some(member) = call.callee.as_member_expression() {
-            if let MemberExpression::StaticMemberExpression(static_member) = member {
-                // This is a method call like obj.method()
-                // Extract the full call expression
-                return self.extract_source_span(call.span);
-            }
+        if let Some(member) = call.callee.as_member_expression()
+            && let MemberExpression::StaticMemberExpression(_) = member
+        {
+            // This is a method call like obj.method()
+            // Extract the full call expression
+            return self.extract_source_span(call.span);
         }
         
         // For simple calls like count(), extract just the function name
@@ -480,51 +480,48 @@ impl<'s> TemplateAnalyzer<'s> {
         
         // Process slot attributes
         for attr in &element.opening_element.attributes {
-            match attr {
-                JSXAttributeItem::Attribute(attr) => {
-                    let name = match &attr.name {
-                        JSXAttributeName::Identifier(ident) => ident.name.as_str(),
-                        _ => "",
-                    };
-                    
-                    if name == "name" {
-                        // Named slot: <slot name="header" />
-                        if let Some(JSXAttributeValue::StringLiteral(s)) = &attr.value {
-                            slot_name = Some(s.value.to_string());
-                            html.push_str(" name=\"");
-                            html.push_str(&escape_html(s.value.as_str()));
-                            html.push('"');
-                        }
-                    } else if name == "children" {
-                        // Fallback content: <slot>fallback</slot>
-                        // Extract fallback content as string
-                        if let Some(JSXAttributeValue::ExpressionContainer(expr)) = &attr.value {
-                            if let JSXExpression::JSXElement(child_element) = &expr.expression {
-                                // Generate fallback content as HTML
-                                let fallback_html = self.element_to_html(child_element);
-                                html.push('>');
-                                html.push_str(&fallback_html);
-                                // Mark this as a slot with fallback
-                                bindings.push(Binding {
+            if let JSXAttributeItem::Attribute(attr) = attr {
+                let name = match &attr.name {
+                    JSXAttributeName::Identifier(ident) => ident.name.as_str(),
+                    _ => "",
+                };
+                
+                if name == "name" {
+                    // Named slot: <slot name="header" />
+                    if let Some(JSXAttributeValue::StringLiteral(s)) = &attr.value {
+                        slot_name = Some(s.value.to_string());
+                        html.push_str(" name=\"");
+                        html.push_str(&escape_html(s.value.as_str()));
+                        html.push('"');
+                    }
+                } else if name == "children" {
+                    // Fallback content: <slot>fallback</slot>
+                    // Extract fallback content as string
+                    if let Some(JSXAttributeValue::ExpressionContainer(expr)) = &attr.value
+                        && let JSXExpression::JSXElement(child_element) = &expr.expression
+                    {
+                        // Generate fallback content as HTML
+                        let fallback_html = self.element_to_html(child_element);
+                        html.push('>');
+                        html.push_str(&fallback_html);
+                        // Mark this as a slot with fallback
+                        bindings.push(Binding {
+                            path: current_path.clone(),
+                            kind: BindingKind::Slot {
+                                slot_binding: SlotBinding {
                                     path: current_path.clone(),
-                                    kind: BindingKind::Slot {
-                                        slot_binding: SlotBinding {
-                                            path: current_path.clone(),
-                                            kind: SlotBindingKind::Fallback {
-                                                name: slot_name.clone(),
-                                                fallback_source: fallback_html,
-                                            },
-                                        },
+                                    kind: SlotBindingKind::Fallback {
+                                        name: slot_name.clone(),
+                                        fallback_source: fallback_html,
                                     },
-                                });
-                                // Close tag
-                                html.push_str("</slot>");
-                                return;
-                            }
-                        }
+                                },
+                            },
+                        });
+                        // Close tag
+                        html.push_str("</slot>");
+                        return;
                     }
                 }
-                _ => {}
             }
         }
         

@@ -98,15 +98,12 @@ impl<'s> JsxCompiler<'s> {
                     self.visit_expression(expr);
                 } else {
                     // Handle explicit variants
-                    match &export.declaration {
-                        ExportDefaultDeclarationKind::FunctionDeclaration(func) => {
-                            if let Some(body) = &func.body {
-                                for s in &body.statements {
-                                    self.visit_statement(s);
-                                }
-                            }
+                    if let ExportDefaultDeclarationKind::FunctionDeclaration(func) = &export.declaration
+                        && let Some(body) = &func.body
+                    {
+                        for s in &body.statements {
+                            self.visit_statement(s);
                         }
-                        _ => {}
                     }
                 }
             }
@@ -206,30 +203,28 @@ impl<'s> JsxCompiler<'s> {
     fn check_list_rendering_warnings(&mut self, call: &CallExpression<'_>) {
         // Check if this is a .map() call
         // In oxc, MemberExpression is accessed via as_member_expression()
-        if let Some(member) = call.callee.as_member_expression() {
-            // Check if it's a static member expression (obj.prop, not obj[prop])
-            if let MemberExpression::StaticMemberExpression(static_member) = member {
-                if static_member.property.name == "map" {
-                    // This is a .map() call, check for key
-                    let has_key = call.arguments.iter().any(|arg| {
-                        if let Some(expr) = arg.as_expression() {
-                            if let Expression::ArrowFunctionExpression(arrow) = expr {
-                                // Check if the arrow function returns JSX with key
-                                return self.arrow_function_has_key(arrow);
-                            }
-                        }
-                        false
-                    });
-
-                    if !has_key {
-                        let span = call.span();
-                        self.warnings.push(Warning {
-                            message: "Missing 'key' prop in list rendering. Consider adding a unique key to each list item for better performance.".to_string(),
-                            line: span.start,
-                            column: span.end,
-                        });
-                    }
+        if let Some(member) = call.callee.as_member_expression()
+            && let MemberExpression::StaticMemberExpression(static_member) = member
+            && static_member.property.name == "map"
+        {
+            // This is a .map() call, check for key
+            let has_key = call.arguments.iter().any(|arg| {
+                if let Some(expr) = arg.as_expression()
+                    && let Expression::ArrowFunctionExpression(arrow) = expr
+                {
+                    // Check if the arrow function returns JSX with key
+                    return self.arrow_function_has_key(arrow);
                 }
+                false
+            });
+
+            if !has_key {
+                let span = call.span();
+                self.warnings.push(Warning {
+                    message: "Missing 'key' prop in list rendering. Consider adding a unique key to each list item for better performance.".to_string(),
+                    line: span.start,
+                    column: span.end,
+                });
             }
         }
     }
@@ -338,33 +333,31 @@ impl<'s> JsxCompiler<'s> {
         }
 
         // 如果只有一个子元素
-        if children.len() == 1 {
-            if let JSXChild::Element(jsx_child) = &children[0] {
-                // 1. 先分析子元素，获取其 IR（这会收集事件等）
-                let ir = self.analyzer.analyze(jsx_child);
-                
-                // 2. 收集事件
-                for event in &ir.delegated_events {
-                    if !self.delegated_events.contains(event) {
-                        self.delegated_events.push(event.clone());
-                    }
+        if children.len() == 1 && let JSXChild::Element(jsx_child) = &children[0] {
+            // 1. 先分析子元素，获取其 IR（这会收集事件等）
+            let ir = self.analyzer.analyze(jsx_child);
+            
+            // 2. 收集事件
+            for event in &ir.delegated_events {
+                if !self.delegated_events.contains(event) {
+                    self.delegated_events.push(event.clone());
                 }
-                if !ir.delegated_events.is_empty() {
-                    self.add_helper("delegateEvents");
-                }
-                
-                // 3. 生成子元素的代码
-                let child_code = self.generate_element_code(&ir);
-                
-                // 4. 为 Fragment 生成替换代码 - 直接使用子元素的代码
-                self.replacements.push(Replacement {
-                    start: span.start,
-                    end: span.end,
-                    code: child_code,
-                });
-                
-                return;
             }
+            if !ir.delegated_events.is_empty() {
+                self.add_helper("delegateEvents");
+            }
+            
+            // 3. 生成子元素的代码
+            let child_code = self.generate_element_code(&ir);
+            
+            // 4. 为 Fragment 生成替换代码 - 直接使用子元素的代码
+            self.replacements.push(Replacement {
+                start: span.start,
+                end: span.end,
+                code: child_code,
+            });
+            
+            return;
         }
 
         // 多个子元素：使用 DocumentFragment
