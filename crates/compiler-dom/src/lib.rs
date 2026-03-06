@@ -26,7 +26,7 @@ pub struct DomCompilerOptions {
     pub jsx_pragma: Option<String>,
     pub jsx_pragma_frag: Option<String>,
     pub dom_optimizations: bool,
-    /// Module path for runtime imports (default: "@zeus-js/runtime-dom")
+    /// Module path for runtime imports (default: "@zeus-js/core")
     pub runtime_module: Option<String>,
 }
 

@@ -852,7 +852,7 @@ impl<'s> JsxCompiler<'s> {
         // 1. Import statement for runtime helpers
         if !self.used_helpers.is_empty() {
             output.push_str(&format!(
-                "import {{ {} }} from \"@zeus-js/runtime-dom\";\n",
+                "import {{ {} }} from \"@zeus-js/core\";\n",
                 self.used_helpers.join(", ")
             ));
         }
