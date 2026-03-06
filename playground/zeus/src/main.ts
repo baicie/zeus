@@ -1,5 +1,5 @@
 import { createApp } from '@zeus-js/core'
-import App from './App.js'
+import App from './App'
 
 // 创建应用实例 / Create app instance
 const app = createApp(App)

@@ -18,6 +18,10 @@ export * from './dom'
 export * from './events'
 export * from './directives'
 
+// SolidJS-style DOM types and JSX support
+export * from './jsx'
+export * from './h'
+
 // Re-export everything from runtime-core (including slots)
 export * from '@zeus-js/runtime-core'
 

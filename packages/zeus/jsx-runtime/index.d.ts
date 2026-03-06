@@ -1,28 +1,29 @@
-import type { NativeElements, ReservedProps, VNode } from '@zeus-js/runtime-dom'
+import type { ReservedProps } from '@zeus-js/runtime-dom'
 
 /**
- * JSX namespace for usage with @jsxImportsSource directive
- * when ts compilerOptions.jsx is 'react-jsx' or 'react-jsxdev'
- * https://www.typescriptlang.org/tsconfig#jsxImportSource
+ * JSX runtime types for Zeus Framework
+ *
+ * Loaded automatically when tsconfig.json has:
+ *   "jsxImportSource": "@zeus-js/core"
+ *
+ * This file provides:
+ * 1. Type declarations for jsx/jsxs/jsxDEV/Fragment (used by TypeScript for type-checking JSX)
+ * 2. JSX namespace with IntrinsicElements (all valid HTML/SVG tags)
+ *
+ * NOTE: These functions are never actually called at runtime.
+ * The Zeus compiler transforms JSX into template() calls directly.
  */
 export {
   h as jsx,
   h as jsxDEV,
-  Fragment,
   h as jsxs,
+  Fragment,
 } from '@zeus-js/runtime-dom'
 
-export namespace JSX {
-  export interface Element extends VNode {}
-  export interface ElementClass {
-    $props: {}
+declare global {
+  namespace JSX {
+    interface IntrinsicAttributes extends ReservedProps {}
   }
-  export interface ElementAttributesProperty {
-    $props: {}
-  }
-  export interface IntrinsicElements extends NativeElements {
-    // allow arbitrary elements
-    [name: string]: any
-  }
-  export interface IntrinsicAttributes extends ReservedProps {}
 }
+
+export {}

@@ -1,13 +1,12 @@
 import { signal } from '@zeus-js/core'
-
-// signal 必须在组件外部创建，否则每次重渲染都会重置
-const count = signal(0)
+import styles from './App.module.css'
 
 function App() {
+  const count = signal(0)
   return (
     <>
-      <h1>Vite + Zeus</h1>
-      <div class="card">
+      <h1 style={{ color: 'red' }}>Vite + Zeus</h1>
+      <div class="card" className={styles.card}>
         <button
           onClick={() => {
             count(count() + 1)
