@@ -173,7 +173,7 @@ importers:
         specifier: ^16.1.6
         version: 16.1.6(@babel/core@7.29.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       rolldown:
-        specifier: ^1.0.0
+        specifier: ^1.0.0-rc.7
         version: 1.0.0-rc.7
       rollup:
         specifier: ^4.59.0
