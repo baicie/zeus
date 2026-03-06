@@ -156,11 +156,33 @@ export function setProperty(node: Element, name: string, value: any): void {
   ;(node as any)[name] = value
 }
 
-export function className(node: Element, value: string): void {
-  node.className = value
+export function className(node: Element, value: string | (() => string)): void {
+  if (typeof value === 'function') {
+    effect(() => {
+      node.className = value()
+    })
+  } else {
+    node.className = value
+  }
 }
 
 export function style(
+  node: HTMLElement,
+  value:
+    | string
+    | Record<string, string>
+    | (() => string | Record<string, string>),
+): void {
+  if (typeof value === 'function') {
+    effect(() => {
+      applyStyle(node, value())
+    })
+  } else {
+    applyStyle(node, value)
+  }
+}
+
+function applyStyle(
   node: HTMLElement,
   value: string | Record<string, string>,
 ): void {

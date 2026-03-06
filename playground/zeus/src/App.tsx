@@ -1,26 +1,65 @@
-import { signal } from '@zeus-js/core'
-import styles from './App.module.css'
+import { RouterView } from '@zeus-js/router'
+import { effect } from '@zeus-js/core'
+import router from './router'
+
+interface NavItem {
+  path: string
+  icon: string
+  label: string
+  desc: string
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { path: '/', icon: '🏠', label: 'Home', desc: 'Overview' },
+  { path: '/counter', icon: '🔢', label: 'Counter', desc: 'signal()' },
+  {
+    path: '/conditional',
+    icon: '🔀',
+    label: 'Conditional',
+    desc: 'branch rendering',
+  },
+  { path: '/list', icon: '📋', label: 'List Render', desc: 'array mapping' },
+  {
+    path: '/binding',
+    icon: '✏️',
+    label: 'Two-way Bind',
+    desc: 'reactive input',
+  },
+  { path: '/computed', icon: '⚡', label: 'Computed', desc: 'derived state' },
+]
+
+function NavLink(props: NavItem): HTMLAnchorElement {
+  const a = document.createElement('a')
+  a.href = '#' + props.path
+  a.className = 'nav-link'
+  a.innerHTML = '<span class="nav-icon">' + props.icon + '</span>' + props.label
+
+  // Reactively toggle active class based on current route
+  effect(function () {
+    const current = router.currentRoute.path
+    if (current === props.path) {
+      a.classList.add('active')
+    } else {
+      a.classList.remove('active')
+    }
+  })
+
+  return a
+}
 
 function App() {
-  const count = signal(0)
   return (
-    <>
-      <h1 style={{ color: 'red' }}>Vite + Zeus</h1>
-      <div class="card" className={styles.card}>
-        <button
-          onClick={() => {
-            count(count() + 1)
-            console.log(count())
-          }}
-        >
-          count is {count()}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p class="read-the-docs">Click on the Zeus logos to learn more</p>
-    </>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <h1>⚡ Zeus</h1>
+          <p>Framework Demo</p>
+        </div>
+        <div class="nav-section">Navigation</div>
+        {NAV_ITEMS.map(item => NavLink(item))}
+      </aside>
+      <main class="content">{RouterView({})}</main>
+    </div>
   )
 }
 

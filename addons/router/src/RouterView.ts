@@ -1,4 +1,4 @@
-import { effect } from '@zeus-js/signal'
+import { effect, setActiveSub } from '@zeus-js/signal'
 import type { RouteComponent, RouterViewProps } from './types'
 import { getCurrentRouter } from './router'
 
@@ -44,8 +44,15 @@ export function RouterView(props?: RouterViewProps): Node {
 
     if (!component) return
 
-    // Render the matched component with route params as props
+    // Render the component in an untracked context so that any signal reads
+    // that happen during component setup (e.g. non-reactive JSX expressions
+    // compiled by Zeus) do not get tracked by this route-change effect.
+    // Without this, updating a local signal inside a component would cause
+    // the route effect to re-run, destroying and recreating the component.
+    const prevSub = setActiveSub(undefined)
     const rendered = component(route.params)
+    setActiveSub(prevSub)
+
     if (!rendered) return
 
     currentNode = rendered

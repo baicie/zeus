@@ -5,206 +5,223 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Zeus Framework Demo</title>
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
+      *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+      :root {
+        --sidebar-w: 220px;
+        --accent: #7c6fe0;
+        --accent-dark: #5a4fcf;
+        --bg: #f4f5fb;
+        --card-bg: #fff;
+        --text: #1e1e2e;
+        --muted: #6b7280;
+        --border: #e5e7eb;
+        --radius: 12px;
+        --shadow: 0 2px 12px rgba(0,0,0,.08);
       }
 
-      body {
-        font-family:
-          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        line-height: 1.6;
-        color: #333;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        min-height: 100vh;
-      }
+      html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
 
-      .app {
-        max-width: 800px;
-        margin: 0 auto;
+      /* ─── Layout ─── */
+      .layout { display: flex; min-height: 100vh; }
+
+      /* ─── Sidebar ─── */
+      .sidebar {
+        width: var(--sidebar-w);
+        flex-shrink: 0;
+        background: #1e1e2e;
+        color: #cdd6f4;
+        display: flex;
+        flex-direction: column;
+        padding: 0 0 1rem;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        overflow-y: auto;
+      }
+      .sidebar-brand {
+        padding: 1.5rem 1.25rem 1rem;
+        border-bottom: 1px solid #313244;
+        margin-bottom: .5rem;
+      }
+      .sidebar-brand h1 { font-size: 1.4rem; color: #cba6f7; letter-spacing: .02em; }
+      .sidebar-brand p  { font-size: .72rem; color: #6c7086; margin-top: .2rem; }
+
+      .nav-section { padding: .5rem 1rem .25rem; font-size: .65rem; text-transform: uppercase; letter-spacing: .08em; color: #45475a; }
+      .nav-link {
+        display: flex;
+        align-items: center;
+        gap: .55rem;
+        padding: .55rem 1.25rem;
+        font-size: .88rem;
+        color: #a6adc8;
+        text-decoration: none;
+        border-radius: 0 8px 8px 0;
+        margin-right: .75rem;
+        transition: background .15s, color .15s;
+      }
+      .nav-link:hover { background: #313244; color: #cdd6f4; }
+      .nav-link.active { background: #45475a; color: #cba6f7; font-weight: 600; }
+      .nav-icon { font-size: 1rem; width: 1.2rem; text-align: center; }
+
+      /* ─── Content ─── */
+      .content { flex: 1; overflow-y: auto; padding: 2rem; min-width: 0; }
+
+      /* ─── Demo Card ─── */
+      .demo-card {
+        background: var(--card-bg);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
         padding: 2rem;
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        margin-top: 2rem;
-        margin-bottom: 2rem;
+        max-width: 720px;
       }
-
-      header {
-        text-align: center;
-        margin-bottom: 3rem;
-        padding-bottom: 2rem;
-        border-bottom: 2px solid #f0f0f0;
-      }
-
-      h1 {
-        color: #2c3e50;
-        margin-bottom: 0.5rem;
-        font-size: 2.5rem;
-      }
-
-      header p {
-        color: #7f8c8d;
-        font-size: 1.1rem;
-      }
-
-      main {
-        display: grid;
-        gap: 3rem;
-      }
-
-      /* Counter Styles */
-      .counter {
-        text-align: center;
-        padding: 2rem;
-        background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
-        border-radius: 12px;
-        color: white;
-      }
-
-      .count-display {
+      .demo-card h2 {
         font-size: 1.5rem;
-        margin: 1.5rem 0;
-        font-weight: bold;
+        margin-bottom: .35rem;
+        color: var(--text);
       }
-
-      .buttons {
-        display: flex;
-        gap: 1rem;
-        justify-content: center;
-        margin-top: 1.5rem;
+      .demo-card .subtitle {
+        color: var(--muted);
+        font-size: .875rem;
+        margin-bottom: 1.75rem;
+        padding-bottom: 1.25rem;
+        border-bottom: 1px solid var(--border);
       }
+      .section { margin-top: 1.75rem; }
+      .section h3 { font-size: 1rem; margin-bottom: 1rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-size: .78rem; }
 
-      .buttons button {
-        padding: 0.75rem 1.5rem;
+      /* ─── Buttons ─── */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        padding: .55rem 1.1rem;
         border: none;
         border-radius: 8px;
-        font-size: 1.2rem;
-        font-weight: bold;
+        font-size: .875rem;
+        font-weight: 600;
         cursor: pointer;
-        transition: all 0.3s ease;
-        background: rgba(255, 255, 255, 0.2);
-        color: white;
-        border: 2px solid rgba(255, 255, 255, 0.3);
+        transition: opacity .15s, transform .1s;
       }
+      .btn:hover { opacity: .88; }
+      .btn:active { transform: scale(.97); }
+      .btn-primary   { background: var(--accent); color: #fff; }
+      .btn-secondary { background: #e8e8f0; color: var(--text); }
+      .btn-danger    { background: #f38ba8; color: #fff; }
+      .btn-success   { background: #a6e3a1; color: #1e1e2e; }
+      .btn-group { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: 1rem; }
 
-      .buttons button:hover {
-        background: rgba(255, 255, 255, 0.3);
-        transform: translateY(-2px);
-      }
-
-      /* Todo Styles */
-      .todo-app {
-        padding: 2rem;
-        background: linear-gradient(135deg, #a8e6cf 0%, #4ecdc4 100%);
-        border-radius: 12px;
-        color: #2c3e50;
-      }
-
-      .todo-app h2 {
-        text-align: center;
-        margin-bottom: 1.5rem;
-        color: #2c3e50;
-      }
-
-      .add-todo {
-        display: flex;
-        gap: 0.5rem;
-        margin-bottom: 1.5rem;
-      }
-
-      .add-todo input {
-        flex: 1;
-        padding: 0.75rem;
-        border: 2px solid #ddd;
+      /* ─── Inputs ─── */
+      .field { display: flex; flex-direction: column; gap: .4rem; margin-bottom: 1rem; }
+      .field label { font-size: .8rem; font-weight: 600; color: var(--muted); }
+      input[type="text"], input[type="number"], input:not([type]) {
+        padding: .6rem .85rem;
+        border: 1.5px solid var(--border);
         border-radius: 8px;
-        font-size: 1rem;
-        transition: border-color 0.3s ease;
-      }
-
-      .add-todo input:focus {
+        font-size: .9rem;
         outline: none;
-        border-color: #4ecdc4;
+        transition: border-color .15s;
+        width: 100%;
+        background: #fafafa;
+      }
+      input:focus { border-color: var(--accent); background: #fff; }
+      .input-row { display: flex; gap: .6rem; align-items: center; }
+      .input-row input { flex: 1; }
+
+      /* ─── Tags / Chips ─── */
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        padding: .25rem .7rem;
+        border-radius: 999px;
+        font-size: .78rem;
+        font-weight: 600;
+        gap: .35rem;
+      }
+      .chip-purple { background: #f0ebff; color: #7c6fe0; }
+      .chip-green  { background: #edfdf4; color: #16a34a; }
+      .chip-red    { background: #fff0f0; color: #ef4444; }
+
+      /* ─── Counter Display ─── */
+      .count-display {
+        font-size: 4rem;
+        font-weight: 700;
+        text-align: center;
+        color: var(--accent);
+        padding: 1rem 0;
+        font-variant-numeric: tabular-nums;
       }
 
-      .add-todo button {
-        padding: 0.75rem 1.5rem;
-        background: #4ecdc4;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: all 0.3s ease;
+      /* ─── Toggle panel ─── */
+      .panel {
+        padding: 1.25rem;
+        border-radius: var(--radius);
+        border: 1.5px solid var(--border);
+        margin-top: .75rem;
       }
+      .panel-light { background: #fffbe6; border-color: #fcd34d; }
+      .panel-dark  { background: #1e1e2e; color: #cdd6f4; border-color: #45475a; }
 
-      .add-todo button:hover {
-        background: #45b7aa;
-        transform: translateY(-1px);
-      }
-
-      .todo-list {
-        list-style: none;
-      }
-
+      /* ─── Todo list ─── */
+      .todo-list { list-style: none; display: flex; flex-direction: column; gap: .5rem; margin-top: 1rem; }
       .todo-item {
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        padding: 1rem;
-        background: rgba(255, 255, 255, 0.8);
+        gap: .75rem;
+        padding: .7rem 1rem;
+        background: #f9f9fc;
         border-radius: 8px;
-        margin-bottom: 0.5rem;
-        backdrop-filter: blur(10px);
+        border: 1px solid var(--border);
       }
+      .todo-text { flex: 1; font-size: .9rem; }
+      .todo-text.done { text-decoration: line-through; color: var(--muted); }
+      .todo-check { cursor: pointer; width: 1.15rem; height: 1.15rem; accent-color: var(--accent); }
 
-      .remove-btn {
-        background: #e74c3c;
-        color: white;
-        border: none;
-        border-radius: 50%;
-        width: 30px;
-        height: 30px;
+      /* ─── Reactive preview ─── */
+      .preview-box {
+        padding: 1rem 1.25rem;
+        border-radius: 8px;
+        background: #f6f5ff;
+        border: 1.5px solid #e0dbff;
+        margin-top: .75rem;
+        font-size: .9rem;
+      }
+      .preview-box strong { color: var(--accent); }
+      .char-count { font-size: .78rem; color: var(--muted); margin-top: .3rem; }
+
+      /* ─── Computed table ─── */
+      .calc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin-bottom: 1rem; }
+      .result-table { width: 100%; border-collapse: collapse; margin-top: .75rem; }
+      .result-table td { padding: .6rem .85rem; font-size: .9rem; border-bottom: 1px solid var(--border); }
+      .result-table tr:last-child td { border-bottom: none; font-weight: 700; color: var(--accent); }
+      .result-table td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+
+      /* ─── Home cards ─── */
+      .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+      .feature-card {
+        padding: 1.25rem;
+        border-radius: var(--radius);
+        border: 1.5px solid var(--border);
+        text-decoration: none;
+        color: var(--text);
+        background: var(--card-bg);
+        transition: box-shadow .15s, transform .15s;
         cursor: pointer;
-        font-size: 1.2rem;
-        transition: all 0.3s ease;
       }
+      .feature-card:hover { box-shadow: 0 6px 20px rgba(124,111,224,.15); transform: translateY(-2px); }
+      .feature-card .icon { font-size: 2rem; margin-bottom: .5rem; }
+      .feature-card h3 { font-size: .95rem; margin-bottom: .25rem; }
+      .feature-card p  { font-size: .78rem; color: var(--muted); }
 
-      .remove-btn:hover {
-        background: #c0392b;
-        transform: scale(1.1);
-      }
-
-      footer {
-        text-align: center;
-        margin-top: 2rem;
-        padding: 1rem;
-        color: #7f8c8d;
-        font-size: 0.9rem;
-      }
-
-      /* Responsive */
-      @media (max-width: 600px) {
-        .app {
-          margin: 1rem;
-          padding: 1rem;
-        }
-
-        .buttons {
-          flex-direction: column;
-          align-items: center;
-        }
-
-        .add-todo {
-          flex-direction: column;
-        }
-
-        .todo-item {
-          flex-direction: column;
-          gap: 0.5rem;
-          align-items: flex-start;
-        }
+      /* ─── Responsive ─── */
+      @media (max-width: 640px) {
+        .layout { flex-direction: column; }
+        .sidebar { width: 100%; height: auto; position: static; flex-direction: row; flex-wrap: wrap; padding: .5rem; }
+        .sidebar-brand { display: none; }
+        .nav-section { display: none; }
+        .nav-link { padding: .4rem .8rem; border-radius: 8px; margin: 0; }
+        .content { padding: 1rem; }
+        .calc-grid { grid-template-columns: 1fr; }
       }
     </style>
   </head>

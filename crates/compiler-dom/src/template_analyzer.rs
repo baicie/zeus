@@ -328,32 +328,106 @@ impl<'s> TemplateAnalyzer<'s> {
             JSXExpression::BigIntLiteral(lit) => {
                 lit.raw.as_ref().map(|r| r.to_string()).unwrap_or_else(|| lit.value.to_string())
             }
-            JSXExpression::RegExpLiteral(lit) => {
-                self.extract_source_span(lit.span)
+            JSXExpression::RegExpLiteral(lit) => self.extract_source_span(lit.span),
+            JSXExpression::StringLiteral(lit) => format!("\"{}\"", lit.value),
+            JSXExpression::TemplateLiteral(lit) => self.extract_source_span(lit.span),
+            // Simple signal / function call: strip `()` so the runtime receives a
+            // reactive accessor and can wrap it in effect().
+            JSXExpression::CallExpression(call) => self.extract_call_expression(call),
+            // JSX component/element in direct expression position: {<Comp />}
+            JSXExpression::JSXElement(elem) => self.compile_expression_child(elem),
+            // Logical AND/OR: {cond() && <Comp />}
+            // Wrap the whole expression in an arrow function so insert() creates a
+            // reactive effect and the branch updates when signals change.
+            JSXExpression::LogicalExpression(logic) => {
+                let left = self.extract_source_span(logic.left.span());
+                let op = match logic.operator {
+                    LogicalOperator::And => "&&",
+                    LogicalOperator::Or => "||",
+                    LogicalOperator::Coalesce => "??",
+                };
+                let right = self.compile_expression_value(&logic.right);
+                format!("() => {} {} {}", left, op, right)
             }
-            JSXExpression::StringLiteral(lit) => {
-                format!("\"{}\"", lit.value)
+            // Ternary: {cond() ? <A /> : <B />}
+            // Same wrapping for reactivity.
+            JSXExpression::ConditionalExpression(cond) => {
+                let test = self.extract_source_span(cond.test.span());
+                let consequent = self.compile_expression_value(&cond.consequent);
+                let alternate = self.compile_expression_value(&cond.alternate);
+                format!("() => {} ? {} : {}", test, consequent, alternate)
             }
-            JSXExpression::TemplateLiteral(lit) => {
-                self.extract_source_span(lit.span)
-            }
-            // For CallExpression, we want to return just the function (not the call)
-            // so that the runtime can track dependencies properly
-            JSXExpression::CallExpression(call) => {
-                self.extract_call_expression(call)
-            }
-            // For all other expressions, use span extraction
+            // All other expressions: use raw span extraction
             _ => {
                 let span = match expr {
                     JSXExpression::Identifier(id) => id.span,
                     JSXExpression::MetaProperty(mp) => mp.span,
-                    _ => {
-                        // Use the general approach: get span from the expression
-                        self.extract_expr_span(expr)
-                    }
+                    _ => self.extract_expr_span(expr),
                 };
                 self.extract_source_span(span)
             }
+        }
+    }
+
+    /// Compile an `Expression` node that may contain JSX.
+    /// Used for the branches of logical / conditional expressions.
+    fn compile_expression_value(&self, expr: &Expression<'_>) -> String {
+        match expr {
+            Expression::JSXElement(elem) => self.compile_expression_child(elem),
+            _ => self.extract_source_span(expr.span()),
+        }
+    }
+
+    /// Compile a `JSXElement` that appears in an expression (not as a direct JSX child).
+    /// Components become direct function calls; native elements keep raw source for now.
+    fn compile_expression_child(&self, elem: &JSXElement<'_>) -> String {
+        let tag_name = TemplateAnalyzer::get_tag_name(elem);
+        if TemplateAnalyzer::is_component(&tag_name) {
+            self.compile_component_inline(elem, &tag_name)
+        } else {
+            self.extract_source_span(elem.span())
+        }
+    }
+
+    /// Generate a direct function-call expression for a component JSX element.
+    ///
+    /// `<MyComp foo="bar" baz={expr} />` → `MyComp({ foo: "bar", baz: expr })`
+    fn compile_component_inline(&self, element: &JSXElement<'_>, component_name: &str) -> String {
+        let mut props: Vec<String> = Vec::new();
+        for attr in &element.opening_element.attributes {
+            match attr {
+                JSXAttributeItem::Attribute(attr) => {
+                    let prop_name = match &attr.name {
+                        JSXAttributeName::Identifier(ident) => ident.name.as_str().to_string(),
+                        _ => continue,
+                    };
+                    let prop_value = match &attr.value {
+                        Some(JSXAttributeValue::StringLiteral(s)) => {
+                            format!("\"{}\"", s.value)
+                        }
+                        Some(JSXAttributeValue::ExpressionContainer(expr_c)) => {
+                            match &expr_c.expression {
+                                JSXExpression::EmptyExpression(_) => continue,
+                                e => self.extract_source_span(e.span()),
+                            }
+                        }
+                        None => "true".to_string(),
+                        _ => continue,
+                    };
+                    props.push(format!("{}: {}", prop_name, prop_value));
+                }
+                JSXAttributeItem::SpreadAttribute(spread) => {
+                    props.push(format!(
+                        "...{}",
+                        self.extract_source_span(spread.argument.span())
+                    ));
+                }
+            }
+        }
+        if props.is_empty() {
+            format!("{}({{}})", component_name)
+        } else {
+            format!("{}({{ {} }})", component_name, props.join(", "))
         }
     }
 

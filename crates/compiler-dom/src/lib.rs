@@ -289,6 +289,28 @@ mod tests {
     }
 
     #[test]
+    fn test_component_in_logical_and() {
+        let code = compile(r#"const App = () => <div>{show() && <Panel />}</div>"#);
+        println!("Component in logical AND output:\n{}", code);
+        assert!(code.contains("insert"), "Should have insert() call");
+        assert!(code.contains("&&"), "Should contain &&");
+        assert!(code.contains("Panel({})"), "Should call Panel as function, not React.createElement");
+        assert!(!code.contains("React.createElement"), "Must not produce React.createElement");
+        assert!(code.contains("() =>"), "Should wrap in arrow fn for reactivity");
+    }
+
+    #[test]
+    fn test_component_in_ternary() {
+        let code = compile(r#"const App = () => <div>{theme() === 'light' ? <Light /> : <Dark />}</div>"#);
+        println!("Component in ternary output:\n{}", code);
+        assert!(code.contains("insert"), "Should have insert() call");
+        assert!(code.contains("Light({})"), "Should call Light as function");
+        assert!(code.contains("Dark({})"), "Should call Dark as function");
+        assert!(!code.contains("React.createElement"), "Must not produce React.createElement");
+        assert!(code.contains("() =>"), "Should wrap in arrow fn for reactivity");
+    }
+
+    #[test]
     fn test_fragment_with_event() {
         let code = compile(r#"function App() { return (<><button onClick={() => alert("hi")}>Click</button></>) }"#);
         println!("Fragment with event output:\n{}", code);

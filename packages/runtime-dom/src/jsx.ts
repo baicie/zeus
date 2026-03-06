@@ -77,7 +77,7 @@ export interface DOMAttributes<T = Element> {
 
   // Form events
   onChange?: DOMEventHandler<T, Event>
-  onInput?: DOMEventHandler<T, Event>
+  onInput?: DOMEventHandler<T, InputEvent>
   onInvalid?: DOMEventHandler<T, Event>
   onReset?: DOMEventHandler<T, Event>
   onSubmit?: DOMEventHandler<T, Event>

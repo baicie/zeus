@@ -1,7 +1,7 @@
 {
   "name": "zeus-demo",
   "version": "1.0.0",
-  "description": "Zeus Framework Demo",
+  "description": "Zeus Framework Comprehensive Demo",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,7 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@zeus-js/core": "workspace:*"
+    "@zeus-js/core": "workspace:*",
+    "@zeus-js/router": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^25.3.5",

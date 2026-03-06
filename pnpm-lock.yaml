@@ -383,6 +383,9 @@ importers:
       '@zeus-js/core':
         specifier: workspace:*
         version: link:../../packages/zeus
+      '@zeus-js/router':
+        specifier: workspace:*
+        version: link:../../addons/router
     devDependencies:
       '@types/node':
         specifier: ^25.3.5

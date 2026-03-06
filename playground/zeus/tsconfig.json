@@ -10,8 +10,7 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
-    "jsx": "react-jsx",
-    "jsxImportSource": "@zeus-js/core",
+    "jsx": "preserve",
     "types": ["vite/client"],
     "baseUrl": ".",
     "paths": {

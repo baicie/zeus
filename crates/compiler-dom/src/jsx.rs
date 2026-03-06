@@ -298,7 +298,12 @@ impl<'s> JsxCompiler<'s> {
         }
 
         // Generate hoisted template declaration
-        let escaped_html = ir.html.replace('\\', "\\\\").replace('"', "\\\"");
+        let escaped_html = ir
+            .html
+            .replace('\\', "\\\\")
+            .replace('"', "\\\"")
+            .replace('\n', "\\n")
+            .replace('\r', "\\r");
         self.hoisted.push(format!(
             "const {} = template(\"{}\");",
             ir.template_var, escaped_html
@@ -390,7 +395,12 @@ impl<'s> JsxCompiler<'s> {
                             self.add_helper("delegateEvents");
                         }
                         
-                        let escaped_html = ir.html.replace('\\', "\\\\").replace('"', "\\\"");
+                        let escaped_html = ir
+                            .html
+                            .replace('\\', "\\\\")
+                            .replace('"', "\\\"")
+                            .replace('\n', "\\n")
+                            .replace('\r', "\\r");
                         let template_var = format!("_tmpl${}", self.hoisted.len());
                         self.hoisted.push(format!(
                             "const {} = template(\"{}\");",
