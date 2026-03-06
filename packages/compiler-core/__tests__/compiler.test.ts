@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { compiler } from '@zeus-js/compiler-core'
 
-describe('Compiler Core', () => {
-  // ... existing tests ...
-})
-
 describe('Compiler Slots', () => {
   describe('Slot Compilation', () => {
     it('should compile basic slot element', () => {
