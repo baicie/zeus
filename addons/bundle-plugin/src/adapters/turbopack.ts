@@ -61,7 +61,7 @@ export function createTurbopackConfig(
 /**
  * 独立的Turbopack loader
  */
-export function turbopackLoader(source: string, context: any) {
+export function turbopackLoader(source: string, context: any): void {
   const options = context.getOptions()
   const compiler = new ZeusCompiler(options)
 

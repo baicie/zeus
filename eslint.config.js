@@ -113,6 +113,24 @@ export default defineConfig(
     },
   },
 
+  // Addons targeting browsers (e.g. router)
+  {
+    files: ['addons/router/**'],
+    rules: {
+      'no-restricted-globals': ['error', ...NodeGlobals],
+    },
+  },
+
+  // Addons targeting Node / build tools (e.g. bundle-plugin)
+  {
+    files: ['addons/bundle-plugin/**'],
+    rules: {
+      'no-restricted-globals': ['error', ...DOMGlobals],
+      'no-restricted-syntax': ['error', banConstEnum],
+      'no-console': 'off',
+    },
+  },
+
   // Packages targeting Node
   {
     files: ['packages/compiler-*/**'],
@@ -159,11 +177,32 @@ export default defineConfig(
       './*.{js,ts}',
       'packages/*/*.js',
       'packages/{zeus,runtime-core,runtime-dom}/*/*.js',
+      // addon-level config and entry files
+      'addons/*/*.{js,ts}',
+      'addons/*/rolldown.config.ts',
     ],
     rules: {
       'no-restricted-globals': 'off',
       'no-restricted-syntax': ['error', banConstEnum],
       'no-console': 'off',
+    },
+  },
+
+  // addons tests
+  {
+    files: ['addons/**/__tests__/**'],
+    plugins: { vitest },
+    languageOptions: {
+      globals: {
+        ...vitest.environments.env.globals,
+      },
+    },
+    rules: {
+      'no-console': 'off',
+      'no-restricted-globals': 'off',
+      'no-restricted-syntax': 'off',
+      'vitest/no-disabled-tests': 'error',
+      'vitest/no-focused-tests': 'error',
     },
   },
 

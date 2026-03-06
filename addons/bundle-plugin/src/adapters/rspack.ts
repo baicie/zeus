@@ -34,7 +34,7 @@ export class RspackZeusPlugin implements RspackPluginInstance {
     this.options = options
   }
 
-  apply(_compiler: RspackCompiler) {
+  apply(_compiler: RspackCompiler): void {
     // 添加loader
     _compiler.options.module?.rules?.push({
       test: /\.(jsx|tsx|js|ts)$/,

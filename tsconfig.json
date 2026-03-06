@@ -22,7 +22,7 @@
     "types": ["vitest/globals", "puppeteer", "node"],
     "rootDir": ".",
     "paths": {
-      "@zeus-js/*": ["packages/*/src"]
+      "@zeus-js/*": ["packages/*/src", "addons/*/src"]
     },
     "isolatedDeclarations": true,
     "composite": true,
@@ -33,6 +33,8 @@
     "packages/*/src",
     "packages/*/__tests__",
     "packages/zeus/jsx-runtime",
+    "addons/*/src",
+    "addons/*/__tests__",
     "playground/benchmarks",
     "scripts/*",
     "rollup.*.js"

@@ -31,7 +31,7 @@ export class WebpackZeusPlugin {
     this.options = options
   }
 
-  apply(_compiler: WebpackCompiler) {
+  apply(_compiler: WebpackCompiler): void {
     // 监听文件变化
     _compiler.hooks.compilation.tap(
       'ZeusPlugin',

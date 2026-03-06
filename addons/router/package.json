@@ -1,0 +1,50 @@
+{
+  "name": "@zeus-js/router",
+  "version": "0.0.1",
+  "description": "Official router for Zeus framework",
+  "main": "index.js",
+  "module": "dist/router.esm-bundler.js",
+  "types": "dist/router.d.ts",
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/router.d.ts",
+      "node": {
+        "production": "./dist/router.cjs.prod.js",
+        "development": "./dist/router.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/router.esm-bundler.js",
+      "import": "./dist/router.esm-bundler.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
+  },
+  "scripts": {
+    "build": "rolldown -c rolldown.config.ts",
+    "dev": "rolldown -c rolldown.config.ts --watch",
+    "clean": "rimraf dist"
+  },
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baicie/zeus.git",
+    "directory": "addons/router"
+  },
+  "keywords": [
+    "zeus",
+    "router"
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/baicie/zeus/issues"
+  },
+  "homepage": "https://github.com/baicie/zeus/tree/main/addons/router#readme",
+  "dependencies": {
+    "@zeus-js/shared": "workspace:*",
+    "@zeus-js/signal": "workspace:*"
+  }
+}
