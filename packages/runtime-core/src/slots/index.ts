@@ -3,8 +3,6 @@
 // Light DOM 插槽实现
 // 用于在 Light DOM 模式下渲染父组件传递的插槽内容
 
-import { signal } from '@zeus-js/signal'
-
 // 插槽内容类型
 export type SlotContent = Node | (() => Node) | null | undefined
 
@@ -26,35 +24,6 @@ type SlotSignal = {
 
 // 作用域插槽注册
 const slotScopeStack: Map<string, SlotSignal>[] = []
-
-/**
- * 开始插槽作用域
- * 在组件渲染前调用，注册该组件的插槽
- */
-export function beginSlotScope(slots: Map<string, SlotSignal>): void {
-  slotScopeStack.push(slots)
-}
-
-/**
- * 结束插槽作用域
- * 在组件渲染后调用，清理插槽注册
- */
-export function endSlotScope(): void {
-  slotScopeStack.pop()
-}
-
-/**
- * 注册插槽内容
- * @param name 插槽名称，undefined 表示默认插槽
- * @param content 插槽内容
- */
-export function setSlot(name: string | undefined, content: SlotContent): void {
-  const slotName = name || 'default'
-  const currentScope = slotScopeStack[slotScopeStack.length - 1]
-  if (currentScope) {
-    currentScope.set(slotName, signal(content))
-  }
-}
 
 /**
  * 渲染插槽
@@ -81,7 +50,6 @@ export function renderSlot(
     }
   }
 
-  // 渲染回退内容
   if (fallback) {
     if (typeof fallback === 'function') {
       return fallback()
@@ -99,67 +67,4 @@ export function renderSlot(
 export function Slot(props: SlotProps): Node | null {
   const { name, fallback } = props
   return renderSlot(name, fallback) as Node | null
-}
-
-/**
- * 创建插槽组件包装器
- * 用于在父组件中将插槽内容传递给子组件
- */
-export function createSlot(
-  name: string | undefined,
-  content: SlotContent,
-): () => Node | null {
-  return () => renderSlot(name, content)
-}
-
-/**
- * 将 children 转换为插槽内容
- */
-export function normalizeChildren(
-  children?: SlotContent | SlotContent[],
-): SlotContent[] {
-  if (!children) return []
-  if (Array.isArray(children)) return children
-  return [children]
-}
-
-/**
- * 检查值是否为有效的插槽内容
- */
-export function isValidSlotContent(content: any): boolean {
-  if (content === null || content === undefined) return false
-  if (typeof content === 'function') return true
-  if (content instanceof Node) return false
-  return false
-}
-
-// ============================================
-// DOM-specific slot utilities
-// ============================================
-
-import { effect } from '@zeus-js/signal'
-
-/**
- * 创建插槽上下文（DOM 特有）
- */
-export function createSlotContext(): Map<string, SlotSignal | any> {
-  return new Map()
-}
-
-/**
- * 动态插槽渲染（DOM 特有）
- * 用于响应式插槽内容
- */
-export function DynamicSlot(props: {
-  name?: string
-  getter: () => any
-}): Node | Node[] | null {
-  let currentValue: any = null
-
-  effect(() => {
-    const newValue = props.getter()
-    currentValue = newValue
-  })
-
-  return currentValue
 }

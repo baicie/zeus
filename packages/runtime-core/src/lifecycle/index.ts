@@ -33,16 +33,6 @@ export function enterLifecycleScope(): void {
   currentLifecycle = scope
 }
 
-export function exitLifecycleScope(): LifecycleHooks | null {
-  const scope = lifecycleStack.pop()
-  currentLifecycle = lifecycleStack[lifecycleStack.length - 1] || null
-  return scope || null
-}
-
-export function getCurrentLifecycle(): LifecycleHooks | null {
-  return currentLifecycle
-}
-
 // 生命周期钩子函数
 export function onMounted(callback: () => void): void {
   if (currentLifecycle) {
@@ -78,14 +68,6 @@ export function onBeforeUnmount(callback: () => void): void {
   if (currentLifecycle) {
     currentLifecycle.onBeforeUnmount.push(callback)
   }
-}
-
-// 执行生命周期钩子
-export function invokeLifecycleHooks(
-  hooks: LifecycleHooks,
-  type: keyof LifecycleHooks,
-): void {
-  hooks[type].forEach(callback => callback())
 }
 
 // 响应式效果

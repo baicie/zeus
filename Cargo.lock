@@ -1478,14 +1478,9 @@ dependencies = [
 name = "zeus-compiler-core"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "oxc",
  "oxc_allocator",
- "oxc_ecmascript",
- "oxc_traverse",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
+ "zeus-compiler-common",
 ]
 
 [[package]]
@@ -1508,15 +1503,11 @@ name = "zeus-compiler-ssr"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "futures",
  "oxc",
  "oxc_allocator",
- "oxc_ecmascript",
- "oxc_traverse",
  "serde",
  "serde_json",
  "thiserror 2.0.17",
- "tokio",
  "zeus-compiler-core",
  "zeus-compiler-dom",
 ]

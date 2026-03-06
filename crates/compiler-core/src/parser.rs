@@ -1,13 +1,17 @@
 //! Parser module for Zeus Compiler Core
 //!
-//! This module provides parsing functionality using oxc parser.
+//! Provides parsing via oxc. Use `parse_source` to obtain a typed AST
+//! that can be visited by downstream compiler crates.
 
 use oxc::allocator::Allocator;
 use oxc::diagnostics::OxcDiagnostic;
 use oxc::parser::Parser;
 use oxc::span::SourceType;
 
-/// Parse source code into AST
+/// Parse source code into an oxc AST program.
+///
+/// Returns `Ok(program)` when there are no parse errors, or
+/// `Err(diagnostics)` containing all reported errors otherwise.
 pub fn parse_source<'a>(
     allocator: &'a Allocator,
     source: &'a str,
@@ -21,26 +25,4 @@ pub fn parse_source<'a>(
     } else {
         Err(result.errors)
     }
-}
-
-/// Parse JavaScript/TypeScript source code with default settings
-pub fn parse_js(source: &str) -> Result<String, Vec<OxcDiagnostic>> {
-    let allocator = Allocator::default();
-    let result = parse_source(&allocator, source, SourceType::default())?;
-    // Convert AST to string representation for now
-    Ok(format!("{:?}", result))
-}
-
-/// Parse JSX source code
-pub fn parse_jsx(source: &str) -> Result<String, Vec<OxcDiagnostic>> {
-    let allocator = Allocator::default();
-    let result = parse_source(&allocator, source, SourceType::jsx())?;
-    Ok(format!("{:?}", result))
-}
-
-/// Parse TypeScript source code
-pub fn parse_typescript(source: &str) -> Result<String, Vec<OxcDiagnostic>> {
-    let allocator = Allocator::default();
-    let result = parse_source(&allocator, source, SourceType::ts())?;
-    Ok(format!("{:?}", result))
 }

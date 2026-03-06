@@ -16,13 +16,3 @@ export function addEventListener(
   // 返回清理函数 / Return cleanup function
   return () => el.removeEventListener(event, handler)
 }
-
-// 移除事件监听器 / Remove event listener
-export function removeEventListener(
-  el: Element | Window | Document,
-  event: string,
-  handler: EventHandler,
-): void {
-  // 解绑事件 / Unbind event
-  el.removeEventListener(event, handler)
-}

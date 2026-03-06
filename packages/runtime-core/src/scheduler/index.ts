@@ -111,38 +111,6 @@ function flushJobs(): void {
   }
 }
 
-// 任务优先级枚举
-export enum SchedulerJobFlags {
-  /**
-   * 同步任务
-   */
-  SYNC = 1,
-  /**
-   * 组件更新任务
-   */
-  COMPONENT_UPDATE = 1 << 1,
-  /**
-   * 渲染任务
-   */
-  RENDER = 1 << 2,
-  /**
-   * 后刷新任务
-   */
-  POST_FLUSH = 1 << 3,
-}
-
-// 带优先级的任务队列
-export function queueJobWithPriority(
-  job: SchedulerJob,
-  priority: SchedulerJobFlags = SchedulerJobFlags.SYNC,
-): void {
-  if (priority & SchedulerJobFlags.POST_FLUSH) {
-    queuePostFlushCb(job)
-  } else {
-    queueJob(job)
-  }
-}
-
 // 重置调度器状态（主要用于测试）
 export function resetScheduler(): void {
   schedulerState = createSchedulerState()

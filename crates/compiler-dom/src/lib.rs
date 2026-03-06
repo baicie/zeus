@@ -5,12 +5,12 @@
 //!
 //! Uses string-based code generation instead of AST manipulation for simplicity.
 
-pub mod dom_transforms;
-pub mod event_handlers;
 pub mod jsx;
-pub mod optimizations;
 pub mod template_analyzer;
 pub mod template_ir;
+
+#[cfg(test)]
+mod ast_test;
 
 use oxc::allocator::Allocator;
 use oxc::diagnostics::OxcDiagnostic;

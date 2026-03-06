@@ -1,12 +1,9 @@
 //! Zeus Compiler SSR
 //!
-//! This crate provides server-side rendering compilation functionality for the Zeus framework.
-//! It handles component rendering, hydration code generation, and server-specific optimizations.
+//! Provides server-side rendering compilation for the Zeus framework.
+//! Handles hydration code generation for client-side pickup of SSR output.
 
-pub mod renderer;
 pub mod hydration;
-pub mod streaming;
-pub mod data_fetching;
 
 use zeus_compiler_core::CompilerOptions;
 use zeus_compiler_dom::DomCompiler;
@@ -68,13 +65,15 @@ impl SsrCompiler {
     }
 
     /// Compile component for server-side rendering
-    pub fn compile_for_ssr(&self, _source: &str, options: &SsrCompilerOptions) -> Result<SsrResult, OxcDiagnostic> {
+    pub fn compile_for_ssr(
+        &self,
+        _source: &str,
+        options: &SsrCompilerOptions,
+    ) -> Result<SsrResult, OxcDiagnostic> {
         // TODO: Use DomCompiler to compile JSX for SSR
         // TODO: Analyze component for SSR compatibility
         // TODO: Generate server-side rendering code
-        // TODO: Generate hydration setup code
 
-        // For now, return a basic result
         Ok(SsrResult {
             html: "<!-- SSR Placeholder -->".to_string(),
             hydration_script: if options.hydration {
@@ -88,40 +87,31 @@ impl SsrCompiler {
     }
 
     /// Render component to HTML string
-    pub fn render_to_html(&self, component_code: &str, _props: Option<serde_json::Value>) -> Result<String, OxcDiagnostic> {
+    pub fn render_to_html(
+        &self,
+        component_code: &str,
+        _props: Option<serde_json::Value>,
+    ) -> Result<String, OxcDiagnostic> {
         // TODO: Execute component code on server and render to HTML
-        // This would require a JavaScript runtime or WebAssembly execution
-
         Ok(format!("<div><!-- Rendered: {} --></div>", component_code))
     }
 
-    /// Generate hydration code for client-side
+    /// Generate Zeus-compatible hydration code for the client
     pub fn generate_hydration_code(&self, component_name: &str) -> String {
-        format!(
-            r#"
-// Hydration code for {component_name}
-import {{ hydrate }} from 'react-dom/client';
-import {{ Component }} from './{component_name}';
-
-const root = document.getElementById('root');
-if (root) {{
-  hydrate(<Component />, root);
-}}
-"#,
-            component_name = component_name
-        )
+        hydration::HydrationGenerator::new()
+            .generate_hydration_script(component_name, "root")
     }
 
     /// Check if component is SSR-compatible
-    pub fn check_ssr_compatibility(&self, _source: &str) -> Result<Vec<String>, OxcDiagnostic> {
+    pub fn check_ssr_compatibility(
+        &self,
+        _source: &str,
+    ) -> Result<Vec<String>, OxcDiagnostic> {
         // TODO: Analyze code for SSR compatibility
-        // Check for browser-only APIs, side effects, etc.
-
         let warnings = vec![
             "Browser-only API usage detected".to_string(),
             "Side effects in component body".to_string(),
         ];
-
         Ok(warnings)
     }
 }
@@ -139,7 +129,6 @@ mod tests {
     #[test]
     fn test_ssr_compiler_creation() {
         let _compiler = SsrCompiler::new();
-        assert!(true); // Basic smoke test
     }
 
     #[test]
@@ -158,5 +147,13 @@ mod tests {
 
         let result = compiler.compile_for_ssr("console.log('hello');", &options);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_generate_hydration_code() {
+        let compiler = SsrCompiler::new();
+        let code = compiler.generate_hydration_code("App");
+        assert!(code.contains("createApp"));
+        assert!(code.contains("@zeus-js/runtime-dom"));
     }
 }

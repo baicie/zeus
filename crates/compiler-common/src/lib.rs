@@ -24,10 +24,7 @@ pub fn version() -> &'static str {
 // Common result type used across compiler crates is defined in error.rs
 
 /// Initialize the compiler common library
-pub fn init() {
-    // Initialize any global state if needed
-    println!("Zeus Compiler Common v{} initialized", version());
-}
+pub fn init() {}
 
 #[cfg(test)]
 mod tests {

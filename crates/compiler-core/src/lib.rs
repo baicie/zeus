@@ -1,18 +1,16 @@
 //! Zeus Compiler Core
 //!
-//! This crate provides the core compilation functionality for the Zeus framework.
-//! It includes parsing, semantic analysis, code generation capabilities, and diagnostics
-//! built on top of the oxc parser.
-//!
-//! This is a utility crate that provides common functionality for other compiler crates.
-//! For JSX compilation, use `zeus-compiler-dom` instead.
+//! This crate provides the core parsing functionality for the Zeus framework,
+//! built on top of the oxc parser. For JSX compilation, use `zeus-compiler-dom`.
 
 pub mod parser;
-pub mod semantic;
-pub mod codegen;
-pub mod diagnostics;
 
 use oxc::span::SourceType;
+
+// Re-export common diagnostic types so downstream crates have a single import path
+pub use zeus_compiler_common::{
+    CompilerError, Diagnostic, DiagnosticReporter, Result, Severity,
+};
 
 /// Core compiler configuration
 #[derive(Debug, Clone)]
