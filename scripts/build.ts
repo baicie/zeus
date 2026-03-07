@@ -95,8 +95,9 @@ async function run() {
       )
     }
   } finally {
-    removeCache()
+    // Cache must be removed after build-dts since it depends on enum cache
   }
+  removeCache()
 }
 
 async function buildAll(targets: string[]): Promise<void> {
