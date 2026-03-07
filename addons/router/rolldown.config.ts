@@ -9,7 +9,6 @@ const require = createRequire(import.meta.url)
 
 const pkg = require('./package.json')
 const masterVersion = require('../../package.json').version
-const name = 'router'
 
 const resolve = (p: string) => path.resolve(__dirname, p)
 
@@ -31,56 +30,56 @@ const alias: Record<string, string> = {
   '@zeus-js/shared': resolve('../../packages/shared/src/index.ts'),
 }
 
-function createConfig(
-  format: 'es' | 'cjs',
-  outFile: string,
-  prod = false,
-): RolldownOptions {
-  const isCJS = format === 'cjs'
-  const isDev = !prod
-
-  return {
-    input: resolve('src/index.ts'),
-    external,
-    resolve: { alias },
-    plugins: [
-      replace({
-        preventAssignment: true,
-        values: {
-          __DEV__: isCJS
-            ? isDev
-              ? 'true'
-              : "!!(process.env.NODE_ENV !== 'production')"
-            : `!!(process.env.NODE_ENV !== 'production')`,
-          __VERSION__: JSON.stringify(masterVersion),
-          __BROWSER__: String(!isCJS),
-          __CJS__: String(isCJS),
-          __SSR__: String(isCJS),
-          __TEST__: 'false',
-        },
-      }),
-    ],
-    output: {
-      file: resolve(outFile),
-      format,
-      banner,
-      exports: 'named',
-      externalLiveBindings: false,
-      ...(isCJS ? { esModule: true } : {}),
-    },
-    treeshake: {
-      moduleSideEffects: false,
-    },
-  }
+// Common plugins
+const replaceValues = {
+  __DEV__: "!!(process.env.NODE_ENV !== 'production')",
+  __VERSION__: JSON.stringify(masterVersion),
+  __BROWSER__: 'false',
+  __CJS__: 'true',
+  __SSR__: 'true',
+  __TEST__: 'false',
 }
 
-const configs: RolldownOptions[] = [
-  // ESM for bundlers (e.g. Vite / webpack)
-  createConfig('es', `dist/${name}.esm-bundler.js`),
-  // CJS development build
-  createConfig('cjs', `dist/${name}.cjs.js`),
-  // CJS production build
-  createConfig('cjs', `dist/${name}.cjs.prod.js`, true),
-]
+// ESM build
+const esmConfig: RolldownOptions = {
+  input: resolve('src/index.ts'),
+  external,
+  resolve: { alias },
+  output: {
+    dir: resolve('dist'),
+    format: 'esm',
+    banner,
+    entryFileNames: 'router.mjs',
+    sourcemap: true,
+  },
+  treeshake: {
+    moduleSideEffects: false,
+  },
+}
 
-export default configs
+// CJS build
+const cjsConfig: RolldownOptions = {
+  input: resolve('src/index.ts'),
+  external,
+  resolve: { alias },
+  plugins: [
+    replace({
+      preventAssignment: true,
+      values: replaceValues,
+    }),
+  ],
+  output: {
+    dir: resolve('dist'),
+    format: 'cjs',
+    banner,
+    entryFileNames: 'router.cjs',
+    exports: 'named',
+    sourcemap: true,
+    externalLiveBindings: false,
+  },
+  treeshake: {
+    moduleSideEffects: false,
+  },
+}
+
+export default [esmConfig, cjsConfig]

@@ -39,7 +39,7 @@ export type RouteQuery = Record<string, string | string[] | null>
 
 export interface RouteMeta extends Record<string | number | symbol, unknown> {}
 
-export type RouteComponent = (props?: any) => Node | null | undefined
+export type RouteComponent = (props?: any) => unknown
 export type Lazy<T> = () => Promise<T>
 export type RawRouteComponent = RouteComponent | Lazy<RouteComponent>
 

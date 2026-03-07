@@ -3,28 +3,28 @@
   "version": "0.0.1",
   "description": "Official router for Zeus framework",
   "main": "index.js",
-  "module": "dist/router.esm-bundler.js",
-  "types": "dist/router.d.ts",
+  "module": "dist/router.mjs",
+  "types": "dist/index.d.mts",
   "files": [
     "index.js",
     "dist"
   ],
   "exports": {
     ".": {
-      "types": "./dist/router.d.ts",
+      "types": "./dist/index.d.mts",
       "node": {
         "production": "./dist/router.cjs.prod.js",
         "development": "./dist/router.cjs.js",
         "default": "./index.js"
       },
-      "module": "./dist/router.esm-bundler.js",
-      "import": "./dist/router.esm-bundler.js",
+      "module": "./dist/router.mjs",
+      "import": "./dist/router.mjs",
       "require": "./index.js"
     },
     "./*": "./*"
   },
   "scripts": {
-    "build": "rolldown -c rolldown.config.ts",
+    "build": "rolldown -c rolldown.config.ts && tsc -p tsconfig.build.json",
     "dev": "rolldown -c rolldown.config.ts --watch",
     "clean": "rimraf dist"
   },

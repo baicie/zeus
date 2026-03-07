@@ -36,7 +36,7 @@ function CounterView() {
 
   return (
     <div class="demo-card">
-      <h2>🔢 Reactive Counter</h2>
+      <h2>🔢 Reactive Counter333</h2>
       <p class="subtitle">{SUBTITLE}</p>
 
       <div class="section">

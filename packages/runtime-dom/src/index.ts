@@ -29,12 +29,15 @@ export * from '@zeus-js/runtime-core'
 export type { ComponentFunction, App } from '@zeus-js/runtime-core'
 
 // createApp for direct-DOM components
-export function createApp(rootComponent: (props?: any) => Node) {
+export function createApp(rootComponent: (props?: any) => Node): {
+  mount: (containerOrSelector: Element | string) => void
+  unmount: () => void
+} {
   let container: Element | null = null
   let rootNode: Node | null = null
   let disposeEffect: (() => void) | null = null
 
-  return {
+  const app = {
     mount(containerOrSelector: Element | string): void {
       if (typeof containerOrSelector === 'string') {
         container = document.querySelector(containerOrSelector)
@@ -46,22 +49,28 @@ export function createApp(rootComponent: (props?: any) => Node) {
       }
       container.innerHTML = ''
 
-      // 使用 effect 追踪 signal 变化并自动更新
-      // 创建一个 effect 来追踪所有 signal 变化
+      // Create effect for reactive updates
       disposeEffect = effect(() => {
-        // 清理旧节点
         if (rootNode && container) {
           container.removeChild(rootNode)
         }
-        // 重新渲染组件
         rootNode = rootComponent()
         if (rootNode && container) {
           container.appendChild(rootNode)
         }
       })
+
+      // Register to global HMR runtime if available (Vue-like approach)
+      if (typeof window !== 'undefined') {
+        const hmrRuntime = (window as any).__ZEUS_HMR_RUNTIME__
+        if (hmrRuntime) {
+          // Create record for this app
+          hmrRuntime.createRecord('root', rootComponent)
+        }
+      }
     },
+
     unmount(): void {
-      // 清理 effect
       if (disposeEffect) {
         disposeEffect()
         disposeEffect = null
@@ -72,4 +81,6 @@ export function createApp(rootComponent: (props?: any) => Node) {
       }
     },
   }
+
+  return app
 }

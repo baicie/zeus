@@ -1,10 +1,24 @@
 import { createRouter, createWebHashHistory } from '@zeus-js/router'
-import HomeView from './views/HomeView'
-import CounterView from './views/CounterView'
-import ConditionalView from './views/ConditionalView'
-import ListView from './views/ListView'
-import BindingView from './views/BindingView'
-import ComputedView from './views/ComputedView'
+
+// Lazy-loaded components
+const HomeView = function () {
+  return import('./views/HomeView')
+}
+const CounterView = function () {
+  return import('./views/CounterView')
+}
+const ConditionalView = function () {
+  return import('./views/ConditionalView')
+}
+const ListView = function () {
+  return import('./views/ListView')
+}
+const BindingView = function () {
+  return import('./views/BindingView')
+}
+const ComputedView = function () {
+  return import('./views/ComputedView')
+}
 
 const router = createRouter({
   history: createWebHashHistory(),

@@ -7,14 +7,12 @@
 
 import type * as csstype from 'csstype'
 
-/**
- * Common DOM element type
- */
+// ============================================
+// Core Types
+// ============================================
+
 export type DOMElement = Element
 
-/**
- * JSX Element - can be Node, array of elements, string, number, boolean, or null/undefined
- */
 export type JSXElement =
   | Node
   | JSXElement[]
@@ -24,27 +22,130 @@ export type JSXElement =
   | null
   | undefined
 
-/**
- * Function component type
- */
 export type Component<P = unknown> = (props: P) => JSXElement
 
-/**
- * Parent component - can return any valid child node type
- */
 export type ParentComponent<P = unknown> = (props: P) => JSXElement
 
-/**
- * Element type - HTML tag name or Component
- */
 export type ElementType = string | Component
 
+// ============================================
+// Event Types
+// ============================================
+
+export interface Events {
+  // Clipboard events
+  onCopy: ClipboardEvent
+  onCut: ClipboardEvent
+  onPaste: ClipboardEvent
+
+  // Composition events
+  onCompositionEnd: CompositionEvent
+  onCompositionStart: CompositionEvent
+  onCompositionUpdate: CompositionEvent
+
+  // Focus events
+  onFocus: FocusEvent
+  onBlur: FocusEvent
+
+  // Form events
+  onChange: Event
+  onInput: InputEvent
+  onInvalid: Event
+  onReset: Event
+  onSubmit: Event
+
+  // Keyboard events
+  onKeyDown: KeyboardEvent
+  onKeyUp: KeyboardEvent
+  onKeyPress: KeyboardEvent
+
+  // Mouse events
+  onClick: MouseEvent
+  onContextMenu: MouseEvent
+  onDblClick: MouseEvent
+  onDrag: DragEvent
+  onDragEnd: DragEvent
+  onDragEnter: DragEvent
+  onDragLeave: DragEvent
+  onDragOver: DragEvent
+  onDragStart: DragEvent
+  onDrop: DragEvent
+  onMouseDown: MouseEvent
+  onMouseEnter: MouseEvent
+  onMouseLeave: MouseEvent
+  onMouseMove: MouseEvent
+  onMouseOut: MouseEvent
+  onMouseOver: MouseEvent
+  onMouseUp: MouseEvent
+
+  // Touch events
+  onTouchCancel: TouchEvent
+  onTouchEnd: TouchEvent
+  onTouchMove: TouchEvent
+  onTouchStart: TouchEvent
+
+  // Pointer events
+  onPointerDown: PointerEvent
+  onPointerEnter: PointerEvent
+  onPointerLeave: PointerEvent
+  onPointerMove: PointerEvent
+  onPointerOut: PointerEvent
+  onPointerOver: PointerEvent
+  onPointerUp: PointerEvent
+  onPointerCancel: PointerEvent
+
+  // Scroll events
+  onScroll: UIEvent
+  onWheel: WheelEvent
+
+  // Media events
+  onAbort: Event
+  onCanPlay: Event
+  onCanPlayThrough: Event
+  onDurationChange: Event
+  onEmptied: Event
+  onEncrypted: Event
+  onEnded: Event
+  onError: Event
+  onLoadedData: Event
+  onLoadedMetadata: Event
+  onLoadStart: Event
+  onPause: Event
+  onPlay: Event
+  onPlaying: Event
+  onProgress: ProgressEvent
+  onRateChange: Event
+  onSeeked: Event
+  onSeeking: Event
+  onStalled: Event
+  onSuspend: Event
+  onTimeUpdate: Event
+  onVolumeChange: Event
+  onWaiting: Event
+
+  // Animation events
+  onAnimationStart: AnimationEvent
+  onAnimationEnd: AnimationEvent
+  onAnimationIteration: AnimationEvent
+
+  // Transition events
+  onTransitionEnd: TransitionEvent
+
+  // Details events
+  onToggle: Event
+
+  // Message events
+  onMessage: MessageEvent
+  onMessageError: MessageEvent
+}
+
 /**
- * Reserved props
+ * Generate event handler types from Events interface
  */
-export interface ReservedProps {
-  key?: string | number | null
-  children?: JSXElement
+type EventHandlers<E> = {
+  [K in keyof E]?: E[K] extends (...args: any) => any
+    ? E[K]
+    : (payload: E[K]) => void
 }
 
 /**
@@ -54,155 +155,11 @@ export interface DOMEventHandler<T, E extends Event = Event> {
   (e: E & { currentTarget: T; target: DOMElement }): void
 }
 
-/**
- * Common DOM attributes
- */
-export interface DOMAttributes<T = Element> {
-  children?: JSXElement
-  key?: string | number | null
+// ============================================
+// Aria Attributes
+// ============================================
 
-  // Clipboard events
-  onCopy?: DOMEventHandler<T, ClipboardEvent>
-  onCut?: DOMEventHandler<T, ClipboardEvent>
-  onPaste?: DOMEventHandler<T, ClipboardEvent>
-
-  // Composition events
-  onCompositionEnd?: DOMEventHandler<T, CompositionEvent>
-  onCompositionStart?: DOMEventHandler<T, CompositionEvent>
-  onCompositionUpdate?: DOMEventHandler<T, CompositionEvent>
-
-  // Focus events
-  onFocus?: DOMEventHandler<T, FocusEvent>
-  onBlur?: DOMEventHandler<T, FocusEvent>
-
-  // Form events
-  onChange?: DOMEventHandler<T, Event>
-  onInput?: DOMEventHandler<T, InputEvent>
-  onInvalid?: DOMEventHandler<T, Event>
-  onReset?: DOMEventHandler<T, Event>
-  onSubmit?: DOMEventHandler<T, Event>
-
-  // Keyboard events
-  onKeyDown?: DOMEventHandler<T, KeyboardEvent>
-  onKeyUp?: DOMEventHandler<T, KeyboardEvent>
-  onKeyPress?: DOMEventHandler<T, KeyboardEvent>
-
-  // Mouse events
-  onClick?: DOMEventHandler<T, MouseEvent>
-  onContextMenu?: DOMEventHandler<T, MouseEvent>
-  onDblClick?: DOMEventHandler<T, MouseEvent>
-  onDrag?: DOMEventHandler<T, DragEvent>
-  onDragEnd?: DOMEventHandler<T, DragEvent>
-  onDragEnter?: DOMEventHandler<T, DragEvent>
-  onDragLeave?: DOMEventHandler<T, DragEvent>
-  onDragOver?: DOMEventHandler<T, DragEvent>
-  onDragStart?: DOMEventHandler<T, DragEvent>
-  onDrop?: DOMEventHandler<T, DragEvent>
-  onMouseDown?: DOMEventHandler<T, MouseEvent>
-  onMouseEnter?: DOMEventHandler<T, MouseEvent>
-  onMouseLeave?: DOMEventHandler<T, MouseEvent>
-  onMouseMove?: DOMEventHandler<T, MouseEvent>
-  onMouseOut?: DOMEventHandler<T, MouseEvent>
-  onMouseOver?: DOMEventHandler<T, MouseEvent>
-  onMouseUp?: DOMEventHandler<T, MouseEvent>
-
-  // Touch events
-  onTouchCancel?: DOMEventHandler<T, TouchEvent>
-  onTouchEnd?: DOMEventHandler<T, TouchEvent>
-  onTouchMove?: DOMEventHandler<T, TouchEvent>
-  onTouchStart?: DOMEventHandler<T, TouchEvent>
-
-  // Pointer events
-  onPointerDown?: DOMEventHandler<T, PointerEvent>
-  onPointerEnter?: DOMEventHandler<T, PointerEvent>
-  onPointerLeave?: DOMEventHandler<T, PointerEvent>
-  onPointerMove?: DOMEventHandler<T, PointerEvent>
-  onPointerOut?: DOMEventHandler<T, PointerEvent>
-  onPointerOver?: DOMEventHandler<T, PointerEvent>
-  onPointerUp?: DOMEventHandler<T, PointerEvent>
-  onPointerCancel?: DOMEventHandler<T, PointerEvent>
-
-  // Scroll events
-  onScroll?: DOMEventHandler<T, UIEvent>
-  onWheel?: DOMEventHandler<T, WheelEvent>
-
-  // Media events
-  onAbort?: DOMEventHandler<T, Event>
-  onCanPlay?: DOMEventHandler<T, Event>
-  onCanPlayThrough?: DOMEventHandler<T, Event>
-  onDurationChange?: DOMEventHandler<T, Event>
-  onEmptied?: DOMEventHandler<T, Event>
-  onEncrypted?: DOMEventHandler<T, Event>
-  onEnded?: DOMEventHandler<T, Event>
-  onError?: DOMEventHandler<T, Event>
-  onLoadedData?: DOMEventHandler<T, Event>
-  onLoadedMetadata?: DOMEventHandler<T, Event>
-  onLoadStart?: DOMEventHandler<T, Event>
-  onPause?: DOMEventHandler<T, Event>
-  onPlay?: DOMEventHandler<T, Event>
-  onPlaying?: DOMEventHandler<T, Event>
-  onProgress?: DOMEventHandler<T, ProgressEvent>
-  onRateChange?: DOMEventHandler<T, Event>
-  onSeeked?: DOMEventHandler<T, Event>
-  onSeeking?: DOMEventHandler<T, Event>
-  onStalled?: DOMEventHandler<T, Event>
-  onSuspend?: DOMEventHandler<T, Event>
-  onTimeUpdate?: DOMEventHandler<T, Event>
-  onVolumeChange?: DOMEventHandler<T, Event>
-  onWaiting?: DOMEventHandler<T, Event>
-
-  // Animation events
-  onAnimationStart?: DOMEventHandler<T, AnimationEvent>
-  onAnimationEnd?: DOMEventHandler<T, AnimationEvent>
-  onAnimationIteration?: DOMEventHandler<T, AnimationEvent>
-
-  // Transition events
-  onTransitionEnd?: DOMEventHandler<T, TransitionEvent>
-
-  // Details events
-  onToggle?: DOMEventHandler<T, Event>
-
-  // Message events
-  onMessage?: DOMEventHandler<T, MessageEvent>
-  onMessageError?: DOMEventHandler<T, MessageEvent>
-}
-
-/**
- * Boolean attribute
- */
-export type Booleanish = boolean | 'true' | 'false'
-
-/**
- * HTML element attributes
- */
-export interface HTMLAttributes<T = HTMLElement> extends DOMAttributes<T> {
-  // Standard attributes
-  accessKey?: string
-  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters'
-  autoFocus?: boolean
-  contentEditable?: Booleanish | 'plaintext-only' | 'inherit'
-  dataset?: Record<string, string>
-  dir?: 'ltr' | 'rtl' | 'auto'
-  draggable?: Booleanish
-  hidden?: boolean | 'hidden' | 'until-found'
-  id?: string
-  inert?: boolean
-  innerText?: string
-  lang?: string
-  part?: string
-  role?: string
-  slot?: string
-  spellCheck?: Booleanish
-  style?: csstype.Properties | string
-  tabIndex?: number
-  title?: string
-  translate?: 'yes' | 'no'
-
-  // Class attributes - supports string, object, or array
-  class?: string | Record<string, boolean | string | number> | undefined
-  className?: string | Record<string, boolean | string | number> | undefined
-
-  // Aria attributes
+export interface AriaAttributes {
   'aria-atomic'?: Booleanish
   'aria-autocomplete'?: 'none' | 'inline' | 'list' | 'both'
   'aria-braillelabel'?: string
@@ -254,14 +211,60 @@ export interface HTMLAttributes<T = HTMLElement> extends DOMAttributes<T> {
   'aria-valuemin'?: number
   'aria-valuenow'?: number
   'aria-valuetext'?: string
+}
 
-  // Non-standard attributes
+export type Booleanish = boolean | 'true' | 'false'
+
+// ============================================
+// Base Attributes
+// ============================================
+
+export interface ReservedProps {
+  key?: string | number | null
+  children?: JSXElement
+}
+
+export interface DOMAttributes<T = Element> extends EventHandlers<Events> {
+  children?: JSXElement
+  key?: string | number | null
+}
+
+export interface HTMLAttributes<T = HTMLElement>
+  extends DOMAttributes<T>, AriaAttributes {
+  // Standard attributes
+  accessKey?: string
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters'
+  autoFocus?: boolean
+  contentEditable?: Booleanish | 'plaintext-only' | 'inherit'
+  dataset?: Record<string, string>
+  dir?: 'ltr' | 'rtl' | 'auto'
+  draggable?: Booleanish
+  hidden?: boolean | 'hidden' | 'until-found'
+  id?: string
+  inert?: boolean
+  innerText?: string
+  lang?: string
+  part?: string
+  role?: string
+  slot?: string
+  spellCheck?: Booleanish
+  style?: csstype.Properties | string
+  tabIndex?: number
+  title?: string
+  translate?: 'yes' | 'no'
+
+  // Class attributes
+  class?: string | Record<string, boolean | string | number> | undefined
+  className?: string | Record<string, boolean | string | number> | undefined
+
+  // Allow any custom attribute
   [key: string]: unknown
 }
 
-/**
- * Anchor element attributes
- */
+// ============================================
+// Element-Specific Attributes
+// ============================================
+
 export interface AnchorHTMLAttributes<
   T = HTMLAnchorElement,
 > extends HTMLAttributes<T> {
@@ -275,9 +278,6 @@ export interface AnchorHTMLAttributes<
   type?: string
 }
 
-/**
- * Area element attributes
- */
 export interface AreaHTMLAttributes<
   T = HTMLAreaElement,
 > extends HTMLAttributes<T> {
@@ -292,33 +292,19 @@ export interface AreaHTMLAttributes<
   target?: string
 }
 
-/**
- * Audio element attributes
- */
-export interface AudioHTMLAttributes<
-  T = HTMLAudioElement,
-> extends MediaHTMLAttributes<T> {}
+export type AudioHTMLAttributes<T = HTMLAudioElement> = MediaHTMLAttributes<T>
 
-/**
- * Base element attributes
- */
 export interface BaseHTMLAttributes<T = HTMLElement> extends HTMLAttributes<T> {
   href?: string
   target?: string
 }
 
-/**
- * Blockquote element attributes
- */
 export interface BlockquoteHTMLAttributes<
   T = HTMLElement,
 > extends HTMLAttributes<T> {
   cite?: string
 }
 
-/**
- * Button element attributes
- */
 export interface ButtonHTMLAttributes<
   T = HTMLButtonElement,
 > extends HTMLAttributes<T> {
@@ -339,9 +325,6 @@ export interface ButtonHTMLAttributes<
   value?: string | number | readonly string[]
 }
 
-/**
- * Canvas element attributes
- */
 export interface CanvasHTMLAttributes<
   T = HTMLCanvasElement,
 > extends HTMLAttributes<T> {
@@ -349,9 +332,6 @@ export interface CanvasHTMLAttributes<
   width?: number | string
 }
 
-/**
- * Col element attributes
- */
 export interface ColHTMLAttributes<
   T = HTMLTableColElement,
 > extends HTMLAttributes<T> {
@@ -359,24 +339,15 @@ export interface ColHTMLAttributes<
   width?: number | string
 }
 
-/**
- * Data element attributes
- */
 export interface DataHTMLAttributes<T = HTMLElement> extends HTMLAttributes<T> {
   value?: string | number | readonly string[]
 }
 
-/**
- * Del element attributes
- */
 export interface DelHTMLAttributes<T = HTMLElement> extends HTMLAttributes<T> {
   cite?: string
   dateTime?: string
 }
 
-/**
- * Details element attributes
- */
 export interface DetailsHTMLAttributes<
   T = HTMLDetailsElement,
 > extends HTMLAttributes<T> {
@@ -384,9 +355,6 @@ export interface DetailsHTMLAttributes<
   open?: boolean
 }
 
-/**
- * Dialog element attributes
- */
 export interface DialogHTMLAttributes<
   T = HTMLDialogElement,
 > extends HTMLAttributes<T> {
@@ -394,9 +362,6 @@ export interface DialogHTMLAttributes<
   returnValue?: string
 }
 
-/**
- * Embed element attributes
- */
 export interface EmbedHTMLAttributes<
   T = HTMLElement,
 > extends HTMLAttributes<T> {
@@ -406,9 +371,6 @@ export interface EmbedHTMLAttributes<
   width?: number | string
 }
 
-/**
- * Fieldset element attributes
- */
 export interface FieldsetHTMLAttributes<
   T = HTMLFieldSetElement,
 > extends HTMLAttributes<T> {
@@ -417,9 +379,6 @@ export interface FieldsetHTMLAttributes<
   name?: string
 }
 
-/**
- * Form element attributes
- */
 export interface FormHTMLAttributes<
   T = HTMLFormElement,
 > extends HTMLAttributes<T> {
@@ -437,32 +396,16 @@ export interface FormHTMLAttributes<
   target?: string
 }
 
-/**
- * Head element attributes
- */
 export interface HeadHTMLAttributes<
   T = HTMLHeadElement,
 > extends HTMLAttributes<T> {
   profile?: string
 }
 
-/**
- * Header element attributes
- */
-export interface HeaderHTMLAttributes<
-  T = HTMLElement,
-> extends HTMLAttributes<T> {}
+export type HeaderHTMLAttributes<T = HTMLElement> = HTMLAttributes<T>
 
-/**
- * HR element attributes
- */
-export interface HrHTMLAttributes<
-  T = HTMLHRElement,
-> extends HTMLAttributes<T> {}
+export type HrHTMLAttributes<T = HTMLHRElement> = HTMLAttributes<T>
 
-/**
- * HTML element attributes
- */
 export interface HtmlHTMLAttributes<
   T = HTMLHtmlElement,
 > extends HTMLAttributes<T> {
@@ -471,9 +414,6 @@ export interface HtmlHTMLAttributes<
   xmlns?: string
 }
 
-/**
- * Iframe element attributes
- */
 export interface IframeHTMLAttributes<
   T = HTMLIFrameElement,
 > extends HTMLAttributes<T> {
@@ -491,9 +431,6 @@ export interface IframeHTMLAttributes<
   width?: number | string
 }
 
-/**
- * Img element attributes
- */
 export interface ImgHTMLAttributes<
   T = HTMLImageElement,
 > extends HTMLAttributes<T> {
@@ -512,9 +449,6 @@ export interface ImgHTMLAttributes<
   width?: number | string
 }
 
-/**
- * Input element attributes
- */
 export interface InputHTMLAttributes<
   T = HTMLInputElement,
 > extends HTMLAttributes<T> {
@@ -549,22 +483,10 @@ export interface InputHTMLAttributes<
   useMap?: string
   value?: string | number | readonly string[]
   width?: number | string
-
-  onChange?: DOMEventHandler<T, Event>
-  onInput?: DOMEventHandler<T, Event>
 }
 
-/**
- * Ins element attributes
- */
-export interface InsHTMLAttributes<T = HTMLElement> extends HTMLAttributes<T> {
-  cite?: string
-  dateTime?: string
-}
+export type InsHTMLAttributes<T = HTMLElement> = DelHTMLAttributes<T>
 
-/**
- * Label element attributes
- */
 export interface LabelHTMLAttributes<
   T = HTMLLabelElement,
 > extends HTMLAttributes<T> {
@@ -572,16 +494,10 @@ export interface LabelHTMLAttributes<
   htmlFor?: string
 }
 
-/**
- * Li element attributes
- */
 export interface LiHTMLAttributes<T = HTMLLIElement> extends HTMLAttributes<T> {
   value?: string | number | readonly string[]
 }
 
-/**
- * Link element attributes
- */
 export interface LinkHTMLAttributes<
   T = HTMLLinkElement,
 > extends HTMLAttributes<T> {
@@ -600,25 +516,14 @@ export interface LinkHTMLAttributes<
   type?: string
 }
 
-/**
- * Map element attributes
- */
 export interface MapHTMLAttributes<
   T = HTMLMapElement,
 > extends HTMLAttributes<T> {
   name?: string
 }
 
-/**
- * Menu element attributes
- */
-export interface MenuHTMLAttributes<T = HTMLElement> extends HTMLAttributes<T> {
-  type?: 'context' | 'toolbar'
-}
+export type MenuHTMLAttributes<T = HTMLElement> = HTMLAttributes<T>
 
-/**
- * Media element attributes
- */
 export interface MediaHTMLAttributes<
   T = HTMLElement,
 > extends HTMLAttributes<T> {
@@ -631,9 +536,6 @@ export interface MediaHTMLAttributes<
   src?: string
 }
 
-/**
- * Meta element attributes
- */
 export interface MetaHTMLAttributes<
   T = HTMLMetaElement,
 > extends HTMLAttributes<T> {
@@ -644,11 +546,8 @@ export interface MetaHTMLAttributes<
   name?: string
 }
 
-/**
- * Meter element attributes
- */
 export interface MeterHTMLAttributes<
-  T = HTMLElement,
+  T = HTMLMeterElement,
 > extends HTMLAttributes<T> {
   high?: number
   low?: number
@@ -658,9 +557,6 @@ export interface MeterHTMLAttributes<
   value?: string | number | readonly string[]
 }
 
-/**
- * Object element attributes
- */
 export interface ObjectHTMLAttributes<
   T = HTMLObjectElement,
 > extends HTMLAttributes<T> {
@@ -673,9 +569,6 @@ export interface ObjectHTMLAttributes<
   width?: number | string
 }
 
-/**
- * Ol element attributes
- */
 export interface OlHTMLAttributes<
   T = HTMLOListElement,
 > extends HTMLAttributes<T> {
@@ -684,9 +577,6 @@ export interface OlHTMLAttributes<
   type?: '1' | 'a' | 'A' | 'i' | 'I'
 }
 
-/**
- * Optgroup element attributes
- */
 export interface OptgroupHTMLAttributes<
   T = HTMLOptGroupElement,
 > extends HTMLAttributes<T> {
@@ -694,9 +584,6 @@ export interface OptgroupHTMLAttributes<
   label?: string
 }
 
-/**
- * Option element attributes
- */
 export interface OptionHTMLAttributes<
   T = HTMLOptionElement,
 > extends HTMLAttributes<T> {
@@ -706,9 +593,6 @@ export interface OptionHTMLAttributes<
   value?: string | number | readonly string[]
 }
 
-/**
- * Output element attributes
- */
 export interface OutputHTMLAttributes<
   T = HTMLElement,
 > extends HTMLAttributes<T> {
@@ -716,9 +600,6 @@ export interface OutputHTMLAttributes<
   name?: string
 }
 
-/**
- * Param element attributes
- */
 export interface ParamHTMLAttributes<
   T = HTMLParamElement,
 > extends HTMLAttributes<T> {
@@ -726,9 +607,6 @@ export interface ParamHTMLAttributes<
   value?: string | number | readonly string[]
 }
 
-/**
- * Progress element attributes
- */
 export interface ProgressHTMLAttributes<
   T = HTMLProgressElement,
 > extends HTMLAttributes<T> {
@@ -736,18 +614,12 @@ export interface ProgressHTMLAttributes<
   value?: string | number | readonly string[]
 }
 
-/**
- * Quote element attributes
- */
 export interface QuoteHTMLAttributes<
   T = HTMLElement,
 > extends HTMLAttributes<T> {
   cite?: string
 }
 
-/**
- * Script element attributes
- */
 export interface ScriptHTMLAttributes<
   T = HTMLScriptElement,
 > extends HTMLAttributes<T> {
@@ -762,9 +634,6 @@ export interface ScriptHTMLAttributes<
   type?: string
 }
 
-/**
- * Select element attributes
- */
 export interface SelectHTMLAttributes<
   T = HTMLSelectElement,
 > extends HTMLAttributes<T> {
@@ -776,22 +645,14 @@ export interface SelectHTMLAttributes<
   required?: boolean
   size?: number
   value?: string | number | readonly string[]
-
-  onChange?: DOMEventHandler<T, Event>
 }
 
-/**
- * Slot element attributes
- */
 export interface SlotHTMLAttributes<
   T = HTMLSlotElement,
 > extends HTMLAttributes<T> {
   name?: string
 }
 
-/**
- * Source element attributes
- */
 export interface SourceHTMLAttributes<
   T = HTMLSourceElement,
 > extends HTMLAttributes<T> {
@@ -804,9 +665,6 @@ export interface SourceHTMLAttributes<
   width?: number | string
 }
 
-/**
- * Style element attributes
- */
 export interface StyleHTMLAttributes<
   T = HTMLStyleElement,
 > extends HTMLAttributes<T> {
@@ -814,9 +672,6 @@ export interface StyleHTMLAttributes<
   type?: string
 }
 
-/**
- * Table element attributes
- */
 export interface TableHTMLAttributes<
   T = HTMLTableElement,
 > extends HTMLAttributes<T> {
@@ -841,9 +696,6 @@ export interface TableHTMLAttributes<
   width?: number | string
 }
 
-/**
- * td/th element attributes
- */
 export interface TdHTMLAttributes<
   T = HTMLTableCellElement,
 > extends HTMLAttributes<T> {
@@ -854,25 +706,14 @@ export interface TdHTMLAttributes<
   scope?: 'col' | 'colgroup' | 'row' | 'rowgroup'
 }
 
-/**
- * th element attributes
- */
 export interface ThHTMLAttributes<
   T = HTMLTableCellElement,
 > extends TdHTMLAttributes<T> {
   abbr?: string
 }
 
-/**
- * Tr element attributes
- */
-export interface TrHTMLAttributes<
-  T = HTMLTableRowElement,
-> extends HTMLAttributes<T> {}
+export type TrHTMLAttributes<T = HTMLTableRowElement> = HTMLAttributes<T>
 
-/**
- * Track element attributes
- */
 export interface TrackHTMLAttributes<
   T = HTMLTrackElement,
 > extends HTMLAttributes<T> {
@@ -883,9 +724,6 @@ export interface TrackHTMLAttributes<
   srclang?: string
 }
 
-/**
- * Textarea element attributes
- */
 export interface TextareaHTMLAttributes<
   T = HTMLTextAreaElement,
 > extends HTMLAttributes<T> {
@@ -903,21 +741,12 @@ export interface TextareaHTMLAttributes<
   rows?: number
   value?: string | number | readonly string[]
   wrap?: 'hard' | 'soft' | 'off'
-
-  onChange?: DOMEventHandler<T, Event>
-  onInput?: DOMEventHandler<T, Event>
 }
 
-/**
- * Time element attributes
- */
 export interface TimeHTMLAttributes<T = HTMLElement> extends HTMLAttributes<T> {
   dateTime?: string
 }
 
-/**
- * Video element attributes
- */
 export interface VideoHTMLAttributes<
   T = HTMLVideoElement,
 > extends MediaHTMLAttributes<T> {
@@ -928,268 +757,33 @@ export interface VideoHTMLAttributes<
   width?: number | string
 }
 
-/**
- * SVG attributes
- */
+// ============================================
+// SVG Attributes (Simplified)
+// ============================================
+
 export interface SVGAttributes<T = SVGElement> extends DOMAttributes<T> {
-  // SVG attributes
-  accentHeight?: number | string
-  alignmentBaseline?:
-    | 'auto'
-    | 'baseline'
-    | 'before-edge'
-    | 'text-before-edge'
-    | 'middle'
-    | 'after-edge'
-    | 'text-after-edge'
-    | 'ideographic'
-    | 'alphabetic'
-    | 'hanging'
-    | 'mathematical'
-    | 'central'
-    | 'end'
-    | 'start'
-  allowReorder?: string
-  alphabetic?: number | string
-  amplitude?: number | string
-  arabicForm?: 'initial' | 'medial' | 'terminal' | 'isolated'
-  ascent?: number | string
-  attributeName?: string
-  attributeType?: string
-  azimuth?: number | string
-  baseFrequency?: number | string
-  baselineShift?: number | string
-  baseProfile?: number | string
-  bbox?: number | string
-  begin?: number | string
-  bias?: number | string
-  by?: number | string
-  calcMode?: number | string
-  clip?: number | string
-  clipPath?: string
-  clipPathUnits?: number | string
-  clipRule?: number | string
-  colorInterpolation?: number | string
-  colorInterpolationFilters?: 'auto' | 'sRGB' | 'linearRGB' | 'inherit'
-  colorProfile?: number | string
-  colorRendering?: number | string
-  contentScriptType?: number | string
-  contentStyleType?: number | string
-  cursor?: number | string
-  cx?: number | string
-  cy?: number | string
-  d?: string
-  descent?: number | string
-  diffuseConstant?: number | string
-  direction?: number | string
-  display?: number | string
-  divisor?: number | string
-  dominantBaseline?: number | string
-  dur?: number | string
-  dx?: number | string
-  dy?: number | string
-  edgeMode?: number | string
-  elevation?: number | string
-  enableBackground?: number | string
-  end?: number | string
-  exponent?: number | string
-  externalResourcesRequired?: number | string
-  fill?: string
-  fillOpacity?: number | string
-  fillRule?: 'nonzero' | 'evenodd' | 'inherit'
-  filter?: string
-  filterRes?: number | string
-  filterUnits?: number | string
-  floodColor?: number | string
-  floodOpacity?: number | string
-  fontFamily?: string
-  fontSize?: number | string
-  fontSizeAdjust?: number | string
-  fontStretch?: number | string
-  fontStyle?: number | string
-  fontVariant?: number | string
-  fontWeight?: number | string
-  format?: number | string
-  from?: number | string
-  fx?: number | string
-  fy?: number | string
-  g1?: number | string
-  g2?: number | string
-  glyphName?: number | string
-  glyphOrientationHorizontal?: number | string
-  glyphOrientationVertical?: number | string
-  glyphRef?: number | string
-  gradientTransform?: string
-  gradientUnits?: number | string
-  hanging?: number | string
-  height?: number | string
-  horizAdvX?: number | string
-  horizOriginX?: number | string
-  horizOriginY?: number | string
-  horizOneX?: number | string
-  ideographic?: number | string
-  imageRendering?: number | string
-  in?: string
-  in2?: number | string
-  intercept?: number | string
-  k1?: number | string
-  k2?: number | string
-  k3?: number | string
-  k4?: number | string
-  k?: number | string
-  kernelMatrix?: number | string
-  kernelUnitLength?: number | string
-  kerning?: number | string
-  keyPoints?: number | string
-  keySplines?: number | string
-  keyTimes?: number | string
-  lang?: number | string
-  lengthAdjust?: number | string
-  letterSpacing?: number | string
-  lightingColor?: number | string
-  limitingConeAngle?: number | string
-  local?: number | string
-  markerEnd?: string
-  markerHeight?: number | string
-  markerMid?: string
-  markerStart?: string
-  markerUnits?: number | string
-  markerWidth?: number | string
-  mask?: string
-  maskContentUnits?: number | string
-  maskUnits?: number | string
-  mathematical?: number | string
-  max?: number | string
-  media?: string
-  method?: string
-  min?: number | string
-  mode?: number | string
-  name?: number | string
-  numOctaves?: number | string
-  offset?: number | string
-  opacity?: number | string
-  operator?: number | string
-  order?: number | string
-  orient?: number | string
-  orientation?: number | string
-  origin?: number | string
-  overflow?: number | string
-  overlinePosition?: number | string
-  overlineThickness?: number | string
-  paintOrder?: number | string
-  panose1?: number | string
-  pathLength?: number | string
-  patternContentUnits?: string
-  patternTransform?: number | string
-  patternUnits?: string
-  pointerEvents?: number | string
-  points?: string
-  pointsAtX?: number | string
-  pointsAtY?: number | string
-  pointsAtZ?: number | string
-  preserveAlpha?: number | string
-  preserveAspectRatio?: string
-  primitiveUnits?: number | string
-  r?: number | string
-  radius?: number | string
-  refX?: number | string
-  refY?: number | string
-  renderingIntent?: number | string
-  repeatCount?: number | string
-  repeatDur?: number | string
-  requiredExtensions?: number | string
-  requiredFeatures?: number | string
-  restart?: number | string
-  result?: string
-  rotate?: number | string
-  rx?: number | string
-  ry?: number | string
-  scale?: number | string
-  seed?: number | string
-  shapeRendering?: number | string
-  slope?: number | string
-  spacing?: number | string
-  specularConstant?: number | string
-  specularExponent?: number | string
-  spreadMethod?: string
-  startOffset?: number | string
-  stdDeviation?: number | string
-  stitchTiles?: number | string
-  stopColor?: string
-  stopOpacity?: number | string
-  strokeDasharray?: number | string
-  strokeDashoffset?: number | string
-  strokeLinecap?: 'butt' | 'round' | 'square' | 'inherit'
-  strokeLinejoin?: 'miter' | 'round' | 'bevel' | 'inherit'
-  strokeMiterlimit?: number | string
-  strokeOpacity?: number | string
-  strokeWidth?: number | string
+  // Core attributes
+  id?: string
+  lang?: string
+  tabIndex?: number
   style?: string
-  surfaceScale?: number | string
-  systemLanguage?: number | string
-  tableValues?: number | string
-  target?: string
-  targetX?: number | string
-  targetY?: number | string
-  textAnchor?: 'start' | 'middle' | 'end' | 'inherit'
-  textDecoration?: number | string
-  textLength?: number | string
-  textRendering?: number | string
-  to?: number | string
-  transform?: string
-  type?: string
-  u1?: number | string
-  u2?: number | string
-  underlinePosition?: number | string
-  underlineThickness?: number | string
-  unicode?: number | string
-  unicodeBidi?: number | string
-  unicodeRange?: number | string
-  unitsPerEm?: number | string
-  vAdvanceHeight?: number | string
-  vAlphabetic?: number | string
-  vHanging?: number | string
-  vIdeographic?: number | string
-  vMathematical?: number | string
-  values?: number | string
-  version?: string
-  vertAdvY?: number | string
-  vertOriginX?: number | string
-  vertOriginY?: number | string
+
+  // SVG-specific
   viewBox?: string
-  viewTarget?: number | string
-  width?: number | string
-  wordSpacing?: number | string
-  writingMode?: number | string
-  x?: number | string
-  x1?: number | string
-  x2?: number | string
-  xChannelSelector?: string
-  xHeight?: number | string
-  xlinkActuate?: string
-  xlinkArcrole?: string
-  xlinkHref?: string
-  xlinkRole?: string
-  xlinkShow?: string
-  xlinkTitle?: string
-  xlinkType?: string
   xmlns?: string
-  xmlnsXlink?: string
-  y?: number | string
-  y1?: number | string
-  y2?: number | string
-  yChannelSelector?: string
-  z?: number | string
-  zoomAndPan?: string
 
   // Class
   class?: string | Record<string, boolean | string | number> | undefined
   className?: string | Record<string, boolean | string | number> | undefined
+
+  // Allow any SVG attribute
+  [key: string]: unknown
 }
 
-/**
- * All HTML element types
- */
+// ============================================
+// Intrinsic Elements Map
+// ============================================
+
 export interface HTMLElementTags {
   a: AnchorHTMLAttributes
   abbr: HTMLAttributes
@@ -1304,9 +898,6 @@ export interface HTMLElementTags {
   wbr: HTMLAttributes
 }
 
-/**
- * All SVG element types
- */
 export interface SVGElementTags {
   svg: SVGAttributes
   g: SVGAttributes
@@ -1335,48 +926,16 @@ export interface SVGElementTags {
   image: SVGAttributes
   switch: SVGAttributes
   foreignObject: SVGAttributes
-  animate: SVGAttributes
-  animateMotion: SVGAttributes
-  animateTransform: SVGAttributes
-  set: SVGAttributes
-  mpath: SVGAttributes
-  feBlend: SVGAttributes
-  feColorMatrix: SVGAttributes
-  feComponentTransfer: SVGAttributes
-  feComposite: SVGAttributes
-  feConvolveMatrix: SVGAttributes
-  feDiffuseLighting: SVGAttributes
-  feDisplacementMap: SVGAttributes
-  feDistantLight: SVGAttributes
-  feFlood: SVGAttributes
-  feFuncA: SVGAttributes
-  feFuncB: SVGAttributes
-  feFuncG: SVGAttributes
-  feFuncR: SVGAttributes
-  feGaussianBlur: SVGAttributes
-  feImage: SVGAttributes
-  feMerge: SVGAttributes
-  feMergeNode: SVGAttributes
-  feMorphology: SVGAttributes
-  feOffset: SVGAttributes
-  fePointLight: SVGAttributes
-  feSpecularLighting: SVGAttributes
-  feSpotLight: SVGAttributes
-  feTile: SVGAttributes
-  feTurbulence: SVGAttributes
 }
 
-/**
- * All intrinsic elements (HTML + SVG)
- */
 export type IntrinsicElements = HTMLElementTags & SVGElementTags
 
-/**
- * JSX namespace for TypeScript
- */
+// ============================================
+// JSX Namespace for TypeScript
+// ============================================
+
 declare global {
   namespace JSX {
-    // JSX.Element is defined in dom-types.ts as JSXElement
     interface ElementChildrenAttribute {
       children: {}
     }
