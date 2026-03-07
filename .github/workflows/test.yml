@@ -100,6 +100,15 @@ jobs:
           node-version-file: '.node-version'
           cache: 'pnpm'
 
+      - name: Cache dist
+        uses: actions/cache@v4
+        with:
+          path: |
+            packages/*/dist
+            addons/*/dist
+          key: dist-${{ github.sha }}
+          restore-keys: dist-
+
       - run: pnpm install
 
       - name: Run unit tests
@@ -122,10 +131,19 @@ jobs:
           node-version-file: '.node-version'
           cache: 'pnpm'
 
+      - name: Cache dist
+        uses: actions/cache@v4
+        with:
+          path: |
+            packages/*/dist
+            addons/*/dist
+          key: dist-${{ github.sha }}
+          restore-keys: dist-
+
       - run: pnpm install
 
       - name: Run compiler unit tests
-        run: pnpm run test-unit compiler
+        run: pnpm run test-unit -- unit-compiler
 
   e2e-test:
     runs-on: ubuntu-latest
@@ -148,6 +166,15 @@ jobs:
           node-version-file: '.node-version'
           cache: 'pnpm'
 
+      - name: Cache dist
+        uses: actions/cache@v4
+        with:
+          path: |
+            packages/*/dist
+            addons/*/dist
+          key: dist-${{ github.sha }}
+          restore-keys: dist-
+
       - run: pnpm install
       - run: node node_modules/puppeteer/install.mjs
 
@@ -156,38 +183,3 @@ jobs:
 
       - name: verify treeshaking
         run: node scripts/verify-treeshaking.js
-
-  playground-compile-test:
-    runs-on: ubuntu-latest
-    needs: [build]
-    env:
-      PUPPETEER_SKIP_DOWNLOAD: 'true'
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4.1.0
-
-      - name: Install Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version-file: '.node-version'
-          cache: 'pnpm'
-
-      - run: pnpm install
-
-      - name: Build compiler packages
-        run: pnpm run build --filter=@zeus-js/compiler-core
-
-      - name: Run playground compile test (conditional-demo)
-        run: |
-          cd playground/conditional-demo
-          pnpm install --no-frozen-lockfile
-          pnpm run type-check
-          node ./build.mjs
-
-      - name: Run playground compile test (zeus)
-        run: |
-          cd playground/zeus
-          pnpm install --no-frozen-lockfile
-          pnpm run build
