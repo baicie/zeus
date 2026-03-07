@@ -6,6 +6,7 @@ import {
 } from '@napi-rs/wasm-runtime'
 import { memfs } from '@napi-rs/wasm-runtime/fs'
 
+
 export const { fs: __fs, vol: __volume } = memfs()
 
 const __wasi = new __WASI({
@@ -16,9 +17,9 @@ const __wasi = new __WASI({
   },
 })
 
-const __wasmUrl = new URL('./zeusjs-binding.wasm32-wasi.wasm', import.meta.url)
-  .href
+const __wasmUrl = new URL('./zeusjs-binding.wasm32-wasi.wasm', import.meta.url).href
 const __emnapiContext = __emnapiGetDefaultContext()
+
 
 const __sharedMemory = new WebAssembly.Memory({
   initial: 16384,
@@ -26,7 +27,7 @@ const __sharedMemory = new WebAssembly.Memory({
   shared: true,
 })
 
-const __wasmFile = await fetch(__wasmUrl).then(res => res.arrayBuffer())
+const __wasmFile = await fetch(__wasmUrl).then((res) => res.arrayBuffer())
 
 const {
   instance: __napiInstance,
@@ -37,12 +38,9 @@ const {
   asyncWorkPoolSize: 4,
   wasi: __wasi,
   onCreateWorker() {
-    const worker = new Worker(
-      new URL('./wasi-worker-browser.mjs', import.meta.url),
-      {
-        type: 'module',
-      },
-    )
+    const worker = new Worker(new URL('./wasi-worker-browser.mjs', import.meta.url), {
+      type: 'module',
+    })
     worker.addEventListener('message', __wasmCreateOnMessageForFsProxy(__fs))
 
     return worker

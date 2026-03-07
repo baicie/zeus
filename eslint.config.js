@@ -214,10 +214,10 @@ export default defineConfig(
       '.idea/',
       'examples',
       'target',
-      'packages/compiler-core/src/baicie-*',
       'packages/compiler-core/src/binding.*',
-      'packages/compiler-core/src/wasi-worker*.mjs',
-      'packages/compiler-core/src/browser.js',
+      'packages/compiler-core/src/wasi-worker.*',
+      'packages/compiler-core/src/browser.*',
+      'packages/compiler-core/src/zeusjs-binding.*',
     ],
   },
 )
