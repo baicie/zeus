@@ -215,7 +215,7 @@ export default defineConfig(
       'examples',
       'target',
       'packages/compiler-core/src/binding.*',
-      'packages/compiler-core/src/wasi-worker.*',
+      'packages/compiler-core/src/wasi-worker*',
       'packages/compiler-core/src/browser.*',
       'packages/compiler-core/src/zeusjs-binding.*',
     ],
