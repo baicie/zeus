@@ -22,7 +22,7 @@ jobs:
           node-version-file: '.node-version'
           cache: 'pnpm'
 
-      - run: pnpm install 
+      - run: pnpm install
 
       - name: Run eslint
         run: pnpm run lint
@@ -81,7 +81,7 @@ jobs:
         with:
           workspaces: './crates -> target'
 
-      - run: pnpm install 
+      - run: pnpm install
 
       - name: Build all packages
         run: pnpm build-all
@@ -103,6 +103,12 @@ jobs:
           node-version-file: '.node-version'
           cache: 'pnpm'
 
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Add wasm target
+        run: rustup target add wasm32-wasip1-threads
+
       - name: Cache dist
         uses: actions/cache@v4
         with:
@@ -114,11 +120,8 @@ jobs:
 
       - run: pnpm install
 
-      - name: Add wasm target
-        run: rustup target add wasm32-wasip1-threads
-        
       - name: Build all packages
-      - run: pnpm run build-all
+        run: pnpm build-all
 
       - name: Run unit tests
         run: pnpm run test
@@ -140,6 +143,12 @@ jobs:
           node-version-file: '.node-version'
           cache: 'pnpm'
 
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Add wasm target
+        run: rustup target add wasm32-wasip1-threads
+
       - name: Cache dist
         uses: actions/cache@v4
         with:
@@ -151,8 +160,11 @@ jobs:
 
       - run: pnpm install
 
-      # - name: Run compiler unit tests
-      #   run: pnpm run test-unit
+      - name: Build all packages
+        run: pnpm build-all
+
+      - name: Run compiler unit tests
+        run: pnpm run test-unit -- unit-compiler
 
   e2e-test:
     runs-on: ubuntu-latest
