@@ -16,6 +16,7 @@
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "noEmit": true,
+    "jsx": "preserve",
     "types": ["vite/client"]
   },
   "include": ["src/**/*", "vite.config.ts"],

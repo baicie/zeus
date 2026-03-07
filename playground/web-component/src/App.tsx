@@ -98,6 +98,30 @@ const App = () => {
           </div>
           <div class="note">Shadow DOM 版本会渲染到 shadowRoot。</div>
         </div>
+
+        <div class="card">
+          <h2>Store Provider</h2>
+          <div class="row">
+            <zeus-counter-provider />
+          </div>
+          <div class="note">Provider 组件提供共享的 Store 状态</div>
+        </div>
+
+        <div class="card">
+          <h2>Store Consumer</h2>
+          <div class="row">
+            <zeus-counter-store label="consumed" />
+          </div>
+          <div class="note">消费 Provider 提供的 Store 状态</div>
+        </div>
+
+        <div class="card">
+          <h2>Store Easy</h2>
+          <div class="row">
+            <zeus-counter-easy />
+          </div>
+          <div class="note">使用便捷方法创建的 Store 组件</div>
+        </div>
       </div>
     </div>
   )

@@ -10,9 +10,8 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@zeus-js/runtime-dom": "workspace:*",
-    "@zeus-js/web-components": "workspace:*",
-    "@zeus-js/signal": "workspace:*"
+    "@zeus-js/core": "workspace:*",
+    "@zeus-js/web-components": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^25.3.5",

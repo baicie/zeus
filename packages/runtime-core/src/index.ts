@@ -18,4 +18,7 @@ export * from './slots'
 // 导出渲染器
 export * from './renderer'
 
+// 导出 Store 系统
+export * from './store'
+
 export * from '@zeus-js/signal'

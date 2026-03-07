@@ -1,7 +1,9 @@
 // packages/web-components/src/adapter/index.ts
 
-import type { ComponentFunction } from '@zeus-js/runtime-core'
-import { render } from '@zeus-js/runtime-core'
+import type { ComponentFunction, Store } from '@zeus-js/runtime-core'
+import type { defineStore } from '@zeus-js/runtime-core'
+import { provideStore, render } from '@zeus-js/runtime-core'
+import { extend } from '@zeus-js/shared'
 import { registerComponent } from '../registry'
 
 export interface WebComponentOptions<P = any> {
@@ -11,6 +13,9 @@ export interface WebComponentOptions<P = any> {
   observedAttributes?: string[]
   // 将 attribute 映射到 props 的钩子，默认为字符串赋值
   attributeToProps?: (name: string, value: string | null, props: P) => void
+  // Store 相关配置
+  store?: Store<any>
+  storeGetter?: () => Store<any>
 }
 
 export function createWebComponentAdapter<P = any>(
@@ -31,6 +36,11 @@ export function createWebComponentAdapter<P = any>(
           props[name] = value
         }
 
+  // Store 配置
+  const store = options && options.store ? options.store : undefined
+  const storeGetter =
+    options && options.storeGetter ? options.storeGetter : undefined
+
   return class ZeusWebComponent extends HTMLElement {
     static get observedAttributes(): string[] {
       return observed
@@ -39,12 +49,14 @@ export function createWebComponentAdapter<P = any>(
     private _root: Element | ShadowRoot | null
     private _mounted: boolean
     private _props: P
+    private _cleanupStore: (() => void) | null = null
 
     constructor() {
       super()
       this._mounted = false
       this._props = {} as unknown as P
       this._root = null
+      this._cleanupStore = null
     }
 
     connectedCallback(): void {
@@ -66,6 +78,9 @@ export function createWebComponentAdapter<P = any>(
       // 初始化 props：先从已存在的 attributes 里读一遍
       this._initializePropsFromAttributes()
 
+      // 提供 Store 给后代组件
+      this._setupStore()
+
       // 初次渲染
       if (this._root) {
         render(() => {
@@ -79,6 +94,12 @@ export function createWebComponentAdapter<P = any>(
     disconnectedCallback(): void {
       if (!this._mounted) {
         return
+      }
+
+      // 清理 Store
+      if (this._cleanupStore) {
+        this._cleanupStore()
+        this._cleanupStore = null
       }
 
       if (this._root) {
@@ -114,6 +135,27 @@ export function createWebComponentAdapter<P = any>(
         attributeToProps(name, value, this._props)
       }
     }
+
+    private _setupStore(): void {
+      let currentStore: Store<any> | undefined = store
+
+      // 如果有 storeGetter，调用它获取 store
+      if (!currentStore && storeGetter) {
+        currentStore = storeGetter()
+      }
+
+      // 如果获取到了 store，提供给后代
+      if (currentStore) {
+        this._cleanupStore = provideStore(currentStore)
+      }
+    }
+
+    // 公共方法：获取当前组件提供的 Store
+    public getProvidedStore(): Store<any> | undefined {
+      if (store) return store
+      if (storeGetter) return storeGetter()
+      return undefined
+    }
   }
 }
 
@@ -129,4 +171,38 @@ export function adaptToWebComponent<P = any>(
   registerComponent(options.tagName, ElementClass)
 
   return ElementClass
+}
+
+// ============================================
+// Store 便捷方法
+// ============================================
+
+/**
+ * 创建支持 Store 的 Web Component 的便捷方法
+ *
+ * @example
+ * ```ts
+ * const useCounterStore = defineStore({
+ *   name: 'counter',
+ *   state: { count: 0 }
+ * })
+ *
+ * function Counter({ count, increment }) {
+ *   return <button onClick={increment}>{count}</button>
+ * }
+ *
+ * // 创建并注册组件
+ * createStoreWebComponent('my-counter', Counter, useCounterStore)
+ * ```
+ */
+export function createStoreWebComponent<P extends object>(
+  tagName: string,
+  component: ComponentFunction<P>,
+  storeDefinition: ReturnType<typeof defineStore>,
+  options?: Omit<WebComponentOptions<P>, 'store' | 'storeGetter'>,
+): typeof HTMLElement {
+  return adaptToWebComponent(
+    component,
+    extend({ tagName, storeGetter: storeDefinition }, options),
+  )
 }

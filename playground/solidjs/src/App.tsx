@@ -1,22 +1,26 @@
-import { createSignal } from 'solid-js'
-
 function App() {
-  const [count, setCount] = createSignal(0)
-
   return (
     <>
-      <h1 class="">Vite + Solid</h1>
+      <h1 class="">SolidJS Web Components Demo</h1>
       <div class="card">
-        <button onClick={() => setCount(count => count + 1)}>
-          count is {count()}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
+        <p>Below are custom elements created with solid-element:</p>
       </div>
-      <p class="read-the-docs">
-        Click on the Vite and Solid logos to learn more
-      </p>
+
+      <div class="row" style={{ 'margin-top': '20px' }}>
+        <h3>Light DOM Counter</h3>
+        <solid-counter start="5" label="light" />
+      </div>
+
+      <div class="row" style={{ 'margin-top': '20px' }}>
+        <h3>Shadow DOM Counter</h3>
+        <solid-counter-shadow start="10" label="shadow" />
+      </div>
+
+      <div class="row" style={{ 'margin-top': '20px' }}>
+        <h3>Multiple Counters (share state via custom events)</h3>
+        <solid-counter id="counter1" start="0" label="counter A" />
+        <solid-counter id="counter2" start="100" label="counter B" />
+      </div>
     </>
   )
 }
