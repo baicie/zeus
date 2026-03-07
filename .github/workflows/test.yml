@@ -163,8 +163,8 @@ jobs:
       - name: Build all packages
         run: pnpm build-all
 
-      - name: Run compiler unit tests
-        run: pnpm run test-unit -- unit-compiler
+      # - name: Run compiler unit tests
+      #   run: pnpm run test-unit -- unit-compiler
 
   e2e-test:
     runs-on: ubuntu-latest

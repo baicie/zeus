@@ -37,7 +37,7 @@ jobs:
         run: pnpm install
 
       - name: Build packages
-        run: pnpm build-pkg
+        run: pnpm build -t
 
       - run: pnpm run size
 
