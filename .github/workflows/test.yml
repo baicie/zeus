@@ -22,7 +22,7 @@ jobs:
           node-version-file: '.node-version'
           cache: 'pnpm'
 
-      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm install 
 
       - name: Run eslint
         run: pnpm run lint
@@ -73,15 +73,18 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Add wasm target
+        run: rustup target add wasm32-wasip1-threads
+
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: './crates -> target'
 
-      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm install 
 
       - name: Build all packages
-        run: pnpm build
+        run: pnpm build-all
 
   unit-test:
     runs-on: ubuntu-latest
@@ -111,6 +114,10 @@ jobs:
 
       - run: pnpm install
 
+      - name: Add wasm target
+        run: rustup target add wasm32-wasip1-threads
+        
+      - name: Build all packages
       - run: pnpm run build-all
 
       - name: Run unit tests
