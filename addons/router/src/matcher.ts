@@ -98,6 +98,7 @@ function normalizeComponents(
   if ('components' in record && record.components) {
     return record.components as Record<string, RouteComponent>
   }
+  // Redirect records have no components
   return {}
 }
 

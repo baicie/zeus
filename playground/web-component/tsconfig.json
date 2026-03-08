@@ -2,8 +2,12 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@zeus-js/*": ["../../packages/*/src"]
+      "@zeus-js/core": ["../../packages/zeus/src/index.ts"],
+      "@zeus-js/web-components": ["../../packages/web-components/src/index.ts"],
+      "@zeus-js/signal": ["../../packages/signal/src/index.ts"],
+      "@zeus-js/shared": ["../../packages/shared/src/index.ts"],
+      "@zeus-js/runtime-core": ["../../packages/runtime-core/src/index.ts"],
+      "@zeus-js/runtime-dom": ["../../packages/runtime-dom/src/index.ts"]
     },
     "target": "ES2020",
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
@@ -15,10 +19,12 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
-    "noEmit": true,
+    "declaration": true,
+    "declarationDir": "./dist",
+    "emitDeclarationOnly": false,
     "jsx": "preserve",
-    "types": ["vite/client"]
+    "types": ["../../packages/global.d.ts"]
   },
-  "include": ["src/**/*", "vite.config.ts"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

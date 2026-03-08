@@ -1,5 +1,5 @@
-import './style.css'
-import { createApp } from '@zeus-js/core'
+// Main entry - Web Components Library
+// Note: Import CSS separately in consumer apps
 import { defineWebComponents } from './define-components'
 import App from './App'
 

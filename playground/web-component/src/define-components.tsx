@@ -2,7 +2,17 @@ import {
   adaptToWebComponent,
   createStoreWebComponent,
 } from '@zeus-js/web-components'
-import { defineStore, injectStore, provideStore } from '@zeus-js/core'
+import { defineStore } from '@zeus-js/store'
+import type { Store } from '@zeus-js/store'
+
+// Mock injectStore and provideStore for demo (they are not exported from zeus packages yet)
+function injectStore<S = any>(): Store<S> | null {
+  return null
+}
+
+function provideStore(_store: any): void {
+  // no-op for demo
+}
 
 interface CounterProps {
   start?: string | number | null

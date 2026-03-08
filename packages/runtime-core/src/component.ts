@@ -5,4 +5,12 @@ export type ComponentFunction<P = any> = (props?: P) => Node
 export interface App {
   mount(container: Element | string): void
   unmount(): void
+  use(plugin: Plugin, options?: any): App
 }
+
+// Plugin type for app.use()
+export type Plugin =
+  | {
+      install?: (app: App, options?: any) => void
+    }
+  | ((app: App, options?: any) => void)

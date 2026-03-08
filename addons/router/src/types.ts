@@ -74,7 +74,14 @@ export interface RouteRecordMultipleViews extends RouteRecordBase {
   children?: RouteRecordRaw[]
 }
 
-export type RouteRecordRaw = RouteRecordSingleView | RouteRecordMultipleViews
+export interface RouteRecordRedirect extends RouteRecordBase {
+  redirect: RouteRecordBase['redirect']
+}
+
+export type RouteRecordRaw =
+  | RouteRecordSingleView
+  | RouteRecordMultipleViews
+  | RouteRecordRedirect
 
 export interface RouteRecordNormalized {
   path: string

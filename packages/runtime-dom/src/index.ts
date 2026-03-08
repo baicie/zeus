@@ -1,4 +1,5 @@
 import { effect } from '@zeus-js/signal'
+import type { App } from '@zeus-js/runtime-core'
 
 // Core compilation helpers (called by compiler-generated code)
 export {
@@ -26,18 +27,32 @@ export * from './h'
 export * from '@zeus-js/runtime-core'
 
 // Re-export component types
-export type { ComponentFunction, App } from '@zeus-js/runtime-core'
+export type { ComponentFunction, App, Plugin } from '@zeus-js/runtime-core'
 
 // createApp for direct-DOM components
-export function createApp(rootComponent: (props?: any) => Node): {
-  mount: (containerOrSelector: Element | string) => void
-  unmount: () => void
-} {
+export function createApp(rootComponent: (props?: any) => Node): App {
   let container: Element | null = null
   let rootNode: Node | null = null
   let disposeEffect: (() => void) | null = null
 
-  const app = {
+  const installedPlugins = new Set<any>()
+
+  const app: App = {
+    use(plugin: any, options?: any): App {
+      if (installedPlugins.has(plugin)) {
+        return app
+      }
+
+      if (plugin && typeof plugin.install === 'function') {
+        plugin.install(app, options)
+      } else if (typeof plugin === 'function') {
+        plugin(app, options)
+      }
+
+      installedPlugins.add(plugin)
+      return app
+    },
+
     mount(containerOrSelector: Element | string): void {
       if (typeof containerOrSelector === 'string') {
         container = document.querySelector(containerOrSelector)

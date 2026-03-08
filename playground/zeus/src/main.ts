@@ -3,5 +3,5 @@ import router from './router'
 import App from './App'
 
 const app = createApp(App)
-router.install(app)
+app.use(router)
 app.mount('#app')
