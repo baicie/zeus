@@ -222,10 +222,20 @@ pub struct WebComponentMacroOptions {
     /// @default true
     pub auto_detect: Option<bool>,
     /// 宏导入模块路径 (默认: "@zeus-js/web-components")
+    /// 支持多个路径，用逗号分隔或传入数组
     pub macro_module: Option<String>,
     /// 保留原始宏调用 (用于调试)
     /// @default false
     pub preserve_macros: Option<bool>,
+    /// 要处理的宏函数列表
+    /// @default ["defineProps", "defineEmits", "defineExpose", "withDefaults"]
+    pub macros: Option<Vec<String>>,
+    /// 转换模式: "remove" 或 "noop"
+    /// @default "remove"
+    pub mode: Option<String>,
+    /// 是否提取宏定义信息
+    /// @default false
+    pub extract_definitions: Option<bool>,
 }
 
 /// Web Component 宏编译结果
@@ -288,7 +298,27 @@ pub fn compile_web_component_macros(
         auto_detect: Some(true),
         macro_module: None,
         preserve_macros: Some(false),
+        macros: None,
+        mode: Some("remove".to_string()),
+        extract_definitions: Some(false),
     });
+
+    // Convert macro_module string to vector
+    let macro_modules: Vec<String> = match &opts.macro_module {
+        Some(m) => m.split(',').map(|s| s.trim().to_string()).collect(),
+        None => vec!["@zeus-js/web-components".to_string()],
+    };
+
+    let macros_list: Vec<String> = opts.macros.unwrap_or_else(|| {
+        vec![
+            "defineProps".to_string(),
+            "defineEmits".to_string(),
+            "defineExpose".to_string(),
+            "withDefaults".to_string(),
+        ]
+    });
+
+    let mode = opts.mode.unwrap_or_else(|| "remove".to_string());
 
     let wc_options = WebComponentCompilerOptions {
         base: CoreCompilerOptions {
@@ -297,8 +327,11 @@ pub fn compile_web_component_macros(
         },
         enable_macros: opts.enable_macros.unwrap_or(true),
         auto_detect: opts.auto_detect.unwrap_or(true),
-        macro_module: opts.macro_module,
+        macro_modules,
         preserve_macros: opts.preserve_macros.unwrap_or(false),
+        macros: macros_list,
+        mode,
+        extract_definitions: opts.extract_definitions.unwrap_or(false),
     };
 
     let compiler = WebComponentCompiler::new();
@@ -351,7 +384,27 @@ pub fn transform_web_component_macros(
         auto_detect: Some(true),
         macro_module: None,
         preserve_macros: Some(false),
+        macros: None,
+        mode: Some("remove".to_string()),
+        extract_definitions: Some(false),
     });
+
+    // Convert macro_module string to vector
+    let macro_modules: Vec<String> = match &opts.macro_module {
+        Some(m) => m.split(',').map(|s| s.trim().to_string()).collect(),
+        None => vec!["@zeus-js/web-components".to_string()],
+    };
+
+    let macros_list: Vec<String> = opts.macros.unwrap_or_else(|| {
+        vec![
+            "defineProps".to_string(),
+            "defineEmits".to_string(),
+            "defineExpose".to_string(),
+            "withDefaults".to_string(),
+        ]
+    });
+
+    let mode = opts.mode.unwrap_or_else(|| "remove".to_string());
 
     let wc_options = WebComponentCompilerOptions {
         base: CoreCompilerOptions {
@@ -360,8 +413,11 @@ pub fn transform_web_component_macros(
         },
         enable_macros: opts.enable_macros.unwrap_or(true),
         auto_detect: opts.auto_detect.unwrap_or(true),
-        macro_module: opts.macro_module,
+        macro_modules,
         preserve_macros: opts.preserve_macros.unwrap_or(false),
+        macros: macros_list,
+        mode,
+        extract_definitions: opts.extract_definitions.unwrap_or(false),
     };
 
     let compiler = WebComponentCompiler::new();

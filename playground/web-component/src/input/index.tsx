@@ -1,7 +1,7 @@
 // Input Web Component - 使用 props 定义
 import {
   type WebComponentPropsDefinition,
-  adaptToWebComponent,
+  defineWebComponent,
 } from '@zeus-js/web-components'
 
 export interface InputProps {
@@ -89,7 +89,7 @@ function Input(props?: InputProps): Node {
 }
 
 // 注册 Web Component
-adaptToWebComponent(Input, {
+defineWebComponent(Input, {
   tagName: 'zeus-input',
   shadow: false,
   props: inputProps,

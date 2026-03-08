@@ -58,22 +58,68 @@ export interface WebComponentMacroOptions {
    * @default true
    */
   enable?: boolean
+
   /**
    * 自动检测宏使用并启用编译
+   * 当设置为 true 时，如果代码中使用了指定的宏函数，将自动启用编译
    * @default true
    */
   autoDetect?: boolean
+
   /**
    * 宏导入模块路径
-   * @default '@zeus-js/web-components'
+   * 可以配置多个可能的导入路径，用于自动检测
+   * @default ['@zeus-js/web-components', '@addons/web-components']
    */
-  module?: string
+  module?: string | string[]
+
   /**
    * 保留原始宏调用 (用于调试)
    * @default false
    */
   preserve?: boolean
+
+  /**
+   * 要处理的宏函数列表
+   * 可以配置只处理部分宏函数
+   * @default ['defineProps', 'defineEmits', 'defineExpose', 'withDefaults']
+   */
+  macros?: string[]
+
+  /**
+   * 转换模式
+   * - 'remove': 移除宏调用，保留参数
+   * - 'noop': 保留宏调用（用于运行时处理）
+   * @default 'remove'
+   */
+  mode?: 'remove' | 'noop'
+
+  /**
+   * 是否提取宏定义信息
+   * 提取后的信息可用于运行时类型检查
+   * @default false
+   */
+  extractDefinitions?: boolean
 }
+
+/**
+ * 预定义的宏函数配置
+ */
+export const DEFAULT_MACRO_FUNCTIONS = [
+  'defineProps',
+  'defineEmits',
+  'defineExpose',
+  'withDefaults',
+] as const
+
+/**
+ * 预定义的宏模块路径
+ */
+export const DEFAULT_MACRO_MODULES: string[] = [
+  '@zeus-js/web-components',
+  '@addons/web-components',
+  'web-components',
+]
 
 export interface TransformResult {
   code: string
@@ -118,8 +164,11 @@ export class ZeusCompiler implements Compiler {
       webComponentMacros: {
         enable: true,
         autoDetect: true,
-        module: '@zeus-js/web-components',
+        module: DEFAULT_MACRO_MODULES,
         preserve: false,
+        macros: [...DEFAULT_MACRO_FUNCTIONS],
+        mode: 'remove',
+        extractDefinitions: false,
       },
       include: ['.jsx', '.tsx', '.js', '.ts'],
       exclude: [/node_modules/],
@@ -145,12 +194,31 @@ export class ZeusCompiler implements Compiler {
       const macroOpts = opts.webComponentMacros
 
       if (macroOpts?.enable !== false) {
+        // 规范化 module 选项（支持字符串或字符串数组）
+        // 转换为逗号分隔的字符串以匹配 NAPI 绑定类型
+        let moduleStr: string | undefined
+        if (Array.isArray(macroOpts?.module)) {
+          moduleStr = macroOpts.module.join(',')
+        } else if (macroOpts?.module) {
+          moduleStr = macroOpts.module
+        } else {
+          moduleStr = DEFAULT_MACRO_MODULES.join(',')
+        }
+
+        // 规范化 macros 选项
+        const macrosList = macroOpts?.macros?.length
+          ? macroOpts.macros
+          : [...DEFAULT_MACRO_FUNCTIONS]
+
         const macroResult = transformWebComponentMacros(code, {
           enableMacros: macroOpts?.enable ?? true,
           autoDetect: macroOpts?.autoDetect ?? true,
-          macroModule: macroOpts?.module,
+          macroModule: moduleStr,
           preserveMacros: macroOpts?.preserve ?? false,
-        })
+          macros: macrosList,
+          mode: macroOpts?.mode ?? 'remove',
+          extractDefinitions: macroOpts?.extractDefinitions ?? false,
+        } as any)
         processedCode = macroResult
       }
 

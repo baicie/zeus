@@ -12,6 +12,9 @@ export interface WebComponentMacroOptions {
   autoDetect?: boolean
   macroModule?: string
   preserveMacros?: boolean
+  macros?: string[]
+  mode?: string
+  extractDefinitions?: boolean
 }
 
 // 宏结果类型

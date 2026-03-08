@@ -67,13 +67,31 @@ export interface WebComponentMacroOptions {
    * @default true
    */
   autoDetect?: boolean
-  /** 宏导入模块路径 (默认: "@zeus-js/web-components") */
+  /**
+   * 宏导入模块路径 (默认: "@zeus-js/web-components")
+   * 支持多个路径，用逗号分隔或传入数组
+   */
   macroModule?: string
   /**
    * 保留原始宏调用 (用于调试)
    * @default false
    */
   preserveMacros?: boolean
+  /**
+   * 要处理的宏函数列表
+   * @default ["defineProps", "defineEmits", "defineExpose", "withDefaults"]
+   */
+  macros?: Array<string>
+  /**
+   * 转换模式: "remove" 或 "noop"
+   * @default "remove"
+   */
+  mode?: string
+  /**
+   * 是否提取宏定义信息
+   * @default false
+   */
+  extractDefinitions?: boolean
 }
 
 /** Web Component 宏编译结果 */

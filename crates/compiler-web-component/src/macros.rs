@@ -207,20 +207,33 @@ impl MacroVisitor {
     /// Simple regex-free implementation
     fn extract_object_keys(&self, obj_str: &str) -> Vec<String> {
         let mut keys = Vec::new();
-        let mut chars = obj_str.chars().peekable();
+
+        // Find the object boundaries (skip opening { and closing })
+        let start = obj_str.find('{').map(|i| i + 1).unwrap_or(0);
+        let end = obj_str.find('}').unwrap_or(obj_str.len());
+        let content = &obj_str[start..end];
+
+        let mut chars = content.chars().peekable();
         let mut in_string = false;
         let mut string_char = '"';
         let mut current_key = String::new();
 
         while let Some(c) = chars.next() {
+            // 进入字符串
             if !in_string && (c == '"' || c == '\'') {
                 in_string = true;
                 string_char = c;
-            } else if in_string && c == string_char {
+                continue;
+            }
+            // 退出字符串
+            if in_string && c == string_char {
                 in_string = false;
-            } else if in_string {
+                continue;
+            }
+
+            if in_string {
+                // 在字符串内部 - 收集键名直到冒号
                 if c == ':' {
-                    // Found colon in string - end of key
                     let key = current_key.trim();
                     if !key.is_empty() {
                         keys.push(key.to_string());
@@ -229,10 +242,21 @@ impl MacroVisitor {
                 } else if c != ' ' || !current_key.is_empty() {
                     current_key.push(c);
                 }
-            } else if c == ',' {
-                current_key.clear();
-            } else if c == '}' {
-                break;
+            } else {
+                // 在字符串外部
+                if c == ':' {
+                    // 冒号前可能是非引号键
+                    let key = current_key.trim();
+                    if !key.is_empty() {
+                        keys.push(key.to_string());
+                    }
+                    current_key.clear();
+                } else if c == ',' {
+                    current_key.clear();
+                } else if !current_key.is_empty() || (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
+                    // 收集键名（跳过前导空格）
+                    current_key.push(c);
+                }
             }
         }
 

@@ -3,7 +3,7 @@ import {
   type WebComponentEmitsDefinition,
   type WebComponentExposeDefinition,
   type WebComponentPropsDefinition,
-  adaptToWebComponent,
+  defineWebComponent,
 } from '@zeus-js/web-components'
 
 export interface ButtonProps {
@@ -121,7 +121,7 @@ function Button(
 }
 
 // 注册 Web Component - 只需传入 props 定义
-adaptToWebComponent(Button, {
+defineWebComponent(Button, {
   tagName: 'zeus-button',
   shadow: false,
   props: buttonProps,

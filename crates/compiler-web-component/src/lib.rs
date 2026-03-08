@@ -26,10 +26,17 @@ pub struct WebComponentCompilerOptions {
     pub enable_macros: bool,
     /// Auto-detect macro usage and enable compilation automatically
     pub auto_detect: bool,
-    /// Module path for macro imports (default: "@zeus-js/web-components")
-    pub macro_module: Option<String>,
+    /// Module paths for macro imports (default: "@zeus-js/web-components")
+    /// Supports multiple paths as comma-separated string or array
+    pub macro_modules: Vec<String>,
     /// Preserve macro calls for runtime (for debugging)
     pub preserve_macros: bool,
+    /// Specific macros to process (default: all)
+    pub macros: Vec<String>,
+    /// Transform mode: "remove" or "noop"
+    pub mode: String,
+    /// Extract macro definitions for runtime
+    pub extract_definitions: bool,
 }
 
 impl Default for WebComponentCompilerOptions {
@@ -41,8 +48,16 @@ impl Default for WebComponentCompilerOptions {
             },
             enable_macros: true,
             auto_detect: true,
-            macro_module: None,
+            macro_modules: vec!["@zeus-js/web-components".to_string()],
             preserve_macros: false,
+            macros: vec![
+                "defineProps".to_string(),
+                "defineEmits".to_string(),
+                "defineExpose".to_string(),
+                "withDefaults".to_string(),
+            ],
+            mode: "remove".to_string(),
+            extract_definitions: false,
         }
     }
 }

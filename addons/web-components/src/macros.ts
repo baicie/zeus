@@ -13,6 +13,33 @@ import type {
   WebComponentPropsDefinition,
 } from './adapter'
 
+// ============================================
+// 宏函数类型定义
+// ============================================
+
+/**
+ * Props 宏参数类型
+ */
+export type PropsParam<T extends WebComponentPropsDefinition = {}> = T
+
+/**
+ * Emits 宏参数类型
+ */
+export type EmitsParam<T extends WebComponentEmitsDefinition = []> = T
+
+/**
+ * Expose 宏参数类型
+ */
+export type ExposeParam<T extends WebComponentExposeDefinition = {}> = T
+
+/**
+ * withDefaults 参数类型
+ */
+export type DefaultsParam<T extends object = {}, D extends object = {}> = {
+  props: T
+  defaults: D
+}
+
 /**
  * defineProps - 定义组件 Props
  *
@@ -142,3 +169,123 @@ export type ExtractEmits<T> =
  */
 export type ExtractExpose<T> =
   T extends ReturnType<typeof defineExpose> ? T : never
+
+// ============================================
+// 运行时辅助函数
+// ============================================
+
+/**
+ * 创建 props 验证器
+ * 用于运行时验证传入的 props
+ */
+export function createPropsValidator<T extends WebComponentPropsDefinition>(
+  propsDef: T,
+) {
+  return function (props: Record<string, any>): Record<string, any> {
+    const result: Record<string, any> = {}
+
+    for (const key in propsDef) {
+      const propDef = propsDef[key]
+      const value = props[key]
+
+      if (value !== undefined) {
+        // 类型验证
+        if (typeof propDef === 'function') {
+          // 构造函数类型检查
+          const expectedType = propDef.name.toLowerCase()
+          const actualType = typeof value
+
+          if (expectedType === 'boolean' && actualType !== 'boolean') {
+            console.warn(`Props "${key}" expected Boolean, got ${actualType}`)
+          } else if (expectedType === 'number' && actualType !== 'number') {
+            console.warn(`Props "${key}" expected Number, got ${actualType}`)
+          } else if (expectedType === 'string' && actualType !== 'string') {
+            console.warn(`Props "${key}" expected String, got ${actualType}`)
+          }
+        } else if (propDef && typeof propDef === 'object') {
+          // 对象类型检查
+          const propOptions = propDef as {
+            type?: Function
+            required?: boolean
+            default?: any
+          }
+
+          // 检查必需属性
+          if (propOptions.required && value === undefined) {
+            console.warn(`Props "${key}" is required`)
+          }
+
+          // 类型验证
+          if (propOptions.type && typeof propOptions.type === 'function') {
+            const expectedType = propOptions.type.name.toLowerCase()
+            const actualType = typeof value
+
+            if (expectedType === 'boolean' && actualType !== 'boolean') {
+              console.warn(`Props "${key}" expected Boolean, got ${actualType}`)
+            }
+          }
+        }
+
+        result[key] = value
+      } else if (
+        propDef &&
+        typeof propDef === 'object' &&
+        (propDef as any).default !== undefined
+      ) {
+        // 使用默认值
+        const defaultValue = (propDef as any).default
+        result[key] =
+          typeof defaultValue === 'function' ? defaultValue() : defaultValue
+      }
+    }
+
+    return result
+  }
+}
+
+/**
+ * 创建 emits 验证器
+ * 用于运行时验证 emit 的事件
+ */
+export function createEmitsValidator<T extends WebComponentEmitsDefinition>(
+  emitsDef: T,
+) {
+  const events = Array.isArray(emitsDef)
+    ? emitsDef
+    : Object.keys(emitsDef || {})
+
+  return function (event: string, payload?: any): boolean {
+    if (!events.includes(event)) {
+      console.warn(`Unknown emit event: "${event}"`)
+      return false
+    }
+
+    // 如果有验证函数，进行验证
+    if (!Array.isArray(emitsDef) && emitsDef[event]) {
+      const validator = emitsDef[event]
+      if (typeof validator === 'function') {
+        const valid = validator(payload)
+        if (!valid) {
+          console.warn(
+            `Emit "${event}" validation failed for payload:`,
+            payload,
+          )
+        }
+        return valid
+      }
+    }
+
+    return true
+  }
+}
+
+/**
+ * 合并 props 和默认值
+ * 运行时辅助函数
+ */
+export function mergeProps<T extends Record<string, any>>(
+  props: T,
+  defaults: Record<string, any>,
+): T {
+  return Object.assign({}, defaults, props)
+}
