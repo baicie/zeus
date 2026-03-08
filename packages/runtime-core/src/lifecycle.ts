@@ -1,8 +1,5 @@
-// packages/runtime-core/src/lifecycle/index.ts
-
 import { effect } from '@zeus-js/signal'
 
-// 纯函数式生命周期钩子
 export interface LifecycleHooks {
   onMount: (() => void)[]
   onUpdate: (() => void)[]
@@ -12,7 +9,6 @@ export interface LifecycleHooks {
   onBeforeUnmount: (() => void)[]
 }
 
-// 基于作用域的生命周期管理
 const lifecycleStack: LifecycleHooks[] = []
 let currentLifecycle: LifecycleHooks | null = null
 
@@ -33,7 +29,6 @@ export function enterLifecycleScope(): void {
   currentLifecycle = scope
 }
 
-// 生命周期钩子函数
 export function onMounted(callback: () => void): void {
   if (currentLifecycle) {
     currentLifecycle.onMount.push(callback)
@@ -70,12 +65,10 @@ export function onBeforeUnmount(callback: () => void): void {
   }
 }
 
-// 响应式效果
 export function watchEffect(callback: () => void): () => void {
   return effect(callback)
 }
 
-// 带生命周期的 setup 函数包装器
 export function withLifecycle<T extends any[], R>(
   setupFn: (...args: T) => R,
 ): (...args: T) => R {

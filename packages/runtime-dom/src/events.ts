@@ -1,4 +1,4 @@
-// packages/runtime-dom/src/events/index.ts
+// packages/runtime-dom/src/events.ts
 
 // 最简单的事件处理 / Simplest event handling
 

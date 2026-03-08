@@ -1,4 +1,4 @@
-// packages/runtime-dom/src/directives/index.ts
+// packages/runtime-dom/src/directives.ts
 
 // 最简单的指令支持 / Simplest directive support
 

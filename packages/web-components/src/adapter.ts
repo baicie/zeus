@@ -1,13 +1,11 @@
-// packages/web-components/src/adapter/index.ts
+// packages/web-components/src/adapter.ts
 
 import type { ComponentFunction } from '@zeus-js/runtime-core'
 import type { Store } from '@zeus-js/store'
-import { createContext, provide, render } from '@zeus-js/runtime-core'
+import type { defineStore } from '@zeus-js/store'
+import { render } from '@zeus-js/runtime-core'
 import { extend } from '@zeus-js/shared'
-import { registerComponent } from '../registry'
-
-// Store Context
-const StoreContext = createContext<Store<any> | undefined>(undefined)
+import { registerComponent } from './registry'
 
 export interface WebComponentOptions<P = any> {
   // 是否使用 Shadow DOM，默认 false（Light DOM，直接渲染到自定义元素内部）
@@ -52,14 +50,12 @@ export function createWebComponentAdapter<P = any>(
     private _root: Element | ShadowRoot | null
     private _mounted: boolean
     private _props: P
-    private _cleanupStore: (() => void) | null = null
 
     constructor() {
       super()
       this._mounted = false
       this._props = {} as unknown as P
       this._root = null
-      this._cleanupStore = null
     }
 
     connectedCallback(): void {
@@ -81,9 +77,6 @@ export function createWebComponentAdapter<P = any>(
       // 初始化 props：先从已存在的 attributes 里读一遍
       this._initializePropsFromAttributes()
 
-      // 提供 Store 给后代组件
-      this._setupStore()
-
       // 初次渲染
       if (this._root) {
         render(() => {
@@ -97,12 +90,6 @@ export function createWebComponentAdapter<P = any>(
     disconnectedCallback(): void {
       if (!this._mounted) {
         return
-      }
-
-      // 清理 Store
-      if (this._cleanupStore) {
-        this._cleanupStore()
-        this._cleanupStore = null
       }
 
       if (this._root) {
@@ -136,21 +123,6 @@ export function createWebComponentAdapter<P = any>(
         const name = attr.name
         const value = attr.value
         attributeToProps(name, value, this._props)
-      }
-    }
-
-    private _setupStore(): void {
-      let currentStore: Store<any> | undefined = store
-
-      // 如果有 storeGetter，调用它获取 store
-      if (!currentStore && storeGetter) {
-        currentStore = storeGetter()
-      }
-
-      // 如果获取到了 store，提供给后代
-      if (currentStore) {
-        // 使用 provide 函数提供 store 到 context
-        provide(currentStore, StoreContext.id)
       }
     }
 
@@ -202,7 +174,7 @@ export function adaptToWebComponent<P = any>(
 export function createStoreWebComponent<P extends object>(
   tagName: string,
   component: ComponentFunction<P>,
-  storeDefinition: () => Store<any>,
+  storeDefinition: ReturnType<typeof defineStore>,
   options?: Omit<WebComponentOptions<P>, 'store' | 'storeGetter'>,
 ): typeof HTMLElement {
   return adaptToWebComponent(

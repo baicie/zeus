@@ -194,6 +194,18 @@ importers:
         specifier: workspace:*
         version: link:../../packages/signal
 
+  addons/store:
+    dependencies:
+      '@zeus-js/runtime-core':
+        specifier: workspace:*
+        version: link:../../packages/runtime-core
+      '@zeus-js/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@zeus-js/signal':
+        specifier: workspace:*
+        version: link:../../packages/signal
+
   packages/compiler-browser:
     dependencies:
       '@napi-rs/wasm-runtime':

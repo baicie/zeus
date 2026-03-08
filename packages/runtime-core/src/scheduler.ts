@@ -1,9 +1,5 @@
-// packages/runtime-core/src/scheduler/index.ts
-
-// 纯函数式调度器
 export type SchedulerJob = () => void
 
-// 调度器状态
 interface SchedulerState {
   queue: SchedulerJob[]
   postFlushQueue: SchedulerJob[]
@@ -13,7 +9,6 @@ interface SchedulerState {
   resolveCurrentFlushPromise: (() => void) | null
 }
 
-// 创建调度器状态
 function createSchedulerState(): SchedulerState {
   return {
     queue: [],
@@ -25,7 +20,6 @@ function createSchedulerState(): SchedulerState {
   }
 }
 
-// 全局调度器状态
 let schedulerState = createSchedulerState()
 
 export function nextTick(callback?: SchedulerJob): Promise<void> {
@@ -69,7 +63,6 @@ function flushJobs(): void {
   schedulerState.isFlushing = true
 
   try {
-    // 执行所有队列中的任务
     for (let i = 0; i < schedulerState.queue.length; i++) {
       const job = schedulerState.queue[i]
       try {
@@ -79,10 +72,8 @@ function flushJobs(): void {
       }
     }
 
-    // 清空队列
     schedulerState.queue.length = 0
 
-    // 执行后刷新回调
     for (let i = 0; i < schedulerState.postFlushQueue.length; i++) {
       const callback = schedulerState.postFlushQueue[i]
       try {
@@ -92,26 +83,22 @@ function flushJobs(): void {
       }
     }
 
-    // 清空后刷新队列
     schedulerState.postFlushQueue.length = 0
   } finally {
     schedulerState.isFlushing = false
 
-    // 解析当前的flush promise
     if (schedulerState.resolveCurrentFlushPromise) {
       schedulerState.resolveCurrentFlushPromise()
       schedulerState.currentFlushPromise = null
       schedulerState.resolveCurrentFlushPromise = null
     }
 
-    // 检查是否有新的任务需要处理
     if (schedulerState.queue.length || schedulerState.postFlushQueue.length) {
       flushJobs()
     }
   }
 }
 
-// 重置调度器状态（主要用于测试）
 export function resetScheduler(): void {
   schedulerState = createSchedulerState()
 }
