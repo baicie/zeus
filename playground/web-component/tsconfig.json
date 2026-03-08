@@ -23,6 +23,7 @@
     "declarationDir": "./dist",
     "emitDeclarationOnly": false,
     "jsx": "preserve",
+    "jsxImportSource": "@zeus-js/core",
     "types": ["../../packages/global.d.ts"]
   },
   "include": ["src/**/*"],

@@ -179,6 +179,12 @@ importers:
         specifier: ^5.105.4
         version: 5.105.4(@swc/core@1.15.18)(esbuild@0.27.3)
 
+  addons/compiler-browser:
+    dependencies:
+      '@napi-rs/wasm-runtime':
+        specifier: 'catalog:'
+        version: 1.1.1
+
   addons/router:
     dependencies:
       '@zeus-js/shared':
@@ -200,11 +206,17 @@ importers:
         specifier: workspace:*
         version: link:../../packages/signal
 
-  packages/compiler-browser:
+  addons/web-components:
     dependencies:
-      '@napi-rs/wasm-runtime':
-        specifier: 'catalog:'
-        version: 1.1.1
+      '@zeus-js/runtime-core':
+        specifier: workspace:*
+        version: link:../../packages/runtime-core
+      '@zeus-js/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@zeus-js/signal':
+        specifier: workspace:*
+        version: link:../../packages/signal
 
   packages/compiler-core:
     dependencies:
@@ -260,18 +272,6 @@ importers:
         specifier: ^3.1.2
         version: 3.1.2
 
-  packages/web-components:
-    dependencies:
-      '@zeus-js/runtime-core':
-        specifier: workspace:*
-        version: link:../runtime-core
-      '@zeus-js/shared':
-        specifier: workspace:*
-        version: link:../shared
-      '@zeus-js/signal':
-        specifier: workspace:*
-        version: link:../signal
-
   packages/zeus:
     dependencies:
       '@zeus-js/runtime-dom':
@@ -294,7 +294,7 @@ importers:
         version: link:../../packages/zeus
       '@zeus-js/web-components':
         specifier: workspace:*
-        version: link:../../packages/web-components
+        version: link:../../addons/web-components
     devDependencies:
       '@rollup/plugin-replace':
         specifier: ^6.0.3

@@ -24,6 +24,19 @@ const external = [
   ...Object.keys(pkg.peerDependencies || {}),
 ]
 
+// Path aliases for workspace packages
+const alias: Record<string, string> = {
+  '@zeus-js/core': resolve('../../packages/zeus/src/index.ts'),
+  '@zeus-js/web-components': resolve(
+    '../../packages/web-components/src/index.ts',
+  ),
+  '@zeus-js/signal': resolve('../../packages/signal/src/index.ts'),
+  '@zeus-js/shared': resolve('../../packages/shared/src/index.ts'),
+  '@zeus-js/runtime-core': resolve('../../packages/runtime-core/src/index.ts'),
+  '@zeus-js/runtime-dom': resolve('../../packages/runtime-dom/src/index.ts'),
+  '@zeus-js/store': resolve('../../addons/store/src/index.ts'),
+}
+
 // Common replacement values
 const replaceValues = {
   __DEV__: "!!(process.env.NODE_ENV !== 'production')",
@@ -39,8 +52,9 @@ const replaceValues = {
 
 // ESM build (for bundlers)
 const esmConfig: RolldownOptions = {
-  input: resolve('src/main.ts'),
+  input: resolve('src/index.ts'),
   external,
+  resolve: { alias },
   output: {
     dir: resolve('dist'),
     format: 'esm',
@@ -49,14 +63,21 @@ const esmConfig: RolldownOptions = {
     sourcemap: true,
   },
   treeshake: {
-    moduleSideEffects: false,
+    moduleSideEffects: id => {
+      // Keep side effects for registration
+      if (id.includes('button') || id.includes('input')) {
+        return true
+      }
+      return false
+    },
   },
 }
 
 // CJS build
 const cjsConfig: RolldownOptions = {
-  input: resolve('src/main.ts'),
+  input: resolve('src/index.ts'),
   external,
+  resolve: { alias },
   plugins: [
     replace({
       preventAssignment: true,
@@ -73,14 +94,20 @@ const cjsConfig: RolldownOptions = {
     externalLiveBindings: false,
   },
   treeshake: {
-    moduleSideEffects: false,
+    moduleSideEffects: id => {
+      if (id.includes('button') || id.includes('input')) {
+        return true
+      }
+      return false
+    },
   },
 }
 
 // IIFE build (for direct browser usage)
 const iifeConfig: RolldownOptions = {
-  input: resolve('src/main.ts'),
+  input: resolve('src/index.ts'),
   external: [],
+  resolve: { alias },
   plugins: [
     replace({
       preventAssignment: true,
@@ -103,7 +130,12 @@ const iifeConfig: RolldownOptions = {
     },
   },
   treeshake: {
-    moduleSideEffects: false,
+    moduleSideEffects: id => {
+      if (id.includes('button') || id.includes('input')) {
+        return true
+      }
+      return false
+    },
   },
 }
 
