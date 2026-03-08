@@ -164,7 +164,7 @@ export function createWebComponentAdapter<P = any>(
 }
 
 /**
- * defineWebComponent - 定义并注册 Web Component
+ * defineCustomElement - 定义并注册 Web Component
  *
  * @example
  * ```ts
@@ -172,7 +172,7 @@ export function createWebComponentAdapter<P = any>(
  *   return <button class={`btn btn-${variant}`}>{children}</button>
  * }
  *
- * defineWebComponent(MyButton, {
+ * defineCustomElement(MyButton, {
  *   tagName: 'my-button',
  *   props: {
  *     variant: { type: String, default: 'primary' },
@@ -180,7 +180,7 @@ export function createWebComponentAdapter<P = any>(
  * })
  * ```
  */
-export function defineWebComponent<P = any>(
+export function defineCustomElement<P = any>(
   component: ComponentFunction<P>,
   options: WebComponentOptions<P> & {
     tagName: string
@@ -222,7 +222,7 @@ export function createStoreWebComponent<P extends object>(
   storeDefinition: () => Store<any>,
   options?: Omit<WebComponentOptions<P>, 'store' | 'storeGetter'>,
 ): typeof HTMLElement {
-  return defineWebComponent(
+  return defineCustomElement(
     component,
     extend({ tagName, storeGetter: storeDefinition }, options),
   )

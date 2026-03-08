@@ -544,7 +544,7 @@ export function createWebComponentAdapter<
 }
 
 /**
- * defineWebComponent - 定义并注册 Web Component
+ * defineCustomElement - 定义并注册 Web Component
  *
  * 将 Zeus 组件转换为 Web Component 并自动注册到 customElements
  *
@@ -555,7 +555,7 @@ export function createWebComponentAdapter<
  * }
  *
  * // 创建并注册 Web Component
- * defineWebComponent(MyButton, {
+ * defineCustomElement(MyButton, {
  *   tagName: 'my-button',
  *   props: {
  *     variant: { type: String, default: 'primary' },
@@ -564,7 +564,7 @@ export function createWebComponentAdapter<
  * })
  * ```
  */
-export function defineWebComponent<P extends object = any, E = any, X = any>(
+export function defineCustomElement<P extends object = any, E = any, X = any>(
   component: ComponentFunction<P>,
   options: WebComponentOptions<P, E, X> & {
     tagName: string
@@ -606,7 +606,7 @@ export function createStoreWebComponent<P extends object, E = any, X = any>(
   storeDefinition: ReturnType<typeof defineStore>,
   options?: Omit<WebComponentOptions<P, E, X>, 'store' | 'storeGetter'>,
 ): typeof HTMLElement {
-  return defineWebComponent(
+  return defineCustomElement(
     component,
     extend({ tagName, storeGetter: storeDefinition }, options),
   )
