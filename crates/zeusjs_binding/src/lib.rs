@@ -1,6 +1,7 @@
 use napi_derive::napi;
 use zeus_compiler_dom::{DomCompiler, DomCompilerOptions};
 use zeus_compiler_core::CompilerOptions as CoreCompilerOptions;
+use zeus_compiler_web_component::{WebComponentCompiler, WebComponentCompilerOptions};
 use oxc::span::SourceType;
 
 // 编译器选项
@@ -205,4 +206,165 @@ fn extract_code_snippet(source: &str, line: u32, column: u32) -> Option<CodeSnip
         line_content,
         indicator,
     })
+}
+
+// ============================================================
+// Web Component 编译器 NAPI 绑定
+// ============================================================
+
+/// Web Component 宏编译器选项
+#[napi(object)]
+pub struct WebComponentMacroOptions {
+    /// 是否启用宏编译 (defineProps, defineEmits, defineExpose)
+    /// @default true
+    pub enable_macros: Option<bool>,
+    /// 自动检测宏使用并启用编译
+    /// @default true
+    pub auto_detect: Option<bool>,
+    /// 宏导入模块路径 (默认: "@zeus-js/web-components")
+    pub macro_module: Option<String>,
+    /// 保留原始宏调用 (用于调试)
+    /// @default false
+    pub preserve_macros: Option<bool>,
+}
+
+/// Web Component 宏编译结果
+#[napi(object)]
+pub struct WebComponentMacroResult {
+    /// 转换后的代码
+    pub code: String,
+    /// 是否找到并处理了宏
+    pub macros_found: bool,
+    /// 提取的宏定义
+    pub macros: Option<WebComponentMacroDefinitions>,
+}
+
+/// 提取的宏定义
+#[napi(object)]
+pub struct WebComponentMacroDefinitions {
+    /// defineProps 定义
+    pub props: Option<MacroPropsDefinition>,
+    /// defineEmits 定义
+    pub emits: Option<MacroEmitsDefinition>,
+    /// defineExpose 定义
+    pub expose: Option<MacroExposeDefinition>,
+}
+
+/// Props 定义
+#[napi(object)]
+pub struct MacroPropsDefinition {
+    /// 原始源码
+    pub source: String,
+    /// 属性键列表
+    pub keys: Vec<String>,
+}
+
+/// Emits 定义
+#[napi(object)]
+pub struct MacroEmitsDefinition {
+    /// 原始源码
+    pub source: String,
+    /// 事件名列表
+    pub events: Vec<String>,
+}
+
+/// Expose 定义
+#[napi(object)]
+pub struct MacroExposeDefinition {
+    /// 原始源码
+    pub source: String,
+    /// 暴露的键列表
+    pub keys: Vec<String>,
+}
+
+/// 编译 Web Component 宏
+#[napi]
+pub fn compile_web_component_macros(
+    source: String,
+    options: Option<WebComponentMacroOptions>,
+) -> WebComponentMacroResult {
+    let opts = options.unwrap_or(WebComponentMacroOptions {
+        enable_macros: Some(true),
+        auto_detect: Some(true),
+        macro_module: None,
+        preserve_macros: Some(false),
+    });
+
+    let wc_options = WebComponentCompilerOptions {
+        base: CoreCompilerOptions {
+            source_type: SourceType::default(),
+            experimental: false,
+        },
+        enable_macros: opts.enable_macros.unwrap_or(true),
+        auto_detect: opts.auto_detect.unwrap_or(true),
+        macro_module: opts.macro_module,
+        preserve_macros: opts.preserve_macros.unwrap_or(false),
+    };
+
+    let compiler = WebComponentCompiler::new();
+
+    match compiler.compile(&source, &wc_options) {
+        Ok(result) => {
+            let macros = if result.macros_found {
+                Some(WebComponentMacroDefinitions {
+                    props: result.macros.props.map(|p| MacroPropsDefinition {
+                        source: p.source,
+                        keys: p.keys,
+                    }),
+                    emits: result.macros.emits.map(|e| MacroEmitsDefinition {
+                        source: e.source,
+                        events: e.events,
+                    }),
+                    expose: result.macros.expose.map(|ex| MacroExposeDefinition {
+                        source: ex.source,
+                        keys: ex.keys,
+                    }),
+                })
+            } else {
+                None
+            };
+
+            WebComponentMacroResult {
+                code: result.code,
+                macros_found: result.macros_found,
+                macros,
+            }
+        }
+        Err(_error) => {
+            WebComponentMacroResult {
+                code: source,
+                macros_found: false,
+                macros: None,
+            }
+        }
+    }
+}
+
+/// 转换 Web Component 宏 (只返回转换后的代码)
+#[napi]
+pub fn transform_web_component_macros(
+    source: String,
+    options: Option<WebComponentMacroOptions>,
+) -> String {
+    let opts = options.unwrap_or(WebComponentMacroOptions {
+        enable_macros: Some(true),
+        auto_detect: Some(true),
+        macro_module: None,
+        preserve_macros: Some(false),
+    });
+
+    let wc_options = WebComponentCompilerOptions {
+        base: CoreCompilerOptions {
+            source_type: SourceType::default(),
+            experimental: false,
+        },
+        enable_macros: opts.enable_macros.unwrap_or(true),
+        auto_detect: opts.auto_detect.unwrap_or(true),
+        macro_module: opts.macro_module,
+        preserve_macros: opts.preserve_macros.unwrap_or(false),
+    };
+
+    let compiler = WebComponentCompiler::new();
+
+    compiler.transform(&source, &wc_options).unwrap_or(source)
 }

@@ -577,3 +577,5 @@ if (!nativeBinding) {
 
 module.exports = nativeBinding
 module.exports.compiler = nativeBinding.compiler
+module.exports.compileWebComponentMacros = nativeBinding.compileWebComponentMacros
+module.exports.transformWebComponentMacros = nativeBinding.transformWebComponentMacros

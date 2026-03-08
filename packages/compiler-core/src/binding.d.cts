@@ -14,3 +14,74 @@ export interface CompilerResult {
   success: boolean
   errors: Array<string>
 }
+
+/** 编译 Web Component 宏 */
+export declare function compileWebComponentMacros(source: string, options?: WebComponentMacroOptions | undefined | null): WebComponentMacroResult
+
+/** Emits 定义 */
+export interface MacroEmitsDefinition {
+  /** 原始源码 */
+  source: string
+  /** 事件名列表 */
+  events: Array<string>
+}
+
+/** Expose 定义 */
+export interface MacroExposeDefinition {
+  /** 原始源码 */
+  source: string
+  /** 暴露的键列表 */
+  keys: Array<string>
+}
+
+/** Props 定义 */
+export interface MacroPropsDefinition {
+  /** 原始源码 */
+  source: string
+  /** 属性键列表 */
+  keys: Array<string>
+}
+
+/** 转换 Web Component 宏 (只返回转换后的代码) */
+export declare function transformWebComponentMacros(source: string, options?: WebComponentMacroOptions | undefined | null): string
+
+/** 提取的宏定义 */
+export interface WebComponentMacroDefinitions {
+  /** defineProps 定义 */
+  props?: MacroPropsDefinition
+  /** defineEmits 定义 */
+  emits?: MacroEmitsDefinition
+  /** defineExpose 定义 */
+  expose?: MacroExposeDefinition
+}
+
+/** Web Component 宏编译器选项 */
+export interface WebComponentMacroOptions {
+  /**
+   * 是否启用宏编译 (defineProps, defineEmits, defineExpose)
+   * @default true
+   */
+  enableMacros?: boolean
+  /**
+   * 自动检测宏使用并启用编译
+   * @default true
+   */
+  autoDetect?: boolean
+  /** 宏导入模块路径 (默认: "@zeus-js/web-components") */
+  macroModule?: string
+  /**
+   * 保留原始宏调用 (用于调试)
+   * @default false
+   */
+  preserveMacros?: boolean
+}
+
+/** Web Component 宏编译结果 */
+export interface WebComponentMacroResult {
+  /** 转换后的代码 */
+  code: string
+  /** 是否找到并处理了宏 */
+  macrosFound: boolean
+  /** 提取的宏定义 */
+  macros?: WebComponentMacroDefinitions
+}

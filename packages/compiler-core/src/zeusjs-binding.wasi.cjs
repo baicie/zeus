@@ -109,3 +109,5 @@ const { instance: __napiInstance, module: __wasiModule, napiModule: __napiModule
 })
 module.exports = __napiModule.exports
 module.exports.compiler = __napiModule.exports.compiler
+module.exports.compileWebComponentMacros = __napiModule.exports.compileWebComponentMacros
+module.exports.transformWebComponentMacros = __napiModule.exports.transformWebComponentMacros

@@ -177,6 +177,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "diff"
+version = "0.1.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "56254986775e3233ffa9c4d7d3faaf6d36a2c09d30b20687e9f88bc8bafc16c8"
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1127,6 +1133,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "439ee305def115ba05938db6eb1644ff94165c5ab5e9420d1c1bcedbba909391"
 
 [[package]]
+name = "pretty_assertions"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3ae130e2f271fbc2ac3a40fb1d07180839cdbbe443c7a27e1e3c13c5cac0116d"
+dependencies = [
+ "diff",
+ "yansi",
+]
+
+[[package]]
 name = "proc-macro2"
 version = "1.0.105"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1462,6 +1478,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5"
 
 [[package]]
+name = "yansi"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cfe53a6657fd280eaa890a3bc59152892ffa3e30101319d168b781ed6529b049"
+
+[[package]]
 name = "zeus-compiler-common"
 version = "0.1.0"
 dependencies = [
@@ -1513,6 +1535,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "zeus-compiler-web-component"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "oxc",
+ "oxc_allocator",
+ "oxc_span",
+ "oxc_traverse",
+ "pretty_assertions",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "zeus-compiler-common",
+ "zeus-compiler-core",
+]
+
+[[package]]
 name = "zeusjs_binding"
 version = "0.0.1"
 dependencies = [
@@ -1525,6 +1564,7 @@ dependencies = [
  "oxc_span",
  "zeus-compiler-core",
  "zeus-compiler-dom",
+ "zeus-compiler-web-component",
 ]
 
 [[package]]

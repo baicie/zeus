@@ -1,4 +1,4 @@
-import { compiler } from '@zeus-js/compiler-core'
+import { compiler, transformWebComponentMacros } from '@zeus-js/compiler-core'
 
 export interface CompilerOptions {
   /**
@@ -31,6 +31,12 @@ export interface CompilerOptions {
   compiler?: Record<string, any>
 
   /**
+   * Web Component 宏编译选项
+   * 用于处理 defineProps/defineEmits/defineExpose 等宏
+   */
+  webComponentMacros?: WebComponentMacroOptions
+
+  /**
    * 包含的文件扩展名
    * @default ['.jsx', '.tsx', '.js', '.ts']
    */
@@ -41,6 +47,32 @@ export interface CompilerOptions {
    * @default [/node_modules/]
    */
   exclude?: RegExp[]
+}
+
+/**
+ * Web Component 宏编译选项
+ */
+export interface WebComponentMacroOptions {
+  /**
+   * 是否启用宏编译
+   * @default true
+   */
+  enable?: boolean
+  /**
+   * 自动检测宏使用并启用编译
+   * @default true
+   */
+  autoDetect?: boolean
+  /**
+   * 宏导入模块路径
+   * @default '@zeus-js/web-components'
+   */
+  module?: string
+  /**
+   * 保留原始宏调用 (用于调试)
+   * @default false
+   */
+  preserve?: boolean
 }
 
 export interface TransformResult {
@@ -83,6 +115,12 @@ export class ZeusCompiler implements Compiler {
       hmr: true,
       webComponentsMode: 'shadow',
       optimizeSlots: true,
+      webComponentMacros: {
+        enable: true,
+        autoDetect: true,
+        module: '@zeus-js/web-components',
+        preserve: false,
+      },
       include: ['.jsx', '.tsx', '.js', '.ts'],
       exclude: [/node_modules/],
       ...options,
@@ -102,7 +140,21 @@ export class ZeusCompiler implements Compiler {
     }
 
     try {
-      // 使用Zeus编译器进行转换
+      // 1. 首先处理 Web Component 宏 (defineProps/defineEmits/defineExpose)
+      let processedCode = code
+      const macroOpts = opts.webComponentMacros
+
+      if (macroOpts?.enable !== false) {
+        const macroResult = transformWebComponentMacros(code, {
+          enableMacros: macroOpts?.enable ?? true,
+          autoDetect: macroOpts?.autoDetect ?? true,
+          macroModule: macroOpts?.module,
+          preserveMacros: macroOpts?.preserve ?? false,
+        })
+        processedCode = macroResult
+      }
+
+      // 2. 使用Zeus编译器进行转换
       const compileOptions = {
         sourceType: this.getSourceType(id),
         experimental: opts.compiler?.experimental || false,
@@ -110,7 +162,7 @@ export class ZeusCompiler implements Compiler {
         minify: opts.compiler?.minify || false,
       }
 
-      const result = compiler(code, compileOptions)
+      const result = compiler(processedCode, compileOptions)
 
       if (result.success) {
         return {

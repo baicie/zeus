@@ -64,3 +64,5 @@ const {
 })
 export default __napiModule.exports
 export const compiler = __napiModule.exports.compiler
+export const compileWebComponentMacros = __napiModule.exports.compileWebComponentMacros
+export const transformWebComponentMacros = __napiModule.exports.transformWebComponentMacros
