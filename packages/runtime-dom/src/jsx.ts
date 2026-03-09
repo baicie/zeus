@@ -6,6 +6,7 @@
  */
 
 import type * as csstype from 'csstype'
+import type { Ref } from '@zeus-js/runtime-core'
 
 // ============================================
 // Core Types
@@ -227,6 +228,7 @@ export interface ReservedProps {
 export interface DOMAttributes<T = Element> extends EventHandlers<Events> {
   children?: JSXElement
   key?: string | number | null
+  ref?: Ref<T>
 }
 
 export interface HTMLAttributes<T = HTMLElement>

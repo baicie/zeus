@@ -1,84 +1,88 @@
-import { effect } from '@zeus-js/signal'
+import { queuePostFlushCb } from './scheduler'
 
-export interface LifecycleHooks {
-  onMount: (() => void)[]
-  onUpdate: (() => void)[]
-  onUnmount: (() => void)[]
-  onBeforeMount: (() => void)[]
-  onBeforeUpdate: (() => void)[]
-  onBeforeUnmount: (() => void)[]
+export type LifecycleHook = () => void
+
+interface LifecycleHooks {
+  onMount: LifecycleHook[]
+  onUnmount: LifecycleHook[]
+  onCleanup: LifecycleHook[]
 }
 
-const lifecycleStack: LifecycleHooks[] = []
-let currentLifecycle: LifecycleHooks | null = null
+interface Lifecycle {
+  hooks: LifecycleHooks | null
+}
 
-export function createLifecycleScope(): LifecycleHooks {
+let currentLifecycle: Lifecycle | null = null
+
+export function setCurrentLifecycle(lifecycle: Lifecycle | null): void {
+  currentLifecycle = lifecycle
+}
+
+export function getCurrentLifecycle(): Lifecycle | null {
+  return currentLifecycle
+}
+
+export function createLifecycle(): Lifecycle {
   return {
-    onMount: [],
-    onUpdate: [],
-    onUnmount: [],
-    onBeforeMount: [],
-    onBeforeUpdate: [],
-    onBeforeUnmount: [],
+    hooks: {
+      onMount: [],
+      onUnmount: [],
+      onCleanup: [],
+    },
   }
 }
 
-export function enterLifecycleScope(): void {
-  const scope = createLifecycleScope()
-  lifecycleStack.push(scope)
-  currentLifecycle = scope
-}
-
-export function onMounted(callback: () => void): void {
-  if (currentLifecycle) {
-    currentLifecycle.onMount.push(callback)
+export function onMount(callback: LifecycleHook): void {
+  if (currentLifecycle && currentLifecycle.hooks) {
+    currentLifecycle.hooks.onMount.push(callback)
   }
 }
 
-export function onUpdated(callback: () => void): void {
-  if (currentLifecycle) {
-    currentLifecycle.onUpdate.push(callback)
+export function onUnmount(callback: LifecycleHook): void {
+  if (currentLifecycle && currentLifecycle.hooks) {
+    currentLifecycle.hooks.onUnmount.push(callback)
   }
 }
 
-export function onUnmounted(callback: () => void): void {
-  if (currentLifecycle) {
-    currentLifecycle.onUnmount.push(callback)
+export function onCleanup(callback: LifecycleHook): void {
+  if (currentLifecycle && currentLifecycle.hooks) {
+    currentLifecycle.hooks.onCleanup.push(callback)
   }
 }
 
-export function onBeforeMount(callback: () => void): void {
-  if (currentLifecycle) {
-    currentLifecycle.onBeforeMount.push(callback)
+export function invokeArrayFns(fns: LifecycleHook[]): void {
+  for (let i = 0; i < fns.length; i++) {
+    fns[i]()
   }
 }
 
-export function onBeforeUpdate(callback: () => void): void {
-  if (currentLifecycle) {
-    currentLifecycle.onBeforeUpdate.push(callback)
+export function invokeMountHook(lifecycle: Lifecycle): void {
+  if (lifecycle.hooks && lifecycle.hooks.onMount.length) {
+    queuePostFlushCb(function () {
+      invokeArrayFns(lifecycle.hooks!.onMount)
+    })
   }
 }
 
-export function onBeforeUnmount(callback: () => void): void {
-  if (currentLifecycle) {
-    currentLifecycle.onBeforeUnmount.push(callback)
+export function invokeUnmountHook(lifecycle: Lifecycle): void {
+  if (lifecycle.hooks) {
+    invokeArrayFns(lifecycle.hooks.onUnmount)
   }
 }
 
-export function watchEffect(callback: () => void): () => void {
-  return effect(callback)
+export function invokeCleanupHook(lifecycle: Lifecycle): void {
+  if (lifecycle.hooks && lifecycle.hooks.onCleanup.length) {
+    invokeArrayFns(lifecycle.hooks.onCleanup)
+  }
 }
 
-export function withLifecycle<T extends any[], R>(
-  setupFn: (...args: T) => R,
-): (...args: T) => R {
-  return (...args: T) => {
-    enterLifecycleScope()
-    try {
-      const result = setupFn(...args)
-      return result
-    } finally {
-      // 生命周期钩子会在组件渲染时被调用
-    }
+export function hasLifecycleHooks(lifecycle: Lifecycle): boolean {
+  if (!lifecycle.hooks) {
+    return false
   }
+  return (
+    lifecycle.hooks.onMount.length > 0 ||
+    lifecycle.hooks.onUnmount.length > 0 ||
+    lifecycle.hooks.onCleanup.length > 0
+  )
 }

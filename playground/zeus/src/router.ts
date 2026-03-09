@@ -19,6 +19,12 @@ const BindingView = function () {
 const ComputedView = function () {
   return import('./views/ComputedView')
 }
+const LifecycleView = function () {
+  return import('./views/LifecycleView')
+}
+const RefView = function () {
+  return import('./views/RefView')
+}
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -29,6 +35,8 @@ const router = createRouter({
     { path: '/list', component: ListView },
     { path: '/binding', component: BindingView },
     { path: '/computed', component: ComputedView },
+    { path: '/lifecycle', component: LifecycleView },
+    { path: '/ref', component: RefView },
   ],
 })
 

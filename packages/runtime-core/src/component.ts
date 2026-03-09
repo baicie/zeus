@@ -1,5 +1,5 @@
 // Component is a plain function that returns a real DOM node
-export type ComponentFunction<P = any> = (props?: P) => Node
+export type ComponentFunction<P = any> = (props?: P) => Node | null
 
 // Application interface
 export interface App {

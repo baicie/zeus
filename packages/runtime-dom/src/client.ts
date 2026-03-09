@@ -1,4 +1,5 @@
 import { effect } from '@zeus-js/signal'
+import { isRef } from '@zeus-js/runtime-core'
 
 // =============================================================================
 // template(html) — Creates a cached template element, returns a clone function
@@ -200,7 +201,7 @@ export function spread(
   accessor: Record<string, any> | (() => Record<string, any>),
 ): void {
   const applyProps = (props: Record<string, any>) => {
-    for (const [key, value] of Object.entries(props)) {
+    for (let [key, value] of Object.entries(props)) {
       if (key === 'class' || key === 'className') {
         className(node, value)
       } else if (key === 'style') {
@@ -209,7 +210,9 @@ export function spread(
         const eventName = key.slice(2).toLowerCase()
         addEventListener(node, eventName, value)
       } else if (key === 'ref') {
-        if (typeof value === 'function') value(node)
+        if (isRef(value)) {
+          value = node
+        }
       } else {
         setAttribute(node, key, value)
       }
