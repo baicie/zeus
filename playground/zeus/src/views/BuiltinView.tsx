@@ -60,7 +60,10 @@ function ErrorBoundaryDemo() {
         </button>
         <button
           class={`${styles.btn} ${showError() ? styles.btnDanger : ''}`}
-          onClick={() => showError(true)}
+          onClick={() => {
+            console.log('Trigger Error button clicked, setting showError(true)')
+            showError(true)
+          }}
         >
           Trigger Error
         </button>
@@ -78,11 +81,8 @@ function ErrorBoundaryDemo() {
               <button
                 class={styles.btnSecondary}
                 onClick={() => {
-                  console.log('Button click: before showError(false)')
                   showError(false)
-                  console.log('Button click: after showError(false), calling reset()')
                   reset()
-                  console.log('Button click: after reset()')
                 }}
               >
                 Reset

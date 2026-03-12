@@ -708,7 +708,7 @@ impl<'s> TemplateAnalyzer<'s> {
             let mut has_jsx_arg = false;
             for arg in &call.arguments {
                 if let Some(expr) = arg.as_expression() {
-                    if let Expression::ArrowFunctionExpression(arrow) = expr {
+                    if let Expression::ArrowFunctionExpression(_arrow) = expr {
                         // Check if the arrow body contains JSX (both expression-bodied and block-bodied)
                         if self.expression_contains_jsx(expr) {
                             has_jsx_arg = true;
@@ -774,15 +774,9 @@ impl<'s> TemplateAnalyzer<'s> {
             return format!("{}({})", callee, args.join(", "));
         }
 
-        // For simple calls like count(), extract just the function name
-        let full_source = self.extract_source_span(call.span);
-        
-        // Find the opening parenthesis and return everything before it
-        if let Some(paren_pos) = full_source.find('(') {
-            full_source[..paren_pos].to_string()
-        } else {
-            full_source
-        }
+        // For simple calls like count() - return the full source with parentheses
+        // This is important for props where we need the actual value, not just the function reference
+        self.extract_source_span(call.span)
     }
     
     /// Check if a statement contains JSX

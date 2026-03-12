@@ -244,17 +244,12 @@ export function ErrorBoundary(props: ErrorBoundaryProps): any {
       let currentNodes: Node[] = []
 
       effectRef = effect(function () {
-        console.log('Effect: before version()')
         // Access version to make effect reactive to reset
         version()
-        console.log('Effect: after version()')
-        console.log('Effect running')
+        console.log('ErrorBoundary effect running')
 
         try {
-          console.log('About to call children()')
           const value = children()
-          console.log('children() returned:', value)
-          console.log('After children, state:', state)
 
           // Clear previous error state - allow children to render again
           if (state.hasError) {
@@ -292,7 +287,6 @@ export function ErrorBoundary(props: ErrorBoundaryProps): any {
           }
         } catch (e) {
           // Catch errors during rendering
-          console.log('Error caught in effect:', e)
           const error = e instanceof Error ? e : new Error(String(e))
           state = { hasError: true, error }
 
