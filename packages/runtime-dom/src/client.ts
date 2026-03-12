@@ -1,5 +1,4 @@
 import { effect } from '@zeus-js/signal'
-import { isRef } from '@zeus-js/runtime-core'
 
 // =============================================================================
 // template(html) — Creates a cached template element, returns a clone function
@@ -259,7 +258,11 @@ interface KeyedNode {
   node: Node
 }
 
-function getKey<T>(item: T, index: number, keyFn: (item: T, index: number) => string | number): string | number {
+function getKey<T>(
+  item: T,
+  index: number,
+  keyFn: string | number | ((item: T, index: number) => string | number),
+): string | number {
   if (typeof keyFn === 'function') {
     return keyFn(item, index)
   }
@@ -286,9 +289,11 @@ export function reconcileArray<T>(
   renderItem: (item: T, index: number) => Node,
   options: ReconcileOptions<T>,
 ): Node[] {
-  const keyFn = typeof options.key === 'function'
-    ? options.key
-    : (item: T, index: number) => getKey(item, index, options.key as string | number)
+  const keyFn =
+    typeof options.key === 'function'
+      ? options.key
+      : (item: T, index: number) =>
+          getKey(item, index, options.key as string | number)
 
   // Build key -> node map from current nodes
   const currentKeyedNodes: Map<string | number, KeyedNode> = new Map()
@@ -301,9 +306,6 @@ export function reconcileArray<T>(
 
   const newNodes: Node[] = []
   const processedKeys = new Set<string | number>()
-
-  // Track the last inserted node for efficient insertion position
-  let lastNode: Node | null = null
 
   // First pass: process items in order
   for (let i = 0; i < items.length; i++) {
@@ -319,13 +321,11 @@ export function reconcileArray<T>(
       newNodes.push(existing.node)
       // Store key on node for future reconciliation
       ;(existing.node as any).__zeus_key__ = key
-      lastNode = existing.node
     } else {
       // New item - render it
       const newNode = renderItem(item, i)
       ;(newNode as any).__zeus_key__ = key
       newNodes.push(newNode)
-      lastNode = newNode
     }
   }
 
@@ -373,7 +373,10 @@ export function reconcileArray<T>(
         const nextNode = parent.childNodes[targetPosition]
         if (nextNode && nextNode !== existing.node) {
           parent.insertBefore(existing.node, nextNode)
-        } else if (!existing.node.nextSibling && parent.lastChild !== existing.node) {
+        } else if (
+          !existing.node.nextSibling &&
+          parent.lastChild !== existing.node
+        ) {
           // Move to end
           parent.appendChild(existing.node)
         }
@@ -411,13 +414,9 @@ export function keyed<T>(
   const reconcile = effect(function () {
     const items = itemsAccessor()
 
-    currentNodes = reconcileArray(
-      parent,
-      currentNodes,
-      items,
-      renderItem,
-      { key },
-    )
+    currentNodes = reconcileArray(parent, currentNodes, items, renderItem, {
+      key,
+    })
   })
 
   return function cleanup() {

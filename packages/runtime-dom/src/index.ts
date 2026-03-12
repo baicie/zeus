@@ -1,6 +1,25 @@
 import { effect } from '@zeus-js/signal'
 import type { App } from '@zeus-js/runtime-core'
 
+// Helper to add nodes to container (handles arrays)
+function appendNodes(
+  container: Element,
+  nodes: Node | Node[] | null | undefined,
+): void {
+  if (!nodes || !container) {
+    return
+  }
+  if (Array.isArray(nodes)) {
+    for (const node of nodes) {
+      if (node instanceof Node) {
+        container.appendChild(node)
+      }
+    }
+  } else if (nodes instanceof Node) {
+    container.appendChild(nodes)
+  }
+}
+
 // Core compilation helpers (called by compiler-generated code)
 export {
   template,
@@ -75,9 +94,17 @@ export function createApp(rootComponent: (props?: any) => Node): App {
         if (rootNode && container) {
           container.removeChild(rootNode)
         }
-        rootNode = rootComponent()
-        if (rootNode && container) {
-          container.appendChild(rootNode)
+        const newNodes = rootComponent()
+        if (container) {
+          appendNodes(container, newNodes)
+        }
+        // For single-node tracking, get the first node if exists
+        if (Array.isArray(newNodes) && newNodes.length > 0) {
+          rootNode = newNodes[0]
+        } else if (newNodes instanceof Node) {
+          rootNode = newNodes
+        } else {
+          rootNode = null
         }
       })
 

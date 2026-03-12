@@ -28,7 +28,12 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/computed', icon: '⚡', label: 'Computed', desc: 'derived state' },
   { path: '/lifecycle', icon: '🔄', label: 'Lifecycle', desc: 'hooks demo' },
   { path: '/ref', icon: '🔗', label: 'Ref', desc: 'DOM reference' },
-  { path: '/builtin', icon: '🔧', label: 'Built-in', desc: 'Fragment, Portal...' },
+  {
+    path: '/builtin',
+    icon: '🔧',
+    label: 'Built-in',
+    desc: 'Fragment, Portal...',
+  },
 ]
 
 function NavLink(props: NavItem): HTMLAnchorElement {

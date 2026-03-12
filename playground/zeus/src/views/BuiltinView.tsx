@@ -35,7 +35,6 @@ function FragmentDemo() {
 
 // ── ErrorBoundary Demo ──
 function ErrorChild({ shouldError = false }: { shouldError?: boolean }) {
-  console.log('ErrorChild rendering, shouldError:', shouldError)
   if (shouldError) {
     throw new Error('Error from ErrorChild!')
   }
@@ -61,7 +60,6 @@ function ErrorBoundaryDemo() {
         <button
           class={`${styles.btn} ${showError() ? styles.btnDanger : ''}`}
           onClick={() => {
-            console.log('Trigger Error button clicked, setting showError(true)')
             showError(true)
           }}
         >

@@ -4,7 +4,7 @@
  * Provides: Fragment, Portal, ErrorBoundary, Suspense, Transition
  */
 
-import { effect, signal, trigger } from '@zeus-js/signal'
+import { effect, signal } from '@zeus-js/signal'
 
 // =============================================================================
 // Fragment - A component that renders its children without a wrapper element
@@ -123,9 +123,7 @@ export function Portal(props: PortalProps): Node | null {
     targetEl = resolveTarget()
     if (!targetEl) {
       if (!warned && typeof target === 'string') {
-        // Don't warn aggressively; target may appear on next tick.
         warned = true
-        console.warn('[Portal] Target element not found yet:', props.target)
       }
       return
     }
@@ -216,20 +214,33 @@ export function ErrorBoundary(props: ErrorBoundaryProps): any {
     error: null,
   }
 
-  let effectRef: (() => void) | null = null
+  // Create a container element to hold rendered content
+  const container = document.createElement('div')
+  container.setAttribute('data-error-boundary', 'true')
 
   const reset = function () {
-    console.log('ErrorBoundary reset called', { hasError: state.hasError })
     state = { hasError: false, error: null }
     // Increment version to trigger re-render
+    // The effect will automatically re-run because it depends on version()
     const newVersion = version() + 1
-    console.log('ErrorBoundary version:', version(), '->', newVersion)
     version(newVersion)
-    // Manually trigger the effect to re-run
-    if (effectRef) {
-      console.log('Triggering effect')
-      trigger(effectRef)
+  }
+
+  // Helper to resolve child to nodes
+  const resolveChild = function (child: any): Node[] {
+    if (child == null || typeof child === 'boolean') {
+      return []
     }
+    if (child instanceof Node) {
+      return [child]
+    }
+    if (Array.isArray(child)) {
+      return child.reduce<Node[]>((acc, c) => acc.concat(resolveChild(c)), [])
+    }
+    if (typeof child === 'string' || typeof child === 'number') {
+      return [document.createTextNode(String(child))]
+    }
+    return []
   }
 
   // Wrap children rendering to catch errors
@@ -240,13 +251,12 @@ export function ErrorBoundary(props: ErrorBoundaryProps): any {
     }
 
     if (typeof children === 'function') {
-      // Reactive children
-      let currentNodes: Node[] = []
-
-      effectRef = effect(function () {
+      effect(function () {
         // Access version to make effect reactive to reset
-        version()
-        console.log('ErrorBoundary effect running')
+        // Must assign to variable to create dependency
+
+        // Clear container first
+        container.innerHTML = ''
 
         try {
           const value = children()
@@ -256,34 +266,14 @@ export function ErrorBoundary(props: ErrorBoundaryProps): any {
             state = { hasError: false, error: null }
           }
 
-          // Handle the result
+          // Handle the result - append to container
           if (value == null || typeof value === 'boolean') {
-            currentNodes = []
             return
           }
 
-          if (Array.isArray(value)) {
-            currentNodes = []
-            const addNodes = (child: any) => {
-              if (child == null || typeof child === 'boolean') {
-                return
-              }
-              if (child instanceof Node) {
-                currentNodes.push(child)
-              } else if (
-                typeof child === 'string' ||
-                typeof child === 'number'
-              ) {
-                currentNodes.push(document.createTextNode(String(child)))
-              }
-            }
-            for (const item of value) {
-              addNodes(item)
-            }
-          } else if (value instanceof Node) {
-            currentNodes = [value]
-          } else if (typeof value === 'string' || typeof value === 'number') {
-            currentNodes = [document.createTextNode(String(value))]
+          const nodes = resolveChild(value)
+          for (const node of nodes) {
+            container.appendChild(node)
           }
         } catch (e) {
           // Catch errors during rendering
@@ -298,31 +288,16 @@ export function ErrorBoundary(props: ErrorBoundaryProps): any {
           if (props.fallback) {
             const fallbackResult = props.fallback(error, reset)
             if (fallbackResult != null) {
-              if (typeof fallbackResult === 'function') {
-                // Fallback is a render function
-                currentNodes = []
-                const fallbackNodes = fallbackResult()
-                if (Array.isArray(fallbackNodes)) {
-                  currentNodes = fallbackNodes.filter(
-                    (n): n is Node => n instanceof Node,
-                  )
-                } else if (fallbackNodes instanceof Node) {
-                  currentNodes = [fallbackNodes]
-                }
-              } else if (fallbackResult instanceof Node) {
-                currentNodes = [fallbackResult]
-              } else if (typeof fallbackResult === 'string') {
-                currentNodes = [document.createTextNode(fallbackResult)]
+              const fallbackNodes = resolveChild(fallbackResult)
+              for (const node of fallbackNodes) {
+                container.appendChild(node)
               }
             }
-          } else {
-            // No fallback - clear nodes
-            currentNodes = []
           }
         }
       })
 
-      return currentNodes.length > 0 ? currentNodes : null
+      return container
     }
 
     // Static children
@@ -507,7 +482,11 @@ export function Transition(props: TransitionProps): any {
 
   const getClassPrefix = () => name
 
-  const processNodes = (child: any, isMounting: boolean, isEnter: boolean): Node[] => {
+  const processNodes = (
+    child: any,
+    isMounting: boolean,
+    isEnter: boolean,
+  ): Node[] => {
     if (child == null || typeof child === 'boolean') {
       return []
     }
@@ -579,7 +558,9 @@ export function Transition(props: TransitionProps): any {
           leave &&
           !isLeaving &&
           container.childNodes.length > 0 &&
-          (value == null || value === false || (Array.isArray(value) && value.length === 0))
+          (value == null ||
+            value === false ||
+            (Array.isArray(value) && value.length === 0))
         ) {
           // Items are being removed - use leave transition
           isLeaving = true

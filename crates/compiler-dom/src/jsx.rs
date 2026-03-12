@@ -858,10 +858,12 @@ impl<'s> JsxCompiler<'s> {
         self.drain_analyzer_helpers();
 
         // Handle children as a special "children" prop
+        // Wrap children in a function to enable lazy evaluation for ErrorBoundary, Suspense, etc.
         if !element.children.is_empty() {
             let children_source = self.extract_children_source(element);
             if !children_source.is_empty() {
-                props.push(format!("children: {}", children_source));
+                // Wrap in arrow function for lazy evaluation
+                props.push(format!("children: () => ({})", children_source));
             }
         }
 
