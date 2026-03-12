@@ -210,9 +210,7 @@ export function spread(
         const eventName = key.slice(2).toLowerCase()
         addEventListener(node, eventName, value)
       } else if (key === 'ref') {
-        if (isRef(value)) {
-          value = node
-        }
+        ref(node, value)
       } else {
         setAttribute(node, key, value)
       }
@@ -223,5 +221,206 @@ export function spread(
     effect(() => applyProps(accessor()))
   } else {
     applyProps(accessor)
+  }
+}
+
+// =============================================================================
+// ref(node, refValue) — Handle DOM ref assignment
+// Supports both callback refs (function) and object refs
+// =============================================================================
+export function ref(node: Element, refValue: any): void {
+  if (typeof refValue === 'function') {
+    // Callback ref - call the function with the DOM element
+    refValue(node)
+  } else if (refValue && typeof refValue === 'object') {
+    // Object ref (e.g., useRef) - assign to .value property
+    refValue.value = node
+  }
+}
+
+// =============================================================================
+// reconcileArray - Efficient list rendering with key-based diff algorithm
+// Minimizes DOM operations by only adding, removing, or moving necessary nodes
+// =============================================================================
+
+export interface ReconcileItem<T> {
+  key: string | number
+  data: T
+}
+
+export interface ReconcileOptions<T> {
+  key: string | number | ((item: T, index: number) => string | number)
+  onRemove?: (node: Node, index: number) => void
+  onMove?: (node: Node, fromIndex: number, toIndex: number) => void
+}
+
+interface KeyedNode {
+  key: string | number
+  node: Node
+}
+
+function getKey<T>(item: T, index: number, keyFn: (item: T, index: number) => string | number): string | number {
+  if (typeof keyFn === 'function') {
+    return keyFn(item, index)
+  }
+  // If key is a property name
+  const key = (item as any)[keyFn]
+  return key !== undefined ? key : index
+}
+
+/**
+ * Reconcile array items with key-based diffing
+ * This is the core function for efficient list rendering
+ *
+ * @param parent - Parent DOM element
+ * @param currentNodes - Current array of DOM nodes
+ * @param items - New array of data items to render
+ * @param renderItem - Function to render a single item into a DOM node
+ * @param options - Options including key function and callbacks
+ * @returns New array of DOM nodes
+ */
+export function reconcileArray<T>(
+  parent: Node,
+  currentNodes: Node[],
+  items: T[],
+  renderItem: (item: T, index: number) => Node,
+  options: ReconcileOptions<T>,
+): Node[] {
+  const keyFn = typeof options.key === 'function'
+    ? options.key
+    : (item: T, index: number) => getKey(item, index, options.key as string | number)
+
+  // Build key -> node map from current nodes
+  const currentKeyedNodes: Map<string | number, KeyedNode> = new Map()
+  for (let i = 0; i < currentNodes.length; i++) {
+    const key = (currentNodes[i] as any).__zeus_key__
+    if (key !== undefined) {
+      currentKeyedNodes.set(key, { key, node: currentNodes[i] })
+    }
+  }
+
+  const newNodes: Node[] = []
+  const processedKeys = new Set<string | number>()
+
+  // Track the last inserted node for efficient insertion position
+  let lastNode: Node | null = null
+
+  // First pass: process items in order
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]
+    const key = keyFn(item, i)
+
+    processedKeys.add(key)
+
+    const existing = currentKeyedNodes.get(key)
+
+    if (existing) {
+      // Key exists - reuse the node
+      newNodes.push(existing.node)
+      // Store key on node for future reconciliation
+      ;(existing.node as any).__zeus_key__ = key
+      lastNode = existing.node
+    } else {
+      // New item - render it
+      const newNode = renderItem(item, i)
+      ;(newNode as any).__zeus_key__ = key
+      newNodes.push(newNode)
+      lastNode = newNode
+    }
+  }
+
+  // Second pass: remove nodes that are no longer in the list
+  const nodesToRemove: Node[] = []
+  for (let i = 0; i < currentNodes.length; i++) {
+    const node = currentNodes[i]
+    const key = (node as any).__zeus_key__
+
+    if (key !== undefined && !processedKeys.has(key)) {
+      nodesToRemove.push(node)
+    }
+  }
+
+  // Perform DOM operations
+  // Remove old nodes
+  for (const node of nodesToRemove) {
+    if (options.onRemove) {
+      options.onRemove(node, currentNodes.indexOf(node))
+    }
+    if (node.parentNode === parent) {
+      parent.removeChild(node)
+    }
+  }
+
+  // Build final node array and reorder if needed
+  // Reuse existing nodes in correct positions
+  const finalNodes: Node[] = []
+  let currentIndex = 0
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]
+    const key = keyFn(item, i)
+    const existing = currentKeyedNodes.get(key)
+
+    if (existing) {
+      // Node exists, ensure it's in correct position
+      const targetPosition = finalNodes.length
+      if (currentIndex !== targetPosition) {
+        // Need to move node
+        if (options.onMove) {
+          options.onMove(existing.node, currentIndex, targetPosition)
+        }
+        // Insert at correct position
+        const nextNode = parent.childNodes[targetPosition]
+        if (nextNode && nextNode !== existing.node) {
+          parent.insertBefore(existing.node, nextNode)
+        } else if (!existing.node.nextSibling && parent.lastChild !== existing.node) {
+          // Move to end
+          parent.appendChild(existing.node)
+        }
+      }
+      finalNodes.push(existing.node)
+    } else {
+      // New node - insert at end
+      const newNode = newNodes[i]
+      parent.appendChild(newNode)
+      finalNodes.push(newNode)
+    }
+    currentIndex++
+  }
+
+  return finalNodes
+}
+
+/**
+ * Simple keyed list rendering helper
+ * Creates a reactive list that efficiently updates when the data changes
+ *
+ * @param parent - Parent DOM element
+ * @param itemsAccessor - Function that returns the array of items
+ * @param renderItem - Function to render each item
+ * @param key - Key function or property name for item identity
+ */
+export function keyed<T>(
+  parent: Node,
+  itemsAccessor: () => T[],
+  renderItem: (item: T, index: number) => Node,
+  key: string | number | ((item: T, index: number) => string | number),
+): () => void {
+  let currentNodes: Node[] = []
+
+  const reconcile = effect(function () {
+    const items = itemsAccessor()
+
+    currentNodes = reconcileArray(
+      parent,
+      currentNodes,
+      items,
+      renderItem,
+      { key },
+    )
+  })
+
+  return function cleanup() {
+    reconcile()
   }
 }

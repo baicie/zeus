@@ -228,3 +228,129 @@ export function genCacheKey(source: string, options: any): string {
     )
   )
 }
+
+// =============================================================================
+// Array reconciliation utilities for efficient list rendering
+// =============================================================================
+
+export interface ArrayKeyFn<T> {
+  (item: T, index: number): string | number
+}
+
+export interface PatchOperation<T> {
+  type: 'insert' | 'remove' | 'move' | 'update'
+  index: number
+  item?: T
+  fromIndex?: number
+}
+
+export interface ReconcileResult<T> {
+  operations: PatchOperation<T>[]
+  totalMoves: number
+}
+
+/**
+ * Simple array diff algorithm using key function
+ * Returns a list of operations to transform old array to new array
+ *
+ * @param oldArr - Original array
+ * @param newArr - New array
+ * @param keyFn - Function to get unique key for each item
+ */
+export function diffArrays<T>(
+  oldArr: T[],
+  newArr: T[],
+  keyFn: ArrayKeyFn<T>,
+): ReconcileResult<T> {
+  const operations: PatchOperation<T>[] = []
+  const oldKeyToIndex = new Map<string | number, number>()
+
+  // Build key -> index map for old array
+  for (let i = 0; i < oldArr.length; i++) {
+    const key = keyFn(oldArr[i], i)
+    oldKeyToIndex.set(key, i)
+  }
+
+  let totalMoves = 0
+
+  // Process new array
+  for (let i = 0; i < newArr.length; i++) {
+    const newItem = newArr[i]
+    const newKey = keyFn(newItem, i)
+    const oldIndex = oldKeyToIndex.get(newKey)
+
+    if (oldIndex === undefined) {
+      // New item - insert
+      operations.push({ type: 'insert', index: i, item: newItem })
+    } else {
+      // Existing item - check if it moved
+      if (oldIndex !== i) {
+        operations.push({ type: 'move', index: i, fromIndex: oldIndex })
+        totalMoves++
+      }
+    }
+  }
+
+  // Find removed items
+  const newKeyToIndex = new Map<string | number, number>()
+  for (let i = 0; i < newArr.length; i++) {
+    newKeyToIndex.set(keyFn(newArr[i], i), i)
+  }
+
+  for (let i = 0; i < oldArr.length; i++) {
+    const oldKey = keyFn(oldArr[i], i)
+    if (!newKeyToIndex.has(oldKey)) {
+      operations.push({ type: 'remove', index: i })
+      totalMoves++
+    }
+  }
+
+  return { operations, totalMoves }
+}
+
+/**
+ * Optimized key-value map for tracking array items
+ */
+export class KeyedMap<K, V> {
+  private map = new Map<K, V>()
+
+  get(key: K): V | undefined {
+    return this.map.get(key)
+  }
+
+  set(key: K, value: V): void {
+    this.map.set(key, value)
+  }
+
+  has(key: K): boolean {
+    return this.map.has(key)
+  }
+
+  delete(key: K): boolean {
+    return this.map.delete(key)
+  }
+
+  clear(): void {
+    this.map.clear()
+  }
+
+  keys(): IterableIterator<K> {
+    return this.map.keys()
+  }
+
+  values(): IterableIterator<V> {
+    return this.map.values()
+  }
+
+  entries(): IterableIterator<[K, V]> {
+    return this.map.entries()
+  }
+
+  forEach(callback: (value: V, key: K) => void): void {
+    this.map.forEach(callback)
+  }
+
+  get size(): number {
+    return this.map.size
+  }
+}

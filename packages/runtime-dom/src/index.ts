@@ -12,12 +12,18 @@ export {
   className,
   style,
   spread,
+  ref,
+  reconcileArray,
+  keyed,
 } from './client'
 
 // Low-level DOM utilities
 export * from './dom'
 export * from './events'
 export * from './directives'
+
+// Built-in components
+export * from './components'
 
 // SolidJS-style DOM types and JSX support
 export * from './jsx'

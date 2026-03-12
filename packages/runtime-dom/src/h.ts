@@ -20,8 +20,6 @@ declare function h(
   ...children: any[]
 ): JSXElement
 
-declare function Fragment(props: { children?: any }): DocumentFragment
-
 declare function jsx(
   type: string | Component<any>,
   props: Record<string, any>,
@@ -42,4 +40,4 @@ declare function jsxDEV(
   debugInfo?: { fileName: string; lineNumber: number },
 ): Node | JSXElement
 
-export { h, Fragment, jsx, jsxs, jsxDEV }
+export { h, jsx, jsxs, jsxDEV }

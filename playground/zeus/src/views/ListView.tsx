@@ -179,7 +179,7 @@ function ListView() {
 
       <div class="section">
         <h3>Items</h3>
-        {isEmpty() && EmptyList({})}
+        {isEmpty() && EmptyList()}
         <ul class="todo-list">
           {visible().map(function (todo) {
             return TodoItemEl({

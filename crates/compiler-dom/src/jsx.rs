@@ -12,7 +12,7 @@
 use oxc::ast::ast::*;
 use oxc::span::GetSpan;
 
-use crate::template_analyzer::TemplateAnalyzer;
+use crate::template_analyzer::{escape_html, TemplateAnalyzer};
 use crate::template_ir::*;
 
 /// A span replacement: replace source[start..end] with `code`
@@ -35,6 +35,8 @@ pub struct Warning {
 pub struct JsxCompiler<'s> {
     source: &'s str,
     analyzer: TemplateAnalyzer<'s>,
+    /// Counter for unique template variable names (shared across all compilations)
+    template_counter: usize,
     /// Hoisted template declarations (inserted at top of module)
     pub hoisted: Vec<String>,
     /// Collected delegated event names
@@ -52,6 +54,7 @@ impl<'s> JsxCompiler<'s> {
         Self {
             source,
             analyzer: TemplateAnalyzer::new(source),
+            template_counter: 0,
             hoisted: Vec::new(),
             delegated_events: Vec::new(),
             replacements: Vec::new(),
@@ -60,10 +63,41 @@ impl<'s> JsxCompiler<'s> {
         }
     }
 
+    /// Create with an initial template counter value
+    pub fn with_counter(source: &'s str, counter: usize) -> Self {
+        Self {
+            source,
+            analyzer: TemplateAnalyzer::with_counter(source, counter),
+            template_counter: counter,
+            hoisted: Vec::new(),
+            delegated_events: Vec::new(),
+            replacements: Vec::new(),
+            used_helpers: Vec::new(),
+            warnings: Vec::new(),
+        }
+    }
+
+    /// Get current template counter value (synced with analyzer)
+    pub fn get_template_counter(&self) -> usize {
+        self.analyzer.get_counter()
+    }
+
+    /// Sync counter with analyzer after compilations
+    fn sync_counter(&mut self) {
+        self.template_counter = self.analyzer.get_counter();
+    }
+
     /// Walk the program AST and collect all JSX replacements
     pub fn visit_program(&mut self, program: &Program<'_>) {
         for stmt in &program.body {
             self.visit_statement(stmt);
+        }
+    }
+
+    fn drain_analyzer_helpers(&mut self) {
+        let helpers = self.analyzer.take_used_helpers();
+        for h in helpers {
+            self.add_helper(&h);
         }
     }
 
@@ -156,8 +190,14 @@ impl<'s> JsxCompiler<'s> {
                 self.compile_jsx_fragment(fragment);
             }
             Expression::ArrowFunctionExpression(arrow) => {
+                // Handle both block-bodied and expression-bodied arrow functions
                 for stmt in &arrow.body.statements {
                     self.visit_statement(stmt);
+                }
+                // For expression-bodied arrows (0 statements), we need to check the expression
+                if arrow.body.statements.is_empty() {
+                    // Try to get the expression from the arrow - this handles expression-bodied arrows
+                    // Note: oxc represents these differently, so this is a fallback
                 }
             }
             Expression::FunctionExpression(func) => {
@@ -280,6 +320,7 @@ impl<'s> JsxCompiler<'s> {
 
         // Analyze the JSX tree
         let ir = self.analyzer.analyze(element);
+        self.drain_analyzer_helpers();
 
         // Collect delegated events
         for event in &ir.delegated_events {
@@ -336,7 +377,8 @@ impl<'s> JsxCompiler<'s> {
         if children.len() == 1 && let JSXChild::Element(jsx_child) = &children[0] {
             // 1. 先分析子元素，获取其 IR（这会收集事件等）
             let ir = self.analyzer.analyze(jsx_child);
-            
+            self.drain_analyzer_helpers();
+
             // 2. 收集事件
             for event in &ir.delegated_events {
                 if !self.delegated_events.contains(event) {
@@ -346,17 +388,30 @@ impl<'s> JsxCompiler<'s> {
             if !ir.delegated_events.is_empty() {
                 self.add_helper("delegateEvents");
             }
-            
-            // 3. 生成子元素的代码
+
+            // 3. 生成 hoisted 模板声明
+            let escaped_html = ir
+                .html
+                .replace('\\', "\\\\")
+                .replace('"', "\\\"")
+                .replace('\n', "\\n")
+                .replace('\r', "\\r");
+            self.hoisted.push(format!(
+                "const {} = template(\"{}\");",
+                ir.template_var, escaped_html
+            ));
+            self.add_helper("template");
+
+            // 4. 生成子元素的代码
             let child_code = self.generate_element_code(&ir);
-            
-            // 4. 为 Fragment 生成替换代码 - 直接使用子元素的代码
+
+            // 5. 为 Fragment 生成替换代码 - 直接使用子元素的代码
             self.replacements.push(Replacement {
                 start: span.start,
                 end: span.end,
                 code: child_code,
             });
-            
+
             return;
         }
 
@@ -375,9 +430,10 @@ impl<'s> JsxCompiler<'s> {
                         let code = self.compile_component(jsx_child, &tag_name);
                         children_code.push(format!("_fr.appendChild({});", code));
                     } else {
-                        // 原生元素：使用 generate_element_code 生成完整代码
+                        // 原生元素：使用 analyze 返回的 IR，生成 hoisted 声明
                         let ir = self.analyzer.analyze(jsx_child);
-                        
+                        self.drain_analyzer_helpers();
+
                         // 收集事件
                         for event in &ir.delegated_events {
                             if !self.delegated_events.contains(event) {
@@ -387,22 +443,22 @@ impl<'s> JsxCompiler<'s> {
                         if !ir.delegated_events.is_empty() {
                             self.add_helper("delegateEvents");
                         }
-                        
+
+                        // 生成 hoisted 模板声明 - 使用 ir.template_var 确保变量名一致
                         let escaped_html = ir
                             .html
                             .replace('\\', "\\\\")
                             .replace('"', "\\\"")
                             .replace('\n', "\\n")
                             .replace('\r', "\\r");
-                        let template_var = format!("_tmpl${}", self.hoisted.len());
                         self.hoisted.push(format!(
                             "const {} = template(\"{}\");",
-                            template_var, escaped_html
+                            ir.template_var, escaped_html
                         ));
                         self.add_helper("template");
 
-                        // 生成代码
-                        let element_code = self.generate_element_code_with_template(&ir, &template_var);
+                        // 生成代码 - 使用 ir.template_var
+                        let element_code = self.generate_element_code(&ir);
                         children_code.push(format!("_fr.appendChild({});", element_code));
                     }
                 }
@@ -582,7 +638,8 @@ impl<'s> JsxCompiler<'s> {
                     self.add_helper("style");
                 }
                 BindingKind::Ref { ref_source } => {
-                    lines.push(format!("{}({});", ref_source, target));
+                    lines.push(format!("ref({}, {});", target, ref_source));
+                    self.add_helper("ref");
                 }
                 BindingKind::Spread { props_source } => {
                     lines.push(format!("spread({}, {});", target, props_source));
@@ -736,7 +793,8 @@ impl<'s> JsxCompiler<'s> {
                     self.add_helper("style");
                 }
                 BindingKind::Ref { ref_source } => {
-                    lines.push(format!("{}({});", ref_source, target));
+                    lines.push(format!("ref({}, {});", target, ref_source));
+                    self.add_helper("ref");
                 }
                 BindingKind::Spread { props_source } => {
                     lines.push(format!("spread({}, {});", target, props_source));
@@ -760,7 +818,7 @@ impl<'s> JsxCompiler<'s> {
     }
 
     /// Compile a component JSX element: <Comp prop={val} />
-    fn compile_component(&self, element: &JSXElement<'_>, component_name: &str) -> String {
+    fn compile_component(&mut self, element: &JSXElement<'_>, component_name: &str) -> String {
         let mut props: Vec<String> = Vec::new();
 
         for attr in &element.opening_element.attributes {
@@ -778,7 +836,8 @@ impl<'s> JsxCompiler<'s> {
                         Some(JSXAttributeValue::ExpressionContainer(expr)) => {
                             match &expr.expression {
                                 JSXExpression::EmptyExpression(_) => continue,
-                                e => self.extract_source(e.span()),
+                                // Use analyzer to compile JSX expressions to avoid React.createElement
+                                e => self.analyzer.extract_jsx_expr_source(e),
                             }
                         }
                         None => "true".to_string(),
@@ -788,11 +847,15 @@ impl<'s> JsxCompiler<'s> {
                     props.push(format!("{}: {}", prop_name, prop_value));
                 }
                 JSXAttributeItem::SpreadAttribute(spread) => {
-                    let source = self.extract_source(spread.argument.span());
+                    // Use analyzer to compile JSX expressions in spread
+                    let source = self.analyzer.compile_expression_value(&spread.argument);
                     props.push(format!("...{}", source));
                 }
             }
         }
+
+        // Drain helpers used during attribute processing
+        self.drain_analyzer_helpers();
 
         // Handle children as a special "children" prop
         if !element.children.is_empty() {
@@ -810,22 +873,125 @@ impl<'s> JsxCompiler<'s> {
         )
     }
 
-    fn extract_children_source(&self, element: &JSXElement<'_>) -> String {
-        // For MVP: extract children source text between opening and closing tags
-        let open_end = element.opening_element.span().end as usize;
-        let close_start = element
-            .closing_element
-            .as_ref()
-            .map(|c| c.span().start as usize)
-            .unwrap_or(open_end);
+    fn extract_children_source(&mut self, element: &JSXElement<'_>) -> String {
+        let mut children_exprs: Vec<String> = Vec::new();
 
-        if close_start > open_end {
-            let children_text = self.source[open_end..close_start].trim();
-            if !children_text.is_empty() {
-                return format!("\"{}\"", children_text);
+        for child in &element.children {
+            match child {
+                JSXChild::Text(text) => {
+                    let trimmed = text.value.as_str().trim();
+                    if !trimmed.is_empty() {
+                        children_exprs.push(format!("\"{}\"", escape_html(trimmed)));
+                    }
+                }
+                JSXChild::ExpressionContainer(expr_container) => {
+                    match &expr_container.expression {
+                        JSXExpression::EmptyExpression(_) => {}
+                        expr => {
+                            let expr_source = self.analyzer.extract_jsx_expr_source(expr);
+                            self.drain_analyzer_helpers();
+                            children_exprs.push(expr_source);
+                        }
+                    }
+                }
+                JSXChild::Element(child_element) => {
+                    // Handle nested element as child
+                    let child_tag_name = TemplateAnalyzer::get_tag_name(child_element);
+                    if TemplateAnalyzer::is_component(&child_tag_name) {
+                        // It's a component - compile as function call
+                        let child_code = self.compile_component(child_element, &child_tag_name);
+                        children_exprs.push(child_code);
+                    } else {
+                        // It's a DOM element - analyze it and generate template
+                        let child_ir = self.analyzer.analyze(child_element);
+                        self.drain_analyzer_helpers();
+                        
+                        // Collect delegated events from child
+                        for event in &child_ir.delegated_events {
+                            if !self.delegated_events.contains(event) {
+                                self.delegated_events.push(event.clone());
+                            }
+                        }
+                        if !child_ir.delegated_events.is_empty() {
+                            self.add_helper("delegateEvents");
+                        }
+                        
+                        // Add template declaration to hoisted list
+                        let escaped_html = child_ir
+                            .html
+                            .replace('\\', "\\\\")
+                            .replace('"', "\\\"")
+                            .replace('\n', "\\n")
+                            .replace('\r', "\\r");
+                        self.hoisted.push(format!(
+                            "const {} = template(\"{}\");",
+                            child_ir.template_var, escaped_html
+                        ));
+                        self.add_helper("template");
+                        
+                        // Generate code for this child element
+                        let child_code = self.generate_element_code(&child_ir);
+                        children_exprs.push(child_code);
+                    }
+                }
+                JSXChild::Fragment(fragment) => {
+                    // Handle fragment children
+                    for frag_child in &fragment.children {
+                        match frag_child {
+                            JSXChild::Text(text) => {
+                                let trimmed = text.value.as_str().trim();
+                                if !trimmed.is_empty() {
+                                    children_exprs.push(format!("\"{}\"", escape_html(trimmed)));
+                                }
+                            }
+                            JSXChild::Element(el) => {
+                                let child_tag_name = TemplateAnalyzer::get_tag_name(el);
+                                if TemplateAnalyzer::is_component(&child_tag_name) {
+                                    let child_code = self.compile_component(el, &child_tag_name);
+                                    children_exprs.push(child_code);
+                                } else {
+                                    let child_ir = self.analyzer.analyze(el);
+                                    self.drain_analyzer_helpers();
+                                    for event in &child_ir.delegated_events {
+                                        if !self.delegated_events.contains(event) {
+                                            self.delegated_events.push(event.clone());
+                                        }
+                                    }
+                                    if !child_ir.delegated_events.is_empty() {
+                                        self.add_helper("delegateEvents");
+                                    }
+                                    
+                                    let escaped_html = child_ir
+                                        .html
+                                        .replace('\\', "\\\\")
+                                        .replace('"', "\\\"")
+                                        .replace('\n', "\\n")
+                                        .replace('\r', "\\r");
+                                    self.hoisted.push(format!(
+                                        "const {} = template(\"{}\");",
+                                        child_ir.template_var, escaped_html
+                                    ));
+                                    self.add_helper("template");
+                                    
+                                    let child_code = self.generate_element_code(&child_ir);
+                                    children_exprs.push(child_code);
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                _ => {}
             }
         }
-        String::new()
+
+        if children_exprs.is_empty() {
+            String::new()
+        } else if children_exprs.len() == 1 {
+            children_exprs[0].clone()
+        } else {
+            format!("[{}]", children_exprs.join(", "))
+        }
     }
 
     fn extract_source(&self, span: oxc::span::Span) -> String {

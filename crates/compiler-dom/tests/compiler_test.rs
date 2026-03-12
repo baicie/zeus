@@ -46,6 +46,24 @@ mod tests {
         
         let result = compiler.compile_dom(source, &options);
         assert!(result.is_ok());
+        let code = result.unwrap();
+        println!("Compiled code:\n{}", code);
+        // Should NOT contain React.createElement
+        assert!(!code.contains("React.createElement"), "Should not contain React.createElement");
+    }
+
+    #[test]
+    fn test_compile_arrow_in_attribute() {
+        let source = r#"const App = () => <ErrorBoundary fallback={(error) => <div>Error: {error.message}</div>}><Child /></ErrorBoundary>"#;
+        let compiler = DomCompiler::new();
+        let options = create_options(true);
+        
+        let result = compiler.compile_dom(source, &options);
+        assert!(result.is_ok());
+        let code = result.unwrap();
+        println!("Compiled code:\n{}", code);
+        // Should NOT contain React.createElement
+        assert!(!code.contains("React.createElement"), "Should not contain React.createElement");
     }
 
     #[test]

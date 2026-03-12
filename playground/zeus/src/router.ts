@@ -25,6 +25,9 @@ const LifecycleView = function () {
 const RefView = function () {
   return import('./views/RefView')
 }
+const BuiltinView = function () {
+  return import('./views/BuiltinView')
+}
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -37,6 +40,7 @@ const router = createRouter({
     { path: '/computed', component: ComputedView },
     { path: '/lifecycle', component: LifecycleView },
     { path: '/ref', component: RefView },
+    { path: '/builtin', component: BuiltinView },
   ],
 })
 
