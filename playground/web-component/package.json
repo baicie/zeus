@@ -28,7 +28,7 @@
   },
   "devDependencies": {
     "@rollup/plugin-replace": "^6.0.3",
-    "@types/node": "^25.4.0",
+    "@types/node": "^25.5.0",
     "rolldown": "1.0.0-rc.9",
     "typescript": "^5.9.3"
   },
