@@ -782,9 +782,11 @@ impl<'s> TemplateAnalyzer<'s> {
             return format!("{}({})", callee, args.join(", "));
         }
 
-        // For simple calls like count() - return the full source with parentheses
-        // This is important for props where we need the actual value, not just the function reference
-        self.extract_source_span(call.span)
+        // For simple calls like count() - return WITHOUT parentheses so insert() can
+        // wrap it in effect() for reactivity. The runtime expects a function accessor.
+        // We extract just the callee (e.g., "count") not the full call ("count()").
+        let callee = self.extract_source_span(call.callee.span());
+        callee
     }
     
     /// Check if a statement contains JSX

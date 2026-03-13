@@ -3,7 +3,6 @@ import {
   hasLifecycleHooks,
   invokeCleanupHook,
   invokeMountHook,
-  invokeUnmountHook,
   setCurrentLifecycle,
 } from './lifecycle'
 import type { ComponentFunction } from './component'
@@ -13,6 +12,11 @@ interface ComponentInstance {
   lifecycle: ReturnType<typeof createLifecycle>
   node: Node | null
   unmounted: boolean
+}
+
+interface MountedComponent {
+  node: Node | null
+  unmount: () => void
 }
 
 const currentInstance: { instance: ComponentInstance | null } = {
@@ -63,7 +67,28 @@ export function unmountInstance(instance: ComponentInstance): void {
   instance.unmounted = true
 
   invokeCleanupHook(instance.lifecycle)
-  invokeUnmountHook(instance.lifecycle)
+}
+
+export function mountComponent(
+  component: ComponentFunction,
+  anchor: Node,
+): MountedComponent {
+  const instance = createInstance(component)
+  const node = instance.node
+
+  if (node && anchor.parentNode) {
+    anchor.parentNode.insertBefore(node, anchor)
+  }
+
+  return {
+    node,
+    unmount: function () {
+      unmountInstance(instance)
+      if (node && node.parentNode) {
+        node.parentNode.removeChild(node)
+      }
+    },
+  }
 }
 
 export function getCurrentInstance(): ComponentInstance | null {
