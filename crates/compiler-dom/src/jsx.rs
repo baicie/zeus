@@ -32,6 +32,7 @@ pub struct Warning {
 }
 
 /// JSX compiler that collects replacements and hoisted code
+#[allow(dead_code)]
 pub struct JsxCompiler<'s> {
     source: &'s str,
     analyzer: TemplateAnalyzer<'s>,
@@ -46,7 +47,7 @@ pub struct JsxCompiler<'s> {
     /// Runtime helpers that are actually used
     pub used_helpers: Vec<String>,
     /// Compiler warnings
-    pub warnings: Vec<Warning>,
+    pub warnings: Vec<String>,
 }
 
 impl<'s> JsxCompiler<'s> {
@@ -64,6 +65,7 @@ impl<'s> JsxCompiler<'s> {
     }
 
     /// Create with an initial template counter value
+    #[allow(dead_code)]
     pub fn with_counter(source: &'s str, counter: usize) -> Self {
         Self {
             source,
@@ -259,12 +261,9 @@ impl<'s> JsxCompiler<'s> {
             });
 
             if !has_key {
-                let span = call.span();
-                self.warnings.push(Warning {
-                    message: "Missing 'key' prop in list rendering. Consider adding a unique key to each list item for better performance.".to_string(),
-                    line: span.start,
-                    column: span.end,
-                });
+                self.warnings.push(
+                    "Missing 'key' prop in list rendering. Consider adding a unique key to each list item for better performance.".to_string()
+                );
             }
         }
     }
@@ -524,14 +523,17 @@ impl<'s> JsxCompiler<'s> {
         path_vars.push((DomPath::root(), root_var.clone()));
 
         // Get all unique non-root paths that need variables (binding targets)
-        let target_paths: Vec<DomPath> = ir.bindings
+        let mut target_paths: Vec<DomPath> = ir.bindings
             .iter()
             .filter(|b| b.path != DomPath::root())
             .map(|b| b.path.clone())
             .collect();
 
+        // Remove duplicates while preserving order
+        target_paths.dedup();
+
         // Generate all possible intermediate paths from root to each target
-        // For each target path, generate all prefixes
+        // For each target path, generate all prefixes AND paths needed to connect targets
         let mut all_needed_paths: Vec<DomPath> = Vec::new();
         for target_path in &target_paths {
             // Add all prefixes of this path (excluding root)
@@ -543,8 +545,49 @@ impl<'s> JsxCompiler<'s> {
             }
         }
 
+        // Also add paths that connect different targets (for sibling traversal)
+        // For any two targets, add the path to their lowest common ancestor + one step
+        for i in 0..target_paths.len() {
+            for j in (i + 1)..target_paths.len() {
+                let path1 = &target_paths[i];
+                let path2 = &target_paths[j];
+                // Find common prefix length
+                let common_len = path1.steps.iter().zip(path2.steps.iter())
+                    .take_while(|(a, b)| a == b)
+                    .count();
+                // Add the prefix just before they diverge (for sibling traversal)
+                if common_len > 0 && common_len < path1.steps.len() && common_len < path2.steps.len() {
+                    // Add the common prefix + one NextSibling step to enable sibling traversal
+                    if common_len < path1.steps.len() {
+                        let mut connect_path = path1.steps[..common_len + 1].to_vec();
+                        all_needed_paths.push(DomPath { steps: connect_path });
+                    }
+                }
+            }
+        }
+
         // Sort by path length (shorter first) so we create shorter paths first
-        all_needed_paths.sort_by(|a, b| a.steps.len().cmp(&b.steps.len()));
+        // For same length, use lexicographic order to ensure consistent ordering
+        all_needed_paths.sort_by(|a, b| {
+            let len_cmp = a.steps.len().cmp(&b.steps.len());
+            if len_cmp == std::cmp::Ordering::Equal {
+                // Compare steps lexicographically
+                for (step_a, step_b) in a.steps.iter().zip(b.steps.iter()) {
+                    let step_order = match (step_a, step_b) {
+                        (TraversalStep::FirstChild, TraversalStep::FirstChild) => std::cmp::Ordering::Equal,
+                        (TraversalStep::FirstChild, TraversalStep::NextSibling) => std::cmp::Ordering::Less,
+                        (TraversalStep::NextSibling, TraversalStep::FirstChild) => std::cmp::Ordering::Greater,
+                        (TraversalStep::NextSibling, TraversalStep::NextSibling) => std::cmp::Ordering::Equal,
+                    };
+                    if step_order != std::cmp::Ordering::Equal {
+                        return step_order;
+                    }
+                }
+                std::cmp::Ordering::Equal
+            } else {
+                len_cmp
+            }
+        });
 
         // Remove duplicates while preserving order
         all_needed_paths.dedup();
@@ -552,10 +595,12 @@ impl<'s> JsxCompiler<'s> {
         // Now create variables for all paths
         for path in all_needed_paths {
             // Find the best base path to reuse (the longest prefix that already has a variable)
+            // We need to find which existing path `p` is a prefix of `path`
+            // i.e., find p such that path.is_descendant_of(p) is true
             let (base_path, base_var) = path_vars
                 .iter()
                 .rev()  // Start from the end (longest paths first)
-                .find(|(p, _)| path.is_descendant_of(p))
+                .find(|(p, _)| path.is_descendant_of(p))  // Check if path has p as prefix
                 .map(|(p, v)| (p.clone(), v.clone()))
                 .unwrap_or_else(|| (DomPath::root(), root_var.clone()));
 
@@ -563,7 +608,9 @@ impl<'s> JsxCompiler<'s> {
             let remaining_steps = path.steps.len() - base_path.steps.len();
 
             if remaining_steps > 0 {
-                let var_name = format!("_el${}", path_vars.len());
+                // Variable index should be path_vars.len() (0 is root, so first real var is at index 1)
+                let var_index = path_vars.len();
+                let var_name = format!("_el${}", var_index);
                 let access = path.partial_to_js_access(&base_var, remaining_steps);
                 lines.push(format!("const {} = {};", var_name, access));
                 path_vars.push((path.clone(), var_name));
@@ -637,9 +684,16 @@ impl<'s> JsxCompiler<'s> {
                     lines.push(format!("style({}, {});", target, value_source));
                     self.add_helper("style");
                 }
-                BindingKind::Ref { ref_source } => {
-                    lines.push(format!("ref({}, {});", target, ref_source));
-                    self.add_helper("ref");
+                BindingKind::Ref { ref_source, is_dom_ref } => {
+                    if *is_dom_ref {
+                        // DOM ref: let el; <div ref={el}/> - direct assignment like SolidJS
+                        // Generate: el = node
+                        lines.push(format!("{} = {};", ref_source, target));
+                    } else {
+                        // Callback ref or signal ref - use ref() helper
+                        lines.push(format!("ref({}, {});", target, ref_source));
+                        self.add_helper("ref");
+                    }
                 }
                 BindingKind::Spread { props_source } => {
                     lines.push(format!("spread({}, {});", target, props_source));
@@ -723,16 +777,19 @@ impl<'s> JsxCompiler<'s> {
         all_needed_paths.dedup();
 
         for path in &all_needed_paths {
+            // Find the best base path to reuse
+            // i.e., find p such that path.is_descendant_of(p) is true
             let (base_path, base_var) = path_vars
                 .iter()
                 .rev()
-                .find(|(p, _)| path.is_descendant_of(p))
+                .find(|(p, _)| path.is_descendant_of(p))  // Check if path has p as prefix
                 .map(|(p, v)| (p.clone(), v.clone()))
                 .unwrap_or_else(|| (DomPath::root(), root_var.clone()));
 
             let remaining_steps = path.steps.len() - base_path.steps.len();
 
             if remaining_steps > 0 {
+                // Variable index should be path_vars.len() (0 is root, so first real var is at index 1)
                 let var_name = format!("_el${}", path_vars.len());
                 let access = path.partial_to_js_access(&base_var, remaining_steps);
                 lines.push(format!("const {} = {};", var_name, access));
@@ -792,9 +849,16 @@ impl<'s> JsxCompiler<'s> {
                     lines.push(format!("style({}, {});", target, value_source));
                     self.add_helper("style");
                 }
-                BindingKind::Ref { ref_source } => {
-                    lines.push(format!("ref({}, {});", target, ref_source));
-                    self.add_helper("ref");
+                BindingKind::Ref { ref_source, is_dom_ref } => {
+                    if *is_dom_ref {
+                        // DOM ref: let el; <div ref={el}/> - direct assignment like SolidJS
+                        // Generate: el = node
+                        lines.push(format!("{} = {};", ref_source, target));
+                    } else {
+                        // Callback ref or signal ref - use ref() helper
+                        lines.push(format!("ref({}, {});", target, ref_source));
+                        self.add_helper("ref");
+                    }
                 }
                 BindingKind::Spread { props_source } => {
                     lines.push(format!("spread({}, {});", target, props_source));
@@ -907,7 +971,7 @@ impl<'s> JsxCompiler<'s> {
                         // It's a DOM element - analyze it and generate template
                         let child_ir = self.analyzer.analyze(child_element);
                         self.drain_analyzer_helpers();
-                        
+
                         // Collect delegated events from child
                         for event in &child_ir.delegated_events {
                             if !self.delegated_events.contains(event) {
@@ -954,6 +1018,7 @@ impl<'s> JsxCompiler<'s> {
                                 } else {
                                     let child_ir = self.analyzer.analyze(el);
                                     self.drain_analyzer_helpers();
+
                                     for event in &child_ir.delegated_events {
                                         if !self.delegated_events.contains(event) {
                                             self.delegated_events.push(event.clone());

@@ -225,15 +225,22 @@ export function spread(
 
 // =============================================================================
 // ref(node, refValue) — Handle DOM ref assignment
-// Supports both callback refs (function) and object refs
+// Supports three types of refs:
+// 1. Callback ref: <div ref={(el)=>{}}/> - call the function
+// 2. Signal ref: const el = signal(); <div ref={el}/> - assign to .value
+// 3. DOM ref: let el; <div ref={el}/> - direct assignment (like SolidJS)
 // =============================================================================
 export function ref(node: Element, refValue: any): void {
   if (typeof refValue === 'function') {
     // Callback ref - call the function with the DOM element
     refValue(node)
   } else if (refValue && typeof refValue === 'object') {
-    // Object ref (e.g., useRef) - assign to .value property
+    // Object ref (e.g., signal) - assign to .value property
     refValue.value = node
+  } else {
+    // DOM ref: let el; <div ref={el}/> - direct assignment
+    // Like SolidJS: assign directly to the variable
+    refValue = node
   }
 }
 

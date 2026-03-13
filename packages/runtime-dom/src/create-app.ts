@@ -6,6 +6,7 @@
  */
 
 import { effect } from '@zeus-js/signal'
+import { delegateEvents } from '@zeus-js/runtime-dom'
 import type { App } from '@zeus-js/runtime-core'
 
 /**
@@ -105,6 +106,29 @@ export function createApp(rootComponent: (props?: any) => Node): App {
           hmrRuntime.createRecord('root', rootComponent)
         }
       }
+
+      // Delegate common events for event delegation system
+      delegateEvents([
+        'click',
+        'input',
+        'change',
+        'submit',
+        'focus',
+        'blur',
+        'keydown',
+        'keyup',
+        'keypress',
+        'mouseenter',
+        'mouseleave',
+        'mouseover',
+        'mouseout',
+        'mousedown',
+        'mouseup',
+        'touchstart',
+        'touchend',
+        'touchmove',
+        'scroll',
+      ])
     },
 
     unmount(): void {

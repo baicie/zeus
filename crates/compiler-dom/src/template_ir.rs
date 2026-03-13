@@ -144,8 +144,13 @@ pub enum BindingKind {
         value_source: String,
         is_dynamic: bool,
     },
-    /// `ref(node)` — ref callback
-    Ref { ref_source: String },
+    /// `ref(node)` — ref callback or DOM ref
+    /// If is_dom_ref is true, generates direct assignment: `ref = node`
+    /// Otherwise generates function call: `ref(node)`
+    Ref {
+        ref_source: String,
+        is_dom_ref: bool,
+    },
     /// `spread(node, props)` — spread props
     Spread { props_source: String },
 }

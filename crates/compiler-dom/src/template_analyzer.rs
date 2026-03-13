@@ -332,10 +332,14 @@ impl<'s> TemplateAnalyzer<'s> {
                         },
                     });
                 } else if name == "ref" {
+                    // Check if ref is a simple identifier (e.g., ref={el})
+                    // In this case, generate direct assignment instead of ref() call
+                    let is_dom_ref = matches!(&expr.expression, JSXExpression::Identifier(_));
                     bindings.push(Binding {
                         path: current_path.clone(),
                         kind: BindingKind::Ref {
                             ref_source: expr_source,
+                            is_dom_ref,
                         },
                     });
                 } else {
@@ -665,8 +669,12 @@ impl<'s> TemplateAnalyzer<'s> {
                 BindingKind::Style { value_source, .. } => {
                     lines.push(format!("style({}, {});", target, value_source));
                 }
-                BindingKind::Ref { ref_source } => {
-                    lines.push(format!("ref({}, {});", target, ref_source));
+                BindingKind::Ref { ref_source, is_dom_ref } => {
+                    if *is_dom_ref {
+                        lines.push(format!("{} = {};", ref_source, target));
+                    } else {
+                        lines.push(format!("ref({}, {});", target, ref_source));
+                    }
                 }
                 BindingKind::Spread { props_source } => {
                     lines.push(format!("spread({}, {});", target, props_source));
@@ -1242,8 +1250,12 @@ impl<'s> TemplateAnalyzer<'s> {
                 BindingKind::Style { value_source, .. } => {
                     lines.push(format!("style({}, {});", target, value_source));
                 }
-                BindingKind::Ref { ref_source } => {
-                    lines.push(format!("ref({}, {});", target, ref_source));
+                BindingKind::Ref { ref_source, is_dom_ref } => {
+                    if *is_dom_ref {
+                        lines.push(format!("{} = {};", ref_source, target));
+                    } else {
+                        lines.push(format!("ref({}, {});", target, ref_source));
+                    }
                 }
                 BindingKind::Spread { props_source } => {
                     lines.push(format!("spread({}, {});", target, props_source));

@@ -1,9 +1,9 @@
-import { type Ref, onMount, useRef } from '@zeus-js/core'
+import { onMount } from '@zeus-js/core'
 
 const SUBTITLE =
   'Demonstrates ref attribute for accessing DOM elements directly'
 
-function RefChild({ inputRef }: { inputRef: Ref<HTMLInputElement> }) {
+function RefChild({ inputRef }: { inputRef: HTMLInputElement | undefined }) {
   onMount(function () {
     if (inputRef) {
       inputRef.focus()
@@ -24,16 +24,15 @@ function RefChild({ inputRef }: { inputRef: Ref<HTMLInputElement> }) {
 }
 
 function RefView() {
-  const buttonRef = useRef<HTMLButtonElement>()
-  const inputRef = useRef<HTMLInputElement>()
-  const boxRef = useRef<HTMLDivElement>()
-
-  let showLog = true
+  // 1. DOM ref (let variable) - like SolidJS
+  let buttonEl: HTMLButtonElement | undefined
+  let inputEl: HTMLInputElement | undefined
+  let boxEl: HTMLDivElement | undefined
 
   onMount(function () {
     console.log('View mounted')
-    if (buttonRef) {
-      console.log('Button ref available:', buttonRef.textContent)
+    if (buttonEl) {
+      console.log('Button ref available:', buttonEl.textContent)
     }
   })
 
@@ -42,21 +41,21 @@ function RefView() {
   }
 
   function focusInput() {
-    if (inputRef) {
-      inputRef.focus()
+    if (inputEl) {
+      inputEl.focus()
     }
   }
 
   function getBoxInfo() {
-    if (boxRef) {
-      const rect = boxRef.getBoundingClientRect()
+    if (boxEl) {
+      const rect = boxEl.getBoundingClientRect()
       alert(`Box dimensions: ${rect.width}x${rect.height}`)
     }
   }
 
   function clearInput() {
-    if (inputRef) {
-      inputRef.value = ''
+    if (inputEl) {
+      inputEl.value = ''
     }
   }
 
@@ -66,14 +65,14 @@ function RefView() {
       <p class="subtitle">{SUBTITLE}</p>
 
       <div class="section">
-        <h3>useRef for DOM Elements</h3>
-        <p>Use ref attribute to get direct access to DOM elements.</p>
+        <h3>DOM Ref (let variable)</h3>
+        <p>Use let variable - compiler auto-generates direct assignment.</p>
       </div>
 
       <div class="section">
         <h3>Button Ref</h3>
         <button
-          ref={buttonRef}
+          ref={buttonEl}
           class="btn btn-primary"
           onClick={handleButtonClick}
         >
@@ -83,7 +82,7 @@ function RefView() {
 
       <div class="section">
         <h3>Input Ref</h3>
-        <input ref={inputRef} type="text" placeholder="Type something..." />
+        <input ref={inputEl} type="text" placeholder="Type something..." />
         <div class="btn-group" style={{ marginTop: '0.5rem' }}>
           <button class="btn btn-secondary" onClick={focusInput}>
             Focus Input
@@ -97,7 +96,7 @@ function RefView() {
       <div class="section">
         <h3>Div Ref (getBoundingClientRect)</h3>
         <div
-          ref={boxRef}
+          ref={boxEl}
           class="demo-box"
           style={{
             width: '200px',
@@ -120,7 +119,7 @@ function RefView() {
 
       <div class="section">
         <h3>Ref with Child Component</h3>
-        <RefChild inputRef={inputRef} />
+        <RefChild inputRef={inputEl} />
         <p class="note">
           The child component focuses the input on mount using the ref passed
           from parent.
