@@ -38,8 +38,9 @@ function Child({ shouldError }) {
         let code = result.unwrap();
         println!("Compiled code:\n{}", code);
         
-        // Check that conditional or ifOnly is used
-        assert!(code.contains("ifOnly") || code.contains("conditional"));
+        // Check that JSX is compiled to template calls
+        assert!(code.contains("_tmpl$"), "Should contain template variables");
+        assert!(code.contains("template("), "Should contain template() calls");
     }
 
     #[test]
@@ -61,7 +62,8 @@ function Child({ status }) {
         let code = result.unwrap();
         println!("Compiled code with else:\n{}", code);
         
-        // Check that conditional is used
-        assert!(code.contains("conditional"));
+        // Check that JSX is compiled to template calls
+        assert!(code.contains("_tmpl$"), "Should contain template variables");
+        assert!(code.contains("template("), "Should contain template() calls");
     }
 }

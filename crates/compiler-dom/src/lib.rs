@@ -9,7 +9,8 @@ pub mod jsx;
 pub mod template_analyzer;
 pub mod template_ir;
 pub mod control_flow;
-pub mod ast_transform;  // NEW: AST-level transformations
+pub mod ast_transform;  // AST-level transformations
+pub mod traverse_transform;  // NEW: oxc_traverse based transformation
 
 #[cfg(test)]
 mod ast_test;

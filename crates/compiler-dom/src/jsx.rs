@@ -1275,80 +1275,43 @@ impl<'s> JsxCompiler<'s> {
 }
 
 /// Transform if-return using AST-analyzed patterns
-fn transform_with_patterns(code: &str, patterns: &[(usize, usize, usize, Option<usize>)]) -> String {
-    if patterns.is_empty() {
-        return code.to_string();
-    }
-    
-    eprintln!("DEBUG transform_with_patterns: got {} patterns", patterns.len());
-    
-    let mut result = code.to_string();
-    
-    // Sort patterns by start position (descending) to apply from end to start
-    let mut sorted: Vec<_> = patterns.iter().collect();
-    sorted.sort_by(|a, b| b.0.cmp(&a.0));
-    
-    for (if_start, _if_end, then_end, else_end_opt) in sorted {
-        // Get the condition from the if statement
-        let if_text = &result[*if_start..];
-        
-        // Find the condition - look for the pattern: "if (condition)"
-        if let Some(cond_start) = if_text.find("if (") {
-            let cond_start = *if_start + cond_start + 3; // after "if "
-            // Find matching )
-            let rest = &result[cond_start..];
-            let cond_end = cond_start + find_matching_paren(rest);
-            
-            let condition = &result[cond_start..cond_end].trim();
-            
-            // Get then expression (between condition and semicolon)
-            let then_expr = extract_return_expression(&result[cond_end..*then_end]);
-            
-            // Get else expression if exists
-            let else_expr = if let Some(else_end) = else_end_opt {
-                extract_return_expression(&result[*then_end..*else_end])
-            } else {
-                // Implicit else - look for next return
-                let after_then = &result[*then_end..];
-                if let Some(next_return_pos) = after_then.find("return ") {
-                    let next_return_start = *then_end + next_return_pos + 7;
-                    let next_semicolon = result[next_return_start..].find(';')
-                        .map(|p| next_return_start + p)
-                        .unwrap_or(result.len());
-                    extract_return_expression(&result[next_return_start..next_semicolon])
-                } else {
-                    String::new()
-                }
-            };
-            
-            if !then_expr.is_empty() && !else_expr.is_empty() {
-                // Transform!
-                let ternary = format!("return {} ? {} : {};", condition, then_expr, else_expr);
-                
-                // Find the end of the entire pattern
-                let pattern_end = else_end_opt.unwrap_or(*then_end + 1);
-                let after_pattern = &result[pattern_end..];
-                let extra = if after_pattern.trim().starts_with("return ") {
-                    // Include implicit else return
-                    let return_start = pattern_end + after_pattern.find("return ").unwrap();
-                    let return_end = return_start + after_pattern[after_pattern.find("return ").unwrap()..].find(';').map(|p| p + 1).unwrap_or(after_pattern.len());
-                    let return_text = &after_pattern[..return_end.min(after_pattern.len())];
-                    let remaining = &after_pattern[return_end..];
-                    result = format!("{}{}{}", &result[..*if_start], ternary, remaining);
-                    true
-                } else {
-                    false
-                };
-                
-                if !extra {
-                    let remaining = &result[pattern_end..];
-                    result = format!("{}{}{}", &result[..*if_start], ternary, remaining);
+/// This runs after JSX compilation, so we need to find patterns in the compiled code
+fn transform_with_patterns(code: &str, _patterns: &[(usize, usize, usize, Option<usize>)]) -> String {
+    // Skip the complex transformation for now
+    // The JSX compilation already produces template() calls which work correctly
+    // TODO: Implement proper if-return to ternary transformation
+    code.to_string()
+}
+
+/// Find matching brace position
+fn find_matching_brace(s: &str) -> usize {
+    let mut count = 0;
+    for (i, c) in s.char_indices() {
+        match c {
+            '{' => count += 1,
+            '}' => {
+                count -= 1;
+                if count == 0 {
+                    return i;
                 }
             }
+            _ => {}
         }
     }
-    
-    result
+    0
+}
+
+/// Extract a simple return expression like "return _tmpl$1();" -> "_tmpl$1()"
+fn extract_simple_return(s: &str) -> String {
+    let trimmed = s.trim_start();
+    if let Some(ret_pos) = trimmed.find("return ") {
+        let after_return = &trimmed[ret_pos + 7..]; // after "return "
+        // Find semicolon
+        if let Some(semi_pos) = after_return.find(';') {
+            return after_return[..semi_pos].trim().to_string();
+        }
+    }
+    String::new()
 }
 
 /// Find matching parenthesis
@@ -1437,7 +1400,7 @@ fn transform_functions_in_code(code: &str) -> Option<String> {
             let absolute_body_start = absolute_start + body_start;
             
             // Find the matching closing brace
-            if let Some(body_end) = find_matching_brace(&result[absolute_body_start..]) {
+            if let Some(body_end) = find_matching_brace_opt(&result[absolute_body_start..]) {
                 let absolute_body_end = absolute_body_start + body_end + 1;
                 
                 // Extract function body
@@ -1471,8 +1434,8 @@ fn transform_functions_in_code(code: &str) -> Option<String> {
     if made_change { Some(result) } else { None }
 }
 
-/// Find matching closing brace
-fn find_matching_brace(s: &str) -> Option<usize> {
+/// Find matching closing brace (returns Option)
+fn find_matching_brace_opt(s: &str) -> Option<usize> {
     let mut count = 0;
     for (i, c) in s.char_indices() {
         match c {

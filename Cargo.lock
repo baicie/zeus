@@ -1513,6 +1513,7 @@ dependencies = [
  "oxc",
  "oxc_allocator",
  "oxc_ecmascript",
+ "oxc_semantic",
  "oxc_traverse",
  "serde",
  "serde_json",

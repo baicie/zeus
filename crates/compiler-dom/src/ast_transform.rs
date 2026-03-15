@@ -60,6 +60,29 @@ fn has_signal_call(expr: &Expression) -> bool {
     }
 }
 
+/// Check if a block statement contains a return with JSX
+fn block_has_jsx_return(block: &BlockStatement) -> bool {
+    for s in &block.body {
+        if let Statement::ReturnStatement(ret) = s {
+            if ret.argument.as_ref().map_or(false, has_jsx) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Check if a statement is a return with JSX
+fn statement_has_jsx_return(stmt: &Statement) -> bool {
+    match stmt {
+        Statement::ReturnStatement(ret) => {
+            ret.argument.as_ref().map_or(false, has_jsx)
+        }
+        Statement::BlockStatement(block) => block_has_jsx_return(block),
+        _ => false,
+    }
+}
+
 /// Find if-return-else patterns in statements
 /// Returns spans: (if_start, if_end, then_return_end, else_return_end_or_none)
 fn find_patterns(stmts: &[Statement]) -> Vec<(usize, usize, usize, Option<usize>)> {
@@ -75,26 +98,7 @@ fn find_patterns(stmts: &[Statement]) -> Vec<(usize, usize, usize, Option<usize>
             }
             
             // Then must be return with JSX (direct or in block)
-            let then_has_jsx: bool = match &if_stmt.consequent {
-                Statement::ReturnStatement(ret) => {
-                    ret.argument.as_ref().map_or(false, has_jsx)
-                }
-                Statement::BlockStatement(block) => {
-                    let mut found = false;
-                    for s in &block.body {
-                        if let Statement::ReturnStatement(ret) = s {
-                            if ret.argument.as_ref().map_or(false, has_jsx) {
-                                found = true;
-                                break;
-                            }
-                        }
-                    }
-                    found
-                }
-                _ => false,
-            };
-            
-            if !then_has_jsx {
+            if !statement_has_jsx_return(&if_stmt.consequent) {
                 continue;
             }
             
@@ -113,38 +117,22 @@ fn find_patterns(stmts: &[Statement]) -> Vec<(usize, usize, usize, Option<usize>
             // Check for else - either explicit or implicit
             let else_return_end = if let Some(alt) = &if_stmt.alternate {
                 // Explicit else - return with JSX
-                let mut else_end = None;
-                match alt {
-                    Statement::ReturnStatement(ret) => {
-                        if ret.argument.as_ref().map_or(false, has_jsx) {
-                            else_end = Some(ret.span().end as usize);
-                        }
-                    }
-                    Statement::BlockStatement(block) => {
-                        for s in &block.body {
-                            if let Statement::ReturnStatement(ret) = s {
-                                if ret.argument.as_ref().map_or(false, has_jsx) {
-                                    else_end = Some(block.span.end as usize);
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    _ => {}
-                };
-                else_end
+                if statement_has_jsx_return(alt) {
+                    Some(match alt {
+                        Statement::ReturnStatement(ret) => ret.span().end as usize,
+                        Statement::BlockStatement(block) => block.span.end as usize,
+                        _ => continue,
+                    })
+                } else {
+                    None
+                }
             } else if i + 1 < stmts.len() {
                 // Implicit else: next statement is return with JSX
                 if let Some(next_stmt) = stmts.get(i + 1) {
-                    match next_stmt {
-                        Statement::ReturnStatement(ret) => {
-                            if ret.argument.as_ref().map_or(false, has_jsx) {
-                                Some(next_stmt.span().end as usize)
-                            } else {
-                                None
-                            }
-                        }
-                        _ => None,
+                    if statement_has_jsx_return(next_stmt) {
+                        Some(next_stmt.span().end as usize)
+                    } else {
+                        None
                     }
                 } else {
                     None
@@ -163,7 +151,7 @@ fn find_patterns(stmts: &[Statement]) -> Vec<(usize, usize, usize, Option<usize>
 }
 
 /// Transform a program: find all if-return patterns and return their spans
-pub fn transform_program(source: &str, program: &Program) -> Vec<(usize, usize, usize, Option<usize>)> {
+pub fn transform_program(_source: &str, program: &Program) -> Vec<(usize, usize, usize, Option<usize>)> {
     let mut all_patterns = Vec::new();
     
     // Find patterns in program body
