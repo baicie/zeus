@@ -17,26 +17,43 @@ export interface ErrorBoundaryProps {
   onError?: (error: Error, errorInfo: { componentStack: string }) => void
 }
 
-interface ErrorBoundaryState {
-  hasError: boolean
-  error: Error | null
+const errorBoundaryRegistry: Set<
+  () => { hasError: boolean; error: Error | null }
+> = new Set()
+
+let currentErrorBoundary:
+  | (() => { hasError: boolean; error: Error | null })
+  | null = null
+
+export function getCurrentErrorBoundary():
+  | (() => { hasError: boolean; error: Error | null })
+  | null {
+  return currentErrorBoundary
+}
+
+export function setCurrentErrorBoundary(
+  boundary: (() => { hasError: boolean; error: Error | null }) | null,
+): void {
+  currentErrorBoundary = boundary
+}
+
+export function registerErrorBoundary(
+  getState: () => { hasError: boolean; error: Error | null },
+): () => void {
+  errorBoundaryRegistry.add(getState)
+  return () => {
+    errorBoundaryRegistry.delete(getState)
+  }
 }
 
 export function ErrorBoundary(props: ErrorBoundaryProps): any {
-  const version = signal(0)
-
-  let state: ErrorBoundaryState = {
+  const errorState = signal<{ hasError: boolean; error: Error | null }>({
     hasError: false,
     error: null,
-  }
-
-  const container = document.createElement('div')
-  container.setAttribute('data-error-boundary', 'true')
+  })
 
   const reset = function () {
-    state = { hasError: false, error: null }
-    const newVersion = version() + 1
-    version(newVersion)
+    errorState({ hasError: false, error: null })
   }
 
   const resolveChild = function (child: any): Node[] {
@@ -55,71 +72,92 @@ export function ErrorBoundary(props: ErrorBoundaryProps): any {
     return []
   }
 
-  try {
-    const children = props.children
-    if (children == null) {
-      return null
-    }
+  const container = document.createElement('div')
+  container.setAttribute('data-error-boundary', 'true')
 
-    if (typeof children === 'function') {
-      effect(function () {
-        void version()
+  const getState = function () {
+    return errorState()
+  }
 
-        container.innerHTML = ''
+  effect(function () {
+    const state = errorState()
 
-        try {
-          const value = children()
-
-          if (state.hasError) {
-            state = { hasError: false, error: null }
-          }
-
-          if (value == null || typeof value === 'boolean') {
-            return
-          }
-
-          const nodes = resolveChild(value)
-          for (const node of nodes) {
+    if (state.hasError && state.error) {
+      container.innerHTML = ''
+      if (props.fallback) {
+        const fallbackResult = props.fallback(state.error, reset)
+        if (fallbackResult != null) {
+          const fallbackNodes = resolveChild(fallbackResult)
+          for (const node of fallbackNodes) {
             container.appendChild(node)
           }
-        } catch (e) {
-          const error = e instanceof Error ? e : new Error(String(e))
-          state = { hasError: true, error }
+        }
+      }
+      return
+    }
 
-          if (props.onError) {
-            props.onError(error, { componentStack: '' })
-          }
+    container.innerHTML = ''
 
-          if (props.fallback) {
-            const fallbackResult = props.fallback(error, reset)
-            if (fallbackResult != null) {
-              const fallbackNodes = resolveChild(fallbackResult)
-              for (const node of fallbackNodes) {
-                container.appendChild(node)
-              }
-            }
+    const prevBoundary = currentErrorBoundary
+    currentErrorBoundary = getState
+
+    try {
+      const children = props.children
+      if (children == null) {
+        currentErrorBoundary = prevBoundary
+        return
+      }
+
+      let value: any
+      if (typeof children === 'function') {
+        value = children()
+      } else {
+        value = children
+      }
+
+      if (value == null || typeof value === 'boolean') {
+        currentErrorBoundary = prevBoundary
+        return
+      }
+
+      const nodes = resolveChild(value)
+      for (const node of nodes) {
+        container.appendChild(node)
+      }
+
+      currentErrorBoundary = prevBoundary
+    } catch (e) {
+      currentErrorBoundary = prevBoundary
+      const error = e instanceof Error ? e : new Error(String(e))
+      errorState({ hasError: true, error })
+
+      if (props.onError) {
+        props.onError(error, { componentStack: '' })
+      }
+
+      if (props.fallback) {
+        const fallbackResult = props.fallback(error, reset)
+        if (fallbackResult != null) {
+          const fallbackNodes = resolveChild(fallbackResult)
+          for (const node of fallbackNodes) {
+            container.appendChild(node)
           }
         }
-      })
-
-      return container
+      }
     }
+  })
 
-    return children
-  } catch (e) {
-    const error = e instanceof Error ? e : new Error(String(e))
-    state = { hasError: true, error }
-
-    if (props.onError) {
-      props.onError(error, { componentStack: '' })
-    }
-
-    if (props.fallback) {
-      return props.fallback(error, reset)
-    }
-
-    return null
-  }
+  return container
 }
 
-export type { ErrorBoundaryState }
+export function withErrorBoundary(
+  children: any,
+  fallback: (error: Error, reset: () => void) => any,
+  onError?: (error: Error, errorInfo: { componentStack: string }) => void,
+): any {
+  return ErrorBoundary({
+    children,
+    fallback,
+    onError,
+  })
+}

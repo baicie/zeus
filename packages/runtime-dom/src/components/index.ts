@@ -16,7 +16,7 @@ export { Portal } from './portal'
 export type { PortalProps } from './portal'
 
 export { ErrorBoundary } from './error-boundary'
-export type { ErrorBoundaryProps, ErrorBoundaryState } from './error-boundary'
+export type { ErrorBoundaryProps } from './error-boundary'
 
 export { Suspense } from './suspense'
 export type { SuspenseProps } from './suspense'

@@ -35,6 +35,7 @@ function FragmentDemo() {
 
 // ── ErrorBoundary Demo ──
 function ErrorChild({ shouldError = false }: { shouldError?: boolean }) {
+  console.log('ErrorChild', shouldError())
   if (shouldError) {
     throw new Error('Error from ErrorChild!')
   }

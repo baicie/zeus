@@ -3,11 +3,13 @@
 //! SolidJS-style JSX compilation: transforms JSX into template() + insert() + effect()
 //! code with fine-grained reactivity and no Virtual DOM.
 //!
-//! Uses string-based code generation instead of AST manipulation for simplicity.
+//! Uses AST transformation + code generation.
 
 pub mod jsx;
 pub mod template_analyzer;
 pub mod template_ir;
+pub mod control_flow;
+pub mod ast_transform;  // NEW: AST-level transformations
 
 #[cfg(test)]
 mod ast_test;
@@ -119,14 +121,27 @@ impl DomCompiler {
         // 确保启用 JSX 模式
         source_type = source_type.with_jsx(true);
 
-        // 1. Parse (read-only — we don't modify the AST)
-        let program = match parser::parse_source(&allocator, source, source_type) {
+        // 1. Parse
+        let mut program = match parser::parse_source(&allocator, source, source_type) {
             Ok(p) => p,
             Err(errs) => return Err(errs.into_iter().next().unwrap()),
         };
 
+        // 1b. AST Transformation: find if-return patterns
+        let patterns = ast_transform::transform_program(source, &program);
+        
+        // Debug: print patterns found
+        if !patterns.is_empty() {
+            eprintln!("DEBUG: Found {} if-return patterns", patterns.len());
+            for (i, p) in patterns.iter().enumerate() {
+                eprintln!("DEBUG: Pattern {}: if_start={}, if_end={}, then_end={}, else_end={:?}", 
+                    i, p.0, p.1, p.2, p.3);
+            }
+        }
+
         // 2-4. Walk AST, analyze JSX, generate code
-        let mut compiler = jsx::JsxCompiler::new(source);
+        let mut compiler = jsx::JsxCompiler::new_with_allocator(source, Some(&allocator));
+        compiler.set_conditional_patterns(patterns);
         compiler.visit_program(&program);
 
         // 5. Apply replacements and generate final output
