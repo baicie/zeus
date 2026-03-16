@@ -1,107 +1,97 @@
-//! Compiler options module
-//!
-//! Defines configuration options for the Web Component compiler
+//! WebComponent 编译器选项
 
-use crate::WebComponentCompilerOptions;
-
-/// Builder for WebComponentCompilerOptions
-pub struct WebComponentCompilerOptionsBuilder {
-    options: WebComponentCompilerOptions,
+/// WebComponent 编译器选项
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub struct WebComponentOptions {
+    /// 是否启用 Shadow DOM
+    pub shadow_dom: bool,
+    /// 是否自动检测
+    pub auto_detect: bool,
+    /// 宏模块路径
+    pub macro_module: Option<String>,
+    /// 是否保留宏
+    pub preserve_macros: bool,
+    /// 启用的宏列表
+    pub macros: Vec<String>,
+    /// 模式
+    pub mode: WebComponentMode,
+    /// 是否提取定义
+    pub extract_definitions: bool,
 }
 
-impl WebComponentCompilerOptionsBuilder {
-    pub fn new() -> Self {
+impl Default for WebComponentOptions {
+    fn default() -> Self {
         Self {
-            options: WebComponentCompilerOptions::default(),
+            shadow_dom: true,
+            auto_detect: true,
+            macro_module: None,
+            preserve_macros: false,
+            macros: Vec::new(),
+            mode: WebComponentMode::Standard,
+            extract_definitions: false,
         }
     }
-
-    pub fn enable_macros(mut self, enable: bool) -> Self {
-        self.options.enable_macros = enable;
-        self
-    }
-
-    pub fn auto_detect(mut self, auto_detect: bool) -> Self {
-        self.options.auto_detect = auto_detect;
-        self
-    }
-
-    /// Set a single macro module path
-    pub fn macro_module(mut self, module: &str) -> Self {
-        self.options.macro_modules = vec![module.to_string()];
-        self
-    }
-
-    /// Set multiple macro module paths
-    pub fn macro_modules(mut self, modules: Vec<String>) -> Self {
-        self.options.macro_modules = modules;
-        self
-    }
-
-    pub fn preserve_macros(mut self, preserve: bool) -> Self {
-        self.options.preserve_macros = preserve;
-        self
-    }
-
-    /// Set specific macros to process
-    pub fn macros(mut self, macros: Vec<String>) -> Self {
-        self.options.macros = macros;
-        self
-    }
-
-    /// Set transform mode: "remove" or "noop"
-    pub fn mode(mut self, mode: &str) -> Self {
-        self.options.mode = mode.to_string();
-        self
-    }
-
-    /// Enable extracting macro definitions
-    pub fn extract_definitions(mut self, extract: bool) -> Self {
-        self.options.extract_definitions = extract;
-        self
-    }
-
-    pub fn build(self) -> WebComponentCompilerOptions {
-        self.options
-    }
 }
 
-impl Default for WebComponentCompilerOptionsBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
+/// WebComponent 模式
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WebComponentMode {
+    /// 标准模式
+    Standard,
+    /// 虚影模式
+    Shadow,
+    /// 自定义元素
+    CustomElement,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+/// WebComponent 定义
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub struct WebComponentDefinition {
+    /// 标签名
+    pub tag_name: String,
+    /// 类名
+    pub class_name: String,
+    /// 属性
+    pub props: Vec<PropDefinition>,
+    /// 事件
+    pub events: Vec<EventDefinition>,
+    /// 插槽
+    pub slots: Vec<SlotDefinition>,
+}
 
-    #[test]
-    fn test_builder() {
-        let options = WebComponentCompilerOptionsBuilder::new()
-            .enable_macros(true)
-            .auto_detect(false)
-            .macro_module("@custom/web-components")
-            .macros(vec!["defineProps".to_string(), "defineEmits".to_string()])
-            .mode("remove")
-            .build();
+/// 属性定义
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub struct PropDefinition {
+    /// 属性名
+    pub name: String,
+    /// 类型
+    pub type_name: String,
+    /// 是否可选
+    pub optional: bool,
+    /// 默认值
+    pub default_value: Option<String>,
+}
 
-        assert!(options.enable_macros);
-        assert!(!options.auto_detect);
-        assert_eq!(options.macro_modules, vec!["@custom/web-components".to_string()]);
-        assert_eq!(options.macros.len(), 2);
-        assert_eq!(options.mode, "remove");
-    }
+/// 事件定义
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub struct EventDefinition {
+    /// 事件名
+    pub name: String,
+    /// 类型
+    pub type_name: Option<String>,
+}
 
-    #[test]
-    fn test_builder_multiple_modules() {
-        let options = WebComponentCompilerOptionsBuilder::new()
-            .macro_modules(vec![
-                "@zeus-js/web-components".to_string(),
-                "@addons/web-components".to_string(),
-            ])
-            .build();
-
-        assert_eq!(options.macro_modules.len(), 2);
-    }
+/// 插槽定义
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub struct SlotDefinition {
+    /// 插槽名
+    pub name: Option<String>,
+    /// 是否为默认插槽
+    pub is_default: bool,
 }

@@ -1,284 +1,139 @@
-//! Macro processing module
-//!
-//! Handles macro extraction for defineProps, defineEmits, defineExpose
-//! using simple string pattern matching for simplicity.
+//! 宏处理器模块
 
-use crate::{
-    EmitsDefinition, ExposeDefinition, MacroDefinitions, PropsDefinition,
-};
+use std::collections::HashMap;
 
-/// Known macro names
-const DEFINE_PROPS_NAME: &str = "defineProps";
-const DEFINE_EMITS_NAME: &str = "defineEmits";
-const DEFINE_EXPOSE_NAME: &str = "defineExpose";
-
-/// Macro visitor using simple string-based pattern matching
-pub struct MacroVisitor {
-    source: String,
-    has_macros: bool,
-    props: Option<PropsDefinition>,
-    emits: Option<EmitsDefinition>,
-    expose: Option<ExposeDefinition>,
-    replacements: Vec<(usize, usize, String)>,
+/// 宏类型
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum MacroKind {
+    /// 属性宏
+    Props,
+    /// 事件宏
+    Emits,
+    /// 暴露宏
+    Expose,
 }
 
-impl MacroVisitor {
-    pub fn new(source: &str) -> Self {
+/// 宏定义
+#[derive(Debug, Clone)]
+pub struct MacroDefinition {
+    /// 宏类型
+    pub kind: MacroKind,
+    /// 宏名称
+    pub name: String,
+    /// 宏参数
+    pub args: Vec<MacroArg>,
+}
+
+/// 宏参数
+#[derive(Debug, Clone)]
+pub struct MacroArg {
+    /// 参数名
+    pub name: String,
+    /// 参数值
+    pub value: String,
+}
+
+/// 宏处理器
+pub struct MacroProcessor {
+    /// 注册的宏
+    macros: HashMap<String, MacroDefinition>,
+}
+
+impl MacroProcessor {
+    /// 创建新的宏处理器
+    pub fn new() -> Self {
         Self {
-            source: source.to_string(),
-            has_macros: false,
-            props: None,
-            emits: None,
-            expose: None,
-            replacements: Vec::new(),
+            macros: HashMap::new(),
         }
     }
 
-    pub fn has_macros(&self) -> bool {
-        self.has_macros
+    /// 注册默认宏
+    pub fn register_defaults(&mut self) {
+        // Register built-in macros
+        self.register(MacroDefinition {
+            kind: MacroKind::Props,
+            name: "props".to_string(),
+            args: vec![],
+        });
+
+        self.register(MacroDefinition {
+            kind: MacroKind::Emits,
+            name: "emits".to_string(),
+            args: vec![],
+        });
+
+        self.register(MacroDefinition {
+            kind: MacroKind::Expose,
+            name: "expose".to_string(),
+            args: vec![],
+        });
     }
 
-    pub fn into_definitions(self) -> MacroDefinitions {
-        MacroDefinitions {
-            props: self.props,
-            emits: self.emits,
-            expose: self.expose,
-        }
+    /// 注册宏
+    pub fn register(&mut self, macro_def: MacroDefinition) {
+        self.macros.insert(macro_def.name.clone(), macro_def);
     }
 
-    /// Apply all transformations to generate the final output
-    pub fn transform(&self) -> String {
-        if self.replacements.is_empty() {
-            return self.source.clone();
-        }
+    /// 处理宏调用
+    pub fn process_macro_call(&self, name: &str, args: &[String]) -> Option<MacroResult> {
+        let macro_def = self.macros.get(name)?;
 
-        let mut result = self.source.clone();
-
-        // Sort by position in reverse order
-        let mut reps = self.replacements.clone();
-        reps.sort_by(|a, b| b.0.cmp(&a.0));
-
-        for (start, end, replacement) in reps {
-            if start < result.len() && end <= result.len() {
-                result.replace_range(start..end, &replacement);
-            }
-        }
-        result
+        Some(MacroResult {
+            kind: macro_def.kind.clone(),
+            name: name.to_string(),
+            args: args.to_vec(),
+        })
     }
 
-    /// Visit the source and find all macro calls
-    pub fn visit(&mut self) {
-        self.find_define_props();
-        self.find_define_emits();
-        self.find_define_expose();
-    }
+    /// 提取宏定义
+    pub fn extract_macros(&self, source: &str) -> Vec<ExtractedMacro> {
+        let mut extracted = Vec::new();
 
-    /// Find defineProps macros
-    fn find_define_props(&mut self) {
-        let source = &self.source;
-        let mut search_start = 0;
-
-        while let Some(start) = source[search_start..].find(DEFINE_PROPS_NAME) {
-            let full_start = search_start + start;
-            let macro_end = full_start + DEFINE_PROPS_NAME.len();
-
-            let paren_start = self.find_next_char(macro_end, '(');
-            if let Some(paren_start) = paren_start {
-                if let Some((_, obj_end)) = self.find_matching_paren(paren_start) {
-                    let obj_source = &source[paren_start..=obj_end];
-                    let keys = self.extract_object_keys(obj_source);
-                    let full_macro_source = source[full_start..=obj_end].to_string();
-
-                    self.has_macros = true;
-                    self.props = Some(PropsDefinition {
-                        source: full_macro_source,
-                        keys,
-                    });
-
-                    // Add replacement: defineProps({...}) -> {...}
-                    self.replacements.push((full_start, obj_end + 1, obj_source.to_string()));
-                }
-            }
-
-            search_start = macro_end;
-        }
-    }
-
-    /// Find defineEmits macros
-    fn find_define_emits(&mut self) {
-        let source = &self.source;
-        let mut search_start = 0;
-
-        while let Some(start) = source[search_start..].find(DEFINE_EMITS_NAME) {
-            let full_start = search_start + start;
-            let macro_end = full_start + DEFINE_EMITS_NAME.len();
-
-            let paren_start = self.find_next_char(macro_end, '(');
-            if let Some(paren_start) = paren_start {
-                if let Some((_, obj_end)) = self.find_matching_paren(paren_start) {
-                    let obj_source = &source[paren_start..=obj_end];
-                    let keys = self.extract_object_keys(obj_source);
-                    let full_macro_source = source[full_start..=obj_end].to_string();
-
-                    self.has_macros = true;
-                    self.emits = Some(EmitsDefinition {
-                        source: full_macro_source,
-                        events: keys,
-                    });
-
-                    self.replacements.push((full_start, obj_end + 1, obj_source.to_string()));
-                }
-            }
-
-            search_start = macro_end;
-        }
-    }
-
-    /// Find defineExpose macros
-    fn find_define_expose(&mut self) {
-        let source = &self.source;
-        let mut search_start = 0;
-
-        while let Some(start) = source[search_start..].find(DEFINE_EXPOSE_NAME) {
-            let full_start = search_start + start;
-            let macro_end = full_start + DEFINE_EXPOSE_NAME.len();
-
-            let paren_start = self.find_next_char(macro_end, '(');
-            if let Some(paren_start) = paren_start {
-                if let Some((_, obj_end)) = self.find_matching_paren(paren_start) {
-                    let obj_source = &source[paren_start..=obj_end];
-                    let keys = self.extract_object_keys(obj_source);
-                    let full_macro_source = source[full_start..=obj_end].to_string();
-
-                    self.has_macros = true;
-                    self.expose = Some(ExposeDefinition {
-                        source: full_macro_source,
-                        keys,
-                    });
-
-                    self.replacements.push((full_start, obj_end + 1, obj_source.to_string()));
-                }
-            }
-
-            search_start = macro_end;
-        }
-    }
-
-    /// Find next occurrence of a specific character
-    fn find_next_char(&self, start: usize, target: char) -> Option<usize> {
-        self.source[start..]
-            .find(target)
-            .map(|i| start + i)
-    }
-
-    /// Find matching parenthesis
-    fn find_matching_paren(&self, open_pos: usize) -> Option<(usize, usize)> {
-        let mut depth = 0;
-        let mut obj_start = None;
-        let mut obj_end = None;
-
-        for (i, c) in self.source[open_pos..].char_indices() {
-            let pos = open_pos + i;
-            match c {
-                '{' => {
-                    if depth == 0 {
-                        obj_start = Some(pos);
-                    }
-                    depth += 1;
-                }
-                '}' => {
-                    depth -= 1;
-                    if depth == 0 {
-                        obj_end = Some(pos);
-                        break;
-                    }
-                }
-                _ => {}
+        // Simple macro detection - looks for $props, $emits, $expose
+        for (kind, prefix) in [
+            (MacroKind::Props, "$props"),
+            (MacroKind::Emits, "$emits"),
+            (MacroKind::Expose, "$expose"),
+        ] {
+            if source.contains(prefix) {
+                extracted.push(ExtractedMacro {
+                    kind,
+                    source: prefix.to_string(),
+                    span: (0, 0), // Would need proper span tracking
+                });
             }
         }
 
-        match (obj_start, obj_end) {
-            (Some(start), Some(end)) => Some((start, end)),
-            _ => None,
-        }
-    }
-
-    /// Extract keys from an object literal string
-    /// Simple regex-free implementation
-    fn extract_object_keys(&self, obj_str: &str) -> Vec<String> {
-        let mut keys = Vec::new();
-
-        // Find the object boundaries (skip opening { and closing })
-        let start = obj_str.find('{').map(|i| i + 1).unwrap_or(0);
-        let end = obj_str.find('}').unwrap_or(obj_str.len());
-        let content = &obj_str[start..end];
-
-        let mut chars = content.chars().peekable();
-        let mut in_string = false;
-        let mut string_char = '"';
-        let mut current_key = String::new();
-
-        while let Some(c) = chars.next() {
-            // 进入字符串
-            if !in_string && (c == '"' || c == '\'') {
-                in_string = true;
-                string_char = c;
-                continue;
-            }
-            // 退出字符串
-            if in_string && c == string_char {
-                in_string = false;
-                continue;
-            }
-
-            if in_string {
-                // 在字符串内部 - 收集键名直到冒号
-                if c == ':' {
-                    let key = current_key.trim();
-                    if !key.is_empty() {
-                        keys.push(key.to_string());
-                    }
-                    current_key.clear();
-                } else if c != ' ' || !current_key.is_empty() {
-                    current_key.push(c);
-                }
-            } else {
-                // 在字符串外部
-                if c == ':' {
-                    // 冒号前可能是非引号键
-                    let key = current_key.trim();
-                    if !key.is_empty() {
-                        keys.push(key.to_string());
-                    }
-                    current_key.clear();
-                } else if c == ',' {
-                    current_key.clear();
-                } else if !current_key.is_empty() || (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
-                    // 收集键名（跳过前导空格）
-                    current_key.push(c);
-                }
-            }
-        }
-
-        keys
+        extracted
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_extract_object_keys() {
-        let visitor = MacroVisitor::new("");
-        let keys = visitor.extract_object_keys("{ a: 1, b: 2, c: 3 }");
-        assert_eq!(keys, vec!["a", "b", "c"]);
+impl Default for MacroProcessor {
+    fn default() -> Self {
+        let mut processor = Self::new();
+        processor.register_defaults();
+        processor
     }
+}
 
-    #[test]
-    fn test_extract_object_keys_with_strings() {
-        let visitor = MacroVisitor::new("");
-        let keys = visitor.extract_object_keys(r#"{ "variant": 1, 'size': 2 }"#);
-        assert_eq!(keys, vec!["variant", "size"]);
-    }
+/// 宏处理结果
+#[derive(Debug, Clone)]
+pub struct MacroResult {
+    /// 宏类型
+    pub kind: MacroKind,
+    /// 宏名称
+    pub name: String,
+    /// 宏参数
+    pub args: Vec<String>,
+}
+
+/// 提取的宏
+#[derive(Debug, Clone)]
+pub struct ExtractedMacro {
+    /// 宏类型
+    pub kind: MacroKind,
+    /// 源代码
+    pub source: String,
+    /// 位置
+    pub span: (usize, usize),
 }

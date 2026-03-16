@@ -1,228 +1,260 @@
-//! Common error types used across compiler crates
+//! 编译器错误类型
 
-use oxc::diagnostics::OxcDiagnostic;
-use serde::{Deserialize, Serialize};
-use std::fmt;
-use thiserror::Error;
-
-/// Main compiler error type
-#[derive(Debug, Error, Serialize, Deserialize)]
-pub enum CompilerError {
-    /// OXC parser/semantic error
-    #[error("OXC error: {0}")]
-    Oxc(String),
-
-    /// I/O error
-    #[error("IO error: {0}")]
-    Io(String),
-
-    /// Configuration error
-    #[error("Configuration error: {0}")]
-    Config(String),
-
-    /// Compilation error
-    #[error("Compilation error: {0}")]
-    Compilation(String),
-
-    /// Unsupported feature error
-    #[error("Unsupported feature: {0}")]
-    Unsupported(String),
-
-    /// Generic error
-    #[error("{0}")]
-    Other(String),
+/// 编译错误类型
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CompileErrorType {
+    /// 解析错误
+    Parse,
+    /// 语法错误
+    Syntax,
+    /// 类型错误
+    Type,
+    /// 语义错误
+    Semantic,
+    /// 代码生成错误
+    Codegen,
+    /// 选项错误
+    Options,
+    /// 未知错误
+    Unknown,
 }
 
-impl CompilerError {
-    /// Create a new OXC error
-    pub fn oxc(error: &OxcDiagnostic) -> Self {
-        let msg = error.to_string();
-
-        // Try to extract position from error string
-        let (line, column) = extract_position_from_string(&msg);
-
-        // Format with location if available
-        let formatted = if let (Some(line), Some(col)) = (line, column) {
-            format!("{} at line {}, column {}", msg, line, col)
-        } else {
-            msg
-        };
-
-        Self::Oxc(formatted)
-    }
-
-    /// Create a new I/O error
-    pub fn io(error: impl fmt::Display) -> Self {
-        Self::Io(error.to_string())
-    }
-
-    /// Create a new configuration error
-    pub fn config(message: impl Into<String>) -> Self {
-        Self::Config(message.into())
-    }
-
-    /// Create a new compilation error
-    pub fn compilation(message: impl Into<String>) -> Self {
-        Self::Compilation(message.into())
-    }
-
-    /// Create a new unsupported feature error
-    pub fn unsupported(feature: impl Into<String>) -> Self {
-        Self::Unsupported(feature.into())
-    }
-
-    /// Create a generic error
-    pub fn other(message: impl Into<String>) -> Self {
-        Self::Other(message.into())
-    }
-
-    /// Get the error severity
-    pub fn severity(&self) -> super::config::Severity {
+impl CompileErrorType {
+    pub fn as_str(&self) -> &'static str {
         match self {
-            Self::Oxc(_) | Self::Io(_) | Self::Compilation(_) => super::config::Severity::Error,
-            Self::Config(_) | Self::Unsupported(_) => super::config::Severity::Warning,
-            Self::Other(_) => super::config::Severity::Info,
+            CompileErrorType::Parse => "E1001",
+            CompileErrorType::Syntax => "E2001",
+            CompileErrorType::Type => "E3001",
+            CompileErrorType::Semantic => "E4001",
+            CompileErrorType::Codegen => "E5001",
+            CompileErrorType::Options => "E6001",
+            CompileErrorType::Unknown => "E9999",
         }
     }
 }
 
-impl From<OxcDiagnostic> for CompilerError {
-    fn from(error: OxcDiagnostic) -> Self {
-        Self::oxc(&error)
-    }
+/// 编译错误
+#[derive(Debug, Clone)]
+pub struct CompileError {
+    /// 错误类型
+    pub error_type: CompileErrorType,
+    /// 错误消息
+    pub message: String,
+    /// 错误代码
+    pub code: Option<String>,
+    /// 错误起始位置
+    pub start_offset: u32,
+    /// 错误结束位置
+    pub end_offset: u32,
 }
 
-impl From<std::io::Error> for CompilerError {
-    fn from(error: std::io::Error) -> Self {
-        Self::io(error)
+impl CompileError {
+    /// 创建新的编译错误
+    pub fn new(message: impl Into<String>, start_offset: u32, end_offset: u32) -> Self {
+        Self {
+            error_type: CompileErrorType::Unknown,
+            message: message.into(),
+            code: None,
+            start_offset,
+            end_offset,
+        }
     }
-}
 
-impl From<anyhow::Error> for CompilerError {
-    fn from(error: anyhow::Error) -> Self {
-        Self::other(error.to_string())
+    /// 创建指定类型的编译错误
+    pub fn new_with_type(error_type: CompileErrorType, message: impl Into<String>, start_offset: u32, end_offset: u32) -> Self {
+        Self {
+            error_type,
+            message: message.into(),
+            code: Some(error_type.as_str().to_string()),
+            start_offset,
+            end_offset,
+        }
     }
-}
 
-/// Extract position (line, column) from error string
-fn extract_position_from_string(error_str: &str) -> (Option<u32>, Option<u32>) {
-    let s = error_str.to_lowercase();
+    /// 创建带错误代码的编译错误
+    pub fn with_code(mut self, code: impl Into<String>) -> Self {
+        self.code = Some(code.into());
+        self
+    }
 
-    // Find "line" keyword
-    if let Some(line_idx) = s.find("line") {
-        let after_line = &s[line_idx + 4..];
-        // Skip whitespace and find number
-        if let Some(num_start) = after_line.find(|c: char| c.is_ascii_digit()) {
-            let num_end = num_start
-                + after_line[num_start..]
-                    .find(|c: char| !c.is_ascii_digit())
-                    .unwrap_or(after_line.len() - num_start);
-            if let Ok(line) = after_line[num_start..num_start + num_end].parse::<u32>() {
-                // Look for column after "column"
-                if let Some(col_idx) = after_line[num_end..].find("column") {
-                    let after_col = &after_line[num_end + col_idx + 6..];
-                    if let Some(col_start) = after_col.find(|c: char| c.is_ascii_digit()) {
-                        let col_end = col_start
-                            + after_col[col_start..]
-                                .find(|c: char| !c.is_ascii_digit())
-                                .unwrap_or(after_col.len() - col_start);
-                        if let Ok(col) = after_col[col_start..col_start + col_end].parse::<u32>() {
-                            return (Some(line), Some(col));
-                        }
-                    }
-                }
-                return (Some(line), None);
+    /// 创建解析错误
+    pub fn parse(message: impl Into<String>, start_offset: u32, end_offset: u32) -> Self {
+        Self::new_with_type(CompileErrorType::Parse, message, start_offset, end_offset)
+    }
+
+    /// 创建语法错误
+    pub fn syntax(message: impl Into<String>, start_offset: u32, end_offset: u32) -> Self {
+        Self::new_with_type(CompileErrorType::Syntax, message, start_offset, end_offset)
+    }
+
+    /// 创建类型错误
+    pub fn type_error(message: impl Into<String>, start_offset: u32, end_offset: u32) -> Self {
+        Self::new_with_type(CompileErrorType::Type, message, start_offset, end_offset)
+    }
+
+    /// 创建语义错误
+    pub fn semantic(message: impl Into<String>, start_offset: u32, end_offset: u32) -> Self {
+        Self::new_with_type(CompileErrorType::Semantic, message, start_offset, end_offset)
+    }
+
+    /// 创建代码生成错误
+    pub fn codegen(message: impl Into<String>, start_offset: u32, end_offset: u32) -> Self {
+        Self::new_with_type(CompileErrorType::Codegen, message, start_offset, end_offset)
+    }
+
+    /// 创建选项错误
+    pub fn options(message: impl Into<String>) -> Self {
+        Self::new_with_type(CompileErrorType::Options, message, 0, 0)
+    }
+
+    /// 获取错误位置的行号和列号（需要源代码）
+    pub fn get_line_col(&self, source: &str) -> Option<(usize, usize)> {
+        let mut line = 1;
+        let mut col = 1;
+
+        for (i, c) in source.char_indices() {
+            if i as u32 >= self.start_offset {
+                break;
+            }
+            if c == '\n' {
+                line += 1;
+                col = 1;
+            } else {
+                col += 1;
             }
         }
+
+        if self.start_offset > 0 && self.start_offset as usize <= source.len() {
+            Some((line, col))
+        } else {
+            None
+        }
     }
 
-    (None, None)
-}
+    /// 生成带上下文的错误信息
+    pub fn with_context(&self, source: &str, context_lines: usize) -> String {
+        let lines: Vec<&str> = source.lines().collect();
+        let (line, col) = self.get_line_col(source).unwrap_or((1, 1));
 
-/// Result type alias for compiler operations
-pub type Result<T> = std::result::Result<T, CompilerError>;
+        let mut result = format!("{} at line {}, column {}:\n", self.code.as_deref().unwrap_or("Error"), line, col);
+        result.push_str(&format!("  {}\n", self.message));
 
-/// Diagnostic reporter for collecting multiple errors
-#[derive(Debug, Default)]
-pub struct DiagnosticReporter {
-    diagnostics: Vec<super::config::Diagnostic>,
-}
+        // 添加上下文
+        let start = line.saturating_sub(context_lines);
+        for i in start..line {
+            if i < lines.len() {
+                let marker = if i + 1 == line { ">>>" } else { "   " };
+                result.push_str(&format!("{} | {}\n", marker, lines[i]));
+            }
+        }
 
-impl DiagnosticReporter {
-    /// Create a new diagnostic reporter
-    pub fn new() -> Self {
-        Self::default()
-    }
+        // 添加列标记
+        if col > 0 {
+            result.push_str(&format!("{}{}\n", " ".repeat(col + 4), "^"));
+        }
 
-    /// Add a diagnostic
-    pub fn add(&mut self, diagnostic: super::config::Diagnostic) {
-        self.diagnostics.push(diagnostic);
-    }
-
-    /// Add a compiler error
-    pub fn add_error(&mut self, error: CompilerError) {
-        let diagnostic = super::config::Diagnostic::error(error.to_string())
-            .with_file("compiler"); // TODO: Add proper file info
-        self.add(diagnostic);
-    }
-
-    /// Add an OXC error
-    pub fn add_oxc_error(&mut self, error: &OxcDiagnostic) {
-        let diagnostic = super::config::Diagnostic::error(error.to_string());
-        self.add(diagnostic);
-    }
-
-    /// Get all diagnostics
-    pub fn diagnostics(&self) -> &[super::config::Diagnostic] {
-        &self.diagnostics
-    }
-
-    /// Check if there are any errors
-    pub fn has_errors(&self) -> bool {
-        self.diagnostics.iter().any(|d| d.severity == super::config::Severity::Error)
-    }
-
-    /// Check if there are any warnings
-    pub fn has_warnings(&self) -> bool {
-        self.diagnostics.iter().any(|d| d.severity == super::config::Severity::Warning)
-    }
-
-    /// Clear all diagnostics
-    pub fn clear(&mut self) {
-        self.diagnostics.clear();
-    }
-
-    /// Get error count
-    pub fn error_count(&self) -> usize {
-        self.diagnostics.iter().filter(|d| d.severity == super::config::Severity::Error).count()
-    }
-
-    /// Get warning count
-    pub fn warning_count(&self) -> usize {
-        self.diagnostics.iter().filter(|d| d.severity == super::config::Severity::Warning).count()
+        result
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+impl std::fmt::Display for CompileError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(code) = &self.code {
+            write!(f, "[{}] {} ({}:{})", code, self.message, self.start_offset, self.end_offset)
+        } else {
+            write!(f, "{} ({}:{})", self.message, self.start_offset, self.end_offset)
+        }
+    }
+}
 
-    #[test]
-    fn test_compiler_error_creation() {
-        use crate::Severity;
+impl std::error::Error for CompileError {}
 
-        let error = CompilerError::compilation("Test error");
-        assert_eq!(error.severity(), Severity::Error);
-        assert!(error.to_string().contains("Test error"));
+impl From<String> for CompileError {
+    fn from(message: String) -> Self {
+        Self {
+            error_type: CompileErrorType::Unknown,
+            message,
+            code: None,
+            start_offset: 0,
+            end_offset: 0,
+        }
+    }
+}
+
+/// 编译结果
+pub type CompileResult<T> = Result<T, CompileError>;
+
+/// 警告信息
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub struct Warning {
+    /// 警告消息
+    pub message: String,
+    /// 警告起始位置
+    pub start_offset: u32,
+    /// 警告结束位置
+    pub end_offset: u32,
+}
+
+#[allow(dead_code)]
+impl Warning {
+    /// 创建新的警告
+    pub fn new(message: impl Into<String>, start_offset: u32, end_offset: u32) -> Self {
+        Self {
+            message: message.into(),
+            start_offset,
+            end_offset,
+        }
+    }
+}
+
+/// 编译输出
+#[allow(dead_code)]
+#[derive(Debug, Clone, Default)]
+pub struct CompileOutput {
+    /// 生成的代码
+    pub code: String,
+    /// 源代码映射（可选）
+    pub map: Option<String>,
+    /// 使用的运行时 helpers
+    pub used_helpers: Vec<String>,
+    /// 委托事件列表
+    pub delegated_events: Vec<String>,
+    /// 警告信息
+    pub warnings: Vec<Warning>,
+}
+
+#[allow(dead_code)]
+impl CompileOutput {
+    /// 创建新的编译输出
+    pub fn new(code: String) -> Self {
+        Self {
+            code,
+            map: None,
+            used_helpers: Vec::new(),
+            delegated_events: Vec::new(),
+            warnings: Vec::new(),
+        }
     }
 
-    #[test]
-    fn test_diagnostic_reporter() {
-        let mut reporter = DiagnosticReporter::new();
-        reporter.add_error(CompilerError::compilation("Test error"));
+    /// 添加使用的 helper
+    pub fn add_helper(&mut self, helper: impl Into<String>) {
+        let helper = helper.into();
+        if !self.used_helpers.contains(&helper) {
+            self.used_helpers.push(helper);
+        }
+    }
 
-        assert!(reporter.has_errors());
-        assert_eq!(reporter.error_count(), 1);
-        assert_eq!(reporter.warning_count(), 0);
+    /// 添加委托事件
+    pub fn add_delegated_event(&mut self, event: impl Into<String>) {
+        let event = event.into();
+        if !self.delegated_events.contains(&event) {
+            self.delegated_events.push(event);
+        }
+    }
+
+    /// 添加警告
+    pub fn add_warning(&mut self, warning: Warning) {
+        self.warnings.push(warning);
     }
 }

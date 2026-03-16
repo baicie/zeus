@@ -1,21 +1,16 @@
 [package]
 name = "zeus-compiler-ssr"
-version = "0.1.0"
-edition = "2024"
-license = "MIT"
-repository = "https://github.com/baicie/zeus"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [dependencies]
-# Zeus compiler crates
+zeus-compiler-common = { path = "../compiler-common" }
 zeus-compiler-core = { path = "../compiler-core" }
 zeus-compiler-dom = { path = "../compiler-dom" }
-
-# oxc dependencies
-oxc = { workspace = true }
 oxc_allocator = { workspace = true }
-
-# Common dependencies
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-anyhow = "1.0"
-thiserror = "2.0"
+oxc_span = { workspace = true }
+oxc_traverse = { workspace = true }
+oxc = { workspace = true }
+oxc_ast = { workspace = true }

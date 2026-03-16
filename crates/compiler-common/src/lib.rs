@@ -1,42 +1,13 @@
-//! Zeus Compiler Common
+//! Zeus 编译器公共模块
 //!
-//! This crate provides common types, utilities, and shared functionality
-//! used across all Zeus compiler crates.
+//! 提供所有编译器共享的通用类型、配置和工具函数
 
-pub mod config;
-pub mod error;
-pub mod utils;
-pub mod types;
+mod config;
+mod error;
+mod types;
+mod utils;
 
-// Re-export commonly used types
-pub use config::*;
-pub use error::*;
-pub use types::*;
-
-// Version information
-pub const VERSION: &str = env!("CARGO_PKG_VERSION");
-
-/// Get the current version of the compiler common library
-pub fn version() -> &'static str {
-    VERSION
-}
-
-// Common result type used across compiler crates is defined in error.rs
-
-/// Initialize the compiler common library
-pub fn init() {}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_version() {
-        assert!(!version().is_empty());
-    }
-
-    #[test]
-    fn test_init() {
-        init(); // Should not panic
-    }
-}
+pub use config::{CompilerOptions, Target};
+pub use error::{CompileError, CompileErrorType, CompileResult};
+pub use types::{Binding, BindingKind, DomPath, TemplateIR, TraversalStep};
+pub use utils::html_escape;

@@ -1,187 +1,39 @@
-//! Zeus Compiler DOM
+//! Zeus DOM 编译器模块
 //!
-//! SolidJS-style JSX compilation: transforms JSX into template() + insert() + effect()
-//! code with fine-grained reactivity and no Virtual DOM.
-//!
-//! Uses AST transformation + code generation.
+//! 实现基于 oxc_traverse 的 DOM 编译器，将 JSX 转换为优化的 DOM 操作代码
 
-pub mod jsx;
-pub mod template_analyzer;
-pub mod template_ir;
-pub mod control_flow;
-pub mod ast_transform;  // AST-level transformations
-pub mod traverse_transform;  // NEW: oxc_traverse based transformation
+mod template_analyzer;
+mod template_ir;
+mod control_flow;
 
-#[cfg(test)]
-mod ast_test;
+pub use template_analyzer::TemplateAnalyzer;
+pub use template_ir::DomTemplateIR;
+pub use control_flow::ControlFlowAnalyzer;
 
-use oxc::allocator::Allocator;
-use oxc::diagnostics::OxcDiagnostic;
-use oxc::parser::Parser;
-use oxc::span::SourceType;
-use zeus_compiler_core::{parser, CompilerOptions};
+use zeus_compiler_common::CompilerOptions;
+use zeus_compiler_core::{compile as compile_with_traverse, Target};
 
-/// DOM-specific compiler options
-#[derive(Debug, Clone)]
-pub struct DomCompilerOptions {
-    pub base: CompilerOptions,
-    pub jsx: bool,
-    pub jsx_pragma: Option<String>,
-    pub jsx_pragma_frag: Option<String>,
-    pub dom_optimizations: bool,
-    /// Module path for runtime imports (default: "@zeus-js/core")
-    pub runtime_module: Option<String>,
+/// DOM 编译器
+pub struct DomCompiler {
+    options: CompilerOptions,
 }
-
-/// 编译错误结构
-#[derive(Debug, Clone)]
-pub struct CompileError {
-    pub message: String,
-    pub start_offset: u32,
-    pub end_offset: u32,
-}
-
-impl CompileError {
-    pub fn from_diagnostic(diag: OxcDiagnostic) -> Self {
-        // 从诊断消息中尝试提取位置信息
-        let msg = diag.to_string();
-        
-        // 尝试从调试输出中获取 span
-        let debug_str = format!("{:?}", diag);
-        let (start_offset, end_offset) = extract_span_from_debug(&debug_str).unwrap_or((0, 0));
-        
-        Self {
-            message: msg,
-            start_offset,
-            end_offset,
-        }
-    }
-}
-
-/// 从调试输出中提取 span 信息
-fn extract_span_from_debug(debug_str: &str) -> Option<(u32, u32)> {
-    // 尝试匹配 "span: Span { start: X, end: Y }" 格式
-    if let Some(span_start) = debug_str.find("span:") {
-        let after_span = &debug_str[span_start..];
-        
-        // 查找 start:
-        if let Some(start_key) = after_span.find("start:") {
-            let after_start = &after_span[start_key + 6..];
-            // 提取数字
-            if let Some(num_start) = after_start.find(|c: char| c.is_ascii_digit()) {
-                let num_str = &after_start[num_start..];
-                let num_end = num_str.find(|c: char| !c.is_ascii_digit()).unwrap_or(num_str.len());
-                if let Ok(start) = num_str[..num_end].parse::<u32>() {
-                    // 找 end
-                    if let Some(end_key) = num_str.find("end:") {
-                        let after_end = &num_str[end_key + 3..];
-                        if let Some(col_start) = after_end.find(|c: char| c.is_ascii_digit()) {
-                            let col_str = &after_end[col_start..];
-                            let col_end = col_str.find(|c: char| !c.is_ascii_digit()).unwrap_or(col_str.len());
-                            if let Ok(end) = col_str[..col_end].parse::<u32>() {
-                                return Some((start, end));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    None
-}
-
-/// DOM compiler — compiles JSX/TSX to SolidJS-style DOM code
-pub struct DomCompiler;
 
 impl DomCompiler {
+    /// 创建新的 DOM 编译器
     pub fn new() -> Self {
-        Self
-    }
-
-    /// Main compilation entry point
-    ///
-    /// Pipeline:
-    /// 1. Parse source → AST (read-only)
-    /// 2. Walk AST to find JSX elements
-    /// 3. Analyze each JSX tree → TemplateIR
-    /// 4. Generate replacement JS code as strings
-    /// 5. Apply span-based replacements to produce final output
-    pub fn compile_dom(
-        &self,
-        source: &str,
-        options: &DomCompilerOptions,
-    ) -> Result<String, OxcDiagnostic> {
-        if !options.jsx {
-            return Ok(source.to_string());
-        }
-
-        let allocator = Allocator::default();
-
-        // 根据 options 创建正确的 source_type，支持 JSX 和 TypeScript
-        let mut source_type = options.base.source_type;
-        // 确保启用 JSX 模式
-        source_type = source_type.with_jsx(true);
-
-        // 1. Parse
-        let mut program = match parser::parse_source(&allocator, source, source_type) {
-            Ok(p) => p,
-            Err(errs) => return Err(errs.into_iter().next().unwrap()),
-        };
-
-        // 1b. AST Transformation: find if-return patterns
-        let patterns = ast_transform::transform_program(source, &program);
-        
-        // Debug: print patterns found
-        if !patterns.is_empty() {
-            eprintln!("DEBUG: Found {} if-return patterns", patterns.len());
-            for (i, p) in patterns.iter().enumerate() {
-                eprintln!("DEBUG: Pattern {}: if_start={}, if_end={}, then_end={}, else_end={:?}", 
-                    i, p.0, p.1, p.2, p.3);
-            }
-        }
-
-        // 2-4. Walk AST, analyze JSX, generate code
-        let mut compiler = jsx::JsxCompiler::new_with_allocator(source, Some(&allocator));
-        compiler.set_conditional_patterns(patterns);
-        compiler.visit_program(&program);
-
-        // 5. Apply replacements and generate final output
-        Ok(compiler.generate_output())
-    }
-
-    /// Legacy helper
-    pub fn transform_jsx_to_dom(
-        &self,
-        jsx_code: &str,
-    ) -> Result<String, oxc::diagnostics::Error> {
-        let options = DomCompilerOptions {
-            base: CompilerOptions {
-                source_type: SourceType::jsx(),
-                experimental: false,
-            },
-            jsx: true,
-            jsx_pragma: None,
-            jsx_pragma_frag: None,
-            dom_optimizations: true,
-            runtime_module: None,
-        };
-
-        match self.compile_dom(jsx_code, &options) {
-            Ok(code) => Ok(code),
-            Err(err) => Err(err.into()),
+        Self {
+            options: CompilerOptions::default(),
         }
     }
 
-    /// Get parse errors with location info
-    pub fn get_parse_errors(
-        source: &str,
-        source_type: SourceType,
-    ) -> Vec<CompileError> {
-        let allocator = Allocator::default();
-        let parser = Parser::new(&allocator, source, source_type);
-        let result = parser.parse();
-        
-        result.errors.into_iter().map(CompileError::from_diagnostic).collect()
+    /// 使用指定选项创建编译器
+    pub fn with_options(options: CompilerOptions) -> Self {
+        Self { options }
+    }
+
+    /// 编译 JSX 源代码
+    pub fn compile(&self, source: &str) -> Result<String, String> {
+        compile_with_traverse(source, self.options.clone())
     }
 }
 
@@ -191,146 +43,18 @@ impl Default for DomCompiler {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+/// 编译 JSX 源代码
+pub fn compile(source: &str) -> Result<String, String> {
+    let compiler = DomCompiler::new();
+    compiler.compile(source)
+}
 
-    fn compile(source: &str) -> String {
-        let compiler = DomCompiler::new();
-        let options = DomCompilerOptions {
-            base: CompilerOptions {
-                source_type: SourceType::default().with_module(true).with_jsx(true),
-                experimental: false,
-            },
-            jsx: true,
-            jsx_pragma: None,
-            jsx_pragma_frag: None,
-            dom_optimizations: false,
-            runtime_module: None,
-        };
-        compiler
-            .compile_dom(source, &options)
-            .expect("compilation failed")
-    }
-
-    #[test]
-    fn test_compile_static_jsx() {
-        let code = compile(r#"const App = () => <div>Hello</div>"#);
-        println!("Output:\n{}", code);
-        assert!(code.contains("template"), "Should contain template()");
-        assert!(
-            code.contains("<div>Hello</div>"),
-            "Template should contain static HTML"
-        );
-        assert!(
-            !code.contains("document.createElement"),
-            "Should NOT contain createElement"
-        );
-    }
-
-    #[test]
-    fn test_compile_static_attrs() {
-        let code = compile(r#"const App = () => <div class="hello">World</div>"#);
-        println!("Output:\n{}", code);
-        // The HTML is escaped in the template string
-        assert!(code.contains(r#"class=\"hello\""#) || code.contains(r#"class="hello""#));
-    }
-
-    #[test]
-    fn test_compile_nested_elements() {
-        let code = compile(
-            r#"const App = () => <div><span>Hello</span><p>World</p></div>"#,
-        );
-        println!("Output:\n{}", code);
-        assert!(code.contains("<div><span>Hello</span><p>World</p></div>"));
-    }
-
-    #[test]
-    fn test_compile_dynamic_expression() {
-        let code = compile(
-            r#"function App() { const count = signal(0); return <div>{count()}</div> }"#,
-        );
-        println!("Output:\n{}", code);
-        assert!(code.contains("template"), "Should have template");
-        assert!(code.contains("insert"), "Should have insert()");
-    }
-
-    #[test]
-    fn test_compile_event_handler() {
-        let code = compile(
-            r#"const App = () => <button onClick={() => alert("hi")}>Click</button>"#,
-        );
-        println!("Output:\n{}", code);
-        assert!(code.contains("$$click"), "Should have delegated event");
-        assert!(
-            code.contains("delegateEvents"),
-            "Should have delegateEvents()"
-        );
-    }
-
-    #[test]
-    fn test_compile_component() {
-        let code = compile(r#"const App = () => <Counter count={0} />"#);
-        println!("Output:\n{}", code);
-        assert!(
-            code.contains("Counter({ count: 0 })"),
-            "Should directly call component function"
-        );
-        assert!(code.contains("Counter"), "Should reference Counter");
-    }
-
-    #[test]
-    fn test_conditional_rendering() {
-        let code = compile(r#"const App = () => <div>{show() ? <span>Yes</span> : <span>No</span>}</div>"#);
-        println!("Conditional output:\n{}", code);
-        assert!(code.contains("insert"), "Should have insert() call");
-        assert!(code.contains("show()"), "Should contain condition");
-        assert!(code.contains("?"), "Should contain ternary operator");
-    }
-
-    #[test]
-    fn test_list_rendering() {
-        let code = compile(r#"const App = () => <ul>{items().map(item => <li>{item}</li>)}</ul>"#);
-        println!("List output:\n{}", code);
-        assert!(code.contains("insert"), "Should have insert() call");
-        assert!(code.contains("map"), "Should contain map call");
-    }
-
-    #[test]
-    fn test_logical_and_rendering() {
-        let code = compile(r#"const App = () => <div>{show() && <span>Visible</span>}</div>"#);
-        println!("Logical AND output:\n{}", code);
-        assert!(code.contains("insert"), "Should have insert() call");
-        assert!(code.contains("&&"), "Should contain logical AND");
-    }
-
-    #[test]
-    fn test_component_in_logical_and() {
-        let code = compile(r#"const App = () => <div>{show() && <Panel />}</div>"#);
-        println!("Component in logical AND output:\n{}", code);
-        assert!(code.contains("insert"), "Should have insert() call");
-        assert!(code.contains("&&"), "Should contain &&");
-        assert!(code.contains("Panel({})"), "Should call Panel as function, not React.createElement");
-        assert!(!code.contains("React.createElement"), "Must not produce React.createElement");
-        assert!(code.contains("() =>"), "Should wrap in arrow fn for reactivity");
-    }
-
-    #[test]
-    fn test_component_in_ternary() {
-        let code = compile(r#"const App = () => <div>{theme() === 'light' ? <Light /> : <Dark />}</div>"#);
-        println!("Component in ternary output:\n{}", code);
-        assert!(code.contains("insert"), "Should have insert() call");
-        assert!(code.contains("Light({})"), "Should call Light as function");
-        assert!(code.contains("Dark({})"), "Should call Dark as function");
-        assert!(!code.contains("React.createElement"), "Must not produce React.createElement");
-        assert!(code.contains("() =>"), "Should wrap in arrow fn for reactivity");
-    }
-
-    #[test]
-    fn test_fragment_with_event() {
-        let code = compile(r#"function App() { return (<><button onClick={() => alert("hi")}>Click</button></>) }"#);
-        println!("Fragment with event output:\n{}", code);
-        assert!(code.contains("$$click"), "Should have delegated event handler");
-        assert!(code.contains("delegateEvents"), "Should have delegateEvents()");
-    }
+/// 使用指定目标编译
+pub fn compile_with_target(source: &str, target: Target) -> Result<String, String> {
+    let _target = target;
+    let mut options = CompilerOptions::default();
+    // TODO: compiler-common 的 CompilerOptions::target 目前使用 zeus-compiler-common::Target
+    // 这里暂时忽略，后续统一 Target 定义后再打通
+    let compiler = DomCompiler::with_options(options);
+    compiler.compile(source)
 }

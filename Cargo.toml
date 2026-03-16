@@ -3,6 +3,7 @@ members = ["./crates/*"]
 resolver = "3"
 
 [workspace.package]
+version = "0.1.0"
 edition = "2024"
 license = "MIT"
 repository = "https://github.com/baicie/zeus"
@@ -106,6 +107,9 @@ oxc_parser_napi = { version = "0.107.0" }
 oxc_span = { version = "0.107.0" }
 oxc_transform_napi = { version = "0.107.0" }
 oxc_traverse = { version = "0.107.0" }
+oxc_ast = { version = "0.107.0" }
+oxc_parser = { version = "0.107.0" }
+oxc_codegen = { version = "0.107.0" }
 
 [profile.dev]
 # Minimal debug info to speed up local and CI builds.

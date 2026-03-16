@@ -1,14 +1,17 @@
 [package]
 name = "zeus-compiler-core"
-version = "0.1.0"
-edition = "2024"
-license = "MIT"
-repository = "https://github.com/baicie/zeus"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [dependencies]
-# Zeus common types
 zeus-compiler-common = { path = "../compiler-common" }
-
-# oxc dependencies
-oxc = { workspace = true }
 oxc_allocator = { workspace = true }
+oxc_span = { workspace = true }
+oxc_traverse = { workspace = true }
+oxc = { workspace = true }
+oxc_parser = { workspace = true }
+oxc_codegen = { workspace = true }
+oxc_ast = { workspace = true }
+oxc_semantic = { workspace = true }

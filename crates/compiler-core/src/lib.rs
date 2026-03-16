@@ -1,22 +1,11 @@
-//! Zeus Compiler Core
+//! Zeus 核心编译器模块
 //!
-//! This crate provides the core parsing functionality for the Zeus framework,
-//! built on top of the oxc parser. For JSX compilation, use `zeus-compiler-dom`.
+//! 提供基于 oxc 的核心编译功能
 
-pub mod parser;
+mod parser;
+mod codegen;
+mod traverse;
 
-use oxc::span::SourceType;
-
-// Re-export common diagnostic types so downstream crates have a single import path
-pub use zeus_compiler_common::{
-    CompilerError, Diagnostic, DiagnosticReporter, Result, Severity,
-};
-
-/// Core compiler configuration
-#[derive(Debug, Clone)]
-pub struct CompilerOptions {
-    /// Source type (JavaScript, TypeScript, JSX, etc.)
-    pub source_type: SourceType,
-    /// Enable experimental features
-    pub experimental: bool,
-}
+pub use parser::{parse_with_allocator, parse_tsx_with_allocator};
+pub use codegen::CodeGenerator;
+pub use traverse::{DomCompilerState, DomCompilerPass, compile, Target};

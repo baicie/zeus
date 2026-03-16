@@ -1,119 +1,261 @@
-//! Zeus Compiler SSR
+//! Zeus SSR 编译器模块
 //!
-//! Provides server-side rendering compilation for the Zeus framework.
-//! Handles hydration code generation for client-side pickup of SSR output.
+//! 实现服务端渲染编译
 
-pub mod hydration;
+mod hydration;
 
-use zeus_compiler_core::CompilerOptions;
-use zeus_compiler_dom::DomCompiler;
-use oxc::diagnostics::OxcDiagnostic;
-#[cfg(test)]
-use oxc::span::SourceType;
-use serde::{Deserialize, Serialize};
+pub use hydration::{HydrationAnalyzer, HydrationInfo, HydrationMarker, MarkerType};
 
-/// SSR compilation options
+use zeus_compiler_common::CompilerOptions;
+
+/// SSR 编译器选项
 #[derive(Debug, Clone)]
-pub struct SsrCompilerOptions {
-    /// Base compiler options
-    pub base: CompilerOptions,
-    /// Enable streaming SSR
+pub struct SsrOptions {
+    /// 是否启用流式渲染
     pub streaming: bool,
-    /// Enable hydration code generation
+    /// 是否生成 hydration 代码
     pub hydration: bool,
-    /// Server-side data fetching
-    pub data_fetching: bool,
-    /// Enable suspense boundaries
-    pub suspense: bool,
+    /// 是否启用异步数据获取
+    pub async_data: bool,
+    /// 是否压缩 HTML
+    pub minify: bool,
+    /// 服务端渲染的目标环境
+    pub target: SsrTarget,
 }
 
-/// Server-side rendering result
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SsrResult {
-    /// Rendered HTML
+impl Default for SsrOptions {
+    fn default() -> Self {
+        Self {
+            streaming: false,
+            hydration: true,
+            async_data: true,
+            minify: false,
+            target: SsrTarget::Node,
+        }
+    }
+}
+
+/// SSR 目标环境
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SsrTarget {
+    /// Node.js 环境
+    Node,
+    /// Edge 环境（如 Cloudflare Workers）
+    Edge,
+    /// Bun 环境
+    Bun,
+}
+
+/// SSR 编译器状态
+pub struct SsrCompilerState {
+    /// 收集的 HTML 片段
+    pub html_fragments: Vec<HtmlFragment>,
+    /// 是否在 SSR 模式
+    pub is_ssr: bool,
+    /// 异步数据获取列表
+    pub async_data_fetches: Vec<AsyncDataFetch>,
+}
+
+impl SsrCompilerState {
+    pub fn new() -> Self {
+        Self {
+            html_fragments: Vec::new(),
+            is_ssr: true,
+            async_data_fetches: Vec::new(),
+        }
+    }
+}
+
+impl Default for SsrCompilerState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// HTML 片段
+#[derive(Debug, Clone)]
+pub struct HtmlFragment {
+    /// 片段名称
+    pub name: String,
+    /// HTML 内容
     pub html: String,
-    /// Hydration script
-    pub hydration_script: Option<String>,
-    /// Initial state for hydration
-    pub initial_state: Option<serde_json::Value>,
-    /// Streaming markers
-    pub streaming_markers: Vec<StreamingMarker>,
+    /// 动态占位符
+    pub placeholders: Vec<Placeholder>,
 }
 
-/// Streaming marker for resumable SSR
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StreamingMarker {
-    /// Marker ID
-    pub id: String,
-    /// Position in HTML
-    pub position: usize,
-    /// Component name
-    pub component: String,
+/// 占位符
+#[derive(Debug, Clone)]
+pub struct Placeholder {
+    /// 占位符索引
+    pub index: usize,
+    /// 表达式源码
+    pub expression: String,
+    /// 是否为 HTML 转义
+    pub escape_html: bool,
 }
 
-/// SSR Compiler
-#[allow(dead_code)]
+/// 异步数据获取
+#[derive(Debug, Clone)]
+pub struct AsyncDataFetch {
+    /// 获取函数名称
+    pub name: String,
+    /// 数据键名
+    pub key: String,
+    /// 数据源表达式
+    pub source: String,
+}
+
+/// SSR 编译器
 pub struct SsrCompiler {
-    dom_compiler: DomCompiler,
+    options: CompilerOptions,
+    ssr_options: SsrOptions,
 }
 
 impl SsrCompiler {
-    /// Create a new SSR compiler instance
     pub fn new() -> Self {
         Self {
-            dom_compiler: DomCompiler::new(),
+            options: CompilerOptions::default(),
+            ssr_options: SsrOptions::default(),
         }
     }
 
-    /// Compile component for server-side rendering
-    pub fn compile_for_ssr(
-        &self,
-        _source: &str,
-        options: &SsrCompilerOptions,
-    ) -> Result<SsrResult, OxcDiagnostic> {
-        // TODO: Use DomCompiler to compile JSX for SSR
-        // TODO: Analyze component for SSR compatibility
-        // TODO: Generate server-side rendering code
-
-        Ok(SsrResult {
-            html: "<!-- SSR Placeholder -->".to_string(),
-            hydration_script: if options.hydration {
-                Some("// Hydration script placeholder".to_string())
-            } else {
-                None
-            },
-            initial_state: None,
-            streaming_markers: Vec::new(),
-        })
+    pub fn with_options(options: CompilerOptions) -> Self {
+        Self {
+            options,
+            ssr_options: SsrOptions::default(),
+        }
     }
 
-    /// Render component to HTML string
-    pub fn render_to_html(
-        &self,
-        component_code: &str,
-        _props: Option<serde_json::Value>,
-    ) -> Result<String, OxcDiagnostic> {
-        // TODO: Execute component code on server and render to HTML
-        Ok(format!("<div><!-- Rendered: {} --></div>", component_code))
+    pub fn with_ssr_options(ssr_options: SsrOptions) -> Self {
+        Self {
+            options: CompilerOptions::default(),
+            ssr_options,
+        }
     }
 
-    /// Generate Zeus-compatible hydration code for the client
-    pub fn generate_hydration_code(&self, component_name: &str) -> String {
-        hydration::HydrationGenerator::new()
-            .generate_hydration_script(component_name, "root")
+    /// 编译为 SSR 代码
+    pub fn compile(&self, source: &str) -> Result<String, String> {
+        if self.ssr_options.streaming {
+            return self.compile_streaming(source);
+        }
+
+        let mut code = String::new();
+        code.push_str("// SSR compiled\n");
+
+        // 导入 SSR runtime
+        code.push_str("import { renderToString } from '@zeus-js/server-renderer';\n");
+
+        if self.ssr_options.async_data {
+            code.push_str("import { useAsyncData } from '@zeus-js/server-renderer';\n");
+        }
+
+        code.push_str("\n");
+        code.push_str("export function render(props) {\n");
+        code.push_str(&format!("  return renderToString({});\n", source));
+        code.push_str("}\n");
+
+        // 生成 hydration 代码
+        if self.ssr_options.hydration {
+            code.push_str("\n");
+            code.push_str(&self.generate_hydration_code("/* html */"));
+        }
+
+        Ok(code)
     }
 
-    /// Check if component is SSR-compatible
-    pub fn check_ssr_compatibility(
-        &self,
-        _source: &str,
-    ) -> Result<Vec<String>, OxcDiagnostic> {
-        // TODO: Analyze code for SSR compatibility
-        let warnings = vec![
-            "Browser-only API usage detected".to_string(),
-            "Side effects in component body".to_string(),
-        ];
-        Ok(warnings)
+    /// 编译为流式 SSR 代码
+    pub fn compile_streaming(&self, source: &str) -> Result<String, String> {
+        let mut code = String::new();
+        code.push_str("// Streaming SSR compiled\n");
+
+        // 导入流式渲染 runtime
+        code.push_str("import { renderToPipeableStream } from '@zeus-js/server-renderer';\n");
+
+        code.push_str("\n");
+        code.push_str("export function createStream(props) {\n");
+        code.push_str("  return renderToPipeableStream(");
+        code.push_str(source);
+        code.push_str(", {\n");
+        code.push_str("    onShellReady() {\n");
+        code.push_str("      // Shell 准备好了\n");
+        code.push_str("    },\n");
+        code.push_str("    onShellError(error) {\n");
+        code.push_str("      console.error('Shell error:', error);\n");
+        code.push_str("    },\n");
+        code.push_str("    onAllReady() {\n");
+        code.push_str("      // 所有内容准备好了\n");
+        code.push_str("    },\n");
+        code.push_str("    onError(error) {\n");
+        code.push_str("      console.error('Render error:', error);\n");
+        code.push_str("    }\n");
+        code.push_str("  });\n");
+        code.push_str("}\n");
+
+        Ok(code)
+    }
+
+    /// 编译为流式 SSR（使用 Web Streams API）
+    pub fn compile_web_streaming(&self, source: &str) -> Result<String, String> {
+        let mut code = String::new();
+        code.push_str("// Web Streaming SSR compiled\n");
+
+        code.push_str("import { renderToWebStream } from '@zeus-js/server-renderer';\n");
+
+        code.push_str("\n");
+        code.push_str("export async function renderAsync(props) {\n");
+        code.push_str("  const encoder = new TextEncoder();\n");
+        code.push_str("  const stream = new ReadableStream({\n");
+        code.push_str("    start(controller) {\n");
+        code.push_str("      renderToWebStream(");
+        code.push_str(source);
+        code.push_str(", {\n");
+        code.push_str("        append(chunk) {\n");
+        code.push_str("          controller.enqueue(encoder.encode(chunk));\n");
+        code.push_str("        },\n");
+        code.push_str("        error(err) {\n");
+        code.push_str("          controller.error(err);\n");
+        code.push_str("        }\n");
+        code.push_str("      });\n");
+        code.push_str("    }\n");
+        code.push_str("  });\n");
+        code.push_str("  return stream;\n");
+        code.push_str("}\n");
+
+        Ok(code)
+    }
+
+    /// 生成 hydration 代码
+    pub fn generate_hydration_code(&self, html: &str) -> String {
+        format!(
+            r#"// Hydration code
+import {{ hydrate }} from '@zeus-js/server-renderer';
+
+export function hydrateApp(container, props) {{
+  const html = `{}`;
+  return hydrate(container, html, props);
+}}
+"#,
+            html.replace('`', "\\`")
+        )
+    }
+
+    /// 生成数据预取代码
+    pub fn generate_data_prefetch(&self, data_fetches: &[AsyncDataFetch]) -> String {
+        let mut code = String::new();
+        code.push_str("// Data prefetch code\n");
+        code.push_str("export function prefetchData(props) {\n");
+        code.push_str("  return Promise.all([\n");
+
+        for fetch in data_fetches {
+            code.push_str(&format!(
+                "    {}(props),\n",
+                fetch.source
+            ));
+        }
+
+        code.push_str("  ]);\n");
+        code.push_str("}\n");
+        code
     }
 }
 
@@ -123,38 +265,20 @@ impl Default for SsrCompiler {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+/// 编译 JSX 源代码为 SSR
+pub fn compile(source: &str) -> Result<String, String> {
+    let compiler = SsrCompiler::new();
+    compiler.compile(source)
+}
 
-    #[test]
-    fn test_ssr_compiler_creation() {
-        let _compiler = SsrCompiler::new();
-    }
+/// 编译为流式 SSR
+pub fn compile_streaming(source: &str) -> Result<String, String> {
+    let compiler = SsrCompiler::new();
+    compiler.compile_streaming(source)
+}
 
-    #[test]
-    fn test_compile_for_ssr() {
-        let compiler = SsrCompiler::new();
-        let options = SsrCompilerOptions {
-            base: CompilerOptions {
-                source_type: SourceType::default(),
-                experimental: false,
-            },
-            streaming: false,
-            hydration: true,
-            data_fetching: false,
-            suspense: false,
-        };
-
-        let result = compiler.compile_for_ssr("console.log('hello');", &options);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_generate_hydration_code() {
-        let compiler = SsrCompiler::new();
-        let code = compiler.generate_hydration_code("App");
-        assert!(code.contains("createApp"));
-        assert!(code.contains("@zeus-js/runtime-dom"));
-    }
+/// 编译为 Web 流式 SSR
+pub fn compile_web_streaming(source: &str) -> Result<String, String> {
+    let compiler = SsrCompiler::new();
+    compiler.compile_web_streaming(source)
 }

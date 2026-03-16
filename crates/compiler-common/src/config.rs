@@ -1,220 +1,94 @@
-//! Common configuration structures used across compiler crates
+//! 编译器配置选项
 
-use oxc::span::SourceType;
-use serde::{Deserialize, Serialize};
+use oxc_allocator::Allocator;
+use oxc_span::SourceType;
 
-/// Base compiler configuration shared across all compiler crates
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BaseCompilerOptions {
-    /// Source type as string (JavaScript, TypeScript, JSX, etc.)
-    pub source_type: String,
-    /// Enable experimental features
-    pub experimental: bool,
-    /// Target ECMAScript version
-    pub target: String,
-    /// Minification enabled
-    pub minify: bool,
-    /// Source maps enabled
-    pub sourcemap: bool,
+/// 编译目标平台
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Target {
+    /// 浏览器 DOM
+    #[default]
+    Dom,
+    /// 服务端渲染
+    Ssr,
+    /// Web Component
+    WebComponent,
 }
 
-impl BaseCompilerOptions {
-    /// Convert to oxc SourceType
-    pub fn to_oxc_source_type(&self) -> SourceType {
-        match self.source_type.as_str() {
-            "jsx" => SourceType::jsx(),
-            "ts" | "typescript" => SourceType::ts(),
-            "tsx" => SourceType::tsx(),
-            _ => SourceType::default(),
-        }
-    }
+/// 编译器选项
+#[derive(Debug, Clone)]
+pub struct CompilerOptions {
+    /// 目标平台
+    pub target: Target,
+    /// 是否启用 JSX
+    pub jsx: bool,
+    /// JSX pragma（默认 "h"）
+    pub jsx_pragma: Option<String>,
+    /// JSX Fragment pragma（默认 "Fragment"）
+    pub jsx_pragma_frag: Option<String>,
+    /// 运行时模块路径（默认 "@zeus-js/core"）
+    pub runtime_module: Option<String>,
+    /// 是否启用 Hydration 支持
+    pub hydratable: bool,
+    /// 是否启用事件委托（默认 true）
+    pub delegate_events: bool,
+    /// 是否启用 DOM 优化
+    pub dom_optimizations: bool,
 }
 
-impl Default for BaseCompilerOptions {
+impl Default for CompilerOptions {
     fn default() -> Self {
         Self {
-            source_type: "js".to_string(),
-            experimental: false,
-            target: "es2020".to_string(),
-            minify: false,
-            sourcemap: false,
+            target: Target::Dom,
+            jsx: true,
+            jsx_pragma: Some("h".to_string()),
+            jsx_pragma_frag: Some("Fragment".to_string()),
+            runtime_module: Some("@zeus-js/core".to_string()),
+            hydratable: false,
+            delegate_events: true,
+            dom_optimizations: true,
         }
     }
 }
 
-/// Output format options
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub enum OutputFormat {
-    /// ES modules
-    #[default]
-    Esm,
-    /// CommonJS
-    Cjs,
-    /// Immediately Invoked Function Expression
-    Iife,
-    /// Universal Module Definition
-    Umd,
+/// 创建编译器实例的上下文
+#[allow(dead_code)]
+pub struct CompilerContext<'a> {
+    /// 内存分配器（拥有所有权）
+    allocator: Allocator,
+    /// 源代码
+    pub source: &'a str,
+    /// 源代码类型
+    pub source_type: SourceType,
+    /// 编译器选项
+    pub options: CompilerOptions,
 }
 
+#[allow(dead_code)]
+impl<'a> CompilerContext<'a> {
+    /// 创建新的编译器上下文
+    pub fn new(source: &'a str, options: CompilerOptions) -> Self {
+        let source_type = if options.jsx {
+            SourceType::jsx()
+        } else {
+            SourceType::default()
+        };
 
-/// Optimization level
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub enum OptimizationLevel {
-    /// No optimizations
-    None,
-    /// Basic optimizations
-    #[default]
-    Basic,
-    /// Advanced optimizations
-    Advanced,
-    /// Aggressive optimizations
-    Aggressive,
-}
-
-
-/// Platform target
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum Platform {
-    /// Web browser
-    Browser,
-    /// Node.js server
-    Server,
-    /// Mobile (React Native)
-    Mobile,
-    /// Desktop (Electron/Tauri)
-    Desktop,
-    /// WebAssembly
-    Wasm,
-}
-
-impl Platform {
-    /// Get all supported platforms
-    pub fn all() -> Vec<Self> {
-        vec![Self::Browser, Self::Server, Self::Mobile, Self::Desktop, Self::Wasm]
-    }
-
-    /// Get platform name as string
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Browser => "browser",
-            Self::Server => "server",
-            Self::Mobile => "mobile",
-            Self::Desktop => "desktop",
-            Self::Wasm => "wasm",
-        }
-    }
-}
-
-/// Bundle options
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BundleOptions {
-    /// Entry points
-    pub entries: Vec<String>,
-    /// Output directory
-    pub out_dir: String,
-    /// External dependencies
-    pub externals: Vec<String>,
-    /// Output format
-    pub format: OutputFormat,
-    /// Platform targets
-    pub platforms: Vec<Platform>,
-}
-
-impl Default for BundleOptions {
-    fn default() -> Self {
         Self {
-            entries: Vec::new(),
-            out_dir: "dist".to_string(),
-            externals: Vec::new(),
-            format: OutputFormat::default(),
-            platforms: vec![Platform::Browser],
-        }
-    }
-}
-
-/// Diagnostic severity levels
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Severity {
-    Error,
-    Warning,
-    Info,
-}
-
-/// Compiler diagnostic
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Diagnostic {
-    /// Severity level
-    pub severity: Severity,
-    /// Error message
-    pub message: String,
-    /// Source file path
-    pub file: Option<String>,
-    /// Line number (1-based)
-    pub line: Option<u32>,
-    /// Column number (1-based)
-    pub column: Option<u32>,
-    /// Source code snippet
-    pub source: Option<String>,
-}
-
-impl Diagnostic {
-    /// Create a new error diagnostic
-    pub fn error(message: impl Into<String>) -> Self {
-        Self {
-            severity: Severity::Error,
-            message: message.into(),
-            file: None,
-            line: None,
-            column: None,
-            source: None,
+            allocator: Allocator::default(),
+            source,
+            source_type,
+            options,
         }
     }
 
-    /// Create a new warning diagnostic
-    pub fn warning(message: impl Into<String>) -> Self {
-        Self {
-            severity: Severity::Warning,
-            message: message.into(),
-            file: None,
-            line: None,
-            column: None,
-            source: None,
-        }
+    /// 创建使用默认选项的编译器上下文
+    pub fn new_with_defaults(source: &'a str) -> Self {
+        Self::new(source, CompilerOptions::default())
     }
 
-    /// Create a new info diagnostic
-    pub fn info(message: impl Into<String>) -> Self {
-        Self {
-            severity: Severity::Info,
-            message: message.into(),
-            file: None,
-            line: None,
-            column: None,
-            source: None,
-        }
-    }
-
-    /// Set the file path
-    pub fn with_file(mut self, file: impl Into<String>) -> Self {
-        self.file = Some(file.into());
-        self
-    }
-
-    /// Set the line number
-    pub fn with_line(mut self, line: u32) -> Self {
-        self.line = Some(line);
-        self
-    }
-
-    /// Set the column number
-    pub fn with_column(mut self, column: u32) -> Self {
-        self.column = Some(column);
-        self
-    }
-
-    /// Set the source code snippet
-    pub fn with_source(mut self, source: impl Into<String>) -> Self {
-        self.source = Some(source.into());
-        self
+    /// 获取分配器引用
+    pub fn allocator(&self) -> &Allocator {
+        &self.allocator
     }
 }
