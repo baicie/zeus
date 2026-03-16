@@ -63,6 +63,13 @@ const {
   },
 })
 export default __napiModule.exports
+export const compile = __napiModule.exports.compile
+export const compileDom = __napiModule.exports.compileDom
 export const compiler = __napiModule.exports.compiler
+export const compileSsr = __napiModule.exports.compileSsr
+export const compileWebComponent = __napiModule.exports.compileWebComponent
 export const compileWebComponentMacros = __napiModule.exports.compileWebComponentMacros
+export const getVersion = __napiModule.exports.getVersion
+export const parse = __napiModule.exports.parse
+export const supportsTarget = __napiModule.exports.supportsTarget
 export const transformWebComponentMacros = __napiModule.exports.transformWebComponentMacros

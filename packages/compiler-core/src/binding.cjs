@@ -576,6 +576,13 @@ if (!nativeBinding) {
 }
 
 module.exports = nativeBinding
+module.exports.compile = nativeBinding.compile
+module.exports.compileDom = nativeBinding.compileDom
 module.exports.compiler = nativeBinding.compiler
+module.exports.compileSsr = nativeBinding.compileSsr
+module.exports.compileWebComponent = nativeBinding.compileWebComponent
 module.exports.compileWebComponentMacros = nativeBinding.compileWebComponentMacros
+module.exports.getVersion = nativeBinding.getVersion
+module.exports.parse = nativeBinding.parse
+module.exports.supportsTarget = nativeBinding.supportsTarget
 module.exports.transformWebComponentMacros = nativeBinding.transformWebComponentMacros

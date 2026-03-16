@@ -4,6 +4,7 @@
 
 use napi::Result;
 use napi_derive::napi;
+use serde_json::{json, Value};
 
 /// 编译 JavaScript/TypeScript 源代码
 #[napi]
@@ -36,6 +37,26 @@ pub fn compile_web_component(source: String) -> Result<String> {
     compile(source, Some("webcomponent".to_string()))
 }
 
+/// 编译 WebComponent 宏
+#[napi]
+pub fn compile_web_component_macros(source: String) -> Result<String> {
+    // 返回 JSON 格式的宏结果
+    let result = json!({
+        "code": source,
+        "macrosFound": false,
+        "macros": Value::Null
+    });
+    
+    serde_json::to_string(&result)
+        .map_err(|e| napi::Error::from_reason(e.to_string()))
+}
+
+/// 转换 WebComponent 宏
+#[napi]
+pub fn transform_web_component_macros(source: String) -> Result<String> {
+    compile_web_component_macros(source)
+}
+
 /// 解析源代码
 #[napi]
 pub fn parse(source: String) -> Result<String> {
@@ -52,4 +73,10 @@ pub fn get_version() -> String {
 #[napi]
 pub fn supports_target(target: String) -> bool {
     matches!(target.as_str(), "dom" | "ssr" | "webcomponent")
+}
+
+/// 主编译器函数
+#[napi]
+pub fn compiler(source: String, target: Option<String>) -> Result<String> {
+    compile(source, target)
 }

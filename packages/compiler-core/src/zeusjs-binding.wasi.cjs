@@ -108,6 +108,13 @@ const { instance: __napiInstance, module: __wasiModule, napiModule: __napiModule
   },
 })
 module.exports = __napiModule.exports
+module.exports.compile = __napiModule.exports.compile
+module.exports.compileDom = __napiModule.exports.compileDom
 module.exports.compiler = __napiModule.exports.compiler
+module.exports.compileSsr = __napiModule.exports.compileSsr
+module.exports.compileWebComponent = __napiModule.exports.compileWebComponent
 module.exports.compileWebComponentMacros = __napiModule.exports.compileWebComponentMacros
+module.exports.getVersion = __napiModule.exports.getVersion
+module.exports.parse = __napiModule.exports.parse
+module.exports.supportsTarget = __napiModule.exports.supportsTarget
 module.exports.transformWebComponentMacros = __napiModule.exports.transformWebComponentMacros
