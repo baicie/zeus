@@ -2,7 +2,7 @@
 //!
 //! Provides DOM-specific template IR types.
 
-use zeus_compiler_common::{Binding, DomPath, TemplateIR as CommonTemplateIR};
+use zeus_compiler_common::TemplateIR as CommonTemplateIR;
 
 /// DOM template IR
 #[derive(Clone, Debug)]

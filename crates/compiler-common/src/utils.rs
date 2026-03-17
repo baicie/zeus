@@ -19,6 +19,7 @@ pub fn html_escape(s: &str) -> String {
 }
 
 /// 生成唯一的变量名
+#[allow(dead_code)]
 pub fn generate_var_name(prefix: &str, counter: &mut usize) -> String {
     let name = format!("{}${}", prefix, *counter);
     *counter += 1;
@@ -26,6 +27,7 @@ pub fn generate_var_name(prefix: &str, counter: &mut usize) -> String {
 }
 
 /// 检查名称是否为有效的 DOM 元素名
+#[allow(dead_code)]
 pub fn is_valid_element_name(name: &str) -> bool {
     // 常见 SVG 元素
     const SVG_ELEMENTS: &[&str] = &[
@@ -46,11 +48,13 @@ pub fn is_valid_element_name(name: &str) -> bool {
 }
 
 /// 检查是否为组件（首字母大写）
+#[allow(dead_code)]
 pub fn is_component_name(name: &str) -> bool {
     name.chars().next().map_or(false, |c| c.is_uppercase())
 }
 
 /// 检查事件是否支持委托
+#[allow(dead_code)]
 pub fn is_delegatable_event(event_name: &str) -> bool {
     // 可以委托的事件
     const DELEGATABLE_EVENTS: &[&str] = &[
@@ -65,6 +69,7 @@ pub fn is_delegatable_event(event_name: &str) -> bool {
 }
 
 /// 检查属性是否需要使用 setProperty
+#[allow(dead_code)]
 pub fn is_boolean_attribute(name: &str) -> bool {
     const BOOLEAN_ATTRIBUTES: &[&str] = &[
         "checked", "selected", "disabled", "readonly", "multiple", "required",
@@ -77,6 +82,7 @@ pub fn is_boolean_attribute(name: &str) -> bool {
 }
 
 /// 检查属性是否应该使用直接属性赋值
+#[allow(dead_code)]
 pub fn is_direct_property(name: &str) -> bool {
     const DIRECT_PROPERTIES: &[&str] = &[
         "value", "checked", "selected", "disabled", "readonly", "multiple", "innerHTML",

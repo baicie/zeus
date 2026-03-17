@@ -106,6 +106,7 @@ pub struct AsyncDataFetch {
 }
 
 /// SSR 编译器
+#[allow(dead_code)]
 pub struct SsrCompiler {
     options: CompilerOptions,
     ssr_options: SsrOptions,
@@ -281,4 +282,10 @@ pub fn compile_streaming(source: &str) -> Result<String, String> {
 pub fn compile_web_streaming(source: &str) -> Result<String, String> {
     let compiler = SsrCompiler::new();
     compiler.compile_web_streaming(source)
+}
+
+/// SSR 编译函数 - 使用已有的编译框架进行简化处理
+pub fn compile_with_options(source: &str, options: SsrOptions) -> Result<String, String> {
+    let compiler = SsrCompiler::with_ssr_options(options);
+    compiler.compile(source)
 }

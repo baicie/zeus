@@ -52,7 +52,7 @@ pub fn compile(source: &str) -> Result<String, String> {
 /// 使用指定目标编译
 pub fn compile_with_target(source: &str, target: Target) -> Result<String, String> {
     let _target = target;
-    let mut options = CompilerOptions::default();
+    let options = CompilerOptions::default();
     // TODO: compiler-common 的 CompilerOptions::target 目前使用 zeus-compiler-common::Target
     // 这里暂时忽略，后续统一 Target 定义后再打通
     let compiler = DomCompiler::with_options(options);

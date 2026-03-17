@@ -191,35 +191,10 @@ export class ZeusCompiler implements Compiler {
     try {
       // 1. 首先处理 Web Component 宏 (defineProps/defineEmits/defineExpose)
       let processedCode = code
-      const macroOpts = opts.webComponentMacros
 
-      if (macroOpts?.enable !== false) {
-        // 规范化 module 选项（支持字符串或字符串数组）
-        // 转换为逗号分隔的字符串以匹配 NAPI 绑定类型
-        let moduleStr: string | undefined
-        if (Array.isArray(macroOpts?.module)) {
-          moduleStr = macroOpts.module.join(',')
-        } else if (macroOpts?.module) {
-          moduleStr = macroOpts.module
-        } else {
-          moduleStr = DEFAULT_MACRO_MODULES.join(',')
-        }
-
-        // 规范化 macros 选项
-        const macrosList = macroOpts?.macros?.length
-          ? macroOpts.macros
-          : [...DEFAULT_MACRO_FUNCTIONS]
-
-        const macroResult = transformWebComponentMacros(code, {
-          enableMacros: macroOpts?.enable ?? true,
-          autoDetect: macroOpts?.autoDetect ?? true,
-          macroModule: moduleStr,
-          preserveMacros: macroOpts?.preserve ?? false,
-          macros: macrosList,
-          mode: macroOpts?.mode ?? 'remove',
-          extractDefinitions: macroOpts?.extractDefinitions ?? false,
-        } as any)
-        processedCode = macroResult
+      if (opts.webComponentMacros?.enable !== false) {
+        // transformWebComponentMacros 只接受 source 参数
+        processedCode = transformWebComponentMacros(code)
       }
 
       // 2. 使用Zeus编译器进行转换
@@ -237,9 +212,9 @@ export class ZeusCompiler implements Compiler {
           code: result.code,
         }
       } else {
-        // 输出更友好的错误信息 - 红色 + 行列号
-        const errors = result.errors
-        for (const error of errors) {
+        // 输出更友好的错误信息
+        const error = result.error
+        if (error) {
           console.error(`\n\x1b[31m\x1b[1merror\x1b[0m (Zeus): ${error}\n`)
         }
         return null

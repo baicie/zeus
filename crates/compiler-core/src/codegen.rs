@@ -3,6 +3,7 @@
 use crate::traverse::{AttrBindingKind, DomCompilerState, TemplateDecl};
 
 /// SourceMap 生成器
+#[allow(dead_code)]
 #[derive(Default)]
 pub struct SourceMapBuilder {
     /// 源文件
@@ -12,6 +13,7 @@ pub struct SourceMapBuilder {
 }
 
 /// SourceMap 映射
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct SourceMapping {
     /// 生成代码中的位置（行，列）
@@ -34,6 +36,7 @@ impl SourceMapBuilder {
     }
 
     /// 添加映射
+    #[allow(dead_code)]
     pub fn add_mapping(&mut self, generated_line: u32, generated_col: u32, original_line: u32, original_col: u32) {
         self.mappings.push(SourceMapping {
             generated: (generated_line, generated_col),
@@ -44,9 +47,10 @@ impl SourceMapBuilder {
     }
 
     /// 生成 Base64 VLQ 编码的 mappings 字符串
+    #[allow(dead_code)]
     pub fn encode_mappings(&self) -> String {
         let mut result = String::new();
-        let mut prev_generated_line = 0u32;
+        let prev_generated_line = 0u32;
         let mut prev_generated_col = 0u32;
         let mut prev_original_line = 0u32;
         let mut prev_original_col = 0u32;
@@ -139,6 +143,7 @@ impl SourceMapBuilder {
 }
 
 /// 代码生成器
+#[allow(dead_code)]
 pub struct CodeGenerator {
     /// 当前缩进
     #[allow(dead_code)]

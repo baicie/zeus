@@ -197,7 +197,9 @@ pub struct TemplateDecl {
 
 impl TemplateDecl {
     /// 创建新的模板声明
+    #[allow(dead_code)]
     pub fn new(name: impl Into<String>, html: impl Into<String>) -> Self {
+
         Self {
             name: name.into(),
             html: html.into(),
@@ -206,6 +208,7 @@ impl TemplateDecl {
     }
 
     /// 添加绑定
+    #[allow(dead_code)]
     pub fn add_binding(&mut self, binding: Binding) {
         self.bindings.push(binding);
     }

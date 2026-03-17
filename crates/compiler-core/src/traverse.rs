@@ -8,7 +8,7 @@
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
-use oxc_semantic::Scoping;
+use oxc_semantic::SemanticBuilder;
 use oxc_traverse::{traverse_mut, Traverse, TraverseCtx};
 use oxc_span::GetSpan;
 use zeus_compiler_common::CompilerOptions;
@@ -26,6 +26,7 @@ pub enum Target {
 }
 
 /// DOM 编译器状态
+#[allow(dead_code)]
 pub struct DomCompilerState {
     /// 模板计数器
     pub template_counter: usize,
@@ -54,6 +55,7 @@ pub struct DomCompilerState {
 }
 
 /// 静态节点（可提升到函数外部）
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct StaticNode {
     /// 节点名称
@@ -404,19 +406,104 @@ impl<'a> DomCompilerPass<'a> {
                     self.write_jsx_element_html(e, out, child_bindings, attr_bindings);
                 }
                 JSXChild::ExpressionContainer(expr_container) => {
-                    // 动态表达式 - 生成占位符并在 bindings 中记录
-                    let placeholder = format!("<!--[{}]-->", child_idx);
-                    out.push_str(&placeholder);
-
+                    // 检查是否是条件表达式（三元运算符或逻辑与）
                     if let Some(expr) = expr_container.expression.as_expression() {
-                        let expr_source = self.expression_to_source(expr);
-                        child_bindings.push(ChildBinding {
-                            index: child_idx,
-                            expression: expr_source,
-                            is_text: true,
-                        });
+                        match expr {
+                            Expression::ConditionalExpression(cond) => {
+                                // 三元表达式：condition ? then : else
+                                // 为 then 分支生成模板
+                                let then_tmpl = self.state.generate_template_name();
+                                let then_html = self.jsx_element_to_static_html(&cond.consequent);
+                                self.state.templates.push(TemplateDecl {
+                                    name: then_tmpl.clone(),
+                                    html: then_html,
+                                    child_bindings: Vec::new(),
+                                    attr_bindings: Vec::new(),
+                                });
+                                self.state.add_helper("template");
+
+                                // 为 else 分支生成模板
+                                let else_tmpl = self.state.generate_template_name();
+                                let else_html = self.jsx_element_to_static_html(&cond.alternate);
+                                self.state.templates.push(TemplateDecl {
+                                    name: else_tmpl.clone(),
+                                    html: else_html,
+                                    child_bindings: Vec::new(),
+                                    attr_bindings: Vec::new(),
+                                });
+
+                                // 生成条件表达式代码
+                                let condition = self.expression_to_source(&cond.test);
+                                let expr_source = format!(
+                                    "({} ? ({}()) : ({}()))",
+                                    condition, then_tmpl, else_tmpl
+                                );
+
+                                // 添加到子节点绑定
+                                let placeholder = format!("<!--[{}]-->", child_idx);
+                                out.push_str(&placeholder);
+                                child_bindings.push(ChildBinding {
+                                    index: child_idx,
+                                    expression: expr_source,
+                                    is_text: true,
+                                });
+                                child_idx += 1;
+                            }
+                            Expression::LogicalExpression(logical) => {
+                                // 逻辑与表达式：condition && <JSX />
+                                // 检查是否是 JSX 元素
+                                if self.is_jsx_expression(&logical.right) {
+                                    let right_tmpl = self.state.generate_template_name();
+                                    let right_html = self.jsx_element_to_static_html(&logical.right);
+                                    self.state.templates.push(TemplateDecl {
+                                        name: right_tmpl.clone(),
+                                        html: right_html,
+                                        child_bindings: Vec::new(),
+                                        attr_bindings: Vec::new(),
+                                    });
+                                    self.state.add_helper("template");
+
+                                    let condition = self.expression_to_source(&logical.left);
+                                    let expr_source = format!(
+                                        "({} && ({}()))",
+                                        condition, right_tmpl
+                                    );
+
+                                    let placeholder = format!("<!--[{}]-->", child_idx);
+                                    out.push_str(&placeholder);
+                                    child_bindings.push(ChildBinding {
+                                        index: child_idx,
+                                        expression: expr_source,
+                                        is_text: true,
+                                    });
+                                    child_idx += 1;
+                                } else {
+                                    // 普通逻辑表达式，直接转换
+                                    let expr_source = self.expression_to_source(expr);
+                                    let placeholder = format!("<!--[{}]-->", child_idx);
+                                    out.push_str(&placeholder);
+                                    child_bindings.push(ChildBinding {
+                                        index: child_idx,
+                                        expression: expr_source,
+                                        is_text: true,
+                                    });
+                                    child_idx += 1;
+                                }
+                            }
+                            _ => {
+                                // 普通表达式，直接转换
+                                let expr_source = self.expression_to_source(expr);
+                                let placeholder = format!("<!--[{}]-->", child_idx);
+                                out.push_str(&placeholder);
+                                child_bindings.push(ChildBinding {
+                                    index: child_idx,
+                                    expression: expr_source,
+                                    is_text: true,
+                                });
+                                child_idx += 1;
+                            }
+                        }
                     }
-                    child_idx += 1;
                 }
                 JSXChild::Spread(_) | JSXChild::Fragment(_) => {
                     // 占位
@@ -486,7 +573,6 @@ impl<'a> DomCompilerPass<'a> {
                 "class { /* body */ }".to_string()
             }
             // MemberExpression 通过继承处理
-            _ => "/* unknown expression */".to_string(),
             Expression::NewExpression(new) => {
                 let callee = self.expression_to_source(&new.callee);
                 format!("new {}", callee)
@@ -502,7 +588,7 @@ impl<'a> DomCompilerPass<'a> {
                 let op = unary.operator.as_str();
                 format!("({}{})", op, arg)
             }
-            Expression::UpdateExpression(update) => {
+            Expression::UpdateExpression(_update) => {
                 // UpdateExpression 的 argument 是 SimpleAssignmentTarget，简化处理
                 "/* update expr */".to_string()
             }
@@ -548,7 +634,37 @@ impl<'a> DomCompilerPass<'a> {
                 // ImportExpression 的 source 是 Expression 类型
                 format!("import(/* source */)")
             }
-            _ => "/* unknown expression */".to_string(),
+            Expression::ParenthesizedExpression(paren) => {
+                // 括号表达式，直接返回内部表达式
+                self.expression_to_source(&paren.expression)
+            }
+            Expression::PrivateInExpression(_private) => {
+                // 私有字段 in 表达式
+                "/* private in */".to_string()
+            }
+            Expression::CallExpression(call) => {
+                let callee = self.expression_to_source(&call.callee);
+                let args: Vec<String> = call
+                    .arguments
+                    .iter()
+                    .filter_map(|arg| arg.as_expression().map(|e| self.expression_to_source(e)))
+                    .collect();
+                format!("{}({})", callee, args.join(", "))
+            }
+            Expression::ChainExpression(_chain) => {
+                // 链式调用（可选链）- 返回占位符
+                "/* chain expression */".to_string()
+            }
+            Expression::JSXElement(_jsx) => {
+                // JSX 元素 - 返回占位符
+                "/* JSX element */".to_string()
+            }
+            Expression::JSXFragment(_frag) => {
+                // JSX Fragment - 返回占位符
+                "/* JSX fragment */".to_string()
+            }
+            // MemberExpression 通过继承处理
+            _ => "/* expression */".to_string(),
         }
     }
 
@@ -596,6 +712,111 @@ impl<'a> DomCompilerPass<'a> {
         self.expression_to_source(expr)
     }
 
+    /// 检查表达式是否是 JSX 元素或 JSX Fragment
+    fn is_jsx_expression(&self, expr: &Expression<'a>) -> bool {
+        matches!(expr, Expression::JSXElement(_) | Expression::JSXFragment(_))
+    }
+
+    /// 将 JSX 表达式转换为静态 HTML（用于条件分支的模板生成）
+    fn jsx_element_to_static_html(&self, expr: &Expression<'a>) -> String {
+        match expr {
+            Expression::JSXElement(jsx) => {
+                let mut html = String::new();
+                self.write_jsx_element_static_html(jsx, &mut html);
+                html
+            }
+            Expression::JSXFragment(frag) => {
+                let mut html = String::new();
+                self.write_jsx_fragment_static_html(frag, &mut html);
+                html
+            }
+            _ => String::new(),
+        }
+    }
+
+    /// 写入 JSX 元素的静态 HTML（不含动态绑定信息）
+    fn write_jsx_element_static_html(&self, node: &JSXElement<'a>, out: &mut String) {
+        let tag = match &node.opening_element.name {
+            JSXElementName::Identifier(id) => id.name.as_str(),
+            JSXElementName::NamespacedName(name) => name.name.name.as_str(),
+            JSXElementName::MemberExpression(_) => "div",
+            JSXElementName::IdentifierReference(id) => id.name.as_str(),
+            JSXElementName::ThisExpression(_) => "div",
+        };
+
+        out.push('<');
+        out.push_str(tag);
+
+        // 处理属性 - 只保留静态属性
+        for item in &node.opening_element.attributes {
+            match item {
+                JSXAttributeItem::Attribute(attr) => {
+                    let attr_name = match &attr.name {
+                        JSXAttributeName::Identifier(id) => id.name.as_str(),
+                        _ => continue,
+                    };
+
+                    if let Some(value) = &attr.value {
+                        // 只处理静态字符串值
+                        if let JSXAttributeValue::StringLiteral(s) = value {
+                            out.push(' ');
+                            out.push_str(attr_name);
+                            out.push_str("=\"");
+                            out.push_str(s.value.as_str());
+                            out.push('"');
+                        }
+                    } else {
+                        // 布尔属性
+                        out.push(' ');
+                        out.push_str(attr_name);
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        out.push('>');
+
+        // 处理子节点
+        for child in &node.children {
+            match child {
+                JSXChild::Text(t) => out.push_str(t.value.as_str()),
+                JSXChild::Element(e) => {
+                    self.write_jsx_element_static_html(e, out);
+                }
+                JSXChild::ExpressionContainer(_expr_container) => {
+                    // 动态表达式用占位符
+                    out.push_str("<!---->");
+                }
+                JSXChild::Spread(_) | JSXChild::Fragment(_) => {
+                    out.push_str("<!---->");
+                }
+            }
+        }
+
+        out.push_str("</");
+        out.push_str(tag);
+        out.push('>');
+    }
+
+    /// 写入 JSX Fragment 的静态 HTML
+    fn write_jsx_fragment_static_html(&self, node: &JSXFragment<'a>, out: &mut String) {
+        for child in &node.children {
+            match child {
+                JSXChild::Text(t) => out.push_str(t.value.as_str()),
+                JSXChild::Element(e) => {
+                    self.write_jsx_element_static_html(e, out);
+                }
+                JSXChild::ExpressionContainer(_) => {
+                    out.push_str("<!---->");
+                }
+                JSXChild::Spread(_) | JSXChild::Fragment(_) => {
+                    out.push_str("<!---->");
+                }
+            }
+        }
+    }
+
     /// 检测并优化列表渲染
     ///
     /// 检测模式：`arr.map((item) => <JSX />)` 或 `arr.map(item => <JSX />)`
@@ -610,12 +831,44 @@ impl<'a> DomCompilerPass<'a> {
         };
 
         // 检测是否是 .map() 调用
-        // 使用更简单的方式：直接检查 callee 是否包含 "map"
         let callee_str = self.expression_to_source(arg);
         if callee_str.contains(".map(") {
             // 记录检测到的列表渲染
             self.state.add_helper("renderList");
         }
+    }
+
+    /// 处理列表渲染 - arr.map((item) => <JSX />)
+    /// 简化版本：只检测并添加 helper，实际转换由代码生成器处理
+    fn handle_list_rendering(
+        &mut self,
+        call: &CallExpression<'a>,
+        _arg: &mut Expression<'a>,
+        _span: oxc_span::Span,
+        _ctx: &mut TraverseCtx<'a, DomCompilerState>,
+    ) {
+        // 使用 expression_to_source 获取完整的调用表达式
+        let call_source = self.expression_to_source(&call.callee);
+
+        // 检查是否是 .map() 调用
+        if !call_source.contains("map") {
+            return;
+        }
+
+        // 添加必要的 helpers
+        self.state.add_helper("template");
+        self.state.add_helper("renderList");
+
+        // 为列表项生成模板
+        let item_tmpl_name = self.state.generate_template_name();
+        let item_html = "<!---->".to_string();
+
+        self.state.templates.push(TemplateDecl {
+            name: item_tmpl_name,
+            html: item_html,
+            child_bindings: Vec::new(),
+            attr_bindings: Vec::new(),
+        });
     }
 }
 
@@ -628,12 +881,36 @@ impl<'a> Traverse<'a, DomCompilerState> for DomCompilerPass<'a> {
         // 检查是否是列表渲染：arr.map((item) => <JSX />)
         self.detect_and_optimize_list_rendering(node, ctx);
 
-        // 仅处理 `return <JSX />` / `return <>...</>`
+        // 仅处理 `return <JSX />` / `return <>...</>` / `return arr.map(...)`
         let Some(arg) = node.argument.as_mut() else {
             return;
         };
 
         let span = arg.span();
+
+        // 检查是否是列表渲染 (.map() 调用)
+        let is_list_rendering = if let Expression::CallExpression(call) = arg {
+            let callee_str = self.expression_to_source(&call.callee);
+            callee_str.contains(".map") || callee_str.contains("map(")
+        } else {
+            false
+        };
+
+        if is_list_rendering {
+            // 列表渲染：只添加 helpers，不进行 AST 转换
+            // 后续在代码生成器中处理
+            self.state.add_helper("template");
+            self.state.add_helper("renderList");
+            // 生成一个模板用于列表项
+            let item_tmpl_name = self.state.generate_template_name();
+            self.state.templates.push(TemplateDecl {
+                name: item_tmpl_name,
+                html: "<!---->".to_string(),
+                child_bindings: Vec::new(),
+                attr_bindings: Vec::new(),
+            });
+        }
+
         match arg {
             Expression::JSXElement(jsx) => {
                 // 生成模板 HTML 和绑定信息
@@ -739,24 +1016,69 @@ impl<'a> Traverse<'a, DomCompilerState> for DomCompilerPass<'a> {
 
 impl<'a> DomCompilerPass<'a> {
     /// 检查是否应该转换为 ternary
-    fn should_transform_to_ternary(&self, _node: &IfStatement<'a>) -> bool {
-        // TODO: 完整实现需要更复杂的 AST 分析
-        // 暂时返回 false，跳过这个转换
-        // 完整的 if-return → ternary 转换需要：
-        // 1. 检查条件包含信号调用
-        // 2. 检查 then/else 分支返回 JSX
-        // 3. 使用 ctx.replace 进行节点替换
-        false
+    fn should_transform_to_ternary(&self, node: &IfStatement<'a>) -> bool {
+        // 检查条件
+        let test_str = self.expression_to_source(&node.test);
+
+        // 检查是否包含信号调用（函数调用）
+        let has_signal = test_str.contains("()");
+
+        // 检查 then 分支是否返回 JSX
+        let then_returns_jsx = self.statement_returns_jsx(&node.consequent);
+
+        // 检查 else 分支是否返回 JSX（或没有 else 分支）
+        let else_returns_jsx = node.alternate.as_ref()
+            .map_or(false, |alt| self.statement_returns_jsx(alt));
+
+        // 转换条件：条件包含信号 + then/else 都返回 JSX
+        has_signal && then_returns_jsx && else_returns_jsx
+    }
+
+    /// 检查语句是否返回 JSX
+    fn statement_returns_jsx(&self, stmt: &Statement<'a>) -> bool {
+        match stmt {
+            Statement::ReturnStatement(ret) => {
+                ret.argument.as_ref().map_or(false, |arg| self.expression_is_jsx(arg))
+            }
+            Statement::BlockStatement(block) => {
+                // 查找最后一个 return 语句
+                for s in block.body.iter().rev() {
+                    if let Statement::ReturnStatement(r) = s {
+                        if let Some(arg) = &r.argument {
+                            return self.expression_is_jsx(arg);
+                        }
+                    }
+                }
+                false
+            }
+            Statement::IfStatement(if_stmt) => {
+                // 嵌套的 if 语句
+                self.statement_returns_jsx(&if_stmt.consequent)
+                    && if_stmt.alternate.as_ref()
+                        .map_or(true, |alt| self.statement_returns_jsx(alt))
+            }
+            _ => false,
+        }
+    }
+
+    /// 检查表达式是否是 JSX
+    fn expression_is_jsx(&self, expr: &Expression<'a>) -> bool {
+        matches!(expr, Expression::JSXElement(_) | Expression::JSXFragment(_))
     }
 
     /// 转换为 ternary 表达式（简化版本）
     fn transform_to_ternary(&mut self, _node: &mut IfStatement<'a>, _ctx: &mut TraverseCtx<'a, DomCompilerState>) {
-        // TODO: 完整实现需要提取条件、then/else 分支，创建 ternary 并替换
+        // 注意：完整的 AST 替换需要更复杂的实现
+        // 这里我们只是标记需要这个转换，让代码生成器处理
+        // 实际生产环境中需要使用 oxc_traverse 的 ctx.replace 来进行节点替换
+
+        // 添加注释说明
+        self.state.add_helper("/* if-return → ternary conversion pending */");
     }
 }
 
 /// 编译函数
-    pub fn compile(source: &str, options: CompilerOptions) -> Result<String, String> {
+pub fn compile(source: &str, options: CompilerOptions) -> Result<String, String> {
     let allocator = Allocator::default();
 
     // 解析源代码
@@ -765,12 +1087,22 @@ impl<'a> DomCompilerPass<'a> {
         Err(e) => return Err(e.message),
     };
 
+    // 创建语义分析（用于生成 scoping）
+    let semantic_ret = SemanticBuilder::new()
+        .build(&program);
+
+    // 获取 scoping（使用引用的方式）
+    let scoping = semantic_ret.semantic.scoping();
+
     // 创建编译器 Pass
     let mut pass = DomCompilerPass::new(source, options);
 
     // 使用 oxc_traverse 遍历 AST
     let initial_state = DomCompilerState::new();
-    let _scoping = traverse_mut(&mut pass, &allocator, &mut program, Scoping::default(), initial_state);
+
+    // 创建一个新的 Scoping 用于遍历
+    let scopes = oxc_semantic::Scoping::default();
+    traverse_mut(&mut pass, &allocator, &mut program, scopes, initial_state);
 
     // 生成代码
     let code = crate::codegen::CodeGenerator::generate(&pass.state, source);
