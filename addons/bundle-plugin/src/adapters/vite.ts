@@ -1,28 +1,14 @@
 import type { Plugin } from 'vite'
 import { type CompilerOptions, ZeusCompiler } from '../compiler'
+import * as fs from 'node:fs/promises'
 
 export interface ViteZeusPluginOptions extends CompilerOptions {
-  /**
-   * Vite特有的选项
-   */
   vite?: {
-    /**
-     * 是否强制预编译
-     * @default false
-     */
     forcePreBuild?: boolean
-
-    /**
-     * SSR构建模式
-     * @default false
-     */
     ssr?: boolean
   }
 }
 
-/**
- * Zeus 框架的 Vite 插件
- */
 export function vitePlugin(options: ViteZeusPluginOptions = {}): Plugin {
   const compiler = new ZeusCompiler(options)
 
@@ -31,8 +17,32 @@ export function vitePlugin(options: ViteZeusPluginOptions = {}): Plugin {
 
     enforce: 'pre',
 
-    transform(code, id) {
-      return compiler.transform(code, id, options)
+    async load(id) {
+      // 跳过虚拟模块、查询参数和node_modules
+      if (
+        id.includes('?') ||
+        id.includes('\x00') ||
+        id.includes('node_modules') ||
+        (!id.endsWith('.tsx') && !id.endsWith('.jsx'))
+      ) {
+        return null
+      }
+
+      try {
+        const code = await fs.readFile(id, 'utf-8')
+        const result = compiler.transform(code, id, options)
+
+        if (result && result.code) {
+          return {
+            code: result.code,
+            map: result.map,
+          }
+        }
+      } catch (e) {
+        console.error('[Zeus] Load error for', id, ':', e)
+      }
+
+      return null
     },
 
     handleHotUpdate(ctx) {
@@ -40,14 +50,12 @@ export function vitePlugin(options: ViteZeusPluginOptions = {}): Plugin {
 
       const { file, modules, server: devServer } = ctx
 
-      // Check if this is a component file
       if (!shouldProcessFile(file)) {
         return
       }
 
       console.log(`[Zeus HMR] Hot updating: ${file}`)
 
-      // Use global HMR runtime to notify clients (Vue-like approach)
       if (devServer) {
         devServer.hot.send('zeus:hmr-update', {
           type: 'rerender',
@@ -55,7 +63,6 @@ export function vitePlugin(options: ViteZeusPluginOptions = {}): Plugin {
         })
       }
 
-      // Return affected modules for proper HMR
       return modules
     },
 
@@ -65,15 +72,17 @@ export function vitePlugin(options: ViteZeusPluginOptions = {}): Plugin {
   }
 
   function shouldProcessFile(id: string): boolean {
+    if (id.includes('?') || id.includes('\x00')) {
+      return false
+    }
+
     const include = options.include || ['.jsx', '.tsx', '.js', '.ts']
     const exclude = options.exclude || [/node_modules/]
 
-    // Check exclude patterns
     if (exclude.some(pattern => pattern.test(id))) {
       return false
     }
 
-    // Check include extensions
     const extensions = extractExtensions(include)
     return extensions.some(ext => id.endsWith(ext))
   }

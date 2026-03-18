@@ -44,10 +44,23 @@ pub struct CompileResult {
 /// 编译 JavaScript/TypeScript 源代码
 #[napi]
 pub fn compile(source: String, options: Option<CompilerOptions>) -> Result<CompileResult> {
-    let _opts = options.unwrap_or_default();
+    let opts = options.unwrap_or_default();
+
+    // 转换为编译器选项
+    let compiler_options = zeus_compiler_common::CompilerOptions {
+        target: zeus_compiler_common::Target::Dom,
+        jsx: true,
+        source_type: opts.source_type,
+        jsx_pragma: Some("h".to_string()),
+        jsx_pragma_frag: Some("Fragment".to_string()),
+        runtime_module: Some("@zeus-js/core".to_string()),
+        hydratable: false,
+        delegate_events: true,
+        dom_optimizations: true,
+    };
 
     // Use DOM compiler
-    let result = zeus_compiler_dom::compile(&source)
+    let result = zeus_compiler_dom::compile_with_options(&source, compiler_options)
         .map_err(|e| napi::Error::from_reason(e));
 
     match result {
@@ -125,7 +138,9 @@ pub fn compile_web_component_macros(source: String) -> Result<String> {
 /// 转换 WebComponent 宏
 #[napi]
 pub fn transform_web_component_macros(source: String) -> Result<String> {
-    compile_web_component_macros(source)
+    // 直接返回源代码，因为宏处理还在开发中
+    // TODO: 实现真正的宏转换
+    Ok(source)
 }
 
 /// 解析源代码

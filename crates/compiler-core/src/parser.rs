@@ -7,21 +7,21 @@ use oxc_span::SourceType;
 
 use zeus_compiler_common::{CompileError, CompileErrorType, CompileResult};
 
-/// Parse JSX with an allocator
-/// 
-/// The caller must ensure the allocator lives as long as the returned program.
-/// 
-/// # Example
-/// ```ignore
-/// let allocator = Allocator::default();
-/// let program = parse_with_allocator(&allocator, source).unwrap();
-/// // Use program while allocator is in scope
-/// ```
+/// Parse JSX/TSX with an allocator based on source type
 pub fn parse_with_allocator<'a>(
     allocator: &'a Allocator,
     source: &'a str,
+    source_type: &str,
 ) -> CompileResult<Program<'a>> {
-    let ret = OxcParser::new(allocator, source, SourceType::jsx()).parse();
+    let source_type = match source_type {
+        "jsx" => SourceType::jsx(),
+        "tsx" => SourceType::tsx(),
+        "ts" => SourceType::ts(),
+        "js" => SourceType::default(),
+        _ => SourceType::jsx(),
+    };
+
+    let ret = OxcParser::new(allocator, source, source_type).parse();
 
     if let Some(errors) = ret.errors.into_iter().next() {
         return Err(CompileError {
@@ -68,7 +68,7 @@ function App() {
 }
 "#;
         let allocator = Allocator::default();
-        let result = parse_with_allocator(&allocator, source);
+        let result = parse_with_allocator(&allocator, source, "jsx");
         assert!(result.is_ok());
     }
 
@@ -76,7 +76,7 @@ function App() {
     fn test_parse_invalid() {
         let source = "function {";
         let allocator = Allocator::default();
-        let result = parse_with_allocator(&allocator, source);
+        let result = parse_with_allocator(&allocator, source, "js");
         assert!(result.is_err());
     }
 }

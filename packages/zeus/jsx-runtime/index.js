@@ -1,4 +1,4 @@
-const { h, Fragment } = require('zeus')
+const { h, Fragment } = require('@zeus-js/runtime-dom')
 
 function jsx(type, props, key) {
   const { children } = props

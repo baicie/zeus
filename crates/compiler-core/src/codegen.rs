@@ -200,8 +200,8 @@ impl CodeGenerator {
             generator.push_str("]);\n");
         }
 
-        // 保留原始代码（AST已被修改）
-        generator.push_str(source);
+        // 注意：不追加原始源代码，因为 AST 已被修改
+        // 原始代码应该由调用方（Vite/Rolldown）使用转换后的 AST 重新生成
 
         generator.finish()
     }
@@ -218,7 +218,9 @@ impl CodeGenerator {
         self.push_str("const ");
         self.push_str(&decl.name);
         self.push_str(" = template(\"");
-        self.push_str(&decl.html);
+        // 转义 HTML 中的特殊字符
+        let escaped_html = Self::escape_js_string(&decl.html);
+        self.push_str(&escaped_html);
         self.push_str("\");\n");
 
         // 如果有子节点绑定，生成 insert 调用
@@ -301,6 +303,22 @@ impl CodeGenerator {
     /// 压入字符串
     pub fn push_str(&mut self, s: &str) {
         self.buffer.push_str(s);
+    }
+
+    /// 将字符串转义为 JavaScript 双引号字符串字面量
+    fn escape_js_string(s: &str) -> String {
+        let mut result = String::with_capacity(s.len());
+        for c in s.chars() {
+            match c {
+                '"' => result.push_str("\\\""),
+                '\\' => result.push_str("\\\\"),
+                '\n' => result.push_str("\\n"),
+                '\r' => result.push_str("\\r"),
+                '\t' => result.push_str("\\t"),
+                _ => result.push(c),
+            }
+        }
+        result
     }
 
     /// 完成生成并返回代码和 sourcemap

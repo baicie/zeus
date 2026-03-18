@@ -1,4 +1,4 @@
-import { compiler, transformWebComponentMacros } from '@zeus-js/compiler-core'
+import { compiler } from '@zeus-js/compiler-core'
 
 export interface CompilerOptions {
   /**
@@ -189,14 +189,6 @@ export class ZeusCompiler implements Compiler {
     }
 
     try {
-      // 1. 首先处理 Web Component 宏 (defineProps/defineEmits/defineExpose)
-      let processedCode = code
-
-      if (opts.webComponentMacros?.enable !== false) {
-        // transformWebComponentMacros 只接受 source 参数
-        processedCode = transformWebComponentMacros(code)
-      }
-
       // 2. 使用Zeus编译器进行转换
       const compileOptions = {
         sourceType: this.getSourceType(id),
@@ -204,19 +196,23 @@ export class ZeusCompiler implements Compiler {
         target: opts.compiler?.target || 'es2020',
         minify: opts.compiler?.minify || false,
       }
+      // 直接使用编译器
+      let result
+      try {
+        result = compiler(code, compileOptions)
+      } catch (e) {
+        console.error('[Zeus] Compiler exception for', id, ':', e)
+        // 编译器异常，返回null让 Rolldown 处理
+        return null
+      }
 
-      const result = compiler(processedCode, compileOptions)
-
-      if (result.success) {
+      if (result && result.success) {
         return {
           code: result.code,
         }
       } else {
-        // 输出更友好的错误信息
-        const error = result.error
-        if (error) {
-          console.error(`\n\x1b[31m\x1b[1merror\x1b[0m (Zeus): ${error}\n`)
-        }
+        // 编译失败，返回null让 Rolldown 处理
+        console.error('[Zeus] Compile error for', id, ':', result?.error)
         return null
       }
     } catch (error) {
@@ -244,6 +240,11 @@ export class ZeusCompiler implements Compiler {
   }
 
   private shouldProcessFile(id: string, options: CompilerOptions): boolean {
+    // 只处理 JSX/TSX 文件
+    if (!id.endsWith('.jsx') && !id.endsWith('.tsx')) {
+      return false
+    }
+
     // 检查排除模式
     if (options.exclude?.some(pattern => pattern.test(id))) {
       return false

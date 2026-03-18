@@ -1,4 +1,4 @@
-import { h, Fragment } from 'zeus'
+import { h, Fragment } from '@zeus-js/runtime-dom'
 
 function jsx(type, props, key) {
   const { children } = props

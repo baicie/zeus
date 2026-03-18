@@ -49,6 +49,11 @@ pub fn compile(source: &str) -> Result<String, String> {
     compiler.compile(source)
 }
 
+pub fn compile_with_options(source: &str, options: CompilerOptions) -> Result<String, String> {
+    let compiler = DomCompiler::with_options(options);
+    compiler.compile(source)
+}
+
 /// 使用指定目标编译
 pub fn compile_with_target(source: &str, target: Target) -> Result<String, String> {
     let _target = target;

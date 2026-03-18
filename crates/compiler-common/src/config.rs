@@ -22,6 +22,8 @@ pub struct CompilerOptions {
     pub target: Target,
     /// 是否启用 JSX
     pub jsx: bool,
+    /// 源代码类型 (js, jsx, ts, tsx)
+    pub source_type: Option<String>,
     /// JSX pragma（默认 "h"）
     pub jsx_pragma: Option<String>,
     /// JSX Fragment pragma（默认 "Fragment"）
@@ -41,6 +43,7 @@ impl Default for CompilerOptions {
         Self {
             target: Target::Dom,
             jsx: true,
+            source_type: Some("jsx".to_string()),
             jsx_pragma: Some("h".to_string()),
             jsx_pragma_frag: Some("Fragment".to_string()),
             runtime_module: Some("@zeus-js/core".to_string()),
@@ -68,10 +71,12 @@ pub struct CompilerContext<'a> {
 impl<'a> CompilerContext<'a> {
     /// 创建新的编译器上下文
     pub fn new(source: &'a str, options: CompilerOptions) -> Self {
-        let source_type = if options.jsx {
-            SourceType::jsx()
-        } else {
-            SourceType::default()
+        let source_type = match options.source_type.as_deref() {
+            Some("tsx") => SourceType::tsx(),
+            Some("ts") => SourceType::ts(),
+            Some("jsx") => SourceType::jsx(),
+            _ if options.jsx => SourceType::jsx(),
+            _ => SourceType::default(),
         };
 
         Self {

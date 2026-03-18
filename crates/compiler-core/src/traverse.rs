@@ -114,7 +114,14 @@ impl DomCompilerState {
     /// 生成唯一的模板变量名
     pub fn generate_template_name(&mut self) -> String {
         self.template_counter += 1;
-        format!("_tmpl${}", self.template_counter)
+        // 使用随机数来确保同一文件中的模板变量名唯一
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        let mut hasher = DefaultHasher::new();
+        self.template_counter.hash(&mut hasher);
+        std::time::Instant::now().hash(&mut hasher);
+        let hash = (hasher.finish() % 10000) as usize;
+        format!("_tmpl${}_{}", self.template_counter, hash)
     }
 
     /// 添加委托事件
@@ -1081,8 +1088,11 @@ impl<'a> DomCompilerPass<'a> {
 pub fn compile(source: &str, options: CompilerOptions) -> Result<String, String> {
     let allocator = Allocator::default();
 
+    // 根据 source_type 确定解析模式
+    let source_type_str = options.source_type.as_deref().unwrap_or("jsx");
+
     // 解析源代码
-    let mut program = match crate::parser::parse_with_allocator(&allocator, source) {
+    let mut program = match crate::parser::parse_with_allocator(&allocator, source, source_type_str) {
         Ok(p) => p,
         Err(e) => return Err(e.message),
     };
@@ -1104,8 +1114,49 @@ pub fn compile(source: &str, options: CompilerOptions) -> Result<String, String>
     let scopes = oxc_semantic::Scoping::default();
     traverse_mut(&mut pass, &allocator, &mut program, scopes, initial_state);
 
-    // 生成代码
-    let code = crate::codegen::CodeGenerator::generate(&pass.state, source);
+    // 生成代码 - 使用修改后的 AST 生成代码
+    let mut code = String::new();
+
+    // 添加 helpers import（如果需要）
+    if !pass.state.used_helpers.is_empty() {
+        code.push_str("import { ");
+        code.push_str(&pass.state.used_helpers.join(", "));
+        code.push_str(" } from \"@zeus-js/core\";\n\n");
+    }
+
+    // 添加模板声明
+    for template in &pass.state.templates {
+        // 转义 HTML 中的特殊字符
+        let escaped_html = template.html
+            .replace('\\', "\\\\")
+            .replace('"', "\\\"")
+            .replace('\n', "\\n")
+            .replace('\r', "\\r")
+            .replace('\t', "\\t");
+        code.push_str(&format!(
+            "const {} = template(\"{}\");\n",
+            template.name, escaped_html
+        ));
+    }
+
+    // 添加委托事件注册
+    if !pass.state.delegated_events.is_empty() {
+        code.push_str("delegateEvents([");
+        for (i, e) in pass.state.delegated_events.iter().enumerate() {
+            if i > 0 {
+                code.push_str(", ");
+            }
+            code.push_str(&format!("\"{}\"", e));
+        }
+        code.push_str("]);\n");
+    }
+
+    code.push_str("\n");
+
+    // 使用 oxc_codegen 从修改后的 AST 生成代码
+    use oxc_codegen::Codegen;
+    let ast_code = Codegen::new().build(&program).code;
+    code.push_str(&ast_code);
 
     Ok(code)
 }
