@@ -13,6 +13,196 @@ use oxc_traverse::{traverse_mut, Traverse, TraverseCtx};
 use oxc_span::GetSpan;
 use zeus_compiler_common::CompilerOptions;
 
+/// 清理模板 HTML 中不必要的注释和空白
+/// 移除只在模板中用于占位但在运行时不需要的注释
+/// 同时最小化空白以减少模板体积
+fn cleanup_template_html(html: &str) -> String {
+    let mut result = String::with_capacity(html.len());
+    let chars: Vec<char> = html.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+
+    while i < len {
+        // 检测 <!--[数字]--> 格式的注释
+        if i + 5 < len
+            && chars[i] == '<'
+            && chars[i + 1] == '!'
+            && chars[i + 2] == '-'
+            && chars[i + 3] == '-'
+            && chars[i + 4] == '['
+        {
+            // 检查是否是 <!--[数字]-->
+            let mut j = i + 5;
+            let mut is_number_comment = true;
+
+            // 跳过数字
+            while j < len && chars[j].is_ascii_digit() {
+                j += 1;
+            }
+
+            // 检查 ]-->
+            if j + 3 <= len && chars[j] == ']' && chars[j + 1] == '-' && chars[j + 2] == '-' && chars[j + 3] == '>' {
+                // 是占位注释，跳过
+                i = j + 4;
+                continue;
+            }
+        }
+
+        // 最小化空白：检测并合并连续空白
+        if chars[i].is_whitespace() {
+            // 检查前一个字符是否不是 > 或 "
+            let prev_not_gt_or_quote = result.is_empty()
+                || (result.chars().last().unwrap() != '>'
+                    && result.chars().last().unwrap() != '"');
+
+            if prev_not_gt_or_quote {
+                // 跳过后续空白字符
+                let mut j = i + 1;
+                while j < len && chars[j].is_whitespace() {
+                    j += 1;
+                }
+
+                // 检查下一个非空白字符是否是 < 或 > 或 "
+                let next_char = if j < len { chars[j] } else { ' ' };
+
+                // 保留空白的情况：
+                // 1. 空白在 < 之前 - 不保留
+                // 2. 空白在 > 之后且下一个是 < 之前 - 不保留
+                // 3. 空白在引号内 - 保留
+                // 4. 其他情况保留单个空格
+                if next_char != '<' && result.chars().last().map(|c| c != '"').unwrap_or(false) {
+                    result.push(' ');
+                }
+
+                i = j;
+                continue;
+            }
+        }
+
+        result.push(chars[i]);
+        i += 1;
+    }
+
+    // 清理标签之间的多余空格
+    let html = result;
+
+    // 使用正则表达式清理：<...> <...> -> <...><...>
+    // 保留 <...>  文字  <...> 中的单个空格
+    let mut result = String::new();
+    let mut in_tag = false;
+    let mut after_close_tag = false;
+    let chars: Vec<char> = html.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+
+    while i < len {
+        let c = chars[i];
+
+        if c == '<' {
+            in_tag = true;
+            after_close_tag = false;
+            result.push(c);
+        } else if c == '>' {
+            in_tag = false;
+            // 检查是否是闭合标签 </xxx>
+            if i + 1 < len && chars[i + 1] == '/' {
+                after_close_tag = true;
+            } else {
+                after_close_tag = false;
+            }
+            result.push(c);
+        } else if in_tag {
+            // 在标签内部
+            result.push(c);
+        } else {
+            // 在标签外部
+            if c.is_whitespace() {
+                // 检查上下文
+                let prev = result.chars().last();
+                let next = if i + 1 < len { Some(chars[i + 1]) } else { None };
+
+                // 规则：
+                // 1. </tag>后面的空白 + <tag>前面的空白 -> 不保留（标签粘连）
+                // 2. 其他情况保留单个空格
+                let is_after_close_tag = prev == Some('>') && i >= 2 &&
+                    chars.get(i.saturating_sub(2)) == Some(&'/') &&
+                    chars.get(i.saturating_sub(1)) == Some(&'>');
+
+                if !is_after_close_tag {
+                    // 检查是否紧跟 < （标签粘连）
+                    if next != Some('<') {
+                        result.push(' ');
+                    }
+                }
+            } else {
+                result.push(c);
+            }
+        }
+
+        i += 1;
+    }
+
+    result
+}
+
+/// 检测文本是否只包含空白
+fn is_whitespace_only(text: &str) -> bool {
+    text.chars().all(|c| c.is_whitespace())
+}
+
+/// 移除文本前后的空白
+fn trim_whitespace(text: &str) -> &str {
+    text.trim()
+}
+
+/// 规范化 JSX 中的空白文本
+/// - 移除只包含空白和换行的行（行首空白）
+/// - 将连续空白合并为单个空格
+/// - 保留有意义的空白（如标签之间的空格）
+fn normalize_jsx_whitespace(text: &str) -> String {
+    let text = text.replace("\r\n", "\n").replace('\r', "\n");
+
+    if text.contains('\n') {
+        // 多行文本：移除只有空白的行，并规范化
+        let result: Vec<&str> = text
+            .lines()
+            .enumerate()
+            .filter_map(|(i, line)| {
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
+                    None
+                } else if i == 0 {
+                    // 第一行只去除尾部空白
+                    Some(line.trim_end())
+                } else {
+                    // 其他行去除首尾空白
+                    Some(trimmed)
+                }
+            })
+            .collect();
+
+        if result.len() <= 1 {
+            result.first().map(|s| s.to_string()).unwrap_or_default()
+        } else {
+            // 多行有意义的内容，用单个空格连接
+            result.join(" ")
+        }
+    } else {
+        // 单行文本：去除首尾空白
+        text.trim().to_string()
+    }
+}
+
+/// 检测是否应该保留空白
+/// 如果文本周围有非空白内容，返回 true
+fn should_preserve_whitespace(before: Option<char>, after: Option<char>) -> bool {
+    match (before, after) {
+        (Some(c1), Some(c2)) => !c1.is_whitespace() && !c2.is_whitespace(),
+        (Some(c), None) | (None, Some(c)) => !c.is_whitespace(),
+        _ => false,
+    }
+}
+
 /// 编译目标（当前仅用于对齐设计文档）
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Target {
@@ -1126,8 +1316,11 @@ pub fn compile(source: &str, options: CompilerOptions) -> Result<String, String>
 
     // 添加模板声明
     for template in &pass.state.templates {
+        // 清理模板 HTML（移除不必要的注释）
+        let cleaned_html = cleanup_template_html(&template.html);
+
         // 转义 HTML 中的特殊字符
-        let escaped_html = template.html
+        let escaped_html = cleaned_html
             .replace('\\', "\\\\")
             .replace('"', "\\\"")
             .replace('\n', "\\n")

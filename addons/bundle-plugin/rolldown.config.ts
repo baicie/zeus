@@ -19,7 +19,7 @@ const inputs = globSync('./src/adapters/*.ts')
 
 export default defineConfig([
   {
-    input: inputs,
+    input: [...inputs],
     output: {
       dir: './dist/esm',
       entryFileNames: '[name].mjs',
@@ -31,7 +31,7 @@ export default defineConfig([
     plugins,
   },
   {
-    input: inputs,
+    input: [...inputs],
     output: {
       dir: './dist/cjs',
       entryFileNames: '[name].cjs',

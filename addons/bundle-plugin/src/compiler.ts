@@ -28,7 +28,27 @@ export interface CompilerOptions {
   /**
    * 编译器选项
    */
-  compiler?: Record<string, any>
+  compiler?: {
+    /**
+     * 源代码类型 (js/jsx/ts/tsx)
+     */
+    sourceType?: 'js' | 'jsx' | 'ts' | 'tsx'
+    /**
+     * 是否启用实验性功能
+     * @default false
+     */
+    experimental?: boolean
+    /**
+     * 目标 ES 版本
+     * @default 'es2020'
+     */
+    target?: string
+    /**
+     * 是否压缩代码
+     * @default false
+     */
+    minify?: boolean
+  }
 
   /**
    * Web Component 宏编译选项
@@ -49,9 +69,6 @@ export interface CompilerOptions {
   exclude?: RegExp[]
 }
 
-/**
- * Web Component 宏编译选项
- */
 export interface WebComponentMacroOptions {
   /**
    * 是否启用宏编译
@@ -183,26 +200,23 @@ export class ZeusCompiler implements Compiler {
   ): TransformResult | null {
     const opts = { ...this.options, ...options }
 
-    // 检查文件是否应该被处理
     if (!this.shouldProcessFile(id, opts)) {
       return null
     }
 
     try {
-      // 2. 使用Zeus编译器进行转换
       const compileOptions = {
-        sourceType: this.getSourceType(id),
+        sourceType: opts.compiler?.sourceType || this.getSourceType(id),
         experimental: opts.compiler?.experimental || false,
         target: opts.compiler?.target || 'es2020',
         minify: opts.compiler?.minify || false,
       }
-      // 直接使用编译器
+
       let result
       try {
         result = compiler(code, compileOptions)
       } catch (e) {
         console.error('[Zeus] Compiler exception for', id, ':', e)
-        // 编译器异常，返回null让 Rolldown 处理
         return null
       }
 
@@ -211,7 +225,6 @@ export class ZeusCompiler implements Compiler {
           code: result.code,
         }
       } else {
-        // 编译失败，返回null让 Rolldown 处理
         console.error('[Zeus] Compile error for', id, ':', result?.error)
         return null
       }
@@ -227,7 +240,6 @@ export class ZeusCompiler implements Compiler {
     const { file, modules } = ctx
     if (!this.shouldProcessFile(file, this.options)) return
 
-    // 返回受影响的模块
     return modules
   }
 
@@ -239,57 +251,39 @@ export class ZeusCompiler implements Compiler {
     // 清理资源
   }
 
-  private shouldProcessFile(id: string, options: CompilerOptions): boolean {
-    // 只处理 JSX/TSX 文件
+  shouldProcessFile(id: string, options: CompilerOptions): boolean {
     if (!id.endsWith('.jsx') && !id.endsWith('.tsx')) {
       return false
     }
 
-    // 检查排除模式
     if (options.exclude?.some(pattern => pattern.test(id))) {
       return false
     }
 
-    // 检查包含扩展名
-    // 支持简单扩展名 (如: ['.jsx', '.tsx']) 和 glob 模式 (如: ['src/**/*.{js,jsx,ts,tsx}'])
     const extensions = this.extractExtensions(options.include || [])
 
-    // 检查文件扩展名是否在允许列表中
     return extensions.some(ext => id.endsWith(ext))
   }
 
-  // 从 include 配置中提取所有扩展名
-  private extractExtensions(include: string[]): string[] {
+  extractExtensions(include: string[]): string[] {
     const extensions = new Set<string>()
 
     for (const pattern of include) {
       if (pattern.includes('*')) {
-        // glob 模式: 提取 {...} 中的扩展名
         const match = pattern.match(/\{([^}]+)\}/)
         if (match) {
-          // 处理 {js,jsx,ts,tsx} 格式
           const exts = match[1].split(',')
           exts.forEach(ext => {
-            if (ext.startsWith('.')) {
-              extensions.add(ext)
-            } else {
-              extensions.add(`.${ext}`)
-            }
+            extensions.add(ext.startsWith('.') ? ext : `.${ext}`)
           })
         } else {
-          // 处理 * 开头的情况 (如 *.tsx)
           const extMatch = pattern.match(/\*\.(\w+)/)
           if (extMatch) {
             extensions.add(`.${extMatch[1]}`)
           }
         }
       } else {
-        // 简单扩展名
-        if (pattern.startsWith('.')) {
-          extensions.add(pattern)
-        } else {
-          extensions.add(`.${pattern}`)
-        }
+        extensions.add(pattern.startsWith('.') ? pattern : `.${pattern}`)
       }
     }
 
@@ -301,6 +295,10 @@ export class ZeusCompiler implements Compiler {
     if (id.endsWith('.jsx')) return 'jsx'
     if (id.endsWith('.ts')) return 'ts'
     return 'js'
+  }
+
+  getOptions(): CompilerOptions {
+    return { ...this.options }
   }
 }
 

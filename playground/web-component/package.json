@@ -29,7 +29,7 @@
   "devDependencies": {
     "@rollup/plugin-replace": "^6.0.3",
     "@types/node": "^25.5.0",
-    "rolldown": "1.0.0-rc.9",
+    "rolldown": "1.0.0-rc.10",
     "typescript": "^5.9.3"
   },
   "keywords": [
