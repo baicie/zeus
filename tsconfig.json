@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
     "outDir": "temp",
     "sourceMap": false,
     "target": "es2016",
