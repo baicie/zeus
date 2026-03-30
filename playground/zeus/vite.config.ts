@@ -1,8 +1,8 @@
 import { defineConfig } from 'vite'
-import { viteSimple } from '@zeus-js/build-tools'
+import { vitePlugin } from '@zeus-js/build-tools/vite'
 
 export default defineConfig({
-  plugins: [viteSimple()],
+  plugins: [vitePlugin()],
   build: {
     minify: false,
   },

@@ -7,6 +7,8 @@ const { globSync } = globPkg
 const external = [
   ...Object.keys(pkg.dependencies),
   ...Object.keys(pkg.optionalDependencies),
+  '@babel/core',
+  'babel-plugin-jsx-dom-expressions',
 ]
 
 const plugins = [
@@ -19,7 +21,7 @@ const inputs = globSync('./src/adapters/*.ts')
 
 export default defineConfig([
   {
-    input: [...inputs],
+    input: inputs,
     output: {
       dir: './dist/esm',
       entryFileNames: '[name].mjs',
@@ -31,7 +33,7 @@ export default defineConfig([
     plugins,
   },
   {
-    input: [...inputs],
+    input: inputs,
     output: {
       dir: './dist/cjs',
       entryFileNames: '[name].cjs',

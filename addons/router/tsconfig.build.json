@@ -8,15 +8,13 @@
     "declaration": true,
     "emitDeclarationOnly": true,
     "outDir": "dist",
+    "rootDir": "../../../..",
     "skipLibCheck": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "baseUrl": ".",
-    "paths": {
-      "@zeus-js/signal": ["../../packages/signal/src/index.ts"],
-      "@zeus-js/shared": ["../../packages/shared/src/index.ts"]
-    }
+    "ignoreDeprecations": "6.0",
+    "baseUrl": "../../../.."
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src"],
   "exclude": ["node_modules", "dist", "**/*.spec.ts"]
 }

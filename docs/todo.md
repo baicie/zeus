@@ -228,30 +228,69 @@ function Counter() {
 
 ## 4. 自定义绑定语法
 
-### 4.1 OXC 适配层
+> **说明**: 仅保留真正提升开发体验的语法，移除冗余或可通过标准 JSX 轻松替代的特性。
+
+### 4.1 保留的绑定语法 ⭐
+
+| 语法 | 示例 | 说明 | 优先级 |
+|------|------|------|--------|
+| 条件类名 | `<div class:active={cond}>` | 简洁的条件类名绑定 | P0 |
+| 布尔属性 | `<button bool:disabled={cond}>` | 布尔属性优化 | P1 |
+| 指令 | `<div use:action={fn}>` | 自定义指令，类似 SolidJS | P0 |
+
+**为什么不实现其他语法**:
+- `style:color="red"` → `style={{color: 'red'}}` 已经足够简洁
+- `on:click={handler}` → 已有 `onClick` 等标准语法
+- `prop:value={val}` → `value={val}` 更直观
+- `{/* @once */}` → 编译器自动优化静态内容
+
+### 4.2 条件类名 (`class:active={cond}`)
 
 #### 📋 待开始
 
 | 任务 | 优先级 | 说明 |
 |------|--------|------|
-| 命名空间解析 | P0 | `class:*`, `style:*` 等前缀解析 |
-| 静态标记解析 | P1 | `/* @once */` 注释解析 |
-| JSX 属性扩展 | P1 | OXC JSX AST 兼容处理 |
+| 命名空间解析 | P0 | 解析 `class:*` 前缀 |
+| class 合并逻辑 | P0 | 静态 class + 动态 class 合并 |
+| OXC 适配 | P1 | JSX 属性扩展处理 |
 
-### 4.2 绑定实现
+### 4.3 指令系统 (`use:action={fn}`)
 
 #### 📋 待开始
 
-| 任务 | 优先级 | 语法 | 说明 |
-|------|--------|------|------|
-| 条件类名 | P0 | `class:active={cond}` | 布尔类名 |
-| 样式属性 | P0 | `style:color="red"` | 样式属性绑定 |
-| 手动事件 | P1 | `on:click={handler}` | 直接事件监听 |
-| 类名映射 | P1 | `classList={{active: cond}}` | 对象形式 |
-| 属性传递 | P2 | `prop:value={val}` | 属性传递 |
-| 布尔属性 | P2 | `bool:disabled={cond}` | 布尔属性 |
-| 自定义指令 | P3 | `use:action={fn}` | 指令系统 |
-| 静态标记 | P2 | `{/* @once */}` | 静态内容 |
+| 任务 | 优先级 | 说明 |
+|------|--------|------|
+| use: 前缀解析 | P0 | 解析 `use:*` 指令 |
+| 指令运行时 | P0 | `register指令` 调用 |
+| 元素引用传递 | P0 | 将 DOM 元素传给指令函数 |
+| cleanup 支持 | P1 | 指令销毁时的清理 |
+
+**使用示例**:
+```tsx
+// 用户代码
+function MyComponent() {
+  const myAction = (el) => {
+    el.focus();
+    return () => el.blur(); // cleanup
+  };
+  return <input use:myAction />;
+}
+
+// 编译输出
+const _el$1 = template("<input>");
+const _action = (el) => { el.focus(); return () => el.blur(); };
+const _node = _el$1();
+register指令(_node, _action);
+```
+
+### 4.4 布尔属性 (`bool:disabled={cond}`)
+
+#### 📋 待开始
+
+| 任务 | 优先级 | 说明 |
+|------|--------|------|
+| bool: 前缀解析 | P1 | 解析 `bool:*` 前缀 |
+| 布尔值处理 | P1 | true → 属性, false → 移除属性 |
 
 ---
 
@@ -352,15 +391,6 @@ function Counter() {
 | 基础插件 | P0 | Vite 开发服务器集成 |
 | 热更新 | P1 | HMR 支持 |
 | 依赖预构建 | P2 | 优化依赖加载 |
-
-### 6.3 SWC 插件
-
-#### 📋 待开始
-
-| 任务 | 优先级 | 说明 |
-|------|--------|------|
-| SWC 插件基础 | P2 | SWC 生态集成 |
-| 实验性支持 | P3 | 备选编译器 |
 
 ---
 

@@ -134,27 +134,27 @@ zeus/
 | 功能 | 优先级 | 说明 |
 |------|--------|------|
 | if-return → ternary | P1 | 完整的 AST 替换实现 |
+| 响应式自动编译 | P1 | 识别 signal() 等响应式调用，转换为最优运行时 |
 | 组件转换 | P1 | 组件调用转换为 createComponent |
-| Show 组件 | P1 | `<Show when={cond}>...</Show>` |
-| For 组件 | P1 | `<For each={arr}>...</For>` |
-| Switch/Match | P2 | 多条件渲染 |
 | 动态元素 | P2 | `<{tag}>` 动态标签名 |
 | 异步组件 | P2 | Suspense, lazy 等 |
 | HOC 支持 | P3 | 高阶组件转换 |
 
 #### 2.3.2 自定义绑定语法
 
+> **说明**: 仅保留真正提升开发体验的语法。
+
 | 语法 | 状态 | 说明 |
 |------|------|------|
-| `class:*` | ❌ 待实现 | 条件类名绑定 |
-| `style:*` | ❌ 待实现 | 样式属性绑定 |
-| `on:*` | ❌ 待实现 | 手动事件绑定 |
-| `prop:*` | ❌ 待实现 | 属性传递 |
-| `bool:*` | ❌ 待实现 | 布尔属性 |
-| `use:*` | ❌ 待实现 | 自定义指令 |
-| classList | ❌ 待实现 | 类名映射对象 |
-| ref | ❌ 待实现 | DOM 引用 |
-| `@once` | ❌ 待实现 | 静态标记 |
+| `class:active={cond}` | ❌ 待实现 | 条件类名绑定 ⭐ |
+| `use:action={fn}` | ❌ 待实现 | 自定义指令 ⭐⭐ |
+| `bool:disabled={cond}` | ❌ 待实现 | 布尔属性优化 |
+
+**已移除** (可用标准 JSX 替代):
+- ❌ `style:color="red"` → `style={{color: 'red'}}`
+- ❌ `on:click={handler}` → 已有 `onClick`
+- ❌ `prop:value={val}` → 前缀多余
+- ❌ `{/* @once */}` → 编译器自动优化
 
 #### 2.3.3 SSR 支持
 
@@ -195,8 +195,8 @@ zeus/
 | effect() | ✅ 来自 signal | 副作用 |
 | ssr() | ❌ 待实现 | SSR 运行时 |
 | ssrElement() | ❌ 待实现 | SSR 元素创建 |
-| Show 组件 | ❌ 待实现 | 条件渲染 |
-| For 组件 | ❌ 待实现 | 列表渲染 |
+| yield_ helper | ❌ 待实现 | 条件渲染 (响应式条件) |
+| For helper | ❌ 待实现 | 列表渲染优化 |
 
 ---
 
@@ -218,7 +218,6 @@ zeus/
 |------|------|------|
 | Vite 插件 | ❌ 待实现 | Vite 开发服务器支持 |
 | Rollup 插件 | ⚠️ 部分 | bundle-plugin 完善中 |
-| SWC 插件 | ❌ 待实现 | SWC 编译器插件 |
 
 ---
 
@@ -343,8 +342,9 @@ packages/runtime-core
 
 1. **if-return 转换不完整**：框架已搭建，但 AST 节点替换需要完善
 2. **组件识别简单**：目前通过首字母大写判断组件，需要更完善的组件识别
-3. **自定义绑定未实现**：`class:*`, `style:*` 等语法待支持
-4. **SSR/WebComponent 未实现**：仅 DOM 编译器在开发中
+3. **自定义绑定未实现**：`class:active`, `use:action` 等语法待支持
+4. **响应式自动编译进行中**：signal() 识别和转换待完善
+5. **SSR/WebComponent 未实现**：仅 DOM 编译器在开发中
 
 ### 9.2 运行时限制
 
@@ -359,14 +359,16 @@ packages/runtime-core
 ### 10.1 短期目标 (1-2 周)
 
 1. 完成 if-return → ternary 转换的 AST 替换
-2. 实现 Show/For 等内置组件
-3. 完善 bundle-plugin
-4. 添加更多测试用例
+2. 实现响应式自动编译 (条件渲染 + 列表渲染)
+3. 实现 yield_/For helpers
+4. 实现 `class:active` 和 `use:action` 绑定语法
+5. 完善 bundle-plugin
+6. 添加更多测试用例
 
 ### 10.2 中期目标 (1-2 月)
 
 1. 实现 SSR 编译器
-2. 实现自定义绑定语法
+2. 实现 `bool:disabled` 等剩余绑定语法
 3. 实现 WebComponent 编译器
 4. 完善 Vite 插件
 

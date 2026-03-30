@@ -242,6 +242,17 @@ pub struct DomCompilerState {
     static_node_counter: usize,
     /// 列表渲染信息
     list_renders: Vec<ListRender>,
+    /// 待处理的转换（if → ternary）
+    pub pending_transforms: Vec<PendingTransform>,
+}
+
+/// 待处理的转换信息
+#[derive(Clone, Debug)]
+pub struct PendingTransform {
+    /// IfStatement 的位置
+    pub if_span: Span,
+    /// 转换后的三元表达式源代码
+    pub ternary_code: String,
 }
 
 /// 静态节点（可提升到函数外部）
@@ -298,6 +309,7 @@ impl DomCompilerState {
             static_nodes: Vec::new(),
             static_node_counter: 0,
             list_renders: Vec::new(),
+            pending_transforms: Vec::new(),
         }
     }
 
@@ -1263,14 +1275,74 @@ impl<'a> DomCompilerPass<'a> {
         matches!(expr, Expression::JSXElement(_) | Expression::JSXFragment(_))
     }
 
-    /// 转换为 ternary 表达式（简化版本）
-    fn transform_to_ternary(&mut self, _node: &mut IfStatement<'a>, _ctx: &mut TraverseCtx<'a, DomCompilerState>) {
-        // 注意：完整的 AST 替换需要更复杂的实现
-        // 这里我们只是标记需要这个转换，让代码生成器处理
-        // 实际生产环境中需要使用 oxc_traverse 的 ctx.replace 来进行节点替换
+    /// 提取 JSX 表达式的源代码
+    fn extract_jsx_source(&self, stmt: &Statement<'a>, source: &str) -> Option<String> {
+        match stmt {
+            Statement::ReturnStatement(ret) => {
+                if let Some(arg) = &ret.argument {
+                    if self.expression_is_jsx(arg) {
+                        return Some(self.expression_to_source(arg));
+                    }
+                }
+                None
+            }
+            Statement::BlockStatement(block) => {
+                // 查找最后一个 return 语句
+                for s in block.body.iter().rev() {
+                    if let Statement::ReturnStatement(r) = s {
+                        if let Some(arg) = &r.argument {
+                            if self.expression_is_jsx(arg) {
+                                return Some(self.expression_to_source(arg));
+                            }
+                        }
+                    }
+                }
+                None
+            }
+            Statement::IfStatement(if_stmt) => {
+                // 递归处理嵌套 if
+                let consequent = self.extract_jsx_source(&if_stmt.consequent, source)?;
+                let alternate = if_stmt.alternate.as_ref()
+                    .and_then(|alt| self.extract_jsx_source(alt, source));
 
-        // 添加注释说明
-        self.state.add_helper("/* if-return → ternary conversion pending */");
+                // 返回 then 表达式（else 部分在三元表达式中处理）
+                Some(consequent)
+            }
+            _ => None,
+        }
+    }
+
+    /// 转换为 ternary 表达式
+    fn transform_to_ternary(&mut self, node: &mut IfStatement<'a>, ctx: &mut TraverseCtx<'a, DomCompilerState>) {
+        // 提取测试条件
+        let test_str = self.expression_to_source(&node.test);
+
+        // 提取 then 分支的 JSX 源代码
+        let consequent_str = match self.extract_jsx_source(&node.consequent, self.source) {
+            Some(s) => s,
+            None => return,
+        };
+
+        // 提取 else 分支的 JSX 源代码（如果有）
+        let alternate_str = node.alternate.as_ref()
+            .and_then(|alt| self.extract_jsx_source(alt, self.source));
+
+        // 生成三元表达式源代码
+        let ternary_str = if let Some(alternate) = alternate_str {
+            format!("{} ? {} : {}", test_str, consequent_str, alternate)
+        } else {
+            // 没有 else 分支，使用 yield_ 模式
+            // 生成 yield_(() => condition() && <JSX />) 形式
+            // 这样可以确保条件为 false 时移除 DOM 节点
+            self.state.add_helper("yield_");
+            format!("() => {} && {}", test_str, consequent_str)
+        };
+
+        // 记录转换信息，存储完整的源码信息
+        self.state.pending_transforms.push(PendingTransform {
+            if_span: node.span,
+            ternary_code: ternary_str,
+        });
     }
 }
 

@@ -6,12 +6,16 @@ export {
   addEventListener,
   setAttribute,
   setProperty,
+  setStyleProperty,
   className,
   style,
   spread,
   ref,
   reconcileArray,
   keyed,
+  createComponent,
+  memo,
+  use,
 } from './client'
 
 // Low-level DOM utilities
@@ -28,6 +32,16 @@ export * from './h'
 
 // Re-export everything from runtime-core (including slots)
 export * from '@zeus-js/runtime-core'
+
+// Re-export signal functions needed by compiled code (except effect, which we override)
+export {
+  signal,
+  computed,
+  isSignal,
+  isComputed,
+  isEffect,
+} from '@zeus-js/signal'
+export { effect } from './client'
 
 // Re-export component types
 export type { ComponentFunction, App, Plugin } from '@zeus-js/runtime-core'

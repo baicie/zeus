@@ -42,9 +42,19 @@ function NavLink(props: NavItem): HTMLAnchorElement {
   a.className = 'nav-link'
   a.innerHTML = '<span class="nav-icon">' + props.icon + '</span>' + props.label
 
+  // Navigate on click
+  a.addEventListener('click', function (e) {
+    e.preventDefault()
+    router.push(props.path)
+  })
+
   // Reactively toggle active class based on current route
+  // Use _currentRouteComputed which reads a signal for proper reactivity
+  const routeComputed = (router as any)._currentRouteComputed
   effect(function () {
-    const current = router.currentRoute.path
+    // Read the computed to track the route signal
+    const route = routeComputed()
+    const current = route ? route.path : ''
     if (current === props.path) {
       a.classList.add('active')
     } else {
@@ -64,9 +74,13 @@ function App() {
           <p>Framework Demo</p>
         </div>
         <div class="nav-section">Navigation</div>
-        {NAV_ITEMS.map(item => NavLink(item))}
+        {NAV_ITEMS.map(function (item) {
+          return NavLink(item)
+        })}
       </aside>
-      <main class="content">{RouterView({})}</main>
+      <main class="content">
+        <RouterView />
+      </main>
     </div>
   )
 }

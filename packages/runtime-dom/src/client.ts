@@ -1,4 +1,12 @@
-import { effect } from '@zeus-js/signal'
+import { effect as alienEffect } from '@zeus-js/signal'
+
+// =============================================================================
+// effect wrapper - Delegates to alien-signals for reactive updates
+// alien-signals effect signature: effect(fn: () => void) => () => void
+// =============================================================================
+export function effect(fn: () => void): () => void {
+  return alienEffect(fn)
+}
 
 // =============================================================================
 // template(html) — Creates a cached template element, returns a clone function
@@ -428,5 +436,64 @@ export function keyed<T>(
 
   return function cleanup() {
     reconcile()
+  }
+}
+
+// =============================================================================
+// setStyleProperty - Set a single CSS property on an element
+// =============================================================================
+export function setStyleProperty(
+  node: HTMLElement,
+  property: string,
+  value: string | null,
+): void {
+  if (value === null) {
+    node.style.removeProperty(property)
+  } else {
+    node.style.setProperty(property, value)
+  }
+}
+
+// =============================================================================
+// createComponent - Creates a component with props
+// This is a simple wrapper that passes props to the component function
+// =============================================================================
+import type { ComponentFunction } from '@zeus-js/runtime-core'
+
+export function createComponent(
+  Comp: ComponentFunction<any>,
+  props: Record<string, any>,
+): any {
+  return Comp(props)
+}
+
+// =============================================================================
+// memo - Memoize a computation, returns a readonly signal-like accessor
+// This wraps a function in an effect-like pattern for derived values
+// =============================================================================
+export function memo<T>(fn: () => T): () => T {
+  let cached: T
+  let initialized = false
+
+  return () => {
+    if (!initialized) {
+      cached = fn()
+      initialized = true
+    }
+    return cached
+  }
+}
+
+// =============================================================================
+// use - Hook for directive-style refs (used: directive)
+// Sets up a ref callback with access to the owner context
+// =============================================================================
+export function use(
+  handler: (el: Element, ...args: any[]) => void,
+  el: Element,
+  ...args: any[]
+): void {
+  if (typeof handler === 'function') {
+    handler(el, ...args)
   }
 }
