@@ -3,11 +3,14 @@
 //! 提供基于 oxc 的核心编译功能
 
 mod parser;
-mod codegen;
-mod traverse;
+pub mod codegen;
+pub mod traverse;
 
 pub use parser::{parse_with_allocator, parse_tsx_with_allocator};
 
 use zeus_compiler_common::CompilerOptions;
 pub use codegen::CodeGenerator;
-pub use traverse::{DomCompilerState, DomCompilerPass, compile, Target};
+pub use traverse::{
+    DomCompilerState, DomCompilerPass, compile, Target,
+    ChildBinding, TemplateDecl, AttrBinding, AttrBindingKind,
+};

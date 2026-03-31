@@ -5,10 +5,20 @@
 mod template_analyzer;
 mod template_ir;
 mod control_flow;
+mod codegen;
+mod babel_codegen;
 
 pub use template_analyzer::TemplateAnalyzer;
 pub use template_ir::DomTemplateIR;
 pub use control_flow::ControlFlowAnalyzer;
+pub use codegen::{
+    CodeGenerator, CodegenConfig, CodegenState, TemplateGen, ChildGen, AttrGen, AttrKind, EventGen,
+    generate_from_template, html_escape,
+};
+pub use babel_codegen::{
+    BabelStyleCodegen, CodegenContext,
+    generate_babel_style_template,
+};
 
 use zeus_compiler_common::CompilerOptions;
 use zeus_compiler_core::{compile as compile_with_traverse, Target};

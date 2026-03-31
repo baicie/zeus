@@ -13,6 +13,8 @@
     "@zeus-js/router": "workspace:*"
   },
   "devDependencies": {
+    "@babel/plugin-transform-react-jsx": "^7.28.6",
+    "@rolldown/plugin-babel": "^0.2.2",
     "@types/node": "^25.5.0",
     "@zeus-js/build-tools": "workspace:*",
     "@zeus-js/compiler-core": "workspace:*",
