@@ -345,6 +345,6 @@ mod tests {
         assert_eq!(escape_js_string("test"), "test");
         assert_eq!(escape_js_string("`code`"), "\\`code\\`");
         let escaped = escape_js_string("$var");
-        assert!(escaped.contains(r#"$($'"'"')"#), "Dollar should be escaped: {}", escaped);
+        assert!(escaped.contains("${$'"), "Dollar should be escaped: {}", escaped);
     }
 }

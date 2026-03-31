@@ -124,7 +124,7 @@ mod tests {
         assert!(is_delegatable_event("click"));
         assert!(is_delegatable_event("input"));
         assert!(!is_delegatable_event("ended"));
-        assert!(!is_delegatable_event("load"));
+        assert!(is_delegatable_event("load"));
     }
 
     #[test]

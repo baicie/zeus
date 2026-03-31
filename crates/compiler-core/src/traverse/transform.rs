@@ -11,12 +11,19 @@ use oxc_span::GetSpan;
 /// JSX 转换器
 pub struct JsxTransformer<'a> {
     source: &'a str,
+    /// 用于存储嵌套的模板声明
+    nested_templates: Vec<TemplateDecl>,
 }
 
 impl<'a> JsxTransformer<'a> {
     /// 创建新的 JSX 转换器
     pub fn new(source: &'a str) -> Self {
-        Self { source }
+        Self { source, nested_templates: Vec::new() }
+    }
+
+    /// 获取嵌套模板
+    pub fn take_nested_templates(&mut self) -> Vec<TemplateDecl> {
+        std::mem::take(&mut self.nested_templates)
     }
 
     /// 将 JSX 元素转换为模板 HTML 和绑定信息
@@ -207,20 +214,128 @@ impl<'a> JsxTransformer<'a> {
                     out.push_str(&placeholder);
 
                     if let Some(expr) = expr_container.expression.as_expression() {
-                        let is_text = matches!(expr, Expression::StringLiteral(_) | Expression::TemplateLiteral(_));
-                        let expr_source = self.expression_to_source(expr);
+                        // 检查表达式是否包含 JSX 元素
+                        if self.contains_jsx_element(expr) {
+                            // 对于包含 JSX 的表达式，我们需要：
+                            // 1. 提取嵌套的 JSX 并生成子模板
+                            // 2. 将表达式替换为函数调用占位符
+                            let (replaced_expr, nested_tmpl) = self.extract_jsx_from_expression(expr, child_idx);
+                            if let Some(tmpl) = nested_tmpl {
+                                self.nested_templates.push(tmpl);
+                            }
+                            child_bindings.push(ChildBinding {
+                                index: child_idx,
+                                expression: replaced_expr,
+                                is_text: false,
+                            });
+                        } else {
+                            let is_text = matches!(expr, Expression::StringLiteral(_) | Expression::TemplateLiteral(_));
+                            let expr_source = self.expression_to_source(expr);
 
-                        child_bindings.push(ChildBinding {
-                            index: child_idx,
-                            expression: expr_source,
-                            is_text,
-                        });
+                            child_bindings.push(ChildBinding {
+                                index: child_idx,
+                                expression: expr_source,
+                                is_text,
+                            });
+                        }
                     }
                     child_idx += 1;
                 }
                 _ => {
                     out.push_str("<!---->");
                 }
+            }
+        }
+    }
+
+    /// 检查表达式是否包含 JSX 元素
+    fn contains_jsx_element(&self, expr: &Expression) -> bool {
+        match expr {
+            Expression::JSXElement(_) | Expression::JSXFragment(_) => true,
+            Expression::LogicalExpression(logical) => {
+                self.contains_jsx_element(&logical.left) || self.contains_jsx_element(&logical.right)
+            }
+            Expression::ConditionalExpression(cond) => {
+                self.contains_jsx_element(&cond.test)
+                    || self.contains_jsx_element(&cond.consequent)
+                    || self.contains_jsx_element(&cond.alternate)
+            }
+            _ => false,
+        }
+    }
+
+    /// 从表达式中提取 JSX，返回替换后的表达式和嵌套模板
+    /// 注意：这个方法只是返回需要替换的表达式文本和模板信息
+    /// 实际的 AST 替换需要在 traverse 阶段完成
+    fn extract_jsx_from_expression(
+        &self,
+        expr: &Expression,
+        child_idx: usize,
+    ) -> (String, Option<TemplateDecl>) {
+        match expr {
+            Expression::JSXElement(jsx) => {
+                // 内部 JSX 元素：生成一个新的模板
+                let tmpl_name = format!("_tmpl$inner${}", child_idx);
+                let tag = self.get_jsx_tag_name(&jsx.opening_element.name);
+                let mut html = format!("<{}>", tag);
+                html.push_str("</");
+                html.push_str(&tag);
+                html.push('>');
+
+                let template = TemplateDecl {
+                    name: tmpl_name.clone(),
+                    html,
+                    child_bindings: Vec::new(),
+                    attr_bindings: Vec::new(),
+                };
+                (format!("{}().firstChild", tmpl_name), Some(template))
+            }
+            Expression::JSXFragment(_frag) => {
+                let tmpl_name = format!("_tmpl$inner${}", child_idx);
+                let template = TemplateDecl {
+                    name: tmpl_name.clone(),
+                    html: "<!---->".to_string(),
+                    child_bindings: Vec::new(),
+                    attr_bindings: Vec::new(),
+                };
+                (format!("{}().firstChild", tmpl_name), Some(template))
+            }
+            Expression::LogicalExpression(logical) => {
+                let (left_expr, left_tmpl) = self.extract_jsx_from_expression(&logical.left, child_idx);
+                let (right_expr, right_tmpl) = self.extract_jsx_from_expression(&logical.right, child_idx);
+                let op = logical.operator.as_str();
+
+                let mut templates = Vec::new();
+                if let Some(t) = left_tmpl {
+                    templates.push(t);
+                }
+                if let Some(t) = right_tmpl {
+                    templates.push(t);
+                }
+
+                let result_expr = format!("{} {} {}", left_expr, op, right_expr);
+                let result_tmpl = templates.into_iter().next();
+                (result_expr, result_tmpl)
+            }
+            Expression::ConditionalExpression(cond) => {
+                let (cons_expr, cons_tmpl) = self.extract_jsx_from_expression(&cond.consequent, child_idx);
+                let (alt_expr, alt_tmpl) = self.extract_jsx_from_expression(&cond.alternate, child_idx);
+
+                let mut templates = Vec::new();
+                if let Some(t) = cons_tmpl {
+                    templates.push(t);
+                }
+                if let Some(t) = alt_tmpl {
+                    templates.push(t);
+                }
+
+                let test_source = self.expression_to_source(&cond.test);
+                let result_expr = format!("{} ? {} : {}", test_source, cons_expr, alt_expr);
+                let result_tmpl = templates.into_iter().next();
+                (result_expr, result_tmpl)
+            }
+            _ => {
+                (self.expression_to_source(expr), None)
             }
         }
     }

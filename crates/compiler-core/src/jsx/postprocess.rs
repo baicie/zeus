@@ -5,11 +5,11 @@
 use std::cell::Cell;
 
 use oxc_syntax::node::NodeId;
-use crate::jsx::ir::{Renderer, TemplateDecl};
-use crate::jsx::state::JsxCompilerState;
 use oxc_allocator::{Allocator, Box, CloneIn, FromIn, Vec};
 use oxc_ast::ast::*;
-use oxc_span::{Ident, Str};
+use oxc_span::{Atom, Ident, Str};
+use crate::jsx::ir::{Renderer, TemplateDecl};
+use crate::jsx::state::JsxCompilerState;
 
 /// 执行后处理
 #[allow(dead_code)]
@@ -151,8 +151,8 @@ pub fn generate_template_declarations<'a>(
 
 /// 生成模板字面量
 fn template_literal<'a>(html: &str, allocator: &'a Allocator) -> Expression<'a> {
-    let cooked = html.to_string();
-    let raw = html.to_string();
+    let cooked = Atom::from_in(html, allocator);
+    let raw = Atom::from_in(html, allocator);
 
     Expression::TemplateLiteral(TemplateLiteral {
         node_id: Cell::new(NodeId::DUMMY),

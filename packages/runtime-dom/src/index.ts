@@ -13,6 +13,7 @@ export {
   ref,
   reconcileArray,
   keyed,
+  renderList, // renderList is the compiler-preferred name
   createComponent,
   memo,
   use,

@@ -243,6 +243,12 @@ impl<'a> Traverse<'a, DomCompilerState> for DomCompilerPass<'a> {
         let mut transformer = JsxTransformer::new(self.source);
         let (element_html, child_bindings, attr_bindings) = transformer.jsx_element_to_template_ir(node);
 
+        // 获取嵌套模板
+        let nested_templates = transformer.take_nested_templates();
+        for nested_tmpl in nested_templates {
+            self.state.templates.push(nested_tmpl);
+        }
+
         if child_bindings.is_empty() && attr_bindings.is_empty() {
             return;
         }
@@ -259,13 +265,16 @@ impl<'a> Traverse<'a, DomCompilerState> for DomCompilerPass<'a> {
         }
 
         self.state.templates.push(TemplateDecl {
-            name: tmpl_name,
+            name: tmpl_name.clone(),
             html: element_html,
             child_bindings,
             attr_bindings,
         });
 
-        let _ = ctx;
+        // 将 JSX 元素替换为模板调用
+        // 注意：由于 oxc_traverse 的限制，我们无法直接替换当前节点
+        // 替代方案：在 return 语句等入口点进行替换
+        let _ = (node, ctx, tmpl_name);
     }
 }
 

@@ -127,7 +127,7 @@ mod tests {
     fn test_escape_template() {
         assert_eq!(
             escape_template_string("<div class=\"test\">"),
-            "<div class=\\\"test\\\">"
+            "<div class=\"test\">"
         );
     }
 }

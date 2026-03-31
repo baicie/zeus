@@ -23,9 +23,9 @@ pub mod hydration;
 // Re-exports
 pub use compiler::{DomCompilerPass, DomCompilerState};
 pub use element::DomElementTransformer;
-pub use attributes::{AttributeHandler, generate_attr_code, is_dynamic_value, expr_to_code};
-pub use events::{EventHandler, can_delegate_event, is_event_attribute, extract_event_name, is_forced_direct};
-pub use children::{ChildrenHandler, ChildrenResult, DynamicChildResult};
+pub use attributes::AttributeHandler;
+pub use events::EventHandler;
+pub use children::ChildrenHandler;
 pub use template::TemplateGenerator;
 pub use codegen::DomCodegen;
 pub use hydration::HydrationGenerator;

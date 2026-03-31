@@ -7,8 +7,8 @@ use std::cell::Cell;
 use oxc_allocator::{Allocator, CloneIn, Vec};
 use oxc_ast::ast::*;
 use oxc_ast::AstBuilder;
-use oxc_span::{GetSpan, SPAN};
 use oxc_syntax::node::NodeId;
+use oxc_span::SPAN;
 use crate::jsx::ir::ComponentResult;
 use crate::jsx::utils::{is_dynamic_expression, CheckConfig};
 
@@ -44,7 +44,7 @@ impl<'a, 'ctx> ComponentTransformer<'a, 'ctx> {
         IdentifierName { name: self.builder.ident(name), span: SPAN, node_id: Cell::new(NodeId::DUMMY) }
     }
 
-    /// 创建 BindingIdentifier 并包装为 BindingPattern
+    /// 创建 BindingPattern
     fn binding_pat(&self, name: &str) -> BindingPattern<'a> {
         BindingPattern::BindingIdentifier(self.builder.alloc(BindingIdentifier {
             name: self.builder.ident(name),
@@ -116,15 +116,14 @@ impl<'a, 'ctx> ComponentTransformer<'a, 'ctx> {
     }
 
     /// 转换组件 JSXElement
-    pub fn transform_component(&mut self, node: &mut JSXElement<'a>) -> ComponentResult<'a> {
-        let config = &self.state.config;
-
+    pub fn transform_component(&mut self, node: &JSXElement<'a>) -> ComponentResult<'a> {
         // 1. 获取组件标识符
         let tag_id = self.convert_component_identifier(&node.opening_element.name);
 
         // 2. 检查内置组件
         if let Expression::Identifier(ident) = &tag_id {
             let name = ident.name.as_str();
+            let config = &self.state.config;
             if config.built_ins.iter().any(|b| b.as_str() == name) {
                 return self.transform_builtin_component(ident, node);
             }
@@ -144,26 +143,24 @@ impl<'a, 'ctx> ComponentTransformer<'a, 'ctx> {
         }
 
         // 6. 生成 createComponent 调用
-        self.call(
-            self.ident_ref("createComponent"),
-            self.builder.vec_from_iter([tag_id.into(), final_props.into()]),
-        );
-
-        ComponentResult::new(self.call(
-            self.ident_ref("createComponent"),
-            self.builder.vec_from_iter([tag_id.into(), final_props.into()]),
-        ), has_dynamic)
+        ComponentResult::new(
+            self.call(
+                self.ident_ref("createComponent"),
+                self.builder.vec_from_iter([tag_id.into(), final_props.into()]),
+            ),
+            has_dynamic,
+        )
     }
 
     /// 转换内置组件
-    fn transform_builtin_component(&mut self, ident: &IdentifierReference, node: &mut JSXElement<'a>) -> ComponentResult<'a> {
+    fn transform_builtin_component(&mut self, ident: &IdentifierReference<'a>, node: &JSXElement<'a>) -> ComponentResult<'a> {
         let name = ident.name.as_str();
 
         match name {
             "Show" => self.transform_show(node),
             "For" => self.transform_for(node),
             "Index" => self.transform_index(node),
-            "Switch" | "Match" => self.transform_match(node, name == "Switch"),
+            "Switch" | "Match" => self.transform_match(node),
             "Portal" => self.transform_portal(node),
             _ => {
                 ComponentResult::new(
@@ -180,7 +177,7 @@ impl<'a, 'ctx> ComponentTransformer<'a, 'ctx> {
     }
 
     /// 转换 Show 组件
-    fn transform_show(&mut self, node: &mut JSXElement<'a>) -> ComponentResult<'a> {
+    fn transform_show(&mut self, node: &JSXElement<'a>) -> ComponentResult<'a> {
         ComponentResult::new(
             Expression::JSXElement(self.builder.alloc(node.clone_in(self.allocator))),
             true,
@@ -188,7 +185,7 @@ impl<'a, 'ctx> ComponentTransformer<'a, 'ctx> {
     }
 
     /// 转换 For 组件
-    fn transform_for(&mut self, node: &mut JSXElement<'a>) -> ComponentResult<'a> {
+    fn transform_for(&mut self, node: &JSXElement<'a>) -> ComponentResult<'a> {
         ComponentResult::new(
             Expression::JSXElement(self.builder.alloc(node.clone_in(self.allocator))),
             true,
@@ -196,7 +193,7 @@ impl<'a, 'ctx> ComponentTransformer<'a, 'ctx> {
     }
 
     /// 转换 Index 组件
-    fn transform_index(&mut self, node: &mut JSXElement<'a>) -> ComponentResult<'a> {
+    fn transform_index(&mut self, node: &JSXElement<'a>) -> ComponentResult<'a> {
         ComponentResult::new(
             Expression::JSXElement(self.builder.alloc(node.clone_in(self.allocator))),
             true,
@@ -204,7 +201,7 @@ impl<'a, 'ctx> ComponentTransformer<'a, 'ctx> {
     }
 
     /// 转换 Switch/Match 组件
-    fn transform_match(&mut self, node: &mut JSXElement<'a>, _is_switch: bool) -> ComponentResult<'a> {
+    fn transform_match(&mut self, node: &JSXElement<'a>) -> ComponentResult<'a> {
         ComponentResult::new(
             Expression::JSXElement(self.builder.alloc(node.clone_in(self.allocator))),
             true,
@@ -212,7 +209,7 @@ impl<'a, 'ctx> ComponentTransformer<'a, 'ctx> {
     }
 
     /// 转换 Portal 组件
-    fn transform_portal(&mut self, node: &mut JSXElement<'a>) -> ComponentResult<'a> {
+    fn transform_portal(&mut self, node: &JSXElement<'a>) -> ComponentResult<'a> {
         self.state.register_helper("Portal".to_string(), None);
         ComponentResult::new(
             Expression::JSXElement(self.builder.alloc(node.clone_in(self.allocator))),
@@ -221,7 +218,7 @@ impl<'a, 'ctx> ComponentTransformer<'a, 'ctx> {
     }
 
     /// 转换组件的 props
-    fn transform_component_props(&mut self, node: &mut JSXElement<'a>) -> (Expression<'a>, bool) {
+    fn transform_component_props(&self, node: &JSXElement<'a>) -> (Expression<'a>, bool) {
         let mut properties: Vec<'a, ObjectPropertyKind<'a>> = self.builder.vec();
         let mut spread_args: Vec<'a, Expression<'a>> = self.builder.vec();
         let mut has_dynamic = false;
@@ -248,7 +245,7 @@ impl<'a, 'ctx> ComponentTransformer<'a, 'ctx> {
     }
 
     /// 转换单个 prop 属性
-    fn transform_prop_attr(&mut self, attr: &JSXAttribute<'a>) -> (String, Expression<'a>, bool) {
+    fn transform_prop_attr(&self, attr: &JSXAttribute<'a>) -> (String, Expression<'a>, bool) {
         let key = attr.name.as_identifier().unwrap().name.as_str().to_string();
         let value_opt = attr.value.as_ref();
 
@@ -266,12 +263,12 @@ impl<'a, 'ctx> ComponentTransformer<'a, 'ctx> {
     }
 
     /// 转换 Spread 表达式
-    fn transform_spread_expression(&mut self, spread: &JSXSpreadAttribute<'a>) -> Expression<'a> {
+    fn transform_spread_expression(&self, spread: &JSXSpreadAttribute<'a>) -> Expression<'a> {
         spread.argument.clone_in(self.allocator)
     }
 
     /// 合并 spread 参数
-    fn merge_spread_args(&mut self, spread_args: Vec<'a, Expression<'a>>) -> Expression<'a> {
+    fn merge_spread_args(&self, spread_args: Vec<'a, Expression<'a>>) -> Expression<'a> {
         let merge_call = self.call(
             self.ident_ref("mergeProps"),
             self.builder.vec_from_iter(spread_args.into_iter().map(|e| e.into())),
@@ -294,15 +291,14 @@ impl<'a, 'ctx> ComponentTransformer<'a, 'ctx> {
     }
 
     /// 转换组件的 children
-    fn transform_component_children(&mut self, node: &mut JSXElement<'a>) -> Option<Expression<'a>> {
+    fn transform_component_children(&self, node: &JSXElement<'a>) -> Option<Expression<'a>> {
         if node.children.is_empty() {
             return None;
         }
 
         if node.children.len() == 1 {
             if let JSXChild::Element(elem) = &node.children[0] {
-                // ArrayExpressionElement::JSXElement 需要直接的 JSXElement，不是 Box
-                return Some(Expression::JSXElement(self.builder.alloc(elem.clone_in(self.allocator))));
+                return Some(Expression::JSXElement(elem.clone_in(self.allocator)));
             }
         }
 
@@ -311,56 +307,14 @@ impl<'a, 'ctx> ComponentTransformer<'a, 'ctx> {
         for child in &node.children {
             match child {
                 JSXChild::Element(elem) => {
-                    // ArrayExpressionElement::JSXElement 需要直接的 JSXElement
-                    let cloned_elem = elem.clone_in(self.allocator);
-                    elements.push(ArrayExpressionElement::JSXElement(cloned_elem));
+                    elements.push(ArrayExpressionElement::JSXElement(elem.clone_in(self.allocator)));
                 }
                 JSXChild::ExpressionContainer(expr_container) => {
                     if !matches!(expr_container.expression, JSXExpression::EmptyExpression(_)) {
                         if let Some(expr) = expr_container.expression.as_expression() {
                             let cloned_expr = expr.clone_in(self.allocator);
-                            // 直接将 Expression 转换为 ArrayExpressionElement
-                            // 需要匹配 Expression 的每个变体
-                            match cloned_expr {
-                                Expression::Identifier(id) => elements.push(ArrayExpressionElement::Identifier(id)),
-                                Expression::StringLiteral(s) => elements.push(ArrayExpressionElement::StringLiteral(s)),
-                                Expression::NumericLiteral(n) => elements.push(ArrayExpressionElement::NumericLiteral(n)),
-                                Expression::BooleanLiteral(b) => elements.push(ArrayExpressionElement::BooleanLiteral(b)),
-                                Expression::NullLiteral(n) => elements.push(ArrayExpressionElement::NullLiteral(n)),
-                                Expression::JSXElement(e) => elements.push(ArrayExpressionElement::JSXElement(e)),
-                                Expression::JSXFragment(f) => elements.push(ArrayExpressionElement::JSXFragment(f)),
-                                Expression::TemplateLiteral(t) => elements.push(ArrayExpressionElement::TemplateLiteral(t)),
-                                Expression::ArrayExpression(a) => elements.push(ArrayExpressionElement::ArrayExpression(a)),
-                                Expression::ObjectExpression(o) => elements.push(ArrayExpressionElement::ObjectExpression(o)),
-                                Expression::ArrowFunctionExpression(a) => elements.push(ArrayExpressionElement::ArrowFunctionExpression(a)),
-                                Expression::FunctionExpression(f) => elements.push(ArrayExpressionElement::FunctionExpression(f)),
-                                Expression::BinaryExpression(b) => elements.push(ArrayExpressionElement::BinaryExpression(b)),
-                                Expression::LogicalExpression(l) => elements.push(ArrayExpressionElement::LogicalExpression(l)),
-                                Expression::ConditionalExpression(c) => elements.push(ArrayExpressionElement::ConditionalExpression(c)),
-                                Expression::CallExpression(c) => elements.push(ArrayExpressionElement::CallExpression(c)),
-                                Expression::MemberExpression(m) => elements.push(ArrayExpressionElement::MemberExpression(m)),
-                                Expression::SequenceExpression(s) => elements.push(ArrayExpressionElement::SequenceExpression(s)),
-                                Expression::UnaryExpression(u) => elements.push(ArrayExpressionElement::UnaryExpression(u)),
-                                Expression::UpdateExpression(u) => elements.push(ArrayExpressionElement::UpdateExpression(u)),
-                                Expression::AssignmentExpression(a) => elements.push(ArrayExpressionElement::AssignmentExpression(a)),
-                                Expression::TaggedTemplateExpression(t) => elements.push(ArrayExpressionElement::TaggedTemplateExpression(t)),
-                                Expression::YieldExpression(y) => elements.push(ArrayExpressionElement::YieldExpression(y)),
-                                Expression::AwaitExpression(a) => elements.push(ArrayExpressionElement::AwaitExpression(a)),
-                                Expression::NewExpression(n) => elements.push(ArrayExpressionElement::NewExpression(n)),
-                                Expression::ThisExpression(t) => elements.push(ArrayExpressionElement::ThisExpression(t)),
-                                Expression::Super(s) => elements.push(ArrayExpressionElement::Super(s)),
-                                Expression::RegExpLiteral(r) => elements.push(ArrayExpressionElement::RegExpLiteral(r)),
-                                Expression::BigIntLiteral(b) => elements.push(ArrayExpressionElement::BigIntLiteral(b)),
-                                Expression::ClassExpression(c) => elements.push(ArrayExpressionElement::ClassExpression(c)),
-                                Expression::ImportExpression(i) => elements.push(ArrayExpressionElement::ImportExpression(i)),
-                                Expression::ChainExpression(c) => elements.push(ArrayExpressionElement::ChainExpression(c)),
-                                Expression::PrivateInExpression(p) => elements.push(ArrayExpressionElement::PrivateInExpression(p)),
-                                Expression::MetaProperty(m) => elements.push(ArrayExpressionElement::MetaProperty(m)),
-                                Expression::ParenthesizedExpression(p) => elements.push(ArrayExpressionElement::ParenthesizedExpression(p)),
-                                Expression::ComputedMemberExpression(m) => elements.push(ArrayExpressionElement::ComputedMemberExpression(m)),
-                                Expression::StaticMemberExpression(m) => elements.push(ArrayExpressionElement::StaticMemberExpression(m)),
-                                Expression::PrivateFieldExpression(p) => elements.push(ArrayExpressionElement::PrivateFieldExpression(p)),
-                                _ => {}
+                            if let Some(elem) = self.expression_to_array_element(cloned_expr) {
+                                elements.push(elem);
                             }
                         }
                     }
@@ -378,27 +332,83 @@ impl<'a, 'ctx> ComponentTransformer<'a, 'ctx> {
             }
         }
 
-        if elements.len() == 1 {
-            let elem = elements.into_iter().next().unwrap();
-            // 从 ArrayExpressionElement 反向转换为 Expression
-            match elem {
-                ArrayExpressionElement::Identifier(id) => Some(Expression::Identifier(id)),
-                ArrayExpressionElement::StringLiteral(s) => Some(Expression::StringLiteral(s)),
-                ArrayExpressionElement::NumericLiteral(n) => Some(Expression::NumericLiteral(n)),
-                ArrayExpressionElement::BooleanLiteral(b) => Some(Expression::BooleanLiteral(b)),
-                ArrayExpressionElement::NullLiteral(n) => Some(Expression::NullLiteral(n)),
-                ArrayExpressionElement::JSXElement(e) => Some(Expression::JSXElement(e)),
-                ArrayExpressionElement::JSXFragment(f) => Some(Expression::JSXFragment(f)),
-                ArrayExpressionElement::TemplateLiteral(t) => Some(Expression::TemplateLiteral(t)),
-                ArrayExpressionElement::ArrayExpression(a) => Some(Expression::ArrayExpression(a)),
-                ArrayExpressionElement::ObjectExpression(o) => Some(Expression::ObjectExpression(o)),
-                ArrayExpressionElement::ArrowFunctionExpression(a) => Some(Expression::ArrowFunctionExpression(a)),
-                ArrayExpressionElement::FunctionExpression(f) => Some(Expression::FunctionExpression(f)),
-                ArrayExpressionElement::BinaryExpression(b) => Some(Expression::BinaryExpression(b)),
-                ArrayExpressionElement::LogicalExpression(l) => Some(Expression::LogicalExpression(l)),
-                ArrayExpressionElement::ConditionalExpression(c) => Some(Expression::ConditionalExpression(c)),
-                ArrayExpressionElement::CallExpression(c) => Some(Expression::CallExpression(c)),
-                ArrayExpressionElement::MemberExpression(m) => Some(Expression::MemberExpression(m)),
+        if elements.is_empty() {
+            None
+        } else if elements.len() == 1 {
+            self.array_element_to_expression(elements.into_iter().next().unwrap())
+        } else {
+            Some(Expression::ArrayExpression(self.builder.alloc(ArrayExpression {
+                elements,
+                span: SPAN,
+                node_id: Cell::new(NodeId::DUMMY),
+            })))
+        }
+    }
+
+    /// 将 Expression 转换为 ArrayExpressionElement
+    fn expression_to_array_element(&self, expr: Expression<'a>) -> Option<ArrayExpressionElement<'a>> {
+        match expr {
+            Expression::Identifier(id) => Some(ArrayExpressionElement::Identifier(id)),
+            Expression::StringLiteral(s) => Some(ArrayExpressionElement::StringLiteral(s)),
+            Expression::NumericLiteral(n) => Some(ArrayExpressionElement::NumericLiteral(n)),
+            Expression::BooleanLiteral(b) => Some(ArrayExpressionElement::BooleanLiteral(b)),
+            Expression::NullLiteral(n) => Some(ArrayExpressionElement::NullLiteral(n)),
+            Expression::JSXElement(e) => Some(ArrayExpressionElement::JSXElement(e)),
+            Expression::JSXFragment(f) => Some(ArrayExpressionElement::JSXFragment(f)),
+            Expression::TemplateLiteral(t) => Some(ArrayExpressionElement::TemplateLiteral(t)),
+            Expression::ArrayExpression(a) => Some(ArrayExpressionElement::ArrayExpression(a)),
+            Expression::ObjectExpression(o) => Some(ArrayExpressionElement::ObjectExpression(o)),
+            Expression::ArrowFunctionExpression(a) => Some(ArrayExpressionElement::ArrowFunctionExpression(a)),
+            Expression::FunctionExpression(f) => Some(ArrayExpressionElement::FunctionExpression(f)),
+            Expression::BinaryExpression(b) => Some(ArrayExpressionElement::BinaryExpression(b)),
+            Expression::LogicalExpression(l) => Some(ArrayExpressionElement::LogicalExpression(l)),
+            Expression::ConditionalExpression(c) => Some(ArrayExpressionElement::ConditionalExpression(c)),
+            Expression::CallExpression(c) => Some(ArrayExpressionElement::CallExpression(c)),
+            Expression::StaticMemberExpression(m) => Some(ArrayExpressionElement::StaticMemberExpression(m)),
+            Expression::SequenceExpression(s) => Some(ArrayExpressionElement::SequenceExpression(s)),
+            Expression::UnaryExpression(u) => Some(ArrayExpressionElement::UnaryExpression(u)),
+            Expression::UpdateExpression(u) => Some(ArrayExpressionElement::UpdateExpression(u)),
+            Expression::AssignmentExpression(a) => Some(ArrayExpressionElement::AssignmentExpression(a)),
+            Expression::TaggedTemplateExpression(t) => Some(ArrayExpressionElement::TaggedTemplateExpression(t)),
+            Expression::YieldExpression(y) => Some(ArrayExpressionElement::YieldExpression(y)),
+            Expression::AwaitExpression(a) => Some(ArrayExpressionElement::AwaitExpression(a)),
+            Expression::NewExpression(n) => Some(ArrayExpressionElement::NewExpression(n)),
+            Expression::ThisExpression(t) => Some(ArrayExpressionElement::ThisExpression(t)),
+            Expression::Super(s) => Some(ArrayExpressionElement::Super(s)),
+            Expression::RegExpLiteral(r) => Some(ArrayExpressionElement::RegExpLiteral(r)),
+            Expression::BigIntLiteral(b) => Some(ArrayExpressionElement::BigIntLiteral(b)),
+            Expression::ClassExpression(c) => Some(ArrayExpressionElement::ClassExpression(c)),
+            Expression::ImportExpression(i) => Some(ArrayExpressionElement::ImportExpression(i)),
+            Expression::ChainExpression(c) => Some(ArrayExpressionElement::ChainExpression(c)),
+            Expression::PrivateInExpression(p) => Some(ArrayExpressionElement::PrivateInExpression(p)),
+            Expression::MetaProperty(m) => Some(ArrayExpressionElement::MetaProperty(m)),
+            Expression::ParenthesizedExpression(p) => Some(ArrayExpressionElement::ParenthesizedExpression(p)),
+            Expression::ComputedMemberExpression(m) => Some(ArrayExpressionElement::ComputedMemberExpression(m)),
+            Expression::PrivateFieldExpression(p) => Some(ArrayExpressionElement::PrivateFieldExpression(p)),
+            _ => None,
+        }
+    }
+
+    /// 将 ArrayExpressionElement 转换回 Expression
+    fn array_element_to_expression(&self, elem: ArrayExpressionElement<'a>) -> Option<Expression<'a>> {
+        match elem {
+            ArrayExpressionElement::Identifier(id) => Some(Expression::Identifier(id)),
+            ArrayExpressionElement::StringLiteral(s) => Some(Expression::StringLiteral(s)),
+            ArrayExpressionElement::NumericLiteral(n) => Some(Expression::NumericLiteral(n)),
+            ArrayExpressionElement::BooleanLiteral(b) => Some(Expression::BooleanLiteral(b)),
+            ArrayExpressionElement::NullLiteral(n) => Some(Expression::NullLiteral(n)),
+            ArrayExpressionElement::JSXElement(e) => Some(Expression::JSXElement(e)),
+            ArrayExpressionElement::JSXFragment(f) => Some(Expression::JSXFragment(f)),
+            ArrayExpressionElement::TemplateLiteral(t) => Some(Expression::TemplateLiteral(t)),
+            ArrayExpressionElement::ArrayExpression(a) => Some(Expression::ArrayExpression(a)),
+            ArrayExpressionElement::ObjectExpression(o) => Some(Expression::ObjectExpression(o)),
+            ArrayExpressionElement::ArrowFunctionExpression(a) => Some(Expression::ArrowFunctionExpression(a)),
+            ArrayExpressionElement::FunctionExpression(f) => Some(Expression::FunctionExpression(f)),
+            ArrayExpressionElement::BinaryExpression(b) => Some(Expression::BinaryExpression(b)),
+            ArrayExpressionElement::LogicalExpression(l) => Some(Expression::LogicalExpression(l)),
+            ArrayExpressionElement::ConditionalExpression(c) => Some(Expression::ConditionalExpression(c)),
+            ArrayExpressionElement::CallExpression(c) => Some(Expression::CallExpression(c)),
+            ArrayExpressionElement::StaticMemberExpression(m) => Some(Expression::StaticMemberExpression(m)),
             ArrayExpressionElement::SequenceExpression(s) => Some(Expression::SequenceExpression(s)),
             ArrayExpressionElement::UnaryExpression(u) => Some(Expression::UnaryExpression(u)),
             ArrayExpressionElement::UpdateExpression(u) => Some(Expression::UpdateExpression(u)),
@@ -418,27 +428,24 @@ impl<'a, 'ctx> ComponentTransformer<'a, 'ctx> {
             ArrayExpressionElement::MetaProperty(m) => Some(Expression::MetaProperty(m)),
             ArrayExpressionElement::ParenthesizedExpression(p) => Some(Expression::ParenthesizedExpression(p)),
             ArrayExpressionElement::ComputedMemberExpression(m) => Some(Expression::ComputedMemberExpression(m)),
-            ArrayExpressionElement::StaticMemberExpression(m) => Some(Expression::StaticMemberExpression(m)),
             ArrayExpressionElement::PrivateFieldExpression(p) => Some(Expression::PrivateFieldExpression(p)),
-            _ => None
-            }
-        } else {
-            Some(Expression::ArrayExpression(self.builder.alloc(ArrayExpression {
-                elements,
-                span: SPAN,
-                node_id: Cell::new(NodeId::DUMMY),
-            })))
+            ArrayExpressionElement::SpreadElement(_) | ArrayExpressionElement::Elision(_) => None,
+            #[allow(unreachable_patterns)]
+            _ => None,
         }
     }
 
     /// 将 children 合并到 props 对象
-    fn merge_children_into_props(&mut self, props: Expression<'a>, children: Option<Expression<'a>>) -> Expression<'a> {
+    fn merge_children_into_props(&self, props: Expression<'a>, children: Option<Expression<'a>>) -> Expression<'a> {
         let Some(children) = children else {
             return props;
         };
 
         if let Expression::ObjectExpression(obj) = props {
-            let mut props_vec = obj.properties.into_vec();
+            let mut props_vec: Vec<'a, ObjectPropertyKind<'a>> = self.builder.vec();
+            for prop in obj.properties.iter() {
+                props_vec.push(prop.clone_in(self.allocator));
+            }
             props_vec.push(ObjectPropertyKind::ObjectProperty(self.builder.alloc(ObjectProperty {
                 key: PropertyKey::StaticIdentifier(self.builder.alloc(self.ident_name("children"))),
                 value: children,
@@ -456,7 +463,7 @@ impl<'a, 'ctx> ComponentTransformer<'a, 'ctx> {
     }
 
     /// 转换组件标识符
-    fn convert_component_identifier(&mut self, name: &JSXElementName<'a>) -> Expression<'a> {
+    fn convert_component_identifier(&self, name: &JSXElementName<'a>) -> Expression<'a> {
         match name {
             JSXElementName::Identifier(id) => Expression::Identifier(self.builder.alloc(IdentifierReference {
                 name: self.builder.ident(id.name.as_str()),
@@ -468,7 +475,7 @@ impl<'a, 'ctx> ComponentTransformer<'a, 'ctx> {
                 self.member_expression_to_expr(member)
             }
             JSXElementName::NamespacedName(ns) => Expression::Identifier(self.builder.alloc(IdentifierReference {
-                name: self.builder.ident(&format!("{}:{}", ns.namespace.name, ns.property.name)),
+                name: self.builder.ident(&format!("{}:{}", ns.namespace.name, ns.name.name)),
                 span: SPAN,
                 node_id: Cell::new(NodeId::DUMMY),
                 reference_id: Default::default(),
@@ -484,7 +491,7 @@ impl<'a, 'ctx> ComponentTransformer<'a, 'ctx> {
     }
 
     /// 将 JSXMemberExpression 转换为表达式
-    fn member_expression_to_expr(&mut self, member: &JSXMemberExpression<'a>) -> Expression<'a> {
+    fn member_expression_to_expr(&self, member: &JSXMemberExpression<'a>) -> Expression<'a> {
         let full_name = self.flatten_jsx_member_name(member);
         Expression::Identifier(self.builder.alloc(IdentifierReference {
             name: self.builder.ident(&full_name),
@@ -496,14 +503,14 @@ impl<'a, 'ctx> ComponentTransformer<'a, 'ctx> {
 
     /// 递归展开 JSXMemberExpression 为字符串
     fn flatten_jsx_member_name(&self, member: &JSXMemberExpression<'a>) -> String {
-        let mut parts: Vec<String> = self.builder.vec();
+        let mut parts: std::vec::Vec<String> = std::vec::Vec::new();
         self.collect_member_parts(member, &mut parts);
         parts.reverse();
         parts.join(".")
     }
 
     /// 收集 MemberExpression 的各个部分
-    fn collect_member_parts(&self, member: &JSXMemberExpression<'a>, parts: &mut Vec<String>) {
+    fn collect_member_parts(&self, member: &JSXMemberExpression<'a>, parts: &mut std::vec::Vec<String>) {
         parts.push(member.property.name.as_str().to_string());
         match &member.object {
             JSXMemberExpressionObject::IdentifierReference(id_ref) => {

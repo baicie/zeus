@@ -140,7 +140,6 @@ impl<'a, 'ctx> JsxTransformer<'a, 'ctx> {
     /// DOM 元素转换
     fn transform_element_dom(&mut self, node: &mut JSXElement<'a>) -> ElementResult<'a> {
         let tag_name = get_jsx_tag_name(&node.opening_element.name);
-        let config = &self.state.config;
 
         let wrap_svg = self.needs_svg_wrapper(&tag_name);
         let is_custom = is_custom_element(&tag_name);
@@ -329,7 +328,7 @@ impl<'a, 'ctx> JsxTransformer<'a, 'ctx> {
     }
 
     /// 处理 Spread 属性
-    fn handle_spread_attributes(&mut self, attributes: &[JSXAttributeItem<'a>], result: &mut ElementResult<'a>) {
+    fn handle_spread_attributes(&mut self, _attributes: &[JSXAttributeItem<'a>], _result: &mut ElementResult<'a>) {
         self.state.register_helper("spread".to_string(), None);
         self.state.register_helper("mergeProps".to_string(), None);
     }
@@ -337,7 +336,7 @@ impl<'a, 'ctx> JsxTransformer<'a, 'ctx> {
     /// 合并多个 class 属性
     fn merge_class_attributes(&self, attributes: &[JSXAttributeItem<'a>]) -> Vec<'a, JSXAttributeItem<'a>> {
         let mut result: Vec<'a, JSXAttributeItem<'a>> = self.builder.vec();
-        let mut class_values: Vec<'a, String> = self.builder.vec();
+        let mut class_values: std::vec::Vec<String> = std::vec::Vec::new();
 
         for attr in attributes {
             if let JSXAttributeItem::Attribute(attr) = attr {

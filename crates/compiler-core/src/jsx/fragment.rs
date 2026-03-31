@@ -2,16 +2,15 @@
 //!
 //! 提供 JSX Fragment 的转换逻辑
 
-use std::cell::Cell;
+use std::vec::Vec;
 
-use oxc_syntax::node::NodeId;
+use oxc_allocator::{Allocator, CloneIn};
+use oxc_ast::ast::*;
+use oxc_ast::AstBuilder;
 use crate::jsx::config::GenerateMode;
 use crate::jsx::ir::{ChildBinding, MarkerKind};
 use crate::jsx::state::JsxCompilerState;
 use crate::jsx::utils::is_useless_child;
-use oxc_allocator::{Allocator, Box, CloneIn, FromIn, Vec};
-use oxc_ast::ast::*;
-use oxc_span::{Ident, Str};
 
 /// JSX Fragment 转换器
 pub struct FragmentTransformer<'a, 'ctx> {
@@ -19,6 +18,8 @@ pub struct FragmentTransformer<'a, 'ctx> {
     pub source: &'a str,
     /// 内存分配器
     pub allocator: &'a Allocator,
+    /// AST 构建器
+    builder: AstBuilder<'a>,
     /// 编译器状态
     pub state: &'ctx mut JsxCompilerState<'a>,
 }
@@ -30,31 +31,19 @@ impl<'a, 'ctx> FragmentTransformer<'a, 'ctx> {
         allocator: &'a Allocator,
         state: &'ctx mut JsxCompilerState<'a>,
     ) -> Self {
-        Self { source, allocator, state }
-    }
-
-    /// 创建 IdentifierReference
-    fn ident_ref(&self, name: &str) -> IdentifierReference<'a> {
-        IdentifierReference {
-            name: Ident::from_in(name, self.allocator),
-            span: Default::default(),
-            node_id: Cell::new(NodeId::DUMMY),
-            reference_id: Default::default(),
-        }
+        Self { source, allocator, builder: AstBuilder::new(allocator), state }
     }
 
     /// 转换 JSXFragment
     pub fn transform_fragment(
         &mut self,
-        node: &mut JSXFragment<'a>,
+        node: &'a JSXFragment<'a>,
     ) -> FragmentResult<'a> {
         let config = &self.state.config;
         let mut result = FragmentResult::new();
 
         // 过滤无用的子节点
-        let filtered: Vec<_> = node
-            .children
-            .iter()
+        let filtered: Vec<&JSXChild<'a>> = node.children.iter()
             .filter(|child| !is_useless_child(child))
             .collect();
 
@@ -102,7 +91,7 @@ impl<'a, 'ctx> FragmentTransformer<'a, 'ctx> {
         // 处理属性
         for attr in &elem.opening_element.attributes {
             if let JSXAttributeItem::Attribute(attr) = attr {
-                let name = attr.name.as_identifier().name.as_str();
+                let name = attr.name.as_identifier().map(|id| id.name.as_str()).unwrap_or("");
                 result.template.push(' ');
                 result.template.push_str(name);
 
@@ -128,13 +117,19 @@ impl<'a, 'ctx> FragmentTransformer<'a, 'ctx> {
                     let placeholder_idx = self.state.next_placeholder_index();
                     result.template.push_str(&MarkerKind::DynamicChildStart.to_html(Some(placeholder_idx)));
 
-                    if !expr_container.expression.is_null_literal() {
-                        result.child_bindings.push(ChildBinding {
-                            index: placeholder_idx,
-                            expression: expr_container.expression.clone_in(self.allocator),
-                            is_text: false,
-                            needs_marker: false,
-                        });
+                    if !matches!(expr_container.expression, JSXExpression::EmptyExpression(_)) {
+                        if let Some(expr) = expr_container.expression.as_expression() {
+                            let check_config = crate::jsx::utils::CheckConfig::default_dom();
+                            let is_dynamic = crate::jsx::utils::is_dynamic_expression(expr, check_config);
+                            if is_dynamic {
+                                result.child_bindings.push(ChildBinding {
+                                    index: placeholder_idx,
+                                    expression: expr.clone_in(self.allocator),
+                                    is_text: false,
+                                    needs_marker: false,
+                                });
+                            }
+                        }
                     }
                 }
                 JSXChild::Element(child_elem) => {
@@ -154,17 +149,18 @@ impl<'a, 'ctx> FragmentTransformer<'a, 'ctx> {
         &mut self,
         expr_container: &JSXExpressionContainer<'a>,
         result: &mut FragmentResult<'a>,
-        index: usize,
+        _index: usize,
         needs_markers: bool,
     ) -> Option<ChildBinding<'a>> {
         let expr = &expr_container.expression;
 
         // 空表达式
-        if expr.is_null_literal() {
+        if matches!(expr, JSXExpression::EmptyExpression(_)) {
             return None;
         }
 
         let check_config = crate::jsx::utils::CheckConfig::default_dom();
+        let expr = expr.as_expression()?;
         let is_dynamic = crate::jsx::utils::is_dynamic_expression(expr, check_config);
 
         if !is_dynamic {
@@ -174,7 +170,9 @@ impl<'a, 'ctx> FragmentTransformer<'a, 'ctx> {
         let placeholder_idx = self.state.next_placeholder_index();
 
         // 添加 marker
-        result.template.push_str(&MarkerKind::DynamicChildStart.to_html(Some(placeholder_idx)));
+        if needs_markers {
+            result.template.push_str(&MarkerKind::DynamicChildStart.to_html(Some(placeholder_idx)));
+        }
 
         // 检测条件表达式并包装
         let config = &self.state.config;
@@ -182,12 +180,14 @@ impl<'a, 'ctx> FragmentTransformer<'a, 'ctx> {
             if matches!(expr, Expression::ConditionalExpression(_))
                 || matches!(expr, Expression::LogicalExpression(_))
             {
-                let wrapped = self.wrap_conditional_expr(expr);
+                // 使用 ConditionWrapper 进行包装
+                let mut wrapper = crate::jsx::condition::ConditionWrapper::new(self.allocator, self.state);
+                let wrapped = wrapper.wrap(expr);
                 return Some(ChildBinding {
                     index: placeholder_idx,
                     expression: wrapped,
                     is_text: false,
-                    needs_marker: true,
+                    needs_marker: needs_markers,
                 });
             }
         }
@@ -196,19 +196,8 @@ impl<'a, 'ctx> FragmentTransformer<'a, 'ctx> {
             index: placeholder_idx,
             expression: expr.clone_in(self.allocator),
             is_text: false,
-            needs_marker: true,
+            needs_marker: needs_markers,
         })
-    }
-
-    /// 包装条件表达式
-    fn wrap_conditional_expr(&mut self, expr: &Expression<'a>) -> Expression<'a> {
-        // 复用 transform 中的逻辑
-        let mut transformer = crate::jsx::transform::JsxTransformer::new(
-            self.source,
-            self.allocator,
-            self.state,
-        );
-        transformer.wrap_conditional_expr(expr)
     }
 
     /// 查找最后一个元素索引
@@ -227,8 +216,8 @@ impl<'a, 'ctx> FragmentTransformer<'a, 'ctx> {
 pub struct FragmentResult<'a> {
     /// 模板 HTML 字符串
     pub template: String,
-    /// 子节点绑定
-    pub child_bindings: Vec<'a, ChildBinding<'a>>,
+    /// 子节点绑定 (使用 oxc_allocator::Vec 来持有 Expression)
+    pub child_bindings: Vec<ChildBinding<'a>>,
     /// 是否为空
     pub is_empty: bool,
 }

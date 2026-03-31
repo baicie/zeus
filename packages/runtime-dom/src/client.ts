@@ -439,6 +439,10 @@ export function keyed<T>(
   }
 }
 
+// Alias for keyed - used by compiler for list rendering
+// This name is more descriptive of its purpose in the compilation pipeline
+export { keyed as renderList }
+
 // =============================================================================
 // setStyleProperty - Set a single CSS property on an element
 // =============================================================================
