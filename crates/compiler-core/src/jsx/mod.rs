@@ -34,5 +34,9 @@ pub use utils::{
     is_dynamic_expression, is_reserved_namespace, is_svg_element,
     is_useless_child, is_void_element, normalize_whitespace,
     parse_namespace, needs_import_node, to_event_name,
+    is_event_attribute, is_forced_direct_event, is_delegatable_event,
+    is_static_value, evaluate_static_expr, extract_jsx_tag_name,
+    is_jsx_component, merge_adjacent_text, text_similarity,
+    contains_this_reference, is_empty_jsx_child, get_text_content,
 };
 pub use preprocess::JsxPreprocessor;

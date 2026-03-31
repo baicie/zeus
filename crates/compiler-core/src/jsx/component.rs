@@ -4,7 +4,7 @@
 
 use std::cell::Cell;
 
-use oxc_allocator::{Allocator, Box, CloneIn, Vec};
+use oxc_allocator::{Allocator, CloneIn, Vec};
 use oxc_ast::ast::*;
 use oxc_ast::AstBuilder;
 use oxc_span::{GetSpan, SPAN};
@@ -182,7 +182,7 @@ impl<'a, 'ctx> ComponentTransformer<'a, 'ctx> {
     /// 转换 Show 组件
     fn transform_show(&mut self, node: &mut JSXElement<'a>) -> ComponentResult<'a> {
         ComponentResult::new(
-            Expression::JSXElement(self.builder.alloc(node.clone())),
+            Expression::JSXElement(self.builder.alloc(node.clone_in(self.allocator))),
             true,
         )
     }
@@ -190,7 +190,7 @@ impl<'a, 'ctx> ComponentTransformer<'a, 'ctx> {
     /// 转换 For 组件
     fn transform_for(&mut self, node: &mut JSXElement<'a>) -> ComponentResult<'a> {
         ComponentResult::new(
-            Expression::JSXElement(self.builder.alloc(node.clone())),
+            Expression::JSXElement(self.builder.alloc(node.clone_in(self.allocator))),
             true,
         )
     }
@@ -198,7 +198,7 @@ impl<'a, 'ctx> ComponentTransformer<'a, 'ctx> {
     /// 转换 Index 组件
     fn transform_index(&mut self, node: &mut JSXElement<'a>) -> ComponentResult<'a> {
         ComponentResult::new(
-            Expression::JSXElement(self.builder.alloc(node.clone())),
+            Expression::JSXElement(self.builder.alloc(node.clone_in(self.allocator))),
             true,
         )
     }
@@ -206,7 +206,7 @@ impl<'a, 'ctx> ComponentTransformer<'a, 'ctx> {
     /// 转换 Switch/Match 组件
     fn transform_match(&mut self, node: &mut JSXElement<'a>, _is_switch: bool) -> ComponentResult<'a> {
         ComponentResult::new(
-            Expression::JSXElement(self.builder.alloc(node.clone())),
+            Expression::JSXElement(self.builder.alloc(node.clone_in(self.allocator))),
             true,
         )
     }
@@ -215,7 +215,7 @@ impl<'a, 'ctx> ComponentTransformer<'a, 'ctx> {
     fn transform_portal(&mut self, node: &mut JSXElement<'a>) -> ComponentResult<'a> {
         self.state.register_helper("Portal".to_string(), None);
         ComponentResult::new(
-            Expression::JSXElement(self.builder.alloc(node.clone())),
+            Expression::JSXElement(self.builder.alloc(node.clone_in(self.allocator))),
             true,
         )
     }
@@ -301,7 +301,8 @@ impl<'a, 'ctx> ComponentTransformer<'a, 'ctx> {
 
         if node.children.len() == 1 {
             if let JSXChild::Element(elem) = &node.children[0] {
-                return Some(Expression::JSXElement(self.builder.alloc(elem.clone())));
+                // ArrayExpressionElement::JSXElement 需要直接的 JSXElement，不是 Box
+                return Some(Expression::JSXElement(self.builder.alloc(elem.clone_in(self.allocator))));
             }
         }
 
@@ -310,29 +311,117 @@ impl<'a, 'ctx> ComponentTransformer<'a, 'ctx> {
         for child in &node.children {
             match child {
                 JSXChild::Element(elem) => {
-                    elements.push(ArrayExpressionElement::Expression(
-                        Expression::JSXElement(self.builder.alloc(elem.clone()))
-                    ));
+                    // ArrayExpressionElement::JSXElement 需要直接的 JSXElement
+                    let cloned_elem = elem.clone_in(self.allocator);
+                    elements.push(ArrayExpressionElement::JSXElement(cloned_elem));
                 }
                 JSXChild::ExpressionContainer(expr_container) => {
                     if !matches!(expr_container.expression, JSXExpression::EmptyExpression(_)) {
                         if let Some(expr) = expr_container.expression.as_expression() {
-                            elements.push(ArrayExpressionElement::Expression(expr.clone_in(self.allocator)));
+                            let cloned_expr = expr.clone_in(self.allocator);
+                            // 直接将 Expression 转换为 ArrayExpressionElement
+                            // 需要匹配 Expression 的每个变体
+                            match cloned_expr {
+                                Expression::Identifier(id) => elements.push(ArrayExpressionElement::Identifier(id)),
+                                Expression::StringLiteral(s) => elements.push(ArrayExpressionElement::StringLiteral(s)),
+                                Expression::NumericLiteral(n) => elements.push(ArrayExpressionElement::NumericLiteral(n)),
+                                Expression::BooleanLiteral(b) => elements.push(ArrayExpressionElement::BooleanLiteral(b)),
+                                Expression::NullLiteral(n) => elements.push(ArrayExpressionElement::NullLiteral(n)),
+                                Expression::JSXElement(e) => elements.push(ArrayExpressionElement::JSXElement(e)),
+                                Expression::JSXFragment(f) => elements.push(ArrayExpressionElement::JSXFragment(f)),
+                                Expression::TemplateLiteral(t) => elements.push(ArrayExpressionElement::TemplateLiteral(t)),
+                                Expression::ArrayExpression(a) => elements.push(ArrayExpressionElement::ArrayExpression(a)),
+                                Expression::ObjectExpression(o) => elements.push(ArrayExpressionElement::ObjectExpression(o)),
+                                Expression::ArrowFunctionExpression(a) => elements.push(ArrayExpressionElement::ArrowFunctionExpression(a)),
+                                Expression::FunctionExpression(f) => elements.push(ArrayExpressionElement::FunctionExpression(f)),
+                                Expression::BinaryExpression(b) => elements.push(ArrayExpressionElement::BinaryExpression(b)),
+                                Expression::LogicalExpression(l) => elements.push(ArrayExpressionElement::LogicalExpression(l)),
+                                Expression::ConditionalExpression(c) => elements.push(ArrayExpressionElement::ConditionalExpression(c)),
+                                Expression::CallExpression(c) => elements.push(ArrayExpressionElement::CallExpression(c)),
+                                Expression::MemberExpression(m) => elements.push(ArrayExpressionElement::MemberExpression(m)),
+                                Expression::SequenceExpression(s) => elements.push(ArrayExpressionElement::SequenceExpression(s)),
+                                Expression::UnaryExpression(u) => elements.push(ArrayExpressionElement::UnaryExpression(u)),
+                                Expression::UpdateExpression(u) => elements.push(ArrayExpressionElement::UpdateExpression(u)),
+                                Expression::AssignmentExpression(a) => elements.push(ArrayExpressionElement::AssignmentExpression(a)),
+                                Expression::TaggedTemplateExpression(t) => elements.push(ArrayExpressionElement::TaggedTemplateExpression(t)),
+                                Expression::YieldExpression(y) => elements.push(ArrayExpressionElement::YieldExpression(y)),
+                                Expression::AwaitExpression(a) => elements.push(ArrayExpressionElement::AwaitExpression(a)),
+                                Expression::NewExpression(n) => elements.push(ArrayExpressionElement::NewExpression(n)),
+                                Expression::ThisExpression(t) => elements.push(ArrayExpressionElement::ThisExpression(t)),
+                                Expression::Super(s) => elements.push(ArrayExpressionElement::Super(s)),
+                                Expression::RegExpLiteral(r) => elements.push(ArrayExpressionElement::RegExpLiteral(r)),
+                                Expression::BigIntLiteral(b) => elements.push(ArrayExpressionElement::BigIntLiteral(b)),
+                                Expression::ClassExpression(c) => elements.push(ArrayExpressionElement::ClassExpression(c)),
+                                Expression::ImportExpression(i) => elements.push(ArrayExpressionElement::ImportExpression(i)),
+                                Expression::ChainExpression(c) => elements.push(ArrayExpressionElement::ChainExpression(c)),
+                                Expression::PrivateInExpression(p) => elements.push(ArrayExpressionElement::PrivateInExpression(p)),
+                                Expression::MetaProperty(m) => elements.push(ArrayExpressionElement::MetaProperty(m)),
+                                Expression::ParenthesizedExpression(p) => elements.push(ArrayExpressionElement::ParenthesizedExpression(p)),
+                                Expression::ComputedMemberExpression(m) => elements.push(ArrayExpressionElement::ComputedMemberExpression(m)),
+                                Expression::StaticMemberExpression(m) => elements.push(ArrayExpressionElement::StaticMemberExpression(m)),
+                                Expression::PrivateFieldExpression(p) => elements.push(ArrayExpressionElement::PrivateFieldExpression(p)),
+                                _ => {}
+                            }
                         }
                     }
                 }
                 JSXChild::Text(text) => {
-                    elements.push(ArrayExpressionElement::Expression(self.str_lit(text.value.as_str())));
+                    elements.push(ArrayExpressionElement::StringLiteral(self.builder.alloc(StringLiteral {
+                        value: self.builder.str(text.value.as_str()),
+                        span: SPAN,
+                        node_id: Cell::new(NodeId::DUMMY),
+                        raw: Default::default(),
+                        lone_surrogates: Default::default(),
+                    })));
                 }
                 _ => {}
             }
         }
 
         if elements.len() == 1 {
-            let ArrayExpressionElement::Expression(expr) = elements.into_iter().next().unwrap() else {
-                return None;
-            };
-            Some(expr)
+            let elem = elements.into_iter().next().unwrap();
+            // 从 ArrayExpressionElement 反向转换为 Expression
+            match elem {
+                ArrayExpressionElement::Identifier(id) => Some(Expression::Identifier(id)),
+                ArrayExpressionElement::StringLiteral(s) => Some(Expression::StringLiteral(s)),
+                ArrayExpressionElement::NumericLiteral(n) => Some(Expression::NumericLiteral(n)),
+                ArrayExpressionElement::BooleanLiteral(b) => Some(Expression::BooleanLiteral(b)),
+                ArrayExpressionElement::NullLiteral(n) => Some(Expression::NullLiteral(n)),
+                ArrayExpressionElement::JSXElement(e) => Some(Expression::JSXElement(e)),
+                ArrayExpressionElement::JSXFragment(f) => Some(Expression::JSXFragment(f)),
+                ArrayExpressionElement::TemplateLiteral(t) => Some(Expression::TemplateLiteral(t)),
+                ArrayExpressionElement::ArrayExpression(a) => Some(Expression::ArrayExpression(a)),
+                ArrayExpressionElement::ObjectExpression(o) => Some(Expression::ObjectExpression(o)),
+                ArrayExpressionElement::ArrowFunctionExpression(a) => Some(Expression::ArrowFunctionExpression(a)),
+                ArrayExpressionElement::FunctionExpression(f) => Some(Expression::FunctionExpression(f)),
+                ArrayExpressionElement::BinaryExpression(b) => Some(Expression::BinaryExpression(b)),
+                ArrayExpressionElement::LogicalExpression(l) => Some(Expression::LogicalExpression(l)),
+                ArrayExpressionElement::ConditionalExpression(c) => Some(Expression::ConditionalExpression(c)),
+                ArrayExpressionElement::CallExpression(c) => Some(Expression::CallExpression(c)),
+                ArrayExpressionElement::MemberExpression(m) => Some(Expression::MemberExpression(m)),
+            ArrayExpressionElement::SequenceExpression(s) => Some(Expression::SequenceExpression(s)),
+            ArrayExpressionElement::UnaryExpression(u) => Some(Expression::UnaryExpression(u)),
+            ArrayExpressionElement::UpdateExpression(u) => Some(Expression::UpdateExpression(u)),
+            ArrayExpressionElement::AssignmentExpression(a) => Some(Expression::AssignmentExpression(a)),
+            ArrayExpressionElement::TaggedTemplateExpression(t) => Some(Expression::TaggedTemplateExpression(t)),
+            ArrayExpressionElement::YieldExpression(y) => Some(Expression::YieldExpression(y)),
+            ArrayExpressionElement::AwaitExpression(a) => Some(Expression::AwaitExpression(a)),
+            ArrayExpressionElement::NewExpression(n) => Some(Expression::NewExpression(n)),
+            ArrayExpressionElement::ThisExpression(t) => Some(Expression::ThisExpression(t)),
+            ArrayExpressionElement::Super(s) => Some(Expression::Super(s)),
+            ArrayExpressionElement::RegExpLiteral(r) => Some(Expression::RegExpLiteral(r)),
+            ArrayExpressionElement::BigIntLiteral(b) => Some(Expression::BigIntLiteral(b)),
+            ArrayExpressionElement::ClassExpression(c) => Some(Expression::ClassExpression(c)),
+            ArrayExpressionElement::ImportExpression(i) => Some(Expression::ImportExpression(i)),
+            ArrayExpressionElement::ChainExpression(c) => Some(Expression::ChainExpression(c)),
+            ArrayExpressionElement::PrivateInExpression(p) => Some(Expression::PrivateInExpression(p)),
+            ArrayExpressionElement::MetaProperty(m) => Some(Expression::MetaProperty(m)),
+            ArrayExpressionElement::ParenthesizedExpression(p) => Some(Expression::ParenthesizedExpression(p)),
+            ArrayExpressionElement::ComputedMemberExpression(m) => Some(Expression::ComputedMemberExpression(m)),
+            ArrayExpressionElement::StaticMemberExpression(m) => Some(Expression::StaticMemberExpression(m)),
+            ArrayExpressionElement::PrivateFieldExpression(p) => Some(Expression::PrivateFieldExpression(p)),
+            _ => None
+            }
         } else {
             Some(Expression::ArrayExpression(self.builder.alloc(ArrayExpression {
                 elements,

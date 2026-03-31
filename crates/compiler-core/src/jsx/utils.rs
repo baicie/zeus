@@ -345,3 +345,222 @@ impl HandlerType {
 pub fn needs_import_node(tag_name: &str, has_loading_attr: bool) -> bool {
     constants::is_import_node_element(tag_name) && has_loading_attr
 }
+
+/// 检测是否为事件属性名 (onClick, onInput 等)
+#[inline]
+pub fn is_event_attribute(name: &str) -> bool {
+    name.starts_with("on") && name.len() > 2 && !name.contains(':')
+}
+
+/// 检测是否为强制非委托模式 (on:click)
+#[inline]
+pub fn is_forced_direct_event(name: &str) -> bool {
+    name.starts_with("on:")
+}
+
+/// 检测是否为可委托事件
+#[inline]
+pub fn is_delegatable_event(event_name: &str) -> bool {
+    constants::is_delegated_event(event_name)
+}
+
+/// 检测属性值是否为静态
+pub fn is_static_value(expr: &Expression) -> bool {
+    match expr {
+        Expression::StringLiteral(_) => true,
+        Expression::NumericLiteral(_) => true,
+        Expression::BooleanLiteral(_) => true,
+        Expression::NullLiteral(_) => true,
+        Expression::TemplateLiteral(t) if t.expressions.is_empty() => true,
+        _ => false,
+    }
+}
+
+/// 尝试静态求值表达式
+pub fn evaluate_static_expr(expr: &Expression) -> Option<String> {
+    match expr {
+        Expression::StringLiteral(s) => Some(s.value.as_str().to_string()),
+        Expression::TemplateLiteral(t) if t.expressions.is_empty() => {
+            t.quasis.first().and_then(|q| q.value.cooked.as_deref().map(String::from))
+        }
+        Expression::BooleanLiteral(b) => Some(b.value.to_string()),
+        Expression::NumericLiteral(n) => Some(n.value.to_string()),
+        _ => None,
+    }
+}
+
+/// 检测 JSX 标签名（从 JSXElementName）
+pub fn extract_jsx_tag_name(name: &JSXElementName) -> Option<String> {
+    match name {
+        JSXElementName::Identifier(id) => Some(id.name.to_string()),
+        JSXElementName::MemberExpression(_) => {
+            // MemberExpression 需要递归处理，这里返回 None
+            None
+        }
+        JSXElementName::NamespacedName(ns) => {
+            // oxc 0.123.0 中 JSXNamespacedName 的字段是 namespace 和 name
+            Some(format!("{}:{}", ns.namespace.name, ns.name.name))
+        }
+        _ => None,
+    }
+}
+
+/// 检测 JSX 标签是否为组件
+pub fn is_jsx_component(name: &JSXElementName) -> bool {
+    if let Some(tag_name) = extract_jsx_tag_name(name) {
+        is_component(&tag_name)
+    } else {
+        false
+    }
+}
+
+/// 合并相邻的静态文本
+pub fn merge_adjacent_text(expressions: &mut Vec<String>) {
+    if expressions.len() <= 1 {
+        return;
+    }
+
+    let mut merged = Vec::with_capacity(expressions.len());
+    let mut current_text = String::new();
+
+    for expr in expressions.drain(..) {
+        if current_text.is_empty() {
+            current_text = expr;
+        } else {
+            // 尝试合并
+            if can_merge_text(&current_text, &expr) {
+                current_text.push_str(&expr);
+            } else {
+                merged.push(current_text);
+                current_text = expr;
+            }
+        }
+    }
+
+    if !current_text.is_empty() {
+        merged.push(current_text);
+    }
+
+    *expressions = merged;
+}
+
+/// 检测两个文本是否可以合并
+fn can_merge_text(a: &str, b: &str) -> bool {
+    // 如果 a 以空白结尾，b 以空白开头，可以合并
+    let a_trimmed = a.trim_end();
+    let b_trimmed = b.trim_start();
+    
+    if a.ends_with(char::is_whitespace) && b.starts_with(char::is_whitespace) {
+        return true;
+    }
+    
+    // 如果都是纯文本，没有特殊字符
+    if !a_trimmed.contains('<') && !a_trimmed.contains('>') && 
+       !b_trimmed.contains('<') && !b_trimmed.contains('>') {
+        return true;
+    }
+    
+    false
+}
+
+/// 计算文本相似度（用于模板复用检测）
+#[allow(dead_code)]
+pub fn text_similarity(a: &str, b: &str) -> f64 {
+    if a.is_empty() && b.is_empty() {
+        return 1.0;
+    }
+    if a.is_empty() || b.is_empty() {
+        return 0.0;
+    }
+
+    let a_chars: Vec<char> = a.chars().collect();
+    let b_chars: Vec<char> = b.chars().collect();
+
+    let a_len = a_chars.len();
+    let b_len = b_chars.len();
+
+    // 简单的编辑距离
+    let mut dp = vec![vec![0usize; b_len + 1]; a_len + 1];
+
+    for i in 0..=a_len {
+        dp[i][0] = i;
+    }
+    for j in 0..=b_len {
+        dp[0][j] = j;
+    }
+
+    for i in 1..=a_len {
+        for j in 1..=b_len {
+            let cost = if a_chars[i - 1] == b_chars[j - 1] { 0 } else { 1 };
+            dp[i][j] = (dp[i - 1][j] + 1)
+                .min(dp[i][j - 1] + 1)
+                .min(dp[i - 1][j - 1] + cost);
+        }
+    }
+
+    let distance = dp[a_len][b_len];
+    let max_len = a_len.max(b_len);
+    1.0 - (distance as f64 / max_len as f64)
+}
+
+/// 检测表达式是否包含 this 引用
+pub fn contains_this_reference(expr: &Expression) -> bool {
+    match expr {
+        Expression::ThisExpression(_) => true,
+        Expression::StaticMemberExpression(m) => contains_this_reference(&m.object),
+        Expression::ComputedMemberExpression(m) => contains_this_reference(&m.object),
+        Expression::CallExpression(c) => c.arguments.iter().any(|arg| {
+            if let Some(expr) = arg.as_expression() {
+                contains_this_reference(expr)
+            } else {
+                false
+            }
+        }),
+        Expression::ConditionalExpression(c) => {
+            contains_this_reference(&c.test)
+                || contains_this_reference(&c.consequent)
+                || contains_this_reference(&c.alternate)
+        }
+        Expression::LogicalExpression(l) => {
+            contains_this_reference(&l.left) || contains_this_reference(&l.right)
+        }
+        Expression::BinaryExpression(b) => {
+            contains_this_reference(&b.left) || contains_this_reference(&b.right)
+        }
+        Expression::UnaryExpression(u) => contains_this_reference(&u.argument),
+        _ => false,
+    }
+}
+
+/// 检测 JSXChild 是否为空
+pub fn is_empty_jsx_child(child: &JSXChild) -> bool {
+    match child {
+        JSXChild::ExpressionContainer(expr) => {
+            matches!(expr.expression, JSXExpression::EmptyExpression(_))
+        }
+        JSXChild::Text(text) => text.value.chars().all(|c| c.is_whitespace()),
+        _ => false,
+    }
+}
+
+/// 计算 JSXChild 的文本内容（如果是文本节点）
+pub fn get_text_content(child: &JSXChild) -> Option<String> {
+    match child {
+        JSXChild::Text(text) => {
+            let content = text.value.as_str();
+            if content.chars().all(|c| c.is_whitespace()) {
+                None
+            } else {
+                Some(content.to_string())
+            }
+        }
+        JSXChild::ExpressionContainer(expr) => {
+            if let JSXExpression::StringLiteral(s) = &expr.expression {
+                Some(s.value.as_str().to_string())
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
