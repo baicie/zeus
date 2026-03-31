@@ -47,21 +47,20 @@ export function vitePlugin(options: ViteZeusPluginOptions = {}): Plugin[] {
   return [
     {
       name: 'vite-plugin-zeus',
-      config() {
-        const isRolldownVite = this && 'rolldownVersion' in this.meta
-        const esbuildKey = (isRolldownVite ? 'oxc' : 'esbuild') as 'esbuild'
-        return {
-          [esbuildKey]: {
-            include: /\.ts$/,
-          },
-          optimizeDeps: isRolldownVite
-            ? {
-                rolldownOptions: { transform: { jsx: 'preserve' } },
-              }
-            : {},
-        }
-      },
-
+      // config() {
+      //   const isRolldownVite = this && 'rolldownVersion' in this.meta
+      //   const esbuildKey = (isRolldownVite ? 'oxc' : 'esbuild') as 'esbuild'
+      //   return {
+      //     [esbuildKey]: {
+      //       include: /\.ts$/,
+      //     },
+      //     optimizeDeps: isRolldownVite
+      //       ? {
+      //           rolldownOptions: { transform: { jsx: 'preserve' } },
+      //         }
+      //       : {},
+      //   }
+      // },
       transform: {
         order: undefined,
         filter: {
@@ -83,8 +82,10 @@ export function vitePlugin(options: ViteZeusPluginOptions = {}): Plugin[] {
 
           const result = compiler(code)
           if (result.error) {
-            const errorPrefix = `\n╔═══════[Zeus] Compile Error ════════\n║ File: ${filepath}\n╚═══════════════════════════════════════\n`
-            console.error(errorPrefix, color.red(result.error))
+            console.error(
+              `[Zeus] Compile error for ${filepath}:\n`,
+              color.red(result.error),
+            )
             return
           } else if (result.code) {
             return {

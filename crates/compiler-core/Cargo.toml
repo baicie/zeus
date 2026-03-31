@@ -15,3 +15,4 @@ oxc_parser = { workspace = true }
 oxc_codegen = { workspace = true }
 oxc_ast = { workspace = true }
 oxc_semantic = { workspace = true }
+oxc_diagnostics = { workspace = true }

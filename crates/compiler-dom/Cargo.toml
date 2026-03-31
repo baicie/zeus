@@ -13,3 +13,5 @@ oxc_span = { workspace = true }
 oxc_traverse = { workspace = true }
 oxc = { workspace = true }
 oxc_ast = { workspace = true }
+oxc_parser = { workspace = true }
+oxc_diagnostics = { workspace = true }
