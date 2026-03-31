@@ -2483,8 +2483,10 @@ fn test_end_to_end_ssr() {
 
 ### A.3 核心 oxc_traverse 用法
 
+> ⚠️ **版本迁移提示**：oxc 0.122+ 版本对 `traverse_mut` API 进行了重大重构。如果遇到编译错误，请参考附录 A.4。
+
 ```rust
-use oxc_traverse::{traverse_mut, Traverse, TraverseCtx};
+use oxc_traverse::{traverse_mut, ReusableTraverseCtx, Traverse, TraverseCtx};
 
 pub struct DomCompilerPass<'a, 'ctx> {
     source: &'a str,
@@ -2497,7 +2499,6 @@ impl<'a, 'ctx> Traverse<'a, JsxCompilerState<'a>> for DomCompilerPass<'a, 'ctx> 
         node: &mut Program<'a>,
         ctx: &mut TraverseCtx<'a, JsxCompilerState<'a>>,
     ) {
-        // preprocess
         self.preprocess(node, ctx);
     }
 
@@ -2506,7 +2507,6 @@ impl<'a, 'ctx> Traverse<'a, JsxCompilerState<'a>> for DomCompilerPass<'a, 'ctx> 
         node: &mut ReturnStatement<'a>,
         ctx: &mut TraverseCtx<'a, JsxCompilerState<'a>>,
     ) {
-        // 拦截 JSX 返回
         if let Some(arg) = node.argument.as_mut() {
             self.transform_jsx_in_expression(arg, ctx);
         }
@@ -2517,7 +2517,6 @@ impl<'a, 'ctx> Traverse<'a, JsxCompilerState<'a>> for DomCompilerPass<'a, 'ctx> 
         node: &mut JSXElement<'a>,
         ctx: &mut TraverseCtx<'a, JsxCompilerState<'a>>,
     ) {
-        // 收集事件委托等前置信息
         self.collect_event_info(node);
     }
 
@@ -2526,7 +2525,6 @@ impl<'a, 'ctx> Traverse<'a, JsxCompilerState<'a>> for DomCompilerPass<'a, 'ctx> 
         node: &mut JSXElement<'a>,
         ctx: &mut TraverseCtx<'a, JsxCompilerState<'a>>,
     ) {
-        // 生成模板代码
         self.transform_jsx_element(node, ctx);
     }
 }
@@ -2540,12 +2538,181 @@ pub fn compile(source: &str, config: JsxConfig) -> CompileResult {
     let mut state = JsxCompilerState::new(config);
     let mut pass = DomCompilerPass { source, state: &mut state };
 
-    // 执行遍历（会调用 enter_* 和 exit_* 方法）
-    traverse_mut(&mut pass, &allocator, &mut program, /* scopes */, &mut state);
+    // 执行遍历（oxc 0.122+：traverse_mut 签名已变更为需要 Scoping）
+    // 需要先通过 SemanticBuilder 构建 scoping
+    let semantic = SemanticBuilder::new()
+        .with_cfg(config.generate == GenerateMode::Universal)
+        .build(&program);
+
+    let scoping = semantic.scoping;
+
+    // traverse_mut 返回更新后的 Scoping
+    let scoping = traverse_mut(
+        &mut pass,
+        &allocator,
+        &mut program,
+        scoping,
+        JsxCompilerState::new(config),
+    );
 
     // postprocess
     postprocess(&mut program, &mut state);
 
     generate_code(&program, &state)
 }
+```
+
+---
+
+## 附录 A.4 oxc 0.122+ 版本迁移指南
+
+### A.4.1 版本信息总览
+
+> 📅 数据来源：[crates.io](https://crates.io/crates/oxc/versions) | 更新日期：2026-03-30
+
+| Crate | 最新版本 | 发布日期 | MSRV | 备注 |
+|-------|---------|---------|------|------|
+| `oxc` | **0.123.0** | 2026-03-30 | **Rust 1.92** | 全量特性合集 |
+| `oxc_allocator` | **0.123.0** | 2026-03-30 | Rust 1.92 | 内存分配器 |
+| `oxc_ast` | **0.123.0** | 2026-03-30 | Rust 1.92 | AST 节点定义 |
+| `oxc_span` | **0.123.0** | 2026-03-30 | Rust 1.92 | 源码位置管理 |
+| `oxc_traverse` | **0.123.0** | 2026-03-30 | Rust 1.92 | AST 遍历框架（**有破坏性变更**） |
+| `oxc_parser` | **0.123.0** | 2026-03-30 | Rust 1.92 | JSX/TS 解析器 |
+| `oxc_semantic` | **0.123.0** | 2026-03-30 | Rust 1.92 | 语义分析 |
+| `oxc_codegen` | **0.123.0** | 2026-03-30 | Rust 1.92 | 代码生成器 |
+| `oxc_diagnostics` | **0.123.0** | 2026-03-30 | Rust 1.92 | 诊断信息 |
+| `oxc_ecmascript` | **0.123.0** | 2026-03-30 | Rust 1.92 | ECMAScript 工具 |
+| `oxc_transform_napi` | **0.123.0** | 2026-03-30 | Rust 1.92 | Transformer NAPI |
+| `oxc_parser_napi` | **0.123.0** | 2026-03-30 | Rust 1.92 | Parser NAPI |
+| `oxc_minify_napi` | **0.123.0** | 2026-03-30 | Rust 1.92 | Minifier NAPI |
+
+> ⚠️ **MSRV 变更**：所有 oxc 0.122+ crate 的 MSRV（最低支持 Rust 版本）已从 `1.70` 大幅提升至 **`1.92`**。请确保开发环境的 Rust 版本 >= 1.92。
+
+### A.4.2 oxc_traverse 0.122+ 破坏性变更详解
+
+#### 变更 1：`traverse_mut` 签名变更
+
+**旧签名（< 0.122）**：
+```rust
+// 不需要 Scoping 参数
+traverse_mut(&mut pass, &allocator, &mut program, &mut state);
+```
+
+**新签名（>= 0.122）**：
+```rust
+// 需要显式传入 Scoping（从 SemanticBuilder 获取）
+pub fn traverse_mut<'a, State, Tr: Traverse<'a, State>>(
+    traverser: &mut Tr,
+    allocator: &'a Allocator,
+    program: &mut Program<'a>,
+    scoping: Scoping,
+    state: State,
+) -> Scoping
+```
+
+**迁移方法**：需要先通过 `SemanticBuilder` 构建 `scoping`，再传入 `traverse_mut`：
+
+```rust
+use oxc_semantic::SemanticBuilder;
+
+// 1. 构建语义分析（获取 Scoping）
+let semantic = SemanticBuilder::new()
+    .with_cfg(true)  // 按需开启 CFG 构建
+    .build(&program);
+
+let scoping = semantic.scoping;
+
+// 2. 传入 Scoping 执行遍历
+let new_scoping = traverse_mut(
+    &mut pass,
+    &allocator,
+    &mut program,
+    scoping,
+    state,
+);
+```
+
+#### 变更 2：`TraverseCtx::new` 已移除（不安全 API）
+
+**旧代码（< 0.122，不推荐）**：
+```rust
+// ❌ 已移除：TraverseCtx::new 是 unsafe 的
+let ctx = TraverseCtx::new(/* ... */);
+```
+
+**新方式**：使用 `ReusableTraverseCtx`：
+
+```rust
+use oxc_traverse::ReusableTraverseCtx;
+
+// 创建可复用的 TraverseCtx 包装器
+let reusable_ctx = ReusableTraverseCtx::new(state, scoping, allocator);
+
+// 通过 traverse_mut_with_ctx 使用（如果需要多次遍历同一 AST）
+// traverse_mut_with_ctx(&mut pass, &mut program, reusable_ctx);
+```
+
+> ⚠️ `TraverseCtx::new` 已被移除是因为直接创建 `TraverseCtx` 可能违反 `TraverseAncestry` 的安全不变量。如果确实需要在测试中访问原始 `TraverseCtx`，可以使用 `unsafe fn unwrap(self) -> TraverseCtx<'a, State>`，但必须确保不违反 Rust 的别名规则。
+
+#### 变更 3：`TraverseCtx` 新增 scope 相关方法
+
+`TraverseCtx` 在 0.122+ 新增了 scope 标志支持：
+
+```rust
+// 新增方法（0.122+）
+ctx.scope()              // 获取当前 scope
+ctx.ancestor_scope(n)    // 获取第 n 层祖先 scope
+ctx.find_scope(...)      // 查找匹配的 scope
+```
+
+#### 变更 4：visitation order 对齐
+
+oxc 0.122+ 对 `Traverse` 的访问顺序与 `Visit`/`VisitMut` 进行了对齐。如果之前依赖特定的访问顺序，可能需要调整代码。
+
+### A.4.3 oxc_codegen 0.123.0 变更
+
+**修复**：`JSXElement` 名称为空时（如 `<></>`），codegen 不会再错误输出 `<<>>`，而是正确输出 `<></>`。
+
+### A.4.4 oxc_parser 0.123.0 变更
+
+- **性能优化**：大量 parser 性能优化，包括 `Modifiers` 相关操作分支消除、栈上存储等
+- **纯注释标记**：标记无法应用的纯注释（`/*#__PURE__*/` 等）
+
+### A.4.5 oxc minifier 0.123.0 变更
+
+- **新优化**：`x ? 1 : 0` → `+x` 或 `+!!x`（零成本布尔转换）
+- **单次使用变量内联**：优化跨越非计算属性键的内联
+
+### A.4.6 Cargo.toml 依赖升级建议
+
+```toml
+[workspace.dependencies]
+# oxc crates — 统一使用 0.123.0（所有子 crate 版本同步）
+oxc = { version = "0.123.0", features = [
+  "ast_visit",
+  "transformer",
+  "minifier",
+  "mangler",
+  "semantic",
+  "codegen",
+  "serialize",
+  "isolated_declarations",
+  "regular_expression",
+  "cfg",
+] }
+oxc_allocator    = { version = "0.123.0", features = ["pool"] }
+oxc_ecmascript   = { version = "0.123.0" }
+oxc_semantic     = { version = "0.123.0" }
+oxc_minify_napi  = { version = "0.123.0" }
+oxc_parser_napi  = { version = "0.123.0" }
+oxc_span         = { version = "0.123.0" }
+oxc_transform_napi = { version = "0.123.0" }
+oxc_traverse     = { version = "0.123.0" }
+oxc_ast          = { version = "0.123.0" }
+oxc_parser       = { version = "0.123.0" }
+oxc_codegen      = { version = "0.123.0" }
+oxc_diagnostics  = { version = "0.123.0" }
+```
+
+> 💡 所有 oxc 子 crate 版本严格同步，发布时一起发版。升级时应将所有 crate 同步升级到同一版本号。
 ```

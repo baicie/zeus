@@ -1,10 +1,34 @@
-//! JSX 编译器模块
+//! JSX DOM 编译器模块
 //!
-//! 提供 JSX 到 DOM 操作的编译功能
+//! 提供完整的 JSX 到 DOM 操作的编译功能
+//!
+//! 包含:
+//! - DOM 元素转换
+//! - 属性处理
+//! - 事件委托
+//! - 子节点处理
+//! - 模板生成
+//! - 代码生成
+//! - 水合支持
 
 pub mod compiler;
+pub mod element;
+pub mod attributes;
+pub mod events;
+pub mod children;
+pub mod template;
+pub mod codegen;
+pub mod hydration;
 
+// Re-exports
 pub use compiler::{DomCompilerPass, DomCompilerState};
+pub use element::DomElementTransformer;
+pub use attributes::{AttributeHandler, generate_attr_code, is_dynamic_value};
+pub use events::{EventHandler, can_delegate_event, is_event_attribute, extract_event_name, is_forced_direct};
+pub use children::ChildrenHandler;
+pub use template::TemplateGenerator;
+pub use codegen::DomCodegen;
+pub use hydration::HydrationGenerator;
 
 use zeus_compiler_common::CompilerOptions;
 use zeus_compiler_core::traverse::compile as core_compile;

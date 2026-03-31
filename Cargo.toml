@@ -79,38 +79,29 @@ collapsible_if = "allow"
 
 [workspace.dependencies]
 # napi
-napi = { version = "3.8.2", features = ["async", "anyhow", "tracing"] }
+napi = { version = "3.8.4", features = ["async", "anyhow", "tracing"] }
 napi-build = { version = "2.3.1" }
-napi-derive = { version = "3.5.1", default-features = false, features = [
+napi-derive = { version = "3.5.3", default-features = false, features = [
   "type-def",
   "tracing",
 ] }
 
 # oxc crates with the same version
-oxc = { version = "0.107.0", features = [
-  "ast_visit",
-  "transformer",
-  "minifier",
-  "mangler",
-  "semantic",
-  "codegen",
-  "serialize",
-  "isolated_declarations",
-  "regular_expression",
-  "cfg",
-] }
-oxc_allocator = { version = "0.107.0", features = ["pool"] }
-oxc_ecmascript = { version = "0.107.0" }
-oxc_semantic = { version = "0.107.0" }
-oxc_minify_napi = { version = "0.107.0" }
-oxc_parser_napi = { version = "0.107.0" }
-oxc_span = { version = "0.107.0" }
-oxc_transform_napi = { version = "0.107.0" }
-oxc_traverse = { version = "0.107.0" }
-oxc_ast = { version = "0.107.0" }
-oxc_parser = { version = "0.107.0" }
-oxc_codegen = { version = "0.107.0" }
-oxc_diagnostics = { version = "0.107.0" }
+oxc = { version = "0.123.0", features = ["full"] }
+oxc_allocator = { version = "0.123.0", features = ["pool"] }
+oxc_ecmascript = { version = "0.123.0" }
+oxc_semantic = { version = "0.123.0" }
+oxc_minify_napi = { version = "0.123.0" }
+oxc_parser_napi = { version = "0.123.0" }
+oxc_span = { version = "0.123.0" }
+oxc_transform_napi = { version = "0.123.0" }
+oxc_traverse = { version = "0.123.0" }
+oxc_ast = { version = "0.123.0" }
+oxc_parser = { version = "0.123.0" }
+oxc_codegen = { version = "0.123.0" }
+oxc_diagnostics = { version = "0.123.0" }
+oxc_syntax = { version = "0.123.0" }
+oxc_sourcemap = { version = "6" } # https://github.com/oxc-project/oxc-sourcemap
 
 [profile.dev]
 # Minimal debug info to speed up local and CI builds.
