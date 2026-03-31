@@ -8,7 +8,6 @@ pub mod traverse;
 
 pub use parser::{parse_with_allocator, parse_tsx_with_allocator};
 
-use zeus_compiler_common::CompilerOptions;
 pub use codegen::CodeGenerator;
 pub use traverse::{
     DomCompilerState, DomCompilerPass, compile, Target,

@@ -5,20 +5,18 @@
 mod template_analyzer;
 mod template_ir;
 mod control_flow;
-mod codegen;
-mod babel_codegen;
+pub mod codegen;
+pub mod jsx;
 
 pub use template_analyzer::TemplateAnalyzer;
 pub use template_ir::DomTemplateIR;
 pub use control_flow::ControlFlowAnalyzer;
 pub use codegen::{
     CodeGenerator, CodegenConfig, CodegenState, TemplateGen, ChildGen, AttrGen, AttrKind, EventGen,
-    generate_from_template, html_escape,
+    generate_from_template, html_escape, BabelStyleCodegen, CodegenContext,
+    generate_babel_style_template, cleanup_template_html,
 };
-pub use babel_codegen::{
-    BabelStyleCodegen, CodegenContext,
-    generate_babel_style_template,
-};
+pub use jsx::{compile as jsx_compile, compile_with_options as jsx_compile_with_options};
 
 use zeus_compiler_common::CompilerOptions;
 use zeus_compiler_core::{compile as compile_with_traverse, Target};

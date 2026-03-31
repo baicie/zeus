@@ -8,6 +8,6 @@ mod types;
 mod utils;
 
 pub use config::{CompilerOptions, Target};
-pub use error::{CompileError, CompileErrorType, CompileResult};
+pub use error::{CompileError, CompileErrorType, CompileResult, CompileOutput};
 pub use types::{Binding, BindingKind, DomPath, TemplateIR, TraversalStep};
 pub use utils::html_escape;

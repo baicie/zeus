@@ -1,24 +1,6 @@
-//! 代码生成模块
+//! 旧版代码生成器类型（保持向后兼容）
 //!
-//! 根据 AST 遍历收集的信息，生成完整的 JavaScript 代码
-//!
-//! Babel 插件生成的代码模式:
-//! ```javascript
-//! const _tmpl$ = template('<div>...</div>');
-//!
-//! function App() {
-//!   return (() => {
-//!     var _el$ = _tmpl$(), _el$2 = _el$.firstChild;
-//!     _el$2.firstChild.nextSibling;
-//!     var _el$5 = _el$2.nextSibling;
-//!     insert(_el$2, () => NAV_ITEMS.map(function(item) {
-//!       return NavLink(item);
-//!     }), null);
-//!     insert(_el$5, createComponent(RouterView, {}));
-//!     return _el$;
-//!   })();
-//! }
-//! ```
+//! 这些类型来自原始的 codegen.rs，用于兼容旧代码
 
 use std::collections::HashMap;
 
@@ -215,10 +197,14 @@ impl<'a> CodeGenerator<'a> {
     }
 
     /// 生成完整的模块代码
-    pub fn generate_module(&mut self, templates: Vec<TemplateGen>, helpers: Vec<String>, delegated_events: Vec<String>) -> String {
+    pub fn generate_module(
+        &mut self,
+        templates: Vec<TemplateGen>,
+        helpers: Vec<String>,
+        delegated_events: Vec<String>,
+    ) -> String {
         let mut code = String::new();
 
-        // 生成导入语句
         self.state.helpers = helpers;
         self.state.delegated_events = delegated_events;
         self.state.templates = templates;
@@ -238,10 +224,7 @@ impl<'a> CodeGenerator<'a> {
 
         out.push_str("import { ");
         out.push_str(&self.state.helpers.join(", "));
-        out.push_str(&format!(
-            " }} from \"{}\";\n",
-            self.config.runtime_module
-        ));
+        out.push_str(&format!(" }} from \"{}\";\n", self.config.runtime_module));
     }
 
     /// 生成模板声明
@@ -249,17 +232,13 @@ impl<'a> CodeGenerator<'a> {
         let mut seen = std::collections::HashSet::new();
 
         for template in &self.state.templates {
-            // 去重
             if seen.contains(&template.name) {
                 continue;
             }
             seen.insert(template.name.clone());
 
             let escaped_html = escape_js_string(&template.html);
-            out.push_str(&format!(
-                "const {} = template(`{}`);\n",
-                template.name, escaped_html
-            ));
+            out.push_str(&format!("const {} = template(`{}`);\n", template.name, escaped_html));
         }
     }
 
@@ -280,78 +259,48 @@ impl<'a> CodeGenerator<'a> {
     }
 }
 
-/// 简化版代码生成 - 直接从现有数据生成
-pub fn generate_from_template(
-    template: &TemplateGen,
-    state: &mut CodegenState,
-) -> String {
+/// 简化版代码生成
+pub fn generate_from_template(template: &TemplateGen, state: &mut CodegenState) -> String {
     let mut code = String::new();
 
     let tmpl_name = &template.name;
     let root_var = state.gen_element_name();
+    let root_placeholder = "{root}";
+    let child_placeholder = "{child}";
 
-    // 生成 IIFE 包装
-    code.push_str(&format!(
-        "(() => {{\n  var {} = {}(),\n",
-        root_var, tmpl_name
-    ));
+    code.push_str(&format!("(() => {{\n  var {} = {}(),\n", root_var, tmpl_name));
 
-    // 生成子节点引用和 insert 调用
     if template.children.is_empty() && template.attributes.is_empty() && template.events.is_empty() {
-        // 简单情况：只有模板
-        code.push_str(&format!("    {};\n  return {};\n}})()", "{root}", root_var));
+        code.push_str(&format!("    {};\n  return {};\n}})()", root_placeholder, root_var));
     } else {
-        // 复杂情况：需要生成 insert 和 effect 调用
-        code.push_str(&format!("    {} = {}.firstChild;\n", "{child}", root_var));
+        code.push_str(&format!("    {} = {}.firstChild;\n", child_placeholder, root_var));
 
-        // 生成子节点 insert
         for child in &template.children {
             let next = child.next_sibling.as_ref().map(|s| s.as_str()).unwrap_or("null");
-            code.push_str(&format!(
-                "  insert({}, () => {}, {});\n",
-                "{child}", child.expression, next
-            ));
+            code.push_str(&format!("  insert({}, () => {}, {});\n", child_placeholder, child.expression, next));
         }
 
-        // 生成事件绑定
         for event in &template.events {
             if event.delegated {
-                // 委托事件通过元素属性设置
-                code.push_str(&format!(
-                    "  {}.${} = {};\n",
-                    "{child}", event.event, event.handler
-                ));
+                code.push_str(&format!("  {}${} = {};\n", child_placeholder, event.event, event.handler));
             } else {
-                code.push_str(&format!(
-                    "  {}.addEventListener(\"{}\", {});\n",
-                    "{child}", event.event, event.handler
-                ));
+                code.push_str(&format!("  {}.addEventListener(\"{}\", {});\n", child_placeholder, event.event, event.handler));
             }
         }
 
-        // 生成属性 effect
         for attr in &template.attributes {
             match attr.kind {
                 AttrKind::ClassName => {
                     state.add_helper("effect");
-                    code.push_str(&format!(
-                        "  effect(() => {{ {}.className = {}; }});\n",
-                        "{child}", attr.expression
-                    ));
+                    code.push_str(&format!("  effect(() => {{ {}.className = {}; }});\n", child_placeholder, attr.expression));
                 }
                 AttrKind::Style => {
                     state.add_helper("effect");
-                    code.push_str(&format!(
-                        "  effect(() => {{ {}.style.cssText = {}; }});\n",
-                        "{child}", attr.expression
-                    ));
+                    code.push_str(&format!("  effect(() => {{ {}.style.cssText = {}; }});\n", child_placeholder, attr.expression));
                 }
                 _ => {
                     state.add_helper("effect");
-                    code.push_str(&format!(
-                        "  effect(() => {{ {}.setAttribute(\"{}\", {}); }});\n",
-                        "{child}", attr.name, attr.expression
-                    ));
+                    code.push_str(&format!("  effect(() => {{ {}.setAttribute(\"{}\", {}); }});\n", child_placeholder, attr.name, attr.expression));
                 }
             }
         }
@@ -363,7 +312,7 @@ pub fn generate_from_template(
 }
 
 /// 转义 JavaScript 字符串
-fn escape_js_string(s: &str) -> String {
+pub fn escape_js_string(s: &str) -> String {
     s.replace('\\', "\\\\")
         .replace('`', "\\`")
         .replace('$', "${$'}")
@@ -395,7 +344,6 @@ mod tests {
     fn test_js_string_escape() {
         assert_eq!(escape_js_string("test"), "test");
         assert_eq!(escape_js_string("`code`"), "\\`code\\`");
-        // Dollar sign should be escaped to prevent template literal interpolation
         let escaped = escape_js_string("$var");
         assert!(escaped.contains(r#"$($'"'"')"#), "Dollar should be escaped: {}", escaped);
     }
