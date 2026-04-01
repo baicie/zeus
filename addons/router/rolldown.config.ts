@@ -3,6 +3,8 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { RolldownOptions } from 'rolldown'
+import { rolldownPlugin } from '@zeus-js/build-tools/rolldown'
+import { dts } from 'rolldown-plugin-dts'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const require = createRequire(import.meta.url)
@@ -25,32 +27,26 @@ const external = [
 ]
 
 // Path aliases for workspace packages
-const alias: Record<string, string> = {
-  '@zeus-js/signal': resolve('../../packages/signal/src/index.ts'),
-  '@zeus-js/shared': resolve('../../packages/shared/src/index.ts'),
-}
-
-// Common plugins
-const replaceValues = {
-  __DEV__: "!!(process.env.NODE_ENV !== 'production')",
-  __VERSION__: JSON.stringify(masterVersion),
-  __BROWSER__: 'false',
-  __CJS__: 'true',
-  __SSR__: 'true',
-  __TEST__: 'false',
-}
+const alias: Record<string, string> = {}
 
 // ESM build
 const esmConfig: RolldownOptions = {
-  input: resolve('src/index.ts'),
+  input: 'src/index.ts',
   external,
   resolve: { alias },
+  plugins: [
+    dts({
+      tsconfig: './tsconfig.json',
+    }),
+    rolldownPlugin(),
+  ],
   output: {
-    dir: resolve('dist'),
+    dir: './dist/esm',
+    entryFileNames: '[name].mjs',
+    chunkFileNames: 'chunk/[name]-[hash].mjs',
     format: 'esm',
-    banner,
-    entryFileNames: 'router.mjs',
     sourcemap: true,
+    banner,
   },
   treeshake: {
     moduleSideEffects: false,
@@ -59,23 +55,18 @@ const esmConfig: RolldownOptions = {
 
 // CJS build
 const cjsConfig: RolldownOptions = {
-  input: resolve('src/index.ts'),
+  input: 'src/index.ts',
   external,
   resolve: { alias },
-  plugins: [
-    replace({
-      preventAssignment: true,
-      values: replaceValues,
-    }),
-  ],
+  plugins: [rolldownPlugin()],
   output: {
-    dir: resolve('dist'),
+    dir: './dist/cjs',
+    entryFileNames: '[name].cjs',
+    chunkFileNames: 'chunk/[name]-[hash].cjs',
     format: 'cjs',
-    banner,
-    entryFileNames: 'router.cjs',
-    exports: 'named',
     sourcemap: true,
-    externalLiveBindings: false,
+    exports: 'named',
+    banner,
   },
   treeshake: {
     moduleSideEffects: false,

@@ -1,36 +1,28 @@
-import { createRouter, createWebHashHistory } from '@zeus-js/router'
+import {
+  RouterLink,
+  RouterProvider,
+  RouterView,
+  createRouter,
+  createWebHistory,
+} from '@zeus-js/router'
 
-// Lazy-loaded components
-const HomeView = function () {
-  return import('./views/HomeView')
-}
-const CounterView = function () {
-  return import('./views/CounterView')
-}
-const ConditionalView = function () {
-  return import('./views/ConditionalView')
-}
-const ListView = function () {
-  return import('./views/ListView')
-}
-const BindingView = function () {
-  return import('./views/BindingView')
-}
-const ComputedView = function () {
-  return import('./views/ComputedView')
-}
-const LifecycleView = function () {
-  return import('./views/LifecycleView')
-}
-const RefView = function () {
-  return import('./views/RefView')
-}
-const BuiltinView = function () {
-  return import('./views/BuiltinView')
-}
+import Layout from './Layout'
+import HomeView from '../views/HomeView'
+import CounterView from '../views/CounterView'
+import ConditionalView from '../views/ConditionalView'
+import ListView from '../views/ListView'
+import BindingView from '../views/BindingView'
+import ComputedView from '../views/ComputedView'
+import LifecycleView from '../views/LifecycleView'
+import RefView from '../views/RefView'
+import BuiltinView from '../views/BuiltinView'
+
+// ============================================================================
+// 创建 Router
+// ============================================================================
 
 const router = createRouter({
-  history: createWebHashHistory(),
+  history: createWebHistory(),
   routes: [
     { path: '/', component: HomeView },
     { path: '/counter', component: CounterView },
@@ -44,4 +36,39 @@ const router = createRouter({
   ],
 })
 
-export default router
+// ============================================================================
+// 导出
+// ============================================================================
+
+export { router, RouterProvider, RouterView, RouterLink }
+
+// ============================================================================
+// 导航配置
+// ============================================================================
+
+export const NAV_ITEMS = [
+  { path: '/', icon: '🏠', label: 'Home', desc: 'Overview' },
+  { path: '/counter', icon: '🔢', label: 'Counter', desc: 'signal()' },
+  {
+    path: '/conditional',
+    icon: '🔀',
+    label: 'Conditional',
+    desc: 'branch rendering',
+  },
+  { path: '/list', icon: '📋', label: 'List Render', desc: 'array mapping' },
+  {
+    path: '/binding',
+    icon: '✏️',
+    label: 'Two-way Bind',
+    desc: 'reactive input',
+  },
+  { path: '/computed', icon: '⚡', label: 'Computed', desc: 'derived state' },
+  { path: '/lifecycle', icon: '🔄', label: 'Lifecycle', desc: 'hooks demo' },
+  { path: '/ref', icon: '🔗', label: 'Ref', desc: 'DOM reference' },
+  {
+    path: '/builtin',
+    icon: '🔧',
+    label: 'Built-in',
+    desc: 'Fragment, Portal...',
+  },
+]

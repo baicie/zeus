@@ -1,5 +1,5 @@
 {
-  "include": ["src", "core", "adapters"],
+  "include": ["src"],
   "exclude": ["**/*.spec.ts", "dist", "node_modules"],
   "compilerOptions": {
     "outDir": "dist",

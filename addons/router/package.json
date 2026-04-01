@@ -3,28 +3,25 @@
   "version": "0.0.1",
   "description": "Official router for Zeus framework",
   "main": "index.js",
-  "module": "dist/router.mjs",
-  "types": "dist/index.d.mts",
+  "module": "dist/esm/index.mjs",
+  "types": "dist/esm/index.d.mts",
   "files": [
-    "index.js",
     "dist"
   ],
   "exports": {
     ".": {
-      "types": "./dist/index.d.mts",
+      "types": "./dist/esm/index.d.mts",
       "node": {
-        "production": "./dist/router.cjs.prod.js",
-        "development": "./dist/router.cjs.js",
-        "default": "./index.js"
+        "default": "./dist/cjs/index.cjs"
       },
-      "module": "./dist/router.mjs",
-      "import": "./dist/router.mjs",
-      "require": "./index.js"
+      "module": "./dist/esm/index.mjs",
+      "import": "./dist/esm/index.mjs",
+      "require": "./dist/cjs/index.cjs"
     },
     "./*": "./*"
   },
   "scripts": {
-    "build": "rolldown -c rolldown.config.ts && tsc -p tsconfig.build.json",
+    "build": "rolldown -c rolldown.config.ts",
     "dev": "rolldown -c rolldown.config.ts --watch",
     "clean": "rimraf dist"
   },
@@ -44,7 +41,10 @@
   },
   "homepage": "https://github.com/baicie/zeus/tree/main/addons/router#readme",
   "dependencies": {
-    "@zeus-js/shared": "workspace:*",
-    "@zeus-js/signal": "workspace:*"
+    "@zeus-js/core": "workspace:*",
+    "@zeus-js/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@zeus-js/build-tools": "workspace:*"
   }
 }

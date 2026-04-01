@@ -1,4 +1,5 @@
-import router from '../router'
+import { Link } from '@zeus-js/router'
+import type { JSXElement } from '@zeus-js/runtime-dom'
 
 interface FeatureCard {
   path: string
@@ -51,27 +52,17 @@ const SUBTITLE =
 const HOW_IT_WORKS =
   'Zeus compiles JSX to fine-grained DOM operations — template(), insert() and effect() — with zero Virtual DOM overhead.'
 
-function FeatureCardEl(card: FeatureCard): HTMLElement {
-  const el = document.createElement('div')
-  el.className = 'feature-card'
-  el.style.borderTop = '3px solid ' + card.color
-  el.innerHTML =
-    '<div class="icon">' +
-    card.icon +
-    '</div>' +
-    '<h3>' +
-    card.title +
-    '</h3>' +
-    '<p>' +
-    card.desc +
-    '</p>'
-  el.addEventListener('click', function () {
-    router.push(card.path)
-  })
-  return el
+function FeatureCardEl(card: FeatureCard): JSXElement {
+  return (
+    <div class="feature-card" style={{ borderTop: '3px solid ' + card.color }}>
+      <div class="icon">{card.icon}</div>
+      <h3>{card.title}</h3>
+      <p>{card.desc}</p>
+    </div>
+  )
 }
 
-function HomeView() {
+function HomeView(): JSXElement {
   return (
     <div class="demo-card">
       <h2>Zeus Framework Demo</h2>

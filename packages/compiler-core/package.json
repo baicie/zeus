@@ -55,7 +55,7 @@
   },
   "devDependencies": {
     "@napi-rs/cli": "catalog:",
-    "@oxc-node/cli": "^0.0.35"
+    "@oxc-node/cli": "^0.1.0"
   },
   "napi": {
     "binaryName": "zeusjs-binding",

@@ -7,8 +7,6 @@ const { globSync } = globPkg
 const external = [
   ...Object.keys(pkg.dependencies),
   ...Object.keys(pkg.optionalDependencies),
-  '@babel/core',
-  'babel-plugin-jsx-dom-expressions',
 ]
 
 const plugins = [
@@ -37,7 +35,7 @@ export default defineConfig([
     output: {
       dir: './dist/cjs',
       entryFileNames: '[name].cjs',
-      chunkFileNames: 'chunk/[name]-[hash].mjs',
+      chunkFileNames: 'chunk/[name]-[hash].cjs',
       format: 'cjs',
       sourcemap: true,
       exports: 'named',
