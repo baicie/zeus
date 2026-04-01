@@ -41,8 +41,8 @@ export {
   isSignal,
   isComputed,
   isEffect,
+  effect,
 } from '@zeus-js/signal'
-export { effect } from './client'
 
 // Re-export component types
 export type { ComponentFunction, App, Plugin } from '@zeus-js/runtime-core'

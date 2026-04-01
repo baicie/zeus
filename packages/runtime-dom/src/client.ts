@@ -1,12 +1,4 @@
-import { effect as alienEffect } from '@zeus-js/signal'
-
-// =============================================================================
-// effect wrapper - Delegates to alien-signals for reactive updates
-// alien-signals effect signature: effect(fn: () => void) => () => void
-// =============================================================================
-export function effect(fn: () => void): () => void {
-  return alienEffect(fn)
-}
+import { effect } from '@zeus-js/signal'
 
 // =============================================================================
 // template(html) — Creates a cached template element, returns a clone function
@@ -26,13 +18,18 @@ export function template(html: string): () => Node {
 // insert(parent, accessor, marker?) — Insert static or reactive content into DOM
 // =============================================================================
 export function insert(
-  parent: Node,
+  parent: Node | null,
   accessor: any,
   marker?: Node | null,
 ): void {
+  // 处理 parent 为 null 的情况（不应该发生，但如果发生则跳过）
+  if (!parent) {
+    console.warn('[Zeus] insert called with null parent, skipping')
+    return
+  }
+
   if (typeof accessor === 'function') {
     // 使用空数组作为初始值，与 SolidJS 思路一致
-    // 这样在处理数组类型值的更新时更高效，避免 null -> array 的类型转换开销
     let current: Node | Node[] = []
     effect(() => {
       const value = accessor()

@@ -213,8 +213,11 @@ impl<'a> JsxTransformer<'a> {
                 JSXChild::ExpressionContainer(expr_container) => {
                     // SolidJS 风格：不使用占位符
                     // 节点位置通过 firstChild/nextSibling 遍历确定
+                    // 所有动态表达式都需要添加到 child_bindings
 
                     if let Some(expr) = expr_container.expression.as_expression() {
+                        let expr_source = self.expression_to_source(expr);
+
                         // 检查表达式是否包含 JSX 元素
                         if self.contains_jsx_element(expr) {
                             // 对于包含 JSX 的表达式，提取嵌套的 JSX 并生成子模板
@@ -229,8 +232,9 @@ impl<'a> JsxTransformer<'a> {
                                 placeholder_index: child_idx,
                             });
                         } else {
+                            // 所有其他动态表达式（如数组.map()）也需要添加到 child_bindings
+                            // 这样 runtime 可以处理动态内容
                             let is_text = matches!(expr, Expression::StringLiteral(_) | Expression::TemplateLiteral(_));
-                            let expr_source = self.expression_to_source(expr);
 
                             child_bindings.push(ChildBinding {
                                 index: child_idx,
@@ -261,8 +265,43 @@ impl<'a> JsxTransformer<'a> {
                     || self.contains_jsx_element(&cond.consequent)
                     || self.contains_jsx_element(&cond.alternate)
             }
+            // 处理箭头函数：检查函数体中的语句
+            Expression::ArrowFunctionExpression(arrow) => {
+                self.function_body_contains_jsx(&arrow.body)
+            }
+            // 处理函数表达式
+            Expression::FunctionExpression(func) => {
+                if let Some(body) = &func.body {
+                    self.function_body_contains_jsx(body)
+                } else {
+                    false
+                }
+            }
+            // 处理 call expression 中的箭头函数参数（如 NAV_ITEMS.map((i) => <span>...</span>)）
+            Expression::CallExpression(call) => {
+                for arg in &call.arguments {
+                    if let Some(arg_expr) = arg.as_expression() {
+                        if self.contains_jsx_element(arg_expr) {
+                            return true;
+                        }
+                    }
+                }
+                false
+            }
             _ => false,
         }
+    }
+
+    /// 检查函数体是否包含 JSX 元素
+    fn function_body_contains_jsx(&self, body: &oxc_ast::ast::FunctionBody) -> bool {
+        for stmt in &body.statements {
+            if let oxc_ast::ast::Statement::ExpressionStatement(expr_stmt) = stmt {
+                if self.contains_jsx_element(&expr_stmt.expression) {
+                    return true;
+                }
+            }
+        }
+        false
     }
 
     /// 从表达式中提取 JSX，返回替换后的表达式和嵌套模板
@@ -339,10 +378,118 @@ impl<'a> JsxTransformer<'a> {
                 let result_tmpl = templates.into_iter().next();
                 (result_expr, result_tmpl)
             }
+            // 处理 CallExpression（如 NAV_ITEMS.map((i) => <span>{i}</span>)）
+            Expression::CallExpression(call) => {
+                let mut templates: Vec<TemplateDecl> = Vec::new();
+                let mut new_args: Vec<String> = Vec::new();
+
+                for arg in &call.arguments {
+                    if let Some(arg_expr) = arg.as_expression() {
+                        let (new_expr, nested_tmpl) = self.extract_jsx_from_expression(arg_expr, 0);
+                        new_args.push(new_expr);
+                        if let Some(t) = nested_tmpl {
+                            templates.push(t);
+                        }
+                    }
+                }
+
+                // 构建新的调用表达式
+                let callee = self.expression_to_source(&call.callee);
+                let args_str = new_args.join(", ");
+                let new_call_expr = format!("{}({})", callee, args_str);
+
+                // 返回第一个模板
+                let result_tmpl = templates.into_iter().next();
+                (new_call_expr, result_tmpl)
+            }
+            // 处理 ArrowFunctionExpression
+            Expression::ArrowFunctionExpression(arrow) => {
+                // 检查函数体是否包含 JSX
+                if self.function_body_contains_jsx(&arrow.body) {
+                    // 函数体内有 JSX，需要生成子模板
+                    // 提取第一个 JSX 元素作为模板
+                    let tmpl_name = format!("_tmpl$inner${}", child_idx);
+                    let (jsxs, _) = self.extract_jsx_from_arrow_body(&arrow.body);
+                    
+                    if let Some((tag, inner_bindings)) = jsxs {
+                        let html = format!("<{}></{}>", tag, tag);
+                        let template = TemplateDecl {
+                            name: tmpl_name.clone(),
+                            html,
+                            child_bindings: inner_bindings,
+                            attr_bindings: Vec::new(),
+                            marker_paths: Vec::new(),
+                            needs_markers: false,
+                        };
+                        // 返回调用子模板的表达式
+                        let params = self.params_to_source(&arrow.params);
+                        let new_arrow = format!("({}) => {}({})", params, tmpl_name, params);
+                        (new_arrow, Some(template))
+                    } else {
+                        // 没有找到 JSX，返回原表达式
+                        (self.expression_to_source(expr), None)
+                    }
+                } else {
+                    // 函数体内没有 JSX，返回原表达式
+                    (self.expression_to_source(expr), None)
+                }
+            }
             _ => {
                 (self.expression_to_source(expr), None)
             }
         }
+    }
+
+    /// 从箭头函数体中提取 JSX 元素
+    fn extract_jsx_from_arrow_body(&self, body: &oxc_ast::ast::FunctionBody) -> (Option<(String, Vec<ChildBinding>)>, bool) {
+        for stmt in &body.statements {
+            if let oxc_ast::ast::Statement::ExpressionStatement(expr_stmt) = stmt {
+                if let Some(result) = self.extract_jsx_from_expression_internal(&expr_stmt.expression) {
+                    return (Some(result), true);
+                }
+            }
+        }
+        (None, false)
+    }
+
+    /// 内部方法：从表达式中提取 JSX（返回 tag 和 inner_bindings）
+    fn extract_jsx_from_expression_internal(&self, expr: &Expression) -> Option<(String, Vec<ChildBinding>)> {
+        match expr {
+            Expression::JSXElement(jsx) => {
+                let tag = self.get_jsx_tag_name(&jsx.opening_element.name);
+                // 递归收集内部 child_bindings
+                let mut inner_bindings = Vec::new();
+                self.collect_child_bindings_from_jsx(jsx, &mut inner_bindings);
+                Some((tag, inner_bindings))
+            }
+            _ => None,
+        }
+    }
+
+    /// 收集 JSX 元素的 child_bindings
+    fn collect_child_bindings_from_jsx(&self, jsx: &JSXElement, bindings: &mut Vec<ChildBinding>) {
+        let mut child_idx = 0;
+        for child in &jsx.children {
+            if let JSXChild::ExpressionContainer(expr_container) = child {
+                if let Some(expr) = expr_container.expression.as_expression() {
+                    let expr_source = self.expression_to_source(expr);
+                    let is_text = matches!(expr, Expression::StringLiteral(_) | Expression::TemplateLiteral(_));
+                    bindings.push(ChildBinding {
+                        index: child_idx,
+                        expression: expr_source,
+                        is_text,
+                        placeholder_index: child_idx,
+                    });
+                    child_idx += 1;
+                }
+            }
+        }
+    }
+
+    /// 将参数列表转换为源代码
+    fn params_to_source(&self, _params: &oxc_ast::ast::FormalParameters) -> String {
+        // 简化实现：返回空字符串，由调用者处理
+        "".to_string()
     }
 }
 

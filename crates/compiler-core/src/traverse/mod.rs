@@ -423,56 +423,45 @@ fn inject_insert_calls(templates_code: &str, ast_code: &str, state: &DomCompiler
 /// 生成节点缓存变量声明和 insert 调用
 ///
 /// 参考 SolidJS dom-expressions 的实现：
-/// - 节点通过 firstChild/nextSibling 遍历定位
+/// - 节点通过 firstElementSibling 遍历定位（跳过空白节点）
 /// - insert(parent, content, anchor?) 中 anchor 可选
+/// - 没有 marker 时，anchor 设为 null，内容追加到父元素末尾
 fn generate_node_refs_and_inserts(template: &TemplateDecl) -> (String, String, Vec<String>) {
     let mut node_cache = String::new();
     let mut insert_calls = String::new();
     let mut marker_refs = Vec::new();
 
+    // current_ref 指向根节点（已在 IIFE 中声明为 _el$）
     let mut current_ref = "_el$".to_string();
 
     for (i, binding) in template.child_bindings.iter().enumerate() {
-        // 生成节点缓存变量
+        // 生成节点缓存变量（从 _el$1 开始）
         let node_var = format!("_el${}", i + 1);
 
         // 根据 index 确定遍历方式：
-        // - index == 0: firstChild
-        // - index > 0: nextSibling
-        let node_expr = if binding.index == 0 {
-            format!("{}.firstChild", current_ref)
+        // - index == 0: firstElementChild（获取第一个元素子节点，跳过空白）
+        // - index > 0: nextElementSibling（下一个兄弟元素节点）
+        // 使用 i（循环索引）来判断第一个元素
+        let node_expr = if i == 0 {
+            // 第一个子节点，使用 firstElementChild
+            format!("{}.firstElementChild", current_ref)
         } else {
-            format!("{}.nextSibling", current_ref)
+            format!("{}.nextElementSibling", current_ref)
         };
 
+        // 生成缓存变量
         node_cache.push_str(&format!("  const {} = {};\n", node_var, node_expr));
 
-        // 生成 insert 调用
-        // anchor 指向当前节点的下一个兄弟节点
-        let anchor_var = format!("_el${}", i + 2);
-        marker_refs.push(format!("{}.nextSibling", node_var));
+        // 没有 marker 时，anchor 设为 null
+        marker_refs.push("null".to_string());
 
         // 处理表达式
         let expr = &binding.expression;
 
-        // SolidJS 风格：insert 调用用箭头函数包装动态内容
-        let processed_expr = if binding.is_text {
-            // 文本内容用箭头函数包装
-            format!("() => {}", expr)
-        } else {
-            // JSX 元素或组件调用，保持原样或包装为函数
-            if expr.contains("=>") || expr.starts_with("(") {
-                expr.clone()
-            } else {
-                format!("() => {}", expr)
-            }
-        };
-
-        // 生成 insert 调用: insert(parent, content, anchor)
-        // anchor 是可选的，如果省略会在 parent 末尾追加
+        // 生成 insert 调用，anchor 设为 null
         insert_calls.push_str(&format!(
-            "  insert({}, {}, {});\n",
-            node_var, processed_expr, anchor_var
+            "  insert({}, {}, null);\n",
+            node_var, expr
         ));
 
         current_ref = node_var;
