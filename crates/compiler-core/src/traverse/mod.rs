@@ -110,6 +110,8 @@ impl<'a> Traverse<'a, DomCompilerState> for DomCompilerPass<'a> {
                 html: "<!---->".to_string(),
                 child_bindings: Vec::new(),
                 attr_bindings: Vec::new(),
+                marker_paths: Vec::new(),
+                needs_markers: false,
             });
         }
 
@@ -133,6 +135,8 @@ impl<'a> Traverse<'a, DomCompilerState> for DomCompilerPass<'a> {
                     html,
                     child_bindings,
                     attr_bindings,
+                    marker_paths: Vec::new(),
+                    needs_markers: false,
                 });
 
                 let tmpl_atom = ctx.ast.allocator.alloc_str(&tmpl_name);
@@ -172,6 +176,8 @@ impl<'a> Traverse<'a, DomCompilerState> for DomCompilerPass<'a> {
                                                 html,
                                                 child_bindings,
                                                 attr_bindings,
+                                                marker_paths: Vec::new(),
+                                                needs_markers: false,
                                             });
                                         }
                                     }
@@ -196,6 +202,8 @@ impl<'a> Traverse<'a, DomCompilerState> for DomCompilerPass<'a> {
                     html,
                     child_bindings,
                     attr_bindings: Vec::new(),
+                    marker_paths: Vec::new(),
+                    needs_markers: false,
                 });
 
                 let tmpl_atom = ctx.ast.allocator.alloc_str(&tmpl_name);
@@ -269,6 +277,8 @@ impl<'a> Traverse<'a, DomCompilerState> for DomCompilerPass<'a> {
             html: element_html,
             child_bindings,
             attr_bindings,
+            marker_paths: Vec::new(),
+            needs_markers: false,
         });
 
         // 将 JSX 元素替换为模板调用
@@ -301,99 +311,172 @@ pub fn compile(source: &str, options: CompilerOptions) -> Result<String, String>
     let scopes = oxc_semantic::Scoping::default();
     traverse_mut(&mut pass, &allocator, &mut program, scopes, initial_state);
 
+    // 生成代码
+    let generated_code = generate_compiled_code(&pass.state, &allocator, &program);
+
+    Ok(generated_code)
+}
+
+/// 生成编译后的代码
+fn generate_compiled_code(state: &DomCompilerState, _allocator: &Allocator, program: &Program) -> String {
     let mut code = String::new();
 
-    let has_child_bindings = pass.state.templates.iter().any(|t| !t.child_bindings.is_empty());
-
-    if has_child_bindings {
-        if !pass.state.used_helpers.is_empty() {
-            code.push_str("import { ");
-            code.push_str(&pass.state.used_helpers.join(", "));
-            code.push_str(" } from \"@zeus-js/core\";\n\n");
-        }
-
-        for template in &pass.state.templates {
-            let cleaned_html = crate::traverse::whitespace::cleanup_template_html(&template.html);
-
-            let escaped_html = cleaned_html
-                .replace('\\', "\\\\")
-                .replace('"', "\\\"")
-                .replace('\n', "\\n")
-                .replace('\r', "\\r")
-                .replace('\t', "\\t");
-            code.push_str(&format!(
-                "const {} = template(\"{}\");\n",
-                template.name, escaped_html
-            ));
-
-            if !template.child_bindings.is_empty() {
-                for binding in &template.child_bindings {
-                    code.push_str(&format!(
-                        "insert({}, {}, null);\n",
-                        template.name, binding.expression
-                    ));
-                }
-            }
-        }
-
-        if !pass.state.delegated_events.is_empty() {
-            code.push_str("delegateEvents([");
-            for (i, e) in pass.state.delegated_events.iter().enumerate() {
-                if i > 0 {
-                    code.push_str(", ");
-                }
-                code.push_str(&format!("\"{}\"", e));
-            }
-            code.push_str("]);\n");
-        }
-
-        code.push_str("\n");
-
-        use oxc_codegen::Codegen;
-        let ast_code = Codegen::new().build(&program).code;
-        code.push_str(&ast_code);
-    } else {
-        let generated_code = CodeGenerator::generate(&pass.state, source);
-        code.push_str(&generated_code);
-
-        if code.is_empty() {
-            if !pass.state.used_helpers.is_empty() {
-                code.push_str("import { ");
-                code.push_str(&pass.state.used_helpers.join(", "));
-                code.push_str(" } from \"@zeus-js/core\";\n\n");
-            }
-
-            for template in &pass.state.templates {
-                let escaped_html = crate::traverse::whitespace::cleanup_template_html(&template.html)
-                    .replace('\\', "\\\\")
-                    .replace('"', "\\\"")
-                    .replace('\n', "\\n")
-                    .replace('\r', "\\r")
-                    .replace('\t', "\\t");
-                code.push_str(&format!(
-                    "const {} = template(\"{}\");\n",
-                    template.name, escaped_html
-                ));
-            }
-
-            if !pass.state.delegated_events.is_empty() {
-                code.push_str("delegateEvents([");
-                for (i, e) in pass.state.delegated_events.iter().enumerate() {
-                    if i > 0 {
-                        code.push_str(", ");
-                    }
-                    code.push_str(&format!("\"{}\"", e));
-                }
-                code.push_str("]);\n");
-            }
-
-            code.push_str("\n");
-
-            use oxc_codegen::Codegen;
-            let ast_code = Codegen::new().build(&program).code;
-            code.push_str(&ast_code);
-        }
+    // 1. 生成 import 语句
+    if !state.used_helpers.is_empty() {
+        code.push_str("import { ");
+        code.push_str(&state.used_helpers.join(", "));
+        code.push_str(" } from \"@zeus-js/core\";\n\n");
     }
 
-    Ok(code)
+    // 2. 生成模板声明（只在模块顶层）
+    for template in &state.templates {
+        let cleaned_html = crate::traverse::whitespace::cleanup_template_html(&template.html);
+
+        let escaped_html = cleaned_html
+            .replace('\\', "\\\\")
+            .replace('"', "\\\"")
+            .replace('\n', "\\n")
+            .replace('\r', "\\r")
+            .replace('\t', "\\t");
+
+        // 模板是纯静态 HTML，不需要 marker
+        code.push_str(&format!(
+            "var {} = template(\"{}\");\n",
+            template.name, escaped_html
+        ));
+    }
+
+    // 3. 生成事件委托（如果在模块顶层有事件）
+    if !state.delegated_events.is_empty() {
+        code.push_str("delegateEvents([");
+        for (i, e) in state.delegated_events.iter().enumerate() {
+            if i > 0 {
+                code.push_str(", ");
+            }
+            code.push_str(&format!("\"{}\"", e));
+        }
+        code.push_str("]);\n");
+    }
+
+    code.push('\n');
+
+    // 4. 使用 oxc_codegen 生成用户代码
+    use oxc_codegen::Codegen;
+    let ast_code = Codegen::new().build(&program).code;
+
+    // 5. 注入 insert 调用到组件函数中
+    let final_code = inject_insert_calls(&code, &ast_code, state);
+
+    final_code
+}
+
+/// 注入 insert 调用到组件函数中
+fn inject_insert_calls(templates_code: &str, ast_code: &str, state: &DomCompilerState) -> String {
+    // 检查是否有 child_bindings
+    let has_child_bindings = state.templates.iter().any(|t| !t.child_bindings.is_empty());
+
+    if !has_child_bindings {
+        // 没有动态子节点，直接返回模板代码 + AST 代码
+        return format!("{}{}", templates_code, ast_code);
+    }
+
+    // 方案：在代码生成阶段通过字符串操作生成 IIFE 结构
+    // 这是因为 AST 级别的修改需要更复杂的 API
+
+    // 生成模板声明和静态数据的代码
+    let mut result = templates_code.to_string();
+
+    // 为每个有 child_bindings 的模板生成 IIFE 代码
+    for template in &state.templates {
+        if template.child_bindings.is_empty() {
+            continue;
+        }
+
+        // 生成节点缓存和 insert 调用的代码
+        let (node_cache, insert_calls, _marker_refs) = generate_node_refs_and_inserts(template);
+
+        // 在 AST 代码中找到 return _tmpl$N(); 模式
+        let return_pattern = format!("return {}();", template.name);
+
+        // 生成 IIFE 结构
+        let iife_code = format!(
+            r#"return (() => {{
+  const _el$ = {template_name}();
+{node_cache}{insert_calls}
+  return _el$;
+}})();"#,
+            template_name = template.name,
+            node_cache = node_cache,
+            insert_calls = insert_calls
+        );
+
+        // 替换 AST 代码中的 return 语句
+        let modified_ast = ast_code.replace(&return_pattern, &iife_code);
+        result.push_str(&modified_ast);
+        return result;
+    }
+
+    // 如果没有找到匹配的模式，返回原始代码
+    format!("{}{}", result, ast_code)
+}
+
+/// 生成节点缓存变量声明和 insert 调用
+///
+/// 参考 SolidJS dom-expressions 的实现：
+/// - 节点通过 firstChild/nextSibling 遍历定位
+/// - insert(parent, content, anchor?) 中 anchor 可选
+fn generate_node_refs_and_inserts(template: &TemplateDecl) -> (String, String, Vec<String>) {
+    let mut node_cache = String::new();
+    let mut insert_calls = String::new();
+    let mut marker_refs = Vec::new();
+
+    let mut current_ref = "_el$".to_string();
+
+    for (i, binding) in template.child_bindings.iter().enumerate() {
+        // 生成节点缓存变量
+        let node_var = format!("_el${}", i + 1);
+
+        // 根据 index 确定遍历方式：
+        // - index == 0: firstChild
+        // - index > 0: nextSibling
+        let node_expr = if binding.index == 0 {
+            format!("{}.firstChild", current_ref)
+        } else {
+            format!("{}.nextSibling", current_ref)
+        };
+
+        node_cache.push_str(&format!("  const {} = {};\n", node_var, node_expr));
+
+        // 生成 insert 调用
+        // anchor 指向当前节点的下一个兄弟节点
+        let anchor_var = format!("_el${}", i + 2);
+        marker_refs.push(format!("{}.nextSibling", node_var));
+
+        // 处理表达式
+        let expr = &binding.expression;
+
+        // SolidJS 风格：insert 调用用箭头函数包装动态内容
+        let processed_expr = if binding.is_text {
+            // 文本内容用箭头函数包装
+            format!("() => {}", expr)
+        } else {
+            // JSX 元素或组件调用，保持原样或包装为函数
+            if expr.contains("=>") || expr.starts_with("(") {
+                expr.clone()
+            } else {
+                format!("() => {}", expr)
+            }
+        };
+
+        // 生成 insert 调用: insert(parent, content, anchor)
+        // anchor 是可选的，如果省略会在 parent 末尾追加
+        insert_calls.push_str(&format!(
+            "  insert({}, {}, {});\n",
+            node_var, processed_expr, anchor_var
+        ));
+
+        current_ref = node_var;
+    }
+
+    (node_cache, insert_calls, marker_refs)
 }

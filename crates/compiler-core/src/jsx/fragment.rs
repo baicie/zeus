@@ -8,7 +8,7 @@ use oxc_allocator::{Allocator, CloneIn};
 use oxc_ast::ast::*;
 use oxc_ast::AstBuilder;
 use crate::jsx::config::GenerateMode;
-use crate::jsx::ir::{ChildBinding, MarkerKind};
+use crate::jsx::ir::ChildBinding;
 use crate::jsx::state::JsxCompilerState;
 use crate::jsx::utils::is_useless_child;
 
@@ -114,8 +114,8 @@ impl<'a, 'ctx> FragmentTransformer<'a, 'ctx> {
                     result.template.push_str(text.value.as_str());
                 }
                 JSXChild::ExpressionContainer(expr_container) => {
-                    let placeholder_idx = self.state.next_placeholder_index();
-                    result.template.push_str(&MarkerKind::DynamicChildStart.to_html(Some(placeholder_idx)));
+                    // SolidJS 风格：不需要占位符
+                    // 节点位置通过 firstChild/nextSibling 遍历确定
 
                     if !matches!(expr_container.expression, JSXExpression::EmptyExpression(_)) {
                         if let Some(expr) = expr_container.expression.as_expression() {
@@ -123,7 +123,7 @@ impl<'a, 'ctx> FragmentTransformer<'a, 'ctx> {
                             let is_dynamic = crate::jsx::utils::is_dynamic_expression(expr, check_config);
                             if is_dynamic {
                                 result.child_bindings.push(ChildBinding {
-                                    index: placeholder_idx,
+                                    index: self.state.next_placeholder_index(),
                                     expression: expr.clone_in(self.allocator),
                                     is_text: false,
                                     needs_marker: false,
@@ -169,10 +169,8 @@ impl<'a, 'ctx> FragmentTransformer<'a, 'ctx> {
 
         let placeholder_idx = self.state.next_placeholder_index();
 
-        // 添加 marker
-        if needs_markers {
-            result.template.push_str(&MarkerKind::DynamicChildStart.to_html(Some(placeholder_idx)));
-        }
+        // SolidJS 风格：不需要 marker
+        // 节点位置通过 firstChild/nextSibling 遍历确定
 
         // 检测条件表达式并包装
         let config = &self.state.config;

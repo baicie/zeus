@@ -89,8 +89,8 @@ impl<'a> JsxTransformer<'a> {
                     self.write_jsx_element_html(e, &mut html, &mut child_bindings, &mut Vec::new());
                 }
                 JSXChild::ExpressionContainer(expr_container) => {
-                    let placeholder = format!("<!--[{}]-->", child_idx);
-                    html.push_str(&placeholder);
+                    // SolidJS 风格：不使用占位符，直接记录绑定
+                    // 节点位置通过 firstChild/nextSibling 遍历确定
 
                     if let Some(expr) = expr_container.expression.as_expression() {
                         let expr_source = self.expression_to_source(expr);
@@ -98,6 +98,7 @@ impl<'a> JsxTransformer<'a> {
                             index: child_idx,
                             expression: expr_source,
                             is_text: true,
+                            placeholder_index: child_idx,
                         });
                     }
                     child_idx += 1;
@@ -210,15 +211,13 @@ impl<'a> JsxTransformer<'a> {
                     self.write_jsx_element_html(e, out, child_bindings, &mut Vec::new());
                 }
                 JSXChild::ExpressionContainer(expr_container) => {
-                    let placeholder = format!("<!--[{}]-->", child_idx);
-                    out.push_str(&placeholder);
+                    // SolidJS 风格：不使用占位符
+                    // 节点位置通过 firstChild/nextSibling 遍历确定
 
                     if let Some(expr) = expr_container.expression.as_expression() {
                         // 检查表达式是否包含 JSX 元素
                         if self.contains_jsx_element(expr) {
-                            // 对于包含 JSX 的表达式，我们需要：
-                            // 1. 提取嵌套的 JSX 并生成子模板
-                            // 2. 将表达式替换为函数调用占位符
+                            // 对于包含 JSX 的表达式，提取嵌套的 JSX 并生成子模板
                             let (replaced_expr, nested_tmpl) = self.extract_jsx_from_expression(expr, child_idx);
                             if let Some(tmpl) = nested_tmpl {
                                 self.nested_templates.push(tmpl);
@@ -227,6 +226,7 @@ impl<'a> JsxTransformer<'a> {
                                 index: child_idx,
                                 expression: replaced_expr,
                                 is_text: false,
+                                placeholder_index: child_idx,
                             });
                         } else {
                             let is_text = matches!(expr, Expression::StringLiteral(_) | Expression::TemplateLiteral(_));
@@ -236,6 +236,7 @@ impl<'a> JsxTransformer<'a> {
                                 index: child_idx,
                                 expression: expr_source,
                                 is_text,
+                                placeholder_index: child_idx,
                             });
                         }
                     }
@@ -287,6 +288,8 @@ impl<'a> JsxTransformer<'a> {
                     html,
                     child_bindings: Vec::new(),
                     attr_bindings: Vec::new(),
+                    marker_paths: Vec::new(),
+                    needs_markers: false,
                 };
                 (format!("{}().firstChild", tmpl_name), Some(template))
             }
@@ -297,6 +300,8 @@ impl<'a> JsxTransformer<'a> {
                     html: "<!---->".to_string(),
                     child_bindings: Vec::new(),
                     attr_bindings: Vec::new(),
+                    marker_paths: Vec::new(),
+                    needs_markers: false,
                 };
                 (format!("{}().firstChild", tmpl_name), Some(template))
             }
@@ -357,6 +362,8 @@ impl TemplateDecl {
             html,
             child_bindings: child_bindings.clone(),
             attr_bindings: attr_bindings.clone(),
+            marker_paths: Vec::new(),
+            needs_markers: false,
         };
 
         (template, child_bindings, attr_bindings)

@@ -3,8 +3,7 @@
 //! 提供模板 HTML 和 JSX 文本的空白规范化功能
 
 /// 清理模板 HTML 中不必要的注释和空白
-/// 移除只在模板中用于占位但在运行时不需要的注释
-/// 同时最小化空白以减少模板体积
+/// 移除运行时不需要的注释，最小化空白以减少模板体积
 pub fn cleanup_template_html(html: &str) -> String {
     let mut result = String::with_capacity(html.len());
     let chars: Vec<char> = html.chars().collect();
@@ -12,33 +11,6 @@ pub fn cleanup_template_html(html: &str) -> String {
     let mut i = 0;
 
     while i < len {
-        // 检测 <!--[数字]--> 格式的注释 - 保留这些占位符注释！
-        if i + 5 < len
-            && chars[i] == '<'
-            && chars[i + 1] == '!'
-            && chars[i + 2] == '-'
-            && chars[i + 3] == '-'
-            && chars[i + 4] == '['
-        {
-            // 检查是否是 <!--[数字]-->
-            let mut j = i + 5;
-
-            // 跳过数字
-            while j < len && chars[j].is_ascii_digit() {
-                j += 1;
-            }
-
-            // 检查 ]-->
-            if j + 3 <= len && chars[j] == ']' && chars[j + 1] == '-' && chars[j + 2] == '-' && chars[j + 3] == '>' {
-                // 是占位注释，保留它
-                for k in i..(j + 4) {
-                    result.push(chars[k]);
-                }
-                i = j + 4;
-                continue;
-            }
-        }
-
         // 检测并移除 <!----> 格式的空注释
         if i + 7 < len
             && chars[i] == '<'

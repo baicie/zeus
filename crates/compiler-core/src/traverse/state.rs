@@ -43,6 +43,36 @@ pub struct DomCompilerState {
     list_renders: Vec<ListRender>,
     /// 待处理的转换（if → ternary）
     pub pending_transforms: Vec<PendingTransform>,
+    /// 组件上下文（用于跟踪组件内的 insert 调用）
+    component_context: Option<ComponentContext>,
+}
+
+/// 组件上下文 - 跟踪组件编译状态
+#[derive(Clone, Debug, Default)]
+pub struct ComponentContext {
+    /// 组件内生成的语句
+    pub statements: Vec<ComponentStatement>,
+}
+
+/// 组件语句类型
+#[derive(Clone, Debug)]
+pub enum ComponentStatement {
+    /// 节点缓存变量声明
+    NodeCache {
+        /// 变量名
+        name: String,
+        /// DOM 路径表达式
+        path: String,
+    },
+    /// insert 调用
+    Insert {
+        /// 模板名
+        template: String,
+        /// 表达式源码
+        expression: String,
+        /// marker 路径
+        marker: String,
+    },
 }
 
 /// 待处理的转换信息
@@ -90,6 +120,8 @@ pub struct ChildBinding {
     pub expression: String,
     /// 是否为文本插值（如 `{count}`）
     pub is_text: bool,
+    /// 占位符在模板中的位置 (与 marker_paths 中的 index 对应)
+    pub placeholder_index: usize,
 }
 
 impl DomCompilerState {
@@ -109,6 +141,7 @@ impl DomCompilerState {
             static_node_counter: 0,
             list_renders: Vec::new(),
             pending_transforms: Vec::new(),
+            component_context: None,
         }
     }
 
@@ -205,6 +238,20 @@ pub struct TemplateDecl {
     pub child_bindings: Vec<ChildBinding>,
     /// 属性绑定（用于 setAttribute/className/style）
     pub attr_bindings: Vec<AttrBinding>,
+    /// 占位符标记位置 (placeholder_index -> dom_path_to_marker)
+    /// 例如: "<!--[0]-->" 在 children[3] 之后 -> "_el$3.nextSibling"
+    pub marker_paths: Vec<MarkerPath>,
+    /// 是否需要 marker（用于动态子节点）
+    pub needs_markers: bool,
+}
+
+/// Marker 路径信息
+#[derive(Clone, Debug)]
+pub struct MarkerPath {
+    /// 占位符索引 (与 child_bindings 中的 index 对应)
+    pub index: usize,
+    /// DOM 路径表达式 (如 "_el$3.nextSibling")
+    pub path: String,
 }
 
 /// 属性绑定

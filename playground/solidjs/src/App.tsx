@@ -1,47 +1,47 @@
-import { Show, createSignal } from 'solid-js'
+import { A } from '@solidjs/router'
+import type { ParentProps } from 'solid-js'
 
-function Child({ shouldError }: { shouldError: () => boolean }) {
-  console.log('Child render')
-
-  return (
-    <Show
-      when={shouldError()}
-      fallback={
-        <div>
-          <h1>Child</h1>
-        </div>
-      }
-    >
-      <h1>Error</h1>
-    </Show>
-  )
+interface NavItem {
+  path: string
+  icon: string
+  label: string
 }
 
-function App() {
-  const [count, setCount] = createSignal(0)
-  const [shouldError, setShouldError] = createSignal(false)
+const NAV_ITEMS: NavItem[] = [
+  { path: '/', icon: '🏠', label: 'Home' },
+  { path: '/counter', icon: '🔢', label: 'Counter' },
+  { path: '/conditional', icon: '🔀', label: 'Conditional' },
+  { path: '/list', icon: '📋', label: 'List Render' },
+  { path: '/binding', icon: '✏️', label: 'Two-way Bind' },
+  { path: '/computed', icon: '⚡', label: 'Computed' },
+  { path: '/lifecycle', icon: '🔄', label: 'Lifecycle' },
+  { path: '/ref', icon: '🔗', label: 'Ref' },
+  { path: '/builtin', icon: '🔧', label: 'Built-in' },
+]
 
+function App(props: ParentProps) {
   return (
-    <>
-      <section id="center">
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <h1>SolidJS</h1>
+          <p>Framework Demo</p>
         </div>
-        <button class="counter" onClick={() => setCount(count => count + 1)}>
-          Count is {count()}
-        </button>
-        <button
-          class="counter"
-          onClick={() => setShouldError(shouldError => !shouldError)}
-        >
-          Should Error is {shouldError() ? 'true' : 'false'}
-        </button>
-        <Child shouldError={shouldError} />
-      </section>
-    </>
+        <div class="nav-section">Navigation</div>
+        {NAV_ITEMS.map(item => (
+          <A
+            href={item.path}
+            class="nav-link"
+            activeClass="active"
+            end={item.path === '/'}
+          >
+            <span class="nav-icon">{item.icon}</span>
+            {item.label}
+          </A>
+        ))}
+      </aside>
+      <main class="content">{props.children}</main>
+    </div>
   )
 }
 
