@@ -446,24 +446,33 @@ register指令(_node, _action);
 
 | 文档 | 说明 |
 |------|------|
-| project.md | 项目现状 |
-| solidjs-compiler-analysis.md | SolidJS 编译器分析 |
-| zeus-compiler-design.md | Zeus 编译器完整设计 |
-| todo.md | 开发计划 |
+| [index.md](./index.md) | **文档索引入口** |
+| [project.md](./project.md) | 项目现状 |
+| [todo.md](./todo.md) | 开发计划 |
+| [issues.md](./issues.md) | 问题与修复记录 |
+| [architecture/zeus-architecture.md](./architecture/zeus-architecture.md) | 项目整体架构 |
+| [architecture/zeus-compiler-design.md](./architecture/zeus-compiler-design.md) | 编译器完整设计 |
+| [architecture/zeus-compiler-oxc1230-design.md](./architecture/zeus-compiler-oxc1230-design.md) | JSX 编译器绣化方案 |
+| [architecture/zeus-jsx-compiler-rust-oxc-design.md](./architecture/zeus-jsx-compiler-rust-oxc-design.md) | 绣化方案 v2 |
+| [analysis/solidjs-compiler-analysis.md](./analysis/solidjs-compiler-analysis.md) | SolidJS 编译器分析 |
+| [analysis/solidjs-compiler-analysis-dom-expressions.md](./analysis/solidjs-compiler-analysis-dom-expressions.md) | dom-expressions 深度解读 |
+| [reference/compiler-fix-plan.md](./reference/compiler-fix-plan.md) | 编译器整改方案 |
+| [reference/oxc-sourcemap-design.md](./reference/oxc-sourcemap-design.md) | SourceMap 生成方案 |
+| [progress/progress-report-2026-03-31.md](./progress/progress-report-2026-03-31.md) | 开发进度报告 |
 
 #### 🔄 进行中
 
 | 文档 | 说明 |
 |------|------|
-| compiler-dom-design.md | DOM 编译器设计 |
-| compiler-traverse-design.md | traverse 重构设计 |
+| `architecture/compiler-dom-design.md` | DOM 编译器设计 |
+| `architecture/compiler-traverse-design.md` | traverse 重构设计 |
 
 #### 📋 待开始
 
 | 文档 | 优先级 | 说明 |
 |------|--------|------|
-| README.md | P0 | 项目说明 |
-| CONTRIBUTING.md | P1 | 贡献指南 |
+| `README.md` | P0 | 项目说明 |
+| `CONTRIBUTING.md` | P1 | 贡献指南 |
 | 响应式编译设计文档 | P0 | 新的响应式自动编译设计 |
 | API 文档 | P1 | 运行时 API 文档 |
 | 迁移指南 | P2 | 从其他框架迁移 |

@@ -633,17 +633,36 @@ refactor(parser): simplify AST node creation
 
 ### 文档目录
 
-项目文档统一存放在 `docs/` 目录下，包括以下核心文档：
+项目文档统一存放在 `docs/` 目录下，目录结构如下：
+
+```
+docs/
+├── index.md          # 文档索引入口
+├── project.md        # 项目现状总览
+├── todo.md           # 开发任务清单
+├── issues.md         # 问题与修复记录
+├── architecture/     # 架构设计文档
+├── analysis/         # 竞品分析文档
+├── reference/        # 参考文档
+└── progress/         # 进度报告
+```
+
+**核心文档列表**：
 
 | 文档 | 说明 | 更新要求 |
 |------|------|----------|
-| [project.md](./project.md) | 项目现状总览，包括已实现功能、架构设计、技术栈、待完成功能 | **开发过程中持续更新** |
-| [todo.md](./todo.md) | 开发任务清单，包括待办事项、进行中工作、已完成功能 | **每次任务状态变更时更新** |
-| [issues.md](./issues.md) | 开发问题与修复记录，包括 bug、解决方案、已知限制 | **发现问题时创建，修复后更新状态** |
-| [zeus-compiler-design.md](./zeus-compiler-design.md) | Zeus 编译器完整设计方案 | 设计阶段完成后基本稳定 |
-| [compiler-dom-design.md](./compiler-dom-design.md) | DOM 编译器设计 | 设计阶段完成后基本稳定 |
-| [compiler-traverse-design.md](./compiler-traverse-design.md) | traverse 重构设计 | 设计阶段完成后基本稳定 |
-| [solidjs-compiler-analysis.md](./solidjs-compiler-analysis.md) | SolidJS 编译器分析 | 参考文档，相对稳定 |
+| **[index.md](./docs/index.md)** | **文档索引入口** - 快速导航和阅读指南 | 文档增删时更新 |
+| [project.md](./docs/project.md) | 项目现状总览，包括已实现功能、架构设计、技术栈、待完成功能 | **开发过程中持续更新** |
+| [todo.md](./docs/todo.md) | 开发任务清单，包括待办事项、进行中工作、已完成功能 | **每次任务状态变更时更新** |
+| [issues.md](./docs/issues.md) | 开发问题与修复记录，包括 bug、解决方案、已知限制 | **发现问题时创建，修复后更新状态** |
+| [architecture/zeus-compiler-design.md](./docs/architecture/zeus-compiler-design.md) | Zeus 编译器完整设计方案 | 设计阶段完成后基本稳定 |
+| [architecture/zeus-compiler-oxc1230-design.md](./docs/architecture/zeus-compiler-oxc1230-design.md) | JSX 编译器绣化方案（详细实现指南） | 设计阶段完成后基本稳定 |
+| [architecture/zeus-architecture.md](./docs/architecture/zeus-architecture.md) | 项目整体架构与各模块功能说明 | 设计阶段完成后基本稳定 |
+| [reference/compiler-fix-plan.md](./docs/reference/compiler-fix-plan.md) | JSX 编译器整改方案 | 参考文档 |
+| [analysis/solidjs-compiler-analysis.md](./docs/analysis/solidjs-compiler-analysis.md) | SolidJS 编译器分析 | 参考文档，相对稳定 |
+| [analysis/solidjs-compiler-analysis-dom-expressions.md](./docs/analysis/solidjs-compiler-analysis-dom-expressions.md) | dom-expressions 深度解读 | 参考文档 |
+| [reference/oxc-sourcemap-design.md](./docs/reference/oxc-sourcemap-design.md) | OXC SourceMap 生成方案 | 设计中 |
+| [progress/progress-report-2026-03-31.md](./docs/progress/progress-report-2026-03-31.md) | 开发进度报告 | 定期更新 |
 
 ### 文档更新要求
 

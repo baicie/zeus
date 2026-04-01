@@ -378,10 +378,12 @@ Playwright E2E 测试环境未配置。
 
 **状态**: ⚠️ 已知问题
 
+**已改善**: 新增 `index.md` 文档索引（放在 `docs/` 根目录），方便开发者快速找到所需文档。
+
 **需要更新**:
 
-- `compiler-dom-design.md` 中的 API 与实际不符
-- `compiler-traverse-design.md` 中的代码示例需要更新
+- `docs/architecture/compiler-dom-design.md` 中的 API 与实际不符（文档待创建）
+- `docs/architecture/compiler-traverse-design.md` 中的代码示例需要更新（文档待创建）
 
 ---
 

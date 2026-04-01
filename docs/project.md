@@ -327,12 +327,22 @@ packages/runtime-core
 
 | 文档 | 状态 | 说明 |
 |------|------|------|
-| docs/index.md | ✅ VitePress | 项目首页 |
-| docs/README.md | ✅ 基础 | 项目说明 |
-| docs/compiler-dom-design.md | ✅ 设计中 | DOM 编译器设计 |
-| docs/compiler-traverse-design.md | ✅ 设计中 | traverse 重构设计 |
-| docs/solidjs-compiler-analysis.md | ✅ 完成 | SolidJS 编译器分析 |
-| docs/zeus-compiler-design.md | ✅ 完成 | Zeus 编译器完整设计 |
+| [index.md](./index.md) | ✅ 完成 | **文档索引入口** |
+| [project.md](./project.md) | ✅ 完成 | 项目现状总览 |
+| [todo.md](./todo.md) | ✅ 完成 | 开发任务清单 |
+| [issues.md](./issues.md) | ✅ 完成 | 问题与修复记录 |
+| [architecture/zeus-architecture.md](./architecture/zeus-architecture.md) | ✅ 完成 | 项目整体架构 |
+| [architecture/zeus-compiler-design.md](./architecture/zeus-compiler-design.md) | ✅ 完成 | 编译器完整设计 |
+| [architecture/zeus-compiler-oxc1230-design.md](./architecture/zeus-compiler-oxc1230-design.md) | ✅ 完成 | 编译器绣化方案 |
+| [architecture/zeus-jsx-compiler-rust-oxc-design.md](./architecture/zeus-jsx-compiler-rust-oxc-design.md) | ⚠️ 参考 | 绣化方案 v2 |
+| [analysis/solidjs-compiler-analysis.md](./analysis/solidjs-compiler-analysis.md) | ✅ 完成 | SolidJS 编译器分析 |
+| [analysis/solidjs-compiler-analysis-dom-expressions.md](./analysis/solidjs-compiler-analysis-dom-expressions.md) | ✅ 完成 | dom-expressions 深度分析 |
+| [reference/compiler-fix-plan.md](./reference/compiler-fix-plan.md) | ⚠️ 参考 | 编译器整改方案 |
+| [reference/oxc-sourcemap-design.md](./reference/oxc-sourcemap-design.md) | ⚠️ 参考 | SourceMap 生成方案 |
+| [progress/progress-report-2026-03-31.md](./progress/progress-report-2026-03-31.md) | ✅ 完成 | 进度报告 |
+| `README.md` | 📋 待完成 | 项目说明 |
+| `architecture/compiler-dom-design.md` | 📋 待完成 | DOM 编译器设计文档 |
+| `architecture/compiler-traverse-design.md` | 📋 待完成 | traverse 重构设计文档 |
 
 ---
 
