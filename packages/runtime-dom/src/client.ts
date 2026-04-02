@@ -486,6 +486,63 @@ export function memo<T>(fn: () => T): () => T {
 }
 
 // =============================================================================
+// DynamicTag - Dynamic element tag helper for DOM rendering
+// Handles cases where the element tag is a variable, like <Tag href="...">content</Tag>
+// =============================================================================
+export function DynamicTag(
+  tag: string | ((props: Record<string, any>) => string),
+  props: Record<string, any>,
+  children?: any,
+): Node {
+  // Resolve the tag (could be a string or a function that returns a string)
+  const resolvedTag = typeof tag === 'function' ? tag(props) : tag
+
+  // Create the element
+  const element = document.createElement(resolvedTag)
+
+  // Apply props to the element
+  if (props) {
+    for (const [key, value] of Object.entries(props)) {
+      if (key === 'class' || key === 'className') {
+        element.className = typeof value === 'function' ? value() : value
+      } else if (key === 'style') {
+        if (typeof value === 'function') {
+          effect(() => applyStyle(element as HTMLElement, value()))
+        } else {
+          applyStyle(element as HTMLElement, value)
+        }
+      } else if (key.startsWith('on')) {
+        const eventName = key.slice(2).toLowerCase()
+        addEventListener(element as Element, eventName, value)
+      } else if (key === 'ref') {
+        ref(element as Element, value)
+      } else if (value != null && value !== false) {
+        setAttribute(element as Element, key, value)
+      }
+    }
+  }
+
+  // Handle children
+  if (children != null) {
+    if (Array.isArray(children)) {
+      for (const child of children) {
+        if (child instanceof Node) {
+          element.appendChild(child)
+        } else if (child != null && typeof child !== 'boolean') {
+          element.appendChild(document.createTextNode(String(child)))
+        }
+      }
+    } else if (children instanceof Node) {
+      element.appendChild(children)
+    } else if (children != null && typeof children !== 'boolean') {
+      element.appendChild(document.createTextNode(String(children)))
+    }
+  }
+
+  return element
+}
+
+// =============================================================================
 // use - Hook for directive-style refs (used: directive)
 // Sets up a ref callback with access to the owner context
 // =============================================================================

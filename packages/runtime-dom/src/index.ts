@@ -17,6 +17,7 @@ export {
   createComponent,
   memo,
   use,
+  DynamicTag,
 } from './client'
 
 // Low-level DOM utilities

@@ -11,6 +11,8 @@ pub struct JsxReplacement {
     pub span: oxc_span::Span,
     /// 是否为组件类型
     pub is_component: bool,
+    /// 是否为动态标签（如 <Tag />）
+    pub is_dynamic_tag: bool,
     /// 组件名称（如 "RouterContext.Provider"）
     pub component_name: Option<String>,
     /// Props 源码
@@ -37,6 +39,8 @@ pub struct DomCompilerState {
     pub depth: usize,
     /// 待替换的 JSX 信息
     pub pending_jsx_replacements: Vec<JsxReplacement>,
+    /// 当前正在处理的 JSX spans 栈（用于在 exit_jsx_element 中检查是否已处理）
+    processing_jsx_spans: Vec<oxc_span::Span>,
     /// 当前正在处理的模板名（用于嵌套收集 binding）
     current_template: Option<String>,
     /// 当前模板的绑定（child 索引位置 → 表达式源码）
@@ -156,6 +160,7 @@ impl DomCompilerState {
             in_jsx: false,
             depth: 0,
             pending_jsx_replacements: Vec::new(),
+            processing_jsx_spans: Vec::new(),
             current_template: None,
             current_child_bindings: Vec::new(),
             child_index: 0,
@@ -166,6 +171,21 @@ impl DomCompilerState {
             ternary_transforms: Vec::new(),
             component_context: None,
         }
+    }
+
+    /// 开始处理 JSX span
+    pub fn start_processing_jsx(&mut self, span: oxc_span::Span) {
+        self.processing_jsx_spans.push(span);
+    }
+
+    /// 结束处理 JSX span
+    pub fn end_processing_jsx(&mut self) {
+        self.processing_jsx_spans.pop();
+    }
+
+    /// 检查是否正在处理指定的 JSX span
+    pub fn is_currently_processing(&self, span: oxc_span::Span) -> bool {
+        self.processing_jsx_spans.iter().any(|s| s.start == span.start && s.end == span.end)
     }
 
     /// 生成唯一的模板变量名
