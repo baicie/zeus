@@ -10,9 +10,8 @@ pub mod jsx;
 pub use parser::{parse_with_allocator, parse_tsx_with_allocator};
 
 pub use codegen::CodeGenerator;
-pub use traverse::{
-    DomCompilerState, DomCompilerPass, compile, Target,
-};
+pub use traverse::{compile, DomCompilerState, DomCompilerPass};
+pub use zeus_compiler_common::Target;
 
 // JSX 编译器导出
 pub use jsx::{

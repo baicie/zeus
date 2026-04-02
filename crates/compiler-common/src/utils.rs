@@ -50,7 +50,7 @@ pub fn is_valid_element_name(name: &str) -> bool {
 /// 检查是否为组件（首字母大写）
 #[allow(dead_code)]
 pub fn is_component_name(name: &str) -> bool {
-    name.chars().next().map_or(false, |c| c.is_uppercase())
+    name.chars().next().is_some_and(|c| c.is_uppercase())
 }
 
 /// 检查事件是否支持委托

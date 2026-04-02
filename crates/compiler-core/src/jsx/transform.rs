@@ -117,7 +117,11 @@ impl<'a, 'ctx> JsxTransformer<'a, 'ctx> {
         let config = &self.state.config;
         let tag_name = get_jsx_tag_name(&node.opening_element.name);
 
+        // 组件类型 JSX（包含 . 或首字母大写）的转换
+        // 直接在 traverse/transform.rs 的 write_component_element 中处理
+        // 这里只需要注册必要的 helpers
         if is_component(&tag_name) {
+            self.state.register_helper("createComponent".to_string(), None);
             return;
         }
 

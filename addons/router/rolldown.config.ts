@@ -1,4 +1,3 @@
-import replace from '@rollup/plugin-replace'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -35,10 +34,10 @@ const esmConfig: RolldownOptions = {
   external,
   resolve: { alias },
   plugins: [
+    rolldownPlugin(),
     dts({
       tsconfig: './tsconfig.json',
     }),
-    rolldownPlugin(),
   ],
   output: {
     dir: './dist/esm',

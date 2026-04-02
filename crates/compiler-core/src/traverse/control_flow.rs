@@ -2,7 +2,7 @@
 //!
 //! 负责将条件语句转换为三元表达式等优化
 
-use super::state::{DomCompilerState, PendingTransform};
+use super::state::{DomCompilerState, TernaryTransform};
 use oxc_ast::ast::{Expression, IfStatement, Statement};
 
 /// 控制流分析器
@@ -88,36 +88,50 @@ impl<'a> ControlFlowAnalyzer<'a> {
     }
 
     /// 转换为 ternary 表达式
+    /// 返回需要替换的语句信息（用于后续的 AST 替换）
     pub fn transform_to_ternary(
         &mut self,
         node: &IfStatement<'a>,
         state: &mut DomCompilerState,
-    ) {
+    ) -> Option<TernaryTransform> {
         let test_str = self.expression_to_source(&node.test);
 
         let consequent_str = match self.extract_jsx_source(&node.consequent) {
             Some(s) => s,
-            None => return,
+            None => return None,
         };
 
         let alternate_str = node.alternate.as_ref()
             .and_then(|alt| self.extract_jsx_source(alt));
 
-        let ternary_str = if let Some(alternate) = alternate_str {
-            format!("{} ? {} : {}", test_str, consequent_str, alternate)
+        let (ternary_code, wrapper) = if let Some(alternate) = alternate_str {
+            // 有 else 分支，直接使用 ternary
+            let code = format!("{} ? {} : {}", test_str, consequent_str, alternate);
+            (code, None)
         } else {
+            // 没有 else 分支，使用 yield_ 包装
             state.add_helper("yield_");
-            format!("() => {} && {}", test_str, consequent_str)
+            let code = format!("yield_({} && {})", test_str, consequent_str);
+            (code, Some("yield_"))
         };
 
-        state.pending_transforms.push(PendingTransform {
-            if_span: node.span,
-            ternary_code: ternary_str,
-        });
+        // 获取 if 语句在源码中的位置
+        let if_span = node.span;
+
+        Some(TernaryTransform {
+            if_span,
+            ternary_code,
+            wrapper,
+        })
     }
 
     /// 将表达式转换为源码字符串
-    fn expression_to_source(&self, expr: &Expression) -> String {
+    pub fn expression_to_source(&self, expr: &Expression) -> String {
+        Self::_expression_to_source(expr)
+    }
+
+    /// 将表达式转换为源码字符串（静态方法，方便外部调用）
+    pub fn _expression_to_source(expr: &Expression) -> String {
         match expr {
             Expression::Identifier(id) => id.name.to_string(),
             Expression::StringLiteral(s) => format!("\"{}\"", s.value),
@@ -138,7 +152,7 @@ impl<'a> ControlFlowAnalyzer<'a> {
                 let elements: Vec<String> = arr
                     .elements
                     .iter()
-                    .filter_map(|elem| elem.as_expression().map(|e| self.expression_to_source(e)))
+                    .filter_map(|elem| elem.as_expression().map(|e| Self::_expression_to_source(e)))
                     .collect();
                 format!("[{}]", elements.join(", "))
             }
@@ -148,7 +162,7 @@ impl<'a> ControlFlowAnalyzer<'a> {
                     .iter()
                     .filter_map(|prop| {
                         let p = prop.as_property()?;
-                        Some(format!("{}: ...", self.expression_to_source(&p.value)))
+                        Some(format!("{}: ...", Self::_expression_to_source(&p.value)))
                     })
                     .collect();
                 format!("{{{}}}", properties.join(", "))
@@ -158,14 +172,14 @@ impl<'a> ControlFlowAnalyzer<'a> {
                 if arrow.expression {
                     for stmt in &arrow.body.statements {
                         if let Statement::ExpressionStatement(expr_stmt) = stmt {
-                            return self.expression_to_source(&expr_stmt.expression);
+                            return Self::_expression_to_source(&expr_stmt.expression);
                         }
                     }
                 }
                 for stmt in &arrow.body.statements {
                     if let Statement::ReturnStatement(ret) = stmt {
                         if let Some(arg) = &ret.argument {
-                            return self.expression_to_source(arg);
+                            return Self::_expression_to_source(arg);
                         }
                     }
                 }
@@ -173,49 +187,49 @@ impl<'a> ControlFlowAnalyzer<'a> {
             }
             Expression::ClassExpression(_) => "class { /* body */ }".to_string(),
             Expression::NewExpression(new) => {
-                let callee = self.expression_to_source(&new.callee);
+                let callee = Self::_expression_to_source(&new.callee);
                 format!("new {}", callee)
             }
             Expression::BinaryExpression(bin) => {
-                let left = self.expression_to_source(&bin.left);
-                let right = self.expression_to_source(&bin.right);
+                let left = Self::_expression_to_source(&bin.left);
+                let right = Self::_expression_to_source(&bin.right);
                 let op = bin.operator.as_str();
                 format!("({} {} {})", left, op, right)
             }
             Expression::UnaryExpression(unary) => {
-                let arg = self.expression_to_source(&unary.argument);
+                let arg = Self::_expression_to_source(&unary.argument);
                 let op = unary.operator.as_str();
                 format!("({}{})", op, arg)
             }
             Expression::UpdateExpression(_) => "/* update expr */".to_string(),
             Expression::LogicalExpression(logical) => {
-                let left = self.expression_to_source(&logical.left);
-                let right = self.expression_to_source(&logical.right);
+                let left = Self::_expression_to_source(&logical.left);
+                let right = Self::_expression_to_source(&logical.right);
                 let op = logical.operator.as_str();
                 format!("({} {} {})", left, op, right)
             }
             Expression::ConditionalExpression(cond) => {
-                let test = self.expression_to_source(&cond.test);
-                let consequent = self.expression_to_source(&cond.consequent);
-                let alternate = self.expression_to_source(&cond.alternate);
+                let test = Self::_expression_to_source(&cond.test);
+                let consequent = Self::_expression_to_source(&cond.consequent);
+                let alternate = Self::_expression_to_source(&cond.alternate);
                 format!("({} ? {} : {})", test, consequent, alternate)
             }
             Expression::AssignmentExpression(assign) => {
-                let right = self.expression_to_source(&assign.right);
+                let right = Self::_expression_to_source(&assign.right);
                 format!("/* assign */ {}", right)
             }
             Expression::SequenceExpression(seq) => {
                 let exprs: Vec<String> = seq
                     .expressions
                     .iter()
-                    .map(|e| self.expression_to_source(e))
+                    .map(|e| Self::_expression_to_source(e))
                     .collect();
                 format!("({})", exprs.join(", "))
             }
             Expression::AwaitExpression(_) => "/* await */".to_string(),
             Expression::YieldExpression(yield_) => {
                 if let Some(arg) = &yield_.argument {
-                    format!("yield* {}", self.expression_to_source(arg))
+                    format!("yield* {}", Self::_expression_to_source(arg))
                 } else {
                     "yield".to_string()
                 }
@@ -224,15 +238,15 @@ impl<'a> ControlFlowAnalyzer<'a> {
             Expression::Super(_) => "super".to_string(),
             Expression::ImportExpression(_) => "import(/* source */)".to_string(),
             Expression::ParenthesizedExpression(paren) => {
-                self.expression_to_source(&paren.expression)
+                Self::_expression_to_source(&paren.expression)
             }
             Expression::PrivateInExpression(_) => "/* private in */".to_string(),
             Expression::CallExpression(call) => {
-                let callee = self.expression_to_source(&call.callee);
+                let callee = Self::_expression_to_source(&call.callee);
                 let args: Vec<String> = call
                     .arguments
                     .iter()
-                    .filter_map(|arg| arg.as_expression().map(|e| self.expression_to_source(e)))
+                    .filter_map(|arg| arg.as_expression().map(|e| Self::_expression_to_source(e)))
                     .collect();
                 format!("{}({})", callee, args.join(", "))
             }

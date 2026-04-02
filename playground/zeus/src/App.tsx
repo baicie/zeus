@@ -1,4 +1,4 @@
-import type { JSXElement } from '@zeus-js/runtime-dom'
+import type { JSXElement } from '@zeus-js/core'
 import {
   NAV_ITEMS,
   RouterLink,

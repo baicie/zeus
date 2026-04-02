@@ -18,8 +18,8 @@ pub use codegen::{
 };
 pub use jsx::{compile as jsx_compile, compile_with_options as jsx_compile_with_options};
 
-use zeus_compiler_common::CompilerOptions;
-use zeus_compiler_core::{compile as compile_with_traverse, Target};
+use zeus_compiler_common::{CompilerOptions, Target};
+use zeus_compiler_core::compile as compile_with_traverse;
 
 /// DOM 编译器
 pub struct DomCompiler {

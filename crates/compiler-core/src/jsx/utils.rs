@@ -266,6 +266,30 @@ pub fn get_jsx_tag_name(name: &JSXElementName) -> String {
         JSXElementName::NamespacedName(ns) => {
             format!("{}:{}", ns.namespace.name, ns.name.name)
         }
+        JSXElementName::MemberExpression(member) => {
+            // Foo.Bar.Baz → "Foo.Bar.Baz"
+            let mut parts: Vec<String> = Vec::new();
+            let mut current: &JSXMemberExpression = member;
+            loop {
+                parts.push(current.property.name.as_str().to_string());
+                match &current.object {
+                    JSXMemberExpressionObject::IdentifierReference(id_ref) => {
+                        parts.push(id_ref.name.as_str().to_string());
+                        break;
+                    }
+                    JSXMemberExpressionObject::MemberExpression(inner) => {
+                        current = inner;
+                    }
+                    JSXMemberExpressionObject::ThisExpression(_) => {
+                        parts.push("this".to_string());
+                        break;
+                    }
+                }
+            }
+            parts.reverse();
+            parts.join(".")
+        }
+        JSXElementName::IdentifierReference(id_ref) => id_ref.name.to_string(),
         _ => "div".to_string(),
     }
 }
@@ -391,17 +415,17 @@ pub fn evaluate_static_expr(expr: &Expression) -> Option<String> {
 
 /// 检测 JSX 标签名（从 JSXElementName）
 pub fn extract_jsx_tag_name(name: &JSXElementName) -> Option<String> {
-    match name {
-        JSXElementName::Identifier(id) => Some(id.name.to_string()),
-        JSXElementName::MemberExpression(_) => {
-            // MemberExpression 需要递归处理，这里返回 None
-            None
+    // 直接调用 get_jsx_tag_name，它已经处理了所有情况
+    let tag_name = get_jsx_tag_name(name);
+    // 如果返回 "div" 但原本是 MemberExpression，说明无法解析，返回 None
+    if tag_name == "div" {
+        match name {
+            JSXElementName::Identifier(_) => Some(tag_name),
+            JSXElementName::IdentifierReference(_) => Some(tag_name),
+            _ => None, // MemberExpression 等其他情况无法静态确定
         }
-        JSXElementName::NamespacedName(ns) => {
-            // oxc 0.123.0 中 JSXNamespacedName 的字段是 namespace 和 name
-            Some(format!("{}:{}", ns.namespace.name, ns.name.name))
-        }
-        _ => None,
+    } else {
+        Some(tag_name)
     }
 }
 
@@ -410,7 +434,9 @@ pub fn is_jsx_component(name: &JSXElementName) -> bool {
     if let Some(tag_name) = extract_jsx_tag_name(name) {
         is_component(&tag_name)
     } else {
-        false
+        // MemberExpression 形式的标签名（如 RouterContext.Provider）
+        // 一定不是原生 HTML 标签，而是组件调用
+        true
     }
 }
 

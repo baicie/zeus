@@ -21,6 +21,11 @@ impl<'a> JsxTransformer<'a> {
         Self { source, nested_templates: Vec::new() }
     }
 
+    /// 获取源代码
+    pub fn source(&self) -> &'a str {
+        self.source
+    }
+
     /// 获取嵌套模板
     pub fn take_nested_templates(&mut self) -> Vec<TemplateDecl> {
         std::mem::take(&mut self.nested_templates)
@@ -48,6 +53,67 @@ impl<'a> JsxTransformer<'a> {
         let start = span.start;
         let end = span.end;
         source[start as usize..end as usize].to_string()
+    }
+
+    /// 将 JSX 子节点转换为源代码（用于函数调用参数）
+    /// 只收集表达式，不包含 JSX 元素
+    pub fn jsx_children_to_source(&self, children: &[JSXChild]) -> String {
+        let mut parts = Vec::new();
+        for child in children {
+            match child {
+                JSXChild::Text(t) => {
+                    // 文本节点直接添加
+                    let text = t.value.as_str().trim();
+                    if !text.is_empty() {
+                        parts.push(format!("\"{}\"", text));
+                    }
+                }
+                JSXChild::Element(e) => {
+                    // 获取元素源码
+                    let span = e.span;
+                    let start = span.start;
+                    let end = span.end;
+                    parts.push(self.source[start as usize..end as usize].to_string());
+                }
+                JSXChild::ExpressionContainer(expr) => {
+                    // 获取表达式源码（不包含大括号）
+                    if let Some(inner_expr) = expr.expression.as_expression() {
+                        let span = inner_expr.span();
+                        let start = span.start;
+                        let end = span.end;
+                        parts.push(self.source[start as usize..end as usize].to_string());
+                    }
+                }
+                JSXChild::Spread(spread) => {
+                    let span = spread.span;
+                    let start = span.start;
+                    let end = span.end;
+                    parts.push(self.source[start as usize..end as usize].to_string());
+                }
+                JSXChild::Fragment(frag) => {
+                    // 递归处理 Fragment
+                    let frag_str = self.jsx_children_to_source(&frag.children);
+                    if !frag_str.is_empty() {
+                        parts.push(frag_str);
+                    }
+                }
+            }
+        }
+        // 用逗号连接多个 children
+        parts.join(", ")
+    }
+
+    /// 获取 JSX 元素的 children 区域源码（带空白）
+    pub fn get_jsx_children_source(&self, children: &[JSXChild]) -> String {
+        if children.is_empty() {
+            return String::new();
+        }
+        // 获取第一个和最后一个 child 的 span
+        let first_span = children.first().unwrap().span();
+        let last_span = children.last().unwrap().span();
+        let start = first_span.start;
+        let end = last_span.end;
+        self.source[start as usize..end as usize].to_string()
     }
 
     /// 写入 JSX 元素的 HTML
@@ -119,7 +185,34 @@ impl<'a> JsxTransformer<'a> {
             JSXElementName::NamespacedName(ns) => {
                 format!("{}:{}", ns.namespace.name, ns.name.name)
             }
+            JSXElementName::MemberExpression(member) => {
+                self.flatten_jsx_member_name(member)
+            }
             _ => "div".to_string(), // 简化处理
+        }
+    }
+
+    /// 递归展开 JSXMemberExpression 为字符串
+    fn flatten_jsx_member_name(&self, member: &JSXMemberExpression<'a>) -> String {
+        let mut parts: Vec<String> = Vec::new();
+        self.collect_jsx_member_parts(member, &mut parts);
+        parts.reverse();
+        parts.join(".")
+    }
+
+    /// 收集 JSXMemberExpression 的各个部分
+    fn collect_jsx_member_parts(&self, member: &JSXMemberExpression<'a>, parts: &mut Vec<String>) {
+        parts.push(member.property.name.as_str().to_string());
+        match &member.object {
+            JSXMemberExpressionObject::IdentifierReference(id_ref) => {
+                parts.push(id_ref.name.as_str().to_string());
+            }
+            JSXMemberExpressionObject::MemberExpression(inner) => {
+                self.collect_jsx_member_parts(inner, parts);
+            }
+            JSXMemberExpressionObject::ThisExpression(_) => {
+                parts.push("this".to_string());
+            }
         }
     }
 
@@ -256,7 +349,10 @@ impl<'a> JsxTransformer<'a> {
     /// 检查表达式是否包含 JSX 元素
     fn contains_jsx_element(&self, expr: &Expression) -> bool {
         match expr {
-            Expression::JSXElement(_) | Expression::JSXFragment(_) => true,
+            Expression::JSXElement(_) | Expression::JSXFragment(_) => {
+                eprintln!("DEBUG: Found JSXElement/Fragment, returning true");
+                true
+            }
             Expression::LogicalExpression(logical) => {
                 self.contains_jsx_element(&logical.left) || self.contains_jsx_element(&logical.right)
             }
@@ -269,8 +365,10 @@ impl<'a> JsxTransformer<'a> {
             Expression::ArrowFunctionExpression(arrow) => {
                 self.function_body_contains_jsx(&arrow.body)
             }
-            // 处理函数表达式
+            // 处理函数表达式（检查函数体）
             Expression::FunctionExpression(func) => {
+                // 打印参数数量
+                eprintln!("DEBUG: FunctionExpression, params count = {}", func.params.items.len());
                 if let Some(body) = &func.body {
                     self.function_body_contains_jsx(body)
                 } else {
@@ -295,6 +393,18 @@ impl<'a> JsxTransformer<'a> {
     /// 检查函数体是否包含 JSX 元素
     fn function_body_contains_jsx(&self, body: &oxc_ast::ast::FunctionBody) -> bool {
         for stmt in &body.statements {
+            // 处理 ReturnStatement
+            if let oxc_ast::ast::Statement::ReturnStatement(ret_stmt) = stmt {
+                if let Some(arg) = &ret_stmt.argument {
+                    // 打印 arg 的类型
+                    let arg_type = std::mem::discriminant(arg);
+                    eprintln!("DEBUG function_body: arg type = {:?}", arg_type);
+                    if self.contains_jsx_element(arg) {
+                        return true;
+                    }
+                }
+            }
+            // 处理 ExpressionStatement
             if let oxc_ast::ast::Statement::ExpressionStatement(expr_stmt) = stmt {
                 if self.contains_jsx_element(&expr_stmt.expression) {
                     return true;
@@ -434,6 +544,37 @@ impl<'a> JsxTransformer<'a> {
                     (self.expression_to_source(expr), None)
                 }
             }
+            // 处理 FunctionExpression（如 function() { return <span /> }）
+            Expression::FunctionExpression(func) => {
+                if let Some(body) = &func.body {
+                    if self.function_body_contains_jsx(body) {
+                        let tmpl_name = format!("_tmpl$inner${}", child_idx);
+                        let (jsxs, _) = self.extract_jsx_from_arrow_body(body);
+                        
+                        if let Some((tag, inner_bindings)) = jsxs {
+                            let html = format!("<{}></{}>", tag, tag);
+                            let template = TemplateDecl {
+                                name: tmpl_name.clone(),
+                                html,
+                                child_bindings: inner_bindings,
+                                attr_bindings: Vec::new(),
+                                marker_paths: Vec::new(),
+                                needs_markers: false,
+                            };
+                            // 返回调用子模板的表达式
+                            let params = self.function_params_to_source(func);
+                            let new_fn = format!("function({}) {{ return {}({}) }}", params, tmpl_name, params);
+                            (new_fn, Some(template))
+                        } else {
+                            (self.expression_to_source(expr), None)
+                        }
+                    } else {
+                        (self.expression_to_source(expr), None)
+                    }
+                } else {
+                    (self.expression_to_source(expr), None)
+                }
+            }
             _ => {
                 (self.expression_to_source(expr), None)
             }
@@ -443,6 +584,19 @@ impl<'a> JsxTransformer<'a> {
     /// 从箭头函数体中提取 JSX 元素
     fn extract_jsx_from_arrow_body(&self, body: &oxc_ast::ast::FunctionBody) -> (Option<(String, Vec<ChildBinding>)>, bool) {
         for stmt in &body.statements {
+            // 处理 ReturnStatement（如 function() { return <span /> }）
+            if let oxc_ast::ast::Statement::ReturnStatement(ret_stmt) = stmt {
+                if let Some(arg) = &ret_stmt.argument {
+                    // 直接返回 JSX 元素
+                    if let Expression::JSXElement(jsx) = arg {
+                        let tag = self.get_jsx_tag_name(&jsx.opening_element.name);
+                        let mut inner_bindings = Vec::new();
+                        self.collect_child_bindings_from_jsx(jsx, &mut inner_bindings);
+                        return (Some((tag, inner_bindings)), true);
+                    }
+                }
+            }
+            // 处理 ExpressionStatement（如 () => <span />）
             if let oxc_ast::ast::Statement::ExpressionStatement(expr_stmt) = stmt {
                 if let Some(result) = self.extract_jsx_from_expression_internal(&expr_stmt.expression) {
                     return (Some(result), true);
@@ -487,9 +641,25 @@ impl<'a> JsxTransformer<'a> {
     }
 
     /// 将参数列表转换为源代码
-    fn params_to_source(&self, _params: &oxc_ast::ast::FormalParameters) -> String {
-        // 简化实现：返回空字符串，由调用者处理
-        "".to_string()
+    fn params_to_source(&self, params: &oxc_ast::ast::FormalParameters) -> String {
+        let mut param_names = Vec::new();
+        for param in &params.items {
+            if let oxc_ast::ast::BindingPattern::BindingIdentifier(id) = &param.pattern {
+                param_names.push(id.name.to_string());
+            }
+        }
+        param_names.join(", ")
+    }
+    
+    /// 将函数表达式的参数转换为源代码
+    fn function_params_to_source(&self, func: &oxc_ast::ast::Function) -> String {
+        let mut param_names = Vec::new();
+        for param in &func.params.items {
+            if let oxc_ast::ast::BindingPattern::BindingIdentifier(id) = &param.pattern {
+                param_names.push(id.name.to_string());
+            }
+        }
+        param_names.join(", ")
     }
 }
 

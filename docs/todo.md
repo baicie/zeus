@@ -6,10 +6,9 @@
 
 | 状态 | 数量 | 说明 |
 |------|------|------|
-| ✅ 已完成 | 12 | 功能已完成并测试通过 |
+| ✅ 已完成 | 13 | 功能已完成并测试通过 |
 | 🔄 进行中 | 4 | 正在开发中 |
 | 📋 待开始 | 18 | 计划中，尚未开始 |
-| 🔴 已阻塞 | 1 | 因依赖问题暂时阻塞 |
 
 ---
 
@@ -35,16 +34,21 @@
 
 | 任务 | 阻塞原因 | 说明 |
 |------|----------|------|
-| Target 枚举统一 | compiler-common Target 定义冲突 | 需合并两个 Target 定义 |
+| ~~Target 枚举统一~~ | ~~compiler-common Target 定义冲突~~ | ~~需合并两个 Target 定义~~ |
 
 **阻塞详情**:
-- `compiler-core/src/traverse.rs:208-216` 定义了 `Target` 枚举
-- `compiler-common/src/config.rs` 也定义了 `Target` 枚举
+- ~~`compiler-core/src/traverse.rs:208-216` 定义了 `Target` 枚举~~
+- ~~`compiler-common/src/config.rs` 也定义了 `Target` 枚举~~
 - 修复步骤：
   1. ✅ 在 `compiler-common/src/config.rs` 中定义统一的 `Target`
-  2. ✅ 从 `compiler-core` 移除重复定义（已移除，但 traverse.rs 仍有定义）
-  3. ⏳ 更新 `compiler-dom` 和 `compiler-ssr` 的引用
-  4. ⏳ 验证编译通过
+  2. ✅ 从 `compiler-core` 移除重复定义
+  3. ✅ 更新 `compiler-dom` 和 `compiler-ssr` 的引用
+  4. ✅ 验证编译通过
+
+> **2026-04-02**: Target 枚举统一问题已解决
+> - 从 `compiler-core/src/traverse/state.rs` 移除了重复的 `Target` 定义
+> - `Target` 现在统一从 `zeus_compiler_common::Target` 导入
+> - 修复了相关的类型错误和导入问题
 
 #### 🔄 进行中
 
@@ -53,11 +57,15 @@
 | if-return → ternary 转换 | 2026-03-15 | 2026-03-30 | AST 替换逻辑完善中，进度 60% |
 | 列表渲染 (.map()) 支持 | 2026-03-20 | 2026-03-30 | 检测框架已搭建，实际转换需完善，进度 40% |
 
-**if-return → ternary 进度详情**:
+**if-return → ternary 进度详情** (2026-04-01):
 - ✅ 框架已搭建 (`should_transform_to_ternary`, `statement_returns_jsx`, `expression_is_jsx`)
-- ⏳ `transform_to_ternary` 方法中 AST 节点替换未实现
-- 关键文件: `crates/compiler-core/src/traverse.rs:1215-1275`
-- 需要使用 `ctx.replace` 进行节点替换
+- ✅ `transform_to_ternary` 方法已实现，收集转换信息
+- ✅ `TernaryTransform` 结构体已定义，用于存储转换信息
+- ✅ 在 `enter_if_statement` 中收集需要转换的 if 语句
+- ⚠️ AST 节点替换需要更复杂的实现（oxc_traverse 限制）
+- ⚠️ 当前采用简化方案：仅收集信息，不进行实际替换
+- 关键文件: `crates/compiler-core/src/traverse/control_flow.rs`
+- 阻塞原因: oxc_traverse 不支持直接修改当前遍历路径上的节点
 
 #### 📋 待开始
 
@@ -490,7 +498,6 @@ register指令(_node, _action);
 |------|------|------|------|
 | if-return → ternary | 进行中 | 60% | AST 替换逻辑完善中 |
 | 列表渲染支持 | 进行中 | 40% | .map() 响应式识别待完善 |
-| Target 枚举统一 | 已阻塞 | 30% | 等待合并定义 |
 
 #### 📋 计划中
 
@@ -520,7 +527,7 @@ register指令(_node, _action);
 
 | 问题 | 优先级 | 说明 |
 |------|--------|------|
-| Target 枚举重复定义 | P1 | compiler-core 和 compiler-common |
+| ~~Target 枚举重复定义~~ | ~~P1~~ | ~~已修复: 从 zeus_compiler_common 统一导入~~ |
 | 硬编码路径 | P2 | 配置文件路径 |
 | 重复代码 | P2 | traverse 和 codegen 中的表达式处理 |
 | 缺少类型导出 | P2 | public API 类型 |
@@ -609,13 +616,12 @@ register指令(_node, _action);
 ## 13. 完成状态统计
 
 ```
-已完成:  ✅ 12 项
+已完成:  ✅ 13 项
 进行中:  🔄 4 项
 待开始:  📋 18 项
-已阻塞:  🔴 1 项
 
 总计:    35 项
-完成率:  34%
+完成率:  37%
 ```
 
 ---

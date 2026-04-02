@@ -2,19 +2,25 @@
 //!
 //! 定义 AST 遍历和代码生成所需的中间数据结构
 
-/// 编译目标（当前仅用于对齐设计文档）
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum Target {
-    /// 浏览器 DOM
-    #[default]
-    Dom,
-    /// 服务端渲染
-    Ssr,
-    /// Web Component
-    WebComponent,
+use oxc_span::Span;
+
+/// JSX 替换信息
+#[derive(Clone, Debug)]
+pub struct JsxReplacement {
+    /// JSX 节点在源码中的位置
+    pub span: oxc_span::Span,
+    /// 是否为组件类型
+    pub is_component: bool,
+    /// 组件名称（如 "RouterContext.Provider"）
+    pub component_name: Option<String>,
+    /// Props 源码
+    pub props_source: Option<String>,
+    /// Children 源码
+    pub children_source: Option<String>,
 }
 
 /// DOM 编译器状态
+#[derive(Clone)]
 #[allow(dead_code)]
 pub struct DomCompilerState {
     /// 模板计数器
@@ -29,6 +35,8 @@ pub struct DomCompilerState {
     pub in_jsx: bool,
     /// 当前深度
     pub depth: usize,
+    /// 待替换的 JSX 信息
+    pub pending_jsx_replacements: Vec<JsxReplacement>,
     /// 当前正在处理的模板名（用于嵌套收集 binding）
     current_template: Option<String>,
     /// 当前模板的绑定（child 索引位置 → 表达式源码）
@@ -43,6 +51,8 @@ pub struct DomCompilerState {
     list_renders: Vec<ListRender>,
     /// 待处理的转换（if → ternary）
     pub pending_transforms: Vec<PendingTransform>,
+    /// ternary 转换信息（用于 AST 替换）
+    pub ternary_transforms: Vec<TernaryTransform>,
     /// 组件上下文（用于跟踪组件内的 insert 调用）
     component_context: Option<ComponentContext>,
 }
@@ -82,6 +92,17 @@ pub struct PendingTransform {
     pub if_span: Span,
     /// 转换后的三元表达式源代码
     pub ternary_code: String,
+}
+
+/// Ternary 转换信息（用于 AST 替换）
+#[derive(Clone, Debug)]
+pub struct TernaryTransform {
+    /// if 语句的源码位置
+    pub if_span: Span,
+    /// 转换后的 ternary 代码
+    pub ternary_code: String,
+    /// 使用的 wrapper（如果有）
+    pub wrapper: Option<&'static str>,
 }
 
 /// 静态节点（可提升到函数外部）
@@ -134,6 +155,7 @@ impl DomCompilerState {
             used_helpers: Vec::new(),
             in_jsx: false,
             depth: 0,
+            pending_jsx_replacements: Vec::new(),
             current_template: None,
             current_child_bindings: Vec::new(),
             child_index: 0,
@@ -141,6 +163,7 @@ impl DomCompilerState {
             static_node_counter: 0,
             list_renders: Vec::new(),
             pending_transforms: Vec::new(),
+            ternary_transforms: Vec::new(),
             component_context: None,
         }
     }
@@ -280,6 +303,3 @@ pub enum AttrBindingKind {
     /// 展开
     Spread,
 }
-
-/// 重新导出 oxc_span::Span
-pub use oxc_span::Span;

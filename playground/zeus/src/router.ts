@@ -6,16 +6,15 @@ import {
   createWebHistory,
 } from '@zeus-js/router'
 
-import Layout from './Layout'
-import HomeView from '../views/HomeView'
-import CounterView from '../views/CounterView'
-import ConditionalView from '../views/ConditionalView'
-import ListView from '../views/ListView'
-import BindingView from '../views/BindingView'
-import ComputedView from '../views/ComputedView'
-import LifecycleView from '../views/LifecycleView'
-import RefView from '../views/RefView'
-import BuiltinView from '../views/BuiltinView'
+import HomeView from './views/HomeView'
+import CounterView from './views/CounterView'
+import ConditionalView from './views/ConditionalView'
+import ListView from './views/ListView'
+import BindingView from './views/BindingView'
+import ComputedView from './views/ComputedView'
+import LifecycleView from './views/LifecycleView'
+import RefView from './views/RefView'
+import BuiltinView from './views/BuiltinView'
 
 // ============================================================================
 // 创建 Router
