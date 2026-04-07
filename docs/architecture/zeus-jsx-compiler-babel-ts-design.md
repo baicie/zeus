@@ -301,12 +301,6 @@ export interface CompilerOptions {
   delegatedEvents?: string[];
   
   /**
-   * 内置组件列表
-   * @default ["For", "Show", "Switch", "Match", "Portal", "Suspense", "ErrorBoundary"]
-   */
-  builtIns?: string[];
-  
-  /**
    * 是否要求特定的 import source
    * @default false
    */
@@ -379,7 +373,6 @@ export const DEFAULT_CONFIG: Required<CompilerOptions> = {
   hydratable: false,
   delegateEvents: true,
   delegatedEvents: [],
-  builtIns: ['For', 'Show', 'Switch', 'Match', 'Portal', 'Suspense', 'ErrorBoundary'],
   requireImportSource: false,
   wrapConditionals: true,
   omitNestedClosingTags: false,
@@ -1948,12 +1941,6 @@ export function transformComponent(path: NodePath<JSXElement>): TransformResult 
   const runningObject: t.ObjectProperty[] = [];
   let dynamicSpread = false;
   
-  // 处理内置组件
-  if (config.builtIns.includes(tagId.name) && !path.scope.hasBinding(tagId.name)) {
-    const newTagId = registerImportMethod(path, tagId.name);
-    tagId.name = newTagId.name;
-  }
-  
   // 处理属性
   path.get('openingElement').get('attributes').forEach((attr: any) => {
     const node = attr.node;
@@ -2431,7 +2418,6 @@ export function zeusVitePlugin(options: VitePluginOptions = {}): Plugin {
 │ 阶段 3: 组件和高级特性 (2 周)                                         │
 ├─────────────────────────────────────────────────────────────────────┤
 │ - [ ] 组件转换 (createComponent)                                     │
-│ - [ ] 内置组件 (For, Show, Switch 等)                              │
 │ - [ ] ref 支持                                                      │
 │ - [ ] 展开属性 (...props)                                           │
 │ - [ ] 条件表达式包装                                                 │
@@ -2548,7 +2534,6 @@ export interface CompilerOptions {
   hydratable?: boolean;
   delegateEvents?: boolean;
   delegatedEvents?: string[];
-  builtIns?: string[];
   requireImportSource?: string | false;
   wrapConditionals?: boolean;
   omitNestedClosingTags?: boolean;
@@ -2670,18 +2655,6 @@ export const DEFAULT_CONFIG: Required<CompilerOptions> = {
   hydratable: false,
   delegateEvents: true,
   delegatedEvents: [],
-  builtIns: [
-    'For',
-    'Show',
-    'Switch',
-    'Match',
-    'Portal',
-    'Suspense',
-    'ErrorBoundary',
-    'Index',
-    'Merge',
-    'Dynamic',
-  ],
   requireImportSource: false,
   wrapConditionals: true,
   omitNestedClosingTags: false,
