@@ -73,11 +73,11 @@
   "homepage": "https://github.com/baicie/zeus/tree/main/tools/build-tools#readme",
   "optionalDependencies": {
     "@rspack/core": "^1.7.11",
-    "esbuild": "^0.27.4",
+    "esbuild": "^0.28.0",
     "next": "^16.2.2",
-    "rolldown": "^1.0.0-rc.12",
+    "rolldown": "^1.0.0-rc.13",
     "rollup": "^4.60.1",
-    "vite": "^8.0.3",
+    "vite": "^8.0.5",
     "webpack": "^5.105.4"
   },
   "devDependencies": {
@@ -85,9 +85,9 @@
     "@babel/types": "catalog:",
     "@types/babel__core": "^7.20.5",
     "@types/bun": "^1.3.11",
-    "@types/node": "^25.5.0",
+    "@types/node": "^25.5.2",
     "bun": "^1.3.11",
-    "rolldown": "^1.0.0-rc.12",
+    "rolldown": "^1.0.0-rc.13",
     "rolldown-plugin-dts": "^0.23.2",
     "typescript": "^6.0.2"
   },

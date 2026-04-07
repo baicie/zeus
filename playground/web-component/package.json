@@ -28,8 +28,8 @@
   },
   "devDependencies": {
     "@rollup/plugin-replace": "^6.0.3",
-    "@types/node": "^25.5.0",
-    "rolldown": "1.0.0-rc.12",
+    "@types/node": "^25.5.2",
+    "rolldown": "1.0.0-rc.13",
     "typescript": "^6.0.2"
   },
   "keywords": [

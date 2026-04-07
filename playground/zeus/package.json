@@ -15,10 +15,10 @@
   "devDependencies": {
     "@babel/plugin-transform-react-jsx": "^7.28.6",
     "@rolldown/plugin-babel": "^0.2.2",
-    "@types/node": "^25.5.0",
+    "@types/node": "^25.5.2",
     "@zeus-js/build-tools": "workspace:*",
     "@zeus-js/compiler-core": "workspace:*",
     "typescript": "^6.0.2",
-    "vite": "^8.0.3"
+    "vite": "^8.0.5"
   }
 }
