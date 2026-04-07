@@ -137,6 +137,39 @@
 | 组件基础转换 | 2026-04-07 | 大写标签转换为 `createComponent` |
 | `transformSync`/`transformAsync` API | 2026-04-07 | Programmatic API 可用 |
 | 构建工具集成包 | 2026-04-07 | preset/rollup/vite 三个 addons 落地 |
+| SSR 最小骨架（阶段性） | 2026-04-07 | `generate: "ssr"` 可编译；含 Fragment、style 静态折叠、dangerouslySetInnerHTML、void 元素、textarea/option 最小语义 |
+| universal 最小骨架（阶段性） | 2026-04-07 | `generate: "universal"` 可编译，不再触发 not implemented 报错 |
+| compiler fixtures 基线 | 2026-04-07 | 新增 `dom/ssr/universal` 首批对比用例与测试入口 |
+| SSR hydratable 事件语义（阶段性） | 2026-04-07 | `hydratable` 下收集可水合事件并注入 `ssrHydrationEvents([...])` |
+| universal 语义加固（阶段性） | 2026-04-07 | 显式分流与事件路径稳定，保持 DOM 委托行为 |
+| hydratable 约束测试补齐 | 2026-04-07 | 明确仅 SSR 注入 hydration helper，DOM/universal 不注入 |
+| server-renderer 最小 helper 对齐 | 2026-04-07 | 新增 `ssrHydrationEvents` runtime 最小实现与类型导出，支持编译产物调用 |
+| hydration helper 契约升级 | 2026-04-07 | `ssrHydrationEvents` 支持 descriptor 参数，编译侧输出结构化事件元信息 |
+| hydration 策略可配置 | 2026-04-07 | 增加 `hydrationEventStrategy` 与 `hydrationEventStrategies`，默认行为保持 delegate |
+| universal 显式边界错误策略 | 2026-04-07 | 非 SSR 模式使用 `hydratable` 时统一抛错，避免语义漂移 |
+| server-renderer 契约单测与项目 | 2026-04-07 | 新增 `unit-server-renderer` project 与 `ssrHydrationEvents` 契约用例 |
+| fixtures 第四阶段扩展 | 2026-04-07 | 新增 hydration strategy 与 universal/ssr 对照 fixtures |
+| hydration 恢复最小闭环 | 2026-04-07 | `server-renderer` 增加注册/读取/清理 API，支持后续恢复执行链路接入 |
+| SSR-only 配置边界统一错误 | 2026-04-07 | 在非 SSR 模式下统一拦截 `hydratable` 与相关 hydration 配置误用 |
+| fixtures 第五阶段扩展 | 2026-04-07 | 新增 SSR 多事件多策略与 universal 对照场景 |
+| hydration 执行 API 最小闭环 | 2026-04-07 | `server-renderer` 新增 `applyHydrationEvents`，支持 descriptor 到执行摘要的最小恢复链路 |
+| strategy 回退契约收敛 | 2026-04-07 | runtime 与 compiler 双侧统一未知策略回退 `delegate` |
+| fixtures 第六阶段扩展 | 2026-04-07 | 新增 SSR 非法策略回退场景与回归断言 |
+| hydration 真实 attach 最小实现 | 2026-04-07 | `applyHydrationEvents` 增加目标分流绑定（delegate/native）与 attach 去重 |
+| hydration 生命周期幂等 | 2026-04-07 | 新增 `dispose()` 清理句柄，重复 dispose 安全，支持解绑回归测试 |
+| compiler 边界第七阶段回归 | 2026-04-07 | 明确 SSR 产物不注入 `applyHydrationEvents` 等客户端执行 helper |
+| hydration 多容器路由 | 2026-04-07 | 增加 `eventTargetsByName` 与 `fallbackTarget`，明确目标优先级 |
+| hydration 跨容器去重与统计 | 2026-04-07 | 去重键扩展为 `name+strategy+targetRef`，新增 attached/skipped/deduped/targets 指标 |
+| compiler 边界第八阶段回归 | 2026-04-07 | 继续反向断言 SSR 产物不注入 runtime 执行 helper 与 context 字段 |
+| hydration 事件选项语义 | 2026-04-07 | `HydrationEventDescriptor` 支持 `capture/passive/once` 并参与绑定 |
+| 低能力环境选项回退 | 2026-04-07 | 不支持 options 对象时回退到 `capture` 布尔参数并输出 `optionFallbackCount` |
+| compiler 边界第九阶段回归 | 2026-04-07 | 继续断言 SSR 产物不注入 runtime 选项执行路径相关 helper |
+| hydration 能力探测分层 | 2026-04-07 | 增加 addEventListener options 自动探测与手动覆盖能力 |
+| hydration 降级细分统计 | 2026-04-07 | 新增 `degradedPassive/degradedOnce` 指标用于平台回退可观测 |
+| hydration 轻量性能基线 | 2026-04-07 | 增加批量 attach/dispose（100 规模）一致性测试作为优化基线 |
+| 浏览器矩阵测试骨架 | 2026-04-07 | 新增 Chromium smoke 浏览器级测试入口，可扩展 Firefox/WebKit |
+| hydration 运行时能力快照 | 2026-04-07 | 新增 `getHydrationCapabilitySnapshot`，支持 manual/auto 能力来源识别 |
+| 基准模板文档化 | 2026-04-07 | 新增 `docs/progress/hydration-benchmark-template.md` 统一记录性能指标 |
 
 #### 📋 待开始
 
@@ -144,7 +177,7 @@
 |------|--------|------|
 | Fragment 完整支持 | P1 | 非空 Fragment 和复杂嵌套 |
 | spread/ref/directive | P1 | `...props`、`ref`、`use:` 等 |
-| SSR / universal | P1 | `generate: ssr/universal` 路线 |
+| SSR / universal | P1 | `generate: universal` 完整语义 + SSR 与 server-renderer 全量 helper/API 深度对齐 |
 | 动态 style 全量支持 | P2 | style object/string 的动态更新策略 |
 
 ---
@@ -670,4 +703,4 @@ register指令(_node, _action);
 
 ---
 
-*本文档最后更新于 2026 年 3 月*
+*本文档最后更新于 2026 年 4 月*

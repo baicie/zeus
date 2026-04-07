@@ -6,6 +6,7 @@ import {
   assignmentExpression,
   blockStatement,
   callExpression,
+  cloneNode,
   expressionStatement,
   identifier,
   isJSXAttribute,
@@ -13,6 +14,8 @@ import {
   isJSXSpreadAttribute,
   isJSXText,
   memberExpression,
+  returnStatement,
+  stringLiteral,
   variableDeclaration,
   variableDeclarator,
 } from '@babel/types'
@@ -31,6 +34,173 @@ import {
   registerImportMethod,
   toEventName,
 } from '../../shared/utils'
+import { transformSubtree } from '../transform-node'
+
+function isMapCall(expr: t.Expression): boolean {
+  if (expr.type !== 'CallExpression') {
+    return false
+  }
+  if (expr.callee.type !== 'MemberExpression') {
+    return false
+  }
+  if (expr.callee.computed) {
+    return false
+  }
+  return (
+    expr.callee.property.type === 'Identifier' &&
+    expr.callee.property.name === 'map'
+  )
+}
+
+function shouldWrapChildExpression(
+  expr: t.Expression,
+  config: ReturnType<typeof getConfig>,
+): boolean {
+  if (config.wrapConditionals) {
+    if (
+      expr.type === 'ConditionalExpression' ||
+      expr.type === 'LogicalExpression'
+    ) {
+      return true
+    }
+  }
+  // Minimal list optimization: memoize .map() child expressions.
+  return isMapCall(expr)
+}
+
+function toChildAccessor(path: NodePath, expr: t.Expression): t.Expression {
+  const config = getConfig(path)
+  if (shouldWrapChildExpression(expr, config)) {
+    const memoFn = registerImportMethod(path, config.memoWrapper)
+    return callExpression(memoFn, [arrowFunctionExpression([], expr)])
+  }
+  return arrowFunctionExpression([], expr)
+}
+
+function toListRenderCall(
+  path: NodePath,
+  parent: t.Identifier,
+  expr: t.Expression,
+): t.Expression | null {
+  if (!isMapCall(expr)) {
+    return null
+  }
+  const call = expr as t.CallExpression
+  if (!call.arguments.length) {
+    return null
+  }
+  const mapper = call.arguments[0]
+  if (!mapper || mapper.type === 'SpreadElement') {
+    return null
+  }
+  const callee = call.callee as t.MemberExpression
+  const source = callee.object as t.Expression
+  const renderListFn = registerImportMethod(path, 'renderList')
+  const keyFn = resolveListKeyFn(mapper as t.Expression)
+  return callExpression(renderListFn, [
+    parent,
+    arrowFunctionExpression([], source),
+    mapper as t.Expression,
+    keyFn,
+  ])
+}
+
+function resolveListKeyFn(mapper: t.Expression): t.Expression {
+  const fallback = arrowFunctionExpression(
+    [identifier('item'), identifier('index')],
+    identifier('index'),
+  )
+  const keyExpr = extractKeyExprFromMapper(mapper)
+  if (!keyExpr) {
+    return fallback
+  }
+  const params = getMapperParams(mapper)
+  if (!params) {
+    return fallback
+  }
+  return arrowFunctionExpression(params, keyExpr)
+}
+
+function getMapperParams(
+  mapper: t.Expression,
+): [t.Identifier, t.Identifier] | null {
+  if (mapper.type === 'ArrowFunctionExpression') {
+    const p0 = mapper.params[0]
+    const p1 = mapper.params[1]
+    if (p0 && p0.type === 'Identifier' && p1 && p1.type === 'Identifier') {
+      return [cloneNode(p0), cloneNode(p1)]
+    }
+  }
+  if (mapper.type === 'FunctionExpression') {
+    const p0 = mapper.params[0]
+    const p1 = mapper.params[1]
+    if (p0 && p0.type === 'Identifier' && p1 && p1.type === 'Identifier') {
+      return [cloneNode(p0), cloneNode(p1)]
+    }
+  }
+  return null
+}
+
+function extractKeyExprFromMapper(mapper: t.Expression): t.Expression | null {
+  const jsx = getReturnedJSXElement(mapper)
+  if (!jsx) {
+    return null
+  }
+  const attrs = jsx.openingElement.attributes
+  for (let i = 0; i < attrs.length; i++) {
+    const attr = attrs[i]
+    if (attr.type !== 'JSXAttribute') {
+      continue
+    }
+    if (attr.name.type !== 'JSXIdentifier' || attr.name.name !== 'key') {
+      continue
+    }
+    if (!attr.value) {
+      return null
+    }
+    if (attr.value.type === 'StringLiteral') {
+      return cloneNode(attr.value)
+    }
+    if (
+      attr.value.type === 'JSXExpressionContainer' &&
+      attr.value.expression.type !== 'JSXEmptyExpression'
+    ) {
+      return cloneNode(attr.value.expression)
+    }
+  }
+  return null
+}
+
+function getReturnedJSXElement(mapper: t.Expression): t.JSXElement | null {
+  if (
+    mapper.type !== 'ArrowFunctionExpression' &&
+    mapper.type !== 'FunctionExpression'
+  ) {
+    return null
+  }
+  if (mapper.body.type === 'JSXElement') {
+    return mapper.body
+  }
+  if (mapper.body.type === 'BlockStatement') {
+    let found: t.JSXElement | null = null
+    for (let i = 0; i < mapper.body.body.length; i++) {
+      const stmt = mapper.body.body[i]
+      if (stmt.type === 'ReturnStatement' && stmt.argument) {
+        if (stmt.argument.type !== 'JSXElement') {
+          // complex return path (conditional/call/identifier) -> fallback key strategy
+          return null
+        }
+        if (found) {
+          // multiple JSX returns -> ambiguous key extraction, fallback
+          return null
+        }
+        found = stmt.argument
+      }
+    }
+    return found
+  }
+  return null
+}
 function isVoidTag(tagName: string): boolean {
   for (let i = 0; i < VOID_ELEMENTS.length; i++) {
     if (VOID_ELEMENTS[i] === tagName) {
@@ -77,11 +247,6 @@ export function transformElementDOM(
       '[zeus-jsx] SSR mode is not implemented yet (use generate: "dom").',
     )
   }
-  if (config.generate === 'universal') {
-    throw new Error(
-      '[zeus-jsx] universal mode is not implemented yet (use generate: "dom").',
-    )
-  }
 
   const attrs = path.get('openingElement').get('attributes')
 
@@ -97,7 +262,7 @@ export function transformElementDOM(
     postExprs: [],
     isSVG: wrapSVG,
     tagName,
-    renderer: 'dom',
+    renderer: config.generate === 'universal' ? 'universal' : 'dom',
   }
 
   const elemId = path.scope.generateUidIdentifier('el$')
@@ -343,39 +508,7 @@ export function transformElementDOM(
     return finalizeRootTemplate(path, results, elemId, html, wrapSVG, info)
   }
 
-  const children = filterChildren(path.node.children)
-
-  for (let i = 0; i < children.length; i++) {
-    const ch = children[i]
-    if (isJSXText(ch)) {
-      const text = trimJSXText(ch.value)
-      if (text.length) {
-        html += escapeForTemplate(escapeHTML(text, false))
-      }
-      continue
-    }
-    if (ch.type === 'JSXExpressionContainer') {
-      if (ch.expression.type === 'JSXEmptyExpression') {
-        continue
-      }
-      const insertFn = registerImportMethod(path, 'insert')
-      results.exprs.push(
-        expressionStatement(
-          callExpression(insertFn, [
-            elemId,
-            arrowFunctionExpression([], ch.expression as t.Expression),
-          ]),
-        ),
-      )
-      continue
-    }
-    if (ch.type === 'JSXElement') {
-      throw new Error('[zeus-jsx] nested JSX elements are not implemented yet.')
-    }
-    if (ch.type === 'JSXFragment') {
-      throw new Error('[zeus-jsx] nested JSX Fragment is not implemented yet.')
-    }
-  }
+  html += processChildren(path, elemId, results)
 
   html += `</${tagName}>`
   if (wrapSVG) {
@@ -392,6 +525,157 @@ export function transformElementDOM(
   }
 
   return finalizeRootTemplate(path, results, elemId, html, wrapSVG, info)
+}
+
+function resultToExpression(result: TransformResult): t.Expression {
+  if (result.outputExpr) {
+    return result.outputExpr
+  }
+  if (!result.id) {
+    return {
+      type: 'NullLiteral',
+    } as t.NullLiteral
+  }
+  const body: t.Statement[] = []
+  for (let i = 0; i < result.exprs.length; i++) {
+    body.push(result.exprs[i])
+  }
+  body.push(returnStatement(result.id))
+  return callExpression(arrowFunctionExpression([], blockStatement(body)), [])
+}
+
+function processChildren(
+  path: NodePath<JSXElement>,
+  elemId: t.Identifier,
+  results: TransformResult,
+): string {
+  const children = filterChildren(path.node.children)
+  const rawChildren = path.get('children')
+  let hasNestedJSX = false
+  for (let i = 0; i < rawChildren.length; i++) {
+    const childNode = rawChildren[i].node
+    if (childNode.type === 'JSXElement' || childNode.type === 'JSXFragment') {
+      hasNestedJSX = true
+      break
+    }
+  }
+  if (hasNestedJSX) {
+    processChildrenWithNested(path, elemId, rawChildren, results)
+    return ''
+  }
+  return processChildrenSimple(path, elemId, children, results)
+}
+
+function processChildrenSimple(
+  path: NodePath<JSXElement>,
+  elemId: t.Identifier,
+  children: t.JSXElement['children'],
+  results: TransformResult,
+): string {
+  let html = ''
+  for (let i = 0; i < children.length; i++) {
+    const ch = children[i]
+    if (isJSXText(ch)) {
+      const text = trimJSXText(ch.value)
+      if (text.length) {
+        html += escapeForTemplate(escapeHTML(text, false))
+      }
+      continue
+    }
+    if (ch.type === 'JSXExpressionContainer') {
+      if (ch.expression.type === 'JSXEmptyExpression') {
+        continue
+      }
+      const listCall = toListRenderCall(
+        path,
+        elemId,
+        ch.expression as t.Expression,
+      )
+      if (listCall) {
+        results.exprs.push(expressionStatement(listCall))
+        continue
+      }
+      const insertFn = registerImportMethod(path, 'insert')
+      results.exprs.push(
+        expressionStatement(
+          callExpression(insertFn, [
+            elemId,
+            toChildAccessor(path, ch.expression as t.Expression),
+          ]),
+        ),
+      )
+    }
+  }
+  return html
+}
+
+function processChildrenWithNested(
+  path: NodePath<JSXElement>,
+  elemId: t.Identifier,
+  rawChildren: Array<
+    NodePath<
+      | t.JSXText
+      | t.JSXExpressionContainer
+      | t.JSXSpreadChild
+      | t.JSXElement
+      | t.JSXFragment
+    >
+  >,
+  results: TransformResult,
+): void {
+  const insertFn = registerImportMethod(path, 'insert')
+  for (let i = 0; i < rawChildren.length; i++) {
+    const childPath = rawChildren[i]
+    const child = childPath.node
+    if (child.type === 'JSXText') {
+      const text = trimJSXText(child.value)
+      if (text.length) {
+        results.exprs.push(
+          expressionStatement(
+            callExpression(insertFn, [elemId, stringLiteral(text)]),
+          ),
+        )
+      }
+      continue
+    }
+    if (child.type === 'JSXExpressionContainer') {
+      if (child.expression.type === 'JSXEmptyExpression') {
+        continue
+      }
+      const listCall = toListRenderCall(
+        path,
+        elemId,
+        child.expression as t.Expression,
+      )
+      if (listCall) {
+        results.exprs.push(expressionStatement(listCall))
+        continue
+      }
+      results.exprs.push(
+        expressionStatement(
+          callExpression(insertFn, [
+            elemId,
+            toChildAccessor(path, child.expression as t.Expression),
+          ]),
+        ),
+      )
+      continue
+    }
+    if (child.type === 'JSXElement' || child.type === 'JSXFragment') {
+      const childResult = transformSubtree(
+        childPath as NodePath<t.JSXElement | t.JSXFragment>,
+        {
+          topLevel: true,
+          lastElement: true,
+        },
+      )
+      results.exprs.push(
+        expressionStatement(
+          callExpression(insertFn, [elemId, resultToExpression(childResult)]),
+        ),
+      )
+    }
+  }
 }
 
 function finalizeRootTemplate(
@@ -425,10 +709,14 @@ function finalizeRootTemplate(
   })
   registerImportMethod(path, 'template')
 
+  let initExpr: t.Expression = callExpression(templateId, [])
+  if (isSVG) {
+    // For wrapped SVG templates like <svg><circle/></svg>, expose inner element.
+    initExpr = memberExpression(initExpr, identifier('firstChild'))
+  }
+
   results.exprs.unshift(
-    variableDeclaration('var', [
-      variableDeclarator(elemId, callExpression(templateId, [])),
-    ]),
+    variableDeclaration('var', [variableDeclarator(elemId, initExpr)]),
   )
 
   return results

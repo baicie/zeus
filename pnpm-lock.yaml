@@ -397,6 +397,31 @@ importers:
         specifier: '*'
         version: 5.9.3
 
+  playground/babel-compiler-vite:
+    dependencies:
+      '@zeus-js/core':
+        specifier: workspace:*
+        version: link:../../packages/zeus
+    devDependencies:
+      '@babel/core':
+        specifier: 'catalog:'
+        version: 7.29.0
+      '@babel/preset-typescript':
+        specifier: 'catalog:'
+        version: 7.28.5(@babel/core@7.29.0)
+      '@types/node':
+        specifier: ^25.5.2
+        version: 25.5.2
+      '@zeus-js/compiler':
+        specifier: workspace:*
+        version: link:../../packages/compiler
+      typescript:
+        specifier: ^6.0.2
+        version: 6.0.2
+      vite:
+        specifier: ^8.0.5
+        version: 8.0.5(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)(@types/node@25.5.2)(esbuild@0.28.0)(jiti@2.5.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.2)
+
   playground/solidjs:
     dependencies:
       '@solidjs/router':

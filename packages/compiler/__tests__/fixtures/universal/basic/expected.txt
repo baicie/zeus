@@ -1,0 +1,3 @@
+template
+insert
+ok ? 'a' : 'b'

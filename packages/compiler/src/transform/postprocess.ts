@@ -14,7 +14,75 @@ import {
 } from '@babel/types'
 import { getProgramScopeData } from '../babel-cast'
 import type { ZeusPluginPass } from './preprocess'
+import {
+  buildHydrationEventMeta,
+  hydrationEventMetaToAst,
+} from '../shared/hydration'
 import { registerImportMethod } from '../shared/utils'
+
+function toStringLiterals(values: string[]): t.StringLiteral[] {
+  const elems: t.StringLiteral[] = []
+  for (let i = 0; i < values.length; i++) {
+    elems.push(stringLiteral(values[i]))
+  }
+  return elems
+}
+
+function appendCall(
+  path: NodePath<Program>,
+  fn: t.Identifier,
+  values: string[],
+): void {
+  path.pushContainer(
+    'body',
+    expressionStatement(
+      callExpression(fn, [arrayExpression(toStringLiterals(values))]),
+    ),
+  )
+}
+
+function appendHydrationCall(
+  path: NodePath<Program>,
+  fn: t.Identifier,
+  values: string[],
+  defaultStrategy: 'delegate' | 'native',
+  eventStrategies?: Record<string, 'delegate' | 'native'>,
+): void {
+  const meta = buildHydrationEventMeta(values, defaultStrategy, eventStrategies)
+  const args = hydrationEventMetaToAst(meta)
+  path.pushContainer(
+    'body',
+    expressionStatement(callExpression(fn, [arrayExpression(args)])),
+  )
+}
+
+function registerImportMethodForSource(
+  path: NodePath<Program>,
+  source: string,
+  name: string,
+): t.Identifier {
+  const data = getProgramScopeData(path)
+  if (!data) {
+    throw new Error(
+      '[zeus-jsx] internal: scope data missing before ssr import register',
+    )
+  }
+  if (!data.imports) {
+    data.imports = new Map()
+  }
+  let modMap = data.imports.get(source)
+  if (!modMap) {
+    modMap = new Map()
+    data.imports.set(source, modMap)
+  }
+  const existing = modMap.get(name)
+  if (existing) {
+    return existing
+  }
+  const id = path.scope.generateUidIdentifier(name)
+  modMap.set(name, id)
+  return id
+}
 
 export function postprocess(
   path: NodePath<Program>,
@@ -38,6 +106,15 @@ export function postprocess(
 
   if (config.delegateEvents && data.events && data.events.size) {
     registerImportMethod(path, 'delegateEvents')
+  }
+  if (
+    config.generate === 'ssr' &&
+    config.hydratable &&
+    data.hydratableEvents &&
+    data.hydratableEvents.size
+  ) {
+    const ssrSource = config.ssrModuleName || config.moduleName
+    registerImportMethodForSource(path, ssrSource, 'ssrHydrationEvents')
   }
 
   const prelude: t.Statement[] = []
@@ -93,7 +170,12 @@ export function postprocess(
     }
   }
 
-  if (config.delegateEvents && data.events && data.events.size) {
+  if (
+    config.generate !== 'ssr' &&
+    config.delegateEvents &&
+    data.events &&
+    data.events.size
+  ) {
     let delegateFn: t.Identifier | undefined
     if (data.imports) {
       const modMap = data.imports.get(config.moduleName)
@@ -105,13 +187,33 @@ export function postprocess(
       throw new Error('[zeus-jsx] internal: delegateEvents import missing')
     }
     const names = Array.from(data.events)
-    const elems: t.StringLiteral[] = []
-    for (let i = 0; i < names.length; i++) {
-      elems.push(stringLiteral(names[i]))
+    appendCall(path, delegateFn, names)
+  }
+
+  if (
+    config.generate === 'ssr' &&
+    config.hydratable &&
+    data.hydratableEvents &&
+    data.hydratableEvents.size
+  ) {
+    let hydrateFn: t.Identifier | undefined
+    if (data.imports) {
+      const ssrSource = config.ssrModuleName || config.moduleName
+      const modMap = data.imports.get(ssrSource)
+      if (modMap) {
+        hydrateFn = modMap.get('ssrHydrationEvents')
+      }
     }
-    path.pushContainer(
-      'body',
-      expressionStatement(callExpression(delegateFn, [arrayExpression(elems)])),
+    if (!hydrateFn) {
+      throw new Error('[zeus-jsx] internal: ssrHydrationEvents import missing')
+    }
+    const names = Array.from(data.hydratableEvents)
+    appendHydrationCall(
+      path,
+      hydrateFn,
+      names,
+      config.hydrationEventStrategy,
+      config.hydrationEventStrategies,
     )
   }
 }

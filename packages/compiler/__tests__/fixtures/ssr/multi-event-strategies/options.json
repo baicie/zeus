@@ -1,0 +1,7 @@
+{
+  "hydratable": true,
+  "hydrationEventStrategy": "delegate",
+  "hydrationEventStrategies": {
+    "click": "native"
+  }
+}

@@ -24,6 +24,8 @@
     "test": "vitest",
     "test-unit": "vitest --project unit*",
     "test-e2e": "tsx scripts/build.ts zeus -f global -d && vitest --project e2e",
+    "test-hydration-browser-matrix": "cross-env HYDRATION_BROWSER_MATRIX=1 vitest --config vitest.config.ts --project unit-server-renderer \"packages/server-renderer/__tests__/hydration-events.browser.test.ts\"",
+    "test-hydration-browser-chromium": "cross-env HYDRATION_BROWSER_MATRIX=1 HYDRATION_BROWSERS=chromium vitest --config vitest.config.ts --project unit-server-renderer \"packages/server-renderer/__tests__/hydration-events.browser.test.ts\"",
     "test-dts": "run-s build-dts test-dts-only",
     "test-dts-only": "echo 'test-dts-only'",
     "test-coverage": "vitest run --project unit* --coverage",

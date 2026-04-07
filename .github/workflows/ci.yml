@@ -9,11 +9,23 @@ on:
     branches:
       - main
       - minor
+  schedule:
+    - cron: '0 2 * * *'
 
 jobs:
   test:
     if: ${{ ! startsWith(github.event.head_commit.message, 'release:') && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository) }}
     uses: ./.github/workflows/test.yml
+    with:
+      enable_hydration_browser_matrix: false
+      hydration_browsers: chromium
+
+  test-browser-matrix-nightly:
+    if: ${{ github.event_name == 'schedule' }}
+    uses: ./.github/workflows/test.yml
+    with:
+      enable_hydration_browser_matrix: true
+      hydration_browsers: chromium,firefox,webkit
 
   # continuous-release:
   #   if: github.repository == 'baicie/zeus'

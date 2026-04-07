@@ -9,6 +9,28 @@ export type ZeusPluginPass = PluginPass & {
   skip?: boolean
 }
 
+function getNonSSRHydrationConfigErrors(
+  merged: Required<CompilerOptions>,
+): string[] {
+  if (merged.generate === 'ssr') {
+    return []
+  }
+  const errors: string[] = []
+  if (merged.hydratable) {
+    errors.push('hydratable')
+  }
+  if (merged.hydrationEventStrategy !== 'delegate') {
+    errors.push('hydrationEventStrategy')
+  }
+  if (Object.keys(merged.hydrationEventStrategies).length > 0) {
+    errors.push('hydrationEventStrategies')
+  }
+  if (merged.ssrModuleName !== merged.moduleName) {
+    errors.push('ssrModuleName')
+  }
+  return errors
+}
+
 function checkImportSource(path: NodePath<Program>, source: string): boolean {
   const comments = getBabelFile(path).ast.comments
   if (!comments || !comments.length) {
@@ -44,10 +66,18 @@ export function preprocess(
     }
   }
 
+  const nonSSRErrors = getNonSSRHydrationConfigErrors(merged)
+  if (nonSSRErrors.length) {
+    throw new Error(
+      `[zeus-jsx] SSR-only options are not supported when generate is "${merged.generate}": ${nonSSRErrors.join(', ')}.`,
+    )
+  }
+
   const data: ScopeData = {
     templates: [],
     imports: new Map(),
     events: new Set(),
+    hydratableEvents: new Set(),
     config: merged,
   }
   setProgramScopeData(path, data)

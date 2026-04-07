@@ -4,8 +4,11 @@ export type { CompilerOptions }
 
 export const DEFAULT_CONFIG: Required<CompilerOptions> = {
   moduleName: 'zeus',
+  ssrModuleName: 'zeus',
   generate: 'dom',
   hydratable: false,
+  hydrationEventStrategy: 'delegate',
+  hydrationEventStrategies: {},
   delegateEvents: true,
   delegatedEvents: [],
   builtIns: [

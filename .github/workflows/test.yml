@@ -1,6 +1,18 @@
 name: 'test'
 
-on: workflow_call
+on:
+  workflow_call:
+    inputs:
+      enable_hydration_browser_matrix:
+        description: 'Run optional hydration browser matrix tests (Chromium/Firefox/WebKit)'
+        required: false
+        type: boolean
+        default: false
+      hydration_browsers:
+        description: 'Comma-separated browsers for hydration matrix (chromium,firefox,webkit)'
+        required: false
+        type: string
+        default: 'chromium'
 
 permissions:
   contents: read # to fetch code (actions/checkout)
@@ -201,3 +213,43 @@ jobs:
 
       - name: Run e2e tests
         run: pnpm run test-e2e
+
+  hydration-browser-matrix:
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: ${{ inputs.enable_hydration_browser_matrix }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4.1.0
+
+      - name: Install Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.node-version'
+          cache: 'pnpm'
+
+      - run: pnpm install
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Run hydration browser matrix tests
+        run: pnpm run test-hydration-browser-matrix
+        env:
+          HYDRATION_BROWSERS: ${{ inputs.hydration_browsers }}
+
+      - name: Build hydration matrix report
+        run: node scripts/build-hydration-matrix-report.mjs
+        env:
+          HYDRATION_BROWSERS: ${{ inputs.hydration_browsers }}
+          GITHUB_SHA: ${{ github.sha }}
+
+      - name: Upload hydration matrix report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hydration-browser-matrix-results
+          path: |
+            temp/hydration-browser-matrix-results.md
+            temp/hydration-browser-matrix-results.json

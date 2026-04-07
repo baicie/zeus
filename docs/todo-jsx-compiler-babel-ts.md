@@ -3,7 +3,7 @@
 > 依据 [zeus-jsx-compiler-babel-ts-design.md](./architecture/zeus-jsx-compiler-babel-ts-design.md) 整理，与 Rust + OXC 路线并行记录于本文档，便于 MVP 阶段快速迭代与后续迁移规划。
 
 **关联设计**：`docs/architecture/zeus-jsx-compiler-babel-ts-design.md`（文档版本 1.0.0，更新日期 2026-04-07）  
-**本文档更新**：2026-04-07（核心实现已落地）
+**本文档更新**：2026-04-07（第十一阶段：浏览器矩阵测试骨架 + 兼容快照 + 基准模板已落地）
 
 ---
 
@@ -14,7 +14,7 @@
 | 功能 | 无虚拟 DOM，直接 DOM 操作 | P0 | 待验证 |
 | 功能 | 最小化运行时 | P0 | 待验证 |
 | 功能 | 细粒度响应式（alien-signal） | P0 | 待验证 |
-| 功能 | DOM / SSR / universal 多模式 | P1 | 未开始 |
+| 功能 | DOM / SSR / universal 多模式 | P1 | 进行中 |
 | 功能 | 输出 ES5 兼容 | P1 | 未开始 |
 | 体验 | 错误提示、SourceMap | P2 | 未开始 |
 | 性能 | 编译 &lt; 50ms/千行 JSX、运行时 gz &lt; 5KB 等 | — | 未度量 |
@@ -51,7 +51,7 @@
 - [x] 动态属性与动态性检测（`shared/dynamic.ts`）
 - [x] 事件（onClick 等）与委托事件收集
 - [x] `class` / `className`、`style`（含动态 style helper 与对象差分更新）
-- [x] 子节点与文本
+- [x] 子节点与文本（含 DOM 内嵌 JSX 子树插入）
 - [x] `Fragment` 支持（文本/表达式/嵌套 JSX 子节点）
 - [x] 模板字符串生成与模板注册（模块级 `_tmpl$`）
 
@@ -67,16 +67,33 @@
 
 ### 阶段 4：SSR（约 1 周）
 
-- [ ] SSR 元素与模板值（`templateValues`）
-- [ ] SSR 属性与转义策略
-- [ ] Hydration 选项与可水合事件（`hydratable`）
-- [ ] 与 `@zeus-js/server-renderer`（或设计中的 SSR 运行时）对齐 API
+- [x] SSR 元素最小路径（静态标签/文本/表达式/嵌套 JSX 可编译）
+- [x] SSR 属性与转义最小策略（`className`、`style`、`dangerouslySetInnerHTML`、void 元素、`textarea`/`option`）
+- [x] Hydration 选项与最小事件水合语义（`hydratable`、SSR 事件集收集）
+- [x] 与 `@zeus-js/server-renderer` helper 契约升级（`ssrHydrationEvents` 可调用，支持 descriptor 参数）
+- [x] hydration 事件策略可配置（`hydrationEventStrategy` / `hydrationEventStrategies`）
+- [x] universal 高风险误用显式报错（`hydratable` 仅允许 SSR）
+- [x] hydration 恢复最小闭环（runtime 注册/读取/清理 API）
+- [x] SSR-only 配置边界统一报错（`hydratable`/`hydrationEventStrategy`/`hydrationEventStrategies`/`ssrModuleName`）
+- [x] hydration 客户端恢复执行最小 API（`applyHydrationEvents`）
+- [x] 未知 strategy 统一回退 `delegate`（runtime + compiler 输出双侧收敛）
+- [x] hydration 真实 attach 最小路径（`delegate/native` 目标分流）
+- [x] hydration dispose 幂等生命周期（重复 `dispose` 安全、重复 attach 去重）
+- [x] 多容器路由能力（`eventTargetsByName` + fallback target）
+- [x] 跨容器去重与可观测统计（`attached/skipped/deduped/targets`）
+- [x] 事件选项语义支持（`capture`/`passive`/`once`）
+- [x] 低能力环境回退路径与统计（`optionFallbackCount`）
+- [x] 事件选项能力探测分层（自动探测 + 手动覆盖）
+- [x] 回退降级细分统计（`degradedPassive`/`degradedOnce`）与轻量批量性能基线测试
+- [x] 浏览器矩阵测试骨架（Chromium smoke，可扩展 Firefox/WebKit）
+- [x] 运行时能力快照 API（`getHydrationCapabilitySnapshot`）与兼容分支可观测
+- [x] 基准记录模板文档（`docs/progress/hydration-benchmark-template.md`）
 
 ### 阶段 5：集成与优化（约 1 周）
 
 - [x] Rollup 插件：`transform`、缓存、`include`/`exclude`（缓存策略待增强）
 - [x] Vite 插件：`transform` + `handleHotUpdate` 基础行为
-- [ ] 测试与 fixtures 补齐（见下节）
+- [x] 测试与 fixtures 基线（dom/ssr/universal 高风险矩阵扩展 + strategy 配置回归 + 多事件/非法策略回退对照）
 - [ ] 性能：解析/遍历/生成路径 profiling（设计 §10.2）
 - [ ] 用户文档：preset 使用方式、与 Rolldown/Rust 方案关系说明
 
@@ -89,7 +106,7 @@
 - [x] `transform/`：`element`、`component`、`fragment`、`directive` 等单测（当前覆盖 element/component 主路径）
 - [ ] `shared/`：`dynamic`、`escape`、`utils`
 - [ ] `ssr/`：`element` 等
-- [ ] `__tests__/fixtures/dom|ssr|universal` 与快照 / 对比测试
+- [x] `__tests__/fixtures/dom|ssr|universal` 与对比测试基线
 - [ ] 可选：playground / 真实场景 E2E
 
 ---
@@ -126,7 +143,7 @@
 | 区块 | 已完成 | 进行中 | 未开始 |
 |------|--------|--------|--------|
 | 包落地 | 4 | 0 | 0 |
-| 阶段 1–5 | 1（阶段1）+ 1（阶段2最小DOM）+ 0.7（阶段3组件基础） | 0 | 其余阶段 |
-| 测试 §9.2 | 1（核心单测） | 0 | 其余 |
+| 阶段 1–5 | 1（阶段1）+ 1（阶段2最小DOM）+ 0.8（阶段3组件基础）+ 0.8（阶段4 SSR）+ 0.6（universal 语义加固） | 0 | 其余阶段 |
+| 测试 §9.2 | 1（核心单测 + fixtures 基线） | 0 | 其余 |
 
 *实施过程中请在本文件中勾选 `[ ]` 并在 [todo.md](./todo.md) 或 PR 中保留对应变更说明。*

@@ -1,0 +1,4 @@
+{
+  "hydratable": true,
+  "ssrModuleName": "@zeus-js/server-renderer"
+}

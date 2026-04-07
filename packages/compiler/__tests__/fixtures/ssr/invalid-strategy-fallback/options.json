@@ -1,0 +1,4 @@
+{
+  "hydratable": true,
+  "hydrationEventStrategy": "invalid"
+}

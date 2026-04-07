@@ -2,8 +2,11 @@ import type * as t from '@babel/types'
 
 export interface CompilerOptions {
   moduleName?: string
+  ssrModuleName?: string
   generate?: 'dom' | 'ssr' | 'universal'
   hydratable?: boolean
+  hydrationEventStrategy?: 'delegate' | 'native'
+  hydrationEventStrategies?: Record<string, 'delegate' | 'native'>
   delegateEvents?: boolean
   delegatedEvents?: string[]
   builtIns?: string[]
@@ -76,6 +79,7 @@ export interface ScopeData {
   templates?: TemplateInfo[]
   imports?: Map<string, Map<string, t.Identifier>>
   events?: Set<string>
+  hydratableEvents?: Set<string>
   config?: Required<CompilerOptions>
 }
 
