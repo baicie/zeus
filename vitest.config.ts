@@ -50,6 +50,14 @@ export default defineConfig({
       {
         extends: true,
         test: {
+          name: 'unit-compiler-babel',
+          include: ['packages/compiler/__tests__/**/*.{test,spec}.*'],
+          exclude: [...configDefaults.exclude, '**/e2e/**'],
+        },
+      },
+      {
+        extends: true,
+        test: {
           name: 'unit-runtime',
           include: ['packages/{runtime-core,runtime-dom}/**/*.{test,spec}.*'],
           exclude: [...configDefaults.exclude, '**/e2e/**'],

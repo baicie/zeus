@@ -6,6 +6,7 @@ packages:
 catalog:
   '@babel/core': ^7.24.7
   '@babel/parser': ^7.24.7
+  '@babel/plugin-syntax-jsx': ^7.24.7
   '@babel/preset-env': ^7.24.7
   '@babel/preset-typescript': ^7.24.7
   '@babel/types': ^7.24.7

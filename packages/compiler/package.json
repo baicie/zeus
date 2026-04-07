@@ -1,0 +1,56 @@
+{
+  "name": "@zeus-js/compiler",
+  "version": "0.0.1",
+  "description": "Zeus JSX compiler (Babel + TypeScript) for DOM / SSR pipelines",
+  "keywords": [
+    "zeus",
+    "babel-plugin",
+    "jsx"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "main": "index.js",
+  "module": "dist/compiler.esm-bundler.js",
+  "types": "dist/compiler.d.ts",
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "dev": "./src/index.ts",
+      "types": "./dist/compiler.d.ts",
+      "node": {
+        "production": "./dist/compiler.cjs.prod.js",
+        "development": "./dist/compiler.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/compiler.esm-bundler.js",
+      "import": "./dist/compiler.esm-bundler.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
+  },
+  "sideEffects": false,
+  "buildOptions": {
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ],
+    "prod": false
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baicie/zeus.git",
+    "directory": "packages/compiler"
+  },
+  "dependencies": {
+    "@babel/core": "catalog:",
+    "@babel/plugin-syntax-jsx": "catalog:",
+    "@babel/preset-typescript": "catalog:",
+    "@babel/types": "catalog:"
+  },
+  "devDependencies": {
+    "@types/babel__core": "catalog:"
+  }
+}
