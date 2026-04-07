@@ -26,7 +26,8 @@ docs/
 │   └── oxc-sourcemap-design.md  # OXC SourceMap 生成方案
 │
 └── progress/                      # 进度报告
-    └── progress-report-2026-03-31.md  # JSX 编译器进度报告
+    ├── progress-report-2026-03-31.md  # JSX 编译器进度报告
+    └── jsx-babel-compiler-core-progress-2026-04-07.md  # Babel JSX 核心实现进度
 ```
 
 ---
@@ -49,7 +50,9 @@ docs/
 
 1. **查看已知问题**：[issues.md](./issues.md)
 2. **查看任务清单**：[todo.md](./todo.md)
-3. **如果是编译器问题**：[progress/progress-report-2026-03-31.md](./progress/progress-report-2026-03-31.md)
+3. **如果是编译器问题**：
+   - [progress/progress-report-2026-03-31.md](./progress/progress-report-2026-03-31.md)
+   - [progress/jsx-babel-compiler-core-progress-2026-04-07.md](./progress/jsx-babel-compiler-core-progress-2026-04-07.md)
 
 ---
 

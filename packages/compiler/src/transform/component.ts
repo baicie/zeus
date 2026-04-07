@@ -51,13 +51,13 @@ export function transformComponent(
   }
 
   const props: Array<t.ObjectProperty | t.ObjectMethod> = []
+  const spreadProps: t.Expression[] = []
 
   for (let i = 0; i < attrs.length; i++) {
     const a = attrs[i]
     if (isJSXSpreadAttribute(a.node)) {
-      throw new Error(
-        '[zeus-jsx] component spread props are not implemented yet.',
-      )
+      spreadProps.push(a.node.argument)
+      continue
     }
     const attr = a.node
     if (attr.type !== 'JSXAttribute') {
@@ -101,10 +101,18 @@ export function transformComponent(
   }
 
   const createComponent = registerImportMethod(path, 'createComponent')
-  const call = callExpression(createComponent, [
-    tagExpr,
-    objectExpression(props),
-  ])
+  let finalProps: t.Expression = objectExpression(props)
+  if (spreadProps.length) {
+    const assignArgs: t.Expression[] = [objectExpression(props)]
+    for (let i = 0; i < spreadProps.length; i++) {
+      assignArgs.push(spreadProps[i])
+    }
+    finalProps = callExpression(
+      memberExpression(identifier('Object'), identifier('assign')),
+      assignArgs,
+    )
+  }
+  const call = callExpression(createComponent, [tagExpr, finalProps])
 
   return {
     template: '',

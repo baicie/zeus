@@ -175,28 +175,89 @@ export function style(
   node: HTMLElement,
   value:
     | string
-    | Record<string, string>
-    | (() => string | Record<string, string>),
+    | Record<string, string | number>
+    | (() => string | Record<string, string | number>),
 ): void {
   if (typeof value === 'function') {
+    let prev: Record<string, string | number> | null = null
     effect(() => {
-      applyStyle(node, value())
+      prev = applyStyle(node, value(), prev)
     })
   } else {
-    applyStyle(node, value)
+    applyStyle(node, value, null)
   }
 }
 
 function applyStyle(
   node: HTMLElement,
-  value: string | Record<string, string>,
-): void {
+  value: string | Record<string, string | number>,
+  prev: Record<string, string | number> | null,
+): Record<string, string | number> | null {
   if (typeof value === 'string') {
     node.style.cssText = value
-  } else {
-    for (const [k, v] of Object.entries(value)) {
-      node.style.setProperty(k, v)
+    return null
+  }
+
+  const next: Record<string, string | number> = value
+
+  if (prev) {
+    const prevKeys = Object.keys(prev)
+    for (let i = 0; i < prevKeys.length; i++) {
+      const key = prevKeys[i]
+      if (!(key in next)) {
+        node.style.removeProperty(key)
+      }
     }
+  } else {
+    node.style.cssText = ''
+  }
+
+  const entries = Object.entries(next)
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i]
+    const key = entry[0]
+    const raw = entry[1]
+    if (raw == null) {
+      node.style.removeProperty(key)
+    } else {
+      const val = String(raw)
+      if (!prev || prev[key] !== raw) {
+        node.style.setProperty(key, val)
+      }
+    }
+  }
+
+  return next
+}
+
+export function use(
+  node: Element,
+  action:
+    | ((el: Element, value?: any) => void | (() => void))
+    | null
+    | undefined,
+  value?: any,
+): void {
+  if (typeof action !== 'function') {
+    return
+  }
+  let cleanup: (() => void) | undefined
+  const run = (v: any) => {
+    if (cleanup) {
+      cleanup()
+      cleanup = undefined
+    }
+    const out = action(node, v)
+    if (typeof out === 'function') {
+      cleanup = out
+    }
+  }
+  if (typeof value === 'function') {
+    effect(() => {
+      run(value())
+    })
+  } else {
+    run(value)
   }
 }
 
@@ -507,9 +568,12 @@ export function DynamicTag(
         element.className = typeof value === 'function' ? value() : value
       } else if (key === 'style') {
         if (typeof value === 'function') {
-          effect(() => applyStyle(element as HTMLElement, value()))
+          let prev: Record<string, string | number> | null = null
+          effect(() => {
+            prev = applyStyle(element as HTMLElement, value(), prev)
+          })
         } else {
-          applyStyle(element as HTMLElement, value)
+          applyStyle(element as HTMLElement, value, null)
         }
       } else if (key.startsWith('on')) {
         const eventName = key.slice(2).toLowerCase()
@@ -540,18 +604,4 @@ export function DynamicTag(
   }
 
   return element
-}
-
-// =============================================================================
-// use - Hook for directive-style refs (used: directive)
-// Sets up a ref callback with access to the owner context
-// =============================================================================
-export function use(
-  handler: (el: Element, ...args: any[]) => void,
-  el: Element,
-  ...args: any[]
-): void {
-  if (typeof handler === 'function') {
-    handler(el, ...args)
-  }
 }

@@ -3,7 +3,7 @@
 > 依据 [zeus-jsx-compiler-babel-ts-design.md](./architecture/zeus-jsx-compiler-babel-ts-design.md) 整理，与 Rust + OXC 路线并行记录于本文档，便于 MVP 阶段快速迭代与后续迁移规划。
 
 **关联设计**：`docs/architecture/zeus-jsx-compiler-babel-ts-design.md`（文档版本 1.0.0，更新日期 2026-04-07）  
-**本文档更新**：2026-04-07
+**本文档更新**：2026-04-07（核心实现已落地）
 
 ---
 
@@ -25,10 +25,10 @@
 
 按设计创建 workspace 包并完成最小 `package.json` / 导出：
 
-- [ ] `packages/compiler` — Babel 插件核心（`transformSync` 等）
-- [ ] `addons/babel-preset-zeus` — 组合 TS preset + compiler
-- [ ] `addons/rollup-plugin-zeus` — Rollup 集成（缓存、SourceMap）
-- [ ] `addons/vite-plugin-zeus` — Vite 集成（含 HMR 钩子占位）
+- [x] `packages/compiler` — Babel 插件核心（`transformSync` 等）
+- [x] `addons/babel-preset-zeus` — 组合 TS preset + compiler
+- [x] `addons/rollup-plugin-zeus` — Rollup 集成（缓存、SourceMap）
+- [x] `addons/vite-plugin-zeus` — Vite 集成（含 HMR 钩子占位）
 
 ---
 
@@ -36,31 +36,31 @@
 
 ### 阶段 1：核心基础设施（约 2 周）
 
-- [ ] 项目结构搭建（`packages/compiler/src` 目录与入口）
-- [ ] `config.ts` — `CompilerOptions` / `DEFAULT_CONFIG`（与设计 §4.1、附录 B 一致）
-- [ ] `shared/types.ts` — 转换结果、ScopeData、DynamicAttr 等（附录 A）
-- [ ] `shared/utils.ts`、`dynamic.ts`、`escape.ts`、`constants.ts`
-- [ ] Babel 插件入口 `index.ts`（注册 visitor）
-- [ ] 预处理 / 后处理（Program enter/exit：`preprocess` / `postprocess`）
-- [ ] `transformSync({ code, filename, options })` 对外 API（设计 §8）
+- [x] 项目结构搭建（`packages/compiler/src` 目录与入口）
+- [x] `config.ts` — `CompilerOptions` / `DEFAULT_CONFIG`（与设计 §4.1、附录 B 一致）
+- [x] `shared/types.ts` — 转换结果、ScopeData、DynamicAttr 等（附录 A）
+- [x] `shared/utils.ts`、`dynamic.ts`、`escape.ts`、`constants.ts`
+- [x] Babel 插件入口 `index.ts`（注册 visitor）
+- [x] 预处理 / 后处理（Program enter/exit：`preprocess` / `postprocess`）
+- [x] `transformSync({ code, filename, options })` 对外 API（设计 §8）
 
 ### 阶段 2：DOM 元素转换（约 2 周）
 
-- [ ] 基础标签（div、span 等）→ 模板 + 运行时调用
-- [ ] 静态属性内联
-- [ ] 动态属性与动态性检测（`shared/dynamic.ts`）
-- [ ] 事件（onClick 等）与委托事件收集
-- [ ] `class` / `className`、`style`
-- [ ] 子节点与文本
-- [ ] `Fragment` 支持
-- [ ] 模板字符串生成与模板注册（模块级 `_tmpl$`）
+- [x] 基础标签（div、span 等）→ 模板 + 运行时调用
+- [x] 静态属性内联
+- [x] 动态属性与动态性检测（`shared/dynamic.ts`）
+- [x] 事件（onClick 等）与委托事件收集
+- [x] `class` / `className`、`style`（含动态 style helper 与对象差分更新）
+- [x] 子节点与文本
+- [x] `Fragment` 支持（文本/表达式/嵌套 JSX 子节点）
+- [x] 模板字符串生成与模板注册（模块级 `_tmpl$`）
 
 ### 阶段 3：组件与高级特性（约 2 周）
 
-- [ ] 组件调用路径（`createComponent` 或项目约定 API）
-- [ ] 内置组件：`For`、`Show`、`Switch`、`Match`、`Portal`、`Suspense`、`ErrorBoundary`（及设计附录中的 `Index`、`Merge`、`Dynamic` 等）
-- [ ] `ref` 支持
-- [ ] 展开属性 `...props`
+- [x] 组件调用路径（`createComponent` 或项目约定 API）
+- [x] 内置组件：`For`、`Show`、`Switch`、`Match`、`Portal`、`Suspense`、`ErrorBoundary`（及设计附录中的 `Index`、`Merge`、`Dynamic` 等）
+- [x] `ref` 支持
+- [x] 展开属性 `...props`
 - [ ] 条件表达式包装（`wrapConditionals`）
 - [ ] 列表渲染优化（与 `For` / 运行时协同）
 - [ ] SVG 命名空间与标签分支
@@ -74,8 +74,8 @@
 
 ### 阶段 5：集成与优化（约 1 周）
 
-- [ ] Rollup 插件：`transform`、缓存、`include`/`exclude`
-- [ ] Vite 插件：`transform` + `handleHotUpdate` 基础行为
+- [x] Rollup 插件：`transform`、缓存、`include`/`exclude`（缓存策略待增强）
+- [x] Vite 插件：`transform` + `handleHotUpdate` 基础行为
 - [ ] 测试与 fixtures 补齐（见下节）
 - [ ] 性能：解析/遍历/生成路径 profiling（设计 §10.2）
 - [ ] 用户文档：preset 使用方式、与 Rolldown/Rust 方案关系说明
@@ -86,7 +86,7 @@
 
 **覆盖率目标**：单元 / 共享模块 &gt; 80%
 
-- [ ] `transform/`：`element`、`component`、`fragment`、`directive` 等单测
+- [x] `transform/`：`element`、`component`、`fragment`、`directive` 等单测（当前覆盖 element/component 主路径）
 - [ ] `shared/`：`dynamic`、`escape`、`utils`
 - [ ] `ssr/`：`element` 等
 - [ ] `__tests__/fixtures/dom|ssr|universal` 与快照 / 对比测试
@@ -96,9 +96,9 @@
 
 ## 5. API 与配置核对（设计 §4、§8）
 
-- [ ] `CompilerOptions` 与 `DEFAULT_CONFIG` 全字段实现与文档一致
-- [ ] `moduleName`、`generate`、`delegateEvents`、`builtIns`、`requireImportSource` 等行为单测覆盖
-- [ ] Rollup / Vite 插件选项与 `CompilerOptions` 透传一致
+- [x] `CompilerOptions` 与 `DEFAULT_CONFIG` 全字段实现与文档一致
+- [x] `moduleName`、`generate`、`delegateEvents`、`builtIns`、`requireImportSource` 等行为单测覆盖（核心路径）
+- [x] Rollup / Vite 插件选项与 `CompilerOptions` 透传一致
 
 ---
 
@@ -125,8 +125,8 @@
 
 | 区块 | 已完成 | 进行中 | 未开始 |
 |------|--------|--------|--------|
-| 包落地 | 0 | 0 | 4 |
-| 阶段 1–5 | 0 | 0 | 5 阶段 |
-| 测试 §9.2 | 0 | 0 | 全部 |
+| 包落地 | 4 | 0 | 0 |
+| 阶段 1–5 | 1（阶段1）+ 1（阶段2最小DOM）+ 0.7（阶段3组件基础） | 0 | 其余阶段 |
+| 测试 §9.2 | 1（核心单测） | 0 | 其余 |
 
 *实施过程中请在本文件中勾选 `[ ]` 并在 [todo.md](./todo.md) 或 PR 中保留对应变更说明。*

@@ -247,6 +247,10 @@ zeus/
 | @zeus-js/server-renderer | 0.0.1 | ❌ 待实现 | SSR 运行时 |
 | @zeus-js/zeus | 0.0.1 | ✅ 开发中 | 统一入口 |
 | @zeus-js/jsx-runtime | 0.0.1 | ✅ 开发中 | JSX 运行时 |
+| @zeus-js/compiler | 0.0.1 | ✅ 开发中 | Babel + TypeScript JSX 编译器（MVP 路线） |
+| @zeus-js/babel-preset-zeus | 0.0.1 | ✅ 开发中 | Babel preset（TS + Zeus JSX） |
+| @zeus-js/rollup-plugin-zeus | 0.0.1 | ✅ 开发中 | Rollup 集成插件 |
+| @zeus-js/vite-plugin-zeus | 0.0.1 | ✅ 开发中 | Vite 集成插件 |
 
 ---
 
@@ -391,4 +395,4 @@ packages/runtime-core
 
 ---
 
-*本文档最后更新于 2026 年 3 月*
+*本文档最后更新于 2026 年 4 月（新增 Babel JSX MVP 路线）*

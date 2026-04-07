@@ -84,13 +84,6 @@ export function transformElementDOM(
   }
 
   const attrs = path.get('openingElement').get('attributes')
-  for (let i = 0; i < attrs.length; i++) {
-    if (isJSXSpreadAttribute(attrs[i].node)) {
-      throw new Error(
-        '[zeus-jsx] JSX spread attributes are not implemented yet.',
-      )
-    }
-  }
 
   const wrapSVG =
     info.topLevel === true && tagName !== 'svg' && SVG_ELEMENTS.has(tagName)
@@ -111,15 +104,108 @@ export function transformElementDOM(
   results.id = elemId
 
   let html = wrapSVG ? `<svg><${tagName}` : `<${tagName}`
+  const spreadCalls: t.Expression[] = []
 
   for (let i = 0; i < attrs.length; i++) {
     const attr = attrs[i]
+    if (isJSXSpreadAttribute(attr.node)) {
+      spreadCalls.push(attr.node.argument)
+      continue
+    }
     if (!isJSXAttribute(attr.node)) {
       continue
     }
     const key = getAttrName(attr.node)
-    if (key === 'ref' || key.indexOf('use:') === 0) {
-      throw new Error(`[zeus-jsx] attribute "${key}" is not implemented yet.`)
+    if (key === 'ref') {
+      const v = attr.node.value
+      if (!v || !isJSXExpressionContainer(v)) {
+        continue
+      }
+      if (v.expression.type === 'JSXEmptyExpression') {
+        continue
+      }
+      const refFn = registerImportMethod(path, 'ref')
+      results.exprs.push(
+        expressionStatement(
+          callExpression(refFn, [elemId, v.expression as t.Expression]),
+        ),
+      )
+      continue
+    }
+    if (key.indexOf('use:') === 0) {
+      const v = attr.node.value
+      if (!v || !isJSXExpressionContainer(v)) {
+        continue
+      }
+      if (v.expression.type === 'JSXEmptyExpression') {
+        continue
+      }
+      const useFn = registerImportMethod(path, 'use')
+      if (
+        v.expression.type === 'ArrayExpression' &&
+        v.expression.elements.length > 0
+      ) {
+        const action = v.expression.elements[0]
+        const arg = v.expression.elements[1]
+        if (action && action.type !== 'SpreadElement') {
+          if (arg && arg.type !== 'SpreadElement') {
+            results.exprs.push(
+              expressionStatement(
+                callExpression(useFn, [
+                  elemId,
+                  action as t.Expression,
+                  arg as t.Expression,
+                ]),
+              ),
+            )
+            continue
+          }
+          results.exprs.push(
+            expressionStatement(
+              callExpression(useFn, [elemId, action as t.Expression]),
+            ),
+          )
+          continue
+        }
+      }
+      results.exprs.push(
+        expressionStatement(
+          callExpression(useFn, [elemId, v.expression as t.Expression]),
+        ),
+      )
+      continue
+    }
+
+    if (key === 'style') {
+      const styleFn = registerImportMethod(path, 'style')
+      const v = attr.node.value
+      if (v && isJSXExpressionContainer(v)) {
+        if (v.expression.type === 'JSXEmptyExpression') {
+          continue
+        }
+        const exprPath = attr
+          .get('value')
+          .get('expression') as NodePath<t.Expression>
+        if (isDynamic(exprPath, { checkMember: true })) {
+          results.exprs.push(
+            expressionStatement(
+              callExpression(styleFn, [
+                elemId,
+                arrowFunctionExpression([], v.expression as t.Expression),
+              ]),
+            ),
+          )
+        } else {
+          results.exprs.push(
+            expressionStatement(
+              callExpression(styleFn, [elemId, v.expression as t.Expression]),
+            ),
+          )
+        }
+      } else if (v && v.type === 'StringLiteral') {
+        html += ` style="${escapeForTemplate(escapeHTML(v.value, true))}"`
+      }
+      continue
     }
 
     if (key.indexOf('on') === 0 && key.length > 2) {
@@ -216,9 +302,26 @@ export function transformElementDOM(
         .get('value')
         .get('expression') as NodePath<t.Expression>
       if (isDynamic(exprPath, { checkMember: true })) {
-        throw new Error(
-          `[zeus-jsx] dynamic attribute "${key}" is not implemented yet (only class/className).`,
+        const effectFn = registerImportMethod(path, config.effectWrapper)
+        const setAttrFn = registerImportMethod(path, 'setAttribute')
+        results.exprs.push(
+          expressionStatement(
+            callExpression(effectFn, [
+              arrowFunctionExpression(
+                [],
+                callExpression(setAttrFn, [
+                  elemId,
+                  {
+                    type: 'StringLiteral',
+                    value: key,
+                  },
+                  v.expression as t.Expression,
+                ]),
+              ),
+            ]),
+          ),
         )
+        continue
       }
       const st = attrStaticHtml(key, v.expression as t.Expression)
       if (st) {
@@ -277,6 +380,15 @@ export function transformElementDOM(
   html += `</${tagName}>`
   if (wrapSVG) {
     html += '</svg>'
+  }
+
+  if (spreadCalls.length) {
+    const spreadFn = registerImportMethod(path, 'spread')
+    for (let i = 0; i < spreadCalls.length; i++) {
+      results.exprs.push(
+        expressionStatement(callExpression(spreadFn, [elemId, spreadCalls[i]])),
+      )
+    }
   }
 
   return finalizeRootTemplate(path, results, elemId, html, wrapSVG, info)

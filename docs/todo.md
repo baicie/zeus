@@ -126,6 +126,29 @@
 
 ---
 
+### 2.5 Babel JSX 编译器 (packages/compiler)
+
+#### ✅ 已完成
+
+| 任务 | 完成日期 | 说明 |
+|------|----------|------|
+| `packages/compiler` 初始化 | 2026-04-07 | Babel 插件入口、config/shared、pre/post process |
+| 最小 DOM 转换 | 2026-04-07 | 静态元素、文本、class/className、事件委托、insert |
+| 组件基础转换 | 2026-04-07 | 大写标签转换为 `createComponent` |
+| `transformSync`/`transformAsync` API | 2026-04-07 | Programmatic API 可用 |
+| 构建工具集成包 | 2026-04-07 | preset/rollup/vite 三个 addons 落地 |
+
+#### 📋 待开始
+
+| 任务 | 优先级 | 说明 |
+|------|--------|------|
+| Fragment 完整支持 | P1 | 非空 Fragment 和复杂嵌套 |
+| spread/ref/directive | P1 | `...props`、`ref`、`use:` 等 |
+| SSR / universal | P1 | `generate: ssr/universal` 路线 |
+| 动态 style 全量支持 | P2 | style object/string 的动态更新策略 |
+
+---
+
 ## 3. 响应式自动编译 ⚡ 核心特性
 
 > **设计理念**: 编译器自动识别 JSX 中的响应式数据（signal()、memo() 等），转换为最优的运行时函数调用。用户只需写纯 JSX，无需使用 Show/For 等特殊组件。
