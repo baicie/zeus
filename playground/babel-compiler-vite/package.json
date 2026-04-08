@@ -12,11 +12,10 @@
     "@zeus-js/core": "workspace:*"
   },
   "devDependencies": {
-    "@babel/core": "catalog:",
-    "@babel/preset-typescript": "catalog:",
+    "@zeus-js/vite-plugin-zeus": "workspace:*",
     "@types/node": "^25.5.2",
     "@zeus-js/compiler": "workspace:*",
     "typescript": "^6.0.2",
-    "vite": "^8.0.7"
+    "vite": "catalog:"
   }
 }

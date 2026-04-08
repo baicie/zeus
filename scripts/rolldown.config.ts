@@ -1,5 +1,3 @@
-import commonJS from '@rollup/plugin-commonjs'
-import { nodeResolve } from '@rollup/plugin-node-resolve'
 import replace from '@rollup/plugin-replace'
 import { createRequire } from 'node:module'
 import path from 'node:path'
@@ -220,33 +218,16 @@ function createConfig(
   }
 
   function resolveNodePlugins() {
-    // we are bundling forked consolidate.js in compiler-sfc which dynamically
-    // requires a ton of template engines which should be ignored.
-    /** @type {ReadonlyArray<string>} */
-    let cjsIgnores: ReadonlyArray<string> = []
-    if (pkg.name === '@vue/compiler-sfc') {
-      cjsIgnores = [
-        'vm',
-        'crypto',
-        'react-dom/server',
-        'teacup/lib/express',
-        'arc-templates/dist/es5',
-        'then-pug',
-        'then-jade',
-      ]
+    if (pkg.name === '@zeus-js/compiler-sfc') {
+      // compiler-sfc bundles forked consolidate.js which dynamically
+      // requires a ton of template engines which should be ignored.
+      return []
     }
 
     const nodePlugins =
       (format === 'cjs' && Object.keys(pkg.devDependencies || {}).length) ||
       packageOptions.enableNonBrowserBranches
-        ? [
-            commonJS({
-              sourceMap: false,
-              ignore: cjsIgnores,
-            }),
-            ...(format === 'cjs' ? [] : [polyfillNode()]),
-            nodeResolve(),
-          ]
+        ? [...(format === 'cjs' ? [] : [polyfillNode()])]
         : []
 
     return nodePlugins
