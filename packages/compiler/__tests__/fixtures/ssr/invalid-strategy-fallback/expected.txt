@@ -1,3 +1,0 @@
-ssrHydrationEvents
-"name": "click"
-"strategy": "delegate"

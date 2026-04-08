@@ -1,5 +1,0 @@
-ssrHydrationEvents
-"name": "click"
-"strategy": "native"
-"name": "focus"
-"strategy": "delegate"

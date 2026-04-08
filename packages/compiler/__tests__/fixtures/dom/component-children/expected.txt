@@ -1,5 +1,0 @@
-const current = signal('home')
-createComponent(Layout
-children:
-() => current()
-current()

@@ -1,5 +1,2 @@
 export { default } from './plugin'
 export { default as zeusJSXPlugin } from './plugin'
-export { transformAsync, transformSync } from './api'
-export { DEFAULT_CONFIG, mergeConfig } from './config'
-export type { CompilerOptions } from './shared/types'

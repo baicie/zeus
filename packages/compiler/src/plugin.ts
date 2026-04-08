@@ -1,34 +1,23 @@
-import type { PluginObj } from '@babel/core'
-import syntaxJsx from '@babel/plugin-syntax-jsx'
-import type { CompilerOptions } from './shared/types'
-import { mergeConfig } from './config'
-import { postprocess } from './transform/postprocess'
-import { type ZeusPluginPass, preprocess } from './transform/preprocess'
-import { transformJSX } from './transform/jsx'
+import SyntaxJSX from '@babel/plugin-syntax-jsx'
+import { transformJSX } from './shared/transform'
+import postprocess from './shared/postprocess'
+import preprocess from './shared/preprocess'
+import type { Visitor } from '@babel/core'
 
-export default function zeusJSXPlugin(
-  _api: unknown,
-  options?: CompilerOptions,
-): PluginObj<ZeusPluginPass> {
-  const resolved = mergeConfig(options || {})
-
+export default function plugin(): {
+  name: string
+  inherits: any
+  visitor: Visitor<{ opts: any; skip?: boolean }>
+} {
   return {
-    name: 'zeus-jsx',
-    inherits: syntaxJsx,
+    name: 'JSX DOM Expressions',
+    inherits: (SyntaxJSX as any).default,
     visitor: {
+      JSXElement: transformJSX as any,
+      JSXFragment: transformJSX as any,
       Program: {
-        enter(path, state) {
-          preprocess(path, resolved, state)
-        },
-        exit(path, state) {
-          postprocess(path, state)
-        },
-      },
-      JSXElement(path, state) {
-        transformJSX(path, state)
-      },
-      JSXFragment(path, state) {
-        transformJSX(path, state)
+        enter: preprocess as any,
+        exit: postprocess as any,
       },
     },
   }

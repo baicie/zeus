@@ -1,4 +1,0 @@
-from "@zeus-js/server-renderer"
-ssrHydrationEvents
-"name": "click"
-"strategy": "delegate"

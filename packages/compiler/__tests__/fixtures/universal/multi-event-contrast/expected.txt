@@ -1,3 +1,0 @@
-delegateEvents
-$$click
-$$focus

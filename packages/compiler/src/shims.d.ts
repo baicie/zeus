@@ -1,5 +1,7 @@
 declare module '@babel/plugin-syntax-jsx' {
-  import type { PluginObj } from '@babel/core'
-  const plugin: () => PluginObj
-  export default plugin
+  function jsx(): {
+    manipulateOptions(opts: unknown, parserOpts: { plugins: string[] }): void
+  }
+  const module: { default: typeof jsx }
+  export default module
 }
