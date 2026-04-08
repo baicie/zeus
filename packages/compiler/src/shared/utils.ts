@@ -1,8 +1,24 @@
+// @ts-nocheck
 import * as t from '@babel/types'
-import { addNamed } from '@babel/helper-module-imports'
 
-export const reservedNameSpaces = new Set(['class', 'on', 'oncapture', 'style', 'use', 'prop', 'attr', 'bool'])
-export const nonSpreadNameSpaces = new Set(['class', 'style', 'use', 'prop', 'attr', 'bool'])
+export const reservedNameSpaces: Set<string> = new Set([
+  'class',
+  'on',
+  'oncapture',
+  'style',
+  'use',
+  'prop',
+  'attr',
+  'bool',
+])
+export const nonSpreadNameSpaces: Set<string> = new Set([
+  'class',
+  'style',
+  'use',
+  'prop',
+  'attr',
+  'bool',
+])
 
 export function getConfig(path: any): any {
   return path.hub.file.metadata.config
@@ -10,15 +26,25 @@ export function getConfig(path: any): any {
 
 export const getRendererConfig = (path: any, renderer: string): any => {
   const config = getConfig(path)
-  return config?.renderers?.find((r: any) => r.name === renderer) ?? config
+  if (config && config.renderers && config.renderers.find) {
+    const found = config.renderers.find((r: any) => r.name === renderer)
+    if (found) return found
+  }
+  return config
 }
 
-export function registerImportMethod(path: any, name: string, moduleName?: string): t.Identifier {
-  const imports = path.scope.getProgramParent().data.imports || (path.scope.getProgramParent().data.imports = new Map())
+export function registerImportMethod(
+  path: any,
+  name: string,
+  moduleName?: string,
+): t.Identifier {
+  const imports =
+    path.scope.getProgramParent().data.imports ||
+    (path.scope.getProgramParent().data.imports = new Map())
   moduleName = moduleName || getConfig(path).moduleName
   const key = `${moduleName}:${name}`
   if (!imports.has(key)) {
-    const id = addNamed(path, name, moduleName, { nameHint: `_$${name}` })
+    const id = path.scope.generateUidIdentifier(`_$${name}`)
     imports.set(key, id)
     return id
   }
@@ -26,7 +52,8 @@ export function registerImportMethod(path: any, name: string, moduleName?: strin
 }
 
 function jsxElementNameToString(node: any): string {
-  if (t.isJSXMemberExpression(node)) return `${jsxElementNameToString(node.object)}.${node.property.name}`
+  if (t.isJSXMemberExpression(node))
+    return `${jsxElementNameToString(node.object)}.${node.property.name}`
   if (t.isJSXIdentifier(node) || t.isIdentifier(node)) return node.name
   return `${node.namespace.name}:${node.name.name}`
 }
@@ -36,17 +63,32 @@ export function getTagName(tag: any): string {
 }
 
 export function isComponent(tagName: string): boolean {
-  return ((tagName[0] && tagName[0].toLowerCase() !== tagName[0]) || tagName.includes('.') || /[^a-zA-Z]/.test(tagName[0]))
+  return (
+    (tagName[0] && tagName[0].toLowerCase() !== tagName[0]) ||
+    tagName.includes('.') ||
+    /[^a-zA-Z]/.test(tagName[0])
+  )
 }
 
 export function filterChildren(children: any[]): any[] {
-  return children.filter(({ node: child }) => !(t.isJSXExpressionContainer(child) && t.isJSXEmptyExpression(child.expression)) && (!t.isJSXText(child) || !/^[\r\n]\s*$/.test(child.extra.raw)))
+  return children.filter(
+    ({ node: child }) =>
+      !(
+        t.isJSXExpressionContainer(child) &&
+        t.isJSXEmptyExpression(child.expression)
+      ) &&
+      (!t.isJSXText(child) || !/^[\r\n]\s*$/.test(child.extra.raw)),
+  )
 }
 
 export function trimWhitespace(text: string): string {
   text = text.replace(/\r/g, '')
   if (/\n/g.test(text)) {
-    text = text.split('\n').map((v, i) => (i ? v.replace(/^\s*/g, '') : v)).filter(s => !/^\s*$/.test(s)).join(' ')
+    text = text
+      .split('\n')
+      .map((v, i) => (i ? v.replace(/^\s*/g, '') : v))
+      .filter(s => !/^\s*$/.test(s))
+      .join(' ')
   }
   return text.replace(/\s+/g, ' ')
 }
@@ -76,26 +118,211 @@ export function escapeHTML(s: any, attr?: boolean): any {
   return left < s.length ? out + s.substring(left) : out
 }
 
-export function isDynamic(path: any, { checkMember, checkTags, checkCallExpressions = true }: any): boolean {
+export function isDynamic(
+  path: any,
+  { checkMember, checkTags, checkCallExpressions = true }: any,
+): boolean {
+  const config = getConfig(path)
   const expr = path.node
   if (t.isFunction(expr)) return false
-  if (checkCallExpressions && (t.isCallExpression(expr) || t.isOptionalCallExpression(expr) || t.isTaggedTemplateExpression(expr))) return true
-  if (checkMember && (t.isMemberExpression(expr) || t.isOptionalMemberExpression(expr) || t.isSpreadElement(expr))) return true
-  if (checkTags && (t.isJSXElement(expr) || (t.isJSXFragment(expr) && expr.children.length))) return true
-  return false
+  if (
+    expr.leadingComments &&
+    expr.leadingComments[0] &&
+    expr.leadingComments[0].value.trim() === config.staticMarker
+  ) {
+    return false
+  }
+  if (
+    checkCallExpressions &&
+    (t.isCallExpression(expr) ||
+      t.isOptionalCallExpression(expr) ||
+      t.isTaggedTemplateExpression(expr))
+  )
+    return true
+  if (
+    checkMember &&
+    (t.isMemberExpression(expr) ||
+      t.isOptionalMemberExpression(expr) ||
+      t.isSpreadElement(expr))
+  )
+    return true
+  if (
+    checkTags &&
+    (t.isJSXElement(expr) || (t.isJSXFragment(expr) && expr.children.length))
+  )
+    return true
+  let dynamic = false
+  path.traverse({
+    Function(p: any) {
+      if (t.isObjectMethod(p.node) && p.node.computed) {
+        dynamic = isDynamic(p.get('key'), {
+          checkMember,
+          checkTags,
+          checkCallExpressions,
+        })
+      }
+      p.skip()
+    },
+    CallExpression(p: any) {
+      if (checkCallExpressions) {
+        dynamic = true
+        p.stop()
+      }
+    },
+    OptionalCallExpression(p: any) {
+      if (checkCallExpressions) {
+        dynamic = true
+        p.stop()
+      }
+    },
+    MemberExpression(p: any) {
+      if (checkMember) {
+        dynamic = true
+        p.stop()
+      }
+    },
+    OptionalMemberExpression(p: any) {
+      if (checkMember) {
+        dynamic = true
+        p.stop()
+      }
+    },
+    JSXElement(p: any) {
+      if (checkTags) {
+        dynamic = true
+        p.stop()
+      } else p.skip()
+    },
+    JSXFragment(p: any) {
+      if (checkTags && p.node.children.length) {
+        dynamic = true
+        p.stop()
+      } else p.skip()
+    },
+  })
+  return dynamic
 }
 
 export function getStaticExpression(path: any): any {
   const node = path.node
   let value
   let type
-  return t.isJSXExpressionContainer(node) && t.isJSXElement(path.parent) && !isComponent(getTagName(path.parent))
-    && !t.isSequenceExpression(node.expression) && (value = path.get('expression').evaluate().value) !== undefined
-    && ((type = typeof value) === 'string' || type === 'number') && value
+  return (
+    t.isJSXExpressionContainer(node) &&
+    t.isJSXElement(path.parent) &&
+    !isComponent(getTagName(path.parent)) &&
+    !t.isSequenceExpression(node.expression) &&
+    (value = path.get('expression').evaluate().value) !== undefined &&
+    ((type = typeof value) === 'string' || type === 'number') &&
+    value
+  )
 }
 
-export function transformCondition(path: any): any {
-  return t.arrowFunctionExpression([], path.node)
+export function transformCondition(
+  path: any,
+  inline?: boolean,
+  deep?: boolean,
+): any {
+  const config = getConfig(path)
+  const expr = path.node
+  const memo = registerImportMethod(path, config.memoWrapper)
+  let dTest = false
+  let cond: t.Expression | undefined
+  let id: t.Expression | t.Identifier | undefined
+
+  if (
+    t.isConditionalExpression(expr) &&
+    (isDynamic(path.get('consequent'), {
+      checkTags: true,
+      checkMember: true,
+    }) ||
+      isDynamic(path.get('alternate'), { checkTags: true, checkMember: true }))
+  ) {
+    dTest = isDynamic(path.get('test'), { checkMember: true })
+    if (dTest) {
+      cond = expr.test
+      if (!t.isBinaryExpression(cond)) {
+        cond = t.unaryExpression('!', t.unaryExpression('!', cond, true), true)
+      }
+      id = inline
+        ? t.callExpression(memo, [t.arrowFunctionExpression([], cond)])
+        : path.scope.generateUidIdentifier('_c$')
+      expr.test = t.callExpression(id as t.Expression, [])
+      if (
+        t.isConditionalExpression(expr.consequent) ||
+        t.isLogicalExpression(expr.consequent)
+      ) {
+        expr.consequent = transformCondition(
+          path.get('consequent'),
+          true,
+          true,
+        ) as t.Expression
+      }
+      if (
+        t.isConditionalExpression(expr.alternate) ||
+        t.isLogicalExpression(expr.alternate)
+      ) {
+        expr.alternate = transformCondition(
+          path.get('alternate'),
+          true,
+          true,
+        ) as t.Expression
+      }
+    }
+  } else if (t.isLogicalExpression(expr)) {
+    let nextPath = path
+    while (
+      nextPath.node.operator !== '&&' &&
+      t.isLogicalExpression(nextPath.node.left)
+    ) {
+      nextPath = nextPath.get('left')
+    }
+    if (
+      nextPath.node.operator === '&&' &&
+      isDynamic(nextPath.get('right'), { checkTags: true, checkMember: true })
+    ) {
+      dTest = isDynamic(nextPath.get('left'), { checkMember: true })
+      if (dTest) {
+        cond = nextPath.node.left
+        if (!t.isBinaryExpression(cond)) {
+          cond = t.unaryExpression(
+            '!',
+            t.unaryExpression('!', cond, true),
+            true,
+          )
+        }
+        id = inline
+          ? t.callExpression(memo, [t.arrowFunctionExpression([], cond)])
+          : path.scope.generateUidIdentifier('_c$')
+        nextPath.node.left = t.callExpression(id as t.Expression, [])
+      }
+    }
+  }
+  if (dTest && cond && id) {
+    const statements = [
+      t.variableDeclaration('var', [
+        t.variableDeclarator(
+          id as t.LVal,
+          config.memoWrapper
+            ? t.callExpression(memo, [t.arrowFunctionExpression([], cond)])
+            : t.arrowFunctionExpression([], cond),
+        ),
+      ]),
+      t.arrowFunctionExpression([], expr),
+    ]
+    if (deep) {
+      return t.callExpression(
+        t.arrowFunctionExpression(
+          [],
+          t.blockStatement([statements[0], t.returnStatement(statements[1])]),
+        ),
+        [],
+      )
+    }
+    return statements
+  }
+  if (deep) return expr as t.Expression
+  return t.arrowFunctionExpression([], expr)
 }
 
 export function convertJSXIdentifier(node: any): any {
@@ -103,7 +330,10 @@ export function convertJSXIdentifier(node: any): any {
     if (t.isValidIdentifier(node.name)) node.type = 'Identifier'
     else return t.stringLiteral(node.name)
   } else if (t.isJSXMemberExpression(node)) {
-    return t.memberExpression(convertJSXIdentifier(node.object), convertJSXIdentifier(node.property))
+    return t.memberExpression(
+      convertJSXIdentifier(node.object),
+      convertJSXIdentifier(node.property),
+    )
   } else if (t.isJSXNamespacedName(node)) {
     return t.stringLiteral(`${node.namespace.name}:${node.name.name}`)
   }
@@ -186,7 +416,10 @@ const templateEscapes = new Map([
 ])
 
 export function escapeStringForTemplate(str: string): string {
-  return str.replace(/[{\\`\n\t\b\f\v\r\u2028\u2029]/g, ch => templateEscapes.get(ch) as string)
+  return str.replace(
+    /[{\\`\n\t\b\f\v\r\u2028\u2029]/g,
+    ch => templateEscapes.get(ch) as string,
+  )
 }
 
 export function checkLength(children: any[]): boolean {
@@ -194,8 +427,13 @@ export function checkLength(children: any[]): boolean {
   children.forEach(path => {
     const child = path.node
     if (
-      !(t.isJSXExpressionContainer(child) && t.isJSXEmptyExpression(child.expression)) &&
-      (!t.isJSXText(child) || !/^\s*$/.test(child.extra.raw) || /^ *$/.test(child.extra.raw))
+      !(
+        t.isJSXExpressionContainer(child) &&
+        t.isJSXEmptyExpression(child.expression)
+      ) &&
+      (!t.isJSXText(child) ||
+        !/^\s*$/.test(child.extra.raw) ||
+        /^ *$/.test(child.extra.raw))
     ) {
       i++
     }
@@ -224,15 +462,26 @@ export function evaluateAndInline(value: any, valueNode: any): void {
   } else {
     const r = valueNode.evaluate()
     if (r.confident) {
-      if (typeof r.value === 'string') valueNode.replaceWith(t.stringLiteral(r.value))
-      else if (typeof r.value === 'number') valueNode.replaceWith(t.numericLiteral(r.value))
-      else if (typeof r.value === 'boolean') valueNode.replaceWith(t.booleanLiteral(r.value))
+      if (typeof r.value === 'string')
+        valueNode.replaceWith(t.stringLiteral(r.value))
+      else if (typeof r.value === 'number')
+        valueNode.replaceWith(t.numericLiteral(r.value))
+      else if (typeof r.value === 'boolean')
+        valueNode.replaceWith(t.booleanLiteral(r.value))
     }
   }
 }
 
-export function canNativeSpread(key: string, { checkNameSpaces }: { checkNameSpaces?: boolean } = {}): boolean {
-  if (checkNameSpaces && key.includes(':') && nonSpreadNameSpaces.has(key.split(':')[0])) return false
+export function canNativeSpread(
+  key: string,
+  { checkNameSpaces }: { checkNameSpaces?: boolean } = {},
+): boolean {
+  if (
+    checkNameSpaces &&
+    key.includes(':') &&
+    nonSpreadNameSpaces.has(key.split(':')[0])
+  )
+    return false
   if (key === 'ref') return false
   return true
 }

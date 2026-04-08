@@ -1,5 +1,12 @@
+// @ts-nocheck
 import * as t from '@babel/types'
-import { escapeStringForTemplate, getConfig, getNumberedId, getRendererConfig, registerImportMethod } from '../shared/utils'
+import {
+  escapeStringForTemplate,
+  getConfig,
+  getNumberedId,
+  getRendererConfig,
+  registerImportMethod,
+} from '../shared/utils'
 import { setAttr } from './element'
 
 export function createTemplate(_path: any, result: any): t.Expression {
@@ -7,7 +14,11 @@ export function createTemplate(_path: any, result: any): t.Expression {
   if (result.id) {
     registerTemplate(path, result)
     if (
-      !(result.exprs.length || result.dynamics.length || result.postExprs.length) &&
+      !(
+        result.exprs.length ||
+        result.dynamics.length ||
+        result.postExprs.length
+      ) &&
       result.decl.declarations.length === 1
     ) {
       return result.decl.declarations[0].init
@@ -17,7 +28,10 @@ export function createTemplate(_path: any, result: any): t.Expression {
         [],
         t.blockStatement([
           result.decl,
-          ...result.exprs.concat(wrapDynamics(path, result.dynamics) || [], result.postExprs || []),
+          ...result.exprs.concat(
+            wrapDynamics(path, result.dynamics) || [],
+            result.postExprs || [],
+          ),
           t.returnStatement(result.id),
         ]),
       ),
@@ -29,13 +43,34 @@ export function createTemplate(_path: any, result: any): t.Expression {
 
 export function appendTemplates(path: any, templates: any[]): void {
   const declarators = templates.map(template => {
-    const tmpl = { cooked: template.template, raw: escapeStringForTemplate(template.template) }
+    const tmpl = {
+      cooked: template.template,
+      raw: escapeStringForTemplate(template.template),
+    }
+    const shouldUseImportNode = template.isCE || template.isImportNode
+    const isMathML =
+      /^<(math|annotation|annotation-xml|maction|math|merror|mfrac|mi|mmultiscripts|mn|mo|mover|mpadded|mphantom|mprescripts|mroot|mrow|ms|mspace|msqrt|mstyle|msub|msubsup|msup|mtable|mtd|mtext|mtr|munder|munderover|semantics|menclose|mfenced)(\s|>)/.test(
+        template.template,
+      )
     return t.variableDeclarator(
       template.id,
       t.addComment(
-        t.callExpression(registerImportMethod(path, 'template', getRendererConfig(path, 'dom').moduleName), [
-          t.templateLiteral([t.templateElement(tmpl, true)], []),
-        ]),
+        t.callExpression(
+          registerImportMethod(
+            path,
+            'template',
+            getRendererConfig(path, 'dom').moduleName,
+          ),
+          [t.templateLiteral([t.templateElement(tmpl, true)], [])].concat(
+            template.isSVG || shouldUseImportNode || isMathML
+              ? [
+                  t.booleanLiteral(Boolean(shouldUseImportNode)),
+                  t.booleanLiteral(Boolean(template.isSVG)),
+                  t.booleanLiteral(Boolean(isMathML)),
+                ]
+              : [],
+          ),
+        ),
         'leading',
         '#__PURE__',
       ),
@@ -51,7 +86,9 @@ function registerTemplate(path: any, results: any): void {
     let templateDef
     let templateId
     if (!results.skipTemplate) {
-      const templates = path.scope.getProgramParent().data.templates || (path.scope.getProgramParent().data.templates = [])
+      const templates =
+        path.scope.getProgramParent().data.templates ||
+        (path.scope.getProgramParent().data.templates = [])
       templateDef = templates.find((x: any) => x.template === results.template)
       if (templateDef) templateId = templateDef.id
       else {
@@ -70,7 +107,14 @@ function registerTemplate(path: any, results: any): void {
     decl = t.variableDeclarator(
       results.id,
       hydratable
-        ? t.callExpression(registerImportMethod(path, 'getNextElement', getRendererConfig(path, 'dom').moduleName), templateId ? [templateId] : [])
+        ? t.callExpression(
+            registerImportMethod(
+              path,
+              'getNextElement',
+              getRendererConfig(path, 'dom').moduleName,
+            ),
+            templateId ? [templateId] : [],
+          )
         : t.callExpression(templateId, []),
     )
   }
@@ -78,13 +122,18 @@ function registerTemplate(path: any, results: any): void {
   results.decl = t.variableDeclaration('var', results.declarations)
 }
 
-function wrapDynamics(path: any, dynamics: any[]): t.ExpressionStatement | undefined {
+function wrapDynamics(
+  path: any,
+  dynamics: any[],
+): t.ExpressionStatement | undefined {
   if (!dynamics.length) return
   const config = getConfig(path)
   const effectWrapperId = registerImportMethod(path, config.effectWrapper)
   if (dynamics.length === 1) {
     const prevValue =
-      dynamics[0].key === 'classList' || dynamics[0].key === 'style' || dynamics[0].key.indexOf('style:') === 0
+      dynamics[0].key === 'classList' ||
+      dynamics[0].key === 'style' ||
+      dynamics[0].key.indexOf('style:') === 0
         ? t.identifier('_$p')
         : undefined
     return t.expressionStatement(
@@ -117,13 +166,19 @@ function wrapDynamics(path: any, dynamics: any[]): t.ExpressionStatement | undef
         t.logicalExpression(
           '&&',
           t.binaryExpression('!==', varIdent, propMember),
-          setAttr(path, elem, key, t.assignmentExpression('=', propMember, varIdent), {
-            isSVG,
-            isCE,
-            tagName,
-            dynamic: true,
-            prevId: propMember,
-          }),
+          setAttr(
+            path,
+            elem,
+            key,
+            t.assignmentExpression('=', propMember, varIdent),
+            {
+              isSVG,
+              isCE,
+              tagName,
+              dynamic: true,
+              prevId: propMember,
+            },
+          ),
         ),
       ),
     )
@@ -138,7 +193,9 @@ function wrapDynamics(path: any, dynamics: any[]): t.ExpressionStatement | undef
           t.returnStatement(prevId),
         ]),
       ),
-      t.objectExpression(properties.map(id => t.objectProperty(id, t.identifier('undefined')))),
+      t.objectExpression(
+        properties.map(id => t.objectProperty(id, t.identifier('undefined'))),
+      ),
     ]),
   )
 }

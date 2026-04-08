@@ -8,24 +8,31 @@ export default function postprocess(path: any, state: any): void {
   if (state.skip) return
 
   if (path.scope.data.events) {
+    const events = Array.from(path.scope.data.events as Set<string>)
     path.node.body.push(
       t.expressionStatement(
         t.callExpression(
-          registerImportMethod(path, 'delegateEvents', getRendererConfig(path, 'dom').moduleName),
-          [t.arrayExpression(Array.from(path.scope.data.events).map((e: string) => t.stringLiteral(e)))],
+          registerImportMethod(
+            path,
+            'delegateEvents',
+            getRendererConfig(path, 'dom').moduleName,
+          ),
+          [t.arrayExpression(events.map((e: string) => t.stringLiteral(e)))],
         ),
       ),
     )
   }
 
-  if (path.scope.data.templates?.length) {
+  if (path.scope.data.templates && path.scope.data.templates.length) {
     if (path.hub.file.metadata.config.validate) {
       for (const template of path.scope.data.templates) {
         const html = template.templateWithClosingTags
         if (typeof html === 'string') {
           const result = isInvalidMarkup(html)
           if (result) {
-            console.warn('\nThe HTML provided is malformed and will yield unexpected output when evaluated by a browser.\n')
+            console.warn(
+              '\nThe HTML provided is malformed and will yield unexpected output when evaluated by a browser.\n',
+            )
             console.warn('User HTML:\n', result.html)
             console.warn('Browser HTML:\n', result.browser)
             console.warn('Original HTML:\n', html)
@@ -33,8 +40,12 @@ export default function postprocess(path: any, state: any): void {
         }
       }
     }
-    const domTemplates = path.scope.data.templates.filter((temp: any) => temp.renderer === 'dom')
-    const ssrTemplates = path.scope.data.templates.filter((temp: any) => temp.renderer === 'ssr')
+    const domTemplates = path.scope.data.templates.filter(
+      (temp: any) => temp.renderer === 'dom',
+    )
+    const ssrTemplates = path.scope.data.templates.filter(
+      (temp: any) => temp.renderer === 'ssr',
+    )
     if (domTemplates.length > 0) appendTemplatesDOM(path, domTemplates)
     if (ssrTemplates.length > 0) appendTemplatesSSR(path, ssrTemplates)
   }

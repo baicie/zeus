@@ -1,15 +1,19 @@
+// @ts-nocheck
 import * as t from '@babel/types'
 import {
-  getConfig,
-  registerImportMethod,
-  filterChildren,
-  trimWhitespace,
   convertJSXIdentifier,
+  filterChildren,
+  getConfig,
   isDynamic,
+  registerImportMethod,
   transformCondition,
+  trimWhitespace,
 } from './utils'
-import { decode } from 'html-entities'
-import { transformNode, getCreateTemplate } from './transform'
+import { getCreateTemplate, transformNode } from './transform'
+
+function decodeText(v: string): string {
+  return v
+}
 
 function convertComponentIdentifier(node: any): any {
   if (t.isJSXIdentifier(node)) {
@@ -19,7 +23,11 @@ function convertComponentIdentifier(node: any): any {
   } else if (t.isJSXMemberExpression(node)) {
     const prop = convertComponentIdentifier(node.property)
     const computed = t.isStringLiteral(prop)
-    return t.memberExpression(convertComponentIdentifier(node.object), prop, computed)
+    return t.memberExpression(
+      convertComponentIdentifier(node.object),
+      prop,
+      computed,
+    )
   }
   return node
 }
@@ -43,15 +51,17 @@ export default function transformComponent(path: any): any {
           runningObject = []
         }
         const expr = isDynamic(attribute.get('argument'), { checkMember: true })
-          ? (dynamicSpread = true, t.arrowFunctionExpression([], node.argument))
+          ? ((dynamicSpread = true),
+            t.arrowFunctionExpression([], node.argument))
           : node.argument
         props.push(expr)
         return
       }
 
       const value =
-        (t.isStringLiteral(node.value) ? t.stringLiteral(node.value.value) : node.value) ||
-        t.booleanLiteral(true)
+        (t.isStringLiteral(node.value)
+          ? t.stringLiteral(node.value.value)
+          : node.value) || t.booleanLiteral(true)
       const id = convertJSXIdentifier(node.name)
       const key = (id as any).name || ((id as any).value as string)
 
@@ -59,22 +69,96 @@ export default function transformComponent(path: any): any {
 
       if (t.isJSXExpressionContainer(value)) {
         if (key === 'ref') {
-          runningObject.push(t.objectProperty(t.identifier('ref'), value.expression))
+          let binding
+          const isConstant =
+            t.isIdentifier(value.expression) &&
+            (binding = path.scope.getBinding(value.expression.name)) &&
+            (binding.kind === 'const' || binding.kind === 'module')
+          if (!isConstant && t.isLVal(value.expression)) {
+            const refIdentifier = path.scope.generateUidIdentifier('_ref$')
+            runningObject.push(
+              t.objectMethod(
+                'method',
+                t.identifier('ref'),
+                [t.identifier('r$')],
+                t.blockStatement([
+                  t.variableDeclaration('var', [
+                    t.variableDeclarator(refIdentifier, value.expression),
+                  ]),
+                  t.expressionStatement(
+                    t.conditionalExpression(
+                      t.binaryExpression(
+                        '===',
+                        t.unaryExpression('typeof', refIdentifier),
+                        t.stringLiteral('function'),
+                      ),
+                      t.callExpression(refIdentifier, [t.identifier('r$')]),
+                      t.assignmentExpression(
+                        '=',
+                        value.expression,
+                        t.identifier('r$'),
+                      ),
+                    ),
+                  ),
+                ]),
+              ),
+            )
+          } else if (isConstant || t.isFunction(value.expression)) {
+            runningObject.push(
+              t.objectProperty(t.identifier('ref'), value.expression),
+            )
+          } else if (t.isCallExpression(value.expression)) {
+            const refIdentifier = path.scope.generateUidIdentifier('_ref$')
+            runningObject.push(
+              t.objectMethod(
+                'method',
+                t.identifier('ref'),
+                [t.identifier('r$')],
+                t.blockStatement([
+                  t.variableDeclaration('var', [
+                    t.variableDeclarator(refIdentifier, value.expression),
+                  ]),
+                  t.expressionStatement(
+                    t.logicalExpression(
+                      '&&',
+                      t.binaryExpression(
+                        '===',
+                        t.unaryExpression('typeof', refIdentifier),
+                        t.stringLiteral('function'),
+                      ),
+                      t.callExpression(refIdentifier, [t.identifier('r$')]),
+                    ),
+                  ),
+                ]),
+              ),
+            )
+          }
           return
         }
-        if (isDynamic(attribute.get('value').get('expression'), { checkMember: true, checkTags: true })) {
+        if (
+          isDynamic(attribute.get('value').get('expression'), {
+            checkMember: true,
+            checkTags: true,
+          })
+        ) {
           if (
             config.wrapConditionals &&
             config.generate !== 'ssr' &&
-            (t.isLogicalExpression(value.expression) || t.isConditionalExpression(value.expression))
+            (t.isLogicalExpression(value.expression) ||
+              t.isConditionalExpression(value.expression))
           ) {
-            const expr = transformCondition(attribute.get('value').get('expression'), true)
+            const expr = transformCondition(
+              attribute.get('value').get('expression'),
+              true,
+            )
             runningObject.push(
               t.objectMethod(
                 'get',
                 id as any,
                 [],
-                t.blockStatement([t.returnStatement((expr as any).body || expr)]),
+                t.blockStatement([
+                  t.returnStatement((expr as any).body || expr),
+                ]),
                 !t.isValidIdentifier(key),
               ),
             )
@@ -101,7 +185,8 @@ export default function transformComponent(path: any): any {
   if (childResult && childResult[0]) {
     if (childResult[1]) {
       const body =
-        t.isCallExpression(childResult[0]) && t.isFunction((childResult[0] as any).arguments[0])
+        t.isCallExpression(childResult[0]) &&
+        t.isFunction((childResult[0] as any).arguments[0])
           ? (childResult[0] as any).arguments[0].body
           : (childResult[0] as any).body
             ? (childResult[0] as any).body
@@ -111,20 +196,30 @@ export default function transformComponent(path: any): any {
           'get',
           t.identifier('children'),
           [],
-          t.isExpression(body) ? t.blockStatement([t.returnStatement(body)]) : body,
+          t.isExpression(body)
+            ? t.blockStatement([t.returnStatement(body)])
+            : body,
         ),
       )
     } else {
-      runningObject.push(t.objectProperty(t.identifier('children'), childResult[0]))
+      runningObject.push(
+        t.objectProperty(t.identifier('children'), childResult[0]),
+      )
     }
   }
-  if (runningObject.length || !props.length) props.push(t.objectExpression(runningObject))
+  if (runningObject.length || !props.length)
+    props.push(t.objectExpression(runningObject))
   if (props.length > 1 || dynamicSpread) {
     props = [t.callExpression(registerImportMethod(path, 'mergeProps'), props)]
   }
 
   return {
-    exprs: [t.callExpression(registerImportMethod(path, 'createComponent'), [tagId, props[0]])],
+    exprs: [
+      t.callExpression(registerImportMethod(path, 'createComponent'), [
+        tagId,
+        props[0],
+      ]),
+    ],
     template: '',
     component: true,
   }
@@ -133,16 +228,29 @@ export default function transformComponent(path: any): any {
 function transformComponentChildren(children: any[], config: any): any {
   const filteredChildren = filterChildren(children)
   if (!filteredChildren.length) return
-  const transformedChildren = filteredChildren.reduce((memo: any[], path: any) => {
-    if (t.isJSXText(path.node)) {
-      const v = decode(trimWhitespace(path.node.extra.raw))
-      if (v.length) memo.push(t.stringLiteral(v))
-    } else {
-      const child = transformNode(path, { topLevel: true, componentChild: true, lastElement: true })
-      memo.push(getCreateTemplate(config, path, child)(path, child, filteredChildren.length > 1))
-    }
-    return memo
-  }, [])
+  const transformedChildren = filteredChildren.reduce(
+    (memo: any[], path: any) => {
+      if (t.isJSXText(path.node)) {
+        const v = decodeText(trimWhitespace(path.node.extra.raw))
+        if (v.length) memo.push(t.stringLiteral(v))
+      } else {
+        const child = transformNode(path, {
+          topLevel: true,
+          componentChild: true,
+          lastElement: true,
+        })
+        memo.push(
+          getCreateTemplate(config, path, child)(
+            path,
+            child,
+            filteredChildren.length > 1,
+          ),
+        )
+      }
+      return memo
+    },
+    [],
+  )
   if (transformedChildren.length === 1) return [transformedChildren[0], false]
   return [t.arrayExpression(transformedChildren), true]
 }

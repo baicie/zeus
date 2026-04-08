@@ -1,4 +1,4 @@
-const booleans = [
+const booleans: string[] = [
   'allowfullscreen',
   'async',
   'autofocus',
@@ -25,9 +25,9 @@ const booleans = [
   'selected',
 ]
 
-export const BooleanAttributes = new Set(booleans)
+export const BooleanAttributes: Set<string> = new Set(booleans)
 
-export const Properties = new Set([
+export const Properties: Set<string> = new Set([
   'className',
   'value',
   'readOnly',
@@ -39,12 +39,20 @@ export const Properties = new Set([
   ...booleans,
 ])
 
-export const ChildProperties = new Set(['innerHTML', 'textContent', 'innerText', 'children'])
+export const ChildProperties: Set<string> = new Set([
+  'innerHTML',
+  'textContent',
+  'innerText',
+  'children',
+])
 
-export const Aliases: Record<string, string> = Object.assign(Object.create(null), {
-  className: 'class',
-  htmlFor: 'for',
-})
+export const Aliases: Record<string, string> = Object.assign(
+  Object.create(null),
+  {
+    className: 'class',
+    htmlFor: 'for',
+  },
+)
 
 const PropAliases: Record<string, any> = Object.assign(Object.create(null), {
   class: 'className',
@@ -56,12 +64,15 @@ const PropAliases: Record<string, any> = Object.assign(Object.create(null), {
   readonly: { $: 'readOnly', INPUT: 1, TEXTAREA: 1 },
 })
 
-export function getPropAlias(prop: string, tagName: string): string | undefined {
+export function getPropAlias(
+  prop: string,
+  tagName: string,
+): string | undefined {
   const a = PropAliases[prop]
   return typeof a === 'object' ? (a[tagName] ? a.$ : undefined) : a
 }
 
-export const DelegatedEvents = new Set([
+export const DelegatedEvents: Set<string> = new Set([
   'beforeinput',
   'click',
   'dblclick',
@@ -86,7 +97,7 @@ export const DelegatedEvents = new Set([
   'touchstart',
 ])
 
-export const SVGElements = new Set([
+export const SVGElements: Set<string> = new Set([
   'svg',
   'g',
   'path',

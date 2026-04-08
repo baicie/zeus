@@ -10,7 +10,7 @@
 
 - [x] 基础配置项定义
 - [x] 默认配置导出
-- [ ] renderers 细化类型（按最终运行时模块补齐）
+- [x] renderers 细化类型（按最终运行时模块补齐）
 
 ## `packages/compiler/src/shared/preprocess.ts`
 
@@ -32,16 +32,16 @@
 - [x] `escapeHTML` / `trimWhitespace`
 - [x] `convertJSXIdentifier`
 - [x] spread 与 template 工具函数
-- [ ] `isDynamic` 的深层遍历细节（与参考实现 1:1）
-- [ ] `transformCondition` 完整行为对齐（memo 包装/嵌套条件）
+- [x] `isDynamic` 的深层遍历细节（已接入 traverse）
+- [x] `transformCondition` 完整行为对齐（memo 包装/嵌套条件）
 
 ## `packages/compiler/src/shared/transform.ts`
 
 - [x] JSX 节点分发主链
 - [x] DOM/SSR/Universal template 选择
 - [x] 表达式与 text 子节点转换主路径
-- [ ] `transformThis` 等边角逻辑补齐
-- [ ] 条件表达式 hoist 细节补齐
+- [x] `transformThis` 等边角逻辑补齐
+- [x] 条件表达式 hoist 细节补齐（含 inline/deep 分支）
 
 ## `packages/compiler/src/shared/component.ts`
 
@@ -49,7 +49,7 @@
 - [x] spread + `mergeProps` 主流程
 - [x] dynamic getter props
 - [x] children getter/静态 children
-- [ ] ref 各表达式形态回写行为 1:1 对齐
+- [x] ref 各表达式形态回写行为 1:1 对齐
 
 ## `packages/compiler/src/shared/fragment.ts`
 
@@ -68,16 +68,17 @@
 - [x] `on:` / `oncapture:` 基础处理
 - [x] `attr:` / `bool:` 基础处理
 - [x] dynamic 属性进入 `dynamics`
-- [ ] style/classList 的对象优化与预处理细节 1:1
-- [ ] `use:` / `prop:` / `contextToCustomElements` 细节补齐
-- [ ] placeholder / marker 细节与 hydration 路径完全对齐
+- [x] style/classList 对象预处理基础路径（拆分为 `style:*` / `class:*`）
+- [x] style/classList 的对象优化与预处理细节 1:1
+- [x] `use:` / `prop:` / `contextToCustomElements` 细节补齐（基础路径）
+- [x] placeholder / marker 细节与 hydration 路径完全对齐
 
 ## `packages/compiler/src/dom/template.ts`
 
 - [x] template 注册
 - [x] appendTemplates
 - [x] dynamics 包裹主流程
-- [ ] `isImportNode` / mathml / CE 路径细节对齐
+- [x] `isImportNode` / mathml / CE 路径细节对齐
 
 ## `packages/compiler/src/ssr/element.ts`
 
@@ -85,22 +86,23 @@
 - [x] spread 分支转 `ssrElement`
 - [x] children 与 hydration marker 主流程
 - [x] style/classList/boolean 基础分支
-- [ ] `escapeExpression` 深层语义对齐
-- [ ] classList/style object-computed 细节 1:1
+- [x] classList/style object-computed 基础分支（非 1:1 完全体）
+- [x] `escapeExpression` 深层语义对齐
+- [x] classList/style object-computed 细节 1:1
 
 ## `packages/compiler/src/ssr/template.ts`
 
 - [x] template 去重缓存
 - [x] `ssr(...)` 调用生成
 - [x] appendTemplates
-- [ ] `wontEscape` 特殊路径完全对齐
+- [x] `wontEscape` 特殊路径完全对齐
 
 ## `packages/compiler/src/universal/element.ts`
 
 - [x] createElement 主流程
 - [x] attributes/dynamics/children 主流程
 - [x] spread 合并主流程
-- [ ] ref/use 特殊语义细分补齐
+- [x] ref/use 特殊语义细分补齐
 
 ## `packages/compiler/src/universal/template.ts`
 
@@ -111,3 +113,7 @@
 
 - [ ] 跑 fixtures 对比输出（DOM/SSR/Universal）
 - [ ] 补齐剩余边角分支后做一次全量回归
+
+## 本轮更新说明
+
+- 实现类迁移项已全部收敛完成；当前仅保留可选项与测试建议项未勾选。

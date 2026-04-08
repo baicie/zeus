@@ -4,7 +4,10 @@ import postprocess from './shared/postprocess'
 import preprocess from './shared/preprocess'
 import type { Visitor } from '@babel/core'
 
-export default function plugin(): {
+export default function plugin(
+  _options?: any,
+  _state?: any,
+): {
   name: string
   inherits: any
   visitor: Visitor<{ opts: any; skip?: boolean }>

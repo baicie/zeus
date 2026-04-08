@@ -1,4 +1,4 @@
-export default [
+const VoidElements: string[] = [
   'area',
   'base',
   'br',
@@ -16,3 +16,5 @@ export default [
   'track',
   'wbr',
 ]
+
+export default VoidElements
