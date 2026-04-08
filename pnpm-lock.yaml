@@ -224,10 +224,19 @@ importers:
 
   addons/rollup-plugin-zeus:
     dependencies:
+      '@babel/core':
+        specifier: 'catalog:'
+        version: 7.29.0
+      '@babel/preset-typescript':
+        specifier: 'catalog:'
+        version: 7.28.5(@babel/core@7.29.0)
       '@zeus-js/compiler':
         specifier: workspace:*
         version: link:../../packages/compiler
     devDependencies:
+      '@types/babel__core':
+        specifier: 'catalog:'
+        version: 7.20.5
       '@types/node':
         specifier: ^25.5.2
         version: 25.5.2
@@ -253,9 +262,21 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
     devDependencies:
-      '@zeus-js/build-tools':
+      '@rollup/plugin-commonjs':
+        specifier: ^29.0.2
+        version: 29.0.2(rollup@4.60.1)
+      '@rollup/plugin-node-resolve':
+        specifier: ^16.0.3
+        version: 16.0.3(rollup@4.60.1)
+      '@zeus-js/rollup-plugin-zeus':
         specifier: workspace:*
-        version: link:../build-tools
+        version: link:../rollup-plugin-zeus
+      rollup:
+        specifier: ^4.60.1
+        version: 4.60.1
+      rollup-plugin-dts:
+        specifier: ^6.2.3
+        version: 6.4.1(rollup@4.60.1)(typescript@6.0.2)
 
   addons/store:
     dependencies:
@@ -4585,6 +4606,13 @@ packages:
     resolution: {integrity: sha512-bvVj8YJmf0rq4pSFmH7laLa6pYrhghv3PRzrCdRAr23g66zOKVJ4wkvFtgohtPLWmthgg8/rkaqRHrpUEh0Zbw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
+
+  rollup-plugin-dts@6.4.1:
+    resolution: {integrity: sha512-l//F3Zf7ID5GoOfLfD8kroBjQKEKpy1qfhtAdnpibFZMffPaylrg1CoDC2vGkPeTeyxUe4bVFCln2EFuL7IGGg==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      rollup: ^3.29.4 || ^4
+      typescript: ^4.5 || ^5.0 || ^6.0
 
   rollup-plugin-polyfill-node@0.13.0:
     resolution: {integrity: sha512-FYEvpCaD5jGtyBuBFcQImEGmTxDTPbiHjJdrYIp+mFIwgXiXabxvKUK7ZT9P31ozu2Tqm9llYQMRWsfvTMTAOw==}
@@ -9081,6 +9109,17 @@ snapshots:
       '@rolldown/binding-wasm32-wasi': 1.0.0-rc.13
       '@rolldown/binding-win32-arm64-msvc': 1.0.0-rc.13
       '@rolldown/binding-win32-x64-msvc': 1.0.0-rc.13
+
+  rollup-plugin-dts@6.4.1(rollup@4.60.1)(typescript@6.0.2):
+    dependencies:
+      '@jridgewell/remapping': 2.3.5
+      '@jridgewell/sourcemap-codec': 1.5.5
+      convert-source-map: 2.0.0
+      magic-string: 0.30.21
+      rollup: 4.60.1
+      typescript: 6.0.2
+    optionalDependencies:
+      '@babel/code-frame': 7.29.0
 
   rollup-plugin-polyfill-node@0.13.0(rollup@4.60.1):
     dependencies:

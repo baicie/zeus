@@ -2,12 +2,15 @@ import type { NodePath } from '@babel/core'
 import type * as t from '@babel/types'
 import type { JSXElement } from '@babel/types'
 import {
+  arrayExpression,
+  arrowFunctionExpression,
   blockStatement,
   booleanLiteral,
   callExpression,
   identifier,
   isJSXExpressionContainer,
   isJSXSpreadAttribute,
+  isJSXText,
   memberExpression,
   objectExpression,
   objectMethod,
@@ -18,6 +21,7 @@ import {
 import type { TransformResult } from '../shared/types'
 import { getTagName, isDynamic } from '../shared/dynamic'
 import { getConfig, registerImportMethod } from '../shared/utils'
+import { transformSubtree } from './transform-node'
 
 function openingNameToExpr(
   name: t.JSXIdentifier | t.JSXMemberExpression | t.JSXNamespacedName,
@@ -52,6 +56,7 @@ export function transformComponent(
 
   const props: Array<t.ObjectProperty | t.ObjectMethod> = []
   const spreadProps: t.Expression[] = []
+  let hasExplicitChildren = false
 
   for (let i = 0; i < attrs.length; i++) {
     const a = attrs[i]
@@ -68,8 +73,11 @@ export function transformComponent(
       throw new Error('[zeus-jsx] unsupported component attribute name.')
     }
     const key = keyNode.name
-    if (key === 'children' || key === 'ref') {
+    if (key === 'ref') {
       continue
+    }
+    if (key === 'children') {
+      hasExplicitChildren = true
     }
     const val = attr.value
     if (val && isJSXExpressionContainer(val)) {
@@ -100,6 +108,17 @@ export function transformComponent(
     }
   }
 
+  if (!hasExplicitChildren) {
+    const childExprs = collectComponentChildren(path)
+    if (childExprs.length === 1) {
+      props.push(objectProperty(identifier('children'), childExprs[0]))
+    } else if (childExprs.length > 1) {
+      props.push(
+        objectProperty(identifier('children'), arrayExpression(childExprs)),
+      )
+    }
+  }
+
   const createComponent = registerImportMethod(path, 'createComponent')
   let finalProps: t.Expression = objectExpression(props)
   if (spreadProps.length) {
@@ -124,4 +143,62 @@ export function transformComponent(
     dynamic: true,
     outputExpr: call,
   }
+}
+
+function normalizeComponentText(value: string): string {
+  return value.replace(/\u200c|\u200b/g, '').trim()
+}
+
+function resultToExpression(result: TransformResult): t.Expression {
+  if (result.outputExpr) {
+    return result.outputExpr
+  }
+  if (!result.id) {
+    return identifier('undefined')
+  }
+  const body: t.Statement[] = []
+  for (let i = 0; i < result.exprs.length; i++) {
+    body.push(result.exprs[i])
+  }
+  body.push(returnStatement(result.id))
+  return callExpression(arrowFunctionExpression([], blockStatement(body)), [])
+}
+
+function collectComponentChildren(path: NodePath<JSXElement>): t.Expression[] {
+  const out: t.Expression[] = []
+  const childPaths = path.get('children')
+  for (let i = 0; i < childPaths.length; i++) {
+    const childPath = childPaths[i]
+    const child = childPath.node
+    if (isJSXText(child)) {
+      const text = normalizeComponentText(child.value)
+      if (text) {
+        out.push(stringLiteral(text))
+      }
+      continue
+    }
+    if (child.type === 'JSXExpressionContainer') {
+      if (child.expression.type !== 'JSXEmptyExpression') {
+        const expr = child.expression as t.Expression
+        const exprPath = childPath.get('expression') as NodePath<t.Expression>
+        if (isDynamic(exprPath, { checkMember: true, checkTags: true })) {
+          out.push(arrowFunctionExpression([], expr))
+        } else {
+          out.push(expr)
+        }
+      }
+      continue
+    }
+    if (child.type === 'JSXElement' || child.type === 'JSXFragment') {
+      const childResult = transformSubtree(
+        childPath as NodePath<t.JSXElement | t.JSXFragment>,
+        {
+          topLevel: true,
+          lastElement: true,
+        },
+      )
+      out.push(resultToExpression(childResult))
+    }
+  }
+  return out
 }

@@ -21,8 +21,8 @@
     "./*": "./*"
   },
   "scripts": {
-    "build": "rolldown -c rolldown.config.ts",
-    "dev": "rolldown -c rolldown.config.ts --watch",
+    "build": "rollup -c rollup.config.ts",
+    "dev": "rollup -c rollup.config.ts --watch",
     "clean": "rimraf dist"
   },
   "sideEffects": false,
@@ -45,6 +45,10 @@
     "@zeus-js/shared": "workspace:*"
   },
   "devDependencies": {
-    "@zeus-js/build-tools": "workspace:*"
+    "@rollup/plugin-commonjs": "^29.0.2",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@zeus-js/rollup-plugin-zeus": "workspace:*",
+    "rollup": "^4.60.1",
+    "rollup-plugin-dts": "^6.2.3"
   }
 }
