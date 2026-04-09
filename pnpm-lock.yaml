@@ -351,6 +351,9 @@ importers:
         specifier: 'catalog:'
         version: 7.29.0
     devDependencies:
+      '@babel/helper-module-imports':
+        specifier: ^7.28.6
+        version: 7.28.6
       '@types/babel__core':
         specifier: 'catalog:'
         version: 7.20.5

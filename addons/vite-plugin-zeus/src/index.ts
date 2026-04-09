@@ -68,6 +68,7 @@ export function zeusVitePlugin(options: Partial<Options> = {}): Plugin {
       let compilerOptions: CompilerOptions = {
         generate: 'dom',
         hydratable: false,
+        moduleName: '@zeus-js/core',
       }
 
       const shouldBeProcessedWithTypescript = /\.[mc]?tsx$/i.test(id)

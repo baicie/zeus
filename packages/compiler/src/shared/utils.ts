@@ -1,5 +1,6 @@
 // @ts-nocheck
 import * as t from '@babel/types'
+import { addNamed } from '@babel/helper-module-imports'
 
 export const reservedNameSpaces: Set<string> = new Set([
   'class',
@@ -44,7 +45,9 @@ export function registerImportMethod(
   moduleName = moduleName || getConfig(path).moduleName
   const key = `${moduleName}:${name}`
   if (!imports.has(key)) {
-    const id = path.scope.generateUidIdentifier(`_$${name}`)
+    const id = addNamed(path, name, moduleName, {
+      nameHint: `_$${name}`,
+    }) as t.Identifier
     imports.set(key, id)
     return id
   }

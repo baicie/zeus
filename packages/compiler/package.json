@@ -48,6 +48,7 @@
     "@babel/types": "catalog:"
   },
   "devDependencies": {
+    "@babel/helper-module-imports": "^7.28.6",
     "@types/babel__core": "catalog:"
   }
 }
