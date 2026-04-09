@@ -14,7 +14,6 @@
   "devDependencies": {
     "@zeus-js/vite-plugin-zeus": "workspace:*",
     "@types/node": "^25.5.2",
-    "@zeus-js/compiler": "workspace:*",
     "typescript": "^6.0.2",
     "vite": "catalog:"
   }

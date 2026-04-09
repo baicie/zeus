@@ -1,7 +1,7 @@
 {
   "name": "@zeus-js/rollup-plugin-zeus",
   "version": "0.0.1",
-  "description": "Rollup plugin for Zeus JSX (Babel compiler)",
+  "description": "Rollup plugin for Zeus JSX",
   "type": "module",
   "license": "MIT",
   "files": [

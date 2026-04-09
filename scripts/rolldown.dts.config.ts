@@ -16,7 +16,7 @@ const packages = readdirSync('temp/packages')
 const targets = process.env.TARGETS ? process.env.TARGETS.split(',') : null
 const targetPackages = (
   targets ? packages.filter(pkg => targets.includes(pkg)) : packages
-).filter(pkg => !pkg.includes('compiler'))
+).filter(pkg => !pkg.includes('compiler-'))
 
 const packageConfigs: RolldownOptions[] = targetPackages.map(pkg => {
   return {

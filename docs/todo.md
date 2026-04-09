@@ -448,13 +448,24 @@ register指令(_node, _action);
 
 ### 6.2 Vite 插件
 
+#### 🔄 进行中
+
+| 任务 | 说明 | 进度 |
+|------|------|------|
+| vite-plugin-zeus 完善 | 参考 vite-plugin-solid 实现完整功能 | 规划中 |
+| rollup-plugin-zeus 完善 | 增强配置选项和构建钩子 | 规划中 |
+
+详细设计见 [architecture/vite-plugin-design.md](./architecture/vite-plugin-design.md)
+
 #### 📋 待开始
 
 | 任务 | 优先级 | 说明 |
 |------|--------|------|
-| 基础插件 | P0 | Vite 开发服务器集成 |
-| 热更新 | P1 | HMR 支持 |
-| 依赖预构建 | P2 | 优化依赖加载 |
+| vite-plugin-zeus Options 接口增强 | P0 | 添加 FilterPattern、dev、ssr、hot 等选项 |
+| vite-plugin-zeus Vite 钩子实现 | P0 | config、configEnvironment、configResolved 等 |
+| vite-plugin-zeus HMR 支持 | P1 | 运行时模块注入和热更新 |
+| rollup-plugin-zeus Options 接口增强 | P0 | 添加 ssr、generate、babel 等选项 |
+| rollup-plugin-zeus 构建钩子 | P1 | buildStart、renderStart 钩子 |
 
 ---
 
@@ -523,6 +534,7 @@ register指令(_node, _action);
 | [reference/compiler-fix-plan.md](./reference/compiler-fix-plan.md) | 编译器整改方案 |
 | [reference/oxc-sourcemap-design.md](./reference/oxc-sourcemap-design.md) | SourceMap 生成方案 |
 | [progress/progress-report-2026-03-31.md](./progress/progress-report-2026-03-31.md) | 开发进度报告 |
+| [architecture/vite-plugin-design.md](./architecture/vite-plugin-design.md) | Vite/Rollup 插件完善方案 |
 
 #### 🔄 进行中
 
