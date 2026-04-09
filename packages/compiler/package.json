@@ -8,8 +8,6 @@
     "jsx"
   ],
   "license": "MIT",
-  "type": "module",
-  "main": "index.js",
   "module": "dist/compiler.esm-bundler.js",
   "types": "dist/compiler.d.ts",
   "files": [

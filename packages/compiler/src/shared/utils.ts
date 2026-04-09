@@ -298,11 +298,11 @@ export function transformCondition(
       }
     }
   }
-  if (dTest && cond && id) {
+  if (dTest && !inline) {
     const statements = [
       t.variableDeclaration('var', [
         t.variableDeclarator(
-          id as t.LVal,
+          id as t.Identifier,
           config.memoWrapper
             ? t.callExpression(memo, [t.arrowFunctionExpression([], cond)])
             : t.arrowFunctionExpression([], cond),

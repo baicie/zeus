@@ -1,2 +1,7 @@
-// CJS stub; dev resolves to src via package exports in some tools
-module.exports = require('./dist/compiler.cjs.js')
+'use strict'
+
+if (process.env.NODE_ENV === 'production') {
+  module.exports = require('./dist/compiler.cjs.prod.js')
+} else {
+  module.exports = require('./dist/compiler.cjs.js')
+}
