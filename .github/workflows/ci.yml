@@ -1,54 +1,105 @@
-name: 'ci'
+name: CI
+
 on:
   push:
-    branches:
-      - '**'
-    tags:
-      - '!**'
+    branches: ['**']
   pull_request:
-    branches:
-      - main
-      - minor
+    branches: [main, minor]
   schedule:
     - cron: '0 2 * * *'
 
 jobs:
+  lint-and-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.node-version'
+          cache: 'pnpm'
+
+      - run: pnpm install
+
+      - name: ESLint
+        run: pnpm lint
+
+      - name: Format check
+        run: pnpm format-check
+
+      - name: Type check
+        run: pnpm check
+
+  rust-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: './crates -> target'
+
+      - name: Test
+        run: cargo test
+
+      - name: Clippy
+        run: cargo clippy -- -D warnings
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [lint-and-check, rust-test]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.node-version'
+          cache: 'pnpm'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - run: pnpm install
+      - run: pnpm build
+
   test:
-    if: ${{ ! startsWith(github.event.head_commit.message, 'release:') && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository) }}
-    uses: ./.github/workflows/test.yml
-    with:
-      enable_hydration_browser_matrix: false
-      hydration_browsers: chromium
+    runs-on: ubuntu-latest
+    needs: [build]
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: 'true'
+    steps:
+      - uses: actions/checkout@v5
 
-  test-browser-matrix-nightly:
-    if: ${{ github.event_name == 'schedule' }}
-    uses: ./.github/workflows/test.yml
-    with:
-      enable_hydration_browser_matrix: true
-      hydration_browsers: chromium,firefox,webkit
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
 
-  # continuous-release:
-  #   if: github.repository == 'baicie/zeus'
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.node-version'
+          cache: 'pnpm'
 
-  #     - name: Install pnpm
-  #       uses: pnpm/action-setup@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
 
-  #     - name: Install Node.js
-  #       uses: actions/setup-node@v5
-  #       with:
-  #         node-version-file: '.node-version'
-  #         registry-url: 'https://registry.npmjs.org'
-  #         cache: 'pnpm'
+      - name: Cache dist
+        uses: actions/cache@v4
+        with:
+          path: packages/*/dist
+          key: dist-${{ github.sha }}
 
-  #     - name: Install deps
-  #       run: pnpm install
-
-  #     - name: Build
-  #       run: pnpm build-all
-
-  # - name: Release
-  #   run: pnpx pkg-pr-new publish --compact --pnpm './packages/*'
+      - run: pnpm install
+      - run: pnpm build
+      - run: pnpm test

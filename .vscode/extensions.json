@@ -1,3 +1,7 @@
 {
-  "recommendations": ["vitest.explorer"]
+  "recommendations": [
+    "vitest.explorer",
+    "esbenp.prettier-vscode",
+    "rust-lang.rust-analyzer"
+  ]
 }

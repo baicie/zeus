@@ -1,41 +1,24 @@
 {
   "[rust]": {
-    "editor.formatOnSave": true,
-    "editor.defaultFormatter": "rust-lang.rust-analyzer"
+    "editor.defaultFormatter": "rust-lang.rust-analyzer",
+    "editor.formatOnSave": true
   },
   "[toml]": {
-    "editor.formatOnSave": true,
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "[json]": {
-    "editor.formatOnSave": true,
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "[javascript]": {
-    "editor.formatOnSave": true,
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "[typescript]": {
-    "editor.formatOnSave": true,
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "files.associations": {
-    "*.snap": "markdown",
-    "*.snap.new": "markdown",
-    "_config.json": "jsonc"
+    "*.snap": "markdown"
   },
-  "files.readonlyInclude": {
-    "**/CHANGELOG-*.md": true,
-    "**/CHANGELOG.md": true,
-    "**/generated/**": true,
-    "packages/napi/src/*{binding,wasi}*.*{j,d.t}s": true
-  },
-  "git.ignoreLimitWarning": true,
   "search.exclude": {
     "temp": true,
     "tmp": true
   },
   "editor.wordWrap": "on",
-  "editor.formatOnSave": true,
-  "typescript.tsdk": "node_modules/typescript/lib"
+  "editor.formatOnSave": true
 }

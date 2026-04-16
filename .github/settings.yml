@@ -1,92 +1,23 @@
-# GitHub repository settings
-# This file is used by GitHub CLI to configure repository settings
-
 # Repository settings
 name: zeus
-description: A modern JavaScript framework for building web applications
-homepage: https://your-domain.com
-topics:
-  - javascript
-  - typescript
-  - framework
-  - web-components
-  - compiler
-  - runtime
+description: A modern JavaScript framework
+private: false
+default_branch: main
 
 # Repository features
 has_issues: true
-has_projects: true
 has_wiki: false
 has_downloads: true
 
-# Repository visibility
-private: false
-
-# Default branch
-default_branch: master
-
-# Branch protection rules
+# Branch protection
 branch_protection:
-  master:
+  main:
     required_status_checks:
       strict: true
-      contexts:
-        - 'Lint and Format Check'
-        - 'TypeScript Type Check'
-        - 'Run Tests'
-        - 'Build Packages'
-    enforce_admins: true
+      contexts: [CI]
     required_pull_request_reviews:
       required_approving_review_count: 1
-      dismiss_stale_reviews: true
-      require_code_owner_reviews: true
-    restrictions:
-      users: []
-      teams: []
 
-  feature:
-    required_status_checks:
-      strict: true
-      contexts:
-        - 'Lint and Format Check'
-        - 'TypeScript Type Check'
-        - 'Run Tests'
-        - 'Build Packages'
-    enforce_admins: true
-    required_pull_request_reviews:
-      required_approving_review_count: 1
-      dismiss_stale_reviews: true
-      require_code_owner_reviews: true
-    restrictions:
-      users: []
-      teams: []
-
-  next:
-    required_status_checks:
-      strict: true
-      contexts:
-        - 'Lint and Format Check'
-        - 'TypeScript Type Check'
-        - 'Run Tests'
-        - 'Build Packages'
-    enforce_admins: true
-    required_pull_request_reviews:
-      required_approving_review_count: 2
-      dismiss_stale_reviews: true
-      require_code_owner_reviews: true
-    restrictions:
-      users: []
-      teams: []
-
-# Issue and PR templates
+# Templates
 issue_template: .github/ISSUE_TEMPLATE/bug_report.md
 pull_request_template: .github/pull_request_template.md
-
-# Webhooks (if needed)
-webhooks: []
-
-# Collaborators
-collaborators: []
-
-# Teams
-teams: []

@@ -1,8 +1,0 @@
-blank_issues_enabled: false
-contact_links:
-  - name: GitHub Community Support
-    url: https://github.com/orgs/your-org/discussions
-    about: Please ask and answer questions here.
-  - name: Documentation
-    url: https://your-docs-site.com
-    about: Check our documentation for detailed guides and API references.
