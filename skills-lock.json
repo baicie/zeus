@@ -1,10 +1,45 @@
 {
   "version": 1,
   "skills": {
+    "code-review-and-quality": {
+      "source": "addyosmani/agent-skills",
+      "sourceType": "github",
+      "computedHash": "83931d7416bcff73c24d976c1e45f09f80259541d33e9fdfe3ee521d39b27428"
+    },
+    "cursor-best-practices": {
+      "source": "siviter-xyz/dot-agent",
+      "sourceType": "github",
+      "computedHash": "83c6ea2105fc8f7255d1edd8cfa4424dee3523760f9812402ac84516039425ba"
+    },
     "find-skills": {
       "source": "vercel-labs/skills",
       "sourceType": "github",
       "computedHash": "6412eb4eb3b91595ebab937f0c69501240e7ba761b3d82510b5cf506ec5c7adc"
+    },
+    "git-commit": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "2607fc60629b82b257136dd2a7a373f0a4466c0b49df7746d845d59313c99b21"
+    },
+    "monorepo-setup": {
+      "source": "patricio0312rev/skills",
+      "sourceType": "github",
+      "computedHash": "444650a299f5f965ccb8031652a32c85ee93edd2e4703d030fa0677f66f9d257"
+    },
+    "playwright-generate-test": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "8f963da3e25f705ff39755b8b990f20da0c0320cb86ac83fcc4d2d4eca91f6e4"
+    },
+    "typescript-advanced-types": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "computedHash": "3a3be8c925f96ac4e1280db28a01677e7ca5197f3792de2bbf35ab3bb324b6dd"
+    },
+    "vite": {
+      "source": "antfu/skills",
+      "sourceType": "github",
+      "computedHash": "867ff66238f3152e9c494339ad08dc432dd0df5bcf5cc7a00b61a72b580eb908"
     }
   }
 }
