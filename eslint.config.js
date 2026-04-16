@@ -4,83 +4,128 @@ import vitest from '@vitest/eslint-plugin'
 import { builtinModules } from 'node:module'
 import { defineConfig } from 'eslint/config'
 
-const DOMGlobals = ['window', 'document']
-const NodeGlobals = ['module', 'require']
-
-const banConstEnum = {
-  selector: 'TSEnumDeclaration[const=true]',
-  message:
-    'Please use non-const enums. This project automatically inlines enums.',
+// 禁止使用的语法
+const BANNED_SYNTAX = {
+  banConstEnum: {
+    selector: 'TSEnumDeclaration[const=true]',
+    message:
+      'Please use non-const enums. This project automatically inlines enums.',
+  },
+  banObjectRestSpread: {
+    selector: 'ObjectPattern > RestElement',
+    message:
+      'Our output target is ES2016, and object rest spread results in verbose helpers and should be avoided.',
+  },
+  banObjectSpread: {
+    selector: 'ObjectExpression > SpreadElement',
+    message:
+      'esbuild transpiles object spread into very verbose inline helpers.\n' +
+      'Please use the `extend` helper from @zeus-js/shared instead.',
+  },
+  banAwait: {
+    selector: 'AwaitExpression',
+    message:
+      'Our output target is ES2016, so async/await syntax should be avoided.',
+  },
+  banOptionalChaining: {
+    selector: 'ChainExpression',
+    message:
+      'Our output target is ES2016, and optional chaining results in verbose helpers and should be avoided.',
+  },
 }
 
+// 全局环境限制
+const NODE_GLOBALS = ['window', 'document']
+const BROWSER_GLOBALS = ['module', 'require']
+
+// 共享规则
+const SHARED_RULES = {
+  'no-debugger': 'error',
+  'no-console': ['error', { allow: ['warn', 'error', 'info'] }],
+  'no-restricted-globals': ['error', ...NODE_GLOBALS, ...BROWSER_GLOBALS],
+  'no-restricted-syntax': ['error', ...Object.values(BANNED_SYNTAX)],
+  'import-x/no-nodejs-modules': [
+    'error',
+    { allow: builtinModules.map(mod => `node:${mod}`) },
+  ],
+  '@typescript-eslint/prefer-ts-expect-error': 'error',
+  '@typescript-eslint/consistent-type-imports': [
+    'error',
+    {
+      fixStyle: 'inline-type-imports',
+      disallowTypeAnnotations: false,
+    },
+  ],
+  '@typescript-eslint/no-explicit-any': 'error',
+  '@typescript-eslint/no-explicit-any': 'error',
+  'import-x/order': [
+    'error',
+    {
+      groups: [
+        'builtin',
+        'external',
+        'internal',
+        ['parent', 'sibling'],
+        'index',
+        'object',
+        'type',
+      ],
+      'newlines-between': 'always',
+      alphabetize: { order: 'asc', caseInsensitive: true },
+    },
+  ],
+  'no-unused-vars': ['error', { vars: 'all', args: 'none' }],
+}
+
+// 测试文件规则
+const TEST_RULES = {
+  'no-console': 'off',
+  'no-restricted-globals': 'off',
+  'no-restricted-syntax': 'off',
+  'no-unused-vars': 'off',
+  'vitest/no-disabled-tests': 'error',
+  'vitest/no-focused-tests': 'error',
+}
+
+// 忽略文件
+const IGNORED_PATTERNS = [
+  '**/dist/',
+  '**/temp/',
+  '**/coverage/',
+  '.idea/',
+  'examples',
+  'target',
+  'packages/compiler-core/src/binding.*',
+  'packages/compiler-core/src/wasi-worker*',
+  'packages/compiler-core/src/browser.*',
+  'packages/compiler-core/src/zeusjs-binding.*',
+]
+
 export default defineConfig(
+  // ============================================
+  // 基础配置 - 适用于所有 TypeScript 文件
+  // ============================================
   {
-    files: ['**/*.js', '**/*.ts', '**/*.tsx'],
+    name: 'base',
+    files: ['**/*.ts', '**/*.tsx'],
+    ignores: ['eslint.config.js'],
     extends: [tseslint.configs.base],
     plugins: {
       'import-x': importX,
     },
-    rules: {
-      'no-debugger': 'error',
-      'no-console': ['error', { allow: ['warn', 'error', 'info'] }],
-      // most of the codebase are expected to be env agnostic
-      'no-restricted-globals': ['error', ...DOMGlobals, ...NodeGlobals],
-
-      'no-restricted-syntax': [
-        'error',
-        banConstEnum,
-        {
-          selector: 'ObjectPattern > RestElement',
-          message:
-            'Our output target is ES2016, and object rest spread results in ' +
-            'verbose helpers and should be avoided.',
-        },
-        {
-          selector: 'ObjectExpression > SpreadElement',
-          message:
-            'esbuild transpiles object spread into very verbose inline helpers.\n' +
-            'Please use the `extend` helper from @zeus-js/shared instead.',
-        },
-        {
-          selector: 'AwaitExpression',
-          message:
-            'Our output target is ES2016, so async/await syntax should be avoided.',
-        },
-        {
-          selector: 'ChainExpression',
-          message:
-            'Our output target is ES2016, and optional chaining results in ' +
-            'verbose helpers and should be avoided.',
-        },
-      ],
-      'sort-imports': ['error', { ignoreDeclarationSort: true }],
-
-      'import-x/no-nodejs-modules': [
-        'error',
-        { allow: builtinModules.map(mod => `node:${mod}`) },
-      ],
-      // This rule enforces the preference for using '@ts-expect-error' comments in TypeScript
-      // code to indicate intentional type errors, improving code clarity and maintainability.
-      '@typescript-eslint/prefer-ts-expect-error': 'error',
-      // Enforce the use of 'import type' for importing types
-      '@typescript-eslint/consistent-type-imports': [
-        'error',
-        {
-          fixStyle: 'inline-type-imports',
-          disallowTypeAnnotations: false,
-        },
-      ],
-      // Enforce the use of top-level import type qualifier when an import only has specifiers with inline type qualifiers
-      '@typescript-eslint/no-import-type-side-effects': 'error',
-    },
+    rules: SHARED_RULES,
   },
 
-  // tests, no restrictions (runs in Node / Vitest with jsdom)
+  // ============================================
+  // 测试文件配置
+  // ============================================
   {
+    name: 'tests',
     files: [
       '**/__tests__/**',
       'packages-private/dts-test/**',
       'packages-private/dts-build-test/**',
+      'addons/**/__tests__/**',
     ],
     plugins: { vitest },
     languageOptions: {
@@ -88,59 +133,12 @@ export default defineConfig(
         ...vitest.environments.env.globals,
       },
     },
-    rules: {
-      'no-console': 'off',
-      'no-restricted-globals': 'off',
-      'no-restricted-syntax': 'off',
-      'vitest/no-disabled-tests': 'error',
-      'vitest/no-focused-tests': 'error',
-    },
+    rules: TEST_RULES,
   },
 
-  // shared, may be used in any env
-  {
-    files: ['packages/shared/**', 'eslint.config.js'],
-    rules: {
-      'no-restricted-globals': 'off',
-    },
-  },
-
-  // Packages targeting DOM
-  {
-    files: ['packages/{zeus,runtime-core,runtime-dom}/**'],
-    rules: {
-      'no-restricted-globals': ['error', ...NodeGlobals],
-    },
-  },
-
-  // Addons targeting browsers (e.g. router)
-  {
-    files: ['addons/router/**'],
-    rules: {
-      'no-restricted-globals': ['error', ...NodeGlobals],
-    },
-  },
-
-  // Addons targeting Node / build tools (e.g. bundle-plugin)
-  {
-    files: ['addons/bundle-plugin/**'],
-    rules: {
-      'no-restricted-globals': ['error', ...DOMGlobals],
-      'no-restricted-syntax': ['error', banConstEnum],
-      'no-console': 'off',
-    },
-  },
-
-  // Packages targeting Node
-  {
-    files: ['packages/compiler-*/**'],
-    rules: {
-      'no-restricted-globals': ['error', ...DOMGlobals],
-      'no-restricted-syntax': ['error', banConstEnum],
-      'no-console': 'off',
-    },
-  },
-
+  // ============================================
+  // Playground - 允许所有语法
+  // ============================================
   {
     name: 'playground',
     files: ['playground/**'],
@@ -148,28 +146,97 @@ export default defineConfig(
       'no-restricted-globals': 'off',
       'no-restricted-syntax': 'off',
       'no-console': 'off',
+      'no-unused-vars': 'off',
     },
   },
 
+  // ============================================
+  // 工具脚本 - 允许所有语法
+  // ============================================
   {
     name: 'tools',
     files: ['tools/**'],
     rules: {
       'no-restricted-syntax': 'off',
+      'no-unused-vars': 'off',
     },
   },
 
-  // JavaScript files
+  // ============================================
+  // Shared 包 - 无环境限制
+  // ============================================
   {
+    name: 'shared-package',
+    files: ['packages/shared/**', 'eslint.config.js'],
+    rules: {
+      'no-restricted-globals': 'off',
+    },
+  },
+
+  // ============================================
+  // 运行时包 (DOM 环境)
+  // ============================================
+  {
+    name: 'runtime-packages',
+    files: ['packages/{zeus,runtime-core,runtime-dom}/**'],
+    rules: {
+      'no-restricted-globals': ['error', ...BROWSER_GLOBALS],
+    },
+  },
+
+  // ============================================
+  // 编译器包 (Node 环境)
+  // ============================================
+  {
+    name: 'compiler-packages',
+    files: ['packages/compiler-*/**'],
+    rules: {
+      'no-restricted-globals': ['error', ...NODE_GLOBALS],
+      'no-restricted-syntax': ['error', BANNED_SYNTAX.banConstEnum],
+      'no-console': 'off',
+    },
+  },
+
+  // ============================================
+  // Addons - Router (浏览器环境)
+  // ============================================
+  {
+    name: 'addons-router',
+    files: ['addons/router/**'],
+    rules: {
+      'no-restricted-globals': ['error', ...BROWSER_GLOBALS],
+    },
+  },
+
+  // ============================================
+  // Addons - Bundle Plugin (Node 环境)
+  // ============================================
+  {
+    name: 'addons-bundle-plugin',
+    files: ['addons/bundle-plugin/**'],
+    rules: {
+      'no-restricted-globals': ['error', ...NODE_GLOBALS],
+      'no-restricted-syntax': ['error', BANNED_SYNTAX.banConstEnum],
+      'no-console': 'off',
+    },
+  },
+
+  // ============================================
+  // JavaScript 文件
+  // ============================================
+  {
+    name: 'javascript-files',
     files: ['*.js'],
     rules: {
-      // We only do `no-unused-vars` checks for js files, TS files are checked by TypeScript itself.
       'no-unused-vars': ['error', { vars: 'all', args: 'none' }],
     },
   },
 
-  // Node scripts
+  // ============================================
+  // Node 脚本
+  // ============================================
   {
+    name: 'node-scripts',
     files: [
       'eslint.config.js',
       'rollup*.config.js',
@@ -177,47 +244,22 @@ export default defineConfig(
       './*.{js,ts}',
       'packages/*/*.js',
       'packages/{zeus,runtime-core,runtime-dom}/*/*.js',
-      // addon-level config and entry files
       'addons/*/*.{js,ts}',
       'addons/*/rolldown.config.ts',
     ],
     rules: {
       'no-restricted-globals': 'off',
-      'no-restricted-syntax': ['error', banConstEnum],
+      'no-restricted-syntax': ['error', BANNED_SYNTAX.banConstEnum],
       'no-console': 'off',
+      'no-unused-vars': 'off',
     },
   },
 
-  // addons tests
+  // ============================================
+  // 忽略文件
+  // ============================================
   {
-    files: ['addons/**/__tests__/**'],
-    plugins: { vitest },
-    languageOptions: {
-      globals: {
-        ...vitest.environments.env.globals,
-      },
-    },
-    rules: {
-      'no-console': 'off',
-      'no-restricted-globals': 'off',
-      'no-restricted-syntax': 'off',
-      'vitest/no-disabled-tests': 'error',
-      'vitest/no-focused-tests': 'error',
-    },
-  },
-
-  {
-    ignores: [
-      '**/dist/',
-      '**/temp/',
-      '**/coverage/',
-      '.idea/',
-      'examples',
-      'target',
-      'packages/compiler-core/src/binding.*',
-      'packages/compiler-core/src/wasi-worker*',
-      'packages/compiler-core/src/browser.*',
-      'packages/compiler-core/src/zeusjs-binding.*',
-    ],
+    name: 'ignores',
+    ignores: IGNORED_PATTERNS,
   },
 )
