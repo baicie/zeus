@@ -74,6 +74,19 @@ const SHARED_RULES = {
 // 忽略文件
 const IGNORED_PATTERNS = ['**/dist/', '**/temp/', '**/coverage/', 'target']
 
+// 全局声明 - 由构建工具注入
+const GLOBAL_DECLARATIONS = {
+  __DEV__: 'readonly',
+  __TEST__: 'readonly',
+  __BROWSER__: 'readonly',
+  __GLOBAL__: 'readonly',
+  __ESM_BUNDLER__: 'readonly',
+  __ESM_BROWSER__: 'readonly',
+  __CJS__: 'readonly',
+  __SSR__: 'readonly',
+  __VERSION__: 'readonly',
+}
+
 export default defineConfig(
   // ============================================
   // 基础配置 - 适用于所有 TypeScript 文件
@@ -87,6 +100,9 @@ export default defineConfig(
       'import-x': importX,
     },
     rules: SHARED_RULES,
+    languageOptions: {
+      globals: GLOBAL_DECLARATIONS,
+    },
   },
 
   // ============================================
@@ -151,5 +167,16 @@ export default defineConfig(
   {
     name: 'ignores',
     ignores: IGNORED_PATTERNS,
+  },
+
+  // ============================================
+  // 全局声明文件 - 禁用 no-unused-vars
+  // ============================================
+  {
+    name: 'global-declarations',
+    files: ['packages/global.d.ts'],
+    rules: {
+      'no-unused-vars': 'off',
+    },
   },
 )
