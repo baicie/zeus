@@ -1,4 +1,5 @@
 import * as assert from 'node:assert'
+import { spawnSync } from 'node:child_process'
 import {
   existsSync,
   mkdirSync,
@@ -7,10 +8,11 @@ import {
   writeFileSync,
 } from 'node:fs'
 import * as path from 'node:path'
+
 import { parse } from '@babel/parser'
-import type { ParserOptions } from '@babel/parser'
-import { spawnSync } from 'node:child_process'
 import MagicString from 'magic-string'
+
+import type { ParserOptions } from '@babel/parser'
 
 interface EnumMember {
   readonly name: string

@@ -1,7 +1,8 @@
-import fs from 'node:fs'
-import pico from 'picocolors'
-import { createRequire } from 'node:module'
 import { spawn } from 'node:child_process'
+import fs from 'node:fs'
+import { createRequire } from 'node:module'
+
+import pico from 'picocolors'
 
 export type MarkRequired<T, K extends keyof T> = Omit<T, K> &
   Required<Pick<T, K>>

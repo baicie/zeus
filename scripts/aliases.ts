@@ -24,18 +24,12 @@ const getPackageDirs = (): string[] => {
  */
 const generateEntries = (): Record<string, string> => {
   const entries: Record<string, string> = {}
-  const nonSrcPackages = ['dts-test']
 
   for (const dir of getPackageDirs()) {
     const key = `@zeus-js/${dir}`
     const packageUrl = new URL(`../packages/${dir}`, import.meta.url)
 
-    if (
-      dir !== 'zeus' &&
-      !nonSrcPackages.includes(dir) &&
-      !(key in entries) &&
-      statSync(packageUrl).isDirectory()
-    ) {
+    if (!(key in entries) && statSync(packageUrl).isDirectory()) {
       entries[key] = resolveEntryForPkg(dir)
     }
   }

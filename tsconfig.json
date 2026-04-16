@@ -9,19 +9,15 @@
     "experimentalDecorators": true,
     "composite": true,
     "incremental": true,
-    "types": ["vitest/globals", "puppeteer", "node"],
+    "types": ["vitest/globals", "node"],
     "paths": {
-      "@zeus-js/*": ["./packages/*/src", "./addons/*/src"]
+      "@zeus-js/*": ["./packages/*/src"]
     }
   },
   "include": [
     "packages/global.d.ts",
     "packages/*/src",
     "packages/*/__tests__",
-    "packages/zeus/jsx-runtime",
-    "addons/*/src",
-    "addons/*/__tests__",
-    "playground/benchmarks",
     "scripts/*",
     "rollup.*.js"
   ],

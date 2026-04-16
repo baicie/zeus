@@ -1,6 +1,5 @@
 import importX from 'eslint-plugin-import-x'
 import tseslint from 'typescript-eslint'
-import vitest from '@vitest/eslint-plugin'
 import { builtinModules } from 'node:module'
 import { defineConfig } from 'eslint/config'
 
@@ -34,15 +33,11 @@ const BANNED_SYNTAX = {
   },
 }
 
-// 全局环境限制
-const NODE_GLOBALS = ['window', 'document']
-const BROWSER_GLOBALS = ['module', 'require']
-
 // 共享规则
 const SHARED_RULES = {
   'no-debugger': 'error',
   'no-console': ['error', { allow: ['warn', 'error', 'info'] }],
-  'no-restricted-globals': ['error', ...NODE_GLOBALS, ...BROWSER_GLOBALS],
+  'no-restricted-globals': 'off',
   'no-restricted-syntax': ['error', ...Object.values(BANNED_SYNTAX)],
   'import-x/no-nodejs-modules': [
     'error',
@@ -56,7 +51,6 @@ const SHARED_RULES = {
       disallowTypeAnnotations: false,
     },
   ],
-  '@typescript-eslint/no-explicit-any': 'error',
   '@typescript-eslint/no-explicit-any': 'error',
   'import-x/order': [
     'error',
@@ -77,29 +71,8 @@ const SHARED_RULES = {
   'no-unused-vars': ['error', { vars: 'all', args: 'none' }],
 }
 
-// 测试文件规则
-const TEST_RULES = {
-  'no-console': 'off',
-  'no-restricted-globals': 'off',
-  'no-restricted-syntax': 'off',
-  'no-unused-vars': 'off',
-  'vitest/no-disabled-tests': 'error',
-  'vitest/no-focused-tests': 'error',
-}
-
 // 忽略文件
-const IGNORED_PATTERNS = [
-  '**/dist/',
-  '**/temp/',
-  '**/coverage/',
-  '.idea/',
-  'examples',
-  'target',
-  'packages/compiler-core/src/binding.*',
-  'packages/compiler-core/src/wasi-worker*',
-  'packages/compiler-core/src/browser.*',
-  'packages/compiler-core/src/zeusjs-binding.*',
-]
+const IGNORED_PATTERNS = ['**/dist/', '**/temp/', '**/coverage/', 'target']
 
 export default defineConfig(
   // ============================================
@@ -121,42 +94,10 @@ export default defineConfig(
   // ============================================
   {
     name: 'tests',
-    files: [
-      '**/__tests__/**',
-      'packages-private/dts-test/**',
-      'packages-private/dts-build-test/**',
-      'addons/**/__tests__/**',
-    ],
-    plugins: { vitest },
-    languageOptions: {
-      globals: {
-        ...vitest.environments.env.globals,
-      },
-    },
-    rules: TEST_RULES,
-  },
-
-  // ============================================
-  // Playground - 允许所有语法
-  // ============================================
-  {
-    name: 'playground',
-    files: ['playground/**'],
+    files: ['**/__tests__/**'],
     rules: {
-      'no-restricted-globals': 'off',
-      'no-restricted-syntax': 'off',
       'no-console': 'off',
-      'no-unused-vars': 'off',
-    },
-  },
-
-  // ============================================
-  // 工具脚本 - 允许所有语法
-  // ============================================
-  {
-    name: 'tools',
-    files: ['tools/**'],
-    rules: {
+      'no-restricted-globals': 'off',
       'no-restricted-syntax': 'off',
       'no-unused-vars': 'off',
     },
@@ -170,54 +111,6 @@ export default defineConfig(
     files: ['packages/shared/**', 'eslint.config.js'],
     rules: {
       'no-restricted-globals': 'off',
-    },
-  },
-
-  // ============================================
-  // 运行时包 (DOM 环境)
-  // ============================================
-  {
-    name: 'runtime-packages',
-    files: ['packages/{zeus,runtime-core,runtime-dom}/**'],
-    rules: {
-      'no-restricted-globals': ['error', ...BROWSER_GLOBALS],
-    },
-  },
-
-  // ============================================
-  // 编译器包 (Node 环境)
-  // ============================================
-  {
-    name: 'compiler-packages',
-    files: ['packages/compiler-*/**'],
-    rules: {
-      'no-restricted-globals': ['error', ...NODE_GLOBALS],
-      'no-restricted-syntax': ['error', BANNED_SYNTAX.banConstEnum],
-      'no-console': 'off',
-    },
-  },
-
-  // ============================================
-  // Addons - Router (浏览器环境)
-  // ============================================
-  {
-    name: 'addons-router',
-    files: ['addons/router/**'],
-    rules: {
-      'no-restricted-globals': ['error', ...BROWSER_GLOBALS],
-    },
-  },
-
-  // ============================================
-  // Addons - Bundle Plugin (Node 环境)
-  // ============================================
-  {
-    name: 'addons-bundle-plugin',
-    files: ['addons/bundle-plugin/**'],
-    rules: {
-      'no-restricted-globals': ['error', ...NODE_GLOBALS],
-      'no-restricted-syntax': ['error', BANNED_SYNTAX.banConstEnum],
-      'no-console': 'off',
     },
   },
 
@@ -243,9 +136,6 @@ export default defineConfig(
       'scripts/**',
       './*.{js,ts}',
       'packages/*/*.js',
-      'packages/{zeus,runtime-core,runtime-dom}/*/*.js',
-      'addons/*/*.{js,ts}',
-      'addons/*/rolldown.config.ts',
     ],
     rules: {
       'no-restricted-globals': 'off',

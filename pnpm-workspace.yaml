@@ -1,7 +1,5 @@
 packages:
   - packages/*
-  - addons/*
-  - playground/*
 
 catalog:
   '@babel/core': ^7.29.0

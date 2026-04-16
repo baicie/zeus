@@ -4,33 +4,9 @@ import { entries } from './scripts/aliases.ts'
 
 // 测试项目配置
 const testProjects = [
-  { name: 'unit', include: ['packages/signal/**/*.{test,spec}.*'] },
   {
-    name: 'unit-compiler',
-    include: ['packages/compiler-core/**/*.{test,spec}.*'],
-  },
-  {
-    name: 'unit-compiler-babel',
-    include: ['packages/compiler/__tests__/**/*.{test,spec}.*'],
-  },
-  {
-    name: 'unit-server-renderer',
-    include: ['packages/server-renderer/__tests__/**/*.{test,spec}.*'],
-  },
-  {
-    name: 'unit-runtime',
-    include: ['packages/{runtime-core,runtime-dom}/**/*.{test,spec}.*'],
-    environment: 'jsdom',
-  },
-  {
-    name: 'unit-jsdom',
-    include: ['packages/{zeus,runtime}/**/*.{test,spec}.*'],
-    environment: 'jsdom',
-  },
-  {
-    name: 'e2e',
-    include: ['packages/zeus/__tests__/e2e/*.spec.ts'],
-    environment: 'jsdom',
+    name: 'unit',
+    include: ['packages/**/*.{test,spec}.*'],
   },
 ]
 
@@ -39,11 +15,6 @@ export default defineConfig({
     __DEV__: 'true',
     __TEST__: 'true',
     __VERSION__: '"test"',
-    __BROWSER__: 'false',
-    __GLOBAL__: 'false',
-    __ESM_BUNDLER__: 'true',
-    __ESM_BROWSER__: 'false',
-    __CJS__: 'true',
   },
   resolve: { alias: entries },
   test: {
@@ -58,7 +29,7 @@ export default defineConfig({
       extends: true,
       test: {
         ...project,
-        exclude: [...configDefaults.exclude, '**/e2e/**'],
+        exclude: [...configDefaults.exclude],
       },
     })),
   },

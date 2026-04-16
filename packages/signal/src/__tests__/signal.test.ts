@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+
 import { computed, effect, signal } from '../index'
 
 describe('Signal System', () => {

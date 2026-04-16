@@ -1,14 +1,16 @@
-import fs from 'node:fs'
-import { parseArgs } from 'node:util'
-import { existsSync, readFileSync } from 'node:fs'
-import path from 'node:path'
-import { brotliCompressSync, gzipSync } from 'node:zlib'
-import pico from 'picocolors'
-import { cpus } from 'node:os'
-import { targets as allTargets, exec, fuzzyMatchTarget } from './utils'
-import prettyBytes from 'pretty-bytes'
 import { spawnSync } from 'node:child_process'
+import fs from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { cpus } from 'node:os'
+import path from 'node:path'
+import { parseArgs } from 'node:util'
+import { brotliCompressSync, gzipSync } from 'node:zlib'
+
+import pico from 'picocolors'
+import prettyBytes from 'pretty-bytes'
+
 import { scanEnums } from './inline-enums'
+import { targets as allTargets, exec, fuzzyMatchTarget } from './utils'
 
 const commit = spawnSync('git', ['rev-parse', '--short=7', 'HEAD'])
   .stdout.toString()

@@ -1,13 +1,16 @@
-import replace from '@rollup/plugin-replace'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import replace from '@rollup/plugin-replace'
 import pico from 'picocolors'
-import type { Plugin, RolldownOptions } from 'rolldown'
 import polyfillNode from 'rollup-plugin-polyfill-node'
+
 import { entries } from './aliases'
 import { inlineEnums } from './inline-enums'
+
 import type { MarkRequired, PackageFormat } from './utils'
+import type { Plugin, RolldownOptions } from 'rolldown'
 
 type OutputOptions = MarkRequired<
   import('rolldown').OutputOptions,

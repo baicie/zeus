@@ -1,9 +1,11 @@
-import MagicString from 'magic-string'
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
-import type { Plugin, RolldownOptions } from 'rolldown'
-import { dts } from 'rolldown-plugin-dts'
+
 import { parse } from '@babel/parser'
+import MagicString from 'magic-string'
+import { dts } from 'rolldown-plugin-dts'
+
+import type { Plugin, RolldownOptions } from 'rolldown'
 
 if (!existsSync('temp/packages')) {
   console.warn(
