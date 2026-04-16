@@ -1,0 +1,28 @@
+{
+  "name": "@zeusjs/compiler-babel",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "dependencies": {
+    "@babel/helper-plugin-utils": "^7.24.0",
+    "@babel/core": "^7.24.0",
+    "@zeusjs/compiler-shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/babel__core": "^7.20.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0"
+  }
+}
