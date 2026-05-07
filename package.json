@@ -16,6 +16,7 @@
     "test": "vitest",
     "test-unit": "vitest --project unit*",
     "test-coverage": "vitest run --project unit* --coverage",
+    "test:benchs": "vitest run packages/signal/src/__tests__/benchs/",
     "preinstall": "npx only-allow pnpm",
     "postinstall": "simple-git-hooks"
   },
@@ -50,6 +51,7 @@
     "esbuild-plugin-polyfill-node": "^0.3.0",
     "eslint": "^10.3.0",
     "eslint-plugin-import-x": "^4.16.2",
+    "jest-extended": "^7.0.0",
     "jsdom": "^29.1.1",
     "lint-staged": "^17.0.2",
     "magic-string": "^0.30.21",
