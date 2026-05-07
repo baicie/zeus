@@ -3,42 +3,11 @@ import tseslint from 'typescript-eslint'
 import { builtinModules } from 'node:module'
 import { defineConfig } from 'eslint/config'
 
-// 禁止使用的语法
-const BANNED_SYNTAX = {
-  banConstEnum: {
-    selector: 'TSEnumDeclaration[const=true]',
-    message:
-      'Please use non-const enums. This project automatically inlines enums.',
-  },
-  banObjectRestSpread: {
-    selector: 'ObjectPattern > RestElement',
-    message:
-      'Our output target is ES2016, and object rest spread results in verbose helpers and should be avoided.',
-  },
-  banObjectSpread: {
-    selector: 'ObjectExpression > SpreadElement',
-    message:
-      'esbuild transpiles object spread into very verbose inline helpers.\n' +
-      'Please use the `extend` helper from @zeus-js/shared instead.',
-  },
-  banAwait: {
-    selector: 'AwaitExpression',
-    message:
-      'Our output target is ES2016, so async/await syntax should be avoided.',
-  },
-  banOptionalChaining: {
-    selector: 'ChainExpression',
-    message:
-      'Our output target is ES2016, and optional chaining results in verbose helpers and should be avoided.',
-  },
-}
-
 // 共享规则
 const SHARED_RULES = {
   'no-debugger': 'error',
   'no-console': ['error', { allow: ['warn', 'error', 'info'] }],
   'no-restricted-globals': 'off',
-  'no-restricted-syntax': ['error', ...Object.values(BANNED_SYNTAX)],
   'import-x/no-nodejs-modules': [
     'error',
     { allow: builtinModules.map(mod => `node:${mod}`) },
@@ -155,7 +124,6 @@ export default defineConfig(
     ],
     rules: {
       'no-restricted-globals': 'off',
-      'no-restricted-syntax': ['error', BANNED_SYNTAX.banConstEnum],
       'no-console': 'off',
       'no-unused-vars': 'off',
     },
