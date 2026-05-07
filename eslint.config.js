@@ -41,7 +41,13 @@ const SHARED_RULES = {
 }
 
 // 忽略文件
-const IGNORED_PATTERNS = ['**/dist/', '**/temp/', '**/coverage/', 'target']
+const IGNORED_PATTERNS = [
+  '**/dist/',
+  '**/temp/',
+  '**/coverage/',
+  'target',
+  'vendor/**',
+]
 
 // 全局声明 - 由构建工具注入
 const GLOBAL_DECLARATIONS = {

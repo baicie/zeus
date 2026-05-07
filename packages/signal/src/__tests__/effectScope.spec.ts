@@ -6,10 +6,9 @@ test('should not trigger after stop', () => {
   const count = signal(1)
 
   let triggers = 0
-  let effect1
 
   const stopScope = effectScope(() => {
-    effect1 = effect(() => {
+    effect(() => {
       triggers++
       count()
     })
