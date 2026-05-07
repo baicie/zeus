@@ -1,5 +1,12 @@
-// import type { BabelProgram } from './types'
+import type { Visitor } from '@babel/core'
 
-export const program = (): unknown => {
-  return {}
+type PluginState = { opts: unknown }
+
+function createProgramVisitor(): NonNullable<Visitor<PluginState>['Program']> {
+  return {
+    // enter: preprocess,
+    // exit: postprocess,
+  }
 }
+
+export default createProgramVisitor
