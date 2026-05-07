@@ -1,10 +1,15 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "types": ["node"],
     "declaration": true,
     "emitDeclarationOnly": true,
-    "stripInternal": true
+    "stripInternal": true,
+    "composite": false
   },
-  "include": ["packages/*/src"],
-  "exclude": ["**/__tests__", "**/dist", "**/node_modules"]
+  "include": [
+    "packages/global.d.ts",
+    "packages/zeus/src",
+    "packages/signal/src"
+  ]
 }
