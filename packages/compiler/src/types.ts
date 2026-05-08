@@ -1,7 +1,15 @@
-import type { CompilerConfig } from './config'
-import type { Visitor, NodePath } from '@babel/core'
-// import type { Program } from '@babel/types'
+import type { CompilerOptions } from './config'
+import type { Visitor, PluginObj, PluginPass, NodePath } from '@babel/core'
+import type { Program } from '@babel/types'
 
-export type BabelVisitor = Visitor<{ opts: CompilerConfig }>
-export type BabelNodePath = NodePath<{ opts: CompilerConfig }>
-// export type BabelProgram = VisitNodeObject<Program>
+export type { CompilerOptions }
+
+export type BabelState = PluginPass
+
+export type BabelPlugin = PluginObj<BabelState>
+
+export type BabelVisitor = Visitor<BabelState>
+
+export type BabelProgramPath = NodePath<Program>
+
+export type BabelProgramVisitor = NonNullable<BabelVisitor['Program']>

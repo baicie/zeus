@@ -51,13 +51,16 @@
   "homepage": "https://github.com/baicie/zeus/tree/main/packages/compiler#readme",
   "devDependencies": {
     "@babel/core": "catalog:",
-    "@types/babel__core": "catalog:"
+    "@types/babel__core": "catalog:",
+    "@types/babel__helper-plugin-utils": "^7.10.3"
   },
   "peerDependencies": {
     "@babel/core": "catalog:"
   },
   "dependencies": {
+    "@babel/helper-plugin-utils": "^7.28.6",
     "@babel/plugin-syntax-jsx": "catalog:",
-    "@babel/types": "catalog:"
+    "@babel/types": "catalog:",
+    "@zeus-js/shared": "workspace:*"
   }
 }

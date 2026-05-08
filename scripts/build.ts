@@ -22,6 +22,7 @@ const { values, positionals: targets } = parseArgs({
     formats: {
       type: 'string',
       short: 'f',
+      default: 'esm-bundler',
     },
     devOnly: {
       type: 'boolean',
@@ -79,9 +80,12 @@ async function run() {
     const resolvedTargets = targets.length
       ? fuzzyMatchTarget(targets, buildAllMatching)
       : allTargets
+    if (watch && buildTypes) {
+      runDtsInBackground(resolvedTargets)
+    }
     await buildAll(resolvedTargets)
     await checkAllSizes(resolvedTargets)
-    if (buildTypes) {
+    if (!watch && buildTypes) {
       await exec(
         'pnpm',
         [
@@ -100,6 +104,27 @@ async function run() {
     // Cache must be removed after build-dts since it depends on enum cache
   }
   removeCache()
+}
+
+function runDtsInBackground(resolvedTargets: string[]): void {
+  console.log(`${pico.cyan('[build-dts]')} spawning in background...`)
+
+  const args = [
+    'run',
+    'build-dts',
+    ...(resolvedTargets.length
+      ? ['--environment', `TARGETS:${resolvedTargets.join(',')}`]
+      : []),
+  ]
+
+  // Fire-and-forget: pipe output and don't await
+  exec('pnpm', args, { stdio: 'pipe' })
+    .then(result => {
+      console.log(`${pico.green('[build-dts]')} background dts build finished`)
+    })
+    .catch(err => {
+      console.error(`${pico.red('[build-dts]')} ${err.message}`)
+    })
 }
 
 async function buildAll(targets: string[]): Promise<void> {

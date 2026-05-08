@@ -47,6 +47,7 @@ const IGNORED_PATTERNS = [
   '**/coverage/',
   'target',
   'vendor/**',
+  'playground/**',
 ]
 
 // 全局声明 - 由构建工具注入
@@ -151,6 +152,17 @@ export default defineConfig(
     files: ['packages/global.d.ts'],
     rules: {
       'no-unused-vars': 'off',
+    },
+  },
+
+  // ============================================
+  // Vitest setup 文件 - 允许 any 用于声明合并
+  // ============================================
+  {
+    name: 'vitest-setup',
+    files: ['scripts/setup-vitest.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
 )

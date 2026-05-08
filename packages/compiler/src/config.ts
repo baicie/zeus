@@ -1,7 +1,8 @@
+import { extend } from '@zeus-js/shared'
 /**
  * Compiler configuration interface.
  */
-export interface CompilerConfig {
+export interface CompilerOptions {
   /**
    * The name of the runtime module to import the methods from.
    */
@@ -35,7 +36,7 @@ export interface CompilerConfig {
    * When set to a string value, this option restricts JSX transformation to only files that contain a specific JSX import source pragma comment. The plugin will only transform JSX in files that include a comment with `@jsxImportSource` followed by the specified value. If the comment is missing or specifies a different import source, the transformation is skipped for that file.
    * @default false
    */
-  requireImportSource: boolean
+  // requireImportSource: boolean
   /**
    * Boolean indicates whether smart conditional detection should be used. This optimizes simple boolean expressions and ternaries in JSX.
    * @default true
@@ -84,14 +85,14 @@ export interface CompilerConfig {
   inlineStyles: boolean
 }
 
-export const DEFAULT_CONFIG: CompilerConfig = {
+export const DEFAULT_OPTIONS: CompilerOptions = {
   moduleName: 'dom',
   generate: 'dom',
   hydratable: false,
   delegateEvents: true,
   delegatedEvents: [],
   builtIns: [],
-  requireImportSource: false,
+  // requireImportSource: false,
   wrapConditionals: true,
   omitNestedClosingTags: false,
   omitLastClosingTag: true,
@@ -102,4 +103,13 @@ export const DEFAULT_CONFIG: CompilerConfig = {
   memoWrapper: 'memo',
   validate: true,
   inlineStyles: true,
+}
+
+/**
+ * Resolve the compiler options by merging the default options with the provided options.
+ * @param options - The compiler options to resolve.
+ * @returns The resolved compiler options.
+ */
+export function resolveConfig(options: CompilerOptions): CompilerOptions {
+  return extend(DEFAULT_OPTIONS, options)
 }

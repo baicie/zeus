@@ -17,6 +17,7 @@
     "test-unit": "vitest --project unit*",
     "test-coverage": "vitest run --project unit* --coverage",
     "test:benchs": "vitest run packages/signal/src/__tests__/benchs/",
+    "playground": "pnpm -F @zeus-js/playground dev",
     "preinstall": "npx only-allow pnpm",
     "postinstall": "simple-git-hooks"
   },
