@@ -1,4 +1,5 @@
 {
+  "ignore": ["vendor"],
   "upgrade": true,
   "deep": true
 }
