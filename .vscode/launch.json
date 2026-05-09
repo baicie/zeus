@@ -8,6 +8,20 @@
       "program": "${workspaceRoot}/node_modules/vitest/vitest.mjs",
       "args": ["run", "${relativeFile}"],
       "skipFiles": ["<node_internals>/**", "**/node_modules/**"]
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Playground Dev Server",
+      "runtimeExecutable": "${workspaceRoot}/node_modules/.bin/tsx",
+      "runtimeArgs": ["${workspaceRoot}/playground/src/index.js"],
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
+      "env": {
+        "NODE_ENV": "development"
+      },
+      "console": "integratedTerminal",
+      "sourceMaps": true,
+      "cwd": "${workspaceRoot}/playground"
     }
   ]
 }

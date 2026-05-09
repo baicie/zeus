@@ -75,7 +75,8 @@ const outputConfigs: Record<PackageFormat, OutputOptions> = {
 }
 
 const defaultFormats: ReadonlyArray<PackageFormat> = ['esm-bundler', 'cjs']
-const inlineFormats = process.env.FORMATS && process.env.FORMATS.split(',')
+const inlineFormats =
+  process.env.FORMATS && decodeURIComponent(process.env.FORMATS).split(',')
 const packageFormats: ReadonlyArray<PackageFormat> =
   inlineFormats || packageOptions.formats || defaultFormats
 

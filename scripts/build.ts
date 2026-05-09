@@ -22,7 +22,7 @@ const { values, positionals: targets } = parseArgs({
     formats: {
       type: 'string',
       short: 'f',
-      default: 'esm-bundler',
+      default: 'esm-bundler,cjs',
     },
     devOnly: {
       type: 'boolean',
@@ -57,6 +57,10 @@ const { values, positionals: targets } = parseArgs({
   },
 })
 
+if (values.watch && values.sourceMap === undefined) {
+  values.sourceMap = true
+}
+
 const {
   formats,
   all: buildAllMatching,
@@ -68,10 +72,6 @@ const {
   size: writeSize,
   watch,
 } = values
-
-if (watch && sourceMap === undefined) {
-  values.sourceMap = true
-}
 
 const sizeDir = path.resolve('temp/size')
 
@@ -188,7 +188,7 @@ async function build(target: string): Promise<void> {
         `COMMIT:${commit}`,
         `NODE_ENV:${env}`,
         `TARGET:${target}`,
-        formats ? `FORMATS:${formats}` : ``,
+        formats ? `FORMATS:${encodeURIComponent(formats)}` : ``,
         prodOnly ? `PROD_ONLY:true` : ``,
         sourceMap ? `SOURCE_MAP:true` : ``,
       ]
