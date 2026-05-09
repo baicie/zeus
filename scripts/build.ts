@@ -69,6 +69,10 @@ const {
   watch,
 } = values
 
+if (watch && sourceMap === undefined) {
+  values.sourceMap = true
+}
+
 const sizeDir = path.resolve('temp/size')
 
 run()

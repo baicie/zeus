@@ -10,6 +10,7 @@
   "include": [
     "packages/global.d.ts",
     "packages/zeus/src",
-    "packages/signal/src"
+    "packages/signal/src",
+    "packages/compiler/src"
   ]
 }

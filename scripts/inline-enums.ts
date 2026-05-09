@@ -67,7 +67,6 @@ export function scanEnums(): () => void {
   // 2. parse matched files to collect enum info
   for (const relativeFile of files) {
     const file = path.resolve(process.cwd(), relativeFile)
-    console.log('file', file)
     const content = readFileSync(file, 'utf-8')
     const ast = parse(content, {
       plugins: ['typescript'],
