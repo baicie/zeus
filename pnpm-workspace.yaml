@@ -4,7 +4,7 @@ packages:
 
 allowBuilds:
   esbuild: true
-  puppeteer: true
+  puppeteer: false
   simple-git-hooks: true
   unrs-resolver: true
 
