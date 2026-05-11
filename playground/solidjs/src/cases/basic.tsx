@@ -18,14 +18,19 @@ export function MultipleChildren() {
   )
 }
 
-// Element with attribute
-export function WithAttribute() {
-  return <button className="primary">Click me</button>
+// Element with class attribute
+export function WithClass() {
+  return <button class="primary">Click me</button>
 }
 
 // Element with dynamic attribute
 export function DynamicAttribute() {
   return <input type="text" placeholder="Enter text" />
+}
+
+// Input self-closing
+export function SelfClosing() {
+  return <input type="checkbox" checked />
 }
 
 // Fragment
@@ -35,5 +40,14 @@ export function WithFragment() {
       <span>First</span>
       <span>Second</span>
     </>
+  )
+}
+
+// SVG element
+export function WithSVG() {
+  return (
+    <svg width="100" height="100">
+      <rect x="10" y="10" width="80" height="80" fill="red" />
+    </svg>
   )
 }

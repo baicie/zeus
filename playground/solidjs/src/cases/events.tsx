@@ -1,4 +1,4 @@
-// Event handlers
+// Click handler
 export function ClickHandler() {
   return <button onClick={() => console.log('clicked')}>Click me</button>
 }
@@ -23,7 +23,26 @@ export function EventWithArgs() {
   return <button onClick={e => handleClick(e, 123)}>Click</button>
 }
 
-// Input with onChange
+// Input with onInput
 export function InputWithChange() {
-  return <input onChange={e => console.log(e.target.value)} />
+  return <input onInput={e => console.log(e.currentTarget.value)} />
+}
+
+// Prevent default
+export function PreventDefault() {
+  return (
+    <form onSubmit={e => e.preventDefault()}>
+      <button type="submit">Submit</button>
+    </form>
+  )
+}
+
+// Delegated event (camelCase -> kebab)
+export function DelegatedEvents() {
+  return (
+    <div>
+      <button onClick={() => console.log('btn1')}>Button 1</button>
+      <button onClick={() => console.log('btn2')}>Button 2</button>
+    </div>
+  )
 }

@@ -1,12 +1,12 @@
 packages:
   - packages/*
-  - playground
+  - playground/*
 
 allowBuilds:
-  esbuild: set this to true or false
-  puppeteer: set this to true or false
-  simple-git-hooks: set this to true or false
-  unrs-resolver: set this to true or false
+  esbuild: true
+  puppeteer: true
+  simple-git-hooks: true
+  unrs-resolver: true
 
 catalog:
   '@babel/core': ^7.29.0

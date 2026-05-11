@@ -14,14 +14,14 @@
       "request": "launch",
       "name": "Playground Dev Server",
       "runtimeExecutable": "${workspaceRoot}/node_modules/.bin/tsx",
-      "runtimeArgs": ["${workspaceRoot}/playground/src/index.js"],
+      "runtimeArgs": ["${workspaceRoot}/playground/compiler/src/index.js"],
       "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
       "env": {
         "NODE_ENV": "development"
       },
       "console": "integratedTerminal",
       "sourceMaps": true,
-      "cwd": "${workspaceRoot}/playground"
+      "cwd": "${workspaceRoot}/playground/compiler"
     }
   ]
 }

@@ -1,7 +1,6 @@
 // Dynamic expressions in JSX
 export function DynamicExpr() {
   const name = 'World'
-  const count = 42
   return <div>{name}</div>
 }
 
@@ -25,10 +24,7 @@ export function FunctionCall() {
 
 // Object property access
 export function ObjectProp() {
-  const user = {
-    name: 'Alice',
-    age: 30,
-  }
+  const user = { name: 'Alice', age: 30 }
   return <div>{user.name}</div>
 }
 
@@ -42,4 +38,30 @@ export function ArrayMap() {
       ))}
     </ul>
   )
+}
+
+// Static expression (should NOT be wrapped)
+export function StaticOnce() {
+  const count = 0
+  return <span>{/*@once*/ count}</span>
+}
+
+// Computed expression
+export function ComputedExpr() {
+  const a = 10
+  const b = 20
+  return <div>{a + b}</div>
+}
+
+// Unary expression
+export function UnaryExpr() {
+  const value = 5
+  return <div>{-value}</div>
+}
+
+// Binary expression
+export function BinaryExpr() {
+  const x = 3
+  const y = 4
+  return <div>{x * y}</div>
 }
