@@ -1,6 +1,6 @@
 // import * as t from '@babel/types'
 
-import { getFileMetadata } from './unit'
+import { setZeusMetadata } from './unit'
 
 import type {
   BabelState,
@@ -18,9 +18,7 @@ function enterProgram(
   path: BabelProgramPath,
   state: BabelState,
 ): void {
-  const metadata = getFileMetadata(state)
-
-  metadata.config = config
+  setZeusMetadata(state, config)
 }
 
 /**

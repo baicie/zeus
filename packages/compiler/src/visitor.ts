@@ -5,13 +5,8 @@ import type { BabelVisitor, CompilerOptions } from './types'
 
 export function createVisitor(config: CompilerOptions): BabelVisitor {
   return {
-    JSXElement(path, state) {
-      transformJSX(path, state, config)
-    },
-
-    JSXFragment(path, state) {
-      transformJSX(path, state, config)
-    },
+    JSXElement: transformJSX,
+    JSXFragment: transformJSX,
     Program: createProgramVisitor(config),
   }
 }

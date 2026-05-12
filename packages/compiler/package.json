@@ -61,6 +61,7 @@
     "@babel/helper-plugin-utils": "^7.28.6",
     "@babel/plugin-syntax-jsx": "catalog:",
     "@babel/types": "catalog:",
+    "@baicie/logger": "^0.1.3",
     "@zeus-js/shared": "workspace:*"
   }
 }
