@@ -29,7 +29,9 @@ for (const { label, w, h } of cases) {
         const prev = last
         last = computed(() => prev() + 1)
       }
-      effect(() => last())
+      void effect(() => {
+        last()
+      })
     }
     const start = performance.now()
     src(src() + 1)

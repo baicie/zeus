@@ -1,7 +1,7 @@
 import * as t from '@babel/types'
 
 import { transformElementDOM } from './element'
-import { getTagName, getZeusMetadata, isJSXElementPath, logger } from './unit'
+import { isJSXElementPath, logger } from './unit'
 
 import type { BabelJSXElementPath, BabelJSXPath, BabelState } from './types'
 
@@ -11,13 +11,13 @@ export function transformJSX(path: BabelJSXPath, state: BabelState) {
   // const metadata = getZeusMetadata(state)
   const result = transformNode(path, state)
 
-  logger.info(result)
+  if (result) {
+    logger.info(result)
+  }
 }
 
 function transformNode(path: BabelJSXPath, state: BabelState) {
-  const metadata = getZeusMetadata(state)
   const node = path.node
-  let staticValue: unknown
 
   if (isJSXElementPath(path)) {
     return transformElement(path, state)
@@ -40,8 +40,8 @@ function transformNode(path: BabelJSXPath, state: BabelState) {
 }
 
 function transformElement(path: BabelJSXElementPath, state: BabelState) {
-  const node = path.node
-  const tagName = getTagName(node)
+  // const node = path.node
+  // const tagName = getTagName(node)
 
   // <Component ...></Component>
   // if (isComponent(tagName)) return transformComponent(path)

@@ -59,7 +59,7 @@ export type BabelIdentifier = t.Identifier
  * - hasHydratableEvent: 是否包含 hydration 事件
  * - dynamic: 是否为动态表达式
  */
-export type ElementTransformResult = {
+export type TransformResults = {
   template: string
   templateWithClosingTags: string
   declarations: BabelStatement[]

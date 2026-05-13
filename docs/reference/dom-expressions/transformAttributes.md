@@ -74,6 +74,167 @@ if (!hasChildren && children) path.node.children.push(children)
 if (spreadExpr) results.exprs.push(spreadExpr)
 ```
 
+## 事件绑定详解
+
+SolidJS 编译器对事件绑定的处理分为**两种模式**：
+
+### 模式一：普通模式（直接绑定）
+
+```tsx
+<button onClick={handleClick}>点击</button>
+```
+
+编译后直接调用 `addEventListener`：
+
+```js
+button.addEventListener("click", handleClick)
+```
+
+编译器代码（element.js 831-871 行）：
+
+```js
+results.exprs.unshift(
+  t.expressionStatement(
+    t.callExpression(
+      t.memberExpression(elem, t.identifier("addEventListener")),
+      [t.stringLiteral(ev), handler]
+    )
+  )
+)
+```
+
+### 模式二：委托模式（事件委托）
+
+这是 SolidJS 的**核心优化**。对于高频事件（click、input、keydown 等），不直接在每个元素上绑定，而是**委托到 document**。
+
+```tsx
+<button onClick={handleClick}>点击</button>
+```
+
+编译后变成**赋值到 DOM 节点属性**：
+
+```js
+button["$click"] = handleClick
+```
+
+编译器代码（element.js 773-830 行）：
+
+```js
+results.exprs.unshift(
+  t.expressionStatement(
+    t.assignmentExpression(
+      "=",
+      t.memberExpression(elem, t.identifier(`$$${ev}`)),
+      handler
+    )
+  )
+)
+```
+
+#### 委托的运行时逻辑
+
+```js
+// client.js
+export function delegateEvents(eventNames) {
+  const e = document[$$EVENTS] || (document[$$EVENTS] = new Set())
+  for (const name of eventNames) {
+    if (!e.has(name)) {
+      e.add(name)
+      document.addEventListener(name, eventHandler)
+    }
+  }
+}
+
+// 事件处理器，从 e.target 往上遍历
+function eventHandler(e) {
+  let node = e.target
+  const key = `$$${e.type}`
+
+  while (node) {
+    const handler = node[key]
+    if (handler && !node.disabled) {
+      const data = node[`${key}Data`]
+      data !== undefined
+        ? handler.call(node, data, e)
+        : handler.call(node, e)
+      if (e.cancelBubble) return
+    }
+    node = node.parentNode
+  }
+}
+```
+
+#### 委托事件列表
+
+```js
+const DelegatedEvents = new Set([
+  "beforeinput", "click", "dblclick", "contextmenu",
+  "focusin", "focusout", "input",
+  "keydown", "keyup",
+  "mousedown", "mousemove", "mouseout", "mouseover", "mouseup",
+  "pointerdown", "pointermove", "pointerout", "pointerover", "pointerup",
+  "touchend"
+])
+```
+
+#### 其他事件语法
+
+| 语法 | 效果 |
+|---|---|
+| `on:click={fn}` | 强制用 `addEventListener`（不走委托） |
+| `oncapture:click={fn}` | 捕获阶段监听 |
+| `onClick={[fn, data]}` | 委托模式，handler 接收 `[data, event]` |
+
+### Zeus 事件绑定最小实现
+
+MVP 阶段先用普通模式，事件委托作为后续优化：
+
+```ts
+function toEventName(name: string): string {
+  return name.slice(2).toLowerCase()
+}
+
+if (key.startsWith('on') && key.length > 2) {
+  const eventName = toEventName(key)
+  results.exprs.push(
+    t.expressionStatement(
+      t.callExpression(
+        t.memberExpression(results.id!, t.identifier('addEventListener')),
+        [t.stringLiteral(eventName), expr]
+      )
+    )
+  )
+}
+```
+
+## 当前实现状态
+
+已实现，与 dom-expressions 的普通模式一致：
+
+```ts
+// 事件绑定 onClick onInput ...
+if (key.startsWith('on') && key.length > 2) {
+  const eventName = key[2].toLowerCase() + key.slice(3)
+  results.exprs.push(
+    t.expressionStatement(
+      t.callExpression(
+        t.memberExpression(results.id!, t.identifier('addEventListener')),
+        [t.stringLiteral(eventName), expr]
+      )
+    )
+  )
+}
+```
+
+对应源码：`packages/compiler/src/element.ts` transformAttributes 函数。
+
+## 后续优化方向
+
+- [ ] **事件委托**：参考上方"模式二：委托模式"，将高频事件统一委托到 document
+- [ ] `on:click={fn}` 语法支持
+- [ ] `oncapture:click={fn}` 语法支持
+- [ ] `[fn, data]` 数组形式支持
+
 ## 不做
 
 - **Spread 展开**（`{...props}`）
@@ -85,6 +246,12 @@ if (spreadExpr) results.exprs.push(spreadExpr)
 ## 最小可实现版本
 
 ```ts
+import * as t from '@babel/types'
+
+function toEventName(name: string): string {
+  return name.slice(2).toLowerCase()
+}
+
 export function transformAttributes(path: BabelJSXElementPath, results: TransformResults) {
   path.get("openingElement").get("attributes").forEach((attr) => {
     const node = attr.node
@@ -98,7 +265,7 @@ export function transformAttributes(path: BabelJSXElementPath, results: Transfor
 
       // 事件绑定 onClick onInput ...
       if (key.startsWith('on') && key.length > 2) {
-        const eventName = key[2].toLowerCase() + key.slice(3)
+        const eventName = toEventName(key)
         results.exprs.push(
           t.expressionStatement(
             t.callExpression(

@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 
-import { computed, effect, signal } from '../..'
+import { computed, effect, effectScope, signal } from '../..'
 
 /**
  * Memory usage benchmark tests.
@@ -55,7 +55,9 @@ test('memory: effect allocation', () => {
   globalThis.gc?.()
   const start = process.memoryUsage().heapUsed
 
-  Array.from({ length: 10000 }, (_, i) => effect(() => computeds[i]()))
+  Array.from({ length: 10000 }, (_, i) => {
+    effectScope(() => computeds[i]())
+  })
 
   globalThis.gc?.()
   const end = process.memoryUsage().heapUsed
@@ -77,7 +79,9 @@ test('memory: propagation tree (100x100 grid of computed+effect)', () => {
     for (let j = 0; j < h; j++) {
       const prev = last
       last = computed(() => prev() + 1)
-      effect(() => last())
+      effect(() => {
+        last()
+      })
     }
   }
 
