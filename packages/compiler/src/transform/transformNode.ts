@@ -1,25 +1,23 @@
-import * as t from '@babel/types'
-
 import { transformElement } from './transformElement'
-import { isJSXElementPath, logger } from '../utils/unit'
+import { transformText } from './transformText'
+import { logger } from '../utils/unit'
 
 import type { BabelJSXPath, BabelState } from '../utils/types'
 
 export function transformNode(path: BabelJSXPath, state: BabelState) {
-  const node = path.node
+  // const node = path.node
 
-  if (isJSXElementPath(path)) {
+  if (path.isJSXElement()) {
     return transformElement(path, state)
-  } else if (t.isJSXFragment(node)) {
+  } else if (path.isJSXFragment()) {
     logger.warn('JSXFragment is not supported')
     return
-  } else if (t.isJSXText(node)) {
-    logger.warn('JSXText is not supported')
-    return
-  } else if (t.isJSXExpressionContainer(node)) {
+  } else if (path.isJSXText()) {
+    return transformText(path)
+  } else if (path.isJSXExpressionContainer()) {
     logger.warn('JSXExpressionContainer is not supported')
     return
-  } else if (t.isJSXSpreadChild(node)) {
+  } else if (path.isJSXSpreadChild()) {
     logger.warn('JSXSpreadChild is not supported')
     return
   } else {
