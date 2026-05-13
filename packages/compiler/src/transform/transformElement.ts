@@ -1,7 +1,7 @@
 import { transformAttributes } from './transformAttributes'
 import { transformChildren } from './transformChildren'
 import { VoidElements } from '../utils/constant'
-import { getTagName } from '../utils/unit'
+import { getTagName } from '../utils/helpers'
 
 import type {
   BabelJSXElementPath,
