@@ -1,13 +1,13 @@
 // import * as t from '@babel/types'
 
-import { setZeusMetadata } from './unit'
+import { setZeusMetadata } from './utils/unit'
 
 import type {
   BabelState,
   CompilerOptions,
   BabelProgramPath,
   BabelProgramVisitor,
-} from './types'
+} from './utils/types'
 
 /**
  * Called when the program is first visited.

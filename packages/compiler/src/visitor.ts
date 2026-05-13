@@ -1,7 +1,7 @@
 import { createProgramVisitor } from './program'
-import { transformJSX } from './transformJSX'
+import { transformJSX } from './transform'
 
-import type { BabelVisitor, CompilerOptions } from './types'
+import type { BabelVisitor, CompilerOptions } from './utils/types'
 
 export function createVisitor(config: CompilerOptions): BabelVisitor {
   return {

@@ -9,9 +9,11 @@ import type {
   BabelJSXPath,
   BabelJSXElementPath,
   TransformResults,
+  ElementTransformResults,
 } from './types'
 
-//#region  file metadata
+//#region file metadata
+
 type ZeusMetadata = {
   config?: CompilerOptions
 }
@@ -48,7 +50,7 @@ export const logger = createLoggerInstance({
 
 //#endregion
 
-//#region component
+//#region jsx name
 
 type BabelJSXOpeningElementName = t.JSXOpeningElement['name']
 
@@ -56,25 +58,32 @@ function jsxElementNameToString(node: BabelJSXOpeningElementName): string {
   if (t.isJSXMemberExpression(node)) {
     return `${jsxElementNameToString(node.object)}.${node.property.name}`
   }
+
   if (t.isJSXIdentifier(node) || t.isIdentifier(node)) {
     return node.name
   }
+
   return `${node.namespace.name}:${node.name.name}`
 }
 
 export function getTagName(node: BabelJSXElement): string {
-  const jsxName = node.openingElement.name
-  return jsxElementNameToString(jsxName)
+  return jsxElementNameToString(node.openingElement.name)
 }
 
 //#endregion
 
-//#region isXxx
+//#region type guards
 
 export function isJSXElementPath(
   path: BabelJSXPath,
 ): path is BabelJSXElementPath {
   return t.isJSXElement(path.node)
+}
+
+export function isElementResult(
+  result: TransformResults,
+): result is ElementTransformResults {
+  return result.kind === 'element'
 }
 
 //#endregion
@@ -84,7 +93,7 @@ export function isJSXElementPath(
 export function inlineAttributeOnTemplate(
   key: string,
   value: t.JSXAttribute['value'],
-  results: TransformResults,
+  results: ElementTransformResults,
 ) {
   if (!value) {
     results.template += ` ${key}`
@@ -92,7 +101,7 @@ export function inlineAttributeOnTemplate(
   }
 
   if (t.isStringLiteral(value)) {
-    results.template += ` ${key}="${escapeHTML(value.value)}"`
+    results.template += ` ${key}="${escapeHTML(value.value, true)}"`
     return
   }
 
@@ -101,9 +110,9 @@ export function inlineAttributeOnTemplate(
     t.isNumericLiteral(value.expression)
   ) {
     results.template += ` ${key}="${value.expression.value}"`
-    return
   }
 }
+
 export function setAttr(
   elem: t.Identifier,
   key: string,
@@ -133,7 +142,6 @@ export function escapeHTML(value: string, attr = false): string {
 
   for (let i = 0; i < value.length; i++) {
     const char = value[i]
-
     let escaped: string | undefined
 
     if (char === '&') {

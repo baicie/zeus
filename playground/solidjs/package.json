@@ -14,10 +14,8 @@
     "@babel/parser": "catalog:"
   },
   "devDependencies": {
-    "@babel/helper-module-imports": "^7.28.6",
     "@babel/plugin-syntax-jsx": "catalog:",
     "@babel/types": "catalog:",
-    "html-entities": "^2.6.0",
     "typescript": "^6.0.3"
   }
 }

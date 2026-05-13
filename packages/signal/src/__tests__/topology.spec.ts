@@ -1,11 +1,10 @@
-import * as matchers from 'jest-extended'
 import { expect, test, vi, describe } from 'vitest'
 
 import { computed, effect, signal } from '..'
 
-// To give access to .toHaveBeenCalledBefore()
-
-expect.extend(matchers)
+// NOTE: This file originally used jest-extended's .toHaveBeenCalledBefore()
+// matcher. If you need this matcher in the future, consider using vitest's
+// built-in expectpoll or a vitest-compatible alternative.
 
 /** Tests adopted with thanks from preact-signals implementation at
  * https://github.com/preactjs/signals/blob/main/packages/core/test/signal.test.tsx
