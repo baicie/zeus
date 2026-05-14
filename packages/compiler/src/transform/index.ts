@@ -1,5 +1,5 @@
 import { transformNode } from './node'
-import { createTemplate } from '../generate'
+import { createTemplate } from '../codegen'
 import { isDynamicResult, isElementResult, logger } from '../utils'
 
 import type { BabelJSXPath, BabelState } from '../types'

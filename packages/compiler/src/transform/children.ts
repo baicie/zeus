@@ -1,11 +1,8 @@
 import * as t from '@babel/types'
 
 import { transformNode } from './node'
-import {
-  getRendererConfig,
-  isElementResult,
-  registerImportMethod,
-} from '../utils'
+import { getRendererConfig, registerImportMethod } from '../runtime'
+import { isElementResult } from '../utils'
 
 import type {
   BabelJSXElementPath,

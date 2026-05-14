@@ -1,16 +1,25 @@
+/**
+ * Runtime helpers registration and program injection.
+ *
+ * Manages the collection of runtime helper imports (template, insert, setAttr,
+ * createComponent, delegateEvents, etc.) and generates the necessary import
+ * declarations at the top of the program.
+ */
 import * as t from '@babel/types'
 
-import type {
-  BabelProgramPath,
-  ElementTransformResults,
-  ZeusRenderer,
-} from '../types'
+import type { BabelProgramPath, ZeusRenderer } from '../types'
 import type { NodePath } from '@babel/core'
 
 type ImportMethodRecord = {
   imported: string
   local: t.Identifier
   moduleName: string
+}
+
+export type ProgramScopeData = {
+  importMethods?: Map<string, ImportMethodRecord>
+  events?: Set<string>
+  templates?: TemplateRecord[]
 }
 
 export type TemplateRecord = {
@@ -23,13 +32,9 @@ export type TemplateRecord = {
   isImportNode?: boolean
 }
 
-export type ProgramScopeData = {
-  importMethods?: Map<string, ImportMethodRecord>
-  events?: Set<string>
-  templates?: TemplateRecord[]
-}
-
 export const DEFAULT_RENDERER_MODULE = '@zeus-js/runtime-dom'
+
+//#region private helpers
 
 function getImportKey(moduleName: string, imported: string): string {
   return `${moduleName}:${imported}`
@@ -62,6 +67,10 @@ export function getRendererConfig(
   }
 }
 
+//#endregion
+
+//#region import method registry
+
 export function registerImportMethod(
   path: NodePath,
   imported: string,
@@ -87,6 +96,10 @@ export function registerImportMethod(
   return t.cloneNode(local)
 }
 
+/**
+ * Generates import declarations for all collected runtime helpers and
+ * prepends them to the program body.
+ */
 export function appendImportMethods(path: BabelProgramPath): void {
   const data = path.scope.data as ProgramScopeData
   const importMethods = data.importMethods
@@ -124,29 +137,9 @@ export function appendImportMethods(path: BabelProgramPath): void {
   path.unshiftContainer('body', declarations)
 }
 
-export function appendEvents(path: BabelProgramPath): void {
-  const scopeData = path.scope.data as ProgramScopeData
-  const events = scopeData.events
+//#endregion
 
-  if (!events?.size) return
-
-  path.node.body.push(
-    t.expressionStatement(
-      t.callExpression(
-        registerImportMethod(
-          path,
-          'delegateEvents',
-          getRendererConfig(path, 'dom').moduleName,
-        ),
-        [
-          t.arrayExpression(
-            Array.from(events).map(eventName => t.stringLiteral(eventName)),
-          ),
-        ],
-      ),
-    ),
-  )
-}
+//#region program scope data
 
 export function getProgramScopeData(path: NodePath): ProgramScopeData {
   const programPath = path.scope.getProgramParent().path as BabelProgramPath
@@ -157,31 +150,9 @@ function getProgramPath(path: NodePath): BabelProgramPath {
   return path.scope.getProgramParent().path as BabelProgramPath
 }
 
-export function registerTemplate(
-  path: NodePath,
-  result: ElementTransformResults,
-): void {
-  if (!result.template.length || result.skipTemplate) return
+//#endregion
 
-  const scopeData = getProgramScopeData(path)
-  const templates = (scopeData.templates ||= [])
-
-  const existing = templates.find(t => t.template === result.template)
-
-  if (existing) return
-
-  const templateId = getProgramPath(path).scope.generateUidIdentifier('tmpl$')
-
-  templates.push({
-    id: templateId,
-    template: result.template,
-    templateWithClosingTags: result.templateWithClosingTags,
-    isSVG: result.isSVG,
-    isCE: result.hasCustomElement,
-    isImportNode: result.isImportNode,
-    renderer: result.renderer,
-  })
-}
+//#region escape helpers
 
 export function escapeStringForTemplate(value: string): string {
   return value
@@ -195,3 +166,5 @@ export function isMathMLTemplate(template: string): boolean {
     template,
   )
 }
+
+//#endregion

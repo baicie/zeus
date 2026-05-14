@@ -1,7 +1,7 @@
 import * as t from '@babel/types'
 
 import { escapeHTML } from './html'
-import { getRendererConfig, registerImportMethod } from './imports'
+import { getRendererConfig, registerImportMethod } from '../runtime'
 
 import type { ElementTransformResults } from '../types'
 import type { NodePath } from '@babel/core'

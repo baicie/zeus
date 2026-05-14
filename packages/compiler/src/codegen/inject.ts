@@ -1,23 +1,33 @@
+/**
+ * Program injection codegen.
+ *
+ * Generates the variable declarations for all compiled templates and
+ * injects them at the very top of the program body.
+ *
+ * This runs in Program.exit — after all JSX has been transformed and
+ * all templates have been registered.
+ */
 import * as t from '@babel/types'
 
 import {
+  getTemplates,
   escapeStringForTemplate,
-  getRendererConfig,
   isMathMLTemplate,
-  type ProgramScopeData,
   registerImportMethod,
-  type TemplateRecord,
-} from '../utils'
+  getRendererConfig,
+} from '../runtime'
 
+import type { TemplateRecord } from '../runtime'
 import type { BabelProgramPath } from '../types'
 
+/**
+ * Generates `var tmpl$0 = template(...), tmpl$1 = template(...)` declarations
+ * and unshifts them to the top of the program.
+ */
 export function appendTemplates(path: BabelProgramPath): void {
-  const scopeData = path.scope.data as ProgramScopeData
-  const templates = scopeData.templates?.filter(
-    template => template.renderer === 'dom',
-  )
+  const templates = getTemplates(path, 'dom')
 
-  if (!templates?.length) return
+  if (!templates.length) return
 
   const templateMethod = registerImportMethod(
     path,

@@ -1,5 +1,6 @@
-import { appendTemplates } from './generate/appendTemplate'
-import { appendEvents, appendImportMethods, setZeusMetadata } from './utils'
+import { appendTemplates } from './codegen/inject'
+import { appendEvents, appendImportMethods } from './runtime'
+import { setZeusMetadata } from './utils'
 
 import type {
   BabelState,

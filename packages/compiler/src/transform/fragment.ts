@@ -1,7 +1,7 @@
 import * as t from '@babel/types'
 
 import { transformNode } from './node'
-import { createTemplate } from '../generate'
+import { createTemplate } from '../codegen'
 import { escapeHTML, trimJSXText } from '../utils'
 
 import type {

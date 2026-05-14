@@ -1,8 +1,8 @@
 import * as t from '@babel/types'
 
 import { transformNode } from './node'
+import { createTemplate } from '../codegen'
 import { CompilerError, CompilerErrorCode } from '../errors'
-import { createTemplate } from '../generate'
 import {
   getJSXAttrName,
   getRendererConfig,

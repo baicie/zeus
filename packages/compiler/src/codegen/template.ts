@@ -1,6 +1,21 @@
+/**
+ * Template AST generation.
+ *
+ * Converts an ElementTransformResults (the element IR) into a Babel AST expression.
+ *
+ * If the element has no dynamic parts (no bindings, no expressions, a single
+ * declaration), the result is a plain `tmpl$0()` call.
+ * Otherwise, it wraps everything in an arrow function:
+ *
+ *   () => {
+ *     const el$0 = tmpl$0().firstChild
+ *     $setAttr(el$0, 'id', id)
+ *     return el$0
+ *   }
+ */
 import * as t from '@babel/types'
 
-import { registerTemplate, getProgramScopeData } from '../utils'
+import { registerTemplate, findTemplateByString } from '../runtime'
 
 import type { BabelJSXPath, ElementTransformResults } from '../types'
 
@@ -10,8 +25,7 @@ export function createTemplate(
 ): t.Expression {
   registerTemplate(path, result)
 
-  const templates = getProgramScopeData(path).templates || []
-  const templateRecord = templates.find(t => t.template === result.template)
+  const templateRecord = findTemplateByString(path, result.template)
 
   if (!templateRecord) {
     throw new Error('Template not registered')

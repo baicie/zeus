@@ -1,6 +1,6 @@
 import { extend } from '@zeus-js/shared'
 
-import { DEFAULT_RENDERER_MODULE } from '../utils/imports'
+import { DEFAULT_RENDERER_MODULE } from '../runtime'
 /**
  * Compiler configuration interface.
  */
