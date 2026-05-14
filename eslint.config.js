@@ -156,6 +156,20 @@ export default defineConfig(
   },
 
   // ============================================
+  // Signal 包 - 允许使用 any，关闭未使用变量检查
+  // ============================================
+  {
+    name: 'signal-package',
+    files: ['packages/signal/**'],
+    extends: [tseslint.configs.base],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+    },
+  },
+
+  // ============================================
   // Vitest setup 文件 - 允许 any 用于声明合并
   // ============================================
   {

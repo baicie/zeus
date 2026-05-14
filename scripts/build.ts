@@ -22,7 +22,6 @@ const { values, positionals: targets } = parseArgs({
     formats: {
       type: 'string',
       short: 'f',
-      default: 'esm-bundler,cjs',
     },
     devOnly: {
       type: 'boolean',

@@ -6,7 +6,7 @@ import { entries } from './scripts/aliases.ts'
 const testProjects = [
   {
     name: 'unit',
-    include: ['packages/**/*.{test,spec}.*'],
+    include: ['packages/**/*.{test,spec}.{ts,tsx}'],
   },
 ]
 
