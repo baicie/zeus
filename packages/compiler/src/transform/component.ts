@@ -21,7 +21,7 @@ export function transformComponent(
   state: BabelState,
 ): DynamicTransformResults {
   const tag = convertComponentIdentifier(path.node.openingElement.name)
-  const props: t.ObjectProperty[] = []
+  const props: Array<t.ObjectProperty | t.ObjectMethod> = []
 
   path
     .get('openingElement')
@@ -60,7 +60,6 @@ export function transformComponent(
         }
 
         props.push(t.objectProperty(propKey, node.value.expression))
-        return
       }
     })
 
@@ -76,6 +75,7 @@ export function transformComponent(
   return {
     kind: 'dynamic',
     dynamic: true,
+
     expr: t.callExpression(t.identifier('createComponent'), [
       tag,
       t.objectExpression(props),
@@ -134,7 +134,9 @@ function transformComponentChildren(
     }
   })
 
-  if (!nodes.length) return null
+  if (!nodes.length) {
+    return null
+  }
 
   if (nodes.length === 1) {
     return nodes[0]

@@ -5,7 +5,10 @@ export function BasicElement() {
 
 // Element with text binding
 export function TextBinding() {
-  return template("<span>Count:</span>");
+  return (() => {
+    insert(_el$2, 42);
+    return _el$2;
+  })();
 }
 
 // Element with multiple children
