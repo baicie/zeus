@@ -1,0 +1,80 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`zeus compiler jsx transform > compiles component usage 1`] = `
+"function MyComponent(props: {
+  title: string;
+}) {
+  return (() => {
+    insert(_el$, props.title);
+    return _el$;
+  })();
+}
+const App = () => createComponent(MyComponent, {
+  title: "hello"
+});"
+`;
+
+exports[`zeus compiler jsx transform > compiles dynamic child before static element 1`] = `
+"const App = (props: {
+  name: string;
+}) => (() => {
+  const _el$2 = _el$.firstChild;
+  insert(_el$, props.name);
+  return _el$;
+})();"
+`;
+
+exports[`zeus compiler jsx transform > compiles dynamic text child 1`] = `
+"const App = (props: {
+  name: string;
+}) => (() => {
+  insert(_el$, props.name);
+  return _el$;
+})();"
+`;
+
+exports[`zeus compiler jsx transform > compiles nested component usage 1`] = `
+"import { Show } from '@zeus-js/runtime-dom';
+interface Props {
+  title: string;
+  count?: number;
+}
+export function MyComponent(props: Props) {
+  return (() => {
+    const _el$2 = _el$.firstChild;
+    insert(_el$2, props.title);
+    insert(_el$, createComponent(Show, {
+      when: props.count !== undefined,
+      children: (() => {
+        insert(_el$3, props.count);
+        return _el$3;
+      })()
+    }));
+    return _el$;
+  })();
+}
+export function ParentComponent() {
+  return (() => {
+    insert(_el$4, createComponent(MyComponent, {
+      title: "Hello"
+    }));
+    insert(_el$4, createComponent(MyComponent, {
+      title: "World",
+      count: 5
+    }));
+    return _el$4;
+  })();
+}"
+`;
+
+exports[`zeus compiler jsx transform > compiles static element 1`] = `"const App = () => template("<div>hello</div>");"`;
+
+exports[`zeus compiler jsx transform > compiles static element before dynamic child 1`] = `
+"const App = (props: {
+  name: string;
+}) => (() => {
+  const _el$2 = _el$.firstChild;
+  insert(_el$, props.name);
+  return _el$;
+})();"
+`;
