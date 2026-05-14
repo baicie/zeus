@@ -3,14 +3,17 @@
  *
  * Converts an ElementTransformResults (the element IR) into a Babel AST expression.
  *
- * If the element has no dynamic parts (no bindings, no expressions, a single
- * declaration), the result is a plain `tmpl$0()` call.
- * Otherwise, it wraps everything in an arrow function:
+ * The key job is injecting the element ID declaration:
+ *   const _el$ = _tmpl$().firstChild
  *
+ * For static elements (no bindings/expressions, single declaration), the result is:
+ *   _tmpl$().firstChild
+ *
+ * For elements with bindings, the result is wrapped in an arrow function:
  *   () => {
- *     const el$0 = tmpl$0().firstChild
- *     $setAttr(el$0, 'id', id)
- *     return el$0
+ *     const _el$ = _tmpl$().firstChild
+ *     $setAttr(_el$, 'id', id)
+ *     return _el$
  *   }
  */
 import * as t from '@babel/types'
@@ -33,24 +36,33 @@ export function createTemplate(
 
   const templateCall = t.callExpression(t.cloneNode(templateRecord.id), [])
 
-  if (
-    !result.exprs.length &&
-    !result.dynamics.length &&
-    !result.postExprs.length &&
-    result.declarations.length === 1
-  ) {
-    return templateCall
+  const elementIdDecl = t.variableDeclaration('const', [
+    t.variableDeclarator(
+      t.cloneNode(result.id),
+      t.memberExpression(templateCall, t.identifier('firstChild')),
+    ),
+  ])
+
+  const hasDynamics =
+    result.exprs.length ||
+    result.dynamics.length ||
+    result.postExprs.length ||
+    result.declarations.length > 0
+
+  if (!hasDynamics) {
+    return t.memberExpression(templateCall, t.identifier('firstChild'))
   }
 
   return t.callExpression(
     t.arrowFunctionExpression(
       [],
       t.blockStatement([
+        elementIdDecl,
         ...result.declarations,
         ...result.exprs,
         ...result.dynamics,
         ...result.postExprs,
-        t.returnStatement(templateCall),
+        t.returnStatement(t.cloneNode(result.id)),
       ]),
     ),
     [],

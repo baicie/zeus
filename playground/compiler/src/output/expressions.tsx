@@ -8,8 +8,9 @@ export function DynamicExpr() {
   const name = 'World';
   const count = 42;
   return (() => {
+    const _el$ = _tmpl$().firstChild;
     _insert(_el$, name);
-    return _tmpl$();
+    return _el$;
   })();
 }
 
@@ -17,8 +18,9 @@ export function DynamicExpr() {
 export function TernaryExpr() {
   const flag = true;
   return (() => {
+    const _el$2 = _tmpl$().firstChild;
     _insert(_el$2, flag ? 'yes' : 'no');
-    return _tmpl$();
+    return _el$2;
   })();
 }
 
@@ -26,8 +28,9 @@ export function TernaryExpr() {
 export function LogicalExpr() {
   const show = true;
   return (() => {
+    const _el$3 = _tmpl$().firstChild;
     _insert(_el$3, show && 'visible');
-    return _tmpl$();
+    return _el$3;
   })();
 }
 
@@ -35,8 +38,9 @@ export function LogicalExpr() {
 export function FunctionCall() {
   const format = (n: number) => `Count: ${n}`;
   return (() => {
+    const _el$4 = _tmpl$2().firstChild;
     _insert(_el$4, format(100));
-    return _tmpl$2();
+    return _el$4;
   })();
 }
 
@@ -47,8 +51,9 @@ export function ObjectProp() {
     age: 30
   };
   return (() => {
+    const _el$5 = _tmpl$().firstChild;
     _insert(_el$5, user.name);
-    return _tmpl$();
+    return _el$5;
   })();
 }
 
@@ -56,11 +61,13 @@ export function ObjectProp() {
 export function ArrayMap() {
   const items = ['a', 'b', 'c'];
   return (() => {
+    const _el$6 = _tmpl$3().firstChild;
     _insert(_el$6, items.map(item => (() => {
+      const _el$7 = _tmpl$4().firstChild;
       _setAttr(_el$7, "key", item);
       _insert(_el$7, item);
-      return _tmpl$4();
+      return _el$7;
     })()));
-    return _tmpl$3();
+    return _el$6;
   })();
 }

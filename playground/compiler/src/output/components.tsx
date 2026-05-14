@@ -10,22 +10,25 @@ interface Props {
 }
 export function MyComponent(props: Props) {
   return (() => {
+    const _el$ = _tmpl$2().firstChild;
     const _el$2 = _el$.firstChild;
     _insert(_el$2, props.title);
     _insert(_el$, _createComponent(Show, {
       when: props.count !== undefined,
       children: (() => {
+        const _el$3 = _tmpl$().firstChild;
         _insert(_el$3, props.count);
-        return _tmpl$();
+        return _el$3;
       })()
     }));
-    return _tmpl$2();
+    return _el$;
   })();
 }
 
 // Nested components
 export function ParentComponent() {
   return (() => {
+    const _el$4 = _tmpl$3().firstChild;
     _insert(_el$4, _createComponent(MyComponent, {
       title: "Hello"
     }));
@@ -33,6 +36,6 @@ export function ParentComponent() {
       title: "World",
       count: 5
     }));
-    return _tmpl$3();
+    return _el$4;
   })();
 }

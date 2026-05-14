@@ -8,47 +8,39 @@ var _tmpl$ = /*#__PURE__*/_template(`<div>Hello World</div>`),
   _tmpl$7 = /*#__PURE__*/_template(`<span>Second</span>`);
 // Basic element
 export function BasicElement() {
-  return (() => {
-    return _tmpl$();
-  })();
+  return _tmpl$().firstChild;
 }
 
 // Element with text binding
 export function TextBinding() {
   return (() => {
+    const _el$2 = _tmpl$2().firstChild;
     _insert(_el$2, 42);
-    return _tmpl$2();
+    return _el$2;
   })();
 }
 
 // Element with multiple children
 export function MultipleChildren() {
   return (() => {
+    const _el$3 = _tmpl$3().firstChild;
     const _el$4 = _el$3.firstChild;
     const _el$5 = _el$4.nextSibling;
-    return _tmpl$3();
+    return _el$3;
   })();
 }
 
 // Element with attribute
 export function WithAttribute() {
-  return (() => {
-    return _tmpl$4();
-  })();
+  return _tmpl$4().firstChild;
 }
 
 // Element with dynamic attribute
 export function DynamicAttribute() {
-  return (() => {
-    return _tmpl$5();
-  })();
+  return _tmpl$5().firstChild;
 }
 
 // Fragment
 export function WithFragment() {
-  return [(() => {
-    return _tmpl$6();
-  })(), (() => {
-    return _tmpl$7();
-  })()];
+  return [_tmpl$6().firstChild, _tmpl$7().firstChild];
 }

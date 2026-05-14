@@ -21,7 +21,8 @@ import type { NodePath } from '@babel/core'
  * only keeps it once.
  */
 export function registerEvent(path: NodePath, eventName: string): void {
-  const scopeData = path.scope.data as ProgramScopeData
+  const programPath = path.scope.getProgramParent().path as BabelProgramPath
+  const scopeData = programPath.scope.data as ProgramScopeData
   const events = (scopeData.events ||= new Set())
   events.add(eventName)
 }
