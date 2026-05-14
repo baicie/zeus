@@ -152,6 +152,9 @@ importers:
 
   packages/signal:
     dependencies:
+      '@zeus-js/shared':
+        specifier: workspace:*
+        version: link:../shared
       alien-signals:
         specifier: ^3.2.0
         version: 3.2.0

@@ -50,6 +50,7 @@
   },
   "homepage": "https://github.com/baicie/zeus/tree/main/packages/signal#readme",
   "dependencies": {
+    "@zeus-js/shared": "workspace:*",
     "alien-signals": "^3.2.0"
   }
 }
