@@ -1,8 +1,9 @@
 /**
- * Program injection codegen — event delegation.
+ * Event registration and delegation.
  *
- * Generates a single delegateEvents(...) call at the end of the program body,
- * listing all events that were registered during the JSX transform pass.
+ * Tracks all event handlers encountered during JSX transform and generates
+ * a single delegateEvents call at the end of the program (if any events
+ * were found).
  */
 import * as t from '@babel/types'
 
@@ -10,6 +11,24 @@ import { getRendererConfig, registerImportMethod } from './imports'
 
 import type { BabelProgramPath } from '../types'
 import type { ProgramScopeData } from './imports'
+import type { NodePath } from '@babel/core'
+
+//#region event registry
+
+/**
+ * Registers an event name in the program scope.
+ * Events are deduplicated — registering the same event name multiple times
+ * only keeps it once.
+ */
+export function registerEvent(path: NodePath, eventName: string): void {
+  const scopeData = path.scope.data as ProgramScopeData
+  const events = (scopeData.events ||= new Set())
+  events.add(eventName)
+}
+
+//#endregion
+
+//#region program injection
 
 /**
  * Generates a delegateEvents(...) call at the end of the program body.
@@ -41,3 +60,5 @@ export function appendEvents(path: BabelProgramPath): void {
     ),
   )
 }
+
+//#endregion

@@ -1,3 +1,3 @@
 export * from './imports'
 export * from './templates'
-export * from './events'
+export { registerEvent, appendEvents } from './events'

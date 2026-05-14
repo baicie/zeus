@@ -6,6 +6,7 @@ import {
   inlineAttributeOnTemplate,
   setAttr,
   toEventName,
+  registerEvent,
 } from '../utils'
 
 import type { BabelJSXElementPath, ElementTransformResults } from '../types'
@@ -45,6 +46,8 @@ export function transformAttributes(
 
       if (key.startsWith('on') && key.length > 2) {
         const eventName = toEventName(key)
+
+        registerEvent(attr, eventName)
 
         results.exprs.push(
           t.expressionStatement(

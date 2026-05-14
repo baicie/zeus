@@ -15,6 +15,7 @@ export {
   getProgramScopeData,
   registerTemplate,
   findTemplateByString,
+  registerEvent,
   appendEvents,
   escapeStringForTemplate,
   isMathMLTemplate,
