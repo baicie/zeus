@@ -4,7 +4,8 @@ import { transformExpression } from './expression'
 import { transformFragment } from './fragment'
 import { transformSpread } from './spread'
 import { transformText } from './text'
-import { getTagName, logger } from '../utils'
+import { CompilerError, CompilerErrorCode } from '../errors'
+import { getTagName } from '../utils'
 
 import type { BabelJSXPath, BabelState, TransformResults } from '../types'
 
@@ -38,6 +39,9 @@ export function transformNode(
     return transformSpread(path)
   }
 
-  logger.warn('Unknown JSX node type')
-  return null
+  throw new CompilerError({
+    code: CompilerErrorCode.UNSUPPORTED_NODE,
+    message: 'Unknown JSX node type.',
+    path,
+  })
 }

@@ -1,5 +1,6 @@
 import * as t from '@babel/types'
 
+import { CompilerError, CompilerErrorCode } from '../errors'
 import {
   getJSXAttrName,
   inlineAttributeOnTemplate,
@@ -17,7 +18,12 @@ export function transformAttributes(
 
   attributes.forEach(attr => {
     if (t.isJSXSpreadAttribute(attr.node)) {
-      throw new Error('Spread attributes are not supported in Zeus')
+      throw new CompilerError({
+        code: CompilerErrorCode.UNSUPPORTED_SPREAD_ATTRIBUTE,
+        message: 'Spread attributes are not supported in Zeus MVP.',
+        path: attr,
+        hint: 'Use explicit attributes instead, for example <div id={id} />.',
+      })
     }
 
     const node = attr.node
@@ -30,7 +36,11 @@ export function transformAttributes(
       const expr = value.expression
 
       if (t.isJSXEmptyExpression(expr)) {
-        throw new Error(`Attribute "${key}" expression cannot be empty`)
+        throw new CompilerError({
+          code: CompilerErrorCode.EMPTY_EXPRESSION,
+          message: `Attribute "${key}" expression cannot be empty.`,
+          path: attr,
+        })
       }
 
       if (key.startsWith('on') && key.length > 2) {

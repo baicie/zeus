@@ -1,5 +1,6 @@
 import * as t from '@babel/types'
 
+import { CompilerError, CompilerErrorCode } from '../errors'
 import { getJSXAttrName, getTagName } from '../utils'
 
 import type { BabelJSXElementPath, DynamicTransformResults } from '../types'
@@ -50,22 +51,30 @@ function createComponentProps(path: BabelJSXElementPath): t.ObjectExpression {
 
   attributes.forEach(attr => {
     if (t.isJSXSpreadAttribute(attr.node)) {
-      throw attr.buildCodeFrameError(
-        'Component spread props are not supported in Zeus MVP',
-      )
+      throw new CompilerError({
+        code: CompilerErrorCode.UNSUPPORTED_SPREAD_ATTRIBUTE,
+        message: 'Component spread props are not supported in Zeus MVP.',
+        path: attr,
+        hint: 'Pass props explicitly before spread support is implemented.',
+      })
     }
 
     const node = attr.node
     const key = getJSXAttrName(node.name)
     const value = node.value
 
-    properties.push(t.objectProperty(t.identifier(key), createPropValue(value)))
+    properties.push(
+      t.objectProperty(t.identifier(key), createPropValue(value, path)),
+    )
   })
 
   return t.objectExpression(properties)
 }
 
-function createPropValue(value: t.JSXAttribute['value']): t.Expression {
+function createPropValue(
+  value: t.JSXAttribute['value'],
+  path?: BabelJSXElementPath,
+): t.Expression {
   if (!value) return t.booleanLiteral(true)
 
   if (t.isStringLiteral(value)) {
@@ -74,11 +83,19 @@ function createPropValue(value: t.JSXAttribute['value']): t.Expression {
 
   if (t.isJSXExpressionContainer(value)) {
     if (t.isJSXEmptyExpression(value.expression)) {
-      throw new Error('Component prop expression cannot be empty')
+      throw new CompilerError({
+        code: CompilerErrorCode.EMPTY_EXPRESSION,
+        message: 'Component prop expression cannot be empty.',
+        path,
+      })
     }
 
     return value.expression
   }
 
-  throw new Error('Unsupported component prop value in Zeus MVP')
+  throw new CompilerError({
+    code: CompilerErrorCode.UNSUPPORTED_COMPONENT_PROP,
+    message: 'Unsupported component prop value in Zeus MVP.',
+    path,
+  })
 }
