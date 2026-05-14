@@ -5,18 +5,21 @@ interface Props {
   count?: number;
 }
 export function MyComponent(props: Props) {
-  return <div className="component">
-      <h1>{props.title}</h1>
-      <Show when={props.count !== undefined}>
-        <span>Count: {props.count}</span>
-      </Show>
-    </div>;
+  return (() => {
+    const _el$2 = _el$.firstChild;
+    const _el$4 = _el$3.firstChild;
+    const _el$3 = _el$.firstChild;
+    setAttr(_el$3, "when", props.count !== undefined);
+    return _el$;
+  })();
 }
 
 // Nested components
 export function ParentComponent() {
-  return <div>
-      <MyComponent title="Hello" />
-      <MyComponent title="World" count={5} />
-    </div>;
+  return (() => {
+    const _el$6 = _el$5.firstChild;
+    const _el$7 = _el$5.firstChild;
+    setAttr(_el$7, "count", 5);
+    return _el$5;
+  })();
 }

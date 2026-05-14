@@ -1,13 +1,18 @@
 // Event handlers
 export function ClickHandler() {
-  return <button onClick={() => console.log('clicked')}>Click me</button>;
+  return (() => {
+    _el$.addEventListener("click", () => console.log('clicked'));
+    return _el$;
+  })();
 }
 
 // Multiple event handlers
 export function MultipleEvents() {
-  return <div onMouseEnter={() => console.log('enter')} onMouseLeave={() => console.log('leave')}>
-      Hover me
-    </div>;
+  return (() => {
+    _el$2.addEventListener("mouseenter", () => console.log('enter'));
+    _el$2.addEventListener("mouseleave", () => console.log('leave'));
+    return _el$2;
+  })();
 }
 
 // Event with args
@@ -15,10 +20,16 @@ export function EventWithArgs() {
   const handleClick = (e: Event, id: number) => {
     console.log(id);
   };
-  return <button onClick={e => handleClick(e, 123)}>Click</button>;
+  return (() => {
+    _el$3.addEventListener("click", e => handleClick(e, 123));
+    return _el$3;
+  })();
 }
 
 // Input with onChange
 export function InputWithChange() {
-  return <input onChange={e => console.log(e.target.value)} />;
+  return (() => {
+    _el$4.addEventListener("change", e => console.log(e.target.value));
+    return _el$4;
+  })();
 }

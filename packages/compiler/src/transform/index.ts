@@ -1,15 +1,23 @@
 import { transformNode } from './transformNode'
-import { logger } from '../utils'
+import { createTemplate } from '../createTemplate'
+import { isDynamicResult, isElementResult, logger } from '../utils'
 
 import type { BabelJSXPath, BabelState } from '../utils/types'
 
 export function transformJSX(path: BabelJSXPath, state: BabelState) {
   if (state.get('skip')) return
 
-  // const metadata = getZeusMetadata(state)
   const result = transformNode(path, state)
+  if (!result) return
 
-  if (result) {
-    logger.info(result)
+  logger.info(result)
+
+  if (isElementResult(result)) {
+    path.replaceWith(createTemplate(result))
+    return
+  }
+
+  if (isDynamicResult(result)) {
+    path.replaceWith(result.expr)
   }
 }

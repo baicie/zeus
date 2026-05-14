@@ -10,6 +10,7 @@ import type {
   BabelJSXElementPath,
   TransformResults,
   ElementTransformResults,
+  DynamicTransformResults,
 } from './types'
 
 //#region file metadata
@@ -84,6 +85,12 @@ export function isElementResult(
   result: TransformResults,
 ): result is ElementTransformResults {
   return result.kind === 'element'
+}
+
+export function isDynamicResult(
+  result: TransformResults,
+): result is DynamicTransformResults {
+  return result.kind === 'dynamic'
 }
 
 //#endregion
