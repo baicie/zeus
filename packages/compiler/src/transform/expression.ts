@@ -1,7 +1,5 @@
 import * as t from '@babel/types'
 
-import { CompilerError, CompilerErrorCode } from '../errors'
-
 import type {
   BabelJSXExpressionContainerPath,
   DynamicTransformResults,
@@ -10,20 +8,17 @@ import type {
 export function transformExpression(
   path: BabelJSXExpressionContainerPath,
 ): DynamicTransformResults | null {
-  const expr = path.node.expression
+  const node = path.node
 
-  if (t.isJSXEmptyExpression(expr)) {
-    throw new CompilerError({
-      code: CompilerErrorCode.EMPTY_EXPRESSION,
-      message: 'JSX expression cannot be empty.',
-      path,
-    })
+  if (t.isJSXEmptyExpression(node.expression)) {
+    return null
   }
 
   return {
     kind: 'dynamic',
     dynamic: true,
-    expr,
+
+    expr: node.expression,
 
     template: '',
     templateWithClosingTags: '',

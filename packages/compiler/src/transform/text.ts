@@ -1,4 +1,4 @@
-import { escapeHTML } from '../utils'
+import { escapeHTML, trimJSXText } from '../utils'
 
 import type { BabelJSXTextPath, TextTransformResults } from '../types'
 
@@ -30,13 +30,4 @@ export function transformText(
 
     renderer: 'dom',
   }
-}
-
-function trimJSXText(value: string): string {
-  return value
-    .replace(/\r\n?/g, '\n')
-    .split('\n')
-    .map(line => line.trim())
-    .filter(Boolean)
-    .join(' ')
 }

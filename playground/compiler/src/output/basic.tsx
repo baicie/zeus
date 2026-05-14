@@ -25,8 +25,5 @@ export function DynamicAttribute() {
 
 // Fragment
 export function WithFragment() {
-  return <>
-      template("<span>First</span>")
-      template("<span>Second</span>")
-    </>;
+  return [template("<span>First</span>"), template("<span>Second</span>")];
 }

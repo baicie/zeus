@@ -2,6 +2,7 @@ import { transformAttributes } from './attributes'
 import { transformChildren } from './children'
 import { VoidElements } from '../utils'
 import { getTagName } from '../utils'
+import { isComponentTag, transformComponent } from './component'
 
 import type {
   BabelJSXElementPath,
@@ -10,11 +11,11 @@ import type {
 } from '../types'
 
 export function transformElement(path: BabelJSXElementPath, state: BabelState) {
-  // const node = path.node
-  // const tagName = getTagName(node)
+  const node = path.node
+  const tagName = getTagName(node)
 
   // <Component ...></Component>
-  // if (isComponent(tagName)) return transformComponent(path)
+  if (isComponentTag(tagName)) return transformComponent(path, state)
 
   return transformElementDOM(path, state)
 }

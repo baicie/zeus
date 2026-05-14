@@ -23,3 +23,12 @@ export function escapeHTML(value: string, attr = false): string {
 
   return lastIndex === 0 ? value : result + value.slice(lastIndex)
 }
+
+export function trimJSXText(value: string): string {
+  return value
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean)
+    .join(' ')
+}

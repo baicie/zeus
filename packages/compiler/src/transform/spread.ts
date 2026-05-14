@@ -1,11 +1,29 @@
-import { CompilerError, CompilerErrorCode } from '../errors'
+import type { BabelJSXSpreadChildPath, DynamicTransformResults } from '../types'
 
-import type { BabelJSXSpreadChildPath } from '../types'
+export function transformSpread(
+  path: BabelJSXSpreadChildPath,
+): DynamicTransformResults {
+  const node = path.node
 
-export function transformSpread(path: BabelJSXSpreadChildPath): never {
-  throw new CompilerError({
-    code: CompilerErrorCode.UNSUPPORTED_SPREAD_CHILD,
-    message: 'JSX spread child is not supported in Zeus MVP.',
-    path,
-  })
+  return {
+    kind: 'dynamic',
+    dynamic: true,
+
+    expr: node.expression,
+
+    template: '',
+    templateWithClosingTags: '',
+
+    declarations: [],
+    exprs: [],
+    dynamics: [],
+    postExprs: [],
+
+    isSVG: false,
+    hasCustomElement: false,
+    isImportNode: false,
+    skipTemplate: false,
+
+    renderer: 'dom',
+  }
 }
