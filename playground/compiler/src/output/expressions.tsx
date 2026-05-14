@@ -1,10 +1,15 @@
+import { insert as _insert, setAttr as _setAttr, template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(`<div></div>`),
+  _tmpl$2 = /*#__PURE__*/_template(`<span></span>`),
+  _tmpl$3 = /*#__PURE__*/_template(`<ul></ul>`),
+  _tmpl$4 = /*#__PURE__*/_template(`<li></li>`);
 // Dynamic expressions in JSX
 export function DynamicExpr() {
   const name = 'World';
   const count = 42;
   return (() => {
-    insert(_el$, name);
-    return _el$;
+    _insert(_el$, name);
+    return _tmpl$();
   })();
 }
 
@@ -12,8 +17,8 @@ export function DynamicExpr() {
 export function TernaryExpr() {
   const flag = true;
   return (() => {
-    insert(_el$2, flag ? 'yes' : 'no');
-    return _el$2;
+    _insert(_el$2, flag ? 'yes' : 'no');
+    return _tmpl$();
   })();
 }
 
@@ -21,8 +26,8 @@ export function TernaryExpr() {
 export function LogicalExpr() {
   const show = true;
   return (() => {
-    insert(_el$3, show && 'visible');
-    return _el$3;
+    _insert(_el$3, show && 'visible');
+    return _tmpl$();
   })();
 }
 
@@ -30,8 +35,8 @@ export function LogicalExpr() {
 export function FunctionCall() {
   const format = (n: number) => `Count: ${n}`;
   return (() => {
-    insert(_el$4, format(100));
-    return _el$4;
+    _insert(_el$4, format(100));
+    return _tmpl$2();
   })();
 }
 
@@ -42,8 +47,8 @@ export function ObjectProp() {
     age: 30
   };
   return (() => {
-    insert(_el$5, user.name);
-    return _el$5;
+    _insert(_el$5, user.name);
+    return _tmpl$();
   })();
 }
 
@@ -51,11 +56,11 @@ export function ObjectProp() {
 export function ArrayMap() {
   const items = ['a', 'b', 'c'];
   return (() => {
-    insert(_el$6, items.map(item => (() => {
-      setAttr(_el$7, "key", item);
-      insert(_el$7, item);
-      return _el$7;
+    _insert(_el$6, items.map(item => (() => {
+      _setAttr(_el$7, "key", item);
+      _insert(_el$7, item);
+      return _tmpl$4();
     })()));
-    return _el$6;
+    return _tmpl$3();
   })();
 }

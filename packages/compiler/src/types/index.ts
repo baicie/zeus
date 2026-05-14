@@ -1,4 +1,5 @@
 import type { CompilerOptions } from '../config'
+import type { ProgramScopeData } from '../utils/imports'
 import type { PluginObj, PluginPass, NodePath, Visitor } from '@babel/core'
 import type * as t from '@babel/types'
 import type {
@@ -10,7 +11,9 @@ import type {
   Program,
 } from '@babel/types'
 
-export type { CompilerOptions }
+export { CompilerOptions }
+
+export type { ProgramScopeData }
 
 //#region babel plugin types
 

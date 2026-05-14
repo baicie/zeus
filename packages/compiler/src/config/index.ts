@@ -1,4 +1,6 @@
 import { extend } from '@zeus-js/shared'
+
+import { DEFAULT_RENDERER_MODULE } from '../utils/imports'
 /**
  * Compiler configuration interface.
  */
@@ -86,7 +88,7 @@ export interface CompilerOptions {
 }
 
 export const DEFAULT_OPTIONS: CompilerOptions = {
-  moduleName: 'dom',
+  moduleName: DEFAULT_RENDERER_MODULE,
   generate: 'dom',
   hydratable: false,
   delegateEvents: true,

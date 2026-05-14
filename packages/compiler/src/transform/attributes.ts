@@ -57,7 +57,9 @@ export function transformAttributes(
         return
       }
 
-      results.exprs.push(t.expressionStatement(setAttr(results.id, key, expr)))
+      results.exprs.push(
+        t.expressionStatement(setAttr(attr, results.id, key, expr)),
+      )
     } else {
       inlineAttributeOnTemplate(key, value, results)
     }

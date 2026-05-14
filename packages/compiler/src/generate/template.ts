@@ -1,18 +1,29 @@
 import * as t from '@babel/types'
 
-import type { ElementTransformResults } from '../types'
+import { registerTemplate, getProgramScopeData } from '../utils'
 
-export function createTemplate(result: ElementTransformResults): t.Expression {
-  const template = result.templateWithClosingTags || result.template
+import type { BabelJSXPath, ElementTransformResults } from '../types'
 
-  const templateCall = t.callExpression(t.identifier('template'), [
-    t.stringLiteral(template),
-  ])
+export function createTemplate(
+  path: BabelJSXPath,
+  result: ElementTransformResults,
+): t.Expression {
+  registerTemplate(path, result)
+
+  const templates = getProgramScopeData(path).templates || []
+  const templateRecord = templates.find(t => t.template === result.template)
+
+  if (!templateRecord) {
+    throw new Error('Template not registered')
+  }
+
+  const templateCall = t.callExpression(t.cloneNode(templateRecord.id), [])
 
   if (
     !result.exprs.length &&
     !result.dynamics.length &&
-    !result.postExprs.length
+    !result.postExprs.length &&
+    result.declarations.length === 1
   ) {
     return templateCall
   }
@@ -25,7 +36,7 @@ export function createTemplate(result: ElementTransformResults): t.Expression {
         ...result.exprs,
         ...result.dynamics,
         ...result.postExprs,
-        t.returnStatement(result.id),
+        t.returnStatement(templateCall),
       ]),
     ),
     [],

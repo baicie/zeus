@@ -1,8 +1,13 @@
+import { template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(`<button>Click me</button>`),
+  _tmpl$2 = /*#__PURE__*/_template(`<div>Hover me</div>`),
+  _tmpl$3 = /*#__PURE__*/_template(`<button>Click</button>`),
+  _tmpl$4 = /*#__PURE__*/_template(`<input>`);
 // Event handlers
 export function ClickHandler() {
   return (() => {
     _el$.addEventListener("click", () => console.log('clicked'));
-    return _el$;
+    return _tmpl$();
   })();
 }
 
@@ -11,7 +16,7 @@ export function MultipleEvents() {
   return (() => {
     _el$2.addEventListener("mouseenter", () => console.log('enter'));
     _el$2.addEventListener("mouseleave", () => console.log('leave'));
-    return _el$2;
+    return _tmpl$2();
   })();
 }
 
@@ -22,7 +27,7 @@ export function EventWithArgs() {
   };
   return (() => {
     _el$3.addEventListener("click", e => handleClick(e, 123));
-    return _el$3;
+    return _tmpl$3();
   })();
 }
 
@@ -30,6 +35,6 @@ export function EventWithArgs() {
 export function InputWithChange() {
   return (() => {
     _el$4.addEventListener("change", e => console.log(e.target.value));
-    return _el$4;
+    return _tmpl$4();
   })();
 }

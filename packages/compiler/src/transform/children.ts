@@ -1,7 +1,11 @@
 import * as t from '@babel/types'
 
 import { transformNode } from './node'
-import { isElementResult } from '../utils'
+import {
+  getRendererConfig,
+  isElementResult,
+  registerImportMethod,
+} from '../utils'
 
 import type {
   BabelJSXElementPath,
@@ -62,10 +66,14 @@ export function transformChildren(
     if (transformed.kind === 'dynamic') {
       results.exprs.push(
         t.expressionStatement(
-          t.callExpression(t.identifier('insert'), [
-            results.id,
-            transformed.expr,
-          ]),
+          t.callExpression(
+            registerImportMethod(
+              child,
+              'insert',
+              getRendererConfig(child, 'dom').moduleName,
+            ),
+            [results.id, transformed.expr],
+          ),
         ),
       )
     }

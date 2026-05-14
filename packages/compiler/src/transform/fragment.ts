@@ -37,7 +37,7 @@ export function transformFragment(
     if (!result) return
 
     if (result.kind === 'element') {
-      nodes.push(createTemplate(result))
+      nodes.push(createTemplate(path, result))
       return
     }
 

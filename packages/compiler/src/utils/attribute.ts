@@ -1,8 +1,10 @@
 import * as t from '@babel/types'
 
 import { escapeHTML } from './html'
+import { getRendererConfig, registerImportMethod } from './imports'
 
 import type { ElementTransformResults } from '../types'
+import type { NodePath } from '@babel/core'
 
 export function inlineAttributeOnTemplate(
   key: string,
@@ -28,13 +30,17 @@ export function inlineAttributeOnTemplate(
 }
 
 export function setAttr(
+  path: NodePath,
   elem: t.Identifier,
   key: string,
   value: t.Expression,
 ): t.CallExpression {
-  return t.callExpression(t.identifier('setAttr'), [
-    elem,
-    t.stringLiteral(key),
-    value,
-  ])
+  return t.callExpression(
+    registerImportMethod(
+      path,
+      'setAttr',
+      getRendererConfig(path, 'dom').moduleName,
+    ),
+    [elem, t.stringLiteral(key), value],
+  )
 }

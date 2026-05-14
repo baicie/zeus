@@ -3,7 +3,12 @@ import * as t from '@babel/types'
 import { transformNode } from './node'
 import { CompilerError, CompilerErrorCode } from '../errors'
 import { createTemplate } from '../generate'
-import { getJSXAttrName, trimJSXText } from '../utils'
+import {
+  getJSXAttrName,
+  getRendererConfig,
+  registerImportMethod,
+  trimJSXText,
+} from '../utils'
 
 import type {
   BabelJSXElementPath,
@@ -76,10 +81,14 @@ export function transformComponent(
     kind: 'dynamic',
     dynamic: true,
 
-    expr: t.callExpression(t.identifier('createComponent'), [
-      tag,
-      t.objectExpression(props),
-    ]),
+    expr: t.callExpression(
+      registerImportMethod(
+        path,
+        'createComponent',
+        getRendererConfig(path, 'dom').moduleName,
+      ),
+      [tag, t.objectExpression(props)],
+    ),
 
     template: '',
     templateWithClosingTags: '',
@@ -120,7 +129,7 @@ function transformComponentChildren(
     if (!result) return
 
     if (result.kind === 'element') {
-      nodes.push(createTemplate(result))
+      nodes.push(createTemplate(child, result))
       return
     }
 

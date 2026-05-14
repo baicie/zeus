@@ -13,7 +13,7 @@ export function transformJSX(path: BabelJSXPath, state: BabelState) {
   logger.info(result)
 
   if (isElementResult(result)) {
-    path.replaceWith(createTemplate(result))
+    path.replaceWith(createTemplate(path, result))
     return
   }
 
