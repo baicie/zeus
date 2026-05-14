@@ -1,13 +1,13 @@
-import { transformAttributes } from './transformAttributes'
-import { transformChildren } from './transformChildren'
-import { VoidElements } from '../utils/constant'
-import { getTagName } from '../utils/helpers'
+import { transformAttributes } from './attributes'
+import { transformChildren } from './children'
+import { VoidElements } from '../utils'
+import { getTagName } from '../utils'
 
 import type {
   BabelJSXElementPath,
   BabelState,
-  TransformResults,
-} from '../utils/types'
+  ElementTransformResults,
+} from '../types'
 
 export function transformElement(path: BabelJSXElementPath, state: BabelState) {
   // const node = path.node
@@ -22,11 +22,11 @@ export function transformElement(path: BabelJSXElementPath, state: BabelState) {
 export function transformElementDOM(
   path: BabelJSXElementPath,
   state: BabelState,
-): TransformResults {
+): ElementTransformResults {
   const tagName = getTagName(path.node)
   const voidTag = VoidElements.includes(tagName)
 
-  const results: TransformResults = {
+  const results: ElementTransformResults = {
     template: `<${tagName}`,
     templateWithClosingTags: `<${tagName}`,
     declarations: [],

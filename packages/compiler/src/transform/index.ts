@@ -1,8 +1,8 @@
-import { transformNode } from './transformNode'
-import { createTemplate } from '../createTemplate'
+import { transformNode } from './node'
+import { createTemplate } from '../generate'
 import { isDynamicResult, isElementResult, logger } from '../utils'
 
-import type { BabelJSXPath, BabelState } from '../utils/types'
+import type { BabelJSXPath, BabelState } from '../types'
 
 export function transformJSX(path: BabelJSXPath, state: BabelState) {
   if (state.get('skip')) return

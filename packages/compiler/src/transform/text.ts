@@ -1,6 +1,6 @@
 import { escapeHTML } from '../utils'
 
-import type { BabelJSXTextPath, TextTransformResults } from '../utils'
+import type { BabelJSXTextPath, TextTransformResults } from '../types'
 
 export function transformText(
   path: BabelJSXTextPath,

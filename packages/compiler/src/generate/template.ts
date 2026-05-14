@@ -1,6 +1,6 @@
 import * as t from '@babel/types'
 
-import type { ElementTransformResults } from './utils/types'
+import type { ElementTransformResults } from '../types'
 
 export function createTemplate(result: ElementTransformResults): t.Expression {
   const template = result.templateWithClosingTags || result.template

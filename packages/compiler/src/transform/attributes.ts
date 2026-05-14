@@ -7,7 +7,7 @@ import {
   toEventName,
 } from '../utils'
 
-import type { BabelJSXElementPath, ElementTransformResults } from '../utils'
+import type { BabelJSXElementPath, ElementTransformResults } from '../types'
 
 export function transformAttributes(
   path: BabelJSXElementPath,

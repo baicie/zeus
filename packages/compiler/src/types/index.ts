@@ -1,4 +1,4 @@
-import type { CompilerOptions } from './config'
+import type { CompilerOptions } from '../config'
 import type { PluginObj, PluginPass, NodePath, Visitor } from '@babel/core'
 import type * as t from '@babel/types'
 import type {

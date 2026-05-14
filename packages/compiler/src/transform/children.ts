@@ -1,14 +1,14 @@
 import * as t from '@babel/types'
 
-import { transformNode } from './transformNode'
-import { isElementResult } from '../utils/helpers'
+import { transformNode } from './node'
+import { isElementResult } from '../utils'
 
 import type {
   BabelJSXElementPath,
   BabelJSXPath,
   BabelState,
   ElementTransformResults,
-} from '../utils'
+} from '../types'
 
 export function transformChildren(
   path: BabelJSXElementPath,
