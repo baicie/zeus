@@ -1,5 +1,7 @@
 import * as t from '@babel/types'
 
+import { createDynamicTransformResults } from '../types'
+
 import type {
   BabelJSXExpressionContainerPath,
   DynamicTransformResults,
@@ -10,29 +12,9 @@ export function transformExpression(
 ): DynamicTransformResults | null {
   const node = path.node
 
-  if (t.isJSXEmptyExpression(node.expression)) {
+  if (node.expression == null || t.isJSXEmptyExpression(node.expression)) {
     return null
   }
 
-  return {
-    kind: 'dynamic',
-    dynamic: true,
-
-    expr: node.expression,
-
-    template: '',
-    templateWithClosingTags: '',
-
-    declarations: [],
-    exprs: [],
-    dynamics: [],
-    postExprs: [],
-
-    isSVG: false,
-    hasCustomElement: false,
-    isImportNode: false,
-    skipTemplate: false,
-
-    renderer: 'dom',
-  }
+  return createDynamicTransformResults(node.expression)
 }

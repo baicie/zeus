@@ -18,7 +18,7 @@ export function transformChildren(
   state: BabelState,
   results: ElementTransformResults,
 ) {
-  const children = filterChildren(path.get('children') as BabelJSXPath[])
+  const children = filterJSXChildren(path.get('children') as BabelJSXPath[])
 
   let previousElementId = results.id
   let childElementIndex = 0
@@ -79,7 +79,10 @@ export function transformChildren(
   })
 }
 
-function filterChildren(children: BabelJSXPath[]): BabelJSXPath[] {
+/**
+ * Filters out empty JSX children: whitespace-only text and empty expression containers.
+ */
+export function filterJSXChildren(children: BabelJSXPath[]): BabelJSXPath[] {
   return children.filter(child => {
     if (child.isJSXText()) {
       return child.node.value.trim() !== ''
@@ -92,22 +95,10 @@ function filterChildren(children: BabelJSXPath[]): BabelJSXPath[] {
     return true
   })
 }
+
+//#endregion
 
 //#region fragment / component children helpers
-
-function filterFragmentChildren(children: BabelJSXPath[]): BabelJSXPath[] {
-  return children.filter(child => {
-    if (child.isJSXText()) {
-      return child.node.value.trim() !== ''
-    }
-
-    if (child.isJSXExpressionContainer()) {
-      return !t.isJSXEmptyExpression(child.node.expression)
-    }
-
-    return true
-  })
-}
 
 /**
  * Collects JSX children into an array of Babel expressions, applying the same
@@ -125,7 +116,7 @@ export function collectChildren(
   state: BabelState,
   fragmentPath?: BabelJSXPath,
 ): { nodes: t.Expression[]; filtered: BabelJSXPath[] } {
-  const filtered = filterFragmentChildren(children)
+  const filtered = filterJSXChildren(children)
   const nodes: t.Expression[] = []
 
   for (const child of filtered) {

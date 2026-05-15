@@ -58,8 +58,8 @@ export function getRendererConfig(
   path: NodePath,
   renderer: ZeusRenderer = 'dom',
 ) {
-  const hub = path.hub as BabelHubWithFile
-  const moduleName = hub.file?.metadata?.zeus?.config?.moduleName
+  const hub = path.hub as BabelHubWithFile | undefined
+  const moduleName = hub?.file?.metadata?.zeus?.config?.moduleName
 
   return {
     renderer,

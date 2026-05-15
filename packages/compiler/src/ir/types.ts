@@ -153,29 +153,4 @@ export function createDynamicIR(expr: BabelExpression): DynamicIRNode {
 
 export type IRNode = ElementIRNode | TextIRNode | DynamicIRNode
 
-export type IRResults = {
-  template: string
-  templateWithClosingTags: string
-  declarations: BabelStatement[]
-  exprs: BabelStatement[]
-  dynamics: BabelStatement[]
-  postExprs: BabelStatement[]
-  isSVG: boolean
-  hasCustomElement: boolean
-  isImportNode: boolean
-  skipTemplate: boolean
-  renderer: ZeusRenderer
-  toBeClosed?: Set<string>
-  hasHydratableEvent?: boolean
-  kind: 'element' | 'text' | 'dynamic'
-  /** Only for element kind */
-  id?: BabelIdentifier
-  /** Only for text kind */
-  text?: true
-  /** Only for dynamic kind */
-  dynamic?: true
-  /** Only for dynamic kind */
-  expr?: BabelExpression
-}
-
 //#endregion

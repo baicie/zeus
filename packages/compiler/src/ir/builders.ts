@@ -15,6 +15,8 @@ import {
   type DynamicIRNode,
   type IRNode,
 } from './types'
+import { VoidElements } from '../utils/constant'
+import { escapeHTML } from '../utils/html'
 
 import type { BabelExpression, BabelIdentifier } from '../types'
 
@@ -62,24 +64,7 @@ export function buildElement(
     }
   }
 
-  const voidTags = [
-    'area',
-    'base',
-    'br',
-    'col',
-    'embed',
-    'hr',
-    'img',
-    'input',
-    'keygen',
-    'link',
-    'meta',
-    'param',
-    'source',
-    'track',
-    'wbr',
-  ]
-  if (!voidTags.includes(tagName)) {
+  if (!VoidElements.includes(tagName)) {
     ir.template += `</${tagName}>`
     ir.templateWithClosingTags += `</${tagName}>`
   }
@@ -88,12 +73,10 @@ export function buildElement(
 }
 
 /**
- * Builds a text IR node from a raw string (will be HTML-escaped).
+ * Builds a text IR node from a raw string (HTML-escaped).
  */
 export function buildText(text: string): TextIRNode {
-  return createTextIR(
-    text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'),
-  )
+  return createTextIR(escapeHTML(text))
 }
 
 /**

@@ -9,8 +9,6 @@ import * as t from '@babel/types'
 
 import type {
   BabelJSXElement,
-  BabelJSXElementPath,
-  BabelJSXPath,
   TransformResults,
   DynamicTransformResults,
   ElementTransformResults,
@@ -40,12 +38,6 @@ export function getJSXAttrName(name: t.JSXAttribute['name']): string {
   }
 
   return name.name
-}
-
-export function isJSXElementPath(
-  path: BabelJSXPath,
-): path is BabelJSXElementPath {
-  return t.isJSXElement(path.node)
 }
 
 export function isComponentTag(tagName: string): boolean {

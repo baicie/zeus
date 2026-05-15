@@ -22,8 +22,3 @@ export function setZeusMetadata(
 
   return metadata.zeus
 }
-
-export function getZeusMetadata(state: BabelState): ZeusMetadata {
-  const metadata = state.file.metadata as FileMetadata
-  return metadata.zeus
-}

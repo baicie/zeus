@@ -1,4 +1,5 @@
 import { collectChildren, buildChildrenExpr } from './children'
+import { createDynamicTransformResults } from '../types'
 
 import type {
   BabelJSXFragmentPath,
@@ -20,24 +21,5 @@ export function transformFragment(
   const expr = buildChildrenExpr(nodes)
   if (!expr) return null
 
-  return {
-    kind: 'dynamic',
-    dynamic: true,
-    expr,
-
-    template: '',
-    templateWithClosingTags: '',
-
-    declarations: [],
-    exprs: [],
-    dynamics: [],
-    postExprs: [],
-
-    isSVG: false,
-    hasCustomElement: false,
-    isImportNode: false,
-    skipTemplate: false,
-
-    renderer: 'dom',
-  }
+  return createDynamicTransformResults(expr)
 }
