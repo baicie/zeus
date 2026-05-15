@@ -1,13 +1,9 @@
 import * as t from '@babel/types'
 
-import { CompilerError, CompilerErrorCode } from '../errors'
-import {
-  getJSXAttrName,
-  inlineAttributeOnTemplate,
-  setAttr,
-  toEventName,
-  registerEvent,
-} from '../utils'
+import { inlineAttributeOnTemplate, setAttr } from '../codegen/attribute'
+import { registerEvent } from '../codegen/support'
+import { CompilerError, CompilerErrorCode } from '../diagnostics'
+import { getJSXAttrName, toEventName } from '../parse/jsx'
 
 import type { BabelJSXElementPath, ElementTransformResults } from '../types'
 

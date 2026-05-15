@@ -1,5 +1,5 @@
+import type { ProgramScopeData } from '../codegen/support'
 import type { CompilerOptions } from '../config'
-import type { ProgramScopeData } from '../runtime'
 import type { PluginObj, PluginPass, NodePath, Visitor } from '@babel/core'
 import type * as t from '@babel/types'
 import type {

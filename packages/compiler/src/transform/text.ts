@@ -1,4 +1,4 @@
-import { escapeHTML, trimJSXText } from '../utils'
+import { escapeHTML, trimJSXText } from '../utils/html'
 
 import type { BabelJSXTextPath, TextTransformResults } from '../types'
 

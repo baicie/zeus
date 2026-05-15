@@ -1,7 +1,7 @@
 /**
  * IR builder utilities.
  *
- * Provides factory functions for creating IR nodes without going through
+ * Factory functions for creating typed IR nodes without going through
  * the full transform pipeline. Useful for codegen helpers and test fixtures.
  */
 import * as t from '@babel/types'
@@ -14,7 +14,7 @@ import {
   type TextIRNode,
   type DynamicIRNode,
   type IRNode,
-} from './index'
+} from './types'
 
 import type { BabelExpression, BabelIdentifier } from '../types'
 

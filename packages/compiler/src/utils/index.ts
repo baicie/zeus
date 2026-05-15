@@ -1,23 +1,11 @@
-// Utils barrel — low-level string, JSX, and HTML helpers.
-export * from './attribute'
+/**
+ * Utils barrel — low-level string, HTML, constant, and logging helpers.
+ *
+ * NOTE: JSX parsing utilities moved to `../parse/jsx.ts`.
+ * NOTE: Attribute codegen moved to `../codegen/attribute.ts`.
+ * NOTE: Runtime helper registration moved to `../codegen/support/`.
+ */
 export * from './constant'
 export * from './html'
-export * from './jsx'
 export * from './logger'
 export * from './metadata'
-
-// Runtime barrel — import/template/event registration (previously imports.ts).
-// Re-exported here so existing `from '../utils'` imports keep working.
-export {
-  registerImportMethod,
-  appendImportMethods,
-  getRendererConfig,
-  getProgramScopeData,
-  registerTemplate,
-  findTemplateByString,
-  registerEvent,
-  appendEvents,
-  escapeStringForTemplate,
-  isMathMLTemplate,
-  DEFAULT_RENDERER_MODULE,
-} from '../runtime'

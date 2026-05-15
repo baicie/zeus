@@ -1,6 +1,7 @@
 import { transformNode } from './node'
-import { createTemplate } from '../codegen'
-import { isDynamicResult, isElementResult, logger } from '../utils'
+import { createTemplate } from '../codegen/template'
+import { isDynamicResult, isElementResult } from '../parse/jsx'
+import { logger } from '../utils'
 
 import type { BabelJSXPath, BabelState } from '../types'
 

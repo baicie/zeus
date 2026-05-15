@@ -1,8 +1,8 @@
 import { transformAttributes } from './attributes'
 import { transformChildren } from './children'
+import { getTagName, isComponentTag } from '../parse/jsx'
 import { VoidElements } from '../utils'
-import { getTagName } from '../utils'
-import { isComponentTag, transformComponent } from './component'
+import { transformComponent } from './component'
 
 import type {
   BabelJSXElementPath,

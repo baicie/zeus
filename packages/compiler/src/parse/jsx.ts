@@ -1,17 +1,24 @@
+/**
+ * JSX AST parsing utilities.
+ *
+ * Low-level helpers for extracting and interpreting information from Babel's
+ * JSX AST nodes — tag names, attribute names, and path type guards.
+ * These do NOT produce IR or Babel AST; they only read the JSX tree.
+ */
 import * as t from '@babel/types'
 
 import type {
   BabelJSXElement,
   BabelJSXElementPath,
   BabelJSXPath,
+  TransformResults,
   DynamicTransformResults,
   ElementTransformResults,
-  TransformResults,
 } from '../types'
 
-type BabelJSXOpeningElementName = t.JSXOpeningElement['name']
+type JSXOpeningElementName = t.JSXOpeningElement['name']
 
-function jsxElementNameToString(node: BabelJSXOpeningElementName): string {
+function jsxElementNameToString(node: JSXOpeningElementName): string {
   if (t.isJSXMemberExpression(node)) {
     return `${jsxElementNameToString(node.object)}.${node.property.name}`
   }
@@ -39,6 +46,10 @@ export function isJSXElementPath(
   path: BabelJSXPath,
 ): path is BabelJSXElementPath {
   return t.isJSXElement(path.node)
+}
+
+export function isComponentTag(tagName: string): boolean {
+  return /^[A-Z]/.test(tagName) || tagName.includes('.')
 }
 
 export function isElementResult(

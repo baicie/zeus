@@ -18,7 +18,7 @@
  */
 import * as t from '@babel/types'
 
-import { registerTemplate, findTemplateByString } from '../runtime'
+import { registerTemplate, findTemplateByString } from './support'
 
 import type { BabelJSXPath, ElementTransformResults } from '../types'
 

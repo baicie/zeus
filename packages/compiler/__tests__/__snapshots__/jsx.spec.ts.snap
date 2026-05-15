@@ -1,52 +1,67 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`zeus compiler jsx transform > compiles component usage 1`] = `
-"function MyComponent(props: {
+"import { insert as _insert, createComponent as _createComponent, template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<h1></h1>\`);
+function MyComponent(props: {
   title: string;
 }) {
   return (() => {
-    insert(_el$, props.title);
+    const _el$ = _tmpl$().firstChild;
+    _insert(_el$, props.title);
     return _el$;
   })();
 }
-const App = () => createComponent(MyComponent, {
+const App = () => _createComponent(MyComponent, {
   title: "hello"
 });"
 `;
 
 exports[`zeus compiler jsx transform > compiles dynamic child before static element 1`] = `
-"const App = (props: {
+"import { insert as _insert, template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<div><span></span></div>\`);
+const App = (props: {
   name: string;
 }) => (() => {
+  const _el$ = _tmpl$().firstChild;
   const _el$2 = _el$.firstChild;
-  insert(_el$, props.name);
+  _insert(_el$, props.name);
   return _el$;
 })();"
 `;
 
 exports[`zeus compiler jsx transform > compiles dynamic text child 1`] = `
-"const App = (props: {
+"import { insert as _insert, template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<div></div>\`);
+const App = (props: {
   name: string;
 }) => (() => {
-  insert(_el$, props.name);
+  const _el$ = _tmpl$().firstChild;
+  _insert(_el$, props.name);
   return _el$;
 })();"
 `;
 
 exports[`zeus compiler jsx transform > compiles nested component usage 1`] = `
-"import { Show } from '@zeus-js/runtime-dom';
+"import { insert as _insert, createComponent as _createComponent, template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<span>Count:</span>\`),
+  _tmpl$2 = /*#__PURE__*/_template(\`<div><h1></h1></div>\`),
+  _tmpl$3 = /*#__PURE__*/_template(\`<div></div>\`);
+import { Show } from '@zeus-js/runtime-dom';
 interface Props {
   title: string;
   count?: number;
 }
 export function MyComponent(props: Props) {
   return (() => {
+    const _el$ = _tmpl$2().firstChild;
     const _el$2 = _el$.firstChild;
-    insert(_el$2, props.title);
-    insert(_el$, createComponent(Show, {
+    _insert(_el$2, props.title);
+    _insert(_el$, _createComponent(Show, {
       when: props.count !== undefined,
       children: (() => {
-        insert(_el$3, props.count);
+        const _el$3 = _tmpl$().firstChild;
+        _insert(_el$3, props.count);
         return _el$3;
       })()
     }));
@@ -55,10 +70,11 @@ export function MyComponent(props: Props) {
 }
 export function ParentComponent() {
   return (() => {
-    insert(_el$4, createComponent(MyComponent, {
+    const _el$4 = _tmpl$3().firstChild;
+    _insert(_el$4, _createComponent(MyComponent, {
       title: "Hello"
     }));
-    insert(_el$4, createComponent(MyComponent, {
+    _insert(_el$4, _createComponent(MyComponent, {
       title: "World",
       count: 5
     }));
@@ -67,14 +83,21 @@ export function ParentComponent() {
 }"
 `;
 
-exports[`zeus compiler jsx transform > compiles static element 1`] = `"const App = () => template("<div>hello</div>");"`;
+exports[`zeus compiler jsx transform > compiles static element 1`] = `
+"import { template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<div>hello</div>\`);
+const App = () => _tmpl$().firstChild;"
+`;
 
 exports[`zeus compiler jsx transform > compiles static element before dynamic child 1`] = `
-"const App = (props: {
+"import { insert as _insert, template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<div><span></span></div>\`);
+const App = (props: {
   name: string;
 }) => (() => {
+  const _el$ = _tmpl$().firstChild;
   const _el$2 = _el$.firstChild;
-  insert(_el$, props.name);
+  _insert(_el$, props.name);
   return _el$;
 })();"
 `;

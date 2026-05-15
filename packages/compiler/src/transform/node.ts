@@ -3,7 +3,7 @@ import { transformExpression } from './expression'
 import { transformFragment } from './fragment'
 import { transformSpread } from './spread'
 import { transformText } from './text'
-import { CompilerError, CompilerErrorCode } from '../errors'
+import { CompilerError, CompilerErrorCode } from '../diagnostics'
 
 import type { BabelJSXPath, BabelState, TransformResults } from '../types'
 

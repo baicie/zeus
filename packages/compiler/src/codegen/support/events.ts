@@ -9,8 +9,8 @@ import * as t from '@babel/types'
 
 import { getRendererConfig, registerImportMethod } from './imports'
 
-import type { BabelProgramPath } from '../types'
 import type { ProgramScopeData } from './imports'
+import type { BabelProgramPath } from '../../types'
 import type { NodePath } from '@babel/core'
 
 //#region event registry

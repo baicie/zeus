@@ -6,5 +6,4 @@
  * of the compiler.
  */
 export * from './template'
-export * from './inject'
-export * from './fragment'
+export * from './support'

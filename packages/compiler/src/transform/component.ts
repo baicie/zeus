@@ -1,14 +1,12 @@
 import * as t from '@babel/types'
 
+import { buildChildrenExpr } from './children'
 import { transformNode } from './node'
-import { createTemplate } from '../codegen'
-import { CompilerError, CompilerErrorCode } from '../errors'
-import {
-  getJSXAttrName,
-  getRendererConfig,
-  registerImportMethod,
-  trimJSXText,
-} from '../utils'
+import { getRendererConfig, registerImportMethod } from '../codegen/support'
+import { createTemplate } from '../codegen/template'
+import { CompilerError, CompilerErrorCode } from '../diagnostics'
+import { getJSXAttrName } from '../parse/jsx'
+import { trimJSXText } from '../utils/html'
 
 import type {
   BabelJSXElementPath,
@@ -16,10 +14,6 @@ import type {
   BabelState,
   DynamicTransformResults,
 } from '../types'
-
-export function isComponentTag(tagName: string): boolean {
-  return /^[A-Z]/.test(tagName) || tagName.includes('.')
-}
 
 export function transformComponent(
   path: BabelJSXElementPath,
@@ -113,7 +107,7 @@ function transformComponentChildren(
 ): t.Expression | null {
   const nodes: t.Expression[] = []
 
-  children.forEach(child => {
+  for (const child of children) {
     if (child.isJSXText()) {
       const text = trimJSXText(child.node.value)
 
@@ -121,37 +115,36 @@ function transformComponentChildren(
         nodes.push(t.stringLiteral(text))
       }
 
-      return
+      continue
+    }
+
+    if (
+      child.isJSXExpressionContainer() &&
+      t.isJSXEmptyExpression(child.node.expression)
+    ) {
+      continue
     }
 
     const result = transformNode(child, state)
 
-    if (!result) return
+    if (!result) continue
 
     if (result.kind === 'element') {
       nodes.push(createTemplate(child, result))
-      return
+      continue
     }
 
     if (result.kind === 'dynamic') {
       nodes.push(result.expr)
-      return
+      continue
     }
 
     if (result.kind === 'text') {
       nodes.push(t.stringLiteral(result.template))
     }
-  })
-
-  if (!nodes.length) {
-    return null
   }
 
-  if (nodes.length === 1) {
-    return nodes[0]
-  }
-
-  return t.arrayExpression(nodes)
+  return buildChildrenExpr(nodes)
 }
 
 function convertComponentIdentifier(

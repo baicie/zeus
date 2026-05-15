@@ -1,7 +1,13 @@
+/**
+ * Attribute codegen helpers.
+ *
+ * Low-level Babel AST node builders for attribute and event binding.
+ * These produce Babel AST nodes — they belong in the codegen layer, not utils.
+ */
 import * as t from '@babel/types'
 
-import { escapeHTML } from './html'
-import { getRendererConfig, registerImportMethod } from '../runtime'
+import { getRendererConfig, registerImportMethod } from './support'
+import { escapeHTML } from '../utils/html'
 
 import type { ElementTransformResults } from '../types'
 import type { NodePath } from '@babel/core'

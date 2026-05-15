@@ -7,8 +7,8 @@
  */
 import { getProgramScopeData } from './imports'
 
-import type { BabelProgramPath, ElementTransformResults } from '../types'
 import type { ProgramScopeData, TemplateRecord } from './imports'
+import type { BabelProgramPath, ElementTransformResults } from '../../types'
 import type { NodePath } from '@babel/core'
 
 //#region template registry
