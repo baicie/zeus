@@ -1,20 +1,15 @@
 import * as t from '@babel/types'
 
-import { createDynamicTransformResults } from '../types'
+import { TransformResult } from './results'
 
-import type {
-  BabelJSXExpressionContainerPath,
-  DynamicTransformResults,
-} from '../types'
+import type { BabelJSXExpressionContainerPath } from '../types'
 
-export function transformExpression(
-  path: BabelJSXExpressionContainerPath,
-): DynamicTransformResults | null {
+export function transformExpression(path: BabelJSXExpressionContainerPath) {
   const node = path.node
 
   if (node.expression == null || t.isJSXEmptyExpression(node.expression)) {
     return null
   }
 
-  return createDynamicTransformResults(node.expression)
+  return TransformResult.createDynamic(node.expression)
 }

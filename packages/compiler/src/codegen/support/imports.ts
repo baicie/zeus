@@ -152,20 +152,3 @@ function getProgramPath(path: NodePath): BabelProgramPath {
 }
 
 //#endregion
-
-//#region escape helpers
-
-export function escapeStringForTemplate(value: string): string {
-  return value
-    .replace(/\\/g, '\\\\')
-    .replace(/`/g, '\\`')
-    .replace(/\$\{/g, '\\${')
-}
-
-export function isMathMLTemplate(template: string): boolean {
-  return /^<(math|annotation|annotation-xml|maction|merror|mfrac|mi|mmultiscripts|mn|mo|mover|mpadded|mphantom|mprescripts|mroot|mrow|ms|mspace|msqrt|mstyle|msub|msubsup|msup|mtable|mtd|mtext|mtr|munder|munderover|semantics|menclose|mfenced)(\s|>)/.test(
-    template,
-  )
-}
-
-//#endregion

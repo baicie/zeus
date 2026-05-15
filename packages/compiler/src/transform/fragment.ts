@@ -1,17 +1,12 @@
 import { collectChildren, buildChildrenExpr } from './children'
-import { createDynamicTransformResults } from '../types'
+import { TransformResult } from './results'
 
-import type {
-  BabelJSXFragmentPath,
-  BabelJSXPath,
-  BabelState,
-  DynamicTransformResults,
-} from '../types'
+import type { BabelJSXFragmentPath, BabelJSXPath, BabelState } from '../types'
 
 export function transformFragment(
   path: BabelJSXFragmentPath,
   state: BabelState,
-): DynamicTransformResults | null {
+) {
   const { nodes } = collectChildren(
     path.get('children') as BabelJSXPath[],
     state,
@@ -21,5 +16,5 @@ export function transformFragment(
   const expr = buildChildrenExpr(nodes)
   if (!expr) return null
 
-  return createDynamicTransformResults(expr)
+  return TransformResult.createDynamic(expr)
 }

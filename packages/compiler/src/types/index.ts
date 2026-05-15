@@ -130,31 +130,4 @@ export type TransformResults =
 
 //#endregion
 
-//#region transform result factories
-
-export function createDynamicTransformResults(
-  expr: BabelExpression,
-): DynamicTransformResults {
-  return {
-    kind: 'dynamic',
-    dynamic: true,
-    expr,
-
-    template: '',
-    templateWithClosingTags: '',
-
-    declarations: [],
-    exprs: [],
-    dynamics: [],
-    postExprs: [],
-
-    isSVG: false,
-    hasCustomElement: false,
-    isImportNode: false,
-    skipTemplate: false,
-
-    renderer: 'dom',
-  }
-}
-
 //#endregion
