@@ -25,7 +25,7 @@ export function MultipleChildren() {
   return (() => {
     const _el$3 = _tmpl$3().firstChild;
     const _el$4 = _el$3.firstChild;
-    const _el$5 = _el$4.nextSibling;
+    const _el$5 = _el$3.nextSibling;
     return _el$3;
   })();
 }

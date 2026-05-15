@@ -32,14 +32,6 @@ export function inlineAttributeOnTemplate(
     t.isNumericLiteral(value.expression)
   ) {
     results.template += ` ${key}="${value.expression.value}"`
-    return
-  }
-
-  if (
-    t.isJSXExpressionContainer(value) &&
-    !t.isNumericLiteral(value.expression)
-  ) {
-    return
   }
 }
 

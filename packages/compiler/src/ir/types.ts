@@ -39,6 +39,7 @@ export type BaseIRNode = {
   renderer: ZeusRenderer
   /** Tags that still need closing (internal, for DOM walk). */
   toBeClosed?: Set<string>
+  /** @deprecated hydration support not implemented yet */
   hasHydratableEvent?: boolean
 }
 

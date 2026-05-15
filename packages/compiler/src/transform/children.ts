@@ -20,8 +20,7 @@ export function transformChildren(
 ) {
   const children = filterJSXChildren(path.get('children') as BabelJSXPath[])
 
-  let previousElementId = results.id
-  let childElementIndex = 0
+  let childIndex = 0
 
   children.forEach(child => {
     const transformed = transformNode(child, state)
@@ -48,17 +47,13 @@ export function transformChildren(
           t.variableDeclarator(
             transformed.id,
             t.memberExpression(
-              previousElementId,
-              t.identifier(
-                childElementIndex === 0 ? 'firstChild' : 'nextSibling',
-              ),
+              results.id,
+              t.identifier(childIndex === 0 ? 'firstChild' : 'nextSibling'),
             ),
           ),
         ]),
       )
-
-      previousElementId = transformed.id
-      childElementIndex++
+      childIndex++
       return
     }
 
@@ -75,6 +70,7 @@ export function transformChildren(
           ),
         ),
       )
+      childIndex++
     }
   })
 }
@@ -116,35 +112,35 @@ export function collectChildren(
   state: BabelState,
   fragmentPath?: BabelJSXPath,
 ): { nodes: t.Expression[]; filtered: BabelJSXPath[] } {
-  const filtered = filterJSXChildren(children)
+  const filtered: BabelJSXPath[] = []
   const nodes: t.Expression[] = []
 
-  for (const child of filtered) {
+  for (const child of children) {
     if (child.isJSXText()) {
       const text = trimJSXText(child.node.value)
+      if (!text.length) continue
+      filtered.push(child)
+      nodes.push(t.stringLiteral(escapeHTML(text)))
+      continue
+    }
 
-      if (text.length) {
-        nodes.push(t.stringLiteral(escapeHTML(text)))
-      }
-
+    if (
+      child.isJSXExpressionContainer() &&
+      t.isJSXEmptyExpression(child.node.expression)
+    ) {
       continue
     }
 
     const result = transformNode(child, state)
-
     if (!result) continue
+
+    filtered.push(child)
 
     if (result.kind === 'element') {
       nodes.push(createTemplate(fragmentPath ?? child, result))
-      continue
-    }
-
-    if (result.kind === 'dynamic') {
+    } else if (result.kind === 'dynamic') {
       nodes.push(result.expr)
-      continue
-    }
-
-    if (result.kind === 'text') {
+    } else if (result.kind === 'text') {
       nodes.push(t.stringLiteral(result.template))
     }
   }

@@ -24,15 +24,13 @@ export function registerTemplate(
   if (!result.template.length || result.skipTemplate) return
 
   const scopeData = getProgramScopeData(path)
+  const templateMap = (scopeData.templateMap ||= new Map())
   const templates = (scopeData.templates ||= [])
 
-  const existing = templates.find(t => t.template === result.template)
-
-  if (existing) return
+  if (templateMap.has(result.template)) return
 
   const templateId = getProgramPath(path).scope.generateUidIdentifier('tmpl$')
-
-  templates.push({
+  const record: TemplateRecord = {
     id: templateId,
     template: result.template,
     templateWithClosingTags: result.templateWithClosingTags,
@@ -40,7 +38,10 @@ export function registerTemplate(
     isCE: result.hasCustomElement,
     isImportNode: result.isImportNode,
     renderer: result.renderer,
-  })
+  }
+
+  templateMap.set(result.template, record)
+  templates.push(record)
 }
 
 /**
@@ -60,7 +61,7 @@ export function findTemplateByString(
   template: string,
 ): TemplateRecord | undefined {
   const scopeData = getProgramScopeData(path)
-  return scopeData.templates?.find(t => t.template === template)
+  return scopeData.templateMap?.get(template)
 }
 
 //#endregion

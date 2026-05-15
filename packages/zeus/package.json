@@ -1,5 +1,5 @@
 {
-  "name": "@zeusjs/zeus",
+  "name": "@zeus-js/zeus",
   "version": "0.0.1",
   "type": "module",
   "main": "./dist/index.js",
@@ -16,7 +16,8 @@
     "dev": "tsup --watch"
   },
   "dependencies": {
-    "@zeusjs/runtime-dom": "workspace:*"
+    "@zeus-js/signal": "workspace:*",
+    "@zeus-js/runtime-dom": "workspace:*"
   },
   "devDependencies": {
     "tsup": "^8.5.1",

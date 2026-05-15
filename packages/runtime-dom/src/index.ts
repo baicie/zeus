@@ -33,6 +33,16 @@ export function insert(
 ): void {
   if (value == null || value === false || value === true) return
 
+  if (value === undefined) {
+    if (__DEV__) {
+      console.warn(
+        '[Zeus runtime] insert received `undefined`, which is ignored. ' +
+          'Use `null` or a fallback value explicitly if you want to suppress this warning.',
+      )
+    }
+    return
+  }
+
   if (Array.isArray(value)) {
     for (let i = 0; i < value.length; i++) {
       insert(parent, value[i], marker)

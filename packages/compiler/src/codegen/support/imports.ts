@@ -20,6 +20,7 @@ export type ProgramScopeData = {
   importMethods?: Map<string, ImportMethodRecord>
   events?: Set<string>
   templates?: TemplateRecord[]
+  templateMap?: Map<string, TemplateRecord>
 }
 
 export type TemplateRecord = {
