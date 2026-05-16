@@ -52,11 +52,27 @@ export function scanEnums(): () => void {
     Object.create(null)
 
   // 1. grep for files with exported enum
-  const { stdout } = spawnSync('git', ['grep', 'export enum'])
+  // 1. grep for files with exported enum
+  // Use --glob to only match TypeScript source files in packages
+  // (avoids docs, scripts dir matching the grep pattern itself, etc.)
+  const { stdout } = spawnSync('git', [
+    'grep',
+    '--no-color',
+    '--glob=*.ts',
+    '--glob=*.tsx',
+    '--glob=!docs/**',
+    '--glob=!scripts/**',
+    'export enum',
+  ])
+  const strippedOutput = stdout
+    .toString()
+    .replace(
+      /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g,
+      '',
+    )
   const files = [
     ...new Set(
-      stdout
-        .toString()
+      strippedOutput
         .trim()
         .split('\n')
         .map((line: string) => line.split(':')[0])
