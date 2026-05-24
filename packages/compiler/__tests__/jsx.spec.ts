@@ -65,6 +65,34 @@ describe('zeus compiler jsx transform', () => {
     expect(await compile(code)).toMatchSnapshot()
   })
 
+  it('compiles multiple dynamic children before static element', async () => {
+    const code = `
+      const App = (props: { first: string; second: string }) => (
+        <div>
+          {props.first}
+          {props.second}
+          <span />
+        </div>
+      )
+    `
+
+    expect(await compile(code)).toMatchSnapshot()
+  })
+
+  it('compiles static elements around dynamic child', async () => {
+    const code = `
+      const App = (props: { name: string }) => (
+        <div>
+          <span />
+          {props.name}
+          <b />
+        </div>
+      )
+    `
+
+    expect(await compile(code)).toMatchSnapshot()
+  })
+
   it('compiles component usage', async () => {
     const code = `
       function MyComponent(props: { title: string }) {

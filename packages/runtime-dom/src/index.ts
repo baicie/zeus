@@ -31,8 +31,6 @@ export function insert(
   value: JSXValue,
   marker: Node | null = null,
 ): void {
-  if (value == null || value === false || value === true) return
-
   if (value === undefined) {
     if (__DEV__) {
       console.warn(
@@ -42,6 +40,8 @@ export function insert(
     }
     return
   }
+
+  if (value == null || value === false || value === true) return
 
   if (Array.isArray(value)) {
     for (let i = 0; i < value.length; i++) {

@@ -20,6 +20,15 @@ catalog:
   '@types/babel__core': 7.20.5
   vite: ^8.0.5
 
-shellEmulator: true
+minimumReleaseAgeExclude:
+  - '@typescript/native-preview-darwin-arm64@7.0.0-dev.20260524.1'
+  - '@typescript/native-preview-darwin-x64@7.0.0-dev.20260524.1'
+  - '@typescript/native-preview-linux-arm64@7.0.0-dev.20260524.1'
+  - '@typescript/native-preview-linux-arm@7.0.0-dev.20260524.1'
+  - '@typescript/native-preview-linux-x64@7.0.0-dev.20260524.1'
+  - '@typescript/native-preview-win32-arm64@7.0.0-dev.20260524.1'
+  - '@typescript/native-preview-win32-x64@7.0.0-dev.20260524.1'
+  - '@typescript/native-preview@7.0.0-dev.20260524.1'
+  - '@vitest/eslint-plugin@1.6.18'
 
-verifyDepsBeforeRun: install
+shellEmulator: true

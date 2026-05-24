@@ -20,7 +20,8 @@ export function transformChildren(
 ) {
   const children = filterJSXChildren(path.get('children') as BabelJSXPath[])
 
-  let childIndex = 0
+  let staticChildIndex = 0
+  let previousStaticChildId: t.Identifier | null = null
 
   children.forEach(child => {
     const transformed = transformNode(child, state)
@@ -47,13 +48,18 @@ export function transformChildren(
           t.variableDeclarator(
             transformed.id,
             t.memberExpression(
-              results.id,
-              t.identifier(childIndex === 0 ? 'firstChild' : 'nextSibling'),
+              previousStaticChildId
+                ? t.cloneNode(previousStaticChildId)
+                : results.id,
+              t.identifier(
+                staticChildIndex === 0 ? 'firstChild' : 'nextSibling',
+              ),
             ),
           ),
         ]),
       )
-      childIndex++
+      staticChildIndex++
+      previousStaticChildId = transformed.id
       return
     }
 
@@ -70,7 +76,6 @@ export function transformChildren(
           ),
         ),
       )
-      childIndex++
     }
   })
 }
