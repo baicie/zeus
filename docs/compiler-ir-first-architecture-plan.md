@@ -1669,3 +1669,2050 @@ Phase 1 + Phase 2
 不要一开始就替换现有 transform。先让新 IR 链路在测试里跑通，再逐步接入主编译流程。
 
 这是当前 Zeus compiler 最稳、最利于长期演进的优化路径。
+
+---
+
+## 18. 需要补充考虑的关键问题
+
+上面的 IR-first 方案是主干，但还有一些必须提前纳入设计的问题。它们不一定都要在 Phase 1 实现，但应该进入 IR、pass、codegen 的设计约束，否则后续做 `Show` / `For` / Web Components 时会返工。
+
+### 18.1 Owner / Scope / Cleanup 必须进入 codegen 设计
+
+Zeus 的响应式语义不是“创建 effect 就结束”，而是必须支持作用域释放。
+
+这些场景都依赖 cleanup：
+
+- `Show` 分支卸载
+- `For` item 删除
+- component 子树释放
+- custom element `disconnectedCallback`
+- event listener 移除
+- ref cleanup
+
+因此 IR 和 codegen 需要表达“哪些节点会创建独立 owner scope”。
+
+建议新增 IR：
+
+```ts
+export type ScopeBoundaryIR = BaseIRNode & {
+  kind: 'ScopeBoundary'
+  ref: IRRef
+  children: ZeusIRNode[]
+  reason: 'Component' | 'Show' | 'ForItem' | 'CustomElement'
+}
+```
+
+或者在已有节点上加字段：
+
+```ts
+type ScopePolicy = 'inherit' | 'create'
+
+type BaseIRNode = {
+  id: number
+  loc?: t.SourceLocation | null
+  scope?: ScopePolicy
+}
+```
+
+runtime-dom 最终需要类似 helper：
+
+```ts
+export function createDOMScope<T>(fn: (dispose: () => void) => T): T
+
+export function disposeNode(node: Node): void
+```
+
+codegen 目标形态：
+
+```ts
+const _dispose$ = _createDOMScope(() => {
+  _bindText(_text$, () => count())
+  _bindEvent(_button$, 'click', onClick)
+})
+```
+
+短期可以不实现完整 `disposeNode`，但 `Show` / `For` 之前必须补齐。
+
+### 18.2 表达式不能都当 DynamicText
+
+当前草案中 JSX expression 暂时 lower 成 `DynamicTextIR`，这是 MVP 简化，但长期不够。
+
+JSX 表达式可能是：
+
+```tsx
+{count()}
+{props.children}
+{condition() ? <A /> : <B />}
+{items().map(item => <li>{item.name}</li>)}
+{nodeRef()}
+```
+
+这些不全是文本。
+
+建议新增表达式分类：
+
+```ts
+export type DynamicExpressionIR = BaseIRNode & {
+  kind: 'DynamicExpression'
+  expr: t.Expression
+  ref: IRRef
+  domPath?: DomPath
+  expected: 'text' | 'node' | 'mixed'
+}
+```
+
+lower 阶段先保守标记：
+
+```ts
+expected: 'mixed'
+```
+
+analyze pass 可以在确定安全时降级：
+
+```txt
+DynamicExpression(mixed)
+  -> DynamicText(text)
+  -> DynamicNode(node)
+  -> DynamicRange(mixed)
+```
+
+runtime helper 也应区分：
+
+```ts
+bindText(textNode, () => value)
+insert(parent, value, marker)
+bindDynamic(parent, marker, () => value)
+```
+
+推荐：
+
+- `{string | number}` 走 `bindText`
+- `{Node | array | component}` 走 `bindDynamic`
+- 条件/数组表达式先走 `bindDynamic`
+
+### 18.3 Anchor / Region 模型要比 marker 更高一层
+
+单个 dynamic text 可以用 marker，但 `Show` / `For` / Fragment 需要“区域”。
+
+建议 IR 中不要只表达 `Marker`，而要表达 `AnchorRange`：
+
+```ts
+export type AnchorRef = {
+  start: IRRef
+  end?: IRRef
+}
+
+export type RegionIR = BaseIRNode & {
+  kind: 'Region'
+  ref: AnchorRef
+  children: ZeusIRNode[]
+  mode: 'single' | 'range'
+}
+```
+
+runtime helper：
+
+```ts
+export type Region = {
+  start: Comment
+  end: Comment
+}
+
+export function createRegion(parent: Node, marker: Comment): Region
+
+export function clearRegion(region: Region): void
+
+export function insertIntoRegion(region: Region, value: JSXValue): void
+```
+
+这样后续 `Show` 可以自然变成：
+
+```ts
+_bindShow(_region$, () => visible(), () => {
+  return _tmpl$().firstChild
+})
+```
+
+`For` 可以自然变成：
+
+```ts
+_bindFor(_region$, () => items(), item => {
+  return _createItemScope(() => ...)
+})
+```
+
+### 18.4 DOM namespace 必须进 IR
+
+SVG 不能只靠 `isSVG` boolean 粗略处理。
+
+这些场景会出问题：
+
+```tsx
+<svg>
+  <foreignObject>
+    <div />
+  </foreignObject>
+</svg>
+```
+
+建议：
+
+```ts
+export type Namespace = 'html' | 'svg' | 'mathml'
+
+export type ElementIR = BaseIRNode & {
+  kind: 'Element'
+  namespace: Namespace
+  tagName: string
+  // ...
+}
+```
+
+新增 pass：
+
+```txt
+assignNamespaces
+```
+
+规则：
+
+- `<svg>` 进入 `svg`
+- `<math>` 进入 `mathml`
+- `<foreignObject>` 子树回到 `html`
+
+template codegen 也要知道 namespace，后续 runtime `template` 可能需要：
+
+```ts
+template(html, { namespace: 'svg' })
+```
+
+### 18.5 Props / children 传递语义需要提前定
+
+组件不是 DOM element，不能只当函数调用。
+
+需要明确：
+
+```tsx
+<MyComponent title="hello">
+  <span />
+  {name()}
+</MyComponent>
+```
+
+props 应该是什么形态：
+
+```ts
+_createComponent(MyComponent, {
+  title: 'hello',
+  children: ...
+})
+```
+
+关键问题：
+
+- children 是立即创建 DOM，还是 lazy factory？
+- 多 children 是数组还是 Fragment factory？
+- 动态 children 是否保留响应式绑定？
+
+推荐 MVP：
+
+```ts
+type ComponentChildren =
+  | JSXValue
+  | (() => JSXValue)
+```
+
+编译输出优先用 lazy children：
+
+```ts
+_createComponent(MyComponent, {
+  title: 'hello',
+  get children() {
+    return (() => {
+      const _el$ = _tmpl$().firstChild
+      return _el$
+    })()
+  },
+})
+```
+
+更简单的 MVP 可先用：
+
+```ts
+children: () => [...]
+```
+
+但必须在文档里明确：组件 children 不应被提前变成不可追踪的静态数组。
+
+### 18.6 Attribute / Property 判定不能只靠名字
+
+DOM 上有三类绑定：
+
+- attribute
+- property
+- special binding
+
+例如：
+
+```tsx
+<input value={value()} checked={checked()} />
+<label htmlFor={id()} />
+<div class={{ active: ok() }} />
+<div style={{ color: color() }} />
+```
+
+建议新增 binding kind：
+
+```ts
+export type BindingTarget =
+  | 'attribute'
+  | 'property'
+  | 'event'
+  | 'classList'
+  | 'style'
+  | 'ref'
+
+export type BindingIR = BaseIRNode & {
+  kind: 'Binding'
+  target: BindingTarget
+  name: string
+  expr: t.Expression
+}
+```
+
+新增 pass：
+
+```txt
+analyzeBindings
+```
+
+职责：
+
+- `onClick` -> event
+- `class` string -> attribute
+- `classList` object -> classList
+- `style` object -> style
+- `value/checked/selected` -> property
+- `ref` -> ref binding
+
+这会让 lower 阶段保持简单，复杂 DOM 规则集中在一个 pass。
+
+### 18.7 Source map 与 diagnostics 不能后补
+
+编译器必须保留 source location，否则后续诊断质量会很差。
+
+IR 基础节点已经有：
+
+```ts
+loc?: t.SourceLocation | null
+```
+
+但 lower 阶段必须实际写入：
+
+```ts
+loc: path.node.loc
+```
+
+diagnostic 应该绑定 IR node 或 Babel path：
+
+```ts
+export type CompilerDiagnostic = {
+  code: CompilerErrorCode
+  message: string
+  loc?: t.SourceLocation | null
+  hint?: string
+}
+```
+
+需要提前支持的错误：
+
+- unsupported spread children
+- unsupported spread attribute
+- invalid Host position
+- Slot outside Host
+- dynamic expression used where not supported
+- invalid event handler
+- invalid ref target
+
+### 18.8 Template 安全与 escaping 要集中化
+
+所有进入 template HTML 的内容都必须经过统一 escape。
+
+不能分散在 lower/text/attribute/codegen 各处。
+
+建议新增：
+
+```txt
+template/escape.ts
+template/renderTemplate.ts
+```
+
+API：
+
+```ts
+export function escapeText(value: string): string
+export function escapeAttribute(value: string): string
+export function renderTemplate(node: ElementIR): string
+```
+
+规则：
+
+- text escape：`& < >`
+- attr escape：`& < "`
+- 不要 escape 动态 expression，因为动态 expression 不进 template
+
+### 18.9 Dev / Prod codegen 要有开关
+
+Zeus 后续需要 dev diagnostics、source hint、runtime warning，也需要 prod 紧凑输出。
+
+建议 config：
+
+```ts
+export type CompilerMode = 'development' | 'production'
+
+export type CompilerOptions = {
+  moduleName?: string
+  mode?: CompilerMode
+  irPipeline?: boolean
+  dev?: boolean
+}
+```
+
+codegen 根据 mode 决定：
+
+- 是否保留 marker 注释内容
+- 是否生成 displayName
+- 是否生成 debug location
+- 是否生成 runtime warning
+
+例如 dev template：
+
+```html
+<button>count: <!--zeus:text:0--></button>
+```
+
+prod template：
+
+```html
+<button>count: <!></button>
+```
+
+### 18.10 HMR 边界要提前不破坏
+
+Vite 阶段会需要 HMR。
+
+当前不必实现，但 compiler 不应该生成让 HMR 完全无法接入的结构。
+
+建议保留 component boundary metadata：
+
+```ts
+export type ComponentIR = BaseIRNode & {
+  kind: 'Component'
+  ref: IRRef
+  callee: t.Expression
+  props: ComponentPropIR[]
+  hmrBoundary?: boolean
+}
+```
+
+未来 Vite plugin 可基于文件级 component export 做 refresh。
+
+### 18.11 测试需要分层，不只靠 snapshot
+
+快照测试很有用，但不足以覆盖架构正确性。
+
+建议测试分层：
+
+```txt
+lower.spec.ts       JSX -> IR
+passes.spec.ts      IR -> analyzed IR
+template.spec.ts    IR -> template HTML
+codegen.spec.ts     IR -> Babel AST / code string
+runtime.spec.ts     compiled output -> jsdom behavior
+diagnostics.spec.ts invalid input -> error
+```
+
+每层测试目标不同：
+
+- lower 测结构
+- pass 测语义
+- codegen 测输出
+- runtime 测真实行为
+- diagnostics 测错误质量
+
+### 18.12 Public runtime helper contract 要版本化
+
+compiler 和 runtime-dom 是强耦合关系。需要显式定义 compiler 使用的 helper contract。
+
+建议新增文档或类型：
+
+```txt
+packages/compiler/src/runtime-contract/dom.ts
+```
+
+示例：
+
+```ts
+export const DOM_RUNTIME_HELPERS = {
+  template: 'template',
+  insert: 'insert',
+  marker: 'marker',
+  bindText: 'bindText',
+  bindAttr: 'bindAttr',
+  bindProp: 'bindProp',
+  bindEvent: 'bindEvent',
+  createComponent: 'createComponent',
+} as const
+```
+
+不要在 codegen 中手写字符串散落各处。
+
+---
+
+## 19. 补充后的优先级调整
+
+综合上面的遗漏点，推荐把下一步从“只做 Phase 1 + Phase 2”微调为：
+
+```txt
+Phase 1A：CompilerContext + runtime helper contract
+Phase 1B：IR nodes + source loc + namespace + binding kind
+Phase 2A：lower native JSX to IR
+Phase 2B：assignNamespaces + analyzeBindings + assignDomPaths
+Phase 2C：template rendering centralized escape
+```
+
+也就是说，新增 IR 时不要只加最小节点，还应同时把这些字段预留好：
+
+```ts
+loc?: t.SourceLocation | null
+namespace?: Namespace
+scope?: ScopePolicy
+```
+
+以及把动态表达式先建模成更通用的：
+
+```ts
+DynamicExpressionIR
+```
+
+再由 pass 降级到：
+
+```ts
+DynamicTextIR
+DynamicNodeIR
+DynamicRangeIR
+```
+
+这是比“所有表达式先当文本”更稳的方案。
+
+---
+
+## 20. 第二轮补充：真实编译器会踩到的工程边界
+
+第 18 节补的是核心语义边界；这一节补的是实现编译器时容易被忽略、但会直接影响稳定性的工程边界。
+
+### 20.1 HTML parser quirks 必须进入 template 策略
+
+`template.innerHTML` 不是“字符串到 DOM 的透明映射”。浏览器 HTML parser 会自动修正某些结构。
+
+典型例子：
+
+```tsx
+<table>
+  <tr>
+    <td>{value()}</td>
+  </tr>
+</table>
+```
+
+浏览器可能自动插入：
+
+```html
+<tbody>
+  <tr>...</tr>
+</tbody>
+```
+
+这会影响 DOM path：
+
+```txt
+table.firstChild 可能不是 tr，而是 tbody
+```
+
+必须提前决定：
+
+1. 允许 parser 修正，并在 `assignDomPaths` / template scan 中按真实 DOM 结构定位。
+2. 或者 compiler 对 table/select 等特殊标签生成特殊 template。
+
+推荐 MVP：
+
+- 先承认 `template.innerHTML` 的真实 DOM 结构。
+- DOM path 不完全靠静态 IR 推导，最终要有一个 `scanTemplate` pass 或 codegen helper 能从真实 template 结构验证路径。
+- 对 `table/tr/td/select/option` 加专项测试。
+
+建议新增测试：
+
+```tsx
+<table><tr><td>{value()}</td></tr></table>
+<select><option>{label()}</option></select>
+```
+
+### 20.2 多根节点与 Fragment 返回值要明确
+
+组件返回可能是：
+
+```tsx
+<>
+  <span />
+  <b />
+</>
+```
+
+也可能是：
+
+```tsx
+return [nodeA, nodeB]
+```
+
+Zeus 要明确组件返回类型：
+
+```ts
+type JSXValue = Node | DocumentFragment | Node[] | string | number | null
+```
+
+推荐编译策略：
+
+- 单根 element：返回 `Element`
+- Fragment 多根：返回 `DocumentFragment`
+- Fragment 中存在动态区域：用 region anchor 管理
+
+Fragment IR 建议补充：
+
+```ts
+export type FragmentIR = BaseIRNode & {
+  kind: 'Fragment'
+  ref: IRRef
+  children: ZeusIRNode[]
+  mode: 'single' | 'fragment'
+}
+```
+
+目标输出：
+
+```ts
+const _frag$ = document.createDocumentFragment()
+_insert(_frag$, _childA$)
+_insert(_frag$, _childB$)
+return _frag$
+```
+
+### 20.3 Template hoisting 需要区分 module scope 与 function scope
+
+静态 template 应 hoist 到 module scope：
+
+```ts
+var _tmpl$ = _template(`<div></div>`)
+```
+
+但不是所有 codegen 产物都能 hoist。
+
+不能 hoist 的内容：
+
+- 闭包捕获 props/state 的表达式
+- event handler 表达式
+- children factory
+- ref callback
+
+建议 IR 中区分：
+
+```ts
+export type HoistPolicy = 'module' | 'function' | 'none'
+```
+
+TemplateIR:
+
+```ts
+export type TemplateIR = BaseIRNode & {
+  kind: 'Template'
+  html: string
+  ref: IRRef
+  hoist: 'module'
+}
+```
+
+### 20.4 Babel visitor 替换 JSX 时要避免重复访问
+
+当前 visitor 是：
+
+```ts
+JSXElement: transformJSX
+JSXFragment: transformJSX
+```
+
+当父 JSX 被替换时，Babel 仍可能继续访问子 JSX，导致重复 transform 或状态错乱。
+
+推荐做法：
+
+```ts
+path.replaceWith(output)
+path.skip()
+```
+
+或者只在“最外层 JSX”处理：
+
+```ts
+function isNestedJSX(path: BabelJSXPath): boolean {
+  return path.findParent(parent =>
+    parent.isJSXElement() || parent.isJSXFragment(),
+  ) != null
+}
+```
+
+主 transform：
+
+```ts
+if (isNestedJSX(path)) return
+```
+
+这点在 IR-first 管线接入主流程时必须处理。
+
+### 20.5 Import collision 与用户已有 import 要处理
+
+用户代码里可能已经有：
+
+```ts
+import { template } from '@zeus-js/runtime-dom'
+const _template = 1
+```
+
+compiler 生成 helper local 时必须保证不会冲突。
+
+当前 `scope.generateUidIdentifier` 是对的，但还要保证：
+
+- 相同 helper 只 import 一次
+- 不同 module 的同名 helper 不冲突
+- preserve user imports
+- import 顺序稳定，方便 snapshot
+
+建议 helper contract + import registry 输出时排序：
+
+```ts
+records.sort((a, b) => a.imported.localeCompare(b.imported))
+```
+
+### 20.6 Codegen 必须避免重复求值动态表达式
+
+错误示例：
+
+```tsx
+<div title={expensive()}>{expensive()}</div>
+```
+
+如果 codegen 为了优化复用而错误缓存表达式，可能改变语义。
+
+默认规则：
+
+- 每个 JSX expression 独立求值。
+- 只有明确证明纯静态时才能 hoist。
+- 不要跨绑定点复用用户表达式结果。
+
+对于：
+
+```tsx
+<div>{count()}</div>
+```
+
+应输出：
+
+```ts
+_bindText(_text$, () => count())
+```
+
+而不是：
+
+```ts
+const _v$ = count()
+_bindText(_text$, () => _v$)
+```
+
+### 20.7 Event handler 需要验证函数形态
+
+这些写法语义不同：
+
+```tsx
+<button onClick={handleClick} />
+<button onClick={() => handleClick()} />
+<button onClick={handleClick()} />
+```
+
+第三种会立即执行，通常不是用户想要的。
+
+Zeus 可以先允许，但 dev 诊断应 warning：
+
+```txt
+onClick received a CallExpression. Did you mean onClick={() => handleClick()}?
+```
+
+EventBindingIR 可补充：
+
+```ts
+export type EventBindingIR = BaseIRNode & {
+  kind: 'EventBinding'
+  eventName: string
+  handler: t.Expression
+  options?: {
+    capture?: boolean
+    passive?: boolean
+    once?: boolean
+  }
+}
+```
+
+事件 options 可以后续支持：
+
+```tsx
+<button onClickCapture={fn} />
+```
+
+### 20.8 Ref 语义要提前设计
+
+`ref` 不是普通 attribute。
+
+可能形式：
+
+```tsx
+<div ref={el => div = el} />
+<div ref={divRef} />
+```
+
+推荐 MVP 只支持 callback ref：
+
+```tsx
+<div ref={el => { div = el }} />
+```
+
+IR：
+
+```ts
+export type RefBindingIR = BaseIRNode & {
+  kind: 'RefBinding'
+  target: IRRef
+  expr: t.Expression
+}
+```
+
+codegen：
+
+```ts
+_bindRef(_el$, el => {
+  div = el
+})
+```
+
+cleanup：
+
+```ts
+_bindRef(_el$, callback)
+// dispose 时 callback(null) 是否调用，需要文档明确
+```
+
+建议：dispose 时 callback `null`，与主流框架预期接近。
+
+### 20.9 Spread props 需要明确长期策略
+
+当前 MVP 可以报错：
+
+```tsx
+<div {...props} />
+```
+
+但长期一定会需要。
+
+建议策略：
+
+- DOM spread：编译到 `spreadAttrs(el, props)`
+- Component spread：编译到 object merge
+- spread 顺序必须保持 JSX 语义
+
+例子：
+
+```tsx
+<div id="a" {...props} class="x" />
+```
+
+后面的 `class="x"` 应覆盖 spread 中的 class，或按明确规则合并。
+
+IR：
+
+```ts
+export type SpreadAttributeIR = BaseIRNode & {
+  kind: 'SpreadAttribute'
+  expr: t.Expression
+  order: number
+}
+```
+
+MVP 可以继续不支持，但 IR 预留会减少返工。
+
+### 20.10 Static analysis 要区分 static / reactive / dynamic once
+
+不是所有表达式都需要 effect。
+
+例子：
+
+```tsx
+<div id="static" />
+<div id={props.id} />
+<div id={Math.random()} />
+```
+
+对 Zeus 来说：
+
+- string literal：static inline
+- signal getter：reactive binding
+- 普通表达式：初始化求值一次，还是包 effect？
+
+推荐 MVP 规则：
+
+- JSX expression 默认视为 dynamic binding，用 effect 包裹。
+- 后续由 `analyzeStaticExpressions` 优化明显静态表达式。
+
+新增 pass：
+
+```txt
+analyzeStaticExpressions
+```
+
+输出：
+
+```ts
+export type EvaluationPolicy = 'static' | 'once' | 'reactive'
+```
+
+BindingIR：
+
+```ts
+evaluation: EvaluationPolicy
+```
+
+### 20.11 Keyed For 的 key 语义要提前留口
+
+`For` 第一版可全量重建，但 IR 应该预留 key：
+
+```tsx
+<For each={items()} key={item => item.id}>
+  {item => <div>{item.name}</div>}
+</For>
+```
+
+IR：
+
+```ts
+export type ForIR = BaseIRNode & {
+  kind: 'For'
+  each: t.Expression
+  item: t.Identifier
+  index?: t.Identifier
+  key?: t.Expression
+  body: ZeusIRNode[]
+}
+```
+
+这样后续从“正确但重建”升级到 keyed reconciliation 时不用改用户语义。
+
+### 20.12 Web Components prop schema 应进入 compiler metadata
+
+`defineElement` 不只是 runtime API，它影响 compiler 对 `Host` / `Slot` / props 的理解。
+
+例子：
+
+```tsx
+defineElement('z-counter', {
+  shadow: false,
+  props: {
+    count: Number,
+    open: Boolean,
+  },
+}, props => {
+  return <Host>...</Host>
+})
+```
+
+compiler 需要识别：
+
+- 当前 JSX 是否处于 `defineElement` render 函数内
+- Host 是否合法
+- Slot 在 shadow/light DOM 下 codegen 不同
+- props schema 是否用于 attr/property reflection
+
+建议 context 增加：
+
+```ts
+export type ElementCompileContext = {
+  tagName: string
+  shadow: boolean | 'open' | 'closed'
+  props: Record<string, 'String' | 'Number' | 'Boolean' | 'Property'>
+}
+```
+
+CompilerContext：
+
+```ts
+elementContext?: ElementCompileContext
+```
+
+### 20.13 诊断应支持 recoverable warning
+
+不是所有问题都应该 throw。
+
+例如：
+
+- unstable For key：warning
+- event handler is call expression：warning
+- unsupported but fallbackable pattern：warning
+- invalid Host position：error
+
+建议：
+
+```ts
+export type DiagnosticSeverity = 'error' | 'warning'
+
+export type CompilerDiagnostic = {
+  severity: DiagnosticSeverity
+  code: CompilerErrorCode
+  message: string
+  loc?: t.SourceLocation | null
+  hint?: string
+}
+```
+
+Program exit 时：
+
+- error：throw
+- warning：按 config 输出
+
+### 20.14 Compiler pass 顺序要显式固定
+
+不要让 pass 顺序散落在 transform 中。
+
+建议：
+
+```ts
+export const DOM_PASS_PIPELINE = [
+  normalizeChildren,
+  validateBuiltins,
+  assignNamespaces,
+  analyzeBindings,
+  analyzeExpressions,
+  assignRegions,
+  assignDomPaths,
+  collectTemplates,
+] as const
+```
+
+主流程：
+
+```ts
+runPassPipeline(ir, DOM_PASS_PIPELINE, context)
+```
+
+这样每个 pass 的输入输出假设更清楚。
+
+### 20.15 IR 序列化能力很有价值
+
+为了调试和未来 Rust 后端，IR 最好能序列化成 JSON。
+
+问题是 Babel expression 不能直接稳定 JSON 化。
+
+建议：
+
+```ts
+export type ExpressionRef = {
+  kind: 'BabelExpression'
+  node: t.Expression
+  debug?: string
+}
+```
+
+调试输出：
+
+```ts
+serializeIR(ir, {
+  expressions: 'code',
+})
+```
+
+这样可以输出：
+
+```json
+{
+  "kind": "DynamicExpression",
+  "expr": "count()"
+}
+```
+
+新增调试命令或测试 helper：
+
+```ts
+expect(serializeIR(ir)).toMatchInlineSnapshot()
+```
+
+### 20.16 编译产物格式需要保持 tree-shaking 友好
+
+不要生成会阻碍 tree-shaking 的大对象 runtime。
+
+推荐：
+
+```ts
+import { template, bindText } from '@zeus-js/runtime-dom'
+```
+
+不推荐：
+
+```ts
+import * as runtime from '@zeus-js/runtime-dom'
+runtime.bindText(...)
+```
+
+helper 必须按需导入。
+
+### 20.17 CJS / ESM 输出边界先不做，但不要写死
+
+当前包是 ESM，但 compiler 不应假设所有用户代码都是纯 ESM。
+
+短期保持 ESM import 即可，长期由 bundler 处理。
+
+但 runtime contract 不要依赖：
+
+```ts
+import.meta
+top-level await
+```
+
+这些会增加集成限制。
+
+### 20.18 文档里的代码草案需要修正一处 marker/text 混用
+
+第 9.4 节的 `emitDynamicText` 草案中，`node.ref` 同时被当作 marker 和 text 使用，这是故意标注为草案，但正式方案应直接改成两个 ref。
+
+建议 IR：
+
+```ts
+export type DynamicTextIR = BaseIRNode & {
+  kind: 'DynamicText'
+  expr: t.Expression
+  markerRef: IRRef
+  textRef: IRRef
+  domPath?: DomPath
+}
+```
+
+正式 codegen：
+
+```ts
+function emitDynamicText(
+  node: DynamicTextIR,
+  context: CompilerContext,
+): t.Statement[] {
+  const marker = context.importRuntime('marker')
+  const insert = context.importRuntime('insert')
+  const bindText = context.importRuntime('bindText')
+
+  return [
+    t.variableDeclaration('const', [
+      t.variableDeclarator(
+        t.identifier(node.markerRef.name),
+        t.callExpression(marker, [
+          t.identifier((node.domPath as { parent: IRRef }).parent.name),
+          t.numericLiteral((node.domPath as { index: number }).index),
+        ]),
+      ),
+    ]),
+    t.variableDeclaration('const', [
+      t.variableDeclarator(
+        t.identifier(node.textRef.name),
+        t.callExpression(
+          t.memberExpression(
+            t.identifier('document'),
+            t.identifier('createTextNode'),
+          ),
+          [t.stringLiteral('')],
+        ),
+      ),
+    ]),
+    t.expressionStatement(
+      t.callExpression(insert, [
+        t.identifier((node.domPath as { parent: IRRef }).parent.name),
+        t.identifier(node.textRef.name),
+        t.identifier(node.markerRef.name),
+      ]),
+    ),
+    t.expressionStatement(
+      t.callExpression(bindText, [
+        t.identifier(node.textRef.name),
+        t.arrowFunctionExpression([], node.expr),
+      ]),
+    ),
+  ]
+}
+```
+
+---
+
+## 21. 再次调整后的近期最优落地顺序
+
+如果把第 18、20 节都纳入考虑，近期最优顺序应调整为：
+
+```txt
+1. runtime helper contract
+2. CompilerContext
+3. IR nodes v1
+   - loc
+   - namespace
+   - scope
+   - DynamicExpressionIR
+   - BindingIR
+   - markerRef/textRef 分离
+4. template escape/renderTemplate
+5. lower JSX -> IR
+6. assignNamespaces
+7. analyzeBindings
+8. analyzeExpressions
+9. assignRegions
+10. assignDomPaths
+11. codegen/dom v1
+```
+
+第一批实现仍然只覆盖：
+
+- native element
+- static text
+- dynamic expression
+- static attr
+- dynamic attr
+- event attr
+- simple component call
+
+但是类型和 pass 顺序要按完整方向预留。
+
+这能避免两类返工：
+
+1. 现在为了快而把 expression 都写死成 text，后面又拆成 text/node/range。
+2. 现在为了快而只做 marker，后面做 Show/For 时又重做 region。
+
+---
+
+## 22. 最终完整性审计
+
+本节把还未显式覆盖、但会影响 Zeus compiler 长期稳定性的事项一次性补齐。它们按“必须进入架构设计，但不一定进入 MVP 实现”的标准列出。
+
+### 22.1 JSX 名称解析必须完整
+
+JSX tag name 不只有简单 identifier。
+
+需要支持或诊断：
+
+```tsx
+<div />
+<MyComponent />
+<Foo.Bar />
+<svg:path />
+<my-element />
+```
+
+建议规则：
+
+- lowercase HTML tag -> `ElementIR`
+- kebab-case custom element -> `ElementIR` with `isCustomElement`
+- PascalCase -> `ComponentIR`
+- member expression `<Foo.Bar />` -> `ComponentIR`
+- namespace name `<svg:path />` -> MVP 报错或明确转成 namespaced element
+
+推荐新增：
+
+```ts
+export type JSXTag =
+  | { kind: 'Intrinsic'; name: string }
+  | { kind: 'CustomElement'; name: string }
+  | { kind: 'Component'; expr: t.Expression }
+  | { kind: 'Builtin'; name: 'Show' | 'For' | 'Host' | 'Slot' }
+```
+
+`parse/jsx.ts` 应该输出 `JSXTag`，而不是到处散落 `isComponentTag(tagName)`。
+
+### 22.2 Builtin 解析必须先于 Component 解析
+
+`Show`、`For`、`Host`、`Slot` 是编译期内置节点，不是普通组件。
+
+解析顺序必须是：
+
+```txt
+JSX tag
+  -> Builtin?
+  -> Intrinsic/custom element?
+  -> Component?
+```
+
+否则 `<Show>` 会被错误 lower 成 `ComponentIR`，后续很难补救。
+
+### 22.3 JSX expression spread child 要明确
+
+这种写法是 JSX spread child：
+
+```tsx
+<div>{...children}</div>
+```
+
+MVP 应直接报错：
+
+```txt
+UNSUPPORTED_SPREAD_CHILD
+```
+
+IR 不需要支持它，但 diagnostics 必须有明确错误。
+
+### 22.4 注释、空白、文本规范化要有单一规则
+
+JSX text 的 trim 规则会影响 template：
+
+```tsx
+<div>
+  hello
+  <span />
+  world
+</div>
+```
+
+必须集中在一个模块：
+
+```txt
+lower/normalizeJSXText.ts
+```
+
+规则建议：
+
+- 多行缩进空白按 JSX 常规规则折叠
+- 标签间纯空白删除
+- 同一文本节点内保留必要单空格
+- 不在多个模块里分别 trim
+
+### 22.5 Attribute name canonicalization 要集中
+
+属性名可能有多种形式：
+
+```tsx
+class
+className
+for
+htmlFor
+readonly
+readOnly
+tabindex
+tabIndex
+```
+
+需要集中处理：
+
+```txt
+dom/attributeName.ts
+```
+
+建议输出：
+
+```ts
+export type CanonicalAttribute = {
+  sourceName: string
+  runtimeName: string
+  target: 'attribute' | 'property'
+}
+```
+
+不要在 lower、analyzeBindings、codegen 各自写一套映射。
+
+### 22.6 Namespaced attributes 要预留
+
+SVG 中会出现：
+
+```tsx
+<use xlinkHref="#icon" />
+```
+
+长期需要支持：
+
+```ts
+export type NamespacedAttributeIR = BaseIRNode & {
+  kind: 'NamespacedAttribute'
+  namespace: 'xlink' | 'xml'
+  name: string
+  value: t.Expression | string
+}
+```
+
+MVP 可以先把 `xlinkHref` 映射到 `xlink:href`，其他报 warning 或 error。
+
+### 22.7 Controlled input 语义不要过早发明
+
+`value`、`checked` 是 property，但是否做受控输入是更高层语义。
+
+MVP 只做：
+
+```txt
+value={expr} -> bindProp(input, 'value', () => expr)
+checked={expr} -> bindProp(input, 'checked', () => expr)
+```
+
+不做：
+
+- input event 自动回写 signal
+- React-style controlled/uncontrolled warning
+- v-model 风格语法
+
+### 22.8 Style/class 对象语义要独立 runtime helper
+
+不要把 style/class object 展开到大量 attr set。
+
+目标 helper：
+
+```ts
+bindClassList(el, () => ({ active: ok(), hidden: !ok() }))
+bindStyle(el, () => ({ color: color(), display: visible() ? '' : 'none' }))
+```
+
+IR：
+
+```ts
+BindingIR target: 'classList' | 'style'
+```
+
+MVP 可先只支持 string class/style，object style/classList 后续做。
+
+### 22.9 Boolean attribute 与 property 规则要分离
+
+HTML boolean attributes：
+
+```tsx
+disabled
+checked
+selected
+readonly
+```
+
+但 DOM property 同名语义不同。
+
+推荐：
+
+- static `disabled` inline 成 `<button disabled>`
+- dynamic `disabled={expr}` 默认 `bindAttr`
+- `checked/value/selected` 在 form element 上由 `analyzeBindings` 转为 `bindProp`
+
+### 22.10 Custom Element 属性策略要独立
+
+Custom elements 的 property/attribute 不能完全按 HTML 内置规则。
+
+```tsx
+<my-el value={obj} count={1} open={true} />
+```
+
+推荐规则：
+
+- primitive string/number/boolean 可 attr
+- object/function/array 应 property
+- 带 `prop:` 前缀可强制 property，后续可考虑
+
+IR 需要能表达：
+
+```ts
+target: 'attribute' | 'property'
+reason: 'html-rule' | 'custom-element' | 'explicit'
+```
+
+### 22.11 Security / CSP / Trusted Types 要预留
+
+`template.innerHTML` 会涉及 Trusted Types / CSP。
+
+MVP 可先不支持 Trusted Types，但 runtime contract 不要堵死：
+
+```ts
+template(html, options?)
+```
+
+未来可扩展：
+
+```ts
+template(policy.createHTML(html))
+```
+
+同时 compiler 必须保证用户动态表达式不拼进 template HTML，避免 XSS 设计缺陷。
+
+### 22.12 SSR / hydration 是非目标，但 IR 不要排斥
+
+MVP 不做 SSR/hydration，但 IR 如果完全绑定 DOM runtime，会影响未来。
+
+建议：
+
+- IR 表达语义，不表达浏览器 API。
+- DOM codegen 是一个 adapter。
+- 后续可有 `codegen/server`。
+
+不要在 IR 中写：
+
+```ts
+document.createTextNode
+HTMLElement
+```
+
+这些应只出现在 DOM codegen/runtime contract。
+
+### 22.13 Compiler shared package 要提前规划
+
+AGENTS.md 提到 `compiler-shared`。
+
+当前可以先留在 `packages/compiler/src/ir`，但长期应迁出：
+
+```txt
+packages/compiler-shared/
+  ir/
+  diagnostics/
+  runtime-contract/
+```
+
+迁出标准：
+
+- Babel compiler 与未来 Rust/其他工具都需要它
+- 不依赖 Babel NodePath
+- 类型能序列化或稳定描述
+
+### 22.14 IR 中 Babel Expression 是过渡方案
+
+当前 TS/Babel 实现中 IR 持有 `t.Expression` 很方便，但这不是长期最终形态。
+
+建议标注为：
+
+```ts
+export type ExpressionIR = {
+  kind: 'BabelExpression'
+  node: t.Expression
+  debug?: string
+}
+```
+
+未来 Rust 后端可替换为：
+
+```ts
+export type ExpressionIR = {
+  kind: 'SourceExpression'
+  source: string
+  span: SourceSpan
+}
+```
+
+### 22.15 SourceSpan 应与 Babel loc 解耦
+
+不要长期把 `t.SourceLocation` 作为唯一 source location。
+
+建议：
+
+```ts
+export type SourceSpan = {
+  filename?: string
+  start: { line: number; column: number; index?: number }
+  end: { line: number; column: number; index?: number }
+}
+```
+
+IR 用：
+
+```ts
+span?: SourceSpan
+```
+
+Babel lowering 时从 `node.loc` 转换。
+
+### 22.16 Compiler options 要区分 public 与 internal
+
+建议：
+
+```ts
+export type CompilerOptions = {
+  mode?: 'development' | 'production'
+  moduleName?: string
+  generate?: 'dom'
+}
+
+export type InternalCompilerOptions = Required<CompilerOptions> & {
+  irPipeline: boolean
+  filename?: string
+  dev: boolean
+}
+```
+
+`resolveConfig` 负责填默认值。
+
+### 22.17 Error code 要稳定
+
+错误码不应该随手写字符串。
+
+建议：
+
+```ts
+export enum CompilerErrorCode {
+  UnsupportedSpreadAttribute = 'ZEUS_UNSUPPORTED_SPREAD_ATTRIBUTE',
+  UnsupportedSpreadChild = 'ZEUS_UNSUPPORTED_SPREAD_CHILD',
+  InvalidBuiltinUsage = 'ZEUS_INVALID_BUILTIN_USAGE',
+  InvalidEventHandler = 'ZEUS_INVALID_EVENT_HANDLER',
+  InvalidRefTarget = 'ZEUS_INVALID_REF_TARGET',
+}
+```
+
+文档、测试、diagnostics 都用这些 code。
+
+### 22.18 AST replacement 要保持 comments
+
+用户可能写：
+
+```tsx
+const view = (
+  // important
+  <div />
+)
+```
+
+Babel replace 时可能丢 comment。
+
+建议：
+
+```ts
+t.inheritsComments(output, path.node)
+t.inherits(output, path.node)
+```
+
+快照测试不一定覆盖，但实现时要注意。
+
+### 22.19 Pure annotation 策略要统一
+
+template hoist 应带 pure annotation：
+
+```ts
+var _tmpl$ = /*#__PURE__*/ _template(`<div></div>`)
+```
+
+不要各处手写。
+
+新增 helper：
+
+```ts
+export function annotatePure<T extends t.Node>(node: T): T
+```
+
+### 22.20 Minifier 友好输出要考虑
+
+生成代码应尽量：
+
+- helper local 短且稳定
+- 不生成无用临时变量
+- 不生成 object spread 大量 helper
+- prod 下 marker 内容最短
+
+但 MVP 优先正确性。优化 pass 后置。
+
+### 22.21 Incremental build cache 要预留
+
+Vite plugin 阶段会需要缓存。
+
+compiler 输入缓存 key 应至少包含：
+
+- filename
+- source
+- compiler options
+- runtime contract version
+
+当前不用实现，但 `compile()` API 设计不要阻止。
+
+### 22.22 Runtime contract version 要显式
+
+compiler 与 runtime-dom 强耦合，必须知道 helper contract 版本。
+
+建议：
+
+```ts
+export const DOM_RUNTIME_CONTRACT_VERSION = 1
+```
+
+compiler 生成 dev 代码时可选注入：
+
+```ts
+_assertRuntimeVersion(1)
+```
+
+prod 不注入。
+
+### 22.23 Dev warnings 不应污染 production
+
+所有 dev-only codegen 都应该由 mode 控制。
+
+例如：
+
+```ts
+if (context.options.dev) {
+  emitRuntimeVersionAssert()
+}
+```
+
+生产输出不能包含 warning 字符串。
+
+### 22.24 Plugin API 不要绑定 Babel
+
+未来可能有 Rust compiler，因此公共 compiler API 不应只暴露 Babel plugin。
+
+建议长期 API：
+
+```ts
+export function compile(source: string, options: CompilerOptions): CompileResult
+
+export type CompileResult = {
+  code: string
+  map?: unknown
+  diagnostics: CompilerDiagnostic[]
+}
+```
+
+Babel plugin 是 adapter：
+
+```txt
+BabelPlugin -> compileModule adapter
+```
+
+### 22.25 Playground fixtures 要成为回归测试来源
+
+`playground/compiler/src/cases` 中的 case 应逐步变成 compiler fixture。
+
+建议目录：
+
+```txt
+packages/compiler/__fixtures__/
+  basic/
+  expressions/
+  events/
+  components/
+  control-flow/
+  web-components/
+```
+
+每个 fixture：
+
+```txt
+input.tsx
+output.js
+ir.json
+```
+
+### 22.26 性能基线要早一点建
+
+编译器优化前需要基线。
+
+建议先记录：
+
+- transform 100 个简单组件耗时
+- transform 1000 个元素耗时
+- template 数量
+- generated code size
+
+不需要复杂 benchmark，先有 smoke benchmark。
+
+### 22.27 AST codegen 不应依赖字符串拼 JS
+
+除了 template HTML，JS codegen 应始终用 Babel AST。
+
+禁止：
+
+```ts
+template.statement(`const ${name} = ...`)
+```
+
+除非是测试 helper。
+
+### 22.28 Formatter 不应成为语义依赖
+
+快照可以依赖 Babel generator 输出，但 compiler 不能依赖格式化细节。
+
+测试应优先断言：
+
+- helper import 存在
+- template HTML 正确
+- runtime behavior 正确
+
+快照只是辅助。
+
+---
+
+## 23. IR v1 定稿建议
+
+综合所有补充，建议 `IR v1` 不使用第 5 节的最小草案，而采用下面这版作为实现目标。
+
+```ts
+// packages/compiler/src/ir/nodes.ts
+
+import type * as t from '@babel/types'
+
+export type SourceSpan = {
+  filename?: string
+  start: { line: number; column: number; index?: number }
+  end: { line: number; column: number; index?: number }
+}
+
+export type Namespace = 'html' | 'svg' | 'mathml'
+
+export type ScopePolicy = 'inherit' | 'create'
+
+export type EvaluationPolicy = 'static' | 'once' | 'reactive'
+
+export type BindingTarget =
+  | 'attribute'
+  | 'property'
+  | 'event'
+  | 'classList'
+  | 'style'
+  | 'ref'
+
+export type IRRef = {
+  name: string
+}
+
+export type ExpressionIR = {
+  kind: 'BabelExpression'
+  node: t.Expression
+  debug?: string
+}
+
+export type DomPath =
+  | { kind: 'Root' }
+  | { kind: 'FirstChild'; parent: IRRef }
+  | { kind: 'NextSibling'; previous: IRRef }
+  | { kind: 'Marker'; parent: IRRef; index: number }
+
+export type BaseIRNode = {
+  id: number
+  span?: SourceSpan
+  scope?: ScopePolicy
+}
+
+export type ProgramIR = BaseIRNode & {
+  kind: 'Program'
+  body: ZeusIRNode[]
+}
+
+export type ElementIR = BaseIRNode & {
+  kind: 'Element'
+  ref: IRRef
+  tagName: string
+  namespace: Namespace
+  attrs: AttributeIR[]
+  children: ZeusIRNode[]
+  domPath?: DomPath
+  flags: {
+    isVoid: boolean
+    isCustomElement: boolean
+  }
+}
+
+export type TextIR = BaseIRNode & {
+  kind: 'Text'
+  value: string
+}
+
+export type DynamicExpressionIR = BaseIRNode & {
+  kind: 'DynamicExpression'
+  expr: ExpressionIR
+  markerRef: IRRef
+  valueRef?: IRRef
+  domPath?: DomPath
+  expected: 'text' | 'node' | 'mixed'
+  evaluation: EvaluationPolicy
+}
+
+export type DynamicTextIR = BaseIRNode & {
+  kind: 'DynamicText'
+  expr: ExpressionIR
+  markerRef: IRRef
+  textRef: IRRef
+  domPath?: DomPath
+  evaluation: EvaluationPolicy
+}
+
+export type DynamicNodeIR = BaseIRNode & {
+  kind: 'DynamicNode'
+  expr: ExpressionIR
+  markerRef: IRRef
+  domPath?: DomPath
+  evaluation: EvaluationPolicy
+}
+
+export type RegionIR = BaseIRNode & {
+  kind: 'Region'
+  startRef: IRRef
+  endRef?: IRRef
+  mode: 'single' | 'range'
+  children: ZeusIRNode[]
+}
+
+export type StaticAttributeIR = BaseIRNode & {
+  kind: 'StaticAttribute'
+  name: string
+  value: string | true
+}
+
+export type BindingIR = BaseIRNode & {
+  kind: 'Binding'
+  target: BindingTarget
+  name: string
+  expr: ExpressionIR
+  evaluation: EvaluationPolicy
+  reason?: 'html-rule' | 'custom-element' | 'explicit'
+}
+
+export type SpreadAttributeIR = BaseIRNode & {
+  kind: 'SpreadAttribute'
+  expr: ExpressionIR
+  order: number
+}
+
+export type AttributeIR = StaticAttributeIR | BindingIR | SpreadAttributeIR
+
+export type ComponentPropIR =
+  | {
+      kind: 'StaticProp'
+      name: string
+      value: string | number | boolean | null
+    }
+  | {
+      kind: 'DynamicProp'
+      name: string
+      expr: ExpressionIR
+    }
+  | {
+      kind: 'SpreadProp'
+      expr: ExpressionIR
+      order: number
+    }
+
+export type ComponentIR = BaseIRNode & {
+  kind: 'Component'
+  ref: IRRef
+  callee: ExpressionIR
+  props: ComponentPropIR[]
+  children?: ComponentChildrenIR
+  hmrBoundary?: boolean
+}
+
+export type ComponentChildrenIR = {
+  kind: 'ComponentChildren'
+  mode: 'none' | 'single' | 'array' | 'factory'
+  children: ZeusIRNode[]
+}
+
+export type FragmentIR = BaseIRNode & {
+  kind: 'Fragment'
+  ref: IRRef
+  children: ZeusIRNode[]
+  mode: 'single' | 'fragment'
+}
+
+export type ShowIR = BaseIRNode & {
+  kind: 'Show'
+  when: ExpressionIR
+  regionRef: IRRef
+  children: ZeusIRNode[]
+  fallback?: ZeusIRNode[]
+}
+
+export type ForIR = BaseIRNode & {
+  kind: 'For'
+  each: ExpressionIR
+  item: t.Identifier
+  index?: t.Identifier
+  key?: ExpressionIR
+  regionRef: IRRef
+  body: ZeusIRNode[]
+}
+
+export type HostIR = BaseIRNode & {
+  kind: 'Host'
+  children: ZeusIRNode[]
+}
+
+export type SlotIR = BaseIRNode & {
+  kind: 'Slot'
+  name?: string
+  fallback: ZeusIRNode[]
+}
+
+export type ScopeBoundaryIR = BaseIRNode & {
+  kind: 'ScopeBoundary'
+  ref: IRRef
+  reason: 'Component' | 'Show' | 'ForItem' | 'CustomElement'
+  children: ZeusIRNode[]
+}
+
+export type ZeusIRNode =
+  | ElementIR
+  | TextIR
+  | DynamicExpressionIR
+  | DynamicTextIR
+  | DynamicNodeIR
+  | RegionIR
+  | ComponentIR
+  | FragmentIR
+  | ShowIR
+  | ForIR
+  | HostIR
+  | SlotIR
+  | ScopeBoundaryIR
+```
+
+这是建议的“实现版 IR v1”。第 5 节可以保留作为解释用的简化草案，但真正落地应以本节为准。
+
+---
+
+## 24. 最终版近期执行清单
+
+如果现在开始写代码，按这个顺序最稳：
+
+1. 新增 `runtime-contract/dom.ts`
+2. 新增 `context/CompilerContext.ts`
+3. 新增 `ir/nodes.ts`，采用第 23 节 IR v1
+4. 新增 `ir/builders.ts`
+5. 新增 `ir/serialize.ts`，用于测试和调试
+6. 新增 `template/escape.ts`
+7. 新增 `template/renderTemplate.ts`
+8. 新增 `parse/tag.ts`，输出 `JSXTag`
+9. 新增 `lower/*`，只 lower，不 codegen
+10. 新增 `passes/assignNamespaces.ts`
+11. 新增 `passes/analyzeBindings.ts`
+12. 新增 `passes/analyzeExpressions.ts`
+13. 新增 `passes/assignRegions.ts`
+14. 新增 `passes/assignDomPaths.ts`
+15. 新增 `passes/collectTemplates.ts`
+16. 新增 `codegen/dom/*`
+17. 用 feature flag 接入主 `transformJSX`
+18. 迁移现有快照测试到新链路
+19. 删除旧 `TransformResults` 拼装路径
+
+第一批验收输入：
+
+```tsx
+const App = props => (
+  <div id={props.id} onClick={props.onClick}>
+    hello {props.name}
+    <span class="static" />
+  </div>
+)
+```
+
+第一批必须验证：
+
+- IR serialization 正确
+- template HTML 正确
+- DOM path 正确
+- import helper 去重
+- generated code snapshot 正确
+- jsdom 行为正确
