@@ -15,6 +15,7 @@
   },
   "devDependencies": {
     "@babel/core": "catalog:",
+    "@types/babel__core": "catalog:",
     "vite": "catalog:",
     "typescript": "^6.0.3"
   }
