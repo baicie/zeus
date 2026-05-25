@@ -41,7 +41,7 @@ describe('zeus compiler ir-first pipeline', () => {
     expect(formatDomPath(root.domPath)).toBe('Root')
     expect(formatDomPath(span.domPath)).toBe('FirstChild(_root$)')
     expect(formatDomPath(dynamic.domPath)).toBe('Marker(_root$, 0)')
-    expect(formatDomPath(bold.domPath)).toBe('NextSibling(_span$)')
+    expect(formatDomPath(bold.domPath)).toBe('Child(_root$, 2)')
   })
 
   it('compiles native element bindings through the IR-first feature flag', async () => {
@@ -69,6 +69,35 @@ describe('zeus compiler ir-first pipeline', () => {
       }
 
       const App = () => <Title text="hello" />
+    `
+
+    expect(await compile(code)).toMatchSnapshot()
+  })
+
+  it('compiles component children through the IR-first feature flag', async () => {
+    const code = `
+      import { Show } from '@zeus-js/runtime-dom'
+
+      const App = (props: { ok: boolean; name: string }) => (
+        <div>
+          <Show when={props.ok}>
+            <span>Hello {props.name}</span>
+          </Show>
+        </div>
+      )
+    `
+
+    expect(await compile(code)).toMatchSnapshot()
+  })
+
+  it('compiles root fragments through the IR-first feature flag', async () => {
+    const code = `
+      const App = () => (
+        <>
+          <span>First</span>
+          <span>Second</span>
+        </>
+      )
     `
 
     expect(await compile(code)).toMatchSnapshot()

@@ -8,6 +8,7 @@ export type DomPath =
   | { kind: 'Root' }
   | { kind: 'FirstChild'; parent: IRRef }
   | { kind: 'NextSibling'; previous: IRRef }
+  | { kind: 'Child'; parent: IRRef; index: number }
   | { kind: 'Marker'; parent: IRRef; index: number }
 
 export type SemanticBaseIRNode = {
@@ -78,7 +79,7 @@ export type AttributeIR =
 
 export type ComponentPropIR = {
   name: string
-  value: t.Expression
+  value: t.Expression | ZeusIRNode[]
 }
 
 export type ComponentIR = SemanticBaseIRNode & {

@@ -23,6 +23,12 @@ export function emitDomPath(
         t.identifier('nextSibling'),
       )
 
+    case 'Child':
+      return t.callExpression(context.importRuntime('child'), [
+        t.identifier(path.parent.name),
+        t.numericLiteral(path.index),
+      ])
+
     case 'Marker':
       return t.callExpression(context.importRuntime('marker'), [
         t.identifier(path.parent.name),

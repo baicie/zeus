@@ -25,15 +25,19 @@ function visitNode(node: ZeusIRNode, parent?: ElementIR): void {
       }
       return
 
+    case 'Component':
+      for (const prop of node.props) {
+        if (!Array.isArray(prop.value)) continue
+        for (const child of prop.value) visitNode(child)
+      }
+      return
+
     case 'Text':
+    case 'DynamicText':
     case 'Show':
     case 'For':
     case 'Host':
     case 'Slot':
-      return
-
-    case 'Component':
-    case 'DynamicText':
       return
   }
 }
@@ -44,8 +48,8 @@ function assignElementPath(node: ElementIR, parent?: ElementIR): void {
     return
   }
 
-  const staticChildren = parent.children.filter(isStaticTemplateNode)
-  const index = staticChildren.indexOf(node)
+  const templateChildren = parent.children.filter(isTemplateChild)
+  const index = templateChildren.indexOf(node)
 
   if (index === -1) return
 
@@ -54,8 +58,14 @@ function assignElementPath(node: ElementIR, parent?: ElementIR): void {
     return
   }
 
-  const previous = staticChildren[index - 1]
-  node.domPath = { kind: 'NextSibling', previous: previous.ref }
+  const previous = templateChildren[index - 1]
+
+  if (previous.kind === 'Element') {
+    node.domPath = { kind: 'NextSibling', previous: previous.ref }
+    return
+  }
+
+  node.domPath = { kind: 'Child', parent: parent.ref, index }
 }
 
 function assignChildPaths(parent: ElementIR): void {
@@ -64,6 +74,7 @@ function assignChildPaths(parent: ElementIR): void {
   for (const child of parent.children) {
     if (isMarkerTemplateNode(child)) {
       assignMarkerPath(child, parent.ref, markerIndex++)
+      if (child.kind === 'Component') visitNode(child)
       continue
     }
 
@@ -83,8 +94,14 @@ function assignMarkerPath(
   }
 }
 
-function isStaticTemplateNode(node: ZeusIRNode): node is ElementIR {
-  return node.kind === 'Element'
+function isTemplateChild(
+  node: ZeusIRNode,
+): node is ElementIR | DynamicTextIR | ComponentIR {
+  return (
+    node.kind === 'Element' ||
+    node.kind === 'DynamicText' ||
+    node.kind === 'Component'
+  )
 }
 
 function isMarkerTemplateNode(
@@ -103,6 +120,8 @@ export function formatDomPath(path: DomPath | undefined): string {
       return `FirstChild(${path.parent.name})`
     case 'NextSibling':
       return `NextSibling(${path.previous.name})`
+    case 'Child':
+      return `Child(${path.parent.name}, ${path.index})`
     case 'Marker':
       return `Marker(${path.parent.name}, ${path.index})`
   }

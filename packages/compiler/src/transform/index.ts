@@ -4,7 +4,13 @@ import { createTemplate } from '../codegen/template'
 import { getCompilerContext } from '../context'
 import { lowerJSX } from '../lower'
 import { isDynamicResult, isElementResult } from '../parse/jsx'
-import { assignDomPaths, collectTemplates, validateBuiltins } from '../passes'
+import {
+  analyzeBindings,
+  assignDomPaths,
+  collectTemplates,
+  normalizeChildren,
+  validateBuiltins,
+} from '../passes'
 import { logger } from '../utils'
 
 import type { BabelJSXPath, BabelState, CompilerOptions } from '../types'
@@ -21,8 +27,10 @@ export function transformJSX(
     const context = getCompilerContext(path, config)
     const ir = lowerJSX(path, context)
 
+    normalizeChildren(ir)
     validateBuiltins(ir)
     assignDomPaths(ir)
+    analyzeBindings(ir)
     collectTemplates(ir, context)
 
     path.replaceWith(emitDOM(ir, context))

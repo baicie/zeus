@@ -68,6 +68,27 @@ export function createComponent<
   return component(props)
 }
 
+export type ShowProps = {
+  when: unknown
+  fallback?: JSXValue | (() => JSXValue)
+  children?: JSXValue | (() => JSXValue)
+}
+
+export function Show(props: ShowProps): JSXValue {
+  return props.when
+    ? resolveValue(props.children)
+    : resolveValue(props.fallback)
+}
+
+export type ForProps<T> = {
+  each: readonly T[] | null | undefined
+  children: (item: T, index: number) => JSXValue
+}
+
+export function For<T>(props: ForProps<T>): JSXValue {
+  return props.each?.map((item, index) => props.children(item, index)) ?? null
+}
+
 export function setAttr(el: Element, name: string, value: AttrValue): void {
   if (value == null || value === false) {
     el.removeAttribute(name)
@@ -100,6 +121,16 @@ export function marker(parent: ParentNode, index: number): Comment {
   throw new Error(`[Zeus runtime] marker ${index} not found`)
 }
 
+export function child(parent: ParentNode, index: number): ChildNode {
+  const node = parent.childNodes.item(index)
+
+  if (!node) {
+    throw new Error(`[Zeus runtime] child ${index} not found`)
+  }
+
+  return node as ChildNode
+}
+
 export function bindText(node: Text, value: () => JSXValue): void {
   effect(() => {
     const next = value()
@@ -124,4 +155,8 @@ export function bindEvent<K extends keyof HTMLElementEventMap>(
   handler: (event: HTMLElementEventMap[K]) => void,
 ): void {
   el.addEventListener(name, handler)
+}
+
+function resolveValue(value: JSXValue | (() => JSXValue)): JSXValue {
+  return typeof value === 'function' ? value() : value
 }

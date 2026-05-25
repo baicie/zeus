@@ -20,8 +20,34 @@ const App = () => _createComponent(Title, {
 });"
 `;
 
+exports[`zeus compiler ir-first pipeline > compiles component children through the IR-first feature flag 1`] = `
+"import { marker as _marker, insert as _insert, createComponent as _createComponent, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<div><!></div>\`),
+  _tmpl$2 = /*#__PURE__*/_template(\`<span>Hello<!></span>\`);
+import { Show } from '@zeus-js/runtime-dom';
+const App = (props: {
+  ok: boolean;
+  name: string;
+}) => (() => {
+  const _el$ = _tmpl$().firstChild;
+  const _marker$ = _marker(_el$, 0);
+  _insert(_el$, _createComponent(Show, {
+    when: props.ok,
+    children: (() => {
+      const _el$2 = _tmpl$2().firstChild;
+      const _marker$2 = _marker(_el$2, 0);
+      const _text$ = document.createTextNode("");
+      _insert(_el$2, _text$, _marker$2);
+      _bindText(_text$, () => props.name);
+      return _el$2;
+    })()
+  }), _marker$);
+  return _el$;
+})();"
+`;
+
 exports[`zeus compiler ir-first pipeline > compiles native element bindings through the IR-first feature flag 1`] = `
-"import { marker as _marker, insert as _insert, bindText as _bindText, bindAttr as _bindAttr, bindEvent as _bindEvent, template as _template } from "@zeus-js/runtime-dom";
+"import { child as _child, marker as _marker, insert as _insert, bindText as _bindText, bindAttr as _bindAttr, bindEvent as _bindEvent, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<div><span></span><!><b></b></div>\`);
 const App = (props: {
   name: string;
@@ -30,7 +56,7 @@ const App = (props: {
 }) => (() => {
   const _el$ = _tmpl$().firstChild;
   const _el$2 = _el$.firstChild;
-  const _el$3 = _el$2.nextSibling;
+  const _el$3 = _child(_el$, 2);
   const _marker$ = _marker(_el$, 0);
   const _text$ = document.createTextNode("");
   _insert(_el$, _text$, _marker$);
@@ -39,4 +65,11 @@ const App = (props: {
   _bindEvent(_el$3, "click", props.onClick);
   return _el$;
 })();"
+`;
+
+exports[`zeus compiler ir-first pipeline > compiles root fragments through the IR-first feature flag 1`] = `
+"import { template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<span>First</span>\`),
+  _tmpl$2 = /*#__PURE__*/_template(\`<span>Second</span>\`);
+const App = () => [_tmpl$().firstChild, _tmpl$2().firstChild];"
 `;

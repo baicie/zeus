@@ -1,6 +1,7 @@
 import * as t from '@babel/types'
 
 import { emitBindings } from './emitBinding'
+import { emitDomPath } from './emitDomPath'
 import { renderTemplateHTML } from '../../passes/collectTemplates'
 
 import type { CompilerContext } from '../../context'
@@ -25,7 +26,7 @@ export function emitElement(
         t.memberExpression(templateCall, t.identifier('firstChild')),
       ),
     ]),
-    ...emitElementDeclarations(node.children),
+    ...emitElementDeclarations(node.children, context),
     ...emitBindings(node, context),
     t.returnStatement(t.identifier(node.ref.name)),
   ]
@@ -36,7 +37,10 @@ export function emitElement(
   )
 }
 
-function emitElementDeclarations(children: ZeusIRNode[]): t.Statement[] {
+function emitElementDeclarations(
+  children: ZeusIRNode[],
+  context: CompilerContext,
+): t.Statement[] {
   const statements: t.Statement[] = []
 
   for (const child of children) {
@@ -45,41 +49,20 @@ function emitElementDeclarations(children: ZeusIRNode[]): t.Statement[] {
         t.variableDeclaration('const', [
           t.variableDeclarator(
             t.identifier(child.ref.name),
-            emitDomPathWithoutContext(child.domPath!),
+            emitDomPath(child.domPath!, context),
           ),
         ]),
       )
-      statements.push(...emitElementDeclarations(child.children))
+      statements.push(...emitElementDeclarations(child.children, context))
       continue
     }
 
     if (child.kind === 'Fragment') {
-      statements.push(...emitElementDeclarations(child.children))
+      statements.push(...emitElementDeclarations(child.children, context))
     }
   }
 
   return statements
-}
-
-function emitDomPathWithoutContext(path: ElementIR['domPath']): t.Expression {
-  if (!path) throw new Error('Element DOM path is not assigned')
-
-  switch (path.kind) {
-    case 'Root':
-      throw new Error('Nested element cannot use a root DOM path')
-    case 'FirstChild':
-      return t.memberExpression(
-        t.identifier(path.parent.name),
-        t.identifier('firstChild'),
-      )
-    case 'NextSibling':
-      return t.memberExpression(
-        t.identifier(path.previous.name),
-        t.identifier('nextSibling'),
-      )
-    case 'Marker':
-      throw new Error('Element cannot use a marker DOM path')
-  }
 }
 
 function hasRuntimeWork(node: ElementIR): boolean {
