@@ -140,6 +140,10 @@ importers:
         version: 7.10.3
 
   packages/runtime-dom:
+    dependencies:
+      '@zeus-js/signal':
+        specifier: workspace:*
+        version: link:../signal
     devDependencies:
       tsup:
         specifier: ^8.5.1

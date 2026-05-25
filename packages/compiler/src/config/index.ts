@@ -85,6 +85,11 @@ export interface CompilerOptions {
    * @default true
    */
   inlineStyles: boolean
+  /**
+   * Enables the experimental IR-first compiler pipeline.
+   * @default false
+   */
+  irPipeline: boolean
 }
 
 export const DEFAULT_OPTIONS: CompilerOptions = {
@@ -105,6 +110,7 @@ export const DEFAULT_OPTIONS: CompilerOptions = {
   memoWrapper: 'memo',
   validate: true,
   inlineStyles: true,
+  irPipeline: false,
 }
 
 /**

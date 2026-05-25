@@ -35,6 +35,10 @@ export {
   insert,
   createComponent,
   setAttr,
+  marker,
+  bindText,
+  bindAttr,
+  bindEvent,
 } from '@zeus-js/runtime-dom'
 
 export type {

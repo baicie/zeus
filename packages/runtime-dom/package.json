@@ -15,7 +15,9 @@
     "build": "tsup",
     "dev": "tsup --watch"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@zeus-js/signal": "workspace:*"
+  },
   "devDependencies": {
     "tsup": "^8.5.1",
     "typescript": "^6.0.3"
