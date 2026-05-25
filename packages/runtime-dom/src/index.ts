@@ -1,4 +1,4 @@
-import { effect } from '@zeus-js/signal'
+import { effect, effectScope, onScopeDispose, stop } from '@zeus-js/signal'
 
 export type JSXValue =
   | string
@@ -89,6 +89,47 @@ export function For<T>(props: ForProps<T>): JSXValue {
   return props.each?.map((item, index) => props.children(item, index)) ?? null
 }
 
+export function mountShow(
+  parent: Node,
+  marker: Node,
+  when: () => unknown,
+  children: () => JSXValue,
+  fallback?: () => JSXValue,
+): void {
+  mountDynamic(parent, marker, () =>
+    when() ? children() : fallback ? fallback() : null,
+  )
+}
+
+export function mountFor<T>(
+  parent: Node,
+  marker: Node,
+  each: () => readonly T[] | null | undefined,
+  render: (item: T, index: number) => JSXValue,
+): void {
+  mountDynamic(
+    parent,
+    marker,
+    () => each()?.map((item, index) => render(item, index)) ?? null,
+  )
+}
+
+export function render(
+  value: JSXValue | (() => JSXValue),
+  container: Element | DocumentFragment,
+): () => void {
+  const scope = effectScope()
+
+  scope.run(() => {
+    insert(container, resolveValue(value))
+  })
+
+  return () => {
+    scope.stop()
+    container.textContent = ''
+  }
+}
+
 export function setAttr(el: Element, name: string, value: AttrValue): void {
   if (value == null || value === false) {
     el.removeAttribute(name)
@@ -149,6 +190,16 @@ export function bindAttr(
   })
 }
 
+export function bindProp<T extends Element>(
+  el: T,
+  name: keyof T,
+  value: () => T[keyof T],
+): void {
+  effect(() => {
+    el[name] = value()
+  })
+}
+
 export function bindEvent<K extends keyof HTMLElementEventMap>(
   el: HTMLElement,
   name: K,
@@ -157,6 +208,148 @@ export function bindEvent<K extends keyof HTMLElementEventMap>(
   el.addEventListener(name, handler)
 }
 
+export type ElementPropConstructor =
+  | StringConstructor
+  | NumberConstructor
+  | BooleanConstructor
+
+export type DefineElementOptions<P extends Record<string, unknown>> = {
+  shadow?: boolean | ShadowRootInit
+  props?: Partial<Record<keyof P, ElementPropConstructor>>
+}
+
+export function defineElement<P extends Record<string, unknown>>(
+  tagName: string,
+  options: DefineElementOptions<P>,
+  setup: (props: P) => JSXValue,
+): CustomElementConstructor {
+  const propSchema = options.props ?? {}
+  const attrToProp = new Map<string, string>()
+
+  for (const key of Object.keys(propSchema)) {
+    attrToProp.set(toKebabCase(key), key)
+  }
+
+  class ZeusElement extends HTMLElement {
+    static get observedAttributes(): string[] {
+      return Array.from(attrToProp.keys())
+    }
+
+    private dispose?: () => void
+    private props = {} as P
+
+    connectedCallback(): void {
+      if (this.dispose) return
+
+      for (const [attr, prop] of attrToProp) {
+        this.writePropFromAttribute(prop, this.getAttribute(attr))
+      }
+
+      const target =
+        options.shadow === false || options.shadow == null
+          ? this
+          : this.attachShadow(
+              typeof options.shadow === 'object'
+                ? options.shadow
+                : { mode: 'open' },
+            )
+
+      this.dispose = render(() => setup(this.props), target)
+    }
+
+    disconnectedCallback(): void {
+      this.dispose?.()
+      this.dispose = undefined
+    }
+
+    attributeChangedCallback(
+      name: string,
+      _oldValue: string | null,
+      newValue: string | null,
+    ): void {
+      const prop = attrToProp.get(name)
+      if (prop) this.writePropFromAttribute(prop, newValue)
+    }
+
+    private writePropFromAttribute(prop: string, value: string | null): void {
+      const type = (
+        propSchema as Record<string, ElementPropConstructor | undefined>
+      )[prop]
+
+      ;(this.props as Record<string, unknown>)[prop] = castAttributeValue(
+        value,
+        type,
+      )
+    }
+  }
+
+  if (!customElements.get(tagName)) {
+    customElements.define(tagName, ZeusElement)
+  }
+
+  return ZeusElement
+}
+
 function resolveValue(value: JSXValue | (() => JSXValue)): JSXValue {
   return typeof value === 'function' ? value() : value
+}
+
+function mountDynamic(parent: Node, marker: Node, value: () => JSXValue): void {
+  let current: Node[] = []
+
+  const runner = effect(() => {
+    removeNodes(current)
+    current = insertTracked(parent, value(), marker)
+  })
+
+  onScopeDispose(() => {
+    stop(runner)
+    removeNodes(current)
+    current = []
+  }, true)
+}
+
+function insertTracked(
+  parent: Node,
+  value: JSXValue,
+  marker: Node | null,
+): Node[] {
+  if (
+    value === undefined ||
+    value == null ||
+    value === false ||
+    value === true
+  ) {
+    return []
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap(item => insertTracked(parent, item, marker))
+  }
+
+  const node =
+    value instanceof Node ? value : document.createTextNode(String(value))
+
+  parent.insertBefore(node, marker)
+
+  return [node]
+}
+
+function removeNodes(nodes: Node[]): void {
+  for (const node of nodes) {
+    node.parentNode?.removeChild(node)
+  }
+}
+
+function toKebabCase(value: string): string {
+  return value.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
+}
+
+function castAttributeValue(
+  value: string | null,
+  type: ElementPropConstructor | undefined,
+): unknown {
+  if (type === Boolean) return value !== null
+  if (type === Number) return value == null ? undefined : Number(value)
+  return value
 }

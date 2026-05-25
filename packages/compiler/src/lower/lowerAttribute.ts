@@ -4,6 +4,7 @@ import { CompilerError, CompilerErrorCode } from '../diagnostics'
 import {
   attrBindingIR,
   eventBindingIR,
+  propBindingIR,
   staticAttrIR,
 } from '../ir/semanticBuilders'
 import { getJSXAttrName, toEventName } from '../parse/jsx'
@@ -48,6 +49,10 @@ export function lowerAttribute(
 
     if (name.startsWith('on') && name.length > 2) {
       return eventBindingIR(toEventName(name), expr)
+    }
+
+    if (name.startsWith('prop:')) {
+      return propBindingIR(name.slice('prop:'.length), expr)
     }
 
     return attrBindingIR(name, expr)

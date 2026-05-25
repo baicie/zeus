@@ -5,5 +5,5 @@
  * and produces the final Babel AST nodes that represent the JavaScript output
  * of the compiler.
  */
-export * from './template'
+export * from './dom'
 export * from './support'

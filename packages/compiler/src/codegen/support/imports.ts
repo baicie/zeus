@@ -7,8 +7,10 @@
  */
 import * as t from '@babel/types'
 
-import type { BabelProgramPath, ZeusRenderer } from '../../types'
+import type { BabelProgramPath } from '../../types'
 import type { NodePath } from '@babel/core'
+
+export type ZeusRenderer = 'dom'
 
 type ImportMethodRecord = {
   imported: string

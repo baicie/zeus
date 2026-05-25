@@ -2,7 +2,7 @@ import * as t from '@babel/types'
 
 import { emitBindings } from './emitBinding'
 import { emitDomPath } from './emitDomPath'
-import { renderTemplateHTML } from '../../passes/collectTemplates'
+import { emitTemplateClone } from './emitTemplate'
 
 import type { CompilerContext } from '../../context'
 import type { ElementIR, ZeusIRNode } from '../../ir/nodes'
@@ -11,19 +11,15 @@ export function emitElement(
   node: ElementIR,
   context: CompilerContext,
 ): t.Expression {
-  const html = renderTemplateHTML(node)
-  const template = context.registerTemplate(html, node.flags.isSVG)
-  const templateCall = t.callExpression(t.cloneNode(template.id), [])
-
   if (!hasRuntimeWork(node)) {
-    return t.memberExpression(templateCall, t.identifier('firstChild'))
+    return emitTemplateClone(node, context)
   }
 
   const statements: t.Statement[] = [
     t.variableDeclaration('const', [
       t.variableDeclarator(
         t.identifier(node.ref.name),
-        t.memberExpression(templateCall, t.identifier('firstChild')),
+        emitTemplateClone(node, context),
       ),
     ]),
     ...emitElementDeclarations(node.children, context),
@@ -68,7 +64,10 @@ function emitElementDeclarations(
 function hasRuntimeWork(node: ElementIR): boolean {
   return (
     node.attrs.some(
-      attr => attr.kind === 'AttrBinding' || attr.kind === 'EventBinding',
+      attr =>
+        attr.kind === 'AttrBinding' ||
+        attr.kind === 'PropBinding' ||
+        attr.kind === 'EventBinding',
     ) || node.children.some(hasChildRuntimeWork)
   )
 }
@@ -77,6 +76,9 @@ function hasChildRuntimeWork(node: ZeusIRNode): boolean {
   switch (node.kind) {
     case 'DynamicText':
     case 'Component':
+    case 'Show':
+    case 'For':
+    case 'Slot':
       return true
     case 'Element':
       return hasRuntimeWork(node)

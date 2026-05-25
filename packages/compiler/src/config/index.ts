@@ -16,7 +16,7 @@ export interface CompilerOptions {
   generate: 'dom'
   /**
    * Indicate whether the output should contain hydratable markers.
-   * @default false
+   * @default true
    */
   hydratable: boolean
   /**
@@ -85,11 +85,6 @@ export interface CompilerOptions {
    * @default true
    */
   inlineStyles: boolean
-  /**
-   * Enables the experimental IR-first compiler pipeline.
-   * @default false
-   */
-  irPipeline: boolean
 }
 
 export const DEFAULT_OPTIONS: CompilerOptions = {
@@ -110,7 +105,6 @@ export const DEFAULT_OPTIONS: CompilerOptions = {
   memoWrapper: 'memo',
   validate: true,
   inlineStyles: true,
-  irPipeline: false,
 }
 
 /**

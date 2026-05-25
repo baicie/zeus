@@ -58,7 +58,9 @@ function visit(node: ZeusIRNode, analysis: BindingAnalysis): void {
 
     case 'Show':
       for (const child of node.children) visit(child, analysis)
-      for (const child of node.fallback ?? []) visit(child, analysis)
+      if (Array.isArray(node.fallback)) {
+        for (const child of node.fallback) visit(child, analysis)
+      }
       return
 
     case 'For':

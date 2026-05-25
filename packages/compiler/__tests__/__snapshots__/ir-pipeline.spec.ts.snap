@@ -1,5 +1,46 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`zeus compiler ir-first pipeline > compiles For as an IR built-in 1`] = `
+"import { mountFor as _mountFor, bindAttr as _bindAttr, marker as _marker, insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<ul><!></ul>\`),
+  _tmpl$2 = /*#__PURE__*/_template(\`<li><!></li>\`);
+const App = (props: {
+  items: string[];
+}) => (() => {
+  const _el$ = _tmpl$().firstChild;
+  const _for$ = _marker(_el$, 0);
+  _mountFor(_el$, _for$, () => props.items, (item, index) => (() => {
+    const _el$2 = _tmpl$2().firstChild;
+    _bindAttr(_el$2, "data-index", () => index);
+    const _marker$ = _marker(_el$2, 0);
+    const _text$ = document.createTextNode("");
+    _insert(_el$2, _text$, _marker$);
+    _bindText(_text$, () => item);
+    return _el$2;
+  })());
+  return _el$;
+})();"
+`;
+
+exports[`zeus compiler ir-first pipeline > compiles Host and Slot as IR built-ins 1`] = `
+"import { marker as _marker, insert as _insert, template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<header><!></header>\`),
+  _tmpl$2 = /*#__PURE__*/_template(\`<slot name="header"></slot>\`),
+  _tmpl$3 = /*#__PURE__*/_template(\`<main><!></main>\`),
+  _tmpl$4 = /*#__PURE__*/_template(\`<slot></slot>\`);
+const App = () => [(() => {
+  const _el$ = _tmpl$().firstChild;
+  const _marker$ = _marker(_el$, 0);
+  _insert(_el$, _tmpl$2().firstChild, _marker$);
+  return _el$;
+})(), (() => {
+  const _el$2 = _tmpl$3().firstChild;
+  const _marker$2 = _marker(_el$2, 0);
+  _insert(_el$2, _tmpl$4().firstChild, _marker$2);
+  return _el$2;
+})()];"
+`;
+
 exports[`zeus compiler ir-first pipeline > compiles component calls through the IR-first feature flag 1`] = `
 "import { marker as _marker, insert as _insert, bindText as _bindText, createComponent as _createComponent, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<h1><!></h1>\`);
@@ -21,7 +62,7 @@ const App = () => _createComponent(Title, {
 `;
 
 exports[`zeus compiler ir-first pipeline > compiles component children through the IR-first feature flag 1`] = `
-"import { marker as _marker, insert as _insert, createComponent as _createComponent, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
+"import { mountShow as _mountShow, marker as _marker, insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<div><!></div>\`),
   _tmpl$2 = /*#__PURE__*/_template(\`<span>Hello<!></span>\`);
 import { Show } from '@zeus-js/runtime-dom';
@@ -30,18 +71,27 @@ const App = (props: {
   name: string;
 }) => (() => {
   const _el$ = _tmpl$().firstChild;
-  const _marker$ = _marker(_el$, 0);
-  _insert(_el$, _createComponent(Show, {
-    when: props.ok,
-    children: (() => {
-      const _el$2 = _tmpl$2().firstChild;
-      const _marker$2 = _marker(_el$2, 0);
-      const _text$ = document.createTextNode("");
-      _insert(_el$2, _text$, _marker$2);
-      _bindText(_text$, () => props.name);
-      return _el$2;
-    })()
-  }), _marker$);
+  const _show$ = _marker(_el$, 0);
+  _mountShow(_el$, _show$, () => props.ok, () => (() => {
+    const _el$2 = _tmpl$2().firstChild;
+    const _marker$ = _marker(_el$2, 0);
+    const _text$ = document.createTextNode("");
+    _insert(_el$2, _text$, _marker$);
+    _bindText(_text$, () => props.name);
+    return _el$2;
+  })(), undefined);
+  return _el$;
+})();"
+`;
+
+exports[`zeus compiler ir-first pipeline > compiles explicit property bindings through the IR-first pipeline 1`] = `
+"import { bindProp as _bindProp, template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<input>\`);
+const App = (props: {
+  value: string;
+}) => (() => {
+  const _el$ = _tmpl$().firstChild;
+  _bindProp(_el$, "value", () => props.value);
   return _el$;
 })();"
 `;

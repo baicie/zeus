@@ -34,14 +34,19 @@ export {
   template,
   insert,
   createComponent,
+  render,
+  defineElement,
   setAttr,
   child,
   marker,
   bindText,
   bindAttr,
+  bindProp,
   bindEvent,
   Show,
   For,
+  mountShow,
+  mountFor,
 } from '@zeus-js/runtime-dom'
 
 export type {

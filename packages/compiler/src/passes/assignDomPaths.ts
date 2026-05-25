@@ -3,7 +3,10 @@ import type {
   ComponentIR,
   DynamicTextIR,
   ElementIR,
+  ForIR,
   IRRef,
+  ShowIR,
+  SlotIR,
   ZeusIRNode,
 } from '../ir/nodes'
 
@@ -32,12 +35,27 @@ function visitNode(node: ZeusIRNode, parent?: ElementIR): void {
       }
       return
 
+    case 'Show':
+      for (const child of node.children) visitNode(child)
+      if (Array.isArray(node.fallback)) {
+        for (const child of node.fallback) visitNode(child)
+      }
+      return
+
+    case 'For':
+      for (const child of node.body) visitNode(child)
+      return
+
+    case 'Host':
+      for (const child of node.children) visitNode(child, parent)
+      return
+
+    case 'Slot':
+      for (const child of node.fallback) visitNode(child)
+      return
+
     case 'Text':
     case 'DynamicText':
-    case 'Show':
-    case 'For':
-    case 'Host':
-    case 'Slot':
       return
   }
 }
@@ -74,7 +92,7 @@ function assignChildPaths(parent: ElementIR): void {
   for (const child of parent.children) {
     if (isMarkerTemplateNode(child)) {
       assignMarkerPath(child, parent.ref, markerIndex++)
-      if (child.kind === 'Component') visitNode(child)
+      visitNode(child)
       continue
     }
 
@@ -83,7 +101,7 @@ function assignChildPaths(parent: ElementIR): void {
 }
 
 function assignMarkerPath(
-  node: DynamicTextIR | ComponentIR,
+  node: DynamicTextIR | ComponentIR | ShowIR | ForIR | SlotIR,
   parent: IRRef,
   index: number,
 ): void {
@@ -96,18 +114,27 @@ function assignMarkerPath(
 
 function isTemplateChild(
   node: ZeusIRNode,
-): node is ElementIR | DynamicTextIR | ComponentIR {
+): node is ElementIR | DynamicTextIR | ComponentIR | ShowIR | ForIR | SlotIR {
   return (
     node.kind === 'Element' ||
     node.kind === 'DynamicText' ||
-    node.kind === 'Component'
+    node.kind === 'Component' ||
+    node.kind === 'Show' ||
+    node.kind === 'For' ||
+    node.kind === 'Slot'
   )
 }
 
 function isMarkerTemplateNode(
   node: ZeusIRNode,
-): node is DynamicTextIR | ComponentIR {
-  return node.kind === 'DynamicText' || node.kind === 'Component'
+): node is DynamicTextIR | ComponentIR | ShowIR | ForIR | SlotIR {
+  return (
+    node.kind === 'DynamicText' ||
+    node.kind === 'Component' ||
+    node.kind === 'Show' ||
+    node.kind === 'For' ||
+    node.kind === 'Slot'
+  )
 }
 
 export function formatDomPath(path: DomPath | undefined): string {

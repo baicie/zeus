@@ -47,9 +47,10 @@ function renderChildTemplate(node: ZeusIRNode): string {
     case 'Component':
     case 'Show':
     case 'For':
-    case 'Host':
     case 'Slot':
       return '<!>'
+    case 'Host':
+      return node.children.map(renderChildTemplate).join('')
     case 'Fragment':
       return node.children.map(renderChildTemplate).join('')
   }

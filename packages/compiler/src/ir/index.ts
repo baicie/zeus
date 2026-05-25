@@ -5,7 +5,7 @@
  * representation, which bridges the gap between Babel JSX AST and the
  * runtime DOM operations.
  */
-export * from './types'
-export * from './builders'
 export * from './nodes'
 export * from './semanticBuilders'
+export * from './visit'
+export * from './assert'

@@ -25,7 +25,7 @@ export function emitComponent(
   ])
 }
 
-function emitChildrenProp(
+export function emitChildrenProp(
   children: ZeusIRNode[],
   context: CompilerContext,
 ): t.Expression {
@@ -35,7 +35,7 @@ function emitChildrenProp(
   return t.arrayExpression(nodes)
 }
 
-function emitChildProp(
+export function emitChildProp(
   node: ZeusIRNode,
   context: CompilerContext,
 ): t.Expression {

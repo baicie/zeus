@@ -97,17 +97,21 @@ export type FragmentIR = SemanticBaseIRNode & {
 
 export type ShowIR = SemanticBaseIRNode & {
   kind: 'Show'
+  ref: IRRef
   when: t.Expression
   children: ZeusIRNode[]
-  fallback?: ZeusIRNode[]
+  fallback?: t.Expression | ZeusIRNode[]
+  domPath?: DomPath
 }
 
 export type ForIR = SemanticBaseIRNode & {
   kind: 'For'
+  ref: IRRef
   each: t.Expression
   item: t.Identifier
   index?: t.Identifier
   body: ZeusIRNode[]
+  domPath?: DomPath
 }
 
 export type HostIR = SemanticBaseIRNode & {
@@ -119,6 +123,7 @@ export type SlotIR = SemanticBaseIRNode & {
   kind: 'Slot'
   name?: string
   fallback: ZeusIRNode[]
+  domPath?: DomPath
 }
 
 export type ZeusIRNode =

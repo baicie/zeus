@@ -7,12 +7,7 @@
  */
 import * as t from '@babel/types'
 
-import type {
-  BabelJSXElement,
-  TransformResults,
-  DynamicTransformResults,
-  ElementTransformResults,
-} from '../types'
+import type { BabelJSXElement } from '../types'
 
 type JSXOpeningElementName = t.JSXOpeningElement['name']
 
@@ -42,18 +37,6 @@ export function getJSXAttrName(name: t.JSXAttribute['name']): string {
 
 export function isComponentTag(tagName: string): boolean {
   return /^[A-Z]/.test(tagName) || tagName.includes('.')
-}
-
-export function isElementResult(
-  result: TransformResults,
-): result is ElementTransformResults {
-  return result.kind === 'element'
-}
-
-export function isDynamicResult(
-  result: TransformResults,
-): result is DynamicTransformResults {
-  return result.kind === 'dynamic'
 }
 
 export function toEventName(name: string): string {

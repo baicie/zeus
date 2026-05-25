@@ -4,8 +4,13 @@ import type {
   DynamicTextIR,
   ElementIR,
   EventBindingIR,
+  ForIR,
   FragmentIR,
+  HostIR,
   IRRef,
+  PropBindingIR,
+  ShowIR,
+  SlotIR,
   StaticAttributeIR,
   TextIR,
   ZeusIRNode,
@@ -94,6 +99,15 @@ export function attrBindingIR(name: string, expr: t.Expression): AttrBindingIR {
   }
 }
 
+export function propBindingIR(name: string, expr: t.Expression): PropBindingIR {
+  return {
+    id: id(),
+    kind: 'PropBinding',
+    name,
+    expr,
+  }
+}
+
 export function eventBindingIR(
   eventName: string,
   handler: t.Expression,
@@ -117,5 +131,59 @@ export function componentIR(input: {
     ref: input.ref,
     callee: input.callee,
     props: input.props,
+  }
+}
+
+export function showIR(input: {
+  ref: IRRef
+  when: t.Expression
+  children: ZeusIRNode[]
+  fallback?: t.Expression | ZeusIRNode[]
+}): ShowIR {
+  return {
+    id: id(),
+    kind: 'Show',
+    ref: input.ref,
+    when: input.when,
+    children: input.children,
+    fallback: input.fallback,
+  }
+}
+
+export function forIR(input: {
+  ref: IRRef
+  each: t.Expression
+  item: t.Identifier
+  index?: t.Identifier
+  body: ZeusIRNode[]
+}): ForIR {
+  return {
+    id: id(),
+    kind: 'For',
+    ref: input.ref,
+    each: input.each,
+    item: input.item,
+    index: input.index,
+    body: input.body,
+  }
+}
+
+export function hostIR(children: ZeusIRNode[]): HostIR {
+  return {
+    id: id(),
+    kind: 'Host',
+    children,
+  }
+}
+
+export function slotIR(input: {
+  name?: string
+  fallback?: ZeusIRNode[]
+}): SlotIR {
+  return {
+    id: id(),
+    kind: 'Slot',
+    name: input.name,
+    fallback: input.fallback ?? [],
   }
 }

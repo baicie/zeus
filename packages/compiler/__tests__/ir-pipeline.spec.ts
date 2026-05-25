@@ -9,7 +9,7 @@ import { assignDomPaths, formatDomPath } from '../src/passes'
 async function compile(code: string) {
   const result = await transformAsync(code, {
     filename: 'test.tsx',
-    plugins: [[zeus, { irPipeline: true }]],
+    plugins: [zeus],
     parserOpts: {
       plugins: ['typescript', 'jsx'],
     },
@@ -62,6 +62,16 @@ describe('zeus compiler ir-first pipeline', () => {
     expect(await compile(code)).toMatchSnapshot()
   })
 
+  it('compiles explicit property bindings through the IR-first pipeline', async () => {
+    const code = `
+      const App = (props: { value: string }) => (
+        <input prop:value={props.value} />
+      )
+    `
+
+    expect(await compile(code)).toMatchSnapshot()
+  })
+
   it('compiles component calls through the IR-first feature flag', async () => {
     const code = `
       function Title(props: { text: string }) {
@@ -97,6 +107,37 @@ describe('zeus compiler ir-first pipeline', () => {
           <span>First</span>
           <span>Second</span>
         </>
+      )
+    `
+
+    expect(await compile(code)).toMatchSnapshot()
+  })
+
+  it('compiles For as an IR built-in', async () => {
+    const code = `
+      const App = (props: { items: string[] }) => (
+        <ul>
+          <For each={props.items}>
+            {(item, index) => <li data-index={index}>{item}</li>}
+          </For>
+        </ul>
+      )
+    `
+
+    expect(await compile(code)).toMatchSnapshot()
+  })
+
+  it('compiles Host and Slot as IR built-ins', async () => {
+    const code = `
+      const App = () => (
+        <Host>
+          <header>
+            <Slot name="header" />
+          </header>
+          <main>
+            <Slot />
+          </main>
+        </Host>
       )
     `
 
