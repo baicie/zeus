@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   child,
   defineElement,
+  insert,
   marker,
   mountFor,
   mountShow,
@@ -37,6 +38,19 @@ describe('runtime-dom integration', () => {
 
     expect((child(root, 2) as Element).tagName).toBe('B')
     expect(marker(root, 0).nodeType).toBe(Node.COMMENT_NODE)
+  })
+
+  it('resolves markers only among direct children', () => {
+    const clone = template<DocumentFragment>('<div><!><!></div>')()
+    const root = clone.firstChild as Element
+    const first = marker(root, 0)
+    const nested = template<DocumentFragment>(
+      '<section><span><!></span></section>',
+    )().firstChild as Element
+
+    insert(root, nested, first)
+
+    expect(marker(root, 1).parentNode).toBe(root)
   })
 
   it('updates Show regions reactively', () => {

@@ -1,0 +1,21 @@
+{
+  "name": "@zeus-js/render-demo",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "@zeus-js/compiler": "workspace:*",
+    "@zeus-js/runtime-dom": "workspace:*",
+    "@zeus-js/zeus": "workspace:*"
+  },
+  "devDependencies": {
+    "@babel/core": "catalog:",
+    "vite": "catalog:",
+    "typescript": "^6.0.3"
+  }
+}

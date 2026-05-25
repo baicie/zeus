@@ -21,6 +21,9 @@ catalogs:
     '@types/babel__core':
       specifier: 7.20.5
       version: 7.20.5
+    vite:
+      specifier: ^8.0.5
+      version: 8.0.14
 
 importers:
 
@@ -188,6 +191,28 @@ importers:
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
+
+  playground/render-demo:
+    dependencies:
+      '@zeus-js/compiler':
+        specifier: workspace:*
+        version: link:../../packages/compiler
+      '@zeus-js/runtime-dom':
+        specifier: workspace:*
+        version: link:../../packages/runtime-dom
+      '@zeus-js/zeus':
+        specifier: workspace:*
+        version: link:../../packages/zeus
+    devDependencies:
+      '@babel/core':
+        specifier: 'catalog:'
+        version: 7.29.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: 'catalog:'
+        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0)
 
   playground/solidjs:
     dependencies:

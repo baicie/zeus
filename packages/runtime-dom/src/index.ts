@@ -148,15 +148,16 @@ export function setAttr(el: Element, name: string, value: AttrValue): void {
 
 export function marker(parent: ParentNode, index: number): Comment {
   let seen = 0
-  const walker = document.createTreeWalker(parent, NodeFilter.SHOW_COMMENT)
 
-  while (walker.nextNode()) {
-    const node = walker.currentNode as Comment
+  for (const node of parent.childNodes) {
+    if (node.nodeType !== Node.COMMENT_NODE) continue
 
-    if (node.data === '' || node.data === '!') {
-      if (seen === index) return node
-      seen++
-    }
+    const comment = node as Comment
+
+    if (comment.data !== '' && comment.data !== '!') continue
+    if (seen === index) return comment
+
+    seen++
   }
 
   throw new Error(`[Zeus runtime] marker ${index} not found`)

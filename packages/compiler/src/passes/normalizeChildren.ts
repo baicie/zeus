@@ -39,7 +39,13 @@ function visit(node: ZeusIRNode): void {
 
     case 'Show':
       for (const child of node.children) visit(child)
-      for (const child of node.fallback ?? []) visit(child)
+      if (Array.isArray(node.fallback)) {
+        node.fallback = node.fallback.filter(child => {
+          if (child.kind === 'Text') return child.value.length > 0
+          return true
+        })
+        for (const child of node.fallback) visit(child)
+      }
       return
 
     case 'For':
