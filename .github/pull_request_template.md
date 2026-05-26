@@ -1,24 +1,31 @@
-## 改动类型
+## Summary
 
-- [ ] 新功能
-- [ ] Bug 修复
-- [ ] 文档更新
-- [ ] 重构
-- [ ] 测试
+<!-- What does this PR do? -->
 
-## 改动描述
 
-<!-- 描述本次改动 -->
+## Changes
 
-## 相关 Issue
+<!-- What changed? -->
 
-Closes #
 
-## 检查清单
+## Tests
 
-- [ ] 通过类型检查
-- [ ] 通过 ESLint
-- [ ] 测试通过
-- [ ] 构建成功
+<!-- How is this tested? -->
 
-> Submitted by Cursor
+- [ ] `pnpm check`
+- [ ] `pnpm test`
+- [ ] `pnpm build`
+
+
+## Changeset
+
+<!-- Does this need a changeset? If so, run `pnpm changeset` and include the file. -->
+
+- [ ] Added changeset (`pnpm changeset`)
+- [ ] Not needed (e.g. CI config, docs only, etc.)
+
+
+## Checklist
+
+- [ ] Documentation updated (if needed)
+- [ ] No new lint errors

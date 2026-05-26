@@ -1,0 +1,26 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.1.1/schema.json",
+  "changelog": "@changesets/cli/changelog",
+  "commit": false,
+  "fixed": [],
+  "linked": [
+    [
+      "@zeus-js/zeus",
+      "@zeus-js/signal",
+      "@zeus-js/runtime-dom",
+      "@zeus-js/compiler",
+      "@zeus-js/vite-plugin"
+    ]
+  ],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": [
+    "@zeus-js/docs",
+    "@zeus-js/playground",
+    "@zeus-js/example-counter",
+    "@zeus-js/example-todo",
+    "@zeus-js/example-web-component",
+    "create-zeus"
+  ]
+}

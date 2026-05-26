@@ -63,10 +63,88 @@ type HTMLAttributes<T extends HTMLElement> = CommonDOMAttributes<T> & {
   [key: `data-${string}`]: PrimitiveAttr
   [key: `aria-${string}`]: PrimitiveAttr
   [key: `prop:${string}`]: unknown
+  type?: string
+  checked?: boolean
+  value?: string | number
+  placeholder?: string
+  disabled?: boolean
+  readonly?: boolean
+  multiple?: boolean
+  name?: string
+  for?: string
+  href?: string
+  target?: string
+  rel?: string
+  src?: string
+  alt?: string
+  width?: number | string
+  height?: number | string
+  download?: string
+  accept?: string
+  maxlength?: number
+  minlength?: number
+  max?: number | string
+  min?: number | string
+  step?: number | string
+  rows?: number
+  cols?: number
+  wrap?: string
+  autofocus?: boolean
+  autoplay?: boolean
+  controls?: boolean
+  loop?: boolean
+  muted?: boolean
+  preload?: string
+  poster?: string
+  srcset?: string
+  sizes?: string
+  crossorigin?: string
+  defer?: boolean
+  async?: boolean
+  integrity?: string
+  charset?: string
+  'http-equiv'?: string
+  content?: string
+  lang?: string
+  dir?: string
+  spellcheck?: boolean
+  translate?: boolean
+  tabindex?: number
+  accesskey?: string
+  draggable?: boolean
+  hidden?: boolean
+  contenteditable?: boolean
 }
 
 type SVGAttributes<T extends SVGElement> = CommonDOMAttributes<T> & {
   [key: string]: unknown
+  d?: string
+  cx?: number | string
+  cy?: number | string
+  r?: number | string
+  rx?: number | string
+  ry?: number | string
+  x?: number | string
+  y?: number | string
+  width?: number | string
+  height?: number | string
+  viewBox?: string
+  fill?: string
+  stroke?: string
+  'stroke-width'?: number | string
+  'stroke-linecap'?: string
+  'stroke-linejoin'?: string
+  'stroke-dasharray'?: string
+  'stroke-dashoffset'?: number | string
+  'stroke-opacity'?: number | string
+  'fill-opacity'?: number | string
+  opacity?: number | string
+  transform?: string
+  points?: string
+  x1?: number | string
+  y1?: number | string
+  x2?: number | string
+  y2?: number | string
 }
 
 declare global {

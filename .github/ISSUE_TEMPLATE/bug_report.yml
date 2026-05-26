@@ -1,0 +1,54 @@
+name: Bug report
+description: Report a bug to help us improve
+title: '[Bug]: '
+labels: ['bug']
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: |
+        Please provide a minimal reproduction. A link to a CodeSandbox, StackBlitz, or a small repository is ideal.
+        If providing code snippets, please use code blocks (```tsx, ```bash, etc.).
+      placeholder: |
+        ```tsx
+        import { render, state } from '@zeus-js/zeus'
+        // ...
+        ```
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should happen.
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happens.
+  - type: input
+    id: version
+    attributes:
+      label: Zeus version
+      description: Run `npm list @zeus-js/zeus` to find the version.
+      placeholder: '0.0.1'
+    validations:
+      required: true
+  - type: checkboxes
+    id: browsers
+    attributes:
+      label: Browsers
+      options:
+        - label: Chrome
+        - label: Firefox
+        - label: Safari
+        - label: Edge
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      placeholder: 'macOS / Windows / Linux'

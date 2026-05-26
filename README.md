@@ -1,65 +1,55 @@
 # Zeus
 
-Zeus 是一个 compiler-first、基于细粒度响应式、无 Virtual DOM 的前端 UI 框架。
+Compiler-first fine-grained UI framework.
 
-## 核心目标
+```tsx
+import { render, state } from '@zeus-js/zeus'
 
-- JSX 开发体验
-- 编译期模板提升
-- 运行时细粒度 DOM 更新
-- `state()` 统一状态入口（Phase 1 实现）
-- 保留对象、数组、Map、Set 的引用类型响应式能力
-- 编译为 Web Components 支持（远期目标）
+function App() {
+  const count = state(0)
 
-## 安装
+  return <button onClick={() => count.value++}>count: {count.value}</button>
+}
 
-```bash
-pnpm install
+render(() => <App />, document.getElementById('root')!)
 ```
 
-## 开发命令
+## Features
 
-```bash
-pnpm build      # 构建所有核心包
-pnpm check      # 类型检查
-pnpm lint       # 代码检查
-pnpm test       # 所有测试
-pnpm dev        # watch build
-```
+- unified `state()` API
+- object reactivity
+- compiled JSX
+- no Virtual DOM
+- fine-grained DOM updates
+- Web Components support
 
 ## Packages
 
-- `@zeus-js/signal` — 响应式信号系统
-- `@zeus-js/shared` — 共享工具函数
+- `@zeus-js/zeus` — unified entry point
+- `@zeus-js/signal` — reactivity core
 - `@zeus-js/runtime-dom` — DOM runtime helpers
-- `@zeus-js/compiler` — JSX 编译器（IR-first 架构）
-- `@zeus-js/zeus` — 统一入口包
+- `@zeus-js/compiler` — JSX compiler
+- `@zeus-js/vite-plugin` — Vite integration
 
-## 状态 API（Phase 1）
+## Quick Start
 
-主推 API：
-
-```ts
-state()       // 统一状态入口
-computed()   // 派生计算
-effect()     // 副作用
-watch()      // 监听
-scope()      // 作用域
+```bash
+pnpm create zeus
 ```
 
-底层兼容 API（不作为主文档推荐）：
+## Development
 
-```ts
-ref()        // 响应式引用
-reactive()   // 对象响应式代理
+```bash
+pnpm install
+pnpm build
+pnpm test
 ```
 
-DOM ref 使用 JSX ref 协议：
+## Resources
 
-```tsx
-const input = state<HTMLInputElement | null>(null)
-return <input ref={input} />
-```
+- [Documentation](https://zeusjs.github.io)
+- [API Reference](/api/zeus)
+- [Contributing](/docs/contributing.md)
 
 ## License
 
