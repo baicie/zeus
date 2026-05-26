@@ -1,26 +1,57 @@
 {
   "name": "@zeus-js/zeus",
   "version": "0.0.1",
+  "description": "@zeus-js/zeus",
   "type": "module",
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "index.js",
+  "module": "dist/zeus.esm-bundler.js",
+  "types": "dist/zeus.d.ts",
+  "unpkg": "dist/zeus.global.js",
+  "jsdelivr": "dist/zeus.global.js",
+  "files": [
+    "index.js",
+    "dist"
+  ],
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
+      "types": "./dist/zeus.d.ts",
+      "node": {
+        "production": "./dist/zeus.cjs.prod.js",
+        "development": "./dist/zeus.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/zeus.esm-bundler.js",
+      "import": "./dist/zeus.esm-bundler.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
   },
-  "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch"
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baicie/zeus.git",
+    "directory": "packages/zeus"
   },
+  "buildOptions": {
+    "name": "Zeus",
+    "formats": [
+      "esm-bundler",
+      "esm-browser",
+      "cjs",
+      "global"
+    ]
+  },
+  "keywords": [
+    "zeus"
+  ],
+  "author": "Baicie",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/baicie/zeus/issues"
+  },
+  "homepage": "https://github.com/baicie/zeus/tree/main/packages/zeus#readme",
   "dependencies": {
     "@zeus-js/signal": "workspace:*",
     "@zeus-js/runtime-dom": "workspace:*"
-  },
-  "devDependencies": {
-    "tsup": "^8.5.1",
-    "typescript": "^6.0.3"
   }
 }
