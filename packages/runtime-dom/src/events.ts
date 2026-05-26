@@ -48,7 +48,7 @@ function dispatchDelegatedEvent(event: Event): void {
       const handler = el.__zeusEvents?.[event.type]
 
       if (handler) {
-        handler.call(el, event)
+        handler.call(el, createDelegatedEvent(event, el))
 
         if (event.cancelBubble) {
           return
@@ -58,4 +58,21 @@ function dispatchDelegatedEvent(event: Event): void {
 
     node = node.parentNode
   }
+}
+
+function createDelegatedEvent(event: Event, currentTarget: Element): Event {
+  return new Proxy(event, {
+    get(target, key, receiver) {
+      if (key === 'currentTarget') {
+        return currentTarget
+      }
+
+      const value = Reflect.get(target, key, receiver)
+      return typeof value === 'function' ? value.bind(target) : value
+    },
+
+    set(target, key, value, receiver) {
+      return Reflect.set(target, key, value, receiver)
+    },
+  })
 }
