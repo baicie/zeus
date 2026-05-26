@@ -1,5 +1,6 @@
 import { scope } from '@zeus-js/signal'
 
+import { emitDevtoolsEvent } from './devtools'
 import { insert } from './insert'
 
 import type { JSXValue } from './types'
@@ -14,6 +15,8 @@ export function render(
     container.textContent = ''
     insert(container, resolveValue(value))
   })
+
+  emitDevtoolsEvent({ type: 'render', target: container })
 
   return () => {
     renderScope.stop()

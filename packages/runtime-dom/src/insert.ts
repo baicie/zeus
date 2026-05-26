@@ -1,9 +1,13 @@
+// packages/runtime-dom/src/insert.ts
+
 import { effect, onScopeDispose, stop } from '@zeus-js/signal'
 
-import { removeNodes } from './dom'
 import { captureCurrentHostContext, withHostContext } from './hostContext'
+import { DynamicRange, insertTracked } from './range'
 
 import type { JSXValue } from './types'
+
+export { insertTracked }
 
 export function insert(
   parent: Node,
@@ -17,22 +21,11 @@ export function insert(
           'Use `null` or a fallback value explicitly if you want to suppress this warning.',
       )
     }
+
     return
   }
 
-  if (value == null || value === false || value === true) return
-
-  if (Array.isArray(value)) {
-    for (let i = 0; i < value.length; i++) {
-      insert(parent, value[i], marker)
-    }
-    return
-  }
-
-  const node =
-    value instanceof Node ? value : document.createTextNode(String(value))
-
-  parent.insertBefore(node, marker)
+  insertTracked(parent, value, marker)
 }
 
 export function mountDynamic(
@@ -40,46 +33,16 @@ export function mountDynamic(
   marker: Node,
   value: () => JSXValue,
 ): void {
-  let current: Node[] = []
+  const range = new DynamicRange(parent, marker)
   const hostContext = captureCurrentHostContext()
 
   const runner = effect(() => {
-    removeNodes(current)
-
     const next = withHostContext(hostContext, value)
-
-    current = insertTracked(parent, next, marker)
+    range.replace(next)
   })
 
   onScopeDispose(() => {
     stop(runner)
-    removeNodes(current)
-    current = []
+    range.clear()
   }, true)
-}
-
-function insertTracked(
-  parent: Node,
-  value: JSXValue,
-  marker: Node | null,
-): Node[] {
-  if (
-    value === undefined ||
-    value == null ||
-    value === false ||
-    value === true
-  ) {
-    return []
-  }
-
-  if (Array.isArray(value)) {
-    return value.flatMap(item => insertTracked(parent, item, marker))
-  }
-
-  const node =
-    value instanceof Node ? value : document.createTextNode(String(value))
-
-  parent.insertBefore(node, marker)
-
-  return [node]
 }

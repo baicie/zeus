@@ -41,14 +41,17 @@ function emitElementDeclarations(
 
   for (const child of children) {
     if (child.kind === 'Element') {
-      statements.push(
-        t.variableDeclaration('const', [
-          t.variableDeclarator(
-            t.identifier(child.ref.name),
-            emitDomPath(child.domPath!, context),
-          ),
-        ]),
-      )
+      if (needsElementDeclaration(child)) {
+        statements.push(
+          t.variableDeclaration('const', [
+            t.variableDeclarator(
+              t.identifier(child.ref.name),
+              emitDomPath(child.domPath!, context),
+            ),
+          ]),
+        )
+      }
+
       statements.push(...emitElementDeclarations(child.children, context))
       continue
     }
@@ -88,4 +91,31 @@ function hasChildRuntimeWork(node: ZeusIRNode): boolean {
     default:
       return false
   }
+}
+
+function needsElementDeclaration(node: ElementIR): boolean {
+  if (node.attrs.some(attr => attr.kind !== 'StaticAttribute')) {
+    return true
+  }
+
+  return node.children.some(child => {
+    switch (child.kind) {
+      case 'DynamicText':
+      case 'Component':
+      case 'Show':
+      case 'For':
+      case 'Slot':
+        return true
+      case 'Element':
+        return needsElementDeclaration(child)
+      case 'Fragment':
+        return child.children.some(inner =>
+          inner.kind === 'Element'
+            ? needsElementDeclaration(inner)
+            : inner.kind !== 'Text',
+        )
+      default:
+        return false
+    }
+  })
 }

@@ -44,6 +44,7 @@ export type DynamicTextIR = SemanticBaseIRNode & {
   kind: 'DynamicText'
   expr: t.Expression
   ref: IRRef
+  once?: boolean
   domPath?: DomPath
 }
 
@@ -114,6 +115,7 @@ export type ForIR = SemanticBaseIRNode & {
   kind: 'For'
   ref: IRRef
   each: t.Expression
+  by?: t.Expression
   item: t.Identifier
   index?: t.Identifier
   body: ZeusIRNode[]

@@ -78,6 +78,7 @@ function lowerFor(
   context: CompilerContext,
 ): ZeusIRNode {
   const each = requiredExpressionAttr(path, 'each')
+  const by = optionalExpressionAttr(path, 'by')
   const render = getOnlyRenderFunction(path)
   const item = getParamIdentifier(render, 0) ?? t.identifier('item')
   const index = getParamIdentifier(render, 1)
@@ -93,6 +94,7 @@ function lowerFor(
   return forIR({
     ref: ref(context.uid('for$').name),
     each,
+    by,
     item,
     index,
     body,

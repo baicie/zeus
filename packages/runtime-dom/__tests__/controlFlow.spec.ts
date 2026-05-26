@@ -161,6 +161,7 @@ describe('mountFor', () => {
       root,
       anchor,
       () => items.value,
+      undefined,
       item => {
         const li = document.createElement('li')
         li.textContent = item
@@ -183,6 +184,7 @@ describe('mountFor', () => {
       root,
       anchor,
       () => items.value,
+      undefined,
       item => {
         const li = document.createElement('li')
         li.textContent = item
@@ -205,6 +207,7 @@ describe('mountFor', () => {
       root,
       anchor,
       () => items.value,
+      undefined,
       item => {
         const li = document.createElement('li')
         li.textContent = item

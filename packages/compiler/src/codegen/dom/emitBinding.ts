@@ -3,6 +3,7 @@ import * as t from '@babel/types'
 import { emitMountFor, emitMountShow, emitSlot } from './emitBuiltin'
 import { emitComponent } from './emitComponent'
 import { emitDomPath } from './emitDomPath'
+import { registerEvent } from '../support/events'
 
 import type { CompilerContext } from '../../context'
 import type {
@@ -117,6 +118,8 @@ function emitEventBinding(
   binding: EventBindingIR,
   context: CompilerContext,
 ): t.Statement {
+  registerEvent(context.programPath, binding.eventName)
+
   return t.expressionStatement(
     t.callExpression(context.importRuntime('bindEvent'), [
       t.identifier(target.ref.name),
@@ -160,6 +163,34 @@ function emitDynamicText(
   if (!node.domPath || node.domPath.kind !== 'Marker') return []
 
   const markerRef = context.uid('marker$')
+
+  if (node.once) {
+    // Static once: evaluate once, create text node, insert, no bindText
+    return [
+      t.variableDeclaration('const', [
+        t.variableDeclarator(markerRef, emitDomPath(node.domPath!, context)),
+      ]),
+      t.variableDeclaration('const', [
+        t.variableDeclarator(
+          t.identifier(node.ref.name),
+          t.callExpression(
+            t.memberExpression(
+              t.identifier('document'),
+              t.identifier('createTextNode'),
+            ),
+            [t.callExpression(t.identifier('String'), [node.expr])],
+          ),
+        ),
+      ]),
+      t.expressionStatement(
+        t.callExpression(context.importRuntime('insert'), [
+          t.identifier(node.domPath.parent.name),
+          t.identifier(node.ref.name),
+          t.cloneNode(markerRef),
+        ]),
+      ),
+    ]
+  }
 
   return [
     t.variableDeclaration('const', [

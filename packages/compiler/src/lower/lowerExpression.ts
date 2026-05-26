@@ -15,5 +15,19 @@ export function lowerExpression(
   if (t.isJSXEmptyExpression(expr)) return null
   if (!t.isExpression(expr)) return null
 
-  return dynamicTextIR(expr, ref(context.uid('text$').name))
+  return dynamicTextIR(
+    expr,
+    ref(context.uid('text$').name),
+    hasOnceMarker(expr),
+  )
+}
+
+function hasOnceMarker(expr: t.Expression): boolean {
+  const comments = [
+    ...(expr.leadingComments ?? []),
+    ...(expr.trailingComments ?? []),
+    ...(expr.innerComments ?? []),
+  ]
+
+  return comments.some(comment => comment.value.includes('@once'))
 }

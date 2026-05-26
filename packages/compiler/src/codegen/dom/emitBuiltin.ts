@@ -65,15 +65,21 @@ export function emitFor(node: ForIR, context: CompilerContext): t.Expression {
 
   if (node.index) params.push(node.index)
 
+  const props: t.ObjectProperty[] = [
+    t.objectProperty(t.identifier('each'), node.each),
+    t.objectProperty(
+      t.identifier('children'),
+      t.arrowFunctionExpression(params, emitChildrenProp(node.body, context)),
+    ),
+  ]
+
+  if (node.by) {
+    props.push(t.objectProperty(t.identifier('by'), node.by))
+  }
+
   return t.callExpression(context.importRuntime('createComponent'), [
     context.importRuntime('For'),
-    t.objectExpression([
-      t.objectProperty(t.identifier('each'), node.each),
-      t.objectProperty(
-        t.identifier('children'),
-        t.arrowFunctionExpression(params, emitChildrenProp(node.body, context)),
-      ),
-    ]),
+    t.objectExpression(props),
   ])
 }
 
@@ -93,6 +99,7 @@ export function emitMountFor(
     t.identifier(path.parent.name),
     emitMarkerIdentifier(node),
     t.arrowFunctionExpression([], node.each),
+    node.by ?? t.identifier('undefined'),
     t.arrowFunctionExpression(params, emitChildrenProp(node.body, context)),
   ])
 }

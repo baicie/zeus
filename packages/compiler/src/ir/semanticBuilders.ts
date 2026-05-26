@@ -62,12 +62,14 @@ export function textIR(value: string): TextIR {
 export function dynamicTextIR(
   expr: t.Expression,
   nodeRef: IRRef,
+  once = false,
 ): DynamicTextIR {
   return {
     id: id(),
     kind: 'DynamicText',
     expr,
     ref: nodeRef,
+    once,
   }
 }
 
@@ -162,6 +164,7 @@ export function showIR(input: {
 export function forIR(input: {
   ref: IRRef
   each: t.Expression
+  by?: t.Expression
   item: t.Identifier
   index?: t.Identifier
   body: ZeusIRNode[]
@@ -171,6 +174,7 @@ export function forIR(input: {
     kind: 'For',
     ref: input.ref,
     each: input.each,
+    by: input.by,
     item: input.item,
     index: input.index,
     body: input.body,

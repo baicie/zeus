@@ -1,4 +1,7 @@
+// packages/runtime-dom/src/controlFlow.ts
+
 import { mountDynamic } from './insert'
+import { mountFor as mountForRuntime } from './list'
 
 import type { JSXValue } from './types'
 
@@ -9,15 +12,15 @@ export type ShowProps = {
 }
 
 export function Show(props: ShowProps): JSXValue {
-  return props.when
-    ? resolveValue(props.children)
-    : resolveValue(props.fallback)
+  const value = props.when ? props.children : props.fallback
+  return resolveValue(value)
 }
 
 export function resolveValue(
   value: JSXValue | (() => JSXValue) | undefined,
 ): JSXValue {
-  return typeof value === 'function' ? value() : (value ?? null)
+  if (typeof value === 'function') return value()
+  return value ?? null
 }
 
 export function mountShow(
@@ -32,24 +35,22 @@ export function mountShow(
   )
 }
 
-export type ForProps<T> = {
+export type ForProps<T, K = unknown> = {
   each: readonly T[] | null | undefined
+  by?: (item: T, index: number) => K
   children: (item: T, index: number) => JSXValue
 }
 
-export function For<T>(props: ForProps<T>): JSXValue {
+export function For<T, K = unknown>(props: ForProps<T, K>): JSXValue {
   return props.each?.map((item, index) => props.children(item, index)) ?? null
 }
 
-export function mountFor<T>(
+export function mountFor<T, K = unknown>(
   parent: Node,
   marker: Node,
   each: () => readonly T[] | null | undefined,
+  key: ((item: T, index: number) => K) | undefined,
   render: (item: T, index: number) => JSXValue,
 ): void {
-  mountDynamic(
-    parent,
-    marker,
-    () => each()?.map((item, index) => render(item, index)) ?? null,
-  )
+  mountForRuntime(parent, marker, each, key, render)
 }

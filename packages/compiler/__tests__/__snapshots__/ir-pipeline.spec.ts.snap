@@ -9,7 +9,7 @@ const App = (props: {
 }) => (() => {
   const _el$ = _tmpl$().firstChild;
   const _for$ = _marker(_el$, 0);
-  _mountFor(_el$, _for$, () => props.items, (item, index) => (() => {
+  _mountFor(_el$, _for$, () => props.items, undefined, (item, index) => (() => {
     const _el$2 = _tmpl$2().firstChild;
     _bindAttr(_el$2, "data-index", () => index);
     const _marker$ = _marker(_el$2, 0);
@@ -95,7 +95,7 @@ const App = (props: {
 `;
 
 exports[`zeus compiler ir-first pipeline > compiles native element bindings through the IR-first feature flag 1`] = `
-"import { child as _child, marker as _marker, insert as _insert, bindText as _bindText, bindAttr as _bindAttr, bindEvent as _bindEvent, template as _template } from "@zeus-js/runtime-dom";
+"import { child as _child, marker as _marker, insert as _insert, bindText as _bindText, bindAttr as _bindAttr, bindEvent as _bindEvent, template as _template, delegateEvents as _delegateEvents } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<div><span></span><!><b></b></div>\`);
 const App = (props: {
   name: string;
@@ -103,7 +103,6 @@ const App = (props: {
   onClick: () => void;
 }) => (() => {
   const _el$ = _tmpl$().firstChild;
-  const _el$2 = _el$.firstChild;
   const _el$3 = _child(_el$, 2);
   const _marker$ = _marker(_el$, 0);
   const _text$ = document.createTextNode("");
@@ -112,7 +111,8 @@ const App = (props: {
   _bindAttr(_el$3, "id", () => props.id);
   _bindEvent(_el$3, "click", props.onClick);
   return _el$;
-})();"
+})();
+_delegateEvents(["click"]);"
 `;
 
 exports[`zeus compiler ir-first pipeline > compiles root fragments through the IR-first feature flag 1`] = `

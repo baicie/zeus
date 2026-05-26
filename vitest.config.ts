@@ -8,6 +8,10 @@ const testProjects = [
     name: 'unit',
     include: ['packages/**/*.{test,spec}.{ts,tsx}'],
   },
+  {
+    name: 'bench',
+    include: ['packages/**/__benchmarks__/*.bench.ts'],
+  },
 ]
 
 export default defineConfig({
@@ -30,6 +34,7 @@ export default defineConfig({
       test: {
         ...project,
         exclude: [...configDefaults.exclude],
+        ...(project.name === 'bench' ? { mode: 'benchmark' } : {}),
       },
     })),
   },

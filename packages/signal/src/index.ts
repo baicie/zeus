@@ -29,6 +29,8 @@ export {
 
 export { batch, untrack, getCurrentEffect } from './effect'
 
+export { queueJob, flushJobs, nextTick } from './scheduler'
+
 export {
   trigger,
   track,

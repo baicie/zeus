@@ -10,7 +10,7 @@ const App = (props: {
 }) => (() => {
   const _el$ = _tmpl$().firstChild;
   const _for$ = _marker(_el$, 0);
-  _mountFor(_el$, _for$, () => props.items, (item, index) => (() => {
+  _mountFor(_el$, _for$, () => props.items, undefined, (item, index) => (() => {
     const _el$2 = _tmpl$2().firstChild;
     const _marker$ = _marker(_el$2, 0);
     const _text$ = document.createTextNode("");
@@ -85,13 +85,12 @@ const App = () => _createComponent(MyComponent, {
 `;
 
 exports[`zeus compiler jsx transform > compiles dynamic child before static element 1`] = `
-"import { child as _child, marker as _marker, insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
+"import { marker as _marker, insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<div><!><span></span></div>\`);
 const App = (props: {
   name: string;
 }) => (() => {
   const _el$ = _tmpl$().firstChild;
-  const _el$2 = _child(_el$, 1);
   const _marker$ = _marker(_el$, 0);
   const _text$ = document.createTextNode("");
   _insert(_el$, _text$, _marker$);
@@ -101,7 +100,7 @@ const App = (props: {
 `;
 
 exports[`zeus compiler jsx transform > compiles dynamic class, style, attr, prop, event 1`] = `
-"import { bindClass as _bindClass, bindStyle as _bindStyle, bindAttr as _bindAttr, bindProp as _bindProp, bindEvent as _bindEvent, template as _template } from "@zeus-js/runtime-dom";
+"import { bindClass as _bindClass, bindStyle as _bindStyle, bindAttr as _bindAttr, bindProp as _bindProp, bindEvent as _bindEvent, template as _template, delegateEvents as _delegateEvents } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<input>\`);
 const App = () => {
   const user = state({
@@ -122,7 +121,8 @@ const App = () => {
     _bindEvent(_el$, "input", e => user.name = e.currentTarget.value);
     return _el$;
   })();
-};"
+};
+_delegateEvents(["input"]);"
 `;
 
 exports[`zeus compiler jsx transform > compiles dynamic className as bindClass 1`] = `
@@ -223,14 +223,13 @@ const App = () => {
 `;
 
 exports[`zeus compiler jsx transform > compiles multiple dynamic children before static element 1`] = `
-"import { child as _child, marker as _marker, insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
+"import { marker as _marker, insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<div><!><!><span></span></div>\`);
 const App = (props: {
   first: string;
   second: string;
 }) => (() => {
   const _el$ = _tmpl$().firstChild;
-  const _el$2 = _child(_el$, 2);
   const _marker$ = _marker(_el$, 0);
   const _text$ = document.createTextNode("");
   _insert(_el$, _text$, _marker$);
@@ -303,7 +302,6 @@ const App = (props: {
   name: string;
 }) => (() => {
   const _el$ = _tmpl$().firstChild;
-  const _el$2 = _el$.firstChild;
   const _marker$ = _marker(_el$, 0);
   const _text$ = document.createTextNode("");
   _insert(_el$, _text$, _marker$);
@@ -313,14 +311,12 @@ const App = (props: {
 `;
 
 exports[`zeus compiler jsx transform > compiles static elements around dynamic child 1`] = `
-"import { child as _child, marker as _marker, insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
+"import { marker as _marker, insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<div><span></span><!><b></b></div>\`);
 const App = (props: {
   name: string;
 }) => (() => {
   const _el$ = _tmpl$().firstChild;
-  const _el$2 = _el$.firstChild;
-  const _el$3 = _child(_el$, 2);
   const _marker$ = _marker(_el$, 0);
   const _text$ = document.createTextNode("");
   _insert(_el$, _text$, _marker$);

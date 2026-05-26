@@ -82,6 +82,7 @@ describe('runtime-dom integration', () => {
       root,
       anchor,
       () => items.value,
+      undefined,
       item => {
         const li = document.createElement('li')
         li.textContent = item
