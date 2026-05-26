@@ -31,7 +31,7 @@ async function main() {
     placeholder: 'my-zeus-app',
     defaultValue: 'my-zeus-app',
     validate(value) {
-      if (!value.trim()) return 'Project name is required.'
+      if (!value?.trim()) return 'Project name is required.'
     },
   })
 
