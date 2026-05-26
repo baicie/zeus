@@ -102,18 +102,12 @@ export function emitHost(node: HostIR, context: CompilerContext): t.Expression {
 }
 
 export function emitSlot(node: SlotIR, context: CompilerContext): t.Expression {
-  const attrs = node.name ? ` name="${escapeAttr(node.name)}"` : ''
-  const template = context.registerTemplate(`<slot${attrs}></slot>`)
-  const call = t.callExpression(t.cloneNode(template.id), [])
-
-  return t.memberExpression(call, t.identifier('firstChild'))
-}
-
-function escapeAttr(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
+  return t.callExpression(context.importRuntime('createSlot'), [
+    node.name ? t.stringLiteral(node.name) : t.identifier('undefined'),
+    node.fallback.length > 0
+      ? t.arrowFunctionExpression([], emitChildrenProp(node.fallback, context))
+      : t.identifier('undefined'),
+  ])
 }
 
 function emitMarkerIdentifier(node: ShowIR | ForIR): t.Identifier {

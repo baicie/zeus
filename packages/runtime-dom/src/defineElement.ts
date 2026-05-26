@@ -1,67 +1,139 @@
+// packages/runtime-dom/src/defineElement.ts
+
+import { onScopeDispose, state } from '@zeus-js/signal'
+
+import { withHostContext } from './hostContext'
 import { render } from './render'
 
+import type { HostRenderContext } from './hostContext'
 import type { JSXValue } from './types'
 
 export type ElementPropConstructor =
   | StringConstructor
   | NumberConstructor
   | BooleanConstructor
+  | ObjectConstructor
+  | ArrayConstructor
 
-export type DefineElementOptions<P extends Record<string, unknown>> = {
+export type PropDefinition<T = unknown> =
+  | ElementPropConstructor
+  | {
+      type?: ElementPropConstructor
+      attr?: string | false
+      reflect?: boolean
+      default?: T | (() => T)
+    }
+
+export type PropOptions<P extends Record<string, unknown>> = Partial<{
+  [K in keyof P]: PropDefinition<P[K]>
+}>
+
+export interface DefineElementOptions<P extends Record<string, unknown>> {
   shadow?: boolean | ShadowRootInit
-  props?: Partial<Record<keyof P, ElementPropConstructor>>
+  props?: PropOptions<P>
+  styles?: string | string[]
 }
 
-function toKebabCase(value: string): string {
-  return value.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
+export interface DefineElementContext<E extends HTMLElement = HTMLElement> {
+  host: E
+  emit: (name: string, detail?: unknown, options?: CustomEventInit) => boolean
 }
 
-function castAttributeValue(
-  value: string | null,
-  type: ElementPropConstructor | undefined,
-): unknown {
-  if (type === Boolean) return value !== null
-  if (type === Number) return value == null ? undefined : Number(value)
-  return value
+export type DefineElementSetup<
+  P extends Record<string, unknown>,
+  E extends HTMLElement = HTMLElement,
+> = (props: Readonly<P>, context: DefineElementContext<E>) => JSXValue
+
+type NormalizedPropDefinition = {
+  key: string
+  attr: string | false
+  type?: ElementPropConstructor
+  reflect: boolean
+  default?: unknown
 }
 
-export function defineElement<P extends Record<string, unknown>>(
+export function defineElement<
+  P extends Record<string, unknown> = Record<string, unknown>,
+  E extends HTMLElement = HTMLElement,
+>(
   tagName: string,
   options: DefineElementOptions<P>,
-  setup: (props: P) => JSXValue,
+  setup: DefineElementSetup<P, E>,
 ): CustomElementConstructor {
-  const propSchema = options.props ?? {}
-  const attrToProp = new Map<string, string>()
-
-  for (const key of Object.keys(propSchema)) {
-    attrToProp.set(toKebabCase(key), key)
-  }
+  const propDefs = normalizePropDefinitions(options.props ?? {})
+  const observedAttributes = propDefs
+    .filter(def => def.attr !== false)
+    .map(def => def.attr as string)
 
   class ZeusElement extends HTMLElement {
     static get observedAttributes(): string[] {
-      return Array.from(attrToProp.keys())
+      return observedAttributes
     }
 
+    private readonly props = state({}) as P
     private dispose?: () => void
-    private props = {} as P
+    private target?: Element | ShadowRoot
+    private lightChildren: Node[] = []
+    private capturedLightChildren = false
+    private reflecting = false
+
+    constructor() {
+      super()
+
+      applyPropDefaults(this.props as Record<string, unknown>, propDefs)
+      definePropAccessors(this, this.props as Record<string, unknown>, propDefs)
+    }
 
     connectedCallback(): void {
       if (this.dispose) return
 
-      for (const [attr, prop] of attrToProp) {
-        this.writePropFromAttribute(prop, this.getAttribute(attr))
+      const shadow = options.shadow ?? false
+      const mode = shadow ? 'shadow' : 'light'
+
+      if (mode === 'light' && !this.capturedLightChildren) {
+        this.lightChildren = Array.from(this.childNodes)
+        this.capturedLightChildren = true
       }
 
-      const target =
-        options.shadow === false || options.shadow == null
-          ? this
-          : this.attachShadow(
-              typeof options.shadow === 'object'
-                ? options.shadow
-                : { mode: 'open' },
-            )
+      this.syncAttributesToProps(propDefs)
 
-      this.dispose = render(() => setup(this.props), target)
+      const target = this.resolveRenderTarget(shadow)
+
+      mountStyles(target, options.styles)
+
+      const hostContext: HostRenderContext = {
+        host: this,
+        mode,
+        lightChildren: this.lightChildren,
+      }
+
+      const setupContext: DefineElementContext<E> = {
+        host: this as unknown as E,
+        emit: (name, detail, eventOptions) => {
+          return this.dispatchEvent(
+            new CustomEvent(name, {
+              bubbles: true,
+              composed: true,
+              cancelable: true,
+              ...eventOptions,
+              detail,
+            }),
+          )
+        },
+      }
+
+      this.dispose = render(
+        () =>
+          withHostContext(hostContext, () =>
+            setup(this.props as Readonly<P>, setupContext),
+          ),
+        target,
+      )
+
+      onScopeDispose(() => {
+        this.dispose?.()
+        this.dispose = undefined
+      }, true)
     }
 
     disconnectedCallback(): void {
@@ -71,22 +143,66 @@ export function defineElement<P extends Record<string, unknown>>(
 
     attributeChangedCallback(
       name: string,
-      _oldValue: string | null,
+      oldValue: string | null,
       newValue: string | null,
     ): void {
-      const prop = attrToProp.get(name)
-      if (prop) this.writePropFromAttribute(prop, newValue)
+      if (oldValue === newValue || this.reflecting) return
+
+      const def = propDefs.find(item => item.attr === name)
+
+      if (!def) return
+      ;(this.props as Record<string, unknown>)[def.key] = castAttributeValue(
+        newValue,
+        def,
+      )
     }
 
-    private writePropFromAttribute(prop: string, value: string | null): void {
-      const type = (
-        propSchema as Record<string, ElementPropConstructor | undefined>
-      )[prop]
+    private resolveRenderTarget(
+      shadow: boolean | ShadowRootInit,
+    ): Element | ShadowRoot {
+      if (this.target) return this.target
 
-      ;(this.props as Record<string, unknown>)[prop] = castAttributeValue(
-        value,
-        type,
+      if (!shadow) {
+        this.target = this
+        return this.target
+      }
+
+      this.target = this.attachShadow(
+        typeof shadow === 'object' ? shadow : { mode: 'open' },
       )
+
+      return this.target
+    }
+
+    private syncAttributesToProps(
+      defs: readonly NormalizedPropDefinition[],
+    ): void {
+      for (const def of defs) {
+        if (def.attr === false) continue
+
+        const value = this.getAttribute(def.attr)
+
+        if (value !== null || def.type === Boolean) {
+          ;(this.props as Record<string, unknown>)[def.key] =
+            castAttributeValue(value, def)
+        }
+      }
+    }
+
+    _writePropFromProperty(key: string, value: unknown): void {
+      const def = propDefs.find(item => item.key === key)
+
+      ;(this.props as Record<string, unknown>)[key] = value
+
+      if (def?.reflect && def.attr !== false) {
+        this.reflecting = true
+
+        try {
+          reflectPropToAttribute(this, def, value)
+        } finally {
+          this.reflecting = false
+        }
+      }
     }
   }
 
@@ -95,4 +211,152 @@ export function defineElement<P extends Record<string, unknown>>(
   }
 
   return ZeusElement
+}
+
+function normalizePropDefinitions<P extends Record<string, unknown>>(
+  props: PropOptions<P>,
+): NormalizedPropDefinition[] {
+  return Object.keys(props).map(key => {
+    const input = props[key as keyof P]
+
+    if (typeof input === 'function') {
+      return {
+        key,
+        attr: toKebabCase(key),
+        type: input as ElementPropConstructor,
+        reflect: false,
+      }
+    }
+
+    return {
+      key,
+      attr: input?.attr === undefined ? toKebabCase(key) : input.attr,
+      type: input?.type,
+      reflect: Boolean(input?.reflect),
+      default: input?.default,
+    }
+  })
+}
+
+function applyPropDefaults(
+  props: Record<string, unknown>,
+  defs: readonly NormalizedPropDefinition[],
+): void {
+  for (const def of defs) {
+    if (!('default' in def)) continue
+
+    const value =
+      typeof def.default === 'function'
+        ? (def.default as () => unknown)()
+        : def.default
+
+    props[def.key] = value
+  }
+}
+
+function definePropAccessors(
+  element: HTMLElement,
+  props: Record<string, unknown>,
+  defs: readonly NormalizedPropDefinition[],
+): void {
+  for (const def of defs) {
+    if (def.key in element) continue
+
+    Object.defineProperty(element, def.key, {
+      configurable: true,
+      enumerable: true,
+      get() {
+        return props[def.key]
+      },
+      set(value: unknown) {
+        ;(
+          element as HTMLElement & {
+            _writePropFromProperty: (key: string, value: unknown) => void
+          }
+        )._writePropFromProperty(def.key, value)
+      },
+    })
+  }
+}
+
+function castAttributeValue(
+  value: string | null,
+  def: NormalizedPropDefinition,
+): unknown {
+  if (def.type === Boolean) {
+    return value !== null
+  }
+
+  if (value === null) {
+    return undefined
+  }
+
+  if (def.type === Number) {
+    return Number(value)
+  }
+
+  if (def.type === Object || def.type === Array) {
+    try {
+      return JSON.parse(value)
+    } catch {
+      if (__DEV__) {
+        console.warn(
+          `[Zeus custom-element] Failed to parse JSON attribute "${def.attr}".`,
+        )
+      }
+
+      return def.type === Array ? [] : {}
+    }
+  }
+
+  return value
+}
+
+function reflectPropToAttribute(
+  element: HTMLElement,
+  def: NormalizedPropDefinition,
+  value: unknown,
+): void {
+  if (def.attr === false) return
+
+  if (def.type === Boolean) {
+    if (value) {
+      element.setAttribute(def.attr, '')
+    } else {
+      element.removeAttribute(def.attr)
+    }
+
+    return
+  }
+
+  if (value == null) {
+    element.removeAttribute(def.attr)
+    return
+  }
+
+  if (def.type === Object || def.type === Array) {
+    element.setAttribute(def.attr, JSON.stringify(value))
+    return
+  }
+
+  element.setAttribute(def.attr, String(value))
+}
+
+function mountStyles(
+  target: Element | ShadowRoot,
+  styles: string | string[] | undefined,
+): void {
+  if (!styles) return
+
+  const list = Array.isArray(styles) ? styles : [styles]
+
+  for (const css of list) {
+    const style = document.createElement('style')
+    style.textContent = css
+    target.appendChild(style)
+  }
+}
+
+function toKebabCase(value: string): string {
+  return value.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
 }

@@ -1,6 +1,7 @@
 import { effect, onScopeDispose, stop } from '@zeus-js/signal'
 
 import { removeNodes } from './dom'
+import { captureCurrentHostContext, withHostContext } from './hostContext'
 
 import type { JSXValue } from './types'
 
@@ -40,10 +41,14 @@ export function mountDynamic(
   value: () => JSXValue,
 ): void {
   let current: Node[] = []
+  const hostContext = captureCurrentHostContext()
 
   const runner = effect(() => {
     removeNodes(current)
-    current = insertTracked(parent, value(), marker)
+
+    const next = withHostContext(hostContext, value)
+
+    current = insertTracked(parent, next, marker)
   })
 
   onScopeDispose(() => {

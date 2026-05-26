@@ -1,5 +1,6 @@
 /* eslint-disable no-unused-vars */
 import type { JSXValue, RefTarget } from '@zeus-js/runtime-dom'
+import type { HostProps, SlotProps } from '@zeus-js/runtime-dom'
 
 type EventHandler<E extends Event = Event> = (event: E) => void
 
@@ -118,9 +119,11 @@ declare global {
       polygon: SVGAttributes<SVGPolygonElement>
       g: SVGAttributes<SVGGElement>
 
+      slot: HTMLAttributes<HTMLSlotElement>
+
       [name: string]: Record<string, unknown>
     }
   }
 }
 
-export {}
+export type { HostProps, SlotProps }

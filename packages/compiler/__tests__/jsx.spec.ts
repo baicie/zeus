@@ -266,4 +266,37 @@ describe('zeus compiler jsx transform', () => {
 
     expect(await compile(code)).toMatchSnapshot()
   })
+
+  it('compiles Slot to createSlot', async () => {
+    const code = `
+      import { Host, Slot } from '@zeus-js/runtime-dom'
+
+      const App = () => (
+        <Host>
+          <article>
+            <Slot />
+            <Slot name="footer">
+              <button>fallback</button>
+            </Slot>
+          </article>
+        </Host>
+      )
+    `
+
+    expect(await compile(code)).toMatchSnapshot()
+  })
+
+  it('compiles Host as no-op wrapper', async () => {
+    const code = `
+      import { Host } from '@zeus-js/runtime-dom'
+
+      const App = () => (
+        <Host>
+          <div>hello</div>
+        </Host>
+      )
+    `
+
+    expect(await compile(code)).toMatchSnapshot()
+  })
 })

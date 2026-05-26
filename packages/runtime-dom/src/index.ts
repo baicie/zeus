@@ -48,5 +48,22 @@ export {
 export {
   defineElement,
   type DefineElementOptions,
+  type DefineElementContext,
+  type DefineElementSetup,
   type ElementPropConstructor,
+  type PropDefinition,
+  type PropOptions,
 } from './defineElement'
+
+export { Host, Slot, type HostProps, type SlotProps } from './webComponents'
+
+export { createSlot } from './slot'
+
+export {
+  getCurrentHostContext,
+  withHostContext,
+  captureCurrentHostContext,
+  withCapturedHostContext,
+  type HostRenderContext,
+  type HostRenderMode,
+} from './hostContext'

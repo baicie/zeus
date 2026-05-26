@@ -39,16 +39,21 @@ export {
   render,
   defineElement,
   setAttr,
+  normalizeClass,
   child,
   marker,
   bindText,
   bindAttr,
   bindProp,
+  bindClass,
+  bindStyle,
   bindEvent,
   setRef,
   bindRef,
   Show,
   For,
+  Host,
+  Slot,
   mountShow,
   mountFor,
 } from '@zeus-js/runtime-dom'
@@ -63,6 +68,11 @@ export type {
   RefTarget,
   ShowProps,
   ForProps,
+  DefineElementOptions,
+  DefineElementContext,
+  DefineElementSetup,
+  HostProps,
+  SlotProps,
 } from '@zeus-js/runtime-dom'
 
 export { Fragment, jsx, jsxs, jsxDEV } from './jsx-runtime'
