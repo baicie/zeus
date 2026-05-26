@@ -1,4 +1,4 @@
-import { bindEvent as _bindEvent, template as _template } from "@zeus-js/runtime-dom";
+import { bindEvent as _bindEvent, template as _template, delegateEvents as _delegateEvents } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(`<button>Click me</button>`),
   _tmpl$2 = /*#__PURE__*/_template(`<div>Hover me</div>`),
   _tmpl$3 = /*#__PURE__*/_template(`<button>Click</button>`),
@@ -42,3 +42,4 @@ export function InputWithChange() {
     return _el$4;
   })();
 }
+_delegateEvents(["click", "mouseenter", "mouseleave", "change"]);

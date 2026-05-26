@@ -2,7 +2,7 @@ import { marker as _marker, insert as _insert, bindText as _bindText, template a
 var _tmpl$ = /*#__PURE__*/_template(`<div>Hello World</div>`),
   _tmpl$2 = /*#__PURE__*/_template(`<span>Count:<!></span>`),
   _tmpl$3 = /*#__PURE__*/_template(`<div><h1>Title</h1><p>Paragraph</p></div>`),
-  _tmpl$4 = /*#__PURE__*/_template(`<button className="primary">Click me</button>`),
+  _tmpl$4 = /*#__PURE__*/_template(`<button class="primary">Click me</button>`),
   _tmpl$5 = /*#__PURE__*/_template(`<input type="text" placeholder="Enter text">`),
   _tmpl$6 = /*#__PURE__*/_template(`<span>First</span>`),
   _tmpl$7 = /*#__PURE__*/_template(`<span>Second</span>`);

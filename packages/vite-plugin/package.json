@@ -1,6 +1,7 @@
 {
   "name": "@zeus-js/vite-plugin",
   "version": "0.0.1",
+  "type": "module",
   "description": "Vite plugin for Zeus",
   "main": "index.cjs",
   "module": "dist/vite-plugin.esm-bundler.js",

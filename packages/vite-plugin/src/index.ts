@@ -15,15 +15,26 @@ export interface ZeusVitePluginOptions {
 function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
   const include = normalizePatterns(options.include ?? /\.[tj]sx$/)
   const exclude = normalizePatterns(options.exclude ?? /node_modules/)
+  let viteRoot = ''
 
   return {
     name: 'vite-plugin-zeus',
     enforce: 'pre',
 
+    configResolved(config) {
+      viteRoot = config.root
+    },
+
     config() {
       return {
         esbuild: {
           jsx: 'preserve',
+        },
+        resolve: {
+          alias: {
+            '@zeus-js/runtime-dom': `${viteRoot}/node_modules/@zeus-js/runtime-dom`,
+            '@zeus-js/zeus': `${viteRoot}/node_modules/@zeus-js/zeus`,
+          },
         },
       }
     },

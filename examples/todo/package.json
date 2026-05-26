@@ -9,6 +9,7 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
+    "@zeus-js/runtime-dom": "workspace:*",
     "@zeus-js/zeus": "workspace:*"
   },
   "devDependencies": {

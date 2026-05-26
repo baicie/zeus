@@ -103,6 +103,7 @@ const App = (props: {
   onClick: () => void;
 }) => (() => {
   const _el$ = _tmpl$().firstChild;
+  const _el$2 = _el$.firstChild;
   const _el$3 = _child(_el$, 2);
   const _marker$ = _marker(_el$, 0);
   const _text$ = document.createTextNode("");

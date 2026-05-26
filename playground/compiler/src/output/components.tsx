@@ -1,5 +1,5 @@
 import { marker as _marker, insert as _insert, bindText as _bindText, mountShow as _mountShow, createComponent as _createComponent, template as _template } from "@zeus-js/runtime-dom";
-var _tmpl$ = /*#__PURE__*/_template(`<div className="component"><h1><!></h1><!></div>`),
+var _tmpl$ = /*#__PURE__*/_template(`<div class="component"><h1><!></h1><!></div>`),
   _tmpl$2 = /*#__PURE__*/_template(`<span>Count:<!></span>`),
   _tmpl$3 = /*#__PURE__*/_template(`<div><!><!></div>`);
 // Custom component usage

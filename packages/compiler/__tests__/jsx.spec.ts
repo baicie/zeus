@@ -299,4 +299,71 @@ describe('zeus compiler jsx transform', () => {
 
     expect(await compile(code)).toMatchSnapshot()
   })
+
+  it('declares element variable when domPath is FirstChild', async () => {
+    const code = `
+      const App = (props: { name: string }) => (
+        <div>
+          <span>{props.name}</span>
+        </div>
+      )
+    `
+
+    expect(await compile(code)).toMatchSnapshot()
+  })
+
+  it('declares element variable when domPath is Child with dynamic content before static', async () => {
+    const code = `
+      const App = (props: { name: string }) => (
+        <div>
+          {props.name}
+          <span />
+        </div>
+      )
+    `
+
+    expect(await compile(code)).toMatchSnapshot()
+  })
+
+  it('declares element variable when domPath is Child with multiple dynamics before static', async () => {
+    const code = `
+      const App = (props: { first: string; second: string }) => (
+        <div>
+          {props.first}
+          {props.second}
+          <span />
+        </div>
+      )
+    `
+
+    expect(await compile(code)).toMatchSnapshot()
+  })
+
+  it('declares element variable when static elements surround dynamic child', async () => {
+    const code = `
+      const App = (props: { name: string }) => (
+        <div>
+          <span />
+          {props.name}
+          <b />
+        </div>
+      )
+    `
+
+    expect(await compile(code)).toMatchSnapshot()
+  })
+
+  it('declares element variable for deeply nested FirstChild', async () => {
+    const code = `
+      const App = (props: { name: string }) => (
+        <div>
+          <section>
+            <span>{props.name}</span>
+          </section>
+        </div>
+      )
+    `
+
+    expect(await compile(code)).toMatchSnapshot()
+  })
 })

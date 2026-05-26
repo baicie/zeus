@@ -98,24 +98,34 @@ function needsElementDeclaration(node: ElementIR): boolean {
     return true
   }
 
-  return node.children.some(child => {
-    switch (child.kind) {
-      case 'DynamicText':
-      case 'Component':
-      case 'Show':
-      case 'For':
-      case 'Slot':
-        return true
-      case 'Element':
-        return needsElementDeclaration(child)
-      case 'Fragment':
-        return child.children.some(inner =>
-          inner.kind === 'Element'
-            ? needsElementDeclaration(inner)
-            : inner.kind !== 'Text',
-        )
-      default:
-        return false
-    }
-  })
+  return (
+    node.children.some(child => {
+      switch (child.kind) {
+        case 'DynamicText':
+        case 'Component':
+        case 'Show':
+        case 'For':
+        case 'Slot':
+          return true
+        case 'Element':
+          return needsElementDeclaration(child)
+        case 'Fragment':
+          return child.children.some(inner =>
+            inner.kind === 'Element'
+              ? needsElementDeclaration(inner)
+              : inner.kind !== 'Text',
+          )
+        default:
+          return false
+      }
+    }) || needsDomPathReference(node)
+  )
+}
+
+function needsDomPathReference(node: ElementIR): boolean {
+  return (
+    node.domPath?.kind === 'NextSibling' ||
+    node.domPath?.kind === 'Child' ||
+    node.domPath?.kind === 'FirstChild'
+  )
 }
