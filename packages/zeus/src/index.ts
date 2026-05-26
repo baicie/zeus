@@ -1,17 +1,9 @@
 export {
-  ref,
-  shallowRef,
-  isRef,
-  toRef,
-  toValue,
-  toRefs,
-  unref,
-  triggerRef,
-  customRef,
-  proxyRefs,
+  state,
+  isValueState,
+  type State,
+  type ValueState,
 } from '@zeus-js/signal'
-
-export { reactive, readonly, isReactive, isReadonly } from '@zeus-js/signal'
 
 export { computed } from '@zeus-js/signal'
 
@@ -22,11 +14,21 @@ export {
   enableTracking,
   resetTracking,
   onEffectCleanup,
+  batch,
+  untrack,
+  getCurrentEffect,
 } from '@zeus-js/signal'
 
-export { effectScope, getCurrentScope, onScopeDispose } from '@zeus-js/signal'
+export {
+  effectScope,
+  scope,
+  getCurrentScope,
+  onScopeDispose,
+} from '@zeus-js/signal'
 
 export { watch, onWatcherCleanup, getCurrentWatcher } from '@zeus-js/signal'
+
+export { onCleanup } from '@zeus-js/signal'
 
 export { TrackOpTypes, TriggerOpTypes, ReactiveFlags } from '@zeus-js/signal'
 
@@ -43,6 +45,8 @@ export {
   bindAttr,
   bindProp,
   bindEvent,
+  setRef,
+  bindRef,
   Show,
   For,
   mountShow,
@@ -54,6 +58,7 @@ export type {
   Component,
   TemplateFactory,
   AttrValue,
+  RefTarget,
 } from '@zeus-js/runtime-dom'
 
 export { Fragment, jsx, jsxs, jsxDEV, FragmentFn } from './jsx-runtime'

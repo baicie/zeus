@@ -12,6 +12,7 @@ import type {
   ElementIR,
   EventBindingIR,
   ForIR,
+  RefBindingIR,
   ShowIR,
   SlotIR,
   PropBindingIR,
@@ -35,6 +36,10 @@ export function emitBindings(
 
     if (attr.kind === 'PropBinding') {
       statements.push(emitPropBinding(node, attr, context))
+    }
+
+    if (attr.kind === 'RefBinding') {
+      statements.push(emitRefBinding(node, attr, context))
     }
   }
 
@@ -107,6 +112,19 @@ function emitPropBinding(
       t.identifier(target.ref.name),
       t.stringLiteral(binding.name),
       t.arrowFunctionExpression([], binding.expr),
+    ]),
+  )
+}
+
+function emitRefBinding(
+  target: ElementIR,
+  binding: RefBindingIR,
+  context: CompilerContext,
+): t.Statement {
+  return t.expressionStatement(
+    t.callExpression(context.importRuntime('bindRef'), [
+      t.identifier(target.ref.name),
+      binding.expr,
     ]),
   )
 }

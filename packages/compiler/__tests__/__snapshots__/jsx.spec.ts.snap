@@ -51,6 +51,49 @@ const App = (props: {
 })();"
 `;
 
+exports[`zeus compiler jsx transform > compiles element ref with callback 1`] = `
+"import { bindRef as _bindRef, template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<div></div>\`);
+const App = () => {
+  const onMount = (el: HTMLDivElement) => {
+    console.log(el);
+  };
+  return (() => {
+    const _el$ = _tmpl$().firstChild;
+    _bindRef(_el$, onMount);
+    return _el$;
+  })();
+};"
+`;
+
+exports[`zeus compiler jsx transform > compiles element ref with object current 1`] = `
+"import { bindRef as _bindRef, template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<div></div>\`);
+const App = () => {
+  const el = {
+    current: null as HTMLDivElement | null
+  };
+  return (() => {
+    const _el$ = _tmpl$().firstChild;
+    _bindRef(_el$, el);
+    return _el$;
+  })();
+};"
+`;
+
+exports[`zeus compiler jsx transform > compiles element ref with state 1`] = `
+"import { bindRef as _bindRef, template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<input>\`);
+const App = () => {
+  const input = state<HTMLInputElement | null>(null);
+  return (() => {
+    const _el$ = _tmpl$().firstChild;
+    _bindRef(_el$, input);
+    return _el$;
+  })();
+};"
+`;
+
 exports[`zeus compiler jsx transform > compiles multiple dynamic children before static element 1`] = `
 "import { child as _child, marker as _marker, insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<div><!><!><span></span></div>\`);

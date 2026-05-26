@@ -9,6 +9,7 @@ import type {
   HostIR,
   IRRef,
   PropBindingIR,
+  RefBindingIR,
   ShowIR,
   SlotIR,
   StaticAttributeIR,
@@ -117,6 +118,14 @@ export function eventBindingIR(
     kind: 'EventBinding',
     eventName,
     handler,
+  }
+}
+
+export function refBindingIR(expr: t.Expression): RefBindingIR {
+  return {
+    id: id(),
+    kind: 'RefBinding',
+    expr,
   }
 }
 

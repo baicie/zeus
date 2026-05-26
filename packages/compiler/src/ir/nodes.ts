@@ -71,11 +71,17 @@ export type EventBindingIR = SemanticBaseIRNode & {
   handler: t.Expression
 }
 
+export type RefBindingIR = SemanticBaseIRNode & {
+  kind: 'RefBinding'
+  expr: t.Expression
+}
+
 export type AttributeIR =
   | StaticAttributeIR
   | AttrBindingIR
   | PropBindingIR
   | EventBindingIR
+  | RefBindingIR
 
 export type ComponentPropIR = {
   name: string

@@ -157,7 +157,7 @@ export class ReactiveEffect<T = any>
       return
     }
     if (!(this.flags & EffectFlags.NOTIFIED)) {
-      batch(this)
+      queueSubscriber(this)
     }
   }
 
@@ -250,7 +250,10 @@ let batchDepth = 0
 let batchedSub: Subscriber | undefined
 let batchedComputed: Subscriber | undefined
 
-export function batch(sub: Subscriber, isComputed = false): void {
+/**
+ * @internal
+ */
+export function queueSubscriber(sub: Subscriber, isComputed = false): void {
   sub.flags |= EffectFlags.NOTIFIED
   if (isComputed) {
     sub.next = batchedComputed
@@ -581,4 +584,38 @@ function cleanupEffect(e: ReactiveEffect) {
       activeSub = prevSub
     }
   }
+}
+
+/**
+ * Batches reactive updates synchronously within the given function.
+ * All updates triggered inside `fn` are deferred until the function completes,
+ * then flushed together in a single batch.
+ */
+export function batch<T>(fn: () => T): T {
+  startBatch()
+  try {
+    return fn()
+  } finally {
+    endBatch()
+  }
+}
+
+/**
+ * Executes the given function without tracking reactive dependencies.
+ * Any reactive reads inside `fn` will not trigger effect re-runs.
+ */
+export function untrack<T>(fn: () => T): T {
+  pauseTracking()
+  try {
+    return fn()
+  } finally {
+    resetTracking()
+  }
+}
+
+/**
+ * Returns the currently executing reactive effect, if any.
+ */
+export function getCurrentEffect(): ReactiveEffect | undefined {
+  return activeSub instanceof ReactiveEffect ? activeSub : undefined
 }

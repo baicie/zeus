@@ -8,7 +8,7 @@ import {
   EffectFlags,
   type Subscriber,
   activeSub,
-  batch,
+  queueSubscriber,
   refreshComputed,
 } from './effect'
 import { warn } from './warning'
@@ -123,7 +123,7 @@ export class ComputedRefImpl<T = any> implements Subscriber {
       // avoid infinite self recursion
       activeSub !== this
     ) {
-      batch(this, true)
+      queueSubscriber(this, true)
       return true
     } else if (__DEV__) {
       // TODO warn

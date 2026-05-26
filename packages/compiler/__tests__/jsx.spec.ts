@@ -137,4 +137,53 @@ describe('zeus compiler jsx transform', () => {
 
     expect(await compile(code)).toMatchSnapshot()
   })
+
+  it('compiles element ref with state', async () => {
+    const code = `
+      const App = () => {
+        const input = state<HTMLInputElement | null>(null)
+        return <input ref={input} />
+      }
+    `
+
+    expect(await compile(code)).toMatchSnapshot()
+  })
+
+  it('compiles element ref with callback', async () => {
+    const code = `
+      const App = () => {
+        const onMount = (el: HTMLDivElement) => { console.log(el) }
+        return <div ref={onMount} />
+      }
+    `
+
+    expect(await compile(code)).toMatchSnapshot()
+  })
+
+  it('compiles element ref with object current', async () => {
+    const code = `
+      const App = () => {
+        const el = { current: null as HTMLDivElement | null }
+        return <div ref={el} />
+      }
+    `
+
+    expect(await compile(code)).toMatchSnapshot()
+  })
+
+  it('errors on string ref', async () => {
+    const code = `
+      const App = () => <div ref="id" />
+    `
+
+    await expect(compile(code)).rejects.toThrow()
+  })
+
+  it('errors on empty ref', async () => {
+    const code = `
+      const App = () => <div ref={} />
+    `
+
+    await expect(compile(code)).rejects.toThrow()
+  })
 })

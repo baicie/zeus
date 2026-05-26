@@ -67,7 +67,8 @@ function hasRuntimeWork(node: ElementIR): boolean {
       attr =>
         attr.kind === 'AttrBinding' ||
         attr.kind === 'PropBinding' ||
-        attr.kind === 'EventBinding',
+        attr.kind === 'EventBinding' ||
+        attr.kind === 'RefBinding',
     ) || node.children.some(hasChildRuntimeWork)
   )
 }

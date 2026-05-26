@@ -5,6 +5,7 @@ import {
   attrBindingIR,
   eventBindingIR,
   propBindingIR,
+  refBindingIR,
   staticAttrIR,
 } from '../ir/semanticBuilders'
 import { getJSXAttrName, toEventName } from '../parse/jsx'
@@ -30,9 +31,27 @@ export function lowerAttribute(
   const name = getJSXAttrName(node.name)
   const value = node.value
 
-  if (!value) return staticAttrIR(name, true)
+  if (!value) {
+    if (name === 'ref') {
+      throw new CompilerError({
+        code: CompilerErrorCode.EMPTY_EXPRESSION,
+        message: 'ref attribute requires an expression.',
+        path,
+        hint: 'Use <div ref={target} /> instead.',
+      })
+    }
+    return staticAttrIR(name, true)
+  }
 
   if (t.isStringLiteral(value)) {
+    if (name === 'ref') {
+      throw new CompilerError({
+        code: CompilerErrorCode.INVALID_REF_USAGE,
+        message: 'String refs are not supported in Zeus.',
+        path,
+        hint: 'Use a state holder or callback ref: <div ref={el} />.',
+      })
+    }
     return staticAttrIR(name, value.value)
   }
 
@@ -45,6 +64,10 @@ export function lowerAttribute(
         message: `Attribute "${name}" expression cannot be empty.`,
         path,
       })
+    }
+
+    if (name === 'ref') {
+      return refBindingIR(expr)
     }
 
     if (name.startsWith('on') && name.length > 2) {
