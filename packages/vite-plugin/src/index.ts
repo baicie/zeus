@@ -27,7 +27,7 @@ function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
 
     config() {
       return {
-        esbuild: {
+        oxc: {
           jsx: 'preserve',
         },
         resolve: {
