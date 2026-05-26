@@ -1,16 +1,18 @@
-下面是重新收束后的 **Phase 1 完整设计与代码草案**。
+# Phase 1：Unified State API + Reactivity Core
 
-最终版核心原则：
+> 状态：进行中
+> 说明：详细设计草案。Phase 1 核心决策见 [`roadmap.md`](../roadmap.md) Phase 1 部分。
 
-```txt id="bht2ek"
-1. 对外只主推 state() 一个状态入口。
-2. 不提供 cell()/ref()/domRef() 这类额外创建 API。
-3. DOM ref 只作为 JSX 属性协议：<input ref={input} />。
-4. 底层继续保留 reactive/ref 实现，但不作为主 API 暴露。
-5. state(引用类型) 走 reactive / Proxy。
-6. state(基础类型或不可代理对象) 走内部 ref-like value holder。
-```
+## 核心原则
 
+1. 对外只主推 `state()` 一个状态入口
+2. 不提供 `cell()` / `ref()` / `domRef()` 这类额外创建 API
+3. DOM ref 只作为 JSX 属性协议：`<input ref={input} />`
+4. 底层继续保留 reactive/ref 实现，但不作为主 API 暴露
+5. `state(引用类型)` 走 reactive / Proxy
+6. `state(基础类型或不可代理对象)` 走内部 ref-like value holder
+
+## 框架心智
 你这个框架最终心智应该是：
 
 ```tsx id="xfgl2k"

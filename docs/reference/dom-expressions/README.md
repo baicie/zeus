@@ -10,6 +10,7 @@
 | [transformAttributes](./transformAttributes.md) | `transformAttributes` | 332-1019 | ✅ |
 | [evaluateAndInline](./evaluateAndInline.md) | `evaluateAndInline` | 451-480 (utils.js) | ❌ (优化项) |
 | [transformChildren](./transformChildren.md) | `transformChildren` | 1039-1270+ | ✅ |
+| [../transform-jsx-steps.md](../transform-jsx-steps.md) | `transformJSX` 三步核心流程 | - | ✅ |
 
 ## 总体策略
 
