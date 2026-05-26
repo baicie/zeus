@@ -58,7 +58,11 @@ export type {
   Component,
   TemplateFactory,
   AttrValue,
+  ClassValue,
+  StyleValue,
   RefTarget,
+  ShowProps,
+  ForProps,
 } from '@zeus-js/runtime-dom'
 
-export { Fragment, jsx, jsxs, jsxDEV, FragmentFn } from './jsx-runtime'
+export { Fragment, jsx, jsxs, jsxDEV } from './jsx-runtime'

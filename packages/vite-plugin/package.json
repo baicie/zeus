@@ -1,0 +1,59 @@
+{
+  "name": "@zeus-js/vite-plugin",
+  "version": "0.0.1",
+  "description": "Vite plugin for Zeus",
+  "main": "index.js",
+  "module": "dist/vite-plugin.esm-bundler.js",
+  "types": "dist/vite-plugin.d.ts",
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/vite-plugin.d.ts",
+      "node": {
+        "production": "./dist/vite-plugin.cjs.prod.js",
+        "development": "./dist/vite-plugin.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/vite-plugin.esm-bundler.js",
+      "import": "./dist/vite-plugin.esm-bundler.js",
+      "require": "./index.js"
+    }
+  },
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baicie/zeus.git",
+    "directory": "packages/vite-plugin"
+  },
+  "buildOptions": {
+    "name": "ZeusVitePlugin",
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ]
+  },
+  "keywords": [
+    "zeus",
+    "vite",
+    "jsx"
+  ],
+  "author": "Baicie",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/baicie/zeus/issues"
+  },
+  "homepage": "https://github.com/baicie/zeus/tree/main/packages/vite-plugin#readme",
+  "dependencies": {
+    "@babel/core": "catalog:",
+    "@zeus-js/compiler": "workspace:*"
+  },
+  "peerDependencies": {
+    "vite": "catalog:"
+  },
+  "devDependencies": {
+    "@types/babel__core": "catalog:"
+  }
+}

@@ -17,3 +17,5 @@ export default declare<CompilerOptions>((api, options): BabelPlugin => {
     visitor: createVisitor(config),
   }
 })
+
+export type { CompilerOptions } from './config'

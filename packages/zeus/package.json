@@ -24,6 +24,19 @@
       "import": "./dist/zeus.esm-bundler.js",
       "require": "./index.js"
     },
+    "./jsx-runtime": {
+      "types": "./dist/jsx-runtime.d.ts",
+      "import": "./dist/jsx-runtime.esm-bundler.js",
+      "require": "./dist/jsx-runtime.cjs.js"
+    },
+    "./jsx-dev-runtime": {
+      "types": "./dist/jsx-dev-runtime.d.ts",
+      "import": "./dist/jsx-dev-runtime.esm-bundler.js",
+      "require": "./dist/jsx-dev-runtime.cjs.js"
+    },
+    "./jsx": {
+      "types": "./src/jsx.d.ts"
+    },
     "./*": "./*"
   },
   "sideEffects": false,
