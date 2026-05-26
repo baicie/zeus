@@ -8,5 +8,6 @@
   },
   "[typescriptreact]": {
     "editor.defaultFormatter": "dbaeumer.vscode-eslint"
-  }
+  },
+  "typescript.native-preview.tsdk": "/Users/liuzhiwei/Desktop/workspace/git-code/zeus/node_modules/@typescript/native-preview"
 }

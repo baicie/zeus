@@ -18,13 +18,21 @@ export function collectTemplates(
   }
 }
 
+function normalizeStaticAttrName(name: string): string {
+  return name === 'className' ? 'class' : name
+}
+
 export function renderTemplateHTML(node: ElementIR): string {
   const attrs = node.attrs
     .filter(attr => attr.kind === 'StaticAttribute')
     .map(attr => {
       if (attr.kind !== 'StaticAttribute') return ''
-      if (attr.value === true) return ` ${attr.name}`
-      return ` ${attr.name}="${escapeAttr(attr.value)}"`
+
+      const name = normalizeStaticAttrName(attr.name)
+
+      if (attr.value === true) return ` ${name}`
+
+      return ` ${name}="${escapeAttr(attr.value)}"`
     })
     .join('')
 

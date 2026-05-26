@@ -186,4 +186,84 @@ describe('zeus compiler jsx transform', () => {
 
     await expect(compile(code)).rejects.toThrow()
   })
+
+  it('compiles dynamic class, style, attr, prop, event', async () => {
+    const code = `
+      const App = () => {
+        const user = state({ name: 'Zeus', active: true, width: 100 })
+        return (
+          <input
+            class={{ active: user.active }}
+            style={{ width: user.width }}
+            title={user.name}
+            prop:value={user.name}
+            onInput={e => (user.name = e.currentTarget.value)}
+          />
+        )
+      }
+    `
+
+    expect(await compile(code)).toMatchSnapshot()
+  })
+
+  it('normalizes static className to class in template', async () => {
+    const code = `
+      const App = () => <div className="box">hello</div>
+    `
+
+    expect(await compile(code)).toMatchSnapshot()
+  })
+
+  it('compiles dynamic className as bindClass', async () => {
+    const code = `
+      const App = (props: { className: string }) => <div className={props.className} />
+    `
+
+    expect(await compile(code)).toMatchSnapshot()
+  })
+
+  it('compiles Show with fallback', async () => {
+    const code = `
+      import { Show } from '@zeus-js/runtime-dom'
+      const App = (props: { visible: boolean }) => (
+        <div>
+          <Show when={props.visible} fallback={<span>hidden</span>}>
+            <span>visible</span>
+          </Show>
+        </div>
+      )
+    `
+
+    expect(await compile(code)).toMatchSnapshot()
+  })
+
+  it('compiles For', async () => {
+    const code = `
+      import { For } from '@zeus-js/runtime-dom'
+      const App = (props: { items: string[] }) => (
+        <ul>
+          <For each={props.items}>
+            {(item, index) => <li>{index}: {item}</li>}
+          </For>
+        </ul>
+      )
+    `
+
+    expect(await compile(code)).toMatchSnapshot()
+  })
+
+  it('compiles dynamic component props as getters', async () => {
+    const code = `
+      function Title(props: { name: string }) {
+        return <h1>{props.name}</h1>
+      }
+
+      const App = () => {
+        const user = state({ name: 'Zeus' })
+        return <Title name={user.name} />
+      }
+    `
+
+    expect(await compile(code)).toMatchSnapshot()
+  })
 })
