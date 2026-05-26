@@ -67,14 +67,22 @@ export async function exec(
   options: object,
 ): Promise<unknown> {
   return new Promise((resolve, reject) => {
-    const _process = spawn(command, args, {
+    const isWin = process.platform === 'win32'
+    const normalizedArgs = args.filter(Boolean)
+
+    const spawnCommand = isWin ? 'cmd.exe' : command
+    const spawnArgs = isWin
+      ? ['/d', '/s', '/c', command, ...normalizedArgs]
+      : normalizedArgs
+
+    const _process = spawn(spawnCommand, spawnArgs, {
       stdio: [
         'ignore', // stdin
         'pipe', // stdout
         'pipe', // stderr
       ],
       ...options,
-      shell: process.platform === 'win32',
+      shell: false,
     })
 
     const stderrChunks: Buffer[] = []
@@ -103,7 +111,9 @@ export async function exec(
       } else {
         reject(
           new Error(
-            `Failed to execute command: ${command} ${args.join(' ')}: ${stderr}`,
+            `Failed to execute command: ${command} ${normalizedArgs.join(
+              ' ',
+            )}: ${stderr || stdout}`,
           ),
         )
       }
