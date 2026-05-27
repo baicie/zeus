@@ -1,4 +1,5 @@
 dist
+docs/.vitepress/.temp
 pnpm-lock.yaml
 .agents
 vendor

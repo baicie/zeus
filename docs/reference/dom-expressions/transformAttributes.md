@@ -35,7 +35,7 @@ if (attributes.some(attribute => t.isJSXSpreadAttribute(attribute.node))) {
 ### 3. classList 展开（481-533 行）
 
 ```tsx
-classList=({ active: isActive(), disabled: false })
+classList = { active: isActive(), disabled: false }
 ```
 
 - `disabled: false` → 丢弃
@@ -56,16 +56,16 @@ classList=({ active: isActive(), disabled: false })
 
 ### 5. 属性生成（626-1012 行）——核心
 
-| 条件 | 输出 |
-|------|------|
-| `key === "ref"` | 生成 `use(ref, el)` 调用 |
-| `key.startsWith("use:")` | 特殊指令式属性 |
-| `key === "children"` | 收集 children |
-| `key.startsWith("on")` | 事件绑定 |
-| `key.startsWith("attr:")` | 动态 attribute |
-| `key.startsWith("bool:")` | 布尔 attribute |
-| 动态属性（需 effect） | 加入 `results.dynamics` |
-| 其他静态属性 | 调用 `inlineAttributeOnTemplate` |
+| 条件                      | 输出                             |
+| ------------------------- | -------------------------------- |
+| `key === "ref"`           | 生成 `use(ref, el)` 调用         |
+| `key.startsWith("use:")`  | 特殊指令式属性                   |
+| `key === "children"`      | 收集 children                    |
+| `key.startsWith("on")`    | 事件绑定                         |
+| `key.startsWith("attr:")` | 动态 attribute                   |
+| `key.startsWith("bool:")` | 布尔 attribute                   |
+| 动态属性（需 effect）     | 加入 `results.dynamics`          |
+| 其他静态属性              | 调用 `inlineAttributeOnTemplate` |
 
 ### 6. 收尾（1013-1019 行）
 
