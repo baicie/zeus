@@ -84,6 +84,55 @@ const App = () => _createComponent(MyComponent, {
 });"
 `;
 
+exports[`zeus compiler jsx transform > compiles continuous dynamic nodes with anchors declared before insert 1`] = `
+"import { insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<div><!><!><!></div>\`);
+const App = (props: {
+  a: string;
+  b: string;
+  c: string;
+}) => (() => {
+  const _el$ = _tmpl$().firstChild;
+  const _anchor$ = _el$.firstChild;
+  const _anchor$2 = _anchor$.nextSibling;
+  const _anchor$3 = _anchor$2.nextSibling;
+  const _text$ = document.createTextNode("");
+  _insert(_el$, _text$, _anchor$);
+  _bindText(_text$, () => props.a);
+  const _text$2 = document.createTextNode("");
+  _insert(_el$, _text$2, _anchor$2);
+  _bindText(_text$2, () => props.b);
+  const _text$3 = document.createTextNode("");
+  _insert(_el$, _text$3, _anchor$3);
+  _bindText(_text$3, () => props.c);
+  return _el$;
+})();"
+`;
+
+exports[`zeus compiler jsx transform > compiles counter with static card structure around dynamic content 1`] = `
+"import { insert as _insert, bindText as _bindText, bindEvent as _bindEvent, template as _template, delegateEvents as _delegateEvents } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<div class="card"><h1>Counter</h1><div class="count"><!></div><div class="buttons"><button>-</button><button>+</button></div></div>\`, true, false, false);
+function Counter() {
+  const count = state(0);
+  return (() => {
+    const _el$ = _tmpl$().firstChild;
+    const _el$2 = _el$.firstChild;
+    const _el$3 = _el$2.nextSibling;
+    const _anchor$ = _el$3.firstChild;
+    const _el$4 = _el$3.nextSibling;
+    const _el$5 = _el$4.firstChild;
+    const _el$6 = _el$5.nextSibling;
+    const _text$ = document.createTextNode("");
+    _insert(_el$3, _text$, _anchor$);
+    _bindText(_text$, () => count.value);
+    _bindEvent(_el$5, "click", () => count.value--);
+    _bindEvent(_el$6, "click", () => count.value++);
+    return _el$;
+  })();
+}
+_delegateEvents(["click"]);"
+`;
+
 exports[`zeus compiler jsx transform > compiles dynamic child before static element 1`] = `
 "import { insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<div><!><span></span></div>\`);
@@ -333,6 +382,21 @@ const App = (props: {
   const _el$ = _tmpl$().firstChild;
   const _el$2 = _el$.firstChild;
   const _anchor$ = _el$2.nextSibling;
+  const _text$ = document.createTextNode("");
+  _insert(_el$, _text$, _anchor$);
+  _bindText(_text$, () => props.name);
+  return _el$;
+})();"
+`;
+
+exports[`zeus compiler jsx transform > compiles static text node before dynamic text 1`] = `
+"import { insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<div>hello<!></div>\`);
+const App = (props: {
+  name: string;
+}) => (() => {
+  const _el$ = _tmpl$().firstChild;
+  const _anchor$ = _el$.childNodes[1];
   const _text$ = document.createTextNode("");
   _insert(_el$, _text$, _anchor$);
   _bindText(_text$, () => props.name);

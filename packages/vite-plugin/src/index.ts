@@ -15,15 +15,10 @@ export interface ZeusVitePluginOptions {
 function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
   const include = normalizePatterns(options.include ?? /\.[tj]sx$/)
   const exclude = normalizePatterns(options.exclude ?? /node_modules/)
-  let viteRoot = ''
 
   return {
     name: 'vite-plugin-zeus',
     enforce: 'pre',
-
-    configResolved(config) {
-      viteRoot = config.root
-    },
 
     config() {
       return {
@@ -31,10 +26,7 @@ function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
           jsx: 'preserve',
         },
         resolve: {
-          alias: {
-            '@zeus-js/runtime-dom': `${viteRoot}/node_modules/@zeus-js/runtime-dom`,
-            '@zeus-js/zeus': `${viteRoot}/node_modules/@zeus-js/zeus`,
-          },
+          dedupe: ['@zeus-js/signal', '@zeus-js/runtime-dom', '@zeus-js/zeus'],
         },
       }
     },
@@ -54,7 +46,7 @@ function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
               moduleName: options.moduleName ?? '@zeus-js/runtime-dom',
               generate: 'dom',
               hydratable: false,
-              delegateEvents: false,
+              delegateEvents: true,
             } satisfies Partial<CompilerOptions>,
           ],
         ],

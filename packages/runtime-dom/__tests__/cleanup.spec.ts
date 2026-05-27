@@ -1,24 +1,41 @@
-import { scope } from '@zeus-js/signal'
+import { onScopeDispose, ref, scope } from '@zeus-js/signal'
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { bindEvent, bindRef, mountFor } from '../src'
+import {
+  bindEvent,
+  bindRef,
+  bindText,
+  mountFor,
+  mountShow,
+  render,
+} from '../src'
+import { marker } from '../src/dom'
+import { template } from '../src/template'
 
 type ZeusElementWithEvents = Element & {
   __zeusEvents?: Record<string, EventListener>
 }
 
 describe('runtime cleanup', () => {
+  let dom: JSDOM
+
   beforeEach(() => {
-    const dom = new JSDOM('<!doctype html><html><body></body></html>')
+    dom = new JSDOM('<!doctype html><html><body></body></html>')
     vi.stubGlobal('document', dom.window.document)
     vi.stubGlobal('Node', dom.window.Node)
     vi.stubGlobal('NodeFilter', dom.window.NodeFilter)
     vi.stubGlobal('HTMLElement', dom.window.HTMLElement)
+    vi.stubGlobal('Element', dom.window.Element)
+    vi.stubGlobal('customElements', {
+      get: vi.fn(),
+      define: vi.fn(),
+    })
   })
 
   afterEach(() => {
     vi.unstubAllGlobals()
+    dom.window.close()
   })
 
   it('clears event handler on scope stop', () => {
@@ -57,14 +74,14 @@ describe('runtime cleanup', () => {
 
   it('removes list nodes on scope stop', () => {
     const s = scope()
-    const parent = document.createElement('ul')
-    const marker = document.createComment('')
-    parent.appendChild(marker)
+    const clone = template('<ul><!></ul>')()
+    const root = clone.firstChild as Element
+    const m = marker(root, 0)
 
     s.run(() => {
       mountFor(
-        parent,
-        marker,
+        root,
+        m,
         () => [{ id: 1 }],
         item => item.id,
         item => {
@@ -75,11 +92,98 @@ describe('runtime cleanup', () => {
       )
     })
 
-    expect(parent.childNodes.length).toBe(2)
+    expect(root.childNodes.length).toBe(2)
 
     s.stop()
 
-    expect(parent.childNodes.length).toBe(1)
-    expect(parent.firstChild).toBe(marker)
+    expect(root.childNodes.length).toBe(1)
+    expect(root.firstChild).toBe(m)
+  })
+
+  it('removes old Show nodes when condition toggles from truthy to falsy', () => {
+    const flag = ref(true)
+    const clone = template('<div><!></div>')()
+    const root = clone.firstChild as Element
+    const m = marker(root, 0)
+
+    mountShow(
+      root,
+      m,
+      () => flag.value,
+      () => {
+        const span = document.createElement('span')
+        span.textContent = 'visible'
+        return span
+      },
+      () => {
+        const em = document.createElement('em')
+        em.textContent = 'hidden'
+        return em
+      },
+    )
+
+    expect(root.textContent).toBe('visible')
+
+    flag.value = false
+
+    expect(root.textContent).toBe('hidden')
+    expect(root.querySelector('span')).toBeNull()
+  })
+
+  it('dispose render stops bound text effects', () => {
+    const container = document.createElement('div')
+    const count = { value: 0 }
+    const text = document.createTextNode('')
+
+    const dispose = render(() => {
+      bindText(text, () => count.value)
+      return text
+    }, container)
+
+    expect(text.data).toBe('0')
+
+    dispose()
+
+    count.value = 42
+
+    expect(text.data).toBe('0')
+  })
+
+  it('onScopeDispose callback runs when scope is stopped', () => {
+    const s = scope()
+    let disposed = false
+
+    s.run(() => {
+      onScopeDispose(() => {
+        disposed = true
+      })
+    })
+
+    expect(disposed).toBe(false)
+
+    s.stop()
+
+    expect(disposed).toBe(true)
+  })
+
+  it('render dispose stops all bound effects', () => {
+    const container = document.createElement('div')
+    const count = ref(0)
+    const text = document.createTextNode('')
+
+    const dispose = render(() => {
+      bindText(text, () => count.value)
+      return text
+    }, container)
+
+    expect(text.data).toBe('0')
+    count.value = 42
+    expect(text.data).toBe('42')
+
+    dispose()
+
+    count.value = 99
+
+    expect(text.data).toBe('42')
   })
 })

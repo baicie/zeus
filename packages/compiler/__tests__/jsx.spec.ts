@@ -376,4 +376,50 @@ describe('zeus compiler jsx transform', () => {
 
     expect(await compile(code)).toMatchSnapshot()
   })
+
+  it('compiles counter with static card structure around dynamic content', async () => {
+    const code = `
+      function Counter() {
+        const count = state(0)
+        return (
+          <div class="card">
+            <h1>Counter</h1>
+            <div class="count">{count.value}</div>
+            <div class="buttons">
+              <button onClick={() => count.value--}>-</button>
+              <button onClick={() => count.value++}>+</button>
+            </div>
+          </div>
+        )
+      }
+    `
+
+    expect(await compile(code)).toMatchSnapshot()
+  })
+
+  it('compiles static text node before dynamic text', async () => {
+    const code = `
+      const App = (props: { name: string }) => (
+        <div>
+          hello {props.name}
+        </div>
+      )
+    `
+
+    expect(await compile(code)).toMatchSnapshot()
+  })
+
+  it('compiles continuous dynamic nodes with anchors declared before insert', async () => {
+    const code = `
+      const App = (props: { a: string; b: string; c: string }) => (
+        <div>
+          {props.a}
+          {props.b}
+          {props.c}
+        </div>
+      )
+    `
+
+    expect(await compile(code)).toMatchSnapshot()
+  })
 })

@@ -1,3 +1,5 @@
+// User-facing public API — stable, minimal surface area.
+// Internal runtime helpers are exported from '@zeus-js/runtime-dom' directly.
 export {
   state,
   isValueState,
@@ -33,39 +35,16 @@ export { onCleanup } from '@zeus-js/signal'
 export { TrackOpTypes, TriggerOpTypes, ReactiveFlags } from '@zeus-js/signal'
 
 export {
-  template,
-  insert,
-  createComponent,
   render,
-  defineElement,
-  setAttr,
-  normalizeClass,
-  child,
-  marker,
-  bindText,
-  bindAttr,
-  bindProp,
-  bindClass,
-  bindStyle,
-  bindEvent,
-  setRef,
-  bindRef,
   Show,
   For,
   Host,
   Slot,
-  mountShow,
-  mountFor,
+  defineElement,
 } from '@zeus-js/runtime-dom'
 
 export type {
-  JSXValue,
   Component,
-  TemplateFactory,
-  AttrValue,
-  ClassValue,
-  StyleValue,
-  RefTarget,
   ShowProps,
   ForProps,
   DefineElementOptions,

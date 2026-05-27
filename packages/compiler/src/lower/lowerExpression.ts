@@ -17,7 +17,7 @@ export function lowerExpression(
 
   return dynamicTextIR(
     expr,
-    ref(context.uid('text$').name),
+    ref(context.uid('anchor$').name),
     hasOnceMarker(expr),
   )
 }
