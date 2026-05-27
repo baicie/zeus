@@ -99,8 +99,6 @@ export function defineElement<
 
       const target = this.resolveRenderTarget(shadow)
 
-      mountStyles(target, options.styles)
-
       const hostContext: HostRenderContext = {
         host: this,
         mode,
@@ -129,6 +127,8 @@ export function defineElement<
           ),
         target,
       )
+
+      mountStyles(target, options.styles)
 
       onScopeDispose(() => {
         this.dispose?.()

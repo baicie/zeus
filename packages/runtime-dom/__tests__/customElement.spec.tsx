@@ -245,7 +245,7 @@ describe('defineElement', () => {
     expect(ctor.observedAttributes).toContain('flag')
   })
 
-  it('injects styles into shadow root (shadow mode verified via observedAttributes)', () => {
+  it('injects styles into shadow root', () => {
     defineElement(
       'z-test-styles',
       {
@@ -258,13 +258,15 @@ describe('defineElement', () => {
     const el = document.createElement('z-test-styles')
     document.body.appendChild(el)
 
-    // shadowRoot property depends on JSDOM support; verify element was defined
-    expect(customElements.get('z-test-styles')).toBeTruthy()
+    expect(el.shadowRoot?.querySelector('style')?.textContent).toBe(
+      'div { color: red; }',
+    )
+    expect(el.shadowRoot?.querySelector('div')).toBeTruthy()
 
     el.remove()
   })
 
-  it('injects array styles into shadow root (verified via observedAttributes)', () => {
+  it('injects array styles into shadow root', () => {
     defineElement(
       'z-test-styles-array',
       {
@@ -284,8 +286,37 @@ describe('defineElement', () => {
     const el = document.createElement('z-test-styles-array')
     document.body.appendChild(el)
 
-    // Verify element was registered with shadow: true
-    expect(customElements.get('z-test-styles-array')).toBeTruthy()
+    const styles = Array.from(el.shadowRoot!.querySelectorAll('style')).map(
+      style => style.textContent,
+    )
+
+    expect(styles).toEqual(['h1 { font-size: 24px; }', 'p { margin: 8px; }'])
+    expect(el.shadowRoot?.querySelector('h1')).toBeTruthy()
+    expect(el.shadowRoot?.querySelector('p')).toBeTruthy()
+
+    el.remove()
+  })
+
+  it('injects styles into light DOM after render clears the host', () => {
+    defineElement(
+      'z-test-light-styles',
+      {
+        shadow: false,
+        styles: '.box { color: blue; }',
+      },
+      _props => {
+        const el = document.createElement('div')
+        el.className = 'box'
+        el.textContent = 'light'
+        return el
+      },
+    )
+
+    const el = document.createElement('z-test-light-styles')
+    document.body.appendChild(el)
+
+    expect(el.querySelector('style')?.textContent).toBe('.box { color: blue; }')
+    expect(el.querySelector('.box')?.textContent).toBe('light')
 
     el.remove()
   })

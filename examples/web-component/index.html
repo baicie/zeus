@@ -11,6 +11,7 @@
         margin: 0;
         padding: 2rem;
       }
+
       .container {
         max-width: 600px;
         margin: 0 auto;
@@ -19,15 +20,18 @@
         border-radius: 12px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
       }
+
       h1 {
         color: #333;
         margin-bottom: 1.5rem;
       }
+
       .counters {
         display: flex;
         gap: 1rem;
         flex-wrap: wrap;
       }
+
       z-counter {
         display: block;
         background: white;
@@ -37,13 +41,14 @@
       }
     </style>
   </head>
+
   <body>
     <div id="root">
       <div class="container">
         <h1>Web Component Counter</h1>
         <div class="counters">
-          <z-counter title="Simple" initial-count="0" />
-          <z-counter title="Starting at 10" initial-count="10" />
+          <z-counter title="Simple" initial-count="0"></z-counter>
+          <z-counter title="Starting at 10" initial-count="10"></z-counter>
         </div>
       </div>
     </div>
