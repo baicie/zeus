@@ -315,6 +315,7 @@ const App = (props: {
   name: string;
 }) => (() => {
   const _el$ = _tmpl$().firstChild;
+  const _el$2 = _el$.firstChild;
   const _anchor$ = _el$2.nextSibling;
   const _text$ = document.createTextNode("");
   _insert(_el$, _text$, _anchor$);
@@ -330,6 +331,7 @@ const App = (props: {
   name: string;
 }) => (() => {
   const _el$ = _tmpl$().firstChild;
+  const _el$2 = _el$.firstChild;
   const _anchor$ = _el$2.nextSibling;
   const _text$ = document.createTextNode("");
   _insert(_el$, _text$, _anchor$);
@@ -413,6 +415,7 @@ const App = (props: {
   name: string;
 }) => (() => {
   const _el$ = _tmpl$().firstChild;
+  const _el$2 = _el$.firstChild;
   const _anchor$ = _el$2.nextSibling;
   const _text$ = document.createTextNode("");
   _insert(_el$, _text$, _anchor$);

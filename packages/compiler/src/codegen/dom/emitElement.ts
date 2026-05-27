@@ -10,6 +10,8 @@ import type {
   DynamicTextIR,
   ElementIR,
   ForIR,
+  IRRef,
+  PhysicalDomPath,
   ShowIR,
   SlotIR,
   ZeusIRNode,
@@ -57,27 +59,39 @@ function emitDomRefDeclarations(
   context: CompilerContext,
 ): t.Statement[] {
   const statements: t.Statement[] = []
+  const declared = new Set<string>()
+  const refNodeMap = collectRefNodeMap(children)
 
   for (const child of children) {
-    collectDomRefDeclaration(child, statements, context)
+    collectRequiredDomRefDeclaration(
+      child,
+      statements,
+      context,
+      refNodeMap,
+      declared,
+    )
   }
 
   return statements
 }
 
-function collectDomRefDeclaration(
-  node: ZeusIRNode,
-  statements: t.Statement[],
-  context: CompilerContext,
-): void {
+function collectRefNodeMap(children: ZeusIRNode[]): Map<string, DomRefNode> {
+  const map = new Map<string, DomRefNode>()
+
+  for (const child of children) {
+    collectRefNode(child, map)
+  }
+
+  return map
+}
+
+function collectRefNode(node: ZeusIRNode, map: Map<string, DomRefNode>): void {
   switch (node.kind) {
     case 'Element':
-      if (needsDomRefDeclaration(node)) {
-        statements.push(createDomRefDeclaration(node, context))
-      }
+      map.set(node.ref.name, node)
 
       for (const child of node.children) {
-        collectDomRefDeclaration(child, statements, context)
+        collectRefNode(child, map)
       }
 
       return
@@ -87,18 +101,18 @@ function collectDomRefDeclaration(
     case 'Show':
     case 'For':
     case 'Slot':
-      statements.push(createDomRefDeclaration(node as DomRefNode, context))
+      map.set(node.ref.name, node)
       return
 
     case 'Fragment':
       for (const child of node.children) {
-        collectDomRefDeclaration(child, statements, context)
+        collectRefNode(child, map)
       }
       return
 
     case 'Host':
       for (const child of node.children) {
-        collectDomRefDeclaration(child, statements, context)
+        collectRefNode(child, map)
       }
       return
 
@@ -107,9 +121,155 @@ function collectDomRefDeclaration(
   }
 }
 
+function collectRequiredDomRefDeclaration(
+  node: ZeusIRNode,
+  statements: t.Statement[],
+  context: CompilerContext,
+  refNodeMap: Map<string, DomRefNode>,
+  declared: Set<string>,
+): void {
+  switch (node.kind) {
+    case 'Element':
+      if (needsDomRefDeclaration(node)) {
+        emitDomRefDeclarationWithDeps(
+          node,
+          statements,
+          context,
+          refNodeMap,
+          declared,
+        )
+      }
+
+      for (const child of node.children) {
+        collectRequiredDomRefDeclaration(
+          child,
+          statements,
+          context,
+          refNodeMap,
+          declared,
+        )
+      }
+
+      return
+
+    case 'DynamicText':
+    case 'Component':
+    case 'Show':
+    case 'For':
+    case 'Slot':
+      emitDomRefDeclarationWithDeps(
+        node as DomRefNode,
+        statements,
+        context,
+        refNodeMap,
+        declared,
+      )
+      return
+
+    case 'Fragment':
+      for (const child of node.children) {
+        collectRequiredDomRefDeclaration(
+          child,
+          statements,
+          context,
+          refNodeMap,
+          declared,
+        )
+      }
+      return
+
+    case 'Host':
+      for (const child of node.children) {
+        collectRequiredDomRefDeclaration(
+          child,
+          statements,
+          context,
+          refNodeMap,
+          declared,
+        )
+      }
+      return
+
+    default:
+      return
+  }
+}
+
+function emitDomRefDeclarationWithDeps(
+  node: DomRefNode,
+  statements: t.Statement[],
+  context: CompilerContext,
+  refNodeMap: Map<string, DomRefNode>,
+  declared: Set<string>,
+): void {
+  if (declared.has(node.ref.name)) {
+    return
+  }
+
+  if (!node.physicalDomPath) {
+    throw new Error(`${node.kind} physical DOM path is not assigned`)
+  }
+
+  emitPhysicalDomPathDependencies(
+    node.physicalDomPath,
+    statements,
+    context,
+    refNodeMap,
+    declared,
+  )
+
+  statements.push(createDomRefDeclaration(node, context))
+  declared.add(node.ref.name)
+}
+
+function emitPhysicalDomPathDependencies(
+  path: PhysicalDomPath,
+  statements: t.Statement[],
+  context: CompilerContext,
+  refNodeMap: Map<string, DomRefNode>,
+  declared: Set<string>,
+): void {
+  switch (path.kind) {
+    case 'Root':
+      return
+
+    case 'FirstChild':
+      emitRefDependency(path.parent, statements, context, refNodeMap, declared)
+      return
+
+    case 'ChildNode':
+      emitRefDependency(path.parent, statements, context, refNodeMap, declared)
+      return
+
+    case 'NextSibling':
+      emitRefDependency(
+        path.previous,
+        statements,
+        context,
+        refNodeMap,
+        declared,
+      )
+      return
+  }
+}
+
+function emitRefDependency(
+  ref: IRRef,
+  statements: t.Statement[],
+  context: CompilerContext,
+  refNodeMap: Map<string, DomRefNode>,
+  declared: Set<string>,
+): void {
+  const dep = refNodeMap.get(ref.name)
+
+  if (!dep) return
+
+  emitDomRefDeclarationWithDeps(dep, statements, context, refNodeMap, declared)
+}
+
 function createDomRefDeclaration(
   node: DomRefNode,
-  context: CompilerContext,
+  _context: CompilerContext,
 ): t.VariableDeclaration {
   if (!node.physicalDomPath) {
     throw new Error(`${node.kind} physical DOM path is not assigned`)
