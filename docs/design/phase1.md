@@ -13,6 +13,7 @@
 6. `state(基础类型或不可代理对象)` 走内部 ref-like value holder
 
 ## 框架心智
+
 你这个框架最终心智应该是：
 
 ```tsx id="xfgl2k"

@@ -4,11 +4,11 @@
 
 Vue 3 的编译器分为两大块，各自走不同的技术路线：
 
-| 编译器模块 | 是否用 Babel | 是否用 IR |
-|-----------|-------------|-----------|
-| `compiler-core`（传统模式） | 仅在表达式转换阶段少量使用 | **不使用** — AST 直接作为 codegen 输入 |
-| `compiler-sfc`（SFC 编译） | 是，用 `@babel/parser` 解析 `<script>` 块 | **不使用** |
-| `compiler-vapor`（Vapor 模式） | 仅处理 JS 表达式时用 Babel AST | **大量使用** — 有独立的 `ir/` 目录专门定义 IR |
+| 编译器模块                     | 是否用 Babel                              | 是否用 IR                                     |
+| ------------------------------ | ----------------------------------------- | --------------------------------------------- |
+| `compiler-core`（传统模式）    | 仅在表达式转换阶段少量使用                | **不使用** — AST 直接作为 codegen 输入        |
+| `compiler-sfc`（SFC 编译）     | 是，用 `@babel/parser` 解析 `<script>` 块 | **不使用**                                    |
+| `compiler-vapor`（Vapor 模式） | 仅处理 JS 表达式时用 Babel AST            | **大量使用** — 有独立的 `ir/` 目录专门定义 IR |
 
 ---
 
@@ -34,6 +34,7 @@ const ast = babelParse(scriptContent, {
 ```
 
 用途包括：
+
 - 解析 `defineProps`、`defineEmits`、`defineExpose` 等宏调用
 - 分析 `import` / `export` 语句
 - 处理 `with` 作用域代理（将模板中的变量如 `count` 映射为 `ctx.count`）
@@ -47,19 +48,21 @@ const ast = babelParse(scriptContent, {
 ```typescript
 // compiler-core/src/babelUtils.ts
 export function walkIdentifiers(
-  root: BabelNode,                    // Babel AST 节点
-  onIdentifier: (                    // 遍历到每个标识符时的回调
+  root: BabelNode, // Babel AST 节点
+  onIdentifier: (
+    // 遍历到每个标识符时的回调
     node: BabelNodeIdentifier,
     parent: BabelNode,
     parentStack: BabelNode[],
     isReference: boolean,
     isLocal: boolean,
   ) => void,
-  includeAll = false,               // 是否处理所有标识符，还是仅处理引用
+  includeAll = false, // 是否处理所有标识符，还是仅处理引用
 )
 ```
 
 这个函数用来：
+
 - 识别模板中哪些变量是**引用**（需要加 `_ctx.` 前缀），哪些是**局部声明**
 - 追踪 `v-for` 的迭代变量、`v-slot` 的插槽参数等
 - 支持解构模式、函数参数、块级 `const/let` 等作用域分析
@@ -106,10 +109,13 @@ render function / h() 调用
 
 ```typescript
 // compiler-core/src/codegen.ts（传统模式 codegen）
-export function generate(ast: RootNode, options: CodegenOptions): CodegenResult {
+export function generate(
+  ast: RootNode,
+  options: CodegenOptions,
+): CodegenResult {
   const context = createCodegenContext(source, options)
-  genFunctionPreamble(context, ast)  // 生成 import / helpers
-  genBody(ast, context)              // 生成 render 函数体
+  genFunctionPreamble(context, ast) // 生成 import / helpers
+  genBody(ast, context) // 生成 render 函数体
   // ...
 }
 ```
@@ -160,21 +166,21 @@ Vue 3 的 Vapor 模式（无 Virtual DOM 的编译优化路径）引入了显式
 // compiler-vapor/src/ir/index.ts
 export interface RootIRNode {
   type: IRNodeTypes.ROOT
-  node: RootNode              // Vue 标准模板 AST
+  node: RootNode // Vue 标准模板 AST
   source: string
-  template: string[]           // 提取出的静态模板字符串数组
+  template: string[] // 提取出的静态模板字符串数组
   component: Set<string>
   directive: Set<string>
-  block: BlockIRNode          // 核心：Vapor 的执行单元
+  block: BlockIRNode // 核心：Vapor 的执行单元
 }
 
 export interface BlockIRNode {
   type: IRNodeTypes.BLOCK
   node: RootNode | TemplateChildNode
-  dynamic: IRDynamicInfo       // 动态节点树（带 flag 标记静态/动态）
-  effect: IREffect[]           // 响应式副作用
-  operation: OperationNode[]    // DOM 操作
-  returns: number[]            // 返回的节点引用
+  dynamic: IRDynamicInfo // 动态节点树（带 flag 标记静态/动态）
+  effect: IREffect[] // 响应式副作用
+  operation: OperationNode[] // DOM 操作
+  returns: number[] // 返回的节点引用
 }
 ```
 
@@ -211,20 +217,20 @@ export function genBlockContent(block: BlockIRNode, context, root?) {
 
 IR 中的 `OperationNode` 覆盖了所有 Vapor 特有的操作：
 
-| IR 节点 | 含义 |
-|--------|------|
-| `SET_TEXT` | 设置文本节点内容 |
-| `SET_PROP` | 设置元素属性 |
-| `SET_DYNAMIC_PROPS` | 批量设置动态属性 |
-| `SET_EVENT` / `SET_DYNAMIC_EVENTS` | 绑定事件 |
-| `SET_HTML` | 设置 innerHTML |
-| `SET_TEMPLATE_REF` | 设置模板 ref |
-| `SET_MODEL_VALUE` | v-model 双向绑定 |
-| `CREATE_TEXT_NODE` | 创建文本节点 |
-| `INSERT_NODE` / `PREPEND_NODE` | 插入节点 |
-| `IF` / `FOR` | 条件/循环操作 |
-| `CREATE_COMPONENT_NODE` | 创建组件节点 |
-| `SLOT_OUTLET_NODE` | 插槽操作 |
+| IR 节点                            | 含义             |
+| ---------------------------------- | ---------------- |
+| `SET_TEXT`                         | 设置文本节点内容 |
+| `SET_PROP`                         | 设置元素属性     |
+| `SET_DYNAMIC_PROPS`                | 批量设置动态属性 |
+| `SET_EVENT` / `SET_DYNAMIC_EVENTS` | 绑定事件         |
+| `SET_HTML`                         | 设置 innerHTML   |
+| `SET_TEMPLATE_REF`                 | 设置模板 ref     |
+| `SET_MODEL_VALUE`                  | v-model 双向绑定 |
+| `CREATE_TEXT_NODE`                 | 创建文本节点     |
+| `INSERT_NODE` / `PREPEND_NODE`     | 插入节点         |
+| `IF` / `FOR`                       | 条件/循环操作    |
+| `CREATE_COMPONENT_NODE`            | 创建组件节点     |
+| `SLOT_OUTLET_NODE`                 | 插槽操作         |
 
 ---
 
@@ -250,13 +256,13 @@ Vapor模式（无VNode）：显式 IR，有独立 ir/index.ts，结构为 RootIR
 
 ### 4.3 关键差异
 
-| 维度 | 传统 Vue 3 | Vapor 模式 Vue 3 |
-|------|-----------|----------------|
-| Babel 用途 | JS 表达式解析 + 作用域分析 | 同左（共用 compiler-core） |
-| 是否有独立 IR 层 | 无（codegen AST 即隐式 IR） | 有（`compiler-vapor/src/ir/`） |
-| IR 节点示例 | VNodeCall, JS_FUNCTION_EXPRESSION | SET_TEXT, INSERT_NODE, BlockIRNode |
-| codegen 输入 | 转换后的 Vue AST | Vapor IR |
-| 输出目标 | `h(tag, props, children)` 调用树 | 精确的 `_template()` + `_set_text()` 等细粒度操作 |
+| 维度             | 传统 Vue 3                        | Vapor 模式 Vue 3                                  |
+| ---------------- | --------------------------------- | ------------------------------------------------- |
+| Babel 用途       | JS 表达式解析 + 作用域分析        | 同左（共用 compiler-core）                        |
+| 是否有独立 IR 层 | 无（codegen AST 即隐式 IR）       | 有（`compiler-vapor/src/ir/`）                    |
+| IR 节点示例      | VNodeCall, JS_FUNCTION_EXPRESSION | SET_TEXT, INSERT_NODE, BlockIRNode                |
+| codegen 输入     | 转换后的 Vue AST                  | Vapor IR                                          |
+| 输出目标         | `h(tag, props, children)` 调用树  | 精确的 `_template()` + `_set_text()` 等细粒度操作 |
 
 ### 4.4 设计启示
 

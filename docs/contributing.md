@@ -52,13 +52,13 @@ pnpm docs:build
 
 ## Package structure
 
-| Package | Description |
-|---------|-------------|
-| `@zeus-js/signal` | Reactivity core |
+| Package                | Description         |
+| ---------------------- | ------------------- |
+| `@zeus-js/signal`      | Reactivity core     |
 | `@zeus-js/runtime-dom` | DOM runtime helpers |
-| `@zeus-js/compiler` | JSX compiler |
-| `@zeus-js/zeus` | Framework entry |
-| `@zeus-js/vite-plugin` | Vite integration |
+| `@zeus-js/compiler`    | JSX compiler        |
+| `@zeus-js/zeus`        | Framework entry     |
+| `@zeus-js/vite-plugin` | Vite integration    |
 
 ## Version management
 

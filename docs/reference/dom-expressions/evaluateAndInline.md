@@ -11,9 +11,12 @@
 在 `transformElement` 的属性遍历中调用：
 
 ```js
-path.get("openingElement").get("attributes").forEach(attr => {
-  evaluateAndInline(attr.node.value, attr.get("value"))
-})
+path
+  .get('openingElement')
+  .get('attributes')
+  .forEach(attr => {
+    evaluateAndInline(attr.node.value, attr.get('value'))
+  })
 ```
 
 ## 算法逻辑
@@ -23,11 +26,11 @@ path.get("openingElement").get("attributes").forEach(attr => {
 ```js
 // 处理 JSX 表达式容器 {xxx}
 if (t.isJSXExpressionContainer(value))
-  evaluateAndInline(value.expression, valueNode.get("expression"))
+  evaluateAndInline(value.expression, valueNode.get('expression'))
 
 // 处理对象属性 { prop: value }
 if (t.isObjectProperty(value))
-  evaluateAndInline(value.value, valueNode.get("value"))
+  evaluateAndInline(value.value, valueNode.get('value'))
 ```
 
 ### 第二层：递归处理复合类型
@@ -43,9 +46,10 @@ if (t.isObjectExpression(value)) {
 ### 第三层：Babel 求值引擎
 
 ```js
-const r = valueNode.evaluate()  // Babel 内置求值器
-if (r.confident) {              // Babel 确定能求值
-  if (typeof r.value === "string")
+const r = valueNode.evaluate() // Babel 内置求值器
+if (r.confident) {
+  // Babel 确定能求值
+  if (typeof r.value === 'string')
     valueNode.replaceWith(t.stringLiteral(r.value))
   // ...
 }
@@ -86,7 +90,7 @@ import * as t from '@babel/types'
 
 export function evaluateAndInline(
   value: BabelNode | null,
-  valueNode: NodePath
+  valueNode: NodePath,
 ): void {
   if (!value || !valueNode) return
 

@@ -10,14 +10,15 @@
 
 ```js
 function transformChildren(path, results, config) {
-  const filteredChildren = filterChildren(path.get("children"))
+  const filteredChildren = filterChildren(path.get('children'))
   const lastElement = findLastElement(filteredChildren, config.hydratable)
 
   const childNodes = filteredChildren.reduce((memo, child, index) => {
     const transformed = transformNode(child, {
       toBeClosed: results.toBeClosed,
       lastElement: index === lastElement,
-      skipId: !results.id || !detectExpressions(filteredChildren, index, config)
+      skipId:
+        !results.id || !detectExpressions(filteredChildren, index, config),
     })
     // 合并到 memo
     return memo
@@ -71,9 +72,9 @@ results.declarations.push(
       tempPath === results.id.name
         ? t.identifier(tempPath)
         : t.identifier(tempPath),
-      t.identifier(i === 0 ? "firstChild" : "nextSibling")
-    )
-  )
+      t.identifier(i === 0 ? 'firstChild' : 'nextSibling'),
+    ),
+  ),
 )
 ```
 
@@ -98,13 +99,16 @@ results.declarations.push(
 ## 最小可实现版本
 
 ```ts
-export function transformChildren(path: BabelJSXElementPath, results: TransformResults) {
+export function transformChildren(
+  path: BabelJSXElementPath,
+  results: TransformResults,
+) {
   const children = path.get('children')
   let tempPath = results.id?.name
 
   children.forEach((child, i) => {
     const transformed = transformNode(child, {
-      skipId: !results.id
+      skipId: !results.id,
     })
 
     if (!transformed) return
@@ -120,9 +124,9 @@ export function transformChildren(path: BabelJSXElementPath, results: TransformR
           transformed.id,
           t.memberExpression(
             tempPath ? t.identifier(tempPath) : results.id!,
-            t.identifier(i === 0 ? 'firstChild' : 'nextSibling')
-          )
-        )
+            t.identifier(i === 0 ? 'firstChild' : 'nextSibling'),
+          ),
+        ),
       )
       tempPath = transformed.id.name
     }
@@ -138,7 +142,10 @@ export function transformChildren(path: BabelJSXElementPath, results: TransformR
 ## 配合的 transformNode
 
 ```ts
-export function transformNode(path: BabelJSXPath, options: TransformOptions): TransformResults | undefined {
+export function transformNode(
+  path: BabelJSXPath,
+  options: TransformOptions,
+): TransformResults | undefined {
   if (isJSXElementPath(path)) {
     return transformElement(path, options)
   }

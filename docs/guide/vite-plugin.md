@@ -39,6 +39,7 @@ export default defineConfig({
 ## Development
 
 In dev mode, the plugin:
+
 - Compiles JSX on the fly
 - Generates readable runtime helper calls
 - Provides source maps
@@ -46,6 +47,7 @@ In dev mode, the plugin:
 ## Production
 
 In production, the plugin:
+
 - Enables static template cloning
 - Minifies helper names
 - Dead code eliminates unused runtime helpers

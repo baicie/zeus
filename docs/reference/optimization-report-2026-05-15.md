@@ -25,6 +25,7 @@
 ```
 
 原代码生成的 DOM 查找顺序：
+
 - `<span>` → `div.firstChild` ✓
 - `{dynamicValue}` → `insert(div, value)` （插入在 `<span>` 之后）✓
 - `<strong>` → `insert(div, ...).nextSibling` ← 但此时 div 中还没有声明 `strong`，insert 调用发生在声明之前
@@ -36,6 +37,7 @@
 改用 **parent-based index traversal**：所有 element 都从 `parent` 出发，用 `childIndex` 计数器确定是 `firstChild`（index=0）还是 `nextSibling`（index>0）。每处理一个子节点（无论是 element 还是 dynamic）都递增计数器，确保 sibling 查找的相对位置始终正确。
 
 **变更文件**
+
 - `packages/compiler/src/transform/children.ts`
 
 **核心变更**
@@ -95,6 +97,7 @@
 移除 `filterJSXChildren` 调用，在单次循环中同时完成过滤和转换。`collectChildren` 返回的 `filtered` 数组仍然保留（供调用方如 `fragment.ts` 使用），但不再依赖独立的过滤函数。
 
 **变更文件**
+
 - `packages/compiler/src/transform/children.ts`
 
 ### 3. `registerTemplate` O(N²) → O(1) 查找优化 — `codegen/support/templates.ts`
@@ -108,6 +111,7 @@
 在 `ProgramScopeData` 中增加 `templateMap: Map<string, TemplateRecord>`，注册时用 `Map.has()` 检查（O(1)），查找时用 `Map.get()`（O(1)）。同时保留 `templates` 数组以维持有序迭代。
 
 **变更文件**
+
 - `packages/compiler/src/codegen/support/templates.ts`
 - `packages/compiler/src/codegen/support/imports.ts`（`ProgramScopeData` 类型定义）
 
@@ -122,6 +126,7 @@
 删除死代码分支，保留三个有效分支：属性名无值（`key`）、字符串字面量（`key="value"`）、数值字面量（`key={123}`）。
 
 **变更文件**
+
 - `packages/compiler/src/codegen/attribute.ts`
 
 ### 5. 未使用字段标记 — `ir/types.ts`
@@ -135,6 +140,7 @@
 为 `hasHydratableEvent` 添加 `@deprecated` 注释说明hydration 支持尚未实现。`skipTemplate` 保留（因为它是 IR 类型的必需字段，删除会导致 TypeScript 类型不兼容，静默初始化为 `false` 不影响功能）。
 
 **变更文件**
+
 - `packages/compiler/src/ir/types.ts`
 
 ---
@@ -152,6 +158,7 @@
 将 `undefined` 单独处理：在开发模式下输出警告（提示用户使用显式的 `null` 或回退值），然后返回。这使得调试时能快速发现未初始化的值问题。
 
 **变更文件**
+
 - `packages/runtime-dom/src/index.ts`
 
 **核心变更**
@@ -194,6 +201,7 @@
 用正则 `/^(?:0|[1-9]\d*)$/` 直接匹配非负整数字符串，比 `parseInt` 快约 3-5 倍。新正则覆盖了原函数的所有有效情况（`"0"`, `"123"`），同时正确排除 `"NaN"`, `"-"`, `"-1"`, `"01"`, `""` 等。
 
 **变更文件**
+
 - `packages/shared/src/general.ts`
 
 **核心变更**
@@ -234,6 +242,7 @@
 - 类型：`JSXValue`, `Component`, `TemplateFactory`, `AttrValue`
 
 **变更文件**
+
 - `packages/zeus/src/index.ts`
 - `packages/zeus/package.json`（添加 `@zeus-js/signal` 依赖）
 
@@ -241,17 +250,17 @@
 
 ## 变更文件清单
 
-| 文件 | 变更类型 |
-|------|----------|
-| `packages/compiler/src/transform/children.ts` | 修复（DOM 遍历 bug + 过滤去重） |
-| `packages/compiler/src/codegen/support/templates.ts` | 性能（O(N²) → O(1)） |
-| `packages/compiler/src/codegen/support/imports.ts` | 类型（添加 templateMap） |
-| `packages/compiler/src/codegen/attribute.ts` | 代码质量（移除死代码） |
-| `packages/compiler/src/ir/types.ts` | 代码质量（标记 deprecated） |
-| `packages/runtime-dom/src/index.ts` | 语义（undefined 警告） |
-| `packages/shared/src/general.ts` | 性能（正则替换 parseInt） |
-| `packages/zeus/src/index.ts` | 功能（核心 API 导出） |
-| `packages/zeus/package.json` | 依赖（添加 @zeus-js/signal） |
+| 文件                                                 | 变更类型                        |
+| ---------------------------------------------------- | ------------------------------- |
+| `packages/compiler/src/transform/children.ts`        | 修复（DOM 遍历 bug + 过滤去重） |
+| `packages/compiler/src/codegen/support/templates.ts` | 性能（O(N²) → O(1)）            |
+| `packages/compiler/src/codegen/support/imports.ts`   | 类型（添加 templateMap）        |
+| `packages/compiler/src/codegen/attribute.ts`         | 代码质量（移除死代码）          |
+| `packages/compiler/src/ir/types.ts`                  | 代码质量（标记 deprecated）     |
+| `packages/runtime-dom/src/index.ts`                  | 语义（undefined 警告）          |
+| `packages/shared/src/general.ts`                     | 性能（正则替换 parseInt）       |
+| `packages/zeus/src/index.ts`                         | 功能（核心 API 导出）           |
+| `packages/zeus/package.json`                         | 依赖（添加 @zeus-js/signal）    |
 
 ---
 
@@ -267,4 +276,4 @@
 
 ---
 
-*文档生成时间：2026-05-15*
+_文档生成时间：2026-05-15_

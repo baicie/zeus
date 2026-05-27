@@ -46,7 +46,11 @@ Without `by`, items are identified by index:
 
 ```tsx
 <For each={items}>
-  {(item, index) => <li>{index}: {item}</li>}
+  {(item, index) => (
+    <li>
+      {index}: {item}
+    </li>
+  )}
 </For>
 ```
 

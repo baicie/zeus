@@ -50,7 +50,10 @@ export type HydrationMarker = {
 server 输出：
 
 ```html
-<button>count: <!--z-h:0-->0<!--/z-h:0--></button>
+<button>
+  count:
+  <!--z-h:0-->0<!--/z-h:0-->
+</button>
 ```
 
 client codegen：

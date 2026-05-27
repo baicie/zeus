@@ -45,7 +45,10 @@ effect(() => {
 ## watch
 
 ```ts
-function watch<T>(getter: () => T, callback: (newValue: T, oldValue: T) => void): void
+function watch<T>(
+  getter: () => T,
+  callback: (newValue: T, oldValue: T) => void,
+): void
 ```
 
 Watches a reactive value and calls the callback when it changes.

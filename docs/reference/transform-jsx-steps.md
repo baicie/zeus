@@ -9,16 +9,16 @@
 ### Step 1: 获取模板工厂函数
 
 ```js
-const template = getCreateTemplate(config, path, result);
+const template = getCreateTemplate(config, path, result)
 ```
 
 根据编译配置和节点类型，选择对应的模板生成函数：
 
-| 判断条件 | 返回值 | 说明 |
-|---|---|---|
-| `result.tagName && result.renderer === "dom"` 或 `config.generate === "dom"` | `createTemplateDOM` | DOM 运行时模板 |
-| `result.renderer === "ssr"` 或 `config.generate === "ssr"` | `createTemplateSSR` | SSR 模板 |
-| 其余情况 | `createTemplateUniversal` | 通用模板 |
+| 判断条件                                                                     | 返回值                    | 说明           |
+| ---------------------------------------------------------------------------- | ------------------------- | -------------- |
+| `result.tagName && result.renderer === "dom"` 或 `config.generate === "dom"` | `createTemplateDOM`       | DOM 运行时模板 |
+| `result.renderer === "ssr"` 或 `config.generate === "ssr"`                   | `createTemplateSSR`       | SSR 模板       |
+| 其余情况                                                                     | `createTemplateUniversal` | 通用模板       |
 
 `result` 是 `transformNode` 的返回值，包含了从 JSX 节点提取出来的所有信息：
 
@@ -46,7 +46,7 @@ createTemplate(path: BabelPath, result: TransformResults, wrap: boolean) => Babe
 ### Step 2: 替换 JSX 节点
 
 ```js
-path.replaceWith(replace(template(path, result, false)));
+path.replaceWith(replace(template(path, result, false)))
 ```
 
 这里发生了关键的事：
@@ -58,16 +58,18 @@ path.replaceWith(replace(template(path, result, false)));
 
 ```tsx
 // 输入
-<button class="btn" onClick={handler}>count: {count()}</button>
+;<button class="btn" onClick={handler}>
+  count: {count()}
+</button>
 
 // 输出（DOM 渲染模式）
-const _tmpl = template(`<button class="btn">count: </button>`);
-() => {
-  const _el$ = _tmpl();
-  _el$.addEventListener("click", handler);
-  _effect(() => setText(_el$, count()));
-  return _el$;
-};
+const _tmpl = template(`<button class="btn">count: </button>`)
+;() => {
+  const _el$ = _tmpl()
+  _el$.addEventListener('click', handler)
+  _effect(() => setText(_el$, count()))
+  return _el$
+}
 ```
 
 ---
@@ -82,10 +84,10 @@ path.traverse({
       path.node.leadingComments[0] &&
       path.node.leadingComments[0].value.trim() === config.staticMarker
     ) {
-      path.node.leadingComments.shift();
+      path.node.leadingComments.shift()
     }
-  }
-});
+  },
+})
 ```
 
 遍历整棵 AST，找到所有以 `config.staticMarker`（默认为 `@once`）开头的行首注释，将其从 AST 节点上移除。
@@ -135,15 +137,15 @@ traverse(清除 @once 注释)                  // 清理静态标记
 
 Zeus 的 `packages/compiler` 已实现：
 
-| 模块 | 状态 | 说明 |
-|---|---|---|
-| `transformText` | ✅ 已实现 | 返回 `{ kind: 'text', template, ... }` |
-| `transformNode` | ✅ 入口 | 分发到各 transform |
-| `transformElement` | ⚠️ 框架存在 | 逻辑未完成 |
-| `createTemplate` | ❌ 未实现 | 模板生成核心 |
-| `registerTemplate` + `appendTemplates` | ❌ 未实现 | 模板收集到 Program |
-| `wrapDynamics` | ❌ 未实现 | 动态属性包装 |
-| `@once` 清理 | ❌ 未实现 | 可后续按需实现 |
+| 模块                                   | 状态        | 说明                                   |
+| -------------------------------------- | ----------- | -------------------------------------- |
+| `transformText`                        | ✅ 已实现   | 返回 `{ kind: 'text', template, ... }` |
+| `transformNode`                        | ✅ 入口     | 分发到各 transform                     |
+| `transformElement`                     | ⚠️ 框架存在 | 逻辑未完成                             |
+| `createTemplate`                       | ❌ 未实现   | 模板生成核心                           |
+| `registerTemplate` + `appendTemplates` | ❌ 未实现   | 模板收集到 Program                     |
+| `wrapDynamics`                         | ❌ 未实现   | 动态属性包装                           |
+| `@once` 清理                           | ❌ 未实现   | 可后续按需实现                         |
 
 ### 3.2 实现 `createTemplate`
 
@@ -156,13 +158,21 @@ import { getConfig } from '../utils/config'
 import { setAttr } from './transformAttributes'
 import type { TransformResults, BabelJSXPath } from '../utils/types'
 
-export function createTemplate(path: BabelJSXPath, result: TransformResults, wrap: boolean) {
+export function createTemplate(
+  path: BabelJSXPath,
+  result: TransformResults,
+  wrap: boolean,
+) {
   const config = getConfig(path)
 
   if (result.id) {
     registerTemplate(path, result)
     if (
-      !(result.exprs.length || result.dynamics.length || result.postExprs.length) &&
+      !(
+        result.exprs.length ||
+        result.dynamics.length ||
+        result.postExprs.length
+      ) &&
       result.declarations.length === 1
     ) {
       return result.declarations[0].init
@@ -184,7 +194,9 @@ export function createTemplate(path: BabelJSXPath, result: TransformResults, wra
   }
 
   if (wrap && result.dynamic && config.memoWrapper) {
-    return t.callExpression(registerImport(path, config.memoWrapper), [result.exprs[0]])
+    return t.callExpression(registerImport(path, config.memoWrapper), [
+      result.exprs[0],
+    ])
   }
 
   return result.exprs[0]
@@ -220,7 +232,10 @@ function registerTemplate(path: BabelJSXPath, results: TransformResults) {
   const decl = t.variableDeclarator(
     results.id,
     hydratable
-      ? t.callExpression(registerImport(path, 'getNextElement'), templateId ? [templateId] : [])
+      ? t.callExpression(
+          registerImport(path, 'getNextElement'),
+          templateId ? [templateId] : [],
+        )
       : t.callExpression(templateId, []),
   )
 
@@ -268,13 +283,19 @@ function wrapDynamics(path: BabelJSXPath, dynamics: any[]) {
         t.logicalExpression(
           '&&',
           t.binaryExpression('!==', varIdent, propMember),
-          setAttr(path, d.elem, d.key, t.assignmentExpression('=', propMember, varIdent), {
-            isSVG: d.isSVG,
-            isCE: d.isCE,
-            tagName: d.tagName,
-            dynamic: true,
-            prevId: propMember,
-          }),
+          setAttr(
+            path,
+            d.elem,
+            d.key,
+            t.assignmentExpression('=', propMember, varIdent),
+            {
+              isSVG: d.isSVG,
+              isCE: d.isCE,
+              tagName: d.tagName,
+              dynamic: true,
+              prevId: propMember,
+            },
+          ),
         ),
       ),
     )
@@ -290,7 +311,9 @@ function wrapDynamics(path: BabelJSXPath, dynamics: any[]) {
           t.returnStatement(prevId),
         ]),
       ),
-      t.objectExpression(properties.map(id => t.objectProperty(id, t.identifier('undefined')))),
+      t.objectExpression(
+        properties.map(id => t.objectProperty(id, t.identifier('undefined'))),
+      ),
     ]),
   )
 }
@@ -306,13 +329,19 @@ export function appendTemplates(path: BabelProgramPath) {
     }
 
     const shouldUseImportNode = template.isCE || template.isImportNode
-    const isMathML = /^<(math|annotation|annotation-xml|...)/.test(template.template)
+    const isMathML = /^<(math|annotation|annotation-xml|...)/.test(
+      template.template,
+    )
 
     return t.variableDeclarator(
       template.id,
       t.addComment(
         t.callExpression(
-          registerImport(path, 'template', getRendererConfig(path, 'dom').moduleName),
+          registerImport(
+            path,
+            'template',
+            getRendererConfig(path, 'dom').moduleName,
+          ),
           [t.templateLiteral([t.templateElement(tmpl, true)], [])].concat(
             template.isSVG || shouldUseImportNode || isMathML
               ? [
@@ -374,14 +403,14 @@ export function Program(path: BabelProgramPath, state: BabelState) {
 // packages/compiler/src/utils/types.ts 中已定义
 
 type TransformResults = {
-  template: string               // 静态 HTML 模板字符串
+  template: string // 静态 HTML 模板字符串
   templateWithClosingTags: string // 含闭合标签的模板
-  declarations: t.Statement[]     // 变量声明（模板 + refs）
-  exprs: t.Statement[]             // 动态表达式（setter 调用）
-  dynamics: DynamicAttr[]          // 需要 effect 包装的属性变更
-  postExprs: t.Statement[]         // 后置表达式
-  id?: t.Identifier                // 模板变量标识符（el$）
-  tagName?: string                 // 标签名（区分组件与 DOM 元素）
+  declarations: t.Statement[] // 变量声明（模板 + refs）
+  exprs: t.Statement[] // 动态表达式（setter 调用）
+  dynamics: DynamicAttr[] // 需要 effect 包装的属性变更
+  postExprs: t.Statement[] // 后置表达式
+  id?: t.Identifier // 模板变量标识符（el$）
+  tagName?: string // 标签名（区分组件与 DOM 元素）
   renderer?: 'dom' | 'ssr'
   isSVG?: boolean
   hasCustomElement?: boolean

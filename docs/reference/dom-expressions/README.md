@@ -4,13 +4,13 @@
 
 ## 文档列表
 
-| 文档 | 对应函数 | 行号 | MVP 必须 |
-|---|---|---|---|
-| [transformElement](./transformElement.md) | `transformElement` | 62-205 | ✅ |
-| [transformAttributes](./transformAttributes.md) | `transformAttributes` | 332-1019 | ✅ |
-| [evaluateAndInline](./evaluateAndInline.md) | `evaluateAndInline` | 451-480 (utils.js) | ❌ (优化项) |
-| [transformChildren](./transformChildren.md) | `transformChildren` | 1039-1270+ | ✅ |
-| [../transform-jsx-steps.md](../transform-jsx-steps.md) | `transformJSX` 三步核心流程 | - | ✅ |
+| 文档                                                   | 对应函数                    | 行号               | MVP 必须    |
+| ------------------------------------------------------ | --------------------------- | ------------------ | ----------- |
+| [transformElement](./transformElement.md)              | `transformElement`          | 62-205             | ✅          |
+| [transformAttributes](./transformAttributes.md)        | `transformAttributes`       | 332-1019           | ✅          |
+| [evaluateAndInline](./evaluateAndInline.md)            | `evaluateAndInline`         | 451-480 (utils.js) | ❌ (优化项) |
+| [transformChildren](./transformChildren.md)            | `transformChildren`         | 1039-1270+         | ✅          |
+| [../transform-jsx-steps.md](../transform-jsx-steps.md) | `transformJSX` 三步核心流程 | -                  | ✅          |
 
 ## 总体策略
 

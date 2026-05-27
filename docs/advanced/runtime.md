@@ -13,8 +13,8 @@
 
 ```ts
 const range = new DynamicRange(parent, marker)
-range.replace(value)  // Clear old, insert new
-range.clear()         // Remove all nodes
+range.replace(value) // Clear old, insert new
+range.clear() // Remove all nodes
 ```
 
 Used by `mountDynamic` for Show and dynamic children.

@@ -20,9 +20,7 @@ defineElement(
 
     return (
       <Host>
-        <button onClick={() => count.value++}>
-          count: {count.value}
-        </button>
+        <button onClick={() => count.value++}>count: {count.value}</button>
       </Host>
     )
   },

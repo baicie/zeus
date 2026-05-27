@@ -2,11 +2,9 @@
 
 <!-- What does this PR do? -->
 
-
 ## Changes
 
 <!-- What changed? -->
-
 
 ## Tests
 
@@ -16,14 +14,12 @@
 - [ ] `pnpm test`
 - [ ] `pnpm build`
 
-
 ## Changeset
 
 <!-- Does this need a changeset? If so, run `pnpm changeset` and include the file. -->
 
 - [ ] Added changeset (`pnpm changeset`)
 - [ ] Not needed (e.g. CI config, docs only, etc.)
-
 
 ## Checklist
 

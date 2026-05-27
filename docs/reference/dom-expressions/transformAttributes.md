@@ -24,11 +24,11 @@ if (attributes.some(attribute => t.isJSXSpreadAttribute(attribute.node))) {
 
 三层处理：
 
-| 层 | 输入 | 输出 |
-|---|---|---|
-| 静态字符串 | `style="color: red"` | 直接提取到 template |
-| 静态对象 | `style={{ opacity: 1 - 0.5 }}` | 编译期求值 `style="opacity:0.5"` |
-| 混合对象 | `style={{ width: w(), height: h() }}` | 展开为 `style:width={w()} style:height={h()}` |
+| 层         | 输入                                  | 输出                                          |
+| ---------- | ------------------------------------- | --------------------------------------------- |
+| 静态字符串 | `style="color: red"`                  | 直接提取到 template                           |
+| 静态对象   | `style={{ opacity: 1 - 0.5 }}`        | 编译期求值 `style="opacity:0.5"`              |
+| 混合对象   | `style={{ width: w(), height: h() }}` | 展开为 `style:width={w()} style:height={h()}` |
 
 **Zeus 建议**：至少做第一层和第三层，第二层（Babel 求值）可选。
 
@@ -56,16 +56,16 @@ classList={{ active: isActive(), disabled: false }}
 
 ### 5. 属性生成（626-1012 行）——核心
 
-| 条件 | 输出 |
-|---|---|
-| `key === "ref"` | 生成 `use(ref, el)` 调用 |
-| `key.startsWith("use:")` | 特殊指令式属性 |
-| `key === "children"` | 收集 children |
-| `key.startsWith("on")` | 事件绑定 |
-| `key.startsWith("attr:")` | 动态 attribute |
-| `key.startsWith("bool:")` | 布尔 attribute |
-| 动态属性（需 effect） | 加入 `results.dynamics` |
-| 其他静态属性 | 调用 `inlineAttributeOnTemplate` |
+| 条件                      | 输出                             |
+| ------------------------- | -------------------------------- |
+| `key === "ref"`           | 生成 `use(ref, el)` 调用         |
+| `key.startsWith("use:")`  | 特殊指令式属性                   |
+| `key === "children"`      | 收集 children                    |
+| `key.startsWith("on")`    | 事件绑定                         |
+| `key.startsWith("attr:")` | 动态 attribute                   |
+| `key.startsWith("bool:")` | 布尔 attribute                   |
+| 动态属性（需 effect）     | 加入 `results.dynamics`          |
+| 其他静态属性              | 调用 `inlineAttributeOnTemplate` |
 
 ### 6. 收尾（1013-1019 行）
 
@@ -87,7 +87,7 @@ SolidJS 编译器对事件绑定的处理分为**两种模式**：
 编译后直接调用 `addEventListener`：
 
 ```js
-button.addEventListener("click", handleClick)
+button.addEventListener('click', handleClick)
 ```
 
 编译器代码（element.js 831-871 行）：
@@ -96,10 +96,10 @@ button.addEventListener("click", handleClick)
 results.exprs.unshift(
   t.expressionStatement(
     t.callExpression(
-      t.memberExpression(elem, t.identifier("addEventListener")),
-      [t.stringLiteral(ev), handler]
-    )
-  )
+      t.memberExpression(elem, t.identifier('addEventListener')),
+      [t.stringLiteral(ev), handler],
+    ),
+  ),
 )
 ```
 
@@ -114,7 +114,7 @@ results.exprs.unshift(
 编译后变成**赋值到 DOM 节点属性**：
 
 ```js
-button["$click"] = handleClick
+button['$click'] = handleClick
 ```
 
 编译器代码（element.js 773-830 行）：
@@ -123,11 +123,11 @@ button["$click"] = handleClick
 results.exprs.unshift(
   t.expressionStatement(
     t.assignmentExpression(
-      "=",
+      '=',
       t.memberExpression(elem, t.identifier(`$$${ev}`)),
-      handler
-    )
-  )
+      handler,
+    ),
+  ),
 )
 ```
 
@@ -154,9 +154,7 @@ function eventHandler(e) {
     const handler = node[key]
     if (handler && !node.disabled) {
       const data = node[`${key}Data`]
-      data !== undefined
-        ? handler.call(node, data, e)
-        : handler.call(node, e)
+      data !== undefined ? handler.call(node, data, e) : handler.call(node, e)
       if (e.cancelBubble) return
     }
     node = node.parentNode
@@ -168,21 +166,35 @@ function eventHandler(e) {
 
 ```js
 const DelegatedEvents = new Set([
-  "beforeinput", "click", "dblclick", "contextmenu",
-  "focusin", "focusout", "input",
-  "keydown", "keyup",
-  "mousedown", "mousemove", "mouseout", "mouseover", "mouseup",
-  "pointerdown", "pointermove", "pointerout", "pointerover", "pointerup",
-  "touchend"
+  'beforeinput',
+  'click',
+  'dblclick',
+  'contextmenu',
+  'focusin',
+  'focusout',
+  'input',
+  'keydown',
+  'keyup',
+  'mousedown',
+  'mousemove',
+  'mouseout',
+  'mouseover',
+  'mouseup',
+  'pointerdown',
+  'pointermove',
+  'pointerout',
+  'pointerover',
+  'pointerup',
+  'touchend',
 ])
 ```
 
 #### 其他事件语法
 
-| 语法 | 效果 |
-|---|---|
-| `on:click={fn}` | 强制用 `addEventListener`（不走委托） |
-| `oncapture:click={fn}` | 捕获阶段监听 |
+| 语法                   | 效果                                   |
+| ---------------------- | -------------------------------------- |
+| `on:click={fn}`        | 强制用 `addEventListener`（不走委托）  |
+| `oncapture:click={fn}` | 捕获阶段监听                           |
 | `onClick={[fn, data]}` | 委托模式，handler 接收 `[data, event]` |
 
 ### Zeus 事件绑定最小实现
@@ -200,9 +212,9 @@ if (key.startsWith('on') && key.length > 2) {
     t.expressionStatement(
       t.callExpression(
         t.memberExpression(results.id!, t.identifier('addEventListener')),
-        [t.stringLiteral(eventName), expr]
-      )
-    )
+        [t.stringLiteral(eventName), expr],
+      ),
+    ),
   )
 }
 ```
@@ -219,9 +231,9 @@ if (key.startsWith('on') && key.length > 2) {
     t.expressionStatement(
       t.callExpression(
         t.memberExpression(results.id!, t.identifier('addEventListener')),
-        [t.stringLiteral(eventName), expr]
-      )
-    )
+        [t.stringLiteral(eventName), expr],
+      ),
+    ),
   )
 }
 ```
@@ -252,49 +264,60 @@ function toEventName(name: string): string {
   return name.slice(2).toLowerCase()
 }
 
-export function transformAttributes(path: BabelJSXElementPath, results: TransformResults) {
-  path.get("openingElement").get("attributes").forEach((attr) => {
-    const node = attr.node
-    if (!node.name) return
+export function transformAttributes(
+  path: BabelJSXElementPath,
+  results: TransformResults,
+) {
+  path
+    .get('openingElement')
+    .get('attributes')
+    .forEach(attr => {
+      const node = attr.node
+      if (!node.name) return
 
-    const key = node.name.name
-    const value = node.value
+      const key = node.name.name
+      const value = node.value
 
-    if (t.isJSXExpressionContainer(value)) {
-      const expr = value.expression
+      if (t.isJSXExpressionContainer(value)) {
+        const expr = value.expression
 
-      // 事件绑定 onClick onInput ...
-      if (key.startsWith('on') && key.length > 2) {
-        const eventName = toEventName(key)
-        results.exprs.push(
-          t.expressionStatement(
-            t.callExpression(
-              t.memberExpression(results.id!, t.identifier('addEventListener')),
-              [t.stringLiteral(eventName), expr]
-            )
+        // 事件绑定 onClick onInput ...
+        if (key.startsWith('on') && key.length > 2) {
+          const eventName = toEventName(key)
+          results.exprs.push(
+            t.expressionStatement(
+              t.callExpression(
+                t.memberExpression(
+                  results.id!,
+                  t.identifier('addEventListener'),
+                ),
+                [t.stringLiteral(eventName), expr],
+              ),
+            ),
           )
-        )
-        return
-      }
+          return
+        }
 
-      // 其他动态属性 → setAttr
-      results.exprs.push(
-        t.expressionStatement(
-          setAttr(results.id!, key, expr)
+        // 其他动态属性 → setAttr
+        results.exprs.push(
+          t.expressionStatement(setAttr(results.id!, key, expr)),
         )
-      )
-    } else {
-      // 静态属性 → 内联到 template
-      inlineAttributeOnTemplate(key, value, results)
-    }
-  })
+      } else {
+        // 静态属性 → 内联到 template
+        inlineAttributeOnTemplate(key, value, results)
+      }
+    })
 }
 ```
 
 ## 辅助函数
 
 ```ts
-function inlineAttributeOnTemplate(key: string, value: BabelNode, results: TransformResults) {
+function inlineAttributeOnTemplate(
+  key: string,
+  value: BabelNode,
+  results: TransformResults,
+) {
   if (!value) {
     results.template += ` ${key}`
     return
@@ -308,11 +331,15 @@ function inlineAttributeOnTemplate(key: string, value: BabelNode, results: Trans
   }
 }
 
-function setAttr(elem: t.Identifier, key: string, value: t.Expression): t.CallExpression {
+function setAttr(
+  elem: t.Identifier,
+  key: string,
+  value: t.Expression,
+): t.CallExpression {
   return t.callExpression(t.identifier('setAttr'), [
     elem,
     t.stringLiteral(key),
-    value
+    value,
   ])
 }
 ```

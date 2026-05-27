@@ -49,7 +49,9 @@ function TodoApp() {
                   todo.done = e.currentTarget.checked
                 }}
               />
-              <span style={{ textDecoration: todo.done ? 'line-through' : 'none' }}>
+              <span
+                style={{ textDecoration: todo.done ? 'line-through' : 'none' }}
+              >
                 {todo.title}
               </span>
             </li>

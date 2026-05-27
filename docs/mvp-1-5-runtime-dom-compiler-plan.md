@@ -61,11 +61,7 @@
 function Counter() {
   const [count, setCount] = createSignal(0)
 
-  return (
-    <button onClick={() => setCount(count() + 1)}>
-      {count()}
-    </button>
-  )
+  return <button onClick={() => setCount(count() + 1)}>{count()}</button>
 }
 ```
 
@@ -194,7 +190,11 @@ pnpm test -- --run packages/compiler/__tests__/jsx.spec.ts
 export type Accessor<T> = () => T
 
 export function bindText(node: Text, value: Accessor<JSXValue>): void
-export function bindAttr(el: Element, name: string, value: Accessor<AttrValue>): void
+export function bindAttr(
+  el: Element,
+  name: string,
+  value: Accessor<AttrValue>,
+): void
 export function bindEvent<K extends keyof HTMLElementEventMap>(
   el: HTMLElement,
   name: K,
@@ -463,13 +463,7 @@ export function marker(parent: ParentNode, index: number): Comment {
 import { describe, expect, it, vi } from 'vitest'
 
 import { ref } from '@zeus-js/signal'
-import {
-  bindAttr,
-  bindEvent,
-  bindText,
-  render,
-  template,
-} from '../src'
+import { bindAttr, bindEvent, bindText, render, template } from '../src'
 
 describe('runtime-dom bindings', () => {
   it('binds text to reactive source', () => {
@@ -1004,11 +998,7 @@ import { createSignal, render } from 'zeus'
 function Counter() {
   const [count, setCount] = createSignal(0)
 
-  return (
-    <button onClick={() => setCount(count() + 1)}>
-      count: {count()}
-    </button>
-  )
+  return <button onClick={() => setCount(count() + 1)}>count: {count()}</button>
 }
 
 render(() => <Counter />, document.getElementById('app')!)

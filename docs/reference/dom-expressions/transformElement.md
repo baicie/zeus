@@ -17,14 +17,14 @@
 
 ## 可参考
 
-| 功能 | 说明 |
-|---|---|
-| `evaluateAndInline` 常量折叠 | 对属性值做编译期求值，减少运行时计算 |
-| SVG 包裹逻辑 | 当内部元素是 SVG 标签时自动包裹 `<svg>` |
-| voidTag 识别 | 使用 `VoidElements` 集合判断 |
-| `isCustomElement` 检测 | 通过标签名含 `-` 判断 |
-| `isImportNode` 检测 | `img`/`iframe` 的 `loading` 属性 |
-| 多个 `class` 合并 | 合并静态 class 并拼接动态表达式 |
+| 功能                         | 说明                                    |
+| ---------------------------- | --------------------------------------- |
+| `evaluateAndInline` 常量折叠 | 对属性值做编译期求值，减少运行时计算    |
+| SVG 包裹逻辑                 | 当内部元素是 SVG 标签时自动包裹 `<svg>` |
+| voidTag 识别                 | 使用 `VoidElements` 集合判断            |
+| `isCustomElement` 检测       | 通过标签名含 `-` 判断                   |
+| `isImportNode` 检测          | `img`/`iframe` 的 `loading` 属性        |
+| 多个 `class` 合并            | 合并静态 class 并拼接动态表达式         |
 
 ## 不做
 

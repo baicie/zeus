@@ -18,10 +18,10 @@ defineElement(
 
     return (
       <Host>
-        <button onClick={() => count.value++}>
-          count: {count.value}
-        </button>
-        <p><Slot /></p>
+        <button onClick={() => count.value++}>count: {count.value}</button>
+        <p>
+          <Slot />
+        </p>
       </Host>
     )
   },
@@ -31,9 +31,7 @@ defineElement(
 Usage in HTML:
 
 ```html
-<z-counter initial-count="10">
-  This is slotted content
-</z-counter>
+<z-counter initial-count="10"> This is slotted content </z-counter>
 
 <script type="module" src="/src/main.tsx"></script>
 ```

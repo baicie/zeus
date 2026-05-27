@@ -538,7 +538,10 @@ export function textIR(value: string): TextIR {
   }
 }
 
-export function dynamicTextIR(expr: t.Expression, nodeRef: IRRef): DynamicTextIR {
+export function dynamicTextIR(
+  expr: t.Expression,
+  nodeRef: IRRef,
+): DynamicTextIR {
   return {
     id: id(),
     kind: 'DynamicText',
@@ -559,10 +562,7 @@ export function staticAttrIR(
   }
 }
 
-export function attrBindingIR(
-  name: string,
-  expr: t.Expression,
-): AttrBindingIR {
+export function attrBindingIR(name: string, expr: t.Expression): AttrBindingIR {
   return {
     id: id(),
     kind: 'AttrBinding',
@@ -693,12 +693,7 @@ export function lowerElement(
 import * as t from '@babel/types'
 import type { NodePath } from '@babel/core'
 import type { CompilerContext } from '../context'
-import {
-  dynamicTextIR,
-  ref,
-  textIR,
-  type ZeusIRNode,
-} from '../ir'
+import { dynamicTextIR, ref, textIR, type ZeusIRNode } from '../ir'
 import { escapeHTML, trimJSXText } from '../utils/html'
 import { lowerJSX } from './lowerJSX'
 
@@ -1480,7 +1475,11 @@ Element(button)
 验证 DOM path：
 
 ```tsx
-<div><span />{name}<b /></div>
+<div>
+  <span />
+  {name}
+  <b />
+</div>
 ```
 
 期望：
@@ -1512,11 +1511,7 @@ dynamic name: Marker(div, 0)
 function Counter() {
   const [count, setCount] = createSignal(0)
 
-  return (
-    <button onClick={() => setCount(count() + 1)}>
-      {count()}
-    </button>
-  )
+  return <button onClick={() => setCount(count() + 1)}>{count()}</button>
 }
 ```
 
@@ -1740,11 +1735,21 @@ const _dispose$ = _createDOMScope(() => {
 JSX 表达式可能是：
 
 ```tsx
-{count()}
-{props.children}
-{condition() ? <A /> : <B />}
-{items().map(item => <li>{item.name}</li>)}
-{nodeRef()}
+{
+  count()
+}
+{
+  props.children
+}
+{
+  condition() ? <A /> : <B />
+}
+{
+  items().map(item => <li>{item.name}</li>)
+}
+{
+  nodeRef()
+}
 ```
 
 这些不全是文本。
@@ -1828,9 +1833,13 @@ export function insertIntoRegion(region: Region, value: JSXValue): void
 这样后续 `Show` 可以自然变成：
 
 ```ts
-_bindShow(_region$, () => visible(), () => {
-  return _tmpl$().firstChild
-})
+_bindShow(
+  _region$,
+  () => visible(),
+  () => {
+    return _tmpl$().firstChild
+  },
+)
 ```
 
 `For` 可以自然变成：
@@ -1917,9 +1926,7 @@ _createComponent(MyComponent, {
 推荐 MVP：
 
 ```ts
-type ComponentChildren =
-  | JSXValue
-  | (() => JSXValue)
+type ComponentChildren = JSXValue | (() => JSXValue)
 ```
 
 编译输出优先用 lazy children：
@@ -2088,13 +2095,19 @@ codegen 根据 mode 决定：
 例如 dev template：
 
 ```html
-<button>count: <!--zeus:text:0--></button>
+<button>
+  count:
+  <!--zeus:text:0-->
+</button>
 ```
 
 prod template：
 
 ```html
-<button>count: <!></button>
+<button>
+  count:
+  <!>
+</button>
 ```
 
 ### 18.10 HMR 边界要提前不破坏
@@ -2229,7 +2242,9 @@ DynamicRangeIR
 
 ```html
 <tbody>
-  <tr>...</tr>
+  <tr>
+    ...
+  </tr>
 </tbody>
 ```
 
@@ -2362,9 +2377,11 @@ path.skip()
 
 ```ts
 function isNestedJSX(path: BabelJSXPath): boolean {
-  return path.findParent(parent =>
-    parent.isJSXElement() || parent.isJSXFragment(),
-  ) != null
+  return (
+    path.findParent(
+      parent => parent.isJSXElement() || parent.isJSXFragment(),
+    ) != null
+  )
 }
 ```
 
@@ -2488,7 +2505,11 @@ export type EventBindingIR = BaseIRNode & {
 推荐 MVP 只支持 callback ref：
 
 ```tsx
-<div ref={el => { div = el }} />
+<div
+  ref={el => {
+    div = el
+  }}
+/>
 ```
 
 IR：
@@ -2627,15 +2648,19 @@ export type ForIR = BaseIRNode & {
 例子：
 
 ```tsx
-defineElement('z-counter', {
-  shadow: false,
-  props: {
-    count: Number,
-    open: Boolean,
+defineElement(
+  'z-counter',
+  {
+    shadow: false,
+    props: {
+      count: Number,
+      open: Boolean,
+    },
   },
-}, props => {
-  return <Host>...</Host>
-})
+  props => {
+    return <Host>...</Host>
+  },
+)
 ```
 
 compiler 需要识别：
