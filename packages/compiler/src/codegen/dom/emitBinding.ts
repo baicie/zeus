@@ -2,7 +2,6 @@ import * as t from '@babel/types'
 
 import { emitMountFor, emitMountShow, emitSlot } from './emitBuiltin'
 import { emitComponent } from './emitComponent'
-import { emitDomPath } from './emitDomPath'
 import { isRawTextElement } from '../../utils/html'
 import { registerEvent } from '../support/events'
 
@@ -208,17 +207,13 @@ function emitDynamicText(
 ): t.Statement[] {
   if (!node.domPath || node.domPath.kind !== 'Marker') return []
 
-  const markerRef = context.uid('marker$')
+  const textRef = context.uid('text$')
 
   if (node.once) {
-    // Static once: evaluate once, create text node, insert, no bindText
     return [
       t.variableDeclaration('const', [
-        t.variableDeclarator(markerRef, emitDomPath(node.domPath!, context)),
-      ]),
-      t.variableDeclaration('const', [
         t.variableDeclarator(
-          t.identifier(node.ref.name),
+          textRef,
           t.callExpression(
             t.memberExpression(
               t.identifier('document'),
@@ -231,8 +226,8 @@ function emitDynamicText(
       t.expressionStatement(
         t.callExpression(context.importRuntime('insert'), [
           t.identifier(node.domPath.parent.name),
+          textRef,
           t.identifier(node.ref.name),
-          t.cloneNode(markerRef),
         ]),
       ),
     ]
@@ -240,11 +235,8 @@ function emitDynamicText(
 
   return [
     t.variableDeclaration('const', [
-      t.variableDeclarator(markerRef, emitDomPath(node.domPath!, context)),
-    ]),
-    t.variableDeclaration('const', [
       t.variableDeclarator(
-        t.identifier(node.ref.name),
+        textRef,
         t.callExpression(
           t.memberExpression(
             t.identifier('document'),
@@ -257,13 +249,13 @@ function emitDynamicText(
     t.expressionStatement(
       t.callExpression(context.importRuntime('insert'), [
         t.identifier(node.domPath.parent.name),
+        textRef,
         t.identifier(node.ref.name),
-        t.cloneNode(markerRef),
       ]),
     ),
     t.expressionStatement(
       t.callExpression(context.importRuntime('bindText'), [
-        t.identifier(node.ref.name),
+        textRef,
         t.arrowFunctionExpression([], node.expr),
       ]),
     ),
@@ -284,17 +276,12 @@ function emitMarkerInsert(
 ): t.Statement[] {
   if (!node.domPath || node.domPath.kind !== 'Marker') return []
 
-  const markerRef = context.uid('marker$')
-
   return [
-    t.variableDeclaration('const', [
-      t.variableDeclarator(markerRef, emitDomPath(node.domPath, context)),
-    ]),
     t.expressionStatement(
       t.callExpression(context.importRuntime('insert'), [
         t.identifier(node.domPath.parent.name),
         value,
-        t.cloneNode(markerRef),
+        t.identifier(node.ref.name),
       ]),
     ),
   ]
@@ -307,13 +294,5 @@ function emitMarkerMount(
 ): t.Statement[] {
   if (!node.domPath || node.domPath.kind !== 'Marker') return []
 
-  return [
-    t.variableDeclaration('const', [
-      t.variableDeclarator(
-        t.identifier(node.ref.name),
-        emitDomPath(node.domPath, context),
-      ),
-    ]),
-    t.expressionStatement(mountCall),
-  ]
+  return [t.expressionStatement(mountCall)]
 }

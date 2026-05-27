@@ -1,5 +1,6 @@
 export * from './normalizeChildren'
 export * from './assignDomPaths'
+export * from './assignPhysicalDomPaths'
 export * from './collectTemplates'
 export * from './validateBuiltins'
 export * from './analyzeBindings'

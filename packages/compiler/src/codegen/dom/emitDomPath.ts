@@ -1,7 +1,7 @@
 import * as t from '@babel/types'
 
 import type { CompilerContext } from '../../context'
-import type { DomPath } from '../../ir/nodes'
+import type { DomPath, PhysicalDomPath } from '../../ir/nodes'
 
 export function emitDomPath(
   path: DomPath,
@@ -34,5 +34,34 @@ export function emitDomPath(
         t.identifier(path.parent.name),
         t.numericLiteral(path.index),
       ])
+  }
+}
+
+export function emitPhysicalDomPath(path: PhysicalDomPath): t.Expression {
+  switch (path.kind) {
+    case 'Root':
+      throw new Error('Root path is emitted from template clone directly')
+
+    case 'FirstChild':
+      return t.memberExpression(
+        t.identifier(path.parent.name),
+        t.identifier('firstChild'),
+      )
+
+    case 'NextSibling':
+      return t.memberExpression(
+        t.identifier(path.previous.name),
+        t.identifier('nextSibling'),
+      )
+
+    case 'ChildNode':
+      return t.memberExpression(
+        t.memberExpression(
+          t.identifier(path.parent.name),
+          t.identifier('childNodes'),
+        ),
+        t.numericLiteral(path.index),
+        true,
+      )
   }
 }

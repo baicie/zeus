@@ -11,6 +11,12 @@ export type DomPath =
   | { kind: 'Child'; parent: IRRef; index: number }
   | { kind: 'Marker'; parent: IRRef; index: number }
 
+export type PhysicalDomPath =
+  | { kind: 'Root' }
+  | { kind: 'FirstChild'; parent: IRRef }
+  | { kind: 'NextSibling'; previous: IRRef }
+  | { kind: 'ChildNode'; parent: IRRef; index: number }
+
 export type SemanticBaseIRNode = {
   id: number
   loc?: t.SourceLocation | null
@@ -28,6 +34,7 @@ export type ElementIR = SemanticBaseIRNode & {
   attrs: AttributeIR[]
   children: ZeusIRNode[]
   domPath?: DomPath
+  physicalDomPath?: PhysicalDomPath
   flags: {
     isSVG: boolean
     isVoid: boolean
@@ -46,6 +53,7 @@ export type DynamicTextIR = SemanticBaseIRNode & {
   ref: IRRef
   once?: boolean
   domPath?: DomPath
+  physicalDomPath?: PhysicalDomPath
 }
 
 export type StaticAttributeIR = SemanticBaseIRNode & {
@@ -95,6 +103,7 @@ export type ComponentIR = SemanticBaseIRNode & {
   callee: t.Expression
   props: ComponentPropIR[]
   domPath?: DomPath
+  physicalDomPath?: PhysicalDomPath
 }
 
 export type FragmentIR = SemanticBaseIRNode & {
@@ -109,6 +118,7 @@ export type ShowIR = SemanticBaseIRNode & {
   children: ZeusIRNode[]
   fallback?: t.Expression | ZeusIRNode[]
   domPath?: DomPath
+  physicalDomPath?: PhysicalDomPath
 }
 
 export type ForIR = SemanticBaseIRNode & {
@@ -120,6 +130,7 @@ export type ForIR = SemanticBaseIRNode & {
   index?: t.Identifier
   body: ZeusIRNode[]
   domPath?: DomPath
+  physicalDomPath?: PhysicalDomPath
 }
 
 export type HostIR = SemanticBaseIRNode & {
@@ -129,9 +140,11 @@ export type HostIR = SemanticBaseIRNode & {
 
 export type SlotIR = SemanticBaseIRNode & {
   kind: 'Slot'
+  ref: IRRef
   name?: string
   fallback: ZeusIRNode[]
   domPath?: DomPath
+  physicalDomPath?: PhysicalDomPath
 }
 
 export type ZeusIRNode =

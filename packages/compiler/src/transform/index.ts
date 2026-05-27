@@ -4,6 +4,7 @@ import { lowerJSX } from '../lower'
 import {
   analyzeBindings,
   assignDomPaths,
+  assignPhysicalDomPaths,
   collectTemplates,
   normalizeChildren,
   validateBuiltins,
@@ -25,6 +26,7 @@ export function transformJSX(
   normalizeChildren(ir)
   validateBuiltins(ir)
   assignDomPaths(ir)
+  assignPhysicalDomPaths(ir)
   analyzeBindings(ir)
   collectTemplates(ir, context)
 

@@ -26,7 +26,7 @@ export function lowerChildren(
       if (t.isJSXEmptyExpression(expr)) continue
 
       if (t.isExpression(expr)) {
-        result.push(dynamicTextIR(expr, ref(context.uid('text$').name)))
+        result.push(dynamicTextIR(expr, ref(context.uid('anchor$').name)))
       }
 
       continue

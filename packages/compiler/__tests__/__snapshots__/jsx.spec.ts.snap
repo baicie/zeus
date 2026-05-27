@@ -1,7 +1,7 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`zeus compiler jsx transform > compiles For 1`] = `
-"import { mountFor as _mountFor, marker as _marker, insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
+"import { mountFor as _mountFor, insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<ul><!></ul>\`),
   _tmpl$2 = /*#__PURE__*/_template(\`<li><!>:<!></li>\`);
 import { For } from '@zeus-js/runtime-dom';
@@ -9,16 +9,16 @@ const App = (props: {
   items: string[];
 }) => (() => {
   const _el$ = _tmpl$().firstChild;
-  const _for$ = _marker(_el$, 0);
+  const _for$ = _el$.firstChild;
   _mountFor(_el$, _for$, () => props.items, undefined, (item, index) => (() => {
     const _el$2 = _tmpl$2().firstChild;
-    const _marker$ = _marker(_el$2, 0);
+    const _anchor$ = _el$2.firstChild;
+    const _anchor$2 = _anchor$.nextSibling;
     const _text$ = document.createTextNode("");
-    _insert(_el$2, _text$, _marker$);
+    _insert(_el$2, _text$, _anchor$);
     _bindText(_text$, () => index);
-    const _marker$2 = _marker(_el$2, 1);
     const _text$2 = document.createTextNode("");
-    _insert(_el$2, _text$2, _marker$2);
+    _insert(_el$2, _text$2, _anchor$2);
     _bindText(_text$2, () => item);
     return _el$2;
   })());
@@ -34,7 +34,7 @@ const App = () => _tmpl$().firstChild;"
 `;
 
 exports[`zeus compiler jsx transform > compiles Show with fallback 1`] = `
-"import { mountShow as _mountShow, marker as _marker, template as _template } from "@zeus-js/runtime-dom";
+"import { mountShow as _mountShow, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<div><!></div>\`),
   _tmpl$2 = /*#__PURE__*/_template(\`<span>visible</span>\`),
   _tmpl$3 = /*#__PURE__*/_template(\`<span>hidden</span>\`);
@@ -43,38 +43,38 @@ const App = (props: {
   visible: boolean;
 }) => (() => {
   const _el$ = _tmpl$().firstChild;
-  const _show$ = _marker(_el$, 0);
+  const _show$ = _el$.firstChild;
   _mountShow(_el$, _show$, () => props.visible, () => _tmpl$2().firstChild, () => _tmpl$3().firstChild);
   return _el$;
 })();"
 `;
 
 exports[`zeus compiler jsx transform > compiles Slot to createSlot 1`] = `
-"import { createSlot as _createSlot, marker as _marker, insert as _insert, template as _template } from "@zeus-js/runtime-dom";
+"import { createSlot as _createSlot, insert as _insert, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<article><!><!></article>\`),
   _tmpl$2 = /*#__PURE__*/_template(\`<button>fallback</button>\`);
 import { Host, Slot } from '@zeus-js/runtime-dom';
 const App = () => (() => {
   const _el$ = _tmpl$().firstChild;
-  const _marker$ = _marker(_el$, 0);
-  _insert(_el$, _createSlot(undefined, undefined), _marker$);
-  const _marker$2 = _marker(_el$, 1);
-  _insert(_el$, _createSlot("footer", () => _tmpl$2().firstChild), _marker$2);
+  const _slot$ = _el$.firstChild;
+  const _slot$2 = _slot$.nextSibling;
+  _insert(_el$, _createSlot(undefined, undefined), _slot$);
+  _insert(_el$, _createSlot("footer", () => _tmpl$2().firstChild), _slot$2);
   return _el$;
 })();"
 `;
 
 exports[`zeus compiler jsx transform > compiles component usage 1`] = `
-"import { marker as _marker, insert as _insert, bindText as _bindText, createComponent as _createComponent, template as _template } from "@zeus-js/runtime-dom";
+"import { insert as _insert, bindText as _bindText, createComponent as _createComponent, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<h1><!></h1>\`);
 function MyComponent(props: {
   title: string;
 }) {
   return (() => {
     const _el$ = _tmpl$().firstChild;
-    const _marker$ = _marker(_el$, 0);
+    const _anchor$ = _el$.firstChild;
     const _text$ = document.createTextNode("");
-    _insert(_el$, _text$, _marker$);
+    _insert(_el$, _text$, _anchor$);
     _bindText(_text$, () => props.title);
     return _el$;
   })();
@@ -85,16 +85,15 @@ const App = () => _createComponent(MyComponent, {
 `;
 
 exports[`zeus compiler jsx transform > compiles dynamic child before static element 1`] = `
-"import { child as _child, marker as _marker, insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
+"import { insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<div><!><span></span></div>\`);
 const App = (props: {
   name: string;
 }) => (() => {
   const _el$ = _tmpl$().firstChild;
-  const _el$2 = _child(_el$, 1);
-  const _marker$ = _marker(_el$, 0);
+  const _anchor$ = _el$.firstChild;
   const _text$ = document.createTextNode("");
-  _insert(_el$, _text$, _marker$);
+  _insert(_el$, _text$, _anchor$);
   _bindText(_text$, () => props.name);
   return _el$;
 })();"
@@ -139,16 +138,16 @@ const App = (props: {
 `;
 
 exports[`zeus compiler jsx transform > compiles dynamic component props as getters 1`] = `
-"import { marker as _marker, insert as _insert, bindText as _bindText, createComponent as _createComponent, template as _template } from "@zeus-js/runtime-dom";
+"import { insert as _insert, bindText as _bindText, createComponent as _createComponent, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<h1><!></h1>\`);
 function Title(props: {
   name: string;
 }) {
   return (() => {
     const _el$ = _tmpl$().firstChild;
-    const _marker$ = _marker(_el$, 0);
+    const _anchor$ = _el$.firstChild;
     const _text$ = document.createTextNode("");
-    _insert(_el$, _text$, _marker$);
+    _insert(_el$, _text$, _anchor$);
     _bindText(_text$, () => props.name);
     return _el$;
   })();
@@ -166,15 +165,15 @@ const App = () => {
 `;
 
 exports[`zeus compiler jsx transform > compiles dynamic text child 1`] = `
-"import { marker as _marker, insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
+"import { insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<div><!></div>\`);
 const App = (props: {
   name: string;
 }) => (() => {
   const _el$ = _tmpl$().firstChild;
-  const _marker$ = _marker(_el$, 0);
+  const _anchor$ = _el$.firstChild;
   const _text$ = document.createTextNode("");
-  _insert(_el$, _text$, _marker$);
+  _insert(_el$, _text$, _anchor$);
   _bindText(_text$, () => props.name);
   return _el$;
 })();"
@@ -187,6 +186,7 @@ const App = (props: {
   color: string;
 }) => (() => {
   const _el$ = _tmpl$().firstChild;
+  const _anchor$ = _el$.firstChild;
   _bindTextContent(_el$, () => \`.count { color: \${props.color}; }\`);
   return _el$;
 })();"
@@ -236,28 +236,27 @@ const App = () => {
 `;
 
 exports[`zeus compiler jsx transform > compiles multiple dynamic children before static element 1`] = `
-"import { child as _child, marker as _marker, insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
+"import { insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<div><!><!><span></span></div>\`);
 const App = (props: {
   first: string;
   second: string;
 }) => (() => {
   const _el$ = _tmpl$().firstChild;
-  const _el$2 = _child(_el$, 2);
-  const _marker$ = _marker(_el$, 0);
+  const _anchor$ = _el$.firstChild;
+  const _anchor$2 = _anchor$.nextSibling;
   const _text$ = document.createTextNode("");
-  _insert(_el$, _text$, _marker$);
+  _insert(_el$, _text$, _anchor$);
   _bindText(_text$, () => props.first);
-  const _marker$2 = _marker(_el$, 1);
   const _text$2 = document.createTextNode("");
-  _insert(_el$, _text$2, _marker$2);
+  _insert(_el$, _text$2, _anchor$2);
   _bindText(_text$2, () => props.second);
   return _el$;
 })();"
 `;
 
 exports[`zeus compiler jsx transform > compiles nested component usage 1`] = `
-"import { marker as _marker, insert as _insert, bindText as _bindText, mountShow as _mountShow, createComponent as _createComponent, template as _template } from "@zeus-js/runtime-dom";
+"import { insert as _insert, bindText as _bindText, mountShow as _mountShow, createComponent as _createComponent, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<div class="component"><h1><!></h1><!></div>\`),
   _tmpl$2 = /*#__PURE__*/_template(\`<span>Count:<!></span>\`),
   _tmpl$3 = /*#__PURE__*/_template(\`<div><!><!></div>\`);
@@ -270,16 +269,16 @@ export function MyComponent(props: Props) {
   return (() => {
     const _el$ = _tmpl$().firstChild;
     const _el$2 = _el$.firstChild;
-    const _marker$ = _marker(_el$2, 0);
+    const _anchor$ = _el$2.firstChild;
+    const _show$ = _el$2.nextSibling;
     const _text$ = document.createTextNode("");
-    _insert(_el$2, _text$, _marker$);
+    _insert(_el$2, _text$, _anchor$);
     _bindText(_text$, () => props.title);
-    const _show$ = _marker(_el$, 0);
     _mountShow(_el$, _show$, () => props.count !== undefined, () => (() => {
       const _el$3 = _tmpl$2().firstChild;
-      const _marker$2 = _marker(_el$3, 0);
+      const _anchor$2 = _el$3.childNodes[1];
       const _text$2 = document.createTextNode("");
-      _insert(_el$3, _text$2, _marker$2);
+      _insert(_el$3, _text$2, _anchor$2);
       _bindText(_text$2, () => props.count);
       return _el$3;
     })(), undefined);
@@ -289,15 +288,15 @@ export function MyComponent(props: Props) {
 export function ParentComponent() {
   return (() => {
     const _el$4 = _tmpl$3().firstChild;
-    const _marker$3 = _marker(_el$4, 0);
+    const _cmp$ = _el$4.firstChild;
+    const _cmp$2 = _cmp$.nextSibling;
     _insert(_el$4, _createComponent(MyComponent, {
       title: "Hello"
-    }), _marker$3);
-    const _marker$4 = _marker(_el$4, 1);
+    }), _cmp$);
     _insert(_el$4, _createComponent(MyComponent, {
       title: "World",
       count: 5
-    }), _marker$4);
+    }), _cmp$2);
     return _el$4;
   })();
 }"
@@ -310,40 +309,37 @@ const App = () => _tmpl$().firstChild;"
 `;
 
 exports[`zeus compiler jsx transform > compiles static element before dynamic child 1`] = `
-"import { marker as _marker, insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
+"import { insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<div><span></span><!></div>\`);
 const App = (props: {
   name: string;
 }) => (() => {
   const _el$ = _tmpl$().firstChild;
-  const _el$2 = _el$.firstChild;
-  const _marker$ = _marker(_el$, 0);
+  const _anchor$ = _el$2.nextSibling;
   const _text$ = document.createTextNode("");
-  _insert(_el$, _text$, _marker$);
+  _insert(_el$, _text$, _anchor$);
   _bindText(_text$, () => props.name);
   return _el$;
 })();"
 `;
 
 exports[`zeus compiler jsx transform > compiles static elements around dynamic child 1`] = `
-"import { child as _child, marker as _marker, insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
+"import { insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<div><span></span><!><b></b></div>\`);
 const App = (props: {
   name: string;
 }) => (() => {
   const _el$ = _tmpl$().firstChild;
-  const _el$2 = _el$.firstChild;
-  const _el$3 = _child(_el$, 2);
-  const _marker$ = _marker(_el$, 0);
+  const _anchor$ = _el$2.nextSibling;
   const _text$ = document.createTextNode("");
-  _insert(_el$, _text$, _marker$);
+  _insert(_el$, _text$, _anchor$);
   _bindText(_text$, () => props.name);
   return _el$;
 })();"
 `;
 
 exports[`zeus compiler jsx transform > declares element variable for deeply nested FirstChild 1`] = `
-"import { marker as _marker, insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
+"import { insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<div><section><span><!></span></section></div>\`);
 const App = (props: {
   name: string;
@@ -351,79 +347,75 @@ const App = (props: {
   const _el$ = _tmpl$().firstChild;
   const _el$2 = _el$.firstChild;
   const _el$3 = _el$2.firstChild;
-  const _marker$ = _marker(_el$3, 0);
+  const _anchor$ = _el$3.firstChild;
   const _text$ = document.createTextNode("");
-  _insert(_el$3, _text$, _marker$);
+  _insert(_el$3, _text$, _anchor$);
   _bindText(_text$, () => props.name);
   return _el$;
 })();"
 `;
 
 exports[`zeus compiler jsx transform > declares element variable when domPath is Child with dynamic content before static 1`] = `
-"import { child as _child, marker as _marker, insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
+"import { insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<div><!><span></span></div>\`);
 const App = (props: {
   name: string;
 }) => (() => {
   const _el$ = _tmpl$().firstChild;
-  const _el$2 = _child(_el$, 1);
-  const _marker$ = _marker(_el$, 0);
+  const _anchor$ = _el$.firstChild;
   const _text$ = document.createTextNode("");
-  _insert(_el$, _text$, _marker$);
+  _insert(_el$, _text$, _anchor$);
   _bindText(_text$, () => props.name);
   return _el$;
 })();"
 `;
 
 exports[`zeus compiler jsx transform > declares element variable when domPath is Child with multiple dynamics before static 1`] = `
-"import { child as _child, marker as _marker, insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
+"import { insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<div><!><!><span></span></div>\`);
 const App = (props: {
   first: string;
   second: string;
 }) => (() => {
   const _el$ = _tmpl$().firstChild;
-  const _el$2 = _child(_el$, 2);
-  const _marker$ = _marker(_el$, 0);
+  const _anchor$ = _el$.firstChild;
+  const _anchor$2 = _anchor$.nextSibling;
   const _text$ = document.createTextNode("");
-  _insert(_el$, _text$, _marker$);
+  _insert(_el$, _text$, _anchor$);
   _bindText(_text$, () => props.first);
-  const _marker$2 = _marker(_el$, 1);
   const _text$2 = document.createTextNode("");
-  _insert(_el$, _text$2, _marker$2);
+  _insert(_el$, _text$2, _anchor$2);
   _bindText(_text$2, () => props.second);
   return _el$;
 })();"
 `;
 
 exports[`zeus compiler jsx transform > declares element variable when domPath is FirstChild 1`] = `
-"import { marker as _marker, insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
+"import { insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<div><span><!></span></div>\`);
 const App = (props: {
   name: string;
 }) => (() => {
   const _el$ = _tmpl$().firstChild;
   const _el$2 = _el$.firstChild;
-  const _marker$ = _marker(_el$2, 0);
+  const _anchor$ = _el$2.firstChild;
   const _text$ = document.createTextNode("");
-  _insert(_el$2, _text$, _marker$);
+  _insert(_el$2, _text$, _anchor$);
   _bindText(_text$, () => props.name);
   return _el$;
 })();"
 `;
 
 exports[`zeus compiler jsx transform > declares element variable when static elements surround dynamic child 1`] = `
-"import { child as _child, marker as _marker, insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
+"import { insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<div><span></span><!><b></b></div>\`);
 const App = (props: {
   name: string;
 }) => (() => {
   const _el$ = _tmpl$().firstChild;
-  const _el$2 = _el$.firstChild;
-  const _el$3 = _child(_el$, 2);
-  const _marker$ = _marker(_el$, 0);
+  const _anchor$ = _el$2.nextSibling;
   const _text$ = document.createTextNode("");
-  _insert(_el$, _text$, _marker$);
+  _insert(_el$, _text$, _anchor$);
   _bindText(_text$, () => props.name);
   return _el$;
 })();"

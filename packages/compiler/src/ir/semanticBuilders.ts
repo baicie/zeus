@@ -190,12 +190,14 @@ export function hostIR(children: ZeusIRNode[]): HostIR {
 }
 
 export function slotIR(input: {
+  ref: IRRef
   name?: string
   fallback?: ZeusIRNode[]
 }): SlotIR {
   return {
     id: id(),
     kind: 'Slot',
+    ref: input.ref,
     name: input.name,
     fallback: input.fallback ?? [],
   }

@@ -1,4 +1,4 @@
-import { marker as _marker, insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
+import { insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(`<div>Hello World</div>`),
   _tmpl$2 = /*#__PURE__*/_template(`<span>Count:<!></span>`),
   _tmpl$3 = /*#__PURE__*/_template(`<div><h1>Title</h1><p>Paragraph</p></div>`),
@@ -15,9 +15,9 @@ export function BasicElement() {
 export function TextBinding() {
   return (() => {
     const _el$2 = _tmpl$2().firstChild;
-    const _marker$ = _marker(_el$2, 0);
+    const _anchor$ = _el$2.childNodes[1];
     const _text$ = document.createTextNode("");
-    _insert(_el$2, _text$, _marker$);
+    _insert(_el$2, _text$, _anchor$);
     _bindText(_text$, () => 42);
     return _el$2;
   })();

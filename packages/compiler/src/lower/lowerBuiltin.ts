@@ -88,7 +88,7 @@ function lowerFor(
   if (bodyPath.isJSXElement() || bodyPath.isJSXFragment()) {
     body.push(lowerJSX(bodyPath, context))
   } else if (bodyPath.isExpression()) {
-    body.push(dynamicTextIR(bodyPath.node, ref(context.uid('text$').name)))
+    body.push(dynamicTextIR(bodyPath.node, ref(context.uid('anchor$').name)))
   }
 
   return forIR({
@@ -108,6 +108,7 @@ function lowerSlot(
   const name = optionalStringAttr(path, 'name')
 
   return slotIR({
+    ref: ref(context.uid('slot$').name),
     name,
     fallback: lowerChildren(path.get('children'), context),
   })
