@@ -2,8 +2,8 @@ import assert from 'node:assert/strict'
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 
 import { parse } from '@babel/parser'
+import { rolldownDts } from '@baicie/plugin-dts/rolldown'
 import MagicString from 'magic-string'
-import { dts } from 'rolldown-plugin-dts'
 
 import type { Plugin, RolldownOptions } from 'rolldown'
 
@@ -27,7 +27,11 @@ const packageConfigs: RolldownOptions[] = targetPackages.map(pkg => {
       file: `packages/${pkg}/dist/${pkg}.d.ts`,
       format: 'es',
     },
-    plugins: [dts(), patchTypes(pkg), ...(pkg === 'zeus' ? [copyMts()] : [])],
+    plugins: [
+      rolldownDts(),
+      patchTypes(pkg),
+      ...(pkg === 'zeus' ? [copyMts()] : []),
+    ],
     onwarn(warning, warn) {
       // during dts rollup, everything is externalized by default
       if (

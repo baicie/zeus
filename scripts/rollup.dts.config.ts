@@ -2,8 +2,8 @@ import assert from 'node:assert/strict'
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 
 import { parse } from '@babel/parser'
+import { dts } from '@baicie/plugin-dts'
 import MagicString from 'magic-string'
-import { dts } from 'rollup-plugin-dts'
 
 import type { Plugin, RollupOptions } from 'rollup'
 

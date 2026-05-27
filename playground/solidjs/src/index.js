@@ -17,7 +17,7 @@ const path = require('path')
 
 // Load the babel plugin from the built version in the vendor dom-expressions package
 // playground/solidjs/src/index.js -> vendor/dom-expressions/... requires 3 levels up
-const domExpressionsPlugin = require('../dist/babel-plugin-jsx-dom-expressions.js')
+const domExpressionsPlugin = require('../../../vendor/dom-expressions/packages/babel-plugin-jsx-dom-expressions/index.js')
 
 const casesDir = path.join(__dirname, 'cases')
 const outputDir = path.join(__dirname, 'output')

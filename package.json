@@ -52,6 +52,7 @@
     "@babel/parser": "^7.29.7",
     "@babel/preset-typescript": "catalog:",
     "@babel/types": "^7.29.7",
+    "@baicie/plugin-dts": "^0.0.1",
     "@baicie/scripts": "^0.1.2",
     "@changesets/cli": "^2.31.0",
     "@rollup/plugin-babel": "^7.0.0",

@@ -95,6 +95,30 @@ describe('defineElement', () => {
 
     expect(el.textContent).toBe('Hello')
     expect(el.getAttribute('label')).toBe('Hello')
+    expect(el.shadowRoot).toBeNull()
+
+    el.remove()
+  })
+
+  it('renders into light DOM when shadow is false', () => {
+    defineElement(
+      'z-test-light-dom',
+      {
+        shadow: false,
+      },
+      () => {
+        const el = document.createElement('span')
+        el.textContent = 'light'
+        return el
+      },
+    )
+
+    const el = document.createElement('z-test-light-dom')
+    document.body.appendChild(el)
+
+    expect(el.shadowRoot).toBeNull()
+    expect(el.querySelector('span')?.textContent).toBe('light')
+    expect(el.textContent).toBe('light')
 
     el.remove()
   })
