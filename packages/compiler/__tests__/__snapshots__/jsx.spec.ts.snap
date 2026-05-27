@@ -180,6 +180,18 @@ const App = (props: {
 })();"
 `;
 
+exports[`zeus compiler jsx transform > compiles dynamic text in raw text elements without markers 1`] = `
+"import { bindTextContent as _bindTextContent, template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<style></style>\`);
+const App = (props: {
+  color: string;
+}) => (() => {
+  const _el$ = _tmpl$().firstChild;
+  _bindTextContent(_el$, () => \`.count { color: \${props.color}; }\`);
+  return _el$;
+})();"
+`;
+
 exports[`zeus compiler jsx transform > compiles element ref with callback 1`] = `
 "import { bindRef as _bindRef, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<div></div>\`);

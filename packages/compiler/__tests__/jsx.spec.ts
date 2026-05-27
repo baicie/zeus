@@ -39,6 +39,16 @@ describe('zeus compiler jsx transform', () => {
     expect(await compile(code)).toMatchSnapshot()
   })
 
+  it('compiles dynamic text in raw text elements without markers', async () => {
+    const code = `
+      const App = (props: { color: string }) => (
+        <style>{\`.count { color: \${props.color}; }\`}</style>
+      )
+    `
+
+    expect(await compile(code)).toMatchSnapshot()
+  })
+
   it('compiles static element before dynamic child', async () => {
     const code = `
       const App = (props: { name: string }) => (

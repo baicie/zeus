@@ -2,7 +2,7 @@ import { state } from '@zeus-js/signal'
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { bindText, render } from '../src'
+import { bindText, bindTextContent, render } from '../src'
 
 describe('render', () => {
   let dom: JSDOM
@@ -62,6 +62,17 @@ describe('render', () => {
 
     expect(text.data).toBe('0')
     expect(container.firstChild).toBe(text)
+  })
+
+  it('binds raw text element content reactively', () => {
+    const color = state('red')
+    const style = document.createElement('style')
+
+    bindTextContent(style, () => [`.count { color: `, color.value, `; }`])
+
+    expect(style.textContent).toBe('.count { color: red; }')
+    color.value = 'blue'
+    expect(style.textContent).toBe('.count { color: blue; }')
   })
 
   it('disposes rendered content', () => {

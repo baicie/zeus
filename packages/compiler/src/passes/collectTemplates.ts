@@ -1,3 +1,5 @@
+import { isRawTextElement } from '../utils/html'
+
 import type { CompilerContext } from '../context'
 import type { ElementIR, ZeusIRNode } from '../ir/nodes'
 
@@ -40,9 +42,21 @@ export function renderTemplateHTML(node: ElementIR): string {
     return `<${node.tagName}${attrs}>`
   }
 
+  if (isRawTextElement(node.tagName) && hasRuntimeRawText(node.children)) {
+    return `<${node.tagName}${attrs}></${node.tagName}>`
+  }
+
   return `<${node.tagName}${attrs}>${node.children
     .map(renderChildTemplate)
     .join('')}</${node.tagName}>`
+}
+
+function hasRuntimeRawText(children: ZeusIRNode[]): boolean {
+  return children.some(child => {
+    if (child.kind === 'Text') return false
+    if (child.kind === 'Fragment') return hasRuntimeRawText(child.children)
+    return true
+  })
 }
 
 function renderChildTemplate(node: ZeusIRNode): string {

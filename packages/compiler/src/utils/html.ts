@@ -16,3 +16,9 @@ export function trimJSXText(value: string): string {
     .filter(Boolean)
     .join(' ')
 }
+
+const rawTextElements = new Set(['script', 'style', 'textarea', 'title'])
+
+export function isRawTextElement(tagName: string): boolean {
+  return rawTextElements.has(tagName)
+}

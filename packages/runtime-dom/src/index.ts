@@ -21,6 +21,7 @@ export { marker, child, removeNodes } from './dom'
 
 export {
   bindText,
+  bindTextContent,
   bindAttr,
   bindProp,
   bindClass,

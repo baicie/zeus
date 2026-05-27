@@ -3,6 +3,7 @@ import * as t from '@babel/types'
 import { emitMountFor, emitMountShow, emitSlot } from './emitBuiltin'
 import { emitComponent } from './emitComponent'
 import { emitDomPath } from './emitDomPath'
+import { isRawTextElement } from '../../utils/html'
 import { registerEvent } from '../support/events'
 
 import type { CompilerContext } from '../../context'
@@ -44,11 +45,56 @@ export function emitBindings(
     }
   }
 
+  if (isRawTextElement(node.tagName) && hasRuntimeRawText(node.children)) {
+    statements.push(emitRawTextBinding(node, context))
+    return statements
+  }
+
   for (const child of node.children) {
     statements.push(...emitChildBinding(child, context))
   }
 
   return statements
+}
+
+function emitRawTextBinding(
+  node: ElementIR,
+  context: CompilerContext,
+): t.Statement {
+  return t.expressionStatement(
+    t.callExpression(context.importRuntime('bindTextContent'), [
+      t.identifier(node.ref.name),
+      t.arrowFunctionExpression([], emitRawTextValue(node.children)),
+    ]),
+  )
+}
+
+function hasRuntimeRawText(children: ZeusIRNode[]): boolean {
+  return children.some(child => {
+    if (child.kind === 'Text') return false
+    if (child.kind === 'Fragment') return hasRuntimeRawText(child.children)
+    return true
+  })
+}
+
+function emitRawTextValue(children: ZeusIRNode[]): t.Expression {
+  const values = children.flatMap(child => {
+    switch (child.kind) {
+      case 'Text':
+        return [t.stringLiteral(child.value)]
+      case 'DynamicText':
+        return [child.expr]
+      case 'Fragment':
+        return [emitRawTextValue(child.children)]
+      default:
+        return []
+    }
+  })
+
+  if (values.length === 0) return t.stringLiteral('')
+  if (values.length === 1) return values[0]
+
+  return t.arrayExpression(values)
 }
 
 function emitChildBinding(

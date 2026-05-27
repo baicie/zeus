@@ -4,11 +4,23 @@ import type { AttrValue, ClassValue, JSXValue, StyleValue } from './types'
 
 export function bindText(node: Text, value: () => JSXValue): void {
   effect(() => {
-    const next = value()
-
-    node.data =
-      next == null || next === false || next === true ? '' : String(next)
+    node.data = stringifyText(value())
   })
+}
+
+export function bindTextContent(el: Node, value: () => JSXValue): void {
+  effect(() => {
+    el.textContent = stringifyText(value())
+  })
+}
+
+function stringifyText(value: JSXValue): string {
+  if (Array.isArray(value)) return value.map(stringifyText).join('')
+  if (value == null || value === false || value === true) return ''
+  if (typeof Node !== 'undefined' && value instanceof Node) {
+    return value.textContent ?? ''
+  }
+  return String(value)
 }
 
 export function setAttr(el: Element, name: string, value: AttrValue): void {
