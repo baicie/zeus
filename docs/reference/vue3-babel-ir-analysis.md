@@ -79,7 +79,7 @@ export function isReferencedIdentifier(
 
 用于判断一个标识符是在读取还是赋值，以便决定是否需要加 `_ctx.` 前缀。
 
-**Babel 在此的角色**：Vue 3 的模板编译器并不自己解析 JS 表达式，而是借助 Babel 将 `{{ foo + bar() }}` 这样的插值表达式解析成 Babel AST，然后用 `estree-walker` 遍历它，再把 Vue 自己的作用域规则应用到 Babel AST 上。
+**Babel 在此的角色**：Vue 3 的模板编译器并不自己解析 JS 表达式，而是借助 Babel 将 `\{\{ foo + bar() \}\}` 这样的插值表达式解析成 Babel AST，然后用 `estree-walker` 遍历它，再把 Vue 自己的作用域规则应用到 Babel AST 上。
 
 ---
 

@@ -40,25 +40,25 @@ function transformChildren(path, results, config) {
 
 去除空白 JSXText、合并相邻文本节点等。
 
-**Zeus 建议**：MVP 可以先不过滤，简单遍历所有 children。
+**建议**：MVP 可以先不过滤，简单遍历所有 children。
 
 ### 2. 查找最后一个元素（findLastElement）
 
 判断哪个子元素是最后一个，用于精细化闭合标签优化。
 
-**Zeus 建议**：MVP 不需要，闭合所有标签即可。
+**建议**：MVP 不需要，闭合所有标签即可。
 
 ### 3. 递归转换（transformNode）
 
 对每个子节点调用 `transformNode`，如果是 JSXElement 则继续递归处理。
 
-**Zeus 建议**：必须做。
+**建议**：必须做。
 
 ### 4. 合并结果
 
 将子节点的 template、declarations、exprs、dynamics 合并到父 results 中。
 
-**Zeus 建议**：必须做。
+**建议**：必须做。
 
 ### 5. 兄弟节点链（nextSibling）
 
@@ -78,7 +78,7 @@ results.declarations.push(
 )
 ```
 
-**Zeus 建议**：必须做，但可以简化。
+**建议**：必须做，但可以简化。
 
 ## 不做
 
@@ -94,7 +94,7 @@ results.declarations.push(
 
 在子节点数组中从后往前找最后一个"有效元素"，用于 omitLastClosingTag 优化。
 
-**Zeus 建议**：MVP 不需要。
+**建议**：MVP 不需要。
 
 ## 最小可实现版本
 
