@@ -14,10 +14,10 @@
     "format": "prettier --write --cache .",
     "format-check": "prettier --check --cache .",
     "test": "vitest",
-    "test-unit": "vitest --project 'unit*'",
+    "test-unit": "vitest --run --project 'unit*'",
     "test-coverage": "vitest run --project unit* --coverage",
     "test:benchs": "vitest bench --project bench",
-    "size": "pnpm build && tsx scripts/size-report.ts",
+    "size": "tsx scripts/size-report.ts",
     "docs:dev": "pnpm -C docs dev",
     "docs:build": "pnpm -C docs build",
     "docs:preview": "pnpm -C docs preview",
@@ -29,7 +29,10 @@
     "playground": "pnpm -F @zeus-js/playground dev",
     "playground:solidjs": "pnpm -F @zeus-js/playground-solidjs dev",
     "preinstall": "npx only-allow pnpm",
-    "postinstall": "simple-git-hooks"
+    "postinstall": "simple-git-hooks",
+    "check:exports": "tsx scripts/check-package-exports.ts",
+    "release:precheck": "tsx scripts/release-precheck.ts",
+    "release:dry": "pnpm release:precheck"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged && pnpm check",
