@@ -11,7 +11,6 @@ export default defineConfig({
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'API', link: '/api/zeus' },
       { text: 'Examples', link: '/examples/counter' },
-      { text: 'Roadmap', link: '/roadmap' },
     ],
 
     sidebar: {
