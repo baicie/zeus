@@ -1,4 +1,5 @@
-import { onScopeDispose, ref, scope } from '@zeus-js/signal'
+import { onScopeDispose, scope } from '@zeus-js/signal'
+import { state } from '@zeus-js/signal'
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -101,7 +102,7 @@ describe('runtime cleanup', () => {
   })
 
   it('removes old Show nodes when condition toggles from truthy to falsy', () => {
-    const flag = ref(true)
+    const flag = state(true)
     const clone = template('<div><!></div>')()
     const root = clone.firstChild as Element
     const m = marker(root, 0)
@@ -168,7 +169,7 @@ describe('runtime cleanup', () => {
 
   it('render dispose stops all bound effects', () => {
     const container = document.createElement('div')
-    const count = ref(0)
+    const count = state(0)
     const text = document.createTextNode('')
 
     const dispose = render(() => {

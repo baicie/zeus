@@ -1,6 +1,8 @@
 # @zeus-js/runtime-dom
 
-DOM runtime helpers.
+DOM runtime helpers. These are primarily used by the compiler — application code should use `@zeus-js/zeus` instead.
+
+These helpers are stable to use directly, but are not considered the primary framework API.
 
 ## render
 

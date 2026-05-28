@@ -10,7 +10,12 @@
   "jsdelivr": "dist/zeus.global.js",
   "files": [
     "index.js",
-    "dist"
+    "advanced.js",
+    "internal.js",
+    "jsx-runtime.js",
+    "jsx-dev-runtime.js",
+    "dist",
+    "src/jsx.d.ts"
   ],
   "exports": {
     ".": {
@@ -23,6 +28,16 @@
       "module": "./dist/zeus.esm-bundler.js",
       "import": "./dist/zeus.esm-bundler.js",
       "require": "./index.js"
+    },
+    "./advanced": {
+      "types": "./dist/zeus.d.ts",
+      "import": "./dist/zeus.esm-bundler.js",
+      "require": "./dist/zeus.cjs.js"
+    },
+    "./internal": {
+      "types": "./dist/zeus.d.ts",
+      "import": "./dist/zeus.esm-bundler.js",
+      "require": "./dist/zeus.cjs.js"
     },
     "./jsx-runtime": {
       "types": "./dist/zeus.d.ts",

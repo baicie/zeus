@@ -1,4 +1,4 @@
-import { ref } from '@zeus-js/signal'
+import { state } from '@zeus-js/signal'
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
@@ -54,7 +54,7 @@ describe('runtime-dom integration', () => {
   })
 
   it('updates Show regions reactively', () => {
-    const visible = ref(false)
+    const visible = state(false)
     const clone = template<DocumentFragment>('<div><!></div>')()
     const root = clone.firstChild as Element
     const anchor = marker(root, 0)
@@ -73,7 +73,7 @@ describe('runtime-dom integration', () => {
   })
 
   it('updates For regions reactively', () => {
-    const items = ref(['a'])
+    const items = state(['a'])
     const clone = template<DocumentFragment>('<ul><!></ul>')()
     const root = clone.firstChild as Element
     const anchor = marker(root, 0)
@@ -81,7 +81,7 @@ describe('runtime-dom integration', () => {
     mountFor(
       root,
       anchor,
-      () => items.value,
+      () => items,
       undefined,
       item => {
         const li = document.createElement('li')
@@ -91,7 +91,7 @@ describe('runtime-dom integration', () => {
     )
 
     expect(root.textContent).toBe('a')
-    items.value = ['b', 'c']
+    items.splice(0, items.length, 'b', 'c')
     expect(root.textContent).toBe('bc')
   })
 

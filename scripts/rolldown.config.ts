@@ -210,7 +210,7 @@ function createConfig(
       }
     } else {
       // Node / esm-bundler builds.
-      // externalize all direct deps unless it's the compat build.
+      // externalize all direct deps.
       return [
         ...Object.keys(pkg.dependencies || {}),
         ...Object.keys(pkg.peerDependencies || {}),

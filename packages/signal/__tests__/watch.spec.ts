@@ -1,13 +1,13 @@
 import {
   EffectScope,
-  type Ref,
   WatchErrorCodes,
   type WatchOptions,
   type WatchScheduler,
   computed,
   onWatcherCleanup,
-  ref,
+  state,
   watch,
+  type ValueState,
 } from '../src'
 
 const queue: (() => void)[] = []
@@ -40,7 +40,7 @@ const flushJobs = () => {
 describe('watch', () => {
   test('effect', () => {
     let dummy: any
-    const source = ref(0)
+    const source = state(0)
     watch(() => {
       dummy = source.value
     })
@@ -51,7 +51,7 @@ describe('watch', () => {
 
   test('with callback', () => {
     let dummy: any
-    const source = ref(0)
+    const source = state(0)
     watch(source, () => {
       dummy = source.value
     })
@@ -82,7 +82,7 @@ describe('watch', () => {
       { call },
     )
 
-    const source = ref(0)
+    const source = state(0)
     const effect = watch(
       source,
       () => {
@@ -118,11 +118,11 @@ describe('watch', () => {
 
   test('watch with onWatcherCleanup', async () => {
     let dummy = 0
-    let source: Ref<number>
+    let source: ValueState<number>
     const scope = new EffectScope()
 
     scope.run(() => {
-      source = ref(0)
+      source = state(0)
       watch(onCleanup => {
         source.value
 
@@ -149,13 +149,13 @@ describe('watch', () => {
 
   test('nested calls to baseWatch and onWatcherCleanup', async () => {
     let calls: string[] = []
-    let source: Ref<number>
-    let copyist: Ref<number>
+    let source: ValueState<number>
+    let copyist: ValueState<number>
     const scope = new EffectScope()
 
     scope.run(() => {
-      source = ref(0)
-      copyist = ref(0)
+      source = state(0)
+      copyist = state(0)
       // sync by default
       watch(
         () => {
@@ -197,7 +197,7 @@ describe('watch', () => {
 
   test('once option should be ignored by simple watch', async () => {
     let dummy: any
-    const source = ref(0)
+    const source = state(0)
     watch(
       () => {
         dummy = source.value
@@ -213,7 +213,7 @@ describe('watch', () => {
 
   // #12033
   test('recursive sync watcher on computed', () => {
-    const r = ref(0)
+    const r = state(0)
     const c = computed(() => r.value)
 
     watch(c, v => {
@@ -237,7 +237,7 @@ describe('watch', () => {
     // useClamp from VueUse
     const clamp = (n: number, min: number, max: number) =>
       Math.min(max, Math.max(min, n))
-    function useClamp(src: Ref<number>, min: number, max: number) {
+    function useClamp(src: ValueState<number>, min: number, max: number) {
       return computed({
         get() {
           return (src.value = clamp(src.value, min, max))
@@ -248,7 +248,7 @@ describe('watch', () => {
       })
     }
 
-    const src = ref(1)
+    const src = state(1)
     const clamped = useClamp(src, 1, 5)
     watch(src, val => (clamped.value = val))
 
@@ -263,8 +263,8 @@ describe('watch', () => {
 
   test('should ensure correct execution order in batch processing', () => {
     const dummy: number[] = []
-    const n1 = ref(0)
-    const n2 = ref(0)
+    const n1 = state(0)
+    const n2 = state(0)
     const sum = computed(() => n1.value + n2.value)
     watch(n1, () => {
       dummy.push(1)
@@ -279,7 +279,7 @@ describe('watch', () => {
   })
 
   test('watch with immediate reset and sync flush', () => {
-    const value = ref(false)
+    const value = state(false)
 
     watch(value, () => {
       value.value = false

@@ -1,39 +1,27 @@
 // User-facing public API — stable, minimal surface area.
-// Internal runtime helpers are exported from '@zeus-js/runtime-dom' directly.
+// Do NOT export runtime-dom internal helpers here.
+// Advanced / internal APIs are available from '@zeus-js/zeus/advanced' and '@zeus-js/zeus/internal'.
+
+// reactivity
 export {
   state,
-  isValueState,
-  type State,
-  type ValueState,
-} from '@zeus-js/signal'
-
-export { computed } from '@zeus-js/signal'
-
-export {
+  computed,
   effect,
-  stop,
-  pauseTracking,
-  enableTracking,
-  resetTracking,
-  onEffectCleanup,
+  watch,
+  scope,
   batch,
   untrack,
-  getCurrentEffect,
+  nextTick,
+  onCleanup,
+  type State,
+  type ValueState,
+  type ComputedRef,
+  type WatchOptions,
+  type WatchHandle,
+  type Scope,
 } from '@zeus-js/signal'
 
-export {
-  effectScope,
-  scope,
-  getCurrentScope,
-  onScopeDispose,
-} from '@zeus-js/signal'
-
-export { watch, onWatcherCleanup, getCurrentWatcher } from '@zeus-js/signal'
-
-export { onCleanup } from '@zeus-js/signal'
-
-export { TrackOpTypes, TriggerOpTypes, ReactiveFlags } from '@zeus-js/signal'
-
+// runtime
 export {
   render,
   Show,
@@ -44,14 +32,16 @@ export {
 } from '@zeus-js/runtime-dom'
 
 export type {
+  JSXValue,
   Component,
   ShowProps,
   ForProps,
+  HostProps,
+  SlotProps,
   DefineElementOptions,
   DefineElementContext,
   DefineElementSetup,
-  HostProps,
-  SlotProps,
 } from '@zeus-js/runtime-dom'
 
+// TS jsx runtime fallback
 export { Fragment, jsx, jsxs, jsxDEV } from './jsx-runtime'

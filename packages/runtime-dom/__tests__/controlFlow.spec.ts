@@ -1,4 +1,4 @@
-import { ref } from '@zeus-js/signal'
+import { state } from '@zeus-js/signal'
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
@@ -96,7 +96,7 @@ describe('mountShow', () => {
   })
 
   it('updates Show regions reactively', () => {
-    const visible = ref(false)
+    const visible = state(false)
     const clone = template<DocumentFragment>('<div><!></div>')()
     const root = clone.firstChild as Element
     const anchor = marker(root, 0)
@@ -115,7 +115,7 @@ describe('mountShow', () => {
   })
 
   it('updates Show without fallback', () => {
-    const visible = ref(false)
+    const visible = state(false)
     const clone = template<DocumentFragment>('<div><!></div>')()
     const root = clone.firstChild as Element
     const anchor = marker(root, 0)
@@ -152,7 +152,7 @@ describe('mountFor', () => {
   })
 
   it('updates For regions reactively', () => {
-    const items = ref(['a'])
+    const items = state(['a']) as unknown as string[]
     const clone = template<DocumentFragment>('<ul><!></ul>')()
     const root = clone.firstChild as Element
     const anchor = marker(root, 0)
@@ -160,7 +160,7 @@ describe('mountFor', () => {
     mountFor(
       root,
       anchor,
-      () => items.value,
+      () => items,
       undefined,
       item => {
         const li = document.createElement('li')
@@ -170,12 +170,12 @@ describe('mountFor', () => {
     )
 
     expect(root.textContent).toBe('a')
-    items.value = ['b', 'c']
+    items.splice(0, items.length, 'b', 'c')
     expect(root.textContent).toBe('bc')
   })
 
   it('handles empty array', () => {
-    const items = ref(['a', 'b'])
+    const items = state(['a', 'b']) as unknown as string[]
     const clone = template<DocumentFragment>('<ul><!></ul>')()
     const root = clone.firstChild as Element
     const anchor = marker(root, 0)
@@ -183,7 +183,7 @@ describe('mountFor', () => {
     mountFor(
       root,
       anchor,
-      () => items.value,
+      () => items,
       undefined,
       item => {
         const li = document.createElement('li')
@@ -193,12 +193,12 @@ describe('mountFor', () => {
     )
 
     expect(root.textContent).toBe('ab')
-    items.value = []
+    items.length = 0
     expect(root.textContent).toBe('')
   })
 
   it('handles null each', () => {
-    const items = ref<string[] | null>(['a'])
+    const items = state(['a']) as unknown as string[] | null
     const clone = template<DocumentFragment>('<ul><!></ul>')()
     const root = clone.firstChild as Element
     const anchor = marker(root, 0)
@@ -206,7 +206,7 @@ describe('mountFor', () => {
     mountFor(
       root,
       anchor,
-      () => items.value,
+      () => items,
       undefined,
       item => {
         const li = document.createElement('li')
@@ -216,7 +216,14 @@ describe('mountFor', () => {
     )
 
     expect(root.textContent).toBe('a')
-    items.value = null
+    if (items !== null) {
+      items.splice(
+        0,
+        items.length,
+        ...([] as string[]),
+        null as unknown as string,
+      )
+    }
     expect(root.textContent).toBe('')
   })
 })

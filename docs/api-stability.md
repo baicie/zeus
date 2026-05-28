@@ -36,7 +36,6 @@ Do not rely on these — they may change at any time:
 - generated helper names (`_h`, `_clone`, etc.)
 - compiler IR node shape
 - runtime internal context
-- `@zeus-js/signal/compat`
 - `@zeus-js/signal/*` subpath exports (except named exports from the main entry)
 
 ## Version policy

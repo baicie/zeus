@@ -7,10 +7,9 @@ import {
   effectScope,
   getCurrentScope,
   onScopeDispose,
-  reactive,
-  ref,
   watch,
 } from '../src'
+import { reactive } from '../src/reactive'
 
 describe('reactivity/effect/scope', () => {
   it('should run', () => {
@@ -389,19 +388,19 @@ describe('reactivity/effect/scope', () => {
   // })
 
   it('should still trigger updates after stopping scope stored in reactive object', () => {
-    const rs = ref({
+    const rs = reactive({
       stage: 0,
-      scope: null as any,
+      scope: null as ReturnType<typeof effectScope> | null,
     })
 
     let renderCount = 0
     effect(() => {
       renderCount++
-      return rs.value.stage
+      return rs.stage
     })
 
     const handleBegin = () => {
-      const status = rs.value
+      const status = rs
       status.stage = 1
       status.scope = effectScope()
       status.scope.run(() => {
@@ -410,7 +409,7 @@ describe('reactivity/effect/scope', () => {
     }
 
     const handleExit = () => {
-      const status = rs.value
+      const status = rs
       status.stage = 0
       const watchScope = status.scope
       status.scope = null
@@ -419,26 +418,26 @@ describe('reactivity/effect/scope', () => {
       }
     }
 
-    expect(rs.value.stage).toBe(0)
+    expect(rs.stage).toBe(0)
     expect(renderCount).toBe(1)
 
     // 1. Click begin
     handleBegin()
-    expect(rs.value.stage).toBe(1)
+    expect(rs.stage).toBe(1)
     expect(renderCount).toBe(2)
 
     // 2. Click add
-    rs.value.stage++
-    expect(rs.value.stage).toBe(2)
+    rs.stage++
+    expect(rs.stage).toBe(2)
     expect(renderCount).toBe(3)
 
     // 3. Click end
     handleExit()
-    expect(rs.value.stage).toBe(0)
+    expect(rs.stage).toBe(0)
     expect(renderCount).toBe(4)
 
     handleBegin()
-    expect(rs.value.stage).toBe(1)
+    expect(rs.stage).toBe(1)
     expect(renderCount).toBe(5)
   })
 })

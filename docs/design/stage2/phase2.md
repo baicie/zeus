@@ -6,9 +6,8 @@
 
 ```txt
 1. @zeus-js/zeus 仍导出了一些偏 internal/debug 的 API
-2. @zeus-js/signal 主入口仍直接导出 ref/reactive 兼容 API
-3. package exports 还没有明确 advanced / compat / internal 分层
-4. 缺少 public API 回归测试，后续很容易又把内部 helper 暴露出去
+2. package exports 还没有明确 advanced / internal 分层
+3. 缺少 public API 回归测试，后续很容易又把内部 helper 暴露出去
 ```
 
 ---
@@ -35,9 +34,6 @@ Phase B 的目标是：
 
 @zeus-js/signal
   响应式核心主入口
-
-@zeus-js/signal/compat
-  ref/reactive/effectScope 等兼容 Vue-like 底层 API
 
 @zeus-js/runtime-dom
   compiler runtime helpers，允许直接用，但不作为框架主 API
@@ -409,216 +405,6 @@ module.exports = require('./dist/jsx-dev-runtime.cjs.js')
 }
 ```
 
----
-
-# Phase B.6：`@zeus-js/signal` 拆 compat 出口
-
-## 当前状态
-
-`@zeus-js/signal` 主入口现在仍然直接导出 `ref / reactive / shallowRef / toRef / proxyRefs / reactive / readonly / markRaw / toRaw` 等兼容 API。
-
-这和你前面定的心智有点冲突：
-
-```txt
-主推 state()
-不主推 ref()
-不主推 reactive()
-```
-
-## 建议做法
-
-因为现在还没正式发稳定版，建议直接收敛：
-
-```txt
-@zeus-js/signal
-  state/computed/effect/watch/scope/batch/untrack/scheduler
-
-@zeus-js/signal/compat
-  ref/reactive/effectScope 等底层兼容 API
-```
-
-## 新增文件
-
-```txt
-packages/signal/src/compat.ts
-```
-
-```ts
-export {
-  ref,
-  shallowRef,
-  isRef,
-  toRef,
-  toValue,
-  toRefs,
-  unref,
-  proxyRefs,
-  customRef,
-  triggerRef,
-  type Ref,
-  type MaybeRef,
-  type MaybeRefOrGetter,
-  type ToRef,
-  type ToRefs,
-  type UnwrapRef,
-  type ShallowRef,
-  type ShallowUnwrapRef,
-  type RefUnwrapBailTypes,
-  type CustomRefFactory,
-} from './ref'
-
-export {
-  reactive,
-  readonly,
-  isReactive,
-  isReadonly,
-  isShallow,
-  isProxy,
-  shallowReactive,
-  shallowReadonly,
-  markRaw,
-  toRaw,
-  toReactive,
-  toReadonly,
-  type Raw,
-  type DeepReadonly,
-  type ShallowReactive,
-  type UnwrapNestedRefs,
-  type Reactive,
-  type ReactiveMarker,
-} from './reactive'
-
-export { effectScope, EffectScope } from './effectScope'
-```
-
----
-
-# Phase B.7：收敛 `packages/signal/src/index.ts`
-
-主入口建议改成：
-
-```ts
-export { state, isValueState, type State, type ValueState } from './state'
-
-export {
-  computed,
-  type ComputedRef,
-  type WritableComputedRef,
-  type WritableComputedOptions,
-  type ComputedGetter,
-  type ComputedSetter,
-} from './computed'
-
-export {
-  effect,
-  stop,
-  batch,
-  untrack,
-  getCurrentEffect,
-  ReactiveEffect,
-  EffectFlags,
-  type ReactiveEffectRunner,
-  type ReactiveEffectOptions,
-  type EffectScheduler,
-  type DebuggerOptions,
-  type DebuggerEvent,
-} from './effect'
-
-export {
-  watch,
-  getCurrentWatcher,
-  traverse,
-  onWatcherCleanup,
-  WatchErrorCodes,
-  type WatchOptions,
-  type WatchScheduler,
-  type WatchStopHandle,
-  type WatchHandle,
-  type WatchEffect,
-  type WatchSource,
-  type WatchCallback,
-  type OnCleanup,
-} from './watch'
-
-export { scope, type Scope } from './scope'
-
-export { getCurrentScope, onScopeDispose } from './effectScope'
-
-export { onCleanup } from './lifecycle'
-
-export { queueJob, flushJobs, nextTick } from './scheduler'
-
-// debug/advanced but still acceptable in signal package
-export { TrackOpTypes, TriggerOpTypes, ReactiveFlags } from './constants'
-
-export {
-  trigger,
-  track,
-  ITERATE_KEY,
-  ARRAY_ITERATE_KEY,
-  MAP_KEY_ITERATE_KEY,
-} from './dep'
-```
-
-是否保留 `ref/reactive` 在主入口，有两个选择：
-
-## 选择 A：现在就移除
-
-优点：API 心智最干净。
-缺点：如果项目内部还从 `@zeus-js/signal` import `reactive/ref`，需要同步改 import。
-
-## 选择 B：暂时保留但标注 deprecated
-
-优点：迁移成本低。
-缺点：主入口仍然不够干净。
-
-我建议：**Phase B 先新增 `compat`，主入口暂时保留 compat 一版，文档标 deprecated；Phase C 或 alpha 发布前再决定是否移除。**
-
----
-
-# Phase B.8：更新 `packages/signal/package.json` exports
-
-当前 `signal` exports 只有根入口和 `./*`。
-
-建议加明确 compat：
-
-```json
-{
-  "exports": {
-    ".": {
-      "types": "./dist/signal.d.ts",
-      "node": {
-        "production": "./dist/signal.cjs.prod.js",
-        "development": "./dist/signal.cjs.js",
-        "default": "./index.js"
-      },
-      "module": "./dist/signal.esm-bundler.js",
-      "import": "./dist/signal.esm-bundler.js",
-      "require": "./index.js"
-    },
-    "./compat": {
-      "types": "./dist/compat.d.ts",
-      "import": "./dist/compat.esm-bundler.js",
-      "require": "./compat.js"
-    },
-    "./*": "./*"
-  }
-}
-```
-
-如果暂时不支持多入口独立构建，短期可以：
-
-```json
-{
-  "./compat": {
-    "types": "./dist/signal.d.ts",
-    "import": "./dist/signal.esm-bundler.js",
-    "require": "./index.js"
-  }
-}
-```
-
-但长期要产出独立 `compat`。
 
 ---
 
@@ -793,18 +579,6 @@ Zeus reactivity core.
 - `watch`
 - `scope`
 
-## Compat
-
-Vue-like low-level APIs are available from:
-
-```ts
-import { ref, reactive } from '@zeus-js/signal/compat'
-````
-
-Zeus applications should prefer `state()`.
-
-````
-
 ---
 
 # Phase B.12：ESLint 防回归规则，可选
@@ -828,10 +602,9 @@ Phase B 完成后，满足：
 1. @zeus-js/zeus 主入口只暴露用户 API
 2. @zeus-js/zeus/advanced 暴露高级控制 API
 3. @zeus-js/zeus/internal 暴露内部 helper 或明确不提供
-4. @zeus-js/signal/compat 存在
-5. docs 说明主 API、advanced、compat、internal 的边界
-6. public API tests 防止内部 helper 回流主入口
-7. pnpm build / build-dts / check / test-unit 通过
+4. docs 说明主 API、advanced、internal 的边界
+5. public API tests 防止内部 helper 回流主入口
+6. pnpm build / build-dts / check / test-unit 通过
 ```
 
 ---
@@ -842,10 +615,9 @@ Phase B 完成后，满足：
 1. refactor(zeus): narrow main public API
 2. feat(zeus): add advanced entry
 3. feat(zeus): add internal entry for runtime helpers
-4. feat(signal): add compat entry
-5. test(zeus): add public API boundary tests
-6. docs(api): document public advanced compat internal APIs
-7. chore(package): update exports for zeus and signal
+4. test(zeus): add public API boundary tests
+5. docs(api): document public advanced internal APIs
+6. chore(package): update exports for zeus
 ```
 
 ---
@@ -859,7 +631,6 @@ Phase B 的重点不是大改，而是把这个边界制度化：
 ```txt
 主入口：给用户
 advanced：给高级用户
-compat：给迁移/底层
 internal：给 compiler/runtime/测试
 ```
 

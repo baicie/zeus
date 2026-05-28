@@ -1,11 +1,11 @@
+import { effect } from '../../src'
 import {
-  effect,
   isReactive,
   reactive,
   readonly,
   shallowReactive,
   toRaw,
-} from '../../src'
+} from '../../src/reactive'
 
 describe('reactivity/collections', () => {
   function coverCollectionFn(collection: Set<any>, fnName: string) {

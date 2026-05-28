@@ -1,6 +1,26 @@
 # @zeus-js/signal
 
-Reactivity core package.
+Reactivity core package for Zeus.
+
+## Recommended
+
+Zeus applications should use these APIs:
+
+```ts
+import { state, computed, effect, watch, scope, batch, untrack, nextTick, onCleanup } from '@zeus-js/signal'
+```
+
+| Export | Description |
+| --- | --- |
+| `state` | Unified reactive state (primitives, objects, arrays, Map, Set) |
+| `computed` | Derived reactive value |
+| `effect` | Reactive side effect |
+| `watch` | Watcher with callback |
+| `scope` | Isolated reactive scope |
+| `batch` | Batch reactive updates |
+| `untrack` | Read without tracking dependencies |
+| `nextTick` | Promise-based microtask scheduling |
+| `onCleanup` | Register cleanup callbacks |
 
 ## state
 

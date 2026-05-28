@@ -205,12 +205,10 @@ Zeus 已完成技术 MVP。
 ```txt
 B1. @zeus-js/zeus 主入口只保留用户 API
 B2. runtime helpers 仅从 @zeus-js/runtime-dom 导出
-B3. signal 主入口是否继续导出 ref/reactive 做决策
-B4. 新增 @zeus-js/signal/compat 可选出口
-B5. 文档明确 state() 是主状态 API
+B3. 新增 @zeus-js/zeus/advanced 和 @zeus-js/zeus/internal 出口
+B4. 文档明确 state() 是主状态 API
 ```
 
-当前 `signal` 主入口仍然导出 compat 的 `ref/reactive`，代码里也写了 “compat — keep existing ref/reactive APIs exported from main entry”。这没问题，但发布前需要明确它们是兼容 API 还是正式 API。
 
 ---
 

@@ -1,3 +1,5 @@
+// Zeus reactivity core.
+
 export { state, isValueState, type State, type ValueState } from './state'
 
 export {
@@ -19,6 +21,9 @@ export {
   onEffectCleanup,
   ReactiveEffect,
   EffectFlags,
+  batch,
+  untrack,
+  getCurrentEffect,
   type ReactiveEffectRunner,
   type ReactiveEffectOptions,
   type EffectScheduler,
@@ -26,8 +31,6 @@ export {
   type DebuggerEvent,
   type DebuggerEventExtraInfo,
 } from './effect'
-
-export { batch, untrack, getCurrentEffect } from './effect'
 
 export { queueJob, flushJobs, nextTick } from './scheduler'
 
@@ -69,48 +72,3 @@ export {
 } from './watch'
 
 export { onCleanup } from './lifecycle'
-
-// compat — keep existing ref/reactive APIs exported from main entry
-export {
-  ref,
-  shallowRef,
-  isRef,
-  toRef,
-  toValue,
-  toRefs,
-  unref,
-  proxyRefs,
-  customRef,
-  triggerRef,
-  type Ref,
-  type MaybeRef,
-  type MaybeRefOrGetter,
-  type ToRef,
-  type ToRefs,
-  type UnwrapRef,
-  type ShallowRef,
-  type ShallowUnwrapRef,
-  type RefUnwrapBailTypes,
-  type CustomRefFactory,
-} from './ref'
-
-export {
-  reactive,
-  readonly,
-  isReactive,
-  isReadonly,
-  isShallow,
-  isProxy,
-  shallowReactive,
-  shallowReadonly,
-  markRaw,
-  toRaw,
-  toReactive,
-  toReadonly,
-  type Raw,
-  type DeepReadonly,
-  type ShallowReactive,
-  type UnwrapNestedRefs,
-  type Reactive,
-  type ReactiveMarker,
-} from './reactive'
