@@ -216,7 +216,7 @@ describe('zeus compiler jsx transform', () => {
     expect(await compile(code)).toMatchSnapshot()
   })
 
-  it('wraps member expression event handlers to preserve receiver', async () => {
+  it('wraps member expression event handlers with optional call', async () => {
     const code = `
       const App = () => {
         const theme = state({
@@ -231,7 +231,7 @@ describe('zeus compiler jsx transform', () => {
     `
 
     expect(await compile(code)).toContain(
-      '_bindEvent(_el$, "click", _event$ => theme.toggle(_event$));',
+      '_bindEvent(_el$, "click", _event$ => theme.toggle?.(_event$));',
     )
   })
 
@@ -245,6 +245,22 @@ describe('zeus compiler jsx transform', () => {
 
     expect(await compile(code)).toContain(
       '_bindEvent(_el$, "click", _event$ => maybe?.toggle?.(_event$));',
+    )
+  })
+
+  it('does not throw for optional member event props', async () => {
+    const code = `
+      type Props = {
+        onClick?: (event: MouseEvent) => void
+      }
+
+      const App = (props: Props) => {
+        return <button onClick={props.onClick}>Click</button>
+      }
+    `
+
+    expect(await compile(code)).toContain(
+      '_bindEvent(_el$, "click", _event$ => props.onClick?.(_event$));',
     )
   })
 

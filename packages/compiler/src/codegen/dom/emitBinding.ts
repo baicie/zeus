@@ -178,16 +178,7 @@ function normalizeEventHandler(
   handler: t.Expression,
   context: CompilerContext,
 ): t.Expression {
-  if (t.isMemberExpression(handler)) {
-    const event = context.uid('event$')
-
-    return t.arrowFunctionExpression(
-      [t.identifier(event.name)],
-      t.callExpression(t.cloneNode(handler), [t.identifier(event.name)]),
-    )
-  }
-
-  if (t.isOptionalMemberExpression(handler)) {
+  if (t.isMemberExpression(handler) || t.isOptionalMemberExpression(handler)) {
     const event = context.uid('event$')
 
     return t.arrowFunctionExpression(

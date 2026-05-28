@@ -110,7 +110,7 @@ const App = (props: {
   _insert(_el$, _text$, _anchor$);
   _bindText(_text$, () => props.name);
   _bindAttr(_el$3, "id", () => props.id);
-  _bindEvent(_el$3, "click", _event$ => props.onClick(_event$));
+  _bindEvent(_el$3, "click", _event$ => props.onClick?.(_event$));
   return _el$;
 })();
 _delegateEvents(["click"]);"

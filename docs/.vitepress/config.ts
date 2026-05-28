@@ -4,6 +4,8 @@ export default defineConfig({
   title: 'Zeus',
   description: 'Compiler-first fine-grained UI framework',
 
+  srcExclude: ['internal/**'],
+
   themeConfig: {
     logo: '/logo.svg',
 
