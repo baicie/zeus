@@ -264,6 +264,18 @@ describe('zeus compiler jsx transform', () => {
     )
   })
 
+  it('wraps computed member expression event handlers with optional call', async () => {
+    const code = `
+      const App = (props: { handlers: Record<string, (e: Event) => void> }) => {
+        return <button onClick={props.handlers['click']}>Click</button>
+      }
+    `
+
+    expect(await compile(code)).toContain(
+      '_bindEvent(_el$, "click", _event$ => props.handlers[\'click\']?.(_event$));',
+    )
+  })
+
   it('normalizes static className to class in template', async () => {
     const code = `
       const App = () => <div className="box">hello</div>
