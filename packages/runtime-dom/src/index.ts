@@ -30,7 +30,7 @@ export {
   normalizeClass,
 } from './bindings'
 
-export { bindEvent, delegateEvents } from './events'
+export { bindEvent, delegateEvents, resetDelegatedEvents } from './events'
 
 export { setRef, bindRef } from './refs'
 

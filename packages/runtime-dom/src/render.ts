@@ -28,7 +28,12 @@ export function render(
 
   emitDevtoolsEvent({ type: 'render', target: container })
 
+  let disposed = false
+
   return () => {
+    if (disposed) return
+    disposed = true
+
     renderScope.stop()
     container.textContent = ''
   }

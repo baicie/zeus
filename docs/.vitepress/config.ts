@@ -26,6 +26,7 @@ export default defineConfig({
             { text: 'Components', link: '/guide/components' },
             { text: 'Refs', link: '/guide/refs' },
             { text: 'Control Flow', link: '/guide/control-flow' },
+            { text: 'Runtime Semantics', link: '/guide/runtime-semantics' },
             { text: 'Web Components', link: '/guide/web-components' },
             { text: 'Vite Plugin', link: '/guide/vite-plugin' },
           ],

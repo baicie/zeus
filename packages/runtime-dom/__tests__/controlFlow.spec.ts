@@ -97,7 +97,7 @@ describe('mountShow', () => {
 
   it('updates Show regions reactively', () => {
     const visible = state(false)
-    const clone = template<DocumentFragment>('<div><!></div>')()
+    const clone = template('<div><!></div>')()
     const root = clone.firstChild as Element
     const anchor = marker(root, 0)
 
@@ -116,7 +116,7 @@ describe('mountShow', () => {
 
   it('updates Show without fallback', () => {
     const visible = state(false)
-    const clone = template<DocumentFragment>('<div><!></div>')()
+    const clone = template('<div><!></div>')()
     const root = clone.firstChild as Element
     const anchor = marker(root, 0)
 
@@ -132,6 +132,94 @@ describe('mountShow', () => {
     expect(root.textContent).toBe('yes')
     visible.value = false
     expect(root.textContent).toBe('')
+  })
+
+  it('switches between children and fallback', () => {
+    const visible = state(true)
+    const clone = template('<div><!></div>')()
+    const root = clone.firstChild as Element
+    const anchor = marker(root, 0)
+
+    mountShow(
+      root,
+      anchor,
+      () => visible.value,
+      () => {
+        const span = document.createElement('span')
+        span.textContent = 'visible'
+        return span
+      },
+      () => {
+        const span = document.createElement('span')
+        span.textContent = 'hidden'
+        return span
+      },
+    )
+
+    expect(root.textContent).toBe('visible')
+
+    visible.value = false
+    expect(root.textContent).toBe('hidden')
+
+    visible.value = true
+    expect(root.textContent).toBe('visible')
+  })
+
+  it('does not keep stale nodes after many toggles', () => {
+    const visible = state(true)
+    const clone = template('<div><!></div>')()
+    const root = clone.firstChild as Element
+    const anchor = marker(root, 0)
+
+    mountShow(
+      root,
+      anchor,
+      () => visible.value,
+      () => {
+        const span = document.createElement('span')
+        span.textContent = 'visible'
+        return span
+      },
+      () => null,
+    )
+
+    for (let i = 0; i < 10; i++) {
+      visible.value = !visible.value
+    }
+
+    const spans = root.querySelectorAll('span')
+
+    expect(spans.length).toBe(1)
+  })
+
+  it('clears current nodes on scope stop', async () => {
+    const { scope } = await import('@zeus-js/signal')
+    const visible = state(true)
+    const clone = template('<div><!></div>')()
+    const root = clone.firstChild as Element
+    const anchor = marker(root, 0)
+
+    const s = scope()
+    s.run(() => {
+      mountShow(
+        root,
+        anchor,
+        () => visible.value,
+        () => {
+          const span = document.createElement('span')
+          span.textContent = 'visible'
+          return span
+        },
+      )
+    })
+
+    expect(root.textContent).toBe('visible')
+
+    s.stop()
+
+    expect(root.textContent).toBe('')
+    expect(root.childNodes).toHaveLength(1)
+    expect(root.firstChild).toBe(anchor)
   })
 })
 
@@ -153,7 +241,7 @@ describe('mountFor', () => {
 
   it('updates For regions reactively', () => {
     const items = state(['a']) as unknown as string[]
-    const clone = template<DocumentFragment>('<ul><!></ul>')()
+    const clone = template('<ul><!></ul>')()
     const root = clone.firstChild as Element
     const anchor = marker(root, 0)
 
@@ -176,7 +264,7 @@ describe('mountFor', () => {
 
   it('handles empty array', () => {
     const items = state(['a', 'b']) as unknown as string[]
-    const clone = template<DocumentFragment>('<ul><!></ul>')()
+    const clone = template('<ul><!></ul>')()
     const root = clone.firstChild as Element
     const anchor = marker(root, 0)
 
@@ -199,7 +287,7 @@ describe('mountFor', () => {
 
   it('handles null each', () => {
     const items = state(['a']) as unknown as string[] | null
-    const clone = template<DocumentFragment>('<ul><!></ul>')()
+    const clone = template('<ul><!></ul>')()
     const root = clone.firstChild as Element
     const anchor = marker(root, 0)
 
@@ -225,5 +313,120 @@ describe('mountFor', () => {
       )
     }
     expect(root.textContent).toBe('')
+  })
+
+  it('handles keyed list with initial items', () => {
+    const items = state([
+      { id: 1, title: 'a' },
+      { id: 2, title: 'b' },
+    ])
+    const clone = template('<ul><!></ul>')()
+    const root = clone.firstChild as Element
+    const anchor = marker(root, 0)
+
+    mountFor(
+      root,
+      anchor,
+      () => items,
+      item => item.id,
+      item => {
+        const li = document.createElement('li')
+        li.textContent = item.title
+        return li
+      },
+    )
+
+    expect(root.textContent).toBe('ab')
+  })
+
+  it('moves keyed items instead of recreating them', () => {
+    const items = state([
+      { id: 1, title: 'a' },
+      { id: 2, title: 'b' },
+      { id: 3, title: 'c' },
+    ])
+    const clone = template('<ul><!></ul>')()
+    const root = clone.firstChild as Element
+    const anchor = marker(root, 0)
+
+    mountFor(
+      root,
+      anchor,
+      () => items,
+      item => item.id,
+      item => {
+        const li = document.createElement('li')
+        li.textContent = item.title
+        li.setAttribute('data-id', String(item.id))
+        return li
+      },
+    )
+
+    const firstNode = root.querySelector('[data-id="1"]')
+
+    // Move: splice to [c, b, a] order
+    const arr = items as unknown as Array<{ id: number; title: string }>
+    const [a, b, c] = arr
+    arr.splice(0, 3, c, b, a)
+
+    expect(root.textContent).toBe('cba')
+    expect(root.querySelector('[data-id="1"]')).toBe(firstNode)
+  })
+
+  it('removes disappeared keyed items', () => {
+    const items = state([
+      { id: 1, title: 'a' },
+      { id: 2, title: 'b' },
+    ])
+    const clone = template('<ul><!></ul>')()
+    const root = clone.firstChild as Element
+    const anchor = marker(root, 0)
+
+    mountFor(
+      root,
+      anchor,
+      () => items,
+      item => item.id,
+      item => {
+        const li = document.createElement('li')
+        li.textContent = item.title
+        return li
+      },
+    )
+
+    items.splice(0, 1)
+
+    expect(root.textContent).toBe('b')
+  })
+
+  it('cleans list nodes when scope stops', async () => {
+    const { scope } = await import('@zeus-js/signal')
+    const items = state([{ id: 1 }, { id: 2 }])
+    const clone = template('<ul><!></ul>')()
+    const root = clone.firstChild as Element
+    const anchor = marker(root, 0)
+
+    const s = scope()
+    s.run(() => {
+      mountFor(
+        root,
+        anchor,
+        () => items,
+        item => item.id,
+        item => {
+          const li = document.createElement('li')
+          li.textContent = String(item.id)
+          return li
+        },
+      )
+    })
+
+    expect(root.querySelectorAll('li')).toHaveLength(2)
+
+    s.stop()
+
+    expect(root.querySelectorAll('li')).toHaveLength(0)
+    expect(root.childNodes).toHaveLength(1)
+    expect(root.firstChild).toBe(anchor)
   })
 })

@@ -40,6 +40,17 @@ function TodoList({ todos }) {
 
 The `by` prop enables DOM reuse when items are reordered.
 
+### Keyed diff behavior
+
+With `by`, Zeus reuses existing DOM nodes when items are moved, added, or removed. Items should be reactive objects.
+
+```ts
+// Recommended: mutate reactive properties
+todo.done = true
+```
+
+Replacing an item with a new plain object using the same key may reuse the old DOM subtree. If you need full replacement behavior, change the key or mutate the reactive item directly.
+
 ## Index iteration
 
 Without `by`, items are identified by index:

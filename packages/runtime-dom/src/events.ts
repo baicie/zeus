@@ -10,7 +10,18 @@ type ZeusElementWithEvents = Element & {
   __zeusEvents?: ZeusEventMap
 }
 
+type DelegatedListenerEntry = {
+  name: string
+  delegatedName: string
+}
+
 const delegatedEvents = new Set<string>()
+const delegatedListeners: DelegatedListenerEntry[] = []
+
+const nonBubblingEventMap: Record<string, string> = {
+  focus: 'focusin',
+  blur: 'focusout',
+}
 
 export function bindEvent(
   el: Element,
@@ -30,25 +41,50 @@ export function bindEvent(
 }
 
 export function delegateEvents(events: readonly string[]): void {
-  for (const eventName of events) {
-    if (delegatedEvents.has(eventName)) continue
+  for (const event of events) {
+    const delegatedName = normalizeDelegatedEventName(event)
 
-    delegatedEvents.add(eventName)
-    document.addEventListener(eventName, dispatchDelegatedEvent)
-    emitDevtoolsEvent({ type: 'delegate-event', event: eventName })
+    if (delegatedEvents.has(delegatedName)) continue
+
+    delegatedEvents.add(delegatedName)
+
+    const handler = dispatchDelegatedEvent
+    delegatedListeners.push({ name: event, delegatedName })
+    document.addEventListener(delegatedName, handler)
+    emitDevtoolsEvent({ type: 'delegate-event', event: delegatedName })
   }
 }
 
+export function resetDelegatedEvents(): void {
+  for (const entry of delegatedListeners) {
+    document.removeEventListener(entry.delegatedName, dispatchDelegatedEvent)
+  }
+  delegatedEvents.clear()
+  delegatedListeners.length = 0
+}
+
+function normalizeDelegatedEventName(name: string): string {
+  return nonBubblingEventMap[name] ?? name
+}
+
+function normalizeOriginalEventName(name: string): string {
+  if (name === 'focusin') return 'focus'
+  if (name === 'focusout') return 'blur'
+  return name
+}
+
 function dispatchDelegatedEvent(event: Event): void {
+  const eventName = normalizeOriginalEventName(event.type)
+
   let node = event.target as Node | null
 
   while (node && node !== document) {
     if (node.nodeType === Node.ELEMENT_NODE) {
       const el = node as ZeusElementWithEvents
-      const handler = el.__zeusEvents?.[event.type]
+      const handler = el.__zeusEvents?.[eventName]
 
       if (handler) {
-        handler.call(el, createDelegatedEvent(event, el))
+        callDelegatedHandler(el, handler, event)
 
         if (event.cancelBubble) {
           return
@@ -60,19 +96,44 @@ function dispatchDelegatedEvent(event: Event): void {
   }
 }
 
-function createDelegatedEvent(event: Event, currentTarget: Element): Event {
-  return new Proxy(event, {
-    get(target, key, receiver) {
-      if (key === 'currentTarget') {
-        return currentTarget
+function callDelegatedHandler(
+  el: Element,
+  handler: EventListener,
+  event: Event,
+): void {
+  const hadOwnCurrentTarget = Object.prototype.hasOwnProperty.call(
+    event,
+    'currentTarget',
+  )
+
+  const previousCurrentTarget = hadOwnCurrentTarget
+    ? Object.getOwnPropertyDescriptor(event, 'currentTarget')
+    : undefined
+
+  try {
+    Object.defineProperty(event, 'currentTarget', {
+      configurable: true,
+      get() {
+        return el
+      },
+    })
+  } catch {
+    // Some environments may not allow redefining currentTarget.
+    // handler.call(el, event) still gives function handlers `this === el`.
+  }
+
+  try {
+    handler.call(el, event)
+  } finally {
+    try {
+      if (previousCurrentTarget) {
+        Object.defineProperty(event, 'currentTarget', previousCurrentTarget)
+      } else {
+        delete (event as unknown as { currentTarget?: EventTarget })
+          .currentTarget
       }
-
-      const value = Reflect.get(target, key, receiver)
-      return typeof value === 'function' ? value.bind(target) : value
-    },
-
-    set(target, key, value, receiver) {
-      return Reflect.set(target, key, value, receiver)
-    },
-  })
+    } catch {
+      // ignore restore failure in non-browser test environments
+    }
+  }
 }
