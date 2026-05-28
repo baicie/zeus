@@ -178,19 +178,29 @@ function normalizeEventHandler(
   handler: t.Expression,
   context: CompilerContext,
 ): t.Expression {
-  if (
-    !t.isMemberExpression(handler) &&
-    !t.isOptionalMemberExpression(handler)
-  ) {
-    return handler
+  if (t.isMemberExpression(handler)) {
+    const event = context.uid('event$')
+
+    return t.arrowFunctionExpression(
+      [t.identifier(event.name)],
+      t.callExpression(t.cloneNode(handler), [t.identifier(event.name)]),
+    )
   }
 
-  const event = context.uid('event$')
+  if (t.isOptionalMemberExpression(handler)) {
+    const event = context.uid('event$')
 
-  return t.arrowFunctionExpression(
-    [t.identifier(event.name)],
-    t.callExpression(t.cloneNode(handler), [t.identifier(event.name)]),
-  )
+    return t.arrowFunctionExpression(
+      [t.identifier(event.name)],
+      t.optionalCallExpression(
+        t.cloneNode(handler),
+        [t.identifier(event.name)],
+        true,
+      ),
+    )
+  }
+
+  return handler
 }
 
 function emitPropBinding(

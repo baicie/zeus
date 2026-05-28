@@ -235,6 +235,19 @@ describe('zeus compiler jsx transform', () => {
     )
   })
 
+  it('wraps optional member expression event handlers with optional call', async () => {
+    const code = `
+      const App = () => {
+        const maybe = state<{ toggle?: (e: Event) => void } | undefined>(undefined)
+        return <button onClick={maybe?.toggle}>Toggle</button>
+      }
+    `
+
+    expect(await compile(code)).toContain(
+      '_bindEvent(_el$, "click", _event$ => maybe?.toggle?.(_event$));',
+    )
+  })
+
   it('normalizes static className to class in template', async () => {
     const code = `
       const App = () => <div className="box">hello</div>
