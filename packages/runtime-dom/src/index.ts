@@ -13,7 +13,7 @@ export type {
 
 export { template } from './template'
 
-export { render } from './render'
+export { render, type RenderOptions } from './render'
 
 export { insert, mountDynamic } from './insert'
 
@@ -68,3 +68,24 @@ export {
   type HostRenderContext,
   type HostRenderMode,
 } from './hostContext'
+
+// context — main user-facing APIs
+export { createContext, useContext, provide, inject } from './context'
+
+// context — advanced / internal APIs
+export {
+  getCurrentOwner,
+  createOwner,
+  runWithOwner,
+  createDOMContextBoundary,
+  provideDOMContext,
+  requestDOMContext,
+  ZEUS_CONTEXT_REQUEST,
+  type Context,
+  type ContextId,
+  type ContextProviderProps,
+  type ContextBridgeProps,
+  type Owner,
+  type ZeusContextRequestDetail,
+  type ZeusContextRequestEvent,
+} from './context'

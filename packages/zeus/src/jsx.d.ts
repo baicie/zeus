@@ -197,9 +197,13 @@ declare global {
       polygon: SVGAttributes<SVGPolygonElement>
       g: SVGAttributes<SVGGElement>
 
-      slot: HTMLAttributes<HTMLSlotElement>
+      slot: HTMLAttributes<HTMLSlotElement> & {
+        name?: string
+      }
 
-      [name: string]: Record<string, unknown>
+      [name: string]: Record<string, unknown> & {
+        consumes?: unknown[]
+      }
     }
   }
 }

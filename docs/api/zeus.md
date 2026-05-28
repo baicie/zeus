@@ -6,23 +6,23 @@ Unified entry point for the Zeus framework.
 
 The main entry exports stable, user-facing APIs:
 
-| Export | Description |
-| --- | --- |
-| `state` | Unified reactive state (primitives, objects, arrays, Map, Set) |
-| `computed` | Derived reactive value |
-| `effect` | Reactive side effect |
-| `watch` | Watcher with callback |
-| `scope` | Isolated reactive scope |
-| `batch` | Batch reactive updates |
-| `untrack` | Read without tracking dependencies |
-| `nextTick` | Promise-based microtask scheduling |
-| `onCleanup` | Register cleanup callbacks |
-| `render` | Mount component tree to DOM |
-| `Show` | Conditional rendering |
-| `For` | List rendering with keyed diff |
-| `Host` | Web Component host boundary |
-| `Slot` | Web Component slot projection |
-| `defineElement` | Define a custom element |
+| Export          | Description                                                    |
+| --------------- | -------------------------------------------------------------- |
+| `state`         | Unified reactive state (primitives, objects, arrays, Map, Set) |
+| `computed`      | Derived reactive value                                         |
+| `effect`        | Reactive side effect                                           |
+| `watch`         | Watcher with callback                                          |
+| `scope`         | Isolated reactive scope                                        |
+| `batch`         | Batch reactive updates                                         |
+| `untrack`       | Read without tracking dependencies                             |
+| `nextTick`      | Promise-based microtask scheduling                             |
+| `onCleanup`     | Register cleanup callbacks                                     |
+| `render`        | Mount component tree to DOM                                    |
+| `Show`          | Conditional rendering                                          |
+| `For`           | List rendering with keyed diff                                 |
+| `Host`          | Web Component host boundary                                    |
+| `Slot`          | Web Component slot projection                                  |
+| `defineElement` | Define a custom element                                        |
 
 ## Advanced APIs
 

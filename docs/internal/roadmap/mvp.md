@@ -209,7 +209,6 @@ B3. 新增 @zeus-js/zeus/advanced 和 @zeus-js/zeus/internal 出口
 B4. 文档明确 state() 是主状态 API
 ```
 
-
 ---
 
 ## Phase C：Runtime 语义补强

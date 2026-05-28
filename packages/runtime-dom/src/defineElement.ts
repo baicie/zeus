@@ -2,9 +2,11 @@
 
 import { onScopeDispose, state } from '@zeus-js/signal'
 
+import { createOwner, requestDOMContext, runWithOwner } from './context'
 import { withHostContext } from './hostContext'
 import { render } from './render'
 
+import type { Context } from './context'
 import type { HostRenderContext } from './hostContext'
 import type { JSXValue } from './types'
 
@@ -32,6 +34,8 @@ export interface DefineElementOptions<P extends Record<string, unknown>> {
   shadow?: boolean | ShadowRootInit
   props?: PropOptions<P>
   styles?: string | string[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  consumes?: Context<any>[]
 }
 
 export interface DefineElementContext<E extends HTMLElement = HTMLElement> {
@@ -97,6 +101,19 @@ export function defineElement<
 
       this.syncAttributesToProps(propDefs)
 
+      // Create an owner and inject context values from the DOM tree.
+      const owner = createOwner()
+
+      for (const context of options.consumes ?? []) {
+        const value = requestDOMContext(this, context as Context<unknown>)
+
+        if (value !== undefined) {
+          owner.provides.set(context.id, value)
+        } else if (context.defaultValue !== undefined) {
+          owner.provides.set(context.id, context.defaultValue)
+        }
+      }
+
       const target = this.resolveRenderTarget(shadow)
 
       const hostContext: HostRenderContext = {
@@ -122,10 +139,13 @@ export function defineElement<
 
       this.dispose = render(
         () =>
-          withHostContext(hostContext, () =>
-            setup(this.props as Readonly<P>, setupContext),
+          runWithOwner(owner, () =>
+            withHostContext(hostContext, () =>
+              setup(this.props as Readonly<P>, setupContext),
+            ),
           ),
         target,
+        { owner },
       )
 
       mountStyles(target, options.styles)

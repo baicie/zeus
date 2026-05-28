@@ -43,5 +43,15 @@ export type {
   DefineElementSetup,
 } from '@zeus-js/runtime-dom'
 
+// context — main user-facing APIs
+export { createContext, provide } from '@zeus-js/runtime-dom'
+export { inject } from '@zeus-js/runtime-dom'
+
+export type {
+  Context,
+  ContextProviderProps,
+  ContextBridgeProps,
+} from '@zeus-js/runtime-dom'
+
 // TS jsx runtime fallback
 export { Fragment, jsx, jsxs, jsxDEV } from './jsx-runtime'
