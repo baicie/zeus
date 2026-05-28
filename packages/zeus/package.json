@@ -33,11 +33,11 @@
       "types": "./src/jsx.d.ts"
     },
     "./jsx-runtime": {
-      "types": "./jsx-runtime.js",
+      "types": "./jsx-runtime.d.ts",
       "default": "./jsx-runtime.js"
     },
     "./jsx-dev-runtime": {
-      "types": "./jsx-dev-runtime.js",
+      "types": "./jsx-dev-runtime.d.ts",
       "default": "./jsx-dev-runtime.js"
     },
     "./*": "./*"
