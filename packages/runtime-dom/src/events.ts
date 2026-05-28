@@ -10,13 +10,8 @@ type ZeusElementWithEvents = Element & {
   __zeusEvents?: ZeusEventMap
 }
 
-type DelegatedListenerEntry = {
-  name: string
-  delegatedName: string
-}
-
 const delegatedEvents = new Set<string>()
-const delegatedListeners: DelegatedListenerEntry[] = []
+const delegatedListeners: string[] = []
 
 const nonBubblingEventMap: Record<string, string> = {
   focus: 'focusin',
@@ -49,15 +44,15 @@ export function delegateEvents(events: readonly string[]): void {
     delegatedEvents.add(delegatedName)
 
     const handler = dispatchDelegatedEvent
-    delegatedListeners.push({ name: event, delegatedName })
+    delegatedListeners.push(delegatedName)
     document.addEventListener(delegatedName, handler)
     emitDevtoolsEvent({ type: 'delegate-event', event: delegatedName })
   }
 }
 
 export function resetDelegatedEvents(): void {
-  for (const entry of delegatedListeners) {
-    document.removeEventListener(entry.delegatedName, dispatchDelegatedEvent)
+  for (const delegatedName of delegatedListeners) {
+    document.removeEventListener(delegatedName, dispatchDelegatedEvent)
   }
   delegatedEvents.clear()
   delegatedListeners.length = 0

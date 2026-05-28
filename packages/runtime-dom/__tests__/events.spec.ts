@@ -2,7 +2,8 @@ import { scope } from '@zeus-js/signal'
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { bindEvent, delegateEvents, resetDelegatedEvents } from '../src'
+import { bindEvent, delegateEvents } from '../src'
+import { resetDelegatedEvents } from '../src/events'
 
 type ZeusElementWithEvents = Element & {
   __zeusEvents?: Record<string, EventListener>
