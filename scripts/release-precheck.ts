@@ -8,7 +8,7 @@
  * to the steps below and remove it from .changeset/config.json ignore list.
  */
 
-import { spawnSync } from 'node:child_process'
+import { exec } from './utils'
 
 const steps: Array<[string, string[]]> = [
   ['pnpm', ['build']],
@@ -22,17 +22,15 @@ const steps: Array<[string, string[]]> = [
   ['pnpm', ['check:exports']],
 ]
 
-for (const [command, args] of steps) {
-  console.log(`\n> ${command} ${args.join(' ')}\n`)
-
-  const result = spawnSync(command, args, {
-    stdio: 'inherit',
-  })
-
-  if (result.status !== 0) {
-    console.error(`\nFailed: ${command} ${args.join(' ')}`)
-    process.exit(result.status ?? 1)
+async function run() {
+  for (const [command, args] of steps) {
+    console.log(`\n> ${command} ${args.join(' ')}\n`)
+    await exec(command, args, { stdio: 'inherit' })
   }
+  console.log('\nRelease precheck passed.\n')
 }
 
-console.log('\nRelease precheck passed.\n')
+run().catch(err => {
+  console.error(err)
+  process.exit(1)
+})
