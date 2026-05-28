@@ -8,7 +8,7 @@
  * to the steps below and remove it from .changeset/config.json ignore list.
  */
 
-import { exec } from './utils'
+import { exec } from '../shared/utils'
 
 const steps: Array<[string, string[]]> = [
   ['pnpm', ['build']],

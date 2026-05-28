@@ -174,7 +174,7 @@ export default defineConfig(
   // ============================================
   {
     name: 'vitest-setup',
-    files: ['scripts/setup-vitest.ts'],
+    files: ['scripts/testing/setup-vitest.ts'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
     },

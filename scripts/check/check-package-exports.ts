@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
-const root = resolve(__dirname, '..')
+const root = resolve(__dirname, '..', '..')
 
 const packages = [
   'packages/zeus/package.json',

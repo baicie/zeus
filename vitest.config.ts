@@ -1,6 +1,6 @@
 import { configDefaults, defineConfig } from 'vitest/config'
 
-import { entries } from './scripts/aliases.ts'
+import { entries } from './scripts/shared/aliases.ts'
 
 // 测试项目配置
 const testProjects = [
@@ -23,7 +23,7 @@ export default defineConfig({
   resolve: { alias: entries },
   test: {
     globals: true,
-    setupFiles: 'scripts/setup-vitest.ts',
+    setupFiles: 'scripts/testing/setup-vitest.ts',
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

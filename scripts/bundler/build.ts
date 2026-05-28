@@ -10,7 +10,7 @@ import pico from 'picocolors'
 import prettyBytes from 'pretty-bytes'
 
 import { scanEnums } from './inline-enums'
-import { targets as allTargets, exec, fuzzyMatchTarget } from './utils'
+import { targets as allTargets, exec, fuzzyMatchTarget } from '../shared/utils'
 
 const commit = spawnSync('git', ['rev-parse', '--short=7', 'HEAD'])
   .stdout.toString()
@@ -181,7 +181,7 @@ async function build(target: string): Promise<void> {
     'rolldown',
     [
       '-c',
-      './scripts/rolldown.config.ts',
+      './scripts/bundler/rolldown.config.ts',
       '--environment',
       [
         `COMMIT:${commit}`,

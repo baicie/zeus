@@ -24,7 +24,7 @@ export const targets: string[] = fs.readdirSync('packages').filter(f => {
   ) {
     return false
   }
-  const pkg = require(`../packages/${f}/package.json`)
+  const pkg = require(`../../packages/${f}/package.json`)
   if (pkg.private || !pkg.buildOptions) {
     return false
   }

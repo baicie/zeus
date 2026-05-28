@@ -2,6 +2,7 @@
 
 import { effect, onScopeDispose, stop } from '@zeus-js/signal'
 
+import { getCurrentOwner, runWithOwner } from './context'
 import { emitDevtoolsEvent } from './devtools'
 import { insertTracked, moveRangeBefore, removeNodes } from './range'
 
@@ -38,6 +39,7 @@ function mountIndexFor<T>(
   render: (item: T, index: number) => JSXValue,
 ): void {
   let current: Node[] = []
+  const owner = getCurrentOwner()
 
   const runner = effect(() => {
     removeNodes(current)
@@ -46,7 +48,13 @@ function mountIndexFor<T>(
     const list = each() ?? []
 
     for (let i = 0; i < list.length; i++) {
-      current.push(...insertTracked(parent, render(list[i], i), marker))
+      current.push(
+        ...insertTracked(
+          parent,
+          runWithOwner(owner, () => render(list[i], i)),
+          marker,
+        ),
+      )
     }
   })
 
@@ -65,6 +73,7 @@ function mountKeyedFor<T, K>(
   render: (item: T, index: number) => JSXValue,
 ): void {
   let records: ListRecord<T>[] = []
+  const owner = getCurrentOwner()
 
   const runner = effect(() => {
     const nextItems = each() ?? []
@@ -91,7 +100,11 @@ function mountKeyedFor<T, K>(
           key: itemKey,
           item,
           index: i,
-          nodes: insertTracked(parent, render(item, i), marker),
+          nodes: insertTracked(
+            parent,
+            runWithOwner(owner, () => render(item, i)),
+            marker,
+          ),
         })
       }
     }

@@ -6,10 +6,10 @@ import replace from '@rollup/plugin-replace'
 import pico from 'picocolors'
 import polyfillNode from 'rollup-plugin-polyfill-node'
 
-import { entries } from './aliases'
 import { inlineEnums } from './inline-enums'
+import { entries } from '../shared/aliases'
 
-import type { MarkRequired, PackageFormat } from './utils'
+import type { MarkRequired, PackageFormat } from '../shared/utils'
 import type { Plugin, RolldownOptions } from 'rolldown'
 
 type OutputOptions = MarkRequired<
@@ -24,9 +24,9 @@ if (!process.env.TARGET) {
 const require = createRequire(import.meta.url)
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
-const masterVersion = require('../package.json').version
+const masterVersion = require('../../package.json').version
 
-const packagesDir = path.resolve(__dirname, '..', 'packages')
+const packagesDir = path.resolve(__dirname, '..', '..', 'packages')
 const packageDir = path.resolve(packagesDir, process.env.TARGET)
 
 const resolve = (p: string) => path.resolve(packageDir, p)

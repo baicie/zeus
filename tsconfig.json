@@ -32,7 +32,7 @@
     "packages/*/__tests__",
     "packages/zeus/jsx-runtime",
     "packages/runtime-dom/types/jsx.d.ts",
-    "scripts/*"
+    "scripts/**/*.ts"
   ],
   "exclude": []
 }

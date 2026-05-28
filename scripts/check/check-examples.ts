@@ -10,7 +10,7 @@
  * to let this script run the build itself.
  */
 
-import { exec } from './utils'
+import { exec } from '../shared/utils'
 
 const examples = [
   '@zeus-js/example-counter',

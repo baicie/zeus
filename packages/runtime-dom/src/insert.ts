@@ -2,6 +2,7 @@
 
 import { effect, onScopeDispose, stop } from '@zeus-js/signal'
 
+import { getCurrentOwner, runWithOwner } from './context'
 import { captureCurrentHostContext, withHostContext } from './hostContext'
 import { DynamicRange, insertTracked } from './range'
 
@@ -35,9 +36,10 @@ export function mountDynamic(
 ): void {
   const range = new DynamicRange(parent, marker)
   const hostContext = captureCurrentHostContext()
+  const owner = getCurrentOwner()
 
   const runner = effect(() => {
-    const next = withHostContext(hostContext, value)
+    const next = runWithOwner(owner, () => withHostContext(hostContext, value))
     range.replace(next)
   })
 

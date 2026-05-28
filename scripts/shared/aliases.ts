@@ -8,14 +8,14 @@ import { fileURLToPath } from 'node:url'
 const resolveEntryForPkg = (pkgName: string): string =>
   path.resolve(
     fileURLToPath(import.meta.url),
-    `../../packages/${pkgName}/src/index.ts`,
+    `../../../packages/${pkgName}/src/index.ts`,
   )
 
 /**
  * Get all package directories
  */
 const getPackageDirs = (): string[] => {
-  const packagesUrl = new URL('../packages', import.meta.url)
+  const packagesUrl = new URL('../../packages', import.meta.url)
   return readdirSync(packagesUrl)
 }
 
@@ -27,7 +27,7 @@ const generateEntries = (): Record<string, string> => {
 
   for (const dir of getPackageDirs()) {
     const key = `@zeus-js/${dir}`
-    const packageUrl = new URL(`../packages/${dir}`, import.meta.url)
+    const packageUrl = new URL(`../../packages/${dir}`, import.meta.url)
 
     if (!(key in entries) && statSync(packageUrl).isDirectory()) {
       entries[key] = resolveEntryForPkg(dir)

@@ -2,19 +2,21 @@ name: Release
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - 'v*'
 
-concurrency: ${{ github.workflow }}-${{ github.ref }}
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
+    if: github.repository == 'baicie/zeus'
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
       id-token: write
-
+    environment: Release
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -26,23 +28,26 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version-file: '.node-version'
-          cache: 'pnpm'
-          registry-url: https://registry.npmjs.org
+          registry-url: 'https://registry.npmjs.org'
 
-      - name: Install
+      - name: Install deps
         run: pnpm install --frozen-lockfile
 
-      - name: Build
-        run: pnpm build && pnpm build-dts
+      - name: Extract version from tag
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
 
-      - name: Test
-        run: pnpm test-unit
+      - name: Build and publish
+        run: pnpm release --publishOnly ${{ env.VERSION }}
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Create Release Pull Request or Publish
-        uses: changesets/action@v1
-        with:
-          version: pnpm version
-          publish: pnpm release
+      - name: Create GitHub Release
+        uses: yyx990803/release-tag@8cccf7c5aa332d71d222df46677f70f77a8d2dc0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          body: |
+            Please refer to [CHANGELOG.md](https://github.com/baicie/zeus/blob/main/CHANGELOG.md) for details.

@@ -3,6 +3,7 @@ import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { For, Show, mountFor, mountShow, resolveValue } from '../src'
+import { createComponent, createContext, useContext } from '../src'
 import { marker } from '../src/dom'
 import { template } from '../src/template'
 
@@ -221,6 +222,44 @@ describe('mountShow', () => {
     expect(root.childNodes).toHaveLength(1)
     expect(root.firstChild).toBe(anchor)
   })
+
+  it('preserves context owner while rendering reactive branches', () => {
+    const Context = createContext<string>()
+    const visible = state(false)
+    const clone = template('<div><!></div>')()
+    const root = clone.firstChild as Element
+    const anchor = marker(root, 0)
+
+    function Child() {
+      const value = useContext(Context)
+      const span = document.createElement('span')
+      span.textContent = value
+      return span
+    }
+
+    function App() {
+      return Context.Provider({
+        value: 'provided',
+        get children() {
+          mountShow(
+            root,
+            anchor,
+            () => visible.value,
+            () => createComponent(Child, {}),
+          )
+
+          return root
+        },
+      })
+    }
+
+    createComponent(App, {})
+    expect(root.textContent).toBe('')
+
+    visible.value = true
+
+    expect(root.textContent).toBe('provided')
+  })
 })
 
 describe('mountFor', () => {
@@ -428,5 +467,44 @@ describe('mountFor', () => {
     expect(root.querySelectorAll('li')).toHaveLength(0)
     expect(root.childNodes).toHaveLength(1)
     expect(root.firstChild).toBe(anchor)
+  })
+
+  it('preserves context owner while rendering list items', () => {
+    const Context = createContext<string>()
+    const items = state(['a']) as unknown as string[]
+    const clone = template('<ul><!></ul>')()
+    const root = clone.firstChild as Element
+    const anchor = marker(root, 0)
+
+    function Item(props: { item: string }) {
+      const value = useContext(Context)
+      const li = document.createElement('li')
+      li.textContent = `${props.item}:${value}`
+      return li
+    }
+
+    function App() {
+      return Context.Provider({
+        value: 'provided',
+        get children() {
+          mountFor(
+            root,
+            anchor,
+            () => items,
+            item => item,
+            item => createComponent(Item, { item }),
+          )
+
+          return root
+        },
+      })
+    }
+
+    createComponent(App, {})
+    expect(root.textContent).toBe('a:provided')
+
+    items.push('b')
+
+    expect(root.textContent).toBe('a:providedb:provided')
   })
 })
