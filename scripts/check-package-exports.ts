@@ -81,7 +81,6 @@ function checkFile(
 ): void {
   if (!target.startsWith('./')) return
   if (target.includes('*')) return
-  if (target.endsWith('.d.ts')) return
 
   const file = resolve(pkgDir, target)
 

@@ -8,7 +8,7 @@ const steps: Array<[string, string[]]> = [
   ['pnpm', ['test-unit']],
   ['pnpm', ['examples:check']],
   ['pnpm', ['docs:build']],
-  ['pnpm', ['size']],
+  ['pnpm', ['size:ci']],
   ['pnpm', ['check:exports']],
 ]
 
@@ -17,7 +17,6 @@ for (const [command, args] of steps) {
 
   const result = spawnSync(command, args, {
     stdio: 'inherit',
-    shell: true,
   })
 
   if (result.status !== 0) {

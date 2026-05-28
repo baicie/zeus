@@ -1,7 +1,1 @@
-'use strict'
-
-if (process.env.NODE_ENV === 'production') {
-  module.exports = require('./dist/jsx-runtime.cjs.prod.js')
-} else {
-  module.exports = require('./dist/jsx-runtime.cjs.js')
-}
+export { Fragment, jsx, jsxs, jsxDEV } from '@zeus-js/runtime-dom'

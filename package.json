@@ -18,6 +18,7 @@
     "test-coverage": "vitest run --project unit* --coverage",
     "test:benchs": "vitest bench --project bench",
     "size": "tsx scripts/size-report.ts",
+    "size:ci": "tsx scripts/size-report.ts --ci",
     "docs:dev": "pnpm -C docs dev",
     "docs:build": "pnpm -C docs build",
     "docs:preview": "pnpm -C docs preview",

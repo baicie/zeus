@@ -11,6 +11,7 @@
     "packages/global.d.ts",
     "packages/zeus/src",
     "packages/signal/src",
-    "packages/compiler/src"
+    "packages/compiler/src",
+    "packages/vite-plugin/src"
   ]
 }

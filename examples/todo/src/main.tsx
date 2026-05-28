@@ -33,7 +33,7 @@ function TodoApp() {
       <div class="input-row">
         <input
           type="text"
-          value={input.value}
+          prop:value={input.value}
           onInput={e => {
             input.value = (e.currentTarget as HTMLInputElement).value
           }}
@@ -52,7 +52,7 @@ function TodoApp() {
             <li>
               <input
                 type="checkbox"
-                checked={todo.done}
+                prop:checked={todo.done}
                 onChange={e => {
                   todo.done = (e.currentTarget as HTMLInputElement).checked
                 }}

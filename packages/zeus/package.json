@@ -10,10 +10,10 @@
   "jsdelivr": "dist/zeus.global.js",
   "files": [
     "index.js",
-    "advanced.js",
-    "internal.js",
     "jsx-runtime.js",
+    "jsx-runtime.d.ts",
     "jsx-dev-runtime.js",
+    "jsx-dev-runtime.d.ts",
     "dist",
     "src/jsx.d.ts"
   ],
@@ -29,28 +29,16 @@
       "import": "./dist/zeus.esm-bundler.js",
       "require": "./index.js"
     },
-    "./advanced": {
-      "types": "./dist/zeus.d.ts",
-      "import": "./dist/zeus.esm-bundler.js",
-      "require": "./dist/zeus.cjs.js"
-    },
-    "./internal": {
-      "types": "./dist/zeus.d.ts",
-      "import": "./dist/zeus.esm-bundler.js",
-      "require": "./dist/zeus.cjs.js"
-    },
-    "./jsx-runtime": {
-      "types": "./dist/zeus.d.ts",
-      "import": "./dist/zeus.esm-bundler.js",
-      "require": "./dist/zeus.cjs.js"
-    },
-    "./jsx-dev-runtime": {
-      "types": "./dist/zeus.d.ts",
-      "import": "./dist/zeus.esm-bundler.js",
-      "require": "./dist/zeus.cjs.js"
-    },
     "./jsx": {
       "types": "./src/jsx.d.ts"
+    },
+    "./jsx-runtime": {
+      "types": "./jsx-runtime.js",
+      "default": "./jsx-runtime.js"
+    },
+    "./jsx-dev-runtime": {
+      "types": "./jsx-dev-runtime.js",
+      "default": "./jsx-dev-runtime.js"
     },
     "./*": "./*"
   },

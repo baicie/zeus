@@ -1,6 +1,5 @@
 // User-facing public API — stable, minimal surface area.
 // Do NOT export runtime-dom internal helpers here.
-// Advanced / internal APIs are available from '@zeus-js/zeus/advanced' and '@zeus-js/zeus/internal'.
 
 // reactivity
 export {

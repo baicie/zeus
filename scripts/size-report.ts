@@ -5,34 +5,43 @@ import { gzipSync } from 'node:zlib'
 type SizeTarget = {
   name: string
   file: string
+  limit?: number
 }
 
 const targets: SizeTarget[] = [
   {
     name: '@zeus-js/signal',
     file: 'packages/signal/dist/signal.esm-browser.prod.js',
+    limit: 22, // 18.6 KB raw × 1.2 headroom
   },
   {
     name: '@zeus-js/runtime-dom',
     file: 'packages/runtime-dom/dist/runtime-dom.esm-browser.prod.js',
+    limit: 32, // 27.2 KB raw × 1.2 headroom
   },
   {
     name: '@zeus-js/zeus',
     file: 'packages/zeus/dist/zeus.esm-browser.prod.js',
+    limit: 30, // 25.3 KB raw × 1.2 headroom
   },
   {
     name: '@zeus-js/compiler',
     file: 'packages/compiler/dist/compiler.esm-bundler.js',
+    limit: 400, // 297 KB brotli × 1.35 ≈ 400 KB raw
   },
   {
     name: '@zeus-js/vite-plugin',
     file: 'packages/vite-plugin/dist/vite-plugin.esm-bundler.js',
+    limit: 10, // 2.84 KB raw × 1.3 headroom
   },
 ]
+
+const ci = process.argv.includes('--ci')
 
 console.log('\nPackage size report\n')
 
 let hasMissing = false
+let hasRegression = false
 
 for (const target of targets) {
   const path = resolve(process.cwd(), target.file)
@@ -45,14 +54,45 @@ for (const target of targets) {
 
   const raw = readFileSync(path)
   const gzip = gzipSync(raw)
+  const rawKb = statSync(path).size / 1024
+  const gzipKb = gzip.length / 1024
 
-  console.log(`${target.name}`)
+  const marker =
+    ci && target.limit
+      ? rawKb > target.limit
+        ? ' \x1b[31m[REGRESSION]\x1b[0m'
+        : ' \x1b[32m[OK]\x1b[0m'
+      : ''
+
+  console.log(`${target.name}${marker}`)
   console.log(`  file: ${target.file}`)
-  console.log(`  raw:  ${(statSync(path).size / 1024).toFixed(2)} KB`)
-  console.log(`  gzip: ${(gzip.length / 1024).toFixed(2)} KB`)
+  console.log(`  raw:  ${rawKb.toFixed(2)} KB`)
+  console.log(`  gzip: ${gzipKb.toFixed(2)} KB`)
+  if (target.limit) {
+    console.log(`  limit: ${target.limit} KB`)
+  }
   console.log('')
+
+  if (ci && target.limit && rawKb > target.limit) {
+    hasRegression = true
+    console.error(
+      `  \x1b[31mFAIL\x1b[0m: ${target.name} exceeds limit (${rawKb.toFixed(2)} KB > ${target.limit} KB)`,
+    )
+  }
 }
 
 if (hasMissing) {
+  console.error('\nMissing files detected.\n')
   process.exit(1)
+}
+
+if (hasRegression) {
+  console.error('\nSize regression detected. Run `pnpm size` to inspect.\n')
+  process.exit(1)
+}
+
+if (!ci) {
+  console.log('Tip: run `pnpm size --ci` to enforce limits.\n')
+} else {
+  console.log('\nAll size checks passed.\n')
 }

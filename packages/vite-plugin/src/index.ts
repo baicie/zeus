@@ -25,6 +25,9 @@ function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
         oxc: {
           jsx: 'preserve',
         },
+        esbuild: {
+          jsx: 'preserve',
+        },
         resolve: {
           dedupe: ['@zeus-js/signal', '@zeus-js/runtime-dom', '@zeus-js/zeus'],
         },

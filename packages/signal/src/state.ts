@@ -6,7 +6,13 @@ export interface ValueState<T = unknown> {
   set value(value: T)
 }
 
-type ProxyableInput = Record<PropertyKey, any> | readonly any[]
+type ProxyableInput =
+  | Record<PropertyKey, any>
+  | readonly any[]
+  | Map<unknown, unknown>
+  | Set<unknown>
+  | WeakMap<object, unknown>
+  | WeakSet<object>
 
 export type State<T> = T extends ValueStateInput
   ? ValueState<T>
