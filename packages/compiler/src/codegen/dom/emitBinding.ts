@@ -169,8 +169,27 @@ function emitEventBinding(
     t.callExpression(context.importRuntime('bindEvent'), [
       t.identifier(target.ref.name),
       t.stringLiteral(binding.eventName),
-      binding.handler,
+      normalizeEventHandler(binding.handler, context),
     ]),
+  )
+}
+
+function normalizeEventHandler(
+  handler: t.Expression,
+  context: CompilerContext,
+): t.Expression {
+  if (
+    !t.isMemberExpression(handler) &&
+    !t.isOptionalMemberExpression(handler)
+  ) {
+    return handler
+  }
+
+  const event = context.uid('event$')
+
+  return t.arrowFunctionExpression(
+    [t.identifier(event.name)],
+    t.callExpression(t.cloneNode(handler), [t.identifier(event.name)]),
   )
 }
 

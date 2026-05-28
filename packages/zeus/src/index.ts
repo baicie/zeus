@@ -44,8 +44,12 @@ export type {
 } from '@zeus-js/runtime-dom'
 
 // context — main user-facing APIs
-export { createContext, provide } from '@zeus-js/runtime-dom'
-export { inject } from '@zeus-js/runtime-dom'
+export {
+  createContext,
+  useContext,
+  provide,
+  inject,
+} from '@zeus-js/runtime-dom'
 
 export type {
   Context,

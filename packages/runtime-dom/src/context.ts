@@ -2,7 +2,7 @@
 // Owner-based context tree for Zeus components.
 // Public APIs: createContext, useContext, provide, inject
 // Internal APIs: createOwner, runWithOwner, getCurrentOwner
-// DOM bridge APIs: createDOMContextBoundary, provideDOMContext, requestDOMContext
+// DOM bridge APIs: createDOMContextBoundary, provideDOMContext, requestDOMContext, resolveDOMContext
 
 import { onScopeDispose } from '@zeus-js/signal'
 
@@ -18,7 +18,17 @@ export type ContextId = symbol
 
 export interface Context<T = unknown> {
   readonly id: ContextId
-  readonly defaultValue?: T
+
+  /**
+   * The default value passed to createContext().
+   *
+   * Note:
+   * - `defaultValue` itself may be `undefined`.
+   * - Use `hasDefaultValue` to check whether a default value was provided.
+   */
+  readonly defaultValue: T | undefined
+  readonly hasDefaultValue: boolean
+
   readonly Provider: ContextProvider<T>
   readonly Bridge: ContextBridge<T>
 }
@@ -75,11 +85,10 @@ export function runWithOwner<T>(owner: Owner | undefined, fn: () => T): T {
 }
 
 /**
- * Sets the current owner without saving/restoring the previous one.
- * Use this in synchronous execution contexts (like Provider) where the owner
- * should persist through the rest of the caller's synchronous execution.
- *
  * @internal
+ *
+ * Avoid using this in normal code.
+ * Most runtime paths should use runWithOwner() so owner restoration is guaranteed.
  */
 export function setCurrentOwner(owner: Owner | undefined): void {
   currentOwner = owner
@@ -89,35 +98,36 @@ export function setCurrentOwner(owner: Owner | undefined): void {
 // createContext
 // ---------------------------------------------------------------------------
 
+export function createContext<T>(): Context<T>
+export function createContext<T>(defaultValue: T): Context<T>
 export function createContext<T>(defaultValue?: T): Context<T> {
+  const hasDefaultValue = arguments.length > 0
+
   const context: Context<T> = {
     id: Symbol(__DEV__ ? 'ZeusContext' : ''),
     defaultValue,
+    hasDefaultValue,
 
     Provider(props: ContextProviderProps<T>): JSXValue {
       const owner = createOwner(currentOwner)
       owner.provides.set(context.id, props.value)
 
-      // Set the current owner to the new provider scope. We intentionally do NOT
-      // restore the previous owner — the provider's synchronous execution
-      // (evaluating children, rendering) must stay within this owner so that
-      // any nested component calls see the provider's owner in the chain.
-      setCurrentOwner(owner)
+      return runWithOwner(owner, () => {
+        const children = resolveValue(props.children)
 
-      const children = resolveValue(props.children)
+        if (props.bridge) {
+          return createDOMContextBoundary(
+            context as Context<unknown>,
+            props.value,
+            children,
+          )
+        }
 
-      if (props.bridge) {
-        return createDOMContextBoundary(
-          context as Context<unknown>,
-          props.value,
-          children,
-        )
-      }
-
-      return children
+        return children
+      })
     },
 
-    Bridge(props: ContextBridgeProps<unknown>): JSXValue {
+    Bridge(props: ContextBridgeProps<T>): JSXValue {
       return createDOMContextBoundary(
         context as Context<unknown>,
         props.value,
@@ -162,11 +172,16 @@ export function inject<T>(context: Context<T>, fallback?: T): T {
     owner = owner.parent
   }
 
-  if (fallback !== undefined) {
-    return fallback
+  // Important:
+  // fallback can be undefined, so do not check `fallback !== undefined`.
+  // Use arguments.length to distinguish "no fallback provided" from "undefined".
+  if (arguments.length >= 2) {
+    return fallback as T
   }
 
-  if (context.defaultValue !== undefined) {
+  // Important:
+  // defaultValue can be undefined, so use hasDefaultValue.
+  if (context.hasDefaultValue) {
     return context.defaultValue as T
   }
 
@@ -177,17 +192,14 @@ export function inject<T>(context: Context<T>, fallback?: T): T {
   )
 }
 
-/**
- * Alias for `inject`, matching the standard hook naming convention.
- * Prefer `inject` when explicit type parameters are needed (e.g. `inject(ctx)<T>`).
- */
 export function useContext<T>(context: Context<T>): T
 export function useContext<T>(context: Context<T>, fallback: T): T
 export function useContext<T>(context: Context<T>, fallback?: T): T {
-  return inject(
-    context as Context<T | undefined>,
-    fallback as T | undefined,
-  ) as T
+  if (arguments.length >= 2) {
+    return inject(context, fallback as T)
+  }
+
+  return inject(context)
 }
 
 // ---------------------------------------------------------------------------
@@ -206,6 +218,11 @@ export interface ZeusContextRequestDetail<T = unknown> {
 export type ZeusContextRequestEvent<T = unknown> = CustomEvent<
   ZeusContextRequestDetail<T>
 >
+
+export interface DOMContextResolution<T> {
+  found: boolean
+  value: T | undefined
+}
 
 /**
  * Creates a transparent DOM element that acts as a context boundary.
@@ -260,18 +277,17 @@ export function provideDOMContext<T>(
 }
 
 /**
- * Dispatches a context-request event from the given host element. Walks up
- * the DOM tree until a `provideDOMContext` boundary is found that holds the
- * requested context.
+ * Internal precise DOM context resolver.
  *
- * Returns the resolved value if a matching provider was found, otherwise
- * `undefined`.
+ * Unlike requestDOMContext(), this can distinguish:
+ * - found: false, value: undefined
+ * - found: true, value: undefined
  */
-export function requestDOMContext<T>(
+export function resolveDOMContext<T>(
   host: HTMLElement,
   context: Context<T>,
-): T | undefined {
-  let resolved = false
+): DOMContextResolution<T> {
+  let found = false
   let value: T | undefined
 
   const event = new CustomEvent<ZeusContextRequestDetail<T>>(
@@ -286,7 +302,7 @@ export function requestDOMContext<T>(
         resolved: false,
         value: undefined,
         resolve(nextValue: T) {
-          resolved = true
+          found = true
           value = nextValue
           this.resolved = true
           this.value = nextValue
@@ -297,7 +313,21 @@ export function requestDOMContext<T>(
 
   host.dispatchEvent(event)
 
-  return resolved ? value : undefined
+  return { found, value }
+}
+
+/**
+ * Public compatibility API.
+ *
+ * Returns the resolved value if found, otherwise undefined.
+ * If you need to distinguish "not found" from "found undefined",
+ * use resolveDOMContext().
+ */
+export function requestDOMContext<T>(
+  host: HTMLElement,
+  context: Context<T>,
+): T | undefined {
+  return resolveDOMContext(host, context).value
 }
 
 // ---------------------------------------------------------------------------

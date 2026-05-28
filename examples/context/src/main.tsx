@@ -100,13 +100,15 @@ function App() {
               bridge.
             </p>
             <ThemeContext.Provider value={theme} bridge>
-              <z-context-card>
-                {/* @ts-expect-error slot attribute on custom element */}
-                <span slot="header">
-                  <UserBadge />
-                </span>
-                <p>Slotted content inside the Web Component.</p>
-              </z-context-card>
+              <UserContext.Provider value={user} bridge>
+                <z-context-card>
+                  {/* @ts-expect-error slot attribute on custom element */}
+                  <span slot="header">
+                    <UserBadge />
+                  </span>
+                  <p>Slotted content inside the Web Component.</p>
+                </z-context-card>
+              </UserContext.Provider>
             </ThemeContext.Provider>
           </div>
         </div>

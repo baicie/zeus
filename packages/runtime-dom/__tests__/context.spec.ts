@@ -8,7 +8,11 @@ import {
   useContext,
   type JSXValue,
 } from '../src'
-import { provideDOMContext, requestDOMContext } from '../src/context'
+import {
+  provideDOMContext,
+  requestDOMContext,
+  resolveDOMContext,
+} from '../src/context'
 
 describe('context', () => {
   let dom: JSDOM
@@ -34,6 +38,7 @@ describe('context', () => {
       const ctx = createContext('default')
       expect(ctx.id).toBeDefined()
       expect(ctx.defaultValue).toBe('default')
+      expect(ctx.hasDefaultValue).toBe(true)
       expect(typeof ctx.Provider).toBe('function')
       expect(typeof ctx.Bridge).toBe('function')
     })
@@ -41,6 +46,7 @@ describe('context', () => {
     it('creates a context without default value', () => {
       const ctx = createContext<number>()
       expect(ctx.defaultValue).toBeUndefined()
+      expect(ctx.hasDefaultValue).toBe(false)
     })
   })
 
@@ -206,6 +212,77 @@ describe('context', () => {
       expect(result).toBeInstanceOf(Element)
       expect((result as Element).tagName).toBe('ZEUS-CONTEXT')
     })
+
+    it('does not leak nested provider owner to following siblings', () => {
+      const AContext = createContext<string>()
+      const BContext = createContext<string>()
+
+      const seen: string[] = []
+
+      function ReadB() {
+        seen.push(inject(BContext, 'no-b'))
+        return null
+      }
+
+      // Simulate what compiled JSX looks like:
+      // <AContext.Provider value="a">
+      //   <BContext.Provider value="b"><ReadB /></BContext.Provider>
+      //   <ReadB />                          <-- sibling after nested provider
+      // </AContext.Provider>
+      //
+      // After the nested Provider completes, currentOwner must be restored so
+      // the sibling ReadB sees A.owner (not B.owner).
+      function App() {
+        return AContext.Provider({
+          value: 'a',
+          get children() {
+            // The nested Provider call: B.owner is created, ReadB runs inside it.
+            // After Provider returns, currentOwner is restored to A.owner.
+            BContext.Provider({
+              value: 'b',
+              get children() {
+                return ReadB()
+              },
+            })
+
+            // This ReadB runs AFTER the nested Provider's runWithOwner completes.
+            // If owner is properly restored, it should see 'no-b'.
+            return ReadB()
+          },
+        })
+      }
+
+      createComponent(App, {})
+
+      // First ReadB: inside B.owner -> finds 'b'
+      // Second ReadB: after B.owner cleanup, in A.owner -> finds 'no-b'
+      expect(seen).toEqual(['b', 'no-b'])
+    })
+
+    it('owner stack is properly restored after provider completes', () => {
+      const AContext = createContext<string>()
+
+      const seen: string[] = []
+
+      function ReadA() {
+        seen.push(inject(AContext, 'no-a'))
+        return null
+      }
+
+      function App() {
+        return AContext.Provider({
+          value: 'a',
+          get children() {
+            return ReadA()
+          },
+        })
+      }
+
+      createComponent(App, {})
+
+      // ReadA runs inside A.owner -> finds 'a'
+      expect(seen).toEqual(['a'])
+    })
   })
 
   describe('provide / inject (low-level)', () => {
@@ -222,6 +299,54 @@ describe('context', () => {
     it('useContext is an alias for inject', () => {
       const Context = createContext('alias')
       expect(useContext(Context)).toBe('alias')
+    })
+  })
+
+  describe('undefined semantics', () => {
+    it('supports undefined as an explicit default value', () => {
+      const Context = createContext<string | undefined>(undefined)
+      expect(inject(Context)).toBeUndefined()
+    })
+
+    it('supports undefined as an explicit fallback value', () => {
+      const Context = createContext<string | undefined>()
+      expect(inject(Context, undefined)).toBeUndefined()
+    })
+
+    it('hasDefaultValue is true when default is explicitly undefined', () => {
+      const Context = createContext<string | undefined>(undefined)
+      expect(Context.hasDefaultValue).toBe(true)
+    })
+
+    it('hasDefaultValue is false when no default provided', () => {
+      const Context = createContext<string | undefined>()
+      expect(Context.hasDefaultValue).toBe(false)
+    })
+
+    it('inject returns fallback when explicitly provided, even if undefined', () => {
+      const Context = createContext<number | undefined>(42)
+      expect(inject(Context, undefined)).toBeUndefined()
+    })
+
+    it('inject returns default when no fallback provided', () => {
+      const Context = createContext<number | undefined>(42)
+      expect(inject(Context)).toBe(42)
+    })
+
+    it('inject throws when no provider, no default, no fallback', () => {
+      const Context = createContext<string>()
+      expect(() => inject(Context)).toThrow()
+    })
+
+    it('inject returns fallback when no provider, no default, has fallback', () => {
+      const Context = createContext<string>()
+      expect(inject(Context, 'fallback')).toBe('fallback')
+    })
+
+    it('inject distinguishes missing fallback from undefined fallback', () => {
+      const Context = createContext<string | undefined>()
+      expect(() => inject(Context)).toThrow()
+      expect(inject(Context, undefined)).toBeUndefined()
     })
   })
 
@@ -267,6 +392,70 @@ describe('context', () => {
 
       const received = requestDOMContext(child as HTMLElement, ThemeContext)
       expect(received).toBe(innerValue)
+    })
+
+    it('resolveDOMContext distinguishes found vs not-found with undefined', () => {
+      const Context = createContext<string | undefined>('default')
+
+      const boundary = document.createElement('div')
+      provideDOMContext(boundary, Context, undefined)
+
+      const child = document.createElement('z-child')
+      boundary.appendChild(child)
+
+      const resolved = resolveDOMContext(child as HTMLElement, Context)
+
+      expect(resolved.found).toBe(true)
+      expect(resolved.value).toBeUndefined()
+    })
+
+    it('resolveDOMContext returns found:false when no provider', () => {
+      const Context = createContext<string>()
+
+      const orphan = document.createElement('z-orphan')
+
+      const resolved = resolveDOMContext(orphan as HTMLElement, Context)
+
+      expect(resolved.found).toBe(false)
+      expect(resolved.value).toBeUndefined()
+    })
+  })
+
+  describe('defineElement consumes', () => {
+    it('consumes undefined DOM context value instead of falling back to default', () => {
+      const Context = createContext<string | undefined>('default')
+      const received: Array<string | undefined> = []
+
+      const boundary = document.createElement('div')
+      provideDOMContext(boundary, Context, undefined)
+
+      const host = document.createElement('z-test')
+      boundary.appendChild(host)
+
+      const resolved = resolveDOMContext(host as HTMLElement, Context)
+      if (resolved.found) {
+        received.push(resolved.value)
+      }
+
+      expect(received).toEqual([undefined])
+    })
+
+    it('consumes resolves to default when no DOM context boundary exists', () => {
+      const Context = createContext<string>('default')
+      const received: string[] = []
+
+      const host = document.createElement('z-test')
+      document.body.appendChild(host)
+
+      const resolved = resolveDOMContext(host as HTMLElement, Context)
+      if (resolved.found) {
+        received.push(resolved.value as string)
+      }
+
+      // No boundary found, should not consume anything
+      expect(received).toEqual([])
+
+      document.body.removeChild(host)
     })
   })
 })

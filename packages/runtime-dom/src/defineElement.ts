@@ -2,7 +2,7 @@
 
 import { onScopeDispose, state } from '@zeus-js/signal'
 
-import { createOwner, requestDOMContext, runWithOwner } from './context'
+import { createOwner, resolveDOMContext, runWithOwner } from './context'
 import { withHostContext } from './hostContext'
 import { render } from './render'
 
@@ -105,11 +105,11 @@ export function defineElement<
       const owner = createOwner()
 
       for (const context of options.consumes ?? []) {
-        const value = requestDOMContext(this, context as Context<unknown>)
+        const resolved = resolveDOMContext(this, context as Context<unknown>)
 
-        if (value !== undefined) {
-          owner.provides.set(context.id, value)
-        } else if (context.defaultValue !== undefined) {
+        if (resolved.found) {
+          owner.provides.set(context.id, resolved.value)
+        } else if (context.hasDefaultValue) {
           owner.provides.set(context.id, context.defaultValue)
         }
       }

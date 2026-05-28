@@ -216,6 +216,25 @@ describe('zeus compiler jsx transform', () => {
     expect(await compile(code)).toMatchSnapshot()
   })
 
+  it('wraps member expression event handlers to preserve receiver', async () => {
+    const code = `
+      const App = () => {
+        const theme = state({
+          mode: 'light',
+          toggle() {
+            this.mode = this.mode === 'light' ? 'dark' : 'light'
+          },
+        })
+
+        return <button onClick={theme.toggle}>Toggle</button>
+      }
+    `
+
+    expect(await compile(code)).toContain(
+      '_bindEvent(_el$, "click", _event$ => theme.toggle(_event$));',
+    )
+  })
+
   it('normalizes static className to class in template', async () => {
     const code = `
       const App = () => <div className="box">hello</div>

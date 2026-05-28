@@ -80,6 +80,7 @@ export {
   createDOMContextBoundary,
   provideDOMContext,
   requestDOMContext,
+  resolveDOMContext,
   ZEUS_CONTEXT_REQUEST,
   type Context,
   type ContextId,
@@ -88,4 +89,5 @@ export {
   type Owner,
   type ZeusContextRequestDetail,
   type ZeusContextRequestEvent,
+  type DOMContextResolution,
 } from './context'
