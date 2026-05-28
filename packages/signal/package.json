@@ -1,6 +1,6 @@
 {
   "name": "@zeus-js/signal",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "@zeus-js/signal",
   "main": "index.js",
   "module": "dist/signal.esm-bundler.js",
