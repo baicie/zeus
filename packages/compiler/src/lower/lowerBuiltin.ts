@@ -63,7 +63,7 @@ function lowerShow(
   context: CompilerContext,
 ): ZeusIRNode {
   const when = requiredExpressionAttr(path, 'when')
-  const fallback = optionalExpressionAttr(path, 'fallback')
+  const fallback = optionalShowFallbackAttr(path, context)
 
   return showIR({
     ref: ref(context.uid('show$').name),
@@ -71,6 +71,37 @@ function lowerShow(
     fallback,
     children: lowerChildren(path.get('children'), context),
   })
+}
+
+function optionalShowFallbackAttr(
+  path: NodePath<t.JSXElement>,
+  context: CompilerContext,
+): t.Expression | ZeusIRNode[] | undefined {
+  const attr = path
+    .get('openingElement')
+    .get('attributes')
+    .find(attrPath => {
+      if (!attrPath.isJSXAttribute()) return false
+      return getJSXAttrName(attrPath.node.name) === 'fallback'
+    })
+
+  if (!attr?.isJSXAttribute()) return undefined
+
+  const value = attr.get('value')
+
+  if (!value.node) return t.booleanLiteral(true)
+  if (value.isStringLiteral()) return value.node
+  if (!value.isJSXExpressionContainer()) return undefined
+
+  const expression = value.get('expression')
+
+  if (expression.isJSXEmptyExpression()) return undefined
+  if (expression.isJSXElement() || expression.isJSXFragment()) {
+    return [lowerJSX(expression, context)]
+  }
+  if (expression.isExpression()) return expression.node
+
+  return undefined
 }
 
 function lowerFor(

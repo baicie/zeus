@@ -1,8 +1,11 @@
+import { createRequire } from 'node:module'
+import path from 'node:path'
+
 import { transformAsync } from '@babel/core'
 import zeusCompiler from '@zeus-js/compiler'
 
 import type { CompilerOptions } from '@zeus-js/compiler'
-import type { Plugin } from 'vite'
+import type { Plugin, UserConfig } from 'vite'
 
 export interface ZeusVitePluginOptions {
   include?: RegExp | RegExp[]
@@ -20,18 +23,30 @@ function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
     name: 'vite-plugin-zeus',
     enforce: 'pre',
 
-    config() {
+    async config(userConfig) {
+      const runtimeDomEntry = resolveRuntimeDOMEntry(userConfig.root)
+
       return {
-        oxc: {
-          jsx: 'preserve',
-        },
-        esbuild: {
-          jsx: 'preserve',
-        },
+        ...((await isRolldownVite())
+          ? {
+              oxc: {
+                jsx: 'preserve',
+              },
+            }
+          : {
+              esbuild: {
+                jsx: 'preserve',
+              },
+            }),
         resolve: {
+          alias: runtimeDomEntry
+            ? {
+                '@zeus-js/runtime-dom': runtimeDomEntry,
+              }
+            : undefined,
           dedupe: ['@zeus-js/signal', '@zeus-js/runtime-dom', '@zeus-js/zeus'],
         },
-      }
+      } satisfies UserConfig
     },
 
     async transform(code, id) {
@@ -91,4 +106,44 @@ function shouldTransform(
 ): boolean {
   if (exclude.some(pattern => pattern.test(id))) return false
   return include.some(pattern => pattern.test(id))
+}
+
+async function isRolldownVite(): Promise<boolean> {
+  try {
+    const vite = (await import('vite')) as Record<string, unknown>
+
+    return (
+      typeof vite.rolldownVersion === 'string' ||
+      typeof vite.transformWithOxc === 'function'
+    )
+  } catch {
+    return false
+  }
+}
+
+function resolveRuntimeDOMEntry(root: string | undefined): string | undefined {
+  const projectRoot = path.resolve(process.cwd(), root ?? '.')
+  const requireFromProject = createRequire(
+    path.join(projectRoot, 'package.json'),
+  )
+
+  try {
+    return requireFromProject.resolve(
+      '@zeus-js/runtime-dom/dist/runtime-dom.esm-bundler.js',
+    )
+  } catch {
+    // The common app shape depends only on @zeus-js/zeus. Compiler output still
+    // imports runtime helpers directly, so resolve runtime-dom through Zeus.
+  }
+
+  try {
+    const zeusEntry = requireFromProject.resolve('@zeus-js/zeus')
+    const requireFromZeus = createRequire(zeusEntry)
+
+    return requireFromZeus.resolve(
+      '@zeus-js/runtime-dom/dist/runtime-dom.esm-bundler.js',
+    )
+  } catch {
+    return undefined
+  }
 }

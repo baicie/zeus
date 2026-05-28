@@ -214,7 +214,16 @@ function createConfig(
       return [
         ...Object.keys(pkg.dependencies || {}),
         ...Object.keys(pkg.peerDependencies || {}),
-        ...['path', 'url', 'stream'],
+        ...[
+          'module',
+          'path',
+          'stream',
+          'url',
+          'node:module',
+          'node:path',
+          'node:stream',
+          'node:url',
+        ],
         // somehow these throw warnings for runtime-* package builds
         ...treeShakenDeps,
       ]

@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "jsx": "preserve",
+    "jsxImportSource": "@zeus-js/zeus",
+    "types": ["@zeus-js/zeus/jsx"],
+    "paths": {
+      "@zeus-js/zeus": ["../../packages/zeus/src/index.ts"],
+      "@zeus-js/runtime-dom": ["../../packages/runtime-dom/src/index.ts"],
+      "@zeus-js/signal": ["../../packages/signal/src/index.ts"],
+      "@zeus-js/shared": ["../../packages/shared/src/index.ts"]
+    },
+    "skipLibCheck": true
+  },
+  "include": ["src", "../../packages/global.d.ts"]
+}

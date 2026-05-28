@@ -27,6 +27,7 @@
     "release": "pnpm build && pnpm build-dts && changeset publish",
     "create-zeus:build": "pnpm -F create-zeus build",
     "examples:check": "pnpm -r --filter './examples/**' check",
+    "examples:check:all": "tsx scripts/check-examples.ts",
     "playground": "pnpm -F @zeus-js/playground dev",
     "playground:solidjs": "pnpm -F @zeus-js/playground-solidjs dev",
     "preinstall": "npx only-allow pnpm",

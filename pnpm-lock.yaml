@@ -210,6 +210,22 @@ importers:
         specifier: ^8.0.14
         version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0)
 
+  examples/project-board:
+    dependencies:
+      '@zeus-js/zeus':
+        specifier: workspace:*
+        version: link:../../packages/zeus
+    devDependencies:
+      '@zeus-js/vite-plugin':
+        specifier: workspace:*
+        version: link:../../packages/vite-plugin
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: 'catalog:'
+        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0)
+
   examples/todo:
     dependencies:
       '@zeus-js/runtime-dom':

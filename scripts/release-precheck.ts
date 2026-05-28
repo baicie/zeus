@@ -16,7 +16,7 @@ const steps: Array<[string, string[]]> = [
   ['pnpm', ['check']],
   ['pnpm', ['lint']],
   ['pnpm', ['test-unit']],
-  ['pnpm', ['examples:check']],
+  ['pnpm', ['examples:check:all']],
   ['pnpm', ['docs:build']],
   ['pnpm', ['size:ci']],
   ['pnpm', ['check:exports']],
