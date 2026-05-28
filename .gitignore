@@ -47,3 +47,7 @@ temp
 # Playground
 playground/compiler/src/output
 playground/solidjs/src/output
+
+# Docs
+docs/.vitepress/.temp
+docs/.vitepress/cache

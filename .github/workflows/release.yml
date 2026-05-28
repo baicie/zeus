@@ -9,6 +9,9 @@ concurrency:
   group: release
   cancel-in-progress: false
 
+env:
+  PUPPETEER_SKIP_DOWNLOAD: 'true'
+
 jobs:
   release:
     if: github.repository == 'baicie/zeus'
@@ -29,9 +32,13 @@ jobs:
         with:
           node-version-file: '.node-version'
           registry-url: 'https://registry.npmjs.org'
+          cache: 'pnpm'
 
       - name: Install deps
         run: pnpm install --frozen-lockfile
+
+      - name: Release precheck
+        run: pnpm release:precheck
 
       - name: Extract version from tag
         run: |
@@ -39,9 +46,9 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Build and publish
-        run: pnpm release --publishOnly ${{ env.VERSION }}
+        run: pnpm release --publishOnly ${{ env.VERSION }} --skipBuild
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub Release
         uses: yyx990803/release-tag@8cccf7c5aa332d71d222df46677f70f77a8d2dc0

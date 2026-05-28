@@ -3,6 +3,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'Zeus',
   description: 'Compiler-first fine-grained UI framework',
+  base: '/zeus/',
 
   srcExclude: ['internal/**'],
 
