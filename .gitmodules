@@ -1,6 +1,0 @@
-[submodule "vendor/solid"]
-	path = vendor/solid
-	url = https://github.com/ryansolid/solid.git
-[submodule "vendor/dom-expressions"]
-	path = vendor/dom-expressions
-	url = https://github.com/ryansolid/dom-expressions.git
