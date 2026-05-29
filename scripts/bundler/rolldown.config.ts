@@ -29,7 +29,7 @@ const masterVersion = require('../../package.json').version
 
 const rootDir = path.resolve(__dirname, '..', '..')
 // Try all package categories to find the package
-const categories = ['core', 'packages']
+const categories = ['packages', 'addons']
 let packageDir: string | null = null
 for (const cat of categories) {
   const candidate = path.resolve(rootDir, cat, process.env.TARGET!)
@@ -40,7 +40,7 @@ for (const cat of categories) {
 }
 if (!packageDir) {
   throw new Error(
-    `Package not found: ${process.env.TARGET}. Checked core/*/${process.env.TARGET} and packages/*/${process.env.TARGET}`,
+    `Package not found: ${process.env.TARGET}. Checked packages/*/${process.env.TARGET} and addons/*/${process.env.TARGET}`,
   )
 }
 const resolve = (p: string) => path.resolve(packageDir!, p)

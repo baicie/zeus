@@ -13,27 +13,27 @@ type SizeTarget = {
 const targets: SizeTarget[] = [
   {
     name: '@zeus-js/signal',
-    file: 'signal/dist/signal.esm-browser.prod.js',
+    file: 'dist/signal.esm-browser.prod.js',
     limit: 22,
   },
   {
     name: '@zeus-js/runtime-dom',
-    file: 'runtime-dom/dist/runtime-dom.esm-browser.prod.js',
+    file: 'dist/runtime-dom.esm-browser.prod.js',
     limit: 32,
   },
   {
     name: '@zeus-js/zeus',
-    file: 'zeus/dist/zeus.esm-browser.prod.js',
+    file: 'dist/zeus.esm-browser.prod.js',
     limit: 30,
   },
   {
     name: '@zeus-js/compiler',
-    file: 'compiler/dist/compiler.esm-bundler.js',
+    file: 'dist/compiler.esm-bundler.js',
     limit: 400,
   },
   {
     name: '@zeus-js/vite-plugin',
-    file: 'vite-plugin/dist/vite-plugin.esm-bundler.js',
+    file: 'dist/vite-plugin.esm-bundler.js',
     limit: 10,
   },
 ]

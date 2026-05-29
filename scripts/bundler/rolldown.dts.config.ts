@@ -37,7 +37,7 @@ const packageConfigs: RolldownOptions[] = targetPackages.map(pkg => {
     throw new Error(`Cannot resolve directory for package: ${pkg}`)
   }
 
-  // tsconfig outDir="temp" + include paths -> d.ts at temp/{core,packages}/<pkg>/src/index.d.ts
+  // tsconfig outDir="temp" + include paths -> d.ts at temp/{packages,addons}/<pkg>/src/index.d.ts
   const [category] = relativeDir.split('/')
   const inputDts = `./temp/${category}/${pkg}/src/index.d.ts`
 

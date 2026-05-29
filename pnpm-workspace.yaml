@@ -1,6 +1,6 @@
 packages:
-  - 'core/*'
   - 'packages/*'
+  - 'addons/*'
   - 'examples/*'
   - 'docs'
 

@@ -8,12 +8,12 @@
     "jsxImportSource": "@zeus-js/zeus",
     "types": ["@zeus-js/zeus/jsx"],
     "paths": {
-      "@zeus-js/zeus": ["../../core/zeus/src/index.ts"],
-      "@zeus-js/runtime-dom": ["../../core/runtime-dom/src/index.ts"],
-      "@zeus-js/signal": ["../../core/signal/src/index.ts"],
-      "@zeus-js/shared": ["../../core/shared/src/index.ts"]
+      "@zeus-js/zeus": ["../../packages/zeus/src/index.ts"],
+      "@zeus-js/runtime-dom": ["../../packages/runtime-dom/src/index.ts"],
+      "@zeus-js/signal": ["../../packages/signal/src/index.ts"],
+      "@zeus-js/shared": ["../../packages/shared/src/index.ts"]
     },
     "skipLibCheck": true
   },
-  "include": ["src", "../../core/global.d.ts"]
+  "include": ["src", "../../packages/global.d.ts"]
 }

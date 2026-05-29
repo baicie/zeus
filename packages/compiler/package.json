@@ -29,7 +29,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/baicie/zeus.git",
-    "directory": "core/compiler"
+    "directory": "packages/compiler"
   },
   "buildOptions": {
     "name": "ZeusCompiler",

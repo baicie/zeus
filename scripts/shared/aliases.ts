@@ -8,12 +8,12 @@ const rootDir = path.resolve(__dirname, '..', '..')
 
 /**
  * Generate alias entries for all workspace packages.
- * Searches core/* and packages/* directories.
+ * Searches packages/* and addons/* directories.
  */
 const generateEntries = (): Record<string, string> => {
   const entries: Record<string, string> = {}
 
-  for (const topDir of ['core', 'packages']) {
+  for (const topDir of ['packages', 'addons']) {
     const topPath = path.resolve(rootDir, topDir)
     if (!statSync(topPath).isDirectory()) continue
 

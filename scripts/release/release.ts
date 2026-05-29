@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
@@ -41,7 +42,7 @@ const currentVersion =
   rootPkg.version ||
   JSON.parse(
     fs.readFileSync(
-      path.resolve(__dirname, '../../core/zeus/package.json'),
+      path.resolve(__dirname, '../../packages/zeus/package.json'),
       'utf-8',
     ),
   ).version
@@ -110,7 +111,12 @@ const getPkgRoot = (pkgName: string) => {
   if (pkg) {
     return pkg.dir
   }
-  // Fallback: create-zeus is at packages/create-zeus
+  // Fallback: try addons/<shortName>
+  const addonPath = path.resolve(__dirname, '../../addons', shortName)
+  if (existsSync(path.resolve(addonPath, 'package.json'))) {
+    return addonPath
+  }
+  // Fallback: try packages/<shortName>
   return path.resolve(__dirname, '../../packages', shortName)
 }
 
@@ -172,7 +178,7 @@ async function main() {
 
   const finalVersion = JSON.parse(
     fs.readFileSync(
-      path.resolve(__dirname, '../../core/zeus/package.json'),
+      path.resolve(__dirname, '../../packages/zeus/package.json'),
       'utf-8',
     ),
   ).version

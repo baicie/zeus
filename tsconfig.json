@@ -22,18 +22,16 @@
     "rootDir": ".",
     "paths": {
       "*": ["./*"],
-      "@zeus-js/*": ["./core/*/src", "./packages/*/src"]
+      "@zeus-js/*": ["./packages/*/src"]
     },
     "composite": true
   },
   "include": [
-    "core/global.d.ts",
-    "core/*/src",
-    "core/*/__tests__",
+    "packages/global.d.ts",
     "packages/*/src",
     "packages/*/__tests__",
-    "core/zeus/jsx-runtime",
-    "core/runtime-dom/types/jsx.d.ts",
+    "addons/*/src",
+    "addons/*/__tests__",
     "scripts/**/*.ts"
   ],
   "exclude": []

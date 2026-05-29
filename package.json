@@ -8,7 +8,7 @@
     "dev": "tsx scripts/bundler/build.ts --watch",
     "build": "tsx scripts/bundler/build.ts",
     "build-dts": "tsc -p tsconfig.build.json --noCheck && rolldown -c ./scripts/bundler/rolldown.dts.config.ts",
-    "clean": "rimraf --glob 'core/*/dist' --glob 'packages/*/dist' temp .eslintcache",
+    "clean": "rimraf --glob 'packages/*/dist' --glob 'addons/*/dist' temp .eslintcache",
     "check": "tsc --incremental --noEmit",
     "check:exports": "tsx scripts/check/check-package-exports.ts",
     "lint": "eslint --cache .",

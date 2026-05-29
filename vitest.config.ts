@@ -7,15 +7,15 @@ const testProjects = [
   {
     name: 'unit',
     include: [
-      'core/**/*.{test,spec}.{ts,tsx}',
       'packages/**/*.{test,spec}.{ts,tsx}',
+      'addons/**/*.{test,spec}.{ts,tsx}',
     ],
   },
   {
     name: 'bench',
     include: [
-      'core/**/__benchmarks__/*.bench.ts',
       'packages/**/__benchmarks__/*.bench.ts',
+      'addons/**/__benchmarks__/*.bench.ts',
     ],
   },
 ]
@@ -33,7 +33,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
-      include: ['core/*/src/**', 'packages/*/src/**'],
+      include: ['packages/*/src/**', 'addons/*/src/**'],
     },
     projects: testProjects.map(project => ({
       extends: true,

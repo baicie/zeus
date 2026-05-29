@@ -100,7 +100,7 @@ export default defineConfig(
   // ============================================
   {
     name: 'shared-package',
-    files: ['core/shared/**', 'eslint.config.js'],
+    files: ['packages/shared/**', 'eslint.config.js'],
     rules: {
       'no-restricted-globals': 'off',
     },
@@ -127,8 +127,8 @@ export default defineConfig(
       'rollup*.config.js',
       'scripts/**',
       './*.{js,ts}',
-      'core/*/*.js',
       'packages/*/*.js',
+      'addons/*/*.js',
     ],
     rules: {
       'no-restricted-globals': 'off',
@@ -142,7 +142,7 @@ export default defineConfig(
   // ============================================
   {
     name: 'global-declarations',
-    files: ['core/global.d.ts'],
+    files: ['packages/global.d.ts'],
     rules: {
       'no-unused-vars': 'off',
     },
@@ -153,7 +153,7 @@ export default defineConfig(
   // ============================================
   {
     name: 'signal-package',
-    files: ['core/signal/**'],
+    files: ['packages/signal/**'],
     extends: [tseslint.configs.base],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',

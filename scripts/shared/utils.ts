@@ -35,12 +35,12 @@ export function getRootDir(): string {
 
 /**
  * Find all workspace packages with a package.json.
- * Searches core/* and packages/* directories.
+ * Searches packages/* and addons/* directories.
  */
 export function findWorkspacePackages(): WorkspacePackage[] {
   const results: WorkspacePackage[] = []
 
-  for (const topDir of ['core', 'packages']) {
+  for (const topDir of ['packages', 'addons']) {
     const topPath = path.resolve(_rootDir, topDir)
     if (!fs.existsSync(topPath)) continue
 

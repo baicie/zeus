@@ -153,7 +153,210 @@ importers:
         specifier: ^4.1.7
         version: 4.1.7(@types/node@25.9.1)(@vitest/coverage-v8@4.1.7)(jsdom@29.1.1)(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0))
 
-  core/compiler:
+  addons/create-zeus:
+    dependencies:
+      '@clack/prompts':
+        specifier: ^1.4.0
+        version: 1.4.0
+      picocolors:
+        specifier: ^1.1.1
+        version: 1.1.1
+    devDependencies:
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(postcss@8.5.15)(tsx@4.22.3)(typescript@6.0.3)(yaml@2.9.0)
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
+  addons/vite-plugin:
+    dependencies:
+      '@babel/core':
+        specifier: 'catalog:'
+        version: 7.29.0
+      '@zeus-js/compiler':
+        specifier: workspace:*
+        version: link:../../packages/compiler
+      vite:
+        specifier: 'catalog:'
+        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0)
+    devDependencies:
+      '@types/babel__core':
+        specifier: 'catalog:'
+        version: 7.20.5
+
+  docs:
+    devDependencies:
+      vitepress:
+        specifier: ^1.6.4
+        version: 1.6.4(@algolia/client-search@5.52.1)(@types/node@25.9.1)(lightningcss@1.32.0)(postcss@8.5.15)(search-insights@2.17.3)(typescript@6.0.3)
+
+  examples/compiler:
+    dependencies:
+      '@zeus-js/compiler':
+        specifier: workspace:*
+        version: link:../../packages/compiler
+    devDependencies:
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
+  examples/context:
+    dependencies:
+      '@zeus-js/runtime-dom':
+        specifier: workspace:*
+        version: link:../../packages/runtime-dom
+      '@zeus-js/zeus':
+        specifier: workspace:*
+        version: link:../../packages/zeus
+    devDependencies:
+      '@zeus-js/vite-plugin':
+        specifier: workspace:*
+        version: link:../../addons/vite-plugin
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: ^8.0.14
+        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0)
+
+  examples/counter:
+    dependencies:
+      '@zeus-js/runtime-dom':
+        specifier: workspace:*
+        version: link:../../packages/runtime-dom
+      '@zeus-js/zeus':
+        specifier: workspace:*
+        version: link:../../packages/zeus
+    devDependencies:
+      '@zeus-js/vite-plugin':
+        specifier: workspace:*
+        version: link:../../addons/vite-plugin
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: ^8.0.14
+        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0)
+
+  examples/light-dom-slots:
+    dependencies:
+      '@zeus-js/runtime-dom':
+        specifier: workspace:*
+        version: link:../../packages/runtime-dom
+      '@zeus-js/zeus':
+        specifier: workspace:*
+        version: link:../../packages/zeus
+    devDependencies:
+      '@zeus-js/vite-plugin':
+        specifier: workspace:*
+        version: link:../../addons/vite-plugin
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: ^8.0.14
+        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0)
+
+  examples/project-board:
+    dependencies:
+      '@zeus-js/zeus':
+        specifier: workspace:*
+        version: link:../../packages/zeus
+    devDependencies:
+      '@zeus-js/vite-plugin':
+        specifier: workspace:*
+        version: link:../../addons/vite-plugin
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: 'catalog:'
+        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0)
+
+  examples/render-demo:
+    dependencies:
+      '@zeus-js/compiler':
+        specifier: workspace:*
+        version: link:../../packages/compiler
+      '@zeus-js/runtime-dom':
+        specifier: workspace:*
+        version: link:../../packages/runtime-dom
+      '@zeus-js/zeus':
+        specifier: workspace:*
+        version: link:../../packages/zeus
+    devDependencies:
+      '@babel/core':
+        specifier: 'catalog:'
+        version: 7.29.0
+      '@types/babel__core':
+        specifier: 'catalog:'
+        version: 7.20.5
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: 'catalog:'
+        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0)
+
+  examples/todo:
+    dependencies:
+      '@zeus-js/runtime-dom':
+        specifier: workspace:*
+        version: link:../../packages/runtime-dom
+      '@zeus-js/zeus':
+        specifier: workspace:*
+        version: link:../../packages/zeus
+    devDependencies:
+      '@zeus-js/vite-plugin':
+        specifier: workspace:*
+        version: link:../../addons/vite-plugin
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: ^8.0.14
+        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0)
+
+  examples/web-component:
+    dependencies:
+      '@zeus-js/runtime-dom':
+        specifier: workspace:*
+        version: link:../../packages/runtime-dom
+      '@zeus-js/zeus':
+        specifier: workspace:*
+        version: link:../../packages/zeus
+    devDependencies:
+      '@zeus-js/vite-plugin':
+        specifier: workspace:*
+        version: link:../../addons/vite-plugin
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: ^8.0.14
+        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0)
+
+  examples/zeus-app:
+    dependencies:
+      '@zeus-js/runtime-dom':
+        specifier: workspace:*
+        version: link:../../packages/runtime-dom
+      '@zeus-js/zeus':
+        specifier: workspace:*
+        version: link:../../packages/zeus
+    devDependencies:
+      '@zeus-js/vite-plugin':
+        specifier: workspace:*
+        version: link:../../addons/vite-plugin
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: 'catalog:'
+        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0)
+
+  packages/compiler:
     dependencies:
       '@babel/helper-plugin-utils':
         specifier: ^7.29.7
@@ -181,15 +384,15 @@ importers:
         specifier: ^7.10.3
         version: 7.10.3
 
-  core/runtime-dom:
+  packages/runtime-dom:
     dependencies:
       '@zeus-js/signal':
         specifier: workspace:*
         version: link:../signal
 
-  core/shared: {}
+  packages/shared: {}
 
-  core/signal:
+  packages/signal:
     dependencies:
       '@zeus-js/shared':
         specifier: workspace:*
@@ -198,7 +401,7 @@ importers:
         specifier: ^3.2.1
         version: 3.2.1
 
-  core/zeus:
+  packages/zeus:
     dependencies:
       '@zeus-js/runtime-dom':
         specifier: workspace:*
@@ -206,209 +409,6 @@ importers:
       '@zeus-js/signal':
         specifier: workspace:*
         version: link:../signal
-
-  docs:
-    devDependencies:
-      vitepress:
-        specifier: ^1.6.4
-        version: 1.6.4(@algolia/client-search@5.52.1)(@types/node@25.9.1)(lightningcss@1.32.0)(postcss@8.5.15)(search-insights@2.17.3)(typescript@6.0.3)
-
-  examples/compiler:
-    dependencies:
-      '@zeus-js/compiler':
-        specifier: workspace:*
-        version: link:../../core/compiler
-    devDependencies:
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-
-  examples/context:
-    dependencies:
-      '@zeus-js/runtime-dom':
-        specifier: workspace:*
-        version: link:../../core/runtime-dom
-      '@zeus-js/zeus':
-        specifier: workspace:*
-        version: link:../../core/zeus
-    devDependencies:
-      '@zeus-js/vite-plugin':
-        specifier: workspace:*
-        version: link:../../packages/vite-plugin
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vite:
-        specifier: ^8.0.14
-        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0)
-
-  examples/counter:
-    dependencies:
-      '@zeus-js/runtime-dom':
-        specifier: workspace:*
-        version: link:../../core/runtime-dom
-      '@zeus-js/zeus':
-        specifier: workspace:*
-        version: link:../../core/zeus
-    devDependencies:
-      '@zeus-js/vite-plugin':
-        specifier: workspace:*
-        version: link:../../packages/vite-plugin
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vite:
-        specifier: ^8.0.14
-        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0)
-
-  examples/light-dom-slots:
-    dependencies:
-      '@zeus-js/runtime-dom':
-        specifier: workspace:*
-        version: link:../../core/runtime-dom
-      '@zeus-js/zeus':
-        specifier: workspace:*
-        version: link:../../core/zeus
-    devDependencies:
-      '@zeus-js/vite-plugin':
-        specifier: workspace:*
-        version: link:../../packages/vite-plugin
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vite:
-        specifier: ^8.0.14
-        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0)
-
-  examples/project-board:
-    dependencies:
-      '@zeus-js/zeus':
-        specifier: workspace:*
-        version: link:../../core/zeus
-    devDependencies:
-      '@zeus-js/vite-plugin':
-        specifier: workspace:*
-        version: link:../../packages/vite-plugin
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vite:
-        specifier: 'catalog:'
-        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0)
-
-  examples/render-demo:
-    dependencies:
-      '@zeus-js/compiler':
-        specifier: workspace:*
-        version: link:../../core/compiler
-      '@zeus-js/runtime-dom':
-        specifier: workspace:*
-        version: link:../../core/runtime-dom
-      '@zeus-js/zeus':
-        specifier: workspace:*
-        version: link:../../core/zeus
-    devDependencies:
-      '@babel/core':
-        specifier: 'catalog:'
-        version: 7.29.0
-      '@types/babel__core':
-        specifier: 'catalog:'
-        version: 7.20.5
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vite:
-        specifier: 'catalog:'
-        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0)
-
-  examples/todo:
-    dependencies:
-      '@zeus-js/runtime-dom':
-        specifier: workspace:*
-        version: link:../../core/runtime-dom
-      '@zeus-js/zeus':
-        specifier: workspace:*
-        version: link:../../core/zeus
-    devDependencies:
-      '@zeus-js/vite-plugin':
-        specifier: workspace:*
-        version: link:../../packages/vite-plugin
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vite:
-        specifier: ^8.0.14
-        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0)
-
-  examples/web-component:
-    dependencies:
-      '@zeus-js/runtime-dom':
-        specifier: workspace:*
-        version: link:../../core/runtime-dom
-      '@zeus-js/zeus':
-        specifier: workspace:*
-        version: link:../../core/zeus
-    devDependencies:
-      '@zeus-js/vite-plugin':
-        specifier: workspace:*
-        version: link:../../packages/vite-plugin
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vite:
-        specifier: ^8.0.14
-        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0)
-
-  examples/zeus-app:
-    dependencies:
-      '@zeus-js/runtime-dom':
-        specifier: workspace:*
-        version: link:../../core/runtime-dom
-      '@zeus-js/zeus':
-        specifier: workspace:*
-        version: link:../../core/zeus
-    devDependencies:
-      '@zeus-js/vite-plugin':
-        specifier: workspace:*
-        version: link:../../packages/vite-plugin
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vite:
-        specifier: 'catalog:'
-        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0)
-
-  packages/create-zeus:
-    dependencies:
-      '@clack/prompts':
-        specifier: ^1.4.0
-        version: 1.4.0
-      picocolors:
-        specifier: ^1.1.1
-        version: 1.1.1
-    devDependencies:
-      tsup:
-        specifier: ^8.5.1
-        version: 8.5.1(postcss@8.5.15)(tsx@4.22.3)(typescript@6.0.3)(yaml@2.9.0)
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-
-  packages/vite-plugin:
-    dependencies:
-      '@babel/core':
-        specifier: 'catalog:'
-        version: 7.29.0
-      '@zeus-js/compiler':
-        specifier: workspace:*
-        version: link:../../core/compiler
-      vite:
-        specifier: 'catalog:'
-        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0)
-    devDependencies:
-      '@types/babel__core':
-        specifier: 'catalog:'
-        version: 7.20.5
 
 packages:
 
