@@ -1,6 +1,6 @@
 // packages/runtime-dom/src/defineElement.ts
 
-import { onScopeDispose, state } from '@zeus-js/signal'
+import { state } from '@zeus-js/signal'
 
 import { createOwner, resolveDOMContext, runWithOwner } from './context'
 import { withHostContext } from './hostContext'
@@ -149,11 +149,6 @@ export function defineElement<
       )
 
       mountStyles(target, options.styles)
-
-      onScopeDispose(() => {
-        this.dispose?.()
-        this.dispose = undefined
-      }, true)
     }
 
     disconnectedCallback(): void {

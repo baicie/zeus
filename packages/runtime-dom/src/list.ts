@@ -123,7 +123,7 @@ function mountKeyedFor<T, K>(
       moveRangeBefore(record.nodes, parent, anchor)
     }
 
-    emitDevtoolsEvent({ type: 'mount-for', length: records.length })
+    emitDevtoolsEvent({ type: 'mount-for', length: nextRecords.length })
 
     records = nextRecords
   })
