@@ -25,8 +25,6 @@ if (!process.env.TARGET) {
 const require = createRequire(import.meta.url)
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
-const masterVersion = require('../../package.json').version
-
 const rootDir = path.resolve(__dirname, '..', '..')
 // Try all package categories to find the package
 const categories = ['packages', 'addons']
@@ -48,8 +46,10 @@ const pkg = require(resolve('package.json'))
 const packageOptions = pkg.buildOptions || {}
 const name = path.basename(packageDir!)
 
+const packageVersion = pkg.version
+
 const banner = `/**
-* ${name} v${masterVersion}
+* ${name} v${packageVersion}
 * (c) ${new Date().getFullYear()} baicie
 * Released under the MIT License.
 **/`
@@ -152,7 +152,7 @@ function createConfig(
   function resolveDefine() {
     const replacements: Record<string, string> = {
       __COMMIT__: `"${process.env.COMMIT}"`,
-      __VERSION__: `"${masterVersion}"`,
+      __VERSION__: `"${packageVersion}"`,
       __TEST__: `false`,
       // If the build is expected to run directly in the browser (global / esm builds)
       __BROWSER__: String(isBrowserBuild),

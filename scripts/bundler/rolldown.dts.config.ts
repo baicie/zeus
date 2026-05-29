@@ -17,7 +17,10 @@ if (!existsSync('temp/packages')) {
 }
 
 // Discover which packages were built, matching temp output to workspace packages
-const tempPkgs = readdirSync('temp/packages')
+const tempRoots = ['temp/packages', 'temp/addons']
+const tempPkgs = tempRoots.flatMap(root =>
+  existsSync(root) ? readdirSync(root) : [],
+)
 const wsPkgs = findWorkspacePackages()
 const wsPkgsByShort = new Map(wsPkgs.map(p => [p.shortName, p]))
 

@@ -1,31 +1,17 @@
-import { readdirSync, statSync } from 'node:fs'
 import * as path from 'node:path'
-import { fileURLToPath } from 'node:url'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-const rootDir = path.resolve(__dirname, '..', '..')
+import { findWorkspacePackages } from './utils'
 
 /**
  * Generate alias entries for all workspace packages.
- * Searches packages/* and addons/* directories.
+ * Uses findWorkspacePackages() to avoid duplicating directory scanning logic.
  */
 const generateEntries = (): Record<string, string> => {
   const entries: Record<string, string> = {}
 
-  for (const topDir of ['packages', 'addons']) {
-    const topPath = path.resolve(rootDir, topDir)
-    if (!statSync(topPath).isDirectory()) continue
-
-    for (const dir of readdirSync(topPath)) {
-      const fullDir = path.resolve(topPath, dir)
-      if (!statSync(fullDir).isDirectory()) continue
-
-      const key = `@zeus-js/${dir}`
-      if (key in entries) continue
-
-      entries[key] = path.resolve(fullDir, 'src', 'index.ts')
-    }
+  for (const pkg of findWorkspacePackages()) {
+    if (pkg.name in entries) continue
+    entries[pkg.name] = path.resolve(pkg.dir, 'src', 'index.ts')
   }
 
   return entries

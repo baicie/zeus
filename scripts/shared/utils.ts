@@ -56,7 +56,12 @@ export function findWorkspacePackages(): WorkspacePackage[] {
           shortName: name,
           packageJson,
         })
-      } catch {}
+      } catch (error) {
+        throw Object.assign(
+          new Error(`Failed to read workspace package: ${pkgJsonPath}`),
+          { cause: error },
+        )
+      }
     }
   }
 
