@@ -47,7 +47,7 @@ const IGNORED_PATTERNS = [
   '**/coverage/',
   'target',
   'vendor/**',
-  'playground/**',
+  'examples/**',
 ]
 
 // 全局声明 - 由构建工具注入
@@ -128,20 +128,13 @@ export default defineConfig(
       'scripts/**',
       './*.{js,ts}',
       'packages/*/*.js',
+      'addons/*/*.js',
     ],
     rules: {
       'no-restricted-globals': 'off',
       'no-console': 'off',
       'no-unused-vars': 'off',
     },
-  },
-
-  // ============================================
-  // 忽略文件
-  // ============================================
-  {
-    name: 'ignores',
-    ignores: IGNORED_PATTERNS,
   },
 
   // ============================================
@@ -156,7 +149,7 @@ export default defineConfig(
   },
 
   // ============================================
-  // Signal 包 - 允许使用 any，关闭未使用变量检查
+  // Signal 包 - enum 值由构建时内联，关闭未使用变量检查
   // ============================================
   {
     name: 'signal-package',
@@ -178,5 +171,13 @@ export default defineConfig(
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
     },
+  },
+
+  // ============================================
+  // 忽略文件
+  // ============================================
+  {
+    name: 'ignores',
+    ignores: IGNORED_PATTERNS,
   },
 )

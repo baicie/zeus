@@ -8,10 +8,11 @@
     "composite": false
   },
   "include": [
-    "packages/global.d.ts",
-    "packages/zeus/src",
+    "packages/shared/src",
     "packages/signal/src",
+    "packages/runtime-dom/src",
     "packages/compiler/src",
-    "packages/vite-plugin/src"
+    "packages/zeus/src",
+    "addons/vite-plugin/src"
   ]
 }

@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
@@ -7,7 +8,7 @@ import enquirer from 'enquirer'
 import pico from 'picocolors'
 import semver from 'semver'
 
-import { exec } from '../shared/utils'
+import { exec, findWorkspacePackages } from '../shared/utils'
 
 interface ExecResult {
   ok: boolean
@@ -18,24 +19,32 @@ interface ExecResult {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-const rootPkgPath = path.resolve(__dirname, '../../package.json')
-const rootPkg = JSON.parse(fs.readFileSync(rootPkgPath, 'utf-8'))
-const currentVersion =
-  rootPkg.version ||
-  JSON.parse(
-    fs.readFileSync(
-      path.resolve(__dirname, '../../packages/zeus/package.json'),
-      'utf-8',
-    ),
-  ).version
-
 const changesetConfig = JSON.parse(
   fs.readFileSync(
     path.resolve(__dirname, '../../.changeset/config.json'),
     'utf-8',
   ),
 )
-const linkedGroups: string[][] = changesetConfig.linked || []
+
+// Collect packages in the fixed groups
+const fixedGroupPackages: string[] = []
+for (const group of changesetConfig.fixed || []) {
+  for (const pkg of group) {
+    if (!fixedGroupPackages.includes(pkg)) {
+      fixedGroupPackages.push(pkg)
+    }
+  }
+}
+
+const rootPkgPath = path.resolve(__dirname, '../../package.json')
+const currentVersion = JSON.parse(
+  fs.readFileSync(
+    path.resolve(__dirname, '../../packages/zeus/package.json'),
+    'utf-8',
+  ),
+).version
+
+const changesetIgnore = new Set<string>(changesetConfig.ignore || [])
 
 const { values: args, positionals } = parseArgs({
   allowPositionals: true,
@@ -60,8 +69,6 @@ const isDryRun = args.dry
 const skipBuild = args.skipBuild
 const skipPrompts = args.skipPrompts
 const skipGit = args.skipGit
-
-const packages = linkedGroups[0] || []
 
 const versionIncrements: Array<string> = [
   'patch',
@@ -93,9 +100,21 @@ const dryRun = async (bin: string, binArgs: string[], opts: object = {}) =>
 
 const runIfNotDry = isDryRun ? dryRun : run
 
-const getPkgRoot = (pkg: string) => {
-  const scopedName = pkg.replace('@zeus-js/', '')
-  return path.resolve(__dirname, '../../packages/' + scopedName)
+const getPkgRoot = (pkgName: string) => {
+  const shortName = pkgName.replace('@zeus-js/', '')
+  // Find the package in workspace
+  const wsPkgs = findWorkspacePackages()
+  const pkg = wsPkgs.find(p => p.name === pkgName || p.shortName === shortName)
+  if (pkg) {
+    return pkg.dir
+  }
+  // Fallback: try addons/<shortName>
+  const addonPath = path.resolve(__dirname, '../../addons', shortName)
+  if (existsSync(path.resolve(addonPath, 'package.json'))) {
+    return addonPath
+  }
+  // Fallback: try packages/<shortName>
+  return path.resolve(__dirname, '../../packages', shortName)
 }
 
 const step = (msg: string) => console.log(pico.cyan(msg))
@@ -148,7 +167,7 @@ async function main() {
 
   step('\nGenerating changelog...')
   const changesetPath = path.resolve(__dirname, '../../.changeset/release.md')
-  const changesetBody = `---\n${packages
+  const changesetBody = `---\n${fixedGroupPackages
     .map(p => `"${p}": ${getBumpType(targetVersion)}`)
     .join('\n')}\n---\n\nRelease v${targetVersion}\n`
   fs.writeFileSync(changesetPath, changesetBody)
@@ -225,14 +244,17 @@ async function publishPackages(version: string) {
     additionalFlags.push('--no-git-checks')
   if (process.env.CI && !args.registry) additionalFlags.push('--provenance')
 
-  let releaseTag: string | null = null
-  if (args.tag) releaseTag = args.tag
-  else if (version.includes('alpha')) releaseTag = 'alpha'
-  else if (version.includes('beta')) releaseTag = 'beta'
-  else if (version.includes('rc')) releaseTag = 'rc'
+  const packages = findWorkspacePackages().filter(
+    pkg =>
+      !pkg.packageJson.private &&
+      !changesetIgnore.has(pkg.name) &&
+      !changesetIgnore.has(pkg.shortName),
+  )
 
   for (const pkg of packages) {
-    await publishPackage(pkg, version, releaseTag, additionalFlags)
+    const pkgVersion = pkg.packageJson.version as string
+    const pkgTag = resolveReleaseTag(pkgVersion)
+    await publishPackage(pkg.name, pkgVersion, pkgTag, additionalFlags)
   }
 }
 
@@ -242,7 +264,7 @@ async function publishPackage(
   releaseTag: string | null,
   additionalFlags: string[],
 ) {
-  step(`Publishing ${pkgName}...`)
+  step(`Publishing ${pkgName}@${version}...`)
   try {
     const publishArgs = [
       'publish',
@@ -285,6 +307,14 @@ async function publishOnly() {
 }
 
 const fnToRun = args.publishOnly ? publishOnly : main
+
+function resolveReleaseTag(pkgVersion: string): string | null {
+  if (args.tag) return args.tag
+  if (pkgVersion.includes('alpha')) return 'alpha'
+  if (pkgVersion.includes('beta')) return 'beta'
+  if (pkgVersion.includes('rc')) return 'rc'
+  return null
+}
 
 fnToRun().catch(err => {
   console.error(err)

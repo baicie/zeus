@@ -1,6 +1,8 @@
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import { createRequire } from 'node:module'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import pico from 'picocolors'
 
@@ -17,19 +19,78 @@ export type PackageFormat =
 
 const require = createRequire(import.meta.url)
 
-export const targets: string[] = fs.readdirSync('packages').filter(f => {
-  if (
-    !fs.statSync(`packages/${f}`).isDirectory() ||
-    !fs.existsSync(`packages/${f}/package.json`)
-  ) {
-    return false
+export interface WorkspacePackage {
+  name: string
+  dir: string
+  relativeDir: string
+  shortName: string
+  packageJson: Record<string, unknown>
+}
+
+const _rootDir = path.resolve(fileURLToPath(new URL('../..', import.meta.url)))
+
+export function getRootDir(): string {
+  return _rootDir
+}
+
+/**
+ * Find all workspace packages with a package.json.
+ * Searches packages/* and addons/* directories.
+ */
+export function findWorkspacePackages(): WorkspacePackage[] {
+  const results: WorkspacePackage[] = []
+
+  for (const topDir of ['packages', 'addons']) {
+    const topPath = path.resolve(_rootDir, topDir)
+    if (!fs.existsSync(topPath)) continue
+
+    for (const name of fs.readdirSync(topPath)) {
+      const pkgJsonPath = path.resolve(topPath, name, 'package.json')
+      if (!fs.existsSync(pkgJsonPath)) continue
+      try {
+        const packageJson = require(pkgJsonPath) as Record<string, unknown>
+        results.push({
+          name: packageJson.name as string,
+          dir: path.resolve(topPath, name),
+          relativeDir: `${topDir}/${name}`,
+          shortName: name,
+          packageJson,
+        })
+      } catch (error) {
+        throw Object.assign(
+          new Error(`Failed to read workspace package: ${pkgJsonPath}`),
+          { cause: error },
+        )
+      }
+    }
   }
-  const pkg = require(`../../packages/${f}/package.json`)
-  if (pkg.private || !pkg.buildOptions) {
-    return false
-  }
-  return true
-})
+
+  return results
+}
+
+/**
+ * Resolve the directory of a workspace package by its short name (e.g., "signal").
+ */
+export function resolvePackageDir(pkgShortName: string): string | null {
+  const pkg = findWorkspacePackages().find(p => p.shortName === pkgShortName)
+  return pkg?.dir ?? null
+}
+
+/**
+ * Get all packages that have buildOptions (i.e., are buildable).
+ */
+export function getBuildablePackages(): WorkspacePackage[] {
+  return findWorkspacePackages().filter(pkg => {
+    return !pkg.packageJson.private && pkg.packageJson.buildOptions
+  })
+}
+
+/**
+ * Get all buildable package short names (for the build script targets).
+ */
+export const targets: string[] = (() => {
+  return getBuildablePackages().map(p => p.shortName)
+})()
 
 export function fuzzyMatchTarget(
   partialTargets: ReadonlyArray<string>,
@@ -56,7 +117,6 @@ export function fuzzyMatchTarget(
       )}`,
     )
     console.log()
-
     process.exit(1)
   }
 }

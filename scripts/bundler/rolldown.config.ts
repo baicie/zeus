@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -24,18 +25,31 @@ if (!process.env.TARGET) {
 const require = createRequire(import.meta.url)
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
-const masterVersion = require('../../package.json').version
-
-const packagesDir = path.resolve(__dirname, '..', '..', 'packages')
-const packageDir = path.resolve(packagesDir, process.env.TARGET)
-
-const resolve = (p: string) => path.resolve(packageDir, p)
+const rootDir = path.resolve(__dirname, '..', '..')
+// Try all package categories to find the package
+const categories = ['packages', 'addons']
+let packageDir: string | null = null
+for (const cat of categories) {
+  const candidate = path.resolve(rootDir, cat, process.env.TARGET!)
+  if (existsSync(path.resolve(candidate, 'package.json'))) {
+    packageDir = candidate
+    break
+  }
+}
+if (!packageDir) {
+  throw new Error(
+    `Package not found: ${process.env.TARGET}. Checked packages/*/${process.env.TARGET} and addons/*/${process.env.TARGET}`,
+  )
+}
+const resolve = (p: string) => path.resolve(packageDir!, p)
 const pkg = require(resolve('package.json'))
 const packageOptions = pkg.buildOptions || {}
-const name = path.basename(packageDir)
+const name = path.basename(packageDir!)
+
+const packageVersion = pkg.version
 
 const banner = `/**
-* ${name} v${masterVersion}
+* ${name} v${packageVersion}
 * (c) ${new Date().getFullYear()} baicie
 * Released under the MIT License.
 **/`
@@ -138,7 +152,7 @@ function createConfig(
   function resolveDefine() {
     const replacements: Record<string, string> = {
       __COMMIT__: `"${process.env.COMMIT}"`,
-      __VERSION__: `"${masterVersion}"`,
+      __VERSION__: `"${packageVersion}"`,
       __TEST__: `false`,
       // If the build is expected to run directly in the browser (global / esm builds)
       __BROWSER__: String(isBrowserBuild),

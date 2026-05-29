@@ -1,6 +1,7 @@
+import { fileURLToPath, URL } from 'node:url'
+
 import { transformAsync } from '@babel/core'
 import zeusCompiler from '@zeus-js/compiler'
-import { fileURLToPath, URL } from 'node:url'
 import { defineConfig, type Plugin } from 'vite'
 
 function zeusTsx(): Plugin {

@@ -8,5 +8,5 @@
     "jsxImportSource": "@zeus-js/zeus",
     "types": ["@zeus-js/zeus/jsx"]
   },
-  "include": ["src"]
+  "include": ["src", "../../packages/global.d.ts"]
 }

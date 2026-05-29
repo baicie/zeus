@@ -1,8 +1,8 @@
 packages:
-  - packages/*
-  - playground/*
-  - examples/*
-  - docs
+  - 'packages/*'
+  - 'addons/*'
+  - 'examples/*'
+  - 'docs'
 
 catalog:
   '@babel/core': ^7.29.0

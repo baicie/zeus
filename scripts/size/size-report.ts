@@ -1,6 +1,8 @@
 import { existsSync, statSync, readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import path from 'node:path'
 import { gzipSync } from 'node:zlib'
+
+import { findWorkspacePackages } from '../shared/utils'
 
 type SizeTarget = {
   name: string
@@ -11,28 +13,28 @@ type SizeTarget = {
 const targets: SizeTarget[] = [
   {
     name: '@zeus-js/signal',
-    file: 'packages/signal/dist/signal.esm-browser.prod.js',
-    limit: 22, // 18.6 KB raw × 1.2 headroom
+    file: 'dist/signal.esm-browser.prod.js',
+    limit: 22,
   },
   {
     name: '@zeus-js/runtime-dom',
-    file: 'packages/runtime-dom/dist/runtime-dom.esm-browser.prod.js',
-    limit: 32, // 27.2 KB raw × 1.2 headroom
+    file: 'dist/runtime-dom.esm-browser.prod.js',
+    limit: 32,
   },
   {
     name: '@zeus-js/zeus',
-    file: 'packages/zeus/dist/zeus.esm-browser.prod.js',
-    limit: 30, // 25.3 KB raw × 1.2 headroom
+    file: 'dist/zeus.esm-browser.prod.js',
+    limit: 30,
   },
   {
     name: '@zeus-js/compiler',
-    file: 'packages/compiler/dist/compiler.esm-bundler.js',
-    limit: 400, // 297 KB brotli × 1.35 ≈ 400 KB raw
+    file: 'dist/compiler.esm-bundler.js',
+    limit: 400,
   },
   {
     name: '@zeus-js/vite-plugin',
-    file: 'packages/vite-plugin/dist/vite-plugin.esm-bundler.js',
-    limit: 10, // 2.84 KB raw × 1.3 headroom
+    file: 'dist/vite-plugin.esm-bundler.js',
+    limit: 10,
   },
 ]
 
@@ -40,21 +42,31 @@ const ci = process.argv.includes('--ci')
 
 console.log('\nPackage size report\n')
 
+const wsPkgs = findWorkspacePackages()
+const wsPkgsByShort = new Map(wsPkgs.map(p => [p.shortName, p]))
+
 let hasMissing = false
 let hasRegression = false
 
 for (const target of targets) {
-  const path = resolve(process.cwd(), target.file)
+  const pkg = wsPkgsByShort.get(target.name.replace('@zeus-js/', ''))
+  if (!pkg) {
+    console.log(`${target.name}: package not found in workspace`)
+    hasMissing = true
+    continue
+  }
 
-  if (!existsSync(path)) {
+  const resolvedPath = path.resolve(pkg.dir, target.file)
+
+  if (!existsSync(resolvedPath)) {
     console.log(`${target.name}: missing ${target.file}`)
     hasMissing = true
     continue
   }
 
-  const raw = readFileSync(path)
+  const raw = readFileSync(resolvedPath)
   const gzip = gzipSync(raw)
-  const rawKb = statSync(path).size / 1024
+  const rawKb = statSync(resolvedPath).size / 1024
   const gzipKb = gzip.length / 1024
 
   const marker =

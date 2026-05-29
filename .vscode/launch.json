@@ -12,16 +12,9 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Playground Compiler Dev",
-      "cwd": "${workspaceRoot}/playground/compiler",
-      "program": "${workspaceRoot}/playground/compiler/src/index.js"
-    },
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Playground SolidJS Dev",
-      "cwd": "${workspaceRoot}/playground/solidjs",
-      "program": "${workspaceRoot}/playground/solidjs/src/index.js"
+      "name": "Compiler Debug",
+      "cwd": "${workspaceRoot}/examples/compiler",
+      "program": "${workspaceRoot}/examples/compiler/src/index.js"
     }
   ]
 }

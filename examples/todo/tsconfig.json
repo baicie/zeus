@@ -9,5 +9,5 @@
     "types": ["@zeus-js/zeus/jsx"],
     "skipLibCheck": true
   },
-  "include": ["src"]
+  "include": ["src", "../../packages/global.d.ts"]
 }

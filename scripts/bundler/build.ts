@@ -10,7 +10,12 @@ import pico from 'picocolors'
 import prettyBytes from 'pretty-bytes'
 
 import { scanEnums } from './inline-enums'
-import { targets as allTargets, exec, fuzzyMatchTarget } from '../shared/utils'
+import {
+  targets as allTargets,
+  exec,
+  fuzzyMatchTarget,
+  resolvePackageDir,
+} from '../shared/utils'
 
 const commit = spawnSync('git', ['rev-parse', '--short=7', 'HEAD'])
   .stdout.toString()
@@ -120,9 +125,8 @@ function runDtsInBackground(resolvedTargets: string[]): void {
       : []),
   ]
 
-  // Fire-and-forget: pipe output and don't await
   exec('pnpm', args, { stdio: 'pipe' })
-    .then(result => {
+    .then(() => {
       console.log(`${pico.green('[build-dts]')} background dts build finished`)
     })
     .catch(err => {
@@ -159,8 +163,10 @@ async function runParallel<T>(
 }
 
 async function build(target: string): Promise<void> {
-  const pkgBase = `packages`
-  const pkgDir = path.resolve(`${pkgBase}/${target}`)
+  const pkgDir = resolvePackageDir(target)
+  if (!pkgDir) {
+    throw new Error(`Cannot resolve directory for package: ${target}`)
+  }
   const pkg = JSON.parse(readFileSync(`${pkgDir}/package.json`, 'utf-8'))
 
   // if this is a full build (no specific targets), ignore private packages
@@ -211,7 +217,8 @@ async function checkAllSizes(targets: string[]): Promise<void> {
 }
 
 async function checkSize(target: string): Promise<void> {
-  const pkgDir = path.resolve(`packages/${target}`)
+  const pkgDir = resolvePackageDir(target)
+  if (!pkgDir) return
   await checkFileSize(`${pkgDir}/dist/${target}.global.prod.js`)
   if (!formats || formats.includes('global-runtime')) {
     await checkFileSize(`${pkgDir}/dist/${target}.runtime.global.prod.js`)
