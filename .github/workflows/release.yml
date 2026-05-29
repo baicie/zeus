@@ -40,6 +40,8 @@ jobs:
       - name: Release precheck
         run: pnpm release:precheck
 
+      # Build output is produced by release:precheck step above.
+      # --skipBuild is safe here as long as precheck always runs first.
       - name: Extract version from tag
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}

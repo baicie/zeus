@@ -37,15 +37,12 @@ for (const group of changesetConfig.fixed || []) {
 }
 
 const rootPkgPath = path.resolve(__dirname, '../../package.json')
-const rootPkg = JSON.parse(fs.readFileSync(rootPkgPath, 'utf-8'))
-const currentVersion =
-  rootPkg.version ||
-  JSON.parse(
-    fs.readFileSync(
-      path.resolve(__dirname, '../../packages/zeus/package.json'),
-      'utf-8',
-    ),
-  ).version
+const currentVersion = JSON.parse(
+  fs.readFileSync(
+    path.resolve(__dirname, '../../packages/zeus/package.json'),
+    'utf-8',
+  ),
+).version
 
 const changesetIgnore = new Set<string>(changesetConfig.ignore || [])
 
@@ -247,13 +244,6 @@ async function publishPackages(version: string) {
     additionalFlags.push('--no-git-checks')
   if (process.env.CI && !args.registry) additionalFlags.push('--provenance')
 
-  let releaseTag: string | null = null
-  if (args.tag) releaseTag = args.tag
-  else if (version.includes('alpha')) releaseTag = 'alpha'
-  else if (version.includes('beta')) releaseTag = 'beta'
-  else if (version.includes('rc')) releaseTag = 'rc'
-
-  // Find all non-private packages to publish
   const packages = findWorkspacePackages().filter(
     pkg =>
       !pkg.packageJson.private &&
@@ -262,12 +252,9 @@ async function publishPackages(version: string) {
   )
 
   for (const pkg of packages) {
-    await publishPackage(
-      pkg.name,
-      (pkg.packageJson.version as string) ?? version,
-      releaseTag,
-      additionalFlags,
-    )
+    const pkgVersion = pkg.packageJson.version as string
+    const pkgTag = resolveReleaseTag(pkgVersion)
+    await publishPackage(pkg.name, pkgVersion, pkgTag, additionalFlags)
   }
 }
 
@@ -320,6 +307,14 @@ async function publishOnly() {
 }
 
 const fnToRun = args.publishOnly ? publishOnly : main
+
+function resolveReleaseTag(pkgVersion: string): string | null {
+  if (args.tag) return args.tag
+  if (pkgVersion.includes('alpha')) return 'alpha'
+  if (pkgVersion.includes('beta')) return 'beta'
+  if (pkgVersion.includes('rc')) return 'rc'
+  return null
+}
 
 fnToRun().catch(err => {
   console.error(err)
