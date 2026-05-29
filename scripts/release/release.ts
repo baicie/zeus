@@ -7,7 +7,7 @@ import enquirer from 'enquirer'
 import pico from 'picocolors'
 import semver from 'semver'
 
-import { exec } from '../shared/utils'
+import { exec, findWorkspacePackages } from '../shared/utils'
 
 interface ExecResult {
   ok: boolean
@@ -18,24 +18,35 @@ interface ExecResult {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-const rootPkgPath = path.resolve(__dirname, '../../package.json')
-const rootPkg = JSON.parse(fs.readFileSync(rootPkgPath, 'utf-8'))
-const currentVersion =
-  rootPkg.version ||
-  JSON.parse(
-    fs.readFileSync(
-      path.resolve(__dirname, '../../packages/zeus/package.json'),
-      'utf-8',
-    ),
-  ).version
-
 const changesetConfig = JSON.parse(
   fs.readFileSync(
     path.resolve(__dirname, '../../.changeset/config.json'),
     'utf-8',
   ),
 )
-const linkedGroups: string[][] = changesetConfig.linked || []
+
+// Collect packages in the fixed groups
+const fixedGroupPackages: string[] = []
+for (const group of changesetConfig.fixed || []) {
+  for (const pkg of group) {
+    if (!fixedGroupPackages.includes(pkg)) {
+      fixedGroupPackages.push(pkg)
+    }
+  }
+}
+
+const rootPkgPath = path.resolve(__dirname, '../../package.json')
+const rootPkg = JSON.parse(fs.readFileSync(rootPkgPath, 'utf-8'))
+const currentVersion =
+  rootPkg.version ||
+  JSON.parse(
+    fs.readFileSync(
+      path.resolve(__dirname, '../../core/zeus/package.json'),
+      'utf-8',
+    ),
+  ).version
+
+const changesetIgnore = new Set<string>(changesetConfig.ignore || [])
 
 const { values: args, positionals } = parseArgs({
   allowPositionals: true,
@@ -60,8 +71,6 @@ const isDryRun = args.dry
 const skipBuild = args.skipBuild
 const skipPrompts = args.skipPrompts
 const skipGit = args.skipGit
-
-const packages = linkedGroups[0] || []
 
 const versionIncrements: Array<string> = [
   'patch',
@@ -93,9 +102,16 @@ const dryRun = async (bin: string, binArgs: string[], opts: object = {}) =>
 
 const runIfNotDry = isDryRun ? dryRun : run
 
-const getPkgRoot = (pkg: string) => {
-  const scopedName = pkg.replace('@zeus-js/', '')
-  return path.resolve(__dirname, '../../packages/' + scopedName)
+const getPkgRoot = (pkgName: string) => {
+  const shortName = pkgName.replace('@zeus-js/', '')
+  // Find the package in workspace
+  const wsPkgs = findWorkspacePackages()
+  const pkg = wsPkgs.find(p => p.name === pkgName || p.shortName === shortName)
+  if (pkg) {
+    return pkg.dir
+  }
+  // Fallback: create-zeus is at packages/create-zeus
+  return path.resolve(__dirname, '../../packages', shortName)
 }
 
 const step = (msg: string) => console.log(pico.cyan(msg))
@@ -148,7 +164,7 @@ async function main() {
 
   step('\nGenerating changelog...')
   const changesetPath = path.resolve(__dirname, '../../.changeset/release.md')
-  const changesetBody = `---\n${packages
+  const changesetBody = `---\n${fixedGroupPackages
     .map(p => `"${p}": ${getBumpType(targetVersion)}`)
     .join('\n')}\n---\n\nRelease v${targetVersion}\n`
   fs.writeFileSync(changesetPath, changesetBody)
@@ -156,7 +172,7 @@ async function main() {
 
   const finalVersion = JSON.parse(
     fs.readFileSync(
-      path.resolve(__dirname, '../../packages/zeus/package.json'),
+      path.resolve(__dirname, '../../core/zeus/package.json'),
       'utf-8',
     ),
   ).version
@@ -231,8 +247,21 @@ async function publishPackages(version: string) {
   else if (version.includes('beta')) releaseTag = 'beta'
   else if (version.includes('rc')) releaseTag = 'rc'
 
+  // Find all non-private packages to publish
+  const packages = findWorkspacePackages().filter(
+    pkg =>
+      !pkg.packageJson.private &&
+      !changesetIgnore.has(pkg.name) &&
+      !changesetIgnore.has(pkg.shortName),
+  )
+
   for (const pkg of packages) {
-    await publishPackage(pkg, version, releaseTag, additionalFlags)
+    await publishPackage(
+      pkg.name,
+      (pkg.packageJson.version as string) ?? version,
+      releaseTag,
+      additionalFlags,
+    )
   }
 }
 
@@ -242,7 +271,7 @@ async function publishPackage(
   releaseTag: string | null,
   additionalFlags: string[],
 ) {
-  step(`Publishing ${pkgName}...`)
+  step(`Publishing ${pkgName}@${version}...`)
   try {
     const publishArgs = [
       'publish',

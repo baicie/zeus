@@ -2,16 +2,16 @@
   "$schema": "https://unpkg.com/@changesets/config@3.1.1/schema.json",
   "changelog": "@changesets/cli/changelog",
   "commit": false,
-  "fixed": [],
-  "linked": [
+  "fixed": [
     [
-      "@zeus-js/zeus",
+      "@zeus-js/shared",
       "@zeus-js/signal",
       "@zeus-js/runtime-dom",
       "@zeus-js/compiler",
-      "@zeus-js/vite-plugin"
+      "@zeus-js/zeus"
     ]
   ],
+  "linked": [],
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",

@@ -29,7 +29,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/baicie/zeus.git",
-    "directory": "packages/signal"
+    "directory": "core/signal"
   },
   "buildOptions": {
     "name": "ZeusSignal",

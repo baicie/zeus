@@ -1,34 +1,25 @@
-import { existsSync, readFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { existsSync } from 'node:fs'
+import path from 'node:path'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-const root = resolve(__dirname, '..', '..')
+import { findWorkspacePackages } from '../shared/utils'
 
-const packages = [
-  'packages/zeus/package.json',
-  'packages/signal/package.json',
-  'packages/runtime-dom/package.json',
-  'packages/compiler/package.json',
-  'packages/vite-plugin/package.json',
-]
+const packages = findWorkspacePackages()
+  .filter(pkg => !pkg.packageJson.private)
+  .filter(pkg => pkg.packageJson.exports)
 
 let hasError = false
 
-for (const pkgPath of packages) {
-  const fullPath = resolve(root, pkgPath)
-  const pkg = JSON.parse(readFileSync(fullPath, 'utf-8')) as {
+for (const pkg of packages) {
+  const pkgJson = pkg.packageJson as {
     name: string
     exports?: Record<string, unknown>
   }
 
-  if (!pkg.exports) {
-    error(`${pkg.name}: missing exports`)
+  if (!pkgJson.exports) {
     continue
   }
 
-  checkExports(pkg.name, dirname(fullPath), pkg.exports)
+  checkExports(pkgJson.name, pkg.dir, pkgJson.exports)
 }
 
 if (hasError) {
@@ -82,7 +73,7 @@ function checkFile(
   if (!target.startsWith('./')) return
   if (target.includes('*')) return
 
-  const file = resolve(pkgDir, target)
+  const file = path.resolve(pkgDir, target)
 
   if (!existsSync(file)) {
     error(`${pkgName} export "${key}" points to missing file: ${target}`)

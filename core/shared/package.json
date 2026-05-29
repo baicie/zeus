@@ -33,7 +33,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/baicie/zeus.git",
-    "directory": "packages/shared"
+    "directory": "core/shared"
   },
   "keywords": [
     "zeus"

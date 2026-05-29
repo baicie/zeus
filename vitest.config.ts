@@ -6,11 +6,17 @@ import { entries } from './scripts/shared/aliases.ts'
 const testProjects = [
   {
     name: 'unit',
-    include: ['packages/**/*.{test,spec}.{ts,tsx}'],
+    include: [
+      'core/**/*.{test,spec}.{ts,tsx}',
+      'packages/**/*.{test,spec}.{ts,tsx}',
+    ],
   },
   {
     name: 'bench',
-    include: ['packages/**/__benchmarks__/*.bench.ts'],
+    include: [
+      'core/**/__benchmarks__/*.bench.ts',
+      'packages/**/__benchmarks__/*.bench.ts',
+    ],
   },
 ]
 
@@ -27,7 +33,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
-      include: ['packages/*/src/**'],
+      include: ['core/*/src/**', 'packages/*/src/**'],
     },
     projects: testProjects.map(project => ({
       extends: true,

@@ -47,7 +47,7 @@ const IGNORED_PATTERNS = [
   '**/coverage/',
   'target',
   'vendor/**',
-  'playground/**',
+  'examples/**',
 ]
 
 // 全局声明 - 由构建工具注入
@@ -100,7 +100,7 @@ export default defineConfig(
   // ============================================
   {
     name: 'shared-package',
-    files: ['packages/shared/**', 'eslint.config.js'],
+    files: ['core/shared/**', 'eslint.config.js'],
     rules: {
       'no-restricted-globals': 'off',
     },
@@ -127,6 +127,7 @@ export default defineConfig(
       'rollup*.config.js',
       'scripts/**',
       './*.{js,ts}',
+      'core/*/*.js',
       'packages/*/*.js',
     ],
     rules: {
@@ -137,30 +138,22 @@ export default defineConfig(
   },
 
   // ============================================
-  // 忽略文件
-  // ============================================
-  {
-    name: 'ignores',
-    ignores: IGNORED_PATTERNS,
-  },
-
-  // ============================================
   // 全局声明文件 - 禁用 no-unused-vars
   // ============================================
   {
     name: 'global-declarations',
-    files: ['packages/global.d.ts'],
+    files: ['core/global.d.ts'],
     rules: {
       'no-unused-vars': 'off',
     },
   },
 
   // ============================================
-  // Signal 包 - 允许使用 any，关闭未使用变量检查
+  // Signal 包 - enum 值由构建时内联，关闭未使用变量检查
   // ============================================
   {
     name: 'signal-package',
-    files: ['packages/signal/**'],
+    files: ['core/signal/**'],
     extends: [tseslint.configs.base],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
@@ -178,5 +171,13 @@ export default defineConfig(
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
     },
+  },
+
+  // ============================================
+  // 忽略文件
+  // ============================================
+  {
+    name: 'ignores',
+    ignores: IGNORED_PATTERNS,
   },
 )

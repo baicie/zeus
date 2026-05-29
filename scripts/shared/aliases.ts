@@ -2,35 +2,29 @@ import { readdirSync, statSync } from 'node:fs'
 import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-/**
- * Resolve entry file path for a package
- */
-const resolveEntryForPkg = (pkgName: string): string =>
-  path.resolve(
-    fileURLToPath(import.meta.url),
-    `../../../packages/${pkgName}/src/index.ts`,
-  )
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const rootDir = path.resolve(__dirname, '..', '..')
 
 /**
- * Get all package directories
- */
-const getPackageDirs = (): string[] => {
-  const packagesUrl = new URL('../../packages', import.meta.url)
-  return readdirSync(packagesUrl)
-}
-
-/**
- * Generate alias entries for packages
+ * Generate alias entries for all workspace packages.
+ * Searches core/* and packages/* directories.
  */
 const generateEntries = (): Record<string, string> => {
   const entries: Record<string, string> = {}
 
-  for (const dir of getPackageDirs()) {
-    const key = `@zeus-js/${dir}`
-    const packageUrl = new URL(`../../packages/${dir}`, import.meta.url)
+  for (const topDir of ['core', 'packages']) {
+    const topPath = path.resolve(rootDir, topDir)
+    if (!statSync(topPath).isDirectory()) continue
 
-    if (!(key in entries) && statSync(packageUrl).isDirectory()) {
-      entries[key] = resolveEntryForPkg(dir)
+    for (const dir of readdirSync(topPath)) {
+      const fullDir = path.resolve(topPath, dir)
+      if (!statSync(fullDir).isDirectory()) continue
+
+      const key = `@zeus-js/${dir}`
+      if (key in entries) continue
+
+      entries[key] = path.resolve(fullDir, 'src', 'index.ts')
     }
   }
 

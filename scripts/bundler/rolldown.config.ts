@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -26,13 +27,26 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
 const masterVersion = require('../../package.json').version
 
-const packagesDir = path.resolve(__dirname, '..', '..', 'packages')
-const packageDir = path.resolve(packagesDir, process.env.TARGET)
-
-const resolve = (p: string) => path.resolve(packageDir, p)
+const rootDir = path.resolve(__dirname, '..', '..')
+// Try all package categories to find the package
+const categories = ['core', 'packages']
+let packageDir: string | null = null
+for (const cat of categories) {
+  const candidate = path.resolve(rootDir, cat, process.env.TARGET!)
+  if (existsSync(path.resolve(candidate, 'package.json'))) {
+    packageDir = candidate
+    break
+  }
+}
+if (!packageDir) {
+  throw new Error(
+    `Package not found: ${process.env.TARGET}. Checked core/*/${process.env.TARGET} and packages/*/${process.env.TARGET}`,
+  )
+}
+const resolve = (p: string) => path.resolve(packageDir!, p)
 const pkg = require(resolve('package.json'))
 const packageOptions = pkg.buildOptions || {}
-const name = path.basename(packageDir)
+const name = path.basename(packageDir!)
 
 const banner = `/**
 * ${name} v${masterVersion}
