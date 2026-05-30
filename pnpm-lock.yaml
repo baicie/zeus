@@ -384,6 +384,37 @@ importers:
         specifier: ^7.10.3
         version: 7.10.3
 
+<<<<<<< HEAD
+=======
+  packages/component-analyzer:
+    dependencies:
+      '@babel/parser':
+        specifier: 'catalog:'
+        version: 7.29.3
+      '@babel/types':
+        specifier: 'catalog:'
+        version: 7.29.0
+      fast-glob:
+        specifier: ^3.3.3
+        version: 3.3.3
+
+  packages/create-zeus:
+    dependencies:
+      '@clack/prompts':
+        specifier: ^1.5.0
+        version: 1.5.0
+      picocolors:
+        specifier: ^1.1.1
+        version: 1.1.1
+    devDependencies:
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(postcss@8.5.15)(tsx@4.22.3)(typescript@6.0.3)(yaml@2.9.0)
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
+>>>>>>> 5a4d1c8 (feat(runtime-dom): add DefineElementMeta interface and update TypeScript target)
   packages/runtime-dom:
     dependencies:
       '@zeus-js/signal':
@@ -4270,6 +4301,17 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+<<<<<<< HEAD
+=======
+  '@babel/generator@7.29.1':
+    dependencies:
+      '@babel/parser': 7.29.7
+      '@babel/types': 7.29.7
+      '@jridgewell/gen-mapping': 0.3.12
+      '@jridgewell/trace-mapping': 0.3.31
+      jsesc: 3.1.0
+
+>>>>>>> 5a4d1c8 (feat(runtime-dom): add DefineElementMeta interface and update TypeScript target)
   '@babel/generator@7.29.7':
     dependencies:
       '@babel/parser': 7.29.7
@@ -4378,11 +4420,26 @@ snapshots:
 
   '@babel/helper-validator-option@7.29.7': {}
 
+<<<<<<< HEAD
+=======
+  '@babel/helpers@7.29.2':
+    dependencies:
+      '@babel/template': 7.28.6
+      '@babel/types': 7.29.7
+
+>>>>>>> 5a4d1c8 (feat(runtime-dom): add DefineElementMeta interface and update TypeScript target)
   '@babel/helpers@7.29.7':
     dependencies:
       '@babel/template': 7.29.7
       '@babel/types': 7.29.7
 
+<<<<<<< HEAD
+=======
+  '@babel/parser@7.29.3':
+    dependencies:
+      '@babel/types': 7.29.7
+
+>>>>>>> 5a4d1c8 (feat(runtime-dom): add DefineElementMeta interface and update TypeScript target)
   '@babel/parser@7.29.7':
     dependencies:
       '@babel/types': 7.29.7
@@ -4438,12 +4495,36 @@ snapshots:
 
   '@babel/runtime@7.29.2': {}
 
+<<<<<<< HEAD
+=======
+  '@babel/template@7.28.6':
+    dependencies:
+      '@babel/code-frame': 7.29.7
+      '@babel/parser': 7.29.7
+      '@babel/types': 7.29.7
+
+>>>>>>> 5a4d1c8 (feat(runtime-dom): add DefineElementMeta interface and update TypeScript target)
   '@babel/template@7.29.7':
     dependencies:
       '@babel/code-frame': 7.29.7
       '@babel/parser': 7.29.7
       '@babel/types': 7.29.7
 
+<<<<<<< HEAD
+=======
+  '@babel/traverse@7.29.0':
+    dependencies:
+      '@babel/code-frame': 7.29.7
+      '@babel/generator': 7.29.1
+      '@babel/helper-globals': 7.28.0
+      '@babel/parser': 7.29.7
+      '@babel/template': 7.28.6
+      '@babel/types': 7.29.7
+      debug: 4.4.3
+    transitivePeerDependencies:
+      - supports-color
+
+>>>>>>> 5a4d1c8 (feat(runtime-dom): add DefineElementMeta interface and update TypeScript target)
   '@babel/traverse@7.29.7':
     dependencies:
       '@babel/code-frame': 7.29.7

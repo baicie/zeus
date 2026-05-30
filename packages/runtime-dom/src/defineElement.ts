@@ -30,12 +30,51 @@ export type PropOptions<P extends Record<string, unknown>> = Partial<{
   [K in keyof P]: PropDefinition<P[K]>
 }>
 
+export interface DefineElementMeta {
+  description?: string
+
+  props?: Record<
+    string,
+    {
+      description?: string
+      category?: string
+      docs?: string
+    }
+  >
+
+  events?: Record<
+    string,
+    {
+      description?: string
+      detail?: Record<string, string>
+    }
+  >
+
+  slots?: Record<
+    string,
+    {
+      description?: string
+    }
+  >
+
+  cssVars?: string[]
+  cssParts?: string[]
+
+  [key: string]: unknown
+}
+
 export interface DefineElementOptions<P extends Record<string, unknown>> {
   shadow?: boolean | ShadowRootInit
   props?: PropOptions<P>
   styles?: string | string[]
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   consumes?: Context<any>[]
+
+  /**
+   * Metadata only.
+   * Runtime does not consume this field.
+   */
+  meta?: DefineElementMeta
 }
 
 export interface DefineElementContext<E extends HTMLElement = HTMLElement> {

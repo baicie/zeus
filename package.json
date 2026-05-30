@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx scripts/bundler/build.ts --watch",
+    "debug:analyze-components": "tsx scripts/debug/analyze-components.ts",
     "build": "tsx scripts/bundler/build.ts",
     "build-dts": "tsc -p tsconfig.build.json --noCheck && rolldown -c ./scripts/bundler/rolldown.dts.config.ts",
     "clean": "rimraf --glob 'packages/*/dist' --glob 'addons/*/dist' temp .eslintcache",

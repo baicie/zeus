@@ -38,6 +38,7 @@ export type {
   HostProps,
   SlotProps,
   DefineElementOptions,
+  DefineElementMeta,
   DefineElementContext,
   DefineElementSetup,
 } from '@zeus-js/runtime-dom'

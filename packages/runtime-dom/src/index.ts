@@ -51,6 +51,7 @@ export {
 export {
   defineElement,
   type DefineElementOptions,
+  type DefineElementMeta,
   type DefineElementContext,
   type DefineElementSetup,
   type ElementPropConstructor,
