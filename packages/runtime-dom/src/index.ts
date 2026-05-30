@@ -17,6 +17,8 @@ export { render, type RenderOptions } from './render'
 
 export { insert, mountDynamic } from './insert'
 
+export { insertTracked } from './insert'
+
 export { marker, child, removeNodes } from './dom'
 
 export {

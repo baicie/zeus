@@ -30,7 +30,7 @@ export class DynamicRange {
 export function insertTracked(
   parent: Node,
   value: JSXValue,
-  marker: Node | null,
+  marker: Node | null = null,
 ): Node[] {
   if (
     value === undefined ||
@@ -66,7 +66,7 @@ export function removeNodes(nodes: readonly Node[]): void {
 export function moveRangeBefore(
   nodes: readonly Node[],
   parent: Node,
-  marker: Node | null,
+  marker: Node | null = null,
 ): void {
   for (const node of nodes) {
     parent.insertBefore(node, marker)

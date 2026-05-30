@@ -1,0 +1,211 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`compiler web component transform > transforms Host with Slot 1`] = `
+"import { createSlot as _createSlot, insert as _insert, template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<button><!></button>\`);
+import { defineElement, Host, Slot } from '@zeus-js/runtime-dom';
+export const ZButton = defineElement('z-button', {
+  shadow: false
+}, props => {
+  return (() => {
+    const _el$ = _tmpl$().firstChild;
+    const _slot$ = _el$.firstChild;
+    _insert(_el$, _createSlot(undefined, undefined), _slot$);
+    return _el$;
+  })();
+});"
+`;
+
+exports[`compiler web component transform > transforms Slot fallback wrapped in Host 1`] = `
+"import { createSlot as _createSlot, template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<span>fallback</span>\`);
+import { defineElement, Host, Slot } from '@zeus-js/runtime-dom';
+export const ZEmpty = defineElement('z-empty', {
+  shadow: false
+}, () => {
+  return _createSlot(undefined, () => _tmpl$().firstChild);
+});"
+`;
+
+exports[`compiler web component transform > transforms continuous dynamic text in web component setup 1`] = `
+"import { insert as _insert, bindText as _bindText, template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<span><!><!><!></span>\`);
+import { defineElement } from '@zeus-js/runtime-dom';
+export const ZText = defineElement('z-text', {
+  shadow: false
+}, props => {
+  return (() => {
+    const _el$ = _tmpl$().firstChild;
+    const _anchor$ = _el$.firstChild;
+    const _anchor$2 = _anchor$.nextSibling;
+    const _anchor$3 = _anchor$2.nextSibling;
+    const _text$ = document.createTextNode("");
+    _insert(_el$, _text$, _anchor$);
+    _bindText(_text$, () => props.a);
+    const _text$2 = document.createTextNode("");
+    _insert(_el$, _text$2, _anchor$2);
+    _bindText(_text$2, () => props.b);
+    const _text$3 = document.createTextNode("");
+    _insert(_el$, _text$3, _anchor$3);
+    _bindText(_text$3, () => props.c);
+    return _el$;
+  })();
+});"
+`;
+
+exports[`compiler web component transform > transforms defineElement with Host and styles 1`] = `
+"import { template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<section>card content</section>\`);
+import { defineElement, Host } from '@zeus-js/runtime-dom';
+export const ZCard = defineElement('z-card', {
+  shadow: true,
+  styles: 'section { padding: 1rem; }'
+}, () => {
+  return _tmpl$().firstChild;
+});"
+`;
+
+exports[`compiler web component transform > transforms defineElement with default Slot wrapped in Host 1`] = `
+"import { createSlot as _createSlot, insert as _insert, template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<section><!></section>\`);
+import { defineElement, Host, Slot } from '@zeus-js/runtime-dom';
+export const ZCard = defineElement('z-card', {
+  shadow: false
+}, () => {
+  return (() => {
+    const _el$ = _tmpl$().firstChild;
+    const _slot$ = _el$.firstChild;
+    _insert(_el$, _createSlot(undefined, undefined), _slot$);
+    return _el$;
+  })();
+});"
+`;
+
+exports[`compiler web component transform > transforms defineElement with multiple named slots 1`] = `
+"import { createSlot as _createSlot, insert as _insert, template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<header><!></header>\`),
+  _tmpl$2 = /*#__PURE__*/_template(\`<main><!></main>\`),
+  _tmpl$3 = /*#__PURE__*/_template(\`<footer><!></footer>\`);
+import { defineElement, Host, Slot } from '@zeus-js/runtime-dom';
+export const ZLayout = defineElement('z-layout', {
+  shadow: false
+}, () => {
+  return [(() => {
+    const _el$ = _tmpl$().firstChild;
+    const _slot$ = _el$.firstChild;
+    _insert(_el$, _createSlot("header", () => "Default Header"), _slot$);
+    return _el$;
+  })(), (() => {
+    const _el$2 = _tmpl$2().firstChild;
+    const _slot$2 = _el$2.firstChild;
+    _insert(_el$2, _createSlot(undefined, undefined), _slot$2);
+    return _el$2;
+  })(), (() => {
+    const _el$3 = _tmpl$3().firstChild;
+    const _slot$3 = _el$3.firstChild;
+    _insert(_el$3, _createSlot("footer", undefined), _slot$3);
+    return _el$3;
+  })()];
+});"
+`;
+
+exports[`compiler web component transform > transforms defineElement with props and emit 1`] = `
+"import { bindEvent as _bindEvent, createSlot as _createSlot, insert as _insert, bindText as _bindText, template as _template, delegateEvents as _delegateEvents } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<button><!><!></button>\`);
+import { defineElement, Host, Slot } from '@zeus-js/runtime-dom';
+export const ZCounter = defineElement<{
+  count?: number;
+}>('z-counter', {
+  shadow: false,
+  props: {
+    count: Number
+  }
+}, (props, {
+  emit
+}) => {
+  return (() => {
+    const _el$ = _tmpl$().firstChild;
+    const _slot$ = _el$.firstChild;
+    const _anchor$ = _slot$.nextSibling;
+    _bindEvent(_el$, "click", () => emit('change', {
+      count: (props.count ?? 0) + 1
+    }));
+    _insert(_el$, _createSlot(undefined, undefined), _slot$);
+    const _text$ = document.createTextNode("");
+    _insert(_el$, _text$, _anchor$);
+    _bindText(_text$, () => props.count);
+    return _el$;
+  })();
+});
+_delegateEvents(["click"]);"
+`;
+
+exports[`compiler web component transform > transforms defineElement with shadow mode 1`] = `
+"import { createSlot as _createSlot, insert as _insert, template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<section><!></section>\`);
+import { defineElement, Host, Slot } from '@zeus-js/runtime-dom';
+export const ZCard = defineElement('z-card', {
+  shadow: true
+}, () => {
+  return (() => {
+    const _el$ = _tmpl$().firstChild;
+    const _slot$ = _el$.firstChild;
+    _insert(_el$, _createSlot(undefined, undefined), _slot$);
+    return _el$;
+  })();
+});"
+`;
+
+exports[`compiler web component transform > transforms defineElement with styles 1`] = `
+"import { template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<div>content</div>\`);
+import { defineElement } from '@zeus-js/runtime-dom';
+export const ZBox = defineElement('z-box', {
+  shadow: true,
+  styles: ':host { display: block; }'
+}, () => {
+  return _tmpl$().firstChild;
+});"
+`;
+
+exports[`compiler web component transform > transforms event emit in setup 1`] = `
+"import { bindEvent as _bindEvent, createSlot as _createSlot, insert as _insert, template as _template, delegateEvents as _delegateEvents } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<button><!></button>\`);
+import { defineElement, Host, Slot } from '@zeus-js/runtime-dom';
+export const ZButton = defineElement('z-button', {
+  shadow: false
+}, (props, {
+  emit
+}) => {
+  return (() => {
+    const _el$ = _tmpl$().firstChild;
+    const _slot$ = _el$.firstChild;
+    _bindEvent(_el$, "click", () => emit('press', {
+      value: true
+    }));
+    _insert(_el$, _createSlot(undefined, undefined), _slot$);
+    return _el$;
+  })();
+});
+_delegateEvents(["click"]);"
+`;
+
+exports[`compiler web component transform > transforms named Slot wrapped in Host 1`] = `
+"import { createSlot as _createSlot, insert as _insert, template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<section><header><!></header><main><!></main></section>\`);
+import { defineElement, Host, Slot } from '@zeus-js/runtime-dom';
+export const ZCard = defineElement('z-card', {
+  shadow: false
+}, () => {
+  return (() => {
+    const _el$ = _tmpl$().firstChild;
+    const _el$2 = _el$.firstChild;
+    const _slot$ = _el$2.firstChild;
+    const _el$3 = _el$2.nextSibling;
+    const _slot$2 = _el$3.firstChild;
+    _insert(_el$2, _createSlot("header", undefined), _slot$);
+    _insert(_el$3, _createSlot(undefined, undefined), _slot$2);
+    return _el$;
+  })();
+});"
+`;

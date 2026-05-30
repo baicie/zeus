@@ -47,9 +47,14 @@
       <div class="container">
         <h1>Web Component Counter</h1>
         <div class="counters">
-          <z-counter title="Simple" initial-count="0"></z-counter>
-          <z-counter title="Starting at 10" initial-count="10"></z-counter>
+          <z-counter title="Simple" initial-count="0">Counter: </z-counter>
+          <z-counter title="Starting at 10" initial-count="10">Counter: </z-counter>
         </div>
+
+        <z-card>
+          <span slot="header">Card Header</span>
+          <span>Card Body</span>
+        </z-card>
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>
