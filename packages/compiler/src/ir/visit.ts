@@ -23,7 +23,6 @@ export function getIRChildren(node: ZeusIRNode): ZeusIRNode[] {
   switch (node.kind) {
     case 'Element':
     case 'Fragment':
-    case 'Host':
       return node.children
 
     case 'Component':
@@ -42,6 +41,9 @@ export function getIRChildren(node: ZeusIRNode): ZeusIRNode[] {
 
     case 'Slot':
       return node.fallback
+
+    case 'Host':
+      return node.child ? [node.child] : []
 
     case 'Text':
     case 'DynamicText':

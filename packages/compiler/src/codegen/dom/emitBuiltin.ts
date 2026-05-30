@@ -1,6 +1,7 @@
 import * as t from '@babel/types'
 
 import { emitChildrenProp } from './emitComponent'
+import { emitNodeExpression } from './emitNodeExpression'
 
 import type { CompilerContext } from '../../context'
 import type { ForIR, HostIR, ShowIR, SlotIR } from '../../ir/nodes'
@@ -105,7 +106,62 @@ export function emitMountFor(
 }
 
 export function emitHost(node: HostIR, context: CompilerContext): t.Expression {
-  return emitChildrenProp(node.children, context)
+  const props = buildHostProps(node, context)
+
+  const hostCall = t.callExpression(context.importRuntime('Host'), [
+    t.objectExpression(props),
+  ])
+
+  if (!node.child) {
+    return hostCall
+  }
+
+  const childExpr = emitNodeExpression(node.child, context)
+
+  return t.callExpression(
+    t.arrowFunctionExpression(
+      [],
+      t.blockStatement([
+        t.expressionStatement(hostCall),
+        t.returnStatement(childExpr),
+      ]),
+    ),
+    [],
+  )
+}
+
+function buildHostProps(
+  node: HostIR,
+  context: CompilerContext,
+): t.ObjectProperty[] {
+  const props: t.ObjectProperty[] = []
+
+  for (const attr of node.attrs) {
+    const key = createObjectKey(attr.name)
+
+    if (isStaticValue(attr.expr)) {
+      props.push(t.objectProperty(key, attr.expr))
+    } else {
+      props.push(
+        t.objectProperty(key, t.arrowFunctionExpression([], attr.expr)),
+      )
+    }
+  }
+
+  return props
+}
+
+function isStaticValue(expr: t.Expression): boolean {
+  return (
+    t.isStringLiteral(expr) ||
+    t.isNumericLiteral(expr) ||
+    t.isBooleanLiteral(expr) ||
+    t.isNullLiteral(expr)
+  )
+}
+
+function createObjectKey(name: string): t.Identifier | t.StringLiteral {
+  return t.isValidIdentifier(name) ? t.identifier(name) : t.stringLiteral(name)
 }
 
 export function emitSlot(node: SlotIR, context: CompilerContext): t.Expression {

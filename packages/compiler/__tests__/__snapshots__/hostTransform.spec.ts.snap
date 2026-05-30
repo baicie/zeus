@@ -1,0 +1,79 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Host transform > transforms Host style object 1`] = `
+"import { Host as _Host, template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<span>box</span>\`);
+import { defineElement, Host } from '@zeus-js/runtime-dom';
+export const ZBox = defineElement('z-box', {
+  shadow: false
+}, props => {
+  return (() => {
+    _Host({
+      style: () => ({
+        display: 'block',
+        opacity: props.active ? 1 : 0.5
+      })
+    });
+    return _tmpl$().firstChild;
+  })();
+});"
+`;
+
+exports[`Host transform > transforms Host with aria attributes 1`] = `
+"import { Host as _Host, template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<div>dialog content</div>\`);
+import { defineElement, Host } from '@zeus-js/runtime-dom';
+export const ZDialog = defineElement('z-dialog', {
+  shadow: false
+}, props => {
+  return (() => {
+    _Host({
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": () => props.label
+    });
+    return _tmpl$().firstChild;
+  })();
+});"
+`;
+
+exports[`Host transform > transforms Host with className and id 1`] = `
+"import { Host as _Host, template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<section>content</section>\`);
+import { defineElement, Host } from '@zeus-js/runtime-dom';
+export const ZCard = defineElement('z-card', {
+  shadow: false
+}, () => {
+  return (() => {
+    _Host({
+      id: "main-card",
+      "class": "z-card",
+      "data-variant": "outline"
+    });
+    return _tmpl$().firstChild;
+  })();
+});"
+`;
+
+exports[`Host transform > transforms Host with host attributes 1`] = `
+"import { Host as _Host, createSlot as _createSlot, insert as _insert, template as _template } from "@zeus-js/runtime-dom";
+var _tmpl$ = /*#__PURE__*/_template(\`<button><!></button>\`);
+import { defineElement, Host, Slot } from '@zeus-js/runtime-dom';
+export const ZButton = defineElement('z-button', {
+  shadow: false
+}, props => {
+  return (() => {
+    _Host({
+      "data-state": () => props.open ? 'open' : 'closed',
+      "data-slot": "button",
+      "class": () => ['z-button', props.open && 'is-open']
+    });
+    return (() => {
+      const _el$ = _tmpl$().firstChild;
+      const _slot$ = _el$.firstChild;
+      _insert(_el$, _createSlot(undefined, undefined), _slot$);
+      return _el$;
+    })();
+  })();
+});"
+`;

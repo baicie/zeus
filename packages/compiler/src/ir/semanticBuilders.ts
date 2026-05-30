@@ -6,6 +6,7 @@ import type {
   EventBindingIR,
   ForIR,
   FragmentIR,
+  HostAttrIR,
   HostIR,
   IRRef,
   PropBindingIR,
@@ -20,7 +21,7 @@ import type * as t from '@babel/types'
 
 let nextId = 0
 
-function id(): number {
+export function id(): number {
   return nextId++
 }
 
@@ -181,11 +182,15 @@ export function forIR(input: {
   }
 }
 
-export function hostIR(children: ZeusIRNode[]): HostIR {
+export function hostIR(input: {
+  attrs: HostAttrIR[]
+  child?: ZeusIRNode
+}): HostIR {
   return {
     id: id(),
     kind: 'Host',
-    children,
+    attrs: input.attrs,
+    child: input.child,
   }
 }
 

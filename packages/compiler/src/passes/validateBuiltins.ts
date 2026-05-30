@@ -24,8 +24,8 @@ function visit(node: ZeusIRNode, state: ValidateState): void {
         })
       }
 
-      for (const child of node.children) {
-        visit(child, { insideHost: true, root: false })
+      if (node.child) {
+        visit(node.child, { insideHost: true, root: false })
       }
       return
 

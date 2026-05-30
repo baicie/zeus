@@ -27,10 +27,13 @@ const App = (props: {
 `;
 
 exports[`zeus compiler jsx transform > compiles Host as no-op wrapper 1`] = `
-"import { template as _template } from "@zeus-js/runtime-dom";
+"import { Host as _Host, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<div>hello</div>\`);
 import { Host } from '@zeus-js/runtime-dom';
-const App = () => _tmpl$().firstChild;"
+const App = () => (() => {
+  _Host({});
+  return _tmpl$().firstChild;
+})();"
 `;
 
 exports[`zeus compiler jsx transform > compiles Show with fallback 1`] = `
@@ -50,17 +53,20 @@ const App = (props: {
 `;
 
 exports[`zeus compiler jsx transform > compiles Slot to createSlot 1`] = `
-"import { createSlot as _createSlot, insert as _insert, template as _template } from "@zeus-js/runtime-dom";
+"import { Host as _Host, createSlot as _createSlot, insert as _insert, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<article><!><!></article>\`),
   _tmpl$2 = /*#__PURE__*/_template(\`<button>fallback</button>\`);
 import { Host, Slot } from '@zeus-js/runtime-dom';
 const App = () => (() => {
-  const _el$ = _tmpl$().firstChild;
-  const _slot$ = _el$.firstChild;
-  const _slot$2 = _slot$.nextSibling;
-  _insert(_el$, _createSlot(undefined, undefined), _slot$);
-  _insert(_el$, _createSlot("footer", () => _tmpl$2().firstChild), _slot$2);
-  return _el$;
+  _Host({});
+  return (() => {
+    const _el$ = _tmpl$().firstChild;
+    const _slot$ = _el$.firstChild;
+    const _slot$2 = _slot$.nextSibling;
+    _insert(_el$, _createSlot(undefined, undefined), _slot$);
+    _insert(_el$, _createSlot("footer", () => _tmpl$2().firstChild), _slot$2);
+    return _el$;
+  })();
 })();"
 `;
 

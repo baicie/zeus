@@ -133,9 +133,16 @@ export type ForIR = SemanticBaseIRNode & {
   physicalDomPath?: PhysicalDomPath
 }
 
+export type HostAttrIR = SemanticBaseIRNode & {
+  kind: 'HostAttr'
+  name: string
+  expr: t.Expression
+}
+
 export type HostIR = SemanticBaseIRNode & {
   kind: 'Host'
-  children: ZeusIRNode[]
+  attrs: HostAttrIR[]
+  child?: ZeusIRNode
 }
 
 export type SlotIR = SemanticBaseIRNode & {

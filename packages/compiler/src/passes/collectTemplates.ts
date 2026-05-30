@@ -72,7 +72,7 @@ function renderChildTemplate(node: ZeusIRNode): string {
     case 'Slot':
       return '<!>'
     case 'Host':
-      return node.children.map(renderChildTemplate).join('')
+      return node.child ? renderChildTemplate(node.child) : ''
     case 'Fragment':
       return node.children.map(renderChildTemplate).join('')
   }

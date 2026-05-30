@@ -23,20 +23,23 @@ const App = (props: {
 `;
 
 exports[`zeus compiler ir-first pipeline > compiles Host and Slot as IR built-ins 1`] = `
-"import { createSlot as _createSlot, insert as _insert, template as _template } from "@zeus-js/runtime-dom";
+"import { Host as _Host, createSlot as _createSlot, insert as _insert, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<header><!></header>\`),
   _tmpl$2 = /*#__PURE__*/_template(\`<main><!></main>\`);
-const App = () => [(() => {
-  const _el$ = _tmpl$().firstChild;
-  const _slot$ = _el$.firstChild;
-  _insert(_el$, _createSlot("header", undefined), _slot$);
-  return _el$;
-})(), (() => {
-  const _el$2 = _tmpl$2().firstChild;
-  const _slot$2 = _el$2.firstChild;
-  _insert(_el$2, _createSlot(undefined, undefined), _slot$2);
-  return _el$2;
-})()];"
+const App = () => (() => {
+  _Host({});
+  return [(() => {
+    const _el$ = _tmpl$().firstChild;
+    const _slot$ = _el$.firstChild;
+    _insert(_el$, _createSlot("header", undefined), _slot$);
+    return _el$;
+  })(), (() => {
+    const _el$2 = _tmpl$2().firstChild;
+    const _slot$2 = _el$2.firstChild;
+    _insert(_el$2, _createSlot(undefined, undefined), _slot$2);
+    return _el$2;
+  })()];
+})();"
 `;
 
 exports[`zeus compiler ir-first pipeline > compiles component calls through the IR-first feature flag 1`] = `

@@ -37,9 +37,7 @@ function visitNode(node: ZeusIRNode, parent?: ElementIR): void {
       return
 
     case 'Host':
-      for (const child of node.children) {
-        visitNode(child, parent)
-      }
+      if (node.child) visitNode(node.child, parent)
       return
 
     case 'Show':
@@ -197,8 +195,8 @@ function appendPhysicalChild(result: PhysicalNode[], node: ZeusIRNode): void {
       return
 
     case 'Host':
-      for (const child of node.children) {
-        appendPhysicalChild(result, child)
+      if (node.child) {
+        appendPhysicalChild(result, node.child)
       }
       return
   }

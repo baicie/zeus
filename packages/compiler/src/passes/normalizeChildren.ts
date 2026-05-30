@@ -9,13 +9,16 @@ function visit(node: ZeusIRNode): void {
   switch (node.kind) {
     case 'Element':
     case 'Fragment':
-    case 'Host':
       node.children = node.children.filter(child => {
         if (child.kind === 'Text') return child.value.length > 0
         return true
       })
 
       for (const child of node.children) visit(child)
+      return
+
+    case 'Host':
+      if (node.child) visit(node.child)
       return
 
     case 'Component':

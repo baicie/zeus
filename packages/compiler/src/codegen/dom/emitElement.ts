@@ -111,9 +111,7 @@ function collectRefNode(node: ZeusIRNode, map: Map<string, DomRefNode>): void {
       return
 
     case 'Host':
-      for (const child of node.children) {
-        collectRefNode(child, map)
-      }
+      if (node.child) collectRefNode(node.child, map)
       return
 
     default:
@@ -179,9 +177,9 @@ function collectRequiredDomRefDeclaration(
       return
 
     case 'Host':
-      for (const child of node.children) {
+      if (node.child) {
         collectRequiredDomRefDeclaration(
-          child,
+          node.child,
           statements,
           context,
           refNodeMap,
@@ -318,16 +316,23 @@ function needsDomRefDeclaration(node: ElementIR): boolean {
         )
 
       case 'Host':
-        return child.children.some(inner =>
-          inner.kind === 'Element'
-            ? needsDomRefDeclaration(inner)
-            : inner.kind !== 'Text',
-        )
+        return child.child ? innerKind(child.child) : false
 
       default:
         return false
     }
   })
+}
+
+function innerKind(node: ZeusIRNode): boolean {
+  switch (node.kind) {
+    case 'Element':
+      return needsDomRefDeclaration(node)
+    case 'Text':
+      return false
+    default:
+      return true
+  }
 }
 
 function hasRuntimeWork(node: ElementIR): boolean {
@@ -353,8 +358,9 @@ function hasChildRuntimeWork(node: ZeusIRNode): boolean {
     case 'Element':
       return hasRuntimeWork(node)
     case 'Fragment':
-    case 'Host':
       return node.children.some(hasChildRuntimeWork)
+    case 'Host':
+      return node.child ? hasChildRuntimeWork(node.child) : false
     default:
       return false
   }

@@ -47,7 +47,7 @@ function visitNode(node: ZeusIRNode, parent?: ElementIR): void {
       return
 
     case 'Host':
-      for (const child of node.children) visitNode(child, parent)
+      if (node.child) visitNode(node.child, parent)
       return
 
     case 'Slot':

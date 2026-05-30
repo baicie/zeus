@@ -1136,20 +1136,20 @@ Phase 2 component analyzer can scan Host usage to extract:
 # 13. Phase 1 验收标准
 
 ```txt id="re5vw1"
-[ ] Host inside defineElement can bind data-* to custom element host
-[ ] Host supports dynamic data-state update
-[ ] Host supports class / className
-[ ] Host supports style
-[ ] Host supports ref
-[ ] Host remains transparent outside defineElement
-[ ] Host creates no extra DOM node
-[ ] Host ignores event-like props for now
-[ ] compiler Host snapshots are added
-[ ] examples/web-component includes z-host-button
-[ ] pnpm test-unit passes
-[ ] pnpm examples:check passes
-[ ] pnpm build passes
-[ ] pnpm build-dts passes
+[x] Host inside defineElement can bind data-* to custom element host
+[x] Host supports dynamic data-state update
+[x] Host supports class / className
+[x] Host supports style
+[x] Host supports ref
+[x] Host remains transparent outside defineElement
+[x] Host creates no extra DOM node
+[x] Host ignores event-like props for now
+[x] compiler Host snapshots are added
+[x] examples/web-component includes z-host-button
+[x] pnpm test-unit passes
+[x] pnpm examples:check passes
+[x] pnpm build passes
+[x] pnpm build-dts passes
 ````
 
 ---

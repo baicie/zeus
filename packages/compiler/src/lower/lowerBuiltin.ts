@@ -3,11 +3,14 @@ import * as t from '@babel/types'
 import { CompilerError, CompilerErrorCode } from '../diagnostics'
 import {
   forIR,
+  fragmentIR,
   hostIR,
   dynamicTextIR,
+  id,
   ref,
   showIR,
   slotIR,
+  type HostAttrIR,
   type ZeusIRNode,
 } from '../ir'
 import { lowerChildren } from './lowerChildren'
@@ -16,6 +19,8 @@ import { getJSXAttrName } from '../parse/jsx'
 
 import type { CompilerContext } from '../context'
 import type { NodePath } from '@babel/core'
+
+const HOST_SKIP_PROPS = new Set(['key', '__slot', '__anchor'])
 
 export function isBuiltinTag(tagName: string): boolean {
   return (
@@ -46,7 +51,7 @@ export function lowerBuiltin(
     case 'For':
       return lowerFor(path, context)
     case 'Host':
-      return hostIR(lowerChildren(path.get('children'), context))
+      return lowerHost(path, context)
     case 'Slot':
       return lowerSlot(path, context)
     default:
@@ -257,4 +262,106 @@ function getParamIdentifier(
 function getBuiltinName(path: NodePath<t.JSXElement>): string {
   const name = path.node.openingElement.name
   return t.isJSXIdentifier(name) ? name.name : 'Builtin'
+}
+
+function isEventLikeProp(key: string): boolean {
+  return /^on[A-Z]/.test(key) || key.startsWith('on:')
+}
+
+function normalizeHostAttrName(name: string): string {
+  switch (name) {
+    case 'className':
+      return 'class'
+    case 'htmlFor':
+      return 'for'
+    case 'tabIndex':
+      return 'tabindex'
+    case 'readOnly':
+      return 'readonly'
+    default:
+      return name
+  }
+}
+
+function lowerHost(
+  path: NodePath<t.JSXElement>,
+  context: CompilerContext,
+): ZeusIRNode {
+  const attrs: HostAttrIR[] = []
+  const childrenPath = path.get('children')
+  const rawChildren = lowerChildren(childrenPath, context)
+
+  for (const attrPath of path.get('openingElement').get('attributes')) {
+    const node = attrPath.node
+
+    if (t.isJSXSpreadAttribute(node)) {
+      throw new CompilerError({
+        code: CompilerErrorCode.UNSUPPORTED_COMPONENT_PROP,
+        message: 'Spread props are not supported on Host in Phase 1.',
+        path: attrPath,
+      })
+    }
+
+    if (!attrPath.isJSXAttribute()) continue
+
+    const name = getJSXAttrName(node.name)
+
+    if (HOST_SKIP_PROPS.has(name)) continue
+    if (name === 'children') continue
+
+    if (name === 'ref') {
+      const value = attrPath.get('value')
+      if (value.isJSXExpressionContainer()) {
+        const expr = value.get('expression')
+        if (expr.isExpression()) {
+          attrs.push({
+            id: id(),
+            kind: 'HostAttr',
+            name: 'ref',
+            expr: expr.node,
+          })
+        }
+      }
+      continue
+    }
+
+    if (isEventLikeProp(name)) continue
+
+    const value = node.value
+
+    if (!value) {
+      attrs.push({
+        id: id(),
+        kind: 'HostAttr',
+        name: normalizeHostAttrName(name),
+        expr: t.booleanLiteral(true),
+      })
+    } else if (t.isStringLiteral(value)) {
+      attrs.push({
+        id: id(),
+        kind: 'HostAttr',
+        name: normalizeHostAttrName(name),
+        expr: t.stringLiteral(value.value),
+      })
+    } else if (
+      t.isJSXExpressionContainer(value) &&
+      !t.isJSXEmptyExpression(value.expression)
+    ) {
+      attrs.push({
+        id: id(),
+        kind: 'HostAttr',
+        name: normalizeHostAttrName(name),
+        expr: value.expression,
+      })
+    }
+  }
+
+  const child =
+    rawChildren.length === 0
+      ? undefined
+      : rawChildren.length === 1
+        ? rawChildren[0]
+        : fragmentIR(rawChildren)
+
+  return hostIR({ attrs, child })
 }

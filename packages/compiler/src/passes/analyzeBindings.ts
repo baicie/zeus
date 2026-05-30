@@ -48,8 +48,11 @@ function visit(node: ZeusIRNode, analysis: BindingAnalysis): void {
       return
 
     case 'Fragment':
-    case 'Host':
       for (const child of node.children) visit(child, analysis)
+      return
+
+    case 'Host':
+      if (node.child) visit(node.child, analysis)
       return
 
     case 'Slot':
