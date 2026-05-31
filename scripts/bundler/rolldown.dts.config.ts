@@ -33,14 +33,15 @@ const targetPackages = (
     return wsPkgsByShort.has(pkg)
   })
 
-const packageConfigs: RolldownOptions[] = targetPackages.map(pkg => {
+const bundledPackages = targetPackages.filter(pkg => pkg !== 'vite-plugin')
+
+const packageConfigs: RolldownOptions[] = bundledPackages.map(pkg => {
   const pkgDir = wsPkgsByShort.get(pkg)?.dir
   const relativeDir = wsPkgsByShort.get(pkg)?.relativeDir
   if (!pkgDir || !relativeDir) {
     throw new Error(`Cannot resolve directory for package: ${pkg}`)
   }
 
-  // tsconfig outDir="temp" + include paths -> d.ts at temp/{packages,addons}/<pkg>/src/index.d.ts
   const [category] = relativeDir.split('/')
   const inputDts = `./temp/${category}/${pkg}/src/index.d.ts`
 
@@ -66,6 +67,17 @@ const packageConfigs: RolldownOptions[] = targetPackages.map(pkg => {
     },
   } as RolldownOptions
 })
+
+// Handle vite-plugin dts by directly copying the source declaration
+// (see comment above for why bundling is skipped)
+if (targetPackages.includes('vite-plugin')) {
+  const vitePluginDts = readFileSync(
+    'temp/packages/vite-plugin/src/index.d.ts',
+    'utf-8',
+  )
+  writeFileSync('packages/vite-plugin/dist/vite-plugin.d.ts', vitePluginDts)
+  console.log('[dts] vite-plugin.d.ts written directly from source')
+}
 
 export default packageConfigs
 

@@ -111,12 +111,87 @@ if (process.env.NODE_ENV === 'production') {
     }
   })
 }
+
+// Build additional entry points (e.g. bundler-plugin/vite, bundler-plugin/manifest)
+const additionalEntries = packageOptions.additionalEntries as
+  | Array<{
+      entry: string
+      output: string
+    }>
+  | undefined
+
+if (additionalEntries && additionalEntries.length > 0) {
+  const entryFormat = packageFormats.includes('esm-bundler')
+    ? 'esm-bundler'
+    : packageFormats[0]
+  const entryOutput = outputConfigs[entryFormat]
+
+  for (const extra of additionalEntries) {
+    const entryPath = `src/${extra.entry}`
+    const outputPath = extra.output
+
+    // ESM build
+    packageConfigs.push(
+      createConfig(
+        entryFormat,
+        {
+          ...entryOutput,
+          file: resolve(outputPath),
+        },
+        [],
+        entryPath,
+      ),
+    )
+
+    // CJS build
+    packageConfigs.push(
+      createConfig(
+        'cjs',
+        {
+          ...outputConfigs['cjs'],
+          file: resolve(outputPath.replace(/\.js$/, '.cjs.js')),
+        },
+        [],
+        entryPath,
+      ),
+    )
+
+    if (process.env.NODE_ENV === 'production') {
+      // ESM prod
+      packageConfigs.push(
+        createConfig(
+          entryFormat,
+          {
+            ...entryOutput,
+            file: resolve(outputPath.replace(/\.js$/, '.prod.js')),
+          },
+          [],
+          entryPath,
+        ),
+      )
+      // CJS prod
+      packageConfigs.push(
+        createConfig(
+          'cjs',
+          {
+            ...outputConfigs['cjs'],
+            file: resolve(outputPath.replace(/\.js$/, '.cjs.prod.js')),
+          },
+          [],
+          entryPath,
+        ),
+      )
+    }
+  }
+}
+
 export default packageConfigs
 
 function createConfig(
   format: PackageFormat,
   output: OutputOptions,
   plugins: Plugin[] = [],
+  customEntry?: string,
 ): RolldownOptions {
   if (!output) {
     console.log(pico.yellow(`invalid format: "${format}"`))
@@ -147,7 +222,7 @@ function createConfig(
     output.name = packageOptions.name
   }
 
-  let entryFile = `src/index.ts`
+  let entryFile = customEntry ?? `src/index.ts`
 
   function resolveDefine() {
     const replacements: Record<string, string> = {
