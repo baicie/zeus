@@ -286,12 +286,13 @@ describe('output-wc', () => {
         {} as OutputBundle,
       ) as ZeusOutputAsset[]
 
-      expect(result).toHaveLength(4)
+      expect(result).toHaveLength(5)
       const fileNames = new Set(result.map(f => f.fileName))
       expect(fileNames).toContain('dist/custom-elements.json')
       expect(fileNames).toContain('dist/zeus.components.json')
       expect(fileNames).toContain('dist/wc/index.d.ts')
       expect(fileNames).toContain('dist/wc/jsx.d.ts')
+      expect(fileNames).toContain('dist/wc/z-button.d.ts')
     })
 
     it('generates zeus.components.json', () => {

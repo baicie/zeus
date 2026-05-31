@@ -34,6 +34,9 @@ const targetPackages = (
   })
 
 const bundledPackages = targetPackages.filter(pkg => pkg !== 'vite-plugin')
+const dtsChecks: RolldownOptions['checks'] = {
+  pluginTimings: false,
+}
 
 const packageConfigs: RolldownOptions[] = bundledPackages.map(pkg => {
   const pkgDir = wsPkgsByShort.get(pkg)?.dir
@@ -46,6 +49,7 @@ const packageConfigs: RolldownOptions[] = bundledPackages.map(pkg => {
   const inputDts = `./temp/${category}/${pkg}/src/index.d.ts`
 
   return {
+    checks: dtsChecks,
     input: inputDts,
     output: {
       file: `${pkgDir}/dist/${pkg}.d.ts`,
@@ -90,6 +94,8 @@ for (const pkg of bundledPackages) {
 
     const outputDts = extra.output.replace(/\.js$/, '.d.ts')
     additionalEntryDtsConfigs.push({
+      checks: dtsChecks,
+      external: ['vite'],
       input: srcDts,
       output: {
         file: `${pkgDir}/${outputDts}`,
@@ -120,9 +126,12 @@ function patchTypes(pkg: string, pkgDir: string): import('rollup').Plugin {
     renderChunk(code, chunk) {
       const s = new MagicString(code)
       const ast = parse(code, {
+        errorRecovery: true,
         plugins: ['typescript'],
         sourceType: 'module',
       })
+
+      removeDuplicateImportSpecifiers(ast.program.body, s)
 
       function processDeclaration(
         node:
@@ -241,6 +250,58 @@ function patchTypes(pkg: string, pkgDir: string): import('rollup').Plugin {
       }
       return code
     },
+  }
+}
+
+function removeDuplicateImportSpecifiers(
+  nodes: Array<
+    import('@babel/types').Statement | import('@babel/types').ModuleDeclaration
+  >,
+  s: MagicString,
+) {
+  const importedLocals = new Set<string>()
+
+  for (const node of nodes) {
+    if (node.type !== 'ImportDeclaration') {
+      continue
+    }
+
+    let removed = 0
+    for (let i = 0; i < node.specifiers.length; i++) {
+      const spec = node.specifiers[i]
+      if (spec.type !== 'ImportSpecifier') {
+        continue
+      }
+
+      const localName = spec.local.name
+
+      if (!importedLocals.has(localName)) {
+        importedLocals.add(localName)
+        continue
+      }
+
+      const next = node.specifiers[i + 1]
+      if (next) {
+        assert(typeof spec.start === 'number')
+        assert(typeof next.start === 'number')
+        s.remove(spec.start, next.start)
+      } else {
+        const prev = node.specifiers[i - 1]
+        assert(typeof spec.start === 'number')
+        assert(typeof spec.end === 'number')
+        s.remove(
+          prev ? (assert(typeof prev.end === 'number'), prev.end) : spec.start,
+          spec.end,
+        )
+      }
+      removed++
+    }
+
+    if (removed === node.specifiers.length) {
+      assert(typeof node.start === 'number')
+      assert(typeof node.end === 'number')
+      s.remove(node.start, node.end)
+    }
   }
 }
 

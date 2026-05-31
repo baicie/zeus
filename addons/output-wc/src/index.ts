@@ -1,7 +1,8 @@
 import path from 'node:path'
 
+import { generateWCDtsFiles } from '@zeus-js/component-dts'
+
 import { generateCustomElementsJson } from './generateCustomElementsJson'
-import { generateWCDts, generateWCJsxDts } from './generateDts'
 import { generateWCEntry } from './generateEntry'
 import {
   generateWCIndex,
@@ -94,20 +95,22 @@ export default function wc(options: OutputWCOptions = {}): ZeusOutputPlugin {
         })
       }
 
-      if (normalized.dts) {
-        files.push({
-          type: 'asset',
-          fileName: path.posix.join(normalized.outDir, 'index.d.ts'),
-          source: generateWCDts(ctx.manifest),
+      if (normalized.dts || normalized.jsxDts) {
+        const dtsFiles = generateWCDtsFiles(ctx.manifest, {
+          outDir: normalized.outDir,
+          stripPrefix: normalized.stripPrefix,
+          fileName: normalized.fileName,
+          perComponent: true,
+          index: normalized.dts,
+          jsx: normalized.jsxDts,
         })
-      }
-
-      if (normalized.jsxDts) {
-        files.push({
-          type: 'asset',
-          fileName: path.posix.join(normalized.outDir, 'jsx.d.ts'),
-          source: generateWCJsxDts(ctx.manifest),
-        })
+        for (const file of dtsFiles) {
+          files.push({
+            type: 'asset',
+            fileName: file.fileName,
+            source: file.source,
+          })
+        }
       }
 
       return files

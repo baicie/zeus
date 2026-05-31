@@ -213,6 +213,9 @@ importers:
       '@zeus-js/component-analyzer':
         specifier: workspace:*
         version: link:../component-analyzer
+      '@zeus-js/component-dts':
+        specifier: workspace:*
+        version: link:../../packages/component-dts
       rollup:
         specifier: ^4.0.0
         version: 4.60.4
@@ -437,6 +440,12 @@ importers:
       '@types/babel__helper-plugin-utils':
         specifier: ^7.10.3
         version: 7.10.3
+
+  packages/component-dts:
+    dependencies:
+      '@zeus-js/component-analyzer':
+        specifier: workspace:*
+        version: link:../../addons/component-analyzer
 
   packages/runtime-dom:
     dependencies:
