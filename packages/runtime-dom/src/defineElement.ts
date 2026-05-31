@@ -26,7 +26,7 @@ export type PropDefinition<T = unknown> =
       default?: T | (() => T)
     }
 
-export type PropOptions<P extends Record<string, unknown>> = Partial<{
+export type PropOptions<P extends object> = Partial<{
   [K in keyof P]: PropDefinition<P[K]>
 }>
 
@@ -63,7 +63,7 @@ export interface DefineElementMeta {
   [key: string]: unknown
 }
 
-export interface DefineElementOptions<P extends Record<string, unknown>> {
+export interface DefineElementOptions<P extends object> {
   shadow?: boolean | ShadowRootInit
   props?: PropOptions<P>
   styles?: string | string[]
@@ -83,7 +83,7 @@ export interface DefineElementContext<E extends HTMLElement = HTMLElement> {
 }
 
 export type DefineElementSetup<
-  P extends Record<string, unknown>,
+  P extends object,
   E extends HTMLElement = HTMLElement,
 > = (props: Readonly<P>, context: DefineElementContext<E>) => JSXValue
 
@@ -96,7 +96,7 @@ type NormalizedPropDefinition = {
 }
 
 export function defineElement<
-  P extends Record<string, unknown> = Record<string, unknown>,
+  P extends object = object,
   E extends HTMLElement = HTMLElement,
 >(
   tagName: string,

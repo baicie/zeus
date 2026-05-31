@@ -5,30 +5,46 @@ const Fragment = Symbol.for('zeus.fragment')
 export { Fragment }
 
 export function jsx(
-  type: string | ((props: Record<string, unknown>) => JSXValue),
+  type:
+    | string
+    | typeof Fragment
+    | ((props: Record<string, unknown>) => JSXValue),
   props: Record<string, unknown> | null,
 ): JSXValue {
   return createJSXNode(type, props)
 }
 
 export function jsxs(
-  type: string | ((props: Record<string, unknown>) => JSXValue),
+  type:
+    | string
+    | typeof Fragment
+    | ((props: Record<string, unknown>) => JSXValue),
   props: Record<string, unknown> | null,
 ): JSXValue {
   return createJSXNode(type, props)
 }
 
 export function jsxDEV(
-  type: string | ((props: Record<string, unknown>) => JSXValue),
+  type:
+    | string
+    | typeof Fragment
+    | ((props: Record<string, unknown>) => JSXValue),
   props: Record<string, unknown> | null,
 ): JSXValue {
   return createJSXNode(type, props)
 }
 
 function createJSXNode(
-  type: string | ((props: Record<string, unknown>) => JSXValue),
+  type:
+    | string
+    | typeof Fragment
+    | ((props: Record<string, unknown>) => JSXValue),
   props: Record<string, unknown> | null,
 ): JSXValue {
+  if (type === Fragment) {
+    return props?.children as JSXValue
+  }
+
   if (typeof type === 'function') {
     return createComponent(
       type as (props: Record<string, unknown>) => JSXValue,

@@ -1,7 +1,4 @@
-'use strict'
-
-if (process.env.NODE_ENV === 'production') {
-  module.exports = require('./dist/vite-plugin.cjs.prod.js')
-} else {
-  module.exports = require('./dist/vite-plugin.cjs.js')
-}
+// Re-export from bundled dist
+export * from './dist/vite-plugin.esm-bundler.js'
+import vitePlugin from './dist/vite-plugin.esm-bundler.js'
+export default vitePlugin

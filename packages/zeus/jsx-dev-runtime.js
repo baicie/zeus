@@ -1,1 +1,1 @@
-export { Fragment, jsx, jsxs, jsxDEV } from '@zeus-js/runtime-dom'
+export { Fragment, jsx, jsxs, jsxDEV } from './jsx-runtime.js'

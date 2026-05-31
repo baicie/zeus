@@ -26,6 +26,14 @@ export function generateReactWrapper(
 
   const eventPropNames = eventNames.map(toReactEventProp)
   const namedSlotPropNames = namedSlots
+  const destructuredPropNames = [
+    ...propNames,
+    ...eventPropNames,
+    ...namedSlotPropNames,
+  ]
+  const destructuredProps = destructuredPropNames.length
+    ? `${destructuredPropNames.join(',\n    ')},`
+    : ''
 
   return `
 import React, {
@@ -46,8 +54,7 @@ export const ${component.name} = forwardRef(function ${component.name}(props, re
     children,
     className,
     style,
-    ${[...propNames, ...eventPropNames, ...namedSlotPropNames].join(',\n    ')}
-    ,
+    ${destructuredProps}
     ...rest
   } = props;
 

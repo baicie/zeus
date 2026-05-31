@@ -1,7 +1,4 @@
-'use strict'
-
-if (process.env.NODE_ENV === 'production') {
-  module.exports = require('./dist/bundler-plugin.cjs.prod.js')
-} else {
-  module.exports = require('./dist/bundler-plugin.cjs.js')
-}
+// Re-export from bundled dist
+export * from './dist/bundler-plugin.esm-bundler.js'
+import bundlerPlugin from './dist/bundler-plugin.esm-bundler.js'
+export default bundlerPlugin

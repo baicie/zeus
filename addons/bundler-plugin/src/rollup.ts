@@ -87,6 +87,8 @@ export function createZeusPlugin(
               fileName: mod.fileName,
             })
           }
+
+          await this.load({ id: mod.id })
         }
       }
     },

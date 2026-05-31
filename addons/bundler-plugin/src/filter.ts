@@ -1,10 +1,13 @@
 export interface FilterOptions {
   include?: RegExp | RegExp[]
-  exclude?: RegExp | RegExp[]
+  exclude?: RegExp | RegExp[] | string | string[]
 }
 
-export function normalizePatterns(value: RegExp | RegExp[]): RegExp[] {
-  return Array.isArray(value) ? value : [value]
+export function normalizePatterns(
+  value: RegExp | RegExp[] | string | string[],
+): RegExp[] {
+  const arr = Array.isArray(value) ? value : [value]
+  return arr.map(p => (typeof p === 'string' ? new RegExp(p) : p))
 }
 
 export function createFilter(options: FilterOptions = {}) {

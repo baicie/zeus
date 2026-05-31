@@ -1,7 +1,4 @@
-'use strict'
-
-if (process.env.NODE_ENV === 'production') {
-  module.exports = require('./dist/output-wc.cjs.prod.js')
-} else {
-  module.exports = require('./dist/output-wc.cjs.js')
-}
+// Re-export from bundled dist
+export * from './dist/output-wc.esm-bundler.js'
+import wc from './dist/output-wc.esm-bundler.js'
+export default wc

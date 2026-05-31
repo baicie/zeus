@@ -19,6 +19,7 @@
     "addons/output-wc/src",
     "addons/output-react-wrapper/src",
     "addons/output-vue-wrapper/src",
-    "packages/component-dts/src"
+    "addons/component-dts/src",
+    "packages/headless/src"
   ]
 }

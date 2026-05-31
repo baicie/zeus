@@ -63,6 +63,7 @@ type HTMLAttributes<T extends HTMLElement> = CommonDOMAttributes<T> & {
   [key: `data-${string}`]: PrimitiveAttr
   [key: `aria-${string}`]: PrimitiveAttr
   [key: `prop:${string}`]: unknown
+  [key: string]: unknown
   type?: string
   checked?: boolean
   value?: string | number
