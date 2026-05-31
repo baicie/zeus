@@ -68,14 +68,47 @@ const packageConfigs: RolldownOptions[] = bundledPackages.map(pkg => {
   } as RolldownOptions
 })
 
+// Generate .d.ts for additional entry points (e.g. bundler-plugin/vite, bundler-plugin/manifest)
+const additionalEntryDtsConfigs: RolldownOptions[] = []
+for (const pkg of bundledPackages) {
+  const pkgDir = wsPkgsByShort.get(pkg)?.dir
+  const relativeDir = wsPkgsByShort.get(pkg)?.relativeDir
+  if (!pkgDir || !relativeDir) continue
+
+  const pkgJson = wsPkgsByShort.get(pkg)?.packageJson as
+    | Record<string, unknown>
+    | undefined
+  const buildOptions = pkgJson?.buildOptions as
+    | { additionalEntries?: Array<{ entry: string; output: string }> }
+    | undefined
+  if (!buildOptions?.additionalEntries) continue
+
+  const [category] = relativeDir.split('/')
+  for (const extra of buildOptions.additionalEntries) {
+    const srcDts = `./temp/${category}/${pkg}/src/${extra.entry.replace(/\.ts$/, '.d.ts')}`
+    if (!existsSync(srcDts)) continue
+
+    const outputDts = extra.output.replace(/\.js$/, '.d.ts')
+    additionalEntryDtsConfigs.push({
+      input: srcDts,
+      output: {
+        file: `${pkgDir}/${outputDts}`,
+        format: 'es',
+      },
+      plugins: [rolldownDts()],
+    })
+  }
+}
+packageConfigs.push(...additionalEntryDtsConfigs)
+
 // Handle vite-plugin dts by directly copying the source declaration
 // (see comment above for why bundling is skipped)
 if (targetPackages.includes('vite-plugin')) {
   const vitePluginDts = readFileSync(
-    'temp/packages/vite-plugin/src/index.d.ts',
+    'temp/addons/vite-plugin/src/index.d.ts',
     'utf-8',
   )
-  writeFileSync('packages/vite-plugin/dist/vite-plugin.d.ts', vitePluginDts)
+  writeFileSync('addons/vite-plugin/dist/vite-plugin.d.ts', vitePluginDts)
   console.log('[dts] vite-plugin.d.ts written directly from source')
 }
 

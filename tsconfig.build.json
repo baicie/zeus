@@ -13,6 +13,8 @@
     "packages/runtime-dom/src",
     "packages/compiler/src",
     "packages/zeus/src",
-    "addons/vite-plugin/src"
+    "addons/vite-plugin/src",
+    "addons/bundler-plugin/src",
+    "addons/component-analyzer/src"
   ]
 }
