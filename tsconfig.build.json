@@ -17,6 +17,8 @@
     "addons/bundler-plugin/src",
     "addons/component-analyzer/src",
     "addons/output-wc/src",
+    "addons/output-react-wrapper/src",
+    "addons/output-vue-wrapper/src",
     "packages/component-dts/src"
   ]
 }

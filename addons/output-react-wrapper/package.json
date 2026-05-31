@@ -1,0 +1,55 @@
+{
+  "name": "@zeus-js/output-react-wrapper",
+  "version": "0.0.2",
+  "description": "Zeus React wrapper output plugin",
+  "type": "module",
+  "main": "index.js",
+  "module": "dist/output-react-wrapper.esm-bundler.js",
+  "types": "dist/output-react-wrapper.d.ts",
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/output-react-wrapper.d.ts",
+      "node": {
+        "production": "./dist/output-react-wrapper.cjs.prod.js",
+        "development": "./dist/output-react-wrapper.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/output-react-wrapper.esm-bundler.js",
+      "import": "./dist/output-react-wrapper.esm-bundler.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
+  },
+  "sideEffects": false,
+  "buildOptions": {
+    "name": "ZeusOutputReactWrapper",
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ]
+  },
+  "dependencies": {
+    "@zeus-js/bundler-plugin": "workspace:*",
+    "@zeus-js/component-analyzer": "workspace:*",
+    "@zeus-js/component-dts": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": ">=18 || >=19"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "keywords": [
+    "zeus",
+    "react",
+    "web-components"
+  ],
+  "author": "Baicie",
+  "license": "MIT"
+}
