@@ -156,6 +156,39 @@ importers:
         specifier: ^4.1.7
         version: 4.1.7(@types/node@25.9.1)(@vitest/coverage-v8@4.1.7)(jsdom@29.1.1)(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0))
 
+  addons/bundler-plugin:
+    dependencies:
+      '@babel/core':
+        specifier: 'catalog:'
+        version: 7.29.0
+      '@zeus-js/compiler':
+        specifier: workspace:*
+        version: link:../../packages/compiler
+      '@zeus-js/component-analyzer':
+        specifier: workspace:*
+        version: link:../component-analyzer
+      fast-glob:
+        specifier: ^3.3.3
+        version: 3.3.3
+      rollup:
+        specifier: ^4.0.0
+        version: 4.60.4
+      vite:
+        specifier: 'catalog:'
+        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0)
+
+  addons/component-analyzer:
+    dependencies:
+      '@babel/parser':
+        specifier: 'catalog:'
+        version: 7.29.7
+      '@babel/types':
+        specifier: 'catalog:'
+        version: 7.29.0
+      fast-glob:
+        specifier: ^3.3.3
+        version: 3.3.3
+
   addons/create-zeus:
     dependencies:
       '@clack/prompts':
@@ -171,6 +204,18 @@ importers:
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
+
+  addons/output-wc:
+    dependencies:
+      '@zeus-js/bundler-plugin':
+        specifier: workspace:*
+        version: link:../bundler-plugin
+      '@zeus-js/component-analyzer':
+        specifier: workspace:*
+        version: link:../component-analyzer
+      rollup:
+        specifier: ^4.0.0
+        version: 4.60.4
 
   addons/vite-plugin:
     dependencies:
@@ -330,6 +375,12 @@ importers:
         specifier: workspace:*
         version: link:../../packages/zeus
     devDependencies:
+      '@zeus-js/bundler-plugin':
+        specifier: workspace:*
+        version: link:../../addons/bundler-plugin
+      '@zeus-js/output-wc':
+        specifier: workspace:*
+        version: link:../../addons/output-wc
       '@zeus-js/vite-plugin':
         specifier: workspace:*
         version: link:../../addons/vite-plugin
@@ -355,27 +406,6 @@ importers:
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
-      vite:
-        specifier: 'catalog:'
-        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0)
-
-  packages/bundler-plugin:
-    dependencies:
-      '@babel/core':
-        specifier: 'catalog:'
-        version: 7.29.0
-      '@zeus-js/compiler':
-        specifier: workspace:*
-        version: link:../compiler
-      '@zeus-js/component-analyzer':
-        specifier: workspace:*
-        version: link:../component-analyzer
-      fast-glob:
-        specifier: ^3.3.3
-        version: 3.3.3
-      rollup:
-        specifier: ^4.0.0
-        version: 4.60.4
       vite:
         specifier: 'catalog:'
         version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0)
@@ -407,18 +437,6 @@ importers:
       '@types/babel__helper-plugin-utils':
         specifier: ^7.10.3
         version: 7.10.3
-
-  packages/component-analyzer:
-    dependencies:
-      '@babel/parser':
-        specifier: 'catalog:'
-        version: 7.29.7
-      '@babel/types':
-        specifier: 'catalog:'
-        version: 7.29.0
-      fast-glob:
-        specifier: ^3.3.3
-        version: 3.3.3
 
   packages/runtime-dom:
     dependencies:

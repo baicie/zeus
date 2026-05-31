@@ -15,6 +15,7 @@
     "packages/zeus/src",
     "addons/vite-plugin/src",
     "addons/bundler-plugin/src",
-    "addons/component-analyzer/src"
+    "addons/component-analyzer/src",
+    "addons/output-wc/src"
   ]
 }

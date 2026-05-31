@@ -1,0 +1,54 @@
+{
+  "name": "@zeus-js/output-wc",
+  "version": "0.0.2",
+  "description": "Zeus Web Component output plugin",
+  "type": "module",
+  "main": "index.js",
+  "module": "dist/output-wc.esm-bundler.js",
+  "types": "dist/output-wc.d.ts",
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/output-wc.d.ts",
+      "node": {
+        "production": "./dist/output-wc.cjs.prod.js",
+        "development": "./dist/output-wc.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/output-wc.esm-bundler.js",
+      "import": "./dist/output-wc.esm-bundler.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
+  },
+  "sideEffects": false,
+  "buildOptions": {
+    "name": "ZeusOutputWC",
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ]
+  },
+  "dependencies": {
+    "@zeus-js/bundler-plugin": "workspace:*",
+    "@zeus-js/component-analyzer": "workspace:*"
+  },
+  "peerDependencies": {
+    "rollup": "^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "rollup": {
+      "optional": true
+    }
+  },
+  "keywords": [
+    "zeus",
+    "web-components",
+    "custom-elements"
+  ],
+  "author": "Baicie",
+  "license": "MIT"
+}

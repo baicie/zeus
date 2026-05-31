@@ -2,6 +2,11 @@
   "name": "@zeus-js/example-web-component",
   "private": true,
   "type": "module",
+  "sideEffects": [
+    "dist/wc/*.js",
+    "dist/wc/**/*.js",
+    "**/*.css"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -13,6 +18,8 @@
     "@zeus-js/zeus": "workspace:*"
   },
   "devDependencies": {
+    "@zeus-js/bundler-plugin": "workspace:*",
+    "@zeus-js/output-wc": "workspace:*",
     "@zeus-js/vite-plugin": "workspace:*",
     "typescript": "^6.0.3",
     "vite": "^8.0.14"
