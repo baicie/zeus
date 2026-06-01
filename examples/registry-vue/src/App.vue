@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ZButton } from '@/components/ui/z-button'
-import { ZSwitch } from '@/components/ui/z-switch'
-import { ZCheckbox } from '@/components/ui/z-checkbox'
+import Button from '@/components/ui/Button.vue'
+import Switch from '@/components/ui/Switch.vue'
+import Checkbox from '@/components/ui/Checkbox.vue'
 </script>
 
 <template>
@@ -10,18 +10,17 @@ import { ZCheckbox } from '@/components/ui/z-checkbox'
       <h1 class="text-2xl font-semibold">Zeus UI Registry — Vue</h1>
 
       <section class="flex gap-3">
-        <ZButton variant="default">Default</ZButton>
-        <ZButton variant="outline">Outline</ZButton>
-        <ZButton variant="ghost">Ghost</ZButton>
-        <ZButton variant="destructive">Destructive</ZButton>
+        <Button>Default</Button>
+        <Button variant="outline">Outline</Button>
+        <Button variant="ghost">Ghost</Button>
       </section>
 
       <section>
-        <ZSwitch />
+        <Switch />
       </section>
 
       <section>
-        <ZCheckbox />
+        <Checkbox />
       </section>
     </div>
   </main>

@@ -1,10 +1,18 @@
+import path from 'node:path'
+
 const RESOLVED_VIRTUAL_PREFIX = '\0'
 
 export class VirtualModuleRegistry {
   private readonly modules = new Map<string, string>()
+  private readonly virtualDirs = new Map<string, string>()
 
-  set(id: string, code: string): void {
-    this.modules.set(normalizeVirtualId(id), code)
+  set(id: string, code: string, fileName?: string): void {
+    const normalized = normalizeVirtualId(id)
+    this.modules.set(normalized, code)
+    if (fileName) {
+      const dir = path.posix.dirname(fileName)
+      this.virtualDirs.set(normalized, dir)
+    }
   }
 
   has(id: string): boolean {
@@ -17,16 +25,63 @@ export class VirtualModuleRegistry {
 
   clear(): void {
     this.modules.clear()
+    this.virtualDirs.clear()
   }
 
-  resolve(id: string): string | null {
+  resolve(id: string, importer?: string): string | null {
     const normalized = normalizeVirtualId(id)
 
-    if (!this.modules.has(normalized)) {
-      return null
+    if (this.modules.has(normalized)) {
+      return RESOLVED_VIRTUAL_PREFIX + normalized
     }
 
-    return RESOLVED_VIRTUAL_PREFIX + normalized
+    if (importer && (id.startsWith('.') || id.startsWith('..'))) {
+      const importerNormalized = normalizeVirtualId(importer)
+      const importerDir = this.virtualDirs.get(importerNormalized)
+
+      if (importerDir) {
+        const resolved = path.posix.resolve(importerDir, id)
+        const importingPrefix = this.getIdPrefix(importerNormalized)
+
+        if (importingPrefix !== null) {
+          const baseName = path.posix.basename(resolved, '.js')
+
+          // Try exact match first
+          for (const [key] of this.modules.entries()) {
+            if (key === importingPrefix + baseName) {
+              return RESOLVED_VIRTUAL_PREFIX + key
+            }
+          }
+
+          // Try stripping common prefixes (z-, wc-) when looking up virtual IDs
+          for (const stripPrefix of ['z-', 'wc-', 'wc/', '']) {
+            const candidate = stripPrefix
+              ? importingPrefix + stripPrefix + baseName
+              : importingPrefix + baseName
+            if (this.modules.has(candidate)) {
+              return RESOLVED_VIRTUAL_PREFIX + candidate
+            }
+          }
+
+          // Try without any prefix stripping - use the fileName as-is
+          // (useful when filename already matches tag format, like z-button.js)
+          const fullName = baseName
+          for (const [key] of this.modules.entries()) {
+            if (key.endsWith(':' + fullName)) {
+              return RESOLVED_VIRTUAL_PREFIX + key
+            }
+          }
+        }
+      }
+    }
+
+    return null
+  }
+
+  private getIdPrefix(virtualId: string): string | null {
+    const lastColon = virtualId.lastIndexOf(':')
+    if (lastColon <= 0) return null
+    return virtualId.slice(0, lastColon + 1)
   }
 
   load(id: string): string | null {

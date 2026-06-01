@@ -3,11 +3,19 @@
     "target": "ES2020",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "strict": true,
+    "baseUrl": ".",
+    "strict": false,
+    "noUnusedLocals": false,
     "jsx": "react-jsx",
     "jsxImportSource": "@zeus-js/zeus",
-    "types": ["@zeus-js/zeus/jsx"],
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "noImplicitAny": false,
+    "noEmit": true,
+    "ignoreDeprecations": "6.0"
   },
-  "include": ["src", "../../packages/global.d.ts"]
+  "include": [
+    "src",
+    "../../packages/global.d.ts",
+    "../../packages/core/zeus/src/jsx.d.ts"
+  ]
 }

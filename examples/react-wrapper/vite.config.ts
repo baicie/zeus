@@ -7,7 +7,6 @@ import reactWrapper from '@zeus-js/output-react-wrapper'
 
 export default defineConfig({
   plugins: [
-    react(),
     zeus({
       root: __dirname,
       components: {
@@ -25,5 +24,6 @@ export default defineConfig({
         }),
       ],
     }),
+    react(),
   ],
 })

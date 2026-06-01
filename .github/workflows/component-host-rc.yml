@@ -5,9 +5,8 @@ on:
     paths:
       - 'packages/core/**'
       - 'packages/web-c/**'
-      - 'packages/headless/**'
-      - 'packages/registry/**'
-      - 'create/zeus-ui/**'
+      - 'packages/create/**'
+      - 'examples/headless/**'
       - 'examples/**'
       - 'scripts/**'
       - 'docs/**'

@@ -9,8 +9,7 @@ export function generateVueIndex(
 
   for (const component of components) {
     const virtualId = `zeus:vue:${component.tag}`
-
-    lines.push(`export { ${component.name} } from '${virtualId}';`)
+    lines.push(`export * from '${virtualId}';`)
   }
 
   lines.push('')

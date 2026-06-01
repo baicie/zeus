@@ -1,4 +1,4 @@
-import { defineElement, Slot } from '@zeus-js/zeus'
+import { defineElement, Host, Slot } from '@zeus-js/zeus'
 
 export interface ButtonProps {
   variant?: 'default' | 'outline'
@@ -22,12 +22,14 @@ export const ZButton = defineElement<ButtonProps>(
     },
   },
   (props, { emit }) => (
-    <button
-      class={`btn btn-${props.variant}`}
-      disabled={props.disabled}
-      onClick={event => emit('press', { nativeEvent: event })}
-    >
-      <Slot />
-    </button>
+    <Host>
+      <button
+        class={`btn btn-${props.variant}`}
+        disabled={props.disabled}
+        onClick={event => emit('press', { nativeEvent: event })}
+      >
+        <Slot />
+      </button>
+    </Host>
   ),
 )

@@ -12,7 +12,7 @@ React / Vue 类型安全 wrapper
 shadcn-like 可复制、可定制 UI 层
 ```
 
-当前 Zeus 已经有比较好的基础：workspace 覆盖 `packages/*`、`addons/*`、`examples/*`、`docs`，构建脚本也只扫描 `packages` 和 `addons`，适合继续按“核心包放 packages，构建生态放 addons”的方式扩展。
+当前 Zeus 已经有比较好的基础：workspace 覆盖 `packages/*`、`examples/*`、`docs`，构建脚本扫描 `packages` 下的所有子包。compiler 输出生态集中放在 `packages/web-c/` 下，包括 bundler-plugin、component-analyzer、component-dts、output-wc、output-react-wrapper、output-vue-wrapper、output-icons。
 `runtime-dom` 已经导出了 `defineElement / Host / Slot / createSlot / hostContext`，`defineElement` 也已经具备 props、attribute/property、shadow/light、styles、emit、lifecycle 等 Web Component 基础能力。
 compiler 当前是清晰的 JSX 编译链路：`lowerJSX -> passes -> collectTemplates -> emitDOM`，所以多输出 wrapper 不应该塞进 `@zeus-js/compiler`，而应该放到 bundler/plugin 层。
 
@@ -161,8 +161,10 @@ export const ZButton = defineElement<ButtonProps>(
 ## 包位置
 
 ```txt id="4p8yn6"
-packages/component-analyzer
+packages/web-c/component-analyzer
 ```
+
+> **设计决策**：component-analyzer 作为 compiler 输出生态的核心共享分析能力，放在 `packages/web-c/` 下，与同属 compiler 输出链的 bundler-plugin、output-* 等包集中管理。
 
 ## 输入
 
@@ -253,12 +255,12 @@ export interface ComponentRecord {
 
 做 Rollup / Vite / Rolldown 通用插件宿主。
 
-当前 `addons/vite-plugin` 已经在 transform 阶段调用 Babel + `@zeus-js/compiler`，这部分可以抽象成通用 bundler 插件能力。
+当前 `@zeus-js/vite-plugin` 已经在 transform 阶段调用 Babel + `@zeus-js/compiler`，这部分可以抽象成通用 bundler 插件能力。
 
 ## 包位置
 
 ```txt id="c2dabx"
-addons/bundler-plugin
+packages/web-c/bundler-plugin
 ```
 
 ## API
@@ -333,7 +335,7 @@ outputs 插件可以拿到 ComponentManifest
 ## 包位置
 
 ```txt id="ep8ige"
-addons/output-wc
+packages/web-c/output-wc
 ```
 
 ## 输出
@@ -491,8 +493,8 @@ Vue 中 @press 有事件类型
 ## 包位置
 
 ```txt id="0rk2lg"
-addons/output-react-wrapper
-addons/output-vue-wrapper
+packages/web-c/output-react-wrapper
+packages/web-c/output-vue-wrapper
 ```
 
 ## React wrapper 原则

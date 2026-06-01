@@ -1,14 +1,14 @@
-import '@zeus-ui/headless/wc'
-import '@zeus-ui/headless/styles.css'
-
-document
-  .querySelector('z-switch')
-  ?.addEventListener('checked-change', (event: Event) => {
-    console.log((event as CustomEvent<{ checked: boolean }>).detail.checked)
-  })
-
-document
-  .querySelector('z-dialog')
-  ?.addEventListener('open-change', (event: Event) => {
-    console.log((event as CustomEvent<{ open: boolean }>).detail.open)
-  })
+import './styles.css'
+import './button/button'
+import './switch/switch'
+import './checkbox/checkbox'
+import './icon/icon'
+import './tabs/tabs'
+import './tabs/tab-list'
+import './tabs/tab-trigger'
+import './tabs/tab-panel'
+import './dialog/dialog'
+import './dialog/dialog-trigger'
+import './dialog/dialog-content'
+import './dialog/dialog-title'
+import './dialog/dialog-description'

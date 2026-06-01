@@ -21,6 +21,7 @@
     "packages/web-c/output-react-wrapper/src",
     "packages/web-c/output-vue-wrapper/src",
     "packages/web-c/component-dts/src",
-    "packages/headless/src"
+    "examples/headless/src",
+    "packages/create/registry/src"
   ]
 }

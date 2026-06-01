@@ -78,7 +78,7 @@ export function createZeusPlugin(
         if (!modules) continue
 
         for (const mod of modules) {
-          virtualModules.set(mod.id, mod.code)
+          virtualModules.set(mod.id, mod.code, mod.fileName)
 
           if (mod.fileName) {
             this.emitFile({
@@ -91,8 +91,8 @@ export function createZeusPlugin(
       }
     },
 
-    resolveId(id) {
-      return virtualModules.resolve(id)
+    resolveId(id, importer) {
+      return virtualModules.resolve(id, importer)
     },
 
     load(id) {

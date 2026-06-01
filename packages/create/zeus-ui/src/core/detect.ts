@@ -19,9 +19,7 @@ export async function detectFramework(
   return null
 }
 
-export async function readPackageJson(
-  cwd = process.cwd(),
-): Promise<{
+export async function readPackageJson(cwd = process.cwd()): Promise<{
   dependencies?: Record<string, string>
   devDependencies?: Record<string, string>
 } | null> {

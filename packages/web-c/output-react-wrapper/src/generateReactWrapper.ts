@@ -43,6 +43,7 @@ import React, {
   useRef,
 } from 'react';
 
+// Import and register the Web Component (side-effect import)
 import ${JSON.stringify(wcImport)};
 
 const PROP_KEYS = ${JSON.stringify(propNames)};

@@ -8,12 +8,22 @@ export function generateReactIndex(
   const lines: string[] = []
 
   for (const component of components) {
-    const virtualId = `zeus:react:${component.tag}`
-
-    lines.push(`export { ${component.name} } from '${virtualId}';`)
+    const fileName = getJsFileName(component.tag, options)
+    lines.push(`export { ${component.name} } from './${fileName}';`)
   }
 
   lines.push('')
 
   return lines.join('\n')
+}
+
+function getJsFileName(
+  tag: string,
+  options: OutputReactWrapperOptions,
+): string {
+  if (options.fileName) {
+    return options.fileName(tag).replace(/\.[mc]?js$/, '') + '.js'
+  }
+  const name = tag.replace(/^z-/, '')
+  return `${name}.js`
 }

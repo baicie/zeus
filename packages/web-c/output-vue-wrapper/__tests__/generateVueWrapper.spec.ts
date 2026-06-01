@@ -55,6 +55,10 @@ describe('generateVueWrapper', () => {
     expect(code).toContain('props.variant !== undefined')
     expect(code).toContain('el.variant = undefined')
 
+    // Ensure no bare variable reference (common regression when setup() destructures props)
+    expect(code).not.toContain('el.variant = variant')
+    expect(code).not.toContain('el.disabled = disabled')
+
     expect(code).toContain('for (const eventName of EVENT_NAMES)')
     expect(code).toContain('emit(eventName, event)')
     expect(code).toContain('el.addEventListener(eventName, handler)')

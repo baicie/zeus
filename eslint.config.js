@@ -86,7 +86,7 @@ export default defineConfig(
   // ============================================
   {
     name: 'tests',
-    files: ['**/__tests__/**', 'packages/registry/__tests__/**'],
+    files: ['**/__tests__/**', 'packages/create/registry/__tests__/**'],
     rules: {
       'no-console': 'off',
       'no-restricted-globals': 'off',
@@ -131,7 +131,7 @@ export default defineConfig(
       'packages/core/*/*.js',
       'packages/devtools/*/*.js',
       'packages/web-c/*/*.js',
-      'create/**',
+      'packages/create/**',
     ],
     rules: {
       'no-restricted-globals': 'off',

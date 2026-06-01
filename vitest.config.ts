@@ -8,7 +8,7 @@ const testProjects = [
     name: 'unit',
     include: [
       'packages/**/*.{test,spec}.{ts,tsx}',
-      'create/**/*.{test,spec}.{ts,tsx}',
+      'examples/headless/**/*.{test,spec}.{ts,tsx}',
     ],
   },
   {
@@ -19,9 +19,11 @@ const testProjects = [
 
 const resolveEntries = {
   ...entries,
-  '@zeus-ui/registry': './packages/registry/src/index.ts',
-  '@zeus-ui/registry/shared/cn': './packages/registry/src/shared/cn.ts',
-  '@zeus-ui/registry/shared/theme': './packages/registry/src/shared/theme.ts',
+  '@zeus-ui/headless': './examples/headless/src/index.ts',
+  '@zeus-ui/registry': './packages/create/registry/src/index.ts',
+  '@zeus-ui/registry/shared/cn': './packages/create/registry/src/shared/cn.ts',
+  '@zeus-ui/registry/shared/theme':
+    './packages/create/registry/src/shared/theme.ts',
 }
 
 export default defineConfig({
@@ -41,14 +43,14 @@ export default defineConfig({
         'packages/core/*/src/**',
         'packages/devtools/*/src/**',
         'packages/web-c/*/src/**',
-        'packages/headless/src/**',
+        'examples/headless/src/**',
       ],
     },
     projects: testProjects.map(project => ({
       extends: true,
       test: {
         ...project,
-        exclude: [...configDefaults.exclude],
+        exclude: [...configDefaults.exclude, 'packages/create/**'],
         ...(project.name === 'bench' ? { mode: 'benchmark' } : {}),
       },
     })),

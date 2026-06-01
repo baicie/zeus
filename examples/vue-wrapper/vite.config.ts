@@ -7,7 +7,6 @@ import vueWrapper from '@zeus-js/output-vue-wrapper'
 
 export default defineConfig({
   plugins: [
-    vue(),
     zeus({
       root: __dirname,
       components: {
@@ -25,5 +24,6 @@ export default defineConfig({
         }),
       ],
     }),
+    vue(),
   ],
 })

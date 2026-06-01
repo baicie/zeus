@@ -69,7 +69,10 @@ async function main() {
   console.log('\n> Installing dependencies\n')
   run('pnpm', ['install'], root)
 
-  const zeusUiBin = path.resolve(process.cwd(), 'create/zeus-ui/dist/index.js')
+  const zeusUiBin = path.resolve(
+    process.cwd(),
+    'packages/create/zeus-ui/dist/index.js',
+  )
 
   const hasBin = await fs
     .access(zeusUiBin)
