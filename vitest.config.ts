@@ -6,7 +6,10 @@ import { entries } from './scripts/shared/aliases.ts'
 const testProjects = [
   {
     name: 'unit',
-    include: ['packages/**/*.{test,spec}.{ts,tsx}'],
+    include: [
+      'packages/**/*.{test,spec}.{ts,tsx}',
+      'create/**/*.{test,spec}.{ts,tsx}',
+    ],
   },
   {
     name: 'bench',
@@ -14,13 +17,20 @@ const testProjects = [
   },
 ]
 
+const resolveEntries = {
+  ...entries,
+  '@zeus-ui/registry': './packages/registry/src/index.ts',
+  '@zeus-ui/registry/shared/cn': './packages/registry/src/shared/cn.ts',
+  '@zeus-ui/registry/shared/theme': './packages/registry/src/shared/theme.ts',
+}
+
 export default defineConfig({
   define: {
     __DEV__: 'true',
     __TEST__: 'true',
     __VERSION__: '"test"',
   },
-  resolve: { alias: entries },
+  resolve: { alias: resolveEntries },
   test: {
     globals: true,
     setupFiles: 'scripts/testing/setup-vitest.ts',

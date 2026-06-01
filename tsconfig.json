@@ -41,6 +41,10 @@
     "packages/web-c/*/__tests__",
     "packages/headless/src",
     "packages/headless/__tests__",
+    "packages/registry/src",
+    "packages/registry/__tests__",
+    "create/*/src",
+    "create/*/__tests__",
     "benchmarks/*/src",
     "benchmarks/*/vite.config.ts",
     "scripts/**/*.ts"

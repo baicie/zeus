@@ -3,6 +3,8 @@ packages:
   - 'packages/devtools/*'
   - 'packages/web-c/*'
   - 'packages/headless'
+  - 'packages/registry'
+  - 'create/*'
   - 'examples/*'
   - 'benchmarks/*'
   - 'docs'
