@@ -646,6 +646,18 @@ importers:
         specifier: workspace:*
         version: link:../component-analyzer
 
+  packages/web-c/output-icons:
+    dependencies:
+      '@zeus-js/bundler-plugin':
+        specifier: workspace:*
+        version: link:../bundler-plugin
+      react:
+        specifier: '>=18 || >=19'
+        version: 19.2.6
+      vue:
+        specifier: '>=3'
+        version: 3.5.35(typescript@6.0.3)
+
   packages/web-c/output-react-wrapper:
     dependencies:
       '@zeus-js/bundler-plugin':

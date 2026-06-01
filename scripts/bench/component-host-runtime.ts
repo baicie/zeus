@@ -85,7 +85,8 @@ export async function runComponentHostRuntimeBench(): Promise<
     await page
       .waitForFunction(
         () =>
-          (window as Record<string, unknown>).__BENCH_RESULTS__ !== undefined,
+          (window as unknown as Record<string, unknown>).__BENCH_RESULTS__ !==
+          undefined,
         { timeout: 30000 },
       )
       .catch(err => {
@@ -95,10 +96,10 @@ export async function runComponentHostRuntimeBench(): Promise<
       })
 
     const raw = await page.evaluate(() => {
-      const r = (window as Record<string, unknown>).__BENCH_RESULTS__
+      const r = (window as unknown as Record<string, unknown>).__BENCH_RESULTS__
       return {
         results: r,
-        err: (window as Record<string, unknown>).__bench_err,
+        err: (window as unknown as Record<string, unknown>).__bench_err,
       }
     })
 

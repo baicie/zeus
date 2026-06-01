@@ -17,6 +17,7 @@
     "packages/web-c/bundler-plugin/src",
     "packages/web-c/component-analyzer/src",
     "packages/web-c/output-wc/src",
+    "packages/web-c/output-icons/src",
     "packages/web-c/output-react-wrapper/src",
     "packages/web-c/output-vue-wrapper/src",
     "packages/web-c/component-dts/src",
