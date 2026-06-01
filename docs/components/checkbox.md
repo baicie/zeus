@@ -62,7 +62,6 @@ function SelectAll() {
 
 ```tsx
 import { ZCheckbox } from '@/components/ui/z-checkbox'
-
 ;<ZCheckbox
   checked={false}
   onCheckedChange={event => {

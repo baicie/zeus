@@ -55,7 +55,6 @@ function CloseButton() {
 
 ```tsx
 import { ZIconX } from '@/components/ui/z-icon'
-
 ;<z-icon-x class="h-5 w-5 text-muted-foreground" />
 ```
 

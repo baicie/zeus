@@ -49,7 +49,6 @@ import { Button } from '@/components/ui/button'
 
 ```tsx
 import { ZButton } from '@/components/ui/z-button'
-
 ;<ZButton variant="outline" onPress={onClick}>
   Click me
 </ZButton>

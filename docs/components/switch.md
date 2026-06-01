@@ -45,7 +45,6 @@ function ControlledSwitch() {
 
 ```tsx
 import { ZSwitch } from '@/components/ui/z-switch'
-
 ;<ZSwitch
   checked={true}
   onCheckedChange={event => {
