@@ -1,6 +1,8 @@
 // User-facing public API — stable, minimal surface area.
 // Do NOT export runtime-dom internal helpers here.
 
+/// <reference path="./jsx.d.ts" />
+
 // reactivity
 export {
   state,

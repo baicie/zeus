@@ -4,6 +4,7 @@ packages:
   - 'packages/web-c/*'
   - 'packages/headless'
   - 'examples/*'
+  - 'benchmarks/*'
   - 'docs'
 
 catalog:

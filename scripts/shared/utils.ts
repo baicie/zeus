@@ -78,6 +78,7 @@ export function findWorkspacePackages(): WorkspacePackage[] {
   scanRoot('packages/devtools')
   scanRoot('packages/web-c')
   scanRoot('packages/headless')
+  scanRoot('benchmarks')
   scanRoot('examples')
   scanRoot('docs')
 

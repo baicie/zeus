@@ -41,6 +41,8 @@
     "packages/web-c/*/__tests__",
     "packages/headless/src",
     "packages/headless/__tests__",
+    "benchmarks/*/src",
+    "benchmarks/*/vite.config.ts",
     "scripts/**/*.ts"
   ],
   "exclude": []

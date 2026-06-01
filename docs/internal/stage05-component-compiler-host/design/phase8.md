@@ -1,228 +1,82 @@
 # Phase 8：Benchmark & Quality Gates 详细设计与代码草案
 
-Phase 8 不建议继续做新功能，而是补一套 **可量化的性能/体积/构建质量门禁**。
-
-前面 Phase 0–7 已经把链路打通：
+Phase 8 重新定义为：
 
 ```txt
-defineElement
-  ↓
-component-analyzer
-  ↓
-bundler-plugin
-  ↓
-output-wc / output-react-wrapper / output-vue-wrapper
-  ↓
-headless primitives
+Benchmark & Quality Gates
+
+目标不是继续堆功能，而是给 Phase 0–7 的 compiler-host 链路建立：
+1. 体积基线
+2. 构建耗时基线
+3. Tree-shaking 验证
+4. 浏览器运行时性能基线
+5. 后续 CI 性能门禁
 ```
 
-现在最关键的问题变成：
-
-```txt
-1. 单组件引入会不会因为 runtime 太大而不划算？
-2. 多组件 tree-shaking 是否真的生效？
-3. analyzer + compiler 双 parse 开销是否可接受？
-4. React/Vue wrapper 比原生 Web Component 多多少开销？
-5. headless primitives 的 mount/update/event 性能如何？
-6. 后续每次 PR 有没有性能回退？
-```
-
-当前仓库已经有 `test:benchs`、`size`、`size:ci` 等脚本基础，可以在这个基础上加 Phase 8。
-构建脚本已经会扫描 `packages/*` 和 `addons/*`，也支持按 target 构建，所以 Phase 8 不需要重写现有构建体系。
+当前分支已经适合开启 Phase 8：`packages/web-c/*` 已经被纳入 workspace，`component-analyzer / component-dts / bundler-plugin / output-*` 都在这个目录下；`pnpm-workspace.yaml` 已经包含 `packages/web-c/*`，但还没有 `benchmarks/*`。
+根脚本目前只有 `test:benchs`、`size`、`size:ci`，还没有 `bench:component-host` 入口，所以 Phase 8 第一件事是补 benchmark scaffold。
 
 ---
 
-# 1. Phase 8 目标
+# 1. Phase 8 分阶段目标
 
-## 做什么
-
-```txt
-1. 新增 component-host benchmark fixture
-2. 建立体积 benchmark
-3. 建立编译耗时 benchmark
-4. 建立浏览器运行时 benchmark
-5. 建立 React/Vue wrapper 开销 benchmark
-6. 建立 tree-shaking 验证
-7. 生成 benchmark JSON report
-8. 生成 markdown report
-9. 增加 CI threshold gate
-10. 为后续优化提供基线数据
-```
-
-## 不做什么
+## Phase 8.0：Benchmark Scaffold
 
 ```txt
-1. 不继续扩展组件能力
-2. 不做复杂 UI benchmark
-3. 不做真实业务页面 benchmark
-4. 不做跨浏览器矩阵
-5. 不做 SSR benchmark
-6. 不做自动性能优化
+[ ] 新增 benchmarks/component-host
+[ ] pnpm-workspace.yaml 增加 benchmarks/*
+[ ] 新增 scripts/bench/component-host.ts
+[ ] 根 package.json 增加 bench:component-host
+[ ] 能输出空 report.json / report.md
 ```
 
-Phase 8 的产物是 **数据和门禁**，不是新功能。
-
----
-
-# 2. Phase 8 前置要求
-
-我建议先修完上一轮 review 的 P0：
+## Phase 8.1：Size + Tree-shaking Benchmark
 
 ```txt
-P0-1 修 Vue wrapper prop sync 未定义变量
-P0-2 修 Vite 插件 ESM require.resolve
-P0-3 修 wc/index.d.ts 缺少 import type
+[ ] 构建 wc/react/vue 输出
+[ ] 统计 raw/gzip/brotli
+[ ] 校验单组件入口不包含其他组件 tag
+[ ] 输出 size report
 ```
 
-否则 Phase 8 的 benchmark 会测到错误生成物，数据没有意义。
-
----
-
-# 3. Benchmark 指标设计
-
-## 3.1 体积指标
-
-需要统计：
+## Phase 8.2：Compile Benchmark
 
 ```txt
-wc 单组件入口：
-  dist/wc/z-bench-button.js
-
-wc 全量入口：
-  dist/wc/index.js
-
-react 单组件入口：
-  dist/react/z-bench-button.js
-
-react 全量入口：
-  dist/react/index.js
-
-vue 单组件入口：
-  dist/vue/z-bench-button.js
-
-vue 全量入口：
-  dist/vue/index.js
-
-runtime 共享成本：
-  @zeus-js/signal
-  @zeus-js/runtime-dom
-  @zeus-js/zeus
+[ ] 测 component-analyzer 扫描耗时
+[ ] 测 wc only build
+[ ] 测 wc + react build
+[ ] 测 wc + vue build
+[ ] 测 wc + react + vue build
 ```
 
-输出格式：
+## Phase 8.3：Runtime Benchmark
 
-```json
-{
-  "size": {
-    "wc.single.raw": 12345,
-    "wc.single.gzip": 4567,
-    "wc.all.raw": 23456,
-    "wc.all.gzip": 7890,
-    "react.single.raw": 15600,
-    "vue.single.raw": 16200
-  }
-}
+```txt
+[ ] Puppeteer 启动真实浏览器
+[ ] 测 wc mount/update/event
+[ ] 后续扩展 React/Vue wrapper mount/update
+```
+
+## Phase 8.4：CI Quality Gate
+
+```txt
+[ ] 输出 JSON / Markdown artifact
+[ ] 配置 threshold
+[ ] CI 中跑 bench:component-host:ci
+[ ] 初期 threshold 宽松，稳定后逐步收紧
 ```
 
 ---
 
-## 3.2 编译耗时指标
-
-需要统计：
-
-```txt
-component-analyzer:
-  10 components
-  100 components
-  500 components
-
-bundler-plugin transform:
-  10 tsx files
-  100 tsx files
-  500 tsx files
-
-full build:
-  wc only
-  wc + react
-  wc + vue
-  wc + react + vue
-```
-
-输出：
-
-```json
-{
-  "compile": {
-    "analyze.100.ms": 120,
-    "transform.100.ms": 420,
-    "build.wc.ms": 900,
-    "build.all.ms": 1450
-  }
-}
-```
-
----
-
-## 3.3 浏览器运行时指标
-
-需要在真实浏览器里测：
-
-```txt
-customElements.define 注册耗时
-mount 100 / 1000 个组件耗时
-property update 1000 次耗时
-attribute update 1000 次耗时
-CustomEvent dispatch 1000 次耗时
-React wrapper mount/update
-Vue wrapper mount/update
-```
-
-输出：
-
-```json
-{
-  "runtime": {
-    "wc.mount.1000.ms": 38,
-    "wc.propUpdate.1000.ms": 12,
-    "wc.event.1000.ms": 8,
-    "react.mount.1000.ms": 64,
-    "vue.mount.1000.ms": 70
-  }
-}
-```
-
----
-
-## 3.4 Tree-shaking 指标
-
-需要验证：
-
-```txt
-只 import z-bench-button 时：
-  不应该出现 z-bench-dialog
-  不应该出现 z-bench-tabs
-  不应该注册所有组件
-```
-
-检查方式：
-
-```txt
-1. build 后扫描 bundle 内容
-2. 检查是否包含不该出现的 tag name
-3. 检查 wc 单组件入口大小
-```
-
----
-
-# 4. 推荐目录结构
+# 2. 目录结构
 
 ```txt
 benchmarks/
   component-host/
     package.json
-    index.html
-    vite.config.ts
     tsconfig.json
+    vite.config.ts
+    index.html
 
     src/
       components/
@@ -234,21 +88,16 @@ benchmarks/
       entries/
         wc-single.ts
         wc-all.ts
-        react-single.tsx
-        react-all.tsx
+        react-single.ts
+        react-all.ts
         vue-single.ts
         vue-all.ts
-
-      runtime/
-        wc.ts
-        react.tsx
-        vue.ts
 
 scripts/
   bench/
     component-host.ts
     component-host-config.ts
-    component-host-fixture.ts
+    component-host-build.ts
     component-host-size.ts
     component-host-compile.ts
     component-host-runtime.ts
@@ -256,18 +105,28 @@ scripts/
     component-host-threshold.ts
 ```
 
-为什么放 `benchmarks/` 而不是 `examples/`：
-
-```txt
-examples：给用户看用法
-benchmarks：给仓库内部做性能门禁
-```
-
 ---
 
-# 5. 根 package.json 脚本
+# 3. Workspace 与根脚本修改
 
-新增：
+## `pnpm-workspace.yaml`
+
+当前 workspace 还没有 `benchmarks/*`。建议加上：
+
+```yaml
+packages:
+  - 'packages/core/*'
+  - 'packages/devtools/*'
+  - 'packages/web-c/*'
+  - 'packages/headless'
+  - 'examples/*'
+  - 'benchmarks/*'
+  - 'docs'
+```
+
+## 根 `package.json`
+
+新增脚本：
 
 ```json
 {
@@ -275,16 +134,168 @@ benchmarks：给仓库内部做性能门禁
     "bench:component-host": "tsx scripts/bench/component-host.ts",
     "bench:component-host:ci": "tsx scripts/bench/component-host.ts --ci",
     "bench:component-host:size": "tsx scripts/bench/component-host.ts --size-only",
+    "bench:component-host:compile": "tsx scripts/bench/component-host.ts --compile-only",
     "bench:component-host:runtime": "tsx scripts/bench/component-host.ts --runtime-only"
   }
 }
 ```
 
-当前根目录已经有 `test:benchs` 和 `size`，Phase 8 新增脚本不会破坏现有命令。
+根依赖里已经有 `puppeteer`，Phase 8.3 可以直接使用。
 
 ---
 
-# 6. Benchmark fixture 组件
+# 4. Benchmark Fixture
+
+## `benchmarks/component-host/package.json`
+
+```json
+{
+  "name": "@zeus-bench/component-host",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@zeus-js/zeus": "workspace:*",
+    "@zeus-js/runtime-dom": "workspace:*"
+  },
+  "devDependencies": {
+    "@zeus-js/bundler-plugin": "workspace:*",
+    "@zeus-js/output-wc": "workspace:*",
+    "@zeus-js/output-react-wrapper": "workspace:*",
+    "@zeus-js/output-vue-wrapper": "workspace:*",
+    "vite": "catalog:",
+    "typescript": "^6.0.3"
+  }
+}
+```
+
+---
+
+## `benchmarks/component-host/tsconfig.json`
+
+```json
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "types": ["vite/client"],
+    "jsx": "preserve",
+    "noEmit": true
+  },
+  "include": ["src", "vite.config.ts"]
+}
+```
+
+---
+
+## `benchmarks/component-host/vite.config.ts`
+
+这里要支持多种构建模式：
+
+```txt
+ZEUS_BENCH_OUTPUTS=wc
+ZEUS_BENCH_OUTPUTS=wc-react
+ZEUS_BENCH_OUTPUTS=wc-vue
+ZEUS_BENCH_OUTPUTS=all
+```
+
+React/Vue wrapper 现在 import 的是 `zeus:wc:${tag}` 虚拟模块，而不是相对路径，所以 benchmark 里不需要依赖 `wcOutDir`。React/Vue wrapper 当前就是这样生成 `zeus:wc` 导入的。
+
+```ts
+// benchmarks/component-host/vite.config.ts
+
+import { defineConfig } from 'vite'
+
+import zeus from '@zeus-js/bundler-plugin/vite'
+import wc from '@zeus-js/output-wc'
+import react from '@zeus-js/output-react-wrapper'
+import vue from '@zeus-js/output-vue-wrapper'
+
+const mode = process.env.ZEUS_BENCH_OUTPUTS ?? 'all'
+
+const useReact = mode === 'wc-react' || mode === 'all'
+const useVue = mode === 'wc-vue' || mode === 'all'
+
+export default defineConfig({
+  plugins: [
+    zeus({
+      root: __dirname,
+
+      components: {
+        include: ['src/components/**/*.{ts,tsx}'],
+      },
+
+      outputs: [
+        wc({
+          outDir: 'wc',
+          manifestFile: 'zeus.components.json',
+          customElementsFile: 'custom-elements.json',
+          dts: true,
+          jsxDts: true,
+        }),
+
+        ...(useReact
+          ? [
+              react({
+                outDir: 'react',
+                dts: true,
+                namedSlots: 'props',
+              }),
+            ]
+          : []),
+
+        ...(useVue
+          ? [
+              vue({
+                outDir: 'vue',
+                dts: true,
+                globalDts: true,
+              }),
+            ]
+          : []),
+      ],
+    }),
+  ],
+
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+    minify: 'esbuild',
+    sourcemap: false,
+
+    rollupOptions: {
+      input: createInput(),
+      external: ['react', 'vue'],
+    },
+  },
+})
+
+function createInput(): Record<string, string> {
+  const input: Record<string, string> = {
+    'wc-single': 'src/entries/wc-single.ts',
+    'wc-all': 'src/entries/wc-all.ts',
+  }
+
+  if (useReact) {
+    input['react-single'] = 'src/entries/react-single.ts'
+    input['react-all'] = 'src/entries/react-all.ts'
+  }
+
+  if (useVue) {
+    input['vue-single'] = 'src/entries/vue-single.ts'
+    input['vue-all'] = 'src/entries/vue-all.ts'
+  }
+
+  return input
+}
+```
+
+---
+
+# 5. Benchmark 组件
 
 ## `bench-button.tsx`
 
@@ -335,22 +346,29 @@ export const ZBenchButton = defineElement<BenchButtonProps>(
   },
 
   (props, { emit }) => {
+    const onClick = (event: MouseEvent) => {
+      if (props.disabled) {
+        event.preventDefault()
+        event.stopPropagation()
+        return
+      }
+
+      emit('press', {
+        nativeEvent: event,
+      })
+    }
+
     return (
       <Host
         data-slot="bench-button"
         data-variant={props.variant}
-        data-disabled={() => (props.disabled ? '' : undefined)}
+        data-disabled={props.disabled ? '' : undefined}
       >
         <button
           part="root"
           type="button"
           disabled={props.disabled}
-          onClick={event => {
-            if (props.disabled) return
-            emit('press', {
-              nativeEvent: event,
-            })
-          }}
+          onClick={onClick}
         >
           <Slot />
         </button>
@@ -449,11 +467,10 @@ export const ZBenchCard = defineElement<BenchCardProps>(
   },
 
   props => {
+    const state = props.elevated ? 'elevated' : 'flat'
+
     return (
-      <Host
-        data-slot="bench-card"
-        data-state={() => (props.elevated ? 'elevated' : 'flat')}
-      >
+      <Host data-slot="bench-card" data-state={state}>
         <section part="root">
           <header part="header">
             <Slot name="header" />
@@ -519,7 +536,7 @@ export const ZBenchDialog = defineElement<BenchDialogProps>(
     return (
       <Host
         data-slot="bench-dialog"
-        data-state={() => (props.open ? 'open' : 'closed')}
+        data-state={props.open ? 'open' : 'closed'}
       >
         <div part="root" hidden={!props.open}>
           <div part="panel">
@@ -534,7 +551,7 @@ export const ZBenchDialog = defineElement<BenchDialogProps>(
 
 ---
 
-# 7. Benchmark fixture 入口
+# 6. Benchmark entries
 
 ## `wc-single.ts`
 
@@ -545,8 +562,6 @@ import '../components/bench-button'
 
 export {}
 ```
-
----
 
 ## `wc-all.ts`
 
@@ -561,123 +576,49 @@ import '../components/bench-dialog'
 export {}
 ```
 
----
+## `react-single.ts`
 
-## `react-single.tsx`
+```ts
+// benchmarks/component-host/src/entries/react-single.ts
 
-```tsx
-// benchmarks/component-host/src/entries/react-single.tsx
-
-import { ZBenchButton } from 'zeus:react:z-bench-button'
-
-export function App() {
-  return (
-    <ZBenchButton
-      variant="default"
-      onPress={() => {
-        // noop
-      }}
-    >
-      Button
-    </ZBenchButton>
-  )
-}
+export { ZBenchButton } from 'zeus:react:z-bench-button'
 ```
 
----
+## `react-all.ts`
+
+```ts
+// benchmarks/component-host/src/entries/react-all.ts
+
+export { ZBenchButton } from 'zeus:react:z-bench-button'
+export { ZBenchCounter } from 'zeus:react:z-bench-counter'
+export { ZBenchCard } from 'zeus:react:z-bench-card'
+export { ZBenchDialog } from 'zeus:react:z-bench-dialog'
+```
 
 ## `vue-single.ts`
 
 ```ts
 // benchmarks/component-host/src/entries/vue-single.ts
 
-import { ZBenchButton } from 'zeus:vue:z-bench-button'
-
-export { ZBenchButton }
+export { ZBenchButton } from 'zeus:vue:z-bench-button'
 ```
 
----
-
-# 8. benchmark vite config
+## `vue-all.ts`
 
 ```ts
-// benchmarks/component-host/vite.config.ts
+// benchmarks/component-host/src/entries/vue-all.ts
 
-import { defineConfig } from 'vite'
-import zeus from '@zeus-js/bundler-plugin/vite'
-import wc from '@zeus-js/output-wc'
-import react from '@zeus-js/output-react-wrapper'
-import vue from '@zeus-js/output-vue-wrapper'
-
-export default defineConfig({
-  plugins: [
-    zeus({
-      root: __dirname,
-
-      components: {
-        include: ['src/components/**/*.{ts,tsx}'],
-      },
-
-      outputs: [
-        wc({
-          outDir: 'wc',
-          manifestFile: 'zeus.components.json',
-          customElementsFile: 'custom-elements.json',
-          dts: true,
-          jsxDts: true,
-        }),
-
-        react({
-          outDir: 'react',
-          wcOutDir: '../wc',
-          dts: true,
-        }),
-
-        vue({
-          outDir: 'vue',
-          wcOutDir: '../wc',
-          dts: true,
-          globalDts: true,
-        }),
-      ],
-    }),
-  ],
-
-  build: {
-    outDir: 'dist',
-    emptyOutDir: true,
-    minify: 'esbuild',
-    sourcemap: false,
-
-    rollupOptions: {
-      input: {
-        'wc-single': 'src/entries/wc-single.ts',
-        'wc-all': 'src/entries/wc-all.ts',
-        'react-single': 'src/entries/react-single.tsx',
-        'vue-single': 'src/entries/vue-single.ts',
-      },
-
-      external: ['react', 'vue'],
-    },
-  },
-})
+export { ZBenchButton } from 'zeus:vue:z-bench-button'
+export { ZBenchCounter } from 'zeus:vue:z-bench-counter'
+export { ZBenchCard } from 'zeus:vue:z-bench-card'
+export { ZBenchDialog } from 'zeus:vue:z-bench-dialog'
 ```
-
-注意这里全部使用：
-
-```txt
-outDir: 'wc'
-outDir: 'react'
-outDir: 'vue'
-```
-
-不要使用 `dist/wc`，否则 Vite 下容易输出成 `dist/dist/wc`。上一轮 review 里这个点已经发现。
 
 ---
 
-# 9. Benchmark 配置
+# 7. Bench config
 
-## `component-host-config.ts`
+## `scripts/bench/component-host-config.ts`
 
 ```ts
 // scripts/bench/component-host-config.ts
@@ -692,40 +633,82 @@ export const componentHostBenchConfig = {
   thresholds: {
     size: {
       /**
-       * 这些值第一版可以放宽，先建立 baseline。
-       * 后续稳定后再收紧。
+       * 第一版 threshold 先放宽，只用于防止明显回退。
+       * 等几轮 CI 数据稳定后再收紧。
        */
-      'wc/z-bench-button.js:gzip': 12 * 1024,
-      'wc/index.js:gzip': 28 * 1024,
-      'react/z-bench-button.js:gzip': 16 * 1024,
-      'vue/z-bench-button.js:gzip': 18 * 1024,
+      'wc/z-bench-button.js:gzip': 16 * 1024,
+      'wc/index.js:gzip': 36 * 1024,
+      'react/z-bench-button.js:gzip': 24 * 1024,
+      'vue/z-bench-button.js:gzip': 28 * 1024,
     },
 
     compile: {
-      'analyze.100.ms': 500,
-      'transform.100.ms': 1500,
-      'build.all.ms': 6000,
+      'build.wc.ms': 8000,
+      'build.wc-react.ms': 10000,
+      'build.wc-vue.ms': 10000,
+      'build.all.ms': 12000,
+      'analyze.components.ms': 1000,
     },
 
     runtime: {
-      'wc.mount.1000.ms': 120,
-      'wc.propUpdate.1000.ms': 80,
-      'wc.event.1000.ms': 80,
+      'wc.mount.1000.ms': 200,
+      'wc.propUpdate.1000.ms': 120,
+      'wc.attributeUpdate.1000.ms': 160,
+      'wc.event.1000.ms': 120,
     },
   },
 } as const
+
+export type ComponentHostBenchThresholds =
+  typeof componentHostBenchConfig.thresholds
 ```
 
 ---
 
-# 10. 总入口脚本
+# 8. Build helper
 
-## `component-host.ts`
+## `scripts/bench/component-host-build.ts`
+
+```ts
+// scripts/bench/component-host-build.ts
+
+import { spawnSync } from 'node:child_process'
+
+import { componentHostBenchConfig } from './component-host-config'
+
+export type ComponentHostBuildMode = 'wc' | 'wc-react' | 'wc-vue' | 'all'
+
+export function buildComponentHostFixture(mode: ComponentHostBuildMode): void {
+  const result = spawnSync(
+    'pnpm',
+    ['-C', componentHostBenchConfig.root, 'build'],
+    {
+      stdio: 'inherit',
+      shell: process.platform === 'win32',
+      env: {
+        ...process.env,
+        ZEUS_BENCH_OUTPUTS: mode,
+      },
+    },
+  )
+
+  if (result.status !== 0) {
+    throw new Error(`component-host fixture build failed: ${mode}`)
+  }
+}
+```
+
+---
+
+# 9. 主入口脚本
+
+## `scripts/bench/component-host.ts`
 
 ```ts
 // scripts/bench/component-host.ts
 
 import fs from 'node:fs/promises'
+import path from 'node:path'
 import { parseArgs } from 'node:util'
 
 import { componentHostBenchConfig } from './component-host-config'
@@ -735,62 +718,84 @@ import { runComponentHostSizeBench } from './component-host-size'
 import { renderMarkdownReport, writeJsonReport } from './component-host-report'
 import { checkThresholds } from './component-host-threshold'
 
-const { values } = parseArgs({
-  options: {
-    ci: {
-      type: 'boolean',
-    },
-    'size-only': {
-      type: 'boolean',
-    },
-    'runtime-only': {
-      type: 'boolean',
-    },
-    'compile-only': {
-      type: 'boolean',
-    },
-  },
-})
-
 async function main() {
+  const { values } = parseArgs({
+    options: {
+      ci: {
+        type: 'boolean',
+        default: false,
+      },
+      'size-only': {
+        type: 'boolean',
+        default: false,
+      },
+      'compile-only': {
+        type: 'boolean',
+        default: false,
+      },
+      'runtime-only': {
+        type: 'boolean',
+        default: false,
+      },
+    },
+  })
+
+  await fs.rm(componentHostBenchConfig.reportDir, {
+    recursive: true,
+    force: true,
+  })
+
   await fs.mkdir(componentHostBenchConfig.reportDir, {
     recursive: true,
   })
 
-  const result: Record<string, unknown> = {
+  const report: Record<string, unknown> = {
+    name: 'component-host',
     createdAt: new Date().toISOString(),
-    git: await readGitInfo(),
+    git: readGitInfo(),
   }
 
-  if (!values['runtime-only'] && !values['compile-only']) {
-    result.size = await runComponentHostSizeBench()
+  const onlySize = values['size-only']
+  const onlyCompile = values['compile-only']
+  const onlyRuntime = values['runtime-only']
+
+  if (!onlyCompile && !onlyRuntime) {
+    report.size = await runComponentHostSizeBench()
   }
 
-  if (!values['size-only'] && !values['runtime-only']) {
-    result.compile = await runComponentHostCompileBench()
+  if (!onlySize && !onlyRuntime) {
+    report.compile = await runComponentHostCompileBench()
   }
 
-  if (!values['size-only'] && !values['compile-only']) {
-    result.runtime = await runComponentHostRuntimeBench()
+  if (!onlySize && !onlyCompile) {
+    report.runtime = await runComponentHostRuntimeBench()
   }
 
-  await writeJsonReport(result)
-  await renderMarkdownReport(result)
+  await writeJsonReport(report)
+  await renderMarkdownReport(report)
 
   if (values.ci) {
-    checkThresholds(result, componentHostBenchConfig.thresholds)
+    checkThresholds(report, componentHostBenchConfig.thresholds)
   }
+
+  console.log(
+    `\nBenchmark report written to ${path.relative(
+      process.cwd(),
+      componentHostBenchConfig.reportDir,
+    )}\n`,
+  )
 }
 
-async function readGitInfo() {
-  const { execFileSync } = await import('node:child_process')
-
+function readGitInfo() {
   try {
+    const { execFileSync } =
+      require('node:child_process') as typeof import('node:child_process')
+
     return {
-      sha: execFileSync('git', ['rev-parse', 'HEAD']).toString().trim(),
       branch: execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'])
         .toString()
         .trim(),
+      sha: execFileSync('git', ['rev-parse', 'HEAD']).toString().trim(),
     }
   } catch {
     return null
@@ -803,11 +808,13 @@ main().catch(error => {
 })
 ```
 
+> 如果你不想在 ESM 里用 `require`，这里可以改成 `await import('node:child_process')`。这个脚本只是 bench 内部工具，建议也按 ESM 写法保持一致。
+
 ---
 
-# 11. 体积 benchmark
+# 10. Size benchmark
 
-## `component-host-size.ts`
+## `scripts/bench/component-host-size.ts`
 
 ```ts
 // scripts/bench/component-host-size.ts
@@ -815,34 +822,38 @@ main().catch(error => {
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { brotliCompressSync, gzipSync } from 'node:zlib'
-import { spawnSync } from 'node:child_process'
 
+import { buildComponentHostFixture } from './component-host-build'
 import { componentHostBenchConfig } from './component-host-config'
 
-export interface SizeEntry {
+export interface SizeBenchEntry {
   file: string
   raw: number
   gzip: number
   brotli: number
 }
 
-export async function runComponentHostSizeBench(): Promise<SizeEntry[]> {
-  buildFixture()
+export async function runComponentHostSizeBench(): Promise<SizeBenchEntry[]> {
+  buildComponentHostFixture('all')
 
-  const files = await collectJsFiles(componentHostBenchConfig.dist)
-  const result: SizeEntry[] = []
+  const files = await collectFiles(
+    componentHostBenchConfig.dist,
+    file => file.endsWith('.js') || file.endsWith('.css'),
+  )
+
+  const result: SizeBenchEntry[] = []
 
   for (const file of files) {
-    const buffer = await fs.readFile(file)
+    const source = await fs.readFile(file)
     const relative = path
       .relative(componentHostBenchConfig.dist, file)
       .replace(/\\/g, '/')
 
     result.push({
       file: relative,
-      raw: buffer.byteLength,
-      gzip: gzipSync(buffer).byteLength,
-      brotli: brotliCompressSync(buffer).byteLength,
+      raw: source.byteLength,
+      gzip: gzipSync(source).byteLength,
+      brotli: brotliCompressSync(source).byteLength,
     })
   }
 
@@ -853,207 +864,49 @@ export async function runComponentHostSizeBench(): Promise<SizeEntry[]> {
   return result
 }
 
-function buildFixture(): void {
-  const result = spawnSync(
-    'pnpm',
-    ['-C', componentHostBenchConfig.root, 'build'],
-    {
-      stdio: 'inherit',
-      shell: process.platform === 'win32',
-    },
-  )
-
-  if (result.status !== 0) {
-    throw new Error('component-host fixture build failed')
-  }
-}
-
-async function collectJsFiles(dir: string): Promise<string[]> {
-  const result: string[] = []
-  const entries = await fs.readdir(dir, {
-    withFileTypes: true,
-  })
-
-  for (const entry of entries) {
-    const file = path.join(dir, entry.name)
-
-    if (entry.isDirectory()) {
-      result.push(...(await collectJsFiles(file)))
-      continue
-    }
-
-    if (entry.isFile() && file.endsWith('.js')) {
-      result.push(file)
-    }
-  }
-
-  return result
-}
-
 async function checkTreeShaking(): Promise<void> {
-  const singleEntry = path.join(
-    componentHostBenchConfig.dist,
-    'wc',
-    'z-bench-button.js',
-  )
+  const checks = [
+    {
+      file: 'wc/z-bench-button.js',
+      forbidden: ['z-bench-counter', 'z-bench-card', 'z-bench-dialog'],
+    },
+    {
+      file: 'react/z-bench-button.js',
+      forbidden: ['z-bench-counter', 'z-bench-card', 'z-bench-dialog'],
+    },
+    {
+      file: 'vue/z-bench-button.js',
+      forbidden: ['z-bench-counter', 'z-bench-card', 'z-bench-dialog'],
+    },
+  ]
 
-  const code = await fs.readFile(singleEntry, 'utf-8')
+  for (const check of checks) {
+    const file = path.join(componentHostBenchConfig.dist, check.file)
 
-  const forbidden = ['z-bench-dialog', 'z-bench-card', 'z-bench-counter']
+    try {
+      const code = await fs.readFile(file, 'utf-8')
 
-  for (const tag of forbidden) {
-    if (code.includes(tag)) {
-      throw new Error(
-        `[tree-shaking] single button entry should not include ${tag}`,
-      )
+      for (const tag of check.forbidden) {
+        if (code.includes(tag)) {
+          throw new Error(
+            `[tree-shaking] ${check.file} should not include ${tag}`,
+          )
+        }
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        throw new Error(`[tree-shaking] missing file: ${check.file}`)
+      }
+
+      throw error
     }
   }
 }
-```
 
----
-
-# 12. 编译耗时 benchmark
-
-## `component-host-compile.ts`
-
-```ts
-// scripts/bench/component-host-compile.ts
-
-import fs from 'node:fs/promises'
-import os from 'node:os'
-import path from 'node:path'
-import { performance } from 'node:perf_hooks'
-import { spawnSync } from 'node:child_process'
-
-import { analyzeComponents } from '@zeus-js/component-analyzer'
-import { transformZeus } from '@zeus-js/bundler-plugin'
-
-import { componentHostBenchConfig } from './component-host-config'
-
-export interface CompileBenchResult {
-  name: string
-  ms: number
-}
-
-export async function runComponentHostCompileBench(): Promise<
-  CompileBenchResult[]
-> {
-  const results: CompileBenchResult[] = []
-
-  for (const count of [10, 100, 500]) {
-    const fixture = await createCompileFixture(count)
-
-    results.push({
-      name: `analyze.${count}.ms`,
-      ms: await measure(() =>
-        analyzeComponents({
-          root: fixture,
-          include: ['src/components/**/*.{ts,tsx}'],
-        }),
-      ),
-    })
-
-    const files = await collectTsxFiles(path.join(fixture, 'src/components'))
-
-    results.push({
-      name: `transform.${count}.ms`,
-      ms: await measure(async () => {
-        for (const file of files) {
-          const code = await fs.readFile(file, 'utf-8')
-
-          await transformZeus({
-            id: file,
-            code,
-            sourcemap: false,
-          })
-        }
-      }),
-    })
-  }
-
-  results.push({
-    name: 'build.all.ms',
-    ms: measureSyncBuild(),
-  })
-
-  return results
-}
-
-async function createCompileFixture(count: number): Promise<string> {
-  const root = await fs.mkdtemp(
-    path.join(os.tmpdir(), `zeus-component-host-${count}-`),
-  )
-
-  const componentsDir = path.join(root, 'src/components')
-  await fs.mkdir(componentsDir, {
-    recursive: true,
-  })
-
-  for (let i = 0; i < count; i++) {
-    await fs.writeFile(
-      path.join(componentsDir, `component-${i}.tsx`),
-      createComponentSource(i),
-    )
-  }
-
-  return root
-}
-
-function createComponentSource(index: number): string {
-  return `
-import { defineElement, Host, Slot } from '@zeus-js/zeus'
-
-export interface Bench${index}Props {
-  value?: string
-  active?: boolean
-}
-
-export const ZBench${index} = defineElement<Bench${index}Props>(
-  'z-bench-${index}',
-  {
-    shadow: false,
-    props: {
-      value: {
-        type: String,
-        default: 'v${index}',
-        reflect: true,
-      },
-      active: {
-        type: Boolean,
-        default: false,
-        reflect: true,
-      },
-    },
-    meta: {
-      events: {
-        change: {
-          detail: {
-            value: 'string',
-          },
-        },
-      },
-      slots: {
-        default: {},
-      },
-      cssParts: ['root'],
-    },
-  },
-  (props, { emit }) => (
-    <Host data-state={() => props.active ? 'active' : 'inactive'}>
-      <button
-        part="root"
-        onClick={() => emit('change', { value: props.value })}
-      >
-        <Slot />
-      </button>
-    </Host>
-  ),
-)
-`
-}
-
-async function collectTsxFiles(dir: string): Promise<string[]> {
+async function collectFiles(
+  dir: string,
+  filter: (file: string) => boolean,
+): Promise<string[]> {
   const entries = await fs.readdir(dir, {
     withFileTypes: true,
   })
@@ -1064,37 +917,77 @@ async function collectTsxFiles(dir: string): Promise<string[]> {
     const file = path.join(dir, entry.name)
 
     if (entry.isDirectory()) {
-      files.push(...(await collectTsxFiles(file)))
-    } else if (file.endsWith('.tsx')) {
+      files.push(...(await collectFiles(file, filter)))
+    } else if (entry.isFile() && filter(file)) {
       files.push(file)
     }
   }
 
   return files
 }
+```
 
-async function measure(fn: () => Promise<unknown>): Promise<number> {
+---
+
+# 11. Compile benchmark
+
+## `scripts/bench/component-host-compile.ts`
+
+这里不直接使用 `transformZeus`，因为当前 `@zeus-js/bundler-plugin` 主入口还没有导出它；主入口只导出了 `createZeusPlugin` 和类型。
+所以 Phase 8.2 先测完整 build + analyzer，不把内部 transform API 暴露出去。
+
+```ts
+// scripts/bench/component-host-compile.ts
+
+import { performance } from 'node:perf_hooks'
+
+import { analyzeComponents } from '@zeus-js/component-analyzer'
+
+import {
+  buildComponentHostFixture,
+  type ComponentHostBuildMode,
+} from './component-host-build'
+import { componentHostBenchConfig } from './component-host-config'
+
+export interface CompileBenchEntry {
+  name: string
+  ms: number
+}
+
+export async function runComponentHostCompileBench(): Promise<
+  CompileBenchEntry[]
+> {
+  const result: CompileBenchEntry[] = []
+
+  result.push({
+    name: 'analyze.components.ms',
+    ms: await measureAsync(async () => {
+      await analyzeComponents({
+        root: componentHostBenchConfig.root,
+        include: ['src/components/**/*.{ts,tsx}'],
+      })
+    }),
+  })
+
+  for (const mode of ['wc', 'wc-react', 'wc-vue', 'all'] as const) {
+    result.push({
+      name: `build.${mode}.ms`,
+      ms: measureSyncBuild(mode),
+    })
+  }
+
+  return result
+}
+
+async function measureAsync(fn: () => Promise<unknown>): Promise<number> {
   const start = performance.now()
   await fn()
   return round(performance.now() - start)
 }
 
-function measureSyncBuild(): number {
+function measureSyncBuild(mode: ComponentHostBuildMode): number {
   const start = performance.now()
-
-  const result = spawnSync(
-    'pnpm',
-    ['-C', componentHostBenchConfig.root, 'build'],
-    {
-      stdio: 'ignore',
-      shell: process.platform === 'win32',
-    },
-  )
-
-  if (result.status !== 0) {
-    throw new Error('component-host build failed')
-  }
-
+  buildComponentHostFixture(mode)
   return round(performance.now() - start)
 }
 
@@ -1103,13 +996,13 @@ function round(value: number): number {
 }
 ```
 
-> 注意：这里从 `@zeus-js/bundler-plugin` 导出 `transformZeus`，当前包没有导出的话，需要在 `addons/bundler-plugin/src/index.ts` 补一个内部导出或把 benchmark 改成直接从源码路径 import。
-
 ---
 
-# 13. 浏览器运行时 benchmark
+# 12. Runtime benchmark
 
-## `component-host-runtime.ts`
+第一版只测 Web Component，不急着测 React/Vue wrapper。React/Vue mount benchmark 会引入更多变量，建议 Phase 8.3.1 再做。
+
+## `scripts/bench/component-host-runtime.ts`
 
 ```ts
 // scripts/bench/component-host-runtime.ts
@@ -1117,21 +1010,23 @@ function round(value: number): number {
 import fs from 'node:fs/promises'
 import http from 'node:http'
 import path from 'node:path'
-import { spawnSync } from 'node:child_process'
 
 import puppeteer from 'puppeteer'
 
+import { buildComponentHostFixture } from './component-host-build'
 import { componentHostBenchConfig } from './component-host-config'
 
-export interface RuntimeBenchResult {
+export interface RuntimeBenchEntry {
   name: string
   ms: number
 }
 
 export async function runComponentHostRuntimeBench(): Promise<
-  RuntimeBenchResult[]
+  RuntimeBenchEntry[]
 > {
-  buildFixture()
+  buildComponentHostFixture('wc')
+
+  await writeRuntimeHtml()
 
   const server = await createStaticServer(componentHostBenchConfig.dist)
 
@@ -1148,15 +1043,16 @@ export async function runComponentHostRuntimeBench(): Promise<
         waitUntil: 'networkidle0',
       })
 
-      const result = await page.evaluate(async () => {
-        await customElements.whenDefined('z-bench-counter')
+      return await page.evaluate(async () => {
         await customElements.whenDefined('z-bench-button')
+        await customElements.whenDefined('z-bench-counter')
 
         const round = (value: number) => Math.round(value * 100) / 100
 
         function measure(name: string, fn: () => void) {
           const start = performance.now()
           fn()
+
           return {
             name,
             ms: round(performance.now() - start),
@@ -1176,6 +1072,7 @@ export async function runComponentHostRuntimeBench(): Promise<
               ) as HTMLElement & {
                 count: number
               }
+
               el.count = i
               root.appendChild(el)
             }
@@ -1187,7 +1084,7 @@ export async function runComponentHostRuntimeBench(): Promise<
         const container = document.createElement('div')
         document.body.appendChild(container)
 
-        const items: Array<HTMLElement & { count: number }> = []
+        const counters: Array<HTMLElement & { count: number }> = []
 
         for (let i = 0; i < 1000; i++) {
           const el = document.createElement(
@@ -1195,22 +1092,23 @@ export async function runComponentHostRuntimeBench(): Promise<
           ) as HTMLElement & {
             count: number
           }
+
           container.appendChild(el)
-          items.push(el)
+          counters.push(el)
         }
 
         results.push(
           measure('wc.propUpdate.1000.ms', () => {
-            for (let i = 0; i < items.length; i++) {
-              items[i].count = i + 1
+            for (let i = 0; i < counters.length; i++) {
+              counters[i].count = i + 1
             }
           }),
         )
 
         results.push(
           measure('wc.attributeUpdate.1000.ms', () => {
-            for (let i = 0; i < items.length; i++) {
-              items[i].setAttribute('count', String(i + 2))
+            for (let i = 0; i < counters.length; i++) {
+              counters[i].setAttribute('count', String(i + 2))
             }
           }),
         )
@@ -1218,9 +1116,10 @@ export async function runComponentHostRuntimeBench(): Promise<
         const button = document.createElement('z-bench-button')
         document.body.appendChild(button)
 
-        let eventCount = 0
+        let called = 0
+
         button.addEventListener('press', () => {
-          eventCount += 1
+          called += 1
         })
 
         results.push(
@@ -1239,8 +1138,8 @@ export async function runComponentHostRuntimeBench(): Promise<
           }),
         )
 
-        if (eventCount !== 1000) {
-          throw new Error(`Expected 1000 events, got ${eventCount}`)
+        if (called !== 1000) {
+          throw new Error(`Expected 1000 events, got ${called}`)
         }
 
         container.remove()
@@ -1248,8 +1147,6 @@ export async function runComponentHostRuntimeBench(): Promise<
 
         return results
       })
-
-      return result
     } finally {
       await browser.close()
     }
@@ -1258,27 +1155,9 @@ export async function runComponentHostRuntimeBench(): Promise<
   }
 }
 
-function buildFixture(): void {
-  const result = spawnSync(
-    'pnpm',
-    ['-C', componentHostBenchConfig.root, 'build'],
-    {
-      stdio: 'inherit',
-      shell: process.platform === 'win32',
-    },
-  )
-
-  if (result.status !== 0) {
-    throw new Error('component-host fixture build failed')
-  }
-}
-
-async function createStaticServer(root: string): Promise<{
-  url: string
-  close: () => Promise<void>
-}> {
+async function writeRuntimeHtml(): Promise<void> {
   await fs.writeFile(
-    path.join(root, 'runtime.html'),
+    path.join(componentHostBenchConfig.dist, 'runtime.html'),
     `
 <!doctype html>
 <html>
@@ -1291,16 +1170,24 @@ async function createStaticServer(root: string): Promise<{
 </html>
 `,
   )
+}
 
+async function createStaticServer(root: string): Promise<{
+  url: string
+  close: () => Promise<void>
+}> {
   const server = http.createServer(async (req, res) => {
     const pathname = decodeURIComponent(req.url?.split('?')[0] ?? '/')
-    const file = path.join(root, pathname === '/' ? 'runtime.html' : pathname)
+    const safePath = pathname === '/' ? '/runtime.html' : pathname
+    const file = path.join(root, safePath)
 
     try {
       const content = await fs.readFile(file)
+
       res.writeHead(200, {
-        'content-type': contentType(file),
+        'content-type': getContentType(file),
       })
+
       res.end(content)
     } catch {
       res.writeHead(404)
@@ -1330,19 +1217,20 @@ async function createStaticServer(root: string): Promise<{
   }
 }
 
-function contentType(file: string): string {
+function getContentType(file: string): string {
   if (file.endsWith('.html')) return 'text/html'
   if (file.endsWith('.js')) return 'text/javascript'
   if (file.endsWith('.css')) return 'text/css'
+
   return 'application/octet-stream'
 }
 ```
 
 ---
 
-# 14. Report 输出
+# 13. Report 生成
 
-## `component-host-report.ts`
+## `scripts/bench/component-host-report.ts`
 
 ```ts
 // scripts/bench/component-host-report.ts
@@ -1352,56 +1240,64 @@ import path from 'node:path'
 
 import { componentHostBenchConfig } from './component-host-config'
 
-export async function writeJsonReport(result: Record<string, unknown>) {
+export async function writeJsonReport(report: Record<string, unknown>) {
   await fs.writeFile(
     path.join(componentHostBenchConfig.reportDir, 'report.json'),
-    `${JSON.stringify(result, null, 2)}\n`,
+    `${JSON.stringify(report, null, 2)}\n`,
   )
 }
 
-export async function renderMarkdownReport(result: Record<string, unknown>) {
+export async function renderMarkdownReport(report: Record<string, unknown>) {
   const lines: string[] = []
 
   lines.push('# Zeus Component Host Benchmark')
   lines.push('')
-  lines.push(`Created at: ${(result as any).createdAt}`)
+  lines.push(`Created at: ${(report as any).createdAt}`)
   lines.push('')
 
-  if (result.size) {
+  if (report.git) {
+    lines.push(`Branch: ${(report as any).git.branch}`)
+    lines.push(`Commit: ${(report as any).git.sha}`)
+    lines.push('')
+  }
+
+  if (Array.isArray(report.size)) {
     lines.push('## Size')
     lines.push('')
     lines.push('| File | Raw | Gzip | Brotli |')
     lines.push('|---|---:|---:|---:|')
 
-    for (const item of result.size as any[]) {
+    for (const item of report.size as any[]) {
       lines.push(
-        `| ${item.file} | ${formatBytes(item.raw)} | ${formatBytes(item.gzip)} | ${formatBytes(item.brotli)} |`,
+        `| ${item.file} | ${formatBytes(item.raw)} | ${formatBytes(
+          item.gzip,
+        )} | ${formatBytes(item.brotli)} |`,
       )
     }
 
     lines.push('')
   }
 
-  if (result.compile) {
+  if (Array.isArray(report.compile)) {
     lines.push('## Compile')
     lines.push('')
     lines.push('| Metric | Time |')
     lines.push('|---|---:|')
 
-    for (const item of result.compile as any[]) {
+    for (const item of report.compile as any[]) {
       lines.push(`| ${item.name} | ${item.ms}ms |`)
     }
 
     lines.push('')
   }
 
-  if (result.runtime) {
+  if (Array.isArray(report.runtime)) {
     lines.push('## Runtime')
     lines.push('')
     lines.push('| Metric | Time |')
     lines.push('|---|---:|')
 
-    for (const item of result.runtime as any[]) {
+    for (const item of report.runtime as any[]) {
       lines.push(`| ${item.name} | ${item.ms}ms |`)
     }
 
@@ -1422,89 +1318,72 @@ function formatBytes(value: number): string {
 
 ---
 
-# 15. Threshold 门禁
+# 14. Threshold gate
 
-## `component-host-threshold.ts`
+## `scripts/bench/component-host-threshold.ts`
 
 ```ts
 // scripts/bench/component-host-threshold.ts
 
-import type { componentHostBenchConfig } from './component-host-config'
-
-type Thresholds = typeof componentHostBenchConfig.thresholds
+import type { ComponentHostBenchThresholds } from './component-host-config'
 
 export function checkThresholds(
-  result: Record<string, unknown>,
-  thresholds: Thresholds,
+  report: Record<string, unknown>,
+  thresholds: ComponentHostBenchThresholds,
 ): void {
   const errors: string[] = []
 
-  checkSize(result, thresholds.size, errors)
-  checkTimeGroup(result.compile, thresholds.compile, errors)
-  checkTimeGroup(result.runtime, thresholds.runtime, errors)
+  checkSize(report.size, thresholds.size, errors)
+  checkMetricList(report.compile, thresholds.compile, errors)
+  checkMetricList(report.runtime, thresholds.runtime, errors)
 
   if (errors.length) {
-    console.error('\nBenchmark threshold failed:\n')
+    console.error('\nComponent host benchmark threshold failed:\n')
 
     for (const error of errors) {
       console.error(`  - ${error}`)
     }
 
     console.error('')
+
     process.exit(1)
   }
 }
 
 function checkSize(
-  result: Record<string, unknown>,
+  value: unknown,
   thresholds: Record<string, number>,
   errors: string[],
 ): void {
-  const size = result.size as
-    | Array<{
-        file: string
-        raw: number
-        gzip: number
-        brotli: number
-      }>
-    | undefined
-
-  if (!size) return
+  if (!Array.isArray(value)) return
 
   for (const [key, limit] of Object.entries(thresholds)) {
     const [file, metric] = key.split(':') as [string, 'raw' | 'gzip' | 'brotli']
 
-    const entry = size.find(item => item.file === file)
+    const entry = value.find(item => item.file === file)
     if (!entry) continue
 
-    const value = entry[metric]
+    const actual = entry[metric]
 
-    if (value > limit) {
-      errors.push(`${key} is ${value} bytes, exceeds limit ${limit} bytes`)
+    if (typeof actual === 'number' && actual > limit) {
+      errors.push(`${key} = ${actual} bytes, limit = ${limit} bytes`)
     }
   }
 }
 
-function checkTimeGroup(
-  group: unknown,
+function checkMetricList(
+  value: unknown,
   thresholds: Record<string, number>,
   errors: string[],
 ): void {
-  const list = group as
-    | Array<{
-        name: string
-        ms: number
-      }>
-    | undefined
-
-  if (!list) return
+  if (!Array.isArray(value)) return
 
   for (const [name, limit] of Object.entries(thresholds)) {
-    const entry = list.find(item => item.name === name)
+    const entry = value.find(item => item.name === name)
     if (!entry) continue
 
-    if (entry.ms > limit) {
-      errors.push(`${name} is ${entry.ms}ms, exceeds limit ${limit}ms`)
+    if (typeof entry.ms === 'number' && entry.ms > limit) {
+      errors.push(`${name} = ${entry.ms}ms, limit = ${limit}ms`)
     }
   }
 }
@@ -1512,9 +1391,9 @@ function checkTimeGroup(
 
 ---
 
-# 16. CI 集成建议
+# 15. CI workflow 草案
 
-新增 workflow：
+第一版建议先上传 artifact，不要卡太死。等跑出 3–5 次稳定数据，再正式收紧 threshold。
 
 ```yaml
 # .github/workflows/component-host-bench.yml
@@ -1524,15 +1403,13 @@ name: Component Host Bench
 on:
   pull_request:
     paths:
-      - 'packages/runtime-dom/**'
-      - 'packages/compiler/**'
+      - 'packages/core/**'
+      - 'packages/web-c/**'
       - 'packages/headless/**'
-      - 'addons/component-analyzer/**'
-      - 'addons/bundler-plugin/**'
-      - 'addons/output-*/**'
-      - 'addons/component-dts/**'
-      - 'scripts/bench/**'
       - 'benchmarks/component-host/**'
+      - 'scripts/bench/**'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
 
 jobs:
   bench:
@@ -1565,9 +1442,9 @@ jobs:
 
 ---
 
-# 17. Benchmark 输出示例
+# 16. 输出报告示例
 
-最终会生成：
+最终生成：
 
 ```txt
 temp/bench/component-host/
@@ -1580,106 +1457,114 @@ temp/bench/component-host/
 ```md
 # Zeus Component Host Benchmark
 
+Created at: 2026-06-01T00:00:00.000Z
+
 ## Size
 
 | File                    |     Raw |    Gzip |  Brotli |
 | ----------------------- | ------: | ------: | ------: |
-| wc/z-bench-button.js    | 18.2 KB |  6.1 KB |  5.4 KB |
-| wc/index.js             | 35.8 KB | 11.9 KB | 10.2 KB |
-| react/z-bench-button.js | 22.4 KB |  7.3 KB |  6.5 KB |
-| vue/z-bench-button.js   | 24.1 KB |  7.8 KB |  6.9 KB |
+| wc/z-bench-button.js    | 18.2 KB |  6.4 KB |  5.8 KB |
+| wc/index.js             | 39.1 KB | 13.2 KB | 11.7 KB |
+| react/z-bench-button.js | 22.7 KB |  7.5 KB |  6.8 KB |
+| vue/z-bench-button.js   | 24.8 KB |  8.1 KB |  7.2 KB |
 
 ## Compile
 
-| Metric           |   Time |
-| ---------------- | -----: |
-| analyze.100.ms   |  120ms |
-| transform.100.ms |  680ms |
-| build.all.ms     | 1800ms |
+| Metric                |     Time |
+| --------------------- | -------: |
+| analyze.components.ms |   42.3ms |
+| build.wc.ms           | 1230.5ms |
+| build.wc-react.ms     | 1540.2ms |
+| build.wc-vue.ms       | 1622.4ms |
+| build.all.ms          | 1900.8ms |
 
 ## Runtime
 
-| Metric                | Time |
-| --------------------- | ---: |
-| wc.mount.1000.ms      | 42ms |
-| wc.propUpdate.1000.ms | 16ms |
-| wc.event.1000.ms      |  9ms |
+| Metric                     |   Time |
+| -------------------------- | -----: |
+| wc.mount.1000.ms           | 48.2ms |
+| wc.propUpdate.1000.ms      | 16.7ms |
+| wc.attributeUpdate.1000.ms | 31.5ms |
+| wc.event.1000.ms           |  9.2ms |
 ```
 
 ---
 
-# 18. Phase 8 验收标准
+# 17. Phase 8 验收清单
 
 ```txt
-[ ] 新增 benchmarks/component-host
+[ ] pnpm-workspace.yaml 增加 benchmarks/*
+[ ] 新增 benchmarks/component-host/package.json
+[ ] 新增 benchmark fixture components
+[ ] 新增 wc/react/vue entries
+[ ] 新增 vite.config.ts，支持 ZEUS_BENCH_OUTPUTS
 [ ] 新增 scripts/bench/component-host.ts
-[ ] 支持 size benchmark
-[ ] 支持 compile benchmark
-[ ] 支持 browser runtime benchmark
-[ ] 支持 tree-shaking 检查
+[ ] 新增 size benchmark
+[ ] 新增 tree-shaking 检查
+[ ] 新增 compile benchmark
+[ ] 新增 wc runtime benchmark
 [ ] 输出 report.json
 [ ] 输出 report.md
 [ ] 支持 --ci threshold gate
-[ ] 支持 --size-only / --compile-only / --runtime-only
+[ ] 根 package.json 增加 bench 脚本
 [ ] CI 上传 benchmark artifact
-[ ] pnpm bench:component-host 可本地运行
-[ ] pnpm bench:component-host:ci 可作为门禁
 ```
 
 ---
 
-# 19. 推荐提交顺序
+# 18. 推荐提交顺序
 
 ```bash
-# 1. benchmark fixture
-git add benchmarks/component-host
+# 1. benchmark workspace + fixture
+git add pnpm-workspace.yaml benchmarks/component-host
 git commit -m "bench(component-host): add benchmark fixture"
 
-# 2. size benchmark
-git add scripts/bench/component-host.ts scripts/bench/component-host-config.ts scripts/bench/component-host-size.ts
-git commit -m "bench(component-host): add size benchmark"
+# 2. benchmark scaffold
+git add package.json scripts/bench/component-host.ts scripts/bench/component-host-config.ts scripts/bench/component-host-report.ts
+git commit -m "bench(component-host): add benchmark scaffold"
 
-# 3. compile benchmark
+# 3. size + tree-shaking
+git add scripts/bench/component-host-build.ts scripts/bench/component-host-size.ts
+git commit -m "bench(component-host): add size and tree-shaking checks"
+
+# 4. compile benchmark
 git add scripts/bench/component-host-compile.ts
 git commit -m "bench(component-host): add compile benchmark"
 
-# 4. runtime benchmark
+# 5. runtime benchmark
 git add scripts/bench/component-host-runtime.ts
 git commit -m "bench(component-host): add browser runtime benchmark"
 
-# 5. reports and thresholds
-git add scripts/bench/component-host-report.ts scripts/bench/component-host-threshold.ts package.json
-git commit -m "bench(component-host): add reports and thresholds"
-
-# 6. CI
-git add .github/workflows/component-host-bench.yml
-git commit -m "ci: add component host benchmark workflow"
+# 6. threshold + CI
+git add scripts/bench/component-host-threshold.ts .github/workflows/component-host-bench.yml
+git commit -m "ci: add component host benchmark gate"
 ```
 
 ---
 
-# 20. Phase 8 完成后的价值
+# 19. 这一版 Phase 8 和上一版的区别
 
-Phase 8 完成后，你就能回答之前那几个关键问题：
+这一版是按当前分支重写过的：
 
 ```txt
-只使用一个组件，runtime 体积是否过大？
-  -> 看 wc/z-bench-button.js gzip
-
-React/Vue wrapper 开销有多少？
-  -> 对比 wc single / react single / vue single
-
-tree-shaking 是否有效？
-  -> single entry 不应该包含其他 tag
-
-analyzer + compiler 双 parse 是否有明显影响？
-  -> 看 analyze.100.ms / transform.100.ms / build.all.ms
-
-headless primitive 运行时是否够快？
-  -> 看 mount/update/event benchmark
-
-后续优化有没有退化？
-  -> CI threshold gate
+1. 使用 packages/web-c/*，不再使用 addons/*
+2. pnpm-workspace.yaml 需要新增 benchmarks/*
+3. 不直接 import transformZeus，因为主入口没有导出它
+4. React/Vue wrapper 走 zeus:wc virtual module，不再依赖 wcOutDir
+5. output-wc 默认 outDir 已经是 wc，所以 benchmark 也统一用 wc/react/vue
+6. 第一版 runtime benchmark 只测 WC，React/Vue wrapper runtime 后续再补
 ```
 
-这个阶段之后，Zeus 的 component compiler host 就不只是“能跑”，而是开始进入 **可度量、可回归检测、可发版评估** 的状态。
+Phase 8 做完后，你就能定量回答：
+
+```txt
+单组件引入 runtime 成本是多少？
+全量组件成本是多少？
+React/Vue wrapper 比 WC 多多少？
+tree-shaking 是否真的有效？
+component-analyzer 扫描是否成为瓶颈？
+构建所有输出会不会太慢？
+运行时 mount/update/event 性能是否达标？
+```
+
+这一步完成后，`component-compiler-host` 就从“架构闭环”进入“可度量、可回归、可发版评估”的阶段。

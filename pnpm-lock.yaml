@@ -96,7 +96,7 @@ importers:
         specifier: ^29.1.1
         version: 29.1.1
       lint-staged:
-        specifier: ^17.0.6
+        specifier: ^17.0.7
         version: 17.0.7
       magic-string:
         specifier: ^0.30.21
@@ -144,7 +144,7 @@ importers:
         specifier: ^2.8.1
         version: 2.8.1
       tsx:
-        specifier: ^4.22.3
+        specifier: ^4.22.4
         version: 4.22.4
       typescript:
         specifier: ^6.0.3
@@ -155,6 +155,34 @@ importers:
       vitest:
         specifier: ^4.1.7
         version: 4.1.7(@types/node@25.9.1)(@vitest/coverage-v8@4.1.7)(jsdom@29.1.1)(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.4)(yaml@2.9.0))
+
+  benchmarks/component-host:
+    dependencies:
+      '@zeus-js/runtime-dom':
+        specifier: workspace:*
+        version: link:../../packages/core/runtime-dom
+      '@zeus-js/zeus':
+        specifier: workspace:*
+        version: link:../../packages/core/zeus
+    devDependencies:
+      '@zeus-js/bundler-plugin':
+        specifier: workspace:*
+        version: link:../../packages/web-c/bundler-plugin
+      '@zeus-js/output-react-wrapper':
+        specifier: workspace:*
+        version: link:../../packages/web-c/output-react-wrapper
+      '@zeus-js/output-vue-wrapper':
+        specifier: workspace:*
+        version: link:../../packages/web-c/output-vue-wrapper
+      '@zeus-js/output-wc':
+        specifier: workspace:*
+        version: link:../../packages/web-c/output-wc
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: 'catalog:'
+        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.4)(yaml@2.9.0)
 
   docs:
     devDependencies:
