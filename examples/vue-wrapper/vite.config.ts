@@ -15,13 +15,13 @@ export default defineConfig({
       },
       outputs: [
         wc({
-          outDir: 'dist/wc',
+          outDir: 'wc',
           dts: true,
           jsxDts: true,
         }),
         vueWrapper({
-          outDir: 'dist/vue',
-          wcOutDir: './dist/wc',
+          outDir: 'vue',
+          wcOutDir: './wc',
         }),
       ],
     }),

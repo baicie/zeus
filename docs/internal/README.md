@@ -77,11 +77,11 @@ roadmap.md
 
 ## MVP 阶段与 stage 命名对照
 
-| Stage | MVP 范围 | 主题 |
-|-------|---------|------|
-| stage00 | MVP-0 | 架构 RFC |
-| stage01 | MVP-1~2 | 响应式核心 + Babel 编译器基线 |
-| stage02 | MVP-3~4 | 控制流 + Vite 集成 |
-| stage03 | MVP-5~6 | Web Components + Light DOM 投影 |
-| stage04 | MVP-7 | 优化与编译器演进 |
-| stage05 | 当前 | 组件编译器宿主 |
+| Stage   | MVP 范围 | 主题                            |
+| ------- | -------- | ------------------------------- |
+| stage00 | MVP-0    | 架构 RFC                        |
+| stage01 | MVP-1~2  | 响应式核心 + Babel 编译器基线   |
+| stage02 | MVP-3~4  | 控制流 + Vite 集成              |
+| stage03 | MVP-5~6  | Web Components + Light DOM 投影 |
+| stage04 | MVP-7    | 优化与编译器演进                |
+| stage05 | 当前     | 组件编译器宿主                  |

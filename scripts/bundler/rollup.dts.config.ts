@@ -16,12 +16,21 @@ if (!existsSync('temp/packages')) {
   process.exit(1)
 }
 
-const tempPkgs = readdirSync('temp/packages')
 const wsPkgs = findWorkspacePackages()
-const wsPkgsByShort = new Map(wsPkgs.map(p => [p.shortName, p]))
+const wsPkgsByShort = new Map<string, (typeof wsPkgs)[number]>()
+for (const pkg of wsPkgs) {
+  if (!wsPkgsByShort.has(pkg.shortName)) {
+    wsPkgsByShort.set(pkg.shortName, pkg)
+  }
+}
 
 const targetPackages = (
-  process.env.TARGETS ? process.env.TARGETS.split(',') : tempPkgs
+  process.env.TARGETS
+    ? process.env.TARGETS.split(',')
+    : wsPkgs
+        .filter(pkg => pkg.packageJson.buildOptions)
+        .filter(pkg => existsSync(`temp/${pkg.relativeDir}/src/index.d.ts`))
+        .map(pkg => pkg.shortName)
 )
   .filter(pkg => !pkg.includes('compiler-'))
   .filter(pkg => wsPkgsByShort.has(pkg))
@@ -32,9 +41,8 @@ const packageConfigs: RollupOptions[] = targetPackages.map(pkg => {
   if (!pkgDir || !relativeDir) {
     throw new Error(`Cannot resolve directory for package: ${pkg}`)
   }
-  const [category] = relativeDir.split('/')
   return {
-    input: `./temp/${category}/${pkg}/src/index.d.ts`,
+    input: `./temp/${relativeDir}/src/index.d.ts`,
     output: {
       file: `${pkgDir}/dist/${pkg}.d.ts`,
       format: 'es',

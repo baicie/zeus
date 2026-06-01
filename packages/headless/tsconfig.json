@@ -16,6 +16,6 @@
   "include": [
     "src",
     "../../packages/global.d.ts",
-    "../../packages/zeus/src/jsx.d.ts"
+    "../../packages/core/zeus/src/jsx.d.ts"
   ]
 }

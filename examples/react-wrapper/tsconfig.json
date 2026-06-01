@@ -5,8 +5,7 @@
     "moduleResolution": "Bundler",
     "strict": true,
     "jsx": "react-jsx",
-    "jsxImportSource": "@zeus-js/zeus",
-    "types": ["@zeus-js/zeus/jsx"],
+    "jsxImportSource": "react",
     "skipLibCheck": true
   },
   "include": ["src", "../../packages/global.d.ts"]

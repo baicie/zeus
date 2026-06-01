@@ -8,18 +8,18 @@
     "composite": false
   },
   "include": [
-    "packages/shared/src",
-    "packages/signal/src",
-    "packages/runtime-dom/src",
-    "packages/compiler/src",
-    "packages/zeus/src",
-    "addons/vite-plugin/src",
-    "addons/bundler-plugin/src",
-    "addons/component-analyzer/src",
-    "addons/output-wc/src",
-    "addons/output-react-wrapper/src",
-    "addons/output-vue-wrapper/src",
-    "addons/component-dts/src",
+    "packages/core/shared/src",
+    "packages/core/signal/src",
+    "packages/core/runtime-dom/src",
+    "packages/core/compiler/src",
+    "packages/core/zeus/src",
+    "packages/devtools/vite-plugin/src",
+    "packages/web-c/bundler-plugin/src",
+    "packages/web-c/component-analyzer/src",
+    "packages/web-c/output-wc/src",
+    "packages/web-c/output-react-wrapper/src",
+    "packages/web-c/output-vue-wrapper/src",
+    "packages/web-c/component-dts/src",
     "packages/headless/src"
   ]
 }

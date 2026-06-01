@@ -91,7 +91,7 @@ el.addEventListener('change', handler)
 React wrapper 应该把它映射成：
 
 ```tsx id="1efie1"
-<ZButton onChange={(event) => event.detail} />
+<ZButton onChange={event => event.detail} />
 ```
 
 ### Vue wrapper 要处理 props + emits
@@ -125,10 +125,7 @@ Web Component 原生 slot 和 React/Vue children 有差异。
 React wrapper 可以把命名 slot 映射成 prop：
 
 ```tsx id="i5feym"
-<ZInput
-  prefix={<IconSearch />}
-  suffix={<ClearButton />}
-/>
+<ZInput prefix={<IconSearch />} suffix={<ClearButton />} />
 ```
 
 最终生成：
@@ -208,11 +205,7 @@ customElements.define(tagName, ZeusElement)
 
 ```json id="v5qdxh"
 {
-  "sideEffects": [
-    "dist/wc/*.js",
-    "dist/wc/**/*.js",
-    "**/*.css"
-  ]
+  "sideEffects": ["dist/wc/*.js", "dist/wc/**/*.js", "**/*.css"]
 }
 ```
 
@@ -449,7 +442,7 @@ packages/
   headless/
 ```
 
-因为当前 workspace 和构建脚本都已经支持 `packages/*` 和 `addons/*`。 
+因为当前 workspace 和构建脚本都已经支持 `packages/*` 和 `addons/*`。
 
 ### 数据流
 
@@ -832,12 +825,7 @@ Tailwind tokens
 Headless 组件输出状态：
 
 ```html id="xbpzui"
-<z-button
-  data-state="open"
-  data-disabled
-  data-size="sm"
-  data-variant="primary"
->
+<z-button data-state="open" data-disabled data-size="sm" data-variant="primary">
 </z-button>
 ```
 

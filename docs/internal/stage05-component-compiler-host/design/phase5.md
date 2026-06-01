@@ -204,7 +204,7 @@ export interface ComponentDtsOptions {
   \*/
   jsx?: boolean
   }
-export interface NormalizedComponentDtsOptions {
+  export interface NormalizedComponentDtsOptions {
   outDir: string
   stripPrefix: string | false
   fileName?: (tag: string) => string
@@ -900,8 +900,8 @@ formatEventType,
 formatDetailType,
 } from './formatType'
 export type {
-  ComponentDtsOptions,
-  DtsOutputFile,
+ComponentDtsOptions,
+DtsOutputFile,
 } from './types'
 
 ⸻

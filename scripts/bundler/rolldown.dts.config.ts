@@ -16,16 +16,21 @@ if (!existsSync('temp/packages')) {
   process.exit(1)
 }
 
-// Discover which packages were built, matching temp output to workspace packages
-const tempRoots = ['temp/packages', 'temp/addons']
-const tempPkgs = tempRoots.flatMap(root =>
-  existsSync(root) ? readdirSync(root) : [],
-)
 const wsPkgs = findWorkspacePackages()
-const wsPkgsByShort = new Map(wsPkgs.map(p => [p.shortName, p]))
+const wsPkgsByShort = new Map<string, (typeof wsPkgs)[number]>()
+for (const pkg of wsPkgs) {
+  if (!wsPkgsByShort.has(pkg.shortName)) {
+    wsPkgsByShort.set(pkg.shortName, pkg)
+  }
+}
 
 const targetPackages = (
-  process.env.TARGETS ? process.env.TARGETS.split(',') : tempPkgs
+  process.env.TARGETS
+    ? process.env.TARGETS.split(',')
+    : wsPkgs
+        .filter(pkg => pkg.packageJson.buildOptions)
+        .filter(pkg => existsSync(`temp/${pkg.relativeDir}/src/index.d.ts`))
+        .map(pkg => pkg.shortName)
 )
   .filter(pkg => !pkg.includes('compiler-'))
   .filter(pkg => {
@@ -45,8 +50,7 @@ const packageConfigs: RolldownOptions[] = bundledPackages.map(pkg => {
     throw new Error(`Cannot resolve directory for package: ${pkg}`)
   }
 
-  const [category] = relativeDir.split('/')
-  const inputDts = `./temp/${category}/${pkg}/src/index.d.ts`
+  const inputDts = `./temp/${relativeDir}/src/index.d.ts`
 
   return {
     checks: dtsChecks,
@@ -87,9 +91,8 @@ for (const pkg of bundledPackages) {
     | undefined
   if (!buildOptions?.additionalEntries) continue
 
-  const [category] = relativeDir.split('/')
   for (const extra of buildOptions.additionalEntries) {
-    const srcDts = `./temp/${category}/${pkg}/src/${extra.entry.replace(/\.ts$/, '.d.ts')}`
+    const srcDts = `./temp/${relativeDir}/src/${extra.entry.replace(/\.ts$/, '.d.ts')}`
     if (!existsSync(srcDts)) continue
 
     const outputDts = extra.output.replace(/\.js$/, '.d.ts')
@@ -110,11 +113,13 @@ packageConfigs.push(...additionalEntryDtsConfigs)
 // Handle vite-plugin dts by directly copying the source declaration
 // (see comment above for why bundling is skipped)
 if (targetPackages.includes('vite-plugin')) {
-  const vitePluginDts = readFileSync(
-    'temp/addons/vite-plugin/src/index.d.ts',
-    'utf-8',
-  )
-  writeFileSync('addons/vite-plugin/dist/vite-plugin.d.ts', vitePluginDts)
+  const vitePluginDir = wsPkgsByShort.get('vite-plugin')?.dir
+  const vitePluginDtsPath = 'temp/packages/devtools/vite-plugin/src/index.d.ts'
+  if (!vitePluginDir || !existsSync(vitePluginDtsPath)) {
+    throw new Error('Cannot resolve vite-plugin declaration output.')
+  }
+  const vitePluginDts = readFileSync(vitePluginDtsPath, 'utf-8')
+  writeFileSync(`${vitePluginDir}/dist/vite-plugin.d.ts`, vitePluginDts)
   console.log('[dts] vite-plugin.d.ts written directly from source')
 }
 

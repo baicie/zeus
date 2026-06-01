@@ -1,3 +1,5 @@
+/// <reference types="@zeus-js/zeus/jsx" />
+/** @jsxImportSource @zeus-js/zeus */
 import { defineElement, Slot } from '@zeus-js/zeus'
 
 export interface ButtonProps {
@@ -25,7 +27,7 @@ export const ZButton = defineElement<ButtonProps>(
     <button
       class={`btn btn-${props.variant}`}
       disabled={props.disabled}
-      onClick={event => emit('press', { nativeEvent: event })}
+      onClick={(event: MouseEvent) => emit('press', { nativeEvent: event })}
     >
       <Slot />
     </button>

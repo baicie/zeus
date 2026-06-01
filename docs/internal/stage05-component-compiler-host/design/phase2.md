@@ -26,7 +26,7 @@ compiler 现在仍然是单文件 JSX 编译链路，所以 Phase 2 不要污染
 packages/component-analyzer
 ```
 
-原因：这是核心编译生态基础包，不是某个 bundler 的插件。当前 workspace 和构建脚本都会扫描 `packages/*`、`addons/*`，并通过 `buildOptions` 识别可构建包。 
+原因：这是核心编译生态基础包，不是某个 bundler 的插件。当前 workspace 和构建脚本都会扫描 `packages/*`、`addons/*`，并通过 `buildOptions` 识别可构建包。
 
 ---
 
@@ -388,10 +388,7 @@ packages/component-analyzer/
   "main": "index.js",
   "module": "dist/component-analyzer.esm-bundler.js",
   "types": "dist/component-analyzer.d.ts",
-  "files": [
-    "index.js",
-    "dist"
-  ],
+  "files": ["index.js", "dist"],
   "exports": {
     ".": {
       "types": "./dist/component-analyzer.d.ts",
@@ -409,21 +406,14 @@ packages/component-analyzer/
   "sideEffects": false,
   "buildOptions": {
     "name": "ZeusComponentAnalyzer",
-    "formats": [
-      "esm-bundler",
-      "cjs"
-    ]
+    "formats": ["esm-bundler", "cjs"]
   },
   "dependencies": {
     "@babel/parser": "catalog:",
     "@babel/types": "catalog:",
     "fast-glob": "^3.3.3"
   },
-  "keywords": [
-    "zeus",
-    "web-components",
-    "component-analyzer"
-  ],
+  "keywords": ["zeus", "web-components", "component-analyzer"],
   "author": "Baicie",
   "license": "MIT"
 }
@@ -621,10 +611,7 @@ export function isIdentifierNamed(
 import * as t from '@babel/types'
 
 import { walk } from './ast'
-import {
-  getObjectProperty,
-  isIdentifierNamed,
-} from './utils'
+import { getObjectProperty, isIdentifierNamed } from './utils'
 
 export interface DefineElementCallRecord {
   name: string
@@ -690,10 +677,7 @@ function collectDefineElementLocalNames(ast: t.File): Set<string> {
 
     const source = node.source.value
 
-    if (
-      source !== '@zeus-js/zeus' &&
-      source !== '@zeus-js/runtime-dom'
-    ) {
+    if (source !== '@zeus-js/zeus' && source !== '@zeus-js/runtime-dom') {
       continue
     }
 
@@ -742,10 +726,7 @@ function isDefineElementCall(
   call: t.CallExpression,
   localNames: Set<string>,
 ): boolean {
-  return (
-    t.isIdentifier(call.callee) &&
-    localNames.has(call.callee.name)
-  )
+  return t.isIdentifier(call.callee) && localNames.has(call.callee.name)
 }
 
 function extractTag(call: t.CallExpression): string | undefined {
@@ -770,17 +751,12 @@ function extractOptions(
   return undefined
 }
 
-function extractPropsTypeName(
-  call: t.CallExpression,
-): string | undefined {
+function extractPropsTypeName(call: t.CallExpression): string | undefined {
   const first = call.typeParameters?.params[0]
 
   if (!first) return undefined
 
-  if (
-    t.isTSTypeReference(first) &&
-    t.isIdentifier(first.typeName)
-  ) {
+  if (t.isTSTypeReference(first) && t.isIdentifier(first.typeName)) {
     return first.typeName.name
   }
 
@@ -801,11 +777,7 @@ import * as t from '@babel/types'
 
 import type { ComponentProp, ComponentPropType } from './types'
 
-import {
-  getObjectKey,
-  getObjectProperty,
-  staticValue,
-} from './utils'
+import { getObjectKey, getObjectProperty, staticValue } from './utils'
 
 export function extractRuntimeProps(
   options: t.ObjectExpression | undefined,
@@ -830,9 +802,7 @@ export function extractRuntimeProps(
   return props
 }
 
-function extractRuntimeProp(
-  node: t.Expression | t.PatternLike,
-): ComponentProp {
+function extractRuntimeProp(node: t.Expression | t.PatternLike): ComponentProp {
   if (t.isIdentifier(node)) {
     return {
       type: typeFromConstructorName(node.name),
@@ -845,10 +815,9 @@ function extractRuntimeProp(
     const reflectNode = getObjectProperty(node, 'reflect')
     const defaultNode = getObjectProperty(node, 'default')
 
-    const type =
-      t.isIdentifier(typeNode)
-        ? typeFromConstructorName(typeNode.name)
-        : 'unknown'
+    const type = t.isIdentifier(typeNode)
+      ? typeFromConstructorName(typeNode.name)
+      : 'unknown'
 
     const prop: ComponentProp = {
       type,
@@ -874,7 +843,10 @@ function extractRuntimeProp(
       /**
        * Function default cannot be evaluated statically in Phase 2.
        */
-      if (!t.isFunctionExpression(defaultNode) && !t.isArrowFunctionExpression(defaultNode)) {
+      if (
+        !t.isFunctionExpression(defaultNode) &&
+        !t.isArrowFunctionExpression(defaultNode)
+      ) {
         prop.default = staticValue(defaultNode)
       }
     }
@@ -1039,9 +1011,7 @@ function extractTsProperty(
   return prop
 }
 
-function inferType(
-  node: t.TSType,
-): Partial<ComponentProp> {
+function inferType(node: t.TSType): Partial<ComponentProp> {
   if (t.isTSStringKeyword(node)) {
     return { type: 'string' }
   }
@@ -1067,10 +1037,7 @@ function inferType(
     let allStringLiteral = true
 
     for (const type of node.types) {
-      if (
-        t.isTSLiteralType(type) &&
-        t.isStringLiteral(type.literal)
-      ) {
+      if (t.isTSLiteralType(type) && t.isStringLiteral(type.literal)) {
         values.push(type.literal.value)
       } else {
         allStringLiteral = false
@@ -1105,10 +1072,7 @@ import * as t from '@babel/types'
 import { walk } from './ast'
 import { getObjectKey, staticValue, uniqueSorted } from './utils'
 
-import type {
-  ComponentEvent,
-  ComponentSlot,
-} from './types'
+import type { ComponentEvent, ComponentSlot } from './types'
 
 export interface SetupMeta {
   events: Record<string, ComponentEvent>
@@ -1172,9 +1136,7 @@ function extractEmit(
   }
 }
 
-function inferDetail(
-  node: t.ObjectExpression,
-): Record<string, string> {
+function inferDetail(node: t.ObjectExpression): Record<string, string> {
   const result: Record<string, string> = {}
 
   for (const prop of node.properties) {
@@ -1189,9 +1151,7 @@ function inferDetail(
   return result
 }
 
-function inferExpressionType(
-  node: t.Expression | t.PatternLike,
-): string {
+function inferExpressionType(node: t.Expression | t.PatternLike): string {
   if (t.isStringLiteral(node)) return 'string'
   if (t.isNumericLiteral(node)) return 'number'
   if (t.isBooleanLiteral(node)) return 'boolean'
@@ -1202,10 +1162,7 @@ function inferExpressionType(
   return 'unknown'
 }
 
-function extractSlot(
-  node: t.Node,
-  slots: Record<string, ComponentSlot>,
-): void {
+function extractSlot(node: t.Node, slots: Record<string, ComponentSlot>): void {
   if (!t.isJSXElement(node)) return
 
   const name = node.openingElement.name
@@ -1217,10 +1174,7 @@ function extractSlot(
   slots[slotName] ||= {}
 }
 
-function extractHostAttributes(
-  node: t.Node,
-  hostAttributes: string[],
-): void {
+function extractHostAttributes(node: t.Node, hostAttributes: string[]): void {
   if (!t.isJSXElement(node)) return
 
   const name = node.openingElement.name
@@ -1248,10 +1202,7 @@ function extractHostAttributes(
   }
 }
 
-function extractCssParts(
-  node: t.Node,
-  cssParts: string[],
-): void {
+function extractCssParts(node: t.Node, cssParts: string[]): void {
   if (!t.isJSXElement(node)) return
 
   const value = getJSXStringAttribute(node, 'part')
@@ -1376,14 +1327,7 @@ export interface BuildRecordOptions {
 export function buildComponentRecord(
   options: BuildRecordOptions,
 ): ComponentRecord {
-  const {
-    file,
-    call,
-    runtimeProps,
-    typeProps,
-    setupMeta,
-    inlineMeta,
-  } = options
+  const { file, call, runtimeProps, typeProps, setupMeta, inlineMeta } = options
 
   const props = mergeProps(
     runtimeProps,
@@ -1517,14 +1461,9 @@ import { extractSetupMeta } from './extractSetup'
 import { collectLocalPropTypes } from './extractTypeProps'
 import { buildComponentRecord } from './merge'
 
-import type {
-  AnalyzeFileOptions,
-  AnalyzeFileResult,
-} from './types'
+import type { AnalyzeFileOptions, AnalyzeFileResult } from './types'
 
-export function analyzeFile(
-  options: AnalyzeFileOptions,
-): AnalyzeFileResult {
+export function analyzeFile(options: AnalyzeFileOptions): AnalyzeFileResult {
   const { file, code } = options
   const diagnostics: AnalyzeFileResult['diagnostics'] = []
   const components: AnalyzeFileResult['components'] = []
@@ -1538,7 +1477,7 @@ export function analyzeFile(
       const runtimeProps = extractRuntimeProps(call.options)
 
       const typeProps = call.propsTypeName
-        ? localPropTypes.get(call.propsTypeName) ?? {}
+        ? (localPropTypes.get(call.propsTypeName) ?? {})
         : {}
 
       if (call.propsTypeName && !localPropTypes.has(call.propsTypeName)) {
@@ -1567,10 +1506,7 @@ export function analyzeFile(
     diagnostics.push({
       level: 'error',
       file,
-      message:
-        error instanceof Error
-          ? error.message
-          : String(error),
+      message: error instanceof Error ? error.message : String(error),
     })
   }
 
@@ -1598,10 +1534,7 @@ import fg from 'fast-glob'
 
 import { analyzeFile } from './analyzeFile'
 
-import type {
-  AnalyzeComponentsOptions,
-  AnalyzeComponentsResult,
-} from './types'
+import type { AnalyzeComponentsOptions, AnalyzeComponentsResult } from './types'
 
 export async function analyzeComponents(
   options: AnalyzeComponentsOptions,
@@ -1777,11 +1710,7 @@ describe('analyzeFile', () => {
           description: 'Button content',
         },
       },
-      hostAttributes: [
-        'data-disabled',
-        'data-slot',
-        'data-variant',
-      ],
+      hostAttributes: ['data-disabled', 'data-slot', 'data-variant'],
       cssParts: ['root'],
       cssVars: ['--z-button-bg'],
     })
@@ -1877,9 +1806,7 @@ import { analyzeComponents } from '../src/analyzeComponents'
 
 describe('analyzeComponents', () => {
   it('scans files and returns manifest', async () => {
-    const root = await fs.mkdtemp(
-      path.join(os.tmpdir(), 'zeus-analyzer-'),
-    )
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'zeus-analyzer-'))
 
     await fs.mkdir(path.join(root, 'src'), {
       recursive: true,
@@ -2088,6 +2015,7 @@ export const ZButton = defineElement<ButtonProps>(
   },
   setup,
 )
+```
 ````
 
 ## Metadata sources
@@ -2112,10 +2040,10 @@ interface ComponentManifest {
 
 ## Limitations
 
-* imported Props types are not resolved in Phase 2
-* dynamic tags are not supported
-* dynamic props definitions are not supported
-* computed event names are not supported
+- imported Props types are not resolved in Phase 2
+- dynamic tags are not supported
+- dynamic props definitions are not supported
+- computed event names are not supported
 
 ````
 

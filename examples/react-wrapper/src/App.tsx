@@ -8,10 +8,10 @@ export function App() {
     <div>
       <h1>Zeus React Wrapper</h1>
 
-      <div class="demo-section">
+      <div className="demo-section">
         <h3>Default Variant</h3>
         <ZButton
-          onPress={event => {
+          onPress={(event: CustomEvent<{ nativeEvent: MouseEvent }>) => {
             event.detail.nativeEvent.preventDefault()
             console.log('Button pressed!')
           }}
@@ -20,12 +20,12 @@ export function App() {
         </ZButton>
       </div>
 
-      <div class="demo-section">
+      <div className="demo-section">
         <h3>Outline Variant</h3>
         <ZButton variant="outline">Outline Button</ZButton>
       </div>
 
-      <div class="demo-section">
+      <div className="demo-section">
         <h3>Disabled</h3>
         <ZButton disabled>Disabled Button</ZButton>
       </div>

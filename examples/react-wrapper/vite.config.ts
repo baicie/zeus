@@ -15,13 +15,13 @@ export default defineConfig({
       },
       outputs: [
         wc({
-          outDir: 'dist/wc',
+          outDir: 'wc',
           dts: true,
           jsxDts: true,
         }),
         reactWrapper({
-          outDir: 'dist/react',
-          wcOutDir: './dist/wc',
+          outDir: 'react',
+          wcOutDir: './wc',
         }),
       ],
     }),

@@ -2,7 +2,7 @@
 
 这阶段的目标不是做 `component-analyzer`、`react/vue wrapper` 或 shadcn-like registry，而是先把后续所有能力依赖的底座打稳。
 
-当前 Zeus 已经有 `defineElement / Host / Slot / createSlot / hostContext` 出口，`defineElement` 也已经负责 props、attribute sync、property setter、shadow/light target、CustomEvent、styles 和生命周期。 
+当前 Zeus 已经有 `defineElement / Host / Slot / createSlot / hostContext` 出口，`defineElement` 也已经负责 props、attribute sync、property setter、shadow/light target、CustomEvent、styles 和生命周期。
 所以 Phase 0 的重点是：**补测试、补示例、补 compiler snapshot、补质量门禁**。
 
 ---
@@ -1313,7 +1313,7 @@ defineElement owns:
 
 Host is transparent in Phase 0.
 
-Phase 1 will enhance Host to sync host attributes such as data-state, aria-* and class.
+Phase 1 will enhance Host to sync host attributes such as data-state, aria-\* and class.
 
 ### Slot
 
@@ -1334,6 +1334,7 @@ pnpm check
 pnpm test-unit
 pnpm examples:check
 pnpm size
+```
 ````
 
 ````

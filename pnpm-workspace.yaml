@@ -1,6 +1,8 @@
 packages:
-  - 'packages/*'
-  - 'addons/*'
+  - 'packages/core/*'
+  - 'packages/devtools/*'
+  - 'packages/web-c/*'
+  - 'packages/headless'
   - 'examples/*'
   - 'docs'
 

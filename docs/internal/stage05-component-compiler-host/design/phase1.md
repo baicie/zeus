@@ -41,7 +41,7 @@ Slot 继续负责内容分发
 </z-button>
 ```
 
-当前 `Host` 只是透明返回 children，`Slot` 已经基于 host context 区分 shadow/light DOM，`defineElement` 已经负责 custom element 的注册、props、生命周期和 CustomEvent。  
+当前 `Host` 只是透明返回 children，`Slot` 已经基于 host context 区分 shadow/light DOM，`defineElement` 已经负责 custom element 的注册、props、生命周期和 CustomEvent。
 
 ---
 
@@ -149,10 +149,7 @@ export const ZButton = defineElement<ButtonProps>(
         data-slot="button"
         data-variant={props.variant}
         data-disabled={props.disabled ? '' : undefined}
-        class={[
-          'z-button',
-          props.disabled && 'z-button-disabled',
-        ]}
+        class={['z-button', props.disabled && 'z-button-disabled']}
       >
         <button disabled={props.disabled}>
           <Slot />
@@ -226,7 +223,7 @@ bindStyle
 bindProp
 ```
 
-这些都已经通过 `effect()` 做响应式绑定，可以直接复用。 
+这些都已经通过 `effect()` 做响应式绑定，可以直接复用。
 
 `refs.ts` 也已经有 `bindRef()`，并且会在 scope dispose 时把 ref 清空。
 
@@ -237,11 +234,7 @@ bindProp
 ```ts id="f6epnt"
 // packages/runtime-dom/src/webComponents.ts
 
-import {
-  bindAttr,
-  bindClass,
-  bindStyle,
-} from './bindings'
+import { bindAttr, bindClass, bindStyle } from './bindings'
 import { getCurrentHostContext } from './hostContext'
 import { bindRef } from './refs'
 import { createSlot } from './slot'
@@ -336,8 +329,7 @@ function bindHostClass(host: HTMLElement, props: HostProps): void {
   /**
    * className has higher priority than class when both exist.
    */
-  const value =
-    props.className !== undefined ? props.className : props.class
+  const value = props.className !== undefined ? props.className : props.class
 
   bindClass(host, () => {
     return resolveHostValue(value) as ClassValue
@@ -372,9 +364,7 @@ function resolveHostValue(value: unknown): unknown {
    * Function values are treated as getters except event-like props,
    * which are filtered before this function is called.
    */
-  return typeof value === 'function'
-    ? (value as () => unknown)()
-    : value
+  return typeof value === 'function' ? (value as () => unknown)() : value
 }
 
 function resolveValue(
@@ -451,7 +441,7 @@ getCurrentHostContext()
 
 ## 7.3 动态更新依赖 effect
 
-`bindAttr / bindClass / bindStyle` 内部已经使用 `effect()`。 
+`bindAttr / bindClass / bindStyle` 内部已经使用 `effect()`。
 
 所以：
 
@@ -1053,9 +1043,7 @@ import './components/host-button'
 `index.html` 添加：
 
 ```html id="nswfaq"
-<z-host-button variant="outline" size="md">
-  Host Button
-</z-host-button>
+<z-host-button variant="outline" size="md"> Host Button </z-host-button>
 ```
 
 ---
@@ -1103,8 +1091,8 @@ Enhance `Host` as the host-element control primitive for Zeus Web Components.
 - title
 - slot
 - tabIndex
-- data-*
-- aria-*
+- data-\*
+- aria-\*
 
 ## Example
 
@@ -1118,16 +1106,17 @@ return (
     <Slot />
   </Host>
 )
+```
 ````
 
 ## Future
 
 Phase 2 component analyzer can scan Host usage to extract:
 
-* hostAttributes
-* data-state
-* cssParts
-* static style hooks
+- hostAttributes
+- data-state
+- cssParts
+- static style hooks
 
 ````
 

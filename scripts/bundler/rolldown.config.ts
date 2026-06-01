@@ -1,7 +1,5 @@
-import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 
 import replace from '@rollup/plugin-replace'
 import pico from 'picocolors'
@@ -9,6 +7,7 @@ import polyfillNode from 'rollup-plugin-polyfill-node'
 
 import { inlineEnums } from './inline-enums'
 import { entries } from '../shared/aliases'
+import { resolvePackageDir } from '../shared/utils'
 
 import type { MarkRequired, PackageFormat } from '../shared/utils'
 import type { Plugin, RolldownOptions } from 'rolldown'
@@ -23,22 +22,11 @@ if (!process.env.TARGET) {
 }
 
 const require = createRequire(import.meta.url)
-const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
-const rootDir = path.resolve(__dirname, '..', '..')
-// Try all package categories to find the package
-const categories = ['packages', 'addons']
-let packageDir: string | null = null
-for (const cat of categories) {
-  const candidate = path.resolve(rootDir, cat, process.env.TARGET!)
-  if (existsSync(path.resolve(candidate, 'package.json'))) {
-    packageDir = candidate
-    break
-  }
-}
+const packageDir = resolvePackageDir(process.env.TARGET)
 if (!packageDir) {
   throw new Error(
-    `Package not found: ${process.env.TARGET}. Checked packages/*/${process.env.TARGET} and addons/*/${process.env.TARGET}`,
+    `Package not found: ${process.env.TARGET}. Searched configured workspace package directories.`,
   )
 }
 const resolve = (p: string) => path.resolve(packageDir!, p)
@@ -324,12 +312,6 @@ function createConfig(
   }
 
   function resolveNodePlugins() {
-    if (pkg.name === '@zeus-js/compiler-sfc') {
-      // compiler-sfc bundles forked consolidate.js which dynamically
-      // requires a ton of template engines which should be ignored.
-      return []
-    }
-
     const nodePlugins =
       (format === 'cjs' && Object.keys(pkg.devDependencies || {}).length) ||
       packageOptions.enableNonBrowserBranches

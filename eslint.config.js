@@ -100,7 +100,7 @@ export default defineConfig(
   // ============================================
   {
     name: 'shared-package',
-    files: ['packages/shared/**', 'eslint.config.js'],
+    files: ['packages/core/shared/**', 'eslint.config.js'],
     rules: {
       'no-restricted-globals': 'off',
     },
@@ -128,7 +128,9 @@ export default defineConfig(
       'scripts/**',
       './*.{js,ts}',
       'packages/*/*.js',
-      'addons/*/*.js',
+      'packages/core/*/*.js',
+      'packages/devtools/*/*.js',
+      'packages/web-c/*/*.js',
     ],
     rules: {
       'no-restricted-globals': 'off',
@@ -153,7 +155,7 @@ export default defineConfig(
   // ============================================
   {
     name: 'signal-package',
-    files: ['packages/signal/**'],
+    files: ['packages/core/signal/**'],
     extends: [tseslint.configs.base],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',

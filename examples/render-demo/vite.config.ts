@@ -35,10 +35,13 @@ export default defineConfig({
   resolve: {
     alias: {
       '@zeus-js/runtime-dom': fileURLToPath(
-        new URL('../../packages/runtime-dom/src/index.ts', import.meta.url),
+        new URL(
+          '../../packages/core/runtime-dom/src/index.ts',
+          import.meta.url,
+        ),
       ),
       '@zeus-js/zeus': fileURLToPath(
-        new URL('../../packages/zeus/src/index.ts', import.meta.url),
+        new URL('../../packages/core/zeus/src/index.ts', import.meta.url),
       ),
     },
   },

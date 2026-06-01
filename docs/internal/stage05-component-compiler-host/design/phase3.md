@@ -18,7 +18,7 @@ Phase 3 的核心目标是新增一个通用插件宿主：
 
 当前 `addons/vite-plugin` 已经有可复用的核心能力：在 `transform` 阶段调用 Babel `transformAsync`，并挂载 `@zeus-js/compiler`。
 当前 compiler 仍然是单文件 JSX 编译管线，所以 bundler plugin 不应该侵入 compiler 内部，只作为构建期编排层。
-仓库当前 workspace 已经覆盖 `packages/*` 和 `addons/*`，构建脚本也会扫描这两个目录并通过 `buildOptions` 判断可构建包，所以新包放 `addons/bundler-plugin` 最合适。 
+仓库当前 workspace 已经覆盖 `packages/*` 和 `addons/*`，构建脚本也会扫描这两个目录并通过 `buildOptions` 判断可构建包，所以新包放 `addons/bundler-plugin` 最合适。
 
 ---
 
@@ -135,11 +135,7 @@ export default {
       components: {
         include: ['src/components/**/*.{ts,tsx}'],
       },
-      outputs: [
-        wc(),
-        react(),
-        vue(),
-      ],
+      outputs: [wc(), react(), vue()],
     }),
   ],
 }
@@ -214,10 +210,7 @@ dist/zeus.components.json
   "main": "index.js",
   "module": "dist/bundler-plugin.esm-bundler.js",
   "types": "dist/bundler-plugin.d.ts",
-  "files": [
-    "index.js",
-    "dist"
-  ],
+  "files": ["index.js", "dist"],
   "exports": {
     ".": {
       "types": "./dist/bundler-plugin.d.ts",
@@ -243,10 +236,7 @@ dist/zeus.components.json
   "sideEffects": false,
   "buildOptions": {
     "name": "ZeusBundlerPlugin",
-    "formats": [
-      "esm-bundler",
-      "cjs"
-    ]
+    "formats": ["esm-bundler", "cjs"]
   },
   "dependencies": {
     "@babel/core": "catalog:",
@@ -266,13 +256,7 @@ dist/zeus.components.json
       "optional": true
     }
   },
-  "keywords": [
-    "zeus",
-    "vite",
-    "rollup",
-    "rolldown",
-    "web-components"
-  ],
+  "keywords": ["zeus", "vite", "rollup", "rolldown", "web-components"],
   "author": "Baicie",
   "license": "MIT"
 }
@@ -464,9 +448,7 @@ export interface TransformZeusOptions {
   sourcemap?: boolean
 }
 
-export async function transformZeus(
-  options: TransformZeusOptions,
-): Promise<{
+export async function transformZeus(options: TransformZeusOptions): Promise<{
   code: string
   map: unknown
 } | null> {
@@ -602,10 +584,7 @@ import fg from 'fast-glob'
 import { analyzeComponents } from '@zeus-js/component-analyzer'
 
 import { createFilter } from './filter'
-import {
-  formatDiagnostic,
-  hasErrorDiagnostics,
-} from './diagnostics'
+import { formatDiagnostic, hasErrorDiagnostics } from './diagnostics'
 import { transformZeus } from './transform'
 import { VirtualModuleRegistry } from './virtual'
 
@@ -731,10 +710,7 @@ export function createZeusPlugin(
   }
 }
 
-async function createManifest(
-  root: string,
-  options: ZeusBundlerPluginOptions,
-) {
+async function createManifest(root: string, options: ZeusBundlerPluginOptions) {
   const include = options.components?.include ?? []
   const exclude = options.components?.exclude ?? []
 
@@ -766,10 +742,7 @@ async function collectWatchFiles(
   const files = await fg(include, {
     cwd: root,
     absolute: true,
-    ignore: options.components?.exclude ?? [
-      'node_modules/**',
-      '**/dist/**',
-    ],
+    ignore: options.components?.exclude ?? ['node_modules/**', '**/dist/**'],
   })
 
   return files
@@ -868,11 +841,7 @@ export function createZeusVitePlugin(
                 '@zeus-js/runtime-dom': runtimeDomEntry,
               }
             : undefined,
-          dedupe: [
-            '@zeus-js/signal',
-            '@zeus-js/runtime-dom',
-            '@zeus-js/zeus',
-          ],
+          dedupe: ['@zeus-js/signal', '@zeus-js/runtime-dom', '@zeus-js/zeus'],
         },
       } satisfies UserConfig
     },
@@ -1004,11 +973,7 @@ export default function manifestOutput(
         {
           type: 'asset',
           fileName,
-          source: JSON.stringify(
-            ctx.manifest,
-            null,
-            pretty ? 2 : 0,
-          ),
+          source: JSON.stringify(ctx.manifest, null, pretty ? 2 : 0),
         },
       ]
     },
@@ -1033,9 +998,7 @@ export {
   createZeusVitePlugin,
 } from '@zeus-js/bundler-plugin/vite'
 
-export type {
-  ZeusBundlerPluginOptions as ZeusVitePluginOptions,
-} from '@zeus-js/bundler-plugin'
+export type { ZeusBundlerPluginOptions as ZeusVitePluginOptions } from '@zeus-js/bundler-plugin'
 ```
 
 这个迁移的好处：
@@ -1110,9 +1073,7 @@ import manifestOutput from '../src/outputPlugins/manifest'
 
 describe('bundler plugin manifest', () => {
   it('emits component manifest asset', async () => {
-    const root = await fs.mkdtemp(
-      path.join(os.tmpdir(), 'zeus-bundler-'),
-    )
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'zeus-bundler-'))
 
     await fs.mkdir(path.join(root, 'src/components'), {
       recursive: true,
@@ -1221,9 +1182,7 @@ import type { ZeusOutputPlugin } from '../src'
 
 describe('output plugin lifecycle', () => {
   it('calls output plugin hooks', async () => {
-    const root = await fs.mkdtemp(
-      path.join(os.tmpdir(), 'zeus-output-hooks-'),
-    )
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'zeus-output-hooks-'))
 
     await fs.mkdir(path.join(root, 'src'), {
       recursive: true,
@@ -1294,13 +1253,11 @@ describe('output plugin lifecycle', () => {
     expect(virtualModules).toHaveBeenCalledTimes(1)
     expect(generateBundle).toHaveBeenCalledTimes(1)
 
-    expect(
-      result.output.some(item => item.fileName === 'test.txt'),
-    ).toBe(true)
+    expect(result.output.some(item => item.fileName === 'test.txt')).toBe(true)
 
-    expect(
-      result.output.some(item => item.fileName === 'virtual.js'),
-    ).toBe(true)
+    expect(result.output.some(item => item.fileName === 'virtual.js')).toBe(
+      true,
+    )
   })
 })
 ```
@@ -1375,15 +1332,19 @@ interface ZeusOutputPlugin {
   name: string
   buildStart?: (ctx: ZeusBuildContext) => void | Promise<void>
   virtualModules?: (ctx: ZeusBuildContext) => ZeusVirtualModule[] | void
-  generateBundle?: (ctx: ZeusBuildContext, bundle: OutputBundle) => ZeusOutputFile[] | void
+  generateBundle?: (
+    ctx: ZeusBuildContext,
+    bundle: OutputBundle,
+  ) => ZeusOutputFile[] | void
 }
+```
 ````
 
 ## Future outputs
 
-* `@zeus-js/output-wc`
-* `@zeus-js/output-react-wrapper`
-* `@zeus-js/output-vue-wrapper`
+- `@zeus-js/output-wc`
+- `@zeus-js/output-react-wrapper`
+- `@zeus-js/output-vue-wrapper`
 
 ````
 

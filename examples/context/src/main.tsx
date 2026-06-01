@@ -102,7 +102,6 @@ function App() {
             <ThemeContext.Provider value={theme} bridge>
               <UserContext.Provider value={user} bridge>
                 <z-context-card>
-                  {/* @ts-expect-error slot attribute on custom element */}
                   <span slot="header">
                     <UserBadge />
                   </span>

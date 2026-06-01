@@ -80,9 +80,6 @@ importers:
       '@vitest/eslint-plugin':
         specifier: ^1.6.18
         version: 1.6.18(@typescript-eslint/eslint-plugin@8.60.0(@typescript-eslint/parser@8.60.0(eslint@10.4.1)(typescript@6.0.3))(eslint@10.4.1)(typescript@6.0.3))(eslint@10.4.1)(typescript@6.0.3)(vitest@4.1.7)
-      '@zeus-js/zeus':
-        specifier: workspace:*
-        version: link:packages/zeus
       dts-bundle-generator:
         specifier: ^9.5.1
         version: 9.5.1
@@ -99,7 +96,7 @@ importers:
         specifier: ^29.1.1
         version: 29.1.1
       lint-staged:
-        specifier: ^17.0.7
+        specifier: ^17.0.6
         version: 17.0.7
       magic-string:
         specifier: ^0.30.21
@@ -147,7 +144,7 @@ importers:
         specifier: ^2.8.1
         version: 2.8.1
       tsx:
-        specifier: ^4.22.4
+        specifier: ^4.22.3
         version: 4.22.4
       typescript:
         specifier: ^6.0.3
@@ -159,122 +156,6 @@ importers:
         specifier: ^4.1.7
         version: 4.1.7(@types/node@25.9.1)(@vitest/coverage-v8@4.1.7)(jsdom@29.1.1)(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.4)(yaml@2.9.0))
 
-  addons/bundler-plugin:
-    dependencies:
-      '@babel/core':
-        specifier: 'catalog:'
-        version: 7.29.0
-      '@zeus-js/compiler':
-        specifier: workspace:*
-        version: link:../../packages/compiler
-      '@zeus-js/component-analyzer':
-        specifier: workspace:*
-        version: link:../component-analyzer
-      fast-glob:
-        specifier: ^3.3.3
-        version: 3.3.3
-      rollup:
-        specifier: ^4.0.0
-        version: 4.60.4
-      vite:
-        specifier: 'catalog:'
-        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.4)(yaml@2.9.0)
-
-  addons/component-analyzer:
-    dependencies:
-      '@babel/parser':
-        specifier: 'catalog:'
-        version: 7.29.7
-      '@babel/types':
-        specifier: 'catalog:'
-        version: 7.29.0
-      fast-glob:
-        specifier: ^3.3.3
-        version: 3.3.3
-
-  addons/component-dts:
-    dependencies:
-      '@zeus-js/component-analyzer':
-        specifier: workspace:*
-        version: link:../component-analyzer
-
-  addons/create-zeus:
-    dependencies:
-      '@clack/prompts':
-        specifier: ^1.5.0
-        version: 1.5.0
-      picocolors:
-        specifier: ^1.1.1
-        version: 1.1.1
-    devDependencies:
-      tsup:
-        specifier: ^8.5.1
-        version: 8.5.1(postcss@8.5.15)(tsx@4.22.4)(typescript@6.0.3)(yaml@2.9.0)
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-
-  addons/output-react-wrapper:
-    dependencies:
-      '@zeus-js/bundler-plugin':
-        specifier: workspace:*
-        version: link:../bundler-plugin
-      '@zeus-js/component-analyzer':
-        specifier: workspace:*
-        version: link:../component-analyzer
-      '@zeus-js/component-dts':
-        specifier: workspace:*
-        version: link:../component-dts
-      react:
-        specifier: '>=18 || >=19'
-        version: 19.2.6
-
-  addons/output-vue-wrapper:
-    dependencies:
-      '@zeus-js/bundler-plugin':
-        specifier: workspace:*
-        version: link:../bundler-plugin
-      '@zeus-js/component-analyzer':
-        specifier: workspace:*
-        version: link:../component-analyzer
-      '@zeus-js/component-dts':
-        specifier: workspace:*
-        version: link:../component-dts
-      vue:
-        specifier: '>=3'
-        version: 3.5.35(typescript@6.0.3)
-
-  addons/output-wc:
-    dependencies:
-      '@zeus-js/bundler-plugin':
-        specifier: workspace:*
-        version: link:../bundler-plugin
-      '@zeus-js/component-analyzer':
-        specifier: workspace:*
-        version: link:../component-analyzer
-      '@zeus-js/component-dts':
-        specifier: workspace:*
-        version: link:../component-dts
-      rollup:
-        specifier: ^4.0.0
-        version: 4.60.4
-
-  addons/vite-plugin:
-    dependencies:
-      '@babel/core':
-        specifier: 'catalog:'
-        version: 7.29.0
-      '@zeus-js/compiler':
-        specifier: workspace:*
-        version: link:../../packages/compiler
-      vite:
-        specifier: 'catalog:'
-        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.4)(yaml@2.9.0)
-    devDependencies:
-      '@types/babel__core':
-        specifier: 'catalog:'
-        version: 7.20.5
-
   docs:
     devDependencies:
       vitepress:
@@ -285,7 +166,7 @@ importers:
     dependencies:
       '@zeus-js/compiler':
         specifier: workspace:*
-        version: link:../../packages/compiler
+        version: link:../../packages/core/compiler
     devDependencies:
       typescript:
         specifier: ^6.0.3
@@ -295,14 +176,14 @@ importers:
     dependencies:
       '@zeus-js/runtime-dom':
         specifier: workspace:*
-        version: link:../../packages/runtime-dom
+        version: link:../../packages/core/runtime-dom
       '@zeus-js/zeus':
         specifier: workspace:*
-        version: link:../../packages/zeus
+        version: link:../../packages/core/zeus
     devDependencies:
       '@zeus-js/vite-plugin':
         specifier: workspace:*
-        version: link:../../addons/vite-plugin
+        version: link:../../packages/devtools/vite-plugin
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -314,14 +195,14 @@ importers:
     dependencies:
       '@zeus-js/runtime-dom':
         specifier: workspace:*
-        version: link:../../packages/runtime-dom
+        version: link:../../packages/core/runtime-dom
       '@zeus-js/zeus':
         specifier: workspace:*
-        version: link:../../packages/zeus
+        version: link:../../packages/core/zeus
     devDependencies:
       '@zeus-js/vite-plugin':
         specifier: workspace:*
-        version: link:../../addons/vite-plugin
+        version: link:../../packages/devtools/vite-plugin
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -333,10 +214,10 @@ importers:
     dependencies:
       '@zeus-js/runtime-dom':
         specifier: workspace:*
-        version: link:../../packages/runtime-dom
+        version: link:../../packages/core/runtime-dom
       '@zeus-js/zeus':
         specifier: workspace:*
-        version: link:../../packages/zeus
+        version: link:../../packages/core/zeus
       '@zeus-ui/headless':
         specifier: workspace:*
         version: link:../../packages/headless
@@ -349,13 +230,13 @@ importers:
         version: 6.0.7(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.4)(yaml@2.9.0))(vue@3.5.35(typescript@6.0.3))
       '@zeus-js/bundler-plugin':
         specifier: workspace:*
-        version: link:../../addons/bundler-plugin
+        version: link:../../packages/web-c/bundler-plugin
       '@zeus-js/output-wc':
         specifier: workspace:*
-        version: link:../../addons/output-wc
+        version: link:../../packages/web-c/output-wc
       '@zeus-js/vite-plugin':
         specifier: workspace:*
-        version: link:../../addons/vite-plugin
+        version: link:../../packages/devtools/vite-plugin
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -367,14 +248,14 @@ importers:
     dependencies:
       '@zeus-js/runtime-dom':
         specifier: workspace:*
-        version: link:../../packages/runtime-dom
+        version: link:../../packages/core/runtime-dom
       '@zeus-js/zeus':
         specifier: workspace:*
-        version: link:../../packages/zeus
+        version: link:../../packages/core/zeus
     devDependencies:
       '@zeus-js/vite-plugin':
         specifier: workspace:*
-        version: link:../../addons/vite-plugin
+        version: link:../../packages/devtools/vite-plugin
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -386,11 +267,11 @@ importers:
     dependencies:
       '@zeus-js/zeus':
         specifier: workspace:*
-        version: link:../../packages/zeus
+        version: link:../../packages/core/zeus
     devDependencies:
       '@zeus-js/vite-plugin':
         specifier: workspace:*
-        version: link:../../addons/vite-plugin
+        version: link:../../packages/devtools/vite-plugin
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -402,10 +283,10 @@ importers:
     dependencies:
       '@zeus-js/runtime-dom':
         specifier: workspace:*
-        version: link:../../packages/runtime-dom
+        version: link:../../packages/core/runtime-dom
       '@zeus-js/zeus':
         specifier: workspace:*
-        version: link:../../packages/zeus
+        version: link:../../packages/core/zeus
       react:
         specifier: ^19.2.6
         version: 19.2.6
@@ -424,16 +305,16 @@ importers:
         version: 6.0.2(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.4)(yaml@2.9.0))
       '@zeus-js/bundler-plugin':
         specifier: workspace:*
-        version: link:../../addons/bundler-plugin
+        version: link:../../packages/web-c/bundler-plugin
       '@zeus-js/output-react-wrapper':
         specifier: workspace:*
-        version: link:../../addons/output-react-wrapper
+        version: link:../../packages/web-c/output-react-wrapper
       '@zeus-js/output-wc':
         specifier: workspace:*
-        version: link:../../addons/output-wc
+        version: link:../../packages/web-c/output-wc
       '@zeus-js/vite-plugin':
         specifier: workspace:*
-        version: link:../../addons/vite-plugin
+        version: link:../../packages/devtools/vite-plugin
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -445,13 +326,13 @@ importers:
     dependencies:
       '@zeus-js/compiler':
         specifier: workspace:*
-        version: link:../../packages/compiler
+        version: link:../../packages/core/compiler
       '@zeus-js/runtime-dom':
         specifier: workspace:*
-        version: link:../../packages/runtime-dom
+        version: link:../../packages/core/runtime-dom
       '@zeus-js/zeus':
         specifier: workspace:*
-        version: link:../../packages/zeus
+        version: link:../../packages/core/zeus
     devDependencies:
       '@babel/core':
         specifier: 'catalog:'
@@ -470,14 +351,14 @@ importers:
     dependencies:
       '@zeus-js/runtime-dom':
         specifier: workspace:*
-        version: link:../../packages/runtime-dom
+        version: link:../../packages/core/runtime-dom
       '@zeus-js/zeus':
         specifier: workspace:*
-        version: link:../../packages/zeus
+        version: link:../../packages/core/zeus
     devDependencies:
       '@zeus-js/vite-plugin':
         specifier: workspace:*
-        version: link:../../addons/vite-plugin
+        version: link:../../packages/devtools/vite-plugin
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -489,10 +370,10 @@ importers:
     dependencies:
       '@zeus-js/runtime-dom':
         specifier: workspace:*
-        version: link:../../packages/runtime-dom
+        version: link:../../packages/core/runtime-dom
       '@zeus-js/zeus':
         specifier: workspace:*
-        version: link:../../packages/zeus
+        version: link:../../packages/core/zeus
       vue:
         specifier: ^3.5.35
         version: 3.5.35(typescript@6.0.3)
@@ -502,16 +383,16 @@ importers:
         version: 6.0.7(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.4)(yaml@2.9.0))(vue@3.5.35(typescript@6.0.3))
       '@zeus-js/bundler-plugin':
         specifier: workspace:*
-        version: link:../../addons/bundler-plugin
+        version: link:../../packages/web-c/bundler-plugin
       '@zeus-js/output-vue-wrapper':
         specifier: workspace:*
-        version: link:../../addons/output-vue-wrapper
+        version: link:../../packages/web-c/output-vue-wrapper
       '@zeus-js/output-wc':
         specifier: workspace:*
-        version: link:../../addons/output-wc
+        version: link:../../packages/web-c/output-wc
       '@zeus-js/vite-plugin':
         specifier: workspace:*
-        version: link:../../addons/vite-plugin
+        version: link:../../packages/devtools/vite-plugin
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -526,20 +407,20 @@ importers:
     dependencies:
       '@zeus-js/runtime-dom':
         specifier: workspace:*
-        version: link:../../packages/runtime-dom
+        version: link:../../packages/core/runtime-dom
       '@zeus-js/zeus':
         specifier: workspace:*
-        version: link:../../packages/zeus
+        version: link:../../packages/core/zeus
     devDependencies:
       '@zeus-js/bundler-plugin':
         specifier: workspace:*
-        version: link:../../addons/bundler-plugin
+        version: link:../../packages/web-c/bundler-plugin
       '@zeus-js/output-wc':
         specifier: workspace:*
-        version: link:../../addons/output-wc
+        version: link:../../packages/web-c/output-wc
       '@zeus-js/vite-plugin':
         specifier: workspace:*
-        version: link:../../addons/vite-plugin
+        version: link:../../packages/devtools/vite-plugin
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -551,14 +432,14 @@ importers:
     dependencies:
       '@zeus-js/runtime-dom':
         specifier: workspace:*
-        version: link:../../packages/runtime-dom
+        version: link:../../packages/core/runtime-dom
       '@zeus-js/zeus':
         specifier: workspace:*
-        version: link:../../packages/zeus
+        version: link:../../packages/core/zeus
     devDependencies:
       '@zeus-js/vite-plugin':
         specifier: workspace:*
-        version: link:../../addons/vite-plugin
+        version: link:../../packages/devtools/vite-plugin
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -566,7 +447,7 @@ importers:
         specifier: 'catalog:'
         version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.4)(yaml@2.9.0)
 
-  packages/compiler:
+  packages/core/compiler:
     dependencies:
       '@babel/helper-plugin-utils':
         specifier: ^7.29.7
@@ -594,14 +475,72 @@ importers:
         specifier: ^7.10.3
         version: 7.10.3
 
-  packages/headless:
+  packages/core/runtime-dom:
+    dependencies:
+      '@zeus-js/signal':
+        specifier: workspace:*
+        version: link:../signal
+
+  packages/core/shared: {}
+
+  packages/core/signal:
+    dependencies:
+      '@zeus-js/shared':
+        specifier: workspace:*
+        version: link:../shared
+      alien-signals:
+        specifier: ^3.2.1
+        version: 3.2.1
+
+  packages/core/zeus:
     dependencies:
       '@zeus-js/runtime-dom':
         specifier: workspace:*
         version: link:../runtime-dom
+      '@zeus-js/signal':
+        specifier: workspace:*
+        version: link:../signal
+
+  packages/devtools/create-zeus:
+    dependencies:
+      '@clack/prompts':
+        specifier: ^1.5.0
+        version: 1.5.0
+      picocolors:
+        specifier: ^1.1.1
+        version: 1.1.1
+    devDependencies:
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(postcss@8.5.15)(tsx@4.22.4)(typescript@6.0.3)(yaml@2.9.0)
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
+  packages/devtools/vite-plugin:
+    dependencies:
+      '@babel/core':
+        specifier: 'catalog:'
+        version: 7.29.0
+      '@zeus-js/compiler':
+        specifier: workspace:*
+        version: link:../../core/compiler
+      vite:
+        specifier: 'catalog:'
+        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.4)(yaml@2.9.0)
+    devDependencies:
+      '@types/babel__core':
+        specifier: 'catalog:'
+        version: 7.20.5
+
+  packages/headless:
+    dependencies:
+      '@zeus-js/runtime-dom':
+        specifier: workspace:*
+        version: link:../core/runtime-dom
       '@zeus-js/zeus':
         specifier: workspace:*
-        version: link:../zeus
+        version: link:../core/zeus
       react:
         specifier: '>=18 || >=19'
         version: 19.2.6
@@ -617,22 +556,22 @@ importers:
         version: 6.0.7(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.4)(yaml@2.9.0))(vue@3.5.35(typescript@6.0.3))
       '@zeus-js/bundler-plugin':
         specifier: workspace:*
-        version: link:../../addons/bundler-plugin
+        version: link:../web-c/bundler-plugin
       '@zeus-js/component-dts':
         specifier: workspace:*
-        version: link:../../addons/component-dts
+        version: link:../web-c/component-dts
       '@zeus-js/output-react-wrapper':
         specifier: workspace:*
-        version: link:../../addons/output-react-wrapper
+        version: link:../web-c/output-react-wrapper
       '@zeus-js/output-vue-wrapper':
         specifier: workspace:*
-        version: link:../../addons/output-vue-wrapper
+        version: link:../web-c/output-vue-wrapper
       '@zeus-js/output-wc':
         specifier: workspace:*
-        version: link:../../addons/output-wc
+        version: link:../web-c/output-wc
       '@zeus-js/vite-plugin':
         specifier: workspace:*
-        version: link:../../addons/vite-plugin
+        version: link:../devtools/vite-plugin
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -640,31 +579,89 @@ importers:
         specifier: ^8.0.14
         version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.4)(yaml@2.9.0)
 
-  packages/runtime-dom:
+  packages/web-c/bundler-plugin:
     dependencies:
-      '@zeus-js/signal':
+      '@babel/core':
+        specifier: 'catalog:'
+        version: 7.29.0
+      '@zeus-js/compiler':
         specifier: workspace:*
-        version: link:../signal
+        version: link:../../core/compiler
+      '@zeus-js/component-analyzer':
+        specifier: workspace:*
+        version: link:../component-analyzer
+      fast-glob:
+        specifier: ^3.3.3
+        version: 3.3.3
+      rollup:
+        specifier: ^4.0.0
+        version: 4.60.4
+      vite:
+        specifier: 'catalog:'
+        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(tsx@4.22.4)(yaml@2.9.0)
 
-  packages/shared: {}
-
-  packages/signal:
+  packages/web-c/component-analyzer:
     dependencies:
-      '@zeus-js/shared':
-        specifier: workspace:*
-        version: link:../shared
-      alien-signals:
-        specifier: ^3.2.1
-        version: 3.2.1
+      '@babel/parser':
+        specifier: 'catalog:'
+        version: 7.29.7
+      '@babel/types':
+        specifier: 'catalog:'
+        version: 7.29.0
+      fast-glob:
+        specifier: ^3.3.3
+        version: 3.3.3
 
-  packages/zeus:
+  packages/web-c/component-dts:
     dependencies:
-      '@zeus-js/runtime-dom':
+      '@zeus-js/component-analyzer':
         specifier: workspace:*
-        version: link:../runtime-dom
-      '@zeus-js/signal':
+        version: link:../component-analyzer
+
+  packages/web-c/output-react-wrapper:
+    dependencies:
+      '@zeus-js/bundler-plugin':
         specifier: workspace:*
-        version: link:../signal
+        version: link:../bundler-plugin
+      '@zeus-js/component-analyzer':
+        specifier: workspace:*
+        version: link:../component-analyzer
+      '@zeus-js/component-dts':
+        specifier: workspace:*
+        version: link:../component-dts
+      react:
+        specifier: '>=18 || >=19'
+        version: 19.2.6
+
+  packages/web-c/output-vue-wrapper:
+    dependencies:
+      '@zeus-js/bundler-plugin':
+        specifier: workspace:*
+        version: link:../bundler-plugin
+      '@zeus-js/component-analyzer':
+        specifier: workspace:*
+        version: link:../component-analyzer
+      '@zeus-js/component-dts':
+        specifier: workspace:*
+        version: link:../component-dts
+      vue:
+        specifier: '>=3'
+        version: 3.5.35(typescript@6.0.3)
+
+  packages/web-c/output-wc:
+    dependencies:
+      '@zeus-js/bundler-plugin':
+        specifier: workspace:*
+        version: link:../bundler-plugin
+      '@zeus-js/component-analyzer':
+        specifier: workspace:*
+        version: link:../component-analyzer
+      '@zeus-js/component-dts':
+        specifier: workspace:*
+        version: link:../component-dts
+      rollup:
+        specifier: ^4.0.0
+        version: 4.60.4
 
 packages:
 

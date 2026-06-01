@@ -102,11 +102,7 @@ export function Button(props: ButtonProps) {
 或者：
 
 ```tsx id="ecgxgf"
-export const Button = () => (
-  <Host as="z-button">
-    ...
-  </Host>
-)
+export const Button = () => <Host as="z-button">...</Host>
 ```
 
 这种方案的优点是：**声明看起来更 JSX 化，更像“组件即模板”。**
@@ -340,7 +336,7 @@ styles mount
 customElements.define 防重复注册
 ```
 
-这些对组件库都是必要能力。 
+这些对组件库都是必要能力。
 
 #### 4. 适合多输出
 
@@ -369,7 +365,7 @@ dist/*.d.ts
 比如想表达宿主节点状态：
 
 ```html id="kjv4pd"
-<z-dialog data-state="open">
+<z-dialog data-state="open"></z-dialog>
 ```
 
 如果只用 defineElement，用户可能得手动写：
@@ -579,10 +575,7 @@ export const ZButton = defineElement<ButtonProps>(
   (props, { emit }) => {
     return (
       <Host data-disabled={props.disabled ? '' : undefined}>
-        <button
-          part="root"
-          onClick={() => emit('change', { value: true })}
-        >
+        <button part="root" onClick={() => emit('change', { value: true })}>
           <Slot />
         </button>
       </Host>
@@ -655,19 +648,19 @@ meta: {
 
 # 六、Host 方案和 defineElement 方案对比
 
-| 维度                    | Host 定义 Web Component | defineElement 定义 Web Component |
-| --------------------- | --------------------- | ------------------------------ |
-| 定义边界                  | 隐式，藏在 JSX 里           | 显式，模块级 API                     |
-| 生命周期                  | 需要编译器魔法               | API 自然承载                       |
-| customElements.define | 不直观                   | 明确                             |
-| props meta            | 需要推断                  | options.props 天然结构化            |
-| TypeScript props      | 可以推断，但入口不清晰           | 泛型参数清晰                         |
-| events                | 需要扫描 emit             | 也需要扫描 emit，可配 meta             |
-| slots                 | 扫 `<Slot />` 很自然      | 同样自然                           |
-| host attrs            | 很自然                   | 需要增强 Host 后也自然                 |
-| wrapper 生成            | 分析成本高                 | 分析成本低                          |
-| shadcn-like           | 模板体验好                 | 配合 Host 后同样好                   |
-| 推荐定位                  | 渲染期宿主操作               | 组件定义与注册                        |
+| 维度                  | Host 定义 Web Component | defineElement 定义 Web Component |
+| --------------------- | ----------------------- | -------------------------------- |
+| 定义边界              | 隐式，藏在 JSX 里       | 显式，模块级 API                 |
+| 生命周期              | 需要编译器魔法          | API 自然承载                     |
+| customElements.define | 不直观                  | 明确                             |
+| props meta            | 需要推断                | options.props 天然结构化         |
+| TypeScript props      | 可以推断，但入口不清晰  | 泛型参数清晰                     |
+| events                | 需要扫描 emit           | 也需要扫描 emit，可配 meta       |
+| slots                 | 扫 `<Slot />` 很自然    | 同样自然                         |
+| host attrs            | 很自然                  | 需要增强 Host 后也自然           |
+| wrapper 生成          | 分析成本高              | 分析成本低                       |
+| shadcn-like           | 模板体验好              | 配合 Host 后同样好               |
+| 推荐定位              | 渲染期宿主操作          | 组件定义与注册                   |
 
 所以我的建议是：
 
