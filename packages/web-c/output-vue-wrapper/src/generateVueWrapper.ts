@@ -42,7 +42,11 @@ import {
   watch,
 } from 'vue';
 
-import ${JSON.stringify(wcImport)};
+import { ${component.exportName} as __zeusWC } from ${JSON.stringify(wcImport)};
+
+if (typeof customElements !== 'undefined' && !customElements.get(${JSON.stringify(component.tag)})) {
+  void __zeusWC;
+}
 
 const PROP_KEYS = ${JSON.stringify(propNames)};
 const EVENT_NAMES = ${JSON.stringify(eventNames)};

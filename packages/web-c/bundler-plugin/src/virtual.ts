@@ -5,6 +5,8 @@ const RESOLVED_VIRTUAL_PREFIX = '\0'
 export class VirtualModuleRegistry {
   private readonly modules = new Map<string, string>()
   private readonly virtualDirs = new Map<string, string>()
+  private readonly virtualFileNames = new Map<string, string>()
+  private readonly idsByFileName = new Map<string, string>()
 
   set(id: string, code: string, fileName?: string): void {
     const normalized = normalizeVirtualId(id)
@@ -12,6 +14,9 @@ export class VirtualModuleRegistry {
     if (fileName) {
       const dir = path.posix.dirname(fileName)
       this.virtualDirs.set(normalized, dir)
+      const normalizedFileName = normalizePath(fileName)
+      this.virtualFileNames.set(normalized, normalizedFileName)
+      this.idsByFileName.set(normalizedFileName, normalized)
     }
   }
 
@@ -26,6 +31,8 @@ export class VirtualModuleRegistry {
   clear(): void {
     this.modules.clear()
     this.virtualDirs.clear()
+    this.virtualFileNames.clear()
+    this.idsByFileName.clear()
   }
 
   resolve(id: string, importer?: string): string | null {
@@ -40,7 +47,12 @@ export class VirtualModuleRegistry {
       const importerDir = this.virtualDirs.get(importerNormalized)
 
       if (importerDir) {
-        const resolved = path.posix.resolve(importerDir, id)
+        const resolved = normalizePath(path.posix.join(importerDir, id))
+        const resolvedVirtualId = this.idsByFileName.get(resolved)
+        if (resolvedVirtualId) {
+          return RESOLVED_VIRTUAL_PREFIX + resolvedVirtualId
+        }
+
         const importingPrefix = this.getIdPrefix(importerNormalized)
 
         if (importingPrefix !== null) {
@@ -97,4 +109,8 @@ export class VirtualModuleRegistry {
 
 export function normalizeVirtualId(id: string): string {
   return id.startsWith('\0') ? id.slice(1) : id
+}
+
+function normalizePath(value: string): string {
+  return value.replace(/\\/g, '/').replace(/^\.\//, '')
 }

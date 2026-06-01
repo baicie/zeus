@@ -45,8 +45,12 @@ import React, {
   useRef,
 } from 'react';
 
-// Import and register the Web Component (side-effect import)
-import ${JSON.stringify(wcImport)};
+// Import and register the Web Component.
+import { ${component.exportName} as __zeusWC } from ${JSON.stringify(wcImport)};
+
+if (typeof customElements !== 'undefined' && !customElements.get(${JSON.stringify(component.tag)})) {
+  void __zeusWC;
+}
 
 const PROP_KEYS = ${JSON.stringify(propNames)};
 const EVENT_MAP = ${JSON.stringify(createReactEventMap(eventNames))};

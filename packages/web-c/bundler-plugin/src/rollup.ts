@@ -94,7 +94,15 @@ export function createZeusPlugin(
           return resolved
         }
       }
-      return virtualModules.resolve(id, importer)
+      const resolvedVirtualModule = virtualModules.resolve(id, importer)
+      if (resolvedVirtualModule) {
+        return {
+          id: resolvedVirtualModule,
+          moduleSideEffects: 'no-treeshake',
+        }
+      }
+
+      return null
     },
 
     load(id) {

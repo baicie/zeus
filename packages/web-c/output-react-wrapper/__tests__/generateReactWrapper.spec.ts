@@ -44,7 +44,11 @@ describe('generateReactWrapper', () => {
       getWcFileName: tag => `${tag.replace(/^z-/, '')}.js`,
     })
 
-    expect(code).toContain(`import "../wc/button.js"`)
+    expect(code).toContain(
+      `import { ZButton as __zeusWC } from "../wc/button.js"`,
+    )
+    expect(code).toContain(`customElements.get("z-button")`)
+    expect(code).toContain('void __zeusWC')
     expect(code).toContain('export const ZButton = forwardRef')
     expect(code).toContain('useImperativeHandle(ref')
     expect(code).toContain('const innerRef = useRef(null)')

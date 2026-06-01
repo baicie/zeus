@@ -57,6 +57,24 @@ describe('VirtualModuleRegistry', () => {
       expect(resolved).toBeTruthy()
       expect(resolved!.startsWith('\0')).toBe(true)
     })
+
+    it('resolves relative imports by emitted file name across output namespaces', () => {
+      const registry = new VirtualModuleRegistry()
+      registry.set(
+        'zeus:wc:z-button',
+        'export const ZButton = {}',
+        'wc/z-button.js',
+      )
+      registry.set(
+        'zeus:react:z-button',
+        'import "../wc/z-button.js"',
+        'react/z-button.js',
+      )
+
+      expect(
+        registry.resolve('../wc/z-button.js', '\0zeus:react:z-button'),
+      ).toBe('\0zeus:wc:z-button')
+    })
   })
 
   describe('load', () => {

@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import zeus from '@zeus-js/bundler-plugin/vite'
+import reactWrapper from '@zeus-js/output-react-wrapper'
+import vueWrapper from '@zeus-js/output-vue-wrapper'
 import wc from '@zeus-js/output-wc'
 import { defineConfig } from 'vite'
 
@@ -44,6 +46,16 @@ export default defineConfig({
           customElementsFile: 'custom-elements.json',
           dts: true,
           jsxDts: true,
+        }),
+        reactWrapper({
+          outDir: 'react',
+          wcOutDir: '../wc',
+          dts: true,
+        }),
+        vueWrapper({
+          outDir: 'vue',
+          wcOutDir: '../wc',
+          dts: true,
         }),
       ],
     }),

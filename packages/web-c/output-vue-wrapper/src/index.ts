@@ -37,8 +37,7 @@ export default function vueWrapper(
           code: generateVueWrapper({
             component,
             options: normalized,
-            getWcFileName: tag =>
-              `${normalized.wcOutDir}/${getJsFileName(tag, normalized)}`,
+            getWcFileName: tag => getJsFileName(tag, normalized),
           }),
         })
       }

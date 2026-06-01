@@ -125,4 +125,31 @@ describe('Host transform', () => {
 
     expect(code).toMatchSnapshot()
   })
+
+  it('passes Host getter props through without double wrapping', async () => {
+    const code = await compile(`
+      import { defineElement, Host } from '@zeus-js/runtime-dom'
+
+      export const ZButton = defineElement(
+        'z-button',
+        { shadow: false },
+        props => {
+          return (
+            <Host
+              data-variant={() => props.variant}
+              data-disabled={() => props.disabled ? '' : undefined}
+            >
+              <button>button</button>
+            </Host>
+          )
+        },
+      )
+    `)
+
+    expect(code).toContain('"data-variant": () => props.variant')
+    expect(code).toContain(
+      '"data-disabled": () => props.disabled ? \'\' : undefined',
+    )
+    expect(code).not.toContain('"data-variant": () => () => props.variant')
+  })
 })

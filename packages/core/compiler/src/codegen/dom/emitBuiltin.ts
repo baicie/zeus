@@ -139,7 +139,7 @@ function buildHostProps(
   for (const attr of node.attrs) {
     const key = createObjectKey(attr.name)
 
-    if (isStaticValue(attr.expr)) {
+    if (isStaticValue(attr.expr) || isGetterExpression(attr.expr)) {
       props.push(t.objectProperty(key, attr.expr))
     } else {
       props.push(
@@ -158,6 +158,10 @@ function isStaticValue(expr: t.Expression): boolean {
     t.isBooleanLiteral(expr) ||
     t.isNullLiteral(expr)
   )
+}
+
+function isGetterExpression(expr: t.Expression): boolean {
+  return t.isArrowFunctionExpression(expr) || t.isFunctionExpression(expr)
 }
 
 function createObjectKey(name: string): t.Identifier | t.StringLiteral {
