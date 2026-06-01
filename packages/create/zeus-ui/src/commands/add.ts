@@ -15,6 +15,7 @@ export async function addCommand(
   options: {
     framework?: 'react' | 'vue'
     yes?: boolean
+    skipInstall?: boolean
   },
 ) {
   let config = await readConfig()
@@ -66,7 +67,7 @@ export async function addCommand(
     }
   }
 
-  if (deps.size > 0) {
+  if (deps.size > 0 && !options.skipInstall) {
     console.log(
       kleur.dim(
         `Installing dependencies via ${await detectPackageManager()}...`,

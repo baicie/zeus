@@ -14,6 +14,19 @@ import path from 'node:path'
  * If pnpm zeus-ui is not available, uses node directly.
  */
 async function main() {
+  const repoRoot = process.cwd()
+  const zeusUiBin = path.resolve(
+    repoRoot,
+    'packages/create/zeus-ui/dist/index.js',
+  )
+  const headlessRoot = path.resolve(repoRoot, 'examples/headless')
+
+  console.log('\n> Building local zeus-ui CLI\n')
+  run('pnpm', ['-F', 'zeus-ui', 'build'], repoRoot)
+
+  console.log('\n> Building local @zeus-ui/headless package\n')
+  run('pnpm', ['-C', headlessRoot, 'build'], repoRoot)
+
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'zeus-ui-smoke-'))
 
   console.log(`Creating minimal React project in: ${root}`)
@@ -57,6 +70,16 @@ async function main() {
           target: 'ES2022',
           paths: {
             '@/*': ['./src/*'],
+            react: ['./node_modules/@types/react/index.d.ts'],
+            'react/jsx-runtime': [
+              './node_modules/@types/react/jsx-runtime.d.ts',
+            ],
+            '@zeus-ui/headless/react': [
+              toTsPath(path.join(headlessRoot, 'dist/react/index.d.ts')),
+            ],
+            '@zeus-ui/headless': [
+              toTsPath(path.join(headlessRoot, 'dist/wc/index.d.ts')),
+            ],
           },
         },
         include: ['src'],
@@ -69,31 +92,18 @@ async function main() {
   console.log('\n> Installing dependencies\n')
   run('pnpm', ['install'], root)
 
-  const zeusUiBin = path.resolve(
-    process.cwd(),
-    'packages/create/zeus-ui/dist/index.js',
+  console.log('\n> zeus-ui init\n')
+  run('node', [zeusUiBin, 'init', '--framework', 'react', '--yes'], root)
+
+  console.log('\n> Installing registry component dependencies\n')
+  run(
+    'pnpm',
+    ['add', 'class-variance-authority', 'clsx', 'tailwind-merge'],
+    root,
   )
 
-  const hasBin = await fs
-    .access(zeusUiBin)
-    .then(() => true)
-    .catch(() => false)
-
-  const initCmd = hasBin ? 'node' : 'pnpm'
-  const initArgs = hasBin
-    ? [zeusUiBin, 'init', '--framework', 'react', '--yes']
-    : ['zeus-ui', 'init', '--framework', 'react', '--yes']
-
-  console.log('\n> zeus-ui init\n')
-  run(initCmd, initArgs, root)
-
-  const addCmd = hasBin ? 'node' : 'pnpm'
-  const addArgs = hasBin
-    ? [zeusUiBin, 'add', 'button', '--yes']
-    : ['zeus-ui', 'add', 'button', '--yes']
-
   console.log('\n> zeus-ui add button\n')
-  run(addCmd, addArgs, root)
+  run('node', [zeusUiBin, 'add', 'button', '--yes', '--skip-install'], root)
 
   await fs.writeFile(
     path.join(root, 'src', 'App.tsx'),
@@ -125,6 +135,10 @@ function run(command: string, args: string[], cwd: string) {
       `Command failed: ${command} ${args.join(' ')} (exit ${result.status})`,
     )
   }
+}
+
+function toTsPath(value: string): string {
+  return value.replace(/\\/g, '/')
 }
 
 main().catch(error => {

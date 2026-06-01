@@ -1,4 +1,4 @@
-import { defineElement, ref, render } from '@zeus-js/zeus'
+import { defineElement, render, state } from '@zeus-js/zeus'
 
 import './styles.css'
 
@@ -7,9 +7,9 @@ type Item = {
   label: string
 }
 
-const count = ref(0)
-const filter = ref('')
-const items = ref<Item[]>([
+const count = state(0)
+const filter = state('')
+const items = state<Item[]>([
   { id: 1, label: 'Compiler IR' },
   { id: 2, label: 'Runtime DOM' },
   { id: 3, label: 'Web Component' },

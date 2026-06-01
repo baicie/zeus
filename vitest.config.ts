@@ -9,6 +9,7 @@ const testProjects = [
     include: [
       'packages/**/*.{test,spec}.{ts,tsx}',
       'examples/headless/**/*.{test,spec}.{ts,tsx}',
+      'scripts/**/*.{test,spec}.{ts,tsx}',
     ],
   },
   {

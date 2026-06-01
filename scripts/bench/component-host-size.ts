@@ -46,9 +46,14 @@ export async function runComponentHostSizeBench(): Promise<SizeBenchEntry[]> {
 }
 
 async function checkTreeShaking(): Promise<void> {
-  const allFiles = await collectFiles(componentHostBenchConfig.dist, file =>
-    file.endsWith('.js'),
-  )
+  const allFiles = (
+    await collectFiles(componentHostBenchConfig.dist, file =>
+      file.endsWith('.js'),
+    )
+  ).map(file => ({
+    absolute: file,
+    relative: toDistRelativePath(file),
+  }))
 
   const errors: string[] = []
 
@@ -100,26 +105,21 @@ async function checkTreeShaking(): Promise<void> {
   ]
 
   for (const cfg of configs) {
-    const file = allFiles.find(
-      f =>
-        f.includes(`/${cfg.dir}/`) &&
-        f.includes(cfg.tag) &&
-        !f.includes('index'),
-    )
+    const file = findTreeShakingFile(allFiles, cfg)
 
     if (!file) {
       errors.push(`[tree-shaking] missing ${cfg.dir}/${cfg.tag} chunk file`)
       continue
     }
 
-    const code = await fs.readFile(file, 'utf-8')
+    const code = await fs.readFile(file.absolute, 'utf-8')
 
     const definedTags = code.match(/[a-z]\("[^"]+"/g) ?? []
     for (const match of definedTags) {
       const definedName = match.slice(2)
       if (cfg.forbidden.includes(definedName)) {
         errors.push(
-          `[tree-shaking] ${path.relative(componentHostBenchConfig.dist, file)} should not define ${definedName}`,
+          `[tree-shaking] ${file.relative} should not define ${definedName}`,
         )
       }
     }
@@ -128,6 +128,38 @@ async function checkTreeShaking(): Promise<void> {
   if (errors.length) {
     throw new Error(errors.join('\n'))
   }
+}
+
+export interface TreeShakingFile {
+  absolute: string
+  relative: string
+}
+
+export interface TreeShakingConfig {
+  dir: string
+  tag: string
+}
+
+export function findTreeShakingFile(
+  files: TreeShakingFile[],
+  config: TreeShakingConfig,
+): TreeShakingFile | undefined {
+  if (config.dir === 'assets') {
+    const pattern = new RegExp(
+      `^assets/${escapeRegExp(config.tag)}-[A-Za-z0-9_-]{8}\\.js$`,
+    )
+    return files.find(file => pattern.test(file.relative))
+  }
+
+  return files.find(file => file.relative === `${config.dir}/${config.tag}.js`)
+}
+
+function toDistRelativePath(file: string): string {
+  return path.relative(componentHostBenchConfig.dist, file).replace(/\\/g, '/')
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 async function collectFiles(

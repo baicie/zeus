@@ -1,5 +1,4 @@
 {
-  "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
     "jsx": "react-jsx",
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
@@ -7,7 +6,11 @@
     "module": "ESNext",
     "target": "ESNext",
     "strict": true,
-    "jsxImportSource": "@zeus-js/zeus"
+    "jsxImportSource": "react",
+    "skipLibCheck": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src"]
 }

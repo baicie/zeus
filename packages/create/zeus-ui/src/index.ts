@@ -26,6 +26,7 @@ program
   .argument('[components...]', 'component names')
   .option('-f, --framework <framework>', 'react or vue')
   .option('-y, --yes', 'skip prompts')
+  .option('--skip-install', 'skip installing component dependencies')
   .action(addCommand)
 
 program

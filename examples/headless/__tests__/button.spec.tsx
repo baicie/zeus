@@ -55,6 +55,29 @@ describe('z-button', () => {
     expect(el.hasAttribute('data-disabled')).toBe(false)
   })
 
+  it('renders default variant and size data attributes', async () => {
+    document.body.innerHTML = '<z-button>Default</z-button>'
+    const el = document.querySelector('z-button')!
+
+    await nextFrame()
+
+    expect(el.getAttribute('data-slot')).toBe('button')
+    expect(el.getAttribute('data-variant')).toBe('default')
+    expect(el.getAttribute('data-size')).toBe('md')
+    expect(el.hasAttribute('data-disabled')).toBe(false)
+  })
+
+  it('renders registry button variant and size attributes', async () => {
+    document.body.innerHTML =
+      '<z-button variant="destructive" size="icon">Delete</z-button>'
+    const el = document.querySelector('z-button')!
+
+    await nextFrame()
+
+    expect(el.getAttribute('data-variant')).toBe('destructive')
+    expect(el.getAttribute('data-size')).toBe('icon')
+  })
+
   it('emits press event on click', async () => {
     document.body.innerHTML = '<z-button>Save</z-button>'
     const el = document.querySelector('z-button')!

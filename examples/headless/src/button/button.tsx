@@ -3,8 +3,14 @@ import { defineElement, Host, Slot } from '@zeus-js/zeus'
 import { bindBooleanProp, bindOptionalAttr } from '../shared/dom'
 
 export interface ButtonProps {
-  variant?: 'default' | 'outline' | 'ghost'
-  size?: 'sm' | 'md' | 'lg'
+  variant?:
+    | 'default'
+    | 'outline'
+    | 'ghost'
+    | 'secondary'
+    | 'destructive'
+    | 'link'
+  size?: 'sm' | 'md' | 'lg' | 'icon'
   disabled?: boolean
 }
 

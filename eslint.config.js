@@ -48,6 +48,7 @@ const IGNORED_PATTERNS = [
   'target',
   'vendor/**',
   'examples/**',
+  'docs/.vitepress/cache/**',
 ]
 
 // 全局声明 - 由构建工具注入
