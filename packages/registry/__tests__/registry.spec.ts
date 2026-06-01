@@ -40,9 +40,12 @@ describe('registry', () => {
       expect(item).toBeUndefined()
     })
 
-    it('returns undefined for framework mismatch', () => {
+    it('returns vue checkbox', () => {
       const item = getRegistryItem('vue', 'checkbox')
-      expect(item).toBeUndefined()
+
+      expect(item?.name).toBe('checkbox')
+      expect(item?.framework).toBe('vue')
+      expect(item?.files[0].path).toBe('src/components/ui/Checkbox.vue')
     })
   })
 

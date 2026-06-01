@@ -13,9 +13,12 @@ import {
   writeConfig,
 } from '../src/core/config'
 
-vi.mock('../src/core/install', () => ({
-  installDependencies: vi.fn(),
-}))
+vi.mock('../src/core/install', () => {
+  return {
+    detectPackageManager: () => Promise.resolve('pnpm'),
+    installDependencies: vi.fn(),
+  }
+})
 
 describe('zeus-ui init', () => {
   const tmpDirs: string[] = []

@@ -1,0 +1,35 @@
+/**
+ * Icons no-runtime example.
+ *
+ * This project demonstrates using icons as pure SVG files -- no JavaScript needed.
+ *
+ * ## How it works
+ *
+ * Icons are placed in `public/icons/` and referenced as static <img> tags in HTML.
+ * Vite serves them without any processing:
+ *
+ *   <img src="/icons/check.svg" alt="Check" />
+ *
+ * This page contains zero lines of JavaScript.
+ *
+ * ## In a real project
+ *
+ * Configure the zeus bundler plugin to generate icons at build time:
+ *
+ *   import zeus from '@zeus-js/vite-plugin/vite'
+ *   import icons from '@zeus-js/output-icons/vite'
+ *
+ *   export default {
+ *     plugins: [
+ *       zeus({
+ *         components: {
+ *           include: ['src/components/**/*.tsx'],
+ *         },
+ *         outputs: [icons({ outDir: 'public/icons' })],
+ *       }),
+ *     ],
+ *   }
+ *
+ * The output-icons plugin extracts SVG data from component source and emits
+ * individual .svg files into the configured directory.
+ */

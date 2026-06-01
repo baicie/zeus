@@ -1,0 +1,80 @@
+name: Component Host RC
+
+on:
+  pull_request:
+    paths:
+      - 'packages/core/**'
+      - 'packages/web-c/**'
+      - 'packages/headless/**'
+      - 'packages/registry/**'
+      - 'create/zeus-ui/**'
+      - 'examples/**'
+      - 'scripts/**'
+      - 'docs/**'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
+
+permissions:
+  contents: read
+
+jobs:
+  fast-rc:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.node-version'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Type check
+        run: pnpm check
+
+      - name: Unit tests
+        run: pnpm test-unit
+
+  bench:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.node-version'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      - name: Benchmark
+        run: pnpm bench:component-host:ci
+        if: always()
+
+      - name: Generate RC notes
+        run: pnpm release:rc-notes
+        if: always()
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: component-host-rc-report
+          path: |
+            temp/bench/component-host
+            temp/release
