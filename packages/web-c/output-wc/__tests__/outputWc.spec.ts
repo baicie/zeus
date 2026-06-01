@@ -20,11 +20,58 @@ type ZeusOutputAsset = {
   source: string
 }
 
-function createMockCtx(manifest: ComponentManifest) {
+function createMockOutputs(
+  outDir = 'wc',
+  opts?: { stripPrefix?: string | false; fileName?: (tag: string) => string },
+) {
+  return {
+    register() {},
+    has() {
+      return false
+    },
+    get() {
+      return {
+        outDir,
+        stripPrefix: opts?.stripPrefix ?? false,
+        fileName: opts?.fileName,
+      }
+    },
+    getDir() {
+      return outDir
+    },
+    getFileName(_kind: string, tag: string) {
+      if (opts?.fileName) return opts.fileName(tag)
+      let name = tag
+      if (opts?.stripPrefix && name.startsWith(opts.stripPrefix)) {
+        name = name.slice(opts.stripPrefix.length)
+      }
+      return `${name}.js`
+    },
+    join(_kind: string, fileName: string) {
+      return `${outDir}/${fileName}`
+    },
+  }
+}
+
+function createMockCtx(
+  manifest: ComponentManifest,
+  opts?: {
+    outDir?: string
+    dts?: boolean
+    stripPrefix?: string | false
+    fileName?: (tag: string) => string
+  },
+) {
+  const outDir = opts?.outDir ?? 'wc'
   return {
     manifest,
     root: '/project',
     diagnostics: [] as AnalyzerDiagnostic[],
+    dts: { enabled: opts?.dts ?? true, mode: 'auto' as const, reason: [] },
+    outputs: createMockOutputs(outDir, {
+      stripPrefix: opts?.stripPrefix,
+      fileName: opts?.fileName,
+    }),
     emitFile: () => '',
     warn: () => {},
     error: () => {},
@@ -136,23 +183,26 @@ describe('output-wc', () => {
 
     it('respects stripPrefix in fileName', () => {
       const plugin = wc({ stripPrefix: 'z-' })
-      const ctx = createMockCtx({
-        version: 1,
-        components: [
-          {
-            tag: 'z-button',
-            name: 'ZButton',
-            exportName: 'ZButton',
-            source: 'src/components/button.tsx',
-            props: {},
-            events: {},
-            slots: {},
-            hostAttributes: [],
-            cssParts: [],
-            cssVars: [],
-          },
-        ],
-      })
+      const ctx = createMockCtx(
+        {
+          version: 1,
+          components: [
+            {
+              tag: 'z-button',
+              name: 'ZButton',
+              exportName: 'ZButton',
+              source: 'src/components/button.tsx',
+              props: {},
+              events: {},
+              slots: {},
+              hostAttributes: [],
+              cssParts: [],
+              cssVars: [],
+            },
+          ],
+        },
+        { stripPrefix: 'z-' },
+      )
 
       const result = plugin.virtualModules!(ctx as any) as any
 
@@ -161,23 +211,26 @@ describe('output-wc', () => {
 
     it('respects custom fileName function', () => {
       const plugin = wc({ fileName: tag => `my-${tag}` })
-      const ctx = createMockCtx({
-        version: 1,
-        components: [
-          {
-            tag: 'z-button',
-            name: 'ZButton',
-            exportName: 'ZButton',
-            source: 'src/components/button.tsx',
-            props: {},
-            events: {},
-            slots: {},
-            hostAttributes: [],
-            cssParts: [],
-            cssVars: [],
-          },
-        ],
-      })
+      const ctx = createMockCtx(
+        {
+          version: 1,
+          components: [
+            {
+              tag: 'z-button',
+              name: 'ZButton',
+              exportName: 'ZButton',
+              source: 'src/components/button.tsx',
+              props: {},
+              events: {},
+              slots: {},
+              hostAttributes: [],
+              cssParts: [],
+              cssVars: [],
+            },
+          ],
+        },
+        { fileName: tag => `my-${tag}` },
+      )
 
       const result = plugin.virtualModules!(ctx as any) as any
 
@@ -186,23 +239,26 @@ describe('output-wc', () => {
 
     it('respects custom outDir', () => {
       const plugin = wc({ outDir: 'web-components' })
-      const ctx = createMockCtx({
-        version: 1,
-        components: [
-          {
-            tag: 'z-button',
-            name: 'ZButton',
-            exportName: 'ZButton',
-            source: 'src/components/button.tsx',
-            props: {},
-            events: {},
-            slots: {},
-            hostAttributes: [],
-            cssParts: [],
-            cssVars: [],
-          },
-        ],
-      })
+      const ctx = createMockCtx(
+        {
+          version: 1,
+          components: [
+            {
+              tag: 'z-button',
+              name: 'ZButton',
+              exportName: 'ZButton',
+              source: 'src/components/button.tsx',
+              props: {},
+              events: {},
+              slots: {},
+              hostAttributes: [],
+              cssParts: [],
+              cssVars: [],
+            },
+          ],
+        },
+        { outDir: 'web-components' },
+      )
 
       const result = plugin.virtualModules!(ctx as any) as any
 
@@ -669,7 +725,7 @@ describe('output-wc', () => {
             components: {
               include: ['src/components/**/*.{ts,tsx}'],
             },
-            outputs: [
+            plugins: [
               wc({
                 outDir: 'wc',
                 manifestFile: 'zeus.components.json',

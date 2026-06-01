@@ -1,19 +1,12 @@
-import type { OutputVueWrapperOptions } from './types'
 import type { ComponentRecord } from '@zeus-js/component-analyzer'
-
-export type RequiredOutputVueWrapperOptions = Required<
-  Omit<OutputVueWrapperOptions, 'fileName'>
-> & {
-  fileName?: (tag: string) => string
-}
 
 export interface GenerateVueWrapperOptions {
   component: ComponentRecord
-  wcImport: string
+  wcModuleId: string
 }
 
 export function generateVueWrapper(input: GenerateVueWrapperOptions): string {
-  const { component, wcImport } = input
+  const { component, wcModuleId } = input
 
   const propNames = Object.keys(component.props)
   const eventNames = Object.keys(component.events)
@@ -39,11 +32,7 @@ import {
   watch,
 } from 'vue';
 
-import { ${component.exportName} as __zeusWC } from ${JSON.stringify(wcImport)};
-
-if (typeof customElements !== 'undefined' && !customElements.get(${JSON.stringify(component.tag)})) {
-  void __zeusWC;
-}
+import ${JSON.stringify(wcModuleId)};
 
 const PROP_KEYS = ${JSON.stringify(propNames)};
 const EVENT_NAMES = ${JSON.stringify(eventNames)};
@@ -161,10 +150,5 @@ function generateVuePropSyncLines(propNames: string[]): string {
     return '// no props to sync'
   }
 
-  return propNames
-    .map(
-      name =>
-        `if (props.${name} !== undefined) el.${name} = props.${name}; else el.${name} = undefined;`,
-    )
-    .join('\n      ')
+  return propNames.map(name => `el.${name} = props.${name};`).join('\n      ')
 }

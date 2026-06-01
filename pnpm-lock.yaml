@@ -268,6 +268,9 @@ importers:
       '@zeus-js/component-dts':
         specifier: workspace:*
         version: link:../../packages/web-c/component-dts
+      '@zeus-js/output-css':
+        specifier: workspace:*
+        version: link:../../packages/web-c/output-css
       '@zeus-js/output-react-wrapper':
         specifier: workspace:*
         version: link:../../packages/web-c/output-react-wrapper
@@ -277,6 +280,9 @@ importers:
       '@zeus-js/output-wc':
         specifier: workspace:*
         version: link:../../packages/web-c/output-wc
+      '@zeus-js/preset-component-library':
+        specifier: workspace:*
+        version: link:../../packages/web-c/preset-component-library
       '@zeus-js/vite-plugin':
         specifier: workspace:*
         version: link:../../packages/devtools/vite-plugin
@@ -840,6 +846,15 @@ importers:
         specifier: workspace:*
         version: link:../component-analyzer
 
+  packages/web-c/output-css:
+    dependencies:
+      lightningcss:
+        specifier: ^1.29.0
+        version: 1.32.0
+      rollup:
+        specifier: ^4.0.0
+        version: 4.61.0
+
   packages/web-c/output-icons:
     dependencies:
       '@zeus-js/bundler-plugin':
@@ -896,6 +911,24 @@ importers:
       rollup:
         specifier: ^4.0.0
         version: 4.60.4
+
+  packages/web-c/preset-component-library:
+    dependencies:
+      '@zeus-js/output-css':
+        specifier: workspace:*
+        version: link:../output-css
+      '@zeus-js/output-react-wrapper':
+        specifier: workspace:*
+        version: link:../output-react-wrapper
+      '@zeus-js/output-vue-wrapper':
+        specifier: workspace:*
+        version: link:../output-vue-wrapper
+      '@zeus-js/output-wc':
+        specifier: workspace:*
+        version: link:../output-wc
+      rollup:
+        specifier: ^4.0.0
+        version: 4.61.0
 
 packages:
 

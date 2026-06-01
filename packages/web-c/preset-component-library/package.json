@@ -1,0 +1,54 @@
+{
+  "name": "@zeus-js/preset-component-library",
+  "version": "0.0.2",
+  "description": "Zeus component library preset",
+  "type": "module",
+  "main": "index.js",
+  "module": "dist/preset-component-library.esm-bundler.js",
+  "types": "dist/preset-component-library.d.ts",
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/preset-component-library.d.ts",
+      "node": {
+        "production": "./dist/preset-component-library.cjs.prod.js",
+        "development": "./dist/preset-component-library.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/preset-component-library.esm-bundler.js",
+      "import": "./dist/preset-component-library.esm-bundler.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
+  },
+  "sideEffects": false,
+  "buildOptions": {
+    "name": "ZeusPresetComponentLibrary",
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ]
+  },
+  "peerDependencies": {
+    "@zeus-js/output-css": "workspace:*",
+    "@zeus-js/output-react-wrapper": "workspace:*",
+    "@zeus-js/output-vue-wrapper": "workspace:*",
+    "@zeus-js/output-wc": "workspace:*",
+    "rollup": "^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "rollup": {
+      "optional": true
+    }
+  },
+  "keywords": [
+    "zeus",
+    "preset",
+    "component-library"
+  ],
+  "author": "Baicie",
+  "license": "MIT"
+}

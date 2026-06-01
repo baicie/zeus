@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import manifestOutput from '../src/outputPlugins/manifest'
 
 import type { ZeusOutputAsset } from '../src/types'
-import type { ZeusBuildContext } from '@zeus-js/bundler-plugin'
+import type { ZeusBuildContext, ZeusOutputKind } from '@zeus-js/bundler-plugin'
 import type { OutputBundle, RollupError } from 'rollup'
 
 function createMockCtx(): ZeusBuildContext {
@@ -14,6 +14,25 @@ function createMockCtx(): ZeusBuildContext {
     },
     root: '/project',
     diagnostics: [],
+    dts: { enabled: true, mode: 'auto', reason: [] },
+    outputs: {
+      register() {},
+      has() {
+        return false
+      },
+      get() {
+        throw new Error('not registered')
+      },
+      getDir() {
+        return ''
+      },
+      getFileName() {
+        return 'test.js'
+      },
+      join(_kind: ZeusOutputKind, fileName: string) {
+        return fileName
+      },
+    },
     emitFile: () => '',
     warn: () => {},
     error: (_err: string | RollupError) => {
@@ -21,21 +40,6 @@ function createMockCtx(): ZeusBuildContext {
     },
     addWatchFile: () => {},
     meta: { watchMode: false },
-    output: {
-      outDir: '',
-      wcDir: 'wc',
-      reactDir: 'react',
-      vueDir: 'vue',
-      iconsDir: 'icons',
-      stripPrefix: false,
-      dts: true,
-    },
-    paths: {
-      getFileName: (tag: string) => `${tag}.js`,
-      getDir: (kind: string) => kind,
-      join: (kind: string, fileName: string) => `${kind}/${fileName}`,
-      relativeImport: () => '../wc/file.js',
-    },
   }
 }
 

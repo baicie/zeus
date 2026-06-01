@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import zeus from '../src'
 
-import type { ZeusOutputPlugin } from '../src'
+import type { ZeusComponentPlugin } from '../src'
 import type { OutputChunk } from 'rollup'
 
 describe('output plugin lifecycle', () => {
@@ -31,7 +31,7 @@ describe('output plugin lifecycle', () => {
     const virtualModules = vi.fn()
     const generateBundle = vi.fn()
 
-    const outputPlugin: ZeusOutputPlugin = {
+    const outputPlugin: ZeusComponentPlugin = {
       name: 'test-output',
 
       buildStart() {
@@ -68,7 +68,7 @@ describe('output plugin lifecycle', () => {
       plugins: [
         zeus({
           root,
-          outputs: [outputPlugin],
+          plugins: [outputPlugin],
         }),
       ],
       onwarn() {},

@@ -1,61 +1,58 @@
+import type { DtsMode } from '@zeus-js/bundler-plugin'
+
 export interface OutputWCOptions {
   /**
-   * Output directory for Web Component entries.
+   * Web Component output directory.
    *
-   * @default 'dist/wc'
+   * @default 'wc'
    */
   outDir?: string
 
   /**
-   * Raw Zeus ComponentManifest output file.
-   *
-   * @default 'dist/zeus.components.json'
-   */
-  manifestFile?: string | false
-
-  /**
-   * Custom Elements Manifest output file.
-   *
-   * @default 'dist/custom-elements.json'
-   */
-  customElementsFile?: string | false
-
-  /**
-   * Whether to emit basic d.ts for native Web Components.
-   *
-   * Full cross-framework dts will be handled in later phases.
-   *
-   * @default true
-   */
-  dts?: boolean
-
-  /**
-   * Whether to emit JSX intrinsic element declarations.
-   *
-   * @default true
-   */
-  jsxDts?: boolean
-
-  /**
-   * Strip tag prefix from output file name.
+   * Strip tag prefix for file name.
    *
    * Example:
-   *   stripPrefix: 'z-'
-   *   z-button -> button.js
+   * z-button -> button.js
    *
-   * Default keeps full tag:
-   *   z-button -> z-button.js
+   * @default false
    */
   stripPrefix?: string | false
 
   /**
-   * File name formatter.
-   * Higher priority than stripPrefix.
+   * Custom file name.
    */
   fileName?: (tag: string) => string
 
   /**
-   * Whether to generate one wc/index.js entry that imports all components.
+   * Component manifest file.
+   *
+   * @default 'zeus.components.json'
+   */
+  manifestFile?: string | false
+
+  /**
+   * Custom Elements Manifest file.
+   *
+   * @default 'custom-elements.json'
+   */
+  customElementsFile?: string | false
+
+  /**
+   * Generate WC d.ts.
+   *
+   * @default 'auto'
+   */
+  dts?: DtsMode
+
+  /**
+   * Generate JSX IntrinsicElements d.ts.
+   *
+   * @default 'auto'
+   */
+  jsxDts?: DtsMode
+
+  /**
+   * Generate wc/index.js.
    *
    * @default true
    */

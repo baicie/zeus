@@ -41,13 +41,12 @@ describe('output-vue-wrapper', () => {
           components: {
             include: ['src/components/**/*.{ts,tsx}'],
           },
-          outputs: [
+          plugins: [
             wc({
               outDir: 'wc',
             }),
             vue({
               outDir: 'vue',
-              wcOutDir: '../wc',
             }),
           ],
         }),
@@ -66,16 +65,17 @@ describe('output-vue-wrapper', () => {
     expect(files).toContain('vue/index.js')
     expect(files).toContain('vue/index.d.ts')
     expect(files).toContain('vue/global.d.ts')
+
+    await bundle.close()
   })
 
-  it('generated Vue wrapper uses props.* prefix in prop sync', async () => {
+  it('generated Vue wrapper uses unconditional prop sync', async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'zeus-vue-typecheck-'))
 
     await fs.mkdir(path.join(root, 'src/components'), { recursive: true })
 
     await fs.writeFile(path.join(root, 'src/index.ts'), 'export {}')
 
-    // Component with runtime props — prop sync must use props.variant, not bare variant
     await fs.writeFile(
       path.join(root, 'src/components/button.tsx'),
       [
@@ -103,10 +103,7 @@ describe('output-vue-wrapper', () => {
           components: {
             include: ['src/components/**/*.{ts,tsx}'],
           },
-          outputs: [
-            wc({ outDir: 'wc' }),
-            vue({ outDir: 'vue', wcOutDir: '../wc' }),
-          ],
+          plugins: [wc({ outDir: 'wc' }), vue({ outDir: 'vue' })],
         }),
       ],
       onwarn() {},
@@ -122,20 +119,14 @@ describe('output-vue-wrapper', () => {
     )
     expect(jsFile).toBeDefined()
 
-    // Wrapper files are emitted as assets, not chunks
     const code =
       jsFile?.type === 'chunk'
         ? ((jsFile as { code?: string }).code ?? '')
         : String((jsFile as { source?: string }).source ?? '')
 
-    // Must use props.* prefix — the setup() receives props object, not destructured vars
+    // Vue unconditionally syncs props using props.* prefix
     expect(code).toContain('el.variant = props.variant')
     expect(code).toContain('el.disabled = props.disabled')
-    expect(code).toContain('props.variant !== undefined')
-
-    // Must NOT use bare variable names (would be undefined reference)
-    expect(code).not.toContain('el.variant = variant')
-    expect(code).not.toContain('el.disabled = disabled')
 
     await bundle.close()
   })

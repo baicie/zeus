@@ -33,26 +33,19 @@ describe('generateVueWrapper', () => {
         cssParts: [],
         cssVars: [],
       },
-      wcImport: '../wc/z-button.js',
+      wcModuleId: 'zeus:wc:z-button',
     })
 
-    expect(code).toContain(
-      `import { ZButton as __zeusWC } from "../wc/z-button.js";`,
-    )
+    expect(code).toContain('import "zeus:wc:z-button"')
     expect(code).toContain('export const ZButton = defineComponent')
     expect(code).toContain('name: "ZButton"')
     expect(code).toContain('props: {')
     expect(code).toContain('emits: EVENT_NAMES')
     expect(code).toContain('const elRef = ref(null)')
 
+    // Vue unconditionally syncs props
     expect(code).toContain('el.variant = props.variant')
     expect(code).toContain('el.disabled = props.disabled')
-    expect(code).toContain('props.variant !== undefined')
-    expect(code).toContain('el.variant = undefined')
-
-    // Ensure no bare variable reference (common regression when setup() destructures props)
-    expect(code).not.toContain('el.variant = variant')
-    expect(code).not.toContain('el.disabled = disabled')
 
     expect(code).toContain('for (const eventName of EVENT_NAMES)')
     expect(code).toContain('emit(eventName, event)')
@@ -96,7 +89,7 @@ describe('generateVueWrapper', () => {
         cssParts: [],
         cssVars: [],
       },
-      wcImport: '../wc/z-card.js',
+      wcModuleId: 'zeus:wc:z-card',
     })
 
     expect(code).toContain('NAMED_SLOTS')
@@ -123,7 +116,7 @@ describe('generateVueWrapper', () => {
         cssParts: [],
         cssVars: [],
       },
-      wcImport: '../wc/z-skeleton.js',
+      wcModuleId: 'zeus:wc:z-skeleton',
     })
 
     expect(code).toContain('// no props to sync')
@@ -146,7 +139,7 @@ describe('generateVueWrapper', () => {
         cssParts: [],
         cssVars: [],
       },
-      wcImport: '../wc/z-test.js',
+      wcModuleId: 'zeus:wc:z-test',
     })
 
     expect(code).toContain('name: "MyTestComponent"')

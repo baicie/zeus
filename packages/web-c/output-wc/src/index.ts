@@ -1,7 +1,6 @@
-import {
-  createOutputPathResolver,
-  normalizeOutputConfig,
-} from '@zeus-js/bundler-plugin'
+import path from 'node:path'
+
+import { resolvePluginDts } from '@zeus-js/bundler-plugin'
 import { generateWCDtsFiles } from '@zeus-js/component-dts'
 
 import { generateCustomElementsJson } from './generateCustomElementsJson'
@@ -15,45 +14,70 @@ import { generateZeusComponentsManifest } from './generateManifest'
 
 import type { OutputWCOptions } from './types'
 import type {
-  ZeusBuildContext,
+  DtsMode,
   ZeusComponentPlugin,
   ZeusVirtualModule,
   ZeusOutputFile,
 } from '@zeus-js/bundler-plugin'
-import type { ComponentRecord } from '@zeus-js/component-analyzer'
 
 export type { OutputWCOptions } from './types'
 
 export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
-  const normalized = normalizeOptions(options)
+  const normalized = {
+    outDir: options.outDir ?? 'wc',
+    stripPrefix: options.stripPrefix ?? false,
+    fileName: options.fileName,
+    manifestFile: options.manifestFile ?? 'zeus.components.json',
+    customElementsFile: options.customElementsFile ?? 'custom-elements.json',
+    dts: options.dts ?? 'auto',
+    jsxDts: options.jsxDts ?? 'auto',
+    index: options.index ?? true,
+    warnOnFileNameCollision: options.warnOnFileNameCollision ?? true,
+  }
+
+  let _outDir = normalized.outDir
 
   return {
     name: 'zeus-output-wc',
 
+    setup(ctx) {
+      _outDir = normalized.outDir
+      ctx.outputs.register('wc', {
+        outDir: normalized.outDir,
+        stripPrefix: normalized.stripPrefix,
+        fileName: normalized.fileName
+          ? tag => normalized.fileName!(tag)
+          : undefined,
+      })
+    },
+
     buildStart(ctx) {
       if (!ctx.manifest) return
-      const outputState = createWcOutputState(ctx, normalized)
-
-      checkFileNameCollisions(
-        ctx.manifest.components,
-        outputState.paths,
-        normalized,
-        {
-          warn: ctx.warn,
-        },
-      )
+      checkFileNameCollisions(ctx.manifest.components, normalized, {
+        warn: ctx.warn,
+      })
     },
 
     virtualModules(ctx): ZeusVirtualModule[] {
       if (!ctx.manifest) return []
       const modules: ZeusVirtualModule[] = []
-      const outputState = createWcOutputState(ctx, normalized)
+
+      const hasOutputs = ctx.outputs.has('wc')
+      const getFileName = (tag: string) => {
+        if (hasOutputs) return ctx.outputs.getFileName('wc', tag)
+        return normalizeFileName(
+          tag,
+          normalized.stripPrefix,
+          normalized.fileName,
+        )
+      }
+      const joinPath = (fileName: string) => {
+        if (hasOutputs) return ctx.outputs.join('wc', fileName)
+        return path.posix.join(_outDir, fileName)
+      }
 
       for (const component of ctx.manifest.components) {
-        const fileName = outputState.paths.join(
-          'wc',
-          outputState.paths.getFileName(component.tag, 'wc'),
-        )
+        const fileName = joinPath(getFileName(component.tag))
 
         modules.push({
           id: getVirtualComponentId(component),
@@ -68,10 +92,10 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
       if (normalized.index) {
         modules.push({
           id: getVirtualIndexId(),
-          fileName: outputState.paths.join('wc', 'index.js'),
+          fileName: joinPath('index.js'),
           code: generateWCIndex({
             components: ctx.manifest.components,
-            getFileName: tag => outputState.paths.getFileName(tag, 'wc'),
+            getFileName,
           }),
         })
       }
@@ -82,7 +106,6 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
     generateBundle(ctx): ZeusOutputFile[] {
       if (!ctx.manifest) return []
       const files: ZeusOutputFile[] = []
-      const outputState = createWcOutputState(ctx, normalized)
 
       if (normalized.manifestFile) {
         files.push({
@@ -92,32 +115,44 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
         })
       }
 
+      const hasOutputs = ctx.outputs.has('wc')
+      const getFileName = (tag: string) => {
+        if (hasOutputs) return ctx.outputs.getFileName('wc', tag)
+        return normalizeFileName(
+          tag,
+          normalized.stripPrefix,
+          normalized.fileName,
+        )
+      }
+      const joinPath = (fileName: string) => {
+        if (hasOutputs) return ctx.outputs.join('wc', fileName)
+        return path.posix.join(_outDir, fileName)
+      }
+
       if (normalized.customElementsFile) {
         files.push({
           type: 'asset',
           fileName: normalized.customElementsFile,
           source: generateCustomElementsJson({
             manifest: ctx.manifest,
-            getModulePath: component =>
-              outputState.paths.join(
-                'wc',
-                outputState.paths.getFileName(component.tag, 'wc'),
-              ),
+            getModulePath: component => joinPath(getFileName(component.tag)),
           }),
         })
       }
 
-      if (normalized.dts || normalized.jsxDts) {
+      const dts = resolvePluginDts(normalized.dts as DtsMode, ctx)
+      const jsxDts = resolvePluginDts(normalized.jsxDts as DtsMode, ctx)
+
+      if (dts || jsxDts) {
         const dtsFiles = generateWCDtsFiles(ctx.manifest, {
-          outDir: outputState.output.wcDir,
-          stripPrefix: outputState.output.stripPrefix,
-          fileName: normalized.fileName
-            ? tag => normalized.fileName!(tag) + '.js'
-            : undefined,
+          outDir: _outDir,
+          stripPrefix: normalized.stripPrefix,
+          fileName: tag => getFileName(tag).replace(/\.js$/, ''),
           perComponent: true,
-          index: normalized.dts,
-          jsx: normalized.jsxDts,
+          index: dts,
+          jsx: jsxDts,
         })
+
         for (const file of dtsFiles) {
           files.push({
             type: 'asset',
@@ -132,66 +167,46 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
   }
 }
 
-type NormalizedOutputWCOptions = Omit<Required<OutputWCOptions>, 'fileName'> & {
-  fileName?: (tag: string) => string
-}
-
-function createWcOutputState(
-  ctx: ZeusBuildContext,
-  options: NormalizedOutputWCOptions,
-) {
-  const output = normalizeOutputConfig({
-    outDir: ctx.output?.outDir,
-    reactDir: ctx.output?.reactDir,
-    vueDir: ctx.output?.vueDir,
-    iconsDir: ctx.output?.iconsDir,
-    dts: ctx.output?.dts,
-    wcDir: options.outDir,
-    stripPrefix: options.stripPrefix,
-    fileName: options.fileName
-      ? (tag, kind) =>
-          kind === 'wc'
-            ? `${options.fileName!(tag)}.js`
-            : (ctx.output?.fileName?.(tag, kind) ?? `${tag}.js`)
-      : ctx.output?.fileName,
-  })
-
-  return {
-    output,
-    paths: createOutputPathResolver(output),
+function normalizeFileName(
+  tag: string,
+  stripPrefix: string | false,
+  fileName?: (tag: string) => string,
+): string {
+  let name: string
+  if (fileName) {
+    name = fileName(tag)
+  } else {
+    name = tag
+    if (stripPrefix && name.startsWith(stripPrefix)) {
+      name = name.slice(stripPrefix.length)
+    }
   }
-}
-
-function normalizeOptions(options: OutputWCOptions): NormalizedOutputWCOptions {
-  return {
-    outDir: options.outDir ?? 'wc',
-    manifestFile: options.manifestFile ?? 'zeus.components.json',
-    customElementsFile: options.customElementsFile ?? 'custom-elements.json',
-    dts: options.dts ?? true,
-    jsxDts: options.jsxDts ?? true,
-    stripPrefix: options.stripPrefix ?? false,
-    fileName: options.fileName,
-    index: options.index ?? true,
-    warnOnFileNameCollision: options.warnOnFileNameCollision ?? true,
+  if (!name.endsWith('.js')) {
+    name = `${name}.js`
   }
+  return name
 }
 
 function checkFileNameCollisions(
-  components: ComponentRecord[],
-  paths: ZeusBuildContext['paths'],
-  options: NormalizedOutputWCOptions,
-  reporter: {
-    warn: (message: string) => void
+  components: { tag: string }[],
+  options: {
+    stripPrefix: string | false
+    fileName?: (tag: string) => string
+    warnOnFileNameCollision?: boolean
   },
+  reporter: { warn: (message: string) => void },
 ): void {
-  if (!options.warnOnFileNameCollision) return
+  if (options.warnOnFileNameCollision === false) return
 
-  const map = new Map<string, ComponentRecord[]>()
+  const map = new Map<string, typeof components>()
 
   for (const component of components) {
-    const fileName = paths.getFileName(component.tag, 'wc')
+    const fileName = normalizeFileName(
+      component.tag,
+      options.stripPrefix,
+      options.fileName,
+    )
     const list = map.get(fileName) ?? []
-
     list.push(component)
     map.set(fileName, list)
   }

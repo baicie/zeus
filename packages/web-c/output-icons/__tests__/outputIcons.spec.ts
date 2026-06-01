@@ -13,6 +13,7 @@ function createMockCtx(): ZeusBuildContext {
       components: [],
     },
     diagnostics: [],
+    dts: { enabled: true, mode: 'auto', reason: [] },
     emitFile: (() => '') as any,
     warn: (() => {}) as any,
     error: (() => {}) as any,
@@ -20,20 +21,23 @@ function createMockCtx(): ZeusBuildContext {
     meta: {
       watchMode: false,
     },
-    output: {
-      outDir: '',
-      wcDir: 'wc',
-      reactDir: 'react',
-      vueDir: 'vue',
-      iconsDir: 'icons',
-      stripPrefix: false,
-      dts: true,
-    },
-    paths: {
-      getFileName: (tag: string) => `${tag}.js`,
-      getDir: (kind: string) => kind,
-      join: (kind: string, fileName: string) => `${kind}/${fileName}`,
-      relativeImport: () => '../wc/file.js',
+    outputs: {
+      register() {},
+      has() {
+        return false
+      },
+      get() {
+        throw new Error('not registered')
+      },
+      getDir() {
+        return ''
+      },
+      getFileName() {
+        return 'test.js'
+      },
+      join(_kind: any, fileName: string) {
+        return fileName
+      },
     },
   }
 }

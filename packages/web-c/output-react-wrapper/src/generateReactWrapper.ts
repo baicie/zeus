@@ -1,36 +1,24 @@
 import { toReactEventProp } from './naming'
 
-import type { OutputReactWrapperOptions } from './types'
 import type { ComponentRecord } from '@zeus-js/component-analyzer'
-
-export type RequiredOutputReactWrapperOptions = Required<
-  Omit<OutputReactWrapperOptions, 'fileName'>
-> & {
-  fileName?: (tag: string) => string
-}
 
 export interface GenerateReactWrapperOptions {
   component: ComponentRecord
-  options: RequiredOutputReactWrapperOptions
-  wcImport: string
+  namedSlots: 'props' | 'none'
+  wcModuleId: string
 }
 
 export function generateReactWrapper(
   input: GenerateReactWrapperOptions,
 ): string {
-  const { component, options, wcImport } = input
+  const { component, namedSlots, wcModuleId } = input
 
   const propNames = Object.keys(component.props)
   const eventNames = Object.keys(component.events)
-  const namedSlots = getNamedSlots(component, options)
+  const slotNames = getNamedSlots(component, namedSlots)
 
   const eventPropNames = eventNames.map(toReactEventProp)
-  const namedSlotPropNames = namedSlots
-  const destructuredPropNames = [
-    ...propNames,
-    ...eventPropNames,
-    ...namedSlotPropNames,
-  ]
+  const destructuredPropNames = [...propNames, ...eventPropNames, ...slotNames]
   const destructuredProps = destructuredPropNames.length
     ? `${destructuredPropNames.join(',\n    ')},`
     : ''
@@ -43,16 +31,11 @@ import React, {
   useRef,
 } from 'react';
 
-// Import and register the Web Component.
-import { ${component.exportName} as __zeusWC } from ${JSON.stringify(wcImport)};
-
-if (typeof customElements !== 'undefined' && !customElements.get(${JSON.stringify(component.tag)})) {
-  void __zeusWC;
-}
+import ${JSON.stringify(wcModuleId)};
 
 const PROP_KEYS = ${JSON.stringify(propNames)};
 const EVENT_MAP = ${JSON.stringify(createReactEventMap(eventNames))};
-const NAMED_SLOTS = ${JSON.stringify(namedSlots)};
+const NAMED_SLOTS = ${JSON.stringify(slotNames)};
 
 export const ${component.name} = forwardRef(function ${component.name}(props, ref) {
   const {
@@ -73,7 +56,7 @@ export const ${component.name} = forwardRef(function ${component.name}(props, re
 
   const slotChildren = [];
 
-  ${generateNamedSlotRenderLines(namedSlots)}
+  ${generateNamedSlotRenderLines(slotNames)}
 
   if (children != null) {
     slotChildren.push(children);
@@ -94,7 +77,7 @@ export const ${component.name} = forwardRef(function ${component.name}(props, re
 function createNamedSlot(name, value) {
   if (value == null || value === false) return null;
 
-    if (
+  if (
     React.isValidElement(value) &&
     value.type !== React.Fragment
   ) {
@@ -132,7 +115,7 @@ function generatePropSyncLines(propNames: string[]): string {
     const el = innerRef.current;
     if (!el) return;
 
-    ${propNames.map(name => `if (${name} !== undefined) el.${name} = ${name}; else el.${name} = undefined;`).join('\n    ')}
+    ${propNames.map(name => `el.${name} = ${name};`).join('\n    ')}
   }, [${propNames.join(', ')}]);`
 }
 
@@ -163,9 +146,9 @@ function generateEventEffects(eventNames: string[]): string {
 
 function getNamedSlots(
   component: ComponentRecord,
-  options: RequiredOutputReactWrapperOptions,
+  namedSlots: 'props' | 'none',
 ): string[] {
-  if (options.namedSlots === 'none') return []
+  if (namedSlots === 'none') return []
 
   return Object.keys(component.slots).filter(name => name !== 'default')
 }

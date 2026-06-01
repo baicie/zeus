@@ -1,37 +1,17 @@
+import type { DtsMode } from '@zeus-js/bundler-plugin'
+
 export interface OutputReactWrapperOptions {
   /**
-   * Output directory.
+   * React wrapper output directory.
    *
    * @default 'react'
    */
   outDir?: string
 
   /**
-   * Relative path from react output files to wc output dir.
+   * Strip tag prefix for file name.
    *
-   * Example:
-   *   react/z-button.js -> ../wc/z-button.js
-   *
-   * @default '../wc'
-   */
-  wcOutDir?: string
-
-  /**
-   * Whether to emit index.js.
-   *
-   * @default true
-   */
-  index?: boolean
-
-  /**
-   * Whether to emit index.d.ts.
-   *
-   * @default true
-   */
-  dts?: boolean
-
-  /**
-   * Whether to strip tag prefix when generating file names.
+   * @default false
    */
   stripPrefix?: string | false
 
@@ -41,7 +21,21 @@ export interface OutputReactWrapperOptions {
   fileName?: (tag: string) => string
 
   /**
-   * Named slot mapping strategy.
+   * Generate react/index.d.ts.
+   *
+   * @default 'auto'
+   */
+  dts?: DtsMode
+
+  /**
+   * Generate react/index.js.
+   *
+   * @default true
+   */
+  index?: boolean
+
+  /**
+   * Named slot strategy.
    *
    * props:
    *   <ZCard header={<div />} />

@@ -72,6 +72,8 @@
   "devDependencies": {
     "@zeus-js/bundler-plugin": "workspace:*",
     "@zeus-js/component-dts": "workspace:*",
+    "@zeus-js/output-css": "workspace:*",
+    "@zeus-js/preset-component-library": "workspace:*",
     "@zeus-js/output-wc": "workspace:*",
     "@zeus-js/output-react-wrapper": "workspace:*",
     "@zeus-js/output-vue-wrapper": "workspace:*",

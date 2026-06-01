@@ -1,25 +1,19 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
 
-import { componentHost } from './componentHost'
 import { createZeusPlugin } from './rollup'
 
-import type { ZeusBundlerPluginOptions, ZeusComponentHostConfig } from './types'
+import type { ZeusBundlerPluginOptions } from './types'
 import type { Plugin, UserConfig, ResolvedConfig } from 'vite'
 
 export function createZeusVitePlugin(
-  options: ZeusBundlerPluginOptions | ZeusComponentHostConfig = {},
+  options: ZeusBundlerPluginOptions = {},
 ): Plugin {
-  const resolvedOptions =
-    'plugins' in options && !('outputs' in options)
-      ? componentHost(options as ZeusComponentHostConfig)
-      : (options as ZeusBundlerPluginOptions)
-
   let resolvedConfig: ResolvedConfig | undefined
 
   const rollupPlugin = createZeusPlugin({
-    ...resolvedOptions,
-    root: () => resolvedConfig?.root ?? process.cwd(),
+    ...options,
+    root: options.root ?? (() => resolvedConfig?.root ?? process.cwd()),
   }) as Plugin
 
   return {
@@ -29,6 +23,7 @@ export function createZeusVitePlugin(
 
     async config(userConfig) {
       const runtimeDomEntry = resolveRuntimeDOMEntry(userConfig.root)
+      const externals = collectPluginExternals(options)
 
       return {
         ...((await isRolldownVite())
@@ -48,24 +43,43 @@ export function createZeusVitePlugin(
                 '@zeus-js/runtime-dom': runtimeDomEntry,
               }
             : undefined,
-          dedupe: ['@zeus-js/signal', '@zeus-js/runtime-dom', '@zeus-js/zeus'],
+          dedupe: [
+            '@zeus-js/signal',
+            '@zeus-js/runtime-dom',
+            '@zeus-js/zeus',
+            '@zeus-js/component-dts',
+          ],
+        },
+
+        build: {
+          rollupOptions: {
+            external: externals.length ? externals : undefined,
+          },
         },
       } satisfies UserConfig
     },
 
     configResolved(config) {
       resolvedConfig = config
-
-      if (typeof rollupPlugin.configResolved === 'function') {
-        return rollupPlugin.configResolved.call(this, config)
-      }
     },
   }
 }
 
 export default createZeusVitePlugin
 
-export { createZeusVitePlugin as zeus, componentHost }
+export { createZeusVitePlugin as zeus }
+
+function collectPluginExternals(options: ZeusBundlerPluginOptions): string[] {
+  const set = new Set<string>()
+
+  for (const plugin of options.plugins ?? []) {
+    for (const dep of plugin.external ?? []) {
+      set.add(dep)
+    }
+  }
+
+  return Array.from(set)
+}
 
 async function isRolldownVite(): Promise<boolean> {
   try {

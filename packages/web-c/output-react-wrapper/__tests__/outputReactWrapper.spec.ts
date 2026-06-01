@@ -49,13 +49,12 @@ describe('output-react-wrapper', () => {
           components: {
             include: ['src/components/**/*.{ts,tsx}'],
           },
-          outputs: [
+          plugins: [
             wc({
               outDir: 'wc',
             }),
             react({
               outDir: 'react',
-              wcOutDir: '../wc',
             }),
           ],
         }),
@@ -73,6 +72,8 @@ describe('output-react-wrapper', () => {
     expect(files).toContain('react/z-button.js')
     expect(files).toContain('react/index.js')
     expect(files).toContain('react/index.d.ts')
+
+    await bundle.close()
   })
 
   it('generated React wrapper uses destructured props for prop sync', async () => {
@@ -111,10 +112,7 @@ describe('output-react-wrapper', () => {
           components: {
             include: ['src/components/**/*.{ts,tsx}'],
           },
-          outputs: [
-            wc({ outDir: 'wc' }),
-            react({ outDir: 'react', wcOutDir: '../wc' }),
-          ],
+          plugins: [wc({ outDir: 'wc' }), react({ outDir: 'react' })],
         }),
       ],
       onwarn() {},
@@ -136,10 +134,8 @@ describe('output-react-wrapper', () => {
         ? ((jsFile as { code?: string }).code ?? '')
         : String((jsFile as { source?: string }).source ?? '')
 
-    // React destructures props — bare variant/disabled are correct
-    expect(code).toContain('variant !== undefined')
+    // React unconditionally syncs props
     expect(code).toContain('el.variant = variant')
-    expect(code).toContain('disabled !== undefined')
     expect(code).toContain('el.disabled = disabled')
 
     // React wrapper must destructure props

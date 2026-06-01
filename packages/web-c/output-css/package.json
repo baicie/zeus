@@ -1,0 +1,53 @@
+{
+  "name": "@zeus-js/output-css",
+  "version": "0.0.2",
+  "description": "Zeus CSS asset output plugin",
+  "type": "module",
+  "main": "index.js",
+  "module": "dist/output-css.esm-bundler.js",
+  "types": "dist/output-css.d.ts",
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/output-css.d.ts",
+      "node": {
+        "production": "./dist/output-css.cjs.prod.js",
+        "development": "./dist/output-css.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/output-css.esm-bundler.js",
+      "import": "./dist/output-css.esm-bundler.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
+  },
+  "sideEffects": false,
+  "buildOptions": {
+    "name": "ZeusOutputCSS",
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ]
+  },
+  "peerDependencies": {
+    "lightningcss": "^1.29.0",
+    "rollup": "^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "lightningcss": {
+      "optional": true
+    },
+    "rollup": {
+      "optional": true
+    }
+  },
+  "keywords": [
+    "zeus",
+    "css"
+  ],
+  "author": "Baicie",
+  "license": "MIT"
+}

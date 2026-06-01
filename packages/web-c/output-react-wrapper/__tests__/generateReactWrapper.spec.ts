@@ -33,30 +33,16 @@ describe('generateReactWrapper', () => {
         cssParts: [],
         cssVars: [],
       },
-      options: {
-        outDir: 'react',
-        wcOutDir: '../wc',
-        index: true,
-        dts: true,
-        stripPrefix: false,
-        namedSlots: 'props',
-      },
-      wcImport: '../wc/button.js',
+      namedSlots: 'props',
+      wcModuleId: 'zeus:wc:z-button',
     })
 
-    expect(code).toContain(
-      `import { ZButton as __zeusWC } from "../wc/button.js"`,
-    )
-    expect(code).toContain(`customElements.get("z-button")`)
-    expect(code).toContain('void __zeusWC')
+    expect(code).toContain('import "zeus:wc:z-button"')
     expect(code).toContain('export const ZButton = forwardRef')
     expect(code).toContain('useImperativeHandle(ref')
     expect(code).toContain('const innerRef = useRef(null)')
 
-    expect(code).toContain('variant !== undefined')
     expect(code).toContain('el.variant = variant')
-    expect(code).toContain('el.variant = undefined')
-    expect(code).toContain('disabled !== undefined')
     expect(code).toContain('el.disabled = disabled')
 
     expect(code).toContain('addEventListener("press"')
@@ -94,15 +80,8 @@ describe('generateReactWrapper', () => {
         cssParts: [],
         cssVars: [],
       },
-      options: {
-        outDir: 'react',
-        wcOutDir: '../wc',
-        index: true,
-        dts: true,
-        stripPrefix: false,
-        namedSlots: 'props',
-      },
-      wcImport: '../wc/card.js',
+      namedSlots: 'props',
+      wcModuleId: 'zeus:wc:z-card',
     })
 
     expect(code).toContain('NAMED_SLOTS')
@@ -129,15 +108,8 @@ describe('generateReactWrapper', () => {
         cssParts: [],
         cssVars: [],
       },
-      options: {
-        outDir: 'react',
-        wcOutDir: '../wc',
-        index: true,
-        dts: true,
-        stripPrefix: false,
-        namedSlots: 'props',
-      },
-      wcImport: '../wc/skeleton.js',
+      namedSlots: 'props',
+      wcModuleId: 'zeus:wc:z-skeleton',
     })
 
     expect(code).toContain('// no props')
@@ -160,15 +132,8 @@ describe('generateReactWrapper', () => {
         cssParts: [],
         cssVars: [],
       },
-      options: {
-        outDir: 'react',
-        wcOutDir: '../wc',
-        index: true,
-        dts: true,
-        stripPrefix: false,
-        namedSlots: 'none',
-      },
-      wcImport: '../wc/tag.js',
+      namedSlots: 'none',
+      wcModuleId: 'zeus:wc:z-tag',
     })
 
     expect(code).toContain('NAMED_SLOTS')

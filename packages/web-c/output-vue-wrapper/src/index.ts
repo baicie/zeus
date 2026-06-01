@@ -1,9 +1,9 @@
+import { resolvePluginDts } from '@zeus-js/bundler-plugin'
 import { generateVueDts, generateVueGlobalDts } from '@zeus-js/component-dts'
 
 import { generateVueIndex } from './generateVueIndex'
 import { generateVueWrapper } from './generateVueWrapper'
 
-import type { RequiredOutputVueWrapperOptions } from './generateVueWrapper'
 import type { OutputVueWrapperOptions } from './types'
 import type {
   ZeusOutputFile,
@@ -16,24 +16,46 @@ export type { OutputVueWrapperOptions } from './types'
 export default function vueWrapper(
   options: OutputVueWrapperOptions = {},
 ): ZeusComponentPlugin {
-  const normalized = normalizeOptions(options)
+  const normalized = {
+    outDir: options.outDir ?? 'vue',
+    stripPrefix: options.stripPrefix ?? false,
+    fileName: options.fileName,
+    dts: options.dts ?? 'auto',
+    globalDts: options.globalDts ?? 'auto',
+    index: options.index ?? true,
+  }
 
   return {
     name: 'zeus-output-vue-wrapper',
+    external: ['vue'],
+
+    setup(ctx) {
+      ctx.outputs.register('vue', {
+        outDir: normalized.outDir,
+        stripPrefix: normalized.stripPrefix,
+        fileName: normalized.fileName
+          ? tag => normalized.fileName!(tag)
+          : undefined,
+      })
+    },
 
     virtualModules(ctx): ZeusVirtualModule[] {
+      if (!ctx.outputs.has('wc')) {
+        ctx.error('[zeus-output-vue-wrapper] vue() requires wc() plugin.')
+      }
+
       const modules: ZeusVirtualModule[] = []
 
       for (const component of ctx.manifest.components) {
         modules.push({
           id: `zeus:vue:${component.tag}`,
-          fileName: ctx.paths.join(
+          fileName: ctx.outputs.join(
             'vue',
-            ctx.paths.getFileName(component.tag, 'vue'),
+            ctx.outputs.getFileName('vue', component.tag),
           ),
           code: generateVueWrapper({
             component,
-            wcImport: ctx.paths.relativeImport('vue', 'wc', component.tag),
+            wcModuleId: `zeus:wc:${component.tag}`,
           }),
         })
       }
@@ -41,10 +63,9 @@ export default function vueWrapper(
       if (normalized.index) {
         modules.push({
           id: 'zeus:vue:index',
-          fileName: ctx.paths.join('vue', 'index.js'),
+          fileName: ctx.outputs.join('vue', 'index.js'),
           code: generateVueIndex(ctx.manifest.components, {
-            ...normalized,
-            getFileName: tag => ctx.paths.getFileName(tag, 'vue'),
+            getFileName: tag => ctx.outputs.getFileName('vue', tag),
           }),
         })
       }
@@ -55,37 +76,23 @@ export default function vueWrapper(
     generateBundle(ctx): ZeusOutputFile[] {
       const files: ZeusOutputFile[] = []
 
-      if (normalized.dts) {
+      if (resolvePluginDts(normalized.dts, ctx)) {
         files.push({
           type: 'asset',
-          fileName: ctx.paths.join('vue', 'index.d.ts'),
+          fileName: ctx.outputs.join('vue', 'index.d.ts'),
           source: generateVueDts(ctx.manifest),
         })
       }
 
-      if (normalized.globalDts) {
+      if (resolvePluginDts(normalized.globalDts, ctx)) {
         files.push({
           type: 'asset',
-          fileName: ctx.paths.join('vue', 'global.d.ts'),
+          fileName: ctx.outputs.join('vue', 'global.d.ts'),
           source: generateVueGlobalDts(ctx.manifest),
         })
       }
 
       return files
     },
-  }
-}
-
-function normalizeOptions(
-  options: OutputVueWrapperOptions,
-): RequiredOutputVueWrapperOptions {
-  return {
-    outDir: options.outDir ?? 'vue',
-    wcOutDir: options.wcOutDir ?? '../wc',
-    index: options.index ?? true,
-    dts: options.dts ?? true,
-    globalDts: options.globalDts ?? true,
-    stripPrefix: options.stripPrefix ?? false,
-    fileName: options.fileName,
   }
 }

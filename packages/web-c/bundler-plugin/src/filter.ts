@@ -10,7 +10,12 @@ export function normalizePatterns(
   return arr.map(p => (typeof p === 'string' ? new RegExp(p) : p))
 }
 
-export function createFilter(options: FilterOptions = {}) {
+export interface CreateFilterOptions {
+  include?: RegExp | RegExp[]
+  exclude?: RegExp | RegExp[] | string | string[]
+}
+
+export function createFilter(options: CreateFilterOptions = {}) {
   const include = normalizePatterns(options.include ?? /\.[tj]sx(?:\?.*)?$/)
   const exclude = normalizePatterns(options.exclude ?? /node_modules/)
 

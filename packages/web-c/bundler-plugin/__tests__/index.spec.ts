@@ -31,16 +31,16 @@ describe('bundler plugin entry', () => {
     expect(typeof plugin.generateBundle).toBe('function')
   })
 
-  it('accepts output plugins', () => {
-    const mockOutput: import('../src').ZeusOutputPlugin = {
-      name: 'test-output',
+  it('accepts plugins', () => {
+    const mockPlugin = {
+      name: 'test-plugin',
       generateBundle() {
-        return [{ type: 'asset', fileName: 'x.json', source: '{}' }]
+        return [{ type: 'asset' as const, fileName: 'x.json', source: '{}' }]
       },
     }
 
     const plugin = zeus({
-      outputs: [mockOutput],
+      plugins: [mockPlugin],
     })
 
     expect(plugin.name).toBe('zeus-bundler-plugin')
@@ -66,10 +66,9 @@ describe('bundler plugin entry', () => {
     expect(plugin.name).toBe('zeus-bundler-plugin')
   })
 
-  it('accepts include/exclude patterns', () => {
+  it('accepts dts option', () => {
     const plugin = zeus({
-      include: /\.tsx$/,
-      exclude: /node_modules/,
+      dts: false,
     })
 
     expect(plugin.name).toBe('zeus-bundler-plugin')

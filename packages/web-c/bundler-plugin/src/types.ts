@@ -3,7 +3,7 @@ import type {
   AnalyzerDiagnostic,
   ComponentManifest,
 } from '@zeus-js/component-analyzer'
-import type { PluginContext, OutputBundle } from 'rollup'
+import type { OutputBundle, PluginContext } from 'rollup'
 
 export type MaybePromise<T> = T | Promise<T>
 
@@ -13,7 +13,7 @@ export type RootOption = string | (() => string)
 // Output kinds
 // ---------------------------------------------------------------------------
 
-export type ZeusComponentOutputKind =
+export type ZeusOutputKind =
   | 'wc'
   | 'react'
   | 'vue'
@@ -23,89 +23,24 @@ export type ZeusComponentOutputKind =
   | 'asset'
 
 // ---------------------------------------------------------------------------
-// Shared output configuration
+// dts
 // ---------------------------------------------------------------------------
 
-export interface ZeusComponentOutputConfig {
-  /**
-   * Root output dir inside bundler output dir.
-   *
-   * Usually empty. Keep each plugin using wc/react/vue.
-   */
-  outDir?: string
+export type DtsMode = boolean | 'auto'
 
-  /**
-   * Directory for Web Component output.
-   *
-   * @default 'wc'
-   */
-  wcDir?: string
-
-  /**
-   * Directory for React wrapper output.
-   *
-   * @default 'react'
-   */
-  reactDir?: string
-
-  /**
-   * Directory for Vue wrapper output.
-   *
-   * @default 'vue'
-   */
-  vueDir?: string
-
-  /**
-   * Directory for icons output.
-   *
-   * @default 'icons'
-   */
-  iconsDir?: string
-
-  /**
-   * Shared filename naming rule.
-   */
-  fileName?: (tag: string, kind: ZeusComponentOutputKind) => string
-
-  /**
-   * Shared stripPrefix rule.
-   */
-  stripPrefix?: string | false
-
-  /**
-   * Shared dts switch.
-   */
-  dts?: boolean
+export interface ResolvedDts {
+  enabled: boolean
+  mode: DtsMode
+  reason: DtsAutoReason[]
 }
 
-export interface RequiredZeusComponentOutputConfig {
-  outDir: string
-  wcDir: string
-  reactDir: string
-  vueDir: string
-  iconsDir: string
-  stripPrefix: string | false
-  dts: boolean
-  fileName?: (tag: string, kind: ZeusComponentOutputKind) => string
-}
-
-// ---------------------------------------------------------------------------
-// Path resolver
-// ---------------------------------------------------------------------------
-
-export interface ZeusOutputPathResolver {
-  getFileName(tag: string, kind: ZeusComponentOutputKind): string
-
-  getDir(kind: ZeusComponentOutputKind): string
-
-  join(kind: ZeusComponentOutputKind, fileName: string): string
-
-  relativeImport(
-    from: ZeusComponentOutputKind,
-    to: ZeusComponentOutputKind,
-    tag: string,
-  ): string
-}
+export type DtsAutoReason =
+  | 'explicit-enabled'
+  | 'explicit-disabled'
+  | 'package-types-field'
+  | 'typescript-dependency'
+  | 'tsconfig'
+  | 'typescript-source'
 
 // ---------------------------------------------------------------------------
 // Build context
@@ -116,8 +51,9 @@ export interface ZeusBuildContext {
   manifest: ComponentManifest
   diagnostics: AnalyzerDiagnostic[]
 
-  output: RequiredZeusComponentOutputConfig
-  paths: ZeusOutputPathResolver
+  dts: ResolvedDts
+
+  outputs: ZeusOutputRegistry
 
   emitFile: PluginContext['emitFile']
   warn: PluginContext['warn']
@@ -130,25 +66,38 @@ export interface ZeusBuildContext {
 }
 
 // ---------------------------------------------------------------------------
+// Output registry
+// ---------------------------------------------------------------------------
+
+export interface ZeusOutputRegistry {
+  register(kind: ZeusOutputKind, options: ZeusOutputRegistration): void
+  has(kind: ZeusOutputKind): boolean
+  get(kind: ZeusOutputKind): RequiredZeusOutputRegistration
+  getDir(kind: ZeusOutputKind): string
+  getFileName(kind: ZeusOutputKind, tag: string): string
+  join(kind: ZeusOutputKind, fileName: string): string
+}
+
+export interface ZeusOutputRegistration {
+  outDir?: string
+  stripPrefix?: string | false
+  fileName?: (tag: string, kind: ZeusOutputKind) => string
+}
+
+export interface RequiredZeusOutputRegistration {
+  outDir: string
+  stripPrefix: string | false
+  fileName?: (tag: string, kind: ZeusOutputKind) => string
+}
+
+// ---------------------------------------------------------------------------
 // Plugin / output types
 // ---------------------------------------------------------------------------
 
 export interface ZeusVirtualModule {
-  /**
-   * Public virtual id.
-   * Example: zeus:wc:index
-   */
   id: string
-
-  /**
-   * Output fileName when emitted as a chunk.
-   */
-  fileName?: string
-
-  /**
-   * Virtual module code.
-   */
   code: string
+  fileName?: string
 }
 
 export interface ZeusOutputAsset {
@@ -168,6 +117,13 @@ export type ZeusOutputFile = ZeusOutputAsset | ZeusOutputChunk
 export interface ZeusComponentPlugin {
   name: string
 
+  /**
+   * Register output dirs / externals / plugin metadata.
+   *
+   * This hook runs before virtualModules().
+   */
+  setup?(ctx: ZeusBuildContext): void | Promise<void>
+
   buildStart?(ctx: ZeusBuildContext): MaybePromise<void>
 
   virtualModules?(
@@ -178,12 +134,12 @@ export interface ZeusComponentPlugin {
     ctx: ZeusBuildContext,
     bundle: OutputBundle,
   ): MaybePromise<ZeusOutputFile[] | void>
-}
 
-/**
- * @deprecated Use `ZeusComponentPlugin` instead.
- */
-export type ZeusOutputPlugin = ZeusComponentPlugin
+  /**
+   * Vite adapter can use this to auto externalize framework deps.
+   */
+  external?: string[]
+}
 
 // ---------------------------------------------------------------------------
 // Options
@@ -191,27 +147,17 @@ export type ZeusOutputPlugin = ZeusComponentPlugin
 
 export interface ZeusBundlerPluginOptions {
   /**
-   * Source files to transform with @zeus-js/compiler.
-   */
-  include?: RegExp | RegExp[]
-
-  /**
-   * Source files to skip.
-   */
-  exclude?: RegExp | RegExp[]
-
-  /**
-   * Root directory for component analyzer.
+   * Project root.
+   *
+   * @default
+   * - Vite: resolved config.root
+   * - Rollup/Rolldown: process.cwd()
    */
   root?: RootOption
 
   /**
-   * Compiler options.
-   */
-  compiler?: Partial<CompilerOptions>
-
-  /**
-   * Component analyzer options.
+   * Component source scan options.
+   * See DEFAULT_COMPONENT_INCLUDE and DEFAULT_COMPONENT_EXCLUDE in defaults.ts.
    */
   components?: {
     include?: string[]
@@ -219,33 +165,26 @@ export interface ZeusBundlerPluginOptions {
   }
 
   /**
-   * New preferred API.
+   * Declaration generation mode.
+   *
+   * @default 'auto'
+   */
+  dts?: DtsMode
+
+  /**
+   * Compiler options.
+   */
+  compiler?: Partial<CompilerOptions>
+
+  /**
+   * Print analyzer diagnostics.
+   *
+   * @default true
+   */
+  diagnostics?: boolean | 'verbose'
+
+  /**
+   * Component-host plugins.
    */
   plugins?: ZeusComponentPlugin[]
-
-  /**
-   * Backward compatibility.
-   *
-   * @deprecated Use `plugins` instead.
-   */
-  outputs?: ZeusComponentPlugin[]
-
-  /**
-   * Shared output config for all component plugins.
-   */
-  output?: ZeusComponentOutputConfig
-
-  /**
-   * Emit manifest diagnostics as warnings.
-   */
-  diagnostics?: boolean
-}
-
-export interface ZeusComponentHostConfig {
-  root?: RootOption
-  components?: ZeusBundlerPluginOptions['components']
-  compiler?: ZeusBundlerPluginOptions['compiler']
-  diagnostics?: boolean
-  output?: ZeusComponentOutputConfig
-  plugins: ZeusComponentPlugin[]
 }

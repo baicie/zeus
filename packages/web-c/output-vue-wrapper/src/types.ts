@@ -1,40 +1,43 @@
+import type { DtsMode } from '@zeus-js/bundler-plugin'
+
 export interface OutputVueWrapperOptions {
   /**
-   * Output directory.
+   * Vue wrapper output directory.
    *
    * @default 'vue'
    */
   outDir?: string
 
   /**
-   * Relative path from vue output files to wc output dir.
+   * Strip tag prefix for file name.
    *
-   * @default '../wc'
+   * @default false
    */
-  wcOutDir?: string
+  stripPrefix?: string | false
 
   /**
-   * Whether to emit index.js.
+   * Custom file name.
+   */
+  fileName?: (tag: string) => string
+
+  /**
+   * Generate vue/index.d.ts.
+   *
+   * @default 'auto'
+   */
+  dts?: DtsMode
+
+  /**
+   * Generate vue/global.d.ts.
+   *
+   * @default 'auto'
+   */
+  globalDts?: DtsMode
+
+  /**
+   * Generate vue/index.js.
    *
    * @default true
    */
   index?: boolean
-
-  /**
-   * Whether to emit index.d.ts.
-   *
-   * @default true
-   */
-  dts?: boolean
-
-  /**
-   * Whether to emit global.d.ts.
-   *
-   * @default true
-   */
-  globalDts?: boolean
-
-  stripPrefix?: string | false
-
-  fileName?: (tag: string) => string
 }

@@ -3,27 +3,26 @@ import path from 'node:path'
 import { analyzeComponents } from '@zeus-js/component-analyzer'
 import fg from 'fast-glob'
 
-import { resolveComponentPlugins } from './componentHost'
+import { resolveComponentExclude, resolveComponentInclude } from './defaults'
 import { formatDiagnostic, hasErrorDiagnostics } from './diagnostics'
+import { resolveDts } from './dts'
 import { createFilter } from './filter'
-import { createOutputPathResolver, normalizeOutputConfig } from './outputPaths'
+import { createOutputRegistry } from './outputRegistry'
 import { transformZeus } from './transform'
 import { VirtualModuleRegistry } from './virtual'
 
 import type {
-  RootOption,
   ZeusBuildContext,
   ZeusBundlerPluginOptions,
   ZeusOutputFile,
   ZeusVirtualModule,
 } from './types'
-import type { ComponentManifest } from '@zeus-js/component-analyzer'
 import type { Plugin } from 'rollup'
 
 export function createZeusPlugin(
   options: ZeusBundlerPluginOptions = {},
 ): Plugin {
-  const shouldTransform = createFilter(options)
+  const shouldTransform = createFilter({})
   const virtualModules = new VirtualModuleRegistry()
 
   let ctx: ZeusBuildContext | undefined
@@ -35,9 +34,19 @@ export function createZeusPlugin(
       virtualModules.clear()
 
       const root = resolveRoot(options.root)
-      const manifestResult = await createManifest(root, options)
+      const include = resolveComponentInclude(options.components?.include)
+      const exclude = resolveComponentExclude(options.components?.exclude)
 
-      for (const file of await collectWatchFiles(root, options)) {
+      const dts = await resolveDts({
+        root,
+        mode: options.dts,
+        include,
+        exclude,
+      })
+
+      const manifestResult = await createManifest(root, include, exclude)
+
+      for (const file of await collectWatchFiles(root, include, exclude)) {
         this.addWatchFile(file)
       }
 
@@ -57,15 +66,22 @@ export function createZeusPlugin(
         this.error('[zeus] component analyzer failed.')
       }
 
-      const output = normalizeOutputConfig(options.output)
-      const paths = createOutputPathResolver(output)
+      if (options.diagnostics === 'verbose') {
+        this.warn(
+          `[zeus] dts ${dts.enabled ? 'enabled' : 'disabled'}: ${
+            dts.reason.join(', ') || 'no signal'
+          }`,
+        )
+      }
+
+      const outputs = createOutputRegistry()
 
       ctx = {
         root,
         manifest: manifestResult.manifest,
         diagnostics,
-        output,
-        paths,
+        dts,
+        outputs,
         emitFile: this.emitFile.bind(this),
         warn: this.warn.bind(this),
         error: this.error.bind(this),
@@ -75,7 +91,11 @@ export function createZeusPlugin(
         },
       }
 
-      const plugins = resolveComponentPlugins(options)
+      const plugins = options.plugins ?? []
+
+      for (const plugin of plugins) {
+        await plugin.setup?.(ctx)
+      }
 
       for (const plugin of plugins) {
         await plugin.buildStart?.(ctx)
@@ -90,21 +110,16 @@ export function createZeusPlugin(
           virtualModules.set(mod.id, mod.code, mod.fileName)
         }
 
-        emitComponentEntries(modules, this)
+        emitVirtualEntries(modules, this)
       }
     },
 
     resolveId(id, importer) {
-      if (ctx) {
-        const resolved = resolveSourceFile(id, importer, ctx.root, ctx.manifest)
-        if (resolved) {
-          return resolved
-        }
-      }
-      const resolvedVirtualModule = virtualModules.resolve(id, importer)
-      if (resolvedVirtualModule) {
+      const resolved = virtualModules.resolve(id, importer)
+
+      if (resolved) {
         return {
-          id: resolvedVirtualModule,
+          id: resolved,
           moduleSideEffects: 'no-treeshake',
         }
       }
@@ -136,7 +151,7 @@ export function createZeusPlugin(
     async generateBundle(_, bundle) {
       if (!ctx) return
 
-      const plugins = resolveComponentPlugins(options)
+      const plugins = options.plugins ?? []
 
       for (const plugin of plugins) {
         const files = await plugin.generateBundle?.(ctx, bundle)
@@ -151,10 +166,11 @@ export function createZeusPlugin(
   }
 }
 
-async function createManifest(root: string, options: ZeusBundlerPluginOptions) {
-  const include = options.components?.include ?? []
-  const exclude = options.components?.exclude ?? []
-
+async function createManifest(
+  root: string,
+  include: string[],
+  exclude: string[],
+) {
   if (!include.length) {
     return {
       manifest: {
@@ -174,22 +190,21 @@ async function createManifest(root: string, options: ZeusBundlerPluginOptions) {
 
 async function collectWatchFiles(
   root: string,
-  options: ZeusBundlerPluginOptions,
+  include: string[],
+  exclude: string[],
 ): Promise<string[]> {
-  const include = options.components?.include ?? []
-
   if (!include.length) return []
 
   const files = await fg(include, {
     cwd: root,
     absolute: true,
-    ignore: options.components?.exclude ?? ['node_modules/**', '**/dist/**'],
+    ignore: exclude,
   })
 
   return files
 }
 
-function resolveRoot(root: RootOption | undefined): string {
+function resolveRoot(root: string | (() => string) | undefined): string {
   if (typeof root === 'function') {
     return path.resolve(root())
   }
@@ -198,14 +213,14 @@ function resolveRoot(root: RootOption | undefined): string {
 }
 
 function emitOutputFile(
-  plugin: {
+  pluginContext: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     emitFile: (file: any) => void
   },
   file: ZeusOutputFile,
 ): void {
   if (file.type === 'asset') {
-    plugin.emitFile({
+    pluginContext.emitFile({
       type: 'asset',
       fileName: file.fileName,
       source: file.source,
@@ -213,14 +228,14 @@ function emitOutputFile(
     return
   }
 
-  plugin.emitFile({
+  pluginContext.emitFile({
     type: 'chunk',
     id: file.id,
     fileName: file.fileName,
   })
 }
 
-function emitComponentEntries(
+function emitVirtualEntries(
   modules: ZeusVirtualModule[],
   pluginContext: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -237,77 +252,4 @@ function emitComponentEntries(
       preserveSignature: 'strict',
     })
   }
-}
-
-function resolveSourceFile(
-  id: string,
-  importer: string | undefined,
-  root: string,
-  manifest: ComponentManifest,
-): string | null {
-  if (!importer || !id.startsWith('.')) return null
-
-  const importerPath = normalizePath(importer)
-  const normalizedRoot = normalizePath(root)
-
-  let importerDir: string
-
-  if (importerPath.startsWith('\0zeus:wc:')) {
-    const virtualId = importerPath.slice(1)
-    const tag = virtualId.replace('zeus:wc:', '')
-    const component = manifest.components.find(c => c.tag === tag)
-    if (component) {
-      importerDir = path.posix.dirname(
-        path.posix.resolve(normalizedRoot, normalizePath(component.source)),
-      )
-    } else {
-      return null
-    }
-  } else if (importerPath.startsWith('\0')) {
-    return null
-  } else {
-    const absoluteImporter = path.posix.isAbsolute(importerPath)
-      ? importerPath
-      : path.posix.resolve(normalizedRoot, importerPath)
-    importerDir = path.posix.dirname(absoluteImporter)
-  }
-
-  const resolved = path.posix.resolve(importerDir, id)
-  return resolveToSource(resolved, root, manifest)
-}
-
-function resolveToSource(
-  resolved: string,
-  root: string,
-  manifest: ComponentManifest,
-): string | null {
-  const normalizedResolved = normalizePath(resolved)
-  const normalizedRoot = normalizePath(root)
-
-  for (const component of manifest.components) {
-    const absSource = path.posix.resolve(
-      normalizedRoot,
-      normalizePath(component.source),
-    )
-    const normalizedAbs = normalizePath(absSource)
-
-    if (normalizedResolved === normalizedAbs) {
-      return normalizedAbs
-    }
-
-    const absDir = normalizePath(absSource.replace(/\.tsx?$/, ''))
-    if (normalizedResolved === absDir) {
-      return normalizedAbs
-    }
-
-    const componentDir = path.posix.dirname(normalizedAbs)
-    if (normalizedResolved === componentDir) {
-      return normalizedAbs
-    }
-  }
-  return null
-}
-
-function normalizePath(value: string): string {
-  return value.replace(/\\/g, '/')
 }

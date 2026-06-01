@@ -4,23 +4,25 @@ export {
   createZeusPlugin as default,
 } from './rollup'
 
-export { componentHost } from './componentHost'
+export { createOutputRegistry } from './outputRegistry'
 
-export { createOutputPathResolver, normalizeOutputConfig } from './outputPaths'
+export { resolveComponentInclude, resolveComponentExclude } from './defaults'
+
+export { resolvePluginDts } from './pluginOptions'
 
 export type {
-  MaybePromise,
-  RootOption,
+  DtsMode,
+  ResolvedDts,
+  DtsAutoReason,
   ZeusBuildContext,
   ZeusBundlerPluginOptions,
   ZeusOutputAsset,
   ZeusOutputChunk,
   ZeusOutputFile,
   ZeusComponentPlugin,
-  ZeusOutputPlugin,
   ZeusVirtualModule,
-  ZeusComponentOutputConfig,
-  ZeusComponentOutputKind,
-  ZeusComponentHostConfig,
-  ZeusOutputPathResolver,
+  ZeusOutputKind,
+  ZeusOutputRegistry,
+  ZeusOutputRegistration,
+  RequiredZeusOutputRegistration,
 } from './types'
