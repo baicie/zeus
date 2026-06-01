@@ -16,6 +16,12 @@ export const ${icon.componentName} = React.forwardRef(function ${icon.componentN
     ...rest
   } = props;
 
+  const content = children != null
+    ? children
+    : React.createElement('g', {
+        dangerouslySetInnerHTML: { __html: \`${inner}\` },
+      });
+
   return React.createElement(
     'svg',
     {
@@ -28,12 +34,9 @@ export const ${icon.componentName} = React.forwardRef(function ${icon.componentN
       xmlns: 'http://www.w3.org/2000/svg',
       'aria-hidden': title ? undefined : true,
       role: title ? 'img' : undefined,
-      dangerouslySetInnerHTML: children
-        ? undefined
-        : { __html: \`${inner}\` },
     },
     title ? React.createElement('title', null, title) : null,
-    children,
+    content,
   );
 });
 `.trimStart()

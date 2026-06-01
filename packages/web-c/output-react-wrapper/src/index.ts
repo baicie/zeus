@@ -1,16 +1,13 @@
-import path from 'node:path'
-
 import { generateReactDts } from '@zeus-js/component-dts'
 
 import { generateReactIndex } from './generateReactIndex'
 import { generateReactWrapper } from './generateReactWrapper'
-import { getJsFileName } from './naming'
 
 import type { RequiredOutputReactWrapperOptions } from './generateReactWrapper'
 import type { OutputReactWrapperOptions } from './types'
 import type {
   ZeusOutputFile,
-  ZeusOutputPlugin,
+  ZeusComponentPlugin,
   ZeusVirtualModule,
 } from '@zeus-js/bundler-plugin'
 
@@ -18,7 +15,7 @@ export type { OutputReactWrapperOptions } from './types'
 
 export default function reactWrapper(
   options: OutputReactWrapperOptions = {},
-): ZeusOutputPlugin {
+): ZeusComponentPlugin {
   const normalized = normalizeOptions(options)
 
   return {
@@ -30,14 +27,14 @@ export default function reactWrapper(
       for (const component of ctx.manifest.components) {
         modules.push({
           id: `zeus:react:${component.tag}`,
-          fileName: path.posix.join(
-            normalized.outDir,
-            getJsFileName(component.tag, normalized),
+          fileName: ctx.paths.join(
+            'react',
+            ctx.paths.getFileName(component.tag, 'react'),
           ),
           code: generateReactWrapper({
             component,
             options: normalized,
-            getWcFileName: tag => getJsFileName(tag, normalized),
+            wcImport: ctx.paths.relativeImport('react', 'wc', component.tag),
           }),
         })
       }
@@ -45,8 +42,11 @@ export default function reactWrapper(
       if (normalized.index) {
         modules.push({
           id: 'zeus:react:index',
-          fileName: path.posix.join(normalized.outDir, 'index.js'),
-          code: generateReactIndex(ctx.manifest.components, normalized),
+          fileName: ctx.paths.join('react', 'index.js'),
+          code: generateReactIndex(ctx.manifest.components, {
+            ...normalized,
+            getFileName: tag => ctx.paths.getFileName(tag, 'react'),
+          }),
         })
       }
 
@@ -59,7 +59,7 @@ export default function reactWrapper(
       if (normalized.dts) {
         files.push({
           type: 'asset',
-          fileName: path.posix.join(normalized.outDir, 'index.d.ts'),
+          fileName: ctx.paths.join('react', 'index.d.ts'),
           source: generateReactDts(ctx.manifest),
         })
       }

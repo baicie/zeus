@@ -25,7 +25,11 @@ export function analyzeFile(options: AnalyzeFileOptions): AnalyzeFileResult {
         ? (localPropTypes.get(call.propsTypeName) ?? {})
         : {}
 
-      if (call.propsTypeName && !localPropTypes.has(call.propsTypeName)) {
+      if (
+        call.propsTypeName &&
+        !localPropTypes.has(call.propsTypeName) &&
+        !isGlobalUtilityType(call.propsTypeName)
+      ) {
         diagnostics.push({
           level: 'warning',
           file,
@@ -61,3 +65,30 @@ export function analyzeFile(options: AnalyzeFileOptions): AnalyzeFileResult {
     diagnostics,
   }
 }
+
+function isGlobalUtilityType(name: string): boolean {
+  return GLOBAL_UTILITY_TYPES.has(name)
+}
+
+const GLOBAL_UTILITY_TYPES = new Set([
+  'Awaited',
+  'ConstructorParameters',
+  'Exclude',
+  'Extract',
+  'InstanceType',
+  'NonNullable',
+  'Omit',
+  'Parameters',
+  'Partial',
+  'Pick',
+  'Readonly',
+  'Record',
+  'Required',
+  'ReturnType',
+  'ThisParameterType',
+  'ThisType',
+  'Uppercase',
+  'Lowercase',
+  'Capitalize',
+  'Uncapitalize',
+])

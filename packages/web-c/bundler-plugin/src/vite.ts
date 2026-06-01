@@ -1,18 +1,24 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
 
+import { componentHost } from './componentHost'
 import { createZeusPlugin } from './rollup'
 
-import type { ZeusBundlerPluginOptions } from './types'
+import type { ZeusBundlerPluginOptions, ZeusComponentHostConfig } from './types'
 import type { Plugin, UserConfig, ResolvedConfig } from 'vite'
 
 export function createZeusVitePlugin(
-  options: ZeusBundlerPluginOptions = {},
+  options: ZeusBundlerPluginOptions | ZeusComponentHostConfig = {},
 ): Plugin {
+  const resolvedOptions =
+    'plugins' in options && !('outputs' in options)
+      ? componentHost(options as ZeusComponentHostConfig)
+      : (options as ZeusBundlerPluginOptions)
+
   let resolvedConfig: ResolvedConfig | undefined
 
   const rollupPlugin = createZeusPlugin({
-    ...options,
+    ...resolvedOptions,
     root: () => resolvedConfig?.root ?? process.cwd(),
   }) as Plugin
 
@@ -59,7 +65,7 @@ export function createZeusVitePlugin(
 
 export default createZeusVitePlugin
 
-export { createZeusVitePlugin as zeus }
+export { createZeusVitePlugin as zeus, componentHost }
 
 async function isRolldownVite(): Promise<boolean> {
   try {

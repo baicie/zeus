@@ -1,16 +1,13 @@
-import path from 'node:path'
-
 import { generateVueDts, generateVueGlobalDts } from '@zeus-js/component-dts'
 
 import { generateVueIndex } from './generateVueIndex'
 import { generateVueWrapper } from './generateVueWrapper'
-import { getJsFileName } from './naming'
 
 import type { RequiredOutputVueWrapperOptions } from './generateVueWrapper'
 import type { OutputVueWrapperOptions } from './types'
 import type {
   ZeusOutputFile,
-  ZeusOutputPlugin,
+  ZeusComponentPlugin,
   ZeusVirtualModule,
 } from '@zeus-js/bundler-plugin'
 
@@ -18,7 +15,7 @@ export type { OutputVueWrapperOptions } from './types'
 
 export default function vueWrapper(
   options: OutputVueWrapperOptions = {},
-): ZeusOutputPlugin {
+): ZeusComponentPlugin {
   const normalized = normalizeOptions(options)
 
   return {
@@ -30,14 +27,13 @@ export default function vueWrapper(
       for (const component of ctx.manifest.components) {
         modules.push({
           id: `zeus:vue:${component.tag}`,
-          fileName: path.posix.join(
-            normalized.outDir,
-            getJsFileName(component.tag, normalized),
+          fileName: ctx.paths.join(
+            'vue',
+            ctx.paths.getFileName(component.tag, 'vue'),
           ),
           code: generateVueWrapper({
             component,
-            options: normalized,
-            getWcFileName: tag => getJsFileName(tag, normalized),
+            wcImport: ctx.paths.relativeImport('vue', 'wc', component.tag),
           }),
         })
       }
@@ -45,8 +41,11 @@ export default function vueWrapper(
       if (normalized.index) {
         modules.push({
           id: 'zeus:vue:index',
-          fileName: path.posix.join(normalized.outDir, 'index.js'),
-          code: generateVueIndex(ctx.manifest.components, normalized),
+          fileName: ctx.paths.join('vue', 'index.js'),
+          code: generateVueIndex(ctx.manifest.components, {
+            ...normalized,
+            getFileName: tag => ctx.paths.getFileName(tag, 'vue'),
+          }),
         })
       }
 
@@ -59,7 +58,7 @@ export default function vueWrapper(
       if (normalized.dts) {
         files.push({
           type: 'asset',
-          fileName: path.posix.join(normalized.outDir, 'index.d.ts'),
+          fileName: ctx.paths.join('vue', 'index.d.ts'),
           source: generateVueDts(ctx.manifest),
         })
       }
@@ -67,7 +66,7 @@ export default function vueWrapper(
       if (normalized.globalDts) {
         files.push({
           type: 'asset',
-          fileName: path.posix.join(normalized.outDir, 'global.d.ts'),
+          fileName: ctx.paths.join('vue', 'global.d.ts'),
           source: generateVueGlobalDts(ctx.manifest),
         })
       }

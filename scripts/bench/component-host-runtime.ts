@@ -19,7 +19,14 @@ export interface RuntimeBenchEntry {
 export async function runComponentHostRuntimeBench(): Promise<
   RuntimeBenchEntry[]
 > {
-  const browser = await findBrowser()
+  let browser: Browser | null
+
+  try {
+    browser = await findBrowser()
+  } catch {
+    browser = null
+  }
+
   if (!browser) {
     console.warn(
       '  [runtime] Chrome not found, skipping browser benchmarks. ' +
@@ -32,7 +39,7 @@ export async function runComponentHostRuntimeBench(): Promise<
 
   const dist = componentHostBenchConfig.dist
 
-  const jsFiles = await collectJsFiles(dist)
+  const jsFiles = (await collectJsFiles(dist)).map(f => f.replace(/\\/g, '/'))
   const runtimeDom = jsFiles.find(f => f.includes('runtime-dom'))
   const wcAll = jsFiles.find(f => f.includes('/assets/wc-all-'))
   const wcShadowAll = jsFiles.find(f => f.includes('/assets/wc-shadow-all-'))

@@ -33,15 +33,7 @@ describe('generateVueWrapper', () => {
         cssParts: [],
         cssVars: [],
       },
-      options: {
-        outDir: 'vue',
-        wcOutDir: '../wc',
-        index: true,
-        dts: true,
-        globalDts: true,
-        stripPrefix: false,
-      },
-      getWcFileName: tag => `z-${tag.replace(/^z-/, '')}.js`,
+      wcImport: '../wc/z-button.js',
     })
 
     expect(code).toContain(
@@ -104,15 +96,7 @@ describe('generateVueWrapper', () => {
         cssParts: [],
         cssVars: [],
       },
-      options: {
-        outDir: 'vue',
-        wcOutDir: '../wc',
-        index: true,
-        dts: true,
-        globalDts: true,
-        stripPrefix: false,
-      },
-      getWcFileName: tag => `z-${tag.replace(/^z-/, '')}.js`,
+      wcImport: '../wc/z-card.js',
     })
 
     expect(code).toContain('NAMED_SLOTS')
@@ -139,15 +123,7 @@ describe('generateVueWrapper', () => {
         cssParts: [],
         cssVars: [],
       },
-      options: {
-        outDir: 'vue',
-        wcOutDir: '../wc',
-        index: true,
-        dts: true,
-        globalDts: true,
-        stripPrefix: false,
-      },
-      getWcFileName: tag => `z-${tag.replace(/^z-/, '')}.js`,
+      wcImport: '../wc/z-skeleton.js',
     })
 
     expect(code).toContain('// no props to sync')
@@ -170,15 +146,7 @@ describe('generateVueWrapper', () => {
         cssParts: [],
         cssVars: [],
       },
-      options: {
-        outDir: 'vue',
-        wcOutDir: '../wc',
-        index: true,
-        dts: true,
-        globalDts: true,
-        stripPrefix: false,
-      },
-      getWcFileName: tag => `z-${tag.replace(/^z-/, '')}.js`,
+      wcImport: '../wc/z-test.js',
     })
 
     expect(code).toContain('name: "MyTestComponent"')

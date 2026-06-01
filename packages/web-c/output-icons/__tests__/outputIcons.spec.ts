@@ -3,6 +3,41 @@ import { describe, expect, it } from 'vitest'
 
 import icons from '../src/index'
 
+import type { ZeusBuildContext } from '@zeus-js/bundler-plugin'
+
+function createMockCtx(): ZeusBuildContext {
+  return {
+    root: process.cwd(),
+    manifest: {
+      version: 1 as const,
+      components: [],
+    },
+    diagnostics: [],
+    emitFile: (() => '') as any,
+    warn: (() => {}) as any,
+    error: (() => {}) as any,
+    addWatchFile: (() => {}) as any,
+    meta: {
+      watchMode: false,
+    },
+    output: {
+      outDir: '',
+      wcDir: 'wc',
+      reactDir: 'react',
+      vueDir: 'vue',
+      iconsDir: 'icons',
+      stripPrefix: false,
+      dts: true,
+    },
+    paths: {
+      getFileName: (tag: string) => `${tag}.js`,
+      getDir: (kind: string) => kind,
+      join: (kind: string, fileName: string) => `${kind}/${fileName}`,
+      relativeImport: () => '../wc/file.js',
+    },
+  }
+}
+
 describe('output-icons', () => {
   it('creates output plugin', () => {
     const plugin = icons({
@@ -32,21 +67,7 @@ describe('output-icons', () => {
       wc: false,
     })
 
-    const modules = await plugin.virtualModules?.({
-      root: process.cwd(),
-      manifest: {
-        version: 1 as const,
-        components: [],
-      },
-      diagnostics: [],
-      emitFile: (() => '') as any,
-      warn: (() => {}) as any,
-      error: (() => {}) as any,
-      addWatchFile: (() => {}) as any,
-      meta: {
-        watchMode: false,
-      },
-    })
+    const modules = await plugin.virtualModules?.(createMockCtx())
 
     expect(modules?.map(item => item.fileName)).toEqual(
       expect.arrayContaining(['icons/react/check.js', 'icons/react/index.js']),
@@ -66,21 +87,7 @@ describe('output-icons', () => {
       wc: false,
     })
 
-    const modules = await plugin.virtualModules?.({
-      root: process.cwd(),
-      manifest: {
-        version: 1 as const,
-        components: [],
-      },
-      diagnostics: [],
-      emitFile: (() => '') as any,
-      warn: (() => {}) as any,
-      error: (() => {}) as any,
-      addWatchFile: (() => {}) as any,
-      meta: {
-        watchMode: false,
-      },
-    })
+    const modules = await plugin.virtualModules?.(createMockCtx())
 
     expect(modules?.map(item => item.fileName)).toEqual(
       expect.arrayContaining(['icons/vue/check.js', 'icons/vue/index.js']),
@@ -100,21 +107,7 @@ describe('output-icons', () => {
       wc: { tagPrefix: 'z-icon-' },
     })
 
-    const modules = await plugin.virtualModules?.({
-      root: process.cwd(),
-      manifest: {
-        version: 1 as const,
-        components: [],
-      },
-      diagnostics: [],
-      emitFile: (() => '') as any,
-      warn: (() => {}) as any,
-      error: (() => {}) as any,
-      addWatchFile: (() => {}) as any,
-      meta: {
-        watchMode: false,
-      },
-    })
+    const modules = await plugin.virtualModules?.(createMockCtx())
 
     expect(modules?.map(item => item.fileName)).toEqual(
       expect.arrayContaining(['icons/wc/check.js', 'icons/wc/index.js']),
@@ -132,24 +125,7 @@ describe('output-icons', () => {
       svg: true,
     })
 
-    const files = await plugin.generateBundle?.(
-      {
-        root: process.cwd(),
-        manifest: {
-          version: 1 as const,
-          components: [],
-        },
-        diagnostics: [],
-        emitFile: (() => '') as any,
-        warn: (() => {}) as any,
-        error: (() => {}) as any,
-        addWatchFile: (() => {}) as any,
-        meta: {
-          watchMode: false,
-        },
-      },
-      {},
-    )
+    const files = await plugin.generateBundle?.(createMockCtx(), {})
 
     expect(files?.map(item => item.fileName)).toContain('icons/svg/check.svg')
   })
@@ -168,24 +144,7 @@ describe('output-icons', () => {
       dts: true,
     })
 
-    const files = await plugin.generateBundle?.(
-      {
-        root: process.cwd(),
-        manifest: {
-          version: 1 as const,
-          components: [],
-        },
-        diagnostics: [],
-        emitFile: (() => '') as any,
-        warn: (() => {}) as any,
-        error: (() => {}) as any,
-        addWatchFile: (() => {}) as any,
-        meta: {
-          watchMode: false,
-        },
-      },
-      {},
-    )
+    const files = await plugin.generateBundle?.(createMockCtx(), {})
 
     expect(files?.map(item => item.fileName)).toContain(
       'icons/react/index.d.ts',
@@ -211,21 +170,7 @@ describe('output-icons', () => {
       wc: false,
     })
 
-    const modules = await plugin.virtualModules?.({
-      root: process.cwd(),
-      manifest: {
-        version: 1 as const,
-        components: [],
-      },
-      diagnostics: [],
-      emitFile: (() => '') as any,
-      warn: (() => {}) as any,
-      error: (() => {}) as any,
-      addWatchFile: (() => {}) as any,
-      meta: {
-        watchMode: false,
-      },
-    })
+    const modules = await plugin.virtualModules?.(createMockCtx())
 
     const code = modules?.find(
       m => m.id === 'zeus:icons:react:chevron-down',
@@ -247,21 +192,7 @@ describe('output-icons', () => {
       wc: false,
     })
 
-    const modules = await plugin.virtualModules?.({
-      root: process.cwd(),
-      manifest: {
-        version: 1 as const,
-        components: [],
-      },
-      diagnostics: [],
-      emitFile: (() => '') as any,
-      warn: (() => {}) as any,
-      error: (() => {}) as any,
-      addWatchFile: (() => {}) as any,
-      meta: {
-        watchMode: false,
-      },
-    })
+    const modules = await plugin.virtualModules?.(createMockCtx())
 
     expect(modules?.map(item => item.fileName)).toContain(
       'my-icons/react/check.js',

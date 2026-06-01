@@ -1,6 +1,8 @@
 // scripts/bench/component-host-build.ts
 
 import { spawnSync } from 'node:child_process'
+import fs from 'node:fs'
+import path from 'node:path'
 
 import { componentHostBenchConfig } from './component-host-config'
 
@@ -13,12 +15,12 @@ export type ComponentHostBuildMode =
   | 'all'
 
 export function buildComponentHostFixture(mode: ComponentHostBuildMode): void {
+  const pnpm = resolvePnpmCommand()
   const result = spawnSync(
-    'pnpm',
-    ['-C', componentHostBenchConfig.root, 'build'],
+    pnpm.command,
+    [...pnpm.args, '-C', componentHostBenchConfig.root, 'build'],
     {
       stdio: 'inherit',
-      shell: process.platform === 'win32',
       env: {
         ...process.env,
         ZEUS_BENCH_OUTPUTS: normalizeMode(mode),
@@ -27,7 +29,30 @@ export function buildComponentHostFixture(mode: ComponentHostBuildMode): void {
   )
 
   if (result.status !== 0) {
-    throw new Error(`component-host fixture build failed: ${mode}`)
+    const reason = result.error ? ` (${result.error.message})` : ''
+    throw new Error(`component-host fixture build failed: ${mode}${reason}`)
+  }
+}
+
+function resolvePnpmCommand(): { command: string; args: string[] } {
+  const localPnpm = path.join(
+    path.dirname(process.execPath),
+    'node_modules',
+    'pnpm',
+    'bin',
+    'pnpm.cjs',
+  )
+
+  if (fs.existsSync(localPnpm)) {
+    return {
+      command: process.execPath,
+      args: [localPnpm],
+    }
+  }
+
+  return {
+    command: 'pnpm',
+    args: [],
   }
 }
 

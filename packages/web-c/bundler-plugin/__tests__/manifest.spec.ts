@@ -3,24 +3,10 @@ import { describe, expect, it } from 'vitest'
 import manifestOutput from '../src/outputPlugins/manifest'
 
 import type { ZeusOutputAsset } from '../src/types'
-import type {
-  AnalyzerDiagnostic,
-  ComponentManifest,
-} from '@zeus-js/component-analyzer'
-import type { PluginContext } from 'rollup'
-import type { OutputBundle } from 'rollup'
-import type { RollupError } from 'rollup'
+import type { ZeusBuildContext } from '@zeus-js/bundler-plugin'
+import type { OutputBundle, RollupError } from 'rollup'
 
-function createMockCtx(): {
-  manifest: ComponentManifest
-  root: string
-  diagnostics: AnalyzerDiagnostic[]
-  emitFile: PluginContext['emitFile']
-  warn: PluginContext['warn']
-  error: PluginContext['error']
-  addWatchFile: PluginContext['addWatchFile']
-  meta: { watchMode: boolean }
-} {
+function createMockCtx(): ZeusBuildContext {
   return {
     manifest: {
       version: 1,
@@ -35,6 +21,21 @@ function createMockCtx(): {
     },
     addWatchFile: () => {},
     meta: { watchMode: false },
+    output: {
+      outDir: '',
+      wcDir: 'wc',
+      reactDir: 'react',
+      vueDir: 'vue',
+      iconsDir: 'icons',
+      stripPrefix: false,
+      dts: true,
+    },
+    paths: {
+      getFileName: (tag: string) => `${tag}.js`,
+      getDir: (kind: string) => kind,
+      join: (kind: string, fileName: string) => `${kind}/${fileName}`,
+      relativeImport: () => '../wc/file.js',
+    },
   }
 }
 

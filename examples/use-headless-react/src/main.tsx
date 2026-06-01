@@ -97,7 +97,7 @@ function App() {
             setDialogOpen(e.detail.open)
           }
         >
-          <ZDialogTrigger asChild>
+          <ZDialogTrigger>
             <button>Open Dialog</button>
           </ZDialogTrigger>
           <ZDialogContent>

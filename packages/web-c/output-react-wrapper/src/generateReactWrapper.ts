@@ -12,16 +12,14 @@ export type RequiredOutputReactWrapperOptions = Required<
 export interface GenerateReactWrapperOptions {
   component: ComponentRecord
   options: RequiredOutputReactWrapperOptions
-  getWcFileName: (tag: string) => string
+  wcImport: string
 }
 
 export function generateReactWrapper(
   input: GenerateReactWrapperOptions,
 ): string {
-  const { component, options, getWcFileName } = input
+  const { component, options, wcImport } = input
 
-  const wcFileName = getWcFileName(component.tag)
-  const wcImport = `${options.wcOutDir}/${wcFileName}`
   const propNames = Object.keys(component.props)
   const eventNames = Object.keys(component.events)
   const namedSlots = getNamedSlots(component, options)

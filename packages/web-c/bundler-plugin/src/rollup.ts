@@ -3,8 +3,10 @@ import path from 'node:path'
 import { analyzeComponents } from '@zeus-js/component-analyzer'
 import fg from 'fast-glob'
 
+import { resolveComponentPlugins } from './componentHost'
 import { formatDiagnostic, hasErrorDiagnostics } from './diagnostics'
 import { createFilter } from './filter'
+import { createOutputPathResolver, normalizeOutputConfig } from './outputPaths'
 import { transformZeus } from './transform'
 import { VirtualModuleRegistry } from './virtual'
 
@@ -55,10 +57,15 @@ export function createZeusPlugin(
         this.error('[zeus] component analyzer failed.')
       }
 
+      const output = normalizeOutputConfig(options.output)
+      const paths = createOutputPathResolver(output)
+
       ctx = {
         root,
         manifest: manifestResult.manifest,
         diagnostics,
+        output,
+        paths,
         emitFile: this.emitFile.bind(this),
         warn: this.warn.bind(this),
         error: this.error.bind(this),
@@ -68,14 +75,14 @@ export function createZeusPlugin(
         },
       }
 
-      const outputs = options.outputs ?? []
+      const plugins = resolveComponentPlugins(options)
 
-      for (const output of outputs) {
-        await output.buildStart?.(ctx)
+      for (const plugin of plugins) {
+        await plugin.buildStart?.(ctx)
       }
 
-      for (const output of outputs) {
-        const modules = await output.virtualModules?.(ctx)
+      for (const plugin of plugins) {
+        const modules = await plugin.virtualModules?.(ctx)
 
         if (!modules) continue
 
@@ -129,10 +136,10 @@ export function createZeusPlugin(
     async generateBundle(_, bundle) {
       if (!ctx) return
 
-      const outputs = options.outputs ?? []
+      const plugins = resolveComponentPlugins(options)
 
-      for (const output of outputs) {
-        const files = await output.generateBundle?.(ctx, bundle)
+      for (const plugin of plugins) {
+        const files = await plugin.generateBundle?.(ctx, bundle)
 
         if (!files) continue
 

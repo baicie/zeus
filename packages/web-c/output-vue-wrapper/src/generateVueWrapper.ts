@@ -9,15 +9,12 @@ export type RequiredOutputVueWrapperOptions = Required<
 
 export interface GenerateVueWrapperOptions {
   component: ComponentRecord
-  options: RequiredOutputVueWrapperOptions
-  getWcFileName: (tag: string) => string
+  wcImport: string
 }
 
 export function generateVueWrapper(input: GenerateVueWrapperOptions): string {
-  const { component, options, getWcFileName } = input
+  const { component, wcImport } = input
 
-  const wcFileName = getWcFileName(component.tag)
-  const wcImport = `${options.wcOutDir}/${wcFileName}`
   const propNames = Object.keys(component.props)
   const eventNames = Object.keys(component.events)
   const slotNames = Object.keys(component.slots).filter(
@@ -164,17 +161,10 @@ function generateVuePropSyncLines(propNames: string[]): string {
     return '// no props to sync'
   }
 
-  const checks = propNames
-    .map(name => `props.${name} !== undefined`)
-    .join(' || ')
-  const assignments = propNames
+  return propNames
     .map(
       name =>
-        `        if (props.${name} !== undefined) el.${name} = props.${name}; else el.${name} = undefined;`,
+        `if (props.${name} !== undefined) el.${name} = props.${name}; else el.${name} = undefined;`,
     )
-    .join('\n')
-
-  return `if (${checks}) {
-${assignments}
-      }`
+    .join('\n      ')
 }

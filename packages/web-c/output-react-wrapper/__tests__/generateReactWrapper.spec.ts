@@ -41,7 +41,7 @@ describe('generateReactWrapper', () => {
         stripPrefix: false,
         namedSlots: 'props',
       },
-      getWcFileName: tag => `${tag.replace(/^z-/, '')}.js`,
+      wcImport: '../wc/button.js',
     })
 
     expect(code).toContain(
@@ -102,7 +102,7 @@ describe('generateReactWrapper', () => {
         stripPrefix: false,
         namedSlots: 'props',
       },
-      getWcFileName: tag => `${tag.replace(/^z-/, '')}.js`,
+      wcImport: '../wc/card.js',
     })
 
     expect(code).toContain('NAMED_SLOTS')
@@ -137,7 +137,7 @@ describe('generateReactWrapper', () => {
         stripPrefix: false,
         namedSlots: 'props',
       },
-      getWcFileName: tag => `${tag.replace(/^z-/, '')}.js`,
+      wcImport: '../wc/skeleton.js',
     })
 
     expect(code).toContain('// no props')
@@ -168,7 +168,7 @@ describe('generateReactWrapper', () => {
         stripPrefix: false,
         namedSlots: 'none',
       },
-      getWcFileName: tag => `${tag.replace(/^z-/, '')}.js`,
+      wcImport: '../wc/tag.js',
     })
 
     expect(code).toContain('NAMED_SLOTS')

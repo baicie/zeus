@@ -26,13 +26,15 @@ import type {
 } from './types'
 import type {
   ZeusOutputFile,
-  ZeusOutputPlugin,
+  ZeusComponentPlugin,
   ZeusVirtualModule,
 } from '@zeus-js/bundler-plugin'
 
 export type { IconSource, OutputIconsOptions } from './types'
 
-export default function icons(options: OutputIconsOptions): ZeusOutputPlugin {
+export default function icons(
+  options: OutputIconsOptions,
+): ZeusComponentPlugin {
   const normalized = normalizeOptions(options)
 
   return {

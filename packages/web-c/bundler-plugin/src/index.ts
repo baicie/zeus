@@ -4,6 +4,10 @@ export {
   createZeusPlugin as default,
 } from './rollup'
 
+export { componentHost } from './componentHost'
+
+export { createOutputPathResolver, normalizeOutputConfig } from './outputPaths'
+
 export type {
   MaybePromise,
   RootOption,
@@ -12,6 +16,11 @@ export type {
   ZeusOutputAsset,
   ZeusOutputChunk,
   ZeusOutputFile,
+  ZeusComponentPlugin,
   ZeusOutputPlugin,
   ZeusVirtualModule,
+  ZeusComponentOutputConfig,
+  ZeusComponentOutputKind,
+  ZeusComponentHostConfig,
+  ZeusOutputPathResolver,
 } from './types'

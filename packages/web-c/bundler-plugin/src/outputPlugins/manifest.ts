@@ -1,4 +1,4 @@
-import type { ZeusBuildContext, ZeusOutputPlugin } from '../types'
+import type { ZeusBuildContext, ZeusComponentPlugin } from '../types'
 
 export interface ManifestOutputOptions {
   fileName?: string
@@ -7,7 +7,7 @@ export interface ManifestOutputOptions {
 
 export default function manifestOutput(
   options: ManifestOutputOptions = {},
-): ZeusOutputPlugin {
+): ZeusComponentPlugin {
   const fileName = options.fileName ?? 'zeus.components.json'
   const pretty = options.pretty ?? true
 
