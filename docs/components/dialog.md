@@ -26,9 +26,7 @@ function MyDialog() {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Are you sure?</DialogTitle>
-          <DialogDescription>
-            This action cannot be undone.
-          </DialogDescription>
+          <DialogDescription>This action cannot be undone.</DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <button>Cancel</button>
@@ -48,9 +46,7 @@ function MyDialog() {
   <DialogContent>
     <DialogHeader>
       <DialogTitle>Edit profile</DialogTitle>
-      <DialogDescription>
-        Make changes to your profile here.
-      </DialogDescription>
+      <DialogDescription>Make changes to your profile here.</DialogDescription>
     </DialogHeader>
     <form>
       <input placeholder="Name" />
@@ -68,10 +64,10 @@ function MyDialog() {
 
 ### Dialog
 
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `open` | `boolean` | `false` | Controlled open state |
-| `onOpenChange` | `(open: boolean) => void` | — | Open state change handler |
+| Prop           | Type                      | Default | Description               |
+| -------------- | ------------------------- | ------- | ------------------------- |
+| `open`         | `boolean`                 | `false` | Controlled open state     |
+| `onOpenChange` | `(open: boolean) => void` | —       | Open state change handler |
 
 ### DialogTrigger
 

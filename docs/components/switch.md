@@ -46,7 +46,7 @@ function ControlledSwitch() {
 ```tsx
 import { ZSwitch } from '@/components/ui/z-switch'
 
-<ZSwitch
+;<ZSwitch
   checked={true}
   onCheckedChange={event => {
     console.log(event.detail.checked)
@@ -56,9 +56,9 @@ import { ZSwitch } from '@/components/ui/z-switch'
 
 ## Props
 
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `checked` | `boolean` | `false` | Controlled checked state |
-| `disabled` | `boolean` | `false` | Disables the switch |
-| `onCheckedChange` | `(event: CustomEvent<{ checked: boolean }>) => void` | — | Change handler |
-| `id` | `string` | — | Associates with `<label>` |
+| Prop              | Type                                                 | Default | Description               |
+| ----------------- | ---------------------------------------------------- | ------- | ------------------------- |
+| `checked`         | `boolean`                                            | `false` | Controlled checked state  |
+| `disabled`        | `boolean`                                            | `false` | Disables the switch       |
+| `onCheckedChange` | `(event: CustomEvent<{ checked: boolean }>) => void` | —       | Change handler            |
+| `id`              | `string`                                             | —       | Associates with `<label>` |

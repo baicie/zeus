@@ -5,12 +5,7 @@ An accessible tab list component built on `@zeus-ui/headless`.
 ## Import
 
 ```tsx
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 ```
 
 ## Usage
@@ -63,15 +58,15 @@ function ControlledTabs() {
 
 ### Tabs
 
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `value` | `string` | — | Controlled active tab value |
-| `defaultValue` | `string` | — | Default active tab value |
-| `onValueChange` | `(value: string) => void` | — | Tab change handler |
+| Prop            | Type                      | Default | Description                 |
+| --------------- | ------------------------- | ------- | --------------------------- |
+| `value`         | `string`                  | —       | Controlled active tab value |
+| `defaultValue`  | `string`                  | —       | Default active tab value    |
+| `onValueChange` | `(value: string) => void` | —       | Tab change handler          |
 
 ### TabsTrigger
 
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `value` | `string` | — | The value this trigger represents |
-| `disabled` | `boolean` | `false` | Disables the trigger |
+| Prop       | Type      | Default | Description                       |
+| ---------- | --------- | ------- | --------------------------------- |
+| `value`    | `string`  | —       | The value this trigger represents |
+| `disabled` | `boolean` | `false` | Disables the trigger              |

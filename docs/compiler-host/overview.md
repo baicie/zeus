@@ -25,15 +25,15 @@ bundler-plugin
 
 ## Packages
 
-| Package | Description |
-|---|---|
-| `@zeus-js/component-analyzer` | Extracts manifest from `defineElement` source |
-| `@zeus-js/component-dts` | Generates `.d.ts` for component props and events |
-| `@zeus-js/bundler-plugin` | Vite plugin host for component analysis |
-| `@zeus-js/output-wc` | Emits native Web Component files |
-| `@zeus-js/output-react-wrapper` | Generates React wrapper components |
-| `@zeus-js/output-vue-wrapper` | Generates Vue 3 wrapper components |
-| `@zeus-js/output-icons` | Extracts and emits zero-runtime SVG icons |
+| Package                         | Description                                      |
+| ------------------------------- | ------------------------------------------------ |
+| `@zeus-js/component-analyzer`   | Extracts manifest from `defineElement` source    |
+| `@zeus-js/component-dts`        | Generates `.d.ts` for component props and events |
+| `@zeus-js/bundler-plugin`       | Vite plugin host for component analysis          |
+| `@zeus-js/output-wc`            | Emits native Web Component files                 |
+| `@zeus-js/output-react-wrapper` | Generates React wrapper components               |
+| `@zeus-js/output-vue-wrapper`   | Generates Vue 3 wrapper components               |
+| `@zeus-js/output-icons`         | Extracts and emits zero-runtime SVG icons        |
 
 ## Source of truth
 

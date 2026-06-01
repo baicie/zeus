@@ -67,7 +67,10 @@ function handleDialogChange(e: CustomEvent<{ open: boolean }>) {
 
     <h2>Checkbox</h2>
     <div class="demo-section">
-      <ZCheckbox :checked="checkboxChecked" @checked-change="handleCheckboxChange">
+      <ZCheckbox
+        :checked="checkboxChecked"
+        @checked-change="handleCheckboxChange"
+      >
         Accept terms and conditions
       </ZCheckbox>
       <p style="color: #94a3b8; margin-top: 0.5rem">
@@ -105,7 +108,9 @@ function handleDialogChange(e: CustomEvent<{ open: boolean }>) {
           </ZDialogDescription>
           <div style="display: flex; gap: 0.5rem; margin-top: 1rem">
             <ZButton @press="dialogOpen = false">Cancel</ZButton>
-            <ZButton variant="outline" @press="dialogOpen = false">Confirm</ZButton>
+            <ZButton variant="outline" @press="dialogOpen = false"
+              >Confirm</ZButton
+            >
           </div>
         </ZDialogContent>
       </ZDialog>

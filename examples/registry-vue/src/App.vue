@@ -5,7 +5,9 @@ import Checkbox from '@/components/ui/Checkbox.vue'
 </script>
 
 <template>
-  <main class="min-h-screen bg-[hsl(var(--z-background))] p-8 text-[hsl(var(--z-foreground))]">
+  <main
+    class="min-h-screen bg-[hsl(var(--z-background))] p-8 text-[hsl(var(--z-foreground))]"
+  >
     <div class="mx-auto flex max-w-xl flex-col gap-6">
       <h1 class="text-2xl font-semibold">Zeus UI Registry — Vue</h1>
 

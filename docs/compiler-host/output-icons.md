@@ -77,7 +77,7 @@ public/icons/
 import { IconX } from '@zeus-ui/headless/react'
 
 // Inline SVG rendered at runtime
-<IconX size={24} class="text-muted-foreground" />
+;<IconX size={24} class="text-muted-foreground" />
 ```
 
 The `IconX` component inlines the SVG path, useful when you need dynamic color or sizing.

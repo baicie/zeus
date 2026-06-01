@@ -51,7 +51,9 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { useState } from 'react'
 
 function SelectAll() {
-  const [checked, setChecked] = useState<'unchecked' | 'checked' | 'indeterminate'>('indeterminate')
+  const [checked, setChecked] = useState<
+    'unchecked' | 'checked' | 'indeterminate'
+  >('indeterminate')
   // ... handle with onCheckedChange
 }
 ```
@@ -61,7 +63,7 @@ function SelectAll() {
 ```tsx
 import { ZCheckbox } from '@/components/ui/z-checkbox'
 
-<ZCheckbox
+;<ZCheckbox
   checked={false}
   onCheckedChange={event => {
     console.log(event.detail.checked)
@@ -71,10 +73,10 @@ import { ZCheckbox } from '@/components/ui/z-checkbox'
 
 ## Props
 
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `checked` | `boolean` | `false` | Controlled checked state |
-| `indeterminate` | `boolean` | `false` | Indeterminate state |
-| `disabled` | `boolean` | `false` | Disables the checkbox |
-| `onCheckedChange` | `(event: CustomEvent<{ checked: boolean }>) => void` | — | Change handler |
-| `id` | `string` | — | Associates with `<label>` |
+| Prop              | Type                                                 | Default | Description               |
+| ----------------- | ---------------------------------------------------- | ------- | ------------------------- |
+| `checked`         | `boolean`                                            | `false` | Controlled checked state  |
+| `indeterminate`   | `boolean`                                            | `false` | Indeterminate state       |
+| `disabled`        | `boolean`                                            | `false` | Disables the checkbox     |
+| `onCheckedChange` | `(event: CustomEvent<{ checked: boolean }>) => void` | —       | Change handler            |
+| `id`              | `string`                                             | —       | Associates with `<label>` |

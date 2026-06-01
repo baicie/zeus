@@ -1709,7 +1709,6 @@ git commit -m "docs: add phase9 icon no-runtime design"
 
 ```tsx
 import { ZIcon } from '@zeus-ui/headless/react'
-
 ;<ZIcon name="check" />
 ```
 
@@ -1725,7 +1724,6 @@ Phase 9 后：
 
 ```tsx
 import { CheckIcon } from '@zeus-ui/headless/icons/react'
-
 ;<CheckIcon size={20} />
 ```
 

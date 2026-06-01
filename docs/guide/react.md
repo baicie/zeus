@@ -23,10 +23,7 @@ export default defineConfig({
       components: {
         include: ['src/components/**/*.{ts,tsx}'],
       },
-      outputs: [
-        wc({ outDir: 'dist/wc' }),
-        react({ outDir: 'dist/react' }),
-      ],
+      outputs: [wc({ outDir: 'dist/wc' }), react({ outDir: 'dist/react' })],
     }),
   ],
 })

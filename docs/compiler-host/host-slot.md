@@ -9,15 +9,11 @@
 ```tsx
 import { defineElement, Host } from '@zeus-js/zeus'
 
-defineElement(
-  'z-panel',
-  { shadow: false },
-  () => (
-    <Host data-panel>
-      <div>Content</div>
-    </Host>
-  ),
-)
+defineElement('z-panel', { shadow: false }, () => (
+  <Host data-panel>
+    <div>Content</div>
+  </Host>
+))
 ```
 
 ### Host attributes
@@ -35,21 +31,17 @@ Set `data-*` attributes on `Host` to expose internal state to CSS and external J
 Set `shadow: true` to attach a shadow root. CSS defined inside `Host` is encapsulated.
 
 ```tsx
-defineElement(
-  'z-card',
-  { shadow: true },
-  () => (
-    <Host>
-      <style>{`
+defineElement('z-card', { shadow: true }, () => (
+  <Host>
+    <style>{`
         :host {
           display: block;
           border-radius: 8px;
         }
       `}</style>
-      <slot />
-    </Host>
-  ),
-)
+    <slot />
+  </Host>
+))
 ```
 
 ### Light DOM mode
@@ -65,7 +57,9 @@ With `shadow: false` (default), the component uses light DOM. No encapsulation b
 ```tsx
 <Host>
   <header>Header</header>
-  <main><Slot /></main>
+  <main>
+    <Slot />
+  </main>
   <footer>Footer</footer>
 </Host>
 ```
@@ -74,9 +68,15 @@ With `shadow: false` (default), the component uses light DOM. No encapsulation b
 
 ```tsx
 <Host>
-  <header><Slot name="header" /></header>
-  <main><Slot /></main>
-  <footer><Slot name="footer" /></footer>
+  <header>
+    <Slot name="header" />
+  </header>
+  <main>
+    <Slot />
+  </main>
+  <footer>
+    <Slot name="footer" />
+  </footer>
 </Host>
 ```
 

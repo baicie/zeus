@@ -44,7 +44,9 @@ describe('generateVueWrapper', () => {
       getWcFileName: tag => `z-${tag.replace(/^z-/, '')}.js`,
     })
 
-    expect(code).toContain(`import "../wc/z-button.js"`)
+    expect(code).toContain(
+      `import { ZButton as __zeusWC } from "../wc/z-button.js";`,
+    )
     expect(code).toContain('export const ZButton = defineComponent')
     expect(code).toContain('name: "ZButton"')
     expect(code).toContain('props: {')

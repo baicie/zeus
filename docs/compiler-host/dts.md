@@ -26,10 +26,7 @@ export default defineConfig({
   plugins: [
     zeus({
       components: { include: ['src/components/**/*.ts'] },
-      outputs: [
-        wc({ outDir: 'dist/wc' }),
-        dts({ outDir: 'dist/wc' }),
-      ],
+      outputs: [wc({ outDir: 'dist/wc' }), dts({ outDir: 'dist/wc' })],
     }),
   ],
 })
@@ -59,10 +56,12 @@ declare global {
   }
 }
 
-export const ZButton: (props: ButtonProps & {
-  onpress?: (event: CustomEvent<{ nativeEvent: MouseEvent }>) => void
-  children?: any
-}) => HTMLElement
+export const ZButton: (
+  props: ButtonProps & {
+    onpress?: (event: CustomEvent<{ nativeEvent: MouseEvent }>) => void
+    children?: any
+  },
+) => HTMLElement
 ```
 
 ## Global types

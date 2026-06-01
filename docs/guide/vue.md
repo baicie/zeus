@@ -25,10 +25,7 @@ export default defineConfig({
       components: {
         include: ['src/components/**/*.{ts,tsx}'],
       },
-      outputs: [
-        wc({ outDir: 'dist/wc' }),
-        vueWrapper({ outDir: 'dist/vue' }),
-      ],
+      outputs: [wc({ outDir: 'dist/wc' }), vueWrapper({ outDir: 'dist/vue' })],
     }),
   ],
 })
@@ -42,12 +39,7 @@ import { ZButton } from './dist/vue'
 </script>
 
 <template>
-  <ZButton
-    variant="outline"
-    @press="onPress"
-  >
-    Button
-  </ZButton>
+  <ZButton variant="outline" @press="onPress"> Button </ZButton>
 </template>
 ```
 

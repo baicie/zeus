@@ -164,7 +164,7 @@ export const ZButton = defineElement<ButtonProps>(
 packages/web-c/component-analyzer
 ```
 
-> **设计决策**：component-analyzer 作为 compiler 输出生态的核心共享分析能力，放在 `packages/web-c/` 下，与同属 compiler 输出链的 bundler-plugin、output-* 等包集中管理。
+> **设计决策**：component-analyzer 作为 compiler 输出生态的核心共享分析能力，放在 `packages/web-c/` 下，与同属 compiler 输出链的 bundler-plugin、output-\* 等包集中管理。
 
 ## 输入
 

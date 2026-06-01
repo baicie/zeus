@@ -45,18 +45,18 @@ function CloseButton() {
 
 ## Props
 
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `class` | `string` | — | CSS classes for styling |
-| `size` | `number \| string` | `24` | Icon width and height |
-| `strokeWidth` | `number` | `2` | SVG stroke width |
+| Prop          | Type               | Default | Description             |
+| ------------- | ------------------ | ------- | ----------------------- |
+| `class`       | `string`           | —       | CSS classes for styling |
+| `size`        | `number \| string` | `24`    | Icon width and height   |
+| `strokeWidth` | `number`           | `2`     | SVG stroke width        |
 
 ## As Web Component
 
 ```tsx
 import { ZIconX } from '@/components/ui/z-icon'
 
-<z-icon-x class="h-5 w-5 text-muted-foreground" />
+;<z-icon-x class="h-5 w-5 text-muted-foreground" />
 ```
 
 ## No-runtime SVG

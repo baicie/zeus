@@ -50,17 +50,17 @@ import { Button } from '@/components/ui/button'
 ```tsx
 import { ZButton } from '@/components/ui/z-button'
 
-<ZButton variant="outline" onPress={onClick}>
+;<ZButton variant="outline" onPress={onClick}>
   Click me
 </ZButton>
 ```
 
 ## Props
 
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `variant` | `'default' \| 'outline' \| 'ghost' \| 'destructive' \| 'link'` | `'default'` | Visual style variant |
-| `size` | `'sm' \| 'default' \| 'lg' \| 'icon'` | `'default'` | Size preset |
-| `disabled` | `boolean` | `false` | Disables the button |
-| `asChild` | `boolean` | `false` | Merge props onto child element |
-| `onPress` | `(event: CustomEvent) => void` | — | Press event handler (Web Component) |
+| Prop       | Type                                                           | Default     | Description                         |
+| ---------- | -------------------------------------------------------------- | ----------- | ----------------------------------- |
+| `variant`  | `'default' \| 'outline' \| 'ghost' \| 'destructive' \| 'link'` | `'default'` | Visual style variant                |
+| `size`     | `'sm' \| 'default' \| 'lg' \| 'icon'`                          | `'default'` | Size preset                         |
+| `disabled` | `boolean`                                                      | `false`     | Disables the button                 |
+| `asChild`  | `boolean`                                                      | `false`     | Merge props onto child element      |
+| `onPress`  | `(event: CustomEvent) => void`                                 | —           | Press event handler (Web Component) |

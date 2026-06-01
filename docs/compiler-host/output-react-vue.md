@@ -14,10 +14,7 @@ export default defineConfig({
   plugins: [
     zeus({
       components: { include: ['src/components/**/*.ts'] },
-      outputs: [
-        wc({ outDir: 'dist/wc' }),
-        react({ outDir: 'dist/react' }),
-      ],
+      outputs: [wc({ outDir: 'dist/wc' }), react({ outDir: 'dist/react' })],
     }),
   ],
 })
@@ -56,10 +53,7 @@ export default defineConfig({
     vue(),
     zeus({
       components: { include: ['src/components/**/*.ts'] },
-      outputs: [
-        wc({ outDir: 'dist/wc' }),
-        vueWrapper({ outDir: 'dist/vue' }),
-      ],
+      outputs: [wc({ outDir: 'dist/wc' }), vueWrapper({ outDir: 'dist/vue' })],
     }),
   ],
 })

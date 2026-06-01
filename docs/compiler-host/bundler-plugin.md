@@ -17,10 +17,7 @@ export default defineConfig({
         include: ['src/components/**/*.{ts,tsx}'],
         exclude: ['src/components/**/*.test.{ts,tsx}'],
       },
-      outputs: [
-        wc({ outDir: 'dist/wc' }),
-        react({ outDir: 'dist/react' }),
-      ],
+      outputs: [wc({ outDir: 'dist/wc' }), react({ outDir: 'dist/react' })],
     }),
   ],
 })
