@@ -10,12 +10,14 @@ export type RequiredOutputVueWrapperOptions = Required<
 export interface GenerateVueWrapperOptions {
   component: ComponentRecord
   options: RequiredOutputVueWrapperOptions
+  getWcFileName: (tag: string) => string
 }
 
 export function generateVueWrapper(input: GenerateVueWrapperOptions): string {
-  const { component } = input
+  const { component, options, getWcFileName } = input
 
-  const wcImport = `zeus:wc:${component.tag}`
+  const wcFileName = getWcFileName(component.tag)
+  const wcImport = `${options.wcOutDir}/${wcFileName}`
   const propNames = Object.keys(component.props)
   const eventNames = Object.keys(component.events)
   const slotNames = Object.keys(component.slots).filter(

@@ -61,6 +61,7 @@ export default function wc(options: OutputWCOptions = {}): ZeusOutputPlugin {
           fileName: path.posix.join(normalized.outDir, 'index.js'),
           code: generateWCIndex({
             components: ctx.manifest.components,
+            getFileName: tag => getComponentFileName(tag, normalized),
           }),
         })
       }

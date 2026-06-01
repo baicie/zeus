@@ -13,7 +13,9 @@ import type {
   ZeusBuildContext,
   ZeusBundlerPluginOptions,
   ZeusOutputFile,
+  ZeusVirtualModule,
 } from './types'
+import type { ComponentManifest } from '@zeus-js/component-analyzer'
 import type { Plugin } from 'rollup'
 
 export function createZeusPlugin(
@@ -79,19 +81,19 @@ export function createZeusPlugin(
 
         for (const mod of modules) {
           virtualModules.set(mod.id, mod.code, mod.fileName)
-
-          if (mod.fileName) {
-            this.emitFile({
-              type: 'chunk',
-              id: mod.id,
-              fileName: mod.fileName,
-            })
-          }
         }
+
+        emitComponentEntries(modules, this)
       }
     },
 
     resolveId(id, importer) {
+      if (ctx) {
+        const resolved = resolveSourceFile(id, importer, ctx.root, ctx.manifest)
+        if (resolved) {
+          return resolved
+        }
+      }
       return virtualModules.resolve(id, importer)
     },
 
@@ -201,4 +203,96 @@ function emitOutputFile(
     id: file.id,
     fileName: file.fileName,
   })
+}
+
+function emitComponentEntries(
+  modules: ZeusVirtualModule[],
+  pluginContext: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    emitFile: (file: any) => void
+  },
+): void {
+  for (const mod of modules) {
+    if (!mod.fileName) continue
+
+    pluginContext.emitFile({
+      type: 'chunk',
+      id: mod.id,
+      fileName: mod.fileName,
+      preserveSignature: 'strict',
+    })
+  }
+}
+
+function resolveSourceFile(
+  id: string,
+  importer: string | undefined,
+  root: string,
+  manifest: ComponentManifest,
+): string | null {
+  if (!importer || !id.startsWith('.')) return null
+
+  const importerPath = normalizePath(importer)
+  const normalizedRoot = normalizePath(root)
+
+  let importerDir: string
+
+  if (importerPath.startsWith('\0zeus:wc:')) {
+    const virtualId = importerPath.slice(1)
+    const tag = virtualId.replace('zeus:wc:', '')
+    const component = manifest.components.find(c => c.tag === tag)
+    if (component) {
+      importerDir = path.posix.dirname(
+        path.posix.resolve(normalizedRoot, normalizePath(component.source)),
+      )
+    } else {
+      return null
+    }
+  } else if (importerPath.startsWith('\0')) {
+    return null
+  } else {
+    const absoluteImporter = path.posix.isAbsolute(importerPath)
+      ? importerPath
+      : path.posix.resolve(normalizedRoot, importerPath)
+    importerDir = path.posix.dirname(absoluteImporter)
+  }
+
+  const resolved = path.posix.resolve(importerDir, id)
+  return resolveToSource(resolved, root, manifest)
+}
+
+function resolveToSource(
+  resolved: string,
+  root: string,
+  manifest: ComponentManifest,
+): string | null {
+  const normalizedResolved = normalizePath(resolved)
+  const normalizedRoot = normalizePath(root)
+
+  for (const component of manifest.components) {
+    const absSource = path.posix.resolve(
+      normalizedRoot,
+      normalizePath(component.source),
+    )
+    const normalizedAbs = normalizePath(absSource)
+
+    if (normalizedResolved === normalizedAbs) {
+      return normalizedAbs
+    }
+
+    const absDir = normalizePath(absSource.replace(/\.tsx?$/, ''))
+    if (normalizedResolved === absDir) {
+      return normalizedAbs
+    }
+
+    const componentDir = path.posix.dirname(normalizedAbs)
+    if (normalizedResolved === componentDir) {
+      return normalizedAbs
+    }
+  }
+  return null
+}
+
+function normalizePath(value: string): string {
+  return value.replace(/\\/g, '/')
 }

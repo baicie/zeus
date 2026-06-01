@@ -39,7 +39,7 @@ export default defineConfig({
       },
       outputs: [
         wc({
-          outDir: 'dist/wc',
+          outDir: 'wc',
           manifestFile: 'zeus.components.json',
           customElementsFile: 'custom-elements.json',
           dts: true,

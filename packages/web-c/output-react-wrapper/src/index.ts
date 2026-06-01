@@ -37,6 +37,8 @@ export default function reactWrapper(
           code: generateReactWrapper({
             component,
             options: normalized,
+            getWcFileName: tag =>
+              `${normalized.wcOutDir}/${getJsFileName(tag, normalized)}`,
           }),
         })
       }

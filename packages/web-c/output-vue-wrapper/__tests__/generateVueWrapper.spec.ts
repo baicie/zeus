@@ -41,9 +41,10 @@ describe('generateVueWrapper', () => {
         globalDts: true,
         stripPrefix: false,
       },
+      getWcFileName: tag => `z-${tag.replace(/^z-/, '')}.js`,
     })
 
-    expect(code).toContain(`import "zeus:wc:z-button"`)
+    expect(code).toContain(`import "../wc/z-button.js"`)
     expect(code).toContain('export const ZButton = defineComponent')
     expect(code).toContain('name: "ZButton"')
     expect(code).toContain('props: {')
@@ -109,6 +110,7 @@ describe('generateVueWrapper', () => {
         globalDts: true,
         stripPrefix: false,
       },
+      getWcFileName: tag => `z-${tag.replace(/^z-/, '')}.js`,
     })
 
     expect(code).toContain('NAMED_SLOTS')
@@ -143,6 +145,7 @@ describe('generateVueWrapper', () => {
         globalDts: true,
         stripPrefix: false,
       },
+      getWcFileName: tag => `z-${tag.replace(/^z-/, '')}.js`,
     })
 
     expect(code).toContain('// no props to sync')
@@ -173,6 +176,7 @@ describe('generateVueWrapper', () => {
         globalDts: true,
         stripPrefix: false,
       },
+      getWcFileName: tag => `z-${tag.replace(/^z-/, '')}.js`,
     })
 
     expect(code).toContain('name: "MyTestComponent"')

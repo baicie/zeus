@@ -2,16 +2,17 @@ import type { ComponentRecord } from '@zeus-js/component-analyzer'
 
 export interface GenerateWCIndexOptions {
   components: ComponentRecord[]
+  getFileName: (tag: string) => string
 }
 
 export function generateWCIndex(options: GenerateWCIndexOptions): string {
-  const { components } = options
+  const { components, getFileName } = options
 
   const lines: string[] = []
 
   for (const component of components) {
-    const id = getVirtualComponentId(component)
-    lines.push(`export * from ${JSON.stringify(id)};`)
+    const fileName = getFileName(component.tag)
+    lines.push(`export * from ${JSON.stringify('./' + fileName)};`)
   }
 
   lines.push('')

@@ -93,7 +93,7 @@ describe('output plugin lifecycle', () => {
       item => item.fileName === 'virtual.js',
     )
     expect(virtualChunk?.type).toBe('chunk')
-    expect((virtualChunk as OutputChunk)?.code).toContain('value')
+    expect(String((virtualChunk as OutputChunk).code ?? '')).toContain('value')
   })
 
   it('ZeusOutputAsset type', () => {

@@ -690,7 +690,9 @@ describe('output-wc', () => {
 
       const files = result.output.map(item => item.fileName).sort()
 
-      // virtual component entry not emitted (Rollup only emits transitively-referenced chunks)
+      // virtual component entries are emitted as chunks so Rollup can resolve
+      // and transform the source modules they re-export.
+      expect(files).toContain('wc/z-button.js')
       expect(files).toContain('wc/index.js')
       expect(files).toContain('wc/index.d.ts')
       expect(files).toContain('wc/jsx.d.ts')

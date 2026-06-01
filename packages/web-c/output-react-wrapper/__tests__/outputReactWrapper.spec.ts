@@ -130,8 +130,11 @@ describe('output-react-wrapper', () => {
     )
     expect(jsFile).toBeDefined()
 
+    // Wrapper files are emitted as assets, not chunks
     const code =
-      (jsFile as { type: string; fileName: string; code?: string }).code ?? ''
+      jsFile?.type === 'chunk'
+        ? ((jsFile as { code?: string }).code ?? '')
+        : String((jsFile as { source?: string }).source ?? '')
 
     // React destructures props — bare variant/disabled are correct
     expect(code).toContain('variant !== undefined')

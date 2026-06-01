@@ -27,9 +27,10 @@ describe('generateIndex', () => {
             cssVars: [],
           },
         ],
+        getFileName: tag => `${tag}.js`,
       })
 
-      expect(result).toContain('export * from "zeus:wc:z-button";')
+      expect(result).toContain('export * from "./z-button.js";')
     })
 
     it('exports from virtual module id for multiple components', () => {
@@ -60,14 +61,18 @@ describe('generateIndex', () => {
             cssVars: [],
           },
         ],
+        getFileName: tag => `${tag}.js`,
       })
 
-      expect(result).toContain('export * from "zeus:wc:z-button";')
-      expect(result).toContain('export * from "zeus:wc:z-card";')
+      expect(result).toContain('export * from "./z-button.js";')
+      expect(result).toContain('export * from "./z-card.js";')
     })
 
     it('handles empty components array', () => {
-      const result = generateWCIndex({ components: [] })
+      const result = generateWCIndex({
+        components: [],
+        getFileName: tag => `${tag}.js`,
+      })
       expect(result).toBe('')
     })
 
@@ -87,6 +92,7 @@ describe('generateIndex', () => {
             cssVars: [],
           },
         ],
+        getFileName: tag => `${tag}.js`,
       })
 
       expect(result.endsWith('\n')).toBe(true)

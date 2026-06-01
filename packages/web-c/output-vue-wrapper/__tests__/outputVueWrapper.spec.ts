@@ -122,8 +122,11 @@ describe('output-vue-wrapper', () => {
     )
     expect(jsFile).toBeDefined()
 
+    // Wrapper files are emitted as assets, not chunks
     const code =
-      (jsFile as { type: string; fileName: string; code?: string }).code ?? ''
+      jsFile?.type === 'chunk'
+        ? ((jsFile as { code?: string }).code ?? '')
+        : String((jsFile as { source?: string }).source ?? '')
 
     // Must use props.* prefix — the setup() receives props object, not destructured vars
     expect(code).toContain('el.variant = props.variant')

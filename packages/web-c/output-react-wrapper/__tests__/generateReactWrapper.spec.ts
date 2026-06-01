@@ -41,9 +41,10 @@ describe('generateReactWrapper', () => {
         stripPrefix: false,
         namedSlots: 'props',
       },
+      getWcFileName: tag => `${tag.replace(/^z-/, '')}.js`,
     })
 
-    expect(code).toContain(`import "zeus:wc:z-button"`)
+    expect(code).toContain(`import "../wc/button.js"`)
     expect(code).toContain('export const ZButton = forwardRef')
     expect(code).toContain('useImperativeHandle(ref')
     expect(code).toContain('const innerRef = useRef(null)')
@@ -97,6 +98,7 @@ describe('generateReactWrapper', () => {
         stripPrefix: false,
         namedSlots: 'props',
       },
+      getWcFileName: tag => `${tag.replace(/^z-/, '')}.js`,
     })
 
     expect(code).toContain('NAMED_SLOTS')
@@ -131,6 +133,7 @@ describe('generateReactWrapper', () => {
         stripPrefix: false,
         namedSlots: 'props',
       },
+      getWcFileName: tag => `${tag.replace(/^z-/, '')}.js`,
     })
 
     expect(code).toContain('// no props')
@@ -161,6 +164,7 @@ describe('generateReactWrapper', () => {
         stripPrefix: false,
         namedSlots: 'none',
       },
+      getWcFileName: tag => `${tag.replace(/^z-/, '')}.js`,
     })
 
     expect(code).toContain('NAMED_SLOTS')
