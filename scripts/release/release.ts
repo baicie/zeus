@@ -16,6 +16,130 @@ interface ExecResult {
   stdout: string
 }
 
+interface ParsedChangeset {
+  id: string
+  summary: string
+  releases: Array<{ name: string; type: string }>
+}
+
+const readChangesets = (): ParsedChangeset[] => {
+  const changesetDir = path.resolve(__dirname, '../../.changeset')
+  const files = fs.readdirSync(changesetDir)
+  const results: ParsedChangeset[] = []
+
+  for (const file of files) {
+    if (!file.endsWith('.md') || file === 'README.md') continue
+    const content = fs.readFileSync(path.join(changesetDir, file), 'utf-8')
+    const id = file.replace('.md', '')
+    const lines = content.split('\n')
+
+    const releases: ParsedChangeset['releases'] = []
+    let inFrontmatter = false
+    let passedFirstDivider = false
+    const summaryLines: string[] = []
+
+    for (const line of lines) {
+      if (line === '---') {
+        if (!inFrontmatter) {
+          inFrontmatter = true
+        } else if (passedFirstDivider) {
+          inFrontmatter = false
+        } else {
+          passedFirstDivider = true
+        }
+        continue
+      }
+      if (inFrontmatter && !passedFirstDivider) {
+        const colonIdx = line.indexOf(':')
+        if (colonIdx > 0) {
+          const key = line.slice(0, colonIdx).trim().replace(/"/g, '')
+          const val = line
+            .slice(colonIdx + 1)
+            .trim()
+            .replace(/"/g, '')
+          if (key) releases.push({ name: key, type: val })
+        }
+        continue
+      }
+      if (!inFrontmatter && line.trim()) {
+        summaryLines.push(line.trim())
+      }
+    }
+
+    results.push({ id, summary: summaryLines.join(' '), releases })
+  }
+
+  return results
+}
+
+const generateUnifiedChangelog = (
+  version: string,
+  changesets: ParsedChangeset[],
+) => {
+  if (changesets.length === 0) return
+
+  const changelogPath = path.resolve(__dirname, '../../CHANGELOG.md')
+  const date = new Date().toISOString().split('T')[0]
+
+  const grouped: Record<string, ParsedChangeset[]> = {
+    major: [],
+    minor: [],
+    patch: [],
+  }
+
+  for (const cs of changesets) {
+    for (const release of cs.releases) {
+      if (release.type === 'major') grouped.major.push(cs)
+      else if (release.type === 'minor') grouped.minor.push(cs)
+      else grouped.patch.push(cs)
+    }
+  }
+
+  const parts: string[] = []
+  for (const [type, items] of Object.entries(grouped)) {
+    if (items.length === 0) continue
+    const emoji =
+      type === 'major' ? 'Breaking' : type === 'minor' ? 'Features' : 'Fixes'
+    parts.push(`### ${emoji}\n`)
+    for (const cs of items) {
+      parts.push(`- ${cs.summary} (\`${cs.id.slice(0, 7)}\`)\n`)
+    }
+    parts.push('\n')
+  }
+
+  const newEntry = `## ${version} (${date})\n\n${parts.join('')}`
+
+  let existing = ''
+  if (fs.existsSync(changelogPath)) {
+    existing = fs.readFileSync(changelogPath, 'utf-8')
+  }
+
+  const header = '# Changelog\n\n'
+  const withoutHeader = existing.startsWith('# Changelog')
+    ? existing.slice(header.length)
+    : existing
+
+  fs.writeFileSync(changelogPath, header + newEntry + '\n' + withoutHeader)
+  console.log(pico.green(`  Unified changelog written to CHANGELOG.md`))
+}
+
+const cleanupPackageChangelogs = () => {
+  const wsPkgs = findWorkspacePackages()
+  let cleaned = 0
+  for (const pkg of wsPkgs) {
+    const clPath = path.join(pkg.dir, 'CHANGELOG.md')
+    if (fs.existsSync(clPath)) {
+      fs.unlinkSync(clPath)
+      cleaned++
+    }
+  }
+  if (cleaned > 0) {
+    console.log(
+      pico.green(`  Removed ${cleaned} individual package CHANGELOG.md files`),
+    )
+  }
+}
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const changesetConfig = JSON.parse(
@@ -83,8 +207,10 @@ const inc = (i: semver.ReleaseType) =>
 
 const getBumpType = (target: string): string => {
   const diff = semver.diff(currentVersion, target)
-  if (diff === 'major') return 'major'
-  if (diff === 'minor') return 'minor'
+
+  if (diff === 'major' || diff === 'premajor') return 'major'
+  if (diff === 'minor' || diff === 'preminor') return 'minor'
+
   return 'patch'
 }
 
@@ -109,6 +235,22 @@ const getPkgRoot = (pkgName: string) => {
   }
   // Fallback for legacy or not-yet-discovered top-level packages.
   return path.resolve(__dirname, '../../packages', shortName)
+}
+
+const forceFixedGroupVersion = (version: string) => {
+  for (const pkgName of fixedGroupPackages) {
+    const pkgRoot = getPkgRoot(pkgName)
+    const pkgPath = path.join(pkgRoot, 'package.json')
+
+    if (!fs.existsSync(pkgPath)) {
+      throw new Error(`Package not found: ${pkgName} at ${pkgPath}`)
+    }
+
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'))
+    pkg.version = version
+
+    fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`)
+  }
 }
 
 const step = (msg: string) => console.log(pico.cyan(msg))
@@ -166,6 +308,12 @@ async function main() {
     .join('\n')}\n---\n\nRelease v${targetVersion}\n`
   fs.writeFileSync(changesetPath, changesetBody)
   await run('pnpm', ['changeset', 'version'])
+
+  forceFixedGroupVersion(targetVersion)
+
+  const changesets = readChangesets()
+  generateUnifiedChangelog(targetVersion, changesets)
+  cleanupPackageChangelogs()
 
   const finalVersion = JSON.parse(
     fs.readFileSync(

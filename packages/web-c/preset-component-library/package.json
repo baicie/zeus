@@ -1,6 +1,6 @@
 {
   "name": "@zeus-js/preset-component-library",
-  "version": "0.0.2",
+  "version": "0.1.0-beta.0",
   "description": "Zeus component library preset",
   "type": "module",
   "main": "index.js",
