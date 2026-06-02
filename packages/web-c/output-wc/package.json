@@ -25,6 +25,10 @@
     "./*": "./*"
   },
   "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baicie/zeus"
+  },
   "buildOptions": {
     "name": "ZeusOutputWC",
     "formats": [

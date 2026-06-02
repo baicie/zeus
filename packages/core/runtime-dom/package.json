@@ -29,8 +29,7 @@
   "sideEffects": false,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/baicie/zeus.git",
-    "directory": "packages/core/runtime-dom"
+    "url": "https://github.com/baicie/zeus"
   },
   "buildOptions": {
     "name": "ZeusRuntimeDOM",

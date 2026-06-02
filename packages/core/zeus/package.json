@@ -45,8 +45,7 @@
   "sideEffects": false,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/baicie/zeus.git",
-    "directory": "packages/core/zeus"
+    "url": "https://github.com/baicie/zeus"
   },
   "buildOptions": {
     "name": "Zeus",
