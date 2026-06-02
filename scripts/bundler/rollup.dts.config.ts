@@ -5,7 +5,7 @@ import { parse } from '@babel/parser'
 import { dts } from '@baicie/plugin-dts'
 import MagicString from 'magic-string'
 
-import { findWorkspacePackages } from '../shared/utils'
+import { findWorkspacePackages } from '../shared/utils.ts'
 
 import type { Plugin, RollupOptions } from 'rollup'
 

@@ -8,7 +8,7 @@
     "dev": "tsx scripts/bundler/build.ts --watch",
     "debug:analyze-components": "tsx scripts/debug/analyze-components.ts",
     "build": "tsx scripts/bundler/build.ts",
-    "build-dts": "tsc -p tsconfig.build.json --noCheck && rolldown -c ./scripts/bundler/rolldown.dts.config.ts",
+    "build-dts": "tsc -p tsconfig.build.json --noCheck && rollup -c ./scripts/bundler/rollup.dts.config.ts",
     "clean": "rimraf --glob 'packages/*/dist' --glob 'packages/core/*/dist' --glob 'packages/devtools/*/dist' --glob 'packages/web-c/*/dist' temp .eslintcache",
     "check": "tsc --incremental --noEmit",
     "check:exports": "tsx scripts/check/check-package-exports.ts",

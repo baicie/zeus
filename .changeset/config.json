@@ -25,6 +25,7 @@
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
   "ignore": [
+    "@zeus-js/vite-plugin",
     "@zeus-js/docs",
     "@zeus-js/playground",
     "@zeus-js/example-counter",
