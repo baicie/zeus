@@ -29,12 +29,7 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [
     zeus({
-      plugins: [
-        css(),
-        wc(),
-        react(),
-        vue(),
-      ],
+      plugins: [css(), wc(), react(), vue()],
     }),
   ],
 
@@ -538,11 +533,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import fg from 'fast-glob'
 
-import type {
-  DtsAutoReason,
-  DtsMode,
-  ResolvedDts,
-} from './types'
+import type { DtsAutoReason, DtsMode, ResolvedDts } from './types'
 
 export interface ResolveDtsOptions {
   root: string
@@ -680,10 +671,7 @@ async function fileExists(file: string): Promise<boolean> {
 ```ts
 // packages/web-c/bundler-plugin/src/pluginOptions.ts
 
-import type {
-  DtsMode,
-  ZeusBuildContext,
-} from './types'
+import type { DtsMode, ZeusBuildContext } from './types'
 
 export function resolvePluginDts(
   value: DtsMode | undefined,
@@ -784,10 +772,7 @@ function defaultDir(kind: ZeusOutputKind): string {
   }
 }
 
-function normalizeTagName(
-  tag: string,
-  stripPrefix: string | false,
-): string {
+function normalizeTagName(tag: string, stripPrefix: string | false): string {
   if (stripPrefix && tag.startsWith(stripPrefix)) {
     return tag.slice(stripPrefix.length)
   }
@@ -805,14 +790,9 @@ function normalizeTagName(
 ## `packages/web-c/bundler-plugin/src/rollup.ts`
 
 ```ts
-import {
-  analyzeComponents,
-} from '@zeus-js/component-analyzer'
+import { analyzeComponents } from '@zeus-js/component-analyzer'
 
-import {
-  resolveComponentExclude,
-  resolveComponentInclude,
-} from './defaults'
+import { resolveComponentExclude, resolveComponentInclude } from './defaults'
 import { formatDiagnostic, hasErrorDiagnostics } from './diagnostics'
 import { resolveDts } from './dts'
 import { createFilter } from './filter'
@@ -988,10 +968,7 @@ function emitVirtualEntries(
   }
 }
 
-function emitOutputFile(
-  ctx: PluginContext,
-  file: ZeusOutputFile,
-): void {
+function emitOutputFile(ctx: PluginContext, file: ZeusOutputFile): void {
   if (file.type === 'asset') {
     ctx.emitFile({
       type: 'asset',
@@ -1077,9 +1054,7 @@ export function createZeusVitePlugin(
   }
 }
 
-function collectPluginExternals(
-  options: ZeusBundlerPluginOptions,
-): string[] {
+function collectPluginExternals(options: ZeusBundlerPluginOptions): string[] {
   const set = new Set<string>()
 
   for (const plugin of options.plugins ?? []) {
@@ -1134,12 +1109,7 @@ packages/web-c/output-css
 ## `types.ts`
 
 ```ts
-export type CssProcessor =
-  | 'auto'
-  | 'copy'
-  | 'postcss'
-  | 'sass'
-  | 'less'
+export type CssProcessor = 'auto' | 'copy' | 'postcss' | 'sass' | 'less'
 
 export interface OutputCssOptions {
   /**
@@ -1229,10 +1199,7 @@ import type {
 export default function css(
   options: OutputCssOptions | string = {},
 ): ZeusComponentPlugin {
-  const raw =
-    typeof options === 'string'
-      ? { input: options }
-      : options
+  const raw = typeof options === 'string' ? { input: options } : options
 
   let normalized: NormalizedOutputCssOptions | undefined
 
@@ -1307,10 +1274,7 @@ function normalizeEntry(
 ): NormalizedCssEntry {
   return {
     input: entry.input,
-    fileName:
-      entry.fileName ??
-      options.fileName ??
-      'styles.css',
+    fileName: entry.fileName ?? options.fileName ?? 'styles.css',
     processor: entry.processor ?? options.processor ?? 'auto',
   }
 }
@@ -1346,10 +1310,7 @@ import { pathToFileURL } from 'node:url'
 
 import { detectCssProcessor } from './detect'
 
-import type {
-  NormalizedCssEntry,
-  NormalizedOutputCssOptions,
-} from './types'
+import type { NormalizedCssEntry, NormalizedOutputCssOptions } from './types'
 
 export interface ProcessCssResult {
   css: string
@@ -1402,10 +1363,7 @@ async function processSass(input: string): Promise<string> {
   return result.css
 }
 
-async function processLess(
-  input: string,
-  source: string,
-): Promise<string> {
+async function processLess(input: string, source: string): Promise<string> {
   const less = await importOptional<typeof import('less')>(
     'less',
     'Install "less" to process .less files.',
@@ -1435,20 +1393,15 @@ async function processPostcss(
 
   const config = await loadConfig.default({}, root)
 
-  const result = await postcss
-    .default(config.plugins)
-    .process(source, {
-      from: input,
-      map: false,
-    })
+  const result = await postcss.default(config.plugins).process(source, {
+    from: input,
+    map: false,
+  })
 
   return result.css
 }
 
-async function minifyCss(
-  input: string,
-  source: string,
-): Promise<string> {
+async function minifyCss(input: string, source: string): Promise<string> {
   try {
     const lightningcss = await import('lightningcss')
 
@@ -1464,10 +1417,7 @@ async function minifyCss(
   }
 }
 
-async function importOptional<T>(
-  name: string,
-  message: string,
-): Promise<T> {
+async function importOptional<T>(name: string, message: string): Promise<T> {
   try {
     return (await import(name)) as T
   } catch {
@@ -1548,12 +1498,8 @@ export interface OutputWCOptions {
 ## `index.ts` 核心
 
 ```ts
-import {
-  generateWCDtsFiles,
-} from '@zeus-js/component-dts'
-import {
-  resolvePluginDts,
-} from '@zeus-js/bundler-plugin'
+import { generateWCDtsFiles } from '@zeus-js/component-dts'
+import { resolvePluginDts } from '@zeus-js/bundler-plugin'
 
 import { generateWCEntry } from './generateEntry'
 import { generateWCIndex } from './generateIndex'
@@ -1567,9 +1513,7 @@ import type {
 } from '@zeus-js/bundler-plugin'
 import type { OutputWCOptions } from './types'
 
-export default function wc(
-  options: OutputWCOptions = {},
-): ZeusComponentPlugin {
+export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
   const normalized = {
     outDir: options.outDir ?? 'wc',
     stripPrefix: options.stripPrefix ?? false,
@@ -1764,11 +1708,9 @@ export const ${component.name} = forwardRef(function ${component.name}(props, re
     children,
     className,
     style,
-    ${[
-      ...propNames,
-      ...eventNames.map(toReactEventProp),
-      ...slotNames,
-    ].join(',\n    ')}
+    ${[...propNames, ...eventNames.map(toReactEventProp), ...slotNames].join(
+      ',\n    ',
+    )}
     ,
     ...rest
   } = props;
@@ -1876,12 +1818,8 @@ function toReactEventProp(eventName: string): string {
 ## `index.ts`
 
 ```ts
-import {
-  generateReactDts,
-} from '@zeus-js/component-dts'
-import {
-  resolvePluginDts,
-} from '@zeus-js/bundler-plugin'
+import { generateReactDts } from '@zeus-js/component-dts'
+import { resolvePluginDts } from '@zeus-js/bundler-plugin'
 
 import { generateReactWrapper } from './generateReactWrapper'
 import { generateReactIndex } from './generateReactIndex'
@@ -1945,8 +1883,7 @@ export default function reactWrapper(
           id: 'zeus:react:index',
           fileName: ctx.outputs.join('react', 'index.js'),
           code: generateReactIndex(ctx.manifest.components, {
-            getFileName: tag =>
-              ctx.outputs.getFileName('react', tag),
+            getFileName: tag => ctx.outputs.getFileName('react', tag),
           }),
         })
       }
@@ -1992,9 +1929,7 @@ function generateVuePropSyncLines(propNames: string[]): string {
     return '// no props to sync'
   }
 
-  return propNames
-    .map(name => `el.${name} = props.${name};`)
-    .join('\n      ')
+  return propNames.map(name => `el.${name} = props.${name};`).join('\n      ')
 }
 ```
 
@@ -2052,8 +1987,7 @@ export default function vueWrapper(
           id: 'zeus:vue:index',
           fileName: ctx.outputs.join('vue', 'index.js'),
           code: generateVueIndex(ctx.manifest.components, {
-            getFileName: tag =>
-              ctx.outputs.getFileName('vue', tag),
+            getFileName: tag => ctx.outputs.getFileName('vue', tag),
           }),
         })
       }
@@ -2130,10 +2064,7 @@ import react from '@zeus-js/output-react-wrapper'
 import vue from '@zeus-js/output-vue-wrapper'
 import wc from '@zeus-js/output-wc'
 
-import type {
-  DtsMode,
-  ZeusComponentPlugin,
-} from '@zeus-js/bundler-plugin'
+import type { DtsMode, ZeusComponentPlugin } from '@zeus-js/bundler-plugin'
 
 export interface ComponentLibraryPresetOptions {
   styles?: string | false
@@ -2144,10 +2075,7 @@ export interface ComponentLibraryPresetOptions {
   customElements?: boolean
 }
 
-export type ComponentLibraryTarget =
-  | 'wc'
-  | 'react'
-  | 'vue'
+export type ComponentLibraryTarget = 'wc' | 'react' | 'vue'
 
 export function componentLibrary(
   options: ComponentLibraryPresetOptions = {},
@@ -2158,10 +2086,7 @@ export function componentLibrary(
   if (options.styles !== false) {
     plugins.push(
       css({
-        input:
-          typeof options.styles === 'string'
-            ? options.styles
-            : undefined,
+        input: typeof options.styles === 'string' ? options.styles : undefined,
       }),
     )
   }
@@ -2172,13 +2097,9 @@ export function componentLibrary(
         dts: options.dts ?? 'auto',
         jsxDts: options.jsxDts ?? 'auto',
         manifestFile:
-          options.manifest === false
-            ? false
-            : 'zeus.components.json',
+          options.manifest === false ? false : 'zeus.components.json',
         customElementsFile:
-          options.customElements === false
-            ? false
-            : 'custom-elements.json',
+          options.customElements === false ? false : 'custom-elements.json',
       }),
     )
   }
@@ -2203,12 +2124,7 @@ export function componentLibrary(
   return plugins
 }
 
-export {
-  css,
-  wc,
-  react,
-  vue,
-}
+export { css, wc, react, vue }
 ```
 
 ---
@@ -2219,12 +2135,7 @@ export {
 
 ```ts
 zeus({
-  plugins: [
-    css(),
-    wc(),
-    react(),
-    vue(),
-  ],
+  plugins: [css(), wc(), react(), vue()],
 })
 ```
 
@@ -2332,12 +2243,7 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [
     zeus({
-      plugins: [
-        css(),
-        wc(),
-        react(),
-        vue(),
-      ],
+      plugins: [css(), wc(), react(), vue()],
     }),
   ],
 
