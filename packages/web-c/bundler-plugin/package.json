@@ -1,0 +1,81 @@
+{
+  "name": "@zeus-js/bundler-plugin",
+  "version": "0.0.2",
+  "description": "Zeus bundler plugin host",
+  "type": "module",
+  "main": "index.js",
+  "module": "dist/bundler-plugin.esm-bundler.js",
+  "types": "dist/bundler-plugin.d.ts",
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/bundler-plugin.d.ts",
+      "node": {
+        "production": "./dist/bundler-plugin.cjs.prod.js",
+        "development": "./dist/bundler-plugin.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/bundler-plugin.esm-bundler.js",
+      "import": "./dist/bundler-plugin.esm-bundler.js",
+      "require": "./index.js"
+    },
+    "./vite": {
+      "types": "./dist/vite.d.ts",
+      "import": "./dist/vite.js"
+    },
+    "./manifest": {
+      "types": "./dist/outputPlugins/manifest.d.ts",
+      "import": "./dist/outputPlugins/manifest.js"
+    },
+    "./*": "./*"
+  },
+  "sideEffects": false,
+  "buildOptions": {
+    "name": "ZeusBundlerPlugin",
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ],
+    "additionalEntries": [
+      {
+        "entry": "vite.ts",
+        "output": "dist/vite.js"
+      },
+      {
+        "entry": "outputPlugins/manifest.ts",
+        "output": "dist/outputPlugins/manifest.js"
+      }
+    ]
+  },
+  "dependencies": {
+    "@babel/core": "catalog:",
+    "@zeus-js/compiler": "workspace:*",
+    "@zeus-js/component-analyzer": "workspace:*",
+    "fast-glob": "^3.3.3",
+    "picomatch": "^4.0.4"
+  },
+  "peerDependencies": {
+    "rollup": "^4.0.0",
+    "vite": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "rollup": {
+      "optional": true
+    },
+    "vite": {
+      "optional": true
+    }
+  },
+  "keywords": [
+    "zeus",
+    "vite",
+    "rollup",
+    "rolldown",
+    "web-components"
+  ],
+  "author": "Baicie",
+  "license": "MIT"
+}

@@ -1,0 +1,55 @@
+{
+  "name": "@zeus-js/output-vue-wrapper",
+  "version": "0.0.2",
+  "description": "Zeus Vue wrapper output plugin",
+  "type": "module",
+  "main": "index.js",
+  "module": "dist/output-vue-wrapper.esm-bundler.js",
+  "types": "dist/output-vue-wrapper.d.ts",
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/output-vue-wrapper.d.ts",
+      "node": {
+        "production": "./dist/output-vue-wrapper.cjs.prod.js",
+        "development": "./dist/output-vue-wrapper.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/output-vue-wrapper.esm-bundler.js",
+      "import": "./dist/output-vue-wrapper.esm-bundler.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
+  },
+  "sideEffects": false,
+  "buildOptions": {
+    "name": "ZeusOutputVueWrapper",
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ]
+  },
+  "dependencies": {
+    "@zeus-js/bundler-plugin": "workspace:*",
+    "@zeus-js/component-analyzer": "workspace:*",
+    "@zeus-js/component-dts": "workspace:*"
+  },
+  "peerDependencies": {
+    "vue": ">=3"
+  },
+  "peerDependenciesMeta": {
+    "vue": {
+      "optional": true
+    }
+  },
+  "keywords": [
+    "zeus",
+    "vue",
+    "web-components"
+  ],
+  "author": "Baicie",
+  "license": "MIT"
+}

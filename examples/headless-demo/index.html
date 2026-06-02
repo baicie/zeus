@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+  <body>
+    <z-button variant="outline">Button</z-button>
+
+    <z-switch>Enable notifications</z-switch>
+
+    <z-checkbox>Accept terms</z-checkbox>
+
+    <z-tabs value="account">
+      <z-tab-list>
+        <z-tab-trigger value="account">Account</z-tab-trigger>
+        <z-tab-trigger value="password">Password</z-tab-trigger>
+      </z-tab-list>
+
+      <z-tab-panel value="account">Account panel</z-tab-panel>
+      <z-tab-panel value="password">Password panel</z-tab-panel>
+    </z-tabs>
+
+    <z-dialog>
+      <z-dialog-trigger>Open dialog</z-dialog-trigger>
+
+      <z-dialog-content>
+        <z-dialog-title>Dialog title</z-dialog-title>
+        <z-dialog-description>Dialog description</z-dialog-description>
+        Dialog content
+      </z-dialog-content>
+    </z-dialog>
+
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

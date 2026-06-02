@@ -1,0 +1,59 @@
+{
+  "name": "@zeus-js/output-icons",
+  "version": "0.0.2",
+  "description": "No-runtime icon output plugin for Zeus component compiler host",
+  "type": "module",
+  "main": "index.js",
+  "module": "dist/output-icons.esm-bundler.js",
+  "types": "dist/output-icons.d.ts",
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/output-icons.d.ts",
+      "node": {
+        "production": "./dist/output-icons.cjs.prod.js",
+        "development": "./dist/output-icons.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/output-icons.esm-bundler.js",
+      "import": "./dist/output-icons.esm-bundler.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
+  },
+  "sideEffects": false,
+  "buildOptions": {
+    "name": "ZeusOutputIcons",
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ]
+  },
+  "dependencies": {
+    "@zeus-js/bundler-plugin": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": ">=18 || >=19",
+    "vue": ">=3"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    }
+  },
+  "keywords": [
+    "zeus",
+    "icons",
+    "web-components",
+    "react",
+    "vue"
+  ],
+  "author": "Baicie",
+  "license": "MIT"
+}

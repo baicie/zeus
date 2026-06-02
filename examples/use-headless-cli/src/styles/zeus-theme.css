@@ -1,0 +1,32 @@
+:root {
+  --z-background: 0 0% 100%;
+  --z-foreground: 222.2 84% 4.9%;
+  --z-muted: 210 40% 96.1%;
+  --z-muted-foreground: 215.4 16.3% 46.9%;
+  --z-border: 214.3 31.8% 91.4%;
+  --z-input: 214.3 31.8% 91.4%;
+  --z-ring: 222.2 84% 4.9%;
+  --z-primary: 222.2 47.4% 11.2%;
+  --z-primary-foreground: 210 40% 98%;
+  --z-secondary: 210 40% 96.1%;
+  --z-secondary-foreground: 222.2 47.4% 11.2%;
+  --z-destructive: 0 84.2% 60.2%;
+  --z-destructive-foreground: 210 40% 98%;
+  --z-radius: 0.5rem;
+}
+
+.dark {
+  --z-background: 222.2 84% 4.9%;
+  --z-foreground: 210 40% 98%;
+  --z-muted: 217.2 32.6% 17.5%;
+  --z-muted-foreground: 215 20.2% 65.1%;
+  --z-border: 217.2 32.6% 17.5%;
+  --z-input: 217.2 32.6% 17.5%;
+  --z-ring: 212.7 26.8% 83.9%;
+  --z-primary: 210 40% 98%;
+  --z-primary-foreground: 222.2 47.4% 11.2%;
+  --z-secondary: 217.2 32.6% 17.5%;
+  --z-secondary-foreground: 210 40% 98%;
+  --z-destructive: 0 62.8% 30.6%;
+  --z-destructive-foreground: 210 40% 98%;
+}

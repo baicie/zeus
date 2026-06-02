@@ -1,7 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import { existsSync, readFileSync } from 'node:fs'
-import { cpus } from 'node:os'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
 import { brotliCompressSync, gzipSync } from 'node:zlib'
@@ -135,7 +134,10 @@ function runDtsInBackground(resolvedTargets: string[]): void {
 }
 
 async function buildAll(targets: string[]): Promise<void> {
-  await runParallel(cpus().length, targets, build)
+  // Rolldown 1.0.3 transpiles TS config files through a shared temporary
+  // config filename. Loading the same TS config from multiple CLI processes
+  // races and can delete the temp file while another process imports it.
+  await runParallel(1, targets, build)
 }
 
 async function runParallel<T>(

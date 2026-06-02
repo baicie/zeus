@@ -48,6 +48,8 @@ const IGNORED_PATTERNS = [
   'target',
   'vendor/**',
   'examples/**',
+  'docs/.vitepress/cache/**',
+  '**/output-css.spec.ts',
 ]
 
 // 全局声明 - 由构建工具注入
@@ -86,7 +88,7 @@ export default defineConfig(
   // ============================================
   {
     name: 'tests',
-    files: ['**/__tests__/**'],
+    files: ['**/__tests__/**', 'packages/create/registry/__tests__/**'],
     rules: {
       'no-console': 'off',
       'no-restricted-globals': 'off',
@@ -100,7 +102,7 @@ export default defineConfig(
   // ============================================
   {
     name: 'shared-package',
-    files: ['packages/shared/**', 'eslint.config.js'],
+    files: ['packages/core/shared/**', 'eslint.config.js'],
     rules: {
       'no-restricted-globals': 'off',
     },
@@ -128,7 +130,10 @@ export default defineConfig(
       'scripts/**',
       './*.{js,ts}',
       'packages/*/*.js',
-      'addons/*/*.js',
+      'packages/core/*/*.js',
+      'packages/devtools/*/*.js',
+      'packages/web-c/*/*.js',
+      'packages/create/**',
     ],
     rules: {
       'no-restricted-globals': 'off',
@@ -153,7 +158,7 @@ export default defineConfig(
   // ============================================
   {
     name: 'signal-package',
-    files: ['packages/signal/**'],
+    files: ['packages/core/signal/**'],
     extends: [tseslint.configs.base],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',

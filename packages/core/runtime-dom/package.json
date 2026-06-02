@@ -1,0 +1,56 @@
+{
+  "name": "@zeus-js/runtime-dom",
+  "version": "0.0.2",
+  "description": "@zeus-js/runtime-dom",
+  "type": "module",
+  "main": "index.js",
+  "module": "dist/runtime-dom.esm-bundler.js",
+  "types": "dist/runtime-dom.d.ts",
+  "unpkg": "dist/runtime-dom.global.js",
+  "jsdelivr": "dist/runtime-dom.global.js",
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/runtime-dom.d.ts",
+      "node": {
+        "production": "./dist/runtime-dom.cjs.prod.js",
+        "development": "./dist/runtime-dom.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/runtime-dom.esm-bundler.js",
+      "import": "./dist/runtime-dom.esm-bundler.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
+  },
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baicie/zeus.git",
+    "directory": "packages/core/runtime-dom"
+  },
+  "buildOptions": {
+    "name": "ZeusRuntimeDOM",
+    "formats": [
+      "esm-bundler",
+      "esm-browser",
+      "cjs",
+      "global"
+    ]
+  },
+  "keywords": [
+    "zeus"
+  ],
+  "author": "Baicie",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/baicie/zeus/issues"
+  },
+  "homepage": "https://github.com/baicie/zeus/tree/main/packages/core/runtime-dom#readme",
+  "dependencies": {
+    "@zeus-js/signal": "workspace:*"
+  }
+}

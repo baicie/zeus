@@ -1,0 +1,47 @@
+{
+  "name": "@zeus-js/component-analyzer",
+  "version": "0.0.2",
+  "description": "Zeus component analyzer",
+  "type": "module",
+  "main": "index.js",
+  "module": "dist/component-analyzer.esm-bundler.js",
+  "types": "dist/component-analyzer.d.ts",
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/component-analyzer.d.ts",
+      "node": {
+        "production": "./dist/component-analyzer.cjs.prod.js",
+        "development": "./dist/component-analyzer.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/component-analyzer.esm-bundler.js",
+      "import": "./dist/component-analyzer.esm-bundler.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
+  },
+  "sideEffects": false,
+  "buildOptions": {
+    "name": "ZeusComponentAnalyzer",
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ]
+  },
+  "dependencies": {
+    "@babel/parser": "catalog:",
+    "@babel/types": "catalog:",
+    "fast-glob": "^3.3.3"
+  },
+  "keywords": [
+    "zeus",
+    "web-components",
+    "component-analyzer"
+  ],
+  "author": "Baicie",
+  "license": "MIT"
+}

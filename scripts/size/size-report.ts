@@ -43,7 +43,12 @@ const ci = process.argv.includes('--ci')
 console.log('\nPackage size report\n')
 
 const wsPkgs = findWorkspacePackages()
-const wsPkgsByShort = new Map(wsPkgs.map(p => [p.shortName, p]))
+const wsPkgsByShort = new Map<string, (typeof wsPkgs)[number]>()
+for (const pkg of wsPkgs) {
+  if (!wsPkgsByShort.has(pkg.shortName)) {
+    wsPkgsByShort.set(pkg.shortName, pkg)
+  }
+}
 
 let hasMissing = false
 let hasRegression = false

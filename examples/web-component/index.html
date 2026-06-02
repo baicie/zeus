@@ -39,6 +39,37 @@
         border-radius: 12px;
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
       }
+
+      z-host-button {
+        display: block;
+        background: white;
+        padding: 1rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+      }
+
+      z-host-button button {
+        padding: 0.5rem 1rem;
+        background: #6366f1;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.875rem;
+      }
+
+      z-host-button button:hover:not(:disabled) {
+        background: #4f46e5;
+      }
+
+      z-host-button button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+
+      z-host-button.is-disabled button {
+        background: #ccc;
+      }
     </style>
   </head>
 
@@ -47,9 +78,26 @@
       <div class="container">
         <h1>Web Component Counter</h1>
         <div class="counters">
-          <z-counter title="Simple" initial-count="0"></z-counter>
-          <z-counter title="Starting at 10" initial-count="10"></z-counter>
+          <z-counter title="Simple" initial-count="0">Counter: </z-counter>
+          <z-counter title="Starting at 10" initial-count="10"
+            >Counter:
+          </z-counter>
         </div>
+
+        <z-card>
+          <span slot="header">Card Header</span>
+          <span>Card Body</span>
+        </z-card>
+
+        <z-host-button variant="default" size="md">
+          Default Button
+        </z-host-button>
+
+        <z-host-button variant="outline" size="sm">
+          Outline Small
+        </z-host-button>
+
+        <z-host-button disabled> Disabled Button </z-host-button>
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>

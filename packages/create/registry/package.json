@@ -1,0 +1,45 @@
+{
+  "name": "@zeus-ui/registry",
+  "version": "0.0.1",
+  "description": "Zeus UI component registry with copyable source templates",
+  "type": "module",
+  "main": "index.js",
+  "module": "dist/registry.esm-bundler.js",
+  "types": "dist/registry.d.ts",
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/registry.d.ts",
+      "import": "./dist/registry.esm-bundler.js"
+    },
+    "./shared/cn": {
+      "types": "./dist/shared/cn.d.ts",
+      "import": "./dist/shared/cn.js"
+    },
+    "./shared/theme": {
+      "types": "./dist/shared/theme.d.ts",
+      "import": "./dist/shared/theme.js"
+    }
+  },
+  "sideEffects": false,
+  "buildOptions": {
+    "name": "ZeusUiRegistry",
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ],
+    "additionalEntries": [
+      {
+        "entry": "shared/cn.ts",
+        "output": "dist/shared/cn.js"
+      },
+      {
+        "entry": "shared/theme.ts",
+        "output": "dist/shared/theme.js"
+      }
+    ]
+  }
+}

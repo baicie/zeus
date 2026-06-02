@@ -12,13 +12,24 @@
 
 import { exec } from '../shared/utils'
 
+const buildFirst = ['@zeus-ui/headless']
+
 const examples = [
   '@zeus-js/example-counter',
   '@zeus-js/example-todo',
   '@zeus-js/example-web-component',
+  '@zeus-js/example-react-wrapper',
+  '@zeus-js/example-vue-wrapper',
+  '@zeus-js/example-registry-react',
+  '@zeus-js/example-registry-vue',
+  '@zeus-js/example-icons-no-runtime',
   '@zeus-js/example-context',
   '@zeus-js/example-light-dom-slots',
   '@zeus-js/example-project-board',
+  '@zeus-js/example-headless-demo',
+  '@zeus-js/example-use-headless-react',
+  '@zeus-js/example-use-headless-vue',
+  '@zeus-js/example-use-headless-cli',
 ]
 
 const phases: Array<[string, string]> = [
@@ -32,6 +43,12 @@ async function run() {
     await exec('pnpm', ['build'], { stdio: 'inherit' })
   }
 
+  for (const name of buildFirst) {
+    console.log(`\n> [fixture build] ${name}\n`)
+    await exec('pnpm', ['-F', name, 'check'], { stdio: 'inherit' })
+    await exec('pnpm', ['-F', name, 'build'], { stdio: 'inherit' })
+  }
+
   for (const name of examples) {
     for (const [cmd, label] of phases) {
       console.log(`\n> [${label}] ${name}\n`)
@@ -39,7 +56,7 @@ async function run() {
     }
   }
 
-  console.log(`\nAll ${examples.length} examples passed check + build.\n`)
+  console.log(`\nAll examples passed check + build.\n`)
 }
 
 run().catch(err => {

@@ -22,7 +22,9 @@ const {
 })
 
 const sizeDir = path.resolve('temp/size')
-const entry = path.resolve('./packages/zeus/dist/zeus.runtime.esm-bundler.js')
+const entry = path.resolve(
+  './packages/core/zeus/dist/zeus.runtime.esm-bundler.js',
+)
 
 /**
  * @typedef {Object} Preset

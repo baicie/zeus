@@ -1,7 +1,10 @@
 packages:
-  - 'packages/*'
-  - 'addons/*'
+  - 'packages/core/*'
+  - 'packages/devtools/*'
+  - 'packages/web-c/*'
+  - 'packages/create/*'
   - 'examples/*'
+  - 'benchmarks/*'
   - 'docs'
 
 catalog:

@@ -1,0 +1,67 @@
+{
+  "name": "@zeus-js/compiler",
+  "version": "0.0.2",
+  "description": "@zeus-js/compiler",
+  "main": "index.js",
+  "module": "dist/compiler.esm-bundler.js",
+  "types": "dist/compiler.d.ts",
+  "unpkg": "dist/compiler.global.js",
+  "jsdelivr": "dist/compiler.global.js",
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/compiler.d.ts",
+      "node": {
+        "production": "./dist/compiler.cjs.prod.js",
+        "development": "./dist/compiler.cjs.js",
+        "default": "./index.js"
+      },
+      "module": "./dist/compiler.esm-bundler.js",
+      "import": "./dist/compiler.esm-bundler.js",
+      "require": "./index.js"
+    },
+    "./*": "./*"
+  },
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baicie/zeus.git",
+    "directory": "packages/core/compiler"
+  },
+  "buildOptions": {
+    "name": "ZeusCompiler",
+    "formats": [
+      "esm-bundler",
+      "esm-browser",
+      "cjs",
+      "global"
+    ]
+  },
+  "keywords": [
+    "zeus"
+  ],
+  "author": "Baicie",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/baicie/zeus/issues"
+  },
+  "homepage": "https://github.com/baicie/zeus/tree/main/packages/core/compiler#readme",
+  "devDependencies": {
+    "@babel/core": "catalog:",
+    "@types/babel__core": "catalog:",
+    "@types/babel__helper-plugin-utils": "^7.10.3"
+  },
+  "peerDependencies": {
+    "@babel/core": "catalog:"
+  },
+  "dependencies": {
+    "@babel/helper-plugin-utils": "^7.29.7",
+    "@babel/plugin-syntax-jsx": "catalog:",
+    "@babel/types": "catalog:",
+    "@baicie/logger": "^0.2.0",
+    "@zeus-js/shared": "workspace:*"
+  }
+}

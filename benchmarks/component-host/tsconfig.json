@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "types": ["vite/client"],
+    "jsx": "preserve",
+    "noEmit": true
+  },
+  "include": [
+    "src",
+    "vite.config.ts",
+    "../../packages/global.d.ts",
+    "../../packages/core/compiler/src/utils/global.d.ts"
+  ]
+}

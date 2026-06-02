@@ -1,0 +1,33 @@
+{
+  "name": "@zeus-js/example-react-wrapper",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "dist/wc/*.js",
+    "dist/wc/**/*.js",
+    "**/*.css"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "@zeus-js/runtime-dom": "workspace:*",
+    "@zeus-js/zeus": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.16",
+    "@types/react-dom": "^19.2.3",
+    "@zeus-js/bundler-plugin": "workspace:*",
+    "@zeus-js/output-wc": "workspace:*",
+    "@zeus-js/output-react-wrapper": "workspace:*",
+    "@zeus-js/vite-plugin": "workspace:*",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16",
+    "@vitejs/plugin-react": "^6.0.2"
+  }
+}

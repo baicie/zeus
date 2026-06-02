@@ -1,5 +1,4 @@
 import fs from 'node:fs'
-import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
@@ -39,7 +38,7 @@ for (const group of changesetConfig.fixed || []) {
 const rootPkgPath = path.resolve(__dirname, '../../package.json')
 const currentVersion = JSON.parse(
   fs.readFileSync(
-    path.resolve(__dirname, '../../packages/zeus/package.json'),
+    path.resolve(__dirname, '../../packages/core/zeus/package.json'),
     'utf-8',
   ),
 ).version
@@ -65,10 +64,10 @@ const { values: args, positionals } = parseArgs({
 const preId = (args.preid || semver.prerelease(currentVersion)?.[0]) as
   | string
   | undefined
-const isDryRun = args.dry
-const skipBuild = args.skipBuild
-const skipPrompts = args.skipPrompts
-const skipGit = args.skipGit
+const isDryRun = args.dry ?? false
+const skipBuild = args.skipBuild ?? false
+const skipPrompts = args.skipPrompts ?? false
+const skipGit = args.skipGit ?? false
 
 const versionIncrements: Array<string> = [
   'patch',
@@ -108,12 +107,7 @@ const getPkgRoot = (pkgName: string) => {
   if (pkg) {
     return pkg.dir
   }
-  // Fallback: try addons/<shortName>
-  const addonPath = path.resolve(__dirname, '../../addons', shortName)
-  if (existsSync(path.resolve(addonPath, 'package.json'))) {
-    return addonPath
-  }
-  // Fallback: try packages/<shortName>
+  // Fallback for legacy or not-yet-discovered top-level packages.
   return path.resolve(__dirname, '../../packages', shortName)
 }
 
@@ -175,7 +169,7 @@ async function main() {
 
   const finalVersion = JSON.parse(
     fs.readFileSync(
-      path.resolve(__dirname, '../../packages/zeus/package.json'),
+      path.resolve(__dirname, '../../packages/core/zeus/package.json'),
       'utf-8',
     ),
   ).version

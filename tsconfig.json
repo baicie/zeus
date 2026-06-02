@@ -2,11 +2,12 @@
   "compilerOptions": {
     "outDir": "temp",
     "sourceMap": false,
-    "target": "es2016",
+    "target": "es2017",
     "newLine": "LF",
     "useDefineForClassFields": false,
     "module": "esnext",
     "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
     "allowJs": false,
     "strict": true,
     "noUnusedLocals": true,
@@ -22,17 +23,34 @@
     "rootDir": ".",
     "paths": {
       "*": ["./*"],
-      "@zeus-js/*": ["./packages/*/src", "./addons/*/src"]
+      "@zeus-js/*": [
+        "./packages/core/*/src",
+        "./packages/web-c/*/src",
+        "./packages/devtools/*/src"
+      ],
+      "@zeus-ui/*": ["./packages/*/src", "./examples/headless/src"],
+      "@zeus-ui/headless": ["./examples/headless/src"],
+      "@zeus-ui/registry": ["./packages/create/registry/src"]
     },
-    "composite": true
+    "composite": false
   },
   "include": [
     "packages/global.d.ts",
-    "packages/*/src",
-    "packages/*/__tests__",
-    "addons/*/src",
-    "addons/*/__tests__",
+    "packages/core/*/src",
+    "packages/core/*/__tests__",
+    "packages/devtools/*/src",
+    "packages/devtools/*/__tests__",
+    "packages/web-c/*/src",
+    "packages/web-c/*/__tests__",
+    "examples/headless/src",
+    "examples/headless/__tests__",
+    "packages/create/registry/src",
+    "packages/create/registry/__tests__",
+    "create/*/src",
+    "create/*/__tests__",
+    "benchmarks/*/src",
+    "benchmarks/*/vite.config.ts",
     "scripts/**/*.ts"
   ],
-  "exclude": []
+  "exclude": ["create/zeus-ui/src"]
 }

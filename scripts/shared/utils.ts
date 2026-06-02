@@ -33,37 +33,54 @@ export function getRootDir(): string {
   return _rootDir
 }
 
-/**
- * Find all workspace packages with a package.json.
- * Searches packages/* and addons/* directories.
- */
 export function findWorkspacePackages(): WorkspacePackage[] {
   const results: WorkspacePackage[] = []
+  const seen = new Set<string>()
 
-  for (const topDir of ['packages', 'addons']) {
-    const topPath = path.resolve(_rootDir, topDir)
-    if (!fs.existsSync(topPath)) continue
+  const addPackage = (dir: string, relativeDir: string): void => {
+    const pkgJsonPath = path.resolve(dir, 'package.json')
+    if (!fs.existsSync(pkgJsonPath) || seen.has(dir)) return
 
-    for (const name of fs.readdirSync(topPath)) {
-      const pkgJsonPath = path.resolve(topPath, name, 'package.json')
-      if (!fs.existsSync(pkgJsonPath)) continue
-      try {
-        const packageJson = require(pkgJsonPath) as Record<string, unknown>
-        results.push({
-          name: packageJson.name as string,
-          dir: path.resolve(topPath, name),
-          relativeDir: `${topDir}/${name}`,
-          shortName: name,
-          packageJson,
-        })
-      } catch (error) {
-        throw Object.assign(
-          new Error(`Failed to read workspace package: ${pkgJsonPath}`),
-          { cause: error },
-        )
-      }
+    try {
+      const packageJson = require(pkgJsonPath) as Record<string, unknown>
+      results.push({
+        name: packageJson.name as string,
+        dir,
+        relativeDir,
+        shortName: path.basename(dir),
+        packageJson,
+      })
+      seen.add(dir)
+    } catch (error) {
+      throw Object.assign(
+        new Error(`Failed to read workspace package: ${pkgJsonPath}`),
+        { cause: error },
+      )
     }
   }
+
+  const scanRoot = (relativeRoot: string): void => {
+    const rootPath = path.resolve(_rootDir, relativeRoot)
+    if (!fs.existsSync(rootPath)) return
+
+    addPackage(rootPath, relativeRoot)
+
+    if (fs.existsSync(path.resolve(rootPath, 'package.json'))) return
+
+    for (const name of fs.readdirSync(rootPath)) {
+      const entryPath = path.resolve(rootPath, name)
+      if (!fs.statSync(entryPath).isDirectory()) continue
+      addPackage(entryPath, path.join(relativeRoot, name))
+    }
+  }
+
+  scanRoot('packages/core')
+  scanRoot('packages/devtools')
+  scanRoot('packages/web-c')
+  scanRoot('packages/create')
+  scanRoot('benchmarks')
+  scanRoot('examples')
+  scanRoot('docs')
 
   return results
 }

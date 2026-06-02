@@ -1,0 +1,27 @@
+z-button,
+z-switch,
+z-checkbox,
+z-tabs,
+z-tab-list,
+z-tab-trigger,
+z-tab-panel,
+z-dialog,
+z-dialog-trigger,
+z-dialog-content,
+z-dialog-title,
+z-dialog-description,
+z-icon {
+  box-sizing: border-box;
+}
+
+z-button[data-disabled],
+z-switch[data-disabled],
+z-checkbox[data-disabled],
+z-tab-trigger[data-disabled] {
+  cursor: not-allowed;
+}
+
+z-dialog-content [part='root'][hidden],
+z-tab-panel [part='root'][hidden] {
+  display: none;
+}

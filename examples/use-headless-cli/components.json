@@ -1,0 +1,12 @@
+{
+  "style": "default",
+  "framework": "react",
+  "typescript": true,
+  "tailwind": true,
+  "aliases": {
+    "components": "@/components",
+    "ui": "@/components/ui",
+    "lib": "@/lib",
+    "styles": "@/styles"
+  }
+}

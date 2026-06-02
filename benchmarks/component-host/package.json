@@ -1,0 +1,22 @@
+{
+  "name": "@zeus-bench/component-host",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@zeus-js/zeus": "workspace:*",
+    "@zeus-js/runtime-dom": "workspace:*"
+  },
+  "devDependencies": {
+    "@zeus-js/bundler-plugin": "workspace:*",
+    "@zeus-js/output-wc": "workspace:*",
+    "@zeus-js/output-react-wrapper": "workspace:*",
+    "@zeus-js/output-vue-wrapper": "workspace:*",
+    "vite": "catalog:",
+    "typescript": "^6.0.3"
+  }
+}

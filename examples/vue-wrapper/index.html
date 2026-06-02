@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zeus Vue Wrapper Example</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        padding: 2rem;
+        background: #0f172a;
+        color: #e2e8f0;
+        min-height: 100vh;
+        margin: 0;
+      }
+      h1 {
+        color: #42b883;
+        margin-bottom: 1.5rem;
+      }
+      button {
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        border: 1px solid #42b883;
+        background: #42b883;
+        color: white;
+        cursor: pointer;
+        font-size: 1rem;
+        margin: 0.5rem 0.25rem 0.5rem 0;
+        transition: background 0.15s;
+      }
+      button:hover {
+        background: #3aa876;
+      }
+      button:disabled {
+        background: #2d7a58;
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+      .demo-section {
+        margin: 1.5rem 0;
+        padding: 1rem;
+        background: #1e293b;
+        border-radius: 8px;
+        border: 1px solid #334155;
+      }
+      .demo-section h3 {
+        margin: 0 0 0.75rem;
+        color: #68d391;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
