@@ -14,13 +14,13 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "@zeus-js/runtime-dom": "workspace:*",
     "@zeus-js/zeus": "workspace:*"
   },
   "devDependencies": {
-    "@types/react": "^19.2.15",
+    "@types/react": "^19.2.16",
     "@types/react-dom": "^19.2.3",
     "@zeus-js/bundler-plugin": "workspace:*",
     "@zeus-js/output-wc": "workspace:*",
