@@ -3,10 +3,10 @@ import path from 'node:path'
 import { analyzeComponents } from '@zeus-js/component-analyzer'
 import fg from 'fast-glob'
 
+import { createComponentTransformFilter } from './componentTransformFilter'
 import { resolveComponentExclude, resolveComponentInclude } from './defaults'
 import { formatDiagnostic, hasErrorDiagnostics } from './diagnostics'
 import { resolveDts } from './dts'
-import { createFilter } from './filter'
 import { createOutputRegistry } from './outputRegistry'
 import { transformZeus } from './transform'
 import { VirtualModuleRegistry } from './virtual'
@@ -22,7 +22,7 @@ import type { Plugin } from 'rollup'
 export function createZeusPlugin(
   options: ZeusBundlerPluginOptions = {},
 ): Plugin {
-  const shouldTransform = createFilter({})
+  let shouldTransform = (_id: string) => false
   const virtualModules = new VirtualModuleRegistry()
 
   let ctx: ZeusBuildContext | undefined
@@ -36,6 +36,12 @@ export function createZeusPlugin(
       const root = resolveRoot(options.root)
       const include = resolveComponentInclude(options.components?.include)
       const exclude = resolveComponentExclude(options.components?.exclude)
+
+      shouldTransform = createComponentTransformFilter({
+        root,
+        include,
+        exclude,
+      })
 
       const dts = await resolveDts({
         root,

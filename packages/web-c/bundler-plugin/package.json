@@ -54,7 +54,8 @@
     "@babel/core": "catalog:",
     "@zeus-js/compiler": "workspace:*",
     "@zeus-js/component-analyzer": "workspace:*",
-    "fast-glob": "^3.3.3"
+    "fast-glob": "^3.3.3",
+    "picomatch": "^4.0.4"
   },
   "peerDependencies": {
     "rollup": "^4.0.0",
