@@ -64,7 +64,7 @@
     "commit-msg": "node -e \"import('@baicie/scripts').then(m => m.verifyCommit())\""
   },
   "lint-staged": {
-    "*.{js,json,ts,tsx}": [
+    "*.{js,json,ts,tsx,md}": [
       "prettier --write"
     ],
     "*.ts?(x)": [
