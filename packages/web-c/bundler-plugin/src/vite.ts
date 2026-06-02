@@ -5,8 +5,7 @@ import { mergeConfig } from 'vite'
 
 import { createZeusPlugin } from './rollup'
 
-import type { ZeusBundlerPluginOptions } from './types'
-import type { RollupOptions } from 'rollup'
+import type { RollupExternalOption, ZeusBundlerPluginOptions } from './types'
 import type { Plugin, ResolvedConfig, UserConfig } from 'vite'
 
 export function createZeusVitePlugin(
@@ -93,16 +92,21 @@ function collectPluginExternals(options: ZeusBundlerPluginOptions): string[] {
   return Array.from(set)
 }
 
-function mergeExternal(
+export function mergeExternal(
   userExternal: RollupExternalOption | undefined,
   pluginExternal: string[],
-) {
+): RollupExternalOption {
   if (!userExternal) {
     return pluginExternal
   }
 
   if (typeof userExternal === 'function') {
-    return [userExternal, ...pluginExternal]
+    return (source, importer, isResolved) => {
+      return (
+        pluginExternal.includes(source) ||
+        userExternal(source, importer, isResolved)
+      )
+    }
   }
 
   return [
@@ -110,8 +114,6 @@ function mergeExternal(
     ...pluginExternal,
   ]
 }
-
-type RollupExternalOption = RollupOptions['external']
 
 async function isRolldownVite(): Promise<boolean> {
   try {

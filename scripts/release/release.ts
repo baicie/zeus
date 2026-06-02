@@ -64,10 +64,10 @@ const { values: args, positionals } = parseArgs({
 const preId = (args.preid || semver.prerelease(currentVersion)?.[0]) as
   | string
   | undefined
-const isDryRun = args.dry
-const skipBuild = args.skipBuild
-const skipPrompts = args.skipPrompts
-const skipGit = args.skipGit
+const isDryRun = args.dry ?? false
+const skipBuild = args.skipBuild ?? false
+const skipPrompts = args.skipPrompts ?? false
+const skipGit = args.skipGit ?? false
 
 const versionIncrements: Array<string> = [
   'patch',

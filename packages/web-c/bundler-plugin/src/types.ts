@@ -3,9 +3,10 @@ import type {
   AnalyzerDiagnostic,
   ComponentManifest,
 } from '@zeus-js/component-analyzer'
-import type { OutputBundle, PluginContext } from 'rollup'
+import type { OutputBundle, PluginContext, ExternalOption } from 'rollup'
 
 export type MaybePromise<T> = T | Promise<T>
+export type RollupExternalOption = ExternalOption
 
 export type RootOption = string | (() => string)
 

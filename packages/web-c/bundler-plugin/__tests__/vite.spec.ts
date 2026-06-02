@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import zeus from '../src/vite'
+import zeus, { mergeExternal } from '../src/vite'
 
 describe('vite plugin', () => {
   it('creates vite plugin with expected name', () => {
@@ -72,5 +72,43 @@ describe('vite plugin', () => {
     })
 
     expect(plugin.name).toBe('vite-plugin-zeus')
+  })
+})
+
+describe('mergeExternal', () => {
+  it('returns plugin externals when no user external', () => {
+    const result = mergeExternal(undefined, ['@zeus-js/core', 'react'])
+
+    expect(result).toEqual(['@zeus-js/core', 'react'])
+  })
+
+  it('merges string user external with plugin externals', () => {
+    const result = mergeExternal('lodash', ['@zeus-js/core'])
+
+    expect(result).toEqual(['lodash', '@zeus-js/core'])
+  })
+
+  it('merges array user external with plugin externals', () => {
+    const result = mergeExternal(['lodash', 'rxjs'], ['@zeus-js/core'])
+
+    expect(result).toEqual(['lodash', 'rxjs', '@zeus-js/core'])
+  })
+
+  it('wraps function user external with plugin externals', () => {
+    const userFn = (src: string) => src === 'lodash'
+    const result = mergeExternal(userFn, ['@zeus-js/core'])
+
+    expect(typeof result).toBe('function')
+
+    const fn = result as (
+      source: string,
+      importer: string | undefined,
+      isResolved: boolean,
+    ) => boolean
+
+    expect(fn('lodash', undefined, false)).toBe(true)
+    expect(fn('rxjs', undefined, false)).toBe(false)
+    expect(fn('@zeus-js/core', undefined, false)).toBe(true)
+    expect(fn('@zeus-js/core', undefined, false)).toBe(true)
   })
 })

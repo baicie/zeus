@@ -10,10 +10,13 @@ export { resolveComponentInclude, resolveComponentExclude } from './defaults'
 
 export { resolvePluginDts } from './pluginOptions'
 
+export { mergeExternal } from './vite'
+
 export type {
   DtsMode,
   ResolvedDts,
   DtsAutoReason,
+  RollupExternalOption,
   ZeusBuildContext,
   ZeusBundlerPluginOptions,
   ZeusOutputAsset,
