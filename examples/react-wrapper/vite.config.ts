@@ -8,11 +8,10 @@ import reactWrapper from '@zeus-js/output-react-wrapper'
 export default defineConfig({
   plugins: [
     zeus({
-      root: __dirname,
       components: {
         include: ['src/components/**/*.{ts,tsx}'],
       },
-      outputs: [
+      plugins: [
         wc({
           outDir: 'wc',
           dts: true,
@@ -20,7 +19,6 @@ export default defineConfig({
         }),
         reactWrapper({
           outDir: 'react',
-          wcOutDir: './wc',
         }),
       ],
     }),

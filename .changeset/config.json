@@ -8,7 +8,16 @@
       "@zeus-js/signal",
       "@zeus-js/runtime-dom",
       "@zeus-js/compiler",
-      "@zeus-js/zeus"
+      "@zeus-js/zeus",
+      "@zeus-js/bundler-plugin",
+      "@zeus-js/component-analyzer",
+      "@zeus-js/component-dts",
+      "@zeus-js/output-wc",
+      "@zeus-js/output-react-wrapper",
+      "@zeus-js/output-vue-wrapper",
+      "@zeus-js/output-css",
+      "@zeus-js/output-icons",
+      "@zeus-js/preset-component-library"
     ]
   ],
   "linked": [],
@@ -21,6 +30,8 @@
     "@zeus-js/example-counter",
     "@zeus-js/example-todo",
     "@zeus-js/example-web-component",
+    "@zeus-ui/registry",
+    "zeus-ui",
     "create-zeus"
   ]
 }

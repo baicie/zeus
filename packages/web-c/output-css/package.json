@@ -34,13 +34,29 @@
   },
   "peerDependencies": {
     "lightningcss": "^1.29.0",
-    "rollup": "^4.0.0"
+    "postcss": "*",
+    "postcss-load-config": "*",
+    "rollup": "^4.0.0",
+    "sass": "*",
+    "less": "*"
   },
   "peerDependenciesMeta": {
     "lightningcss": {
       "optional": true
     },
+    "postcss": {
+      "optional": true
+    },
+    "postcss-load-config": {
+      "optional": true
+    },
     "rollup": {
+      "optional": true
+    },
+    "sass": {
+      "optional": true
+    },
+    "less": {
       "optional": true
     }
   },

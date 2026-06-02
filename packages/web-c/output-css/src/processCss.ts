@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
@@ -44,7 +45,7 @@ async function processSass(input: string): Promise<string> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let sass: any
   try {
-    sass = require('sass')
+    sass = createRequire(import.meta.url)('sass')
   } catch {
     throw new Error(
       '[zeus-output-css] Install "sass" to process .scss/.sass files.',
@@ -66,7 +67,7 @@ async function processLess(input: string, source: string): Promise<string> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let less: any
   try {
-    less = require('less')
+    less = createRequire(import.meta.url)('less')
   } catch {
     throw new Error('[zeus-output-css] Install "less" to process .less files.')
   }
@@ -86,7 +87,7 @@ async function processPostcss(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let postcss: any
   try {
-    postcss = require('postcss')
+    postcss = createRequire(import.meta.url)('postcss')
   } catch {
     throw new Error(
       '[zeus-output-css] Install "postcss" to process CSS with PostCSS.',
@@ -96,7 +97,7 @@ async function processPostcss(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let loadConfig: any
   try {
-    loadConfig = require('postcss-load-config')
+    loadConfig = createRequire(import.meta.url)('postcss-load-config')
   } catch {
     throw new Error(
       '[zeus-output-css] Install "postcss-load-config" to load PostCSS config.',
@@ -118,7 +119,7 @@ async function minifyCss(_input: string, source: string): Promise<string> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let lightningcss: any
 
-    lightningcss = require('lightningcss')
+    lightningcss = createRequire(import.meta.url)('lightningcss')
 
     const result = lightningcss.transform({
       filename: _input,

@@ -14,13 +14,11 @@ const useVue = mode === 'wc-vue' || mode === 'all'
 export default defineConfig({
   plugins: [
     zeus({
-      root: __dirname,
-
       components: {
         include: ['src/components/**/*.{ts,tsx}'],
       },
 
-      outputs: [
+      plugins: [
         wc({
           outDir: 'wc',
           manifestFile: 'zeus.components.json',

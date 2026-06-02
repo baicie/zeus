@@ -43,6 +43,35 @@ jobs:
       - name: Unit tests
         run: pnpm test-unit
 
+  integration:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.node-version'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      - run: pnpm build-dts
+
+      - run: pnpm check:exports
+
+      - run: pnpm examples:check:all
+
+      - run: pnpm check:registry-cli
+
+      - run: pnpm docs:build
+
   bench:
     runs-on: ubuntu-latest
 
