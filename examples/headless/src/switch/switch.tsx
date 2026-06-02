@@ -1,6 +1,5 @@
-import { defineElement, Host, Slot } from '@zeus-js/zeus'
+import { defineElement, Host, Slot, state } from '@zeus-js/zeus'
 
-import { bindBooleanProp, bindOptionalAttr } from '../shared/dom'
 import { isEnterOrSpace } from '../shared/keyboard'
 
 export interface SwitchProps {
@@ -15,13 +14,13 @@ function setup(
     host: HTMLElement & { checked?: boolean }
   },
 ) {
-  let button!: HTMLButtonElement
+  const checked = state(props.checked ?? false)
 
   const toggle = () => {
     if (props.disabled) return
 
-    const next = !props.checked
-
+    const next = !checked.value
+    checked.value = next
     ctx.host.checked = next
 
     ctx.emit('checked-change', {
@@ -36,30 +35,19 @@ function setup(
     toggle()
   }
 
-  const bindButton = (el: HTMLButtonElement | null) => {
-    if (!(el instanceof HTMLButtonElement)) return
-
-    button = el
-    bindOptionalAttr(button, 'aria-checked', () =>
-      props.checked ? 'true' : 'false',
-    )
-    bindOptionalAttr(button, 'aria-disabled', () =>
-      props.disabled ? 'true' : undefined,
-    )
-    bindBooleanProp(button, 'disabled', () => Boolean(props.disabled))
-  }
-
   return (
     <Host
       data-slot="switch"
-      data-state={() => (props.checked ? 'checked' : 'unchecked')}
+      data-state={() => (checked.value ? 'checked' : 'unchecked')}
       data-disabled={() => (props.disabled ? '' : undefined)}
     >
       <button
-        ref={bindButton}
         part="root"
         type="button"
         role="switch"
+        disabled={Boolean(props.disabled)}
+        aria-checked={checked.value ? 'true' : 'false'}
+        aria-disabled={props.disabled ? 'true' : undefined}
         onClick={toggle}
         onKeyDown={onKeyDown}
       >

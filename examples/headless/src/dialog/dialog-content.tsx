@@ -1,7 +1,6 @@
 import { defineElement, Host, Slot } from '@zeus-js/zeus'
 
 import { findDialogHost, setDialogOpen } from './context'
-import { bindBooleanProp } from '../shared/dom'
 
 function setup(_props: unknown, ctx: { host: HTMLElement }) {
   const open = () => Boolean(findDialogHost(ctx.host)?.open)
@@ -17,18 +16,12 @@ function setup(_props: unknown, ctx: { host: HTMLElement }) {
     close()
   }
 
-  const bindRoot = (el: HTMLDivElement | null) => {
-    if (!el) return
-
-    bindBooleanProp(el, 'hidden', () => !open())
-  }
-
   return (
     <Host
       data-slot="dialog-content"
       data-state={() => (open() ? 'open' : 'closed')}
     >
-      <div ref={bindRoot} part="root" onKeyDown={onKeyDown}>
+      <div part="root" hidden={!open()} onKeyDown={onKeyDown}>
         <div part="overlay" data-slot="dialog-overlay" onClick={close} />
 
         <div

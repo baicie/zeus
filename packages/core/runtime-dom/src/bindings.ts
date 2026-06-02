@@ -32,12 +32,44 @@ export function setAttr(el: Element, name: string, value: AttrValue): void {
   const attrName = normalizeAttrName(name)
 
   if (value === true) {
-    el.setAttribute(attrName, '')
+    if (isBooleanDomProperty(name) && el instanceof HTMLElement) {
+      ;(el as HTMLElement & Record<string, unknown>)[name] = true
+    } else {
+      el.setAttribute(attrName, '')
+    }
+    return
+  }
+
+  if (isBooleanDomProperty(name) && el instanceof HTMLElement) {
+    ;(el as HTMLElement & Record<string, unknown>)[name] = value
     return
   }
 
   el.setAttribute(attrName, String(value))
 }
+
+function isBooleanDomProperty(name: string): boolean {
+  return BOOLEAN_DOM_PROPERTIES.has(name)
+}
+
+const BOOLEAN_DOM_PROPERTIES = new Set([
+  'hidden',
+  'disabled',
+  'readonly',
+  'multiple',
+  'selected',
+  'checked',
+  'open',
+  'autofocus',
+  'indeterminate',
+  'draggable',
+  'spellcheck',
+  'translate',
+  'contentEditable',
+  'isContentEditable',
+  'noValidate',
+  'willValidate',
+])
 
 function normalizeAttrName(name: string): string {
   return name === 'className' ? 'class' : name

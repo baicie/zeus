@@ -1,6 +1,5 @@
-import { defineElement, Host, Slot } from '@zeus-js/zeus'
+import { defineElement, Host, Slot, state } from '@zeus-js/zeus'
 
-import { bindBooleanProp, bindOptionalAttr } from '../shared/dom'
 import { isEnterOrSpace } from '../shared/keyboard'
 
 export interface CheckboxProps {
@@ -16,20 +15,20 @@ function setup(
     host: HTMLElement & { checked?: boolean; indeterminate?: boolean }
   },
 ) {
-  let button!: HTMLButtonElement
+  const checked = state(props.checked ?? false)
 
-  const state = () =>
+  const checkedState = () =>
     props.indeterminate
       ? 'indeterminate'
-      : props.checked
+      : checked.value
         ? 'checked'
         : 'unchecked'
 
   const toggle = () => {
     if (props.disabled) return
 
-    const next = props.indeterminate ? true : !props.checked
-
+    const next = props.indeterminate ? true : !checked.value
+    checked.value = next
     ctx.host.indeterminate = false
     ctx.host.checked = next
 
@@ -45,30 +44,21 @@ function setup(
     toggle()
   }
 
-  const bindButton = (el: HTMLButtonElement | null) => {
-    if (!(el instanceof HTMLButtonElement)) return
-
-    button = el
-    bindOptionalAttr(button, 'aria-checked', () =>
-      props.indeterminate ? 'mixed' : props.checked ? 'true' : 'false',
-    )
-    bindOptionalAttr(button, 'aria-disabled', () =>
-      props.disabled ? 'true' : undefined,
-    )
-    bindBooleanProp(button, 'disabled', () => Boolean(props.disabled))
-  }
-
   return (
     <Host
       data-slot="checkbox"
-      data-state={state}
+      data-state={checkedState}
       data-disabled={() => (props.disabled ? '' : undefined)}
     >
       <button
-        ref={bindButton}
         part="root"
         type="button"
         role="checkbox"
+        disabled={Boolean(props.disabled)}
+        aria-checked={
+          props.indeterminate ? 'mixed' : checked.value ? 'true' : 'false'
+        }
+        aria-disabled={props.disabled ? 'true' : undefined}
         onClick={toggle}
         onKeyDown={onKeyDown}
       >

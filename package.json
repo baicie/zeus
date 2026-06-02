@@ -57,6 +57,7 @@
     "release:precheck": "tsx scripts/release/release-precheck.ts",
     "release:dry": "tsx scripts/release/release.ts --dry --skipGit",
     "create-zeus:build": "pnpm -F create-zeus build",
+    "build-and-link": "tsx scripts/build-and-link.ts",
     "preinstall": "npx only-allow pnpm",
     "postinstall": "simple-git-hooks"
   },

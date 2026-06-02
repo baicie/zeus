@@ -1,7 +1,6 @@
-import { defineElement, effect, Host } from '@zeus-js/zeus'
+import { defineElement, Host, watch } from '@zeus-js/zeus'
 
 import { icons, type IconName } from './icons'
-import { bindOptionalAttr } from '../shared/dom'
 
 export interface IconProps {
   name?: IconName
@@ -12,29 +11,37 @@ export interface IconProps {
 function setup(props: IconProps) {
   let svg!: SVGSVGElement
 
-  const bindSvg = (el: SVGSVGElement | null) => {
-    if (!el) return
-
-    svg = el
-    bindOptionalAttr(svg, 'width', () => props.size)
-    bindOptionalAttr(svg, 'height', () => props.size)
-    bindOptionalAttr(svg, 'aria-hidden', () =>
-      props.label ? undefined : 'true',
-    )
-    bindOptionalAttr(svg, 'aria-label', () => props.label)
-
-    effect(() => {
-      const icon = icons[props.name as IconName] ?? icons.check
-
-      svg.setAttribute('viewBox', icon.viewBox)
-      svg.replaceChildren()
-      appendIcon(svg, icon.render())
-    })
+  const renderIcon = () => {
+    const icon = icons[props.name as IconName] ?? icons.check
+    svg.setAttribute('viewBox', icon.viewBox)
+    svg.replaceChildren()
+    appendIcon(svg, icon.render())
   }
+
+  // Render icon reactively when props.name changes
+  watch(
+    () => props.name,
+    () => {
+      if (svg) renderIcon()
+    },
+  )
 
   return (
     <Host data-slot="icon" data-name={() => props.name}>
-      <svg ref={bindSvg} part="root" focusable="false" />
+      <svg
+        ref={(svgEl: SVGSVGElement | null) => {
+          if (svgEl) {
+            svg = svgEl
+            renderIcon()
+          }
+        }}
+        part="root"
+        focusable="false"
+        width={props.size}
+        height={props.size}
+        aria-hidden={props.label ? undefined : 'true'}
+        aria-label={props.label}
+      />
     </Host>
   )
 }
