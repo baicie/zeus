@@ -296,6 +296,38 @@ describe('output-css', () => {
     })
   })
 
+  describe('string input shorthand', () => {
+    it('outputs CSS with derived fileName from input path', async () => {
+      createTempCss('src/styles.css', 'body { color: red; }')
+      const root = fixturesDir
+
+      const plugin = cssPlugin('src/styles.css')
+
+      await plugin.buildStart?.(createMockCtx(root))
+      const files = await plugin.generateBundle?.(createMockCtx(root), {})
+
+      expect(files).toHaveLength(1)
+      expect(files![0].fileName).toBe('styles.css')
+      expect((files![0] as ZeusOutputAsset).source).toBe('body { color: red; }')
+    })
+
+    it('handles nested path in string shorthand', async () => {
+      createTempCss('src/assets/themes/dark.css', 'body { background: #000; }')
+      const root = fixturesDir
+
+      const plugin = cssPlugin('src/assets/themes/dark.css')
+
+      await plugin.buildStart?.(createMockCtx(root))
+      const files = await plugin.generateBundle?.(createMockCtx(root), {})
+
+      expect(files).toHaveLength(1)
+      expect(files![0].fileName).toBe('styles.css')
+      expect((files![0] as ZeusOutputAsset).source).toBe(
+        'body { background: #000; }',
+      )
+    })
+  })
+
   describe('multiple files', () => {
     it('processes multiple CSS entries', async () => {
       createTempCss('src/base.css', 'body { margin: 0; }')
