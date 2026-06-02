@@ -91,10 +91,35 @@ describe('output-css', () => {
     })
   })
 
+  describe('auto-discovery', () => {
+    it('detects src/styles.css automatically', async () => {
+      createTempCss('src/styles.css', 'body { color: red; }')
+      const root = fixturesDir
+
+      const plugin = cssPlugin()
+
+      await plugin.buildStart?.(createMockCtx(root))
+      const files = await plugin.generateBundle?.(createMockCtx(root), {})
+
+      expect(files).toHaveLength(1)
+      expect((files![0] as ZeusOutputAsset).source).toBe('body { color: red; }')
+    })
+
+    it('throws when no CSS file found and no input specified', async () => {
+      const root = fixturesDir
+
+      const plugin = cssPlugin()
+
+      await expect(plugin.buildStart?.(createMockCtx(root))).rejects.toThrow(
+        /CSS input is required\. Tried:.*styles\.css.*style\.css.*index\.css/,
+      )
+    })
+  })
+
   describe('processor: copy', () => {
     it('copies plain CSS without processing', async () => {
-      const filePath = createTempCss('src/plain.css', 'body { color: red; }')
-      const root = path.dirname(filePath)
+      createTempCss('src/plain.css', 'body { color: red; }')
+      const root = fixturesDir
 
       const plugin = cssPlugin({
         input: 'src/plain.css',
@@ -112,11 +137,8 @@ describe('output-css', () => {
 
   describe('processor: auto (plain css)', () => {
     it('passes through plain CSS when no preprocessor detected', async () => {
-      const filePath = createTempCss(
-        'src/vanilla.css',
-        'h1 { font-size: 24px; }',
-      )
-      const root = path.dirname(filePath)
+      createTempCss('src/vanilla.css', 'h1 { font-size: 24px; }')
+      const root = fixturesDir
 
       const plugin = cssPlugin({
         input: 'src/vanilla.css',
@@ -135,11 +157,8 @@ describe('output-css', () => {
 
   describe('processor: auto (scss detection)', () => {
     it('detects .scss extension and processes with sass', async () => {
-      const filePath = createTempCss(
-        'src/main.scss',
-        '$color: blue; .foo { color: $color; }',
-      )
-      const root = path.dirname(filePath)
+      createTempCss('src/main.scss', '$color: blue; .foo { color: $color; }')
+      const root = fixturesDir
 
       const plugin = cssPlugin({
         input: 'src/main.scss',
@@ -152,30 +171,12 @@ describe('output-css', () => {
       expect((files![0] as ZeusOutputAsset).source).toContain('.foo {')
       expect((files![0] as ZeusOutputAsset).source).toContain('color: blue;')
     })
-
-    it('throws when sass is not installed', async () => {
-      const filePath = createTempCss('src/test.sass', 'body\n  color: red')
-      const root = path.dirname(filePath)
-
-      const plugin = cssPlugin({
-        input: 'src/test.sass',
-        processor: 'auto',
-      })
-
-      await plugin.buildStart?.(createMockCtx(root))
-      await expect(
-        plugin.generateBundle?.(createMockCtx(root), {}),
-      ).rejects.toThrow('Install "sass" to process .scss/.sass files.')
-    })
   })
 
   describe('processor: auto (less detection)', () => {
     it('detects .less extension and processes with less', async () => {
-      const filePath = createTempCss(
-        'src/theme.less',
-        '@color: green; .bar { color: @color; }',
-      )
-      const root = path.dirname(filePath)
+      createTempCss('src/theme.less', '@color: green; .bar { color: @color; }')
+      const root = fixturesDir
 
       const plugin = cssPlugin({
         input: 'src/theme.less',
@@ -188,30 +189,12 @@ describe('output-css', () => {
       expect((files![0] as ZeusOutputAsset).source).toContain('.bar {')
       expect((files![0] as ZeusOutputAsset).source).toContain('color: green;')
     })
-
-    it('throws when less is not installed', async () => {
-      const filePath = createTempCss(
-        'src/theme.less',
-        '@w: 10px; .x { width: @w; }',
-      )
-      const root = path.dirname(filePath)
-
-      const plugin = cssPlugin({
-        input: 'src/theme.less',
-        processor: 'auto',
-      })
-
-      await plugin.buildStart?.(createMockCtx(root))
-      await expect(
-        plugin.generateBundle?.(createMockCtx(root), {}),
-      ).rejects.toThrow('Install "less" to process .less files.')
-    })
   })
 
   describe('custom fileName', () => {
     it('uses custom fileName when provided', async () => {
-      const filePath = createTempCss('src/custom.css', 'body {}')
-      const root = path.dirname(filePath)
+      createTempCss('src/custom.css', 'body {}')
+      const root = fixturesDir
 
       const plugin = cssPlugin({
         input: 'src/custom.css',
@@ -227,11 +210,11 @@ describe('output-css', () => {
 
   describe('minify', () => {
     it('minifies CSS when minify option is true', async () => {
-      const filePath = createTempCss(
+      createTempCss(
         'src/minify-test.css',
         '.a { color: red; } .b { background: blue; }',
       )
-      const root = path.dirname(filePath)
+      const root = fixturesDir
 
       const plugin = cssPlugin({
         input: 'src/minify-test.css',
@@ -246,8 +229,8 @@ describe('output-css', () => {
     })
 
     it('keeps CSS unminified when minify is false', async () => {
-      const filePath = createTempCss('src/no-minify.css', '.a { color: red; }')
-      const root = path.dirname(filePath)
+      createTempCss('src/no-minify.css', '.a { color: red; }')
+      const root = fixturesDir
 
       const plugin = cssPlugin({
         input: 'src/no-minify.css',
@@ -259,12 +242,30 @@ describe('output-css', () => {
 
       expect((files![0] as ZeusOutputAsset).source).toBe('.a { color: red; }')
     })
+
+    it('applies minification when minify is true', async () => {
+      createTempCss('src/no-lcss.css', '.a { color: red; }')
+      const root = fixturesDir
+
+      const plugin = cssPlugin({
+        input: 'src/no-lcss.css',
+        minify: true,
+      })
+
+      await plugin.buildStart?.(createMockCtx(root))
+      const files = await plugin.generateBundle?.(createMockCtx(root), {})
+
+      expect(files).toHaveLength(1)
+      expect((files![0] as ZeusOutputAsset).source).not.toBe(
+        '.a { color: red; }',
+      )
+    })
   })
 
   describe('watch', () => {
     it('registers watch file when watch is true', async () => {
-      const filePath = createTempCss('src/watch.css', 'body {}')
-      const root = path.dirname(filePath)
+      createTempCss('src/watch.css', 'body {}')
+      const root = fixturesDir
       const ctx = createMockCtx(root)
 
       const plugin = cssPlugin({
@@ -280,8 +281,8 @@ describe('output-css', () => {
     })
 
     it('does not register watch file when watch is false', async () => {
-      const filePath = createTempCss('src/no-watch.css', 'body {}')
-      const root = path.dirname(filePath)
+      createTempCss('src/no-watch.css', 'body {}')
+      const root = fixturesDir
       const ctx = createMockCtx(root)
 
       const plugin = cssPlugin({

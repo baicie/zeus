@@ -1,10 +1,13 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
 
+import { mergeConfig } from 'vite'
+
 import { createZeusPlugin } from './rollup'
 
 import type { ZeusBundlerPluginOptions } from './types'
-import type { Plugin, UserConfig, ResolvedConfig } from 'vite'
+import type { RollupOptions } from 'rollup'
+import type { Plugin, ResolvedConfig, UserConfig } from 'vite'
 
 export function createZeusVitePlugin(
   options: ZeusBundlerPluginOptions = {},
@@ -23,9 +26,9 @@ export function createZeusVitePlugin(
 
     async config(userConfig) {
       const runtimeDomEntry = resolveRuntimeDOMEntry(userConfig.root)
-      const externals = collectPluginExternals(options)
+      const pluginExternals = collectPluginExternals(options)
 
-      return {
+      const pluginConfig: UserConfig = {
         ...((await isRolldownVite())
           ? {
               oxc: {
@@ -50,13 +53,22 @@ export function createZeusVitePlugin(
             '@zeus-js/component-dts',
           ],
         },
+      }
 
-        build: {
-          rollupOptions: {
-            external: externals.length ? externals : undefined,
+      if (pluginExternals.length) {
+        return mergeConfig(pluginConfig, {
+          build: {
+            rollupOptions: {
+              external: mergeExternal(
+                userConfig.build?.rollupOptions?.external,
+                pluginExternals,
+              ),
+            },
           },
-        },
-      } satisfies UserConfig
+        })
+      }
+
+      return pluginConfig
     },
 
     configResolved(config) {
@@ -80,6 +92,26 @@ function collectPluginExternals(options: ZeusBundlerPluginOptions): string[] {
 
   return Array.from(set)
 }
+
+function mergeExternal(
+  userExternal: RollupExternalOption | undefined,
+  pluginExternal: string[],
+) {
+  if (!userExternal) {
+    return pluginExternal
+  }
+
+  if (typeof userExternal === 'function') {
+    return [userExternal, ...pluginExternal]
+  }
+
+  return [
+    ...(Array.isArray(userExternal) ? userExternal : [userExternal]),
+    ...pluginExternal,
+  ]
+}
+
+type RollupExternalOption = RollupOptions['external']
 
 async function isRolldownVite(): Promise<boolean> {
   try {
