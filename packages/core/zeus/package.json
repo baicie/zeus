@@ -1,6 +1,6 @@
 {
   "name": "@zeus-js/zeus",
-  "version": "0.0.2",
+  "version": "0.1.0-beta.0",
   "description": "@zeus-js/zeus",
   "type": "module",
   "main": "index.js",
