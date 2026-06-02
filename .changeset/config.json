@@ -27,10 +27,6 @@
   "ignore": [
     "@zeus-js/vite-plugin",
     "@zeus-js/docs",
-    "@zeus-js/playground",
-    "@zeus-js/example-counter",
-    "@zeus-js/example-todo",
-    "@zeus-js/example-web-component",
     "@zeus-ui/registry",
     "zeus-ui",
     "create-zeus"

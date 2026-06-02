@@ -37,7 +37,6 @@ Verify each package builds and exports are valid:
 - [ ] `examples/vue-wrapper` — `pnpm -F @zeus-js/example-vue-wrapper build`
 - [ ] `examples/registry-react` — `pnpm -F @zeus-js/example-registry-react build`
 - [ ] `examples/registry-vue` — `pnpm -F @zeus-js/example-registry-vue build`
-- [ ] `examples/icons-no-runtime` — `pnpm -F @zeus-js/example-icons-no-runtime build`
 
 ## CLI
 

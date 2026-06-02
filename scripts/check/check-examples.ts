@@ -26,7 +26,6 @@ const examples = [
   '@zeus-js/example-context',
   '@zeus-js/example-light-dom-slots',
   '@zeus-js/example-project-board',
-
   '@zeus-js/example-headless-demo',
   '@zeus-js/example-use-headless-react',
   '@zeus-js/example-use-headless-vue',
