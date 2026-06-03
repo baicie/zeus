@@ -63,6 +63,7 @@ jobs:
           pnpm check
           pnpm test-unit
           pnpm check:exports
+          pnpm check:repository
 
       - name: Publish canary
         run: pnpm release:canary

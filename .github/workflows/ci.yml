@@ -64,6 +64,7 @@ jobs:
       - run: pnpm build-dts
       - run: pnpm api:check
       - run: pnpm check:exports
+      - run: pnpm check:repository
 
   test:
     runs-on: ubuntu-latest

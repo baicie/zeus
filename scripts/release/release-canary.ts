@@ -208,6 +208,11 @@ async function main() {
     stdio: 'inherit',
   })
 
+  await exec('pnpm', ['check:repository'], {
+    cwd: repoRoot,
+    stdio: 'inherit',
+  })
+
   const releasePackages = findWorkspacePackages().filter(pkg => {
     if (pkg.packageJson.private) return false
     return pkg.name.startsWith('@zeus-js/')
