@@ -1,6 +1,8 @@
+const version = __VERSION__ as string
+
 export const ZEUS_OUTPUT_WC_CAPABILITIES = {
   packageName: '@zeus-js/output-wc',
-  version: __VERSION__,
+  version,
 
   output: {
     webComponent: true,

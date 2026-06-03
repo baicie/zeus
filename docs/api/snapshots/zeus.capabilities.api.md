@@ -7,7 +7,7 @@
 ```ts
 export declare const ZEUS_CAPABILITIES: {
   readonly packageName: '@zeus-js/zeus'
-  readonly version: any
+  readonly version: string
   readonly publicApi: {
     readonly state: true
     readonly computed: true

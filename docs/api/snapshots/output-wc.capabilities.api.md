@@ -7,7 +7,7 @@
 ```ts
 export declare const ZEUS_OUTPUT_WC_CAPABILITIES: {
   readonly packageName: '@zeus-js/output-wc'
-  readonly version: any
+  readonly version: string
   readonly output: {
     readonly webComponent: true
     readonly customElements: true

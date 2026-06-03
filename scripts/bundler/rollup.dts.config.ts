@@ -83,8 +83,9 @@ const packageConfigs: RollupOptions[] = targetPackages.flatMap(pkg => {
     for (const extra of buildOptions.additionalEntries) {
       const inputDts = `./temp/${relativeDir}/src/${extra.entry.replace(/\.ts$/, '.d.ts')}`
       if (!existsSync(inputDts)) {
-        console.warn(`[dts] skipping ${extra.entry}: no temp dts found`)
-        continue
+        throw new Error(
+          `[dts] missing temp dts for additional entry ${pkg}/${extra.entry}: ${inputDts}`,
+        )
       }
 
       const outputFile = extra.output.replace(/\.js$/, '.d.ts')

@@ -72,9 +72,12 @@ async function dryRunCheck(packages: ReturnType<typeof findWorkspacePackages>) {
         cwd: pkg.dir,
         stdio: 'pipe',
       })
-    } catch {
-      throw new Error(
-        `Dry-run failed for ${pkg.name}. Check package configuration (files, exports, version).`,
+    } catch (err) {
+      throw Object.assign(
+        new Error(
+          `Dry-run failed for ${pkg.name}. Check package configuration (files, exports, version).`,
+        ),
+        { cause: err },
       )
     }
   }
@@ -105,16 +108,19 @@ async function publishCanary() {
         published.length > 0
           ? `\nAlready published: ${published.join(', ')}`
           : ''
-      throw new Error(
-        [
-          `Failed to publish ${pkg.name}.`,
-          publishedList,
-          '',
-          'Some packages may already have been published.',
-          'NPM package versions are immutable.',
-          'Re-run the workflow to generate a new canary version via GITHUB_RUN_ATTEMPT,',
-          'or publish missing packages manually with a new canary version.',
-        ].join('\n'),
+      throw Object.assign(
+        new Error(
+          [
+            `Failed to publish ${pkg.name}.`,
+            publishedList,
+            '',
+            'Some packages may already have been published.',
+            'NPM package versions are immutable.',
+            'Re-run the workflow to generate a new canary version via GITHUB_RUN_ATTEMPT,',
+            'or publish missing packages manually with a new canary version.',
+          ].join('\n'),
+        ),
+        { cause: err },
       )
     }
   }
@@ -160,6 +166,11 @@ async function main() {
   })
 
   await exec('pnpm', ['build-dts'], {
+    cwd: repoRoot,
+    stdio: 'inherit',
+  })
+
+  await exec('pnpm', ['api:check'], {
     cwd: repoRoot,
     stdio: 'inherit',
   })

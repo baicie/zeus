@@ -18,8 +18,24 @@ function normalizeDts(input: string) {
   return input
     .replace(/\r\n/g, '\n')
     .replace(/\/\/# sourceMappingURL=.*$/gm, '')
-    .replace(/\n{3,}/g, '\n\n')
     .trim()
+}
+
+function stableSnapshotDts(input: string): string {
+  const lines = input.split('\n')
+  const reExports: string[] = []
+  const otherLines: string[] = []
+
+  for (const line of lines) {
+    if (line.match(/^\s*export\s+\{[^}]+\}\s*from\s+/)) {
+      reExports.push(line)
+    } else {
+      otherLines.push(line)
+    }
+  }
+
+  reExports.sort()
+  return [...otherLines, ...reExports].join('\n')
 }
 
 function normalizeSnapshotSubpath(subpath: string) {
@@ -113,26 +129,29 @@ function toSnapshot(pkgName: string, subpath: string, normalizedDts: string) {
 > Run \`pnpm api:snapshot\` to update.
 
 \`\`\`ts
-${normalizedDts}
+${stableSnapshotDts(normalizedDts)}
 \`\`\`
 `
 }
 
 function checkRelativeTypeImports(target: ApiEntry, dts: string) {
-  const importRE = /from\s+['"](\.{1,2}\/[^'"]+)['"]/g
+  const staticImportRE = /from\s+['"](\.{1,2}\/[^'"]+)['"]/g
+  const dynamicImportRE = /import\(\s*['"](\.{1,2}\/[^'"]+)['"]\s*\)/g
   const dtsDir = path.dirname(target.dtsFile)
 
-  for (const match of dts.matchAll(importRE)) {
-    const specifier = match[1]
-    const candidates = [
-      path.resolve(dtsDir, `${specifier}.d.ts`),
-      path.resolve(dtsDir, specifier, 'index.d.ts'),
-    ]
+  for (const re of [staticImportRE, dynamicImportRE]) {
+    for (const match of dts.matchAll(re)) {
+      const specifier = match[1]
+      const candidates = [
+        path.resolve(dtsDir, `${specifier}.d.ts`),
+        path.resolve(dtsDir, specifier, 'index.d.ts'),
+      ]
 
-    if (!candidates.some(p => fs.existsSync(p))) {
-      throw new Error(
-        `API snapshot for ${target.pkgName} (${target.subpath}) has unresolved relative type import: ${specifier}`,
-      )
+      if (!candidates.some(p => fs.existsSync(p))) {
+        throw new Error(
+          `API snapshot for ${target.pkgName} (${target.subpath}) has unresolved relative type import: ${specifier}`,
+        )
+      }
     }
   }
 }

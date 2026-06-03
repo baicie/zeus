@@ -1,6 +1,8 @@
+const version = __VERSION__ as string
+
 export const ZEUS_CAPABILITIES = {
   packageName: '@zeus-js/zeus',
-  version: __VERSION__,
+  version,
 
   publicApi: {
     state: true,
