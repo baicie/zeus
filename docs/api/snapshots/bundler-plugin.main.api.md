@@ -11,7 +11,6 @@ import {
   AnalyzerDiagnostic,
 } from '@zeus-js/component-analyzer'
 import { Plugin } from 'rollup'
-import { RolldownOptions, Plugin as Plugin$1 } from 'rolldown'
 
 type MaybePromise<T> = T | Promise<T>
 export type RollupExternalOption =
@@ -170,17 +169,7 @@ export interface ZeusBundlerPluginOptions {
   resolveExtensions?: string[] | false
 }
 
-export declare function zeus$1(options?: ZeusBundlerPluginOptions): Plugin
-
-export declare function zeus(options?: ZeusBundlerPluginOptions): Plugin$1
-
-interface ZeusRolldownConfigOptions extends Omit<RolldownOptions, 'plugins'> {
-  zeus?: ZeusBundlerPluginOptions
-  plugins?: RolldownOptions['plugins']
-}
-export declare function defineZeusRolldownConfig(
-  config?: ZeusRolldownConfigOptions,
-): RolldownOptions
+export declare function zeus(options?: ZeusBundlerPluginOptions): Plugin
 
 export declare function createOutputRegistry(): ZeusOutputRegistry
 
@@ -197,5 +186,5 @@ export declare function mergeExternal(
   pluginExternal: string[],
 ): RollupExternalOption
 
-export { zeus$1 as default, zeus as rolldown, zeus$1 as zeus }
+export { zeus as default }
 ```
