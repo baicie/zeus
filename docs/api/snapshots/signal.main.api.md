@@ -1,4 +1,4 @@
-# @zeus-js/signal API Snapshot
+# @zeus-js/signal (main) API Snapshot
 
 > This file is generated from the published declaration entry.
 > Do not edit manually.

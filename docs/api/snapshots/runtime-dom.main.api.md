@@ -1,4 +1,4 @@
-# @zeus-js/runtime-dom API Snapshot
+# @zeus-js/runtime-dom (main) API Snapshot
 
 > This file is generated from the published declaration entry.
 > Do not edit manually.

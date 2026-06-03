@@ -106,13 +106,31 @@ async function publishCanary() {
           ? `\nAlready published: ${published.join(', ')}`
           : ''
       throw new Error(
-        `Failed to publish ${pkg.name}. Please manually remove the canary tag from already-published packages above.${publishedList}`,
+        [
+          `Failed to publish ${pkg.name}.`,
+          publishedList,
+          '',
+          'Some packages may already have been published.',
+          'NPM package versions are immutable.',
+          'Re-run the workflow to generate a new canary version via GITHUB_RUN_ATTEMPT,',
+          'or publish missing packages manually with a new canary version.',
+        ].join('\n'),
       )
     }
   }
 }
 
 async function main() {
+  if (!process.env.CI && !process.argv.includes('--force-local')) {
+    console.error(
+      pico.red(
+        'release:canary mutates package versions. It is intended to run in CI.',
+      ),
+    )
+    console.error(pico.red('Use --force-local to run locally.'))
+    process.exit(1)
+  }
+
   const baseVersion = getBaseVersion()
   const canaryVersion = getCanaryVersion(baseVersion)
 

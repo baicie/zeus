@@ -1,4 +1,4 @@
-# @zeus-js/compiler API Snapshot
+# @zeus-js/compiler (main) API Snapshot
 
 > This file is generated from the published declaration entry.
 > Do not edit manually.

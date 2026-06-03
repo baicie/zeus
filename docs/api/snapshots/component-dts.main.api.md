@@ -1,4 +1,4 @@
-# @zeus-js/component-dts API Snapshot
+# @zeus-js/component-dts (main) API Snapshot
 
 > This file is generated from the published declaration entry.
 > Do not edit manually.

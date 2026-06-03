@@ -1,4 +1,4 @@
-# @zeus-js/output-wc API Snapshot
+# @zeus-js/output-wc (main) API Snapshot
 
 > This file is generated from the published declaration entry.
 > Do not edit manually.

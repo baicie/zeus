@@ -1,4 +1,4 @@
-# @zeus-js/bundler-plugin API Snapshot
+# @zeus-js/bundler-plugin (main) API Snapshot
 
 > This file is generated from the published declaration entry.
 > Do not edit manually.

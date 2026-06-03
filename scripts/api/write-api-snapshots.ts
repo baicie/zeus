@@ -22,21 +22,43 @@ function normalizeDts(input: string) {
     .trim()
 }
 
+function normalizeSnapshotSubpath(subpath: string) {
+  return subpath === '.'
+    ? 'main'
+    : subpath.replace(/^\.\//, '').replace(/[\\/]/g, '-')
+}
+
 function findTypesTarget(value: unknown): string | null {
   if (!value || typeof value !== 'object') return null
 
   const obj = value as Record<string, unknown>
 
-  if (typeof obj.types === 'string') {
-    return obj.types
-  }
+  if (typeof obj.types === 'string') return obj.types
 
-  for (const nested of Object.values(obj)) {
+  for (const key of ['import', 'require', 'node', 'default']) {
+    const nested = obj[key]
     const found = findTypesTarget(nested)
     if (found) return found
   }
 
   return null
+}
+
+function cleanSnapshotDir(expectedFiles: Set<string>) {
+  const dir = path.join(repoRoot, 'docs/api/snapshots')
+  if (!fs.existsSync(dir)) return
+
+  for (const file of fs.readdirSync(dir)) {
+    if (!file.endsWith('.api.md')) continue
+
+    const fullPath = path.join(dir, file)
+    if (!expectedFiles.has(fullPath)) {
+      fs.unlinkSync(fullPath)
+      console.log(
+        pico.yellow(`removed stale ${path.relative(repoRoot, fullPath)}`),
+      )
+    }
+  }
 }
 
 function collectApiEntries(pkg: {
@@ -56,8 +78,7 @@ function collectApiEntries(pkg: {
 
     if (!typesPath) continue
 
-    const normalizedSubpath =
-      subpath === '.' ? 'main' : subpath.replace('./', '')
+    const normalizedSubpath = normalizeSnapshotSubpath(subpath)
     const fileName = `${pkg.name
       .replace('@zeus-js/', '')
       .replace(/\//g, '-')}.${normalizedSubpath}.api.md`
@@ -111,6 +132,9 @@ async function main() {
   fs.mkdirSync(path.join(repoRoot, 'docs/api/snapshots'), {
     recursive: true,
   })
+
+  const expectedFiles = new Set(targets.map(t => t.snapshotFile))
+  cleanSnapshotDir(expectedFiles)
 
   for (const target of targets) {
     if (!fs.existsSync(target.dtsFile)) {

@@ -1,4 +1,4 @@
-# @zeus-js/preset-component-library API Snapshot
+# @zeus-js/preset-component-library (main) API Snapshot
 
 > This file is generated from the published declaration entry.
 > Do not edit manually.

@@ -19,7 +19,7 @@ on:
       - main
 
 concurrency:
-  group: release-canary-${{ github.sha }}
+  group: release-canary-${{ github.ref }}
   cancel-in-progress: false
 
 env:
@@ -69,9 +69,11 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Trigger zeus-ui compatibility check
+      - name: Trigger downstream compatibility check
         if: success()
         run: |
+          echo "Canary packages were published successfully."
+          echo "Now triggering downstream compatibility check..."
           curl --fail-with-body -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ secrets.ZEUS_UI_DISPATCH_TOKEN }}" \
