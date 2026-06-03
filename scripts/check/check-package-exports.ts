@@ -1,11 +1,24 @@
+import assert from 'node:assert'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 
+import pico from 'picocolors'
+
 import { findWorkspacePackages } from '../shared/utils'
+
+const allowWildcard = new Set<string>([
+  // 尽量为空。如果临时保留某个包，必须写原因和 TODO。
+])
+
+// Document the invariant: allowWildcard should always be empty for published packages.
+assert(
+  allowWildcard.size === 0,
+  'allowWildcard must be empty — all published packages must use explicit exports',
+)
 
 const packages = findWorkspacePackages()
   .filter(pkg => !pkg.packageJson.private)
-  .filter(pkg => pkg.packageJson.exports)
+  .filter(pkg => pkg.name.startsWith('@zeus-js/'))
 
 let hasError = false
 
@@ -16,7 +29,27 @@ for (const pkg of packages) {
   }
 
   if (!pkgJson.exports) {
+    hasError = true
+    console.error(
+      pico.red(
+        `${pkgJson.name}: missing package.json exports — all published @zeus-js/* packages must define exports`,
+      ),
+    )
+    console.error(`  package: ${path.relative(process.cwd(), pkg.dir)}`)
     continue
+  }
+
+  if (
+    Object.prototype.hasOwnProperty.call(pkgJson.exports, './*') &&
+    !allowWildcard.has(pkgJson.name)
+  ) {
+    hasError = true
+    console.error(
+      pico.red(
+        `${pkgJson.name}: exports must not contain "./*". Use explicit public subpaths.`,
+      ),
+    )
+    console.error(`  package: ${path.relative(process.cwd(), pkg.dir)}`)
   }
 
   checkExports(pkgJson.name, pkg.dir, pkgJson.exports)
@@ -26,7 +59,7 @@ if (hasError) {
   process.exit(1)
 }
 
-console.log('Package exports check passed.\n')
+console.log(pico.green('Package exports boundary check passed.\n'))
 
 function checkExports(
   pkgName: string,
@@ -34,8 +67,25 @@ function checkExports(
   exportsField: Record<string, unknown>,
 ): void {
   for (const [key, value] of Object.entries(exportsField)) {
+    if (!hasTypesTarget(value)) {
+      error(`${pkgName} export "${key}" is missing "types" condition`)
+    }
     checkExportValue(pkgName, pkgDir, key, value)
   }
+}
+
+function hasTypesTarget(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false
+
+  const obj = value as Record<string, unknown>
+
+  if (typeof obj.types === 'string') return true
+
+  for (const nested of Object.values(obj)) {
+    if (hasTypesTarget(nested)) return true
+  }
+
+  return false
 }
 
 function checkExportValue(

@@ -14,6 +14,7 @@ const steps: Array<[string, string[]]> = [
   ['pnpm', ['build']],
   ['pnpm', ['check:compiler-cjs']],
   ['pnpm', ['build-dts']],
+  ['pnpm', ['api:check']],
   ['pnpm', ['check']],
   ['pnpm', ['lint']],
   ['pnpm', ['test-unit']],
@@ -21,6 +22,7 @@ const steps: Array<[string, string[]]> = [
   ['pnpm', ['docs:build']],
   ['pnpm', ['size:ci']],
   ['pnpm', ['check:exports']],
+  ['pnpm', ['check:repository']],
 ]
 
 async function run() {

@@ -21,8 +21,7 @@
       "module": "./dist/output-react-wrapper.esm-bundler.js",
       "import": "./dist/output-react-wrapper.esm-bundler.js",
       "require": "./index.js"
-    },
-    "./*": "./*"
+    }
   },
   "sideEffects": false,
   "repository": {

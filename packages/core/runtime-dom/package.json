@@ -23,8 +23,7 @@
       "module": "./dist/runtime-dom.esm-bundler.js",
       "import": "./dist/runtime-dom.esm-bundler.js",
       "require": "./index.js"
-    },
-    "./*": "./*"
+    }
   },
   "sideEffects": false,
   "repository": {

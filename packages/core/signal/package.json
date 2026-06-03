@@ -22,8 +22,7 @@
       "module": "./dist/signal.esm-bundler.js",
       "import": "./dist/signal.esm-bundler.js",
       "require": "./index.js"
-    },
-    "./*": "./*"
+    }
   },
   "sideEffects": false,
   "repository": {

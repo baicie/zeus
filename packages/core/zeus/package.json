@@ -40,7 +40,26 @@
       "types": "./jsx-dev-runtime.d.ts",
       "default": "./jsx-dev-runtime.js"
     },
-    "./*": "./*"
+    "./advanced": {
+      "types": "./dist/advanced.d.ts",
+      "node": {
+        "production": "./dist/advanced.cjs.prod.js",
+        "development": "./dist/advanced.cjs.js",
+        "default": "./dist/advanced.cjs.js"
+      },
+      "import": "./dist/advanced.js",
+      "require": "./dist/advanced.cjs.js"
+    },
+    "./capabilities": {
+      "types": "./dist/capabilities.d.ts",
+      "node": {
+        "production": "./dist/capabilities.cjs.prod.js",
+        "development": "./dist/capabilities.cjs.js",
+        "default": "./dist/capabilities.cjs.js"
+      },
+      "import": "./dist/capabilities.js",
+      "require": "./dist/capabilities.cjs.js"
+    }
   },
   "sideEffects": false,
   "repository": {
@@ -54,6 +73,16 @@
       "esm-browser",
       "cjs",
       "global"
+    ],
+    "additionalEntries": [
+      {
+        "entry": "advanced.ts",
+        "output": "dist/advanced.js"
+      },
+      {
+        "entry": "capabilities.ts",
+        "output": "dist/capabilities.js"
+      }
     ]
   },
   "keywords": [
