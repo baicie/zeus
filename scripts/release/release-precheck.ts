@@ -12,6 +12,7 @@ import { exec } from '../shared/utils'
 
 const steps: Array<[string, string[]]> = [
   ['pnpm', ['build']],
+  ['pnpm', ['check:compiler-cjs']],
   ['pnpm', ['build-dts']],
   ['pnpm', ['check']],
   ['pnpm', ['lint']],
