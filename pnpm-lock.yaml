@@ -12,9 +12,6 @@ catalogs:
     '@babel/parser':
       specifier: ^7.29.0
       version: 7.29.7
-    '@babel/plugin-syntax-jsx':
-      specifier: ^7.28.6
-      version: 7.28.6
     '@babel/preset-typescript':
       specifier: ^7.29.7
       version: 7.29.7
@@ -636,9 +633,6 @@ importers:
       '@babel/helper-plugin-utils':
         specifier: ^7.29.7
         version: 7.29.7
-      '@babel/plugin-syntax-jsx':
-        specifier: 'catalog:'
-        version: 7.28.6(@babel/core@7.29.0)
       '@babel/types':
         specifier: 'catalog:'
         version: 7.29.0
@@ -1082,12 +1076,6 @@ packages:
     resolution: {integrity: sha512-rOS8IpdO7mQELkTPlCsTgPejO0bFuZdEDCGQJouYbYf9e1FLTym7Fei2pEjq8q7MWbX0ravcd7QQYKs1TxOuog==}
     engines: {node: ^22.18.0 || >=24.11.0}
     hasBin: true
-
-  '@babel/plugin-syntax-jsx@7.28.6':
-    resolution: {integrity: sha512-wgEmr06G6sIpqr8YDwA2dSRTE3bJ+V0IfpzfSY3Lfgd7YWOaAdlykvJi13ZKBt8cZHfgH1IXN+CL656W3uUa4w==}
-    engines: {node: '>=6.9.0'}
-    peerDependencies:
-      '@babel/core': ^7.0.0-0
 
   '@babel/plugin-syntax-jsx@7.29.7':
     resolution: {integrity: sha512-TSu8+mHCoEaaCDEZ0I3+6mvTBYR4PCxQwf2z9/r5Tbztv6NaLR3B9thGTTxX2WGuGHJqRiAbKPeGTJ5XWXVg6A==}
@@ -5431,11 +5419,6 @@ snapshots:
   '@babel/parser@8.0.0-rc.6':
     dependencies:
       '@babel/types': 8.0.0-rc.6
-
-  '@babel/plugin-syntax-jsx@7.28.6(@babel/core@7.29.0)':
-    dependencies:
-      '@babel/core': 7.29.0
-      '@babel/helper-plugin-utils': 7.29.7
 
   '@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7)':
     dependencies:

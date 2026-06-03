@@ -43,6 +43,7 @@ docs/internal/
 │   └── roadmap.md
 │
 ├── issues/                        # 通用 issue 追踪
+│   └── 001-babel-syntax-jsx-cjs-inherits.md
 ├── reference/                     # 参考资料
 └── rfc/                          # 正式 RFC 文档
 ```
