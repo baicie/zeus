@@ -5,25 +5,14 @@ import pico from 'picocolors'
 
 import { findWorkspacePackages } from '../shared/utils'
 
-interface SnapshotPackage {
-  name: string
-  distDts: string
-  snapshot: string
+interface ApiEntry {
+  pkgName: string
+  subpath: string
+  dtsFile: string
+  snapshotFile: string
 }
 
 const repoRoot = path.resolve(import.meta.dirname, '../..')
-
-const includePackages = new Set([
-  '@zeus-js/zeus',
-  '@zeus-js/signal',
-  '@zeus-js/runtime-dom',
-  '@zeus-js/compiler',
-  '@zeus-js/output-wc',
-  '@zeus-js/bundler-plugin',
-  '@zeus-js/component-analyzer',
-  '@zeus-js/component-dts',
-  '@zeus-js/preset-component-library',
-])
 
 function normalizeDts(input: string) {
   return input
@@ -33,24 +22,70 @@ function normalizeDts(input: string) {
     .trim()
 }
 
-function getPackageDtsFile(pkg: {
+function findTypesTarget(value: unknown): string | null {
+  if (!value || typeof value !== 'object') return null
+
+  const obj = value as Record<string, unknown>
+
+  if (typeof obj.types === 'string') {
+    return obj.types
+  }
+
+  for (const nested of Object.values(obj)) {
+    const found = findTypesTarget(nested)
+    if (found) return found
+  }
+
+  return null
+}
+
+function collectApiEntries(pkg: {
   name: string
   dir: string
   packageJson: Record<string, unknown>
-}): string | null {
-  const types = pkg.packageJson.types as string | undefined
-  if (!types) return null
+}): ApiEntry[] {
+  const exportsField = pkg.packageJson.exports as
+    | Record<string, unknown>
+    | undefined
+  const entries: ApiEntry[] = []
 
-  return path.join(pkg.dir, types)
+  if (!exportsField) return entries
+
+  for (const [subpath, value] of Object.entries(exportsField)) {
+    const typesPath = findTypesTarget(value)
+
+    if (!typesPath) continue
+
+    const normalizedSubpath =
+      subpath === '.' ? 'main' : subpath.replace('./', '')
+    const fileName = `${pkg.name
+      .replace('@zeus-js/', '')
+      .replace(/\//g, '-')}.${normalizedSubpath}.api.md`
+
+    entries.push({
+      pkgName: pkg.name,
+      subpath,
+      dtsFile: path.join(pkg.dir, typesPath),
+      snapshotFile: path.join(repoRoot, 'docs/api/snapshots', fileName),
+    })
+  }
+
+  return entries
 }
 
-function getSnapshotFile(pkgName: string) {
-  const fileName = pkgName.replace('@zeus-js/', '').replace(/\//g, '-')
-  return path.join(repoRoot, 'docs/api/snapshots', `${fileName}.api.md`)
+function shouldSnapshotPackage(pkg: {
+  name: string
+  packageJson: Record<string, unknown>
+}): boolean {
+  if (pkg.packageJson.private) return false
+  if (!pkg.name.startsWith('@zeus-js/')) return false
+  if (!pkg.packageJson.exports) return false
+  return true
 }
 
-function toSnapshot(pkgName: string, dts: string) {
-  return `# ${pkgName} API Snapshot
+function toSnapshot(pkgName: string, subpath: string, dts: string) {
+  const subpathLabel = subpath === '.' ? 'main' : subpath
+  return `# ${pkgName} (${subpathLabel}) API Snapshot
 
 > This file is generated from the published declaration entry.
 > Do not edit manually.
@@ -64,23 +99,13 @@ ${normalizeDts(dts)}
 
 async function main() {
   const packages = findWorkspacePackages()
-  const targets: SnapshotPackage[] = []
+  const targets: ApiEntry[] = []
 
   for (const pkg of packages) {
-    if (!includePackages.has(pkg.name)) continue
+    if (!shouldSnapshotPackage(pkg)) continue
 
-    const dtsFile = getPackageDtsFile(pkg)
-    if (!dtsFile || !fs.existsSync(dtsFile)) {
-      throw new Error(
-        `Missing declaration file for ${pkg.name}. Run pnpm build-dts first.`,
-      )
-    }
-
-    targets.push({
-      name: pkg.name,
-      distDts: dtsFile,
-      snapshot: getSnapshotFile(pkg.name),
-    })
+    const entries = collectApiEntries(pkg)
+    targets.push(...entries)
   }
 
   fs.mkdirSync(path.join(repoRoot, 'docs/api/snapshots'), {
@@ -88,12 +113,18 @@ async function main() {
   })
 
   for (const target of targets) {
-    const dts = fs.readFileSync(target.distDts, 'utf-8')
-    const snapshot = toSnapshot(target.name, dts)
+    if (!fs.existsSync(target.dtsFile)) {
+      throw new Error(
+        `Missing declaration file for ${target.pkgName} (${target.subpath}): ${target.dtsFile}. Run pnpm build-dts first.`,
+      )
+    }
 
-    fs.writeFileSync(target.snapshot, snapshot)
+    const dts = fs.readFileSync(target.dtsFile, 'utf-8')
+    const snapshot = toSnapshot(target.pkgName, target.subpath, dts)
+
+    fs.writeFileSync(target.snapshotFile, snapshot)
     console.log(
-      pico.green(`updated ${path.relative(repoRoot, target.snapshot)}`),
+      pico.green(`updated ${path.relative(repoRoot, target.snapshotFile)}`),
     )
   }
 }

@@ -2,10 +2,10 @@ name: Release Canary
 #
 # Prerequisites before enabling this workflow:
 #
-# 1. Create a GitHub Environment named "Release" in repository settings.
-#    (Settings → Environments → New environment → Name: "Release")
+# 1. Create a GitHub Environment named "Canary" in repository settings.
+#    (Settings → Environments → New environment → Name: "Canary")
 #
-# 2. Add the following secrets to the "Release" environment:
+# 2. Add the following secrets to the "Canary" environment:
 #    - NPM_TOKEN:      npm publish token with publish access to @zeus-js/* packages.
 #    - ZEUS_UI_DISPATCH_TOKEN: GitHub PAT with "repo" scope on baicie/zeus-ui (or your
 #      downstream repo) to trigger a repository_dispatch event for compatibility checks.
@@ -19,8 +19,8 @@ on:
       - main
 
 concurrency:
-  group: release-canary-${{ github.ref }}
-  cancel-in-progress: true
+  group: release-canary-${{ github.sha }}
+  cancel-in-progress: false
 
 env:
   PUPPETEER_SKIP_DOWNLOAD: 'true'
@@ -34,7 +34,7 @@ jobs:
       contents: read
       id-token: write
 
-    environment: Release
+    environment: Canary
 
     steps:
       - name: Checkout
@@ -59,6 +59,7 @@ jobs:
         run: |
           pnpm build
           pnpm build-dts
+          pnpm api:check
           pnpm check
           pnpm test-unit
           pnpm check:exports
@@ -71,8 +72,9 @@ jobs:
       - name: Trigger zeus-ui compatibility check
         if: success()
         run: |
-          curl -X POST \
+          curl --fail-with-body -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ secrets.ZEUS_UI_DISPATCH_TOKEN }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
             https://api.github.com/repos/baicie/zeus-ui/dispatches \
-            -d '{"event_type":"zeus-canary-published","client_payload":{"source":"zeus","sha":"${{ github.sha }}"}}'
+            -d '{"event_type":"zeus-canary-published","client_payload":{"source":"zeus","sha":"${{ github.sha }}","version":"${{ env.ZEUS_CANARY_VERSION }}"}}'

@@ -15,11 +15,12 @@ try {
 try {
   execSync('pnpm api:snapshot', { stdio: 'inherit' })
 
-  const diff = execSync('git diff -- docs/api/snapshots', {
+  // Use git status --porcelain to detect both modified AND untracked files
+  const status = execSync('git status --porcelain -- docs/api/snapshots', {
     encoding: 'utf-8',
   })
 
-  if (diff.trim()) {
+  if (status.trim()) {
     console.error('\nPublic API snapshot changed.\n')
     console.error(
       'If this is intentional, commit updated docs/api/snapshots files.',
@@ -27,11 +28,21 @@ try {
     console.error(
       'If this is breaking, add a major changeset and migration notes.\n',
     )
-    console.error(diff)
+    console.error(status)
+
+    const diff = execSync('git diff -- docs/api/snapshots', {
+      encoding: 'utf-8',
+    })
+
+    if (diff.trim()) {
+      console.error(diff)
+    }
+
     process.exit(1)
   }
 
   console.log('API snapshots are up to date.')
-} catch {
+} catch (err) {
+  console.error(err)
   process.exit(1)
 }

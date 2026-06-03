@@ -1,6 +1,5 @@
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
-import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -16,8 +15,6 @@ export type PackageFormat =
   | 'esm-browser'
   | 'esm-bundler-runtime'
   | 'esm-browser-runtime'
-
-const require = createRequire(import.meta.url)
 
 export interface WorkspacePackage {
   name: string
@@ -42,7 +39,9 @@ export function findWorkspacePackages(): WorkspacePackage[] {
     if (!fs.existsSync(pkgJsonPath) || seen.has(dir)) return
 
     try {
-      const packageJson = require(pkgJsonPath) as Record<string, unknown>
+      const packageJson = JSON.parse(
+        fs.readFileSync(pkgJsonPath, 'utf-8'),
+      ) as Record<string, unknown>
       results.push({
         name: packageJson.name as string,
         dir,

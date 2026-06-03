@@ -18,7 +18,7 @@ assert(
 
 const packages = findWorkspacePackages()
   .filter(pkg => !pkg.packageJson.private)
-  .filter(pkg => pkg.packageJson.exports)
+  .filter(pkg => pkg.name.startsWith('@zeus-js/'))
 
 let hasError = false
 
@@ -29,6 +29,13 @@ for (const pkg of packages) {
   }
 
   if (!pkgJson.exports) {
+    hasError = true
+    console.error(
+      pico.red(
+        `${pkgJson.name}: missing package.json exports — all published @zeus-js/* packages must define exports`,
+      ),
+    )
+    console.error(`  package: ${path.relative(process.cwd(), pkg.dir)}`)
     continue
   }
 

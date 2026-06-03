@@ -24,10 +24,11 @@ function getCanaryVersion(baseVersion: string) {
 
   const shortSha = process.env.GITHUB_SHA?.slice(0, 8) ?? 'local'
   const runNumber = process.env.GITHUB_RUN_NUMBER ?? Date.now().toString()
-
-  // 0.1.0-beta.1 -> 0.1.0-canary.20260603-xxxx
+  const runAttempt = process.env.GITHUB_RUN_ATTEMPT ?? '1'
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, '')
-  return `${core.major}.${core.minor}.${core.patch}-canary.${date}.${runNumber}.${shortSha}`
+
+  // 0.1.0-beta.1 -> 0.1.0-canary.20260603.xxxxxxxx.a1b2c3d4
+  return `${core.major}.${core.minor}.${core.patch}-canary.${date}.${runNumber}.${runAttempt}.${shortSha}`
 }
 
 function updateVersions(version: string) {
@@ -35,29 +36,12 @@ function updateVersions(version: string) {
 
   for (const pkg of packages) {
     if (pkg.packageJson.private) continue
-
-    // 只发 @zeus-js/*，create/bench/docs 先不动
     if (!pkg.name.startsWith('@zeus-js/')) continue
 
     const pkgPath = path.join(pkg.dir, 'package.json')
     const json = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'))
 
     json.version = version
-
-    for (const field of [
-      'dependencies',
-      'devDependencies',
-      'peerDependencies',
-    ] as const) {
-      const deps = json[field] as Record<string, string> | undefined
-      if (!deps) continue
-
-      for (const name of Object.keys(deps)) {
-        if (name.startsWith('@zeus-js/') && deps[name] === 'workspace:*') {
-          deps[name] = version
-        }
-      }
-    }
 
     fs.writeFileSync(pkgPath, `${JSON.stringify(json, null, 2)}\n`)
   }
@@ -68,10 +52,23 @@ function updateVersions(version: string) {
   fs.writeFileSync(rootPath, `${JSON.stringify(root, null, 2)}\n`)
 }
 
+function getPublishArgs(options: { dryRun?: boolean }): string[] {
+  return [
+    'publish',
+    '--tag',
+    'canary',
+    '--access',
+    'public',
+    '--no-git-checks',
+    ...(options.dryRun ? ['--dry-run'] : []),
+    ...(process.env.CI && !options.dryRun ? ['--provenance'] : []),
+  ]
+}
+
 async function dryRunCheck(packages: ReturnType<typeof findWorkspacePackages>) {
   for (const pkg of packages) {
     try {
-      await exec('pnpm', ['publish', '--tag', 'canary', '--dry-run'], {
+      await exec('pnpm', getPublishArgs({ dryRun: true }), {
         cwd: pkg.dir,
         stdio: 'pipe',
       })
@@ -98,22 +95,10 @@ async function publishCanary() {
         ),
       )
 
-      await exec(
-        'pnpm',
-        [
-          'publish',
-          '--tag',
-          'canary',
-          '--access',
-          'public',
-          '--no-git-checks',
-          ...(process.env.CI ? ['--provenance'] : []),
-        ],
-        {
-          cwd: pkg.dir,
-          stdio: 'inherit',
-        },
-      )
+      await exec('pnpm', getPublishArgs({ dryRun: false }), {
+        cwd: pkg.dir,
+        stdio: 'inherit',
+      })
       published.push(pkg.name)
     } catch (err) {
       const publishedList =
@@ -132,6 +117,14 @@ async function main() {
   const canaryVersion = getCanaryVersion(baseVersion)
 
   console.log(pico.cyan(`Preparing Zeus canary: ${canaryVersion}`))
+
+  // Output canary version to GITHUB_ENV so downstream workflows can access it
+  if (process.env.GITHUB_ENV) {
+    fs.appendFileSync(
+      process.env.GITHUB_ENV,
+      `ZEUS_CANARY_VERSION=${canaryVersion}\n`,
+    )
+  }
 
   updateVersions(canaryVersion)
 
