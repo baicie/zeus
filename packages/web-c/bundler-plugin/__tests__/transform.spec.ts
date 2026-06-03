@@ -165,4 +165,43 @@ describe('transformZeus', () => {
 
     expect(result?.map).toBeNull()
   })
+
+  it('strips TypeScript syntax when transpile is true', async () => {
+    const result = await transformZeus({
+      id: '/project/src/Button.tsx',
+      code: `
+        export interface ButtonProps {
+          label: string
+        }
+
+        export function Button(props: ButtonProps) {
+          return <button>{props.label}</button>
+        }
+      `,
+      transpile: true,
+    })
+
+    expect(result?.code).toBeTruthy()
+    expect(result?.code).not.toContain('interface ButtonProps')
+    expect(result?.code).not.toContain(': ButtonProps')
+  })
+
+  it('keeps TypeScript syntax when transpile is false', async () => {
+    const result = await transformZeus({
+      id: '/project/src/Button.tsx',
+      code: `
+        export interface ButtonProps {
+          label: string
+        }
+
+        export function Button(props: ButtonProps) {
+          return <button>{props.label}</button>
+        }
+      `,
+      transpile: false,
+    })
+
+    expect(result?.code).toBeTruthy()
+    expect(result?.code).toContain('interface ButtonProps')
+  })
 })

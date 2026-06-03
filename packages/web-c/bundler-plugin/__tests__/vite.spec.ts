@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import zeus, { mergeExternal } from '../src/vite'
+import { mergeExternal } from '../src/external'
+import zeus from '../src/vite'
 
 describe('vite plugin', () => {
   it('creates vite plugin with expected name', () => {

@@ -3,7 +3,8 @@ import path from 'node:path'
 
 import { mergeConfig } from 'vite'
 
-import zeusRollupPlugin from './rollup'
+import { createZeusBundlerPlugin } from './core'
+import { mergeExternal } from './external'
 
 import type { RollupExternalOption, ZeusBundlerPluginOptions } from './types'
 import type { Plugin, ResolvedConfig, UserConfig } from 'vite'
@@ -13,15 +14,21 @@ export function createZeusVitePlugin(
 ): Plugin {
   let resolvedConfig: ResolvedConfig | undefined
 
-  const rollupPlugin = zeusRollupPlugin({
-    ...options,
-    root: options.root ?? (() => resolvedConfig?.root ?? process.cwd()),
-  }) as unknown as Plugin
+  const zeusPlugin = createZeusBundlerPlugin(
+    {
+      ...options,
+      root: options.root ?? (() => resolvedConfig?.root ?? process.cwd()),
+      transpile: options.transpile ?? false,
+    },
+    {
+      target: 'vite',
+    },
+  ) as unknown as Plugin
 
   return {
-    ...rollupPlugin,
+    ...zeusPlugin,
     name: 'vite-plugin-zeus',
-    enforce: 'pre' as const,
+    enforce: 'pre',
 
     async config(userConfig) {
       const runtimeDomEntry = resolveRuntimeDOMEntry(userConfig.root)
@@ -39,12 +46,14 @@ export function createZeusVitePlugin(
                 jsx: 'preserve',
               },
             }),
+
         resolve: {
           alias: runtimeDomEntry
             ? {
                 '@zeus-js/runtime-dom': runtimeDomEntry,
               }
             : undefined,
+
           dedupe: [
             '@zeus-js/signal',
             '@zeus-js/runtime-dom',
@@ -54,20 +63,22 @@ export function createZeusVitePlugin(
         },
       }
 
-      if (pluginExternals.length) {
-        return mergeConfig(pluginConfig, {
-          build: {
-            rollupOptions: {
-              external: mergeExternal(
-                userConfig.build?.rollupOptions?.external,
-                pluginExternals,
-              ),
-            },
-          },
-        })
+      if (!pluginExternals.length) {
+        return pluginConfig
       }
 
-      return pluginConfig
+      return mergeConfig(pluginConfig, {
+        build: {
+          rollupOptions: {
+            external: mergeExternal(
+              userConfig.build?.rollupOptions?.external as
+                | RollupExternalOption
+                | undefined,
+              pluginExternals,
+            ),
+          },
+        },
+      })
     },
 
     configResolved(config) {
@@ -90,29 +101,6 @@ function collectPluginExternals(options: ZeusBundlerPluginOptions): string[] {
   }
 
   return Array.from(set)
-}
-
-export function mergeExternal(
-  userExternal: RollupExternalOption | undefined,
-  pluginExternal: string[],
-): RollupExternalOption {
-  if (!userExternal) {
-    return pluginExternal
-  }
-
-  if (typeof userExternal === 'function') {
-    return (source, importer, isResolved) => {
-      return (
-        pluginExternal.includes(source) ||
-        userExternal(source, importer, isResolved)
-      )
-    }
-  }
-
-  return [
-    ...(Array.isArray(userExternal) ? userExternal : [userExternal]),
-    ...pluginExternal,
-  ]
 }
 
 async function isRolldownVite(): Promise<boolean> {

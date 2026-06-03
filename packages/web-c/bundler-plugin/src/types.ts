@@ -3,10 +3,18 @@ import type {
   AnalyzerDiagnostic,
   ComponentManifest,
 } from '@zeus-js/component-analyzer'
-import type { OutputBundle, PluginContext, ExternalOption } from 'rollup'
 
 export type MaybePromise<T> = T | Promise<T>
-export type RollupExternalOption = ExternalOption
+
+export type RollupExternalOption =
+  | string
+  | RegExp
+  | Array<string | RegExp>
+  | ((
+      source: string,
+      importer: string | undefined,
+      isResolved: boolean,
+    ) => boolean)
 
 export type RootOption = string | (() => string)
 
@@ -56,15 +64,17 @@ export interface ZeusBuildContext {
 
   outputs: ZeusOutputRegistry
 
-  emitFile: PluginContext['emitFile']
-  warn: PluginContext['warn']
-  error: PluginContext['error']
-  addWatchFile: PluginContext['addWatchFile']
+  emitFile: (file: unknown) => string | void
+  warn: (message: string | Error) => void
+  error: (message: string | Error) => never
+  addWatchFile: (id: string) => void
 
   meta: {
     watchMode: boolean
   }
 }
+
+export type ZeusOutputBundle = Record<string, unknown>
 
 // ---------------------------------------------------------------------------
 // Output registry
@@ -133,7 +143,7 @@ export interface ZeusComponentPlugin {
 
   generateBundle?(
     ctx: ZeusBuildContext,
-    bundle: OutputBundle,
+    bundle: ZeusOutputBundle,
   ): MaybePromise<ZeusOutputFile[] | void>
 
   /**
@@ -188,4 +198,22 @@ export interface ZeusBundlerPluginOptions {
    * Component-host plugins.
    */
   plugins?: ZeusComponentPlugin[]
+
+  /**
+   * Enable TypeScript transpilation via Babel preset-typescript.
+   *
+   * @default
+   * - rollup: true
+   * - rolldown: false
+   * - vite: false
+   */
+  transpile?: boolean
+
+  /**
+   * Rollup adapter only. Additional extensions to try when resolving imports.
+   * Set to `false` to disable extension resolution.
+   *
+   * @default ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']
+   */
+  resolveExtensions?: string[] | false
 }

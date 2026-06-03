@@ -9,14 +9,14 @@ describe('bundler plugin entry', () => {
 
   it('creates plugin with default options', () => {
     const plugin = zeus()
-    expect(plugin.name).toBe('zeus-bundler-plugin')
+    expect(plugin.name).toBe('rollup-plugin-zeus')
   })
 
   it('creates plugin with custom options', () => {
     const plugin = zeus({
       diagnostics: false,
     })
-    expect(plugin.name).toBe('zeus-bundler-plugin')
+    expect(plugin.name).toBe('rollup-plugin-zeus')
     expect(typeof plugin.transform).toBe('function')
   })
 
@@ -43,7 +43,7 @@ describe('bundler plugin entry', () => {
       plugins: [mockPlugin],
     })
 
-    expect(plugin.name).toBe('zeus-bundler-plugin')
+    expect(plugin.name).toBe('rollup-plugin-zeus')
   })
 
   it('accepts component include patterns', () => {
@@ -53,7 +53,7 @@ describe('bundler plugin entry', () => {
       },
     })
 
-    expect(plugin.name).toBe('zeus-bundler-plugin')
+    expect(plugin.name).toBe('rollup-plugin-zeus')
   })
 
   it('accepts compiler options', () => {
@@ -63,7 +63,7 @@ describe('bundler plugin entry', () => {
       },
     })
 
-    expect(plugin.name).toBe('zeus-bundler-plugin')
+    expect(plugin.name).toBe('rollup-plugin-zeus')
   })
 
   it('accepts dts option', () => {
@@ -71,6 +71,6 @@ describe('bundler plugin entry', () => {
       dts: false,
     })
 
-    expect(plugin.name).toBe('zeus-bundler-plugin')
+    expect(plugin.name).toBe('rollup-plugin-zeus')
   })
 })

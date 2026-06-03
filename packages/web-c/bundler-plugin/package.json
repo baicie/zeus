@@ -22,6 +22,10 @@
       "import": "./dist/bundler-plugin.esm-bundler.js",
       "require": "./index.js"
     },
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.js"
+    },
     "./vite": {
       "types": "./dist/vite.d.ts",
       "import": "./dist/vite.js"
@@ -52,6 +56,10 @@
     ],
     "additionalEntries": [
       {
+        "entry": "core.ts",
+        "output": "dist/core.js"
+      },
+      {
         "entry": "vite.ts",
         "output": "dist/vite.js"
       },
@@ -71,6 +79,7 @@
   },
   "dependencies": {
     "@babel/core": "catalog:",
+    "@babel/preset-typescript": "catalog:",
     "@zeus-js/compiler": "workspace:*",
     "@zeus-js/component-analyzer": "workspace:*",
     "fast-glob": "^3.3.3",
@@ -78,10 +87,14 @@
   },
   "peerDependencies": {
     "rollup": "^4.0.0",
+    "rolldown": "^1.0.0",
     "vite": "catalog:"
   },
   "peerDependenciesMeta": {
     "rollup": {
+      "optional": true
+    },
+    "rolldown": {
       "optional": true
     },
     "vite": {

@@ -39,6 +39,7 @@ export default defineConfig({
   external: [
     /^react$/,
     /^react-dom$/,
+    /^vue$/,
     /^@zeus-js\//,
   ],
 
