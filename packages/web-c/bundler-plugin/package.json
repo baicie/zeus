@@ -24,23 +24,11 @@
     },
     "./vite": {
       "types": "./dist/vite.d.ts",
-      "node": {
-        "production": "./dist/vite.cjs.prod.js",
-        "development": "./dist/vite.cjs.js",
-        "default": "./dist/vite.cjs.js"
-      },
-      "import": "./dist/vite.js",
-      "require": "./dist/vite.cjs.js"
+      "import": "./dist/vite.js"
     },
     "./manifest": {
       "types": "./dist/outputPlugins/manifest.d.ts",
-      "node": {
-        "production": "./dist/outputPlugins/manifest.cjs.prod.js",
-        "development": "./dist/outputPlugins/manifest.cjs.js",
-        "default": "./dist/outputPlugins/manifest.cjs.js"
-      },
-      "import": "./dist/outputPlugins/manifest.js",
-      "require": "./dist/outputPlugins/manifest.cjs.js"
+      "import": "./dist/outputPlugins/manifest.js"
     }
   },
   "sideEffects": false,
