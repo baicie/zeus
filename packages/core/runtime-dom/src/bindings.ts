@@ -55,35 +55,27 @@ export function setAttr(el: Element, name: string, value: AttrValue): void {
 }
 
 function getBooleanDomPropertyName(name: string): string | undefined {
-  if (BOOLEAN_DOM_PROPERTIES.has(name)) {
-    return DOM_PROPERTY_NAME[name] ?? name
-  }
-  return undefined
+  return BOOLEAN_DOM_PROPERTY_NAME[name]
+}
+
+const BOOLEAN_DOM_PROPERTY_NAME: Record<string, string> = {
+  hidden: 'hidden',
+  disabled: 'disabled',
+  readonly: 'readOnly',
+  readOnly: 'readOnly',
+  multiple: 'multiple',
+  selected: 'selected',
+  checked: 'checked',
+  open: 'open',
+  autofocus: 'autofocus',
+  autoFocus: 'autofocus',
+  indeterminate: 'indeterminate',
+  noValidate: 'noValidate',
+  novalidate: 'noValidate',
 }
 
 function normalizeAttrName(name: string): string {
   return name === 'className' ? 'class' : name
-}
-
-const BOOLEAN_DOM_PROPERTIES = new Set([
-  'hidden',
-  'disabled',
-  'readonly',
-  'multiple',
-  'selected',
-  'checked',
-  'open',
-  'autofocus',
-  'indeterminate',
-  'draggable',
-  'spellcheck',
-  'translate',
-  'contentEditable',
-  'noValidate',
-])
-
-const DOM_PROPERTY_NAME: Record<string, string> = {
-  readonly: 'readOnly',
 }
 
 export function bindAttr(

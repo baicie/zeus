@@ -8,6 +8,7 @@ import {
   bindClass,
   bindStyle,
   normalizeClass,
+  setAttr,
 } from '../src'
 
 describe('runtime bindings', () => {
@@ -235,6 +236,121 @@ describe('runtime bindings', () => {
 
     expect(el.style.opacity).toBe('1')
     expect(el.style.zIndex).toBe('1')
+  })
+
+  describe('setAttr', () => {
+    it('writes false to non-reflected boolean DOM properties', () => {
+      const input = document.createElement('input')
+
+      setAttr(input, 'indeterminate', true)
+      expect(input.indeterminate).toBe(true)
+
+      setAttr(input, 'indeterminate', false)
+      expect(input.indeterminate).toBe(false)
+      expect(input.hasAttribute('indeterminate')).toBe(false)
+    })
+
+    it('maps readonly attribute name to readOnly DOM property', () => {
+      const input = document.createElement('input')
+
+      setAttr(input, 'readonly', true)
+      expect(input.readOnly).toBe(true)
+
+      setAttr(input, 'readonly', false)
+      expect(input.readOnly).toBe(false)
+      expect(input.hasAttribute('readonly')).toBe(false)
+    })
+
+    it('maps readOnly camelCase to readOnly DOM property', () => {
+      const input = document.createElement('input')
+
+      setAttr(input, 'readOnly', true)
+      expect(input.readOnly).toBe(true)
+
+      setAttr(input, 'readOnly', false)
+      expect(input.readOnly).toBe(false)
+    })
+
+    it('maps autoFocus camelCase to autofocus DOM property', () => {
+      const input = document.createElement('input')
+
+      setAttr(input, 'autoFocus', true)
+      expect(input.autofocus).toBe(true)
+
+      setAttr(input, 'autoFocus', false)
+      expect(input.autofocus).toBe(false)
+    })
+
+    it('maps novalidate lowercase to noValidate DOM property', () => {
+      const form = document.createElement('form')
+
+      setAttr(form, 'novalidate', true)
+      expect(
+        (form as HTMLFormElement & { noValidate: boolean }).noValidate,
+      ).toBe(true)
+
+      setAttr(form, 'novalidate', false)
+      expect(
+        (form as HTMLFormElement & { noValidate: boolean }).noValidate,
+      ).toBe(false)
+    })
+
+    it('writes true to boolean reflected property with empty attribute', () => {
+      const input = document.createElement('input')
+
+      setAttr(input, 'disabled', true)
+      expect(input.disabled).toBe(true)
+      expect(input.hasAttribute('disabled')).toBe(true)
+    })
+
+    it('removes reflected boolean property attribute on false', () => {
+      const input = document.createElement('input')
+
+      setAttr(input, 'disabled', true)
+      setAttr(input, 'disabled', false)
+      expect(input.disabled).toBe(false)
+      expect(input.hasAttribute('disabled')).toBe(false)
+    })
+
+    it('writes false to boolean property when boolean false is passed', () => {
+      const el = document.createElement('div')
+
+      setAttr(el, 'hidden', true)
+      expect(el.hidden).toBe(true)
+
+      setAttr(el, 'hidden', false)
+      expect(el.hidden).toBe(false)
+    })
+
+    it('normalizes className to class for non-boolean paths', () => {
+      const el = document.createElement('div')
+
+      setAttr(el, 'className', 'foo')
+      expect(el.getAttribute('class')).toBe('foo')
+    })
+
+    it('removes attribute when value is null', () => {
+      const el = document.createElement('div')
+      el.setAttribute('title', 'hello')
+
+      setAttr(el, 'title', null)
+      expect(el.getAttribute('title')).toBeNull()
+    })
+
+    it('removes attribute when value is false', () => {
+      const el = document.createElement('div')
+      el.setAttribute('title', 'hello')
+
+      setAttr(el, 'title', false)
+      expect(el.getAttribute('title')).toBeNull()
+    })
+
+    it('sets string attribute', () => {
+      const el = document.createElement('div')
+
+      setAttr(el, 'data-id', '123')
+      expect(el.getAttribute('data-id')).toBe('123')
+    })
   })
 })
 
