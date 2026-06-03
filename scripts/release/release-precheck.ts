@@ -14,6 +14,7 @@ const steps: Array<[string, string[]]> = [
   ['pnpm', ['build']],
   ['pnpm', ['check:compiler-cjs']],
   ['pnpm', ['build-dts']],
+  ['pnpm', ['api:check']],
   ['pnpm', ['check']],
   ['pnpm', ['lint']],
   ['pnpm', ['test-unit']],

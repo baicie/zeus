@@ -1,0 +1,78 @@
+name: Release Canary
+#
+# Prerequisites before enabling this workflow:
+#
+# 1. Create a GitHub Environment named "Release" in repository settings.
+#    (Settings → Environments → New environment → Name: "Release")
+#
+# 2. Add the following secrets to the "Release" environment:
+#    - NPM_TOKEN:      npm publish token with publish access to @zeus-js/* packages.
+#    - ZEUS_UI_DISPATCH_TOKEN: GitHub PAT with "repo" scope on baicie/zeus-ui (or your
+#      downstream repo) to trigger a repository_dispatch event for compatibility checks.
+#
+# 3. (Optional) If your downstream repo is not "zeus-ui", update the repository name
+#    in the "Trigger zeus-ui compatibility check" step below.
+#
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: release-canary-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PUPPETEER_SKIP_DOWNLOAD: 'true'
+
+jobs:
+  release-canary:
+    if: github.repository == 'baicie/zeus'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    environment: Release
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.node-version'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'pnpm'
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Precheck
+        run: |
+          pnpm build
+          pnpm build-dts
+          pnpm check
+          pnpm test-unit
+          pnpm check:exports
+
+      - name: Publish canary
+        run: pnpm release:canary
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Trigger zeus-ui compatibility check
+        if: success()
+        run: |
+          curl -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.ZEUS_UI_DISPATCH_TOKEN }}" \
+            https://api.github.com/repos/baicie/zeus-ui/dispatches \
+            -d '{"event_type":"zeus-canary-published","client_payload":{"source":"zeus","sha":"${{ github.sha }}"}}'

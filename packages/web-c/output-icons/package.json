@@ -21,8 +21,7 @@
       "module": "./dist/output-icons.esm-bundler.js",
       "import": "./dist/output-icons.esm-bundler.js",
       "require": "./index.js"
-    },
-    "./*": "./*"
+    }
   },
   "sideEffects": false,
   "repository": {

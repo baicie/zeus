@@ -21,8 +21,7 @@
       "module": "./dist/preset-component-library.esm-bundler.js",
       "import": "./dist/preset-component-library.esm-bundler.js",
       "require": "./index.js"
-    },
-    "./*": "./*"
+    }
   },
   "sideEffects": false,
   "repository": {

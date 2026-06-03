@@ -1,7 +1,20 @@
+import assert from 'node:assert'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 
+import pico from 'picocolors'
+
 import { findWorkspacePackages } from '../shared/utils'
+
+const allowWildcard = new Set<string>([
+  // 尽量为空。如果临时保留某个包，必须写原因和 TODO。
+])
+
+// Document the invariant: allowWildcard should always be empty for published packages.
+assert(
+  allowWildcard.size === 0,
+  'allowWildcard must be empty — all published packages must use explicit exports',
+)
 
 const packages = findWorkspacePackages()
   .filter(pkg => !pkg.packageJson.private)
@@ -19,6 +32,19 @@ for (const pkg of packages) {
     continue
   }
 
+  if (
+    Object.prototype.hasOwnProperty.call(pkgJson.exports, './*') &&
+    !allowWildcard.has(pkgJson.name)
+  ) {
+    hasError = true
+    console.error(
+      pico.red(
+        `${pkgJson.name}: exports must not contain "./*". Use explicit public subpaths.`,
+      ),
+    )
+    console.error(`  package: ${path.relative(process.cwd(), pkg.dir)}`)
+  }
+
   checkExports(pkgJson.name, pkg.dir, pkgJson.exports)
 }
 
@@ -26,7 +52,7 @@ if (hasError) {
   process.exit(1)
 }
 
-console.log('Package exports check passed.\n')
+console.log(pico.green('Package exports boundary check passed.\n'))
 
 function checkExports(
   pkgName: string,

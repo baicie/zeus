@@ -29,8 +29,7 @@
     "./manifest": {
       "types": "./dist/outputPlugins/manifest.d.ts",
       "import": "./dist/outputPlugins/manifest.js"
-    },
-    "./*": "./*"
+    }
   },
   "sideEffects": false,
   "repository": {

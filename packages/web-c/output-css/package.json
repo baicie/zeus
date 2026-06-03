@@ -21,8 +21,7 @@
       "module": "./dist/output-css.esm-bundler.js",
       "import": "./dist/output-css.esm-bundler.js",
       "require": "./index.js"
-    },
-    "./*": "./*"
+    }
   },
   "sideEffects": false,
   "repository": {

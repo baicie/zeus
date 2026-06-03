@@ -40,7 +40,14 @@
       "types": "./jsx-dev-runtime.d.ts",
       "default": "./jsx-dev-runtime.js"
     },
-    "./*": "./*"
+    "./advanced": {
+      "types": "./dist/advanced.d.ts",
+      "import": "./dist/advanced.js"
+    },
+    "./capabilities": {
+      "types": "./dist/capabilities.d.ts",
+      "import": "./dist/capabilities.js"
+    }
   },
   "sideEffects": false,
   "repository": {
@@ -54,6 +61,16 @@
       "esm-browser",
       "cjs",
       "global"
+    ],
+    "additionalEntries": [
+      {
+        "entry": "advanced.ts",
+        "output": "dist/advanced.js"
+      },
+      {
+        "entry": "capabilities.ts",
+        "output": "dist/capabilities.js"
+      }
     ]
   },
   "keywords": [

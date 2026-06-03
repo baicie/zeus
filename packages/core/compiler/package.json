@@ -22,8 +22,7 @@
       "module": "./dist/compiler.esm-bundler.js",
       "import": "./dist/compiler.esm-bundler.js",
       "require": "./index.js"
-    },
-    "./*": "./*"
+    }
   },
   "sideEffects": false,
   "repository": {

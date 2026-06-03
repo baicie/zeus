@@ -22,7 +22,10 @@
       "import": "./dist/output-wc.esm-bundler.js",
       "require": "./index.js"
     },
-    "./*": "./*"
+    "./capabilities": {
+      "types": "./dist/capabilities.d.ts",
+      "import": "./dist/capabilities.js"
+    }
   },
   "sideEffects": false,
   "repository": {
@@ -34,6 +37,12 @@
     "formats": [
       "esm-bundler",
       "cjs"
+    ],
+    "additionalEntries": [
+      {
+        "entry": "capabilities.ts",
+        "output": "dist/capabilities.js"
+      }
     ]
   },
   "dependencies": {

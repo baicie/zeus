@@ -21,8 +21,7 @@
       "module": "./dist/output-vue-wrapper.esm-bundler.js",
       "import": "./dist/output-vue-wrapper.esm-bundler.js",
       "require": "./index.js"
-    },
-    "./*": "./*"
+    }
   },
   "sideEffects": false,
   "repository": {
