@@ -41,74 +41,84 @@ const targetPackages = (
   .filter(pkg => !pkg.includes('compiler-'))
   .filter(pkg => wsPkgsByShort.has(pkg))
 
-const packageConfigs: RollupOptions[] = targetPackages.map(pkg => {
+const packageConfigs: RollupOptions[] = targetPackages.flatMap(pkg => {
   const pkgDir = wsPkgsByShort.get(pkg)?.dir
   const relativeDir = wsPkgsByShort.get(pkg)?.relativeDir
   if (!pkgDir || !relativeDir) {
     throw new Error(`Cannot resolve directory for package: ${pkg}`)
   }
-  return {
-    input: `./temp/${relativeDir}/src/index.d.ts`,
-    output: {
-      file: `${pkgDir}/dist/${pkg}.d.ts`,
-      format: 'es',
+
+  const configs: RollupOptions[] = [
+    {
+      input: `./temp/${relativeDir}/src/index.d.ts`,
+      output: {
+        file: `${pkgDir}/dist/${pkg}.d.ts`,
+        format: 'es',
+      },
+      plugins: [
+        dts(),
+        patchTypes(pkg, pkgDir),
+        ...(pkg === 'zeus' ? [copyMts(pkgDir)] : []),
+      ],
+      onwarn(warning, warn) {
+        if (
+          warning.code === 'UNRESOLVED_IMPORT' &&
+          !warning.exporter?.startsWith('.')
+        ) {
+          return
+        }
+        warn(warning)
+      },
     },
-    plugins: [
-      dts(),
-      patchTypes(pkg, pkgDir),
-      ...(pkg === 'zeus' ? [copyMts(pkgDir)] : []),
-    ],
-    onwarn(warning, warn) {
-      if (
-        warning.code === 'UNRESOLVED_IMPORT' &&
-        !warning.exporter?.startsWith('.')
-      ) {
-        return
-      }
-      warn(warning)
-    },
-  }
-})
+  ]
 
-export default packageConfigs
+  const pkgJson = wsPkgsByShort.get(pkg)?.packageJson as
+    | Record<string, unknown>
+    | undefined
+  const buildOptions = pkgJson?.buildOptions as
+    | { additionalEntries?: Array<{ entry: string; output: string }> }
+    | undefined
 
-function generateAdditionalEntryDts(
-  wsPkgsByShort: Map<string, (typeof wsPkgs)[number]>,
-): void {
-  for (const pkg of targetPackages) {
-    const pkgDir = wsPkgsByShort.get(pkg)?.dir
-    const relativeDir = wsPkgsByShort.get(pkg)?.relativeDir
-    if (!pkgDir || !relativeDir) continue
-
-    const pkgJson = wsPkgsByShort.get(pkg)?.packageJson as
-      | Record<string, unknown>
-      | undefined
-    const buildOptions = pkgJson?.buildOptions as
-      | { additionalEntries?: Array<{ entry: string; output: string }> }
-      | undefined
-    if (!buildOptions?.additionalEntries) continue
-
+  if (buildOptions?.additionalEntries) {
     for (const extra of buildOptions.additionalEntries) {
-      const srcDts = `./temp/${relativeDir}/src/${extra.entry.replace(/\.ts$/, '.d.ts')}`
-      if (!existsSync(srcDts)) continue
+      const inputDts = `./temp/${relativeDir}/src/${extra.entry.replace(/\.ts$/, '.d.ts')}`
+      if (!existsSync(inputDts)) {
+        console.warn(`[dts] skipping ${extra.entry}: no temp dts found`)
+        continue
+      }
 
       const outputFile = extra.output.replace(/\.js$/, '.d.ts')
       const outputPath = `${pkgDir}/${outputFile}`
-      const extraCode = readFileSync(srcDts, 'utf-8')
-      const extraPatched = patchTypesCode(extraCode)
 
       const extraDir = outputPath.substring(0, outputPath.lastIndexOf('/'))
       if (!existsSync(extraDir)) {
         mkdirSync(extraDir, { recursive: true })
       }
 
-      writeFileSync(outputPath, extraPatched)
-      console.log(`[dts] ${outputFile} written`)
+      configs.push({
+        input: inputDts,
+        output: {
+          file: outputPath,
+          format: 'es',
+        },
+        plugins: [dts(), patchTypes(pkg, pkgDir)],
+        onwarn(warning, warn) {
+          if (
+            warning.code === 'UNRESOLVED_IMPORT' &&
+            !warning.exporter?.startsWith('.')
+          ) {
+            return
+          }
+          warn(warning)
+        },
+      })
     }
   }
-}
 
-generateAdditionalEntryDts(wsPkgsByShort)
+  return configs
+})
+
+export default packageConfigs
 
 function patchTypes(pkg: string, pkgDir: string): Plugin {
   return {

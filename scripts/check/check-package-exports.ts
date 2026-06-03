@@ -67,8 +67,25 @@ function checkExports(
   exportsField: Record<string, unknown>,
 ): void {
   for (const [key, value] of Object.entries(exportsField)) {
+    if (!hasTypesTarget(value)) {
+      error(`${pkgName} export "${key}" is missing "types" condition`)
+    }
     checkExportValue(pkgName, pkgDir, key, value)
   }
+}
+
+function hasTypesTarget(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false
+
+  const obj = value as Record<string, unknown>
+
+  if (typeof obj.types === 'string') return true
+
+  for (const nested of Object.values(obj)) {
+    if (hasTypesTarget(nested)) return true
+  }
+
+  return false
 }
 
 function checkExportValue(

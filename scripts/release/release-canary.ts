@@ -146,6 +146,9 @@ async function main() {
 
   updateVersions(canaryVersion)
 
+  // Keep lockfile metadata in sync with temporary canary package versions.
+  // We keep `workspace:*` ranges unchanged; pnpm will rewrite workspace deps
+  // during publish/pack.
   await exec('pnpm', ['install', '--lockfile-only'], {
     cwd: repoRoot,
     stdio: 'inherit',
@@ -157,6 +160,11 @@ async function main() {
   })
 
   await exec('pnpm', ['build-dts'], {
+    cwd: repoRoot,
+    stdio: 'inherit',
+  })
+
+  await exec('pnpm', ['check:exports'], {
     cwd: repoRoot,
     stdio: 'inherit',
   })

@@ -104,7 +104,7 @@ function shouldSnapshotPackage(pkg: {
   return true
 }
 
-function toSnapshot(pkgName: string, subpath: string, dts: string) {
+function toSnapshot(pkgName: string, subpath: string, normalizedDts: string) {
   const subpathLabel = subpath === '.' ? 'main' : subpath
   return `# ${pkgName} (${subpathLabel}) API Snapshot
 
@@ -113,9 +113,28 @@ function toSnapshot(pkgName: string, subpath: string, dts: string) {
 > Run \`pnpm api:snapshot\` to update.
 
 \`\`\`ts
-${normalizeDts(dts)}
+${normalizedDts}
 \`\`\`
 `
+}
+
+function checkRelativeTypeImports(target: ApiEntry, dts: string) {
+  const importRE = /from\s+['"](\.{1,2}\/[^'"]+)['"]/g
+  const dtsDir = path.dirname(target.dtsFile)
+
+  for (const match of dts.matchAll(importRE)) {
+    const specifier = match[1]
+    const candidates = [
+      path.resolve(dtsDir, `${specifier}.d.ts`),
+      path.resolve(dtsDir, specifier, 'index.d.ts'),
+    ]
+
+    if (!candidates.some(p => fs.existsSync(p))) {
+      throw new Error(
+        `API snapshot for ${target.pkgName} (${target.subpath}) has unresolved relative type import: ${specifier}`,
+      )
+    }
+  }
 }
 
 async function main() {
@@ -144,7 +163,17 @@ async function main() {
     }
 
     const dts = fs.readFileSync(target.dtsFile, 'utf-8')
-    const snapshot = toSnapshot(target.pkgName, target.subpath, dts)
+    const normalizedDts = normalizeDts(dts)
+
+    if (!normalizedDts) {
+      throw new Error(
+        `Empty declaration file for ${target.pkgName} (${target.subpath}): ${target.dtsFile}`,
+      )
+    }
+
+    checkRelativeTypeImports(target, normalizedDts)
+
+    const snapshot = toSnapshot(target.pkgName, target.subpath, normalizedDts)
 
     fs.writeFileSync(target.snapshotFile, snapshot)
     console.log(
