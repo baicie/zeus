@@ -38,6 +38,15 @@ Downstream packages must not import from:
 
 Every merge into Zeus main publishes `@zeus-js/*@canary`.
 
+## Canary Publish Scope
+
+Canary release intentionally publishes all non-private `@zeus-js/*` packages,
+including packages ignored by the formal changeset release.
+
+This is intentional because downstream compatibility checks may consume tooling
+packages such as `@zeus-js/vite-plugin`, `@zeus-js/bundler-plugin`, and
+Web Component output packages.
+
 Downstream projects must run compatibility checks against canary:
 
 1. CI installs latest `@zeus-js/*@canary`

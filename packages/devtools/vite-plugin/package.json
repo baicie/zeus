@@ -24,7 +24,7 @@
   "sideEffects": false,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/baicie/zeus.git",
+    "url": "https://github.com/baicie/zeus",
     "directory": "packages/devtools/vite-plugin"
   },
   "buildOptions": {

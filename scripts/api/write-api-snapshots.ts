@@ -21,23 +21,6 @@ function normalizeDts(input: string) {
     .trim()
 }
 
-function stableSnapshotDts(input: string): string {
-  const lines = input.split('\n')
-  const reExports: string[] = []
-  const otherLines: string[] = []
-
-  for (const line of lines) {
-    if (line.match(/^\s*export\s+\{[^}]+\}\s*from\s+/)) {
-      reExports.push(line)
-    } else {
-      otherLines.push(line)
-    }
-  }
-
-  reExports.sort()
-  return [...otherLines, ...reExports].join('\n')
-}
-
 function normalizeSnapshotSubpath(subpath: string) {
   return subpath === '.'
     ? 'main'
@@ -129,7 +112,7 @@ function toSnapshot(pkgName: string, subpath: string, normalizedDts: string) {
 > Run \`pnpm api:snapshot\` to update.
 
 \`\`\`ts
-${stableSnapshotDts(normalizedDts)}
+${normalizedDts}
 \`\`\`
 `
 }
