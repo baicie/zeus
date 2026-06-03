@@ -9,7 +9,7 @@ import type { CompilerOptions } from '@zeus-js/compiler'
 export interface TransformZeusOptions {
   id: string
   code: string
-  compiler?: Partial<CompilerOptions>
+  compiler?: Partial<CompilerOptions> | false
   sourcemap?: boolean
   transpile?: boolean
 }
@@ -20,37 +20,48 @@ export async function transformZeus(options: TransformZeusOptions) {
   const isTs = /\.[cm]?tsx?$/.test(id)
   const isTsx = /\.[cm]?tsx$/.test(id)
 
+  const shouldRunCompiler = compiler !== false
+  const shouldStripTs = transpile && isTs
+
+  if (!shouldRunCompiler && !shouldStripTs) {
+    return null
+  }
+
+  const compilerOptions =
+    compiler === false ? {} : compiler === undefined ? {} : compiler
+
   const result = await transformAsync(code, {
     filename: id,
     sourceMaps: sourcemap,
 
-    plugins: [
-      [
-        zeusCompiler,
-        {
-          moduleName: compiler?.moduleName ?? '@zeus-js/runtime-dom',
-          generate: 'dom',
-          hydratable: false,
-          delegateEvents: true,
-          ...compiler,
-        } satisfies Partial<CompilerOptions>,
-      ],
-    ],
+    plugins: shouldRunCompiler
+      ? [
+          [
+            zeusCompiler,
+            {
+              moduleName: compilerOptions.moduleName ?? '@zeus-js/runtime-dom',
+              generate: 'dom',
+              hydratable: false,
+              delegateEvents: true,
+              ...compilerOptions,
+            } satisfies Partial<CompilerOptions>,
+          ],
+        ]
+      : [],
 
-    presets:
-      transpile && isTs
-        ? [
-            [
-              presetTypeScript,
-              {
-                allExtensions: true,
-                isTSX: isTsx,
-                allowDeclareFields: true,
-                onlyRemoveTypeImports: true,
-              },
-            ],
-          ]
-        : [],
+    presets: shouldStripTs
+      ? [
+          [
+            presetTypeScript,
+            {
+              allExtensions: true,
+              isTSX: isTsx,
+              allowDeclareFields: true,
+              onlyRemoveTypeImports: true,
+            },
+          ],
+        ]
+      : [],
 
     parserOpts: {
       sourceType: 'module',

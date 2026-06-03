@@ -33,5 +33,10 @@ describe('rolldown adapter', () => {
     const files = fs.readdirSync(path.join(root, 'dist'))
 
     expect(files.length).toBeGreaterThan(0)
+
+    const code = fs.readFileSync(path.join(root, 'dist', 'index.js'), 'utf-8')
+
+    expect(code).not.toContain('interface ButtonProps')
+    expect(code).not.toContain(': ButtonProps')
   })
 })

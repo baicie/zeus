@@ -82,7 +82,6 @@
     "@zeus-js/output-vue-wrapper": "workspace:*",
     "@zeus-js/vite-plugin": "workspace:*",
     "@rollup/plugin-node-resolve": "^16.0.0",
-    "@rollup/plugin-typescript": "^12.0.0",
     "rollup": "^4.0.0",
     "typescript": "^6.0.3",
     "vite": "^8.0.16",

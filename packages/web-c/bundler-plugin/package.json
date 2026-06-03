@@ -22,10 +22,6 @@
       "import": "./dist/bundler-plugin.esm-bundler.js",
       "require": "./index.js"
     },
-    "./core": {
-      "types": "./dist/core.d.ts",
-      "import": "./dist/core.js"
-    },
     "./vite": {
       "types": "./dist/vite.d.ts",
       "import": "./dist/vite.js"
@@ -55,10 +51,6 @@
       "cjs"
     ],
     "additionalEntries": [
-      {
-        "entry": "core.ts",
-        "output": "dist/core.js"
-      },
       {
         "entry": "vite.ts",
         "output": "dist/vite.js"

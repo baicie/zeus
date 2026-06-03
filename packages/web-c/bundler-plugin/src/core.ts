@@ -164,16 +164,22 @@ export function createZeusBundlerPlugin(
     },
 
     async transform(code: string, id: string) {
-      if (!shouldTransform(id)) {
+      const shouldRunZeus = shouldTransform(id)
+      const shouldStripTs =
+        target === 'rollup' &&
+        resolveTranspile(options.transpile, target) &&
+        /\.[cm]?tsx?$/.test(id)
+
+      if (!shouldRunZeus && !shouldStripTs) {
         return null
       }
 
       return await transformZeus({
         id,
         code,
-        compiler: options.compiler,
+        compiler: shouldRunZeus ? options.compiler : false,
         sourcemap: true,
-        transpile: resolveTranspile(options.transpile, target),
+        transpile: shouldStripTs,
       })
     },
 

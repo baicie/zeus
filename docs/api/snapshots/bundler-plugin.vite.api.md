@@ -10,11 +10,9 @@ import {
   ComponentManifest,
   AnalyzerDiagnostic,
 } from '@zeus-js/component-analyzer'
-import { PluginContext, OutputBundle, ExternalOption } from 'rollup'
 import { Plugin } from 'vite'
 
 type MaybePromise<T> = T | Promise<T>
-type RollupExternalOption = ExternalOption
 type RootOption = string | (() => string)
 type ZeusOutputKind =
   | 'wc'
@@ -43,14 +41,15 @@ interface ZeusBuildContext {
   diagnostics: AnalyzerDiagnostic[]
   dts: ResolvedDts
   outputs: ZeusOutputRegistry
-  emitFile: PluginContext['emitFile']
-  warn: PluginContext['warn']
-  error: PluginContext['error']
-  addWatchFile: PluginContext['addWatchFile']
+  emitFile: (file: unknown) => string | void
+  warn: (message: string | Error) => void
+  error: (message: string | Error) => never
+  addWatchFile: (id: string) => void
   meta: {
     watchMode: boolean
   }
 }
+type ZeusOutputBundle = Record<string, unknown>
 interface ZeusOutputRegistry {
   register(kind: ZeusOutputKind, options: ZeusOutputRegistration): void
   has(kind: ZeusOutputKind): boolean
@@ -99,7 +98,7 @@ interface ZeusComponentPlugin {
   ): MaybePromise<ZeusVirtualModule[] | void>
   generateBundle?(
     ctx: ZeusBuildContext,
-    bundle: OutputBundle,
+    bundle: ZeusOutputBundle,
   ): MaybePromise<ZeusOutputFile[] | void>
   /**
    * Vite adapter can use this to auto externalize framework deps.
@@ -143,16 +142,27 @@ interface ZeusBundlerPluginOptions {
    * Component-host plugins.
    */
   plugins?: ZeusComponentPlugin[]
+  /**
+   * Enable TypeScript transpilation via Babel preset-typescript.
+   *
+   * @default
+   * - rollup: true
+   * - rolldown: false
+   * - vite: false
+   */
+  transpile?: boolean
+  /**
+   * Rollup adapter only. Additional extensions to try when resolving imports.
+   * Set to `false` to disable extension resolution.
+   *
+   * @default ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']
+   */
+  resolveExtensions?: string[] | false
 }
 
 export declare function createZeusVitePlugin(
   options?: ZeusBundlerPluginOptions,
 ): Plugin
-
-export declare function mergeExternal(
-  userExternal: RollupExternalOption | undefined,
-  pluginExternal: string[],
-): RollupExternalOption
 
 export { createZeusVitePlugin as default, createZeusVitePlugin as zeus }
 ```

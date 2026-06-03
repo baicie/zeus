@@ -1,7 +1,6 @@
 import zeus from '@zeus-js/bundler-plugin/rollup'
 import { componentLibrary } from '@zeus-js/preset-component-library'
 import { nodeResolve } from '@rollup/plugin-node-resolve'
-import typescript from '@rollup/plugin-typescript'
 
 export default {
   input: 'src/index.ts',
@@ -13,21 +12,17 @@ export default {
     entryFileNames: '[name].js',
     chunkFileNames: 'assets/[name]-[hash].js',
     manualChunks(id) {
-      if (id.includes('@zeus-js/runtime-dom') || id.includes('@zeus-js/signal') || id.includes('@zeus-js/zeus')) {
+      if (
+        id.includes('@zeus-js/runtime-dom') ||
+        id.includes('@zeus-js/signal') ||
+        id.includes('@zeus-js/zeus')
+      ) {
         return 'zeus-runtime'
       }
     },
   },
 
   plugins: [
-    nodeResolve({
-      extensions: ['.ts', '.tsx', '.js', '.jsx'],
-    }),
-    typescript({
-      tsconfig: './tsconfig.json',
-      declaration: false,
-      declarationDir: undefined,
-    }),
     zeus({
       plugins: componentLibrary({
         styles: 'src/styles.css',
@@ -36,6 +31,9 @@ export default {
         manifest: true,
         customElements: true,
       }),
+    }),
+    nodeResolve({
+      extensions: ['.ts', '.tsx', '.js', '.jsx'],
     }),
   ],
 

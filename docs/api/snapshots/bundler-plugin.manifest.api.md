@@ -9,7 +9,6 @@ import {
   ComponentManifest,
   AnalyzerDiagnostic,
 } from '@zeus-js/component-analyzer'
-import { PluginContext, OutputBundle } from 'rollup'
 
 type MaybePromise<T> = T | Promise<T>
 type ZeusOutputKind =
@@ -39,14 +38,15 @@ interface ZeusBuildContext {
   diagnostics: AnalyzerDiagnostic[]
   dts: ResolvedDts
   outputs: ZeusOutputRegistry
-  emitFile: PluginContext['emitFile']
-  warn: PluginContext['warn']
-  error: PluginContext['error']
-  addWatchFile: PluginContext['addWatchFile']
+  emitFile: (file: unknown) => string | void
+  warn: (message: string | Error) => void
+  error: (message: string | Error) => never
+  addWatchFile: (id: string) => void
   meta: {
     watchMode: boolean
   }
 }
+type ZeusOutputBundle = Record<string, unknown>
 interface ZeusOutputRegistry {
   register(kind: ZeusOutputKind, options: ZeusOutputRegistration): void
   has(kind: ZeusOutputKind): boolean
@@ -95,7 +95,7 @@ interface ZeusComponentPlugin {
   ): MaybePromise<ZeusVirtualModule[] | void>
   generateBundle?(
     ctx: ZeusBuildContext,
-    bundle: OutputBundle,
+    bundle: ZeusOutputBundle,
   ): MaybePromise<ZeusOutputFile[] | void>
   /**
    * Vite adapter can use this to auto externalize framework deps.

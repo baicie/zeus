@@ -1,4 +1,4 @@
-# @zeus-js/bundler-plugin (main) API Snapshot
+# @zeus-js/bundler-plugin (./rollup) API Snapshot
 
 > This file is generated from the published declaration entry.
 > Do not edit manually.
@@ -10,21 +10,11 @@ import {
   ComponentManifest,
   AnalyzerDiagnostic,
 } from '@zeus-js/component-analyzer'
-import { Plugin } from 'rollup'
-import { RolldownOptions, Plugin as Plugin$1 } from 'rolldown'
+import { RollupOptions, Plugin } from 'rollup'
 
 type MaybePromise<T> = T | Promise<T>
-export type RollupExternalOption =
-  | string
-  | RegExp
-  | Array<string | RegExp>
-  | ((
-      source: string,
-      importer: string | undefined,
-      isResolved: boolean,
-    ) => boolean)
 type RootOption = string | (() => string)
-export type ZeusOutputKind =
+type ZeusOutputKind =
   | 'wc'
   | 'react'
   | 'vue'
@@ -32,20 +22,20 @@ export type ZeusOutputKind =
   | 'icons-vue'
   | 'icons-wc'
   | 'asset'
-export type DtsMode = boolean | 'auto'
-export interface ResolvedDts {
+type DtsMode = boolean | 'auto'
+interface ResolvedDts {
   enabled: boolean
   mode: DtsMode
   reason: DtsAutoReason[]
 }
-export type DtsAutoReason =
+type DtsAutoReason =
   | 'explicit-enabled'
   | 'explicit-disabled'
   | 'package-types-field'
   | 'typescript-dependency'
   | 'tsconfig'
   | 'typescript-source'
-export interface ZeusBuildContext {
+interface ZeusBuildContext {
   root: string
   manifest: ComponentManifest
   diagnostics: AnalyzerDiagnostic[]
@@ -60,7 +50,7 @@ export interface ZeusBuildContext {
   }
 }
 type ZeusOutputBundle = Record<string, unknown>
-export interface ZeusOutputRegistry {
+interface ZeusOutputRegistry {
   register(kind: ZeusOutputKind, options: ZeusOutputRegistration): void
   has(kind: ZeusOutputKind): boolean
   get(kind: ZeusOutputKind): RequiredZeusOutputRegistration
@@ -68,33 +58,33 @@ export interface ZeusOutputRegistry {
   getFileName(kind: ZeusOutputKind, tag: string): string
   join(kind: ZeusOutputKind, fileName: string): string
 }
-export interface ZeusOutputRegistration {
+interface ZeusOutputRegistration {
   outDir?: string
   stripPrefix?: string | false
   fileName?: (tag: string, kind: ZeusOutputKind) => string
 }
-export interface RequiredZeusOutputRegistration {
+interface RequiredZeusOutputRegistration {
   outDir: string
   stripPrefix: string | false
   fileName?: (tag: string, kind: ZeusOutputKind) => string
 }
-export interface ZeusVirtualModule {
+interface ZeusVirtualModule {
   id: string
   code: string
   fileName?: string
 }
-export interface ZeusOutputAsset {
+interface ZeusOutputAsset {
   type: 'asset'
   fileName: string
   source: string | Uint8Array
 }
-export interface ZeusOutputChunk {
+interface ZeusOutputChunk {
   type: 'chunk'
   id: string
   fileName?: string
 }
-export type ZeusOutputFile = ZeusOutputAsset | ZeusOutputChunk
-export interface ZeusComponentPlugin {
+type ZeusOutputFile = ZeusOutputAsset | ZeusOutputChunk
+interface ZeusComponentPlugin {
   name: string
   /**
    * Register output dirs / externals / plugin metadata.
@@ -115,7 +105,7 @@ export interface ZeusComponentPlugin {
    */
   external?: string[]
 }
-export interface ZeusBundlerPluginOptions {
+interface ZeusBundlerPluginOptions {
   /**
    * Project root.
    *
@@ -170,32 +160,18 @@ export interface ZeusBundlerPluginOptions {
   resolveExtensions?: string[] | false
 }
 
-export declare function zeus$1(options?: ZeusBundlerPluginOptions): Plugin
+export declare function zeus(options?: ZeusBundlerPluginOptions): Plugin
 
-export declare function zeus(options?: ZeusBundlerPluginOptions): Plugin$1
-
-interface ZeusRolldownConfigOptions extends Omit<RolldownOptions, 'plugins'> {
+export interface ZeusRollupConfigOptions extends Omit<
+  RollupOptions,
+  'plugins'
+> {
   zeus?: ZeusBundlerPluginOptions
-  plugins?: RolldownOptions['plugins']
+  plugins?: RollupOptions['plugins']
 }
-export declare function defineZeusRolldownConfig(
-  config?: ZeusRolldownConfigOptions,
-): RolldownOptions
+export declare function defineZeusRollupConfig(
+  config?: ZeusRollupConfigOptions,
+): RollupOptions
 
-export declare function createOutputRegistry(): ZeusOutputRegistry
-
-export declare function resolveComponentInclude(include?: string[]): string[]
-export declare function resolveComponentExclude(exclude?: string[]): string[]
-
-export declare function resolvePluginDts(
-  value: DtsMode | undefined,
-  ctx: ZeusBuildContext,
-): boolean
-
-export declare function mergeExternal(
-  userExternal: RollupExternalOption | undefined,
-  pluginExternal: string[],
-): RollupExternalOption
-
-export { zeus$1 as default, zeus as rolldown, zeus$1 as zeus }
+export { zeus as default }
 ```

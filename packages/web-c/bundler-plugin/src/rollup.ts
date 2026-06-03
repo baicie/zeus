@@ -1,7 +1,7 @@
 import { createZeusBundlerPlugin } from './core'
 
 import type { ZeusBundlerPluginOptions } from './types'
-import type { Plugin } from 'rollup'
+import type { Plugin, RollupOptions } from 'rollup'
 
 export default function zeus(options: ZeusBundlerPluginOptions = {}): Plugin {
   return createZeusBundlerPlugin(options, {
@@ -12,18 +12,17 @@ export default function zeus(options: ZeusBundlerPluginOptions = {}): Plugin {
 export { zeus }
 
 export interface ZeusRollupConfigOptions extends Omit<
-  import('rollup').RollupOptions,
+  RollupOptions,
   'plugins'
 > {
   zeus?: ZeusBundlerPluginOptions
 
-  plugins?: import('rollup').RollupOptions['plugins']
+  plugins?: RollupOptions['plugins']
 }
 
 export function defineZeusRollupConfig(
   config: ZeusRollupConfigOptions = {},
-): // eslint-disable-next-line @typescript-eslint/no-explicit-any
-any {
+): RollupOptions {
   const { zeus: zeusOptions, plugins, input, output, ...rest } = config
 
   return {
@@ -41,14 +40,10 @@ any {
   }
 }
 
-function normalizePlugins(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  plugins: any,
-): // eslint-disable-next-line @typescript-eslint/no-explicit-any
-any[] {
+function normalizePlugins(plugins: RollupOptions['plugins']): Plugin[] {
   if (!plugins) return []
 
   return Array.isArray(plugins)
-    ? plugins.filter(Boolean)
-    : [plugins].filter(Boolean)
+    ? (plugins.filter(Boolean) as Plugin[])
+    : ([plugins].filter(Boolean) as Plugin[])
 }
