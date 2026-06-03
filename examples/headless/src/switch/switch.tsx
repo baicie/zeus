@@ -1,4 +1,4 @@
-import { defineElement, Host, Slot, state } from '@zeus-js/zeus'
+import { defineElement, Host, Slot } from '@zeus-js/zeus'
 
 import { isEnterOrSpace } from '../shared/keyboard'
 
@@ -14,13 +14,10 @@ function setup(
     host: HTMLElement & { checked?: boolean }
   },
 ) {
-  const checked = state(props.checked ?? false)
-
   const toggle = () => {
     if (props.disabled) return
 
-    const next = !checked.value
-    checked.value = next
+    const next = !props.checked
     ctx.host.checked = next
 
     ctx.emit('checked-change', {
@@ -38,16 +35,16 @@ function setup(
   return (
     <Host
       data-slot="switch"
-      data-state={() => (checked.value ? 'checked' : 'unchecked')}
+      data-state={() => (props.checked ? 'checked' : 'unchecked')}
       data-disabled={() => (props.disabled ? '' : undefined)}
     >
       <button
         part="root"
         type="button"
         role="switch"
-        disabled={Boolean(props.disabled)}
-        aria-checked={checked.value ? 'true' : 'false'}
-        aria-disabled={props.disabled ? 'true' : undefined}
+        disabled={() => Boolean(props.disabled)}
+        aria-checked={() => (props.checked ? 'true' : 'false')}
+        aria-disabled={() => (props.disabled ? 'true' : undefined)}
         onClick={toggle}
         onKeyDown={onKeyDown}
       >

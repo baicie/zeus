@@ -47,6 +47,11 @@ export interface HostProps extends Record<string, unknown> {
   /**
    * data-* / aria-* are accepted through index signature.
    */
+
+  /**
+   * @internal Compiler-generated element refs for Host-level attribute binding.
+   */
+  _elements?: Record<string, () => Element | null>
 }
 
 export interface SlotProps {
@@ -60,6 +65,7 @@ const HOST_RESERVED_KEYS = new Set([
   'class',
   'className',
   'style',
+  '_elements',
 ])
 
 export function Host(props: HostProps): JSXValue {
@@ -81,6 +87,10 @@ function bindHostProps(host: HTMLElement, props: HostProps): void {
   bindHostClass(host, props)
   bindHostStyle(host, props)
   bindHostAttributes(host, props)
+
+  if ('_elements' in props) {
+    bindHostElementBindings(host, props)
+  }
 }
 
 function bindHostRef(host: HTMLElement, props: HostProps): void {
@@ -92,9 +102,6 @@ function bindHostRef(host: HTMLElement, props: HostProps): void {
 function bindHostClass(host: HTMLElement, props: HostProps): void {
   if (!('class' in props) && !('className' in props)) return
 
-  /**
-   * className has higher priority than class when both exist.
-   */
   const value = props.className !== undefined ? props.className : props.class
 
   bindClass(host, () => {
@@ -124,13 +131,33 @@ function bindHostAttributes(host: HTMLElement, props: HostProps): void {
   }
 }
 
+function bindHostElementBindings(host: HTMLElement, props: HostProps): void {
+  const elements = props._elements as Record<string, () => Element | null>
+
+  for (const _key of Object.keys(elements)) {
+    const getEl = elements[_key]
+    const el = getEl()
+    if (!el) continue
+
+    for (const attrKey of Object.keys(props)) {
+      if (HOST_RESERVED_KEYS.has(attrKey)) continue
+      if (isEventLikeProp(attrKey)) continue
+
+      const value = props[attrKey]
+      const attrName = normalizeHostAttrName(attrKey)
+
+      bindAttr(el, attrName, () => {
+        return resolveHostValue(value) as AttrValue
+      })
+    }
+  }
+}
+
 function resolveHostValue(value: unknown): unknown {
-  /**
-   * JSX component props may be direct values or lazy getters.
-   * Function values are treated as getters except event-like props,
-   * which are filtered before this function is called.
-   */
-  return typeof value === 'function' ? (value as () => unknown)() : value
+  if (typeof value === 'function') {
+    return value()
+  }
+  return value
 }
 
 function resolveValue(

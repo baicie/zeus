@@ -37,10 +37,10 @@ function setup(props: IconProps) {
         }}
         part="root"
         focusable="false"
-        width={props.size}
-        height={props.size}
-        aria-hidden={props.label ? undefined : 'true'}
-        aria-label={props.label}
+        width={() => props.size}
+        height={() => props.size}
+        aria-hidden={() => (props.label ? undefined : 'true')}
+        aria-label={() => props.label}
       />
     </Host>
   )

@@ -89,9 +89,10 @@ export function emitMountFor(
   context: CompilerContext,
 ): t.Expression {
   const params: t.Identifier[] = [node.item]
-  const path = node.domPath
 
   if (node.index) params.push(node.index)
+  const path = node.domPath
+
   if (!path || path.kind !== 'Marker') {
     throw new Error('For DOM path is not assigned')
   }
@@ -107,23 +108,21 @@ export function emitMountFor(
 
 export function emitHost(node: HostIR, context: CompilerContext): t.Expression {
   const props = buildHostProps(node, context)
-
-  const hostCall = t.callExpression(context.importRuntime('Host'), [
-    t.objectExpression(props),
-  ])
+  const hostIdent = context.importRuntime('Host')
 
   if (!node.child) {
-    return hostCall
+    return t.callExpression(hostIdent, [t.objectExpression(props)])
   }
 
   const childExpr = emitNodeExpression(node.child, context)
+  const hostCall = t.callExpression(hostIdent, [t.objectExpression(props)])
 
   return t.callExpression(
     t.arrowFunctionExpression(
       [],
       t.blockStatement([
         t.expressionStatement(hostCall),
-        t.returnStatement(childExpr),
+        t.returnStatement(childExpr as t.Expression),
       ]),
     ),
     [],

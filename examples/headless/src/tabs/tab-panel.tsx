@@ -14,7 +14,7 @@ function setup(props: TabPanelProps, ctx: { host: HTMLElement }) {
       data-slot="tab-panel"
       data-state={() => (active() ? 'active' : 'inactive')}
     >
-      <div part="root" role="tabpanel" hidden={!active()}>
+      <div part="root" role="tabpanel" hidden={() => !active()}>
         <Slot />
       </div>
     </Host>

@@ -21,7 +21,7 @@ function setup(_props: unknown, ctx: { host: HTMLElement }) {
       data-slot="dialog-content"
       data-state={() => (open() ? 'open' : 'closed')}
     >
-      <div part="root" hidden={!open()} onKeyDown={onKeyDown}>
+      <div part="root" hidden={() => !open()} onKeyDown={onKeyDown}>
         <div part="overlay" data-slot="dialog-overlay" onClick={close} />
 
         <div

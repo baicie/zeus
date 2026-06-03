@@ -38,8 +38,8 @@ function setup(
       <button
         part="root"
         type="button"
-        disabled={Boolean(props.disabled)}
-        aria-disabled={props.disabled ? 'true' : undefined}
+        disabled={() => Boolean(props.disabled)}
+        aria-disabled={() => (props.disabled ? 'true' : undefined)}
         onClick={handleClick}
       >
         <Slot />

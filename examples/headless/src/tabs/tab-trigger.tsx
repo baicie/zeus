@@ -33,9 +33,9 @@ function setup(props: TabTriggerProps, ctx: { host: HTMLElement }) {
         part="root"
         type="button"
         role="tab"
-        disabled={Boolean(props.disabled)}
-        aria-selected={selected() ? 'true' : 'false'}
-        aria-disabled={props.disabled ? 'true' : undefined}
+        disabled={() => Boolean(props.disabled)}
+        aria-selected={() => (selected() ? 'true' : 'false')}
+        aria-disabled={() => (props.disabled ? 'true' : undefined)}
         prop:tabIndex={() => (selected() ? 0 : -1)}
         onClick={select}
         onKeyDown={onKeyDown}
