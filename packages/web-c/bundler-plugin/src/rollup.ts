@@ -19,9 +19,7 @@ import type {
 } from './types'
 import type { Plugin } from 'rollup'
 
-export function createZeusPlugin(
-  options: ZeusBundlerPluginOptions = {},
-): Plugin {
+const zeus = (options: ZeusBundlerPluginOptions = {}): Plugin => {
   let shouldTransform = (_id: string) => false
   const virtualModules = new VirtualModuleRegistry()
 
@@ -171,6 +169,10 @@ export function createZeusPlugin(
     },
   }
 }
+
+export default zeus
+
+export { zeus }
 
 async function createManifest(
   root: string,

@@ -1,8 +1,4 @@
-export {
-  createZeusPlugin,
-  createZeusPlugin as zeus,
-  createZeusPlugin as default,
-} from './rollup'
+export { default, zeus } from './rollup'
 
 export { createOutputRegistry } from './outputRegistry'
 

@@ -1,8 +1,7 @@
 import zeus from '@zeus-js/bundler-plugin/vite'
 import { componentLibrary } from '@zeus-js/preset-component-library'
-import { defineConfig } from 'vite'
 
-export default defineConfig({
+export default {
   plugins: [
     zeus({
       plugins: componentLibrary(),
@@ -18,4 +17,4 @@ export default defineConfig({
       },
     },
   },
-})
+}

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import zeus from '../src'
 
 describe('bundler plugin entry', () => {
-  it('exports default as createZeusPlugin', () => {
+  it('exports default as zeus plugin factory', () => {
     expect(typeof zeus).toBe('function')
   })
 

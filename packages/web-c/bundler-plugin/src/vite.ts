@@ -3,7 +3,7 @@ import path from 'node:path'
 
 import { mergeConfig } from 'vite'
 
-import { createZeusPlugin } from './rollup'
+import zeusRollupPlugin from './rollup'
 
 import type { RollupExternalOption, ZeusBundlerPluginOptions } from './types'
 import type { Plugin, ResolvedConfig, UserConfig } from 'vite'
@@ -13,15 +13,15 @@ export function createZeusVitePlugin(
 ): Plugin {
   let resolvedConfig: ResolvedConfig | undefined
 
-  const rollupPlugin = createZeusPlugin({
+  const rollupPlugin = zeusRollupPlugin({
     ...options,
     root: options.root ?? (() => resolvedConfig?.root ?? process.cwd()),
-  }) as Plugin
+  }) as unknown as Plugin
 
   return {
     ...rollupPlugin,
     name: 'vite-plugin-zeus',
-    enforce: 'pre',
+    enforce: 'pre' as const,
 
     async config(userConfig) {
       const runtimeDomEntry = resolveRuntimeDOMEntry(userConfig.root)

@@ -24,8 +24,12 @@ export function generateReactWrapper(
     : ''
 
   return `
-import React, {
+import {
+  createElement,
+  cloneElement,
+  Fragment,
   forwardRef,
+  isValidElement,
   useEffect,
   useImperativeHandle,
   useRef,
@@ -37,7 +41,17 @@ const PROP_KEYS = ${JSON.stringify(propNames)};
 const EVENT_MAP = ${JSON.stringify(createReactEventMap(eventNames))};
 const NAMED_SLOTS = ${JSON.stringify(slotNames)};
 
-export const ${component.name} = forwardRef(function ${component.name}(props, ref) {
+// React 19 removed forwardRef. Use typeof guard for tree-shaking safety:
+// - React 18: forwardRef is exported, typeof is 'function', wraps component
+// - React 19: forwardRef is undefined, typeof is 'undefined', no wrapping
+function applyRefForwarding(Component) {
+  if (typeof forwardRef === 'function') {
+    return forwardRef(Component);
+  }
+  return Component;
+}
+
+export const ${component.name} = applyRefForwarding(function ${component.name}(props, ref) {
   const {
     children,
     className,
@@ -62,7 +76,7 @@ export const ${component.name} = forwardRef(function ${component.name}(props, re
     slotChildren.push(children);
   }
 
-  return React.createElement(
+  return createElement(
     ${JSON.stringify(component.tag)},
     {
       ...rest,
@@ -78,13 +92,13 @@ function createNamedSlot(name, value) {
   if (value == null || value === false) return null;
 
   if (
-    React.isValidElement(value) &&
-    value.type !== React.Fragment
+    isValidElement(value) &&
+    value.type !== Fragment
   ) {
-    return React.cloneElement(value, { slot: name });
+    return cloneElement(value, { slot: name });
   }
 
-  return React.createElement(
+  return createElement(
     'span',
     {
       slot: name,
