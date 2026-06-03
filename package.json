@@ -11,6 +11,7 @@
     "build-dts": "tsc -p tsconfig.build.json --noCheck && rollup -c ./scripts/bundler/rollup.dts.config.ts",
     "clean": "rimraf --glob 'packages/*/dist' --glob 'packages/core/*/dist' --glob 'packages/devtools/*/dist' --glob 'packages/web-c/*/dist' temp .eslintcache",
     "check": "tsc --incremental --noEmit",
+    "check:compiler-cjs": "pnpm build shared compiler -f cjs && tsx scripts/check/check-compiler-cjs.ts",
     "check:exports": "tsx scripts/check/check-package-exports.ts",
     "lint": "eslint --cache .",
     "lint-fix": "eslint --fix .",

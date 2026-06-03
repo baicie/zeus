@@ -7,6 +7,15 @@ import type { BabelPlugin } from './types'
 
 type ParserPlugin = string | [string, ...unknown[]]
 
+function hasParserPlugin(
+  plugins: readonly ParserPlugin[],
+  name: string,
+): boolean {
+  return plugins.some(
+    plugin => (Array.isArray(plugin) ? plugin[0] : plugin) === name,
+  )
+}
+
 export default declare<CompilerOptions>((api, options): BabelPlugin => {
   api.assertVersion(7)
 
@@ -14,13 +23,18 @@ export default declare<CompilerOptions>((api, options): BabelPlugin => {
 
   return {
     name: 'babel-plugin-zeus-compiler',
-    manipulateOptions(_opts: unknown, parserOpts: { plugins: ParserPlugin[] }) {
-      if (
-        !parserOpts.plugins.some(p => (Array.isArray(p) ? p[0] : p) === 'jsx')
-      ) {
+
+    manipulateOptions(
+      _opts: unknown,
+      parserOpts: { plugins?: ParserPlugin[] },
+    ) {
+      parserOpts.plugins ??= []
+
+      if (!hasParserPlugin(parserOpts.plugins, 'jsx')) {
         parserOpts.plugins.push('jsx')
       }
     },
+
     visitor: createVisitor(config),
   }
 })
