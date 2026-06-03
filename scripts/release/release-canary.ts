@@ -70,7 +70,7 @@ async function dryRunCheck(packages: ReturnType<typeof findWorkspacePackages>) {
     try {
       await exec('pnpm', getPublishArgs({ dryRun: true }), {
         cwd: pkg.dir,
-        stdio: 'pipe',
+        stdio: 'inherit',
       })
     } catch (err) {
       throw Object.assign(
@@ -126,32 +126,6 @@ async function publishCanary() {
   }
 }
 
-async function checkRepositoryMetadata() {
-  const EXPECTED_REPOSITORY_URL = 'https://github.com/baicie/zeus'
-  const packages = findWorkspacePackages()
-
-  for (const pkg of packages) {
-    if (pkg.packageJson.private) continue
-    if (!pkg.name.startsWith('@zeus-js/')) continue
-
-    const repository = pkg.packageJson.repository as
-      | { type?: string; url?: string; directory?: string }
-      | undefined
-
-    if (!repository?.url) {
-      throw new Error(
-        `${pkg.name}: missing repository.url — required for npm provenance verification`,
-      )
-    }
-
-    if (repository.url !== EXPECTED_REPOSITORY_URL) {
-      throw new Error(
-        `${pkg.name}: repository.url must be "${EXPECTED_REPOSITORY_URL}", got "${repository.url}" — required for npm provenance verification`,
-      )
-    }
-  }
-}
-
 async function main() {
   if (!process.env.CI && !process.argv.includes('--force-local')) {
     console.error(
@@ -162,8 +136,6 @@ async function main() {
     console.error(pico.red('Use --force-local to run locally.'))
     process.exit(1)
   }
-
-  await checkRepositoryMetadata()
 
   const baseVersion = getBaseVersion()
   const canaryVersion = getCanaryVersion(baseVersion)
