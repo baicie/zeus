@@ -9,6 +9,7 @@ import { render } from './render'
 import type { Context } from './context'
 import type { HostRenderContext } from './hostContext'
 import type { JSXValue } from './types'
+import type { ValueState } from '@zeus-js/signal'
 
 export type ElementPropConstructor =
   | StringConstructor
@@ -95,6 +96,63 @@ type NormalizedPropDefinition = {
   default?: unknown
 }
 
+interface PropStore<P extends object> {
+  readonly props: Readonly<P>
+  get(key: string): unknown
+  set(key: string, value: unknown): void
+  has(key: string): boolean
+}
+
+function createPropStore<P extends object>(
+  defs: readonly NormalizedPropDefinition[],
+): PropStore<P> {
+  const slots = new Map<string, ValueState<unknown>>()
+  const props: Record<string, unknown> = {}
+
+  for (const def of defs) {
+    const slot = state<unknown>() as ValueState<unknown>
+    slots.set(def.key, slot)
+
+    Object.defineProperty(props, def.key, {
+      configurable: false,
+      enumerable: true,
+      get() {
+        return slot.value
+      },
+      set(value: unknown) {
+        slot.value = value
+      },
+    })
+  }
+
+  return {
+    props: props as Readonly<P>,
+
+    get(key: string): unknown {
+      return slots.get(key)?.value
+    },
+
+    set(key: string, value: unknown): void {
+      const slot = slots.get(key)
+
+      if (!slot) {
+        if (__DEV__) {
+          console.warn(
+            `[Zeus custom-element] Unknown prop "${key}" was written.`,
+          )
+        }
+        return
+      }
+
+      slot.value = value
+    },
+
+    has(key: string): boolean {
+      return slots.has(key)
+    },
+  }
+}
+
 export function defineElement<
   P extends object = object,
   E extends HTMLElement = HTMLElement,
@@ -113,7 +171,8 @@ export function defineElement<
       return observedAttributes
     }
 
-    private readonly props = state({}) as P
+    private readonly propStore: PropStore<P>
+    private readonly props: Readonly<P>
     private dispose?: () => void
     private target?: Element | ShadowRoot
     private lightChildren: Node[] = []
@@ -123,8 +182,11 @@ export function defineElement<
     constructor() {
       super()
 
-      applyPropDefaults(this.props as Record<string, unknown>, propDefs)
-      definePropAccessors(this, this.props as Record<string, unknown>, propDefs)
+      this.propStore = createPropStore<P>(propDefs)
+      this.props = this.propStore.props
+
+      applyPropDefaults(this.propStore, propDefs)
+      definePropAccessors(this, this.propStore, propDefs)
     }
 
     connectedCallback(): void {
@@ -205,10 +267,7 @@ export function defineElement<
       const def = propDefs.find(item => item.attr === name)
 
       if (!def) return
-      ;(this.props as Record<string, unknown>)[def.key] = castAttributeValue(
-        newValue,
-        def,
-      )
+      this.propStore.set(def.key, castAttributeValue(newValue, def))
     }
 
     private resolveRenderTarget(
@@ -237,8 +296,7 @@ export function defineElement<
         const value = this.getAttribute(def.attr)
 
         if (value !== null || def.type === Boolean) {
-          ;(this.props as Record<string, unknown>)[def.key] =
-            castAttributeValue(value, def)
+          this.propStore.set(def.key, castAttributeValue(value, def))
         }
       }
     }
@@ -246,7 +304,7 @@ export function defineElement<
     _writePropFromProperty(key: string, value: unknown): void {
       const def = propDefs.find(item => item.key === key)
 
-      ;(this.props as Record<string, unknown>)[key] = value
+      this.propStore.set(key, value)
 
       if (def?.reflect && def.attr !== false) {
         this.reflecting = true
@@ -292,8 +350,8 @@ function normalizePropDefinitions<P extends Record<string, unknown>>(
   })
 }
 
-function applyPropDefaults(
-  props: Record<string, unknown>,
+function applyPropDefaults<P extends object>(
+  store: PropStore<P>,
   defs: readonly NormalizedPropDefinition[],
 ): void {
   for (const def of defs) {
@@ -304,32 +362,59 @@ function applyPropDefaults(
         ? (def.default as () => unknown)()
         : def.default
 
-    props[def.key] = value
+    store.set(def.key, value)
   }
 }
 
-function definePropAccessors(
+function definePropAccessors<P extends object>(
   element: HTMLElement,
-  props: Record<string, unknown>,
+  store: PropStore<P>,
   defs: readonly NormalizedPropDefinition[],
 ): void {
   for (const def of defs) {
-    if (def.key in element) continue
+    const key = def.key
+    const hadOwnValue = Object.prototype.hasOwnProperty.call(element, key)
+    const ownValue = hadOwnValue
+      ? (element as HTMLElement & Record<string, unknown>)[key]
+      : undefined
 
-    Object.defineProperty(element, def.key, {
+    if (hadOwnValue) {
+      delete (element as HTMLElement & Record<string, unknown>)[key]
+    }
+
+    const existing = Object.getOwnPropertyDescriptor(element, key)
+
+    if (existing && existing.configurable === false) {
+      if (__DEV__) {
+        console.warn(
+          `[Zeus custom-element] Cannot define prop "${key}" because an own non-configurable property already exists.`,
+        )
+      }
+      continue
+    }
+
+    Object.defineProperty(element, key, {
       configurable: true,
       enumerable: true,
       get() {
-        return props[def.key]
+        return store.get(key)
       },
       set(value: unknown) {
         ;(
           element as HTMLElement & {
             _writePropFromProperty: (key: string, value: unknown) => void
           }
-        )._writePropFromProperty(def.key, value)
+        )._writePropFromProperty(key, value)
       },
     })
+
+    if (hadOwnValue) {
+      ;(
+        element as HTMLElement & {
+          _writePropFromProperty: (key: string, value: unknown) => void
+        }
+      )._writePropFromProperty(key, ownValue)
+    }
   }
 }
 

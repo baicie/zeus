@@ -24,12 +24,27 @@ function stringifyText(value: JSXValue): string {
 }
 
 export function setAttr(el: Element, name: string, value: AttrValue): void {
-  if (value == null || value === false) {
-    el.removeAttribute(normalizeAttrName(name))
+  const attrName = normalizeAttrName(name)
+  const propName = getBooleanDomPropertyName(name)
+
+  if (propName && el instanceof HTMLElement) {
+    ;(el as HTMLElement & Record<string, unknown>)[propName] = Boolean(value)
+
+    if (value == null || value === false) {
+      el.removeAttribute(attrName)
+    } else if (value === true) {
+      el.setAttribute(attrName, '')
+    } else {
+      el.setAttribute(attrName, String(value))
+    }
+
     return
   }
 
-  const attrName = normalizeAttrName(name)
+  if (value == null || value === false) {
+    el.removeAttribute(attrName)
+    return
+  }
 
   if (value === true) {
     el.setAttribute(attrName, '')
@@ -37,6 +52,26 @@ export function setAttr(el: Element, name: string, value: AttrValue): void {
   }
 
   el.setAttribute(attrName, String(value))
+}
+
+function getBooleanDomPropertyName(name: string): string | undefined {
+  return BOOLEAN_DOM_PROPERTY_NAME[name]
+}
+
+const BOOLEAN_DOM_PROPERTY_NAME: Record<string, string> = {
+  hidden: 'hidden',
+  disabled: 'disabled',
+  readonly: 'readOnly',
+  readOnly: 'readOnly',
+  multiple: 'multiple',
+  selected: 'selected',
+  checked: 'checked',
+  open: 'open',
+  autofocus: 'autofocus',
+  autoFocus: 'autofocus',
+  indeterminate: 'indeterminate',
+  noValidate: 'noValidate',
+  novalidate: 'noValidate',
 }
 
 function normalizeAttrName(name: string): string {

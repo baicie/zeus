@@ -1,7 +1,6 @@
 import { defineElement, Host, Slot } from '@zeus-js/zeus'
 
 import { findTabsHost, setTabsValue } from './context'
-import { bindBooleanProp, bindDomProp, bindOptionalAttr } from '../shared/dom'
 import { isEnterOrSpace } from '../shared/keyboard'
 
 export interface TabTriggerProps {
@@ -10,7 +9,6 @@ export interface TabTriggerProps {
 }
 
 function setup(props: TabTriggerProps, ctx: { host: HTMLElement }) {
-  let button!: HTMLButtonElement
   const selected = () => findTabsHost(ctx.host)?.value === props.value
 
   const select = () => {
@@ -25,20 +23,6 @@ function setup(props: TabTriggerProps, ctx: { host: HTMLElement }) {
     select()
   }
 
-  const bindButton = (el: HTMLButtonElement | null) => {
-    if (!el) return
-
-    button = el
-    bindOptionalAttr(button, 'aria-selected', () =>
-      selected() ? 'true' : 'false',
-    )
-    bindOptionalAttr(button, 'aria-disabled', () =>
-      props.disabled ? 'true' : undefined,
-    )
-    bindBooleanProp(button, 'disabled', () => Boolean(props.disabled))
-    bindDomProp(button, 'tabIndex', () => (selected() ? 0 : -1))
-  }
-
   return (
     <Host
       data-slot="tab-trigger"
@@ -46,10 +30,13 @@ function setup(props: TabTriggerProps, ctx: { host: HTMLElement }) {
       data-disabled={() => (props.disabled ? '' : undefined)}
     >
       <button
-        ref={bindButton}
         part="root"
         type="button"
         role="tab"
+        disabled={() => Boolean(props.disabled)}
+        aria-selected={() => (selected() ? 'true' : 'false')}
+        aria-disabled={() => (props.disabled ? 'true' : undefined)}
+        prop:tabIndex={() => (selected() ? 0 : -1)}
         onClick={select}
         onKeyDown={onKeyDown}
       >

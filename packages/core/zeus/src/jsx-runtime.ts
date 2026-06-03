@@ -1,4 +1,11 @@
-import { createComponent, insert, type JSXValue } from '@zeus-js/runtime-dom'
+import {
+  bindAttr,
+  bindProp,
+  createComponent,
+  insert,
+  type AttrValue,
+  type JSXValue,
+} from '@zeus-js/runtime-dom'
 
 const Fragment = Symbol.for('zeus.fragment')
 
@@ -70,6 +77,20 @@ function createJSXNode(
         el.addEventListener(key.slice(2).toLowerCase(), value as EventListener)
       } else if (key === 'ref') {
         setFallbackRef(value, el)
+      } else if (key.startsWith('prop:')) {
+        const propName = key.slice(5)
+
+        if (typeof value === 'function') {
+          bindProp(
+            el,
+            propName as keyof Element,
+            value as () => Element[keyof Element],
+          )
+        } else {
+          ;(el as unknown as Record<string, unknown>)[propName] = value
+        }
+      } else if (typeof value === 'function') {
+        bindAttr(el, key, value as () => AttrValue)
       } else if (value != null && value !== false) {
         el.setAttribute(key === 'className' ? 'class' : key, String(value))
       }

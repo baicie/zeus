@@ -5,6 +5,8 @@ import type { HostProps, SlotProps } from '@zeus-js/runtime-dom'
 type EventHandler<E extends Event = Event> = (event: E) => void
 
 type PrimitiveAttr = string | number | boolean | null | undefined
+type MaybeGetter<T> = T | (() => T)
+type ReactiveAttr = MaybeGetter<PrimitiveAttr>
 
 type ClassValue =
   | string
@@ -24,13 +26,13 @@ type StyleValue =
 type CommonDOMAttributes<T extends Element> = {
   ref?: RefTarget<T>
 
-  class?: ClassValue
-  className?: ClassValue
-  style?: StyleValue
+  class?: MaybeGetter<ClassValue>
+  className?: MaybeGetter<ClassValue>
+  style?: MaybeGetter<StyleValue>
 
-  id?: PrimitiveAttr
-  title?: PrimitiveAttr
-  role?: PrimitiveAttr
+  id?: ReactiveAttr
+  title?: ReactiveAttr
+  role?: ReactiveAttr
 
   onClick?: EventHandler<MouseEvent>
   onDblClick?: EventHandler<MouseEvent>
@@ -60,92 +62,92 @@ type CommonDOMAttributes<T extends Element> = {
 }
 
 type HTMLAttributes<T extends HTMLElement> = CommonDOMAttributes<T> & {
-  [key: `data-${string}`]: PrimitiveAttr
-  [key: `aria-${string}`]: PrimitiveAttr
+  [key: `data-${string}`]: ReactiveAttr
+  [key: `aria-${string}`]: ReactiveAttr
   [key: `prop:${string}`]: unknown
   [key: string]: unknown
   type?: string
-  checked?: boolean
-  value?: string | number
-  placeholder?: string
-  disabled?: boolean
-  readonly?: boolean
-  multiple?: boolean
-  name?: string
-  for?: string
-  href?: string
-  target?: string
-  rel?: string
-  src?: string
-  alt?: string
-  width?: number | string
-  height?: number | string
-  download?: string
-  accept?: string
-  maxlength?: number
-  minlength?: number
-  max?: number | string
-  min?: number | string
-  step?: number | string
-  rows?: number
-  cols?: number
-  wrap?: string
-  autofocus?: boolean
-  autoplay?: boolean
-  controls?: boolean
-  loop?: boolean
-  muted?: boolean
-  preload?: string
-  poster?: string
-  srcset?: string
-  sizes?: string
-  crossorigin?: string
-  defer?: boolean
-  async?: boolean
-  integrity?: string
-  charset?: string
-  'http-equiv'?: string
-  content?: string
-  lang?: string
-  dir?: string
-  spellcheck?: boolean
-  translate?: boolean
-  tabindex?: number
-  accesskey?: string
-  draggable?: boolean
-  hidden?: boolean
-  contenteditable?: boolean
+  checked?: MaybeGetter<boolean | undefined>
+  value?: MaybeGetter<string | number | undefined>
+  placeholder?: ReactiveAttr
+  disabled?: MaybeGetter<boolean | undefined>
+  readonly?: MaybeGetter<boolean | undefined>
+  multiple?: MaybeGetter<boolean | undefined>
+  name?: ReactiveAttr
+  for?: ReactiveAttr
+  href?: ReactiveAttr
+  target?: ReactiveAttr
+  rel?: ReactiveAttr
+  src?: ReactiveAttr
+  alt?: ReactiveAttr
+  width?: MaybeGetter<number | string | undefined>
+  height?: MaybeGetter<number | string | undefined>
+  download?: ReactiveAttr
+  accept?: ReactiveAttr
+  maxlength?: MaybeGetter<number | undefined>
+  minlength?: MaybeGetter<number | undefined>
+  max?: MaybeGetter<number | string | undefined>
+  min?: MaybeGetter<number | string | undefined>
+  step?: MaybeGetter<number | string | undefined>
+  rows?: MaybeGetter<number | undefined>
+  cols?: MaybeGetter<number | undefined>
+  wrap?: ReactiveAttr
+  autofocus?: MaybeGetter<boolean | undefined>
+  autoplay?: MaybeGetter<boolean | undefined>
+  controls?: MaybeGetter<boolean | undefined>
+  loop?: MaybeGetter<boolean | undefined>
+  muted?: MaybeGetter<boolean | undefined>
+  preload?: ReactiveAttr
+  poster?: ReactiveAttr
+  srcset?: ReactiveAttr
+  sizes?: ReactiveAttr
+  crossorigin?: ReactiveAttr
+  defer?: MaybeGetter<boolean | undefined>
+  async?: MaybeGetter<boolean | undefined>
+  integrity?: ReactiveAttr
+  charset?: ReactiveAttr
+  'http-equiv'?: ReactiveAttr
+  content?: ReactiveAttr
+  lang?: ReactiveAttr
+  dir?: ReactiveAttr
+  spellcheck?: MaybeGetter<boolean | undefined>
+  translate?: MaybeGetter<boolean | undefined>
+  tabindex?: MaybeGetter<number | undefined>
+  accesskey?: ReactiveAttr
+  draggable?: MaybeGetter<boolean | undefined>
+  hidden?: MaybeGetter<boolean | undefined>
+  contenteditable?: MaybeGetter<boolean | undefined>
 }
 
 type SVGAttributes<T extends SVGElement> = CommonDOMAttributes<T> & {
   [key: string]: unknown
-  d?: string
-  cx?: number | string
-  cy?: number | string
-  r?: number | string
-  rx?: number | string
-  ry?: number | string
-  x?: number | string
-  y?: number | string
-  width?: number | string
-  height?: number | string
-  viewBox?: string
-  fill?: string
-  stroke?: string
-  'stroke-width'?: number | string
-  'stroke-linecap'?: string
-  'stroke-linejoin'?: string
-  'stroke-dasharray'?: string
-  'stroke-dashoffset'?: number | string
-  'stroke-opacity'?: number | string
-  'fill-opacity'?: number | string
-  opacity?: number | string
-  transform?: string
-  points?: string
-  x1?: number | string
-  y1?: number | string
-  x2?: number | string
-  y2?: number | string
+  d?: ReactiveAttr
+  cx?: MaybeGetter<number | string | undefined>
+  cy?: MaybeGetter<number | string | undefined>
+  r?: MaybeGetter<number | string | undefined>
+  rx?: MaybeGetter<number | string | undefined>
+  ry?: MaybeGetter<number | string | undefined>
+  x?: MaybeGetter<number | string | undefined>
+  y?: MaybeGetter<number | string | undefined>
+  width?: MaybeGetter<number | string | undefined>
+  height?: MaybeGetter<number | string | undefined>
+  viewBox?: ReactiveAttr
+  fill?: ReactiveAttr
+  stroke?: ReactiveAttr
+  'stroke-width'?: MaybeGetter<number | string | undefined>
+  'stroke-linecap'?: ReactiveAttr
+  'stroke-linejoin'?: ReactiveAttr
+  'stroke-dasharray'?: ReactiveAttr
+  'stroke-dashoffset'?: MaybeGetter<number | string | undefined>
+  'stroke-opacity'?: MaybeGetter<number | string | undefined>
+  'fill-opacity'?: MaybeGetter<number | string | undefined>
+  opacity?: MaybeGetter<number | string | undefined>
+  transform?: ReactiveAttr
+  points?: ReactiveAttr
+  x1?: MaybeGetter<number | string | undefined>
+  y1?: MaybeGetter<number | string | undefined>
+  x2?: MaybeGetter<number | string | undefined>
+  y2?: MaybeGetter<number | string | undefined>
 }
 
 declare global {
