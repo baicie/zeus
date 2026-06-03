@@ -103,6 +103,7 @@ describe('defineElement props tracking', () => {
     await nextFrame()
 
     expect(button.disabled).toBe(false)
+    expect(button.hasAttribute('aria-disabled')).toBe(false)
     expect(el.hasAttribute('disabled')).toBe(false)
   })
 

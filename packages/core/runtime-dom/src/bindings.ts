@@ -24,32 +24,45 @@ function stringifyText(value: JSXValue): string {
 }
 
 export function setAttr(el: Element, name: string, value: AttrValue): void {
-  if (value == null || value === false) {
-    el.removeAttribute(normalizeAttrName(name))
+  const attrName = normalizeAttrName(name)
+  const propName = getBooleanDomPropertyName(name)
+
+  if (propName && el instanceof HTMLElement) {
+    ;(el as HTMLElement & Record<string, unknown>)[propName] = Boolean(value)
+
+    if (value == null || value === false) {
+      el.removeAttribute(attrName)
+    } else if (value === true) {
+      el.setAttribute(attrName, '')
+    } else {
+      el.setAttribute(attrName, String(value))
+    }
+
     return
   }
 
-  const attrName = normalizeAttrName(name)
+  if (value == null || value === false) {
+    el.removeAttribute(attrName)
+    return
+  }
 
   if (value === true) {
-    if (isBooleanDomProperty(name) && el instanceof HTMLElement) {
-      ;(el as HTMLElement & Record<string, unknown>)[name] = true
-    } else {
-      el.setAttribute(attrName, '')
-    }
-    return
-  }
-
-  if (isBooleanDomProperty(name) && el instanceof HTMLElement) {
-    ;(el as HTMLElement & Record<string, unknown>)[name] = value
+    el.setAttribute(attrName, '')
     return
   }
 
   el.setAttribute(attrName, String(value))
 }
 
-function isBooleanDomProperty(name: string): boolean {
-  return BOOLEAN_DOM_PROPERTIES.has(name)
+function getBooleanDomPropertyName(name: string): string | undefined {
+  if (BOOLEAN_DOM_PROPERTIES.has(name)) {
+    return DOM_PROPERTY_NAME[name] ?? name
+  }
+  return undefined
+}
+
+function normalizeAttrName(name: string): string {
+  return name === 'className' ? 'class' : name
 }
 
 const BOOLEAN_DOM_PROPERTIES = new Set([
@@ -66,13 +79,11 @@ const BOOLEAN_DOM_PROPERTIES = new Set([
   'spellcheck',
   'translate',
   'contentEditable',
-  'isContentEditable',
   'noValidate',
-  'willValidate',
 ])
 
-function normalizeAttrName(name: string): string {
-  return name === 'className' ? 'class' : name
+const DOM_PROPERTY_NAME: Record<string, string> = {
+  readonly: 'readOnly',
 }
 
 export function bindAttr(
