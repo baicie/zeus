@@ -61,6 +61,7 @@ export {
   type PropDefinition,
   type PropOptions,
   type MountedElementDefinition,
+  type ElementDefinitionMountState,
   type NormalizedPropDefinition,
   type ZeusElementConstructor,
   type ZeusElementDefinition,

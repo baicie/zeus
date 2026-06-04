@@ -740,6 +740,7 @@ describe('output-wc', () => {
       const warns: string[] = []
       const plugin = wc({
         warnOnFileNameCollision: true,
+        register: 'side-effect',
         fileName: () => 'button.js',
       })
       const ctx = createMockCtx({
@@ -784,6 +785,7 @@ describe('output-wc', () => {
       const warns: string[] = []
       const plugin = wc({
         warnOnFileNameCollision: false,
+        register: 'side-effect',
         fileName: () => 'button.js',
       })
       const ctx = createMockCtx({

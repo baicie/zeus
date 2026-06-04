@@ -22,7 +22,7 @@ export function generateLazyManifest(
 
     return `  {
     tagName: ${JSON.stringify(component.tag)},
-    shadow: ${component.meta?.shadow ?? true},
+    shadow: ${component.meta?.shadow ?? false},
     load: () => import('./${entryFile}'),
     props: ${props},
     events: ${events},

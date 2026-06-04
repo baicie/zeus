@@ -117,6 +117,17 @@ export interface MountedElementDefinition {
   dispose(): void
 }
 
+/**
+ * Persisted mount state for a lazy-loaded element.
+ * Used across disconnect/reconnect cycles to avoid re-capturing
+ * light DOM children or re-attaching shadow roots.
+ */
+export interface ElementDefinitionMountState {
+  target?: Element | ShadowRoot
+  lightChildren?: Node[]
+  capturedLightChildren?: boolean
+}
+
 interface PropStore<P extends object> {
   readonly props: Readonly<P>
   get(key: string): unknown
@@ -373,6 +384,7 @@ export function mountElementDefinition(
   ctor: CustomElementConstructor,
   host: HTMLElement,
   initialValues: Map<string, unknown> = new Map(),
+  mountState: ElementDefinitionMountState = {},
 ): MountedElementDefinition {
   const definition = getElementDefinition(ctor)
   const { options, setup, propDefs } = definition
@@ -396,7 +408,13 @@ export function mountElementDefinition(
 
   const shadow = options.shadow ?? false
   const mode = shadow ? 'shadow' : 'light'
-  const lightChildren = mode === 'light' ? Array.from(host.childNodes) : []
+
+  if (mode === 'light' && !mountState.capturedLightChildren) {
+    mountState.lightChildren = Array.from(host.childNodes)
+    mountState.capturedLightChildren = true
+  }
+
+  const lightChildren = mountState.lightChildren ?? []
 
   const owner = createOwner()
 
@@ -410,7 +428,9 @@ export function mountElementDefinition(
     }
   }
 
-  const target = resolveExternalRenderTarget(host, shadow)
+  const target =
+    mountState.target ??
+    (mountState.target = resolveExternalRenderTarget(host, shadow))
 
   const hostContext: HostRenderContext = {
     host,

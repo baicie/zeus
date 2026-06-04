@@ -147,8 +147,8 @@ describe('output-react-wrapper', () => {
         ? ((jsFile as { code?: string }).code ?? '')
         : String((jsFile as { source?: string }).source ?? '')
 
-    expect(code).toContain('el.variant = variant')
-    expect(code).toContain('el.disabled = disabled')
+    expect(code).toContain('el["variant"] = propValue0')
+    expect(code).toContain('el["disabled"] = propValue1')
 
     expect(code).toContain('const {')
     expect(code).toContain('className,')

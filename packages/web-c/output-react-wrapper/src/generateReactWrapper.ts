@@ -21,17 +21,53 @@ export function generateReactWrapper(
   return generateEventBridgeReactWrapper(input)
 }
 
+interface Binding {
+  sourceName: string
+  localName: string
+}
+
+interface EventBinding extends Binding {
+  eventName: string
+}
+
+function createBindings(names: string[], prefix: string): Binding[] {
+  return names.map((sourceName, index) => ({
+    sourceName,
+    localName: `${prefix}${index}`,
+  }))
+}
+
+function createEventBindings(eventNames: string[]): EventBinding[] {
+  return eventNames.map(eventName => ({
+    eventName,
+    sourceName: toReactEventProp(eventName),
+    localName: `eventHandler${eventName}`,
+  }))
+}
+
+function generateDestructuredBindings(bindings: Binding[]): string {
+  if (!bindings.length) return ''
+
+  return bindings
+    .map(({ sourceName, localName }) => {
+      return `${JSON.stringify(sourceName)}: ${localName},`
+    })
+    .join('\n    ')
+}
+
 function generateMinimalReactWrapper(
   input: GenerateReactWrapperOptions,
 ): string {
   const { component, namedSlots, wcModuleId } = input
 
   const slotNames = getNamedSlots(component, namedSlots)
-  const slotDestructure = slotNames.length
-    ? `\n    ${slotNames.join(',\n    ')},`
+  const slotBindings = createBindings(slotNames, 'slotValue')
+
+  const slotDestructure = slotBindings.length
+    ? `\n    ${generateDestructuredBindings(slotBindings)}`
     : ''
 
-  const namedSlotLines = generateMinimalNamedSlots(slotNames)
+  const namedSlotLines = generateMinimalNamedSlots(slotBindings)
 
   return `
 import * as React from 'react';
@@ -62,15 +98,21 @@ function generateEventBridgeReactWrapper(
 ): string {
   const { component, namedSlots, wcModuleId } = input
 
-  const propNames = Object.keys(component.props)
-  const eventNames = Object.keys(component.events)
-  const slotNames = getNamedSlots(component, namedSlots)
+  const propBindings = createBindings(Object.keys(component.props), 'propValue')
 
-  const eventPropNames = eventNames.map(toReactEventProp)
-  const destructuredPropNames = [...propNames, ...eventPropNames, ...slotNames]
-  const destructuredProps = destructuredPropNames.length
-    ? `${destructuredPropNames.join(',\n    ')},`
-    : ''
+  const eventBindings = createEventBindings(Object.keys(component.events))
+
+  const slotBindings = createBindings(
+    getNamedSlots(component, namedSlots),
+    'slotValue',
+  )
+
+  const destructuredBindings = [
+    ...propBindings,
+    ...eventBindings,
+    ...slotBindings,
+  ]
+  const destructuredProps = generateDestructuredBindings(destructuredBindings)
 
   return `
 import {
@@ -86,9 +128,9 @@ import {
 
 import ${JSON.stringify(wcModuleId)};
 
-const PROP_KEYS = ${JSON.stringify(propNames)};
-const EVENT_MAP = ${JSON.stringify(createReactEventMap(eventNames))};
-const NAMED_SLOTS = ${JSON.stringify(slotNames)};
+const PROP_KEYS = ${JSON.stringify(Object.keys(component.props))};
+const EVENT_MAP = ${JSON.stringify(createReactEventMap(Object.keys(component.events)))};
+const NAMED_SLOTS = ${JSON.stringify(getNamedSlots(component, namedSlots))};
 
 export const ${component.name} = forwardRef(function ${component.name}(props, ref) {
   const {
@@ -103,13 +145,13 @@ export const ${component.name} = forwardRef(function ${component.name}(props, re
 
   useImperativeHandle(ref, () => innerRef.current);
 
-  ${generatePropSyncLines(propNames)}
+  ${generatePropSyncLines(propBindings)}
 
-  ${generateEventEffects(eventNames)}
+  ${generateEventEffects(eventBindings)}
 
   const slotChildren = [];
 
-  ${generateNamedSlotRenderLines(slotNames)}
+  ${generateNamedSlotRenderLines(slotBindings)}
 
   if (children != null) {
     slotChildren.push(children);
@@ -159,8 +201,8 @@ function createReactEventMap(eventNames: string[]): Record<string, string> {
   return map
 }
 
-function generatePropSyncLines(propNames: string[]): string {
-  if (!propNames.length) {
+function generatePropSyncLines(bindings: Binding[]): string {
+  if (!bindings.length) {
     return '// no props'
   }
 
@@ -168,22 +210,24 @@ function generatePropSyncLines(propNames: string[]): string {
     const el = innerRef.current;
     if (!el) return;
 
-    ${propNames.map(name => `el.${name} = ${name};`).join('\n    ')}
-  }, [${propNames.join(', ')}]);`
+    ${bindings
+      .map(({ sourceName, localName }) => {
+        return `el[${JSON.stringify(sourceName)}] = ${localName};`
+      })
+      .join('\n    ')}
+  }, [${bindings.map(binding => binding.localName).join(', ')}]);`
 }
 
-function generateEventEffects(eventNames: string[]): string {
-  return eventNames
-    .map(eventName => {
-      const propName = toReactEventProp(eventName)
-
+function generateEventEffects(bindings: EventBinding[]): string {
+  return bindings
+    .map(({ eventName, sourceName, localName }) => {
       return `
   useEffect(() => {
     const el = innerRef.current;
-    if (!el || !${propName}) return;
+    if (!el || !${localName}) return;
 
     const handler = event => {
-      ${propName}(event);
+      ${localName}(event);
     };
 
     el.addEventListener(${JSON.stringify(eventName)}, handler);
@@ -191,7 +235,7 @@ function generateEventEffects(eventNames: string[]): string {
     return () => {
       el.removeEventListener(${JSON.stringify(eventName)}, handler);
     };
-  }, [${propName}]);
+  }, [${localName}]);
 `
     })
     .join('')
@@ -206,12 +250,12 @@ function getNamedSlots(
   return Object.keys(component.slots).filter(name => name !== 'default')
 }
 
-function generateNamedSlotRenderLines(namedSlots: string[]): string {
-  return namedSlots
-    .map(name => {
+function generateNamedSlotRenderLines(bindings: Binding[]): string {
+  return bindings
+    .map(({ sourceName, localName }) => {
       return `
   {
-    const node = createNamedSlot(${JSON.stringify(name)}, ${name});
+    const node = createNamedSlot(${JSON.stringify(sourceName)}, ${localName});
     if (node != null) slotChildren.push(node);
   }
 `
@@ -219,22 +263,24 @@ function generateNamedSlotRenderLines(namedSlots: string[]): string {
     .join('')
 }
 
-function generateMinimalNamedSlots(namedSlots: string[]): string {
-  if (!namedSlots.length) return ''
+function generateMinimalNamedSlots(bindings: Binding[]): string {
+  if (!bindings.length) return ''
 
-  return (
-    namedSlots
-      .map(name => {
-        return `    const slotNode_${name} = ${name} != null && ${name} !== false
-      ? (React.isValidElement(${name}) && ${name}.type !== React.Fragment
-          ? React.cloneElement(${name}, { slot: ${JSON.stringify(name)} })
-          : React.createElement('span', { slot: ${JSON.stringify(name)}, style: { display: 'contents' } }, ${name}))
+  const lines = bindings.map(({ sourceName, localName }, index) => {
+    const nodeName = `slotNode${index}`
+
+    return `    const ${nodeName} = ${localName} != null && ${localName} !== false
+      ? (React.isValidElement(${localName}) && ${localName}.type !== React.Fragment
+          ? React.cloneElement(${localName}, { slot: ${JSON.stringify(sourceName)} })
+          : React.createElement('span', { slot: ${JSON.stringify(sourceName)}, style: { display: 'contents' } }, ${localName}))
       : null;
 `
-      })
-      .join('') +
+  })
+
+  return (
+    lines.join('') +
     '\n    const slotNodes = [' +
-    namedSlots.map(name => `slotNode_${name}`).join(', ') +
+    bindings.map((_, index) => `slotNode${index}`).join(', ') +
     '].filter(Boolean);\n'
   )
 }

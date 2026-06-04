@@ -38,6 +38,29 @@ describe('generateLazyManifest', () => {
     expect(code).not.toContain('import type')
     expect(code).toContain('tagName: "zw-button"')
     expect(code).toContain("load: () => import('./zw-button.entry.js')")
+    expect(code).toContain('shadow: false')
+  })
+
+  it('uses explicit shadow value from meta', () => {
+    const code = generateLazyManifest({
+      components: [
+        {
+          tag: 'zw-card',
+          name: 'ZwCard',
+          exportName: 'ZwCard',
+          source: 'src/card.tsx',
+          props: {},
+          events: {},
+          slots: {},
+          hostAttributes: [],
+          cssParts: [],
+          cssVars: [],
+          meta: { shadow: true },
+        } as any,
+      ],
+      getEntryFileName: tag => `${tag}.entry.js`,
+    })
+
     expect(code).toContain('shadow: true')
   })
 
@@ -274,8 +297,9 @@ describe('generateLazyEntry', () => {
     expect(code).toContain('propertyChanged(name, oldValue, newValue)')
     expect(code).toContain('attributeChanged(name, oldValue, newValue)')
     expect(code).toContain('render()')
+    expect(code).toContain('this.mountState = {}')
     expect(code).toContain(
-      'this.mounted = mountElementDefinition(ZwButton, this.hostRef.host, this.hostRef.values)',
+      'this.mounted = mountElementDefinition(\n        ZwButton,\n        this.hostRef.host,\n        this.hostRef.values,\n        this.mountState,',
     )
     expect(code).toContain('export function createComponent(hostRef)')
     expect(code).toContain('export default moduleExports')

@@ -20,11 +20,11 @@ export function defineCustomElements(options = {}) {
     return;
   }
 
-  definedRegistries.add(registry);
-
   bootstrapLazy(components, {
     registry,
   });
+
+  definedRegistries.add(registry);
 }
 
 export const defineLazyElements = defineCustomElements;

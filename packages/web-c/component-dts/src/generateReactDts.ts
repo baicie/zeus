@@ -4,7 +4,11 @@ import {
   isRequiredProp,
   safePropertyName,
 } from './formatType'
-import { getElementTypeName, getPropsTypeName } from './naming'
+import {
+  getElementTypeName,
+  getPropsTypeName,
+  toReactEventProp,
+} from './naming'
 
 import type {
   ComponentManifest,
@@ -53,6 +57,11 @@ function generateReactComponentDts(component: ComponentRecord): string {
     lines.push(`  ${propName}?: (event: CustomEvent<${detailType}>) => void`)
   }
 
+  for (const name of Object.keys(component.slots)) {
+    if (name === 'default') continue
+    lines.push(`  ${safePropertyName(name)}?: React.ReactNode`)
+  }
+
   lines.push('}')
   lines.push('')
   lines.push(`export interface ${elementTypeName} extends HTMLElement {`)
@@ -73,15 +82,4 @@ function generateReactComponentDts(component: ComponentRecord): string {
   lines.push('>')
 
   return lines.join('\n')
-}
-
-function toReactEventProp(eventName: string): string {
-  return (
-    'on' +
-    eventName
-      .split('-')
-      .filter(Boolean)
-      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-      .join('')
-  )
 }

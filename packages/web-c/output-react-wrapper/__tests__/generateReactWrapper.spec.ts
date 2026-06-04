@@ -124,12 +124,13 @@ describe('generateReactWrapper', () => {
     expect(code).toContain('useImperativeHandle(ref')
     expect(code).toContain('const innerRef = useRef(null)')
 
-    expect(code).toContain('el.variant = variant')
-    expect(code).toContain('el.disabled = disabled')
+    // Props are synced via bracket notation with safe binding names
+    expect(code).toContain('el["variant"] = propValue0')
+    expect(code).toContain('el["disabled"] = propValue1')
 
     expect(code).toContain('addEventListener("press"')
     expect(code).toContain('removeEventListener("press"')
-    expect(code).toContain('onPress(event)')
+    expect(code).toContain('eventHandlerpress(event)')
 
     expect(code).toContain('slotChildren = []')
     expect(code).toContain('slotChildren.push(children)')
@@ -167,8 +168,8 @@ describe('generateReactWrapper', () => {
       mode: 'minimal',
     })
 
-    expect(code).toContain('slotNode_header')
-    expect(code).toContain('slotNode_footer')
+    expect(code).toContain('slotValue0')
+    expect(code).toContain('slotValue1')
     expect(code).toContain('"header"')
     expect(code).toContain('"footer"')
     expect(code).toContain('React.cloneElement')
@@ -177,6 +178,38 @@ describe('generateReactWrapper', () => {
     expect(code).toContain("{ display: 'contents' }")
     expect(code).not.toContain('useRef')
     expect(code).not.toContain('addEventListener')
+  })
+
+  it('generates valid code for kebab-case named slots', () => {
+    const code = generateReactWrapper({
+      component: {
+        tag: 'z-card',
+        name: 'ZCard',
+        exportName: 'ZCard',
+        source: 'src/card.tsx',
+        props: {},
+        events: {},
+        slots: {
+          default: {},
+          'header-actions': {},
+        },
+        hostAttributes: [],
+        cssParts: [],
+        cssVars: [],
+      },
+      namedSlots: 'props',
+      wcModuleId: 'zeus:wc:z-card',
+      mode: 'minimal',
+    })
+
+    // Must use quoted string as property key, not bare identifier
+    expect(code).toContain('"header-actions": slotValue0')
+    // Must NOT contain bare identifier that would be a syntax error
+    expect(code).not.toContain('header-actions,')
+    expect(code).not.toContain('header-actions:')
+    expect(code).not.toContain('slotNode_header-actions')
+    // The slot attribute value must still be correct
+    expect(code).toContain('slot: "header-actions"')
   })
 
   it('handles component with no props', () => {

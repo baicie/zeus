@@ -94,9 +94,25 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
         }
       }
 
-      checkFileNameCollisions(ctx.manifest.components, normalized, {
-        warn: ctx.warn,
-      })
+      checkFileNameCollisions(
+        ctx.manifest.components,
+        {
+          getFileName: tag => {
+            if (normalized.register === 'lazy') {
+              return ensureJsExtension(normalized.entryFileName(tag))
+            }
+            return normalizeFileName(
+              tag,
+              normalized.stripPrefix,
+              normalized.fileName,
+            )
+          },
+          warnOnFileNameCollision: normalized.warnOnFileNameCollision,
+        },
+        {
+          warn: ctx.warn,
+        },
+      )
     },
 
     virtualModules(ctx): ZeusVirtualModule[] {
@@ -337,11 +353,14 @@ function normalizeFileName(
   return name
 }
 
+function ensureJsExtension(fileName: string): string {
+  return fileName.endsWith('.js') ? fileName : `${fileName}.js`
+}
+
 function checkFileNameCollisions(
   components: { tag: string }[],
   options: {
-    stripPrefix: string | false
-    fileName?: (tag: string) => string
+    getFileName: (tag: string) => string
     warnOnFileNameCollision?: boolean
   },
   reporter: { warn: (message: string) => void },
@@ -351,12 +370,9 @@ function checkFileNameCollisions(
   const map = new Map<string, typeof components>()
 
   for (const component of components) {
-    const fileName = normalizeFileName(
-      component.tag,
-      options.stripPrefix,
-      options.fileName,
-    )
+    const fileName = options.getFileName(component.tag)
     const list = map.get(fileName) ?? []
+
     list.push(component)
     map.set(fileName, list)
   }
