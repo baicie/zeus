@@ -27,7 +27,8 @@ export default defineConfig({
       plugins: componentLibrary({
         styles: 'src/styles.css',
         targets: ['wc', 'react', 'vue'],
-        dts: false,
+        dts: true,
+        jsxDts: true,
         manifest: true,
         customElements: true,
       }),
