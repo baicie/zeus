@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import pico from 'picocolors'
+import prettier from 'prettier'
 
 import { findWorkspacePackages } from '../shared/utils'
 
@@ -14,11 +15,21 @@ interface ApiEntry {
 
 const repoRoot = path.resolve(import.meta.dirname, '../..')
 
-function normalizeDts(input: string) {
-  return input
+async function normalizeDts(input: string) {
+  const stripped = input
     .replace(/\r\n/g, '\n')
     .replace(/\/\/# sourceMappingURL=.*$/gm, '')
     .trim()
+
+  const formatted = await prettier.format(stripped, {
+    parser: 'typescript',
+    semi: false,
+    singleQuote: true,
+    printWidth: 80,
+    proseWrap: 'preserve',
+  })
+
+  return formatted.trim()
 }
 
 function normalizeSnapshotSubpath(subpath: string) {
@@ -165,7 +176,7 @@ async function main() {
     }
 
     const dts = fs.readFileSync(target.dtsFile, 'utf-8')
-    const normalizedDts = normalizeDts(dts)
+    const normalizedDts = await normalizeDts(dts)
 
     if (!normalizedDts) {
       throw new Error(
