@@ -57,9 +57,15 @@ async function loadComponentModule(
   let pending = moduleCache.get(hostRef.meta)
 
   if (!pending) {
-    pending = hostRef.meta.load().then(mod => {
-      return 'default' in mod ? mod.default : mod
-    })
+    pending = hostRef.meta
+      .load()
+      .then(mod => {
+        return 'default' in mod ? mod.default : mod
+      })
+      .catch(error => {
+        moduleCache.delete(hostRef.meta)
+        throw error
+      })
 
     moduleCache.set(hostRef.meta, pending)
   }
@@ -87,7 +93,7 @@ function mountRenderedOutput(
 }
 
 function getRenderRoot(hostRef: HostRef): ShadowRoot | HTMLElement {
-  if (!hostRef.meta.shadow) {
+  if (hostRef.meta.shadow === false) {
     return hostRef.host
   }
 

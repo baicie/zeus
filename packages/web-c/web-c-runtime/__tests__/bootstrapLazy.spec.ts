@@ -59,6 +59,31 @@ describe('bootstrapLazy', () => {
     expect(customElements.get('zw-skip')).toBeTruthy()
     expect(load).not.toHaveBeenCalled()
   })
+
+  it('does not throw when customElements is unavailable and no registry is passed', () => {
+    const original = globalThis.customElements
+
+    try {
+      Reflect.deleteProperty(globalThis, 'customElements')
+
+      expect(() => {
+        bootstrapLazy([
+          {
+            tagName: 'zw-ssr-test',
+            shadow: true,
+            load: vi.fn(),
+            props: [],
+          },
+        ])
+      }).not.toThrow()
+    } finally {
+      Object.defineProperty(globalThis, 'customElements', {
+        value: original,
+        configurable: true,
+        writable: true,
+      })
+    }
+  })
 })
 
 describe('lazy element lifecycle', () => {
@@ -264,7 +289,7 @@ describe('lazy element lifecycle', () => {
     expect(el.textContent).toBe('Light DOM')
   })
 
-  it('calls attributeChanged when attribute changes', async () => {
+  it('maps prop attributes to propertyChanged only', async () => {
     let instance: ZeusComponentInstance
 
     const load = vi.fn().mockResolvedValue({
@@ -272,6 +297,7 @@ describe('lazy element lifecycle', () => {
         instance = {
           connected() {},
           attributeChanged: vi.fn(),
+          propertyChanged: vi.fn(),
           render: vi.fn(),
         }
         return instance
@@ -302,17 +328,21 @@ describe('lazy element lifecycle', () => {
 
     el.setAttribute('size', 'lg')
 
-    expect(instance!.attributeChanged).toHaveBeenCalledWith('size', null, 'lg')
+    expect(instance!.propertyChanged).toHaveBeenCalledWith(
+      'size',
+      undefined,
+      'lg',
+    )
+    expect(instance!.attributeChanged).not.toHaveBeenCalled()
   })
 
-  it('queues attribute changes before loaded', async () => {
+  it('applies initial attribute values before loaded', async () => {
     let receivedValue: unknown = undefined
 
     const load = vi.fn().mockResolvedValue({
       createComponent(hostRef: HostRef) {
         return {
-          connected() {},
-          attributeChanged(name: string) {
+          connected() {
             receivedValue = (
               hostRef.host as unknown as Record<string, unknown>
             )['size']
@@ -344,6 +374,33 @@ describe('lazy element lifecycle', () => {
     await (el as ZeusLazyElement).componentOnReady()
 
     expect(receivedValue).toBe('md')
+  })
+
+  it('does not observe property-only props', () => {
+    bootstrapLazy([
+      {
+        tagName: 'zw-prop-only-test',
+        shadow: false,
+        load: vi.fn(),
+        props: [
+          {
+            name: 'columns',
+            attrName: false,
+            type: 'array',
+          },
+        ],
+      },
+    ])
+
+    const Ctor = customElements.get('zw-prop-only-test') as
+      | CustomElementConstructor
+      | undefined
+
+    expect(Ctor).toBeTruthy()
+    expect(
+      (Ctor as CustomElementConstructor & { observedAttributes: string[] })
+        .observedAttributes,
+    ).toEqual([])
   })
 })
 

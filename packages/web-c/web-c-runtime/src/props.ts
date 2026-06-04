@@ -65,14 +65,16 @@ export function setPropValue(
 export function syncAttributeToProperty(
   hostRef: HostRef,
   attrName: string,
-  oldValue: string | null,
+  _oldValue: string | null,
   newValue: string | null,
 ): void {
-  if (hostRef.reflectingAttrs.has(attrName)) {
+  const normalizedAttrName = normalizeAttrName(attrName)
+
+  if (hostRef.reflectingAttrs.has(normalizedAttrName)) {
     return
   }
 
-  const prop = findPropByAttrName(hostRef, attrName)
+  const prop = findPropByAttrName(hostRef, normalizedAttrName)
 
   if (!prop) {
     return
@@ -81,22 +83,14 @@ export function syncAttributeToProperty(
   const oldPropValue = getPropValue(hostRef, prop)
   const newPropValue = parseAttributeValue(prop, newValue)
 
-  if (!Object.is(oldPropValue, newPropValue)) {
-    hostRef.values.set(prop.name, newPropValue)
-
-    if (hostRef.loaded) {
-      hostRef.instance?.propertyChanged?.(prop.name, oldPropValue, newPropValue)
-    }
+  if (Object.is(oldPropValue, newPropValue)) {
+    return
   }
 
+  hostRef.values.set(prop.name, newPropValue)
+
   if (hostRef.loaded) {
-    hostRef.instance?.attributeChanged?.(attrName, oldValue, newValue)
-  } else {
-    hostRef.queuedAttrs.push({
-      name: attrName,
-      oldValue,
-      newValue,
-    })
+    hostRef.instance?.propertyChanged?.(prop.name, oldPropValue, newPropValue)
   }
 }
 
@@ -108,9 +102,9 @@ export function applyInitialValues(hostRef: HostRef): void {
       continue
     }
 
-    const attrName = prop.attrName ?? prop.name
+    const attrName = getAttrName(prop)
 
-    if (host.hasAttribute(attrName)) {
+    if (attrName && host.hasAttribute(attrName)) {
       hostRef.values.set(
         prop.name,
         parseAttributeValue(prop, host.getAttribute(attrName)),
@@ -137,13 +131,39 @@ export function replayQueuedAttributes(hostRef: HostRef): void {
   }
 }
 
+export function getObservedAttributes(props: ZeusPropMeta[]): string[] {
+  const attrs: string[] = []
+
+  for (const prop of props) {
+    const attrName = getAttrName(prop)
+
+    if (attrName) {
+      attrs.push(attrName)
+    }
+  }
+
+  return attrs
+}
+
 function findPropByAttrName(
   hostRef: HostRef,
   attrName: string,
 ): ZeusPropMeta | undefined {
   return hostRef.meta.props.find(prop => {
-    return (prop.attrName ?? prop.name).toLowerCase() === attrName
+    return getAttrName(prop) === attrName
   })
+}
+
+function getAttrName(prop: ZeusPropMeta): string | undefined {
+  if (prop.attrName === false) {
+    return undefined
+  }
+
+  return normalizeAttrName(prop.attrName ?? toKebabCase(prop.name))
+}
+
+function normalizeAttrName(value: string): string {
+  return value.toLowerCase()
 }
 
 function parseAttributeValue(
@@ -175,7 +195,11 @@ function reflectPropertyToAttribute(
   value: unknown,
 ): void {
   const host = hostRef.host
-  const attrName = prop.attrName ?? prop.name
+  const attrName = getAttrName(prop)
+
+  if (!attrName) {
+    return
+  }
 
   hostRef.reflectingAttrs.add(attrName)
 
@@ -196,4 +220,8 @@ function reflectPropertyToAttribute(
   } finally {
     hostRef.reflectingAttrs.delete(attrName)
   }
+}
+
+function toKebabCase(value: string): string {
+  return value.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
 }

@@ -16,6 +16,7 @@
     "packages/devtools/vite-plugin/src",
     "packages/web-c/bundler-plugin/src",
     "packages/web-c/component-analyzer/src",
+    "packages/web-c/web-c-runtime/src",
     "packages/web-c/output-css/src",
     "packages/web-c/output-wc/src",
     "packages/web-c/output-icons/src",

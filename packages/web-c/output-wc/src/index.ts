@@ -19,6 +19,7 @@ import { generateLazyEntry } from './generateLazyEntry'
 import { generateLazyManifest } from './generateLazyManifest'
 import { generateLoader, generateAutoEntry } from './generateLoader'
 import { generateZeusComponentsManifest } from './generateManifest'
+import { toAbsoluteImportPath } from './imports'
 
 import type { OutputWCOptions } from './types'
 import type {
@@ -107,7 +108,7 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
             fileName: joinPath('components.manifest.ts'),
             code: generateLazyManifest({
               components: ctx.manifest.components,
-              getEntryFileName: tag => normalized.entryFileName(tag),
+              getEntryFileName: tag => `${normalized.entryFileName(tag)}.js`,
             }),
           })
         }
@@ -139,9 +140,7 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
             code: generateLazyEntry({
               component,
               outPath: fileName,
-              sourceImport: path.posix.isAbsolute(component.source)
-                ? component.source
-                : path.posix.join(ctx.root, component.source),
+              sourceImport: toAbsoluteImportPath(ctx.root, component.source),
             }),
           })
         } else {
@@ -193,36 +192,9 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
 
       const isLazy = normalized.register === 'lazy'
 
-      // Lazy mode: generate lazy manifest
+      // Lazy mode runtime modules are emitted as virtual chunks in virtualModules().
+      // generateBundle() only emits declaration assets to avoid file-name collisions.
       if (isLazy) {
-        if (normalized.manifest) {
-          files.push({
-            type: 'asset',
-            fileName: joinPath('components.manifest.ts'),
-            source: generateLazyManifest({
-              components: ctx.manifest.components,
-              getEntryFileName: tag => normalized.entryFileName(tag) + '.js',
-            }),
-          })
-        }
-
-        if (normalized.manifest && normalized.loader) {
-          files.push({
-            type: 'asset',
-            fileName: joinPath('loader.ts'),
-            source: generateLoader(),
-          })
-        }
-
-        if (normalized.manifest && normalized.loader && normalized.auto) {
-          files.push({
-            type: 'asset',
-            fileName: joinPath('auto.js'),
-            source: generateAutoEntry(),
-          })
-        }
-
-        // Generate loader.d.ts
         if (normalized.manifest && normalized.loader && dts) {
           files.push({
             type: 'asset',
@@ -231,7 +203,6 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
           })
         }
 
-        // Generate types/jsx.d.ts (lazy mode has no index, use types/ subdir)
         if (jsxDts) {
           files.push({
             type: 'asset',
@@ -240,7 +211,6 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
           })
         }
 
-        // Generate types/react.d.ts
         if (dts) {
           files.push({
             type: 'asset',

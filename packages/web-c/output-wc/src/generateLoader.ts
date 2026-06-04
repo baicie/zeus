@@ -5,27 +5,25 @@ export function generateLoader(): string {
   return `import { bootstrapLazy } from "@zeus-js/web-c-runtime";
 import { components } from "./components.manifest.js";
 
-const ZEUS_DEFINE_KEY = Symbol.for("zeus.web-c.defined");
+const definedRegistries = new WeakSet();
 
-function getDefineState() {
-  const globalObject = globalThis;
-  if (!globalObject[ZEUS_DEFINE_KEY]) {
-    globalObject[ZEUS_DEFINE_KEY] = {};
-  }
-  return globalObject[ZEUS_DEFINE_KEY];
-}
+export function defineCustomElements(options = {}) {
+  const registry =
+    options.registry ??
+    (typeof customElements !== "undefined" ? customElements : undefined);
 
-export function defineCustomElements(options) {
-  const state = getDefineState();
-
-  if (state.defined) {
+  if (!registry) {
     return;
   }
 
-  state.defined = true;
+  if (definedRegistries.has(registry)) {
+    return;
+  }
+
+  definedRegistries.add(registry);
 
   bootstrapLazy(components, {
-    registry: options?.registry ?? customElements,
+    registry,
   });
 }
 

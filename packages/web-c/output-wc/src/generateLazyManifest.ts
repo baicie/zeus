@@ -46,9 +46,13 @@ function generatePropsArray(component: ComponentRecord): string {
   const lines = entries.map(([name, prop]) => {
     const parts: string[] = [`name: ${JSON.stringify(name)}`]
 
-    const attrName = prop.attr !== false ? (prop.attr ?? name) : name
-    if (attrName !== name) {
-      parts.push(`attrName: ${JSON.stringify(attrName)}`)
+    if (prop.attr === false) {
+      parts.push('attrName: false')
+    } else {
+      const attrName = prop.attr ?? toKebabCase(name)
+      if (attrName !== toKebabCase(name)) {
+        parts.push(`attrName: ${JSON.stringify(attrName)}`)
+      }
     }
 
     parts.push(`type: ${JSON.stringify(prop.type)}`)
@@ -97,4 +101,8 @@ function generateSlotsArray(component: ComponentRecord): string {
   })
 
   return `[\n${lines.join(',\n')}\n    ]`
+}
+
+function toKebabCase(value: string): string {
+  return value.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
 }

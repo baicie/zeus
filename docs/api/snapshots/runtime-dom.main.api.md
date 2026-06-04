@@ -313,6 +313,30 @@ export type DefineElementSetup<
   P extends object,
   E extends HTMLElement = HTMLElement,
 > = (props: Readonly<P>, context: DefineElementContext<E>) => JSXValue
+export type NormalizedPropDefinition = {
+  key: string
+  attr: string | false
+  type?: ElementPropConstructor
+  reflect: boolean
+  default?: unknown
+}
+export declare const ZEUS_ELEMENT_DEFINITION: unique symbol
+export interface ZeusElementDefinition<
+  P extends object = object,
+  E extends HTMLElement = HTMLElement,
+> {
+  tagName: string
+  options: DefineElementOptions<P>
+  setup: DefineElementSetup<P, E>
+  propDefs: NormalizedPropDefinition[]
+}
+export type ZeusElementConstructor = CustomElementConstructor & {
+  [ZEUS_ELEMENT_DEFINITION]?: ZeusElementDefinition
+}
+export interface MountedElementDefinition {
+  propertyChanged(name: string, _oldValue: unknown, newValue: unknown): void
+  dispose(): void
+}
 export declare function defineElement<
   P extends object = object,
   E extends HTMLElement = HTMLElement,
@@ -321,6 +345,14 @@ export declare function defineElement<
   options: DefineElementOptions<P>,
   setup: DefineElementSetup<P, E>,
 ): CustomElementConstructor
+export declare function getElementDefinition(
+  ctor: CustomElementConstructor,
+): ZeusElementDefinition
+export declare function mountElementDefinition(
+  ctor: CustomElementConstructor,
+  host: HTMLElement,
+  initialValues?: ReadonlyMap<string, unknown>,
+): MountedElementDefinition
 
 type HostValue<T> = T | (() => T)
 export interface HostProps extends Record<string, unknown> {

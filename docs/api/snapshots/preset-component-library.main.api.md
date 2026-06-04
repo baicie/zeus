@@ -11,6 +11,8 @@ export { default as vue } from '@zeus-js/output-vue-wrapper'
 export { default as wc } from '@zeus-js/output-wc'
 import { DtsMode, ZeusComponentPlugin } from '@zeus-js/bundler-plugin'
 
+export type WebCRegisterMode = 'lazy' | 'manual' | 'side-effect'
+export type WebCWrapperMode = 'minimal' | 'event-bridge'
 export interface ComponentLibraryPresetOptions {
   styles?: string | false
   targets?: ComponentLibraryTarget[]
@@ -18,6 +20,47 @@ export interface ComponentLibraryPresetOptions {
   jsxDts?: DtsMode
   manifest?: boolean
   customElements?: boolean
+  /**
+   * lazy:
+   *   Default. Stencil-style lazy loader.
+   *   Registers lightweight ProxyClass on startup; loads real component
+   *   entry only on element connectedCallback.
+   *
+   * manual:
+   *   Only generates manual define API.
+   *
+   * side-effect:
+   *   Immediately registers full components on import.
+   */
+  register?: WebCRegisterMode
+  /**
+   * Whether to generate the components.manifest.ts file (lazy mode).
+   *
+   * @default true
+   */
+  manifestFile?: boolean
+  /**
+   * Whether to generate the loader.ts file (lazy mode).
+   *
+   * @default true
+   */
+  loader?: boolean
+  /**
+   * Whether to generate the auto.js entry (lazy mode).
+   *
+   * @default true
+   */
+  autoEntry?: boolean
+  /**
+   * Vue / React wrapper mode.
+   *
+   * minimal:
+   *   Default. Only renders the custom element tag. No watch/sync/event bridge.
+   *
+   * event-bridge:
+   *   Additional mode with prop sync and event listeners.
+   */
+  wrapper?: WebCWrapperMode
 }
 export type ComponentLibraryTarget = 'wc' | 'react' | 'vue'
 export declare function componentLibrary(

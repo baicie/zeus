@@ -2,16 +2,18 @@
 
 import { registerHost, requireHostRef } from './host-ref'
 import { initializeComponent } from './lifecycle'
-import { installPropertyAccessors, syncAttributeToProperty } from './props'
+import {
+  getObservedAttributes,
+  installPropertyAccessors,
+  syncAttributeToProperty,
+} from './props'
 
 import type { ZeusLazyComponentMeta } from './types'
 
 export function createLazyElementClass(
   meta: ZeusLazyComponentMeta,
 ): CustomElementConstructor {
-  const observedAttributes = meta.props
-    .map(prop => prop.attrName ?? prop.name)
-    .map(name => name.toLowerCase())
+  const observedAttributes = getObservedAttributes(meta.props)
 
   class ZeusLazyElement extends HTMLElement {
     static get observedAttributes(): string[] {

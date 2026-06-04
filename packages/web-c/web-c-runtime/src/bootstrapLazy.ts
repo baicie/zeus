@@ -8,7 +8,13 @@ export function bootstrapLazy(
   components: ZeusLazyComponentMeta[],
   options: BootstrapLazyOptions = {},
 ): void {
-  const registry = options.registry ?? customElements
+  const registry =
+    options.registry ??
+    (typeof customElements !== 'undefined' ? customElements : undefined)
+
+  if (!registry) {
+    return
+  }
 
   for (const meta of components) {
     if (registry.get(meta.tagName)) {

@@ -110,6 +110,34 @@ describe('generateLazyManifest', () => {
     expect(code).toContain('default: "md"')
   })
 
+  it('preserves property-only props with attrName false', () => {
+    const code = generateLazyManifest({
+      components: [
+        {
+          tag: 'zw-table',
+          name: 'ZwTable',
+          exportName: 'ZwTable',
+          source: 'src/table.tsx',
+          props: {
+            columns: {
+              type: 'array',
+              attr: false,
+            },
+          },
+          events: {},
+          slots: {},
+          hostAttributes: [],
+          cssParts: [],
+          cssVars: [],
+        } as any,
+      ],
+      getEntryFileName: tag => `${tag}.entry.js`,
+    })
+
+    expect(code).toContain('name: "columns", attrName: false')
+    expect(code).not.toContain('attrName: "columns"')
+  })
+
   it('includes events', () => {
     const code = generateLazyManifest({
       components: [
@@ -178,17 +206,17 @@ describe('generateLoader', () => {
       'export const defineLazyElements = defineCustomElements',
     )
     expect(code).toContain('bootstrapLazy(components')
-    expect(code).toContain('registry: options?.registry ?? customElements')
+    expect(code).toContain('const definedRegistries = new WeakSet()')
+    expect(code).toContain('typeof customElements !== "undefined"')
+    expect(code).toContain('registry,')
   })
 
-  it('prevents double registration', () => {
+  it('dedupes per registry instead of global state', () => {
     const code = generateLoader()
 
-    expect(code).toContain(
-      'const ZEUS_DEFINE_KEY = Symbol.for("zeus.web-c.defined")',
-    )
-    expect(code).toContain('if (state.defined)')
-    expect(code).toContain('state.defined = true')
+    expect(code).not.toContain('ZEUS_DEFINE_KEY')
+    expect(code).toContain('definedRegistries.has(registry)')
+    expect(code).toContain('definedRegistries.add(registry)')
   })
 })
 
@@ -221,6 +249,9 @@ describe('generateLazyEntry', () => {
     })
 
     expect(code).not.toContain('import type')
+    expect(code).toContain(
+      'import { mountElementDefinition } from "@zeus-js/runtime-dom"',
+    )
     expect(code).toContain('class ZwButtonComponent')
     expect(code).toContain('constructor(hostRef)')
     expect(code).toContain('connected()')
@@ -228,13 +259,15 @@ describe('generateLazyEntry', () => {
     expect(code).toContain('propertyChanged(name, oldValue, newValue)')
     expect(code).toContain('attributeChanged(name, oldValue, newValue)')
     expect(code).toContain('render()')
-    expect(code).toContain('// Runtime calls render after connected().')
+    expect(code).toContain(
+      'this.mounted = mountElementDefinition(ZwButton, this.hostRef.host, this.hostRef.values)',
+    )
     expect(code).toContain('export function createComponent(hostRef)')
     expect(code).toContain('export default moduleExports')
     expect(code).toContain('createComponent')
   })
 
-  it('calls exportName in render', () => {
+  it('does not call component constructor as a render function', () => {
     const code = generateLazyEntry({
       component: {
         tag: 'zw-button',
@@ -251,53 +284,8 @@ describe('generateLazyEntry', () => {
       outPath: 'wc/zw-button.entry.js',
     })
 
-    expect(code).toContain('const node = ZwButton(host)')
-  })
-
-  it('uses shadow DOM by default', () => {
-    const code = generateLazyEntry({
-      component: {
-        tag: 'zw-button',
-        name: 'ZwButton',
-        exportName: 'ZwButton',
-        source: 'src/button.tsx',
-        props: {},
-        events: {},
-        slots: {},
-        hostAttributes: [],
-        cssParts: [],
-        cssVars: [],
-      } as any,
-      outPath: 'wc/zw-button.entry.js',
-    })
-
-    expect(code).toContain(
-      'const root = host.shadowRoot ?? host.attachShadow({ mode: "open" })',
-    )
-  })
-
-  it('uses light DOM when component metadata disables shadow', () => {
-    const code = generateLazyEntry({
-      component: {
-        tag: 'zw-button',
-        name: 'ZwButton',
-        exportName: 'ZwButton',
-        source: 'src/button.tsx',
-        props: {},
-        events: {},
-        slots: {},
-        hostAttributes: [],
-        cssParts: [],
-        cssVars: [],
-        meta: {
-          shadow: false,
-        },
-      } as any,
-      outPath: 'wc/zw-button.entry.js',
-    })
-
-    expect(code).toContain('const root = host;')
-    expect(code).not.toContain('attachShadow')
+    expect(code).not.toContain('ZwButton(host)')
+    expect(code).toContain('mountElementDefinition(ZwButton')
   })
 
   it('generates relative import path', () => {

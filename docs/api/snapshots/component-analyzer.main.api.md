@@ -28,7 +28,10 @@ export interface ComponentRecord {
   cssParts: string[]
   cssVars: string[]
   description?: string
-  meta?: Record<string, unknown>
+  meta?: {
+    shadow?: boolean
+    [key: string]: unknown
+  }
 }
 export interface ComponentProp {
   type: ComponentPropType

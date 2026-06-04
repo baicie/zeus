@@ -78,6 +78,8 @@ export declare function generateWCDtsFiles(
   options?: ComponentDtsOptions,
 ): DtsOutputFile[]
 
+export declare function generateLoaderDts(manifest: ComponentManifest): string
+
 export declare function formatPropType(prop: ComponentProp): string
 export declare function formatEventType(event: ComponentEvent): string
 export declare function formatDetailType(detail: Record<string, string>): string

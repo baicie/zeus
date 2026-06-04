@@ -323,7 +323,7 @@ describe('output-wc', () => {
   })
 
   describe('generateBundle', () => {
-    it('generates lazy assets by default', () => {
+    it('generates only lazy declaration assets by default', () => {
       const plugin = wc()
       const ctx = createMockCtx({
         version: 1,
@@ -349,12 +349,12 @@ describe('output-wc', () => {
       ) as ZeusOutputAsset[]
       const fileNames = new Set(result.map(f => f.fileName))
 
-      expect(fileNames).toContain('wc/components.manifest.ts')
-      expect(fileNames).toContain('wc/loader.ts')
-      expect(fileNames).toContain('wc/auto.js')
       expect(fileNames).toContain('wc/loader.d.ts')
       expect(fileNames).toContain('wc/types/jsx.d.ts')
       expect(fileNames).toContain('wc/types/react.d.ts')
+      expect(fileNames).not.toContain('wc/components.manifest.ts')
+      expect(fileNames).not.toContain('wc/loader.ts')
+      expect(fileNames).not.toContain('wc/auto.js')
       expect(fileNames).not.toContain('zeus.components.json')
       expect(fileNames).not.toContain('custom-elements.json')
     })
