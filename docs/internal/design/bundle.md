@@ -86,7 +86,7 @@ import { ButtonProps } from './types'
 
 ## Rollup Resolve 行为
 
-Rollup adapter 会为相对路径和绝对路径补充 TS-like extensionless 解析。默认扩展名：
+Rollup adapter 会为相对路径和绝对路径补充 TS-like extensionless 解析。解析前会清理 query/hash，因此 `./Button?component` 也会按 `./Button` 解析。默认扩展名：
 
 ```ts
 ;['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs']
@@ -109,6 +109,32 @@ zeus({
 ```
 
 该解析只针对 Rollup adapter。Rolldown 和 Vite 使用 bundler 自身的解析能力。
+
+## Component Scan 与 JSX Transform
+
+`components` 只控制组件分析、manifest、DTS 和 watch files：
+
+```ts
+zeus({
+  components: {
+    include: ['src/**/*.{ts,tsx}'],
+    exclude: ['src/shared/**'],
+  },
+})
+```
+
+`transform` 控制 Zeus JSX 编译范围：
+
+```ts
+zeus({
+  transform: {
+    include: ['src/**/*.{ts,tsx,js,jsx}'],
+    exclude: ['**/*.test.*'],
+  },
+})
+```
+
+两者故意分离。默认 `components.exclude` 会排除 `src/shared/**`，避免共享工具进入 component manifest；但默认 `transform.exclude` 不排除 `src/shared/**`，因此共享 TSX helper 仍会执行 Zeus JSX 编译。
 
 ## Component Plugin External
 
@@ -161,7 +187,7 @@ export { default, zeus } from './rollup'
 
 ## 测试矩阵
 
-- Rollup TSX fixture 使用真实 JSX，并覆盖普通类型 import、runtime helper import、`.mts` / `.cts` extensionless 解析。
+- Rollup TSX fixture 使用真实 JSX，并覆盖普通类型 import、runtime helper import、`src/shared/**` JSX 编译、`.mts` / `.cts` extensionless 解析、query import 解析和绝对路径识别。
 - Rolldown TSX fixture 覆盖 Zeus JSX 编译 helper 输出。
 - Vite integration 覆盖 plugin config 和 extension option 接收。
 - API snapshots 覆盖主入口、Rollup 子入口、Rolldown 子入口和 Vite 子入口的公开类型。

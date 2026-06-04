@@ -126,6 +126,16 @@ interface ZeusBundlerPluginOptions {
     exclude?: string[]
   }
   /**
+   * Zeus JSX compile transform filter.
+   *
+   * This is intentionally separate from `components`: files can be excluded
+   * from component analysis / manifest generation while still compiling JSX.
+   */
+  transform?: {
+    include?: string[]
+    exclude?: string[]
+  }
+  /**
    * Declaration generation mode.
    *
    * @default 'auto'

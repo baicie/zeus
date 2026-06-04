@@ -5,10 +5,15 @@ import { analyzeComponents } from '@zeus-js/component-analyzer'
 import fg from 'fast-glob'
 
 import { createComponentTransformFilter } from './componentTransformFilter'
-import { resolveComponentExclude, resolveComponentInclude } from './defaults'
+import {
+  resolveComponentExclude,
+  resolveComponentInclude,
+  resolveTransformExclude,
+  resolveTransformInclude,
+} from './defaults'
 import { formatDiagnostic, hasErrorDiagnostics } from './diagnostics'
 import { resolveDts } from './dts'
-import { isTypeScriptLike } from './filter'
+import { cleanUrl, isTypeScriptLike } from './filter'
 import { createOutputRegistry } from './outputRegistry'
 import { transformZeus } from './transform'
 import { VirtualModuleRegistry } from './virtual'
@@ -38,7 +43,7 @@ export function createZeusBundlerPlugin(
 ) {
   const target = createOptions.target
 
-  let shouldTransform = (_id: string) => false
+  let shouldCompileZeus = (_id: string) => false
   let ctx: ZeusBuildContext | undefined
   let root = process.cwd()
 
@@ -52,25 +57,43 @@ export function createZeusBundlerPlugin(
 
       root = resolveRoot(options.root)
 
-      const include = resolveComponentInclude(options.components?.include)
-      const exclude = resolveComponentExclude(options.components?.exclude)
+      const componentInclude = resolveComponentInclude(
+        options.components?.include,
+      )
+      const componentExclude = resolveComponentExclude(
+        options.components?.exclude,
+      )
+      const transformInclude = resolveTransformInclude(
+        options.transform?.include,
+      )
+      const transformExclude = resolveTransformExclude(
+        options.transform?.exclude,
+      )
 
-      shouldTransform = createComponentTransformFilter({
+      shouldCompileZeus = createComponentTransformFilter({
         root,
-        include,
-        exclude,
+        include: transformInclude,
+        exclude: transformExclude,
       })
 
       const dts = await resolveDts({
         root,
         mode: options.dts,
-        include,
-        exclude,
+        include: componentInclude,
+        exclude: componentExclude,
       })
 
-      const manifestResult = await createManifest(root, include, exclude)
+      const manifestResult = await createManifest(
+        root,
+        componentInclude,
+        componentExclude,
+      )
 
-      for (const file of await collectWatchFiles(root, include, exclude)) {
+      for (const file of await collectWatchFiles(
+        root,
+        componentInclude,
+        componentExclude,
+      )) {
         this.addWatchFile(file)
       }
 
@@ -148,7 +171,6 @@ export function createZeusBundlerPlugin(
 
       if (target === 'rollup') {
         const resolvedTs = resolveTsLikeImport(id, importer, {
-          root,
           extensions: options.resolveExtensions,
         })
 
@@ -165,7 +187,7 @@ export function createZeusBundlerPlugin(
     },
 
     async transform(code: string, id: string) {
-      const shouldRunZeus = shouldTransform(id)
+      const shouldRunZeus = shouldCompileZeus(id)
       const shouldStripTs =
         resolveTranspile(options.transpile, target) && isTypeScriptLike(id)
 
@@ -272,13 +294,16 @@ function resolveTsLikeImport(
   id: string,
   importer: string | undefined,
   options: {
-    root: string
     extensions: string[] | false | undefined
   },
 ): string | null {
   if (!importer) return null
-  if (id.startsWith('\0') || importer.startsWith('\0')) return null
-  if (!id.startsWith('.') && !id.startsWith('/')) return null
+
+  const source = cleanUrl(id)
+  const from = cleanUrl(importer)
+
+  if (source.startsWith('\0') || from.startsWith('\0')) return null
+  if (!source.startsWith('.') && !isAbsoluteImportPath(source)) return null
   if (options.extensions === false) return null
 
   const extensions = options.extensions ?? [
@@ -292,9 +317,9 @@ function resolveTsLikeImport(
     '.cjs',
   ]
 
-  const base = path.isAbsolute(id)
-    ? id
-    : path.resolve(path.dirname(importer), id)
+  const base = isAbsoluteImportPath(source)
+    ? source
+    : path.resolve(path.dirname(from), source)
 
   const candidates = [
     base,
@@ -309,6 +334,10 @@ function resolveTsLikeImport(
   }
 
   return null
+}
+
+export function isAbsoluteImportPath(id: string): boolean {
+  return path.isAbsolute(id) || /^[a-zA-Z]:[\\/]/.test(id)
 }
 
 function emitOutputFile(
