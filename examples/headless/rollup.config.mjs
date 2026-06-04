@@ -37,10 +37,5 @@ export default {
     }),
   ],
 
-  external: [
-    /^react$/,
-    /^react-dom$/,
-    /^vue$/,
-    /^@zeus-js\//,
-  ],
+  external: [/^react$/, /^react-dom$/, /^vue$/, /^@zeus-js\//],
 }
