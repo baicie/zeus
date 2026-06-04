@@ -4,6 +4,24 @@ import { getObjectKey, getObjectProperty, staticValue } from './utils'
 
 import type { ComponentProp, ComponentPropType } from './types'
 
+export interface ExtractedShadow {
+  shadow?: boolean
+}
+
+export function extractShadowOption(
+  options: t.ObjectExpression | undefined,
+): ExtractedShadow {
+  if (!options) return {}
+
+  const shadowNode = getObjectProperty(options, 'shadow')
+  if (!shadowNode) return {}
+
+  const value = staticValue(shadowNode)
+  if (typeof value !== 'boolean') return {}
+
+  return { shadow: value }
+}
+
 export function extractRuntimeProps(
   options: t.ObjectExpression | undefined,
 ): Record<string, ComponentProp> {

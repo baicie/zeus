@@ -4,6 +4,12 @@ import vue from '@zeus-js/output-vue-wrapper'
 import wc from '@zeus-js/output-wc'
 
 import type { DtsMode, ZeusComponentPlugin } from '@zeus-js/bundler-plugin'
+import type { OutputReactWrapperOptions } from '@zeus-js/output-react-wrapper'
+import type { OutputVueWrapperOptions } from '@zeus-js/output-vue-wrapper'
+import type { OutputWCOptions } from '@zeus-js/output-wc'
+
+export type WebCRegisterMode = 'lazy' | 'manual' | 'side-effect'
+export type WebCWrapperMode = 'minimal' | 'event-bridge'
 
 export interface ComponentLibraryPresetOptions {
   styles?: string | false
@@ -12,6 +18,52 @@ export interface ComponentLibraryPresetOptions {
   jsxDts?: DtsMode
   manifest?: boolean
   customElements?: boolean
+
+  /**
+   * lazy:
+   *   Default. Stencil-style lazy loader.
+   *   Registers lightweight ProxyClass on startup; loads real component
+   *   entry only on element connectedCallback.
+   *
+   * manual:
+   *   Only generates manual define API.
+   *
+   * side-effect:
+   *   Immediately registers full components on import.
+   */
+  register?: WebCRegisterMode
+
+  /**
+   * Whether to generate the components.manifest.ts file (lazy mode).
+   *
+   * @default true
+   */
+  manifestFile?: boolean
+
+  /**
+   * Whether to generate the loader.ts file (lazy mode).
+   *
+   * @default true
+   */
+  loader?: boolean
+
+  /**
+   * Whether to generate the auto.js entry (lazy mode).
+   *
+   * @default true
+   */
+  autoEntry?: boolean
+
+  /**
+   * Vue / React wrapper mode.
+   *
+   * minimal:
+   *   Default. Only renders the custom element tag. No watch/sync/event bridge.
+   *
+   * event-bridge:
+   *   Additional mode with prop sync and event listeners.
+   */
+  wrapper?: WebCWrapperMode
 }
 
 export type ComponentLibraryTarget = 'wc' | 'react' | 'vue'
@@ -22,6 +74,9 @@ export function componentLibrary(
   const targets = options.targets ?? ['wc', 'react', 'vue']
   const plugins: ZeusComponentPlugin[] = []
 
+  const registerMode = options.register ?? 'lazy'
+  const isLazy = registerMode === 'lazy'
+
   if (options.styles !== false) {
     plugins.push(
       css(typeof options.styles === 'string' ? { input: options.styles } : {}),
@@ -29,33 +84,43 @@ export function componentLibrary(
   }
 
   if (targets.includes('wc')) {
-    plugins.push(
-      wc({
-        dts: options.dts ?? 'auto',
-        jsxDts: options.jsxDts ?? 'auto',
-        manifestFile:
-          options.manifest === false ? false : 'zeus.components.json',
-        customElementsFile:
-          options.customElements === false ? false : 'custom-elements.json',
-      }),
-    )
+    const wcOptions: OutputWCOptions = {
+      register: registerMode,
+      dts: options.dts ?? 'auto',
+      jsxDts: options.jsxDts ?? 'auto',
+      manifestFile: isLazy
+        ? false
+        : options.manifest !== false
+          ? 'zeus.components.json'
+          : false,
+      customElementsFile: isLazy
+        ? false
+        : options.customElements !== false
+          ? 'custom-elements.json'
+          : false,
+      manifest: options.manifestFile ?? true,
+      loader: options.loader ?? true,
+      auto: options.autoEntry ?? true,
+      entryFileName: tag => `${tag}.entry`,
+    }
+    plugins.push(wc(wcOptions))
   }
 
   if (targets.includes('react')) {
-    plugins.push(
-      react({
-        dts: options.dts ?? 'auto',
-      }),
-    )
+    const reactOptions: OutputReactWrapperOptions = {
+      dts: options.dts ?? 'auto',
+      wrapper: options.wrapper ?? 'minimal',
+    }
+    plugins.push(react(reactOptions))
   }
 
   if (targets.includes('vue')) {
-    plugins.push(
-      vue({
-        dts: options.dts ?? 'auto',
-        globalDts: options.dts ?? 'auto',
-      }),
-    )
+    const vueOptions: OutputVueWrapperOptions = {
+      dts: options.dts ?? 'auto',
+      globalDts: options.dts ?? 'auto',
+      wrapper: options.wrapper ?? 'minimal',
+    }
+    plugins.push(vue(vueOptions))
   }
 
   return plugins

@@ -23,6 +23,7 @@ export default function reactWrapper(
     dts: options.dts ?? 'auto',
     index: options.index ?? true,
     namedSlots: options.namedSlots ?? 'props',
+    wrapper: options.wrapper ?? 'minimal',
   }
 
   return {
@@ -57,6 +58,7 @@ export default function reactWrapper(
             component,
             namedSlots: normalized.namedSlots,
             wcModuleId: `zeus:wc:${component.tag}`,
+            mode: normalized.wrapper,
           }),
         })
       }

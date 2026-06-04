@@ -3,9 +3,45 @@ import type { ComponentRecord } from '@zeus-js/component-analyzer'
 export interface GenerateVueWrapperOptions {
   component: ComponentRecord
   wcModuleId: string
+  mode?: 'minimal' | 'event-bridge'
 }
 
 export function generateVueWrapper(input: GenerateVueWrapperOptions): string {
+  const { mode = 'minimal' } = input
+
+  if (mode === 'minimal') {
+    return generateMinimalVueWrapper(input)
+  }
+
+  return generateEventBridgeVueWrapper(input)
+}
+
+function generateMinimalVueWrapper(input: GenerateVueWrapperOptions): string {
+  const { component } = input
+
+  return `
+import { defineComponent, h } from 'vue';
+
+export const ${component.name} = defineComponent({
+  name: ${JSON.stringify(component.name)},
+  inheritAttrs: false,
+  setup(_props, { attrs, slots }) {
+    return () =>
+      h(
+        ${JSON.stringify(component.tag)},
+        {
+          ...attrs,
+        },
+        slots.default?.(),
+      );
+  },
+});
+`.trimStart()
+}
+
+function generateEventBridgeVueWrapper(
+  input: GenerateVueWrapperOptions,
+): string {
   const { component, wcModuleId } = input
 
   const propNames = Object.keys(component.props)

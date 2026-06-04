@@ -15,12 +15,14 @@ export interface BuildRecordOptions {
   typeProps: Record<string, Partial<ComponentProp>>
   setupMeta: SetupMeta
   inlineMeta: InlineMeta
+  shadow?: boolean
 }
 
 export function buildComponentRecord(
   options: BuildRecordOptions,
 ): ComponentRecord {
-  const { file, call, runtimeProps, typeProps, setupMeta, inlineMeta } = options
+  const { file, call, runtimeProps, typeProps, setupMeta, inlineMeta, shadow } =
+    options
 
   const props = mergeProps(
     runtimeProps,
@@ -47,6 +49,8 @@ export function buildComponentRecord(
 
   const hostAttributes = unique(setupMeta.hostAttributes)
 
+  const restMeta = stripKnownMetaFields(inlineMeta)
+
   return {
     tag: call.tag,
     name: call.name,
@@ -62,7 +66,8 @@ export function buildComponentRecord(
       typeof inlineMeta.description === 'string'
         ? inlineMeta.description
         : undefined,
-    meta: stripKnownMetaFields(inlineMeta),
+    meta:
+      shadow !== undefined || restMeta ? { ...restMeta, shadow } : undefined,
   }
 }
 
@@ -139,6 +144,7 @@ function stripKnownMetaFields(
   delete rest.slots
   delete rest.cssVars
   delete rest.cssParts
+  delete rest.shadow
 
   return Object.keys(rest).length ? rest : undefined
 }

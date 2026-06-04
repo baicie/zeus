@@ -6,9 +6,58 @@ export interface GenerateReactWrapperOptions {
   component: ComponentRecord
   namedSlots: 'props' | 'none'
   wcModuleId: string
+  mode?: 'minimal' | 'event-bridge'
 }
 
 export function generateReactWrapper(
+  input: GenerateReactWrapperOptions,
+): string {
+  const { mode = 'minimal' } = input
+
+  if (mode === 'minimal') {
+    return generateMinimalReactWrapper(input)
+  }
+
+  return generateEventBridgeReactWrapper(input)
+}
+
+function generateMinimalReactWrapper(
+  input: GenerateReactWrapperOptions,
+): string {
+  const { component, namedSlots } = input
+
+  const propNames = Object.keys(component.props)
+  const slotNames = getNamedSlots(component, namedSlots)
+
+  const destructuredPropNames = [...propNames, ...slotNames]
+  const destructuredProps = destructuredPropNames.length
+    ? `${destructuredPropNames.join(',\n    ')},`
+    : ''
+
+  const namedSlotLines = generateMinimalNamedSlots(slotNames)
+
+  return `
+import * as React from 'react';
+
+export const ${component.name} = React.forwardRef(
+  function ${component.name}({ children, className, style, ${destructuredProps} ...rest } = {}, ref) {
+${namedSlotLines}
+    return React.createElement(
+      ${JSON.stringify(component.tag)},
+      {
+        ...rest,
+        className,
+        style,
+        ref,
+      },
+${namedSlotLines ? '      ...slotNodes,\n' : ''}      children,
+    );
+  },
+);
+`.trimStart()
+}
+
+function generateEventBridgeReactWrapper(
   input: GenerateReactWrapperOptions,
 ): string {
   const { component, namedSlots, wcModuleId } = input
@@ -168,4 +217,24 @@ function generateNamedSlotRenderLines(namedSlots: string[]): string {
 `
     })
     .join('')
+}
+
+function generateMinimalNamedSlots(namedSlots: string[]): string {
+  if (!namedSlots.length) return ''
+
+  return (
+    namedSlots
+      .map(name => {
+        return `    const slotNode_${name} = ${name} != null && ${name} !== false
+      ? (React.isValidElement(${name}) && ${name}.type !== React.Fragment
+          ? React.cloneElement(${name}, { slot: ${JSON.stringify(name)} })
+          : React.createElement('span', { slot: ${JSON.stringify(name)}, style: { display: 'contents' } }, ${name}))
+      : null;
+`
+      })
+      .join('') +
+    '\n    const slotNodes = [' +
+    namedSlots.map(name => `slotNode_${name}`).join(', ') +
+    '].filter(Boolean);\n'
+  )
 }

@@ -170,6 +170,21 @@ export function createZeusBundlerPlugin(
         }
       }
 
+      // Resolve virtual entry imports for lazy mode (e.g. ./z-button.entry -> zeus:wc:entry:z-button)
+      const cleanImporter = importer?.replace(/^\x00/, '')
+      if (
+        cleanImporter?.startsWith('zeus:') &&
+        (id.startsWith('./') || id.startsWith('../'))
+      ) {
+        const virtualEntryId = resolveVirtualEntryImport(id, cleanImporter)
+        if (virtualEntryId && virtualModules.has(virtualEntryId)) {
+          return {
+            id: '\0' + virtualEntryId,
+            moduleSideEffects: 'no-treeshake',
+          }
+        }
+      }
+
       if (target === 'rollup') {
         const resolvedTs = resolveTsLikeImport(id, importer, {
           extensions: options.resolveExtensions,
@@ -388,4 +403,24 @@ function emitVirtualEntries(
       preserveSignature: 'strict',
     })
   }
+}
+
+function resolveVirtualEntryImport(
+  id: string,
+  importer: string,
+): string | null {
+  // importer = "zeus:wc:components.manifest" (virtual id)
+  // id = "./z-button.entry" or "../z-button.entry"
+  // Map relative import from manifest to virtual entry module by:
+  // 1. Extract virtual prefix from importer (e.g. "zeus:wc:")
+  // 2. Extract base name from id (e.g. "z-button")
+  // 3. Map to zeus:wc:entry:z-button
+
+  const cleanId = id.replace(/\.js$/, '').replace(/^\.\//, '')
+  const tagName = cleanId.replace(/\.entry$/, '')
+  const lastColon = importer.lastIndexOf(':')
+  if (lastColon <= 0) return null
+  const virtualPrefix = importer.slice(0, lastColon + 1)
+
+  return `${virtualPrefix}entry:${tagName}`
 }

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { generateReactWrapper } from '../src/generateReactWrapper'
 
 describe('generateReactWrapper', () => {
-  it('generates React wrapper code', () => {
+  it('generates minimal React wrapper code by default', () => {
     const code = generateReactWrapper({
       component: {
         tag: 'z-button',
@@ -35,6 +35,51 @@ describe('generateReactWrapper', () => {
       },
       namedSlots: 'props',
       wcModuleId: 'zeus:wc:z-button',
+      mode: 'minimal',
+    })
+
+    expect(code).not.toContain('import "zeus:wc:z-button"')
+    expect(code).toContain('export const ZButton = React.forwardRef')
+    expect(code).not.toContain('useImperativeHandle')
+    expect(code).not.toContain('useRef')
+    expect(code).not.toContain('el.variant = variant')
+    expect(code).not.toContain('addEventListener')
+    expect(code).toContain('React.createElement')
+  })
+
+  it('generates event-bridge React wrapper code', () => {
+    const code = generateReactWrapper({
+      component: {
+        tag: 'z-button',
+        name: 'ZButton',
+        exportName: 'ZButton',
+        source: 'src/button.tsx',
+        props: {
+          variant: {
+            type: 'string',
+            values: ['default', 'outline'],
+          },
+          disabled: {
+            type: 'boolean',
+          },
+        },
+        events: {
+          press: {
+            detail: {
+              nativeEvent: 'MouseEvent',
+            },
+          },
+        },
+        slots: {
+          default: {},
+        },
+        hostAttributes: [],
+        cssParts: [],
+        cssVars: [],
+      },
+      namedSlots: 'props',
+      wcModuleId: 'zeus:wc:z-button',
+      mode: 'event-bridge',
     })
 
     expect(code).toContain('import "zeus:wc:z-button"')
@@ -60,7 +105,7 @@ describe('generateReactWrapper', () => {
     expect(code).toContain('NAMED_SLOTS')
   })
 
-  it('handles component with named slots', () => {
+  it('handles component with named slots in minimal mode', () => {
     const code = generateReactWrapper({
       component: {
         tag: 'z-card',
@@ -82,14 +127,19 @@ describe('generateReactWrapper', () => {
       },
       namedSlots: 'props',
       wcModuleId: 'zeus:wc:z-card',
+      mode: 'minimal',
     })
 
-    expect(code).toContain('NAMED_SLOTS')
+    expect(code).toContain('slotNode_header')
+    expect(code).toContain('slotNode_footer')
     expect(code).toContain('"header"')
     expect(code).toContain('"footer"')
-    expect(code).toContain('createNamedSlot')
-    expect(code).toContain('slot: name')
+    expect(code).toContain('React.cloneElement')
+    expect(code).toContain('slot: "header"')
+    expect(code).toContain('slot: "footer"')
     expect(code).toContain("{ display: 'contents' }")
+    expect(code).not.toContain('useRef')
+    expect(code).not.toContain('addEventListener')
   })
 
   it('handles component with no props', () => {
@@ -110,12 +160,13 @@ describe('generateReactWrapper', () => {
       },
       namedSlots: 'props',
       wcModuleId: 'zeus:wc:z-skeleton',
+      mode: 'event-bridge',
     })
 
     expect(code).toContain('// no props')
   })
 
-  it('handles namedSlots option none', () => {
+  it('handles namedSlots option none in event-bridge mode', () => {
     const code = generateReactWrapper({
       component: {
         tag: 'z-tag',
@@ -134,6 +185,7 @@ describe('generateReactWrapper', () => {
       },
       namedSlots: 'none',
       wcModuleId: 'zeus:wc:z-tag',
+      mode: 'event-bridge',
     })
 
     expect(code).toContain('NAMED_SLOTS')

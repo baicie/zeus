@@ -1,7 +1,7 @@
 import { parseSource } from './ast'
 import { extractDefineElementCalls } from './extractDefineElement'
 import { extractInlineMeta } from './extractMeta'
-import { extractRuntimeProps } from './extractProps'
+import { extractRuntimeProps, extractShadowOption } from './extractProps'
 import { extractSetupMeta } from './extractSetup'
 import { collectLocalPropTypes } from './extractTypeProps'
 import { buildComponentRecord } from './merge'
@@ -20,6 +20,7 @@ export function analyzeFile(options: AnalyzeFileOptions): AnalyzeFileResult {
 
     for (const call of calls) {
       const runtimeProps = extractRuntimeProps(call.options)
+      const shadowOption = extractShadowOption(call.options)
 
       const typeProps = call.propsTypeName
         ? (localPropTypes.get(call.propsTypeName) ?? {})
@@ -48,6 +49,11 @@ export function analyzeFile(options: AnalyzeFileOptions): AnalyzeFileResult {
           typeProps,
           setupMeta,
           inlineMeta,
+          shadow:
+            shadowOption.shadow ??
+            (typeof inlineMeta.shadow === 'boolean'
+              ? inlineMeta.shadow
+              : undefined),
         }),
       )
     }

@@ -23,6 +23,7 @@ export default function vueWrapper(
     dts: options.dts ?? 'auto',
     globalDts: options.globalDts ?? 'auto',
     index: options.index ?? true,
+    wrapper: options.wrapper ?? 'minimal',
   }
 
   return {
@@ -56,6 +57,7 @@ export default function vueWrapper(
           code: generateVueWrapper({
             component,
             wcModuleId: `zeus:wc:${component.tag}`,
+            mode: normalized.wrapper,
           }),
         })
       }

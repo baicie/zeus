@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { generateVueWrapper } from '../src/generateVueWrapper'
 
 describe('generateVueWrapper', () => {
-  it('generates Vue wrapper code', () => {
+  it('generates event-bridge Vue wrapper code', () => {
     const code = generateVueWrapper({
       component: {
         tag: 'z-button',
@@ -34,6 +34,7 @@ describe('generateVueWrapper', () => {
         cssVars: [],
       },
       wcModuleId: 'zeus:wc:z-button',
+      mode: 'event-bridge',
     })
 
     expect(code).toContain('import "zeus:wc:z-button"')
@@ -43,7 +44,6 @@ describe('generateVueWrapper', () => {
     expect(code).toContain('emits: EVENT_NAMES')
     expect(code).toContain('const elRef = ref(null)')
 
-    // Vue unconditionally syncs props
     expect(code).toContain('el.variant = props.variant')
     expect(code).toContain('el.disabled = props.disabled')
 
@@ -69,7 +69,7 @@ describe('generateVueWrapper', () => {
     expect(code).toContain('NAMED_SLOTS')
   })
 
-  it('handles component with named slots', () => {
+  it('handles component with named slots in event-bridge mode', () => {
     const code = generateVueWrapper({
       component: {
         tag: 'z-card',
@@ -90,6 +90,7 @@ describe('generateVueWrapper', () => {
         cssVars: [],
       },
       wcModuleId: 'zeus:wc:z-card',
+      mode: 'event-bridge',
     })
 
     expect(code).toContain('NAMED_SLOTS')
@@ -100,15 +101,25 @@ describe('generateVueWrapper', () => {
     expect(code).toContain('display: contents')
   })
 
-  it('generates guard comment when no props exist', () => {
+  it('generates minimal Vue wrapper by default', () => {
     const code = generateVueWrapper({
       component: {
-        tag: 'z-skeleton',
-        name: 'ZSkeleton',
-        exportName: 'ZSkeleton',
-        source: 'src/skeleton.tsx',
-        props: {},
-        events: {},
+        tag: 'z-button',
+        name: 'ZButton',
+        exportName: 'ZButton',
+        source: 'src/button.tsx',
+        props: {
+          variant: {
+            type: 'string',
+            default: 'default',
+          },
+          disabled: {
+            type: 'boolean',
+          },
+        },
+        events: {
+          press: {},
+        },
         slots: {
           default: {},
         },
@@ -116,11 +127,17 @@ describe('generateVueWrapper', () => {
         cssParts: [],
         cssVars: [],
       },
-      wcModuleId: 'zeus:wc:z-skeleton',
+      wcModuleId: 'zeus:wc:z-button',
     })
 
-    expect(code).toContain('// no props to sync')
-    expect(code).toContain('// no reactive props')
+    expect(code).not.toContain('import "zeus:wc:z-button"')
+    expect(code).not.toContain('el.variant = props.variant')
+    expect(code).not.toContain('watch(')
+    expect(code).not.toContain('onMounted(')
+    expect(code).not.toContain('addEventListener')
+    expect(code).toContain('export const ZButton = defineComponent')
+    expect(code).toContain('inheritAttrs: false')
+    expect(code).toContain('slots.default')
   })
 
   it('emits component name as name option', () => {
