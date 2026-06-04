@@ -16,7 +16,7 @@ describe('rollup adapter', () => {
     })
   })
 
-  it('builds tsx components with zeus() and runtime alias', async () => {
+  it('builds tsx components with an external runtime', async () => {
     const bundle = await rollup({
       input: path.join(root, 'src/index.ts'),
       external: ['@zeus-js/runtime-dom'],

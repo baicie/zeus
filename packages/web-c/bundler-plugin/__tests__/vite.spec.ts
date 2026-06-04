@@ -74,6 +74,25 @@ describe('vite plugin', () => {
 
     expect(plugin.name).toBe('vite-plugin-zeus')
   })
+
+  it('honors transpile true in Vite adapter', async () => {
+    const plugin = zeus({
+      transpile: true,
+    })
+    const transform = plugin.transform as (
+      code: string,
+      id: string,
+    ) => Promise<{ code: string } | null>
+
+    const result = await transform(
+      'export interface Props { label: string }\nexport const label: string = "ok"',
+      '/src/plain.ts',
+    )
+
+    expect(result).toBeTruthy()
+    expect(result?.code).not.toContain('interface Props')
+    expect(result?.code).not.toContain(': string')
+  })
 })
 
 describe('mergeExternal', () => {

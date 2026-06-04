@@ -101,7 +101,10 @@ interface ZeusComponentPlugin {
     bundle: ZeusOutputBundle,
   ): MaybePromise<ZeusOutputFile[] | void>
   /**
-   * Vite adapter can use this to auto externalize framework deps.
+   * Framework dependencies that bundler config helpers should externalize.
+   *
+   * Used by the Vite adapter, defineZeusRollupConfig(), and
+   * defineZeusRolldownConfig().
    */
   external?: string[]
 }

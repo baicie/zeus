@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import zeus from '../src'
 import { defineZeusRolldownConfig } from '../src/rolldown'
+import rolldownZeus from '../src/rolldown'
 import { defineZeusRollupConfig } from '../src/rollup'
 
 describe('bundler plugin entry', () => {
@@ -106,5 +107,24 @@ describe('bundler plugin entry', () => {
     })
 
     expect(config.external).toEqual(['lodash', 'vue'])
+  })
+
+  it('honors transpile true in Rolldown adapter', async () => {
+    const plugin = rolldownZeus({
+      transpile: true,
+    })
+    const transform = plugin.transform as (
+      code: string,
+      id: string,
+    ) => Promise<{ code: string } | null>
+
+    const result = await transform(
+      'export interface Props { label: string }\nexport const label: string = "ok"',
+      '/src/plain.ts',
+    )
+
+    expect(result).toBeTruthy()
+    expect(result?.code).not.toContain('interface Props')
+    expect(result?.code).not.toContain(': string')
   })
 })
