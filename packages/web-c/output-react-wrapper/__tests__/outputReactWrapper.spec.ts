@@ -9,6 +9,12 @@ import { describe, expect, it } from 'vitest'
 
 import react from '../src'
 
+import type { InputPluginOption } from 'rollup'
+
+function asRollupPlugin(plugin: unknown): InputPluginOption {
+  return plugin as InputPluginOption
+}
+
 describe('output-react-wrapper', () => {
   it('emits React wrapper files', async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'zeus-output-react-'))
@@ -44,20 +50,22 @@ describe('output-react-wrapper', () => {
       input: path.join(root, 'src/index.ts'),
       external: ['react'],
       plugins: [
-        createZeusPlugin({
-          root,
-          components: {
-            include: ['src/components/**/*.{ts,tsx}'],
-          },
-          plugins: [
-            wc({
-              outDir: 'wc',
-            }),
-            react({
-              outDir: 'react',
-            }),
-          ],
-        }),
+        asRollupPlugin(
+          createZeusPlugin({
+            root,
+            components: {
+              include: ['src/components/**/*.{ts,tsx}'],
+            },
+            plugins: [
+              wc({
+                outDir: 'wc',
+              }),
+              react({
+                outDir: 'react',
+              }),
+            ],
+          }),
+        ),
       ],
       onwarn() {},
     })
@@ -107,13 +115,15 @@ describe('output-react-wrapper', () => {
       input: path.join(root, 'src/index.ts'),
       external: ['react'],
       plugins: [
-        createZeusPlugin({
-          root,
-          components: {
-            include: ['src/components/**/*.{ts,tsx}'],
-          },
-          plugins: [wc({ outDir: 'wc' }), react({ outDir: 'react' })],
-        }),
+        asRollupPlugin(
+          createZeusPlugin({
+            root,
+            components: {
+              include: ['src/components/**/*.{ts,tsx}'],
+            },
+            plugins: [wc({ outDir: 'wc' }), react({ outDir: 'react' })],
+          }),
+        ),
       ],
       onwarn() {},
     })

@@ -1,62 +1,128 @@
-你这个现象的原因不是命令空格问题，核心是 **当前 `release.ts` 对自定义 prerelease 版本支持不完整**。
+# Zeus 发版流程
 
-你输入目标是：
+本文档定义 Zeus 推荐的正式发版、dry-run 验证、canary 发版与异常恢复流程。
 
-```bash
-0.1.0-beta.0
-```
+核心原则：
 
-但脚本最终生成：
-
-```txt
-final: v0.0.3
-```
-
-原因在这里：
-
-```ts
-const getBumpType = (target: string): string => {
-  const diff = semver.diff(currentVersion, target)
-  if (diff === 'major') return 'major'
-  if (diff === 'minor') return 'minor'
-  return 'patch'
-}
-```
-
-当 `currentVersion = 0.0.2`，`targetVersion = 0.1.0-beta.0` 时，`semver.diff()` 返回的不是普通 `minor`，而是类似 `preminor`。但你的 `getBumpType()` 没处理 `preminor`，最后落到了 `patch`，所以 changeset 把版本升成了 `0.0.3`。
+1. 正式发版只发布 `.changeset/config.json` fixed group 内的 `@zeus-js/*` 包。
+2. 版本号以 `packages/core/zeus/package.json` 为当前基准，root `package.json` 跟随最终版本。
+3. 用户可见变更必须先写 changeset。
+4. 正式发布由 GitHub Actions 执行，本地只负责生成 release commit 和 tag。
+5. `release:dry` 是“不会提交/打 tag/推送”的 dry-run，但仍会修改工作区文件。
 
 ---
 
-## 你现在先怎么处理
+## 1. 日常变更阶段
 
-你在提示：
-
-```txt
-Changelog generated (final: v0.0.3). Does it look good?
-```
-
-这里应该选：
-
-```txt
-N
-```
-
-如果已经选了 false，脚本会执行 revert：
-
-```ts
-git checkout .
-rm .changeset/release.md
-```
-
-这段逻辑已经在脚本里。
-
-然后确认一下：
+每个会影响发布说明或包版本的变更，都应包含 changeset：
 
 ```bash
-git status
+pnpm changeset
 ```
 
-如果还有残留：
+changeset 要写清楚用户可感知的行为变化，不要只写内部实现细节。推荐格式：
+
+```md
+---
+'@zeus-js/bundler-plugin': minor
+'@zeus-js/output-react-wrapper': patch
+---
+
+Add Rollup and Rolldown bundler entry points...
+```
+
+规则：
+
+- breaking change 用 `major`
+- 新能力用 `minor`
+- bugfix / 类型修复 / 小行为修正用 `patch`
+- fixed group 发版时，脚本会把 fixed group 包统一到目标版本
+- `.changeset/config.json` `ignore` 内的包不进入正式 release
+
+---
+
+## 2. 发版前检查
+
+正式发版前先跑完整 precheck：
+
+```bash
+pnpm release:precheck
+```
+
+它会覆盖：
+
+- build
+- CJS compiler 检查
+- d.ts 构建
+- API snapshot 检查
+- TypeScript 检查
+- lint
+- unit tests
+- examples 检查
+- docs build
+- size CI
+- package exports / repository metadata
+
+如果只是快速确认当前 release 脚本或版本行为，可以先跑较小集合：
+
+```bash
+pnpm check
+pnpm test-unit
+pnpm api:check
+```
+
+但正式发版前仍以 `pnpm release:precheck` 为准。
+
+---
+
+## 3. Dry-run 验证
+
+推荐先用显式版本 dry-run：
+
+```bash
+pnpm release:dry 0.1.0-beta.2
+```
+
+也可以使用交互式选择：
+
+```bash
+pnpm release:dry
+```
+
+注意：`release:dry` 会执行：
+
+- 生成临时 `.changeset/release.md`
+- `pnpm changeset version`
+- 强制 fixed group 包版本为目标版本
+- 生成根 `CHANGELOG.md`
+- 删除各 package 独立 `CHANGELOG.md`
+- 更新 root version
+- `pnpm install --prefer-offline`
+
+但它不会：
+
+- commit
+- tag
+- push
+- publish
+
+dry-run 后必须检查：
+
+```bash
+git diff
+git status --short
+```
+
+重点看：
+
+- `CHANGELOG.md` 是否生成，并且条目内容正确
+- root `package.json` 版本是否正确
+- fixed group package 版本是否都一致
+- `.changeset/*.md` 是否被消费
+- 是否误改了 ignore 包或非发布包
+- `pnpm-lock.yaml` 是否有合理变更
+
+如果 dry-run 结果不满意，恢复工作区：
 
 ```bash
 git checkout .
@@ -64,204 +130,221 @@ rm -f .changeset/release.md
 pnpm install --frozen-lockfile
 ```
 
----
-
-# 正确修法
-
-你要改 `scripts/release/release.ts`，让它支持 prerelease。
-
-## 方案 A：最小修复
-
-把：
-
-```ts
-const getBumpType = (target: string): string => {
-  const diff = semver.diff(currentVersion, target)
-  if (diff === 'major') return 'major'
-  if (diff === 'minor') return 'minor'
-  return 'patch'
-}
-```
-
-改成：
-
-```ts
-const getBumpType = (target: string): string => {
-  const diff = semver.diff(currentVersion, target)
-
-  if (diff === 'major' || diff === 'premajor') return 'major'
-  if (diff === 'minor' || diff === 'preminor') return 'minor'
-  if (diff === 'patch' || diff === 'prepatch' || diff === 'prerelease') {
-    return 'patch'
-  }
-
-  return 'patch'
-}
-```
-
-这样 `0.0.2 -> 0.1.0-beta.0` 会按 `minor` 处理，不会再变成 `0.0.3`。
-
-但是注意：**只这样改，changeset 可能会生成 `0.1.0`，不一定生成 `0.1.0-beta.0`**。因为 changeset 的 frontmatter 只有 `major/minor/patch`，不是精确版本。
+如果工作区里有未提交的开发改动，不要直接 `git checkout .`。先保存或只恢复 release 相关文件。
 
 ---
 
-# 更稳的方案：显式覆盖 fixed group 版本
+## 4. 正式发版
 
-你的脚本目标是“传入什么版本，就发布什么版本”。那就应该在 `changeset version` 后，把 fixed group 包和 root version 强制改成 `targetVersion`。
-
-在这里：
-
-```ts
-await run('pnpm', ['changeset', 'version'])
-```
-
-之后加一个函数：
-
-```ts
-await forceFixedGroupVersion(targetVersion)
-```
-
-也就是改成：
-
-```ts
-await run('pnpm', ['changeset', 'version'])
-
-await forceFixedGroupVersion(targetVersion)
-```
-
-新增函数：
-
-```ts
-function forceFixedGroupVersion(version: string) {
-  for (const pkgName of fixedGroupPackages) {
-    const pkgRoot = getPkgRoot(pkgName)
-    const pkgPath = path.join(pkgRoot, 'package.json')
-
-    if (!fs.existsSync(pkgPath)) {
-      throw new Error(`Package not found: ${pkgName} at ${pkgPath}`)
-    }
-
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'))
-    pkg.version = version
-
-    fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`)
-  }
-}
-```
-
-然后下面这段：
-
-```ts
-const finalVersion = JSON.parse(
-  fs.readFileSync(
-    path.resolve(__dirname, '../../packages/core/zeus/package.json'),
-    'utf-8',
-  ),
-).version
-```
-
-就会读到：
-
-```txt
-0.1.0-beta.0
-```
-
----
-
-# 推荐最终修改
-
-同时做这两处：
-
-## 1. 修 `getBumpType`
-
-```ts
-const getBumpType = (target: string): string => {
-  const diff = semver.diff(currentVersion, target)
-
-  if (diff === 'major' || diff === 'premajor') return 'major'
-  if (diff === 'minor' || diff === 'preminor') return 'minor'
-
-  return 'patch'
-}
-```
-
-## 2. 在 `changeset version` 后强制设置目标版本
-
-```ts
-await run('pnpm', ['changeset', 'version'])
-forceFixedGroupVersion(targetVersion)
-```
-
-```ts
-function forceFixedGroupVersion(version: string) {
-  for (const pkgName of fixedGroupPackages) {
-    const pkgRoot = getPkgRoot(pkgName)
-    const pkgPath = path.join(pkgRoot, 'package.json')
-
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'))
-    pkg.version = version
-
-    fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`)
-  }
-}
-```
-
----
-
-# 修完后重新 dry-run
+确认 dry-run diff 正确后，执行正式 release：
 
 ```bash
-pnpm release:dry 0.1.0-beta.0
+pnpm release 0.1.0-beta.2
 ```
 
-这次你应该看到：
+或者交互式选择：
+
+```bash
+pnpm release
+```
+
+脚本会：
+
+1. 读取当前 changesets
+2. 生成临时 release changeset
+3. 执行 `pnpm changeset version`
+4. 强制 fixed group 包版本为目标版本
+5. 生成根 `CHANGELOG.md`
+6. 删除 package 内独立 `CHANGELOG.md`
+7. 更新 root version
+8. 更新 lockfile
+9. commit release diff
+10. 创建 `vX.Y.Z` tag
+11. push tag 和 commit
+
+GitHub Actions 会在 tag push 后执行 `.github/workflows/release.yml`：
 
 ```txt
-Releasing v0.1.0-beta.0
-...
-Changelog generated (final: v0.1.0-beta.0)
+tag v*
+  -> release:precheck
+  -> pnpm release --publishOnly <version> --skipBuild
+  -> npm publish
+  -> GitHub Release
 ```
 
-如果看到的还是：
+发布状态看：
 
 ```txt
-final: v0.0.3
+https://github.com/baicie/zeus/actions/workflows/release.yml
 ```
-
-就不要继续，继续选 `N`。
 
 ---
 
-# 还有一个建议
+## 5. CI 发布阶段
 
-你的 dry-run 现在虽然叫 dry-run，但它仍然会执行：
+正式发布由 CI 执行，不推荐本地直接 publish。
 
-```ts
-pnpm changeset version
-pnpm install --prefer-offline
-```
-
-也就是会改文件。
-
-所以每次 dry-run 后都建议看：
+CI 的 publish 阶段使用：
 
 ```bash
+pnpm release --publishOnly <version> --skipBuild
+```
+
+语义：
+
+- 不生成 changelog
+- 不改版本
+- 不 commit / tag
+- 读取当前 package version
+- 发布未被 ignore 的非 private workspace package
+- prerelease 自动选择 npm tag：
+  - `alpha` -> `alpha`
+  - `beta` -> `beta`
+  - `rc` -> `rc`
+  - stable -> latest
+
+本地只有在 CI 故障且确认需要人工补发时，才考虑 `--publishOnly`。
+
+---
+
+## 6. Canary 发版
+
+canary 用于 main 合并后的下游兼容性验证，不污染正式 release 流程。
+
+CI 触发：
+
+```txt
+push main
+  -> .github/workflows/release-canary.yml
+  -> pnpm release:canary
+```
+
+本地默认禁止运行，因为它会临时改 package versions。确实要本地调试时：
+
+```bash
+pnpm release:canary --force-local
+```
+
+canary 版本格式：
+
+```txt
+<base>-canary.<yyyymmdd>.<runNumber>.<runAttempt>.<shortSha>
+```
+
+例如：
+
+```txt
+0.1.0-canary.20260604.123.1.a1b2c3d4
+```
+
+canary 发布前会执行：
+
+- 版本临时改写
+- lockfile metadata 更新
+- build
+- build-dts
+- api:check
+- check:exports
+- check:repository
+- npm publish dry-run
+- npm publish --tag canary
+
+---
+
+## 7. 推荐命令清单
+
+普通变更：
+
+```bash
+pnpm changeset
+```
+
+正式发版前：
+
+```bash
+pnpm release:precheck
+pnpm release:dry 0.1.0-beta.2
 git diff
 ```
 
-如果不满意：
+正式发版：
+
+```bash
+pnpm release 0.1.0-beta.2
+```
+
+只发布已由 tag / commit 准备好的版本：
+
+```bash
+pnpm release --publishOnly 0.1.0-beta.2 --skipBuild
+```
+
+本地调试 canary：
+
+```bash
+pnpm release:canary --force-local
+```
+
+---
+
+## 8. 常见问题
+
+### dry-run 后没有 changelog
+
+这是脚本必须避免的回归。根因通常是先执行了 `pnpm changeset version`，再读取 `.changeset/*.md`，导致 changeset 已经被消费。
+
+正确顺序：
+
+```txt
+readChangesets()
+write .changeset/release.md
+pnpm changeset version
+generateUnifiedChangelog()
+```
+
+### dry-run 后工作区变脏
+
+这是预期行为。`release:dry` 不提交、不打 tag，但会真实改文件用于审查。
+
+不满意时恢复：
 
 ```bash
 git checkout .
 rm -f .changeset/release.md
+pnpm install --frozen-lockfile
 ```
+
+### final version 和目标版本不一致
+
+不要继续确认。选择 `N`，让脚本回滚。
+
+应检查：
+
+- `getBumpType()` 是否正确处理 `premajor/preminor/prepatch/prerelease`
+- `forceFixedGroupVersion(targetVersion)` 是否在 `changeset version` 后执行
+- fixed group 是否包含目标发布包
+
+### GitHub Actions 发布失败但部分包已 publish
+
+npm 版本不可覆盖。不要重试同一个版本盲发。
+
+处理方式：
+
+1. 看失败包和已发布包列表
+2. 如果只是 CI 中断，确认哪些包已经发布
+3. 必要时提升到新 patch / prerelease 版本重新发
+4. canary 失败可重新跑 workflow，`GITHUB_RUN_ATTEMPT` 会生成新 canary 版本
 
 ---
 
-最终结论：
+## 9. 发版前人工检查清单
 
-```txt
-当前 release 脚本不支持精确发布 0.1.0-beta.0。
-它把 preminor 错当 patch，所以变成了 0.0.3。
-先不要继续发布，先修 release.ts。
-```
+- [ ] `pnpm release:precheck` 通过
+- [ ] 所有用户可见变更都有 changeset
+- [ ] `.changeset/config.json` fixed / ignore 范围符合预期
+- [ ] `pnpm release:dry <version>` 生成的版本正确
+- [ ] `CHANGELOG.md` 内容正确
+- [ ] package versions 和 root version 一致
+- [ ] lockfile diff 合理
+- [ ] 没有误删非 release 文件
+- [ ] 正式 release tag 推送后 GitHub Actions 通过

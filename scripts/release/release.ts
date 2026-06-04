@@ -88,11 +88,7 @@ const generateUnifiedChangelog = (
   }
 
   for (const cs of changesets) {
-    for (const release of cs.releases) {
-      if (release.type === 'major') grouped.major.push(cs)
-      else if (release.type === 'minor') grouped.minor.push(cs)
-      else grouped.patch.push(cs)
-    }
+    grouped[getHighestReleaseType(cs)].push(cs)
   }
 
   const parts: string[] = []
@@ -121,6 +117,20 @@ const generateUnifiedChangelog = (
 
   fs.writeFileSync(changelogPath, header + newEntry + '\n' + withoutHeader)
   console.log(pico.green(`  Unified changelog written to CHANGELOG.md`))
+}
+
+const getHighestReleaseType = (
+  changeset: ParsedChangeset,
+): 'major' | 'minor' | 'patch' => {
+  if (changeset.releases.some(release => release.type === 'major')) {
+    return 'major'
+  }
+
+  if (changeset.releases.some(release => release.type === 'minor')) {
+    return 'minor'
+  }
+
+  return 'patch'
 }
 
 const cleanupPackageChangelogs = () => {
@@ -302,6 +312,7 @@ async function main() {
   }
 
   step('\nGenerating changelog...')
+  const changesets = readChangesets()
   const changesetPath = path.resolve(__dirname, '../../.changeset/release.md')
   const changesetBody = `---\n${fixedGroupPackages
     .map(p => `"${p}": ${getBumpType(targetVersion)}`)
@@ -311,7 +322,6 @@ async function main() {
 
   forceFixedGroupVersion(targetVersion)
 
-  const changesets = readChangesets()
   generateUnifiedChangelog(targetVersion, changesets)
   cleanupPackageChangelogs()
 

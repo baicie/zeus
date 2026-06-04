@@ -1,6 +1,6 @@
 {
   "name": "@zeus-js/component-dts",
-  "version": "0.1.0-beta.1",
+  "version": "0.1.0-beta.2",
   "description": "DTS generators for Zeus component manifest",
   "type": "module",
   "main": "index.js",

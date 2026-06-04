@@ -1,6 +1,6 @@
 {
   "name": "@zeus-js/output-vue-wrapper",
-  "version": "0.1.0-beta.1",
+  "version": "0.1.0-beta.2",
   "description": "Zeus Vue wrapper output plugin",
   "type": "module",
   "main": "index.js",

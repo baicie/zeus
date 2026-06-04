@@ -9,6 +9,12 @@ import { describe, expect, it } from 'vitest'
 
 import vue from '../src'
 
+import type { InputPluginOption } from 'rollup'
+
+function asRollupPlugin(plugin: unknown): InputPluginOption {
+  return plugin as InputPluginOption
+}
+
 describe('output-vue-wrapper', () => {
   it('emits Vue wrapper files', async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'zeus-output-vue-'))
@@ -36,20 +42,22 @@ describe('output-vue-wrapper', () => {
       input: path.join(root, 'src/index.ts'),
       external: ['vue'],
       plugins: [
-        createZeusPlugin({
-          root,
-          components: {
-            include: ['src/components/**/*.{ts,tsx}'],
-          },
-          plugins: [
-            wc({
-              outDir: 'wc',
-            }),
-            vue({
-              outDir: 'vue',
-            }),
-          ],
-        }),
+        asRollupPlugin(
+          createZeusPlugin({
+            root,
+            components: {
+              include: ['src/components/**/*.{ts,tsx}'],
+            },
+            plugins: [
+              wc({
+                outDir: 'wc',
+              }),
+              vue({
+                outDir: 'vue',
+              }),
+            ],
+          }),
+        ),
       ],
       onwarn() {},
     })
@@ -98,13 +106,15 @@ describe('output-vue-wrapper', () => {
       input: path.join(root, 'src/index.ts'),
       external: ['vue'],
       plugins: [
-        createZeusPlugin({
-          root,
-          components: {
-            include: ['src/components/**/*.{ts,tsx}'],
-          },
-          plugins: [wc({ outDir: 'wc' }), vue({ outDir: 'vue' })],
-        }),
+        asRollupPlugin(
+          createZeusPlugin({
+            root,
+            components: {
+              include: ['src/components/**/*.{ts,tsx}'],
+            },
+            plugins: [wc({ outDir: 'wc' }), vue({ outDir: 'vue' })],
+          }),
+        ),
       ],
       onwarn() {},
     })
