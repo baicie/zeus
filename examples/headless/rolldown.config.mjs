@@ -40,9 +40,4 @@ export default defineConfig({
     /^vue$/,
     /^@zeus-js\//,
   ],
-
-  onwarn(warning, warn) {
-    if (warning.code === 'UNRESOLVED_IMPORT') return
-    warn(warning)
-  },
 })

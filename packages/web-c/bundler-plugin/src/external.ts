@@ -1,4 +1,18 @@
-import type { RollupExternalOption } from './types'
+import type { RollupExternalOption, ZeusBundlerPluginOptions } from './types'
+
+export function collectPluginExternals(
+  options: ZeusBundlerPluginOptions,
+): string[] {
+  const set = new Set<string>()
+
+  for (const plugin of options.plugins ?? []) {
+    for (const dep of plugin.external ?? []) {
+      set.add(dep)
+    }
+  }
+
+  return Array.from(set)
+}
 
 export function mergeExternal(
   userExternal: RollupExternalOption | undefined,

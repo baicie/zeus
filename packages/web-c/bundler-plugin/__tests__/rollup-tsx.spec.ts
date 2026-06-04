@@ -19,16 +19,8 @@ describe('rollup adapter', () => {
   it('builds tsx components with zeus() and runtime alias', async () => {
     const bundle = await rollup({
       input: path.join(root, 'src/index.ts'),
+      external: ['@zeus-js/runtime-dom'],
       plugins: [
-        {
-          name: 'alias-runtime-dom',
-          resolveId(id) {
-            if (id === '@zeus-js/runtime-dom') {
-              return path.join(root, 'src/runtime-dom-stub.ts')
-            }
-            return null
-          },
-        },
         zeus({
           root,
         }),
@@ -48,16 +40,8 @@ describe('rollup adapter', () => {
   it('transpiles TypeScript types away', async () => {
     const bundle = await rollup({
       input: path.join(root, 'src/index.ts'),
+      external: ['@zeus-js/runtime-dom'],
       plugins: [
-        {
-          name: 'alias-runtime-dom',
-          resolveId(id) {
-            if (id === '@zeus-js/runtime-dom') {
-              return path.join(root, 'src/runtime-dom-stub.ts')
-            }
-            return null
-          },
-        },
         zeus({
           root,
         }),
@@ -70,6 +54,11 @@ describe('rollup adapter', () => {
 
     const code = output[0].code
 
+    expect(code).toContain('@zeus-js/runtime-dom')
+    expect(code).toContain('bindAttr')
+    expect(code).toContain('bindText')
+    expect(code).toContain('mtsLabel')
+    expect(code).toContain('ctsLabel')
     expect(code).not.toContain('ButtonProps')
     expect(code).not.toContain(': ButtonProps')
     expect(code).not.toContain(': string')

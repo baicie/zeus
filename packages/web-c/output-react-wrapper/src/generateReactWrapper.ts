@@ -41,17 +41,7 @@ const PROP_KEYS = ${JSON.stringify(propNames)};
 const EVENT_MAP = ${JSON.stringify(createReactEventMap(eventNames))};
 const NAMED_SLOTS = ${JSON.stringify(slotNames)};
 
-// React 19 removed forwardRef. Use typeof guard for tree-shaking safety:
-// - React 18: forwardRef is exported, typeof is 'function', wraps component
-// - React 19: forwardRef is undefined, typeof is 'undefined', no wrapping
-function applyRefForwarding(Component) {
-  if (typeof forwardRef === 'function') {
-    return forwardRef(Component);
-  }
-  return Component;
-}
-
-export const ${component.name} = applyRefForwarding(function ${component.name}(props, ref) {
+export const ${component.name} = forwardRef(function ${component.name}(props, ref) {
   const {
     children,
     className,

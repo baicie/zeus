@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import zeus from '../src'
+import { defineZeusRolldownConfig } from '../src/rolldown'
+import { defineZeusRollupConfig } from '../src/rollup'
 
 describe('bundler plugin entry', () => {
   it('exports default as zeus plugin factory', () => {
@@ -72,5 +74,37 @@ describe('bundler plugin entry', () => {
     })
 
     expect(plugin.name).toBe('rollup-plugin-zeus')
+  })
+
+  it('merges component plugin externals into Rollup config', () => {
+    const config = defineZeusRollupConfig({
+      external: ['lodash'],
+      zeus: {
+        plugins: [
+          {
+            name: 'react-output',
+            external: ['react'],
+          },
+        ],
+      },
+    })
+
+    expect(config.external).toEqual(['lodash', 'react'])
+  })
+
+  it('merges component plugin externals into Rolldown config', () => {
+    const config = defineZeusRolldownConfig({
+      external: ['lodash'],
+      zeus: {
+        plugins: [
+          {
+            name: 'vue-output',
+            external: ['vue'],
+          },
+        ],
+      },
+    })
+
+    expect(config.external).toEqual(['lodash', 'vue'])
   })
 })

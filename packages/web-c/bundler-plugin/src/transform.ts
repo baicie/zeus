@@ -57,7 +57,6 @@ export async function transformZeus(options: TransformZeusOptions) {
               allExtensions: true,
               isTSX: isTsx,
               allowDeclareFields: true,
-              onlyRemoveTypeImports: true,
             },
           ],
         ]

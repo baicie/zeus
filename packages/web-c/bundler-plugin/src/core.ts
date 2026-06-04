@@ -285,6 +285,8 @@ function resolveTsLikeImport(
   const extensions = options.extensions ?? [
     '.ts',
     '.tsx',
+    '.mts',
+    '.cts',
     '.js',
     '.jsx',
     '.mjs',

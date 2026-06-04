@@ -43,9 +43,4 @@ export default {
     /^vue$/,
     /^@zeus-js\//,
   ],
-
-  onwarn(warning, warn) {
-    if (warning.code === 'UNRESOLVED_IMPORT') return
-    warn(warning)
-  },
 }

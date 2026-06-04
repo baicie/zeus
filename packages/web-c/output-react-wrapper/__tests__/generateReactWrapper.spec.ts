@@ -38,10 +38,7 @@ describe('generateReactWrapper', () => {
     })
 
     expect(code).toContain('import "zeus:wc:z-button"')
-    expect(code).toContain(
-      'export const ZButton = applyRefForwarding(function ZButton',
-    )
-    expect(code).toContain('return forwardRef(Component)')
+    expect(code).toContain('export const ZButton = forwardRef(function ZButton')
     expect(code).toContain('useImperativeHandle(ref')
     expect(code).toContain('const innerRef = useRef(null)')
 

@@ -155,7 +155,7 @@ interface ZeusBundlerPluginOptions {
    * Rollup adapter only. Additional extensions to try when resolving imports.
    * Set to `false` to disable extension resolution.
    *
-   * @default ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']
+   * @default ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs']
    */
   resolveExtensions?: string[] | false
 }

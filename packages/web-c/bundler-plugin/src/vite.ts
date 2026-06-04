@@ -4,7 +4,7 @@ import path from 'node:path'
 import { mergeConfig } from 'vite'
 
 import { createZeusBundlerPlugin } from './core'
-import { mergeExternal } from './external'
+import { collectPluginExternals, mergeExternal } from './external'
 
 import type { RollupExternalOption, ZeusBundlerPluginOptions } from './types'
 import type { Plugin, ResolvedConfig, UserConfig } from 'vite'
@@ -90,18 +90,6 @@ export function createZeusVitePlugin(
 export default createZeusVitePlugin
 
 export { createZeusVitePlugin as zeus }
-
-function collectPluginExternals(options: ZeusBundlerPluginOptions): string[] {
-  const set = new Set<string>()
-
-  for (const plugin of options.plugins ?? []) {
-    for (const dep of plugin.external ?? []) {
-      set.add(dep)
-    }
-  }
-
-  return Array.from(set)
-}
 
 async function isRolldownVite(): Promise<boolean> {
   try {

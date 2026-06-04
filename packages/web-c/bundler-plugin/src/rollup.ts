@@ -1,6 +1,7 @@
 import { createZeusBundlerPlugin } from './core'
+import { collectPluginExternals, mergeExternal } from './external'
 
-import type { ZeusBundlerPluginOptions } from './types'
+import type { RollupExternalOption, ZeusBundlerPluginOptions } from './types'
 import type { Plugin, RollupOptions } from 'rollup'
 
 export default function zeus(options: ZeusBundlerPluginOptions = {}): Plugin {
@@ -23,12 +24,27 @@ export interface ZeusRollupConfigOptions extends Omit<
 export function defineZeusRollupConfig(
   config: ZeusRollupConfigOptions = {},
 ): RollupOptions {
-  const { zeus: zeusOptions, plugins, input, output, ...rest } = config
+  const {
+    zeus: zeusOptions = {},
+    plugins,
+    input,
+    output,
+    external,
+    ...rest
+  } = config
+  const pluginExternals = collectPluginExternals(zeusOptions)
 
   return {
     input: input ?? 'src/index.ts',
 
     ...rest,
+
+    external: pluginExternals.length
+      ? mergeExternal(
+          external as RollupExternalOption | undefined,
+          pluginExternals,
+        )
+      : external,
 
     plugins: [zeus(zeusOptions), ...normalizePlugins(plugins)],
 
