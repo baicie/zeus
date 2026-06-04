@@ -10,6 +10,9 @@ import { exec, findWorkspacePackages } from '../shared/utils'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '../..')
 
+type WorkspacePackage = ReturnType<typeof findWorkspacePackages>[number]
+type ExecOutput = { stdout: string }
+
 function getBaseVersion() {
   const zeusPkgPath = path.join(repoRoot, 'packages/core/zeus/package.json')
   const pkg = JSON.parse(fs.readFileSync(zeusPkgPath, 'utf-8'))
@@ -35,8 +38,7 @@ function updateVersions(version: string) {
   const packages = findWorkspacePackages()
 
   for (const pkg of packages) {
-    if (pkg.packageJson.private) continue
-    if (!pkg.name.startsWith('@zeus-js/')) continue
+    if (!isCanaryPackage(pkg)) continue
 
     const pkgPath = path.join(pkg.dir, 'package.json')
     const json = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'))
@@ -53,6 +55,11 @@ function updateVersions(version: string) {
 }
 
 function getPublishArgs(options: { dryRun?: boolean }): string[] {
+  const useProvenance =
+    process.env.GITHUB_ACTIONS === 'true' &&
+    Boolean(process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN) &&
+    Boolean(process.env.ACTIONS_ID_TOKEN_REQUEST_URL)
+
   return [
     'publish',
     '--tag',
@@ -61,8 +68,14 @@ function getPublishArgs(options: { dryRun?: boolean }): string[] {
     'public',
     '--no-git-checks',
     ...(options.dryRun ? ['--dry-run'] : []),
-    ...(process.env.CI && !options.dryRun ? ['--provenance'] : []),
+    ...(useProvenance && !options.dryRun ? ['--provenance'] : []),
   ]
+}
+
+function isCanaryPackage(pkg: WorkspacePackage): boolean {
+  if (pkg.packageJson.private) return false
+  if (!pkg.name.startsWith('@zeus-js/')) return false
+  return true
 }
 
 async function dryRunCheck(packages: ReturnType<typeof findWorkspacePackages>) {
@@ -84,24 +97,14 @@ async function dryRunCheck(packages: ReturnType<typeof findWorkspacePackages>) {
 }
 
 async function publishCanary() {
-  const packages = findWorkspacePackages().filter(pkg => {
-    if (pkg.packageJson.private) return false
-    return pkg.name.startsWith('@zeus-js/')
-  })
+  assertPublishToken()
+
+  const packages = findWorkspacePackages().filter(isCanaryPackage)
 
   const published: string[] = []
   for (const pkg of packages) {
     try {
-      console.log(
-        pico.cyan(
-          `Publishing ${pkg.name}@${pkg.packageJson.version} canary...`,
-        ),
-      )
-
-      await exec('pnpm', getPublishArgs({ dryRun: false }), {
-        cwd: pkg.dir,
-        stdio: 'inherit',
-      })
+      await publishPackageWithRetry(pkg)
       published.push(pkg.name)
     } catch (err) {
       const publishedList =
@@ -124,6 +127,94 @@ async function publishCanary() {
       )
     }
   }
+}
+
+function assertPublishToken(): void {
+  if (process.env.NODE_AUTH_TOKEN || process.env.NPM_TOKEN) return
+
+  throw new Error(
+    'Missing npm publish token. Set NODE_AUTH_TOKEN or NPM_TOKEN before publishing canary packages.',
+  )
+}
+
+async function publishPackageWithRetry(pkg: WorkspacePackage): Promise<void> {
+  const version = String(pkg.packageJson.version)
+  const maxAttempts = 5
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    console.log(
+      pico.cyan(
+        `Publishing ${pkg.name}@${version} canary (${attempt}/${maxAttempts})...`,
+      ),
+    )
+
+    try {
+      await exec('pnpm', getPublishArgs({ dryRun: false }), {
+        cwd: pkg.dir,
+        stdio: 'inherit',
+      })
+      return
+    } catch (err) {
+      if (await isPackagePublished(pkg.name, version)) {
+        console.log(
+          pico.yellow(
+            `${pkg.name}@${version} is already visible on npm; treating publish as complete.`,
+          ),
+        )
+        return
+      }
+
+      if (!isRetryablePublishError(err) || attempt === maxAttempts) {
+        throw err
+      }
+
+      const delayMs = getPublishRetryDelay(attempt)
+      console.log(
+        pico.yellow(
+          `npm registry returned a retryable publish error for ${pkg.name}. Retrying in ${Math.round(
+            delayMs / 1000,
+          )}s...`,
+        ),
+      )
+      await sleep(delayMs)
+    }
+  }
+}
+
+async function isPackagePublished(
+  packageName: string,
+  version: string,
+): Promise<boolean> {
+  try {
+    const result = (await exec(
+      'npm',
+      ['view', `${packageName}@${version}`, 'version'],
+      {
+        stdio: 'pipe',
+      },
+    )) as ExecOutput
+    return result.stdout.trim() === version
+  } catch {
+    return false
+  }
+}
+
+function isRetryablePublishError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err)
+  return (
+    message.includes('E409') ||
+    message.includes('409 Conflict') ||
+    message.includes('Failed to save packument') ||
+    message.includes('previous package has been fully processed')
+  )
+}
+
+function getPublishRetryDelay(attempt: number): number {
+  return Math.min(10_000 * 2 ** (attempt - 1), 60_000)
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 async function main() {
@@ -185,10 +276,7 @@ async function main() {
     stdio: 'inherit',
   })
 
-  const releasePackages = findWorkspacePackages().filter(pkg => {
-    if (pkg.packageJson.private) return false
-    return pkg.name.startsWith('@zeus-js/')
-  })
+  const releasePackages = findWorkspacePackages().filter(isCanaryPackage)
 
   await dryRunCheck(releasePackages)
 
