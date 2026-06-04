@@ -61,10 +61,6 @@ function generatePropsArray(component: ComponentRecord): string {
       parts.push('reflect: true')
     }
 
-    if (prop.default !== undefined) {
-      parts.push(`default: ${JSON.stringify(prop.default)}`)
-    }
-
     return `      { ${parts.join(', ')} }`
   })
 

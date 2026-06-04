@@ -99,33 +99,30 @@ function generateEventBridgeVueWrapper(
   const slotNames = Object.keys(component.slots).filter(
     name => name !== 'default',
   )
-
-  const syncPropsBody = generateVuePropSyncLines(propNames)
-  const watchDeps = propNames.map(name => `props.${name}`).join(', ')
-  const watchBlock =
-    propNames.length > 0
-      ? `watch(() => [${watchDeps}], syncProps);`
-      : `// no reactive props`
+  const propInputKeys = createVuePropInputKeys(propNames)
 
   return `
 import {
   cloneVNode,
   defineComponent,
+  getCurrentInstance,
   h,
   onBeforeUnmount,
   onMounted,
+  onUpdated,
   ref,
-  watch,
 } from 'vue';
 
 import ${JSON.stringify(wcModuleId)};
 
 const PROP_KEYS = ${JSON.stringify(propNames)};
+const PROP_INPUT_KEYS = ${JSON.stringify(propInputKeys)};
 const EVENT_NAMES = ${JSON.stringify(eventNames)};
 const NAMED_SLOTS = ${JSON.stringify(slotNames)};
 
 export const ${component.name} = defineComponent({
   name: ${JSON.stringify(component.name)},
+  inheritAttrs: false,
 
   props: {
     ${generateVueProps(component)}
@@ -135,13 +132,35 @@ export const ${component.name} = defineComponent({
 
   setup(props, { attrs, slots, emit }) {
     const elRef = ref(null);
+    const instance = getCurrentInstance();
     const cleanups = [];
+    const syncedPropKeys = new Set();
+
+    const hasRawProp = name => {
+      const rawProps = instance?.vnode.props ?? {};
+      const keys = PROP_INPUT_KEYS[name] ?? [name];
+
+      return keys.some(key =>
+        Object.prototype.hasOwnProperty.call(rawProps, key),
+      );
+    };
 
     const syncProps = () => {
       const el = elRef.value;
       if (!el) return;
 
-      ${syncPropsBody}
+      for (const name of PROP_KEYS) {
+        if (hasRawProp(name)) {
+          el[name] = props[name];
+          syncedPropKeys.add(name);
+          continue;
+        }
+
+        if (syncedPropKeys.has(name)) {
+          el[name] = undefined;
+          syncedPropKeys.delete(name);
+        }
+      }
     };
 
     onMounted(() => {
@@ -157,12 +176,13 @@ export const ${component.name} = defineComponent({
       }
     });
 
+    onUpdated(syncProps);
+
     onBeforeUnmount(() => {
       for (const cleanup of cleanups) cleanup();
       cleanups.length = 0;
+      syncedPropKeys.clear();
     });
-
-    ${watchBlock}
 
     return () => {
       const children = [];
@@ -231,10 +251,15 @@ function toVuePropOption(prop: ComponentRecord['props'][string]): string {
   return `{ type: ${type}, required: ${prop.required === true ? 'true' : 'false'} }`
 }
 
-function generateVuePropSyncLines(propNames: string[]): string {
-  if (propNames.length === 0) {
-    return '// no props to sync'
-  }
+function createVuePropInputKeys(propNames: string[]): Record<string, string[]> {
+  return Object.fromEntries(
+    propNames.map(name => [
+      name,
+      Array.from(new Set([name, toKebabCase(name)])),
+    ]),
+  )
+}
 
-  return propNames.map(name => `el.${name} = props.${name};`).join('\n      ')
+function toKebabCase(value: string): string {
+  return value.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
 }

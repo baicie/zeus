@@ -45,6 +45,141 @@ export function extractRuntimeProps(
   return props
 }
 
+export function validateRuntimePropsDefinition(
+  options: t.ObjectExpression | undefined,
+  optionsArgument: t.Node | undefined,
+): string[] {
+  const messages: string[] = []
+
+  if (optionsArgument && !t.isObjectExpression(optionsArgument)) {
+    messages.push(
+      'defineElement() options must be an inline object literal so component metadata can be analyzed.',
+    )
+    return messages
+  }
+
+  if (!options) {
+    return messages
+  }
+
+  const propsNode = getObjectProperty(options, 'props')
+
+  if (!propsNode) {
+    return messages
+  }
+
+  if (!t.isObjectExpression(propsNode)) {
+    messages.push(
+      'defineElement() props must be an inline object literal in component output builds.',
+    )
+    return messages
+  }
+
+  for (const member of propsNode.properties) {
+    if (!t.isObjectProperty(member) || member.computed) {
+      messages.push(
+        'defineElement() props cannot contain spreads, methods, or computed keys.',
+      )
+      continue
+    }
+
+    const propName = getObjectKey(member.key)
+
+    if (!propName) {
+      messages.push('defineElement() contains a prop with an unsupported key.')
+      continue
+    }
+
+    if (t.isIdentifier(member.value)) {
+      if (!isPropConstructorName(member.value.name)) {
+        messages.push(
+          `Prop "${propName}" must use String, Number, Boolean, Object, Array, or an inline prop options object.`,
+        )
+      }
+
+      continue
+    }
+
+    if (!t.isObjectExpression(member.value)) {
+      messages.push(
+        `Prop "${propName}" must use an inline prop options object.`,
+      )
+      continue
+    }
+
+    validatePropOptions(propName, member.value, messages)
+  }
+
+  return messages
+}
+
+function validatePropOptions(
+  propName: string,
+  options: t.ObjectExpression,
+  messages: string[],
+): void {
+  for (const member of options.properties) {
+    if (!t.isObjectProperty(member) || member.computed) {
+      messages.push(
+        `Prop "${propName}" options cannot contain spreads, methods, or computed keys.`,
+      )
+      continue
+    }
+
+    const optionName = getObjectKey(member.key)
+
+    if (!optionName) {
+      messages.push(`Prop "${propName}" contains an unsupported option key.`)
+      continue
+    }
+
+    if (optionName === 'type') {
+      if (
+        !t.isIdentifier(member.value) ||
+        !isPropConstructorName(member.value.name)
+      ) {
+        messages.push(
+          `Prop "${propName}" type must be String, Number, Boolean, Object, or Array.`,
+        )
+      }
+
+      continue
+    }
+
+    if (optionName === 'attr') {
+      const value = staticValue(member.value)
+
+      if (value === undefined && !isExplicitUndefined(member.value)) {
+        messages.push(
+          `Prop "${propName}" attr must be a static string, false, or undefined.`,
+        )
+        continue
+      }
+
+      if (value !== undefined && value !== false && typeof value !== 'string') {
+        messages.push(
+          `Prop "${propName}" attr must be a static string, false, or undefined.`,
+        )
+      }
+
+      continue
+    }
+
+    if (optionName === 'reflect') {
+      const value = staticValue(member.value)
+
+      if (value === undefined && !isExplicitUndefined(member.value)) {
+        messages.push(`Prop "${propName}" reflect must be a static boolean.`)
+        continue
+      }
+
+      if (value !== undefined && typeof value !== 'boolean') {
+        messages.push(`Prop "${propName}" reflect must be a static boolean.`)
+      }
+    }
+  }
+}
+
 function extractRuntimeProp(node: t.Expression | t.PatternLike): ComponentProp {
   if (t.isIdentifier(node)) {
     return {
@@ -97,6 +232,20 @@ function extractRuntimeProp(node: t.Expression | t.PatternLike): ComponentProp {
   return {
     type: 'unknown',
   }
+}
+
+function isPropConstructorName(name: string): boolean {
+  return (
+    name === 'String' ||
+    name === 'Number' ||
+    name === 'Boolean' ||
+    name === 'Object' ||
+    name === 'Array'
+  )
+}
+
+function isExplicitUndefined(node: t.Node): boolean {
+  return t.isIdentifier(node) && node.name === 'undefined'
 }
 
 function typeFromConstructorName(name: string): ComponentPropType {

@@ -147,9 +147,9 @@ describe('generateReactWrapper', () => {
 
     expect(code).toContain('createNamedSlot')
 
-    expect(code).toContain('PROP_KEYS')
-    expect(code).toContain('EVENT_MAP')
-    expect(code).toContain('NAMED_SLOTS')
+    expect(code).not.toContain('PROP_KEYS')
+    expect(code).not.toContain('EVENT_MAP')
+    expect(code).not.toContain('NAMED_SLOTS')
   })
 
   it('handles component with named slots in minimal mode', () => {
@@ -298,7 +298,7 @@ describe('generateReactWrapper', () => {
       mode: 'event-bridge',
     })
 
-    expect(code).toContain('NAMED_SLOTS')
+    expect(code).not.toContain('NAMED_SLOTS')
     expect(code).not.toContain('"label"')
   })
 

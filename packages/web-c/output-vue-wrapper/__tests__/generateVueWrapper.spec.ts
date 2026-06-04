@@ -44,17 +44,19 @@ describe('generateVueWrapper', () => {
     expect(code).toContain('emits: EVENT_NAMES')
     expect(code).toContain('const elRef = ref(null)')
 
-    expect(code).toContain('el.variant = props.variant')
-    expect(code).toContain('el.disabled = props.disabled')
+    expect(code).toContain('getCurrentInstance')
+    expect(code).toContain('hasRawProp(name)')
+    expect(code).toContain('el[name] = props[name]')
+    expect(code).not.toContain('el.variant = props.variant')
+    expect(code).not.toContain('el.disabled = props.disabled')
 
     expect(code).toContain('for (const eventName of EVENT_NAMES)')
     expect(code).toContain('emit(eventName, event)')
     expect(code).toContain('el.addEventListener(eventName, handler)')
     expect(code).toContain('removeEventListener(eventName, handler)')
 
-    expect(code).toContain(
-      'watch(() => [props.variant, props.disabled], syncProps)',
-    )
+    expect(code).toContain('onUpdated(syncProps)')
+    expect(code).not.toContain('watch(')
 
     expect(code).toContain('const cleanups = []')
     expect(code).toContain('onBeforeUnmount')
@@ -65,8 +67,65 @@ describe('generateVueWrapper', () => {
     expect(code).toContain('withSlot')
 
     expect(code).toContain('PROP_KEYS')
+    expect(code).toContain('PROP_INPUT_KEYS')
     expect(code).toContain('EVENT_NAMES')
     expect(code).toContain('NAMED_SLOTS')
+  })
+
+  it('does not sync omitted props in event-bridge mode', () => {
+    const code = generateVueWrapper({
+      component: {
+        tag: 'z-button',
+        name: 'ZButton',
+        exportName: 'ZButton',
+        source: 'src/button.tsx',
+        props: {
+          variant: {
+            type: 'string',
+            default: 'default',
+          },
+        },
+        events: {},
+        slots: {},
+        hostAttributes: [],
+        cssParts: [],
+        cssVars: [],
+      },
+      wcModuleId: 'zeus:wc:z-button',
+      mode: 'event-bridge',
+    })
+
+    expect(code).toContain('getCurrentInstance')
+    expect(code).toContain('hasRawProp(name)')
+    expect(code).toContain('el[name] = props[name]')
+    expect(code).not.toContain('el.variant = props.variant')
+  })
+
+  it('generates valid event-bridge code for kebab-case props', () => {
+    const code = generateVueWrapper({
+      component: {
+        tag: 'z-button',
+        name: 'ZButton',
+        exportName: 'ZButton',
+        source: 'src/button.tsx',
+        props: {
+          'button-size': {
+            type: 'string',
+          },
+        },
+        events: {},
+        slots: {},
+        hostAttributes: [],
+        cssParts: [],
+        cssVars: [],
+      },
+      wcModuleId: 'zeus:wc:z-button',
+      mode: 'event-bridge',
+    })
+
+    expect(code).toContain('el[name] = props[name]')
+    expect(code).not.toContain('el.button-size')
+    expect(code).not.toContain('props.button-size')
   })
 
   it('handles component with named slots in event-bridge mode', () => {

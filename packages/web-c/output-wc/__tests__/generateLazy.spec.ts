@@ -180,7 +180,7 @@ describe('generateLazyManifest', () => {
     expect(code).toContain('zw-input.entry.js')
   })
 
-  it('includes props with attributes and defaults', () => {
+  it('includes props with attributes but omits defaults', () => {
     const code = generateLazyManifest({
       components: [
         {
@@ -213,7 +213,7 @@ describe('generateLazyManifest', () => {
     expect(code).toContain('name: "size"')
     expect(code).toContain('type: "string"')
     expect(code).toContain('reflect: true')
-    expect(code).toContain('default: "md"')
+    expect(code).not.toContain('default:')
   })
 
   it('preserves property-only props with attrName false', () => {

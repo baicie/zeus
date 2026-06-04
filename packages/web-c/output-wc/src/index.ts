@@ -54,8 +54,6 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
     index: options.index ?? true,
     warnOnFileNameCollision: options.warnOnFileNameCollision ?? true,
     register: registerMode,
-    manifest: options.manifest ?? true,
-    loader: options.loader ?? true,
     auto: options.auto ?? true,
     entryFileName: options.entryFileName ?? (tag => `${tag}.entry`),
   }
@@ -78,20 +76,6 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
 
     buildStart(ctx) {
       if (!ctx.manifest) return
-
-      if (normalized.register === 'lazy') {
-        if (!normalized.manifest) {
-          ctx.error(
-            '[zeus-output-wc] register:"lazy" requires manifest:true because the runtime loader needs components.manifest.js.',
-          )
-        }
-
-        if (!normalized.loader) {
-          ctx.error(
-            '[zeus-output-wc] register:"lazy" requires loader:true because framework wrappers and auto entry depend on loader.js.',
-          )
-        }
-      }
 
       checkFileNameCollisions(
         ctx.manifest.components,
@@ -136,27 +120,23 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
 
       // Lazy mode: manifest, loader, auto
       if (isLazy) {
-        if (normalized.manifest) {
-          modules.push({
-            id: 'zeus:wc:components.manifest',
-            fileName: joinPath('components.manifest.js'),
-            code: generateLazyManifest({
-              components: ctx.manifest.components,
-              getEntryFileName: tag =>
-                getLazyEntryFileName(normalized.entryFileName, tag),
-            }),
-          })
-        }
+        modules.push({
+          id: 'zeus:wc:components.manifest',
+          fileName: joinPath('components.manifest.js'),
+          code: generateLazyManifest({
+            components: ctx.manifest.components,
+            getEntryFileName: tag =>
+              getLazyEntryFileName(normalized.entryFileName, tag),
+          }),
+        })
 
-        if (normalized.manifest && normalized.loader) {
-          modules.push({
-            id: 'zeus:wc:loader',
-            fileName: joinPath('loader.js'),
-            code: generateLoader(),
-          })
-        }
+        modules.push({
+          id: 'zeus:wc:loader',
+          fileName: joinPath('loader.js'),
+          code: generateLoader(),
+        })
 
-        if (normalized.manifest && normalized.loader && normalized.auto) {
+        if (normalized.auto) {
           modules.push({
             id: 'zeus:wc:auto',
             fileName: joinPath('auto.js'),
@@ -173,18 +153,16 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
            * It only registers lazy Proxy Elements.
            * It does not import the real component implementation.
            */
-          if (normalized.manifest && normalized.loader) {
-            modules.push({
-              id: getVirtualComponentId(component),
-              code: `
+          modules.push({
+            id: getVirtualComponentId(component),
+            code: `
 import { defineCustomElements } from "zeus:wc:loader";
 
 defineCustomElements();
 
 export {};
 `.trimStart(),
-            })
-          }
+          })
 
           const entryFileName = getLazyEntryFileName(
             normalized.entryFileName,
@@ -224,7 +202,7 @@ export {};
         })
       }
 
-      if (isLazy && normalized.index && normalized.loader) {
+      if (isLazy && normalized.index) {
         modules.push({
           id: getVirtualIndexId(),
           fileName: joinPath('index.js'),
@@ -260,7 +238,7 @@ export {};
       // Lazy mode runtime modules are emitted as virtual chunks in virtualModules().
       // generateBundle() only emits declaration assets to avoid file-name collisions.
       if (isLazy) {
-        if (normalized.manifest && normalized.loader && dts) {
+        if (dts) {
           const loaderDts = generateLoaderDts(ctx.manifest)
 
           files.push({

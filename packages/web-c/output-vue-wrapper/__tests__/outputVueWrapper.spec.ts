@@ -78,7 +78,7 @@ describe('output-vue-wrapper', () => {
     await bundle.close()
   })
 
-  it('generated Vue wrapper uses unconditional prop sync in event-bridge mode', async () => {
+  it('generated Vue wrapper only syncs provided props in event-bridge mode', async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'zeus-vue-typecheck-'))
 
     await fs.mkdir(path.join(root, 'src/components'), { recursive: true })
@@ -138,9 +138,11 @@ describe('output-vue-wrapper', () => {
         ? ((jsFile as { code?: string }).code ?? '')
         : String((jsFile as { source?: string }).source ?? '')
 
-    // Vue unconditionally syncs props using props.* prefix
-    expect(code).toContain('el.variant = props.variant')
-    expect(code).toContain('el.disabled = props.disabled')
+    expect(code).toContain('getCurrentInstance')
+    expect(code).toContain('hasRawProp(name)')
+    expect(code).toContain('el[name] = props[name]')
+    expect(code).not.toContain('el.variant = props.variant')
+    expect(code).not.toContain('el.disabled = props.disabled')
 
     await bundle.close()
   })

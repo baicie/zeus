@@ -82,20 +82,6 @@ export interface OutputWCOptions {
   register?: WebCRegisterMode
 
   /**
-   * Whether to generate the components.manifest.js file (lazy mode).
-   *
-   * @default true
-   */
-  manifest?: boolean
-
-  /**
-   * Whether to generate the loader.js file (lazy mode).
-   *
-   * @default true
-   */
-  loader?: boolean
-
-  /**
    * Whether to generate the auto.js entry (lazy mode).
    *
    * @default true

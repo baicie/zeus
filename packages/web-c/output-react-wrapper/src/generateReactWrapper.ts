@@ -128,10 +128,6 @@ import {
 
 import ${JSON.stringify(wcModuleId)};
 
-const PROP_KEYS = ${JSON.stringify(Object.keys(component.props))};
-const EVENT_MAP = ${JSON.stringify(createReactEventMap(Object.keys(component.events)))};
-const NAMED_SLOTS = ${JSON.stringify(getNamedSlots(component, namedSlots))};
-
 export const ${component.name} = forwardRef(function ${component.name}(props, ref) {
   const {
     children,
@@ -192,16 +188,6 @@ function createNamedSlot(name, value) {
 `.trimStart()
 }
 
-function createReactEventMap(eventNames: string[]): Record<string, string> {
-  const map: Record<string, string> = {}
-
-  for (const eventName of eventNames) {
-    map[toReactEventProp(eventName)] = eventName
-  }
-
-  return map
-}
-
 function generatePropSyncLines(bindings: Binding[]): string {
   if (!bindings.length) {
     return '// no props'
@@ -231,7 +217,7 @@ function generatePropSyncLines(bindings: Binding[]): string {
 
 function generateEventEffects(bindings: EventBinding[]): string {
   return bindings
-    .map(({ eventName, sourceName, localName }) => {
+    .map(({ eventName, localName }) => {
       return `
   useEffect(() => {
     const el = innerRef.current;

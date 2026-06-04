@@ -41,7 +41,7 @@
     "@zeus-js/component-dts": "workspace:*"
   },
   "peerDependencies": {
-    "react": ">=19"
+    "react": ">=18"
   },
   "peerDependenciesMeta": {
     "react": {
