@@ -73,7 +73,3 @@ export interface ZeusComponentInstance {
 export interface ZeusComponentModule {
   createComponent(hostRef: HostRef): ZeusComponentInstance
 }
-
-export interface BootstrapLazyOptions {
-  registry?: CustomElementRegistry
-}

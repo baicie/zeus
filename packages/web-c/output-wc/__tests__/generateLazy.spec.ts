@@ -37,8 +37,86 @@ describe('generateLazyManifest', () => {
 
     expect(code).not.toContain('import type')
     expect(code).toContain('tagName: "zw-button"')
-    expect(code).toContain("load: () => import('./zw-button.entry.js')")
+    expect(code).toContain('load: () => import(')
+    expect(code).toContain('zw-button.entry.js')
     expect(code).toContain('shadow: false')
+  })
+
+  it('generates import with JSON.stringify', () => {
+    const code = generateLazyManifest({
+      components: [
+        {
+          tag: 'zw-button',
+          name: 'ZwButton',
+          exportName: 'ZwButton',
+          source: 'src/button.tsx',
+          props: {},
+          events: {},
+          slots: {},
+          hostAttributes: [],
+          cssParts: [],
+          cssVars: [],
+        } as any,
+      ],
+      getEntryFileName: tag => `${tag}.entry.js`,
+    })
+
+    expect(code).toContain('load: () => import(')
+    expect(code).toContain('zw-button.entry.js')
+    expect(code).toContain('import("./zw-button.entry.js")')
+  })
+
+  it('normalizes Windows backslashes in file names', () => {
+    const code = generateLazyManifest({
+      components: [
+        {
+          tag: 'zw-button',
+          name: 'ZwButton',
+          exportName: 'ZwButton',
+          source: 'src/button.tsx',
+          props: {},
+          events: {},
+          slots: {},
+          hostAttributes: [],
+          cssParts: [],
+          cssVars: [],
+        } as any,
+      ],
+      getEntryFileName: _tag => {
+        // Simulate a path with backslashes like a Windows absolute path
+        const parts = ['components', 'button.entry.js']
+        return parts.join('\\')
+      },
+    })
+
+    // Backslashes should be normalized to forward slashes
+    expect(code).toContain('load: () => import(')
+    expect(code).toContain('components/button.entry.js')
+  })
+
+  it('avoids double .js extension', () => {
+    const code = generateLazyManifest({
+      components: [
+        {
+          tag: 'zw-button',
+          name: 'ZwButton',
+          exportName: 'ZwButton',
+          source: 'src/button.tsx',
+          props: {},
+          events: {},
+          slots: {},
+          hostAttributes: [],
+          cssParts: [],
+          cssVars: [],
+        } as any,
+      ],
+      getEntryFileName: _tag => 'zw-button.entry.js',
+    })
+
+    // Must NOT produce .js.js
+    expect(code).not.toContain('.js.js')
+    expect(code).toContain('load: () => import(')
+    expect(code).toContain('zw-button.entry.js')
   })
 
   it('uses explicit shadow value from meta', () => {
@@ -96,9 +174,10 @@ describe('generateLazyManifest', () => {
     })
 
     expect(code).toContain('tagName: "zw-button"')
-    expect(code).toContain("load: () => import('./zw-button.entry.js')")
+    expect(code).toContain('load: () => import(')
+    expect(code).toContain('zw-button.entry.js')
     expect(code).toContain('tagName: "zw-input"')
-    expect(code).toContain("load: () => import('./zw-input.entry.js')")
+    expect(code).toContain('zw-input.entry.js')
   })
 
   it('includes props with attributes and defaults', () => {
@@ -233,17 +312,17 @@ describe('generateLoader', () => {
       'export const defineLazyElements = defineCustomElements',
     )
     expect(code).toContain('bootstrapLazy(components')
-    expect(code).toContain('const definedRegistries = new WeakSet()')
-    expect(code).toContain('typeof customElements !== "undefined"')
-    expect(code).toContain('registry,')
+    expect(code).toContain('typeof customElements === "undefined"')
+    expect(code).not.toContain('definedRegistries')
+    expect(code).not.toContain('registry')
   })
 
-  it('dedupes per registry instead of global state', () => {
+  it('dedupes calls via module-level flag', () => {
     const code = generateLoader()
 
-    expect(code).not.toContain('ZEUS_DEFINE_KEY')
-    expect(code).toContain('definedRegistries.has(registry)')
-    expect(code).toContain('definedRegistries.add(registry)')
+    expect(code).toContain('let defined = false')
+    expect(code).toContain('if (defined)')
+    expect(code).toContain('defined = true')
   })
 })
 

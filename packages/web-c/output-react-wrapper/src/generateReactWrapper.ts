@@ -142,6 +142,7 @@ export const ${component.name} = forwardRef(function ${component.name}(props, re
   } = props;
 
   const innerRef = useRef(null);
+  const previousPropKeysRef = useRef(new Set());
 
   useImperativeHandle(ref, () => innerRef.current);
 
@@ -210,12 +211,22 @@ function generatePropSyncLines(bindings: Binding[]): string {
     const el = innerRef.current;
     if (!el) return;
 
+    const previousPropKeys = previousPropKeysRef.current;
+
     ${bindings
       .map(({ sourceName, localName }) => {
-        return `el[${JSON.stringify(sourceName)}] = ${localName};`
+        const key = JSON.stringify(sourceName)
+
+        return `if (Object.prototype.hasOwnProperty.call(props, ${key})) {
+      el[${key}] = ${localName};
+      previousPropKeys.add(${key});
+    } else if (previousPropKeys.has(${key})) {
+      el[${key}] = undefined;
+      previousPropKeys.delete(${key});
+    }`
       })
-      .join('\n    ')}
-  }, [${bindings.map(binding => binding.localName).join(', ')}]);`
+      .join('\n\n    ')}
+  }, [props, ${bindings.map(binding => binding.localName).join(', ')}]);`
 }
 
 function generateEventEffects(bindings: EventBinding[]): string {

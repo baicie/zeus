@@ -3,7 +3,6 @@ import path from 'node:path'
 import { resolvePluginDts } from '@zeus-js/bundler-plugin'
 import {
   generateLoaderDts,
-  generateReactDts,
   generateWCDtsFiles,
   generateWCJsxDts,
 } from '@zeus-js/component-dts'
@@ -99,7 +98,7 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
         {
           getFileName: tag => {
             if (normalized.register === 'lazy') {
-              return ensureJsExtension(normalized.entryFileName(tag))
+              return getLazyEntryFileName(normalized.entryFileName, tag)
             }
             return normalizeFileName(
               tag,
@@ -143,7 +142,8 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
             fileName: joinPath('components.manifest.js'),
             code: generateLazyManifest({
               components: ctx.manifest.components,
-              getEntryFileName: tag => `${normalized.entryFileName(tag)}.js`,
+              getEntryFileName: tag =>
+                getLazyEntryFileName(normalized.entryFileName, tag),
             }),
           })
         }
@@ -186,7 +186,10 @@ export {};
             })
           }
 
-          const entryFileName = normalized.entryFileName(component.tag) + '.js'
+          const entryFileName = getLazyEntryFileName(
+            normalized.entryFileName,
+            component.tag,
+          )
           const fileName = joinPath(entryFileName)
           modules.push({
             id: `zeus:wc:entry:${component.tag}`,
@@ -282,14 +285,6 @@ export {};
             source: generateWCJsxDts(ctx.manifest),
           })
         }
-
-        if (dts) {
-          files.push({
-            type: 'asset',
-            fileName: joinPath('types/react.d.ts'),
-            source: generateReactDts(ctx.manifest),
-          })
-        }
       } else if (normalized.manifestFile) {
         files.push({
           type: 'asset',
@@ -353,8 +348,17 @@ function normalizeFileName(
   return name
 }
 
-function ensureJsExtension(fileName: string): string {
-  return fileName.endsWith('.js') ? fileName : `${fileName}.js`
+function normalizeLazyEntryFileName(fileName: string): string {
+  const normalized = fileName.replace(/\\/g, '/')
+
+  return normalized.endsWith('.js') ? normalized : `${normalized}.js`
+}
+
+function getLazyEntryFileName(
+  entryFileName: (tag: string) => string,
+  tag: string,
+): string {
+  return normalizeLazyEntryFileName(entryFileName(tag))
 }
 
 function checkFileNameCollisions(

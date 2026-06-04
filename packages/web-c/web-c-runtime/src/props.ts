@@ -194,7 +194,7 @@ function parseAttributeValue(
       return value !== null
 
     case 'number':
-      if (value === null || value === '') {
+      if (value === null) {
         return undefined
       }
 

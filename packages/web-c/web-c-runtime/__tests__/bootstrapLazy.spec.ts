@@ -453,6 +453,43 @@ describe('lazy element lifecycle', () => {
     expect(receivedValue).toEqual([{ id: 1 }])
   })
 
+  it('parses empty number attributes consistently with defineElement', async () => {
+    let receivedValue: unknown
+
+    const load = vi.fn().mockResolvedValue({
+      createComponent(hostRef: HostRef) {
+        return {
+          connected() {
+            receivedValue = hostRef.values.get('count')
+          },
+          render: vi.fn(),
+        }
+      },
+    })
+
+    bootstrapLazy([
+      {
+        tagName: 'zw-number-empty',
+        shadow: false,
+        load,
+        props: [
+          {
+            name: 'count',
+            type: 'number',
+          },
+        ],
+      },
+    ])
+
+    const el = document.createElement('zw-number-empty')
+    el.setAttribute('count', '')
+    document.body.appendChild(el)
+
+    await (el as ZeusLazyElement).componentOnReady()
+
+    expect(receivedValue).toBe(0)
+  })
+
   it('reflects object and array properties back as JSON strings', () => {
     bootstrapLazy([
       {

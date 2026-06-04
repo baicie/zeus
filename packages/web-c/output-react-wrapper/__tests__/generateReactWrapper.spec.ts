@@ -123,10 +123,19 @@ describe('generateReactWrapper', () => {
     expect(code).toContain('export const ZButton = forwardRef(function ZButton')
     expect(code).toContain('useImperativeHandle(ref')
     expect(code).toContain('const innerRef = useRef(null)')
+    expect(code).toContain('const previousPropKeysRef = useRef(new Set())')
 
-    // Props are synced via bracket notation with safe binding names
-    expect(code).toContain('el["variant"] = propValue0')
-    expect(code).toContain('el["disabled"] = propValue1')
+    // Props are synced conditionally via hasOwnProperty check
+    expect(code).toContain(
+      'Object.prototype.hasOwnProperty.call(props, "variant")',
+    )
+    expect(code).toContain(
+      'Object.prototype.hasOwnProperty.call(props, "disabled")',
+    )
+    expect(code).toContain('previousPropKeys.add("variant")')
+    expect(code).toContain('previousPropKeys.delete("variant")')
+    expect(code).toContain('previousPropKeys.add("disabled")')
+    expect(code).toContain('previousPropKeys.delete("disabled")')
 
     expect(code).toContain('addEventListener("press"')
     expect(code).toContain('removeEventListener("press"')
@@ -234,6 +243,37 @@ describe('generateReactWrapper', () => {
     })
 
     expect(code).toContain('// no props')
+  })
+
+  it('does not overwrite omitted props in event-bridge mode', () => {
+    const code = generateReactWrapper({
+      component: {
+        tag: 'z-button',
+        name: 'ZButton',
+        exportName: 'ZButton',
+        source: 'src/button.tsx',
+        props: {
+          variant: {
+            type: 'string',
+            default: 'default',
+          },
+        },
+        events: {},
+        slots: {},
+        hostAttributes: [],
+        cssParts: [],
+        cssVars: [],
+      },
+      namedSlots: 'props',
+      wcModuleId: 'zeus:wc:z-button',
+      mode: 'event-bridge',
+    })
+
+    expect(code).toContain(
+      'Object.prototype.hasOwnProperty.call(props, "variant")',
+    )
+    expect(code).toContain('previousPropKeys.add("variant")')
+    expect(code).toContain('previousPropKeys.delete("variant")')
   })
 
   it('handles namedSlots option none in event-bridge mode', () => {

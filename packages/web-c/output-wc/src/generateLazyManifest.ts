@@ -15,13 +15,17 @@ export function generateLazyManifest(
   const { components, getEntryFileName } = options
 
   const componentEntries = components.map(component => {
-    const entryFile = getEntryFileName(component.tag)
+    const entryFile = getEntryFileName(component.tag).replace(/\\/g, '/')
     const props = generatePropsArray(component)
+
+    const importPath = entryFile.startsWith('.')
+      ? JSON.stringify(entryFile)
+      : JSON.stringify(`./${entryFile}`)
 
     return `  {
     tagName: ${JSON.stringify(component.tag)},
     shadow: ${component.meta?.shadow ?? false},
-    load: () => import('./${entryFile}'),
+    load: () => import(${importPath}),
     props: ${props},
   }`
   })
