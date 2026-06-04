@@ -17,7 +17,11 @@ import {
 } from './generateIndex'
 import { generateLazyEntry } from './generateLazyEntry'
 import { generateLazyManifest } from './generateLazyManifest'
-import { generateLoader, generateAutoEntry } from './generateLoader'
+import {
+  generateAutoEntry,
+  generateLazyIndex,
+  generateLoader,
+} from './generateLoader'
 import { generateZeusComponentsManifest } from './generateManifest'
 import { toAbsoluteImportPath } from './imports'
 
@@ -75,6 +79,21 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
 
     buildStart(ctx) {
       if (!ctx.manifest) return
+
+      if (normalized.register === 'lazy') {
+        if (!normalized.manifest) {
+          ctx.error(
+            '[zeus-output-wc] register:"lazy" requires manifest:true because the runtime loader needs components.manifest.js.',
+          )
+        }
+
+        if (!normalized.loader) {
+          ctx.error(
+            '[zeus-output-wc] register:"lazy" requires loader:true because framework wrappers and auto entry depend on loader.js.',
+          )
+        }
+      }
+
       checkFileNameCollisions(ctx.manifest.components, normalized, {
         warn: ctx.warn,
       })
@@ -186,6 +205,14 @@ export {};
         })
       }
 
+      if (isLazy && normalized.index && normalized.loader) {
+        modules.push({
+          id: getVirtualIndexId(),
+          fileName: joinPath('index.js'),
+          code: generateLazyIndex(),
+        })
+      }
+
       return modules
     },
 
@@ -215,11 +242,21 @@ export {};
       // generateBundle() only emits declaration assets to avoid file-name collisions.
       if (isLazy) {
         if (normalized.manifest && normalized.loader && dts) {
+          const loaderDts = generateLoaderDts(ctx.manifest)
+
           files.push({
             type: 'asset',
             fileName: joinPath('loader.d.ts'),
-            source: generateLoaderDts(ctx.manifest),
+            source: loaderDts,
           })
+
+          if (normalized.index) {
+            files.push({
+              type: 'asset',
+              fileName: joinPath('index.d.ts'),
+              source: loaderDts,
+            })
+          }
         }
 
         if (jsxDts) {
@@ -256,7 +293,7 @@ export {};
         })
       }
 
-      if (dts || jsxDts) {
+      if (!isLazy && (dts || jsxDts)) {
         const dtsFiles = generateWCDtsFiles(ctx.manifest, {
           outDir: _outDir,
           stripPrefix: normalized.stripPrefix,

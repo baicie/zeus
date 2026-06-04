@@ -189,6 +189,48 @@ describe('lazy element lifecycle', () => {
     expect(receivedValue).toEqual([{ key: 'name' }])
   })
 
+  it('upgrades properties written before defineCustomElements is called', async () => {
+    let receivedValue: unknown
+
+    bootstrapLazy([
+      {
+        tagName: 'zw-pre-upgrade-table',
+        shadow: false,
+        load: vi.fn().mockResolvedValue({
+          createComponent(hostRef: HostRef) {
+            return {
+              connected() {
+                receivedValue = (
+                  hostRef.host as unknown as Record<string, unknown>
+                )['columns']
+              },
+            }
+          },
+        }),
+        props: [
+          {
+            name: 'columns',
+            type: 'array',
+          },
+        ],
+      },
+    ])
+
+    const el = document.createElement(
+      'zw-pre-upgrade-table',
+    ) as ZeusLazyElement & {
+      columns: Array<{ key: string }>
+    }
+
+    el.columns = [{ key: 'name' }]
+
+    document.body.appendChild(el)
+
+    await (el as ZeusLazyElement).componentOnReady()
+
+    expect(receivedValue).toEqual([{ key: 'name' }])
+  })
+
   it('disconnects component when element is removed', async () => {
     let instance: ZeusComponentInstance
 
@@ -498,5 +540,73 @@ describe('componentOnReady', () => {
 
     expect(readyEl).toBe(el)
     expect(load).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not resolve componentOnReady before the element is connected', async () => {
+    const load = vi.fn().mockResolvedValue({
+      createComponent() {
+        return {
+          connected() {},
+        }
+      },
+    })
+
+    bootstrapLazy([
+      {
+        tagName: 'zw-ready-before-connect',
+        shadow: false,
+        load,
+        props: [],
+      },
+    ])
+
+    const el = document.createElement(
+      'zw-ready-before-connect',
+    ) as HTMLElement & { componentOnReady(): Promise<HTMLElement> }
+
+    let resolved = false
+
+    void el.componentOnReady().then(() => {
+      resolved = true
+    })
+
+    await Promise.resolve()
+
+    expect(resolved).toBe(false)
+
+    document.body.appendChild(el)
+
+    await el.componentOnReady()
+
+    expect(resolved).toBe(true)
+  })
+
+  it('reports initialization errors to console.error', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const load = vi.fn().mockRejectedValue(new Error('module failed'))
+
+    bootstrapLazy([
+      {
+        tagName: 'zw-init-error',
+        shadow: false,
+        load,
+        props: [],
+      },
+    ])
+
+    const el = document.createElement('zw-init-error')
+    document.body.appendChild(el)
+
+    await Promise.resolve()
+
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    expect(consoleError).toHaveBeenCalledWith(
+      '[zeus:web-c] Failed to initialize <zw-init-error>.',
+      expect.any(Error),
+    )
+
+    consoleError.mockRestore()
   })
 })

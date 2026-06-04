@@ -372,7 +372,7 @@ export function getElementDefinition(
 export function mountElementDefinition(
   ctor: CustomElementConstructor,
   host: HTMLElement,
-  initialValues: ReadonlyMap<string, unknown> = new Map(),
+  initialValues: Map<string, unknown> = new Map(),
 ): MountedElementDefinition {
   const definition = getElementDefinition(ctor)
   const { options, setup, propDefs } = definition
@@ -383,7 +383,15 @@ export function mountElementDefinition(
   for (const def of propDefs) {
     if (initialValues.has(def.key)) {
       propStore.set(def.key, initialValues.get(def.key))
+      continue
     }
+
+    /**
+     * Sync real definition defaults (e.g. factory defaults like `default: () => []`)
+     * back to the lazy host value map so that `element.propName` returns the
+     * correct default value rather than undefined.
+     */
+    initialValues.set(def.key, propStore.get(def.key))
   }
 
   const shadow = options.shadow ?? false

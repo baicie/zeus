@@ -1,14 +1,19 @@
 // packages/web-c-runtime/src/lazy-element.ts
 
 import { registerHost, requireHostRef } from './host-ref'
-import { initializeComponent } from './lifecycle'
+import { initializeComponent, waitForComponentReady } from './lifecycle'
 import {
   getObservedAttributes,
   installPropertyAccessors,
   syncAttributeToProperty,
+  upgradePreDefinedProperties,
 } from './props'
 
 import type { ZeusLazyComponentMeta } from './types'
+
+function reportInitializationError(tagName: string, error: unknown): void {
+  console.error(`[zeus:web-c] Failed to initialize <${tagName}>.`, error)
+}
 
 export function createLazyElementClass(
   meta: ZeusLazyComponentMeta,
@@ -22,7 +27,10 @@ export function createLazyElementClass(
 
     constructor() {
       super()
-      registerHost(this, meta)
+
+      const hostRef = registerHost(this, meta)
+
+      upgradePreDefinedProperties(this, hostRef)
     }
 
     connectedCallback(): void {
@@ -30,7 +38,9 @@ export function createLazyElementClass(
 
       hostRef.connected = true
 
-      void initializeComponent(hostRef)
+      void initializeComponent(hostRef).catch(error => {
+        reportInitializationError(meta.tagName, error)
+      })
     }
 
     disconnectedCallback(): void {
@@ -60,11 +70,13 @@ export function createLazyElementClass(
     componentOnReady(): Promise<HTMLElement> {
       const hostRef = requireHostRef(this)
 
-      const ready = hostRef.loaded
-        ? Promise.resolve()
-        : initializeComponent(hostRef)
+      if (hostRef.connected && !hostRef.loaded && !hostRef.loading) {
+        void initializeComponent(hostRef).catch(error => {
+          reportInitializationError(meta.tagName, error)
+        })
+      }
 
-      return ready.then(() => this)
+      return waitForComponentReady(hostRef)
     }
   }
 

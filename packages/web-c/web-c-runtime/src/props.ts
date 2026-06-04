@@ -145,6 +145,38 @@ export function getObservedAttributes(props: ZeusPropMeta[]): string[] {
   return attrs
 }
 
+/**
+ * Upgrades properties that were written on an element instance before its
+ * custom element class was defined (e.g. during SSR or before
+ * `defineCustomElements()` was called). Own properties on the element
+ * shadow the prototype accessors, so we must capture them before
+ * the prototype accessors take effect.
+ */
+export function upgradePreDefinedProperties(
+  host: HTMLElement,
+  hostRef: HostRef,
+): void {
+  const target = host as HTMLElement & Record<string, unknown>
+
+  for (const prop of hostRef.meta.props) {
+    if (!Object.prototype.hasOwnProperty.call(target, prop.name)) {
+      continue
+    }
+
+    const descriptor = Object.getOwnPropertyDescriptor(target, prop.name)
+
+    if (descriptor?.configurable === false) {
+      continue
+    }
+
+    const value = target[prop.name]
+
+    delete target[prop.name]
+
+    setPropValue(hostRef, prop, value)
+  }
+}
+
 function findPropByAttrName(
   hostRef: HostRef,
   attrName: string,

@@ -44,14 +44,14 @@ export interface OutputWCOptions {
   /**
    * Generate WC d.ts.
    *
-   * @default 'auto'
+   * @default true
    */
   dts?: DtsMode
 
   /**
    * Generate JSX IntrinsicElements d.ts.
    *
-   * @default 'auto'
+   * @default true
    */
   jsxDts?: DtsMode
 

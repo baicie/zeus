@@ -165,7 +165,7 @@ describe('output-wc', () => {
       expect(ids).toContain('zeus:wc:loader')
       expect(ids).toContain('zeus:wc:auto')
       expect(ids).toContain('zeus:wc:entry:z-button')
-      expect(ids).not.toContain('zeus:wc:index')
+      expect(ids).toContain('zeus:wc:index')
     })
 
     it('generates lazy compatibility module for framework wrappers', () => {
@@ -454,21 +454,6 @@ describe('output-wc', () => {
       expect(fileNames).not.toContain('custom-elements.json')
     })
 
-    it('does not emit broken lazy loader files when manifest is disabled', () => {
-      const plugin = wc({ manifest: false })
-      const ctx = createMockCtx({ version: 1, components: [] })
-
-      const result = plugin.generateBundle!(
-        ctx as any,
-        {} as OutputBundle,
-      ) as ZeusOutputAsset[]
-      const fileNames = new Set(result.map(f => f.fileName))
-
-      expect(fileNames).not.toContain('wc/loader.js')
-      expect(fileNames).not.toContain('wc/auto.js')
-      expect(fileNames).not.toContain('wc/loader.d.ts')
-    })
-
     it('generates default assets even when manifest has no components', () => {
       const plugin = wc({ register: 'side-effect' })
       const ctx = createMockCtx({ version: 1, components: [] })
@@ -482,8 +467,26 @@ describe('output-wc', () => {
       const fileNames = new Set(result.map(f => f.fileName))
       expect(fileNames).toContain('custom-elements.json')
       expect(fileNames).toContain('zeus.components.json')
-      expect(fileNames).toContain('wc/index.d.ts')
-      expect(fileNames).toContain('wc/jsx.d.ts')
+    })
+
+    it('does not emit broken lazy loader files when manifest is disabled', () => {
+      const plugin = wc({ manifest: false })
+      const ctx = createMockCtx({ version: 1, components: [] })
+
+      const result = plugin.generateBundle!(
+        ctx as any,
+        {} as OutputBundle,
+      ) as ZeusOutputAsset[]
+      const fileNames = new Set(result.map(f => f.fileName))
+
+      expect(fileNames).not.toContain('wc/loader.js')
+      expect(fileNames).not.toContain('wc/auto.js')
+      expect(fileNames).not.toContain('wc/loader.d.ts')
+      expect(fileNames).not.toContain('zeus.components.json')
+      expect(fileNames).not.toContain('custom-elements.json')
+      // jsx.d.ts and react.d.ts are still emitted even with manifest:false
+      expect(fileNames).toContain('wc/types/jsx.d.ts')
+      expect(fileNames).toContain('wc/types/react.d.ts')
     })
 
     it('generates all default assets with components', () => {

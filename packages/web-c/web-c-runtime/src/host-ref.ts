@@ -22,6 +22,7 @@ export function registerHost(
     values: new Map(),
     queuedAttrs: [],
     reflectingAttrs: new Set(),
+    readyWaiters: [],
   }
 
   hostRefs.set(host, hostRef)

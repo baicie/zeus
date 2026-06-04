@@ -6,6 +6,19 @@ import type { HostRef, ZeusComponentModule } from './types'
 
 const moduleCache = new WeakMap<HostRef['meta'], Promise<ZeusComponentModule>>()
 
+export function waitForComponentReady(hostRef: HostRef): Promise<HTMLElement> {
+  if (hostRef.loaded) {
+    return Promise.resolve(hostRef.host)
+  }
+
+  return new Promise((resolve, reject) => {
+    hostRef.readyWaiters.push({
+      resolve,
+      reject,
+    })
+  })
+}
+
 export async function initializeComponent(hostRef: HostRef): Promise<void> {
   if (hostRef.loaded) {
     hostRef.instance?.connected?.()
@@ -17,13 +30,20 @@ export async function initializeComponent(hostRef: HostRef): Promise<void> {
     return
   }
 
-  hostRef.loading = doInitializeComponent(hostRef).finally(() => {
-    if (!hostRef.loaded) {
+  const loading = doInitializeComponent(hostRef)
+
+  hostRef.loading = loading
+
+  try {
+    await loading
+  } catch (error) {
+    rejectReadyWaiters(hostRef, error)
+    throw error
+  } finally {
+    if (hostRef.loading === loading) {
       hostRef.loading = undefined
     }
-  })
-
-  await hostRef.loading
+  }
 }
 
 async function doInitializeComponent(hostRef: HostRef): Promise<void> {
@@ -38,16 +58,28 @@ async function doInitializeComponent(hostRef: HostRef): Promise<void> {
   const instance = mod.createComponent(hostRef)
 
   hostRef.instance = instance
-  hostRef.loaded = true
 
-  replayQueuedAttributes(hostRef)
+  try {
+    replayQueuedAttributes(hostRef)
 
-  instance.connected?.()
+    instance.connected?.()
 
-  const rendered = instance.render?.()
+    const rendered = instance.render?.()
 
-  if (rendered !== undefined) {
-    mountRenderedOutput(hostRef, rendered)
+    if (rendered !== undefined) {
+      mountRenderedOutput(hostRef, rendered)
+    }
+
+    hostRef.loaded = true
+
+    resolveReadyWaiters(hostRef)
+  } catch (error) {
+    hostRef.instance = undefined
+    hostRef.loaded = false
+
+    instance.dispose?.()
+
+    throw error
   }
 }
 
@@ -71,6 +103,22 @@ async function loadComponentModule(
   }
 
   return pending
+}
+
+function resolveReadyWaiters(hostRef: HostRef): void {
+  const waiters = hostRef.readyWaiters.splice(0)
+
+  for (const waiter of waiters) {
+    waiter.resolve(hostRef.host)
+  }
+}
+
+function rejectReadyWaiters(hostRef: HostRef, error: unknown): void {
+  const waiters = hostRef.readyWaiters.splice(0)
+
+  for (const waiter of waiters) {
+    waiter.reject(error)
+  }
 }
 
 function mountRenderedOutput(

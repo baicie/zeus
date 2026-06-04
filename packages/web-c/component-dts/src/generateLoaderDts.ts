@@ -1,6 +1,12 @@
 // packages/web-c/component-dts/src/generateLoaderDts.ts
 
-import type { ComponentManifest } from '@zeus-js/component-analyzer'
+import { formatPropType, isRequiredProp, safePropertyName } from './formatType'
+import { getElementTypeName } from './naming'
+
+import type {
+  ComponentManifest,
+  ComponentRecord,
+} from '@zeus-js/component-analyzer'
 
 export function generateLoaderDts(manifest: ComponentManifest): string {
   const lines: string[] = []
@@ -10,72 +16,57 @@ export function generateLoaderDts(manifest: ComponentManifest): string {
   lines.push('')
 
   for (const component of manifest.components) {
-    lines.push(generateLoaderComponentDts(component))
+    lines.push(generateElementInterface(component))
     lines.push('')
   }
 
   lines.push('export interface DefineCustomElementsOptions {')
-  lines.push('  registry?: CustomElementRegistry;')
+  lines.push('  registry?: CustomElementRegistry')
   lines.push('}')
   lines.push('')
   lines.push('export declare function defineCustomElements(')
   lines.push('  options?: DefineCustomElementsOptions,')
-  lines.push('): void;')
+  lines.push('): void')
   lines.push('')
   lines.push(
-    'export declare const defineLazyElements: typeof defineCustomElements;',
+    'export declare const defineLazyElements: typeof defineCustomElements',
   )
   lines.push('')
 
+  lines.push('declare global {')
+  lines.push('  interface HTMLElementTagNameMap {')
+
+  for (const component of manifest.components) {
+    lines.push(
+      `    ${JSON.stringify(component.tag)}: ${getElementTypeName(component)}`,
+    )
+  }
+
+  lines.push('  }')
+  lines.push('}')
+  lines.push('')
+  lines.push('export {}')
+  lines.push('')
+
   return lines.join('\n')
 }
 
-function generateLoaderComponentDts(
-  component: ComponentManifest['components'][0],
-): string {
-  const elementTypeName = `${component.name}Element`
-  const propsTypeName = `${component.name}Props`
-
+function generateElementInterface(component: ComponentRecord): string {
+  const elementTypeName = getElementTypeName(component)
   const lines: string[] = []
 
-  // Props interface
-  lines.push(`export interface ${propsTypeName} {`)
-  for (const [name, prop] of Object.entries(component.props)) {
-    const optional = !prop.required ? '?' : ''
-    const type = formatPropType(prop.type)
-    lines.push(`  ${name}${optional}: ${type}`)
-  }
-  lines.push('}')
-  lines.push('')
-
-  // Element interface
   lines.push(`export interface ${elementTypeName} extends HTMLElement {`)
+
   for (const [name, prop] of Object.entries(component.props)) {
-    const optional = !prop.required ? '?' : ''
-    const type = formatPropType(prop.type)
-    lines.push(`  ${name}${optional}: ${type}`)
+    const optional = isRequiredProp(prop) ? '' : '?'
+
+    lines.push(
+      `  ${safePropertyName(name)}${optional}: ${formatPropType(prop)}`,
+    )
   }
+
+  lines.push('  componentOnReady(): Promise<this>')
   lines.push('}')
-  lines.push('')
 
   return lines.join('\n')
-}
-
-function formatPropType(type: string): string {
-  switch (type) {
-    case 'string':
-      return 'string'
-    case 'number':
-      return 'number'
-    case 'boolean':
-      return 'boolean'
-    case 'array':
-      return 'unknown[]'
-    case 'object':
-      return 'Record<string, unknown>'
-    case 'function':
-      return '(...args: unknown[]) => unknown'
-    default:
-      return 'unknown'
-  }
 }

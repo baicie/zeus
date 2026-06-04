@@ -65,6 +65,11 @@ export interface HostRef {
   }>
 
   reflectingAttrs: Set<string>
+
+  readyWaiters: Array<{
+    resolve(host: HTMLElement): void
+    reject(error: unknown): void
+  }>
 }
 
 export interface ZeusComponentInstance {

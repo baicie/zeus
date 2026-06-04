@@ -3,7 +3,11 @@ import { describe, expect, it } from 'vitest'
 
 import { generateLazyEntry } from '../src/generateLazyEntry'
 import { generateLazyManifest } from '../src/generateLazyManifest'
-import { generateLoader, generateAutoEntry } from '../src/generateLoader'
+import {
+  generateAutoEntry,
+  generateLazyIndex,
+  generateLoader,
+} from '../src/generateLoader'
 
 describe('generateLazyManifest', () => {
   it('generates manifest with tagName and load function', () => {
@@ -217,6 +221,17 @@ describe('generateLoader', () => {
     expect(code).not.toContain('ZEUS_DEFINE_KEY')
     expect(code).toContain('definedRegistries.has(registry)')
     expect(code).toContain('definedRegistries.add(registry)')
+  })
+})
+
+describe('generateLazyIndex', () => {
+  it('exports defineCustomElements and defineLazyElements from loader', () => {
+    const code = generateLazyIndex()
+
+    expect(code).toContain('export {')
+    expect(code).toContain('defineCustomElements,')
+    expect(code).toContain('defineLazyElements,')
+    expect(code).toContain('from "./loader.js"')
   })
 })
 

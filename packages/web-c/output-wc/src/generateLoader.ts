@@ -39,3 +39,11 @@ defineCustomElements();
 export {};
 `
 }
+
+export function generateLazyIndex(): string {
+  return `export {
+  defineCustomElements,
+  defineLazyElements,
+} from "./loader.js";
+`
+}
