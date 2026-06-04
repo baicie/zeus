@@ -1,5 +1,5 @@
 {
-  "name": "@zeus-js/example-headless",
+  "name": "@zeus-js/example-headless-demo",
   "private": true,
   "type": "module",
   "sideEffects": [
@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@zeus-js/runtime-dom": "workspace:*",
+    "@zeus-js/web-c-runtime": "workspace:*",
     "@zeus-js/zeus": "workspace:*",
     "@zeus-ui/headless": "workspace:*"
   },

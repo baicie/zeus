@@ -59,6 +59,7 @@
   },
   "dependencies": {
     "@zeus-js/runtime-dom": "workspace:*",
+    "@zeus-js/web-c-runtime": "workspace:*",
     "@zeus-js/zeus": "workspace:*"
   },
   "peerDependencies": {

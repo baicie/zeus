@@ -11,7 +11,7 @@ import type { OutputBundle } from 'rollup'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-const root = path.resolve(__dirname, 'fixtures')
+const root = path.resolve(__dirname, 'fixtures-output-css')
 
 const fixtureFile = (name: string, content: string) => {
   const filePath = path.resolve(root, name)

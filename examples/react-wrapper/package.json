@@ -17,6 +17,7 @@
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "@zeus-js/runtime-dom": "workspace:*",
+    "@zeus-js/web-c-runtime": "workspace:*",
     "@zeus-js/zeus": "workspace:*"
   },
   "devDependencies": {
