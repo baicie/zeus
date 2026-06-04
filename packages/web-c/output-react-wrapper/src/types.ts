@@ -38,12 +38,13 @@ export interface OutputReactWrapperOptions {
 
   /**
    * minimal:
-   *   Default. React wrapper only renders the custom element tag.
+   *   Default. Requires React 19+.
+   *   React wrapper only renders the custom element tag.
    *   No useEffect prop sync, no event listeners.
    *
    * event-bridge:
-   *   Additional mode for React CustomEvent bridging.
-   *   Includes useEffect prop sync and event listeners.
+   *   Compatibility mode for React 18 or applications that require explicit
+   *   CustomEvent bridging and property assignment.
    */
   wrapper?: ReactWrapperMode
 

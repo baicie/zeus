@@ -118,19 +118,6 @@ export function applyInitialValues(hostRef: HostRef): void {
   }
 }
 
-export function replayQueuedAttributes(hostRef: HostRef): void {
-  const queuedAttrs = hostRef.queuedAttrs
-  hostRef.queuedAttrs = []
-
-  for (const attr of queuedAttrs) {
-    hostRef.instance?.attributeChanged?.(
-      attr.name,
-      attr.oldValue,
-      attr.newValue,
-    )
-  }
-}
-
 export function getObservedAttributes(props: ZeusPropMeta[]): string[] {
   const attrs: string[] = []
 

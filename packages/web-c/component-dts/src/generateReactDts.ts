@@ -15,7 +15,14 @@ import type {
   ComponentRecord,
 } from '@zeus-js/component-analyzer'
 
-export function generateReactDts(manifest: ComponentManifest): string {
+export interface GenerateReactDtsOptions {
+  namedSlots?: 'props' | 'none'
+}
+
+export function generateReactDts(
+  manifest: ComponentManifest,
+  options: GenerateReactDtsOptions = {},
+): string {
   const lines: string[] = []
 
   lines.push('/* eslint-disable */')
@@ -25,14 +32,17 @@ export function generateReactDts(manifest: ComponentManifest): string {
   lines.push('')
 
   for (const component of manifest.components) {
-    lines.push(generateReactComponentDts(component))
+    lines.push(generateReactComponentDts(component, options))
     lines.push('')
   }
 
   return lines.join('\n')
 }
 
-function generateReactComponentDts(component: ComponentRecord): string {
+function generateReactComponentDts(
+  component: ComponentRecord,
+  options: GenerateReactDtsOptions,
+): string {
   const propsTypeName = getPropsTypeName(component)
   const elementTypeName = getElementTypeName(component)
   const lines: string[] = []
@@ -54,12 +64,16 @@ function generateReactComponentDts(component: ComponentRecord): string {
   for (const [name, event] of Object.entries(component.events)) {
     const propName = toReactEventProp(name)
     const detailType = event.detail ? formatDetailType(event.detail) : 'unknown'
-    lines.push(`  ${propName}?: (event: CustomEvent<${detailType}>) => void`)
+    lines.push(
+      `  ${safePropertyName(propName)}?: (event: CustomEvent<${detailType}>) => void`,
+    )
   }
 
-  for (const name of Object.keys(component.slots)) {
-    if (name === 'default') continue
-    lines.push(`  ${safePropertyName(name)}?: React.ReactNode`)
+  if (options.namedSlots !== 'none') {
+    for (const name of Object.keys(component.slots)) {
+      if (name === 'default') continue
+      lines.push(`  ${safePropertyName(name)}?: React.ReactNode`)
+    }
   }
 
   lines.push('}')

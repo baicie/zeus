@@ -125,4 +125,91 @@ describe('generateReactDts', () => {
     expect(code).toContain('export declare const ZButton:')
     expect(code).toContain('export declare const ZCard:')
   })
+
+  it('generates valid property names for kebab-case events', () => {
+    const code = generateReactDts({
+      version: 1,
+      components: [
+        {
+          tag: 'z-input',
+          name: 'ZInput',
+          exportName: 'ZInput',
+          source: 'src/input.tsx',
+          props: {},
+          events: {
+            'value-change': {},
+          },
+          slots: {},
+          hostAttributes: [],
+          cssParts: [],
+          cssVars: [],
+        },
+      ],
+    })
+
+    expect(code).toContain(
+      'onValueChange?: (event: CustomEvent<unknown>) => void',
+    )
+    expect(code).not.toContain('value-change')
+  })
+
+  it('omits named slot props when namedSlots is none', () => {
+    const code = generateReactDts(
+      {
+        version: 1,
+        components: [
+          {
+            tag: 'z-card',
+            name: 'ZCard',
+            exportName: 'ZCard',
+            source: 'src/card.tsx',
+            props: {},
+            events: {},
+            slots: {
+              default: {},
+              header: {},
+              footer: {},
+            },
+            hostAttributes: [],
+            cssParts: [],
+            cssVars: [],
+          },
+        ],
+      },
+      { namedSlots: 'none' },
+    )
+
+    expect(code).toContain('export interface ZCardProps')
+    expect(code).not.toContain('header')
+    expect(code).not.toContain('footer')
+    expect(code).toContain('children?: React.ReactNode')
+  })
+
+  it('includes named slot props by default', () => {
+    const code = generateReactDts({
+      version: 1,
+      components: [
+        {
+          tag: 'z-card',
+          name: 'ZCard',
+          exportName: 'ZCard',
+          source: 'src/card.tsx',
+          props: {},
+          events: {},
+          slots: {
+            default: {},
+            header: {},
+            footer: {},
+          },
+          hostAttributes: [],
+          cssParts: [],
+          cssVars: [],
+        },
+      ],
+    })
+
+    expect(code).toContain('header?: React.ReactNode')
+    expect(code).toContain('footer?: React.ReactNode')
+    expect(code).not.toContain('default')
+  })
 })

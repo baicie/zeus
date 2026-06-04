@@ -38,10 +38,10 @@ function createBindings(names: string[], prefix: string): Binding[] {
 }
 
 function createEventBindings(eventNames: string[]): EventBinding[] {
-  return eventNames.map(eventName => ({
+  return eventNames.map((eventName, index) => ({
     eventName,
     sourceName: toReactEventProp(eventName),
-    localName: `eventHandler${eventName}`,
+    localName: `eventHandler${index}`,
   }))
 }
 

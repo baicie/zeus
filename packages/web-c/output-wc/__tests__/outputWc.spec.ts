@@ -979,5 +979,83 @@ describe('output-wc', () => {
 
       await bundle.close()
     })
+
+    it('emits lazy loader and dynamic entries via real Rollup build', async () => {
+      const root = await fs.mkdtemp(
+        path.join(os.tmpdir(), 'zeus-output-wc-lazy-e2e-'),
+      )
+
+      await fs.mkdir(path.join(root, 'src/components'), { recursive: true })
+
+      await fs.writeFile(path.join(root, 'src/index.ts'), `export {}`)
+
+      await fs.writeFile(
+        path.join(root, 'src/components/button.tsx'),
+        [
+          `import { defineElement } from '@zeus-js/zeus'`,
+          ``,
+          `export const ZButton = defineElement(`,
+          `  'z-button',`,
+          `  {`,
+          `    props: {`,
+          `      variant: {`,
+          `        type: String,`,
+          `        default: 'default',`,
+          `      },`,
+          `    },`,
+          `  },`,
+          `  () => null`,
+          `)`,
+        ].join('\n'),
+      )
+
+      const bundle = await rollup({
+        input: path.join(root, 'src/index.ts'),
+        plugins: [
+          (await import('@zeus-js/bundler-plugin')).default({
+            root,
+            components: {
+              include: ['src/components/**/*.{ts,tsx}'],
+            },
+            plugins: [
+              wc({
+                register: 'lazy',
+                outDir: 'wc',
+                entryFileName: tag => `chunks/${tag}.lazy`,
+                dts: true,
+                jsxDts: true,
+              }),
+            ],
+          }),
+        ],
+        onwarn() {},
+      })
+
+      const result = await bundle.generate({
+        dir: path.join(root, 'dist'),
+        format: 'esm',
+      })
+
+      const files = result.output.map(item => item.fileName).sort()
+
+      expect(files).toContain('wc/components.manifest.js')
+      expect(files).toContain('wc/loader.js')
+      expect(files).toContain('wc/auto.js')
+      expect(files).toContain('wc/index.js')
+      expect(files).toContain('wc/chunks/z-button.lazy.js')
+      expect(files).toContain('wc/loader.d.ts')
+      expect(files).toContain('wc/index.d.ts')
+
+      const manifestChunk = result.output.find(
+        item =>
+          item.type === 'chunk' &&
+          item.fileName === 'wc/components.manifest.js',
+      )
+
+      expect(manifestChunk).toBeTruthy()
+      expect((manifestChunk as any).code).toContain('./chunks/z-button.lazy.js')
+
+      await bundle.close()
+    })
   })
 })

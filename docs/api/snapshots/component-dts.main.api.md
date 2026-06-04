@@ -24,7 +24,13 @@ export declare function generateWCIndexDts(
 
 export declare function generateWCJsxDts(manifest: ComponentManifest): string
 
-export declare function generateReactDts(manifest: ComponentManifest): string
+interface GenerateReactDtsOptions {
+  namedSlots?: 'props' | 'none'
+}
+export declare function generateReactDts(
+  manifest: ComponentManifest,
+  options?: GenerateReactDtsOptions,
+): string
 
 export declare function generateVueDts(manifest: ComponentManifest): string
 export declare function generateVueGlobalDts(

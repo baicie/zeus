@@ -98,6 +98,16 @@ export type NormalizedPropDefinition = {
 
 export const ZEUS_ELEMENT_DEFINITION = Symbol.for('zeus.element.definition')
 
+const ZEUS_LAZY_MANAGED_TAGS = Symbol.for('zeus.web-c.lazy-managed-tags')
+
+function isLazyManagedTag(tagName: string): boolean {
+  const globalObject = globalThis as typeof globalThis & {
+    [ZEUS_LAZY_MANAGED_TAGS]?: Set<string>
+  }
+
+  return globalObject[ZEUS_LAZY_MANAGED_TAGS]?.has(tagName) ?? false
+}
+
 export interface ZeusElementDefinition<
   P extends object = object,
   E extends HTMLElement = HTMLElement,
@@ -356,7 +366,7 @@ export function defineElement<
     }
   }
 
-  if (!customElements.get(tagName)) {
+  if (!isLazyManagedTag(tagName) && !customElements.get(tagName)) {
     customElements.define(tagName, ZeusElement)
   }
 

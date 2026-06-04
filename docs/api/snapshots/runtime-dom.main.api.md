@@ -337,6 +337,16 @@ export interface MountedElementDefinition {
   propertyChanged(name: string, _oldValue: unknown, newValue: unknown): void
   dispose(): void
 }
+/**
+ * Persisted mount state for a lazy-loaded element.
+ * Used across disconnect/reconnect cycles to avoid re-capturing
+ * light DOM children or re-attaching shadow roots.
+ */
+export interface ElementDefinitionMountState {
+  target?: Element | ShadowRoot
+  lightChildren?: Node[]
+  capturedLightChildren?: boolean
+}
 export declare function defineElement<
   P extends object = object,
   E extends HTMLElement = HTMLElement,
@@ -351,7 +361,8 @@ export declare function getElementDefinition(
 export declare function mountElementDefinition(
   ctor: CustomElementConstructor,
   host: HTMLElement,
-  initialValues?: ReadonlyMap<string, unknown>,
+  initialValues?: Map<string, unknown>,
+  mountState?: ElementDefinitionMountState,
 ): MountedElementDefinition
 
 type HostValue<T> = T | (() => T)

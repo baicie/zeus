@@ -1,6 +1,6 @@
 // packages/web-c-runtime/src/lifecycle.ts
 
-import { applyInitialValues, replayQueuedAttributes } from './props'
+import { applyInitialValues } from './props'
 
 import type { HostRef, ZeusComponentModule } from './types'
 
@@ -60,8 +60,6 @@ async function doInitializeComponent(hostRef: HostRef): Promise<void> {
   hostRef.instance = instance
 
   try {
-    replayQueuedAttributes(hostRef)
-
     instance.connected?.()
 
     const rendered = instance.render?.()

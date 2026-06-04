@@ -8,9 +8,7 @@ export type {
   HostRef,
   ZeusComponentInstance,
   ZeusComponentModule,
-  ZeusEventMeta,
   ZeusLazyComponentMeta,
   ZeusPropMeta,
   ZeusPropType,
-  ZeusSlotMeta,
 } from './types'

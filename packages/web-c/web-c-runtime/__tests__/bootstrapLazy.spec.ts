@@ -338,7 +338,6 @@ describe('lazy element lifecycle', () => {
       createComponent() {
         instance = {
           connected() {},
-          attributeChanged: vi.fn(),
           propertyChanged: vi.fn(),
           render: vi.fn(),
         }
@@ -366,8 +365,6 @@ describe('lazy element lifecycle', () => {
 
     await (el as ZeusLazyElement).componentOnReady()
 
-    expect(instance!.attributeChanged).not.toHaveBeenCalled()
-
     el.setAttribute('size', 'lg')
 
     expect(instance!.propertyChanged).toHaveBeenCalledWith(
@@ -375,7 +372,6 @@ describe('lazy element lifecycle', () => {
       undefined,
       'lg',
     )
-    expect(instance!.attributeChanged).not.toHaveBeenCalled()
   })
 
   it('applies initial attribute values before loaded', async () => {

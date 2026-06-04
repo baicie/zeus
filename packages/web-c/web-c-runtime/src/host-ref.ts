@@ -20,7 +20,6 @@ export function registerHost(
     connected: false,
     loaded: false,
     values: new Map(),
-    queuedAttrs: [],
     reflectingAttrs: new Set(),
     readyWaiters: [],
   }

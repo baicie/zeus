@@ -130,7 +130,7 @@ describe('generateReactWrapper', () => {
 
     expect(code).toContain('addEventListener("press"')
     expect(code).toContain('removeEventListener("press"')
-    expect(code).toContain('eventHandlerpress(event)')
+    expect(code).toContain('eventHandler0(event)')
 
     expect(code).toContain('slotChildren = []')
     expect(code).toContain('slotChildren.push(children)')
@@ -260,5 +260,32 @@ describe('generateReactWrapper', () => {
 
     expect(code).toContain('NAMED_SLOTS')
     expect(code).not.toContain('"label"')
+  })
+
+  it('generates valid event-bridge code for kebab-case event names', () => {
+    const code = generateReactWrapper({
+      component: {
+        tag: 'z-input',
+        name: 'ZInput',
+        exportName: 'ZInput',
+        source: 'src/input.tsx',
+        props: {},
+        events: {
+          'value-change': {},
+        },
+        slots: {},
+        hostAttributes: [],
+        cssParts: [],
+        cssVars: [],
+      },
+      namedSlots: 'props',
+      wcModuleId: 'zeus:wc:z-input',
+      mode: 'event-bridge',
+    })
+
+    expect(code).toContain('"onValueChange": eventHandler0')
+    expect(code).toContain('addEventListener("value-change"')
+    expect(code).toContain('eventHandler0(event)')
+    expect(code).not.toContain('eventHandlervalue-change')
   })
 })

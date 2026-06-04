@@ -85,7 +85,9 @@ export default function reactWrapper(
         {
           type: 'asset',
           fileName: ctx.outputs.join('react', 'index.d.ts'),
-          source: generateReactDts(ctx.manifest),
+          source: generateReactDts(ctx.manifest, {
+            namedSlots: normalized.namedSlots,
+          }),
         },
       ]
     },

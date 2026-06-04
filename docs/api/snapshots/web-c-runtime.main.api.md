@@ -18,14 +18,7 @@ export interface ZeusPropMeta {
   attrName?: string | false
   type: ZeusPropType
   reflect?: boolean
-  required?: boolean
   default?: unknown
-}
-export interface ZeusEventMeta {
-  name: string
-}
-export interface ZeusSlotMeta {
-  name: string
 }
 export interface ZeusLazyComponentMeta {
   tagName: string
@@ -41,8 +34,6 @@ export interface ZeusLazyComponentMeta {
       }
   >
   props: ZeusPropMeta[]
-  events?: ZeusEventMeta[]
-  slots?: ZeusSlotMeta[]
   /**
    * Default to true.
    */
@@ -56,21 +47,15 @@ export interface HostRef {
   loading?: Promise<void>
   instance?: ZeusComponentInstance
   values: Map<string, unknown>
-  queuedAttrs: Array<{
-    name: string
-    oldValue: string | null
-    newValue: string | null
-  }>
   reflectingAttrs: Set<string>
+  readyWaiters: Array<{
+    resolve(host: HTMLElement): void
+    reject(error: unknown): void
+  }>
 }
 export interface ZeusComponentInstance {
   connected?(): void
   disconnected?(): void
-  attributeChanged?(
-    name: string,
-    oldValue: string | null,
-    newValue: string | null,
-  ): void
   propertyChanged?(name: string, oldValue: unknown, newValue: unknown): void
   /**
    * Can return Node / Node[] / string.

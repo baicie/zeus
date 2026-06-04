@@ -166,6 +166,7 @@ describe('generateLazyManifest', () => {
   })
 
   it('includes events', () => {
+    // events are no longer emitted in the lazy manifest
     const code = generateLazyManifest({
       components: [
         {
@@ -186,11 +187,12 @@ describe('generateLazyManifest', () => {
       getEntryFileName: tag => `${tag}.entry.js`,
     })
 
-    expect(code).toContain('events: [')
-    expect(code).toContain('name: "press"')
+    expect(code).not.toContain('events')
+    expect(code).not.toContain('slots')
   })
 
   it('includes slots', () => {
+    // slots are no longer emitted in the lazy manifest
     const code = generateLazyManifest({
       components: [
         {
@@ -212,9 +214,7 @@ describe('generateLazyManifest', () => {
       getEntryFileName: tag => `${tag}.entry.js`,
     })
 
-    expect(code).toContain('slots: [')
-    expect(code).toContain('name: "default"')
-    expect(code).toContain('name: "header"')
+    expect(code).not.toContain('slots')
   })
 })
 
@@ -290,20 +290,19 @@ describe('generateLazyEntry', () => {
     expect(code).toContain(
       'import { mountElementDefinition } from "@zeus-js/runtime-dom"',
     )
-    expect(code).toContain('class ZwButtonComponent')
-    expect(code).toContain('constructor(hostRef)')
-    expect(code).toContain('connected()')
-    expect(code).toContain('disconnected()')
-    expect(code).toContain('propertyChanged(name, oldValue, newValue)')
-    expect(code).toContain('attributeChanged(name, oldValue, newValue)')
-    expect(code).toContain('render()')
-    expect(code).toContain('this.mountState = {}')
-    expect(code).toContain(
-      'this.mounted = mountElementDefinition(\n        ZwButton,\n        this.hostRef.host,\n        this.hostRef.values,\n        this.mountState,',
-    )
     expect(code).toContain('export function createComponent(hostRef)')
-    expect(code).toContain('export default moduleExports')
-    expect(code).toContain('createComponent')
+    expect(code).toContain('mounted = undefined')
+    expect(code).toContain('mountState = {}')
+    expect(code).toContain('ZwButton,')
+    expect(code).toContain('hostRef.host,')
+    expect(code).toContain('hostRef.values,')
+    expect(code).toContain('mountState,')
+    expect(code).toContain('export default { createComponent }')
+    expect(code).not.toContain('class ')
+    expect(code).not.toContain('constructor(')
+    expect(code).not.toContain('attributeChanged')
+    expect(code).not.toContain('render()')
+    expect(code).not.toContain('moduleExports')
   })
 
   it('does not call component constructor as a render function', () => {
@@ -324,7 +323,9 @@ describe('generateLazyEntry', () => {
     })
 
     expect(code).not.toContain('ZwButton(host)')
-    expect(code).toContain('mountElementDefinition(ZwButton')
+    expect(code).toContain('mountElementDefinition')
+    expect(code).toMatch(/\bmountElementDefinition\(\s*\n\s+ZwButton\b/)
+    expect(code).not.toContain('class ')
   })
 
   it('generates relative import path', () => {

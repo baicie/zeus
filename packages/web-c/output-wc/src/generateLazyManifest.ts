@@ -17,16 +17,12 @@ export function generateLazyManifest(
   const componentEntries = components.map(component => {
     const entryFile = getEntryFileName(component.tag)
     const props = generatePropsArray(component)
-    const events = generateEventsArray(component)
-    const slots = generateSlotsArray(component)
 
     return `  {
     tagName: ${JSON.stringify(component.tag)},
     shadow: ${component.meta?.shadow ?? false},
     load: () => import('./${entryFile}'),
     props: ${props},
-    events: ${events},
-    slots: ${slots},
   }`
   })
 
@@ -61,43 +57,11 @@ function generatePropsArray(component: ComponentRecord): string {
       parts.push('reflect: true')
     }
 
-    if (prop.required) {
-      parts.push('required: true')
-    }
-
     if (prop.default !== undefined) {
       parts.push(`default: ${JSON.stringify(prop.default)}`)
     }
 
     return `      { ${parts.join(', ')} }`
-  })
-
-  return `[\n${lines.join(',\n')}\n    ]`
-}
-
-function generateEventsArray(component: ComponentRecord): string {
-  const entries = Object.entries(component.events)
-
-  if (entries.length === 0) {
-    return 'undefined'
-  }
-
-  const lines = entries.map(([name]) => {
-    return `      { name: ${JSON.stringify(name)} }`
-  })
-
-  return `[\n${lines.join(',\n')}\n    ]`
-}
-
-function generateSlotsArray(component: ComponentRecord): string {
-  const entries = Object.entries(component.slots)
-
-  if (entries.length === 0) {
-    return 'undefined'
-  }
-
-  const lines = entries.map(([name]) => {
-    return `      { name: ${JSON.stringify(name)} }`
   })
 
   return `[\n${lines.join(',\n')}\n    ]`
