@@ -30,7 +30,9 @@ export interface ZeusLazyComponentMeta {
   props: ZeusPropMeta[]
 
   /**
-   * Default to true.
+   * Whether to render into a ShadowRoot.
+   *
+   * @default false
    */
   shadow?: boolean
 }
@@ -72,4 +74,8 @@ export interface ZeusComponentInstance {
 
 export interface ZeusComponentModule {
   createComponent(hostRef: HostRef): ZeusComponentInstance
+}
+
+export interface BootstrapLazyOptions {
+  registry?: CustomElementRegistry
 }

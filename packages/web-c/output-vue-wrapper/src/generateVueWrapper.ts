@@ -243,12 +243,9 @@ function toVuePropOption(prop: ComponentRecord['props'][string]): string {
   }
 
   const type = typeMap[prop.type] ?? 'null'
+  const required = prop.required === true ? 'true' : 'false'
 
-  if (prop.default !== undefined) {
-    return `{ type: ${type}, default: ${JSON.stringify(prop.default)} }`
-  }
-
-  return `{ type: ${type}, required: ${prop.required === true ? 'true' : 'false'} }`
+  return `{ type: ${type}, required: ${required} }`
 }
 
 function createVuePropInputKeys(propNames: string[]): Record<string, string[]> {

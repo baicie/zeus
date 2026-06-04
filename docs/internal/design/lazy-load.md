@@ -12,6 +12,16 @@
 5. types 默认 true。
 ```
 
+当前实现修订：
+
+```txt
+1. WebCRegisterMode 只保留 lazy / side-effect；manual 暂不进入当前里程碑，避免扩大输出模式。
+2. shadow 默认值与 defineElement 保持一致：false。manifest 必须显式写出 true 才进入 Shadow DOM。
+3. lazy manifest 只描述 runtime props；events / slots 留给类型、文档和 custom-elements manifest，不进入 lazy runtime meta。
+4. lazy runtime 不再维护 attributeChanged 队列；attribute 变化统一降级为 propertyChanged，与 mountElementDefinition 的 prop store 对齐。
+5. defineCustomElements(options) 和 bootstrapLazy(options) 都支持自定义 registry，便于测试、多 registry 环境与非默认 customElements。
+```
+
 ---
 
 # 1. 最终包职责
@@ -111,7 +121,7 @@ packages/
 ```ts id="q1dxkq"
 // packages/web-c/compiler-shared/src/options.ts
 
-export type WebCRegisterMode = 'lazy' | 'manual' | 'side-effect'
+export type WebCRegisterMode = 'lazy' | 'side-effect'
 
 export type WebCWrapperMode = 'minimal' | 'event-bridge'
 
@@ -120,9 +130,6 @@ export interface WebCCompileOptions {
    * lazy:
    *   默认值。生成 Stencil-style lazy loader。
    *   启动时注册轻量 ProxyClass，connected 时加载真实组件 entry。
-   *
-   * manual:
-   *   只生成手动 define API。
    *
    * side-effect:
    *   import 后立即注册完整组件，兼容旧行为，不推荐默认使用。
@@ -186,19 +193,10 @@ export type ZeusPropType =
 
 export interface ZeusPropMeta {
   name: string
-  attrName?: string
+  attrName?: string | false
   type: ZeusPropType
   reflect?: boolean
-  required?: boolean
   default?: unknown
-}
-
-export interface ZeusEventMeta {
-  name: string
-}
-
-export interface ZeusSlotMeta {
-  name: string
 }
 
 export interface ZeusLazyComponentMeta {
@@ -211,11 +209,11 @@ export interface ZeusLazyComponentMeta {
   load: () => Promise<ZeusComponentModule | { default: ZeusComponentModule }>
 
   props: ZeusPropMeta[]
-  events?: ZeusEventMeta[]
-  slots?: ZeusSlotMeta[]
 
   /**
-   * 默认建议 true。
+   * 是否渲染到 ShadowRoot。
+   *
+   * @default false
    */
   shadow?: boolean
 }
@@ -232,24 +230,17 @@ export interface HostRef {
 
   values: Map<string, unknown>
 
-  queuedAttrs: Array<{
-    name: string
-    oldValue: string | null
-    newValue: string | null
-  }>
-
   reflectingAttrs: Set<string>
+
+  readyWaiters: Array<{
+    resolve(host: HTMLElement): void
+    reject(error: unknown): void
+  }>
 }
 
 export interface ZeusComponentInstance {
   connected?(): void
   disconnected?(): void
-
-  attributeChanged?(
-    name: string,
-    oldValue: string | null,
-    newValue: string | null,
-  ): void
 
   propertyChanged?(name: string, oldValue: unknown, newValue: unknown): void
 
@@ -298,8 +289,8 @@ export function registerHost(
     connected: false,
     loaded: false,
     values: new Map(),
-    queuedAttrs: [],
     reflectingAttrs: new Set(),
+    readyWaiters: [],
   }
 
   hostRefs.set(host, hostRef)
@@ -395,7 +386,7 @@ export function setPropValue(
 export function syncAttributeToProperty(
   hostRef: HostRef,
   attrName: string,
-  oldValue: string | null,
+  _oldValue: string | null,
   newValue: string | null,
 ): void {
   if (hostRef.reflectingAttrs.has(attrName)) {
@@ -417,16 +408,6 @@ export function syncAttributeToProperty(
     if (hostRef.loaded) {
       hostRef.instance?.propertyChanged?.(prop.name, oldPropValue, newPropValue)
     }
-  }
-
-  if (hostRef.loaded) {
-    hostRef.instance?.attributeChanged?.(attrName, oldValue, newValue)
-  } else {
-    hostRef.queuedAttrs.push({
-      name: attrName,
-      oldValue,
-      newValue,
-    })
   }
 }
 
@@ -451,19 +432,6 @@ export function applyInitialValues(hostRef: HostRef): void {
     if ('default' in prop) {
       hostRef.values.set(prop.name, prop.default)
     }
-  }
-}
-
-export function replayQueuedAttributes(hostRef: HostRef): void {
-  const queuedAttrs = hostRef.queuedAttrs
-  hostRef.queuedAttrs = []
-
-  for (const attr of queuedAttrs) {
-    hostRef.instance?.attributeChanged?.(
-      attr.name,
-      attr.oldValue,
-      attr.newValue,
-    )
   }
 }
 
@@ -536,7 +504,7 @@ function reflectPropertyToAttribute(
 ```ts id="ws4jr9"
 // packages/web-c-runtime/src/lifecycle.ts
 
-import { applyInitialValues, replayQueuedAttributes } from './props'
+import { applyInitialValues } from './props'
 import type { HostRef, ZeusComponentModule } from './types'
 
 const moduleCache = new WeakMap<HostRef['meta'], Promise<ZeusComponentModule>>()
@@ -574,8 +542,6 @@ async function doInitializeComponent(hostRef: HostRef): Promise<void> {
 
   hostRef.instance = instance
   hostRef.loaded = true
-
-  replayQueuedAttributes(hostRef)
 
   instance.connected?.()
 
@@ -755,11 +721,9 @@ export type {
   HostRef,
   ZeusComponentInstance,
   ZeusComponentModule,
-  ZeusEventMeta,
   ZeusLazyComponentMeta,
   ZeusPropMeta,
   ZeusPropType,
-  ZeusSlotMeta,
 } from './types'
 ```
 
@@ -806,16 +770,6 @@ export const components: ZeusLazyComponentMeta[] = [
         default: 'default',
       },
     ],
-    events: [
-      {
-        name: 'press',
-      },
-    ],
-    slots: [
-      {
-        name: 'default',
-      },
-    ],
   },
 ]
 ```
@@ -830,21 +784,7 @@ export const components: ZeusLazyComponentMeta[] = [
 import { bootstrapLazy } from '@zeus-js/web-c-runtime'
 import { components } from './components.manifest.js'
 
-const ZEUS_UI_DEFINE_KEY = Symbol.for('zeus-ui.web-c.defined')
-
-interface ZeusUIDefineState {
-  defined?: boolean
-}
-
-function getGlobalDefineState(): ZeusUIDefineState {
-  const globalObject = globalThis as typeof globalThis & {
-    [ZEUS_UI_DEFINE_KEY]?: ZeusUIDefineState
-  }
-
-  globalObject[ZEUS_UI_DEFINE_KEY] ??= {}
-
-  return globalObject[ZEUS_UI_DEFINE_KEY]
-}
+const definedRegistries = new WeakSet<CustomElementRegistry>()
 
 export interface DefineCustomElementsOptions {
   registry?: CustomElementRegistry
@@ -853,17 +793,17 @@ export interface DefineCustomElementsOptions {
 export function defineCustomElements(
   options: DefineCustomElementsOptions = {},
 ): void {
-  const state = getGlobalDefineState()
+  const registry =
+    options.registry ??
+    (typeof customElements === 'undefined' ? undefined : customElements)
 
-  if (state.defined) {
+  if (!registry || definedRegistries.has(registry)) {
     return
   }
 
-  state.defined = true
+  bootstrapLazy(components, { registry })
 
-  bootstrapLazy(components, {
-    registry: options.registry ?? customElements,
-  })
+  definedRegistries.add(registry)
 }
 
 export const defineLazyElements = defineCustomElements
@@ -1553,21 +1493,7 @@ function generateLoader(): GeneratedFile {
     code: `import { bootstrapLazy } from "@zeus-js/web-c-runtime";
 import { components } from "./components.manifest.js";
 
-const ZEUS_DEFINE_KEY = Symbol.for("zeus.web-c.defined");
-
-interface DefineState {
-  defined?: boolean;
-}
-
-function getDefineState(): DefineState {
-  const globalObject = globalThis as typeof globalThis & {
-    [ZEUS_DEFINE_KEY]?: DefineState;
-  };
-
-  globalObject[ZEUS_DEFINE_KEY] ??= {};
-
-  return globalObject[ZEUS_DEFINE_KEY];
-}
+const definedRegistries = new WeakSet<CustomElementRegistry>();
 
 export interface DefineCustomElementsOptions {
   registry?: CustomElementRegistry;
@@ -1576,17 +1502,17 @@ export interface DefineCustomElementsOptions {
 export function defineCustomElements(
   options: DefineCustomElementsOptions = {},
 ): void {
-  const state = getDefineState();
+  const registry =
+    options.registry ??
+    (typeof customElements === "undefined" ? undefined : customElements);
 
-  if (state.defined) {
+  if (!registry || definedRegistries.has(registry)) {
     return;
   }
 
-  state.defined = true;
+  bootstrapLazy(components, { registry });
 
-  bootstrapLazy(components, {
-    registry: options.registry ?? customElements,
-  });
+  definedRegistries.add(registry);
 }
 
 export const defineLazyElements = defineCustomElements;

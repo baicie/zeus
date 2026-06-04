@@ -18,11 +18,11 @@ describe('generateLazyManifest', () => {
           name: 'ZwButton',
           exportName: 'ZwButton',
           source: 'src/button.tsx',
-          props: {
+          props: {},
+          runtimeProps: {
             disabled: {
               type: 'boolean',
               reflect: true,
-              default: false,
             },
           },
           events: {},
@@ -188,16 +188,15 @@ describe('generateLazyManifest', () => {
           name: 'ZwButton',
           exportName: 'ZwButton',
           source: 'src/button.tsx',
-          props: {
+          props: {},
+          runtimeProps: {
             size: {
               type: 'string',
               reflect: true,
-              default: 'md',
             },
             disabled: {
               type: 'boolean',
               reflect: false,
-              default: false,
             },
           },
           events: {},
@@ -224,7 +223,8 @@ describe('generateLazyManifest', () => {
           name: 'ZwTable',
           exportName: 'ZwTable',
           source: 'src/table.tsx',
-          props: {
+          props: {},
+          runtimeProps: {
             columns: {
               type: 'array',
               attr: false,
@@ -242,6 +242,74 @@ describe('generateLazyManifest', () => {
 
     expect(code).toContain('name: "columns", attrName: false')
     expect(code).not.toContain('attrName: "columns"')
+  })
+
+  it('only emits runtime props into the lazy manifest', () => {
+    const code = generateLazyManifest({
+      components: [
+        {
+          tag: 'z-button',
+          name: 'ZButton',
+          exportName: 'ZButton',
+          source: 'src/button.tsx',
+
+          props: {
+            label: {
+              type: 'string',
+            },
+            disabled: {
+              type: 'boolean',
+            },
+          },
+
+          runtimeProps: {
+            disabled: {
+              type: 'boolean',
+            },
+          },
+
+          events: {},
+          slots: {},
+          hostAttributes: [],
+          cssParts: [],
+          cssVars: [],
+        } as any,
+      ],
+
+      getEntryFileName: tag => `${tag}.entry.js`,
+    })
+
+    expect(code).toContain('name: "disabled"')
+    expect(code).not.toContain('name: "label"')
+  })
+
+  it('falls back to props when runtimeProps is absent', () => {
+    const code = generateLazyManifest({
+      components: [
+        {
+          tag: 'z-button',
+          name: 'ZButton',
+          exportName: 'ZButton',
+          source: 'src/button.tsx',
+
+          props: {
+            disabled: {
+              type: 'boolean',
+            },
+          },
+
+          events: {},
+          slots: {},
+          hostAttributes: [],
+          cssParts: [],
+          cssVars: [],
+        } as any,
+      ],
+
+      getEntryFileName: tag => `${tag}.entry.js`,
+    })
+
+    expect(code).toContain('name: "disabled"')
   })
 
   it('includes events', () => {
@@ -311,18 +379,18 @@ describe('generateLoader', () => {
     expect(code).toContain(
       'export const defineLazyElements = defineCustomElements',
     )
-    expect(code).toContain('bootstrapLazy(components')
+    expect(code).toContain('bootstrapLazy(components, { registry })')
     expect(code).toContain('typeof customElements === "undefined"')
-    expect(code).not.toContain('definedRegistries')
-    expect(code).not.toContain('registry')
+    expect(code).toContain('options.registry')
+    expect(code).toContain('definedRegistries')
   })
 
-  it('dedupes calls via module-level flag', () => {
+  it('dedupes calls per registry', () => {
     const code = generateLoader()
 
-    expect(code).toContain('let defined = false')
-    expect(code).toContain('if (defined)')
-    expect(code).toContain('defined = true')
+    expect(code).toContain('const definedRegistries = new WeakSet()')
+    expect(code).toContain('definedRegistries.has(registry)')
+    expect(code).toContain('definedRegistries.add(registry)')
   })
 })
 

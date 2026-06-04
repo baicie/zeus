@@ -23,12 +23,14 @@ export function analyzeFile(options: AnalyzeFileOptions): AnalyzeFileResult {
     const localPropTypes = collectLocalPropTypes(ast)
 
     for (const call of calls) {
-      for (const message of validateRuntimePropsDefinition(
+      const runtimePropsDiagnostics = validateRuntimePropsDefinition(
         call.options,
         call.call.arguments[1],
-      )) {
+      )
+
+      for (const message of runtimePropsDiagnostics) {
         diagnostics.push({
-          level: 'error',
+          level: 'warning',
           file,
           message: `<${call.tag}> ${message}`,
         })
@@ -61,6 +63,7 @@ export function analyzeFile(options: AnalyzeFileOptions): AnalyzeFileResult {
           file,
           call,
           runtimeProps,
+          runtimePropsDiagnostics,
           typeProps,
           setupMeta,
           inlineMeta,

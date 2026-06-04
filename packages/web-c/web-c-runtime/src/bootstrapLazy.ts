@@ -2,20 +2,27 @@
 
 import { createLazyElementClass } from './lazy-element'
 
-import type { ZeusLazyComponentMeta } from './types'
+import type { BootstrapLazyOptions, ZeusLazyComponentMeta } from './types'
 
-export function bootstrapLazy(components: ZeusLazyComponentMeta[]): void {
-  if (typeof customElements === 'undefined') {
+export function bootstrapLazy(
+  components: ZeusLazyComponentMeta[],
+  options: BootstrapLazyOptions = {},
+): void {
+  const registry =
+    options.registry ??
+    (typeof customElements === 'undefined' ? undefined : customElements)
+
+  if (!registry) {
     return
   }
 
   for (const meta of components) {
-    if (customElements.get(meta.tagName)) {
+    if (registry.get(meta.tagName)) {
       continue
     }
 
     const LazyElement = createLazyElementClass(meta)
 
-    customElements.define(meta.tagName, LazyElement)
+    registry.define(meta.tagName, LazyElement)
   }
 }

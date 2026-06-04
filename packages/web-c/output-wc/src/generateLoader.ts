@@ -5,20 +5,24 @@ export function generateLoader(): string {
   return `import { bootstrapLazy } from "@zeus-js/web-c-runtime";
 import { components } from "./components.manifest.js";
 
-let defined = false;
+const definedRegistries = new WeakSet();
 
-export function defineCustomElements() {
-  if (defined) {
+export function defineCustomElements(options = {}) {
+  const registry =
+    options.registry ??
+    (typeof customElements === "undefined" ? undefined : customElements);
+
+  if (!registry) {
     return;
   }
 
-  if (typeof customElements === "undefined") {
+  if (definedRegistries.has(registry)) {
     return;
   }
 
-  bootstrapLazy(components);
+  bootstrapLazy(components, { registry });
 
-  defined = true;
+  definedRegistries.add(registry);
 }
 
 export const defineLazyElements = defineCustomElements;

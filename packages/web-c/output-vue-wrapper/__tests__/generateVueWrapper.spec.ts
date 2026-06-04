@@ -254,4 +254,40 @@ describe('generateVueWrapper', () => {
     expect(code).toContain('name: "MyTestComponent"')
     expect(code).toContain('export const MyTestComponent = defineComponent')
   })
+
+  it('does not copy Web Component defaults into Vue wrapper props', () => {
+    const code = generateVueWrapper({
+      component: {
+        tag: 'z-button',
+        name: 'ZButton',
+        exportName: 'ZButton',
+        source: 'src/button.tsx',
+
+        props: {
+          config: {
+            type: 'object',
+            default: {
+              size: 'md',
+            },
+          },
+          variant: {
+            type: 'string',
+            default: 'primary',
+          },
+        },
+
+        events: {},
+        slots: {},
+        hostAttributes: [],
+        cssParts: [],
+        cssVars: [],
+      },
+
+      wcModuleId: 'zeus:wc:z-button',
+      mode: 'event-bridge',
+    })
+
+    expect(code).not.toContain('default:')
+    expect(code).toContain('required: false')
+  })
 })

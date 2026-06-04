@@ -200,10 +200,40 @@ describe('analyzeFile', () => {
 
     expect(result.diagnostics).toContainEqual(
       expect.objectContaining({
-        level: 'error',
+        level: 'warning',
         message: expect.stringContaining(
           'props must be an inline object literal',
         ),
+      }),
+    )
+  })
+
+  it('reports an error when defineElement options contain spreads', () => {
+    const result = analyzeFile({
+      file: 'button.tsx',
+      code: `
+        import { defineElement } from '@zeus-js/runtime-dom'
+
+        const baseOptions = {
+          props: {
+            disabled: Boolean,
+          },
+        }
+
+        export const ZButton = defineElement(
+          'z-button',
+          {
+            ...baseOptions,
+          },
+          () => null,
+        )
+      `,
+    })
+
+    expect(result.diagnostics).toContainEqual(
+      expect.objectContaining({
+        level: 'warning',
+        message: expect.stringContaining('options cannot contain spreads'),
       }),
     )
   })
@@ -233,7 +263,7 @@ describe('analyzeFile', () => {
 
     expect(result.diagnostics).toContainEqual(
       expect.objectContaining({
-        level: 'error',
+        level: 'warning',
         message: expect.stringContaining('cannot contain spreads'),
       }),
     )

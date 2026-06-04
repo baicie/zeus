@@ -139,7 +139,7 @@ function mountRenderedOutput(
 }
 
 function getRenderRoot(hostRef: HostRef): ShadowRoot | HTMLElement {
-  if (hostRef.meta.shadow === false) {
+  if (!hostRef.meta.shadow) {
     return hostRef.host
   }
 

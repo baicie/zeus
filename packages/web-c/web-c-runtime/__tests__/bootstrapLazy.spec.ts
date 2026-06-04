@@ -84,6 +84,33 @@ describe('bootstrapLazy', () => {
       })
     }
   })
+
+  it('defines lazy proxy elements in a custom registry', () => {
+    const defined = new Map<string, CustomElementConstructor>()
+    const registry = {
+      get: vi.fn((tagName: string) => defined.get(tagName)),
+      define: vi.fn((tagName: string, ctor: CustomElementConstructor) => {
+        defined.set(tagName, ctor)
+      }),
+    } as unknown as CustomElementRegistry
+    const load = vi.fn()
+
+    bootstrapLazy(
+      [
+        {
+          tagName: 'zw-custom-registry',
+          shadow: false,
+          load,
+          props: [],
+        },
+      ],
+      { registry },
+    )
+
+    expect(registry.get('zw-custom-registry')).toBeTruthy()
+    expect(registry.define).toHaveBeenCalledTimes(1)
+    expect(load).not.toHaveBeenCalled()
+  })
 })
 
 describe('lazy element lifecycle', () => {

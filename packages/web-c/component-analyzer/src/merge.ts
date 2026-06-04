@@ -12,6 +12,7 @@ export interface BuildRecordOptions {
   file: string
   call: DefineElementCallRecord
   runtimeProps: Record<string, ComponentProp>
+  runtimePropsDiagnostics?: string[]
   typeProps: Record<string, Partial<ComponentProp>>
   setupMeta: SetupMeta
   inlineMeta: InlineMeta
@@ -21,8 +22,16 @@ export interface BuildRecordOptions {
 export function buildComponentRecord(
   options: BuildRecordOptions,
 ): ComponentRecord {
-  const { file, call, runtimeProps, typeProps, setupMeta, inlineMeta, shadow } =
-    options
+  const {
+    file,
+    call,
+    runtimeProps,
+    runtimePropsDiagnostics,
+    typeProps,
+    setupMeta,
+    inlineMeta,
+    shadow,
+  } = options
 
   const props = mergeProps(
     runtimeProps,
@@ -56,7 +65,13 @@ export function buildComponentRecord(
     name: call.name,
     exportName: call.exportName,
     source: file,
+
     props,
+    runtimeProps,
+    runtimePropsDiagnostics: runtimePropsDiagnostics?.length
+      ? runtimePropsDiagnostics
+      : undefined,
+
     events,
     slots,
     hostAttributes,

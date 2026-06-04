@@ -62,6 +62,14 @@ export function validateRuntimePropsDefinition(
     return messages
   }
 
+  for (const member of options.properties) {
+    if (!t.isObjectProperty(member) || member.computed) {
+      messages.push(
+        'defineElement() options cannot contain spreads, methods, or computed keys in component output builds.',
+      )
+    }
+  }
+
   const propsNode = getObjectProperty(options, 'props')
 
   if (!propsNode) {

@@ -55,6 +55,7 @@
     "@zeus-js/bundler-plugin": "workspace:*",
     "@zeus-js/component-analyzer": "workspace:*",
     "@zeus-js/component-dts": "workspace:*",
+    "@zeus-js/runtime-dom": "workspace:*",
     "@zeus-js/web-c-runtime": "workspace:*"
   },
   "peerDependencies": {

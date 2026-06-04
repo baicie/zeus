@@ -1,7 +1,10 @@
 // packages/web-c/output-wc/src/generateLazyManifest.ts
 // Generates components.manifest.js for lazy loading mode
 
-import type { ComponentRecord } from '@zeus-js/component-analyzer'
+import type {
+  ComponentProp,
+  ComponentRecord,
+} from '@zeus-js/component-analyzer'
 
 export interface GenerateLazyManifestOptions {
   components: ComponentRecord[]
@@ -16,7 +19,8 @@ export function generateLazyManifest(
 
   const componentEntries = components.map(component => {
     const entryFile = getEntryFileName(component.tag).replace(/\\/g, '/')
-    const props = generatePropsArray(component)
+    const runtimeProps = component.runtimeProps ?? component.props
+    const props = generatePropsArray(runtimeProps)
 
     const importPath = entryFile.startsWith('.')
       ? JSON.stringify(entryFile)
@@ -36,8 +40,8 @@ ${componentEntries.join(',\n')}
 `
 }
 
-function generatePropsArray(component: ComponentRecord): string {
-  const entries = Object.entries(component.props)
+function generatePropsArray(props: Record<string, ComponentProp>): string {
+  const entries = Object.entries(props)
 
   if (entries.length === 0) {
     return '[]'

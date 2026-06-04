@@ -455,6 +455,14 @@ describe('output-wc', () => {
       expect(fileNames).not.toContain('wc/auto.js')
       expect(fileNames).not.toContain('zeus.components.json')
       expect(fileNames).not.toContain('custom-elements.json')
+
+      const loaderDts = result.find(f => f.fileName === 'wc/loader.d.ts')
+      expect(loaderDts?.source).toContain(
+        'export interface DefineCustomElementsOptions',
+      )
+      expect(loaderDts?.source).toContain(
+        'defineCustomElements(options?: DefineCustomElementsOptions): void',
+      )
     })
 
     it('generates default assets even when manifest has no components', () => {

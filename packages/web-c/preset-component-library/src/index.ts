@@ -66,7 +66,12 @@ export type ComponentLibraryTarget = 'wc' | 'react' | 'vue'
 export function componentLibrary(
   options: ComponentLibraryPresetOptions = {},
 ): ZeusComponentPlugin[] {
-  const targets = options.targets ?? ['wc', 'react', 'vue']
+  const targets = new Set(options.targets ?? ['wc', 'react', 'vue'])
+
+  if (targets.has('react') || targets.has('vue')) {
+    targets.add('wc')
+  }
+
   const plugins: ZeusComponentPlugin[] = []
 
   const registerMode = options.register ?? 'lazy'
@@ -78,7 +83,7 @@ export function componentLibrary(
     )
   }
 
-  if (targets.includes('wc')) {
+  if (targets.has('wc')) {
     const wcOptions: OutputWCOptions = {
       register: registerMode,
       dts: options.dts ?? true,
@@ -99,7 +104,7 @@ export function componentLibrary(
     plugins.push(wc(wcOptions))
   }
 
-  if (targets.includes('react')) {
+  if (targets.has('react')) {
     const reactOptions: OutputReactWrapperOptions = {
       dts: options.dts ?? true,
       wrapper: options.wrapper ?? 'minimal',
@@ -107,7 +112,7 @@ export function componentLibrary(
     plugins.push(react(reactOptions))
   }
 
-  if (targets.includes('vue')) {
+  if (targets.has('vue')) {
     const vueOptions: OutputVueWrapperOptions = {
       dts: options.dts ?? true,
       globalDts: options.dts ?? 'auto',

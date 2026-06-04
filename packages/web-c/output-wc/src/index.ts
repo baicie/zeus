@@ -77,6 +77,23 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
     buildStart(ctx) {
       if (!ctx.manifest) return
 
+      if (normalized.register === 'lazy') {
+        for (const component of ctx.manifest.components) {
+          const diagnostics = component.runtimePropsDiagnostics ?? []
+
+          if (diagnostics.length === 0) {
+            continue
+          }
+
+          ctx.error(
+            [
+              `[zeus-output-wc] <${component.tag}> cannot be emitted with register:"lazy" because its runtime props are not statically analyzable.`,
+              ...diagnostics.map(message => `- ${message}`),
+            ].join('\n'),
+          )
+        }
+      }
+
       checkFileNameCollisions(
         ctx.manifest.components,
         {
