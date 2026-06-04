@@ -14,14 +14,14 @@
   "exports": {
     ".": {
       "types": "./dist/compiler.d.ts",
+      "module": "./dist/compiler.esm-bundler.js",
+      "import": "./dist/compiler.esm-bundler.js",
+      "require": "./index.js",
       "node": {
         "production": "./dist/compiler.cjs.prod.js",
         "development": "./dist/compiler.cjs.js",
         "default": "./index.js"
-      },
-      "module": "./dist/compiler.esm-bundler.js",
-      "import": "./dist/compiler.esm-bundler.js",
-      "require": "./index.js"
+      }
     }
   },
   "sideEffects": false,

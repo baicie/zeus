@@ -13,14 +13,14 @@
   "exports": {
     ".": {
       "types": "./dist/output-css.d.ts",
+      "module": "./dist/output-css.esm-bundler.js",
+      "import": "./dist/output-css.esm-bundler.js",
+      "require": "./index.js",
       "node": {
         "production": "./dist/output-css.cjs.prod.js",
         "development": "./dist/output-css.cjs.js",
         "default": "./index.js"
-      },
-      "module": "./dist/output-css.esm-bundler.js",
-      "import": "./dist/output-css.esm-bundler.js",
-      "require": "./index.js"
+      }
     }
   },
   "sideEffects": false,

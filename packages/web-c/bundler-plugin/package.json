@@ -13,14 +13,14 @@
   "exports": {
     ".": {
       "types": "./dist/bundler-plugin.d.ts",
+      "module": "./dist/bundler-plugin.esm-bundler.js",
+      "import": "./dist/bundler-plugin.esm-bundler.js",
+      "require": "./index.js",
       "node": {
         "production": "./dist/bundler-plugin.cjs.prod.js",
         "development": "./dist/bundler-plugin.cjs.js",
         "default": "./index.js"
-      },
-      "module": "./dist/bundler-plugin.esm-bundler.js",
-      "import": "./dist/bundler-plugin.esm-bundler.js",
-      "require": "./index.js"
+      }
     },
     "./vite": {
       "types": "./dist/vite.d.ts",

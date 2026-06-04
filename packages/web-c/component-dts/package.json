@@ -13,14 +13,14 @@
   "exports": {
     ".": {
       "types": "./dist/component-dts.d.ts",
+      "module": "./dist/component-dts.esm-bundler.js",
+      "import": "./dist/component-dts.esm-bundler.js",
+      "require": "./index.js",
       "node": {
         "production": "./dist/component-dts.cjs.prod.js",
         "development": "./dist/component-dts.cjs.js",
         "default": "./index.js"
-      },
-      "module": "./dist/component-dts.esm-bundler.js",
-      "import": "./dist/component-dts.esm-bundler.js",
-      "require": "./index.js"
+      }
     }
   },
   "sideEffects": false,

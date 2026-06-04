@@ -13,14 +13,14 @@
   "exports": {
     ".": {
       "types": "./dist/component-analyzer.d.ts",
+      "module": "./dist/component-analyzer.esm-bundler.js",
+      "import": "./dist/component-analyzer.esm-bundler.js",
+      "require": "./index.js",
       "node": {
         "production": "./dist/component-analyzer.cjs.prod.js",
         "development": "./dist/component-analyzer.cjs.js",
         "default": "./index.js"
-      },
-      "module": "./dist/component-analyzer.esm-bundler.js",
-      "import": "./dist/component-analyzer.esm-bundler.js",
-      "require": "./index.js"
+      }
     }
   },
   "sideEffects": false,

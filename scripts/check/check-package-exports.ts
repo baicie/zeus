@@ -101,15 +101,38 @@ function checkExportValue(
 
   if (!value || typeof value !== 'object') return
 
-  for (const [condition, target] of Object.entries(
-    value as Record<string, unknown>,
-  )) {
+  const conditions = Object.entries(value as Record<string, unknown>)
+  checkConditionOrder(
+    pkgName,
+    key,
+    conditions.map(([condition]) => condition),
+  )
+
+  for (const [condition, target] of conditions) {
     if (typeof target === 'string') {
       checkFile(pkgName, pkgDir, `${key}:${condition}`, target)
     }
 
     if (target && typeof target === 'object') {
       checkExportValue(pkgName, pkgDir, `${key}:${condition}`, target)
+    }
+  }
+}
+
+function checkConditionOrder(
+  pkgName: string,
+  key: string,
+  conditions: string[],
+): void {
+  const nodeIndex = conditions.indexOf('node')
+  if (nodeIndex === -1) return
+
+  for (const condition of ['import', 'require']) {
+    const conditionIndex = conditions.indexOf(condition)
+    if (conditionIndex !== -1 && nodeIndex < conditionIndex) {
+      error(
+        `${pkgName} export "${key}" must place "${condition}" before "node" so public ${condition} resolution does not select the node fallback`,
+      )
     }
   }
 }

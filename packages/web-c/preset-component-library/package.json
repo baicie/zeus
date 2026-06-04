@@ -13,14 +13,14 @@
   "exports": {
     ".": {
       "types": "./dist/preset-component-library.d.ts",
+      "module": "./dist/preset-component-library.esm-bundler.js",
+      "import": "./dist/preset-component-library.esm-bundler.js",
+      "require": "./index.js",
       "node": {
         "production": "./dist/preset-component-library.cjs.prod.js",
         "development": "./dist/preset-component-library.cjs.js",
         "default": "./index.js"
-      },
-      "module": "./dist/preset-component-library.esm-bundler.js",
-      "import": "./dist/preset-component-library.esm-bundler.js",
-      "require": "./index.js"
+      }
     }
   },
   "sideEffects": false,

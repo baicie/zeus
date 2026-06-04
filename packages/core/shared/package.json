@@ -12,14 +12,14 @@
   "exports": {
     ".": {
       "types": "./dist/shared.d.ts",
+      "module": "./dist/shared.esm-bundler.js",
+      "import": "./dist/shared.esm-bundler.js",
+      "require": "./index.js",
       "node": {
         "production": "./dist/shared.cjs.prod.js",
         "development": "./dist/shared.cjs.js",
         "default": "./index.js"
-      },
-      "module": "./dist/shared.esm-bundler.js",
-      "import": "./dist/shared.esm-bundler.js",
-      "require": "./index.js"
+      }
     }
   },
   "sideEffects": false,

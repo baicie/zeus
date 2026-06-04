@@ -14,14 +14,14 @@
   "exports": {
     ".": {
       "types": "./dist/signal.d.ts",
+      "module": "./dist/signal.esm-bundler.js",
+      "import": "./dist/signal.esm-bundler.js",
+      "require": "./index.js",
       "node": {
         "production": "./dist/signal.cjs.prod.js",
         "development": "./dist/signal.cjs.js",
         "default": "./index.js"
-      },
-      "module": "./dist/signal.esm-bundler.js",
-      "import": "./dist/signal.esm-bundler.js",
-      "require": "./index.js"
+      }
     }
   },
   "sideEffects": false,

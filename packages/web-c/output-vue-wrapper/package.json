@@ -13,14 +13,14 @@
   "exports": {
     ".": {
       "types": "./dist/output-vue-wrapper.d.ts",
+      "module": "./dist/output-vue-wrapper.esm-bundler.js",
+      "import": "./dist/output-vue-wrapper.esm-bundler.js",
+      "require": "./index.js",
       "node": {
         "production": "./dist/output-vue-wrapper.cjs.prod.js",
         "development": "./dist/output-vue-wrapper.cjs.js",
         "default": "./index.js"
-      },
-      "module": "./dist/output-vue-wrapper.esm-bundler.js",
-      "import": "./dist/output-vue-wrapper.esm-bundler.js",
-      "require": "./index.js"
+      }
     }
   },
   "sideEffects": false,

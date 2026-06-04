@@ -13,14 +13,14 @@
   "exports": {
     ".": {
       "types": "./dist/output-icons.d.ts",
+      "module": "./dist/output-icons.esm-bundler.js",
+      "import": "./dist/output-icons.esm-bundler.js",
+      "require": "./index.js",
       "node": {
         "production": "./dist/output-icons.cjs.prod.js",
         "development": "./dist/output-icons.cjs.js",
         "default": "./index.js"
-      },
-      "module": "./dist/output-icons.esm-bundler.js",
-      "import": "./dist/output-icons.esm-bundler.js",
-      "require": "./index.js"
+      }
     }
   },
   "sideEffects": false,

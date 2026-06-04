@@ -13,14 +13,14 @@
   "exports": {
     ".": {
       "types": "./dist/output-react-wrapper.d.ts",
+      "module": "./dist/output-react-wrapper.esm-bundler.js",
+      "import": "./dist/output-react-wrapper.esm-bundler.js",
+      "require": "./index.js",
       "node": {
         "production": "./dist/output-react-wrapper.cjs.prod.js",
         "development": "./dist/output-react-wrapper.cjs.js",
         "default": "./index.js"
-      },
-      "module": "./dist/output-react-wrapper.esm-bundler.js",
-      "import": "./dist/output-react-wrapper.esm-bundler.js",
-      "require": "./index.js"
+      }
     }
   },
   "sideEffects": false,
