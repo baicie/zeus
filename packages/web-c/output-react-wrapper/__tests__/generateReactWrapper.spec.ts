@@ -38,7 +38,10 @@ describe('generateReactWrapper', () => {
     })
 
     expect(code).toContain('import "zeus:wc:z-button"')
-    expect(code).toContain('export const ZButton = forwardRef')
+    expect(code).toContain(
+      'export const ZButton = applyRefForwarding(function ZButton',
+    )
+    expect(code).toContain('return forwardRef(Component)')
     expect(code).toContain('useImperativeHandle(ref')
     expect(code).toContain('const innerRef = useRef(null)')
 
@@ -51,7 +54,7 @@ describe('generateReactWrapper', () => {
 
     expect(code).toContain('slotChildren = []')
     expect(code).toContain('slotChildren.push(children)')
-    expect(code).toContain('React.createElement')
+    expect(code).toContain('return createElement(')
 
     expect(code).toContain('createNamedSlot')
 

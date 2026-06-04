@@ -28,11 +28,10 @@ try {
   // non-idempotent output.
   // Untracked files ("??") are never expected.
   const unstaged = status.split('\n').filter(line => {
-    const trimmed = line.trim()
-    if (!trimmed) return false
+    if (!line.trim()) return false
     // Unstaged: " M" (modified in worktree vs staged), "?? " (untracked)
     // Staged: "M " (staged vs HEAD)
-    return trimmed.startsWith(' M') || trimmed.startsWith('??')
+    return line.startsWith(' M') || line.startsWith('??')
   })
 
   if (unstaged.length > 0) {
