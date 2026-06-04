@@ -168,8 +168,100 @@ describe('output-wc', () => {
       expect(ids).not.toContain('zeus:wc:index')
     })
 
+    it('generates lazy compatibility module for framework wrappers', () => {
+      const plugin = wc()
+      const ctx = createMockCtx({
+        version: 1,
+        components: [
+          {
+            tag: 'z-button',
+            name: 'ZButton',
+            exportName: 'ZButton',
+            source: 'src/components/button.tsx',
+            props: {},
+            events: {},
+            slots: {},
+            hostAttributes: [],
+            cssParts: [],
+            cssVars: [],
+          },
+        ],
+      })
+
+      const result = plugin.virtualModules!(ctx as any) as any
+
+      const wrapperBridge = result.find(
+        (module: any) => module.id === 'zeus:wc:z-button',
+      )
+
+      expect(wrapperBridge).toBeTruthy()
+      expect(wrapperBridge.code).toContain(
+        'import { defineCustomElements } from "zeus:wc:loader"',
+      )
+      expect(wrapperBridge.code).toContain('defineCustomElements()')
+      expect(wrapperBridge.code).toContain('export {}')
+    })
+
+    it('emits lazy runtime chunks with js extensions', () => {
+      const plugin = wc()
+      const ctx = createMockCtx({
+        version: 1,
+        components: [
+          {
+            tag: 'z-button',
+            name: 'ZButton',
+            exportName: 'ZButton',
+            source: 'src/components/button.tsx',
+            props: {},
+            events: {},
+            slots: {},
+            hostAttributes: [],
+            cssParts: [],
+            cssVars: [],
+          },
+        ],
+      })
+
+      const result = plugin.virtualModules!(ctx as any) as any
+      const fileNames = result.map((m: any) => m.fileName)
+
+      expect(fileNames).toContain('wc/loader.js')
+      expect(fileNames).toContain('wc/components.manifest.js')
+      expect(fileNames).toContain('wc/auto.js')
+      expect(fileNames).toContain('wc/z-button.entry.js')
+      expect(fileNames).not.toContain('wc/loader.ts')
+      expect(fileNames).not.toContain('wc/components.manifest.ts')
+    })
+
+    it('does not generate lazy compatibility module when loader is disabled', () => {
+      const plugin = wc({ loader: false })
+      const ctx = createMockCtx({
+        version: 1,
+        components: [
+          {
+            tag: 'z-button',
+            name: 'ZButton',
+            exportName: 'ZButton',
+            source: 'src/components/button.tsx',
+            props: {},
+            events: {},
+            slots: {},
+            hostAttributes: [],
+            cssParts: [],
+            cssVars: [],
+          },
+        ],
+      })
+
+      const result = plugin.virtualModules!(ctx as any) as any
+      const ids = result.map((module: any) => module.id)
+
+      expect(ids).not.toContain('zeus:wc:z-button')
+      expect(ids).not.toContain('zeus:wc:loader')
+    })
+
     it('generates only index module when manifest has no components (with index enabled)', () => {
-      const plugin = wc({ register: 'manual' })
+      const plugin = wc({ register: 'side-effect' })
       const ctx = createMockCtx({ version: 1, components: [] })
 
       const result = plugin.virtualModules!(ctx as any) as any
@@ -180,7 +272,7 @@ describe('output-wc', () => {
     })
 
     it('generates one virtual module per component plus index', () => {
-      const plugin = wc({ register: 'manual' })
+      const plugin = wc({ register: 'side-effect' })
       const ctx = createMockCtx({
         version: 1,
         components: [
@@ -212,7 +304,7 @@ describe('output-wc', () => {
     })
 
     it('respects stripPrefix in fileName', () => {
-      const plugin = wc({ register: 'manual', stripPrefix: 'z-' })
+      const plugin = wc({ register: 'side-effect', stripPrefix: 'z-' })
       const ctx = createMockCtx(
         {
           version: 1,
@@ -240,7 +332,10 @@ describe('output-wc', () => {
     })
 
     it('respects custom fileName function', () => {
-      const plugin = wc({ register: 'manual', fileName: tag => `my-${tag}` })
+      const plugin = wc({
+        register: 'side-effect',
+        fileName: tag => `my-${tag}`,
+      })
       const ctx = createMockCtx(
         {
           version: 1,
@@ -268,7 +363,7 @@ describe('output-wc', () => {
     })
 
     it('respects custom outDir', () => {
-      const plugin = wc({ register: 'manual', outDir: 'web-components' })
+      const plugin = wc({ register: 'side-effect', outDir: 'web-components' })
       const ctx = createMockCtx(
         {
           version: 1,
@@ -296,7 +391,7 @@ describe('output-wc', () => {
     })
 
     it('skips index module when index is false', () => {
-      const plugin = wc({ register: 'manual', index: false })
+      const plugin = wc({ register: 'side-effect', index: false })
       const ctx = createMockCtx({
         version: 1,
         components: [
@@ -352,8 +447,8 @@ describe('output-wc', () => {
       expect(fileNames).toContain('wc/loader.d.ts')
       expect(fileNames).toContain('wc/types/jsx.d.ts')
       expect(fileNames).toContain('wc/types/react.d.ts')
-      expect(fileNames).not.toContain('wc/components.manifest.ts')
-      expect(fileNames).not.toContain('wc/loader.ts')
+      expect(fileNames).not.toContain('wc/components.manifest.js')
+      expect(fileNames).not.toContain('wc/loader.js')
       expect(fileNames).not.toContain('wc/auto.js')
       expect(fileNames).not.toContain('zeus.components.json')
       expect(fileNames).not.toContain('custom-elements.json')
@@ -369,13 +464,13 @@ describe('output-wc', () => {
       ) as ZeusOutputAsset[]
       const fileNames = new Set(result.map(f => f.fileName))
 
-      expect(fileNames).not.toContain('wc/loader.ts')
+      expect(fileNames).not.toContain('wc/loader.js')
       expect(fileNames).not.toContain('wc/auto.js')
       expect(fileNames).not.toContain('wc/loader.d.ts')
     })
 
     it('generates default assets even when manifest has no components', () => {
-      const plugin = wc({ register: 'manual' })
+      const plugin = wc({ register: 'side-effect' })
       const ctx = createMockCtx({ version: 1, components: [] })
 
       const result = plugin.generateBundle!(
@@ -392,7 +487,7 @@ describe('output-wc', () => {
     })
 
     it('generates all default assets with components', () => {
-      const plugin = wc({ register: 'manual' })
+      const plugin = wc({ register: 'side-effect' })
       const ctx = createMockCtx({
         version: 1,
         components: [
@@ -433,7 +528,7 @@ describe('output-wc', () => {
     })
 
     it('generates zeus.components.json', () => {
-      const plugin = wc({ register: 'manual' })
+      const plugin = wc({ register: 'side-effect' })
       const ctx = createMockCtx({
         version: 1,
         components: [
@@ -466,7 +561,7 @@ describe('output-wc', () => {
     })
 
     it('generates custom-elements.json', () => {
-      const plugin = wc({ register: 'manual' })
+      const plugin = wc({ register: 'side-effect' })
       const ctx = createMockCtx({
         version: 1,
         components: [
@@ -514,7 +609,7 @@ describe('output-wc', () => {
     })
 
     it('generates index.d.ts with HTMLElementTagNameMap', () => {
-      const plugin = wc({ register: 'manual' })
+      const plugin = wc({ register: 'side-effect' })
       const ctx = createMockCtx({
         version: 1,
         components: [
@@ -547,7 +642,7 @@ describe('output-wc', () => {
     })
 
     it('generates jsx.d.ts with JSX namespace', () => {
-      const plugin = wc({ register: 'manual' })
+      const plugin = wc({ register: 'side-effect' })
       const ctx = createMockCtx({
         version: 1,
         components: [
@@ -577,7 +672,7 @@ describe('output-wc', () => {
     })
 
     it('respects custom outDir', () => {
-      const plugin = wc({ register: 'manual', outDir: 'web-components' })
+      const plugin = wc({ register: 'side-effect', outDir: 'web-components' })
       const ctx = createMockCtx({
         version: 1,
         components: [
@@ -607,7 +702,7 @@ describe('output-wc', () => {
 
     it('skips assets when options are disabled', () => {
       const plugin = wc({
-        register: 'manual',
+        register: 'side-effect',
         manifestFile: false,
         customElementsFile: false,
         dts: false,
@@ -809,7 +904,7 @@ describe('output-wc', () => {
             },
             plugins: [
               wc({
-                register: 'manual',
+                register: 'side-effect',
                 outDir: 'wc',
                 manifestFile: 'zeus.components.json',
                 customElementsFile: 'custom-elements.json',

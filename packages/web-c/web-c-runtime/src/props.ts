@@ -184,6 +184,18 @@ function parseAttributeValue(
     case 'string':
       return value ?? undefined
 
+    case 'object':
+    case 'array':
+      if (value === null) {
+        return undefined
+      }
+
+      try {
+        return JSON.parse(value)
+      } catch {
+        return prop.type === 'array' ? [] : {}
+      }
+
     default:
       return value
   }
@@ -211,6 +223,11 @@ function reflectPropertyToAttribute(
 
     if (value === null || value === undefined || value === false) {
       host.removeAttribute(attrName)
+      return
+    }
+
+    if (prop.type === 'object' || prop.type === 'array') {
+      host.setAttribute(attrName, JSON.stringify(value))
       return
     }
 

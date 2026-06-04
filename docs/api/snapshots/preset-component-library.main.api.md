@@ -11,12 +11,22 @@ export { default as vue } from '@zeus-js/output-vue-wrapper'
 export { default as wc } from '@zeus-js/output-wc'
 import { DtsMode, ZeusComponentPlugin } from '@zeus-js/bundler-plugin'
 
-export type WebCRegisterMode = 'lazy' | 'manual' | 'side-effect'
+export type WebCRegisterMode = 'lazy' | 'side-effect'
 export type WebCWrapperMode = 'minimal' | 'event-bridge'
 export interface ComponentLibraryPresetOptions {
   styles?: string | false
   targets?: ComponentLibraryTarget[]
+  /**
+   * Generate .d.ts declaration files.
+   *
+   * @default true
+   */
   dts?: DtsMode
+  /**
+   * Generate JSX IntrinsicElements d.ts.
+   *
+   * @default true
+   */
   jsxDts?: DtsMode
   manifest?: boolean
   customElements?: boolean
@@ -26,21 +36,18 @@ export interface ComponentLibraryPresetOptions {
    *   Registers lightweight ProxyClass on startup; loads real component
    *   entry only on element connectedCallback.
    *
-   * manual:
-   *   Only generates manual define API.
-   *
    * side-effect:
    *   Immediately registers full components on import.
    */
   register?: WebCRegisterMode
   /**
-   * Whether to generate the components.manifest.ts file (lazy mode).
+   * Whether to generate the components.manifest.js file (lazy mode).
    *
    * @default true
    */
   manifestFile?: boolean
   /**
-   * Whether to generate the loader.ts file (lazy mode).
+   * Whether to generate the loader.js file (lazy mode).
    *
    * @default true
    */

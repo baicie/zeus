@@ -20,8 +20,8 @@ export default function vueWrapper(
     outDir: options.outDir ?? 'vue',
     stripPrefix: options.stripPrefix ?? false,
     fileName: options.fileName,
-    dts: options.dts ?? 'auto',
-    globalDts: options.globalDts ?? 'auto',
+    dts: options.dts ?? true,
+    globalDts: options.globalDts ?? true,
     index: options.index ?? true,
     wrapper: options.wrapper ?? 'minimal',
   }

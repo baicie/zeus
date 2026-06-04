@@ -1,5 +1,5 @@
 // packages/web-c/output-wc/src/generateLazyEntry.ts
-// Generates *.entry.ts for lazy loading mode (real component implementation)
+// Generates *.entry.js for lazy loading mode (real component implementation)
 
 import { normalizePath } from './imports'
 

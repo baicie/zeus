@@ -7,7 +7,7 @@
 ```ts
 import { DtsMode, ZeusComponentPlugin } from '@zeus-js/bundler-plugin'
 
-type WebCRegisterMode = 'lazy' | 'manual' | 'side-effect'
+type WebCRegisterMode = 'lazy' | 'side-effect'
 export interface OutputWCOptions {
   /**
    * Web Component output directory.
@@ -70,28 +70,25 @@ export interface OutputWCOptions {
    *   On startup, registers lightweight ProxyClass; loads real component entry
    *   only when the element is connected to the DOM.
    *
-   * manual:
-   *   Only generates manual define API.
-   *
    * side-effect:
    *   Immediately registers full components on import.
    *   Compatible with legacy behavior; not recommended as default.
    */
   register?: WebCRegisterMode
   /**
-   * Whether to generate the components.manifest.ts file (lazy mode).
+   * Whether to generate the components.manifest.js file (lazy mode).
    *
    * @default true
    */
   manifest?: boolean
   /**
-   * Whether to generate the loader.ts file (lazy mode).
+   * Whether to generate the loader.js file (lazy mode).
    *
    * @default true
    */
   loader?: boolean
   /**
-   * Whether to generate the auto.ts file (lazy mode).
+   * Whether to generate the auto.js entry (lazy mode).
    *
    * @default true
    */

@@ -8,13 +8,25 @@ import type { OutputReactWrapperOptions } from '@zeus-js/output-react-wrapper'
 import type { OutputVueWrapperOptions } from '@zeus-js/output-vue-wrapper'
 import type { OutputWCOptions } from '@zeus-js/output-wc'
 
-export type WebCRegisterMode = 'lazy' | 'manual' | 'side-effect'
+export type WebCRegisterMode = 'lazy' | 'side-effect'
 export type WebCWrapperMode = 'minimal' | 'event-bridge'
 
 export interface ComponentLibraryPresetOptions {
   styles?: string | false
   targets?: ComponentLibraryTarget[]
+
+  /**
+   * Generate .d.ts declaration files.
+   *
+   * @default true
+   */
   dts?: DtsMode
+
+  /**
+   * Generate JSX IntrinsicElements d.ts.
+   *
+   * @default true
+   */
   jsxDts?: DtsMode
   manifest?: boolean
   customElements?: boolean
@@ -25,23 +37,20 @@ export interface ComponentLibraryPresetOptions {
    *   Registers lightweight ProxyClass on startup; loads real component
    *   entry only on element connectedCallback.
    *
-   * manual:
-   *   Only generates manual define API.
-   *
    * side-effect:
    *   Immediately registers full components on import.
    */
   register?: WebCRegisterMode
 
   /**
-   * Whether to generate the components.manifest.ts file (lazy mode).
+   * Whether to generate the components.manifest.js file (lazy mode).
    *
    * @default true
    */
   manifestFile?: boolean
 
   /**
-   * Whether to generate the loader.ts file (lazy mode).
+   * Whether to generate the loader.js file (lazy mode).
    *
    * @default true
    */
@@ -86,8 +95,8 @@ export function componentLibrary(
   if (targets.includes('wc')) {
     const wcOptions: OutputWCOptions = {
       register: registerMode,
-      dts: options.dts ?? 'auto',
-      jsxDts: options.jsxDts ?? 'auto',
+      dts: options.dts ?? true,
+      jsxDts: options.jsxDts ?? true,
       manifestFile: isLazy
         ? false
         : options.manifest !== false
@@ -108,7 +117,7 @@ export function componentLibrary(
 
   if (targets.includes('react')) {
     const reactOptions: OutputReactWrapperOptions = {
-      dts: options.dts ?? 'auto',
+      dts: options.dts ?? true,
       wrapper: options.wrapper ?? 'minimal',
     }
     plugins.push(react(reactOptions))
@@ -116,7 +125,7 @@ export function componentLibrary(
 
   if (targets.includes('vue')) {
     const vueOptions: OutputVueWrapperOptions = {
-      dts: options.dts ?? 'auto',
+      dts: options.dts ?? true,
       globalDts: options.dts ?? 'auto',
       wrapper: options.wrapper ?? 'minimal',
     }

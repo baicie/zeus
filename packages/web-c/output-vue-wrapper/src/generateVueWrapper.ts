@@ -17,25 +17,75 @@ export function generateVueWrapper(input: GenerateVueWrapperOptions): string {
 }
 
 function generateMinimalVueWrapper(input: GenerateVueWrapperOptions): string {
-  const { component } = input
+  const { component, wcModuleId } = input
+
+  const slotNames = Object.keys(component.slots).filter(
+    name => name !== 'default',
+  )
+
+  const hasNamedSlots = slotNames.length > 0
+
+  const vueImports = hasNamedSlots
+    ? `cloneVNode, defineComponent, h`
+    : `defineComponent, h`
+
+  const namedSlotBlock = hasNamedSlots
+    ? `
+      for (const name of NAMED_SLOTS) {
+        const slot = slots[name];
+        if (!slot) continue;
+
+        for (const vnode of slot()) {
+          children.push(withSlot(name, vnode));
+        }
+      }
+`
+    : ''
+
+  const withSlotHelper = hasNamedSlots
+    ? `
+function withSlot(name, vnode) {
+  if (!vnode) return vnode;
+
+  if (typeof vnode === 'string') {
+    return h('span', { slot: name, style: 'display: contents' }, vnode);
+  }
+
+  return cloneVNode(vnode, { slot: name });
+}
+`
+    : ''
 
   return `
-import { defineComponent, h } from 'vue';
+import { ${vueImports} } from 'vue';
+
+import ${JSON.stringify(wcModuleId)};
+
+const NAMED_SLOTS = ${JSON.stringify(slotNames)};
 
 export const ${component.name} = defineComponent({
   name: ${JSON.stringify(component.name)},
   inheritAttrs: false,
+
   setup(_props, { attrs, slots }) {
-    return () =>
-      h(
+    return () => {
+      const children = [];
+
+      if (slots.default) {
+        children.push(...slots.default());
+      }
+${namedSlotBlock}
+      return h(
         ${JSON.stringify(component.tag)},
         {
           ...attrs,
         },
-        slots.default?.(),
+        children,
       );
+    };
   },
 });
+${withSlotHelper}
 `.trimStart()
 }
 

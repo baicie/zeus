@@ -28,13 +28,13 @@ export interface OutputVueWrapperOptions {
   /**
    * Generate vue/index.d.ts.
    *
-   * @default 'auto'
+   * @default true
    */
   dts?: DtsMode
   /**
    * Generate vue/global.d.ts.
    *
-   * @default 'auto'
+   * @default true
    */
   globalDts?: DtsMode
   /**

@@ -20,7 +20,7 @@ export default function reactWrapper(
     outDir: options.outDir ?? 'react',
     stripPrefix: options.stripPrefix ?? false,
     fileName: options.fileName,
-    dts: options.dts ?? 'auto',
+    dts: options.dts ?? true,
     index: options.index ?? true,
     namedSlots: options.namedSlots ?? 'props',
     wrapper: options.wrapper ?? 'minimal',

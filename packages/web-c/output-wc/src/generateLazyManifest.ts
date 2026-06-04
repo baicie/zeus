@@ -1,5 +1,5 @@
 // packages/web-c/output-wc/src/generateLazyManifest.ts
-// Generates components.manifest.ts for lazy loading mode
+// Generates components.manifest.js for lazy loading mode
 
 import type { ComponentRecord } from '@zeus-js/component-analyzer'
 

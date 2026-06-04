@@ -25,7 +25,7 @@ export interface OutputReactWrapperOptions {
   /**
    * Generate react/index.d.ts.
    *
-   * @default 'auto'
+   * @default true
    */
   dts?: DtsMode
 

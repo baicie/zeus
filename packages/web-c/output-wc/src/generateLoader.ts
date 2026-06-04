@@ -1,5 +1,5 @@
 // packages/web-c/output-wc/src/generateLoader.ts
-// Generates loader.ts for lazy loading mode
+// Generates loader.js for lazy loading mode
 
 export function generateLoader(): string {
   return `import { bootstrapLazy } from "@zeus-js/web-c-runtime";

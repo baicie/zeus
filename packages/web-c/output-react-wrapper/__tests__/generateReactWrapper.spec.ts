@@ -38,13 +38,50 @@ describe('generateReactWrapper', () => {
       mode: 'minimal',
     })
 
-    expect(code).not.toContain('import "zeus:wc:z-button"')
+    // minimal wrapper imports wcModuleId to bootstrap Proxy Elements
+    expect(code).toContain('import "zeus:wc:z-button"')
     expect(code).toContain('export const ZButton = React.forwardRef')
     expect(code).not.toContain('useImperativeHandle')
     expect(code).not.toContain('useRef')
     expect(code).not.toContain('el.variant = variant')
     expect(code).not.toContain('addEventListener')
     expect(code).toContain('React.createElement')
+  })
+
+  it('passes component props through ...rest in minimal mode', () => {
+    const code = generateReactWrapper({
+      component: {
+        tag: 'z-button',
+        name: 'ZButton',
+        exportName: 'ZButton',
+        source: 'src/button.tsx',
+        props: {
+          variant: {
+            type: 'string',
+            values: ['default', 'outline'],
+          },
+          disabled: {
+            type: 'boolean',
+          },
+        },
+        events: {},
+        slots: {
+          default: {},
+        },
+        hostAttributes: [],
+        cssParts: [],
+        cssVars: [],
+      },
+      namedSlots: 'props',
+      wcModuleId: 'zeus:wc:z-button',
+      mode: 'minimal',
+    })
+
+    // All component props stay in ...rest, not destructured
+    expect(code).toContain('...rest')
+    expect(code).not.toContain('variant,')
+    expect(code).not.toContain('disabled,')
+    expect(code).toContain('import "zeus:wc:z-button"')
   })
 
   it('generates event-bridge React wrapper code', () => {

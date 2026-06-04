@@ -376,6 +376,69 @@ describe('lazy element lifecycle', () => {
     expect(receivedValue).toBe('md')
   })
 
+  it('parses object and array attributes from attribute string', async () => {
+    let receivedValue: unknown
+
+    const load = vi.fn().mockResolvedValue({
+      createComponent(hostRef: HostRef) {
+        return {
+          connected() {
+            receivedValue = hostRef.values.get('items')
+          },
+          render: vi.fn(),
+        }
+      },
+    })
+
+    bootstrapLazy([
+      {
+        tagName: 'zw-json-props',
+        shadow: false,
+        load,
+        props: [
+          {
+            name: 'items',
+            type: 'array',
+          },
+        ],
+      },
+    ])
+
+    const el = document.createElement('zw-json-props') as ZeusLazyElement & {
+      items: Array<{ id: number }>
+    }
+    el.setAttribute('items', '[{"id":1}]')
+    document.body.appendChild(el)
+
+    await (el as ZeusLazyElement).componentOnReady()
+
+    expect(receivedValue).toEqual([{ id: 1 }])
+  })
+
+  it('reflects object and array properties back as JSON strings', () => {
+    bootstrapLazy([
+      {
+        tagName: 'zw-reflect-object',
+        shadow: false,
+        load: vi.fn(),
+        props: [
+          {
+            name: 'config',
+            type: 'object',
+            reflect: true,
+          },
+        ],
+      },
+    ])
+
+    const el = document.createElement('zw-reflect-object') as HTMLElement & {
+      config: Record<string, unknown>
+    }
+    el.config = { theme: 'dark' }
+
+    expect(el.getAttribute('config')).toBe('{"theme":"dark"}')
+  })
+
   it('does not observe property-only props', () => {
     bootstrapLazy([
       {

@@ -130,7 +130,8 @@ describe('generateVueWrapper', () => {
       wcModuleId: 'zeus:wc:z-button',
     })
 
-    expect(code).not.toContain('import "zeus:wc:z-button"')
+    // minimal wrapper imports wcModuleId to bootstrap Proxy Elements
+    expect(code).toContain('import "zeus:wc:z-button"')
     expect(code).not.toContain('el.variant = props.variant')
     expect(code).not.toContain('watch(')
     expect(code).not.toContain('onMounted(')
@@ -138,6 +139,38 @@ describe('generateVueWrapper', () => {
     expect(code).toContain('export const ZButton = defineComponent')
     expect(code).toContain('inheritAttrs: false')
     expect(code).toContain('slots.default')
+  })
+
+  it('handles component with named slots in minimal Vue mode', () => {
+    const code = generateVueWrapper({
+      component: {
+        tag: 'z-card',
+        name: 'ZCard',
+        exportName: 'ZCard',
+        source: 'src/card.tsx',
+        props: {},
+        events: {},
+        slots: {
+          default: {},
+          header: {},
+          footer: {},
+        },
+        hostAttributes: [],
+        cssParts: [],
+        cssVars: [],
+      },
+      wcModuleId: 'zeus:wc:z-card',
+    })
+
+    expect(code).toContain('NAMED_SLOTS')
+    expect(code).toContain('"header"')
+    expect(code).toContain('"footer"')
+    expect(code).toContain('cloneVNode')
+    expect(code).toContain('slot: name')
+    expect(code).toContain('slots[name]')
+    expect(code).toContain('display: contents')
+    expect(code).not.toContain('watch(')
+    expect(code).not.toContain('onMounted(')
   })
 
   it('emits component name as name option', () => {

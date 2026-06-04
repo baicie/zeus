@@ -46,8 +46,8 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
       registerMode === 'lazy'
         ? false
         : (options.customElementsFile ?? 'custom-elements.json'),
-    dts: options.dts ?? 'auto',
-    jsxDts: options.jsxDts ?? 'auto',
+    dts: options.dts ?? true,
+    jsxDts: options.jsxDts ?? true,
     index: options.index ?? true,
     warnOnFileNameCollision: options.warnOnFileNameCollision ?? true,
     register: registerMode,
@@ -105,7 +105,7 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
         if (normalized.manifest) {
           modules.push({
             id: 'zeus:wc:components.manifest',
-            fileName: joinPath('components.manifest.ts'),
+            fileName: joinPath('components.manifest.js'),
             code: generateLazyManifest({
               components: ctx.manifest.components,
               getEntryFileName: tag => `${normalized.entryFileName(tag)}.js`,
@@ -116,7 +116,7 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
         if (normalized.manifest && normalized.loader) {
           modules.push({
             id: 'zeus:wc:loader',
-            fileName: joinPath('loader.ts'),
+            fileName: joinPath('loader.js'),
             code: generateLoader(),
           })
         }
@@ -132,6 +132,25 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
 
       for (const component of ctx.manifest.components) {
         if (isLazy) {
+          /**
+           * Compatibility module consumed by Vue / React wrappers.
+           *
+           * It only registers lazy Proxy Elements.
+           * It does not import the real component implementation.
+           */
+          if (normalized.manifest && normalized.loader) {
+            modules.push({
+              id: getVirtualComponentId(component),
+              code: `
+import { defineCustomElements } from "zeus:wc:loader";
+
+defineCustomElements();
+
+export {};
+`.trimStart(),
+            })
+          }
+
           const entryFileName = normalized.entryFileName(component.tag) + '.js'
           const fileName = joinPath(entryFileName)
           modules.push({

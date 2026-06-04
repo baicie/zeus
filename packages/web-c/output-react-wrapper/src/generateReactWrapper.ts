@@ -24,14 +24,11 @@ export function generateReactWrapper(
 function generateMinimalReactWrapper(
   input: GenerateReactWrapperOptions,
 ): string {
-  const { component, namedSlots } = input
+  const { component, namedSlots, wcModuleId } = input
 
-  const propNames = Object.keys(component.props)
   const slotNames = getNamedSlots(component, namedSlots)
-
-  const destructuredPropNames = [...propNames, ...slotNames]
-  const destructuredProps = destructuredPropNames.length
-    ? `${destructuredPropNames.join(',\n    ')},`
+  const slotDestructure = slotNames.length
+    ? `\n    ${slotNames.join(',\n    ')},`
     : ''
 
   const namedSlotLines = generateMinimalNamedSlots(slotNames)
@@ -39,15 +36,18 @@ function generateMinimalReactWrapper(
   return `
 import * as React from 'react';
 
+import ${JSON.stringify(wcModuleId)};
+
 export const ${component.name} = React.forwardRef(
-  function ${component.name}({ children, className, style, ${destructuredProps} ...rest } = {}, ref) {
+  function ${component.name}({
+    children,${slotDestructure}
+    ...rest
+  } = {}, ref) {
 ${namedSlotLines}
     return React.createElement(
       ${JSON.stringify(component.tag)},
       {
         ...rest,
-        className,
-        style,
         ref,
       },
 ${namedSlotLines ? '      ...slotNodes,\n' : ''}      children,
