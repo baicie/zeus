@@ -1,7 +1,6 @@
 import { execSync } from 'node:child_process'
 
-// Guard against running in a detached HEAD state (e.g. in a shallow clone
-// used for building only) where `git diff` would fail.
+// Guard against running outside a git work tree.
 try {
   execSync('git rev-parse --is-inside-work-tree', {
     stdio: 'pipe',
@@ -13,28 +12,32 @@ try {
 }
 
 try {
-  execSync('pnpm api:snapshot', { stdio: 'inherit' })
+  execSync('pnpm api:snapshot', {
+    stdio: 'inherit',
+  })
 
-  const status = execSync('git status --porcelain -- docs/api/snapshots', {
+  // Compare the working tree against the index.
+  //
+  // This intentionally allows staged-only snapshot changes during local
+  // development, but fails on any newly generated unstaged modification,
+  // deletion, rename, or type change.
+  const unstagedFiles = execSync('git diff --name-only -- docs/api/snapshots', {
     encoding: 'utf-8',
-  })
+  }).trim()
 
-  // Only fail on unstaged changes (working tree differs from staged/index).
-  // Staged changes ("M " with leading space) represent snapshots that have been
-  // updated and staged but not yet committed — this is the expected state after
-  // running api:snapshot during development.
-  // Unstaged changes (" M" with trailing space) represent snapshots that were
-  // modified but not staged — this would indicate api:snapshot is producing
-  // non-idempotent output.
-  // Untracked files ("??") are never expected.
-  const unstaged = status.split('\n').filter(line => {
-    if (!line.trim()) return false
-    // Unstaged: " M" (modified in worktree vs staged), "?? " (untracked)
-    // Staged: "M " (staged vs HEAD)
-    return line.startsWith(' M') || line.startsWith('??')
-  })
+  // `git diff` does not include untracked files, so check them separately.
+  const untrackedFiles = execSync(
+    'git ls-files --others --exclude-standard -- docs/api/snapshots',
+    {
+      encoding: 'utf-8',
+    },
+  ).trim()
 
-  if (unstaged.length > 0) {
+  if (unstagedFiles || untrackedFiles) {
+    const status = execSync('git status --porcelain -- docs/api/snapshots', {
+      encoding: 'utf-8',
+    })
+
     console.error('\nPublic API snapshot changed (unstaged).\n')
     console.error(
       'If this is intentional, commit updated docs/api/snapshots files.',
