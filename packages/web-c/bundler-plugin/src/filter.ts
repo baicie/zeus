@@ -33,3 +33,7 @@ export function createFilter(options: CreateFilterOptions = {}) {
 export function cleanUrl(id: string): string {
   return id.replace(/[?#].*$/, '')
 }
+
+export function isTypeScriptLike(id: string): boolean {
+  return /\.[cm]?tsx?$/.test(cleanUrl(id))
+}

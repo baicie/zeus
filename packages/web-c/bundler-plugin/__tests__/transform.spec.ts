@@ -186,6 +186,21 @@ describe('transformZeus', () => {
     expect(result?.code).not.toContain(': ButtonProps')
   })
 
+  it('strips TypeScript syntax from queried TSX ids', async () => {
+    const result = await transformZeus({
+      id: '/project/src/App.tsx?component',
+      code: `
+        export function App(props: { label: string }) {
+          return <div>{props.label}</div>
+        }
+      `,
+      transpile: true,
+    })
+
+    expect(result?.code).toBeTruthy()
+    expect(result?.code).not.toContain(': string')
+  })
+
   it('keeps TypeScript syntax when transpile is false', async () => {
     const result = await transformZeus({
       id: '/project/src/Button.tsx',

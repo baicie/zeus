@@ -63,4 +63,21 @@ describe('rollup adapter', () => {
     expect(code).not.toContain(': ButtonProps')
     expect(code).not.toContain(': string')
   })
+
+  it('resolves absolute extensionless TypeScript imports', async () => {
+    const plugin = zeus({
+      root,
+    })
+    const resolveId = plugin.resolveId as (
+      id: string,
+      importer?: string,
+    ) => string | null
+
+    const resolved = resolveId(
+      path.join(root, 'src/Button'),
+      path.join(root, 'src/index.ts'),
+    )
+
+    expect(resolved).toBe(path.join(root, 'src/Button.tsx'))
+  })
 })

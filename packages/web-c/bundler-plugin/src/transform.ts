@@ -4,6 +4,8 @@ import { transformAsync } from '@babel/core'
 import presetTypeScript from '@babel/preset-typescript'
 import zeusCompiler from '@zeus-js/compiler'
 
+import { isTypeScriptLike } from './filter'
+
 import type { CompilerOptions } from '@zeus-js/compiler'
 
 export interface TransformZeusOptions {
@@ -17,8 +19,8 @@ export interface TransformZeusOptions {
 export async function transformZeus(options: TransformZeusOptions) {
   const { id, code, compiler, sourcemap = true, transpile = false } = options
 
-  const isTs = /\.[cm]?tsx?$/.test(id)
-  const isTsx = /\.[cm]?tsx$/.test(id)
+  const isTs = isTypeScriptLike(id)
+  const isTsx = /\.[cm]?tsx$/.test(id.replace(/[?#].*$/, ''))
 
   const shouldRunCompiler = compiler !== false
   const shouldStripTs = transpile && isTs

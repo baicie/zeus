@@ -8,6 +8,7 @@ import { createComponentTransformFilter } from './componentTransformFilter'
 import { resolveComponentExclude, resolveComponentInclude } from './defaults'
 import { formatDiagnostic, hasErrorDiagnostics } from './diagnostics'
 import { resolveDts } from './dts'
+import { isTypeScriptLike } from './filter'
 import { createOutputRegistry } from './outputRegistry'
 import { transformZeus } from './transform'
 import { VirtualModuleRegistry } from './virtual'
@@ -166,7 +167,7 @@ export function createZeusBundlerPlugin(
     async transform(code: string, id: string) {
       const shouldRunZeus = shouldTransform(id)
       const shouldStripTs =
-        resolveTranspile(options.transpile, target) && /\.[cm]?tsx?$/.test(id)
+        resolveTranspile(options.transpile, target) && isTypeScriptLike(id)
 
       if (!shouldRunZeus && !shouldStripTs) {
         return null
@@ -291,8 +292,8 @@ function resolveTsLikeImport(
     '.cjs',
   ]
 
-  const base = id.startsWith('/')
-    ? path.resolve(options.root, `.${id}`)
+  const base = path.isAbsolute(id)
+    ? id
     : path.resolve(path.dirname(importer), id)
 
   const candidates = [
