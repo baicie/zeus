@@ -2,28 +2,28 @@ import { createZeusBundlerPlugin } from './core'
 import { collectPluginExternals, mergeExternal } from './external'
 
 import type { RollupExternalOption, ZeusBundlerPluginOptions } from './types'
-import type { Plugin, RollupOptions } from 'rollup'
+import type { Plugin, RolldownOptions } from 'rolldown'
 
 export default function zeus(options: ZeusBundlerPluginOptions = {}): Plugin {
   return createZeusBundlerPlugin(options, {
-    target: 'rollup',
-  }) as Plugin
+    target: 'rolldown',
+  }) as unknown as Plugin
 }
 
 export { zeus }
 
-export interface ZeusRollupConfigOptions extends Omit<
-  RollupOptions,
+export interface ZeusRolldownConfigOptions extends Omit<
+  RolldownOptions,
   'plugins'
 > {
   zeus?: ZeusBundlerPluginOptions
 
-  plugins?: RollupOptions['plugins']
+  plugins?: RolldownOptions['plugins']
 }
 
-export function defineZeusRollupConfig(
-  config: ZeusRollupConfigOptions = {},
-): RollupOptions {
+export function defineZeusRolldownConfig(
+  config: ZeusRolldownConfigOptions = {},
+): RolldownOptions {
   const {
     zeus: zeusOptions = {},
     plugins,
@@ -40,23 +40,23 @@ export function defineZeusRollupConfig(
     ...rest,
 
     external: pluginExternals.length
-      ? mergeExternal(
+      ? (mergeExternal(
           external as RollupExternalOption | undefined,
           pluginExternals,
-        )
+        ) as RolldownOptions['external'])
       : external,
 
     plugins: [zeus(zeusOptions), ...normalizePlugins(plugins)],
 
     output: output ?? {
       dir: 'dist',
-      format: 'es',
+      format: 'esm',
       sourcemap: true,
     },
   }
 }
 
-function normalizePlugins(plugins: RollupOptions['plugins']): Plugin[] {
+function normalizePlugins(plugins: RolldownOptions['plugins']): Plugin[] {
   if (!plugins) return []
 
   return Array.isArray(plugins)

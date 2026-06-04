@@ -10,10 +10,18 @@ import {
   ComponentManifest,
   AnalyzerDiagnostic,
 } from '@zeus-js/component-analyzer'
-import { ExternalOption, PluginContext, OutputBundle, Plugin } from 'rollup'
+import { Plugin } from 'rollup'
 
 type MaybePromise<T> = T | Promise<T>
-export type RollupExternalOption = ExternalOption
+export type RollupExternalOption =
+  | string
+  | RegExp
+  | Array<string | RegExp>
+  | ((
+      source: string,
+      importer: string | undefined,
+      isResolved: boolean,
+    ) => boolean)
 type RootOption = string | (() => string)
 export type ZeusOutputKind =
   | 'wc'
@@ -42,14 +50,15 @@ export interface ZeusBuildContext {
   diagnostics: AnalyzerDiagnostic[]
   dts: ResolvedDts
   outputs: ZeusOutputRegistry
-  emitFile: PluginContext['emitFile']
-  warn: PluginContext['warn']
-  error: PluginContext['error']
-  addWatchFile: PluginContext['addWatchFile']
+  emitFile: (file: unknown) => string | void
+  warn: (message: string | Error) => void
+  error: (message: string | Error) => never
+  addWatchFile: (id: string) => void
   meta: {
     watchMode: boolean
   }
 }
+type ZeusOutputBundle = Record<string, unknown>
 export interface ZeusOutputRegistry {
   register(kind: ZeusOutputKind, options: ZeusOutputRegistration): void
   has(kind: ZeusOutputKind): boolean
@@ -98,10 +107,13 @@ export interface ZeusComponentPlugin {
   ): MaybePromise<ZeusVirtualModule[] | void>
   generateBundle?(
     ctx: ZeusBuildContext,
-    bundle: OutputBundle,
+    bundle: ZeusOutputBundle,
   ): MaybePromise<ZeusOutputFile[] | void>
   /**
-   * Vite adapter can use this to auto externalize framework deps.
+   * Framework dependencies that bundler config helpers should externalize.
+   *
+   * Used by the Vite adapter, defineZeusRollupConfig(), and
+   * defineZeusRolldownConfig().
    */
   external?: string[]
 }
@@ -119,6 +131,16 @@ export interface ZeusBundlerPluginOptions {
    * See DEFAULT_COMPONENT_INCLUDE and DEFAULT_COMPONENT_EXCLUDE in defaults.ts.
    */
   components?: {
+    include?: string[]
+    exclude?: string[]
+  }
+  /**
+   * Zeus JSX compile transform filter.
+   *
+   * This is intentionally separate from `components`: files can be excluded
+   * from component analysis / manifest generation while still compiling JSX.
+   */
+  transform?: {
     include?: string[]
     exclude?: string[]
   }
@@ -142,11 +164,25 @@ export interface ZeusBundlerPluginOptions {
    * Component-host plugins.
    */
   plugins?: ZeusComponentPlugin[]
+  /**
+   * Enable TypeScript transpilation via Babel preset-typescript.
+   *
+   * @default
+   * - rollup: true
+   * - rolldown: false
+   * - vite: false
+   */
+  transpile?: boolean
+  /**
+   * Rollup adapter only. Additional extensions to try when resolving imports.
+   * Set to `false` to disable extension resolution.
+   *
+   * @default ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs']
+   */
+  resolveExtensions?: string[] | false
 }
 
-export declare function createZeusPlugin(
-  options?: ZeusBundlerPluginOptions,
-): Plugin
+export declare function zeus(options?: ZeusBundlerPluginOptions): Plugin
 
 export declare function createOutputRegistry(): ZeusOutputRegistry
 
@@ -163,5 +199,5 @@ export declare function mergeExternal(
   pluginExternal: string[],
 ): RollupExternalOption
 
-export { createZeusPlugin as default, createZeusPlugin as zeus }
+export { zeus as default }
 ```

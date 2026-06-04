@@ -1,8 +1,4 @@
-export {
-  createZeusPlugin,
-  createZeusPlugin as zeus,
-  createZeusPlugin as default,
-} from './rollup'
+export { default, zeus } from './rollup'
 
 export { createOutputRegistry } from './outputRegistry'
 
@@ -10,7 +6,7 @@ export { resolveComponentInclude, resolveComponentExclude } from './defaults'
 
 export { resolvePluginDts } from './pluginOptions'
 
-export { mergeExternal } from './vite'
+export { mergeExternal } from './external'
 
 export type {
   DtsMode,

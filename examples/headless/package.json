@@ -5,7 +5,10 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "build": "vite build",
+    "build": "rollup --config",
+    "build:rollup": "rollup --config rollup.config.mjs",
+    "build:rolldown": "rolldown --config rolldown.config.mjs",
+    "build:vite": "vite build",
     "check": "tsc --noEmit"
   },
   "files": [
@@ -78,6 +81,8 @@
     "@zeus-js/output-react-wrapper": "workspace:*",
     "@zeus-js/output-vue-wrapper": "workspace:*",
     "@zeus-js/vite-plugin": "workspace:*",
+    "@rollup/plugin-node-resolve": "^16.0.0",
+    "rollup": "^4.0.0",
     "typescript": "^6.0.3",
     "vite": "^8.0.16",
     "@vitejs/plugin-react": "^6.0.2",

@@ -24,8 +24,12 @@ export function generateReactWrapper(
     : ''
 
   return `
-import React, {
+import {
+  createElement,
+  cloneElement,
+  Fragment,
   forwardRef,
+  isValidElement,
   useEffect,
   useImperativeHandle,
   useRef,
@@ -62,7 +66,7 @@ export const ${component.name} = forwardRef(function ${component.name}(props, re
     slotChildren.push(children);
   }
 
-  return React.createElement(
+  return createElement(
     ${JSON.stringify(component.tag)},
     {
       ...rest,
@@ -78,13 +82,13 @@ function createNamedSlot(name, value) {
   if (value == null || value === false) return null;
 
   if (
-    React.isValidElement(value) &&
-    value.type !== React.Fragment
+    isValidElement(value) &&
+    value.type !== Fragment
   ) {
-    return React.cloneElement(value, { slot: name });
+    return cloneElement(value, { slot: name });
   }
 
-  return React.createElement(
+  return createElement(
     'span',
     {
       slot: name,

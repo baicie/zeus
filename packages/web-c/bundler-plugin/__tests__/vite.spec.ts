@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import zeus, { mergeExternal } from '../src/vite'
+import { mergeExternal } from '../src/external'
+import zeus from '../src/vite'
 
 describe('vite plugin', () => {
   it('creates vite plugin with expected name', () => {
@@ -72,6 +73,25 @@ describe('vite plugin', () => {
     })
 
     expect(plugin.name).toBe('vite-plugin-zeus')
+  })
+
+  it('honors transpile true in Vite adapter', async () => {
+    const plugin = zeus({
+      transpile: true,
+    })
+    const transform = plugin.transform as (
+      code: string,
+      id: string,
+    ) => Promise<{ code: string } | null>
+
+    const result = await transform(
+      'export interface Props { label: string }\nexport const label: string = "ok"',
+      '/src/plain.ts',
+    )
+
+    expect(result).toBeTruthy()
+    expect(result?.code).not.toContain('interface Props')
+    expect(result?.code).not.toContain(': string')
   })
 })
 

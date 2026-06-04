@@ -26,6 +26,14 @@
       "types": "./dist/vite.d.ts",
       "import": "./dist/vite.js"
     },
+    "./rollup": {
+      "types": "./dist/rollup.d.ts",
+      "import": "./dist/rollup.js"
+    },
+    "./rolldown": {
+      "types": "./dist/rolldown.d.ts",
+      "import": "./dist/rolldown.js"
+    },
     "./manifest": {
       "types": "./dist/outputPlugins/manifest.d.ts",
       "import": "./dist/outputPlugins/manifest.js"
@@ -48,6 +56,14 @@
         "output": "dist/vite.js"
       },
       {
+        "entry": "rollup.ts",
+        "output": "dist/rollup.js"
+      },
+      {
+        "entry": "rolldown.ts",
+        "output": "dist/rolldown.js"
+      },
+      {
         "entry": "outputPlugins/manifest.ts",
         "output": "dist/outputPlugins/manifest.js"
       }
@@ -55,6 +71,7 @@
   },
   "dependencies": {
     "@babel/core": "catalog:",
+    "@babel/preset-typescript": "catalog:",
     "@zeus-js/compiler": "workspace:*",
     "@zeus-js/component-analyzer": "workspace:*",
     "fast-glob": "^3.3.3",
@@ -62,10 +79,14 @@
   },
   "peerDependencies": {
     "rollup": "^4.0.0",
+    "rolldown": "^1.0.0",
     "vite": "catalog:"
   },
   "peerDependenciesMeta": {
     "rollup": {
+      "optional": true
+    },
+    "rolldown": {
       "optional": true
     },
     "vite": {

@@ -1,22 +1,25 @@
 import { describe, expect, it } from 'vitest'
 
 import zeus from '../src'
+import { defineZeusRolldownConfig } from '../src/rolldown'
+import rolldownZeus from '../src/rolldown'
+import { defineZeusRollupConfig } from '../src/rollup'
 
 describe('bundler plugin entry', () => {
-  it('exports default as createZeusPlugin', () => {
+  it('exports default as zeus plugin factory', () => {
     expect(typeof zeus).toBe('function')
   })
 
   it('creates plugin with default options', () => {
     const plugin = zeus()
-    expect(plugin.name).toBe('zeus-bundler-plugin')
+    expect(plugin.name).toBe('rollup-plugin-zeus')
   })
 
   it('creates plugin with custom options', () => {
     const plugin = zeus({
       diagnostics: false,
     })
-    expect(plugin.name).toBe('zeus-bundler-plugin')
+    expect(plugin.name).toBe('rollup-plugin-zeus')
     expect(typeof plugin.transform).toBe('function')
   })
 
@@ -43,7 +46,7 @@ describe('bundler plugin entry', () => {
       plugins: [mockPlugin],
     })
 
-    expect(plugin.name).toBe('zeus-bundler-plugin')
+    expect(plugin.name).toBe('rollup-plugin-zeus')
   })
 
   it('accepts component include patterns', () => {
@@ -53,7 +56,7 @@ describe('bundler plugin entry', () => {
       },
     })
 
-    expect(plugin.name).toBe('zeus-bundler-plugin')
+    expect(plugin.name).toBe('rollup-plugin-zeus')
   })
 
   it('accepts compiler options', () => {
@@ -63,7 +66,7 @@ describe('bundler plugin entry', () => {
       },
     })
 
-    expect(plugin.name).toBe('zeus-bundler-plugin')
+    expect(plugin.name).toBe('rollup-plugin-zeus')
   })
 
   it('accepts dts option', () => {
@@ -71,6 +74,57 @@ describe('bundler plugin entry', () => {
       dts: false,
     })
 
-    expect(plugin.name).toBe('zeus-bundler-plugin')
+    expect(plugin.name).toBe('rollup-plugin-zeus')
+  })
+
+  it('merges component plugin externals into Rollup config', () => {
+    const config = defineZeusRollupConfig({
+      external: ['lodash'],
+      zeus: {
+        plugins: [
+          {
+            name: 'react-output',
+            external: ['react'],
+          },
+        ],
+      },
+    })
+
+    expect(config.external).toEqual(['lodash', 'react'])
+  })
+
+  it('merges component plugin externals into Rolldown config', () => {
+    const config = defineZeusRolldownConfig({
+      external: ['lodash'],
+      zeus: {
+        plugins: [
+          {
+            name: 'vue-output',
+            external: ['vue'],
+          },
+        ],
+      },
+    })
+
+    expect(config.external).toEqual(['lodash', 'vue'])
+  })
+
+  it('honors transpile true in Rolldown adapter', async () => {
+    const plugin = rolldownZeus({
+      transpile: true,
+    })
+    const transform = plugin.transform as (
+      code: string,
+      id: string,
+    ) => Promise<{ code: string } | null>
+
+    const result = await transform(
+      'export interface Props { label: string }\nexport const label: string = "ok"',
+      '/src/plain.ts',
+    )
+
+    expect(result).toBeTruthy()
+    expect(result?.code).not.toContain('interface Props')
+    expect(result?.code).not.toContain(': string')
   })
 })
