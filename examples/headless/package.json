@@ -9,6 +9,7 @@
     "build:rollup": "rollup --config rollup.config.mjs",
     "build:rolldown": "rolldown --config rolldown.config.mjs",
     "build:vite": "vite build",
+    "build:ts": "rolldown --config rolldown.config.ts",
     "check": "tsc --noEmit"
   },
   "files": [

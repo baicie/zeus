@@ -13,6 +13,7 @@ import {
 } from './defaults'
 import { formatDiagnostic, hasErrorDiagnostics } from './diagnostics'
 import { resolveDts } from './dts'
+import { collectPluginExternals, mergeExternal } from './external'
 import { cleanUrl, isTypeScriptLike } from './filter'
 import { createOutputRegistry } from './outputRegistry'
 import { transformZeus } from './transform'
@@ -24,11 +25,14 @@ import type {
   ZeusOutputBundle,
   ZeusOutputFile,
   ZeusVirtualModule,
+  RollupExternalOption,
 } from './types'
 import type {
+  InputOptions,
   PluginContext,
   NormalizedOutputOptions,
   OutputBundle,
+  OutputOptions,
 } from 'rollup'
 
 export type ZeusBundlerTarget = 'vite' | 'rollup' | 'rolldown'
@@ -46,11 +50,55 @@ export function createZeusBundlerPlugin(
   let shouldCompileZeus = (_id: string) => false
   let ctx: ZeusBuildContext | undefined
   let root = process.cwd()
+  const cleanedOutputDirs = new Set<string>()
 
   const virtualModules = new VirtualModuleRegistry()
 
   return {
     name: resolvePluginName(target),
+
+    options(inputOptions: InputOptions) {
+      if (target === 'vite') {
+        return null
+      }
+
+      const pluginExternals = collectPluginExternals(options, {
+        includeZeusLibraryExternals: true,
+      })
+
+      if (!pluginExternals.length) {
+        return null
+      }
+
+      return {
+        ...inputOptions,
+        external: mergeExternal(
+          inputOptions.external as RollupExternalOption | undefined,
+          pluginExternals,
+        ),
+      }
+    },
+
+    outputOptions(outputOptions: OutputOptions) {
+      if (target === 'vite') {
+        return null
+      }
+
+      cleanOutputDir(outputOptions, {
+        root: resolveRoot(options.root),
+        enabled: options.clean !== false,
+        cleanedOutputDirs,
+      })
+
+      if (outputOptions.chunkFileNames) {
+        return null
+      }
+
+      return {
+        ...outputOptions,
+        chunkFileNames: 'chunks/[name]-[hash].js',
+      }
+    },
 
     async buildStart(this: PluginContext) {
       virtualModules.clear()
@@ -268,6 +316,65 @@ function resolveRoot(root: string | (() => string) | undefined): string {
   }
 
   return path.resolve(root ?? process.cwd())
+}
+
+function cleanOutputDir(
+  outputOptions: OutputOptions,
+  options: {
+    root: string
+    enabled: boolean
+    cleanedOutputDirs: Set<string>
+  },
+): void {
+  if (!options.enabled) return
+
+  const outputDir = resolveOutputDir(outputOptions, options.root)
+  if (!outputDir || !isSafeCleanTarget(outputDir, options.root)) {
+    return
+  }
+
+  if (options.cleanedOutputDirs.has(outputDir)) {
+    return
+  }
+
+  options.cleanedOutputDirs.add(outputDir)
+  fs.rmSync(outputDir, { recursive: true, force: true })
+}
+
+function resolveOutputDir(
+  outputOptions: OutputOptions,
+  root: string,
+): string | undefined {
+  const dir = outputOptions.dir
+
+  if (typeof dir === 'string' && dir.length > 0) {
+    return path.resolve(root, dir)
+  }
+
+  const file = outputOptions.file
+
+  if (typeof file === 'string' && file.length > 0) {
+    return path.dirname(path.resolve(root, file))
+  }
+
+  return path.resolve(root, 'dist')
+}
+
+function isSafeCleanTarget(outputDir: string, root: string): boolean {
+  const resolvedRoot = path.resolve(root)
+  const resolvedOutputDir = path.resolve(outputDir)
+
+  if (resolvedOutputDir === resolvedRoot) {
+    return false
+  }
+
+  const relative = path.relative(resolvedRoot, resolvedOutputDir)
+
+  return (
+    Boolean(relative) &&
+    !relative.startsWith('..') &&
+    !path.isAbsolute(relative)
+  )
 }
 
 async function createManifest(

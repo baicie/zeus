@@ -94,23 +94,25 @@ packages/
 组件库 dist 示例：
 @zeus-ui/web-c/
   loader.js
+  loader.d.ts
+  index.js
+  index.d.ts
   auto.js
   components.manifest.js
   zw-button.entry.js
   zw-input.entry.js
   types/
-    dom.d.ts
     jsx.d.ts
-    vue.d.ts
-    react.d.ts
 
 @zeus-ui/vue/
   index.js
+  index.d.ts
+  global.d.ts
   zw-button.js
 
 @zeus-ui/react/
   index.js
-  setup.js
+  index.d.ts
   zw-button.js
 ```
 
@@ -119,13 +121,11 @@ packages/
 # 3. 编译配置最终版
 
 ```ts id="q1dxkq"
-// packages/web-c/compiler-shared/src/options.ts
+// packages/web-c/output-wc/src/types.ts
 
 export type WebCRegisterMode = 'lazy' | 'side-effect'
 
-export type WebCWrapperMode = 'minimal' | 'event-bridge'
-
-export interface WebCCompileOptions {
+export interface OutputWCOptions {
   /**
    * lazy:
    *   默认值。生成 Stencil-style lazy loader。
@@ -137,39 +137,40 @@ export interface WebCCompileOptions {
   register?: WebCRegisterMode
 
   /**
-   * minimal:
-   *   默认值。Vue / React wrapper 只做标签透传。
+   * 是否生成组件库 auto.js 入口。
    *
-   * event-bridge:
-   *   后续增强模式，主要用于 React CustomEvent 桥接。
+   * @default true
    */
+  auto?: boolean
+
+  /**
+   * 是否生成 Web Component d.ts。
+   *
+   * @default true
+   */
+  dts?: boolean | 'auto'
+
+  /**
+   * 是否生成 JSX IntrinsicElements d.ts。
+   *
+   * @default true
+   */
+  jsxDts?: boolean | 'auto'
+}
+```
+
+Vue / React wrapper 的模式由各自 wrapper 插件和 preset 控制：
+
+```ts
+export type WebCWrapperMode = 'minimal' | 'event-bridge'
+
+export interface ComponentLibraryPresetOptions {
+  targets?: Array<'wc' | 'react' | 'vue'>
+  register?: WebCRegisterMode
   wrapper?: WebCWrapperMode
-
-  /**
-   * 默认生成 Vue / React / JSX / DOM 类型。
-   */
-  types?: boolean
-
-  /**
-   * 是否生成组件库 auto 入口。
-   */
   autoEntry?: boolean
-}
-
-export const DEFAULT_WEB_C_COMPILE_OPTIONS: Required<WebCCompileOptions> = {
-  register: 'lazy',
-  wrapper: 'minimal',
-  types: true,
-  autoEntry: true,
-}
-
-export function resolveWebCCompileOptions(
-  options: WebCCompileOptions = {},
-): Required<WebCCompileOptions> {
-  return {
-    ...DEFAULT_WEB_C_COMPILE_OPTIONS,
-    ...options,
-  }
+  dts?: boolean | 'auto'
+  jsxDts?: boolean | 'auto'
 }
 ```
 
@@ -735,14 +736,12 @@ export type {
 
 ---
 
-## 5.1 `components.manifest.ts`
+## 5.1 `components.manifest.js`
 
 ```ts id="d7yusd"
-// @zeus-ui/web-c/components.manifest.ts
+// @zeus-ui/web-c/components.manifest.js
 
-import type { ZeusLazyComponentMeta } from '@zeus-js/web-c-runtime'
-
-export const components: ZeusLazyComponentMeta[] = [
+export const components = [
   {
     tagName: 'zw-button',
     shadow: true,
@@ -753,21 +752,18 @@ export const components: ZeusLazyComponentMeta[] = [
         attrName: 'disabled',
         type: 'boolean',
         reflect: true,
-        default: false,
       },
       {
         name: 'size',
         attrName: 'size',
         type: 'string',
         reflect: true,
-        default: 'md',
       },
       {
         name: 'variant',
         attrName: 'variant',
         type: 'string',
         reflect: true,
-        default: 'default',
       },
     ],
   },
@@ -776,10 +772,10 @@ export const components: ZeusLazyComponentMeta[] = [
 
 ---
 
-## 5.2 `loader.ts`
+## 5.2 `loader.js`
 
 ```ts id="f8pj68"
-// @zeus-ui/web-c/loader.ts
+// @zeus-ui/web-c/loader.js
 
 import { bootstrapLazy } from '@zeus-js/web-c-runtime'
 import { components } from './components.manifest.js'
@@ -823,10 +819,10 @@ defineCustomElements()
 
 ---
 
-## 5.3 `auto.ts`
+## 5.3 `auto.js`
 
 ```ts id="yp9hy8"
-// @zeus-ui/web-c/auto.ts
+// @zeus-ui/web-c/auto.js
 
 import { defineCustomElements } from './loader.js'
 
@@ -845,186 +841,85 @@ import '@zeus-ui/web-c/auto'
 
 ---
 
-## 5.4 `zw-button.entry.ts`
+## 5.4 `zw-button.entry.js`
+
+lazy entry 是编译器生成的真实组件实现 chunk。它不手写组件 class，也不执行 `customElements.define()`；它只把源组件的 `defineElement(...)` 定义挂载到已经存在的 lazy host 上。
+
+当前生成结构概念上等价于：
 
 ```ts id="kkd43o"
-// @zeus-ui/web-c/zw-button.entry.ts
+// @zeus-ui/web-c/zw-button.entry.js
 
-import type {
-  HostRef,
-  ZeusComponentInstance,
-  ZeusComponentModule,
-} from '@zeus-js/web-c-runtime'
+import { mountElementDefinition } from '@zeus-js/runtime-dom'
+import { ZwButton } from '../src/button.js'
 
-class ZwButtonComponent implements ZeusComponentInstance {
-  private hostRef: HostRef
+export function createComponent(hostRef) {
+  let mounted
+  const mountState = {}
 
-  constructor(hostRef: HostRef) {
-    this.hostRef = hostRef
-  }
+  return {
+    connected() {
+      if (mounted) return
 
-  connected(): void {
-    this.render()
-  }
-
-  disconnected(): void {
-    // 当前示例没有外部长生命周期资源。
-    // 后续如果有 effect、timer、document listener，在这里 cleanup。
-  }
-
-  propertyChanged(): void {
-    this.render()
-  }
-
-  attributeChanged(): void {
-    this.render()
-  }
-
-  render(): void {
-    const host = this.hostRef.host as HTMLElement & {
-      disabled?: boolean
-      size?: string
-      variant?: string
-    }
-
-    const root =
-      host.shadowRoot ??
-      host.attachShadow({
-        mode: 'open',
-      })
-
-    const disabled = Boolean(host.disabled)
-    const size = host.size ?? 'md'
-    const variant = host.variant ?? 'default'
-
-    const style = document.createElement('style')
-    style.textContent = `
-      :host {
-        display: inline-block;
-      }
-
-      button {
-        box-sizing: border-box;
-        border: 1px solid #d0d0d0;
-        border-radius: 6px;
-        background: #fff;
-        color: #111;
-        cursor: pointer;
-        font: inherit;
-      }
-
-      button:disabled {
-        cursor: not-allowed;
-        opacity: 0.5;
-      }
-
-      .zw-button--sm {
-        padding: 4px 8px;
-        font-size: 12px;
-      }
-
-      .zw-button--md {
-        padding: 6px 12px;
-        font-size: 14px;
-      }
-
-      .zw-button--lg {
-        padding: 8px 16px;
-        font-size: 16px;
-      }
-
-      .zw-button--primary {
-        border-color: #111;
-        background: #111;
-        color: #fff;
-      }
-
-      .zw-button--danger {
-        border-color: #b00020;
-        background: #b00020;
-        color: #fff;
-      }
-    `
-
-    const button = document.createElement('button')
-    button.part.add('button')
-    button.className = [
-      'zw-button',
-      `zw-button--${size}`,
-      `zw-button--${variant}`,
-    ].join(' ')
-
-    button.disabled = disabled
-
-    const slot = document.createElement('slot')
-
-    button.appendChild(slot)
-
-    button.addEventListener('click', () => {
-      if (button.disabled) {
-        return
-      }
-
-      host.dispatchEvent(
-        new CustomEvent('press', {
-          bubbles: true,
-          composed: true,
-        }),
+      mounted = mountElementDefinition(
+        ZwButton,
+        hostRef.host,
+        hostRef.values,
+        mountState,
       )
-    })
+    },
 
-    root.replaceChildren(style, button)
+    disconnected() {
+      mounted?.dispose()
+      mounted = undefined
+    },
+
+    propertyChanged(name, oldValue, newValue) {
+      mounted?.propertyChanged(name, oldValue, newValue)
+    },
   }
 }
 
-export function createComponent(hostRef: HostRef): ZeusComponentInstance {
-  return new ZwButtonComponent(hostRef)
-}
-
-export default {
-  createComponent,
-} satisfies ZeusComponentModule
+export default { createComponent }
 ```
 
-重点：这里没有：
+重点：
 
-```ts id="e246o1"
-customElements.define("zw-button", ...)
+```txt id="e246o1"
+1. 真实 entry 不注册 custom element。
+2. 真实 entry 通过 mountElementDefinition 复用 runtime-dom 的 owner / cleanup / Host / Slot 语义。
+3. 属性变化只通过 propertyChanged 进入真实组件 prop store。
 ```
-
-真实组件 entry 只导出 `createComponent()`。
 
 ---
 
-# 6. Vue 入口：`@zeus-ui/vue`
+# 6. Vue wrapper 输出：`@zeus-ui/vue`
 
-Vue wrapper 是可选的。
-如果用户直接写 `<zw-button>`，只需要组件库 auto 或 Vue plugin 帮忙调用 loader。
+Vue wrapper 是可选产物。当前实现不生成 Vue plugin；wrapper 文件自己导入对应的 `zeus:wc:<tag>` 兼容模块。这个兼容模块只调用 `defineCustomElements()` 注册 lazy proxy，不加载真实 entry。
+
+如果用户直接写 `<zw-button>`，需要应用入口导入 `@zeus-ui/web-c/auto`，或手动调用 Web-C loader。
 
 ---
 
-## 6.1 `zw-button.ts`
+## 6.1 minimal wrapper
 
 ```ts id="wjk2d9"
 // @zeus-ui/vue/zw-button.ts
 
 import { defineComponent, h } from 'vue'
 
+import 'zeus:wc:zw-button'
+
 export const ZwButton = defineComponent({
   name: 'ZwButton',
   inheritAttrs: false,
-  props: {
-    disabled: Boolean,
-    size: String,
-    variant: String,
-  },
-  setup(props, { attrs, slots }) {
+
+  setup(_props, { attrs, slots }) {
     return () =>
       h(
         'zw-button',
         {
           ...attrs,
-          ...props,
         },
         slots.default?.(),
       )
@@ -1032,9 +927,10 @@ export const ZwButton = defineComponent({
 })
 ```
 
-没有：
+minimal 模式没有：
 
 ```txt id="zor23w"
+props runtime option
 watch
 syncProps
 ref
@@ -1042,59 +938,26 @@ onMounted
 onBeforeUnmount
 addEventListener
 removeEventListener
-cloneVNode
+```
+
+具名 slot 需要 wrapper 帮忙给 VNode 补 `slot` attribute；这个场景可以使用 `cloneVNode`，但仍不做生命周期托管。
+
+---
+
+## 6.2 event-bridge wrapper
+
+`event-bridge` 是增强模式，用于显式同步用户传入的 props、桥接 CustomEvent。它必须满足：
+
+```txt
+1. 只同步用户显式传入的 props。
+2. 不复制 Web Component default 到 Vue prop option。
+3. 当用户移除 prop 输入时，将 element[prop] 写回 undefined。
+4. 事件监听在 mounted 建立，在 beforeUnmount 清理。
 ```
 
 ---
 
-## 6.2 `index.ts`
-
-```ts id="co39uq"
-// @zeus-ui/vue/index.ts
-
-import type { App } from 'vue'
-import { defineCustomElements } from '@zeus-ui/web-c/loader'
-import { ZwButton } from './zw-button.js'
-
-export interface ZeusUIVueOptions {
-  /**
-   * 默认 true。
-   * 内部调用 @zeus-ui/web-c/loader 的 defineCustomElements。
-   */
-  defineCustomElements?: boolean
-
-  /**
-   * 默认 true。
-   * 是否注册 Vue PascalCase wrapper。
-   */
-  registerComponents?: boolean
-}
-
-export function createZeusUIVuePlugin(options: ZeusUIVueOptions = {}) {
-  const shouldDefine = options.defineCustomElements ?? true
-  const shouldRegister = options.registerComponents ?? true
-
-  return {
-    install(app: App): void {
-      if (shouldDefine) {
-        defineCustomElements()
-      }
-
-      if (shouldRegister) {
-        app.component('ZwButton', ZwButton)
-      }
-    },
-  }
-}
-
-const ZeusUIVue = createZeusUIVuePlugin()
-
-export { ZwButton }
-
-export default ZeusUIVue
-```
-
-Vue 用户有两种写法。
+## 6.3 Vue 使用方式
 
 ### 原生 custom element 标签
 
@@ -1107,11 +970,7 @@ Vue 用户有两种写法。
 入口：
 
 ```ts id="fcvk3a"
-import { createApp } from 'vue'
-import App from './App.vue'
-import ZeusUI from '@zeus-ui/vue'
-
-createApp(App).use(ZeusUI).mount('#app')
+import '@zeus-ui/web-c/auto'
 ```
 
 ### Vue wrapper
@@ -1126,38 +985,20 @@ createApp(App).use(ZeusUI).mount('#app')
 
 ---
 
-# 7. React 入口：`@zeus-ui/react`
+# 7. React wrapper 输出：`@zeus-ui/react`
+
+React wrapper 是可选产物。当前实现不生成独立的 `setup.ts`；wrapper 文件自己导入对应的 `zeus:wc:<tag>` 兼容模块。
 
 ---
 
-## 7.1 `setup.ts`
-
-```ts id="lyhwo0"
-// @zeus-ui/react/setup.ts
-
-import { defineCustomElements } from '@zeus-ui/web-c/loader'
-
-let initialized = false
-
-export function setupZeusUI(): void {
-  if (initialized) {
-    return
-  }
-
-  initialized = true
-
-  defineCustomElements()
-}
-```
-
----
-
-## 7.2 `zw-button.tsx`
+## 7.1 minimal wrapper
 
 ```tsx id="rhdg1g"
 // @zeus-ui/react/zw-button.tsx
 
 import * as React from 'react'
+
+import 'zeus:wc:zw-button'
 
 export interface ZwButtonProps extends React.HTMLAttributes<HTMLElement> {
   disabled?: boolean
@@ -1176,8 +1017,20 @@ export const ZwButton = React.forwardRef<HTMLElement, ZwButtonProps>(
 )
 ```
 
-这里先不做 event bridge。
-如果 React 对 `onPress` 自定义事件支持不稳定，后续用 `wrapper: "event-bridge"` 单独增强。
+这里先不做 event bridge。需要稳定桥接 CustomEvent 时，使用 `wrapper: "event-bridge"` 增强模式。
+
+---
+
+## 7.2 event-bridge wrapper
+
+`event-bridge` 模式会：
+
+```txt
+1. 用 ref 持有真实 custom element。
+2. 用 effect 把显式传入的 props 写到 element property。
+3. 用 addEventListener / removeEventListener 桥接 CustomEvent。
+4. 支持命名 slot children 转成带 slot attribute 的节点。
+```
 
 ---
 
@@ -1186,7 +1039,6 @@ export const ZwButton = React.forwardRef<HTMLElement, ZwButtonProps>(
 ```ts id="u5ui5c"
 // @zeus-ui/react/index.ts
 
-export { setupZeusUI } from './setup.js'
 export { ZwButton } from './zw-button.js'
 export type { ZwButtonProps } from './zw-button.js'
 ```
@@ -1194,9 +1046,7 @@ export type { ZwButtonProps } from './zw-button.js'
 React 用户：
 
 ```tsx id="pf3nmu"
-import { setupZeusUI, ZwButton } from '@zeus-ui/react'
-
-setupZeusUI()
+import { ZwButton } from '@zeus-ui/react'
 
 export function App() {
   return (
@@ -1210,9 +1060,7 @@ export function App() {
 或者不用 wrapper：
 
 ```tsx id="zc1sti"
-import { setupZeusUI } from '@zeus-ui/react'
-
-setupZeusUI()
+import '@zeus-ui/web-c/auto'
 
 export function App() {
   return (
@@ -1227,16 +1075,29 @@ export function App() {
 
 # 8. 类型生成
 
-## 8.1 DOM 类型
+类型按输出包拆分，而不是全部挂在 Web-C 包下面。
+
+## 8.1 Web-C loader / element 类型
+
+lazy 模式下 `@zeus-js/output-wc` 生成 `loader.d.ts`，同时 `index.d.ts` 复用 loader 声明：
 
 ```ts id="k73aog"
-// @zeus-ui/web-c/types/dom.d.ts
-
 export interface ZwButtonElement extends HTMLElement {
-  disabled: boolean
-  size: 'sm' | 'md' | 'lg'
-  variant: 'default' | 'primary' | 'danger'
+  disabled?: boolean
+  size?: 'sm' | 'md' | 'lg'
+  variant?: 'default' | 'primary' | 'danger'
+  componentOnReady(): Promise<this>
 }
+
+export interface DefineCustomElementsOptions {
+  registry?: CustomElementRegistry
+}
+
+export declare function defineCustomElements(
+  options?: DefineCustomElementsOptions,
+): void
+
+export declare const defineLazyElements: typeof defineCustomElements
 
 declare global {
   interface HTMLElementTagNameMap {
@@ -1251,12 +1112,10 @@ export {}
 
 ## 8.2 JSX 类型
 
+Web-C 包生成 `types/jsx.d.ts`，用于直接写 `<zw-button>`：
+
 ```ts id="w0f91y"
-// @zeus-ui/web-c/types/jsx.d.ts
-
-import type * as React from 'react'
-
-export interface ZwButtonJSXProps extends React.HTMLAttributes<HTMLElement> {
+export interface ZwButtonJSXProps {
   disabled?: boolean
   size?: 'sm' | 'md' | 'lg'
   variant?: 'default' | 'primary' | 'danger'
@@ -1276,31 +1135,23 @@ export {}
 
 ---
 
-## 8.3 Vue 类型
+## 8.3 Vue / React wrapper 类型
 
-```ts id="yepqzj"
-// @zeus-ui/web-c/types/vue.d.ts
+Vue 和 React 类型由各自 wrapper output 生成：
 
-import type { DefineComponent } from 'vue'
-
-export interface ZwButtonProps {
-  disabled?: boolean
-  size?: 'sm' | 'md' | 'lg'
-  variant?: 'default' | 'primary' | 'danger'
-}
-
-declare module 'vue' {
-  export interface GlobalComponents {
-    ZwButton: DefineComponent<ZwButtonProps>
-  }
-}
-
-export {}
+```txt
+@zeus-ui/vue/index.d.ts
+@zeus-ui/vue/global.d.ts
+@zeus-ui/react/index.d.ts
 ```
+
+这些文件描述 PascalCase wrapper 组件；它们不属于 Web-C lazy runtime manifest。
 
 ---
 
 # 9. 组件库 `package.json` exports 设计
+
+Web-C 包：
 
 ```json id="ajck20"
 {
@@ -1309,8 +1160,8 @@ export {}
   "sideEffects": ["./auto.js"],
   "exports": {
     ".": {
-      "types": "./types/dom.d.ts",
-      "import": "./loader.js"
+      "types": "./index.d.ts",
+      "import": "./index.js"
     },
     "./loader": {
       "types": "./loader.d.ts",
@@ -1319,28 +1170,14 @@ export {}
     "./auto": {
       "import": "./auto.js"
     },
-    "./types/dom": {
-      "types": "./types/dom.d.ts"
-    },
     "./types/jsx": {
       "types": "./types/jsx.d.ts"
-    },
-    "./types/vue": {
-      "types": "./types/vue.d.ts"
     }
   }
 }
 ```
 
-注意：
-
-```json id="p7nio6"
-"sideEffects": [
-  "./auto.js"
-]
-```
-
-因为 `auto.js` 是副作用入口，不能被 tree-shaking 掉。
+Vue / React wrapper 包各自导出自己的 `index.js` / `index.d.ts`。`auto.js` 是副作用入口，必须通过 `sideEffects` 保留，不能被 tree-shaking 掉。
 
 ---
 
@@ -1373,113 +1210,72 @@ export default defineConfig({
 
 # 11. 编译器生成器草案
 
-Zeus compiler / builder 最终要生成：
+Zeus compiler / builder 当前要生成：
 
 ```txt id="o9jes3"
-loader.ts
-auto.ts
-components.manifest.ts
-*.entry.ts
-vue wrappers
-react wrappers
-types
+loader.js
+loader.d.ts
+auto.js
+components.manifest.js
+*.entry.js
+Vue wrappers
+React wrappers
+WC / JSX / Vue / React types
 ```
 
-核心生成器可以这样组织：
+核心生成器按职责拆在多个 output plugin 中，而不是一个单体 `generateWebCOutput()`：
 
-```ts id="j7r2r1"
-// packages/web-c-output/src/generateWebCOutput.ts
+```txt
+@zeus-js/output-wc
+  register: lazy / side-effect
+  manifest / loader / auto / lazy entry / WC dts / JSX dts
 
-import { resolveWebCCompileOptions, type WebCCompileOptions } from './options'
+@zeus-js/output-vue-wrapper
+  minimal / event-bridge Vue wrapper
+  Vue dts / global dts
 
-export interface ComponentMeta {
-  tagName: string
-  exportName: string
-  shadow?: boolean
-  props: Array<{
-    name: string
-    attrName?: string
-    type: string
-    reflect?: boolean
-    default?: unknown
-    tsType?: string
-  }>
-  events: Array<{
-    name: string
-    tsType?: string
-  }>
-  slots: Array<{
-    name: string
-  }>
-}
+@zeus-js/output-react-wrapper
+  minimal / event-bridge React wrapper
+  React dts
 
-export interface GeneratedFile {
-  path: string
-  code: string
-}
-
-export function generateWebCOutput(
-  components: ComponentMeta[],
-  options: WebCCompileOptions = {},
-): GeneratedFile[] {
-  const resolved = resolveWebCCompileOptions(options)
-  const files: GeneratedFile[] = []
-
-  if (resolved.register === 'lazy') {
-    files.push(generateManifest(components))
-    files.push(generateLoader())
-  }
-
-  if (resolved.autoEntry) {
-    files.push(generateAutoEntry())
-  }
-
-  for (const component of components) {
-    files.push(generateComponentEntry(component))
-  }
-
-  if (resolved.wrapper === 'minimal') {
-    files.push(...components.map(generateVueWrapper))
-    files.push(...components.map(generateReactWrapper))
-  }
-
-  if (resolved.types) {
-    files.push(generateDomTypes(components))
-    files.push(generateJsxTypes(components))
-    files.push(generateVueTypes(components))
-  }
-
-  return files
-}
+@zeus-js/preset-component-library
+  组合 wc / vue / react / css 输出
+  当 targets 包含 react 或 vue 时自动补 wc
 ```
 
 ---
 
-## 11.1 `generateManifest`
+## 11.1 `generateLazyManifest`
+
+lazy manifest 只包含 lazy runtime 注册 proxy 所需的信息。公共 props、events、slots 仍可用于类型、文档和 custom-elements manifest，但不进入 lazy runtime manifest。
 
 ```ts id="jx23ym"
-function generateManifest(components: ComponentMeta[]): GeneratedFile {
+function generateLazyManifest(components: ComponentRecord[]): string {
   const items = components.map(component => {
+    const props = component.runtimeProps ?? component.props
+
     return `  {
-    tagName: ${JSON.stringify(component.tagName)},
-    shadow: ${component.shadow ? 'true' : 'false'},
-    load: () => import(${JSON.stringify(`./${component.tagName}.entry.js`)}),
-    props: ${JSON.stringify(component.props, null, 4)},
-    events: ${JSON.stringify(component.events, null, 4)},
-    slots: ${JSON.stringify(component.slots, null, 4)},
+    tagName: ${JSON.stringify(component.tag)},
+    shadow: ${component.meta?.shadow ?? false},
+    load: () => import(${JSON.stringify(`./${component.tag}.entry.js`)}),
+    props: ${generatePropsArray(props)},
   }`
   })
 
-  return {
-    path: 'components.manifest.ts',
-    code: `import type { ZeusLazyComponentMeta } from "@zeus-js/web-c-runtime";
-
-export const components: ZeusLazyComponentMeta[] = [
+  return `export const components = [
 ${items.join(',\n')}
 ];
-`,
-  }
+`
 }
+```
+
+规则：
+
+```txt
+1. props 必须优先使用 runtimeProps。
+2. attrName: false 表示 property-only，不注册 observed attribute。
+3. default 不写入 lazy manifest；真实默认值由 mountElementDefinition 中的 defineElement 定义提供。
+4. events / slots 不写入 lazy manifest。
 ```
 
 ---
@@ -1487,21 +1283,13 @@ ${items.join(',\n')}
 ## 11.2 `generateLoader`
 
 ```ts id="owewjx"
-function generateLoader(): GeneratedFile {
-  return {
-    path: 'loader.ts',
-    code: `import { bootstrapLazy } from "@zeus-js/web-c-runtime";
+function generateLoader(): string {
+  return `import { bootstrapLazy } from "@zeus-js/web-c-runtime";
 import { components } from "./components.manifest.js";
 
-const definedRegistries = new WeakSet<CustomElementRegistry>();
+const definedRegistries = new WeakSet();
 
-export interface DefineCustomElementsOptions {
-  registry?: CustomElementRegistry;
-}
-
-export function defineCustomElements(
-  options: DefineCustomElementsOptions = {},
-): void {
+export function defineCustomElements(options = {}) {
   const registry =
     options.registry ??
     (typeof customElements === "undefined" ? undefined : customElements);
@@ -1516,8 +1304,7 @@ export function defineCustomElements(
 }
 
 export const defineLazyElements = defineCustomElements;
-`,
-  }
+`
 }
 ```
 
@@ -1526,127 +1313,106 @@ export const defineLazyElements = defineCustomElements;
 ## 11.3 `generateAutoEntry`
 
 ```ts id="b8m9cf"
-function generateAutoEntry(): GeneratedFile {
-  return {
-    path: 'auto.ts',
-    code: `import { defineCustomElements } from "./loader.js";
+function generateAutoEntry(): string {
+  return `import { defineCustomElements } from "./loader.js";
 
 defineCustomElements();
 
 export {};
-`,
-  }
+`
 }
 ```
 
 ---
 
-## 11.4 `generateVueWrapper`
+## 11.4 `generateLazyEntry`
+
+```ts id="entrygen"
+function generateLazyEntry(component: ComponentRecord): string {
+  return `import { mountElementDefinition } from "@zeus-js/runtime-dom";
+import { ${component.exportName} } from ${JSON.stringify(component.source)};
+
+export function createComponent(hostRef) {
+  let mounted;
+  const mountState = {};
+
+  return {
+    connected() {
+      if (mounted) return;
+
+      mounted = mountElementDefinition(
+        ${component.exportName},
+        hostRef.host,
+        hostRef.values,
+        mountState,
+      );
+    },
+
+    disconnected() {
+      mounted?.dispose();
+      mounted = undefined;
+    },
+
+    propertyChanged(name, oldValue, newValue) {
+      mounted?.propertyChanged(name, oldValue, newValue);
+    },
+  };
+}
+
+export default { createComponent };
+`
+}
+```
+
+---
+
+## 11.5 `generateVueWrapper`
+
+minimal wrapper 只渲染 custom element 标签并导入 WC 兼容模块：
 
 ```ts id="e5b1au"
-function generateVueWrapper(component: ComponentMeta): GeneratedFile {
-  const props = component.props.map(prop => {
-    return `    ${JSON.stringify(prop.name)}: ${toVueRuntimeType(prop.type)}`
-  })
+function generateVueWrapper(component: ComponentRecord): string {
+  return `import { defineComponent, h } from "vue";
 
-  return {
-    path: `vue/${component.tagName}.ts`,
-    code: `import { defineComponent, h } from "vue";
+import "zeus:wc:${component.tag}";
 
-export const ${component.exportName} = defineComponent({
-  name: ${JSON.stringify(component.exportName)},
+export const ${component.name} = defineComponent({
+  name: ${JSON.stringify(component.name)},
   inheritAttrs: false,
-  props: {
-${props.join(',\n')}
-  },
-  setup(props, { attrs, slots }) {
-    return () =>
-      h(
-        ${JSON.stringify(component.tagName)},
-        {
-          ...attrs,
-          ...props,
-        },
-        slots.default?.(),
-      );
+
+  setup(_props, { attrs, slots }) {
+    return () => h(${JSON.stringify(component.tag)}, { ...attrs }, slots.default?.());
   },
 });
-`,
-  }
-}
-
-function toVueRuntimeType(type: string): string {
-  switch (type) {
-    case 'boolean':
-      return 'Boolean'
-    case 'number':
-      return 'Number'
-    case 'string':
-      return 'String'
-    case 'array':
-      return 'Array'
-    case 'object':
-      return 'Object'
-    case 'function':
-      return 'Function'
-    default:
-      return 'null'
-  }
+`
 }
 ```
 
+`event-bridge` wrapper 另走增强生成逻辑：声明 Vue props 但不复制 Web Component default，并只同步用户显式传入的 prop。
+
 ---
 
-## 11.5 `generateReactWrapper`
+## 11.6 `generateReactWrapper`
+
+minimal wrapper 只渲染 custom element 标签并导入 WC 兼容模块：
 
 ```ts id="zhku0f"
-function generateReactWrapper(component: ComponentMeta): GeneratedFile {
-  const propLines = component.props.map(prop => {
-    const tsType = prop.tsType ?? toTsType(prop.type)
-    return `  ${prop.name}?: ${tsType};`
-  })
+function generateReactWrapper(component: ComponentRecord): string {
+  return `import * as React from "react";
 
-  return {
-    path: `react/${component.tagName}.tsx`,
-    code: `import * as React from "react";
+import "zeus:wc:${component.tag}";
 
-export interface ${component.exportName}Props
-  extends React.HTMLAttributes<HTMLElement> {
-${propLines.join('\n')}
-}
-
-export const ${component.exportName} = React.forwardRef<
-  HTMLElement,
-  ${component.exportName}Props
->(function ${component.exportName}(props, ref) {
-  return React.createElement(${JSON.stringify(component.tagName)}, {
+export const ${component.name} = React.forwardRef(function ${component.name}(props, ref) {
+  return React.createElement(${JSON.stringify(component.tag)}, {
     ...props,
     ref,
   });
 });
-`,
-  }
-}
-
-function toTsType(type: string): string {
-  switch (type) {
-    case 'boolean':
-      return 'boolean'
-    case 'number':
-      return 'number'
-    case 'string':
-      return 'string'
-    case 'array':
-      return 'unknown[]'
-    case 'object':
-      return 'Record<string, unknown>'
-    case 'function':
-      return '(...args: unknown[]) => unknown'
-    default:
-      return 'unknown'
-  }
+`
 }
 ```
+
+`event-bridge` wrapper 另走增强生成逻辑：通过 ref + effect 同步 props，并用原生 addEventListener 桥接 CustomEvent。
 
 ---
 
@@ -1806,21 +1572,21 @@ Phase 0
 
 Phase 1
   改 Web-C 编译输出
-  生成 components.manifest.ts / loader.ts / auto.ts / *.entry.ts
+  生成 components.manifest.js / loader.js / auto.js / *.entry.js
 
 Phase 2
   改 Vue wrapper
-  删除 watch / syncProps / event bridge
-  只保留 h("zw-*")
+  默认 minimal，只渲染 h("zw-*")
+  event-bridge 作为显式增强模式
 
 Phase 3
   改 React wrapper
   默认 minimal
-  后续 event-bridge 单独作为增强模式
+  event-bridge 作为显式增强模式
 
 Phase 4
   types 默认生成
-  DOM / JSX / Vue / React 全覆盖
+  Web-C loader / JSX / Vue / React 全覆盖
 
 Phase 5
   示例
