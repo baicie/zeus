@@ -84,7 +84,7 @@ describe('rollup adapter', () => {
     expect(resolved).toBe(path.join(root, 'src/Button.tsx'))
   })
 
-  it('resolves queried extensionless TypeScript imports', async () => {
+  it('does not resolve queried extensionless TypeScript imports', async () => {
     const plugin = zeus({
       root,
     })
@@ -98,11 +98,35 @@ describe('rollup adapter', () => {
       path.join(root, 'src/index.ts'),
     )
 
-    expect(resolved).toBe(path.join(root, 'src/Button.tsx'))
+    expect(resolved).toBeNull()
   })
 
   it('recognizes Windows absolute import paths', () => {
     expect(isAbsoluteImportPath('C:/repo/src/Button')).toBe(true)
     expect(isAbsoluteImportPath('C:\\repo\\src\\Button')).toBe(true)
+  })
+
+  it('compiles custom component include paths by default', async () => {
+    const bundle = await rollup({
+      input: path.join(root, 'lib/LibButton.tsx'),
+      external: ['@zeus-js/runtime-dom'],
+      plugins: [
+        zeus({
+          root,
+          components: {
+            include: ['lib/**/*.{ts,tsx}'],
+          },
+        }),
+      ],
+    })
+
+    const { output } = await bundle.generate({
+      format: 'es',
+    })
+
+    const code = output[0].code
+
+    expect(code).toContain('@zeus-js/runtime-dom')
+    expect(code).toContain('template(`<button>Submit</button>`)')
   })
 })

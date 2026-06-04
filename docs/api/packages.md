@@ -786,6 +786,8 @@ export { manifest } from './manifest'
 
 `components` 仅控制组件分析、manifest、DTS 和 watch files；`transform` 控制 Zeus JSX 编译范围。默认情况下，`src/shared/**` 不进入 component manifest，但仍会执行 Zeus JSX 编译，避免共享 TSX helper 被排除后留下未编译 JSX。
 
+如果用户自定义 `components.include` 且没有显式配置 `transform.include`，自定义 component include 会自动并入默认 transform include，保证被组件分析的文件默认也会被 Zeus compiler 编译。Rollup extensionless resolver 不消费带 query/hash 的 import，避免影响其他插件的 query 语义。
+
 ### 5.3 `@zeus-js/component-analyzer`
 
 **用途**：解析 Zeus 组件源码，提取组件元信息（props、events、slots、CSS vars/parts）。

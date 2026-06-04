@@ -65,6 +65,7 @@ export function createZeusBundlerPlugin(
       )
       const transformInclude = resolveTransformInclude(
         options.transform?.include,
+        componentInclude,
       )
       const transformExclude = resolveTransformExclude(
         options.transform?.exclude,
@@ -298,6 +299,7 @@ function resolveTsLikeImport(
   },
 ): string | null {
   if (!importer) return null
+  if (cleanUrl(id) !== id) return null
 
   const source = cleanUrl(id)
   const from = cleanUrl(importer)

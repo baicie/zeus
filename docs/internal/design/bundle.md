@@ -86,7 +86,7 @@ import { ButtonProps } from './types'
 
 ## Rollup Resolve 行为
 
-Rollup adapter 会为相对路径和绝对路径补充 TS-like extensionless 解析。解析前会清理 query/hash，因此 `./Button?component` 也会按 `./Button` 解析。默认扩展名：
+Rollup adapter 会为相对路径和绝对路径补充 TS-like extensionless 解析。带 query/hash 的 import 不由 Zeus resolver 消费，避免吞掉其他 Rollup 插件的 `?raw`、`?url` 或自定义 query 语义。默认扩展名：
 
 ```ts
 ;['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs']
@@ -136,6 +136,8 @@ zeus({
 
 两者故意分离。默认 `components.exclude` 会排除 `src/shared/**`，避免共享工具进入 component manifest；但默认 `transform.exclude` 不排除 `src/shared/**`，因此共享 TSX helper 仍会执行 Zeus JSX 编译。
 
+当用户自定义 `components.include` 且没有显式配置 `transform.include` 时，Zeus 会将自定义 component include 自动并入默认 transform include。这样所有会进入 component analysis 的源码默认也会进入 Zeus JSX 编译范围。
+
 ## Component Plugin External
 
 component plugin 可以声明 framework runtime 依赖：
@@ -181,13 +183,13 @@ export { default, zeus } from './rollup'
 ## 已知限制
 
 - Rollup adapter 的 TS strip 只负责移除类型语法，不做完整类型检查。
-- Rollup 的 extensionless 解析只处理文件系统中存在的相对/绝对路径。
+- Rollup 的 extensionless 解析只处理文件系统中存在且不带 query/hash 的相对/绝对路径。
 - Vite/Rolldown 默认不额外 strip TS；如果用户关闭或绕过 bundler 内建 TS transform，需要显式设置 `transpile: true`。
 - component plugin external 自动合并只覆盖 Vite adapter 和 `defineZeus*Config()` helper。
 
 ## 测试矩阵
 
-- Rollup TSX fixture 使用真实 JSX，并覆盖普通类型 import、runtime helper import、`src/shared/**` JSX 编译、`.mts` / `.cts` extensionless 解析、query import 解析和绝对路径识别。
+- Rollup TSX fixture 使用真实 JSX，并覆盖普通类型 import、runtime helper import、`src/shared/**` JSX 编译、自定义 component include 自动进入 transform include、`.mts` / `.cts` extensionless 解析、query import 不被 Zeus resolver 消费和绝对路径识别。
 - Rolldown TSX fixture 覆盖 Zeus JSX 编译 helper 输出。
 - Vite integration 覆盖 plugin config 和 extension option 接收。
 - API snapshots 覆盖主入口、Rollup 子入口、Rolldown 子入口和 Vite 子入口的公开类型。

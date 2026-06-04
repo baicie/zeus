@@ -32,8 +32,15 @@ export function resolveComponentExclude(exclude?: string[]): string[] {
   return exclude?.length ? exclude : DEFAULT_COMPONENT_EXCLUDE
 }
 
-export function resolveTransformInclude(include?: string[]): string[] {
-  return include?.length ? include : DEFAULT_TRANSFORM_INCLUDE
+export function resolveTransformInclude(
+  include: string[] | undefined,
+  componentInclude: string[],
+): string[] {
+  if (include?.length) return include
+
+  return Array.from(
+    new Set([...DEFAULT_TRANSFORM_INCLUDE, ...componentInclude]),
+  )
 }
 
 export function resolveTransformExclude(exclude?: string[]): string[] {
