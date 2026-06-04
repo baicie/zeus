@@ -299,13 +299,24 @@ function resolveTsLikeImport(
   },
 ): string | null {
   if (!importer) return null
+
+  // Do not consume query/hash imports. Other plugins may own their semantics,
+  // such as ?raw, ?url, or framework-specific queries.
   if (cleanUrl(id) !== id) return null
 
   const source = cleanUrl(id)
   const from = cleanUrl(importer)
 
   if (source.startsWith('\0') || from.startsWith('\0')) return null
+
+  // Only resolve relative or absolute filesystem imports.
   if (!source.startsWith('.') && !isAbsoluteImportPath(source)) return null
+
+  // This resolver is intentionally extensionless-only.
+  // Imports that already contain an extension should be handled by Rollup
+  // itself or by another resource-specific plugin.
+  if (path.extname(source)) return null
+
   if (options.extensions === false) return null
 
   const extensions = options.extensions ?? [
@@ -324,6 +335,7 @@ function resolveTsLikeImport(
     : path.resolve(path.dirname(from), source)
 
   const candidates = [
+    // Keep support for truly extensionless files.
     base,
     ...extensions.map(ext => `${base}${ext}`),
     ...extensions.map(ext => path.join(base, `index${ext}`)),

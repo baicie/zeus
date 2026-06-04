@@ -114,17 +114,30 @@ function shouldSnapshotPackage(pkg: {
   return true
 }
 
+function createMarkdownCodeFence(content: string): string {
+  const backtickRuns = content.match(/`+/g) ?? []
+
+  const maxBacktickRun = backtickRuns.reduce(
+    (max, run) => Math.max(max, run.length),
+    0,
+  )
+
+  return '`'.repeat(Math.max(3, maxBacktickRun + 1))
+}
+
 function toSnapshot(pkgName: string, subpath: string, normalizedDts: string) {
   const subpathLabel = subpath === '.' ? 'main' : subpath
+  const fence = createMarkdownCodeFence(normalizedDts)
+
   return `# ${pkgName} (${subpathLabel}) API Snapshot
 
 > This file is generated from the published declaration entry.
 > Do not edit manually.
 > Run \`pnpm api:snapshot\` to update.
 
-\`\`\`ts
+${fence}ts
 ${normalizedDts}
-\`\`\`
+${fence}
 `
 }
 

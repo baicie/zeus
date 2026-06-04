@@ -101,6 +101,20 @@ describe('rollup adapter', () => {
     expect(resolved).toBeNull()
   })
 
+  it('does not resolve imports that already have an extension', () => {
+    const plugin = zeus({
+      root,
+    })
+    const resolveId = plugin.resolveId as (
+      id: string,
+      importer?: string,
+    ) => string | null
+
+    const resolved = resolveId('./Button.tsx', path.join(root, 'src/index.ts'))
+
+    expect(resolved).toBeNull()
+  })
+
   it('recognizes Windows absolute import paths', () => {
     expect(isAbsoluteImportPath('C:/repo/src/Button')).toBe(true)
     expect(isAbsoluteImportPath('C:\\repo\\src\\Button')).toBe(true)

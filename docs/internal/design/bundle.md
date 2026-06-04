@@ -86,7 +86,10 @@ import { ButtonProps } from './types'
 
 ## Rollup Resolve 行为
 
-Rollup adapter 会为相对路径和绝对路径补充 TS-like extensionless 解析。带 query/hash 的 import 不由 Zeus resolver 消费，避免吞掉其他 Rollup 插件的 `?raw`、`?url` 或自定义 query 语义。默认扩展名：
+Rollup adapter 只为没有扩展名的相对路径和绝对路径补充 TS-like
+extensionless 解析。带扩展名、query 或 hash 的 import 不由 Zeus
+resolver 消费，避免吞掉 Rollup 本身或其他插件的资源解析语义，
+例如 `?raw`、`?url`、CSS、SVG 和 JSON。默认扩展名：
 
 ```ts
 ;['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs']
