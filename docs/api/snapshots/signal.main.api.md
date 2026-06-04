@@ -4,7 +4,7 @@
 > Do not edit manually.
 > Run `pnpm api:snapshot` to update.
 
-````ts
+```ts
 export interface ValueState<T = unknown> {
   get value(): T
   set value(value: T)
@@ -421,4 +421,4 @@ export declare function traverse(
 export declare function onCleanup(fn: () => void): void
 
 export { EffectScope as Scope, effectScope as scope }
-````
+```
