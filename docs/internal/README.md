@@ -8,6 +8,12 @@ Zeus 项目内部设计文档与进度追踪。
 
 每个阶段对应一个主题文件夹，命名格式为 `stageXX-<task>`（XX 为序号，task 为主任务名）。
 
+跨阶段设计协议放在 `docs/internal/design/`，例如：
+
+- [Primitive Component Protocol](./design/primitive-component-protocol.md)
+- [Primitive Component Protocol Implementation Design](./design/primitive-component-implementation.md)
+- [Web-C Architecture and Aggregate Package Design](./design/web-c-architecture.md)
+
 ```
 docs/internal/
 ├── README.md
