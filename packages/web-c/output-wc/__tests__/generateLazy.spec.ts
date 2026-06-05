@@ -275,7 +275,7 @@ describe('generateLazyManifest', () => {
 
     expect(code).toContain('name: "columns", attrName: false')
     expect(code).toContain('name: "config", attrName: false')
-    expect(code).toContain('reflect: true')
+    expect(code).not.toContain('reflect: true')
   })
 
   it('only emits runtime props into the lazy manifest', () => {

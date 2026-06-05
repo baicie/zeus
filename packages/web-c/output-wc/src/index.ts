@@ -81,16 +81,42 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
         for (const component of ctx.manifest.components) {
           const diagnostics = component.runtimePropsDiagnostics ?? []
 
-          if (diagnostics.length === 0) {
-            continue
+          if (diagnostics.length > 0) {
+            ctx.error(
+              [
+                `[zeus-output-wc] <${component.tag}> cannot be emitted with register:"lazy" because its runtime props are not statically analyzable.`,
+                ...diagnostics.map(message => `- ${message}`),
+              ].join('\n'),
+            )
           }
 
-          ctx.error(
-            [
-              `[zeus-output-wc] <${component.tag}> cannot be emitted with register:"lazy" because its runtime props are not statically analyzable.`,
-              ...diagnostics.map(message => `- ${message}`),
-            ].join('\n'),
-          )
+          const runtimeProps = component.runtimeProps ?? {}
+
+          for (const [name, prop] of Object.entries(runtimeProps)) {
+            if (isAttributeBackedRuntimeProp(prop.type)) {
+              continue
+            }
+
+            if (prop.attr !== undefined && prop.attr !== false) {
+              ctx.error(
+                [
+                  `[zeus-output-wc] <${component.tag}> prop "${name}" cannot use attr:${JSON.stringify(prop.attr)} with register:"lazy".`,
+                  'Lazy Web-C only supports attributes for string, number and boolean props.',
+                  'Use attr:false and pass object/array/function values as properties instead.',
+                ].join('\n'),
+              )
+            }
+
+            if (prop.reflect) {
+              ctx.error(
+                [
+                  `[zeus-output-wc] <${component.tag}> prop "${name}" cannot use reflect:true with register:"lazy".`,
+                  'Lazy Web-C only reflects string, number and boolean props.',
+                  'Use a string/number/boolean prop or remove reflect:true.',
+                ].join('\n'),
+              )
+            }
+          }
         }
       }
 
@@ -354,6 +380,10 @@ function getLazyEntryFileName(
   tag: string,
 ): string {
   return normalizeLazyEntryFileName(entryFileName(tag))
+}
+
+function isAttributeBackedRuntimeProp(type: string): boolean {
+  return type === 'string' || type === 'number' || type === 'boolean'
 }
 
 function checkFileNameCollisions(

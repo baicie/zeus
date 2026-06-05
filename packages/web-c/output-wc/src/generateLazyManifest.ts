@@ -61,7 +61,7 @@ function generatePropsArray(props: Record<string, ComponentProp>): string {
 
     parts.push(`type: ${JSON.stringify(prop.type)}`)
 
-    if (prop.reflect) {
+    if (prop.reflect && isAttributeBackedType(prop.type)) {
       parts.push('reflect: true')
     }
 

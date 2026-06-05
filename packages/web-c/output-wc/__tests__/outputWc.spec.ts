@@ -743,6 +743,84 @@ describe('output-wc', () => {
   })
 
   describe('buildStart', () => {
+    it('errors when lazy object props explicitly request attributes', () => {
+      const errors: string[] = []
+      const plugin = wc({
+        register: 'lazy',
+      })
+      const ctx = createMockCtx({
+        version: 1,
+        components: [
+          {
+            tag: 'zw-table',
+            name: 'ZwTable',
+            exportName: 'ZwTable',
+            source: 'src/table.tsx',
+            props: {},
+            runtimeProps: {
+              config: {
+                type: 'object',
+                attr: 'config',
+              },
+            },
+            events: {},
+            slots: {},
+            hostAttributes: [],
+            cssParts: [],
+            cssVars: [],
+          },
+        ],
+      })
+
+      plugin.buildStart!({
+        ...ctx,
+        error: (msg: unknown) => errors.push(String(msg)),
+      } as any)
+
+      expect(errors.join('\n')).toContain(
+        'prop "config" cannot use attr:"config" with register:"lazy"',
+      )
+    })
+
+    it('errors when lazy object props request reflect', () => {
+      const errors: string[] = []
+      const plugin = wc({
+        register: 'lazy',
+      })
+      const ctx = createMockCtx({
+        version: 1,
+        components: [
+          {
+            tag: 'zw-table',
+            name: 'ZwTable',
+            exportName: 'ZwTable',
+            source: 'src/table.tsx',
+            props: {},
+            runtimeProps: {
+              config: {
+                type: 'object',
+                reflect: true,
+              },
+            },
+            events: {},
+            slots: {},
+            hostAttributes: [],
+            cssParts: [],
+            cssVars: [],
+          },
+        ],
+      })
+
+      plugin.buildStart!({
+        ...ctx,
+        error: (msg: unknown) => errors.push(String(msg)),
+      } as any)
+
+      expect(errors.join('\n')).toContain(
+        'prop "config" cannot use reflect:true with register:"lazy"',
+      )
+    })
+
     it('warns on file name collision', () => {
       const warns: string[] = []
       const plugin = wc({
