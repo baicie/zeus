@@ -94,10 +94,14 @@ function generateVueEmitsType(component: ComponentRecord): string {
     return '{}'
   }
 
-  const fields = entries.map(([name, event]) => {
+  const fields = entries.map(([key, event]) => {
     const detailType = event.detail ? formatDetailType(event.detail) : 'unknown'
-    return `${JSON.stringify(name)}: (event: CustomEvent<${detailType}>) => void`
+    return `${JSON.stringify(event.name ?? toKebabCase(event.key ?? key))}: (event: CustomEvent<${detailType}>) => void`
   })
 
   return `{ ${fields.join('; ')} }`
+}
+
+function toKebabCase(value: string): string {
+  return value.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
 }

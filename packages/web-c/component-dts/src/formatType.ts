@@ -16,6 +16,8 @@ export function formatPropType(prop: ComponentProp): string {
       return 'unknown[]'
     case 'object':
       return 'Record<string, unknown>'
+    case 'function':
+      return 'Function'
     default:
       return 'unknown'
   }

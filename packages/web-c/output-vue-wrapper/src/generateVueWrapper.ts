@@ -98,7 +98,9 @@ function generateEventBridgeVueWrapper(
   const { component, wcModuleId } = input
 
   const propNames = Object.keys(component.props)
-  const eventNames = Object.keys(component.events)
+  const eventNames = Object.entries(component.events).map(([key, event]) => {
+    return event.name ?? toKebabCase(event.key ?? key)
+  })
   const slotNames = Object.keys(component.slots).filter(
     name => name !== 'default',
   )
@@ -246,6 +248,7 @@ function toVuePropOption(prop: ComponentRecord['props'][string]): string {
     boolean: 'Boolean',
     object: 'Object',
     array: 'Array',
+    function: 'Function',
     unknown: 'null',
   }
 

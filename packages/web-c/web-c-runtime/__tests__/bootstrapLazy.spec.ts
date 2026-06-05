@@ -540,6 +540,40 @@ describe('lazy element lifecycle', () => {
         .observedAttributes,
     ).toEqual([])
   })
+
+  it('proxies exposed methods through the lazy element', async () => {
+    const focusInput = vi.fn().mockReturnValue('focused')
+
+    bootstrapLazy([
+      {
+        tagName: 'zw-method-test',
+        shadow: false,
+        load: vi.fn().mockResolvedValue({
+          createComponent(hostRef: HostRef) {
+            Object.defineProperty(hostRef.host, 'focusInput', {
+              configurable: true,
+              value: focusInput,
+            })
+
+            return {
+              connected() {},
+            }
+          },
+        }),
+        props: [],
+        methods: ['focusInput'],
+      },
+    ])
+
+    const el = document.createElement('zw-method-test') as ZeusLazyElement & {
+      focusInput(): Promise<unknown>
+    }
+
+    document.body.appendChild(el)
+
+    await expect(el.focusInput()).resolves.toBe('focused')
+    expect(focusInput).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('componentOnReady', () => {

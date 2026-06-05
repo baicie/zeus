@@ -1,5 +1,3 @@
-import { toReactEventProp } from './naming'
-
 import type { ComponentRecord } from '@zeus-js/component-analyzer'
 
 export interface GenerateReactWrapperOptions {
@@ -37,10 +35,13 @@ function createBindings(names: string[], prefix: string): Binding[] {
   }))
 }
 
-function createEventBindings(eventNames: string[]): EventBinding[] {
-  return eventNames.map((eventName, index) => ({
-    eventName,
-    sourceName: toReactEventProp(eventName),
+function createEventBindings(
+  events: ComponentRecord['events'],
+): EventBinding[] {
+  return Object.keys(events).map((key, index) => ({
+    eventName: events[key].name ?? toKebabCase(events[key].key ?? key),
+    sourceName:
+      events[key].reactName ?? toReactEventProp(events[key].key ?? key),
     localName: `eventHandler${index}`,
   }))
 }
@@ -114,7 +115,7 @@ function generateEventBridgeReactWrapper(
 
   const propBindings = createBindings(Object.keys(component.props), 'propValue')
 
-  const eventBindings = createEventBindings(Object.keys(component.events))
+  const eventBindings = createEventBindings(component.events)
 
   const slotBindings = createBindings(
     getNamedSlots(component, namedSlots),
@@ -323,4 +324,16 @@ function generateMinimalNamedSlots(bindings: Binding[]): string {
     bindings.map((_, index) => `slotNode${index}`).join(', ') +
     '].filter(Boolean);\n'
   )
+}
+
+function toKebabCase(value: string): string {
+  return value.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
+}
+
+function toReactEventProp(value: string): string {
+  return `on${value
+    .split('-')
+    .filter(Boolean)
+    .map(part => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join('')}`
 }

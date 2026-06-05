@@ -4,11 +4,7 @@ import {
   isRequiredProp,
   safePropertyName,
 } from './formatType'
-import {
-  getElementTypeName,
-  getPropsTypeName,
-  toReactEventProp,
-} from './naming'
+import { getElementTypeName, getPropsTypeName } from './naming'
 
 import type {
   ComponentManifest,
@@ -61,8 +57,8 @@ function generateReactComponentDts(
   lines.push('  className?: string')
   lines.push('  style?: React.CSSProperties')
 
-  for (const [name, event] of Object.entries(component.events)) {
-    const propName = toReactEventProp(name)
+  for (const [key, event] of Object.entries(component.events)) {
+    const propName = event.reactName ?? toReactEventProp(event.key ?? key)
     const detailType = event.detail ? formatDetailType(event.detail) : 'unknown'
     lines.push(
       `  ${safePropertyName(propName)}?: (event: CustomEvent<${detailType}>) => void`,
@@ -87,6 +83,10 @@ function generateReactComponentDts(
     )
   }
 
+  for (const name of Object.keys(component.methods ?? {})) {
+    lines.push(`  ${safePropertyName(name)}(...args: unknown[]): unknown`)
+  }
+
   lines.push('}')
   lines.push('')
   lines.push(
@@ -96,4 +96,12 @@ function generateReactComponentDts(
   lines.push('>')
 
   return lines.join('\n')
+}
+
+function toReactEventProp(value: string): string {
+  return `on${value
+    .split('-')
+    .filter(Boolean)
+    .map(part => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join('')}`
 }

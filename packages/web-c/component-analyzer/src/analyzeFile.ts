@@ -1,5 +1,6 @@
 import { parseSource } from './ast'
 import { extractDefineElementCalls } from './extractDefineElement'
+import { extractEmits } from './extractEmits'
 import { extractInlineMeta } from './extractMeta'
 import {
   extractRuntimeProps,
@@ -37,6 +38,7 @@ export function analyzeFile(options: AnalyzeFileOptions): AnalyzeFileResult {
       }
 
       const runtimeProps = extractRuntimeProps(call.options)
+      const emits = extractEmits(call.options)
       const shadowOption = extractShadowOption(call.options)
 
       const typeProps = call.propsTypeName
@@ -64,6 +66,7 @@ export function analyzeFile(options: AnalyzeFileOptions): AnalyzeFileResult {
           call,
           runtimeProps,
           runtimePropsDiagnostics,
+          emits,
           typeProps,
           setupMeta,
           inlineMeta,

@@ -544,7 +544,7 @@ function extractEventDefinition(
     return {
       ...defaults,
       name: first.value,
-      reactName: toReactEventProp(first.value),
+      reactName: defaults.reactName,
     }
   }
 
@@ -797,13 +797,13 @@ el.addEventListener('value-change', handler)
 3. unmount 解绑 listener。
 4. `ref` 指向底层 custom element。
 
-Preset 默认仍可保持 `minimal`。如果想降低用户心智负担，可以在 `componentLibrary()` 增加：
+单独的 `output-react-wrapper` 默认仍可保持 `minimal`，避免直接调用底层 output 时出现隐式行为变化。组件库预设如果想降低用户心智负担，可以在 `componentLibrary()` 增加：
 
 ```ts
 wrapper?: 'minimal' | 'event-bridge' | 'auto'
 ```
 
-`auto` 表示组件声明事件时 wrapper 用 event bridge。P1 建议先保留现有默认 `minimal`，避免额外行为变化；组件库可以显式配置 `wrapper: 'event-bridge'`。
+`auto` 表示组件声明事件时 wrapper 用 event bridge。P1 建议底层 output 保留现有默认 `minimal`；组件库预设可以显式配置 `wrapper: 'event-bridge'`，后续再评估是否默认 `auto`。
 
 ## Vue Wrapper
 
@@ -943,14 +943,15 @@ export * from './index'
 
 `vite.ts` 和 `rollup.ts` 同理。
 
-根入口兼容文件：
+不要在 `"type": "module"` 的聚合包里加入 CommonJS `module.exports` shim。根入口文件应保持 ESM，并转发到构建产物：
 
 ```js
 // rolldown.js
-module.exports = require('./dist/rolldown.cjs')
+export * from './dist/rolldown.js'
+export { default } from './dist/rolldown.js'
 ```
 
-如果该包保持 `"type": "module"`，则不建议提供 CommonJS `require` 入口，避免 `module.exports` 和 ESM package type 冲突。更稳妥的方案是只提供 ESM import，和现有 Web-C 包保持一致后再决定。
+如果后续确实需要 CommonJS，需要单独提供 `.cjs` 文件和独立 exports 条件，不能混在 ESM `.js` 入口里。
 
 ## Implementation Order
 

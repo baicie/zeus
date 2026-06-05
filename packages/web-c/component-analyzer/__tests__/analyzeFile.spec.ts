@@ -117,7 +117,11 @@ describe('analyzeFile', () => {
       },
       hostAttributes: ['data-disabled', 'data-slot', 'data-variant'],
       cssParts: ['root'],
-      cssVars: ['--z-button-bg'],
+      cssVars: {
+        '--z-button-bg': {
+          name: '--z-button-bg',
+        },
+      },
     })
   })
 
@@ -146,9 +150,89 @@ describe('analyzeFile', () => {
     })
 
     expect(result.components[0].slots).toEqual({
-      default: {},
-      footer: {},
-      header: {},
+      default: { name: 'default' },
+      footer: { name: 'footer' },
+      header: { name: 'header' },
+    })
+  })
+
+  it('extracts primitive protocol metadata', () => {
+    const code = `
+      import { Host, defineElement, event, prop } from '@zeus-js/zeus'
+
+      export const ZInput = defineElement(
+        'z-input',
+        {
+          shadow: false,
+          props: {
+            value: String,
+            type: prop(['text', 'password'], {
+              default: 'text',
+              reflect: true,
+            }),
+            formatter: Function,
+          },
+          emits: {
+            valueChange: event<{ value: string }>(),
+          },
+        },
+        (_props, { emit, expose }) => {
+          expose({
+            focus() {},
+          })
+
+          return (
+            <Host>
+              <slot name="prefix" />
+              <input part="control" onInput={() => emit.valueChange({ value: '' })} />
+            </Host>
+          )
+        },
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/input.tsx',
+      code,
+    })
+
+    expect(result.diagnostics).toEqual([])
+    expect(result.components[0]).toMatchObject({
+      props: {
+        type: {
+          type: 'string',
+          values: ['text', 'password'],
+          default: 'text',
+          reflect: true,
+        },
+        formatter: {
+          type: 'function',
+        },
+      },
+      events: {
+        valueChange: {
+          key: 'valueChange',
+          name: 'value-change',
+          reactName: 'onValueChange',
+          bubbles: true,
+          composed: true,
+          cancelable: false,
+        },
+      },
+      methods: {
+        focus: {
+          name: 'focus',
+        },
+      },
+      slots: {
+        prefix: {
+          name: 'prefix',
+        },
+      },
+      cssParts: ['control'],
+      meta: {
+        shadow: false,
+      },
     })
   })
 

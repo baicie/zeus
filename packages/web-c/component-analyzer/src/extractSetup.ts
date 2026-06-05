@@ -1,12 +1,14 @@
 import * as t from '@babel/types'
 
 import { walk } from './ast'
+import { createComponentEvent } from './extractEmits'
 import { getObjectKey, staticValue, uniqueSorted } from './utils'
 
-import type { ComponentEvent, ComponentSlot } from './types'
+import type { ComponentEvent, ComponentMethod, ComponentSlot } from './types'
 
 export interface SetupMeta {
   events: Record<string, ComponentEvent>
+  methods: Record<string, ComponentMethod>
   slots: Record<string, ComponentSlot>
   hostAttributes: string[]
   cssParts: string[]
@@ -16,6 +18,7 @@ export function extractSetupMeta(
   setup: t.Expression | t.SpreadElement | t.ArgumentPlaceholder | undefined,
 ): SetupMeta {
   const events: Record<string, ComponentEvent> = {}
+  const methods: Record<string, ComponentMethod> = {}
   const slots: Record<string, ComponentSlot> = {}
   const hostAttributes: string[] = []
   const cssParts: string[] = []
@@ -23,6 +26,7 @@ export function extractSetupMeta(
   if (!setup || t.isSpreadElement(setup) || t.isArgumentPlaceholder(setup)) {
     return {
       events,
+      methods,
       slots,
       hostAttributes,
       cssParts,
@@ -31,6 +35,7 @@ export function extractSetupMeta(
 
   walk(setup, node => {
     extractEmit(node, events)
+    extractExpose(node, methods)
     extractSlot(node, slots)
     extractHostAttributes(node, hostAttributes)
     extractCssParts(node, cssParts)
@@ -38,6 +43,7 @@ export function extractSetupMeta(
 
   return {
     events,
+    methods,
     slots,
     hostAttributes: uniqueSorted(hostAttributes),
     cssParts: uniqueSorted(cssParts),
@@ -50,21 +56,64 @@ function extractEmit(
 ): void {
   if (!t.isCallExpression(node)) return
 
-  if (!t.isIdentifier(node.callee, { name: 'emit' })) return
+  const emitKey = getEmitKey(node.callee)
+
+  if (!emitKey) return
 
   const first = node.arguments[0]
+  const eventName =
+    emitKey === true && t.isStringLiteral(first)
+      ? first.value
+      : emitKey === true
+        ? undefined
+        : emitKey
 
-  if (!t.isStringLiteral(first)) return
+  if (!eventName) return
 
-  const eventName = first.value
+  events[eventName] ||= createComponentEvent(eventName)
 
-  events[eventName] ||= {}
-
-  const detailNode = node.arguments[1]
+  const detailNode = emitKey === true ? node.arguments[1] : node.arguments[0]
 
   if (t.isObjectExpression(detailNode)) {
     events[eventName].detail = inferDetail(detailNode)
   }
+}
+
+function getEmitKey(
+  callee: t.Expression | t.V8IntrinsicIdentifier,
+): true | string | undefined {
+  if (t.isIdentifier(callee, { name: 'emit' })) return true
+
+  if (t.isMemberExpression(callee)) {
+    if (
+      t.isIdentifier(callee.object, { name: 'ctx' }) &&
+      t.isIdentifier(callee.property, { name: 'emit' })
+    ) {
+      return true
+    }
+
+    if (t.isIdentifier(callee.object, { name: 'emit' }) && !callee.computed) {
+      return getMemberPropertyName(callee.property)
+    }
+
+    if (
+      t.isMemberExpression(callee.object) &&
+      t.isIdentifier(callee.object.property, { name: 'emit' }) &&
+      !callee.computed
+    ) {
+      return getMemberPropertyName(callee.property)
+    }
+  }
+
+  return undefined
+}
+
+function getMemberPropertyName(
+  property: t.Expression | t.PrivateName,
+): string | undefined {
+  if (t.isIdentifier(property)) return property.name
+  if (t.isStringLiteral(property)) return property.value
+  return undefined
 }
 
 function inferDetail(node: t.ObjectExpression): Record<string, string> {
@@ -98,11 +147,53 @@ function extractSlot(node: t.Node, slots: Record<string, ComponentSlot>): void {
 
   const name = node.openingElement.name
 
-  if (!t.isJSXIdentifier(name, { name: 'Slot' })) return
+  if (
+    !t.isJSXIdentifier(name, { name: 'Slot' }) &&
+    !t.isJSXIdentifier(name, { name: 'slot' })
+  ) {
+    return
+  }
 
   const slotName = getJSXStringAttribute(node, 'name') ?? 'default'
 
-  slots[slotName] ||= {}
+  slots[slotName] ||= {
+    name: slotName,
+  }
+}
+
+function extractExpose(
+  node: t.Node,
+  methods: Record<string, ComponentMethod>,
+): void {
+  if (!t.isCallExpression(node)) return
+  if (!isExposeCallee(node.callee)) return
+
+  const first = node.arguments[0]
+
+  if (!t.isObjectExpression(first)) return
+
+  for (const member of first.properties) {
+    if (!t.isObjectMethod(member) && !t.isObjectProperty(member)) continue
+
+    const name = getObjectKey(member.key)
+
+    if (!name) continue
+
+    methods[name] = {
+      name,
+    }
+  }
+}
+
+function isExposeCallee(
+  callee: t.Expression | t.V8IntrinsicIdentifier,
+): boolean {
+  if (t.isIdentifier(callee, { name: 'expose' })) return true
+
+  return (
+    t.isMemberExpression(callee) &&
+    t.isIdentifier(callee.property, { name: 'expose' })
+  )
 }
 
 function extractHostAttributes(node: t.Node, hostAttributes: string[]): void {

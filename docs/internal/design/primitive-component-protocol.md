@@ -42,8 +42,8 @@
 | css vars                       | 已纳入   | 可选显式声明，用于主题、文档和 registry                                      |
 | shadow                         | 已纳入   | 组件级配置，headless/light-dom 可用 `shadow: false`                          |
 | formAssociated                 | 已纳入   | P2 能力，先保留协议入口                                                      |
-| React wrapper                  | 已纳入   | 默认 minimal；声明事件时启用 event bridge                                    |
-| Vue wrapper                    | 已纳入   | 默认 minimal；事件类型来自 `emits`                                           |
+| React wrapper                  | 已纳入   | 单独 output 默认仍可选择 minimal；组件库预设在声明事件时应启用 event bridge  |
+| Vue wrapper                    | 已纳入   | 单独 output 默认仍可选择 minimal；事件类型来自 `emits`                       |
 | types                          | 已纳入   | DOM / JSX / React / Vue 类型由 compiler 生成                                 |
 | docs / registry                | 已纳入   | 从 contract + JSDoc 推导，不再手写 `meta.props` / `meta.events`              |
 | manifest                       | 已纳入   | compiler 生成，组件作者不手写                                                |
@@ -260,6 +260,8 @@ emits: {
 }
 ```
 
+注意：自定义 DOM event name 只改变浏览器事件名，不改变 React prop 来源。上例仍生成 `onValueChange`，并监听 `input-value-change`。如果没有 `emits` 声明、只能从旧的 `emit('value-change')` fallback 推导，React prop 才从 DOM 名推导为 `onValueChange`。
+
 ### 事件配置
 
 `event()` 可以扩展事件行为：
@@ -441,7 +443,7 @@ slots: ['prefix', 'suffix']
 
 1. 静态 JSX slot 可自动分析。
 2. 动态 slot name 需要显式 `slots`。
-3. 显式 `slots` 用于补充或覆盖分析结果。
+3. 显式 `slots` 在 P1 只补充自动分析结果；同名项可补充描述，不删除 JSX 中推导出的 slot。
 4. 生成 `custom-elements.json`、`zeus.components.json` 和 wrapper 类型时必须包含 slot metadata。
 
 ## Parts 协议
@@ -471,7 +473,8 @@ parts: ['control', 'prefix', 'suffix']
 1. 静态 `part=""` 可自动分析。
 2. 多 part 值按空格拆分，例如 `part="control invalid"`。
 3. 动态 part 需要显式 `parts`。
-4. 生成 `custom-elements.json`、`zeus.components.json` 和 docs 时必须包含 cssParts metadata。
+4. 显式 `parts` 在 P1 只补充自动分析结果；同名项不重复输出。
+5. 生成 `custom-elements.json`、`zeus.components.json` 和 docs 时必须包含 cssParts metadata。
 
 ## CSS Vars 协议
 
@@ -682,9 +685,9 @@ emit.valueChange(detail)
 
 ## 待确认问题
 
-1. `Boolean` prop 默认是否反射到 attribute，还是必须显式 `reflect: true`。
-2. `ctx.emit()` 字符串 API 的长期保留策略。
-3. `expose()` 的静态分析能力边界。
-4. `slots` 显式声明是否覆盖 JSX 自动分析，还是只做补充。
-5. `parts` 显式声明是否覆盖 JSX 自动分析，还是只做补充。
-6. `formAssociated` 的 P2 具体 API 形态和 ElementInternals 封装边界。
+1. `Boolean` prop 默认不主动 reflect；只有 `reflect: true` 才把 property 写回 attribute。attribute -> property 仍按原生布尔 attribute 语义同步。
+2. `ctx.emit()` 字符串 API 作为兼容层保留；新类型、wrapper 和 manifest 以 `emits` 为权威来源。
+3. `expose()` 的 P1 静态分析只提取对象字面量方法名；复杂签名和动态 expose 放到 P2。
+4. `slots` 显式声明在 P1 只补充 JSX 自动分析结果。
+5. `parts` 显式声明在 P1 只补充 JSX 自动分析结果。
+6. `formAssociated` 的 P2 具体 API 形态和 ElementInternals 封装边界仍待设计。

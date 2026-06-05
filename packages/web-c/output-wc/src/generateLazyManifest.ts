@@ -21,16 +21,22 @@ export function generateLazyManifest(
     const entryFile = getEntryFileName(component.tag).replace(/\\/g, '/')
     const runtimeProps = component.runtimeProps ?? component.props
     const props = generatePropsArray(runtimeProps)
+    const methods = Object.keys(component.methods ?? {})
 
     const importPath = entryFile.startsWith('.')
       ? JSON.stringify(entryFile)
       : JSON.stringify(`./${entryFile}`)
+
+    const methodLine = methods.length
+      ? `    methods: ${JSON.stringify(methods)},\n`
+      : ''
 
     return `  {
     tagName: ${JSON.stringify(component.tag)},
     shadow: ${component.meta?.shadow ?? false},
     load: () => import(${importPath}),
     props: ${props},
+${methodLine}
   }`
   })
 

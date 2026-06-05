@@ -1,8 +1,12 @@
+import { createComponentEvent } from './extractEmits'
+
 import type { DefineElementCallRecord } from './extractDefineElement'
 import type { InlineMeta } from './extractMeta'
 import type { SetupMeta } from './extractSetup'
 import type {
   ComponentEvent,
+  ComponentCssVar,
+  ComponentMethod,
   ComponentProp,
   ComponentRecord,
   ComponentSlot,
@@ -13,6 +17,7 @@ export interface BuildRecordOptions {
   call: DefineElementCallRecord
   runtimeProps: Record<string, ComponentProp>
   runtimePropsDiagnostics?: string[]
+  emits: Record<string, ComponentEvent>
   typeProps: Record<string, Partial<ComponentProp>>
   setupMeta: SetupMeta
   inlineMeta: InlineMeta
@@ -27,6 +32,7 @@ export function buildComponentRecord(
     call,
     runtimeProps,
     runtimePropsDiagnostics,
+    emits: declaredEvents,
     typeProps,
     setupMeta,
     inlineMeta,
@@ -40,21 +46,21 @@ export function buildComponentRecord(
   )
 
   const events = mergeEvents(
+    declaredEvents,
     setupMeta.events,
     inlineMeta.events as Record<string, ComponentEvent> | undefined,
   )
 
-  const slots = mergeSlots(
-    setupMeta.slots,
-    inlineMeta.slots as Record<string, ComponentSlot> | undefined,
-  )
+  const methods = mergeMethods(setupMeta.methods, inlineMeta.methods)
+
+  const slots = mergeSlots(setupMeta.slots, inlineMeta.slots)
 
   const cssParts = unique([
     ...setupMeta.cssParts,
     ...toStringArray(inlineMeta.cssParts),
   ])
 
-  const cssVars = unique(toStringArray(inlineMeta.cssVars))
+  const cssVars = toCssVarsRecord(inlineMeta.cssVars)
 
   const hostAttributes = unique(setupMeta.hostAttributes)
 
@@ -73,6 +79,7 @@ export function buildComponentRecord(
       : undefined,
 
     events,
+    methods,
     slots,
     hostAttributes,
     cssParts,
@@ -107,7 +114,7 @@ function mergeProps(
     result[name] = {
       type: rp.type ?? tp.type ?? 'unknown',
       required: tp.required,
-      values: tp.values,
+      values: rp.values ?? tp.values,
       description: tp.description ?? mp.description,
       default: rp.default ?? mp.default,
       reflect: rp.reflect ?? mp.reflect,
@@ -119,22 +126,89 @@ function mergeProps(
 }
 
 function mergeEvents(
+  declared: Record<string, ComponentEvent>,
   inferred: Record<string, ComponentEvent>,
   explicit?: Record<string, ComponentEvent>,
 ): Record<string, ComponentEvent> {
-  return {
+  const result: Record<string, ComponentEvent> = {
     ...inferred,
-    ...(explicit ?? {}),
+    ...declared,
   }
+
+  for (const [key, value] of Object.entries(explicit ?? {})) {
+    result[key] = normalizeExplicitEvent(key, value, result[key])
+  }
+
+  return result
+}
+
+function normalizeExplicitEvent(
+  key: string,
+  value: ComponentEvent,
+  base: ComponentEvent | undefined,
+): ComponentEvent {
+  const fallback = base ?? createComponentEvent(key)
+
+  return {
+    key: value.key ?? fallback.key,
+    name: value.name ?? fallback.name,
+    reactName: value.reactName ?? fallback.reactName,
+    detail: value.detail ?? fallback.detail,
+    bubbles: value.bubbles ?? fallback.bubbles,
+    composed: value.composed ?? fallback.composed,
+    cancelable: value.cancelable ?? fallback.cancelable,
+    description: value.description ?? fallback.description,
+  }
+}
+
+function mergeMethods(
+  inferred: Record<string, ComponentMethod>,
+  explicit: unknown,
+): Record<string, ComponentMethod> {
+  const result: Record<string, ComponentMethod> = {
+    ...inferred,
+  }
+
+  if (Array.isArray(explicit)) {
+    for (const name of explicit) {
+      if (typeof name === 'string') {
+        result[name] = { name }
+      }
+    }
+  }
+
+  return result
 }
 
 function mergeSlots(
   inferred: Record<string, ComponentSlot>,
-  explicit?: Record<string, ComponentSlot>,
+  explicit?: unknown,
 ): Record<string, ComponentSlot> {
+  if (Array.isArray(explicit)) {
+    const result = {
+      ...inferred,
+    }
+
+    for (const name of explicit) {
+      if (typeof name === 'string') {
+        result[name] = {
+          name,
+        }
+      }
+    }
+
+    return result
+  }
+
+  if (!explicit || typeof explicit !== 'object') {
+    return {
+      ...inferred,
+    }
+  }
+
   return {
     ...inferred,
-    ...(explicit ?? {}),
+    ...(explicit as Record<string, ComponentSlot>),
   }
 }
 
@@ -142,6 +216,41 @@ function toStringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === 'string')
     : []
+}
+
+function toCssVarsRecord(value: unknown): Record<string, ComponentCssVar> {
+  if (Array.isArray(value)) {
+    const result: Record<string, ComponentCssVar> = {}
+
+    for (const item of value) {
+      if (typeof item === 'string') {
+        result[item] = { name: item }
+      }
+    }
+
+    return result
+  }
+
+  if (value && typeof value === 'object') {
+    const result: Record<string, ComponentCssVar> = {}
+
+    for (const [name, item] of Object.entries(value)) {
+      if (item && typeof item === 'object') {
+        const description = (item as { description?: unknown }).description
+        result[name] = {
+          name,
+          description:
+            typeof description === 'string' ? description : undefined,
+        }
+      } else {
+        result[name] = { name }
+      }
+    }
+
+    return result
+  }
+
+  return {}
 }
 
 function unique(values: string[]): string[] {
@@ -160,6 +269,7 @@ function stripKnownMetaFields(
   delete rest.cssVars
   delete rest.cssParts
   delete rest.shadow
+  delete rest.methods
 
   return Object.keys(rest).length ? rest : undefined
 }

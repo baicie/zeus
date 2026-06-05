@@ -84,6 +84,44 @@ export function createLazyElementClass(
     ZeusLazyElement.prototype as unknown as HTMLElement,
     meta.props,
   )
+  installMethodProxies(
+    ZeusLazyElement.prototype as unknown as HTMLElement,
+    meta.methods,
+  )
 
   return ZeusLazyElement
+}
+
+function installMethodProxies(
+  proto: HTMLElement,
+  methods: readonly string[] | undefined,
+): void {
+  if (!methods) return
+
+  for (const name of methods) {
+    if (name in proto) continue
+
+    Object.defineProperty(proto, name, {
+      configurable: true,
+      value: function (): Promise<unknown> {
+        const host = this as HTMLElement
+        const args = Array.prototype.slice.call(arguments) as unknown[]
+        const hostRef = requireHostRef(host)
+
+        return waitForComponentReady(hostRef).then(readyHost => {
+          const method = (readyHost as HTMLElement & Record<string, unknown>)[
+            name
+          ]
+
+          if (typeof method !== 'function') {
+            throw new Error(
+              `[zeus:web-c] Method "${name}" is not exposed on <${hostRef.meta.tagName}>.`,
+            )
+          }
+
+          return method.apply(readyHost, args)
+        })
+      },
+    })
+  }
 }

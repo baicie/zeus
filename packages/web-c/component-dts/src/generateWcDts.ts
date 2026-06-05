@@ -83,8 +83,10 @@ function generateEventMap(component: ComponentRecord): string {
   if (!entries.length) {
     lines.push('  [key: string]: CustomEvent<unknown>')
   } else {
-    for (const [name, event] of entries) {
-      lines.push(`  ${safePropertyName(name)}: ${formatEventType(event)}`)
+    for (const [key, event] of Object.entries(component.events)) {
+      lines.push(
+        `  ${safePropertyName(event.name ?? toKebabCase(event.key ?? key))}: ${formatEventType(event)}`,
+      )
     }
   }
 
@@ -106,6 +108,10 @@ function generateElementInterface(component: ComponentRecord): string {
     )
   }
 
+  for (const name of Object.keys(component.methods ?? {})) {
+    lines.push(`  ${safePropertyName(name)}(...args: unknown[]): unknown`)
+  }
+
   lines.push('')
   lines.push(`  addEventListener<K extends keyof ${eventMapName}>(`)
   lines.push('    type: K,')
@@ -125,4 +131,8 @@ function generateElementInterface(component: ComponentRecord): string {
   lines.push('}')
 
   return lines.join('\n')
+}
+
+function toKebabCase(value: string): string {
+  return value.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
 }

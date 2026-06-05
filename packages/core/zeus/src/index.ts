@@ -30,6 +30,8 @@ export {
   Host,
   Slot,
   defineElement,
+  event,
+  prop,
 } from '@zeus-js/runtime-dom'
 
 export type {
@@ -43,6 +45,14 @@ export type {
   DefineElementMeta,
   DefineElementContext,
   DefineElementSetup,
+  EmitApi,
+  EmitFunction,
+  EmitsOptions,
+  EventDefinition,
+  EventOptions,
+  PropDefinition,
+  PropDefinitionOptions,
+  ValuePropDefinition,
 } from '@zeus-js/runtime-dom'
 
 // context — main user-facing APIs

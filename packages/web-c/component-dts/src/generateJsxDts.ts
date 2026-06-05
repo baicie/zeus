@@ -1,4 +1,9 @@
-import { formatPropType, isRequiredProp, safePropertyName } from './formatType'
+import {
+  formatDetailType,
+  formatPropType,
+  isRequiredProp,
+  safePropertyName,
+} from './formatType'
 import { getPropsTypeName } from './naming'
 
 import type {
@@ -51,6 +56,13 @@ function generateComponentJsxProps(component: ComponentRecord): string {
     )
   }
 
+  for (const [key, event] of Object.entries(component.events)) {
+    const detailType = event.detail ? formatDetailType(event.detail) : 'unknown'
+    lines.push(
+      `  ${safePropertyName(event.reactName ?? toReactEventProp(event.key ?? key))}?: (event: CustomEvent<${detailType}>) => void`,
+    )
+  }
+
   lines.push('')
   lines.push('  children?: unknown')
   lines.push('  class?: string')
@@ -68,4 +80,12 @@ function generateComponentJsxProps(component: ComponentRecord): string {
   lines.push('}')
 
   return lines.join('\n')
+}
+
+function toReactEventProp(value: string): string {
+  return `on${value
+    .split('-')
+    .filter(Boolean)
+    .map(part => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join('')}`
 }

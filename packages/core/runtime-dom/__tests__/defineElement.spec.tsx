@@ -1,7 +1,7 @@
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { Slot, defineElement } from '../src'
+import { Slot, defineElement, event, prop } from '../src'
 import { insertTracked } from '../src'
 
 let uid = 0
@@ -299,7 +299,70 @@ describe('defineElement', () => {
     })
     expect(event.bubbles).toBe(true)
     expect(event.composed).toBe(true)
-    expect(event.cancelable).toBe(true)
+    expect(event.cancelable).toBe(false)
+  })
+
+  it('dispatches declared events and exposes host methods', async () => {
+    const tag = createTag('primitive-events')
+
+    defineElement(
+      tag,
+      {
+        shadow: false,
+        emits: {
+          valueChange: event<{ value: string }>(),
+          customChange: event<{ value: string }>('custom-change'),
+        },
+        props: {
+          variant: prop(['primary', 'secondary'], {
+            default: 'primary',
+          }),
+          formatter: Function,
+        },
+      },
+      (props, { emit, expose }) => {
+        expose({
+          focus() {
+            return props.variant
+          },
+        })
+
+        const button = document.createElement('button')
+        button.addEventListener('click', () => {
+          emit.valueChange({ value: 'a' })
+          emit.customChange({ value: 'b' })
+        })
+        return button
+      },
+    )
+
+    const valueChange = vi.fn()
+    const customChange = vi.fn()
+
+    const el = document.createElement(tag) as HTMLElement & {
+      focus(): string
+    }
+    el.setAttribute('formatter', 'ignored')
+    el.addEventListener('value-change', valueChange)
+    el.addEventListener('custom-change', customChange)
+    document.body.appendChild(el)
+
+    await nextFrame()
+
+    el.querySelector('button')!.dispatchEvent(
+      new MouseEvent('click', {
+        bubbles: true,
+      }),
+    )
+
+    expect(valueChange).toHaveBeenCalledTimes(1)
+    expect(customChange).toHaveBeenCalledTimes(1)
+    expect(valueChange.mock.calls[0][0].detail).toEqual({ value: 'a' })
+    expect(customChange.mock.calls[0][0].detail).toEqual({ value: 'b' })
+    expect(valueChange.mock.calls[0][0].cancelable).toBe(false)
+    expect(el.focus()).toBe('primary')
+    expect('formatter' in el).toBe(true)
+    expect((el as unknown as { formatter?: unknown }).formatter).toBeUndefined()
   })
 
   it('renders into shadow root when shadow is true', async () => {

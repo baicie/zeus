@@ -28,6 +28,7 @@ export interface ZeusLazyComponentMeta {
   load: () => Promise<ZeusComponentModule | { default: ZeusComponentModule }>
 
   props: ZeusPropMeta[]
+  methods?: string[]
 
   /**
    * Whether to render into a ShadowRoot.

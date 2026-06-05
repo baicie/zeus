@@ -17,15 +17,56 @@ export type ElementPropConstructor =
   | BooleanConstructor
   | ObjectConstructor
   | ArrayConstructor
+  | FunctionConstructor
+
+export interface PropDefinitionOptions<T = unknown> {
+  type?: ElementPropConstructor
+  attr?: string | false
+  reflect?: boolean
+  default?: T | (() => T)
+  values?: readonly T[]
+}
 
 export type PropDefinition<T = unknown> =
   | ElementPropConstructor
-  | {
-      type?: ElementPropConstructor
-      attr?: string | false
-      reflect?: boolean
-      default?: T | (() => T)
-    }
+  | PropDefinitionOptions<T>
+
+export interface ValuePropDefinition<
+  T = unknown,
+> extends PropDefinitionOptions<T> {
+  type: StringConstructor
+  values: readonly T[]
+}
+
+export interface EventDefinition<Detail = unknown> {
+  __zeusEvent: true
+  name?: string
+  bubbles?: boolean
+  composed?: boolean
+  cancelable?: boolean
+  __detail?: Detail
+}
+
+export interface EventOptions {
+  name?: string
+  bubbles?: boolean
+  composed?: boolean
+  cancelable?: boolean
+}
+
+export interface EmitsOptions {
+  [key: string]: EventDefinition<unknown>
+}
+
+export interface EmitFunction {
+  (name: string, detail?: unknown, options?: CustomEventInit): boolean
+}
+
+export type EmitApi<E extends EmitsOptions> = EmitFunction & {
+  [K in keyof E]: E[K] extends EventDefinition<infer Detail>
+    ? (detail: Detail, options?: CustomEventInit) => boolean
+    : never
+}
 
 export type PropOptions<P extends object> = Partial<{
   [K in keyof P]: PropDefinition<P[K]>
@@ -64,12 +105,20 @@ export interface DefineElementMeta {
   [key: string]: unknown
 }
 
-export interface DefineElementOptions<P extends object> {
+export interface DefineElementOptions<
+  P extends object,
+  E extends EmitsOptions = EmitsOptions,
+> {
   shadow?: boolean | ShadowRootInit
+  formAssociated?: boolean
   props?: PropOptions<P>
+  emits?: E
   styles?: string | string[]
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   consumes?: Context<any>[]
+  slots?: readonly string[]
+  parts?: readonly string[]
+  cssVars?: Record<string, { description?: string }>
 
   /**
    * Metadata only.
@@ -78,15 +127,20 @@ export interface DefineElementOptions<P extends object> {
   meta?: DefineElementMeta
 }
 
-export interface DefineElementContext<E extends HTMLElement = HTMLElement> {
+export interface DefineElementContext<
+  E extends HTMLElement = HTMLElement,
+  Emits extends EmitsOptions = EmitsOptions,
+> {
   host: E
-  emit: (name: string, detail?: unknown, options?: CustomEventInit) => boolean
+  emit: EmitApi<Emits>
+  expose(methods: Record<string, Function>): void
 }
 
 export type DefineElementSetup<
   P extends object,
   E extends HTMLElement = HTMLElement,
-> = (props: Readonly<P>, context: DefineElementContext<E>) => JSXValue
+  Emits extends EmitsOptions = EmitsOptions,
+> = (props: Readonly<P>, context: DefineElementContext<E, Emits>) => JSXValue
 
 export type NormalizedPropDefinition = {
   key: string
@@ -101,10 +155,11 @@ export const ZEUS_ELEMENT_DEFINITION = Symbol.for('zeus.element.definition')
 export interface ZeusElementDefinition<
   P extends object = object,
   E extends HTMLElement = HTMLElement,
+  Emits extends EmitsOptions = EmitsOptions,
 > {
   tagName: string
-  options: DefineElementOptions<P>
-  setup: DefineElementSetup<P, E>
+  options: DefineElementOptions<P, Emits>
+  setup: DefineElementSetup<P, E, Emits>
   propDefs: NormalizedPropDefinition[]
 }
 
@@ -115,6 +170,49 @@ export type ZeusElementConstructor = CustomElementConstructor & {
 export interface MountedElementDefinition {
   propertyChanged(name: string, _oldValue: unknown, newValue: unknown): void
   dispose(): void
+}
+
+const DEFAULT_EVENT_OPTIONS = {
+  bubbles: true,
+  composed: true,
+  cancelable: false,
+}
+
+export function prop<const V extends readonly string[]>(
+  values: V,
+  options: Omit<PropDefinitionOptions<V[number]>, 'type' | 'values'> = {},
+): ValuePropDefinition<V[number]> {
+  return {
+    type: String,
+    values,
+    attr: options.attr,
+    reflect: options.reflect,
+    default: options.default,
+  }
+}
+
+export function event<Detail = unknown>(): EventDefinition<Detail>
+export function event<Detail = unknown>(name: string): EventDefinition<Detail>
+export function event<Detail = unknown>(
+  options: EventOptions,
+): EventDefinition<Detail>
+export function event<Detail = unknown>(
+  input?: string | EventOptions,
+): EventDefinition<Detail> {
+  if (typeof input === 'string') {
+    return {
+      __zeusEvent: true,
+      name: input,
+    }
+  }
+
+  return {
+    __zeusEvent: true,
+    name: input?.name,
+    bubbles: input?.bubbles,
+    composed: input?.composed,
+    cancelable: input?.cancelable,
+  }
 }
 
 /**
@@ -188,13 +286,14 @@ function createPropStore<P extends object>(
 export function defineElement<
   P extends object = object,
   E extends HTMLElement = HTMLElement,
+  Emits extends EmitsOptions = EmitsOptions,
 >(
   tagName: string,
-  options: DefineElementOptions<P>,
-  setup: DefineElementSetup<P, E>,
+  options: DefineElementOptions<P, Emits>,
+  setup: DefineElementSetup<P, E, Emits>,
 ): CustomElementConstructor {
   const propDefs = normalizePropDefinitions(options.props ?? {})
-  const definition: ZeusElementDefinition<P, E> = {
+  const definition: ZeusElementDefinition<P, E, Emits> = {
     tagName,
     options,
     setup,
@@ -261,19 +360,10 @@ export function defineElement<
         lightChildren: this.lightChildren,
       }
 
-      const setupContext: DefineElementContext<E> = {
+      const setupContext: DefineElementContext<E, Emits> = {
         host: this as unknown as E,
-        emit: (name, detail, eventOptions) => {
-          return this.dispatchEvent(
-            new CustomEvent(name, {
-              bubbles: true,
-              composed: true,
-              cancelable: true,
-              ...eventOptions,
-              detail,
-            }),
-          )
-        },
+        emit: createEmitApi(this, options.emits) as EmitApi<Emits>,
+        expose: createExpose(this),
       }
 
       this.dispose = render(
@@ -440,17 +530,8 @@ export function mountElementDefinition(
 
   const setupContext: DefineElementContext<HTMLElement> = {
     host,
-    emit: (name, detail, eventOptions) => {
-      return host.dispatchEvent(
-        new CustomEvent(name, {
-          bubbles: true,
-          composed: true,
-          cancelable: true,
-          ...eventOptions,
-          detail,
-        }),
-      )
-    },
+    emit: createEmitApi(host, options.emits) as EmitApi<EmitsOptions>,
+    expose: createExpose(host),
   }
 
   const dispose = render(
@@ -484,18 +565,25 @@ function normalizePropDefinitions<P extends Record<string, unknown>>(
     const input = props[key as keyof P]
 
     if (typeof input === 'function') {
+      const type = input as ElementPropConstructor
+
       return {
         key,
-        attr: toKebabCase(key),
-        type: input as ElementPropConstructor,
+        attr: isAttributeBackedConstructor(type) ? toKebabCase(key) : false,
+        type,
         reflect: false,
       }
     }
 
+    const type = input?.type
+    const defaultAttr = isAttributeBackedConstructor(type)
+      ? toKebabCase(key)
+      : false
+
     return {
       key,
-      attr: input?.attr === undefined ? toKebabCase(key) : input.attr,
-      type: input?.type,
+      attr: input?.attr === undefined ? defaultAttr : input.attr,
+      type,
       reflect: Boolean(input?.reflect),
       default: input?.default,
     }
@@ -600,6 +688,10 @@ function castAttributeValue(
     }
   }
 
+  if (def.type === Function) {
+    return undefined
+  }
+
   return value
 }
 
@@ -630,7 +722,98 @@ function reflectPropToAttribute(
     return
   }
 
+  if (def.type === Function) return
+
   element.setAttribute(def.attr, String(value))
+}
+
+function createEmitApi(
+  host: HTMLElement,
+  emits: EmitsOptions | undefined,
+): EmitFunction {
+  const emit = function (
+    name: string,
+    detail?: unknown,
+    options?: CustomEventInit,
+  ): boolean {
+    const eventName = resolveEventName(name, emits)
+    const eventOptions = resolveEventOptions(name, emits, options)
+
+    return host.dispatchEvent(
+      new CustomEvent(eventName, {
+        bubbles: eventOptions.bubbles,
+        composed: eventOptions.composed,
+        cancelable: eventOptions.cancelable,
+        detail,
+      }),
+    )
+  } as EmitFunction
+
+  if (emits) {
+    for (const key of Object.keys(emits)) {
+      Object.defineProperty(emit, key, {
+        configurable: true,
+        enumerable: true,
+        value(detail: unknown, options?: CustomEventInit): boolean {
+          return emit(key, detail, options)
+        },
+      })
+    }
+  }
+
+  return emit
+}
+
+function createExpose(
+  host: HTMLElement,
+): (methods: Record<string, Function>) => void {
+  return methods => {
+    for (const key of Object.keys(methods)) {
+      Object.defineProperty(host, key, {
+        configurable: true,
+        enumerable: false,
+        value: methods[key],
+      })
+    }
+  }
+}
+
+function resolveEventName(
+  name: string,
+  emits: EmitsOptions | undefined,
+): string {
+  const definition = emits?.[name]
+
+  if (!definition) return name
+
+  return definition.name ?? toKebabCase(name)
+}
+
+function resolveEventOptions(
+  name: string,
+  emits: EmitsOptions | undefined,
+  options: CustomEventInit | undefined,
+): Required<Pick<CustomEventInit, 'bubbles' | 'composed' | 'cancelable'>> {
+  const definition = emits?.[name]
+
+  return {
+    bubbles:
+      options?.bubbles ?? definition?.bubbles ?? DEFAULT_EVENT_OPTIONS.bubbles,
+    composed:
+      options?.composed ??
+      definition?.composed ??
+      DEFAULT_EVENT_OPTIONS.composed,
+    cancelable:
+      options?.cancelable ??
+      definition?.cancelable ??
+      DEFAULT_EVENT_OPTIONS.cancelable,
+  }
+}
+
+function isAttributeBackedConstructor(
+  type: ElementPropConstructor | undefined,
+): boolean {
+  return type === String || type === Number || type === Boolean
 }
 
 function resolveExternalRenderTarget(

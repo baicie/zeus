@@ -101,16 +101,21 @@ export function validateRuntimePropsDefinition(
     if (t.isIdentifier(member.value)) {
       if (!isPropConstructorName(member.value.name)) {
         messages.push(
-          `Prop "${propName}" must use String, Number, Boolean, Object, Array, or an inline prop options object.`,
+          `Prop "${propName}" must use String, Number, Boolean, Object, Array, Function, prop(values), or an inline prop options object.`,
         )
       }
 
       continue
     }
 
+    if (isPropCall(member.value)) {
+      validatePropCall(propName, member.value, messages)
+      continue
+    }
+
     if (!t.isObjectExpression(member.value)) {
       messages.push(
-        `Prop "${propName}" must use an inline prop options object.`,
+        `Prop "${propName}" must use an inline prop options object or prop(values).`,
       )
       continue
     }
@@ -147,7 +152,7 @@ function validatePropOptions(
         !isPropConstructorName(member.value.name)
       ) {
         messages.push(
-          `Prop "${propName}" type must be String, Number, Boolean, Object, or Array.`,
+          `Prop "${propName}" type must be String, Number, Boolean, Object, Array, or Function.`,
         )
       }
 
@@ -184,6 +189,16 @@ function validatePropOptions(
       if (value !== undefined && typeof value !== 'boolean') {
         messages.push(`Prop "${propName}" reflect must be a static boolean.`)
       }
+
+      continue
+    }
+
+    if (optionName === 'values') {
+      if (!isStaticStringArray(member.value)) {
+        messages.push(
+          `Prop "${propName}" values must be a static string array.`,
+        )
+      }
     }
   }
 }
@@ -193,6 +208,10 @@ function extractRuntimeProp(node: t.Expression | t.PatternLike): ComponentProp {
     return {
       type: typeFromConstructorName(node.name),
     }
+  }
+
+  if (isPropCall(node)) {
+    return extractPropCall(node)
   }
 
   if (t.isObjectExpression(node)) {
@@ -234,6 +253,13 @@ function extractRuntimeProp(node: t.Expression | t.PatternLike): ComponentProp {
       }
     }
 
+    const valuesNode = getObjectProperty(node, 'values')
+    const values = extractStaticStringArray(valuesNode)
+
+    if (values) {
+      prop.values = values
+    }
+
     return prop
   }
 
@@ -242,13 +268,78 @@ function extractRuntimeProp(node: t.Expression | t.PatternLike): ComponentProp {
   }
 }
 
+function isPropCall(node: t.Node): node is t.CallExpression {
+  return (
+    t.isCallExpression(node) && t.isIdentifier(node.callee, { name: 'prop' })
+  )
+}
+
+function validatePropCall(
+  propName: string,
+  node: t.CallExpression,
+  messages: string[],
+): void {
+  if (!isStaticStringArray(node.arguments[0])) {
+    messages.push(
+      `Prop "${propName}" prop() values must be a static string array.`,
+    )
+  }
+
+  const optionsNode = node.arguments[1]
+
+  if (optionsNode && !t.isObjectExpression(optionsNode)) {
+    messages.push(
+      `Prop "${propName}" prop() options must be an inline object literal.`,
+    )
+    return
+  }
+
+  if (t.isObjectExpression(optionsNode)) {
+    validatePropOptions(propName, optionsNode, messages)
+  }
+}
+
+function extractPropCall(node: t.CallExpression): ComponentProp {
+  const optionsNode = node.arguments[1]
+  const prop = t.isObjectExpression(optionsNode)
+    ? extractRuntimeProp(optionsNode)
+    : ({ type: 'string' } satisfies ComponentProp)
+
+  prop.type = 'string'
+  prop.values = extractStaticStringArray(node.arguments[0]) ?? []
+
+  return prop
+}
+
+function isStaticStringArray(
+  node: t.Node | null | undefined,
+): node is t.ArrayExpression {
+  return Boolean(extractStaticStringArray(node))
+}
+
+function extractStaticStringArray(
+  node: t.Node | null | undefined,
+): string[] | undefined {
+  if (!t.isArrayExpression(node)) return undefined
+
+  const values: string[] = []
+
+  for (const item of node.elements) {
+    if (!t.isStringLiteral(item)) return undefined
+    values.push(item.value)
+  }
+
+  return values
+}
+
 function isPropConstructorName(name: string): boolean {
   return (
     name === 'String' ||
     name === 'Number' ||
     name === 'Boolean' ||
     name === 'Object' ||
-    name === 'Array'
+    name === 'Array' ||
+    name === 'Function'
   )
 }
 
@@ -268,6 +359,8 @@ function typeFromConstructorName(name: string): ComponentPropType {
       return 'object'
     case 'Array':
       return 'array'
+    case 'Function':
+      return 'function'
     default:
       return 'unknown'
   }
