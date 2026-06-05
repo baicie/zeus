@@ -416,28 +416,100 @@ async function publishPackage(
   releaseTag: string | null,
   additionalFlags: string[],
 ) {
-  step(`Publishing ${pkgName}@${version}...`)
-  try {
-    const publishArgs = [
-      'publish',
-      ...(releaseTag ? ['--tag', releaseTag] : []),
-      '--access',
-      'public',
-      ...(args.registry ? ['--registry', args.registry] : []),
-      ...additionalFlags,
-    ]
-    await run('pnpm', publishArgs, {
-      cwd: getPkgRoot(pkgName),
-      stdio: 'pipe',
-    })
-    console.log(pico.green(`Successfully published ${pkgName}@${version}`))
-  } catch (e: unknown) {
-    if ((e as Error).message?.match(/previously published/)) {
-      console.log(pico.red(`Skipping already published: ${pkgName}`))
-    } else {
-      throw e
+  const maxAttempts = isDryRun ? 1 : 5
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    step(`Publishing ${pkgName}@${version} (${attempt}/${maxAttempts})...`)
+
+    try {
+      const publishArgs = [
+        'publish',
+        ...(releaseTag ? ['--tag', releaseTag] : []),
+        '--access',
+        'public',
+        ...(args.registry ? ['--registry', args.registry] : []),
+        ...additionalFlags,
+      ]
+      await run('pnpm', publishArgs, {
+        cwd: getPkgRoot(pkgName),
+        stdio: 'pipe',
+      })
+      console.log(pico.green(`Successfully published ${pkgName}@${version}`))
+      return
+    } catch (e: unknown) {
+      if (isAlreadyPublishedError(e)) {
+        console.log(pico.red(`Skipping already published: ${pkgName}`))
+        return
+      }
+
+      if (await isPackagePublished(pkgName, version)) {
+        console.log(
+          pico.yellow(
+            `${pkgName}@${version} is already visible on npm; treating publish as complete.`,
+          ),
+        )
+        return
+      }
+
+      if (!isRetryablePublishError(e) || attempt === maxAttempts) {
+        throw e
+      }
+
+      const delayMs = getPublishRetryDelay(attempt)
+      console.log(
+        pico.yellow(
+          `npm registry returned a retryable publish error for ${pkgName}. Retrying in ${Math.round(
+            delayMs / 1000,
+          )}s...`,
+        ),
+      )
+      await sleep(delayMs)
     }
   }
+}
+
+async function isPackagePublished(
+  packageName: string,
+  version: string,
+): Promise<boolean> {
+  try {
+    const viewArgs = [
+      'view',
+      `${packageName}@${version}`,
+      'version',
+      ...(args.registry ? ['--registry', args.registry] : []),
+    ]
+    const result = (await run('npm', viewArgs, {
+      stdio: 'pipe',
+    })) as ExecResult
+
+    return result.stdout.trim() === version
+  } catch {
+    return false
+  }
+}
+
+function isAlreadyPublishedError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err)
+  return message.includes('previously published')
+}
+
+function isRetryablePublishError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err)
+  return (
+    message.includes('E409') ||
+    message.includes('409 Conflict') ||
+    message.includes('Failed to save packument') ||
+    message.includes('previous package has been fully processed')
+  )
+}
+
+function getPublishRetryDelay(attempt: number): number {
+  return Math.min(10_000 * 2 ** (attempt - 1), 60_000)
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 async function buildPackages() {
