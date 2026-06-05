@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-beta.3 (2026-06-05)
+
+### Features
+
+- (`lazy-pr`)
+
 ## 0.1.0-beta.2 (2026-06-04)
 
 ### Features
