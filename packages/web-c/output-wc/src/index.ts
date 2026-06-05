@@ -41,14 +41,8 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
     outDir: options.outDir ?? 'wc',
     stripPrefix: options.stripPrefix ?? false,
     fileName: options.fileName,
-    manifestFile:
-      registerMode === 'lazy'
-        ? false
-        : (options.manifestFile ?? 'zeus.components.json'),
-    customElementsFile:
-      registerMode === 'lazy'
-        ? false
-        : (options.customElementsFile ?? 'custom-elements.json'),
+    manifestFile: options.manifestFile ?? 'zeus.components.json',
+    customElementsFile: options.customElementsFile ?? 'custom-elements.json',
     dts: options.dts ?? true,
     jsxDts: options.jsxDts ?? true,
     index: options.index ?? true,
@@ -306,7 +300,9 @@ export {};
             source: generateWCJsxDts(ctx.manifest),
           })
         }
-      } else if (normalized.manifestFile) {
+      }
+
+      if (normalized.manifestFile) {
         files.push({
           type: 'asset',
           fileName: normalized.manifestFile,
@@ -314,13 +310,21 @@ export {};
         })
       }
 
-      if (!isLazy && normalized.customElementsFile) {
+      if (normalized.customElementsFile) {
         files.push({
           type: 'asset',
           fileName: normalized.customElementsFile,
           source: generateCustomElementsJson({
             manifest: ctx.manifest,
-            getModulePath: component => joinPath(getFileName(component.tag)),
+            getModulePath: component =>
+              isLazy
+                ? joinPath(
+                    getLazyEntryFileName(
+                      normalized.entryFileName,
+                      component.tag,
+                    ),
+                  )
+                : joinPath(getFileName(component.tag)),
           }),
         })
       }

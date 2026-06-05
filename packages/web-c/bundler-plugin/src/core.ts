@@ -65,18 +65,35 @@ export function createZeusBundlerPlugin(
       const pluginExternals = collectPluginExternals(options, {
         includeZeusLibraryExternals: true,
       })
+      const shouldSetRolldownTarget = target === 'rolldown'
 
-      if (!pluginExternals.length) {
+      if (!pluginExternals.length && !shouldSetRolldownTarget) {
         return null
       }
 
-      return {
+      const nextOptions: Record<string, unknown> = {
         ...inputOptions,
-        external: mergeExternal(
+      }
+
+      if (pluginExternals.length) {
+        nextOptions.external = mergeExternal(
           inputOptions.external as RollupExternalOption | undefined,
           pluginExternals,
-        ),
+        )
       }
+
+      if (shouldSetRolldownTarget) {
+        const transform =
+          (inputOptions as { transform?: Record<string, unknown> }).transform ??
+          {}
+
+        nextOptions.transform = {
+          target: 'es2016',
+          ...transform,
+        }
+      }
+
+      return nextOptions
     },
 
     outputOptions(outputOptions: OutputOptions) {

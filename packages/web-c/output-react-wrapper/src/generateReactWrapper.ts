@@ -45,16 +45,6 @@ function createEventBindings(eventNames: string[]): EventBinding[] {
   }))
 }
 
-function generateDestructuredBindings(bindings: Binding[]): string {
-  if (!bindings.length) return ''
-
-  return bindings
-    .map(({ sourceName, localName }) => {
-      return `${JSON.stringify(sourceName)}: ${localName},`
-    })
-    .join('\n    ')
-}
-
 function generateMinimalReactWrapper(
   input: GenerateReactWrapperOptions,
 ): string {
@@ -63,9 +53,11 @@ function generateMinimalReactWrapper(
   const slotNames = getNamedSlots(component, namedSlots)
   const slotBindings = createBindings(slotNames, 'slotValue')
 
-  const slotDestructure = slotBindings.length
-    ? `\n    ${generateDestructuredBindings(slotBindings)}`
-    : ''
+  const omittedKeys = [
+    'children',
+    ...slotBindings.map(({ sourceName }) => sourceName),
+  ]
+  const slotAssignments = generatePropAssignments(slotBindings)
 
   const namedSlotLines = generateMinimalNamedSlots(slotBindings)
 
@@ -75,21 +67,43 @@ import * as React from 'react';
 import ${JSON.stringify(wcModuleId)};
 
 export const ${component.name} = React.forwardRef(
-  function ${component.name}({
-    children,${slotDestructure}
-    ...rest
-  } = {}, ref) {
+  function ${component.name}(inputProps, ref) {
+    const props = inputProps || {};
+    const children = props.children;
+${slotAssignments}
+    const rest = omitProps(props, ${JSON.stringify(omittedKeys)});
 ${namedSlotLines}
-    return React.createElement(
-      ${JSON.stringify(component.tag)},
-      {
-        ...rest,
-        ref,
-      },
-${namedSlotLines ? '      ...slotNodes,\n' : ''}      children,
+    const childArgs = [];
+${namedSlotLines ? '    pushAll(childArgs, slotNodes);\n' : ''}    if (children != null) childArgs.push(children);
+
+    return React.createElement.apply(
+      React,
+      [
+        ${JSON.stringify(component.tag)},
+        Object.assign({}, rest, { ref: ref }),
+      ].concat(childArgs),
     );
   },
 );
+
+function omitProps(source, keys) {
+  const output = {};
+  for (const key in source) {
+    if (
+      Object.prototype.hasOwnProperty.call(source, key) &&
+      keys.indexOf(key) === -1
+    ) {
+      output[key] = source[key];
+    }
+  }
+  return output;
+}
+
+function pushAll(target, values) {
+  for (const value of values) {
+    target.push(value);
+  }
+}
 `.trimStart()
 }
 
@@ -112,7 +126,13 @@ function generateEventBridgeReactWrapper(
     ...eventBindings,
     ...slotBindings,
   ]
-  const destructuredProps = generateDestructuredBindings(destructuredBindings)
+  const propAssignments = generatePropAssignments(destructuredBindings)
+  const omittedKeys = [
+    'children',
+    'className',
+    'style',
+    ...destructuredBindings.map(({ sourceName }) => sourceName),
+  ]
 
   return `
 import {
@@ -128,14 +148,13 @@ import {
 
 import ${JSON.stringify(wcModuleId)};
 
-export const ${component.name} = forwardRef(function ${component.name}(props, ref) {
-  const {
-    children,
-    className,
-    style,
-    ${destructuredProps}
-    ...rest
-  } = props;
+export const ${component.name} = forwardRef(function ${component.name}(inputProps, ref) {
+  const props = inputProps || {};
+  const children = props.children;
+  const className = props.className;
+  const style = props.style;
+${propAssignments}
+  const rest = omitProps(props, ${JSON.stringify(omittedKeys)});
 
   const innerRef = useRef(null);
   const previousPropKeysRef = useRef(new Set());
@@ -154,15 +173,16 @@ export const ${component.name} = forwardRef(function ${component.name}(props, re
     slotChildren.push(children);
   }
 
-  return createElement(
-    ${JSON.stringify(component.tag)},
-    {
-      ...rest,
-      ref: innerRef,
-      className,
-      style,
-    },
-    ...slotChildren,
+  return createElement.apply(
+    null,
+    [
+      ${JSON.stringify(component.tag)},
+      Object.assign({}, rest, {
+        ref: innerRef,
+        className: className,
+        style: style,
+      }),
+    ].concat(slotChildren),
   );
 });
 
@@ -185,7 +205,30 @@ function createNamedSlot(name, value) {
     value,
   );
 }
+
+function omitProps(source, keys) {
+  const output = {};
+  for (const key in source) {
+    if (
+      Object.prototype.hasOwnProperty.call(source, key) &&
+      keys.indexOf(key) === -1
+    ) {
+      output[key] = source[key];
+    }
+  }
+  return output;
+}
 `.trimStart()
+}
+
+function generatePropAssignments(bindings: Binding[]): string {
+  if (!bindings.length) return ''
+
+  return bindings
+    .map(({ sourceName, localName }) => {
+      return `    const ${localName} = props[${JSON.stringify(sourceName)}];`
+    })
+    .join('\n')
 }
 
 function generatePropSyncLines(bindings: Binding[]): string {

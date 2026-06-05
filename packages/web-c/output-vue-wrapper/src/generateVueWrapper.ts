@@ -72,19 +72,22 @@ export const ${component.name} = defineComponent({
       const children = [];
 
       if (slots.default) {
-        children.push(...slots.default());
+        pushAll(children, slots.default());
       }
 ${namedSlotBlock}
       return h(
         ${JSON.stringify(component.tag)},
-        {
-          ...attrs,
-        },
+        Object.assign({}, attrs),
         children,
       );
     };
   },
 });
+function pushAll(target, values) {
+  for (const value of values) {
+    target.push(value);
+  }
+}
 ${withSlotHelper}
 `.trimStart()
 }
@@ -137,8 +140,9 @@ export const ${component.name} = defineComponent({
     const syncedPropKeys = new Set();
 
     const hasRawProp = name => {
-      const rawProps = instance?.vnode.props ?? {};
-      const keys = PROP_INPUT_KEYS[name] ?? [name];
+      const rawVNode = instance && instance.vnode ? instance.vnode : {};
+      const rawProps = rawVNode.props || {};
+      const keys = PROP_INPUT_KEYS[name] || [name];
 
       return keys.some(key =>
         Object.prototype.hasOwnProperty.call(rawProps, key),
@@ -188,7 +192,7 @@ export const ${component.name} = defineComponent({
       const children = [];
 
       if (slots.default) {
-        children.push(...slots.default());
+        pushAll(children, slots.default());
       }
 
       for (const name of NAMED_SLOTS) {
@@ -202,15 +206,18 @@ export const ${component.name} = defineComponent({
 
       return h(
         ${JSON.stringify(component.tag)},
-        {
-          ...attrs,
-          ref: elRef,
-        },
+        Object.assign({}, attrs, { ref: elRef }),
         children,
       );
     };
   },
 });
+
+function pushAll(target, values) {
+  for (const value of values) {
+    target.push(value);
+  }
+}
 
 function withSlot(name, vnode) {
   if (!vnode) return vnode;

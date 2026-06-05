@@ -140,9 +140,12 @@ describe('output-vue-wrapper', () => {
 
     expect(code).toContain('getCurrentInstance')
     expect(code).toContain('hasRawProp(name)')
+    expect(code).toContain('const rawProps = rawVNode.props || {}')
+    expect(code).toContain('Object.assign({}, attrs, { ref: elRef })')
     expect(code).toContain('el[name] = props[name]')
     expect(code).not.toContain('el.variant = props.variant')
     expect(code).not.toContain('el.disabled = props.disabled')
+    expect(code).not.toContain('...attrs')
 
     await bundle.close()
   })
@@ -210,6 +213,8 @@ describe('output-vue-wrapper', () => {
     expect(code).not.toContain('watch(')
     expect(code).not.toContain('onMounted(')
     expect(code).not.toContain('addEventListener')
+    expect(code).toContain('Object.assign({}, attrs)')
+    expect(code).not.toContain('...attrs')
 
     await bundle.close()
   })

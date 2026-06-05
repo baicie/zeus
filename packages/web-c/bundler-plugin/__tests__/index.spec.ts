@@ -12,7 +12,10 @@ import { defineZeusRollupConfig } from '../src/rollup'
 import type { Plugin } from 'rolldown'
 
 type RolldownTestPlugin = Plugin & {
-  options(options: { external?: unknown }): { external?: unknown }
+  options(options: {
+    external?: unknown
+    transform?: Record<string, unknown>
+  }): { external?: unknown; transform?: Record<string, unknown> }
   outputOptions(opts: Record<string, unknown>): Record<string, unknown> | null
 }
 
@@ -150,6 +153,26 @@ describe('bundler plugin entry', () => {
     })
   })
 
+  it('targets ES2016 in Rolldown config helpers by default', () => {
+    const config = defineZeusRolldownConfig()
+
+    expect(config.transform).toMatchObject({
+      target: 'es2016',
+    })
+  })
+
+  it('keeps explicit Rolldown transform target overrides', () => {
+    const config = defineZeusRolldownConfig({
+      transform: {
+        target: 'es2020',
+      },
+    })
+
+    expect(config.transform).toMatchObject({
+      target: 'es2020',
+    })
+  })
+
   it('merges externals from the Rolldown plugin options hook', () => {
     const plugin = rolldownZeus({
       plugins: [
@@ -165,6 +188,30 @@ describe('bundler plugin entry', () => {
     })
 
     expect(options.external).toEqual(['lodash', /^@zeus-js\//, 'vue'])
+  })
+
+  it('targets ES2016 from the Rolldown plugin options hook', () => {
+    const plugin = rolldownZeus() as RolldownTestPlugin
+
+    const options = plugin.options({})
+
+    expect(options.transform).toMatchObject({
+      target: 'es2016',
+    })
+  })
+
+  it('keeps explicit Rolldown plugin target overrides', () => {
+    const plugin = rolldownZeus() as RolldownTestPlugin
+
+    const options = plugin.options({
+      transform: {
+        target: 'es2020',
+      },
+    })
+
+    expect(options.transform).toMatchObject({
+      target: 'es2020',
+    })
   })
 
   it('places generated chunks under chunks from the Rolldown plugin output hook', () => {

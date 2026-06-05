@@ -75,7 +75,6 @@ export function componentLibrary(
   const plugins: ZeusComponentPlugin[] = []
 
   const registerMode = options.register ?? 'lazy'
-  const isLazy = registerMode === 'lazy'
 
   if (options.styles !== false) {
     plugins.push(
@@ -88,16 +87,9 @@ export function componentLibrary(
       register: registerMode,
       dts: options.dts ?? true,
       jsxDts: options.jsxDts ?? true,
-      manifestFile: isLazy
-        ? false
-        : options.manifest !== false
-          ? 'zeus.components.json'
-          : false,
-      customElementsFile: isLazy
-        ? false
-        : options.customElements !== false
-          ? 'custom-elements.json'
-          : false,
+      manifestFile: options.manifest !== false ? 'zeus.components.json' : false,
+      customElementsFile:
+        options.customElements !== false ? 'custom-elements.json' : false,
       auto: options.autoEntry ?? true,
       entryFileName: tag => `${tag}.entry`,
     }
