@@ -9,8 +9,6 @@ export default {
   ],
 
   build: {
-    outDir: 'dist',
-    emptyOutDir: true,
     rollupOptions: {
       input: {
         index: 'src/index.ts',

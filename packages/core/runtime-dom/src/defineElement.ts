@@ -88,12 +88,44 @@ export type DefineElementSetup<
   E extends HTMLElement = HTMLElement,
 > = (props: Readonly<P>, context: DefineElementContext<E>) => JSXValue
 
-type NormalizedPropDefinition = {
+export type NormalizedPropDefinition = {
   key: string
   attr: string | false
   type?: ElementPropConstructor
   reflect: boolean
   default?: unknown
+}
+
+export const ZEUS_ELEMENT_DEFINITION = Symbol.for('zeus.element.definition')
+
+export interface ZeusElementDefinition<
+  P extends object = object,
+  E extends HTMLElement = HTMLElement,
+> {
+  tagName: string
+  options: DefineElementOptions<P>
+  setup: DefineElementSetup<P, E>
+  propDefs: NormalizedPropDefinition[]
+}
+
+export type ZeusElementConstructor = CustomElementConstructor & {
+  [ZEUS_ELEMENT_DEFINITION]?: ZeusElementDefinition
+}
+
+export interface MountedElementDefinition {
+  propertyChanged(name: string, _oldValue: unknown, newValue: unknown): void
+  dispose(): void
+}
+
+/**
+ * Persisted mount state for a lazy-loaded element.
+ * Used across disconnect/reconnect cycles to avoid re-capturing
+ * light DOM children or re-attaching shadow roots.
+ */
+export interface ElementDefinitionMountState {
+  target?: Element | ShadowRoot
+  lightChildren?: Node[]
+  capturedLightChildren?: boolean
 }
 
 interface PropStore<P extends object> {
@@ -162,6 +194,12 @@ export function defineElement<
   setup: DefineElementSetup<P, E>,
 ): CustomElementConstructor {
   const propDefs = normalizePropDefinitions(options.props ?? {})
+  const definition: ZeusElementDefinition<P, E> = {
+    tagName,
+    options,
+    setup,
+    propDefs,
+  }
   const observedAttributes = propDefs
     .filter(def => def.attr !== false)
     .map(def => def.attr as string)
@@ -322,7 +360,121 @@ export function defineElement<
     customElements.define(tagName, ZeusElement)
   }
 
+  Object.defineProperty(ZeusElement, ZEUS_ELEMENT_DEFINITION, {
+    value: definition,
+    configurable: false,
+  })
+
   return ZeusElement
+}
+
+export function getElementDefinition(
+  ctor: CustomElementConstructor,
+): ZeusElementDefinition {
+  const definition = (ctor as ZeusElementConstructor)[ZEUS_ELEMENT_DEFINITION]
+
+  if (!definition) {
+    throw new Error('[zeus] Element definition metadata not found.')
+  }
+
+  return definition
+}
+
+export function mountElementDefinition(
+  ctor: CustomElementConstructor,
+  host: HTMLElement,
+  initialValues: Map<string, unknown> = new Map(),
+  mountState: ElementDefinitionMountState = {},
+): MountedElementDefinition {
+  const definition = getElementDefinition(ctor)
+  const { options, setup, propDefs } = definition
+  const propStore = createPropStore(propDefs)
+
+  applyPropDefaults(propStore, propDefs)
+
+  for (const def of propDefs) {
+    if (initialValues.has(def.key)) {
+      propStore.set(def.key, initialValues.get(def.key))
+      continue
+    }
+
+    /**
+     * Sync real definition defaults (e.g. factory defaults like `default: () => []`)
+     * back to the lazy host value map so that `element.propName` returns the
+     * correct default value rather than undefined.
+     */
+    initialValues.set(def.key, propStore.get(def.key))
+  }
+
+  const shadow = options.shadow ?? false
+  const mode = shadow ? 'shadow' : 'light'
+
+  if (mode === 'light' && !mountState.capturedLightChildren) {
+    mountState.lightChildren = Array.from(host.childNodes)
+    mountState.capturedLightChildren = true
+  }
+
+  const lightChildren = mountState.lightChildren ?? []
+
+  const owner = createOwner()
+
+  for (const context of options.consumes ?? []) {
+    const resolved = resolveDOMContext(host, context as Context<unknown>)
+
+    if (resolved.found) {
+      owner.provides.set(context.id, resolved.value)
+    } else if (context.hasDefaultValue) {
+      owner.provides.set(context.id, context.defaultValue)
+    }
+  }
+
+  const target =
+    mountState.target ??
+    (mountState.target = resolveExternalRenderTarget(host, shadow))
+
+  const hostContext: HostRenderContext = {
+    host,
+    mode,
+    lightChildren,
+  }
+
+  const setupContext: DefineElementContext<HTMLElement> = {
+    host,
+    emit: (name, detail, eventOptions) => {
+      return host.dispatchEvent(
+        new CustomEvent(name, {
+          bubbles: true,
+          composed: true,
+          cancelable: true,
+          ...eventOptions,
+          detail,
+        }),
+      )
+    },
+  }
+
+  const dispose = render(
+    () =>
+      runWithOwner(owner, () =>
+        withHostContext(hostContext, () =>
+          setup(propStore.props, setupContext),
+        ),
+      ),
+    target,
+    { owner },
+  )
+
+  mountStyles(target, options.styles)
+
+  return {
+    propertyChanged(name, _oldValue, newValue) {
+      propStore.set(name, newValue)
+    },
+
+    dispose() {
+      dispose()
+    },
+  }
 }
 
 function normalizePropDefinitions<P extends Record<string, unknown>>(
@@ -479,6 +631,20 @@ function reflectPropToAttribute(
   }
 
   element.setAttribute(def.attr, String(value))
+}
+
+function resolveExternalRenderTarget(
+  host: HTMLElement,
+  shadow: boolean | ShadowRootInit,
+): Element | ShadowRoot {
+  if (!shadow) {
+    return host
+  }
+
+  return (
+    host.shadowRoot ??
+    host.attachShadow(typeof shadow === 'object' ? shadow : { mode: 'open' })
+  )
 }
 
 function mountStyles(

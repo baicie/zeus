@@ -48,13 +48,17 @@ function createMockCtx(root: string): any {
   }
 }
 
-const fixturesDir = path.join(__dirname, 'fixtures')
+const fixturesDir = path.join(__dirname, 'fixtures-outputCss')
 
 function createTempCss(name: string, content: string): string {
   const filePath = path.join(fixturesDir, name)
   fs.mkdirSync(path.dirname(filePath), { recursive: true })
   fs.writeFileSync(filePath, content)
   return filePath
+}
+
+function createTempPackage(name: string, content: string): void {
+  createTempCss(`node_modules/${name}/index.js`, content)
 }
 
 describe('output-css', () => {
@@ -158,6 +162,14 @@ describe('output-css', () => {
   describe('processor: auto (scss detection)', () => {
     it('detects .scss extension and processes with sass', async () => {
       createTempCss('src/main.scss', '$color: blue; .foo { color: $color; }')
+      createTempPackage(
+        'sass',
+        `
+exports.compileStringAsync = async () => ({
+  css: '.foo {\\n  color: blue;\\n}'
+})
+`,
+      )
       const root = fixturesDir
 
       const plugin = cssPlugin({

@@ -27,9 +27,9 @@ export async function processCssEntry(
   let css = raw
 
   if (processor === 'sass') {
-    css = await processSass(input)
+    css = await processSass(input, root)
   } else if (processor === 'less') {
-    css = await processLess(input, raw)
+    css = await processLess(input, raw, root)
   } else if (processor === 'postcss') {
     css = await processPostcss(input, raw, root)
   }
@@ -41,11 +41,11 @@ export async function processCssEntry(
   return { css }
 }
 
-async function processSass(input: string): Promise<string> {
+async function processSass(input: string, root: string): Promise<string> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let sass: any
   try {
-    sass = createRequire(import.meta.url)('sass')
+    sass = await loadOptionalPackage('sass', root)
   } catch {
     throw new Error(
       '[zeus-output-css] Install "sass" to process .scss/.sass files.',
@@ -63,11 +63,15 @@ async function processSass(input: string): Promise<string> {
   return result.css
 }
 
-async function processLess(input: string, source: string): Promise<string> {
+async function processLess(
+  input: string,
+  source: string,
+  root: string,
+): Promise<string> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let less: any
   try {
-    less = createRequire(import.meta.url)('less')
+    less = await loadOptionalPackage('less', root)
   } catch {
     throw new Error('[zeus-output-css] Install "less" to process .less files.')
   }
@@ -87,7 +91,7 @@ async function processPostcss(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let postcss: any
   try {
-    postcss = createRequire(import.meta.url)('postcss')
+    postcss = await loadOptionalPackage('postcss', root)
   } catch {
     throw new Error(
       '[zeus-output-css] Install "postcss" to process CSS with PostCSS.',
@@ -97,7 +101,7 @@ async function processPostcss(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let loadConfig: any
   try {
-    loadConfig = createRequire(import.meta.url)('postcss-load-config')
+    loadConfig = await loadOptionalPackage('postcss-load-config', root)
   } catch {
     throw new Error(
       '[zeus-output-css] Install "postcss-load-config" to load PostCSS config.',
@@ -114,12 +118,33 @@ async function processPostcss(
   return result.css
 }
 
+async function loadOptionalPackage(
+  id: string,
+  root?: string,
+): Promise<unknown> {
+  if (root) {
+    try {
+      return createRequire(path.resolve(root, 'package.json'))(id)
+    } catch {}
+  }
+
+  try {
+    return createRequire(import.meta.url)(id)
+  } catch (error) {
+    try {
+      return await import(id)
+    } catch {
+      throw error
+    }
+  }
+}
+
 async function minifyCss(_input: string, source: string): Promise<string> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let lightningcss: any
 
-    lightningcss = createRequire(import.meta.url)('lightningcss')
+    lightningcss = await loadOptionalPackage('lightningcss')
 
     const result = lightningcss.transform({
       filename: _input,

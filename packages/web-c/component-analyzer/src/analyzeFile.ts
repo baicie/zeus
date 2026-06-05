@@ -1,7 +1,11 @@
 import { parseSource } from './ast'
 import { extractDefineElementCalls } from './extractDefineElement'
 import { extractInlineMeta } from './extractMeta'
-import { extractRuntimeProps } from './extractProps'
+import {
+  extractRuntimeProps,
+  extractShadowOption,
+  validateRuntimePropsDefinition,
+} from './extractProps'
 import { extractSetupMeta } from './extractSetup'
 import { collectLocalPropTypes } from './extractTypeProps'
 import { buildComponentRecord } from './merge'
@@ -19,7 +23,21 @@ export function analyzeFile(options: AnalyzeFileOptions): AnalyzeFileResult {
     const localPropTypes = collectLocalPropTypes(ast)
 
     for (const call of calls) {
+      const runtimePropsDiagnostics = validateRuntimePropsDefinition(
+        call.options,
+        call.call.arguments[1],
+      )
+
+      for (const message of runtimePropsDiagnostics) {
+        diagnostics.push({
+          level: 'warning',
+          file,
+          message: `<${call.tag}> ${message}`,
+        })
+      }
+
       const runtimeProps = extractRuntimeProps(call.options)
+      const shadowOption = extractShadowOption(call.options)
 
       const typeProps = call.propsTypeName
         ? (localPropTypes.get(call.propsTypeName) ?? {})
@@ -45,9 +63,15 @@ export function analyzeFile(options: AnalyzeFileOptions): AnalyzeFileResult {
           file,
           call,
           runtimeProps,
+          runtimePropsDiagnostics,
           typeProps,
           setupMeta,
           inlineMeta,
+          shadow:
+            shadowOption.shadow ??
+            (typeof inlineMeta.shadow === 'boolean'
+              ? inlineMeta.shadow
+              : undefined),
         }),
       )
     }

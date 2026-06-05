@@ -7,6 +7,7 @@
 ```ts
 import { DtsMode, ZeusComponentPlugin } from '@zeus-js/bundler-plugin'
 
+type ReactWrapperMode = 'minimal' | 'event-bridge'
 export interface OutputReactWrapperOptions {
   /**
    * React wrapper output directory.
@@ -27,7 +28,7 @@ export interface OutputReactWrapperOptions {
   /**
    * Generate react/index.d.ts.
    *
-   * @default 'auto'
+   * @default true
    */
   dts?: DtsMode
   /**
@@ -37,7 +38,18 @@ export interface OutputReactWrapperOptions {
    */
   index?: boolean
   /**
-   * Named slot strategy.
+   * minimal:
+   *   Default. Requires React 19+.
+   *   React wrapper only renders the custom element tag.
+   *   No useEffect prop sync, no event listeners.
+   *
+   * event-bridge:
+   *   Compatibility mode for React 18 or applications that require explicit
+   *   CustomEvent bridging and property assignment.
+   */
+  wrapper?: ReactWrapperMode
+  /**
+   * Named slot strategy (event-bridge mode only).
    *
    * props:
    *   <ZCard header={<div />} />

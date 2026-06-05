@@ -1,5 +1,7 @@
 import type { DtsMode } from '@zeus-js/bundler-plugin'
 
+export type VueWrapperMode = 'minimal' | 'event-bridge'
+
 export interface OutputVueWrapperOptions {
   /**
    * Vue wrapper output directory.
@@ -23,14 +25,14 @@ export interface OutputVueWrapperOptions {
   /**
    * Generate vue/index.d.ts.
    *
-   * @default 'auto'
+   * @default true
    */
   dts?: DtsMode
 
   /**
    * Generate vue/global.d.ts.
    *
-   * @default 'auto'
+   * @default true
    */
   globalDts?: DtsMode
 
@@ -40,4 +42,14 @@ export interface OutputVueWrapperOptions {
    * @default true
    */
   index?: boolean
+
+  /**
+   * minimal:
+   *   Default. Vue wrapper only renders the custom element tag.
+   *   No watch, no prop sync, no event listeners.
+   *
+   * event-bridge:
+   *   Additional mode for React CustomEvent bridging.
+   */
+  wrapper?: VueWrapperMode
 }

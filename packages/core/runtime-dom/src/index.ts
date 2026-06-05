@@ -50,6 +50,9 @@ export {
 
 export {
   defineElement,
+  getElementDefinition,
+  mountElementDefinition,
+  ZEUS_ELEMENT_DEFINITION,
   type DefineElementOptions,
   type DefineElementMeta,
   type DefineElementContext,
@@ -57,6 +60,11 @@ export {
   type ElementPropConstructor,
   type PropDefinition,
   type PropOptions,
+  type MountedElementDefinition,
+  type ElementDefinitionMountState,
+  type NormalizedPropDefinition,
+  type ZeusElementConstructor,
+  type ZeusElementDefinition,
 } from './defineElement'
 
 export { Host, Slot, type HostProps, type SlotProps } from './webComponents'

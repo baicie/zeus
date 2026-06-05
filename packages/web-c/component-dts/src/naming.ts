@@ -17,6 +17,17 @@ export function getElementTypeName(component: ComponentRecord): string {
   return `${component.name}Element`
 }
 
+export function toReactEventProp(eventName: string): string {
+  return (
+    'on' +
+    eventName
+      .split('-')
+      .filter(Boolean)
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join('')
+  )
+}
+
 export function getEventMapTypeName(component: ComponentRecord): string {
   return `${component.name}EventMap`
 }

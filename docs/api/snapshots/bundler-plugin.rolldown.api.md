@@ -106,7 +106,7 @@ interface ZeusComponentPlugin {
    * Used by the Vite adapter, defineZeusRollupConfig(), and
    * defineZeusRolldownConfig().
    */
-  external?: string[]
+  external?: Array<string | RegExp>
 }
 interface ZeusBundlerPluginOptions {
   /**
@@ -164,6 +164,14 @@ interface ZeusBundlerPluginOptions {
    * - vite: false
    */
   transpile?: boolean
+  /**
+   * Clean the resolved Rollup/Rolldown output directory before writing.
+   *
+   * Vite keeps using its own emptyOutDir behavior.
+   *
+   * @default true
+   */
+  clean?: boolean
   /**
    * Rollup adapter only. Additional extensions to try when resolving imports.
    * Set to `false` to disable extension resolution.

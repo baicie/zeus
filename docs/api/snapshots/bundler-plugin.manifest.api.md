@@ -103,7 +103,7 @@ interface ZeusComponentPlugin {
    * Used by the Vite adapter, defineZeusRollupConfig(), and
    * defineZeusRolldownConfig().
    */
-  external?: string[]
+  external?: Array<string | RegExp>
 }
 
 export interface ManifestOutputOptions {

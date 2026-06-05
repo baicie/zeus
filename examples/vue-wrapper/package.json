@@ -16,6 +16,7 @@
   "dependencies": {
     "vue": "^3.5.35",
     "@zeus-js/runtime-dom": "workspace:*",
+    "@zeus-js/web-c-runtime": "workspace:*",
     "@zeus-js/zeus": "workspace:*"
   },
   "devDependencies": {

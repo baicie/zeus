@@ -32,7 +32,9 @@ export function defineZeusRollupConfig(
     external,
     ...rest
   } = config
-  const pluginExternals = collectPluginExternals(zeusOptions)
+  const pluginExternals = collectPluginExternals(zeusOptions, {
+    includeZeusLibraryExternals: true,
+  })
 
   return {
     input: input ?? 'src/index.ts',
@@ -51,6 +53,7 @@ export function defineZeusRollupConfig(
     output: output ?? {
       dir: 'dist',
       format: 'es',
+      chunkFileNames: 'chunks/[name]-[hash].js',
       sourcemap: true,
     },
   }

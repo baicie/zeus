@@ -9,6 +9,7 @@
     "build:rollup": "rollup --config rollup.config.mjs",
     "build:rolldown": "rolldown --config rolldown.config.mjs",
     "build:vite": "vite build",
+    "build:ts": "rolldown --config rolldown.config.ts",
     "check": "tsc --noEmit"
   },
   "files": [
@@ -58,6 +59,7 @@
   },
   "dependencies": {
     "@zeus-js/runtime-dom": "workspace:*",
+    "@zeus-js/web-c-runtime": "workspace:*",
     "@zeus-js/zeus": "workspace:*"
   },
   "peerDependencies": {
@@ -81,8 +83,8 @@
     "@zeus-js/output-react-wrapper": "workspace:*",
     "@zeus-js/output-vue-wrapper": "workspace:*",
     "@zeus-js/vite-plugin": "workspace:*",
-    "@rollup/plugin-node-resolve": "^16.0.0",
-    "rollup": "^4.0.0",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "rollup": "^4.61.1",
     "typescript": "^6.0.3",
     "vite": "^8.0.16",
     "@vitejs/plugin-react": "^6.0.2",

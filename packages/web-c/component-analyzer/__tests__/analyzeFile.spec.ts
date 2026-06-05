@@ -178,6 +178,97 @@ describe('analyzeFile', () => {
     ])
   })
 
+  it('reports an error when runtime props are not statically analyzable', () => {
+    const result = analyzeFile({
+      file: 'button.tsx',
+      code: `
+        import { defineElement } from '@zeus-js/runtime-dom'
+
+        const buttonProps = {
+          disabled: Boolean,
+        }
+
+        export const ZButton = defineElement(
+          'z-button',
+          {
+            props: buttonProps,
+          },
+          () => null,
+        )
+      `,
+    })
+
+    expect(result.diagnostics).toContainEqual(
+      expect.objectContaining({
+        level: 'warning',
+        message: expect.stringContaining(
+          'props must be an inline object literal',
+        ),
+      }),
+    )
+  })
+
+  it('reports an error when defineElement options contain spreads', () => {
+    const result = analyzeFile({
+      file: 'button.tsx',
+      code: `
+        import { defineElement } from '@zeus-js/runtime-dom'
+
+        const baseOptions = {
+          props: {
+            disabled: Boolean,
+          },
+        }
+
+        export const ZButton = defineElement(
+          'z-button',
+          {
+            ...baseOptions,
+          },
+          () => null,
+        )
+      `,
+    })
+
+    expect(result.diagnostics).toContainEqual(
+      expect.objectContaining({
+        level: 'warning',
+        message: expect.stringContaining('options cannot contain spreads'),
+      }),
+    )
+  })
+
+  it('reports an error when runtime props contain spreads', () => {
+    const result = analyzeFile({
+      file: 'button.tsx',
+      code: `
+        import { defineElement } from '@zeus-js/runtime-dom'
+
+        const commonProps = {
+          disabled: Boolean,
+        }
+
+        export const ZButton = defineElement(
+          'z-button',
+          {
+            props: {
+              ...commonProps,
+              size: String,
+            },
+          },
+          () => null,
+        )
+      `,
+    })
+
+    expect(result.diagnostics).toContainEqual(
+      expect.objectContaining({
+        level: 'warning',
+        message: expect.stringContaining('cannot contain spreads'),
+      }),
+    )
+  })
+
   it('ignores non-exported defineElement by default', () => {
     const code = `
       import { defineElement } from '@zeus-js/zeus'

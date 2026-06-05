@@ -16,7 +16,7 @@ function asRollupPlugin(plugin: unknown): InputPluginOption {
 }
 
 describe('output-react-wrapper', () => {
-  it('emits React wrapper files', async () => {
+  it('emits React wrapper files in lazy mode', async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'zeus-output-react-'))
 
     await fs.mkdir(path.join(root, 'src/components'), {
@@ -59,6 +59,7 @@ describe('output-react-wrapper', () => {
             plugins: [
               wc({
                 outDir: 'wc',
+                register: 'lazy',
               }),
               react({
                 outDir: 'react',
@@ -84,7 +85,7 @@ describe('output-react-wrapper', () => {
     await bundle.close()
   })
 
-  it('generated React wrapper uses destructured props for prop sync', async () => {
+  it('generated React wrapper uses destructured props for prop sync in event-bridge mode', async () => {
     const root = await fs.mkdtemp(
       path.join(os.tmpdir(), 'zeus-react-typecheck-'),
     )
@@ -121,7 +122,10 @@ describe('output-react-wrapper', () => {
             components: {
               include: ['src/components/**/*.{ts,tsx}'],
             },
-            plugins: [wc({ outDir: 'wc' }), react({ outDir: 'react' })],
+            plugins: [
+              wc({ outDir: 'wc' }),
+              react({ outDir: 'react', wrapper: 'event-bridge' }),
+            ],
           }),
         ),
       ],
@@ -138,17 +142,14 @@ describe('output-react-wrapper', () => {
     )
     expect(jsFile).toBeDefined()
 
-    // Wrapper files are emitted as assets, not chunks
     const code =
       jsFile?.type === 'chunk'
         ? ((jsFile as { code?: string }).code ?? '')
         : String((jsFile as { source?: string }).source ?? '')
 
-    // React unconditionally syncs props
-    expect(code).toContain('el.variant = variant')
-    expect(code).toContain('el.disabled = disabled')
+    expect(code).toContain('el["disabled"] = propValue0')
+    expect(code).toContain('el["variant"] = propValue1')
 
-    // React wrapper must destructure props
     expect(code).toContain('const {')
     expect(code).toContain('className,')
     expect(code).toContain('style,')

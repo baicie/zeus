@@ -131,4 +131,17 @@ describe('mergeExternal', () => {
     expect(fn('@zeus-js/core', undefined, false)).toBe(true)
     expect(fn('@zeus-js/core', undefined, false)).toBe(true)
   })
+
+  it('matches regex plugin externals when wrapping function external', () => {
+    const result = mergeExternal(() => false, [/^@zeus-js\//])
+
+    const fn = result as (
+      source: string,
+      importer: string | undefined,
+      isResolved: boolean,
+    ) => boolean
+
+    expect(fn('@zeus-js/runtime-dom', undefined, false)).toBe(true)
+    expect(fn('@other/runtime-dom', undefined, false)).toBe(false)
+  })
 })

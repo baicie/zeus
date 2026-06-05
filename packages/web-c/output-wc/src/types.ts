@@ -1,5 +1,9 @@
 import type { DtsMode } from '@zeus-js/bundler-plugin'
 
+export type WebCRegisterMode = 'lazy' | 'side-effect'
+
+export type WebCWrapperMode = 'minimal' | 'event-bridge'
+
 export interface OutputWCOptions {
   /**
    * Web Component output directory.
@@ -40,14 +44,14 @@ export interface OutputWCOptions {
   /**
    * Generate WC d.ts.
    *
-   * @default 'auto'
+   * @default true
    */
   dts?: DtsMode
 
   /**
    * Generate JSX IntrinsicElements d.ts.
    *
-   * @default 'auto'
+   * @default true
    */
   jsxDts?: DtsMode
 
@@ -64,4 +68,31 @@ export interface OutputWCOptions {
    * @default true
    */
   warnOnFileNameCollision?: boolean
+
+  /**
+   * lazy:
+   *   Default. Generates Stencil-style lazy loader.
+   *   On startup, registers lightweight ProxyClass; loads real component entry
+   *   only when the element is connected to the DOM.
+   *
+   * side-effect:
+   *   Immediately registers full components on import.
+   *   Compatible with legacy behavior; not recommended as default.
+   */
+  register?: WebCRegisterMode
+
+  /**
+   * Whether to generate the auto.js entry (lazy mode).
+   *
+   * @default true
+   */
+  auto?: boolean
+
+  /**
+   * File name for lazy mode entry chunks.
+   * Receives the tag name, should return the file name (without .js).
+   *
+   * @default (tag) => `${tag}.entry`
+   */
+  entryFileName?: (tag: string) => string
 }

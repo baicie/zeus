@@ -24,7 +24,13 @@ export declare function generateWCIndexDts(
 
 export declare function generateWCJsxDts(manifest: ComponentManifest): string
 
-export declare function generateReactDts(manifest: ComponentManifest): string
+interface GenerateReactDtsOptions {
+  namedSlots?: 'props' | 'none'
+}
+export declare function generateReactDts(
+  manifest: ComponentManifest,
+  options?: GenerateReactDtsOptions,
+): string
 
 export declare function generateVueDts(manifest: ComponentManifest): string
 export declare function generateVueGlobalDts(
@@ -77,6 +83,8 @@ export declare function generateWCDtsFiles(
   manifest: ComponentManifest,
   options?: ComponentDtsOptions,
 ): DtsOutputFile[]
+
+export declare function generateLoaderDts(manifest: ComponentManifest): string
 
 export declare function formatPropType(prop: ComponentProp): string
 export declare function formatEventType(event: ComponentEvent): string

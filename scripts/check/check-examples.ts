@@ -10,27 +10,46 @@
  * to let this script run the build itself.
  */
 
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
 import { exec } from '../shared/utils'
+
+interface ExamplePackageJson {
+  name?: string
+  scripts?: Record<string, string>
+}
 
 const buildFirst = ['@zeus-ui/headless']
 
-const examples = [
-  '@zeus-js/example-counter',
-  '@zeus-js/example-todo',
-  '@zeus-js/example-web-component',
-  '@zeus-js/example-react-wrapper',
-  '@zeus-js/example-vue-wrapper',
-  '@zeus-js/example-registry-react',
-  '@zeus-js/example-registry-vue',
-  '@zeus-js/example-icons-no-runtime',
-  '@zeus-js/example-context',
-  '@zeus-js/example-light-dom-slots',
-  '@zeus-js/example-project-board',
-  '@zeus-js/example-headless-demo',
-  '@zeus-js/example-use-headless-react',
-  '@zeus-js/example-use-headless-vue',
-  '@zeus-js/example-use-headless-cli',
-]
+function readExamples() {
+  const examplesDir = join(process.cwd(), 'examples')
+
+  return readdirSync(examplesDir, { withFileTypes: true })
+    .filter(entry => entry.isDirectory())
+    .map(entry => {
+      const packageJsonPath = join(examplesDir, entry.name, 'package.json')
+      const packageJson = JSON.parse(
+        readFileSync(packageJsonPath, 'utf8'),
+      ) as ExamplePackageJson
+
+      if (!packageJson.name) {
+        throw new Error(
+          `Missing package name: examples/${entry.name}/package.json`,
+        )
+      }
+
+      if (!packageJson.scripts?.check || !packageJson.scripts?.build) {
+        throw new Error(`Missing check/build scripts: ${packageJson.name}`)
+      }
+
+      return packageJson.name
+    })
+    .filter(name => !buildFirst.includes(name))
+    .sort()
+}
+
+const examples = readExamples()
 
 const phases: Array<[string, string]> = [
   ['check', 'type-check'],

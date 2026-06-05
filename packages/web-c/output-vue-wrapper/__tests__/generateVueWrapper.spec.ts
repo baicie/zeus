@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { generateVueWrapper } from '../src/generateVueWrapper'
 
 describe('generateVueWrapper', () => {
-  it('generates Vue wrapper code', () => {
+  it('generates event-bridge Vue wrapper code', () => {
     const code = generateVueWrapper({
       component: {
         tag: 'z-button',
@@ -34,6 +34,7 @@ describe('generateVueWrapper', () => {
         cssVars: [],
       },
       wcModuleId: 'zeus:wc:z-button',
+      mode: 'event-bridge',
     })
 
     expect(code).toContain('import "zeus:wc:z-button"')
@@ -43,18 +44,19 @@ describe('generateVueWrapper', () => {
     expect(code).toContain('emits: EVENT_NAMES')
     expect(code).toContain('const elRef = ref(null)')
 
-    // Vue unconditionally syncs props
-    expect(code).toContain('el.variant = props.variant')
-    expect(code).toContain('el.disabled = props.disabled')
+    expect(code).toContain('getCurrentInstance')
+    expect(code).toContain('hasRawProp(name)')
+    expect(code).toContain('el[name] = props[name]')
+    expect(code).not.toContain('el.variant = props.variant')
+    expect(code).not.toContain('el.disabled = props.disabled')
 
     expect(code).toContain('for (const eventName of EVENT_NAMES)')
     expect(code).toContain('emit(eventName, event)')
     expect(code).toContain('el.addEventListener(eventName, handler)')
     expect(code).toContain('removeEventListener(eventName, handler)')
 
-    expect(code).toContain(
-      'watch(() => [props.variant, props.disabled], syncProps)',
-    )
+    expect(code).toContain('onUpdated(syncProps)')
+    expect(code).not.toContain('watch(')
 
     expect(code).toContain('const cleanups = []')
     expect(code).toContain('onBeforeUnmount')
@@ -65,11 +67,68 @@ describe('generateVueWrapper', () => {
     expect(code).toContain('withSlot')
 
     expect(code).toContain('PROP_KEYS')
+    expect(code).toContain('PROP_INPUT_KEYS')
     expect(code).toContain('EVENT_NAMES')
     expect(code).toContain('NAMED_SLOTS')
   })
 
-  it('handles component with named slots', () => {
+  it('does not sync omitted props in event-bridge mode', () => {
+    const code = generateVueWrapper({
+      component: {
+        tag: 'z-button',
+        name: 'ZButton',
+        exportName: 'ZButton',
+        source: 'src/button.tsx',
+        props: {
+          variant: {
+            type: 'string',
+            default: 'default',
+          },
+        },
+        events: {},
+        slots: {},
+        hostAttributes: [],
+        cssParts: [],
+        cssVars: [],
+      },
+      wcModuleId: 'zeus:wc:z-button',
+      mode: 'event-bridge',
+    })
+
+    expect(code).toContain('getCurrentInstance')
+    expect(code).toContain('hasRawProp(name)')
+    expect(code).toContain('el[name] = props[name]')
+    expect(code).not.toContain('el.variant = props.variant')
+  })
+
+  it('generates valid event-bridge code for kebab-case props', () => {
+    const code = generateVueWrapper({
+      component: {
+        tag: 'z-button',
+        name: 'ZButton',
+        exportName: 'ZButton',
+        source: 'src/button.tsx',
+        props: {
+          'button-size': {
+            type: 'string',
+          },
+        },
+        events: {},
+        slots: {},
+        hostAttributes: [],
+        cssParts: [],
+        cssVars: [],
+      },
+      wcModuleId: 'zeus:wc:z-button',
+      mode: 'event-bridge',
+    })
+
+    expect(code).toContain('el[name] = props[name]')
+    expect(code).not.toContain('el.button-size')
+    expect(code).not.toContain('props.button-size')
+  })
+
+  it('handles component with named slots in event-bridge mode', () => {
     const code = generateVueWrapper({
       component: {
         tag: 'z-card',
@@ -90,6 +149,7 @@ describe('generateVueWrapper', () => {
         cssVars: [],
       },
       wcModuleId: 'zeus:wc:z-card',
+      mode: 'event-bridge',
     })
 
     expect(code).toContain('NAMED_SLOTS')
@@ -100,15 +160,25 @@ describe('generateVueWrapper', () => {
     expect(code).toContain('display: contents')
   })
 
-  it('generates guard comment when no props exist', () => {
+  it('generates minimal Vue wrapper by default', () => {
     const code = generateVueWrapper({
       component: {
-        tag: 'z-skeleton',
-        name: 'ZSkeleton',
-        exportName: 'ZSkeleton',
-        source: 'src/skeleton.tsx',
-        props: {},
-        events: {},
+        tag: 'z-button',
+        name: 'ZButton',
+        exportName: 'ZButton',
+        source: 'src/button.tsx',
+        props: {
+          variant: {
+            type: 'string',
+            default: 'default',
+          },
+          disabled: {
+            type: 'boolean',
+          },
+        },
+        events: {
+          press: {},
+        },
         slots: {
           default: {},
         },
@@ -116,11 +186,50 @@ describe('generateVueWrapper', () => {
         cssParts: [],
         cssVars: [],
       },
-      wcModuleId: 'zeus:wc:z-skeleton',
+      wcModuleId: 'zeus:wc:z-button',
     })
 
-    expect(code).toContain('// no props to sync')
-    expect(code).toContain('// no reactive props')
+    // minimal wrapper imports wcModuleId to bootstrap Proxy Elements
+    expect(code).toContain('import "zeus:wc:z-button"')
+    expect(code).not.toContain('el.variant = props.variant')
+    expect(code).not.toContain('watch(')
+    expect(code).not.toContain('onMounted(')
+    expect(code).not.toContain('addEventListener')
+    expect(code).toContain('export const ZButton = defineComponent')
+    expect(code).toContain('inheritAttrs: false')
+    expect(code).toContain('slots.default')
+  })
+
+  it('handles component with named slots in minimal Vue mode', () => {
+    const code = generateVueWrapper({
+      component: {
+        tag: 'z-card',
+        name: 'ZCard',
+        exportName: 'ZCard',
+        source: 'src/card.tsx',
+        props: {},
+        events: {},
+        slots: {
+          default: {},
+          header: {},
+          footer: {},
+        },
+        hostAttributes: [],
+        cssParts: [],
+        cssVars: [],
+      },
+      wcModuleId: 'zeus:wc:z-card',
+    })
+
+    expect(code).toContain('NAMED_SLOTS')
+    expect(code).toContain('"header"')
+    expect(code).toContain('"footer"')
+    expect(code).toContain('cloneVNode')
+    expect(code).toContain('slot: name')
+    expect(code).toContain('slots[name]')
+    expect(code).toContain('display: contents')
+    expect(code).not.toContain('watch(')
+    expect(code).not.toContain('onMounted(')
   })
 
   it('emits component name as name option', () => {
@@ -144,5 +253,41 @@ describe('generateVueWrapper', () => {
 
     expect(code).toContain('name: "MyTestComponent"')
     expect(code).toContain('export const MyTestComponent = defineComponent')
+  })
+
+  it('does not copy Web Component defaults into Vue wrapper props', () => {
+    const code = generateVueWrapper({
+      component: {
+        tag: 'z-button',
+        name: 'ZButton',
+        exportName: 'ZButton',
+        source: 'src/button.tsx',
+
+        props: {
+          config: {
+            type: 'object',
+            default: {
+              size: 'md',
+            },
+          },
+          variant: {
+            type: 'string',
+            default: 'primary',
+          },
+        },
+
+        events: {},
+        slots: {},
+        hostAttributes: [],
+        cssParts: [],
+        cssVars: [],
+      },
+
+      wcModuleId: 'zeus:wc:z-button',
+      mode: 'event-bridge',
+    })
+
+    expect(code).not.toContain('default:')
+    expect(code).toContain('required: false')
   })
 })

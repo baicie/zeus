@@ -1,7 +1,11 @@
 import path from 'node:path'
 
 import { resolvePluginDts } from '@zeus-js/bundler-plugin'
-import { generateWCDtsFiles } from '@zeus-js/component-dts'
+import {
+  generateLoaderDts,
+  generateWCDtsFiles,
+  generateWCJsxDts,
+} from '@zeus-js/component-dts'
 
 import { generateCustomElementsJson } from './generateCustomElementsJson'
 import { generateWCEntry } from './generateEntry'
@@ -10,7 +14,15 @@ import {
   getVirtualComponentId,
   getVirtualIndexId,
 } from './generateIndex'
+import { generateLazyEntry } from './generateLazyEntry'
+import { generateLazyManifest } from './generateLazyManifest'
+import {
+  generateAutoEntry,
+  generateLazyIndex,
+  generateLoader,
+} from './generateLoader'
 import { generateZeusComponentsManifest } from './generateManifest'
+import { toAbsoluteImportPath } from './imports'
 
 import type { OutputWCOptions } from './types'
 import type {
@@ -23,16 +35,27 @@ import type {
 export type { OutputWCOptions } from './types'
 
 export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
+  const registerMode = options.register ?? 'lazy'
+
   const normalized = {
     outDir: options.outDir ?? 'wc',
     stripPrefix: options.stripPrefix ?? false,
     fileName: options.fileName,
-    manifestFile: options.manifestFile ?? 'zeus.components.json',
-    customElementsFile: options.customElementsFile ?? 'custom-elements.json',
-    dts: options.dts ?? 'auto',
-    jsxDts: options.jsxDts ?? 'auto',
+    manifestFile:
+      registerMode === 'lazy'
+        ? false
+        : (options.manifestFile ?? 'zeus.components.json'),
+    customElementsFile:
+      registerMode === 'lazy'
+        ? false
+        : (options.customElementsFile ?? 'custom-elements.json'),
+    dts: options.dts ?? true,
+    jsxDts: options.jsxDts ?? true,
     index: options.index ?? true,
     warnOnFileNameCollision: options.warnOnFileNameCollision ?? true,
+    register: registerMode,
+    auto: options.auto ?? true,
+    entryFileName: options.entryFileName ?? (tag => `${tag}.entry`),
   }
 
   let _outDir = normalized.outDir
@@ -53,9 +76,69 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
 
     buildStart(ctx) {
       if (!ctx.manifest) return
-      checkFileNameCollisions(ctx.manifest.components, normalized, {
-        warn: ctx.warn,
-      })
+
+      if (normalized.register === 'lazy') {
+        for (const component of ctx.manifest.components) {
+          const diagnostics = component.runtimePropsDiagnostics ?? []
+
+          if (diagnostics.length > 0) {
+            ctx.error(
+              [
+                `[zeus-output-wc] <${component.tag}> cannot be emitted with register:"lazy" because its runtime props are not statically analyzable.`,
+                ...diagnostics.map(message => `- ${message}`),
+              ].join('\n'),
+            )
+          }
+
+          const runtimeProps = component.runtimeProps ?? {}
+
+          for (const [name, prop] of Object.entries(runtimeProps)) {
+            if (isAttributeBackedRuntimeProp(prop.type)) {
+              continue
+            }
+
+            if (prop.attr !== undefined && prop.attr !== false) {
+              ctx.error(
+                [
+                  `[zeus-output-wc] <${component.tag}> prop "${name}" cannot use attr:${JSON.stringify(prop.attr)} with register:"lazy".`,
+                  'Lazy Web-C only supports attributes for string, number and boolean props.',
+                  'Use attr:false and pass object/array/function values as properties instead.',
+                ].join('\n'),
+              )
+            }
+
+            if (prop.reflect) {
+              ctx.error(
+                [
+                  `[zeus-output-wc] <${component.tag}> prop "${name}" cannot use reflect:true with register:"lazy".`,
+                  'Lazy Web-C only reflects string, number and boolean props.',
+                  'Use a string/number/boolean prop or remove reflect:true.',
+                ].join('\n'),
+              )
+            }
+          }
+        }
+      }
+
+      checkFileNameCollisions(
+        ctx.manifest.components,
+        {
+          getFileName: tag => {
+            if (normalized.register === 'lazy') {
+              return getLazyEntryFileName(normalized.entryFileName, tag)
+            }
+            return normalizeFileName(
+              tag,
+              normalized.stripPrefix,
+              normalized.fileName,
+            )
+          },
+          warnOnFileNameCollision: normalized.warnOnFileNameCollision,
+        },
+        {
+          warn: ctx.warn,
+        },
+      )
     },
 
     virtualModules(ctx): ZeusVirtualModule[] {
@@ -76,20 +159,82 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
         return path.posix.join(_outDir, fileName)
       }
 
-      for (const component of ctx.manifest.components) {
-        const fileName = joinPath(getFileName(component.tag))
+      const isLazy = normalized.register === 'lazy'
 
+      // Lazy mode: manifest, loader, auto
+      if (isLazy) {
         modules.push({
-          id: getVirtualComponentId(component),
-          fileName,
-          code: generateWCEntry({
-            root: ctx.root,
-            component,
+          id: 'zeus:wc:components.manifest',
+          fileName: joinPath('components.manifest.js'),
+          code: generateLazyManifest({
+            components: ctx.manifest.components,
+            getEntryFileName: tag =>
+              getLazyEntryFileName(normalized.entryFileName, tag),
           }),
         })
+
+        modules.push({
+          id: 'zeus:wc:loader',
+          fileName: joinPath('loader.js'),
+          code: generateLoader(),
+        })
+
+        if (normalized.auto) {
+          modules.push({
+            id: 'zeus:wc:auto',
+            fileName: joinPath('auto.js'),
+            code: generateAutoEntry(),
+          })
+        }
       }
 
-      if (normalized.index) {
+      for (const component of ctx.manifest.components) {
+        if (isLazy) {
+          /**
+           * Compatibility module consumed by Vue / React wrappers.
+           *
+           * It only registers lazy Proxy Elements.
+           * It does not import the real component implementation.
+           */
+          modules.push({
+            id: getVirtualComponentId(component),
+            code: `
+import { defineCustomElements } from "zeus:wc:loader";
+
+defineCustomElements();
+
+export {};
+`.trimStart(),
+          })
+
+          const entryFileName = getLazyEntryFileName(
+            normalized.entryFileName,
+            component.tag,
+          )
+          const fileName = joinPath(entryFileName)
+          modules.push({
+            id: `zeus:wc:entry:${component.tag}`,
+            fileName,
+            code: generateLazyEntry({
+              component,
+              outPath: fileName,
+              sourceImport: toAbsoluteImportPath(ctx.root, component.source),
+            }),
+          })
+        } else {
+          const fileName = joinPath(getFileName(component.tag))
+          modules.push({
+            id: getVirtualComponentId(component),
+            fileName,
+            code: generateWCEntry({
+              root: ctx.root,
+              component,
+            }),
+          })
+        }
+      }
+
+      if (normalized.index && !isLazy) {
         modules.push({
           id: getVirtualIndexId(),
           fileName: joinPath('index.js'),
@@ -100,20 +245,22 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
         })
       }
 
+      if (isLazy && normalized.index) {
+        modules.push({
+          id: getVirtualIndexId(),
+          fileName: joinPath('index.js'),
+          code: generateLazyIndex(),
+        })
+      }
+
       return modules
     },
 
     generateBundle(ctx): ZeusOutputFile[] {
       if (!ctx.manifest) return []
       const files: ZeusOutputFile[] = []
-
-      if (normalized.manifestFile) {
-        files.push({
-          type: 'asset',
-          fileName: normalized.manifestFile,
-          source: generateZeusComponentsManifest(ctx.manifest),
-        })
-      }
+      const dts = resolvePluginDts(normalized.dts as DtsMode, ctx)
+      const jsxDts = resolvePluginDts(normalized.jsxDts as DtsMode, ctx)
 
       const hasOutputs = ctx.outputs.has('wc')
       const getFileName = (tag: string) => {
@@ -129,7 +276,45 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
         return path.posix.join(_outDir, fileName)
       }
 
-      if (normalized.customElementsFile) {
+      const isLazy = normalized.register === 'lazy'
+
+      // Lazy mode runtime modules are emitted as virtual chunks in virtualModules().
+      // generateBundle() only emits declaration assets to avoid file-name collisions.
+      if (isLazy) {
+        if (dts) {
+          const loaderDts = generateLoaderDts(ctx.manifest)
+
+          files.push({
+            type: 'asset',
+            fileName: joinPath('loader.d.ts'),
+            source: loaderDts,
+          })
+
+          if (normalized.index) {
+            files.push({
+              type: 'asset',
+              fileName: joinPath('index.d.ts'),
+              source: loaderDts,
+            })
+          }
+        }
+
+        if (jsxDts) {
+          files.push({
+            type: 'asset',
+            fileName: joinPath('types/jsx.d.ts'),
+            source: generateWCJsxDts(ctx.manifest),
+          })
+        }
+      } else if (normalized.manifestFile) {
+        files.push({
+          type: 'asset',
+          fileName: normalized.manifestFile,
+          source: generateZeusComponentsManifest(ctx.manifest),
+        })
+      }
+
+      if (!isLazy && normalized.customElementsFile) {
         files.push({
           type: 'asset',
           fileName: normalized.customElementsFile,
@@ -140,10 +325,7 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
         })
       }
 
-      const dts = resolvePluginDts(normalized.dts as DtsMode, ctx)
-      const jsxDts = resolvePluginDts(normalized.jsxDts as DtsMode, ctx)
-
-      if (dts || jsxDts) {
+      if (!isLazy && (dts || jsxDts)) {
         const dtsFiles = generateWCDtsFiles(ctx.manifest, {
           outDir: _outDir,
           stripPrefix: normalized.stripPrefix,
@@ -187,11 +369,27 @@ function normalizeFileName(
   return name
 }
 
+function normalizeLazyEntryFileName(fileName: string): string {
+  const normalized = fileName.replace(/\\/g, '/')
+
+  return normalized.endsWith('.js') ? normalized : `${normalized}.js`
+}
+
+function getLazyEntryFileName(
+  entryFileName: (tag: string) => string,
+  tag: string,
+): string {
+  return normalizeLazyEntryFileName(entryFileName(tag))
+}
+
+function isAttributeBackedRuntimeProp(type: string): boolean {
+  return type === 'string' || type === 'number' || type === 'boolean'
+}
+
 function checkFileNameCollisions(
   components: { tag: string }[],
   options: {
-    stripPrefix: string | false
-    fileName?: (tag: string) => string
+    getFileName: (tag: string) => string
     warnOnFileNameCollision?: boolean
   },
   reporter: { warn: (message: string) => void },
@@ -201,12 +399,9 @@ function checkFileNameCollisions(
   const map = new Map<string, typeof components>()
 
   for (const component of components) {
-    const fileName = normalizeFileName(
-      component.tag,
-      options.stripPrefix,
-      options.fileName,
-    )
+    const fileName = options.getFileName(component.tag)
     const list = map.get(fileName) ?? []
+
     list.push(component)
     map.set(fileName, list)
   }
