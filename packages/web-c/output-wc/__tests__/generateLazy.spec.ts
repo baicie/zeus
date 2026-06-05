@@ -244,6 +244,40 @@ describe('generateLazyManifest', () => {
     expect(code).not.toContain('attrName: "columns"')
   })
 
+  it('marks non-primitive props as property-only in lazy manifest', () => {
+    const code = generateLazyManifest({
+      components: [
+        {
+          tag: 'zw-table',
+          name: 'ZwTable',
+          exportName: 'ZwTable',
+          source: 'src/table.tsx',
+          props: {},
+          runtimeProps: {
+            columns: {
+              type: 'array',
+            },
+            config: {
+              type: 'object',
+              attr: 'config',
+              reflect: true,
+            },
+          },
+          events: {},
+          slots: {},
+          hostAttributes: [],
+          cssParts: [],
+          cssVars: [],
+        } as any,
+      ],
+      getEntryFileName: tag => `${tag}.entry.js`,
+    })
+
+    expect(code).toContain('name: "columns", attrName: false')
+    expect(code).toContain('name: "config", attrName: false')
+    expect(code).toContain('reflect: true')
+  })
+
   it('only emits runtime props into the lazy manifest', () => {
     const code = generateLazyManifest({
       components: [
@@ -379,18 +413,16 @@ describe('generateLoader', () => {
     expect(code).toContain(
       'export const defineLazyElements = defineCustomElements',
     )
-    expect(code).toContain('bootstrapLazy(components, { registry })')
+    expect(code).toContain('bootstrapLazy(components)')
     expect(code).toContain('typeof customElements === "undefined"')
-    expect(code).toContain('options.registry')
-    expect(code).toContain('definedRegistries')
+    expect(code).toContain('let defined = false')
   })
 
-  it('dedupes calls per registry', () => {
+  it('dedupes calls', () => {
     const code = generateLoader()
 
-    expect(code).toContain('const definedRegistries = new WeakSet()')
-    expect(code).toContain('definedRegistries.has(registry)')
-    expect(code).toContain('definedRegistries.add(registry)')
+    expect(code).toContain('if (defined)')
+    expect(code).toContain('defined = true')
   })
 })
 

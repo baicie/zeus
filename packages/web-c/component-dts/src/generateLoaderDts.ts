@@ -20,13 +20,7 @@ export function generateLoaderDts(manifest: ComponentManifest): string {
     lines.push('')
   }
 
-  lines.push('export interface DefineCustomElementsOptions {')
-  lines.push('  registry?: CustomElementRegistry')
-  lines.push('}')
-  lines.push('')
-  lines.push(
-    'export declare function defineCustomElements(options?: DefineCustomElementsOptions): void',
-  )
+  lines.push('export declare function defineCustomElements(): void')
   lines.push('')
   lines.push(
     'export declare const defineLazyElements: typeof defineCustomElements',

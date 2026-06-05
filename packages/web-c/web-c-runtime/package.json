@@ -3,24 +3,18 @@
   "version": "0.1.0-beta.1",
   "description": "Zeus Web-C lazy-loading runtime",
   "type": "module",
-  "main": "index.js",
-  "module": "dist/web-c-runtime.esm-bundler.js",
-  "types": "dist/web-c-runtime.d.ts",
+  "main": "./dist/web-c-runtime.esm-bundler.js",
+  "module": "./dist/web-c-runtime.esm-bundler.js",
+  "types": "./dist/web-c-runtime.d.ts",
   "files": [
-    "index.js",
     "dist"
   ],
   "exports": {
     ".": {
       "types": "./dist/web-c-runtime.d.ts",
-      "node": {
-        "production": "./dist/web-c-runtime.cjs.prod.js",
-        "development": "./dist/web-c-runtime.cjs.js",
-        "default": "./index.js"
-      },
-      "module": "./dist/web-c-runtime.esm-bundler.js",
       "import": "./dist/web-c-runtime.esm-bundler.js",
-      "require": "./index.js"
+      "module": "./dist/web-c-runtime.esm-bundler.js",
+      "default": "./dist/web-c-runtime.esm-bundler.js"
     }
   },
   "sideEffects": false,

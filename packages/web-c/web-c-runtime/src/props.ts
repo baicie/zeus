@@ -178,7 +178,15 @@ function getAttrName(prop: ZeusPropMeta): string | undefined {
     return undefined
   }
 
+  if (!isAttributeBackedType(prop.type)) {
+    return undefined
+  }
+
   return normalizeAttrName(prop.attrName ?? toKebabCase(prop.name))
+}
+
+function isAttributeBackedType(type: ZeusPropMeta['type']): boolean {
+  return type === 'string' || type === 'number' || type === 'boolean'
 }
 
 function normalizeAttrName(value: string): string {
@@ -202,18 +210,6 @@ function parseAttributeValue(
 
     case 'string':
       return value ?? undefined
-
-    case 'object':
-    case 'array':
-      if (value === null) {
-        return undefined
-      }
-
-      try {
-        return JSON.parse(value)
-      } catch {
-        return prop.type === 'array' ? [] : {}
-      }
 
     default:
       return value
@@ -242,11 +238,6 @@ function reflectPropertyToAttribute(
 
     if (value === null || value === undefined || value === false) {
       host.removeAttribute(attrName)
-      return
-    }
-
-    if (prop.type === 'object' || prop.type === 'array') {
-      host.setAttribute(attrName, JSON.stringify(value))
       return
     }
 

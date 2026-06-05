@@ -84,33 +84,6 @@ describe('bootstrapLazy', () => {
       })
     }
   })
-
-  it('defines lazy proxy elements in a custom registry', () => {
-    const defined = new Map<string, CustomElementConstructor>()
-    const registry = {
-      get: vi.fn((tagName: string) => defined.get(tagName)),
-      define: vi.fn((tagName: string, ctor: CustomElementConstructor) => {
-        defined.set(tagName, ctor)
-      }),
-    } as unknown as CustomElementRegistry
-    const load = vi.fn()
-
-    bootstrapLazy(
-      [
-        {
-          tagName: 'zw-custom-registry',
-          shadow: false,
-          load,
-          props: [],
-        },
-      ],
-      { registry },
-    )
-
-    expect(registry.get('zw-custom-registry')).toBeTruthy()
-    expect(registry.define).toHaveBeenCalledTimes(1)
-    expect(load).not.toHaveBeenCalled()
-  })
 })
 
 describe('lazy element lifecycle', () => {
@@ -441,7 +414,7 @@ describe('lazy element lifecycle', () => {
     expect(receivedValue).toBe('md')
   })
 
-  it('parses object and array attributes from attribute string', async () => {
+  it('does not parse object and array values from attributes', async () => {
     let receivedValue: unknown
 
     const load = vi.fn().mockResolvedValue({
@@ -477,7 +450,7 @@ describe('lazy element lifecycle', () => {
 
     await (el as ZeusLazyElement).componentOnReady()
 
-    expect(receivedValue).toEqual([{ id: 1 }])
+    expect(receivedValue).toBeUndefined()
   })
 
   it('parses empty number attributes consistently with defineElement', async () => {
@@ -517,7 +490,7 @@ describe('lazy element lifecycle', () => {
     expect(receivedValue).toBe(0)
   })
 
-  it('reflects object and array properties back as JSON strings', () => {
+  it('does not reflect object and array properties back as JSON strings', () => {
     bootstrapLazy([
       {
         tagName: 'zw-reflect-object',
@@ -538,7 +511,7 @@ describe('lazy element lifecycle', () => {
     }
     el.config = { theme: 'dark' }
 
-    expect(el.getAttribute('config')).toBe('{"theme":"dark"}')
+    expect(el.hasAttribute('config')).toBe(false)
   })
 
   it('does not observe property-only props', () => {

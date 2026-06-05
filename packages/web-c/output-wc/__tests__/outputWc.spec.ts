@@ -457,12 +457,10 @@ describe('output-wc', () => {
       expect(fileNames).not.toContain('custom-elements.json')
 
       const loaderDts = result.find(f => f.fileName === 'wc/loader.d.ts')
-      expect(loaderDts?.source).toContain(
+      expect(loaderDts?.source).not.toContain(
         'export interface DefineCustomElementsOptions',
       )
-      expect(loaderDts?.source).toContain(
-        'defineCustomElements(options?: DefineCustomElementsOptions): void',
-      )
+      expect(loaderDts?.source).toContain('defineCustomElements(): void')
     })
 
     it('generates default assets even when manifest has no components', () => {

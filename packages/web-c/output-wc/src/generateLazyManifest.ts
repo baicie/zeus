@@ -50,7 +50,7 @@ function generatePropsArray(props: Record<string, ComponentProp>): string {
   const lines = entries.map(([name, prop]) => {
     const parts: string[] = [`name: ${JSON.stringify(name)}`]
 
-    if (prop.attr === false) {
+    if (!isAttributeBackedType(prop.type) || prop.attr === false) {
       parts.push('attrName: false')
     } else {
       const attrName = prop.attr ?? toKebabCase(name)
@@ -69,6 +69,10 @@ function generatePropsArray(props: Record<string, ComponentProp>): string {
   })
 
   return `[\n${lines.join(',\n')}\n    ]`
+}
+
+function isAttributeBackedType(type: ComponentProp['type']): boolean {
+  return type === 'string' || type === 'number' || type === 'boolean'
 }
 
 function toKebabCase(value: string): string {
