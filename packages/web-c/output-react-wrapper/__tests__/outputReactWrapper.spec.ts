@@ -85,7 +85,7 @@ describe('output-react-wrapper', () => {
     await bundle.close()
   })
 
-  it('generated React wrapper uses destructured props for prop sync in event-bridge mode', async () => {
+  it('generated React wrapper uses explicit props for prop sync in event-bridge mode', async () => {
     const root = await fs.mkdtemp(
       path.join(os.tmpdir(), 'zeus-react-typecheck-'),
     )
@@ -150,10 +150,12 @@ describe('output-react-wrapper', () => {
     expect(code).toContain('el["disabled"] = propValue0')
     expect(code).toContain('el["variant"] = propValue1')
 
-    expect(code).toContain('const {')
-    expect(code).toContain('className,')
-    expect(code).toContain('style,')
-    expect(code).toContain('...rest')
+    expect(code).toContain('const className = props.className')
+    expect(code).toContain('const style = props.style')
+    expect(code).toContain('const rest = omitProps(props')
+    expect(code).toContain('Object.assign({}, rest, {')
+    expect(code).toContain('ref: innerRef')
+    expect(code).not.toContain('...rest')
 
     await bundle.close()
   })

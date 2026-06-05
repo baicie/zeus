@@ -48,7 +48,7 @@ describe('generateReactWrapper', () => {
     expect(code).toContain('React.createElement')
   })
 
-  it('passes component props through ...rest in minimal mode', () => {
+  it('passes component props through rest props in minimal mode', () => {
     const code = generateReactWrapper({
       component: {
         tag: 'z-button',
@@ -77,8 +77,10 @@ describe('generateReactWrapper', () => {
       mode: 'minimal',
     })
 
-    // All component props stay in ...rest, not destructured
-    expect(code).toContain('...rest')
+    // All component props stay in rest props, not destructured.
+    expect(code).toContain('const rest = omitProps(props')
+    expect(code).toContain('Object.assign({}, rest, { ref: ref })')
+    expect(code).not.toContain('...rest')
     expect(code).not.toContain('variant,')
     expect(code).not.toContain('disabled,')
     expect(code).toContain('import "zeus:wc:z-button"')
@@ -121,6 +123,8 @@ describe('generateReactWrapper', () => {
 
     expect(code).toContain('import "zeus:wc:z-button"')
     expect(code).toContain('export const ZButton = forwardRef(function ZButton')
+    expect(code).toContain('const props = inputProps || {}')
+    expect(code).toContain('const rest = omitProps(props')
     expect(code).toContain('useImperativeHandle(ref')
     expect(code).toContain('const innerRef = useRef(null)')
     expect(code).toContain('const previousPropKeysRef = useRef(new Set())')
@@ -143,9 +147,10 @@ describe('generateReactWrapper', () => {
 
     expect(code).toContain('slotChildren = []')
     expect(code).toContain('slotChildren.push(children)')
-    expect(code).toContain('return createElement(')
+    expect(code).toContain('return createElement.apply(')
 
     expect(code).toContain('createNamedSlot')
+    expect(code).not.toContain('...rest')
 
     expect(code).not.toContain('PROP_KEYS')
     expect(code).not.toContain('EVENT_MAP')
@@ -185,6 +190,7 @@ describe('generateReactWrapper', () => {
     expect(code).toContain('slot: "header"')
     expect(code).toContain('slot: "footer"')
     expect(code).toContain("{ display: 'contents' }")
+    expect(code).toContain('pushAll(childArgs, slotNodes)')
     expect(code).not.toContain('useRef')
     expect(code).not.toContain('addEventListener')
   })
@@ -211,8 +217,8 @@ describe('generateReactWrapper', () => {
       mode: 'minimal',
     })
 
-    // Must use quoted string as property key, not bare identifier
-    expect(code).toContain('"header-actions": slotValue0')
+    // Must use quoted string lookup, not bare identifier.
+    expect(code).toContain('const slotValue0 = props["header-actions"]')
     // Must NOT contain bare identifier that would be a syntax error
     expect(code).not.toContain('header-actions,')
     expect(code).not.toContain('header-actions:')
@@ -323,7 +329,7 @@ describe('generateReactWrapper', () => {
       mode: 'event-bridge',
     })
 
-    expect(code).toContain('"onValueChange": eventHandler0')
+    expect(code).toContain('const eventHandler0 = props["onValueChange"]')
     expect(code).toContain('addEventListener("value-change"')
     expect(code).toContain('eventHandler0(event)')
     expect(code).not.toContain('eventHandlervalue-change')

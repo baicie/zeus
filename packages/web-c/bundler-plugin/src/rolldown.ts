@@ -30,6 +30,7 @@ export function defineZeusRolldownConfig(
     input,
     output,
     external,
+    transform,
     ...rest
   } = config
   const pluginExternals = collectPluginExternals(zeusOptions, {
@@ -49,6 +50,11 @@ export function defineZeusRolldownConfig(
       : external,
 
     plugins: [zeus(zeusOptions), ...normalizePlugins(plugins)],
+
+    transform: {
+      target: 'es2016',
+      ...transform,
+    },
 
     output: output ?? {
       dir: 'dist',

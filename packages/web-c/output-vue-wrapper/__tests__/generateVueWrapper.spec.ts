@@ -46,6 +46,7 @@ describe('generateVueWrapper', () => {
 
     expect(code).toContain('getCurrentInstance')
     expect(code).toContain('hasRawProp(name)')
+    expect(code).toContain('const rawProps = rawVNode.props || {}')
     expect(code).toContain('el[name] = props[name]')
     expect(code).not.toContain('el.variant = props.variant')
     expect(code).not.toContain('el.disabled = props.disabled')
@@ -64,6 +65,7 @@ describe('generateVueWrapper', () => {
 
     expect(code).toContain('slots.default')
     expect(code).toContain('h(')
+    expect(code).toContain('Object.assign({}, attrs, { ref: elRef })')
     expect(code).toContain('withSlot')
 
     expect(code).toContain('PROP_KEYS')
@@ -198,6 +200,8 @@ describe('generateVueWrapper', () => {
     expect(code).toContain('export const ZButton = defineComponent')
     expect(code).toContain('inheritAttrs: false')
     expect(code).toContain('slots.default')
+    expect(code).toContain('Object.assign({}, attrs)')
+    expect(code).not.toContain('...attrs')
   })
 
   it('handles component with named slots in minimal Vue mode', () => {

@@ -453,8 +453,8 @@ describe('output-wc', () => {
       expect(fileNames).not.toContain('wc/components.manifest.js')
       expect(fileNames).not.toContain('wc/loader.js')
       expect(fileNames).not.toContain('wc/auto.js')
-      expect(fileNames).not.toContain('zeus.components.json')
-      expect(fileNames).not.toContain('custom-elements.json')
+      expect(fileNames).toContain('zeus.components.json')
+      expect(fileNames).toContain('custom-elements.json')
 
       const loaderDts = result.find(f => f.fileName === 'wc/loader.d.ts')
       expect(loaderDts?.source).not.toContain(
@@ -490,8 +490,8 @@ describe('output-wc', () => {
 
       expect(fileNames).toContain('wc/loader.d.ts')
       expect(fileNames).toContain('wc/index.d.ts')
-      expect(fileNames).not.toContain('zeus.components.json')
-      expect(fileNames).not.toContain('custom-elements.json')
+      expect(fileNames).toContain('zeus.components.json')
+      expect(fileNames).toContain('custom-elements.json')
       expect(fileNames).toContain('wc/types/jsx.d.ts')
       expect(fileNames).not.toContain('wc/types/react.d.ts')
     })
