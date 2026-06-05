@@ -17,6 +17,15 @@ on:
   push:
     branches:
       - main
+      - feat/**
+      - fix/**
+      - refactor/**
+      - chore/**
+      - docs/**
+      - test/**
+      - release/**
+      - hotfix/**
+  workflow_dispatch:
 
 concurrency:
   group: release-canary-${{ github.ref }}

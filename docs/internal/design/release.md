@@ -4,11 +4,36 @@
 
 核心原则：
 
-1. 正式发版只发布 `.changeset/config.json` fixed group 内的 `@zeus-js/*` 包。
-2. 版本号以 `packages/core/zeus/package.json` 为当前基准，root `package.json` 跟随最终版本。
-3. 用户可见变更必须先写 changeset。
-4. 正式发布由 GitHub Actions 执行，本地只负责生成 release commit 和 tag。
-5. `release:dry` 是“不会提交/打 tag/推送”的 dry-run，但仍会修改工作区文件。
+1. Zeus 使用 main-only trunk based development，不设置长期 `develop`。
+2. `main` 必须始终可构建、可测试、可发 canary。
+3. 正式发版只发布 `.changeset/config.json` fixed group 内的 `@zeus-js/*` 包。
+4. 版本号以 `packages/core/zeus/package.json` 为当前基准，root `package.json` 跟随最终版本。
+5. 用户可见变更必须先写 changeset。
+6. 正式发布由 GitHub Actions 执行，本地只负责生成 release commit 和 tag。
+7. `release:dry` 是“不会提交/打 tag/推送”的 dry-run，但仍会修改工作区文件。
+
+分支策略详见 `docs/internal/design/branching.md`。
+
+## 0. release 分支模型
+
+平时所有功能和修复都通过短分支 PR 进入 `main`：
+
+```txt
+feat/<scope>-<topic>
+fix/<scope>-<topic>
+refactor/<scope>-<topic>
+chore/<scope>-<topic>
+docs/<scope>-<topic>
+test/<scope>-<topic>
+```
+
+正式发版窗口临时从 `main` 拉：
+
+```txt
+release/0.1.0
+```
+
+release 分支只允许 release polish、文档、测试、lockfile、版本和阻塞修复，不再接收大功能。发版完成后 merge 回 `main`、打 tag、发布 stable，并删除 release 分支。
 
 ---
 
@@ -209,15 +234,17 @@ pnpm release --publishOnly <version> --skipBuild
 
 ## 6. Canary 发版
 
-canary 用于 main 合并后的下游兼容性验证，不污染正式 release 流程。
+canary 用于 PR / 短分支 / main 合并后的下游兼容性验证，不污染正式 release 流程。
 
 CI 触发：
 
 ```txt
-push main
+push main / feat/* / fix/* / refactor/* / chore/* / test/* / release/* / hotfix/*
   -> .github/workflows/release-canary.yml
   -> pnpm release:canary
 ```
+
+也可以通过 GitHub Actions `workflow_dispatch` 手动触发。PR 需要 canary 时，由维护者从对应分支手动触发，避免在 PR 上扩大 npm token 暴露面。
 
 本地默认禁止运行，因为它会临时改 package versions。确实要本地调试时：
 

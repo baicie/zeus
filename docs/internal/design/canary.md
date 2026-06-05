@@ -1,4 +1,40 @@
-下面给你一版**结合当前 `baicie/zeus` 最新代码结构**的 Zeus 侧最优落地方案。核心目标是：
+# Zeus Canary 与下游兼容验证
+
+Zeus 的 canary 策略服务于 main-only trunk 模型：
+
+```txt
+短分支 PR
+  -> CI
+  -> 需要时发 canary
+  -> zeus-ui / examples 下游验证
+  -> squash merge main
+  -> main 自动发 canary
+```
+
+canary 不需要独立长期分支。当前触发方式：
+
+```txt
+push main
+push feat/* / fix/* / refactor/* / chore/* / test/* / release/* / hotfix/*
+manual workflow_dispatch
+```
+
+PR 需要 canary 时，由维护者从对应分支手动触发 workflow，避免在 PR 上扩大 npm token 暴露面。
+
+canary 验证目标：
+
+```txt
+1. zeus-ui 能不能安装
+2. vite/rollup/rolldown 示例能不能跑
+3. types 能不能被消费
+4. exports 是否正确
+5. wrapper 是否能正常使用
+6. web-c auto 是否不会被 tree-shaking 掉
+```
+
+---
+
+下面是一版**结合当前 `baicie/zeus` 代码结构**的 Zeus 侧落地方案。核心目标是：
 
 > **Zeus 每次 API / 能力变化，都能自动产出机器可读信号；zeus-ui 不用人工盯 Zeus，而是通过 canary 包 + API 快照 + capability manifest 自动感知破坏性变化。**
 

@@ -7,6 +7,11 @@ on:
       - feat/**
       - fix/**
       - refactor/**
+      - chore/**
+      - docs/**
+      - test/**
+      - release/**
+      - hotfix/**
   pull_request:
     branches:
       - main
@@ -36,6 +41,9 @@ jobs:
           node-version-file: '.node-version'
 
       - run: pnpm install --frozen-lockfile
+
+      - name: Branch name
+        run: pnpm check:branch
 
       - name: ESLint
         run: pnpm lint

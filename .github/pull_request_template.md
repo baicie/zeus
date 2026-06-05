@@ -10,9 +10,12 @@
 
 <!-- How is this tested? -->
 
+- [ ] `pnpm check:branch`
 - [ ] `pnpm check`
 - [ ] `pnpm test`
 - [ ] `pnpm build`
+- [ ] `pnpm examples:check:all` or relevant example verification
+- [ ] Canary / downstream compatibility checked when public package behavior changes
 
 ## Changeset
 
@@ -25,3 +28,4 @@
 
 - [ ] Documentation updated (if needed)
 - [ ] No new lint errors
+- [ ] Public exports / types / sideEffects remain compatible, or breaking changes are documented
