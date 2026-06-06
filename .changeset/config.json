@@ -15,8 +15,7 @@
       "@zeus-js/output-react-wrapper",
       "@zeus-js/output-vue-wrapper",
       "@zeus-js/output-css",
-      "@zeus-js/output-icons",
-      "@zeus-js/preset-component-library"
+      "@zeus-js/output-icons"
     ]
   ],
   "linked": [],

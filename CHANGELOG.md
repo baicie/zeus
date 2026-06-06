@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-beta.4 (2026-06-06)
+
+### Features
+
+- (`curly-w`)
+
 ## 0.1.0-beta.3 (2026-06-05)
 
 ### Features
