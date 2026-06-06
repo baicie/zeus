@@ -367,8 +367,16 @@ async function main() {
     }
 
     step('\nPushing to GitHub...')
-    await runIfNotDry('git', ['tag', `v${finalVersion}`])
-    await runIfNotDry('git', ['push', 'origin', `refs/tags/v${finalVersion}`])
+    const tagName = `v${finalVersion}`
+    const { stdout: tagList } = (await run('git', ['tag', '-l', tagName], {
+      stdio: 'pipe',
+    })) as ExecResult
+    if (tagList.trim() === tagName) {
+      console.log(pico.yellow(`  Tag ${tagName} already exists, removing...`))
+      await runIfNotDry('git', ['tag', '-d', tagName])
+    }
+    await runIfNotDry('git', ['tag', tagName])
+    await runIfNotDry('git', ['push', 'origin', `refs/tags/${tagName}`])
     await runIfNotDry('git', ['push'])
   }
 

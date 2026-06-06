@@ -1,6 +1,6 @@
 {
   "name": "@zeus-js/shared",
-  "version": "0.1.0-beta.5",
+  "version": "0.1.0-beta.4",
   "description": "internal utils shared across @zeus-js packages",
   "main": "index.js",
   "module": "dist/shared.esm-bundler.js",
