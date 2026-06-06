@@ -6,7 +6,7 @@
 
 1. **不要立刻物理删除核心能力包**。当前多数包虽然多，但承担了不同 peer dependency、产物目标或测试面。
 2. **可以收敛公开入口**。未来用户文档应只推荐 `@zeus-js/zeus`、`@zeus-js/vite-plugin`、`@zeus-js/web-c`、`create-zeus`、`zeus-ui`。
-3. **最值得合并的是 Web-C facade 层**：`@zeus-js/preset-component-library` 可以并入 `@zeus-js/web-c`，旧包保留一个版本周期作为兼容转发。
+3. **最值得合并的是 Web-C facade 层**：`@zeus-js/preset-component-library` 直接并入 `@zeus-js/web-c`，不保留旧包。
 4. **最值得移出 workspace package 的是 `@zeus-js/shared`**：它是内部工具包，长期可改为源码内部模块，不应作为推荐安装包。
 5. **`create-zeus` 与 `zeus-ui` 暂不合并**。二者都是 CLI，但用户旅程不同；合并会让命令职责变浑。
 
@@ -59,7 +59,7 @@
 
 ### 1. 合并 `@zeus-js/preset-component-library` 到 `@zeus-js/web-c`
 
-**结论：建议合并实现，保留旧包兼容转发。**
+**结论：合并实现并直接删除旧包。**
 
 当前 `preset-component-library` 只有一个很薄的接口：把 `output-css`、`output-wc`、`output-react-wrapper`、`output-vue-wrapper` 组合成 `componentLibrary()`。现在 `@zeus-js/web-c` 已经是 Web-C 推荐聚合入口，再保留一个单独 preset 包会增加用户心智成本。
 
@@ -73,20 +73,7 @@ import zeus, { componentLibrary } from '@zeus-js/web-c/rolldown'
 
 1. 将 `componentLibrary()` 源码移动到 `packages/web-c/web-c/src/componentLibrary.ts`。
 2. `@zeus-js/web-c` 主入口和 adapter 子路径继续导出 `componentLibrary`。
-3. `@zeus-js/preset-component-library` 改为兼容包，仅 re-export：
-
-```ts
-export { componentLibrary } from '@zeus-js/web-c'
-export type {
-  ComponentLibraryPresetOptions,
-  ComponentLibraryTarget,
-  WebCRegisterMode,
-  WebCWrapperMode,
-} from '@zeus-js/web-c'
-```
-
-4. 在文档中标记旧包为 deprecated，但不要立刻删除。
-5. 一个 minor/beta 周期后，如果没有外部使用压力，再移除旧包发布。
+3. 删除 `@zeus-js/preset-component-library` 包、构建配置、API snapshot 和文档入口。
 
 收益：
 
@@ -96,8 +83,7 @@ export type {
 
 风险：
 
-- 旧文档、示例或外部用户可能直接使用 `@zeus-js/preset-component-library`。
-- 需要维护一个短期兼容包，避免 beta 用户升级断裂。
+- 仓库内文档、脚本或示例可能仍引用旧包，删除时必须全仓迁移并由 CI 验证。
 
 推荐优先级：**P1**。
 
@@ -280,10 +266,9 @@ zeus-ui
 @zeus-ui/registry
 ```
 
-### 进入弃用或迁移窗口
+### 直接删除或内部化
 
 ```txt
-@zeus-js/preset-component-library
 @zeus-js/shared
 ```
 
@@ -293,7 +278,7 @@ zeus-ui
 
 1. 更新用户文档，只推荐五个对外入口。
 2. `docs/api/packages.md` 增加“推荐入口”和“高级/内部入口”分组。
-3. 标记 `@zeus-js/preset-component-library` 为兼容入口，推荐改用 `@zeus-js/web-c`。
+3. 从所有文档和脚本删除 `@zeus-js/preset-component-library`。
 4. 标记 `@zeus-js/shared` 为 internal-only。
 
 验收：
@@ -304,14 +289,14 @@ zeus-ui
 ### Phase 2：合并 preset 实现
 
 1. 将 `componentLibrary()` 实现移动到 `@zeus-js/web-c`。
-2. `@zeus-js/preset-component-library` 改为 re-export 兼容包。
+2. 删除 `@zeus-js/preset-component-library`。
 3. 测试迁移到 `packages/web-c/web-c/__tests__`。
-4. 保留 `preset-component-library` 的 export snapshot，但标记 deprecated。
+4. 删除 `preset-component-library` 的 export snapshot。
 
 验收：
 
 - `import { componentLibrary } from '@zeus-js/web-c'` 是唯一推荐写法。
-- 旧 `@zeus-js/preset-component-library` 仍能通过测试。
+- 仓库内不再存在 `@zeus-js/preset-component-library` 引用。
 
 ### Phase 3：内部共享模块整理
 
@@ -323,27 +308,6 @@ zeus-ui
 
 - 不影响 `@zeus-js/signal` 和 `@zeus-js/compiler` 的构建。
 - 不新增用户可见入口。
-
-### Phase 4：删除兼容包
-
-前置条件：
-
-- 至少一个 beta/minor 周期内文档不再推荐旧包。
-- examples、benchmarks、docs 均不再直接引用旧包。
-- changelog 明确迁移路径。
-
-可删除：
-
-```txt
-packages/web-c/preset-component-library
-```
-
-删除后：
-
-- 从 `pnpm-workspace.yaml` 不需要改 glob，但需要更新 build package list。
-- 更新 `scripts/api/*` snapshots。
-- 更新 `docs/api/snapshots/*`。
-- 更新 release/check 脚本中的包列表。
 
 ## 不建议做的事
 

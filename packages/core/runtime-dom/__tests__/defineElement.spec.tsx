@@ -255,6 +255,9 @@ describe('defineElement', () => {
       tag,
       {
         shadow: false,
+        emits: {
+          change: event<{ value: string }>(),
+        },
         props: {
           value: {
             type: String,
@@ -266,7 +269,7 @@ describe('defineElement', () => {
         const button = document.createElement('button')
         button.textContent = 'click'
         button.addEventListener('click', () => {
-          emit('change', {
+          emit.change({
             value: props.value,
           })
         })
@@ -290,16 +293,16 @@ describe('defineElement', () => {
 
     expect(onChange).toHaveBeenCalledTimes(1)
 
-    const event = onChange.mock.calls[0][0] as CustomEvent<{
+    const dispatchedEvent = onChange.mock.calls[0][0] as CustomEvent<{
       value: string
     }>
 
-    expect(event.detail).toEqual({
+    expect(dispatchedEvent.detail).toEqual({
       value: 'ok',
     })
-    expect(event.bubbles).toBe(true)
-    expect(event.composed).toBe(true)
-    expect(event.cancelable).toBe(false)
+    expect(dispatchedEvent.bubbles).toBe(true)
+    expect(dispatchedEvent.composed).toBe(true)
+    expect(dispatchedEvent.cancelable).toBe(false)
   })
 
   it('dispatches declared events and exposes host methods', async () => {

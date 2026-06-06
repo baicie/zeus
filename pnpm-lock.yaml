@@ -855,24 +855,6 @@ importers:
         specifier: ^4.61.1
         version: 4.61.1
 
-  packages/web-c/preset-component-library:
-    dependencies:
-      '@zeus-js/output-css':
-        specifier: workspace:*
-        version: link:../output-css
-      '@zeus-js/output-react-wrapper':
-        specifier: workspace:*
-        version: link:../output-react-wrapper
-      '@zeus-js/output-vue-wrapper':
-        specifier: workspace:*
-        version: link:../output-vue-wrapper
-      '@zeus-js/output-wc':
-        specifier: workspace:*
-        version: link:../output-wc
-      rollup:
-        specifier: ^4.61.1
-        version: 4.61.1
-
   packages/web-c/web-c:
     dependencies:
       '@zeus-js/bundler-plugin':
@@ -899,9 +881,6 @@ importers:
       '@zeus-js/output-wc':
         specifier: workspace:*
         version: link:../output-wc
-      '@zeus-js/preset-component-library':
-        specifier: workspace:*
-        version: link:../preset-component-library
       rolldown:
         specifier: ^1.0.0
         version: 1.1.0

@@ -7,11 +7,11 @@ This document defines how downstream packages such as zeus-ui should consume Zeu
 Downstream packages may import from:
 
 - `@zeus-js/zeus` — stable user-facing API
-- `@zeus-js/zeus/advanced` — advanced APIs for tooling/debugging. During beta, compatibility is best-effort and may change with release notes.
+- `@zeus-js/zeus/advanced` — advanced APIs for tooling/debugging
 - `@zeus-js/zeus/capabilities` — machine-readable capability manifest
 - `@zeus-js/output-wc` — Web Component output plugin
 - `@zeus-js/output-wc/capabilities` — machine-readable WC output capability manifest
-- `@zeus-js/preset-component-library`
+- `@zeus-js/web-c`
 - `@zeus-js/bundler-plugin`
 - `@zeus-js/bundler-plugin/vite`
 - `@zeus-js/bundler-plugin/manifest`
@@ -29,8 +29,8 @@ Downstream packages must not import from:
 
 ## Stability
 
-- `@zeus-js/zeus` follows semver.
-- `@zeus-js/zeus/advanced` may change during beta.
+- Zeus is in beta and may make breaking changes without compatibility shims.
+- `@zeus-js/zeus/advanced` may change at any time during beta.
 - internal runtime/compiler helpers are private.
 - capability manifests are additive whenever possible.
 

@@ -6,18 +6,18 @@
 
 当前 Web-C 能力已经拆成多个可发布包：
 
-| 包                                  | 职责                                           |
-| ----------------------------------- | ---------------------------------------------- |
-| `@zeus-js/component-analyzer`       | 分析 `defineElement` 源码，生成组件 manifest   |
-| `@zeus-js/component-dts`            | 基于 manifest 生成 WC / JSX / React / Vue 类型 |
-| `@zeus-js/bundler-plugin`           | 组件构建宿主，适配 Vite / Rollup / Rolldown    |
-| `@zeus-js/output-wc`                | 生成 Web Component lazy / side-effect 产物     |
-| `@zeus-js/output-react-wrapper`     | 生成 React wrapper                             |
-| `@zeus-js/output-vue-wrapper`       | 生成 Vue wrapper                               |
-| `@zeus-js/output-css`               | 生成 CSS asset 输出                            |
-| `@zeus-js/output-icons`             | 生成 icon 输出                                 |
-| `@zeus-js/preset-component-library` | 组合 WC / React / Vue / CSS 输出插件           |
-| `@zeus-js/web-c-runtime`            | lazy Web Component 运行时                      |
+| 包                              | 职责                                           |
+| ------------------------------- | ---------------------------------------------- |
+| `@zeus-js/component-analyzer`   | 分析 `defineElement` 源码，生成组件 manifest   |
+| `@zeus-js/component-dts`        | 基于 manifest 生成 WC / JSX / React / Vue 类型 |
+| `@zeus-js/bundler-plugin`       | 组件构建宿主，适配 Vite / Rollup / Rolldown    |
+| `@zeus-js/output-wc`            | 生成 Web Component lazy / side-effect 产物     |
+| `@zeus-js/output-react-wrapper` | 生成 React wrapper                             |
+| `@zeus-js/output-vue-wrapper`   | 生成 Vue wrapper                               |
+| `@zeus-js/output-css`           | 生成 CSS asset 输出                            |
+| `@zeus-js/output-icons`         | 生成 icon 输出                                 |
+| `@zeus-js/web-c`                | 聚合工具链并组合 WC / React / Vue / CSS 输出   |
+| `@zeus-js/web-c-runtime`        | lazy Web Component 运行时                      |
 
 这些包边界适合内部维护，但对组件库作者来说包名太多，配置样板也偏重。
 
@@ -27,7 +27,7 @@
 @zeus-js/web-c
 ```
 
-它作为 Web-C 工具链的统一入口，向用户暴露高层 API，同时继续保留细分包作为低层能力和兼容入口。
+它作为 Web-C 工具链的统一入口，向用户暴露高层 API，同时保留职责独立的细分包作为低层能力入口。
 
 ## 目标
 
@@ -137,12 +137,7 @@ dist/
 
 ### Preset Layer
 
-| 包                                  | 职责                                 |
-| ----------------------------------- | ------------------------------------ |
-| `@zeus-js/preset-component-library` | 一键组合 WC / React / Vue / CSS 输出 |
-| `@zeus-js/web-c`                    | 面向用户的 Web-C 聚合入口            |
-
-`preset-component-library` 可以继续存在，`@zeus-js/web-c` 应 re-export 它，并提供更短的推荐导入路径。
+`@zeus-js/web-c` 同时承担用户聚合入口与 `componentLibrary()` 预设实现，不保留单独的 preset 包。
 
 ## 新增包：`@zeus-js/web-c`
 
@@ -228,8 +223,7 @@ packages/web-c/web-c/
     "@zeus-js/output-icons": "workspace:*",
     "@zeus-js/output-react-wrapper": "workspace:*",
     "@zeus-js/output-vue-wrapper": "workspace:*",
-    "@zeus-js/output-wc": "workspace:*",
-    "@zeus-js/preset-component-library": "workspace:*"
+    "@zeus-js/output-wc": "workspace:*"
   },
   "peerDependencies": {
     "rollup": "^4.0.0",
@@ -266,7 +260,7 @@ packages/web-c/web-c/
 `@zeus-js/web-c` 主入口导出高层 API：
 
 ```ts
-export { componentLibrary } from '@zeus-js/preset-component-library'
+export { componentLibrary } from './componentLibrary'
 
 export { default as wc } from '@zeus-js/output-wc'
 export { default as react } from '@zeus-js/output-react-wrapper'
@@ -292,7 +286,7 @@ export { createOutputRegistry, resolvePluginDts } from '@zeus-js/bundler-plugin'
 
 ```ts
 export { default, zeus } from '@zeus-js/bundler-plugin/vite'
-export { componentLibrary } from '@zeus-js/preset-component-library'
+export { componentLibrary } from './componentLibrary'
 export * from './index'
 ```
 
@@ -300,7 +294,7 @@ export * from './index'
 
 ```ts
 export { default, zeus } from '@zeus-js/bundler-plugin/rollup'
-export { componentLibrary } from '@zeus-js/preset-component-library'
+export { componentLibrary } from './componentLibrary'
 export * from './index'
 ```
 
@@ -308,7 +302,7 @@ export * from './index'
 
 ```ts
 export { default, zeus } from '@zeus-js/bundler-plugin/rolldown'
-export { componentLibrary } from '@zeus-js/preset-component-library'
+export { componentLibrary } from './componentLibrary'
 export * from './index'
 ```
 
@@ -617,12 +611,12 @@ valueChange -> value-change -> onValueChange
 
 1. `componentLibrary()` 作为推荐入口继续保留。
 2. 文档推荐从 `@zeus-js/web-c` 导入。
-3. 旧细分包继续支持，作为低层高级入口。
+3. 细分 output 包继续作为低层高级入口。
 
 ## Open Questions
 
 1. `@zeus-js/web-c` 是否应 re-export `@zeus-js/web-c-runtime`，还是保持 runtime 仅由生成产物引用。
 2. `@zeus-js/web-c` 是否应包含 `./runtime` 子路径。
 3. React wrapper 的 `event-bridge` 是否应成为默认模式，还是保持 `minimal` 默认。
-4. `componentLibrary()` 是否应迁入 `@zeus-js/web-c` 源码，还是继续由 `@zeus-js/preset-component-library` 实现并 re-export。
+4. `componentLibrary()` 已迁入 `@zeus-js/web-c` 源码。
 5. `formAssociated` 的具体 runtime API 何时进入 P2 实现。

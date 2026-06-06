@@ -58,11 +58,7 @@ export interface EmitsOptions {
   [key: string]: EventDefinition<unknown>
 }
 
-export interface EmitFunction {
-  (name: string, detail?: unknown, options?: CustomEventInit): boolean
-}
-
-export type EmitApi<E extends EmitsOptions> = EmitFunction & {
+export type EmitApi<E extends EmitsOptions> = {
   [K in keyof E]: E[K] extends EventDefinition<infer Detail>
     ? (detail: Detail, options?: CustomEventInit) => boolean
     : never
@@ -99,7 +95,7 @@ export interface DefineElementMeta {
     }
   >
 
-  cssVars?: string[]
+  cssVars?: Record<string, { description?: string }>
   cssParts?: string[]
 
   [key: string]: unknown
@@ -730,12 +726,14 @@ function reflectPropToAttribute(
 function createEmitApi(
   host: HTMLElement,
   emits: EmitsOptions | undefined,
-): EmitFunction {
-  const emit = function (
+): EmitApi<EmitsOptions> {
+  const emit: EmitApi<EmitsOptions> = {}
+
+  const dispatch = (
     name: string,
     detail?: unknown,
     options?: CustomEventInit,
-  ): boolean {
+  ): boolean => {
     const eventName = resolveEventName(name, emits)
     const eventOptions = resolveEventOptions(name, emits, options)
 
@@ -747,7 +745,7 @@ function createEmitApi(
         detail,
       }),
     )
-  } as EmitFunction
+  }
 
   if (emits) {
     for (const key of Object.keys(emits)) {
@@ -755,7 +753,7 @@ function createEmitApi(
         configurable: true,
         enumerable: true,
         value(detail: unknown, options?: CustomEventInit): boolean {
-          return emit(key, detail, options)
+          return dispatch(key, detail, options)
         },
       })
     }
@@ -784,9 +782,7 @@ function resolveEventName(
 ): string {
   const definition = emits?.[name]
 
-  if (!definition) return name
-
-  return definition.name ?? toKebabCase(name)
+  return definition?.name ?? toKebabCase(name)
 }
 
 function resolveEventOptions(

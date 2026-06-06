@@ -243,8 +243,8 @@ const getPkgRoot = (pkgName: string) => {
   if (pkg) {
     return pkg.dir
   }
-  // Fallback for legacy or not-yet-discovered top-level packages.
-  return path.resolve(__dirname, '../../packages', shortName)
+
+  throw new Error(`Workspace package not found: ${pkgName}`)
 }
 
 const forceFixedGroupVersion = (version: string) => {

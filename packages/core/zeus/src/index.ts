@@ -46,7 +46,6 @@ export type {
   DefineElementContext,
   DefineElementSetup,
   EmitApi,
-  EmitFunction,
   EmitsOptions,
   EventDefinition,
   EventOptions,

@@ -8,7 +8,7 @@ export interface InlineMeta {
   events?: Record<string, unknown>
   slots?: Record<string, unknown>
   methods?: string[]
-  cssVars?: string[] | Record<string, unknown>
+  cssVars?: Record<string, unknown>
   cssParts?: string[]
   [key: string]: unknown
 }

@@ -132,16 +132,14 @@ function mergeEvents(
 ): Record<string, ComponentEvent> {
   const result: Record<string, ComponentEvent> = {}
 
-  for (const [key, value] of Object.entries(inferred)) {
-    result[key] = value
-  }
-
   for (const [key, value] of Object.entries(declared)) {
-    result[key] = mergeEvent(value, result[key])
+    result[key] = mergeEvent(value, inferred[key])
   }
 
   for (const [key, value] of Object.entries(explicit ?? {})) {
-    result[key] = normalizeExplicitEvent(key, value, result[key])
+    if (result[key]) {
+      result[key] = normalizeExplicitEvent(key, value, result[key])
+    }
   }
 
   return result

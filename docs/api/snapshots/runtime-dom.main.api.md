@@ -105,7 +105,7 @@ export interface DOMContextResolution<T> {
 }
 /**
  * Creates a transparent DOM element that acts as a context boundary.
- * Native custom elements inside it can use `requestDOMContext` to receive
+ * Native custom elements inside it can use `resolveDOMContext` to receive
  * context values via the DOM event protocol.
  */
 export declare function createDOMContextBoundary<T>(
@@ -115,7 +115,7 @@ export declare function createDOMContextBoundary<T>(
 ): Element
 /**
  * Registers a context value on a DOM target so that any descendant custom
- * element can pick it up via `requestDOMContext`.
+ * element can pick it up via `resolveDOMContext`.
  */
 export declare function provideDOMContext<T>(
   target: EventTarget,
@@ -125,7 +125,7 @@ export declare function provideDOMContext<T>(
 /**
  * Internal precise DOM context resolver.
  *
- * Unlike requestDOMContext(), this can distinguish:
+ * The result distinguishes:
  * - found: false, value: undefined
  * - found: true, value: undefined
  */
@@ -133,17 +133,6 @@ export declare function resolveDOMContext<T>(
   host: HTMLElement,
   context: Context<T>,
 ): DOMContextResolution<T>
-/**
- * Public compatibility API.
- *
- * Returns the resolved value if found, otherwise undefined.
- * If you need to distinguish "not found" from "found undefined",
- * use resolveDOMContext().
- */
-export declare function requestDOMContext<T>(
-  host: HTMLElement,
-  context: Context<T>,
-): T | undefined
 
 export interface RenderOptions {
   owner?: ReturnType<typeof createOwner>
@@ -256,14 +245,45 @@ export type ElementPropConstructor =
   | BooleanConstructor
   | ObjectConstructor
   | ArrayConstructor
+  | FunctionConstructor
+export interface PropDefinitionOptions<T = unknown> {
+  type?: ElementPropConstructor
+  attr?: string | false
+  reflect?: boolean
+  default?: T | (() => T)
+  values?: readonly T[]
+}
 export type PropDefinition<T = unknown> =
   | ElementPropConstructor
-  | {
-      type?: ElementPropConstructor
-      attr?: string | false
-      reflect?: boolean
-      default?: T | (() => T)
-    }
+  | PropDefinitionOptions<T>
+export interface ValuePropDefinition<
+  T = unknown,
+> extends PropDefinitionOptions<T> {
+  type: StringConstructor
+  values: readonly T[]
+}
+export interface EventDefinition<Detail = unknown> {
+  __zeusEvent: true
+  name?: string
+  bubbles?: boolean
+  composed?: boolean
+  cancelable?: boolean
+  __detail?: Detail
+}
+export interface EventOptions {
+  name?: string
+  bubbles?: boolean
+  composed?: boolean
+  cancelable?: boolean
+}
+export interface EmitsOptions {
+  [key: string]: EventDefinition<unknown>
+}
+export type EmitApi<E extends EmitsOptions> = {
+  [K in keyof E]: E[K] extends EventDefinition<infer Detail>
+    ? (detail: Detail, options?: CustomEventInit) => boolean
+    : never
+}
 export type PropOptions<P extends object> = Partial<{
   [K in keyof P]: PropDefinition<P[K]>
 }>
@@ -290,29 +310,52 @@ export interface DefineElementMeta {
       description?: string
     }
   >
-  cssVars?: string[]
+  cssVars?: Record<
+    string,
+    {
+      description?: string
+    }
+  >
   cssParts?: string[]
   [key: string]: unknown
 }
-export interface DefineElementOptions<P extends object> {
+export interface DefineElementOptions<
+  P extends object,
+  E extends EmitsOptions = EmitsOptions,
+> {
   shadow?: boolean | ShadowRootInit
+  formAssociated?: boolean
   props?: PropOptions<P>
+  emits?: E
   styles?: string | string[]
   consumes?: Context<any>[]
+  slots?: readonly string[]
+  parts?: readonly string[]
+  cssVars?: Record<
+    string,
+    {
+      description?: string
+    }
+  >
   /**
    * Metadata only.
    * Runtime does not consume this field.
    */
   meta?: DefineElementMeta
 }
-export interface DefineElementContext<E extends HTMLElement = HTMLElement> {
+export interface DefineElementContext<
+  E extends HTMLElement = HTMLElement,
+  Emits extends EmitsOptions = EmitsOptions,
+> {
   host: E
-  emit: (name: string, detail?: unknown, options?: CustomEventInit) => boolean
+  emit: EmitApi<Emits>
+  expose(methods: Record<string, Function>): void
 }
 export type DefineElementSetup<
   P extends object,
   E extends HTMLElement = HTMLElement,
-> = (props: Readonly<P>, context: DefineElementContext<E>) => JSXValue
+  Emits extends EmitsOptions = EmitsOptions,
+> = (props: Readonly<P>, context: DefineElementContext<E, Emits>) => JSXValue
 export type NormalizedPropDefinition = {
   key: string
   attr: string | false
@@ -324,10 +367,11 @@ export declare const ZEUS_ELEMENT_DEFINITION: unique symbol
 export interface ZeusElementDefinition<
   P extends object = object,
   E extends HTMLElement = HTMLElement,
+  Emits extends EmitsOptions = EmitsOptions,
 > {
   tagName: string
-  options: DefineElementOptions<P>
-  setup: DefineElementSetup<P, E>
+  options: DefineElementOptions<P, Emits>
+  setup: DefineElementSetup<P, E, Emits>
   propDefs: NormalizedPropDefinition[]
 }
 export type ZeusElementConstructor = CustomElementConstructor & {
@@ -337,6 +381,17 @@ export interface MountedElementDefinition {
   propertyChanged(name: string, _oldValue: unknown, newValue: unknown): void
   dispose(): void
 }
+export declare function prop<const V extends readonly string[]>(
+  values: V,
+  options?: Omit<PropDefinitionOptions<V[number]>, 'type' | 'values'>,
+): ValuePropDefinition<V[number]>
+export declare function event<Detail = unknown>(): EventDefinition<Detail>
+export declare function event<Detail = unknown>(
+  name: string,
+): EventDefinition<Detail>
+export declare function event<Detail = unknown>(
+  options: EventOptions,
+): EventDefinition<Detail>
 /**
  * Persisted mount state for a lazy-loaded element.
  * Used across disconnect/reconnect cycles to avoid re-capturing
@@ -350,10 +405,11 @@ export interface ElementDefinitionMountState {
 export declare function defineElement<
   P extends object = object,
   E extends HTMLElement = HTMLElement,
+  Emits extends EmitsOptions = EmitsOptions,
 >(
   tagName: string,
-  options: DefineElementOptions<P>,
-  setup: DefineElementSetup<P, E>,
+  options: DefineElementOptions<P, Emits>,
+  setup: DefineElementSetup<P, E, Emits>,
 ): CustomElementConstructor
 export declare function getElementDefinition(
   ctor: CustomElementConstructor,

@@ -25,7 +25,7 @@ describe('generateManifest', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         },
       ],
     }
@@ -60,7 +60,7 @@ describe('generateManifest', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         },
       ],
     } as any)
@@ -107,7 +107,11 @@ describe('generateManifest', () => {
           },
           hostAttributes: ['data-state'],
           cssParts: ['root'],
-          cssVars: ['--z-button-bg'],
+          cssVars: {
+            '--z-button-bg': {
+              name: '--z-button-bg',
+            },
+          },
         },
       ],
     }
@@ -125,6 +129,6 @@ describe('generateManifest', () => {
     )
     expect(parsed.components[0].hostAttributes).toContain('data-state')
     expect(parsed.components[0].cssParts).toContain('root')
-    expect(parsed.components[0].cssVars).toContain('--z-button-bg')
+    expect(parsed.components[0].cssVars).toHaveProperty('--z-button-bg')
   })
 })

@@ -79,7 +79,7 @@ Web Component 相关包也已经存在，例如：
 @zeus-js/component-analyzer
 @zeus-js/component-dts
 @zeus-js/bundler-plugin
-@zeus-js/preset-component-library
+@zeus-js/web-c
 ```
 
 这些在 `docs/api/packages.md` 里已经有清晰描述。
@@ -370,7 +370,7 @@ Web Component 相关能力现在分布在：
 @zeus-js/bundler-plugin
 @zeus-js/component-analyzer
 @zeus-js/component-dts
-@zeus-js/preset-component-library
+@zeus-js/web-c
 ```
 
 `docs/api/packages.md` 已经说明这些包用于将 Zeus 组件库源码编译为多种输出格式，并且 `@zeus-js/output-wc` 是 Web Component 输出。
@@ -512,7 +512,7 @@ const includePackages = new Set([
   '@zeus-js/bundler-plugin',
   '@zeus-js/component-analyzer',
   '@zeus-js/component-dts',
-  '@zeus-js/preset-component-library',
+  '@zeus-js/web-c',
 ])
 
 function normalizeDts(input: string) {
@@ -1044,7 +1044,7 @@ Downstream packages may import from:
 - `@zeus-js/zeus/capabilities`
 - `@zeus-js/output-wc`
 - `@zeus-js/output-wc/capabilities`
-- `@zeus-js/preset-component-library`
+- `@zeus-js/web-c`
 
 ## Disallowed Imports
 

@@ -16,7 +16,7 @@ describe('generateEntry', () => {
         slots: {},
         hostAttributes: [],
         cssParts: [],
-        cssVars: [],
+        cssVars: {},
       },
     })
 
@@ -39,7 +39,7 @@ describe('generateEntry', () => {
         slots: {},
         hostAttributes: [],
         cssParts: [],
-        cssVars: [],
+        cssVars: {},
       },
     })
 
@@ -60,7 +60,7 @@ describe('generateEntry', () => {
         slots: {},
         hostAttributes: [],
         cssParts: [],
-        cssVars: [],
+        cssVars: {},
       },
     })
 
@@ -81,7 +81,7 @@ describe('generateEntry', () => {
         slots: {},
         hostAttributes: [],
         cssParts: [],
-        cssVars: [],
+        cssVars: {},
       },
     })
 

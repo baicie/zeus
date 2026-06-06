@@ -20,10 +20,6 @@ declare const WritableComputedRefSymbol: unique symbol
 
 interface BaseComputedRef<T, S = T> extends Ref<T, S> {
   [ComputedRefSymbol]: true
-  /**
-   * @deprecated computed no longer uses effect
-   */
-  effect: ComputedRefImpl
 }
 
 export interface ComputedRef<T = any> extends BaseComputedRef<T> {
@@ -91,8 +87,6 @@ export class ComputedRefImpl<T = any> implements Subscriber {
    */
   next?: Subscriber = undefined
 
-  // for backwards compat
-  effect: this = this
   // dev only
   onTrack?: (event: DebuggerEvent) => void
   // dev only

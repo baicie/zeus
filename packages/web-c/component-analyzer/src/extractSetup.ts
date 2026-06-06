@@ -60,38 +60,19 @@ function extractEmit(
 
   if (!emitKey) return
 
-  const first = node.arguments[0]
-  const eventName =
-    emitKey === true && t.isStringLiteral(first)
-      ? first.value
-      : emitKey === true
-        ? undefined
-        : emitKey
+  events[emitKey] ||= createComponentEvent(emitKey)
 
-  if (!eventName) return
-
-  events[eventName] ||= createComponentEvent(eventName)
-
-  const detailNode = emitKey === true ? node.arguments[1] : node.arguments[0]
+  const detailNode = node.arguments[0]
 
   if (t.isObjectExpression(detailNode)) {
-    events[eventName].detail = inferDetail(detailNode)
+    events[emitKey].detail = inferDetail(detailNode)
   }
 }
 
 function getEmitKey(
   callee: t.Expression | t.V8IntrinsicIdentifier,
-): true | string | undefined {
-  if (t.isIdentifier(callee, { name: 'emit' })) return true
-
+): string | undefined {
   if (t.isMemberExpression(callee)) {
-    if (
-      t.isIdentifier(callee.object, { name: 'ctx' }) &&
-      t.isIdentifier(callee.property, { name: 'emit' })
-    ) {
-      return true
-    }
-
     if (t.isIdentifier(callee.object, { name: 'emit' }) && !callee.computed) {
       return getMemberPropertyName(callee.property)
     }

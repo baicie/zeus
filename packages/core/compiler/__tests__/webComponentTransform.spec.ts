@@ -29,11 +29,14 @@ async function compile(code: string) {
 describe('compiler web component transform', () => {
   it('transforms defineElement with default Slot wrapped in Host', async () => {
     const code = await compile(`
-      import { defineElement, Host, Slot } from '@zeus-js/runtime-dom'
+      import { defineElement, event, Host, Slot } from '@zeus-js/runtime-dom'
 
       export const ZCard = defineElement(
         'z-card',
-        { shadow: false },
+        {
+          shadow: false,
+          emits: { press: event<{ value: boolean }>() },
+        },
         () => {
           return (
             <Host>
@@ -51,7 +54,7 @@ describe('compiler web component transform', () => {
 
   it('transforms named Slot wrapped in Host', async () => {
     const code = await compile(`
-      import { defineElement, Host, Slot } from '@zeus-js/runtime-dom'
+      import { defineElement, event, Host, Slot } from '@zeus-js/runtime-dom'
 
       export const ZCard = defineElement(
         'z-card',
@@ -109,7 +112,7 @@ describe('compiler web component transform', () => {
           return (
             <Host>
               <button
-                onClick={() => emit('press', { value: true })}
+                onClick={() => emit.press({ value: true })}
               >
                 <Slot />
               </button>
@@ -197,6 +200,9 @@ describe('compiler web component transform', () => {
         'z-counter',
         {
           shadow: false,
+          emits: {
+            change: event<{ count: number }>(),
+          },
           props: {
             count: Number,
           },
@@ -204,7 +210,7 @@ describe('compiler web component transform', () => {
         (props, { emit }) => {
           return (
             <Host>
-              <button onClick={() => emit('change', { count: (props.count ?? 0) + 1 })}>
+              <button onClick={() => emit.change({ count: (props.count ?? 0) + 1 })}>
                 <Slot />
                 {props.count}
               </button>

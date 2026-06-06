@@ -34,6 +34,7 @@ export interface ZeusLazyComponentMeta {
       }
   >
   props: ZeusPropMeta[]
+  methods?: string[]
   /**
    * Whether to render into a ShadowRoot.
    *

@@ -72,8 +72,7 @@
     "@zeus-js/output-icons": "workspace:*",
     "@zeus-js/output-react-wrapper": "workspace:*",
     "@zeus-js/output-vue-wrapper": "workspace:*",
-    "@zeus-js/output-wc": "workspace:*",
-    "@zeus-js/preset-component-library": "workspace:*"
+    "@zeus-js/output-wc": "workspace:*"
   },
   "peerDependencies": {
     "rolldown": "^1.0.0",

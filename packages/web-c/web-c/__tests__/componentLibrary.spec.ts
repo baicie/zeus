@@ -6,7 +6,7 @@ import createZeusPlugin from '@zeus-js/bundler-plugin'
 import { rollup } from 'rollup'
 import { describe, expect, it } from 'vitest'
 
-import { componentLibrary } from '../src'
+import { componentLibrary } from '../src/componentLibrary'
 
 import type { InputPluginOption, OutputAsset, OutputChunk } from 'rollup'
 

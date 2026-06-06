@@ -35,7 +35,7 @@ interface DefineElementOptions {
   cssParts?: string[]
 
   /** Exposed custom CSS property names */
-  cssVars?: string[]
+  cssVars?: Record<string, { description?: string }>
 }
 ```
 
@@ -88,7 +88,10 @@ export const ZCard = defineElement<{
       footer: { description: 'Content for the card footer' },
     },
     cssParts: ['body', 'header'],
-    cssVars: ['--card-padding', '--card-radius'],
+    cssVars: {
+      '--card-padding': {},
+      '--card-radius': {},
+    },
   },
   props => (
     <Host>

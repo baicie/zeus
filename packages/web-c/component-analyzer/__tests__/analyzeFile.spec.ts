@@ -5,7 +5,7 @@ import { analyzeFile } from '../src/analyzeFile'
 describe('analyzeFile', () => {
   it('extracts component manifest from defineElement', () => {
     const code = `
-      import { defineElement, Host, Slot } from '@zeus-js/zeus'
+      import { defineElement, event, Host, Slot } from '@zeus-js/zeus'
 
       export interface ButtonProps {
         /**
@@ -23,6 +23,9 @@ describe('analyzeFile', () => {
         'z-button',
         {
           shadow: false,
+          emits: {
+            press: event<{ nativeEvent: MouseEvent }>(),
+          },
           props: {
             variant: {
               type: String,
@@ -49,7 +52,9 @@ describe('analyzeFile', () => {
                 description: 'Button content',
               },
             },
-            cssVars: ['--z-button-bg'],
+            cssVars: {
+              '--z-button-bg': {},
+            },
           },
         },
         (props, { emit }) => {
@@ -62,7 +67,7 @@ describe('analyzeFile', () => {
               <button
                 part="root"
                 disabled={props.disabled}
-                onClick={event => emit('press', { nativeEvent: event })}
+                onClick={event => emit.press({ nativeEvent: event })}
               >
                 <Slot />
               </button>
@@ -271,6 +276,28 @@ describe('analyzeFile', () => {
         checked: 'boolean',
       },
     })
+  })
+
+  it('ignores setup events that are not declared in emits', () => {
+    const code = `
+      import { defineElement } from '@zeus-js/zeus'
+
+      export const ZSwitch = defineElement(
+        'z-switch',
+        {},
+        (_props, { emit }) => {
+          emit.checkedChange({ checked: true })
+          return <button />
+        },
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/switch.tsx',
+      code,
+    })
+
+    expect(result.components[0].events).toEqual({})
   })
 
   it('extracts detail from event type parameters', () => {
@@ -516,17 +543,22 @@ describe('analyzeFile', () => {
     })
   })
 
-  it('extracts emit events from setup', () => {
+  it('extracts declared emit details from setup', () => {
     const code = `
-      import { defineElement } from '@zeus-js/zeus'
+      import { defineElement, event } from '@zeus-js/zeus'
 
       export const ZToggle = defineElement(
         'z-toggle',
-        {},
+        {
+          emits: {
+            change: event<{ value: boolean }>(),
+            toggle: event<{ active: boolean }>(),
+          },
+        },
         (props, { emit }) => {
           const handleClick = () => {
-            emit('change', { value: true })
-            emit('toggle', { active: true })
+            emit.change({ value: true })
+            emit.toggle({ active: true })
           }
           return <button onClick={handleClick} />
         },

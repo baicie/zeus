@@ -22,7 +22,7 @@ describe('generateWCJsxDts', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         },
       ],
     })
@@ -52,7 +52,7 @@ describe('generateWCJsxDts', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         },
       ],
     })
@@ -84,7 +84,7 @@ describe('generateWCJsxDts', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         },
         {
           tag: 'z-card',
@@ -96,7 +96,7 @@ describe('generateWCJsxDts', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         },
       ],
     })
@@ -126,7 +126,7 @@ describe('generateWCJsxDts', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         },
       ],
     })
@@ -149,7 +149,7 @@ describe('generateWCJsxDts', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         },
       ],
     })

@@ -77,9 +77,14 @@ export const ZCard = defineElement('z-card', {
 exports[`compiler web component transform > transforms defineElement with default Slot wrapped in Host 1`] = `
 "import { Host as _Host, createSlot as _createSlot, insert as _insert, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<section><!></section>\`);
-import { defineElement, Host, Slot } from '@zeus-js/runtime-dom';
+import { defineElement, event, Host, Slot } from '@zeus-js/runtime-dom';
 export const ZCard = defineElement('z-card', {
-  shadow: false
+  shadow: false,
+  emits: {
+    press: event<{
+      value: boolean;
+    }>()
+  }
 }, () => {
   return (() => {
     _Host({});
@@ -132,6 +137,11 @@ export const ZCounter = defineElement<{
   count?: number;
 }>('z-counter', {
   shadow: false,
+  emits: {
+    change: event<{
+      count: number;
+    }>()
+  },
   props: {
     count: Number
   }
@@ -144,7 +154,7 @@ export const ZCounter = defineElement<{
       const _el$ = _tmpl$().firstChild;
       const _slot$ = _el$.firstChild;
       const _anchor$ = _slot$.nextSibling;
-      _bindEvent(_el$, "click", () => emit('change', {
+      _bindEvent(_el$, "click", () => emit.change({
         count: (props.count ?? 0) + 1
       }));
       _insert(_el$, _createSlot(undefined, undefined), _slot$);
@@ -203,7 +213,7 @@ export const ZButton = defineElement('z-button', {
     return (() => {
       const _el$ = _tmpl$().firstChild;
       const _slot$ = _el$.firstChild;
-      _bindEvent(_el$, "click", () => emit('press', {
+      _bindEvent(_el$, "click", () => emit.press({
         value: true
       }));
       _insert(_el$, _createSlot(undefined, undefined), _slot$);
@@ -217,7 +227,7 @@ _delegateEvents(["click"]);"
 exports[`compiler web component transform > transforms named Slot wrapped in Host 1`] = `
 "import { Host as _Host, createSlot as _createSlot, insert as _insert, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<section><header><!></header><main><!></main></section>\`);
-import { defineElement, Host, Slot } from '@zeus-js/runtime-dom';
+import { defineElement, event, Host, Slot } from '@zeus-js/runtime-dom';
 export const ZCard = defineElement('z-card', {
   shadow: false
 }, () => {

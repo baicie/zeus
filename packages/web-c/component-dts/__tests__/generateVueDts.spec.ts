@@ -28,7 +28,7 @@ describe('generateVueDts', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         },
       ],
     })
@@ -57,7 +57,7 @@ describe('generateVueDts', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         },
       ],
     })
@@ -79,7 +79,7 @@ describe('generateVueDts', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         },
       ],
     })
@@ -103,7 +103,7 @@ describe('generateVueGlobalDts', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         },
       ],
     })
@@ -126,7 +126,7 @@ describe('generateVueGlobalDts', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         },
         {
           tag: 'z-card',
@@ -138,7 +138,7 @@ describe('generateVueGlobalDts', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         },
       ],
     })

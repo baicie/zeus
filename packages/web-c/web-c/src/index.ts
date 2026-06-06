@@ -11,7 +11,8 @@ import icons from '@zeus-js/output-icons'
 import react from '@zeus-js/output-react-wrapper'
 import vue from '@zeus-js/output-vue-wrapper'
 import wc from '@zeus-js/output-wc'
-import { componentLibrary } from '@zeus-js/preset-component-library'
+
+import { componentLibrary } from './componentLibrary'
 
 export { componentLibrary }
 
@@ -52,7 +53,7 @@ export type {
   ComponentLibraryTarget,
   WebCRegisterMode,
   WebCWrapperMode,
-} from '@zeus-js/preset-component-library'
+} from './componentLibrary'
 
 export default {
   analyzeComponents,

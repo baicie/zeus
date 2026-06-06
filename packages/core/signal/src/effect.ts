@@ -366,11 +366,6 @@ function isDirty(sub: Subscriber): boolean {
       return true
     }
   }
-  // @ts-expect-error only for backwards compatibility where libs manually set
-  // this flag - e.g. Pinia's testing module
-  if (sub._dirty) {
-    return true
-  }
   return false
 }
 

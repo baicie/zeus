@@ -1,6 +1,6 @@
 // benchmarks/component-host/src/components/bench-button-shadow.tsx
 
-import { defineElement, Host, Slot } from '@zeus-js/zeus'
+import { defineElement, event, Host, Slot } from '@zeus-js/zeus'
 
 export interface BenchButtonShadowProps {
   variant?: 'default' | 'outline'
@@ -11,6 +11,9 @@ export const ZBenchButtonShadow = defineElement<BenchButtonShadowProps>(
   'z-bench-button-shadow',
   {
     shadow: true,
+    emits: {
+      press: event<{ nativeEvent: MouseEvent }>(),
+    },
 
     props: {
       variant: {
@@ -51,7 +54,7 @@ export const ZBenchButtonShadow = defineElement<BenchButtonShadowProps>(
         return
       }
 
-      emit('press', {
+      emit.press({
         nativeEvent: event,
       })
     }

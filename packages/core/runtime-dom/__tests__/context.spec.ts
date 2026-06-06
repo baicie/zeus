@@ -8,11 +8,7 @@ import {
   useContext,
   type JSXValue,
 } from '../src'
-import {
-  provideDOMContext,
-  requestDOMContext,
-  resolveDOMContext,
-} from '../src/context'
+import { provideDOMContext, resolveDOMContext } from '../src/context'
 
 describe('context', () => {
   let dom: JSDOM
@@ -351,29 +347,6 @@ describe('context', () => {
   })
 
   describe('DOM context bridge', () => {
-    it('requestDOMContext resolves value from a DOM boundary', () => {
-      const ThemeContext = createContext<{ mode: string }>()
-
-      const theme = { mode: 'dark' }
-      const boundary = document.createElement('div')
-      provideDOMContext(boundary, ThemeContext, theme)
-
-      const child = document.createElement('z-child')
-      boundary.appendChild(child)
-
-      const received = requestDOMContext(child as HTMLElement, ThemeContext)
-      expect(received).toBe(theme)
-    })
-
-    it('requestDOMContext returns undefined when no provider exists', () => {
-      const ThemeContext = createContext<{ mode: string }>()
-
-      const orphan = document.createElement('z-orphan')
-
-      const received = requestDOMContext(orphan as HTMLElement, ThemeContext)
-      expect(received).toBeUndefined()
-    })
-
     it('context is resolved from nearest boundary only', () => {
       const ThemeContext = createContext<{ mode: string }>()
 
@@ -390,8 +363,8 @@ describe('context', () => {
       const child = document.createElement('z-card')
       inner.appendChild(child)
 
-      const received = requestDOMContext(child as HTMLElement, ThemeContext)
-      expect(received).toBe(innerValue)
+      const received = resolveDOMContext(child as HTMLElement, ThemeContext)
+      expect(received).toEqual({ found: true, value: innerValue })
     })
 
     it('resolveDOMContext distinguishes found vs not-found with undefined', () => {

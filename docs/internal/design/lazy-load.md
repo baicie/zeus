@@ -132,7 +132,7 @@ export interface OutputWCOptions {
    *   启动时注册轻量 ProxyClass，connected 时加载真实组件 entry。
    *
    * side-effect:
-   *   import 后立即注册完整组件，兼容旧行为，不推荐默认使用。
+   *   import 后立即注册完整组件，适合需要 eager registration 的场景。
    */
   register?: WebCRegisterMode
 
@@ -1238,7 +1238,7 @@ WC / JSX / Vue / React types
   minimal / event-bridge React wrapper
   React dts
 
-@zeus-js/preset-component-library
+@zeus-js/web-c
   组合 wc / vue / react / css 输出
   当 targets 包含 react 或 vue 时自动补 wc
 ```

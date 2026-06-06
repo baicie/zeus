@@ -11,6 +11,7 @@ export type ComponentPropType =
   | 'boolean'
   | 'object'
   | 'array'
+  | 'function'
   | 'unknown'
 export interface ComponentManifest {
   version: 1
@@ -36,13 +37,15 @@ export interface ComponentRecord {
    */
   runtimePropsDiagnostics?: string[]
   events: Record<string, ComponentEvent>
+  methods?: Record<string, ComponentMethod>
   slots: Record<string, ComponentSlot>
   hostAttributes: string[]
   cssParts: string[]
-  cssVars: string[]
+  cssVars: Record<string, ComponentCssVar>
   description?: string
   meta?: {
     shadow?: boolean
+    formAssociated?: boolean
     [key: string]: unknown
   }
 }
@@ -56,10 +59,25 @@ export interface ComponentProp {
   description?: string
 }
 export interface ComponentEvent {
+  key?: string
+  name?: string
+  reactName?: string
   detail?: Record<string, string>
+  bubbles?: boolean
+  composed?: boolean
+  cancelable?: boolean
+  description?: string
+}
+export interface ComponentMethod {
+  name: string
   description?: string
 }
 export interface ComponentSlot {
+  name?: string
+  description?: string
+}
+export interface ComponentCssVar {
+  name: string
   description?: string
 }
 export interface AnalyzeFileResult {

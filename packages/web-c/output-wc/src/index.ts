@@ -185,7 +185,7 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
       for (const component of ctx.manifest.components) {
         if (isLazy) {
           /**
-           * Compatibility module consumed by Vue / React wrappers.
+           * Registration bridge module consumed by Vue / React wrappers.
            *
            * It only registers lazy Proxy Elements.
            * It does not import the real component implementation.

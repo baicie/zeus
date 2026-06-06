@@ -260,7 +260,7 @@ emits: {
 }
 ```
 
-注意：自定义 DOM event name 只改变浏览器事件名，不改变 React prop 来源。上例仍生成 `onValueChange`，并监听 `input-value-change`。如果没有 `emits` 声明、只能从旧的 `emit('value-change')` fallback 推导，React prop 才从 DOM 名推导为 `onValueChange`。
+注意：自定义 DOM event name 只改变浏览器事件名，不改变 React prop 来源。上例仍生成 `onValueChange`，并监听 `input-value-change`。
 
 ### 事件配置
 
@@ -308,13 +308,7 @@ valueChange: event<{ value: string }>({ bubbles: true })
 }
 ```
 
-不推荐长期依赖字符串 API：
-
-```ts
-ctx.emit('valueChange', { value: 'hello' })
-```
-
-字符串 API 可以保留为兼容层，但 wrapper 和类型生成应以 `emits` 声明为权威来源。
+不提供字符串调用 API。wrapper 和类型生成以 `emits` 声明为唯一权威来源。
 
 ## 注册与 runtime 协议
 
@@ -657,25 +651,19 @@ readonly -> readonly
 
 `readonly` 不强制改为 `readOnly`，因为这里描述的是 Web Component prop/attr 契约，不是 React DOM prop。
 
-## 兼容策略
+## 协议收敛
 
-允许保留当前写法：
-
-```ts
-ctx.emit('value-change', detail)
-```
-
-但新协议推荐：
+事件只使用声明式 `emits` 与类型化 emit API：
 
 ```ts
 emit.valueChange(detail)
 ```
 
-迁移期规则：
+规则：
 
-1. 如果存在 `emits`，以 `emits` 为事件元数据权威来源。
-2. 如果没有 `emits`，工具链可以继续从 `ctx.emit()` 字符串做 best-effort 分析。
-3. wrapper 事件桥接只保证 `emits` 声明事件的完整类型和运行时行为。
+1. `emits` 是事件元数据的唯一权威来源。
+2. 工具链不从 `ctx.emit()` 字符串调用推导未声明事件。
+3. wrapper 事件桥接只处理 `emits` 声明的事件。
 
 ## 非目标
 
@@ -686,7 +674,7 @@ emit.valueChange(detail)
 ## 待确认问题
 
 1. `Boolean` prop 默认不主动 reflect；只有 `reflect: true` 才把 property 写回 attribute。attribute -> property 仍按原生布尔 attribute 语义同步。
-2. `ctx.emit()` 字符串 API 作为兼容层保留；新类型、wrapper 和 manifest 以 `emits` 为权威来源。
+2. 删除 `ctx.emit()` 字符串 API，只保留由 `emits` 生成的类型化方法。
 3. `expose()` 的 P1 静态分析只提取对象字面量方法名；复杂签名和动态 expose 放到 P2。
 4. `slots` 显式声明在 P1 只补充 JSX 自动分析结果。
 5. `parts` 显式声明在 P1 只补充 JSX 自动分析结果。

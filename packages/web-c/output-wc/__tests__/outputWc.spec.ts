@@ -153,7 +153,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -168,7 +168,7 @@ describe('output-wc', () => {
       expect(ids).toContain('zeus:wc:index')
     })
 
-    it('generates lazy compatibility module for framework wrappers', () => {
+    it('generates lazy registration bridge for framework wrappers', () => {
       const plugin = wc()
       const ctx = createMockCtx({
         version: 1,
@@ -183,7 +183,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -217,7 +217,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -233,7 +233,7 @@ describe('output-wc', () => {
       expect(fileNames).not.toContain('wc/components.manifest.ts')
     })
 
-    it('always generates lazy manifest, loader, and compatibility modules', () => {
+    it('always generates lazy manifest, loader, and registration bridges', () => {
       const plugin = wc({ auto: false })
       const ctx = createMockCtx({
         version: 1,
@@ -248,7 +248,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -288,7 +288,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -321,7 +321,7 @@ describe('output-wc', () => {
               slots: {},
               hostAttributes: [],
               cssParts: [],
-              cssVars: [],
+              cssVars: {},
             },
           ],
         },
@@ -352,7 +352,7 @@ describe('output-wc', () => {
               slots: {},
               hostAttributes: [],
               cssParts: [],
-              cssVars: [],
+              cssVars: {},
             },
           ],
         },
@@ -380,7 +380,7 @@ describe('output-wc', () => {
               slots: {},
               hostAttributes: [],
               cssParts: [],
-              cssVars: [],
+              cssVars: {},
             },
           ],
         },
@@ -407,7 +407,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -435,7 +435,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -518,7 +518,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -552,7 +552,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -585,7 +585,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -633,7 +633,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -666,7 +666,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -696,7 +696,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -731,7 +731,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -767,7 +767,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -806,7 +806,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -841,7 +841,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
           {
             tag: 'z-button-alt',
@@ -853,7 +853,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -886,7 +886,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
           {
             tag: 'z-button-alt',
@@ -898,7 +898,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -927,7 +927,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
           {
             tag: 'z-button-alt',
@@ -939,7 +939,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })

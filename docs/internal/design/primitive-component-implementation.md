@@ -8,17 +8,16 @@
 
 当前仓库已经具备 Web-C 工具链基础：
 
-| 模块                                | 已有能力                                      | 主要缺口                                                        |
-| ----------------------------------- | --------------------------------------------- | --------------------------------------------------------------- |
-| `@zeus-js/runtime-dom`              | `defineElement`、props bridge、light DOM slot | 缺 `prop()`、`event()`、`emits`、强类型 `emit`、`expose()`      |
-| `@zeus-js/component-analyzer`       | 解析 `props`、`meta`、部分 setup metadata     | 缺 `emits`、`event()`、`prop(values)`、`Function`、`ctx.expose` |
-| `@zeus-js/output-wc`                | lazy / side-effect 输出、loader、manifest     | lazy manifest 缺 method proxy 元信息，事件元数据不完整          |
-| `@zeus-js/web-c-runtime`            | lazy Proxy Element、prop bridge、ready        | 缺 lazy method proxy                                            |
-| `@zeus-js/output-react-wrapper`     | minimal / event-bridge 雏形                   | event bridge 应消费规范化事件元数据                             |
-| `@zeus-js/output-vue-wrapper`       | minimal / event-bridge 雏形                   | Vue emits 应消费 DOM event name                                 |
-| `@zeus-js/component-dts`            | WC / JSX / React / Vue d.ts 生成              | 需要扩展事件、methods、slots、function prop 类型                |
-| `@zeus-js/preset-component-library` | 组合 WC / React / Vue / CSS 输出              | 可接入声明事件后自动选择 wrapper bridge                         |
-| `@zeus-js/web-c`                    | 未存在                                        | 需要新增聚合包                                                  |
+| 模块                            | 已有能力                                      | 主要缺口                                                        |
+| ------------------------------- | --------------------------------------------- | --------------------------------------------------------------- |
+| `@zeus-js/runtime-dom`          | `defineElement`、props bridge、light DOM slot | 缺 `prop()`、`event()`、`emits`、强类型 `emit`、`expose()`      |
+| `@zeus-js/component-analyzer`   | 解析 `props`、`meta`、部分 setup metadata     | 缺 `emits`、`event()`、`prop(values)`、`Function`、`ctx.expose` |
+| `@zeus-js/output-wc`            | lazy / side-effect 输出、loader、manifest     | lazy manifest 缺 method proxy 元信息，事件元数据不完整          |
+| `@zeus-js/web-c-runtime`        | lazy Proxy Element、prop bridge、ready        | 缺 lazy method proxy                                            |
+| `@zeus-js/output-react-wrapper` | minimal / event-bridge 雏形                   | event bridge 应消费规范化事件元数据                             |
+| `@zeus-js/output-vue-wrapper`   | minimal / event-bridge 雏形                   | Vue emits 应消费 DOM event name                                 |
+| `@zeus-js/component-dts`        | WC / JSX / React / Vue d.ts 生成              | 需要扩展事件、methods、slots、function prop 类型                |
+| `@zeus-js/web-c`                | 聚合 WC / React / Vue / CSS 输出              | 内置 `componentLibrary()` 并统一公开入口                        |
 
 ## 分阶段实现
 
@@ -138,11 +137,11 @@ export interface ComponentCssVar {
 }
 ```
 
-兼容策略：
+收敛规则：
 
-1. `events` 仍保留为 record，key 使用 `emits` key。
-2. 旧的字符串 `emit('value-change')` 可继续被 analyzer 作为 fallback 事件来源，但不作为推荐协议。
-3. `cssVars` 从 `string[]` 迁移为 record 时，output 层先同时兼容数组和 record，避免一次性破坏全部测试。
+1. `events` 使用 record，key 使用 `emits` key。
+2. analyzer 只读取 `emits` 声明，不从字符串 `emit()` 调用推导事件。
+3. `cssVars` 只使用 record，仓库内调用方和测试一次性迁移。
 
 ## Runtime API
 
@@ -293,16 +292,12 @@ export interface EmitsOptions {
 
 ### Emit Context
 
-保留旧字符串 API，同时提供推荐的强类型方法 API。
+只提供由 `emits` 声明生成的强类型方法 API。
 
 代码草案：
 
 ```ts
-export interface EmitFunction {
-  (name: string, detail?: unknown, options?: CustomEventInit): boolean
-}
-
-export type EmitApi<E extends EmitsOptions> = EmitFunction & {
+export type EmitApi<E extends EmitsOptions> = {
   [K in keyof E]: E[K] extends EventDefinition<infer Detail>
     ? (detail: Detail, options?: CustomEventInit) => boolean
     : never
@@ -324,12 +319,14 @@ runtime 创建 `emit`：
 function createEmitApi(
   host: HTMLElement,
   emits: EmitsOptions | undefined,
-): EmitFunction {
-  const emit = function (
+): EmitApi<EmitsOptions> {
+  const emit: EmitApi<EmitsOptions> = {}
+
+  const dispatch = (
     name: string,
     detail?: unknown,
     options?: CustomEventInit,
-  ): boolean {
+  ): boolean => {
     const eventName = resolveEventName(name, emits)
     const eventOptions = resolveEventOptions(name, emits, options)
 
@@ -341,7 +338,7 @@ function createEmitApi(
         detail,
       }),
     )
-  } as EmitFunction
+  }
 
   if (emits) {
     for (const key of Object.keys(emits)) {
@@ -349,7 +346,7 @@ function createEmitApi(
         enumerable: true,
         configurable: true,
         value(detail: unknown, options?: CustomEventInit): boolean {
-          return emit(key, detail, options)
+          return dispatch(key, detail, options)
         },
       })
     }
@@ -571,7 +568,7 @@ function extractEventDefinition(
 1. slot 同时识别 `<slot>` 和 `<Slot>`。
 2. css parts 继续从静态 `part=""` 提取，并支持空格拆分。
 3. methods 从 `expose({ focus() {}, blur() {} })`、`ctx.expose({ ... })` 提取。
-4. events fallback 识别 `emit('value-change')`、`ctx.emit('value-change')`、`emit.valueChange(...)`。
+4. events detail 只从 `emit.valueChange(...)` 这类声明式调用提取。
 
 代码草案：
 
@@ -629,10 +626,10 @@ function extractExpose(
 `extractDefineElement.ts` 负责合并：
 
 1. `runtimeProps` 来自 `options.props`。
-2. `events` 优先来自 `options.emits`，再补充 setup fallback。
+2. `events` 来自 `options.emits`，setup 只补充已声明事件的 detail。
 3. `slots` 来自 JSX slot 与显式 `options.slots` 合并。
 4. `cssParts` 来自 JSX part 与显式 `options.parts` 合并。
-5. `cssVars` 来自 `options.cssVars` 和 `meta.cssVars` 兼容合并。
+5. `cssVars` 来自 `options.cssVars` 和 `meta.cssVars`，两处都使用 record。
 6. `methods` 来自 setup `expose()`。
 7. `meta.shadow`、`meta.formAssociated` 来自 options。
 
@@ -895,8 +892,7 @@ packages/web-c/web-c/
     "@zeus-js/output-icons": "workspace:*",
     "@zeus-js/output-react-wrapper": "workspace:*",
     "@zeus-js/output-vue-wrapper": "workspace:*",
-    "@zeus-js/output-wc": "workspace:*",
-    "@zeus-js/preset-component-library": "workspace:*"
+    "@zeus-js/output-wc": "workspace:*"
   },
   "peerDependencies": {
     "rolldown": "^1.0.0",
@@ -915,7 +911,7 @@ packages/web-c/web-c/
 
 ```ts
 // src/index.ts
-export { componentLibrary } from '@zeus-js/preset-component-library'
+export { componentLibrary } from './componentLibrary'
 export { default as css } from '@zeus-js/output-css'
 export { default as icons } from '@zeus-js/output-icons'
 export { default as react } from '@zeus-js/output-react-wrapper'
@@ -937,7 +933,6 @@ export { createOutputRegistry, resolvePluginDts } from '@zeus-js/bundler-plugin'
 ```ts
 // src/rolldown.ts
 export { default, zeus } from '@zeus-js/bundler-plugin/rolldown'
-export { componentLibrary } from '@zeus-js/preset-component-library'
 export * from './index'
 ```
 
@@ -957,7 +952,7 @@ export { default } from './dist/rolldown.js'
 
 推荐按下面顺序落地，避免一次改动同时打穿 runtime、analyzer、输出和类型：
 
-1. 扩展 `ComponentRecord` 类型，并让现有 output 兼容新旧字段。
+1. 扩展 `ComponentRecord` 类型，并一次性迁移所有 output 到新字段。
 2. runtime-dom 增加 `prop()`、`event()`、`emits`、`expose()`，补单元测试。
 3. analyzer 增加 props/emits/setup metadata 提取，补 analyzer fixture 测试。
 4. output-wc lazy manifest 增加 `methods`，web-c-runtime 增加 method proxy，补 lazy 测试。
@@ -1053,9 +1048,9 @@ import zeus, {
 ## 风险与取舍
 
 1. `cancelable` 默认值从 `true` 改为 `false` 是行为变化，需要在 release note 标记。
-2. `emit.valueChange()` 是新推荐 API，但字符串 `emit()` 应保留，避免破坏已有组件。
+2. `emit.valueChange()` 是唯一事件派发 API，不保留字符串 `emit()`。
 3. `expose()` 的 method 类型 P1 只能粗略生成，完整签名需要 analyzer 解析函数签名，放 P2 更稳。
-4. `cssVars` 从数组迁移到 record 会影响 output 测试，建议先做双格式兼容。
+4. `cssVars` 只使用 record，output 测试必须同步迁移。
 5. `@zeus-js/web-c` 聚合包不要反向变成 runtime 依赖入口，否则会混淆“构建工具链”和“组件运行时”的边界。
 
 ## 最终验收标准

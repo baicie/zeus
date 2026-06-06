@@ -261,10 +261,6 @@ function normalizeModulePath(value: string): string {
 function getCssVars(
   component: ComponentRecord,
 ): Array<{ name: string; description?: string }> {
-  if (Array.isArray(component.cssVars)) {
-    return component.cssVars.map(name => ({ name }))
-  }
-
   return Object.values(component.cssVars)
 }
 

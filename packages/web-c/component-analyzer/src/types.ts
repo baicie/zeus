@@ -41,7 +41,7 @@ export interface ComponentRecord {
 
   hostAttributes: string[]
   cssParts: string[]
-  cssVars: Record<string, ComponentCssVar> | string[]
+  cssVars: Record<string, ComponentCssVar>
 
   description?: string
   meta?: {
