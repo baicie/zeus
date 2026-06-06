@@ -374,6 +374,7 @@ async function main() {
     if (tagList.trim() === tagName) {
       console.log(pico.yellow(`  Tag ${tagName} already exists, removing...`))
       await runIfNotDry('git', ['tag', '-d', tagName])
+      await runIfNotDry('git', ['push', 'origin', `:refs/tags/${tagName}`])
     }
     await runIfNotDry('git', ['tag', tagName])
     await runIfNotDry('git', ['push', 'origin', `refs/tags/${tagName}`])
