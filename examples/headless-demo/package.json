@@ -20,9 +20,6 @@
     "@zeus-ui/headless": "workspace:*"
   },
   "devDependencies": {
-    "@zeus-js/bundler-plugin": "workspace:*",
-    "@zeus-js/output-wc": "workspace:*",
-    "@zeus-js/vite-plugin": "workspace:*",
     "@vitejs/plugin-react": "^6.0.2",
     "@vitejs/plugin-vue": "^6.0.7",
     "typescript": "^6.0.3",

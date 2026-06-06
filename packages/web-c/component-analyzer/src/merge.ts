@@ -130,9 +130,14 @@ function mergeEvents(
   inferred: Record<string, ComponentEvent>,
   explicit?: Record<string, ComponentEvent>,
 ): Record<string, ComponentEvent> {
-  const result: Record<string, ComponentEvent> = {
-    ...inferred,
-    ...declared,
+  const result: Record<string, ComponentEvent> = {}
+
+  for (const [key, value] of Object.entries(inferred)) {
+    result[key] = value
+  }
+
+  for (const [key, value] of Object.entries(declared)) {
+    result[key] = mergeEvent(value, result[key])
   }
 
   for (const [key, value] of Object.entries(explicit ?? {})) {
@@ -140,6 +145,22 @@ function mergeEvents(
   }
 
   return result
+}
+
+function mergeEvent(
+  primary: ComponentEvent,
+  fallback: ComponentEvent | undefined,
+): ComponentEvent {
+  return {
+    key: primary.key ?? fallback?.key,
+    name: primary.name ?? fallback?.name,
+    reactName: primary.reactName ?? fallback?.reactName,
+    detail: primary.detail ?? fallback?.detail,
+    bubbles: primary.bubbles ?? fallback?.bubbles,
+    composed: primary.composed ?? fallback?.composed,
+    cancelable: primary.cancelable ?? fallback?.cancelable,
+    description: primary.description ?? fallback?.description,
+  }
 }
 
 function normalizeExplicitEvent(

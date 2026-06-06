@@ -50,6 +50,8 @@ function extractEventDefinition(
   if (!t.isCallExpression(node)) return result
   if (!t.isIdentifier(node.callee, { name: 'event' })) return result
 
+  result.detail = extractEventDetailType(node) ?? result.detail
+
   const first = node.arguments[0]
 
   if (t.isStringLiteral(first)) {
@@ -77,6 +79,62 @@ function extractEventDefinition(
   }
 
   return result
+}
+
+function extractEventDetailType(
+  node: t.CallExpression,
+): Record<string, string> | undefined {
+  const first = node.typeParameters?.params[0]
+
+  if (!t.isTSTypeLiteral(first)) return undefined
+
+  const detail: Record<string, string> = {}
+
+  for (const member of first.members) {
+    if (!t.isTSPropertySignature(member)) continue
+
+    const key = getObjectKey(member.key)
+    if (!key) continue
+
+    detail[key] = inferTsType(member.typeAnnotation?.typeAnnotation)
+  }
+
+  return Object.keys(detail).length > 0 ? detail : undefined
+}
+
+function inferTsType(node: t.TSType | undefined): string {
+  if (!node) return 'unknown'
+  if (t.isTSStringKeyword(node)) return 'string'
+  if (t.isTSNumberKeyword(node)) return 'number'
+  if (t.isTSBooleanKeyword(node)) return 'boolean'
+  if (t.isTSObjectKeyword(node) || t.isTSTypeLiteral(node)) return 'object'
+  if (t.isTSArrayType(node) || t.isTSTupleType(node)) return 'array'
+  if (t.isTSFunctionType(node)) return 'function'
+  if (t.isTSTypeReference(node)) return inferTsTypeReference(node)
+
+  return 'unknown'
+}
+
+function inferTsTypeReference(node: t.TSTypeReference): string {
+  const name = t.isIdentifier(node.typeName) ? node.typeName.name : undefined
+
+  switch (name) {
+    case 'String':
+      return 'string'
+    case 'Number':
+      return 'number'
+    case 'Boolean':
+      return 'boolean'
+    case 'Array':
+    case 'ReadonlyArray':
+      return 'array'
+    case 'Function':
+      return 'function'
+    case 'Record':
+      return 'object'
+    default:
+      return name ?? 'unknown'
+  }
 }
 
 function toKebabCase(value: string): string {

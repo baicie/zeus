@@ -1,3 +1,3 @@
-import { defineZeusRollupConfig } from '@zeus-js/bundler-plugin/rollup'
+import { defineZeusRollupConfig } from '@zeus-js/web-c/rollup'
 
 export default defineZeusRollupConfig()

@@ -1,18 +1,21 @@
-import { defineElement, Host, Slot } from '@zeus-js/zeus'
+import { defineElement, event, Host, Slot } from '@zeus-js/zeus'
 
 import { isEnterOrSpace } from '../shared/keyboard'
+
+import type { DefineElementContext, EventDefinition } from '@zeus-js/zeus'
 
 export interface SwitchProps {
   checked?: boolean
   disabled?: boolean
 }
 
+type SwitchEmits = {
+  checkedChange: EventDefinition<{ checked: boolean }>
+}
+
 function setup(
   props: SwitchProps,
-  ctx: {
-    emit: (event: string, detail: unknown) => void
-    host: HTMLElement & { checked?: boolean }
-  },
+  ctx: DefineElementContext<HTMLElement & { checked?: boolean }, SwitchEmits>,
 ) {
   const toggle = () => {
     if (props.disabled) return
@@ -20,7 +23,7 @@ function setup(
     const next = !props.checked
     ctx.host.checked = next
 
-    ctx.emit('checked-change', {
+    ctx.emit.checkedChange({
       checked: next,
     })
   }
@@ -55,7 +58,11 @@ function setup(
   )
 }
 
-export const ZSwitch = defineElement<SwitchProps>(
+export const ZSwitch = defineElement<
+  SwitchProps,
+  HTMLElement & { checked?: boolean },
+  SwitchEmits
+>(
   'z-switch',
   {
     shadow: false,
@@ -72,16 +79,12 @@ export const ZSwitch = defineElement<SwitchProps>(
         reflect: true,
       },
     },
+    emits: {
+      checkedChange: event<{ checked: boolean }>('checked-change'),
+    },
 
     meta: {
       description: 'Headless switch primitive.',
-      events: {
-        'checked-change': {
-          detail: {
-            checked: 'boolean',
-          },
-        },
-      },
       slots: {
         default: {
           description: 'Optional switch label.',

@@ -1,4 +1,6 @@
-import { defineElement, Host, Slot } from '@zeus-js/zeus'
+import { defineElement, event, Host, prop, Slot } from '@zeus-js/zeus'
+
+import type { DefineElementContext, EventDefinition } from '@zeus-js/zeus'
 
 export interface ButtonProps {
   variant?:
@@ -12,9 +14,13 @@ export interface ButtonProps {
   disabled?: boolean
 }
 
+type ButtonEmits = {
+  press: EventDefinition<{ nativeEvent: MouseEvent }>
+}
+
 function setup(
   props: ButtonProps,
-  ctx: { emit: (event: string, detail: unknown) => void },
+  ctx: DefineElementContext<HTMLElement, ButtonEmits>,
 ) {
   const handleClick = (event: MouseEvent) => {
     if (props.disabled) {
@@ -23,7 +29,7 @@ function setup(
       return
     }
 
-    ctx.emit('press', {
+    ctx.emit.press({
       nativeEvent: event,
     })
   }
@@ -48,38 +54,35 @@ function setup(
   )
 }
 
-export const ZButton = defineElement<ButtonProps>(
+export const ZButton = defineElement<ButtonProps, HTMLElement, ButtonEmits>(
   'z-button',
   {
     shadow: false,
 
     props: {
-      variant: {
-        type: String,
-        default: 'default',
-        reflect: true,
-      },
-      size: {
-        type: String,
+      variant: prop(
+        ['default', 'outline', 'ghost', 'secondary', 'destructive', 'link'],
+        {
+          default: 'default',
+          reflect: true,
+        },
+      ),
+      size: prop(['sm', 'md', 'lg', 'icon'], {
         default: 'md',
         reflect: true,
-      },
+      }),
       disabled: {
         type: Boolean,
         default: false,
         reflect: true,
       },
     },
+    emits: {
+      press: event<{ nativeEvent: MouseEvent }>(),
+    },
 
     meta: {
       description: 'Headless button primitive.',
-      events: {
-        press: {
-          detail: {
-            nativeEvent: 'MouseEvent',
-          },
-        },
-      },
       slots: {
         default: {
           description: 'Button content.',

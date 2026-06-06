@@ -258,30 +258,15 @@ importers:
       '@vitejs/plugin-vue':
         specifier: ^6.0.7
         version: 6.0.7(vite@8.0.16(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(tsx@4.22.4)(yaml@2.9.0))(vue@3.5.35(typescript@6.0.3))
-      '@zeus-js/bundler-plugin':
-        specifier: workspace:*
-        version: link:../../packages/web-c/bundler-plugin
       '@zeus-js/component-dts':
         specifier: workspace:*
         version: link:../../packages/web-c/component-dts
-      '@zeus-js/output-css':
-        specifier: workspace:*
-        version: link:../../packages/web-c/output-css
-      '@zeus-js/output-react-wrapper':
-        specifier: workspace:*
-        version: link:../../packages/web-c/output-react-wrapper
-      '@zeus-js/output-vue-wrapper':
-        specifier: workspace:*
-        version: link:../../packages/web-c/output-vue-wrapper
-      '@zeus-js/output-wc':
-        specifier: workspace:*
-        version: link:../../packages/web-c/output-wc
-      '@zeus-js/preset-component-library':
-        specifier: workspace:*
-        version: link:../../packages/web-c/preset-component-library
       '@zeus-js/vite-plugin':
         specifier: workspace:*
         version: link:../../packages/devtools/vite-plugin
+      '@zeus-js/web-c':
+        specifier: workspace:*
+        version: link:../../packages/web-c/web-c
       rollup:
         specifier: ^4.61.1
         version: 4.61.1
@@ -313,15 +298,6 @@ importers:
       '@vitejs/plugin-vue':
         specifier: ^6.0.7
         version: 6.0.7(vite@8.0.16(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(tsx@4.22.4)(yaml@2.9.0))(vue@3.5.35(typescript@6.0.3))
-      '@zeus-js/bundler-plugin':
-        specifier: workspace:*
-        version: link:../../packages/web-c/bundler-plugin
-      '@zeus-js/output-wc':
-        specifier: workspace:*
-        version: link:../../packages/web-c/output-wc
-      '@zeus-js/vite-plugin':
-        specifier: workspace:*
-        version: link:../../packages/devtools/vite-plugin
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -391,18 +367,12 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^6.0.2
         version: 6.0.2(vite@8.0.16(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(tsx@4.22.4)(yaml@2.9.0))
-      '@zeus-js/bundler-plugin':
-        specifier: workspace:*
-        version: link:../../packages/web-c/bundler-plugin
-      '@zeus-js/output-react-wrapper':
-        specifier: workspace:*
-        version: link:../../packages/web-c/output-react-wrapper
-      '@zeus-js/output-wc':
-        specifier: workspace:*
-        version: link:../../packages/web-c/output-wc
       '@zeus-js/vite-plugin':
         specifier: workspace:*
         version: link:../../packages/devtools/vite-plugin
+      '@zeus-js/web-c':
+        specifier: workspace:*
+        version: link:../../packages/web-c/web-c
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -602,18 +572,12 @@ importers:
       '@vitejs/plugin-vue':
         specifier: ^6.0.7
         version: 6.0.7(vite@8.0.16(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(tsx@4.22.4)(yaml@2.9.0))(vue@3.5.35(typescript@6.0.3))
-      '@zeus-js/bundler-plugin':
-        specifier: workspace:*
-        version: link:../../packages/web-c/bundler-plugin
-      '@zeus-js/output-vue-wrapper':
-        specifier: workspace:*
-        version: link:../../packages/web-c/output-vue-wrapper
-      '@zeus-js/output-wc':
-        specifier: workspace:*
-        version: link:../../packages/web-c/output-wc
       '@zeus-js/vite-plugin':
         specifier: workspace:*
         version: link:../../packages/devtools/vite-plugin
+      '@zeus-js/web-c':
+        specifier: workspace:*
+        version: link:../../packages/web-c/web-c
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -636,15 +600,12 @@ importers:
         specifier: workspace:*
         version: link:../../packages/core/zeus
     devDependencies:
-      '@zeus-js/bundler-plugin':
-        specifier: workspace:*
-        version: link:../../packages/web-c/bundler-plugin
-      '@zeus-js/output-wc':
-        specifier: workspace:*
-        version: link:../../packages/web-c/output-wc
       '@zeus-js/vite-plugin':
         specifier: workspace:*
         version: link:../../packages/devtools/vite-plugin
+      '@zeus-js/web-c':
+        specifier: workspace:*
+        version: link:../../packages/web-c/web-c
       typescript:
         specifier: ^6.0.3
         version: 6.0.3

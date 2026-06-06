@@ -1,4 +1,4 @@
-import { defineElement, Host, Slot } from '@zeus-js/zeus'
+import { defineElement, event, Host, prop, Slot } from '@zeus-js/zeus'
 
 export interface HostButtonProps {
   [key: string]: unknown
@@ -12,21 +12,22 @@ export const ZHostButton = defineElement<HostButtonProps>(
   {
     shadow: false,
     props: {
-      variant: {
-        type: String,
+      variant: prop(['default', 'outline'], {
         default: 'default',
         reflect: true,
-      },
-      size: {
-        type: String,
+      }),
+      size: prop(['sm', 'md'], {
         default: 'md',
         reflect: true,
-      },
+      }),
       disabled: {
         type: Boolean,
         default: false,
         reflect: true,
       },
+    },
+    emits: {
+      press: event<{ nativeEvent: MouseEvent }>(),
     },
   },
   (props, { emit }) => {
@@ -54,7 +55,7 @@ export const ZHostButton = defineElement<HostButtonProps>(
           onClick={event => {
             if (props.disabled) return
 
-            emit('press', {
+            emit.press({
               nativeEvent: event,
             })
           }}

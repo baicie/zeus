@@ -214,6 +214,9 @@ describe('analyzeFile', () => {
           key: 'valueChange',
           name: 'value-change',
           reactName: 'onValueChange',
+          detail: {
+            value: 'string',
+          },
           bubbles: true,
           composed: true,
           cancelable: false,
@@ -232,6 +235,71 @@ describe('analyzeFile', () => {
       cssParts: ['control'],
       meta: {
         shadow: false,
+      },
+    })
+  })
+
+  it('keeps setup-inferred event detail for declared emits', () => {
+    const code = `
+      import { defineElement, event } from '@zeus-js/zeus'
+
+      export const ZSwitch = defineElement(
+        'z-switch',
+        {
+          emits: {
+            checkedChange: event<{ checked: boolean }>('checked-change'),
+          },
+        },
+        (_props, { emit }) => {
+          emit.checkedChange({ checked: true })
+          return <button />
+        },
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/switch.tsx',
+      code,
+    })
+
+    expect(result.diagnostics).toEqual([])
+    expect(result.components[0].events.checkedChange).toMatchObject({
+      key: 'checkedChange',
+      name: 'checked-change',
+      reactName: 'onCheckedChange',
+      detail: {
+        checked: 'boolean',
+      },
+    })
+  })
+
+  it('extracts detail from event type parameters', () => {
+    const code = `
+      import { defineElement, event } from '@zeus-js/zeus'
+
+      export const ZSwitch = defineElement(
+        'z-switch',
+        {
+          emits: {
+            checkedChange: event<{ checked: boolean }>('checked-change'),
+          },
+        },
+        () => <button />,
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/switch.tsx',
+      code,
+    })
+
+    expect(result.diagnostics).toEqual([])
+    expect(result.components[0].events.checkedChange).toMatchObject({
+      key: 'checkedChange',
+      name: 'checked-change',
+      reactName: 'onCheckedChange',
+      detail: {
+        checked: 'boolean',
       },
     })
   })
