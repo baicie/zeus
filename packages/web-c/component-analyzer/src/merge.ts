@@ -55,7 +55,10 @@ export function buildComponentRecord(
   )
 
   const methods = mergeMethods(setupMeta.methods, inlineMeta.methods)
-  const models = normalizeModels(inlineMeta.models)
+  const models =
+    inlineMeta.models === undefined
+      ? inferModels(props, events)
+      : normalizeModels(inlineMeta.models)
 
   const slots = mergeSlots(setupMeta.slots, inlineMeta.slots)
 
@@ -119,6 +122,37 @@ function normalizeModels(value: unknown): ComponentModel[] | undefined {
       event: record.event,
       eventPath:
         typeof record.eventPath === 'string' ? record.eventPath : undefined,
+    })
+  }
+
+  return models.length ? models : undefined
+}
+
+function inferModels(
+  props: Record<string, ComponentProp>,
+  events: Record<string, ComponentEvent>,
+): ComponentModel[] | undefined {
+  const models: ComponentModel[] = []
+
+  for (const prop of Object.keys(props)) {
+    const eventKey = `${prop}Change`
+    const event = events[eventKey]
+
+    if (
+      !event?.detail ||
+      !Object.prototype.hasOwnProperty.call(event.detail, prop)
+    ) {
+      continue
+    }
+
+    const eventName = event.name ?? toKebabCase(event.key ?? eventKey)
+
+    if (eventName !== `${toKebabCase(prop)}-change`) continue
+
+    models.push({
+      prop,
+      event: eventName,
+      eventPath: `detail.${prop}`,
     })
   }
 
@@ -308,6 +342,10 @@ function toCssVarsRecord(value: unknown): Record<string, ComponentCssVar> {
 
 function unique(values: string[]): string[] {
   return Array.from(new Set(values)).sort()
+}
+
+function toKebabCase(value: string): string {
+  return value.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
 }
 
 function stripKnownMetaFields(

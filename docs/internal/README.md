@@ -1,94 +1,58 @@
 # docs/internal
 
-Zeus 项目内部设计文档与进度追踪。
+Zeus 内部设计文档、历史阶段材料与问题追踪。
 
----
+## 当前权威文档
 
-## 目录结构
+优先阅读这些文档。它们描述当前认可的设计和实现方向。
 
-每个阶段对应一个主题文件夹，命名格式为 `stageXX-<task>`（XX 为序号，task 为主任务名）。
+| 文档                                                                              | 说明                                                                   |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| [Web Component 定义协议](./primitive-component.md)                                | 当前 `defineElement` / primitive component / wrapper / manifest 协议。 |
+| [Package Consolidation](./package-consolidation.md)                               | 当前包边界、推荐用户入口与内部包整理策略。                             |
+| [Web Component Protocol Release Notes](./release-notes-web-component-protocol.md) | 本次 Web Component 协议收敛的发版前说明草案。                          |
+| [Stencil Wrapper Output Reference](./stencil-wrapper-output-reference.md)         | Stencil 输出机制分析，以及 Zeus 已采纳/未采纳的参考点。                |
 
-跨阶段设计协议放在 `docs/internal/design/`，例如：
+## 历史设计材料
 
-- [Primitive Component Protocol](./design/primitive-component-protocol.md)
-- [Primitive Component Protocol Implementation Design](./design/primitive-component-implementation.md)
-- [Web-C Architecture and Aggregate Package Design](./design/web-c-architecture.md)
+这些文档保留上下文，但不再作为最终协议来源。若与“当前权威文档”冲突，以当前权威文档为准。
 
-```
-docs/internal/
-├── README.md
-│
-├── stage00-mvp-rfc/               # MVP-0：架构 RFC
-│   ├── design/
-│   ├── review/
-│   └── roadmap.md
-│
-├── stage01-reactivity-core/       # MVP-1~2：响应式核心 + Babel 编译器基线
-│   ├── design/
-│   ├── review/
-│   └── roadmap.md
-│
-├── stage02-control-flow/          # MVP-3~4：控制流 + Vite 集成
-│   ├── design/
-│   ├── review/
-│   └── roadmap.md
-│
-├── stage03-web-components/        # MVP-5~6：Web Components + Light DOM 投影
-│   ├── design/
-│   ├── review/
-│   └── roadmap.md
-│
-├── stage04-optimization/          # MVP-7：优化与编译器演进
-│   ├── design/
-│   ├── review/
-│   └── roadmap.md
-│
-├── stage05-component-compiler-host/  # 组件编译器宿主（当前进行中）
-│   ├── design/
-│   ├── review/
-│   └── roadmap.md
-│
-├── issues/                        # 通用 issue 追踪
-│   └── 001-babel-syntax-jsx-cjs-inherits.md
-├── reference/                     # 参考资料
-└── rfc/                          # 正式 RFC 文档
-```
+| 路径                                                                                           | 说明                                          |
+| ---------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| [design/primitive-component-protocol.md](./design/primitive-component-protocol.md)             | Primitive protocol 早期协议草案。             |
+| [design/primitive-component-implementation.md](./design/primitive-component-implementation.md) | Primitive protocol 早期实现草案。             |
+| [design/web-c-architecture.md](./design/web-c-architecture.md)                                 | Web-C 聚合包和架构早期设计。                  |
+| [design/lazy-load.md](./design/lazy-load.md)                                                   | lazy Web-C runtime 的历史设计细节。           |
+| [stage05-component-compiler-host/](./stage05-component-compiler-host/)                         | 组件编译器宿主阶段设计、review 和路线图记录。 |
+| [review/](./review/)                                                                           | 针对特定主题的历史 review。                   |
+| [issues/](./issues/)                                                                           | 内部问题记录与修复计划。                      |
+
+## 文档维护规则
+
+- 新的协议结论优先更新当前权威文档。
+- 历史设计文档不需要跟随每次实现同步，只用于追溯“当时为什么这么想”。
+- 如果历史文档中的方案已被替代，不要新建兼容说明，直接在权威文档写当前唯一设计。
+- Zeus 仍处于 beta 阶段且无真实迁移用户，不为旧文档草案保留 API 兼容承诺。
 
 ## 创建新阶段
 
-使用项目根目录的脚本：
+使用项目根目录脚本：
 
-```bash
+```sh
 pnpm run new:stage <number> <task-name>
 ```
 
-例如：
+示例：
 
-```bash
+```sh
 pnpm run new:stage 06 headless-components
 ```
 
-这会在 `docs/internal/stage06-headless-components/` 下创建：
+这会创建：
 
+```txt
+docs/internal/stage06-headless-components/
+├── design/
+├── review/
+└── roadmap.md
 ```
-design/
-review/
-roadmap.md
-```
-
-## 阶段命名约定
-
-- 序号使用两位数字补零：`stage00` ~ `stage99`
-- task 名使用 kebab-case，全小写，描述主任务
-- 已有的阶段见上方目录结构
-
-## MVP 阶段与 stage 命名对照
-
-| Stage   | MVP 范围 | 主题                            |
-| ------- | -------- | ------------------------------- |
-| stage00 | MVP-0    | 架构 RFC                        |
-| stage01 | MVP-1~2  | 响应式核心 + Babel 编译器基线   |
-| stage02 | MVP-3~4  | 控制流 + Vite 集成              |
-| stage03 | MVP-5~6  | Web Components + Light DOM 投影 |
-| stage04 | MVP-7    | 优化与编译器演进                |
-| stage05 | 当前     | 组件编译器宿主                  |

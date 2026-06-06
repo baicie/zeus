@@ -618,6 +618,41 @@ describe('defineElement', () => {
     expect((el as unknown as { formatter?: unknown }).formatter).toBeUndefined()
   })
 
+  it('supports reflected boolean prop shorthand', async () => {
+    const tag = createTag('boolean-prop-shorthand')
+
+    defineElement<{ disabled?: boolean }>(
+      tag,
+      {
+        shadow: false,
+        props: {
+          disabled: prop(Boolean),
+        },
+      },
+      props => {
+        const button = document.createElement('button')
+        button.textContent = String(props.disabled)
+        return button
+      },
+    )
+
+    const el = document.createElement(tag) as HTMLElement & {
+      disabled?: boolean
+    }
+    document.body.appendChild(el)
+
+    await nextFrame()
+
+    expect(el.disabled).toBe(false)
+    expect(el.hasAttribute('disabled')).toBe(false)
+
+    el.disabled = true
+
+    await nextFrame()
+
+    expect(el.hasAttribute('disabled')).toBe(true)
+  })
+
   it('renders into shadow root when shadow is true', async () => {
     const tag = createTag('shadow')
 

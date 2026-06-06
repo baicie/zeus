@@ -244,6 +244,46 @@ describe('analyzeFile', () => {
     })
   })
 
+  it('extracts constructor prop shorthand metadata', () => {
+    const code = `
+      import { defineElement, prop } from '@zeus-js/zeus'
+
+      export const ZInput = defineElement(
+        'z-input',
+        {
+          props: {
+            disabled: prop(Boolean),
+            required: prop(Boolean, {
+              reflect: false,
+            }),
+          },
+        },
+        () => null,
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/input.tsx',
+      code,
+    })
+
+    expect(result.diagnostics).toEqual([])
+    expect(result.components[0]).toMatchObject({
+      props: {
+        disabled: {
+          type: 'boolean',
+          default: false,
+          reflect: true,
+        },
+        required: {
+          type: 'boolean',
+          default: false,
+          reflect: false,
+        },
+      },
+    })
+  })
+
   it('extracts form association and prop serialization metadata', () => {
     const code = `
       import { defineElement } from '@zeus-js/zeus'
@@ -385,6 +425,138 @@ describe('analyzeFile', () => {
         async: false,
       },
     })
+  })
+
+  it('infers model mappings from prop change events', () => {
+    const code = `
+      import { defineElement, event } from '@zeus-js/zeus'
+
+      export const ZInput = defineElement<{ value?: string }>(
+        'z-input',
+        {
+          props: {
+            value: String,
+            placeholder: String,
+          },
+          emits: {
+            valueChange: event<{ value: string; nativeEvent: Event }>(),
+            focusChange: event<{ focused: boolean; nativeEvent: FocusEvent }>(),
+          },
+        },
+        () => null,
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/input.tsx',
+      code,
+    })
+
+    expect(result.diagnostics).toEqual([])
+    expect(result.components[0].models).toEqual([
+      {
+        prop: 'value',
+        event: 'value-change',
+        eventPath: 'detail.value',
+      },
+    ])
+  })
+
+  it('extracts setup metadata from local setup references', () => {
+    const code = `
+      import { defineElement, event, Host, Slot } from '@zeus-js/zeus'
+
+      type InputProps = {
+        value?: string
+      }
+
+      function setup(_props: InputProps, ctx) {
+        ctx.expose({
+          focus(): void {},
+        })
+
+        return (
+          <Host data-slot="input">
+            <label part="root">
+              <Slot name="prefix" />
+              <input
+                part="control"
+                onInput={() => ctx.emit.valueChange({ value: '' })}
+              />
+            </label>
+          </Host>
+        )
+      }
+
+      export const ZInput = defineElement<InputProps>(
+        'z-input',
+        {
+          props: {
+            value: String,
+          },
+          emits: {
+            valueChange: event<{ value: string }>(),
+          },
+        },
+        setup,
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/input.tsx',
+      code,
+    })
+
+    expect(result.diagnostics).toEqual([])
+    expect(result.components[0]).toMatchObject({
+      models: [
+        {
+          prop: 'value',
+          event: 'value-change',
+          eventPath: 'detail.value',
+        },
+      ],
+      methods: {
+        focus: {
+          name: 'focus',
+        },
+      },
+      slots: {
+        prefix: {
+          name: 'prefix',
+        },
+      },
+      hostAttributes: ['data-slot'],
+      cssParts: ['control', 'root'],
+    })
+  })
+
+  it('allows explicit empty models to disable model inference', () => {
+    const code = `
+      import { defineElement, event } from '@zeus-js/zeus'
+
+      export const ZInput = defineElement<{ value?: string }>(
+        'z-input',
+        {
+          props: {
+            value: String,
+          },
+          emits: {
+            valueChange: event<{ value: string }>(),
+          },
+          models: [],
+        },
+        () => null,
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/input.tsx',
+      code,
+    })
+
+    expect(result.diagnostics).toEqual([])
+    expect(result.components[0].models).toBeUndefined()
   })
 
   it('keeps setup-inferred event detail for declared emits', () => {

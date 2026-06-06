@@ -117,7 +117,7 @@ export function validateRuntimePropsDefinition(
     if (t.isIdentifier(member.value)) {
       if (!isPropConstructorName(member.value.name)) {
         messages.push(
-          `Prop "${propName}" must use String, Number, Boolean, Object, Array, Function, prop(values), or an inline prop options object.`,
+          `Prop "${propName}" must use String, Number, Boolean, Object, Array, Function, prop(values), prop(Constructor), or an inline prop options object.`,
         )
       }
 
@@ -131,7 +131,7 @@ export function validateRuntimePropsDefinition(
 
     if (!t.isObjectExpression(member.value)) {
       messages.push(
-        `Prop "${propName}" must use an inline prop options object or prop(values).`,
+        `Prop "${propName}" must use an inline prop options object, prop(values), or prop(Constructor).`,
       )
       continue
     }
@@ -313,9 +313,12 @@ function validatePropCall(
   node: t.CallExpression,
   messages: string[],
 ): void {
-  if (!isStaticStringArray(node.arguments[0])) {
+  if (
+    !isStaticStringArray(node.arguments[0]) &&
+    !isPropConstructorArgument(node.arguments[0])
+  ) {
     messages.push(
-      `Prop "${propName}" prop() values must be a static string array.`,
+      `Prop "${propName}" prop() first argument must be a static string array or prop constructor.`,
     )
   }
 
@@ -334,15 +337,33 @@ function validatePropCall(
 }
 
 function extractPropCall(node: t.CallExpression): ComponentProp {
+  const inputNode = node.arguments[0]
   const optionsNode = node.arguments[1]
   const prop = t.isObjectExpression(optionsNode)
     ? extractRuntimeProp(optionsNode)
     : ({ type: 'string' } satisfies ComponentProp)
 
+  if (isPropConstructorArgument(inputNode)) {
+    prop.type = typeFromConstructorName(inputNode.name)
+
+    if (inputNode.name === 'Boolean') {
+      prop.default ??= false
+      prop.reflect ??= true
+    }
+
+    return prop
+  }
+
   prop.type = 'string'
   prop.values = extractStaticStringArray(node.arguments[0]) ?? []
 
   return prop
+}
+
+function isPropConstructorArgument(
+  node: t.Node | null | undefined,
+): node is t.Identifier {
+  return t.isIdentifier(node) && isPropConstructorName(node.name)
 }
 
 function isStaticStringArray(

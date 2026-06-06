@@ -1,350 +1,137 @@
-# Zeus Package Consolidation Review
+# Zeus Package Consolidation
 
-本文评估当前 `packages/*` 中哪些包可以删除、移除公开入口或合并实现，并给出推荐落地顺序。
+本文记录当前包边界、推荐用户入口和后续整理策略。Zeus 处于 beta 阶段且无真实用户迁移压力，因此包入口收敛时直接采用当前认可设计，不保留旧 facade 或迁移窗口。
 
-结论先行：
+## 当前结论
 
-1. **不要立刻物理删除核心能力包**。当前多数包虽然多，但承担了不同 peer dependency、产物目标或测试面。
-2. **可以收敛公开入口**。未来用户文档应只推荐 `@zeus-js/zeus`、`@zeus-js/vite-plugin`、`@zeus-js/web-c`、`create-zeus`、`zeus-ui`。
-3. **最值得合并的是 Web-C facade 层**：`@zeus-js/preset-component-library` 直接并入 `@zeus-js/web-c`，不保留旧包。
-4. **最值得移出 workspace package 的是 `@zeus-js/shared`**：它是内部工具包，长期可改为源码内部模块，不应作为推荐安装包。
-5. **`create-zeus` 与 `zeus-ui` 暂不合并**。二者都是 CLI，但用户旅程不同；合并会让命令职责变浑。
+1. 用户文档只推荐少数入口。
+2. 产物插件、analyzer、d.ts 生成器、lazy runtime 保持独立包，以保留清晰测试面和 peer dependency 边界。
+3. `componentLibrary()` 已归入 `@zeus-js/web-c`，不再保留单独 preset facade。
+4. `@zeus-js/shared` 仍是 workspace package，但应视为 internal-only，不推荐用户直接依赖。
+5. React/Vue wrapper 不合并公开包名；如需要，后续只抽内部共享 helper。
 
-## 评估原则
+## 推荐用户入口
 
-本次用三个判断：
+| 包                     | 角色                                                            |
+| ---------------------- | --------------------------------------------------------------- |
+| `@zeus-js/zeus`        | 框架主入口：响应式、DOM runtime、JSX runtime、`defineElement`。 |
+| `@zeus-js/vite-plugin` | 普通 Zeus 应用的 Vite 集成入口。                                |
+| `@zeus-js/web-c`       | 组件库构建工具链聚合入口。                                      |
+| `create-zeus`          | 新项目脚手架 CLI。                                              |
+| `zeus-ui`              | 给已有项目添加 copyable UI 组件的 CLI。                         |
 
-- **删除测试**：删除该包后，复杂度是消失，还是散落到多个调用方？
-- **依赖测试**：该包是否隔离了独立 peer dependency 或运行环境？
-- **产物测试**：该包是否代表一个明确产物目标，例如 WC、React wrapper、Vue wrapper、CSS asset、icon asset？
+## 保留的高级/内部包
 
-能通过依赖测试或产物测试的包，优先保留独立包。只做 re-export、配置组合、命名 facade 的包，优先合并。
+这些包可被内部构建链或高级用户直接消费，但不作为普通用户入门安装入口。
 
-## 当前包分层
+| 包                              | 保留原因                                             |
+| ------------------------------- | ---------------------------------------------------- |
+| `@zeus-js/signal`               | 无 DOM 响应式核心，语义基础独立。                    |
+| `@zeus-js/runtime-dom`          | 编译产物与 Web Component runtime 直接依赖。          |
+| `@zeus-js/compiler`             | Babel 编译器实现，供 Vite 与 Web-C bundler 复用。    |
+| `@zeus-js/bundler-plugin`       | Rollup/Rolldown/Vite 组件构建宿主。                  |
+| `@zeus-js/component-analyzer`   | 源码到 `ComponentManifest` 的唯一分析阶段。          |
+| `@zeus-js/component-dts`        | `ComponentManifest` 到 `.d.ts` 的独立产物阶段。      |
+| `@zeus-js/web-c-runtime`        | lazy custom element 运行时，属于生成产物依赖。       |
+| `@zeus-js/output-wc`            | Web Component lazy / side-effect 产物目标。          |
+| `@zeus-js/output-react-wrapper` | React wrapper 产物目标，隔离 React peer dependency。 |
+| `@zeus-js/output-vue-wrapper`   | Vue wrapper 产物目标，隔离 Vue peer dependency。     |
+| `@zeus-js/output-css`           | CSS asset output。                                   |
+| `@zeus-js/output-icons`         | icon asset output。                                  |
+| `@zeus-ui/registry`             | CLI 数据源和 copyable source registry。              |
 
-### 用户推荐入口
+## 当前 Web-C 聚合入口
 
-| 包                     | 保留级别 | 理由                                                                |
-| ---------------------- | -------- | ------------------------------------------------------------------- |
-| `@zeus-js/zeus`        | 必须保留 | 框架主入口，承载响应式、DOM runtime、JSX runtime、`defineElement`。 |
-| `@zeus-js/vite-plugin` | 必须保留 | 应用开发入口，和普通 Vite 项目直接集成。                            |
-| `@zeus-js/web-c`       | 必须保留 | Web-C 工具链聚合入口，应该成为组件库作者的推荐入口。                |
-| `create-zeus`          | 必须保留 | 项目脚手架 CLI。                                                    |
-| `zeus-ui`              | 必须保留 | UI registry 安装 CLI。                                              |
-
-### 高级/内部入口
-
-| 包                            | 推荐动作     | 理由                                                                |
-| ----------------------------- | ------------ | ------------------------------------------------------------------- |
-| `@zeus-js/signal`             | 保留独立包   | 无 DOM 响应式核心，测试面和语义基础独立。                           |
-| `@zeus-js/runtime-dom`        | 保留独立包   | 编译产物直接依赖，DOM helpers 与 custom element 基础在这里。        |
-| `@zeus-js/compiler`           | 保留独立包   | Babel 编译器实现，供 Vite 插件和 Web-C bundler 复用。               |
-| `@zeus-js/bundler-plugin`     | 保留独立包   | Rollup/Rolldown/Vite 组件构建宿主，低层扩展入口。                   |
-| `@zeus-js/component-analyzer` | 保留独立包   | manifest 的唯一分析入口，可独立测试和复用。                         |
-| `@zeus-js/component-dts`      | 保留独立包   | 从 manifest 到 d.ts 的独立产物阶段。                                |
-| `@zeus-js/web-c-runtime`      | 保留独立包   | lazy custom element 运行时，属于生成产物依赖，不属于配置层。        |
-| `@zeus-ui/registry`           | 暂保留独立包 | CLI 数据源与 copyable source registry，可被 docs/CLI/未来站点复用。 |
-
-### 产物插件
-
-| 包                              | 推荐动作     | 理由                                                               |
-| ------------------------------- | ------------ | ------------------------------------------------------------------ |
-| `@zeus-js/output-wc`            | 保留独立包   | Web Component lazy/side-effect 产物，基础目标。                    |
-| `@zeus-js/output-react-wrapper` | 保留独立包   | React peer dependency 与 wrapper 产物独立。                        |
-| `@zeus-js/output-vue-wrapper`   | 保留独立包   | Vue peer dependency 与 emits 类型独立。                            |
-| `@zeus-js/output-css`           | 保留独立包   | CSS pipeline 可能引入 lightningcss/postcss/sass/less。             |
-| `@zeus-js/output-icons`         | 暂保留独立包 | icon asset pipeline 独立；如果未来长期只被 preset 使用，可再内联。 |
-
-## 可删除/合并候选
-
-### 1. 合并 `@zeus-js/preset-component-library` 到 `@zeus-js/web-c`
-
-**结论：合并实现并直接删除旧包。**
-
-当前 `preset-component-library` 只有一个很薄的接口：把 `output-css`、`output-wc`、`output-react-wrapper`、`output-vue-wrapper` 组合成 `componentLibrary()`。现在 `@zeus-js/web-c` 已经是 Web-C 推荐聚合入口，再保留一个单独 preset 包会增加用户心智成本。
-
-推荐目标：
+组件库作者推荐使用：
 
 ```ts
 import zeus, { componentLibrary } from '@zeus-js/web-c/rolldown'
+
+export default zeus({
+  components: {
+    include: ['src/**/*.tsx'],
+  },
+  plugins: componentLibrary({
+    targets: ['wc', 'react', 'vue'],
+    register: 'lazy',
+    wrapper: 'event-bridge',
+  }),
+})
 ```
 
-落地方式：
+`componentLibrary()` 组合：
 
-1. 将 `componentLibrary()` 源码移动到 `packages/web-c/web-c/src/componentLibrary.ts`。
-2. `@zeus-js/web-c` 主入口和 adapter 子路径继续导出 `componentLibrary`。
-3. 删除 `@zeus-js/preset-component-library` 包、构建配置、API snapshot 和文档入口。
+- `@zeus-js/output-css`
+- `@zeus-js/output-wc`
+- `@zeus-js/output-react-wrapper`
+- `@zeus-js/output-vue-wrapper`
 
-收益：
+这已经是唯一推荐 preset 写法；不要恢复 `@zeus-js/preset-component-library`。
 
-- 用户入口更少。
-- `componentLibrary()` 和 Web-C adapter 的默认策略在同一个包内演进。
-- 测试可集中在 `@zeus-js/web-c` 的 public interface。
+## 不合并的包
 
-风险：
+### 不合并 `@zeus-js/output-react-wrapper` 和 `@zeus-js/output-vue-wrapper`
 
-- 仓库内文档、脚本或示例可能仍引用旧包，删除时必须全仓迁移并由 CI 验证。
+二者都生成 framework wrapper，但公开包不合并：
 
-推荐优先级：**P1**。
-
-### 2. 移除 `@zeus-js/shared` 的公开包身份
-
-**结论：建议长期移为内部源码模块，不建议作为公开安装包。**
-
-`@zeus-js/shared` 当前只有少量通用工具。删除测试显示：如果删除它，复杂度不会真正消失，但也不应该暴露为用户可安装包。它更像 monorepo 内部源码模块。
-
-推荐目标：
-
-```txt
-packages/shared/
-```
-
-或：
-
-```txt
-packages/internal/shared/
-```
-
-落地方式：
-
-1. 先在文档中标记 `@zeus-js/shared` 为 internal-only。
-2. 从用户包列表和安装文档中移除。
-3. 未来目录重排时，把它移出 `packages/core/*` 的发布集合。
-4. 构建脚本支持 internal source alias，例如 `@zeus-internal/shared`。
-5. 确认 `@zeus-js/compiler`、`@zeus-js/signal` 等内部包仍可稳定消费。
-
-不建议现在直接删除：
-
-- `signal` 和 `compiler` 都依赖它。
-- 当前 release/build 脚本按 workspace package 建模，直接删除会牵连构建。
-
-推荐优先级：**P2**。
-
-### 3. 合并 `@zeus-js/output-react-wrapper` 与 `@zeus-js/output-vue-wrapper`
-
-**结论：暂不合并包名，但可以合并内部公共实现。**
-
-二者结构相似，代码规模也接近，但 peer dependency、类型模型和运行时代码不同。合并成一个公开包会带来更重的 peer dependency 和更模糊的产物目标。
-
-可以做的内部整理：
-
-```txt
-packages/web-c/output-shared/
-```
-
-或者直接放在：
-
-```txt
-packages/web-c/component-dts/src/framework-shared.ts
-packages/web-c/output-react-wrapper/src/shared.ts
-packages/web-c/output-vue-wrapper/src/shared.ts
-```
-
-适合抽出的内容：
-
-- props 过滤/序列化策略
-- event binding 规范化
-- component display name 推导
-- d.ts detail type formatting
-
-不建议合并公开包：
-
-- React wrapper 依赖 React 类型和 ref 模型。
-- Vue wrapper 依赖 Vue `defineComponent`、`emits`、global d.ts。
+- peer dependency 不同。
+- 类型模型不同。
+- React ref/event bridge 与 Vue emits/v-model 语义不同。
 - 用户常常只需要其中一个目标。
 
-推荐优先级：**P2，仅内部抽象**。
+可接受的后续整理：抽内部 shared helper，但不要增加新的公开 facade。
 
-### 4. 合并 `@zeus-js/component-analyzer` 与 `@zeus-js/component-dts`
+### 不合并 `@zeus-js/component-analyzer` 和 `@zeus-js/component-dts`
 
-**结论：暂不合并。**
+它们是两个阶段：
 
-二者看起来常一起出现，但它们是两个不同阶段：
+- analyzer：源码 -> `ComponentManifest`
+- dts：`ComponentManifest` -> 声明文件
 
-- analyzer：源码到 `ComponentManifest`
-- dts：`ComponentManifest` 到声明文件
+manifest 还会被 docs、registry、AI metadata、`custom-elements.json` 消费。合并会让 d.ts 生成逻辑反向污染分析层。
 
-这个分离是有价值的。manifest 未来还会给 docs、registry、AI metadata、custom-elements.json 消费；如果合并，dts 生成会反向污染分析层。
+### 不合并 `@zeus-js/vite-plugin` 和 `@zeus-js/web-c`
 
-推荐动作：
+用户旅程不同：
 
-- 保留独立包。
-- 在 `@zeus-js/web-c` 中统一 re-export 高层 API。
-- `component-dts` 只消费 manifest，不重新分析源码。
+- `@zeus-js/vite-plugin` 面向普通 Zeus 应用。
+- `@zeus-js/web-c` 面向组件库构建和多目标输出。
 
-推荐优先级：**不合并**。
+普通应用不应被迫理解 Web-C output target。
 
-### 5. 合并 `@zeus-js/output-css` 与 `@zeus-js/output-icons`
+### 不合并 `create-zeus` 和 `zeus-ui`
 
-**结论：暂不合并；未来若 icon pipeline 不成熟，可移入 `@zeus-js/web-c`。**
-
-这两个包都属于 asset output，但职责不同：
-
-- CSS 会面对 PostCSS/Sass/Less/LightningCSS。
-- Icons 会面对 SVG transform、框架 wrapper 或 registry。
-
-短期保留独立包能避免可选依赖互相污染。未来如果 `output-icons` 长期没有独立用户或独立 peer dependency，可以考虑将它变成 `@zeus-js/web-c` 的内置 output。
-
-推荐优先级：**P3 观察**。
-
-### 6. 合并 `@zeus-js/vite-plugin` 与 `@zeus-js/web-c`
-
-**结论：不要合并。**
-
-这两个包面对不同用户旅程：
-
-- `@zeus-js/vite-plugin`：普通 Zeus 应用，把 TSX 编译成 runtime-dom 调用。
-- `@zeus-js/web-c`：组件库构建，把组件输出成 WC/React/Vue/CSS/manifest/d.ts。
-
-合并会让普通应用用户安装 Web-C 工具链，也会把组件库构建概念带进框架入门路径。
-
-推荐动作：
-
-- 保留 `@zeus-js/vite-plugin`。
-- `@zeus-js/web-c/vite` 可以继续 re-export Web-C bundler adapter，但文档必须区分“应用 Vite 插件”和“组件库 Vite adapter”。
-
-推荐优先级：**不合并**。
-
-### 7. 合并 `create-zeus` 与 `zeus-ui`
-
-**结论：不要合并。**
-
-二者都是 CLI，但不是同一个 interface：
+二者都是 CLI，但职责不同：
 
 - `create-zeus` 创建新项目。
-- `zeus-ui` 给已有项目添加 copyable UI 组件。
+- `zeus-ui` 给已有项目添加 registry 组件。
 
-合并后用户会困惑：`create zeus` 里为什么有 registry 命令，`zeus-ui` 里为什么能 scaffold app。保持两个命令更清晰。
+可以共享 prompts、package manager 检测、文件写入工具，但不合并命令。
 
-可以共享的部分：
+## 后续整理路线
 
-- prompts 风格
-- package manager 检测
-- 文件写入 utilities
+### P1：文档入口收敛
 
-但共享实现不等于合并 CLI。
+- 用户文档只推荐五个入口。
+- 所有 Web-C 示例统一从 `@zeus-js/web-c` 导入。
+- `docs/internal/README.md` 明确当前权威文档和历史设计文档。
 
-推荐优先级：**不合并**。
+### P2：internal-only 包治理
 
-### 8. 合并 `@zeus-ui/registry` 到 `zeus-ui`
+- 从用户文档中移除 `@zeus-js/shared`。
+- 评估是否把 `@zeus-js/shared` 移为内部源码模块。
+- 保证 `@zeus-js/compiler` 与 `@zeus-js/signal` 构建不受影响。
 
-**结论：暂不合并。**
+### P3：内部重复 helper 抽取
 
-`registry` 是数据和模板源，`zeus-ui` 是执行流程。分开可以让 docs、站点、测试或未来在线 registry 直接消费 registry 数据。
-
-如果未来 registry 只服务 CLI，且没有站点/docs 复用需求，可以考虑内联到 `zeus-ui`。现在不建议。
-
-推荐优先级：**P3 观察**。
-
-## 最终推荐包结构
-
-### 对外推荐安装
-
-```txt
-@zeus-js/zeus
-@zeus-js/vite-plugin
-@zeus-js/web-c
-create-zeus
-zeus-ui
-```
-
-### 保留但标记高级/内部
-
-```txt
-@zeus-js/signal
-@zeus-js/runtime-dom
-@zeus-js/compiler
-@zeus-js/bundler-plugin
-@zeus-js/component-analyzer
-@zeus-js/component-dts
-@zeus-js/output-wc
-@zeus-js/output-react-wrapper
-@zeus-js/output-vue-wrapper
-@zeus-js/output-css
-@zeus-js/output-icons
-@zeus-js/web-c-runtime
-@zeus-ui/registry
-```
-
-### 直接删除或内部化
-
-```txt
-@zeus-js/shared
-```
-
-## 推荐落地路线
-
-### Phase 1：文档与入口收敛
-
-1. 更新用户文档，只推荐五个对外入口。
-2. `docs/api/packages.md` 增加“推荐入口”和“高级/内部入口”分组。
-3. 从所有文档和脚本删除 `@zeus-js/preset-component-library`。
-4. 标记 `@zeus-js/shared` 为 internal-only。
-
-验收：
-
-- 新用户不需要理解所有 workspace package。
-- 所有 Web-C 示例都从 `@zeus-js/web-c` 导入。
-
-### Phase 2：合并 preset 实现
-
-1. 将 `componentLibrary()` 实现移动到 `@zeus-js/web-c`。
-2. 删除 `@zeus-js/preset-component-library`。
-3. 测试迁移到 `packages/web-c/web-c/__tests__`。
-4. 删除 `preset-component-library` 的 export snapshot。
-
-验收：
-
-- `import { componentLibrary } from '@zeus-js/web-c'` 是唯一推荐写法。
-- 仓库内不再存在 `@zeus-js/preset-component-library` 引用。
-
-### Phase 3：内部共享模块整理
-
-1. 把 React/Vue output 的重复 helper 抽到内部 shared。
-2. 把 `@zeus-js/shared` 从用户文档中完全移除。
-3. 评估 `@zeus-js/shared` 是否能从发布包改为 internal source package。
-
-验收：
-
-- 不影响 `@zeus-js/signal` 和 `@zeus-js/compiler` 的构建。
+- React/Vue wrapper 的命名、事件、props helper 可抽内部共享模块。
 - 不新增用户可见入口。
 
 ## 不建议做的事
 
-### 不要把所有 Web-C 包合成一个巨包
+- 不把所有 Web-C 包合成一个巨包。
+- 不把 `runtime-dom` 合进 `zeus`。
+- 不把 `signal` 合进 `runtime-dom`。
+- 不为了减少目录数做大规模目录重排。
 
-原因：
-
-- output 插件的 peer dependency 不同。
-- 单包会让用户安装不需要的 React/Vue/CSS/icon 工具链。
-- 测试面会变大，失败定位变差。
-
-### 不要把 `runtime-dom` 合进 `zeus`
-
-`@zeus-js/zeus` 是 facade，`runtime-dom` 是编译产物和高级集成真正依赖的 runtime。合并会破坏编译产物的清晰依赖。
-
-### 不要把 `signal` 合进 `runtime-dom`
-
-响应式核心必须保持无 DOM。它是 Zeus 的语义基础，不应该被 DOM runtime 牵引。
-
-### 不要为了减少目录数移动所有包
-
-目录重排会影响 build、release、API snapshot、docs 链接和 examples。只有当文档分组仍不能降低维护成本时，才考虑目录重排。
-
-## 最终结论
-
-当前最优方案不是一次性删除大量包，而是：
-
-1. **公开入口收敛到少数包**。
-2. **把浅 facade 包并入更深的聚合入口**。
-3. **保留产物插件和 runtime/compiler 的独立测试面**。
-4. **让 internal-only 包从用户文档和安装路径中消失**。
-
-最推荐立即推进：
-
-```txt
-P1: 合并 @zeus-js/preset-component-library 实现到 @zeus-js/web-c
-P1: 所有示例和文档统一推荐 @zeus-js/web-c
-P2: 将 @zeus-js/shared 标记为 internal-only，并规划移出公开发布集合
-P2: 抽取 React/Vue output 的内部重复 helper，但不合并包名
-```
+当前最优方向是：公开入口少、内部阶段清晰、产物插件独立、manifest 作为所有 output target 的共同协议。

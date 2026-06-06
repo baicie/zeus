@@ -1,3 +1,5 @@
+import * as t from '@babel/types'
+
 import { parseSource } from './ast'
 import { extractDefineElementCalls } from './extractDefineElement'
 import { extractEmits } from './extractEmits'
@@ -22,6 +24,7 @@ export function analyzeFile(options: AnalyzeFileOptions): AnalyzeFileResult {
     const ast = parseSource(code, file)
     const calls = extractDefineElementCalls(ast)
     const localPropTypes = collectLocalPropTypes(ast)
+    const localSetupBindings = collectLocalSetupBindings(ast)
 
     for (const call of calls) {
       const runtimePropsDiagnostics = validateRuntimePropsDefinition(
@@ -57,7 +60,9 @@ export function analyzeFile(options: AnalyzeFileOptions): AnalyzeFileResult {
         })
       }
 
-      const setupMeta = extractSetupMeta(call.setup)
+      const setupMeta = extractSetupMeta(
+        resolveSetupBinding(call.setup, localSetupBindings),
+      )
       const inlineMeta = extractInlineMeta(call.options)
 
       components.push(
@@ -96,6 +101,43 @@ export function analyzeFile(options: AnalyzeFileOptions): AnalyzeFileResult {
     components,
     diagnostics,
   }
+}
+
+function collectLocalSetupBindings(ast: t.File): Map<string, t.Node> {
+  const bindings = new Map<string, t.Node>()
+
+  for (const node of ast.program.body) {
+    if (t.isFunctionDeclaration(node) && node.id) {
+      bindings.set(node.id.name, node)
+      continue
+    }
+
+    if (!t.isVariableDeclaration(node)) continue
+
+    for (const declarator of node.declarations) {
+      if (!t.isIdentifier(declarator.id) || !declarator.init) continue
+
+      if (
+        t.isFunctionExpression(declarator.init) ||
+        t.isArrowFunctionExpression(declarator.init)
+      ) {
+        bindings.set(declarator.id.name, declarator.init)
+      }
+    }
+  }
+
+  return bindings
+}
+
+function resolveSetupBinding(
+  setup: t.Expression | t.SpreadElement | t.ArgumentPlaceholder | undefined,
+  bindings: Map<string, t.Node>,
+): t.Node | undefined {
+  if (t.isIdentifier(setup)) {
+    return bindings.get(setup.name) ?? setup
+  }
+
+  return setup
 }
 
 function isGlobalUtilityType(name: string): boolean {

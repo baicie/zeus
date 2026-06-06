@@ -48,6 +48,13 @@ export interface ValuePropDefinition<
   values: readonly T[]
 }
 
+export type ConstructorPropDefinition<
+  T = unknown,
+  C extends ElementPropConstructor = ElementPropConstructor,
+> = PropDefinitionOptions<T> & {
+  type: C
+}
+
 export interface EventDefinition<Detail = unknown> {
   __zeusEvent: true
   name?: string
@@ -240,14 +247,41 @@ const DEFAULT_EVENT_OPTIONS = {
 
 export function prop<const V extends readonly string[]>(
   values: V,
-  options: Omit<PropDefinitionOptions<V[number]>, 'type' | 'values'> = {},
-): ValuePropDefinition<V[number]> {
+  options?: Omit<PropDefinitionOptions<V[number]>, 'type' | 'values'>,
+): ValuePropDefinition<V[number]>
+export function prop(
+  type: BooleanConstructor,
+  options?: Omit<PropDefinitionOptions<boolean>, 'type' | 'values'>,
+): ConstructorPropDefinition<boolean, BooleanConstructor>
+export function prop<T = unknown>(
+  type: Exclude<ElementPropConstructor, BooleanConstructor>,
+  options?: Omit<PropDefinitionOptions<T>, 'type' | 'values'>,
+): ConstructorPropDefinition<T>
+export function prop(
+  input: ElementPropConstructor | readonly string[],
+  options: Omit<PropDefinitionOptions, 'type' | 'values'> = {},
+): ConstructorPropDefinition | ValuePropDefinition {
+  if (Array.isArray(input)) {
+    return {
+      type: String,
+      values: input,
+      attr: options.attr,
+      reflect: options.reflect,
+      default: options.default,
+      serialize: options.serialize,
+      deserialize: options.deserialize,
+    }
+  }
+
+  const type = input as ElementPropConstructor
+
   return {
-    type: String,
-    values,
+    type,
     attr: options.attr,
-    reflect: options.reflect,
-    default: options.default,
+    reflect: type === Boolean ? (options.reflect ?? true) : options.reflect,
+    default: type === Boolean ? (options.default ?? false) : options.default,
+    serialize: options.serialize,
+    deserialize: options.deserialize,
   }
 }
 

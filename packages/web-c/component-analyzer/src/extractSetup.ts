@@ -19,9 +19,7 @@ export interface SetupMeta {
   cssParts: string[]
 }
 
-export function extractSetupMeta(
-  setup: t.Expression | t.SpreadElement | t.ArgumentPlaceholder | undefined,
-): SetupMeta {
+export function extractSetupMeta(setup: t.Node | undefined): SetupMeta {
   const events: Record<string, ComponentEvent> = {}
   const methods: Record<string, ComponentMethod> = {}
   const slots: Record<string, ComponentSlot> = {}

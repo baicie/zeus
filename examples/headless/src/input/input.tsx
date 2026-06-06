@@ -120,49 +120,17 @@ export const ZInput = defineElement<InputProps, InputHost, InputEmits>(
         default: 'md',
         reflect: true,
       }),
-      disabled: {
-        type: Boolean,
-        default: false,
-        reflect: true,
-      },
-      required: {
-        type: Boolean,
-        default: false,
-        reflect: true,
-      },
-      invalid: {
-        type: Boolean,
-        default: false,
-        reflect: true,
-      },
+      disabled: prop(Boolean),
+      required: prop(Boolean),
+      invalid: prop(Boolean),
       formatter: Function,
     },
     emits: {
       valueChange: event<{ value: string; nativeEvent: Event }>(),
       focusChange: event<{ focused: boolean; nativeEvent: FocusEvent }>(),
     },
-    cssVars: {
-      '--z-input-border': {
-        description: 'Input border color.',
-      },
-      '--z-input-ring': {
-        description: 'Input focus ring color.',
-      },
-    },
     meta: {
       description: 'Headless input primitive with slots, events and methods.',
-      slots: {
-        prefix: {
-          description: 'Content rendered before the native input.',
-        },
-        suffix: {
-          description: 'Content rendered after the native input.',
-        },
-        message: {
-          description: 'Validation or helper message.',
-        },
-      },
-      cssParts: ['root', 'prefix', 'control', 'suffix', 'message'],
     },
   },
   setup,

@@ -49,14 +49,6 @@ function handleDialogChange(e: CustomEvent<{ open: boolean }>) {
   dialogOpen.value = e.detail.open
 }
 
-function handleEmailChange(e: CustomEvent<{ value: string }>) {
-  email.value = e.detail.value
-}
-
-function handleSearchChange(e: CustomEvent<{ value: string }>) {
-  search.value = e.detail.value
-}
-
 function handleInputFocusChange(e: CustomEvent<{ focused: boolean }>) {
   inputFocused.value = e.detail.focused
 }
@@ -90,11 +82,10 @@ function trimStart(value: string) {
       <div class="demo-section">
         <ZInput
           type="email"
-          :value="email"
+          v-model:value="email"
           placeholder="name@example.com"
           required
           :invalid="!email.includes('@')"
-          @value-change="handleEmailChange"
           @focus-change="handleInputFocusChange"
         >
           <template #prefix>
@@ -121,10 +112,9 @@ function trimStart(value: string) {
         <ZInput
           type="search"
           size="lg"
-          :value="search"
+          v-model:value="search"
           placeholder="Search components"
           :formatter="trimStart"
-          @value-change="handleSearchChange"
         >
           <template #prefix>
             <span>⌕</span>

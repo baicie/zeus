@@ -270,6 +270,12 @@ export interface ValuePropDefinition<
   type: StringConstructor
   values: readonly T[]
 }
+type ConstructorPropDefinition<
+  T = unknown,
+  C extends ElementPropConstructor = ElementPropConstructor,
+> = PropDefinitionOptions<T> & {
+  type: C
+}
 export interface EventDefinition<Detail = unknown> {
   __zeusEvent: true
   name?: string
@@ -287,6 +293,8 @@ export interface EventOptions {
 export interface EmitsOptions {
   [key: string]: EventDefinition<unknown>
 }
+export type FormAssociatedValue = File | FormData | string | null
+export type FormStateRestoreMode = 'restore' | 'autocomplete'
 type ExplicitPropKeys<T> = keyof {
   [K in keyof T as string extends K
     ? never
@@ -342,10 +350,12 @@ export interface DefineElementOptions<
 > {
   shadow?: boolean | ShadowRootInit
   formAssociated?: boolean
+  form?: FormAssociatedOptions<P, HTMLElement, E>
   props?: PropOptions<P>
   emits?: E
   styles?: string | string[]
   consumes?: Context<any>[]
+  models?: readonly ElementModelDefinition<P>[]
   slots?: readonly string[]
   parts?: readonly string[]
   cssVars?: Record<
@@ -359,6 +369,36 @@ export interface DefineElementOptions<
    * Runtime does not consume this field.
    */
   meta?: DefineElementMeta
+}
+export interface FormAssociatedOptions<
+  P extends object,
+  E extends HTMLElement = HTMLElement,
+  Emits extends EmitsOptions = EmitsOptions,
+> {
+  value?: ExplicitPropKeys<P> | ((props: Readonly<P>) => FormAssociatedValue)
+  state?: ExplicitPropKeys<P> | ((props: Readonly<P>) => FormAssociatedValue)
+  associated?(
+    form: HTMLFormElement | null,
+    props: Readonly<P>,
+    context: DefineElementContext<E, Emits>,
+  ): void
+  disabled?(
+    disabled: boolean,
+    props: Readonly<P>,
+    context: DefineElementContext<E, Emits>,
+  ): void
+  reset?(props: Readonly<P>, context: DefineElementContext<E, Emits>): void
+  stateRestore?(
+    state: FormAssociatedValue,
+    mode: FormStateRestoreMode,
+    props: Readonly<P>,
+    context: DefineElementContext<E, Emits>,
+  ): void
+}
+export interface ElementModelDefinition<P extends object> {
+  prop: ExplicitPropKeys<P>
+  event: string
+  eventPath?: string
 }
 export interface DefineElementContext<
   E extends HTMLElement = HTMLElement,
@@ -399,12 +439,24 @@ export type ZeusElementConstructor = CustomElementConstructor & {
 }
 export interface MountedElementDefinition {
   propertyChanged(name: string, _oldValue: unknown, newValue: unknown): void
+  formAssociated(form: HTMLFormElement | null): void
+  formDisabled(disabled: boolean): void
+  formReset(): void
+  formStateRestore(state: FormAssociatedValue, mode: FormStateRestoreMode): void
   dispose(): void
 }
 export declare function prop<const V extends readonly string[]>(
   values: V,
   options?: Omit<PropDefinitionOptions<V[number]>, 'type' | 'values'>,
 ): ValuePropDefinition<V[number]>
+export declare function prop(
+  type: BooleanConstructor,
+  options?: Omit<PropDefinitionOptions<boolean>, 'type' | 'values'>,
+): ConstructorPropDefinition<boolean, BooleanConstructor>
+export declare function prop<T = unknown>(
+  type: Exclude<ElementPropConstructor, BooleanConstructor>,
+  options?: Omit<PropDefinitionOptions<T>, 'type' | 'values'>,
+): ConstructorPropDefinition<T>
 export declare function event<Detail = unknown>(): EventDefinition<Detail>
 export declare function event<Detail = unknown>(
   name: string,
@@ -421,6 +473,9 @@ export interface ElementDefinitionMountState {
   target?: Element | ShadowRoot
   lightChildren?: Node[]
   capturedLightChildren?: boolean
+  internals?: ElementInternals
+  attributeProps?: Set<string>
+  reflectingAttrs?: Set<string>
 }
 export declare function defineElement<
   P extends object = Record<string, unknown>,
