@@ -1,0 +1,36 @@
+:host {
+  display: block;
+  max-width: 24rem;
+}
+
+label {
+  align-items: center;
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+}
+
+input {
+  background: transparent;
+  border: 0;
+  flex: 1;
+  font: inherit;
+  min-width: 0;
+  outline: 0;
+}
+
+[part='message'] {
+  color: #64748b;
+  font-size: 0.875rem;
+  margin-top: 0.375rem;
+}
+
+:host([invalid]) label {
+  border-color: #dc2626;
+}
+
+:host([disabled]) {
+  opacity: 0.5;
+}

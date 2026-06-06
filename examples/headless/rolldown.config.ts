@@ -8,9 +8,7 @@ export default defineConfig({
   },
   plugins: [
     zeus({
-      plugins: componentLibrary({
-        styles: false,
-      }),
+      plugins: componentLibrary(),
     }),
   ],
 })

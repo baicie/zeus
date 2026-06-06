@@ -1,7 +1,9 @@
 import {
+  bindAttr,
+  bindProp,
   createComponent,
   insert,
-} from '@zeus-js/runtime-dom/dist/runtime-dom.esm-bundler.js'
+} from '@zeus-js/runtime-dom'
 
 const Fragment = Symbol.for('zeus.fragment')
 
@@ -44,6 +46,16 @@ function createJSXNode(type, props) {
         el.addEventListener(key.slice(2).toLowerCase(), value)
       } else if (key === 'ref') {
         setFallbackRef(value, el)
+      } else if (key.startsWith('prop:')) {
+        const propName = key.slice(5)
+
+        if (typeof value === 'function') {
+          bindProp(el, propName, value)
+        } else {
+          el[propName] = value
+        }
+      } else if (typeof value === 'function') {
+        bindAttr(el, key, value)
       } else if (value != null && value !== false) {
         el.setAttribute(key === 'className' ? 'class' : key, String(value))
       }

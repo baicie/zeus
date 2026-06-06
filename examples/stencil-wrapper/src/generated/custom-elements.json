@@ -1,0 +1,331 @@
+{
+  "timestamp": "2026-06-06T04:42:03",
+  "compiler": {
+    "name": "@stencil/core",
+    "version": "4.43.5",
+    "typescriptVersion": "5.8.3"
+  },
+  "components": [
+    {
+      "filePath": "src/components/z-demo-button/z-demo-button.tsx",
+      "encapsulation": "shadow",
+      "tag": "z-demo-button",
+      "docs": "",
+      "docsTags": [],
+      "usage": {},
+      "props": [
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "complexType": {
+            "original": "boolean",
+            "resolved": "boolean",
+            "references": {}
+          },
+          "mutable": false,
+          "attr": "disabled",
+          "reflectToAttr": true,
+          "docs": "",
+          "docsTags": [
+            {
+              "name": "default",
+              "text": "false"
+            }
+          ],
+          "default": "false",
+          "values": [
+            {
+              "type": "boolean"
+            }
+          ],
+          "optional": false,
+          "required": false,
+          "getter": false,
+          "setter": false
+        },
+        {
+          "name": "variant",
+          "type": "\"default\" | \"outline\"",
+          "complexType": {
+            "original": "DemoButtonVariant",
+            "resolved": "\"default\" | \"outline\"",
+            "references": {
+              "DemoButtonVariant": {
+                "location": "local",
+                "path": "/Users/liuzhiwei/Desktop/workspace/git-code/zeus/examples/stencil-wrapper/src/components/z-demo-button/z-demo-button.tsx",
+                "id": "src/components/z-demo-button/z-demo-button.tsx::DemoButtonVariant"
+              }
+            }
+          },
+          "mutable": false,
+          "attr": "variant",
+          "reflectToAttr": true,
+          "docs": "",
+          "docsTags": [
+            {
+              "name": "default",
+              "text": "'default'"
+            }
+          ],
+          "default": "'default'",
+          "values": [
+            {
+              "value": "default",
+              "type": "string"
+            },
+            {
+              "value": "outline",
+              "type": "string"
+            }
+          ],
+          "optional": false,
+          "required": false,
+          "getter": false,
+          "setter": false
+        }
+      ],
+      "methods": [],
+      "events": [
+        {
+          "event": "press",
+          "detail": "{ nativeEvent: MouseEvent; }",
+          "bubbles": true,
+          "complexType": {
+            "original": "{ nativeEvent: MouseEvent }",
+            "resolved": "{ nativeEvent: MouseEvent; }",
+            "references": {
+              "MouseEvent": {
+                "location": "global",
+                "id": "global::MouseEvent"
+              }
+            }
+          },
+          "cancelable": true,
+          "composed": true,
+          "docs": "",
+          "docsTags": []
+        }
+      ],
+      "listeners": [],
+      "styles": [],
+      "slots": [],
+      "parts": [
+        {
+          "name": "button",
+          "docs": ""
+        }
+      ],
+      "states": [],
+      "dependents": [],
+      "dependencies": [],
+      "dependencyGraph": {}
+    },
+    {
+      "filePath": "src/components/z-demo-input/z-demo-input.tsx",
+      "encapsulation": "shadow",
+      "tag": "z-demo-input",
+      "docs": "",
+      "docsTags": [],
+      "usage": {},
+      "props": [
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "complexType": {
+            "original": "boolean",
+            "resolved": "boolean",
+            "references": {}
+          },
+          "mutable": false,
+          "attr": "disabled",
+          "reflectToAttr": true,
+          "docs": "",
+          "docsTags": [
+            {
+              "name": "default",
+              "text": "false"
+            }
+          ],
+          "default": "false",
+          "values": [
+            {
+              "type": "boolean"
+            }
+          ],
+          "optional": false,
+          "required": false,
+          "getter": false,
+          "setter": false
+        },
+        {
+          "name": "invalid",
+          "type": "boolean",
+          "complexType": {
+            "original": "boolean",
+            "resolved": "boolean",
+            "references": {}
+          },
+          "mutable": false,
+          "attr": "invalid",
+          "reflectToAttr": true,
+          "docs": "",
+          "docsTags": [
+            {
+              "name": "default",
+              "text": "false"
+            }
+          ],
+          "default": "false",
+          "values": [
+            {
+              "type": "boolean"
+            }
+          ],
+          "optional": false,
+          "required": false,
+          "getter": false,
+          "setter": false
+        },
+        {
+          "name": "placeholder",
+          "type": "string | undefined",
+          "complexType": {
+            "original": "string",
+            "resolved": "string | undefined",
+            "references": {}
+          },
+          "mutable": false,
+          "attr": "placeholder",
+          "reflectToAttr": false,
+          "docs": "",
+          "docsTags": [],
+          "values": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "undefined"
+            }
+          ],
+          "optional": true,
+          "required": false,
+          "getter": false,
+          "setter": false
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "complexType": {
+            "original": "string",
+            "resolved": "string",
+            "references": {}
+          },
+          "mutable": true,
+          "attr": "value",
+          "reflectToAttr": true,
+          "docs": "",
+          "docsTags": [
+            {
+              "name": "default",
+              "text": "''"
+            }
+          ],
+          "default": "''",
+          "values": [
+            {
+              "type": "string"
+            }
+          ],
+          "optional": false,
+          "required": false,
+          "getter": false,
+          "setter": false
+        }
+      ],
+      "methods": [],
+      "events": [
+        {
+          "event": "focus-change",
+          "detail": "{ focused: boolean; nativeEvent: FocusEvent; }",
+          "bubbles": true,
+          "complexType": {
+            "original": "{ focused: boolean; nativeEvent: FocusEvent }",
+            "resolved": "{ focused: boolean; nativeEvent: FocusEvent; }",
+            "references": {
+              "FocusEvent": {
+                "location": "global",
+                "id": "global::FocusEvent"
+              }
+            }
+          },
+          "cancelable": true,
+          "composed": true,
+          "docs": "",
+          "docsTags": []
+        },
+        {
+          "event": "value-change",
+          "detail": "{ value: string; nativeEvent: Event; }",
+          "bubbles": true,
+          "complexType": {
+            "original": "{ value: string; nativeEvent: Event }",
+            "resolved": "{ value: string; nativeEvent: Event; }",
+            "references": {
+              "Event": {
+                "location": "import",
+                "path": "@stencil/core",
+                "id": "../../node_modules/.pnpm/@stencil+core@4.43.5/node_modules/@stencil/core/internal/stencil-core/index.d.ts::Event",
+                "referenceLocation": "Event"
+              }
+            }
+          },
+          "cancelable": true,
+          "composed": true,
+          "docs": "",
+          "docsTags": []
+        }
+      ],
+      "listeners": [],
+      "styles": [],
+      "slots": [],
+      "parts": [
+        {
+          "name": "control",
+          "docs": ""
+        },
+        {
+          "name": "message",
+          "docs": ""
+        },
+        {
+          "name": "prefix",
+          "docs": ""
+        },
+        {
+          "name": "root",
+          "docs": ""
+        },
+        {
+          "name": "suffix",
+          "docs": ""
+        }
+      ],
+      "states": [],
+      "dependents": [],
+      "dependencies": [],
+      "dependencyGraph": {}
+    }
+  ],
+  "typeLibrary": {
+    "src/components/z-demo-button/z-demo-button.tsx::DemoButtonVariant": {
+      "declaration": "export type DemoButtonVariant = 'default' | 'outline'",
+      "docstring": "",
+      "path": "src/components/z-demo-button/z-demo-button.tsx"
+    },
+    "../../node_modules/.pnpm/@stencil+core@4.43.5/node_modules/@stencil/core/internal/stencil-core/index.d.ts::Event": {
+      "declaration": "any",
+      "docstring": "",
+      "path": "../../node_modules/.pnpm/@stencil+core@4.43.5/node_modules/@stencil/core/internal/stencil-core/index.d.ts"
+    }
+  }
+}

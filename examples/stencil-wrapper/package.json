@@ -1,0 +1,66 @@
+{
+  "name": "@zeus-js/example-stencil-wrapper",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.cjs.js",
+  "module": "./dist/index.js",
+  "types": "./dist/types/index.d.ts",
+  "collection": "./dist/collection/collection-manifest.json",
+  "scripts": {
+    "build": "stencil build",
+    "check": "tsc --noEmit"
+  },
+  "exports": {
+    "./components": {
+      "types": "./dist/components/index.d.ts",
+      "import": "./dist/components/index.js"
+    },
+    "./components/*": {
+      "types": "./dist/components/*",
+      "import": "./dist/components/*"
+    },
+    "./dist/components": {
+      "types": "./dist/components/index.d.ts",
+      "import": "./dist/components/index.js"
+    },
+    "./dist/components/*": {
+      "types": "./dist/components/*",
+      "import": "./dist/components/*"
+    },
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/components/index.js"
+    },
+    "./loader": {
+      "types": "./dist/loader/index.d.ts",
+      "import": "./dist/loader/index.js"
+    },
+    "./react": {
+      "types": "./src/generated/react/components.ts",
+      "import": "./src/generated/react/components.ts"
+    },
+    "./vue": {
+      "types": "./src/generated/vue/components.ts",
+      "import": "./src/generated/vue/components.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "src/generated"
+  ],
+  "dependencies": {
+    "@stencil/react-output-target": "^1.5.3",
+    "@stencil/vue-output-target": "^0.13.2",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "vue": "^3.5.35"
+  },
+  "devDependencies": {
+    "@stencil/core": "^4.43.5",
+    "@types/react": "^19.2.16",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^6.0.3",
+    "vue-router": "^4.6.4"
+  }
+}

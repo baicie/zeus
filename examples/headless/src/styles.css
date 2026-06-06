@@ -1,6 +1,7 @@
 z-button,
 z-switch,
 z-checkbox,
+z-input,
 z-tabs,
 z-tab-list,
 z-tab-trigger,
@@ -17,6 +18,7 @@ z-icon {
 z-button[data-disabled],
 z-switch[data-disabled],
 z-checkbox[data-disabled],
+z-input[data-disabled],
 z-tab-trigger[data-disabled] {
   cursor: not-allowed;
 }

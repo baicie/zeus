@@ -216,6 +216,29 @@ describe('zeus compiler jsx transform', () => {
     expect(await compile(code)).toMatchSnapshot()
   })
 
+  it('passes getter attributes and properties without double wrapping', async () => {
+    const code = await compile(`
+      const App = (props: { disabled?: boolean; value: string }) => (
+        <input
+          disabled={() => Boolean(props.disabled)}
+          aria-disabled={() => props.disabled ? 'true' : undefined}
+          class={() => ({ disabled: props.disabled })}
+          style={() => ({ opacity: props.disabled ? 0.5 : 1 })}
+          prop:value={() => props.value}
+        />
+      )
+    `)
+
+    expect(code).toContain(
+      '_bindAttr(_el$, "disabled", () => Boolean(props.disabled))',
+    )
+    expect(code).toContain(
+      '_bindAttr(_el$, "aria-disabled", () => props.disabled ? \'true\' : undefined)',
+    )
+    expect(code).toContain('_bindProp(_el$, "value", () => props.value)')
+    expect(code).not.toContain('() => () =>')
+  })
+
   it('wraps member expression event handlers with optional call', async () => {
     const code = `
       const App = () => {

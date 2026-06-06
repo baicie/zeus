@@ -1,4 +1,7 @@
 dist
+examples/stencil-wrapper/src/generated
+examples/stencil-wrapper/src/components.d.ts
+examples/stencil-wrapper/loader
 docs/.vitepress/.temp
 pnpm-lock.yaml
 .agents
