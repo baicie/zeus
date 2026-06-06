@@ -1,5 +1,3 @@
-import { toReactEventProp } from './naming'
-
 import type { ComponentRecord } from '@zeus-js/component-analyzer'
 
 export interface GenerateReactWrapperOptions {
@@ -7,18 +5,6 @@ export interface GenerateReactWrapperOptions {
   namedSlots: 'props' | 'none'
   wcModuleId: string
   mode?: 'minimal' | 'event-bridge'
-}
-
-export function generateReactWrapper(
-  input: GenerateReactWrapperOptions,
-): string {
-  const { mode = 'minimal' } = input
-
-  if (mode === 'minimal') {
-    return generateMinimalReactWrapper(input)
-  }
-
-  return generateEventBridgeReactWrapper(input)
 }
 
 interface Binding {
@@ -30,80 +16,75 @@ interface EventBinding extends Binding {
   eventName: string
 }
 
-function createBindings(names: string[], prefix: string): Binding[] {
-  return names.map((sourceName, index) => ({
-    sourceName,
-    localName: `${prefix}${index}`,
-  }))
-}
-
-function createEventBindings(eventNames: string[]): EventBinding[] {
-  return eventNames.map((eventName, index) => ({
-    eventName,
-    sourceName: toReactEventProp(eventName),
-    localName: `eventHandler${index}`,
-  }))
+export function generateReactWrapper(
+  input: GenerateReactWrapperOptions,
+): string {
+  return input.mode === 'event-bridge'
+    ? generateEventBridgeReactWrapper(input)
+    : generateMinimalReactWrapper(input)
 }
 
 function generateMinimalReactWrapper(
   input: GenerateReactWrapperOptions,
 ): string {
   const { component, namedSlots, wcModuleId } = input
-
-  const slotNames = getNamedSlots(component, namedSlots)
-  const slotBindings = createBindings(slotNames, 'slotValue')
-
+  const slotBindings = createBindings(
+    getNamedSlots(component, namedSlots),
+    'slotValue',
+  )
   const omittedKeys = [
     'children',
     ...slotBindings.map(({ sourceName }) => sourceName),
   ]
   const slotAssignments = generatePropAssignments(slotBindings)
-
   const namedSlotLines = generateMinimalNamedSlots(slotBindings)
+  const childSetup = slotBindings.length
+    ? `${namedSlotLines}
+    const childArgs = [];
+    pushAll(childArgs, slotNodes);
+    if (children != null) childArgs.push(children);`
+    : ''
+  const render = slotBindings.length
+    ? `React.createElement.apply(
+      React,
+      [${JSON.stringify(component.tag)}, rest].concat(childArgs),
+    )`
+    : `React.createElement(${JSON.stringify(component.tag)}, rest, children)`
 
   return `
 import * as React from 'react';
 
 import ${JSON.stringify(wcModuleId)};
 
+const OMITTED_PROPS = new Set(${JSON.stringify(omittedKeys)});
+
 export const ${component.name} = React.forwardRef(
   function ${component.name}(inputProps, ref) {
     const props = inputProps || {};
     const children = props.children;
 ${slotAssignments}
-    const rest = omitProps(props, ${JSON.stringify(omittedKeys)});
-${namedSlotLines}
-    const childArgs = [];
-${namedSlotLines ? '    pushAll(childArgs, slotNodes);\n' : ''}    if (children != null) childArgs.push(children);
+    const rest = omitProps(props);
+    rest.ref = ref;
+${childSetup}
 
-    return React.createElement.apply(
-      React,
-      [
-        ${JSON.stringify(component.tag)},
-        Object.assign({}, rest, { ref: ref }),
-      ].concat(childArgs),
-    );
+    return ${render};
   },
 );
 
-function omitProps(source, keys) {
+function omitProps(source) {
   const output = {};
   for (const key in source) {
-    if (
-      Object.prototype.hasOwnProperty.call(source, key) &&
-      keys.indexOf(key) === -1
-    ) {
+    if (hasOwn(source, key) && !OMITTED_PROPS.has(key)) {
       output[key] = source[key];
     }
   }
   return output;
 }
 
-function pushAll(target, values) {
-  for (const value of values) {
-    target.push(value);
-  }
+function hasOwn(source, key) {
+  return Object.prototype.hasOwnProperty.call(source, key);
 }
+${slotBindings.length ? PUSH_ALL_HELPER : ''}
 `.trimStart()
 }
 
@@ -111,216 +92,295 @@ function generateEventBridgeReactWrapper(
   input: GenerateReactWrapperOptions,
 ): string {
   const { component, namedSlots, wcModuleId } = input
-
   const propBindings = createBindings(Object.keys(component.props), 'propValue')
+  const eventBindings = createEventBindings(component.events)
 
-  const eventBindings = createEventBindings(Object.keys(component.events))
+  if (!propBindings.length && !eventBindings.length) {
+    return generateMinimalReactWrapper(input)
+  }
 
   const slotBindings = createBindings(
     getNamedSlots(component, namedSlots),
     'slotValue',
   )
-
   const destructuredBindings = [
     ...propBindings,
     ...eventBindings,
     ...slotBindings,
   ]
-  const propAssignments = generatePropAssignments(destructuredBindings)
   const omittedKeys = [
     'children',
     'className',
     'style',
     ...destructuredBindings.map(({ sourceName }) => sourceName),
   ]
+  const reactImports = [
+    'createElement',
+    ...(slotBindings.length
+      ? ['cloneElement', 'Fragment', 'isValidElement']
+      : []),
+    'forwardRef',
+    ...(propBindings.length || eventBindings.length ? ['useEffect'] : []),
+    'useImperativeHandle',
+    'useRef',
+  ]
 
   return `
 import {
-  createElement,
-  cloneElement,
-  Fragment,
-  forwardRef,
-  isValidElement,
-  useEffect,
-  useImperativeHandle,
-  useRef,
+  ${reactImports.join(',\n  ')},
 } from 'react';
 
 import ${JSON.stringify(wcModuleId)};
+
+const OMITTED_PROPS = new Set(${JSON.stringify(omittedKeys)});
+${eventBindings.length ? `const EVENT_NAMES = ${JSON.stringify(eventBindings.map(binding => binding.eventName))};` : ''}
 
 export const ${component.name} = forwardRef(function ${component.name}(inputProps, ref) {
   const props = inputProps || {};
   const children = props.children;
   const className = props.className;
   const style = props.style;
-${propAssignments}
-  const rest = omitProps(props, ${JSON.stringify(omittedKeys)});
+${generatePropAssignments(destructuredBindings)}
+${generatePropPresenceAssignments(propBindings)}
+  const rest = omitProps(props);
 
   const innerRef = useRef(null);
-  const previousPropKeysRef = useRef(new Set());
+${generatePropRefs(propBindings)}
+${generateEventRefs(eventBindings)}
+  useImperativeHandle(ref, () => innerRef.current, []);
 
-  useImperativeHandle(ref, () => innerRef.current);
+${generatePropSyncEffect(propBindings)}
+${generateEventEffect(eventBindings)}
+${generateChildrenSetup(slotBindings)}
+  rest.ref = innerRef;
+  rest.className = className;
+  rest.style = style;
 
-  ${generatePropSyncLines(propBindings)}
-
-  ${generateEventEffects(eventBindings)}
-
-  const slotChildren = [];
-
-  ${generateNamedSlotRenderLines(slotBindings)}
-
-  if (children != null) {
-    slotChildren.push(children);
-  }
-
-  return createElement.apply(
-    null,
-    [
-      ${JSON.stringify(component.tag)},
-      Object.assign({}, rest, {
-        ref: innerRef,
-        className: className,
-        style: style,
-      }),
-    ].concat(slotChildren),
-  );
+  return ${generateReactRender(component.tag, slotBindings)};
 });
-
-function createNamedSlot(name, value) {
-  if (value == null || value === false) return null;
-
-  if (
-    isValidElement(value) &&
-    value.type !== Fragment
-  ) {
-    return cloneElement(value, { slot: name });
-  }
-
-  return createElement(
-    'span',
-    {
-      slot: name,
-      style: { display: 'contents' },
-    },
-    value,
-  );
-}
-
-function omitProps(source, keys) {
+${slotBindings.length ? NAMED_SLOT_HELPER : ''}
+function omitProps(source) {
   const output = {};
   for (const key in source) {
-    if (
-      Object.prototype.hasOwnProperty.call(source, key) &&
-      keys.indexOf(key) === -1
-    ) {
+    if (hasOwn(source, key) && !OMITTED_PROPS.has(key)) {
       output[key] = source[key];
     }
   }
   return output;
 }
+
+function hasOwn(source, key) {
+  return Object.prototype.hasOwnProperty.call(source, key);
+}
 `.trimStart()
 }
 
-function generatePropAssignments(bindings: Binding[]): string {
-  if (!bindings.length) return ''
+function createBindings(names: string[], prefix: string): Binding[] {
+  return names.map((sourceName, index) => ({
+    sourceName,
+    localName: `${prefix}${index}`,
+  }))
+}
 
+function createEventBindings(
+  events: ComponentRecord['events'],
+): EventBinding[] {
+  return Object.entries(events).map(([key, event], index) => {
+    const sourceEventName = event.key ?? key
+
+    return {
+      eventName: event.name ?? toKebabCase(sourceEventName),
+      sourceName: event.reactName ?? toReactEventProp(sourceEventName),
+      localName: `eventHandler${index}`,
+    }
+  })
+}
+
+function generatePropAssignments(bindings: Binding[]): string {
   return bindings
-    .map(({ sourceName, localName }) => {
-      return `    const ${localName} = props[${JSON.stringify(sourceName)}];`
-    })
+    .map(
+      ({ sourceName, localName }) =>
+        `  const ${localName} = props[${JSON.stringify(sourceName)}];`,
+    )
     .join('\n')
 }
 
-function generatePropSyncLines(bindings: Binding[]): string {
-  if (!bindings.length) {
-    return '// no props'
-  }
+function generatePropPresenceAssignments(bindings: Binding[]): string {
+  return bindings
+    .map(
+      ({ sourceName }, index) =>
+        `  const propPresent${index} = hasOwn(props, ${JSON.stringify(sourceName)});`,
+    )
+    .join('\n')
+}
 
-  return `useEffect(() => {
+function generatePropRefs(bindings: Binding[]): string {
+  if (!bindings.length) return ''
+
+  return `  const previousPropPresenceRef = useRef([]);
+  const previousPropValuesRef = useRef([]);`
+}
+
+function generateEventRefs(bindings: EventBinding[]): string {
+  if (!bindings.length) return ''
+
+  return `  const eventHandlersRef = useRef([]);
+${bindings
+  .map(
+    ({ localName }, index) =>
+      `  eventHandlersRef.current[${index}] = ${localName};`,
+  )
+  .join('\n')}`
+}
+
+function generatePropSyncEffect(bindings: Binding[]): string {
+  if (!bindings.length) return ''
+
+  const syncLines = bindings
+    .map(({ sourceName, localName }, index) => {
+      const key = JSON.stringify(sourceName)
+
+      return `    if (propPresent${index}) {
+      if (
+        !previousPropPresence[${index}] ||
+        !Object.is(previousPropValues[${index}], ${localName})
+      ) {
+        el[${key}] = ${localName};
+        previousPropValues[${index}] = ${localName};
+      }
+      previousPropPresence[${index}] = true;
+    } else if (previousPropPresence[${index}]) {
+      el[${key}] = undefined;
+      previousPropPresence[${index}] = false;
+      previousPropValues[${index}] = undefined;
+    }`
+    })
+    .join('\n\n')
+  const dependencies = bindings.flatMap((binding, index) => [
+    `propPresent${index}`,
+    binding.localName,
+  ])
+
+  return `  useEffect(() => {
     const el = innerRef.current;
     if (!el) return;
 
-    const previousPropKeys = previousPropKeysRef.current;
+    const previousPropPresence = previousPropPresenceRef.current;
+    const previousPropValues = previousPropValuesRef.current;
 
-    ${bindings
-      .map(({ sourceName, localName }) => {
-        const key = JSON.stringify(sourceName)
-
-        return `if (Object.prototype.hasOwnProperty.call(props, ${key})) {
-      el[${key}] = ${localName};
-      previousPropKeys.add(${key});
-    } else if (previousPropKeys.has(${key})) {
-      el[${key}] = undefined;
-      previousPropKeys.delete(${key});
-    }`
-      })
-      .join('\n\n    ')}
-  }, [props, ${bindings.map(binding => binding.localName).join(', ')}]);`
+${syncLines}
+  }, [${dependencies.join(', ')}]);
+`
 }
 
-function generateEventEffects(bindings: EventBinding[]): string {
-  return bindings
-    .map(({ eventName, localName }) => {
-      return `
-  useEffect(() => {
+function generateEventEffect(bindings: EventBinding[]): string {
+  if (!bindings.length) return ''
+
+  return `  useEffect(() => {
     const el = innerRef.current;
-    if (!el || !${localName}) return;
+    if (!el) return;
 
-    const handler = event => {
-      ${localName}(event);
-    };
+    const listeners = EVENT_NAMES.map(
+      (_eventName, index) => event => {
+        const handler = eventHandlersRef.current[index];
+        if (handler) handler(event);
+      },
+    );
 
-    el.addEventListener(${JSON.stringify(eventName)}, handler);
+    for (let index = 0; index < EVENT_NAMES.length; index += 1) {
+      el.addEventListener(EVENT_NAMES[index], listeners[index]);
+    }
 
     return () => {
-      el.removeEventListener(${JSON.stringify(eventName)}, handler);
+      for (let index = 0; index < EVENT_NAMES.length; index += 1) {
+        el.removeEventListener(EVENT_NAMES[index], listeners[index]);
+      }
     };
-  }, [${localName}]);
+  }, []);
 `
-    })
-    .join('')
+}
+
+function generateChildrenSetup(bindings: Binding[]): string {
+  if (!bindings.length) return ''
+
+  return `  const slotChildren = [];
+${bindings
+  .map(
+    ({ sourceName, localName }) => `  {
+    const node = createNamedSlot(${JSON.stringify(sourceName)}, ${localName});
+    if (node != null) slotChildren.push(node);
+  }`,
+  )
+  .join('\n')}
+  if (children != null) slotChildren.push(children);
+`
+}
+
+function generateReactRender(tag: string, slotBindings: Binding[]): string {
+  if (!slotBindings.length) {
+    return `createElement(${JSON.stringify(tag)}, rest, children)`
+  }
+
+  return `createElement.apply(
+    null,
+    [${JSON.stringify(tag)}, rest].concat(slotChildren),
+  )`
 }
 
 function getNamedSlots(
   component: ComponentRecord,
   namedSlots: 'props' | 'none',
 ): string[] {
-  if (namedSlots === 'none') return []
-
-  return Object.keys(component.slots).filter(name => name !== 'default')
-}
-
-function generateNamedSlotRenderLines(bindings: Binding[]): string {
-  return bindings
-    .map(({ sourceName, localName }) => {
-      return `
-  {
-    const node = createNamedSlot(${JSON.stringify(sourceName)}, ${localName});
-    if (node != null) slotChildren.push(node);
-  }
-`
-    })
-    .join('')
+  return namedSlots === 'none'
+    ? []
+    : Object.keys(component.slots).filter(name => name !== 'default')
 }
 
 function generateMinimalNamedSlots(bindings: Binding[]): string {
   if (!bindings.length) return ''
 
   const lines = bindings.map(({ sourceName, localName }, index) => {
-    const nodeName = `slotNode${index}`
-
-    return `    const ${nodeName} = ${localName} != null && ${localName} !== false
+    return `    const slotNode${index} = ${localName} != null && ${localName} !== false
       ? (React.isValidElement(${localName}) && ${localName}.type !== React.Fragment
           ? React.cloneElement(${localName}, { slot: ${JSON.stringify(sourceName)} })
           : React.createElement('span', { slot: ${JSON.stringify(sourceName)}, style: { display: 'contents' } }, ${localName}))
-      : null;
-`
+      : null;`
   })
 
-  return (
-    lines.join('') +
-    '\n    const slotNodes = [' +
-    bindings.map((_, index) => `slotNode${index}`).join(', ') +
-    '].filter(Boolean);\n'
-  )
+  return `${lines.join('\n')}
+    const slotNodes = [${bindings.map((_, index) => `slotNode${index}`).join(', ')}].filter(Boolean);`
 }
+
+function toKebabCase(value: string): string {
+  return value.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
+}
+
+function toReactEventProp(value: string): string {
+  return `on${value
+    .split('-')
+    .filter(Boolean)
+    .map(part => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join('')}`
+}
+
+const PUSH_ALL_HELPER = `
+function pushAll(target, values) {
+  for (const value of values) target.push(value);
+}
+`
+
+const NAMED_SLOT_HELPER = `
+function createNamedSlot(name, value) {
+  if (value == null || value === false) return null;
+
+  if (isValidElement(value) && value.type !== Fragment) {
+    return cloneElement(value, { slot: name });
+  }
+
+  return createElement(
+    'span',
+    { slot: name, style: { display: 'contents' } },
+    value,
+  );
+}
+`

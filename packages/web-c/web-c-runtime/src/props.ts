@@ -52,8 +52,9 @@ export function setPropValue(
   }
 
   hostRef.values.set(prop.name, value)
+  hostRef.attributeProps.delete(prop.name)
 
-  if (prop.reflect) {
+  if (prop.reflect && !prop.serialize) {
     reflectPropertyToAttribute(hostRef, prop, value)
   }
 
@@ -88,6 +89,7 @@ export function syncAttributeToProperty(
   }
 
   hostRef.values.set(prop.name, newPropValue)
+  hostRef.attributeProps.add(prop.name)
 
   if (hostRef.loaded) {
     hostRef.instance?.propertyChanged?.(prop.name, oldPropValue, newPropValue)
@@ -109,6 +111,7 @@ export function applyInitialValues(hostRef: HostRef): void {
         prop.name,
         parseAttributeValue(prop, host.getAttribute(attrName)),
       )
+      hostRef.attributeProps.add(prop.name)
       continue
     }
 
@@ -178,7 +181,7 @@ function getAttrName(prop: ZeusPropMeta): string | undefined {
     return undefined
   }
 
-  if (!isAttributeBackedType(prop.type)) {
+  if (!isAttributeBackedType(prop.type) && !prop.deserialize) {
     return undefined
   }
 
@@ -197,6 +200,10 @@ function parseAttributeValue(
   prop: ZeusPropMeta,
   value: string | null,
 ): unknown {
+  if (prop.deserialize) {
+    return value
+  }
+
   switch (prop.type) {
     case 'boolean':
       return value !== null

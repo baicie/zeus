@@ -1,7 +1,6 @@
 import { defineConfig } from 'vite'
 
-import zeus from '@zeus-js/bundler-plugin/vite'
-import wc from '@zeus-js/output-wc'
+import zeus, { wc } from '@zeus-js/web-c/vite'
 
 export default defineConfig({
   plugins: [

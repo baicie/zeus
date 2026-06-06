@@ -1,7 +1,13 @@
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { Slot, defineElement } from '../src'
+import {
+  Slot,
+  defineElement,
+  event,
+  mountElementDefinition,
+  prop,
+} from '../src'
 import { insertTracked } from '../src'
 
 let uid = 0
@@ -30,6 +36,7 @@ describe('defineElement', () => {
     vi.stubGlobal('MouseEvent', dom.window.MouseEvent)
     vi.stubGlobal('Event', dom.window.Event)
     vi.stubGlobal('CustomEvent', dom.window.CustomEvent)
+    Reflect.deleteProperty(dom.window.HTMLElement.prototype, 'attachInternals')
   })
 
   afterEach(() => {
@@ -205,6 +212,249 @@ describe('defineElement', () => {
     expect(el.hasAttribute('active')).toBe(false)
   })
 
+  it('passes ElementInternals to form-associated element setup', async () => {
+    const tag = createTag('form-associated')
+    const internals = {
+      setFormValue: vi.fn(),
+    } as unknown as ElementInternals
+    const attachInternals = vi.fn(() => internals)
+    let captured: ElementInternals | undefined
+
+    Object.defineProperty(dom.window.HTMLElement.prototype, 'attachInternals', {
+      configurable: true,
+      value: attachInternals,
+    })
+
+    const ctor = defineElement(
+      tag,
+      {
+        shadow: false,
+        formAssociated: true,
+      },
+      (_props, context) => {
+        captured = context.internals
+        const el = document.createElement('span')
+        el.textContent = context.internals ? 'associated' : 'missing'
+        return el
+      },
+    )
+
+    const el = document.createElement(tag)
+    document.body.appendChild(el)
+
+    await nextFrame()
+
+    expect(
+      (ctor as unknown as { formAssociated: boolean }).formAssociated,
+    ).toBe(true)
+    expect(attachInternals).toHaveBeenCalledTimes(1)
+    expect(captured).toBe(internals)
+    expect(el.textContent).toBe('associated')
+  })
+
+  it('synchronizes form value and forwards form lifecycle callbacks', async () => {
+    const tag = createTag('form-lifecycle')
+    const setFormValue = vi.fn()
+    const internals = {
+      setFormValue,
+    } as unknown as ElementInternals
+    const associated = vi.fn()
+    const disabled = vi.fn()
+    const reset = vi.fn()
+    const stateRestore = vi.fn()
+
+    Object.defineProperty(dom.window.HTMLElement.prototype, 'attachInternals', {
+      configurable: true,
+      value: vi.fn(() => internals),
+    })
+
+    defineElement<{ value?: string; state?: string }>(
+      tag,
+      {
+        shadow: false,
+        formAssociated: true,
+        props: {
+          value: {
+            type: String,
+            default: '',
+          },
+          state: {
+            type: String,
+            default: 'initial',
+          },
+        },
+        form: {
+          value: 'value',
+          state: props => props.state ?? null,
+          associated,
+          disabled,
+          reset,
+          stateRestore,
+        },
+      },
+      () => document.createElement('input'),
+    )
+
+    const el = document.createElement(tag) as HTMLElement & {
+      value?: string
+      formAssociatedCallback(form: HTMLFormElement | null): void
+      formDisabledCallback(disabled: boolean): void
+      formResetCallback(): void
+      formStateRestoreCallback(
+        state: File | FormData | string | null,
+        mode: 'restore' | 'autocomplete',
+      ): void
+    }
+    document.body.appendChild(el)
+
+    await nextFrame()
+
+    expect(setFormValue).toHaveBeenLastCalledWith('', 'initial')
+
+    el.value = 'next'
+    await nextFrame()
+
+    expect(setFormValue).toHaveBeenLastCalledWith('next', 'initial')
+
+    const form = document.createElement('form')
+    el.formAssociatedCallback(form)
+    el.formDisabledCallback(true)
+    el.formResetCallback()
+    el.formStateRestoreCallback('restored', 'restore')
+
+    expect(associated).toHaveBeenCalledWith(
+      form,
+      expect.any(Object),
+      expect.objectContaining({ host: el, internals }),
+    )
+    expect(disabled).toHaveBeenCalledWith(
+      true,
+      expect.any(Object),
+      expect.objectContaining({ host: el, internals }),
+    )
+    expect(reset).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({ host: el, internals }),
+    )
+    expect(stateRestore).toHaveBeenCalledWith(
+      'restored',
+      'restore',
+      expect.any(Object),
+      expect.objectContaining({ host: el, internals }),
+    )
+  })
+
+  it('supports custom prop serialization and deserialization', async () => {
+    const tag = createTag('prop-serialization')
+
+    defineElement<{ items?: string[] }>(
+      tag,
+      {
+        shadow: false,
+        props: {
+          items: {
+            type: Array,
+            attr: 'items',
+            reflect: true,
+            default: () => [],
+            serialize: value => (value?.length ? value.join('|') : null),
+            deserialize: value => (value ? value.split('|') : []),
+          },
+        },
+      },
+      props => {
+        const el = document.createElement('span')
+        el.textContent = props.items?.join(',') ?? ''
+        return el
+      },
+    )
+
+    const el = document.createElement(tag) as HTMLElement & {
+      items?: string[]
+    }
+    el.setAttribute('items', 'a|b')
+    document.body.appendChild(el)
+
+    await nextFrame()
+
+    expect(el.items).toEqual(['a', 'b'])
+    expect(el.textContent).toBe('a,b')
+
+    el.items = ['c', 'd']
+
+    await nextFrame()
+
+    expect(el.getAttribute('items')).toBe('c|d')
+
+    el.items = []
+
+    await nextFrame()
+
+    expect(el.hasAttribute('items')).toBe(false)
+  })
+
+  it('applies custom serialization when mounted through a lazy proxy', async () => {
+    const tag = createTag('lazy-prop-serialization')
+    let capturedProps: Readonly<{ items?: string[] }> | undefined
+    const ctor = defineElement<{ items?: string[] }>(
+      tag,
+      {
+        shadow: false,
+        props: {
+          items: {
+            type: Array,
+            attr: 'items',
+            reflect: true,
+            default: () => [],
+            serialize: value => (value?.length ? value.join('|') : null),
+            deserialize: value => (value ? value.split('|') : []),
+          },
+        },
+      },
+      props => {
+        capturedProps = props
+        const el = document.createElement('span')
+        el.textContent = props.items?.join(',') ?? ''
+        return el
+      },
+    )
+    const host = document.createElement('div')
+    host.setAttribute('items', 'a|b')
+    const values = new Map<string, unknown>([['items', 'a|b']])
+
+    const attributeProps = new Set(['items'])
+    const mounted = mountElementDefinition(ctor, host, values, {
+      attributeProps,
+    })
+
+    await nextFrame()
+
+    expect(host.textContent).toBe('a,b')
+    expect(capturedProps?.items).toEqual(['a', 'b'])
+
+    attributeProps.delete('items')
+    mounted.propertyChanged('items', ['a', 'b'], ['c', 'd'])
+    await nextFrame()
+
+    expect(host.getAttribute('items')).toBe('c|d')
+
+    attributeProps.add('items')
+    host.setAttribute('items', 'e|f')
+    mounted.propertyChanged('items', ['c', 'd'], 'e|f')
+    await nextFrame()
+
+    expect(capturedProps?.items).toEqual(['e', 'f'])
+    expect(host.getAttribute('items')).toBe('e|f')
+
+    attributeProps.add('items')
+    host.removeAttribute('items')
+    mounted.propertyChanged('items', ['e', 'f'], null)
+    await nextFrame()
+
+    expect(capturedProps?.items).toEqual([])
+    expect(host.hasAttribute('items')).toBe(false)
+  })
+
   it('supports object and array props through properties', async () => {
     const tag = createTag('object-array')
 
@@ -255,6 +505,9 @@ describe('defineElement', () => {
       tag,
       {
         shadow: false,
+        emits: {
+          change: event<{ value: string }>(),
+        },
         props: {
           value: {
             type: String,
@@ -266,7 +519,7 @@ describe('defineElement', () => {
         const button = document.createElement('button')
         button.textContent = 'click'
         button.addEventListener('click', () => {
-          emit('change', {
+          emit.change({
             value: props.value,
           })
         })
@@ -290,16 +543,114 @@ describe('defineElement', () => {
 
     expect(onChange).toHaveBeenCalledTimes(1)
 
-    const event = onChange.mock.calls[0][0] as CustomEvent<{
+    const dispatchedEvent = onChange.mock.calls[0][0] as CustomEvent<{
       value: string
     }>
 
-    expect(event.detail).toEqual({
+    expect(dispatchedEvent.detail).toEqual({
       value: 'ok',
     })
-    expect(event.bubbles).toBe(true)
-    expect(event.composed).toBe(true)
-    expect(event.cancelable).toBe(true)
+    expect(dispatchedEvent.bubbles).toBe(true)
+    expect(dispatchedEvent.composed).toBe(true)
+    expect(dispatchedEvent.cancelable).toBe(false)
+  })
+
+  it('dispatches declared events and exposes host methods', async () => {
+    const tag = createTag('primitive-events')
+
+    defineElement(
+      tag,
+      {
+        shadow: false,
+        emits: {
+          valueChange: event<{ value: string }>(),
+          customChange: event<{ value: string }>('custom-change'),
+        },
+        props: {
+          variant: prop(['primary', 'secondary'], {
+            default: 'primary',
+          }),
+          formatter: Function,
+        },
+      },
+      (props, { emit, expose }) => {
+        expose({
+          focus() {
+            return props.variant
+          },
+        })
+
+        const button = document.createElement('button')
+        button.addEventListener('click', () => {
+          emit.valueChange({ value: 'a' })
+          emit.customChange({ value: 'b' })
+        })
+        return button
+      },
+    )
+
+    const valueChange = vi.fn()
+    const customChange = vi.fn()
+
+    const el = document.createElement(tag) as HTMLElement & {
+      focus(): string
+    }
+    el.setAttribute('formatter', 'ignored')
+    el.addEventListener('value-change', valueChange)
+    el.addEventListener('custom-change', customChange)
+    document.body.appendChild(el)
+
+    await nextFrame()
+
+    el.querySelector('button')!.dispatchEvent(
+      new MouseEvent('click', {
+        bubbles: true,
+      }),
+    )
+
+    expect(valueChange).toHaveBeenCalledTimes(1)
+    expect(customChange).toHaveBeenCalledTimes(1)
+    expect(valueChange.mock.calls[0][0].detail).toEqual({ value: 'a' })
+    expect(customChange.mock.calls[0][0].detail).toEqual({ value: 'b' })
+    expect(valueChange.mock.calls[0][0].cancelable).toBe(false)
+    expect(el.focus()).toBe('primary')
+    expect('formatter' in el).toBe(true)
+    expect((el as unknown as { formatter?: unknown }).formatter).toBeUndefined()
+  })
+
+  it('supports reflected boolean prop shorthand', async () => {
+    const tag = createTag('boolean-prop-shorthand')
+
+    defineElement<{ disabled?: boolean }>(
+      tag,
+      {
+        shadow: false,
+        props: {
+          disabled: prop(Boolean),
+        },
+      },
+      props => {
+        const button = document.createElement('button')
+        button.textContent = String(props.disabled)
+        return button
+      },
+    )
+
+    const el = document.createElement(tag) as HTMLElement & {
+      disabled?: boolean
+    }
+    document.body.appendChild(el)
+
+    await nextFrame()
+
+    expect(el.disabled).toBe(false)
+    expect(el.hasAttribute('disabled')).toBe(false)
+
+    el.disabled = true
+
+    await nextFrame()
+
+    expect(el.hasAttribute('disabled')).toBe(true)
   })
 
   it('renders into shadow root when shadow is true', async () => {

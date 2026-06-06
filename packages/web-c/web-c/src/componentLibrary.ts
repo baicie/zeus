@@ -53,10 +53,10 @@ export interface ComponentLibraryPresetOptions {
    * Vue / React wrapper mode.
    *
    * minimal:
-   *   Default. Only renders the custom element tag. No watch/sync/event bridge.
+   *   Only renders the custom element tag. No watch/sync/event bridge.
    *
    * event-bridge:
-   *   Additional mode with prop sync and event listeners.
+   *   Default. Adds prop sync and event listeners for declared component events.
    */
   wrapper?: WebCWrapperMode
 }
@@ -99,7 +99,7 @@ export function componentLibrary(
   if (targets.has('react')) {
     const reactOptions: OutputReactWrapperOptions = {
       dts: options.dts ?? true,
-      wrapper: options.wrapper ?? 'minimal',
+      wrapper: options.wrapper ?? 'event-bridge',
     }
     plugins.push(react(reactOptions))
   }
@@ -108,7 +108,7 @@ export function componentLibrary(
     const vueOptions: OutputVueWrapperOptions = {
       dts: options.dts ?? true,
       globalDts: options.dts ?? 'auto',
-      wrapper: options.wrapper ?? 'minimal',
+      wrapper: options.wrapper ?? 'event-bridge',
     }
     plugins.push(vue(vueOptions))
   }

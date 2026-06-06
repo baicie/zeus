@@ -4,22 +4,38 @@ import { getObjectKey, getObjectProperty, staticValue } from './utils'
 
 import type { ComponentProp, ComponentPropType } from './types'
 
-export interface ExtractedShadow {
+export interface ExtractedComponentOptions {
   shadow?: boolean
+  formAssociated?: boolean
 }
 
-export function extractShadowOption(
+export function extractComponentOptions(
   options: t.ObjectExpression | undefined,
-): ExtractedShadow {
+): ExtractedComponentOptions {
   if (!options) return {}
 
+  const result: ExtractedComponentOptions = {}
   const shadowNode = getObjectProperty(options, 'shadow')
-  if (!shadowNode) return {}
 
-  const value = staticValue(shadowNode)
-  if (typeof value !== 'boolean') return {}
+  if (shadowNode) {
+    const value = staticValue(shadowNode)
 
-  return { shadow: value }
+    if (typeof value === 'boolean') {
+      result.shadow = value
+    }
+  }
+
+  const formAssociatedNode = getObjectProperty(options, 'formAssociated')
+
+  if (formAssociatedNode) {
+    const value = staticValue(formAssociatedNode)
+
+    if (typeof value === 'boolean') {
+      result.formAssociated = value
+    }
+  }
+
+  return result
 }
 
 export function extractRuntimeProps(
@@ -101,16 +117,21 @@ export function validateRuntimePropsDefinition(
     if (t.isIdentifier(member.value)) {
       if (!isPropConstructorName(member.value.name)) {
         messages.push(
-          `Prop "${propName}" must use String, Number, Boolean, Object, Array, or an inline prop options object.`,
+          `Prop "${propName}" must use String, Number, Boolean, Object, Array, Function, prop(values), prop(Constructor), or an inline prop options object.`,
         )
       }
 
       continue
     }
 
+    if (isPropCall(member.value)) {
+      validatePropCall(propName, member.value, messages)
+      continue
+    }
+
     if (!t.isObjectExpression(member.value)) {
       messages.push(
-        `Prop "${propName}" must use an inline prop options object.`,
+        `Prop "${propName}" must use an inline prop options object, prop(values), or prop(Constructor).`,
       )
       continue
     }
@@ -147,7 +168,7 @@ function validatePropOptions(
         !isPropConstructorName(member.value.name)
       ) {
         messages.push(
-          `Prop "${propName}" type must be String, Number, Boolean, Object, or Array.`,
+          `Prop "${propName}" type must be String, Number, Boolean, Object, Array, or Function.`,
         )
       }
 
@@ -184,6 +205,24 @@ function validatePropOptions(
       if (value !== undefined && typeof value !== 'boolean') {
         messages.push(`Prop "${propName}" reflect must be a static boolean.`)
       }
+
+      continue
+    }
+
+    if (optionName === 'values') {
+      if (!isStaticStringArray(member.value)) {
+        messages.push(
+          `Prop "${propName}" values must be a static string array.`,
+        )
+      }
+
+      continue
+    }
+
+    if (optionName === 'serialize' || optionName === 'deserialize') {
+      if (!isFunctionLikeReference(member.value)) {
+        messages.push(`Prop "${propName}" ${optionName} must be a function.`)
+      }
     }
   }
 }
@@ -195,11 +234,17 @@ function extractRuntimeProp(node: t.Expression | t.PatternLike): ComponentProp {
     }
   }
 
+  if (isPropCall(node)) {
+    return extractPropCall(node)
+  }
+
   if (t.isObjectExpression(node)) {
     const typeNode = getObjectProperty(node, 'type')
     const attrNode = getObjectProperty(node, 'attr')
     const reflectNode = getObjectProperty(node, 'reflect')
     const defaultNode = getObjectProperty(node, 'default')
+    const serializeNode = getObjectProperty(node, 'serialize')
+    const deserializeNode = getObjectProperty(node, 'deserialize')
 
     const type = t.isIdentifier(typeNode)
       ? typeFromConstructorName(typeNode.name)
@@ -234,6 +279,21 @@ function extractRuntimeProp(node: t.Expression | t.PatternLike): ComponentProp {
       }
     }
 
+    if (serializeNode) {
+      prop.serialize = true
+    }
+
+    if (deserializeNode) {
+      prop.deserialize = true
+    }
+
+    const valuesNode = getObjectProperty(node, 'values')
+    const values = extractStaticStringArray(valuesNode)
+
+    if (values) {
+      prop.values = values
+    }
+
     return prop
   }
 
@@ -242,18 +302,112 @@ function extractRuntimeProp(node: t.Expression | t.PatternLike): ComponentProp {
   }
 }
 
+function isPropCall(node: t.Node): node is t.CallExpression {
+  return (
+    t.isCallExpression(node) && t.isIdentifier(node.callee, { name: 'prop' })
+  )
+}
+
+function validatePropCall(
+  propName: string,
+  node: t.CallExpression,
+  messages: string[],
+): void {
+  if (
+    !isStaticStringArray(node.arguments[0]) &&
+    !isPropConstructorArgument(node.arguments[0])
+  ) {
+    messages.push(
+      `Prop "${propName}" prop() first argument must be a static string array or prop constructor.`,
+    )
+  }
+
+  const optionsNode = node.arguments[1]
+
+  if (optionsNode && !t.isObjectExpression(optionsNode)) {
+    messages.push(
+      `Prop "${propName}" prop() options must be an inline object literal.`,
+    )
+    return
+  }
+
+  if (t.isObjectExpression(optionsNode)) {
+    validatePropOptions(propName, optionsNode, messages)
+  }
+}
+
+function extractPropCall(node: t.CallExpression): ComponentProp {
+  const inputNode = node.arguments[0]
+  const optionsNode = node.arguments[1]
+  const prop = t.isObjectExpression(optionsNode)
+    ? extractRuntimeProp(optionsNode)
+    : ({ type: 'string' } satisfies ComponentProp)
+
+  if (isPropConstructorArgument(inputNode)) {
+    prop.type = typeFromConstructorName(inputNode.name)
+
+    if (inputNode.name === 'Boolean') {
+      prop.default ??= false
+      prop.reflect ??= true
+    }
+
+    return prop
+  }
+
+  prop.type = 'string'
+  prop.values = extractStaticStringArray(node.arguments[0]) ?? []
+
+  return prop
+}
+
+function isPropConstructorArgument(
+  node: t.Node | null | undefined,
+): node is t.Identifier {
+  return t.isIdentifier(node) && isPropConstructorName(node.name)
+}
+
+function isStaticStringArray(
+  node: t.Node | null | undefined,
+): node is t.ArrayExpression {
+  return Boolean(extractStaticStringArray(node))
+}
+
+function extractStaticStringArray(
+  node: t.Node | null | undefined,
+): string[] | undefined {
+  if (!t.isArrayExpression(node)) return undefined
+
+  const values: string[] = []
+
+  for (const item of node.elements) {
+    if (!t.isStringLiteral(item)) return undefined
+    values.push(item.value)
+  }
+
+  return values
+}
+
 function isPropConstructorName(name: string): boolean {
   return (
     name === 'String' ||
     name === 'Number' ||
     name === 'Boolean' ||
     name === 'Object' ||
-    name === 'Array'
+    name === 'Array' ||
+    name === 'Function'
   )
 }
 
 function isExplicitUndefined(node: t.Node): boolean {
   return t.isIdentifier(node) && node.name === 'undefined'
+}
+
+function isFunctionLikeReference(node: t.Node): boolean {
+  return (
+    t.isFunctionExpression(node) ||
+    t.isArrowFunctionExpression(node) ||
+    t.isIdentifier(node)
+  )
 }
 
 function typeFromConstructorName(name: string): ComponentPropType {
@@ -268,6 +422,8 @@ function typeFromConstructorName(name: string): ComponentPropType {
       return 'object'
     case 'Array':
       return 'array'
+    case 'Function':
+      return 'function'
     default:
       return 'unknown'
   }

@@ -28,7 +28,7 @@ describe('generateReactDts', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         },
       ],
     })
@@ -55,7 +55,7 @@ describe('generateReactDts', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         },
       ],
     })
@@ -81,7 +81,7 @@ describe('generateReactDts', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         },
       ],
     })
@@ -103,7 +103,7 @@ describe('generateReactDts', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         },
         {
           tag: 'z-card',
@@ -115,7 +115,7 @@ describe('generateReactDts', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         },
       ],
     })
@@ -142,7 +142,7 @@ describe('generateReactDts', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         },
       ],
     })
@@ -172,7 +172,7 @@ describe('generateReactDts', () => {
             },
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       },
@@ -203,7 +203,7 @@ describe('generateReactDts', () => {
           },
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         },
       ],
     })

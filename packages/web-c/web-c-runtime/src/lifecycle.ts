@@ -1,5 +1,6 @@
 // packages/web-c-runtime/src/lifecycle.ts
 
+import { invokeFormCallback } from './form-callbacks'
 import { applyInitialValues } from './props'
 
 import type { HostRef, ZeusComponentModule } from './types'
@@ -22,6 +23,7 @@ export function waitForComponentReady(hostRef: HostRef): Promise<HTMLElement> {
 export async function initializeComponent(hostRef: HostRef): Promise<void> {
   if (hostRef.loaded) {
     hostRef.instance?.connected?.()
+    flushPendingFormCallbacks(hostRef)
     return
   }
 
@@ -61,6 +63,7 @@ async function doInitializeComponent(hostRef: HostRef): Promise<void> {
 
   try {
     instance.connected?.()
+    flushPendingFormCallbacks(hostRef)
 
     const rendered = instance.render?.()
 
@@ -78,6 +81,13 @@ async function doInitializeComponent(hostRef: HostRef): Promise<void> {
     instance.dispose?.()
 
     throw error
+  }
+}
+
+function flushPendingFormCallbacks(hostRef: HostRef): void {
+  while (hostRef.pendingFormCallbacks.length > 0) {
+    invokeFormCallback(hostRef, hostRef.pendingFormCallbacks[0])
+    hostRef.pendingFormCallbacks.shift()
   }
 }
 

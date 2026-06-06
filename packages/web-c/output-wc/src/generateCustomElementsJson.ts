@@ -41,7 +41,7 @@ export interface CustomElementAttribute {
 }
 
 export interface CustomElementMember {
-  kind: 'field'
+  kind: 'field' | 'method'
   name: string
   description?: string
   type?: {
@@ -112,7 +112,10 @@ export function generateCustomElementsJson(
             events: generateEvents(component),
             slots: generateSlots(component),
             cssParts: component.cssParts.map(name => ({ name })),
-            cssProperties: component.cssVars.map(name => ({ name })),
+            cssProperties: getCssVars(component).map(variable => ({
+              name: variable.name,
+              description: variable.description,
+            })),
           },
         ],
         exports: [
@@ -157,7 +160,7 @@ function generateAttributes(
 }
 
 function generateMembers(component: ComponentRecord): CustomElementMember[] {
-  return Object.entries(component.props).map(([name, prop]) => {
+  const fields = Object.entries(component.props).map(([name, prop]) => {
     return {
       kind: 'field' as const,
       name,
@@ -169,12 +172,21 @@ function generateMembers(component: ComponentRecord): CustomElementMember[] {
         prop.default === undefined ? undefined : JSON.stringify(prop.default),
     }
   })
+
+  const methods = Object.keys(component.methods ?? {}).map(name => {
+    return {
+      kind: 'method' as const,
+      name,
+    }
+  })
+
+  return [...fields, ...methods]
 }
 
 function generateEvents(component: ComponentRecord): CustomElementEvent[] {
-  return Object.entries(component.events).map(([name, event]) => {
+  return Object.entries(component.events).map(([key, event]) => {
     return {
-      name,
+      name: event.name ?? toKebabCase(event.key ?? key),
       description: event.description,
       type: {
         text: event.detail
@@ -186,7 +198,9 @@ function generateEvents(component: ComponentRecord): CustomElementEvent[] {
 }
 
 function generateSlots(component: ComponentRecord): CustomElementSlot[] {
-  return Object.entries(component.slots).map(([name, slot]) => {
+  return Object.entries(component.slots).map(([key, slot]) => {
+    const name = slot.name ?? key
+
     return {
       name: name === 'default' ? '' : name,
       description: slot.description,
@@ -200,6 +214,7 @@ function getAttributeName(
 ): string | false {
   if (prop.attr === false) return false
   if (typeof prop.attr === 'string') return prop.attr
+  if (!isAttributeBackedType(prop.type)) return false
 
   return propName.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
 }
@@ -220,9 +235,15 @@ function formatPropType(prop: ComponentProp): string {
       return 'unknown[]'
     case 'object':
       return 'Record<string, unknown>'
+    case 'function':
+      return 'Function'
     default:
       return 'unknown'
   }
+}
+
+function isAttributeBackedType(type: ComponentProp['type']): boolean {
+  return type === 'string' || type === 'number' || type === 'boolean'
 }
 
 function formatDetailType(detail: Record<string, string>): string {
@@ -235,4 +256,14 @@ function formatDetailType(detail: Record<string, string>): string {
 
 function normalizeModulePath(value: string): string {
   return value.replace(/\\/g, '/')
+}
+
+function getCssVars(
+  component: ComponentRecord,
+): Array<{ name: string; description?: string }> {
+  return Object.values(component.cssVars)
+}
+
+function toKebabCase(value: string): string {
+  return value.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
 }

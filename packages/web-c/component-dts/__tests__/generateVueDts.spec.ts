@@ -3,6 +3,43 @@ import { describe, expect, it } from 'vitest'
 import { generateVueDts, generateVueGlobalDts } from '../src/generateVueDts'
 
 describe('generateVueDts', () => {
+  it('includes Vue model update event types', () => {
+    const code = generateVueDts({
+      version: 1,
+      components: [
+        {
+          tag: 'z-input',
+          name: 'ZInput',
+          exportName: 'ZInput',
+          source: 'src/input.tsx',
+          props: {
+            value: {
+              type: 'string',
+            },
+          },
+          events: {
+            valueChange: {
+              name: 'value-change',
+            },
+          },
+          models: [
+            {
+              prop: 'value',
+              event: 'value-change',
+              eventPath: 'detail.value',
+            },
+          ],
+          slots: {},
+          hostAttributes: [],
+          cssParts: [],
+          cssVars: {},
+        },
+      ],
+    })
+
+    expect(code).toContain('"update:value": (value: string) => void')
+  })
+
   it('generates Vue wrapper dts', () => {
     const code = generateVueDts({
       version: 1,
@@ -28,7 +65,7 @@ describe('generateVueDts', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         },
       ],
     })
@@ -57,7 +94,7 @@ describe('generateVueDts', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         },
       ],
     })
@@ -79,7 +116,7 @@ describe('generateVueDts', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         },
       ],
     })
@@ -103,7 +140,7 @@ describe('generateVueGlobalDts', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         },
       ],
     })
@@ -126,7 +163,7 @@ describe('generateVueGlobalDts', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         },
         {
           tag: 'z-card',
@@ -138,7 +175,7 @@ describe('generateVueGlobalDts', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         },
       ],
     })

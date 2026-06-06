@@ -131,7 +131,7 @@ function emitAttrBinding(
     return t.expressionStatement(
       t.callExpression(context.importRuntime('bindClass'), [
         t.identifier(target.ref.name),
-        t.arrowFunctionExpression([], binding.expr),
+        emitGetter(binding.expr),
       ]),
     )
   }
@@ -140,7 +140,7 @@ function emitAttrBinding(
     return t.expressionStatement(
       t.callExpression(context.importRuntime('bindStyle'), [
         t.identifier(target.ref.name),
-        t.arrowFunctionExpression([], binding.expr),
+        emitGetter(binding.expr),
       ]),
     )
   }
@@ -149,7 +149,7 @@ function emitAttrBinding(
     t.callExpression(context.importRuntime('bindAttr'), [
       t.identifier(target.ref.name),
       t.stringLiteral(name),
-      t.arrowFunctionExpression([], binding.expr),
+      emitGetter(binding.expr),
     ]),
   )
 }
@@ -203,9 +203,17 @@ function emitPropBinding(
     t.callExpression(context.importRuntime('bindProp'), [
       t.identifier(target.ref.name),
       t.stringLiteral(binding.name),
-      t.arrowFunctionExpression([], binding.expr),
+      emitGetter(binding.expr),
     ]),
   )
+}
+
+function emitGetter(expr: t.Expression): t.Expression {
+  if (t.isArrowFunctionExpression(expr) || t.isFunctionExpression(expr)) {
+    return expr
+  }
+
+  return t.arrowFunctionExpression([], expr)
 }
 
 function emitRefBinding(

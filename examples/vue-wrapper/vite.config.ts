@@ -1,9 +1,7 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
-import zeus from '@zeus-js/bundler-plugin/vite'
-import wc from '@zeus-js/output-wc'
-import vueWrapper from '@zeus-js/output-vue-wrapper'
+import zeus, { vue as vueWrapper, wc } from '@zeus-js/web-c/vite'
 
 export default defineConfig({
   plugins: [
@@ -19,6 +17,7 @@ export default defineConfig({
         }),
         vueWrapper({
           outDir: 'vue',
+          wrapper: 'event-bridge',
         }),
       ],
     }),

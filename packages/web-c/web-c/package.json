@@ -1,0 +1,101 @@
+{
+  "name": "@zeus-js/web-c",
+  "version": "0.1.0-beta.3",
+  "description": "Zeus Web-C component library toolchain",
+  "type": "module",
+  "main": "index.js",
+  "module": "dist/web-c.esm-bundler.js",
+  "types": "dist/web-c.d.ts",
+  "files": [
+    "index.js",
+    "vite.js",
+    "rollup.js",
+    "rolldown.js",
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/web-c.d.ts",
+      "module": "./dist/web-c.esm-bundler.js",
+      "import": "./dist/web-c.esm-bundler.js",
+      "require": "./index.js",
+      "node": {
+        "production": "./dist/web-c.cjs.prod.js",
+        "development": "./dist/web-c.cjs.js",
+        "default": "./index.js"
+      }
+    },
+    "./vite": {
+      "types": "./dist/vite.d.ts",
+      "import": "./dist/vite.js"
+    },
+    "./rollup": {
+      "types": "./dist/rollup.d.ts",
+      "import": "./dist/rollup.js"
+    },
+    "./rolldown": {
+      "types": "./dist/rolldown.d.ts",
+      "import": "./dist/rolldown.js"
+    }
+  },
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baicie/zeus"
+  },
+  "buildOptions": {
+    "name": "ZeusWebC",
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ],
+    "additionalEntries": [
+      {
+        "entry": "vite.ts",
+        "output": "dist/vite.js"
+      },
+      {
+        "entry": "rollup.ts",
+        "output": "dist/rollup.js"
+      },
+      {
+        "entry": "rolldown.ts",
+        "output": "dist/rolldown.js"
+      }
+    ]
+  },
+  "dependencies": {
+    "@zeus-js/bundler-plugin": "workspace:*",
+    "@zeus-js/component-analyzer": "workspace:*",
+    "@zeus-js/component-dts": "workspace:*",
+    "@zeus-js/output-css": "workspace:*",
+    "@zeus-js/output-icons": "workspace:*",
+    "@zeus-js/output-react-wrapper": "workspace:*",
+    "@zeus-js/output-vue-wrapper": "workspace:*",
+    "@zeus-js/output-wc": "workspace:*"
+  },
+  "peerDependencies": {
+    "rolldown": "^1.0.0",
+    "rollup": "^4.0.0",
+    "vite": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "rolldown": {
+      "optional": true
+    },
+    "rollup": {
+      "optional": true
+    },
+    "vite": {
+      "optional": true
+    }
+  },
+  "keywords": [
+    "zeus",
+    "web-c",
+    "web-components",
+    "component-library"
+  ],
+  "author": "Baicie",
+  "license": "MIT"
+}

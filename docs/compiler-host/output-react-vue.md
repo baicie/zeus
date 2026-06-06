@@ -1,84 +1,117 @@
 # React / Vue Wrapper Output
 
-Generate framework-specific wrappers from the same `defineElement` source.
+React and Vue wrappers are generated from the same `ComponentManifest` as the Web Component output. They do not re-analyze source code.
+
+## Recommended Build Setup
+
+Use the Web-C aggregate package for component library builds:
+
+```ts
+import zeus, { componentLibrary } from '@zeus-js/web-c/rolldown'
+
+export default zeus({
+  components: {
+    include: ['src/components/**/*.{ts,tsx}'],
+  },
+  plugins: componentLibrary({
+    targets: ['wc', 'react', 'vue'],
+    register: 'lazy',
+    wrapper: 'event-bridge',
+  }),
+})
+```
+
+The individual output packages remain available for advanced internal composition, but `@zeus-js/web-c` is the recommended user-facing entry.
 
 ## React
 
-```ts
-import { defineConfig } from 'vite'
-import zeus from '@zeus-js/vite-plugin/vite'
-import wc from '@zeus-js/output-wc/vite'
-import react from '@zeus-js/output-react-wrapper/vite'
-
-export default defineConfig({
-  plugins: [
-    zeus({
-      components: { include: ['src/components/**/*.ts'] },
-      outputs: [wc({ outDir: 'dist/wc' }), react({ outDir: 'dist/react' })],
-    }),
-  ],
-})
-```
-
-### Generated API
-
 ```tsx
-import { ZButton } from './dist/react'
+import { ZInput } from './dist/react'
 
-// Props map to element props
-<ZButton variant="outline" disabled={false}>
-  Click me
-</ZButton>
-
-// Events become React event props
-<ZButton onPress={event => {
-  // event.detail contains the native CustomEvent detail
-  console.log(event.detail.nativeEvent)
-}}>
-  Press me
-</ZButton>
+export function Demo() {
+  return (
+    <ZInput
+      value="hello"
+      disabled={false}
+      onValueChange={event => {
+        console.log(event.detail.value)
+      }}
+    >
+      <span slot="prefix">@</span>
+    </ZInput>
+  )
+}
 ```
+
+React wrapper behavior:
+
+- imports the matching Web Component entry
+- syncs props as DOM properties
+- bridges declared CustomEvents to React-style props such as `onValueChange`
+- does not pass event handler props through as DOM attributes
+- maps named slot props/children to DOM `slot` attributes
+- forwards refs to the underlying custom element instance
+
+React does not consume `models`; controlled behavior stays explicit through `value` and `onValueChange`.
 
 ## Vue 3
 
-```ts
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
-import zeus from '@zeus-js/vite-plugin/vite'
-import wc from '@zeus-js/output-wc/vite'
-import vueWrapper from '@zeus-js/output-vue-wrapper/vite'
-
-export default defineConfig({
-  plugins: [
-    vue(),
-    zeus({
-      components: { include: ['src/components/**/*.ts'] },
-      outputs: [wc({ outDir: 'dist/wc' }), vueWrapper({ outDir: 'dist/vue' })],
-    }),
-  ],
-})
-```
-
-### Generated API
-
 ```vue
 <script setup lang="ts">
-import { ZButton } from './dist/vue'
+import { ref } from 'vue'
+import { ZInput } from './dist/vue'
+
+const email = ref('')
 </script>
 
 <template>
-  <!-- Props are reactive -->
-  <ZButton variant="outline" :disabled="false" @press="onPress">
-    Click me
-  </ZButton>
+  <ZInput v-model:value="email" :disabled="false">
+    <template #prefix>@</template>
+  </ZInput>
 </template>
 ```
 
-## Shared behavior
+Vue wrapper behavior:
 
-Both wrappers:
+- imports the matching Web Component entry
+- syncs props as DOM properties
+- bridges declared DOM CustomEvents such as `value-change`
+- converts inferred or explicit `models` into `update:<prop>` emits
+- maps named Vue slots to DOM `slot` attributes
 
-- Sync props as DOM properties
-- Attach event listeners via `addEventListener`
-- Reflect prop changes back to the custom element
-- Support TypeScript with generated `.d.ts` files
+For the common controlled pattern:
+
+```ts
+props: {
+  value: String,
+},
+emits: {
+  valueChange: event<{ value: string }>(),
+},
+```
+
+the analyzer infers:
+
+```ts
+models: [
+  {
+    prop: 'value',
+    event: 'value-change',
+    eventPath: 'detail.value',
+  },
+]
+```
+
+The Vue wrapper emits both the original `value-change` event and `update:value`.
+
+## Shared Contract
+
+Both wrappers consume:
+
+- `component.props`
+- `component.events`
+- `component.methods`
+- `component.slots`
+- `component.models`
+
+Slots, css parts, and models should usually be inferred by the analyzer. Wrapper generators should not guess missing protocol details.

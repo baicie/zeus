@@ -8,6 +8,7 @@ import {
   ZDialogDescription,
   ZDialogTitle,
   ZDialogTrigger,
+  ZInput,
   ZSwitch,
   ZTabPanel,
   ZTabList,
@@ -17,7 +18,89 @@ import {
 
 import '@zeus-ui/headless/styles.css'
 
+type Page = 'input' | 'components'
+
 function App() {
+  const [page, setPage] = useState<Page>('input')
+
+  return (
+    <div>
+      <h1>React + Headless</h1>
+      <nav style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
+        <ZButton
+          variant={page === 'input' ? 'default' : 'outline'}
+          onPress={() => setPage('input')}
+        >
+          Input
+        </ZButton>
+        <ZButton
+          variant={page === 'components' ? 'default' : 'outline'}
+          onPress={() => setPage('components')}
+        >
+          Components
+        </ZButton>
+      </nav>
+
+      {page === 'input' ? <InputPage /> : <ComponentsPage />}
+    </div>
+  )
+}
+
+function InputPage() {
+  const [email, setEmail] = useState('hello@zeus.dev')
+  const [search, setSearch] = useState('')
+  const [focused, setFocused] = useState(false)
+
+  return (
+    <section>
+      <h2>Input</h2>
+      <div className="demo-section">
+        <ZInput
+          type="email"
+          value={email}
+          placeholder="name@example.com"
+          required
+          prefix={<span>@</span>}
+          suffix={<span>.dev</span>}
+          message={
+            email.includes('@') ? 'Email looks good.' : 'Email must contain @.'
+          }
+          invalid={!email.includes('@')}
+          onValueChange={(e: CustomEvent<{ value: string }>) =>
+            setEmail(e.detail.value)
+          }
+          onFocusChange={(e: CustomEvent<{ focused: boolean }>) =>
+            setFocused(e.detail.focused)
+          }
+        />
+        <p style={{ color: '#94a3b8', marginTop: '0.5rem' }}>
+          Email: {email || '(empty)'} · {focused ? 'focused' : 'blurred'}
+        </p>
+      </div>
+
+      <div className="demo-section">
+        <ZInput
+          type="search"
+          size="lg"
+          value={search}
+          placeholder="Search components"
+          prefix={<span>⌕</span>}
+          formatter={(value: string) => value.trimStart()}
+          onValueChange={(e: CustomEvent<{ value: string }>) =>
+            setSearch(e.detail.value)
+          }
+        />
+        <ZInput
+          value="Disabled input"
+          disabled
+          message="Disabled state uses reflected attributes and host data state."
+        />
+      </div>
+    </section>
+  )
+}
+
+function ComponentsPage() {
   const [switchOn, setSwitchOn] = useState(false)
   const [checkboxChecked, setCheckboxChecked] = useState(false)
   const [tabValue, setTabValue] = useState('account')
@@ -25,8 +108,6 @@ function App() {
 
   return (
     <div>
-      <h1>React + Headless</h1>
-
       <h2>Button</h2>
       <div className="demo-section">
         <ZButton onPress={() => alert('Button pressed!')}>Default</ZButton>

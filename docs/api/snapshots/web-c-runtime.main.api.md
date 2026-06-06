@@ -19,6 +19,8 @@ export interface ZeusPropMeta {
   type: ZeusPropType
   reflect?: boolean
   default?: unknown
+  serialize?: boolean
+  deserialize?: boolean
 }
 export interface ZeusLazyComponentMeta {
   tagName: string
@@ -34,22 +36,32 @@ export interface ZeusLazyComponentMeta {
       }
   >
   props: ZeusPropMeta[]
+  methods?: string[]
   /**
    * Whether to render into a ShadowRoot.
    *
    * @default false
    */
   shadow?: boolean
+  /**
+   * Whether the proxy class participates in browser form association.
+   *
+   * @default false
+   */
+  formAssociated?: boolean
 }
 export interface HostRef {
   host: HTMLElement
   meta: ZeusLazyComponentMeta
+  internals?: ElementInternals
   connected: boolean
   loaded: boolean
   loading?: Promise<void>
   instance?: ZeusComponentInstance
   values: Map<string, unknown>
+  attributeProps: Set<string>
   reflectingAttrs: Set<string>
+  pendingFormCallbacks: ZeusFormCallback[]
   readyWaiters: Array<{
     resolve(host: HTMLElement): void
     reject(error: unknown): void
@@ -59,6 +71,13 @@ export interface ZeusComponentInstance {
   connected?(): void
   disconnected?(): void
   propertyChanged?(name: string, oldValue: unknown, newValue: unknown): void
+  formAssociated?(form: HTMLFormElement | null): void
+  formDisabled?(disabled: boolean): void
+  formReset?(): void
+  formStateRestore?(
+    state: File | FormData | string | null,
+    mode: 'restore' | 'autocomplete',
+  ): void
   /**
    * Can return Node / Node[] / string.
    * If the component completes rendering itself, it can also return void.
@@ -66,6 +85,23 @@ export interface ZeusComponentInstance {
   render?(): void | string | Node | Node[]
   dispose?(): void
 }
+type ZeusFormCallback =
+  | {
+      type: 'associated'
+      form: HTMLFormElement | null
+    }
+  | {
+      type: 'disabled'
+      disabled: boolean
+    }
+  | {
+      type: 'reset'
+    }
+  | {
+      type: 'stateRestore'
+      state: File | FormData | string | null
+      mode: 'restore' | 'autocomplete'
+    }
 export interface ZeusComponentModule {
   createComponent(hostRef: HostRef): ZeusComponentInstance
 }

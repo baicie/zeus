@@ -56,10 +56,6 @@ const PUBLIC_PACKAGES: Array<{ name: string; path: string }> = [
     name: '@zeus-js/output-vue-wrapper',
     path: 'packages/web-c/output-vue-wrapper',
   },
-  {
-    name: '@zeus-js/preset-component-library',
-    path: 'packages/web-c/preset-component-library',
-  },
   { name: '@zeus-ui/registry', path: 'packages/create/registry' },
   // tsup packages (own build script)
   { name: 'create-zeus', path: 'packages/devtools/create-zeus' },

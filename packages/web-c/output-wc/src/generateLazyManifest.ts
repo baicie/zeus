@@ -21,16 +21,23 @@ export function generateLazyManifest(
     const entryFile = getEntryFileName(component.tag).replace(/\\/g, '/')
     const runtimeProps = component.runtimeProps ?? component.props
     const props = generatePropsArray(runtimeProps)
+    const methods = Object.keys(component.methods ?? {})
 
     const importPath = entryFile.startsWith('.')
       ? JSON.stringify(entryFile)
       : JSON.stringify(`./${entryFile}`)
 
+    const methodLine = methods.length
+      ? `    methods: ${JSON.stringify(methods)},\n`
+      : ''
+
     return `  {
     tagName: ${JSON.stringify(component.tag)},
     shadow: ${component.meta?.shadow ?? false},
+    formAssociated: ${component.meta?.formAssociated ?? false},
     load: () => import(${importPath}),
     props: ${props},
+${methodLine}
   }`
   })
 
@@ -50,7 +57,10 @@ function generatePropsArray(props: Record<string, ComponentProp>): string {
   const lines = entries.map(([name, prop]) => {
     const parts: string[] = [`name: ${JSON.stringify(name)}`]
 
-    if (!isAttributeBackedType(prop.type) || prop.attr === false) {
+    if (
+      (!isAttributeBackedType(prop.type) && !prop.deserialize) ||
+      prop.attr === false
+    ) {
       parts.push('attrName: false')
     } else {
       const attrName = prop.attr ?? toKebabCase(name)
@@ -61,8 +71,19 @@ function generatePropsArray(props: Record<string, ComponentProp>): string {
 
     parts.push(`type: ${JSON.stringify(prop.type)}`)
 
-    if (prop.reflect && isAttributeBackedType(prop.type)) {
+    if (
+      prop.reflect &&
+      (isAttributeBackedType(prop.type) || Boolean(prop.serialize))
+    ) {
       parts.push('reflect: true')
+    }
+
+    if (prop.serialize) {
+      parts.push('serialize: true')
+    }
+
+    if (prop.deserialize) {
+      parts.push('deserialize: true')
     }
 
     return `      { ${parts.join(', ')} }`

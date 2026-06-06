@@ -35,6 +35,123 @@ describe('bootstrapLazy', () => {
     expect(load).not.toHaveBeenCalled()
   })
 
+  it('defines form-associated lazy proxy classes', () => {
+    bootstrapLazy([
+      {
+        tagName: 'zw-form-test',
+        formAssociated: true,
+        load: vi.fn(),
+        props: [],
+      },
+    ])
+
+    expect(
+      (
+        customElements.get('zw-form-test') as unknown as {
+          formAssociated: boolean
+        }
+      ).formAssociated,
+    ).toBe(true)
+  })
+
+  it('attaches internals once and replays form callbacks after lazy loading', async () => {
+    const internals = {
+      setFormValue: vi.fn(),
+    } as unknown as ElementInternals
+    const attachInternals = vi.fn(() => internals)
+    const associated = vi.fn()
+    const disabled = vi.fn()
+    const reset = vi.fn()
+    const stateRestore = vi.fn()
+    let mounted = false
+
+    Object.defineProperty(HTMLElement.prototype, 'attachInternals', {
+      configurable: true,
+      value: attachInternals,
+    })
+
+    bootstrapLazy([
+      {
+        tagName: 'zw-form-lifecycle-test',
+        formAssociated: true,
+        load: vi.fn().mockResolvedValue({
+          createComponent(hostRef: HostRef) {
+            expect(hostRef.internals).toBe(internals)
+
+            return {
+              connected() {
+                mounted = true
+              },
+              disconnected() {
+                mounted = false
+              },
+              formAssociated(form: HTMLFormElement | null) {
+                expect(mounted).toBe(true)
+                associated(form)
+              },
+              formDisabled(value: boolean) {
+                expect(mounted).toBe(true)
+                disabled(value)
+              },
+              formReset() {
+                expect(mounted).toBe(true)
+                reset()
+              },
+              formStateRestore(
+                state: File | FormData | string | null,
+                mode: 'restore' | 'autocomplete',
+              ) {
+                expect(mounted).toBe(true)
+                stateRestore(state, mode)
+              },
+            }
+          },
+        }),
+        props: [],
+      },
+    ])
+
+    const el = document.createElement(
+      'zw-form-lifecycle-test',
+    ) as HTMLElement & {
+      componentOnReady(): Promise<HTMLElement>
+      connectedCallback(): void
+      disconnectedCallback(): void
+      formAssociatedCallback(form: HTMLFormElement | null): void
+      formDisabledCallback(disabled: boolean): void
+      formResetCallback(): void
+      formStateRestoreCallback(
+        state: File | FormData | string | null,
+        mode: 'restore' | 'autocomplete',
+      ): void
+    }
+    const form = {} as HTMLFormElement
+
+    el.formAssociatedCallback(form)
+    el.formDisabledCallback(true)
+    el.formResetCallback()
+    el.formStateRestoreCallback('saved', 'restore')
+    el.connectedCallback()
+
+    await el.componentOnReady()
+
+    expect(associated).toHaveBeenCalledWith(form)
+    expect(disabled).toHaveBeenCalledWith(true)
+    expect(reset).toHaveBeenCalledTimes(1)
+    expect(stateRestore).toHaveBeenCalledWith('saved', 'restore')
+
+    el.disconnectedCallback()
+    el.formResetCallback()
+    expect(reset).toHaveBeenCalledTimes(1)
+
+    el.connectedCallback()
+
+    await Promise.resolve()
+
+    expect(reset).toHaveBeenCalledTimes(2)
+    expect(attachInternals).toHaveBeenCalledTimes(1)
+  })
+
   it('skips already defined tags', () => {
     const load = vi.fn()
 
@@ -539,6 +656,40 @@ describe('lazy element lifecycle', () => {
       (Ctor as CustomElementConstructor & { observedAttributes: string[] })
         .observedAttributes,
     ).toEqual([])
+  })
+
+  it('proxies exposed methods through the lazy element', async () => {
+    const focusInput = vi.fn().mockReturnValue('focused')
+
+    bootstrapLazy([
+      {
+        tagName: 'zw-method-test',
+        shadow: false,
+        load: vi.fn().mockResolvedValue({
+          createComponent(hostRef: HostRef) {
+            Object.defineProperty(hostRef.host, 'focusInput', {
+              configurable: true,
+              value: focusInput,
+            })
+
+            return {
+              connected() {},
+            }
+          },
+        }),
+        props: [],
+        methods: ['focusInput'],
+      },
+    ])
+
+    const el = document.createElement('zw-method-test') as ZeusLazyElement & {
+      focusInput(): Promise<unknown>
+    }
+
+    document.body.appendChild(el)
+
+    await expect(el.focusInput()).resolves.toBe('focused')
+    expect(focusInput).toHaveBeenCalledTimes(1)
   })
 })
 

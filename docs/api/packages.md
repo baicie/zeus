@@ -20,26 +20,26 @@
 
 所有包版本均为 `0.1.0-beta.1`（另有说明的除外），位于 monorepo `packages/` 下，通过 pnpm workspace 管理。
 
-| 包名                                | 路径                                      | 版本         | 类型     | 说明                                         |
-| ----------------------------------- | ----------------------------------------- | ------------ | -------- | -------------------------------------------- |
-| `@zeus-js/zeus`                     | `packages/core/zeus`                      | 0.1.0-beta.1 | core     | 统一入口，导出所有公共 API                   |
-| `@zeus-js/signal`                   | `packages/core/signal`                    | 0.1.0-beta.1 | core     | 响应式核心，基于 alien-signals               |
-| `@zeus-js/runtime-dom`              | `packages/core/runtime-dom`               | 0.1.0-beta.1 | core     | DOM runtime helpers                          |
-| `@zeus-js/compiler`                 | `packages/core/compiler`                  | 0.1.0-beta.1 | core     | Babel JSX 编译器插件                         |
-| `@zeus-js/shared`                   | `packages/core/shared`                    | 0.1.0-beta.1 | core     | 内部工具函数，无外部依赖                     |
-| `@zeus-js/vite-plugin`              | `packages/devtools/vite-plugin`           | 0.0.2        | devtools | Vite 集成插件                                |
-| `create-zeus`                       | `packages/devtools/create-zeus`           | 0.0.1        | devtools | 项目脚手架生成器（CLI）                      |
-| `@zeus-js/output-wc`                | `packages/web-c/output-wc`                | 0.1.0-beta.1 | web-c    | Web Component 输出插件                       |
-| `@zeus-js/output-react-wrapper`     | `packages/web-c/output-react-wrapper`     | 0.1.0-beta.1 | web-c    | React wrapper 输出插件                       |
-| `@zeus-js/output-vue-wrapper`       | `packages/web-c/output-vue-wrapper`       | 0.1.0-beta.1 | web-c    | Vue wrapper 输出插件                         |
-| `@zeus-js/output-icons`             | `packages/web-c/output-icons`             | 0.1.0-beta.1 | web-c    | 图标输出插件                                 |
-| `@zeus-js/output-css`               | `packages/web-c/output-css`               | 0.1.0-beta.1 | web-c    | CSS 资源输出插件                             |
-| `@zeus-js/component-analyzer`       | `packages/web-c/component-analyzer`       | 0.1.0-beta.1 | web-c    | 组件分析器（解析 JSX）                       |
-| `@zeus-js/component-dts`            | `packages/web-c/component-dts`            | 0.1.0-beta.1 | web-c    | manifest DTS 生成器                          |
-| `@zeus-js/bundler-plugin`           | `packages/web-c/bundler-plugin`           | 0.1.0-beta.1 | web-c    | bundler 插件宿主（Vite / Rollup / Rolldown） |
-| `@zeus-js/preset-component-library` | `packages/web-c/preset-component-library` | 0.1.0-beta.1 | web-c    | 组件库预设（一键集成）                       |
-| `@zeus-ui/registry`                 | `packages/create/registry`                | 0.0.1        | create   | UI 组件注册表（copyable 源码）               |
-| `zeus-ui`                           | `packages/create/zeus-ui`                 | 0.0.1        | create   | CLI 工具添加 UI 组件到项目                   |
+| 包名                            | 路径                                  | 版本         | 类型     | 说明                                         |
+| ------------------------------- | ------------------------------------- | ------------ | -------- | -------------------------------------------- |
+| `@zeus-js/zeus`                 | `packages/core/zeus`                  | 0.1.0-beta.1 | core     | 统一入口，导出所有公共 API                   |
+| `@zeus-js/signal`               | `packages/core/signal`                | 0.1.0-beta.1 | core     | 响应式核心，基于 alien-signals               |
+| `@zeus-js/runtime-dom`          | `packages/core/runtime-dom`           | 0.1.0-beta.1 | core     | DOM runtime helpers                          |
+| `@zeus-js/compiler`             | `packages/core/compiler`              | 0.1.0-beta.1 | core     | Babel JSX 编译器插件                         |
+| `@zeus-js/shared`               | `packages/core/shared`                | 0.1.0-beta.1 | core     | 内部工具函数，无外部依赖                     |
+| `@zeus-js/vite-plugin`          | `packages/devtools/vite-plugin`       | 0.0.2        | devtools | Vite 集成插件                                |
+| `create-zeus`                   | `packages/devtools/create-zeus`       | 0.0.1        | devtools | 项目脚手架生成器（CLI）                      |
+| `@zeus-js/output-wc`            | `packages/web-c/output-wc`            | 0.1.0-beta.1 | web-c    | Web Component 输出插件                       |
+| `@zeus-js/output-react-wrapper` | `packages/web-c/output-react-wrapper` | 0.1.0-beta.1 | web-c    | React wrapper 输出插件                       |
+| `@zeus-js/output-vue-wrapper`   | `packages/web-c/output-vue-wrapper`   | 0.1.0-beta.1 | web-c    | Vue wrapper 输出插件                         |
+| `@zeus-js/output-icons`         | `packages/web-c/output-icons`         | 0.1.0-beta.1 | web-c    | 图标输出插件                                 |
+| `@zeus-js/output-css`           | `packages/web-c/output-css`           | 0.1.0-beta.1 | web-c    | CSS 资源输出插件                             |
+| `@zeus-js/component-analyzer`   | `packages/web-c/component-analyzer`   | 0.1.0-beta.1 | web-c    | 组件分析器（解析 JSX）                       |
+| `@zeus-js/component-dts`        | `packages/web-c/component-dts`        | 0.1.0-beta.1 | web-c    | manifest DTS 生成器                          |
+| `@zeus-js/bundler-plugin`       | `packages/web-c/bundler-plugin`       | 0.1.0-beta.1 | web-c    | bundler 插件宿主（Vite / Rollup / Rolldown） |
+| `@zeus-js/web-c`                | `packages/web-c/web-c`                | 0.1.0-beta.3 | web-c    | Web-C 聚合入口与组件库预设                   |
+| `@zeus-ui/registry`             | `packages/create/registry`            | 0.0.1        | create   | UI 组件注册表（copyable 源码）               |
+| `zeus-ui`                       | `packages/create/zeus-ui`             | 0.0.1        | create   | CLI 工具添加 UI 组件到项目                   |
 
 **不推荐直接引入的内部包**（无 `main`/`exports`，仅供 workspace 内部使用）：
 
@@ -68,11 +68,11 @@
 ├── @babel/core
 └── @zeus-js/compiler
 
-@zeus-js/preset-component-library (peer)
-├── @zeus-js/output-css (peer)
-├── @zeus-js/output-react-wrapper (peer)
-├── @zeus-js/output-vue-wrapper (peer)
-└── @zeus-js/output-wc (peer)
+@zeus-js/web-c
+├── @zeus-js/output-css
+├── @zeus-js/output-react-wrapper
+├── @zeus-js/output-vue-wrapper
+└── @zeus-js/output-wc
 
 @zeus-js/output-wc
 ├── @zeus-js/bundler-plugin
@@ -494,7 +494,6 @@ export {
   runWithOwner,
   createDOMContextBoundary,
   provideDOMContext,
-  requestDOMContext,
   resolveDOMContext,
   ZEUS_CONTEXT_REQUEST,
   type Context,
@@ -546,14 +545,12 @@ const Counter = defineElement(
   },
   (props, context) => {
     // props: Readonly<P>，响应式
-    // context: { host: E, emit: (name, detail?, options?) => boolean }
+    // context.emit 根据 options.emits 提供类型化方法
     return (
       <Host>
         <h2>{props.title ?? 'Default Title'}</h2>
         <p>Count: {props.count}</p>
-        <button onClick={() => context.emit('change', props.count + 1)}>
-          +
-        </button>
+        <button onClick={() => context.emit.change(props.count + 1)}>+</button>
         <Slot name="extra" />
       </Host>
     )
@@ -729,7 +726,7 @@ export default defineConfig({ plugins: [zeus()] })
 ### 5.1 架构概览
 
 ```
-@zeus-js/preset-component-library (预设入口)
+@zeus-js/web-c (聚合与预设入口)
     │
     ├── @zeus-js/output-css          → CSS 资源输出（PostCSS / Sass / Less / LightningCSS）
     ├── @zeus-js/output-icons        → 无运行时图标处理
@@ -834,17 +831,16 @@ export { manifest } from './manifest'
 
 **peerDependencies**（optional）：`rollup`
 
-### 5.10 `@zeus-js/preset-component-library`
+### 5.10 `@zeus-js/web-c`
 
-**用途**：一键预设，集成上述所有输出插件，简化组件库发布配置。
+**用途**：统一导出 Web-C 工具链，并通过 `componentLibrary()` 一键集成上述输出插件。
 
-**peerDependencies**：
+**主要依赖**：
 
 - `@zeus-js/output-css`
 - `@zeus-js/output-react-wrapper`
 - `@zeus-js/output-vue-wrapper`
 - `@zeus-js/output-wc`
-- `rollup`（optional）
 
 ---
 
@@ -901,7 +897,7 @@ pnpm add @zeus-js/compiler  # peer: @babel/core
 pnpm add @zeus-js/vite-plugin  # peer: vite
 
 # Web Component 组件库输出
-pnpm add @zeus-js/preset-component-library
+pnpm add @zeus-js/web-c
 # 或单独添加需要的输出插件
 pnpm add @zeus-js/output-wc @zeus-js/output-react-wrapper @zeus-js/output-vue-wrapper @zeus-js/output-css
 

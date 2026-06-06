@@ -29,7 +29,7 @@ describe('generateLazyManifest', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         } as any,
       ],
       getEntryFileName: tag => `${tag}.entry.js`,
@@ -55,7 +55,7 @@ describe('generateLazyManifest', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         } as any,
       ],
       getEntryFileName: tag => `${tag}.entry.js`,
@@ -79,7 +79,7 @@ describe('generateLazyManifest', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         } as any,
       ],
       getEntryFileName: _tag => {
@@ -107,7 +107,7 @@ describe('generateLazyManifest', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         } as any,
       ],
       getEntryFileName: _tag => 'zw-button.entry.js',
@@ -132,7 +132,7 @@ describe('generateLazyManifest', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
           meta: { shadow: true },
         } as any,
       ],
@@ -140,6 +140,29 @@ describe('generateLazyManifest', () => {
     })
 
     expect(code).toContain('shadow: true')
+  })
+
+  it('uses explicit formAssociated value from meta', () => {
+    const code = generateLazyManifest({
+      components: [
+        {
+          tag: 'zw-input',
+          name: 'ZwInput',
+          exportName: 'ZwInput',
+          source: 'src/input.tsx',
+          props: {},
+          events: {},
+          slots: {},
+          hostAttributes: [],
+          cssParts: [],
+          cssVars: {},
+          meta: { formAssociated: true },
+        } as any,
+      ],
+      getEntryFileName: tag => `${tag}.entry.js`,
+    })
+
+    expect(code).toContain('formAssociated: true')
   })
 
   it('handles multiple components', () => {
@@ -155,7 +178,7 @@ describe('generateLazyManifest', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         } as any,
         {
           tag: 'zw-input',
@@ -167,7 +190,7 @@ describe('generateLazyManifest', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         } as any,
       ],
       getEntryFileName: tag => `${tag}.entry.js`,
@@ -203,7 +226,7 @@ describe('generateLazyManifest', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         } as any,
       ],
       getEntryFileName: tag => `${tag}.entry.js`,
@@ -234,7 +257,7 @@ describe('generateLazyManifest', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         } as any,
       ],
       getEntryFileName: tag => `${tag}.entry.js`,
@@ -242,6 +265,40 @@ describe('generateLazyManifest', () => {
 
     expect(code).toContain('name: "columns", attrName: false')
     expect(code).not.toContain('attrName: "columns"')
+  })
+
+  it('preserves custom attribute serialization metadata for lazy props', () => {
+    const code = generateLazyManifest({
+      components: [
+        {
+          tag: 'zw-tags',
+          name: 'ZwTags',
+          exportName: 'ZwTags',
+          source: 'src/tags.tsx',
+          props: {},
+          runtimeProps: {
+            tokens: {
+              type: 'array',
+              attr: 'tokens',
+              reflect: true,
+              serialize: true,
+              deserialize: true,
+            },
+          },
+          events: {},
+          slots: {},
+          hostAttributes: [],
+          cssParts: [],
+          cssVars: {},
+        } as any,
+      ],
+      getEntryFileName: tag => `${tag}.entry.js`,
+    })
+
+    expect(code).not.toContain('attrName: false')
+    expect(code).toContain('reflect: true')
+    expect(code).toContain('serialize: true')
+    expect(code).toContain('deserialize: true')
   })
 
   it('marks non-primitive props as property-only in lazy manifest', () => {
@@ -267,7 +324,7 @@ describe('generateLazyManifest', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         } as any,
       ],
       getEntryFileName: tag => `${tag}.entry.js`,
@@ -306,7 +363,7 @@ describe('generateLazyManifest', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         } as any,
       ],
 
@@ -336,7 +393,7 @@ describe('generateLazyManifest', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         } as any,
       ],
 
@@ -362,7 +419,7 @@ describe('generateLazyManifest', () => {
           slots: {},
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         } as any,
       ],
       getEntryFileName: tag => `${tag}.entry.js`,
@@ -389,7 +446,7 @@ describe('generateLazyManifest', () => {
           },
           hostAttributes: [],
           cssParts: [],
-          cssVars: [],
+          cssVars: {},
         } as any,
       ],
       getEntryFileName: tag => `${tag}.entry.js`,
@@ -460,7 +517,7 @@ describe('generateLazyEntry', () => {
         slots: {},
         hostAttributes: [],
         cssParts: [],
-        cssVars: [],
+        cssVars: {},
       } as any,
       outPath: 'wc/zw-button.entry.js',
     })
@@ -471,7 +528,9 @@ describe('generateLazyEntry', () => {
     )
     expect(code).toContain('export function createComponent(hostRef)')
     expect(code).toContain('mounted = undefined')
-    expect(code).toContain('mountState = {}')
+    expect(code).toContain('attributeProps: hostRef.attributeProps')
+    expect(code).toContain('internals: hostRef.internals')
+    expect(code).toContain('reflectingAttrs: hostRef.reflectingAttrs')
     expect(code).toContain('ZwButton,')
     expect(code).toContain('hostRef.host,')
     expect(code).toContain('hostRef.values,')
@@ -496,7 +555,7 @@ describe('generateLazyEntry', () => {
         slots: {},
         hostAttributes: [],
         cssParts: [],
-        cssVars: [],
+        cssVars: {},
       } as any,
       outPath: 'wc/zw-button.entry.js',
     })
@@ -519,7 +578,7 @@ describe('generateLazyEntry', () => {
         slots: {},
         hostAttributes: [],
         cssParts: [],
-        cssVars: [],
+        cssVars: {},
       } as any,
       outPath: 'wc/zw-button.entry.js',
     })

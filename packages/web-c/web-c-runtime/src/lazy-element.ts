@@ -1,5 +1,6 @@
 // packages/web-c-runtime/src/lazy-element.ts
 
+import { invokeFormCallback } from './form-callbacks'
 import { registerHost, requireHostRef } from './host-ref'
 import { initializeComponent, waitForComponentReady } from './lifecycle'
 import {
@@ -10,6 +11,7 @@ import {
 } from './props'
 
 import type { ZeusLazyComponentMeta } from './types'
+import type { HostRef, ZeusFormCallback } from './types'
 
 function reportInitializationError(tagName: string, error: unknown): void {
   console.error(`[zeus:web-c] Failed to initialize <${tagName}>.`, error)
@@ -21,6 +23,8 @@ export function createLazyElementClass(
   const observedAttributes = getObservedAttributes(meta.props)
 
   class ZeusLazyElement extends HTMLElement {
+    static formAssociated = Boolean(meta.formAssociated)
+
     static get observedAttributes(): string[] {
       return observedAttributes
     }
@@ -67,6 +71,37 @@ export function createLazyElementClass(
       syncAttributeToProperty(hostRef, name, oldValue, newValue)
     }
 
+    formAssociatedCallback(form: HTMLFormElement | null): void {
+      dispatchFormCallback(requireHostRef(this), {
+        type: 'associated',
+        form,
+      })
+    }
+
+    formDisabledCallback(disabled: boolean): void {
+      dispatchFormCallback(requireHostRef(this), {
+        type: 'disabled',
+        disabled,
+      })
+    }
+
+    formResetCallback(): void {
+      dispatchFormCallback(requireHostRef(this), {
+        type: 'reset',
+      })
+    }
+
+    formStateRestoreCallback(
+      state: File | FormData | string | null,
+      mode: 'restore' | 'autocomplete',
+    ): void {
+      dispatchFormCallback(requireHostRef(this), {
+        type: 'stateRestore',
+        state,
+        mode,
+      })
+    }
+
     componentOnReady(): Promise<HTMLElement> {
       const hostRef = requireHostRef(this)
 
@@ -84,6 +119,56 @@ export function createLazyElementClass(
     ZeusLazyElement.prototype as unknown as HTMLElement,
     meta.props,
   )
+  installMethodProxies(
+    ZeusLazyElement.prototype as unknown as HTMLElement,
+    meta.methods,
+  )
 
   return ZeusLazyElement
+}
+
+function dispatchFormCallback(
+  hostRef: HostRef,
+  callback: ZeusFormCallback,
+): void {
+  if (!hostRef.instance || !hostRef.connected) {
+    hostRef.pendingFormCallbacks.push(callback)
+    return
+  }
+
+  invokeFormCallback(hostRef, callback)
+}
+
+function installMethodProxies(
+  proto: HTMLElement,
+  methods: readonly string[] | undefined,
+): void {
+  if (!methods) return
+
+  for (const name of methods) {
+    if (name in proto) continue
+
+    Object.defineProperty(proto, name, {
+      configurable: true,
+      value: function (): Promise<unknown> {
+        const host = this as HTMLElement
+        const args = Array.prototype.slice.call(arguments) as unknown[]
+        const hostRef = requireHostRef(host)
+
+        return waitForComponentReady(hostRef).then(readyHost => {
+          const method = (readyHost as HTMLElement & Record<string, unknown>)[
+            name
+          ]
+
+          if (typeof method !== 'function') {
+            throw new Error(
+              `[zeus:web-c] Method "${name}" is not exposed on <${hostRef.meta.tagName}>.`,
+            )
+          }
+
+          return method.apply(readyHost, args)
+        })
+      },
+    })
+  }
 }

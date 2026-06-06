@@ -6,6 +6,7 @@ import {
   computed,
   createContext,
   defineElement,
+  event,
   render,
   state,
   useContext,
@@ -46,6 +47,10 @@ type NewTaskInput = {
   title: string
   description: string
   urgent: boolean
+}
+
+type TaskInspectorEmits = {
+  close: ReturnType<typeof event<void>>
 }
 
 const BoardContext = createContext<BoardStore>()
@@ -178,13 +183,16 @@ function createBoardStore(): BoardStore {
  * - 独立 render root
  * - 通过 consumes + Provider bridge 消费 BoardContext
  * - 使用 Host / Slot
- * - 通过 ctx.emit 派发 close 事件
+ * - 通过声明式 emit 派发 close 事件
  */
-defineElement<{ open: boolean }>(
+defineElement<{ open: boolean }, HTMLElement, TaskInspectorEmits>(
   'z-task-inspector',
   {
     shadow: false,
     consumes: [BoardContext],
+    emits: {
+      close: event<void>(),
+    },
     props: {
       open: Boolean,
     },
@@ -202,7 +210,7 @@ defineElement<{ open: boolean }>(
               class="ghost-button"
               onClick={() => {
                 store.closeInspector()
-                ctx.emit('close')
+                ctx.emit.close()
               }}
             >
               ×

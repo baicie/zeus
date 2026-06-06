@@ -1,5 +1,4 @@
-import { defineZeusRollupConfig } from '@zeus-js/bundler-plugin/rollup'
-import { componentLibrary } from '@zeus-js/preset-component-library'
+import { componentLibrary, defineZeusRollupConfig } from '@zeus-js/web-c/rollup'
 
 export default defineZeusRollupConfig({
   zeus: {

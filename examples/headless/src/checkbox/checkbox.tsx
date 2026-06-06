@@ -1,6 +1,8 @@
-import { defineElement, Host, Slot } from '@zeus-js/zeus'
+import { defineElement, event, Host, Slot } from '@zeus-js/zeus'
 
 import { isEnterOrSpace } from '../shared/keyboard'
+
+import type { DefineElementContext, EventDefinition } from '@zeus-js/zeus'
 
 export interface CheckboxProps {
   checked?: boolean
@@ -8,12 +10,16 @@ export interface CheckboxProps {
   disabled?: boolean
 }
 
+type CheckboxEmits = {
+  checkedChange: EventDefinition<{ checked: boolean }>
+}
+
 function setup(
   props: CheckboxProps,
-  ctx: {
-    emit: (event: string, detail: unknown) => void
-    host: HTMLElement & { checked?: boolean; indeterminate?: boolean }
-  },
+  ctx: DefineElementContext<
+    HTMLElement & { checked?: boolean; indeterminate?: boolean },
+    CheckboxEmits
+  >,
 ) {
   const checkedState = () =>
     props.indeterminate
@@ -29,7 +35,7 @@ function setup(
     ctx.host.indeterminate = false
     ctx.host.checked = next
 
-    ctx.emit('checked-change', {
+    ctx.emit.checkedChange({
       checked: next,
     })
   }
@@ -68,10 +74,17 @@ function setup(
   )
 }
 
-export const ZCheckbox = defineElement<CheckboxProps>(
+export const ZCheckbox = defineElement<
+  CheckboxProps,
+  HTMLElement & { checked?: boolean; indeterminate?: boolean },
+  CheckboxEmits
+>(
   'z-checkbox',
   {
     shadow: false,
+    emits: {
+      checkedChange: event<{ checked: boolean }>(),
+    },
 
     props: {
       checked: {

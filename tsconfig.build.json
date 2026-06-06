@@ -15,6 +15,7 @@
     "packages/core/zeus/src",
     "packages/devtools/vite-plugin/src",
     "packages/web-c/bundler-plugin/src",
+    "packages/web-c/web-c/src",
     "packages/web-c/component-analyzer/src",
     "packages/web-c/web-c-runtime/src",
     "packages/web-c/output-css/src",
@@ -22,7 +23,6 @@
     "packages/web-c/output-icons/src",
     "packages/web-c/output-react-wrapper/src",
     "packages/web-c/output-vue-wrapper/src",
-    "packages/web-c/preset-component-library/src",
     "packages/web-c/component-dts/src",
     "examples/headless/src",
     "packages/create/registry/src"

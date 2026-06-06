@@ -5,7 +5,7 @@ import { analyzeFile } from '../src/analyzeFile'
 describe('analyzeFile', () => {
   it('extracts component manifest from defineElement', () => {
     const code = `
-      import { defineElement, Host, Slot } from '@zeus-js/zeus'
+      import { defineElement, event, Host, Slot } from '@zeus-js/zeus'
 
       export interface ButtonProps {
         /**
@@ -23,6 +23,9 @@ describe('analyzeFile', () => {
         'z-button',
         {
           shadow: false,
+          emits: {
+            press: event<{ nativeEvent: MouseEvent }>(),
+          },
           props: {
             variant: {
               type: String,
@@ -49,7 +52,9 @@ describe('analyzeFile', () => {
                 description: 'Button content',
               },
             },
-            cssVars: ['--z-button-bg'],
+            cssVars: {
+              '--z-button-bg': {},
+            },
           },
         },
         (props, { emit }) => {
@@ -62,7 +67,7 @@ describe('analyzeFile', () => {
               <button
                 part="root"
                 disabled={props.disabled}
-                onClick={event => emit('press', { nativeEvent: event })}
+                onClick={event => emit.press({ nativeEvent: event })}
               >
                 <Slot />
               </button>
@@ -117,7 +122,11 @@ describe('analyzeFile', () => {
       },
       hostAttributes: ['data-disabled', 'data-slot', 'data-variant'],
       cssParts: ['root'],
-      cssVars: ['--z-button-bg'],
+      cssVars: {
+        '--z-button-bg': {
+          name: '--z-button-bg',
+        },
+      },
     })
   })
 
@@ -146,9 +155,494 @@ describe('analyzeFile', () => {
     })
 
     expect(result.components[0].slots).toEqual({
-      default: {},
-      footer: {},
-      header: {},
+      default: { name: 'default' },
+      footer: { name: 'footer' },
+      header: { name: 'header' },
+    })
+  })
+
+  it('extracts primitive protocol metadata', () => {
+    const code = `
+      import { Host, defineElement, event, prop } from '@zeus-js/zeus'
+
+      export const ZInput = defineElement(
+        'z-input',
+        {
+          shadow: false,
+          props: {
+            value: String,
+            type: prop(['text', 'password'], {
+              default: 'text',
+              reflect: true,
+            }),
+            formatter: Function,
+          },
+          emits: {
+            valueChange: event<{ value: string }>(),
+          },
+        },
+        (_props, { emit, expose }) => {
+          expose({
+            focus() {},
+          })
+
+          return (
+            <Host>
+              <slot name="prefix" />
+              <input part="control" onInput={() => emit.valueChange({ value: '' })} />
+            </Host>
+          )
+        },
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/input.tsx',
+      code,
+    })
+
+    expect(result.diagnostics).toEqual([])
+    expect(result.components[0]).toMatchObject({
+      props: {
+        type: {
+          type: 'string',
+          values: ['text', 'password'],
+          default: 'text',
+          reflect: true,
+        },
+        formatter: {
+          type: 'function',
+        },
+      },
+      events: {
+        valueChange: {
+          key: 'valueChange',
+          name: 'value-change',
+          reactName: 'onValueChange',
+          detail: {
+            value: 'string',
+          },
+          bubbles: true,
+          composed: true,
+          cancelable: false,
+        },
+      },
+      methods: {
+        focus: {
+          name: 'focus',
+        },
+      },
+      slots: {
+        prefix: {
+          name: 'prefix',
+        },
+      },
+      cssParts: ['control'],
+      meta: {
+        shadow: false,
+      },
+    })
+  })
+
+  it('extracts constructor prop shorthand metadata', () => {
+    const code = `
+      import { defineElement, prop } from '@zeus-js/zeus'
+
+      export const ZInput = defineElement(
+        'z-input',
+        {
+          props: {
+            disabled: prop(Boolean),
+            required: prop(Boolean, {
+              reflect: false,
+            }),
+          },
+        },
+        () => null,
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/input.tsx',
+      code,
+    })
+
+    expect(result.diagnostics).toEqual([])
+    expect(result.components[0]).toMatchObject({
+      props: {
+        disabled: {
+          type: 'boolean',
+          default: false,
+          reflect: true,
+        },
+        required: {
+          type: 'boolean',
+          default: false,
+          reflect: false,
+        },
+      },
+    })
+  })
+
+  it('extracts form association and prop serialization metadata', () => {
+    const code = `
+      import { defineElement } from '@zeus-js/zeus'
+
+      export const ZInput = defineElement(
+        'z-input',
+        {
+          shadow: false,
+          formAssociated: true,
+          props: {
+            value: {
+              type: String,
+              reflect: true,
+              serialize: value => value.trim(),
+              deserialize: value => value ?? '',
+            },
+            tokens: {
+              type: Array,
+              attr: 'tokens',
+              serialize: value => value.join('|'),
+              deserialize: value => value ? value.split('|') : [],
+            },
+          },
+        },
+        () => null,
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/input.tsx',
+      code,
+    })
+
+    expect(result.diagnostics).toEqual([])
+    expect(result.components[0]).toMatchObject({
+      props: {
+        value: {
+          type: 'string',
+          reflect: true,
+          serialize: true,
+          deserialize: true,
+        },
+        tokens: {
+          type: 'array',
+          attr: 'tokens',
+          serialize: true,
+          deserialize: true,
+        },
+      },
+      meta: {
+        shadow: false,
+        formAssociated: true,
+      },
+    })
+  })
+
+  it('extracts model mappings and exposed method signatures', () => {
+    const code = `
+      import { defineElement } from '@zeus-js/zeus'
+
+      export const ZInput = defineElement<{ value?: string }>(
+        'z-input',
+        {
+          props: {
+            value: String,
+          },
+          models: [
+            {
+              prop: 'value',
+              event: 'value-change',
+              eventPath: 'detail.value',
+            },
+          ],
+        },
+        (_props, { expose }) => {
+          expose({
+            async setValue(value: string, commit = true): Promise<boolean> {
+              return commit && value.length > 0
+            },
+            request(...reasons: string[]): Promise<number> {
+              return Promise.resolve(reasons.length)
+            },
+            focus(): void {},
+          })
+
+          return null
+        },
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/input.tsx',
+      code,
+    })
+
+    expect(result.diagnostics).toEqual([])
+    expect(result.components[0].models).toEqual([
+      {
+        prop: 'value',
+        event: 'value-change',
+        eventPath: 'detail.value',
+      },
+    ])
+    expect(result.components[0].methods).toEqual({
+      focus: {
+        name: 'focus',
+        parameters: [],
+        returns: 'void',
+        async: false,
+      },
+      setValue: {
+        name: 'setValue',
+        parameters: [
+          {
+            name: 'value',
+            type: 'string',
+            optional: false,
+          },
+          {
+            name: 'commit',
+            type: 'boolean',
+            optional: true,
+          },
+        ],
+        returns: 'boolean',
+        async: true,
+      },
+      request: {
+        name: 'request',
+        parameters: [
+          {
+            name: 'reasons',
+            type: 'string[]',
+            optional: false,
+            rest: true,
+          },
+        ],
+        returns: 'Promise<number>',
+        async: false,
+      },
+    })
+  })
+
+  it('infers model mappings from prop change events', () => {
+    const code = `
+      import { defineElement, event } from '@zeus-js/zeus'
+
+      export const ZInput = defineElement<{ value?: string }>(
+        'z-input',
+        {
+          props: {
+            value: String,
+            placeholder: String,
+          },
+          emits: {
+            valueChange: event<{ value: string; nativeEvent: Event }>(),
+            focusChange: event<{ focused: boolean; nativeEvent: FocusEvent }>(),
+          },
+        },
+        () => null,
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/input.tsx',
+      code,
+    })
+
+    expect(result.diagnostics).toEqual([])
+    expect(result.components[0].models).toEqual([
+      {
+        prop: 'value',
+        event: 'value-change',
+        eventPath: 'detail.value',
+      },
+    ])
+  })
+
+  it('extracts setup metadata from local setup references', () => {
+    const code = `
+      import { defineElement, event, Host, Slot } from '@zeus-js/zeus'
+
+      type InputProps = {
+        value?: string
+      }
+
+      function setup(_props: InputProps, ctx) {
+        ctx.expose({
+          focus(): void {},
+        })
+
+        return (
+          <Host data-slot="input">
+            <label part="root">
+              <Slot name="prefix" />
+              <input
+                part="control"
+                onInput={() => ctx.emit.valueChange({ value: '' })}
+              />
+            </label>
+          </Host>
+        )
+      }
+
+      export const ZInput = defineElement<InputProps>(
+        'z-input',
+        {
+          props: {
+            value: String,
+          },
+          emits: {
+            valueChange: event<{ value: string }>(),
+          },
+        },
+        setup,
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/input.tsx',
+      code,
+    })
+
+    expect(result.diagnostics).toEqual([])
+    expect(result.components[0]).toMatchObject({
+      models: [
+        {
+          prop: 'value',
+          event: 'value-change',
+          eventPath: 'detail.value',
+        },
+      ],
+      methods: {
+        focus: {
+          name: 'focus',
+        },
+      },
+      slots: {
+        prefix: {
+          name: 'prefix',
+        },
+      },
+      hostAttributes: ['data-slot'],
+      cssParts: ['control', 'root'],
+    })
+  })
+
+  it('allows explicit empty models to disable model inference', () => {
+    const code = `
+      import { defineElement, event } from '@zeus-js/zeus'
+
+      export const ZInput = defineElement<{ value?: string }>(
+        'z-input',
+        {
+          props: {
+            value: String,
+          },
+          emits: {
+            valueChange: event<{ value: string }>(),
+          },
+          models: [],
+        },
+        () => null,
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/input.tsx',
+      code,
+    })
+
+    expect(result.diagnostics).toEqual([])
+    expect(result.components[0].models).toBeUndefined()
+  })
+
+  it('keeps setup-inferred event detail for declared emits', () => {
+    const code = `
+      import { defineElement, event } from '@zeus-js/zeus'
+
+      export const ZSwitch = defineElement(
+        'z-switch',
+        {
+          emits: {
+            checkedChange: event<{ checked: boolean }>('checked-change'),
+          },
+        },
+        (_props, { emit }) => {
+          emit.checkedChange({ checked: true })
+          return <button />
+        },
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/switch.tsx',
+      code,
+    })
+
+    expect(result.diagnostics).toEqual([])
+    expect(result.components[0].events.checkedChange).toMatchObject({
+      key: 'checkedChange',
+      name: 'checked-change',
+      reactName: 'onCheckedChange',
+      detail: {
+        checked: 'boolean',
+      },
+    })
+  })
+
+  it('ignores setup events that are not declared in emits', () => {
+    const code = `
+      import { defineElement } from '@zeus-js/zeus'
+
+      export const ZSwitch = defineElement(
+        'z-switch',
+        {},
+        (_props, { emit }) => {
+          emit.checkedChange({ checked: true })
+          return <button />
+        },
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/switch.tsx',
+      code,
+    })
+
+    expect(result.components[0].events).toEqual({})
+  })
+
+  it('extracts detail from event type parameters', () => {
+    const code = `
+      import { defineElement, event } from '@zeus-js/zeus'
+
+      export const ZSwitch = defineElement(
+        'z-switch',
+        {
+          emits: {
+            checkedChange: event<{ checked: boolean }>('checked-change'),
+          },
+        },
+        () => <button />,
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/switch.tsx',
+      code,
+    })
+
+    expect(result.diagnostics).toEqual([])
+    expect(result.components[0].events.checkedChange).toMatchObject({
+      key: 'checkedChange',
+      name: 'checked-change',
+      reactName: 'onCheckedChange',
+      detail: {
+        checked: 'boolean',
+      },
     })
   })
 
@@ -364,17 +858,22 @@ describe('analyzeFile', () => {
     })
   })
 
-  it('extracts emit events from setup', () => {
+  it('extracts declared emit details from setup', () => {
     const code = `
-      import { defineElement } from '@zeus-js/zeus'
+      import { defineElement, event } from '@zeus-js/zeus'
 
       export const ZToggle = defineElement(
         'z-toggle',
-        {},
+        {
+          emits: {
+            change: event<{ value: boolean }>(),
+            toggle: event<{ active: boolean }>(),
+          },
+        },
         (props, { emit }) => {
           const handleClick = () => {
-            emit('change', { value: true })
-            emit('toggle', { active: true })
+            emit.change({ value: true })
+            emit.toggle({ active: true })
           }
           return <button onClick={handleClick} />
         },

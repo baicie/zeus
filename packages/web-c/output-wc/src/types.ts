@@ -77,7 +77,6 @@ export interface OutputWCOptions {
    *
    * side-effect:
    *   Immediately registers full components on import.
-   *   Compatible with legacy behavior; not recommended as default.
    */
   register?: WebCRegisterMode
 

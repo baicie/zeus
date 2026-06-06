@@ -6,6 +6,49 @@ import {
 } from '../src/generateWcDts'
 
 describe('generateWcDts', () => {
+  it('emits typed exposed method signatures', () => {
+    const code = generateComponentWCDts({
+      tag: 'z-input',
+      name: 'ZInput',
+      exportName: 'ZInput',
+      source: 'src/input.tsx',
+      props: {},
+      events: {},
+      methods: {
+        setValue: {
+          name: 'setValue',
+          parameters: [
+            { name: 'value', type: 'string', optional: false },
+            { name: 'commit', type: 'boolean', optional: true },
+          ],
+          returns: 'boolean',
+          async: true,
+        },
+        request: {
+          name: 'request',
+          parameters: [
+            {
+              name: 'reasons',
+              type: 'string[]',
+              rest: true,
+            },
+          ],
+          returns: 'Promise<number>',
+          async: false,
+        },
+      },
+      slots: {},
+      hostAttributes: [],
+      cssParts: [],
+      cssVars: {},
+    })
+
+    expect(code).toContain(
+      'setValue(value: string, commit?: boolean): Promise<boolean>',
+    )
+    expect(code).toContain('request(...reasons: string[]): Promise<number>')
+  })
+
   it('generates typed custom element declaration', () => {
     const code = generateComponentWCDts({
       tag: 'z-button',
@@ -32,7 +75,7 @@ describe('generateWcDts', () => {
       slots: {},
       hostAttributes: [],
       cssParts: [],
-      cssVars: [],
+      cssVars: {},
     })
 
     expect(code).toContain('export interface ZButtonEventMap')
@@ -61,7 +104,7 @@ describe('generateWcDts', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       },
@@ -90,7 +133,7 @@ describe('generateWcDts', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
           {
             tag: 'z-card',
@@ -102,7 +145,7 @@ describe('generateWcDts', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       },
@@ -140,7 +183,7 @@ describe('generateWcDts', () => {
       slots: {},
       hostAttributes: [],
       cssParts: [],
-      cssVars: [],
+      cssVars: {},
     })
 
     expect(code).toContain('value: string')
@@ -165,7 +208,7 @@ describe('generateWcDts', () => {
       slots: {},
       hostAttributes: [],
       cssParts: [],
-      cssVars: [],
+      cssVars: {},
     })
 
     expect(code).toContain('label?: string')
@@ -185,7 +228,7 @@ describe('generateWcDts', () => {
       slots: {},
       hostAttributes: [],
       cssParts: [],
-      cssVars: [],
+      cssVars: {},
     })
 
     expect(code).toContain('change: CustomEvent<unknown>')
@@ -202,7 +245,7 @@ describe('generateWcDts', () => {
       slots: {},
       hostAttributes: [],
       cssParts: [],
-      cssVars: [],
+      cssVars: {},
     })
 
     expect(code).toContain('[key: string]: CustomEvent<unknown>')
@@ -226,7 +269,7 @@ describe('generateWcDts', () => {
       slots: {},
       hostAttributes: [],
       cssParts: [],
-      cssVars: [],
+      cssVars: {},
     })
 
     expect(code).toContain('str?: string')
@@ -248,7 +291,7 @@ describe('generateWcDts', () => {
       slots: {},
       hostAttributes: [],
       cssParts: [],
-      cssVars: [],
+      cssVars: {},
     })
 
     expect(code).toContain(
@@ -272,7 +315,7 @@ describe('generateWcDts', () => {
       slots: {},
       hostAttributes: [],
       cssParts: [],
-      cssVars: [],
+      cssVars: {},
     })
 
     expect(code).toContain('"my-event": CustomEvent<{ value: string }>')
@@ -293,7 +336,7 @@ describe('generateWcDts', () => {
       slots: {},
       hostAttributes: [],
       cssParts: [],
-      cssVars: [],
+      cssVars: {},
     })
 
     expect(code).toContain('"my-prop"?: string')

@@ -153,7 +153,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -168,7 +168,7 @@ describe('output-wc', () => {
       expect(ids).toContain('zeus:wc:index')
     })
 
-    it('generates lazy compatibility module for framework wrappers', () => {
+    it('generates lazy registration bridge for framework wrappers', () => {
       const plugin = wc()
       const ctx = createMockCtx({
         version: 1,
@@ -183,7 +183,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -217,7 +217,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -233,7 +233,7 @@ describe('output-wc', () => {
       expect(fileNames).not.toContain('wc/components.manifest.ts')
     })
 
-    it('always generates lazy manifest, loader, and compatibility modules', () => {
+    it('always generates lazy manifest, loader, and registration bridges', () => {
       const plugin = wc({ auto: false })
       const ctx = createMockCtx({
         version: 1,
@@ -248,7 +248,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -288,7 +288,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -321,7 +321,7 @@ describe('output-wc', () => {
               slots: {},
               hostAttributes: [],
               cssParts: [],
-              cssVars: [],
+              cssVars: {},
             },
           ],
         },
@@ -352,7 +352,7 @@ describe('output-wc', () => {
               slots: {},
               hostAttributes: [],
               cssParts: [],
-              cssVars: [],
+              cssVars: {},
             },
           ],
         },
@@ -380,7 +380,7 @@ describe('output-wc', () => {
               slots: {},
               hostAttributes: [],
               cssParts: [],
-              cssVars: [],
+              cssVars: {},
             },
           ],
         },
@@ -407,7 +407,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -432,10 +432,18 @@ describe('output-wc', () => {
             source: 'src/components/button.tsx',
             props: {},
             events: {},
+            methods: {
+              focus: {
+                name: 'focus',
+                parameters: [],
+                returns: 'void',
+                async: false,
+              },
+            },
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -461,6 +469,7 @@ describe('output-wc', () => {
         'export interface DefineCustomElementsOptions',
       )
       expect(loaderDts?.source).toContain('defineCustomElements(): void')
+      expect(loaderDts?.source).toContain('focus(): Promise<void>')
     })
 
     it('generates default assets even when manifest has no components', () => {
@@ -518,7 +527,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -552,7 +561,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -585,7 +594,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -633,7 +642,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -666,7 +675,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -696,7 +705,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -731,7 +740,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -767,7 +776,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -780,6 +789,42 @@ describe('output-wc', () => {
       expect(errors.join('\n')).toContain(
         'prop "config" cannot use attr:"config" with register:"lazy"',
       )
+    })
+
+    it('allows lazy object attributes with a custom deserializer', () => {
+      const errors: string[] = []
+      const plugin = wc({ register: 'lazy' })
+      const ctx = createMockCtx({
+        version: 1,
+        components: [
+          {
+            tag: 'zw-table',
+            name: 'ZwTable',
+            exportName: 'ZwTable',
+            source: 'src/table.tsx',
+            props: {},
+            runtimeProps: {
+              config: {
+                type: 'object',
+                attr: 'config',
+                deserialize: true,
+              },
+            },
+            events: {},
+            slots: {},
+            hostAttributes: [],
+            cssParts: [],
+            cssVars: {},
+          },
+        ],
+      })
+
+      plugin.buildStart!({
+        ...ctx,
+        error: (msg: unknown) => errors.push(String(msg)),
+      } as any)
+
+      expect(errors).toEqual([])
     })
 
     it('errors when lazy object props request reflect', () => {
@@ -806,7 +851,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -819,6 +864,44 @@ describe('output-wc', () => {
       expect(errors.join('\n')).toContain(
         'prop "config" cannot use reflect:true with register:"lazy"',
       )
+    })
+
+    it('allows lazy object reflection with a custom serializer', () => {
+      const errors: string[] = []
+      const plugin = wc({ register: 'lazy' })
+      const ctx = createMockCtx({
+        version: 1,
+        components: [
+          {
+            tag: 'zw-table',
+            name: 'ZwTable',
+            exportName: 'ZwTable',
+            source: 'src/table.tsx',
+            props: {},
+            runtimeProps: {
+              config: {
+                type: 'object',
+                attr: 'config',
+                reflect: true,
+                serialize: true,
+                deserialize: true,
+              },
+            },
+            events: {},
+            slots: {},
+            hostAttributes: [],
+            cssParts: [],
+            cssVars: {},
+          },
+        ],
+      })
+
+      plugin.buildStart!({
+        ...ctx,
+        error: (msg: unknown) => errors.push(String(msg)),
+      } as any)
+
+      expect(errors).toEqual([])
     })
 
     it('warns on file name collision', () => {
@@ -841,7 +924,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
           {
             tag: 'z-button-alt',
@@ -853,7 +936,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -886,7 +969,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
           {
             tag: 'z-button-alt',
@@ -898,7 +981,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })
@@ -927,7 +1010,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
           {
             tag: 'z-button-alt',
@@ -939,7 +1022,7 @@ describe('output-wc', () => {
             slots: {},
             hostAttributes: [],
             cssParts: [],
-            cssVars: [],
+            cssVars: {},
           },
         ],
       })

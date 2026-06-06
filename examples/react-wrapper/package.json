@@ -23,9 +23,7 @@
   "devDependencies": {
     "@types/react": "^19.2.16",
     "@types/react-dom": "^19.2.3",
-    "@zeus-js/bundler-plugin": "workspace:*",
-    "@zeus-js/output-wc": "workspace:*",
-    "@zeus-js/output-react-wrapper": "workspace:*",
+    "@zeus-js/web-c": "workspace:*",
     "@zeus-js/vite-plugin": "workspace:*",
     "typescript": "^6.0.3",
     "vite": "^8.0.16",

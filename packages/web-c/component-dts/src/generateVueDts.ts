@@ -89,15 +89,30 @@ function generateVueComponentDts(component: ComponentRecord): string {
 
 function generateVueEmitsType(component: ComponentRecord): string {
   const entries = Object.entries(component.events)
+  const modelEntries = Array.from(
+    new Map(
+      (component.models ?? []).map(model => {
+        const prop = component.props[model.prop]
+        const type = prop ? formatPropType(prop) : 'unknown'
+        const name = `update:${model.prop}`
 
-  if (!entries.length) {
+        return [name, `${JSON.stringify(name)}: (value: ${type}) => void`]
+      }),
+    ).values(),
+  )
+
+  if (!entries.length && !modelEntries.length) {
     return '{}'
   }
 
-  const fields = entries.map(([name, event]) => {
+  const fields = entries.map(([key, event]) => {
     const detailType = event.detail ? formatDetailType(event.detail) : 'unknown'
-    return `${JSON.stringify(name)}: (event: CustomEvent<${detailType}>) => void`
+    return `${JSON.stringify(event.name ?? toKebabCase(event.key ?? key))}: (event: CustomEvent<${detailType}>) => void`
   })
 
-  return `{ ${fields.join('; ')} }`
+  return `{ ${[...fields, ...modelEntries].join('; ')} }`
+}
+
+function toKebabCase(value: string): string {
+  return value.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
 }

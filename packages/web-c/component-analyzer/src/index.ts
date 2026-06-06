@@ -9,8 +9,12 @@ export type {
   AnalyzerDiagnostic,
   ComponentEvent,
   ComponentManifest,
+  ComponentMethod,
+  ComponentMethodParameter,
+  ComponentModel,
   ComponentProp,
   ComponentPropType,
   ComponentRecord,
+  ComponentCssVar,
   ComponentSlot,
 } from './types'

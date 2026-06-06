@@ -1,9 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-import zeus from '@zeus-js/bundler-plugin/vite'
-import wc from '@zeus-js/output-wc'
-import reactWrapper from '@zeus-js/output-react-wrapper'
+import zeus, { react as reactWrapper, wc } from '@zeus-js/web-c/vite'
 
 export default defineConfig({
   plugins: [
@@ -19,6 +17,7 @@ export default defineConfig({
         }),
         reactWrapper({
           outDir: 'react',
+          wrapper: 'event-bridge',
         }),
       ],
     }),

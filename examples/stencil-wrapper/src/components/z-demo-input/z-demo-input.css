@@ -1,0 +1,45 @@
+:host {
+  /**
+   * @prop --z-demo-input-border: Border color for the input shell.
+   */
+  --z-demo-input-border: #334155;
+  /**
+   * @prop --z-demo-input-invalid-border: Border color when invalid.
+   */
+  --z-demo-input-invalid-border: #dc2626;
+
+  display: block;
+  max-width: 24rem;
+}
+
+label {
+  align-items: center;
+  border: 1px solid var(--z-demo-input-border);
+  border-radius: 0.5rem;
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+}
+
+input {
+  background: transparent;
+  border: 0;
+  flex: 1;
+  font: inherit;
+  min-width: 0;
+  outline: 0;
+}
+
+[part='message'] {
+  color: #64748b;
+  font-size: 0.875rem;
+  margin-top: 0.375rem;
+}
+
+:host([invalid]) label {
+  border-color: var(--z-demo-input-invalid-border);
+}
+
+:host([disabled]) {
+  opacity: 0.5;
+}

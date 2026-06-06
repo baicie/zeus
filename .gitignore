@@ -5,6 +5,8 @@ node_modules
 # Build outputs
 dist
 build
+examples/stencil-wrapper/.stencil
+examples/stencil-wrapper/loader
 docs/.vitepress/.temp
 
 # IDE

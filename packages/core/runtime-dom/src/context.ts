@@ -2,7 +2,7 @@
 // Owner-based context tree for Zeus components.
 // Public APIs: createContext, useContext, provide, inject
 // Internal APIs: createOwner, runWithOwner, getCurrentOwner
-// DOM bridge APIs: createDOMContextBoundary, provideDOMContext, requestDOMContext, resolveDOMContext
+// DOM bridge APIs: createDOMContextBoundary, provideDOMContext, resolveDOMContext
 
 import { onScopeDispose } from '@zeus-js/signal'
 
@@ -226,7 +226,7 @@ export interface DOMContextResolution<T> {
 
 /**
  * Creates a transparent DOM element that acts as a context boundary.
- * Native custom elements inside it can use `requestDOMContext` to receive
+ * Native custom elements inside it can use `resolveDOMContext` to receive
  * context values via the DOM event protocol.
  */
 export function createDOMContextBoundary<T>(
@@ -250,7 +250,7 @@ export function createDOMContextBoundary<T>(
 
 /**
  * Registers a context value on a DOM target so that any descendant custom
- * element can pick it up via `requestDOMContext`.
+ * element can pick it up via `resolveDOMContext`.
  */
 export function provideDOMContext<T>(
   target: EventTarget,
@@ -279,7 +279,7 @@ export function provideDOMContext<T>(
 /**
  * Internal precise DOM context resolver.
  *
- * Unlike requestDOMContext(), this can distinguish:
+ * The result distinguishes:
  * - found: false, value: undefined
  * - found: true, value: undefined
  */
@@ -314,20 +314,6 @@ export function resolveDOMContext<T>(
   host.dispatchEvent(event)
 
   return { found, value }
-}
-
-/**
- * Public compatibility API.
- *
- * Returns the resolved value if found, otherwise undefined.
- * If you need to distinguish "not found" from "found undefined",
- * use resolveDOMContext().
- */
-export function requestDOMContext<T>(
-  host: HTMLElement,
-  context: Context<T>,
-): T | undefined {
-  return resolveDOMContext(host, context).value
 }
 
 // ---------------------------------------------------------------------------

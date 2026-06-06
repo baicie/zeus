@@ -1,6 +1,6 @@
 // packages/runtime-dom/src/defineElement.ts
 
-import { state } from '@zeus-js/signal'
+import { effect, state } from '@zeus-js/signal'
 
 import { createOwner, resolveDOMContext, runWithOwner } from './context'
 import { withHostContext } from './hostContext'
@@ -17,18 +17,85 @@ export type ElementPropConstructor =
   | BooleanConstructor
   | ObjectConstructor
   | ArrayConstructor
+  | FunctionConstructor
+
+export type PropSerializer<T = unknown> = {
+  bivarianceHack(value: T | undefined): string | null | undefined
+}['bivarianceHack']
+
+export type PropDeserializer<T = unknown> = {
+  bivarianceHack(value: string | null): T | undefined
+}['bivarianceHack']
+
+export interface PropDefinitionOptions<T = unknown> {
+  type?: ElementPropConstructor
+  attr?: string | false
+  reflect?: boolean
+  default?: T | (() => T)
+  values?: readonly T[]
+  serialize?(value: T | undefined): string | null | undefined
+  deserialize?(value: string | null): T | undefined
+}
 
 export type PropDefinition<T = unknown> =
   | ElementPropConstructor
-  | {
-      type?: ElementPropConstructor
-      attr?: string | false
-      reflect?: boolean
-      default?: T | (() => T)
-    }
+  | PropDefinitionOptions<T>
+
+export interface ValuePropDefinition<
+  T = unknown,
+> extends PropDefinitionOptions<T> {
+  type: StringConstructor
+  values: readonly T[]
+}
+
+export type ConstructorPropDefinition<
+  T = unknown,
+  C extends ElementPropConstructor = ElementPropConstructor,
+> = PropDefinitionOptions<T> & {
+  type: C
+}
+
+export interface EventDefinition<Detail = unknown> {
+  __zeusEvent: true
+  name?: string
+  bubbles?: boolean
+  composed?: boolean
+  cancelable?: boolean
+  __detail?: Detail
+}
+
+export interface EventOptions {
+  name?: string
+  bubbles?: boolean
+  composed?: boolean
+  cancelable?: boolean
+}
+
+export interface EmitsOptions {
+  [key: string]: EventDefinition<unknown>
+}
+
+export type FormAssociatedValue = File | FormData | string | null
+export type FormStateRestoreMode = 'restore' | 'autocomplete'
+
+export type ExplicitPropKeys<T> = keyof {
+  [K in keyof T as string extends K
+    ? never
+    : number extends K
+      ? never
+      : symbol extends K
+        ? never
+        : K]: T[K]
+}
+
+export type EmitApi<E extends EmitsOptions> = {
+  [K in keyof E]: E[K] extends EventDefinition<infer Detail>
+    ? (detail: Detail, options?: CustomEventInit) => boolean
+    : never
+}
 
 export type PropOptions<P extends object> = Partial<{
-  [K in keyof P]: PropDefinition<P[K]>
+  [K in ExplicitPropKeys<P>]: PropDefinition<P[K]>
 }>
 
 export interface DefineElementMeta {
@@ -58,18 +125,28 @@ export interface DefineElementMeta {
     }
   >
 
-  cssVars?: string[]
+  cssVars?: Record<string, { description?: string }>
   cssParts?: string[]
 
   [key: string]: unknown
 }
 
-export interface DefineElementOptions<P extends object> {
+export interface DefineElementOptions<
+  P extends object,
+  E extends EmitsOptions = EmitsOptions,
+> {
   shadow?: boolean | ShadowRootInit
+  formAssociated?: boolean
+  form?: FormAssociatedOptions<P, HTMLElement, E>
   props?: PropOptions<P>
+  emits?: E
   styles?: string | string[]
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   consumes?: Context<any>[]
+  models?: readonly ElementModelDefinition<P>[]
+  slots?: readonly string[]
+  parts?: readonly string[]
+  cssVars?: Record<string, { description?: string }>
 
   /**
    * Metadata only.
@@ -78,15 +155,53 @@ export interface DefineElementOptions<P extends object> {
   meta?: DefineElementMeta
 }
 
-export interface DefineElementContext<E extends HTMLElement = HTMLElement> {
+export interface FormAssociatedOptions<
+  P extends object,
+  E extends HTMLElement = HTMLElement,
+  Emits extends EmitsOptions = EmitsOptions,
+> {
+  value?: ExplicitPropKeys<P> | ((props: Readonly<P>) => FormAssociatedValue)
+  state?: ExplicitPropKeys<P> | ((props: Readonly<P>) => FormAssociatedValue)
+  associated?(
+    form: HTMLFormElement | null,
+    props: Readonly<P>,
+    context: DefineElementContext<E, Emits>,
+  ): void
+  disabled?(
+    disabled: boolean,
+    props: Readonly<P>,
+    context: DefineElementContext<E, Emits>,
+  ): void
+  reset?(props: Readonly<P>, context: DefineElementContext<E, Emits>): void
+  stateRestore?(
+    state: FormAssociatedValue,
+    mode: FormStateRestoreMode,
+    props: Readonly<P>,
+    context: DefineElementContext<E, Emits>,
+  ): void
+}
+
+export interface ElementModelDefinition<P extends object> {
+  prop: ExplicitPropKeys<P>
+  event: string
+  eventPath?: string
+}
+
+export interface DefineElementContext<
+  E extends HTMLElement = HTMLElement,
+  Emits extends EmitsOptions = EmitsOptions,
+> {
   host: E
-  emit: (name: string, detail?: unknown, options?: CustomEventInit) => boolean
+  internals?: ElementInternals
+  emit: EmitApi<Emits>
+  expose(methods: Record<string, Function>): void
 }
 
 export type DefineElementSetup<
   P extends object,
   E extends HTMLElement = HTMLElement,
-> = (props: Readonly<P>, context: DefineElementContext<E>) => JSXValue
+  Emits extends EmitsOptions = EmitsOptions,
+> = (props: Readonly<P>, context: DefineElementContext<E, Emits>) => JSXValue
 
 export type NormalizedPropDefinition = {
   key: string
@@ -94,6 +209,8 @@ export type NormalizedPropDefinition = {
   type?: ElementPropConstructor
   reflect: boolean
   default?: unknown
+  serialize?: (value: unknown) => string | null | undefined
+  deserialize?: (value: string | null) => unknown
 }
 
 export const ZEUS_ELEMENT_DEFINITION = Symbol.for('zeus.element.definition')
@@ -101,10 +218,11 @@ export const ZEUS_ELEMENT_DEFINITION = Symbol.for('zeus.element.definition')
 export interface ZeusElementDefinition<
   P extends object = object,
   E extends HTMLElement = HTMLElement,
+  Emits extends EmitsOptions = EmitsOptions,
 > {
   tagName: string
-  options: DefineElementOptions<P>
-  setup: DefineElementSetup<P, E>
+  options: DefineElementOptions<P, Emits>
+  setup: DefineElementSetup<P, E, Emits>
   propDefs: NormalizedPropDefinition[]
 }
 
@@ -114,7 +232,81 @@ export type ZeusElementConstructor = CustomElementConstructor & {
 
 export interface MountedElementDefinition {
   propertyChanged(name: string, _oldValue: unknown, newValue: unknown): void
+  formAssociated(form: HTMLFormElement | null): void
+  formDisabled(disabled: boolean): void
+  formReset(): void
+  formStateRestore(state: FormAssociatedValue, mode: FormStateRestoreMode): void
   dispose(): void
+}
+
+const DEFAULT_EVENT_OPTIONS = {
+  bubbles: true,
+  composed: true,
+  cancelable: false,
+}
+
+export function prop<const V extends readonly string[]>(
+  values: V,
+  options?: Omit<PropDefinitionOptions<V[number]>, 'type' | 'values'>,
+): ValuePropDefinition<V[number]>
+export function prop(
+  type: BooleanConstructor,
+  options?: Omit<PropDefinitionOptions<boolean>, 'type' | 'values'>,
+): ConstructorPropDefinition<boolean, BooleanConstructor>
+export function prop<T = unknown>(
+  type: Exclude<ElementPropConstructor, BooleanConstructor>,
+  options?: Omit<PropDefinitionOptions<T>, 'type' | 'values'>,
+): ConstructorPropDefinition<T>
+export function prop(
+  input: ElementPropConstructor | readonly string[],
+  options: Omit<PropDefinitionOptions, 'type' | 'values'> = {},
+): ConstructorPropDefinition | ValuePropDefinition {
+  if (Array.isArray(input)) {
+    return {
+      type: String,
+      values: input,
+      attr: options.attr,
+      reflect: options.reflect,
+      default: options.default,
+      serialize: options.serialize,
+      deserialize: options.deserialize,
+    }
+  }
+
+  const type = input as ElementPropConstructor
+
+  return {
+    type,
+    attr: options.attr,
+    reflect: type === Boolean ? (options.reflect ?? true) : options.reflect,
+    default: type === Boolean ? (options.default ?? false) : options.default,
+    serialize: options.serialize,
+    deserialize: options.deserialize,
+  }
+}
+
+export function event<Detail = unknown>(): EventDefinition<Detail>
+export function event<Detail = unknown>(name: string): EventDefinition<Detail>
+export function event<Detail = unknown>(
+  options: EventOptions,
+): EventDefinition<Detail>
+export function event<Detail = unknown>(
+  input?: string | EventOptions,
+): EventDefinition<Detail> {
+  if (typeof input === 'string') {
+    return {
+      __zeusEvent: true,
+      name: input,
+    }
+  }
+
+  return {
+    __zeusEvent: true,
+    name: input?.name,
+    bubbles: input?.bubbles,
+    composed: input?.composed,
+    cancelable: input?.cancelable,
+  }
 }
 
 /**
@@ -126,6 +318,9 @@ export interface ElementDefinitionMountState {
   target?: Element | ShadowRoot
   lightChildren?: Node[]
   capturedLightChildren?: boolean
+  internals?: ElementInternals
+  attributeProps?: Set<string>
+  reflectingAttrs?: Set<string>
 }
 
 interface PropStore<P extends object> {
@@ -186,15 +381,16 @@ function createPropStore<P extends object>(
 }
 
 export function defineElement<
-  P extends object = object,
+  P extends object = Record<string, unknown>,
   E extends HTMLElement = HTMLElement,
+  Emits extends EmitsOptions = EmitsOptions,
 >(
   tagName: string,
-  options: DefineElementOptions<P>,
-  setup: DefineElementSetup<P, E>,
+  options: DefineElementOptions<P, Emits>,
+  setup: DefineElementSetup<P, E, Emits>,
 ): CustomElementConstructor {
   const propDefs = normalizePropDefinitions(options.props ?? {})
-  const definition: ZeusElementDefinition<P, E> = {
+  const definition: ZeusElementDefinition<P, E, Emits> = {
     tagName,
     options,
     setup,
@@ -205,12 +401,16 @@ export function defineElement<
     .map(def => def.attr as string)
 
   class ZeusElement extends HTMLElement {
+    static formAssociated = Boolean(options.formAssociated)
+
     static get observedAttributes(): string[] {
       return observedAttributes
     }
 
     private readonly propStore: PropStore<P>
     private readonly props: Readonly<P>
+    private readonly internals?: ElementInternals
+    private readonly setupContext: DefineElementContext<E, Emits>
     private dispose?: () => void
     private target?: Element | ShadowRoot
     private lightChildren: Node[] = []
@@ -225,6 +425,17 @@ export function defineElement<
 
       applyPropDefaults(this.propStore, propDefs)
       definePropAccessors(this, this.propStore, propDefs)
+
+      if (options.formAssociated) {
+        this.internals = attachElementInternals(this)
+      }
+
+      this.setupContext = {
+        host: this as unknown as E,
+        internals: this.internals,
+        emit: createEmitApi(this, options.emits) as EmitApi<Emits>,
+        expose: createExpose(this),
+      }
     }
 
     connectedCallback(): void {
@@ -261,27 +472,13 @@ export function defineElement<
         lightChildren: this.lightChildren,
       }
 
-      const setupContext: DefineElementContext<E> = {
-        host: this as unknown as E,
-        emit: (name, detail, eventOptions) => {
-          return this.dispatchEvent(
-            new CustomEvent(name, {
-              bubbles: true,
-              composed: true,
-              cancelable: true,
-              ...eventOptions,
-              detail,
-            }),
-          )
-        },
-      }
-
       this.dispose = render(
         () =>
           runWithOwner(owner, () =>
-            withHostContext(hostContext, () =>
-              setup(this.props as Readonly<P>, setupContext),
-            ),
+            withHostContext(hostContext, () => {
+              syncFormValue(this.props, this.setupContext, options.form)
+              return setup(this.props as Readonly<P>, this.setupContext)
+            }),
           ),
         target,
         { owner },
@@ -293,6 +490,25 @@ export function defineElement<
     disconnectedCallback(): void {
       this.dispose?.()
       this.dispose = undefined
+    }
+
+    formAssociatedCallback(form: HTMLFormElement | null): void {
+      options.form?.associated?.(form, this.props, this.setupContext)
+    }
+
+    formDisabledCallback(disabled: boolean): void {
+      options.form?.disabled?.(disabled, this.props, this.setupContext)
+    }
+
+    formResetCallback(): void {
+      options.form?.reset?.(this.props, this.setupContext)
+    }
+
+    formStateRestoreCallback(
+      state: FormAssociatedValue,
+      mode: FormStateRestoreMode,
+    ): void {
+      options.form?.stateRestore?.(state, mode, this.props, this.setupContext)
     }
 
     attributeChangedCallback(
@@ -393,6 +609,15 @@ export function mountElementDefinition(
   applyPropDefaults(propStore, propDefs)
 
   for (const def of propDefs) {
+    if (def.attr !== false && mountState.attributeProps?.has(def.key)) {
+      propStore.set(
+        def.key,
+        castAttributeValue(host.getAttribute(def.attr), def),
+      )
+      initialValues.set(def.key, propStore.get(def.key))
+      continue
+    }
+
     if (initialValues.has(def.key)) {
       propStore.set(def.key, initialValues.get(def.key))
       continue
@@ -404,6 +629,21 @@ export function mountElementDefinition(
      * correct default value rather than undefined.
      */
     initialValues.set(def.key, propStore.get(def.key))
+  }
+
+  for (const def of propDefs) {
+    if (
+      def.reflect &&
+      def.serialize &&
+      !mountState.attributeProps?.has(def.key)
+    ) {
+      reflectExternalProp(
+        host,
+        def,
+        propStore.get(def.key),
+        mountState.reflectingAttrs,
+      )
+    }
   }
 
   const shadow = options.shadow ?? false
@@ -440,25 +680,22 @@ export function mountElementDefinition(
 
   const setupContext: DefineElementContext<HTMLElement> = {
     host,
-    emit: (name, detail, eventOptions) => {
-      return host.dispatchEvent(
-        new CustomEvent(name, {
-          bubbles: true,
-          composed: true,
-          cancelable: true,
-          ...eventOptions,
-          detail,
-        }),
-      )
-    },
+    internals:
+      mountState.internals ??
+      (options.formAssociated ? attachElementInternals(host) : undefined),
+    emit: createEmitApi(host, options.emits) as EmitApi<EmitsOptions>,
+    expose: createExpose(host),
   }
+
+  mountState.internals = setupContext.internals
 
   const dispose = render(
     () =>
       runWithOwner(owner, () =>
-        withHostContext(hostContext, () =>
-          setup(propStore.props, setupContext),
-        ),
+        withHostContext(hostContext, () => {
+          syncFormValue(propStore.props, setupContext, options.form)
+          return setup(propStore.props, setupContext)
+        }),
       ),
     target,
     { owner },
@@ -468,7 +705,40 @@ export function mountElementDefinition(
 
   return {
     propertyChanged(name, _oldValue, newValue) {
-      propStore.set(name, newValue)
+      const def = propDefs.find(item => item.key === name)
+      const fromAttribute = Boolean(
+        def?.attr !== false && mountState.attributeProps?.has(name),
+      )
+      const value =
+        fromAttribute && def
+          ? castAttributeValue(
+              typeof newValue === 'string' ? newValue : null,
+              def,
+            )
+          : newValue
+
+      propStore.set(name, value)
+      initialValues.set(name, value)
+
+      if (def?.reflect && !fromAttribute) {
+        reflectExternalProp(host, def, value, mountState.reflectingAttrs)
+      }
+    },
+
+    formAssociated(form) {
+      options.form?.associated?.(form, propStore.props, setupContext)
+    },
+
+    formDisabled(disabled) {
+      options.form?.disabled?.(disabled, propStore.props, setupContext)
+    },
+
+    formReset() {
+      options.form?.reset?.(propStore.props, setupContext)
+    },
+
+    formStateRestore(state, mode) {
+      options.form?.stateRestore?.(state, mode, propStore.props, setupContext)
     },
 
     dispose() {
@@ -477,27 +747,43 @@ export function mountElementDefinition(
   }
 }
 
-function normalizePropDefinitions<P extends Record<string, unknown>>(
+function normalizePropDefinitions<P extends object>(
   props: PropOptions<P>,
 ): NormalizedPropDefinition[] {
-  return Object.keys(props).map(key => {
-    const input = props[key as keyof P]
+  return (
+    Object.keys(props) as Array<Extract<ExplicitPropKeys<P>, string>>
+  ).map(key => {
+    const propKey = String(key)
+    const input = props[key]
 
     if (typeof input === 'function') {
+      const type = input as ElementPropConstructor
+
       return {
-        key,
-        attr: toKebabCase(key),
-        type: input as ElementPropConstructor,
+        key: propKey,
+        attr: isAttributeBackedConstructor(type) ? toKebabCase(propKey) : false,
+        type,
         reflect: false,
       }
     }
 
+    const type = input?.type
+    const defaultAttr = isAttributeBackedConstructor(type)
+      ? toKebabCase(propKey)
+      : false
+
     return {
-      key,
-      attr: input?.attr === undefined ? toKebabCase(key) : input.attr,
-      type: input?.type,
+      key: propKey,
+      attr: input?.attr === undefined ? defaultAttr : input.attr,
+      type,
       reflect: Boolean(input?.reflect),
       default: input?.default,
+      serialize: input?.serialize as
+        | ((value: unknown) => string | null | undefined)
+        | undefined,
+      deserialize: input?.deserialize as
+        | ((value: string | null) => unknown)
+        | undefined,
     }
   })
 }
@@ -574,6 +860,10 @@ function castAttributeValue(
   value: string | null,
   def: NormalizedPropDefinition,
 ): unknown {
+  if (def.deserialize) {
+    return def.deserialize(value)
+  }
+
   if (def.type === Boolean) {
     return value !== null
   }
@@ -600,6 +890,10 @@ function castAttributeValue(
     }
   }
 
+  if (def.type === Function) {
+    return undefined
+  }
+
   return value
 }
 
@@ -609,6 +903,18 @@ function reflectPropToAttribute(
   value: unknown,
 ): void {
   if (def.attr === false) return
+
+  if (def.serialize) {
+    const serialized = def.serialize(value)
+
+    if (serialized == null) {
+      element.removeAttribute(def.attr)
+    } else {
+      element.setAttribute(def.attr, serialized)
+    }
+
+    return
+  }
 
   if (def.type === Boolean) {
     if (value) {
@@ -630,7 +936,182 @@ function reflectPropToAttribute(
     return
   }
 
+  if (def.type === Function) return
+
   element.setAttribute(def.attr, String(value))
+}
+
+function reflectExternalProp(
+  element: HTMLElement,
+  def: NormalizedPropDefinition,
+  value: unknown,
+  reflectingAttrs: Set<string> | undefined,
+): void {
+  if (def.attr === false) return
+
+  const attrName = def.attr.toLowerCase()
+
+  reflectingAttrs?.add(attrName)
+
+  try {
+    reflectPropToAttribute(element, def, value)
+  } finally {
+    reflectingAttrs?.delete(attrName)
+  }
+}
+
+function syncFormValue<
+  P extends object,
+  E extends HTMLElement,
+  Emits extends EmitsOptions,
+>(
+  props: Readonly<P>,
+  context: DefineElementContext<E, Emits>,
+  form: FormAssociatedOptions<P, HTMLElement, Emits> | undefined,
+): void {
+  const valueResolver = form?.value
+  const stateResolver = form?.state
+
+  if (!context.internals || valueResolver === undefined) return
+
+  effect(() => {
+    const value = resolveFormValue(props, valueResolver)
+    const state =
+      stateResolver === undefined
+        ? undefined
+        : resolveFormValue(props, stateResolver)
+
+    context.internals!.setFormValue(value, state)
+  })
+}
+
+function resolveFormValue<P extends object>(
+  props: Readonly<P>,
+  resolver: ExplicitPropKeys<P> | ((props: Readonly<P>) => FormAssociatedValue),
+): FormAssociatedValue {
+  if (typeof resolver === 'function') {
+    return resolver(props) ?? null
+  }
+
+  const value = (props as Record<PropertyKey, unknown>)[resolver]
+
+  return value == null ? null : (value as FormAssociatedValue)
+}
+
+function attachElementInternals(
+  host: HTMLElement,
+): ElementInternals | undefined {
+  const attachInternals = (
+    host as HTMLElement & {
+      attachInternals?: () => ElementInternals
+    }
+  ).attachInternals
+
+  if (typeof attachInternals !== 'function') {
+    return undefined
+  }
+
+  try {
+    return attachInternals.call(host)
+  } catch (error) {
+    if (__DEV__) {
+      console.warn(
+        '[Zeus custom-element] Failed to attach ElementInternals.',
+        error,
+      )
+    }
+
+    return undefined
+  }
+}
+
+function createEmitApi(
+  host: HTMLElement,
+  emits: EmitsOptions | undefined,
+): EmitApi<EmitsOptions> {
+  const emit: EmitApi<EmitsOptions> = {}
+
+  const dispatch = (
+    name: string,
+    detail?: unknown,
+    options?: CustomEventInit,
+  ): boolean => {
+    const eventName = resolveEventName(name, emits)
+    const eventOptions = resolveEventOptions(name, emits, options)
+
+    return host.dispatchEvent(
+      new CustomEvent(eventName, {
+        bubbles: eventOptions.bubbles,
+        composed: eventOptions.composed,
+        cancelable: eventOptions.cancelable,
+        detail,
+      }),
+    )
+  }
+
+  if (emits) {
+    for (const key of Object.keys(emits)) {
+      Object.defineProperty(emit, key, {
+        configurable: true,
+        enumerable: true,
+        value(detail: unknown, options?: CustomEventInit): boolean {
+          return dispatch(key, detail, options)
+        },
+      })
+    }
+  }
+
+  return emit
+}
+
+function createExpose(
+  host: HTMLElement,
+): (methods: Record<string, Function>) => void {
+  return methods => {
+    for (const key of Object.keys(methods)) {
+      Object.defineProperty(host, key, {
+        configurable: true,
+        enumerable: false,
+        value: methods[key],
+      })
+    }
+  }
+}
+
+function resolveEventName(
+  name: string,
+  emits: EmitsOptions | undefined,
+): string {
+  const definition = emits?.[name]
+
+  return definition?.name ?? toKebabCase(name)
+}
+
+function resolveEventOptions(
+  name: string,
+  emits: EmitsOptions | undefined,
+  options: CustomEventInit | undefined,
+): Required<Pick<CustomEventInit, 'bubbles' | 'composed' | 'cancelable'>> {
+  const definition = emits?.[name]
+
+  return {
+    bubbles:
+      options?.bubbles ?? definition?.bubbles ?? DEFAULT_EVENT_OPTIONS.bubbles,
+    composed:
+      options?.composed ??
+      definition?.composed ??
+      DEFAULT_EVENT_OPTIONS.composed,
+    cancelable:
+      options?.cancelable ??
+      definition?.cancelable ??
+      DEFAULT_EVENT_OPTIONS.cancelable,
+  }
+}
+
+function isAttributeBackedConstructor(
+  type: ElementPropConstructor | undefined,
+): boolean {
+  return type === String || type === Number || type === Boolean
 }
 
 function resolveExternalRenderTarget(

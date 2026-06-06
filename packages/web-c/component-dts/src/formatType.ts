@@ -1,4 +1,8 @@
-import type { ComponentEvent, ComponentProp } from '@zeus-js/component-analyzer'
+import type {
+  ComponentEvent,
+  ComponentMethod,
+  ComponentProp,
+} from '@zeus-js/component-analyzer'
 
 export function formatPropType(prop: ComponentProp): string {
   if (prop.values?.length) {
@@ -16,6 +20,8 @@ export function formatPropType(prop: ComponentProp): string {
       return 'unknown[]'
     case 'object':
       return 'Record<string, unknown>'
+    case 'function':
+      return 'Function'
     default:
       return 'unknown'
   }
@@ -70,4 +76,31 @@ export function safePropertyName(name: string): string {
 export function isRequiredProp(prop: ComponentProp): boolean {
   if (prop.default !== undefined) return false
   return prop.required === true
+}
+
+export function formatMethodSignature(
+  method: ComponentMethod,
+  options: {
+    forcePromise?: boolean
+  } = {},
+): string {
+  const parameters = method.parameters
+    ? method.parameters
+        .map(parameter => {
+          const prefix = parameter.rest ? '...' : ''
+          const optional = parameter.optional && !parameter.rest ? '?' : ''
+
+          return `${prefix}${safePropertyName(parameter.name)}${optional}: ${normalizeKnownType(parameter.type)}`
+        })
+        .join(', ')
+    : '...args: unknown[]'
+  const result = normalizeKnownType(method.returns ?? 'unknown')
+  const returnType =
+    method.async || options.forcePromise
+      ? result.startsWith('Promise<')
+        ? result
+        : `Promise<${result}>`
+      : result
+
+  return `${safePropertyName(method.name)}(${parameters}): ${returnType}`
 }

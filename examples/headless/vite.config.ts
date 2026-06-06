@@ -1,5 +1,4 @@
-import zeus from '@zeus-js/bundler-plugin/vite'
-import { componentLibrary } from '@zeus-js/preset-component-library'
+import zeus, { componentLibrary } from '@zeus-js/web-c/vite'
 
 export default {
   plugins: [

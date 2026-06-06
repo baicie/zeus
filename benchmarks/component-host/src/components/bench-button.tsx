@@ -1,6 +1,6 @@
 // benchmarks/component-host/src/components/bench-button.tsx
 
-import { defineElement, Host, Slot } from '@zeus-js/zeus'
+import { defineElement, event, Host, Slot } from '@zeus-js/zeus'
 
 export interface BenchButtonProps {
   variant?: 'default' | 'outline'
@@ -11,6 +11,9 @@ export const ZBenchButton = defineElement<BenchButtonProps>(
   'z-bench-button',
   {
     shadow: false,
+    emits: {
+      press: event<{ nativeEvent: MouseEvent }>(),
+    },
 
     props: {
       variant: {
@@ -51,7 +54,7 @@ export const ZBenchButton = defineElement<BenchButtonProps>(
         return
       }
 
-      emit('press', {
+      emit.press({
         nativeEvent: event,
       })
     }

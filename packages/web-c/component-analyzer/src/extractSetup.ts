@@ -1,21 +1,27 @@
 import * as t from '@babel/types'
 
 import { walk } from './ast'
+import { createComponentEvent } from './extractEmits'
 import { getObjectKey, staticValue, uniqueSorted } from './utils'
 
-import type { ComponentEvent, ComponentSlot } from './types'
+import type {
+  ComponentEvent,
+  ComponentMethod,
+  ComponentMethodParameter,
+  ComponentSlot,
+} from './types'
 
 export interface SetupMeta {
   events: Record<string, ComponentEvent>
+  methods: Record<string, ComponentMethod>
   slots: Record<string, ComponentSlot>
   hostAttributes: string[]
   cssParts: string[]
 }
 
-export function extractSetupMeta(
-  setup: t.Expression | t.SpreadElement | t.ArgumentPlaceholder | undefined,
-): SetupMeta {
+export function extractSetupMeta(setup: t.Node | undefined): SetupMeta {
   const events: Record<string, ComponentEvent> = {}
+  const methods: Record<string, ComponentMethod> = {}
   const slots: Record<string, ComponentSlot> = {}
   const hostAttributes: string[] = []
   const cssParts: string[] = []
@@ -23,6 +29,7 @@ export function extractSetupMeta(
   if (!setup || t.isSpreadElement(setup) || t.isArgumentPlaceholder(setup)) {
     return {
       events,
+      methods,
       slots,
       hostAttributes,
       cssParts,
@@ -31,6 +38,7 @@ export function extractSetupMeta(
 
   walk(setup, node => {
     extractEmit(node, events)
+    extractExpose(node, methods)
     extractSlot(node, slots)
     extractHostAttributes(node, hostAttributes)
     extractCssParts(node, cssParts)
@@ -38,6 +46,7 @@ export function extractSetupMeta(
 
   return {
     events,
+    methods,
     slots,
     hostAttributes: uniqueSorted(hostAttributes),
     cssParts: uniqueSorted(cssParts),
@@ -50,21 +59,45 @@ function extractEmit(
 ): void {
   if (!t.isCallExpression(node)) return
 
-  if (!t.isIdentifier(node.callee, { name: 'emit' })) return
+  const emitKey = getEmitKey(node.callee)
 
-  const first = node.arguments[0]
+  if (!emitKey) return
 
-  if (!t.isStringLiteral(first)) return
+  events[emitKey] ||= createComponentEvent(emitKey)
 
-  const eventName = first.value
-
-  events[eventName] ||= {}
-
-  const detailNode = node.arguments[1]
+  const detailNode = node.arguments[0]
 
   if (t.isObjectExpression(detailNode)) {
-    events[eventName].detail = inferDetail(detailNode)
+    events[emitKey].detail = inferDetail(detailNode)
   }
+}
+
+function getEmitKey(
+  callee: t.Expression | t.V8IntrinsicIdentifier,
+): string | undefined {
+  if (t.isMemberExpression(callee)) {
+    if (t.isIdentifier(callee.object, { name: 'emit' }) && !callee.computed) {
+      return getMemberPropertyName(callee.property)
+    }
+
+    if (
+      t.isMemberExpression(callee.object) &&
+      t.isIdentifier(callee.object.property, { name: 'emit' }) &&
+      !callee.computed
+    ) {
+      return getMemberPropertyName(callee.property)
+    }
+  }
+
+  return undefined
+}
+
+function getMemberPropertyName(
+  property: t.Expression | t.PrivateName,
+): string | undefined {
+  if (t.isIdentifier(property)) return property.name
+  if (t.isStringLiteral(property)) return property.value
+  return undefined
 }
 
 function inferDetail(node: t.ObjectExpression): Record<string, string> {
@@ -98,11 +131,193 @@ function extractSlot(node: t.Node, slots: Record<string, ComponentSlot>): void {
 
   const name = node.openingElement.name
 
-  if (!t.isJSXIdentifier(name, { name: 'Slot' })) return
+  if (
+    !t.isJSXIdentifier(name, { name: 'Slot' }) &&
+    !t.isJSXIdentifier(name, { name: 'slot' })
+  ) {
+    return
+  }
 
   const slotName = getJSXStringAttribute(node, 'name') ?? 'default'
 
-  slots[slotName] ||= {}
+  slots[slotName] ||= {
+    name: slotName,
+  }
+}
+
+function extractExpose(
+  node: t.Node,
+  methods: Record<string, ComponentMethod>,
+): void {
+  if (!t.isCallExpression(node)) return
+  if (!isExposeCallee(node.callee)) return
+
+  const first = node.arguments[0]
+
+  if (!t.isObjectExpression(first)) return
+
+  for (const member of first.properties) {
+    if (!t.isObjectMethod(member) && !t.isObjectProperty(member)) continue
+
+    const name = getObjectKey(member.key)
+
+    if (!name) continue
+
+    methods[name] = extractMethod(member, name)
+  }
+}
+
+function extractMethod(
+  member: t.ObjectMethod | t.ObjectProperty,
+  name: string,
+): ComponentMethod {
+  const fn = t.isObjectMethod(member)
+    ? member
+    : t.isFunctionExpression(member.value) ||
+        t.isArrowFunctionExpression(member.value)
+      ? member.value
+      : undefined
+
+  if (!fn) {
+    return { name }
+  }
+
+  const returnType = t.isTSTypeAnnotation(fn.returnType)
+    ? fn.returnType.typeAnnotation
+    : undefined
+  const normalizedReturn = fn.async
+    ? (unwrapPromiseType(returnType) ?? returnType)
+    : returnType
+
+  return {
+    name,
+    parameters: fn.params.map((param, index) =>
+      extractMethodParameter(param, index),
+    ),
+    returns: formatTsType(normalizedReturn) ?? 'unknown',
+    async: fn.async,
+  }
+}
+
+function extractMethodParameter(
+  param: t.Identifier | t.Pattern | t.RestElement | t.TSParameterProperty,
+  index: number,
+): ComponentMethodParameter {
+  if (t.isTSParameterProperty(param)) {
+    return extractMethodParameter(param.parameter, index)
+  }
+
+  if (t.isAssignmentPattern(param)) {
+    return {
+      name: t.isIdentifier(param.left) ? param.left.name : `arg${index}`,
+      type:
+        formatTsType(getPatternTypeAnnotation(param.left)) ??
+        inferExpressionType(param.right),
+      optional: true,
+    }
+  }
+
+  if (t.isRestElement(param)) {
+    return {
+      name: t.isIdentifier(param.argument)
+        ? param.argument.name
+        : `args${index}`,
+      type:
+        formatTsType(getPatternTypeAnnotation(param)) ??
+        formatTsType(getPatternTypeAnnotation(param.argument)) ??
+        'unknown[]',
+      optional: false,
+      rest: true,
+    }
+  }
+
+  return {
+    name: t.isIdentifier(param) ? param.name : `arg${index}`,
+    type: formatTsType(getPatternTypeAnnotation(param)) ?? 'unknown',
+    optional: Boolean(t.isIdentifier(param) && param.optional),
+  }
+}
+
+function getPatternTypeAnnotation(node: t.Node): t.TSType | null | undefined {
+  if (
+    t.isIdentifier(node) ||
+    t.isObjectPattern(node) ||
+    t.isArrayPattern(node) ||
+    t.isRestElement(node)
+  ) {
+    return t.isTSTypeAnnotation(node.typeAnnotation)
+      ? node.typeAnnotation.typeAnnotation
+      : undefined
+  }
+
+  return undefined
+}
+
+function unwrapPromiseType(
+  node: t.TSType | null | undefined,
+): t.TSType | undefined {
+  if (
+    t.isTSTypeReference(node) &&
+    t.isIdentifier(node.typeName, { name: 'Promise' })
+  ) {
+    return node.typeParameters?.params[0]
+  }
+
+  return undefined
+}
+
+function formatTsType(node: t.TSType | null | undefined): string | undefined {
+  if (!node) return undefined
+  if (t.isTSStringKeyword(node)) return 'string'
+  if (t.isTSNumberKeyword(node)) return 'number'
+  if (t.isTSBooleanKeyword(node)) return 'boolean'
+  if (t.isTSVoidKeyword(node)) return 'void'
+  if (t.isTSUnknownKeyword(node)) return 'unknown'
+  if (t.isTSAnyKeyword(node)) return 'any'
+  if (t.isTSNullKeyword(node)) return 'null'
+  if (t.isTSArrayType(node)) {
+    return `${formatTsType(node.elementType) ?? 'unknown'}[]`
+  }
+  if (t.isTSUnionType(node)) {
+    return node.types.map(type => formatTsType(type) ?? 'unknown').join(' | ')
+  }
+  if (t.isTSLiteralType(node)) {
+    return staticLiteralType(node.literal)
+  }
+  if (t.isTSTypeReference(node)) {
+    const name = formatEntityName(node.typeName)
+    const params = node.typeParameters?.params
+
+    return params?.length
+      ? `${name}<${params.map(type => formatTsType(type) ?? 'unknown').join(', ')}>`
+      : name
+  }
+
+  return 'unknown'
+}
+
+function formatEntityName(name: t.TSEntityName): string {
+  return t.isIdentifier(name)
+    ? name.name
+    : `${formatEntityName(name.left)}.${name.right.name}`
+}
+
+function staticLiteralType(node: t.Expression): string {
+  if (t.isStringLiteral(node)) return JSON.stringify(node.value)
+  if (t.isNumericLiteral(node)) return String(node.value)
+  if (t.isBooleanLiteral(node)) return String(node.value)
+  return 'unknown'
+}
+
+function isExposeCallee(
+  callee: t.Expression | t.V8IntrinsicIdentifier,
+): boolean {
+  if (t.isIdentifier(callee, { name: 'expose' })) return true
+
+  return (
+    t.isMemberExpression(callee) &&
+    t.isIdentifier(callee.property, { name: 'expose' })
+  )
 }
 
 function extractHostAttributes(node: t.Node, hostAttributes: string[]): void {

@@ -6,89 +6,48 @@ export interface GenerateVueWrapperOptions {
   mode?: 'minimal' | 'event-bridge'
 }
 
+interface WrapperCapabilities {
+  eventNames: string[]
+  models: Array<{
+    event: string
+    eventPath?: string
+    updateEvent: string
+  }>
+  propNames: string[]
+  slotNames: string[]
+}
+
 export function generateVueWrapper(input: GenerateVueWrapperOptions): string {
-  const { mode = 'minimal' } = input
-
-  if (mode === 'minimal') {
-    return generateMinimalVueWrapper(input)
-  }
-
-  return generateEventBridgeVueWrapper(input)
+  return input.mode === 'event-bridge' || input.component.models?.length
+    ? generateEventBridgeVueWrapper(input)
+    : generateMinimalVueWrapper(input)
 }
 
 function generateMinimalVueWrapper(input: GenerateVueWrapperOptions): string {
   const { component, wcModuleId } = input
-
-  const slotNames = Object.keys(component.slots).filter(
-    name => name !== 'default',
-  )
-
+  const slotNames = getNamedSlots(component)
   const hasNamedSlots = slotNames.length > 0
-
   const vueImports = hasNamedSlots
-    ? `cloneVNode, defineComponent, h`
-    : `defineComponent, h`
-
-  const namedSlotBlock = hasNamedSlots
-    ? `
-      for (const name of NAMED_SLOTS) {
-        const slot = slots[name];
-        if (!slot) continue;
-
-        for (const vnode of slot()) {
-          children.push(withSlot(name, vnode));
-        }
-      }
-`
-    : ''
-
-  const withSlotHelper = hasNamedSlots
-    ? `
-function withSlot(name, vnode) {
-  if (!vnode) return vnode;
-
-  if (typeof vnode === 'string') {
-    return h('span', { slot: name, style: 'display: contents' }, vnode);
-  }
-
-  return cloneVNode(vnode, { slot: name });
-}
-`
-    : ''
+    ? 'cloneVNode, defineComponent, h'
+    : 'defineComponent, h'
 
   return `
 import { ${vueImports} } from 'vue';
 
 import ${JSON.stringify(wcModuleId)};
-
-const NAMED_SLOTS = ${JSON.stringify(slotNames)};
-
+${hasNamedSlots ? `\nconst NAMED_SLOTS = ${JSON.stringify(slotNames)};\n` : ''}
 export const ${component.name} = defineComponent({
   name: ${JSON.stringify(component.name)},
   inheritAttrs: false,
 
   setup(_props, { attrs, slots }) {
     return () => {
-      const children = [];
-
-      if (slots.default) {
-        pushAll(children, slots.default());
-      }
-${namedSlotBlock}
-      return h(
-        ${JSON.stringify(component.tag)},
-        Object.assign({}, attrs),
-        children,
-      );
+${generateVueChildren(slotNames)}
+      return h(${JSON.stringify(component.tag)}, attrs, children);
     };
   },
 });
-function pushAll(target, values) {
-  for (const value of values) {
-    target.push(value);
-  }
-}
-${withSlotHelper}
+${hasNamedSlots ? VUE_NAMED_SLOT_HELPERS : ''}
 `.trimStart()
 }
 
@@ -96,104 +55,213 @@ function generateEventBridgeVueWrapper(
   input: GenerateVueWrapperOptions,
 ): string {
   const { component, wcModuleId } = input
+  const capabilities = getCapabilities(component)
+  const { eventNames, models, propNames, slotNames } = capabilities
 
-  const propNames = Object.keys(component.props)
-  const eventNames = Object.keys(component.events)
-  const slotNames = Object.keys(component.slots).filter(
-    name => name !== 'default',
+  if (!propNames.length && !eventNames.length) {
+    return generateMinimalVueWrapper(input)
+  }
+
+  const hasProps = propNames.length > 0
+  const hasEvents = eventNames.length > 0
+  const emitNames = Array.from(
+    new Set([...eventNames, ...models.map(model => model.updateEvent)]),
   )
-  const propInputKeys = createVuePropInputKeys(propNames)
+  const hasNamedSlots = slotNames.length > 0
+  const vueImports = [
+    ...(hasNamedSlots ? ['cloneVNode'] : []),
+    'defineComponent',
+    ...(hasProps ? ['getCurrentInstance'] : []),
+    'h',
+    ...(hasEvents ? ['onBeforeUnmount'] : []),
+    ...(hasProps || hasEvents ? ['onMounted'] : []),
+    ...(hasProps ? ['onUpdated'] : []),
+    'ref',
+  ]
 
   return `
 import {
-  cloneVNode,
-  defineComponent,
-  getCurrentInstance,
-  h,
-  onBeforeUnmount,
-  onMounted,
-  onUpdated,
-  ref,
+  ${vueImports.join(',\n  ')},
 } from 'vue';
 
 import ${JSON.stringify(wcModuleId)};
-
-const PROP_KEYS = ${JSON.stringify(propNames)};
-const PROP_INPUT_KEYS = ${JSON.stringify(propInputKeys)};
-const EVENT_NAMES = ${JSON.stringify(eventNames)};
-const NAMED_SLOTS = ${JSON.stringify(slotNames)};
-
+${generateVueConstants(capabilities)}
 export const ${component.name} = defineComponent({
   name: ${JSON.stringify(component.name)},
   inheritAttrs: false,
-
-  props: {
-    ${generateVueProps(component)}
-  },
-
-  emits: EVENT_NAMES,
-
-  setup(props, { attrs, slots, emit }) {
+${hasProps ? `\n  props: {\n    ${generateVueProps(component)}\n  },\n` : ''}
+${hasEvents ? `  emits: ${models.length ? JSON.stringify(emitNames) : 'EVENT_NAMES'},\n` : ''}
+  setup(${hasProps ? 'props' : '_props'}, { attrs, slots${hasEvents ? ', emit' : ''} }) {
     const elRef = ref(null);
-    const instance = getCurrentInstance();
-    const cleanups = [];
-    const syncedPropKeys = new Set();
+${generateVuePropSetup(hasProps)}
+${generateVueEventSetup(hasEvents, models.length > 0)}
+${generateVueMountHook(hasProps, hasEvents)}
+${hasProps ? '    onUpdated(syncProps);\n' : ''}
+${generateVueUnmountHook(hasEvents)}
+    return () => {
+${generateVueChildren(slotNames)}
+      const hostProps = Object.assign({}, attrs);
+      hostProps.ref = elRef;
 
-    const hasRawProp = name => {
-      const rawVNode = instance && instance.vnode ? instance.vnode : {};
-      const rawProps = rawVNode.props || {};
-      const keys = PROP_INPUT_KEYS[name] || [name];
-
-      return keys.some(key =>
-        Object.prototype.hasOwnProperty.call(rawProps, key),
-      );
+      return h(${JSON.stringify(component.tag)}, hostProps, children);
     };
+  },
+});
+${hasProps ? VUE_PROP_HELPERS : ''}
+${hasNamedSlots ? VUE_NAMED_SLOT_HELPERS : ''}
+${models.length ? VUE_MODEL_HELPERS : ''}
+`.trimStart()
+}
+
+function getCapabilities(component: ComponentRecord): WrapperCapabilities {
+  const models = (component.models ?? []).map(model => ({
+    event: model.event,
+    eventPath: model.eventPath,
+    updateEvent: `update:${model.prop}`,
+  }))
+
+  return {
+    propNames: Object.keys(component.props),
+    eventNames: Array.from(
+      new Set([
+        ...Object.entries(component.events).map(([key, event]) => {
+          return event.name ?? toKebabCase(event.key ?? key)
+        }),
+        ...models.map(model => model.event),
+      ]),
+    ),
+    models,
+    slotNames: getNamedSlots(component),
+  }
+}
+
+function getNamedSlots(component: ComponentRecord): string[] {
+  return Object.keys(component.slots).filter(name => name !== 'default')
+}
+
+function generateVueConstants(capabilities: WrapperCapabilities): string {
+  const { eventNames, models, propNames, slotNames } = capabilities
+  const lines: string[] = []
+
+  if (propNames.length) {
+    lines.push(`const PROP_KEYS = ${JSON.stringify(propNames)};`)
+    lines.push(
+      `const PROP_INPUT_KEYS = ${JSON.stringify(createVuePropInputKeys(propNames))};`,
+    )
+    lines.push('const EMPTY_PROPS = {};')
+  }
+
+  if (eventNames.length) {
+    lines.push(`const EVENT_NAMES = ${JSON.stringify(eventNames)};`)
+  }
+
+  if (models.length) {
+    lines.push(`const MODEL_BINDINGS = ${JSON.stringify(models)};`)
+  }
+
+  if (slotNames.length) {
+    lines.push(`const NAMED_SLOTS = ${JSON.stringify(slotNames)};`)
+  }
+
+  return lines.length ? `${lines.join('\n')}\n` : ''
+}
+
+function generateVuePropSetup(hasProps: boolean): string {
+  if (!hasProps) return ''
+
+  return `    const instance = getCurrentInstance();
+    const syncedPropPresence = [];
+    const syncedPropValues = [];
 
     const syncProps = () => {
       const el = elRef.value;
       if (!el) return;
 
-      for (const name of PROP_KEYS) {
-        if (hasRawProp(name)) {
-          el[name] = props[name];
-          syncedPropKeys.add(name);
-          continue;
-        }
+      const rawProps = instance?.vnode.props || EMPTY_PROPS;
 
-        if (syncedPropKeys.has(name)) {
+      for (let index = 0; index < PROP_KEYS.length; index += 1) {
+        const name = PROP_KEYS[index];
+
+        if (hasRawProp(rawProps, name)) {
+          const nextValue = props[name];
+          if (
+            !syncedPropPresence[index] ||
+            !Object.is(syncedPropValues[index], nextValue)
+          ) {
+            el[name] = nextValue;
+            syncedPropValues[index] = nextValue;
+          }
+          syncedPropPresence[index] = true;
+        } else if (syncedPropPresence[index]) {
           el[name] = undefined;
-          syncedPropKeys.delete(name);
+          syncedPropPresence[index] = false;
+          syncedPropValues[index] = undefined;
         }
       }
     };
+`
+}
 
-    onMounted(() => {
-      syncProps();
+function generateVueEventSetup(hasEvents: boolean, hasModels: boolean): string {
+  if (!hasEvents) return ''
 
-      const el = elRef.value;
-      if (!el) return;
-
-      for (const eventName of EVENT_NAMES) {
-        const handler = event => emit(eventName, event);
-        el.addEventListener(eventName, handler);
-        cleanups.push(() => el.removeEventListener(eventName, handler));
+  return `    const eventHandlers = EVENT_NAMES.map(eventName => event => {
+      emit(eventName, event);
+${
+  hasModels
+    ? `
+      for (const model of MODEL_BINDINGS) {
+        if (model.event !== eventName) continue;
+        emit(model.updateEvent, readEventPath(event, model.eventPath));
       }
-    });
+`
+    : ''
+}    });
+    let mountedEl = null;
+`
+}
 
-    onUpdated(syncProps);
+function generateVueMountHook(hasProps: boolean, hasEvents: boolean): string {
+  if (!hasProps && !hasEvents) return ''
 
-    onBeforeUnmount(() => {
-      for (const cleanup of cleanups) cleanup();
-      cleanups.length = 0;
-      syncedPropKeys.clear();
-    });
+  const propSync = hasProps ? '      syncProps();\n' : ''
+  const eventSetup = hasEvents
+    ? `
+      mountedEl = elRef.value;
+      if (!mountedEl) return;
 
-    return () => {
-      const children = [];
-
-      if (slots.default) {
-        pushAll(children, slots.default());
+      for (let index = 0; index < EVENT_NAMES.length; index += 1) {
+        mountedEl.addEventListener(EVENT_NAMES[index], eventHandlers[index]);
       }
+`
+    : ''
+
+  return `    onMounted(() => {
+${propSync}${eventSetup}    });
+`
+}
+
+function generateVueUnmountHook(hasEvents: boolean): string {
+  if (!hasEvents) return ''
+
+  return `    onBeforeUnmount(() => {
+      if (!mountedEl) return;
+
+      for (let index = 0; index < EVENT_NAMES.length; index += 1) {
+        mountedEl.removeEventListener(EVENT_NAMES[index], eventHandlers[index]);
+      }
+      mountedEl = null;
+    });
+`
+}
+
+function generateVueChildren(slotNames: string[]): string {
+  if (!slotNames.length) {
+    return `      const children = slots.default ? slots.default() : undefined;
+`
+  }
+
+  return `      const children = slots.default ? slots.default() : [];
 
       for (const name of NAMED_SLOTS) {
         const slot = slots[name];
@@ -203,32 +271,7 @@ export const ${component.name} = defineComponent({
           children.push(withSlot(name, vnode));
         }
       }
-
-      return h(
-        ${JSON.stringify(component.tag)},
-        Object.assign({}, attrs, { ref: elRef }),
-        children,
-      );
-    };
-  },
-});
-
-function pushAll(target, values) {
-  for (const value of values) {
-    target.push(value);
-  }
-}
-
-function withSlot(name, vnode) {
-  if (!vnode) return vnode;
-
-  if (typeof vnode === 'string') {
-    return h('span', { slot: name, style: 'display: contents' }, vnode);
-  }
-
-  return cloneVNode(vnode, { slot: name });
-}
-`.trimStart()
+`
 }
 
 function generateVueProps(component: ComponentRecord): string {
@@ -246,13 +289,13 @@ function toVuePropOption(prop: ComponentRecord['props'][string]): string {
     boolean: 'Boolean',
     object: 'Object',
     array: 'Array',
+    function: 'Function',
     unknown: 'null',
   }
 
-  const type = typeMap[prop.type] ?? 'null'
-  const required = prop.required === true ? 'true' : 'false'
-
-  return `{ type: ${type}, required: ${required} }`
+  return `{ type: ${typeMap[prop.type] ?? 'null'}, required: ${
+    prop.required === true ? 'true' : 'false'
+  } }`
 }
 
 function createVuePropInputKeys(propNames: string[]): Record<string, string[]> {
@@ -267,3 +310,42 @@ function createVuePropInputKeys(propNames: string[]): Record<string, string[]> {
 function toKebabCase(value: string): string {
   return value.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
 }
+
+const VUE_PROP_HELPERS = `
+function hasRawProp(rawProps, name) {
+  const keys = PROP_INPUT_KEYS[name];
+  for (const key of keys) {
+    if (hasOwn(rawProps, key)) return true;
+  }
+  return false;
+}
+
+function hasOwn(source, key) {
+  return Object.prototype.hasOwnProperty.call(source, key);
+}
+`
+
+const VUE_NAMED_SLOT_HELPERS = `
+function withSlot(name, vnode) {
+  if (!vnode) return vnode;
+
+  if (typeof vnode === 'string') {
+    return h('span', { slot: name, style: 'display: contents' }, vnode);
+  }
+
+  return cloneVNode(vnode, { slot: name });
+}
+`
+
+const VUE_MODEL_HELPERS = `
+function readEventPath(event, path) {
+  if (!path) return event.detail;
+
+  let value = event;
+  for (const segment of path.split('.')) {
+    if (value == null) return undefined;
+    value = value[segment];
+  }
+  return value;
+}
+`
