@@ -1,6 +1,11 @@
 // packages/web-c/component-dts/src/generateLoaderDts.ts
 
-import { formatPropType, isRequiredProp, safePropertyName } from './formatType'
+import {
+  formatMethodSignature,
+  formatPropType,
+  isRequiredProp,
+  safePropertyName,
+} from './formatType'
 import { getElementTypeName } from './naming'
 
 import type {
@@ -57,6 +62,10 @@ function generateElementInterface(component: ComponentRecord): string {
     lines.push(
       `  ${safePropertyName(name)}${optional}: ${formatPropType(prop)}`,
     )
+  }
+
+  for (const method of Object.values(component.methods ?? {})) {
+    lines.push(`  ${formatMethodSignature(method, { forcePromise: true })}`)
   }
 
   lines.push('  componentOnReady(): Promise<this>')

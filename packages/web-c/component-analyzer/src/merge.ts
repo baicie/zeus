@@ -7,6 +7,7 @@ import type {
   ComponentEvent,
   ComponentCssVar,
   ComponentMethod,
+  ComponentModel,
   ComponentProp,
   ComponentRecord,
   ComponentSlot,
@@ -54,6 +55,7 @@ export function buildComponentRecord(
   )
 
   const methods = mergeMethods(setupMeta.methods, inlineMeta.methods)
+  const models = normalizeModels(inlineMeta.models)
 
   const slots = mergeSlots(setupMeta.slots, inlineMeta.slots)
 
@@ -82,6 +84,7 @@ export function buildComponentRecord(
 
     events,
     methods,
+    models,
     slots,
     hostAttributes,
     cssParts,
@@ -95,6 +98,31 @@ export function buildComponentRecord(
         ? { ...restMeta, shadow, formAssociated }
         : undefined,
   }
+}
+
+function normalizeModels(value: unknown): ComponentModel[] | undefined {
+  if (!Array.isArray(value)) return undefined
+
+  const models: ComponentModel[] = []
+
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue
+
+    const record = item as Record<string, unknown>
+
+    if (typeof record.prop !== 'string' || typeof record.event !== 'string') {
+      continue
+    }
+
+    models.push({
+      prop: record.prop,
+      event: record.event,
+      eventPath:
+        typeof record.eventPath === 'string' ? record.eventPath : undefined,
+    })
+  }
+
+  return models.length ? models : undefined
 }
 
 function mergeProps(
@@ -296,6 +324,7 @@ function stripKnownMetaFields(
   delete rest.shadow
   delete rest.formAssociated
   delete rest.methods
+  delete rest.models
 
   return Object.keys(rest).length ? rest : undefined
 }

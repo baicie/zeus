@@ -15,6 +15,8 @@ export interface ZeusPropMeta {
   type: ZeusPropType
   reflect?: boolean
   default?: unknown
+  serialize?: boolean
+  deserialize?: boolean
 }
 
 export interface ZeusLazyComponentMeta {
@@ -48,6 +50,7 @@ export interface ZeusLazyComponentMeta {
 export interface HostRef {
   host: HTMLElement
   meta: ZeusLazyComponentMeta
+  internals?: ElementInternals
 
   connected: boolean
   loaded: boolean
@@ -56,8 +59,10 @@ export interface HostRef {
   instance?: ZeusComponentInstance
 
   values: Map<string, unknown>
+  attributeProps: Set<string>
 
   reflectingAttrs: Set<string>
+  pendingFormCallbacks: ZeusFormCallback[]
 
   readyWaiters: Array<{
     resolve(host: HTMLElement): void
@@ -70,6 +75,13 @@ export interface ZeusComponentInstance {
   disconnected?(): void
 
   propertyChanged?(name: string, oldValue: unknown, newValue: unknown): void
+  formAssociated?(form: HTMLFormElement | null): void
+  formDisabled?(disabled: boolean): void
+  formReset?(): void
+  formStateRestore?(
+    state: File | FormData | string | null,
+    mode: 'restore' | 'autocomplete',
+  ): void
 
   /**
    * Can return Node / Node[] / string.
@@ -79,6 +91,24 @@ export interface ZeusComponentInstance {
 
   dispose?(): void
 }
+
+export type ZeusFormCallback =
+  | {
+      type: 'associated'
+      form: HTMLFormElement | null
+    }
+  | {
+      type: 'disabled'
+      disabled: boolean
+    }
+  | {
+      type: 'reset'
+    }
+  | {
+      type: 'stateRestore'
+      state: File | FormData | string | null
+      mode: 'restore' | 'autocomplete'
+    }
 
 export interface ZeusComponentModule {
   createComponent(hostRef: HostRef): ZeusComponentInstance

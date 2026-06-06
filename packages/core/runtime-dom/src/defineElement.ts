@@ -1,6 +1,6 @@
 // packages/runtime-dom/src/defineElement.ts
 
-import { state } from '@zeus-js/signal'
+import { effect, state } from '@zeus-js/signal'
 
 import { createOwner, resolveDOMContext, runWithOwner } from './context'
 import { withHostContext } from './hostContext'
@@ -68,6 +68,9 @@ export interface EmitsOptions {
   [key: string]: EventDefinition<unknown>
 }
 
+export type FormAssociatedValue = File | FormData | string | null
+export type FormStateRestoreMode = 'restore' | 'autocomplete'
+
 export type ExplicitPropKeys<T> = keyof {
   [K in keyof T as string extends K
     ? never
@@ -127,11 +130,13 @@ export interface DefineElementOptions<
 > {
   shadow?: boolean | ShadowRootInit
   formAssociated?: boolean
+  form?: FormAssociatedOptions<P, HTMLElement, E>
   props?: PropOptions<P>
   emits?: E
   styles?: string | string[]
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   consumes?: Context<any>[]
+  models?: readonly ElementModelDefinition<P>[]
   slots?: readonly string[]
   parts?: readonly string[]
   cssVars?: Record<string, { description?: string }>
@@ -141,6 +146,38 @@ export interface DefineElementOptions<
    * Runtime does not consume this field.
    */
   meta?: DefineElementMeta
+}
+
+export interface FormAssociatedOptions<
+  P extends object,
+  E extends HTMLElement = HTMLElement,
+  Emits extends EmitsOptions = EmitsOptions,
+> {
+  value?: ExplicitPropKeys<P> | ((props: Readonly<P>) => FormAssociatedValue)
+  state?: ExplicitPropKeys<P> | ((props: Readonly<P>) => FormAssociatedValue)
+  associated?(
+    form: HTMLFormElement | null,
+    props: Readonly<P>,
+    context: DefineElementContext<E, Emits>,
+  ): void
+  disabled?(
+    disabled: boolean,
+    props: Readonly<P>,
+    context: DefineElementContext<E, Emits>,
+  ): void
+  reset?(props: Readonly<P>, context: DefineElementContext<E, Emits>): void
+  stateRestore?(
+    state: FormAssociatedValue,
+    mode: FormStateRestoreMode,
+    props: Readonly<P>,
+    context: DefineElementContext<E, Emits>,
+  ): void
+}
+
+export interface ElementModelDefinition<P extends object> {
+  prop: ExplicitPropKeys<P>
+  event: string
+  eventPath?: string
 }
 
 export interface DefineElementContext<
@@ -188,6 +225,10 @@ export type ZeusElementConstructor = CustomElementConstructor & {
 
 export interface MountedElementDefinition {
   propertyChanged(name: string, _oldValue: unknown, newValue: unknown): void
+  formAssociated(form: HTMLFormElement | null): void
+  formDisabled(disabled: boolean): void
+  formReset(): void
+  formStateRestore(state: FormAssociatedValue, mode: FormStateRestoreMode): void
   dispose(): void
 }
 
@@ -243,6 +284,9 @@ export interface ElementDefinitionMountState {
   target?: Element | ShadowRoot
   lightChildren?: Node[]
   capturedLightChildren?: boolean
+  internals?: ElementInternals
+  attributeProps?: Set<string>
+  reflectingAttrs?: Set<string>
 }
 
 interface PropStore<P extends object> {
@@ -332,6 +376,7 @@ export function defineElement<
     private readonly propStore: PropStore<P>
     private readonly props: Readonly<P>
     private readonly internals?: ElementInternals
+    private readonly setupContext: DefineElementContext<E, Emits>
     private dispose?: () => void
     private target?: Element | ShadowRoot
     private lightChildren: Node[] = []
@@ -349,6 +394,13 @@ export function defineElement<
 
       if (options.formAssociated) {
         this.internals = attachElementInternals(this)
+      }
+
+      this.setupContext = {
+        host: this as unknown as E,
+        internals: this.internals,
+        emit: createEmitApi(this, options.emits) as EmitApi<Emits>,
+        expose: createExpose(this),
       }
     }
 
@@ -386,19 +438,13 @@ export function defineElement<
         lightChildren: this.lightChildren,
       }
 
-      const setupContext: DefineElementContext<E, Emits> = {
-        host: this as unknown as E,
-        internals: this.internals,
-        emit: createEmitApi(this, options.emits) as EmitApi<Emits>,
-        expose: createExpose(this),
-      }
-
       this.dispose = render(
         () =>
           runWithOwner(owner, () =>
-            withHostContext(hostContext, () =>
-              setup(this.props as Readonly<P>, setupContext),
-            ),
+            withHostContext(hostContext, () => {
+              syncFormValue(this.props, this.setupContext, options.form)
+              return setup(this.props as Readonly<P>, this.setupContext)
+            }),
           ),
         target,
         { owner },
@@ -410,6 +456,25 @@ export function defineElement<
     disconnectedCallback(): void {
       this.dispose?.()
       this.dispose = undefined
+    }
+
+    formAssociatedCallback(form: HTMLFormElement | null): void {
+      options.form?.associated?.(form, this.props, this.setupContext)
+    }
+
+    formDisabledCallback(disabled: boolean): void {
+      options.form?.disabled?.(disabled, this.props, this.setupContext)
+    }
+
+    formResetCallback(): void {
+      options.form?.reset?.(this.props, this.setupContext)
+    }
+
+    formStateRestoreCallback(
+      state: FormAssociatedValue,
+      mode: FormStateRestoreMode,
+    ): void {
+      options.form?.stateRestore?.(state, mode, this.props, this.setupContext)
     }
 
     attributeChangedCallback(
@@ -510,6 +575,15 @@ export function mountElementDefinition(
   applyPropDefaults(propStore, propDefs)
 
   for (const def of propDefs) {
+    if (def.attr !== false && mountState.attributeProps?.has(def.key)) {
+      propStore.set(
+        def.key,
+        castAttributeValue(host.getAttribute(def.attr), def),
+      )
+      initialValues.set(def.key, propStore.get(def.key))
+      continue
+    }
+
     if (initialValues.has(def.key)) {
       propStore.set(def.key, initialValues.get(def.key))
       continue
@@ -521,6 +595,21 @@ export function mountElementDefinition(
      * correct default value rather than undefined.
      */
     initialValues.set(def.key, propStore.get(def.key))
+  }
+
+  for (const def of propDefs) {
+    if (
+      def.reflect &&
+      def.serialize &&
+      !mountState.attributeProps?.has(def.key)
+    ) {
+      reflectExternalProp(
+        host,
+        def,
+        propStore.get(def.key),
+        mountState.reflectingAttrs,
+      )
+    }
   }
 
   const shadow = options.shadow ?? false
@@ -557,19 +646,22 @@ export function mountElementDefinition(
 
   const setupContext: DefineElementContext<HTMLElement> = {
     host,
-    internals: options.formAssociated
-      ? attachElementInternals(host)
-      : undefined,
+    internals:
+      mountState.internals ??
+      (options.formAssociated ? attachElementInternals(host) : undefined),
     emit: createEmitApi(host, options.emits) as EmitApi<EmitsOptions>,
     expose: createExpose(host),
   }
 
+  mountState.internals = setupContext.internals
+
   const dispose = render(
     () =>
       runWithOwner(owner, () =>
-        withHostContext(hostContext, () =>
-          setup(propStore.props, setupContext),
-        ),
+        withHostContext(hostContext, () => {
+          syncFormValue(propStore.props, setupContext, options.form)
+          return setup(propStore.props, setupContext)
+        }),
       ),
     target,
     { owner },
@@ -579,7 +671,40 @@ export function mountElementDefinition(
 
   return {
     propertyChanged(name, _oldValue, newValue) {
-      propStore.set(name, newValue)
+      const def = propDefs.find(item => item.key === name)
+      const fromAttribute = Boolean(
+        def?.attr !== false && mountState.attributeProps?.has(name),
+      )
+      const value =
+        fromAttribute && def
+          ? castAttributeValue(
+              typeof newValue === 'string' ? newValue : null,
+              def,
+            )
+          : newValue
+
+      propStore.set(name, value)
+      initialValues.set(name, value)
+
+      if (def?.reflect && !fromAttribute) {
+        reflectExternalProp(host, def, value, mountState.reflectingAttrs)
+      }
+    },
+
+    formAssociated(form) {
+      options.form?.associated?.(form, propStore.props, setupContext)
+    },
+
+    formDisabled(disabled) {
+      options.form?.disabled?.(disabled, propStore.props, setupContext)
+    },
+
+    formReset() {
+      options.form?.reset?.(propStore.props, setupContext)
+    },
+
+    formStateRestore(state, mode) {
+      options.form?.stateRestore?.(state, mode, propStore.props, setupContext)
     },
 
     dispose() {
@@ -780,6 +905,63 @@ function reflectPropToAttribute(
   if (def.type === Function) return
 
   element.setAttribute(def.attr, String(value))
+}
+
+function reflectExternalProp(
+  element: HTMLElement,
+  def: NormalizedPropDefinition,
+  value: unknown,
+  reflectingAttrs: Set<string> | undefined,
+): void {
+  if (def.attr === false) return
+
+  const attrName = def.attr.toLowerCase()
+
+  reflectingAttrs?.add(attrName)
+
+  try {
+    reflectPropToAttribute(element, def, value)
+  } finally {
+    reflectingAttrs?.delete(attrName)
+  }
+}
+
+function syncFormValue<
+  P extends object,
+  E extends HTMLElement,
+  Emits extends EmitsOptions,
+>(
+  props: Readonly<P>,
+  context: DefineElementContext<E, Emits>,
+  form: FormAssociatedOptions<P, HTMLElement, Emits> | undefined,
+): void {
+  const valueResolver = form?.value
+  const stateResolver = form?.state
+
+  if (!context.internals || valueResolver === undefined) return
+
+  effect(() => {
+    const value = resolveFormValue(props, valueResolver)
+    const state =
+      stateResolver === undefined
+        ? undefined
+        : resolveFormValue(props, stateResolver)
+
+    context.internals!.setFormValue(value, state)
+  })
+}
+
+function resolveFormValue<P extends object>(
+  props: Readonly<P>,
+  resolver: ExplicitPropKeys<P> | ((props: Readonly<P>) => FormAssociatedValue),
+): FormAssociatedValue {
+  if (typeof resolver === 'function') {
+    return resolver(props) ?? null
+  }
+
+  const value = (props as Record<PropertyKey, unknown>)[resolver]
+
+  return value == null ? null : (value as FormAssociatedValue)
 }
 
 function attachElementInternals(

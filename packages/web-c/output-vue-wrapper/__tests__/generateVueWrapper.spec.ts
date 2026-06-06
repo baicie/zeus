@@ -3,6 +3,45 @@ import { describe, expect, it } from 'vitest'
 import { generateVueWrapper } from '../src/generateVueWrapper'
 
 describe('generateVueWrapper', () => {
+  it('bridges declared component models to Vue update events', () => {
+    const code = generateVueWrapper({
+      component: {
+        tag: 'z-input',
+        name: 'ZInput',
+        exportName: 'ZInput',
+        source: 'src/input.tsx',
+        props: {
+          value: {
+            type: 'string',
+          },
+        },
+        events: {
+          valueChange: {
+            name: 'value-change',
+          },
+        },
+        models: [
+          {
+            prop: 'value',
+            event: 'value-change',
+            eventPath: 'detail.value',
+          },
+        ],
+        slots: {},
+        hostAttributes: [],
+        cssParts: [],
+        cssVars: {},
+      },
+      wcModuleId: '@demo/components',
+      mode: 'minimal',
+    })
+
+    expect(code).toContain('"update:value"')
+    expect(code).toContain('readEventPath(event, model.eventPath)')
+    expect(code).toContain('emit(model.updateEvent')
+    expect(code).toContain('"detail.value"')
+  })
+
   it('generates event-bridge Vue wrapper code', () => {
     const code = generateVueWrapper({
       component: {

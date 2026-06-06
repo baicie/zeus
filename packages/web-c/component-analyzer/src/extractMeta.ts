@@ -8,6 +8,7 @@ export interface InlineMeta {
   events?: Record<string, unknown>
   slots?: Record<string, unknown>
   methods?: string[]
+  models?: unknown[]
   cssVars?: Record<string, unknown>
   cssParts?: string[]
   [key: string]: unknown
@@ -33,6 +34,7 @@ export function extractInlineMeta(
   assignTopLevelStaticValue(options, result, 'parts')
   assignTopLevelStaticValue(options, result, 'cssVars')
   assignTopLevelStaticValue(options, result, 'methods')
+  assignTopLevelStaticValue(options, result, 'models')
 
   return result
 }

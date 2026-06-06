@@ -6,6 +6,49 @@ import {
 } from '../src/generateWcDts'
 
 describe('generateWcDts', () => {
+  it('emits typed exposed method signatures', () => {
+    const code = generateComponentWCDts({
+      tag: 'z-input',
+      name: 'ZInput',
+      exportName: 'ZInput',
+      source: 'src/input.tsx',
+      props: {},
+      events: {},
+      methods: {
+        setValue: {
+          name: 'setValue',
+          parameters: [
+            { name: 'value', type: 'string', optional: false },
+            { name: 'commit', type: 'boolean', optional: true },
+          ],
+          returns: 'boolean',
+          async: true,
+        },
+        request: {
+          name: 'request',
+          parameters: [
+            {
+              name: 'reasons',
+              type: 'string[]',
+              rest: true,
+            },
+          ],
+          returns: 'Promise<number>',
+          async: false,
+        },
+      },
+      slots: {},
+      hostAttributes: [],
+      cssParts: [],
+      cssVars: {},
+    })
+
+    expect(code).toContain(
+      'setValue(value: string, commit?: boolean): Promise<boolean>',
+    )
+    expect(code).toContain('request(...reasons: string[]): Promise<number>')
+  })
+
   it('generates typed custom element declaration', () => {
     const code = generateComponentWCDts({
       tag: 'z-button',

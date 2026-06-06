@@ -37,6 +37,7 @@ export interface ComponentRecord {
 
   events: Record<string, ComponentEvent>
   methods?: Record<string, ComponentMethod>
+  models?: ComponentModel[]
   slots: Record<string, ComponentSlot>
 
   hostAttributes: string[]
@@ -77,6 +78,22 @@ export interface ComponentEvent {
 export interface ComponentMethod {
   name: string
   description?: string
+  parameters?: ComponentMethodParameter[]
+  returns?: string
+  async?: boolean
+}
+
+export interface ComponentMethodParameter {
+  name: string
+  type: string
+  optional?: boolean
+  rest?: boolean
+}
+
+export interface ComponentModel {
+  prop: string
+  event: string
+  eventPath?: string
 }
 
 export interface ComponentSlot {

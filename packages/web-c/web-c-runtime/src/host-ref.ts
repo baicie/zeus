@@ -17,16 +17,37 @@ export function registerHost(
   const hostRef: HostRef = {
     host,
     meta,
+    internals: meta.formAssociated ? attachElementInternals(host) : undefined,
     connected: false,
     loaded: false,
     values: new Map(),
+    attributeProps: new Set(),
     reflectingAttrs: new Set(),
+    pendingFormCallbacks: [],
     readyWaiters: [],
   }
 
   hostRefs.set(host, hostRef)
 
   return hostRef
+}
+
+function attachElementInternals(
+  host: HTMLElement,
+): ElementInternals | undefined {
+  if (typeof host.attachInternals !== 'function') {
+    return undefined
+  }
+
+  try {
+    return host.attachInternals()
+  } catch (error) {
+    if (__DEV__) {
+      console.warn('[zeus:web-c] Failed to attach ElementInternals.', error)
+    }
+
+    return undefined
+  }
 }
 
 export function getHostRef(host: HTMLElement): HostRef | undefined {

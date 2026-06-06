@@ -4,7 +4,12 @@ import { walk } from './ast'
 import { createComponentEvent } from './extractEmits'
 import { getObjectKey, staticValue, uniqueSorted } from './utils'
 
-import type { ComponentEvent, ComponentMethod, ComponentSlot } from './types'
+import type {
+  ComponentEvent,
+  ComponentMethod,
+  ComponentMethodParameter,
+  ComponentSlot,
+} from './types'
 
 export interface SetupMeta {
   events: Record<string, ComponentEvent>
@@ -160,10 +165,150 @@ function extractExpose(
 
     if (!name) continue
 
-    methods[name] = {
-      name,
+    methods[name] = extractMethod(member, name)
+  }
+}
+
+function extractMethod(
+  member: t.ObjectMethod | t.ObjectProperty,
+  name: string,
+): ComponentMethod {
+  const fn = t.isObjectMethod(member)
+    ? member
+    : t.isFunctionExpression(member.value) ||
+        t.isArrowFunctionExpression(member.value)
+      ? member.value
+      : undefined
+
+  if (!fn) {
+    return { name }
+  }
+
+  const returnType = t.isTSTypeAnnotation(fn.returnType)
+    ? fn.returnType.typeAnnotation
+    : undefined
+  const normalizedReturn = fn.async
+    ? (unwrapPromiseType(returnType) ?? returnType)
+    : returnType
+
+  return {
+    name,
+    parameters: fn.params.map((param, index) =>
+      extractMethodParameter(param, index),
+    ),
+    returns: formatTsType(normalizedReturn) ?? 'unknown',
+    async: fn.async,
+  }
+}
+
+function extractMethodParameter(
+  param: t.Identifier | t.Pattern | t.RestElement | t.TSParameterProperty,
+  index: number,
+): ComponentMethodParameter {
+  if (t.isTSParameterProperty(param)) {
+    return extractMethodParameter(param.parameter, index)
+  }
+
+  if (t.isAssignmentPattern(param)) {
+    return {
+      name: t.isIdentifier(param.left) ? param.left.name : `arg${index}`,
+      type:
+        formatTsType(getPatternTypeAnnotation(param.left)) ??
+        inferExpressionType(param.right),
+      optional: true,
     }
   }
+
+  if (t.isRestElement(param)) {
+    return {
+      name: t.isIdentifier(param.argument)
+        ? param.argument.name
+        : `args${index}`,
+      type:
+        formatTsType(getPatternTypeAnnotation(param)) ??
+        formatTsType(getPatternTypeAnnotation(param.argument)) ??
+        'unknown[]',
+      optional: false,
+      rest: true,
+    }
+  }
+
+  return {
+    name: t.isIdentifier(param) ? param.name : `arg${index}`,
+    type: formatTsType(getPatternTypeAnnotation(param)) ?? 'unknown',
+    optional: Boolean(t.isIdentifier(param) && param.optional),
+  }
+}
+
+function getPatternTypeAnnotation(node: t.Node): t.TSType | null | undefined {
+  if (
+    t.isIdentifier(node) ||
+    t.isObjectPattern(node) ||
+    t.isArrayPattern(node) ||
+    t.isRestElement(node)
+  ) {
+    return t.isTSTypeAnnotation(node.typeAnnotation)
+      ? node.typeAnnotation.typeAnnotation
+      : undefined
+  }
+
+  return undefined
+}
+
+function unwrapPromiseType(
+  node: t.TSType | null | undefined,
+): t.TSType | undefined {
+  if (
+    t.isTSTypeReference(node) &&
+    t.isIdentifier(node.typeName, { name: 'Promise' })
+  ) {
+    return node.typeParameters?.params[0]
+  }
+
+  return undefined
+}
+
+function formatTsType(node: t.TSType | null | undefined): string | undefined {
+  if (!node) return undefined
+  if (t.isTSStringKeyword(node)) return 'string'
+  if (t.isTSNumberKeyword(node)) return 'number'
+  if (t.isTSBooleanKeyword(node)) return 'boolean'
+  if (t.isTSVoidKeyword(node)) return 'void'
+  if (t.isTSUnknownKeyword(node)) return 'unknown'
+  if (t.isTSAnyKeyword(node)) return 'any'
+  if (t.isTSNullKeyword(node)) return 'null'
+  if (t.isTSArrayType(node)) {
+    return `${formatTsType(node.elementType) ?? 'unknown'}[]`
+  }
+  if (t.isTSUnionType(node)) {
+    return node.types.map(type => formatTsType(type) ?? 'unknown').join(' | ')
+  }
+  if (t.isTSLiteralType(node)) {
+    return staticLiteralType(node.literal)
+  }
+  if (t.isTSTypeReference(node)) {
+    const name = formatEntityName(node.typeName)
+    const params = node.typeParameters?.params
+
+    return params?.length
+      ? `${name}<${params.map(type => formatTsType(type) ?? 'unknown').join(', ')}>`
+      : name
+  }
+
+  return 'unknown'
+}
+
+function formatEntityName(name: t.TSEntityName): string {
+  return t.isIdentifier(name)
+    ? name.name
+    : `${formatEntityName(name.left)}.${name.right.name}`
+}
+
+function staticLiteralType(node: t.Expression): string {
+  if (t.isStringLiteral(node)) return JSON.stringify(node.value)
+  if (t.isNumericLiteral(node)) return String(node.value)
+  if (t.isBooleanLiteral(node)) return String(node.value)
+  return 'unknown'
 }
 
 function isExposeCallee(

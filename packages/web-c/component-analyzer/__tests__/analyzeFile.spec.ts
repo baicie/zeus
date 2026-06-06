@@ -300,6 +300,93 @@ describe('analyzeFile', () => {
     })
   })
 
+  it('extracts model mappings and exposed method signatures', () => {
+    const code = `
+      import { defineElement } from '@zeus-js/zeus'
+
+      export const ZInput = defineElement<{ value?: string }>(
+        'z-input',
+        {
+          props: {
+            value: String,
+          },
+          models: [
+            {
+              prop: 'value',
+              event: 'value-change',
+              eventPath: 'detail.value',
+            },
+          ],
+        },
+        (_props, { expose }) => {
+          expose({
+            async setValue(value: string, commit = true): Promise<boolean> {
+              return commit && value.length > 0
+            },
+            request(...reasons: string[]): Promise<number> {
+              return Promise.resolve(reasons.length)
+            },
+            focus(): void {},
+          })
+
+          return null
+        },
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/input.tsx',
+      code,
+    })
+
+    expect(result.diagnostics).toEqual([])
+    expect(result.components[0].models).toEqual([
+      {
+        prop: 'value',
+        event: 'value-change',
+        eventPath: 'detail.value',
+      },
+    ])
+    expect(result.components[0].methods).toEqual({
+      focus: {
+        name: 'focus',
+        parameters: [],
+        returns: 'void',
+        async: false,
+      },
+      setValue: {
+        name: 'setValue',
+        parameters: [
+          {
+            name: 'value',
+            type: 'string',
+            optional: false,
+          },
+          {
+            name: 'commit',
+            type: 'boolean',
+            optional: true,
+          },
+        ],
+        returns: 'boolean',
+        async: true,
+      },
+      request: {
+        name: 'request',
+        parameters: [
+          {
+            name: 'reasons',
+            type: 'string[]',
+            optional: false,
+            rest: true,
+          },
+        ],
+        returns: 'Promise<number>',
+        async: false,
+      },
+    })
+  })
+
   it('keeps setup-inferred event detail for declared emits', () => {
     const code = `
       import { defineElement, event } from '@zeus-js/zeus'

@@ -8,12 +8,17 @@ export interface GenerateVueWrapperOptions {
 
 interface WrapperCapabilities {
   eventNames: string[]
+  models: Array<{
+    event: string
+    eventPath?: string
+    updateEvent: string
+  }>
   propNames: string[]
   slotNames: string[]
 }
 
 export function generateVueWrapper(input: GenerateVueWrapperOptions): string {
-  return input.mode === 'event-bridge'
+  return input.mode === 'event-bridge' || input.component.models?.length
     ? generateEventBridgeVueWrapper(input)
     : generateMinimalVueWrapper(input)
 }
@@ -51,7 +56,7 @@ function generateEventBridgeVueWrapper(
 ): string {
   const { component, wcModuleId } = input
   const capabilities = getCapabilities(component)
-  const { eventNames, propNames, slotNames } = capabilities
+  const { eventNames, models, propNames, slotNames } = capabilities
 
   if (!propNames.length && !eventNames.length) {
     return generateMinimalVueWrapper(input)
@@ -59,6 +64,9 @@ function generateEventBridgeVueWrapper(
 
   const hasProps = propNames.length > 0
   const hasEvents = eventNames.length > 0
+  const emitNames = Array.from(
+    new Set([...eventNames, ...models.map(model => model.updateEvent)]),
+  )
   const hasNamedSlots = slotNames.length > 0
   const vueImports = [
     ...(hasNamedSlots ? ['cloneVNode'] : []),
@@ -82,11 +90,11 @@ export const ${component.name} = defineComponent({
   name: ${JSON.stringify(component.name)},
   inheritAttrs: false,
 ${hasProps ? `\n  props: {\n    ${generateVueProps(component)}\n  },\n` : ''}
-${hasEvents ? `  emits: EVENT_NAMES,\n` : ''}
+${hasEvents ? `  emits: ${models.length ? JSON.stringify(emitNames) : 'EVENT_NAMES'},\n` : ''}
   setup(${hasProps ? 'props' : '_props'}, { attrs, slots${hasEvents ? ', emit' : ''} }) {
     const elRef = ref(null);
 ${generateVuePropSetup(hasProps)}
-${generateVueEventSetup(hasEvents)}
+${generateVueEventSetup(hasEvents, models.length > 0)}
 ${generateVueMountHook(hasProps, hasEvents)}
 ${hasProps ? '    onUpdated(syncProps);\n' : ''}
 ${generateVueUnmountHook(hasEvents)}
@@ -101,15 +109,28 @@ ${generateVueChildren(slotNames)}
 });
 ${hasProps ? VUE_PROP_HELPERS : ''}
 ${hasNamedSlots ? VUE_NAMED_SLOT_HELPERS : ''}
+${models.length ? VUE_MODEL_HELPERS : ''}
 `.trimStart()
 }
 
 function getCapabilities(component: ComponentRecord): WrapperCapabilities {
+  const models = (component.models ?? []).map(model => ({
+    event: model.event,
+    eventPath: model.eventPath,
+    updateEvent: `update:${model.prop}`,
+  }))
+
   return {
     propNames: Object.keys(component.props),
-    eventNames: Object.entries(component.events).map(([key, event]) => {
-      return event.name ?? toKebabCase(event.key ?? key)
-    }),
+    eventNames: Array.from(
+      new Set([
+        ...Object.entries(component.events).map(([key, event]) => {
+          return event.name ?? toKebabCase(event.key ?? key)
+        }),
+        ...models.map(model => model.event),
+      ]),
+    ),
+    models,
     slotNames: getNamedSlots(component),
   }
 }
@@ -119,7 +140,7 @@ function getNamedSlots(component: ComponentRecord): string[] {
 }
 
 function generateVueConstants(capabilities: WrapperCapabilities): string {
-  const { eventNames, propNames, slotNames } = capabilities
+  const { eventNames, models, propNames, slotNames } = capabilities
   const lines: string[] = []
 
   if (propNames.length) {
@@ -132,6 +153,10 @@ function generateVueConstants(capabilities: WrapperCapabilities): string {
 
   if (eventNames.length) {
     lines.push(`const EVENT_NAMES = ${JSON.stringify(eventNames)};`)
+  }
+
+  if (models.length) {
+    lines.push(`const MODEL_BINDINGS = ${JSON.stringify(models)};`)
   }
 
   if (slotNames.length) {
@@ -177,12 +202,21 @@ function generateVuePropSetup(hasProps: boolean): string {
 `
 }
 
-function generateVueEventSetup(hasEvents: boolean): string {
+function generateVueEventSetup(hasEvents: boolean, hasModels: boolean): string {
   if (!hasEvents) return ''
 
-  return `    const eventHandlers = EVENT_NAMES.map(
-      eventName => event => emit(eventName, event),
-    );
+  return `    const eventHandlers = EVENT_NAMES.map(eventName => event => {
+      emit(eventName, event);
+${
+  hasModels
+    ? `
+      for (const model of MODEL_BINDINGS) {
+        if (model.event !== eventName) continue;
+        emit(model.updateEvent, readEventPath(event, model.eventPath));
+      }
+`
+    : ''
+}    });
     let mountedEl = null;
 `
 }
@@ -300,5 +334,18 @@ function withSlot(name, vnode) {
   }
 
   return cloneVNode(vnode, { slot: name });
+}
+`
+
+const VUE_MODEL_HELPERS = `
+function readEventPath(event, path) {
+  if (!path) return event.detail;
+
+  let value = event;
+  for (const segment of path.split('.')) {
+    if (value == null) return undefined;
+    value = value[segment];
+  }
+  return value;
 }
 `

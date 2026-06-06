@@ -432,6 +432,14 @@ describe('output-wc', () => {
             source: 'src/components/button.tsx',
             props: {},
             events: {},
+            methods: {
+              focus: {
+                name: 'focus',
+                parameters: [],
+                returns: 'void',
+                async: false,
+              },
+            },
             slots: {},
             hostAttributes: [],
             cssParts: [],
@@ -461,6 +469,7 @@ describe('output-wc', () => {
         'export interface DefineCustomElementsOptions',
       )
       expect(loaderDts?.source).toContain('defineCustomElements(): void')
+      expect(loaderDts?.source).toContain('focus(): Promise<void>')
     })
 
     it('generates default assets even when manifest has no components', () => {
@@ -782,6 +791,42 @@ describe('output-wc', () => {
       )
     })
 
+    it('allows lazy object attributes with a custom deserializer', () => {
+      const errors: string[] = []
+      const plugin = wc({ register: 'lazy' })
+      const ctx = createMockCtx({
+        version: 1,
+        components: [
+          {
+            tag: 'zw-table',
+            name: 'ZwTable',
+            exportName: 'ZwTable',
+            source: 'src/table.tsx',
+            props: {},
+            runtimeProps: {
+              config: {
+                type: 'object',
+                attr: 'config',
+                deserialize: true,
+              },
+            },
+            events: {},
+            slots: {},
+            hostAttributes: [],
+            cssParts: [],
+            cssVars: {},
+          },
+        ],
+      })
+
+      plugin.buildStart!({
+        ...ctx,
+        error: (msg: unknown) => errors.push(String(msg)),
+      } as any)
+
+      expect(errors).toEqual([])
+    })
+
     it('errors when lazy object props request reflect', () => {
       const errors: string[] = []
       const plugin = wc({
@@ -819,6 +864,44 @@ describe('output-wc', () => {
       expect(errors.join('\n')).toContain(
         'prop "config" cannot use reflect:true with register:"lazy"',
       )
+    })
+
+    it('allows lazy object reflection with a custom serializer', () => {
+      const errors: string[] = []
+      const plugin = wc({ register: 'lazy' })
+      const ctx = createMockCtx({
+        version: 1,
+        components: [
+          {
+            tag: 'zw-table',
+            name: 'ZwTable',
+            exportName: 'ZwTable',
+            source: 'src/table.tsx',
+            props: {},
+            runtimeProps: {
+              config: {
+                type: 'object',
+                attr: 'config',
+                reflect: true,
+                serialize: true,
+                deserialize: true,
+              },
+            },
+            events: {},
+            slots: {},
+            hostAttributes: [],
+            cssParts: [],
+            cssVars: {},
+          },
+        ],
+      })
+
+      plugin.buildStart!({
+        ...ctx,
+        error: (msg: unknown) => errors.push(String(msg)),
+      } as any)
+
+      expect(errors).toEqual([])
     })
 
     it('warns on file name collision', () => {

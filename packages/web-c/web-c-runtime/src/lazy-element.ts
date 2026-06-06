@@ -1,5 +1,6 @@
 // packages/web-c-runtime/src/lazy-element.ts
 
+import { invokeFormCallback } from './form-callbacks'
 import { registerHost, requireHostRef } from './host-ref'
 import { initializeComponent, waitForComponentReady } from './lifecycle'
 import {
@@ -10,6 +11,7 @@ import {
 } from './props'
 
 import type { ZeusLazyComponentMeta } from './types'
+import type { HostRef, ZeusFormCallback } from './types'
 
 function reportInitializationError(tagName: string, error: unknown): void {
   console.error(`[zeus:web-c] Failed to initialize <${tagName}>.`, error)
@@ -69,6 +71,37 @@ export function createLazyElementClass(
       syncAttributeToProperty(hostRef, name, oldValue, newValue)
     }
 
+    formAssociatedCallback(form: HTMLFormElement | null): void {
+      dispatchFormCallback(requireHostRef(this), {
+        type: 'associated',
+        form,
+      })
+    }
+
+    formDisabledCallback(disabled: boolean): void {
+      dispatchFormCallback(requireHostRef(this), {
+        type: 'disabled',
+        disabled,
+      })
+    }
+
+    formResetCallback(): void {
+      dispatchFormCallback(requireHostRef(this), {
+        type: 'reset',
+      })
+    }
+
+    formStateRestoreCallback(
+      state: File | FormData | string | null,
+      mode: 'restore' | 'autocomplete',
+    ): void {
+      dispatchFormCallback(requireHostRef(this), {
+        type: 'stateRestore',
+        state,
+        mode,
+      })
+    }
+
     componentOnReady(): Promise<HTMLElement> {
       const hostRef = requireHostRef(this)
 
@@ -92,6 +125,18 @@ export function createLazyElementClass(
   )
 
   return ZeusLazyElement
+}
+
+function dispatchFormCallback(
+  hostRef: HostRef,
+  callback: ZeusFormCallback,
+): void {
+  if (!hostRef.instance || !hostRef.connected) {
+    hostRef.pendingFormCallbacks.push(callback)
+    return
+  }
+
+  invokeFormCallback(hostRef, callback)
 }
 
 function installMethodProxies(

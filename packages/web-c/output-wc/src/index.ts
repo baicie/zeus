@@ -91,22 +91,26 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
               continue
             }
 
-            if (prop.attr !== undefined && prop.attr !== false) {
+            if (
+              prop.attr !== undefined &&
+              prop.attr !== false &&
+              !prop.deserialize
+            ) {
               ctx.error(
                 [
                   `[zeus-output-wc] <${component.tag}> prop "${name}" cannot use attr:${JSON.stringify(prop.attr)} with register:"lazy".`,
-                  'Lazy Web-C only supports attributes for string, number and boolean props.',
-                  'Use attr:false and pass object/array/function values as properties instead.',
+                  'Non-primitive lazy attributes require a custom deserialize function.',
+                  'Add deserialize or use attr:false and pass the value as a property.',
                 ].join('\n'),
               )
             }
 
-            if (prop.reflect) {
+            if (prop.reflect && !prop.serialize) {
               ctx.error(
                 [
                   `[zeus-output-wc] <${component.tag}> prop "${name}" cannot use reflect:true with register:"lazy".`,
-                  'Lazy Web-C only reflects string, number and boolean props.',
-                  'Use a string/number/boolean prop or remove reflect:true.',
+                  'Non-primitive lazy reflection requires a custom serialize function.',
+                  'Add serialize or remove reflect:true.',
                 ].join('\n'),
               )
             }

@@ -1,5 +1,6 @@
 import {
   formatEventType,
+  formatMethodSignature,
   formatPropType,
   isRequiredProp,
   safePropertyName,
@@ -108,8 +109,8 @@ function generateElementInterface(component: ComponentRecord): string {
     )
   }
 
-  for (const name of Object.keys(component.methods ?? {})) {
-    lines.push(`  ${safePropertyName(name)}(...args: unknown[]): unknown`)
+  for (const method of Object.values(component.methods ?? {})) {
+    lines.push(`  ${formatMethodSignature(method)}`)
   }
 
   lines.push('')

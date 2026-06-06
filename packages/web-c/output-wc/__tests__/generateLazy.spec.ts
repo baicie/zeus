@@ -267,6 +267,40 @@ describe('generateLazyManifest', () => {
     expect(code).not.toContain('attrName: "columns"')
   })
 
+  it('preserves custom attribute serialization metadata for lazy props', () => {
+    const code = generateLazyManifest({
+      components: [
+        {
+          tag: 'zw-tags',
+          name: 'ZwTags',
+          exportName: 'ZwTags',
+          source: 'src/tags.tsx',
+          props: {},
+          runtimeProps: {
+            tokens: {
+              type: 'array',
+              attr: 'tokens',
+              reflect: true,
+              serialize: true,
+              deserialize: true,
+            },
+          },
+          events: {},
+          slots: {},
+          hostAttributes: [],
+          cssParts: [],
+          cssVars: {},
+        } as any,
+      ],
+      getEntryFileName: tag => `${tag}.entry.js`,
+    })
+
+    expect(code).not.toContain('attrName: false')
+    expect(code).toContain('reflect: true')
+    expect(code).toContain('serialize: true')
+    expect(code).toContain('deserialize: true')
+  })
+
   it('marks non-primitive props as property-only in lazy manifest', () => {
     const code = generateLazyManifest({
       components: [
@@ -494,7 +528,9 @@ describe('generateLazyEntry', () => {
     )
     expect(code).toContain('export function createComponent(hostRef)')
     expect(code).toContain('mounted = undefined')
-    expect(code).toContain('mountState = {}')
+    expect(code).toContain('attributeProps: hostRef.attributeProps')
+    expect(code).toContain('internals: hostRef.internals')
+    expect(code).toContain('reflectingAttrs: hostRef.reflectingAttrs')
     expect(code).toContain('ZwButton,')
     expect(code).toContain('hostRef.host,')
     expect(code).toContain('hostRef.values,')

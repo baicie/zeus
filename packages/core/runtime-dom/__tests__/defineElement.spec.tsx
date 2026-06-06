@@ -1,7 +1,13 @@
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { Slot, defineElement, event, prop } from '../src'
+import {
+  Slot,
+  defineElement,
+  event,
+  mountElementDefinition,
+  prop,
+} from '../src'
 import { insertTracked } from '../src'
 
 let uid = 0
@@ -30,6 +36,7 @@ describe('defineElement', () => {
     vi.stubGlobal('MouseEvent', dom.window.MouseEvent)
     vi.stubGlobal('Event', dom.window.Event)
     vi.stubGlobal('CustomEvent', dom.window.CustomEvent)
+    Reflect.deleteProperty(dom.window.HTMLElement.prototype, 'attachInternals')
   })
 
   afterEach(() => {
@@ -245,6 +252,98 @@ describe('defineElement', () => {
     expect(el.textContent).toBe('associated')
   })
 
+  it('synchronizes form value and forwards form lifecycle callbacks', async () => {
+    const tag = createTag('form-lifecycle')
+    const setFormValue = vi.fn()
+    const internals = {
+      setFormValue,
+    } as unknown as ElementInternals
+    const associated = vi.fn()
+    const disabled = vi.fn()
+    const reset = vi.fn()
+    const stateRestore = vi.fn()
+
+    Object.defineProperty(dom.window.HTMLElement.prototype, 'attachInternals', {
+      configurable: true,
+      value: vi.fn(() => internals),
+    })
+
+    defineElement<{ value?: string; state?: string }>(
+      tag,
+      {
+        shadow: false,
+        formAssociated: true,
+        props: {
+          value: {
+            type: String,
+            default: '',
+          },
+          state: {
+            type: String,
+            default: 'initial',
+          },
+        },
+        form: {
+          value: 'value',
+          state: props => props.state ?? null,
+          associated,
+          disabled,
+          reset,
+          stateRestore,
+        },
+      },
+      () => document.createElement('input'),
+    )
+
+    const el = document.createElement(tag) as HTMLElement & {
+      value?: string
+      formAssociatedCallback(form: HTMLFormElement | null): void
+      formDisabledCallback(disabled: boolean): void
+      formResetCallback(): void
+      formStateRestoreCallback(
+        state: File | FormData | string | null,
+        mode: 'restore' | 'autocomplete',
+      ): void
+    }
+    document.body.appendChild(el)
+
+    await nextFrame()
+
+    expect(setFormValue).toHaveBeenLastCalledWith('', 'initial')
+
+    el.value = 'next'
+    await nextFrame()
+
+    expect(setFormValue).toHaveBeenLastCalledWith('next', 'initial')
+
+    const form = document.createElement('form')
+    el.formAssociatedCallback(form)
+    el.formDisabledCallback(true)
+    el.formResetCallback()
+    el.formStateRestoreCallback('restored', 'restore')
+
+    expect(associated).toHaveBeenCalledWith(
+      form,
+      expect.any(Object),
+      expect.objectContaining({ host: el, internals }),
+    )
+    expect(disabled).toHaveBeenCalledWith(
+      true,
+      expect.any(Object),
+      expect.objectContaining({ host: el, internals }),
+    )
+    expect(reset).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({ host: el, internals }),
+    )
+    expect(stateRestore).toHaveBeenCalledWith(
+      'restored',
+      'restore',
+      expect.any(Object),
+      expect.objectContaining({ host: el, internals }),
+    )
+  })
+
   it('supports custom prop serialization and deserialization', async () => {
     const tag = createTag('prop-serialization')
 
@@ -292,6 +391,68 @@ describe('defineElement', () => {
     await nextFrame()
 
     expect(el.hasAttribute('items')).toBe(false)
+  })
+
+  it('applies custom serialization when mounted through a lazy proxy', async () => {
+    const tag = createTag('lazy-prop-serialization')
+    let capturedProps: Readonly<{ items?: string[] }> | undefined
+    const ctor = defineElement<{ items?: string[] }>(
+      tag,
+      {
+        shadow: false,
+        props: {
+          items: {
+            type: Array,
+            attr: 'items',
+            reflect: true,
+            default: () => [],
+            serialize: value => (value?.length ? value.join('|') : null),
+            deserialize: value => (value ? value.split('|') : []),
+          },
+        },
+      },
+      props => {
+        capturedProps = props
+        const el = document.createElement('span')
+        el.textContent = props.items?.join(',') ?? ''
+        return el
+      },
+    )
+    const host = document.createElement('div')
+    host.setAttribute('items', 'a|b')
+    const values = new Map<string, unknown>([['items', 'a|b']])
+
+    const attributeProps = new Set(['items'])
+    const mounted = mountElementDefinition(ctor, host, values, {
+      attributeProps,
+    })
+
+    await nextFrame()
+
+    expect(host.textContent).toBe('a,b')
+    expect(capturedProps?.items).toEqual(['a', 'b'])
+
+    attributeProps.delete('items')
+    mounted.propertyChanged('items', ['a', 'b'], ['c', 'd'])
+    await nextFrame()
+
+    expect(host.getAttribute('items')).toBe('c|d')
+
+    attributeProps.add('items')
+    host.setAttribute('items', 'e|f')
+    mounted.propertyChanged('items', ['c', 'd'], 'e|f')
+    await nextFrame()
+
+    expect(capturedProps?.items).toEqual(['e', 'f'])
+    expect(host.getAttribute('items')).toBe('e|f')
+
+    attributeProps.add('items')
+    host.removeAttribute('items')
+    mounted.propertyChanged('items', ['e', 'f'], null)
+    await nextFrame()
+
+    expect(capturedProps?.items).toEqual([])
+    expect(host.hasAttribute('items')).toBe(false)
   })
 
   it('supports object and array props through properties', async () => {

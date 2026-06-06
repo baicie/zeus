@@ -10,6 +10,8 @@ export type {
   ComponentEvent,
   ComponentManifest,
   ComponentMethod,
+  ComponentMethodParameter,
+  ComponentModel,
   ComponentProp,
   ComponentPropType,
   ComponentRecord,
