@@ -11,6 +11,13 @@ export const config: Config = {
     }),
     vueOutputTarget({
       componentCorePackage: '@zeus-js/example-stencil-wrapper',
+      componentModels: [
+        {
+          elements: ['z-demo-input'],
+          event: 'value-change',
+          targetAttr: 'value',
+        },
+      ],
       includeImportCustomElements: true,
       proxiesFile: './src/generated/vue/components.ts',
     }),

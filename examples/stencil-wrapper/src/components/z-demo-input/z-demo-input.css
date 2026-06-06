@@ -1,11 +1,20 @@
 :host {
+  /**
+   * @prop --z-demo-input-border: Border color for the input shell.
+   */
+  --z-demo-input-border: #334155;
+  /**
+   * @prop --z-demo-input-invalid-border: Border color when invalid.
+   */
+  --z-demo-input-invalid-border: #dc2626;
+
   display: block;
   max-width: 24rem;
 }
 
 label {
   align-items: center;
-  border: 1px solid #334155;
+  border: 1px solid var(--z-demo-input-border);
   border-radius: 0.5rem;
   display: flex;
   gap: 0.5rem;
@@ -28,7 +37,7 @@ input {
 }
 
 :host([invalid]) label {
-  border-color: #dc2626;
+  border-color: var(--z-demo-input-invalid-border);
 }
 
 :host([disabled]) {

@@ -34,6 +34,7 @@ export function generateLazyManifest(
     return `  {
     tagName: ${JSON.stringify(component.tag)},
     shadow: ${component.meta?.shadow ?? false},
+    formAssociated: ${component.meta?.formAssociated ?? false},
     load: () => import(${importPath}),
     props: ${props},
 ${methodLine}

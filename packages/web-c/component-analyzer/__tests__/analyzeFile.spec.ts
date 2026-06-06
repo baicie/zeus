@@ -244,6 +244,62 @@ describe('analyzeFile', () => {
     })
   })
 
+  it('extracts form association and prop serialization metadata', () => {
+    const code = `
+      import { defineElement } from '@zeus-js/zeus'
+
+      export const ZInput = defineElement(
+        'z-input',
+        {
+          shadow: false,
+          formAssociated: true,
+          props: {
+            value: {
+              type: String,
+              reflect: true,
+              serialize: value => value.trim(),
+              deserialize: value => value ?? '',
+            },
+            tokens: {
+              type: Array,
+              attr: 'tokens',
+              serialize: value => value.join('|'),
+              deserialize: value => value ? value.split('|') : [],
+            },
+          },
+        },
+        () => null,
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/input.tsx',
+      code,
+    })
+
+    expect(result.diagnostics).toEqual([])
+    expect(result.components[0]).toMatchObject({
+      props: {
+        value: {
+          type: 'string',
+          reflect: true,
+          serialize: true,
+          deserialize: true,
+        },
+        tokens: {
+          type: 'array',
+          attr: 'tokens',
+          serialize: true,
+          deserialize: true,
+        },
+      },
+      meta: {
+        shadow: false,
+        formAssociated: true,
+      },
+    })
+  })
+
   it('keeps setup-inferred event detail for declared emits', () => {
     const code = `
       import { defineElement, event } from '@zeus-js/zeus'

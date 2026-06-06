@@ -22,6 +22,7 @@ export interface BuildRecordOptions {
   setupMeta: SetupMeta
   inlineMeta: InlineMeta
   shadow?: boolean
+  formAssociated?: boolean
 }
 
 export function buildComponentRecord(
@@ -37,6 +38,7 @@ export function buildComponentRecord(
     setupMeta,
     inlineMeta,
     shadow,
+    formAssociated,
   } = options
 
   const props = mergeProps(
@@ -89,7 +91,9 @@ export function buildComponentRecord(
         ? inlineMeta.description
         : undefined,
     meta:
-      shadow !== undefined || restMeta ? { ...restMeta, shadow } : undefined,
+      shadow !== undefined || formAssociated !== undefined || restMeta
+        ? { ...restMeta, shadow, formAssociated }
+        : undefined,
   }
 }
 
@@ -119,6 +123,8 @@ function mergeProps(
       default: rp.default ?? mp.default,
       reflect: rp.reflect ?? mp.reflect,
       attr: rp.attr ?? mp.attr,
+      serialize: rp.serialize ?? mp.serialize,
+      deserialize: rp.deserialize ?? mp.deserialize,
     }
   }
 
@@ -288,6 +294,7 @@ function stripKnownMetaFields(
   delete rest.cssVars
   delete rest.cssParts
   delete rest.shadow
+  delete rest.formAssociated
   delete rest.methods
 
   return Object.keys(rest).length ? rest : undefined

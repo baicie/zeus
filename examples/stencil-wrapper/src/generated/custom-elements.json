@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-06-06T04:42:03",
+  "timestamp": "2026-06-06T05:51:04",
   "compiler": {
     "name": "@stencil/core",
     "version": "4.43.5",
@@ -125,7 +125,40 @@
       "encapsulation": "shadow",
       "tag": "z-demo-input",
       "docs": "",
-      "docsTags": [],
+      "docsTags": [
+        {
+          "name": "slot",
+          "text": "prefix - Content rendered before the native input."
+        },
+        {
+          "name": "slot",
+          "text": "suffix - Content rendered after the native input."
+        },
+        {
+          "name": "slot",
+          "text": "message - Helper or validation message below the control."
+        },
+        {
+          "name": "part",
+          "text": "root - The label wrapping the input and side slots."
+        },
+        {
+          "name": "part",
+          "text": "prefix - Prefix slot wrapper."
+        },
+        {
+          "name": "part",
+          "text": "control - The native input element."
+        },
+        {
+          "name": "part",
+          "text": "suffix - Suffix slot wrapper."
+        },
+        {
+          "name": "part",
+          "text": "message - Message slot wrapper."
+        }
+      ],
       "usage": {},
       "props": [
         {
@@ -139,7 +172,7 @@
           "mutable": false,
           "attr": "disabled",
           "reflectToAttr": true,
-          "docs": "",
+          "docs": "Whether the input is disabled. Reflected as a boolean attribute.",
           "docsTags": [
             {
               "name": "default",
@@ -153,6 +186,31 @@
             }
           ],
           "optional": false,
+          "required": false,
+          "getter": false,
+          "setter": false
+        },
+        {
+          "name": "formatter",
+          "type": "((value: string) => string) | undefined",
+          "complexType": {
+            "original": "(value: string) => string",
+            "resolved": "((value: string) => string) | undefined",
+            "references": {}
+          },
+          "mutable": false,
+          "reflectToAttr": false,
+          "docs": "Optional formatter run before value-change is emitted. Function props are property-only.",
+          "docsTags": [],
+          "values": [
+            {
+              "type": "((value: string) => string)"
+            },
+            {
+              "type": "undefined"
+            }
+          ],
+          "optional": true,
           "required": false,
           "getter": false,
           "setter": false
@@ -168,7 +226,7 @@
           "mutable": false,
           "attr": "invalid",
           "reflectToAttr": true,
-          "docs": "",
+          "docs": "Whether the current value is invalid. Reflected as a boolean attribute.",
           "docsTags": [
             {
               "name": "default",
@@ -187,6 +245,63 @@
           "setter": false
         },
         {
+          "name": "maxLength",
+          "type": "number | undefined",
+          "complexType": {
+            "original": "number",
+            "resolved": "number | undefined",
+            "references": {}
+          },
+          "mutable": false,
+          "attr": "max-length",
+          "reflectToAttr": false,
+          "docs": "Maximum native input length. Number props deserialize from HTML attributes.",
+          "docsTags": [],
+          "values": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "undefined"
+            }
+          ],
+          "optional": true,
+          "required": false,
+          "getter": false,
+          "setter": false
+        },
+        {
+          "name": "meta",
+          "type": "DemoInputMeta | undefined",
+          "complexType": {
+            "original": "DemoInputMeta",
+            "resolved": "DemoInputMeta | undefined",
+            "references": {
+              "DemoInputMeta": {
+                "location": "local",
+                "path": "/Users/liuzhiwei/Desktop/workspace/git-code/zeus/examples/stencil-wrapper/src/components/z-demo-input/z-demo-input.tsx",
+                "id": "src/components/z-demo-input/z-demo-input.tsx::DemoInputMeta"
+              }
+            }
+          },
+          "mutable": false,
+          "reflectToAttr": false,
+          "docs": "Additional structured metadata. Object props must be assigned as properties.",
+          "docsTags": [],
+          "values": [
+            {
+              "type": "DemoInputMeta"
+            },
+            {
+              "type": "undefined"
+            }
+          ],
+          "optional": true,
+          "required": false,
+          "getter": false,
+          "setter": false
+        },
+        {
           "name": "placeholder",
           "type": "string | undefined",
           "complexType": {
@@ -197,7 +312,7 @@
           "mutable": false,
           "attr": "placeholder",
           "reflectToAttr": false,
-          "docs": "",
+          "docs": "Native input placeholder text.",
           "docsTags": [],
           "values": [
             {
@@ -223,7 +338,7 @@
           "mutable": true,
           "attr": "value",
           "reflectToAttr": true,
-          "docs": "",
+          "docs": "Current value. Mutable because user input updates it internally.",
           "docsTags": [
             {
               "name": "default",
@@ -242,7 +357,86 @@
           "setter": false
         }
       ],
-      "methods": [],
+      "methods": [
+        {
+          "name": "focusControl",
+          "returns": {
+            "type": "Promise<void>",
+            "docs": ""
+          },
+          "complexType": {
+            "signature": "() => Promise<void>",
+            "parameters": [],
+            "references": {
+              "Promise": {
+                "location": "global",
+                "id": "global::Promise"
+              }
+            },
+            "return": "Promise<void>"
+          },
+          "signature": "focusControl() => Promise<void>",
+          "parameters": [],
+          "docs": "Public method exposed on the custom element instance.",
+          "docsTags": []
+        },
+        {
+          "name": "selectControl",
+          "returns": {
+            "type": "Promise<void>",
+            "docs": ""
+          },
+          "complexType": {
+            "signature": "() => Promise<void>",
+            "parameters": [],
+            "references": {
+              "Promise": {
+                "location": "global",
+                "id": "global::Promise"
+              }
+            },
+            "return": "Promise<void>"
+          },
+          "signature": "selectControl() => Promise<void>",
+          "parameters": [],
+          "docs": "Public method exposed on the custom element instance.",
+          "docsTags": []
+        },
+        {
+          "name": "setValue",
+          "returns": {
+            "type": "Promise<void>",
+            "docs": ""
+          },
+          "complexType": {
+            "signature": "(value: string) => Promise<void>",
+            "parameters": [
+              {
+                "name": "value",
+                "type": "string",
+                "docs": ""
+              }
+            ],
+            "references": {
+              "Promise": {
+                "location": "global",
+                "id": "global::Promise"
+              }
+            },
+            "return": "Promise<void>"
+          },
+          "signature": "setValue(value: string) => Promise<void>",
+          "parameters": [
+            {
+              "name": "value",
+              "type": "string",
+              "docs": ""
+            }
+          ],
+          "docs": "Public method exposed on the custom element instance.",
+          "docsTags": []
+        }
+      ],
       "events": [
         {
           "event": "focus-change",
@@ -260,7 +454,7 @@
           },
           "cancelable": true,
           "composed": true,
-          "docs": "",
+          "docs": "Fires when the inner input gains or loses focus.",
           "docsTags": []
         },
         {
@@ -281,33 +475,57 @@
           },
           "cancelable": true,
           "composed": true,
-          "docs": "",
+          "docs": "Fires when user input changes the value.",
           "docsTags": []
         }
       ],
       "listeners": [],
-      "styles": [],
-      "slots": [],
-      "parts": [
+      "styles": [
         {
-          "name": "control",
-          "docs": ""
+          "name": "--z-demo-input-border",
+          "annotation": "prop",
+          "docs": "Border color for the input shell."
         },
         {
+          "name": "--z-demo-input-invalid-border",
+          "annotation": "prop",
+          "docs": "Border color when invalid."
+        }
+      ],
+      "slots": [
+        {
           "name": "message",
-          "docs": ""
+          "docs": "Helper or validation message below the control."
         },
         {
           "name": "prefix",
-          "docs": ""
-        },
-        {
-          "name": "root",
-          "docs": ""
+          "docs": "Content rendered before the native input."
         },
         {
           "name": "suffix",
-          "docs": ""
+          "docs": "Content rendered after the native input."
+        }
+      ],
+      "parts": [
+        {
+          "name": "control",
+          "docs": "The native input element."
+        },
+        {
+          "name": "message",
+          "docs": "Message slot wrapper."
+        },
+        {
+          "name": "prefix",
+          "docs": "Prefix slot wrapper."
+        },
+        {
+          "name": "root",
+          "docs": "The label wrapping the input and side slots."
+        },
+        {
+          "name": "suffix",
+          "docs": "Suffix slot wrapper."
         }
       ],
       "states": [],
@@ -321,6 +539,11 @@
       "declaration": "export type DemoButtonVariant = 'default' | 'outline'",
       "docstring": "",
       "path": "src/components/z-demo-button/z-demo-button.tsx"
+    },
+    "src/components/z-demo-input/z-demo-input.tsx::DemoInputMeta": {
+      "declaration": "export interface DemoInputMeta {\n  description?: string\n  tone?: 'neutral' | 'danger'\n}",
+      "docstring": "",
+      "path": "src/components/z-demo-input/z-demo-input.tsx"
     },
     "../../node_modules/.pnpm/@stencil+core@4.43.5/node_modules/@stencil/core/internal/stencil-core/index.d.ts::Event": {
       "declaration": "any",

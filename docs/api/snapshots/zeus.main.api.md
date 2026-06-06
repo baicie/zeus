@@ -43,6 +43,8 @@ export {
   JSXValue,
   PropDefinition,
   PropDefinitionOptions,
+  PropDeserializer,
+  PropSerializer,
   Show,
   ShowProps,
   Slot,

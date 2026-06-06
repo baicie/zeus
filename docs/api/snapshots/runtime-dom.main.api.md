@@ -246,12 +246,20 @@ export type ElementPropConstructor =
   | ObjectConstructor
   | ArrayConstructor
   | FunctionConstructor
+export type PropSerializer<T = unknown> = {
+  bivarianceHack(value: T | undefined): string | null | undefined
+}['bivarianceHack']
+export type PropDeserializer<T = unknown> = {
+  bivarianceHack(value: string | null): T | undefined
+}['bivarianceHack']
 export interface PropDefinitionOptions<T = unknown> {
   type?: ElementPropConstructor
   attr?: string | false
   reflect?: boolean
   default?: T | (() => T)
   values?: readonly T[]
+  serialize?(value: T | undefined): string | null | undefined
+  deserialize?(value: string | null): T | undefined
 }
 export type PropDefinition<T = unknown> =
   | ElementPropConstructor
@@ -279,13 +287,22 @@ export interface EventOptions {
 export interface EmitsOptions {
   [key: string]: EventDefinition<unknown>
 }
+type ExplicitPropKeys<T> = keyof {
+  [K in keyof T as string extends K
+    ? never
+    : number extends K
+      ? never
+      : symbol extends K
+        ? never
+        : K]: T[K]
+}
 export type EmitApi<E extends EmitsOptions> = {
   [K in keyof E]: E[K] extends EventDefinition<infer Detail>
     ? (detail: Detail, options?: CustomEventInit) => boolean
     : never
 }
 export type PropOptions<P extends object> = Partial<{
-  [K in keyof P]: PropDefinition<P[K]>
+  [K in ExplicitPropKeys<P>]: PropDefinition<P[K]>
 }>
 export interface DefineElementMeta {
   description?: string
@@ -348,6 +365,7 @@ export interface DefineElementContext<
   Emits extends EmitsOptions = EmitsOptions,
 > {
   host: E
+  internals?: ElementInternals
   emit: EmitApi<Emits>
   expose(methods: Record<string, Function>): void
 }
@@ -362,6 +380,8 @@ export type NormalizedPropDefinition = {
   type?: ElementPropConstructor
   reflect: boolean
   default?: unknown
+  serialize?: (value: unknown) => string | null | undefined
+  deserialize?: (value: string | null) => unknown
 }
 export declare const ZEUS_ELEMENT_DEFINITION: unique symbol
 export interface ZeusElementDefinition<
@@ -403,7 +423,7 @@ export interface ElementDefinitionMountState {
   capturedLightChildren?: boolean
 }
 export declare function defineElement<
-  P extends object = object,
+  P extends object = Record<string, unknown>,
   E extends HTMLElement = HTMLElement,
   Emits extends EmitsOptions = EmitsOptions,
 >(

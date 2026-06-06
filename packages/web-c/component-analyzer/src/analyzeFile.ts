@@ -3,8 +3,8 @@ import { extractDefineElementCalls } from './extractDefineElement'
 import { extractEmits } from './extractEmits'
 import { extractInlineMeta } from './extractMeta'
 import {
+  extractComponentOptions,
   extractRuntimeProps,
-  extractShadowOption,
   validateRuntimePropsDefinition,
 } from './extractProps'
 import { extractSetupMeta } from './extractSetup'
@@ -39,7 +39,7 @@ export function analyzeFile(options: AnalyzeFileOptions): AnalyzeFileResult {
 
       const runtimeProps = extractRuntimeProps(call.options)
       const emits = extractEmits(call.options)
-      const shadowOption = extractShadowOption(call.options)
+      const componentOptions = extractComponentOptions(call.options)
 
       const typeProps = call.propsTypeName
         ? (localPropTypes.get(call.propsTypeName) ?? {})
@@ -71,9 +71,14 @@ export function analyzeFile(options: AnalyzeFileOptions): AnalyzeFileResult {
           setupMeta,
           inlineMeta,
           shadow:
-            shadowOption.shadow ??
+            componentOptions.shadow ??
             (typeof inlineMeta.shadow === 'boolean'
               ? inlineMeta.shadow
+              : undefined),
+          formAssociated:
+            componentOptions.formAssociated ??
+            (typeof inlineMeta.formAssociated === 'boolean'
+              ? inlineMeta.formAssociated
               : undefined),
         }),
       )

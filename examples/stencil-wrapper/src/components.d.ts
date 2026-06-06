@@ -6,8 +6,10 @@
  */
 import { HTMLStencilElement, JSXBase } from "@stencil/core/internal";
 import { DemoButtonVariant } from "./components/z-demo-button/z-demo-button";
+import { DemoInputMeta } from "./components/z-demo-input/z-demo-input";
 import { Event } from "@stencil/core";
 export { DemoButtonVariant } from "./components/z-demo-button/z-demo-button";
+export { DemoInputMeta } from "./components/z-demo-input/z-demo-input";
 export { Event } from "@stencil/core";
 export namespace Components {
     interface ZDemoButton {
@@ -22,15 +24,45 @@ export namespace Components {
     }
     interface ZDemoInput {
         /**
+          * Whether the input is disabled. Reflected as a boolean attribute.
           * @default false
          */
         "disabled": boolean;
         /**
+          * Public method exposed on the custom element instance.
+         */
+        "focusControl": () => Promise<void>;
+        /**
+          * Optional formatter run before value-change is emitted. Function props are property-only.
+         */
+        "formatter"?: (value: string) => string;
+        /**
+          * Whether the current value is invalid. Reflected as a boolean attribute.
           * @default false
          */
         "invalid": boolean;
+        /**
+          * Maximum native input length. Number props deserialize from HTML attributes.
+         */
+        "maxLength"?: number;
+        /**
+          * Additional structured metadata. Object props must be assigned as properties.
+         */
+        "meta"?: DemoInputMeta;
+        /**
+          * Native input placeholder text.
+         */
         "placeholder"?: string;
         /**
+          * Public method exposed on the custom element instance.
+         */
+        "selectControl": () => Promise<void>;
+        /**
+          * Public method exposed on the custom element instance.
+         */
+        "setValue": (value: string) => Promise<void>;
+        /**
+          * Current value. Mutable because user input updates it internally.
           * @default ''
          */
         "value": string;
@@ -99,17 +131,41 @@ declare namespace LocalJSX {
     }
     interface ZDemoInput {
         /**
+          * Whether the input is disabled. Reflected as a boolean attribute.
           * @default false
          */
         "disabled"?: boolean;
         /**
+          * Optional formatter run before value-change is emitted. Function props are property-only.
+         */
+        "formatter"?: (value: string) => string;
+        /**
+          * Whether the current value is invalid. Reflected as a boolean attribute.
           * @default false
          */
         "invalid"?: boolean;
+        /**
+          * Maximum native input length. Number props deserialize from HTML attributes.
+         */
+        "maxLength"?: number;
+        /**
+          * Additional structured metadata. Object props must be assigned as properties.
+         */
+        "meta"?: DemoInputMeta;
+        /**
+          * Fires when the inner input gains or loses focus.
+         */
         "onFocus-change"?: (event: ZDemoInputCustomEvent<{ focused: boolean; nativeEvent: FocusEvent }>) => void;
+        /**
+          * Fires when user input changes the value.
+         */
         "onValue-change"?: (event: ZDemoInputCustomEvent<{ value: string; nativeEvent: Event }>) => void;
+        /**
+          * Native input placeholder text.
+         */
         "placeholder"?: string;
         /**
+          * Current value. Mutable because user input updates it internally.
           * @default ''
          */
         "value"?: string;
@@ -122,6 +178,7 @@ declare namespace LocalJSX {
     interface ZDemoInputAttributes {
         "disabled": boolean;
         "invalid": boolean;
+        "maxLength": number;
         "placeholder": string;
         "value": string;
     }

@@ -36,6 +36,13 @@ export interface ZeusLazyComponentMeta {
    * @default false
    */
   shadow?: boolean
+
+  /**
+   * Whether the proxy class participates in browser form association.
+   *
+   * @default false
+   */
+  formAssociated?: boolean
 }
 
 export interface HostRef {

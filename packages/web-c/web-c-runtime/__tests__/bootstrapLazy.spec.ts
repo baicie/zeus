@@ -35,6 +35,25 @@ describe('bootstrapLazy', () => {
     expect(load).not.toHaveBeenCalled()
   })
 
+  it('defines form-associated lazy proxy classes', () => {
+    bootstrapLazy([
+      {
+        tagName: 'zw-form-test',
+        formAssociated: true,
+        load: vi.fn(),
+        props: [],
+      },
+    ])
+
+    expect(
+      (
+        customElements.get('zw-form-test') as unknown as {
+          formAssociated: boolean
+        }
+      ).formAssociated,
+    ).toBe(true)
+  })
+
   it('skips already defined tags', () => {
     const load = vi.fn()
 

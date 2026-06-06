@@ -21,6 +21,8 @@ export function createLazyElementClass(
   const observedAttributes = getObservedAttributes(meta.props)
 
   class ZeusLazyElement extends HTMLElement {
+    static formAssociated = Boolean(meta.formAssociated)
+
     static get observedAttributes(): string[] {
       return observedAttributes
     }

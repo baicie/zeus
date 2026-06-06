@@ -142,6 +142,29 @@ describe('generateLazyManifest', () => {
     expect(code).toContain('shadow: true')
   })
 
+  it('uses explicit formAssociated value from meta', () => {
+    const code = generateLazyManifest({
+      components: [
+        {
+          tag: 'zw-input',
+          name: 'ZwInput',
+          exportName: 'ZwInput',
+          source: 'src/input.tsx',
+          props: {},
+          events: {},
+          slots: {},
+          hostAttributes: [],
+          cssParts: [],
+          cssVars: {},
+          meta: { formAssociated: true },
+        } as any,
+      ],
+      getEntryFileName: tag => `${tag}.entry.js`,
+    })
+
+    expect(code).toContain('formAssociated: true')
+  })
+
   it('handles multiple components', () => {
     const code = generateLazyManifest({
       components: [

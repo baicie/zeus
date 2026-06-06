@@ -58,6 +58,8 @@ export interface ComponentProp {
   default?: unknown
   reflect?: boolean
   attr?: string | false
+  serialize?: boolean
+  deserialize?: boolean
   description?: string
 }
 

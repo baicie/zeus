@@ -51,6 +51,8 @@ export type {
   EventOptions,
   PropDefinition,
   PropDefinitionOptions,
+  PropDeserializer,
+  PropSerializer,
   ValuePropDefinition,
 } from '@zeus-js/runtime-dom'
 

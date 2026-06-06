@@ -4,22 +4,38 @@ import { getObjectKey, getObjectProperty, staticValue } from './utils'
 
 import type { ComponentProp, ComponentPropType } from './types'
 
-export interface ExtractedShadow {
+export interface ExtractedComponentOptions {
   shadow?: boolean
+  formAssociated?: boolean
 }
 
-export function extractShadowOption(
+export function extractComponentOptions(
   options: t.ObjectExpression | undefined,
-): ExtractedShadow {
+): ExtractedComponentOptions {
   if (!options) return {}
 
+  const result: ExtractedComponentOptions = {}
   const shadowNode = getObjectProperty(options, 'shadow')
-  if (!shadowNode) return {}
 
-  const value = staticValue(shadowNode)
-  if (typeof value !== 'boolean') return {}
+  if (shadowNode) {
+    const value = staticValue(shadowNode)
 
-  return { shadow: value }
+    if (typeof value === 'boolean') {
+      result.shadow = value
+    }
+  }
+
+  const formAssociatedNode = getObjectProperty(options, 'formAssociated')
+
+  if (formAssociatedNode) {
+    const value = staticValue(formAssociatedNode)
+
+    if (typeof value === 'boolean') {
+      result.formAssociated = value
+    }
+  }
+
+  return result
 }
 
 export function extractRuntimeProps(
@@ -199,6 +215,14 @@ function validatePropOptions(
           `Prop "${propName}" values must be a static string array.`,
         )
       }
+
+      continue
+    }
+
+    if (optionName === 'serialize' || optionName === 'deserialize') {
+      if (!isFunctionLikeReference(member.value)) {
+        messages.push(`Prop "${propName}" ${optionName} must be a function.`)
+      }
     }
   }
 }
@@ -219,6 +243,8 @@ function extractRuntimeProp(node: t.Expression | t.PatternLike): ComponentProp {
     const attrNode = getObjectProperty(node, 'attr')
     const reflectNode = getObjectProperty(node, 'reflect')
     const defaultNode = getObjectProperty(node, 'default')
+    const serializeNode = getObjectProperty(node, 'serialize')
+    const deserializeNode = getObjectProperty(node, 'deserialize')
 
     const type = t.isIdentifier(typeNode)
       ? typeFromConstructorName(typeNode.name)
@@ -251,6 +277,14 @@ function extractRuntimeProp(node: t.Expression | t.PatternLike): ComponentProp {
       ) {
         prop.default = staticValue(defaultNode)
       }
+    }
+
+    if (serializeNode) {
+      prop.serialize = true
+    }
+
+    if (deserializeNode) {
+      prop.deserialize = true
     }
 
     const valuesNode = getObjectProperty(node, 'values')
@@ -345,6 +379,14 @@ function isPropConstructorName(name: string): boolean {
 
 function isExplicitUndefined(node: t.Node): boolean {
   return t.isIdentifier(node) && node.name === 'undefined'
+}
+
+function isFunctionLikeReference(node: t.Node): boolean {
+  return (
+    t.isFunctionExpression(node) ||
+    t.isArrowFunctionExpression(node) ||
+    t.isIdentifier(node)
+  )
 }
 
 function typeFromConstructorName(name: string): ComponentPropType {

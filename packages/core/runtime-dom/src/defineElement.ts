@@ -19,12 +19,22 @@ export type ElementPropConstructor =
   | ArrayConstructor
   | FunctionConstructor
 
+export type PropSerializer<T = unknown> = {
+  bivarianceHack(value: T | undefined): string | null | undefined
+}['bivarianceHack']
+
+export type PropDeserializer<T = unknown> = {
+  bivarianceHack(value: string | null): T | undefined
+}['bivarianceHack']
+
 export interface PropDefinitionOptions<T = unknown> {
   type?: ElementPropConstructor
   attr?: string | false
   reflect?: boolean
   default?: T | (() => T)
   values?: readonly T[]
+  serialize?(value: T | undefined): string | null | undefined
+  deserialize?(value: string | null): T | undefined
 }
 
 export type PropDefinition<T = unknown> =
@@ -58,6 +68,16 @@ export interface EmitsOptions {
   [key: string]: EventDefinition<unknown>
 }
 
+export type ExplicitPropKeys<T> = keyof {
+  [K in keyof T as string extends K
+    ? never
+    : number extends K
+      ? never
+      : symbol extends K
+        ? never
+        : K]: T[K]
+}
+
 export type EmitApi<E extends EmitsOptions> = {
   [K in keyof E]: E[K] extends EventDefinition<infer Detail>
     ? (detail: Detail, options?: CustomEventInit) => boolean
@@ -65,7 +85,7 @@ export type EmitApi<E extends EmitsOptions> = {
 }
 
 export type PropOptions<P extends object> = Partial<{
-  [K in keyof P]: PropDefinition<P[K]>
+  [K in ExplicitPropKeys<P>]: PropDefinition<P[K]>
 }>
 
 export interface DefineElementMeta {
@@ -128,6 +148,7 @@ export interface DefineElementContext<
   Emits extends EmitsOptions = EmitsOptions,
 > {
   host: E
+  internals?: ElementInternals
   emit: EmitApi<Emits>
   expose(methods: Record<string, Function>): void
 }
@@ -144,6 +165,8 @@ export type NormalizedPropDefinition = {
   type?: ElementPropConstructor
   reflect: boolean
   default?: unknown
+  serialize?: (value: unknown) => string | null | undefined
+  deserialize?: (value: string | null) => unknown
 }
 
 export const ZEUS_ELEMENT_DEFINITION = Symbol.for('zeus.element.definition')
@@ -280,7 +303,7 @@ function createPropStore<P extends object>(
 }
 
 export function defineElement<
-  P extends object = object,
+  P extends object = Record<string, unknown>,
   E extends HTMLElement = HTMLElement,
   Emits extends EmitsOptions = EmitsOptions,
 >(
@@ -300,12 +323,15 @@ export function defineElement<
     .map(def => def.attr as string)
 
   class ZeusElement extends HTMLElement {
+    static formAssociated = Boolean(options.formAssociated)
+
     static get observedAttributes(): string[] {
       return observedAttributes
     }
 
     private readonly propStore: PropStore<P>
     private readonly props: Readonly<P>
+    private readonly internals?: ElementInternals
     private dispose?: () => void
     private target?: Element | ShadowRoot
     private lightChildren: Node[] = []
@@ -320,6 +346,10 @@ export function defineElement<
 
       applyPropDefaults(this.propStore, propDefs)
       definePropAccessors(this, this.propStore, propDefs)
+
+      if (options.formAssociated) {
+        this.internals = attachElementInternals(this)
+      }
     }
 
     connectedCallback(): void {
@@ -358,6 +388,7 @@ export function defineElement<
 
       const setupContext: DefineElementContext<E, Emits> = {
         host: this as unknown as E,
+        internals: this.internals,
         emit: createEmitApi(this, options.emits) as EmitApi<Emits>,
         expose: createExpose(this),
       }
@@ -526,6 +557,9 @@ export function mountElementDefinition(
 
   const setupContext: DefineElementContext<HTMLElement> = {
     host,
+    internals: options.formAssociated
+      ? attachElementInternals(host)
+      : undefined,
     emit: createEmitApi(host, options.emits) as EmitApi<EmitsOptions>,
     expose: createExpose(host),
   }
@@ -554,18 +588,21 @@ export function mountElementDefinition(
   }
 }
 
-function normalizePropDefinitions<P extends Record<string, unknown>>(
+function normalizePropDefinitions<P extends object>(
   props: PropOptions<P>,
 ): NormalizedPropDefinition[] {
-  return Object.keys(props).map(key => {
-    const input = props[key as keyof P]
+  return (
+    Object.keys(props) as Array<Extract<ExplicitPropKeys<P>, string>>
+  ).map(key => {
+    const propKey = String(key)
+    const input = props[key]
 
     if (typeof input === 'function') {
       const type = input as ElementPropConstructor
 
       return {
-        key,
-        attr: isAttributeBackedConstructor(type) ? toKebabCase(key) : false,
+        key: propKey,
+        attr: isAttributeBackedConstructor(type) ? toKebabCase(propKey) : false,
         type,
         reflect: false,
       }
@@ -573,15 +610,21 @@ function normalizePropDefinitions<P extends Record<string, unknown>>(
 
     const type = input?.type
     const defaultAttr = isAttributeBackedConstructor(type)
-      ? toKebabCase(key)
+      ? toKebabCase(propKey)
       : false
 
     return {
-      key,
+      key: propKey,
       attr: input?.attr === undefined ? defaultAttr : input.attr,
       type,
       reflect: Boolean(input?.reflect),
       default: input?.default,
+      serialize: input?.serialize as
+        | ((value: unknown) => string | null | undefined)
+        | undefined,
+      deserialize: input?.deserialize as
+        | ((value: string | null) => unknown)
+        | undefined,
     }
   })
 }
@@ -658,6 +701,10 @@ function castAttributeValue(
   value: string | null,
   def: NormalizedPropDefinition,
 ): unknown {
+  if (def.deserialize) {
+    return def.deserialize(value)
+  }
+
   if (def.type === Boolean) {
     return value !== null
   }
@@ -698,6 +745,18 @@ function reflectPropToAttribute(
 ): void {
   if (def.attr === false) return
 
+  if (def.serialize) {
+    const serialized = def.serialize(value)
+
+    if (serialized == null) {
+      element.removeAttribute(def.attr)
+    } else {
+      element.setAttribute(def.attr, serialized)
+    }
+
+    return
+  }
+
   if (def.type === Boolean) {
     if (value) {
       element.setAttribute(def.attr, '')
@@ -721,6 +780,33 @@ function reflectPropToAttribute(
   if (def.type === Function) return
 
   element.setAttribute(def.attr, String(value))
+}
+
+function attachElementInternals(
+  host: HTMLElement,
+): ElementInternals | undefined {
+  const attachInternals = (
+    host as HTMLElement & {
+      attachInternals?: () => ElementInternals
+    }
+  ).attachInternals
+
+  if (typeof attachInternals !== 'function') {
+    return undefined
+  }
+
+  try {
+    return attachInternals.call(host)
+  } catch (error) {
+    if (__DEV__) {
+      console.warn(
+        '[Zeus custom-element] Failed to attach ElementInternals.',
+        error,
+      )
+    }
+
+    return undefined
+  }
 }
 
 function createEmitApi(

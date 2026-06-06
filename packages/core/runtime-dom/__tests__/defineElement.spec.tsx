@@ -205,6 +205,95 @@ describe('defineElement', () => {
     expect(el.hasAttribute('active')).toBe(false)
   })
 
+  it('passes ElementInternals to form-associated element setup', async () => {
+    const tag = createTag('form-associated')
+    const internals = {
+      setFormValue: vi.fn(),
+    } as unknown as ElementInternals
+    const attachInternals = vi.fn(() => internals)
+    let captured: ElementInternals | undefined
+
+    Object.defineProperty(dom.window.HTMLElement.prototype, 'attachInternals', {
+      configurable: true,
+      value: attachInternals,
+    })
+
+    const ctor = defineElement(
+      tag,
+      {
+        shadow: false,
+        formAssociated: true,
+      },
+      (_props, context) => {
+        captured = context.internals
+        const el = document.createElement('span')
+        el.textContent = context.internals ? 'associated' : 'missing'
+        return el
+      },
+    )
+
+    const el = document.createElement(tag)
+    document.body.appendChild(el)
+
+    await nextFrame()
+
+    expect(
+      (ctor as unknown as { formAssociated: boolean }).formAssociated,
+    ).toBe(true)
+    expect(attachInternals).toHaveBeenCalledTimes(1)
+    expect(captured).toBe(internals)
+    expect(el.textContent).toBe('associated')
+  })
+
+  it('supports custom prop serialization and deserialization', async () => {
+    const tag = createTag('prop-serialization')
+
+    defineElement<{ items?: string[] }>(
+      tag,
+      {
+        shadow: false,
+        props: {
+          items: {
+            type: Array,
+            attr: 'items',
+            reflect: true,
+            default: () => [],
+            serialize: value => (value?.length ? value.join('|') : null),
+            deserialize: value => (value ? value.split('|') : []),
+          },
+        },
+      },
+      props => {
+        const el = document.createElement('span')
+        el.textContent = props.items?.join(',') ?? ''
+        return el
+      },
+    )
+
+    const el = document.createElement(tag) as HTMLElement & {
+      items?: string[]
+    }
+    el.setAttribute('items', 'a|b')
+    document.body.appendChild(el)
+
+    await nextFrame()
+
+    expect(el.items).toEqual(['a', 'b'])
+    expect(el.textContent).toBe('a,b')
+
+    el.items = ['c', 'd']
+
+    await nextFrame()
+
+    expect(el.getAttribute('items')).toBe('c|d')
+
+    el.items = []
+
+    await nextFrame()
+
+    expect(el.hasAttribute('items')).toBe(false)
+  })
+
   it('supports object and array props through properties', async () => {
     const tag = createTag('object-array')
 

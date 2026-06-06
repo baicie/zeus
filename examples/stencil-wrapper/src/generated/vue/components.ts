@@ -19,9 +19,12 @@ export const ZDemoButton: StencilVueComponent<JSX.ZDemoButton> = /*@__PURE__*/ d
 ]);
 
 
-export const ZDemoInput: StencilVueComponent<JSX.ZDemoInput> = /*@__PURE__*/ defineContainer<JSX.ZDemoInput>('z-demo-input', defineZDemoInput, [
+export const ZDemoInput: StencilVueComponent<JSX.ZDemoInput, JSX.ZDemoInput["value"]> = /*@__PURE__*/ defineContainer<JSX.ZDemoInput, JSX.ZDemoInput["value"]>('z-demo-input', defineZDemoInput, [
   'disabled',
+  'formatter',
   'invalid',
+  'maxLength',
+  'meta',
   'placeholder',
   'value',
   'value-change',
@@ -29,6 +32,7 @@ export const ZDemoInput: StencilVueComponent<JSX.ZDemoInput> = /*@__PURE__*/ def
 ], [
   'value-change',
   'focus-change'
-]);
+],
+'value', 'value-change', undefined);
 
 
