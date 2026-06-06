@@ -239,12 +239,6 @@ export interface MountedElementDefinition {
   dispose(): void
 }
 
-const DEFAULT_EVENT_OPTIONS = {
-  bubbles: true,
-  composed: true,
-  cancelable: false,
-}
-
 export function prop<const V extends readonly string[]>(
   values: V,
   options?: Omit<PropDefinitionOptions<V[number]>, 'type' | 'values'>,
@@ -1036,14 +1030,13 @@ function createEmitApi(
     detail?: unknown,
     options?: CustomEventInit,
   ): boolean => {
-    const eventName = resolveEventName(name, emits)
-    const eventOptions = resolveEventOptions(name, emits, options)
+    const definition = emits?.[name]
 
     return host.dispatchEvent(
-      new CustomEvent(eventName, {
-        bubbles: eventOptions.bubbles,
-        composed: eventOptions.composed,
-        cancelable: eventOptions.cancelable,
+      new CustomEvent(definition?.name ?? toKebabCase(name), {
+        bubbles: options?.bubbles ?? definition?.bubbles ?? true,
+        composed: options?.composed ?? definition?.composed ?? true,
+        cancelable: options?.cancelable ?? definition?.cancelable ?? false,
         detail,
       }),
     )
@@ -1075,36 +1068,6 @@ function createExpose(
         value: methods[key],
       })
     }
-  }
-}
-
-function resolveEventName(
-  name: string,
-  emits: EmitsOptions | undefined,
-): string {
-  const definition = emits?.[name]
-
-  return definition?.name ?? toKebabCase(name)
-}
-
-function resolveEventOptions(
-  name: string,
-  emits: EmitsOptions | undefined,
-  options: CustomEventInit | undefined,
-): Required<Pick<CustomEventInit, 'bubbles' | 'composed' | 'cancelable'>> {
-  const definition = emits?.[name]
-
-  return {
-    bubbles:
-      options?.bubbles ?? definition?.bubbles ?? DEFAULT_EVENT_OPTIONS.bubbles,
-    composed:
-      options?.composed ??
-      definition?.composed ??
-      DEFAULT_EVENT_OPTIONS.composed,
-    cancelable:
-      options?.cancelable ??
-      definition?.cancelable ??
-      DEFAULT_EVENT_OPTIONS.cancelable,
   }
 }
 
