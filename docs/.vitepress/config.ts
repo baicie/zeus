@@ -12,9 +12,10 @@ export default defineConfig({
 
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
+      { text: 'Examples', link: '/examples/counter' },
+      { text: 'Components', link: '/components/button' },
       { text: 'Compiler Host', link: '/compiler-host/overview' },
       { text: 'API', link: '/api/zeus' },
-      { text: 'Examples', link: '/examples/counter' },
     ],
 
     sidebar: {
@@ -85,13 +86,38 @@ export default defineConfig({
 
       '/api/': [
         {
-          text: 'API',
+          text: 'Core',
           items: [
             { text: '@zeus-js/zeus', link: '/api/zeus' },
             { text: '@zeus-js/signal', link: '/api/signal' },
             { text: '@zeus-js/runtime-dom', link: '/api/runtime-dom' },
+          ],
+        },
+        {
+          text: 'Build Tools',
+          items: [
             { text: '@zeus-js/compiler', link: '/api/compiler' },
             { text: '@zeus-js/vite-plugin', link: '/api/vite-plugin' },
+          ],
+        },
+        {
+          text: 'Reference',
+          items: [
+            { text: 'Packages', link: '/api/packages' },
+            { text: 'Stability', link: '/api/stability' },
+            { text: 'Downstream Contract', link: '/api/downstream-contract' },
+          ],
+        },
+      ],
+
+      '/examples/': [
+        {
+          text: 'Examples',
+          items: [
+            { text: 'Counter', link: '/examples/counter' },
+            { text: 'Todo', link: '/examples/todo' },
+            { text: 'Context', link: '/examples/context' },
+            { text: 'Web Component', link: '/examples/web-component' },
           ],
         },
       ],
