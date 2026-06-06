@@ -51,6 +51,7 @@ chore/<scope>-<topic>
 docs/<scope>-<topic>
 test/<scope>-<topic>
 release/<version>
+v<version> (正式 release tag)
 hotfix/<version>-<topic>
 ```
 
@@ -68,6 +69,7 @@ chore/canary-downstream-dispatch
 docs/web-c-lazy-design
 test/compiler-attrs-cases
 release/0.1.0
+v0.1.0
 hotfix/0.1.0-web-c-loader
 ```
 
@@ -151,6 +153,8 @@ test/*
 ```
 
 不允许继续塞大功能。
+
+正式发布 workflow 由 `v<version>` tag 触发，例如 `v0.1.0-beta.4`。因此 `pnpm check:branch` 同时允许 `release/<version>` 分支和 `v<version>` release tag；其他开发分支仍必须使用短分支命名。
 
 流程：
 

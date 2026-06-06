@@ -14,6 +14,7 @@ const allowed = [
   /^main$/,
   new RegExp(`^(feat|fix|refactor|chore|docs|test)\\/${topic}-${topic}$`),
   new RegExp(`^release\\/${version}$`),
+  new RegExp(`^v${version}$`),
   new RegExp(`^hotfix\\/${version}-${topic}$`),
 ]
 
@@ -38,6 +39,7 @@ console.error('  chore/<scope>-<topic>')
 console.error('  docs/<scope>-<topic>')
 console.error('  test/<scope>-<topic>')
 console.error('  release/<version>')
+console.error('  v<version> (release tag only)')
 console.error('  hotfix/<version>-<topic>')
 console.error('')
 console.error('Examples:')
@@ -45,6 +47,7 @@ console.error('  feat/web-c-lazy-loader')
 console.error('  fix/compiler-attrs')
 console.error('  chore/canary-downstream-dispatch')
 console.error('  release/0.1.0')
+console.error('  v0.1.0')
 console.error('  hotfix/0.1.0-web-c-loader')
 process.exit(1)
 

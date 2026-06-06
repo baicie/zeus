@@ -35,6 +35,8 @@ release/0.1.0
 
 release 分支只允许 release polish、文档、测试、lockfile、版本和阻塞修复，不再接收大功能。发版完成后 merge 回 `main`、打 tag、发布 stable，并删除 release 分支。
 
+正式发布 workflow 运行在 `v<version>` tag 上，例如 `v0.1.0-beta.4`。`pnpm check:branch` 必须允许这种 release tag；普通开发分支仍按 `feat/*`、`fix/*` 等短分支规则检查。
+
 ---
 
 ## 1. 日常变更阶段
@@ -306,6 +308,12 @@ pnpm release 0.1.0-beta.2
 pnpm release --publishOnly 0.1.0-beta.2 --skipBuild
 ```
 
+重复触发一个尚未发布到 npm 的版本：
+
+```bash
+pnpm release:retry-tag 0.1.0-beta.2 --yes
+```
+
 本地调试 canary：
 
 ```bash
@@ -361,6 +369,26 @@ npm 版本不可覆盖。不要重试同一个版本盲发。
 2. 如果只是 CI 中断，确认哪些包已经发布
 3. 必要时提升到新 patch / prerelease 版本重新发
 4. canary 失败可重新跑 workflow，`GITHUB_RUN_ATTEMPT` 会生成新 canary 版本
+
+### GitHub Actions 在 publish 前失败，npm 包没发出去
+
+可以复用同一个版本，但必须先让 tag 指向包含修复的最新 commit。
+
+推荐命令：
+
+```bash
+pnpm release:retry-tag 0.1.0-beta.2 --yes
+```
+
+这个命令会：
+
+- 要求工作区干净。
+- 确认所有待发布包的 `package.json` 已经是目标版本。
+- 检查 npm 上对应版本还没有发布。
+- 删除本地和远端同名 `v<version>` tag。
+- 在当前 `HEAD` 重新创建并推送 `v<version>` tag。
+
+如果 npm 上已经存在任何一个待发布包的目标版本，命令会失败。此时必须提升到新版本，例如从 `0.1.0-beta.4` 改发 `0.1.0-beta.5`。
 
 ---
 

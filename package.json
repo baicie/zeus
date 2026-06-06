@@ -58,6 +58,7 @@
     "release": "tsx scripts/release/release.ts",
     "release:publishOnly": "tsx scripts/release/release.ts --publishOnly",
     "release:precheck": "tsx scripts/release/release-precheck.ts",
+    "release:retry-tag": "tsx scripts/release/retry-release-tag.ts",
     "release:dry": "tsx scripts/release/release.ts --dry --skipGit",
     "release:canary": "tsx scripts/release/release-canary.ts",
     "api:snapshot": "tsx scripts/api/write-api-snapshots.ts",
