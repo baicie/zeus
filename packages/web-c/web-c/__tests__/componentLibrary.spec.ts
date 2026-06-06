@@ -90,7 +90,10 @@ describe('componentLibrary', () => {
     const reactWrapper = getChunkCode(output.output, 'react/z-button.js')
     const vueWrapper = getChunkCode(output.output, 'vue/z-button.js')
 
-    expect(reactWrapper).toContain('addEventListener("value-change"')
+    expect(reactWrapper).toContain('const EVENT_NAMES = ["value-change"]')
+    expect(reactWrapper).toContain(
+      'el.addEventListener(EVENT_NAMES[index], listeners[index])',
+    )
     expect(reactWrapper).toContain('"onValueChange"')
     expect(vueWrapper).toContain('const EVENT_NAMES = ["value-change"]')
     expect(vueWrapper).toContain('emits: EVENT_NAMES')

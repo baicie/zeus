@@ -79,7 +79,8 @@ describe('generateReactWrapper', () => {
 
     // All component props stay in rest props, not destructured.
     expect(code).toContain('const rest = omitProps(props')
-    expect(code).toContain('Object.assign({}, rest, { ref: ref })')
+    expect(code).toContain('rest.ref = ref')
+    expect(code).toContain('!OMITTED_PROPS.has(key)')
     expect(code).not.toContain('...rest')
     expect(code).not.toContain('variant,')
     expect(code).not.toContain('disabled,')
@@ -127,29 +128,28 @@ describe('generateReactWrapper', () => {
     expect(code).toContain('const rest = omitProps(props')
     expect(code).toContain('useImperativeHandle(ref')
     expect(code).toContain('const innerRef = useRef(null)')
-    expect(code).toContain('const previousPropKeysRef = useRef(new Set())')
+    expect(code).toContain('const previousPropPresenceRef = useRef([])')
+    expect(code).toContain('const previousPropValuesRef = useRef([])')
+    expect(code).toContain('const eventHandlersRef = useRef([])')
 
     // Props are synced conditionally via hasOwnProperty check
-    expect(code).toContain(
-      'Object.prototype.hasOwnProperty.call(props, "variant")',
-    )
-    expect(code).toContain(
-      'Object.prototype.hasOwnProperty.call(props, "disabled")',
-    )
-    expect(code).toContain('previousPropKeys.add("variant")')
-    expect(code).toContain('previousPropKeys.delete("variant")')
-    expect(code).toContain('previousPropKeys.add("disabled")')
-    expect(code).toContain('previousPropKeys.delete("disabled")')
+    expect(code).toContain('const propPresent0 = hasOwn(props, "variant")')
+    expect(code).toContain('const propPresent1 = hasOwn(props, "disabled")')
+    expect(code).toContain('previousPropPresence[0] = true')
+    expect(code).toContain('previousPropPresence[0] = false')
+    expect(code).toContain('previousPropPresence[1] = true')
+    expect(code).toContain('previousPropPresence[1] = false')
+    expect(code).toContain('!Object.is(previousPropValues[0], propValue0)')
 
-    expect(code).toContain('addEventListener("press"')
-    expect(code).toContain('removeEventListener("press"')
-    expect(code).toContain('eventHandler0(event)')
+    expect(code).toContain('const EVENT_NAMES = ["press"]')
+    expect(code).toContain('el.addEventListener(EVENT_NAMES[index]')
+    expect(code).toContain('el.removeEventListener(EVENT_NAMES[index]')
+    expect(code).toContain('eventHandlersRef.current[0]')
 
-    expect(code).toContain('slotChildren = []')
-    expect(code).toContain('slotChildren.push(children)')
-    expect(code).toContain('return createElement.apply(')
+    expect(code).not.toContain('slotChildren = []')
+    expect(code).toContain('return createElement("z-button", rest, children)')
 
-    expect(code).toContain('createNamedSlot')
+    expect(code).not.toContain('createNamedSlot')
     expect(code).not.toContain('...rest')
 
     expect(code).not.toContain('PROP_KEYS')
@@ -248,7 +248,10 @@ describe('generateReactWrapper', () => {
       mode: 'event-bridge',
     })
 
-    expect(code).toContain('// no props')
+    expect(code).not.toContain('previousPropKeysRef')
+    expect(code).not.toContain('previousPropValuesRef')
+    expect(code).not.toContain('useEffect')
+    expect(code).not.toContain('useImperativeHandle')
   })
 
   it('does not overwrite omitted props in event-bridge mode', () => {
@@ -275,11 +278,9 @@ describe('generateReactWrapper', () => {
       mode: 'event-bridge',
     })
 
-    expect(code).toContain(
-      'Object.prototype.hasOwnProperty.call(props, "variant")',
-    )
-    expect(code).toContain('previousPropKeys.add("variant")')
-    expect(code).toContain('previousPropKeys.delete("variant")')
+    expect(code).toContain('const propPresent0 = hasOwn(props, "variant")')
+    expect(code).toContain('previousPropPresence[0] = true')
+    expect(code).toContain('previousPropPresence[0] = false')
   })
 
   it('handles namedSlots option none in event-bridge mode', () => {
@@ -330,8 +331,40 @@ describe('generateReactWrapper', () => {
     })
 
     expect(code).toContain('const eventHandler0 = props["onValueChange"]')
-    expect(code).toContain('addEventListener("value-change"')
-    expect(code).toContain('eventHandler0(event)')
+    expect(code).toContain('const EVENT_NAMES = ["value-change"]')
+    expect(code).toContain('eventHandlersRef.current[0]')
     expect(code).not.toContain('eventHandlervalue-change')
+  })
+
+  it('registers all custom event listeners in one stable effect', () => {
+    const code = generateReactWrapper({
+      component: {
+        tag: 'z-input',
+        name: 'ZInput',
+        exportName: 'ZInput',
+        source: 'src/input.tsx',
+        props: {},
+        events: {
+          focusChange: {},
+          valueChange: {},
+        },
+        slots: {},
+        hostAttributes: [],
+        cssParts: [],
+        cssVars: {},
+      },
+      namedSlots: 'props',
+      wcModuleId: 'zeus:wc:z-input',
+      mode: 'event-bridge',
+    })
+
+    expect(code.match(/useEffect\(\(\) =>/g)).toHaveLength(1)
+    expect(code).toContain('eventHandlersRef.current[0] = eventHandler0')
+    expect(code).toContain('eventHandlersRef.current[1] = eventHandler1')
+    expect(code).toContain(
+      'const EVENT_NAMES = ["focus-change","value-change"]',
+    )
+    expect(code).toContain('el.addEventListener(EVENT_NAMES[index]')
+    expect(code).toContain('}, [])')
   })
 })

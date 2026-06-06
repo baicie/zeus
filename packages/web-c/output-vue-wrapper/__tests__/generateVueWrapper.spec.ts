@@ -45,33 +45,40 @@ describe('generateVueWrapper', () => {
     expect(code).toContain('const elRef = ref(null)')
 
     expect(code).toContain('getCurrentInstance')
-    expect(code).toContain('hasRawProp(name)')
-    expect(code).toContain('const rawProps = rawVNode.props || {}')
-    expect(code).toContain('el[name] = props[name]')
+    expect(code).toContain(
+      'const rawProps = instance?.vnode.props || EMPTY_PROPS',
+    )
+    expect(code).toContain('const nextValue = props[name]')
+    expect(code).toContain('const syncedPropValues = []')
+    expect(code).toContain('!Object.is(syncedPropValues[index], nextValue)')
     expect(code).not.toContain('el.variant = props.variant')
     expect(code).not.toContain('el.disabled = props.disabled')
 
-    expect(code).toContain('for (const eventName of EVENT_NAMES)')
+    expect(code).toContain('for (let index = 0; index < EVENT_NAMES.length')
     expect(code).toContain('emit(eventName, event)')
-    expect(code).toContain('el.addEventListener(eventName, handler)')
-    expect(code).toContain('removeEventListener(eventName, handler)')
+    expect(code).toContain(
+      'mountedEl.addEventListener(EVENT_NAMES[index], eventHandlers[index])',
+    )
+    expect(code).toContain(
+      'mountedEl.removeEventListener(EVENT_NAMES[index], eventHandlers[index])',
+    )
 
     expect(code).toContain('onUpdated(syncProps)')
     expect(code).not.toContain('watch(')
 
-    expect(code).toContain('const cleanups = []')
     expect(code).toContain('onBeforeUnmount')
-    expect(code).toContain('for (const cleanup of cleanups)')
+    expect(code).toContain('for (let index = 0; index < EVENT_NAMES.length')
 
     expect(code).toContain('slots.default')
     expect(code).toContain('h(')
-    expect(code).toContain('Object.assign({}, attrs, { ref: elRef })')
-    expect(code).toContain('withSlot')
+    expect(code).toContain('const hostProps = Object.assign({}, attrs)')
+    expect(code).toContain('hostProps.ref = elRef')
+    expect(code).not.toContain('withSlot')
 
     expect(code).toContain('PROP_KEYS')
     expect(code).toContain('PROP_INPUT_KEYS')
     expect(code).toContain('EVENT_NAMES')
-    expect(code).toContain('NAMED_SLOTS')
+    expect(code).not.toContain('NAMED_SLOTS')
   })
 
   it('does not sync omitted props in event-bridge mode', () => {
@@ -98,8 +105,8 @@ describe('generateVueWrapper', () => {
     })
 
     expect(code).toContain('getCurrentInstance')
-    expect(code).toContain('hasRawProp(name)')
-    expect(code).toContain('el[name] = props[name]')
+    expect(code).toContain('hasOwn(rawProps, key)')
+    expect(code).toContain('const nextValue = props[name]')
     expect(code).not.toContain('el.variant = props.variant')
   })
 
@@ -125,7 +132,7 @@ describe('generateVueWrapper', () => {
       mode: 'event-bridge',
     })
 
-    expect(code).toContain('el[name] = props[name]')
+    expect(code).toContain('const nextValue = props[name]')
     expect(code).not.toContain('el.button-size')
     expect(code).not.toContain('props.button-size')
   })
@@ -200,7 +207,10 @@ describe('generateVueWrapper', () => {
     expect(code).toContain('export const ZButton = defineComponent')
     expect(code).toContain('inheritAttrs: false')
     expect(code).toContain('slots.default')
-    expect(code).toContain('Object.assign({}, attrs)')
+    expect(code).toContain('h("z-button", attrs, children)')
+    expect(code).not.toContain('cloneVNode')
+    expect(code).not.toContain('NAMED_SLOTS')
+    expect(code).not.toContain('pushAll')
     expect(code).not.toContain('...attrs')
   })
 

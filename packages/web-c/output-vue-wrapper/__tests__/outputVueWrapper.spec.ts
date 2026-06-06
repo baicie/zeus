@@ -139,10 +139,13 @@ describe('output-vue-wrapper', () => {
         : String((jsFile as { source?: string }).source ?? '')
 
     expect(code).toContain('getCurrentInstance')
-    expect(code).toContain('hasRawProp(name)')
-    expect(code).toContain('const rawProps = rawVNode.props || {}')
-    expect(code).toContain('Object.assign({}, attrs, { ref: elRef })')
-    expect(code).toContain('el[name] = props[name]')
+    expect(code).toContain('hasRawProp(rawProps, name)')
+    expect(code).toContain(
+      'const rawProps = instance?.vnode.props || EMPTY_PROPS',
+    )
+    expect(code).toContain('const hostProps = Object.assign({}, attrs)')
+    expect(code).toContain('hostProps.ref = elRef')
+    expect(code).toContain('const nextValue = props[name]')
     expect(code).not.toContain('el.variant = props.variant')
     expect(code).not.toContain('el.disabled = props.disabled')
     expect(code).not.toContain('...attrs')
@@ -213,7 +216,7 @@ describe('output-vue-wrapper', () => {
     expect(code).not.toContain('watch(')
     expect(code).not.toContain('onMounted(')
     expect(code).not.toContain('addEventListener')
-    expect(code).toContain('Object.assign({}, attrs)')
+    expect(code).toContain('h("z-button", attrs, children)')
     expect(code).not.toContain('...attrs')
 
     await bundle.close()
