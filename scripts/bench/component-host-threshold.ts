@@ -36,7 +36,9 @@ function checkSize(
   thresholds: Record<string, number>,
   errors: string[],
 ): void {
-  if (!value) return
+  if (!value || value.length === 0) {
+    return
+  }
 
   for (const [key, limit] of Object.entries(thresholds)) {
     const [file, metric] = key.split(':') as [string, 'raw' | 'gzip' | 'brotli']
@@ -60,7 +62,9 @@ function checkMetricList(
   thresholds: Record<string, number>,
   errors: string[],
 ): void {
-  if (!value) return
+  if (!value || value.length === 0) {
+    return
+  }
 
   for (const [name, limit] of Object.entries(thresholds)) {
     const entry = value.find(item => item.name === name)
