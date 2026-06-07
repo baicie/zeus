@@ -17,7 +17,7 @@ const MODEL_VALUE = 'modelValue'
 
 export interface ZeusVueModelOptions {
   prop: string
-  event: string
+  event: string | string[]
   eventPath?: string
 }
 
@@ -100,25 +100,27 @@ export function defineContainer(options: ZeusVueContainerOptions) {
         created: (el: HTMLElement) => {
           if (!model) return
 
-          el.addEventListener(model.event, event => {
-            if ((event.target as HTMLElement).tagName !== el.tagName) {
-              return
-            }
+          for (const eventName of toArray(model.event)) {
+            el.addEventListener(eventName, event => {
+              if ((event.target as HTMLElement).tagName !== el.tagName) {
+                return
+              }
 
-            const value = readEventPath(
-              event,
-              model.eventPath ?? `target.${model.prop}`,
-            )
+              const value = readEventPath(
+                event,
+                model.eventPath ?? `target.${model.prop}`,
+              )
 
-            emit(getModelUpdateEvent(model.prop), value)
+              emit(getModelUpdateEvent(model.prop), value)
 
-            if (
-              (propsValue as Record<string, unknown>)[MODEL_VALUE] !==
-              EMPTY_PROP
-            ) {
-              emit(UPDATE_MODEL_VALUE_EVENT, value)
-            }
-          })
+              if (
+                (propsValue as Record<string, unknown>)[MODEL_VALUE] !==
+                EMPTY_PROP
+              ) {
+                emit(UPDATE_MODEL_VALUE_EVENT, value)
+              }
+            })
+          }
         },
       }
 
@@ -200,6 +202,10 @@ function withSlot(name: string, vnode: any) {
 
 function getModelUpdateEvent(prop: string): string {
   return `update:${prop}`
+}
+
+function toArray<T>(value: T | T[]): T[] {
+  return Array.isArray(value) ? value : [value]
 }
 
 function readEventPath(event: Event, path: string): unknown {

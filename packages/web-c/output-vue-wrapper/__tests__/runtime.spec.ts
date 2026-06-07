@@ -71,4 +71,55 @@ describe('output-vue-wrapper runtime', () => {
     app.unmount()
     root.remove()
   })
+
+  it('supports multiple Web Component events for one model', async () => {
+    const { defineComponent, h, nextTick, ref } = await import('vue')
+    const { defineContainer } = await import('../src/runtime')
+
+    const ZModelInput = defineContainer({
+      tagName: 'z-model-input',
+      props: ['value'],
+      model: {
+        prop: 'value',
+        event: ['value-input', 'value-change'],
+        eventPath: 'detail.value',
+      },
+    })
+
+    const received: string[] = []
+    const Root = defineComponent(() => {
+      const value = ref('initial')
+
+      return () =>
+        h(ZModelInput, {
+          value: value.value,
+          'onUpdate:value': (next: string) => {
+            value.value = next
+            received.push(next)
+          },
+        })
+    })
+
+    const { createApp } = await import('vue')
+    const root = document.createElement('div')
+    document.body.append(root)
+
+    const app = createApp(Root)
+    app.mount(root)
+    await nextTick()
+
+    const el = root.querySelector('z-model-input')!
+    el.dispatchEvent(
+      new CustomEvent('value-input', {
+        bubbles: true,
+        detail: { value: 'typed' },
+      }),
+    )
+    await nextTick()
+
+    expect(received).toEqual(['typed'])
+
+    app.unmount()
+    root.remove()
+  })
 })
