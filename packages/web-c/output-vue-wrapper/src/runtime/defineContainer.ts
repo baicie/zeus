@@ -12,7 +12,7 @@ import {
 
 const EMPTY_PROP = Symbol()
 const DEFAULT_EMPTY_PROP = { default: EMPTY_PROP }
-const UPDATE_MODEL_EVENT = 'update:modelValue'
+const UPDATE_MODEL_VALUE_EVENT = 'update:modelValue'
 const MODEL_VALUE = 'modelValue'
 
 export interface ZeusVueModelOptions {
@@ -55,7 +55,11 @@ export function defineContainer(options: ZeusVueContainerOptions) {
   }
 
   if (model) {
-    emits.push(UPDATE_MODEL_EVENT)
+    const updateEvent = getModelUpdateEvent(model.prop)
+    emits.push(updateEvent)
+    if (updateEvent !== UPDATE_MODEL_VALUE_EVENT) {
+      emits.push(UPDATE_MODEL_VALUE_EVENT)
+    }
     componentPropsMap[MODEL_VALUE] = DEFAULT_EMPTY_PROP
   }
 
@@ -101,10 +105,19 @@ export function defineContainer(options: ZeusVueContainerOptions) {
               return
             }
 
-            emit(
-              UPDATE_MODEL_EVENT,
-              readEventPath(event, model.eventPath ?? `target.${model.prop}`),
+            const value = readEventPath(
+              event,
+              model.eventPath ?? `target.${model.prop}`,
             )
+
+            emit(getModelUpdateEvent(model.prop), value)
+
+            if (
+              (propsValue as Record<string, unknown>)[MODEL_VALUE] !==
+              EMPTY_PROP
+            ) {
+              emit(UPDATE_MODEL_VALUE_EVENT, value)
+            }
           })
         },
       }
@@ -183,6 +196,10 @@ function withSlot(name: string, vnode: any) {
   }
 
   return cloneVNode(vnode, { slot: name })
+}
+
+function getModelUpdateEvent(prop: string): string {
+  return `update:${prop}`
 }
 
 function readEventPath(event: Event, path: string): unknown {
