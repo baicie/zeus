@@ -233,6 +233,12 @@ importers:
 
   examples/headless:
     dependencies:
+      '@zeus-js/output-react-wrapper':
+        specifier: workspace:*
+        version: link:../../packages/web-c/output-react-wrapper
+      '@zeus-js/output-vue-wrapper':
+        specifier: workspace:*
+        version: link:../../packages/web-c/output-vue-wrapper
       '@zeus-js/runtime-dom':
         specifier: workspace:*
         version: link:../../packages/core/runtime-dom
