@@ -1,6 +1,6 @@
 import type { DtsMode } from '@zeus-js/bundler-plugin'
 
-export type VueWrapperMode = 'minimal' | 'event-bridge'
+export type VueWrapperMode = 'runtime' | 'minimal' | 'event-bridge'
 
 export interface OutputVueWrapperOptions {
   /**
@@ -44,12 +44,16 @@ export interface OutputVueWrapperOptions {
   index?: boolean
 
   /**
+   * runtime:
+   *   Default. Generates thin proxies powered by @zeus-js/output-vue-wrapper/runtime.
+   *   No watch, no onMounted, no addEventListener — Vue-native props/events/model/slots.
+   *
    * minimal:
-   *   Default. Vue wrapper only renders the custom element tag.
+   *   Vue wrapper only renders the custom element tag.
    *   No watch, no prop sync, no event listeners.
    *
    * event-bridge:
-   *   Additional mode for React CustomEvent bridging.
+   *   Additional mode with explicit prop syncing and CustomEvent bridging.
    */
   wrapper?: VueWrapperMode
 }

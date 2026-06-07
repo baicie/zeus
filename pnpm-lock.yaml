@@ -840,6 +840,12 @@ importers:
 
   packages/web-c/output-react-wrapper:
     dependencies:
+      '@lit/react':
+        specifier: ^1.0.8
+        version: 1.0.8(@types/react@19.2.16)
+      '@types/react':
+        specifier: 17 || 18 || 19
+        version: 19.2.16
       '@zeus-js/bundler-plugin':
         specifier: workspace:*
         version: link:../bundler-plugin

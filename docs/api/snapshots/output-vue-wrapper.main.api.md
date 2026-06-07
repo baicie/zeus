@@ -6,8 +6,9 @@
 
 ```ts
 import { DtsMode, ZeusComponentPlugin } from '@zeus-js/bundler-plugin'
+import * as vue from 'vue'
 
-type VueWrapperMode = 'minimal' | 'event-bridge'
+type VueWrapperMode = 'runtime' | 'minimal' | 'event-bridge'
 export interface OutputVueWrapperOptions {
   /**
    * Vue wrapper output directory.
@@ -44,15 +45,50 @@ export interface OutputVueWrapperOptions {
    */
   index?: boolean
   /**
+   * runtime:
+   *   Default. Generates thin proxies powered by @zeus-js/output-vue-wrapper/runtime.
+   *   No watch, no onMounted, no addEventListener — Vue-native props/events/model/slots.
+   *
    * minimal:
-   *   Default. Vue wrapper only renders the custom element tag.
+   *   Vue wrapper only renders the custom element tag.
    *   No watch, no prop sync, no event listeners.
    *
    * event-bridge:
-   *   Additional mode for React CustomEvent bridging.
+   *   Additional mode with explicit prop syncing and CustomEvent bridging.
    */
   wrapper?: VueWrapperMode
 }
+
+export interface ZeusVueModelOptions {
+  prop: string
+  event: string
+  eventPath?: string
+}
+export interface ZeusVueContainerOptions {
+  tagName: string
+  displayName?: string
+  defineCustomElement?: () => void
+  props?: string[]
+  events?: string[]
+  slots?: string[]
+  model?: ZeusVueModelOptions
+  transformTag?: (tagName: string) => string
+}
+export declare function defineContainer(
+  options: ZeusVueContainerOptions,
+): vue.DefineSetupFnComponent<
+  {
+    [x: string]: /*elided*/ any
+  },
+  string[],
+  {},
+  {
+    [x: string]: /*elided*/ any
+  } & {
+    [x: `on${Capitalize<string>}`]: ((...args: any[]) => any) | undefined
+  },
+  vue.PublicProps
+>
 
 export declare function vueWrapper(
   options?: OutputVueWrapperOptions,

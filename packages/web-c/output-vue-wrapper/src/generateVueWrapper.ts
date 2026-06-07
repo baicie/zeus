@@ -3,7 +3,7 @@ import type { ComponentRecord } from '@zeus-js/component-analyzer'
 export interface GenerateVueWrapperOptions {
   component: ComponentRecord
   wcModuleId: string
-  mode?: 'minimal' | 'event-bridge'
+  mode?: 'runtime' | 'minimal' | 'event-bridge'
 }
 
 interface WrapperCapabilities {
@@ -18,9 +18,11 @@ interface WrapperCapabilities {
 }
 
 export function generateVueWrapper(input: GenerateVueWrapperOptions): string {
-  return input.mode === 'event-bridge' || input.component.models?.length
-    ? generateEventBridgeVueWrapper(input)
-    : generateMinimalVueWrapper(input)
+  return input.mode === 'runtime'
+    ? generateRuntimeVueWrapper(input)
+    : input.mode === 'event-bridge' || input.component.models?.length
+      ? generateEventBridgeVueWrapper(input)
+      : generateMinimalVueWrapper(input)
 }
 
 function generateMinimalVueWrapper(input: GenerateVueWrapperOptions): string {
@@ -280,6 +282,54 @@ function generateVueProps(component: ComponentRecord): string {
       return `${JSON.stringify(name)}: ${toVuePropOption(prop)}`
     })
     .join(',\n    ')
+}
+
+function generateRuntimeVueWrapper(input: GenerateVueWrapperOptions): string {
+  const { component } = input
+  const propNames = Object.keys(component.props)
+  const eventNames = getEventNames(component)
+  const slotNames = Object.keys(component.slots).filter(
+    name => name !== 'default',
+  )
+  const model = component.models?.[0]
+
+  return [
+    `import { defineContainer } from '@zeus-js/output-vue-wrapper/runtime'`,
+    `import { defineCustomElement } from '../wc/loader.js'`,
+    ``,
+    `export const ${component.name} = defineContainer({`,
+    `  tagName: ${JSON.stringify(component.tag)},`,
+    `  displayName: ${JSON.stringify(component.name)},`,
+    `  defineCustomElement: () => defineCustomElement(${JSON.stringify(component.tag)}),`,
+    `  props: ${JSON.stringify(propNames)},`,
+    `  events: ${JSON.stringify(eventNames)},`,
+    `  slots: ${JSON.stringify(slotNames)},`,
+    `  model: ${model ? formatModel(model) : 'undefined'},`,
+    `})`,
+    ``,
+  ].join('\n')
+}
+
+function getEventNames(component: ComponentRecord): string[] {
+  return Array.from(
+    new Set(
+      Object.entries(component.events).map(([key, event]) => {
+        return event.name ?? toKebabCase(event.key ?? key)
+      }),
+    ),
+  )
+}
+
+function formatModel(model: {
+  prop: string
+  event: string
+  eventPath?: string
+}): string {
+  return `{
+    prop: ${JSON.stringify(model.prop)},
+    event: ${JSON.stringify(model.event)},
+    eventPath: ${JSON.stringify(model.eventPath)},
+  }`
 }
 
 function toVuePropOption(prop: ComponentRecord['props'][string]): string {

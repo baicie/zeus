@@ -20,21 +20,21 @@ packages/web-c/
     生成 wc/components.manifest.js
     生成 wc/*.entry.js
 
-  react-wrapper/
-    @zeus-js/react-wrapper
-    createComponent()
-    内部基于 @lit/react
-
-  vue-wrapper/
-    @zeus-js/vue-wrapper
-    defineContainer()
-    自己实现 Vue bridge
-
   output-react-wrapper/
+    @zeus-js/output-react-wrapper
+    @zeus-js/output-react-wrapper/runtime
+      createComponent()
+      内部基于 @lit/react
+
+  output-vue-wrapper/
+    @zeus-js/output-vue-wrapper
+    @zeus-js/output-vue-wrapper/runtime
+      defineContainer()
+      自己实现 Vue bridge
+
     只生成 React 代理文件
     不再生成 useEffect/addEventListener/syncProps 逻辑
 
-  output-vue-wrapper/
     只生成 Vue 代理文件
     不再生成 onMounted/addEventListener/syncProps 逻辑
 ```
@@ -194,7 +194,7 @@ export function bootstrapLazy(
 Stencil React runtime 的核心很薄：调用 `defineCustomElement()`，然后把 `tagName/events/react` 等交给 `@lit/react`。
 Zeus 也应该这样做，不要自己维护 React 事件/属性同步逻辑。
 
-### `packages/web-c/react-wrapper/src/createComponent.ts`
+### `packages/web-c/output-react-wrapper/src/runtime/createComponent.ts`
 
 ```ts id="1j879a"
 import type * as ReactTypes from 'react'
@@ -256,7 +256,7 @@ export function createComponent<
 }
 ```
 
-### `packages/web-c/react-wrapper/src/index.ts`
+### `packages/web-c/output-react-wrapper/src/runtime/index.ts`
 
 ```ts id="b59cl0"
 export { createComponent }
@@ -266,7 +266,7 @@ export type {
 } from './createComponent'
 ```
 
-### `packages/web-c/react-wrapper/package.json`
+### `packages/web-c/output-react-wrapper/package.json`
 
 ```json id="52u8bb"
 {
@@ -310,7 +310,7 @@ Zeus 生成结果应变成：
 
 ```tsx id="95749i"
 import React from 'react'
-import { createComponent } from '@zeus-js/react-wrapper'
+import { createComponent } from '@zeus-js/output-react-wrapper/runtime'
 import { defineCustomElement } from '../wc/loader.js'
 
 export const ZButton = createComponent({
@@ -449,7 +449,7 @@ Stencil Vue runtime 的 `defineContainer` 采用这些关键机制：
 
 Zeus 需要保留这些，去掉 Ionic 专属的 `routerLink/navManager` 分支。
 
-### `packages/web-c/vue-wrapper/src/defineContainer.ts`
+### `packages/web-c/output-vue-wrapper/src/runtime/defineContainer.ts`
 
 ```ts id="u9doxa"
 import {
@@ -646,7 +646,7 @@ function readEventPath(event: Event, path: string): unknown {
 }
 ```
 
-### `packages/web-c/vue-wrapper/src/index.ts`
+### `packages/web-c/output-vue-wrapper/src/runtime/index.ts`
 
 ```ts id="n2pmbr"
 export { defineContainer }
@@ -740,7 +740,7 @@ function toKebabCase(value: string): string {
 生成结果：
 
 ```ts id="5rc5tw"
-import { defineContainer } from '@zeus-js/vue-wrapper'
+import { defineContainer } from '@zeus-js/output-vue-wrapper/runtime'
 import { defineCustomElement } from '../wc/loader.js'
 
 export const ZInput = defineContainer({
@@ -935,7 +935,7 @@ React:
     export const ZButton = createComponent({ tagName, react, events, defineCustomElement })
 
   runtime:
-    @zeus-js/react-wrapper/createComponent
+    @zeus-js/output-react-wrapper/runtime/createComponent
     内部委托 @lit/react
 
 Vue:
@@ -943,7 +943,7 @@ Vue:
     export const ZInput = defineContainer({ tagName, props, events, model, defineCustomElement })
 
   runtime:
-    @zeus-js/vue-wrapper/defineContainer
+    @zeus-js/output-vue-wrapper/runtime/defineContainer
     内部处理 props / emits / v-model / slot / class
 
 WC:

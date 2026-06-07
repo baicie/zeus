@@ -4,7 +4,7 @@ export interface GenerateReactWrapperOptions {
   component: ComponentRecord
   namedSlots: 'props' | 'none'
   wcModuleId: string
-  mode?: 'minimal' | 'event-bridge'
+  mode?: 'runtime' | 'minimal' | 'event-bridge'
 }
 
 interface Binding {
@@ -19,9 +19,11 @@ interface EventBinding extends Binding {
 export function generateReactWrapper(
   input: GenerateReactWrapperOptions,
 ): string {
-  return input.mode === 'event-bridge'
-    ? generateEventBridgeReactWrapper(input)
-    : generateMinimalReactWrapper(input)
+  return input.mode === 'runtime'
+    ? generateRuntimeReactWrapper(input)
+    : input.mode === 'event-bridge'
+      ? generateEventBridgeReactWrapper(input)
+      : generateMinimalReactWrapper(input)
 }
 
 function generateMinimalReactWrapper(
@@ -361,6 +363,58 @@ function toReactEventProp(value: string): string {
     .filter(Boolean)
     .map(part => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
     .join('')}`
+}
+
+function generateRuntimeReactWrapper(
+  input: GenerateReactWrapperOptions,
+): string {
+  const { component } = input
+  const events = createRuntimeEventMap(component)
+
+  return [
+    `import React from 'react'`,
+    `import { createComponent } from '@zeus-js/output-react-wrapper/runtime'`,
+    `import { defineCustomElement } from '../wc/loader.js'`,
+    ``,
+    `export const ${component.name} = createComponent({`,
+    `  react: React,`,
+    `  tagName: ${JSON.stringify(component.tag)},`,
+    `  defineCustomElement: () => defineCustomElement(${JSON.stringify(
+      component.tag,
+    )}),`,
+    `  events: ${formatEventObject(events)},`,
+    `  displayName: ${JSON.stringify(component.name)},`,
+    `})`,
+    ``,
+  ].join('\n')
+}
+
+function createRuntimeEventMap(
+  component: ComponentRecord,
+): Record<string, string> {
+  const events: Record<string, string> = {}
+
+  for (const [key, event] of Object.entries(component.events)) {
+    const sourceEventName = event.key ?? key
+    const domEventName = event.name ?? toKebabCase(sourceEventName)
+    const reactPropName = event.reactName ?? toReactEventProp(sourceEventName)
+
+    events[reactPropName] = domEventName
+  }
+
+  return events
+}
+
+function formatEventObject(value: Record<string, string>): string {
+  const entries = Object.entries(value)
+
+  if (!entries.length) {
+    return '{}'
+  }
+
+  return `{\n${entries
+    .map(([key, item]) => `    ${JSON.stringify(key)}: ${JSON.stringify(item)}`)
+    .join(',\n')}\n  }`
 }
 
 const PUSH_ALL_HELPER = `

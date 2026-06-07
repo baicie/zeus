@@ -7,7 +7,7 @@
 ```ts
 import { DtsMode, ZeusComponentPlugin } from '@zeus-js/bundler-plugin'
 
-type ReactWrapperMode = 'minimal' | 'event-bridge'
+type ReactWrapperMode = 'runtime' | 'minimal' | 'event-bridge'
 export interface OutputReactWrapperOptions {
   /**
    * React wrapper output directory.
@@ -38,8 +38,12 @@ export interface OutputReactWrapperOptions {
    */
   index?: boolean
   /**
+   * runtime:
+   *   Default. Generates thin proxies powered by @zeus-js/output-react-wrapper/runtime.
+   *   No useEffect, no addEventListener, no prop sync — delegates to @lit/react.
+   *
    * minimal:
-   *   Default. Requires React 19+.
+   *   Requires React 19+.
    *   React wrapper only renders the custom element tag.
    *   No useEffect prop sync, no event listeners.
    *
@@ -61,6 +65,58 @@ export interface OutputReactWrapperOptions {
    */
   namedSlots?: 'props' | 'none'
 }
+
+export type EventName<T extends Event = Event> = string & {
+  __eventType: T
+}
+type EventNames = Record<string, EventName | string>
+type ElementProps<I extends HTMLElement> = Partial<Omit<I, keyof HTMLElement>>
+type ReactRef<I extends HTMLElement> =
+  | ((instance: I | null) => void)
+  | {
+      current: I | null
+    }
+  | null
+export interface ReactModule {
+  createElement: (...args: unknown[]) => unknown
+  forwardRef: (...args: unknown[]) => unknown
+}
+type EventListeners<E extends EventNames> = {
+  [K in keyof E]?: E[K] extends EventName<infer T>
+    ? (event: T) => void
+    : (event: Event) => void
+}
+type ComponentProps<I extends HTMLElement, E extends EventNames> = {
+  children?: unknown
+  className?: string
+  ref?: ReactRef<I>
+  style?: unknown
+} & {
+  [key: string]: unknown
+} & EventListeners<E> &
+  ElementProps<I>
+export type ZeusReactComponent<
+  I extends HTMLElement,
+  E extends EventNames = {},
+> = (props: ComponentProps<I, E>) => unknown
+export interface ZeusReactCreateComponentOptions<
+  I extends HTMLElement,
+  E extends EventNames,
+> {
+  tagName: string
+  react: ReactModule
+  defineCustomElement?: () => void
+  elementClass?: {
+    new (): I
+  }
+  events?: E
+  displayName?: string
+  transformTag?: (tagName: string) => string
+}
+export declare function createComponent<
+  I extends HTMLElement,
+  E extends EventNames = {},
+>(options: ZeusReactCreateComponentOptions<I, E>): ZeusReactComponent<I, E>
 
 export declare function reactWrapper(
   options?: OutputReactWrapperOptions,

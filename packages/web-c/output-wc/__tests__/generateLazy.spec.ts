@@ -457,7 +457,7 @@ describe('generateLazyManifest', () => {
 })
 
 describe('generateLoader', () => {
-  it('generates loader with defineCustomElements', () => {
+  it('generates loader with defineCustomElement and defineCustomElements', () => {
     const code = generateLoader()
 
     expect(code).toContain(
@@ -466,29 +466,49 @@ describe('generateLoader', () => {
     expect(code).toContain(
       'import { components } from "./components.manifest.js"',
     )
-    expect(code).toContain('export function defineCustomElements(')
+    expect(code).toContain(
+      'export function defineCustomElement(tagName, options',
+    )
+    expect(code).toContain('export function defineCustomElements(options')
+    expect(code).toContain(
+      'export const defineLazyElement = defineCustomElement',
+    )
     expect(code).toContain(
       'export const defineLazyElements = defineCustomElements',
     )
-    expect(code).toContain('bootstrapLazy(components)')
+    expect(code).toContain('componentsByTagName.get(tagName)')
+    expect(code).toContain('bootstrapLazy([component], { registry })')
     expect(code).toContain('typeof customElements === "undefined"')
-    expect(code).toContain('let defined = false')
+    expect(code).toContain('definedTagsByRegistry')
+    expect(code).toContain('definedTags.has(tagName)')
   })
 
-  it('dedupes calls', () => {
+  it('generates componentsByTagName map', () => {
     const code = generateLoader()
 
-    expect(code).toContain('if (defined)')
-    expect(code).toContain('defined = true')
+    expect(code).toContain('componentsByTagName = new Map(')
+    expect(code).toContain(
+      'components.map(component => [component.tagName, component])',
+    )
+  })
+
+  it('throws on unknown custom element in defineCustomElement', () => {
+    const code = generateLoader()
+
+    expect(code).toContain(
+      `throw new Error(\`[zeus:web-c] Unknown custom element: <\${tagName}>.\`)`,
+    )
   })
 })
 
 describe('generateLazyIndex', () => {
-  it('exports defineCustomElements and defineLazyElements from loader', () => {
+  it('exports all loader functions from loader', () => {
     const code = generateLazyIndex()
 
     expect(code).toContain('export {')
+    expect(code).toContain('defineCustomElement,')
     expect(code).toContain('defineCustomElements,')
+    expect(code).toContain('defineLazyElement,')
     expect(code).toContain('defineLazyElements,')
     expect(code).toContain('from "./loader.js"')
   })

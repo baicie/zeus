@@ -14,6 +14,39 @@ function clearCustomElements(): void {
   ;(customElements as CustomElementRegistry & { clear(): void }).clear()
 }
 
+function createMockRegistry(): CustomElementRegistry & { clear(): void } {
+  const registry = new Map<string, CustomElementConstructor>()
+  const mock: CustomElementRegistry & { clear(): void } = {
+    get(name: string) {
+      return registry.get(name)
+    },
+    define(name: string, ctor: CustomElementConstructor) {
+      if (!registry.has(name)) {
+        registry.set(name, ctor)
+      }
+    },
+    whenDefined(name: string): Promise<CustomElementConstructor> {
+      if (registry.has(name)) {
+        return Promise.resolve(registry.get(name)!)
+      }
+      return new Promise(resolve => {
+        const check = () => {
+          if (registry.has(name)) {
+            resolve(registry.get(name)!)
+          } else {
+            setTimeout(check, 1)
+          }
+        }
+        check()
+      })
+    },
+    clear() {
+      registry.clear()
+    },
+  } as CustomElementRegistry & { clear(): void }
+  return mock
+}
+
 describe('bootstrapLazy', () => {
   beforeEach(() => {
     clearCustomElements()
@@ -200,6 +233,50 @@ describe('bootstrapLazy', () => {
         writable: true,
       })
     }
+  })
+
+  it('registers components on a custom registry when provided', () => {
+    clearCustomElements()
+
+    const customRegistry = createMockRegistry()
+    const load = vi.fn()
+
+    bootstrapLazy(
+      [
+        {
+          tagName: 'zw-registry-test',
+          shadow: true,
+          load,
+          props: [],
+        },
+      ],
+      { registry: customRegistry },
+    )
+
+    expect(customRegistry.get('zw-registry-test')).toBeTruthy()
+    expect(customElements.get('zw-registry-test')).toBeFalsy()
+    expect(load).not.toHaveBeenCalled()
+  })
+
+  it('does not register on global customElements when custom registry is provided', () => {
+    clearCustomElements()
+
+    const customRegistry = createMockRegistry()
+
+    bootstrapLazy(
+      [
+        {
+          tagName: 'zw-no-global-test',
+          shadow: true,
+          load: vi.fn(),
+          props: [],
+        },
+      ],
+      { registry: customRegistry },
+    )
+
+    expect(customRegistry.get('zw-no-global-test')).toBeTruthy()
+    expect(customElements.get('zw-no-global-test')).toBeFalsy()
   })
 })
 

@@ -343,4 +343,111 @@ describe('generateVueWrapper', () => {
     expect(code).not.toContain('default:')
     expect(code).toContain('required: false')
   })
+
+  it('generates runtime mode Vue proxy using @zeus-js/output-vue-wrapper/runtime', () => {
+    const code = generateVueWrapper({
+      component: {
+        tag: 'z-input',
+        name: 'ZInput',
+        exportName: 'ZInput',
+        source: 'src/input.tsx',
+        props: {
+          value: { type: 'string' },
+          disabled: { type: 'boolean' },
+        },
+        events: {
+          valueChange: {
+            name: 'value-change',
+          },
+          focusChange: {},
+        },
+        slots: {
+          default: {},
+          prefix: {},
+          suffix: {},
+        },
+        hostAttributes: [],
+        cssParts: [],
+        cssVars: {},
+      },
+      wcModuleId: '../wc/loader.js',
+      mode: 'runtime',
+    })
+
+    expect(code).toContain(
+      "import { defineContainer } from '@zeus-js/output-vue-wrapper/runtime'",
+    )
+    expect(code).toContain(
+      "import { defineCustomElement } from '../wc/loader.js'",
+    )
+    expect(code).toContain('export const ZInput = defineContainer')
+    expect(code).toContain('tagName: "z-input"')
+    expect(code).toContain('displayName: "ZInput"')
+    expect(code).toContain(
+      'defineCustomElement: () => defineCustomElement("z-input")',
+    )
+    expect(code).toContain('props: ["value","disabled"]')
+    expect(code).toContain('events: ["value-change","focus-change"]')
+    expect(code).toContain('slots: ["prefix","suffix"]')
+
+    expect(code).not.toContain('import "zeus:wc:z-input"')
+    expect(code).not.toContain('onMounted')
+    expect(code).not.toContain('addEventListener')
+    expect(code).not.toContain('getCurrentInstance')
+  })
+
+  it('includes model metadata in runtime mode Vue proxy', () => {
+    const code = generateVueWrapper({
+      component: {
+        tag: 'z-input',
+        name: 'ZInput',
+        exportName: 'ZInput',
+        source: 'src/input.tsx',
+        props: {
+          value: { type: 'string' },
+        },
+        events: {},
+        models: [
+          {
+            prop: 'value',
+            event: 'value-change',
+            eventPath: 'detail.value',
+          },
+        ],
+        slots: {},
+        hostAttributes: [],
+        cssParts: [],
+        cssVars: {},
+      },
+      wcModuleId: '../wc/loader.js',
+      mode: 'runtime',
+    })
+
+    expect(code).toContain('model: {')
+    expect(code).toContain('prop: "value"')
+    expect(code).toContain('event: "value-change"')
+    expect(code).toContain('eventPath: "detail.value"')
+  })
+
+  it('omits model in runtime mode when no model is defined', () => {
+    const code = generateVueWrapper({
+      component: {
+        tag: 'z-button',
+        name: 'ZButton',
+        exportName: 'ZButton',
+        source: 'src/button.tsx',
+        props: {},
+        events: {},
+        slots: {},
+        hostAttributes: [],
+        cssParts: [],
+        cssVars: {},
+      },
+      wcModuleId: '../wc/loader.js',
+      mode: 'runtime',
+    })
+
+    expect(code).toContain('model: undefined')
+    expect(code).not.toContain('model: {')
+  })
 })
