@@ -368,8 +368,9 @@ function toReactEventProp(value: string): string {
 function generateRuntimeReactWrapper(
   input: GenerateReactWrapperOptions,
 ): string {
-  const { component } = input
+  const { component, namedSlots } = input
   const events = createRuntimeEventMap(component)
+  const slots = getNamedSlots(component, namedSlots)
 
   return [
     `import React from 'react'`,
@@ -383,6 +384,7 @@ function generateRuntimeReactWrapper(
       component.tag,
     )}),`,
     `  events: ${formatEventObject(events)},`,
+    `  slots: ${JSON.stringify(slots)},`,
     `  displayName: ${JSON.stringify(component.name)},`,
     `})`,
     ``,

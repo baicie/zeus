@@ -405,10 +405,40 @@ describe('generateReactWrapper', () => {
       'defineCustomElement: () => defineCustomElement("z-button")',
     )
     expect(code).toContain('"onPress": "press"')
+    expect(code).toContain('slots: []')
 
     expect(code).not.toContain('import "zeus:wc:z-button"')
     expect(code).not.toContain('useEffect')
     expect(code).not.toContain('addEventListener')
+  })
+
+  it('passes named slot prop names to runtime mode React proxy', () => {
+    const code = generateReactWrapper({
+      component: {
+        tag: 'z-input',
+        name: 'ZInput',
+        exportName: 'ZInput',
+        source: 'src/input.tsx',
+        props: {
+          value: { type: 'string' },
+        },
+        events: {},
+        slots: {
+          default: {},
+          prefix: {},
+          suffix: {},
+          message: {},
+        },
+        hostAttributes: [],
+        cssParts: [],
+        cssVars: {},
+      },
+      namedSlots: 'props',
+      wcModuleId: '../wc/loader.js',
+      mode: 'runtime',
+    })
+
+    expect(code).toContain('slots: ["prefix","suffix","message"]')
   })
 
   it('maps kebab-case events to React camelCase props in runtime mode', () => {

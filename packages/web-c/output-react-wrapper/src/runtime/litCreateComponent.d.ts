@@ -14,5 +14,6 @@ export declare const createComponent: <
   tagName: string
   elementClass: { new (): I }
   events?: E
+  slots?: string[]
   displayName?: string
 }) => ZeusReactComponent<I, E>
