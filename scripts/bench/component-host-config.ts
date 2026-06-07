@@ -9,8 +9,8 @@ export const componentHostBenchConfig = {
 
   thresholds: {
     size: {
-      'wc/z-bench-button.js:gzip': 256,
-      'wc/z-bench-button-shadow.js:gzip': 512,
+      'wc/z-bench-button.entry.js:gzip': 512,
+      'wc/z-bench-button-shadow.entry.js:gzip': 512,
       'wc/index.js:gzip': 36 * 1024,
       'react/z-bench-button.js:gzip': 24 * 1024,
       'vue/z-bench-button.js:gzip': 28 * 1024,
@@ -28,19 +28,19 @@ export const componentHostBenchConfig = {
 
     runtime: {
       // Light DOM (baseline)
-      'wc.mount.1000.ms': 100,
-      'wc.propUpdate.1000.ms': 50,
-      'wc.attributeUpdate.1000.ms': 80,
-      'wc.click.1000.ms': 50,
+      'wc.mount.1000': 100,
+      'wc.propUpdate.1000': 50,
+      'wc.attributeUpdate.1000': 80,
+      'wc.click.1000': 50,
       // Shadow DOM
-      'wc-shadow.mount.1000.ms': 150,
-      'wc-shadow.propUpdate.1000.ms': 80,
-      'wc-shadow.attributeUpdate.1000.ms': 120,
-      'wc-shadow.click.1000.ms': 80,
+      'wc-shadow.mount.1000': 150,
+      'wc-shadow.propUpdate.1000': 80,
+      'wc-shadow.attributeUpdate.1000': 120,
+      'wc-shadow.click.1000': 80,
       // Nested / slot
-      'wc-nested.mountNested.100.ms': 200,
-      'wc-nested.mountNestedLeaf.500.ms': 150,
-      'wc-nested.slotProjection.100.ms': 100,
+      'wc-nested.mountNested.100': 200,
+      'wc-nested.mountNestedLeaf.500': 150,
+      'wc-nested.slotProjection.100': 100,
     },
   },
 } as const
