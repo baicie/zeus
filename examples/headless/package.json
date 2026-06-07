@@ -58,6 +58,8 @@
     }
   },
   "dependencies": {
+    "@zeus-js/output-react-wrapper": "workspace:*",
+    "@zeus-js/output-vue-wrapper": "workspace:*",
     "@zeus-js/runtime-dom": "workspace:*",
     "@zeus-js/web-c-runtime": "workspace:*",
     "@zeus-js/zeus": "workspace:*"

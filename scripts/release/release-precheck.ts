@@ -20,6 +20,7 @@ const steps: Array<[string, string[]]> = [
   ['pnpm', ['lint']],
   ['pnpm', ['test-unit']],
   ['pnpm', ['examples:check:all']],
+  ['pnpm', ['bench:component-host:ci']],
   ['pnpm', ['docs:build']],
   ['pnpm', ['size:ci']],
   ['pnpm', ['check:exports']],

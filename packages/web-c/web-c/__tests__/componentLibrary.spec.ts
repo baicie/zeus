@@ -39,7 +39,7 @@ describe('componentLibrary', () => {
     ])
   })
 
-  it('uses event bridge wrappers by default', async () => {
+  it('uses runtime helper wrappers by default', async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'zeus-preset-'))
 
     await fs.mkdir(path.join(root, 'src/components'), { recursive: true })
@@ -75,6 +75,74 @@ describe('componentLibrary', () => {
             },
             plugins: componentLibrary({
               styles: false,
+            }),
+          }),
+        ),
+      ],
+      onwarn() {},
+    })
+
+    const output = await bundle.generate({
+      dir: path.join(root, 'dist'),
+      format: 'esm',
+    })
+
+    const reactWrapper = getChunkCode(output.output, 'react/z-button.js')
+    const vueWrapper = getChunkCode(output.output, 'vue/z-button.js')
+
+    expect(reactWrapper).toContain(
+      "import { createComponent } from '@zeus-js/output-react-wrapper/runtime'",
+    )
+    expect(reactWrapper).toContain('const ZButton = createComponent')
+    expect(reactWrapper).toContain('"onValueChange"')
+    expect(vueWrapper).toContain(
+      "import { defineContainer } from '@zeus-js/output-vue-wrapper/runtime'",
+    )
+    expect(vueWrapper).toContain('const ZButton = defineContainer')
+    expect(vueWrapper).toContain('events: ["value-change"]')
+
+    await bundle.close()
+  })
+
+  it('keeps event bridge wrappers when explicitly requested', async () => {
+    const root = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'zeus-preset-event-bridge-'),
+    )
+
+    await fs.mkdir(path.join(root, 'src/components'), { recursive: true })
+    await fs.writeFile(path.join(root, 'src/index.ts'), 'export {}')
+    await fs.writeFile(
+      path.join(root, 'src/components/button.tsx'),
+      [
+        'import { defineElement, event, Host, Slot } from "@zeus-js/zeus"',
+        '',
+        'export const ZButton = defineElement(',
+        '  "z-button",',
+        '  {',
+        '    emits: {',
+        '      valueChange: event<{ value: string }>(),',
+        '    },',
+        '  },',
+        '  (_props, { emit }) => (',
+        '    <Host><button onClick={() => emit.valueChange({ value: "next" })}><Slot /></button></Host>',
+        '  )',
+        ')',
+      ].join('\n'),
+    )
+
+    const bundle = await rollup({
+      input: path.join(root, 'src/index.ts'),
+      external: ['react', 'vue'],
+      plugins: [
+        asRollupPlugin(
+          createZeusPlugin({
+            root,
+            components: {
+              include: ['src/components/**/*.{ts,tsx}'],
+            },
+            plugins: componentLibrary({
+              styles: false,
+              wrapper: 'event-bridge',
             }),
           }),
         ),

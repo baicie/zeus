@@ -1,6 +1,6 @@
 import type { DtsMode } from '@zeus-js/bundler-plugin'
 
-export type ReactWrapperMode = 'minimal' | 'event-bridge'
+export type ReactWrapperMode = 'runtime' | 'minimal' | 'event-bridge'
 
 export interface OutputReactWrapperOptions {
   /**
@@ -37,8 +37,12 @@ export interface OutputReactWrapperOptions {
   index?: boolean
 
   /**
+   * runtime:
+   *   Default. Generates thin proxies powered by @zeus-js/output-react-wrapper/runtime.
+   *   No useEffect, no addEventListener, no prop sync — delegates to @lit/react.
+   *
    * minimal:
-   *   Default. Requires React 19+.
+   *   Requires React 19+.
    *   React wrapper only renders the custom element tag.
    *   No useEffect prop sync, no event listeners.
    *

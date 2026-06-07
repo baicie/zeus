@@ -21,6 +21,11 @@
         "development": "./dist/output-vue-wrapper.cjs.js",
         "default": "./index.js"
       }
+    },
+    "./runtime": {
+      "types": "./dist/runtime/index.d.ts",
+      "import": "./dist/runtime/index.js",
+      "require": "./dist/runtime/index.cjs.js"
     }
   },
   "sideEffects": false,
@@ -33,6 +38,12 @@
     "formats": [
       "esm-bundler",
       "cjs"
+    ],
+    "additionalEntries": [
+      {
+        "entry": "runtime/index.ts",
+        "output": "dist/runtime/index.js"
+      }
     ]
   },
   "dependencies": {

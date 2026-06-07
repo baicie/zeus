@@ -367,4 +367,125 @@ describe('generateReactWrapper', () => {
     expect(code).toContain('el.addEventListener(EVENT_NAMES[index]')
     expect(code).toContain('}, [])')
   })
+
+  it('generates runtime mode React proxy using @zeus-js/output-react-wrapper/runtime', () => {
+    const code = generateReactWrapper({
+      component: {
+        tag: 'z-button',
+        name: 'ZButton',
+        exportName: 'ZButton',
+        source: 'src/button.tsx',
+        props: {
+          variant: { type: 'string' },
+          disabled: { type: 'boolean' },
+        },
+        events: {
+          press: {},
+        },
+        slots: {},
+        hostAttributes: [],
+        cssParts: [],
+        cssVars: {},
+      },
+      namedSlots: 'props',
+      wcModuleId: '../wc/loader.js',
+      mode: 'runtime',
+    })
+
+    expect(code).toContain("import React from 'react'")
+    expect(code).toContain(
+      "import { createComponent } from '@zeus-js/output-react-wrapper/runtime'",
+    )
+    expect(code).toContain(
+      "import { defineCustomElement } from '../wc/loader.js'",
+    )
+    expect(code).toContain('export const ZButton = createComponent')
+    expect(code).toContain('tagName: "z-button"')
+    expect(code).toContain(
+      'defineCustomElement: () => defineCustomElement("z-button")',
+    )
+    expect(code).toContain('"onPress": "press"')
+    expect(code).toContain('slots: []')
+
+    expect(code).not.toContain('import "zeus:wc:z-button"')
+    expect(code).not.toContain('useEffect')
+    expect(code).not.toContain('addEventListener')
+  })
+
+  it('passes named slot prop names to runtime mode React proxy', () => {
+    const code = generateReactWrapper({
+      component: {
+        tag: 'z-input',
+        name: 'ZInput',
+        exportName: 'ZInput',
+        source: 'src/input.tsx',
+        props: {
+          value: { type: 'string' },
+        },
+        events: {},
+        slots: {
+          default: {},
+          prefix: {},
+          suffix: {},
+          message: {},
+        },
+        hostAttributes: [],
+        cssParts: [],
+        cssVars: {},
+      },
+      namedSlots: 'props',
+      wcModuleId: '../wc/loader.js',
+      mode: 'runtime',
+    })
+
+    expect(code).toContain('slots: ["prefix","suffix","message"]')
+  })
+
+  it('maps kebab-case events to React camelCase props in runtime mode', () => {
+    const code = generateReactWrapper({
+      component: {
+        tag: 'z-input',
+        name: 'ZInput',
+        exportName: 'ZInput',
+        source: 'src/input.tsx',
+        props: {},
+        events: {
+          'value-change': {},
+        },
+        slots: {},
+        hostAttributes: [],
+        cssParts: [],
+        cssVars: {},
+      },
+      namedSlots: 'props',
+      wcModuleId: '../wc/loader.js',
+      mode: 'runtime',
+    })
+
+    expect(code).toContain('"onValueChange": "value-change"')
+  })
+
+  it('handles component with no events in runtime mode', () => {
+    const code = generateReactWrapper({
+      component: {
+        tag: 'z-skeleton',
+        name: 'ZSkeleton',
+        exportName: 'ZSkeleton',
+        source: 'src/skeleton.tsx',
+        props: {},
+        events: {},
+        slots: {},
+        hostAttributes: [],
+        cssParts: [],
+        cssVars: {},
+      },
+      namedSlots: 'props',
+      wcModuleId: '../wc/loader.js',
+      mode: 'runtime',
+    })
+
+    expect(code).toContain('events: {}')
+    expect(code).not.toContain('import "zeus:wc:z-skeleton"')
+    expect(code).not.toContain('useEffect')
+  })
 })

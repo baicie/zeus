@@ -42,7 +42,10 @@ function checkSize(
     const [file, metric] = key.split(':') as [string, 'raw' | 'gzip' | 'brotli']
 
     const entry = value.find(item => item.file === file)
-    if (!entry) continue
+    if (!entry) {
+      errors.push(`${key} did not match any size report entry`)
+      continue
+    }
 
     const actual = entry[metric]
 
@@ -61,7 +64,10 @@ function checkMetricList(
 
   for (const [name, limit] of Object.entries(thresholds)) {
     const entry = value.find(item => item.name === name)
-    if (!entry) continue
+    if (!entry) {
+      errors.push(`${name} did not match any benchmark report entry`)
+      continue
+    }
 
     if (typeof entry.ms === 'number' && entry.ms > limit) {
       errors.push(`${name} = ${entry.ms}ms, limit = ${limit}ms`)

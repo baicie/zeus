@@ -13,6 +13,9 @@ import type {
 
 export type { OutputVueWrapperOptions } from './types'
 
+export { defineContainer } from './runtime'
+export type { ZeusVueContainerOptions, ZeusVueModelOptions } from './runtime'
+
 export default function vueWrapper(
   options: OutputVueWrapperOptions = {},
 ): ZeusComponentPlugin {
@@ -23,7 +26,7 @@ export default function vueWrapper(
     dts: options.dts ?? true,
     globalDts: options.globalDts ?? true,
     index: options.index ?? true,
-    wrapper: options.wrapper ?? 'minimal',
+    wrapper: options.wrapper ?? 'runtime',
   }
 
   return {

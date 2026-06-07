@@ -106,7 +106,13 @@ export interface ZeusComponentModule {
   createComponent(hostRef: HostRef): ZeusComponentInstance
 }
 
-export declare function bootstrapLazy(components: ZeusLazyComponentMeta[]): void
+export interface BootstrapLazyOptions {
+  registry?: CustomElementRegistry
+}
+export declare function bootstrapLazy(
+  components: ZeusLazyComponentMeta[],
+  options?: BootstrapLazyOptions,
+): void
 
 export declare function createLazyElementClass(
   meta: ZeusLazyComponentMeta,

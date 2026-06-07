@@ -52,7 +52,7 @@ export {
 export { OutputWCOptions, default as wc } from '@zeus-js/output-wc'
 
 export type WebCRegisterMode = 'lazy' | 'side-effect'
-export type WebCWrapperMode = 'minimal' | 'event-bridge'
+export type WebCWrapperMode = 'runtime' | 'minimal' | 'event-bridge'
 export interface ComponentLibraryPresetOptions {
   styles?: string | false
   targets?: ComponentLibraryTarget[]
@@ -89,11 +89,15 @@ export interface ComponentLibraryPresetOptions {
   /**
    * Vue / React wrapper mode.
    *
+   * runtime:
+   *   Default. Generates thin proxies powered by framework-specific runtime
+   *   helpers.
+   *
    * minimal:
    *   Only renders the custom element tag. No watch/sync/event bridge.
    *
    * event-bridge:
-   *   Default. Adds prop sync and event listeners for declared component events.
+   *   Adds prop sync and event listeners for declared component events.
    */
   wrapper?: WebCWrapperMode
 }

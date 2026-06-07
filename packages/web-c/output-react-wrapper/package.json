@@ -21,6 +21,11 @@
         "development": "./dist/output-react-wrapper.cjs.js",
         "default": "./index.js"
       }
+    },
+    "./runtime": {
+      "types": "./dist/runtime/index.d.ts",
+      "import": "./dist/runtime/index.js",
+      "require": "./dist/runtime/index.cjs.js"
     }
   },
   "sideEffects": false,
@@ -33,17 +38,28 @@
     "formats": [
       "esm-bundler",
       "cjs"
+    ],
+    "additionalEntries": [
+      {
+        "entry": "runtime/index.ts",
+        "output": "dist/runtime/index.js"
+      }
     ]
   },
   "dependencies": {
+    "@lit/react": "^1.0.8",
     "@zeus-js/bundler-plugin": "workspace:*",
     "@zeus-js/component-analyzer": "workspace:*",
     "@zeus-js/component-dts": "workspace:*"
   },
   "peerDependencies": {
+    "@types/react": "17 || 18 || 19",
     "react": ">=18"
   },
   "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    },
     "react": {
       "optional": true
     }

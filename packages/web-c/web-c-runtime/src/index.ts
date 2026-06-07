@@ -3,6 +3,8 @@
 export { bootstrapLazy } from './bootstrapLazy'
 export { createLazyElementClass } from './lazy-element'
 
+export type { BootstrapLazyOptions } from './bootstrapLazy'
+
 export type {
   HostRef,
   ZeusComponentInstance,

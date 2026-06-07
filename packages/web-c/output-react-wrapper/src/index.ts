@@ -13,6 +13,14 @@ import type {
 
 export type { OutputReactWrapperOptions } from './types'
 
+export { createComponent } from './runtime'
+export type {
+  EventName,
+  ReactModule,
+  ZeusReactComponent,
+  ZeusReactCreateComponentOptions,
+} from './runtime'
+
 export default function reactWrapper(
   options: OutputReactWrapperOptions = {},
 ): ZeusComponentPlugin {
@@ -23,7 +31,7 @@ export default function reactWrapper(
     dts: options.dts ?? true,
     index: options.index ?? true,
     namedSlots: options.namedSlots ?? 'props',
-    wrapper: options.wrapper ?? 'minimal',
+    wrapper: options.wrapper ?? 'runtime',
   }
 
   return {

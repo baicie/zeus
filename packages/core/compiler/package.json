@@ -2,6 +2,7 @@
   "name": "@zeus-js/compiler",
   "version": "0.1.0-beta.4",
   "description": "@zeus-js/compiler",
+  "type": "module",
   "main": "index.js",
   "module": "dist/compiler.esm-bundler.js",
   "types": "dist/compiler.d.ts",
