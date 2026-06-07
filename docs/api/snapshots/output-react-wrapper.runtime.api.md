@@ -49,6 +49,7 @@ export interface ZeusReactCreateComponentOptions<
     new (): I
   }
   events?: E
+  slots?: string[]
   displayName?: string
   transformTag?: (tagName: string) => string
 }

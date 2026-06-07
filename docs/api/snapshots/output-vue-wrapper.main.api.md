@@ -61,7 +61,7 @@ export interface OutputVueWrapperOptions {
 
 export interface ZeusVueModelOptions {
   prop: string
-  event: string
+  event: string | string[]
   eventPath?: string
 }
 export interface ZeusVueContainerOptions {
