@@ -58,9 +58,9 @@
   },
   "devDependencies": {
     "@stencil/core": "^4.43.5",
-    "@types/react": "^19.2.16",
+    "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "typescript": "^6.0.3",
-    "vue-router": "^4.6.4"
+    "vue-router": "^5.1.0"
   }
 }

@@ -21,7 +21,7 @@
     "@zeus-js/zeus": "workspace:*"
   },
   "devDependencies": {
-    "@types/react": "^19.2.16",
+    "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@zeus-js/web-c": "workspace:*",
     "@zeus-js/vite-plugin": "workspace:*",
