@@ -20,7 +20,8 @@ for (const pkg of findWorkspacePackages()) {
     continue
   }
 
-  if (repository.url !== EXPECTED_REPOSITORY_URL) {
+  const normalize = (url: string) => url.replace(/\.git$/, '')
+  if (normalize(repository.url) !== normalize(EXPECTED_REPOSITORY_URL)) {
     console.error(
       pico.red(
         `${pkg.name}: repository.url must be ${EXPECTED_REPOSITORY_URL}, got ${repository.url}`,
