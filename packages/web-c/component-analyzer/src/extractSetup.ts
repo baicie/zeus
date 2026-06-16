@@ -275,6 +275,7 @@ function formatTsType(node: t.TSType | null | undefined): string | undefined {
   if (t.isTSUnknownKeyword(node)) return 'unknown'
   if (t.isTSAnyKeyword(node)) return 'any'
   if (t.isTSNullKeyword(node)) return 'null'
+  if (t.isTSUndefinedKeyword(node)) return 'undefined'
   if (t.isTSArrayType(node)) {
     return `${formatTsType(node.elementType) ?? 'unknown'}[]`
   }

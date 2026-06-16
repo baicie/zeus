@@ -64,6 +64,8 @@
     "release:dry": "tsx scripts/release/release.ts --dry --skipGit",
     "release:canary": "tsx scripts/release/release-canary.ts",
     "ci-publish": "tsx scripts/release/publish.ts",
+    "standalone:release": "tsx scripts/release/standalone-release.ts",
+    "standalone:publish": "tsx scripts/release/standalone-publish.ts",
     "api:snapshot": "tsx scripts/api/write-api-snapshots.ts",
     "api:check": "tsx scripts/api/check-api-snapshots.ts",
     "create-zeus:build": "pnpm -F create-zeus build",
