@@ -1,6 +1,6 @@
 {
   "name": "create-zeus",
-  "version": "0.1.0-alpha.0",
+  "version": "0.1.0-alpha.1",
   "description": "Create a Zeus app",
   "type": "module",
   "bin": {
@@ -14,6 +14,21 @@
     "build": "tsup src/index.ts --format esm --no-dts --clean --platform node --target node18",
     "dev": "tsup src/index.ts --format esm --no-dts --watch --platform node --target node18"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baicie/zeus",
+    "directory": "packages/devtools/create-zeus"
+  },
+  "bugs": {
+    "url": "https://github.com/baicie/zeus/issues"
+  },
+  "homepage": "https://github.com/baicie/zeus/tree/main/packages/devtools/create-zeus#readme",
+  "keywords": [
+    "zeus",
+    "scaffold"
+  ],
+  "author": "Baicie",
+  "license": "MIT",
   "dependencies": {
     "@clack/prompts": "^1.5.1",
     "picocolors": "^1.1.1"
