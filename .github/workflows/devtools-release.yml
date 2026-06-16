@@ -35,8 +35,11 @@ jobs:
       - name: Install deps
         run: pnpm install --frozen-lockfile
 
-      - name: Build
+      - name: Build framework
         run: pnpm build
+
+      - name: Build devtools
+        run: pnpm --filter create-zeus --filter @zeus-js/vite-plugin --if-present build
 
       - name: Publish package
         run: pnpm standalone:publish "${{ github.ref_name }}"
