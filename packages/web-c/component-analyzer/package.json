@@ -40,6 +40,9 @@
     "@babel/types": "catalog:",
     "fast-glob": "^3.3.3"
   },
+  "engines": {
+    "node": "^22.18.0 || >=24.11.0"
+  },
   "keywords": [
     "zeus",
     "web-components",

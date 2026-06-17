@@ -71,11 +71,14 @@
   },
   "dependencies": {
     "@babel/core": "catalog:",
-    "@babel/preset-typescript": "catalog:",
+    "@babel/plugin-transform-typescript": "catalog:",
     "@zeus-js/compiler": "workspace:*",
     "@zeus-js/component-analyzer": "workspace:*",
     "fast-glob": "^3.3.3",
     "picomatch": "^4.0.4"
+  },
+  "engines": {
+    "node": "^22.18.0 || >=24.11.0"
   },
   "peerDependencies": {
     "rollup": "^4.0.0",

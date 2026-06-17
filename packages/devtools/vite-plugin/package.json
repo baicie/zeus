@@ -49,10 +49,11 @@
     "@babel/core": "catalog:",
     "@zeus-js/compiler": "workspace:*"
   },
+  "engines": {
+    "node": "^22.18.0 || >=24.11.0"
+  },
   "peerDependencies": {
     "vite": "catalog:"
   },
-  "devDependencies": {
-    "@types/babel__core": "catalog:"
-  }
+  "devDependencies": {}
 }

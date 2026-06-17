@@ -1,7 +1,8 @@
 import { transformAsync } from '@babel/core'
 import { describe, expect, it } from 'vitest'
 
-import zeus from '../src'
+import zeusRaw from '../src'
+const zeus = zeusRaw as unknown as (api: object, opts: object) => object
 
 async function compile(code: string) {
   const result = await transformAsync(code, {

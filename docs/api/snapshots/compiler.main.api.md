@@ -93,10 +93,10 @@ export interface CompilerOptions {
 }
 
 declare const _default: (
-  api: object,
+  api: _babel_core.PluginAPI,
   options: CompilerOptions | null | undefined,
   dirname: string,
-) => _babel_core.PluginObj<_babel_core.PluginPass>
+) => _babel_core.PluginObject<object & _babel_core.PluginPass<object>>
 
 export { _default as default }
 ```

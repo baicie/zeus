@@ -84,7 +84,7 @@ function extractEventDefinition(
 function extractEventDetailType(
   node: t.CallExpression,
 ): Record<string, string> | undefined {
-  const first = node.typeParameters?.params[0]
+  const first = node.typeArguments?.params[0]
 
   if (!t.isTSTypeLiteral(first)) return undefined
 

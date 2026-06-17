@@ -2,9 +2,11 @@ import { transformAsync } from '@babel/core'
 import * as t from '@babel/types'
 import { describe, expect, it } from 'vitest'
 
-import zeus from '../src'
+import zeusRaw from '../src'
 import { elementIR, dynamicTextIR, ref } from '../src/ir/semanticBuilders'
 import { assignDomPaths, formatDomPath } from '../src/passes'
+
+const zeus = zeusRaw as unknown as (api: object, opts: object) => object
 
 async function compile(code: string) {
   const result = await transformAsync(code, {

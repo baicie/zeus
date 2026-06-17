@@ -75,7 +75,7 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
         sourceMaps: true,
         plugins: [
           [
-            zeusCompiler,
+            zeusCompiler as unknown as (api: object, opts: object) => object,
             {
               moduleName:
                 options.compiler?.moduleName ?? '@zeus-js/runtime-dom',
@@ -103,7 +103,7 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
 
       return {
         code: result.code,
-        map: result.map,
+        map: result.map as unknown as { mappings: string } | null,
       }
     },
   }

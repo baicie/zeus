@@ -1,6 +1,11 @@
 import type { ProgramScopeData } from '../codegen/support'
 import type { CompilerOptions } from '../config'
-import type { PluginObj, PluginPass, NodePath, Visitor } from '@babel/core'
+import type {
+  PluginObject,
+  PluginPass,
+  NodePath,
+  VisitorBase,
+} from '@babel/core'
 import type { JSXElement, JSXFragment, Program } from '@babel/types'
 
 export { CompilerOptions }
@@ -11,9 +16,9 @@ export type { ProgramScopeData }
 
 export type BabelState = PluginPass
 
-export type BabelPlugin = PluginObj<BabelState>
+export type BabelPlugin = PluginObject
 
-export type BabelVisitor = Visitor<BabelState>
+export type BabelVisitor = VisitorBase<BabelState>
 
 export type BabelProgramVisitor = NonNullable<BabelVisitor['Program']>
 

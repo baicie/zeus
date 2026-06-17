@@ -1,11 +1,10 @@
-// @ts-expect-error - @babel/core lacks types in this workspace
 import { transformAsync } from '@babel/core'
-// @ts-expect-error - @babel/preset-typescript lacks types
-import presetTypeScript from '@babel/preset-typescript'
+import transformTypeScript from '@babel/plugin-transform-typescript'
 import zeusCompiler from '@zeus-js/compiler'
 
-import { isTypeScriptLike } from './filter'
+import { cleanUrl, isTypeScriptLike } from './filter'
 
+import type { PluginItem } from '@babel/core'
 import type { CompilerOptions } from '@zeus-js/compiler'
 
 export interface TransformZeusOptions {
@@ -16,11 +15,13 @@ export interface TransformZeusOptions {
   transpile?: boolean
 }
 
-export async function transformZeus(options: TransformZeusOptions) {
+export async function transformZeus(
+  options: TransformZeusOptions,
+): Promise<{ code: string; map: unknown } | null> {
   const { id, code, compiler, sourcemap = true, transpile = false } = options
 
+  const filename = cleanUrl(id)
   const isTs = isTypeScriptLike(id)
-  const isTsx = /\.[cm]?tsx$/.test(id.replace(/[?#].*$/, ''))
 
   const shouldRunCompiler = compiler !== false
   const shouldStripTs = transpile && isTs
@@ -32,43 +33,36 @@ export async function transformZeus(options: TransformZeusOptions) {
   const compilerOptions =
     compiler === false ? {} : compiler === undefined ? {} : compiler
 
+  const plugins: PluginItem[] = []
+
+  if (shouldRunCompiler) {
+    plugins.push([
+      zeusCompiler as unknown as (api: object, opts: object) => object,
+      {
+        moduleName: compilerOptions.moduleName ?? '@zeus-js/runtime-dom',
+        generate: 'dom',
+        hydratable: false,
+        delegateEvents: true,
+        ...compilerOptions,
+      } satisfies Partial<CompilerOptions>,
+    ])
+  }
+
+  if (shouldStripTs) {
+    plugins.push([
+      transformTypeScript as unknown as (api: object, opts: object) => object,
+      {},
+    ])
+  }
+
   const result = await transformAsync(code, {
-    filename: id,
+    filename,
     sourceMaps: sourcemap,
-
-    plugins: shouldRunCompiler
-      ? [
-          [
-            zeusCompiler,
-            {
-              moduleName: compilerOptions.moduleName ?? '@zeus-js/runtime-dom',
-              generate: 'dom',
-              hydratable: false,
-              delegateEvents: true,
-              ...compilerOptions,
-            } satisfies Partial<CompilerOptions>,
-          ],
-        ]
-      : [],
-
-    presets: shouldStripTs
-      ? [
-          [
-            presetTypeScript,
-            {
-              allExtensions: true,
-              isTSX: isTsx,
-              allowDeclareFields: true,
-            },
-          ],
-        ]
-      : [],
-
+    plugins,
     parserOpts: {
       sourceType: 'module',
       plugins: ['typescript', 'jsx'],
     },
-
     generatorOpts: {
       retainLines: false,
       compact: false,

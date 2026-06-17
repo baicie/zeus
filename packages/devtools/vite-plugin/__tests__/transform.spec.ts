@@ -1,6 +1,11 @@
 import { transformAsync } from '@babel/core'
-import zeusCompiler from '@zeus-js/compiler'
+import zeusCompilerRaw from '@zeus-js/compiler'
 import { describe, expect, it } from 'vitest'
+
+const zeusCompiler = zeusCompilerRaw as unknown as (
+  api: object,
+  opts: object,
+) => object
 
 async function compile(code: string, id = 'test.tsx') {
   const result = await transformAsync(code, {
