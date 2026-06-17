@@ -103,7 +103,7 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
 
       return {
         code: result.code,
-        map: result.map,
+        map: result.map as unknown as { mappings: string } | null,
       }
     },
   }

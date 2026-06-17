@@ -13,6 +13,7 @@ import { parse } from '@babel/parser'
 import MagicString from 'magic-string'
 
 import type { ParserOptions } from '@babel/parser'
+import type * as t from '@babel/types'
 
 interface EnumMember {
   readonly name: string
@@ -107,9 +108,13 @@ export function scanEnums(): () => void {
         let lastInitialized: string | number | undefined
         const members: EnumMember[] = []
 
-        for (let i = 0; i < decl.members.length; i++) {
-          const e = decl.members[i]
-          const key = e.id.type === 'Identifier' ? e.id.name : e.id.value
+        for (let i = 0; i < decl.body.members.length; i++) {
+          const e = decl.body.members[i] as unknown as {
+            id: { type: string; name?: string; value?: string | number }
+            initializer?: t.Expression | null
+          }
+          const key: string =
+            e.id.type === 'Identifier' ? (e.id.name ?? '') : String(e.id.value)
           const fullKey = `${id}.${key}` as const
           const saveValue = (value: string | number) => {
             // We need allow same name enum in different file.

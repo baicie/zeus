@@ -49,15 +49,13 @@
   },
   "homepage": "https://github.com/baicie/zeus/tree/main/packages/core/compiler#readme",
   "devDependencies": {
-    "@babel/core": "catalog:",
-    "@types/babel__core": "catalog:",
-    "@types/babel__helper-plugin-utils": "^7.10.3"
+    "@babel/core": "catalog:"
   },
   "peerDependencies": {
     "@babel/core": "catalog:"
   },
   "dependencies": {
-    "@babel/helper-plugin-utils": "^7.29.7",
+    "@babel/helper-plugin-utils": "^8.0.0",
     "@babel/types": "catalog:",
     "@baicie/logger": "^0.2.0",
     "@zeus-js/shared": "workspace:*"

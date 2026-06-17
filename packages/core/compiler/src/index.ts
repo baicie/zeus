@@ -16,10 +16,10 @@ function hasParserPlugin(
   )
 }
 
-export default declare<CompilerOptions>((api, options): BabelPlugin => {
-  api.assertVersion(7)
+export default declare((api, options): BabelPlugin => {
+  api.assertVersion(8)
 
-  const config = resolveConfig(options)
+  const config = resolveConfig(options as CompilerOptions)
 
   return {
     name: 'babel-plugin-zeus-compiler',
@@ -36,7 +36,7 @@ export default declare<CompilerOptions>((api, options): BabelPlugin => {
     },
 
     visitor: createVisitor(config),
-  }
+  } as BabelPlugin
 })
 
 export type { CompilerOptions } from './config'

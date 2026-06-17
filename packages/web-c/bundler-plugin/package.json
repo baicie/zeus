@@ -71,7 +71,7 @@
   },
   "dependencies": {
     "@babel/core": "catalog:",
-    "@babel/preset-typescript": "catalog:",
+    "@babel/plugin-transform-typescript": "catalog:",
     "@zeus-js/compiler": "workspace:*",
     "@zeus-js/component-analyzer": "workspace:*",
     "fast-glob": "^3.3.3",

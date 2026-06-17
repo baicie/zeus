@@ -137,7 +137,7 @@ function extractOptions(
 }
 
 function extractPropsTypeName(call: t.CallExpression): string | undefined {
-  const first = call.typeParameters?.params[0]
+  const first = call.typeArguments?.params[0]
 
   if (!first) return undefined
 

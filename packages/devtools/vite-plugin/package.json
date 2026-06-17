@@ -52,7 +52,5 @@
   "peerDependencies": {
     "vite": "catalog:"
   },
-  "devDependencies": {
-    "@types/babel__core": "catalog:"
-  }
+  "devDependencies": {}
 }

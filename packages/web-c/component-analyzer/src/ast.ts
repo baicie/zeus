@@ -5,13 +5,7 @@ export function parseSource(code: string, file: string): t.File {
   return parse(code, {
     sourceType: 'module',
     sourceFilename: file,
-    plugins: [
-      'typescript',
-      'jsx',
-      'decorators-legacy',
-      'classProperties',
-      'objectRestSpread',
-    ],
+    plugins: ['typescript', 'jsx', 'decorators-legacy'],
   })
 }
 

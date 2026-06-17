@@ -73,7 +73,7 @@ function extractEmit(
 }
 
 function getEmitKey(
-  callee: t.Expression | t.V8IntrinsicIdentifier,
+  callee: t.Expression | t.Super | t.Import | t.V8IntrinsicIdentifier,
 ): string | undefined {
   if (t.isMemberExpression(callee)) {
     if (t.isIdentifier(callee.object, { name: 'emit' }) && !callee.computed) {
@@ -260,7 +260,7 @@ function unwrapPromiseType(
     t.isTSTypeReference(node) &&
     t.isIdentifier(node.typeName, { name: 'Promise' })
   ) {
-    return node.typeParameters?.params[0]
+    return node.typeArguments?.params[0]
   }
 
   return undefined
@@ -287,10 +287,10 @@ function formatTsType(node: t.TSType | null | undefined): string | undefined {
   }
   if (t.isTSTypeReference(node)) {
     const name = formatEntityName(node.typeName)
-    const params = node.typeParameters?.params
+    const params = node.typeArguments?.params
 
     return params?.length
-      ? `${name}<${params.map(type => formatTsType(type) ?? 'unknown').join(', ')}>`
+      ? `${name}<${params.map((type: t.TSType) => formatTsType(type) ?? 'unknown').join(', ')}>`
       : name
   }
 
@@ -298,9 +298,11 @@ function formatTsType(node: t.TSType | null | undefined): string | undefined {
 }
 
 function formatEntityName(name: t.TSEntityName): string {
-  return t.isIdentifier(name)
-    ? name.name
-    : `${formatEntityName(name.left)}.${name.right.name}`
+  if (t.isIdentifier(name)) return name.name
+  if (t.isTSQualifiedName(name)) {
+    return `${formatEntityName(name.left)}.${name.right.name}`
+  }
+  return 'this'
 }
 
 function staticLiteralType(node: t.Expression): string {
@@ -311,7 +313,7 @@ function staticLiteralType(node: t.Expression): string {
 }
 
 function isExposeCallee(
-  callee: t.Expression | t.V8IntrinsicIdentifier,
+  callee: t.Expression | t.Super | t.Import | t.V8IntrinsicIdentifier,
 ): boolean {
   if (t.isIdentifier(callee, { name: 'expose' })) return true
 

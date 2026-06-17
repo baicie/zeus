@@ -33,6 +33,8 @@ import type {
   NormalizedOutputOptions,
   OutputBundle,
   OutputOptions,
+  Plugin as RollupPlugin,
+  SourceMapInput,
 } from 'rollup'
 
 export type ZeusBundlerTarget = 'vite' | 'rollup' | 'rolldown'
@@ -44,7 +46,7 @@ export interface CreateZeusBundlerPluginOptions {
 export function createZeusBundlerPlugin(
   options: ZeusBundlerPluginOptions = {},
   createOptions: CreateZeusBundlerPluginOptions,
-) {
+): RollupPlugin {
   const target = createOptions.target
 
   let shouldCompileZeus = (_id: string) => false
@@ -231,7 +233,7 @@ export function createZeusBundlerPlugin(
       if (resolvedVirtual) {
         return {
           id: resolvedVirtual,
-          moduleSideEffects: 'no-treeshake',
+          moduleSideEffects: 'no-treeshake' as const,
         }
       }
 
@@ -245,7 +247,7 @@ export function createZeusBundlerPlugin(
         if (virtualEntryId && virtualModules.has(virtualEntryId)) {
           return {
             id: '\0' + virtualEntryId,
-            moduleSideEffects: 'no-treeshake',
+            moduleSideEffects: 'no-treeshake' as const,
           }
         }
       }
@@ -276,13 +278,16 @@ export function createZeusBundlerPlugin(
         return null
       }
 
-      return await transformZeus({
+      const result = await transformZeus({
         id,
         code,
         compiler: shouldRunZeus ? options.compiler : false,
         sourcemap: true,
         transpile: shouldStripTs,
       })
+
+      if (!result) return null
+      return result as unknown as { code: string; map: SourceMapInput | null }
     },
 
     async generateBundle(

@@ -14,7 +14,7 @@
     "check": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "vue": "^3.5.35",
+    "vue": "^3.5.38",
     "@zeus-js/runtime-dom": "workspace:*",
     "@zeus-js/web-c-runtime": "workspace:*",
     "@zeus-js/zeus": "workspace:*"
@@ -25,6 +25,6 @@
     "@zeus-js/vite-plugin": "workspace:*",
     "typescript": "^6.0.3",
     "vite": "^8.0.16",
-    "vue-tsc": "^3.3.4"
+    "vue-tsc": "^3.3.5"
   }
 }
