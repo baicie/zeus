@@ -71,6 +71,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm build-dts
+      - run: pnpm check:compiler-cjs
       - run: pnpm api:check
       - run: pnpm check:exports
       - run: pnpm check:repository
