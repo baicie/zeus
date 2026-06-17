@@ -1,7 +1,12 @@
 import { transformSync } from '@babel/core'
 import { describe, expect, it } from 'vitest'
 
-import zeusCompiler from '../src'
+import zeusCompilerRaw from '../src'
+
+const zeusCompiler = zeusCompilerRaw as unknown as (
+  api: object,
+  opts: object,
+) => object
 
 describe('compiler JSX parser plugin', () => {
   it('enables JSX syntax without @babel/plugin-syntax-jsx', () => {

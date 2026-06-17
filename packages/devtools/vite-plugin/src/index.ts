@@ -75,7 +75,7 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
         sourceMaps: true,
         plugins: [
           [
-            zeusCompiler,
+            zeusCompiler as unknown as (api: object, opts: object) => object,
             {
               moduleName:
                 options.compiler?.moduleName ?? '@zeus-js/runtime-dom',

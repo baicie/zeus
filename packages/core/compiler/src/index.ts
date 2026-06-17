@@ -16,27 +16,29 @@ function hasParserPlugin(
   )
 }
 
-export default declare((api, options): BabelPlugin => {
-  api.assertVersion(8)
+export default declare(
+  (api: object, options: CompilerOptions | null | undefined): BabelPlugin => {
+    ;(api as { assertVersion(range: number | string): void }).assertVersion(8)
 
-  const config = resolveConfig(options as CompilerOptions)
+    const config = resolveConfig(options as CompilerOptions)
 
-  return {
-    name: 'babel-plugin-zeus-compiler',
+    return {
+      name: 'babel-plugin-zeus-compiler',
 
-    manipulateOptions(
-      _opts: unknown,
-      parserOpts: { plugins?: ParserPlugin[] },
-    ) {
-      parserOpts.plugins ??= []
+      manipulateOptions(
+        _opts: unknown,
+        parserOpts: { plugins?: ParserPlugin[] },
+      ) {
+        parserOpts.plugins ??= []
 
-      if (!hasParserPlugin(parserOpts.plugins, 'jsx')) {
-        parserOpts.plugins.push('jsx')
-      }
-    },
+        if (!hasParserPlugin(parserOpts.plugins, 'jsx')) {
+          parserOpts.plugins.push('jsx')
+        }
+      },
 
-    visitor: createVisitor(config),
-  } as BabelPlugin
-})
+      visitor: createVisitor(config),
+    } as BabelPlugin
+  },
+)
 
 export type { CompilerOptions } from './config'
