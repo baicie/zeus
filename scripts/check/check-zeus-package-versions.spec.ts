@@ -18,7 +18,7 @@ afterEach(() => {
 })
 
 describe('checkZeusPackageVersions', () => {
-  it('passes when all public @zeus-js packages are aligned and fixed', () => {
+  it('passes when all required fixed public @zeus-js packages are aligned and fixed', () => {
     const root = createTempRoot()
 
     writePackage(root, 'packages/core/zeus/package.json', {
@@ -52,7 +52,7 @@ describe('checkZeusPackageVersions', () => {
     })
   })
 
-  it('fails when a package version drifts from @zeus-js/zeus', () => {
+  it('fails when a fixed package version drifts from @zeus-js/zeus', () => {
     const root = createTempRoot()
 
     writePackage(root, 'packages/core/zeus/package.json', {
@@ -77,11 +77,11 @@ describe('checkZeusPackageVersions', () => {
       packageName: '@zeus-js/web-c-runtime',
       version: '0.2.0',
       expectedVersion: '0.1.0-beta.6',
-      file: path.normalize('packages/web-c/web-c-runtime/package.json'),
+      file: 'packages/web-c/web-c-runtime/package.json',
     })
   })
 
-  it('ignores packages not in the fixed group', () => {
+  it('fails when a packages/core public @zeus-js package is missing from the fixed group', () => {
     const root = createTempRoot()
 
     writePackage(root, 'packages/core/zeus/package.json', {
@@ -89,14 +89,70 @@ describe('checkZeusPackageVersions', () => {
       version: '0.1.0-beta.6',
     })
 
-    writePackage(root, 'packages/web-c/web-c-runtime/package.json', {
-      name: '@zeus-js/web-c-runtime',
-      version: '0.2.0',
+    writePackage(root, 'packages/core/new-runtime/package.json', {
+      name: '@zeus-js/new-runtime',
+      version: '0.1.0-beta.6',
+    })
+
+    const result = checkZeusPackageVersions({
+      root,
+      fixedPackages: ['@zeus-js/zeus'],
+    })
+
+    expect(result.ok).toBe(false)
+    expect(result.problems).toContainEqual({
+      type: 'missing-from-fixed-release-group',
+      packageName: '@zeus-js/new-runtime',
+      version: '0.1.0-beta.6',
+      expectedVersion: '0.1.0-beta.6',
+      file: 'packages/core/new-runtime/package.json',
+    })
+  })
+
+  it('fails when a packages/web-c public @zeus-js package is missing from the fixed group', () => {
+    const root = createTempRoot()
+
+    writePackage(root, 'packages/core/zeus/package.json', {
+      name: '@zeus-js/zeus',
+      version: '0.1.0-beta.6',
+    })
+
+    writePackage(root, 'packages/web-c/output-new/package.json', {
+      name: '@zeus-js/output-new',
+      version: '0.1.0-beta.6',
+    })
+
+    const result = checkZeusPackageVersions({
+      root,
+      fixedPackages: ['@zeus-js/zeus'],
+    })
+
+    expect(result.ok).toBe(false)
+    expect(result.problems).toContainEqual({
+      type: 'missing-from-fixed-release-group',
+      packageName: '@zeus-js/output-new',
+      version: '0.1.0-beta.6',
+      expectedVersion: '0.1.0-beta.6',
+      file: 'packages/web-c/output-new/package.json',
+    })
+  })
+
+  it('allows standalone public @zeus-js packages outside required fixed roots', () => {
+    const root = createTempRoot()
+
+    writePackage(root, 'packages/core/zeus/package.json', {
+      name: '@zeus-js/zeus',
+      version: '0.1.0-beta.6',
     })
 
     writePackage(root, 'packages/devtools/vite-plugin/package.json', {
       name: '@zeus-js/vite-plugin',
       version: '0.0.2',
+    })
+
+    writePackage(root, 'packages/create/create-zeus/package.json', {
+      name: 'create-zeus',
+      version: '0.1.0-alpha.2',
     })
 
     const result = checkZeusPackageVersions({

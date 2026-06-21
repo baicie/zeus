@@ -76,19 +76,14 @@ export function generateWCIndexDts(
 
 function generateEventMap(component: ComponentRecord): string {
   const eventMapName = getEventMapTypeName(component)
-  const entries = Object.entries(component.events)
   const lines: string[] = []
 
   lines.push(`export interface ${eventMapName} {`)
 
-  if (!entries.length) {
-    lines.push('  [key: string]: CustomEvent<unknown>')
-  } else {
-    for (const [key, event] of Object.entries(component.events)) {
-      lines.push(
-        `  ${safePropertyName(event.name ?? toKebabCase(event.key ?? key))}: ${formatEventType(event)}`,
-      )
-    }
+  for (const [key, event] of Object.entries(component.events)) {
+    lines.push(
+      `  ${safePropertyName(event.name ?? toKebabCase(event.key ?? key))}: ${formatEventType(event)}`,
+    )
   }
 
   lines.push('}')

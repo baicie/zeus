@@ -15,11 +15,13 @@ export interface CheckZeusPackageVersionsOptions {
   packageRoots?: string[]
   fixedPackages?: string[]
   rootVersionPackage?: string
+  requiredFixedPackageRoots?: string[]
 }
 
 export interface PackageVersionProblem {
   type:
     | 'root-version-package-missing'
+    | 'missing-from-fixed-release-group'
     | 'fixed-package-not-found'
     | 'version-mismatch'
   packageName: string
@@ -36,6 +38,8 @@ export interface CheckZeusPackageVersionsResult {
 
 interface DiscoveredPackage {
   file: string
+  relativeFile: string
+  relativeDir: string
   packageJson: PackageJson
 }
 
@@ -46,6 +50,8 @@ const DEFAULT_PACKAGE_ROOTS = [
   'packages/create',
 ]
 
+const DEFAULT_REQUIRED_FIXED_PACKAGE_ROOTS = ['packages/core', 'packages/web-c']
+
 const DEFAULT_ROOT_VERSION_PACKAGE = '@zeus-js/zeus'
 
 export function checkZeusPackageVersions(
@@ -54,6 +60,8 @@ export function checkZeusPackageVersions(
   const root = options.root ?? process.cwd()
   const packageRoots = options.packageRoots ?? DEFAULT_PACKAGE_ROOTS
   const fixedPackages = options.fixedPackages ?? zeusFixedPackages
+  const requiredFixedPackageRoots =
+    options.requiredFixedPackageRoots ?? DEFAULT_REQUIRED_FIXED_PACKAGE_ROOTS
   const rootVersionPackage =
     options.rootVersionPackage ?? DEFAULT_ROOT_VERSION_PACKAGE
 
@@ -95,17 +103,32 @@ export function checkZeusPackageVersions(
       continue
     }
 
-    if (!fixedPackages.includes(packageName)) {
-      continue
+    const isFixedPackage = fixedPackages.includes(packageName)
+    const mustBeFixed = isUnderAnyRoot(
+      item.relativeDir,
+      requiredFixedPackageRoots,
+    )
+
+    if (mustBeFixed && !isFixedPackage) {
+      problems.push({
+        type: 'missing-from-fixed-release-group',
+        packageName,
+        version: item.packageJson.version,
+        expectedVersion,
+        file: item.relativeFile,
+      })
     }
 
-    if (item.packageJson.version !== expectedVersion) {
+    if (
+      (mustBeFixed || isFixedPackage) &&
+      item.packageJson.version !== expectedVersion
+    ) {
       problems.push({
         type: 'version-mismatch',
         packageName,
         version: item.packageJson.version,
         expectedVersion,
-        file: path.relative(root, item.file),
+        file: item.relativeFile,
       })
     }
   }
@@ -134,13 +157,13 @@ function discoverPackages(
   const result: DiscoveredPackage[] = []
 
   for (const packageRoot of packageRoots) {
-    walk(path.join(root, packageRoot), result)
+    walk(root, path.join(root, packageRoot), result)
   }
 
   return result
 }
 
-function walk(dir: string, result: DiscoveredPackage[]): void {
+function walk(root: string, dir: string, result: DiscoveredPackage[]): void {
   if (!fs.existsSync(dir)) {
     return
   }
@@ -153,13 +176,17 @@ function walk(dir: string, result: DiscoveredPackage[]): void {
         continue
       }
 
-      walk(absolutePath, result)
+      walk(root, absolutePath, result)
       continue
     }
 
     if (entry.isFile() && entry.name === 'package.json') {
+      const relativeFile = normalizePath(path.relative(root, absolutePath))
+
       result.push({
         file: absolutePath,
+        relativeFile,
+        relativeDir: normalizePath(path.dirname(relativeFile)),
         packageJson: readJson<PackageJson>(absolutePath),
       })
     }
@@ -173,6 +200,20 @@ function shouldSkipDirectory(name: string): boolean {
     name === '.turbo' ||
     name === '.git'
   )
+}
+
+function isUnderAnyRoot(relativeDir: string, roots: string[]): boolean {
+  return roots.some(root => {
+    const normalizedRoot = normalizePath(root)
+    return (
+      relativeDir === normalizedRoot ||
+      relativeDir.startsWith(`${normalizedRoot}/`)
+    )
+  })
+}
+
+function normalizePath(value: string): string {
+  return value.split(path.sep).join('/')
 }
 
 function readJson<T>(file: string): T {
@@ -198,6 +239,12 @@ function printResult(result: CheckZeusPackageVersionsResult): void {
       case 'root-version-package-missing':
         console.error(
           `  - ${problem.packageName}: root version package is missing or has no version`,
+        )
+        break
+
+      case 'missing-from-fixed-release-group':
+        console.error(
+          `  - ${problem.packageName}: missing from zeusFixedPackages (${problem.file})`,
         )
         break
 

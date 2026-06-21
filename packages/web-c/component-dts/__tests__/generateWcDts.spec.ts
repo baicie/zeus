@@ -234,23 +234,6 @@ describe('generateWcDts', () => {
     expect(code).toContain('change: CustomEvent<unknown>')
   })
 
-  it('adds index signature for empty events', () => {
-    const code = generateComponentWCDts({
-      tag: 'z-empty',
-      name: 'ZEmpty',
-      exportName: 'ZEmpty',
-      source: 'src/empty.tsx',
-      props: {},
-      events: {},
-      slots: {},
-      hostAttributes: [],
-      cssParts: [],
-      cssVars: {},
-    })
-
-    expect(code).toContain('[key: string]: CustomEvent<unknown>')
-  })
-
   it('handles all prop type variants', () => {
     const code = generateComponentWCDts({
       tag: 'z-demo',
@@ -390,7 +373,7 @@ describe('generateWcDts', () => {
     expect(code).toContain('type: string,')
   })
 
-  it('keeps HTMLElement standard event usage available for components without custom events', () => {
+  it('uses standard string overloads for components without custom events', () => {
     const code = generateComponentWCDts({
       tag: 'z-empty',
       name: 'ZEmpty',
@@ -404,8 +387,8 @@ describe('generateWcDts', () => {
       cssVars: {},
     })
 
-    expect(code).toContain('export interface ZEmptyEventMap')
-    expect(code).toContain('[key: string]: CustomEvent<unknown>')
+    expect(code).toContain('export interface ZEmptyEventMap {')
+    expect(code).not.toContain('[key: string]: CustomEvent<unknown>')
 
     expect(code).toContain('addEventListener<K extends keyof ZEmptyEventMap>')
     expect(code).toContain('addEventListener(')

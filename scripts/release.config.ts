@@ -10,6 +10,7 @@ export const zeusFixedPackages = [
   '@zeus-js/component-analyzer',
   '@zeus-js/component-dts',
   '@zeus-js/web-c-runtime',
+  '@zeus-js/web-c',
   '@zeus-js/output-wc',
   '@zeus-js/output-react-wrapper',
   '@zeus-js/output-vue-wrapper',

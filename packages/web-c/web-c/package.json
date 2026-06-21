@@ -1,6 +1,6 @@
 {
   "name": "@zeus-js/web-c",
-  "version": "0.1.4",
+  "version": "0.1.0-beta.6",
   "description": "Zeus Web-C component library toolchain",
   "type": "module",
   "main": "index.js",
