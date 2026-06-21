@@ -160,4 +160,125 @@ describe('output-react-wrapper', () => {
 
     await bundle.close()
   })
+
+  it('generated React wrapper uses runtime mode by default (calls createComponent)', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'zeus-react-runtime-'))
+
+    await fs.mkdir(path.join(root, 'src/components'), { recursive: true })
+
+    await fs.writeFile(path.join(root, 'src/index.ts'), 'export {}')
+
+    await fs.writeFile(
+      path.join(root, 'src/components/button.tsx'),
+      [
+        'import { defineElement, Host, Slot } from "@zeus-js/zeus"',
+        '',
+        'export const ZButton = defineElement(',
+        '  "z-button",',
+        '  {},',
+        '  () => <Host><button><Slot /></button></Host>',
+        ')',
+      ].join('\n'),
+    )
+
+    const bundle = await rollup({
+      input: path.join(root, 'src/index.ts'),
+      external: ['react'],
+      plugins: [
+        createZeusPlugin({
+          root,
+          components: {
+            include: ['src/components/**/*.{ts,tsx}'],
+          },
+          plugins: [
+            wc({ outDir: 'wc', register: 'lazy' }),
+            react({ outDir: 'react' }),
+          ],
+        }),
+      ],
+      onwarn() {},
+    })
+
+    const output = await bundle.generate({
+      dir: path.join(root, 'dist'),
+      format: 'esm',
+    })
+
+    const jsFile = output.output.find(
+      item => item.fileName === 'react/z-button.js',
+    )
+    expect(jsFile).toBeDefined()
+
+    const code =
+      jsFile?.type === 'chunk'
+        ? ((jsFile as { code?: string }).code ?? '')
+        : String((jsFile as { source?: string }).source ?? '')
+
+    expect(code).toContain(
+      "import { createComponent } from '@zeus-js/output-react-wrapper/runtime'",
+    )
+    expect(code).toContain('createComponent({')
+    expect(code).toContain('tagName: "z-button"')
+
+    await bundle.close()
+  })
+
+  it('still supports explicit minimal wrapper', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'zeus-react-minimal-'))
+
+    await fs.mkdir(path.join(root, 'src/components'), { recursive: true })
+
+    await fs.writeFile(path.join(root, 'src/index.ts'), 'export {}')
+
+    await fs.writeFile(
+      path.join(root, 'src/components/button.tsx'),
+      [
+        'import { defineElement, Host, Slot } from "@zeus-js/zeus"',
+        '',
+        'export const ZButton = defineElement(',
+        '  "z-button",',
+        '  {},',
+        '  () => <Host><button><Slot /></button></Host>',
+        ')',
+      ].join('\n'),
+    )
+
+    const bundle = await rollup({
+      input: path.join(root, 'src/index.ts'),
+      external: ['react'],
+      plugins: [
+        createZeusPlugin({
+          root,
+          components: {
+            include: ['src/components/**/*.{ts,tsx}'],
+          },
+          plugins: [
+            wc({ outDir: 'wc', register: 'lazy' }),
+            react({ outDir: 'react', wrapper: 'minimal' }),
+          ],
+        }),
+      ],
+      onwarn() {},
+    })
+
+    const output = await bundle.generate({
+      dir: path.join(root, 'dist'),
+      format: 'esm',
+    })
+
+    const jsFile = output.output.find(
+      item => item.fileName === 'react/z-button.js',
+    )
+    expect(jsFile).toBeDefined()
+
+    const code =
+      jsFile?.type === 'chunk'
+        ? ((jsFile as { code?: string }).code ?? '')
+        : String((jsFile as { source?: string }).source ?? '')
+
+    expect(code).toContain('React.forwardRef')
+    expect(code).not.toContain('@zeus-js/output-react-wrapper/runtime')
+
+    await bundle.close()
+  })
 })
