@@ -1,18 +1,19 @@
 {
   "name": "@zeus-js/web-c",
+  "type": "module",
   "version": "0.1.0-beta.6",
   "description": "Zeus Web-C component library toolchain",
-  "type": "module",
-  "main": "index.js",
-  "module": "dist/web-c.esm-bundler.js",
-  "types": "dist/web-c.d.ts",
-  "files": [
-    "index.js",
-    "vite.js",
-    "rollup.js",
-    "rolldown.js",
-    "dist"
-  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baicie/zeus.git",
+    "directory": "packages/web-c/web-c"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/web-c.d.ts",
@@ -38,11 +39,40 @@
       "import": "./dist/rolldown.js"
     }
   },
-  "sideEffects": false,
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/baicie/zeus"
+  "files": [
+    "index.js",
+    "vite.js",
+    "rollup.js",
+    "rolldown.js",
+    "dist"
+  ],
+  "peerDependencies": {
+    "rolldown": "^1.0.0",
+    "rollup": "^4.0.0",
+    "vite": "catalog:"
   },
+  "peerDependenciesMeta": {
+    "rolldown": {
+      "optional": true
+    },
+    "rollup": {
+      "optional": true
+    },
+    "vite": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@zeus-js/bundler-plugin": "workspace:*",
+    "@zeus-js/component-analyzer": "workspace:*",
+    "@zeus-js/component-dts": "workspace:*",
+    "@zeus-js/output-css": "workspace:*",
+    "@zeus-js/output-icons": "workspace:*",
+    "@zeus-js/output-react-wrapper": "workspace:*",
+    "@zeus-js/output-vue-wrapper": "workspace:*",
+    "@zeus-js/output-wc": "workspace:*"
+  },
+  "author": "Baicie",
   "buildOptions": {
     "name": "ZeusWebC",
     "formats": [
@@ -64,38 +94,13 @@
       }
     ]
   },
-  "dependencies": {
-    "@zeus-js/bundler-plugin": "workspace:*",
-    "@zeus-js/component-analyzer": "workspace:*",
-    "@zeus-js/component-dts": "workspace:*",
-    "@zeus-js/output-css": "workspace:*",
-    "@zeus-js/output-icons": "workspace:*",
-    "@zeus-js/output-react-wrapper": "workspace:*",
-    "@zeus-js/output-vue-wrapper": "workspace:*",
-    "@zeus-js/output-wc": "workspace:*"
-  },
-  "peerDependencies": {
-    "rolldown": "^1.0.0",
-    "rollup": "^4.0.0",
-    "vite": "catalog:"
-  },
-  "peerDependenciesMeta": {
-    "rolldown": {
-      "optional": true
-    },
-    "rollup": {
-      "optional": true
-    },
-    "vite": {
-      "optional": true
-    }
-  },
   "keywords": [
     "zeus",
     "web-c",
     "web-components",
     "component-library"
   ],
-  "author": "Baicie",
-  "license": "MIT"
+  "main": "index.js",
+  "module": "dist/web-c.esm-bundler.js",
+  "types": "dist/web-c.d.ts"
 }

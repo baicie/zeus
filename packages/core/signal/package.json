@@ -2,15 +2,17 @@
   "name": "@zeus-js/signal",
   "version": "0.1.0-beta.6",
   "description": "@zeus-js/signal",
-  "main": "index.js",
-  "module": "dist/signal.esm-bundler.js",
-  "types": "dist/signal.d.ts",
-  "unpkg": "dist/signal.global.js",
-  "jsdelivr": "dist/signal.global.js",
-  "files": [
-    "index.js",
-    "dist"
-  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baicie/zeus.git",
+    "directory": "packages/core/signal"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/signal.d.ts",
@@ -24,10 +26,17 @@
       }
     }
   },
-  "sideEffects": false,
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/baicie/zeus"
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "dependencies": {
+    "@zeus-js/shared": "workspace:*",
+    "alien-signals": "^3.2.1"
+  },
+  "author": "Baicie",
+  "bugs": {
+    "url": "https://github.com/baicie/zeus/issues"
   },
   "buildOptions": {
     "name": "ZeusSignal",
@@ -38,17 +47,13 @@
       "global"
     ]
   },
+  "homepage": "https://github.com/baicie/zeus/tree/main/packages/core/signal#readme",
+  "jsdelivr": "dist/signal.global.js",
   "keywords": [
     "zeus"
   ],
-  "author": "Baicie",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/baicie/zeus/issues"
-  },
-  "homepage": "https://github.com/baicie/zeus/tree/main/packages/core/signal#readme",
-  "dependencies": {
-    "@zeus-js/shared": "workspace:*",
-    "alien-signals": "^3.2.1"
-  }
+  "main": "index.js",
+  "module": "dist/signal.esm-bundler.js",
+  "types": "dist/signal.d.ts",
+  "unpkg": "dist/signal.global.js"
 }

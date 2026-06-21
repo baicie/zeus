@@ -1,15 +1,19 @@
 {
   "name": "@zeus-js/output-css",
+  "type": "module",
   "version": "0.1.0-beta.6",
   "description": "Zeus CSS asset output plugin",
-  "type": "module",
-  "main": "index.js",
-  "module": "dist/output-css.esm-bundler.js",
-  "types": "dist/output-css.d.ts",
-  "files": [
-    "index.js",
-    "dist"
-  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baicie/zeus.git",
+    "directory": "packages/web-c/output-css"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/output-css.d.ts",
@@ -23,18 +27,10 @@
       }
     }
   },
-  "sideEffects": false,
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/baicie/zeus"
-  },
-  "buildOptions": {
-    "name": "ZeusOutputCSS",
-    "formats": [
-      "esm-bundler",
-      "cjs"
-    ]
-  },
+  "files": [
+    "index.js",
+    "dist"
+  ],
   "peerDependencies": {
     "lightningcss": "^1.29.0",
     "postcss": "*",
@@ -63,10 +59,19 @@
       "optional": true
     }
   },
+  "author": "Baicie",
+  "buildOptions": {
+    "name": "ZeusOutputCSS",
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ]
+  },
   "keywords": [
     "zeus",
     "css"
   ],
-  "author": "Baicie",
-  "license": "MIT"
+  "main": "index.js",
+  "module": "dist/output-css.esm-bundler.js",
+  "types": "dist/output-css.d.ts"
 }

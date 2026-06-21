@@ -1,15 +1,19 @@
 {
   "name": "@zeus-js/output-react-wrapper",
+  "type": "module",
   "version": "0.1.0-beta.6",
   "description": "Zeus React wrapper output plugin",
-  "type": "module",
-  "main": "index.js",
-  "module": "dist/output-react-wrapper.esm-bundler.js",
-  "types": "dist/output-react-wrapper.d.ts",
-  "files": [
-    "index.js",
-    "dist"
-  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baicie/zeus.git",
+    "directory": "packages/web-c/output-react-wrapper"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/output-react-wrapper.d.ts",
@@ -28,11 +32,29 @@
       "require": "./dist/runtime/index.cjs.js"
     }
   },
-  "sideEffects": false,
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/baicie/zeus"
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "peerDependencies": {
+    "@types/react": "17 || 18 || 19",
+    "react": ">=18"
   },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@lit/react": "^1.0.8",
+    "@zeus-js/bundler-plugin": "workspace:*",
+    "@zeus-js/component-analyzer": "workspace:*",
+    "@zeus-js/component-dts": "workspace:*"
+  },
+  "author": "Baicie",
   "buildOptions": {
     "name": "ZeusOutputReactWrapper",
     "formats": [
@@ -46,29 +68,12 @@
       }
     ]
   },
-  "dependencies": {
-    "@lit/react": "^1.0.8",
-    "@zeus-js/bundler-plugin": "workspace:*",
-    "@zeus-js/component-analyzer": "workspace:*",
-    "@zeus-js/component-dts": "workspace:*"
-  },
-  "peerDependencies": {
-    "@types/react": "17 || 18 || 19",
-    "react": ">=18"
-  },
-  "peerDependenciesMeta": {
-    "@types/react": {
-      "optional": true
-    },
-    "react": {
-      "optional": true
-    }
-  },
   "keywords": [
     "zeus",
     "react",
     "web-components"
   ],
-  "author": "Baicie",
-  "license": "MIT"
+  "main": "index.js",
+  "module": "dist/output-react-wrapper.esm-bundler.js",
+  "types": "dist/output-react-wrapper.d.ts"
 }

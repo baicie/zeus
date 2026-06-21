@@ -1,15 +1,19 @@
 {
   "name": "@zeus-js/bundler-plugin",
+  "type": "module",
   "version": "0.1.0-beta.6",
   "description": "Zeus bundler plugin host",
-  "type": "module",
-  "main": "index.js",
-  "module": "dist/bundler-plugin.esm-bundler.js",
-  "types": "dist/bundler-plugin.d.ts",
-  "files": [
-    "index.js",
-    "dist"
-  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baicie/zeus.git",
+    "directory": "packages/web-c/bundler-plugin"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/bundler-plugin.d.ts",
@@ -39,11 +43,35 @@
       "import": "./dist/outputPlugins/manifest.js"
     }
   },
-  "sideEffects": false,
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/baicie/zeus"
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "peerDependencies": {
+    "rollup": "^4.0.0",
+    "rolldown": "^1.0.0",
+    "vite": "catalog:"
   },
+  "peerDependenciesMeta": {
+    "rollup": {
+      "optional": true
+    },
+    "rolldown": {
+      "optional": true
+    },
+    "vite": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@babel/core": "catalog:",
+    "@babel/plugin-transform-typescript": "catalog:",
+    "@zeus-js/compiler": "workspace:*",
+    "@zeus-js/component-analyzer": "workspace:*",
+    "fast-glob": "^3.3.3",
+    "picomatch": "^4.0.4"
+  },
+  "author": "Baicie",
   "buildOptions": {
     "name": "ZeusBundlerPlugin",
     "formats": [
@@ -69,32 +97,8 @@
       }
     ]
   },
-  "dependencies": {
-    "@babel/core": "catalog:",
-    "@babel/plugin-transform-typescript": "catalog:",
-    "@zeus-js/compiler": "workspace:*",
-    "@zeus-js/component-analyzer": "workspace:*",
-    "fast-glob": "^3.3.3",
-    "picomatch": "^4.0.4"
-  },
   "engines": {
     "node": "^22.18.0 || >=24.11.0"
-  },
-  "peerDependencies": {
-    "rollup": "^4.0.0",
-    "rolldown": "^1.0.0",
-    "vite": "catalog:"
-  },
-  "peerDependenciesMeta": {
-    "rollup": {
-      "optional": true
-    },
-    "rolldown": {
-      "optional": true
-    },
-    "vite": {
-      "optional": true
-    }
   },
   "keywords": [
     "zeus",
@@ -103,6 +107,7 @@
     "rolldown",
     "web-components"
   ],
-  "author": "Baicie",
-  "license": "MIT"
+  "main": "index.js",
+  "module": "dist/bundler-plugin.esm-bundler.js",
+  "types": "dist/bundler-plugin.d.ts"
 }

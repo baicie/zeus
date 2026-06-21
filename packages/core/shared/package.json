@@ -1,15 +1,19 @@
 {
   "name": "@zeus-js/shared",
+  "type": "module",
   "version": "0.1.0-beta.6",
   "description": "internal utils shared across @zeus-js packages",
-  "type": "module",
-  "main": "index.js",
-  "module": "dist/shared.esm-bundler.js",
-  "types": "dist/shared.d.ts",
-  "files": [
-    "index.js",
-    "dist"
-  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baicie/zeus.git",
+    "directory": "packages/core/shared"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/shared.d.ts",
@@ -23,23 +27,24 @@
       }
     }
   },
-  "sideEffects": false,
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "bugs": {
+    "url": "https://github.com/baicie/zeus/issues"
+  },
   "buildOptions": {
     "formats": [
       "esm-bundler",
       "cjs"
     ]
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/baicie/zeus"
-  },
+  "homepage": "https://github.com/baicie/zeus/tree/main/packages/core/shared#readme",
   "keywords": [
     "zeus"
   ],
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/baicie/zeus/issues"
-  },
-  "homepage": "https://github.com/baicie/zeus/tree/main/packages/core/shared#readme"
+  "main": "index.js",
+  "module": "dist/shared.esm-bundler.js",
+  "types": "dist/shared.d.ts"
 }

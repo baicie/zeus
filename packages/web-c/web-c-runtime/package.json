@@ -1,14 +1,19 @@
 {
   "name": "@zeus-js/web-c-runtime",
+  "type": "module",
   "version": "0.1.0-beta.6",
   "description": "Zeus Web-C lazy-loading runtime",
-  "type": "module",
-  "main": "./dist/web-c-runtime.esm-bundler.js",
-  "module": "./dist/web-c-runtime.esm-bundler.js",
-  "types": "./dist/web-c-runtime.d.ts",
-  "files": [
-    "dist"
-  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baicie/zeus.git",
+    "directory": "packages/web-c/web-c-runtime"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/web-c-runtime.d.ts",
@@ -17,11 +22,10 @@
       "default": "./dist/web-c-runtime.esm-bundler.js"
     }
   },
-  "sideEffects": false,
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/baicie/zeus"
-  },
+  "files": [
+    "dist"
+  ],
+  "author": "Baicie",
   "buildOptions": {
     "name": "ZeusWebCRuntime",
     "formats": [
@@ -33,6 +37,7 @@
     "web-components",
     "custom-elements"
   ],
-  "author": "Baicie",
-  "license": "MIT"
+  "main": "./dist/web-c-runtime.esm-bundler.js",
+  "module": "./dist/web-c-runtime.esm-bundler.js",
+  "types": "./dist/web-c-runtime.d.ts"
 }

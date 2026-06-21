@@ -1,15 +1,19 @@
 {
   "name": "@zeus-js/component-analyzer",
+  "type": "module",
   "version": "0.1.0-beta.6",
   "description": "Zeus component analyzer",
-  "type": "module",
-  "main": "index.js",
-  "module": "dist/component-analyzer.esm-bundler.js",
-  "types": "dist/component-analyzer.d.ts",
-  "files": [
-    "index.js",
-    "dist"
-  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baicie/zeus.git",
+    "directory": "packages/web-c/component-analyzer"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/component-analyzer.d.ts",
@@ -23,22 +27,22 @@
       }
     }
   },
-  "sideEffects": false,
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/baicie/zeus"
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "dependencies": {
+    "@babel/parser": "catalog:",
+    "@babel/types": "catalog:",
+    "fast-glob": "^3.3.3"
   },
+  "author": "Baicie",
   "buildOptions": {
     "name": "ZeusComponentAnalyzer",
     "formats": [
       "esm-bundler",
       "cjs"
     ]
-  },
-  "dependencies": {
-    "@babel/parser": "catalog:",
-    "@babel/types": "catalog:",
-    "fast-glob": "^3.3.3"
   },
   "engines": {
     "node": "^22.18.0 || >=24.11.0"
@@ -48,6 +52,7 @@
     "web-components",
     "component-analyzer"
   ],
-  "author": "Baicie",
-  "license": "MIT"
+  "main": "index.js",
+  "module": "dist/component-analyzer.esm-bundler.js",
+  "types": "dist/component-analyzer.d.ts"
 }

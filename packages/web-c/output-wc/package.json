@@ -1,15 +1,19 @@
 {
   "name": "@zeus-js/output-wc",
+  "type": "module",
   "version": "0.1.0-beta.6",
   "description": "Zeus Web Component output plugin",
-  "type": "module",
-  "main": "index.js",
-  "module": "dist/output-wc.esm-bundler.js",
-  "types": "dist/output-wc.d.ts",
-  "files": [
-    "index.js",
-    "dist"
-  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baicie/zeus.git",
+    "directory": "packages/web-c/output-wc"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/output-wc.d.ts",
@@ -33,11 +37,26 @@
       }
     }
   },
-  "sideEffects": false,
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/baicie/zeus"
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "peerDependencies": {
+    "rollup": "^4.0.0"
   },
+  "peerDependenciesMeta": {
+    "rollup": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@zeus-js/bundler-plugin": "workspace:*",
+    "@zeus-js/component-analyzer": "workspace:*",
+    "@zeus-js/component-dts": "workspace:*",
+    "@zeus-js/runtime-dom": "workspace:*",
+    "@zeus-js/web-c-runtime": "workspace:*"
+  },
+  "author": "Baicie",
   "buildOptions": {
     "name": "ZeusOutputWC",
     "formats": [
@@ -51,26 +70,12 @@
       }
     ]
   },
-  "dependencies": {
-    "@zeus-js/bundler-plugin": "workspace:*",
-    "@zeus-js/component-analyzer": "workspace:*",
-    "@zeus-js/component-dts": "workspace:*",
-    "@zeus-js/runtime-dom": "workspace:*",
-    "@zeus-js/web-c-runtime": "workspace:*"
-  },
-  "peerDependencies": {
-    "rollup": "^4.0.0"
-  },
-  "peerDependenciesMeta": {
-    "rollup": {
-      "optional": true
-    }
-  },
   "keywords": [
     "zeus",
     "web-components",
     "custom-elements"
   ],
-  "author": "Baicie",
-  "license": "MIT"
+  "main": "index.js",
+  "module": "dist/output-wc.esm-bundler.js",
+  "types": "dist/output-wc.d.ts"
 }

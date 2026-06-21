@@ -1,15 +1,19 @@
 {
   "name": "@zeus-js/component-dts",
+  "type": "module",
   "version": "0.1.0-beta.6",
   "description": "DTS generators for Zeus component manifest",
-  "type": "module",
-  "main": "index.js",
-  "module": "dist/component-dts.esm-bundler.js",
-  "types": "dist/component-dts.d.ts",
-  "files": [
-    "index.js",
-    "dist"
-  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baicie/zeus.git",
+    "directory": "packages/web-c/component-dts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/component-dts.d.ts",
@@ -23,11 +27,14 @@
       }
     }
   },
-  "sideEffects": false,
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/baicie/zeus"
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "dependencies": {
+    "@zeus-js/component-analyzer": "workspace:*"
   },
+  "author": "Baicie",
   "buildOptions": {
     "name": "ZeusComponentDts",
     "formats": [
@@ -35,15 +42,13 @@
       "cjs"
     ]
   },
-  "dependencies": {
-    "@zeus-js/component-analyzer": "workspace:*"
-  },
   "keywords": [
     "zeus",
     "web-components",
     "dts",
     "types"
   ],
-  "author": "Baicie",
-  "license": "MIT"
+  "main": "index.js",
+  "module": "dist/component-dts.esm-bundler.js",
+  "types": "dist/component-dts.d.ts"
 }

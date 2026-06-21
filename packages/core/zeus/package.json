@@ -1,22 +1,19 @@
 {
   "name": "@zeus-js/zeus",
+  "type": "module",
   "version": "0.1.0-beta.6",
   "description": "@zeus-js/zeus",
-  "type": "module",
-  "main": "index.js",
-  "module": "dist/zeus.esm-bundler.js",
-  "types": "dist/zeus.d.ts",
-  "unpkg": "dist/zeus.global.js",
-  "jsdelivr": "dist/zeus.global.js",
-  "files": [
-    "index.js",
-    "jsx-runtime.js",
-    "jsx-runtime.d.ts",
-    "jsx-dev-runtime.js",
-    "jsx-dev-runtime.d.ts",
-    "dist",
-    "src/jsx.d.ts"
-  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baicie/zeus.git",
+    "directory": "packages/core/zeus"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/zeus.d.ts",
@@ -61,10 +58,22 @@
       }
     }
   },
-  "sideEffects": false,
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/baicie/zeus"
+  "files": [
+    "index.js",
+    "jsx-runtime.js",
+    "jsx-runtime.d.ts",
+    "jsx-dev-runtime.js",
+    "jsx-dev-runtime.d.ts",
+    "dist",
+    "src/jsx.d.ts"
+  ],
+  "dependencies": {
+    "@zeus-js/signal": "workspace:*",
+    "@zeus-js/runtime-dom": "workspace:*"
+  },
+  "author": "Baicie",
+  "bugs": {
+    "url": "https://github.com/baicie/zeus/issues"
   },
   "buildOptions": {
     "name": "Zeus",
@@ -85,17 +94,13 @@
       }
     ]
   },
+  "homepage": "https://github.com/baicie/zeus/tree/main/packages/core/zeus#readme",
+  "jsdelivr": "dist/zeus.global.js",
   "keywords": [
     "zeus"
   ],
-  "author": "Baicie",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/baicie/zeus/issues"
-  },
-  "homepage": "https://github.com/baicie/zeus/tree/main/packages/core/zeus#readme",
-  "dependencies": {
-    "@zeus-js/signal": "workspace:*",
-    "@zeus-js/runtime-dom": "workspace:*"
-  }
+  "main": "index.js",
+  "module": "dist/zeus.esm-bundler.js",
+  "types": "dist/zeus.d.ts",
+  "unpkg": "dist/zeus.global.js"
 }

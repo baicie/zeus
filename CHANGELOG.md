@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-beta.6 (2026-06-21)
+
+### Fixes
+
+- Release v0.1.0-beta.6.
+
 ## 0.1.0-beta.4 (2026-06-06)
 
 ### Features
