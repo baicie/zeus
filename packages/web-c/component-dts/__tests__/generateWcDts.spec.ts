@@ -341,4 +341,80 @@ describe('generateWcDts', () => {
 
     expect(code).toContain('"my-prop"?: string')
   })
+
+  it('generates typed event overloads and standard string overloads', () => {
+    const code = generateComponentWCDts({
+      tag: 'z-data-grid',
+      name: 'DataGrid',
+      exportName: 'DataGrid',
+      source: 'src/data-grid.tsx',
+      props: {},
+      events: {
+        selectionChange: {
+          key: 'selectionChange',
+          name: 'selectionChange',
+          detail: {
+            selection: 'unknown[]',
+          },
+        },
+      },
+      slots: {},
+      hostAttributes: [],
+      cssParts: [],
+      cssVars: {},
+    })
+
+    expect(code).toContain('export interface DataGridEventMap')
+    expect(code).toContain(
+      'selectionChange: CustomEvent<{ selection: unknown[] }>',
+    )
+
+    expect(code).toContain('addEventListener<K extends keyof DataGridEventMap>')
+    expect(code).toContain(
+      'listener: (this: DataGridElement, ev: DataGridEventMap[K]) => unknown,',
+    )
+    expect(code).toContain('options?: boolean | AddEventListenerOptions,')
+
+    expect(code).toContain('addEventListener(')
+    expect(code).toContain('type: string,')
+    expect(code).toContain(
+      'listener: EventListenerOrEventListenerObject | null,',
+    )
+
+    expect(code).toContain(
+      'removeEventListener<K extends keyof DataGridEventMap>',
+    )
+    expect(code).toContain('options?: boolean | EventListenerOptions,')
+
+    expect(code).toContain('removeEventListener(')
+    expect(code).toContain('type: string,')
+  })
+
+  it('keeps HTMLElement standard event usage available for components without custom events', () => {
+    const code = generateComponentWCDts({
+      tag: 'z-empty',
+      name: 'ZEmpty',
+      exportName: 'ZEmpty',
+      source: 'src/empty.tsx',
+      props: {},
+      events: {},
+      slots: {},
+      hostAttributes: [],
+      cssParts: [],
+      cssVars: {},
+    })
+
+    expect(code).toContain('export interface ZEmptyEventMap')
+    expect(code).toContain('[key: string]: CustomEvent<unknown>')
+
+    expect(code).toContain('addEventListener<K extends keyof ZEmptyEventMap>')
+    expect(code).toContain('addEventListener(')
+    expect(code).toContain('type: string,')
+
+    expect(code).toContain(
+      'removeEventListener<K extends keyof ZEmptyEventMap>',
+    )
+    expect(code).toContain('removeEventListener(')
+    expect(code).toContain('type: string,')
+  })
 })
