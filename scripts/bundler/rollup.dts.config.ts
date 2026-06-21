@@ -13,6 +13,7 @@ import MagicString from 'magic-string'
 
 import { findWorkspacePackages } from '../shared/utils.ts'
 
+import type { ExportSpecifier } from '@babel/types'
 import type { Plugin, RollupOptions } from 'rollup'
 
 if (!existsSync('temp/packages')) {
@@ -225,7 +226,7 @@ function patchTypesCode(code: string): string {
       let removed = 0
 
       for (let i = 0; i < node.specifiers.length; i++) {
-        const spec = node.specifiers[i]
+        const spec = node.specifiers[i] as ExportSpecifier
 
         if (
           spec.type === 'ExportSpecifier' &&
@@ -239,14 +240,14 @@ function patchTypesCode(code: string): string {
             continue
           }
 
-          const next = node.specifiers[i + 1]
+          const next = node.specifiers[i + 1] as ExportSpecifier | undefined
 
           if (next) {
             assert(typeof spec.start === 'number')
             assert(typeof next.start === 'number')
             s.remove(spec.start, next.start)
           } else {
-            const prev = node.specifiers[i - 1]
+            const prev = node.specifiers[i - 1] as ExportSpecifier | undefined
             assert(typeof spec.start === 'number')
             assert(typeof spec.end === 'number')
 

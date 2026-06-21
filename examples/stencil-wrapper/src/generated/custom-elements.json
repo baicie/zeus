@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-06-17T04:51:46",
+  "timestamp": "2026-06-21T12:59:28",
   "compiler": {
     "name": "@stencil/core",
     "version": "4.43.5",
@@ -52,7 +52,7 @@
             "references": {
               "DemoButtonVariant": {
                 "location": "local",
-                "path": "/Users/liuzhiwei/Desktop/workspace/git-code/zeus/examples/stencil-wrapper/src/components/z-demo-button/z-demo-button.tsx",
+                "path": "D:/workspace/git-code/zeus/examples/stencil-wrapper/src/components/z-demo-button/z-demo-button.tsx",
                 "id": "src/components/z-demo-button/z-demo-button.tsx::DemoButtonVariant"
               }
             }
@@ -279,7 +279,7 @@
             "references": {
               "DemoInputMeta": {
                 "location": "local",
-                "path": "/Users/liuzhiwei/Desktop/workspace/git-code/zeus/examples/stencil-wrapper/src/components/z-demo-input/z-demo-input.tsx",
+                "path": "D:/workspace/git-code/zeus/examples/stencil-wrapper/src/components/z-demo-input/z-demo-input.tsx",
                 "id": "src/components/z-demo-input/z-demo-input.tsx::DemoInputMeta"
               }
             }

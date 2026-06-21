@@ -12,6 +12,8 @@ import MagicString from 'magic-string'
 
 import { findWorkspacePackages } from '../shared/utils'
 
+import type { ExportSpecifier, ImportSpecifier } from '@babel/types'
+
 if (!existsSync('temp/packages')) {
   console.warn(
     'no temp dts files found. run `tsc -p tsconfig.build.json --noCheck` first.',
@@ -168,7 +170,7 @@ function patchTypes(code: string, pkgDir: string): string {
     if (node.type === 'ExportNamedDeclaration' && !node.source) {
       let removed = 0
       for (let i = 0; i < node.specifiers.length; i++) {
-        const spec = node.specifiers[i]
+        const spec = node.specifiers[i] as ExportSpecifier
         if (
           spec.type === 'ExportSpecifier' &&
           shouldRemoveExport.has(spec.local.name)
@@ -178,13 +180,13 @@ function patchTypes(code: string, pkgDir: string): string {
           if (exported !== spec.local.name) {
             continue
           }
-          const next = node.specifiers[i + 1]
+          const next = node.specifiers[i + 1] as ExportSpecifier | undefined
           if (next) {
             assert(typeof spec.start === 'number')
             assert(typeof next.start === 'number')
             s.remove(spec.start, next.start)
           } else {
-            const prev = node.specifiers[i - 1]
+            const prev = node.specifiers[i - 1] as ExportSpecifier | undefined
             assert(typeof spec.start === 'number')
             assert(typeof spec.end === 'number')
             s.remove(
@@ -257,7 +259,7 @@ function removeDuplicateImportSpecifiers(
 
     let removed = 0
     for (let i = 0; i < node.specifiers.length; i++) {
-      const spec = node.specifiers[i]
+      const spec = node.specifiers[i] as ImportSpecifier
       if (spec.type !== 'ImportSpecifier') continue
 
       const localName = spec.local.name
@@ -267,13 +269,13 @@ function removeDuplicateImportSpecifiers(
         continue
       }
 
-      const next = node.specifiers[i + 1]
+      const next = node.specifiers[i + 1] as ImportSpecifier | undefined
       if (next) {
         assert(typeof spec.start === 'number')
         assert(typeof next.start === 'number')
         s.remove(spec.start, next.start)
       } else {
-        const prev = node.specifiers[i - 1]
+        const prev = node.specifiers[i - 1] as ImportSpecifier | undefined
         assert(typeof spec.start === 'number')
         assert(typeof spec.end === 'number')
         s.remove(

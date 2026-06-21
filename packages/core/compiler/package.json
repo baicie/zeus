@@ -58,7 +58,7 @@
     "node": "^22.18.0 || >=24.11.0"
   },
   "dependencies": {
-    "@babel/helper-plugin-utils": "^8.0.0",
+    "@babel/helper-plugin-utils": "^8.0.1",
     "@babel/types": "catalog:",
     "@baicie/logger": "^0.2.0",
     "@zeus-js/shared": "workspace:*"
