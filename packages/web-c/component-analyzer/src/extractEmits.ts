@@ -1,5 +1,6 @@
 import * as t from '@babel/types'
 
+import { isPortableTypeReference } from './portable-types'
 import { getObjectKey, getObjectProperty, staticValue } from './utils'
 
 import type { ComponentEvent } from './types'
@@ -133,7 +134,11 @@ function inferTsTypeReference(node: t.TSTypeReference): string {
     case 'Record':
       return 'object'
     default:
-      return name ?? 'unknown'
+      return name &&
+        !node.typeArguments?.params.length &&
+        isPortableTypeReference(name)
+        ? name
+        : 'unknown'
   }
 }
 

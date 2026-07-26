@@ -1,8 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { analyzeComponents } from '@zeus-js/component-analyzer'
-import fg from 'fast-glob'
+import { analyzeComponentsWithDependencies } from '@zeus-js/component-analyzer'
 
 import { createComponentTransformFilter } from './componentTransformFilter'
 import {
@@ -157,11 +156,7 @@ export function createZeusBundlerPlugin(
         componentExclude,
       )
 
-      for (const file of await collectWatchFiles(
-        root,
-        componentInclude,
-        componentExclude,
-      )) {
+      for (const file of manifestResult.dependencies) {
         this.addWatchFile(file)
       }
 
@@ -411,27 +406,14 @@ async function createManifest(
         components: [],
       },
       diagnostics: [],
+      dependencies: [],
     }
   }
 
-  return await analyzeComponents({
+  return await analyzeComponentsWithDependencies({
     root,
     include,
     exclude,
-  })
-}
-
-async function collectWatchFiles(
-  root: string,
-  include: string[],
-  exclude: string[],
-): Promise<string[]> {
-  if (!include.length) return []
-
-  return await fg(include, {
-    cwd: root,
-    absolute: true,
-    ignore: exclude,
   })
 }
 

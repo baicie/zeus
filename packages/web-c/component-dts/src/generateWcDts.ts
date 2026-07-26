@@ -1,10 +1,5 @@
-import {
-  formatEventType,
-  formatMethodSignature,
-  formatPropType,
-  isRequiredProp,
-  safePropertyName,
-} from './formatType'
+import { formatEventType, safePropertyName } from './formatType'
+import { generateElementType } from './generateElementType'
 import { getElementTypeName, getEventMapTypeName } from './naming'
 
 import type {
@@ -91,54 +86,11 @@ function generateEventMap(component: ComponentRecord): string {
 }
 
 function generateElementInterface(component: ComponentRecord): string {
-  const elementTypeName = getElementTypeName(component)
   const eventMapName = getEventMapTypeName(component)
-  const lines: string[] = []
 
-  lines.push(`export interface ${elementTypeName} extends HTMLElement {`)
-
-  for (const [name, prop] of Object.entries(component.props)) {
-    const optional = isRequiredProp(prop) ? '' : '?'
-    lines.push(
-      `  ${safePropertyName(name)}${optional}: ${formatPropType(prop)}`,
-    )
-  }
-
-  for (const method of Object.values(component.methods ?? {})) {
-    lines.push(`  ${formatMethodSignature(method)}`)
-  }
-
-  lines.push('')
-  lines.push(`  addEventListener<K extends keyof ${eventMapName}>(`)
-  lines.push('    type: K,')
-  lines.push(
-    `    listener: (this: ${elementTypeName}, ev: ${eventMapName}[K]) => unknown,`,
-  )
-  lines.push('    options?: boolean | AddEventListenerOptions,')
-  lines.push('  ): void')
-  lines.push('')
-  lines.push('  addEventListener(')
-  lines.push('    type: string,')
-  lines.push('    listener: EventListenerOrEventListenerObject | null,')
-  lines.push('    options?: boolean | AddEventListenerOptions,')
-  lines.push('  ): void')
-  lines.push('')
-  lines.push(`  removeEventListener<K extends keyof ${eventMapName}>(`)
-  lines.push('    type: K,')
-  lines.push(
-    `    listener: (this: ${elementTypeName}, ev: ${eventMapName}[K]) => unknown,`,
-  )
-  lines.push('    options?: boolean | EventListenerOptions,')
-  lines.push('  ): void')
-  lines.push('')
-  lines.push('  removeEventListener(')
-  lines.push('    type: string,')
-  lines.push('    listener: EventListenerOrEventListenerObject | null,')
-  lines.push('    options?: boolean | EventListenerOptions,')
-  lines.push('  ): void')
-  lines.push('}')
-
-  return lines.join('\n')
+  return generateElementType(component, {
+    eventMapTypeName: eventMapName,
+  })
 }
 
 function toKebabCase(value: string): string {

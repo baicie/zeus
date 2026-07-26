@@ -1,10 +1,10 @@
 import {
   formatDetailType,
-  formatMethodSignature,
   formatPropType,
   isRequiredProp,
   safePropertyName,
 } from './formatType'
+import { generateElementType } from './generateElementType'
 import { getElementTypeName, getPropsTypeName } from './naming'
 
 import type {
@@ -75,20 +75,7 @@ function generateReactComponentDts(
 
   lines.push('}')
   lines.push('')
-  lines.push(`export interface ${elementTypeName} extends HTMLElement {`)
-
-  for (const [name, prop] of Object.entries(component.props)) {
-    const optional = isRequiredProp(prop) ? '' : '?'
-    lines.push(
-      `  ${safePropertyName(name)}${optional}: ${formatPropType(prop)}`,
-    )
-  }
-
-  for (const method of Object.values(component.methods ?? {})) {
-    lines.push(`  ${formatMethodSignature(method)}`)
-  }
-
-  lines.push('}')
+  lines.push(generateElementType(component))
   lines.push('')
   lines.push(
     `export declare const ${component.name}: React.ForwardRefExoticComponent<`,

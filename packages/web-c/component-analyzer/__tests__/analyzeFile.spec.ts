@@ -646,6 +646,129 @@ describe('analyzeFile', () => {
     })
   })
 
+  it('preserves portable types and erases source-bound references', () => {
+    const code = `
+      import { defineElement, event } from '@zeus-js/zeus'
+
+      interface GridRow {
+        id: string
+      }
+
+      export const ZGrid = defineElement(
+        'z-grid',
+        {
+          emits: {
+            rowAction: event<{
+              nativeEvent: MouseEvent
+              keyboardEvent: KeyboardEvent
+              createdAt: Date
+              row: GridRow
+            }>(),
+          },
+        },
+        (_props, { expose }) => {
+          expose({
+            handleEvent(event: KeyboardEvent): MouseEvent {
+              return event as unknown as MouseEvent
+            },
+            setRows(rows: GridRow[]): void {
+              void rows
+            },
+          })
+
+          return null
+        },
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/grid.tsx',
+      code,
+    })
+
+    expect(result.diagnostics).toEqual([])
+    expect(result.components[0].events.rowAction.detail).toEqual({
+      nativeEvent: 'MouseEvent',
+      keyboardEvent: 'KeyboardEvent',
+      createdAt: 'Date',
+      row: 'unknown',
+    })
+    expect(result.components[0].methods).toMatchObject({
+      handleEvent: {
+        parameters: [
+          {
+            name: 'event',
+            type: 'KeyboardEvent',
+          },
+        ],
+        returns: 'MouseEvent',
+      },
+      setRows: {
+        parameters: [
+          {
+            name: 'rows',
+            type: 'unknown[]',
+          },
+        ],
+        returns: 'void',
+      },
+    })
+  })
+
+  it.each([
+    [
+      'an unresolved intersection constituent',
+      'type PublicProps = PackageProps & LocalProps',
+    ],
+    [
+      'an unresolved interface heritage',
+      'interface PublicProps extends PackageProps, LocalProps {}',
+    ],
+    [
+      'a qualified interface heritage',
+      'interface PublicProps extends LocalProps, Package.Props {}',
+    ],
+  ])('fails closed for %s', (_case, declaration) => {
+    const code = `
+      import { defineElement } from '@zeus-js/zeus'
+      import type { PackageProps } from 'package'
+      import type * as Package from 'package'
+
+      interface LocalProps {
+        localOnly?: string
+      }
+
+      ${declaration}
+
+      export const ZCard = defineElement<PublicProps>(
+        'z-card',
+        {
+          props: {
+            runtimeOnly: String,
+          },
+        },
+        () => null,
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/card.tsx',
+      code,
+    })
+
+    expect(result.diagnostics).toEqual([
+      {
+        level: 'warning',
+        file: 'src/card.tsx',
+        message: 'Cannot resolve local props type "PublicProps".',
+      },
+    ])
+    expect(Object.keys(result.components[0].props)).toEqual(['runtimeOnly'])
+    expect(result.components[0].props.runtimeOnly).toMatchObject({
+      type: 'string',
+    })
+  })
+
   it('warns when props type cannot be resolved locally', () => {
     const code = `
       import { defineElement } from '@zeus-js/zeus'

@@ -1,5 +1,7 @@
 export { analyzeFile } from './analyzeFile'
 export { analyzeComponents } from './analyzeComponents'
+/** @internal */
+export { analyzeComponentsWithDependencies } from './analyzeComponents'
 
 export type {
   AnalyzeComponentsOptions,

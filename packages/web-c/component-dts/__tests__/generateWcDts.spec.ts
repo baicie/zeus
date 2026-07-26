@@ -81,7 +81,7 @@ describe('generateWcDts', () => {
     expect(code).toContain('export interface ZButtonEventMap')
     expect(code).toContain('press: CustomEvent<{ nativeEvent: MouseEvent }>')
     expect(code).toContain(
-      'export interface ZButtonElement extends HTMLElement',
+      'export type ZButtonElement = ZButtonElementMethods & ZButtonElementEventTarget & HTMLElement & Omit<ZButtonElementProps, keyof HTMLElement>',
     )
     expect(code).toContain('variant?: "default" | "outline"')
     expect(code).toContain('disabled?: boolean')
@@ -278,7 +278,7 @@ describe('generateWcDts', () => {
     })
 
     expect(code).toContain(
-      'export interface ZCustomElement extends HTMLElement',
+      'export type ZCustomElement = ZCustomElementMethods & ZCustomElementEventTarget & HTMLElement & Omit<ZCustomElementProps, keyof HTMLElement>',
     )
     expect(code).toContain('export interface ZCustomElementEventMap')
   })
@@ -325,7 +325,7 @@ describe('generateWcDts', () => {
     expect(code).toContain('"my-prop"?: string')
   })
 
-  it('generates typed event overloads and standard string overloads', () => {
+  it('generates typed event overloads without shadowing HTMLElement fallbacks', () => {
     const code = generateComponentWCDts({
       tag: 'z-data-grid',
       name: 'DataGrid',
@@ -358,9 +358,8 @@ describe('generateWcDts', () => {
     )
     expect(code).toContain('options?: boolean | AddEventListenerOptions,')
 
-    expect(code).toContain('addEventListener(')
-    expect(code).toContain('type: string,')
-    expect(code).toContain(
+    expect(code).not.toContain('type: string,')
+    expect(code).not.toContain(
       'listener: EventListenerOrEventListenerObject | null,',
     )
 
@@ -368,12 +367,9 @@ describe('generateWcDts', () => {
       'removeEventListener<K extends keyof DataGridEventMap>',
     )
     expect(code).toContain('options?: boolean | EventListenerOptions,')
-
-    expect(code).toContain('removeEventListener(')
-    expect(code).toContain('type: string,')
   })
 
-  it('uses standard string overloads for components without custom events', () => {
+  it('leaves standard string overloads to HTMLElement', () => {
     const code = generateComponentWCDts({
       tag: 'z-empty',
       name: 'ZEmpty',
@@ -391,13 +387,10 @@ describe('generateWcDts', () => {
     expect(code).not.toContain('[key: string]: CustomEvent<unknown>')
 
     expect(code).toContain('addEventListener<K extends keyof ZEmptyEventMap>')
-    expect(code).toContain('addEventListener(')
-    expect(code).toContain('type: string,')
+    expect(code).not.toContain('type: string,')
 
     expect(code).toContain(
       'removeEventListener<K extends keyof ZEmptyEventMap>',
     )
-    expect(code).toContain('removeEventListener(')
-    expect(code).toContain('type: string,')
   })
 })

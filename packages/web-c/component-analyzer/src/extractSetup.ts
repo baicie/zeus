@@ -2,6 +2,7 @@ import * as t from '@babel/types'
 
 import { walk } from './ast'
 import { createComponentEvent } from './extractEmits'
+import { isPortableTypeReference } from './portable-types'
 import { getObjectKey, staticValue, uniqueSorted } from './utils'
 
 import type {
@@ -289,12 +290,65 @@ function formatTsType(node: t.TSType | null | undefined): string | undefined {
     const name = formatEntityName(node.typeName)
     const params = node.typeArguments?.params
 
-    return params?.length
-      ? `${name}<${params.map((type: t.TSType) => formatTsType(type) ?? 'unknown').join(', ')}>`
-      : name
+    if (!isPortableTypeReference(name)) {
+      return undefined
+    }
+
+    if (!params?.length) return name
+    if (!params.every(isFullyPortableType)) return undefined
+
+    const formattedParams: string[] = []
+
+    for (const param of params) {
+      const formatted = formatTsType(param)
+
+      if (formatted === undefined) return undefined
+      formattedParams.push(formatted)
+    }
+
+    return `${name}<${formattedParams.join(', ')}>`
   }
 
   return 'unknown'
+}
+
+function isFullyPortableType(node: t.TSType): boolean {
+  if (
+    t.isTSStringKeyword(node) ||
+    t.isTSNumberKeyword(node) ||
+    t.isTSBooleanKeyword(node) ||
+    t.isTSVoidKeyword(node) ||
+    t.isTSUnknownKeyword(node) ||
+    t.isTSAnyKeyword(node) ||
+    t.isTSNullKeyword(node) ||
+    t.isTSUndefinedKeyword(node)
+  ) {
+    return true
+  }
+
+  if (t.isTSArrayType(node)) {
+    return isFullyPortableType(node.elementType)
+  }
+
+  if (t.isTSUnionType(node)) {
+    return node.types.every(isFullyPortableType)
+  }
+
+  if (t.isTSLiteralType(node)) {
+    return staticLiteralType(node.literal) !== 'unknown'
+  }
+
+  if (t.isTSTypeReference(node)) {
+    const name = formatEntityName(node.typeName)
+    const params = node.typeArguments?.params
+
+    return (
+      isPortableTypeReference(name) &&
+      (!params?.length || params.every(isFullyPortableType))
+    )
+  }
+
+  return false
 }
 
 function formatEntityName(name: t.TSEntityName): string {

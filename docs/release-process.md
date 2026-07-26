@@ -88,6 +88,8 @@ Zeus 维护两条发布通道：
       "@zeus-js/bundler-plugin",
       "@zeus-js/component-analyzer",
       "@zeus-js/component-dts",
+      "@zeus-js/web-c-runtime",
+      "@zeus-js/web-c",
       "@zeus-js/output-wc",
       "@zeus-js/output-react-wrapper",
       "@zeus-js/output-vue-wrapper",
@@ -113,7 +115,7 @@ Zeus 维护两条发布通道：
 
 ### 3.2 包分组策略
 
-**Fixed 组（同步版本）**：13 个核心包共享同一版本号，任何一个有变更都统一升级。
+**Fixed 组（同步版本）**：15 个核心包共享同一版本号，任何一个有变更都统一升级。
 
 **Ignored 组（不发版）**：以下包不参与 npm 发布：
 
@@ -130,6 +132,8 @@ Zeus 维护两条发布通道：
 ```bash
 pnpm changeset
 ```
+
+`.changeset/release.md` 是发布工具生成并清理 synthetic changeset 的保留路径，不得手工创建或提交。
 
 文件格式（frontmatter + 描述）：
 
@@ -173,7 +177,7 @@ fix(compiler): preserve boolean attributes in JSX transform
 ┌─────────────────────────────────────────────────────────┐
 │  GitHub Actions: release.yml                            │
 ├─────────────────────────────────────────────────────────┤
-│  4. release:precheck (13 项质量门禁)                     │
+│  4. release:precheck (15 项质量门禁)                     │
 │                                                         │
 │  5. extract version from tag                            │
 │                                                         │
@@ -580,7 +584,7 @@ jobs:
 
 ### 6.1 release:precheck（正式发布前）
 
-13 项检查，按顺序执行，任一失败则阻止发布。
+15 项检查，按顺序执行，任一失败则阻止发布。
 
 `scripts/release/release-precheck.ts`：
 
@@ -601,11 +605,13 @@ const steps: Array<[string, string[]]> = [
   ['pnpm', ['check']], // 6. TypeScript 类型检查
   ['pnpm', ['lint']], // 7. ESLint 代码风格检查
   ['pnpm', ['test-unit']], // 8. Vitest 单元测试
-  ['pnpm', ['examples:check:all']], // 9. 所有示例构建和类型检查
-  ['pnpm', ['docs:build']], // 10. VitePress 文档构建
-  ['pnpm', ['size:ci']], // 11. Bundle 大小报告生成
-  ['pnpm', ['check:exports']], // 12. Package exports 边界验证
-  ['pnpm', ['check:repository']], // 13. 仓库 URL 一致性检查
+  ['pnpm', ['check:package-versions']], // 9. Fixed 包版本一致性
+  ['pnpm', ['examples:check:all']], // 10. 所有示例构建和类型检查
+  ['pnpm', ['bench:component-host:ci']], // 11. Component Host 性能基线
+  ['pnpm', ['docs:build']], // 12. VitePress 文档构建
+  ['pnpm', ['size:ci']], // 13. Bundle 大小报告生成
+  ['pnpm', ['check:exports']], // 14. Package exports 边界验证
+  ['pnpm', ['check:repository']], // 15. 仓库 URL 一致性检查
 ]
 
 async function run() {

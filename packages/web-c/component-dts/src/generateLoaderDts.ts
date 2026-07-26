@@ -1,17 +1,9 @@
 // packages/web-c/component-dts/src/generateLoaderDts.ts
 
-import {
-  formatMethodSignature,
-  formatPropType,
-  isRequiredProp,
-  safePropertyName,
-} from './formatType'
+import { generateElementType } from './generateElementType'
 import { getElementTypeName } from './naming'
 
-import type {
-  ComponentManifest,
-  ComponentRecord,
-} from '@zeus-js/component-analyzer'
+import type { ComponentManifest } from '@zeus-js/component-analyzer'
 
 export function generateLoaderDts(manifest: ComponentManifest): string {
   const lines: string[] = []
@@ -21,7 +13,12 @@ export function generateLoaderDts(manifest: ComponentManifest): string {
   lines.push('')
 
   for (const component of manifest.components) {
-    lines.push(generateElementInterface(component))
+    lines.push(
+      generateElementType(component, {
+        componentOnReady: true,
+        forcePromise: true,
+      }),
+    )
     lines.push('')
   }
 
@@ -46,30 +43,6 @@ export function generateLoaderDts(manifest: ComponentManifest): string {
   lines.push('')
   lines.push('export {}')
   lines.push('')
-
-  return lines.join('\n')
-}
-
-function generateElementInterface(component: ComponentRecord): string {
-  const elementTypeName = getElementTypeName(component)
-  const lines: string[] = []
-
-  lines.push(`export interface ${elementTypeName} extends HTMLElement {`)
-
-  for (const [name, prop] of Object.entries(component.props)) {
-    const optional = isRequiredProp(prop) ? '' : '?'
-
-    lines.push(
-      `  ${safePropertyName(name)}${optional}: ${formatPropType(prop)}`,
-    )
-  }
-
-  for (const method of Object.values(component.methods ?? {})) {
-    lines.push(`  ${formatMethodSignature(method, { forcePromise: true })}`)
-  }
-
-  lines.push('  componentOnReady(): Promise<this>')
-  lines.push('}')
 
   return lines.join('\n')
 }
