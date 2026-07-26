@@ -6,48 +6,87 @@ import type { ComponentProp } from './types'
 
 export function collectLocalPropTypes(
   ast: t.File,
+  importedPropTypes: Map<
+    string,
+    Record<string, Partial<ComponentProp>>
+  > = new Map(),
 ): Map<string, Record<string, Partial<ComponentProp>>> {
-  const map = new Map<string, Record<string, Partial<ComponentProp>>>()
+  const declarations = collectTypeDeclarations(ast)
+  const resolved = new Map(importedPropTypes)
+  const resolving = new Set<string>()
+
+  const resolve = (
+    name: string,
+  ): Record<string, Partial<ComponentProp>> | undefined => {
+    const cached = resolved.get(name)
+
+    if (cached) return cached
+    if (resolving.has(name)) return undefined
+
+    const declaration = declarations.get(name)
+
+    if (!declaration) return undefined
+
+    resolving.add(name)
+    const props = t.isTSInterfaceDeclaration(declaration)
+      ? extractInterfaceProps(declaration, resolve)
+      : extractTypeAliasProps(declaration, resolve)
+    resolving.delete(name)
+
+    if (props) {
+      resolved.set(name, props)
+    }
+
+    return props
+  }
+
+  for (const name of declarations.keys()) {
+    resolve(name)
+  }
+
+  return resolved
+}
+
+function collectTypeDeclarations(
+  ast: t.File,
+): Map<string, t.TSInterfaceDeclaration | t.TSTypeAliasDeclaration> {
+  const declarations = new Map<
+    string,
+    t.TSInterfaceDeclaration | t.TSTypeAliasDeclaration
+  >()
 
   for (const node of ast.program.body) {
-    if (t.isExportNamedDeclaration(node)) {
-      const declaration = node.declaration
+    const declaration =
+      t.isExportNamedDeclaration(node) || t.isExportDefaultDeclaration(node)
+        ? node.declaration
+        : node
 
-      if (t.isTSInterfaceDeclaration(declaration)) {
-        map.set(declaration.id.name, extractInterfaceProps(declaration))
-      }
-
-      if (t.isTSTypeAliasDeclaration(declaration)) {
-        const props = extractTypeAliasProps(declaration)
-
-        if (props) {
-          map.set(declaration.id.name, props)
-        }
-      }
-
-      continue
-    }
-
-    if (t.isTSInterfaceDeclaration(node)) {
-      map.set(node.id.name, extractInterfaceProps(node))
-    }
-
-    if (t.isTSTypeAliasDeclaration(node)) {
-      const props = extractTypeAliasProps(node)
-
-      if (props) {
-        map.set(node.id.name, props)
-      }
+    if (
+      t.isTSInterfaceDeclaration(declaration) ||
+      t.isTSTypeAliasDeclaration(declaration)
+    ) {
+      declarations.set(declaration.id.name, declaration)
     }
   }
 
-  return map
+  return declarations
 }
 
 function extractInterfaceProps(
   node: t.TSInterfaceDeclaration,
-): Record<string, Partial<ComponentProp>> {
+  resolve: (name: string) => Record<string, Partial<ComponentProp>> | undefined,
+): Record<string, Partial<ComponentProp>> | undefined {
   const result: Record<string, Partial<ComponentProp>> = {}
+
+  for (const extension of node.extends ?? []) {
+    if (!t.isIdentifier(extension.expression)) return undefined
+
+    const inherited = resolve(extension.expression.name)
+
+    if (!inherited) return undefined
+
+    Object.assign(result, inherited)
+  }
 
   for (const member of node.body.body) {
     if (!t.isTSPropertySignature(member)) continue
@@ -63,12 +102,38 @@ function extractInterfaceProps(
 
 function extractTypeAliasProps(
   node: t.TSTypeAliasDeclaration,
+  resolve: (name: string) => Record<string, Partial<ComponentProp>> | undefined,
 ): Record<string, Partial<ComponentProp>> | undefined {
-  if (!t.isTSTypeLiteral(node.typeAnnotation)) return undefined
+  return extractTypeNodeProps(node.typeAnnotation, resolve)
+}
+
+function extractTypeNodeProps(
+  node: t.TSType,
+  resolve: (name: string) => Record<string, Partial<ComponentProp>> | undefined,
+): Record<string, Partial<ComponentProp>> | undefined {
+  if (t.isTSTypeReference(node) && t.isIdentifier(node.typeName)) {
+    return resolve(node.typeName.name)
+  }
+
+  if (t.isTSIntersectionType(node)) {
+    const result: Record<string, Partial<ComponentProp>> = {}
+
+    for (const typeNode of node.types) {
+      const props = extractTypeNodeProps(typeNode, resolve)
+
+      if (!props) return undefined
+
+      Object.assign(result, props)
+    }
+
+    return result
+  }
+
+  if (!t.isTSTypeLiteral(node)) return undefined
 
   const result: Record<string, Partial<ComponentProp>> = {}
 
-  for (const member of node.typeAnnotation.members) {
+  for (const member of node.members) {
     if (!t.isTSPropertySignature(member)) continue
 
     const key = getObjectKey(member.key as t.Expression)

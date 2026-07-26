@@ -13,9 +13,20 @@ import { extractSetupMeta } from './extractSetup'
 import { collectLocalPropTypes } from './extractTypeProps'
 import { buildComponentRecord } from './merge'
 
-import type { AnalyzeFileOptions, AnalyzeFileResult } from './types'
+import type {
+  AnalyzeFileOptions,
+  AnalyzeFileResult,
+  ComponentProp,
+} from './types'
 
 export function analyzeFile(options: AnalyzeFileOptions): AnalyzeFileResult {
+  return analyzeFileWithImportedPropTypes(options, new Map())
+}
+
+export function analyzeFileWithImportedPropTypes(
+  options: AnalyzeFileOptions,
+  importedPropTypes: Map<string, Record<string, Partial<ComponentProp>>>,
+): AnalyzeFileResult {
   const { file, code } = options
   const diagnostics: AnalyzeFileResult['diagnostics'] = []
   const components: AnalyzeFileResult['components'] = []
@@ -23,7 +34,7 @@ export function analyzeFile(options: AnalyzeFileOptions): AnalyzeFileResult {
   try {
     const ast = parseSource(code, file)
     const calls = extractDefineElementCalls(ast)
-    const localPropTypes = collectLocalPropTypes(ast)
+    const localPropTypes = collectLocalPropTypes(ast, importedPropTypes)
     const localSetupBindings = collectLocalSetupBindings(ast)
 
     for (const call of calls) {

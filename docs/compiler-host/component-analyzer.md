@@ -58,7 +58,7 @@ function setup(props, ctx) {
 
 The analyzer infers public surface from source where the signal is stable:
 
-- `props` from the `defineElement({ props })` schema and local props type.
+- `props` from the `defineElement({ props })` schema and local or relatively imported props types.
 - `events` from declared `emits`.
 - `methods` from `ctx.expose({ ... })`.
 - `models` from `<prop>` + `<prop>Change` + `detail.<prop>`.
@@ -67,6 +67,8 @@ The analyzer infers public surface from source where the signal is stable:
 - `cssParts` from static `part="..."`.
 
 Metadata should supplement source inference, not duplicate it. Use `meta.slots`, `meta.cssParts`, and `cssVars` only for documentation or cases that cannot be statically inferred.
+
+Relative props type imports are followed even when the imported file is outside the component `include` glob. Named, default, and barrel re-exports are supported, including NodeNext-style `.js`, `.mjs`, and `.cjs` specifiers that resolve to their TypeScript sources. The bundler watches every resolved type dependency so declaration output is refreshed when any layer changes. Read or parse failures are reported as structured diagnostics for the failing file. Package imports and path aliases that cannot be resolved statically fall back to runtime prop metadata.
 
 ## Output
 

@@ -36,6 +36,7 @@ describe('rollup adapter', () => {
     const files = fs.readdirSync(path.join(root, 'dist'))
 
     expect(files.length).toBeGreaterThan(0)
+    expect(bundle.watchFiles).toContain(path.join(root, 'src/types.ts'))
   })
 
   it('transpiles TypeScript types away', async () => {

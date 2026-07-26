@@ -1,4 +1,9 @@
+import { existsSync } from 'node:fs'
+
+import changesetConfig from '../../../.changeset/config.json'
 import config, { zeusFixedPackages } from '../../release.config'
+
+const SYNTHETIC_CHANGESET_FILE = '.changeset/release.md'
 
 describe('zeus release config', () => {
   it('uses changesets fixed release mode', () => {
@@ -26,6 +31,15 @@ describe('zeus release config', () => {
       '@zeus-js/output-css',
       '@zeus-js/output-icons',
     ])
+  })
+
+  it('keeps Changesets fixed packages aligned with the release config', () => {
+    expect(changesetConfig.fixed).toEqual([zeusFixedPackages])
+  })
+
+  it('reserves the synthetic changeset path for the release tool', () => {
+    expect(config.changesetFile).toBe(SYNTHETIC_CHANGESET_FILE)
+    expect(existsSync(SYNTHETIC_CHANGESET_FILE)).toBe(false)
   })
 
   it('keeps release gates aligned with current zeus release precheck', () => {
