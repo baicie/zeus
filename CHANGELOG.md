@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-beta.8 (2026-07-26)
+
+### Fixes
+
+- Dispose each keyed `For` record's reactive scope when the record leaves the list, preventing detached DOM bindings and event handlers from accumulating during virtualized scrolling.
+
 ## 0.1.0-beta.7 (2026-07-26)
 
 ### Fixes
