@@ -101,6 +101,41 @@ describe('runtime cleanup', () => {
     expect(root.firstChild).toBe(m)
   })
 
+  it('disposes keyed item scopes when records leave the list', () => {
+    const listScope = scope()
+    const items = state([{ id: 1 }, { id: 2 }])
+    const disposedItems: number[] = []
+    const clone = template('<ul><!></ul>')()
+    const root = clone.firstChild as Element
+    const m = marker(root, 0)
+
+    listScope.run(() => {
+      mountFor(
+        root,
+        m,
+        () => items,
+        item => item.id,
+        item => {
+          onScopeDispose(() => {
+            disposedItems.push(item.id)
+          })
+
+          const li = document.createElement('li')
+          li.textContent = String(item.id)
+          return li
+        },
+      )
+    })
+
+    items.splice(0, 1)
+
+    expect(disposedItems).toEqual([1])
+
+    listScope.stop()
+
+    expect(disposedItems).toEqual([1, 2])
+  })
+
   it('removes old Show nodes when condition toggles from truthy to falsy', () => {
     const flag = state(true)
     const clone = template('<div><!></div>')()

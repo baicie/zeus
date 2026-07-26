@@ -1,12 +1,13 @@
 // packages/runtime-dom/src/list.ts
 
-import { effect, onScopeDispose, stop } from '@zeus-js/signal'
+import { effect, effectScope, onScopeDispose, stop } from '@zeus-js/signal'
 
 import { getCurrentOwner, runWithOwner } from './context'
 import { emitDevtoolsEvent } from './devtools'
 import { insertTracked, moveRangeBefore, removeNodes } from './range'
 
 import type { JSXValue } from './types'
+import type { EffectScope } from '@zeus-js/signal'
 
 type Key = unknown
 
@@ -15,6 +16,12 @@ type ListRecord<T> = {
   item: T
   index: number
   nodes: Node[]
+  scope: EffectScope
+}
+
+function disposeListRecord<T>(record: ListRecord<T>): void {
+  record.scope.stop()
+  removeNodes(record.nodes)
 }
 
 export function mountFor<T, K = unknown>(
@@ -96,21 +103,34 @@ function mountKeyedFor<T, K>(
         oldRecord.index = i
         nextRecords.push(oldRecord)
       } else {
+        const itemScope = effectScope(true)
+        let nodes: Node[] = []
+
+        try {
+          itemScope.run(() => {
+            nodes = insertTracked(
+              parent,
+              runWithOwner(owner, () => render(item, i)),
+              marker,
+            )
+          })
+        } catch (error) {
+          itemScope.stop()
+          throw error
+        }
+
         nextRecords.push({
           key: itemKey,
           item,
           index: i,
-          nodes: insertTracked(
-            parent,
-            runWithOwner(owner, () => render(item, i)),
-            marker,
-          ),
+          nodes,
+          scope: itemScope,
         })
       }
     }
 
     for (const record of oldMap.values()) {
-      removeNodes(record.nodes)
+      disposeListRecord(record)
     }
 
     for (let i = nextRecords.length - 1; i >= 0; i--) {
@@ -132,7 +152,7 @@ function mountKeyedFor<T, K>(
     stop(runner)
 
     for (const record of records) {
-      removeNodes(record.nodes)
+      disposeListRecord(record)
     }
 
     records = []
