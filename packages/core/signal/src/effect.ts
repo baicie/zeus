@@ -6,6 +6,7 @@ import { warn } from './warning'
 
 import type { ComputedRefImpl } from './computed'
 import type { TrackOpTypes, TriggerOpTypes } from './constants'
+import type { EffectScope } from './effectScope'
 
 export type EffectScheduler = (...args: any[]) => any
 
@@ -89,6 +90,7 @@ const pausedQueueEffects = new WeakSet<ReactiveEffect>()
 export class ReactiveEffect<T = any>
   implements Subscriber, ReactiveEffectOptions
 {
+  readonly scope: EffectScope | undefined
   /**
    * @internal
    */
@@ -116,6 +118,8 @@ export class ReactiveEffect<T = any>
   onTrigger?: (event: DebuggerEvent) => void
 
   constructor(public fn: () => T) {
+    this.scope = activeEffectScope
+
     if (activeEffectScope) {
       if (activeEffectScope.active) {
         activeEffectScope.effects.push(this)
