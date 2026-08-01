@@ -1,5 +1,7 @@
 // packages/runtime-dom/src/range.ts
 
+import { trackRuntimeDomInsertion } from './domOwnership'
+
 import type { JSXValue } from './types'
 
 export class DynamicRange {
@@ -52,6 +54,7 @@ export function insertTracked(
   const node =
     value instanceof Node ? value : document.createTextNode(String(value))
 
+  trackRuntimeDomInsertion(parent, node)
   parent.insertBefore(node, marker)
 
   return [node]
@@ -69,6 +72,7 @@ export function moveRangeBefore(
   marker: Node | null = null,
 ): void {
   for (const node of nodes) {
+    trackRuntimeDomInsertion(parent, node)
     parent.insertBefore(node, marker)
   }
 }

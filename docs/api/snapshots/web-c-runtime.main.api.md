@@ -5,22 +5,14 @@
 > Run `pnpm api:snapshot` to update.
 
 ```ts
-export type ZeusPropType =
-  | 'string'
-  | 'number'
-  | 'boolean'
-  | 'object'
-  | 'array'
-  | 'function'
-  | 'unknown'
-export interface ZeusPropMeta {
-  name: string
-  attrName?: string | false
-  type: ZeusPropType
-  reflect?: boolean
+import {
+  CustomElementPropSchema,
+  CustomElementPropType,
+} from '@zeus-js/runtime-dom'
+
+export type ZeusPropType = CustomElementPropType
+export interface ZeusPropMeta extends CustomElementPropSchema {
   default?: unknown
-  serialize?: boolean
-  deserialize?: boolean
 }
 export interface ZeusLazyComponentMeta {
   tagName: string

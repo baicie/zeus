@@ -3,10 +3,23 @@
 import { effect, state } from '@zeus-js/signal/internal'
 
 import { createOwner, resolveDOMContext, runWithOwner } from './context'
+import {
+  coerceCustomElementAttribute,
+  createCustomElementMountLifecycle,
+  getCustomElementObservedAttributes,
+  reflectCustomElementProperty,
+} from './customElementContract'
 import { withHostContext } from './hostContext'
 import { render } from './render'
+import { createLightDomProjection } from './slot'
 
 import type { Context } from './context'
+import type {
+  CustomElementMount,
+  CustomElementMountLifecycle,
+  CustomElementPropSchema,
+  CustomElementPropType,
+} from './customElementContract'
 import type { HostRenderContext } from './hostContext'
 import type { JSXValue } from './types'
 import type { ValueState } from '@zeus-js/signal/internal'
@@ -203,10 +216,8 @@ export type DefineElementSetup<
   Emits extends EmitsOptions = EmitsOptions,
 > = (props: Readonly<P>, context: DefineElementContext<E, Emits>) => JSXValue
 
-export type NormalizedPropDefinition = {
-  key: string
-  attr: string | false
-  type?: ElementPropConstructor
+export type NormalizedPropDefinition = CustomElementPropSchema & {
+  attrName: string | false
   reflect: boolean
   default?: unknown
   serialize?: (value: unknown) => string | null | undefined
@@ -332,9 +343,9 @@ function createPropStore<P extends object>(
 
   for (const def of defs) {
     const slot = state<unknown>() as ValueState<unknown>
-    slots.set(def.key, slot)
+    slots.set(def.name, slot)
 
-    Object.defineProperty(props, def.key, {
+    Object.defineProperty(props, def.name, {
       configurable: false,
       enumerable: true,
       get() {
@@ -390,9 +401,7 @@ export function defineElement<
     setup,
     propDefs,
   }
-  const observedAttributes = propDefs
-    .filter(def => def.attr !== false)
-    .map(def => def.attr as string)
+  const observedAttributes = getCustomElementObservedAttributes(propDefs)
 
   class ZeusElement extends HTMLElement {
     static formAssociated = Boolean(options.formAssociated)
@@ -405,11 +414,12 @@ export function defineElement<
     private readonly props: Readonly<P>
     private readonly internals?: ElementInternals
     private readonly setupContext: DefineElementContext<E, Emits>
-    private dispose?: () => void
+    private readonly mountLifecycle: CustomElementMountLifecycle<CustomElementMount>
     private target?: Element | ShadowRoot
     private lightChildren: Node[] = []
     private capturedLightChildren = false
-    private reflecting = false
+    private readonly attributeProps = new Set<string>()
+    private readonly reflectingAttrs = new Set<string>()
 
     constructor() {
       super()
@@ -430,11 +440,21 @@ export function defineElement<
         emit: createEmitApi(this, options.emits) as EmitApi<Emits>,
         expose: createExpose(this),
       }
+
+      this.mountLifecycle = createCustomElementMountLifecycle(() =>
+        this.mountElement(),
+      )
     }
 
     connectedCallback(): void {
-      if (this.dispose) return
+      this.mountLifecycle.connect()
+    }
 
+    disconnectedCallback(): void {
+      this.mountLifecycle.disconnect()
+    }
+
+    private mountElement(): CustomElementMount {
       const shadow = options.shadow ?? false
       const mode = shadow ? 'shadow' : 'light'
 
@@ -443,7 +463,10 @@ export function defineElement<
         this.capturedLightChildren = true
       }
 
-      this.syncAttributesToProps(propDefs)
+      const projection =
+        mode === 'light'
+          ? createLightDomProjection(this, this.lightChildren)
+          : undefined
 
       // Create an owner and inject context values from the DOM tree.
       const owner = createOwner()
@@ -464,9 +487,10 @@ export function defineElement<
         host: this,
         mode,
         lightChildren: this.lightChildren,
+        projection,
       }
 
-      this.dispose = render(
+      const dispose = render(
         () =>
           runWithOwner(owner, () =>
             withHostContext(hostContext, () => {
@@ -479,11 +503,15 @@ export function defineElement<
       )
 
       mountStyles(target, options.styles)
-    }
 
-    disconnectedCallback(): void {
-      this.dispose?.()
-      this.dispose = undefined
+      projection?.connect()
+
+      return {
+        dispose() {
+          projection?.disconnect()
+          dispose()
+        },
+      }
     }
 
     formAssociatedCallback(form: HTMLFormElement | null): void {
@@ -510,12 +538,13 @@ export function defineElement<
       oldValue: string | null,
       newValue: string | null,
     ): void {
-      if (oldValue === newValue || this.reflecting) return
+      if (oldValue === newValue || this.reflectingAttrs.has(name)) return
 
-      const def = propDefs.find(item => item.attr === name)
+      const def = propDefs.find(item => item.attrName === name)
 
       if (!def) return
-      this.propStore.set(def.key, castAttributeValue(newValue, def))
+      this.attributeProps.add(def.name)
+      this.propStore.set(def.name, coerceCustomElementAttribute(def, newValue))
     }
 
     private resolveRenderTarget(
@@ -535,33 +564,14 @@ export function defineElement<
       return this.target
     }
 
-    private syncAttributesToProps(
-      defs: readonly NormalizedPropDefinition[],
-    ): void {
-      for (const def of defs) {
-        if (def.attr === false) continue
-
-        const value = this.getAttribute(def.attr)
-
-        if (value !== null || def.type === Boolean) {
-          this.propStore.set(def.key, castAttributeValue(value, def))
-        }
-      }
-    }
-
     _writePropFromProperty(key: string, value: unknown): void {
-      const def = propDefs.find(item => item.key === key)
+      const def = propDefs.find(item => item.name === key)
 
+      this.attributeProps.delete(key)
       this.propStore.set(key, value)
 
-      if (def?.reflect && def.attr !== false) {
-        this.reflecting = true
-
-        try {
-          reflectPropToAttribute(this, def, value)
-        } finally {
-          this.reflecting = false
-        }
+      if (def?.reflect) {
+        reflectCustomElementProperty(this, def, value, this.reflectingAttrs)
       }
     }
   }
@@ -603,17 +613,17 @@ export function mountElementDefinition(
   applyPropDefaults(propStore, propDefs)
 
   for (const def of propDefs) {
-    if (def.attr !== false && mountState.attributeProps?.has(def.key)) {
+    if (def.attrName !== false && mountState.attributeProps?.has(def.name)) {
       propStore.set(
-        def.key,
-        castAttributeValue(host.getAttribute(def.attr), def),
+        def.name,
+        coerceCustomElementAttribute(def, host.getAttribute(def.attrName)),
       )
-      initialValues.set(def.key, propStore.get(def.key))
+      initialValues.set(def.name, propStore.get(def.name))
       continue
     }
 
-    if (initialValues.has(def.key)) {
-      propStore.set(def.key, initialValues.get(def.key))
+    if (initialValues.has(def.name)) {
+      propStore.set(def.name, initialValues.get(def.name))
       continue
     }
 
@@ -622,19 +632,19 @@ export function mountElementDefinition(
      * back to the lazy host value map so that `element.propName` returns the
      * correct default value rather than undefined.
      */
-    initialValues.set(def.key, propStore.get(def.key))
+    initialValues.set(def.name, propStore.get(def.name))
   }
 
   for (const def of propDefs) {
     if (
       def.reflect &&
       def.serialize &&
-      !mountState.attributeProps?.has(def.key)
+      !mountState.attributeProps?.has(def.name)
     ) {
-      reflectExternalProp(
+      reflectCustomElementProperty(
         host,
         def,
-        propStore.get(def.key),
+        propStore.get(def.name),
         mountState.reflectingAttrs,
       )
     }
@@ -649,6 +659,8 @@ export function mountElementDefinition(
   }
 
   const lightChildren = mountState.lightChildren ?? []
+  const projection =
+    mode === 'light' ? createLightDomProjection(host, lightChildren) : undefined
 
   const owner = createOwner()
 
@@ -670,6 +682,7 @@ export function mountElementDefinition(
     host,
     mode,
     lightChildren,
+    projection,
   }
 
   const setupContext: DefineElementContext<HTMLElement> = {
@@ -696,18 +709,19 @@ export function mountElementDefinition(
   )
 
   mountStyles(target, options.styles)
+  projection?.connect()
 
   return {
     propertyChanged(name, _oldValue, newValue) {
-      const def = propDefs.find(item => item.key === name)
+      const def = propDefs.find(item => item.name === name)
       const fromAttribute = Boolean(
-        def?.attr !== false && mountState.attributeProps?.has(name),
+        def?.attrName !== false && mountState.attributeProps?.has(name),
       )
       const value =
         fromAttribute && def
-          ? castAttributeValue(
-              typeof newValue === 'string' ? newValue : null,
+          ? coerceCustomElementAttribute(
               def,
+              typeof newValue === 'string' ? newValue : null,
             )
           : newValue
 
@@ -715,7 +729,12 @@ export function mountElementDefinition(
       initialValues.set(name, value)
 
       if (def?.reflect && !fromAttribute) {
-        reflectExternalProp(host, def, value, mountState.reflectingAttrs)
+        reflectCustomElementProperty(
+          host,
+          def,
+          value,
+          mountState.reflectingAttrs,
+        )
       }
     },
 
@@ -736,6 +755,7 @@ export function mountElementDefinition(
     },
 
     dispose() {
+      projection?.disconnect()
       dispose()
     },
   }
@@ -754,9 +774,11 @@ function normalizePropDefinitions<P extends object>(
       const type = input as ElementPropConstructor
 
       return {
-        key: propKey,
-        attr: isAttributeBackedConstructor(type) ? toKebabCase(propKey) : false,
-        type,
+        name: propKey,
+        attrName: isAttributeBackedConstructor(type)
+          ? toKebabCase(propKey)
+          : false,
+        type: normalizePropType(type),
         reflect: false,
       }
     }
@@ -767,9 +789,9 @@ function normalizePropDefinitions<P extends object>(
       : false
 
     return {
-      key: propKey,
-      attr: input?.attr === undefined ? defaultAttr : input.attr,
-      type,
+      name: propKey,
+      attrName: input?.attr === undefined ? defaultAttr : input.attr,
+      type: normalizePropType(type),
       reflect: Boolean(input?.reflect),
       default: input?.default,
       serialize: input?.serialize as
@@ -794,7 +816,7 @@ function applyPropDefaults<P extends object>(
         ? (def.default as () => unknown)()
         : def.default
 
-    store.set(def.key, value)
+    store.set(def.name, value)
   }
 }
 
@@ -804,7 +826,7 @@ function definePropAccessors<P extends object>(
   defs: readonly NormalizedPropDefinition[],
 ): void {
   for (const def of defs) {
-    const key = def.key
+    const key = def.name
     const hadOwnValue = Object.prototype.hasOwnProperty.call(element, key)
     const ownValue = hadOwnValue
       ? (element as HTMLElement & Record<string, unknown>)[key]
@@ -847,110 +869,6 @@ function definePropAccessors<P extends object>(
         }
       )._writePropFromProperty(key, ownValue)
     }
-  }
-}
-
-function castAttributeValue(
-  value: string | null,
-  def: NormalizedPropDefinition,
-): unknown {
-  if (def.deserialize) {
-    return def.deserialize(value)
-  }
-
-  if (def.type === Boolean) {
-    return value !== null
-  }
-
-  if (value === null) {
-    return undefined
-  }
-
-  if (def.type === Number) {
-    return Number(value)
-  }
-
-  if (def.type === Object || def.type === Array) {
-    try {
-      return JSON.parse(value)
-    } catch {
-      if (__DEV__) {
-        console.warn(
-          `[Zeus custom-element] Failed to parse JSON attribute "${def.attr}".`,
-        )
-      }
-
-      return def.type === Array ? [] : {}
-    }
-  }
-
-  if (def.type === Function) {
-    return undefined
-  }
-
-  return value
-}
-
-function reflectPropToAttribute(
-  element: HTMLElement,
-  def: NormalizedPropDefinition,
-  value: unknown,
-): void {
-  if (def.attr === false) return
-
-  if (def.serialize) {
-    const serialized = def.serialize(value)
-
-    if (serialized == null) {
-      element.removeAttribute(def.attr)
-    } else {
-      element.setAttribute(def.attr, serialized)
-    }
-
-    return
-  }
-
-  if (def.type === Boolean) {
-    if (value) {
-      element.setAttribute(def.attr, '')
-    } else {
-      element.removeAttribute(def.attr)
-    }
-
-    return
-  }
-
-  if (value == null) {
-    element.removeAttribute(def.attr)
-    return
-  }
-
-  if (def.type === Object || def.type === Array) {
-    element.setAttribute(def.attr, JSON.stringify(value))
-    return
-  }
-
-  if (def.type === Function) return
-
-  element.setAttribute(def.attr, String(value))
-}
-
-function reflectExternalProp(
-  element: HTMLElement,
-  def: NormalizedPropDefinition,
-  value: unknown,
-  reflectingAttrs: Set<string> | undefined,
-): void {
-  if (def.attr === false) return
-
-  const attrName = def.attr.toLowerCase()
-
-  reflectingAttrs?.add(attrName)
-
-  try {
-    reflectPropToAttribute(element, def, value)
-  } finally {
-    reflectingAttrs?.delete(attrName)
   }
 }
 
@@ -1075,6 +993,18 @@ function isAttributeBackedConstructor(
   type: ElementPropConstructor | undefined,
 ): boolean {
   return type === String || type === Number || type === Boolean
+}
+
+function normalizePropType(
+  type: ElementPropConstructor | undefined,
+): CustomElementPropType {
+  if (type === String) return 'string'
+  if (type === Number) return 'number'
+  if (type === Boolean) return 'boolean'
+  if (type === Object) return 'object'
+  if (type === Array) return 'array'
+  if (type === Function) return 'function'
+  return 'unknown'
 }
 
 function resolveExternalRenderTarget(
