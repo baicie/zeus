@@ -1,10 +1,11 @@
+import { fragmentIR } from '@zeus-js/compiler-shared'
+
 import { lowerChildren } from './lowerChildren'
-import { fragmentIR } from '../ir/semanticBuilders'
 
 import type { CompilerContext } from '../context'
-import type { FragmentIR } from '../ir/nodes'
 import type { NodePath } from '@babel/core'
 import type * as t from '@babel/types'
+import type { FragmentIR } from '@zeus-js/compiler-shared'
 
 export function lowerFragment(
   path: NodePath<t.JSXFragment>,

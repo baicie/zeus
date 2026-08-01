@@ -2,9 +2,9 @@ import { lowerElement } from './lowerElement'
 import { lowerFragment } from './lowerFragment'
 
 import type { CompilerContext } from '../context'
-import type { ZeusIRNode } from '../ir/nodes'
 import type { NodePath } from '@babel/core'
 import type * as t from '@babel/types'
+import type { ZeusIRNode } from '@zeus-js/compiler-shared'
 
 export function lowerJSX(
   path: NodePath<t.JSXElement | t.JSXFragment>,

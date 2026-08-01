@@ -36,8 +36,10 @@
   },
   "dependencies": {
     "@babel/helper-plugin-utils": "^8.0.1",
+    "@babel/parser": "catalog:",
     "@babel/types": "catalog:",
     "@baicie/logger": "^0.2.0",
+    "@zeus-js/compiler-shared": "workspace:*",
     "@zeus-js/shared": "workspace:*"
   },
   "devDependencies": {

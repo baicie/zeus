@@ -2,13 +2,14 @@ import * as t from '@babel/types'
 
 import { emitChildrenProp } from './emitComponent'
 import { emitNodeExpression } from './emitNodeExpression'
+import { parseExpressionIR } from '../../adapters/babel/expression'
 
 import type { CompilerContext } from '../../context'
-import type { ForIR, HostIR, ShowIR, SlotIR } from '../../ir/nodes'
+import type { ForIR, HostIR, ShowIR, SlotIR } from '@zeus-js/compiler-shared'
 
 export function emitShow(node: ShowIR, context: CompilerContext): t.Expression {
   const props: t.ObjectProperty[] = [
-    t.objectProperty(t.identifier('when'), node.when),
+    t.objectProperty(t.identifier('when'), parseExpressionIR(node.when)),
     t.objectProperty(
       t.identifier('children'),
       t.arrowFunctionExpression([], emitChildrenProp(node.children, context)),
@@ -24,7 +25,7 @@ export function emitShow(node: ShowIR, context: CompilerContext): t.Expression {
               [],
               emitChildrenProp(node.fallback, context),
             )
-          : node.fallback,
+          : parseExpressionIR(node.fallback),
       ),
     )
   }
@@ -48,7 +49,7 @@ export function emitMountShow(
   return t.callExpression(context.importRuntime('mountShow'), [
     t.identifier(path.parent.name),
     emitMarkerIdentifier(node),
-    t.arrowFunctionExpression([], node.when),
+    t.arrowFunctionExpression([], parseExpressionIR(node.when)),
     t.arrowFunctionExpression([], emitChildrenProp(node.children, context)),
     node.fallback
       ? Array.isArray(node.fallback)
@@ -56,18 +57,18 @@ export function emitMountShow(
             [],
             emitChildrenProp(node.fallback, context),
           )
-        : t.arrowFunctionExpression([], node.fallback)
+        : t.arrowFunctionExpression([], parseExpressionIR(node.fallback))
       : t.identifier('undefined'),
   ])
 }
 
 export function emitFor(node: ForIR, context: CompilerContext): t.Expression {
-  const params: t.Identifier[] = [node.item]
+  const params: t.Identifier[] = [t.identifier(node.item.name)]
 
-  if (node.index) params.push(node.index)
+  if (node.index) params.push(t.identifier(node.index.name))
 
   const props: t.ObjectProperty[] = [
-    t.objectProperty(t.identifier('each'), node.each),
+    t.objectProperty(t.identifier('each'), parseExpressionIR(node.each)),
     t.objectProperty(
       t.identifier('children'),
       t.arrowFunctionExpression(params, emitChildrenProp(node.body, context)),
@@ -75,7 +76,7 @@ export function emitFor(node: ForIR, context: CompilerContext): t.Expression {
   ]
 
   if (node.by) {
-    props.push(t.objectProperty(t.identifier('by'), node.by))
+    props.push(t.objectProperty(t.identifier('by'), parseExpressionIR(node.by)))
   }
 
   return t.callExpression(context.importRuntime('createComponent'), [
@@ -88,9 +89,9 @@ export function emitMountFor(
   node: ForIR,
   context: CompilerContext,
 ): t.Expression {
-  const params: t.Identifier[] = [node.item]
+  const params: t.Identifier[] = [t.identifier(node.item.name)]
 
-  if (node.index) params.push(node.index)
+  if (node.index) params.push(t.identifier(node.index.name))
   const path = node.domPath
 
   if (!path || path.kind !== 'Marker') {
@@ -100,8 +101,8 @@ export function emitMountFor(
   return t.callExpression(context.importRuntime('mountFor'), [
     t.identifier(path.parent.name),
     emitMarkerIdentifier(node),
-    t.arrowFunctionExpression([], node.each),
-    node.by ?? t.identifier('undefined'),
+    t.arrowFunctionExpression([], parseExpressionIR(node.each)),
+    node.by ? parseExpressionIR(node.by) : t.identifier('undefined'),
     t.arrowFunctionExpression(params, emitChildrenProp(node.body, context)),
   ])
 }
@@ -137,12 +138,13 @@ function buildHostProps(
 
   for (const attr of node.attrs) {
     const key = createObjectKey(attr.name)
+    const expression = parseExpressionIR(attr.expr)
 
-    if (isStaticValue(attr.expr) || isGetterExpression(attr.expr)) {
-      props.push(t.objectProperty(key, attr.expr))
+    if (isStaticValue(expression) || isGetterExpression(expression)) {
+      props.push(t.objectProperty(key, expression))
     } else {
       props.push(
-        t.objectProperty(key, t.arrowFunctionExpression([], attr.expr)),
+        t.objectProperty(key, t.arrowFunctionExpression([], expression)),
       )
     }
   }

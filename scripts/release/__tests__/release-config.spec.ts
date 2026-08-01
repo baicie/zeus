@@ -16,6 +16,7 @@ describe('zeus release config', () => {
   it('keeps fixed package group explicit', () => {
     expect(zeusFixedPackages).toEqual([
       '@zeus-js/shared',
+      '@zeus-js/compiler-shared',
       '@zeus-js/signal',
       '@zeus-js/runtime-dom',
       '@zeus-js/compiler',

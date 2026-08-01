@@ -658,12 +658,18 @@ importers:
       '@babel/helper-plugin-utils':
         specifier: ^8.0.1
         version: 8.0.1(@babel/core@8.0.0)
+      '@babel/parser':
+        specifier: 'catalog:'
+        version: 8.0.0
       '@babel/types':
         specifier: 'catalog:'
         version: 8.0.0
       '@baicie/logger':
         specifier: ^0.2.0
         version: 0.2.0
+      '@zeus-js/compiler-shared':
+        specifier: workspace:*
+        version: link:../compiler-shared
       '@zeus-js/shared':
         specifier: workspace:*
         version: link:../shared
@@ -671,6 +677,8 @@ importers:
       '@babel/core':
         specifier: 'catalog:'
         version: 8.0.0
+
+  packages/core/compiler-shared: {}
 
   packages/core/runtime-dom:
     dependencies:

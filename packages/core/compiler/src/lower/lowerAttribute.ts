@@ -1,18 +1,19 @@
 import * as t from '@babel/types'
-
-import { CompilerError, CompilerErrorCode } from '../diagnostics'
 import {
   attrBindingIR,
   eventBindingIR,
   propBindingIR,
   refBindingIR,
   staticAttrIR,
-} from '../ir/semanticBuilders'
+} from '@zeus-js/compiler-shared'
+
+import { lowerExpressionIR } from '../adapters/babel/expression'
+import { CompilerError, CompilerErrorCode } from '../diagnostics'
 import { getJSXAttrName, toEventName } from '../parse/jsx'
 
 import type { CompilerContext } from '../context'
-import type { AttributeIR } from '../ir/nodes'
 import type { NodePath } from '@babel/core'
+import type { AttributeIR } from '@zeus-js/compiler-shared'
 
 export function lowerAttribute(
   path: NodePath<t.JSXAttribute | t.JSXSpreadAttribute>,
@@ -29,9 +30,9 @@ export function lowerAttribute(
 
   const node = path.node
   const name = getJSXAttrName(node.name)
-  const value = node.value
+  const value = path.get('value')
 
-  if (!value) {
+  if (!value.node) {
     if (name === 'ref') {
       throw new CompilerError({
         code: CompilerErrorCode.EMPTY_EXPRESSION,
@@ -43,7 +44,7 @@ export function lowerAttribute(
     return staticAttrIR(name, true)
   }
 
-  if (t.isStringLiteral(value)) {
+  if (value.isStringLiteral()) {
     if (name === 'ref') {
       throw new CompilerError({
         code: CompilerErrorCode.INVALID_REF_USAGE,
@@ -52,19 +53,22 @@ export function lowerAttribute(
         hint: 'Use a state holder or callback ref: <div ref={el} />.',
       })
     }
-    return staticAttrIR(name, value.value)
+    return staticAttrIR(name, value.node.value)
   }
 
-  if (t.isJSXExpressionContainer(value)) {
-    const expr = value.expression
+  if (value.isJSXExpressionContainer()) {
+    const expression = value.get('expression')
 
-    if (t.isJSXEmptyExpression(expr)) {
+    if (expression.isJSXEmptyExpression()) {
       throw new CompilerError({
         code: CompilerErrorCode.EMPTY_EXPRESSION,
         message: `Attribute "${name}" expression cannot be empty.`,
         path,
       })
     }
+
+    if (!expression.isExpression()) return null
+    const expr = lowerExpressionIR(expression)
 
     if (name === 'ref') {
       return refBindingIR(expr)

@@ -2,6 +2,7 @@ import { defineReleaseConfig } from '@baicie/release'
 
 export const zeusFixedPackages = [
   '@zeus-js/shared',
+  '@zeus-js/compiler-shared',
   '@zeus-js/signal',
   '@zeus-js/runtime-dom',
   '@zeus-js/compiler',

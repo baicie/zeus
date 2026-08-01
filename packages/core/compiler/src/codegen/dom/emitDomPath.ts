@@ -1,7 +1,7 @@
 import * as t from '@babel/types'
 
 import type { CompilerContext } from '../../context'
-import type { DomPath, PhysicalDomPath } from '../../ir/nodes'
+import type { DomPath, PhysicalDomPath } from '@zeus-js/compiler-shared'
 
 export function emitDomPath(
   path: DomPath,

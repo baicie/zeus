@@ -2,6 +2,7 @@ import * as t from '@babel/types'
 
 import { emitMountFor, emitMountShow, emitSlot } from './emitBuiltin'
 import { emitComponent } from './emitComponent'
+import { parseExpressionIR } from '../../adapters/babel/expression'
 import { isRawTextElement } from '../../utils/html'
 import { registerEvent } from '../support/events'
 
@@ -18,7 +19,7 @@ import type {
   SlotIR,
   PropBindingIR,
   ZeusIRNode,
-} from '../../ir/nodes'
+} from '@zeus-js/compiler-shared'
 
 export function emitBindings(
   node: ElementIR,
@@ -82,7 +83,7 @@ function emitRawTextValue(children: ZeusIRNode[]): t.Expression {
       case 'Text':
         return [t.stringLiteral(child.value)]
       case 'DynamicText':
-        return [child.expr]
+        return [parseExpressionIR(child.expr)]
       case 'Fragment':
         return [emitRawTextValue(child.children)]
       default:
@@ -131,7 +132,7 @@ function emitAttrBinding(
     return t.expressionStatement(
       t.callExpression(context.importRuntime('bindClass'), [
         t.identifier(target.ref.name),
-        emitGetter(binding.expr),
+        emitGetter(parseExpressionIR(binding.expr)),
       ]),
     )
   }
@@ -140,7 +141,7 @@ function emitAttrBinding(
     return t.expressionStatement(
       t.callExpression(context.importRuntime('bindStyle'), [
         t.identifier(target.ref.name),
-        emitGetter(binding.expr),
+        emitGetter(parseExpressionIR(binding.expr)),
       ]),
     )
   }
@@ -149,7 +150,7 @@ function emitAttrBinding(
     t.callExpression(context.importRuntime('bindAttr'), [
       t.identifier(target.ref.name),
       t.stringLiteral(name),
-      emitGetter(binding.expr),
+      emitGetter(parseExpressionIR(binding.expr)),
     ]),
   )
 }
@@ -169,7 +170,7 @@ function emitEventBinding(
     t.callExpression(context.importRuntime('bindEvent'), [
       t.identifier(target.ref.name),
       t.stringLiteral(binding.eventName),
-      normalizeEventHandler(binding.handler, context),
+      normalizeEventHandler(parseExpressionIR(binding.handler), context),
     ]),
   )
 }
@@ -203,7 +204,7 @@ function emitPropBinding(
     t.callExpression(context.importRuntime('bindProp'), [
       t.identifier(target.ref.name),
       t.stringLiteral(binding.name),
-      emitGetter(binding.expr),
+      emitGetter(parseExpressionIR(binding.expr)),
     ]),
   )
 }
@@ -224,7 +225,7 @@ function emitRefBinding(
   return t.expressionStatement(
     t.callExpression(context.importRuntime('bindRef'), [
       t.identifier(target.ref.name),
-      binding.expr,
+      parseExpressionIR(binding.expr),
     ]),
   )
 }
@@ -236,6 +237,7 @@ function emitDynamicText(
   if (!node.domPath || node.domPath.kind !== 'Marker') return []
 
   const textRef = context.uid('text$')
+  const expression = parseExpressionIR(node.expr)
 
   if (node.once) {
     return [
@@ -247,7 +249,7 @@ function emitDynamicText(
               t.identifier('document'),
               t.identifier('createTextNode'),
             ),
-            [t.callExpression(t.identifier('String'), [node.expr])],
+            [t.callExpression(t.identifier('String'), [expression])],
           ),
         ),
       ]),
@@ -284,7 +286,7 @@ function emitDynamicText(
     t.expressionStatement(
       t.callExpression(context.importRuntime('bindText'), [
         textRef,
-        t.arrowFunctionExpression([], node.expr),
+        t.arrowFunctionExpression([], expression),
       ]),
     ),
   ]

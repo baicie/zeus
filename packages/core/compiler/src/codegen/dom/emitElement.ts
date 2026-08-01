@@ -15,7 +15,7 @@ import type {
   ShowIR,
   SlotIR,
   ZeusIRNode,
-} from '../../ir/nodes'
+} from '@zeus-js/compiler-shared'
 
 type DomRefNode =
   | ElementIR

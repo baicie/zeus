@@ -3,7 +3,7 @@ import * as t from '@babel/types'
 import { emitDOM } from './index'
 
 import type { CompilerContext } from '../../context'
-import type { FragmentIR } from '../../ir/nodes'
+import type { FragmentIR } from '@zeus-js/compiler-shared'
 
 export function emitFragment(
   node: FragmentIR,

@@ -6,6 +6,7 @@
 
 ```ts
 import * as _babel_core from '@babel/core'
+export * from '@zeus-js/compiler-shared'
 
 /**
  * Compiler configuration interface.

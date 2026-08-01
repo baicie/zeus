@@ -1,7 +1,7 @@
 import { isRawTextElement } from '../utils/html'
 
 import type { CompilerContext } from '../context'
-import type { ElementIR, ZeusIRNode } from '../ir/nodes'
+import type { ElementIR, ZeusIRNode } from '@zeus-js/compiler-shared'
 
 export function collectTemplates(
   node: ZeusIRNode,

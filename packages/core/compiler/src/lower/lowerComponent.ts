@@ -1,13 +1,21 @@
 import * as t from '@babel/types'
+import { componentIR, ref } from '@zeus-js/compiler-shared'
 
+import {
+  expressionIRFromCode,
+  lowerExpressionIR,
+} from '../adapters/babel/expression'
 import { CompilerError, CompilerErrorCode } from '../diagnostics'
 import { lowerChildren } from './lowerChildren'
-import { componentIR, ref } from '../ir/semanticBuilders'
 import { getJSXAttrName } from '../parse/jsx'
 
 import type { CompilerContext } from '../context'
-import type { ComponentPropIR, ZeusIRNode } from '../ir/nodes'
 import type { NodePath } from '@babel/core'
+import type {
+  ComponentPropIR,
+  ExpressionIR,
+  ZeusIRNode,
+} from '@zeus-js/compiler-shared'
 
 export function lowerComponent(
   path: NodePath<t.JSXElement>,
@@ -29,18 +37,28 @@ export function lowerComponent(
 
     const name = getJSXAttrName(node.name)
 
-    if (!node.value) {
-      props.push({ name, value: t.booleanLiteral(true) })
+    const value = attr.get('value')
+
+    if (!value.node) {
+      props.push({ name, value: expressionIRFromCode('true', node) })
       continue
     }
 
-    if (t.isStringLiteral(node.value)) {
-      props.push({ name, value: node.value })
+    if (value.isStringLiteral()) {
+      props.push({
+        name,
+        value: expressionIRFromCode(
+          JSON.stringify(value.node.value),
+          value.node,
+        ),
+      })
       continue
     }
 
-    if (t.isJSXExpressionContainer(node.value)) {
-      if (t.isJSXEmptyExpression(node.value.expression)) {
+    if (value.isJSXExpressionContainer()) {
+      const expression = value.get('expression')
+
+      if (expression.isJSXEmptyExpression()) {
         throw new CompilerError({
           code: CompilerErrorCode.EMPTY_EXPRESSION,
           message: `Component prop "${name}" expression cannot be empty.`,
@@ -48,7 +66,9 @@ export function lowerComponent(
         })
       }
 
-      props.push({ name, value: node.value.expression })
+      if (expression.isExpression()) {
+        props.push({ name, value: lowerExpressionIR(expression) })
+      }
     }
   }
 
@@ -67,23 +87,29 @@ export function lowerComponent(
 
 function convertComponentIdentifier(
   node: t.JSXOpeningElement['name'],
-): t.Expression {
+): ExpressionIR {
+  return expressionIRFromCode(componentIdentifierCode(node), node)
+}
+
+function componentIdentifierCode(node: t.JSXOpeningElement['name']): string {
   if (t.isJSXIdentifier(node)) {
-    if (node.name === 'this') return t.thisExpression()
-    if (t.isValidIdentifier(node.name)) return t.identifier(node.name)
-    return t.stringLiteral(node.name)
+    if (node.name === 'this') return 'this'
+    return t.isValidIdentifier(node.name)
+      ? node.name
+      : JSON.stringify(node.name)
   }
 
   if (t.isJSXMemberExpression(node)) {
-    const object = convertComponentIdentifier(node.object)
-    const property = convertComponentIdentifier(node.property)
-
-    return t.memberExpression(object, property, t.isStringLiteral(property))
+    const object = componentIdentifierCode(node.object)
+    const property = node.property.name
+    return t.isValidIdentifier(property)
+      ? `${object}.${property}`
+      : `${object}[${JSON.stringify(property)}]`
   }
 
   if (t.isJSXNamespacedName(node)) {
-    return t.stringLiteral(`${node.namespace.name}:${node.name.name}`)
+    return JSON.stringify(`${node.namespace.name}:${node.name.name}`)
   }
 
-  return node
+  return JSON.stringify('')
 }

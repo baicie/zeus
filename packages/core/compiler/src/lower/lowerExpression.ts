@@ -1,24 +1,25 @@
-import * as t from '@babel/types'
+import { dynamicTextIR, ref } from '@zeus-js/compiler-shared'
 
-import { dynamicTextIR, ref } from '../ir/semanticBuilders'
+import { lowerExpressionIR } from '../adapters/babel/expression'
 
 import type { CompilerContext } from '../context'
-import type { DynamicTextIR } from '../ir/nodes'
 import type { NodePath } from '@babel/core'
+import type * as t from '@babel/types'
+import type { DynamicTextIR } from '@zeus-js/compiler-shared'
 
 export function lowerExpression(
   path: NodePath<t.JSXExpressionContainer>,
   context: CompilerContext,
 ): DynamicTextIR | null {
-  const expr = path.node.expression
+  const expression = path.get('expression')
 
-  if (t.isJSXEmptyExpression(expr)) return null
-  if (!t.isExpression(expr)) return null
+  if (expression.isJSXEmptyExpression()) return null
+  if (!expression.isExpression()) return null
 
   return dynamicTextIR(
-    expr,
+    lowerExpressionIR(expression),
     ref(context.uid('anchor$').name),
-    hasOnceMarker(expr),
+    hasOnceMarker(expression.node),
   )
 }
 

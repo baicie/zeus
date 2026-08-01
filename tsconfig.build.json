@@ -9,6 +9,7 @@
   },
   "include": [
     "packages/core/shared/src",
+    "packages/core/compiler-shared/src",
     "packages/core/signal/src",
     "packages/core/runtime-dom/src",
     "packages/core/compiler/src",
