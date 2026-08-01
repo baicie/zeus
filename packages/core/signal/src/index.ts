@@ -1,5 +1,15 @@
 // Zeus reactivity core.
 
+export {
+  createSignal,
+  createMemo,
+  createEffect,
+  createRoot,
+  onCleanup,
+  type Accessor,
+  type Setter,
+} from './primitives'
+
 export { state, isValueState, type State, type ValueState } from './state'
 
 export {
@@ -70,5 +80,3 @@ export {
   type WatchCallback,
   type OnCleanup,
 } from './watch'
-
-export { onCleanup } from './lifecycle'

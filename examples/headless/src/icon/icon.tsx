@@ -1,4 +1,4 @@
-import { defineElement, Host, watch } from '@zeus-js/zeus'
+import { createEffect, defineElement, Host } from '@zeus-js/zeus'
 
 import { icons, type IconName } from './icons'
 
@@ -18,13 +18,10 @@ function setup(props: IconProps) {
     appendIcon(svg, icon.render())
   }
 
-  // Render icon reactively when props.name changes
-  watch(
-    () => props.name,
-    () => {
-      if (svg) renderIcon()
-    },
-  )
+  createEffect(() => {
+    props.name
+    if (svg) renderIcon()
+  })
 
   return (
     <Host data-slot="icon" data-name={() => props.name}>

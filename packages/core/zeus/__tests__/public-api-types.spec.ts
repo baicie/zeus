@@ -8,16 +8,13 @@ import {
   Host,
   Show,
   Slot,
-  computed,
+  createEffect,
+  createMemo,
+  createRoot,
+  createSignal,
   defineElement,
-  effect,
   render,
-  scope,
-  state,
-  watch,
   batch,
-  untrack,
-  nextTick,
   onCleanup,
 } from '../src'
 
@@ -28,19 +25,16 @@ describe('@zeus-js/zeus public API types', () => {
       Host,
       Show,
       Slot,
-      computed,
+      createEffect,
+      createMemo,
+      createRoot,
+      createSignal,
       defineElement,
-      effect,
       render,
-      scope,
-      state,
-      watch,
       batch,
-      untrack,
-      nextTick,
       onCleanup,
     }
-    expect(_exports.state).toBeDefined()
+    expect(_exports.createSignal).toBeDefined()
     expect(_exports.For).toBeDefined()
   })
 })

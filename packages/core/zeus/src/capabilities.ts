@@ -5,14 +5,11 @@ export const ZEUS_CAPABILITIES = {
   version,
 
   publicApi: {
-    state: true,
-    computed: true,
-    effect: true,
-    watch: true,
-    scope: true,
+    createSignal: true,
+    createMemo: true,
+    createEffect: true,
+    createRoot: true,
     batch: true,
-    untrack: true,
-    nextTick: true,
     onCleanup: true,
 
     render: true,

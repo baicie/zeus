@@ -5,21 +5,14 @@
 
 // reactivity
 export {
-  state,
-  computed,
-  effect,
-  watch,
-  scope,
+  createSignal,
+  createMemo,
+  createEffect,
+  createRoot,
   batch,
-  untrack,
-  nextTick,
   onCleanup,
-  type State,
-  type ValueState,
-  type ComputedRef,
-  type WatchOptions,
-  type WatchHandle,
-  type Scope,
+  type Accessor,
+  type Setter,
 } from '@zeus-js/signal'
 
 // runtime
