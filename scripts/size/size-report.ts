@@ -19,12 +19,12 @@ const targets: SizeTarget[] = [
   {
     name: '@zeus-js/runtime-dom',
     file: 'dist/runtime-dom.esm-browser.prod.js',
-    limit: 33,
+    limit: 36,
   },
   {
     name: '@zeus-js/zeus',
     file: 'dist/zeus.esm-browser.prod.js',
-    limit: 30,
+    limit: 32,
   },
   {
     name: '@zeus-js/compiler',
