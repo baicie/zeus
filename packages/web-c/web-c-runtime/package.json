@@ -25,6 +25,9 @@
   "files": [
     "dist"
   ],
+  "dependencies": {
+    "@zeus-js/runtime-dom": "workspace:*"
+  },
   "author": "Baicie",
   "buildOptions": {
     "name": "ZeusWebCRuntime",

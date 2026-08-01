@@ -1,5 +1,13 @@
 // packages/web-c-runtime/src/props.ts
 
+import {
+  coerceCustomElementAttribute,
+  findCustomElementPropByAttribute,
+  getCustomElementAttributeName,
+  getCustomElementObservedAttributes,
+  reflectCustomElementProperty,
+} from '@zeus-js/runtime-dom'
+
 import { requireHostRef } from './host-ref'
 
 import type { HostRef, ZeusPropMeta } from './types'
@@ -54,8 +62,13 @@ export function setPropValue(
   hostRef.values.set(prop.name, value)
   hostRef.attributeProps.delete(prop.name)
 
-  if (prop.reflect && !prop.serialize) {
-    reflectPropertyToAttribute(hostRef, prop, value)
+  if (prop.reflect) {
+    reflectCustomElementProperty(
+      hostRef.host,
+      prop,
+      value,
+      hostRef.reflectingAttrs,
+    )
   }
 
   if (hostRef.loaded) {
@@ -75,14 +88,17 @@ export function syncAttributeToProperty(
     return
   }
 
-  const prop = findPropByAttrName(hostRef, normalizedAttrName)
+  const prop = findCustomElementPropByAttribute(
+    hostRef.meta.props,
+    normalizedAttrName,
+  ) as ZeusPropMeta | undefined
 
   if (!prop) {
     return
   }
 
   const oldPropValue = getPropValue(hostRef, prop)
-  const newPropValue = parseAttributeValue(prop, newValue)
+  const newPropValue = coerceCustomElementAttribute(prop, newValue)
 
   if (Object.is(oldPropValue, newPropValue)) {
     return
@@ -104,12 +120,12 @@ export function applyInitialValues(hostRef: HostRef): void {
       continue
     }
 
-    const attrName = getAttrName(prop)
+    const attrName = getCustomElementAttributeName(prop)
 
     if (attrName && host.hasAttribute(attrName)) {
       hostRef.values.set(
         prop.name,
-        parseAttributeValue(prop, host.getAttribute(attrName)),
+        coerceCustomElementAttribute(prop, host.getAttribute(attrName)),
       )
       hostRef.attributeProps.add(prop.name)
       continue
@@ -122,17 +138,7 @@ export function applyInitialValues(hostRef: HostRef): void {
 }
 
 export function getObservedAttributes(props: ZeusPropMeta[]): string[] {
-  const attrs: string[] = []
-
-  for (const prop of props) {
-    const attrName = getAttrName(prop)
-
-    if (attrName) {
-      attrs.push(attrName)
-    }
-  }
-
-  return attrs
+  return getCustomElementObservedAttributes(props)
 }
 
 /**
@@ -167,95 +173,6 @@ export function upgradePreDefinedProperties(
   }
 }
 
-function findPropByAttrName(
-  hostRef: HostRef,
-  attrName: string,
-): ZeusPropMeta | undefined {
-  return hostRef.meta.props.find(prop => {
-    return getAttrName(prop) === attrName
-  })
-}
-
-function getAttrName(prop: ZeusPropMeta): string | undefined {
-  if (prop.attrName === false) {
-    return undefined
-  }
-
-  if (!isAttributeBackedType(prop.type) && !prop.deserialize) {
-    return undefined
-  }
-
-  return normalizeAttrName(prop.attrName ?? toKebabCase(prop.name))
-}
-
-function isAttributeBackedType(type: ZeusPropMeta['type']): boolean {
-  return type === 'string' || type === 'number' || type === 'boolean'
-}
-
 function normalizeAttrName(value: string): string {
   return value.toLowerCase()
-}
-
-function parseAttributeValue(
-  prop: ZeusPropMeta,
-  value: string | null,
-): unknown {
-  if (prop.deserialize) {
-    return value
-  }
-
-  switch (prop.type) {
-    case 'boolean':
-      return value !== null
-
-    case 'number':
-      if (value === null) {
-        return undefined
-      }
-
-      return Number(value)
-
-    case 'string':
-      return value ?? undefined
-
-    default:
-      return value
-  }
-}
-
-function reflectPropertyToAttribute(
-  hostRef: HostRef,
-  prop: ZeusPropMeta,
-  value: unknown,
-): void {
-  const host = hostRef.host
-  const attrName = getAttrName(prop)
-
-  if (!attrName) {
-    return
-  }
-
-  hostRef.reflectingAttrs.add(attrName)
-
-  try {
-    if (prop.type === 'boolean') {
-      host.toggleAttribute(attrName, Boolean(value))
-      return
-    }
-
-    if (value === null || value === undefined || value === false) {
-      host.removeAttribute(attrName)
-      return
-    }
-
-    if (prop.type === 'string' || prop.type === 'number') {
-      host.setAttribute(attrName, String(value))
-    }
-  } finally {
-    hostRef.reflectingAttrs.delete(attrName)
-  }
-}
-
-function toKebabCase(value: string): string {
-  return value.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
 }
