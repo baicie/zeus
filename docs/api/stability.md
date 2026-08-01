@@ -1,45 +1,21 @@
 # API Stability
 
-Zeus defines clear boundaries between public, advanced, and internal APIs.
+Zeus separates application interfaces from compiler/runtime implementation details.
 
-## @zeus-js/zeus (main)
+## @zeus-js/zeus
 
-The primary entry point. Exports stable, user-facing APIs:
+The main application entry exports:
 
-- `state`, `computed`, `effect`, `watch`, `scope`, `batch`, `untrack`, `nextTick`, `onCleanup`
+- `createSignal`, `createMemo`, `createEffect`, `createRoot`, `onCleanup`, `batch`
 - `render`, `Show`, `For`, `Host`, `Slot`, `defineElement`
-- JSX runtime: `Fragment`, `jsx`, `jsxs`, `jsxDEV`
+- context helpers and the JSX runtime
 
-These APIs will not have breaking changes within a major version.
+Zeus is currently beta. A superseded beta interface is removed directly rather than retained as an alias or deprecated export.
 
-## @zeus-js/zeus/advanced
+## @zeus-js/signal
 
-Advanced lifecycle and debugging APIs for power users:
-
-- `stop`, `effectScope`, `getCurrentScope`, `onScopeDispose`
-- `getCurrentEffect`, `onEffectCleanup`
-- `pauseTracking`, `enableTracking`, `resetTracking`
-- `getCurrentWatcher`, `onWatcherCleanup`
-- `queueJob`, `flushJobs`
-- Debug constants: `TrackOpTypes`, `TriggerOpTypes`, `ReactiveFlags`
-
-These are stable but are not recommended for general application code.
-
-## @zeus-js/zeus/internal
-
-Runtime helpers used by the compiler. These are **not** part of the public API and have no stability guarantees.
-
-## @zeus-js/signal (main)
-
-Reactivity core. Exports the recommended `state`-based API plus lower-level primitives.
+The main entry exports the same six reactive primitives. `@zeus-js/signal/internal` is reserved for Zeus packages and has no compatibility guarantee.
 
 ## @zeus-js/runtime-dom
 
-DOM helpers. These are primarily used by the compiler. You may use them directly if needed, but prefer `@zeus-js/zeus` for application code.
-
-## Versioning Policy
-
-- Public APIs in `@zeus-js/zeus` and `@zeus-js/signal` follow semver.
-- Breaking changes will increment the major version.
-- Advanced APIs may change with minor versions during alpha/beta.
-- Internal APIs (`@zeus-js/zeus/internal`) are never guaranteed stable.
+DOM helpers are primarily compiler targets. Applications should prefer `@zeus-js/zeus`.

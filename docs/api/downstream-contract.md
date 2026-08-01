@@ -7,7 +7,7 @@ This document defines how downstream packages such as zeus-ui should consume Zeu
 Downstream packages may import from:
 
 - `@zeus-js/zeus` — stable user-facing API
-- `@zeus-js/zeus/advanced` — advanced APIs for tooling/debugging
+- `@zeus-js/signal` — the six explicit reactive primitives
 - `@zeus-js/zeus/capabilities` — machine-readable capability manifest
 - `@zeus-js/output-wc` — Web Component output plugin
 - `@zeus-js/output-wc/capabilities` — machine-readable WC output capability manifest
@@ -23,14 +23,13 @@ Downstream packages must not import from:
 - `@zeus-js/*/src/*` — internal source files
 - `@zeus-js/*/dist/*` — internal dist files
 - `@zeus-js/runtime-dom` internal helper modules (e.g., `template`, `insert`, `bindAttr`)
-- `@zeus-js/signal` — internal signal implementation
+- `@zeus-js/signal/internal` — private reactive engine
 - `@zeus-js/compiler` — compiler internals
 - any undocumented subpath
 
 ## Stability
 
 - Zeus is in beta and may make breaking changes without compatibility shims.
-- `@zeus-js/zeus/advanced` may change at any time during beta.
 - internal runtime/compiler helpers are private.
 - capability manifests are additive whenever possible.
 

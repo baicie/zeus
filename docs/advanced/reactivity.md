@@ -1,64 +1,41 @@
 # Reactivity
 
-## Fine-grained reactivity
+## Fine-grained graph
 
-Zeus tracks dependencies at the property level. Only the properties you read are tracked.
+Zeus tracks signal reads made by memos, effects, and compiled DOM bindings.
+
+```txt
+createSignal() -> dependency -> binding/effect
+                       ^
+                 createMemo()
+```
 
 ```ts
-const user = state({ name: 'Zeus', age: 1 })
+const [count, setCount] = createSignal(0)
+const doubled = createMemo(() => count() * 2)
 
-effect(() => {
-  // Only tracks user.name, not user.age
-  console.log(user.name)
+createEffect(() => {
+  console.log(doubled())
 })
-```
-
-## Signal graph
-
-```
-state() → dep → effect
-         ↑
-     computed()
 ```
 
 ## Batch updates
 
 ```ts
 batch(() => {
-  count.value++
-  count.value++
-  count.value++
-})
-// Effect runs once, not three times
-```
-
-## Untrack
-
-Read without subscribing to changes:
-
-```ts
-const id = untrack(() => user.id)
-```
-
-## Scheduler
-
-`queueJob` defers updates to the next microtask:
-
-```ts
-effect(() => {
-  queueJob(() => {
-    // Runs in the next microtask
-  })
+  setCount(1)
+  setCount(2)
+  setCount(3)
 })
 ```
+
+Dependent effects run once with `3` after the outer batch ends.
 
 ## Effect cleanup
 
-Effects can register cleanup functions:
-
 ```ts
-effect(() => {
-  const handler = () => console.log('clicked')
+createEffect(() => {
+  const handler = () => console.log(count())
   document.addEventListener('click', handler)
 
   onCleanup(() => {
@@ -66,3 +43,18 @@ effect(() => {
   })
 })
 ```
+
+Multiple cleanup callbacks are supported and run in registration order.
+
+## Root disposal
+
+```ts
+const dispose = createRoot(dispose => {
+  createEffect(() => console.log(count()))
+  return dispose
+})
+
+dispose()
+```
+
+`dispose` is idempotent. It stops all owned effects and executes all remaining cleanup.

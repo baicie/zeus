@@ -3,12 +3,12 @@
 Compiler-first fine-grained UI framework.
 
 ```tsx
-import { render, state } from '@zeus-js/zeus'
+import { createSignal, render } from '@zeus-js/zeus'
 
 function App() {
-  const count = state(0)
+  const [count, setCount] = createSignal(0)
 
-  return <button onClick={() => count.value++}>count: {count.value}</button>
+  return <button onClick={() => setCount(count() + 1)}>count: {count()}</button>
 }
 
 render(() => <App />, document.getElementById('root')!)
@@ -16,20 +16,19 @@ render(() => <App />, document.getElementById('root')!)
 
 ## Features
 
-- unified `state()` API
-- object reactivity
-- compiled JSX
-- no Virtual DOM
-- fine-grained DOM updates
-- Web Components support
+- explicit getter/setter signals
+- compiled JSX and direct DOM updates
+- no Virtual DOM or component rerender loop
+- owned cleanup for dynamic subtrees
+- Web Components with `Host` and `Slot`
 
 ## Packages
 
-- `@zeus-js/zeus` — unified entry point
-- `@zeus-js/signal` — reactivity core
-- `@zeus-js/runtime-dom` — DOM runtime helpers
-- `@zeus-js/compiler` — JSX compiler
-- `@zeus-js/vite-plugin` — Vite integration
+- `@zeus-js/zeus` - application entry point
+- `@zeus-js/signal` - public reactive primitives
+- `@zeus-js/runtime-dom` - compiler-targeted DOM runtime
+- `@zeus-js/compiler` - JSX compiler
+- `@zeus-js/vite-plugin` - Vite integration
 
 ## Quick Start
 

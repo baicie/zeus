@@ -39,12 +39,12 @@ export default defineConfig({
 ## First component
 
 ```tsx
-import { render, state } from '@zeus-js/zeus'
+import { createSignal, render } from '@zeus-js/zeus'
 
 function App() {
-  const count = state(0)
+  const [count, setCount] = createSignal(0)
 
-  return <button onClick={() => count.value++}>count: {count.value}</button>
+  return <button onClick={() => setCount(count() + 1)}>count: {count()}</button>
 }
 
 render(() => <App />, document.getElementById('root')!)

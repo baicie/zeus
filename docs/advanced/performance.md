@@ -10,19 +10,23 @@ pnpm test:benchs
 
 ## Keyed For
 
-Always use `by` when items have stable identities:
+Use `by` when items have stable identities and changing fields are explicit
+accessors:
 
 ```tsx
 // Good: reuses DOM on reorder
-<For each={items} by={item => item.id}>
-  {item => <li>{item.title}</li>}
+<For each={items()} by={item => item.id}>
+  {item => <li>{item.title()}</li>}
 </For>
 
-// Bad: full replacement on any change
-<For each={items}>
+// Immutable records: replace the list subtree when records change
+<For each={items()}>
   {item => <li>{item.title}</li>}
 </For>
 ```
+
+A keyed record preserves its existing DOM and owner scope when it moves. A new
+plain object with the same key does not rerun the item callback.
 
 ## @once static marker
 
@@ -52,4 +56,13 @@ pnpm size
 
 ## Memory cleanup
 
-Call `scope.stop()` when disposing components to prevent memory leaks.
+Keep the disposer returned by `render()` when the application needs to unmount
+the tree:
+
+```ts
+const dispose = render(() => <App />, container)
+dispose()
+```
+
+Dynamic `Show` and `For` subtrees, and disconnected custom elements, dispose
+their child scopes automatically.

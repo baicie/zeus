@@ -2,10 +2,10 @@
 
 ## How rendering works
 
-1. `render()` creates a root effect
-2. The component function runs once, creating reactive dependencies
-3. Reactive state changes trigger targeted DOM updates
-4. No Virtual DOM diffing occurs
+1. `render()` creates a root owner and reactive scope
+2. The component function runs once, creating DOM and precise bindings
+3. Signal changes update only the bindings that read them
+4. No component rerender or Virtual DOM diff occurs
 
 ## DynamicRange
 
@@ -19,12 +19,15 @@ range.clear() // Remove all nodes
 
 Used by `mountDynamic` for Show and dynamic children.
 
+The nodes and reactive scope for a mounted dynamic subtree are owned together.
+Replacing the range disposes the old scope before removing its DOM.
+
 ## Keyed For Diff
 
 When `by` is provided, `mountFor` maintains a `Map` of keyed records:
 
 - Matching keys reuse existing DOM
-- Disappearing keys remove DOM
+- Disappearing keys dispose their item scope and remove DOM
 - Reordering moves DOM via `insertBefore`
 
 ## Event Delegation
@@ -37,9 +40,8 @@ Instead of `addEventListener` per element:
 
 ## Cleanup
 
-All reactive state is tied to `effectScope`. Calling `scope.stop()`:
+`render()` returns an idempotent dispose function. Calling it:
 
-- Stops all effects
-- Removes DOM listeners
-- Cleans up event handlers
-- Removes mounted DOM nodes
+- Stops the render scope and all child scopes
+- Runs registered cleanup callbacks
+- Removes mounted DOM nodes from the container

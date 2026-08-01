@@ -114,17 +114,14 @@
 
 #### 响应式 API（来自 `@zeus-js/signal`）
 
-| API         | 签名                                                 | 说明                         |
-| ----------- | ---------------------------------------------------- | ---------------------------- |
-| `state`     | `(initial: T) => T`                                  | 创建响应式状态，返回代理对象 |
-| `computed`  | `(fn: () => T) => ComputedRef<T>`                    | 创建派生值，自动追踪依赖     |
-| `effect`    | `(fn: () => void, options?) => ReactiveEffectRunner` | 创建副作用，自动追踪依赖     |
-| `watch`     | `(source, cb, options?) => WatchHandle`              | 监听数据源变化               |
-| `scope`     | `(fn: () => T) => T`                                 | 创建响应式作用域             |
-| `batch`     | `(fn: () => void) => void`                           | 批量更新，合并多次变更       |
-| `untrack`   | `(fn: () => T) => T`                                 | 在无追踪上下文执行函数       |
-| `nextTick`  | `() => Promise<void>`                                | 等待响应式更新 flush 后执行  |
-| `onCleanup` | `(fn: () => void) => void`                           | 注册清理函数                 |
+| API            | 签名                                       | 说明                   |
+| -------------- | ------------------------------------------ | ---------------------- |
+| `createSignal` | `(initial: T) => [Accessor<T>, Setter<T>]` | 创建浅层 getter/setter |
+| `createMemo`   | `(fn: () => T) => Accessor<T>`             | 创建缓存派生 getter    |
+| `createEffect` | `(fn: () => void) => void`                 | 创建有 owner 的副作用  |
+| `createRoot`   | `(fn: (dispose: () => void) => T) => T`    | 创建显式 owner         |
+| `batch`        | `(fn: () => T) => T`                       | 批量更新               |
+| `onCleanup`    | `(fn: () => void) => void`                 | 注册 effect/owner 清理 |
 
 #### DOM Runtime API
 
@@ -158,12 +155,8 @@
 #### 类型导出
 
 ```ts
-type State<T>
-type ValueState<T>
-type ComputedRef<T>
-type WatchOptions
-type WatchHandle
-type Scope
+type Accessor<T>
+type Setter<T>
 type JSXValue
 type Component<P>
 type ShowProps
@@ -186,17 +179,17 @@ import {
   render,
   Show,
   For,
-  state,
-  computed,
-  effect,
+  createSignal,
+  createMemo,
+  createEffect,
   onCleanup,
 } from '@zeus-js/zeus'
 
 // 基础渲染
-const [count, setCount] = state(0)
-const doubled = computed(() => count() * 2)
+const [count, setCount] = createSignal(0)
+const doubled = createMemo(() => count() * 2)
 
-effect(() => {
+createEffect(() => {
   console.log('count changed:', count())
   onCleanup(() => console.log('cleanup'))
 })
@@ -219,9 +212,9 @@ render(
 )
 
 // 列表渲染
-const items = state(['apple', 'banana', 'cherry'])
+const [items] = createSignal(['apple', 'banana', 'cherry'])
 render(
-  <For each={items()}>{(item, i) => <li key={i()}>{item}</li>}</For>,
+  <For each={items()}>{item => <li>{item}</li>}</For>,
   document.getElementById('app')!,
 )
 ```
@@ -230,170 +223,28 @@ render(
 
 ### 3.2 `@zeus-js/signal`
 
-**用途**：响应式核心，纯 TypeScript，无 DOM 依赖。基于 `alien-signals`。
+**用途**：响应式核心，纯 TypeScript，无 DOM 依赖。主入口只导出 RFC-001 的六个显式原语。
 
-#### 完整导出列表
+底层 engine 位于 `@zeus-js/signal/internal`，仅供 Zeus 自身 packages 使用，不属于应用接口。
+
+#### 公共导出
 
 ```ts
-// state
-export { state, isValueState, type State, type ValueState }
-
-// computed
 export {
-  computed,
-  type ComputedRef,
-  type WritableComputedRef,
-  type WritableComputedOptions,
-  type ComputedGetter,
-  type ComputedSetter,
-  type ComputedRefImpl,
-}
-
-// effect
-export {
-  effect,
-  stop,
-  enableTracking,
-  pauseTracking,
-  resetTracking,
-  onEffectCleanup,
-  ReactiveEffect,
-  EffectFlags,
+  createSignal,
+  createMemo,
+  createEffect,
+  createRoot,
+  onCleanup,
   batch,
-  untrack,
-  getCurrentEffect,
-  type ReactiveEffectRunner,
-  type ReactiveEffectOptions,
-  type EffectScheduler,
-  type DebuggerOptions,
-  type DebuggerEvent,
-  type DebuggerEventExtraInfo,
+  type Accessor,
+  type Setter,
 }
-
-// scheduler
-export { queueJob, flushJobs, nextTick }
-
-// dep (tracking internals)
-export { trigger, track, ITERATE_KEY, ARRAY_ITERATE_KEY, MAP_KEY_ITERATE_KEY }
-
-// scope
-export { effectScope, EffectScope, getCurrentScope, onScopeDispose }
-export { scope, type Scope }
-
-// watch
-export {
-  watch,
-  getCurrentWatcher,
-  traverse,
-  onWatcherCleanup,
-  WatchErrorCodes,
-  type WatchOptions,
-  type WatchScheduler,
-  type WatchStopHandle,
-  type WatchHandle,
-  type WatchEffect,
-  type WatchSource,
-  type WatchCallback,
-  type OnCleanup,
-}
-
-// lifecycle
-export { onCleanup }
-
-// array instrumentations
-export { reactiveReadArray, shallowReadArray }
-
-// constants
-export { TrackOpTypes, TriggerOpTypes, ReactiveFlags }
 ```
 
-#### 详细 API
-
-**state** — 创建响应式状态
-
-```ts
-const count = state(0)
-count() // 读取 → 0
-count(1) // 写入 → 1
-count(c => c + 1) // 回调式写入
-```
-
-**computed** — 派生值
-
-```ts
-const doubled = computed(() => count() * 2)
-```
-
-**effect** — 副作用
-
-```ts
-const runner = effect(() => {
-  document.title = `count: ${count()}`
-})
-runner.stop() // 停止 effect
-```
-
-**watch** — 监听
-
-```ts
-const stop = watch(
-  count, // 要监听的值（signal、getter、数组）
-  (newVal, oldVal) => {
-    console.log('changed', newVal)
-  },
-  { immediate: false, flush: 'pre' }, // 可选配置
-)
-stop() // 停止监听
-```
-
-**batch** — 批量更新
-
-```ts
-batch(() => {
-  count(1)
-  count(2)
-  count(3)
-}) // 只触发一次更新
-```
-
-**scope** — 隔离作用域
-
-```ts
-const result = scope(() => {
-  const local = state(42)
-  effect(() => console.log(local()))
-  local(100) // effect 触发
-  return local()
-})
-// scope 结束后，内部 effect 自动清理
-```
-
-**effectScope** — 命名的 effect 作用域
-
-```ts
-const scope = effectScope()
-scope.run(() => {
-  effect(() => {...})
-})
-scope.stop() // 整个 scope 内的 effect 全部清理
-```
-
-**onCleanup** — 注册清理函数
-
-```ts
-effect(() => {
-  const timer = setInterval(() => {}, 100)
-  onCleanup(() => clearInterval(timer))
-})
-```
-
-**nextTick** — 等待更新 flush
-
-```ts
-count(1)
-await nextTick()
-// 此时 DOM 已更新
-```
+`@zeus-js/signal/internal` does not define an application contract. Its exports
+may change whenever Zeus changes its runtime implementation, and application or
+downstream package code must not import it.
 
 ---
 
