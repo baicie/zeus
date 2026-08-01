@@ -4,7 +4,7 @@ import {
   onScopeDispose,
   scope,
   state,
-} from '@zeus-js/signal'
+} from '@zeus-js/signal/internal'
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 

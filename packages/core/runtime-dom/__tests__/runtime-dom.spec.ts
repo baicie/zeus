@@ -1,4 +1,4 @@
-import { state } from '@zeus-js/signal'
+import { state } from '@zeus-js/signal/internal'
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 

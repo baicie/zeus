@@ -1,6 +1,6 @@
 // packages/runtime-dom/src/defineElement.ts
 
-import { effect, state } from '@zeus-js/signal'
+import { effect, state } from '@zeus-js/signal/internal'
 
 import { createOwner, resolveDOMContext, runWithOwner } from './context'
 import { withHostContext } from './hostContext'
@@ -9,7 +9,7 @@ import { render } from './render'
 import type { Context } from './context'
 import type { HostRenderContext } from './hostContext'
 import type { JSXValue } from './types'
-import type { ValueState } from '@zeus-js/signal'
+import type { ValueState } from '@zeus-js/signal/internal'
 
 export type ElementPropConstructor =
   | StringConstructor

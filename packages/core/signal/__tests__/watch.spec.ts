@@ -8,7 +8,7 @@ import {
   state,
   watch,
   type ValueState,
-} from '../src'
+} from '../src/internal'
 
 const queue: (() => void)[] = []
 

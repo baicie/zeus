@@ -1,4 +1,4 @@
-import { state } from '@zeus-js/signal'
+import { state } from '@zeus-js/signal/internal'
 import { bench, describe } from 'vitest'
 
 import { mountFor } from '../dist/runtime-dom.esm-browser.prod'

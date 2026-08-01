@@ -1,4 +1,4 @@
-import { effectScope } from '@zeus-js/signal'
+import { effectScope } from '@zeus-js/signal/internal'
 
 import { getCurrentOwner, runWithOwner } from './context'
 import { captureCurrentHostContext, withHostContext } from './hostContext'
@@ -7,7 +7,7 @@ import { insertTracked, moveRangeBefore, removeNodes } from './range'
 import type { Owner } from './context'
 import type { HostRenderContext } from './hostContext'
 import type { JSXValue } from './types'
-import type { EffectScope } from '@zeus-js/signal'
+import type { EffectScope } from '@zeus-js/signal/internal'
 
 export interface ScopedSubtreeContext {
   owner: Owner | undefined

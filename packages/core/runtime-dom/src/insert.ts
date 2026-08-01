@@ -1,6 +1,6 @@
 // packages/runtime-dom/src/insert.ts
 
-import { effect, onScopeDispose, stop } from '@zeus-js/signal'
+import { effect, onScopeDispose, stop } from '@zeus-js/signal/internal'
 
 import { insertTracked } from './range'
 import { captureScopedSubtreeContext, ScopedSubtree } from './scopedSubtree'

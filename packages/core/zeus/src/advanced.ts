@@ -21,4 +21,4 @@ export {
   type ReactiveEffectRunner,
   type ReactiveEffectOptions,
   type Scope,
-} from '@zeus-js/signal'
+} from '@zeus-js/signal/internal'

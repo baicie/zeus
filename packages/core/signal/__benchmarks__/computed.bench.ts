@@ -2,7 +2,7 @@ import { bench, describe } from 'vitest'
 
 import { computed, effect, state } from '../dist/signal.esm-browser.prod'
 
-import type { ComputedRef, ValueState } from '../src'
+import type { ComputedRef, ValueState } from '../src/internal'
 
 declare module '../dist/signal.esm-browser.prod' {
   function computed(...args: any[]): any

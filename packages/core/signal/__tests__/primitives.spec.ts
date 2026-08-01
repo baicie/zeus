@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
+import * as signal from '../src'
 import {
   batch,
   createEffect,
@@ -10,6 +11,17 @@ import {
 } from '../src'
 
 describe('Zeus reactive primitives', () => {
+  it('keeps the package main entry limited to the explicit public contract', () => {
+    expect(Object.keys(signal).sort()).toEqual([
+      'batch',
+      'createEffect',
+      'createMemo',
+      'createRoot',
+      'createSignal',
+      'onCleanup',
+    ])
+  })
+
   it('reads and writes signals with values and updater functions', () => {
     const [count, setCount] = createSignal(1)
 

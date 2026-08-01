@@ -1,4 +1,4 @@
-import { effect } from '@zeus-js/signal'
+import { effect } from '@zeus-js/signal/internal'
 
 import type { AttrValue, ClassValue, JSXValue, StyleValue } from './types'
 

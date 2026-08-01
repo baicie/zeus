@@ -1,4 +1,4 @@
-import { getCurrentScope, onScopeDispose } from '@zeus-js/signal'
+import { getCurrentScope, onScopeDispose } from '@zeus-js/signal/internal'
 
 import type { RefTarget } from './types'
 

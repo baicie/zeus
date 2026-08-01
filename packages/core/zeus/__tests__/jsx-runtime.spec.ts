@@ -1,4 +1,4 @@
-import { state } from '@zeus-js/signal'
+import { createSignal } from '@zeus-js/signal'
 import { JSDOM } from 'jsdom'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
@@ -26,10 +26,10 @@ describe('@zeus-js/zeus/jsx-runtime entry', () => {
   })
 
   it('binds function attributes instead of stringifying the function source', async () => {
-    const disabled = state(false)
+    const [disabled, setDisabled] = createSignal(false)
     const button = jsx('button', {
-      disabled: () => disabled.value,
-      'aria-disabled': () => (disabled.value ? 'true' : undefined),
+      disabled,
+      'aria-disabled': () => (disabled() ? 'true' : undefined),
       children: 'Save',
     }) as HTMLButtonElement
 
@@ -39,7 +39,7 @@ describe('@zeus-js/zeus/jsx-runtime entry', () => {
     expect(button.hasAttribute('disabled')).toBe(false)
     expect(button.hasAttribute('aria-disabled')).toBe(false)
 
-    disabled.value = true
+    setDisabled(true)
     await nextFrame()
 
     expect(button.disabled).toBe(true)
@@ -49,15 +49,15 @@ describe('@zeus-js/zeus/jsx-runtime entry', () => {
   })
 
   it('binds function property values through prop-prefixed attributes', async () => {
-    const value = state('a')
+    const [value, setValue] = createSignal('a')
     const input = jsx('input', {
-      'prop:value': () => value.value,
+      'prop:value': value,
     }) as HTMLInputElement
 
     await nextFrame()
     expect(input.value).toBe('a')
 
-    value.value = 'b'
+    setValue('b')
     await nextFrame()
     expect(input.value).toBe('b')
   })

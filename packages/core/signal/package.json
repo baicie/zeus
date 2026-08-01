@@ -24,6 +24,16 @@
         "development": "./dist/signal.cjs.js",
         "default": "./index.js"
       }
+    },
+    "./internal": {
+      "types": "./dist/internal.d.ts",
+      "import": "./dist/internal.js",
+      "require": "./dist/internal.cjs.js",
+      "node": {
+        "production": "./dist/internal.cjs.prod.js",
+        "development": "./dist/internal.cjs.js",
+        "default": "./dist/internal.cjs.js"
+      }
     }
   },
   "files": [
@@ -45,6 +55,12 @@
       "esm-browser",
       "cjs",
       "global"
+    ],
+    "additionalEntries": [
+      {
+        "entry": "internal.ts",
+        "output": "dist/internal.js"
+      }
     ]
   },
   "homepage": "https://github.com/baicie/zeus/tree/main/packages/core/signal#readme",

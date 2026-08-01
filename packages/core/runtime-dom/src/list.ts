@@ -1,6 +1,6 @@
 // packages/runtime-dom/src/list.ts
 
-import { effect, onScopeDispose, stop } from '@zeus-js/signal'
+import { effect, onScopeDispose, stop } from '@zeus-js/signal/internal'
 
 import { emitDevtoolsEvent } from './devtools'
 import { captureScopedSubtreeContext, ScopedSubtree } from './scopedSubtree'

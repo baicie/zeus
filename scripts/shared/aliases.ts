@@ -24,6 +24,14 @@ const generateEntries = (): Record<string, string> => {
       )
     }
 
+    if (pkg.name === '@zeus-js/signal') {
+      entries['@zeus-js/signal/internal'] = path.resolve(
+        pkg.dir,
+        'src',
+        'internal.ts',
+      )
+    }
+
     if (pkg.name in entries) continue
     entries[pkg.name] = path.resolve(pkg.dir, 'src', 'index.ts')
   }
