@@ -47,7 +47,6 @@ export const ZEUS_CAPABILITIES = {
 
   stability: {
     main: 'stable',
-    advanced: 'advanced',
     internal: 'private',
   },
 } as const

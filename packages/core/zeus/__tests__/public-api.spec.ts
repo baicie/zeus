@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import packageJson from '../package.json'
 import * as zeus from '../src'
 
 describe('@zeus-js/zeus public API', () => {
@@ -30,6 +31,10 @@ describe('@zeus-js/zeus public API', () => {
     expect(zeus).not.toHaveProperty('scope')
     expect(zeus).not.toHaveProperty('untrack')
     expect(zeus).not.toHaveProperty('nextTick')
+  })
+
+  it('does not publish the superseded advanced reactivity entry', () => {
+    expect(packageJson.exports).not.toHaveProperty('./advanced')
   })
 
   it('does not export compiler/runtime internal helpers from main entry', () => {
