@@ -1,7 +1,10 @@
 import path from 'node:path'
 
 import { transformAsync } from '@babel/core'
-import zeusCompiler from '@zeus-js/compiler'
+import zeusCompiler, {
+  CompilerError,
+  formatCompilerDiagnostic,
+} from '@zeus-js/compiler'
 
 import type { CompilerOptions } from '@zeus-js/compiler'
 import type { Plugin, UserConfig } from 'vite'
@@ -10,7 +13,6 @@ export interface ZeusVitePluginOptions {
   include?: RegExp | RegExp[]
   exclude?: RegExp | RegExp[]
   compiler?: Partial<CompilerOptions>
-  diagnostics?: boolean
 }
 
 function normalizePatterns(value: RegExp | RegExp[]): RegExp[] {
@@ -87,40 +89,64 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
         return null
       }
 
-      const result = await transformAsync(code, {
-        filename,
-        sourceMaps: true,
-        plugins: [
-          [
-            zeusCompiler as unknown as (api: object, opts: object) => object,
-            {
-              moduleName:
-                options.compiler?.moduleName ?? '@zeus-js/runtime-dom',
-              generate: 'dom',
-              hydratable: false,
-              delegateEvents: true,
-              ...options.compiler,
-            } satisfies Partial<CompilerOptions>,
+      try {
+        const result = await transformAsync(code, {
+          filename,
+          sourceMaps: true,
+          plugins: [
+            [
+              zeusCompiler as unknown as (api: object, opts: object) => object,
+              {
+                moduleName:
+                  options.compiler?.moduleName ?? '@zeus-js/runtime-dom',
+                generate: 'dom',
+                hydratable: false,
+                delegateEvents: true,
+                ...options.compiler,
+              } satisfies Partial<CompilerOptions>,
+            ],
           ],
-        ],
-        parserOpts: {
-          sourceType: 'module',
-          plugins: ['typescript', 'jsx'],
-        },
-        generatorOpts: {
-          retainLines: false,
-          compact: false,
-          jsescOption: {
-            minimal: true,
+          parserOpts: {
+            sourceType: 'module',
+            plugins: ['typescript', 'jsx'],
           },
-        },
-      })
+          generatorOpts: {
+            retainLines: false,
+            compact: false,
+            jsescOption: {
+              minimal: true,
+            },
+          },
+        })
 
-      if (!result?.code) return null
+        if (!result?.code) return null
 
-      return {
-        code: result.code,
-        map: result.map as unknown as { mappings: string } | null,
+        return {
+          code: result.code,
+          map: result.map as unknown as { mappings: string } | null,
+        }
+      } catch (error) {
+        if (!(error instanceof CompilerError)) throw error
+
+        const diagnostic = error.diagnostic
+        const start = diagnostic.span?.start
+
+        this.error({
+          name: error.name,
+          message: formatCompilerDiagnostic(diagnostic),
+          cause: error,
+          id: diagnostic.filename ?? filename,
+          loc: start
+            ? {
+                line: start.line,
+                column: start.column,
+              }
+            : undefined,
+          pluginCode: diagnostic.code,
+          meta: {
+            zeusDiagnostic: diagnostic,
+          },
+        })
       }
     },
   }

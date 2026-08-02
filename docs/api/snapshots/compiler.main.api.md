@@ -6,6 +6,7 @@
 
 ```ts
 import * as _babel_core from '@babel/core'
+import { SourceSpan, SourcePosition } from '@zeus-js/compiler-shared'
 export * from '@zeus-js/compiler-shared'
 
 /**
@@ -91,6 +92,52 @@ export interface CompilerOptions {
    * @default true
    */
   inlineStyles: boolean
+}
+
+export declare const CompilerErrorCode: {
+  readonly UNSUPPORTED_SPREAD_ATTRIBUTE: 'ZEUS_UNSUPPORTED_SPREAD_ATTRIBUTE'
+  readonly UNSUPPORTED_SPREAD_CHILD: 'ZEUS_UNSUPPORTED_SPREAD_CHILD'
+  readonly UNSUPPORTED_FRAGMENT: 'ZEUS_UNSUPPORTED_FRAGMENT'
+  readonly UNSUPPORTED_FRAGMENT_CHILD: 'ZEUS_UNSUPPORTED_FRAGMENT_CHILD'
+  readonly UNSUPPORTED_COMPONENT_PROP: 'ZEUS_UNSUPPORTED_COMPONENT_PROP'
+  readonly EMPTY_EXPRESSION: 'ZEUS_EMPTY_EXPRESSION'
+  readonly INVALID_TRANSFORM_RESULT: 'ZEUS_INVALID_TRANSFORM_RESULT'
+  readonly UNSUPPORTED_NODE: 'ZEUS_UNSUPPORTED_NODE'
+  readonly INVALID_BUILTIN_USAGE: 'ZEUS_INVALID_BUILTIN_USAGE'
+  readonly INVALID_REF_USAGE: 'ZEUS_INVALID_REF_USAGE'
+}
+export type CompilerErrorCode =
+  (typeof CompilerErrorCode)[keyof typeof CompilerErrorCode]
+
+export type CompilerDiagnosticSeverity = 'error' | 'warning'
+export interface CompilerDiagnostic {
+  code: CompilerErrorCode
+  severity: CompilerDiagnosticSeverity
+  message: string
+  hint?: string
+  filename?: string
+  span?: SourceSpan
+}
+export declare function formatCompilerDiagnostic(
+  diagnostic: CompilerDiagnostic,
+): string
+
+export interface CompilerErrorOptions {
+  code: CompilerErrorCode
+  message: string
+  hint?: string
+  filename?: string
+  span?: SourceSpan
+}
+export declare class CompilerError extends Error {
+  readonly diagnostic: CompilerDiagnostic
+  readonly code: CompilerDiagnostic['code']
+  readonly severity: 'error'
+  readonly hint?: string
+  readonly filename?: string
+  readonly span?: SourceSpan
+  readonly loc?: Pick<SourcePosition, 'line' | 'column'>
+  constructor(options: CompilerErrorOptions)
 }
 
 declare const _default: (

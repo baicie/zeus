@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
-import { dynamicTextIR, expressionIR, ref } from '../src'
+import { dynamicTextIR, expressionIR, hostIR, ref, slotIR } from '../src'
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)))
 
@@ -19,6 +19,26 @@ describe('compiler-shared boundary', () => {
     )
 
     expect(JSON.parse(JSON.stringify(node))).toEqual(node)
+  })
+
+  it('preserves Host and Slot source spans through semantic builders', () => {
+    const hostSpan = {
+      start: { line: 2, column: 4, offset: 12 },
+      end: { line: 6, column: 11, offset: 96 },
+    }
+    const slotSpan = {
+      start: { line: 4, column: 6, offset: 48 },
+      end: { line: 4, column: 14, offset: 56 },
+    }
+    const node = hostIR({
+      attrs: [],
+      span: hostSpan,
+      child: slotIR({ ref: ref('slot$'), span: slotSpan }),
+    })
+
+    expect(JSON.parse(JSON.stringify(node))).toEqual(node)
+    expect(node.span).toEqual(hostSpan)
+    expect(node.child?.span).toEqual(slotSpan)
   })
 
   it('declares no Babel package dependencies', () => {

@@ -12,7 +12,6 @@ export interface ZeusVitePluginOptions {
   include?: RegExp | RegExp[]
   exclude?: RegExp | RegExp[]
   compiler?: Partial<CompilerOptions>
-  diagnostics?: boolean
 }
 export declare function createZeus(options?: ZeusVitePluginOptions): Plugin
 

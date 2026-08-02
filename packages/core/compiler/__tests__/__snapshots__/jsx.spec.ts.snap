@@ -26,14 +26,14 @@ const App = (props: {
 })();"
 `;
 
-exports[`zeus compiler jsx transform > compiles Host as no-op wrapper 1`] = `
+exports[`zeus compiler jsx transform > compiles Host as the defineElement root boundary 1`] = `
 "import { Host as _Host, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<div>hello</div>\`);
-import { Host } from '@zeus-js/runtime-dom';
-const App = () => (() => {
+import { defineElement, Host } from '@zeus-js/runtime-dom';
+const App = defineElement('z-app', {}, () => (() => {
   _Host({});
   return _tmpl$().firstChild;
-})();"
+})());"
 `;
 
 exports[`zeus compiler jsx transform > compiles Show with fallback 1`] = `
@@ -52,12 +52,12 @@ const App = (props: {
 })();"
 `;
 
-exports[`zeus compiler jsx transform > compiles Slot to createSlot 1`] = `
+exports[`zeus compiler jsx transform > compiles Slot to createSlot inside defineElement 1`] = `
 "import { Host as _Host, createSlot as _createSlot, insert as _insert, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<article><!><!></article>\`),
   _tmpl$2 = /*#__PURE__*/_template(\`<button>fallback</button>\`);
-import { Host, Slot } from '@zeus-js/runtime-dom';
-const App = () => (() => {
+import { defineElement, Host, Slot } from '@zeus-js/runtime-dom';
+const App = defineElement('z-app', {}, () => (() => {
   _Host({});
   return (() => {
     const _el$ = _tmpl$().firstChild;
@@ -67,7 +67,7 @@ const App = () => (() => {
     _insert(_el$, _createSlot("footer", () => _tmpl$2().firstChild), _slot$2);
     return _el$;
   })();
-})();"
+})());"
 `;
 
 exports[`zeus compiler jsx transform > compiles component usage 1`] = `

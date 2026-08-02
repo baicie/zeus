@@ -1,8 +1,10 @@
+import { rollup } from 'rollup'
 import { describe, expect, it } from 'vitest'
 
 import { createZeus } from '../src'
 
 import type { ZeusVitePluginOptions } from '../src'
+import type { Plugin as RollupPlugin, TransformResult } from 'rollup'
 import type { HookHandler, Plugin } from 'vite'
 
 type TransformHook = NonNullable<HookHandler<Plugin['transform']>>
@@ -25,7 +27,12 @@ function getTransformHook(plugin: Plugin): TransformHook {
 
 function createTransformHarness(options: ZeusVitePluginOptions = {}) {
   const hook = getTransformHook(createZeus(options))
-  const context = {} as ThisParameterType<TransformHook>
+  const context = {
+    error(error: string | { message: string }): never {
+      if (typeof error === 'string') throw new Error(error)
+      throw Object.assign(new Error(error.message), error)
+    },
+  } as ThisParameterType<TransformHook>
 
   return (code: string, id: string) => hook.call(context, code, id)
 }
@@ -138,6 +145,104 @@ describe('vite-plugin-zeus transform', () => {
     )
 
     expect(code).toContain('from "virtual:test-runtime"')
+  })
+
+  it('propagates structured compiler diagnostics through Vite errors', async () => {
+    const invalidHostSource = [
+      "import { Host } from '@zeus-js/runtime-dom'",
+      '',
+      'const App = () => <Host />',
+    ].join('\n')
+
+    await expect(
+      createTransformHarness()(invalidHostSource, '/src/App.tsx?direct'),
+    ).rejects.toMatchObject({
+      id: '/src/App.tsx',
+      pluginCode: 'ZEUS_INVALID_BUILTIN_USAGE',
+      loc: {
+        line: 3,
+        column: 18,
+      },
+      cause: expect.objectContaining({
+        name: 'ZeusCompilerError',
+        code: 'ZEUS_INVALID_BUILTIN_USAGE',
+        diagnostic: expect.objectContaining({
+          code: 'ZEUS_INVALID_BUILTIN_USAGE',
+          severity: 'error',
+        }),
+      }),
+      meta: {
+        zeusDiagnostic: {
+          code: 'ZEUS_INVALID_BUILTIN_USAGE',
+          severity: 'error',
+          filename: '/src/App.tsx',
+          span: {
+            start: {
+              line: 3,
+              column: 18,
+            },
+          },
+        },
+      },
+    })
+  })
+
+  it('preserves structured compiler diagnostics through Rollup', async () => {
+    const id = '/src/App.tsx'
+    const invalidHostSource = [
+      "import { Host } from '@zeus-js/runtime-dom'",
+      '',
+      'const App = () => <Host />',
+    ].join('\n')
+    const zeusPlugin = createZeus()
+    const rollupZeusPlugin: RollupPlugin = {
+      name: zeusPlugin.name,
+      async transform(code, resolvedId) {
+        return (await getTransformHook(zeusPlugin).call(
+          this as unknown as ThisParameterType<TransformHook>,
+          code,
+          resolvedId,
+        )) as unknown as TransformResult
+      },
+    }
+
+    await expect(
+      rollup({
+        input: id,
+        plugins: [
+          {
+            name: 'diagnostic-fixture',
+            resolveId(source) {
+              return source === id ? id : null
+            },
+            load(resolvedId) {
+              return resolvedId === id ? invalidHostSource : null
+            },
+          },
+          rollupZeusPlugin,
+        ],
+      }),
+    ).rejects.toMatchObject({
+      code: 'PLUGIN_ERROR',
+      plugin: 'vite-plugin-zeus',
+      pluginCode: 'ZEUS_INVALID_BUILTIN_USAGE',
+      id,
+      loc: {
+        line: 3,
+        column: 18,
+      },
+      cause: expect.objectContaining({
+        name: 'ZeusCompilerError',
+        code: 'ZEUS_INVALID_BUILTIN_USAGE',
+      }),
+      meta: {
+        zeusDiagnostic: expect.objectContaining({
+          code: 'ZEUS_INVALID_BUILTIN_USAGE',
+          severity: 'error',
+          filename: id,
+        }),
+      },
+    })
   })
 
   it.each(statefulPatterns)(

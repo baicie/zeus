@@ -258,11 +258,13 @@ export declare function forIR(input: {
 export declare function hostIR(input: {
   attrs: HostAttrIR[]
   child?: ZeusIRNode
+  span?: SourceSpan
 }): HostIR
 export declare function slotIR(input: {
   ref: IRRef
   name?: string
   fallback?: ZeusIRNode[]
+  span?: SourceSpan
 }): SlotIR
 
 export interface IRVisitor {

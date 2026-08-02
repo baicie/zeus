@@ -12,13 +12,6 @@ export type RuntimeImportRecord = {
   local: t.Identifier
 }
 
-export type CompilerDiagnostic = {
-  code: string
-  message: string
-  path?: NodePath
-  hint?: string
-}
-
 export type IRTemplateRecord = {
   id: t.Identifier
   html: string
@@ -26,8 +19,6 @@ export type IRTemplateRecord = {
 }
 
 export class CompilerContext {
-  readonly diagnostics: CompilerDiagnostic[] = []
-
   constructor(
     readonly options: CompilerOptions,
     readonly programPath: BabelProgramPath,
@@ -89,10 +80,6 @@ export class CompilerContext {
     templates.push(templateMap.get(html)!)
 
     return { id: t.cloneNode(id), html, isSVG }
-  }
-
-  report(diagnostic: CompilerDiagnostic): void {
-    this.diagnostics.push(diagnostic)
   }
 }
 

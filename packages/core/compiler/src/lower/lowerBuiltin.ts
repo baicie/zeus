@@ -15,12 +15,13 @@ import {
   type ZeusIRNode,
 } from '@zeus-js/compiler-shared'
 
+import { createBabelCompilerError } from '../adapters/babel/diagnostic'
 import {
   expressionIRFromCode,
   lowerExpressionIR,
   sourceSpanFromBabelNode,
 } from '../adapters/babel/expression'
-import { CompilerError, CompilerErrorCode } from '../diagnostics'
+import { CompilerErrorCode } from '../diagnostics'
 import { lowerChildren } from './lowerChildren'
 import { lowerJSX } from './lowerJSX'
 import { getJSXAttrName } from '../parse/jsx'
@@ -46,10 +47,9 @@ export function lowerBuiltin(
   const tagName = path.node.openingElement.name
 
   if (!t.isJSXIdentifier(tagName)) {
-    throw new CompilerError({
+    throw createBabelCompilerError(path, {
       code: CompilerErrorCode.INVALID_BUILTIN_USAGE,
       message: 'Built-in JSX nodes do not support member expressions.',
-      path,
     })
   }
 
@@ -63,10 +63,9 @@ export function lowerBuiltin(
     case 'Slot':
       return lowerSlot(path, context)
     default:
-      throw new CompilerError({
+      throw createBabelCompilerError(path, {
         code: CompilerErrorCode.INVALID_BUILTIN_USAGE,
         message: `Unsupported built-in <${tagName.name}>.`,
-        path,
       })
   }
 }
@@ -162,6 +161,7 @@ function lowerSlot(
     ref: ref(context.uid('slot$').name),
     name,
     fallback: lowerChildren(path.get('children'), context),
+    span: sourceSpanFromBabelNode(path.node),
   })
 }
 
@@ -172,10 +172,9 @@ function requiredExpressionAttr(
   const value = optionalExpressionAttr(path, name)
 
   if (!value) {
-    throw new CompilerError({
+    throw createBabelCompilerError(path, {
       code: CompilerErrorCode.INVALID_BUILTIN_USAGE,
       message: `<${getBuiltinName(path)}> requires "${name}".`,
-      path,
     })
   }
 
@@ -251,10 +250,9 @@ function getOnlyRenderFunction(
     )
 
   if (expressions.length !== 1) {
-    throw new CompilerError({
+    throw createBabelCompilerError(path, {
       code: CompilerErrorCode.INVALID_BUILTIN_USAGE,
       message: '<For> requires exactly one render function child.',
-      path,
     })
   }
 
@@ -312,10 +310,9 @@ function lowerHost(
     const node = attrPath.node
 
     if (t.isJSXSpreadAttribute(node)) {
-      throw new CompilerError({
+      throw createBabelCompilerError(attrPath, {
         code: CompilerErrorCode.UNSUPPORTED_COMPONENT_PROP,
         message: 'Spread props are not supported on Host in Phase 1.',
-        path: attrPath,
       })
     }
 
@@ -384,5 +381,9 @@ function lowerHost(
         ? rawChildren[0]
         : fragmentIR(rawChildren)
 
-  return hostIR({ attrs, child })
+  return hostIR({
+    attrs,
+    child,
+    span: sourceSpanFromBabelNode(path.node),
+  })
 }

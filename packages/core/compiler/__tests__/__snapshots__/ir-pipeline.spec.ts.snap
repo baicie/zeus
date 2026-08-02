@@ -26,7 +26,8 @@ exports[`zeus compiler ir-first pipeline > compiles Host and Slot as IR built-in
 "import { Host as _Host, createSlot as _createSlot, insert as _insert, template as _template } from "@zeus-js/runtime-dom";
 var _tmpl$ = /*#__PURE__*/_template(\`<header><!></header>\`),
   _tmpl$2 = /*#__PURE__*/_template(\`<main><!></main>\`);
-const App = () => (() => {
+import { defineElement, Host, Slot } from '@zeus-js/runtime-dom';
+const App = defineElement('z-app', {}, () => (() => {
   _Host({});
   return [(() => {
     const _el$ = _tmpl$().firstChild;
@@ -39,7 +40,7 @@ const App = () => (() => {
     _insert(_el$2, _createSlot(undefined, undefined), _slot$2);
     return _el$2;
   })()];
-})();"
+})());"
 `;
 
 exports[`zeus compiler ir-first pipeline > compiles component calls through the IR-first feature flag 1`] = `
