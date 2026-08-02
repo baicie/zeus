@@ -19,11 +19,10 @@
       "types": "./dist/bundler-plugin.d.ts",
       "module": "./dist/bundler-plugin.esm-bundler.js",
       "import": "./dist/bundler-plugin.esm-bundler.js",
-      "require": "./index.js",
-      "node": {
-        "production": "./dist/bundler-plugin.cjs.prod.js",
-        "development": "./dist/bundler-plugin.cjs.js",
-        "default": "./index.js"
+      "require": {
+        "production": "./dist/bundler-plugin.prod.cjs",
+        "development": "./dist/bundler-plugin.cjs",
+        "default": "./index.cjs"
       }
     },
     "./vite": {
@@ -44,7 +43,7 @@
     }
   },
   "files": [
-    "index.js",
+    "index.cjs",
     "dist"
   ],
   "peerDependencies": {
@@ -107,7 +106,7 @@
     "rolldown",
     "web-components"
   ],
-  "main": "index.js",
+  "main": "index.cjs",
   "module": "dist/bundler-plugin.esm-bundler.js",
   "types": "dist/bundler-plugin.d.ts"
 }

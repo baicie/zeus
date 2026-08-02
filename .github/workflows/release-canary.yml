@@ -68,6 +68,7 @@ jobs:
         run: |
           pnpm build
           pnpm build-dts
+          pnpm check:cjs
           pnpm api:check
           pnpm check
           pnpm test-unit

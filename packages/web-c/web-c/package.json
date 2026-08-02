@@ -19,11 +19,10 @@
       "types": "./dist/web-c.d.ts",
       "module": "./dist/web-c.esm-bundler.js",
       "import": "./dist/web-c.esm-bundler.js",
-      "require": "./index.js",
-      "node": {
-        "production": "./dist/web-c.cjs.prod.js",
-        "development": "./dist/web-c.cjs.js",
-        "default": "./index.js"
+      "require": {
+        "production": "./dist/web-c.prod.cjs",
+        "development": "./dist/web-c.cjs",
+        "default": "./index.cjs"
       }
     },
     "./vite": {
@@ -40,7 +39,7 @@
     }
   },
   "files": [
-    "index.js",
+    "index.cjs",
     "vite.js",
     "rollup.js",
     "rolldown.js",
@@ -100,7 +99,7 @@
     "web-components",
     "component-library"
   ],
-  "main": "index.js",
+  "main": "index.cjs",
   "module": "dist/web-c.esm-bundler.js",
   "types": "dist/web-c.d.ts"
 }

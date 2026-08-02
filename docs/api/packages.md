@@ -760,14 +760,19 @@ pnpm add @zeus-ui/cli
 
 ## 附录 A：package.json exports 速查
 
-| 包                     | ESM 入口                          | CJS 入口                  | 全局 CDN                     |
-| ---------------------- | --------------------------------- | ------------------------- | ---------------------------- |
-| `@zeus-js/zeus`        | `dist/zeus.esm-bundler.js`        | `dist/zeus.cjs.js`        | `dist/zeus.global.js`        |
-| `@zeus-js/signal`      | `dist/signal.esm-bundler.js`      | `dist/signal.cjs.js`      | `dist/signal.global.js`      |
-| `@zeus-js/runtime-dom` | `dist/runtime-dom.esm-bundler.js` | `dist/runtime-dom.cjs.js` | `dist/runtime-dom.global.js` |
-| `@zeus-js/compiler`    | `dist/compiler.esm-bundler.js`    | `dist/compiler.cjs.js`    | `dist/compiler.global.js`    |
-| `@zeus-js/shared`      | `dist/shared.esm-bundler.js`      | `dist/shared.cjs.js`      | —                            |
-| `@zeus-js/vite-plugin` | `dist/vite-plugin.esm-bundler.js` | `dist/vite-plugin.cjs.js` | —                            |
+每个 CJS 导出都在 `require` 条件内声明 `production`、`development` 和
+`default`。Node 或打包器显式启用对应 condition 时会直接解析到下列产物；
+未提供自定义 condition 时，包根级 `require` 先解析到 `index.cjs`，再根据
+`NODE_ENV` 选择开发或生产产物。附加入口的 `default` 直接使用开发产物。
+
+| 包                     | ESM 入口                          | CJS 开发 / 生产产物                                  | 全局 CDN                     |
+| ---------------------- | --------------------------------- | ---------------------------------------------------- | ---------------------------- |
+| `@zeus-js/zeus`        | `dist/zeus.esm-bundler.js`        | `dist/zeus.cjs` / `dist/zeus.prod.cjs`               | `dist/zeus.global.js`        |
+| `@zeus-js/signal`      | `dist/signal.esm-bundler.js`      | `dist/signal.cjs` / `dist/signal.prod.cjs`           | `dist/signal.global.js`      |
+| `@zeus-js/runtime-dom` | `dist/runtime-dom.esm-bundler.js` | `dist/runtime-dom.cjs` / `dist/runtime-dom.prod.cjs` | `dist/runtime-dom.global.js` |
+| `@zeus-js/compiler`    | `dist/compiler.esm-bundler.js`    | `dist/compiler.cjs` / `dist/compiler.prod.cjs`       | `dist/compiler.global.js`    |
+| `@zeus-js/shared`      | `dist/shared.esm-bundler.js`      | `dist/shared.cjs` / `dist/shared.prod.cjs`           | —                            |
+| `@zeus-js/vite-plugin` | `dist/vite-plugin.esm-bundler.js` | `dist/vite-plugin.cjs` / `dist/vite-plugin.prod.cjs` | —                            |
 
 ## 附录 B：pnpm catalog 共享依赖版本
 

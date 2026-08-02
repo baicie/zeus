@@ -48,7 +48,7 @@ describe('zeus release config', () => {
       ['pnpm', 'check:release-worktree', '--capture'],
       ['pnpm', 'check:branch'],
       ['pnpm', 'build'],
-      ['pnpm', 'check:compiler-cjs'],
+      ['pnpm', 'check:cjs'],
       ['pnpm', 'build-dts'],
       ['pnpm', 'api:check'],
       ['pnpm', 'check'],

@@ -38,7 +38,7 @@ packages:
     "clean": "rimraf --glob 'packages/*/dist' ... temp .eslintcache",
     "check": "tsc --incremental --noEmit",
     "check:branch": "tsx scripts/check/check-branch-name.ts",
-    "check:compiler-cjs": "pnpm build shared compiler -f cjs && tsx scripts/check/check-compiler-cjs.ts",
+    "check:cjs": "tsx scripts/check/check-package-cjs.ts && tsx scripts/check/check-compiler-cjs.ts",
     "check:exports": "tsx scripts/check/check-package-exports.ts",
     "lint": "eslint --cache .",
     "format": "prettier --write --cache .",
@@ -599,7 +599,7 @@ jobs:
 const steps: Array<[string, string[]]> = [
   ['pnpm', ['check:branch']], // 1. 分支名符合规范
   ['pnpm', ['build']], // 2. 构建所有包（Rolldown）
-  ['pnpm', ['check:compiler-cjs']], // 3. 验证 CJS 输出可用
+  ['pnpm', ['check:cjs']], // 3. 验证所有公开 CJS 输出可用
   ['pnpm', ['build-dts']], // 4. 生成 TypeScript 声明文件
   ['pnpm', ['api:check']], // 5. API 快照一致性检查
   ['pnpm', ['check']], // 6. TypeScript 类型检查
@@ -826,7 +826,7 @@ async function checkFileSize(filePath: string): Promise<void> {
 const outputConfigs: Record<PackageFormat, OutputOptions> = {
   'esm-bundler': { file: `dist/${name}.esm-bundler.js`, format: 'es' },
   'esm-browser': { file: `dist/${name}.esm-browser.js`, format: 'es' },
-  cjs: { file: `dist/${name}.cjs.js`, format: 'cjs' },
+  cjs: { file: `dist/${name}.cjs`, format: 'cjs' },
   global: { file: `dist/${name}.global.js`, format: 'iife' },
   'esm-bundler-runtime': {
     file: `dist/${name}.runtime.esm-bundler.js`,
@@ -846,7 +846,7 @@ const packageFormats = inlineFormats || packageOptions.formats || defaultFormats
 
 if (process.env.NODE_ENV === 'production') {
   packageFormats.forEach(format => {
-    if (format === 'cjs') packageConfigs.push(createProductionConfig(format)) // .prod.js
+    if (format === 'cjs') packageConfigs.push(createProductionConfig(format)) // .prod.cjs
     if (/^(global|esm-browser)(-runtime)?/.test(format))
       packageConfigs.push(createMinifiedConfig(format)) // .prod.js + minify
   })
@@ -933,9 +933,9 @@ function resolveExternal() {
 ```
 dist/
 ├── runtime-dom.esm-bundler.js           # 开发 ESM
-├── runtime-dom.cjs.js                    # 开发 CJS
+├── runtime-dom.cjs                       # 开发 CJS
 ├── runtime-dom.esm-bundler.prod.js       # 生产 ESM
-├── runtime-dom.cjs.prod.js               # 生产 CJS
+├── runtime-dom.prod.cjs                  # 生产 CJS
 ├── runtime-dom.global.js                 # 开发 UMD (global)
 ├── runtime-dom.global.prod.js           # 生产 UMD (minified)
 ├── runtime-dom.runtime.esm-bundler.js   # 仅运行时

@@ -19,16 +19,15 @@
       "types": "./dist/component-analyzer.d.ts",
       "module": "./dist/component-analyzer.esm-bundler.js",
       "import": "./dist/component-analyzer.esm-bundler.js",
-      "require": "./index.js",
-      "node": {
-        "production": "./dist/component-analyzer.cjs.prod.js",
-        "development": "./dist/component-analyzer.cjs.js",
-        "default": "./index.js"
+      "require": {
+        "production": "./dist/component-analyzer.prod.cjs",
+        "development": "./dist/component-analyzer.cjs",
+        "default": "./index.cjs"
       }
     }
   },
   "files": [
-    "index.js",
+    "index.cjs",
     "dist"
   ],
   "dependencies": {
@@ -52,7 +51,7 @@
     "web-components",
     "component-analyzer"
   ],
-  "main": "index.js",
+  "main": "index.cjs",
   "module": "dist/component-analyzer.esm-bundler.js",
   "types": "dist/component-analyzer.d.ts"
 }

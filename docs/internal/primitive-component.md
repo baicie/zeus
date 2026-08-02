@@ -529,8 +529,8 @@ pnpm check:exports
 pnpm examples:check:all
 ```
 
-涉及 CJS compiler 产物时再跑：
+涉及 CJS 产物时再跑：
 
 ```sh
-pnpm check:compiler-cjs
+pnpm check:cjs
 ```
