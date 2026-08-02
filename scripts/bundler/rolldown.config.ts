@@ -54,7 +54,7 @@ const outputConfigs: Record<PackageFormat, OutputOptions> = {
     format: 'es',
   },
   cjs: {
-    file: resolve(`dist/${name}.cjs.js`),
+    file: resolve(`dist/${name}.cjs`),
     format: 'cjs',
   },
   global: {
@@ -137,7 +137,7 @@ if (additionalEntries && additionalEntries.length > 0) {
         'cjs',
         {
           ...outputConfigs['cjs'],
-          file: resolve(outputPath.replace(/\.js$/, '.cjs.js')),
+          file: resolve(outputPath.replace(/\.js$/, '.cjs')),
         },
         [],
         entryPath,
@@ -163,7 +163,7 @@ if (additionalEntries && additionalEntries.length > 0) {
           'cjs',
           {
             ...outputConfigs['cjs'],
-            file: resolve(outputPath.replace(/\.js$/, '.cjs.prod.js')),
+            file: resolve(outputPath.replace(/\.js$/, '.prod.cjs')),
           },
           [],
           entryPath,
@@ -187,7 +187,7 @@ function createConfig(
   }
 
   const isProductionBuild =
-    process.env.__DEV__ === 'false' || /\.prod\.js$/.test(output.file)
+    process.env.__DEV__ === 'false' || /\.prod\.(?:cjs|js)$/.test(output.file)
   const isBundlerESMBuild = /esm-bundler/.test(format)
   const isBrowserESMBuild = /esm-browser/.test(format)
   const isServerRenderer = name === 'server-renderer'
@@ -346,7 +346,11 @@ function createConfig(
 
 function createProductionConfig(format: PackageFormat) {
   return createConfig(format, {
-    file: resolve(`dist/${name}.${format}.prod.js`),
+    file: resolve(
+      format === 'cjs'
+        ? `dist/${name}.prod.cjs`
+        : `dist/${name}.${format}.prod.js`,
+    ),
     format: outputConfigs[format].format,
   })
 }

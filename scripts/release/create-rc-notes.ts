@@ -36,6 +36,7 @@ async function main() {
   sections.push('- `pnpm build-dts`')
   sections.push('- `pnpm check`')
   sections.push('- `pnpm test-unit`')
+  sections.push('- `pnpm check:cjs`')
   sections.push('- `pnpm bench:component-host`')
   sections.push('- `pnpm examples:check:all`')
   sections.push('- `pnpm check:exports`')

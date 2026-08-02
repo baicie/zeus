@@ -1,7 +1,7 @@
 可以。`zeus` 侧接入建议走 **“脚本名保持不变，内部改成 @baicie/release 薄封装”**。
 
 原因是 `zeus` 当前根脚本已经把发版入口集中在 `scripts/release/*`：`release / release:publishOnly / release:precheck / release:dry / release:canary` 都已经存在。
-正式 precheck 当前也已经是一组固定命令：`build / check:compiler-cjs / build-dts / api:check / check / lint / test-unit / examples / bench / docs / size / exports / repository`。
+正式 precheck 当前也已经是一组固定命令：`build / check:cjs / build-dts / api:check / check / lint / test-unit / examples / bench / docs / size / exports / repository`。
 
 另外这次只是 **发版工具抽离**，不改 Zeus Web-C 架构；Web-C 相关方案里已经明确 `defineCustomElements / auto` 应由组件库产物提供，`@zeus-js/web-c-runtime` 只做底层 runtime。
 
@@ -135,7 +135,7 @@ export default defineReleaseConfig({
     commands: [
       ['pnpm', 'check:branch'],
       ['pnpm', 'build'],
-      ['pnpm', 'check:compiler-cjs'],
+      ['pnpm', 'check:cjs'],
       ['pnpm', 'build-dts'],
       ['pnpm', 'api:check'],
       ['pnpm', 'check'],
@@ -638,7 +638,7 @@ describe('zeus release config', () => {
     expect(config.precheck?.commands).toEqual([
       ['pnpm', ['check:branch']],
       ['pnpm', ['build']],
-      ['pnpm', ['check:compiler-cjs']],
+      ['pnpm', ['check:cjs']],
       ['pnpm', ['build-dts']],
       ['pnpm', ['api:check']],
       ['pnpm', ['check']],

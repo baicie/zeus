@@ -19,16 +19,15 @@
       "types": "./dist/output-css.d.ts",
       "module": "./dist/output-css.esm-bundler.js",
       "import": "./dist/output-css.esm-bundler.js",
-      "require": "./index.js",
-      "node": {
-        "production": "./dist/output-css.cjs.prod.js",
-        "development": "./dist/output-css.cjs.js",
-        "default": "./index.js"
+      "require": {
+        "production": "./dist/output-css.prod.cjs",
+        "development": "./dist/output-css.cjs",
+        "default": "./index.cjs"
       }
     }
   },
   "files": [
-    "index.js",
+    "index.cjs",
     "dist"
   ],
   "peerDependencies": {
@@ -71,7 +70,7 @@
     "zeus",
     "css"
   ],
-  "main": "index.js",
+  "main": "index.cjs",
   "module": "dist/output-css.esm-bundler.js",
   "types": "dist/output-css.d.ts"
 }

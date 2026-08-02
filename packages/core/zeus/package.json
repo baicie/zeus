@@ -19,11 +19,10 @@
       "types": "./dist/zeus.d.ts",
       "module": "./dist/zeus.esm-bundler.js",
       "import": "./dist/zeus.esm-bundler.js",
-      "require": "./index.js",
-      "node": {
-        "production": "./dist/zeus.cjs.prod.js",
-        "development": "./dist/zeus.cjs.js",
-        "default": "./index.js"
+      "require": {
+        "production": "./dist/zeus.prod.cjs",
+        "development": "./dist/zeus.cjs",
+        "default": "./index.cjs"
       }
     },
     "./jsx": {
@@ -40,16 +39,15 @@
     "./capabilities": {
       "types": "./dist/capabilities.d.ts",
       "import": "./dist/capabilities.js",
-      "require": "./dist/capabilities.cjs.js",
-      "node": {
-        "production": "./dist/capabilities.cjs.prod.js",
-        "development": "./dist/capabilities.cjs.js",
-        "default": "./dist/capabilities.cjs.js"
+      "require": {
+        "production": "./dist/capabilities.prod.cjs",
+        "development": "./dist/capabilities.cjs",
+        "default": "./dist/capabilities.cjs"
       }
     }
   },
   "files": [
-    "index.js",
+    "index.cjs",
     "jsx-runtime.js",
     "jsx-runtime.d.ts",
     "jsx-dev-runtime.js",
@@ -85,7 +83,7 @@
   "keywords": [
     "zeus"
   ],
-  "main": "index.js",
+  "main": "index.cjs",
   "module": "dist/zeus.esm-bundler.js",
   "types": "dist/zeus.d.ts",
   "unpkg": "dist/zeus.global.js"

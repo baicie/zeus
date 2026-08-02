@@ -19,16 +19,15 @@
       "types": "./dist/compiler.d.ts",
       "module": "./dist/compiler.esm-bundler.js",
       "import": "./dist/compiler.esm-bundler.js",
-      "require": "./index.js",
-      "node": {
-        "production": "./dist/compiler.cjs.prod.js",
-        "development": "./dist/compiler.cjs.js",
-        "default": "./index.js"
+      "require": {
+        "production": "./dist/compiler.prod.cjs",
+        "development": "./dist/compiler.cjs",
+        "default": "./index.cjs"
       }
     }
   },
   "files": [
-    "index.js",
+    "index.cjs",
     "dist"
   ],
   "peerDependencies": {
@@ -66,7 +65,7 @@
   "keywords": [
     "zeus"
   ],
-  "main": "index.js",
+  "main": "index.cjs",
   "module": "dist/compiler.esm-bundler.js",
   "types": "dist/compiler.d.ts",
   "unpkg": "dist/compiler.global.js"

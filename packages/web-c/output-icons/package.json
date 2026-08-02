@@ -19,16 +19,15 @@
       "types": "./dist/output-icons.d.ts",
       "module": "./dist/output-icons.esm-bundler.js",
       "import": "./dist/output-icons.esm-bundler.js",
-      "require": "./index.js",
-      "node": {
-        "production": "./dist/output-icons.cjs.prod.js",
-        "development": "./dist/output-icons.cjs.js",
-        "default": "./index.js"
+      "require": {
+        "production": "./dist/output-icons.prod.cjs",
+        "development": "./dist/output-icons.cjs",
+        "default": "./index.cjs"
       }
     }
   },
   "files": [
-    "index.js",
+    "index.cjs",
     "dist"
   ],
   "peerDependencies": {
@@ -61,7 +60,7 @@
     "react",
     "vue"
   ],
-  "main": "index.js",
+  "main": "index.cjs",
   "module": "dist/output-icons.esm-bundler.js",
   "types": "dist/output-icons.d.ts"
 }

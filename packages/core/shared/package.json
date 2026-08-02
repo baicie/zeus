@@ -19,16 +19,15 @@
       "types": "./dist/shared.d.ts",
       "module": "./dist/shared.esm-bundler.js",
       "import": "./dist/shared.esm-bundler.js",
-      "require": "./index.js",
-      "node": {
-        "production": "./dist/shared.cjs.prod.js",
-        "development": "./dist/shared.cjs.js",
-        "default": "./index.js"
+      "require": {
+        "production": "./dist/shared.prod.cjs",
+        "development": "./dist/shared.cjs",
+        "default": "./index.cjs"
       }
     }
   },
   "files": [
-    "index.js",
+    "index.cjs",
     "dist"
   ],
   "bugs": {
@@ -44,7 +43,7 @@
   "keywords": [
     "zeus"
   ],
-  "main": "index.js",
+  "main": "index.cjs",
   "module": "dist/shared.esm-bundler.js",
   "types": "dist/shared.d.ts"
 }

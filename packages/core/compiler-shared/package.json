@@ -19,16 +19,15 @@
       "types": "./dist/compiler-shared.d.ts",
       "module": "./dist/compiler-shared.esm-bundler.js",
       "import": "./dist/compiler-shared.esm-bundler.js",
-      "require": "./index.js",
-      "node": {
-        "production": "./dist/compiler-shared.cjs.prod.js",
-        "development": "./dist/compiler-shared.cjs.js",
-        "default": "./index.js"
+      "require": {
+        "production": "./dist/compiler-shared.prod.cjs",
+        "development": "./dist/compiler-shared.cjs",
+        "default": "./index.cjs"
       }
     }
   },
   "files": [
-    "index.js",
+    "index.cjs",
     "dist"
   ],
   "bugs": {
@@ -46,7 +45,7 @@
     "compiler",
     "ir"
   ],
-  "main": "index.js",
+  "main": "index.cjs",
   "module": "dist/compiler-shared.esm-bundler.js",
   "types": "dist/compiler-shared.d.ts"
 }

@@ -15,8 +15,9 @@
       "types": "./dist/vite-plugin.d.ts",
       "import": "./dist/vite-plugin.esm-bundler.js",
       "require": {
-        "types": "./dist/vite-plugin.d.ts",
-        "default": "./dist/vite-plugin.cjs.js"
+        "production": "./dist/vite-plugin.prod.cjs",
+        "development": "./dist/vite-plugin.cjs",
+        "default": "./index.cjs"
       },
       "default": "./dist/vite-plugin.esm-bundler.js"
     }

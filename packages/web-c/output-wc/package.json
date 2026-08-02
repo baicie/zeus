@@ -19,26 +19,24 @@
       "types": "./dist/output-wc.d.ts",
       "module": "./dist/output-wc.esm-bundler.js",
       "import": "./dist/output-wc.esm-bundler.js",
-      "require": "./index.js",
-      "node": {
-        "production": "./dist/output-wc.cjs.prod.js",
-        "development": "./dist/output-wc.cjs.js",
-        "default": "./index.js"
+      "require": {
+        "production": "./dist/output-wc.prod.cjs",
+        "development": "./dist/output-wc.cjs",
+        "default": "./index.cjs"
       }
     },
     "./capabilities": {
       "types": "./dist/capabilities.d.ts",
       "import": "./dist/capabilities.js",
-      "require": "./dist/capabilities.cjs.js",
-      "node": {
-        "production": "./dist/capabilities.cjs.prod.js",
-        "development": "./dist/capabilities.cjs.js",
-        "default": "./dist/capabilities.cjs.js"
+      "require": {
+        "production": "./dist/capabilities.prod.cjs",
+        "development": "./dist/capabilities.cjs",
+        "default": "./dist/capabilities.cjs"
       }
     }
   },
   "files": [
-    "index.js",
+    "index.cjs",
     "dist"
   ],
   "peerDependencies": {
@@ -75,7 +73,7 @@
     "web-components",
     "custom-elements"
   ],
-  "main": "index.js",
+  "main": "index.cjs",
   "module": "dist/output-wc.esm-bundler.js",
   "types": "dist/output-wc.d.ts"
 }

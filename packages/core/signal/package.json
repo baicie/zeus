@@ -1,5 +1,6 @@
 {
   "name": "@zeus-js/signal",
+  "type": "module",
   "version": "0.1.0-beta.9",
   "description": "@zeus-js/signal",
   "license": "MIT",
@@ -18,26 +19,24 @@
       "types": "./dist/signal.d.ts",
       "module": "./dist/signal.esm-bundler.js",
       "import": "./dist/signal.esm-bundler.js",
-      "require": "./index.js",
-      "node": {
-        "production": "./dist/signal.cjs.prod.js",
-        "development": "./dist/signal.cjs.js",
-        "default": "./index.js"
+      "require": {
+        "production": "./dist/signal.prod.cjs",
+        "development": "./dist/signal.cjs",
+        "default": "./index.cjs"
       }
     },
     "./internal": {
       "types": "./dist/internal.d.ts",
       "import": "./dist/internal.js",
-      "require": "./dist/internal.cjs.js",
-      "node": {
-        "production": "./dist/internal.cjs.prod.js",
-        "development": "./dist/internal.cjs.js",
-        "default": "./dist/internal.cjs.js"
+      "require": {
+        "production": "./dist/internal.prod.cjs",
+        "development": "./dist/internal.cjs",
+        "default": "./dist/internal.cjs"
       }
     }
   },
   "files": [
-    "index.js",
+    "index.cjs",
     "dist"
   ],
   "dependencies": {
@@ -68,7 +67,7 @@
   "keywords": [
     "zeus"
   ],
-  "main": "index.js",
+  "main": "index.cjs",
   "module": "dist/signal.esm-bundler.js",
   "types": "dist/signal.d.ts",
   "unpkg": "dist/signal.global.js"

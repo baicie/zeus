@@ -64,6 +64,8 @@ jobs:
 
       - run: pnpm build-dts
 
+      - run: pnpm check:cjs
+
       - run: pnpm check:exports
 
       - run: pnpm examples:check:all

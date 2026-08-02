@@ -19,14 +19,11 @@ const root = path.resolve(__dirname, '../..')
 const require = createRequire(import.meta.url)
 
 // --- 1. Verify no @babel/plugin-syntax-jsx in CJS output ---
-const cjsFile = path.resolve(
-  root,
-  'packages/core/compiler/dist/compiler.cjs.js',
-)
+const cjsFile = path.resolve(root, 'packages/core/compiler/dist/compiler.cjs')
 
 if (!fs.existsSync(cjsFile)) {
-  console.error(`[check-compiler-cjs] CJS output not found at: ${cjsFile}`)
-  console.error('[check-compiler-cjs] Run: pnpm build compiler -f cjs')
+  console.error(`[check-cjs:compiler] CJS output not found at: ${cjsFile}`)
+  console.error('[check-cjs:compiler] Run: pnpm build')
   process.exit(1)
 }
 
@@ -34,15 +31,15 @@ const cjsCode = fs.readFileSync(cjsFile, 'utf-8')
 
 if (cjsCode.includes('@babel/plugin-syntax-jsx')) {
   console.error(
-    '[check-compiler-cjs] FAIL: CJS output should not contain @babel/plugin-syntax-jsx.',
+    '[check-cjs:compiler] FAIL: CJS output should not contain @babel/plugin-syntax-jsx.',
   )
   process.exit(1)
 }
 
-console.log('[check-compiler-cjs] CJS output is clean (no syntax-jsx)')
+console.log('[check-cjs:compiler] CJS output is clean (no syntax-jsx)')
 
 // --- 2. Require CJS entry and run transform smoke test ---
-const compilerEntry = path.resolve(root, 'packages/core/compiler/index.js')
+const compilerEntry = path.resolve(root, 'packages/core/compiler/index.cjs')
 const zeusCompiler = require(compilerEntry)
 const plugin = zeusCompiler.default ?? zeusCompiler
 
@@ -55,7 +52,7 @@ const result = transformSync('const view = <div data-id="ok">ok</div>', {
 
 if (!result?.code) {
   console.error(
-    '[check-compiler-cjs] FAIL: empty transform result from CJS smoke test.',
+    '[check-cjs:compiler] FAIL: empty transform result from CJS smoke test.',
   )
   process.exit(1)
 }
@@ -66,10 +63,10 @@ if (!result?.code) {
 // searching for `<div` (which legitimately appears inside template string literals).
 if (!result?.code?.includes('_template(')) {
   console.error(
-    '[check-compiler-cjs] FAIL: transform did not produce _template() call.',
+    '[check-cjs:compiler] FAIL: transform did not produce _template() call.',
   )
   console.error('Output:', result?.code)
   process.exit(1)
 }
 
-console.log('[check-compiler-cjs] ok')
+console.log('[check-cjs:compiler] ok')

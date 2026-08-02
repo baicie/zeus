@@ -41,6 +41,9 @@ jobs:
       - name: Build devtools
         run: pnpm --filter create-zeus --filter @zeus-js/vite-plugin --if-present build
 
+      - name: Verify CommonJS entries
+        run: pnpm check:cjs
+
       - name: Publish package
         run: pnpm standalone:publish "${{ github.ref_name }}"
         env:

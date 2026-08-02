@@ -19,16 +19,15 @@
       "types": "./dist/component-dts.d.ts",
       "module": "./dist/component-dts.esm-bundler.js",
       "import": "./dist/component-dts.esm-bundler.js",
-      "require": "./index.js",
-      "node": {
-        "production": "./dist/component-dts.cjs.prod.js",
-        "development": "./dist/component-dts.cjs.js",
-        "default": "./index.js"
+      "require": {
+        "production": "./dist/component-dts.prod.cjs",
+        "development": "./dist/component-dts.cjs",
+        "default": "./index.cjs"
       }
     }
   },
   "files": [
-    "index.js",
+    "index.cjs",
     "dist"
   ],
   "dependencies": {
@@ -48,7 +47,7 @@
     "dts",
     "types"
   ],
-  "main": "index.js",
+  "main": "index.cjs",
   "module": "dist/component-dts.esm-bundler.js",
   "types": "dist/component-dts.d.ts"
 }

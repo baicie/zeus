@@ -19,21 +19,24 @@
       "types": "./dist/output-react-wrapper.d.ts",
       "module": "./dist/output-react-wrapper.esm-bundler.js",
       "import": "./dist/output-react-wrapper.esm-bundler.js",
-      "require": "./index.js",
-      "node": {
-        "production": "./dist/output-react-wrapper.cjs.prod.js",
-        "development": "./dist/output-react-wrapper.cjs.js",
-        "default": "./index.js"
+      "require": {
+        "production": "./dist/output-react-wrapper.prod.cjs",
+        "development": "./dist/output-react-wrapper.cjs",
+        "default": "./index.cjs"
       }
     },
     "./runtime": {
       "types": "./dist/runtime/index.d.ts",
       "import": "./dist/runtime/index.js",
-      "require": "./dist/runtime/index.cjs.js"
+      "require": {
+        "production": "./dist/runtime/index.prod.cjs",
+        "development": "./dist/runtime/index.cjs",
+        "default": "./dist/runtime/index.cjs"
+      }
     }
   },
   "files": [
-    "index.js",
+    "index.cjs",
     "dist"
   ],
   "peerDependencies": {
@@ -73,7 +76,7 @@
     "react",
     "web-components"
   ],
-  "main": "index.js",
+  "main": "index.cjs",
   "module": "dist/output-react-wrapper.esm-bundler.js",
   "types": "dist/output-react-wrapper.d.ts"
 }
