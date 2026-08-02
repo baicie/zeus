@@ -17,10 +17,11 @@ const SNAPSHOT_FILE = 'zeus-release-worktree-snapshot.json'
 export function captureReleaseWorktreeSnapshot(
   cwd: string,
 ): ReleaseWorktreeSnapshot {
-  const snapshot: ReleaseWorktreeSnapshot = {}
+  const worktreeRoot = getWorktreeRoot(cwd)
+  const snapshot = Object.create(null) as ReleaseWorktreeSnapshot
 
-  for (const relativePath of listWorktreeChanges(cwd)) {
-    snapshot[relativePath] = hashWorktreePath(cwd, relativePath)
+  for (const relativePath of listWorktreeChanges(worktreeRoot)) {
+    snapshot[relativePath] = hashWorktreePath(worktreeRoot, relativePath)
   }
 
   return snapshot
@@ -80,6 +81,10 @@ export function removeReleaseWorktreeSnapshot(cwd: string): void {
 export function getReleaseWorktreeSnapshotPath(cwd: string): string {
   const gitDir = runGit(cwd, ['rev-parse', '--absolute-git-dir']).trim()
   return path.join(gitDir, SNAPSHOT_FILE)
+}
+
+function getWorktreeRoot(cwd: string): string {
+  return runGit(cwd, ['rev-parse', '--show-toplevel']).trim()
 }
 
 function listWorktreeChanges(cwd: string): string[] {

@@ -33,6 +33,17 @@ describe('release worktree guard', () => {
     ])
   })
 
+  it('rejects a __proto__ path introduced after the release snapshot', () => {
+    const cwd = createRepository()
+    const snapshot = captureReleaseWorktreeSnapshot(cwd)
+
+    writeFileSync(join(cwd, '__proto__'), 'generated\n')
+
+    expect(findUnexpectedReleaseWorktreeChanges(cwd, snapshot)).toEqual([
+      '__proto__',
+    ])
+  })
+
   it('rejects additional mutations to an expected release file', () => {
     const cwd = createRepository()
     writeFileSync(join(cwd, 'package.json'), '{"version":"0.1.0"}\n')
@@ -40,6 +51,23 @@ describe('release worktree guard', () => {
 
     writeFileSync(
       join(cwd, 'package.json'),
+      '{"version":"0.1.0","generated":true}\n',
+    )
+
+    expect(findUnexpectedReleaseWorktreeChanges(cwd, snapshot)).toEqual([
+      'package.json',
+    ])
+  })
+
+  it('uses repository-relative paths when called from a subdirectory', () => {
+    const repositoryRoot = createRepository()
+    const cwd = join(repositoryRoot, 'packages')
+    mkdirSync(cwd)
+    writeFileSync(join(repositoryRoot, 'package.json'), '{"version":"0.1.0"}\n')
+    const snapshot = captureReleaseWorktreeSnapshot(cwd)
+
+    writeFileSync(
+      join(repositoryRoot, 'package.json'),
       '{"version":"0.1.0","generated":true}\n',
     )
 
