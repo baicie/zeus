@@ -114,15 +114,22 @@ function parseNullSeparated(value: string): string[] {
 
 function hashWorktreePath(cwd: string, relativePath: string): string {
   const absolutePath = path.resolve(cwd, relativePath)
+  let stats: ReturnType<typeof lstatSync>
 
-  if (!existsSync(absolutePath)) return 'deleted'
+  try {
+    stats = lstatSync(absolutePath)
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return 'deleted'
+    throw error
+  }
 
-  const stats = lstatSync(absolutePath)
+  const isSymbolicLink = stats.isSymbolicLink()
   const hash = createHash('sha256')
-  hash.update(`${stats.mode & 0o111}:`)
+  hash.update(`${isSymbolicLink ? 'link' : 'file'}:${stats.mode & 0o111}:`)
 
-  if (stats.isSymbolicLink()) {
-    hash.update(`link:${readlinkSync(absolutePath)}`)
+  if (isSymbolicLink) {
+    hash.update(readlinkSync(absolutePath))
   } else {
     hash.update(readFileSync(absolutePath))
   }

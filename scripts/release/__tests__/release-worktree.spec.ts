@@ -1,5 +1,13 @@
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -56,6 +64,37 @@ describe('release worktree guard', () => {
 
     expect(findUnexpectedReleaseWorktreeChanges(cwd, snapshot)).toEqual([
       'package.json',
+    ])
+  })
+
+  it('rejects changing the target of a dangling symbolic link', () => {
+    const cwd = createRepository()
+    const linkPath = join(cwd, 'generated-link')
+    symlinkSync('missing-before', linkPath)
+    const snapshot = captureReleaseWorktreeSnapshot(cwd)
+
+    rmSync(linkPath)
+    symlinkSync('missing-after', linkPath)
+
+    expect(findUnexpectedReleaseWorktreeChanges(cwd, snapshot)).toEqual([
+      'generated-link',
+    ])
+  })
+
+  it('distinguishes symbolic links from executable files', () => {
+    const cwd = createRepository()
+    const generatedPath = join(cwd, 'generated-entry')
+    writeFileSync(join(cwd, 'target'), 'target\n')
+    symlinkSync('target', generatedPath)
+    const linkExecutableBits = lstatSync(generatedPath).mode & 0o111
+    const snapshot = captureReleaseWorktreeSnapshot(cwd)
+
+    rmSync(generatedPath)
+    writeFileSync(generatedPath, 'link:target')
+    chmodSync(generatedPath, 0o600 | linkExecutableBits)
+
+    expect(findUnexpectedReleaseWorktreeChanges(cwd, snapshot)).toEqual([
+      'generated-entry',
     ])
   })
 
