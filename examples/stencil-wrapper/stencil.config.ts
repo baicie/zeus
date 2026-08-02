@@ -30,9 +30,5 @@ export const config: Config = {
       type: 'dist',
       esmLoaderPath: '../loader',
     },
-    {
-      type: 'docs-json',
-      file: './src/generated/custom-elements.json',
-    },
   ],
 }
