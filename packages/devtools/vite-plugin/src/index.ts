@@ -17,6 +17,17 @@ function normalizePatterns(value: RegExp | RegExp[]): RegExp[] {
   return Array.isArray(value) ? value : [value]
 }
 
+function matchesPattern(pattern: RegExp, value: string): boolean {
+  const lastIndex = pattern.lastIndex
+  pattern.lastIndex = 0
+
+  try {
+    return pattern.test(value)
+  } finally {
+    pattern.lastIndex = lastIndex
+  }
+}
+
 function createFilter(options: ZeusVitePluginOptions = {}) {
   const include = normalizePatterns(options.include ?? /\.[tj]sx(?:\?.*)?$/)
   const exclude = normalizePatterns(options.exclude ?? /node_modules/)
@@ -24,11 +35,11 @@ function createFilter(options: ZeusVitePluginOptions = {}) {
   return function shouldTransform(id: string): boolean {
     const cleanId = id.replace(/[?#].*$/, '')
 
-    if (exclude.some(pattern => pattern.test(cleanId))) {
+    if (exclude.some(pattern => matchesPattern(pattern, cleanId))) {
       return false
     }
 
-    return include.some(pattern => pattern.test(cleanId))
+    return include.some(pattern => matchesPattern(pattern, cleanId))
   }
 }
 
