@@ -7,8 +7,9 @@ import {
   staticAttrIR,
 } from '@zeus-js/compiler-shared'
 
+import { createBabelCompilerError } from '../adapters/babel/diagnostic'
 import { lowerExpressionIR } from '../adapters/babel/expression'
-import { CompilerError, CompilerErrorCode } from '../diagnostics'
+import { CompilerErrorCode } from '../diagnostics'
 import { getJSXAttrName, toEventName } from '../parse/jsx'
 
 import type { CompilerContext } from '../context'
@@ -20,10 +21,9 @@ export function lowerAttribute(
   _context: CompilerContext,
 ): AttributeIR | null {
   if (path.isJSXSpreadAttribute() || t.isJSXSpreadAttribute(path.node)) {
-    throw new CompilerError({
+    throw createBabelCompilerError(path, {
       code: CompilerErrorCode.UNSUPPORTED_SPREAD_ATTRIBUTE,
       message: 'Spread attributes are not supported in Zeus MVP.',
-      path,
       hint: 'Use explicit attributes instead, for example <div id={id} />.',
     })
   }
@@ -34,10 +34,9 @@ export function lowerAttribute(
 
   if (!value.node) {
     if (name === 'ref') {
-      throw new CompilerError({
+      throw createBabelCompilerError(path, {
         code: CompilerErrorCode.EMPTY_EXPRESSION,
         message: 'ref attribute requires an expression.',
-        path,
         hint: 'Use <div ref={target} /> instead.',
       })
     }
@@ -46,10 +45,9 @@ export function lowerAttribute(
 
   if (value.isStringLiteral()) {
     if (name === 'ref') {
-      throw new CompilerError({
+      throw createBabelCompilerError(path, {
         code: CompilerErrorCode.INVALID_REF_USAGE,
         message: 'String refs are not supported in Zeus.',
-        path,
         hint: 'Use a state holder or callback ref: <div ref={el} />.',
       })
     }
@@ -60,10 +58,9 @@ export function lowerAttribute(
     const expression = value.get('expression')
 
     if (expression.isJSXEmptyExpression()) {
-      throw new CompilerError({
+      throw createBabelCompilerError(path, {
         code: CompilerErrorCode.EMPTY_EXPRESSION,
         message: `Attribute "${name}" expression cannot be empty.`,
-        path,
       })
     }
 

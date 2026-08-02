@@ -1,32 +1,49 @@
+import {
+  createCompilerDiagnostic,
+  formatCompilerDiagnostic,
+  type CompilerDiagnostic,
+} from './CompilerDiagnostic'
+
 import type { CompilerErrorCode } from './codes'
-import type { SourceLocation } from '@babel/types'
+import type { SourcePosition, SourceSpan } from '@zeus-js/compiler-shared'
 
-type ErrorPath = {
-  node: {
-    loc?: SourceLocation | null
-  }
-}
-
-export type CompilerErrorOptions = {
+export interface CompilerErrorOptions {
   code: CompilerErrorCode
   message: string
-  path?: ErrorPath
   hint?: string
+  filename?: string
+  span?: SourceSpan
 }
 
 export class CompilerError extends Error {
-  code: CompilerErrorCode
-  hint?: string
+  readonly diagnostic: CompilerDiagnostic
+  readonly code: CompilerDiagnostic['code']
+  readonly severity: 'error'
+  readonly hint?: string
+  readonly filename?: string
+  readonly span?: SourceSpan
+  readonly loc?: Pick<SourcePosition, 'line' | 'column'>
 
   constructor(options: CompilerErrorOptions) {
-    const loc = options.path?.node.loc?.start
-    const location = loc ? ` (${loc.line}:${loc.column})` : ''
-    const hint = options.hint ? `\nHint: ${options.hint}` : ''
+    const diagnostic = createCompilerDiagnostic({
+      ...options,
+      severity: 'error',
+    })
 
-    super(`[${options.code}] ${options.message}${location}${hint}`)
+    super(formatCompilerDiagnostic(diagnostic))
 
     this.name = 'ZeusCompilerError'
-    this.code = options.code
-    this.hint = options.hint
+    this.diagnostic = diagnostic
+    this.code = diagnostic.code
+    this.severity = 'error'
+    this.hint = diagnostic.hint
+    this.filename = diagnostic.filename
+    this.span = diagnostic.span
+    this.loc = diagnostic.span
+      ? {
+          line: diagnostic.span.start.line,
+          column: diagnostic.span.start.column,
+        }
+      : undefined
   }
 }

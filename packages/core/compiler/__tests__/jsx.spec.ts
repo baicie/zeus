@@ -361,33 +361,41 @@ describe('zeus compiler jsx transform', () => {
     expect(await compile(code)).toMatchSnapshot()
   })
 
-  it('compiles Slot to createSlot', async () => {
+  it('compiles Slot to createSlot inside defineElement', async () => {
     const code = `
-      import { Host, Slot } from '@zeus-js/runtime-dom'
+      import { defineElement, Host, Slot } from '@zeus-js/runtime-dom'
 
-      const App = () => (
-        <Host>
-          <article>
-            <Slot />
-            <Slot name="footer">
-              <button>fallback</button>
-            </Slot>
-          </article>
-        </Host>
+      const App = defineElement(
+        'z-app',
+        {},
+        () => (
+          <Host>
+            <article>
+              <Slot />
+              <Slot name="footer">
+                <button>fallback</button>
+              </Slot>
+            </article>
+          </Host>
+        ),
       )
     `
 
     expect(await compile(code)).toMatchSnapshot()
   })
 
-  it('compiles Host as no-op wrapper', async () => {
+  it('compiles Host as the defineElement root boundary', async () => {
     const code = `
-      import { Host } from '@zeus-js/runtime-dom'
+      import { defineElement, Host } from '@zeus-js/runtime-dom'
 
-      const App = () => (
-        <Host>
-          <div>hello</div>
-        </Host>
+      const App = defineElement(
+        'z-app',
+        {},
+        () => (
+          <Host>
+            <div>hello</div>
+          </Host>
+        ),
       )
     `
 

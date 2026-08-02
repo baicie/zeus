@@ -135,15 +135,21 @@ describe('zeus compiler ir-first pipeline', () => {
 
   it('compiles Host and Slot as IR built-ins', async () => {
     const code = `
-      const App = () => (
-        <Host>
-          <header>
-            <Slot name="header" />
-          </header>
-          <main>
-            <Slot />
-          </main>
-        </Host>
+      import { defineElement, Host, Slot } from '@zeus-js/runtime-dom'
+
+      const App = defineElement(
+        'z-app',
+        {},
+        () => (
+          <Host>
+            <header>
+              <Slot name="header" />
+            </header>
+            <main>
+              <Slot />
+            </main>
+          </Host>
+        ),
       )
     `
 

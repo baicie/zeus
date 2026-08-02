@@ -9,6 +9,7 @@ import {
   appendEvents,
   appendImportMethods,
 } from './codegen/support'
+import { collectDefineElementSetups } from './context'
 import { setZeusMetadata } from './utils'
 
 import type {
@@ -26,6 +27,7 @@ function enterProgram(
   state: BabelState,
 ): void {
   setZeusMetadata(state, config)
+  collectDefineElementSetups(path, config.moduleName)
 }
 
 //#endregion

@@ -1,5 +1,5 @@
 import { emitDOM } from '../codegen/dom'
-import { getCompilerContext } from '../context'
+import { getCompilerContext, isDefineElementRenderRoot } from '../context'
 import { lowerJSX } from '../lower'
 import {
   analyzeBindings,
@@ -24,7 +24,10 @@ export function transformJSX(
   const ir = lowerJSX(path, context)
 
   normalizeChildren(ir)
-  validateBuiltins(ir)
+  validateBuiltins(ir, {
+    isDefineElementRenderRoot: isDefineElementRenderRoot(path),
+    filename: state.filename,
+  })
   assignDomPaths(ir)
   assignPhysicalDomPaths(ir)
   analyzeBindings(ir)

@@ -537,7 +537,6 @@ export interface ZeusVitePluginOptions {
   include?: RegExp | RegExp[] // 包含的文件，默认 /\.t[j]sx/
   exclude?: RegExp | RegExp[] // 排除的文件，默认 node_modules
   compiler?: Partial<CompilerOptions> // 编译器选项
-  diagnostics?: boolean // 是否输出诊断信息
 }
 ```
 
@@ -556,7 +555,6 @@ export default defineConfig({
         delegateEvents: true,
         // ... 其他编译器选项
       },
-      diagnostics: true,
     }),
   ],
 })

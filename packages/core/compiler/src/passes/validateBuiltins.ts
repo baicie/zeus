@@ -2,14 +2,26 @@ import { CompilerError, CompilerErrorCode } from '../diagnostics'
 
 import type { ZeusIRNode } from '@zeus-js/compiler-shared'
 
-export function validateBuiltins(node: ZeusIRNode): void {
+export interface ValidateBuiltinsOptions {
+  isDefineElementRenderRoot: boolean
+  filename?: string
+}
+
+export function validateBuiltins(
+  node: ZeusIRNode,
+  options: ValidateBuiltinsOptions,
+): void {
   visit(node, {
+    isDefineElementRenderRoot: options.isDefineElementRenderRoot,
+    filename: options.filename,
     insideHost: false,
     root: true,
   })
 }
 
 type ValidateState = {
+  isDefineElementRenderRoot: boolean
+  filename?: string
   insideHost: boolean
   root: boolean
 }
@@ -17,15 +29,18 @@ type ValidateState = {
 function visit(node: ZeusIRNode, state: ValidateState): void {
   switch (node.kind) {
     case 'Host':
-      if (!state.root) {
+      if (!state.isDefineElementRenderRoot || !state.root) {
         throw new CompilerError({
           code: CompilerErrorCode.INVALID_BUILTIN_USAGE,
-          message: '<Host> can only be used as a root host boundary.',
+          message: '<Host> can only be used as a defineElement root boundary.',
+          filename: state.filename,
+          span: node.span,
+          hint: 'Return <Host> directly from the defineElement setup function.',
         })
       }
 
       if (node.child) {
-        visit(node.child, { insideHost: true, root: false })
+        visit(node.child, { ...state, insideHost: true, root: false })
       }
       return
 
@@ -33,8 +48,16 @@ function visit(node: ZeusIRNode, state: ValidateState): void {
       if (!state.insideHost) {
         throw new CompilerError({
           code: CompilerErrorCode.INVALID_BUILTIN_USAGE,
-          message: '<Slot> can only be used inside <Host>.',
+          message:
+            '<Slot> can only be used inside the defineElement Host boundary.',
+          filename: state.filename,
+          span: node.span,
+          hint: 'Place <Slot> inside the root <Host> returned by defineElement setup.',
         })
+      }
+
+      for (const child of node.fallback) {
+        visit(child, { ...state, root: false })
       }
       return
 

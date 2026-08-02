@@ -203,12 +203,14 @@ export function forIR(input: {
 export function hostIR(input: {
   attrs: HostAttrIR[]
   child?: ZeusIRNode
+  span?: SourceSpan
 }): HostIR {
   return {
     id: id(),
     kind: 'Host',
     attrs: input.attrs,
     child: input.child,
+    span: input.span,
   }
 }
 
@@ -216,6 +218,7 @@ export function slotIR(input: {
   ref: IRRef
   name?: string
   fallback?: ZeusIRNode[]
+  span?: SourceSpan
 }): SlotIR {
   return {
     id: id(),
@@ -223,5 +226,6 @@ export function slotIR(input: {
     ref: input.ref,
     name: input.name,
     fallback: input.fallback ?? [],
+    span: input.span,
   }
 }

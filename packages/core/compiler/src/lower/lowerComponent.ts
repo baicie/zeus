@@ -1,11 +1,12 @@
 import * as t from '@babel/types'
 import { componentIR, ref } from '@zeus-js/compiler-shared'
 
+import { createBabelCompilerError } from '../adapters/babel/diagnostic'
 import {
   expressionIRFromCode,
   lowerExpressionIR,
 } from '../adapters/babel/expression'
-import { CompilerError, CompilerErrorCode } from '../diagnostics'
+import { CompilerErrorCode } from '../diagnostics'
 import { lowerChildren } from './lowerChildren'
 import { getJSXAttrName } from '../parse/jsx'
 
@@ -28,10 +29,9 @@ export function lowerComponent(
     const node = attr.node
 
     if (t.isJSXSpreadAttribute(node)) {
-      throw new CompilerError({
+      throw createBabelCompilerError(attr, {
         code: CompilerErrorCode.UNSUPPORTED_COMPONENT_PROP,
         message: 'Spread props are not supported in Zeus MVP.',
-        path: attr,
       })
     }
 
@@ -59,10 +59,9 @@ export function lowerComponent(
       const expression = value.get('expression')
 
       if (expression.isJSXEmptyExpression()) {
-        throw new CompilerError({
+        throw createBabelCompilerError(attr, {
           code: CompilerErrorCode.EMPTY_EXPRESSION,
           message: `Component prop "${name}" expression cannot be empty.`,
-          path: attr,
         })
       }
 

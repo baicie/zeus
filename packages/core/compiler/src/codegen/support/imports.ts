@@ -19,6 +19,7 @@ type ImportMethodRecord = {
 }
 
 export type ProgramScopeData = {
+  defineElementSetups?: WeakSet<t.Function>
   importMethods?: Map<string, ImportMethodRecord>
   events?: Set<string>
   templates?: TemplateRecord[]
