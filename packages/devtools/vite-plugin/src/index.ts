@@ -28,12 +28,16 @@ function matchesPattern(pattern: RegExp, value: string): boolean {
   }
 }
 
+function cleanModuleId(id: string): string {
+  return id.replace(/[?#].*$/, '')
+}
+
 function createFilter(options: ZeusVitePluginOptions = {}) {
   const include = normalizePatterns(options.include ?? /\.[tj]sx(?:\?.*)?$/)
   const exclude = normalizePatterns(options.exclude ?? /node_modules/)
 
   return function shouldTransform(id: string): boolean {
-    const cleanId = id.replace(/[?#].*$/, '')
+    const cleanId = cleanModuleId(id)
 
     if (exclude.some(pattern => matchesPattern(pattern, cleanId))) {
       return false
@@ -77,12 +81,14 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
     },
 
     async transform(code, id) {
-      if (!shouldTransform(id)) {
+      const filename = cleanModuleId(id)
+
+      if (!shouldTransform(filename)) {
         return null
       }
 
       const result = await transformAsync(code, {
-        filename: id,
+        filename,
         sourceMaps: true,
         plugins: [
           [
