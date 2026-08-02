@@ -10,7 +10,12 @@ import type {
 } from '@zeus-js/compiler-shared'
 
 export function lowerExpressionIR(path: NodePath<t.Expression>): ExpressionIR {
-  return expressionIR(path.toString(), sourceSpanFromBabelNode(path.node))
+  const source = path.getSource()
+
+  return expressionIR(
+    source || path.toString(),
+    sourceSpanFromBabelNode(path.node),
+  )
 }
 
 export function expressionIRFromCode(
@@ -21,9 +26,20 @@ export function expressionIRFromCode(
 }
 
 export function parseExpressionIR(expression: ExpressionIR): t.Expression {
+  const start = expression.span?.start
+  const sourceStart =
+    typeof start?.offset === 'number'
+      ? {
+          startLine: start.line,
+          startColumn: start.column,
+          startIndex: start.offset,
+        }
+      : {}
+
   return parseExpression(expression.code, {
     sourceType: 'module',
     plugins: ['typescript', 'jsx'],
+    ...sourceStart,
   })
 }
 

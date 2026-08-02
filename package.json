@@ -100,6 +100,7 @@
     "@baicie/release": "^0.4.0",
     "@baicie/scripts": "^0.1.2",
     "@changesets/cli": "^2.31.0",
+    "@jridgewell/trace-mapping": "^0.3.31",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-replace": "^6.0.3",
     "@rollup/plugin-typescript": "^12.3.0",

@@ -31,4 +31,29 @@ describe('Babel expression IR adapter', () => {
       end: { line: 4, column: 17, offset: 61 },
     })
   })
+
+  it('restores source spans when parsing expression IR', () => {
+    const expression = parseExpressionIR(
+      expressionIR('props.title', {
+        start: { line: 7, column: 12, offset: 80 },
+        end: { line: 7, column: 23, offset: 91 },
+      }),
+    )
+
+    expect(sourceSpanFromBabelNode(expression)).toEqual({
+      start: { line: 7, column: 12, offset: 80 },
+      end: { line: 7, column: 23, offset: 91 },
+    })
+  })
+
+  it('parses source spans without offsets', () => {
+    const expression = parseExpressionIR(
+      expressionIR('props.title', {
+        start: { line: 7, column: 12 },
+        end: { line: 7, column: 23 },
+      }),
+    )
+
+    expect(expression.type).toBe('MemberExpression')
+  })
 })
