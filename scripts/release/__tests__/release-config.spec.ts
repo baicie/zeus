@@ -45,6 +45,7 @@ describe('zeus release config', () => {
 
   it('keeps release gates aligned with current zeus release precheck', () => {
     expect(config.precheck?.commands).toEqual([
+      ['pnpm', 'check:release-worktree', '--capture'],
       ['pnpm', 'check:branch'],
       ['pnpm', 'build'],
       ['pnpm', 'check:compiler-cjs'],
@@ -60,6 +61,7 @@ describe('zeus release config', () => {
       ['pnpm', 'size:ci'],
       ['pnpm', 'check:exports'],
       ['pnpm', 'check:repository'],
+      ['pnpm', 'check:release-worktree', '--verify'],
     ])
   })
 

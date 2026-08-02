@@ -36,6 +36,7 @@
     "examples:check": "pnpm -r --filter './examples/**' check",
     "examples:check:all": "tsx scripts/check/check-examples.ts",
     "check:registry-cli": "tsx scripts/release/check-registry-cli.ts",
+    "check:release-worktree": "tsx scripts/release/check-release-worktree.ts",
     "check:repository": "tsx scripts/check/check-package-repository.ts",
     "check:package-versions": "tsx scripts/check/check-zeus-package-versions.ts",
     "release:rc-notes": "tsx scripts/release/create-rc-notes.ts",
