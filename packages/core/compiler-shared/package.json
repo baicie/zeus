@@ -1,0 +1,52 @@
+{
+  "name": "@zeus-js/compiler-shared",
+  "type": "module",
+  "version": "0.1.0-beta.8",
+  "description": "Babel-independent Zeus compiler IR contracts",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baicie/zeus.git",
+    "directory": "packages/core/compiler-shared"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/compiler-shared.d.ts",
+      "module": "./dist/compiler-shared.esm-bundler.js",
+      "import": "./dist/compiler-shared.esm-bundler.js",
+      "require": "./index.js",
+      "node": {
+        "production": "./dist/compiler-shared.cjs.prod.js",
+        "development": "./dist/compiler-shared.cjs.js",
+        "default": "./index.js"
+      }
+    }
+  },
+  "files": [
+    "index.js",
+    "dist"
+  ],
+  "bugs": {
+    "url": "https://github.com/baicie/zeus/issues"
+  },
+  "buildOptions": {
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ]
+  },
+  "homepage": "https://github.com/baicie/zeus/tree/main/packages/core/compiler-shared#readme",
+  "keywords": [
+    "zeus",
+    "compiler",
+    "ir"
+  ],
+  "main": "index.js",
+  "module": "dist/compiler-shared.esm-bundler.js",
+  "types": "dist/compiler-shared.d.ts"
+}

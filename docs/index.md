@@ -13,8 +13,8 @@ hero:
       link: https://github.com/baicie/zeus
 
 features:
-  - title: Unified state()
-    details: One API for primitives, objects, arrays, and collections. No ref() vs reactive() confusion.
+  - title: Explicit signals
+    details: Getter/setter signals, cached memos, owned effects, and predictable cleanup.
   - title: Compiled JSX
     details: JSX compiles to direct DOM operations. No Virtual DOM overhead.
   - title: Fine-grained updates

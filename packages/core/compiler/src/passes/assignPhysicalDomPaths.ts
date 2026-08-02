@@ -8,7 +8,7 @@ import type {
   ShowIR,
   SlotIR,
   ZeusIRNode,
-} from '../ir/nodes'
+} from '@zeus-js/compiler-shared'
 
 type RefNode = ElementIR | DynamicTextIR | ComponentIR | ShowIR | ForIR | SlotIR
 

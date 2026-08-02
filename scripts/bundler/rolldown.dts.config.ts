@@ -36,9 +36,7 @@ const targetPackages = (
         .filter(pkg => pkg.packageJson.buildOptions)
         .filter(pkg => existsSync(`temp/${pkg.relativeDir}/src/index.d.ts`))
         .map(pkg => pkg.shortName)
-)
-  .filter(pkg => !pkg.includes('compiler-'))
-  .filter(pkg => wsPkgsByShort.has(pkg))
+).filter(pkg => wsPkgsByShort.has(pkg))
 
 // vite-plugin: copy directly from source
 if (targetPackages.includes('vite-plugin')) {

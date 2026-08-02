@@ -239,6 +239,54 @@ export declare function mountFor<T, K = unknown>(
   render: (item: T, index: number) => JSXValue,
 ): void
 
+export type CustomElementPropType =
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'object'
+  | 'array'
+  | 'function'
+  | 'unknown'
+export interface CustomElementPropSchema {
+  name: string
+  attrName?: string | false
+  type: CustomElementPropType
+  reflect?: boolean
+  serialize?: true | ((value: unknown) => string | null | undefined)
+  deserialize?: true | ((value: string | null) => unknown)
+}
+export interface CustomElementMount {
+  dispose(): void
+}
+export interface CustomElementMountLifecycle<M extends CustomElementMount> {
+  connect(): M
+  disconnect(): void
+  current(): M | undefined
+}
+export declare function getCustomElementAttributeName(
+  prop: CustomElementPropSchema,
+): string | undefined
+export declare function getCustomElementObservedAttributes(
+  props: readonly CustomElementPropSchema[],
+): string[]
+export declare function findCustomElementPropByAttribute(
+  props: readonly CustomElementPropSchema[],
+  attrName: string,
+): CustomElementPropSchema | undefined
+export declare function coerceCustomElementAttribute(
+  prop: CustomElementPropSchema,
+  value: string | null,
+): unknown
+export declare function reflectCustomElementProperty(
+  element: HTMLElement,
+  prop: CustomElementPropSchema,
+  value: unknown,
+  reflectingAttrs?: Set<string>,
+): void
+export declare function createCustomElementMountLifecycle<
+  M extends CustomElementMount,
+>(mount: () => M): CustomElementMountLifecycle<M>
+
 export type ElementPropConstructor =
   | StringConstructor
   | NumberConstructor
@@ -414,10 +462,8 @@ export type DefineElementSetup<
   E extends HTMLElement = HTMLElement,
   Emits extends EmitsOptions = EmitsOptions,
 > = (props: Readonly<P>, context: DefineElementContext<E, Emits>) => JSXValue
-export type NormalizedPropDefinition = {
-  key: string
-  attr: string | false
-  type?: ElementPropConstructor
+export type NormalizedPropDefinition = CustomElementPropSchema & {
+  attrName: string | false
   reflect: boolean
   default?: unknown
   serialize?: (value: unknown) => string | null | undefined
@@ -533,12 +579,18 @@ export declare function createSlot(
   name?: string,
   fallback?: () => JSXValue,
 ): JSXValue
+interface LightDomProjection {
+  createSlot(name?: string, fallback?: () => JSXValue): DocumentFragment
+  connect(): void
+  disconnect(): void
+}
 
 export type HostRenderMode = 'light' | 'shadow'
 export interface HostRenderContext {
   host: HTMLElement
   mode: HostRenderMode
-  lightChildren: readonly Node[]
+  lightChildren: Node[]
+  projection?: LightDomProjection
 }
 export declare function getCurrentHostContext(): HostRenderContext | undefined
 export declare function withHostContext<T>(

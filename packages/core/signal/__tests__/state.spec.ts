@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { state, effect, computed, isValueState } from '../src'
+import { state, effect, computed, isValueState } from '../src/internal'
 
 describe('state', () => {
   it('creates value state for primitive', () => {

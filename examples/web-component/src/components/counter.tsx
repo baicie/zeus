@@ -1,4 +1,4 @@
-import { Host, Slot, defineElement, event, state } from '@zeus-js/zeus'
+import { createSignal, Host, Slot, defineElement, event } from '@zeus-js/zeus'
 
 defineElement<{ title: string; initialCount: number }>(
   'z-counter',
@@ -13,9 +13,9 @@ defineElement<{ title: string; initialCount: number }>(
     },
   },
   (props, { emit, expose }) => {
-    const count = state(props.initialCount ?? 0)
+    const [count, writeCount] = createSignal(props.initialCount ?? 0)
     const setCount = (next: number) => {
-      count.value = next
+      writeCount(next)
       emit.change({ count: next })
     }
 
@@ -58,10 +58,10 @@ defineElement<{ title: string; initialCount: number }>(
         `}</style>
         <div class="counter">
           <h2>{props.title}</h2>
-          <div class="count">{count.value}</div>
+          <div class="count">{count()}</div>
           <div class="buttons">
-            <button onClick={() => setCount(count.value - 1)}>-</button>
-            <button onClick={() => setCount(count.value + 1)}>+</button>
+            <button onClick={() => setCount(count() - 1)}>-</button>
+            <button onClick={() => setCount(count() + 1)}>+</button>
             <button onClick={() => setCount(props.initialCount ?? 0)}>
               Reset
             </button>

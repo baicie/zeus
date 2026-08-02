@@ -1,10 +1,9 @@
 // packages/runtime-dom/src/insert.ts
 
-import { effect, onScopeDispose, stop } from '@zeus-js/signal'
+import { effect, onScopeDispose, stop } from '@zeus-js/signal/internal'
 
-import { getCurrentOwner, runWithOwner } from './context'
-import { captureCurrentHostContext, withHostContext } from './hostContext'
-import { DynamicRange, insertTracked } from './range'
+import { insertTracked } from './range'
+import { captureScopedSubtreeContext, ScopedSubtree } from './scopedSubtree'
 
 import type { JSXValue } from './types'
 
@@ -34,17 +33,18 @@ export function mountDynamic(
   marker: Node,
   value: () => JSXValue,
 ): void {
-  const range = new DynamicRange(parent, marker)
-  const hostContext = captureCurrentHostContext()
-  const owner = getCurrentOwner()
+  const subtree = new ScopedSubtree(
+    parent,
+    marker,
+    captureScopedSubtreeContext(),
+  )
 
   const runner = effect(() => {
-    const next = runWithOwner(owner, () => withHostContext(hostContext, value))
-    range.replace(next)
+    subtree.replace(value)
   })
 
   onScopeDispose(() => {
     stop(runner)
-    range.clear()
+    subtree.dispose()
   }, true)
 }

@@ -3,15 +3,15 @@
 ## Basic component
 
 ```tsx
-import { state } from '@zeus-js/zeus'
+import { createSignal } from '@zeus-js/zeus'
 
 function Counter() {
-  const count = state(0)
+  const [count, setCount] = createSignal(0)
 
   return (
     <div>
-      <span>{count.value}</span>
-      <button onClick={() => count.value++}>+</button>
+      <span>{count()}</span>
+      <button onClick={() => setCount(count() + 1)}>+</button>
     </div>
   )
 }
@@ -26,22 +26,22 @@ interface Props {
 }
 
 function Counter({ title, initialCount = 0 }: Props) {
-  const count = state(initialCount)
+  const [count, setCount] = createSignal(initialCount)
 
   return (
     <div>
       <h2>{title}</h2>
-      <span>{count.value}</span>
-      <button onClick={() => count.value++}>+</button>
+      <span>{count()}</span>
+      <button onClick={() => setCount(count() + 1)}>+</button>
     </div>
   )
 }
 ```
 
-## Local state
+## Local signals
 
-Each component instance has its own state. State is created on initialization.
+Each component instance creates its own signals during initialization.
 
 ## Component lifecycle
 
-The component function runs **once** on initialization. Subsequent updates are driven by `state` changes, not re-renders.
+The component function runs **once** on initialization. Subsequent updates are driven by signal changes, not re-renders.

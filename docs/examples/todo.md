@@ -1,9 +1,9 @@
 # Todo
 
-A todo app demonstrating For, keyed diff, and object state.
+A todo app demonstrating `For`, immutable signal updates, and event binding.
 
 ```tsx
-import { For, render, Show, state } from '@zeus-js/zeus'
+import { createSignal, For, render } from '@zeus-js/zeus'
 
 interface Todo {
   id: number
@@ -12,48 +12,45 @@ interface Todo {
 }
 
 function TodoApp() {
-  const todos = state<Todo[]>([])
-  const input = state('')
+  const [todos, setTodos] = createSignal<Todo[]>([])
+  const [input, setInput] = createSignal('')
 
   function addTodo() {
-    if (!input.value.trim()) return
+    if (!input().trim()) return
 
-    todos.push({
-      id: Date.now(),
-      title: input.value,
-      done: false,
-    })
-    input.value = ''
+    setTodos(current => [
+      ...current,
+      { id: Date.now(), title: input(), done: false },
+    ])
+    setInput('')
+  }
+
+  function setDone(id: number, done: boolean) {
+    setTodos(current =>
+      current.map(todo => (todo.id === id ? { ...todo, done } : todo)),
+    )
   }
 
   return (
     <div>
-      <h1>Todo</h1>
-
       <input
-        value={input.value}
-        onInput={e => {
-          input.value = e.currentTarget.value
-        }}
+        prop:value={input()}
+        onInput={event => setInput(event.currentTarget.value)}
       />
       <button onClick={addTodo}>Add</button>
 
       <ul>
-        <For each={todos} by={todo => todo.id}>
+        <For each={todos()}>
           {todo => (
             <li>
               <input
                 type="checkbox"
-                checked={todo.done}
-                onChange={e => {
-                  todo.done = e.currentTarget.checked
-                }}
+                prop:checked={todo.done}
+                onChange={event =>
+                  setDone(todo.id, event.currentTarget.checked)
+                }
               />
-              <span
-                style={{ textDecoration: todo.done ? 'line-through' : 'none' }}
-              >
-                {todo.title}
-              </span>
+              <span>{todo.title}</span>
             </li>
           )}
         </For>
@@ -65,9 +62,4 @@ function TodoApp() {
 render(() => <TodoApp />, document.getElementById('root')!)
 ```
 
-## Key concepts
-
-- `For` with `by` for keyed list rendering
-- Object state with `state<T[]>([])`
-- Mutating reactive objects directly
-- Checkbox binding with `prop:checked`
+The list is intentionally unkeyed because each immutable update replaces todo objects. Keyed records preserve their existing subtree and are better suited to items whose changing fields are explicit accessors.

@@ -1,6 +1,6 @@
 import type { ComponentIR, ZeusIRNode } from './nodes'
 
-export type IRVisitor = {
+export interface IRVisitor {
   enter?: (node: ZeusIRNode, parent?: ZeusIRNode) => void
   leave?: (node: ZeusIRNode, parent?: ZeusIRNode) => void
 }
@@ -24,27 +24,21 @@ export function getIRChildren(node: ZeusIRNode): ZeusIRNode[] {
     case 'Element':
     case 'Fragment':
       return node.children
-
     case 'Component':
       return node.props.flatMap(prop =>
         Array.isArray(prop.value) ? prop.value : [],
       )
-
     case 'Show':
       return [
         ...node.children,
         ...(Array.isArray(node.fallback) ? node.fallback : []),
       ]
-
     case 'For':
       return node.body
-
     case 'Slot':
       return node.fallback
-
     case 'Host':
       return node.child ? [node.child] : []
-
     case 'Text':
     case 'DynamicText':
       return []

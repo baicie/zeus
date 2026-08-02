@@ -1,4 +1,4 @@
-import { scope } from '@zeus-js/signal'
+import { scope } from '@zeus-js/signal/internal'
 
 import { createOwner, runWithOwner } from './context'
 import { emitDevtoolsEvent } from './devtools'

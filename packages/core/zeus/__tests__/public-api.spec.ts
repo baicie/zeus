@@ -1,17 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
+import packageJson from '../package.json'
 import * as zeus from '../src'
 
 describe('@zeus-js/zeus public API', () => {
   it('exports stable user-facing APIs', () => {
-    expect(zeus).toHaveProperty('state')
-    expect(zeus).toHaveProperty('computed')
-    expect(zeus).toHaveProperty('effect')
-    expect(zeus).toHaveProperty('watch')
-    expect(zeus).toHaveProperty('scope')
+    expect(zeus).toHaveProperty('createSignal')
+    expect(zeus).toHaveProperty('createMemo')
+    expect(zeus).toHaveProperty('createEffect')
+    expect(zeus).toHaveProperty('createRoot')
     expect(zeus).toHaveProperty('batch')
-    expect(zeus).toHaveProperty('untrack')
-    expect(zeus).toHaveProperty('nextTick')
     expect(zeus).toHaveProperty('onCleanup')
     expect(zeus).toHaveProperty('render')
     expect(zeus).toHaveProperty('Show')
@@ -23,6 +21,20 @@ describe('@zeus-js/zeus public API', () => {
     expect(zeus).toHaveProperty('jsx')
     expect(zeus).toHaveProperty('jsxs')
     expect(zeus).toHaveProperty('jsxDEV')
+  })
+
+  it('does not retain the superseded beta reactivity surface', () => {
+    expect(zeus).not.toHaveProperty('state')
+    expect(zeus).not.toHaveProperty('computed')
+    expect(zeus).not.toHaveProperty('effect')
+    expect(zeus).not.toHaveProperty('watch')
+    expect(zeus).not.toHaveProperty('scope')
+    expect(zeus).not.toHaveProperty('untrack')
+    expect(zeus).not.toHaveProperty('nextTick')
+  })
+
+  it('does not publish the superseded advanced reactivity entry', () => {
+    expect(packageJson.exports).not.toHaveProperty('./advanced')
   })
 
   it('does not export compiler/runtime internal helpers from main entry', () => {

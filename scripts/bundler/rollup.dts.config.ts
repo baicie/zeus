@@ -38,9 +38,7 @@ const targetPackages = (
         .filter(pkg => pkg.packageJson.buildOptions)
         .filter(pkg => existsSync(`temp/${pkg.relativeDir}/src/index.d.ts`))
         .map(pkg => pkg.shortName)
-)
-  .filter(pkg => !pkg.includes('compiler-'))
-  .filter(pkg => wsPkgsByShort.has(pkg))
+).filter(pkg => wsPkgsByShort.has(pkg))
 
 const packageConfigs: RollupOptions[] = targetPackages.flatMap(pkg => {
   const pkgDir = wsPkgsByShort.get(pkg)?.dir

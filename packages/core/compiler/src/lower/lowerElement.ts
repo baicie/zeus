@@ -1,15 +1,16 @@
+import { elementIR, ref } from '@zeus-js/compiler-shared'
+
 import { lowerAttribute } from './lowerAttribute'
 import { isBuiltinTag, lowerBuiltin } from './lowerBuiltin'
 import { lowerChildren } from './lowerChildren'
 import { lowerComponent } from './lowerComponent'
-import { elementIR, ref } from '../ir/semanticBuilders'
 import { getTagName, isComponentTag } from '../parse/jsx'
 import { VoidElements } from '../utils'
 
 import type { CompilerContext } from '../context'
-import type { ElementIR, ZeusIRNode } from '../ir/nodes'
 import type { NodePath } from '@babel/core'
 import type * as t from '@babel/types'
+import type { ElementIR, ZeusIRNode } from '@zeus-js/compiler-shared'
 
 export function lowerElement(
   path: NodePath<t.JSXElement>,

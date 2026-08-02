@@ -1,4 +1,4 @@
-import { For, render, state } from '@zeus-js/zeus'
+import { createSignal, For, render } from '@zeus-js/zeus'
 
 interface Todo {
   id: number
@@ -7,23 +7,31 @@ interface Todo {
 }
 
 function TodoApp() {
-  const todos = state<Todo[]>([])
-  const input = state('')
+  const [todos, setTodos] = createSignal<Todo[]>([])
+  const [input, setInput] = createSignal('')
 
   function addTodo() {
-    if (!input.value.trim()) return
+    if (!input().trim()) return
 
-    todos.push({
-      id: Date.now(),
-      title: input.value,
-      done: false,
-    })
-    input.value = ''
+    setTodos(current => [
+      ...current,
+      {
+        id: Date.now(),
+        title: input(),
+        done: false,
+      },
+    ])
+    setInput('')
   }
 
   function removeTodo(id: number) {
-    const idx = todos.findIndex(t => t.id === id)
-    if (idx !== -1) todos.splice(idx, 1)
+    setTodos(current => current.filter(todo => todo.id !== id))
+  }
+
+  function setTodoDone(id: number, done: boolean) {
+    setTodos(current =>
+      current.map(todo => (todo.id === id ? { ...todo, done } : todo)),
+    )
   }
 
   return (
@@ -33,9 +41,9 @@ function TodoApp() {
       <div class="input-row">
         <input
           type="text"
-          prop:value={input.value}
+          prop:value={input()}
           onInput={e => {
-            input.value = (e.currentTarget as HTMLInputElement).value
+            setInput((e.currentTarget as HTMLInputElement).value)
           }}
           onKeyDown={e => {
             if (e.key === 'Enter') addTodo()
@@ -47,14 +55,17 @@ function TodoApp() {
       </div>
 
       <ul>
-        <For each={todos} by={todo => todo.id}>
+        <For each={todos()}>
           {todo => (
             <li>
               <input
                 type="checkbox"
                 prop:checked={todo.done}
                 onChange={e => {
-                  todo.done = (e.currentTarget as HTMLInputElement).checked
+                  setTodoDone(
+                    todo.id,
+                    (e.currentTarget as HTMLInputElement).checked,
+                  )
                 }}
               />
               <span class={`todo-text${todo.done ? ' done' : ''}`}>

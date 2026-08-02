@@ -1,5 +1,5 @@
 import { createContext, inject } from '@zeus-js/runtime-dom'
-import { defineElement, Host, Slot, state, render } from '@zeus-js/zeus'
+import { createSignal, defineElement, Host, Slot, render } from '@zeus-js/zeus'
 
 type ThemeValue = { mode: 'light' | 'dark'; toggle: () => void }
 type UserValue = { name: string; level: number }
@@ -73,13 +73,16 @@ defineElement(
 )
 
 function App() {
-  const theme = state<ThemeValue>({
-    mode: 'light',
-    toggle() {
-      this.mode = this.mode === 'light' ? 'dark' : 'light'
+  const [mode, setMode] = createSignal<'light' | 'dark'>('light')
+  const theme: ThemeValue = {
+    get mode() {
+      return mode()
     },
-  })
-  const user = state<UserValue>({ name: 'Alice', level: 12 })
+    toggle() {
+      setMode(current => (current === 'light' ? 'dark' : 'light'))
+    },
+  }
+  const user: UserValue = { name: 'Alice', level: 12 }
 
   return (
     <ThemeContext.Provider value={theme}>

@@ -6,6 +6,7 @@ import { warn } from './warning'
 
 import type { ComputedRefImpl } from './computed'
 import type { TrackOpTypes, TriggerOpTypes } from './constants'
+import type { EffectScope } from './effectScope'
 
 export type EffectScheduler = (...args: any[]) => any
 
@@ -89,6 +90,7 @@ const pausedQueueEffects = new WeakSet<ReactiveEffect>()
 export class ReactiveEffect<T = any>
   implements Subscriber, ReactiveEffectOptions
 {
+  readonly scope: EffectScope | undefined
   /**
    * @internal
    */
@@ -108,7 +110,7 @@ export class ReactiveEffect<T = any>
   /**
    * @internal
    */
-  cleanup?: () => void = undefined
+  cleanups?: (() => void)[] = undefined
 
   scheduler?: EffectScheduler = undefined
   onStop?: () => void
@@ -116,6 +118,8 @@ export class ReactiveEffect<T = any>
   onTrigger?: (event: DebuggerEvent) => void
 
   constructor(public fn: () => T) {
+    this.scope = activeEffectScope
+
     if (activeEffectScope) {
       if (activeEffectScope.active) {
         activeEffectScope.effects.push(this)
@@ -557,7 +561,7 @@ export function resetTracking(): void {
  */
 export function onEffectCleanup(fn: () => void, failSilently = false): void {
   if (activeSub instanceof ReactiveEffect) {
-    activeSub.cleanup = fn
+    ;(activeSub.cleanups ??= []).push(fn)
   } else if (__DEV__ && !failSilently) {
     warn(
       `onEffectCleanup() was called when there was no active effect` +
@@ -567,14 +571,24 @@ export function onEffectCleanup(fn: () => void, failSilently = false): void {
 }
 
 function cleanupEffect(e: ReactiveEffect) {
-  const { cleanup } = e
-  e.cleanup = undefined
-  if (cleanup) {
+  const cleanups = e.cleanups
+  e.cleanups = undefined
+  if (cleanups) {
     // run cleanup without active effect
     const prevSub = activeSub
     activeSub = undefined
     try {
-      cleanup()
+      let error: unknown
+
+      for (const cleanup of cleanups) {
+        try {
+          cleanup()
+        } catch (cleanupError) {
+          error ??= cleanupError
+        }
+      }
+
+      if (error) throw error
     } finally {
       activeSub = prevSub
     }

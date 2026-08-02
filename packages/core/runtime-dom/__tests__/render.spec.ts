@@ -41,7 +41,7 @@ describe('render', () => {
   })
 
   it('stops effects after dispose', async () => {
-    const { state } = await import('@zeus-js/signal')
+    const { state } = await import('@zeus-js/signal/internal')
     const container = document.createElement('div')
     const count = state(0)
 
@@ -91,7 +91,7 @@ describe('render', () => {
   })
 
   it('renders reactive text binding', async () => {
-    const { state } = await import('@zeus-js/signal')
+    const { state } = await import('@zeus-js/signal/internal')
     const container = document.createElement('div')
     const count = state(0)
 
@@ -113,7 +113,7 @@ describe('render', () => {
   })
 
   it('does not update DOM after dispose even if state changes', async () => {
-    const { state } = await import('@zeus-js/signal')
+    const { state } = await import('@zeus-js/signal/internal')
     const container = document.createElement('div')
     const count = state(0)
 

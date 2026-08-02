@@ -42,3 +42,4 @@ export default declare(
 )
 
 export type { CompilerOptions } from './config'
+export * from '@zeus-js/compiler-shared'

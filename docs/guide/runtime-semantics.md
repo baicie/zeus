@@ -29,12 +29,12 @@ Zeus uses delegated events by default. All event handlers are stored on the elem
 Refs are cleared when their owner scope is disposed.
 
 ```tsx
-const input = state<HTMLInputElement | null>(null)
+let input: HTMLInputElement | null = null
 
-<input ref={input} />
+<input ref={element => (input = element)} />
 ```
 
-When unmounted, `input.value` becomes `null`. Callback refs are called with `null` on cleanup.
+Callback refs are called with `null` when their owner subtree is disposed.
 
 ---
 
@@ -48,13 +48,13 @@ When unmounted, `input.value` becomes `null`. Callback refs are called with `nul
 
 `For` reuses DOM nodes by key when you provide the `by` prop.
 
-Items should be reactive objects. Mutating reactive properties works reliably:
+Keyed records preserve their existing DOM subtree and owner scope while moving. Put changing fields behind explicit accessors when a record must update in place:
 
 ```ts
-todo.done = true
+const [done, setDone] = createSignal(false)
 ```
 
-Replacing a plain object with the same key may reuse the old DOM subtree. If you need full replacement behavior, change the key or mutate the reactive item.
+Replacing a plain object with the same key reuses the old subtree. Use an unkeyed `For` for immutable replacement semantics until keyed item accessors are available.
 
 ---
 

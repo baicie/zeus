@@ -3,7 +3,7 @@
 Define a custom element with `defineElement`.
 
 ```tsx
-import { defineElement, Host, Slot, state } from '@zeus-js/zeus'
+import { createSignal, defineElement, Host, Slot } from '@zeus-js/zeus'
 
 defineElement(
   'z-counter',
@@ -14,11 +14,11 @@ defineElement(
     },
   },
   props => {
-    const count = state(props.initialCount ?? 0)
+    const [count, setCount] = createSignal(props.initialCount ?? 0)
 
     return (
       <Host>
-        <button onClick={() => count.value++}>count: {count.value}</button>
+        <button onClick={() => setCount(count() + 1)}>count: {count()}</button>
         <p>
           <Slot />
         </p>

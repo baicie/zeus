@@ -1,57 +1,52 @@
 # State
 
-Zeus uses `state()` as the unified state API.
+Zeus uses explicit getter/setter signals.
 
-## Primitive state
-
-Primitive values are wrapped in a value holder.
+## Primitive values
 
 ```ts
-const count = state(0)
+const [count, setCount] = createSignal(0)
 
-count.value++
+console.log(count())
+setCount(count() + 1)
+setCount(previous => previous + 1)
 ```
 
-## Object state
-
-Objects are converted into reactive proxies.
+## Derived values
 
 ```ts
-const user = state({
-  name: 'Zeus',
-  age: 1,
+const doubled = createMemo(() => count() * 2)
+```
+
+## Objects and arrays
+
+Signals are shallow and preserve object identity. Replace values explicitly instead of relying on deep proxy mutation.
+
+```ts
+const [user, setUser] = createSignal({ name: 'Zeus', age: 1 })
+
+setUser(current => ({ ...current, name: 'ZeusJS' }))
+```
+
+```ts
+const [todos, setTodos] = createSignal<Todo[]>([])
+
+setTodos(current => [...current, { id: 1, title: 'Learn Zeus' }])
+setTodos(current => current.filter(todo => todo.id !== 1))
+```
+
+## Effects and ownership
+
+```ts
+createRoot(dispose => {
+  createEffect(() => {
+    console.log(count())
+    onCleanup(() => console.log('effect cleanup'))
+  })
+
+  onCleanup(() => console.log('root cleanup'))
+  return dispose
 })
-
-user.name = 'ZeusJS'
 ```
 
-## Arrays
-
-```ts
-const todos = state([{ id: 1, title: 'Learn Zeus' }])
-
-todos.push({
-  id: 2,
-  title: 'Build app',
-})
-```
-
-## Map / Set
-
-```ts
-const map = state(new Map<string, number>())
-
-map.set('a', 1)
-```
-
-## Why not ref()?
-
-Zeus reserves `ref` as a JSX attribute protocol:
-
-```tsx
-const input = state<HTMLInputElement | null>(null)
-
-<input ref={input} />
-```
-
-Use `state()` for state creation.
+Components rendered by Zeus already run inside an owned root. Use `createRoot` when creating a standalone reactive lifetime outside `render` or `defineElement`.

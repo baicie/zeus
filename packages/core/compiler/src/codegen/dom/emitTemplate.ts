@@ -3,7 +3,7 @@ import * as t from '@babel/types'
 import { renderTemplateHTML } from '../../passes/collectTemplates'
 
 import type { CompilerContext } from '../../context'
-import type { ElementIR } from '../../ir/nodes'
+import type { ElementIR } from '@zeus-js/compiler-shared'
 
 export function emitTemplateClone(
   node: ElementIR,

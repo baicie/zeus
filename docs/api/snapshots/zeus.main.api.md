@@ -6,21 +6,14 @@
 
 ```ts
 export {
-  ComputedRef,
-  Scope,
-  State,
-  ValueState,
-  WatchHandle,
-  WatchOptions,
+  Accessor,
+  Setter,
   batch,
-  computed,
-  effect,
-  nextTick,
+  createEffect,
+  createMemo,
+  createRoot,
+  createSignal,
   onCleanup,
-  scope,
-  state,
-  untrack,
-  watch,
 } from '@zeus-js/signal'
 import { JSXValue } from '@zeus-js/runtime-dom'
 export {

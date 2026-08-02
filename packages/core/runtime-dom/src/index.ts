@@ -81,6 +81,22 @@ export {
   type ZeusElementDefinition,
 } from './defineElement'
 
+export {
+  coerceCustomElementAttribute,
+  createCustomElementMountLifecycle,
+  findCustomElementPropByAttribute,
+  getCustomElementAttributeName,
+  getCustomElementObservedAttributes,
+  reflectCustomElementProperty,
+} from './customElementContract'
+
+export type {
+  CustomElementMount,
+  CustomElementMountLifecycle,
+  CustomElementPropSchema,
+  CustomElementPropType,
+} from './customElementContract'
+
 export { Host, Slot, type HostProps, type SlotProps } from './webComponents'
 
 export { createSlot } from './slot'

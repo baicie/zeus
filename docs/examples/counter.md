@@ -1,18 +1,18 @@
 # Counter
 
-A simple counter demonstrating state and event binding.
+A simple counter demonstrating signals and event binding.
 
 ```tsx
-import { render, state } from '@zeus-js/zeus'
+import { createSignal, render } from '@zeus-js/zeus'
 
 function Counter() {
-  const count = state(0)
+  const [count, setCount] = createSignal(0)
 
   return (
     <div>
-      <h1>{count.value}</h1>
-      <button onClick={() => count.value--}>-</button>
-      <button onClick={() => count.value++}>+</button>
+      <h1>{count()}</h1>
+      <button onClick={() => setCount(count() - 1)}>-</button>
+      <button onClick={() => setCount(count() + 1)}>+</button>
     </div>
   )
 }
@@ -22,6 +22,6 @@ render(() => <Counter />, document.getElementById('root')!)
 
 ## Key concepts
 
-- `state()` for reactive primitive values
+- `createSignal()` for reactive values
 - `onClick` event binding
-- Component initialization runs once, updates are driven by state changes
+- Component initialization runs once, updates are driven by signal changes

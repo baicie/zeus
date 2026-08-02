@@ -1,14 +1,16 @@
 import {
+  type Accessor,
+  type Setter,
+  createMemo,
+  createSignal,
   For,
   Host,
   Show,
   Slot,
-  computed,
   createContext,
   defineElement,
   event,
   render,
-  state,
   useContext,
 } from '@zeus-js/zeus'
 
@@ -25,16 +27,18 @@ type Task = {
 }
 
 type BoardStore = {
-  tasks: Task[]
-  keyword: { value: string }
-  statusFilter: { value: 'all' | TaskStatus }
-  selectedTaskId: { value: number | null }
+  tasks: Accessor<readonly Task[]>
+  keyword: Accessor<string>
+  setKeyword: Setter<string>
+  statusFilter: Accessor<'all' | TaskStatus>
+  setStatusFilter: Setter<'all' | TaskStatus>
+  selectedTaskId: Accessor<number | null>
 
-  filteredTasks: { readonly value: Task[] }
-  selectedTask: { readonly value: Task | undefined }
-  total: { readonly value: number }
-  doneCount: { readonly value: number }
-  progress: { readonly value: number }
+  filteredTasks: Accessor<Task[]>
+  selectedTask: Accessor<Task | undefined>
+  total: Accessor<number>
+  doneCount: Accessor<number>
+  progress: Accessor<number>
 
   addTask: (input: NewTaskInput) => void
   selectTask: (id: number) => void
@@ -56,7 +60,7 @@ type TaskInspectorEmits = {
 const BoardContext = createContext<BoardStore>()
 
 function createBoardStore(): BoardStore {
-  const tasks = state<Task[]>([
+  const [tasks, setTasks] = createSignal<Task[]>([
     {
       id: 1,
       title: 'Finish compiler physical DOM path',
@@ -82,41 +86,43 @@ function createBoardStore(): BoardStore {
     },
   ])
 
-  const keyword = state('')
-  const statusFilter = state<'all' | TaskStatus>('all')
-  const selectedTaskId = state<number | null>(null)
+  const [keyword, setKeyword] = createSignal('')
+  const [statusFilter, setStatusFilter] = createSignal<'all' | TaskStatus>(
+    'all',
+  )
+  const [selectedTaskId, setSelectedTaskId] = createSignal<number | null>(null)
 
-  const filteredTasks = computed(() => {
-    const query = keyword.value.trim().toLowerCase()
+  const filteredTasks = createMemo(() => {
+    const query = keyword().trim().toLowerCase()
 
-    return tasks.filter(task => {
+    return tasks().filter(task => {
       const matchesKeyword =
         !query ||
         task.title.toLowerCase().includes(query) ||
         task.description.toLowerCase().includes(query)
 
       const matchesStatus =
-        statusFilter.value === 'all' || task.status === statusFilter.value
+        statusFilter() === 'all' || task.status === statusFilter()
 
       return matchesKeyword && matchesStatus
     })
   })
 
-  const selectedTask = computed(() => {
-    if (selectedTaskId.value == null) return undefined
+  const selectedTask = createMemo(() => {
+    if (selectedTaskId() == null) return undefined
 
-    return tasks.find(task => task.id === selectedTaskId.value)
+    return tasks().find(task => task.id === selectedTaskId())
   })
 
-  const total = computed(() => tasks.length)
+  const total = createMemo(() => tasks().length)
 
-  const doneCount = computed(() => {
-    return tasks.filter(task => task.status === 'done').length
+  const doneCount = createMemo(() => {
+    return tasks().filter(task => task.status === 'done').length
   })
 
-  const progress = computed(() => {
-    if (total.value === 0) return 0
-    return Math.round((doneCount.value / total.value) * 100)
+  const progress = createMemo(() => {
+    if (total() === 0) return 0
+    return Math.round((doneCount() / total()) * 100)
   })
 
   function addTask(input: NewTaskInput) {
@@ -125,43 +131,50 @@ function createBoardStore(): BoardStore {
 
     if (!title) return
 
-    tasks.unshift({
-      id: Date.now(),
-      title,
-      description: description || 'No description.',
-      status: 'todo',
-      urgent: input.urgent,
-    })
+    setTasks(current => [
+      {
+        id: Date.now(),
+        title,
+        description: description || 'No description.',
+        status: 'todo',
+        urgent: input.urgent,
+      },
+      ...current,
+    ])
   }
 
   function selectTask(id: number) {
-    selectedTaskId.value = id
+    setSelectedTaskId(id)
   }
 
   function closeInspector() {
-    selectedTaskId.value = null
+    setSelectedTaskId(null)
   }
 
   function toggleDone(task: Task) {
-    task.status = task.status === 'done' ? 'todo' : 'done'
+    setTasks(current =>
+      current.map(item =>
+        item.id === task.id
+          ? { ...item, status: item.status === 'done' ? 'todo' : 'done' }
+          : item,
+      ),
+    )
   }
 
   function removeTask(id: number) {
-    const index = tasks.findIndex(task => task.id === id)
+    setTasks(current => current.filter(task => task.id !== id))
 
-    if (index >= 0) {
-      tasks.splice(index, 1)
-    }
-
-    if (selectedTaskId.value === id) {
-      selectedTaskId.value = null
+    if (selectedTaskId() === id) {
+      setSelectedTaskId(null)
     }
   }
 
   return {
     tasks,
     keyword,
+    setKeyword,
     statusFilter,
+    setStatusFilter,
     selectedTaskId,
 
     filteredTasks,
@@ -218,7 +231,7 @@ defineElement<{ open: boolean }, HTMLElement, TaskInspectorEmits>(
           </header>
 
           <Show
-            when={store.selectedTask.value}
+            when={store.selectedTask()}
             fallback={
               <section class="empty-inspector">
                 <Slot>
@@ -237,7 +250,7 @@ defineElement<{ open: boolean }, HTMLElement, TaskInspectorEmits>(
 
 function TaskDetail() {
   const store = useContext(BoardContext)
-  const task = store.selectedTask.value
+  const task = store.selectedTask()
 
   if (!task) {
     return null
@@ -303,7 +316,7 @@ function App() {
         </section>
 
         <z-task-inspector
-          prop:open={Boolean(store.selectedTask.value)}
+          prop:open={Boolean(store.selectedTask())}
           onClose={() => {
             store.closeInspector()
           }}
@@ -326,9 +339,9 @@ function BoardHeader() {
       </div>
 
       <section class="stats-grid">
-        <StatCard label="Total" value={store.total.value} />
-        <StatCard label="Done" value={store.doneCount.value} />
-        <StatCard label="Progress" value={`${store.progress.value}%`} />
+        <StatCard label="Total" value={store.total()} />
+        <StatCard label="Done" value={store.doneCount()} />
+        <StatCard label="Progress" value={`${store.progress()}%`} />
       </section>
     </header>
   )
@@ -346,22 +359,22 @@ function StatCard(props: { label: string; value: string | number }) {
 function TaskComposer() {
   const store = useContext(BoardContext)
 
-  const title = state('')
-  const description = state('')
-  const urgent = state(false)
+  const [title, setTitle] = createSignal('')
+  const [description, setDescription] = createSignal('')
+  const [urgent, setUrgent] = createSignal(false)
 
   function submit(event: Event) {
     event.preventDefault()
 
     store.addTask({
-      title: title.value,
-      description: description.value,
-      urgent: urgent.value,
+      title: title(),
+      description: description(),
+      urgent: urgent(),
     })
 
-    title.value = ''
-    description.value = ''
-    urgent.value = false
+    setTitle('')
+    setDescription('')
+    setUrgent(false)
   }
 
   return (
@@ -369,10 +382,10 @@ function TaskComposer() {
       <div class="field">
         <label>Title</label>
         <input
-          prop:value={title.value}
+          prop:value={title()}
           placeholder="Add a task..."
           onInput={event => {
-            title.value = (event.currentTarget as HTMLInputElement).value
+            setTitle((event.currentTarget as HTMLInputElement).value)
           }}
         />
       </div>
@@ -380,12 +393,10 @@ function TaskComposer() {
       <div class="field">
         <label>Description</label>
         <textarea
-          prop:value={description.value}
+          prop:value={description()}
           placeholder="Describe the task..."
           onInput={event => {
-            description.value = (
-              event.currentTarget as HTMLTextAreaElement
-            ).value
+            setDescription((event.currentTarget as HTMLTextAreaElement).value)
           }}
         />
       </div>
@@ -393,9 +404,9 @@ function TaskComposer() {
       <label class="checkbox-row">
         <input
           type="checkbox"
-          prop:checked={urgent.value}
+          prop:checked={urgent()}
           onChange={event => {
-            urgent.value = (event.currentTarget as HTMLInputElement).checked
+            setUrgent((event.currentTarget as HTMLInputElement).checked)
           }}
         />
         Urgent
@@ -413,18 +424,21 @@ function TaskFilters() {
     <section class="filters">
       <input
         class="search-input"
-        prop:value={store.keyword.value}
+        prop:value={store.keyword()}
         placeholder="Search tasks..."
         onInput={event => {
-          store.keyword.value = (event.currentTarget as HTMLInputElement).value
+          store.setKeyword((event.currentTarget as HTMLInputElement).value)
         }}
       />
 
       <select
-        prop:value={store.statusFilter.value}
+        prop:value={store.statusFilter()}
         onChange={event => {
-          store.statusFilter.value = (event.currentTarget as HTMLSelectElement)
-            .value as 'all' | TaskStatus
+          store.setStatusFilter(
+            (event.currentTarget as HTMLSelectElement).value as
+              | 'all'
+              | TaskStatus,
+          )
         }}
       >
         <option value="all">All</option>
@@ -442,7 +456,7 @@ function TaskList() {
   return (
     <section class="task-list">
       <Show
-        when={store.filteredTasks.value.length > 0}
+        when={store.filteredTasks().length > 0}
         fallback={
           <div class="empty-state">
             <strong>No tasks found</strong>
@@ -450,7 +464,7 @@ function TaskList() {
           </div>
         }
       >
-        <For each={store.filteredTasks.value} by={task => task.id}>
+        <For each={store.filteredTasks()}>
           {(task: Task) => <TaskItem task={task} />}
         </For>
       </Show>
@@ -466,7 +480,7 @@ function TaskItem(props: { task: Task }) {
     <article
       class={{
         'task-item': true,
-        selected: store.selectedTaskId.value === task.id,
+        selected: store.selectedTaskId() === task.id,
         done: task.status === 'done',
         urgent: task.urgent,
       }}

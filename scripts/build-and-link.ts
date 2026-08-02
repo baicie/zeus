@@ -34,6 +34,10 @@ const rootDir = join(__dirname, '..')
 const PUBLIC_PACKAGES: Array<{ name: string; path: string }> = [
   // rolldown packages
   { name: '@zeus-js/shared', path: 'packages/core/shared' },
+  {
+    name: '@zeus-js/compiler-shared',
+    path: 'packages/core/compiler-shared',
+  },
   { name: '@zeus-js/signal', path: 'packages/core/signal' },
   { name: '@zeus-js/runtime-dom', path: 'packages/core/runtime-dom' },
   { name: '@zeus-js/compiler', path: 'packages/core/compiler' },

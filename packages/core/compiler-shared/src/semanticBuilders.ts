@@ -4,20 +4,22 @@ import type {
   DynamicTextIR,
   ElementIR,
   EventBindingIR,
+  ExpressionIR,
   ForIR,
   FragmentIR,
   HostAttrIR,
   HostIR,
+  IdentifierIR,
   IRRef,
   PropBindingIR,
   RefBindingIR,
   ShowIR,
   SlotIR,
+  SourceSpan,
   StaticAttributeIR,
   TextIR,
   ZeusIRNode,
 } from './nodes'
-import type * as t from '@babel/types'
 
 let nextId = 0
 
@@ -27,6 +29,22 @@ export function id(): number {
 
 export function ref(name: string): IRRef {
   return { name }
+}
+
+export function expressionIR(code: string, span?: SourceSpan): ExpressionIR {
+  return {
+    kind: 'Expression',
+    code,
+    span,
+  }
+}
+
+export function identifierIR(name: string, span?: SourceSpan): IdentifierIR {
+  return {
+    kind: 'Identifier',
+    name,
+    span,
+  }
 }
 
 export function elementIR(input: {
@@ -61,7 +79,7 @@ export function textIR(value: string): TextIR {
 }
 
 export function dynamicTextIR(
-  expr: t.Expression,
+  expr: ExpressionIR,
   nodeRef: IRRef,
   once = false,
 ): DynamicTextIR {
@@ -94,7 +112,7 @@ export function staticAttrIR(
   }
 }
 
-export function attrBindingIR(name: string, expr: t.Expression): AttrBindingIR {
+export function attrBindingIR(name: string, expr: ExpressionIR): AttrBindingIR {
   return {
     id: id(),
     kind: 'AttrBinding',
@@ -103,7 +121,7 @@ export function attrBindingIR(name: string, expr: t.Expression): AttrBindingIR {
   }
 }
 
-export function propBindingIR(name: string, expr: t.Expression): PropBindingIR {
+export function propBindingIR(name: string, expr: ExpressionIR): PropBindingIR {
   return {
     id: id(),
     kind: 'PropBinding',
@@ -114,7 +132,7 @@ export function propBindingIR(name: string, expr: t.Expression): PropBindingIR {
 
 export function eventBindingIR(
   eventName: string,
-  handler: t.Expression,
+  handler: ExpressionIR,
 ): EventBindingIR {
   return {
     id: id(),
@@ -124,7 +142,7 @@ export function eventBindingIR(
   }
 }
 
-export function refBindingIR(expr: t.Expression): RefBindingIR {
+export function refBindingIR(expr: ExpressionIR): RefBindingIR {
   return {
     id: id(),
     kind: 'RefBinding',
@@ -134,7 +152,7 @@ export function refBindingIR(expr: t.Expression): RefBindingIR {
 
 export function componentIR(input: {
   ref: IRRef
-  callee: t.Expression
+  callee: ExpressionIR
   props: ComponentIR['props']
 }): ComponentIR {
   return {
@@ -148,9 +166,9 @@ export function componentIR(input: {
 
 export function showIR(input: {
   ref: IRRef
-  when: t.Expression
+  when: ExpressionIR
   children: ZeusIRNode[]
-  fallback?: t.Expression | ZeusIRNode[]
+  fallback?: ExpressionIR | ZeusIRNode[]
 }): ShowIR {
   return {
     id: id(),
@@ -164,10 +182,10 @@ export function showIR(input: {
 
 export function forIR(input: {
   ref: IRRef
-  each: t.Expression
-  by?: t.Expression
-  item: t.Identifier
-  index?: t.Identifier
+  each: ExpressionIR
+  by?: ExpressionIR
+  item: IdentifierIR
+  index?: IdentifierIR
   body: ZeusIRNode[]
 }): ForIR {
   return {

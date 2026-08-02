@@ -301,4 +301,221 @@ describe('Slot', () => {
 
     expect(el.querySelector('div')).toBeTruthy()
   })
+
+  it('projects light DOM nodes appended after connection', async () => {
+    const tag = createTag('light-dynamic-add')
+
+    defineElement(tag, { shadow: false }, () => {
+      const section = document.createElement('section')
+      const header = document.createElement('header')
+      const headerFallback = document.createElement('span')
+      headerFallback.textContent = 'fallback header'
+      insertTracked(header, Slot({ name: 'header', children: headerFallback }))
+
+      const main = document.createElement('main')
+      const mainFallback = document.createElement('span')
+      mainFallback.textContent = 'fallback body'
+      insertTracked(main, Slot({ children: mainFallback }))
+
+      section.append(header, main)
+      return section
+    })
+
+    const el = document.createElement(tag)
+    document.body.appendChild(el)
+    await nextFrame()
+
+    expect(el.querySelector('header')!.textContent).toBe('fallback header')
+    expect(el.querySelector('main')!.textContent).toBe('fallback body')
+
+    const title = document.createElement('strong')
+    title.slot = 'header'
+    title.textContent = 'dynamic title'
+    const body = document.createElement('p')
+    body.textContent = 'dynamic body'
+    el.append(title, body)
+    await nextFrame()
+
+    expect(el.querySelector('header strong')).toBe(title)
+    expect(el.querySelector('main p')).toBe(body)
+    expect(el.querySelector('header')!.textContent).toBe('dynamic title')
+    expect(el.querySelector('main')!.textContent).toBe('dynamic body')
+  })
+
+  it('projects default light DOM nodes inserted before framework content', async () => {
+    const tag = createTag('light-dynamic-prepend')
+
+    defineElement(tag, { shadow: false }, () => {
+      const main = document.createElement('main')
+      insertTracked(main, Slot({}))
+      return main
+    })
+
+    const el = document.createElement(tag)
+    document.body.appendChild(el)
+    await nextFrame()
+
+    const content = document.createTextNode('prepended content')
+    el.prepend(content)
+    await nextFrame()
+
+    const main = el.querySelector('main')!
+    expect(content.parentNode).toBe(main)
+    expect(main.textContent).toBe('prepended content')
+  })
+
+  it('does not project runtime-owned root insertions as light children', async () => {
+    const tag = createTag('light-runtime-owned')
+
+    defineElement(tag, { shadow: false }, (_props, { host }) => {
+      const fallback = document.createElement('span')
+      fallback.dataset.role = 'fallback'
+      fallback.textContent = 'fallback'
+      insertTracked(host, Slot({ children: fallback }))
+      return null
+    })
+
+    const el = document.createElement(tag)
+    document.body.appendChild(el)
+    await nextFrame()
+
+    const output = document.createElement('strong')
+    output.dataset.role = 'runtime'
+    output.textContent = 'runtime'
+    insertTracked(el, output)
+    await nextFrame()
+
+    expect(el.querySelector('[data-role="fallback"]')).not.toBeNull()
+    expect(el.querySelector('[data-role="runtime"]')).not.toBeNull()
+  })
+
+  it('assigns duplicate light DOM slots to the first matching outlet', async () => {
+    const tag = createTag('light-duplicate-slot')
+
+    defineElement(tag, { shadow: false }, () => {
+      const first = document.createElement('header')
+      const firstFallback = document.createElement('span')
+      firstFallback.textContent = 'first fallback'
+      insertTracked(first, Slot({ name: 'header', children: firstFallback }))
+
+      const second = document.createElement('aside')
+      const secondFallback = document.createElement('span')
+      secondFallback.textContent = 'second fallback'
+      insertTracked(second, Slot({ name: 'header', children: secondFallback }))
+
+      return [first, second]
+    })
+
+    const el = document.createElement(tag)
+    const title = document.createElement('strong')
+    title.slot = 'header'
+    title.textContent = 'projected title'
+    el.appendChild(title)
+    document.body.appendChild(el)
+    await nextFrame()
+
+    expect(el.querySelector('header strong')).toBe(title)
+    expect(el.querySelector('aside')!.textContent).toBe('second fallback')
+  })
+
+  it('observes unmatched light children until they match a slot', async () => {
+    const tag = createTag('light-unmatched-slot')
+
+    defineElement(tag, { shadow: false }, () => {
+      const main = document.createElement('main')
+      insertTracked(main, Slot({}))
+      return main
+    })
+
+    const el = document.createElement(tag)
+    document.body.appendChild(el)
+    await nextFrame()
+
+    const content = document.createElement('span')
+    content.slot = 'missing'
+    content.textContent = 'eventual content'
+    el.appendChild(content)
+    await nextFrame()
+
+    expect(content.isConnected).toBe(false)
+
+    content.removeAttribute('slot')
+    await nextFrame()
+
+    expect(el.querySelector('main span')).toBe(content)
+  })
+
+  it('reprojects renamed slots and restores fallback after removal', async () => {
+    const tag = createTag('light-dynamic-change')
+
+    defineElement(tag, { shadow: false }, () => {
+      const section = document.createElement('section')
+      const header = document.createElement('header')
+      const headerFallback = document.createElement('span')
+      headerFallback.textContent = 'fallback header'
+      insertTracked(header, Slot({ name: 'header', children: headerFallback }))
+
+      const main = document.createElement('main')
+      const mainFallback = document.createElement('span')
+      mainFallback.textContent = 'fallback body'
+      insertTracked(main, Slot({ children: mainFallback }))
+
+      section.append(header, main)
+      return section
+    })
+
+    const el = document.createElement(tag)
+    const content = document.createElement('span')
+    content.slot = 'header'
+    content.textContent = 'movable'
+    el.appendChild(content)
+    document.body.appendChild(el)
+    await nextFrame()
+
+    expect(el.querySelector('header span')).toBe(content)
+
+    content.removeAttribute('slot')
+    await nextFrame()
+
+    expect(el.querySelector('header')!.textContent).toBe('fallback header')
+    expect(el.querySelector('main span')).toBe(content)
+
+    content.remove()
+    await nextFrame()
+
+    expect(el.querySelector('main')!.textContent).toBe('fallback body')
+  })
+
+  it('resumes dynamic projection after reconnect', async () => {
+    const tag = createTag('light-dynamic-reconnect')
+
+    defineElement(tag, { shadow: false }, () => {
+      const main = document.createElement('main')
+      insertTracked(main, Slot({}))
+      return main
+    })
+
+    const el = document.createElement(tag)
+    const first = document.createElement('span')
+    first.textContent = 'first'
+    el.appendChild(first)
+    document.body.appendChild(el)
+    await nextFrame()
+
+    el.remove()
+    document.body.appendChild(el)
+    await nextFrame()
+
+    expect(el.querySelector('main span')).toBe(first)
+
+    const second = document.createElement('span')
+    second.textContent = 'second'
+    el.appendChild(second)
+    await nextFrame()
+
+    expect(Array.from(el.querySelectorAll('main span'))).toEqual([
+      first,
+      second,
+    ])
+  })
 })

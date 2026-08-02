@@ -1,5 +1,10 @@
-import { onScopeDispose, scope } from '@zeus-js/signal'
-import { state } from '@zeus-js/signal'
+import {
+  effect,
+  onCleanup,
+  onScopeDispose,
+  scope,
+  state,
+} from '@zeus-js/signal/internal'
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -134,6 +139,252 @@ describe('runtime cleanup', () => {
     listScope.stop()
 
     expect(disposedItems).toEqual([1, 2])
+  })
+
+  it('disposes Show branch resources on every truthy/fallback switch', () => {
+    const showScope = scope()
+    const visible = state(true)
+    const pulse = state(0)
+    const effectRuns: string[] = []
+    const disposedBranches: string[] = []
+    const clone = template('<div><!></div>')()
+    const root = clone.firstChild as Element
+    const m = marker(root, 0)
+
+    const renderBranch = (name: 'truthy' | 'fallback') => {
+      effect(() => {
+        effectRuns.push(`${name}:${pulse.value}`)
+      })
+      onCleanup(() => {
+        disposedBranches.push(name)
+      })
+
+      return document.createTextNode(name)
+    }
+
+    showScope.run(() => {
+      mountShow(
+        root,
+        m,
+        () => visible.value,
+        () => renderBranch('truthy'),
+        () => renderBranch('fallback'),
+      )
+    })
+
+    visible.value = false
+    visible.value = true
+    visible.value = false
+    visible.value = true
+
+    expect(disposedBranches).toEqual([
+      'truthy',
+      'fallback',
+      'truthy',
+      'fallback',
+    ])
+
+    effectRuns.length = 0
+    pulse.value++
+
+    expect(effectRuns).toEqual(['truthy:1'])
+
+    showScope.stop()
+    expect(disposedBranches).toEqual([
+      'truthy',
+      'fallback',
+      'truthy',
+      'fallback',
+      'truthy',
+    ])
+  })
+
+  it('disposes every old unkeyed item when the list is replaced', () => {
+    const listScope = scope()
+    const items = state([{ id: 1 }, { id: 2 }])
+    const pulse = state(0)
+    const effectRuns: number[] = []
+    const disposedItems: number[] = []
+    const clone = template('<ul><!></ul>')()
+    const root = clone.firstChild as Element
+    const m = marker(root, 0)
+
+    listScope.run(() => {
+      mountFor(
+        root,
+        m,
+        () => items,
+        undefined,
+        item => {
+          effect(() => {
+            pulse.value
+            effectRuns.push(item.id)
+          })
+          onCleanup(() => {
+            disposedItems.push(item.id)
+          })
+
+          return document.createElement('li')
+        },
+      )
+    })
+
+    items.splice(0, items.length, { id: 3 }, { id: 4 })
+
+    expect(disposedItems).toEqual([1, 2])
+
+    effectRuns.length = 0
+    pulse.value++
+
+    expect(effectRuns).toEqual([3, 4])
+    listScope.stop()
+  })
+
+  it('disposes every old unkeyed item when the list shrinks', () => {
+    const listScope = scope()
+    const items = state([{ id: 1 }, { id: 2 }, { id: 3 }])
+    const pulse = state(0)
+    const effectRuns: number[] = []
+    const disposedItems: number[] = []
+    const clone = template('<ul><!></ul>')()
+    const root = clone.firstChild as Element
+    const m = marker(root, 0)
+
+    listScope.run(() => {
+      mountFor(
+        root,
+        m,
+        () => items,
+        undefined,
+        item => {
+          effect(() => {
+            pulse.value
+            effectRuns.push(item.id)
+          })
+          onCleanup(() => {
+            disposedItems.push(item.id)
+          })
+
+          return document.createElement('li')
+        },
+      )
+    })
+
+    items.splice(1, 2)
+
+    expect(disposedItems).toEqual([1, 2, 3])
+
+    effectRuns.length = 0
+    pulse.value++
+
+    expect(effectRuns).toEqual([1])
+    listScope.stop()
+  })
+
+  it('disposes every old unkeyed item when the list is cleared', () => {
+    const listScope = scope()
+    const items = state([{ id: 1 }, { id: 2 }])
+    const pulse = state(0)
+    const effectRuns: number[] = []
+    const disposedItems: number[] = []
+    const clone = template('<ul><!></ul>')()
+    const root = clone.firstChild as Element
+    const m = marker(root, 0)
+
+    listScope.run(() => {
+      mountFor(
+        root,
+        m,
+        () => items,
+        undefined,
+        item => {
+          effect(() => {
+            pulse.value
+            effectRuns.push(item.id)
+          })
+          onCleanup(() => {
+            disposedItems.push(item.id)
+          })
+
+          return document.createElement('li')
+        },
+      )
+    })
+
+    items.splice(0, items.length)
+
+    expect(disposedItems).toEqual([1, 2])
+
+    effectRuns.length = 0
+    pulse.value++
+
+    expect(effectRuns).toEqual([])
+    listScope.stop()
+  })
+
+  it('runs public cleanup only for keyed records removed from the list', () => {
+    const listScope = scope()
+    const items = state([{ id: 1 }, { id: 2 }, { id: 3 }])
+    const disposedItems: number[] = []
+    const clone = template('<ul><!></ul>')()
+    const root = clone.firstChild as Element
+    const m = marker(root, 0)
+
+    listScope.run(() => {
+      mountFor(
+        root,
+        m,
+        () => items,
+        item => item.id,
+        item => {
+          onCleanup(() => {
+            disposedItems.push(item.id)
+          })
+
+          return document.createElement('li')
+        },
+      )
+    })
+
+    items.splice(1, 1)
+
+    expect(disposedItems).toEqual([2])
+
+    listScope.stop()
+    expect(disposedItems).toEqual([2, 1, 3])
+  })
+
+  it('does not run public cleanup when keyed records only move', () => {
+    const listScope = scope()
+    const items = state([{ id: 1 }, { id: 2 }, { id: 3 }])
+    const disposedItems: number[] = []
+    const clone = template('<ul><!></ul>')()
+    const root = clone.firstChild as Element
+    const m = marker(root, 0)
+
+    listScope.run(() => {
+      mountFor(
+        root,
+        m,
+        () => items,
+        item => item.id,
+        item => {
+          onCleanup(() => {
+            disposedItems.push(item.id)
+          })
+
+          return document.createElement('li')
+        },
+      )
+    })
+
+    const [first, second, third] = items
+    items.splice(0, items.length, third, first, second)
+
+    expect(disposedItems).toEqual([])
+
+    listScope.stop()
+    expect(disposedItems).toEqual([3, 1, 2])
   })
 
   it('removes old Show nodes when condition toggles from truthy to falsy', () => {

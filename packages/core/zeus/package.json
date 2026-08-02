@@ -37,16 +37,6 @@
       "types": "./jsx-dev-runtime.d.ts",
       "default": "./jsx-dev-runtime.js"
     },
-    "./advanced": {
-      "types": "./dist/advanced.d.ts",
-      "import": "./dist/advanced.js",
-      "require": "./dist/advanced.cjs.js",
-      "node": {
-        "production": "./dist/advanced.cjs.prod.js",
-        "development": "./dist/advanced.cjs.js",
-        "default": "./dist/advanced.cjs.js"
-      }
-    },
     "./capabilities": {
       "types": "./dist/capabilities.d.ts",
       "import": "./dist/capabilities.js",
@@ -84,10 +74,6 @@
       "global"
     ],
     "additionalEntries": [
-      {
-        "entry": "advanced.ts",
-        "output": "dist/advanced.js"
-      },
       {
         "entry": "capabilities.ts",
         "output": "dist/capabilities.js"

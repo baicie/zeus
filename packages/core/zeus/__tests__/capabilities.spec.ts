@@ -4,6 +4,13 @@ import * as zeus from '../src'
 import { ZEUS_CAPABILITIES } from '../src/capabilities'
 
 describe('@zeus-js/zeus capabilities', () => {
+  it('advertises only application and private stability boundaries', () => {
+    expect(ZEUS_CAPABILITIES.stability).toEqual({
+      main: 'stable',
+      internal: 'private',
+    })
+  })
+
   it('publicApi capabilities match exported APIs', () => {
     for (const [name, enabled] of Object.entries(ZEUS_CAPABILITIES.publicApi)) {
       if (!enabled) continue

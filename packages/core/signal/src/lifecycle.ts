@@ -3,12 +3,20 @@ import { getCurrentScope, onScopeDispose } from './effectScope'
 import { warn } from './warning'
 
 export function onCleanup(fn: () => void): void {
-  if (getCurrentEffect()) {
+  const effect = getCurrentEffect()
+  const scope = getCurrentScope()
+
+  if (scope && effect?.scope !== scope) {
+    onScopeDispose(fn, true)
+    return
+  }
+
+  if (effect) {
     onEffectCleanup(fn, true)
     return
   }
 
-  if (getCurrentScope()) {
+  if (scope) {
     onScopeDispose(fn, true)
     return
   }

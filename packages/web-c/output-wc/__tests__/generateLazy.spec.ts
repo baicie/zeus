@@ -544,10 +544,14 @@ describe('generateLazyEntry', () => {
 
     expect(code).not.toContain('import type')
     expect(code).toContain(
-      'import { mountElementDefinition } from "@zeus-js/runtime-dom"',
+      'createCustomElementMountLifecycle, mountElementDefinition',
     )
     expect(code).toContain('export function createComponent(hostRef)')
-    expect(code).toContain('mounted = undefined')
+    expect(code).toContain(
+      'const lifecycle = createCustomElementMountLifecycle',
+    )
+    expect(code).toContain('lifecycle.connect()')
+    expect(code).toContain('lifecycle.disconnect()')
     expect(code).toContain('attributeProps: hostRef.attributeProps')
     expect(code).toContain('internals: hostRef.internals')
     expect(code).toContain('reflectingAttrs: hostRef.reflectingAttrs')

@@ -4,7 +4,7 @@
 // Internal APIs: createOwner, runWithOwner, getCurrentOwner
 // DOM bridge APIs: createDOMContextBoundary, provideDOMContext, resolveDOMContext
 
-import { onScopeDispose } from '@zeus-js/signal'
+import { onScopeDispose } from '@zeus-js/signal/internal'
 
 import { insert } from './insert'
 

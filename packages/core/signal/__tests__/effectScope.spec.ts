@@ -8,7 +8,7 @@ import {
   getCurrentScope,
   onScopeDispose,
   watch,
-} from '../src'
+} from '../src/internal'
 import { reactive } from '../src/reactive'
 
 describe('reactivity/effect/scope', () => {

@@ -1,9 +1,13 @@
 import { transformAsync } from '@babel/core'
-import * as t from '@babel/types'
+import {
+  dynamicTextIR,
+  elementIR,
+  expressionIR,
+  ref,
+} from '@zeus-js/compiler-shared'
 import { describe, expect, it } from 'vitest'
 
 import zeusRaw from '../src'
-import { elementIR, dynamicTextIR, ref } from '../src/ir/semanticBuilders'
 import { assignDomPaths, formatDomPath } from '../src/passes'
 
 const zeus = zeusRaw as unknown as (api: object, opts: object) => object
@@ -30,7 +34,7 @@ async function compile(code: string) {
 describe('zeus compiler ir-first pipeline', () => {
   it('assigns DOM paths independently from lowering', () => {
     const span = elementIR({ ref: ref('_span$'), tagName: 'span' })
-    const dynamic = dynamicTextIR(t.identifier('name'), ref('_text$'))
+    const dynamic = dynamicTextIR(expressionIR('name'), ref('_text$'))
     const bold = elementIR({ ref: ref('_bold$'), tagName: 'b' })
     const root = elementIR({
       ref: ref('_root$'),

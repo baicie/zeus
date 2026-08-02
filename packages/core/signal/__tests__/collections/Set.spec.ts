@@ -1,4 +1,4 @@
-import { effect } from '../../src'
+import { effect } from '../../src/internal'
 import {
   isReactive,
   reactive,

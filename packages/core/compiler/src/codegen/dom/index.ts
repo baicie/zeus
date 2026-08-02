@@ -4,9 +4,10 @@ import { emitFor, emitHost, emitShow, emitSlot } from './emitBuiltin'
 import { emitComponent } from './emitComponent'
 import { emitElement } from './emitElement'
 import { emitFragment } from './emitFragment'
+import { parseExpressionIR } from '../../adapters/babel/expression'
 
 import type { CompilerContext } from '../../context'
-import type { ZeusIRNode } from '../../ir/nodes'
+import type { ZeusIRNode } from '@zeus-js/compiler-shared'
 
 export function emitDOM(
   node: ZeusIRNode,
@@ -28,7 +29,7 @@ export function emitDOM(
     case 'Slot':
       return emitSlot(node, context)
     case 'DynamicText':
-      return t.arrowFunctionExpression([], node.expr)
+      return t.arrowFunctionExpression([], parseExpressionIR(node.expr))
     default:
       throw new Error(`Unsupported root IR node: ${node.kind}`)
   }

@@ -1,4 +1,4 @@
-import { state } from '@zeus-js/signal'
+import { state } from '@zeus-js/signal/internal'
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
@@ -194,7 +194,7 @@ describe('mountShow', () => {
   })
 
   it('clears current nodes on scope stop', async () => {
-    const { scope } = await import('@zeus-js/signal')
+    const { scope } = await import('@zeus-js/signal/internal')
     const visible = state(true)
     const clone = template('<div><!></div>')()
     const root = clone.firstChild as Element
@@ -439,7 +439,7 @@ describe('mountFor', () => {
   })
 
   it('cleans list nodes when scope stops', async () => {
-    const { scope } = await import('@zeus-js/signal')
+    const { scope } = await import('@zeus-js/signal/internal')
     const items = state([{ id: 1 }, { id: 2 }])
     const clone = template('<ul><!></ul>')()
     const root = clone.firstChild as Element

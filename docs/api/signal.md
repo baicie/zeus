@@ -1,114 +1,90 @@
 # @zeus-js/signal
 
-Reactivity core package for Zeus.
-
-## Recommended
-
-Zeus applications should use these APIs:
+The public reactivity package exposes the same small contract as `@zeus-js/zeus`.
 
 ```ts
 import {
-  state,
-  computed,
-  effect,
-  watch,
-  scope,
-  batch,
-  untrack,
-  nextTick,
+  createSignal,
+  createMemo,
+  createEffect,
+  createRoot,
   onCleanup,
+  batch,
 } from '@zeus-js/signal'
 ```
 
-| Export      | Description                                                    |
-| ----------- | -------------------------------------------------------------- |
-| `state`     | Unified reactive state (primitives, objects, arrays, Map, Set) |
-| `computed`  | Derived reactive value                                         |
-| `effect`    | Reactive side effect                                           |
-| `watch`     | Watcher with callback                                          |
-| `scope`     | Isolated reactive scope                                        |
-| `batch`     | Batch reactive updates                                         |
-| `untrack`   | Read without tracking dependencies                             |
-| `nextTick`  | Promise-based microtask scheduling                             |
-| `onCleanup` | Register cleanup callbacks                                     |
+| Export         | Description                                     |
+| -------------- | ----------------------------------------------- |
+| `createSignal` | Create a shallow getter/setter signal           |
+| `createMemo`   | Create a cached derived getter                  |
+| `createEffect` | Run a dependency-tracked side effect            |
+| `createRoot`   | Own effects and cleanup under an explicit root  |
+| `onCleanup`    | Register effect or owner cleanup                |
+| `batch`        | Flush dependent effects after grouped mutations |
 
-## state
+## createSignal
 
 ```ts
-function state<T>(value: T): T
+const [count, setCount] = createSignal(0)
+
+count() // 0
+setCount(1)
+setCount(previous => previous + 1)
 ```
 
-Unified state API. Works with primitives, objects, arrays, Map, Set.
+Signals are shallow. Replace objects and arrays explicitly:
 
 ```ts
-const count = state(0)
-const user = state({ name: 'Zeus' })
-const items = state([1, 2, 3])
+const [todos, setTodos] = createSignal<Todo[]>([])
+
+setTodos(current => [...current, nextTodo])
 ```
 
-## computed
+## createMemo
 
 ```ts
-function computed<T>(fn: () => T): ComputedRef<T>
+const doubled = createMemo(() => count() * 2)
 ```
 
-Creates a derived reactive value.
+The computation is lazy and cached until one of its dependencies changes.
+
+## createEffect and onCleanup
 
 ```ts
-const doubled = computed(() => count.value * 2)
-```
+createEffect(() => {
+  const handler = () => console.log(count())
+  window.addEventListener('click', handler)
 
-## effect
-
-```ts
-function effect(fn: () => void): StopFn
-```
-
-Runs `fn` reactively and tracks its dependencies.
-
-```ts
-effect(() => {
-  console.log('count:', count.value)
+  onCleanup(() => {
+    window.removeEventListener('click', handler)
+  })
 })
 ```
 
-## watch
+Cleanup runs before the effect reruns and when its owner is disposed.
+
+## createRoot
 
 ```ts
-function watch<T>(
-  getter: () => T,
-  callback: (newValue: T, oldValue: T) => void,
-): void
-```
-
-Watches a reactive value and calls the callback when it changes.
-
-```ts
-watch(count, (newVal, oldVal) => {
-  console.log(`${oldVal} -> ${newVal}`)
+const dispose = createRoot(dispose => {
+  createEffect(() => console.log(count()))
+  return dispose
 })
+
+dispose()
 ```
-
-## scope
-
-```ts
-function scope(): Scope
-```
-
-Creates an isolated reactive scope. Call `scope.stop()` to dispose all reactive state within.
 
 ## batch
 
 ```ts
-function batch<T>(fn: () => T): T
+batch(() => {
+  setCount(1)
+  setCount(2)
+})
 ```
 
-Groups reactive updates to avoid redundant effect runs.
+Dependent effects flush once with the final value.
 
-## untrack
+## Internal engine
 
-```ts
-function untrack<T>(fn: () => T): T
-```
-
-Reads reactive values without tracking dependencies.
+`@zeus-js/signal/internal` is reserved for Zeus packages. It is not an application interface and has no compatibility guarantees.

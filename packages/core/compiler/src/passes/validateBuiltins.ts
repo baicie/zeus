@@ -1,6 +1,6 @@
 import { CompilerError, CompilerErrorCode } from '../diagnostics'
 
-import type { ZeusIRNode } from '../ir/nodes'
+import type { ZeusIRNode } from '@zeus-js/compiler-shared'
 
 export function validateBuiltins(node: ZeusIRNode): void {
   visit(node, {

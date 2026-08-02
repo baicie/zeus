@@ -1,6 +1,27 @@
-import type * as t from '@babel/types'
+export interface SourcePosition {
+  line: number
+  column: number
+  offset?: number
+}
 
-export type IRRef = {
+export interface SourceSpan {
+  start: SourcePosition
+  end: SourcePosition
+}
+
+export interface ExpressionIR {
+  kind: 'Expression'
+  code: string
+  span?: SourceSpan
+}
+
+export interface IdentifierIR {
+  kind: 'Identifier'
+  name: string
+  span?: SourceSpan
+}
+
+export interface IRRef {
   name: string
 }
 
@@ -17,9 +38,9 @@ export type PhysicalDomPath =
   | { kind: 'NextSibling'; previous: IRRef }
   | { kind: 'ChildNode'; parent: IRRef; index: number }
 
-export type SemanticBaseIRNode = {
+export interface SemanticBaseIRNode {
   id: number
-  loc?: t.SourceLocation | null
+  span?: SourceSpan
 }
 
 export type ProgramIR = SemanticBaseIRNode & {
@@ -49,7 +70,7 @@ export type TextIR = SemanticBaseIRNode & {
 
 export type DynamicTextIR = SemanticBaseIRNode & {
   kind: 'DynamicText'
-  expr: t.Expression
+  expr: ExpressionIR
   ref: IRRef
   once?: boolean
   domPath?: DomPath
@@ -65,24 +86,24 @@ export type StaticAttributeIR = SemanticBaseIRNode & {
 export type AttrBindingIR = SemanticBaseIRNode & {
   kind: 'AttrBinding'
   name: string
-  expr: t.Expression
+  expr: ExpressionIR
 }
 
 export type PropBindingIR = SemanticBaseIRNode & {
   kind: 'PropBinding'
   name: string
-  expr: t.Expression
+  expr: ExpressionIR
 }
 
 export type EventBindingIR = SemanticBaseIRNode & {
   kind: 'EventBinding'
   eventName: string
-  handler: t.Expression
+  handler: ExpressionIR
 }
 
 export type RefBindingIR = SemanticBaseIRNode & {
   kind: 'RefBinding'
-  expr: t.Expression
+  expr: ExpressionIR
 }
 
 export type AttributeIR =
@@ -92,15 +113,15 @@ export type AttributeIR =
   | EventBindingIR
   | RefBindingIR
 
-export type ComponentPropIR = {
+export interface ComponentPropIR {
   name: string
-  value: t.Expression | ZeusIRNode[]
+  value: ExpressionIR | ZeusIRNode[]
 }
 
 export type ComponentIR = SemanticBaseIRNode & {
   kind: 'Component'
   ref: IRRef
-  callee: t.Expression
+  callee: ExpressionIR
   props: ComponentPropIR[]
   domPath?: DomPath
   physicalDomPath?: PhysicalDomPath
@@ -114,9 +135,9 @@ export type FragmentIR = SemanticBaseIRNode & {
 export type ShowIR = SemanticBaseIRNode & {
   kind: 'Show'
   ref: IRRef
-  when: t.Expression
+  when: ExpressionIR
   children: ZeusIRNode[]
-  fallback?: t.Expression | ZeusIRNode[]
+  fallback?: ExpressionIR | ZeusIRNode[]
   domPath?: DomPath
   physicalDomPath?: PhysicalDomPath
 }
@@ -124,10 +145,10 @@ export type ShowIR = SemanticBaseIRNode & {
 export type ForIR = SemanticBaseIRNode & {
   kind: 'For'
   ref: IRRef
-  each: t.Expression
-  by?: t.Expression
-  item: t.Identifier
-  index?: t.Identifier
+  each: ExpressionIR
+  by?: ExpressionIR
+  item: IdentifierIR
+  index?: IdentifierIR
   body: ZeusIRNode[]
   domPath?: DomPath
   physicalDomPath?: PhysicalDomPath
@@ -136,7 +157,7 @@ export type ForIR = SemanticBaseIRNode & {
 export type HostAttrIR = SemanticBaseIRNode & {
   kind: 'HostAttr'
   name: string
-  expr: t.Expression
+  expr: ExpressionIR
 }
 
 export type HostIR = SemanticBaseIRNode & {

@@ -23,6 +23,7 @@
     "rootDir": ".",
     "paths": {
       "*": ["./*"],
+      "@zeus-js/signal/internal": ["./packages/core/signal/src/internal.ts"],
       "@zeus-js/*": [
         "./packages/core/*/src",
         "./packages/web-c/*/src",

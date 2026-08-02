@@ -1,6 +1,6 @@
 // packages/runtime-dom/src/events.ts
 
-import { onScopeDispose } from '@zeus-js/signal'
+import { onScopeDispose } from '@zeus-js/signal/internal'
 
 import { emitDevtoolsEvent } from './devtools'
 

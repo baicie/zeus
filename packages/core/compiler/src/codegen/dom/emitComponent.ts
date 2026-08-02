@@ -1,9 +1,14 @@
 import * as t from '@babel/types'
 
 import { emitNodeExpression } from './emitNodeExpression'
+import { parseExpressionIR } from '../../adapters/babel/expression'
 
 import type { CompilerContext } from '../../context'
-import type { ComponentIR, ComponentPropIR, ZeusIRNode } from '../../ir/nodes'
+import type {
+  ComponentIR,
+  ComponentPropIR,
+  ZeusIRNode,
+} from '@zeus-js/compiler-shared'
 
 export function emitComponent(
   node: ComponentIR,
@@ -14,7 +19,7 @@ export function emitComponent(
   )
 
   return t.callExpression(context.importRuntime('createComponent'), [
-    node.callee,
+    parseExpressionIR(node.callee),
     props,
   ])
 }
@@ -36,15 +41,17 @@ function emitComponentProp(
     )
   }
 
-  if (isStaticPropValue(prop.value)) {
-    return t.objectProperty(key, prop.value)
+  const value = parseExpressionIR(prop.value)
+
+  if (isStaticPropValue(value)) {
+    return t.objectProperty(key, value)
   }
 
   return t.objectMethod(
     'get',
     key,
     [],
-    t.blockStatement([t.returnStatement(prop.value)]),
+    t.blockStatement([t.returnStatement(value)]),
   )
 }
 

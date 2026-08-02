@@ -9,14 +9,11 @@ export declare const ZEUS_CAPABILITIES: {
   readonly packageName: '@zeus-js/zeus'
   readonly version: string
   readonly publicApi: {
-    readonly state: true
-    readonly computed: true
-    readonly effect: true
-    readonly watch: true
-    readonly scope: true
+    readonly createSignal: true
+    readonly createMemo: true
+    readonly createEffect: true
+    readonly createRoot: true
     readonly batch: true
-    readonly untrack: true
-    readonly nextTick: true
     readonly onCleanup: true
     readonly render: true
     readonly Show: true
@@ -49,7 +46,6 @@ export declare const ZEUS_CAPABILITIES: {
   }
   readonly stability: {
     readonly main: 'stable'
-    readonly advanced: 'advanced'
     readonly internal: 'private'
   }
 }

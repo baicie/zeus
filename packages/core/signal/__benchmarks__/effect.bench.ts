@@ -2,7 +2,7 @@ import { bench, describe } from 'vitest'
 
 import { effect, state } from '../dist/signal.esm-browser.prod'
 
-import type { ValueState } from '../src'
+import type { ValueState } from '../src/internal'
 
 describe('effect', () => {
   {

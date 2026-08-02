@@ -1,13 +1,11 @@
 // packages/runtime-dom/src/list.ts
 
-import { effect, effectScope, onScopeDispose, stop } from '@zeus-js/signal'
+import { effect, onScopeDispose, stop } from '@zeus-js/signal/internal'
 
-import { getCurrentOwner, runWithOwner } from './context'
 import { emitDevtoolsEvent } from './devtools'
-import { insertTracked, moveRangeBefore, removeNodes } from './range'
+import { captureScopedSubtreeContext, ScopedSubtree } from './scopedSubtree'
 
 import type { JSXValue } from './types'
-import type { EffectScope } from '@zeus-js/signal'
 
 type Key = unknown
 
@@ -15,13 +13,11 @@ type ListRecord<T> = {
   key: Key
   item: T
   index: number
-  nodes: Node[]
-  scope: EffectScope
+  subtree: ScopedSubtree
 }
 
 function disposeListRecord<T>(record: ListRecord<T>): void {
-  record.scope.stop()
-  removeNodes(record.nodes)
+  record.subtree.dispose()
 }
 
 export function mountFor<T, K = unknown>(
@@ -45,30 +41,21 @@ function mountIndexFor<T>(
   each: () => readonly T[] | null | undefined,
   render: (item: T, index: number) => JSXValue,
 ): void {
-  let current: Node[] = []
-  const owner = getCurrentOwner()
+  const subtree = new ScopedSubtree(
+    parent,
+    marker,
+    captureScopedSubtreeContext(),
+  )
 
   const runner = effect(() => {
-    removeNodes(current)
-    current = []
-
     const list = each() ?? []
 
-    for (let i = 0; i < list.length; i++) {
-      current.push(
-        ...insertTracked(
-          parent,
-          runWithOwner(owner, () => render(list[i], i)),
-          marker,
-        ),
-      )
-    }
+    subtree.replace(() => list.map((item, index) => render(item, index)))
   })
 
   onScopeDispose(() => {
     stop(runner)
-    removeNodes(current)
-    current = []
+    subtree.dispose()
   }, true)
 }
 
@@ -80,7 +67,7 @@ function mountKeyedFor<T, K>(
   render: (item: T, index: number) => JSXValue,
 ): void {
   let records: ListRecord<T>[] = []
-  const owner = getCurrentOwner()
+  const subtreeContext = captureScopedSubtreeContext()
 
   const runner = effect(() => {
     const nextItems = each() ?? []
@@ -103,28 +90,14 @@ function mountKeyedFor<T, K>(
         oldRecord.index = i
         nextRecords.push(oldRecord)
       } else {
-        const itemScope = effectScope(true)
-        let nodes: Node[] = []
-
-        try {
-          itemScope.run(() => {
-            nodes = insertTracked(
-              parent,
-              runWithOwner(owner, () => render(item, i)),
-              marker,
-            )
-          })
-        } catch (error) {
-          itemScope.stop()
-          throw error
-        }
+        const subtree = new ScopedSubtree(parent, marker, subtreeContext)
+        subtree.replace(() => render(item, i))
 
         nextRecords.push({
           key: itemKey,
           item,
           index: i,
-          nodes,
-          scope: itemScope,
+          subtree,
         })
       }
     }
@@ -138,9 +111,9 @@ function mountKeyedFor<T, K>(
       const anchor =
         i === nextRecords.length - 1
           ? marker
-          : (nextRecords[i + 1].nodes[0] ?? marker)
+          : (nextRecords[i + 1].subtree.current()[0] ?? marker)
 
-      moveRangeBefore(record.nodes, parent, anchor)
+      record.subtree.moveBefore(anchor)
     }
 
     emitDevtoolsEvent({ type: 'mount-for', length: nextRecords.length })

@@ -8,7 +8,7 @@ import type {
   ShowIR,
   SlotIR,
   ZeusIRNode,
-} from '../ir/nodes'
+} from '@zeus-js/compiler-shared'
 
 export function assignDomPaths(node: ZeusIRNode): ZeusIRNode {
   visitNode(node)

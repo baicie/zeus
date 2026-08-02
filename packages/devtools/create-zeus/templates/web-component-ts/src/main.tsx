@@ -1,4 +1,4 @@
-import { Host, Slot, defineElement, state } from '@zeus-js/zeus'
+import { createSignal, Host, Slot, defineElement } from '@zeus-js/zeus'
 
 defineElement(
   'z-counter',
@@ -9,14 +9,16 @@ defineElement(
     },
   },
   props => {
-    const count = state(0)
+    const [count, setCount] = createSignal(0)
 
     return (
       <Host>
         <section>
           <h2>{props.title}</h2>
 
-          <button onClick={() => count.value++}>count: {count.value}</button>
+          <button onClick={() => setCount(count() + 1)}>
+            count: {count()}
+          </button>
 
           <Slot />
         </section>

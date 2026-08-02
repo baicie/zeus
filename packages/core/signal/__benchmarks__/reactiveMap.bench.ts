@@ -2,7 +2,7 @@ import { bench } from 'vitest'
 
 import { computed, state } from '../dist/signal.esm-browser.prod'
 
-import type { ComputedRef } from '../src'
+import type { ComputedRef } from '../src/internal'
 
 function createMap(obj: Record<string, any>) {
   const map = new Map()

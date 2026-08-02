@@ -1,18 +1,26 @@
 import * as t from '@babel/types'
-
-import { CompilerError, CompilerErrorCode } from '../diagnostics'
 import {
   forIR,
   fragmentIR,
   hostIR,
+  identifierIR,
   dynamicTextIR,
   id,
   ref,
   showIR,
   slotIR,
+  type ExpressionIR,
   type HostAttrIR,
+  type IdentifierIR,
   type ZeusIRNode,
-} from '../ir'
+} from '@zeus-js/compiler-shared'
+
+import {
+  expressionIRFromCode,
+  lowerExpressionIR,
+  sourceSpanFromBabelNode,
+} from '../adapters/babel/expression'
+import { CompilerError, CompilerErrorCode } from '../diagnostics'
 import { lowerChildren } from './lowerChildren'
 import { lowerJSX } from './lowerJSX'
 import { getJSXAttrName } from '../parse/jsx'
@@ -81,7 +89,7 @@ function lowerShow(
 function optionalShowFallbackAttr(
   path: NodePath<t.JSXElement>,
   context: CompilerContext,
-): t.Expression | ZeusIRNode[] | undefined {
+): ExpressionIR | ZeusIRNode[] | undefined {
   const attr = path
     .get('openingElement')
     .get('attributes')
@@ -94,8 +102,10 @@ function optionalShowFallbackAttr(
 
   const value = attr.get('value')
 
-  if (!value.node) return t.booleanLiteral(true)
-  if (value.isStringLiteral()) return value.node
+  if (!value.node) return expressionIRFromCode('true', attr.node)
+  if (value.isStringLiteral()) {
+    return expressionIRFromCode(JSON.stringify(value.node.value), value.node)
+  }
   if (!value.isJSXExpressionContainer()) return undefined
 
   const expression = value.get('expression')
@@ -104,7 +114,7 @@ function optionalShowFallbackAttr(
   if (expression.isJSXElement() || expression.isJSXFragment()) {
     return [lowerJSX(expression, context)]
   }
-  if (expression.isExpression()) return expression.node
+  if (expression.isExpression()) return lowerExpressionIR(expression)
 
   return undefined
 }
@@ -116,7 +126,7 @@ function lowerFor(
   const each = requiredExpressionAttr(path, 'each')
   const by = optionalExpressionAttr(path, 'by')
   const render = getOnlyRenderFunction(path)
-  const item = getParamIdentifier(render, 0) ?? t.identifier('item')
+  const item = getParamIdentifier(render, 0, 'item')!
   const index = getParamIdentifier(render, 1)
   const bodyPath = render.get('body')
   const body: ZeusIRNode[] = []
@@ -124,7 +134,12 @@ function lowerFor(
   if (bodyPath.isJSXElement() || bodyPath.isJSXFragment()) {
     body.push(lowerJSX(bodyPath, context))
   } else if (bodyPath.isExpression()) {
-    body.push(dynamicTextIR(bodyPath.node, ref(context.uid('anchor$').name)))
+    body.push(
+      dynamicTextIR(
+        lowerExpressionIR(bodyPath),
+        ref(context.uid('anchor$').name),
+      ),
+    )
   }
 
   return forIR({
@@ -153,10 +168,10 @@ function lowerSlot(
 function requiredExpressionAttr(
   path: NodePath<t.JSXElement>,
   name: string,
-): t.Expression {
+): ExpressionIR {
   const value = optionalExpressionAttr(path, name)
 
-  if (!value || Array.isArray(value)) {
+  if (!value) {
     throw new CompilerError({
       code: CompilerErrorCode.INVALID_BUILTIN_USAGE,
       message: `<${getBuiltinName(path)}> requires "${name}".`,
@@ -170,7 +185,7 @@ function requiredExpressionAttr(
 function optionalExpressionAttr(
   path: NodePath<t.JSXElement>,
   name: string,
-): t.Expression | undefined {
+): ExpressionIR | undefined {
   const attr = path
     .get('openingElement')
     .get('attributes')
@@ -181,17 +196,17 @@ function optionalExpressionAttr(
 
   if (!attr?.isJSXAttribute()) return undefined
 
-  const value = attr.node.value
+  const value = attr.get('value')
 
-  if (!value) return t.booleanLiteral(true)
-  if (t.isStringLiteral(value)) return value
-
-  if (
-    t.isJSXExpressionContainer(value) &&
-    !t.isJSXEmptyExpression(value.expression)
-  ) {
-    return value.expression
+  if (!value.node) return expressionIRFromCode('true', attr.node)
+  if (value.isStringLiteral()) {
+    return expressionIRFromCode(JSON.stringify(value.node.value), value.node)
   }
+
+  if (!value.isJSXExpressionContainer()) return undefined
+
+  const expression = value.get('expression')
+  if (expression.isExpression()) return lowerExpressionIR(expression)
 
   return undefined
 }
@@ -250,11 +265,13 @@ function getParamIdentifier(
   path: NodePath<t.ArrowFunctionExpression | t.FunctionExpression>,
   index: number,
   fallback?: string,
-): t.Identifier | undefined {
+): IdentifierIR | undefined {
   const param = path.node.params[index]
 
-  if (t.isIdentifier(param)) return param
-  if (fallback) return t.identifier(fallback)
+  if (t.isIdentifier(param)) {
+    return identifierIR(param.name, sourceSpanFromBabelNode(param))
+  }
+  if (fallback) return identifierIR(fallback)
 
   return undefined
 }
@@ -318,7 +335,7 @@ function lowerHost(
             id: id(),
             kind: 'HostAttr',
             name: 'ref',
-            expr: expr.node,
+            expr: lowerExpressionIR(expr),
           })
         }
       }
@@ -327,32 +344,36 @@ function lowerHost(
 
     if (isEventLikeProp(name)) continue
 
-    const value = node.value
+    const value = attrPath.get('value')
 
-    if (!value) {
+    if (!value.node) {
       attrs.push({
         id: id(),
         kind: 'HostAttr',
         name: normalizeHostAttrName(name),
-        expr: t.booleanLiteral(true),
+        expr: expressionIRFromCode('true', node),
       })
-    } else if (t.isStringLiteral(value)) {
+    } else if (value.isStringLiteral()) {
       attrs.push({
         id: id(),
         kind: 'HostAttr',
         name: normalizeHostAttrName(name),
-        expr: t.stringLiteral(value.value),
+        expr: expressionIRFromCode(
+          JSON.stringify(value.node.value),
+          value.node,
+        ),
       })
-    } else if (
-      t.isJSXExpressionContainer(value) &&
-      !t.isJSXEmptyExpression(value.expression)
-    ) {
-      attrs.push({
-        id: id(),
-        kind: 'HostAttr',
-        name: normalizeHostAttrName(name),
-        expr: value.expression,
-      })
+    } else if (value.isJSXExpressionContainer()) {
+      const expression = value.get('expression')
+
+      if (expression.isExpression()) {
+        attrs.push({
+          id: id(),
+          kind: 'HostAttr',
+          name: normalizeHostAttrName(name),
+          expr: lowerExpressionIR(expression),
+        })
+      }
     }
   }
 

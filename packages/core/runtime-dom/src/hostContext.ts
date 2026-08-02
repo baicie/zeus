@@ -1,11 +1,14 @@
 // packages/runtime-dom/src/hostContext.ts
 
+import type { LightDomProjection } from './slot'
+
 export type HostRenderMode = 'light' | 'shadow'
 
 export interface HostRenderContext {
   host: HTMLElement
   mode: HostRenderMode
-  lightChildren: readonly Node[]
+  lightChildren: Node[]
+  projection?: LightDomProjection
 }
 
 let currentHostContext: HostRenderContext | undefined

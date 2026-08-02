@@ -1,12 +1,13 @@
-import * as t from '@babel/types'
+import { dynamicTextIR, ref, textIR } from '@zeus-js/compiler-shared'
 
 import { lowerJSX } from './lowerJSX'
-import { dynamicTextIR, ref, textIR } from '../ir/semanticBuilders'
+import { lowerExpressionIR } from '../adapters/babel/expression'
 import { escapeHTML, trimJSXText } from '../utils/html'
 
 import type { CompilerContext } from '../context'
-import type { ZeusIRNode } from '../ir/nodes'
 import type { NodePath } from '@babel/core'
+import type * as t from '@babel/types'
+import type { ZeusIRNode } from '@zeus-js/compiler-shared'
 
 export function lowerChildren(
   children: NodePath<t.JSXElement['children'][number]>[],
@@ -22,11 +23,16 @@ export function lowerChildren(
     }
 
     if (child.isJSXExpressionContainer()) {
-      const expr = child.node.expression
-      if (t.isJSXEmptyExpression(expr)) continue
+      const expression = child.get('expression')
+      if (expression.isJSXEmptyExpression()) continue
 
-      if (t.isExpression(expr)) {
-        result.push(dynamicTextIR(expr, ref(context.uid('anchor$').name)))
+      if (expression.isExpression()) {
+        result.push(
+          dynamicTextIR(
+            lowerExpressionIR(expression),
+            ref(context.uid('anchor$').name),
+          ),
+        )
       }
 
       continue
