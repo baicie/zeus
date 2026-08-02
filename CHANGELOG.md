@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-beta.9 (2026-08-02)
+
+### Features
+
+- Establish the compiler-first semantic foundations: explicit fine-grained reactive primitives, scoped DOM cleanup, unified eager and lazy custom element lifecycles, dynamic light DOM projection, and a Babel-independent compiler IR package.
+
 ## 0.1.0-beta.8 (2026-07-26)
 
 ### Fixes
