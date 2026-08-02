@@ -49,6 +49,7 @@ export default defineReleaseConfig({
 
   precheck: {
     commands: [
+      ['pnpm', 'check:release-worktree', '--capture'],
       ['pnpm', 'check:branch'],
       ['pnpm', 'build'],
       ['pnpm', 'check:compiler-cjs'],
@@ -64,6 +65,7 @@ export default defineReleaseConfig({
       ['pnpm', 'size:ci'],
       ['pnpm', 'check:exports'],
       ['pnpm', 'check:repository'],
+      ['pnpm', 'check:release-worktree', '--verify'],
     ],
   },
 
