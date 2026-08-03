@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { createZeus } from '../src'
+import { resolveRuntimeDOMEntryFromPackage } from '../src/runtime-resolution'
 
 import type { ConfigEnv, HookHandler, Plugin, UserConfig } from 'vite'
 
@@ -30,5 +31,13 @@ describe('vite-plugin-zeus config', () => {
         dedupe: ['@zeus-js/signal', '@zeus-js/runtime-dom', '@zeus-js/zeus'],
       },
     })
+  })
+
+  it('derives the ESM runtime entry from the resolved package entry', () => {
+    expect(
+      resolveRuntimeDOMEntryFromPackage(
+        '/app/node_modules/runtime-dom/index.cjs',
+      ),
+    ).toBe('/app/node_modules/runtime-dom/dist/runtime-dom.esm-bundler.js')
   })
 })
