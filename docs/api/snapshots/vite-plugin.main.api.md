@@ -11,6 +11,8 @@ import { Plugin } from 'vite'
 export interface ZeusVitePluginOptions {
   include?: RegExp | RegExp[]
   exclude?: RegExp | RegExp[]
+  /** Inject dispose-and-remount boundaries for top-level render roots. */
+  hmr?: boolean
   compiler?: Partial<CompilerOptions>
 }
 export declare function createZeus(options?: ZeusVitePluginOptions): Plugin

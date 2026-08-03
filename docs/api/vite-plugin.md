@@ -23,19 +23,35 @@ export default defineConfig({
 
 ```ts
 zeus({
-  dev?: boolean
-  target?: 'dom' | 'web-components'
+  include?: RegExp | RegExp[]
+  exclude?: RegExp | RegExp[]
+  hmr?: boolean
+  compiler?: Partial<CompilerOptions>
 })
 ```
 
-### dev
+### include / exclude
 
-Enable development mode with readable output and diagnostics.
+Control which module ids are compiled. By default, Zeus includes `.jsx` and
+`.tsx` files and excludes `node_modules`.
 
-### target
+### hmr
 
-- `'dom'` — standard DOM rendering (default)
-- `'web-components'` — compiles to custom elements
+Enabled by default. During Vite development, a module with a direct top-level
+`render()` call imported from `@zeus-js/zeus` or `@zeus-js/runtime-dom` becomes
+a self-accepting HMR boundary. Zeus captures the render disposer, disposes old
+roots in reverse mount order, and lets the updated module mount fresh roots.
+
+This lifecycle is a dispose-and-remount model. Local signal state is reset; DOM
+nodes and component state are not preserved. Production builds and SSR
+transforms do not contain the HMR boundary.
+
+Set `hmr: false` to disable automatic boundaries. A module that contains its
+own `import.meta.hot` handling is also left unchanged.
+
+### compiler
+
+Overrides options passed to `@zeus-js/compiler`.
 
 ## TypeScript
 

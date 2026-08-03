@@ -15,10 +15,12 @@ import zeus from '@zeus-js/vite-plugin'
 export default defineConfig({
   plugins: [
     zeus({
-      // Enable development diagnostics
-      dev: true,
-      // Target output: 'dom' (default) or 'web-components'
-      target: 'dom',
+      include: /\.tsx$/,
+      exclude: /node_modules/,
+      hmr: true,
+      compiler: {
+        moduleName: '@zeus-js/runtime-dom',
+      },
     }),
   ],
 })
@@ -41,13 +43,19 @@ export default defineConfig({
 In dev mode, the plugin:
 
 - Compiles JSX on the fly
-- Generates readable runtime helper calls
 - Provides source maps
+- Reports structured compiler diagnostics
+- Disposes and remounts modules with a direct top-level `render()` root
+
+Automatic root HMR is enabled by default. It resets local component state and
+does not reuse DOM nodes. If a module already contains `import.meta.hot`, the
+plugin assumes that module owns its HMR lifecycle and does not inject another
+boundary. Set `hmr: false` to disable the automatic behavior globally.
 
 ## Production
 
 In production, the plugin:
 
 - Enables static template cloning
-- Minifies helper names
-- Dead code eliminates unused runtime helpers
+- Emits direct DOM bindings
+- Omits development-only HMR boundaries
