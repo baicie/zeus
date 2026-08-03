@@ -60,6 +60,7 @@ export default defineReleaseConfig({
       ['pnpm', 'test-unit'],
       ['pnpm', 'check:package-versions'],
       ['pnpm', 'examples:check:all'],
+      ['pnpm', 'check:create-zeus'],
       ['pnpm', 'bench:component-host:ci'],
       ['pnpm', 'docs:build'],
       ['pnpm', 'size:ci'],

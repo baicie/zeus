@@ -14,7 +14,7 @@ defineElement(
     return (
       <Host>
         <section>
-          <h2>{props.title}</h2>
+          <h2>{String(props.title ?? '')}</h2>
 
           <button onClick={() => setCount(count() + 1)}>
             count: {count()}
