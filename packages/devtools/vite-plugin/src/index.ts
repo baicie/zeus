@@ -8,6 +8,7 @@ import zeusCompiler, {
 } from '@zeus-js/compiler'
 
 import { createRootHMRPlugin } from './hmr'
+import { resolveRuntimeDOMEntryFromPackage } from './runtime-resolution'
 
 import type { CompilerOptions } from '@zeus-js/compiler'
 import type { Plugin, UserConfig } from 'vite'
@@ -192,10 +193,7 @@ function resolveRuntimeDOMEntry(root: string | undefined): string | undefined {
       paths: [projectRoot],
     })
 
-    return path.join(
-      path.dirname(runtimeDomPackage),
-      'dist/runtime-dom.esm-bundler.js',
-    )
+    return resolveRuntimeDOMEntryFromPackage(runtimeDomPackage)
   } catch {
     // The common app shape depends only on @zeus-js/zeus. Resolve its
     // nested runtime-dom dependency from the Zeus package location.
@@ -209,10 +207,7 @@ function resolveRuntimeDOMEntry(root: string | undefined): string | undefined {
       '@zeus-js/runtime-dom',
     )
 
-    return path.join(
-      path.dirname(runtimeDomPackage),
-      'dist/runtime-dom.esm-bundler.js',
-    )
+    return resolveRuntimeDOMEntryFromPackage(runtimeDomPackage)
   } catch {
     return undefined
   }
