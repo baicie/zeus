@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, existsSync } from 'node:fs'
+import { mkdtempSync, rmSync, existsSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -22,6 +22,12 @@ describe('create-zeus scaffold', () => {
     expect(existsSync(join(root, 'tsconfig.json'))).toBe(true)
     expect(existsSync(join(root, 'index.html'))).toBe(true)
 
+    const packageJson = JSON.parse(
+      readFileSync(join(root, 'package.json'), 'utf-8'),
+    )
+    expect(packageJson.dependencies['@zeus-js/zeus']).toBe('^0.1.0')
+    expect(packageJson.devDependencies['@zeus-js/vite-plugin']).toBe('^0.0.3')
+
     rmSync(root, {
       recursive: true,
       force: true,
@@ -41,6 +47,14 @@ describe('create-zeus scaffold', () => {
     expect(existsSync(join(root, 'src/main.tsx'))).toBe(true)
     expect(existsSync(join(root, 'vite.config.ts'))).toBe(true)
     expect(existsSync(join(root, 'index.html'))).toBe(true)
+
+    const packageJson = JSON.parse(
+      readFileSync(join(root, 'package.json'), 'utf-8'),
+    )
+    const viteConfig = readFileSync(join(root, 'vite.config.ts'), 'utf-8')
+    expect(packageJson.dependencies['@zeus-js/zeus']).toBe('^0.1.0')
+    expect(packageJson.devDependencies['@zeus-js/vite-plugin']).toBe('^0.0.3')
+    expect(viteConfig).not.toContain("target: 'web-components'")
 
     rmSync(root, {
       recursive: true,
