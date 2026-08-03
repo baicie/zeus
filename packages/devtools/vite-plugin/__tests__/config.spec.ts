@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, symlink } from 'node:fs/promises'
+import { copyFile, mkdir, mkdtemp, rm, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -38,11 +38,11 @@ async function createRuntimeFixture(): Promise<string> {
   )
 
   await mkdir(path.dirname(runtimePackage), { recursive: true })
-  await symlink(
+  await copyFile(
     path.join(workspaceRoot, 'packages/core/zeus/package.json'),
     path.join(zeusPackage, 'package.json'),
   )
-  await symlink(
+  await copyFile(
     path.join(workspaceRoot, 'packages/core/zeus/index.cjs'),
     path.join(zeusPackage, 'index.cjs'),
   )
