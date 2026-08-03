@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module'
 import path from 'node:path'
 
 import { transformAsync } from '@babel/core'
@@ -10,6 +11,8 @@ import { createRootHMRPlugin } from './hmr'
 
 import type { CompilerOptions } from '@zeus-js/compiler'
 import type { Plugin, UserConfig } from 'vite'
+
+const require = createRequire(import.meta.url)
 
 export interface ZeusVitePluginOptions {
   include?: RegExp | RegExp[]
@@ -185,24 +188,30 @@ function resolveRuntimeDOMEntry(root: string | undefined): string | undefined {
   const projectRoot = path.resolve(process.cwd(), root ?? '.')
 
   try {
-    return require.resolve(
-      '@zeus-js/runtime-dom/dist/runtime-dom.esm-bundler.js',
-      { paths: [projectRoot] },
+    const runtimeDomPackage = require.resolve('@zeus-js/runtime-dom', {
+      paths: [projectRoot],
+    })
+
+    return path.join(
+      path.dirname(runtimeDomPackage),
+      'dist/runtime-dom.esm-bundler.js',
     )
   } catch {
-    // The common app shape depends only on @zeus-js/zeus.
-    // Compiler output still imports runtime helpers directly,
-    // so resolve runtime-dom through Zeus.
+    // The common app shape depends only on @zeus-js/zeus. Resolve its
+    // nested runtime-dom dependency from the Zeus package location.
   }
 
   try {
     const zeusEntry = require.resolve('@zeus-js/zeus', {
       paths: [projectRoot],
     })
+    const runtimeDomPackage = createRequire(zeusEntry).resolve(
+      '@zeus-js/runtime-dom',
+    )
 
-    return require.resolve(
-      '@zeus-js/runtime-dom/dist/runtime-dom.esm-bundler.js',
-      { paths: [zeusEntry] },
+    return path.join(
+      path.dirname(runtimeDomPackage),
+      'dist/runtime-dom.esm-bundler.js',
     )
   } catch {
     return undefined

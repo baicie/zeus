@@ -27,6 +27,11 @@ describe('vite-plugin-zeus config', () => {
     expect(result).toMatchObject({
       oxc: { jsx: 'preserve' },
       resolve: {
+        alias: {
+          '@zeus-js/runtime-dom': expect.stringContaining(
+            'runtime-dom.esm-bundler.js',
+          ),
+        },
         dedupe: ['@zeus-js/signal', '@zeus-js/runtime-dom', '@zeus-js/zeus'],
       },
     })
