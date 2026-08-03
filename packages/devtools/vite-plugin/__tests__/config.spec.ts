@@ -14,7 +14,9 @@ function getConfigHook(plugin: Plugin): ConfigHook {
   return typeof hook === 'function' ? hook : hook.handler
 }
 
-async function runConfig(userConfig: UserConfig = {}) {
+async function runConfig(
+  userConfig: UserConfig = { root: 'examples/project-board' },
+) {
   const hook = getConfigHook(createZeus())
 
   return hook.call({} as ThisParameterType<ConfigHook>, userConfig, configEnv)
