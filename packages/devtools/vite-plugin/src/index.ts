@@ -1,6 +1,3 @@
-import { createRequire } from 'node:module'
-import path from 'node:path'
-
 import { transformAsync } from '@babel/core'
 import zeusCompiler, {
   CompilerError,
@@ -8,12 +5,10 @@ import zeusCompiler, {
 } from '@zeus-js/compiler'
 
 import { createRootHMRPlugin } from './hmr'
-import { resolveRuntimeDOMEntryFromPackage } from './runtime-resolution'
+import { resolveRuntimeDOMEntry } from './runtime-resolution'
 
 import type { CompilerOptions } from '@zeus-js/compiler'
 import type { Plugin, UserConfig } from 'vite'
-
-const require = createRequire(import.meta.url)
 
 export interface ZeusVitePluginOptions {
   include?: RegExp | RegExp[]
@@ -182,33 +177,5 @@ async function isRolldownVite(): Promise<boolean> {
     )
   } catch {
     return false
-  }
-}
-
-function resolveRuntimeDOMEntry(root: string | undefined): string | undefined {
-  const projectRoot = path.resolve(process.cwd(), root ?? '.')
-
-  try {
-    const runtimeDomPackage = require.resolve('@zeus-js/runtime-dom', {
-      paths: [projectRoot],
-    })
-
-    return resolveRuntimeDOMEntryFromPackage(runtimeDomPackage)
-  } catch {
-    // The common app shape depends only on @zeus-js/zeus. Resolve its
-    // nested runtime-dom dependency from the Zeus package location.
-  }
-
-  try {
-    const zeusEntry = require.resolve('@zeus-js/zeus', {
-      paths: [projectRoot],
-    })
-    const runtimeDomPackage = createRequire(zeusEntry).resolve(
-      '@zeus-js/runtime-dom',
-    )
-
-    return resolveRuntimeDOMEntryFromPackage(runtimeDomPackage)
-  } catch {
-    return undefined
   }
 }
