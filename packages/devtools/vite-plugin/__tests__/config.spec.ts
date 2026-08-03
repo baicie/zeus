@@ -15,7 +15,7 @@ function getConfigHook(plugin: Plugin): ConfigHook {
 }
 
 async function runConfig(
-  userConfig: UserConfig = { root: 'examples/project-board' },
+  userConfig: UserConfig = { root: 'examples/counter' },
 ) {
   const hook = getConfigHook(createZeus())
 
