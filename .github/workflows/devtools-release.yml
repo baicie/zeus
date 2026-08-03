@@ -35,14 +35,24 @@ jobs:
       - name: Install deps
         run: pnpm install --frozen-lockfile
 
-      - name: Build framework
-        run: pnpm build
+      - name: Verify published template dependencies
+        if: startsWith(github.ref_name, 'create-zeus@')
+        run: pnpm check:create-zeus-registry
+
+      - name: Build framework and declarations
+        run: pnpm build --withTypes
 
       - name: Build devtools
         run: pnpm --filter create-zeus --filter @zeus-js/vite-plugin --if-present build
 
       - name: Verify CommonJS entries
         run: pnpm check:cjs
+
+      - name: Verify package exports
+        run: pnpm check:exports
+
+      - name: Verify vite-plugin tarball
+        run: pnpm check:vite-plugin-package
 
       - name: Publish package
         run: pnpm standalone:publish "${{ github.ref_name }}"

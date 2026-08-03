@@ -26,7 +26,7 @@ describe('create-zeus scaffold', () => {
       readFileSync(join(root, 'package.json'), 'utf-8'),
     )
     expect(packageJson.dependencies['@zeus-js/zeus']).toBe('^0.1.0')
-    expect(packageJson.devDependencies['@zeus-js/vite-plugin']).toBe('^0.0.3')
+    expect(packageJson.devDependencies['@zeus-js/vite-plugin']).toBe('^0.0.5')
 
     rmSync(root, {
       recursive: true,
@@ -53,7 +53,7 @@ describe('create-zeus scaffold', () => {
     )
     const viteConfig = readFileSync(join(root, 'vite.config.ts'), 'utf-8')
     expect(packageJson.dependencies['@zeus-js/zeus']).toBe('^0.1.0')
-    expect(packageJson.devDependencies['@zeus-js/vite-plugin']).toBe('^0.0.3')
+    expect(packageJson.devDependencies['@zeus-js/vite-plugin']).toBe('^0.0.5')
     expect(viteConfig).not.toContain("target: 'web-components'")
 
     rmSync(root, {
