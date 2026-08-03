@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.0 (2026-08-03)
+
+### Features
+
+- Expose serializable compiler diagnostics with source spans and enforce `Host` and `Slot` placement at trusted `defineElement` boundaries.
+
+### Fixes
+
+- Publish Node-compatible CommonJS entry points with unambiguous `.cjs` filenames and verify every public `require` export in development and production modes.
+
 ## 0.1.0-beta.9 (2026-08-02)
 
 ### Features
