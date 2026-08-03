@@ -5,14 +5,30 @@ import { createZeus } from '../src'
 
 import type { ZeusVitePluginOptions } from '../src'
 import type { Plugin as RollupPlugin, TransformResult } from 'rollup'
-import type { HookHandler, Plugin } from 'vite'
+import type { HookHandler, Plugin, ResolvedConfig } from 'vite'
 
 type TransformHook = NonNullable<HookHandler<Plugin['transform']>>
+type ConfigResolvedHook = NonNullable<HookHandler<Plugin['configResolved']>>
 type TransformOutput = Awaited<ReturnType<TransformHook>>
+type TransformOptions = Parameters<TransformHook>[2]
+
+interface RootHMRTestState {
+  events: string[]
+  disposers: Array<() => void>
+  hot: {
+    accept(): void
+    dispose(callback: () => void): void
+  }
+}
 
 const source = 'const App = () => <div>hello</div>'
 const eventSource =
   'const App = () => <button onClick={() => {}}>click</button>'
+const rootSource = [
+  "import { render as mount } from '@zeus-js/zeus'",
+  '',
+  "mount('view', document.body)",
+].join('\n')
 
 const statefulPatterns: [string, () => RegExp][] = [
   ['global', () => /\.tsx$/g],
@@ -25,8 +41,18 @@ function getTransformHook(plugin: Plugin): TransformHook {
   return typeof hook === 'function' ? hook : hook.handler
 }
 
-function createTransformHarness(options: ZeusVitePluginOptions = {}) {
-  const hook = getTransformHook(createZeus(options))
+function createTransformHarness(
+  options: ZeusVitePluginOptions = {},
+  command?: 'serve' | 'build',
+  buildSSR: boolean | string = false,
+) {
+  const plugin = createZeus(options)
+
+  if (command) {
+    runConfigResolved(plugin, command, buildSSR)
+  }
+
+  const hook = getTransformHook(plugin)
   const context = {
     error(error: string | { message: string }): never {
       if (typeof error === 'string') throw new Error(error)
@@ -34,7 +60,28 @@ function createTransformHarness(options: ZeusVitePluginOptions = {}) {
     },
   } as ThisParameterType<TransformHook>
 
-  return (code: string, id: string) => hook.call(context, code, id)
+  return (code: string, id: string, transformOptions?: TransformOptions) =>
+    hook.call(context, code, id, transformOptions)
+}
+
+function runConfigResolved(
+  plugin: Plugin,
+  command: 'serve' | 'build',
+  buildSSR: boolean | string,
+): void {
+  const hook = plugin.configResolved
+  if (!hook) throw new Error('Expected configResolved hook')
+
+  const handler: ConfigResolvedHook =
+    typeof hook === 'function' ? hook : hook.handler
+
+  handler.call(
+    {} as ThisParameterType<ConfigResolvedHook>,
+    {
+      command,
+      build: { ssr: buildSSR },
+    } as ResolvedConfig,
+  )
 }
 
 function getCode(result: TransformOutput): string | null {
@@ -145,6 +192,185 @@ describe('vite-plugin-zeus transform', () => {
     )
 
     expect(code).toContain('from "virtual:test-runtime"')
+  })
+
+  it('adds a disposal HMR boundary to top-level render roots in serve mode', async () => {
+    const code = getCode(
+      await createTransformHarness({}, 'serve')(rootSource, '/src/main.tsx'),
+    )
+
+    expect(code).toContain('const _dispose = mount')
+    expect(code).toContain('import.meta.hot.accept()')
+    expect(code).toContain('import.meta.hot.dispose')
+    expect(code).toContain('_dispose()')
+  })
+
+  it('reuses an explicitly captured top-level render disposer', async () => {
+    const capturedSource = [
+      "import { render } from '@zeus-js/zeus'",
+      '',
+      "export const disposeApp = render('view', document.body)",
+    ].join('\n')
+    const code = getCode(
+      await createTransformHarness({}, 'serve')(
+        capturedSource,
+        '/src/main.tsx',
+      ),
+    )
+
+    expect(code).toContain('export const disposeApp = render')
+    expect(code).toContain('disposeApp()')
+    expect(code).not.toContain('const _dispose')
+  })
+
+  it('does not add an HMR boundary to production builds', async () => {
+    const code = getCode(
+      await createTransformHarness({}, 'build')(rootSource, '/src/main.tsx'),
+    )
+
+    expect(code).not.toContain('import.meta.hot')
+  })
+
+  it('does not make component-only modules self-accepting', async () => {
+    const code = getCode(
+      await createTransformHarness({}, 'serve')(source, '/src/App.tsx'),
+    )
+
+    expect(code).not.toContain('import.meta.hot')
+  })
+
+  it('does not add a browser HMR boundary to SSR transforms', async () => {
+    const code = getCode(
+      await createTransformHarness({}, 'serve')(rootSource, '/src/main.tsx', {
+        moduleType: 'tsx',
+        ssr: true,
+      }),
+    )
+
+    expect(code).not.toContain('import.meta.hot')
+  })
+
+  it('keeps client HMR enabled when the project also configures an SSR build', async () => {
+    const code = getCode(
+      await createTransformHarness({}, 'serve', '/src/server.ts')(
+        rootSource,
+        '/src/main.tsx',
+        { moduleType: 'tsx', ssr: false },
+      ),
+    )
+
+    expect(code).toContain('import.meta.hot.accept()')
+  })
+
+  it('leaves modules with an explicit HMR boundary under user control', async () => {
+    const manualSource = [
+      rootSource,
+      '',
+      'if (import.meta.hot) {',
+      '  import.meta.hot.accept()',
+      '}',
+    ].join('\n')
+    const code = getCode(
+      await createTransformHarness({}, 'serve')(manualSource, '/src/main.tsx'),
+    )
+    if (!code) throw new Error('Expected transformed manual HMR module')
+
+    expect(code).not.toContain('const _dispose')
+    expect(code.match(/import\.meta\.hot\.accept\(\)/g)).toHaveLength(1)
+  })
+
+  it('disposes the old root before an accepted module mounts again', async () => {
+    const lifecycleSource = [
+      "import { render as mount } from '@zeus-js/zeus'",
+      '',
+      "mount('first', document.body)",
+      "mount('second', document.body)",
+    ].join('\n')
+    const code = getCode(
+      await createTransformHarness({}, 'serve')(
+        lifecycleSource,
+        '/src/main.tsx',
+      ),
+    )
+    if (!code) throw new Error('Expected transformed root module')
+
+    const globalState = globalThis as typeof globalThis & {
+      __zeusRootHMRTest?: RootHMRTestState
+    }
+    const state: RootHMRTestState = {
+      events: [],
+      disposers: [],
+      hot: {
+        accept() {
+          state.events.push('accept')
+        },
+        dispose(callback) {
+          state.events.push('register-dispose')
+          state.disposers.push(callback)
+        },
+      },
+    }
+    globalState.__zeusRootHMRTest = state
+
+    const runtimeURL = toDataURL(
+      [
+        'export function render(label) {',
+        '  globalThis.__zeusRootHMRTest.events.push(`mount:${label}`)',
+        '  return () => {',
+        '    globalThis.__zeusRootHMRTest.events.push(`dispose:${label}`)',
+        '  }',
+        '}',
+      ].join('\n'),
+    )
+    const executableCode = code
+      .replace(
+        /from ['"]@zeus-js\/zeus['"]/,
+        `from ${JSON.stringify(runtimeURL)}`,
+      )
+      .replace('document.body', 'undefined')
+      .split('import.meta.hot')
+      .join('globalThis.__zeusRootHMRTest.hot')
+
+    try {
+      await import(`${toDataURL(executableCode)}#initial`)
+      expect(state.events).toEqual([
+        'mount:first',
+        'mount:second',
+        'accept',
+        'register-dispose',
+      ])
+
+      const dispose = state.disposers.shift()
+      if (!dispose) throw new Error('Expected registered HMR disposer')
+      dispose()
+
+      await import(`${toDataURL(executableCode)}#updated`)
+      expect(state.events).toEqual([
+        'mount:first',
+        'mount:second',
+        'accept',
+        'register-dispose',
+        'dispose:second',
+        'dispose:first',
+        'mount:first',
+        'mount:second',
+        'accept',
+        'register-dispose',
+      ])
+    } finally {
+      delete globalState.__zeusRootHMRTest
+    }
+  })
+
+  it('allows automatic root HMR boundaries to be disabled', async () => {
+    const code = getCode(
+      await createTransformHarness({ hmr: false }, 'serve')(
+        rootSource,
+        '/src/main.tsx',
+      ),
+    )
+
+    expect(code).not.toContain('import.meta.hot')
   })
 
   it('propagates structured compiler diagnostics through Vite errors', async () => {
@@ -265,3 +491,7 @@ describe('vite-plugin-zeus transform', () => {
     },
   )
 })
+
+function toDataURL(code: string): string {
+  return `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`
+}

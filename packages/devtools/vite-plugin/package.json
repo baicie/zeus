@@ -33,7 +33,8 @@
     "formats": [
       "esm-bundler",
       "cjs"
-    ]
+    ],
+    "target": "es2022"
   },
   "keywords": [
     "zeus",

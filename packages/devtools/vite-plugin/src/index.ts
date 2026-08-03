@@ -6,12 +6,16 @@ import zeusCompiler, {
   formatCompilerDiagnostic,
 } from '@zeus-js/compiler'
 
+import { createRootHMRPlugin } from './hmr'
+
 import type { CompilerOptions } from '@zeus-js/compiler'
 import type { Plugin, UserConfig } from 'vite'
 
 export interface ZeusVitePluginOptions {
   include?: RegExp | RegExp[]
   exclude?: RegExp | RegExp[]
+  /** Inject dispose-and-remount boundaries for top-level render roots. */
+  hmr?: boolean
   compiler?: Partial<CompilerOptions>
 }
 
@@ -51,6 +55,7 @@ function createFilter(options: ZeusVitePluginOptions = {}) {
 
 export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
   const shouldTransform = createFilter(options)
+  let enableRootHMR = false
 
   return {
     name: 'vite-plugin-zeus',
@@ -82,7 +87,11 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
       } satisfies UserConfig
     },
 
-    async transform(code, id) {
+    configResolved(config) {
+      enableRootHMR = options.hmr !== false && config.command === 'serve'
+    },
+
+    async transform(code, id, transformOptions) {
       const filename = cleanModuleId(id)
 
       if (!shouldTransform(filename)) {
@@ -105,6 +114,9 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
                 ...options.compiler,
               } satisfies Partial<CompilerOptions>,
             ],
+            ...(enableRootHMR && !transformOptions?.ssr
+              ? [createRootHMRPlugin]
+              : []),
           ],
           parserOpts: {
             sourceType: 'module',

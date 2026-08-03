@@ -339,7 +339,9 @@ function createConfig(
     },
     transform: {
       define: resolveDefine(),
-      target: isServerRenderer || isCJSBuild ? 'es2019' : 'es2016',
+      target:
+        packageOptions.target ??
+        (isServerRenderer || isCJSBuild ? 'es2019' : 'es2016'),
     },
   }
 }

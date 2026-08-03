@@ -47,4 +47,12 @@ This avoids recreating static DOM nodes on each render.
 
 ## Hot Module Replacement
 
-In dev mode, the compiler preserves state across reloads by reusing DOM elements.
+The Vite integration treats a module with a direct top-level `render()` call as
+an HMR boundary. Before Vite replaces the module, Zeus disposes the old render
+root and all owned effects, listeners, refs, and cleanup callbacks. The updated
+module then mounts a fresh root.
+
+This initial HMR contract prioritizes lifecycle correctness over state
+preservation: local signals reset and old DOM nodes are not reused. Component
+modules without a render root continue to propagate updates to their nearest
+accepted root boundary.

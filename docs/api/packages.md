@@ -534,11 +534,17 @@ import { createZeus, zeus } from '@zeus-js/vite-plugin'
 // createZeus === zeus
 
 export interface ZeusVitePluginOptions {
-  include?: RegExp | RegExp[] // 包含的文件，默认 /\.t[j]sx/
+  include?: RegExp | RegExp[] // 包含的文件，默认 /\.[tj]sx$/
   exclude?: RegExp | RegExp[] // 排除的文件，默认 node_modules
+  hmr?: boolean // dev server 顶层 render root 自动 dispose/remount，默认 true
   compiler?: Partial<CompilerOptions> // 编译器选项
 }
 ```
+
+自动 HMR 边界只注入浏览器 dev transform。它会在模块替换前释放旧
+`render()` root，并在新模块执行时重新挂载；本地 signal 状态不会保留。
+生产构建、SSR transform，以及已经自行使用 `import.meta.hot` 的模块不会被
+自动注入。
 
 #### vite.config.ts 使用
 
