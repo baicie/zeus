@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1-beta.0 (2026-08-05)
+
+### Features
+
+- Add synchronous server-side string rendering with a dedicated runtime, compiler target, and `@zeus-js/zeus/server` application entry.
+
 ## 0.1.0 (2026-08-03)
 
 ### Features

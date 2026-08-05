@@ -1,7 +1,7 @@
 {
   "name": "@zeus-js/output-react-wrapper",
   "type": "module",
-  "version": "0.1.0",
+  "version": "0.1.1-beta.0",
   "description": "Zeus React wrapper output plugin",
   "license": "MIT",
   "repository": {

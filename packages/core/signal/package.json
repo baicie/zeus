@@ -1,7 +1,7 @@
 {
   "name": "@zeus-js/signal",
   "type": "module",
-  "version": "0.1.0",
+  "version": "0.1.1-beta.0",
   "description": "@zeus-js/signal",
   "license": "MIT",
   "repository": {

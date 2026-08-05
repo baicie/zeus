@@ -1,7 +1,7 @@
 {
   "name": "@zeus-js/compiler-shared",
   "type": "module",
-  "version": "0.1.0",
+  "version": "0.1.1-beta.0",
   "description": "Babel-independent Zeus compiler IR contracts",
   "license": "MIT",
   "repository": {
