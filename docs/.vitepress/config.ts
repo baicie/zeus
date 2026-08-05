@@ -37,6 +37,7 @@ export default defineConfig({
             { text: 'Refs', link: '/guide/refs' },
             { text: 'Control Flow', link: '/guide/control-flow' },
             { text: 'Runtime Semantics', link: '/guide/runtime-semantics' },
+            { text: 'Server Rendering', link: '/guide/server-rendering' },
             { text: 'Vite Plugin', link: '/guide/vite-plugin' },
           ],
         },
@@ -91,6 +92,7 @@ export default defineConfig({
             { text: '@zeus-js/zeus', link: '/api/zeus' },
             { text: '@zeus-js/signal', link: '/api/signal' },
             { text: '@zeus-js/runtime-dom', link: '/api/runtime-dom' },
+            { text: '@zeus-js/runtime-ssr', link: '/api/runtime-ssr' },
           ],
         },
         {

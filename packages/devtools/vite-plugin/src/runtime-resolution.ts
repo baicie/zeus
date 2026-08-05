@@ -5,41 +5,66 @@ import { pathToFileURL } from 'node:url'
 
 const require = createRequire(import.meta.url)
 
-function resolveRuntimeDOMEntryFromPackage(packageEntry: string): string {
+function resolveRuntimeEntryFromPackage(
+  packageEntry: string,
+  outputFile: string,
+): string {
   const packageJSON = findPackageJSON('.', pathToFileURL(packageEntry))
   if (!packageJSON) {
     throw new Error(`Cannot find package.json for ${packageEntry}`)
   }
 
-  return path.join(path.dirname(packageJSON), 'dist/runtime-dom.esm-bundler.js')
+  return path.join(path.dirname(packageJSON), 'dist', outputFile)
 }
 
-export function resolveRuntimeDOMEntry(
+function resolveRuntimeEntry(
+  packageName: string,
+  outputFile: string,
   root: string | undefined,
 ): string | undefined {
   const projectRoot = path.resolve(process.cwd(), root ?? '.')
 
   try {
-    const runtimeDomPackage = require.resolve('@zeus-js/runtime-dom', {
+    const runtimePackage = require.resolve(packageName, {
       paths: [projectRoot],
     })
 
-    return resolveRuntimeDOMEntryFromPackage(runtimeDomPackage)
+    return resolveRuntimeEntryFromPackage(runtimePackage, outputFile)
   } catch {
     // The common app shape depends only on @zeus-js/zeus. Resolve its
-    // nested runtime-dom dependency from the Zeus package location.
+    // nested runtime dependency from the Zeus package location.
   }
 
   try {
     const zeusEntry = require.resolve('@zeus-js/zeus', {
       paths: [projectRoot],
     })
-    const runtimeDomPackage = createRequire(realpathSync(zeusEntry)).resolve(
-      '@zeus-js/runtime-dom',
+    const runtimePackage = createRequire(realpathSync(zeusEntry)).resolve(
+      packageName,
     )
 
-    return resolveRuntimeDOMEntryFromPackage(runtimeDomPackage)
+    return resolveRuntimeEntryFromPackage(runtimePackage, outputFile)
   } catch {
     return undefined
   }
+}
+
+export function resolveRuntimeDOMEntry(
+  root: string | undefined,
+): string | undefined {
+  return resolveRuntimeEntry(
+    '@zeus-js/runtime-dom',
+    'runtime-dom.esm-bundler.js',
+    root,
+  )
+}
+
+export function resolveRuntimeSSREntry(
+  root: string | undefined,
+): string | undefined {
+  return resolveRuntimeEntry(
+    '@zeus-js/runtime-ssr',
+    'runtime-ssr.esm-bundler.js',
+    root,
+  )
 }

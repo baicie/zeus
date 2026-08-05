@@ -4,6 +4,7 @@ import { lowerAttribute } from './lowerAttribute'
 import { isBuiltinTag, lowerBuiltin } from './lowerBuiltin'
 import { lowerChildren } from './lowerChildren'
 import { lowerComponent } from './lowerComponent'
+import { sourceSpanFromBabelNode } from '../adapters/babel/expression'
 import { getTagName, isComponentTag } from '../parse/jsx'
 import { VoidElements } from '../utils'
 
@@ -39,6 +40,7 @@ export function lowerElement(
     children: VoidElements.includes(tagName)
       ? []
       : lowerChildren(path.get('children'), context),
+    span: sourceSpanFromBabelNode(path.node),
     flags: {
       isVoid: VoidElements.includes(tagName),
       isCustomElement: tagName.includes('-'),

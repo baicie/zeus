@@ -1,4 +1,5 @@
 import { emitDOM } from '../codegen/dom'
+import { assertSSRSupported, emitSSR } from '../codegen/ssr'
 import { getCompilerContext, isDefineElementRenderRoot } from '../context'
 import { lowerJSX } from '../lower'
 import {
@@ -24,14 +25,24 @@ export function transformJSX(
   const ir = lowerJSX(path, context)
 
   normalizeChildren(ir)
+
+  if (config.generate === 'ssr') {
+    assertSSRSupported(ir, state.filename)
+  }
+
   validateBuiltins(ir, {
     isDefineElementRenderRoot: isDefineElementRenderRoot(path),
     filename: state.filename,
   })
+  analyzeBindings(ir)
+
+  if (config.generate === 'ssr') {
+    path.replaceWith(emitSSR(ir, context))
+    return
+  }
+
   assignDomPaths(ir)
   assignPhysicalDomPaths(ir)
-  analyzeBindings(ir)
   collectTemplates(ir, context)
-
   path.replaceWith(emitDOM(ir, context))
 }

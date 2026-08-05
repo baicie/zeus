@@ -21,7 +21,7 @@ export interface CompilerOptions {
    * The output mode of the compiler. Can be "dom"(default), "ssr". "dom" is standard output. "ssr" is for server side rendering of strings.
    * @default 'dom'
    */
-  generate: 'dom'
+  generate: 'dom' | 'ssr'
   /**
    * Indicate whether the output should contain hydratable markers.
    * @default true
@@ -104,6 +104,9 @@ export declare const CompilerErrorCode: {
   readonly INVALID_TRANSFORM_RESULT: 'ZEUS_INVALID_TRANSFORM_RESULT'
   readonly UNSUPPORTED_NODE: 'ZEUS_UNSUPPORTED_NODE'
   readonly INVALID_BUILTIN_USAGE: 'ZEUS_INVALID_BUILTIN_USAGE'
+  readonly UNSUPPORTED_SSR_BUILTIN: 'ZEUS_UNSUPPORTED_SSR_BUILTIN'
+  readonly UNSUPPORTED_SSR_PROPERTY: 'ZEUS_UNSUPPORTED_SSR_PROPERTY'
+  readonly UNSUPPORTED_SSR_RAW_TEXT_CHILD: 'ZEUS_UNSUPPORTED_SSR_RAW_TEXT_CHILD'
   readonly INVALID_REF_USAGE: 'ZEUS_INVALID_REF_USAGE'
 }
 export type CompilerErrorCode =

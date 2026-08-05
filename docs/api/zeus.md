@@ -25,7 +25,21 @@ The main entry exports stable, user-facing APIs:
 
 Runtime helpers are **not** exported from the main entry.
 
-`@zeus-js/runtime-dom` and `@zeus-js/signal/internal` are compiler/framework implementation surfaces and are not covered by application stability guarantees.
+`@zeus-js/runtime-dom`, `@zeus-js/runtime-ssr`, and
+`@zeus-js/signal/internal` are compiler/framework implementation surfaces and
+are not covered by application stability guarantees.
+
+## Server Entry
+
+Server rendering is exposed from a dedicated entry that does not load the DOM
+runtime:
+
+```ts
+import { For, Show, createSignal, renderToString } from '@zeus-js/zeus/server'
+```
+
+`renderToString` accepts a synchronous render factory. See
+[Server Rendering](/guide/server-rendering) for usage and current limitations.
 
 ## JSX Runtime
 

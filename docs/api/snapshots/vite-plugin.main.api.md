@@ -13,6 +13,8 @@ export interface ZeusVitePluginOptions {
   exclude?: RegExp | RegExp[]
   /** Inject dispose-and-remount boundaries for top-level render roots. */
   hmr?: boolean
+  /** Runtime module used by Vite SSR transforms. */
+  ssrModuleName?: string
   compiler?: Partial<CompilerOptions>
 }
 export declare function createZeus(options?: ZeusVitePluginOptions): Plugin

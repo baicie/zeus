@@ -21,6 +21,7 @@ import { createZeus } from '../src'
 import type { HookHandler, Plugin } from 'vite'
 
 type TransformHook = NonNullable<HookHandler<Plugin['transform']>>
+type TransformOptions = Parameters<TransformHook>[2]
 
 const runtimeId = 'virtual:zeus-source-map-runtime'
 const expressionNames = ['condition', 'consequent', 'alternate'] as const
@@ -53,6 +54,15 @@ describe('vite-plugin-zeus source maps', () => {
 
     expect(map.sources).toEqual(['App.tsx'])
     expectExpressionMapping(result.code, result.map)
+  })
+
+  it('maps dynamic expressions through SSR transforms', async () => {
+    const result = await transform(source, '/src/App.tsx', {
+      moduleType: 'tsx',
+      ssr: true,
+    })
+
+    expectExpressionMapping(result.code, result.map, 'ssrText')
   })
 
   it('preserves expression mappings through Vite dev transforms', async () => {
@@ -113,7 +123,7 @@ describe('vite-plugin-zeus source maps', () => {
   })
 })
 
-async function transform(code: string, id: string) {
+async function transform(code: string, id: string, options?: TransformOptions) {
   const plugin = createZeus()
   const hook = plugin.transform
   if (!hook) throw new Error('Expected transform hook')
@@ -123,6 +133,7 @@ async function transform(code: string, id: string) {
     {} as ThisParameterType<TransformHook>,
     code,
     id,
+    options,
   )
 
   if (
@@ -140,9 +151,12 @@ async function transform(code: string, id: string) {
 function expectExpressionMapping(
   generatedCode: string,
   map: SourceMapInput,
+  runtimeCall = 'bindText',
 ): void {
-  const bindingIndex = generatedCode.lastIndexOf('bindText')
-  if (bindingIndex < 0) throw new Error('Expected bindText in generated code')
+  const bindingIndex = generatedCode.lastIndexOf(runtimeCall)
+  if (bindingIndex < 0) {
+    throw new Error(`Expected ${runtimeCall} in generated code`)
+  }
 
   const traceMap = new TraceMap(map)
   const sourceExpressionIndex = source.indexOf('{condition')

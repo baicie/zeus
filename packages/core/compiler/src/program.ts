@@ -41,8 +41,11 @@ function exitProgram(
 ): void {
   if (state.get('skip')) return
 
-  appendTemplates(path)
-  appendEvents(path)
+  if (config.generate === 'dom') {
+    appendTemplates(path)
+    if (config.delegateEvents) appendEvents(path)
+  }
+
   appendImportMethods(path)
 }
 

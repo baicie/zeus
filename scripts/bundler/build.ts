@@ -93,19 +93,11 @@ async function run() {
     await buildAll(resolvedTargets)
     await checkAllSizes(resolvedTargets)
     if (!watch && buildTypes) {
-      await exec(
-        'pnpm',
-        [
-          'run',
-          'build-dts',
-          ...(targets.length
-            ? ['--environment', `TARGETS:${resolvedTargets.join(',')}`]
-            : []),
-        ],
-        {
-          stdio: 'inherit',
-        },
-      )
+      const dtsTargets = targets.length ? resolvedTargets : []
+      await exec('pnpm', ['run', 'build-dts'], {
+        stdio: 'inherit',
+        env: createDtsEnvironment(dtsTargets),
+      })
     }
   } finally {
     // Cache must be removed after build-dts since it depends on enum cache
@@ -116,21 +108,24 @@ async function run() {
 function runDtsInBackground(resolvedTargets: string[]): void {
   console.log(`${pico.cyan('[build-dts]')} spawning in background...`)
 
-  const args = [
-    'run',
-    'build-dts',
-    ...(resolvedTargets.length
-      ? ['--environment', `TARGETS:${resolvedTargets.join(',')}`]
-      : []),
-  ]
-
-  exec('pnpm', args, { stdio: 'pipe' })
+  exec('pnpm', ['run', 'build-dts'], {
+    stdio: 'pipe',
+    env: createDtsEnvironment(resolvedTargets),
+  })
     .then(() => {
       console.log(`${pico.green('[build-dts]')} background dts build finished`)
     })
     .catch(err => {
       console.error(`${pico.red('[build-dts]')} ${err.message}`)
     })
+}
+
+function createDtsEnvironment(resolvedTargets: string[]) {
+  if (!resolvedTargets.length) return process.env
+
+  // Rollup's --environment syntax treats commas as separate variables, so a
+  // multi-package target list must be passed through the process environment.
+  return { ...process.env, TARGETS: resolvedTargets.join(',') }
 }
 
 async function buildAll(targets: string[]): Promise<void> {

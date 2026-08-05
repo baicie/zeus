@@ -26,6 +26,7 @@ zeus({
   include?: RegExp | RegExp[]
   exclude?: RegExp | RegExp[]
   hmr?: boolean
+  ssrModuleName?: string
   compiler?: Partial<CompilerOptions>
 })
 ```
@@ -52,6 +53,13 @@ own `import.meta.hot` handling is also left unchanged.
 ### compiler
 
 Overrides options passed to `@zeus-js/compiler`.
+
+### ssrModuleName
+
+Overrides the runtime module imported by SSR transforms. It defaults to
+`@zeus-js/runtime-ssr` and is independent from `compiler.moduleName`, which
+continues to configure browser transforms. Vite SSR transforms automatically
+select compiler mode `generate: 'ssr'`.
 
 ## TypeScript
 

@@ -53,6 +53,7 @@ export function elementIR(input: {
   attrs?: ElementIR['attrs']
   children?: ZeusIRNode[]
   flags?: Partial<ElementIR['flags']>
+  span?: SourceSpan
 }): ElementIR {
   return {
     id: id(),
@@ -61,6 +62,7 @@ export function elementIR(input: {
     tagName: input.tagName,
     attrs: input.attrs ?? [],
     children: input.children ?? [],
+    ...(input.span === undefined ? {} : { span: input.span }),
     flags: {
       isSVG: false,
       isVoid: false,
@@ -154,6 +156,7 @@ export function componentIR(input: {
   ref: IRRef
   callee: ExpressionIR
   props: ComponentIR['props']
+  span?: SourceSpan
 }): ComponentIR {
   return {
     id: id(),
@@ -161,6 +164,7 @@ export function componentIR(input: {
     ref: input.ref,
     callee: input.callee,
     props: input.props,
+    ...(input.span === undefined ? {} : { span: input.span }),
   }
 }
 

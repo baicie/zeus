@@ -5,6 +5,7 @@ import { createBabelCompilerError } from '../adapters/babel/diagnostic'
 import {
   expressionIRFromCode,
   lowerExpressionIR,
+  sourceSpanFromBabelNode,
 } from '../adapters/babel/expression'
 import { CompilerErrorCode } from '../diagnostics'
 import { lowerChildren } from './lowerChildren'
@@ -81,6 +82,7 @@ export function lowerComponent(
     ref: ref(context.uid('cmp$').name),
     callee: tag,
     props,
+    span: sourceSpanFromBabelNode(path.node),
   })
 }
 

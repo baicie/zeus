@@ -46,7 +46,11 @@ function writeFixtureFile(root: string, relativePath: string, value = '') {
   writeFileSync(filename, value)
 }
 
-function writeNestedRuntimePackages(zeusRoot: string, runtimeRoot: string) {
+function writeNestedRuntimePackages(
+  zeusRoot: string,
+  runtimeRoot: string,
+  runtimeSSRRoot?: string,
+) {
   writeFixtureFile(
     zeusRoot,
     'package.json',
@@ -67,16 +71,21 @@ function writeNestedRuntimePackages(zeusRoot: string, runtimeRoot: string) {
   writeFixtureFile(zeusRoot, 'dist/zeus.cjs')
   writeFixtureFile(zeusRoot, 'dist/zeus.prod.cjs')
 
+  writeRuntimePackage(runtimeRoot, 'runtime-dom')
+  if (runtimeSSRRoot) writeRuntimePackage(runtimeSSRRoot, 'runtime-ssr')
+}
+
+function writeRuntimePackage(runtimeRoot: string, name: string) {
   writeFixtureFile(
     runtimeRoot,
     'package.json',
     JSON.stringify({
-      name: '@zeus-js/runtime-dom',
+      name: `@zeus-js/${name}`,
       exports: {
         '.': {
           require: {
-            development: './dist/runtime-dom.cjs',
-            production: './dist/runtime-dom.prod.cjs',
+            development: `./dist/${name}.cjs`,
+            production: `./dist/${name}.prod.cjs`,
             default: './index.cjs',
           },
         },
@@ -84,22 +93,30 @@ function writeNestedRuntimePackages(zeusRoot: string, runtimeRoot: string) {
     }),
   )
   writeFixtureFile(runtimeRoot, 'index.cjs')
-  writeFixtureFile(runtimeRoot, 'dist/runtime-dom.cjs')
-  writeFixtureFile(runtimeRoot, 'dist/runtime-dom.prod.cjs')
-  writeFixtureFile(runtimeRoot, 'dist/runtime-dom.esm-bundler.js')
+  writeFixtureFile(runtimeRoot, `dist/${name}.cjs`)
+  writeFixtureFile(runtimeRoot, `dist/${name}.prod.cjs`)
+  writeFixtureFile(runtimeRoot, `dist/${name}.esm-bundler.js`)
 }
 
 function createNestedRuntimeProject() {
   const root = mkdtempSync(path.join(tmpdir(), 'zeus-vite-plugin-'))
   const zeusRoot = path.join(root, 'node_modules/@zeus-js/zeus')
   const runtimeRoot = path.join(zeusRoot, 'node_modules/@zeus-js/runtime-dom')
+  const runtimeSSRRoot = path.join(
+    zeusRoot,
+    'node_modules/@zeus-js/runtime-ssr',
+  )
   temporaryRoots.push(root)
 
-  writeNestedRuntimePackages(zeusRoot, runtimeRoot)
+  writeNestedRuntimePackages(zeusRoot, runtimeRoot, runtimeSSRRoot)
 
   return {
     root,
     runtimeEntry: path.join(runtimeRoot, 'dist/runtime-dom.esm-bundler.js'),
+    runtimeSSREntry: path.join(
+      runtimeSSRRoot,
+      'dist/runtime-ssr.esm-bundler.js',
+    ),
   }
 }
 
@@ -107,13 +124,18 @@ function createDirectRuntimeProject() {
   const root = mkdtempSync(path.join(tmpdir(), 'zeus-vite-plugin-'))
   const zeusRoot = path.join(root, 'node_modules/@zeus-js/zeus')
   const runtimeRoot = path.join(root, 'node_modules/@zeus-js/runtime-dom')
+  const runtimeSSRRoot = path.join(root, 'node_modules/@zeus-js/runtime-ssr')
   temporaryRoots.push(root)
 
-  writeNestedRuntimePackages(zeusRoot, runtimeRoot)
+  writeNestedRuntimePackages(zeusRoot, runtimeRoot, runtimeSSRRoot)
 
   return {
     root,
     runtimeEntry: path.join(runtimeRoot, 'dist/runtime-dom.esm-bundler.js'),
+    runtimeSSREntry: path.join(
+      runtimeSSRRoot,
+      'dist/runtime-ssr.esm-bundler.js',
+    ),
   }
 }
 
@@ -160,6 +182,7 @@ function resolveNestedRuntimeWithNodeCondition(
   root: string,
   condition: 'default' | 'development' | 'production',
   preserveSymlinks = false,
+  runtime: 'dom' | 'ssr' = 'dom',
 ): string {
   const resolverEntry = new URL('../src/runtime-resolution.ts', import.meta.url)
     .href
@@ -167,10 +190,16 @@ function resolveNestedRuntimeWithNodeCondition(
   writeFileSync(
     runner,
     `
-      import { resolveRuntimeDOMEntry } from ${JSON.stringify(resolverEntry)}
+      import {
+        resolveRuntimeDOMEntry,
+        resolveRuntimeSSREntry,
+      } from ${JSON.stringify(resolverEntry)}
 
       const projectRoot = process.env.ZEUS_TEST_PROJECT_ROOT
-      const runtimeEntry = resolveRuntimeDOMEntry(projectRoot)
+      const resolveRuntime = process.env.ZEUS_TEST_RUNTIME === 'ssr'
+        ? resolveRuntimeSSREntry
+        : resolveRuntimeDOMEntry
+      const runtimeEntry = resolveRuntime(projectRoot)
       if (!runtimeEntry) throw new Error('Expected runtime entry')
 
       process.stdout.write(runtimeEntry)
@@ -190,6 +219,7 @@ function resolveNestedRuntimeWithNodeCondition(
         ...process.env,
         NODE_PATH: '',
         ZEUS_TEST_PROJECT_ROOT: root,
+        ZEUS_TEST_RUNTIME: runtime,
       },
     },
   )
@@ -202,7 +232,12 @@ describe('vite-plugin-zeus config', () => {
     expect(result).toMatchObject({
       oxc: { jsx: 'preserve' },
       resolve: {
-        dedupe: ['@zeus-js/signal', '@zeus-js/runtime-dom', '@zeus-js/zeus'],
+        dedupe: [
+          '@zeus-js/signal',
+          '@zeus-js/runtime-dom',
+          '@zeus-js/runtime-ssr',
+          '@zeus-js/zeus',
+        ],
       },
     })
   })
@@ -221,14 +256,31 @@ describe('vite-plugin-zeus config', () => {
     },
   )
 
+  it.each(['default', 'development', 'production'] as const)(
+    'resolves a nested SSR runtime under the Node %s condition',
+    condition => {
+      const { root, runtimeSSREntry } = createNestedRuntimeProject()
+      const resolvedRuntime = resolveNestedRuntimeWithNodeCondition(
+        root,
+        condition,
+        false,
+        'ssr',
+      )
+
+      expect(resolvedRuntime).toBe(realpathSync(runtimeSSREntry))
+      expect(existsSync(resolvedRuntime)).toBe(true)
+    },
+  )
+
   it('exposes the resolved runtime alias through the Vite config hook', async () => {
-    const { root, runtimeEntry } = createDirectRuntimeProject()
+    const { root, runtimeEntry, runtimeSSREntry } = createDirectRuntimeProject()
     const result = await runConfig({ root })
 
     expect(result).toMatchObject({
       resolve: {
         alias: {
           '@zeus-js/runtime-dom': realpathSync(runtimeEntry),
+          '@zeus-js/runtime-ssr': realpathSync(runtimeSSREntry),
         },
       },
     })
