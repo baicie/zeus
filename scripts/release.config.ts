@@ -5,6 +5,7 @@ export const zeusFixedPackages = [
   '@zeus-js/compiler-shared',
   '@zeus-js/signal',
   '@zeus-js/runtime-dom',
+  '@zeus-js/runtime-ssr',
   '@zeus-js/compiler',
   '@zeus-js/zeus',
   '@zeus-js/bundler-plugin',

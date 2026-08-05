@@ -18,28 +18,29 @@
 
 ## 1. 包总览
 
-所有包版本均为 `0.1.0-beta.1`（另有说明的除外），位于 monorepo `packages/` 下，通过 pnpm workspace 管理。
+下表版本与各 package 的 `package.json` 保持同步，位于 monorepo `packages/` 下，通过 pnpm workspace 管理。
 
-| 包名                            | 路径                                  | 版本         | 类型     | 说明                                         |
-| ------------------------------- | ------------------------------------- | ------------ | -------- | -------------------------------------------- |
-| `@zeus-js/zeus`                 | `packages/core/zeus`                  | 0.1.0-beta.1 | core     | 统一入口，导出所有公共 API                   |
-| `@zeus-js/signal`               | `packages/core/signal`                | 0.1.0-beta.1 | core     | 响应式核心，基于 alien-signals               |
-| `@zeus-js/runtime-dom`          | `packages/core/runtime-dom`           | 0.1.0-beta.1 | core     | DOM runtime helpers                          |
-| `@zeus-js/compiler`             | `packages/core/compiler`              | 0.1.0-beta.1 | core     | Babel JSX 编译器插件                         |
-| `@zeus-js/shared`               | `packages/core/shared`                | 0.1.0-beta.1 | core     | 内部工具函数，无外部依赖                     |
-| `@zeus-js/vite-plugin`          | `packages/devtools/vite-plugin`       | 0.0.2        | devtools | Vite 集成插件                                |
-| `create-zeus`                   | `packages/devtools/create-zeus`       | 0.0.1        | devtools | 项目脚手架生成器（CLI）                      |
-| `@zeus-js/output-wc`            | `packages/web-c/output-wc`            | 0.1.0-beta.1 | web-c    | Web Component 输出插件                       |
-| `@zeus-js/output-react-wrapper` | `packages/web-c/output-react-wrapper` | 0.1.0-beta.1 | web-c    | React wrapper 输出插件                       |
-| `@zeus-js/output-vue-wrapper`   | `packages/web-c/output-vue-wrapper`   | 0.1.0-beta.1 | web-c    | Vue wrapper 输出插件                         |
-| `@zeus-js/output-icons`         | `packages/web-c/output-icons`         | 0.1.0-beta.1 | web-c    | 图标输出插件                                 |
-| `@zeus-js/output-css`           | `packages/web-c/output-css`           | 0.1.0-beta.1 | web-c    | CSS 资源输出插件                             |
-| `@zeus-js/component-analyzer`   | `packages/web-c/component-analyzer`   | 0.1.0-beta.1 | web-c    | 组件分析器（解析 JSX）                       |
-| `@zeus-js/component-dts`        | `packages/web-c/component-dts`        | 0.1.0-beta.1 | web-c    | manifest DTS 生成器                          |
-| `@zeus-js/bundler-plugin`       | `packages/web-c/bundler-plugin`       | 0.1.0-beta.1 | web-c    | bundler 插件宿主（Vite / Rollup / Rolldown） |
-| `@zeus-js/web-c`                | `packages/web-c/web-c`                | 0.1.0-beta.3 | web-c    | Web-C 聚合入口与组件库预设                   |
-| `@zeus-ui/registry`             | `packages/create/registry`            | 0.0.1        | create   | UI 组件注册表（copyable 源码）               |
-| `zeus-ui`                       | `packages/create/zeus-ui`             | 0.0.1        | create   | CLI 工具添加 UI 组件到项目                   |
+| 包名                            | 路径                                  | 版本  | 类型     | 说明                                         |
+| ------------------------------- | ------------------------------------- | ----- | -------- | -------------------------------------------- |
+| `@zeus-js/zeus`                 | `packages/core/zeus`                  | 0.1.0 | core     | 统一入口，导出所有公共 API                   |
+| `@zeus-js/signal`               | `packages/core/signal`                | 0.1.0 | core     | 响应式核心，基于 alien-signals               |
+| `@zeus-js/runtime-dom`          | `packages/core/runtime-dom`           | 0.1.0 | core     | DOM runtime helpers                          |
+| `@zeus-js/runtime-ssr`          | `packages/core/runtime-ssr`           | 0.1.0 | core     | 服务端字符串渲染 runtime                     |
+| `@zeus-js/compiler`             | `packages/core/compiler`              | 0.1.0 | core     | Babel JSX 编译器插件                         |
+| `@zeus-js/shared`               | `packages/core/shared`                | 0.1.0 | core     | 内部工具函数，无外部依赖                     |
+| `@zeus-js/vite-plugin`          | `packages/devtools/vite-plugin`       | 0.0.4 | devtools | Vite 集成插件                                |
+| `create-zeus`                   | `packages/devtools/create-zeus`       | 0.1.2 | devtools | 项目脚手架生成器（CLI）                      |
+| `@zeus-js/output-wc`            | `packages/web-c/output-wc`            | 0.1.0 | web-c    | Web Component 输出插件                       |
+| `@zeus-js/output-react-wrapper` | `packages/web-c/output-react-wrapper` | 0.1.0 | web-c    | React wrapper 输出插件                       |
+| `@zeus-js/output-vue-wrapper`   | `packages/web-c/output-vue-wrapper`   | 0.1.0 | web-c    | Vue wrapper 输出插件                         |
+| `@zeus-js/output-icons`         | `packages/web-c/output-icons`         | 0.1.0 | web-c    | 图标输出插件                                 |
+| `@zeus-js/output-css`           | `packages/web-c/output-css`           | 0.1.0 | web-c    | CSS 资源输出插件                             |
+| `@zeus-js/component-analyzer`   | `packages/web-c/component-analyzer`   | 0.1.0 | web-c    | 组件分析器（解析 JSX）                       |
+| `@zeus-js/component-dts`        | `packages/web-c/component-dts`        | 0.1.0 | web-c    | manifest DTS 生成器                          |
+| `@zeus-js/bundler-plugin`       | `packages/web-c/bundler-plugin`       | 0.1.0 | web-c    | bundler 插件宿主（Vite / Rollup / Rolldown） |
+| `@zeus-js/web-c`                | `packages/web-c/web-c`                | 0.1.0 | web-c    | Web-C 聚合入口与组件库预设                   |
+| `@zeus-ui/registry`             | `packages/create/registry`            | 0.0.1 | create   | UI 组件注册表（copyable 源码）               |
+| `zeus-ui`                       | `packages/create/zeus-ui`             | 0.0.1 | create   | CLI 工具添加 UI 组件到项目                   |
 
 **不推荐直接引入的内部包**（无 `main`/`exports`，仅供 workspace 内部使用）：
 
@@ -54,7 +55,9 @@
 ├── @zeus-js/signal
 │   ├── @zeus-js/shared
 │   └── alien-signals (external)
-└── @zeus-js/runtime-dom
+├── @zeus-js/runtime-dom
+│   └── @zeus-js/signal
+└── @zeus-js/runtime-ssr
     └── @zeus-js/signal
 
 @zeus-js/compiler
@@ -109,7 +112,8 @@
 ├── main export    → 响应式 API + DOM Runtime + Context + JSX
 ├── ./jsx          → JSX 类型引用 (jsx.d.ts)
 ├── ./jsx-runtime  → jsx / jsxs / jsxDEV / Fragment
-└── ./jsx-dev-runtime → 开发环境 JSX runtime
+├── ./jsx-dev-runtime → 开发环境 JSX runtime
+└── ./server       → renderToString + SSR 控制流 + 响应式 API
 ```
 
 #### 响应式 API（来自 `@zeus-js/signal`）
@@ -490,7 +494,7 @@ const result = await transformAsync(code, {
 | 选项                      | 默认值                 | 说明                                     |
 | ------------------------- | ---------------------- | ---------------------------------------- |
 | `moduleName`              | `@zeus-js/runtime-dom` | 运行时模块名（生成的 import 路径）       |
-| `generate`                | `'dom'`                | 输出模式，目前仅支持 `'dom'`             |
+| `generate`                | `'dom'`                | 输出模式：`'dom'` 或 `'ssr'`             |
 | `hydratable`              | `false`                | 是否生成可 hydrate 的标记                |
 | `delegateEvents`          | `true`                 | 自动事件委托（onClick → click 事件冒泡） |
 | `delegatedEvents`         | `[]`                   | 额外需要委托的事件列表                   |
@@ -537,6 +541,7 @@ export interface ZeusVitePluginOptions {
   include?: RegExp | RegExp[] // 包含的文件，默认 /\.[tj]sx$/
   exclude?: RegExp | RegExp[] // 排除的文件，默认 node_modules
   hmr?: boolean // dev server 顶层 render root 自动 dispose/remount，默认 true
+  ssrModuleName?: string // SSR runtime 模块，默认 @zeus-js/runtime-ssr
   compiler?: Partial<CompilerOptions> // 编译器选项
 }
 ```
@@ -570,7 +575,7 @@ import { zeus } from '@zeus-js/vite-plugin'
 export default defineConfig({ plugins: [zeus()] })
 ```
 
-> 注意：`@zeus-js/vite-plugin` 需要 `vite` 作为 peer dependency。插件会自动解析 `@zeus-js/runtime-dom` 的入口路径。
+> 注意：`@zeus-js/vite-plugin` 需要 `vite` 作为 peer dependency。插件会自动解析 `@zeus-js/runtime-dom` 与 `@zeus-js/runtime-ssr` 的入口路径，并根据 Vite transform 上下文选择编译目标。
 
 ---
 

@@ -81,8 +81,10 @@ Zeus 维护两条发布通道：
   "fixed": [
     [
       "@zeus-js/shared",
+      "@zeus-js/compiler-shared",
       "@zeus-js/signal",
       "@zeus-js/runtime-dom",
+      "@zeus-js/runtime-ssr",
       "@zeus-js/compiler",
       "@zeus-js/zeus",
       "@zeus-js/bundler-plugin",
@@ -115,7 +117,7 @@ Zeus 维护两条发布通道：
 
 ### 3.2 包分组策略
 
-**Fixed 组（同步版本）**：15 个核心包共享同一版本号，任何一个有变更都统一升级。
+**Fixed 组（同步版本）**：17 个核心包共享同一版本号，任何一个有变更都统一升级。
 
 **Ignored 组（不发版）**：以下包不参与 npm 发布：
 

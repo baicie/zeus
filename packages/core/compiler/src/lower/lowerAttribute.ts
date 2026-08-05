@@ -71,7 +71,7 @@ export function lowerAttribute(
       return refBindingIR(expr)
     }
 
-    if (name.startsWith('on') && name.length > 2) {
+    if (isEventAttributeName(name)) {
       return eventBindingIR(toEventName(name), expr)
     }
 
@@ -83,4 +83,8 @@ export function lowerAttribute(
   }
 
   return null
+}
+
+function isEventAttributeName(name: string): boolean {
+  return name.length > 2 && name.slice(0, 2).toLowerCase() === 'on'
 }

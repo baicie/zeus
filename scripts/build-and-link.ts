@@ -40,6 +40,7 @@ const PUBLIC_PACKAGES: Array<{ name: string; path: string }> = [
   },
   { name: '@zeus-js/signal', path: 'packages/core/signal' },
   { name: '@zeus-js/runtime-dom', path: 'packages/core/runtime-dom' },
+  { name: '@zeus-js/runtime-ssr', path: 'packages/core/runtime-ssr' },
   { name: '@zeus-js/compiler', path: 'packages/core/compiler' },
   { name: '@zeus-js/zeus', path: 'packages/core/zeus' },
   { name: '@zeus-js/vite-plugin', path: 'packages/devtools/vite-plugin' },

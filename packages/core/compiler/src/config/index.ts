@@ -1,6 +1,8 @@
 import { extend } from '@zeus-js/shared'
 
 import { DEFAULT_RENDERER_MODULE } from '../codegen/support'
+
+export const DEFAULT_SSR_RENDERER_MODULE = '@zeus-js/runtime-ssr'
 /**
  * Compiler configuration interface.
  */
@@ -13,7 +15,7 @@ export interface CompilerOptions {
    * The output mode of the compiler. Can be "dom"(default), "ssr". "dom" is standard output. "ssr" is for server side rendering of strings.
    * @default 'dom'
    */
-  generate: 'dom'
+  generate: 'dom' | 'ssr'
   /**
    * Indicate whether the output should contain hydratable markers.
    * @default true
@@ -112,6 +114,14 @@ export const DEFAULT_OPTIONS: CompilerOptions = {
  * @param options - The compiler options to resolve.
  * @returns The resolved compiler options.
  */
-export function resolveConfig(options: CompilerOptions): CompilerOptions {
-  return extend(DEFAULT_OPTIONS, options)
+export function resolveConfig(
+  options?: Partial<CompilerOptions> | null,
+): CompilerOptions {
+  const config = extend({}, DEFAULT_OPTIONS, options)
+
+  if (config.generate === 'ssr' && options?.moduleName === undefined) {
+    config.moduleName = DEFAULT_SSR_RENDERER_MODULE
+  }
+
+  return config
 }

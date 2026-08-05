@@ -5,7 +5,10 @@ import zeusCompiler, {
 } from '@zeus-js/compiler'
 
 import { createRootHMRPlugin } from './hmr'
-import { resolveRuntimeDOMEntry } from './runtime-resolution'
+import {
+  resolveRuntimeDOMEntry,
+  resolveRuntimeSSREntry,
+} from './runtime-resolution'
 
 import type { CompilerOptions } from '@zeus-js/compiler'
 import type { Plugin, UserConfig } from 'vite'
@@ -15,6 +18,8 @@ export interface ZeusVitePluginOptions {
   exclude?: RegExp | RegExp[]
   /** Inject dispose-and-remount boundaries for top-level render roots. */
   hmr?: boolean
+  /** Runtime module used by Vite SSR transforms. */
+  ssrModuleName?: string
   compiler?: Partial<CompilerOptions>
 }
 
@@ -62,6 +67,11 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
 
     async config(userConfig) {
       const runtimeDomEntry = resolveRuntimeDOMEntry(userConfig.root)
+      const runtimeSSREntry = resolveRuntimeSSREntry(userConfig.root)
+      const alias: Record<string, string> = {}
+
+      if (runtimeDomEntry) alias['@zeus-js/runtime-dom'] = runtimeDomEntry
+      if (runtimeSSREntry) alias['@zeus-js/runtime-ssr'] = runtimeSSREntry
 
       return {
         ...((await isRolldownVite())
@@ -76,12 +86,13 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
               },
             }),
         resolve: {
-          alias: runtimeDomEntry
-            ? {
-                '@zeus-js/runtime-dom': runtimeDomEntry,
-              }
-            : undefined,
-          dedupe: ['@zeus-js/signal', '@zeus-js/runtime-dom', '@zeus-js/zeus'],
+          alias: Object.keys(alias).length > 0 ? alias : undefined,
+          dedupe: [
+            '@zeus-js/signal',
+            '@zeus-js/runtime-dom',
+            '@zeus-js/runtime-ssr',
+            '@zeus-js/zeus',
+          ],
         },
       } satisfies UserConfig
     },
@@ -92,6 +103,7 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
 
     async transform(code, id, transformOptions) {
       const filename = cleanModuleId(id)
+      const isSSR = transformOptions?.ssr === true
 
       if (!shouldTransform(filename)) {
         return null
@@ -105,12 +117,13 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
             [
               zeusCompiler as unknown as (api: object, opts: object) => object,
               {
-                moduleName:
-                  options.compiler?.moduleName ?? '@zeus-js/runtime-dom',
-                generate: 'dom',
                 hydratable: false,
-                delegateEvents: true,
                 ...options.compiler,
+                moduleName: isSSR
+                  ? (options.ssrModuleName ?? '@zeus-js/runtime-ssr')
+                  : (options.compiler?.moduleName ?? '@zeus-js/runtime-dom'),
+                generate: isSSR ? 'ssr' : 'dom',
+                ...(isSSR ? { delegateEvents: false } : {}),
               } satisfies Partial<CompilerOptions>,
             ],
             ...(enableRootHMR && !transformOptions?.ssr

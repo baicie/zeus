@@ -43,6 +43,7 @@ function linkWorkspacePackages(projectRoot: string): void {
   for (const [name, relativeDir] of Object.entries({
     zeus: 'packages/core/zeus',
     'runtime-dom': 'packages/core/runtime-dom',
+    'runtime-ssr': 'packages/core/runtime-ssr',
     signal: 'packages/core/signal',
     shared: 'packages/core/shared',
     compiler: 'packages/core/compiler',

@@ -20,7 +20,7 @@ export default declare(
   (api: object, options: CompilerOptions | null | undefined): BabelPlugin => {
     ;(api as { assertVersion(range: number | string): void }).assertVersion(8)
 
-    const config = resolveConfig(options as CompilerOptions)
+    const config = resolveConfig(options)
 
     return {
       name: 'babel-plugin-zeus-compiler',

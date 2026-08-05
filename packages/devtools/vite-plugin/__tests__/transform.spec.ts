@@ -184,6 +184,17 @@ describe('vite-plugin-zeus transform', () => {
     expect(code).toContain('_delegateEvents(["click"])')
   })
 
+  it('preserves an explicit DOM event delegation setting', async () => {
+    const code = getCode(
+      await createTransformHarness({ compiler: { delegateEvents: false } })(
+        eventSource,
+        '/src/App.tsx',
+      ),
+    )
+
+    expect(code).not.toContain('_delegateEvents')
+  })
+
   it('supports a custom runtime module name', async () => {
     const code = getCode(
       await createTransformHarness({
@@ -192,6 +203,37 @@ describe('vite-plugin-zeus transform', () => {
     )
 
     expect(code).toContain('from "virtual:test-runtime"')
+  })
+
+  it('selects the SSR compiler target for Vite SSR transforms', async () => {
+    const code = getCode(
+      await createTransformHarness()(eventSource, '/src/App.tsx', {
+        moduleType: 'tsx',
+        ssr: true,
+      }),
+    )
+
+    expect(code).toContain('from "@zeus-js/runtime-ssr"')
+    expect(code).not.toContain('@zeus-js/runtime-dom')
+    expect(code).not.toContain('_template')
+    expect(code).not.toContain('_delegateEvents')
+  })
+
+  it('supports an independent SSR runtime module name', async () => {
+    const transform = createTransformHarness({
+      compiler: { moduleName: 'virtual:dom-runtime' },
+      ssrModuleName: 'virtual:ssr-runtime',
+    })
+    const ssrCode = getCode(
+      await transform(source, '/src/App.tsx', {
+        moduleType: 'tsx',
+        ssr: true,
+      }),
+    )
+    const domCode = getCode(await transform(source, '/src/App.tsx'))
+
+    expect(ssrCode).toContain('from "virtual:ssr-runtime"')
+    expect(domCode).toContain('from "virtual:dom-runtime"')
   })
 
   it('adds a disposal HMR boundary to top-level render roots in serve mode', async () => {

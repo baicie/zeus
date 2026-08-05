@@ -44,6 +44,15 @@
         "development": "./dist/capabilities.cjs",
         "default": "./dist/capabilities.cjs"
       }
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js",
+      "require": {
+        "production": "./dist/server.prod.cjs",
+        "development": "./dist/server.cjs",
+        "default": "./dist/server.cjs"
+      }
     }
   },
   "files": [
@@ -57,7 +66,8 @@
   ],
   "dependencies": {
     "@zeus-js/signal": "workspace:*",
-    "@zeus-js/runtime-dom": "workspace:*"
+    "@zeus-js/runtime-dom": "workspace:*",
+    "@zeus-js/runtime-ssr": "workspace:*"
   },
   "author": "Baicie",
   "bugs": {
@@ -75,6 +85,10 @@
       {
         "entry": "capabilities.ts",
         "output": "dist/capabilities.js"
+      },
+      {
+        "entry": "server.ts",
+        "output": "dist/server.js"
       }
     ]
   },

@@ -1,0 +1,50 @@
+{
+  "name": "@zeus-js/runtime-ssr",
+  "type": "module",
+  "version": "0.1.0",
+  "description": "Server-side string rendering runtime for Zeus",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baicie/zeus.git",
+    "directory": "packages/core/runtime-ssr"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/runtime-ssr.d.ts",
+      "module": "./dist/runtime-ssr.esm-bundler.js",
+      "import": "./dist/runtime-ssr.esm-bundler.js",
+      "require": {
+        "production": "./dist/runtime-ssr.prod.cjs",
+        "development": "./dist/runtime-ssr.cjs",
+        "default": "./index.cjs"
+      }
+    }
+  },
+  "files": [
+    "index.cjs",
+    "dist"
+  ],
+  "dependencies": {
+    "@zeus-js/signal": "workspace:*"
+  },
+  "buildOptions": {
+    "name": "ZeusRuntimeSSR",
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ],
+    "target": "es2022"
+  },
+  "engines": {
+    "node": "^22.18.0 || >=24.11.0"
+  },
+  "main": "index.cjs",
+  "module": "dist/runtime-ssr.esm-bundler.js",
+  "types": "dist/runtime-ssr.d.ts"
+}

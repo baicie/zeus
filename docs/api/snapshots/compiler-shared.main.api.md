@@ -211,6 +211,7 @@ export declare function elementIR(input: {
   attrs?: ElementIR['attrs']
   children?: ZeusIRNode[]
   flags?: Partial<ElementIR['flags']>
+  span?: SourceSpan
 }): ElementIR
 export declare function textIR(value: string): TextIR
 export declare function dynamicTextIR(
@@ -240,6 +241,7 @@ export declare function componentIR(input: {
   ref: IRRef
   callee: ExpressionIR
   props: ComponentIR['props']
+  span?: SourceSpan
 }): ComponentIR
 export declare function showIR(input: {
   ref: IRRef

@@ -689,6 +689,12 @@ importers:
         specifier: workspace:*
         version: link:../signal
 
+  packages/core/runtime-ssr:
+    dependencies:
+      '@zeus-js/signal':
+        specifier: workspace:*
+        version: link:../signal
+
   packages/core/shared: {}
 
   packages/core/signal:
@@ -705,6 +711,9 @@ importers:
       '@zeus-js/runtime-dom':
         specifier: workspace:*
         version: link:../runtime-dom
+      '@zeus-js/runtime-ssr':
+        specifier: workspace:*
+        version: link:../runtime-ssr
       '@zeus-js/signal':
         specifier: workspace:*
         version: link:../signal

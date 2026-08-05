@@ -6,4 +6,5 @@
  * of the compiler.
  */
 export * from './dom'
+export * from './ssr'
 export * from './support'
