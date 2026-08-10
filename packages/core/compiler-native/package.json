@@ -1,0 +1,30 @@
+{
+  "name": "@zeus-js/compiler-native",
+  "version": "0.0.0-private",
+  "private": true,
+  "type": "commonjs",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "build:native": "napi build --platform --release"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "catalog:"
+  },
+  "napi": {
+    "binaryName": "zeus-compiler-native",
+    "packageName": "@zeus-js/compiler-native",
+    "targets": [
+      "aarch64-apple-darwin",
+      "x86_64-apple-darwin",
+      "x86_64-unknown-linux-gnu",
+      "x86_64-unknown-linux-musl",
+      "aarch64-unknown-linux-gnu",
+      "x86_64-pc-windows-msvc",
+      "aarch64-pc-windows-msvc"
+    ]
+  },
+  "engines": {
+    "node": "^22.18.0 || >=24.11.0"
+  }
+}
