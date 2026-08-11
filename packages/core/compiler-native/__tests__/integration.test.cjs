@@ -401,7 +401,250 @@ export const executionCount = () => executions
   }
 })
 
-function createNativePlugin() {
+test('native compiler initializes components once with lazy props and children', async () => {
+  const componentSource = `import { createSignal } from '@zeus-js/signal'
+import { render } from '@zeus-js/runtime-dom'
+
+const [name, setName] = createSignal('Ada')
+let appExecutions = 0
+let childExecutions = 0
+
+const Child = props => (
+  childExecutions++,
+  props.children
+)
+
+const App = () => (
+  appExecutions++,
+  <section><Child title={name()}><span>{name()}</span></Child></section>
+)
+
+export const mount = (container: Element) => render(() => App(), container)
+export const update = setName
+export const appExecutionCount = () => appExecutions
+export const childExecutionCount = () => childExecutions
+`.replaceAll('\n', '\r\n')
+  const fixture = createFixture(componentSource)
+  const restoreDOM = installDOMGlobals()
+  const { createServer } = await import('vite')
+  const server = await createServer({
+    root: fixture.root,
+    configFile: false,
+    logLevel: 'silent',
+    optimizeDeps: { noDiscovery: true },
+    define: {
+      __DEV__: 'true',
+      __TEST__: 'true',
+      __VERSION__: JSON.stringify('test'),
+    },
+    resolve: { alias: runtimeAliases() },
+    plugins: [createNativePlugin()],
+    server: { middlewareMode: true },
+  })
+
+  try {
+    const module = await server.ssrLoadModule('/src/App.tsx')
+    const container = document.createElement('div')
+    const dispose = module.mount(container)
+    const childSpan = container.querySelector('span')
+
+    assert.equal(container.textContent, 'Ada')
+    assert.equal(module.appExecutionCount(), 1)
+    assert.equal(module.childExecutionCount(), 1)
+
+    module.update('Grace')
+
+    assert.equal(container.textContent, 'Grace')
+    assert.strictEqual(container.querySelector('span'), childSpan)
+    assert.equal(module.appExecutionCount(), 1)
+    assert.equal(module.childExecutionCount(), 1)
+
+    dispose()
+    assert.equal(container.childNodes.length, 0)
+  } finally {
+    await server.close()
+    restoreDOM()
+    rmSync(fixture.root, { force: true, recursive: true })
+  }
+})
+
+test('native compiler preserves nested control flow in component children', async () => {
+  const nestedControlFlowSource = `import { render, Show, For } from '@zeus-js/runtime-dom'
+
+const Child = props => <article>{props.children}</article>
+const App = props => <Child><Show when={props.visible}><span>on</span></Show><For each={props.items}>{item => <b>{item}</b>}</For></Child>
+
+export const mount = (container: Element) => render(() => App({ visible: true, items: ['a', 'b'] }), container)
+`.replaceAll('\n', '\r\n')
+  const fixture = createFixture(nestedControlFlowSource)
+  const restoreDOM = installDOMGlobals()
+  const { createServer } = await import('vite')
+  const server = await createServer({
+    root: fixture.root,
+    configFile: false,
+    logLevel: 'silent',
+    optimizeDeps: { noDiscovery: true },
+    define: {
+      __DEV__: 'true',
+      __TEST__: 'true',
+      __VERSION__: JSON.stringify('test'),
+    },
+    resolve: { alias: runtimeAliases() },
+    plugins: [createNativePlugin()],
+    server: { middlewareMode: true },
+  })
+
+  try {
+    const module = await server.ssrLoadModule('/src/App.tsx')
+    const container = document.createElement('div')
+    const dispose = module.mount(container)
+
+    assert.equal(container.innerHTML, '<article><span>on</span><b>a</b><b>b</b></article>')
+
+    dispose()
+    assert.equal(container.childNodes.length, 0)
+  } finally {
+    await server.close()
+    restoreDOM()
+    rmSync(fixture.root, { force: true, recursive: true })
+  }
+})
+
+test('native compiler mounts Show and keyed For regions with cleanup', async () => {
+  const controlFlowSource = `import { createSignal } from '@zeus-js/signal'
+import { render, Show, For } from '@zeus-js/runtime-dom'
+
+const [visible, setVisible] = createSignal(false)
+const [items, setItems] = createSignal([{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }])
+
+const App = () => <main><Show when={visible()} fallback={<i>off</i>}><span>on</span></Show><For each={items()} by={item => item.id}>{item => <b>{item.label}</b>}</For></main>
+
+export const mount = (container: Element) => render(() => App(), container)
+export const update = (nextVisible, nextItems) => { setVisible(nextVisible); setItems(nextItems) }
+`.replaceAll('\n', '\r\n')
+  const fixture = createFixture(controlFlowSource)
+  const restoreDOM = installDOMGlobals()
+  const { createServer } = await import('vite')
+  const server = await createServer({
+    root: fixture.root,
+    configFile: false,
+    logLevel: 'silent',
+    optimizeDeps: { noDiscovery: true },
+    define: {
+      __DEV__: 'true',
+      __TEST__: 'true',
+      __VERSION__: JSON.stringify('test'),
+    },
+    resolve: { alias: runtimeAliases() },
+    plugins: [createNativePlugin()],
+    server: { middlewareMode: true },
+  })
+
+  try {
+    const module = await server.ssrLoadModule('/src/App.tsx')
+    const container = document.createElement('div')
+    const dispose = module.mount(container)
+    const first = container.querySelector('b')
+    const second = container.querySelectorAll('b')[1]
+
+    assert.equal(container.textContent, 'offAB')
+    module.update(true, [
+      { id: 'b', label: 'B' },
+      { id: 'a', label: 'A' },
+    ])
+    assert.equal(container.textContent, 'onBA')
+    assert.strictEqual(container.querySelectorAll('b')[0], second)
+    assert.strictEqual(container.querySelectorAll('b')[1], first)
+
+    dispose()
+    assert.equal(container.childNodes.length, 0)
+  } finally {
+    await server.close()
+    restoreDOM()
+    rmSync(fixture.root, { force: true, recursive: true })
+  }
+})
+
+test('native compiler executes defineElement Host and Slot boundaries', async () => {
+  const hostSource = `import { defineElement, Host, Slot } from '@zeus-js/runtime-dom'
+
+export const Element = defineElement('z-native-fragment', { shadow: false, props: { tone: String } }, props => (
+  <Host class={props.tone}><section><Slot /></section></Host>
+))
+`.replaceAll('\n', '\r\n')
+  const fixture = createFixture(hostSource)
+  const restoreDOM = installDOMGlobals()
+  const { createServer } = await import('vite')
+  const server = await createServer({
+    root: fixture.root,
+    configFile: false,
+    logLevel: 'silent',
+    optimizeDeps: { noDiscovery: true },
+    define: {
+      __DEV__: 'true',
+      __TEST__: 'true',
+      __VERSION__: JSON.stringify('test'),
+    },
+    resolve: { alias: runtimeAliases() },
+    plugins: [createNativePlugin()],
+    server: { middlewareMode: true },
+  })
+
+  try {
+    const module = await server.ssrLoadModule('/src/App.tsx')
+    const host = document.createElement('z-native-fragment')
+    host.setAttribute('tone', 'warm')
+    const projected = document.createElement('strong')
+    projected.textContent = 'projected'
+    host.append(projected)
+    document.body.append(host)
+
+    assert.equal(host.className, 'warm')
+    assert.equal(host.querySelector('section')?.textContent, 'projected')
+    assert.strictEqual(host.querySelector('section strong'), projected)
+
+    host.remove()
+  } finally {
+    await server.close()
+    restoreDOM()
+    rmSync(fixture.root, { force: true, recursive: true })
+  }
+})
+
+test('native compiler executes SSR output through runtime-ssr', async () => {
+  const ssrSource = `import { renderToString } from '@zeus-js/runtime-ssr'
+
+export const render = props => renderToString(() => <div class={props.className}>Hello {props.name}</div>)
+`.replaceAll('\n', '\r\n')
+  const fixture = createFixture(ssrSource)
+  const restoreDOM = installDOMGlobals()
+  const { createServer } = await import('vite')
+  const server = await createServer({
+    root: fixture.root,
+    configFile: false,
+    logLevel: 'silent',
+    optimizeDeps: { noDiscovery: true },
+    define: {
+      __DEV__: 'true',
+      __TEST__: 'true',
+      __VERSION__: JSON.stringify('test'),
+    },
+    resolve: { alias: runtimeAliases() },
+    plugins: [createNativePlugin('ssr')],
+    server: { middlewareMode: true },
+  })
+
+  try {
+    const module = await server.ssrLoadModule('/src/App.tsx')
+    assert.equal(module.render({ className: 'greeting', name: 'Ada' }), '<div class="greeting">Hello Ada</div>')
+  } finally {
+    await server.close()
+    restoreDOM()
+    rmSync(fixture.root, { force: true, recursive: true })
+  }
+})
+
+function createNativePlugin(target = 'dom') {
   return {
     name: 'zeus-native-compiler-test',
     enforce: 'pre',
@@ -412,8 +655,9 @@ function createNativePlugin() {
       const result = transformModule({
         source: code,
         filename: path.basename(filename),
-        target: 'dom',
-        runtimeModule: '@zeus-js/runtime-dom',
+        target,
+        runtimeModule:
+          target === 'ssr' ? '@zeus-js/runtime-ssr' : '@zeus-js/runtime-dom',
         delegateEvents: true,
         sourceMap: true,
       })
@@ -440,6 +684,13 @@ function runtimeAliases() {
       replacement: path.join(
         repositoryRoot,
         'packages/core/runtime-dom/src/index.ts',
+      ),
+    },
+    {
+      find: '@zeus-js/runtime-ssr',
+      replacement: path.join(
+        repositoryRoot,
+        'packages/core/runtime-ssr/src/index.ts',
       ),
     },
     {

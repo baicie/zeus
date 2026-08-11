@@ -52,19 +52,6 @@ pub struct TransformModuleResult {
 }
 
 pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResult {
-    if options.target != TransformTarget::Dom {
-        return TransformModuleResult {
-            code: String::new(),
-            map: None,
-            diagnostics: vec![CompilerDiagnostic::error(
-                "ZEUS_UNSUPPORTED_TARGET",
-                "The first Rust compiler slice only supports the DOM target.",
-                &options.filename,
-                None,
-            )],
-        };
-    }
-
     let lowered = lower::lower_module(&options.source, &options.filename);
     if !lowered.diagnostics.is_empty() {
         return TransformModuleResult {
@@ -88,6 +75,17 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
             map: None,
             diagnostics: Vec::new(),
         };
+    }
+
+    if options.target == TransformTarget::Ssr {
+        return codegen::emit_ssr_module(
+            &options.source,
+            &options.filename,
+            &options.runtime_module,
+            options.source_map,
+            &ir,
+            &lowered.reserved_names,
+        );
     }
 
     codegen::emit_module(

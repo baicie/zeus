@@ -407,7 +407,7 @@ export const Static = () => <script>const amp = "a&b";</script>
 
 #[test]
 fn emits_root_and_nested_fragment_templates_with_stable_markers() {
-    let source = r#"export const App = props => <><span>{props.first}</span><><b>static</b>{props.second}</></>"#;
+    let source = r"export const App = props => <><span>{props.first}</span><><b>static</b>{props.second}</></>";
     let transformed = transform_module(TransformModuleOptions {
         source: source.into(),
         filename: "fragment.tsx".into(),
@@ -442,6 +442,156 @@ fn emits_root_and_nested_fragment_templates_with_stable_markers() {
     for expression in ["props.first", "props.second"] {
         assert_expression_mapping(source, &transformed, expression);
     }
+}
+
+#[test]
+fn emits_component_calls_with_lazy_props_and_initialized_children() {
+    let source = r"const Child = props => <article>{props.title}{props.children}</article>
+export const App = props => <section><Child title={props.name}><span>{props.name}</span></Child></section>
+";
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "component.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: true,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    assert!(transformed.code.contains("createComponent as"));
+    assert!(
+        transformed
+            .code
+            .contains("get title() { return props.name }")
+    );
+    assert!(transformed.code.contains("get children() { return"));
+    assert!(!transformed.code.contains("<section><Child"));
+
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, &transformed.code, SourceType::ts()).parse();
+    assert!(
+        parsed.diagnostics.is_empty(),
+        "component output must parse: {:?}",
+        parsed.diagnostics
+    );
+    assert_expression_mapping(source, &transformed, "props.name");
+}
+
+#[test]
+fn emits_nested_control_flow_inside_component_children() {
+    let source = r"import { Show, For } from '@zeus-js/runtime-dom'
+const Child = props => <article>{props.children}</article>
+export const App = props => <Child><Show when={props.visible}><span>on</span></Show><For each={props.items}>{item => <b>{item}</b>}</For></Child>
+";
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "nested-control-flow.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: true,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    assert!(transformed.code.contains("createComponent as"));
+    assert!(
+        transformed
+            .code
+            .contains("get when() { return props.visible }")
+    );
+    assert!(
+        transformed
+            .code
+            .contains("get each() { return props.items }")
+    );
+    assert!(!transformed.code.contains("requires a DOM anchor"));
+
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, &transformed.code, SourceType::ts()).parse();
+    assert!(
+        parsed.diagnostics.is_empty(),
+        "nested control-flow output must parse: {:?}",
+        parsed.diagnostics
+    );
+}
+
+#[test]
+fn emits_show_and_for_mounts_with_stable_region_markers() {
+    let source = r#"import { Show, For } from '@zeus-js/zeus'
+export const App = props => <div><Show when={props.visible} fallback="hidden"><span>{props.name}</span></Show><For each={props.items}>{item => <b>{item}</b>}</For></div>
+"#;
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "control-flow.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: true,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    assert!(transformed.code.contains("mountShow as"));
+    assert!(transformed.code.contains("mountFor as"));
+    assert!(transformed.code.contains("() => props.visible"));
+    assert!(transformed.code.contains("() => props.items"));
+    assert!(!transformed.code.contains("<Show"));
+    assert!(!transformed.code.contains("<For"));
+
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, &transformed.code, SourceType::ts()).parse();
+    assert!(
+        parsed.diagnostics.is_empty(),
+        "control-flow output must parse: {:?}",
+        parsed.diagnostics
+    );
+}
+
+#[test]
+fn emits_ssr_native_component_and_control_flow_calls() {
+    let source = r#"import { Show } from '@zeus-js/runtime-ssr'
+const Child = props => <p>{props.name}</p>
+export const App = props => <><Show when={props.visible} fallback="off"><Child name={props.name} /></Show><div class={props.className}>Hello {props.name}</div></>
+"#;
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "ssr.tsx".into(),
+        target: TransformTarget::Ssr,
+        runtime_module: "@zeus-js/runtime-ssr".into(),
+        delegate_events: false,
+        source_map: true,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    assert!(transformed.code.contains("ssrElement as"));
+    assert!(transformed.code.contains("ssrComponent as"));
+    assert!(transformed.code.contains("ssrShow as"));
+    assert!(transformed.code.contains("ssrText as"));
+    assert!(!transformed.code.contains("<div"));
+
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, &transformed.code, SourceType::ts()).parse();
+    assert!(
+        parsed.diagnostics.is_empty(),
+        "SSR output must parse: {:?}",
+        parsed.diagnostics
+    );
 }
 
 #[test]

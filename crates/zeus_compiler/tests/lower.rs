@@ -8,7 +8,10 @@ use zeus_compiler::{
 fn root_element(root: &zeus_compiler::ir::RootIr) -> &zeus_compiler::ir::ElementIr {
     match root {
         zeus_compiler::ir::RootIr::Element(element) => element,
-        zeus_compiler::ir::RootIr::Fragment(_) => panic!("expected element root"),
+        zeus_compiler::ir::RootIr::Fragment(_)
+        | zeus_compiler::ir::RootIr::Component(_)
+        | zeus_compiler::ir::RootIr::Show(_)
+        | zeus_compiler::ir::RootIr::For(_) => panic!("expected element root"),
     }
 }
 
@@ -59,7 +62,7 @@ fn lowers_native_element_to_owned_deterministic_ir() {
 
 #[test]
 fn lowers_root_and_nested_fragments_without_extra_components() {
-    let source = r#"export const App = props => <><span>{props.first}</span><><b>{props.second}</b>tail</></>"#;
+    let source = r"export const App = props => <><span>{props.first}</span><><b>{props.second}</b>tail</></>";
     let lowered = lower_module(source, "fragment.tsx");
 
     assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
@@ -135,15 +138,38 @@ fn rejects_spread_attributes_with_stable_diagnostic() {
 }
 
 #[test]
-fn rejects_component_elements_with_stable_diagnostic() {
-    let source = "export const App = () => <Widget />";
+fn lowers_component_elements_with_lazy_props_and_children() {
+    let source = "export const App = props => <Widget title={props.title} enabled><span>{props.name}</span></Widget>";
     let lowered = lower_module(source, "component.tsx");
 
-    assert!(lowered.ir.is_none());
-    assert_eq!(lowered.diagnostics.len(), 1);
-    assert_eq!(lowered.diagnostics[0].code, "ZEUS_UNSUPPORTED_COMPONENT");
-    assert_eq!(lowered.diagnostics[0].filename, "component.tsx");
-    assert!(lowered.diagnostics[0].span.is_some());
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let module = lowered.ir.expect("component produces IR");
+    let zeus_compiler::ir::RootIr::Component(component) = &module.components[0].root else {
+        panic!("component root must lower to ComponentBindingIr");
+    };
+    assert_eq!(component.callee.code, "Widget");
+    assert_eq!(component.props.len(), 3);
+    assert_eq!(component.props[0].name, "title");
+    assert_eq!(component.props[1].name, "enabled");
+    assert_eq!(component.props[2].name, "children");
+}
+
+#[test]
+fn lowers_imported_show_and_for_as_control_flow_bindings() {
+    let source = r#"import { Show, For } from '@zeus-js/zeus'
+export const App = props => <div><Show when={props.visible} fallback="hidden"><span>{props.name}</span></Show><For each={props.items}>{item => <b>{item}</b>}</For></div>
+"#;
+    let lowered = lower_module(source, "control-flow.tsx");
+
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let module = lowered.ir.expect("control flow produces IR");
+    let root = root_element(&module.components[0].root);
+    assert!(matches!(root.children[0], ChildIr::Show(_)));
+    let ChildIr::For(for_binding) = &root.children[1] else {
+        panic!("For must lower to a For binding");
+    };
+    assert_eq!(for_binding.item, "item");
+    assert!(matches!(for_binding.body.as_slice(), [ChildIr::Element(_)]));
 }
 
 #[test]

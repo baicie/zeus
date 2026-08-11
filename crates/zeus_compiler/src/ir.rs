@@ -32,6 +32,9 @@ pub struct ComponentIr {
 pub enum RootIr {
     Element(ElementIr),
     Fragment(FragmentIr),
+    Component(ComponentBindingIr),
+    Show(ShowBindingIr),
+    For(ForBindingIr),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -191,6 +194,9 @@ pub enum ChildIr {
     Text(TextIr),
     DynamicText(DynamicTextIr),
     Fragment(FragmentIr),
+    Component(ComponentBindingIr),
+    Show(ShowBindingIr),
+    For(ForBindingIr),
 }
 
 impl From<ElementIr> for ChildIr {
@@ -217,6 +223,24 @@ impl From<FragmentIr> for ChildIr {
     }
 }
 
+impl From<ComponentBindingIr> for ChildIr {
+    fn from(value: ComponentBindingIr) -> Self {
+        Self::Component(value)
+    }
+}
+
+impl From<ShowBindingIr> for ChildIr {
+    fn from(value: ShowBindingIr) -> Self {
+        Self::Show(value)
+    }
+}
+
+impl From<ForBindingIr> for ChildIr {
+    fn from(value: ForBindingIr) -> Self {
+        Self::For(value)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FragmentIr {
@@ -224,6 +248,56 @@ pub struct FragmentIr {
     pub kind: String,
     pub span: SourceSpan,
     pub children: Vec<ChildIr>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComponentBindingIr {
+    pub id: NodeId,
+    pub kind: String,
+    pub callee: ExpressionIr,
+    pub props: Vec<ComponentPropIr>,
+    pub span: SourceSpan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComponentPropIr {
+    pub id: NodeId,
+    pub name: String,
+    pub value: ComponentPropValueIr,
+    pub span: SourceSpan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ComponentPropValueIr {
+    Expression(ExpressionIr),
+    Children(Vec<ChildIr>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShowBindingIr {
+    pub id: NodeId,
+    pub kind: String,
+    pub when: ExpressionIr,
+    pub children: Vec<ChildIr>,
+    pub fallback: Option<ComponentPropValueIr>,
+    pub span: SourceSpan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ForBindingIr {
+    pub id: NodeId,
+    pub kind: String,
+    pub each: ExpressionIr,
+    pub by: Option<ExpressionIr>,
+    pub item: String,
+    pub index: Option<String>,
+    pub body: Vec<ChildIr>,
+    pub span: SourceSpan,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

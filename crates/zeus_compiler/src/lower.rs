@@ -1,7 +1,10 @@
+use std::collections::HashMap;
+
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{
-    Expression, JSXAttribute, JSXAttributeItem, JSXAttributeName, JSXAttributeValue, JSXChild,
-    JSXElement, JSXElementName, JSXExpression, JSXExpressionContainer, JSXFragment,
+    BindingPattern, Expression, ImportDeclarationSpecifier, JSXAttribute, JSXAttributeItem,
+    JSXAttributeName, JSXAttributeValue, JSXChild, JSXElement, JSXElementName, JSXExpression,
+    JSXExpressionContainer, JSXFragment, ModuleDeclaration, Statement,
 };
 use oxc_ast_visit::Visit;
 use oxc_diagnostics::{OxcDiagnostic, Severity};
@@ -14,9 +17,10 @@ use crate::html::{is_raw_text_element, is_unsupported_raw_text_element, is_void_
 use crate::{
     diagnostic::{CompilerDiagnostic, DiagnosticSeverity},
     ir::{
-        AttrBindingIr, AttributeIr, ChildIr, ComponentIr, DynamicTextIr, ElementIr, EventBindingIr,
-        ExpressionForm, ExpressionIr, FragmentIr, IrRef, ModuleIr, NodeId, PropBindingIr,
-        RefBindingIr, RootIr, StaticAttributeIr, StaticAttributeValue, TextIr,
+        AttrBindingIr, AttributeIr, ChildIr, ComponentBindingIr, ComponentIr, ComponentPropIr,
+        ComponentPropValueIr, DynamicTextIr, ElementIr, EventBindingIr, ExpressionForm,
+        ExpressionIr, ForBindingIr, FragmentIr, IrRef, ModuleIr, NodeId, PropBindingIr,
+        RefBindingIr, RootIr, ShowBindingIr, StaticAttributeIr, StaticAttributeValue, TextIr,
     },
     span::SourceIndex,
 };
@@ -92,7 +96,8 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
     reserved_names.sort_unstable();
     reserved_names.dedup();
 
-    let mut lowerer = Lowerer::new(source, filename, &allocator);
+    let builtin_names = collect_builtin_names(&parsed.program);
+    let mut lowerer = Lowerer::new(source, filename, &allocator, builtin_names);
     lowerer.visit_program(&parsed.program);
     let preamble_end = parsed
         .program
@@ -130,10 +135,22 @@ struct Lowerer<'source, 'allocator> {
     next_id: NodeId,
     components: Vec<ComponentIr>,
     diagnostics: Vec<CompilerDiagnostic>,
+    builtin_names: HashMap<String, BuiltinKind>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BuiltinKind {
+    Show,
+    For,
 }
 
 impl<'source, 'allocator> Lowerer<'source, 'allocator> {
-    fn new(source: &'source str, filename: &'source str, allocator: &'allocator Allocator) -> Self {
+    fn new(
+        source: &'source str,
+        filename: &'source str,
+        allocator: &'allocator Allocator,
+        builtin_names: HashMap<String, BuiltinKind>,
+    ) -> Self {
         Self {
             source,
             filename,
@@ -142,6 +159,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             next_id: 1,
             components: Vec::new(),
             diagnostics: Vec::new(),
+            builtin_names,
         }
     }
 
@@ -153,14 +171,25 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
 
     fn lower_root(&mut self, element: &JSXElement<'_>) {
         let id = self.allocate_id();
-        if let Some(root) = self.lower_element(element) {
-            self.components.push(ComponentIr {
-                id,
-                kind: "Component".into(),
-                span: self.source_index.span(element.span),
-                root: RootIr::Element(root),
-            });
-        }
+        let root = if let Some(kind) = self.builtin_kind(element) {
+            match kind {
+                BuiltinKind::Show => RootIr::Show(self.lower_show(element)),
+                BuiltinKind::For => RootIr::For(self.lower_for(element)),
+            }
+        } else if is_component_element(element) {
+            RootIr::Component(self.lower_component(element))
+        } else {
+            let Some(root) = self.lower_element(element) else {
+                return;
+            };
+            RootIr::Element(root)
+        };
+        self.components.push(ComponentIr {
+            id,
+            kind: "Component".into(),
+            span: self.source_index.span(element.span),
+            root,
+        });
     }
 
     fn lower_root_fragment(&mut self, fragment: &JSXFragment<'_>) {
@@ -242,6 +271,392 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             span: self.source_index.span(element.span),
             attributes: self.lower_attributes(&element.opening_element.attributes),
             children: self.lower_children(&element.children),
+        })
+    }
+
+    fn lower_component(&mut self, element: &JSXElement<'_>) -> ComponentBindingIr {
+        let id = self.allocate_id();
+        let callee = self.lower_component_callee(&element.opening_element.name);
+        let mut props = Vec::new();
+
+        for attribute in &element.opening_element.attributes {
+            match attribute {
+                JSXAttributeItem::SpreadAttribute(attribute) => self.unsupported(
+                    "ZEUS_UNSUPPORTED_COMPONENT_PROP",
+                    "Component spread props are not supported by this compiler slice.",
+                    attribute.span,
+                ),
+                JSXAttributeItem::Attribute(attribute) => {
+                    if let Some(prop) = self.lower_component_prop(attribute) {
+                        props.push(prop);
+                    }
+                }
+            }
+        }
+
+        if !element.children.is_empty() {
+            let span = self.source_index.span(element.span);
+            props.push(ComponentPropIr {
+                id: self.allocate_id(),
+                name: "children".into(),
+                value: ComponentPropValueIr::Children(self.lower_children(&element.children)),
+                span,
+            });
+        }
+
+        ComponentBindingIr {
+            id,
+            kind: "Component".into(),
+            callee,
+            props,
+            span: self.source_index.span(element.span),
+        }
+    }
+
+    fn builtin_kind(&self, element: &JSXElement<'_>) -> Option<BuiltinKind> {
+        let name = match &element.opening_element.name {
+            JSXElementName::Identifier(identifier) => identifier.name.as_str(),
+            JSXElementName::IdentifierReference(identifier) => identifier.name.as_str(),
+            JSXElementName::MemberExpression(_)
+            | JSXElementName::NamespacedName(_)
+            | JSXElementName::ThisExpression(_) => return None,
+        };
+        self.builtin_names.get(name).copied()
+    }
+
+    fn lower_show(&mut self, element: &JSXElement<'_>) -> ShowBindingIr {
+        let id = self.allocate_id();
+        let Some(when) = self.lower_builtin_expression_attr(element, "when", true) else {
+            return ShowBindingIr {
+                id,
+                kind: "Show".into(),
+                when: self.empty_expression(element.span),
+                children: Vec::new(),
+                fallback: None,
+                span: self.source_index.span(element.span),
+            };
+        };
+        let fallback = self.lower_show_fallback(element);
+        ShowBindingIr {
+            id,
+            kind: "Show".into(),
+            when,
+            children: self.lower_children(&element.children),
+            fallback,
+            span: self.source_index.span(element.span),
+        }
+    }
+
+    fn lower_for(&mut self, element: &JSXElement<'_>) -> ForBindingIr {
+        let id = self.allocate_id();
+        let each = self
+            .lower_builtin_expression_attr(element, "each", true)
+            .unwrap_or_else(|| self.empty_expression(element.span));
+        let by = self.lower_builtin_expression_attr(element, "by", false);
+        let mut item = "item".into();
+        let mut index = None;
+        let mut body = Vec::new();
+
+        if element.children.len() == 1
+            && let JSXChild::ExpressionContainer(container) = &element.children[0]
+            && let Some(expression) = container.expression.as_expression()
+            && let Expression::ArrowFunctionExpression(function) = expression
+        {
+            item = function
+                .params
+                .items
+                .first()
+                .and_then(|parameter| binding_name(&parameter.pattern))
+                .unwrap_or_else(|| "item".into());
+            index = function
+                .params
+                .items
+                .get(1)
+                .and_then(|parameter| binding_name(&parameter.pattern));
+            match &function.body {
+                oxc_ast::ast::ArrowFunctionBody::FunctionBody(body_block) => {
+                    if body_block.statements.len() == 1
+                        && let Statement::ReturnStatement(statement) = &body_block.statements[0]
+                        && let Some(argument) = &statement.argument
+                        && let Some(child) = self.lower_expression_child(argument)
+                    {
+                        body.push(child);
+                    }
+                }
+                arrow_body => {
+                    if let Some(expression) = arrow_body.as_expression() {
+                        if let Some(child) = self.lower_expression_child(expression) {
+                            body.push(child);
+                        } else if !contains_jsx(expression) {
+                            let id = self.allocate_id();
+                            body.push(ChildIr::DynamicText(DynamicTextIr {
+                                id,
+                                kind: "DynamicText".into(),
+                                reference: IrRef { node_id: id },
+                                expression: self.lower_expression(expression),
+                                span: self.source_index.span(expression.span()),
+                            }));
+                        }
+                    }
+                }
+            }
+        }
+
+        if body.is_empty() {
+            self.unsupported(
+                "ZEUS_INVALID_FOR_CHILD",
+                "<For> requires a single item callback returning JSX or a value.",
+                element.span,
+            );
+        }
+
+        ForBindingIr {
+            id,
+            kind: "For".into(),
+            each,
+            by,
+            item,
+            index,
+            body,
+            span: self.source_index.span(element.span),
+        }
+    }
+
+    fn lower_show_fallback(&mut self, element: &JSXElement<'_>) -> Option<ComponentPropValueIr> {
+        let attribute = element
+            .opening_element
+            .attributes
+            .iter()
+            .find_map(|attribute| {
+                let JSXAttributeItem::Attribute(attribute) = attribute else {
+                    return None;
+                };
+                let JSXAttributeName::Identifier(name) = &attribute.name else {
+                    return None;
+                };
+                (name.name == "fallback").then_some(attribute)
+            })?;
+        match &attribute.value {
+            None => Some(ComponentPropValueIr::Expression(
+                self.literal_expression("true", attribute.span),
+            )),
+            Some(JSXAttributeValue::StringLiteral(value)) => {
+                Some(ComponentPropValueIr::Expression(self.literal_expression(
+                    &serde_json::to_string(value.value.as_str()).expect("string serializes"),
+                    attribute.span,
+                )))
+            }
+            Some(JSXAttributeValue::ExpressionContainer(container)) => {
+                if matches!(&container.expression, JSXExpression::EmptyExpression(_)) {
+                    return None;
+                }
+                let expression = container.expression.to_expression();
+                if let Some(child) = self.lower_expression_child(expression) {
+                    Some(ComponentPropValueIr::Children(vec![child]))
+                } else if contains_jsx(expression) {
+                    self.unsupported(
+                        "ZEUS_INVALID_SHOW_FALLBACK",
+                        "Show fallback JSX could not be lowered.",
+                        container.span,
+                    );
+                    None
+                } else {
+                    Some(ComponentPropValueIr::Expression(
+                        self.lower_expression(expression),
+                    ))
+                }
+            }
+            Some(JSXAttributeValue::Element(_) | JSXAttributeValue::Fragment(_)) => None,
+        }
+    }
+
+    fn lower_builtin_expression_attr(
+        &mut self,
+        element: &JSXElement<'_>,
+        name: &str,
+        required: bool,
+    ) -> Option<ExpressionIr> {
+        let attribute = element
+            .opening_element
+            .attributes
+            .iter()
+            .find_map(|attribute| {
+                let JSXAttributeItem::Attribute(attribute) = attribute else {
+                    return None;
+                };
+                let JSXAttributeName::Identifier(attribute_name) = &attribute.name else {
+                    return None;
+                };
+                (attribute_name.name == name).then_some(attribute)
+            });
+        let Some(attribute) = attribute else {
+            if required {
+                self.unsupported(
+                    "ZEUS_INVALID_BUILTIN_USAGE",
+                    &format!("Builtin requires the `{name}` attribute."),
+                    element.span,
+                );
+            }
+            return None;
+        };
+        let Some(JSXAttributeValue::ExpressionContainer(container)) = &attribute.value else {
+            self.unsupported(
+                "ZEUS_INVALID_BUILTIN_USAGE",
+                &format!("Builtin attribute `{name}` must be an expression."),
+                attribute.span,
+            );
+            return None;
+        };
+        if matches!(&container.expression, JSXExpression::EmptyExpression(_)) {
+            self.unsupported(
+                "ZEUS_EMPTY_EXPRESSION",
+                "Builtin expressions cannot be empty.",
+                container.span,
+            );
+            return None;
+        }
+        let expression = container.expression.to_expression();
+        if contains_jsx(expression) {
+            self.unsupported(
+                "ZEUS_UNSUPPORTED_JSX_ATTRIBUTE_VALUE",
+                "Builtin expressions cannot contain JSX.",
+                container.span,
+            );
+            return None;
+        }
+        Some(self.lower_expression(expression))
+    }
+
+    fn lower_expression_child(&mut self, expression: &Expression<'_>) -> Option<ChildIr> {
+        match expression {
+            Expression::JSXElement(element) => Some(self.lower_element_child(element)),
+            Expression::JSXFragment(fragment) => {
+                Some(ChildIr::Fragment(self.lower_fragment(fragment)))
+            }
+            _ => None,
+        }
+    }
+
+    fn lower_element_child(&mut self, element: &JSXElement<'_>) -> ChildIr {
+        if let Some(kind) = self.builtin_kind(element) {
+            return match kind {
+                BuiltinKind::Show => ChildIr::Show(self.lower_show(element)),
+                BuiltinKind::For => ChildIr::For(self.lower_for(element)),
+            };
+        }
+        if is_component_element(element) {
+            ChildIr::Component(self.lower_component(element))
+        } else {
+            self.lower_element(element).map_or_else(
+                || {
+                    ChildIr::Text(TextIr {
+                        id: self.allocate_id(),
+                        kind: "Text".into(),
+                        value: String::new(),
+                        span: self.source_index.span(element.span),
+                    })
+                },
+                ChildIr::Element,
+            )
+        }
+    }
+
+    fn empty_expression(&self, span: Span) -> ExpressionIr {
+        self.literal_expression("false", span)
+    }
+
+    fn literal_expression(&self, code: &str, span: Span) -> ExpressionIr {
+        ExpressionIr {
+            kind: "Expression".into(),
+            code: code.into(),
+            span: self.source_index.span(span),
+            form: ExpressionForm::Value,
+        }
+    }
+
+    fn lower_component_callee(&mut self, name: &JSXElementName<'_>) -> ExpressionIr {
+        let span = self.source_index.span(name.span());
+        let code = match name {
+            JSXElementName::Identifier(identifier) => identifier.name.to_string(),
+            JSXElementName::IdentifierReference(identifier) => identifier.name.to_string(),
+            JSXElementName::MemberExpression(_) | JSXElementName::ThisExpression(_) => {
+                name.span().source_text(self.source).to_owned()
+            }
+            JSXElementName::NamespacedName(_) => {
+                self.unsupported(
+                    "ZEUS_UNSUPPORTED_COMPONENT_NAME",
+                    "Namespaced component names are not supported.",
+                    name.span(),
+                );
+                name.span().source_text(self.source).to_owned()
+            }
+        };
+        ExpressionIr {
+            kind: "Expression".into(),
+            code,
+            span,
+            form: ExpressionForm::Value,
+        }
+    }
+
+    fn lower_component_prop(&mut self, attribute: &JSXAttribute<'_>) -> Option<ComponentPropIr> {
+        let name = match &attribute.name {
+            JSXAttributeName::Identifier(identifier) => {
+                normalize_attribute_name(identifier.name.as_str())
+            }
+            JSXAttributeName::NamespacedName(namespaced) => {
+                format!("{}:{}", namespaced.namespace.name, namespaced.name.name)
+            }
+        };
+        let span = self.source_index.span(attribute.span);
+        let value = match &attribute.value {
+            None => ExpressionIr {
+                kind: "Expression".into(),
+                code: "true".into(),
+                span,
+                form: ExpressionForm::Value,
+            },
+            Some(JSXAttributeValue::StringLiteral(value)) => ExpressionIr {
+                kind: "Expression".into(),
+                code: serde_json::to_string(value.value.as_str()).expect("string serializes"),
+                span,
+                form: ExpressionForm::Value,
+            },
+            Some(JSXAttributeValue::ExpressionContainer(container)) => {
+                if matches!(&container.expression, JSXExpression::EmptyExpression(_)) {
+                    self.unsupported(
+                        "ZEUS_EMPTY_EXPRESSION",
+                        "Component prop expressions cannot be empty.",
+                        container.span,
+                    );
+                    return None;
+                }
+                let expression = container.expression.to_expression();
+                if contains_jsx(expression) {
+                    self.unsupported(
+                        "ZEUS_UNSUPPORTED_JSX_ATTRIBUTE_VALUE",
+                        "JSX values inside component props are not supported.",
+                        container.span,
+                    );
+                    return None;
+                }
+                self.lower_expression(expression)
+            }
+            Some(JSXAttributeValue::Element(_) | JSXAttributeValue::Fragment(_)) => {
+                self.unsupported(
+                    "ZEUS_UNSUPPORTED_JSX_ATTRIBUTE_VALUE",
+                    "JSX values inside component props are not supported.",
+                    attribute.span,
+                );
+                return None;
+            }
+        };
+
+        Some(ComponentPropIr {
+            id: self.allocate_id(),
+            name,
+            value: ComponentPropValueIr::Expression(value),
+            span,
         })
     }
 
@@ -453,9 +868,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 }
             }
             JSXChild::Element(element) => {
-                if let Some(element) = self.lower_element(element) {
-                    lowered.push(ChildIr::Element(element));
-                }
+                lowered.push(self.lower_element_child(element));
             }
             JSXChild::ExpressionContainer(container) => {
                 if matches!(&container.expression, JSXExpression::EmptyExpression(_)) {
@@ -483,7 +896,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 }));
             }
             JSXChild::Fragment(fragment) => {
-                lowered.push(ChildIr::Fragment(self.lower_fragment(fragment)))
+                lowered.push(ChildIr::Fragment(self.lower_fragment(fragment)));
             }
             JSXChild::Spread(spread) => self.unsupported(
                 "ZEUS_UNSUPPORTED_SPREAD_CHILD",
@@ -550,6 +963,63 @@ fn normalize_attribute_name(name: &str) -> String {
         "class".into()
     } else {
         name.into()
+    }
+}
+
+fn collect_builtin_names(program: &oxc_ast::ast::Program<'_>) -> HashMap<String, BuiltinKind> {
+    let mut names = HashMap::new();
+    for statement in &program.body {
+        let Some(ModuleDeclaration::ImportDeclaration(import)) = statement.as_module_declaration()
+        else {
+            continue;
+        };
+        let source = import.source.value.as_str();
+        if source != "@zeus-js/zeus" && source != "@zeus-js/runtime-dom" {
+            continue;
+        }
+        let Some(specifiers) = &import.specifiers else {
+            continue;
+        };
+        for specifier in specifiers {
+            let ImportDeclarationSpecifier::ImportSpecifier(specifier) = specifier else {
+                continue;
+            };
+            let imported = match &specifier.imported {
+                oxc_ast::ast::ModuleExportName::IdentifierName(name) => name.name.as_str(),
+                oxc_ast::ast::ModuleExportName::IdentifierReference(name) => name.name.as_str(),
+                oxc_ast::ast::ModuleExportName::StringLiteral(name) => name.value.as_str(),
+            };
+            let kind = match imported {
+                "Show" => BuiltinKind::Show,
+                "For" => BuiltinKind::For,
+                _ => continue,
+            };
+            names.insert(specifier.local.name.to_string(), kind);
+        }
+    }
+    names
+}
+
+fn is_component_element(element: &JSXElement<'_>) -> bool {
+    match &element.opening_element.name {
+        JSXElementName::Identifier(identifier) => identifier
+            .name
+            .chars()
+            .next()
+            .is_some_and(|character| character.is_ascii_uppercase()),
+        JSXElementName::IdentifierReference(_)
+        | JSXElementName::NamespacedName(_)
+        | JSXElementName::MemberExpression(_)
+        | JSXElementName::ThisExpression(_) => true,
+    }
+}
+
+fn binding_name(pattern: &BindingPattern<'_>) -> Option<String> {
+    match pattern {
+        BindingPattern::BindingIdentifier(identifier) => Some(identifier.name.to_string()),
+        BindingPattern::ObjectPattern(_)
+        | BindingPattern::ArrayPattern(_)
+        | BindingPattern::AssignmentPattern(_) => None,
     }
 }
 
