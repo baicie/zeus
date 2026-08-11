@@ -70,7 +70,11 @@ execFileSync(
     '--dts',
     'index.d.ts',
   ],
-  { cwd: nativeRoot, stdio: 'inherit' },
+  {
+    cwd: nativeRoot,
+    stdio: 'inherit',
+    shell: process.platform === 'win32',
+  },
 )
 
 const binaries = fs

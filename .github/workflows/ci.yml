@@ -109,6 +109,8 @@ jobs:
           cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile
+      - name: Build host native compiler
+        run: pnpm --filter @zeus-js/compiler-native build:native
       - run: pnpm build
       - run: pnpm build-dts
       - run: pnpm check:cjs
@@ -134,6 +136,8 @@ jobs:
           cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile
+      - name: Build host native compiler
+        run: pnpm --filter @zeus-js/compiler-native build:native
       - run: pnpm test-unit
 
   docs-build:
