@@ -93,6 +93,7 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
         &options.source,
         &options.filename,
         &options.runtime_module,
+        options.delegate_events,
         options.source_map,
         &ir,
         &lowered.reserved_names,

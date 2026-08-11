@@ -27,6 +27,34 @@ let executions = 0
 let nestedExecutions = 0
 let bindingExecutions = 0
 const inputRef = { value: null as HTMLInputElement | null }
+const eventCalls: string[] = []
+const eventCurrentTargets: Array<string | null> = []
+let memberReceiverMatches = false
+
+const recordEvent = (name: string, event: Event) => {
+  eventCalls.push(name)
+  eventCurrentTargets.push(
+    (event.currentTarget as Element | null)?.getAttribute('data-event') ?? null,
+  )
+}
+
+const identifierHandler = (event: Event) => recordEvent('identifier', event)
+const memberHandler = {
+  handle(event: Event) {
+    memberReceiverMatches = this === memberHandler
+    recordEvent('member', event)
+  },
+}
+const optionalHandler = {
+  handle(event: Event) {
+    recordEvent('optional', event)
+  },
+}
+const computedHandlers = {
+  click(event: Event) {
+    recordEvent('computed', event)
+  },
+}
 
 export const App = (props: { name: string }) => (
   executions++,
@@ -56,6 +84,11 @@ export const Bindings = (props: { name: string }) => (
   >
     <input prop:value={props.name} ref={inputRef} />
     <table><tr data-name={props.name}><td>bound</td></tr></table>
+    <button data-event="inline" onClick={event => recordEvent('inline', event)}>inline</button>
+    <button data-event="identifier" onClick={identifierHandler}>identifier</button>
+    <button data-event="member" onClick={memberHandler.handle}>member</button>
+    <button data-event="optional" onClick={optionalHandler?.handle}>optional</button>
+    <button data-event="computed" onClick={computedHandlers['click']}>computed</button>
   </section>
 )
 
@@ -69,6 +102,9 @@ export const executionCount = () => executions
 export const nestedExecutionCount = () => nestedExecutions
 export const bindingExecutionCount = () => bindingExecutions
 export const inputRefValue = () => inputRef.value
+export const eventCallLog = () => [...eventCalls]
+export const eventCurrentTargetLog = () => [...eventCurrentTargets]
+export const hasCorrectMemberReceiver = () => memberReceiverMatches
 `.replaceAll('\n', '\r\n')
 
 test('native compiler executes through Vite with fine-grained DOM updates', async () => {
@@ -103,6 +139,7 @@ test('native compiler executes through Vite with fine-grained DOM updates', asyn
     const staticElement = module.mountStatic()
     const table = module.mountTable()
     const bindingContainer = document.createElement('div')
+    document.body.append(bindingContainer)
     const disposeBindings = module.mountBindings(bindingContainer)
     const bindings = bindingContainer.firstElementChild
     const bindingInput = bindings.querySelector('input')
@@ -135,6 +172,28 @@ test('native compiler executes through Vite with fine-grained DOM updates', asyn
     assert.equal(module.executionCount(), 1)
     assert.equal(module.nestedExecutionCount(), 1)
     assert.equal(module.bindingExecutionCount(), 1)
+
+    const eventButtons = Array.from(bindings.querySelectorAll('[data-event]'))
+    for (const button of eventButtons) {
+      button.dispatchEvent(
+        new window.MouseEvent('click', { bubbles: true, cancelable: true }),
+      )
+    }
+    assert.deepEqual(module.eventCallLog(), [
+      'inline',
+      'identifier',
+      'member',
+      'optional',
+      'computed',
+    ])
+    assert.deepEqual(module.eventCurrentTargetLog(), [
+      'inline',
+      'identifier',
+      'member',
+      'optional',
+      'computed',
+    ])
+    assert.equal(module.hasCorrectMemberReceiver(), true)
 
     module.updateName('Grace')
 
@@ -169,6 +228,14 @@ test('native compiler executes through Vite with fine-grained DOM updates', asyn
     disposeBindings()
     assert.equal(bindingContainer.textContent, '')
     assert.equal(module.inputRefValue(), null)
+
+    document.body.append(bindings)
+    eventButtons[0].dispatchEvent(
+      new window.MouseEvent('click', { bubbles: true, cancelable: true }),
+    )
+    assert.equal(module.eventCallLog().length, 5)
+    bindings.remove()
+    bindingContainer.remove()
 
     const buildResult = await build({
       root: fixture.root,
@@ -212,7 +279,7 @@ function createNativePlugin() {
         filename: path.basename(filename),
         target: 'dom',
         runtimeModule: '@zeus-js/runtime-dom',
-        delegateEvents: false,
+        delegateEvents: true,
         sourceMap: true,
       })
       if (result.diagnostics.length > 0) {

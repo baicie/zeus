@@ -1,13 +1,12 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use oxc_sourcemap::SourceMapBuilder;
 
 use crate::{
     RawSourceMap, TransformModuleResult,
-    diagnostic::CompilerDiagnostic,
     ir::{
-        AttributeIr, ChildIr, ComponentIr, ElementIr, EventBindingIr, ExpressionForm, ExpressionIr,
-        ModuleIr, NodeId, StaticAttributeValue,
+        AttributeIr, ChildIr, ComponentIr, ElementIr, ExpressionForm, ExpressionIr, ModuleIr,
+        NodeId, StaticAttributeValue,
     },
 };
 
@@ -15,30 +14,20 @@ pub(crate) fn emit_module(
     source: &str,
     filename: &str,
     runtime_module: &str,
+    enable_delegation: bool,
     source_map: bool,
     module: &ModuleIr,
     reserved_names: &[String],
 ) -> TransformModuleResult {
-    if let Some(event) = find_event_binding(module) {
-        return TransformModuleResult {
-            code: String::new(),
-            map: None,
-            diagnostics: vec![CompilerDiagnostic::error(
-                "ZEUS_UNSUPPORTED_EVENT_BINDING_CODEGEN",
-                "Event bindings require the Rust event delegation codegen pass.",
-                filename,
-                Some(event.span),
-            )],
-        };
-    }
-
     let mut names = NameAllocator::new(reserved_names);
     let binding_sets = module
         .components
         .iter()
         .map(|component| collect_dynamic_bindings(&component.root))
         .collect::<Vec<_>>();
-    let helper_usage = HelperUsage::from_binding_sets(&binding_sets);
+    let delegated_event_names = collect_delegated_events(&binding_sets, enable_delegation);
+    let helper_usage =
+        HelperUsage::from_binding_sets(&binding_sets, !delegated_event_names.is_empty());
     let runtime = RuntimeNames::allocate(&helper_usage, &mut names);
     let locator_attribute = allocate_locator_attribute(module);
 
@@ -89,6 +78,7 @@ pub(crate) fn emit_module(
         cursor = end;
     }
     writer.push(&source[cursor..]);
+    emit_delegated_events(&mut writer, &runtime, &delegated_event_names);
 
     let map = source_map.then(|| build_source_map(filename, source, &writer.mappings));
 
@@ -97,6 +87,28 @@ pub(crate) fn emit_module(
         map,
         diagnostics: Vec::new(),
     }
+}
+
+fn emit_delegated_events(
+    writer: &mut CodeWriter,
+    runtime: &RuntimeNames,
+    delegated_events: &[String],
+) {
+    if delegated_events.is_empty() {
+        return;
+    }
+    if !writer.code.ends_with('\n') {
+        writer.push("\n");
+    }
+    writer.push(runtime.delegate_events());
+    writer.push("([");
+    for (index, event_name) in delegated_events.iter().enumerate() {
+        if index > 0 {
+            writer.push(", ");
+        }
+        writer.push(&quote_js(event_name));
+    }
+    writer.push("]);\n");
 }
 
 fn emit_runtime_import(writer: &mut CodeWriter, runtime: &RuntimeNames, runtime_module: &str) {
@@ -173,6 +185,18 @@ fn emit_component(
                 expression,
                 runtime,
             ),
+            DynamicBinding::Event {
+                target_id,
+                event_name,
+                handler,
+            } => emit_event_binding(
+                writer,
+                component.target_name(*target_id),
+                event_name,
+                handler,
+                runtime,
+                names,
+            ),
             DynamicBinding::Ref {
                 target_id,
                 expression,
@@ -188,6 +212,39 @@ fn emit_component(
     writer.push("return ");
     writer.push(&component.element_name);
     writer.push(";\n})()");
+}
+
+fn emit_event_binding(
+    writer: &mut CodeWriter,
+    target: &str,
+    event_name: &str,
+    handler: &ExpressionIr,
+    runtime: &RuntimeNames,
+    names: &mut NameAllocator,
+) {
+    writer.push(runtime.bind_event());
+    writer.push("(");
+    writer.push(target);
+    writer.push(", ");
+    writer.push(&quote_js(event_name));
+    writer.push(", ");
+    emit_event_handler(writer, handler, names);
+    writer.push(");\n");
+}
+
+fn emit_event_handler(writer: &mut CodeWriter, handler: &ExpressionIr, names: &mut NameAllocator) {
+    if handler.form != ExpressionForm::Member {
+        writer.push_mapped(&handler.code, handler);
+        return;
+    }
+
+    let event_name = names.allocate("$zeusEvent");
+    writer.push(&event_name);
+    writer.push(" => (");
+    writer.push_mapped(&handler.code, handler);
+    writer.push(")?.(");
+    writer.push(&event_name);
+    writer.push(")");
 }
 
 fn emit_element_targets(
@@ -415,11 +472,16 @@ fn collect_element_bindings(element: &ElementIr, bindings: &mut Vec<DynamicBindi
                 name: attribute.name.clone(),
                 expression: attribute.expression.clone(),
             }),
+            AttributeIr::Event(attribute) => bindings.push(DynamicBinding::Event {
+                target_id: element.id,
+                event_name: attribute.event_name.clone(),
+                handler: attribute.handler.clone(),
+            }),
             AttributeIr::Ref(attribute) => bindings.push(DynamicBinding::Ref {
                 target_id: element.id,
                 expression: attribute.expression.clone(),
             }),
-            AttributeIr::Static(_) | AttributeIr::Event(_) => {}
+            AttributeIr::Static(_) => {}
         }
     }
 
@@ -438,32 +500,32 @@ fn has_element_binding(element: &ElementIr) -> bool {
     element.attributes.iter().any(|attribute| {
         matches!(
             attribute,
-            AttributeIr::Dynamic(_) | AttributeIr::Property(_) | AttributeIr::Ref(_)
+            AttributeIr::Dynamic(_)
+                | AttributeIr::Property(_)
+                | AttributeIr::Event(_)
+                | AttributeIr::Ref(_)
         )
     })
 }
 
-fn find_event_binding(module: &ModuleIr) -> Option<&EventBindingIr> {
-    module
-        .components
-        .iter()
-        .find_map(|component| find_element_event_binding(&component.root))
-}
+fn collect_delegated_events(
+    binding_sets: &[Vec<DynamicBinding>],
+    enable_delegation: bool,
+) -> Vec<String> {
+    if !enable_delegation {
+        return Vec::new();
+    }
 
-fn find_element_event_binding(element: &ElementIr) -> Option<&EventBindingIr> {
-    element
-        .attributes
+    binding_sets
         .iter()
-        .find_map(|attribute| match attribute {
-            AttributeIr::Event(event) => Some(event),
+        .flatten()
+        .filter_map(|binding| match binding {
+            DynamicBinding::Event { event_name, .. } => Some(event_name.clone()),
             _ => None,
         })
-        .or_else(|| {
-            element.children.iter().find_map(|child| match child {
-                ChildIr::Element(element) => find_element_event_binding(element),
-                ChildIr::Text(_) | ChildIr::DynamicText(_) => None,
-            })
-        })
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
 }
 
 fn allocate_locator_attribute(module: &ModuleIr) -> String {
@@ -614,6 +676,11 @@ enum DynamicBinding {
         name: String,
         expression: ExpressionIr,
     },
+    Event {
+        target_id: NodeId,
+        event_name: String,
+        handler: ExpressionIr,
+    },
     Ref {
         target_id: NodeId,
         expression: ExpressionIr,
@@ -626,6 +693,7 @@ impl DynamicBinding {
             Self::Text { .. } => None,
             Self::Attribute { target_id, .. }
             | Self::Property { target_id, .. }
+            | Self::Event { target_id, .. }
             | Self::Ref { target_id, .. } => Some(*target_id),
         }
     }
@@ -657,8 +725,14 @@ struct EmittedTextBinding {
 struct HelperUsage(HashSet<RuntimeHelper>);
 
 impl HelperUsage {
-    fn from_binding_sets(binding_sets: &[Vec<DynamicBinding>]) -> Self {
+    fn from_binding_sets(
+        binding_sets: &[Vec<DynamicBinding>],
+        needs_delegate_events: bool,
+    ) -> Self {
         let mut usage = Self::default();
+        if needs_delegate_events {
+            usage.0.insert(RuntimeHelper::DelegateEvents);
+        }
         for binding in binding_sets.iter().flatten() {
             match binding {
                 DynamicBinding::Text { .. } => {
@@ -678,6 +752,9 @@ impl HelperUsage {
                 },
                 DynamicBinding::Property { .. } => {
                     usage.0.insert(RuntimeHelper::BindProp);
+                }
+                DynamicBinding::Event { .. } => {
+                    usage.0.insert(RuntimeHelper::BindEvent);
                 }
                 DynamicBinding::Ref { .. } => {
                     usage.0.insert(RuntimeHelper::BindRef);
@@ -748,8 +825,16 @@ impl RuntimeNames {
         self.get(RuntimeHelper::BindProp)
     }
 
+    fn bind_event(&self) -> &str {
+        self.get(RuntimeHelper::BindEvent)
+    }
+
     fn bind_ref(&self) -> &str {
         self.get(RuntimeHelper::BindRef)
+    }
+
+    fn delegate_events(&self) -> &str {
+        self.get(RuntimeHelper::DelegateEvents)
     }
 }
 
@@ -762,11 +847,13 @@ enum RuntimeHelper {
     BindClass,
     BindStyle,
     BindProp,
+    BindEvent,
     BindRef,
+    DelegateEvents,
 }
 
 impl RuntimeHelper {
-    const ORDERED: [Self; 8] = [
+    const ORDERED: [Self; 10] = [
         Self::Template,
         Self::Insert,
         Self::BindText,
@@ -774,7 +861,9 @@ impl RuntimeHelper {
         Self::BindClass,
         Self::BindStyle,
         Self::BindProp,
+        Self::BindEvent,
         Self::BindRef,
+        Self::DelegateEvents,
     ];
 
     const fn exported(self) -> &'static str {
@@ -786,7 +875,9 @@ impl RuntimeHelper {
             Self::BindClass => "bindClass",
             Self::BindStyle => "bindStyle",
             Self::BindProp => "bindProp",
+            Self::BindEvent => "bindEvent",
             Self::BindRef => "bindRef",
+            Self::DelegateEvents => "delegateEvents",
         }
     }
 
@@ -799,7 +890,9 @@ impl RuntimeHelper {
             Self::BindClass => "$zeusBindClass",
             Self::BindStyle => "$zeusBindStyle",
             Self::BindProp => "$zeusBindProp",
+            Self::BindEvent => "$zeusBindEvent",
             Self::BindRef => "$zeusBindRef",
+            Self::DelegateEvents => "$zeusDelegateEvents",
         }
     }
 }

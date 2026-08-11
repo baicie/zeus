@@ -172,9 +172,20 @@ fn returns_diagnostics_without_emitting_partial_code() {
 }
 
 #[test]
-fn does_not_silently_drop_events_before_event_codegen_is_enabled() {
+fn emits_event_bindings_and_sorted_deduplicated_delegation() {
+    let source = r"const $zeusEvent = null
+export const App = (inlineHandler, identifierHandler, theme, maybe, props, assertedTheme) => (
+  <section onInput={event => inlineHandler(event)}>
+    <button onClick={identifierHandler}>identifier</button>
+    <button onClick={theme.toggle}>member</button>
+    <button onClick={maybe?.toggle}>optional</button>
+    <button onClick={props.handlers['click']}>computed</button>
+    <button onClick={assertedTheme.toggle as typeof assertedTheme.toggle}>asserted</button>
+  </section>
+)
+";
     let transformed = transform_module(TransformModuleOptions {
-        source: "export const App = handler => <button onClick={handler} />".into(),
+        source: source.into(),
         filename: "event.tsx".into(),
         target: TransformTarget::Dom,
         runtime_module: "@zeus-js/runtime-dom".into(),
@@ -182,14 +193,76 @@ fn does_not_silently_drop_events_before_event_codegen_is_enabled() {
         source_map: true,
     });
 
-    assert!(transformed.code.is_empty());
-    assert!(transformed.map.is_none());
-    assert_eq!(transformed.diagnostics.len(), 1);
-    assert_eq!(
-        transformed.diagnostics[0].code,
-        "ZEUS_UNSUPPORTED_EVENT_BINDING_CODEGEN"
+    assert!(transformed.diagnostics.is_empty());
+    assert!(transformed.code.contains("bindEvent as"));
+    assert!(transformed.code.contains("delegateEvents as"));
+    assert!(
+        transformed
+            .code
+            .contains(", \"input\", event => inlineHandler(event));")
     );
-    assert!(transformed.diagnostics[0].span.is_some());
+    assert!(
+        transformed
+            .code
+            .contains(", \"click\", identifierHandler);")
+    );
+    assert!(
+        transformed
+            .code
+            .contains("$zeusEvent0 => (theme.toggle)?.($zeusEvent0)")
+    );
+    assert!(
+        transformed
+            .code
+            .contains("$zeusEvent1 => (maybe?.toggle)?.($zeusEvent1)")
+    );
+    assert!(
+        transformed
+            .code
+            .contains("$zeusEvent2 => (props.handlers['click'])?.($zeusEvent2)")
+    );
+    assert!(transformed.code.contains(
+        "$zeusEvent3 => (assertedTheme.toggle as typeof assertedTheme.toggle)?.($zeusEvent3)"
+    ));
+    assert_eq!(transformed.code.matches("$zeusDelegateEvents([").count(), 1);
+    assert!(
+        transformed
+            .code
+            .contains("$zeusDelegateEvents([\"click\", \"input\"]);")
+    );
+
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, &transformed.code, SourceType::ts()).parse();
+    assert!(
+        parsed.diagnostics.is_empty(),
+        "generated event output must parse: {:?}",
+        parsed.diagnostics
+    );
+
+    for expression in [
+        "event => inlineHandler(event)",
+        "identifierHandler",
+        "theme.toggle",
+        "maybe?.toggle",
+        "props.handlers['click']",
+        "assertedTheme.toggle as typeof assertedTheme.toggle",
+    ] {
+        assert_expression_mapping(source, &transformed, expression);
+    }
+
+    let without_delegation = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "event.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: false,
+    });
+
+    assert!(without_delegation.diagnostics.is_empty());
+    assert!(without_delegation.code.contains("bindEvent as"));
+    assert!(!without_delegation.code.contains("delegateEvents as"));
+    assert!(!without_delegation.code.contains("$zeusDelegateEvents(["));
 }
 
 #[test]

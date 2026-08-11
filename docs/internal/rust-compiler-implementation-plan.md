@@ -219,9 +219,9 @@ prebuild matrix 留到 native package 进入发布前完成。
 
 **验收标准：**
 
-- [ ] inline、identifier、member、optional / computed member handler 均可执行且保留 receiver。
-- [ ] `delegateEvents` 只在启用且存在事件时生成一次，事件名稳定排序。
-- [ ] 真实 DOM 测试证明事件触发、组件不重执行且 scope disposal 清理 handler。
+- [x] inline、identifier、member、optional / computed member handler 均可执行且保留 receiver。
+- [x] `delegateEvents` 只在启用且存在事件时生成一次，事件名稳定排序。
+- [x] 真实 DOM 测试证明事件触发、组件不重执行且 scope disposal 清理 handler。
 
 **验证：** `cargo test -p zeus_compiler --locked && pnpm test:compiler-native`
 
