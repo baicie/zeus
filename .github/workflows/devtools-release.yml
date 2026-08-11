@@ -35,6 +35,9 @@ jobs:
       - name: Install deps
         run: pnpm install --frozen-lockfile
 
+      - name: Build host native compiler
+        run: pnpm --filter @zeus-js/compiler-native build:native
+
       - name: Verify published template dependencies
         if: startsWith(github.ref_name, 'create-zeus@')
         run: pnpm check:create-zeus-registry
