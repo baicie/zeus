@@ -24,7 +24,14 @@ pub struct ComponentIr {
     pub id: NodeId,
     pub kind: String,
     pub span: SourceSpan,
-    pub root: ElementIr,
+    pub root: RootIr,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum RootIr {
+    Element(ElementIr),
+    Fragment(FragmentIr),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -183,6 +190,7 @@ pub enum ChildIr {
     Element(ElementIr),
     Text(TextIr),
     DynamicText(DynamicTextIr),
+    Fragment(FragmentIr),
 }
 
 impl From<ElementIr> for ChildIr {
@@ -201,6 +209,21 @@ impl From<DynamicTextIr> for ChildIr {
     fn from(value: DynamicTextIr) -> Self {
         Self::DynamicText(value)
     }
+}
+
+impl From<FragmentIr> for ChildIr {
+    fn from(value: FragmentIr) -> Self {
+        Self::Fragment(value)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FragmentIr {
+    pub id: NodeId,
+    pub kind: String,
+    pub span: SourceSpan,
+    pub children: Vec<ChildIr>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

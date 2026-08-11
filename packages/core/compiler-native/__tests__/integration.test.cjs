@@ -334,6 +334,73 @@ test('native compiler executes through Vite with fine-grained DOM updates', asyn
   }
 })
 
+test('native compiler preserves root and nested Fragment identity', async () => {
+  const fragmentSource = `import { createSignal } from '@zeus-js/signal'
+import { render } from '@zeus-js/runtime-dom'
+
+const [value, setValue] = createSignal('one')
+let executions = 0
+
+const FragmentApp = () => (
+  executions++,
+  <><span>left</span><strong>{value()}</strong><><em>nested</em>{value()}</></>
+)
+
+export const mount = () => FragmentApp()
+export const mountInto = (container: Element) => render(() => FragmentApp(), container)
+export const update = setValue
+export const executionCount = () => executions
+`.replaceAll('\n', '\r\n')
+  const fixture = createFixture(fragmentSource)
+  const restoreDOM = installDOMGlobals()
+  const { createServer } = await import('vite')
+  const server = await createServer({
+    root: fixture.root,
+    configFile: false,
+    logLevel: 'silent',
+    optimizeDeps: { noDiscovery: true },
+    define: {
+      __DEV__: 'true',
+      __TEST__: 'true',
+      __VERSION__: JSON.stringify('test'),
+    },
+    resolve: { alias: runtimeAliases() },
+    plugins: [createNativePlugin()],
+    server: { middlewareMode: true },
+  })
+
+  try {
+    const module = await server.ssrLoadModule('/src/App.tsx')
+    const fragment = module.mount()
+    const initialNodes = Array.from(fragment.childNodes)
+    assert.deepEqual(
+      initialNodes.map(node => node.nodeName),
+      ['SPAN', 'STRONG', 'EM', '#text'],
+    )
+    assert.equal(fragment.textContent, 'leftonenestedone')
+    assert.equal(module.executionCount(), 1)
+
+    const container = document.createElement('div')
+    const dispose = module.mountInto(container)
+    const strong = container.querySelector('strong')
+    const nested = container.querySelector('em')
+    assert.equal(container.textContent, 'leftonenestedone')
+
+    module.update('two')
+    assert.equal(container.textContent, 'lefttwonestedtwo')
+    assert.strictEqual(container.querySelector('strong'), strong)
+    assert.strictEqual(container.querySelector('em'), nested)
+    assert.equal(module.executionCount(), 2)
+
+    dispose()
+    assert.equal(container.childNodes.length, 0)
+  } finally {
+    await server.close()
+    restoreDOM()
+    rmSync(fixture.root, { force: true, recursive: true })
+  }
+})
+
 function createNativePlugin() {
   return {
     name: 'zeus-native-compiler-test',
@@ -358,11 +425,11 @@ function createNativePlugin() {
   }
 }
 
-function createFixture() {
+function createFixture(sourceCode = source) {
   const root = realpathSync(mkdtempSync(path.join(tmpdir(), 'zeus-native-')))
   mkdirSync(path.join(root, 'src'))
   const entry = path.join(root, 'src', 'App.tsx')
-  writeFileSync(entry, source)
+  writeFileSync(entry, sourceCode)
   return { root, entry }
 }
 

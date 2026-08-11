@@ -1,8 +1,8 @@
 use zeus_compiler::{
     diagnostic::{CompilerDiagnostic, DiagnosticSeverity},
     ir::{
-        AttributeIr, ComponentIr, DynamicTextIr, ElementIr, ExpressionForm, ExpressionIr, IrRef,
-        ModuleIr, StaticAttributeIr, StaticAttributeValue, TextIr,
+        AttributeIr, ComponentIr, DynamicTextIr, ElementIr, ExpressionForm, ExpressionIr,
+        FragmentIr, IrRef, ModuleIr, RootIr, StaticAttributeIr, StaticAttributeValue, TextIr,
     },
     span::{SourcePosition, SourceSpan},
 };
@@ -23,6 +23,49 @@ fn span(start: u32, end: u32) -> SourceSpan {
 }
 
 #[test]
+fn fragment_ir_round_trips_without_ast_types() {
+    let module = ModuleIr {
+        id: 0,
+        kind: "Module".into(),
+        preamble_end: 0,
+        components: vec![ComponentIr {
+            id: 1,
+            kind: "Component".into(),
+            span: span(0, 12),
+            root: RootIr::Fragment(FragmentIr {
+                id: 2,
+                kind: "Fragment".into(),
+                span: span(0, 12),
+                children: vec![
+                    TextIr {
+                        id: 3,
+                        kind: "Text".into(),
+                        value: "before".into(),
+                        span: span(2, 8),
+                    }
+                    .into(),
+                    ElementIr {
+                        id: 4,
+                        kind: "Element".into(),
+                        reference: IrRef { node_id: 4 },
+                        tag_name: "strong".into(),
+                        span: span(8, 25),
+                        attributes: vec![],
+                        children: vec![],
+                    }
+                    .into(),
+                ],
+            }),
+        }],
+    };
+
+    let json = serde_json::to_string(&module).expect("fragment IR serializes");
+    let decoded: ModuleIr = serde_json::from_str(&json).expect("fragment IR deserializes");
+    assert_eq!(decoded, module);
+    assert!(json.contains("Fragment"));
+}
+
+#[test]
 fn ir_owned_schema_round_trips_through_json() {
     let module = ModuleIr {
         id: 0,
@@ -32,7 +75,7 @@ fn ir_owned_schema_round_trips_through_json() {
             id: 1,
             kind: "Component".into(),
             span: span(0, 38),
-            root: ElementIr {
+            root: RootIr::Element(ElementIr {
                 id: 2,
                 kind: "Element".into(),
                 reference: IrRef { node_id: 2 },
@@ -66,7 +109,7 @@ fn ir_owned_schema_round_trips_through_json() {
                     }
                     .into(),
                 ],
-            },
+            }),
         }],
     };
 

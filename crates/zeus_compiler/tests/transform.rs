@@ -406,6 +406,45 @@ export const Static = () => <script>const amp = "a&b";</script>
 }
 
 #[test]
+fn emits_root_and_nested_fragment_templates_with_stable_markers() {
+    let source = r#"export const App = props => <><span>{props.first}</span><><b>static</b>{props.second}</></>"#;
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "fragment.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: true,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    assert!(transformed.code.contains("template as"));
+    assert!(
+        transformed
+            .code
+            .contains("<span><!></span><b>static</b><!>")
+    );
+    assert!(transformed.code.contains("createTreeWalker"));
+    assert_eq!(transformed.code.matches("bindText as").count(), 1);
+    assert_eq!(transformed.code.matches("createTextNode(\"\")").count(), 2);
+
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, &transformed.code, SourceType::ts()).parse();
+    assert!(
+        parsed.diagnostics.is_empty(),
+        "fragment output must parse: {:?}",
+        parsed.diagnostics
+    );
+    for expression in ["props.first", "props.second"] {
+        assert_expression_mapping(source, &transformed, expression);
+    }
+}
+
+#[test]
 fn emits_svg_namespace_flag_and_valid_void_custom_templates() {
     let source = r#"export const Icon = props => <svg viewBox="0 0 1 1"><circle data-r={props.radius} /></svg>
 export const Native = props => <z-card data-value={props.value}><input disabled /></z-card>

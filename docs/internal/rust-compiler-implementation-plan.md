@@ -261,9 +261,9 @@ prebuild matrix 留到 native package 进入发布前完成。
 
 **验收标准：**
 
-- [ ] root 和 nested Fragment 可混合静态元素与动态 bindings。
-- [ ] Fragment 中的 source map、名称分配和连续 marker 保持稳定。
-- [ ] 返回与插入行为使用真实 DOM 节点，更新不替换未受影响的 sibling。
+- [x] root 和 nested Fragment 可混合静态元素与动态 bindings。
+- [x] Fragment 中的 source map、名称分配和连续 marker 保持稳定。
+- [x] 返回与插入行为使用真实 DOM 节点，更新不替换未受影响的 sibling。
 
 **验证：** Rust transform tests + native JSDOM Fragment fixture。
 

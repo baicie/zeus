@@ -6,6 +6,7 @@ import {
   child,
   defineElement,
   insert,
+  insertTracked,
   marker,
   mountFor,
   mountShow,
@@ -102,6 +103,36 @@ describe('runtime-dom integration', () => {
     expect(root.textContent).toBe('hello')
     dispose()
     expect(root.textContent).toBe('')
+  })
+
+  it('tracks every child when inserting a DocumentFragment', () => {
+    const root = document.createElement('div')
+    const fragment = document.createDocumentFragment()
+    const first = document.createElement('span')
+    first.textContent = 'first'
+    const second = document.createTextNode('second')
+    fragment.append(first, second)
+
+    const inserted = insertTracked(root, fragment)
+
+    expect(inserted).toEqual([first, second])
+    expect(Array.from(root.childNodes)).toEqual([first, second])
+    expect(fragment.childNodes).toHaveLength(0)
+  })
+
+  it('disposes all children returned by a fragment render', () => {
+    const root = document.createElement('div')
+    const fragment = document.createDocumentFragment()
+    fragment.append(
+      document.createElement('i'),
+      document.createTextNode('tail'),
+    )
+
+    const dispose = render(() => fragment, root)
+
+    expect(root.childNodes).toHaveLength(2)
+    dispose()
+    expect(root.childNodes).toHaveLength(0)
   })
 
   it('defines custom elements with attribute casting', () => {

@@ -15,8 +15,8 @@ use crate::{
     diagnostic::{CompilerDiagnostic, DiagnosticSeverity},
     ir::{
         AttrBindingIr, AttributeIr, ChildIr, ComponentIr, DynamicTextIr, ElementIr, EventBindingIr,
-        ExpressionForm, ExpressionIr, IrRef, ModuleIr, NodeId, PropBindingIr, RefBindingIr,
-        StaticAttributeIr, StaticAttributeValue, TextIr,
+        ExpressionForm, ExpressionIr, FragmentIr, IrRef, ModuleIr, NodeId, PropBindingIr,
+        RefBindingIr, RootIr, StaticAttributeIr, StaticAttributeValue, TextIr,
     },
     span::SourceIndex,
 };
@@ -158,9 +158,20 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 id,
                 kind: "Component".into(),
                 span: self.source_index.span(element.span),
-                root,
+                root: RootIr::Element(root),
             });
         }
+    }
+
+    fn lower_root_fragment(&mut self, fragment: &JSXFragment<'_>) {
+        let id = self.allocate_id();
+        let root = self.lower_fragment(fragment);
+        self.components.push(ComponentIr {
+            id,
+            kind: "Component".into(),
+            span: self.source_index.span(fragment.span),
+            root: RootIr::Fragment(root),
+        });
     }
 
     fn lower_element(&mut self, element: &JSXElement<'_>) -> Option<ElementIr> {
@@ -232,6 +243,16 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             attributes: self.lower_attributes(&element.opening_element.attributes),
             children: self.lower_children(&element.children),
         })
+    }
+
+    fn lower_fragment(&mut self, fragment: &JSXFragment<'_>) -> FragmentIr {
+        let id = self.allocate_id();
+        FragmentIr {
+            id,
+            kind: "Fragment".into(),
+            span: self.source_index.span(fragment.span),
+            children: self.lower_children(&fragment.children),
+        }
     }
 
     fn lower_attributes(&mut self, attributes: &[JSXAttributeItem<'_>]) -> Vec<AttributeIr> {
@@ -461,21 +482,15 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                     span: self.source_index.span(container.span),
                 }));
             }
-            JSXChild::Fragment(fragment) => self.unsupported_fragment(fragment),
+            JSXChild::Fragment(fragment) => {
+                lowered.push(ChildIr::Fragment(self.lower_fragment(fragment)))
+            }
             JSXChild::Spread(spread) => self.unsupported(
                 "ZEUS_UNSUPPORTED_SPREAD_CHILD",
                 "JSX spread children are not supported by this compiler slice.",
                 spread.span,
             ),
         }
-    }
-
-    fn unsupported_fragment(&mut self, fragment: &JSXFragment<'_>) {
-        self.unsupported(
-            "ZEUS_UNSUPPORTED_FRAGMENT",
-            "Fragments are outside the first Rust compiler slice.",
-            fragment.span,
-        );
     }
 
     fn unsupported(&mut self, code: &str, message: &str, span: Span) {
@@ -508,7 +523,7 @@ impl<'ast> Visit<'ast> for Lowerer<'_, '_> {
     }
 
     fn visit_jsx_fragment(&mut self, fragment: &JSXFragment<'ast>) {
-        self.unsupported_fragment(fragment);
+        self.lower_root_fragment(fragment);
     }
 }
 

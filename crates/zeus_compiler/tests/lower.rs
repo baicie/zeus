@@ -1,9 +1,16 @@
 use std::thread;
 
 use zeus_compiler::{
-    ir::{AttributeIr, ChildIr, ExpressionForm, StaticAttributeValue},
+    ir::{AttributeIr, ChildIr, ExpressionForm, RootIr, StaticAttributeValue},
     lower::lower_module,
 };
+
+fn root_element(root: &zeus_compiler::ir::RootIr) -> &zeus_compiler::ir::ElementIr {
+    match root {
+        zeus_compiler::ir::RootIr::Element(element) => element,
+        zeus_compiler::ir::RootIr::Fragment(_) => panic!("expected element root"),
+    }
+}
 
 const FIXTURE: &str = r#"export const App = (props: { name: string }) => (
   <div class="greeting">Hello {props.name}</div>
@@ -23,30 +30,52 @@ fn lowers_native_element_to_owned_deterministic_ir() {
     assert_eq!(module.components.len(), 1);
 
     let component = &module.components[0];
+    let root = root_element(&component.root);
     assert_eq!(component.id, 1);
-    assert_eq!(component.root.id, 2);
-    assert_eq!(component.root.reference.node_id, 2);
-    assert_eq!(component.root.tag_name, "div");
+    assert_eq!(root.id, 2);
+    assert_eq!(root.reference.node_id, 2);
+    assert_eq!(root.tag_name, "div");
 
-    let AttributeIr::Static(class) = &component.root.attributes[0] else {
+    let AttributeIr::Static(class) = &root.attributes[0] else {
         panic!("class must be lowered as a static attribute");
     };
     assert_eq!(class.id, 3);
     assert_eq!(class.name, "class");
     assert_eq!(class.value, StaticAttributeValue::String("greeting".into()));
 
-    let ChildIr::Text(text) = &component.root.children[0] else {
+    let ChildIr::Text(text) = &root.children[0] else {
         panic!("first child must be static text");
     };
     assert_eq!(text.id, 4);
     assert_eq!(text.value, "Hello ");
 
-    let ChildIr::DynamicText(dynamic) = &component.root.children[1] else {
+    let ChildIr::DynamicText(dynamic) = &root.children[1] else {
         panic!("second child must be dynamic text");
     };
     assert_eq!(dynamic.id, 5);
     assert_eq!(dynamic.reference.node_id, 5);
     assert_eq!(dynamic.expression.code, "props.name");
+}
+
+#[test]
+fn lowers_root_and_nested_fragments_without_extra_components() {
+    let source = r#"export const App = props => <><span>{props.first}</span><><b>{props.second}</b>tail</></>"#;
+    let lowered = lower_module(source, "fragment.tsx");
+
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let module = lowered.ir.expect("fragment produces IR");
+    assert_eq!(module.components.len(), 1);
+    let RootIr::Fragment(root) = &module.components[0].root else {
+        panic!("root JSX fragment must lower to Fragment IR");
+    };
+    assert_eq!(root.kind, "Fragment");
+    assert!(matches!(root.children[0], ChildIr::Element(_)));
+    let ChildIr::Fragment(nested) = &root.children[1] else {
+        panic!("nested JSX fragment must remain a child fragment");
+    };
+    assert_eq!(nested.children.len(), 2);
+    assert!(matches!(nested.children[0], ChildIr::Element(_)));
+    assert!(matches!(nested.children[1], ChildIr::Text(_)));
 }
 
 #[test]
@@ -68,7 +97,8 @@ fn reports_utf8_offsets_and_utf16_columns_across_crlf() {
 
     assert!(lowered.diagnostics.is_empty());
     let module = lowered.ir.expect("valid TSX produces IR");
-    let ChildIr::DynamicText(dynamic) = &module.components[0].root.children[0] else {
+    let root = root_element(&module.components[0].root);
+    let ChildIr::DynamicText(dynamic) = &root.children[0] else {
         panic!("child must be dynamic text");
     };
 
@@ -136,9 +166,10 @@ fn lowers_supported_raw_text_elements_and_rejects_nested_elements() {
 
     assert!(lowered.diagnostics.is_empty());
     let ir = lowered.ir.expect("supported raw-text element lowers");
-    assert_eq!(ir.components[0].root.tag_name, "style");
+    let root = root_element(&ir.components[0].root);
+    assert_eq!(root.tag_name, "style");
     assert!(matches!(
-        ir.components[0].root.children.as_slice(),
+        root.children.as_slice(),
         [ChildIr::DynamicText(_)]
     ));
 
@@ -204,7 +235,7 @@ fn lowers_dom_attribute_binding_variants() {
 
     assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
     let module = lowered.ir.expect("valid DOM bindings produce IR");
-    let attributes = &module.components[0].root.attributes;
+    let attributes = &root_element(&module.components[0].root).attributes;
 
     let AttributeIr::Static(class_name) = &attributes[0] else {
         panic!("className must be a static attribute");
@@ -296,9 +327,8 @@ fn preserves_wrapped_getter_and_member_expression_forms() {
     let lowered = lower_module(source, "expression-forms.tsx");
 
     assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
-    let attributes = &lowered.ir.expect("valid forms produce IR").components[0]
-        .root
-        .attributes;
+    let module = lowered.ir.expect("valid forms produce IR");
+    let attributes = &root_element(&module.components[0].root).attributes;
 
     let AttributeIr::Dynamic(title) = &attributes[0] else {
         panic!("title must be dynamic");

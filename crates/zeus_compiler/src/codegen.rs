@@ -6,8 +6,8 @@ use crate::{
     RawSourceMap, TransformModuleResult,
     html::{is_raw_text_element, is_svg_element, is_void_element},
     ir::{
-        AttributeIr, ChildIr, ComponentIr, ElementIr, ExpressionForm, ExpressionIr, ModuleIr,
-        NodeId, StaticAttributeValue,
+        AttributeIr, ChildIr, ComponentIr, ElementIr, ExpressionForm, ExpressionIr, FragmentIr,
+        ModuleIr, NodeId, RootIr, StaticAttributeValue,
     },
 };
 
@@ -24,7 +24,7 @@ pub(crate) fn emit_module(
     let binding_sets = module
         .components
         .iter()
-        .map(|component| collect_dynamic_bindings(&component.root))
+        .map(|component| collect_root_dynamic_bindings(&component.root))
         .collect::<Vec<_>>();
     let delegated_event_names = collect_delegated_events(&binding_sets, enable_delegation);
     let helper_usage =
@@ -139,7 +139,10 @@ fn emit_component(
 ) {
     if component.bindings.is_empty() {
         writer.push(&component.template_name);
-        writer.push("().firstChild");
+        writer.push("()");
+        if component.root_id.is_some() {
+            writer.push(".firstChild");
+        }
         return;
     }
 
@@ -147,7 +150,11 @@ fn emit_component(
     writer.push(&component.element_name);
     writer.push(" = ");
     writer.push(&component.template_name);
-    writer.push("().firstChild;\n");
+    writer.push("()");
+    if component.root_id.is_some() {
+        writer.push(".firstChild");
+    }
+    writer.push(";\n");
 
     emit_element_targets(writer, component, locator_attribute);
 
@@ -265,7 +272,7 @@ fn emit_element_targets(
     locator_attribute: &str,
 ) {
     for target in &component.targets {
-        if target.id != component.root_id {
+        if component.root_id != Some(target.id) {
             let selector = format!("[{locator_attribute}=\"{}\"]", target.id);
             writer.push("const ");
             writer.push(&target.name);
@@ -456,10 +463,28 @@ fn emit_getter(writer: &mut CodeWriter, expression: &ExpressionIr) {
     writer.push(")");
 }
 
-fn render_template(element: &ElementIr, locator_attribute: &str) -> String {
+fn render_template(root: &RootIr, locator_attribute: &str) -> String {
     let mut html = String::new();
-    render_element(element, locator_attribute, &mut html);
+    match root {
+        RootIr::Element(element) => render_element(element, locator_attribute, &mut html),
+        RootIr::Fragment(fragment) => render_fragment(fragment, locator_attribute, &mut html),
+    }
     html
+}
+
+fn render_fragment(fragment: &FragmentIr, locator_attribute: &str, html: &mut String) {
+    for child in &fragment.children {
+        render_child_template(child, locator_attribute, html);
+    }
+}
+
+fn render_child_template(child: &ChildIr, locator_attribute: &str, html: &mut String) {
+    match child {
+        ChildIr::Element(element) => render_element(element, locator_attribute, html),
+        ChildIr::Fragment(fragment) => render_fragment(fragment, locator_attribute, html),
+        ChildIr::Text(text) => html.push_str(&escape_html_text(&text.value)),
+        ChildIr::DynamicText(_) => html.push_str("<!>"),
+    }
 }
 
 fn render_element(element: &ElementIr, locator_attribute: &str, html: &mut String) {
@@ -500,6 +525,7 @@ fn render_element(element: &ElementIr, locator_attribute: &str, html: &mut Strin
     for child in &element.children {
         match child {
             ChildIr::Element(element) => render_element(element, locator_attribute, html),
+            ChildIr::Fragment(fragment) => render_fragment(fragment, locator_attribute, html),
             ChildIr::Text(text) if is_unescaped_raw_text(&element.tag_name) => {
                 html.push_str(&text.value);
             }
@@ -517,6 +543,17 @@ fn collect_dynamic_bindings(element: &ElementIr) -> Vec<DynamicBinding> {
     let mut bindings = Vec::new();
     collect_element_bindings(element, &mut bindings);
     bindings
+}
+
+fn collect_root_dynamic_bindings(root: &RootIr) -> Vec<DynamicBinding> {
+    match root {
+        RootIr::Element(element) => collect_dynamic_bindings(element),
+        RootIr::Fragment(fragment) => {
+            let mut bindings = Vec::new();
+            collect_fragment_bindings(fragment, &mut bindings);
+            bindings
+        }
+    }
 }
 
 fn collect_element_bindings(element: &ElementIr, bindings: &mut Vec<DynamicBinding>) {
@@ -563,6 +600,20 @@ fn collect_element_bindings(element: &ElementIr, bindings: &mut Vec<DynamicBindi
     for child in &element.children {
         match child {
             ChildIr::Element(element) => collect_element_bindings(element, bindings),
+            ChildIr::Fragment(fragment) => collect_fragment_bindings(fragment, bindings),
+            ChildIr::DynamicText(dynamic) => bindings.push(DynamicBinding::Text {
+                expression: dynamic.expression.clone(),
+            }),
+            ChildIr::Text(_) => {}
+        }
+    }
+}
+
+fn collect_fragment_bindings(fragment: &FragmentIr, bindings: &mut Vec<DynamicBinding>) {
+    for child in &fragment.children {
+        match child {
+            ChildIr::Element(element) => collect_element_bindings(element, bindings),
+            ChildIr::Fragment(fragment) => collect_fragment_bindings(fragment, bindings),
             ChildIr::DynamicText(dynamic) => bindings.push(DynamicBinding::Text {
                 expression: dynamic.expression.clone(),
             }),
@@ -601,7 +652,7 @@ fn collect_text_content_parts(element: &ElementIr) -> Vec<TextContentPart> {
         .filter_map(|child| match child {
             ChildIr::Text(text) => Some(TextContentPart::Static(text.value.clone())),
             ChildIr::DynamicText(text) => Some(TextContentPart::Dynamic(text.expression.clone())),
-            ChildIr::Element(_) => None,
+            ChildIr::Element(_) | ChildIr::Fragment(_) => None,
         })
         .collect()
 }
@@ -629,7 +680,7 @@ fn collect_delegated_events(
 fn allocate_locator_attribute(module: &ModuleIr) -> String {
     let mut used = HashSet::new();
     for component in &module.components {
-        collect_attribute_names(&component.root, &mut used);
+        collect_root_attribute_names(&component.root, &mut used);
     }
 
     let base = "data-zeus-node";
@@ -646,6 +697,13 @@ fn allocate_locator_attribute(module: &ModuleIr) -> String {
     unreachable!("u32 locator suffixes cannot be exhausted in one module")
 }
 
+fn collect_root_attribute_names(root: &RootIr, names: &mut HashSet<String>) {
+    match root {
+        RootIr::Element(element) => collect_attribute_names(element, names),
+        RootIr::Fragment(fragment) => collect_fragment_attribute_names(fragment, names),
+    }
+}
+
 fn collect_attribute_names(element: &ElementIr, names: &mut HashSet<String>) {
     for attribute in &element.attributes {
         let name = match attribute {
@@ -659,6 +717,18 @@ fn collect_attribute_names(element: &ElementIr, names: &mut HashSet<String>) {
     for child in &element.children {
         if let ChildIr::Element(element) = child {
             collect_attribute_names(element, names);
+        } else if let ChildIr::Fragment(fragment) = child {
+            collect_fragment_attribute_names(fragment, names);
+        }
+    }
+}
+
+fn collect_fragment_attribute_names(fragment: &FragmentIr, names: &mut HashSet<String>) {
+    for child in &fragment.children {
+        match child {
+            ChildIr::Element(element) => collect_attribute_names(element, names),
+            ChildIr::Fragment(fragment) => collect_fragment_attribute_names(fragment, names),
+            ChildIr::Text(_) | ChildIr::DynamicText(_) => {}
         }
     }
 }
@@ -701,13 +771,20 @@ fn escape_html_attribute(value: &str) -> String {
 struct GeneratedComponent {
     start: u32,
     end: u32,
-    root_id: NodeId,
+    root_id: Option<NodeId>,
     template_name: String,
     element_name: String,
     template_html: String,
     is_svg: bool,
     bindings: Vec<DynamicBinding>,
     targets: Vec<ElementTarget>,
+}
+
+fn root_span(root: &RootIr) -> &crate::span::SourceSpan {
+    match root {
+        RootIr::Element(element) => &element.span,
+        RootIr::Fragment(fragment) => &fragment.span,
+    }
 }
 
 impl GeneratedComponent {
@@ -719,6 +796,10 @@ impl GeneratedComponent {
     ) -> Self {
         let template_name = names.allocate("$zeusTmpl");
         let element_name = names.allocate("$zeusEl");
+        let root_id = match &component.root {
+            RootIr::Element(element) => Some(element.id),
+            RootIr::Fragment(_) => None,
+        };
         let mut seen = HashSet::new();
         let targets = bindings
             .iter()
@@ -726,7 +807,7 @@ impl GeneratedComponent {
             .filter(|id| seen.insert(*id))
             .map(|id| ElementTarget {
                 id,
-                name: if id == component.root.id {
+                name: if Some(id) == root_id {
                     element_name.clone()
                 } else {
                     names.allocate("$zeusNode")
@@ -735,13 +816,13 @@ impl GeneratedComponent {
             .collect();
 
         Self {
-            start: component.root.span.start.offset,
-            end: component.root.span.end.offset,
-            root_id: component.root.id,
+            start: root_span(&component.root).start.offset,
+            end: root_span(&component.root).end.offset,
+            root_id,
             template_name,
             element_name,
             template_html: render_template(&component.root, locator_attribute),
-            is_svg: is_svg_element(&component.root.tag_name),
+            is_svg: matches!(&component.root, RootIr::Element(element) if is_svg_element(&element.tag_name)),
             bindings,
             targets,
         }
