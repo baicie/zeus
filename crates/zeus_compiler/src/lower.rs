@@ -1,7 +1,7 @@
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{
     Expression, JSXAttribute, JSXAttributeItem, JSXAttributeName, JSXAttributeValue, JSXChild,
-    JSXElement, JSXElementName, JSXExpression, JSXFragment,
+    JSXElement, JSXElementName, JSXExpression, JSXExpressionContainer, JSXFragment,
 };
 use oxc_ast_visit::Visit;
 use oxc_diagnostics::{OxcDiagnostic, Severity};
@@ -13,8 +13,9 @@ use oxc_syntax::xml_entities::decode_entities;
 use crate::{
     diagnostic::{CompilerDiagnostic, DiagnosticSeverity},
     ir::{
-        AttributeIr, ChildIr, ComponentIr, DynamicTextIr, ElementIr, ExpressionIr, IrRef, ModuleIr,
-        NodeId, StaticAttributeIr, TextIr,
+        AttrBindingIr, AttributeIr, ChildIr, ComponentIr, DynamicTextIr, ElementIr, EventBindingIr,
+        ExpressionForm, ExpressionIr, IrRef, ModuleIr, NodeId, PropBindingIr, RefBindingIr,
+        StaticAttributeIr, StaticAttributeValue, TextIr,
     },
     span::SourceIndex,
 };
@@ -273,27 +274,64 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
     }
 
     fn lower_attribute(&mut self, attribute: &JSXAttribute<'_>) -> Option<AttributeIr> {
-        let JSXAttributeName::Identifier(identifier) = &attribute.name else {
-            self.unsupported(
-                "ZEUS_UNSUPPORTED_NAMESPACED_ATTRIBUTE",
-                "Namespaced JSX attributes are not supported by this compiler slice.",
-                attribute.name.span(),
-            );
-            return None;
-        };
+        let (name, is_property) = self.lower_attribute_name(&attribute.name)?;
 
-        let value = match &attribute.value {
-            None => String::new(),
-            Some(JSXAttributeValue::StringLiteral(value)) => {
-                decode_jsx_entities(value.value.as_str(), self.allocator)
+        match &attribute.value {
+            None => {
+                if name == "ref" {
+                    self.unsupported(
+                        "ZEUS_EMPTY_EXPRESSION",
+                        "ref requires an expression target.",
+                        attribute.span,
+                    );
+                    return None;
+                }
+                if is_property {
+                    self.unsupported(
+                        "ZEUS_INVALID_PROPERTY_BINDING",
+                        "Property bindings require an expression value.",
+                        attribute.span,
+                    );
+                    return None;
+                }
+
+                Some(AttributeIr::Static(StaticAttributeIr {
+                    id: self.allocate_id(),
+                    name,
+                    value: StaticAttributeValue::Boolean(true),
+                    span: self.source_index.span(attribute.span),
+                }))
             }
-            Some(JSXAttributeValue::ExpressionContainer(_)) => {
-                self.unsupported(
-                    "ZEUS_UNSUPPORTED_DYNAMIC_ATTRIBUTE",
-                    "Dynamic JSX attributes are outside the first Rust compiler slice.",
-                    attribute.span,
-                );
-                return None;
+            Some(JSXAttributeValue::StringLiteral(value)) => {
+                if name == "ref" {
+                    self.unsupported(
+                        "ZEUS_INVALID_REF_USAGE",
+                        "String refs are not supported.",
+                        attribute.span,
+                    );
+                    return None;
+                }
+                if is_property {
+                    self.unsupported(
+                        "ZEUS_INVALID_PROPERTY_BINDING",
+                        "Property bindings require an expression value.",
+                        attribute.span,
+                    );
+                    return None;
+                }
+
+                Some(AttributeIr::Static(StaticAttributeIr {
+                    id: self.allocate_id(),
+                    name,
+                    value: StaticAttributeValue::String(decode_jsx_entities(
+                        value.value.as_str(),
+                        self.allocator,
+                    )),
+                    span: self.source_index.span(attribute.span),
+                }))
+            }
+            Some(JSXAttributeValue::ExpressionContainer(container)) => {
+                self.lower_expression_attribute(attribute, container, name, is_property)
             }
             Some(JSXAttributeValue::Element(_) | JSXAttributeValue::Fragment(_)) => {
                 self.unsupported(
@@ -301,16 +339,89 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                     "JSX values inside attributes are not supported by this compiler slice.",
                     attribute.span,
                 );
-                return None;
+                None
             }
-        };
+        }
+    }
 
-        Some(AttributeIr::Static(StaticAttributeIr {
-            id: self.allocate_id(),
-            kind: "StaticAttribute".into(),
-            name: identifier.name.to_string(),
-            value,
-            span: self.source_index.span(attribute.span),
+    fn lower_attribute_name(&mut self, name: &JSXAttributeName<'_>) -> Option<(String, bool)> {
+        match name {
+            JSXAttributeName::Identifier(identifier) => {
+                Some((normalize_attribute_name(identifier.name.as_str()), false))
+            }
+            JSXAttributeName::NamespacedName(namespaced) if namespaced.namespace.name == "prop" => {
+                Some((namespaced.name.name.to_string(), true))
+            }
+            JSXAttributeName::NamespacedName(_) => {
+                self.unsupported(
+                    "ZEUS_UNSUPPORTED_NAMESPACED_ATTRIBUTE",
+                    "Only the prop:name namespace is supported in DOM attributes.",
+                    name.span(),
+                );
+                None
+            }
+        }
+    }
+
+    fn lower_expression_attribute(
+        &mut self,
+        attribute: &JSXAttribute<'_>,
+        container: &JSXExpressionContainer<'_>,
+        name: String,
+        is_property: bool,
+    ) -> Option<AttributeIr> {
+        if matches!(&container.expression, JSXExpression::EmptyExpression(_)) {
+            self.unsupported(
+                "ZEUS_EMPTY_EXPRESSION",
+                "Attribute expressions cannot be empty.",
+                container.span,
+            );
+            return None;
+        }
+
+        let expression = container.expression.to_expression();
+        if contains_jsx(expression) {
+            self.unsupported(
+                "ZEUS_UNSUPPORTED_JSX_ATTRIBUTE_VALUE",
+                "JSX values inside attributes are not supported.",
+                container.span,
+            );
+            return None;
+        }
+
+        let expression = self.lower_expression(expression);
+        let id = self.allocate_id();
+        let span = self.source_index.span(attribute.span);
+
+        if is_property {
+            return Some(AttributeIr::Property(PropBindingIr {
+                id,
+                name,
+                expression,
+                span,
+            }));
+        }
+        if name == "ref" {
+            return Some(AttributeIr::Ref(RefBindingIr {
+                id,
+                expression,
+                span,
+            }));
+        }
+        if is_event_attribute_name(&name) {
+            return Some(AttributeIr::Event(EventBindingIr {
+                id,
+                event_name: name[2..].to_ascii_lowercase(),
+                handler: expression,
+                span,
+            }));
+        }
+
+        Some(AttributeIr::Dynamic(AttrBindingIr {
+            id,
+            name,
+            expression,
+            span,
         }))
     }
 
@@ -357,7 +468,6 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                     return;
                 }
 
-                let expression_span = expression.span();
                 let dynamic_id = self.allocate_id();
                 lowered.push(ChildIr::DynamicText(DynamicTextIr {
                     id: dynamic_id,
@@ -365,11 +475,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                     reference: IrRef {
                         node_id: dynamic_id,
                     },
-                    expression: ExpressionIr {
-                        kind: "Expression".into(),
-                        code: expression_span.source_text(self.source).to_owned(),
-                        span: self.source_index.span(expression_span),
-                    },
+                    expression: self.lower_expression(expression),
                     span: self.source_index.span(container.span),
                 }));
             }
@@ -401,6 +507,16 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             .with_hint("Use a native element with static attributes and dynamic text."),
         );
     }
+
+    fn lower_expression(&self, expression: &Expression<'_>) -> ExpressionIr {
+        let span = expression.span();
+        ExpressionIr {
+            kind: "Expression".into(),
+            code: span.source_text(self.source).to_owned(),
+            span: self.source_index.span(span),
+            form: expression_form(expression),
+        }
+    }
 }
 
 impl<'ast> Visit<'ast> for Lowerer<'_, '_> {
@@ -430,6 +546,39 @@ fn contains_jsx(expression: &Expression<'_>) -> bool {
     let mut detector = JsxDetector(false);
     detector.visit_expression(expression);
     detector.0
+}
+
+fn normalize_attribute_name(name: &str) -> String {
+    if name == "className" {
+        "class".into()
+    } else {
+        name.into()
+    }
+}
+
+fn is_event_attribute_name(name: &str) -> bool {
+    name.get(..2)
+        .is_some_and(|prefix| prefix.eq_ignore_ascii_case("on") && name.len() > 2)
+}
+
+fn expression_form(expression: &Expression<'_>) -> ExpressionForm {
+    match expression {
+        Expression::ArrowFunctionExpression(_) | Expression::FunctionExpression(_) => {
+            ExpressionForm::Getter
+        }
+        expression if expression.is_member_expression() => ExpressionForm::Member,
+        Expression::ChainExpression(chain) if chain.expression.is_member_expression() => {
+            ExpressionForm::Member
+        }
+        Expression::ParenthesizedExpression(expression) => expression_form(&expression.expression),
+        Expression::TSAsExpression(expression) => expression_form(&expression.expression),
+        Expression::TSSatisfiesExpression(expression) => expression_form(&expression.expression),
+        Expression::TSNonNullExpression(expression) => expression_form(&expression.expression),
+        Expression::TSInstantiationExpression(expression) => {
+            expression_form(&expression.expression)
+        }
+        _ => ExpressionForm::Value,
+    }
 }
 
 fn decode_jsx_entities(value: &str, allocator: &Allocator) -> String {

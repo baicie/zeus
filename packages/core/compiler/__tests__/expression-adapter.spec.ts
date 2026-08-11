@@ -3,6 +3,7 @@ import { expressionIR } from '@zeus-js/compiler-shared'
 import { describe, expect, it } from 'vitest'
 
 import {
+  expressionFormFromBabelNode,
   parseExpressionIR,
   sourceSpanFromBabelNode,
 } from '../src/adapters/babel/expression'
@@ -55,5 +56,21 @@ describe('Babel expression IR adapter', () => {
     )
 
     expect(expression.type).toBe('MemberExpression')
+  })
+
+  it.each([
+    ['value', 'value'],
+    ['() => value', 'getter'],
+    ['function () { return value }', 'getter'],
+    ['props.value', 'member'],
+    ["props.handlers['click']", 'member'],
+    ['props.handlers?.click', 'member'],
+    ['(props.value as string)', 'member'],
+  ] as const)('classifies %s as %s', (source, expected) => {
+    expect(
+      expressionFormFromBabelNode(
+        parseExpression(source, { plugins: ['typescript'] }),
+      ),
+    ).toBe(expected)
   })
 })

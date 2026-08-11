@@ -184,9 +184,9 @@ prebuild matrix 留到 native package 进入发布前完成。
 
 **验收标准：**
 
-- [ ] bare / string attribute 与 `className` 规范化后保持浏览器语义。
-- [ ] `{expr}`、`prop:name={expr}`、`onEvent={handler}`、`ref={target}` 分别进入正确 IR。
-- [ ] IR 保存 getter / member expression form；empty / string ref、spread 和非法 namespace
+- [x] bare / string attribute 与 `className` 规范化后保持浏览器语义。
+- [x] `{expr}`、`prop:name={expr}`、`onEvent={handler}`、`ref={target}` 分别进入正确 IR。
+- [x] IR 保存 getter / member expression form；empty / string ref、spread 和非法 namespace
       返回稳定诊断。
 
 **验证：** `cargo test -p zeus_compiler --locked --test ir --test lower`

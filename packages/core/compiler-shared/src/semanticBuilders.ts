@@ -4,6 +4,7 @@ import type {
   DynamicTextIR,
   ElementIR,
   EventBindingIR,
+  ExpressionForm,
   ExpressionIR,
   ForIR,
   FragmentIR,
@@ -31,11 +32,16 @@ export function ref(name: string): IRRef {
   return { name }
 }
 
-export function expressionIR(code: string, span?: SourceSpan): ExpressionIR {
+export function expressionIR(
+  code: string,
+  span?: SourceSpan,
+  form: ExpressionForm = 'value',
+): ExpressionIR {
   return {
     kind: 'Expression',
     code,
     span,
+    form,
   }
 }
 

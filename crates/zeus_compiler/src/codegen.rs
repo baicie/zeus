@@ -4,7 +4,7 @@ use oxc_sourcemap::SourceMapBuilder;
 
 use crate::{
     RawSourceMap, TransformModuleResult,
-    ir::{AttributeIr, ChildIr, ElementIr, ExpressionIr, ModuleIr},
+    ir::{AttributeIr, ChildIr, ElementIr, ExpressionIr, ModuleIr, StaticAttributeValue},
 };
 
 pub(crate) fn emit_module(
@@ -183,9 +183,11 @@ fn render_element(element: &ElementIr, html: &mut String) {
         if let AttributeIr::Static(attribute) = attribute {
             html.push(' ');
             html.push_str(&attribute.name);
-            html.push_str("=\"");
-            html.push_str(&escape_html_attribute(&attribute.value));
-            html.push('"');
+            if let StaticAttributeValue::String(value) = &attribute.value {
+                html.push_str("=\"");
+                html.push_str(&escape_html_attribute(value));
+                html.push('"');
+            }
         }
     }
     html.push('>');

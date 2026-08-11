@@ -13,7 +13,10 @@ export interface ExpressionIR {
   kind: 'Expression'
   code: string
   span?: SourceSpan
+  form: ExpressionForm
 }
+
+export type ExpressionForm = 'value' | 'getter' | 'member'
 
 export interface IdentifierIR {
   kind: 'Identifier'

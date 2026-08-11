@@ -1,0 +1,93 @@
+[
+  {
+    "kind": "StaticAttribute",
+    "id": 3,
+    "name": "class",
+    "value": "field",
+    "span": {
+      "start": { "line": 1, "column": 0, "offset": 0 },
+      "end": { "line": 1, "column": 1, "offset": 1 }
+    }
+  },
+  {
+    "kind": "StaticAttribute",
+    "id": 4,
+    "name": "disabled",
+    "value": true,
+    "span": {
+      "start": { "line": 1, "column": 0, "offset": 0 },
+      "end": { "line": 1, "column": 1, "offset": 1 }
+    }
+  },
+  {
+    "kind": "AttrBinding",
+    "id": 5,
+    "name": "title",
+    "expr": {
+      "kind": "Expression",
+      "code": "props.title",
+      "form": "member",
+      "span": {
+        "start": { "line": 1, "column": 0, "offset": 0 },
+        "end": { "line": 1, "column": 1, "offset": 1 }
+      }
+    },
+    "span": {
+      "start": { "line": 1, "column": 0, "offset": 0 },
+      "end": { "line": 1, "column": 1, "offset": 1 }
+    }
+  },
+  {
+    "kind": "PropBinding",
+    "id": 6,
+    "name": "value",
+    "expr": {
+      "kind": "Expression",
+      "code": "() => props.value",
+      "form": "getter",
+      "span": {
+        "start": { "line": 1, "column": 0, "offset": 0 },
+        "end": { "line": 1, "column": 1, "offset": 1 }
+      }
+    },
+    "span": {
+      "start": { "line": 1, "column": 0, "offset": 0 },
+      "end": { "line": 1, "column": 1, "offset": 1 }
+    }
+  },
+  {
+    "kind": "EventBinding",
+    "id": 7,
+    "eventName": "click",
+    "handler": {
+      "kind": "Expression",
+      "code": "props.handlers['click']",
+      "form": "member",
+      "span": {
+        "start": { "line": 1, "column": 0, "offset": 0 },
+        "end": { "line": 1, "column": 1, "offset": 1 }
+      }
+    },
+    "span": {
+      "start": { "line": 1, "column": 0, "offset": 0 },
+      "end": { "line": 1, "column": 1, "offset": 1 }
+    }
+  },
+  {
+    "kind": "RefBinding",
+    "id": 8,
+    "expr": {
+      "kind": "Expression",
+      "code": "inputRef",
+      "form": "value",
+      "span": {
+        "start": { "line": 1, "column": 0, "offset": 0 },
+        "end": { "line": 1, "column": 1, "offset": 1 }
+      }
+    },
+    "span": {
+      "start": { "line": 1, "column": 0, "offset": 0 },
+      "end": { "line": 1, "column": 1, "offset": 1 }
+    }
+  }
+]

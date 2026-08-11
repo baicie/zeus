@@ -1,7 +1,7 @@
 use std::thread;
 
 use zeus_compiler::{
-    ir::{AttributeIr, ChildIr},
+    ir::{AttributeIr, ChildIr, ExpressionForm, StaticAttributeValue},
     lower::lower_module,
 };
 
@@ -33,7 +33,7 @@ fn lowers_native_element_to_owned_deterministic_ir() {
     };
     assert_eq!(class.id, 3);
     assert_eq!(class.name, "class");
-    assert_eq!(class.value, "greeting");
+    assert_eq!(class.value, StaticAttributeValue::String("greeting".into()));
 
     let ChildIr::Text(text) = &component.root.children[0] else {
         panic!("first child must be static text");
@@ -172,4 +172,139 @@ fn rejects_elements_whose_children_need_dedicated_anchor_codegen() {
         assert_eq!(lowered.diagnostics.len(), 1);
         assert_eq!(lowered.diagnostics[0].code, expected_code);
     }
+}
+
+#[test]
+fn lowers_dom_attribute_binding_variants() {
+    let source = r#"export const App = props => (
+  <input
+    className="field"
+    disabled
+    title={props.title}
+    class={props.classes}
+    style={() => props.style}
+    prop:value={props.value}
+    onClick={props.handlers.click}
+    ref={props.input}
+  />
+)"#;
+    let lowered = lower_module(source, "bindings.tsx");
+
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let module = lowered.ir.expect("valid DOM bindings produce IR");
+    let attributes = &module.components[0].root.attributes;
+
+    let AttributeIr::Static(class_name) = &attributes[0] else {
+        panic!("className must be a static attribute");
+    };
+    assert_eq!(class_name.name, "class");
+    assert_eq!(
+        class_name.value,
+        StaticAttributeValue::String("field".into())
+    );
+
+    let AttributeIr::Static(disabled) = &attributes[1] else {
+        panic!("disabled must be a static attribute");
+    };
+    assert_eq!(disabled.value, StaticAttributeValue::Boolean(true));
+
+    let AttributeIr::Dynamic(title) = &attributes[2] else {
+        panic!("title must be an attribute binding");
+    };
+    assert_eq!(title.name, "title");
+    assert_eq!(title.expression.form, ExpressionForm::Member);
+
+    let AttributeIr::Dynamic(class) = &attributes[3] else {
+        panic!("class must be an attribute binding");
+    };
+    assert_eq!(class.name, "class");
+
+    let AttributeIr::Dynamic(style) = &attributes[4] else {
+        panic!("style must be an attribute binding");
+    };
+    assert_eq!(style.expression.form, ExpressionForm::Getter);
+
+    let AttributeIr::Property(property) = &attributes[5] else {
+        panic!("prop:value must be a property binding");
+    };
+    assert_eq!(property.name, "value");
+    assert_eq!(property.expression.code, "props.value");
+
+    let AttributeIr::Event(event) = &attributes[6] else {
+        panic!("onClick must be an event binding");
+    };
+    assert_eq!(event.event_name, "click");
+    assert_eq!(event.handler.form, ExpressionForm::Member);
+
+    let AttributeIr::Ref(reference) = &attributes[7] else {
+        panic!("ref must be a ref binding");
+    };
+    assert_eq!(reference.expression.code, "props.input");
+}
+
+#[test]
+fn reports_stable_attribute_binding_diagnostics() {
+    for (source, expected_code) in [
+        (
+            "export const App = () => <div ref />",
+            "ZEUS_EMPTY_EXPRESSION",
+        ),
+        (
+            "export const App = () => <div ref=\"target\" />",
+            "ZEUS_INVALID_REF_USAGE",
+        ),
+        (
+            "export const App = value => <div prop:value=\"value\" />",
+            "ZEUS_INVALID_PROPERTY_BINDING",
+        ),
+        (
+            "export const App = value => <div xml:lang={value} />",
+            "ZEUS_UNSUPPORTED_NAMESPACED_ATTRIBUTE",
+        ),
+    ] {
+        let lowered = lower_module(source, "attribute-diagnostic.tsx");
+
+        assert!(lowered.ir.is_none());
+        assert_eq!(lowered.diagnostics.len(), 1);
+        assert_eq!(lowered.diagnostics[0].code, expected_code);
+        assert!(lowered.diagnostics[0].span.is_some());
+    }
+}
+
+#[test]
+fn preserves_wrapped_getter_and_member_expression_forms() {
+    let source = r"export const App = (props, handlers, inputRef) => (
+  <button
+    title={(props.title)}
+    data-value={(() => props.value) as () => string}
+    onClick={handlers?.['click']}
+    ref={inputRef!}
+  />
+)";
+    let lowered = lower_module(source, "expression-forms.tsx");
+
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let attributes = &lowered.ir.expect("valid forms produce IR").components[0]
+        .root
+        .attributes;
+
+    let AttributeIr::Dynamic(title) = &attributes[0] else {
+        panic!("title must be dynamic");
+    };
+    assert_eq!(title.expression.form, ExpressionForm::Member);
+
+    let AttributeIr::Dynamic(value) = &attributes[1] else {
+        panic!("data-value must be dynamic");
+    };
+    assert_eq!(value.expression.form, ExpressionForm::Getter);
+
+    let AttributeIr::Event(event) = &attributes[2] else {
+        panic!("onClick must be an event");
+    };
+    assert_eq!(event.handler.form, ExpressionForm::Member);
+
+    let AttributeIr::Ref(reference) = &attributes[3] else {
+        panic!("ref must be a ref binding");
+    };
+    assert_eq!(reference.expression.form, ExpressionForm::Value);
 }

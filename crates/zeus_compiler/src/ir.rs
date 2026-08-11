@@ -42,28 +42,70 @@ pub struct ElementIr {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(untagged)]
+#[serde(tag = "kind")]
 pub enum AttributeIr {
+    #[serde(rename = "StaticAttribute")]
     Static(StaticAttributeIr),
+    #[serde(rename = "AttrBinding")]
     Dynamic(AttrBindingIr),
+    #[serde(rename = "PropBinding")]
+    Property(PropBindingIr),
+    #[serde(rename = "EventBinding")]
+    Event(EventBindingIr),
+    #[serde(rename = "RefBinding")]
+    Ref(RefBindingIr),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StaticAttributeIr {
     pub id: NodeId,
-    pub kind: String,
     pub name: String,
-    pub value: String,
+    pub value: StaticAttributeValue,
     pub span: SourceSpan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum StaticAttributeValue {
+    String(String),
+    Boolean(bool),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AttrBindingIr {
     pub id: NodeId,
-    pub kind: String,
     pub name: String,
+    #[serde(rename = "expr")]
+    pub expression: ExpressionIr,
+    pub span: SourceSpan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PropBindingIr {
+    pub id: NodeId,
+    pub name: String,
+    #[serde(rename = "expr")]
+    pub expression: ExpressionIr,
+    pub span: SourceSpan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EventBindingIr {
+    pub id: NodeId,
+    pub event_name: String,
+    pub handler: ExpressionIr,
+    pub span: SourceSpan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefBindingIr {
+    pub id: NodeId,
+    #[serde(rename = "expr")]
     pub expression: ExpressionIr,
     pub span: SourceSpan,
 }
@@ -120,4 +162,14 @@ pub struct ExpressionIr {
     pub kind: String,
     pub code: String,
     pub span: SourceSpan,
+    pub form: ExpressionForm,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ExpressionForm {
+    #[default]
+    Value,
+    Getter,
+    Member,
 }

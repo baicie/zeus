@@ -1,8 +1,8 @@
 use zeus_compiler::{
     diagnostic::{CompilerDiagnostic, DiagnosticSeverity},
     ir::{
-        AttributeIr, ComponentIr, DynamicTextIr, ElementIr, ExpressionIr, IrRef, ModuleIr,
-        StaticAttributeIr, TextIr,
+        AttributeIr, ComponentIr, DynamicTextIr, ElementIr, ExpressionForm, ExpressionIr, IrRef,
+        ModuleIr, StaticAttributeIr, StaticAttributeValue, TextIr,
     },
     span::{SourcePosition, SourceSpan},
 };
@@ -40,9 +40,8 @@ fn ir_owned_schema_round_trips_through_json() {
                 span: span(0, 38),
                 attributes: vec![AttributeIr::Static(StaticAttributeIr {
                     id: 3,
-                    kind: "StaticAttribute".into(),
                     name: "class".into(),
-                    value: "greeting".into(),
+                    value: StaticAttributeValue::String("greeting".into()),
                     span: span(5, 21),
                 })],
                 children: vec![
@@ -61,6 +60,7 @@ fn ir_owned_schema_round_trips_through_json() {
                             kind: "Expression".into(),
                             code: "props.name".into(),
                             span: span(29, 39),
+                            form: ExpressionForm::Member,
                         },
                         span: span(28, 40),
                     }
@@ -75,6 +75,26 @@ fn ir_owned_schema_round_trips_through_json() {
 
     assert_eq!(decoded, module);
     assert!(!json.contains("oxc"));
+}
+
+#[test]
+fn attribute_ir_matches_compiler_shared_canonical_json() {
+    let fixture =
+        include_str!("../../../packages/core/compiler-shared/fixtures/attribute-bindings.json");
+    let attributes: Vec<AttributeIr> = serde_json::from_str(fixture)
+        .expect("canonical TypeScript IR fixture deserializes in Rust");
+    let expected: serde_json::Value =
+        serde_json::from_str(fixture).expect("canonical fixture is valid JSON");
+
+    assert!(matches!(attributes[0], AttributeIr::Static(_)));
+    assert!(matches!(attributes[2], AttributeIr::Dynamic(_)));
+    assert!(matches!(attributes[3], AttributeIr::Property(_)));
+    assert!(matches!(attributes[4], AttributeIr::Event(_)));
+    assert!(matches!(attributes[5], AttributeIr::Ref(_)));
+    assert_eq!(
+        serde_json::to_value(attributes).expect("Rust IR serializes"),
+        expected
+    );
 }
 
 #[test]
