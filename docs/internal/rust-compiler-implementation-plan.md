@@ -45,10 +45,10 @@ Babel 的门槛。
 
 **验收标准：**
 
-- [ ] `rust-version = 1.95.0`，Oxc crates 全部精确为 `=0.144.0`。
-- [ ] 不启用 Oxc `full` umbrella feature。
-- [ ] `cargo fmt --check`、`cargo clippy --workspace --all-targets -- -D warnings`、
-      `cargo test --workspace` 可在干净 checkout 运行。
+- [x] `rust-version = 1.95.0`，Oxc crates 全部精确为 `=0.144.0`。
+- [x] 不启用 Oxc `full` umbrella feature。
+- [x] `cargo fmt --all -- --check`、`cargo clippy --workspace --all-targets --locked -- -D warnings`、
+      `cargo test --workspace --locked` 可在干净 checkout 运行。
 
 **验证：** 上述三个 Cargo 命令。
 
@@ -65,11 +65,11 @@ Babel 的门槛。
 
 **验收标准：**
 
-- [ ] IR 不包含任何 Oxc 类型或 arena lifetime。
-- [ ] 同一输入重复和并行 lowering 得到相同 ID / ref。
-- [ ] span 遵守 UTF-8 byte offset、1-based line、0-based UTF-16 column 规则。
+- [x] IR 不包含任何 Oxc 类型或 arena lifetime。
+- [x] 同一输入重复和并行 lowering 得到相同 ID / ref。
+- [x] span 遵守 UTF-8 byte offset、1-based line、0-based UTF-16 column 规则。
 
-**验证：** `cargo test -p zeus_compiler ir`
+**验证：** `cargo test -p zeus_compiler --locked --test ir`
 
 **依赖：** Task 2
 
@@ -82,11 +82,11 @@ Babel 的门槛。
 
 **验收标准：**
 
-- [ ] 支持 RFC fixture，表达式源码和 span 精确保留。
-- [ ] parser 错误和 spread attribute 均返回带稳定 code / filename / span 的诊断。
-- [ ] emoji、CJK、CRLF 前缀 fixture 的 span 转换正确。
+- [x] 支持 RFC fixture，表达式源码和 span 精确保留。
+- [x] parser 错误和 spread attribute 均返回带稳定 code / filename / span 的诊断。
+- [x] emoji、CJK、CRLF 前缀 fixture 的 span 转换正确。
 
-**验证：** `cargo test -p zeus_compiler lower`
+**验证：** `cargo test -p zeus_compiler --locked --test lower`
 
 **依赖：** Task 3
 
@@ -99,11 +99,11 @@ Babel 的门槛。
 
 **验收标准：**
 
-- [ ] 输出不包含 JSX，并调用现有 `@zeus-js/runtime-dom` helper。
-- [ ] 生成标识符不会与输入模块 binding 冲突。
-- [ ] source map 将生成代码中的动态表达式映射回原 TSX 表达式。
+- [x] 输出不包含 JSX，并调用现有 `@zeus-js/runtime-dom` helper。
+- [x] 生成标识符不会与输入模块 binding 冲突。
+- [x] source map 将生成代码中的动态表达式映射回原 TSX 表达式。
 
-**验证：** `cargo test -p zeus_compiler codegen`
+**验证：** `cargo test -p zeus_compiler --locked --test transform`
 
 **依赖：** Task 4
 
@@ -111,9 +111,9 @@ Babel 的门槛。
 
 ### Checkpoint A
 
-- [ ] `cargo test -p zeus_compiler` 全通过。
-- [ ] fixture 完成 TSX -> IR -> code + map，不依赖 Babel。
-- [ ] core API 不暴露 Oxc 类型。
+- [x] `cargo test -p zeus_compiler --locked` 全通过。
+- [x] fixture 完成 TSX -> IR -> code + map，不依赖 Babel。
+- [x] core API 不暴露 Oxc 类型。
 
 ## Phase 3：Node 与 Vite 路径
 
@@ -124,9 +124,9 @@ Babel 的门槛。
 
 **验收标准：**
 
-- [ ] 正常结果包含 code、map、diagnostics。
-- [ ] compiler diagnostics 不被折叠为 exception string。
-- [ ] panic 被 containment，不跨越 NAPI ABI。
+- [x] 正常结果包含 code、map、diagnostics。
+- [x] compiler diagnostics 不被折叠为 exception string。
+- [x] panic 被 containment，不跨越 NAPI ABI。
 
 **验证：** native build + Node contract tests。
 
@@ -141,9 +141,9 @@ JSDOM 中执行，验证 DOM 和细粒度更新。
 
 **验收标准：**
 
-- [ ] 初始 DOM 为 `<div class="greeting">Hello Ada</div>`。
-- [ ] signal 更新后只更新 text binding，组件函数不重新执行。
-- [ ] Vite transform/build 均无残留 JSX，map 通过 `@jridgewell/trace-mapping` 精确断言。
+- [x] 初始 DOM 包含 emoji / CJK 静态前缀与 `Hello Ada` 动态文本。
+- [x] signal 更新后只更新 text binding，组件函数不重新执行。
+- [x] Vite transform/build 均无残留 JSX，map 通过 `@jridgewell/trace-mapping` 精确断言。
 
 **验证：** `pnpm test:compiler-native`
 
@@ -158,9 +158,9 @@ prebuild matrix 留到 native package 进入发布前完成。
 
 **验收标准：**
 
-- [ ] CI 安装固定 Rust toolchain 并缓存 Cargo artifacts。
-- [ ] native integration 不依赖开发机已有 `.node` 文件。
-- [ ] JS-only jobs 不被未构建的私有 native package 破坏。
+- [x] CI 安装固定 Rust toolchain 并缓存 Cargo artifacts。
+- [x] native integration 不依赖开发机已有 `.node` 文件。
+- [x] JS-only jobs 不被未构建的私有 native package 破坏。
 
 **验证：** 本地复现 CI 命令并检查 workflow syntax。
 
@@ -170,10 +170,10 @@ prebuild matrix 留到 native package 进入发布前完成。
 
 ### Checkpoint B
 
-- [ ] Cargo fmt、clippy、tests 全通过。
-- [ ] native package build、Node runtime、Vite integration 全通过。
-- [ ] 现有 compiler / compiler-shared targeted tests 全通过。
-- [ ] `pnpm check`、`pnpm lint`、`pnpm build` 不回归。
+- [x] Cargo fmt、clippy、tests 全通过。
+- [x] native package build、Node runtime、Vite integration 全通过。
+- [x] 现有 compiler / compiler-shared targeted tests 全通过。
+- [x] `pnpm check`、`pnpm lint`、`pnpm build` 不回归。
 
 ## 后续迁移切片
 
