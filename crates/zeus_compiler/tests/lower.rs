@@ -173,6 +173,25 @@ export const App = props => <div><Show when={props.visible} fallback="hidden"><s
 }
 
 #[test]
+fn lowers_parenthesized_for_callbacks() {
+    let source = r"import { For } from '@zeus-js/zeus'
+export const App = props => <ul><For each={props.items}>{item => (
+  <li>{item.name}</li>
+)}</For></ul>
+";
+    let lowered = lower_module(source, "for-parenthesized.tsx");
+
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let module = lowered.ir.expect("parenthesized For callback produces IR");
+    let root = root_element(&module.components[0].root);
+    let ChildIr::For(for_binding) = &root.children[0] else {
+        panic!("For must lower to a binding");
+    };
+    assert_eq!(for_binding.item, "item");
+    assert!(matches!(for_binding.body.as_slice(), [ChildIr::Element(_)]));
+}
+
+#[test]
 fn validates_host_and_slot_builtin_boundaries() {
     let valid = r"import { defineElement as d, Host as H, Slot as S } from '@zeus-js/runtime-dom'
 export const Element = d('z-card', { shadow: false }, props => <H><section><S /></section></H>)
@@ -203,6 +222,30 @@ export const App = () => <Slot />
             .map(|diagnostic| diagnostic.code.as_str()),
         Some("ZEUS_INVALID_SLOT_USAGE")
     );
+}
+
+#[test]
+fn resolves_named_define_element_setup_functions() {
+    let source = r"import { defineElement, Host, Slot } from '@zeus-js/runtime-dom'
+
+const setup = (props: { tone: string }) => (
+  <Host class={props.tone}><section><Slot /></section></Host>
+)
+
+export const Element = defineElement('z-card', { shadow: false }, setup)
+";
+    let lowered = lower_module(source, "host-named-setup.tsx");
+
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let module = lowered.ir.expect("named setup produces IR");
+    let RootIr::Component(component) = &module.components[0].root else {
+        panic!("Host must lower as a component boundary");
+    };
+    assert_eq!(component.kind, "Host");
+    assert!(matches!(
+        component.props.last().map(|prop| &prop.value),
+        Some(zeus_compiler::ir::ComponentPropValueIr::Children(_))
+    ));
 }
 
 #[test]

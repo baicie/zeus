@@ -1964,6 +1964,9 @@ fn collect_component_helper_usage(
                     usage.insert(RuntimeHelper::CreateComponent);
                     usage.insert(RuntimeHelper::MountShow);
                     collect_builtin_helper_usage(&show.children, usage);
+                    if let Some(ComponentPropValueIr::Children(children)) = &show.fallback {
+                        collect_builtin_helper_usage(children, usage);
+                    }
                 }
                 ChildIr::For(for_binding) => {
                     usage.insert(RuntimeHelper::For);
@@ -1996,6 +1999,9 @@ fn collect_builtin_helper_usage(children: &[ChildIr], usage: &mut HashSet<Runtim
                 usage.insert(RuntimeHelper::CreateComponent);
                 usage.insert(RuntimeHelper::MountShow);
                 collect_builtin_helper_usage(&show.children, usage);
+                if let Some(ComponentPropValueIr::Children(children)) = &show.fallback {
+                    collect_builtin_helper_usage(children, usage);
+                }
             }
             ChildIr::For(for_binding) => {
                 usage.insert(RuntimeHelper::For);
@@ -2048,6 +2054,9 @@ fn collect_binding_helper_usage(binding: &DynamicBinding, usage: &mut HashSet<Ru
         DynamicBinding::Show { show } => {
             usage.insert(RuntimeHelper::MountShow);
             collect_builtin_helper_usage(&show.children, usage);
+            if let Some(ComponentPropValueIr::Children(children)) = &show.fallback {
+                collect_builtin_helper_usage(children, usage);
+            }
         }
         DynamicBinding::For { for_binding } => {
             usage.insert(RuntimeHelper::MountFor);

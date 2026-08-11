@@ -2,10 +2,10 @@ use std::collections::{HashMap, HashSet};
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{
-    BindingPattern, Declaration, Expression, ImportDeclarationSpecifier, JSXAttribute,
-    JSXAttributeItem, JSXAttributeName, JSXAttributeValue, JSXChild, JSXElement, JSXElementName,
-    JSXExpression, JSXExpressionContainer, JSXFragment, MemberExpression, ModuleDeclaration,
-    Statement, VariableDeclarator,
+    BindingPattern, Declaration, Expression, FunctionType, ImportDeclarationSpecifier,
+    JSXAttribute, JSXAttributeItem, JSXAttributeName, JSXAttributeValue, JSXChild, JSXElement,
+    JSXElementName, JSXExpression, JSXExpressionContainer, JSXFragment, MemberExpression,
+    ModuleDeclaration, Statement, VariableDeclarator,
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_diagnostics::{OxcDiagnostic, Severity};
@@ -455,7 +455,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             let JSXChild::ExpressionContainer(container) = child else {
                 return None;
             };
-            let expression = container.expression.as_expression()?;
+            let expression = unwrap_expression(container.expression.as_expression()?);
             let Expression::ArrowFunctionExpression(function) = expression else {
                 return None;
             };
@@ -467,6 +467,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 .expression
                 .as_expression()
                 .is_some_and(|expression| {
+                    let expression = unwrap_expression(expression);
                     matches!(expression, Expression::ArrowFunctionExpression(_))
                 }),
             _ => false,
@@ -495,6 +496,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 }
                 arrow_body => {
                     if let Some(expression) = arrow_body.as_expression() {
+                        let expression = unwrap_expression(expression);
                         if let Some(child) = self.lower_expression_child(expression) {
                             body.push(child);
                         } else if !contains_jsx(expression) {
@@ -638,6 +640,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
     }
 
     fn lower_expression_child(&mut self, expression: &Expression<'_>) -> Option<ChildIr> {
+        let expression = unwrap_expression(expression);
         match expression {
             Expression::JSXElement(element) => Some(self.lower_element_child(element)),
             Expression::JSXFragment(fragment) => {
@@ -1086,6 +1089,21 @@ fn contains_jsx(expression: &Expression<'_>) -> bool {
     detector.0
 }
 
+fn unwrap_expression<'ast, 'expr>(expression: &'expr Expression<'ast>) -> &'expr Expression<'ast> {
+    match expression {
+        Expression::ParenthesizedExpression(expression) => {
+            unwrap_expression(&expression.expression)
+        }
+        Expression::TSAsExpression(expression) => unwrap_expression(&expression.expression),
+        Expression::TSSatisfiesExpression(expression) => unwrap_expression(&expression.expression),
+        Expression::TSNonNullExpression(expression) => unwrap_expression(&expression.expression),
+        Expression::TSInstantiationExpression(expression) => {
+            unwrap_expression(&expression.expression)
+        }
+        _ => expression,
+    }
+}
+
 fn normalize_attribute_name(name: &str) -> String {
     if name == "className" {
         "class".into()
@@ -1143,9 +1161,11 @@ fn collect_define_element_spans(
         .iter()
         .filter_map(|(name, kind)| (*kind == BuiltinKind::Host).then_some(name.clone()))
         .collect::<HashSet<_>>();
+    let setup_functions = collect_setup_functions(program, &host_names);
     let mut collector = DefineElementCollector {
         define_names,
         host_names,
+        setup_functions,
         setup_spans: Vec::new(),
         host_root_spans: HashSet::new(),
     };
@@ -1360,8 +1380,115 @@ fn is_import_meta_hot(expression: &MemberExpression<'_>) -> bool {
 struct DefineElementCollector {
     define_names: HashSet<String>,
     host_names: HashSet<String>,
+    setup_functions: HashMap<String, SetupFunctionInfo>,
     setup_spans: Vec<Span>,
     host_root_spans: HashSet<u32>,
+}
+
+#[derive(Clone, Copy)]
+struct SetupFunctionInfo {
+    span: Span,
+    host_root: Option<Span>,
+}
+
+fn collect_setup_functions(
+    program: &oxc_ast::ast::Program<'_>,
+    host_names: &HashSet<String>,
+) -> HashMap<String, SetupFunctionInfo> {
+    let mut collector = SetupFunctionCollector {
+        host_names,
+        functions: HashMap::new(),
+    };
+    collector.visit_program(program);
+    collector.functions
+}
+
+struct SetupFunctionCollector<'a> {
+    host_names: &'a HashSet<String>,
+    functions: HashMap<String, SetupFunctionInfo>,
+}
+
+impl<'ast> Visit<'ast> for SetupFunctionCollector<'_> {
+    fn visit_variable_declarator(&mut self, declarator: &VariableDeclarator<'ast>) {
+        if let Some(name) = binding_name(&declarator.id)
+            && let Some(init) = &declarator.init
+            && let Some(info) = setup_function_info(init, self.host_names)
+        {
+            self.functions.insert(name, info);
+        }
+        walk::walk_variable_declarator(self, declarator);
+    }
+
+    fn visit_function(
+        &mut self,
+        function: &oxc_ast::ast::Function<'ast>,
+        flags: oxc_syntax::scope::ScopeFlags,
+    ) {
+        if function.r#type == FunctionType::FunctionDeclaration
+            && let Some(identifier) = &function.id
+        {
+            self.functions.insert(
+                identifier.name.to_string(),
+                SetupFunctionInfo {
+                    span: function.span,
+                    host_root: function_setup_root(function, self.host_names),
+                },
+            );
+        }
+        walk::walk_function(self, function, flags);
+    }
+}
+
+fn setup_function_info(
+    expression: &Expression<'_>,
+    host_names: &HashSet<String>,
+) -> Option<SetupFunctionInfo> {
+    match expression {
+        Expression::ArrowFunctionExpression(function) => Some(SetupFunctionInfo {
+            span: function.span,
+            host_root: arrow_setup_root(function, host_names),
+        }),
+        Expression::FunctionExpression(function) => Some(SetupFunctionInfo {
+            span: function.span,
+            host_root: function_setup_root(function, host_names),
+        }),
+        Expression::ParenthesizedExpression(expression) => {
+            setup_function_info(&expression.expression, host_names)
+        }
+        Expression::TSAsExpression(expression) => {
+            setup_function_info(&expression.expression, host_names)
+        }
+        Expression::TSSatisfiesExpression(expression) => {
+            setup_function_info(&expression.expression, host_names)
+        }
+        Expression::TSNonNullExpression(expression) => {
+            setup_function_info(&expression.expression, host_names)
+        }
+        Expression::TSInstantiationExpression(expression) => {
+            setup_function_info(&expression.expression, host_names)
+        }
+        _ => None,
+    }
+}
+
+fn setup_function_reference(expression: &Expression<'_>) -> Option<String> {
+    match expression {
+        Expression::Identifier(identifier) => Some(identifier.name.to_string()),
+        Expression::ParenthesizedExpression(expression) => {
+            setup_function_reference(&expression.expression)
+        }
+        Expression::TSAsExpression(expression) => setup_function_reference(&expression.expression),
+        Expression::TSSatisfiesExpression(expression) => {
+            setup_function_reference(&expression.expression)
+        }
+        Expression::TSNonNullExpression(expression) => {
+            setup_function_reference(&expression.expression)
+        }
+        Expression::TSInstantiationExpression(expression) => {
+            setup_function_reference(&expression.expression)
+        }
+        _ => None,
+    }
 }
 
 impl<'ast> Visit<'ast> for DefineElementCollector {
@@ -1371,19 +1498,15 @@ impl<'ast> Visit<'ast> for DefineElementCollector {
             && let Some(argument) = expression.arguments.get(2)
             && let Some(setup) = argument.as_expression()
         {
-            let (span, root) = match setup {
-                Expression::ArrowFunctionExpression(function) => {
-                    (function.span, arrow_setup_root(function, &self.host_names))
+            let info = setup_function_info(setup, &self.host_names).or_else(|| {
+                setup_function_reference(setup)
+                    .and_then(|name| self.setup_functions.get(&name).copied())
+            });
+            if let Some(info) = info {
+                self.setup_spans.push(info.span);
+                if let Some(root) = info.host_root {
+                    self.host_root_spans.insert(root.start);
                 }
-                Expression::FunctionExpression(function) => (
-                    function.span,
-                    function_setup_root(function, &self.host_names),
-                ),
-                _ => return,
-            };
-            self.setup_spans.push(span);
-            if let Some(root) = root {
-                self.host_root_spans.insert(root.start);
             }
         }
         walk::walk_call_expression(self, expression);

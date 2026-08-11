@@ -606,6 +606,29 @@ export const Element = d('z-card', { shadow: false }, props => <H><section><S na
 }
 
 #[test]
+fn collects_create_slot_for_slots_in_show_fallbacks() {
+    let source = r"import { defineElement as d, Host as H, Show, Slot as S } from '@zeus-js/runtime-dom'
+export const Element = d('z-card', { shadow: false }, props => <H><Show when={props.ready} fallback={<S />}><span>ready</span></Show></H>)
+";
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "slot-show-fallback.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: true,
+        hmr: false,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    assert!(transformed.code.contains("createSlot as"));
+}
+
+#[test]
 fn emits_show_and_for_mounts_with_stable_region_markers() {
     let source = r#"import { Show, For } from '@zeus-js/zeus'
 export const App = props => <div><Show when={props.visible} fallback="hidden"><span>{props.name}</span></Show><For each={props.items}>{item => <b>{item}</b>}</For></div>
