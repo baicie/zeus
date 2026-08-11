@@ -8,7 +8,10 @@ import {
 } from '@zeus-js/compiler-shared'
 
 import { createBabelCompilerError } from '../adapters/babel/diagnostic'
-import { lowerExpressionIR } from '../adapters/babel/expression'
+import {
+  lowerExpressionIR,
+  sourceSpanFromBabelNode,
+} from '../adapters/babel/expression'
 import { CompilerErrorCode } from '../diagnostics'
 import { getJSXAttrName, toEventName } from '../parse/jsx'
 
@@ -29,7 +32,9 @@ export function lowerAttribute(
   }
 
   const node = path.node
-  const name = getJSXAttrName(node.name)
+  const name = normalizeAttributeName(getJSXAttrName(node.name))
+  const span = sourceSpanFromBabelNode(node)
+  if (!span) throw new Error('JSX attribute is missing source offsets.')
   const value = path.get('value')
 
   if (!value.node) {
@@ -40,7 +45,7 @@ export function lowerAttribute(
         hint: 'Use <div ref={target} /> instead.',
       })
     }
-    return staticAttrIR(name, true)
+    return staticAttrIR(name, true, span)
   }
 
   if (value.isStringLiteral()) {
@@ -51,7 +56,7 @@ export function lowerAttribute(
         hint: 'Use a state holder or callback ref: <div ref={el} />.',
       })
     }
-    return staticAttrIR(name, value.node.value)
+    return staticAttrIR(name, value.node.value, span)
   }
 
   if (value.isJSXExpressionContainer()) {
@@ -68,21 +73,25 @@ export function lowerAttribute(
     const expr = lowerExpressionIR(expression)
 
     if (name === 'ref') {
-      return refBindingIR(expr)
+      return refBindingIR(expr, span)
     }
 
     if (isEventAttributeName(name)) {
-      return eventBindingIR(toEventName(name), expr)
+      return eventBindingIR(toEventName(name), expr, span)
     }
 
     if (name.startsWith('prop:')) {
-      return propBindingIR(name.slice('prop:'.length), expr)
+      return propBindingIR(name.slice('prop:'.length), expr, span)
     }
 
-    return attrBindingIR(name, expr)
+    return attrBindingIR(name, expr, span)
   }
 
   return null
+}
+
+function normalizeAttributeName(name: string): string {
+  return name === 'className' ? 'class' : name
 }
 
 function isEventAttributeName(name: string): boolean {

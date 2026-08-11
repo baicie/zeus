@@ -1,4 +1,9 @@
-use serde::{Deserialize, Serialize};
+use std::fmt;
+
+use serde::{
+    Deserialize, Deserializer, Serialize, Serializer,
+    de::{self, Visitor},
+};
 
 use crate::span::SourceSpan;
 
@@ -65,11 +70,73 @@ pub struct StaticAttributeIr {
     pub span: SourceSpan,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(untagged)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StaticAttributeValue {
     String(String),
-    Boolean(bool),
+    Boolean,
+}
+
+impl Serialize for StaticAttributeValue {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            Self::String(value) => serializer.serialize_str(value),
+            Self::Boolean => serializer.serialize_bool(true),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for StaticAttributeValue {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_any(StaticAttributeValueVisitor)
+    }
+}
+
+struct StaticAttributeValueVisitor;
+
+impl Visitor<'_> for StaticAttributeValueVisitor {
+    type Value = StaticAttributeValue;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("a string or the boolean literal true")
+    }
+
+    fn visit_bool<E>(self, value: bool) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        if value {
+            Ok(StaticAttributeValue::Boolean)
+        } else {
+            Err(E::custom("static boolean attributes must be true"))
+        }
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        Ok(StaticAttributeValue::String(value.to_owned()))
+    }
+
+    fn visit_borrowed_str<E>(self, value: &'_ str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        self.visit_str(value)
+    }
+
+    fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        Ok(StaticAttributeValue::String(value))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

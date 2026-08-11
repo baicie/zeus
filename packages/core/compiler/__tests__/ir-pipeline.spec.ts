@@ -34,7 +34,13 @@ async function compile(code: string) {
 describe('zeus compiler ir-first pipeline', () => {
   it('assigns DOM paths independently from lowering', () => {
     const span = elementIR({ ref: ref('_span$'), tagName: 'span' })
-    const dynamic = dynamicTextIR(expressionIR('name'), ref('_text$'))
+    const dynamic = dynamicTextIR(
+      expressionIR('name', {
+        start: { line: 1, column: 0, offset: 0 },
+        end: { line: 1, column: 4, offset: 4 },
+      }),
+      ref('_text$'),
+    )
     const bold = elementIR({ ref: ref('_bold$'), tagName: 'b' })
     const root = elementIR({
       ref: ref('_root$'),

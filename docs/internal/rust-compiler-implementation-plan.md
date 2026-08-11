@@ -202,9 +202,9 @@ prebuild matrix 留到 native package 进入发布前完成。
 
 **验收标准：**
 
-- [ ] getter 函数直接传递，普通表达式只包一层 getter。
-- [ ] binding 通过 clone 后的稳定 locator 指向正确元素，不依赖源码 child index。
-- [ ] source map 将每个生成表达式精确映射回 TSX。
+- [x] getter 函数直接传递，普通表达式只包一层 getter。
+- [x] binding 通过 clone 后的稳定 locator 指向正确元素，不依赖源码 child index。
+- [x] source map 将每个生成表达式精确映射回 TSX。
 
 **验证：** `cargo test -p zeus_compiler --locked --test transform`
 

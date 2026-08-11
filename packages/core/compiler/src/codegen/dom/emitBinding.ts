@@ -126,9 +126,7 @@ function emitAttrBinding(
   binding: AttrBindingIR,
   context: CompilerContext,
 ): t.Statement {
-  const name = normalizeAttrName(binding.name)
-
-  if (name === 'class') {
+  if (binding.name === 'class') {
     return t.expressionStatement(
       t.callExpression(context.importRuntime('bindClass'), [
         t.identifier(target.ref.name),
@@ -137,7 +135,7 @@ function emitAttrBinding(
     )
   }
 
-  if (name === 'style') {
+  if (binding.name === 'style') {
     return t.expressionStatement(
       t.callExpression(context.importRuntime('bindStyle'), [
         t.identifier(target.ref.name),
@@ -149,14 +147,10 @@ function emitAttrBinding(
   return t.expressionStatement(
     t.callExpression(context.importRuntime('bindAttr'), [
       t.identifier(target.ref.name),
-      t.stringLiteral(name),
+      t.stringLiteral(binding.name),
       emitGetter(parseExpressionIR(binding.expr)),
     ]),
   )
-}
-
-function normalizeAttrName(name: string): string {
-  return name === 'className' ? 'class' : name
 }
 
 function emitEventBinding(

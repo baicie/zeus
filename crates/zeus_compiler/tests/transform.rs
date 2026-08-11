@@ -172,6 +172,27 @@ fn returns_diagnostics_without_emitting_partial_code() {
 }
 
 #[test]
+fn does_not_silently_drop_events_before_event_codegen_is_enabled() {
+    let transformed = transform_module(TransformModuleOptions {
+        source: "export const App = handler => <button onClick={handler} />".into(),
+        filename: "event.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: true,
+        source_map: true,
+    });
+
+    assert!(transformed.code.is_empty());
+    assert!(transformed.map.is_none());
+    assert_eq!(transformed.diagnostics.len(), 1);
+    assert_eq!(
+        transformed.diagnostics[0].code,
+        "ZEUS_UNSUPPORTED_EVENT_BINDING_CODEGEN"
+    );
+    assert!(transformed.diagnostics[0].span.is_some());
+}
+
+#[test]
 fn leaves_plain_modules_untouched_and_preserves_directive_prologue() {
     let plain_source = "export const value: number = 1\n";
     let plain = transform_module(TransformModuleOptions {
@@ -203,5 +224,112 @@ fn leaves_plain_modules_untouched_and_preserves_directive_prologue() {
         directive
             .code
             .starts_with("#!/usr/bin/env node\n\"use client\";\nimport {")
+    );
+}
+
+#[test]
+fn emits_attribute_property_and_ref_bindings_with_stable_locators() {
+    let source = r"export const App = (props, inputRef) => (
+  <section title={props.title}>
+    prefix
+    <div className={props.className} style={() => props.style}>
+      <input prop:value={props.value} ref={inputRef} />
+    </div>
+    <table><tr data-row={props.row}><td>cell</td></tr></table>
+  </section>
+)
+";
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "bindings.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: true,
+    });
+
+    assert!(transformed.diagnostics.is_empty());
+    assert!(transformed.code.contains("bindAttr as"));
+    assert!(transformed.code.contains("bindClass as"));
+    assert!(transformed.code.contains("bindStyle as"));
+    assert!(transformed.code.contains("bindProp as"));
+    assert!(transformed.code.contains("bindRef as"));
+    assert!(transformed.code.contains(".querySelector("));
+    assert!(transformed.code.contains(".removeAttribute("));
+    assert!(!transformed.code.contains(".childNodes["));
+    assert!(transformed.code.contains("() => (props.title)"));
+    assert!(transformed.code.contains("() => props.style"));
+    assert!(!transformed.code.contains("() => (() => props.style)"));
+    assert!(transformed.code.contains(", inputRef);"));
+    assert!(!transformed.code.contains("() => (inputRef)"));
+
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, &transformed.code, SourceType::ts()).parse();
+    assert!(
+        parsed.diagnostics.is_empty(),
+        "generated binding output must parse: {:?}",
+        parsed.diagnostics
+    );
+
+    for expression in [
+        "props.title",
+        "props.className",
+        "() => props.style",
+        "props.value",
+        "inputRef",
+        "props.row",
+    ] {
+        assert_expression_mapping(source, &transformed, expression);
+    }
+}
+
+fn assert_expression_mapping(
+    source: &str,
+    transformed: &zeus_compiler::TransformModuleResult,
+    expression: &str,
+) {
+    let generated_index = transformed
+        .code
+        .rfind(expression)
+        .unwrap_or_else(|| panic!("generated output contains {expression}"));
+    let generated_prefix = &transformed.code[..generated_index];
+    let generated_line = u32::try_from(generated_prefix.matches('\n').count()).unwrap();
+    let generated_column = u32::try_from(
+        generated_prefix
+            .rsplit_once('\n')
+            .map_or(generated_prefix, |(_, tail)| tail)
+            .encode_utf16()
+            .count(),
+    )
+    .unwrap();
+
+    let map_json = serde_json::to_string(transformed.map.as_ref().expect("map requested"))
+        .expect("map serializes");
+    let source_map = SourceMap::from_json_string(&map_json).expect("valid source map v3");
+    let lookup = source_map.generate_lookup_table();
+    let token = source_map
+        .lookup_token(&lookup, generated_line, generated_column)
+        .unwrap_or_else(|| panic!("{expression} has a source mapping"));
+    let original_index = source
+        .rfind(expression)
+        .unwrap_or_else(|| panic!("source contains {expression}"));
+    let original_prefix = &source[..original_index];
+
+    assert_eq!(
+        token.get_src_line(),
+        u32::try_from(original_prefix.matches('\n').count()).unwrap(),
+        "line mapping for {expression}"
+    );
+    assert_eq!(
+        token.get_src_col(),
+        u32::try_from(
+            original_prefix
+                .rsplit_once('\n')
+                .map_or(original_prefix, |(_, tail)| tail)
+                .encode_utf16()
+                .count()
+        )
+        .unwrap(),
+        "column mapping for {expression}"
     );
 }

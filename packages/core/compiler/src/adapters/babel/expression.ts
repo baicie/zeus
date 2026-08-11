@@ -15,44 +15,46 @@ export function lowerExpressionIR(path: NodePath<t.Expression>): ExpressionIR {
 
   return expressionIR(
     source || path.toString(),
-    sourceSpanFromBabelNode(path.node),
+    requireSourceSpanFromBabelNode(path.node),
     expressionFormFromBabelNode(path.node),
   )
 }
 
-export function expressionIRFromCode(
-  code: string,
-  node?: t.Node | null,
-): ExpressionIR {
+export function expressionIRFromCode(code: string, node: t.Node): ExpressionIR {
   return expressionIR(
     code,
-    sourceSpanFromBabelNode(node),
-    expressionFormFromBabelNode(node),
+    requireSourceSpanFromBabelNode(node),
+    expressionFormFromBabelNode(
+      parseExpression(code, {
+        sourceType: 'module',
+        plugins: ['typescript', 'jsx'],
+      }),
+    ),
   )
 }
 
 export function parseExpressionIR(expression: ExpressionIR): t.Expression {
-  const start = expression.span?.start
-  const sourceStart =
-    typeof start?.offset === 'number'
-      ? {
-          startLine: start.line,
-          startColumn: start.column,
-          startIndex: start.offset,
-        }
-      : {}
+  const start = expression.span.start
 
   return parseExpression(expression.code, {
     sourceType: 'module',
     plugins: ['typescript', 'jsx'],
-    ...sourceStart,
+    startLine: start.line,
+    startColumn: start.column,
+    startIndex: start.offset,
   })
 }
 
 export function sourceSpanFromBabelNode(
   node: t.Node | null | undefined,
 ): SourceSpan | undefined {
-  if (!node?.loc) return undefined
+  if (
+    !node?.loc ||
+    typeof node.start !== 'number' ||
+    typeof node.end !== 'number'
+  ) {
+    return undefined
+  }
 
   return {
     start: sourcePosition(
@@ -62,6 +64,14 @@ export function sourceSpanFromBabelNode(
     ),
     end: sourcePosition(node.loc.end.line, node.loc.end.column, node.end),
   }
+}
+
+function requireSourceSpanFromBabelNode(node: t.Node): SourceSpan {
+  const span = sourceSpanFromBabelNode(node)
+  if (!span) {
+    throw new Error(`Babel node ${node.type} is missing source offsets.`)
+  }
+  return span
 }
 
 export function expressionFormFromBabelNode(
@@ -92,9 +102,7 @@ export function expressionFormFromBabelNode(
 function sourcePosition(
   line: number,
   column: number,
-  offset: number | null | undefined,
+  offset: number,
 ): SourcePosition {
-  return typeof offset === 'number'
-    ? { line, column, offset }
-    : { line, column }
+  return { line, column, offset }
 }

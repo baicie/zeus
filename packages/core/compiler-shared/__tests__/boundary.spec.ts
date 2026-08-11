@@ -4,7 +4,18 @@ import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
-import { dynamicTextIR, expressionIR, hostIR, ref, slotIR } from '../src'
+import {
+  attrBindingIR,
+  dynamicTextIR,
+  eventBindingIR,
+  expressionIR,
+  hostIR,
+  propBindingIR,
+  ref,
+  refBindingIR,
+  slotIR,
+  staticAttrIR,
+} from '../src'
 
 import type { AttributeIR } from '../src'
 
@@ -54,72 +65,33 @@ describe('compiler-shared boundary', () => {
         'utf8',
       ),
     ) as AttributeIR[]
-    const expected: AttributeIR[] = [
-      {
-        id: 3,
-        kind: 'StaticAttribute',
-        name: 'class',
-        value: 'field',
-        span: fixtureSpan,
-      },
-      {
-        id: 4,
-        kind: 'StaticAttribute',
-        name: 'disabled',
-        value: true,
-        span: fixtureSpan,
-      },
-      {
-        id: 5,
-        kind: 'AttrBinding',
-        name: 'title',
-        expr: {
-          kind: 'Expression',
-          code: 'props.title',
-          form: 'member',
-          span: fixtureSpan,
-        },
-        span: fixtureSpan,
-      },
-      {
-        id: 6,
-        kind: 'PropBinding',
-        name: 'value',
-        expr: {
-          kind: 'Expression',
-          code: '() => props.value',
-          form: 'getter',
-          span: fixtureSpan,
-        },
-        span: fixtureSpan,
-      },
-      {
-        id: 7,
-        kind: 'EventBinding',
-        eventName: 'click',
-        handler: {
-          kind: 'Expression',
-          code: "props.handlers['click']",
-          form: 'member',
-          span: fixtureSpan,
-        },
-        span: fixtureSpan,
-      },
-      {
-        id: 8,
-        kind: 'RefBinding',
-        expr: {
-          kind: 'Expression',
-          code: 'inputRef',
-          form: 'value',
-          span: fixtureSpan,
-        },
-        span: fixtureSpan,
-      },
+    const built: AttributeIR[] = [
+      staticAttrIR('class', 'field', fixtureSpan),
+      staticAttrIR('disabled', true, fixtureSpan),
+      attrBindingIR(
+        'title',
+        expressionIR('props.title', fixtureSpan, 'member'),
+        fixtureSpan,
+      ),
+      propBindingIR(
+        'value',
+        expressionIR('() => props.value', fixtureSpan, 'getter'),
+        fixtureSpan,
+      ),
+      eventBindingIR(
+        'click',
+        expressionIR("props.handlers['click']", fixtureSpan, 'member'),
+        fixtureSpan,
+      ),
+      refBindingIR(expressionIR('inputRef', fixtureSpan), fixtureSpan),
     ]
+    const normalized = built.map((attribute, index) => ({
+      ...attribute,
+      id: index + 3,
+    }))
 
-    expect(fixture).toEqual(expected)
-    expect(JSON.parse(JSON.stringify(fixture))).toEqual(expected)
+    expect(normalized).toEqual(fixture)
+    expect(JSON.parse(JSON.stringify(normalized))).toEqual(fixture)
   })
 
   it('declares no Babel package dependencies', () => {

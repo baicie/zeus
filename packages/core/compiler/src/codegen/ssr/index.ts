@@ -177,10 +177,8 @@ function emitAttributeBinding(
   attr: AttrBindingIR,
   context: CompilerContext,
 ): t.Expression {
-  const name = normalizeAttributeName(attr.name)
-
   return t.callExpression(context.importRuntime('ssrAttr'), [
-    t.stringLiteral(name),
+    t.stringLiteral(attr.name),
     emitBindingValue(attr.expr),
   ])
 }
@@ -210,7 +208,7 @@ function emitStaticAttribute(
   context: CompilerContext,
 ): t.Expression {
   return t.callExpression(context.importRuntime('ssrAttr'), [
-    t.stringLiteral(normalizeAttributeName(attr.name)),
+    t.stringLiteral(attr.name),
     attr.value === true ? t.booleanLiteral(true) : t.stringLiteral(attr.value),
   ])
 }
@@ -250,10 +248,6 @@ function isStaticPropValue(value: t.Expression): boolean {
 
 function createObjectKey(name: string): t.Identifier | t.StringLiteral {
   return t.isValidIdentifier(name) ? t.identifier(name) : t.stringLiteral(name)
-}
-
-function normalizeAttributeName(name: string): string {
-  return name === 'className' ? 'class' : name
 }
 
 function isEventAttributeName(name: string): boolean {

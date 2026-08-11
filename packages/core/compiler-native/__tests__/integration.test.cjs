@@ -19,11 +19,14 @@ const { transformModule } = require('../index.js')
 
 const repositoryRoot = path.resolve(__dirname, '../../../..')
 const source = `import { createSignal } from '@zeus-js/signal'
+import { render } from '@zeus-js/runtime-dom'
 
 const [name, setName] = createSignal('Ada')
 const props = { get name() { return name() } }
 let executions = 0
 let nestedExecutions = 0
+let bindingExecutions = 0
+const inputRef = { value: null as HTMLInputElement | null }
 
 export const App = (props: { name: string }) => (
   executions++,
@@ -43,13 +46,29 @@ export const Table = (props: { name: string }) => (
   <table><tr><td>{props.name}</td></tr></table>
 )
 
+export const Bindings = (props: { name: string }) => (
+  bindingExecutions++,
+  <section
+    data-zeus-node="user"
+    title={props.name}
+    class={{ initial: props.name === 'Ada', updated: props.name === 'Grace' }}
+    style={() => ({ color: props.name === 'Ada' ? 'red' : 'blue', lineHeight: 1 })}
+  >
+    <input prop:value={props.name} ref={inputRef} />
+    <table><tr data-name={props.name}><td>bound</td></tr></table>
+  </section>
+)
+
 export const mount = () => App(props)
 export const mountNested = () => Nested(props)
 export const mountStatic = () => Static()
 export const mountTable = () => Table(props)
+export const mountBindings = (container: Element) => render(() => Bindings(props), container)
 export const updateName = setName
 export const executionCount = () => executions
 export const nestedExecutionCount = () => nestedExecutions
+export const bindingExecutionCount = () => bindingExecutions
+export const inputRefValue = () => inputRef.value
 `.replaceAll('\n', '\r\n')
 
 test('native compiler executes through Vite with fine-grained DOM updates', async () => {
@@ -83,6 +102,11 @@ test('native compiler executes through Vite with fine-grained DOM updates', asyn
     const nested = module.mountNested()
     const staticElement = module.mountStatic()
     const table = module.mountTable()
+    const bindingContainer = document.createElement('div')
+    const disposeBindings = module.mountBindings(bindingContainer)
+    const bindings = bindingContainer.firstElementChild
+    const bindingInput = bindings.querySelector('input')
+    const bindingRow = bindings.querySelector('tr')
     const greetingLabel = element.firstChild
     const greetingValue = element.lastChild
     const nestedSpan = nested.querySelector('span')
@@ -99,8 +123,18 @@ test('native compiler executes through Vite with fine-grained DOM updates', asyn
       table.outerHTML,
       '<table><tbody><tr><td>Ada</td></tr></tbody></table>',
     )
+    assert.equal(bindings.getAttribute('data-zeus-node'), 'user')
+    assert.equal(bindings.getAttribute('title'), 'Ada')
+    assert.equal(bindings.getAttribute('class'), 'initial')
+    assert.equal(bindings.style.color, 'red')
+    assert.equal(bindings.style.lineHeight, '1')
+    assert.equal(bindingInput.value, 'Ada')
+    assert.equal(bindingRow.getAttribute('data-name'), 'Ada')
+    assert.equal(bindingRow.parentElement.tagName, 'TBODY')
+    assert.strictEqual(module.inputRefValue(), bindingInput)
     assert.equal(module.executionCount(), 1)
     assert.equal(module.nestedExecutionCount(), 1)
+    assert.equal(module.bindingExecutionCount(), 1)
 
     module.updateName('Grace')
 
@@ -116,12 +150,25 @@ test('native compiler executes through Vite with fine-grained DOM updates', asyn
       table.outerHTML,
       '<table><tbody><tr><td>Grace</td></tr></tbody></table>',
     )
+    assert.equal(bindings.getAttribute('title'), 'Grace')
+    assert.equal(bindings.getAttribute('class'), 'updated')
+    assert.equal(bindings.style.color, 'blue')
+    assert.equal(bindings.style.lineHeight, '1')
+    assert.equal(bindingInput.value, 'Grace')
+    assert.equal(bindingRow.getAttribute('data-name'), 'Grace')
+    assert.strictEqual(bindings.querySelector('input'), bindingInput)
+    assert.strictEqual(bindings.querySelector('tr'), bindingRow)
     assert.strictEqual(element.firstChild, greetingLabel)
     assert.strictEqual(element.lastChild, greetingValue)
     assert.strictEqual(nested.querySelector('span'), nestedSpan)
     assert.strictEqual(nestedSpan.firstChild, nestedValue)
     assert.equal(module.executionCount(), 1)
     assert.equal(module.nestedExecutionCount(), 1)
+    assert.equal(module.bindingExecutionCount(), 1)
+
+    disposeBindings()
+    assert.equal(bindingContainer.textContent, '')
+    assert.equal(module.inputRefValue(), null)
 
     const buildResult = await build({
       root: fixture.root,

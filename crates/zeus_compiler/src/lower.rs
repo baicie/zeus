@@ -298,7 +298,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 Some(AttributeIr::Static(StaticAttributeIr {
                     id: self.allocate_id(),
                     name,
-                    value: StaticAttributeValue::Boolean(true),
+                    value: StaticAttributeValue::Boolean,
                     span: self.source_index.span(attribute.span),
                 }))
             }

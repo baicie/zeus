@@ -4,19 +4,26 @@ import { describe, expect, it } from 'vitest'
 
 import {
   expressionFormFromBabelNode,
+  expressionIRFromCode,
   parseExpressionIR,
   sourceSpanFromBabelNode,
 } from '../src/adapters/babel/expression'
 
+const fixtureSpan = {
+  start: { line: 1, column: 0, offset: 0 },
+  end: { line: 1, column: 1, offset: 1 },
+}
+
 describe('Babel expression IR adapter', () => {
   it('parses TypeScript and JSX expressions at the codegen boundary', () => {
     expect(
-      parseExpressionIR(expressionIR('value satisfies Record<string, unknown>'))
-        .type,
+      parseExpressionIR(
+        expressionIR('value satisfies Record<string, unknown>', fixtureSpan),
+      ).type,
     ).toBe('TSSatisfiesExpression')
-    expect(parseExpressionIR(expressionIR('<span>{value}</span>')).type).toBe(
-      'JSXElement',
-    )
+    expect(
+      parseExpressionIR(expressionIR('<span>{value}</span>', fixtureSpan)).type,
+    ).toBe('JSXElement')
   })
 
   it('converts Babel locations to serializable source spans', () => {
@@ -47,15 +54,10 @@ describe('Babel expression IR adapter', () => {
     })
   })
 
-  it('parses source spans without offsets', () => {
-    const expression = parseExpressionIR(
-      expressionIR('props.title', {
-        start: { line: 7, column: 12 },
-        end: { line: 7, column: 23 },
-      }),
-    )
+  it('classifies synthesized expression shape from code instead of its source node', () => {
+    const sourceNode = parseExpression('value')
 
-    expect(expression.type).toBe('MemberExpression')
+    expect(expressionIRFromCode('UI.Button', sourceNode).form).toBe('member')
   })
 
   it.each([

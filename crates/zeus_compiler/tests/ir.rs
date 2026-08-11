@@ -95,6 +95,9 @@ fn attribute_ir_matches_compiler_shared_canonical_json() {
         serde_json::to_value(attributes).expect("Rust IR serializes"),
         expected
     );
+
+    let invalid = fixture.replacen("\"value\": true", "\"value\": false", 1);
+    assert!(serde_json::from_str::<Vec<AttributeIr>>(&invalid).is_err());
 }
 
 #[test]

@@ -206,7 +206,7 @@ fn lowers_dom_attribute_binding_variants() {
     let AttributeIr::Static(disabled) = &attributes[1] else {
         panic!("disabled must be a static attribute");
     };
-    assert_eq!(disabled.value, StaticAttributeValue::Boolean(true));
+    assert_eq!(disabled.value, StaticAttributeValue::Boolean);
 
     let AttributeIr::Dynamic(title) = &attributes[2] else {
         panic!("title must be an attribute binding");
