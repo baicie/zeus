@@ -17,6 +17,7 @@ fn options(source_map: bool) -> TransformModuleOptions {
         runtime_module: "@zeus-js/runtime-dom".into(),
         delegate_events: false,
         source_map,
+        hmr: false,
     }
 }
 
@@ -96,6 +97,7 @@ export const App = props => <div>{props.name}</div>
         runtime_module: "@zeus-js/runtime-dom".into(),
         delegate_events: false,
         source_map: false,
+        hmr: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -112,6 +114,7 @@ fn avoids_collisions_with_unresolved_references() {
         runtime_module: "@zeus-js/runtime-dom".into(),
         delegate_events: false,
         source_map: false,
+        hmr: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -129,6 +132,7 @@ fn preserves_object_literal_expression_semantics() {
         runtime_module: "@zeus-js/runtime-dom".into(),
         delegate_events: false,
         source_map: false,
+        hmr: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -145,6 +149,7 @@ fn does_not_resolve_text_creation_through_component_scope() {
         runtime_module: "@zeus-js/runtime-dom".into(),
         delegate_events: false,
         source_map: false,
+        hmr: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -161,6 +166,7 @@ fn returns_diagnostics_without_emitting_partial_code() {
         runtime_module: "@zeus-js/runtime-dom".into(),
         delegate_events: false,
         source_map: true,
+        hmr: false,
     });
 
     assert!(transformed.code.is_empty());
@@ -191,6 +197,7 @@ export const App = (inlineHandler, identifierHandler, theme, maybe, props, asser
         runtime_module: "@zeus-js/runtime-dom".into(),
         delegate_events: true,
         source_map: true,
+        hmr: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -257,6 +264,7 @@ export const App = (inlineHandler, identifierHandler, theme, maybe, props, asser
         runtime_module: "@zeus-js/runtime-dom".into(),
         delegate_events: false,
         source_map: false,
+        hmr: false,
     });
 
     assert!(without_delegation.diagnostics.is_empty());
@@ -275,6 +283,7 @@ fn leaves_plain_modules_untouched_and_preserves_directive_prologue() {
         runtime_module: "@zeus-js/runtime-dom".into(),
         delegate_events: false,
         source_map: true,
+        hmr: false,
     });
 
     assert!(plain.diagnostics.is_empty());
@@ -290,6 +299,7 @@ fn leaves_plain_modules_untouched_and_preserves_directive_prologue() {
         runtime_module: "@zeus-js/runtime-dom".into(),
         delegate_events: false,
         source_map: false,
+        hmr: false,
     });
 
     assert!(directive.diagnostics.is_empty());
@@ -298,6 +308,47 @@ fn leaves_plain_modules_untouched_and_preserves_directive_prologue() {
             .code
             .starts_with("#!/usr/bin/env node\n\"use client\";\nimport {")
     );
+}
+
+#[test]
+fn emits_rust_hmr_boundary_for_top_level_render_roots() {
+    let mut options = options(false);
+    options.source = "import { render as mount } from '@zeus-js/zeus'\n\nmount('first', document.body)\nmount('second', document.body)".into();
+    options.filename = "main.tsx".into();
+    options.hmr = true;
+
+    let transformed = transform_module(options);
+
+    assert!(transformed.diagnostics.is_empty());
+    assert!(transformed.code.contains("const _dispose = mount('first'"));
+    assert!(
+        transformed
+            .code
+            .contains("const _dispose0 = mount('second'")
+    );
+    let dispose_second = transformed
+        .code
+        .find("    _dispose0()")
+        .expect("second root is disposed first");
+    let dispose_first = transformed
+        .code
+        .find("    _dispose()")
+        .expect("first root is disposed");
+    assert!(dispose_second < dispose_first);
+}
+
+#[test]
+fn skips_rust_hmr_when_module_has_an_explicit_boundary() {
+    let mut options = options(false);
+    options.source = "import { render } from '@zeus-js/zeus'\n\nif (import.meta.hot) import.meta.hot.accept()\nrender('view', document.body)".into();
+    options.filename = "main.tsx".into();
+    options.hmr = true;
+
+    let transformed = transform_module(options);
+
+    assert!(transformed.diagnostics.is_empty());
+    assert!(!transformed.code.contains("const _dispose"));
+    assert!(!transformed.code.contains("import.meta.hot.dispose"));
 }
 
 #[test]
@@ -319,6 +370,7 @@ fn emits_attribute_property_and_ref_bindings_with_stable_locators() {
         runtime_module: "@zeus-js/runtime-dom".into(),
         delegate_events: false,
         source_map: true,
+        hmr: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -371,6 +423,7 @@ export const Static = () => <script>const amp = "a&b";</script>
         runtime_module: "@zeus-js/runtime-dom".into(),
         delegate_events: false,
         source_map: true,
+        hmr: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -415,6 +468,7 @@ fn emits_root_and_nested_fragment_templates_with_stable_markers() {
         runtime_module: "@zeus-js/runtime-dom".into(),
         delegate_events: false,
         source_map: true,
+        hmr: false,
     });
 
     assert!(
@@ -456,6 +510,7 @@ export const App = props => <section><Child title={props.name}><span>{props.name
         runtime_module: "@zeus-js/runtime-dom".into(),
         delegate_events: false,
         source_map: true,
+        hmr: false,
     });
 
     assert!(
@@ -495,6 +550,7 @@ export const App = props => <Child><Show when={props.visible}><span>on</span></S
         runtime_module: "@zeus-js/runtime-dom".into(),
         delegate_events: false,
         source_map: true,
+        hmr: false,
     });
 
     assert!(
@@ -536,6 +592,7 @@ export const Element = d('z-card', { shadow: false }, props => <H><section><S na
         runtime_module: "@zeus-js/runtime-dom".into(),
         delegate_events: false,
         source_map: true,
+        hmr: false,
     });
 
     assert!(
@@ -560,6 +617,7 @@ export const App = props => <div><Show when={props.visible} fallback="hidden"><s
         runtime_module: "@zeus-js/runtime-dom".into(),
         delegate_events: false,
         source_map: true,
+        hmr: false,
     });
 
     assert!(
@@ -596,6 +654,7 @@ export const App = props => <><Show when={props.visible} fallback="off"><Child n
         runtime_module: "@zeus-js/runtime-ssr".into(),
         delegate_events: false,
         source_map: true,
+        hmr: false,
     });
 
     assert!(
@@ -630,6 +689,7 @@ export const Native = props => <z-card data-value={props.value}><input disabled 
         runtime_module: "@zeus-js/runtime-dom".into(),
         delegate_events: false,
         source_map: false,
+        hmr: false,
     });
 
     assert!(transformed.diagnostics.is_empty());

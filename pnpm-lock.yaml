@@ -12,9 +12,6 @@ catalogs:
     '@babel/parser':
       specifier: ^8.0.0
       version: 8.0.0
-    '@babel/plugin-transform-typescript':
-      specifier: ^8.0.0
-      version: 8.0.0
     '@babel/preset-typescript':
       specifier: ^8.0.0
       version: 8.0.0
@@ -781,27 +778,24 @@ importers:
 
   packages/devtools/vite-plugin:
     dependencies:
-      '@babel/core':
-        specifier: 'catalog:'
-        version: 8.0.0
-      '@zeus-js/compiler':
+      '@zeus-js/compiler-native':
         specifier: workspace:*
-        version: link:../../core/compiler
+        version: link:../../core/compiler-native
       vite:
         specifier: 'catalog:'
         version: 8.0.14(@types/node@26.0.0)(esbuild@0.28.0)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(tsx@4.22.4)(yaml@2.9.0)
 
   packages/web-c/bundler-plugin:
     dependencies:
-      '@babel/core':
-        specifier: 'catalog:'
-        version: 8.0.0
-      '@babel/plugin-transform-typescript':
-        specifier: 'catalog:'
-        version: 8.0.0(@babel/core@8.0.0)
-      '@zeus-js/compiler':
+      '@jridgewell/gen-mapping':
+        specifier: ^0.3.13
+        version: 0.3.13
+      '@jridgewell/trace-mapping':
+        specifier: ^0.3.31
+        version: 0.3.31
+      '@zeus-js/compiler-native':
         specifier: workspace:*
-        version: link:../../core/compiler
+        version: link:../../core/compiler-native
       '@zeus-js/component-analyzer':
         specifier: workspace:*
         version: link:../component-analyzer
@@ -817,6 +811,9 @@ importers:
       rollup:
         specifier: ^4.62.2
         version: 4.62.2
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
       vite:
         specifier: 'catalog:'
         version: 8.0.14(@types/node@26.0.0)(esbuild@0.28.0)(jiti@2.7.0)(less@4.6.4)(sass@1.100.0)(tsx@4.22.4)(yaml@2.9.0)
@@ -2088,19 +2085,14 @@ packages:
   '@jridgewell/gen-mapping@0.3.12':
     resolution: {integrity: sha512-OuLGC46TjB5BbN1dH8JULVVZY4WTdkF7tV9Ys6wLL1rubZnCMstOhNHueU5bLCrnRuDhKPDM4g6sw4Bel5Gzqg==}
 
-  '@jridgewell/gen-mapping@0.3.5':
-    resolution: {integrity: sha512-IzL8ZoEDIBRWEzlCcRhOaCupYyN5gdIK+Q6fbFdPDg6HqX6jpkItn7DFIpW9LQzXG6Df9sA7+OKnq0qlz/GaQg==}
-    engines: {node: '>=6.0.0'}
+  '@jridgewell/gen-mapping@0.3.13':
+    resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
 
   '@jridgewell/remapping@2.3.5':
     resolution: {integrity: sha512-LI9u/+laYG4Ds1TDKSJW2YPrIlcVYOwi2fUC6xB43lueCjgxV4lffOCZCtYFiH6TNOX+tQKXx97T4IKHbhyHEQ==}
 
   '@jridgewell/resolve-uri@3.1.2':
     resolution: {integrity: sha512-bRISgCIjP20/tbWSPWMEi54QVPRZExkuD9lJL+UIxUKtwVJA8wW1Trb1jMs1RFXo1CBTNZ/5hpC9QvmKWdopKw==}
-    engines: {node: '>=6.0.0'}
-
-  '@jridgewell/set-array@1.2.1':
-    resolution: {integrity: sha512-R8gLRTZeyp03ymzP/6Lil/28tGeGEzhx1q2k703KGWRAI1VdvPIXdG70VJc2pAMw3NA6JKL5hhFu1sJX0Mnn/A==}
     engines: {node: '>=6.0.0'}
 
   '@jridgewell/sourcemap-codec@1.5.5':
@@ -7308,20 +7300,17 @@ snapshots:
       '@jridgewell/sourcemap-codec': 1.5.5
       '@jridgewell/trace-mapping': 0.3.31
 
-  '@jridgewell/gen-mapping@0.3.5':
+  '@jridgewell/gen-mapping@0.3.13':
     dependencies:
-      '@jridgewell/set-array': 1.2.1
       '@jridgewell/sourcemap-codec': 1.5.5
       '@jridgewell/trace-mapping': 0.3.31
 
   '@jridgewell/remapping@2.3.5':
     dependencies:
-      '@jridgewell/gen-mapping': 0.3.5
+      '@jridgewell/gen-mapping': 0.3.12
       '@jridgewell/trace-mapping': 0.3.31
 
   '@jridgewell/resolve-uri@3.1.2': {}
-
-  '@jridgewell/set-array@1.2.1': {}
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
 

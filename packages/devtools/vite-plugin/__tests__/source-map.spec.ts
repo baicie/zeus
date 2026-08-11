@@ -62,7 +62,7 @@ describe('vite-plugin-zeus source maps', () => {
       ssr: true,
     })
 
-    expectExpressionMapping(result.code, result.map, 'ssrText')
+    expectExpressionMapping(result.code, result.map, '$zeusSsrText')
   })
 
   it('preserves expression mappings through Vite dev transforms', async () => {
@@ -151,9 +151,14 @@ async function transform(code: string, id: string, options?: TransformOptions) {
 function expectExpressionMapping(
   generatedCode: string,
   map: SourceMapInput,
-  runtimeCall = 'bindText',
+  runtimeCall = '$zeusBindText',
 ): void {
-  const bindingIndex = generatedCode.lastIndexOf(runtimeCall)
+  const bindingIndex = Math.max(
+    generatedCode.lastIndexOf(runtimeCall),
+    runtimeCall === '$zeusBindText'
+      ? generatedCode.lastIndexOf('bindText')
+      : -1,
+  )
   if (bindingIndex < 0) {
     throw new Error(`Expected ${runtimeCall} in generated code`)
   }

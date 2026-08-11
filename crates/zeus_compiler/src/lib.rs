@@ -26,6 +26,8 @@ pub struct TransformModuleOptions {
     pub runtime_module: String,
     pub delegate_events: bool,
     pub source_map: bool,
+    #[serde(default)]
+    pub hmr: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -69,7 +71,7 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
         };
     };
 
-    if ir.components.is_empty() {
+    if ir.components.is_empty() && (!options.hmr || lowered.hmr.render_calls.is_empty()) {
         return TransformModuleResult {
             code: options.source,
             map: None,
@@ -96,5 +98,7 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
         options.source_map,
         &ir,
         &lowered.reserved_names,
+        options.hmr,
+        &lowered.hmr,
     )
 }

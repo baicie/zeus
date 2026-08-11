@@ -43,7 +43,7 @@ describe('transformZeus', () => {
       `,
     })
 
-    expect(result?.code).toContain('_createComponent')
+    expect(result?.code).toContain('$zeusCreateComponent')
   })
 
   it('transforms For component', async () => {
@@ -57,7 +57,7 @@ describe('transformZeus', () => {
       `,
     })
 
-    expect(result?.code).toContain('_For')
+    expect(result?.code).toContain('$zeusFor')
   })
 
   it('transforms event binding', async () => {
@@ -70,7 +70,7 @@ describe('transformZeus', () => {
       `,
     })
 
-    expect(result?.code).toContain('_bindEvent')
+    expect(result?.code).toContain('$zeusBindEvent')
   })
 
   it('transforms attribute binding', async () => {
@@ -83,7 +83,7 @@ describe('transformZeus', () => {
       `,
     })
 
-    expect(result?.code).toContain('_bindAttr')
+    expect(result?.code).toContain('$zeusBindAttr')
   })
 
   it('transforms text binding', async () => {
@@ -96,7 +96,7 @@ describe('transformZeus', () => {
       `,
     })
 
-    expect(result?.code).toContain('_bindText')
+    expect(result?.code).toContain('$zeusBindText')
   })
 
   it('transforms class binding', async () => {
@@ -109,7 +109,7 @@ describe('transformZeus', () => {
       `,
     })
 
-    expect(result?.code).toContain('_bindClass')
+    expect(result?.code).toContain('$zeusBindClass')
   })
 
   it('transforms style binding', async () => {
@@ -122,7 +122,7 @@ describe('transformZeus', () => {
       `,
     })
 
-    expect(result?.code).toContain('_bindStyle')
+    expect(result?.code).toContain('$zeusBindStyle')
   })
 
   it('transforms ref binding', async () => {
@@ -135,7 +135,7 @@ describe('transformZeus', () => {
       `,
     })
 
-    expect(result?.code).toContain('_bindRef')
+    expect(result?.code).toContain('$zeusBindRef')
   })
 
   it('transforms js files', async () => {

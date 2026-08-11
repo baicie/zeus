@@ -39,6 +39,7 @@ export interface TransformModuleOptions {
   runtimeModule: string
   delegateEvents: boolean
   sourceMap: boolean
+  hmr?: boolean
 }
 
 export interface TransformModuleResult {

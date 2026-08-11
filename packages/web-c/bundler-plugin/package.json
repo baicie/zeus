@@ -47,8 +47,8 @@
     "dist"
   ],
   "peerDependencies": {
-    "rollup": "^4.0.0",
     "rolldown": "^1.0.0",
+    "rollup": "^4.0.0",
     "vite": "catalog:"
   },
   "peerDependenciesMeta": {
@@ -63,12 +63,13 @@
     }
   },
   "dependencies": {
-    "@babel/core": "catalog:",
-    "@babel/plugin-transform-typescript": "catalog:",
-    "@zeus-js/compiler": "workspace:*",
+    "@jridgewell/gen-mapping": "^0.3.13",
+    "@jridgewell/trace-mapping": "^0.3.31",
+    "@zeus-js/compiler-native": "workspace:*",
     "@zeus-js/component-analyzer": "workspace:*",
     "fast-glob": "^3.3.3",
-    "picomatch": "^4.0.4"
+    "picomatch": "^4.0.4",
+    "typescript": "^6.0.3"
   },
   "author": "Baicie",
   "buildOptions": {

@@ -36,7 +36,9 @@ describe('rolldown adapter', () => {
 
     const code = fs.readFileSync(path.join(root, 'dist', 'index.js'), 'utf-8')
 
-    expect(code).toContain('template(`<button><!></button>`)')
+    expect(code).toContain(
+      'template("<button data-zeus-node=\\"2\\"><!></button>")',
+    )
     expect(code).toContain('bindAttr')
     expect(code).toContain('bindText')
     expect(code).not.toContain('interface ButtonProps')

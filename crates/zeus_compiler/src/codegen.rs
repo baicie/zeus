@@ -10,8 +10,10 @@ use crate::{
         ExpressionForm, ExpressionIr, ForBindingIr, FragmentIr, ModuleIr, NodeId, RootIr,
         ShowBindingIr, StaticAttributeValue,
     },
+    lower::HmrInfo,
 };
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn emit_module(
     source: &str,
     filename: &str,
@@ -20,6 +22,8 @@ pub(crate) fn emit_module(
     source_map: bool,
     module: &ModuleIr,
     reserved_names: &[String],
+    enable_hmr: bool,
+    hmr: &HmrInfo,
 ) -> TransformModuleResult {
     let mut names = NameAllocator::new(reserved_names);
     let binding_sets = module
@@ -68,11 +72,14 @@ pub(crate) fn emit_module(
     let mut cursor = usize::try_from(module.preamble_end)
         .unwrap_or(usize::MAX)
         .min(source.len());
-    writer.push(&source[..cursor]);
+    let hmr_insertions = allocate_hmr_insertions(enable_hmr, hmr, &mut names);
+    push_source_range(&mut writer, source, 0, cursor, &hmr_insertions);
     if cursor > 0 && !writer.code.ends_with('\n') {
         writer.push("\n");
     }
-    emit_runtime_import(&mut writer, &runtime, runtime_module);
+    if !module.components.is_empty() {
+        emit_runtime_import(&mut writer, &runtime, runtime_module);
+    }
 
     for component in &generated {
         if component.template_html.is_empty() {
@@ -97,7 +104,7 @@ pub(crate) fn emit_module(
             continue;
         }
 
-        writer.push(&source[cursor..start]);
+        push_source_range(&mut writer, source, cursor, start, &hmr_insertions);
         emit_component(
             &mut writer,
             component,
@@ -107,8 +114,10 @@ pub(crate) fn emit_module(
         );
         cursor = end;
     }
-    writer.push(&source[cursor..]);
+    push_source_range(&mut writer, source, cursor, source.len(), &hmr_insertions);
     emit_delegated_events(&mut writer, &runtime, &delegated_event_names);
+
+    emit_hmr_boundary(&mut writer, enable_hmr, hmr, &hmr_insertions);
 
     let map = source_map.then(|| build_source_map(filename, source, &writer.mappings));
 
@@ -117,6 +126,86 @@ pub(crate) fn emit_module(
         map,
         diagnostics: Vec::new(),
     }
+}
+
+#[derive(Debug, Clone)]
+struct HmrInsertion {
+    offset: usize,
+    text: String,
+    disposer: String,
+}
+
+fn allocate_hmr_insertions(
+    enabled: bool,
+    hmr: &HmrInfo,
+    names: &mut NameAllocator,
+) -> Vec<HmrInsertion> {
+    if !enabled || hmr.manual_boundary || hmr.render_calls.is_empty() {
+        return Vec::new();
+    }
+
+    hmr.render_calls
+        .iter()
+        .filter_map(|call| {
+            let disposer = call
+                .disposer
+                .clone()
+                .unwrap_or_else(|| names.allocate("_dispose"));
+            let text = if call.disposer.is_none() {
+                format!("const {disposer} = ")
+            } else {
+                String::new()
+            };
+            Some(HmrInsertion {
+                offset: usize::try_from(call.offset).ok()?,
+                text,
+                disposer,
+            })
+        })
+        .collect()
+}
+
+fn push_source_range(
+    writer: &mut CodeWriter,
+    source: &str,
+    start: usize,
+    end: usize,
+    insertions: &[HmrInsertion],
+) {
+    let mut cursor = start;
+    for insertion in insertions {
+        if insertion.offset < start || insertion.offset >= end {
+            continue;
+        }
+        writer.push(&source[cursor..insertion.offset]);
+        writer.push(&insertion.text);
+        cursor = insertion.offset;
+    }
+    writer.push(&source[cursor..end]);
+}
+
+fn emit_hmr_boundary(
+    writer: &mut CodeWriter,
+    enabled: bool,
+    hmr: &HmrInfo,
+    insertions: &[HmrInsertion],
+) {
+    if !enabled || hmr.manual_boundary || insertions.is_empty() {
+        return;
+    }
+    if !writer.code.ends_with('\n') {
+        writer.push("\n");
+    }
+    writer.push("if (import.meta.hot) {\n");
+    writer.push("  import.meta.hot.accept()\n");
+    writer.push("  import.meta.hot.dispose(() => {\n");
+    for insertion in insertions.iter().rev() {
+        writer.push("    ");
+        writer.push(&insertion.disposer);
+        writer.push("()\n");
+    }
+    writer.push("  })\n");
+    writer.push("}\n");
 }
 
 pub(crate) fn emit_ssr_module(
@@ -1504,7 +1593,12 @@ fn collect_builtin_attribute_names(children: &[ChildIr], names: &mut HashSet<Str
 fn build_source_map(filename: &str, source: &str, mappings: &[Mapping]) -> RawSourceMap {
     let mut builder = SourceMapBuilder::default();
     builder.set_file(filename);
-    let source_id = builder.add_source_and_content(filename, source);
+    let source_name = filename
+        .rsplit(['/', '\\'])
+        .next()
+        .filter(|name| !name.is_empty())
+        .unwrap_or(filename);
+    let source_id = builder.add_source_and_content(source_name, source);
 
     for mapping in mappings {
         builder.add_token(
@@ -2244,8 +2338,68 @@ impl CodeWriter {
             original_line: expression.span.start.line.saturating_sub(1),
             original_column: expression.span.start.column,
         });
+        if value == expression.code {
+            for offset in identifier_offsets(value) {
+                if offset == 0 {
+                    continue;
+                }
+                let (generated_line, generated_column) =
+                    advance_position(self.line, self.column, &value[..offset]);
+                let (original_line, original_column) = advance_position(
+                    expression.span.start.line.saturating_sub(1),
+                    expression.span.start.column,
+                    &expression.code[..offset],
+                );
+                self.mappings.push(Mapping {
+                    generated_line,
+                    generated_column,
+                    original_line,
+                    original_column,
+                });
+            }
+        }
         self.push(value);
     }
+}
+
+fn identifier_offsets(value: &str) -> Vec<usize> {
+    let bytes = value.as_bytes();
+    let mut offsets = Vec::new();
+    let mut index = 0;
+    while index < bytes.len() {
+        let is_start =
+            bytes[index] == b'_' || bytes[index] == b'$' || bytes[index].is_ascii_alphabetic();
+        if !is_start {
+            index += 1;
+            continue;
+        }
+        offsets.push(index);
+        index += 1;
+        while index < bytes.len()
+            && (bytes[index] == b'_'
+                || bytes[index] == b'$'
+                || bytes[index].is_ascii_alphanumeric())
+        {
+            index += 1;
+        }
+    }
+    offsets
+}
+
+fn advance_position(line: u32, column: u32, value: &str) -> (u32, u32) {
+    let mut line = line;
+    let mut column = column;
+    for character in value.chars() {
+        if character == '\n' {
+            line = line.saturating_add(1);
+            column = 0;
+        } else {
+            column = column.saturating_add(
+                u32::try_from(character.len_utf16()).unwrap_or(u32::MAX),
+            );
+        }
+    }
+    (line, column)
 }
 
 struct Mapping {

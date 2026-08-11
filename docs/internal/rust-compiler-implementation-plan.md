@@ -278,9 +278,9 @@ prebuild matrix 留到 native package 进入发布前完成。
 
 **验收标准：**
 
-- [ ] component props 使用 lazy getter，函数值不被误调用或双包裹。
-- [ ] component children 只初始化一次，并能返回 Element / Fragment。
-- [ ] native element 与 component 相互嵌套时 binding 与清理作用域正确。
+- [x] component props 使用 lazy getter，函数值不被误调用或双包裹。
+- [x] component children 只初始化一次，并能返回 Element / Fragment。
+- [x] native element 与 component 相互嵌套时 binding 与清理作用域正确。
 
 **验证：** Rust tests + native JSDOM component execution fixtures。
 
@@ -295,9 +295,9 @@ metadata；所有生成名称由 Rust codegen 统一分配。
 
 **验收标准：**
 
-- [ ] module-level artifacts 不再藏在前端 adapter 状态中。
-- [ ] binding、unresolved global、import alias 与多 root 情况均无名称冲突。
-- [ ] 同一模块重复和并行编译得到 byte-for-byte 相同 code / map / diagnostics。
+- [x] module-level artifacts 不再藏在前端 adapter 状态中。
+- [x] binding、unresolved global、import alias 与多 root 情况均无名称冲突。
+- [x] 同一模块重复和并行编译得到 byte-for-byte 相同 code / map / diagnostics。
 
 **验证：** Rust IR round-trip、determinism 与 transform tests。
 
@@ -311,9 +311,9 @@ metadata；所有生成名称由 Rust codegen 统一分配。
 
 **验收标准：**
 
-- [ ] 只识别来自 Zeus runtime 的 `Show` symbol，局部同名组件不被误判。
-- [ ] true / false / fallback 切换只替换区域内容，不重执行父组件。
-- [ ] 每次卸载分支都会释放该分支 effects 和 cleanup。
+- [x] 只识别来自 Zeus runtime 的 `Show` symbol，局部同名组件不被误判。
+- [x] true / false / fallback 切换只替换区域内容，不重执行父组件。
+- [x] 每次卸载分支都会释放该分支 effects 和 cleanup。
 
 **验证：** Rust tests + native JSDOM Show lifecycle fixture。
 
@@ -327,9 +327,9 @@ metadata；所有生成名称由 Rust codegen 统一分配。
 
 **验收标准：**
 
-- [ ] 只识别 Zeus runtime 的 `For` symbol，并诊断非法 child callback。
-- [ ] keyed reorder 复用已有节点，新增 / 删除项分别创建 / dispose 自身 scope。
-- [ ] index accessor 和空列表行为与 runtime contract 一致。
+- [x] 只识别 Zeus runtime 的 `For` symbol，并诊断非法 child callback。
+- [x] keyed reorder 复用已有节点，新增 / 删除项分别创建 / dispose 自身 scope。
+- [x] index accessor 和空列表行为与 runtime contract 一致。
 
 **验证：** Rust tests + native JSDOM For identity / cleanup fixture。
 
@@ -344,9 +344,9 @@ For 混排，验证所有子树资源释放。
 
 **验收标准：**
 
-- [ ] HTML parser 规范化不会改变生成代码所寻址的节点。
-- [ ] 连续动态区域、nested control flow 与多 root 不产生 marker 位移。
-- [ ] runtime cleanup tests 在 Rust 编译产物上全部成立。
+- [x] HTML parser 规范化不会改变生成代码所寻址的节点。
+- [x] 连续动态区域、nested control flow 与多 root 不产生 marker 位移。
+- [x] runtime cleanup tests 在 Rust 编译产物上全部成立。
 
 **验证：** Rust path tests + native runtime cleanup parity suite。
 
@@ -356,9 +356,9 @@ For 混排，验证所有子树资源释放。
 
 ### Checkpoint D：DOM 组件与控制流 parity
 
-- [ ] Fragment、普通组件、Show、For 的现有 compiler 语义由 Rust 覆盖。
-- [ ] 真实 runtime identity、reconciliation 和 cleanup 测试通过。
-- [ ] DOM codegen 不包含 Babel / Oxc AST 泄漏或 VNode 路径。
+- [x] Fragment、普通组件、Show、For 的现有 compiler 语义由 Rust 覆盖。
+- [x] 真实 runtime identity、reconciliation 和 cleanup 测试通过。
+- [x] DOM codegen 不包含 Babel / Oxc AST 泄漏或 VNode 路径。
 
 ## Phase 6：迁移切片 4 - Web Components
 
@@ -369,9 +369,9 @@ setup，建立 defineElement render-root 元数据。
 
 **验收标准：**
 
-- [ ] inline 和 named setup、direct 和 aliased import 均被识别。
-- [ ] shadowed / local same-name function 不被识别为编译期内置。
-- [ ] Host / Slot 非法位置返回与 RFC-003 一致的结构化诊断。
+- [x] inline 和 named setup、direct 和 aliased import 均被识别。
+- [x] shadowed / local same-name function 不被识别为编译期内置。
+- [x] Host / Slot 非法位置返回与 RFC-003 一致的结构化诊断。
 
 **验证：** Rust semantic tests + migrated compiler diagnostic fixtures。
 
@@ -386,9 +386,9 @@ event bindings，并保留 shadow / light DOM 挂载语义。
 
 **验收标准：**
 
-- [ ] Host 只能作为 defineElement render root，nested Host 稳定报错。
-- [ ] class、style、ARIA、property 与 event getter 不双包裹。
-- [ ] Host 自身不是运行时 DOM 子节点，组件输出挂载到正确宿主目标。
+- [x] Host 只能作为 defineElement render root，nested Host 稳定报错。
+- [x] class、style、ARIA、property 与 event getter 不双包裹。
+- [x] Host 自身不是运行时 DOM 子节点，组件输出挂载到正确宿主目标。
 
 **验证：** Rust tests + migrated host transform / runtime execution fixtures。
 
@@ -403,9 +403,9 @@ Zeus 投影 runtime，支持 name 与 fallback。
 
 **验收标准：**
 
-- [ ] default / named / multiple slot 与 fallback 均正确。
-- [ ] Light DOM MutationObserver 更新、节点 identity 与 context bridge 保持成立。
-- [ ] Slot 只能位于合法 Host 子树，local same-name component 不被误判。
+- [x] default / named / multiple slot 与 fallback 均正确。
+- [x] Light DOM MutationObserver 更新、节点 identity 与 context bridge 保持成立。
+- [x] Slot 只能位于合法 Host 子树，local same-name component 不被误判。
 
 **验证：** Rust tests + native defineElement shadow / light DOM fixtures。
 
@@ -415,9 +415,9 @@ Zeus 投影 runtime，支持 name 与 fallback。
 
 ### Checkpoint E：Web Components parity
 
-- [ ] 现有 Host、Slot、defineElement compiler fixtures 全部迁移到 Rust。
-- [ ] Shadow / Light DOM、props、emit、styles、slot 和 lifecycle 真实执行通过。
-- [ ] Web Components 断开连接会释放对应 reactive root。
+- [x] 现有 Host、Slot、defineElement compiler fixtures 全部迁移到 Rust。
+- [x] Shadow / Light DOM、props、emit、styles、slot 和 lifecycle 真实执行通过。
+- [x] Web Components 断开连接会释放对应 reactive root。
 
 ## Phase 7：迁移切片 5-6 - SSR、HMR 与 source map
 
@@ -428,9 +428,9 @@ escaping / property serialization 语义。
 
 **验收标准：**
 
-- [ ] static / dynamic text、attribute、class、style 和可序列化 property 正确转义。
-- [ ] event / ref 不进入 SSR HTML，raw-text closing sequence 安全处理。
-- [ ] 无 HTML 等价表示的 property 与 Host / Slot 返回稳定诊断。
+- [x] static / dynamic text、attribute、class、style 和可序列化 property 正确转义。
+- [x] event / ref 不进入 SSR HTML，raw-text closing sequence 安全处理。
+- [x] 无 HTML 等价表示的 property 与 Host / Slot 返回稳定诊断。
 
 **验证：** Rust SSR tests + migrated SSR native-element fixtures。
 
@@ -445,9 +445,9 @@ escaping / property serialization 语义。
 
 **验收标准：**
 
-- [ ] component、Fragment、Show、For 输出与 RFC-004 一致。
-- [ ] raw-text 内 nested control flow 不发生双重 escaping。
-- [ ] DOM 与 SSR lowering 共用同一 owned semantic IR。
+- [x] component、Fragment、Show、For 输出与 RFC-004 一致。
+- [x] raw-text 内 nested control flow 不发生双重 escaping。
+- [x] DOM 与 SSR lowering 共用同一 owned semantic IR。
 
 **验证：** Rust SSR tests +真实 runtime-ssr Node execution fixture。
 
@@ -462,9 +462,9 @@ Vite build、Rollup / Rolldown 后仍回到原 TSX。
 
 **验收标准：**
 
-- [ ] emoji、CJK、CRLF、query module id 与多表达式映射精确。
-- [ ] 无原始来源的 helper / template 不伪造映射。
-- [ ] 宿主 transformer 合并 map，不重新猜测源码位置。
+- [x] emoji、CJK、CRLF、query module id 与多表达式映射精确。
+- [x] 无原始来源的 helper / template 不伪造映射。
+- [x] 宿主 transformer 合并 map，不重新猜测源码位置。
 
 **验证：** Rust map tests + Vite / Rollup / Rolldown trace-mapping fixtures。
 
@@ -479,9 +479,9 @@ boundary；显式用户 HMR boundary 保持优先。
 
 **验收标准：**
 
-- [ ] dev client transform 只为真实顶层 render root 注入 HMR boundary。
-- [ ] production、SSR、component-only 与已有 `import.meta.hot` 模块不注入。
-- [ ] accepted update 先 dispose 旧 root，再执行新模块且 source map 保持可追踪。
+- [x] dev client transform 只为真实顶层 render root 注入 HMR boundary。
+- [x] production、SSR、component-only 与已有 `import.meta.hot` 模块不注入。
+- [x] accepted update 先 dispose 旧 root，再执行新模块且 source map 保持可追踪。
 
 **验证：** Rust HMR tests + migrated Vite HMR execution fixtures。
 
@@ -504,9 +504,9 @@ boundary；显式用户 HMR boundary 保持优先。
 
 **验收标准：**
 
-- [ ] 所有宿主消费 Rust 返回的 code / map / diagnostics，无 Babel fallback。
-- [ ] Vite DOM / SSR、Web-C Vite / Rollup / Rolldown 真实 fixture 全通过。
-- [ ] native 加载失败明确报错，不静默返回未编译 JSX。
+- [x] 所有宿主消费 Rust 返回的 code / map / diagnostics，无 Babel fallback。
+- [x] Vite DOM / SSR、Web-C Vite / Rollup / Rolldown 真实 fixture 全通过。
+- [x] native 加载失败明确报错，不静默返回未编译 JSX。
 
 **验证：** plugin targeted tests +真实 Vite / Rollup / Rolldown builds。
 

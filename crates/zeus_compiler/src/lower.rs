@@ -2,9 +2,10 @@ use std::collections::{HashMap, HashSet};
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{
-    BindingPattern, Expression, ImportDeclarationSpecifier, JSXAttribute, JSXAttributeItem,
-    JSXAttributeName, JSXAttributeValue, JSXChild, JSXElement, JSXElementName, JSXExpression,
-    JSXExpressionContainer, JSXFragment, ModuleDeclaration, Statement,
+    BindingPattern, Declaration, Expression, ImportDeclarationSpecifier, JSXAttribute,
+    JSXAttributeItem, JSXAttributeName, JSXAttributeValue, JSXChild, JSXElement, JSXElementName,
+    JSXExpression, JSXExpressionContainer, JSXFragment, MemberExpression, ModuleDeclaration,
+    Statement, VariableDeclarator,
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_diagnostics::{OxcDiagnostic, Severity};
@@ -30,6 +31,19 @@ pub struct LowerResult {
     pub ir: Option<ModuleIr>,
     pub diagnostics: Vec<CompilerDiagnostic>,
     pub(crate) reserved_names: Vec<String>,
+    pub(crate) hmr: HmrInfo,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub(crate) struct HmrInfo {
+    pub manual_boundary: bool,
+    pub render_calls: Vec<HmrRenderCall>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct HmrRenderCall {
+    pub offset: u32,
+    pub disposer: Option<String>,
 }
 
 pub fn lower_module(source: &str, filename: &str) -> LowerResult {
@@ -45,6 +59,7 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
                     None,
                 )],
                 reserved_names: Vec::new(),
+                hmr: HmrInfo::default(),
             };
         }
     };
@@ -64,6 +79,7 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
                 })
                 .collect(),
             reserved_names: Vec::new(),
+            hmr: HmrInfo::default(),
         };
     }
 
@@ -79,6 +95,7 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
                 })
                 .collect(),
             reserved_names: Vec::new(),
+            hmr: HmrInfo::default(),
         };
     }
 
@@ -97,6 +114,7 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
     reserved_names.dedup();
 
     let builtin_names = collect_builtin_names(&parsed.program);
+    let hmr = collect_hmr_info(&parsed.program);
     let (define_element_setup_spans, host_root_spans) =
         collect_define_element_spans(&parsed.program, &builtin_names);
     let mut lowerer = Lowerer::new(
@@ -121,6 +139,7 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
             ir: None,
             diagnostics: lowerer.diagnostics,
             reserved_names,
+            hmr,
         };
     }
 
@@ -133,6 +152,7 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
         }),
         diagnostics: Vec::new(),
         reserved_names,
+        hmr,
     }
 }
 
@@ -431,11 +451,27 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         let mut index = None;
         let mut body = Vec::new();
 
-        if element.children.len() == 1
-            && let JSXChild::ExpressionContainer(container) = &element.children[0]
-            && let Some(expression) = container.expression.as_expression()
-            && let Expression::ArrowFunctionExpression(function) = expression
-        {
+        let callback = element.children.iter().find_map(|child| {
+            let JSXChild::ExpressionContainer(container) = child else {
+                return None;
+            };
+            let expression = container.expression.as_expression()?;
+            let Expression::ArrowFunctionExpression(function) = expression else {
+                return None;
+            };
+            Some(function)
+        });
+        let has_only_callback_and_whitespace = element.children.iter().all(|child| match child {
+            JSXChild::Text(text) => normalize_jsx_text(text.value.as_str()).is_empty(),
+            JSXChild::ExpressionContainer(container) => container
+                .expression
+                .as_expression()
+                .is_some_and(|expression| {
+                    matches!(expression, Expression::ArrowFunctionExpression(_))
+                }),
+            _ => false,
+        });
+        if has_only_callback_and_whitespace && let Some(function) = callback {
             item = function
                 .params
                 .items
@@ -1150,6 +1186,175 @@ fn collect_imported_names(
         }
     }
     names
+}
+
+fn collect_hmr_info(program: &oxc_ast::ast::Program<'_>) -> HmrInfo {
+    let render_names = collect_render_names(program);
+    if render_names.is_empty() {
+        return HmrInfo {
+            manual_boundary: has_manual_hmr_boundary(program),
+            render_calls: Vec::new(),
+        };
+    }
+
+    let mut render_calls = Vec::new();
+    for statement in &program.body {
+        match statement {
+            Statement::ExpressionStatement(statement) => {
+                if let Some(call) = render_call(&statement.expression, &render_names) {
+                    render_calls.push(HmrRenderCall {
+                        offset: call.start,
+                        disposer: None,
+                    });
+                }
+            }
+            _ if matches!(
+                statement.as_declaration(),
+                Some(Declaration::VariableDeclaration(_))
+            ) =>
+            {
+                let Some(Declaration::VariableDeclaration(declaration)) =
+                    statement.as_declaration()
+                else {
+                    unreachable!()
+                };
+                collect_variable_render_calls(
+                    &declaration.declarations,
+                    &render_names,
+                    &mut render_calls,
+                );
+            }
+            _ if matches!(
+                statement.as_module_declaration(),
+                Some(ModuleDeclaration::ExportDeclaration(_))
+            ) =>
+            {
+                let Some(ModuleDeclaration::ExportDeclaration(export)) =
+                    statement.as_module_declaration()
+                else {
+                    unreachable!()
+                };
+                if let Declaration::VariableDeclaration(declaration) = &export.declaration {
+                    collect_variable_render_calls(
+                        &declaration.declarations,
+                        &render_names,
+                        &mut render_calls,
+                    );
+                }
+            }
+            _ => {}
+        }
+    }
+
+    HmrInfo {
+        manual_boundary: has_manual_hmr_boundary(program),
+        render_calls,
+    }
+}
+
+fn collect_render_names(program: &oxc_ast::ast::Program<'_>) -> HashSet<String> {
+    let mut names = HashSet::new();
+    for statement in &program.body {
+        let Some(ModuleDeclaration::ImportDeclaration(import)) = statement.as_module_declaration()
+        else {
+            continue;
+        };
+        let source = import.source.value.as_str();
+        if source != "@zeus-js/runtime-dom" && source != "@zeus-js/zeus" {
+            continue;
+        }
+        let Some(specifiers) = &import.specifiers else {
+            continue;
+        };
+        for specifier in specifiers {
+            let ImportDeclarationSpecifier::ImportSpecifier(specifier) = specifier else {
+                continue;
+            };
+            let imported = match &specifier.imported {
+                oxc_ast::ast::ModuleExportName::IdentifierName(name) => name.name.as_str(),
+                oxc_ast::ast::ModuleExportName::IdentifierReference(name) => name.name.as_str(),
+                oxc_ast::ast::ModuleExportName::StringLiteral(name) => name.value.as_str(),
+            };
+            if imported == "render" {
+                names.insert(specifier.local.name.to_string());
+            }
+        }
+    }
+    names
+}
+
+fn collect_variable_render_calls<'a>(
+    declarations: &oxc_allocator::Vec<'a, VariableDeclarator<'a>>,
+    render_names: &HashSet<String>,
+    render_calls: &mut Vec<HmrRenderCall>,
+) {
+    for declaration in declarations {
+        let Some(initializer) = &declaration.init else {
+            continue;
+        };
+        let Some(call) = render_call(initializer, render_names) else {
+            continue;
+        };
+        let disposer = binding_name(&declaration.id);
+        render_calls.push(HmrRenderCall {
+            offset: call.start,
+            disposer,
+        });
+    }
+}
+
+fn render_call(expression: &Expression<'_>, render_names: &HashSet<String>) -> Option<Span> {
+    match expression {
+        Expression::CallExpression(call) => match &call.callee {
+            Expression::Identifier(identifier)
+                if render_names.contains(identifier.name.as_str()) =>
+            {
+                Some(call.span)
+            }
+            _ => None,
+        },
+        Expression::ParenthesizedExpression(expression) => {
+            render_call(&expression.expression, render_names)
+        }
+        Expression::TSInstantiationExpression(expression) => {
+            render_call(&expression.expression, render_names)
+        }
+        _ => None,
+    }
+}
+
+fn has_manual_hmr_boundary(program: &oxc_ast::ast::Program<'_>) -> bool {
+    let mut detector = ManualHmrDetector(false);
+    detector.visit_program(program);
+    detector.0
+}
+
+struct ManualHmrDetector(bool);
+
+impl<'ast> Visit<'ast> for ManualHmrDetector {
+    fn visit_member_expression(&mut self, expression: &MemberExpression<'ast>) {
+        if is_import_meta_hot(expression) {
+            self.0 = true;
+        }
+        walk::walk_member_expression(self, expression);
+    }
+}
+
+fn is_import_meta_hot(expression: &MemberExpression<'_>) -> bool {
+    let MemberExpression::StaticMemberExpression(expression) = expression else {
+        return false;
+    };
+    if expression.property.name.as_str() != "hot" {
+        return false;
+    }
+    match &expression.object {
+        Expression::ImportMeta(_) => true,
+        Expression::StaticMemberExpression(meta) => {
+            meta.property.name.as_str() == "meta"
+                && matches!(meta.object, Expression::ImportMeta(_))
+        }
+        _ => false,
+    }
 }
 
 struct DefineElementCollector {

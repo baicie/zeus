@@ -72,6 +72,8 @@ interface TransformModuleOptions {
   runtimeModule: string
   delegateEvents: boolean
   sourceMap: boolean
+  /** Enable Rust-owned top-level render HMR boundary lowering. */
+  hmr?: boolean
 }
 
 interface TransformModuleResult {
