@@ -116,6 +116,8 @@ jobs:
       - run: pnpm check:exports
       - run: pnpm check:vite-plugin-package
       - run: pnpm check:repository
+      - name: Verify release tarballs
+        run: pnpm check:release-artifacts
 
   test:
     runs-on: ubuntu-latest

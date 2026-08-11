@@ -61,6 +61,7 @@ describe('zeus release config', () => {
       ['pnpm', 'build'],
       ['pnpm', 'check:cjs'],
       ['pnpm', 'build-dts'],
+      ['pnpm', 'check:release-artifacts', '--require-binaries'],
       ['pnpm', 'api:check'],
       ['pnpm', 'check'],
       ['pnpm', 'lint'],

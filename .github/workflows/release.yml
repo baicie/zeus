@@ -52,20 +52,22 @@ jobs:
       - name: Restore native platform binaries
         run: pnpm native:restore:artifacts
 
+      - name: Extract version from tag
+        id: release-version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
       - name: Release precheck
         run: pnpm release:precheck
 
       # Build output is produced by release:precheck step above.
       # --skipBuild is safe here as long as precheck always runs first.
-      - name: Extract version from tag
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-
       - name: Build and publish
-        run: pnpm release --publishOnly ${{ env.VERSION }} --skipBuild
+        run: pnpm release --publishOnly "${{ steps.release-version.outputs.version }}" --skipBuild
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Verify npm publication
+        run: pnpm release:verify:published --version "${{ steps.release-version.outputs.version }}"
 
       - name: Create GitHub Release
         uses: yyx990803/release-tag@8cccf7c5aa332d71d222df46677f70f77a8d2dc0

@@ -70,6 +70,8 @@ jobs:
           toolchain: 1.95.0
           targets: ${{ matrix.target }}
 
+      - uses: Swatinem/rust-cache@401aff9a7a08acb9d27b64936a90db81024cff97 # v2.8.2
+
       - name: Install musl linker
         if: matrix.musl == true
         run: sudo apt-get update && sudo apt-get install --yes musl-tools
@@ -78,6 +80,7 @@ jobs:
       - run: pnpm check:native-packages
       - run: pnpm native:build:platform --target ${{ matrix.target }}
       - run: pnpm check:native-binaries --package ${{ matrix.package }}
+      - run: pnpm check:release-artifacts --package ${{ matrix.package }} --require-binaries
 
       - name: Native contract smoke test
         run: node -e "const b=require('./packages/core/${{ matrix.package }}'); const r=b.transformModule({source:'const view=<div>ok</div>',filename:'matrix.tsx',target:'dom',runtimeModule:'@zeus-js/runtime-dom',delegateEvents:true,sourceMap:true}); if(!r.code.includes('template')||r.diagnostics.length) process.exit(1)"
