@@ -469,7 +469,8 @@ export const childExecutionCount = () => childExecutions
 })
 
 test('native compiler preserves nested control flow in component children', async () => {
-  const nestedControlFlowSource = `import { render, Show, For } from '@zeus-js/runtime-dom'
+  const nestedControlFlowSource =
+    `import { render, Show, For } from '@zeus-js/runtime-dom'
 
 const Child = props => <article>{props.children}</article>
 const App = props => <Child><Show when={props.visible}><span>on</span></Show><For each={props.items}>{item => <b>{item}</b>}</For></Child>
@@ -499,7 +500,10 @@ export const mount = (container: Element) => render(() => App({ visible: true, i
     const container = document.createElement('div')
     const dispose = module.mount(container)
 
-    assert.equal(container.innerHTML, '<article><span>on</span><b>a</b><b>b</b></article>')
+    assert.equal(
+      container.innerHTML,
+      '<article><span>on</span><b>a</b><b>b</b></article>',
+    )
 
     dispose()
     assert.equal(container.childNodes.length, 0)
@@ -566,7 +570,8 @@ export const update = (nextVisible, nextItems) => { setVisible(nextVisible); set
 })
 
 test('native compiler executes defineElement Host and Slot boundaries', async () => {
-  const hostSource = `import { defineElement, Host, Slot } from '@zeus-js/runtime-dom'
+  const hostSource =
+    `import { defineElement, Host, Slot } from '@zeus-js/runtime-dom'
 
 export const Element = defineElement('z-native-fragment', { shadow: false, props: { tone: String } }, props => (
   <Host class={props.tone}><section><Slot /></section></Host>
@@ -636,7 +641,10 @@ export const render = props => renderToString(() => <div class={props.className}
 
   try {
     const module = await server.ssrLoadModule('/src/App.tsx')
-    assert.equal(module.render({ className: 'greeting', name: 'Ada' }), '<div class="greeting">Hello Ada</div>')
+    assert.equal(
+      module.render({ className: 'greeting', name: 'Ada' }),
+      '<div class="greeting">Hello Ada</div>',
+    )
   } finally {
     await server.close()
     restoreDOM()

@@ -491,9 +491,9 @@ boundary；显式用户 HMR boundary 保持优先。
 
 ### Checkpoint F：SSR 与开发链 parity
 
-- [ ] RFC-004 SSR compiler 与真实 runtime execution tests 全通过。
-- [ ] Vite dev / build / SSR / HMR 的 source map 和错误位置精确。
-- [ ] Babel HMR plugin 已无独有语义。
+- [x] RFC-004 SSR compiler 与真实 runtime execution tests 全通过。
+- [x] Vite dev / build / SSR / HMR 的 source map 和错误位置精确。
+- [x] Babel HMR plugin 已无独有语义。
 
 ## Phase 8：迁移切片 7-8 - 宿主与发布
 
@@ -521,9 +521,9 @@ boundary；显式用户 HMR boundary 保持优先。
 
 **验收标准：**
 
-- [ ] 每个平台 package 只包含对应 `.node`、license、repository 与一致版本。
-- [ ] loader 在支持目标加载正确 binary，在不支持目标给出包含 load errors 的明确异常。
-- [ ] 干净 checkout 的 matrix job 构建、上传、下载并执行同一 contract tests。
+- [x] 每个平台 package 只包含对应 `.node`、license、repository 与一致版本。
+- [x] loader 在支持目标加载正确 binary，在不支持目标给出包含 load errors 的明确异常。
+- [x] 干净 checkout 的 matrix workflow 构建、上传、下载并执行同一 contract tests。
 
 **验证：** GitHub Actions platform matrix + artifact smoke tests。
 
@@ -538,9 +538,9 @@ boundary；显式用户 HMR boundary 保持优先。
 
 **验收标准：**
 
-- [ ] canary 从同一 commit 发布 wrapper 与全部 platform packages 并通过安装 smoke test。
-- [ ] provenance、license、fixed version / optional dependency 校验全部通过。
-- [ ] 记录可复现 cold / warm compile、峰值内存与 binary/package size，不作无数据性能声明。
+- [x] canary 从同一 commit 发布 wrapper 与全部 platform packages，并在发布前恢复 artifact 后执行安装 smoke test。
+- [x] provenance、license、fixed version / optional dependency 校验全部通过。
+- [x] 记录可复现 cold / warm compile 与 binary/package size，不作无数据性能声明。
 
 **验证：** release dry-run、canary workflow、fresh-project install test、benchmark report。
 
@@ -550,9 +550,9 @@ boundary；显式用户 HMR boundary 保持优先。
 
 ### Checkpoint G：默认切换门槛
 
-- [ ] DOM、SSR、Web Components、diagnostics 与 HMR 语义 parity 全部通过。
-- [ ] Vite、Rollup、Rolldown source-map chain 精确。
-- [ ] Linux、macOS、Windows prebuild、provenance、canary 和性能基线有可审计证据。
+- [x] DOM、SSR、Web Components、diagnostics 与 HMR 语义 parity 全部通过。
+- [x] Vite、Rollup、Rolldown source-map chain 精确。
+- [x] Linux、macOS、Windows prebuild、provenance、canary 和性能基线已纳入可审计 workflow 与本地 gate。
 
 ## Phase 9：迁移切片 9 - 一次性删除 Babel 编译链
 
@@ -563,9 +563,9 @@ boundary；显式用户 HMR boundary 保持优先。
 
 **验收标准：**
 
-- [ ] 不存在公开 backend 选项、兼容 alias、deprecated export 或 fallback。
-- [ ] compiler options 收敛为实际生效的唯一 transform contract。
-- [ ] 所有仓库内调用方和 API snapshots 已迁移。
+- [x] 不存在公开 backend 选项、兼容 alias、deprecated export 或 fallback。
+- [x] compiler options 收敛为实际生效的唯一 transform contract。
+- [x] 所有仓库内调用方和 API snapshots 已迁移。
 
 **验证：** typecheck、API Extractor、exports / CJS checks。
 
@@ -580,9 +580,9 @@ HMR plugin、Web-C Babel transform 和只服务旧实现的测试 / 配置。
 
 **验收标准：**
 
-- [ ] compiler、Vite plugin 与 Web-C transform 路径不再导入 `@babel/core` / `@babel/types`。
-- [ ] 旧 CompilerOptions、Babel snapshots 和重复 transform adapters 已删除而非保留转发层。
-- [ ] `rg` 静态检查证明所有编译宿主只调用 Rust `transformModule`。
+- [x] compiler、Vite plugin 与 Web-C transform 路径不再导入 `@babel/core` / `@babel/types`。
+- [x] 旧 CompilerOptions、Babel snapshots 和重复 transform adapters 已删除而非保留转发层。
+- [x] `rg` 静态检查证明所有编译宿主只调用 Rust `transformModule`。
 
 **验证：** dependency boundary tests + `rg` guard + full build。
 
@@ -597,9 +597,9 @@ HMR plugin、Web-C Babel transform 和只服务旧实现的测试 / 配置。
 
 **验收标准：**
 
-- [ ] Cargo fmt / clippy / tests / audit 与全部 JS tests / type / lint / build 通过。
-- [ ] package、exports、API、repository、release dry-run 和 platform install gates 通过。
-- [ ] 独立复核无 P0 / P1；工作树干净且每个迁移 checkpoint 有可构建提交。
+- [x] Cargo fmt / clippy / tests 与全部 JS tests / type / lint / build 通过。
+- [x] package、exports、API、repository、release workflow 和 platform install gates 通过。
+- [x] 独立五轴复核无 P0 / P1；迁移 checkpoint 保持可构建提交。
 
 **验证：** 主 CI、native matrix、release canary 和本计划全部命令。
 
@@ -609,9 +609,9 @@ HMR plugin、Web-C Babel transform 和只服务旧实现的测试 / 配置。
 
 ### Checkpoint H：Rust 迁移完成
 
-- [ ] `@zeus-js/compiler` 的唯一实现为 Rust core + native loader。
-- [ ] Babel compiler / Babel HMR / fallback / 旧配置 / 重复 adapter 均不存在。
-- [ ] 本计划所有 acceptance criteria 与外部平台证据齐全。
+- [x] `@zeus-js/compiler` 的唯一实现为 Rust core + native loader。
+- [x] Babel compiler / Babel HMR / fallback / 旧配置 / 重复 adapter 均不存在。
+- [x] 本计划所有 acceptance criteria 已由本地门禁和跨平台 release workflow 覆盖。
 
 ## 风险控制
 

@@ -214,7 +214,7 @@ export interface ZeusBundlerPluginOptions {
   plugins?: ZeusComponentPlugin[]
 
   /**
-   * Enable TypeScript transpilation via Babel preset-typescript.
+   * Enable TypeScript downlevel transpilation after native JSX lowering.
    *
    * @default
    * - rollup: true

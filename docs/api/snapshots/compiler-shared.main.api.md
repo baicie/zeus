@@ -8,7 +8,7 @@
 export interface SourcePosition {
   line: number
   column: number
-  offset?: number
+  offset: number
 }
 export interface SourceSpan {
   start: SourcePosition
@@ -17,8 +17,10 @@ export interface SourceSpan {
 export interface ExpressionIR {
   kind: 'Expression'
   code: string
-  span?: SourceSpan
+  span: SourceSpan
+  form: ExpressionForm
 }
+export type ExpressionForm = 'value' | 'getter' | 'member'
 export interface IdentifierIR {
   kind: 'Identifier'
   name: string
@@ -70,6 +72,9 @@ export interface SemanticBaseIRNode {
   id: number
   span?: SourceSpan
 }
+export type AttributeBaseIRNode = Omit<SemanticBaseIRNode, 'span'> & {
+  span: SourceSpan
+}
 export type ProgramIR = SemanticBaseIRNode & {
   kind: 'Program'
   body: ZeusIRNode[]
@@ -100,27 +105,27 @@ export type DynamicTextIR = SemanticBaseIRNode & {
   domPath?: DomPath
   physicalDomPath?: PhysicalDomPath
 }
-export type StaticAttributeIR = SemanticBaseIRNode & {
+export type StaticAttributeIR = AttributeBaseIRNode & {
   kind: 'StaticAttribute'
   name: string
   value: string | true
 }
-export type AttrBindingIR = SemanticBaseIRNode & {
+export type AttrBindingIR = AttributeBaseIRNode & {
   kind: 'AttrBinding'
   name: string
   expr: ExpressionIR
 }
-export type PropBindingIR = SemanticBaseIRNode & {
+export type PropBindingIR = AttributeBaseIRNode & {
   kind: 'PropBinding'
   name: string
   expr: ExpressionIR
 }
-export type EventBindingIR = SemanticBaseIRNode & {
+export type EventBindingIR = AttributeBaseIRNode & {
   kind: 'EventBinding'
   eventName: string
   handler: ExpressionIR
 }
-export type RefBindingIR = SemanticBaseIRNode & {
+export type RefBindingIR = AttributeBaseIRNode & {
   kind: 'RefBinding'
   expr: ExpressionIR
 }
@@ -199,7 +204,8 @@ export declare function id(): number
 export declare function ref(name: string): IRRef
 export declare function expressionIR(
   code: string,
-  span?: SourceSpan,
+  span: SourceSpan,
+  form?: ExpressionForm,
 ): ExpressionIR
 export declare function identifierIR(
   name: string,
@@ -223,20 +229,27 @@ export declare function fragmentIR(children: ZeusIRNode[]): FragmentIR
 export declare function staticAttrIR(
   name: string,
   value: string | true,
+  span: SourceSpan,
 ): StaticAttributeIR
 export declare function attrBindingIR(
   name: string,
   expr: ExpressionIR,
+  span: SourceSpan,
 ): AttrBindingIR
 export declare function propBindingIR(
   name: string,
   expr: ExpressionIR,
+  span: SourceSpan,
 ): PropBindingIR
 export declare function eventBindingIR(
   eventName: string,
   handler: ExpressionIR,
+  span: SourceSpan,
 ): EventBindingIR
-export declare function refBindingIR(expr: ExpressionIR): RefBindingIR
+export declare function refBindingIR(
+  expr: ExpressionIR,
+  span: SourceSpan,
+): RefBindingIR
 export declare function componentIR(input: {
   ref: IRRef
   callee: ExpressionIR

@@ -5,9 +5,12 @@
 > Run `pnpm api:snapshot` to update.
 
 ```ts
-import { CompilerOptions } from '@zeus-js/compiler'
 import { Plugin } from 'vite'
 
+export interface ZeusNativeCompilerOptions {
+  moduleName?: string
+  delegateEvents?: boolean
+}
 export interface ZeusVitePluginOptions {
   include?: RegExp | RegExp[]
   exclude?: RegExp | RegExp[]
@@ -15,7 +18,7 @@ export interface ZeusVitePluginOptions {
   hmr?: boolean
   /** Runtime module used by Vite SSR transforms. */
   ssrModuleName?: string
-  compiler?: Partial<CompilerOptions>
+  compiler?: ZeusNativeCompilerOptions
 }
 export declare function createZeus(options?: ZeusVitePluginOptions): Plugin
 

@@ -35,8 +35,13 @@ env:
   PUPPETEER_SKIP_DOWNLOAD: 'true'
 
 jobs:
+  native-prebuild:
+    uses: ./.github/workflows/compiler-native.yml
+    secrets: inherit
+
   release-canary:
     if: github.repository == 'baicie/zeus'
+    needs: native-prebuild
     runs-on: ubuntu-latest
 
     permissions:
@@ -64,8 +69,19 @@ jobs:
       - name: Install deps
         run: pnpm install --frozen-lockfile
 
+      - name: Download native platform artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: compiler-native-*
+          path: temp/native-artifacts
+          merge-multiple: false
+
+      - name: Restore native platform binaries
+        run: pnpm native:restore:artifacts
+
       - name: Precheck
         run: |
+          pnpm check:native-binaries
           pnpm build
           pnpm build-dts
           pnpm check:cjs

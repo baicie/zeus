@@ -2394,9 +2394,8 @@ fn advance_position(line: u32, column: u32, value: &str) -> (u32, u32) {
             line = line.saturating_add(1);
             column = 0;
         } else {
-            column = column.saturating_add(
-                u32::try_from(character.len_utf16()).unwrap_or(u32::MAX),
-            );
+            column =
+                column.saturating_add(u32::try_from(character.len_utf16()).unwrap_or(u32::MAX));
         }
     }
     (line, column)

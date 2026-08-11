@@ -1,0 +1,48 @@
+{
+  "name": "@zeus-js/compiler-native-linux-arm64-gnu",
+  "version": "0.1.1-beta.0",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "description": "Zeus Rust compiler native binary for Linux arm64 glibc",
+  "license": "MIT",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "libc": [
+    "glibc"
+  ],
+  "main": "index.js",
+  "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "require": "./index.js",
+      "default": "./index.js"
+    },
+    "./package.json": {
+      "types": "./index.d.ts",
+      "require": "./package.json",
+      "default": "./package.json"
+    }
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "zeus-compiler-native.linux-arm64-gnu.node",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baicie/zeus",
+    "directory": "packages/core/compiler-native-linux-arm64-gnu"
+  },
+  "engines": {
+    "node": "^22.18.0 || >=24.11.0"
+  }
+}

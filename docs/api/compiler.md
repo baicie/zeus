@@ -1,59 +1,53 @@
 # @zeus-js/compiler
 
-JSX compiler package.
+Rust-native JSX/TSX compiler. The package exposes one transform contract and
+does not provide a Babel plugin or a second compiler backend.
 
-## Babel Plugin
-
-The package's default export is a Babel plugin that compiles JSX into Zeus
-runtime helper calls.
+## `transformModule`
 
 ```ts
-import { transformAsync } from '@babel/core'
-import zeusCompiler from '@zeus-js/compiler'
+import { transformModule } from '@zeus-js/compiler'
 
-const result = await transformAsync('const view = <div>{name}</div>', {
-  babelrc: false,
-  configFile: false,
+const result = transformModule({
+  source: 'const view = <button>{count()}</button>',
   filename: 'view.tsx',
-  plugins: [[zeusCompiler, { generate: 'dom' }]],
+  target: 'dom',
+  runtimeModule: '@zeus-js/runtime-dom',
+  delegateEvents: true,
+  sourceMap: true,
 })
 ```
 
-## CompilerOptions
+The result contains generated JavaScript, an optional Source Map v3, and
+structured diagnostics. Diagnostics are returned for compiler errors and are
+not hidden in an exception message.
 
-| Option         | Type             | Default               | Description                             |
-| -------------- | ---------------- | --------------------- | --------------------------------------- |
-| `generate`     | `'dom' \| 'ssr'` | `'dom'`               | Select DOM or server string codegen     |
-| `moduleName`   | `string`         | Depends on `generate` | Runtime module used by generated code   |
-| `staticMarker` | `string`         | `'@once'`             | Static expression marker                |
-| `builtIns`     | `string[]`       | `[]`                  | Additional component names to recognize |
+## Options
 
-The default module is `@zeus-js/runtime-dom` for `dom` output and
-`@zeus-js/runtime-ssr` for `ssr` output. An explicit `moduleName` overrides the
-default for the selected compilation.
+| Option           | Type             | Description                                            |
+| ---------------- | ---------------- | ------------------------------------------------------ |
+| `source`         | `string`         | Module source containing JSX/TSX.                      |
+| `filename`       | `string`         | Stable source filename used by diagnostics and maps.   |
+| `target`         | `'dom' \| 'ssr'` | Select DOM or server code generation.                  |
+| `runtimeModule`  | `string`         | Runtime module imported by generated code.             |
+| `delegateEvents` | `boolean`        | Enable delegated event collection for DOM output.      |
+| `sourceMap`      | `boolean`        | Generate a Source Map v3.                              |
+| `hmr`            | `boolean`        | Inject the development render boundary when supported. |
 
-## DOM Output
+`hmr` is only meaningful for DOM development transforms. It is ignored for SSR,
+production, component-only modules, and modules with an explicit
+`import.meta.hot` boundary.
 
-Generates DOM runtime helper calls.
+## Targets
 
-## SSR Output
+DOM output creates static templates and direct runtime bindings. SSR output
+serializes the same owned IR and omits event/ref bindings. `Host` and `Slot`
+remain Web Components compiler builtins; unsupported SSR forms return a
+structured diagnostic.
 
-Set `generate: 'ssr'` when compiling a server module directly:
+## Native packages
 
-```ts
-plugins: [[zeusCompiler, { generate: 'ssr' }]]
-```
-
-SSR output uses the same Zeus IR as DOM output, omits event and ref bindings,
-and emits synchronous serialization helpers. Script and style children retain
-raw-text semantics; matching closing tags and script sequences that would enter
-the HTML parser's double-escaped state are safely rewritten after their children
-are joined. Raw-text children may contain text, Fragment, `Show`, and `For`;
-element or component children are rejected with
-`ZEUS_UNSUPPORTED_SSR_RAW_TEXT_CHILD`. `Host` and `Slot` are rejected with a
-structured diagnostic because Web Components SSR is outside the current
-contract. Each property binding is validated against both its property name and
-element tag. Bindings without a deterministic HTML representation are rejected
-with `ZEUS_UNSUPPORTED_SSR_PROPERTY`. See [Server
-Rendering](/guide/server-rendering) for the supported property mappings,
-application entry, and limitations.
+`@zeus-js/compiler` loads `@zeus-js/compiler-native`, which selects the
+platform package for the current Node.js OS, architecture, and libc. A native
+load failure includes every attempted binary/package error so installation
+problems are actionable.

@@ -79,6 +79,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Native package metadata
+        run: pnpm check:native-packages
+
       - name: Rust format check
         run: cargo fmt --all -- --check
 
