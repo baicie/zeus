@@ -21,6 +21,7 @@
     "format-check": "prettier --check --cache .",
     "test": "vitest --project 'unit*'",
     "test-unit": "vitest --run --project 'unit*'",
+    "test:compiler-native": "pnpm --filter @zeus-js/compiler-native build:native && pnpm --filter @zeus-js/compiler-native test:native",
     "test-coverage": "vitest run --project 'unit*' --coverage",
     "test:benchs": "vitest bench --project bench",
     "bench:component-host": "tsx scripts/bench/component-host.ts",

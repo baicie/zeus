@@ -1,13 +1,14 @@
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{
-    JSXAttribute, JSXAttributeItem, JSXAttributeName, JSXAttributeValue, JSXChild, JSXElement,
-    JSXElementName, JSXExpression, JSXFragment,
+    Expression, JSXAttribute, JSXAttributeItem, JSXAttributeName, JSXAttributeValue, JSXChild,
+    JSXElement, JSXElementName, JSXExpression, JSXFragment,
 };
 use oxc_ast_visit::Visit;
 use oxc_diagnostics::{OxcDiagnostic, Severity};
 use oxc_parser::Parser;
 use oxc_semantic::SemanticBuilder;
 use oxc_span::{GetSpan, SourceType, Span};
+use oxc_syntax::xml_entities::decode_entities;
 
 use crate::{
     diagnostic::{CompilerDiagnostic, DiagnosticSeverity},
@@ -75,17 +76,29 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
         };
     }
 
-    let mut reserved_names = semantic_result
-        .semantic
-        .scoping()
+    let scoping = semantic_result.semantic.scoping();
+    let mut reserved_names = scoping
         .iter_bindings()
         .flat_map(|(_, bindings)| bindings.keys().map(ToString::to_string))
         .collect::<Vec<_>>();
+    reserved_names.extend(
+        scoping
+            .root_unresolved_references()
+            .iter()
+            .map(|(name, _)| name.to_string()),
+    );
     reserved_names.sort_unstable();
     reserved_names.dedup();
 
-    let mut lowerer = Lowerer::new(source, filename);
+    let mut lowerer = Lowerer::new(source, filename, &allocator);
     lowerer.visit_program(&parsed.program);
+    let preamble_end = parsed
+        .program
+        .directives
+        .last()
+        .map(|node| node.span.end)
+        .or_else(|| parsed.program.hashbang.as_ref().map(|node| node.span.end))
+        .unwrap_or_default();
 
     if !lowerer.diagnostics.is_empty() {
         return LowerResult {
@@ -99,6 +112,7 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
         ir: Some(ModuleIr {
             id: 0,
             kind: "Module".into(),
+            preamble_end,
             components: lowerer.components,
         }),
         diagnostics: Vec::new(),
@@ -106,20 +120,22 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
     }
 }
 
-struct Lowerer<'source> {
+struct Lowerer<'source, 'allocator> {
     source: &'source str,
     filename: &'source str,
+    allocator: &'allocator Allocator,
     source_index: SourceIndex<'source>,
     next_id: NodeId,
     components: Vec<ComponentIr>,
     diagnostics: Vec<CompilerDiagnostic>,
 }
 
-impl<'source> Lowerer<'source> {
-    fn new(source: &'source str, filename: &'source str) -> Self {
+impl<'source, 'allocator> Lowerer<'source, 'allocator> {
+    fn new(source: &'source str, filename: &'source str, allocator: &'allocator Allocator) -> Self {
         Self {
             source,
             filename,
+            allocator,
             source_index: SourceIndex::new(source),
             next_id: 1,
             components: Vec::new(),
@@ -154,6 +170,73 @@ impl<'source> Lowerer<'source> {
             );
             return None;
         };
+        let tag_name = identifier.name.as_str();
+        if matches!(
+            tag_name,
+            "script"
+                | "style"
+                | "textarea"
+                | "title"
+                | "xmp"
+                | "iframe"
+                | "noembed"
+                | "noframes"
+                | "plaintext"
+                | "noscript"
+        ) {
+            self.unsupported(
+                "ZEUS_UNSUPPORTED_RAW_TEXT_ELEMENT",
+                "Raw-text elements need dedicated text binding code generation.",
+                identifier.span,
+            );
+            return None;
+        }
+        if matches!(tag_name, "html" | "head" | "body" | "frameset" | "frame") {
+            self.unsupported(
+                "ZEUS_UNSUPPORTED_DOCUMENT_ELEMENT",
+                "Document-structure elements cannot be cloned as component roots.",
+                identifier.span,
+            );
+            return None;
+        }
+        if tag_name == "template" {
+            self.unsupported(
+                "ZEUS_UNSUPPORTED_TEMPLATE_ELEMENT",
+                "Template element children need dedicated anchor code generation.",
+                identifier.span,
+            );
+            return None;
+        }
+        if !element.children.is_empty()
+            && matches!(
+                tag_name,
+                "area"
+                    | "base"
+                    | "basefont"
+                    | "bgsound"
+                    | "br"
+                    | "col"
+                    | "embed"
+                    | "hr"
+                    | "image"
+                    | "img"
+                    | "input"
+                    | "keygen"
+                    | "link"
+                    | "meta"
+                    | "param"
+                    | "source"
+                    | "track"
+                    | "wbr"
+            )
+        {
+            self.unsupported(
+                "ZEUS_UNSUPPORTED_VOID_ELEMENT_CHILDREN",
+                "Void elements cannot contain child bindings.",
+                element.span,
+            );
+            return None;
+        }
 
         let id = self.allocate_id();
 
@@ -201,7 +284,9 @@ impl<'source> Lowerer<'source> {
 
         let value = match &attribute.value {
             None => String::new(),
-            Some(JSXAttributeValue::StringLiteral(value)) => value.value.to_string(),
+            Some(JSXAttributeValue::StringLiteral(value)) => {
+                decode_jsx_entities(value.value.as_str(), self.allocator)
+            }
             Some(JSXAttributeValue::ExpressionContainer(_)) => {
                 self.unsupported(
                     "ZEUS_UNSUPPORTED_DYNAMIC_ATTRIBUTE",
@@ -242,7 +327,8 @@ impl<'source> Lowerer<'source> {
     fn lower_child(&mut self, child: &JSXChild<'_>, lowered: &mut Vec<ChildIr>) {
         match child {
             JSXChild::Text(text) => {
-                let value = normalize_jsx_text(text.value.as_str());
+                let cooked = decode_jsx_entities(text.value.as_str(), self.allocator);
+                let value = normalize_jsx_text(&cooked);
                 if !value.is_empty() {
                     lowered.push(ChildIr::Text(TextIr {
                         id: self.allocate_id(),
@@ -261,10 +347,8 @@ impl<'source> Lowerer<'source> {
                 if matches!(&container.expression, JSXExpression::EmptyExpression(_)) {
                     return;
                 }
-                if matches!(
-                    &container.expression,
-                    JSXExpression::JSXElement(_) | JSXExpression::JSXFragment(_)
-                ) {
+                let expression = container.expression.to_expression();
+                if contains_jsx(expression) {
                     self.unsupported(
                         "ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION",
                         "Nested JSX expressions are not supported by this compiler slice.",
@@ -273,7 +357,7 @@ impl<'source> Lowerer<'source> {
                     return;
                 }
 
-                let expression_span = container.expression.to_expression().span();
+                let expression_span = expression.span();
                 let dynamic_id = self.allocate_id();
                 lowered.push(ChildIr::DynamicText(DynamicTextIr {
                     id: dynamic_id,
@@ -319,14 +403,40 @@ impl<'source> Lowerer<'source> {
     }
 }
 
-impl<'ast> Visit<'ast> for Lowerer<'_> {
+impl<'ast> Visit<'ast> for Lowerer<'_, '_> {
     fn visit_jsx_element(&mut self, element: &JSXElement<'ast>) {
+        // lower_element handles supported descendants; walking again would create extra roots.
         self.lower_root(element);
     }
 
     fn visit_jsx_fragment(&mut self, fragment: &JSXFragment<'ast>) {
         self.unsupported_fragment(fragment);
     }
+}
+
+struct JsxDetector(bool);
+
+impl<'ast> Visit<'ast> for JsxDetector {
+    fn visit_jsx_element(&mut self, _element: &JSXElement<'ast>) {
+        self.0 = true;
+    }
+
+    fn visit_jsx_fragment(&mut self, _fragment: &JSXFragment<'ast>) {
+        self.0 = true;
+    }
+}
+
+fn contains_jsx(expression: &Expression<'_>) -> bool {
+    let mut detector = JsxDetector(false);
+    detector.visit_expression(expression);
+    detector.0
+}
+
+fn decode_jsx_entities(value: &str, allocator: &Allocator) -> String {
+    let mut decoded = None;
+    decode_entities(value, &mut decoded, value.len(), allocator);
+
+    decoded.map_or_else(|| value.to_owned(), |value| value.as_str().to_owned())
 }
 
 fn from_oxc_diagnostic(

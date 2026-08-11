@@ -13,7 +13,6 @@ repository = "https://github.com/baicie/zeus"
 oxc_allocator = "=0.144.0"
 oxc_ast = "=0.144.0"
 oxc_ast_visit = "=0.144.0"
-oxc_codegen = { version = "=0.144.0", features = ["sourcemap"] }
 oxc_diagnostics = "=0.144.0"
 oxc_parser = "=0.144.0"
 oxc_semantic = "=0.144.0"
@@ -22,7 +21,6 @@ oxc_span = "=0.144.0"
 oxc_syntax = "=0.144.0"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
-thiserror = "2.0.17"
 napi = { version = "=3.12.1", default-features = false, features = ["napi8"] }
 napi-derive = "=3.6.3"
 napi-build = "=2.4.1"

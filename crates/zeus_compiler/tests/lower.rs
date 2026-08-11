@@ -103,3 +103,73 @@ fn rejects_spread_attributes_with_stable_diagnostic() {
     assert_eq!(lowered.diagnostics[0].filename, "spread.tsx");
     assert!(lowered.diagnostics[0].span.is_some());
 }
+
+#[test]
+fn rejects_component_elements_with_stable_diagnostic() {
+    let source = "export const App = () => <Widget />";
+    let lowered = lower_module(source, "component.tsx");
+
+    assert!(lowered.ir.is_none());
+    assert_eq!(lowered.diagnostics.len(), 1);
+    assert_eq!(lowered.diagnostics[0].code, "ZEUS_UNSUPPORTED_COMPONENT");
+    assert_eq!(lowered.diagnostics[0].filename, "component.tsx");
+    assert!(lowered.diagnostics[0].span.is_some());
+}
+
+#[test]
+fn rejects_nested_jsx_inside_dynamic_text_expression() {
+    let source = "export const App = ok => <div>{ok ? <span /> : null}</div>";
+    let lowered = lower_module(source, "nested-expression.tsx");
+
+    assert!(lowered.ir.is_none());
+    assert_eq!(lowered.diagnostics.len(), 1);
+    assert_eq!(
+        lowered.diagnostics[0].code,
+        "ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION"
+    );
+}
+
+#[test]
+fn rejects_raw_text_elements_until_they_have_dedicated_codegen() {
+    let source = "export const App = value => <style>{value}</style>";
+    let lowered = lower_module(source, "raw-text.tsx");
+
+    assert!(lowered.ir.is_none());
+    assert_eq!(lowered.diagnostics.len(), 1);
+    assert_eq!(
+        lowered.diagnostics[0].code,
+        "ZEUS_UNSUPPORTED_RAW_TEXT_ELEMENT"
+    );
+}
+
+#[test]
+fn rejects_elements_whose_children_need_dedicated_anchor_codegen() {
+    for (source, expected_code) in [
+        (
+            "export const App = value => <template>{value}</template>",
+            "ZEUS_UNSUPPORTED_TEMPLATE_ELEMENT",
+        ),
+        (
+            "export const App = value => <input>{value}</input>",
+            "ZEUS_UNSUPPORTED_VOID_ELEMENT_CHILDREN",
+        ),
+        (
+            "export const App = value => <html>{value}</html>",
+            "ZEUS_UNSUPPORTED_DOCUMENT_ELEMENT",
+        ),
+        (
+            "export const App = () => <frame />",
+            "ZEUS_UNSUPPORTED_DOCUMENT_ELEMENT",
+        ),
+        (
+            "export const App = value => <image>{value}</image>",
+            "ZEUS_UNSUPPORTED_VOID_ELEMENT_CHILDREN",
+        ),
+    ] {
+        let lowered = lower_module(source, "anchor.tsx");
+
+        assert!(lowered.ir.is_none());
+        assert_eq!(lowered.diagnostics.len(), 1);
+        assert_eq!(lowered.diagnostics[0].code, expected_code);
+    }
+}

@@ -6,10 +6,14 @@
   "main": "index.js",
   "types": "index.d.ts",
   "scripts": {
-    "build:native": "napi build --platform --release"
+    "build:native": "napi build --platform --release --js index.js --dts index.d.ts",
+    "test:native": "node --test __tests__/*.test.cjs"
   },
   "devDependencies": {
-    "@napi-rs/cli": "catalog:"
+    "@jridgewell/trace-mapping": "^0.3.31",
+    "@napi-rs/cli": "catalog:",
+    "jsdom": "^29.1.1",
+    "vite": "catalog:"
   },
   "napi": {
     "binaryName": "zeus-compiler-native",

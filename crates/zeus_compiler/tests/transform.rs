@@ -103,6 +103,56 @@ export const App = props => <div>{props.name}</div>
 }
 
 #[test]
+fn avoids_collisions_with_unresolved_references() {
+    let source = "export const App = () => <div>{$zeusEl}</div>\n";
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "global-reference.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: false,
+    });
+
+    assert!(transformed.diagnostics.is_empty());
+    assert!(transformed.code.contains("const $zeusEl0 ="));
+    assert!(transformed.code.contains("() => ($zeusEl))"));
+}
+
+#[test]
+fn preserves_object_literal_expression_semantics() {
+    let source = "export const App = () => <div>{{ value: 1 }}</div>\n";
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "object-expression.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: false,
+    });
+
+    assert!(transformed.diagnostics.is_empty());
+    assert!(transformed.code.contains("() => ({ value: 1 })"));
+}
+
+#[test]
+fn does_not_resolve_text_creation_through_component_scope() {
+    let source = "export const App = document => <div>{document}</div>\n";
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "shadowed-document.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: false,
+    });
+
+    assert!(transformed.diagnostics.is_empty());
+    assert!(transformed.code.contains(".ownerDocument.createTextNode"));
+    assert!(!transformed.code.contains("document.createTextNode"));
+}
+
+#[test]
 fn returns_diagnostics_without_emitting_partial_code() {
     let transformed = transform_module(TransformModuleOptions {
         source: "export const App = props => <div {...props} />".into(),
@@ -118,5 +168,40 @@ fn returns_diagnostics_without_emitting_partial_code() {
     assert_eq!(
         transformed.diagnostics[0].code,
         "ZEUS_UNSUPPORTED_SPREAD_ATTRIBUTE"
+    );
+}
+
+#[test]
+fn leaves_plain_modules_untouched_and_preserves_directive_prologue() {
+    let plain_source = "export const value: number = 1\n";
+    let plain = transform_module(TransformModuleOptions {
+        source: plain_source.into(),
+        filename: "plain.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: true,
+    });
+
+    assert!(plain.diagnostics.is_empty());
+    assert_eq!(plain.code, plain_source);
+    assert!(plain.map.is_none());
+
+    let directive_source =
+        "#!/usr/bin/env node\n\"use client\";\nexport const App = () => <div>Hello</div>\n";
+    let directive = transform_module(TransformModuleOptions {
+        source: directive_source.into(),
+        filename: "directive.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: false,
+    });
+
+    assert!(directive.diagnostics.is_empty());
+    assert!(
+        directive
+            .code
+            .starts_with("#!/usr/bin/env node\n\"use client\";\nimport {")
     );
 }

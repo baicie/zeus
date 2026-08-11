@@ -34,6 +34,13 @@ pub(crate) fn emit_module(
         .collect::<Vec<_>>();
 
     let mut writer = CodeWriter::default();
+    let mut cursor = usize::try_from(module.preamble_end)
+        .unwrap_or(usize::MAX)
+        .min(source.len());
+    writer.push(&source[..cursor]);
+    if cursor > 0 && !writer.code.ends_with('\n') {
+        writer.push("\n");
+    }
     writer.push("import { template as ");
     writer.push(&template_helper);
     writer.push(", insert as ");
@@ -54,7 +61,6 @@ pub(crate) fn emit_module(
         writer.push(");\n");
     }
 
-    let mut cursor = 0_usize;
     for component in &generated {
         let start = usize::try_from(component.start).unwrap_or(usize::MAX);
         let end = usize::try_from(component.end).unwrap_or(usize::MAX);
@@ -102,34 +108,61 @@ fn emit_component(
     writer.push(&component.template_name);
     writer.push("().firstChild;\n");
 
-    for binding in &component.bindings {
-        let marker_name = names.allocate("$zeusMarker");
-        let text_name = names.allocate("$zeusText");
-        let parent = dom_path(&component.element_name, &binding.parent_path);
+    let walker_name = names.allocate("$zeusWalker");
+    writer.push("const ");
+    writer.push(&walker_name);
+    writer.push(" = ");
+    writer.push(&component.element_name);
+    // NodeFilter.SHOW_COMMENT without relying on a shadowable global.
+    writer.push(".ownerDocument.createTreeWalker(");
+    writer.push(&component.element_name);
+    writer.push(", 128);\n");
 
+    let bindings = component
+        .bindings
+        .iter()
+        .map(|binding| EmittedBinding {
+            binding,
+            marker_name: names.allocate("$zeusMarker"),
+            text_name: names.allocate("$zeusText"),
+        })
+        .collect::<Vec<_>>();
+
+    // Resolve every marker before removing any node from the walker's tree.
+    for binding in &bindings {
         writer.push("const ");
-        writer.push(&marker_name);
+        writer.push(&binding.marker_name);
         writer.push(" = ");
-        writer.push(&parent);
-        writer.push(".childNodes[");
-        writer.push(&binding.marker_index.to_string());
-        writer.push("];\nconst ");
-        writer.push(&text_name);
-        writer.push(" = document.createTextNode(\"\");\n");
+        writer.push(&walker_name);
+        writer.push(".nextNode();\n");
+    }
+
+    for binding in &bindings {
+        writer.push("const ");
+        writer.push(&binding.text_name);
+        writer.push(" = ");
+        writer.push(&binding.marker_name);
+        writer.push(".ownerDocument.createTextNode(\"\");\n");
         writer.push(insert_helper);
         writer.push("(");
-        writer.push(&parent);
+        writer.push(&binding.marker_name);
+        writer.push(".parentNode");
         writer.push(", ");
-        writer.push(&text_name);
+        writer.push(&binding.text_name);
         writer.push(", ");
-        writer.push(&marker_name);
+        writer.push(&binding.marker_name);
         writer.push(");\n");
+        writer.push(&binding.marker_name);
+        writer.push(".remove();\n");
         writer.push(bind_text_helper);
         writer.push("(");
-        writer.push(&text_name);
-        writer.push(", () => ");
-        writer.push_mapped(&binding.expression.code, &binding.expression);
-        writer.push(");\n");
+        writer.push(&binding.text_name);
+        writer.push(", () => (");
+        writer.push_mapped(
+            &binding.binding.expression.code,
+            &binding.binding.expression,
+        );
+        writer.push("));\n");
     }
 
     writer.push("return ");
@@ -172,40 +205,20 @@ fn render_element(element: &ElementIr, html: &mut String) {
 
 fn collect_dynamic_bindings(element: &ElementIr) -> Vec<DynamicBinding> {
     let mut bindings = Vec::new();
-    collect_element_bindings(element, &mut Vec::new(), &mut bindings);
+    collect_element_bindings(element, &mut bindings);
     bindings
 }
 
-fn collect_element_bindings(
-    element: &ElementIr,
-    parent_path: &mut Vec<usize>,
-    bindings: &mut Vec<DynamicBinding>,
-) {
-    for (index, child) in element.children.iter().enumerate() {
+fn collect_element_bindings(element: &ElementIr, bindings: &mut Vec<DynamicBinding>) {
+    for child in &element.children {
         match child {
-            ChildIr::Element(element) => {
-                parent_path.push(index);
-                collect_element_bindings(element, parent_path, bindings);
-                parent_path.pop();
-            }
+            ChildIr::Element(element) => collect_element_bindings(element, bindings),
             ChildIr::DynamicText(dynamic) => bindings.push(DynamicBinding {
-                parent_path: parent_path.clone(),
-                marker_index: index,
                 expression: dynamic.expression.clone(),
             }),
             ChildIr::Text(_) => {}
         }
     }
-}
-
-fn dom_path(root: &str, path: &[usize]) -> String {
-    let mut expression = root.to_owned();
-    for index in path {
-        expression.push_str(".childNodes[");
-        expression.push_str(&index.to_string());
-        expression.push(']');
-    }
-    expression
 }
 
 fn build_source_map(filename: &str, source: &str, mappings: &[Mapping]) -> RawSourceMap {
@@ -253,9 +266,13 @@ struct GeneratedComponent {
 }
 
 struct DynamicBinding {
-    parent_path: Vec<usize>,
-    marker_index: usize,
     expression: ExpressionIr,
+}
+
+struct EmittedBinding<'a> {
+    binding: &'a DynamicBinding,
+    marker_name: String,
+    text_name: String,
 }
 
 #[derive(Default)]

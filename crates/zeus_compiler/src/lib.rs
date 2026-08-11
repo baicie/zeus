@@ -81,6 +81,14 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
         };
     };
 
+    if ir.components.is_empty() {
+        return TransformModuleResult {
+            code: options.source,
+            map: None,
+            diagnostics: Vec::new(),
+        };
+    }
+
     codegen::emit_module(
         &options.source,
         &options.filename,

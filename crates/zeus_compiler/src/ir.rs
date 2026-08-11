@@ -9,6 +9,7 @@ pub type NodeId = u32;
 pub struct ModuleIr {
     pub id: NodeId,
     pub kind: String,
+    pub preamble_end: u32,
     pub components: Vec<ComponentIr>,
 }
 

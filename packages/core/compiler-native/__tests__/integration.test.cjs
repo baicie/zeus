@@ -1,0 +1,285 @@
+'use strict'
+
+const assert = require('node:assert/strict')
+const {
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} = require('node:fs')
+const { tmpdir } = require('node:os')
+const path = require('node:path')
+const test = require('node:test')
+
+const { originalPositionFor, TraceMap } = require('@jridgewell/trace-mapping')
+const { JSDOM } = require('jsdom')
+
+const { transformModule } = require('../index.js')
+
+const repositoryRoot = path.resolve(__dirname, '../../../..')
+const source = `import { createSignal } from '@zeus-js/signal'
+
+const [name, setName] = createSignal('Ada')
+const props = { get name() { return name() } }
+let executions = 0
+let nestedExecutions = 0
+
+export const App = (props: { name: string }) => (
+  executions++,
+  <div class="greeting">\u{1f600}\u{4e2d} Hello {props.name}</div>
+)
+
+export const Nested = (props: { name: string }) => (
+  nestedExecutions++,
+  <section>{props.name}<span>{props.name}</span>{props.name}</section>
+)
+
+export const Static = () => (
+  <p title='A &quot; B &amp; C'>A &amp; &#x1F600;</p>
+)
+
+export const Table = (props: { name: string }) => (
+  <table><tr><td>{props.name}</td></tr></table>
+)
+
+export const mount = () => App(props)
+export const mountNested = () => Nested(props)
+export const mountStatic = () => Static()
+export const mountTable = () => Table(props)
+export const updateName = setName
+export const executionCount = () => executions
+export const nestedExecutionCount = () => nestedExecutions
+`.replaceAll('\n', '\r\n')
+
+test('native compiler executes through Vite with fine-grained DOM updates', async () => {
+  const fixture = createFixture()
+  const restoreDOM = installDOMGlobals()
+  const { build, createServer } = await import('vite')
+  const plugin = createNativePlugin()
+  const server = await createServer({
+    root: fixture.root,
+    configFile: false,
+    logLevel: 'silent',
+    optimizeDeps: { noDiscovery: true },
+    define: {
+      __DEV__: 'true',
+      __TEST__: 'true',
+      __VERSION__: JSON.stringify('test'),
+    },
+    resolve: { alias: runtimeAliases() },
+    plugins: [plugin],
+    server: { middlewareMode: true },
+  })
+
+  try {
+    const transformed = await server.transformRequest('/src/App.tsx')
+    assert.ok(transformed?.map)
+    assertNoRawJSX(transformed.code)
+    assertExpressionMapping(transformed.code, transformed.map)
+
+    const module = await server.ssrLoadModule('/src/App.tsx')
+    const element = module.mount()
+    const nested = module.mountNested()
+    const staticElement = module.mountStatic()
+    const table = module.mountTable()
+    const greetingLabel = element.firstChild
+    const greetingValue = element.lastChild
+    const nestedSpan = nested.querySelector('span')
+    const nestedValue = nestedSpan.firstChild
+
+    assert.equal(
+      element.outerHTML,
+      '<div class="greeting">\u{1f600}\u{4e2d} Hello Ada</div>',
+    )
+    assert.equal(nested.outerHTML, '<section>Ada<span>Ada</span>Ada</section>')
+    assert.equal(staticElement.getAttribute('title'), 'A " B & C')
+    assert.equal(staticElement.textContent, 'A & \u{1f600}')
+    assert.equal(
+      table.outerHTML,
+      '<table><tbody><tr><td>Ada</td></tr></tbody></table>',
+    )
+    assert.equal(module.executionCount(), 1)
+    assert.equal(module.nestedExecutionCount(), 1)
+
+    module.updateName('Grace')
+
+    assert.equal(
+      element.outerHTML,
+      '<div class="greeting">\u{1f600}\u{4e2d} Hello Grace</div>',
+    )
+    assert.equal(
+      nested.outerHTML,
+      '<section>Grace<span>Grace</span>Grace</section>',
+    )
+    assert.equal(
+      table.outerHTML,
+      '<table><tbody><tr><td>Grace</td></tr></tbody></table>',
+    )
+    assert.strictEqual(element.firstChild, greetingLabel)
+    assert.strictEqual(element.lastChild, greetingValue)
+    assert.strictEqual(nested.querySelector('span'), nestedSpan)
+    assert.strictEqual(nestedSpan.firstChild, nestedValue)
+    assert.equal(module.executionCount(), 1)
+    assert.equal(module.nestedExecutionCount(), 1)
+
+    const buildResult = await build({
+      root: fixture.root,
+      configFile: false,
+      logLevel: 'silent',
+      define: {
+        __DEV__: 'true',
+        __TEST__: 'true',
+        __VERSION__: JSON.stringify('test'),
+      },
+      resolve: { alias: runtimeAliases() },
+      plugins: [createNativePlugin()],
+      build: {
+        lib: { entry: fixture.entry, formats: ['es'] },
+        minify: false,
+        sourcemap: true,
+        write: false,
+      },
+    })
+    const chunk = findChunk(buildResult)
+    assertNoRawJSX(chunk.code)
+    assert.ok(chunk.map)
+    assertExpressionMapping(chunk.code, chunk.map)
+  } finally {
+    await server.close()
+    restoreDOM()
+    rmSync(fixture.root, { force: true, recursive: true })
+  }
+})
+
+function createNativePlugin() {
+  return {
+    name: 'zeus-native-compiler-test',
+    enforce: 'pre',
+    transform(code, id) {
+      const filename = id.replace(/[?#].*$/, '')
+      if (!filename.endsWith('.tsx')) return null
+
+      const result = transformModule({
+        source: code,
+        filename: path.basename(filename),
+        target: 'dom',
+        runtimeModule: '@zeus-js/runtime-dom',
+        delegateEvents: false,
+        sourceMap: true,
+      })
+      if (result.diagnostics.length > 0) {
+        throw new Error(JSON.stringify(result.diagnostics))
+      }
+      return { code: result.code, map: result.map }
+    },
+  }
+}
+
+function createFixture() {
+  const root = realpathSync(mkdtempSync(path.join(tmpdir(), 'zeus-native-')))
+  mkdirSync(path.join(root, 'src'))
+  const entry = path.join(root, 'src', 'App.tsx')
+  writeFileSync(entry, source)
+  return { root, entry }
+}
+
+function runtimeAliases() {
+  return [
+    {
+      find: '@zeus-js/runtime-dom',
+      replacement: path.join(
+        repositoryRoot,
+        'packages/core/runtime-dom/src/index.ts',
+      ),
+    },
+    {
+      find: '@zeus-js/signal/internal',
+      replacement: path.join(
+        repositoryRoot,
+        'packages/core/signal/src/internal.ts',
+      ),
+    },
+    {
+      find: '@zeus-js/signal',
+      replacement: path.join(
+        repositoryRoot,
+        'packages/core/signal/src/index.ts',
+      ),
+    },
+    {
+      find: '@zeus-js/shared',
+      replacement: path.join(
+        repositoryRoot,
+        'packages/core/shared/src/index.ts',
+      ),
+    },
+  ]
+}
+
+function installDOMGlobals() {
+  const dom = new JSDOM('<!doctype html><html><body></body></html>')
+  const keys = [
+    'window',
+    'document',
+    'Node',
+    'Element',
+    'HTMLElement',
+    'SVGElement',
+    'DocumentFragment',
+    'Comment',
+    'Text',
+    'CustomEvent',
+    'Event',
+    'MutationObserver',
+    'customElements',
+  ]
+  const previous = new Map()
+
+  for (const key of keys) {
+    previous.set(key, globalThis[key])
+    globalThis[key] = key === 'window' ? dom.window : dom.window[key]
+  }
+
+  return () => {
+    for (const key of keys) {
+      if (previous.get(key) === undefined) delete globalThis[key]
+      else globalThis[key] = previous.get(key)
+    }
+    dom.window.close()
+  }
+}
+
+function assertNoRawJSX(code) {
+  assert.doesNotMatch(code, /=>\s*\(\s*<div/)
+  assert.doesNotMatch(code, /return\s+<div/)
+}
+
+function assertExpressionMapping(code, map) {
+  const generatedIndex = code.indexOf('props.name')
+  assert.notEqual(generatedIndex, -1)
+  const originalIndex = source.indexOf('props.name}</div>')
+  const traced = originalPositionFor(
+    new TraceMap(map),
+    positionOf(code, generatedIndex),
+  )
+  const original = positionOf(source, originalIndex)
+
+  assert.equal(traced.line, original.line)
+  assert.equal(traced.column, original.column)
+  assert.match(traced.source, /App\.tsx$/)
+}
+
+function positionOf(code, index) {
+  const lines = code.slice(0, index).split('\n')
+  return { line: lines.length, column: lines.at(-1).length }
+}
+
+function findChunk(result) {
+  const outputs = Array.isArray(result) ? result : [result]
+  const chunk = outputs
+    .flatMap(output => output.output)
+    .find(output => output.type === 'chunk')
+  assert.ok(chunk)
+  return chunk
+}

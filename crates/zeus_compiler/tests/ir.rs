@@ -27,6 +27,7 @@ fn ir_owned_schema_round_trips_through_json() {
     let module = ModuleIr {
         id: 0,
         kind: "Module".into(),
+        preamble_end: 0,
         components: vec![ComponentIr {
             id: 1,
             kind: "Component".into(),
