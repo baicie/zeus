@@ -696,6 +696,10 @@ fn emit_component_call(
     runtime: &RuntimeNames,
     names: &mut NameAllocator,
 ) {
+    if component.kind == "Slot" {
+        emit_slot_call(writer, component, runtime, names);
+        return;
+    }
     writer.push(runtime.create_component());
     writer.push("(");
     writer.push_mapped(&component.callee.code, &component.callee);
@@ -728,6 +732,45 @@ fn emit_component_call(
         }
     }
     writer.push("})");
+}
+
+fn emit_slot_call(
+    writer: &mut CodeWriter,
+    component: &ComponentBindingIr,
+    runtime: &RuntimeNames,
+    names: &mut NameAllocator,
+) {
+    let name = component
+        .props
+        .iter()
+        .find_map(|prop| (prop.name == "name").then_some(&prop.value));
+    writer.push(runtime.create_slot());
+    writer.push("(");
+    match name {
+        Some(ComponentPropValueIr::Expression(expression)) => {
+            emit_expression_value(writer, expression);
+        }
+        _ => writer.push("undefined"),
+    }
+    let children = component
+        .props
+        .iter()
+        .find_map(|prop| (prop.name == "children").then_some(&prop.value));
+    if let Some(ComponentPropValueIr::Children(children)) = children {
+        writer.push(", () => ");
+        emit_children_value(writer, children, runtime, names);
+    }
+    writer.push(")");
+}
+
+fn emit_expression_value(writer: &mut CodeWriter, expression: &ExpressionIr) {
+    if expression.form == ExpressionForm::Getter {
+        writer.push("(");
+        writer.push_mapped(&expression.code, expression);
+        writer.push(")()");
+    } else {
+        writer.push_mapped(&expression.code, expression);
+    }
 }
 
 fn emit_root_builtin_call(
@@ -1769,7 +1812,11 @@ impl HelperUsage {
                     usage.0.insert(RuntimeHelper::BindRef);
                 }
                 DynamicBinding::Component { component } => {
-                    usage.0.insert(RuntimeHelper::CreateComponent);
+                    if component.kind == "Slot" {
+                        usage.0.insert(RuntimeHelper::CreateSlot);
+                    } else {
+                        usage.0.insert(RuntimeHelper::CreateComponent);
+                    }
                     usage.0.insert(RuntimeHelper::Insert);
                     collect_component_helper_usage(component, &mut usage.0);
                 }
@@ -1794,7 +1841,11 @@ fn collect_component_helper_usage(
     component: &ComponentBindingIr,
     usage: &mut HashSet<RuntimeHelper>,
 ) {
-    usage.insert(RuntimeHelper::CreateComponent);
+    if component.kind == "Slot" {
+        usage.insert(RuntimeHelper::CreateSlot);
+    } else {
+        usage.insert(RuntimeHelper::CreateComponent);
+    }
     for prop in &component.props {
         let ComponentPropValueIr::Children(children) = &prop.value else {
             continue;
@@ -1892,6 +1943,11 @@ fn collect_binding_helper_usage(binding: &DynamicBinding, usage: &mut HashSet<Ru
             usage.insert(RuntimeHelper::BindRef);
         }
         DynamicBinding::Component { component } => {
+            if component.kind == "Slot" {
+                usage.insert(RuntimeHelper::CreateSlot);
+            } else {
+                usage.insert(RuntimeHelper::CreateComponent);
+            }
             usage.insert(RuntimeHelper::Insert);
             collect_component_helper_usage(component, usage);
         }
@@ -2010,6 +2066,10 @@ impl RuntimeNames {
         self.get(RuntimeHelper::CreateComponent)
     }
 
+    fn create_slot(&self) -> &str {
+        self.get(RuntimeHelper::CreateSlot)
+    }
+
     fn show(&self) -> &str {
         self.get(RuntimeHelper::Show)
     }
@@ -2071,6 +2131,7 @@ impl RuntimeNames {
 enum RuntimeHelper {
     Template,
     CreateComponent,
+    CreateSlot,
     Show,
     For,
     MountShow,
@@ -2088,9 +2149,10 @@ enum RuntimeHelper {
 }
 
 impl RuntimeHelper {
-    const ORDERED: [Self; 16] = [
+    const ORDERED: [Self; 17] = [
         Self::Template,
         Self::CreateComponent,
+        Self::CreateSlot,
         Self::Show,
         Self::For,
         Self::MountShow,
@@ -2111,6 +2173,7 @@ impl RuntimeHelper {
         match self {
             Self::Template => "template",
             Self::CreateComponent => "createComponent",
+            Self::CreateSlot => "createSlot",
             Self::Show => "Show",
             Self::For => "For",
             Self::MountShow => "mountShow",
@@ -2132,6 +2195,7 @@ impl RuntimeHelper {
         match self {
             Self::Template => "$zeusTemplate",
             Self::CreateComponent => "$zeusCreateComponent",
+            Self::CreateSlot => "$zeusCreateSlot",
             Self::Show => "$zeusShow",
             Self::For => "$zeusFor",
             Self::MountShow => "$zeusMountShow",

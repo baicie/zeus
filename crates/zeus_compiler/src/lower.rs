@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{
@@ -6,7 +6,7 @@ use oxc_ast::ast::{
     JSXAttributeName, JSXAttributeValue, JSXChild, JSXElement, JSXElementName, JSXExpression,
     JSXExpressionContainer, JSXFragment, ModuleDeclaration, Statement,
 };
-use oxc_ast_visit::Visit;
+use oxc_ast_visit::{Visit, walk};
 use oxc_diagnostics::{OxcDiagnostic, Severity};
 use oxc_parser::Parser;
 use oxc_semantic::SemanticBuilder;
@@ -97,7 +97,16 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
     reserved_names.dedup();
 
     let builtin_names = collect_builtin_names(&parsed.program);
-    let mut lowerer = Lowerer::new(source, filename, &allocator, builtin_names);
+    let (define_element_setup_spans, host_root_spans) =
+        collect_define_element_spans(&parsed.program, &builtin_names);
+    let mut lowerer = Lowerer::new(
+        source,
+        filename,
+        &allocator,
+        builtin_names,
+        define_element_setup_spans,
+        host_root_spans,
+    );
     lowerer.visit_program(&parsed.program);
     let preamble_end = parsed
         .program
@@ -136,12 +145,17 @@ struct Lowerer<'source, 'allocator> {
     components: Vec<ComponentIr>,
     diagnostics: Vec<CompilerDiagnostic>,
     builtin_names: HashMap<String, BuiltinKind>,
+    define_element_setup_spans: Vec<Span>,
+    host_root_spans: HashSet<u32>,
+    host_depth: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum BuiltinKind {
     Show,
     For,
+    Host,
+    Slot,
 }
 
 impl<'source, 'allocator> Lowerer<'source, 'allocator> {
@@ -150,6 +164,8 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         filename: &'source str,
         allocator: &'allocator Allocator,
         builtin_names: HashMap<String, BuiltinKind>,
+        define_element_setup_spans: Vec<Span>,
+        host_root_spans: HashSet<u32>,
     ) -> Self {
         Self {
             source,
@@ -160,6 +176,9 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             components: Vec::new(),
             diagnostics: Vec::new(),
             builtin_names,
+            define_element_setup_spans,
+            host_root_spans,
+            host_depth: 0,
         }
     }
 
@@ -175,6 +194,24 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             match kind {
                 BuiltinKind::Show => RootIr::Show(self.lower_show(element)),
                 BuiltinKind::For => RootIr::For(self.lower_for(element)),
+                BuiltinKind::Host => {
+                    if !self.is_host_root(element) {
+                        self.unsupported(
+                            "ZEUS_INVALID_HOST_USAGE",
+                            "<Host> can only be the root returned by a defineElement setup.",
+                            element.span,
+                        );
+                    }
+                    RootIr::Component(self.lower_special_component(element, "Host"))
+                }
+                BuiltinKind::Slot => {
+                    self.unsupported(
+                        "ZEUS_INVALID_SLOT_USAGE",
+                        "<Slot> can only be used inside a defineElement Host boundary.",
+                        element.span,
+                    );
+                    RootIr::Component(self.lower_special_component(element, "Slot"))
+                }
             }
         } else if is_component_element(element) {
             RootIr::Component(self.lower_component(element))
@@ -275,6 +312,22 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
     }
 
     fn lower_component(&mut self, element: &JSXElement<'_>) -> ComponentBindingIr {
+        self.lower_component_with_kind(element, "Component")
+    }
+
+    fn lower_special_component(
+        &mut self,
+        element: &JSXElement<'_>,
+        kind: &str,
+    ) -> ComponentBindingIr {
+        self.lower_component_with_kind(element, kind)
+    }
+
+    fn lower_component_with_kind(
+        &mut self,
+        element: &JSXElement<'_>,
+        kind: &str,
+    ) -> ComponentBindingIr {
         let id = self.allocate_id();
         let callee = self.lower_component_callee(&element.opening_element.name);
         let mut props = Vec::new();
@@ -296,17 +349,25 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
 
         if !element.children.is_empty() {
             let span = self.source_index.span(element.span);
+            let children = if kind == "Host" {
+                self.host_depth += 1;
+                let children = self.lower_children(&element.children);
+                self.host_depth = self.host_depth.saturating_sub(1);
+                children
+            } else {
+                self.lower_children(&element.children)
+            };
             props.push(ComponentPropIr {
                 id: self.allocate_id(),
                 name: "children".into(),
-                value: ComponentPropValueIr::Children(self.lower_children(&element.children)),
+                value: ComponentPropValueIr::Children(children),
                 span,
             });
         }
 
         ComponentBindingIr {
             id,
-            kind: "Component".into(),
+            kind: kind.into(),
             callee,
             props,
             span: self.source_index.span(element.span),
@@ -322,6 +383,19 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             | JSXElementName::ThisExpression(_) => return None,
         };
         self.builtin_names.get(name).copied()
+    }
+
+    fn is_host_root(&self, element: &JSXElement<'_>) -> bool {
+        self.host_depth == 0
+            && (self.host_root_spans.is_empty()
+                || self.host_root_spans.contains(&element.span.start))
+            && self.is_inside_define_element_setup(element.span)
+    }
+
+    fn is_inside_define_element_setup(&self, span: Span) -> bool {
+        self.define_element_setup_spans
+            .iter()
+            .any(|setup| setup.start <= span.start && span.end <= setup.end)
     }
 
     fn lower_show(&mut self, element: &JSXElement<'_>) -> ShowBindingIr {
@@ -542,6 +616,24 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             return match kind {
                 BuiltinKind::Show => ChildIr::Show(self.lower_show(element)),
                 BuiltinKind::For => ChildIr::For(self.lower_for(element)),
+                BuiltinKind::Host => {
+                    self.unsupported(
+                        "ZEUS_INVALID_HOST_USAGE",
+                        "Nested <Host> boundaries are not supported.",
+                        element.span,
+                    );
+                    ChildIr::Component(self.lower_special_component(element, "Host"))
+                }
+                BuiltinKind::Slot => {
+                    if self.host_depth == 0 {
+                        self.unsupported(
+                            "ZEUS_INVALID_SLOT_USAGE",
+                            "<Slot> can only be used inside a defineElement Host boundary.",
+                            element.span,
+                        );
+                    }
+                    ChildIr::Component(self.lower_special_component(element, "Slot"))
+                }
             };
         }
         if is_component_element(element) {
@@ -992,12 +1084,158 @@ fn collect_builtin_names(program: &oxc_ast::ast::Program<'_>) -> HashMap<String,
             let kind = match imported {
                 "Show" => BuiltinKind::Show,
                 "For" => BuiltinKind::For,
+                "Host" => BuiltinKind::Host,
+                "Slot" => BuiltinKind::Slot,
                 _ => continue,
             };
             names.insert(specifier.local.name.to_string(), kind);
         }
     }
     names
+}
+
+fn collect_define_element_spans(
+    program: &oxc_ast::ast::Program<'_>,
+    builtin_names: &HashMap<String, BuiltinKind>,
+) -> (Vec<Span>, HashSet<u32>) {
+    let define_names = collect_imported_names(program, "defineElement");
+    if define_names.is_empty() {
+        return (Vec::new(), HashSet::new());
+    }
+
+    let host_names = builtin_names
+        .iter()
+        .filter_map(|(name, kind)| (*kind == BuiltinKind::Host).then_some(name.clone()))
+        .collect::<HashSet<_>>();
+    let mut collector = DefineElementCollector {
+        define_names,
+        host_names,
+        setup_spans: Vec::new(),
+        host_root_spans: HashSet::new(),
+    };
+    collector.visit_program(program);
+    (collector.setup_spans, collector.host_root_spans)
+}
+
+fn collect_imported_names(
+    program: &oxc_ast::ast::Program<'_>,
+    imported_name: &str,
+) -> HashSet<String> {
+    let mut names = HashSet::new();
+    for statement in &program.body {
+        let Some(ModuleDeclaration::ImportDeclaration(import)) = statement.as_module_declaration()
+        else {
+            continue;
+        };
+        if import.source.value.as_str() != "@zeus-js/zeus"
+            && import.source.value.as_str() != "@zeus-js/runtime-dom"
+        {
+            continue;
+        }
+        let Some(specifiers) = &import.specifiers else {
+            continue;
+        };
+        for specifier in specifiers {
+            let ImportDeclarationSpecifier::ImportSpecifier(specifier) = specifier else {
+                continue;
+            };
+            let imported = match &specifier.imported {
+                oxc_ast::ast::ModuleExportName::IdentifierName(name) => name.name.as_str(),
+                oxc_ast::ast::ModuleExportName::IdentifierReference(name) => name.name.as_str(),
+                oxc_ast::ast::ModuleExportName::StringLiteral(name) => name.value.as_str(),
+            };
+            if imported == imported_name {
+                names.insert(specifier.local.name.to_string());
+            }
+        }
+    }
+    names
+}
+
+struct DefineElementCollector {
+    define_names: HashSet<String>,
+    host_names: HashSet<String>,
+    setup_spans: Vec<Span>,
+    host_root_spans: HashSet<u32>,
+}
+
+impl<'ast> Visit<'ast> for DefineElementCollector {
+    fn visit_call_expression(&mut self, expression: &oxc_ast::ast::CallExpression<'ast>) {
+        if let Expression::Identifier(callee) = &expression.callee
+            && self.define_names.contains(callee.name.as_str())
+            && let Some(argument) = expression.arguments.get(2)
+            && let Some(setup) = argument.as_expression()
+        {
+            let (span, root) = match setup {
+                Expression::ArrowFunctionExpression(function) => {
+                    (function.span, arrow_setup_root(function, &self.host_names))
+                }
+                Expression::FunctionExpression(function) => (
+                    function.span,
+                    function_setup_root(function, &self.host_names),
+                ),
+                _ => return,
+            };
+            self.setup_spans.push(span);
+            if let Some(root) = root {
+                self.host_root_spans.insert(root.start);
+            }
+        }
+        walk::walk_call_expression(self, expression);
+    }
+}
+
+fn arrow_setup_root(
+    function: &oxc_ast::ast::ArrowFunctionExpression<'_>,
+    host_names: &HashSet<String>,
+) -> Option<Span> {
+    function
+        .body
+        .as_expression()
+        .and_then(|expression| jsx_host_span(expression, host_names))
+        .or_else(|| {
+            let oxc_ast::ast::ArrowFunctionBody::FunctionBody(body) = &function.body else {
+                return None;
+            };
+            body.statements.iter().find_map(|statement| {
+                let Statement::ReturnStatement(return_statement) = statement else {
+                    return None;
+                };
+                return_statement
+                    .argument
+                    .as_ref()
+                    .and_then(|expression| jsx_host_span(expression, host_names))
+            })
+        })
+}
+
+fn function_setup_root(
+    function: &oxc_ast::ast::Function<'_>,
+    host_names: &HashSet<String>,
+) -> Option<Span> {
+    function.body.as_ref().and_then(|body| {
+        body.statements.iter().find_map(|statement| {
+            let Statement::ReturnStatement(return_statement) = statement else {
+                return None;
+            };
+            return_statement
+                .argument
+                .as_ref()
+                .and_then(|expression| jsx_host_span(expression, host_names))
+        })
+    })
+}
+
+fn jsx_host_span(expression: &Expression<'_>, host_names: &HashSet<String>) -> Option<Span> {
+    let Expression::JSXElement(element) = expression else {
+        return None;
+    };
+    let name = match &element.opening_element.name {
+        JSXElementName::Identifier(identifier) => identifier.name.as_str(),
+        JSXElementName::IdentifierReference(identifier) => identifier.name.as_str(),
+        _ => return None,
+    };
+    host_names.contains(name).then_some(element.span)
 }
 
 fn is_component_element(element: &JSXElement<'_>) -> bool {

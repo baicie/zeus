@@ -173,6 +173,39 @@ export const App = props => <div><Show when={props.visible} fallback="hidden"><s
 }
 
 #[test]
+fn validates_host_and_slot_builtin_boundaries() {
+    let valid = r"import { defineElement as d, Host as H, Slot as S } from '@zeus-js/runtime-dom'
+export const Element = d('z-card', { shadow: false }, props => <H><section><S /></section></H>)
+";
+    let lowered = lower_module(valid, "host.tsx");
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+
+    let invalid_host = r"import { Host } from '@zeus-js/runtime-dom'
+export const App = () => <Host />
+";
+    let lowered = lower_module(invalid_host, "host-invalid.tsx");
+    assert_eq!(
+        lowered
+            .diagnostics
+            .first()
+            .map(|diagnostic| diagnostic.code.as_str()),
+        Some("ZEUS_INVALID_HOST_USAGE")
+    );
+
+    let invalid_slot = r"import { Slot } from '@zeus-js/runtime-dom'
+export const App = () => <Slot />
+";
+    let lowered = lower_module(invalid_slot, "slot-invalid.tsx");
+    assert_eq!(
+        lowered
+            .diagnostics
+            .first()
+            .map(|diagnostic| diagnostic.code.as_str()),
+        Some("ZEUS_INVALID_SLOT_USAGE")
+    );
+}
+
+#[test]
 fn rejects_nested_jsx_inside_dynamic_text_expression() {
     let source = "export const App = ok => <div>{ok ? <span /> : null}</div>";
     let lowered = lower_module(source, "nested-expression.tsx");

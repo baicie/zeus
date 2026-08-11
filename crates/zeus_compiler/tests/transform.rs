@@ -525,6 +525,30 @@ export const App = props => <Child><Show when={props.visible}><span>on</span></S
 }
 
 #[test]
+fn emits_create_slot_for_web_component_slot_ir() {
+    let source = r#"import { defineElement as d, Host as H, Slot as S } from '@zeus-js/runtime-dom'
+export const Element = d('z-card', { shadow: false }, props => <H><section><S name="header">fallback</S></section></H>)
+"#;
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "slot.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: true,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    assert!(transformed.code.contains("createSlot as"));
+    assert!(transformed.code.contains("$zeusCreateSlot"));
+    assert!(transformed.code.contains("\"header\""));
+}
+
+#[test]
 fn emits_show_and_for_mounts_with_stable_region_markers() {
     let source = r#"import { Show, For } from '@zeus-js/zeus'
 export const App = props => <div><Show when={props.visible} fallback="hidden"><span>{props.name}</span></Show><For each={props.items}>{item => <b>{item}</b>}</For></div>
