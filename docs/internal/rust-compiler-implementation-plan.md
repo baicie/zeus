@@ -236,9 +236,9 @@ prebuild matrix 留到 native package 进入发布前完成。
 
 **验收标准：**
 
-- [ ] `script` / `style` / `textarea` / `title` 动态文本通过 `bindTextContent` 正确执行。
-- [ ] SVG、custom element、table 与标准 void element 的静态模板和 bindings 正确。
-- [ ] `<template>` 等未有专用 path 的结构保持稳定诊断，不发生运行时空 anchor 崩溃。
+- [x] `script` / `style` / `textarea` / `title` 动态文本通过 `bindTextContent` 正确执行。
+- [x] SVG、custom element、table 与标准 void element 的静态模板和 bindings 正确。
+- [x] `<template>` 等未有专用 path 的结构保持稳定诊断，不发生运行时空 anchor 崩溃。
 
 **验证：** `cargo test -p zeus_compiler --locked && pnpm test:compiler-native`
 
@@ -248,9 +248,9 @@ prebuild matrix 留到 native package 进入发布前完成。
 
 ### Checkpoint C：原生 DOM parity
 
-- [ ] Rust 覆盖现有原生元素、binding、ref 与 event compiler fixtures。
-- [ ] JSDOM 证明 text / attr / prop / class / style 更新精确且组件只执行一次。
-- [ ] Rust IR 与 compiler-shared canonical JSON fixtures 等价。
+- [x] Rust 覆盖现有原生元素、binding、ref 与 event compiler fixtures。
+- [x] JSDOM 证明 text / attr / prop / class / style 更新精确且组件只执行一次。
+- [x] Rust IR 与 compiler-shared canonical JSON fixtures 等价。
 
 ## Phase 5：迁移切片 2-3 - Fragment、组件与控制流
 

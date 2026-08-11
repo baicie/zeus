@@ -130,15 +130,27 @@ fn rejects_nested_jsx_inside_dynamic_text_expression() {
 }
 
 #[test]
-fn rejects_raw_text_elements_until_they_have_dedicated_codegen() {
+fn lowers_supported_raw_text_elements_and_rejects_nested_elements() {
     let source = "export const App = value => <style>{value}</style>";
     let lowered = lower_module(source, "raw-text.tsx");
 
-    assert!(lowered.ir.is_none());
-    assert_eq!(lowered.diagnostics.len(), 1);
+    assert!(lowered.diagnostics.is_empty());
+    let ir = lowered.ir.expect("supported raw-text element lowers");
+    assert_eq!(ir.components[0].root.tag_name, "style");
+    assert!(matches!(
+        ir.components[0].root.children.as_slice(),
+        [ChildIr::DynamicText(_)]
+    ));
+
+    let nested = lower_module(
+        "export const App = value => <style><span>{value}</span></style>",
+        "raw-text-nested.tsx",
+    );
+    assert!(nested.ir.is_none());
+    assert_eq!(nested.diagnostics.len(), 1);
     assert_eq!(
-        lowered.diagnostics[0].code,
-        "ZEUS_UNSUPPORTED_RAW_TEXT_ELEMENT"
+        nested.diagnostics[0].code,
+        "ZEUS_UNSUPPORTED_RAW_TEXT_CHILD"
     );
 }
 

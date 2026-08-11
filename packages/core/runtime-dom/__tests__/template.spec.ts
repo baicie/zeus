@@ -63,6 +63,19 @@ describe('template', () => {
 
   it('accepts isImportNode/svg/mathml params without breaking', () => {
     const clone = template('<svg><rect /></svg>', false, true, false)()
-    expect((clone.firstChild as Element).tagName.toLowerCase()).toBe('svg')
+    const svg = clone.firstChild as Element
+    expect(svg.tagName.toLowerCase()).toBe('svg')
+    expect(svg.namespaceURI).toBe('http://www.w3.org/2000/svg')
+    expect(svg.firstElementChild?.namespaceURI).toBe(
+      'http://www.w3.org/2000/svg',
+    )
+  })
+
+  it('creates standalone SVG roots in the SVG namespace', () => {
+    const clone = template('<path d="M0 0" />', false, true, false)()
+
+    expect((clone.firstChild as Element).namespaceURI).toBe(
+      'http://www.w3.org/2000/svg',
+    )
   })
 })

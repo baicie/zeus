@@ -10,6 +10,7 @@ use oxc_semantic::SemanticBuilder;
 use oxc_span::{GetSpan, SourceType, Span};
 use oxc_syntax::xml_entities::decode_entities;
 
+use crate::html::{is_raw_text_element, is_unsupported_raw_text_element, is_void_element};
 use crate::{
     diagnostic::{CompilerDiagnostic, DiagnosticSeverity},
     ir::{
@@ -172,23 +173,26 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             return None;
         };
         let tag_name = identifier.name.as_str();
-        if matches!(
-            tag_name,
-            "script"
-                | "style"
-                | "textarea"
-                | "title"
-                | "xmp"
-                | "iframe"
-                | "noembed"
-                | "noframes"
-                | "plaintext"
-                | "noscript"
-        ) {
+        if is_unsupported_raw_text_element(tag_name) {
             self.unsupported(
                 "ZEUS_UNSUPPORTED_RAW_TEXT_ELEMENT",
-                "Raw-text elements need dedicated text binding code generation.",
+                "This raw-text element has no dedicated DOM text binding path.",
                 identifier.span,
+            );
+            return None;
+        }
+        if is_raw_text_element(tag_name)
+            && element.children.iter().any(|child| {
+                matches!(
+                    child,
+                    JSXChild::Element(_) | JSXChild::Fragment(_) | JSXChild::Spread(_)
+                )
+            })
+        {
+            self.unsupported(
+                "ZEUS_UNSUPPORTED_RAW_TEXT_CHILD",
+                "Raw-text elements may only contain text and dynamic expressions.",
+                element.span,
             );
             return None;
         }
@@ -208,29 +212,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             );
             return None;
         }
-        if !element.children.is_empty()
-            && matches!(
-                tag_name,
-                "area"
-                    | "base"
-                    | "basefont"
-                    | "bgsound"
-                    | "br"
-                    | "col"
-                    | "embed"
-                    | "hr"
-                    | "image"
-                    | "img"
-                    | "input"
-                    | "keygen"
-                    | "link"
-                    | "meta"
-                    | "param"
-                    | "source"
-                    | "track"
-                    | "wbr"
-            )
-        {
+        if !element.children.is_empty() && is_void_element(tag_name) {
             self.unsupported(
                 "ZEUS_UNSUPPORTED_VOID_ELEMENT_CHILDREN",
                 "Void elements cannot contain child bindings.",

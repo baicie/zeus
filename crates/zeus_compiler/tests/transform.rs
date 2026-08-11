@@ -356,6 +356,85 @@ fn emits_attribute_property_and_ref_bindings_with_stable_locators() {
     }
 }
 
+#[test]
+fn emits_raw_text_bindings_and_preserves_raw_template_text() {
+    let source = r#"export const Script = value => <script>const amp = "a&b";{value}</script>
+export const Style = value => <style>.x: color red; {value}</style>
+export const Textarea = value => <textarea>prefix {value}</textarea>
+export const Title = value => <title>prefix {value}</title>
+export const Static = () => <script>const amp = "a&b";</script>
+"#;
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "raw-text.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: true,
+    });
+
+    assert!(transformed.diagnostics.is_empty());
+    assert!(transformed.code.contains("bindTextContent as"));
+    assert!(
+        transformed
+            .code
+            .contains(r#"<script>const amp = \"a&b\";</script>"#)
+    );
+    assert!(transformed.code.contains(r"<style data-zeus-node="));
+    assert!(transformed.code.contains(r"<textarea data-zeus-node="));
+    assert!(transformed.code.contains(r"<title data-zeus-node="));
+    assert!(
+        !transformed
+            .code
+            .contains(r#"<script>const amp = \"a&b\";<!></script>"#)
+    );
+    assert_eq!(transformed.code.matches("$zeusBindTextContent(").count(), 4);
+    assert!(
+        transformed
+            .code
+            .contains("[\"const amp = \\\"a&b\\\";\", value]")
+    );
+
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, &transformed.code, SourceType::ts()).parse();
+    assert!(
+        parsed.diagnostics.is_empty(),
+        "generated raw-text output must parse: {:?}",
+        parsed.diagnostics
+    );
+    assert_expression_mapping(source, &transformed, "value");
+}
+
+#[test]
+fn emits_svg_namespace_flag_and_valid_void_custom_templates() {
+    let source = r#"export const Icon = props => <svg viewBox="0 0 1 1"><circle data-r={props.radius} /></svg>
+export const Native = props => <z-card data-value={props.value}><input disabled /></z-card>
+"#;
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "special-elements.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: false,
+    });
+
+    assert!(transformed.diagnostics.is_empty());
+    assert!(transformed.code.contains("template as"));
+    assert!(transformed.code.contains("\", false, true)"));
+    assert!(!transformed.code.contains("<input disabled></input>"));
+    assert!(transformed.code.contains("<z-card"));
+    assert!(transformed.code.contains("<input disabled>"));
+
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, &transformed.code, SourceType::ts()).parse();
+    assert!(
+        parsed.diagnostics.is_empty(),
+        "generated special-element output must parse: {:?}",
+        parsed.diagnostics
+    );
+}
+
 fn assert_expression_mapping(
     source: &str,
     transformed: &zeus_compiler::TransformModuleResult,

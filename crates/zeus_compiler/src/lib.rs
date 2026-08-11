@@ -1,4 +1,5 @@
 mod codegen;
+mod html;
 
 pub mod diagnostic;
 pub mod ir;

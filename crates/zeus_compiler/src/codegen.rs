@@ -4,6 +4,7 @@ use oxc_sourcemap::SourceMapBuilder;
 
 use crate::{
     RawSourceMap, TransformModuleResult,
+    html::{is_raw_text_element, is_svg_element, is_void_element},
     ir::{
         AttributeIr, ChildIr, ComponentIr, ElementIr, ExpressionForm, ExpressionIr, ModuleIr,
         NodeId, StaticAttributeValue,
@@ -57,6 +58,9 @@ pub(crate) fn emit_module(
         writer.push(runtime.template());
         writer.push("(");
         writer.push(&quote_js(&component.template_html));
+        if component.is_svg {
+            writer.push(", false, true");
+        }
         writer.push(");\n");
     }
 
@@ -160,6 +164,14 @@ fn emit_component(
                     runtime,
                 );
                 text_marker_index += 1;
+            }
+            DynamicBinding::TextContent { target_id, parts } => {
+                emit_text_content_binding(
+                    writer,
+                    component.target_name(*target_id),
+                    parts,
+                    runtime,
+                );
             }
             DynamicBinding::Attribute {
                 target_id,
@@ -343,6 +355,40 @@ fn emit_text_binding(
     writer.push("));\n");
 }
 
+fn emit_text_content_binding(
+    writer: &mut CodeWriter,
+    target: &str,
+    parts: &[TextContentPart],
+    runtime: &RuntimeNames,
+) {
+    writer.push(runtime.bind_text_content());
+    writer.push("(");
+    writer.push(target);
+    writer.push(", () => (");
+
+    if parts.len() == 1 {
+        emit_text_content_part(writer, &parts[0]);
+    } else {
+        writer.push("[");
+        for (index, part) in parts.iter().enumerate() {
+            if index > 0 {
+                writer.push(", ");
+            }
+            emit_text_content_part(writer, part);
+        }
+        writer.push("]");
+    }
+
+    writer.push("));\n");
+}
+
+fn emit_text_content_part(writer: &mut CodeWriter, part: &TextContentPart) {
+    match part {
+        TextContentPart::Static(value) => writer.push(&quote_js(value)),
+        TextContentPart::Dynamic(expression) => writer.push_mapped(&expression.code, expression),
+    }
+}
+
 fn emit_attribute_binding(
     writer: &mut CodeWriter,
     target: &str,
@@ -417,6 +463,7 @@ fn render_template(element: &ElementIr, locator_attribute: &str) -> String {
 }
 
 fn render_element(element: &ElementIr, locator_attribute: &str, html: &mut String) {
+    let is_raw_text = is_raw_text_element(&element.tag_name);
     html.push('<');
     html.push_str(&element.tag_name);
     for attribute in &element.attributes {
@@ -439,9 +486,23 @@ fn render_element(element: &ElementIr, locator_attribute: &str, html: &mut Strin
     }
     html.push('>');
 
+    if is_void_element(&element.tag_name) {
+        return;
+    }
+
+    if is_raw_text && has_dynamic_raw_text(element) {
+        html.push_str("</");
+        html.push_str(&element.tag_name);
+        html.push('>');
+        return;
+    }
+
     for child in &element.children {
         match child {
             ChildIr::Element(element) => render_element(element, locator_attribute, html),
+            ChildIr::Text(text) if is_unescaped_raw_text(&element.tag_name) => {
+                html.push_str(&text.value);
+            }
             ChildIr::Text(text) => html.push_str(&escape_html_text(&text.value)),
             ChildIr::DynamicText(_) => html.push_str("<!>"),
         }
@@ -485,6 +546,20 @@ fn collect_element_bindings(element: &ElementIr, bindings: &mut Vec<DynamicBindi
         }
     }
 
+    if is_raw_text_element(&element.tag_name) {
+        let parts = collect_text_content_parts(element);
+        if parts
+            .iter()
+            .any(|part| matches!(part, TextContentPart::Dynamic(_)))
+        {
+            bindings.push(DynamicBinding::TextContent {
+                target_id: element.id,
+                parts,
+            });
+        }
+        return;
+    }
+
     for child in &element.children {
         match child {
             ChildIr::Element(element) => collect_element_bindings(element, bindings),
@@ -505,7 +580,30 @@ fn has_element_binding(element: &ElementIr) -> bool {
                 | AttributeIr::Event(_)
                 | AttributeIr::Ref(_)
         )
-    })
+    }) || (is_raw_text_element(&element.tag_name) && has_dynamic_raw_text(element))
+}
+
+fn has_dynamic_raw_text(element: &ElementIr) -> bool {
+    element
+        .children
+        .iter()
+        .any(|child| matches!(child, ChildIr::DynamicText(_)))
+}
+
+fn is_unescaped_raw_text(tag_name: &str) -> bool {
+    tag_name.eq_ignore_ascii_case("script") || tag_name.eq_ignore_ascii_case("style")
+}
+
+fn collect_text_content_parts(element: &ElementIr) -> Vec<TextContentPart> {
+    element
+        .children
+        .iter()
+        .filter_map(|child| match child {
+            ChildIr::Text(text) => Some(TextContentPart::Static(text.value.clone())),
+            ChildIr::DynamicText(text) => Some(TextContentPart::Dynamic(text.expression.clone())),
+            ChildIr::Element(_) => None,
+        })
+        .collect()
 }
 
 fn collect_delegated_events(
@@ -607,6 +705,7 @@ struct GeneratedComponent {
     template_name: String,
     element_name: String,
     template_html: String,
+    is_svg: bool,
     bindings: Vec<DynamicBinding>,
     targets: Vec<ElementTarget>,
 }
@@ -642,6 +741,7 @@ impl GeneratedComponent {
             template_name,
             element_name,
             template_html: render_template(&component.root, locator_attribute),
+            is_svg: is_svg_element(&component.root.tag_name),
             bindings,
             targets,
         }
@@ -664,6 +764,10 @@ struct ElementTarget {
 enum DynamicBinding {
     Text {
         expression: ExpressionIr,
+    },
+    TextContent {
+        target_id: NodeId,
+        parts: Vec<TextContentPart>,
     },
     Attribute {
         target_id: NodeId,
@@ -691,12 +795,18 @@ impl DynamicBinding {
     fn target_id(&self) -> Option<NodeId> {
         match self {
             Self::Text { .. } => None,
-            Self::Attribute { target_id, .. }
+            Self::TextContent { target_id, .. }
+            | Self::Attribute { target_id, .. }
             | Self::Property { target_id, .. }
             | Self::Event { target_id, .. }
             | Self::Ref { target_id, .. } => Some(*target_id),
         }
     }
+}
+
+enum TextContentPart {
+    Static(String),
+    Dynamic(ExpressionIr),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -738,6 +848,9 @@ impl HelperUsage {
                 DynamicBinding::Text { .. } => {
                     usage.0.insert(RuntimeHelper::Insert);
                     usage.0.insert(RuntimeHelper::BindText);
+                }
+                DynamicBinding::TextContent { .. } => {
+                    usage.0.insert(RuntimeHelper::BindTextContent);
                 }
                 DynamicBinding::Attribute { kind, .. } => match kind {
                     AttributeBindingKind::Attribute => {
@@ -809,6 +922,10 @@ impl RuntimeNames {
         self.get(RuntimeHelper::BindText)
     }
 
+    fn bind_text_content(&self) -> &str {
+        self.get(RuntimeHelper::BindTextContent)
+    }
+
     fn bind_attr(&self) -> &str {
         self.get(RuntimeHelper::BindAttr)
     }
@@ -843,6 +960,7 @@ enum RuntimeHelper {
     Template,
     Insert,
     BindText,
+    BindTextContent,
     BindAttr,
     BindClass,
     BindStyle,
@@ -853,10 +971,11 @@ enum RuntimeHelper {
 }
 
 impl RuntimeHelper {
-    const ORDERED: [Self; 10] = [
+    const ORDERED: [Self; 11] = [
         Self::Template,
         Self::Insert,
         Self::BindText,
+        Self::BindTextContent,
         Self::BindAttr,
         Self::BindClass,
         Self::BindStyle,
@@ -871,6 +990,7 @@ impl RuntimeHelper {
             Self::Template => "template",
             Self::Insert => "insert",
             Self::BindText => "bindText",
+            Self::BindTextContent => "bindTextContent",
             Self::BindAttr => "bindAttr",
             Self::BindClass => "bindClass",
             Self::BindStyle => "bindStyle",
@@ -886,6 +1006,7 @@ impl RuntimeHelper {
             Self::Template => "$zeusTemplate",
             Self::Insert => "$zeusInsert",
             Self::BindText => "$zeusBindText",
+            Self::BindTextContent => "$zeusBindTextContent",
             Self::BindAttr => "$zeusBindAttr",
             Self::BindClass => "$zeusBindClass",
             Self::BindStyle => "$zeusBindStyle",

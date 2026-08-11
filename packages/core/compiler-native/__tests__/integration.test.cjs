@@ -26,6 +26,7 @@ const props = { get name() { return name() } }
 let executions = 0
 let nestedExecutions = 0
 let bindingExecutions = 0
+let specialExecutions = 0
 const inputRef = { value: null as HTMLInputElement | null }
 const eventCalls: string[] = []
 const eventCurrentTargets: Array<string | null> = []
@@ -74,6 +75,22 @@ export const Table = (props: { name: string }) => (
   <table><tr><td>{props.name}</td></tr></table>
 )
 
+export const Icon = (props: { name: string }) => (
+  <svg viewBox="0 0 10 10"><circle data-radius={props.name} /></svg>
+)
+
+export const Special = (props: { name: string }) => (
+  specialExecutions++,
+  <main>
+    <script>const amp = "a&b";{props.name}</script>
+    <style>.x: color red; {props.name}</style>
+    <textarea>prefix {props.name}</textarea>
+    <title>prefix {props.name}</title>
+    <z-card data-name={props.name}><input disabled /></z-card>
+    <img alt="pixel" />
+  </main>
+)
+
 export const Bindings = (props: { name: string }) => (
   bindingExecutions++,
   <section
@@ -96,11 +113,14 @@ export const mount = () => App(props)
 export const mountNested = () => Nested(props)
 export const mountStatic = () => Static()
 export const mountTable = () => Table(props)
+export const mountIcon = () => Icon(props)
+export const mountSpecial = () => Special(props)
 export const mountBindings = (container: Element) => render(() => Bindings(props), container)
 export const updateName = setName
 export const executionCount = () => executions
 export const nestedExecutionCount = () => nestedExecutions
 export const bindingExecutionCount = () => bindingExecutions
+export const specialExecutionCount = () => specialExecutions
 export const inputRefValue = () => inputRef.value
 export const eventCallLog = () => [...eventCalls]
 export const eventCurrentTargetLog = () => [...eventCurrentTargets]
@@ -138,6 +158,8 @@ test('native compiler executes through Vite with fine-grained DOM updates', asyn
     const nested = module.mountNested()
     const staticElement = module.mountStatic()
     const table = module.mountTable()
+    const icon = module.mountIcon()
+    const special = module.mountSpecial()
     const bindingContainer = document.createElement('div')
     document.body.append(bindingContainer)
     const disposeBindings = module.mountBindings(bindingContainer)
@@ -160,6 +182,36 @@ test('native compiler executes through Vite with fine-grained DOM updates', asyn
       table.outerHTML,
       '<table><tbody><tr><td>Ada</td></tr></tbody></table>',
     )
+    assert.equal(icon.namespaceURI, 'http://www.w3.org/2000/svg')
+    assert.equal(
+      icon.firstElementChild.namespaceURI,
+      'http://www.w3.org/2000/svg',
+    )
+    assert.equal(icon.firstElementChild.getAttribute('data-radius'), 'Ada')
+    assert.equal(
+      special.querySelector('script').textContent,
+      'const amp = "a&b";Ada',
+    )
+    assert.equal(
+      special.querySelector('style').textContent,
+      '.x: color red; Ada',
+    )
+    assert.equal(special.querySelector('textarea').textContent, 'prefix Ada')
+    assert.equal(special.querySelector('title').textContent, 'prefix Ada')
+    assert.equal(
+      special.querySelector('z-card').namespaceURI,
+      'http://www.w3.org/1999/xhtml',
+    )
+    assert.equal(
+      special.querySelector('z-card').getAttribute('data-name'),
+      'Ada',
+    )
+    assert.equal(
+      special.querySelector('z-card input').hasAttribute('disabled'),
+      true,
+    )
+    assert.equal(special.querySelector('img').hasAttribute('alt'), true)
+    assert.equal(module.specialExecutionCount(), 1)
     assert.equal(bindings.getAttribute('data-zeus-node'), 'user')
     assert.equal(bindings.getAttribute('title'), 'Ada')
     assert.equal(bindings.getAttribute('class'), 'initial')
@@ -209,6 +261,22 @@ test('native compiler executes through Vite with fine-grained DOM updates', asyn
       table.outerHTML,
       '<table><tbody><tr><td>Grace</td></tr></tbody></table>',
     )
+    assert.equal(icon.firstElementChild.getAttribute('data-radius'), 'Grace')
+    assert.equal(
+      special.querySelector('script').textContent,
+      'const amp = "a&b";Grace',
+    )
+    assert.equal(
+      special.querySelector('style').textContent,
+      '.x: color red; Grace',
+    )
+    assert.equal(special.querySelector('textarea').textContent, 'prefix Grace')
+    assert.equal(special.querySelector('title').textContent, 'prefix Grace')
+    assert.equal(
+      special.querySelector('z-card').getAttribute('data-name'),
+      'Grace',
+    )
+    assert.equal(module.specialExecutionCount(), 1)
     assert.equal(bindings.getAttribute('title'), 'Grace')
     assert.equal(bindings.getAttribute('class'), 'updated')
     assert.equal(bindings.style.color, 'blue')
