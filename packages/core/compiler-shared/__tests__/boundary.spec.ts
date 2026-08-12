@@ -4,9 +4,26 @@ import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
-import { dynamicTextIR, expressionIR, hostIR, ref, slotIR } from '../src'
+import {
+  attrBindingIR,
+  dynamicTextIR,
+  eventBindingIR,
+  expressionIR,
+  hostIR,
+  propBindingIR,
+  ref,
+  refBindingIR,
+  slotIR,
+  staticAttrIR,
+} from '../src'
+
+import type { AttributeIR } from '../src'
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)))
+const fixtureSpan = {
+  start: { line: 1, column: 0, offset: 0 },
+  end: { line: 1, column: 1, offset: 1 },
+}
 
 describe('compiler-shared boundary', () => {
   it('round-trips IR through JSON without compiler frontend objects', () => {
@@ -39,6 +56,42 @@ describe('compiler-shared boundary', () => {
     expect(JSON.parse(JSON.stringify(node))).toEqual(node)
     expect(node.span).toEqual(hostSpan)
     expect(node.child?.span).toEqual(slotSpan)
+  })
+
+  it('shares the canonical attribute binding JSON schema with Rust', () => {
+    const fixture = JSON.parse(
+      readFileSync(
+        join(packageRoot, 'fixtures/attribute-bindings.json'),
+        'utf8',
+      ),
+    ) as AttributeIR[]
+    const built: AttributeIR[] = [
+      staticAttrIR('class', 'field', fixtureSpan),
+      staticAttrIR('disabled', true, fixtureSpan),
+      attrBindingIR(
+        'title',
+        expressionIR('props.title', fixtureSpan, 'member'),
+        fixtureSpan,
+      ),
+      propBindingIR(
+        'value',
+        expressionIR('() => props.value', fixtureSpan, 'getter'),
+        fixtureSpan,
+      ),
+      eventBindingIR(
+        'click',
+        expressionIR("props.handlers['click']", fixtureSpan, 'member'),
+        fixtureSpan,
+      ),
+      refBindingIR(expressionIR('inputRef', fixtureSpan), fixtureSpan),
+    ]
+    const normalized = built.map((attribute, index) => ({
+      ...attribute,
+      id: index + 3,
+    }))
+
+    expect(normalized).toEqual(fixture)
+    expect(JSON.parse(JSON.stringify(normalized))).toEqual(fixture)
   })
 
   it('declares no Babel package dependencies', () => {

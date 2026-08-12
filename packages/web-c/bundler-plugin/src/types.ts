@@ -1,4 +1,4 @@
-import type { CompilerOptions } from '@zeus-js/compiler'
+import type { NativeCompilerOptions } from './native'
 import type {
   AnalyzerDiagnostic,
   ComponentManifest,
@@ -199,7 +199,7 @@ export interface ZeusBundlerPluginOptions {
   /**
    * Compiler options.
    */
-  compiler?: Partial<CompilerOptions>
+  compiler?: Partial<NativeCompilerOptions>
 
   /**
    * Print analyzer diagnostics.
@@ -214,7 +214,7 @@ export interface ZeusBundlerPluginOptions {
   plugins?: ZeusComponentPlugin[]
 
   /**
-   * Enable TypeScript transpilation via Babel preset-typescript.
+   * Enable TypeScript downlevel transpilation after native JSX lowering.
    *
    * @default
    * - rollup: true

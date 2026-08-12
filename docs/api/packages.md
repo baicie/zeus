@@ -20,27 +20,28 @@
 
 下表版本与各 package 的 `package.json` 保持同步，位于 monorepo `packages/` 下，通过 pnpm workspace 管理。
 
-| 包名                            | 路径                                  | 版本  | 类型     | 说明                                         |
-| ------------------------------- | ------------------------------------- | ----- | -------- | -------------------------------------------- |
-| `@zeus-js/zeus`                 | `packages/core/zeus`                  | 0.1.0 | core     | 统一入口，导出所有公共 API                   |
-| `@zeus-js/signal`               | `packages/core/signal`                | 0.1.0 | core     | 响应式核心，基于 alien-signals               |
-| `@zeus-js/runtime-dom`          | `packages/core/runtime-dom`           | 0.1.0 | core     | DOM runtime helpers                          |
-| `@zeus-js/runtime-ssr`          | `packages/core/runtime-ssr`           | 0.1.0 | core     | 服务端字符串渲染 runtime                     |
-| `@zeus-js/compiler`             | `packages/core/compiler`              | 0.1.0 | core     | Babel JSX 编译器插件                         |
-| `@zeus-js/shared`               | `packages/core/shared`                | 0.1.0 | core     | 内部工具函数，无外部依赖                     |
-| `@zeus-js/vite-plugin`          | `packages/devtools/vite-plugin`       | 0.0.4 | devtools | Vite 集成插件                                |
-| `create-zeus`                   | `packages/devtools/create-zeus`       | 0.1.2 | devtools | 项目脚手架生成器（CLI）                      |
-| `@zeus-js/output-wc`            | `packages/web-c/output-wc`            | 0.1.0 | web-c    | Web Component 输出插件                       |
-| `@zeus-js/output-react-wrapper` | `packages/web-c/output-react-wrapper` | 0.1.0 | web-c    | React wrapper 输出插件                       |
-| `@zeus-js/output-vue-wrapper`   | `packages/web-c/output-vue-wrapper`   | 0.1.0 | web-c    | Vue wrapper 输出插件                         |
-| `@zeus-js/output-icons`         | `packages/web-c/output-icons`         | 0.1.0 | web-c    | 图标输出插件                                 |
-| `@zeus-js/output-css`           | `packages/web-c/output-css`           | 0.1.0 | web-c    | CSS 资源输出插件                             |
-| `@zeus-js/component-analyzer`   | `packages/web-c/component-analyzer`   | 0.1.0 | web-c    | 组件分析器（解析 JSX）                       |
-| `@zeus-js/component-dts`        | `packages/web-c/component-dts`        | 0.1.0 | web-c    | manifest DTS 生成器                          |
-| `@zeus-js/bundler-plugin`       | `packages/web-c/bundler-plugin`       | 0.1.0 | web-c    | bundler 插件宿主（Vite / Rollup / Rolldown） |
-| `@zeus-js/web-c`                | `packages/web-c/web-c`                | 0.1.0 | web-c    | Web-C 聚合入口与组件库预设                   |
-| `@zeus-ui/registry`             | `packages/create/registry`            | 0.0.1 | create   | UI 组件注册表（copyable 源码）               |
-| `zeus-ui`                       | `packages/create/zeus-ui`             | 0.0.1 | create   | CLI 工具添加 UI 组件到项目                   |
+| 包名                            | 路径                                  | 版本         | 类型     | 说明                                         |
+| ------------------------------- | ------------------------------------- | ------------ | -------- | -------------------------------------------- |
+| `@zeus-js/zeus`                 | `packages/core/zeus`                  | 0.1.0        | core     | 统一入口，导出所有公共 API                   |
+| `@zeus-js/signal`               | `packages/core/signal`                | 0.1.0        | core     | 响应式核心，基于 alien-signals               |
+| `@zeus-js/runtime-dom`          | `packages/core/runtime-dom`           | 0.1.0        | core     | DOM runtime helpers                          |
+| `@zeus-js/runtime-ssr`          | `packages/core/runtime-ssr`           | 0.1.0        | core     | 服务端字符串渲染 runtime                     |
+| `@zeus-js/compiler`             | `packages/core/compiler`              | 0.1.1-beta.0 | core     | Rust-native JSX/TSX 编译器                   |
+| `@zeus-js/compiler-native`      | `packages/core/compiler-native`       | 0.1.1-beta.0 | core     | Node native loader                           |
+| `@zeus-js/shared`               | `packages/core/shared`                | 0.1.0        | core     | 内部工具函数，无外部依赖                     |
+| `@zeus-js/vite-plugin`          | `packages/devtools/vite-plugin`       | 0.0.4        | devtools | Vite 集成插件                                |
+| `create-zeus`                   | `packages/devtools/create-zeus`       | 0.1.2        | devtools | 项目脚手架生成器（CLI）                      |
+| `@zeus-js/output-wc`            | `packages/web-c/output-wc`            | 0.1.0        | web-c    | Web Component 输出插件                       |
+| `@zeus-js/output-react-wrapper` | `packages/web-c/output-react-wrapper` | 0.1.0        | web-c    | React wrapper 输出插件                       |
+| `@zeus-js/output-vue-wrapper`   | `packages/web-c/output-vue-wrapper`   | 0.1.0        | web-c    | Vue wrapper 输出插件                         |
+| `@zeus-js/output-icons`         | `packages/web-c/output-icons`         | 0.1.0        | web-c    | 图标输出插件                                 |
+| `@zeus-js/output-css`           | `packages/web-c/output-css`           | 0.1.0        | web-c    | CSS 资源输出插件                             |
+| `@zeus-js/component-analyzer`   | `packages/web-c/component-analyzer`   | 0.1.0        | web-c    | 组件分析器（解析 JSX）                       |
+| `@zeus-js/component-dts`        | `packages/web-c/component-dts`        | 0.1.0        | web-c    | manifest DTS 生成器                          |
+| `@zeus-js/bundler-plugin`       | `packages/web-c/bundler-plugin`       | 0.1.0        | web-c    | bundler 插件宿主（Vite / Rollup / Rolldown） |
+| `@zeus-js/web-c`                | `packages/web-c/web-c`                | 0.1.0        | web-c    | Web-C 聚合入口与组件库预设                   |
+| `@zeus-ui/registry`             | `packages/create/registry`            | 0.0.1        | create   | UI 组件注册表（copyable 源码）               |
+| `zeus-ui`                       | `packages/create/zeus-ui`             | 0.0.1        | create   | CLI 工具添加 UI 组件到项目                   |
 
 **不推荐直接引入的内部包**（无 `main`/`exports`，仅供 workspace 内部使用）：
 
@@ -61,15 +62,10 @@
     └── @zeus-js/signal
 
 @zeus-js/compiler
-├── @babel/core
-├── @babel/plugin-syntax-jsx
-├── @babel/types
-├── @baicie/logger
-└── @zeus-js/shared
+└── @zeus-js/compiler-native
 
 @zeus-js/vite-plugin
-├── @babel/core
-└── @zeus-js/compiler
+└── @zeus-js/compiler-native
 
 @zeus-js/web-c
 ├── @zeus-js/output-css
@@ -83,9 +79,7 @@
 └── @zeus-js/component-dts
 
 @zeus-js/bundler-plugin
-├── @babel/core
-├── @babel/preset-typescript
-├── @zeus-js/compiler
+├── @zeus-js/compiler-native
 ├── @zeus-js/component-analyzer
 ├── fast-glob
 ├── picomatch
@@ -453,63 +447,36 @@ defineElement('my-element', {
 
 ### 3.4 `@zeus-js/compiler`
 
-**用途**：Babel 插件，将 TSX/JSX 编译为 Zeus runtime 调用。
+**用途**：Rust-native transform API，将 TSX/JSX 编译为 Zeus runtime 调用。
 
 #### 导出
 
 ```ts
-import zeusCompiler from '@zeus-js/compiler'
-import type { CompilerOptions } from '@zeus-js/compiler'
+import { transformModule } from '@zeus-js/compiler'
 
-// 作为 Babel 插件直接使用
-const result = await transformAsync(code, {
-  plugins: [
-    [
-      zeusCompiler,
-      {
-        moduleName: '@zeus-js/runtime-dom',
-        generate: 'dom',
-        hydratable: false,
-        delegateEvents: true,
-        delegatedEvents: [],
-        builtIns: [],
-        wrapConditionals: true,
-        omitNestedClosingTags: false,
-        omitLastClosingTag: true,
-        omitQuotes: true,
-        contextToCustomElements: false,
-        staticMarker: '@once',
-        effectWrapper: 'effect',
-        memoWrapper: 'memo',
-        validate: true,
-        inlineStyles: true,
-      } satisfies Partial<CompilerOptions>,
-    ],
-  ],
+const result = transformModule({
+  source: code,
+  filename: 'view.tsx',
+  target: 'dom',
+  runtimeModule: '@zeus-js/runtime-dom',
+  delegateEvents: true,
+  sourceMap: true,
 })
 ```
 
-#### CompilerOptions 说明
+#### TransformModuleOptions 说明
 
-| 选项                      | 默认值                 | 说明                                     |
-| ------------------------- | ---------------------- | ---------------------------------------- |
-| `moduleName`              | `@zeus-js/runtime-dom` | 运行时模块名（生成的 import 路径）       |
-| `generate`                | `'dom'`                | 输出模式：`'dom'` 或 `'ssr'`             |
-| `hydratable`              | `false`                | 是否生成可 hydrate 的标记                |
-| `delegateEvents`          | `true`                 | 自动事件委托（onClick → click 事件冒泡） |
-| `delegatedEvents`         | `[]`                   | 额外需要委托的事件列表                   |
-| `builtIns`                | `[]`                   | 内置组件列表（编译器不报错）             |
-| `wrapConditionals`        | `true`                 | 优化简单条件表达式                       |
-| `staticMarker`            | `'@once'`              | 静态表达式标记注释                       |
-| `effectWrapper`           | `'effect'`             | 响应式包装函数名                         |
-| `memoWrapper`             | `'memo'`               | 派生值包装函数名                         |
-| `contextToCustomElements` | `false`                | 是否向 custom element 传递 context       |
-| `inlineStyles`            | `true`                 | 是否内联 style                           |
-| `validate`                | `true`                 | HTML 验证                                |
-| `omitLastClosingTag`      | `true`                 | 省略最后一个闭合标签                     |
-| `omitQuotes`              | `true`                 | 省略可省略的属性引号                     |
+| 选项             | 说明                               |
+| ---------------- | ---------------------------------- |
+| `source`         | 输入 TSX/JSX 模块源码。            |
+| `filename`       | 诊断与 source map 使用的源文件名。 |
+| `target`         | `'dom'` 或 `'ssr'`。               |
+| `runtimeModule`  | 生成代码导入的 runtime 模块。      |
+| `delegateEvents` | 是否启用 DOM 事件委托。            |
+| `sourceMap`      | 是否生成 Source Map v3。           |
+| `hmr`            | 是否注入开发期顶层 render 边界。   |
 
----
+结果包含生成代码、可选 Source Map v3 和结构化 diagnostics。编译错误不会被折叠成异常字符串。
 
 ### 3.5 `@zeus-js/shared`
 
@@ -529,7 +496,7 @@ export * from './typeUtils' // 类型工具
 
 ### 4.1 `@zeus-js/vite-plugin`
 
-**用途**：Vite 集成插件，封装 `@zeus-js/compiler`，在 `transform` 阶段处理 TSX。
+**用途**：Vite 集成插件，在 `transform` 阶段调用 Rust-native `transformModule` 处理 TSX。
 
 #### 导出
 
@@ -542,7 +509,7 @@ export interface ZeusVitePluginOptions {
   exclude?: RegExp | RegExp[] // 排除的文件，默认 node_modules
   hmr?: boolean // dev server 顶层 render root 自动 dispose/remount，默认 true
   ssrModuleName?: string // SSR runtime 模块，默认 @zeus-js/runtime-ssr
-  compiler?: Partial<CompilerOptions> // 编译器选项
+  compiler?: { moduleName?: string; delegateEvents?: boolean } // native transform 选项
 }
 ```
 
@@ -629,11 +596,11 @@ export { manifest } from './manifest'
 
 | 入口         | 默认 `transpile` | 行为                                                           |
 | ------------ | ---------------- | -------------------------------------------------------------- |
-| `./rollup`   | `true`           | Zeus 编译 JSX，并用 Babel TypeScript preset 擦除 TS 类型。     |
+| `./rollup`   | `true`           | Zeus 编译 JSX，并用 TypeScript API 擦除 TS 类型。              |
 | `./rolldown` | `false`          | Zeus 编译 JSX，默认交给 Rolldown internal transform 处理 TS。  |
 | `./vite`     | `false`          | Zeus 编译 JSX，默认交给 Vite 的 esbuild/Oxc pipeline 处理 TS。 |
 
-显式传入 `zeus({ transpile: true })` 时，三个 adapter 都会对 TS-like 文件运行 Babel TypeScript preset。Rollup adapter 还会默认补充 extensionless 解析：
+显式传入 `zeus({ transpile: true })` 时，三个 adapter 都会对 TS-like 文件运行 TypeScript API downlevel。Rollup adapter 还会默认补充 extensionless 解析：
 
 ```ts
 ;['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs']
@@ -753,7 +720,7 @@ export from './shared/theme' // 主题配置工具
 pnpm add @zeus-js/zeus
 # 或单独安装
 pnpm add @zeus-js/signal @zeus-js/runtime-dom
-pnpm add @zeus-js/compiler  # peer: @babel/core
+pnpm add @zeus-js/compiler  # 自动安装匹配平台 native package
 pnpm add @zeus-js/vite-plugin  # peer: vite
 
 # Web Component 组件库输出
@@ -788,14 +755,9 @@ pnpm add @zeus-ui/cli
 ## 附录 B：pnpm catalog 共享依赖版本
 
 ```yaml
-'@babel/core': ^7.29.0
-'@babel/parser': ^7.29.0
-'@babel/plugin-syntax-jsx': ^7.28.6
-'@babel/preset-env': ^7.29.0
-'@babel/preset-typescript': ^7.29.7
-'@babel/types': ^7.29.0
-'@napi-rs/cli': ^3.5.1
+'@babel/parser': ^8.0.0
+'@babel/types': ^8.0.0
+'@napi-rs/cli': 3.6.2
 '@napi-rs/wasm-runtime': ^1.1.1
-'@types/babel__core': 7.20.5
 vite: ^8.0.5
 ```

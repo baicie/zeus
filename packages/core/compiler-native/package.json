@@ -1,0 +1,67 @@
+{
+  "name": "@zeus-js/compiler-native",
+  "version": "0.1.1-beta.0",
+  "description": "Rust-native Zeus compiler Node adapter",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baicie/zeus.git",
+    "directory": "packages/core/compiler-native"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "type": "commonjs",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js",
+      "require": "./index.js",
+      "default": "./index.js"
+    }
+  },
+  "scripts": {
+    "build:native": "napi build --platform --release --js index.js --dts index.d.ts",
+    "test:native": "node --test __tests__/*.test.cjs"
+  },
+  "optionalDependencies": {
+    "@zeus-js/compiler-native-darwin-arm64": "workspace:*",
+    "@zeus-js/compiler-native-darwin-x64": "workspace:*",
+    "@zeus-js/compiler-native-linux-arm64-gnu": "workspace:*",
+    "@zeus-js/compiler-native-linux-x64-gnu": "workspace:*",
+    "@zeus-js/compiler-native-linux-x64-musl": "workspace:*",
+    "@zeus-js/compiler-native-win32-arm64-msvc": "workspace:*",
+    "@zeus-js/compiler-native-win32-x64-msvc": "workspace:*"
+  },
+  "devDependencies": {
+    "@jridgewell/trace-mapping": "^0.3.31",
+    "@napi-rs/cli": "catalog:",
+    "jsdom": "^29.1.1",
+    "vite": "catalog:"
+  },
+  "napi": {
+    "binaryName": "zeus-compiler-native",
+    "packageName": "@zeus-js/compiler-native",
+    "targets": [
+      "aarch64-apple-darwin",
+      "x86_64-apple-darwin",
+      "x86_64-unknown-linux-gnu",
+      "x86_64-unknown-linux-musl",
+      "aarch64-unknown-linux-gnu",
+      "x86_64-pc-windows-msvc",
+      "aarch64-pc-windows-msvc"
+    ]
+  },
+  "engines": {
+    "node": "^22.18.0 || >=24.11.0"
+  }
+}

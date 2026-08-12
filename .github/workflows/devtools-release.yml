@@ -35,6 +35,9 @@ jobs:
       - name: Install deps
         run: pnpm install --frozen-lockfile
 
+      - name: Build host native compiler
+        run: pnpm --filter @zeus-js/compiler-native build:native
+
       - name: Verify published template dependencies
         if: startsWith(github.ref_name, 'create-zeus@')
         run: pnpm check:create-zeus-registry
@@ -58,3 +61,15 @@ jobs:
         run: pnpm standalone:publish "${{ github.ref_name }}"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Verify npm publication
+        env:
+          RELEASE_REF: ${{ github.ref_name }}
+        run: |
+          case "$RELEASE_REF" in
+            create-zeus@*) PACKAGE="create-zeus" ;;
+            vite-plugin@*) PACKAGE="@zeus-js/vite-plugin" ;;
+            *) echo "Unsupported devtools release ref: $RELEASE_REF" >&2; exit 1 ;;
+          esac
+          VERSION="${RELEASE_REF##*@}"
+          pnpm release:verify:published --package "$PACKAGE" --version "$VERSION"

@@ -38,7 +38,7 @@ export type RefTarget<T> =
 export declare function template<T extends Node = Node>(
   html: string,
   _isImportNode?: boolean,
-  _isSVG?: boolean,
+  isSVG?: boolean,
   _isMathML?: boolean,
 ): TemplateFactory<T>
 

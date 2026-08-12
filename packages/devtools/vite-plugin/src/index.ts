@@ -1,17 +1,15 @@
-import { transformAsync } from '@babel/core'
-import zeusCompiler, {
-  CompilerError,
-  formatCompilerDiagnostic,
-} from '@zeus-js/compiler'
-
-import { createRootHMRPlugin } from './hmr'
+import { transformModule } from './native'
 import {
   resolveRuntimeDOMEntry,
   resolveRuntimeSSREntry,
 } from './runtime-resolution'
 
-import type { CompilerOptions } from '@zeus-js/compiler'
 import type { Plugin, UserConfig } from 'vite'
+
+export interface ZeusNativeCompilerOptions {
+  moduleName?: string
+  delegateEvents?: boolean
+}
 
 export interface ZeusVitePluginOptions {
   include?: RegExp | RegExp[]
@@ -20,7 +18,7 @@ export interface ZeusVitePluginOptions {
   hmr?: boolean
   /** Runtime module used by Vite SSR transforms. */
   ssrModuleName?: string
-  compiler?: Partial<CompilerOptions>
+  compiler?: ZeusNativeCompilerOptions
 }
 
 function normalizePatterns(value: RegExp | RegExp[]): RegExp[] {
@@ -109,69 +107,36 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
         return null
       }
 
-      try {
-        const result = await transformAsync(code, {
-          filename,
-          sourceMaps: true,
-          plugins: [
-            [
-              zeusCompiler as unknown as (api: object, opts: object) => object,
-              {
-                hydratable: false,
-                ...options.compiler,
-                moduleName: isSSR
-                  ? (options.ssrModuleName ?? '@zeus-js/runtime-ssr')
-                  : (options.compiler?.moduleName ?? '@zeus-js/runtime-dom'),
-                generate: isSSR ? 'ssr' : 'dom',
-                ...(isSSR ? { delegateEvents: false } : {}),
-              } satisfies Partial<CompilerOptions>,
-            ],
-            ...(enableRootHMR && !transformOptions?.ssr
-              ? [createRootHMRPlugin]
-              : []),
-          ],
-          parserOpts: {
-            sourceType: 'module',
-            plugins: ['typescript', 'jsx'],
-          },
-          generatorOpts: {
-            retainLines: false,
-            compact: false,
-            jsescOption: {
-              minimal: true,
-            },
-          },
-        })
+      const result = transformModule({
+        source: code,
+        filename,
+        target: isSSR ? 'ssr' : 'dom',
+        runtimeModule: isSSR
+          ? (options.ssrModuleName ?? '@zeus-js/runtime-ssr')
+          : (options.compiler?.moduleName ?? '@zeus-js/runtime-dom'),
+        delegateEvents: isSSR
+          ? false
+          : (options.compiler?.delegateEvents ?? true),
+        sourceMap: true,
+        hmr: enableRootHMR && !isSSR,
+      })
 
-        if (!result?.code) return null
-
-        return {
-          code: result.code,
-          map: result.map as unknown as { mappings: string } | null,
-        }
-      } catch (error) {
-        if (!(error instanceof CompilerError)) throw error
-
-        const diagnostic = error.diagnostic
+      const diagnostic = result.diagnostics.find(
+        entry => entry.severity === 'error',
+      )
+      if (diagnostic) {
         const start = diagnostic.span?.start
-
         this.error({
-          name: error.name,
-          message: formatCompilerDiagnostic(diagnostic),
-          cause: error,
-          id: diagnostic.filename ?? filename,
-          loc: start
-            ? {
-                line: start.line,
-                column: start.column,
-              }
-            : undefined,
+          name: 'ZeusCompilerDiagnostic',
+          message: `${diagnostic.code}: ${diagnostic.message}`,
+          id: diagnostic.filename || filename,
+          loc: start ? { line: start.line, column: start.column } : undefined,
           pluginCode: diagnostic.code,
-          meta: {
-            zeusDiagnostic: diagnostic,
-          },
+          meta: { zeusDiagnostic: diagnostic },
         })
       }
+
+      return { code: result.code, map: result.map }
     },
   }
 }

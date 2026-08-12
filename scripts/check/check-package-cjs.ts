@@ -130,6 +130,15 @@ for (const pkg of findWorkspacePackages()) {
     exports?: Record<string, unknown>
   }
 
+  // Native binary packages have one platform-specific CommonJS entry and do
+  // not expose development/production JS variants like framework packages.
+  if (
+    packageJson.name === '@zeus-js/compiler-native' ||
+    packageJson.name.startsWith('@zeus-js/compiler-native-')
+  ) {
+    continue
+  }
+
   if (
     packageJson.private ||
     (packageFilters.size > 0 && !packageFilters.has(packageJson.name)) ||

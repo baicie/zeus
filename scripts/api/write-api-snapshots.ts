@@ -84,6 +84,7 @@ function collectApiEntries(pkg: {
   if (!exportsField) return entries
 
   for (const [subpath, value] of Object.entries(exportsField)) {
+    if (subpath === './package.json') continue
     const typesPath = findTypesTarget(value)
 
     if (!typesPath) continue

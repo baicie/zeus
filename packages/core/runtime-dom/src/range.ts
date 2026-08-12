@@ -51,6 +51,15 @@ export function insertTracked(
     return nodes
   }
 
+  if (value instanceof Node && value.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+    const nodes = Array.from(value.childNodes)
+    for (const node of nodes) {
+      trackRuntimeDomInsertion(parent, node)
+      parent.insertBefore(node, marker)
+    }
+    return nodes
+  }
+
   const node =
     value instanceof Node ? value : document.createTextNode(String(value))
 

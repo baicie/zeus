@@ -60,7 +60,7 @@ describe('rollup adapter', () => {
     expect(code).toContain('bindAttr')
     expect(code).toContain('bindText')
     expect(code).toContain('renderLabel')
-    expect(code).toContain('template(`<span><!></span>`)')
+    expect(code).toContain('template("<span><!></span>")')
     expect(code).toContain('mtsLabel')
     expect(code).toContain('ctsLabel')
     expect(code).not.toContain('ButtonProps')
@@ -142,6 +142,6 @@ describe('rollup adapter', () => {
     const code = output[0].code
 
     expect(code).toContain('@zeus-js/runtime-dom')
-    expect(code).toContain('template(`<button>Submit</button>`)')
+    expect(code).toContain('template("<button>Submit</button>")')
   })
 })

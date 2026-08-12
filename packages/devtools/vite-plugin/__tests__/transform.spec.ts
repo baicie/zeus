@@ -105,7 +105,7 @@ describe('vite-plugin-zeus transform', () => {
       const result = await createTransformHarness()(source, id)
       const code = getCode(result)
 
-      expect(code).toContain('_template')
+      expect(code).toContain('$zeusTemplate')
       expect(result).toEqual(
         expect.objectContaining({
           map: expect.objectContaining({
@@ -122,7 +122,7 @@ describe('vite-plugin-zeus transform', () => {
     async id => {
       const result = await createTransformHarness()(source, id)
 
-      expect(getCode(result)).toContain('_template')
+      expect(getCode(result)).toContain('$zeusTemplate')
     },
   )
 
@@ -149,7 +149,7 @@ describe('vite-plugin-zeus transform', () => {
 
     expect(await transform(source, '/src/App.tsx')).toBeNull()
     expect(getCode(await transform(source, '/src/App.view.tsx'))).toContain(
-      '_template',
+      '$zeusTemplate',
     )
   })
 
@@ -159,11 +159,11 @@ describe('vite-plugin-zeus transform', () => {
     })
 
     expect(getCode(await transform(source, '/src/App.view.tsx'))).toContain(
-      '_template',
+      '$zeusTemplate',
     )
     expect(
       getCode(await transform(source, '/src/App.component.jsx')),
-    ).toContain('_template')
+    ).toContain('$zeusTemplate')
   })
 
   it('applies exclude patterns before include patterns', async () => {
@@ -181,7 +181,7 @@ describe('vite-plugin-zeus transform', () => {
     )
 
     expect(code).toContain('from "@zeus-js/runtime-dom"')
-    expect(code).toContain('_delegateEvents(["click"])')
+    expect(code).toContain('$zeusDelegateEvents(["click"])')
   })
 
   it('preserves an explicit DOM event delegation setting', async () => {
@@ -192,7 +192,7 @@ describe('vite-plugin-zeus transform', () => {
       ),
     )
 
-    expect(code).not.toContain('_delegateEvents')
+    expect(code).not.toContain('$zeusDelegateEvents')
   })
 
   it('supports a custom runtime module name', async () => {
@@ -215,8 +215,8 @@ describe('vite-plugin-zeus transform', () => {
 
     expect(code).toContain('from "@zeus-js/runtime-ssr"')
     expect(code).not.toContain('@zeus-js/runtime-dom')
-    expect(code).not.toContain('_template')
-    expect(code).not.toContain('_delegateEvents')
+    expect(code).not.toContain('$zeusTemplate')
+    expect(code).not.toContain('$zeusDelegateEvents')
   })
 
   it('supports an independent SSR runtime module name', async () => {
@@ -426,22 +426,14 @@ describe('vite-plugin-zeus transform', () => {
       createTransformHarness()(invalidHostSource, '/src/App.tsx?direct'),
     ).rejects.toMatchObject({
       id: '/src/App.tsx',
-      pluginCode: 'ZEUS_INVALID_BUILTIN_USAGE',
+      pluginCode: 'ZEUS_INVALID_HOST_USAGE',
       loc: {
         line: 3,
         column: 18,
       },
-      cause: expect.objectContaining({
-        name: 'ZeusCompilerError',
-        code: 'ZEUS_INVALID_BUILTIN_USAGE',
-        diagnostic: expect.objectContaining({
-          code: 'ZEUS_INVALID_BUILTIN_USAGE',
-          severity: 'error',
-        }),
-      }),
       meta: {
         zeusDiagnostic: {
-          code: 'ZEUS_INVALID_BUILTIN_USAGE',
+          code: 'ZEUS_INVALID_HOST_USAGE',
           severity: 'error',
           filename: '/src/App.tsx',
           span: {
@@ -493,19 +485,15 @@ describe('vite-plugin-zeus transform', () => {
     ).rejects.toMatchObject({
       code: 'PLUGIN_ERROR',
       plugin: 'vite-plugin-zeus',
-      pluginCode: 'ZEUS_INVALID_BUILTIN_USAGE',
+      pluginCode: 'ZEUS_INVALID_HOST_USAGE',
       id,
       loc: {
         line: 3,
         column: 18,
       },
-      cause: expect.objectContaining({
-        name: 'ZeusCompilerError',
-        code: 'ZEUS_INVALID_BUILTIN_USAGE',
-      }),
       meta: {
         zeusDiagnostic: expect.objectContaining({
-          code: 'ZEUS_INVALID_BUILTIN_USAGE',
+          code: 'ZEUS_INVALID_HOST_USAGE',
           severity: 'error',
           filename: id,
         }),

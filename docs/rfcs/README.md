@@ -8,3 +8,4 @@
 | [RFC-002](./RFC-002-jsx-to-ir.md)                          | JSX 到 Zeus IR                 | Accepted |
 | [RFC-003](./RFC-003-web-components.md)                     | Web Components 语义            | Accepted |
 | [RFC-004](./RFC-004-server-side-rendering.md)              | 服务端字符串渲染               | Accepted |
+| [RFC-005](./RFC-005-rust-compiler.md)                      | Rust 编译器架构与迁移策略      | Accepted |

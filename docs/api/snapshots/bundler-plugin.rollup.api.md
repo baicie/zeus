@@ -5,12 +5,16 @@
 > Run `pnpm api:snapshot` to update.
 
 ```ts
-import { CompilerOptions } from '@zeus-js/compiler'
 import {
   ComponentManifest,
   AnalyzerDiagnostic,
 } from '@zeus-js/component-analyzer'
 import { RollupOptions, Plugin } from 'rollup'
+
+interface NativeCompilerOptions {
+  moduleName?: string
+  delegateEvents?: boolean
+}
 
 type MaybePromise<T> = T | Promise<T>
 type RootOption = string | (() => string)
@@ -144,7 +148,7 @@ interface ZeusBundlerPluginOptions {
   /**
    * Compiler options.
    */
-  compiler?: Partial<CompilerOptions>
+  compiler?: Partial<NativeCompilerOptions>
   /**
    * Print analyzer diagnostics.
    *
@@ -156,7 +160,7 @@ interface ZeusBundlerPluginOptions {
    */
   plugins?: ZeusComponentPlugin[]
   /**
-   * Enable TypeScript transpilation via Babel preset-typescript.
+   * Enable TypeScript downlevel transpilation after native JSX lowering.
    *
    * @default
    * - rollup: true

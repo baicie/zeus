@@ -40,6 +40,7 @@ packages:
     "check:branch": "tsx scripts/check/check-branch-name.ts",
     "check:cjs": "tsx scripts/check/check-package-cjs.ts && tsx scripts/check/check-compiler-cjs.ts",
     "check:exports": "tsx scripts/check/check-package-exports.ts",
+    "check:release-artifacts": "tsx scripts/check/check-release-artifacts.ts",
     "lint": "eslint --cache .",
     "format": "prettier --write --cache .",
     "format-check": "prettier --check --cache .",
@@ -53,11 +54,16 @@ packages:
     "release:retry-tag": "tsx scripts/release/retry-release-tag.ts",
     "release:dry": "tsx scripts/release/release.ts --dry --skipGit",
     "release:canary": "tsx scripts/release/release-canary.ts",
+    "release:verify:published": "tsx scripts/release/verify-published.ts",
     "api:snapshot": "tsx scripts/api/write-api-snapshots.ts",
     "api:check": "tsx scripts/api/check-api-snapshots.ts"
   }
 }
 ```
+
+当前 fixed group 还包含 `@zeus-js/compiler-native` 及七个按平台拆分的
+`@zeus-js/compiler-native-*` 包；它们与 `@zeus-js/compiler` 使用同一版本，且只能在
+native matrix 产物恢复完成后发布。
 
 ## 2. 发布通道
 
@@ -179,7 +185,9 @@ fix(compiler): preserve boolean attributes in JSX transform
 ┌─────────────────────────────────────────────────────────┐
 │  GitHub Actions: release.yml                            │
 ├─────────────────────────────────────────────────────────┤
-│  4. release:precheck (15 项质量门禁)                     │
+│  4. native platform matrix + release:precheck            │
+│     - Rust/native 构建和平台 tarball 检查                 │
+│     - 完整质量门禁（含 native binary）                    │
 │                                                         │
 │  5. extract version from tag                            │
 │                                                         │
@@ -189,7 +197,9 @@ fix(compiler): preserve boolean attributes in JSX transform
 │     - 发布到 npm (--access public)                       │
 │     - 重试策略：最多 5 次，指数退避                       │
 │                                                         │
-│  7. 创建 GitHub Release                                 │
+│  7. 查询 npm 上全部 fixed 包的目标版本                    │
+│                                                         │
+│  8. 创建 GitHub Release                                 │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -402,6 +412,11 @@ jobs:
 
 **权限**：通过 `environment: Release` 使用受保护的环境变量和 secrets。
 
+正式发布会先在 native matrix 中构建并上传 macOS、Linux（glibc/musl）和 Windows
+的 `.node` 产物。发布 job 恢复全部产物后运行 `check:release-artifacts --require-binaries`，
+发布成功还会运行 `release:verify:published`，确认每个 fixed 包的目标版本已能从 npm
+registry 查询到；校验失败时不会创建 GitHub Release。
+
 ## 5. Canary 发布流程
 
 ### 5.1 版本号格式
@@ -572,21 +587,18 @@ jobs:
         run: pnpm release:canary
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Trigger downstream compatibility check
-        if: success()
-        run: |
-          curl --fail-with-body -X POST \
-            -H "Authorization: Bearer ${{ secrets.ZEUS_UI_DISPATCH_TOKEN }}" \
-            https://api.github.com/repos/baicie/zeus-ui/dispatches \
-            -d '{"event_type":"zeus-canary-published","client_payload":{...}}'
 ```
+
+canary 发布工具会在发布成功后使用 `ZEUS_UI_DISPATCH_TOKEN` 自动发送下游
+`repository_dispatch`，workflow 不再重复发送。随后 workflow 会轮询 npm，确认全部
+canary 版本可见。
 
 ## 6. 质量门禁
 
 ### 6.1 release:precheck（正式发布前）
 
-15 项检查，按顺序执行，任一失败则阻止发布。
+完整检查按固定顺序执行，任一失败则阻止发布。除源码质量外，还包括 Rust/native
+包元数据、平台 binary、npm tarball 内容和 release worktree 不变性检查。
 
 `scripts/release/release-precheck.ts`：
 
@@ -599,21 +611,28 @@ jobs:
  */
 
 const steps: Array<[string, string[]]> = [
-  ['pnpm', ['check:branch']], // 1. 分支名符合规范
-  ['pnpm', ['build']], // 2. 构建所有包（Rolldown）
-  ['pnpm', ['check:cjs']], // 3. 验证所有公开 CJS 输出可用
-  ['pnpm', ['build-dts']], // 4. 生成 TypeScript 声明文件
-  ['pnpm', ['api:check']], // 5. API 快照一致性检查
-  ['pnpm', ['check']], // 6. TypeScript 类型检查
-  ['pnpm', ['lint']], // 7. ESLint 代码风格检查
-  ['pnpm', ['test-unit']], // 8. Vitest 单元测试
-  ['pnpm', ['check:package-versions']], // 9. Fixed 包版本一致性
-  ['pnpm', ['examples:check:all']], // 10. 所有示例构建和类型检查
-  ['pnpm', ['bench:component-host:ci']], // 11. Component Host 性能基线
-  ['pnpm', ['docs:build']], // 12. VitePress 文档构建
-  ['pnpm', ['size:ci']], // 13. Bundle 大小报告生成
-  ['pnpm', ['check:exports']], // 14. Package exports 边界验证
-  ['pnpm', ['check:repository']], // 15. 仓库 URL 一致性检查
+  ['pnpm', ['check:release-worktree', '--capture']],
+  ['pnpm', ['check:branch']],
+  ['pnpm', ['check:native-packages']],
+  ['pnpm', ['check:native-binaries']],
+  ['pnpm', ['build']],
+  ['pnpm', ['check:cjs']],
+  ['pnpm', ['build-dts']],
+  ['pnpm', ['check:release-artifacts', '--require-binaries']],
+  ['pnpm', ['api:check']],
+  ['pnpm', ['check']],
+  ['pnpm', ['lint']],
+  ['pnpm', ['test-unit']],
+  ['pnpm', ['bench:compiler-native']],
+  ['pnpm', ['check:package-versions']],
+  ['pnpm', ['examples:check:all']],
+  ['pnpm', ['check:create-zeus']],
+  ['pnpm', ['bench:component-host:ci']],
+  ['pnpm', ['docs:build']],
+  ['pnpm', ['size:ci']],
+  ['pnpm', ['check:exports']],
+  ['pnpm', ['check:repository']],
+  ['pnpm', ['check:release-worktree', '--verify']],
 ]
 
 async function run() {

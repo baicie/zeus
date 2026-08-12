@@ -1,46 +1,57 @@
-import { declare } from '@babel/helper-plugin-utils'
+import { createRequire } from 'node:module'
 
-import { resolveConfig, type CompilerOptions } from './config'
-import { createVisitor } from './visitor'
+const require = createRequire(import.meta.url)
 
-import type { BabelPlugin } from './types'
-
-type ParserPlugin = string | [string, ...unknown[]]
-
-function hasParserPlugin(
-  plugins: readonly ParserPlugin[],
-  name: string,
-): boolean {
-  return plugins.some(
-    plugin => (Array.isArray(plugin) ? plugin[0] : plugin) === name,
-  )
+export interface CompilerDiagnostic {
+  code: string
+  message: string
+  severity: 'error' | 'warning'
+  filename: string
+  hint?: string
+  span?: SourceSpan
 }
 
-export default declare(
-  (api: object, options: CompilerOptions | null | undefined): BabelPlugin => {
-    ;(api as { assertVersion(range: number | string): void }).assertVersion(8)
+export interface SourcePosition {
+  offset: number
+  line: number
+  column: number
+}
 
-    const config = resolveConfig(options)
+export interface SourceSpan {
+  start: SourcePosition
+  end: SourcePosition
+}
 
-    return {
-      name: 'babel-plugin-zeus-compiler',
+export interface RawSourceMap {
+  version: number
+  file?: string
+  sources: string[]
+  sourceRoot?: string
+  sourcesContent: Array<string | null>
+  names: string[]
+  mappings: string
+}
 
-      manipulateOptions(
-        _opts: unknown,
-        parserOpts: { plugins?: ParserPlugin[] },
-      ) {
-        parserOpts.plugins ??= []
+export interface TransformModuleOptions {
+  source: string
+  filename: string
+  target: 'dom' | 'ssr'
+  runtimeModule: string
+  delegateEvents: boolean
+  sourceMap: boolean
+  hmr?: boolean
+}
 
-        if (!hasParserPlugin(parserOpts.plugins, 'jsx')) {
-          parserOpts.plugins.push('jsx')
-        }
-      },
+export interface TransformModuleResult {
+  code: string
+  map: RawSourceMap | null
+  diagnostics: CompilerDiagnostic[]
+}
 
-      visitor: createVisitor(config),
-    } as BabelPlugin
-  },
-)
+const native = require('@zeus-js/compiler-native') as {
+  transformModule(options: TransformModuleOptions): TransformModuleResult
+}
 
-export type { CompilerOptions } from './config'
-export * from './diagnostics'
-export * from '@zeus-js/compiler-shared'
+export const transformModule = native.transformModule
+
+export default transformModule

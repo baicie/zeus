@@ -1,7 +1,7 @@
 export interface SourcePosition {
   line: number
   column: number
-  offset?: number
+  offset: number
 }
 
 export interface SourceSpan {
@@ -12,8 +12,11 @@ export interface SourceSpan {
 export interface ExpressionIR {
   kind: 'Expression'
   code: string
-  span?: SourceSpan
+  span: SourceSpan
+  form: ExpressionForm
 }
+
+export type ExpressionForm = 'value' | 'getter' | 'member'
 
 export interface IdentifierIR {
   kind: 'Identifier'
@@ -41,6 +44,10 @@ export type PhysicalDomPath =
 export interface SemanticBaseIRNode {
   id: number
   span?: SourceSpan
+}
+
+export type AttributeBaseIRNode = Omit<SemanticBaseIRNode, 'span'> & {
+  span: SourceSpan
 }
 
 export type ProgramIR = SemanticBaseIRNode & {
@@ -77,31 +84,31 @@ export type DynamicTextIR = SemanticBaseIRNode & {
   physicalDomPath?: PhysicalDomPath
 }
 
-export type StaticAttributeIR = SemanticBaseIRNode & {
+export type StaticAttributeIR = AttributeBaseIRNode & {
   kind: 'StaticAttribute'
   name: string
   value: string | true
 }
 
-export type AttrBindingIR = SemanticBaseIRNode & {
+export type AttrBindingIR = AttributeBaseIRNode & {
   kind: 'AttrBinding'
   name: string
   expr: ExpressionIR
 }
 
-export type PropBindingIR = SemanticBaseIRNode & {
+export type PropBindingIR = AttributeBaseIRNode & {
   kind: 'PropBinding'
   name: string
   expr: ExpressionIR
 }
 
-export type EventBindingIR = SemanticBaseIRNode & {
+export type EventBindingIR = AttributeBaseIRNode & {
   kind: 'EventBinding'
   eventName: string
   handler: ExpressionIR
 }
 
-export type RefBindingIR = SemanticBaseIRNode & {
+export type RefBindingIR = AttributeBaseIRNode & {
   kind: 'RefBinding'
   expr: ExpressionIR
 }

@@ -47,6 +47,8 @@ const IGNORED_PATTERNS = [
   '**/coverage/',
   'target',
   'vendor/**',
+  'packages/core/compiler-native/index.js',
+  'packages/core/compiler-native/index.d.ts',
   'examples/**',
   'docs/.vitepress/cache/**',
   '**/output-css.spec.ts',

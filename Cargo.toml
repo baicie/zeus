@@ -1,0 +1,48 @@
+[workspace]
+members = ["crates/zeus_compiler", "packages/core/compiler-native"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.1-beta.0"
+edition = "2024"
+rust-version = "1.95.0"
+license = "MIT"
+repository = "https://github.com/baicie/zeus"
+
+[workspace.dependencies]
+oxc_allocator = "=0.144.0"
+oxc_ast = "=0.144.0"
+oxc_ast_visit = "=0.144.0"
+oxc_diagnostics = "=0.144.0"
+oxc_parser = "=0.144.0"
+oxc_semantic = "=0.144.0"
+oxc_sourcemap = "=8.1.2"
+oxc_span = "=0.144.0"
+oxc_syntax = "=0.144.0"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+napi = { version = "=3.12.1", default-features = false, features = ["napi8"] }
+napi-derive = "=3.6.3"
+napi-build = "=2.4.1"
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+must_use_candidate = "allow"
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.test]
+debug = "line-tables-only"
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+opt-level = 3
+strip = "symbols"

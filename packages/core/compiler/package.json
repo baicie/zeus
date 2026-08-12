@@ -2,7 +2,7 @@
   "name": "@zeus-js/compiler",
   "type": "module",
   "version": "0.1.1-beta.0",
-  "description": "@zeus-js/compiler",
+  "description": "Rust-native Zeus compiler transform contract",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -30,19 +30,8 @@
     "index.cjs",
     "dist"
   ],
-  "peerDependencies": {
-    "@babel/core": "catalog:"
-  },
   "dependencies": {
-    "@babel/helper-plugin-utils": "^8.0.1",
-    "@babel/parser": "catalog:",
-    "@babel/types": "catalog:",
-    "@baicie/logger": "^0.2.0",
-    "@zeus-js/compiler-shared": "workspace:*",
-    "@zeus-js/shared": "workspace:*"
-  },
-  "devDependencies": {
-    "@babel/core": "catalog:"
+    "@zeus-js/compiler-native": "workspace:*"
   },
   "author": "Baicie",
   "bugs": {
@@ -52,21 +41,20 @@
     "name": "ZeusCompiler",
     "formats": [
       "esm-bundler",
-      "esm-browser",
-      "cjs",
-      "global"
+      "cjs"
     ]
   },
   "engines": {
     "node": "^22.18.0 || >=24.11.0"
   },
   "homepage": "https://github.com/baicie/zeus/tree/main/packages/core/compiler#readme",
-  "jsdelivr": "dist/compiler.global.js",
   "keywords": [
-    "zeus"
+    "zeus",
+    "compiler",
+    "rust",
+    "native"
   ],
   "main": "index.cjs",
   "module": "dist/compiler.esm-bundler.js",
-  "types": "dist/compiler.d.ts",
-  "unpkg": "dist/compiler.global.js"
+  "types": "dist/compiler.d.ts"
 }

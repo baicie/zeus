@@ -9,6 +9,8 @@ type TransformHook = NonNullable<HookHandler<Plugin['transform']>>
 
 const runtimeGlobal = '__ZEUS_SSR_EXECUTION_RUNTIME__'
 const source = `
+  import { For, Show } from '@zeus-js/runtime-dom'
+
   const Item = props => (
     <li data-index={props.index}>{props.name}</li>
   )
@@ -38,10 +40,9 @@ describe('vite-plugin-zeus SSR execution', () => {
   it('executes compiled components with the real SSR runtime in Node', async () => {
     const code = await compileSSR(source)
     const runtimeURL = createRuntimeProxyURL()
-    const executable = code.replace(
-      '"@zeus-js/runtime-ssr"',
-      JSON.stringify(runtimeURL),
-    )
+    const executable = code
+      .replace(/"@zeus-js\/runtime-ssr"/g, JSON.stringify(runtimeURL))
+      .replace(/'@zeus-js\/runtime-dom'/g, JSON.stringify(runtimeURL))
     const globalState = globalThis as typeof globalThis & {
       [runtimeGlobal]?: typeof runtime
     }
@@ -127,12 +128,14 @@ function createRuntimeProxyURL(): string {
     'ssrShow',
     'ssrFor',
   ] as const
-  const code = helpers
-    .map(
-      name =>
-        `export const ${name} = (...args) => globalThis.${runtimeGlobal}.${name}(...args)`,
-    )
-    .join('\n')
+  const code =
+    helpers
+      .map(
+        name =>
+          `export const ${name} = (...args) => globalThis.${runtimeGlobal}.${name}(...args)`,
+      )
+      .join('\n') +
+    '\nexport const Show = Symbol("Show")\nexport const For = Symbol("For")'
   return toDataURL(code)
 }
 

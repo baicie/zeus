@@ -8,14 +8,9 @@ packages:
   - 'docs'
 
 catalog:
-  '@babel/core': ^8.0.0
   '@babel/parser': ^8.0.0
-  '@babel/plugin-syntax-jsx': ^8.0.0
-  '@babel/plugin-transform-typescript': ^8.0.0
-  '@babel/preset-env': ^8.0.0
-  '@babel/preset-typescript': ^8.0.0
   '@babel/types': ^8.0.0
-  '@napi-rs/cli': ^3.5.1
+  '@napi-rs/cli': 3.6.2
   '@napi-rs/wasm-runtime': ^1.1.1
   vite: ^8.0.5
 

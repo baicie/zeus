@@ -4,6 +4,7 @@ import type {
   DynamicTextIR,
   ElementIR,
   EventBindingIR,
+  ExpressionForm,
   ExpressionIR,
   ForIR,
   FragmentIR,
@@ -31,11 +32,16 @@ export function ref(name: string): IRRef {
   return { name }
 }
 
-export function expressionIR(code: string, span?: SourceSpan): ExpressionIR {
+export function expressionIR(
+  code: string,
+  span: SourceSpan,
+  form: ExpressionForm = 'value',
+): ExpressionIR {
   return {
     kind: 'Expression',
     code,
     span,
+    form,
   }
 }
 
@@ -105,50 +111,68 @@ export function fragmentIR(children: ZeusIRNode[]): FragmentIR {
 export function staticAttrIR(
   name: string,
   value: string | true,
+  span: SourceSpan,
 ): StaticAttributeIR {
   return {
     id: id(),
     kind: 'StaticAttribute',
     name,
     value,
+    span,
   }
 }
 
-export function attrBindingIR(name: string, expr: ExpressionIR): AttrBindingIR {
+export function attrBindingIR(
+  name: string,
+  expr: ExpressionIR,
+  span: SourceSpan,
+): AttrBindingIR {
   return {
     id: id(),
     kind: 'AttrBinding',
     name,
     expr,
+    span,
   }
 }
 
-export function propBindingIR(name: string, expr: ExpressionIR): PropBindingIR {
+export function propBindingIR(
+  name: string,
+  expr: ExpressionIR,
+  span: SourceSpan,
+): PropBindingIR {
   return {
     id: id(),
     kind: 'PropBinding',
     name,
     expr,
+    span,
   }
 }
 
 export function eventBindingIR(
   eventName: string,
   handler: ExpressionIR,
+  span: SourceSpan,
 ): EventBindingIR {
   return {
     id: id(),
     kind: 'EventBinding',
     eventName,
     handler,
+    span,
   }
 }
 
-export function refBindingIR(expr: ExpressionIR): RefBindingIR {
+export function refBindingIR(
+  expr: ExpressionIR,
+  span: SourceSpan,
+): RefBindingIR {
   return {
     id: id(),
     kind: 'RefBinding',
     expr,
+    span,
   }
 }
 
