@@ -19,7 +19,11 @@ if (!version) {
 const packages = selectedPackage
   ? [normalizePackageName(selectedPackage)]
   : zeusFixedPackages
-const attempts = [0, 2_000, 5_000, 10_000, 20_000, 30_000]
+// npm can take several minutes to expose a freshly published platform package
+// through every registry edge, especially for large native tarballs.
+const attempts = [
+  0, 2_000, 5_000, 10_000, 20_000, 30_000, 60_000, 120_000, 180_000,
+]
 
 await Promise.all(packages.map(pkg => verifyPackage(pkg, version)))
 console.log(
