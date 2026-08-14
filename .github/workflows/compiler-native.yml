@@ -4,12 +4,17 @@ on:
   workflow_call:
   pull_request:
     paths:
+      - '.github/workflows/compiler-native.yml'
       - 'crates/**'
       - 'packages/core/compiler/**'
       - 'packages/core/compiler-native/**'
       - 'packages/core/compiler-native-*/**'
       - 'scripts/check/check-native-packages.ts'
       - 'scripts/release/build-native-platform.ts'
+      - 'scripts/release/compiler-smoke-runner.mjs'
+      - 'scripts/release/smoke-compiler-install.ts'
+      - 'scripts/release/sync-native-loader.ts'
+      - 'scripts/release.config.ts'
       - 'package.json'
       - 'pnpm-lock.yaml'
   push:
@@ -79,11 +84,15 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check:native-packages
       - run: pnpm native:build:platform --target ${{ matrix.target }}
+      - run: pnpm build 'compiler$'
       - run: pnpm check:native-binaries --package ${{ matrix.package }}
       - run: pnpm check:release-artifacts --package ${{ matrix.package }} --require-binaries
 
       - name: Native contract smoke test
         run: node -e "const b=require('./packages/core/${{ matrix.package }}'); const r=b.transformModule({source:'const view=<div>ok</div>',filename:'matrix.tsx',target:'dom',runtimeModule:'@zeus-js/runtime-dom',delegateEvents:true,sourceMap:true}); if(!r.code.includes('template')||r.diagnostics.length) process.exit(1)"
+
+      - name: Public compiler tarball install smoke
+        run: pnpm release:smoke:compiler --local-package ${{ matrix.package }} --expected-platform-package @zeus-js/${{ matrix.package }}
 
       - uses: actions/upload-artifact@v4
         with:

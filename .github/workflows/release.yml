@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 concurrency:
-  group: release
+  group: npm-release
   cancel-in-progress: false
 
 env:
@@ -25,9 +25,14 @@ jobs:
       contents: write
       id-token: write
     environment: Release
+    outputs:
+      version: ${{ steps.release-version.outputs.version }}
+      dist-tag: ${{ steps.release-version.outputs.dist-tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -54,7 +59,22 @@ jobs:
 
       - name: Extract version from tag
         id: release-version
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [[ "$VERSION" == *-* ]]; then
+            DIST_TAG="${VERSION#*-}"
+            DIST_TAG="${DIST_TAG%%.*}"
+          else
+            DIST_TAG="latest"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "dist-tag=$DIST_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Verify release tag source
+        run: pnpm release:verify:tag-source --version "${{ steps.release-version.outputs.version }}"
+
+      - name: Reject prerelease native latest tags
+        run: pnpm release:verify:native-latest
 
       - name: Release precheck
         run: pnpm release:precheck
@@ -69,6 +89,51 @@ jobs:
       - name: Verify npm publication
         run: pnpm release:verify:published --version "${{ steps.release-version.outputs.version }}"
 
+      - name: Verify npm dist-tags and provenance
+        run: >-
+          pnpm release:verify:dist-tags
+          --version "${{ steps.release-version.outputs.version }}"
+          --tag "${{ steps.release-version.outputs.dist-tag }}"
+          --sha "$GITHUB_SHA"
+          --workflow-path .github/workflows/release.yml
+          --ref "$GITHUB_REF"
+          --require-provenance
+
+  compiler-registry-smoke:
+    if: github.repository == 'baicie/zeus'
+    needs: release
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.18.0', '24.11.0']
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node }}
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install script dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install and execute published compiler
+        run: pnpm release:smoke:compiler --version "${{ needs.release.outputs.version }}" --expected-platform-package @zeus-js/compiler-native-linux-x64-gnu
+
+  github-release:
+    if: github.repository == 'baicie/zeus'
+    needs: [release, compiler-registry-smoke]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    environment: Release
+    steps:
       - name: Create GitHub Release
         uses: yyx990803/release-tag@8cccf7c5aa332d71d222df46677f70f77a8d2dc0
         env:

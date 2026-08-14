@@ -1,0 +1,54 @@
+name: Repair Native Latest
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_version:
+        description: Exact polluted prerelease currently assigned to native latest
+        required: true
+        type: string
+      confirmation:
+        description: Enter remove-native-latest:<expected_version>
+        required: true
+        type: string
+
+concurrency:
+  group: npm-release
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: >-
+      github.repository == 'baicie/zeus' &&
+      github.ref == 'refs/heads/main' &&
+      inputs.confirmation == format('remove-native-latest:{0}', inputs.expected_version)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    environment: Release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.node-version'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Remove only the confirmed polluted native latest tags
+        run: >-
+          pnpm release:cleanup:native-latest
+          --expected-version "$EXPECTED_VERSION"
+          --confirm "$CONFIRMATION"
+        env:
+          EXPECTED_VERSION: ${{ inputs.expected_version }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -52,6 +52,10 @@ describe('zeus release config', () => {
     expect(existsSync(SYNTHETIC_CHANGESET_FILE)).toBe(false)
   })
 
+  it('regenerates the native loader after package versioning', () => {
+    expect(config.afterVersion).toBeTypeOf('function')
+  })
+
   it('keeps release gates aligned with current zeus release precheck', () => {
     expect(config.precheck?.commands).toEqual([
       ['pnpm', 'check:release-worktree', '--capture'],
@@ -85,11 +89,7 @@ describe('zeus release config', () => {
       prefix: 'canary',
       tag: 'canary',
       envName: 'ZEUS_CANARY_VERSION',
-      dispatch: {
-        tokenEnv: 'ZEUS_UI_DISPATCH_TOKEN',
-        repository: 'baicie/zeus-ui',
-        eventType: 'zeus-canary-published',
-      },
+      includeBranches: ['main'],
     })
   })
 })
