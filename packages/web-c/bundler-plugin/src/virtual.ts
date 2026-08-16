@@ -7,10 +7,16 @@ export class VirtualModuleRegistry {
   private readonly virtualDirs = new Map<string, string>()
   private readonly virtualFileNames = new Map<string, string>()
   private readonly idsByFileName = new Map<string, string>()
+  private readonly resolveFromById = new Map<string, string>()
 
-  set(id: string, code: string, fileName?: string): void {
+  set(id: string, code: string, fileName?: string, resolveFrom?: string): void {
     const normalized = normalizeVirtualId(id)
     this.modules.set(normalized, code)
+    if (resolveFrom) {
+      this.resolveFromById.set(normalized, resolveFrom)
+    } else {
+      this.resolveFromById.delete(normalized)
+    }
     if (fileName) {
       const dir = path.posix.dirname(fileName)
       this.virtualDirs.set(normalized, dir)
@@ -33,6 +39,12 @@ export class VirtualModuleRegistry {
     this.virtualDirs.clear()
     this.virtualFileNames.clear()
     this.idsByFileName.clear()
+    this.resolveFromById.clear()
+  }
+
+  getResolveFrom(importer?: string): string | undefined {
+    if (!importer) return undefined
+    return this.resolveFromById.get(normalizeVirtualId(importer))
   }
 
   resolve(id: string, importer?: string): string | null {

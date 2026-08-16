@@ -1,8 +1,8 @@
 // packages/web-c/output-wc/src/generateLoader.ts
 // Generates loader.js for lazy loading mode
 
-export function generateLoader(runtimeModule: string): string {
-  return `import { bootstrapLazy } from ${JSON.stringify(runtimeModule)};
+export function generateLoader(): string {
+  return `import { bootstrapLazy } from "@zeus-js/web-c-runtime";
 import { components } from "./components.manifest.js";
 
 const componentsByTagName = new Map(

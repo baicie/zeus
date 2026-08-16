@@ -4,7 +4,11 @@ import path from 'node:path'
 import { rollup } from 'rollup'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { isAbsoluteImportPath } from '../src/core'
+import {
+  createScopedResolveOptions,
+  isAbsoluteImportPath,
+  normalizeScopedResolution,
+} from '../src/core'
 import zeus from '../src/rollup'
 
 const root = path.resolve(__dirname, 'fixtures/rollup-tsx')
@@ -75,9 +79,9 @@ describe('rollup adapter', () => {
     const resolveId = plugin.resolveId as (
       id: string,
       importer?: string,
-    ) => string | null
+    ) => Promise<string | null>
 
-    const resolved = resolveId(
+    const resolved = await resolveId(
       path.join(root, 'src/Button'),
       path.join(root, 'src/index.ts'),
     )
@@ -92,9 +96,9 @@ describe('rollup adapter', () => {
     const resolveId = plugin.resolveId as (
       id: string,
       importer?: string,
-    ) => string | null
+    ) => Promise<string | null>
 
-    const resolved = resolveId(
+    const resolved = await resolveId(
       './Button?component',
       path.join(root, 'src/index.ts'),
     )
@@ -102,16 +106,19 @@ describe('rollup adapter', () => {
     expect(resolved).toBeNull()
   })
 
-  it('does not resolve imports that already have an extension', () => {
+  it('does not resolve imports that already have an extension', async () => {
     const plugin = zeus({
       root,
     })
     const resolveId = plugin.resolveId as (
       id: string,
       importer?: string,
-    ) => string | null
+    ) => Promise<string | null>
 
-    const resolved = resolveId('./Button.tsx', path.join(root, 'src/index.ts'))
+    const resolved = await resolveId(
+      './Button.tsx',
+      path.join(root, 'src/index.ts'),
+    )
 
     expect(resolved).toBeNull()
   })
@@ -119,6 +126,69 @@ describe('rollup adapter', () => {
   it('recognizes Windows absolute import paths', () => {
     expect(isAbsoluteImportPath('C:/repo/src/Button')).toBe(true)
     expect(isAbsoluteImportPath('C:\\repo\\src\\Button')).toBe(true)
+    expect(isAbsoluteImportPath('\\\\server\\repo\\src\\Button')).toBe(true)
+  })
+
+  it.each([
+    '/repo/node_modules/runtime/index.js',
+    String.raw`C:\repo\node_modules\runtime\index.js`,
+    'file:///repo/node_modules/runtime/index.js',
+  ])('keeps an external scoped dependency portable for %s', resolvedId => {
+    const resolved = {
+      id: resolvedId,
+      external: 'absolute' as const,
+      attributes: {},
+      meta: {},
+      moduleSideEffects: true,
+      resolvedBy: 'test',
+      syntheticNamedExports: false,
+    }
+
+    expect(
+      normalizeScopedResolution('@zeus-js/web-c-runtime', resolved),
+    ).toMatchObject({
+      id: '@zeus-js/web-c-runtime',
+      external: true,
+    })
+  })
+
+  it('keeps an internal scoped dependency resolved for bundling', () => {
+    const resolved = {
+      id: '/repo/node_modules/runtime/index.js',
+      external: false,
+      attributes: {},
+      meta: {},
+      moduleSideEffects: true,
+      resolvedBy: 'test',
+      syntheticNamedExports: false,
+    }
+
+    expect(normalizeScopedResolution('@zeus-js/web-c-runtime', resolved)).toBe(
+      resolved,
+    )
+  })
+
+  it('forwards recursive resolution context and only overrides skipSelf', () => {
+    const attributes = { type: 'json' }
+    const importerAttributes = { mode: 'strict' }
+    const custom = { test: { condition: 'development' } }
+
+    expect(
+      createScopedResolveOptions({
+        attributes,
+        custom,
+        importerAttributes,
+        isEntry: false,
+        kind: 'require-call',
+      }),
+    ).toEqual({
+      attributes,
+      custom,
+      importerAttributes,
+      isEntry: false,
+      kind: 'require-call',
+      skipSelf: true,
+    })
   })
 
   it('compiles custom component include paths by default', async () => {

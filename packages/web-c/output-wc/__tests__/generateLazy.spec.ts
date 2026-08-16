@@ -458,7 +458,7 @@ describe('generateLazyManifest', () => {
 
 describe('generateLoader', () => {
   it('generates loader with defineCustomElement and defineCustomElements', () => {
-    const code = generateLoader('@zeus-js/web-c-runtime')
+    const code = generateLoader()
 
     expect(code).toContain(
       'import { bootstrapLazy } from "@zeus-js/web-c-runtime"',
@@ -484,7 +484,7 @@ describe('generateLoader', () => {
   })
 
   it('generates componentsByTagName map', () => {
-    const code = generateLoader('@zeus-js/web-c-runtime')
+    const code = generateLoader()
 
     expect(code).toContain('componentsByTagName = new Map(')
     expect(code).toContain(
@@ -493,7 +493,7 @@ describe('generateLoader', () => {
   })
 
   it('throws on unknown custom element in defineCustomElement', () => {
-    const code = generateLoader('@zeus-js/web-c-runtime')
+    const code = generateLoader()
 
     expect(code).toContain(
       `throw new Error(\`[zeus:web-c] Unknown custom element: <\${tagName}>.\`)`,

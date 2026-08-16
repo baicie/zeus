@@ -3,10 +3,12 @@ import fs from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { rollup } from 'rollup'
 import { describe, expect, it } from 'vitest'
 
+import { createZeusVitePlugin } from '../../bundler-plugin/src/vite'
 import wc from '../src'
 
 import type {
@@ -14,8 +16,6 @@ import type {
   ComponentManifest,
 } from '@zeus-js/component-analyzer'
 import type { OutputBundle } from 'rollup'
-
-const require = createRequire(import.meta.url)
 
 type ZeusOutputAsset = {
   type: 'asset'
@@ -141,16 +141,15 @@ describe('output-wc', () => {
   })
 
   describe('virtualModules', () => {
-    it('resolves the lazy runtime from the output plugin dependency', () => {
+    it('keeps the lazy runtime import portable and scopes its resolution', () => {
       const plugin = wc()
       const ctx = createMockCtx({ version: 1, components: [] })
       const modules = plugin.virtualModules!(ctx as any) as any[]
       const loader = modules.find(module => module.id === 'zeus:wc:loader')
-      const runtimeEntry = require
-        .resolve('@zeus-js/web-c-runtime')
-        .replace(/\\/g, '/')
 
-      expect(loader.code).toContain(`from ${JSON.stringify(runtimeEntry)}`)
+      expect(loader.code).toContain('from "@zeus-js/web-c-runtime"')
+      expect(path.isAbsolute(loader.resolveFrom)).toBe(true)
+      expect(loader.resolveFrom).toBe(outputWcSourceEntry)
     })
 
     it('uses lazy registration by default', () => {
@@ -1051,6 +1050,50 @@ describe('output-wc', () => {
     })
   })
 
+  describe('vite integration', () => {
+    it('builds a strict pnpm consumer without a direct web-c runtime dependency', async () => {
+      const fixture = await createStrictPnpmViteFixture()
+
+      try {
+        expect(
+          await pathExists(
+            path.join(fixture.root, 'node_modules/@zeus-js/web-c-runtime'),
+          ),
+        ).toBe(false)
+
+        await expect(
+          buildViteConsumer(fixture, id =>
+            ['@zeus-js/runtime-dom', '@zeus-js/zeus'].includes(id),
+          ),
+        ).resolves.toBeTypeOf('string')
+      } finally {
+        await fs.rm(fixture.root, { force: true, recursive: true })
+      }
+    }, 30_000)
+
+    it('does not emit absolute install paths when node_modules are external', async () => {
+      const fixture = await createStrictPnpmViteFixture()
+
+      try {
+        const code = await buildViteConsumer(
+          fixture,
+          id =>
+            ['@zeus-js/runtime-dom', '@zeus-js/zeus'].includes(id) ||
+            id.includes('node_modules'),
+        )
+        const normalizedCode = normalizeTestPath(code)
+
+        expect(normalizedCode).toMatch(/from ["']@zeus-js\/web-c-runtime["']/)
+        expect(normalizedCode).not.toContain('/node_modules/.pnpm/')
+        expect(normalizedCode).not.toContain(
+          normalizeTestPath(fixture.runtimeEntry),
+        )
+      } finally {
+        await fs.rm(fixture.root, { force: true, recursive: true })
+      }
+    }, 30_000)
+  })
+
   describe('rollup integration', () => {
     it('emits wc entries and manifests via real Rollup build', async () => {
       const root = await fs.mkdtemp(
@@ -1242,3 +1285,255 @@ describe('output-wc', () => {
     })
   })
 })
+
+interface StrictPnpmViteFixture {
+  root: string
+  entry: string
+  outputWcEntry: string
+  runtimeEntry: string
+}
+
+async function createStrictPnpmViteFixture(): Promise<StrictPnpmViteFixture> {
+  const viteBuild = await loadViteBuild()
+  const root = await fs.realpath(
+    await fs.mkdtemp(path.join(os.tmpdir(), 'zeus-output-wc-vite-')),
+  )
+  const sourceDir = path.join(root, 'src')
+  const entry = path.join(sourceDir, 'index.ts')
+  const virtualStore = path.join(root, 'node_modules/.pnpm')
+  const outputWcNodeModules = path.join(
+    virtualStore,
+    '@zeus-js+output-wc@0.0.0/node_modules',
+  )
+  const outputWcRoot = path.join(outputWcNodeModules, '@zeus-js/output-wc')
+  const outputWcEntry = path.join(outputWcRoot, 'dist/index.js')
+  const runtimeRoot = path.join(
+    virtualStore,
+    '@zeus-js+web-c-runtime@0.0.0/node_modules/@zeus-js/web-c-runtime',
+  )
+  const zeusRoot = path.join(
+    virtualStore,
+    '@zeus-js+zeus@0.0.0/node_modules/@zeus-js/zeus',
+  )
+
+  await fs.mkdir(path.join(sourceDir, 'components'), { recursive: true })
+  await fs.writeFile(entry, 'export {}\n')
+  await fs.writeFile(
+    path.join(sourceDir, 'components/button.ts'),
+    [
+      `import { defineElement } from '@zeus-js/zeus'`,
+      `export const ZButton = defineElement('z-button', {}, () => null)`,
+      '',
+    ].join('\n'),
+  )
+  await fs.writeFile(
+    path.join(root, 'package.json'),
+    JSON.stringify(
+      {
+        name: 'strict-pnpm-vite-consumer',
+        private: true,
+        type: 'module',
+        dependencies: {
+          '@zeus-js/zeus': '0.0.0',
+        },
+        devDependencies: {
+          '@zeus-js/bundler-plugin': '0.0.0',
+          '@zeus-js/output-wc': '0.0.0',
+          vite: '8.2.1',
+        },
+      },
+      null,
+      2,
+    ),
+  )
+
+  await writeTestPackage(
+    runtimeRoot,
+    '@zeus-js/web-c-runtime',
+    'dist/index.js',
+    'export function bootstrapLazy() {}\n',
+  )
+  await writeTestPackage(
+    zeusRoot,
+    '@zeus-js/zeus',
+    'index.js',
+    'export function defineElement(_tag, _options, render) { return render }\n',
+  )
+  await writeTestPackage(
+    path.join(outputWcNodeModules, '@zeus-js/bundler-plugin'),
+    '@zeus-js/bundler-plugin',
+    'index.js',
+    [
+      'export function resolvePluginDts(value, ctx) {',
+      '  if (value === true) return true',
+      '  if (value === false) return false',
+      '  return ctx.dts.enabled',
+      '}',
+      '',
+    ].join('\n'),
+  )
+  await writeTestPackage(
+    path.join(outputWcNodeModules, '@zeus-js/component-dts'),
+    '@zeus-js/component-dts',
+    'index.js',
+    [
+      'export const generateLoaderDts = () => ""',
+      'export const generateWCDtsFiles = () => []',
+      'export const generateWCJsxDts = () => ""',
+      '',
+    ].join('\n'),
+  )
+
+  await fs.mkdir(path.dirname(outputWcRoot), { recursive: true })
+  await fs.mkdir(outputWcRoot, { recursive: true })
+  await fs.writeFile(
+    path.join(outputWcRoot, 'package.json'),
+    JSON.stringify({
+      name: '@zeus-js/output-wc',
+      type: 'module',
+      exports: './dist/index.js',
+    }),
+  )
+  await linkDirectory(
+    runtimeRoot,
+    path.join(outputWcNodeModules, '@zeus-js/web-c-runtime'),
+  )
+  await linkDirectory(
+    outputWcRoot,
+    path.join(root, 'node_modules/@zeus-js/output-wc'),
+  )
+  await linkDirectory(zeusRoot, path.join(root, 'node_modules/@zeus-js/zeus'))
+
+  await viteBuild({
+    root: path.dirname(outputWcSourceEntry),
+    configFile: false,
+    logLevel: 'silent',
+    build: {
+      lib: {
+        entry: outputWcSourceEntry,
+        formats: ['es'],
+        fileName: () => 'index.js',
+      },
+      outDir: path.dirname(outputWcEntry),
+      emptyOutDir: false,
+      minify: false,
+      sourcemap: false,
+      rollupOptions: {
+        external: (id: string) =>
+          id.startsWith('node:') || id.startsWith('@zeus-js/'),
+      },
+    },
+  })
+
+  const requireFromOutputWc = createRequire(outputWcEntry)
+
+  return {
+    root,
+    entry,
+    outputWcEntry,
+    runtimeEntry: requireFromOutputWc.resolve('@zeus-js/web-c-runtime'),
+  }
+}
+
+const outputWcSourceEntry = fileURLToPath(
+  new URL('../src/index.ts', import.meta.url),
+)
+
+async function buildViteConsumer(
+  fixture: StrictPnpmViteFixture,
+  external: (id: string) => boolean,
+): Promise<string> {
+  const viteBuild = await loadViteBuild()
+  const outputWcModule = (await import(
+    /* @vite-ignore */ pathToFileURL(fixture.outputWcEntry).href
+  )) as { default: typeof wc }
+  const result = await viteBuild({
+    root: fixture.root,
+    configFile: false,
+    logLevel: 'silent',
+    plugins: [
+      createZeusVitePlugin({
+        root: fixture.root,
+        components: {
+          include: ['src/components/**/*.{ts,tsx}'],
+        },
+        plugins: [
+          outputWcModule.default({
+            register: 'lazy',
+            dts: false,
+            jsxDts: false,
+            manifestFile: false,
+            customElementsFile: false,
+          }),
+        ],
+      }),
+    ],
+    build: {
+      lib: {
+        entry: fixture.entry,
+        formats: ['es'],
+      },
+      minify: false,
+      sourcemap: false,
+      write: false,
+      rollupOptions: {
+        external,
+      },
+    },
+  })
+  const outputs = Array.isArray(result) ? result : [result]
+
+  return outputs
+    .flatMap(output => ('output' in output ? output.output : []))
+    .filter(output => output.type === 'chunk')
+    .map(output => output.code)
+    .join('\n')
+}
+
+async function writeTestPackage(
+  root: string,
+  name: string,
+  entry: string,
+  code: string,
+): Promise<void> {
+  await fs.mkdir(path.dirname(path.join(root, entry)), { recursive: true })
+  await fs.writeFile(
+    path.join(root, 'package.json'),
+    JSON.stringify({ name, type: 'module', exports: `./${entry}` }),
+  )
+  await fs.writeFile(path.join(root, entry), code)
+}
+
+async function linkDirectory(target: string, link: string): Promise<void> {
+  await fs.mkdir(path.dirname(link), { recursive: true })
+  await fs.symlink(
+    target,
+    link,
+    process.platform === 'win32' ? 'junction' : 'dir',
+  )
+}
+
+async function pathExists(file: string): Promise<boolean> {
+  try {
+    await fs.access(file)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function normalizeTestPath(value: string): string {
+  return value.replace(/\\/g, '/')
+}
+
+async function loadViteBuild(): Promise<(config: any) => Promise<any>> {
+  const requireFromBundlerPlugin = createRequire(
+    new URL('../../bundler-plugin/package.json', import.meta.url),
+  )
+  const viteEntry = requireFromBundlerPlugin.resolve('vite')
+  const vite = (await import(
+    /* @vite-ignore */ pathToFileURL(viteEntry).href
+  )) as { build: (config: any) => Promise<any> }
+
+  return vite.build
+}
