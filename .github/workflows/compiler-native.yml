@@ -9,6 +9,7 @@ on:
       - 'packages/core/compiler/**'
       - 'packages/core/compiler-native/**'
       - 'packages/core/compiler-native-*/**'
+      - 'scripts/bundler/build.ts'
       - 'scripts/check/check-native-packages.ts'
       - 'scripts/release/build-native-platform.ts'
       - 'scripts/release/compiler-smoke-runner.mjs'

@@ -72,6 +72,7 @@ describe('release workflows', () => {
 
     for (const path of [
       '.github/workflows/compiler-native.yml',
+      'scripts/bundler/build.ts',
       'scripts/release/compiler-smoke-runner.mjs',
       'scripts/release/smoke-compiler-install.ts',
       'scripts/release/sync-native-loader.ts',
