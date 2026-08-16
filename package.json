@@ -80,6 +80,7 @@
     "release:cleanup:canary-staging": "tsx scripts/release/promote-canary.ts --cleanup",
     "release:cleanup:native-latest": "tsx scripts/release/cleanup-native-latest.ts",
     "release:verify:native-latest": "tsx scripts/release/verify-native-latest.ts",
+    "release:verify:npm-auth": "tsx scripts/release/verify-npm-auth.ts",
     "release:verify:published": "tsx scripts/release/verify-published.ts",
     "release:verify:main-head": "tsx scripts/release/verify-main-head.ts",
     "release:verify:tag-source": "tsx scripts/release/verify-tag-source.ts",
