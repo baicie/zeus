@@ -49,10 +49,8 @@ const target = targetValue as Target
 const [packageName, platformName] = targets.get(target)!
 const packageDir = path.join(root, `packages/core/${packageName}`)
 const outputDir = path.join(root, 'temp/native', target)
-const buildEnvironment = { ...process.env }
-if (target === 'x86_64-unknown-linux-musl') {
-  buildEnvironment.CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER ??= 'musl-gcc'
-}
+const crossCompileArgs =
+  target === 'x86_64-unknown-linux-musl' ? ['--cross-compile'] : []
 fs.rmSync(outputDir, { recursive: true, force: true })
 fs.mkdirSync(outputDir, { recursive: true })
 
@@ -73,10 +71,10 @@ execFileSync(
     'index.js',
     '--dts',
     'index.d.ts',
+    ...crossCompileArgs,
   ],
   {
     cwd: nativeRoot,
-    env: buildEnvironment,
     stdio: 'inherit',
     shell: process.platform === 'win32',
   },

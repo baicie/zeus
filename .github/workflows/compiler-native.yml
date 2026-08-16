@@ -78,9 +78,17 @@ jobs:
 
       - uses: Swatinem/rust-cache@401aff9a7a08acb9d27b64936a90db81024cff97 # v2.8.2
 
-      - name: Install musl linker
+      - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
         if: matrix.musl == true
-        run: sudo apt-get update && sudo apt-get install --yes musl-tools
+        with:
+          version: 0.14.1
+
+      - uses: taiki-e/install-action@288e746965032cfcc232e09af2daf5f23c14d780 # v2.86.1
+        if: matrix.musl == true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          tool: cargo-zigbuild
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm check:native-packages

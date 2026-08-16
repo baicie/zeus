@@ -82,7 +82,7 @@ describe('release workflows', () => {
     }
   })
 
-  it('executes the musl install smoke in a real musl runtime', () => {
+  it('builds musl with Zig before running smoke in a real musl runtime', () => {
     const workflow = readFileSync(
       resolve(root, '.github/workflows/compiler-native.yml'),
       'utf8',
@@ -102,19 +102,31 @@ describe('release workflows', () => {
     expect(workflow).toContain(
       '--container-image node:24.16.0-alpine3.23@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14',
     )
-    expect(nativeBuildScript).toContain(
+    expect(workflow).toContain(
+      'uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29',
+    )
+    expect(workflow).toContain('version: 0.14.1')
+    expect(workflow).toContain(
+      'uses: taiki-e/install-action@288e746965032cfcc232e09af2daf5f23c14d780',
+    )
+    expect(workflow).toContain('tool: cargo-zigbuild')
+    expect(workflow).not.toContain('musl-tools')
+    expect(nativeBuildScript).toContain("'--cross-compile'")
+    expect(nativeBuildScript).not.toContain(
       'CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER',
     )
-    expect(nativeBuildScript).toContain("'musl-gcc'")
   })
 
-  it('awaits the compiler build entry used by Windows native jobs', () => {
+  it('reports compiler build entry failures without top-level await', () => {
     const buildScript = readFileSync(
       resolve(root, 'scripts/bundler/build.ts'),
       'utf8',
     )
 
-    expect(buildScript).toMatch(/\nawait run\(\)\n/)
+    expect(buildScript).toContain('void run().catch(error => {')
+    expect(buildScript).toContain('console.error(error)')
+    expect(buildScript).toContain('process.exitCode = 1')
+    expect(buildScript).not.toMatch(/\nawait run\(\)\n/)
     expect(buildScript).toContain("require.resolve('rolldown/package.json')")
     expect(buildScript).toContain(
       'spawnSync(process.execPath, [rolldownCli, ...args]',

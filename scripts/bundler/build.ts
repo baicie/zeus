@@ -84,7 +84,10 @@ const {
 
 const sizeDir = path.resolve('temp/size')
 
-await run()
+void run().catch(error => {
+  console.error(error)
+  process.exitCode = 1
+})
 
 async function run() {
   if (writeSize) fs.mkdirSync(sizeDir, { recursive: true })
