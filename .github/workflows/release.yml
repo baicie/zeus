@@ -47,6 +47,11 @@ jobs:
       - name: Install deps
         run: pnpm install --frozen-lockfile
 
+      - name: Verify npm release authentication
+        run: pnpm release:verify:npm-auth
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Download native platform artifacts
         uses: actions/download-artifact@v4
         with:

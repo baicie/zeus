@@ -208,6 +208,10 @@ describe('release workflows', () => {
     expect(workflow).toContain("github.ref == 'refs/heads/main'")
     expect(workflow).toContain("format('remove-native-latest:{0}'")
     expect(workflow).toContain('pnpm release:cleanup:native-latest')
+    expect(workflow).toContain('pnpm release:verify:npm-auth')
+    expect(workflow.indexOf('pnpm release:verify:npm-auth')).toBeLessThan(
+      workflow.indexOf('pnpm release:cleanup:native-latest'),
+    )
     expect(workflow).toContain(
       'EXPECTED_VERSION: ${{ inputs.expected_version }}',
     )
@@ -215,6 +219,25 @@ describe('release workflows', () => {
     expect(workflow).not.toMatch(
       /run:[\s\S]*--expected-version "\$\{\{ inputs\.expected_version \}\}"/,
     )
+  })
+
+  it('verifies npm write access before every release workflow mutates the registry', () => {
+    const workflows = [
+      ['release-canary.yml', 'pnpm release:canary'],
+      ['release.yml', 'pnpm release --publishOnly'],
+    ] as const
+
+    for (const [file, firstWrite] of workflows) {
+      const workflow = readFileSync(
+        resolve(root, `.github/workflows/${file}`),
+        'utf8',
+      )
+
+      expect(workflow).toContain('pnpm release:verify:npm-auth')
+      expect(workflow.indexOf('pnpm release:verify:npm-auth')).toBeLessThan(
+        workflow.indexOf(firstWrite),
+      )
+    }
   })
 
   it('verifies the promoted canary before best-effort staging cleanup', () => {
