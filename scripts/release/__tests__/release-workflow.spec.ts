@@ -118,11 +118,17 @@ describe('release workflows', () => {
   })
 
   it('reports compiler build entry failures without top-level await', () => {
+    const workflow = readFileSync(
+      resolve(root, '.github/workflows/compiler-native.yml'),
+      'utf8',
+    )
     const buildScript = readFileSync(
       resolve(root, 'scripts/bundler/build.ts'),
       'utf8',
     )
 
+    expect(workflow).toContain('- run: pnpm build compiler')
+    expect(workflow).not.toContain("pnpm build 'compiler$'")
     expect(buildScript).toContain('void run().catch(error => {')
     expect(buildScript).toContain('console.error(error)')
     expect(buildScript).toContain('process.exitCode = 1')

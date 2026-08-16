@@ -93,7 +93,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check:native-packages
       - run: pnpm native:build:platform --target ${{ matrix.target }}
-      - run: pnpm build 'compiler$'
+      - run: pnpm build compiler
       - run: pnpm check:native-binaries --package ${{ matrix.package }}
       - run: pnpm check:release-artifacts --package ${{ matrix.package }} --require-binaries
 

@@ -114,6 +114,10 @@ export function fuzzyMatchTarget(
 ): string[] {
   const matched: string[] = []
   partialTargets.forEach(partialTarget => {
+    if (!includeAllMatching && targets.includes(partialTarget)) {
+      matched.push(partialTarget)
+      return
+    }
     for (const target of targets) {
       if (target.match(partialTarget)) {
         matched.push(target)
