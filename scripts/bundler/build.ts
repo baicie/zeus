@@ -78,7 +78,7 @@ const {
 
 const sizeDir = path.resolve('temp/size')
 
-run()
+await run()
 
 async function run() {
   if (writeSize) fs.mkdirSync(sizeDir, { recursive: true })
@@ -100,9 +100,9 @@ async function run() {
       })
     }
   } finally {
-    // Cache must be removed after build-dts since it depends on enum cache
+    // build-dts consumes this cache, so remove it only after the full build.
+    removeCache()
   }
-  removeCache()
 }
 
 function runDtsInBackground(resolvedTargets: string[]): void {

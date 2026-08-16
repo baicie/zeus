@@ -96,6 +96,27 @@ export async function runRegistryRetries<T>(
   throw lastError ?? new Error('Registry retry schedule is empty')
 }
 
+export async function createVerifierWithRetry(
+  create: () => Promise<BundleVerifier>,
+  delays: readonly number[] = retryDelays,
+  sleep: (ms: number) => Promise<void> = wait,
+): Promise<BundleVerifier> {
+  return runRegistryRetries(
+    async () => {
+      try {
+        return await create()
+      } catch (error) {
+        if (!isRetryableTufInitializationError(error)) throw error
+        throw new RetryableRegistryError(
+          `Sigstore verifier initialization failed: ${error instanceof Error ? error.message : String(error)}`,
+        )
+      }
+    },
+    delays,
+    sleep,
+  )
+}
+
 export function getDistTagPolicyErrors(input: DistTagPolicyInput): string[] {
   const errors: string[] = []
   const expectedShortSha = input.expectedSha?.slice(0, 8).toLowerCase()
@@ -283,6 +304,30 @@ function isRetryableRegistryMessage(message: string): boolean {
   )
 }
 
+function isRetryableTufInitializationError(error: unknown): boolean {
+  let current: unknown = error
+  const seen = new Set<unknown>()
+
+  while (current && typeof current === 'object' && !seen.has(current)) {
+    seen.add(current)
+    const details = asRecord(current)
+    const code = details?.code
+    const message = current instanceof Error ? current.message : String(current)
+    if (
+      (typeof code === 'string' &&
+        /^(?:E(?:TIMEDOUT|CONNRESET|CONNABORTED|AI_AGAIN|NOTFOUND))$/.test(
+          code,
+        )) ||
+      isRetryableRegistryMessage(message)
+    ) {
+      return true
+    }
+    current = details?.cause
+  }
+
+  return false
+}
+
 async function verifyPackageProvenance(options: {
   pkg: string
   version: string
@@ -416,17 +461,19 @@ async function verifyWithRetry(options: {
     ? requireProvenanceSource(options)
     : undefined
   const verifier = source
-    ? await createVerifier({
-        certificateIssuer: githubIssuer,
-        certificateIdentityURI: `^${escapeRegExp(
-          `${source.repository}/${source.workflowPath}@${source.ref}`,
-        )}$`,
-        certificateOIDs: {
-          '1.3.6.1.4.1.57264.1.3': source.sha,
-          '1.3.6.1.4.1.57264.1.5': 'baicie/zeus',
-          '1.3.6.1.4.1.57264.1.6': source.ref,
-        },
-      })
+    ? await createVerifierWithRetry(() =>
+        createVerifier({
+          certificateIssuer: githubIssuer,
+          certificateIdentityURI: `^${escapeRegExp(
+            `${source.repository}/${source.workflowPath}@${source.ref}`,
+          )}$`,
+          certificateOIDs: {
+            '1.3.6.1.4.1.57264.1.3': source.sha,
+            '1.3.6.1.4.1.57264.1.5': 'baicie/zeus',
+            '1.3.6.1.4.1.57264.1.6': source.ref,
+          },
+        }),
+      )
     : undefined
   try {
     await runRegistryRetries(async () => {

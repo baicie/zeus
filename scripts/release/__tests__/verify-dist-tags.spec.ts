@@ -1,11 +1,14 @@
 import { zeusFixedPackages, zeusNativePackages } from '../../release.config'
 import {
+  createVerifierWithRetry,
   getDistTagPolicyErrors,
   getProvenanceStatementErrors,
   RetryableRegistryError,
   settleRegistryBatch,
   runRegistryRetries,
 } from '../verify-dist-tags'
+
+import type { BundleVerifier } from 'sigstore'
 
 const version = '0.1.1-canary.20260813.200.1.b919e736'
 
@@ -124,6 +127,36 @@ describe('npm dist-tag policy', () => {
 })
 
 describe('registry retry policy', () => {
+  it('retries a transient TUF verifier initialization failure', async () => {
+    let attempts = 0
+    const waits: number[] = []
+    const verifier: BundleVerifier = { verify: () => undefined as never }
+
+    await expect(
+      createVerifierWithRetry(
+        async () => {
+          attempts += 1
+          if (attempts === 1) {
+            throw Object.assign(new Error('error refreshing TUF metadata'), {
+              code: 'TUF_REFRESH_METADATA_ERROR',
+              cause: Object.assign(new Error('connection reset'), {
+                code: 'ECONNRESET',
+              }),
+            })
+          }
+          return verifier
+        },
+        [0, 1],
+        async delay => {
+          waits.push(delay)
+        },
+      ),
+    ).resolves.toBe(verifier)
+
+    expect(attempts).toBe(2)
+    expect(waits).toEqual([1])
+  })
+
   it('prefers a permanent failure after an earlier transient failure', async () => {
     const policyError = new Error('invalid provenance policy')
     let rejectPolicy!: (reason: unknown) => void

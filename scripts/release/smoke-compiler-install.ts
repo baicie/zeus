@@ -10,11 +10,15 @@ const registry = readOption('--registry') ?? 'https://registry.npmjs.org'
 const version = readOption('--version')
 const localPackage = readOption('--local-package')
 const expectedPackage = readOption('--expected-platform-package')
+const containerImage = readOption('--container-image')
 
 if (Boolean(version) === Boolean(localPackage)) {
   throw new Error(
     'Pass exactly one of --version <version> or --local-package <package-short-name>',
   )
+}
+if (containerImage && process.platform !== 'linux') {
+  throw new Error('--container-image is only supported from a Linux host')
 }
 
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'zeus-compiler-smoke-'))
@@ -37,19 +41,32 @@ try {
     path.join(projectDir, 'compiler-smoke-runner.mjs'),
   )
 
-  run(
-    'npm',
-    [
-      'install',
-      '--ignore-scripts',
-      '--no-audit',
-      '--no-fund',
-      '--registry',
-      registry,
-      ...installSpecs,
-    ],
-    projectDir,
-  )
+  const installArgs = [
+    'install',
+    '--ignore-scripts',
+    '--no-audit',
+    '--no-fund',
+    '--registry',
+    registry,
+    ...installSpecs,
+  ]
+
+  if (containerImage) {
+    runInContainer(
+      containerImage,
+      [
+        'npm',
+        ...installArgs.map(arg =>
+          path.isAbsolute(arg)
+            ? path.posix.join('/smoke/tarballs', path.basename(arg))
+            : arg,
+        ),
+      ],
+      tempRoot,
+    )
+  } else {
+    run('npm', installArgs, projectDir)
+  }
 
   if (expectedPackage) {
     const manifest = path.join(
@@ -65,10 +82,18 @@ try {
     }
   }
 
-  run('node', ['compiler-smoke-runner.mjs'], projectDir, {
-    ...process.env,
-    NAPI_RS_ENFORCE_VERSION_CHECK: '1',
-  })
+  if (containerImage) {
+    runInContainer(
+      containerImage,
+      ['node', 'compiler-smoke-runner.mjs'],
+      tempRoot,
+    )
+  } else {
+    run('node', ['compiler-smoke-runner.mjs'], projectDir, {
+      ...process.env,
+      NAPI_RS_ENFORCE_VERSION_CHECK: '1',
+    })
+  }
   console.log(
     pico.green(
       `Compiler install smoke passed (${version ? `registry ${version}` : `local ${localPackage}`}).`,
@@ -135,6 +160,39 @@ function run(
     stdio: 'inherit',
     shell: process.platform === 'win32',
   })
+}
+
+function runInContainer(
+  image: string,
+  command: string[],
+  mountedRoot: string,
+): void {
+  const uid = process.getuid?.()
+  const gid = process.getgid?.()
+  if (uid === undefined || gid === undefined) {
+    throw new Error('Cannot determine the host uid/gid for container smoke')
+  }
+
+  run(
+    'docker',
+    [
+      'run',
+      '--rm',
+      '--volume',
+      `${mountedRoot}:/smoke`,
+      '--workdir',
+      '/smoke/project',
+      '--user',
+      `${uid}:${gid}`,
+      '--env',
+      'HOME=/tmp',
+      '--env',
+      'NAPI_RS_ENFORCE_VERSION_CHECK=1',
+      image,
+      ...command,
+    ],
+    root,
+  )
 }
 
 function readOption(name: string): string | undefined {

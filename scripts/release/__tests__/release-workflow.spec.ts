@@ -81,6 +81,28 @@ describe('release workflows', () => {
     }
   })
 
+  it('executes the musl install smoke in a real musl runtime', () => {
+    const workflow = readFileSync(
+      resolve(root, '.github/workflows/compiler-native.yml'),
+      'utf8',
+    )
+
+    expect(workflow).toContain('if: matrix.musl != true')
+    expect(workflow).toContain('if: matrix.musl == true')
+    expect(workflow).toContain(
+      '--container-image node:24.16.0-alpine3.23@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14',
+    )
+  })
+
+  it('awaits the compiler build entry used by Windows native jobs', () => {
+    const buildScript = readFileSync(
+      resolve(root, 'scripts/bundler/build.ts'),
+      'utf8',
+    )
+
+    expect(buildScript).toMatch(/\nawait run\(\)\n/)
+  })
+
   it('rejects polluted native latest tags before a tagged release publishes', () => {
     const workflow = readFileSync(
       resolve(root, '.github/workflows/release.yml'),
