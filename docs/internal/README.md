@@ -31,13 +31,13 @@ Zeus 内部设计文档、历史阶段材料与问题追踪。
 
 ### design/
 
-| 文件                     | 说明                            |
-| ------------------------ | ------------------------------- |
-| `branching.md`           | Git 分支策略。                  |
-| `bundle.md`              | 打包产物策略。                  |
-| `canary.md`              | Canary 发布流程与 CI 集成。     |
-| `package-collections.md` | pnpm catalog 共享依赖版本策略。 |
-| `release.md`             | 发版流程与 check list。         |
+| 文件                     | 说明                                                                  |
+| ------------------------ | --------------------------------------------------------------------- |
+| `branching.md`           | Git 分支策略。                                                        |
+| `bundle.md`              | 打包产物策略。                                                        |
+| `canary.md`              | Canary/API 收口的历史设计草案；现行流程见 `docs/release-process.md`。 |
+| `package-collections.md` | pnpm catalog 共享依赖版本策略。                                       |
+| `release.md`             | 发版流程与 check list。                                               |
 
 ## 文档维护规则
 

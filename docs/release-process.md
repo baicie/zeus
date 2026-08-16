@@ -4,15 +4,15 @@
 
 ## 1. 项目概览
 
-| 项目          | 说明                                   |
-| ------------- | -------------------------------------- |
-| **包管理器**  | pnpm 10.33.4（通过 `preinstall` 强制） |
-| **工作区**    | pnpm workspaces + catalog              |
-| **构建工具**  | 自定义 Rolldown 构建系统               |
-| **版本管理**  | Changesets                             |
-| **Node 要求** | >= 18.12.0                             |
-| **当前版本**  | 0.1.0-beta.4                           |
-| **开发模型**  | Trunk-based（main 为单一主干）         |
+| 项目          | 说明                                      |
+| ------------- | ----------------------------------------- |
+| **包管理器**  | pnpm 10.33.4（通过 `preinstall` 强制）    |
+| **工作区**    | pnpm workspaces + catalog                 |
+| **构建工具**  | 自定义 Rolldown 构建系统                  |
+| **版本管理**  | Changesets                                |
+| **Node 要求** | ^22.18.0 \|\| >=24.11.0                   |
+| **当前版本**  | 以 `packages/core/zeus/package.json` 为准 |
+| **开发模型**  | Trunk-based（main 为单一主干）            |
 
 ### 工作区结构
 
@@ -54,7 +54,15 @@ packages:
     "release:retry-tag": "tsx scripts/release/retry-release-tag.ts",
     "release:dry": "tsx scripts/release/release.ts --dry --skipGit",
     "release:canary": "tsx scripts/release/release-canary.ts",
+    "release:promote:canary": "tsx scripts/release/promote-canary.ts",
+    "release:cleanup:canary-staging": "tsx scripts/release/promote-canary.ts --cleanup",
+    "release:cleanup:native-latest": "tsx scripts/release/cleanup-native-latest.ts",
+    "release:verify:native-latest": "tsx scripts/release/verify-native-latest.ts",
     "release:verify:published": "tsx scripts/release/verify-published.ts",
+    "release:verify:main-head": "tsx scripts/release/verify-main-head.ts",
+    "release:verify:tag-source": "tsx scripts/release/verify-tag-source.ts",
+    "release:verify:dist-tags": "tsx scripts/release/verify-dist-tags.ts",
+    "release:smoke:compiler": "tsx scripts/release/smoke-compiler-install.ts",
     "api:snapshot": "tsx scripts/api/write-api-snapshots.ts",
     "api:check": "tsx scripts/api/check-api-snapshots.ts"
   }
@@ -67,12 +75,12 @@ native matrix 产物恢复完成后发布。
 
 ## 2. 发布通道
 
-Zeus 维护两条发布通道：
+Zeus 维护两类发布通道：
 
-| 通道       | 触发方式                    | 发布目标   | 用途         |
-| ---------- | --------------------------- | ---------- | ------------ |
-| **Stable** | 推送 git tag `v*`           | npm latest | 正式发布     |
-| **Canary** | 推送到 main 或 feature 分支 | npm canary | 持续集成验证 |
+| 通道               | 触发方式                            | 发布目标                 | 用途          |
+| ------------------ | ----------------------------------- | ------------------------ | ------------- |
+| **Tagged Release** | 推送 git tag `v*`                   | npm alpha/beta/rc/latest | 预发布/正式版 |
+| **Canary**         | 推送到 `main`，或在 `main` 手动触发 | npm canary               | 持续集成验证  |
 
 ## 3. Changesets 配置
 
@@ -88,6 +96,14 @@ Zeus 维护两条发布通道：
     [
       "@zeus-js/shared",
       "@zeus-js/compiler-shared",
+      "@zeus-js/compiler-native",
+      "@zeus-js/compiler-native-darwin-arm64",
+      "@zeus-js/compiler-native-darwin-x64",
+      "@zeus-js/compiler-native-linux-arm64-gnu",
+      "@zeus-js/compiler-native-linux-x64-gnu",
+      "@zeus-js/compiler-native-linux-x64-musl",
+      "@zeus-js/compiler-native-win32-arm64-msvc",
+      "@zeus-js/compiler-native-win32-x64-msvc",
       "@zeus-js/signal",
       "@zeus-js/runtime-dom",
       "@zeus-js/runtime-ssr",
@@ -123,7 +139,7 @@ Zeus 维护两条发布通道：
 
 ### 3.2 包分组策略
 
-**Fixed 组（同步版本）**：17 个核心包共享同一版本号，任何一个有变更都统一升级。
+**Fixed 组（同步版本）**：25 个核心包共享同一版本号，任何一个有变更都统一升级。
 
 **Ignored 组（不发版）**：以下包不参与 npm 发布：
 
@@ -185,21 +201,25 @@ fix(compiler): preserve boolean attributes in JSX transform
 ┌─────────────────────────────────────────────────────────┐
 │  GitHub Actions: release.yml                            │
 ├─────────────────────────────────────────────────────────┤
-│  4. native platform matrix + release:precheck            │
+│  4. native platform matrix + tag 来源守卫                  │
 │     - Rust/native 构建和平台 tarball 检查                 │
+│     - tag/version 匹配且 tag commit 可从 origin/main 到达  │
+│                                                         │
+│  5. release:precheck                                    │
 │     - 完整质量门禁（含 native binary）                    │
 │                                                         │
-│  5. extract version from tag                            │
-│                                                         │
 │  6. release --publishOnly --skipBuild                   │
-│     - 遍历所有非 private、非 ignored 包                  │
+│     - 发布 25 个 fixed group 包                          │
 │     - 根据版本号自动选择 npm tag（beta/rc/alpha）          │
 │     - 发布到 npm (--access public)                       │
 │     - 重试策略：最多 5 次，指数退避                       │
 │                                                         │
-│  7. 查询 npm 上全部 fixed 包的目标版本                    │
+│  7. 验证版本、dist-tag 和 Sigstore provenance            │
+│     - 包、tarball integrity、仓库、workflow、ref、SHA      │
 │                                                         │
-│  8. 创建 GitHub Release                                 │
+│  8. Node 22/24 从 npm 安装并执行 Rust compiler smoke      │
+│                                                         │
+│  9. 全部通过后创建 GitHub Release                         │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -359,7 +379,7 @@ on:
       - 'v*'
 
 concurrency:
-  group: release
+  group: npm-release
   cancel-in-progress: false
 
 jobs:
@@ -387,25 +407,35 @@ jobs:
       - name: Install deps
         run: pnpm install --frozen-lockfile
 
-      - name: Release precheck
-        run: pnpm release:precheck
-
       - name: Extract version from tag
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
           echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Verify release tag source
+        run: pnpm release:verify:tag-source --version "${{ env.VERSION }}"
+
+      - name: Release precheck
+        run: pnpm release:precheck
 
       - name: Build and publish
         run: pnpm release --publishOnly ${{ env.VERSION }} --skipBuild
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Create GitHub Release
-        uses: yyx990803/release-tag@8cccf7c5aa332d71d222df46677f70f77a8d2dc0
-        with:
-          tag_name: ${{ github.ref }}
-          body: |
-            Please refer to [CHANGELOG.md](https://github.com/baicie/zeus/blob/main/CHANGELOG.md) for details.
+      - name: Verify npm dist-tags and provenance
+        run: pnpm release:verify:dist-tags ... --require-provenance
+
+  compiler-registry-smoke:
+    needs: release
+    strategy:
+      matrix:
+        node: ['22.18.0', '24.11.0']
+    # 从 npm 安装目标版本并执行 ESM/CJS、DOM/SSR compiler smoke。
+
+  github-release:
+    needs: [release, compiler-registry-smoke]
+    # 只有 registry smoke 全部通过后才创建 GitHub Release。
 ```
 
 **触发条件**：`git push origin v0.2.0` 推送任意 `v*` 格式的 tag。
@@ -413,9 +443,11 @@ jobs:
 **权限**：通过 `environment: Release` 使用受保护的环境变量和 secrets。
 
 正式发布会先在 native matrix 中构建并上传 macOS、Linux（glibc/musl）和 Windows
-的 `.node` 产物。发布 job 恢复全部产物后运行 `check:release-artifacts --require-binaries`，
-发布成功还会运行 `release:verify:published`，确认每个 fixed 包的目标版本已能从 npm
-registry 查询到；校验失败时不会创建 GitHub Release。
+的 `.node` 产物。发布 job 恢复全部产物后验证 tag/version 与 `origin/main` 来源，再运行
+完整 precheck。发布后必须确认 25 个 fixed 包的目标版本和目标 dist-tag 均可见，并通过
+Sigstore 验证 provenance：签名 subject 必须匹配 npm tarball integrity，来源必须匹配
+`baicie/zeus`、`.github/workflows/release.yml`、tag ref 与精确 commit SHA。Node 22/24
+registry smoke 全部通过后才创建 GitHub Release。
 
 ## 5. Canary 发布流程
 
@@ -426,172 +458,54 @@ registry 查询到；校验失败时不会创建 GitHub Release。
 # 例如：0.1.0-canary.20260609.123.1.a1b2c3d4
 ```
 
-### 5.2 脚本详解
+### 5.2 单写者与触发规则
 
-`scripts/release/release-canary.ts` 完整逻辑：
+- 自动发布只由 `main` push 触发；手动 `workflow_dispatch` 也只有在
+  `refs/heads/main` 上才进入发布 job。
+- Canary、正式 tag 发布和 `Repair Native Latest` 共用 `group: npm-release`，并设置
+  `cancel-in-progress: false`。运行按队列串行完成，不能取消一个正在写 npm 的运行。
+- feature/fix/refactor 等分支仍运行 CI 与 native matrix，但不能发布共享 `canary`。
+- `Canary` GitHub Environment 也应只允许 `main`，形成 workflow 与环境双重约束。
 
-```typescript
-// ========== 版本号生成 ==========
+### 5.3 发布与验证链路
 
-function getCanaryVersion(baseVersion: string) {
-  const core = semver.parse(baseVersion)
-  const shortSha = process.env.GITHUB_SHA?.slice(0, 8) ?? 'local'
-  const runNumber = process.env.GITHUB_RUN_NUMBER ?? Date.now().toString()
-  const runAttempt = process.env.GITHUB_RUN_ATTEMPT ?? '1'
-  const date = new Date().toISOString().slice(0, 10).replace(/-/g, '')
-
-  return `${core.major}.${core.minor}.${core.patch}-canary.${date}.${runNumber}.${runAttempt}.${shortSha}`
-}
-
-// ========== 版本更新 ==========
-
-function updateVersions(version: string) {
-  const packages = findWorkspacePackages().filter(isCanaryPackage)
-  for (const pkg of packages) {
-    const json = JSON.parse(readFileSync(pkgPath, 'utf-8'))
-    json.version = version
-    writeFileSync(pkgPath, JSON.stringify(json, null, 2))
-  }
-  // 同步更新根 package.json
-}
-
-// ========== 包过滤器 ==========
-
-function isCanaryPackage(pkg: WorkspacePackage): boolean {
-  return !pkg.packageJson.private && pkg.name.startsWith('@zeus-js/')
-}
-
-// ========== 发布参数 ==========
-
-function getPublishArgs(options: { dryRun?: boolean }): string[] {
-  const useProvenance =
-    process.env.GITHUB_ACTIONS === 'true' &&
-    Boolean(process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN)
-
-  return [
-    'publish',
-    '--tag',
-    'canary',
-    '--access',
-    'public',
-    '--no-git-checks',
-    ...(options.dryRun ? ['--dry-run'] : []),
-    ...(useProvenance && !options.dryRun ? ['--provenance'] : []),
-  ]
-}
-
-// ========== 主流程 ==========
-
-async function main() {
-  // 仅允许在 CI 或 --force-local 模式下运行
-  if (!process.env.CI && !process.argv.includes('--force-local')) {
-    console.error(
-      'release:canary mutates package versions. It is intended to run in CI.',
-    )
-    process.exit(1)
-  }
-
-  const baseVersion = getBaseVersion()
-  const canaryVersion = getCanaryVersion(baseVersion)
-
-  // 将版本号写入 GITHUB_ENV，供下游 workflow 使用
-  if (process.env.GITHUB_ENV) {
-    fs.appendFileSync(
-      process.env.GITHUB_ENV,
-      `ZEUS_CANARY_VERSION=${canaryVersion}\n`,
-    )
-  }
-
-  updateVersions(canaryVersion)
-  await exec('pnpm', ['install', '--lockfile-only']) // 仅更新 lockfile metadata
-  await exec('pnpm', ['build'])
-  await exec('pnpm', ['build-dts'])
-  await exec('pnpm', ['api:check'])
-  await exec('pnpm', ['check:exports'])
-  await exec('pnpm', ['check:repository'])
-
-  // dry-run 验证每个包可发布
-  await dryRunCheck(releasePackages)
-
-  // 实际发布
-  await publishCanary()
-
-  // 触发下游 zeus-ui 兼容性检查
-  await triggerDownstreamCompatibilityCheck(canaryVersion)
-}
+```txt
+main push / main workflow_dispatch
+  -> 拒绝任何 native package 的 latest 指向 prerelease
+  -> 构建并验证全部平台 native artifacts
+  -> 校验 event、ref、GITHUB_SHA、checkout HEAD 与远端 main HEAD
+  -> 生成 canary version 和本次运行唯一 staging tag
+  -> 改写 25 个 fixed packages 的版本并执行完整 strict precheck
+  -> 25 个包逐个 dry-run
+  -> 每个真实 publish 前后再次校验远端 main HEAD
+  -> publish --tag zeus-canary-<runId>-<runAttempt> --provenance
+  -> 验证 25 个 staging dist-tags 与 Sigstore provenance
+  -> promote staging tag 到共享 canary；失败时按旧 tag 快照回滚
+  -> 再次验证 25 个 canary dist-tags 与 provenance
+  -> best-effort 清理 staging tag（清理失败不否定已验证的 canary）
+  -> Node 22.18.0 / 24.11.0 从 npm 空目录安装并运行 compiler smoke
+  -> 再次校验 main HEAD
+  -> dispatch 精确版本和 SHA 给 zeus-ui
 ```
 
-### 5.3 GitHub Actions: release-canary.yml
+staging tag 防止部分包发布成功时提前污染共享 `canary`。共享 `canary` 验证完成后会
+逐包清理 staging tag 并确认标签消失；清理属于 best-effort housekeeping，失败会保留
+可审计的唯一 staging tag，但不会把已经验证成功的共享 Canary 判成发布失败。
+provenance 验证不只检查
+attestation 是否存在，还会验证 Sigstore 签名、npm tarball integrity、
+`baicie/zeus`、`.github/workflows/release-canary.yml`、`refs/heads/main` 与精确 commit
+SHA。registry smoke 覆盖 ESM/CJS 加载、DOM/SSR transform、source map 与 diagnostics；
+只有 Node 22/24 两个 job 都成功后才触发下游。
 
-```yaml
-name: Release Canary
-#
-# Prerequisites before enabling this workflow:
-#
-# 1. Create a GitHub Environment named "Canary"
-#    (Settings → Environments → New environment → Name: "Canary")
-#
-# 2. Add secrets to the "Canary" environment:
-#    - NPM_TOKEN: npm publish token
-#    - ZEUS_UI_DISPATCH_TOKEN: GitHub PAT for downstream repo compatibility check
-#
-on:
-  push:
-    branches:
-      - main
-      - feat/**
-      - fix/**
-      - refactor/**
-      - chore/**
-      - docs/**
-      - test/**
-      - release/**
-      - hotfix/**
-  workflow_dispatch:
+### 5.4 Native `latest` 异常修复
 
-jobs:
-  release-canary:
-    if: github.repository == 'baicie/zeus'
-    runs-on: ubuntu-latest
-    environment: Canary
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 1
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version-file: '.node-version'
-          registry-url: 'https://registry.npmjs.org'
-          cache: 'pnpm'
-
-      - name: Install deps
-        run: pnpm install --frozen-lockfile
-
-      - name: Precheck
-        run: |
-          pnpm build
-          pnpm build-dts
-          pnpm api:check
-          pnpm check
-          pnpm test-unit
-          pnpm check:exports
-          pnpm check:repository
-
-      - name: Publish canary
-        run: pnpm release:canary
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-```
-
-canary 发布工具会在发布成功后使用 `ZEUS_UI_DISPATCH_TOKEN` 自动发送下游
-`repository_dispatch`，workflow 不再重复发送。随后 workflow 会轮询 npm，确认全部
-canary 版本可见。
+npm 首次发布包时可能把 prerelease 自动设为 `latest`。日常 workflow 只校验并拒绝，
+绝不自动删除 dist-tag：Canary 在发布前执行 `release:verify:native-latest`，正式发布的
+发布后 dist-tag 校验也会拒绝该状态。因此历史污染必须在任何下一次发布前，于
+`main` 上手动运行 `Repair Native Latest`：输入当前精确污染版本，并输入
+`remove-native-latest:<version>` 确认串。修复脚本会先读取全部 8 个 native 包；只要任一
+`latest` 指向其他版本就整体拒绝，然后仅删除仍指向该确认 prerelease 的标签。该 workflow
+同样使用 `npm-release` 锁和受保护的 `Release` Environment。
 
 ## 6. 质量门禁
 
@@ -1015,14 +929,16 @@ Git hooks（在 `package.json` 中配置）：
 
 ## 9. GitHub Actions 工作流汇总
 
-| Workflow               | 文件                       | 触发                          | 用途                               |
-| ---------------------- | -------------------------- | ----------------------------- | ---------------------------------- |
-| `CI`                   | `ci.yml`                   | PR / push 到 main 和特征分支  | 基础 CI（lint, build, test, docs） |
-| `Release`              | `release.yml`              | Git tag `v*`                  | 正式发版到 npm                     |
-| `Release Canary`       | `release-canary.yml`       | Push 到 main/特征分支，或手动 | Canary 发版到 npm                  |
-| `Component Host RC`    | `component-host-rc.yml`    | PR 改动 core/web-c/create 包  | RC 验证 + benchmark                |
-| `Component Host Bench` | `component-host-bench.yml` | PR 改动 core/web-c            | 性能回归检查                       |
-| `Docs`                 | `docs.yml`                 | Push 到 main（docs 目录变更） | 部署文档到 GitHub Pages            |
+| Workflow                 | 文件                       | 触发                              | 用途                                      |
+| ------------------------ | -------------------------- | --------------------------------- | ----------------------------------------- |
+| `CI`                     | `ci.yml`                   | PR / push 到 main 和特征分支      | 基础 CI（lint, build, test, docs）        |
+| `Compiler Native Matrix` | `compiler-native.yml`      | PR / 指定分支 push / 被发布流调用 | 多平台 native 构建与本地 tarball smoke    |
+| `Release`                | `release.yml`              | Git tag `v*`                      | alpha/beta/rc/stable 发布与 registry 验证 |
+| `Release Canary`         | `release-canary.yml`       | Push 到 main，或在 main 手动触发  | Canary 发布、registry 验证与下游 dispatch |
+| `Repair Native Latest`   | `repair-native-latest.yml` | 仅在 main 手动触发                | 一次性受控删除污染的 native `latest`      |
+| `Component Host RC`      | `component-host-rc.yml`    | PR 改动 core/web-c/create 包      | RC 验证 + benchmark                       |
+| `Component Host Bench`   | `component-host-bench.yml` | PR 改动 core/web-c                | 性能回归检查                              |
+| `Docs`                   | `docs.yml`                 | Push 到 main（docs 目录变更）     | 部署文档到 GitHub Pages                   |
 
 ## 10. 日常发版操作
 
@@ -1066,7 +982,7 @@ npm view @zeus-js/zeus versions --json | tail -5
 
 ```bash
 # 正常提交 PR，合并后 GitHub Actions 自动触发
-# 或手动触发 release-canary.yml (workflow_dispatch)
+# 或在 main ref 手动触发 release-canary.yml (workflow_dispatch)
 ```
 
 ### 验证包可发布性（不实际发布）
@@ -1083,11 +999,8 @@ pnpm release --dry --skipGit
 
 ### Q: 哪些包会实际发布到 npm？
 
-满足以下全部条件的包：
-
-- `private: false`（`"private": true` 的包不会发布）
-- 不在 Changesets `ignore` 列表中
-- 包名以 `@zeus-js/` 开头
+只发布 `scripts/release.config.ts` 的 `zeusFixedPackages`（与
+`.changeset/config.json` fixed group 一致）中的 25 个非 private `@zeus-js/*` 包。
 
 ### Q: 固定组内一个包改了 patch，其他包版本也会变吗？
 
@@ -1095,7 +1008,10 @@ pnpm release --dry --skipGit
 
 ### Q: CI 发布失败了怎么办？
 
-使用 `pnpm release:retry-tag` 重试，或者手动修复后重新推送 tag。
+如果 npm 上还没有任何 fixed 包的目标版本，修复后使用
+`pnpm release:retry-tag VERSION --yes` 重建并推送 tag；该命令会校验工作区、包版本和 npm
+状态。如果已有任一
+目标版本发布，不得重推同版本，必须提升版本后重新走发布流程。
 
 ### Q: 为什么 release 脚本要分两步（本地 + CI）？
 
