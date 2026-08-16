@@ -12,12 +12,12 @@
     "@zeus-ui/headless": "workspace:*",
     "clsx": "^2.1.1",
     "tailwind-merge": "^3.6.0",
-    "vue": "^3.5.38"
+    "vue": "^3.5.41"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.7",
     "typescript": "^6.0.3",
-    "vite": "^8.0.16",
+    "vite": "catalog:",
     "vue-tsc": "^3.3.5"
   }
 }
