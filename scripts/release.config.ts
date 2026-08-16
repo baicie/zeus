@@ -1,5 +1,7 @@
 import { defineReleaseConfig } from '@baicie/release'
 
+import { syncNativeLoader } from './release/sync-native-loader'
+
 export const zeusFixedPackages = [
   '@zeus-js/shared',
   '@zeus-js/compiler-shared',
@@ -28,6 +30,17 @@ export const zeusFixedPackages = [
   '@zeus-js/output-icons',
 ]
 
+export const zeusNativePackages = [
+  '@zeus-js/compiler-native',
+  '@zeus-js/compiler-native-darwin-arm64',
+  '@zeus-js/compiler-native-darwin-x64',
+  '@zeus-js/compiler-native-linux-arm64-gnu',
+  '@zeus-js/compiler-native-linux-x64-gnu',
+  '@zeus-js/compiler-native-linux-x64-musl',
+  '@zeus-js/compiler-native-win32-arm64-msvc',
+  '@zeus-js/compiler-native-win32-x64-msvc',
+]
+
 export default defineReleaseConfig({
   repo: 'baicie/zeus',
   repositoryUrl: 'https://github.com/baicie/zeus.git',
@@ -48,6 +61,10 @@ export default defineReleaseConfig({
   rootVersionPackage: '@zeus-js/zeus',
   changesetFile: '.changeset/release.md',
   changelogFile: 'CHANGELOG.md',
+
+  async afterVersion({ version }) {
+    await syncNativeLoader(version)
+  },
 
   publish: {
     access: 'public',
@@ -122,15 +139,6 @@ export default defineReleaseConfig({
     prefix: 'canary',
     tag: 'canary',
     envName: 'ZEUS_CANARY_VERSION',
-    dispatch: {
-      tokenEnv: 'ZEUS_UI_DISPATCH_TOKEN',
-      repository: 'baicie/zeus-ui',
-      eventType: 'zeus-canary-published',
-      payload: ({ version, sha }) => ({
-        source: 'zeus',
-        sha,
-        version,
-      }),
-    },
+    includeBranches: ['main'],
   },
 })

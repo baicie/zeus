@@ -5,8 +5,9 @@ name: Release Canary
 # 1. Create a GitHub Environment named "Canary" in repository settings.
 #    (Settings → Environments → New environment → Name: "Canary")
 #
-# 2. Add the following secrets to the "Canary" environment:
-#    - NPM_TOKEN:      npm publish token with publish access to @zeus-js/* packages.
+# 2. Make the following secrets available to this workflow, either at repository level or
+#    in the "Canary" environment:
+#    - NPM_TOKEN: npm publish token with publish access to @zeus-js/* packages.
 #    - ZEUS_UI_DISPATCH_TOKEN: GitHub PAT with "repo" scope on baicie/zeus-ui (or your
 #      downstream repo) to trigger a repository_dispatch event for compatibility checks.
 #
@@ -16,30 +17,46 @@ on:
   push:
     branches:
       - main
-      - feat/**
-      - fix/**
-      - refactor/**
-      - chore/**
-      - docs/**
-      - test/**
-      - release/**
-      - hotfix/**
   workflow_dispatch:
 
 concurrency:
-  group: release-canary-${{ github.ref }}
+  group: npm-release
   cancel-in-progress: false
 
 env:
   PUPPETEER_SKIP_DOWNLOAD: 'true'
 
 jobs:
+  release-preflight:
+    if: github.repository == 'baicie/zeus' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.node-version'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Reject prerelease native latest tags
+        run: pnpm release:verify:native-latest
+
   native-prebuild:
+    if: github.repository == 'baicie/zeus' && github.ref == 'refs/heads/main'
+    needs: release-preflight
     uses: ./.github/workflows/compiler-native.yml
     secrets: inherit
 
   release-canary:
-    if: github.repository == 'baicie/zeus'
+    if: github.repository == 'baicie/zeus' && github.ref == 'refs/heads/main'
     needs: native-prebuild
     runs-on: ubuntu-latest
 
@@ -48,6 +65,8 @@ jobs:
       id-token: write
 
     environment: Canary
+    outputs:
+      version: ${{ steps.canary-version.outputs.version }}
 
     steps:
       - name: Checkout
@@ -90,11 +109,117 @@ jobs:
           pnpm check:exports
           pnpm check:repository
 
+      - name: Verify main publish head
+        run: pnpm release:verify:main-head
+
       - name: Publish canary
         run: pnpm release:canary
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          ZEUS_UI_DISPATCH_TOKEN: ${{ secrets.ZEUS_UI_DISPATCH_TOKEN }}
+
+      - name: Expose canary version
+        id: canary-version
+        run: echo "version=$ZEUS_CANARY_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Verify npm canary publication
         run: pnpm release:verify:published --version "$ZEUS_CANARY_VERSION"
+
+      - name: Verify staged Canary packages and provenance
+        run: >-
+          pnpm release:verify:dist-tags
+          --version "$ZEUS_CANARY_VERSION"
+          --tag "$ZEUS_CANARY_STAGING_TAG"
+          --sha "$GITHUB_SHA"
+          --workflow-path .github/workflows/release-canary.yml
+          --ref refs/heads/main
+          --require-provenance
+
+      - name: Promote verified Canary dist-tags
+        run: >-
+          pnpm release:promote:canary
+          --version "$ZEUS_CANARY_VERSION"
+          --source-tag "$ZEUS_CANARY_STAGING_TAG"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Verify promoted Canary dist-tags and provenance
+        run: >-
+          pnpm release:verify:dist-tags
+          --version "$ZEUS_CANARY_VERSION"
+          --tag canary
+          --sha "$GITHUB_SHA"
+          --workflow-path .github/workflows/release-canary.yml
+          --ref refs/heads/main
+          --require-provenance
+
+      - name: Clean Canary staging dist-tags
+        continue-on-error: true
+        run: >-
+          pnpm release:cleanup:canary-staging
+          --version "$ZEUS_CANARY_VERSION"
+          --source-tag "$ZEUS_CANARY_STAGING_TAG"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  compiler-registry-smoke:
+    if: github.repository == 'baicie/zeus' && github.ref == 'refs/heads/main'
+    needs: release-canary
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.18.0', '24.11.0']
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node }}
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install script dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install and execute published compiler
+        run: pnpm release:smoke:compiler --version "${{ needs.release-canary.outputs.version }}" --expected-platform-package @zeus-js/compiler-native-linux-x64-gnu
+
+  dispatch-canary:
+    if: github.repository == 'baicie/zeus' && github.ref == 'refs/heads/main'
+    needs: [release-canary, compiler-registry-smoke]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    environment: Canary
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.node-version'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify main before downstream dispatch
+        run: pnpm release:verify:main-head
+
+      - name: Dispatch verified canary to zeus-ui
+        env:
+          GH_TOKEN: ${{ secrets.ZEUS_UI_DISPATCH_TOKEN }}
+          CANARY_VERSION: ${{ needs.release-canary.outputs.version }}
+        run: |
+          gh api --method POST repos/baicie/zeus-ui/dispatches \
+            -f event_type=zeus-canary-published \
+            -F client_payload[source]=zeus \
+            -F client_payload[sha]="$GITHUB_SHA" \
+            -F client_payload[version]="$CANARY_VERSION"

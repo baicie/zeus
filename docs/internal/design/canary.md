@@ -1,27 +1,29 @@
-# Zeus Canary 与下游兼容验证
+# Zeus Canary 与下游兼容验证（历史设计草案）
 
-Zeus 的 canary 策略服务于 main-only trunk 模型：
+> **文档状态**：本文主体保留早期 API 收口与 Canary 集成方案，用于追溯设计背景，
+> 不是现行发布操作手册。现行规则以 [`docs/release-process.md`](../../release-process.md)、
+> `.github/workflows/release-canary.yml` 和 `scripts/release/*.ts` 为准。
+
+当前共享 `canary` 通道采用 main-only 单写者模型：
 
 ```txt
 短分支 PR
-  -> CI
-  -> 需要时发 canary
-  -> zeus-ui / examples 下游验证
+  -> CI / native matrix（不发布共享 canary）
   -> squash merge main
-  -> main 自动发 canary
+  -> main 自动发本次运行唯一的 staging tag
+  -> 校验 25 个包、provenance 与来源
+  -> promote 到 canary
+  -> Node 22/24 registry smoke
+  -> zeus-ui 下游验证
 ```
 
-canary 不需要独立长期分支。当前触发方式：
+自动触发只接受 `main` push；`workflow_dispatch` 也必须选择 `main` ref。Canary、正式发布
+和一次性 native `latest` 修复共用 `npm-release` concurrency group，
+`cancel-in-progress: false`，避免取消正在写 npm 的运行。feature/fix/refactor 等分支只运行
+CI 与 native matrix；如果未来需要分支预发布，应使用分支专属 dist-tag，不能写共享
+`canary`。
 
-```txt
-push main
-push feat/* / fix/* / refactor/* / chore/* / test/* / release/* / hotfix/*
-manual workflow_dispatch
-```
-
-PR 需要 canary 时，由维护者从对应分支手动触发 workflow，避免在 PR 上扩大 npm token 暴露面。
-
-canary 验证目标：
+当前 canary 验证目标：
 
 ```txt
 1. zeus-ui 能不能安装
@@ -33,6 +35,8 @@ canary 验证目标：
 ```
 
 ---
+
+## 历史方案正文
 
 下面是一版**结合当前 `baicie/zeus` 代码结构**的 Zeus 侧落地方案。核心目标是：
 
@@ -741,6 +745,10 @@ main()
 
 # 8. 增加 canary 发布脚本
 
+> 以下脚本是历史提案，不能作为当前发布入口的实现参考。当前脚本只允许 GitHub Actions
+> 的 `main`，发布到运行唯一的 staging tag，并在每个真实 publish 前后校验远端
+> `main` HEAD。
+
 你现在 release 脚本已经支持：
 
 ```ts
@@ -903,6 +911,10 @@ main().catch(err => {
 ---
 
 # 9. 新增 GitHub Action：canary 发布
+
+> 以下 YAML 是历史提案，不能复制到现行 workflow。当前 workflow 仅由 `main` 触发，
+> 与正式发布共用 `group: npm-release`，使用 `cancel-in-progress: false`，并在 staging
+> provenance 验证、`canary` promote 和 Node 22/24 registry smoke 全部通过后才 dispatch。
 
 当前正式 release 是 tag 触发，只在 `v*` tag 上发布。
 

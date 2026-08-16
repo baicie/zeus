@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import { existsSync, readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
 import { brotliCompressSync, gzipSync } from 'node:zlib'
@@ -19,6 +20,11 @@ import {
 const commit = spawnSync('git', ['rev-parse', '--short=7', 'HEAD'])
   .stdout.toString()
   .trim()
+const require = createRequire(import.meta.url)
+const rolldownCli = path.join(
+  path.dirname(require.resolve('rolldown/package.json')),
+  'bin/cli.mjs',
+)
 
 const { values, positionals: targets } = parseArgs({
   allowPositionals: true,
@@ -78,7 +84,10 @@ const {
 
 const sizeDir = path.resolve('temp/size')
 
-run()
+void run().catch(error => {
+  console.error(error)
+  process.exitCode = 1
+})
 
 async function run() {
   if (writeSize) fs.mkdirSync(sizeDir, { recursive: true })
@@ -100,9 +109,9 @@ async function run() {
       })
     }
   } finally {
-    // Cache must be removed after build-dts since it depends on enum cache
+    // build-dts consumes this cache, so remove it only after the full build.
+    removeCache()
   }
-  removeCache()
 }
 
 function runDtsInBackground(resolvedTargets: string[]): void {
@@ -180,26 +189,34 @@ async function build(target: string): Promise<void> {
     (pkg.buildOptions && pkg.buildOptions.env) ||
     (devOnly ? 'development' : 'production')
 
-  await exec(
-    'rolldown',
+  runRolldown([
+    '-c',
+    './scripts/bundler/rolldown.config.ts',
+    '--environment',
     [
-      '-c',
-      './scripts/bundler/rolldown.config.ts',
-      '--environment',
-      [
-        `COMMIT:${commit}`,
-        `NODE_ENV:${env}`,
-        `TARGET:${target}`,
-        formats ? `FORMATS:${encodeURIComponent(formats)}` : ``,
-        prodOnly ? `PROD_ONLY:true` : ``,
-        sourceMap ? `SOURCE_MAP:true` : ``,
-      ]
-        .filter(Boolean)
-        .join(','),
-      watch ? `--watch` : ``,
-    ],
-    { stdio: 'inherit' },
-  )
+      `COMMIT:${commit}`,
+      `NODE_ENV:${env}`,
+      `TARGET:${target}`,
+      formats ? `FORMATS:${encodeURIComponent(formats)}` : ``,
+      prodOnly ? `PROD_ONLY:true` : ``,
+      sourceMap ? `SOURCE_MAP:true` : ``,
+    ]
+      .filter(Boolean)
+      .join(','),
+    watch ? `--watch` : ``,
+  ])
+}
+
+function runRolldown(args: string[]): void {
+  const result = spawnSync(process.execPath, [rolldownCli, ...args], {
+    stdio: 'inherit',
+  })
+  if (result.error) throw result.error
+  if (result.status !== 0) {
+    throw new Error(
+      `Rolldown exited with code ${result.status ?? 'null'} and signal ${result.signal ?? 'none'}`,
+    )
+  }
 }
 
 async function checkAllSizes(targets: string[]): Promise<void> {

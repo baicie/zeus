@@ -4,12 +4,18 @@ on:
   workflow_call:
   pull_request:
     paths:
+      - '.github/workflows/compiler-native.yml'
       - 'crates/**'
       - 'packages/core/compiler/**'
       - 'packages/core/compiler-native/**'
       - 'packages/core/compiler-native-*/**'
+      - 'scripts/bundler/build.ts'
       - 'scripts/check/check-native-packages.ts'
       - 'scripts/release/build-native-platform.ts'
+      - 'scripts/release/compiler-smoke-runner.mjs'
+      - 'scripts/release/smoke-compiler-install.ts'
+      - 'scripts/release/sync-native-loader.ts'
+      - 'scripts/release.config.ts'
       - 'package.json'
       - 'pnpm-lock.yaml'
   push:
@@ -72,18 +78,36 @@ jobs:
 
       - uses: Swatinem/rust-cache@401aff9a7a08acb9d27b64936a90db81024cff97 # v2.8.2
 
-      - name: Install musl linker
+      - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
         if: matrix.musl == true
-        run: sudo apt-get update && sudo apt-get install --yes musl-tools
+        with:
+          version: 0.14.1
+
+      - uses: taiki-e/install-action@07b4745e0c39a41822af610387492e3e53aa222b # v2.83.4
+        if: matrix.musl == true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          tool: cargo-zigbuild@0.23.0
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm check:native-packages
       - run: pnpm native:build:platform --target ${{ matrix.target }}
+      - run: pnpm build compiler
       - run: pnpm check:native-binaries --package ${{ matrix.package }}
       - run: pnpm check:release-artifacts --package ${{ matrix.package }} --require-binaries
 
       - name: Native contract smoke test
+        if: matrix.musl != true
         run: node -e "const b=require('./packages/core/${{ matrix.package }}'); const r=b.transformModule({source:'const view=<div>ok</div>',filename:'matrix.tsx',target:'dom',runtimeModule:'@zeus-js/runtime-dom',delegateEvents:true,sourceMap:true}); if(!r.code.includes('template')||r.diagnostics.length) process.exit(1)"
+
+      - name: Public compiler tarball install smoke
+        if: matrix.musl != true
+        run: pnpm release:smoke:compiler --local-package ${{ matrix.package }} --expected-platform-package @zeus-js/${{ matrix.package }}
+
+      - name: Public compiler tarball install smoke (musl)
+        if: matrix.musl == true
+        run: pnpm release:smoke:compiler --local-package ${{ matrix.package }} --expected-platform-package @zeus-js/${{ matrix.package }} --container-image node:24.16.0-alpine3.23@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14
 
       - uses: actions/upload-artifact@v4
         with:

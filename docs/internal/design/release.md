@@ -193,9 +193,13 @@ GitHub Actions 会在 tag push 后执行 `.github/workflows/release.yml`：
 
 ```txt
 tag v*
+  -> native platform matrix
+  -> 验证 tag/version 且 tag commit 可从 origin/main 到达
   -> release:precheck
   -> pnpm release --publishOnly <version> --skipBuild
   -> npm publish
+  -> 验证 25 包 dist-tag 与 Sigstore provenance 来源
+  -> Node 22/24 registry compiler smoke
   -> GitHub Release
 ```
 
@@ -236,23 +240,15 @@ pnpm release --publishOnly <version> --skipBuild
 
 ## 6. Canary 发版
 
-canary 用于 PR / 短分支 / main 合并后的下游兼容性验证，不污染正式 release 流程。
+共享 `canary` 是 `main` 合并后的下游兼容性通道。只有 `main` push 会自动触发；手动
+`workflow_dispatch` 也必须选择 `main` ref。PR 和 feature/fix/refactor 等短分支只运行 CI
+与 native matrix，不允许写共享 `canary`。如需分支预发布，必须另行设计分支专属
+dist-tag。
 
-CI 触发：
-
-```txt
-push main / feat/* / fix/* / refactor/* / chore/* / test/* / release/* / hotfix/*
-  -> .github/workflows/release-canary.yml
-  -> pnpm release:canary
-```
-
-也可以通过 GitHub Actions `workflow_dispatch` 手动触发。PR 需要 canary 时，由维护者从对应分支手动触发，避免在 PR 上扩大 npm token 暴露面。
-
-本地默认禁止运行，因为它会临时改 package versions。确实要本地调试时：
-
-```bash
-pnpm release:canary --force-local
-```
+Canary、正式 tag 发布与 `Repair Native Latest` 共用固定的 `npm-release` concurrency
+group，且 `cancel-in-progress: false`，确保 npm 写操作排队串行且不会中途取消。
+`release:canary` 只允许在具备 OIDC 和 npm token 的 GitHub Actions 中执行，不提供本地
+`--force-local` 入口。
 
 canary 版本格式：
 
@@ -266,17 +262,25 @@ canary 版本格式：
 0.1.0-canary.20260604.123.1.a1b2c3d4
 ```
 
-canary 发布前会执行：
+Canary 流程：
 
-- 版本临时改写
-- lockfile metadata 更新
-- build
-- build-dts
-- api:check
-- check:exports
-- check:repository
-- npm publish dry-run
-- npm publish --tag canary
+- 拒绝 native `latest` 指向任何 prerelease，并构建全部平台 native artifacts
+- 校验 event、ref、checkout SHA、`GITHUB_SHA` 与远端 `main` HEAD
+- 版本临时改写、lockfile metadata 更新和完整 strict release precheck
+- 对 25 个 fixed packages 执行 npm publish dry-run
+- 每个真实 publish 前后重验 `main` HEAD，并发布到运行唯一的 staging tag
+- 验证 staging dist-tag 和 Sigstore provenance；签名来源必须匹配仓库、workflow、
+  `refs/heads/main`、精确 commit SHA 与 npm tarball integrity
+- 将 25 个 staging tag 提升到共享 `canary`；失败时按提升前快照回滚
+- 再验 `canary` dist-tag 与 provenance，再 best-effort 清理 staging tag；清理失败只保留
+  唯一审计标签，不否定已验证的 Canary
+- Node 22.18.0 / 24.11.0 从 npm 空目录安装目标版本，执行 ESM/CJS、DOM/SSR smoke
+- registry smoke 全部通过且 `main` HEAD 未变化后，才 dispatch 精确版本与 SHA 给
+  `zeus-ui`
+
+native 包首次发布时可能被 npm 错误赋予 `latest`。日常 workflow 只拒绝，不自动删除。
+历史污染必须在 `main` 手动运行 `Repair Native Latest`，输入精确污染版本和
+`remove-native-latest:<version>` 确认串；该修复与发布共享 `npm-release` 锁。
 
 ---
 
@@ -314,11 +318,7 @@ pnpm release --publishOnly 0.1.0-beta.2 --skipBuild
 pnpm release:retry-tag 0.1.0-beta.2 --yes
 ```
 
-本地调试 canary：
-
-```bash
-pnpm release:canary --force-local
-```
+Canary 只能由 GitHub Actions 在 `main` 上自动或手动触发，不能从本地发布。
 
 ---
 
@@ -368,7 +368,8 @@ npm 版本不可覆盖。不要重试同一个版本盲发。
 1. 看失败包和已发布包列表
 2. 如果只是 CI 中断，确认哪些包已经发布
 3. 必要时提升到新 patch / prerelease 版本重新发
-4. canary 失败可重新跑 workflow，`GITHUB_RUN_ATTEMPT` 会生成新 canary 版本
+4. 如果该 SHA 仍是远端 `main` HEAD，可重新跑 workflow，`GITHUB_RUN_ATTEMPT` 会生成新
+   canary 版本；如果 `main` 已前进，旧运行会被 HEAD 守卫拒绝，应使用新 HEAD 的运行
 
 ### GitHub Actions 在 publish 前失败，npm 包没发出去
 
