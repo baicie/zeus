@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import fs from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
 
@@ -13,6 +14,8 @@ import type {
   ComponentManifest,
 } from '@zeus-js/component-analyzer'
 import type { OutputBundle } from 'rollup'
+
+const require = createRequire(import.meta.url)
 
 type ZeusOutputAsset = {
   type: 'asset'
@@ -138,6 +141,18 @@ describe('output-wc', () => {
   })
 
   describe('virtualModules', () => {
+    it('resolves the lazy runtime from the output plugin dependency', () => {
+      const plugin = wc()
+      const ctx = createMockCtx({ version: 1, components: [] })
+      const modules = plugin.virtualModules!(ctx as any) as any[]
+      const loader = modules.find(module => module.id === 'zeus:wc:loader')
+      const runtimeEntry = require
+        .resolve('@zeus-js/web-c-runtime')
+        .replace(/\\/g, '/')
+
+      expect(loader.code).toContain(`from ${JSON.stringify(runtimeEntry)}`)
+    })
+
     it('uses lazy registration by default', () => {
       const plugin = wc()
       const ctx = createMockCtx({

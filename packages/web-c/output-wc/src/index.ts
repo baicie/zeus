@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module'
 import path from 'node:path'
 
 import { resolvePluginDts } from '@zeus-js/bundler-plugin'
@@ -22,7 +23,7 @@ import {
   generateLoader,
 } from './generateLoader'
 import { generateZeusComponentsManifest } from './generateManifest'
-import { toAbsoluteImportPath } from './imports'
+import { normalizePath, toAbsoluteImportPath } from './imports'
 
 import type { OutputWCOptions } from './types'
 import type {
@@ -31,6 +32,11 @@ import type {
   ZeusVirtualModule,
   ZeusOutputFile,
 } from '@zeus-js/bundler-plugin'
+
+const require = createRequire(import.meta.url)
+const webCRuntimeEntry = normalizePath(
+  require.resolve('@zeus-js/web-c-runtime'),
+)
 
 export type { OutputWCOptions } from './types'
 
@@ -174,7 +180,7 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
         modules.push({
           id: 'zeus:wc:loader',
           fileName: joinPath('loader.js'),
-          code: generateLoader(),
+          code: generateLoader(webCRuntimeEntry),
         })
 
         if (normalized.auto) {
