@@ -1,6 +1,7 @@
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import { existsSync, readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
 import { brotliCompressSync, gzipSync } from 'node:zlib'
@@ -19,6 +20,11 @@ import {
 const commit = spawnSync('git', ['rev-parse', '--short=7', 'HEAD'])
   .stdout.toString()
   .trim()
+const require = createRequire(import.meta.url)
+const rolldownCli = path.join(
+  path.dirname(require.resolve('rolldown/package.json')),
+  'bin/cli.mjs',
+)
 
 const { values, positionals: targets } = parseArgs({
   allowPositionals: true,
@@ -180,26 +186,42 @@ async function build(target: string): Promise<void> {
     (pkg.buildOptions && pkg.buildOptions.env) ||
     (devOnly ? 'development' : 'production')
 
-  await exec(
-    'rolldown',
+  await runRolldown([
+    '-c',
+    './scripts/bundler/rolldown.config.ts',
+    '--environment',
     [
-      '-c',
-      './scripts/bundler/rolldown.config.ts',
-      '--environment',
-      [
-        `COMMIT:${commit}`,
-        `NODE_ENV:${env}`,
-        `TARGET:${target}`,
-        formats ? `FORMATS:${encodeURIComponent(formats)}` : ``,
-        prodOnly ? `PROD_ONLY:true` : ``,
-        sourceMap ? `SOURCE_MAP:true` : ``,
-      ]
-        .filter(Boolean)
-        .join(','),
-      watch ? `--watch` : ``,
-    ],
-    { stdio: 'inherit' },
-  )
+      `COMMIT:${commit}`,
+      `NODE_ENV:${env}`,
+      `TARGET:${target}`,
+      formats ? `FORMATS:${encodeURIComponent(formats)}` : ``,
+      prodOnly ? `PROD_ONLY:true` : ``,
+      sourceMap ? `SOURCE_MAP:true` : ``,
+    ]
+      .filter(Boolean)
+      .join(','),
+    watch ? `--watch` : ``,
+  ])
+}
+
+function runRolldown(args: string[]): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [rolldownCli, ...args], {
+      stdio: 'inherit',
+    })
+    child.once('error', reject)
+    child.once('close', (code, signal) => {
+      if (code === 0) {
+        resolve()
+        return
+      }
+      reject(
+        new Error(
+          `Rolldown exited with code ${code ?? 'null'} and signal ${signal ?? 'none'}`,
+        ),
+      )
+    })
+  })
 }
 
 async function checkAllSizes(targets: string[]): Promise<void> {

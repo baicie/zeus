@@ -101,6 +101,10 @@ describe('release workflows', () => {
     )
 
     expect(buildScript).toMatch(/\nawait run\(\)\n/)
+    expect(buildScript).toContain("require.resolve('rolldown/package.json')")
+    expect(buildScript).toContain(
+      'spawn(process.execPath, [rolldownCli, ...args]',
+    )
   })
 
   it('rejects polluted native latest tags before a tagged release publishes', () => {
