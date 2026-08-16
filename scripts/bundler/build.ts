@@ -1,4 +1,4 @@
-import { spawn, spawnSync } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -186,7 +186,7 @@ async function build(target: string): Promise<void> {
     (pkg.buildOptions && pkg.buildOptions.env) ||
     (devOnly ? 'development' : 'production')
 
-  await runRolldown([
+  runRolldown([
     '-c',
     './scripts/bundler/rolldown.config.ts',
     '--environment',
@@ -204,24 +204,16 @@ async function build(target: string): Promise<void> {
   ])
 }
 
-function runRolldown(args: string[]): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [rolldownCli, ...args], {
-      stdio: 'inherit',
-    })
-    child.once('error', reject)
-    child.once('close', (code, signal) => {
-      if (code === 0) {
-        resolve()
-        return
-      }
-      reject(
-        new Error(
-          `Rolldown exited with code ${code ?? 'null'} and signal ${signal ?? 'none'}`,
-        ),
-      )
-    })
+function runRolldown(args: string[]): void {
+  const result = spawnSync(process.execPath, [rolldownCli, ...args], {
+    stdio: 'inherit',
   })
+  if (result.error) throw result.error
+  if (result.status !== 0) {
+    throw new Error(
+      `Rolldown exited with code ${result.status ?? 'null'} and signal ${result.signal ?? 'none'}`,
+    )
+  }
 }
 
 async function checkAllSizes(targets: string[]): Promise<void> {

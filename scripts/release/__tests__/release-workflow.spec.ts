@@ -86,12 +86,25 @@ describe('release workflows', () => {
       resolve(root, '.github/workflows/compiler-native.yml'),
       'utf8',
     )
+    const nativeBuildScript = readFileSync(
+      resolve(root, 'scripts/release/build-native-platform.ts'),
+      'utf8',
+    )
 
     expect(workflow).toContain('if: matrix.musl != true')
     expect(workflow).toContain('if: matrix.musl == true')
+    const nativeContract = workflow.slice(
+      workflow.indexOf('Native contract smoke test'),
+      workflow.indexOf('Public compiler tarball install smoke'),
+    )
+    expect(nativeContract).toContain('if: matrix.musl != true')
     expect(workflow).toContain(
       '--container-image node:24.16.0-alpine3.23@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14',
     )
+    expect(nativeBuildScript).toContain(
+      'CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER',
+    )
+    expect(nativeBuildScript).toContain("'musl-gcc'")
   })
 
   it('awaits the compiler build entry used by Windows native jobs', () => {
@@ -103,8 +116,9 @@ describe('release workflows', () => {
     expect(buildScript).toMatch(/\nawait run\(\)\n/)
     expect(buildScript).toContain("require.resolve('rolldown/package.json')")
     expect(buildScript).toContain(
-      'spawn(process.execPath, [rolldownCli, ...args]',
+      'spawnSync(process.execPath, [rolldownCli, ...args]',
     )
+    expect(buildScript).toContain('if (result.status !== 0)')
   })
 
   it('rejects polluted native latest tags before a tagged release publishes', () => {

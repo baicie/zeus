@@ -89,6 +89,7 @@ jobs:
       - run: pnpm check:release-artifacts --package ${{ matrix.package }} --require-binaries
 
       - name: Native contract smoke test
+        if: matrix.musl != true
         run: node -e "const b=require('./packages/core/${{ matrix.package }}'); const r=b.transformModule({source:'const view=<div>ok</div>',filename:'matrix.tsx',target:'dom',runtimeModule:'@zeus-js/runtime-dom',delegateEvents:true,sourceMap:true}); if(!r.code.includes('template')||r.diagnostics.length) process.exit(1)"
 
       - name: Public compiler tarball install smoke
