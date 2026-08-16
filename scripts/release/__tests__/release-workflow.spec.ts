@@ -107,9 +107,9 @@ describe('release workflows', () => {
     )
     expect(workflow).toContain('version: 0.14.1')
     expect(workflow).toContain(
-      'uses: taiki-e/install-action@288e746965032cfcc232e09af2daf5f23c14d780',
+      'uses: taiki-e/install-action@07b4745e0c39a41822af610387492e3e53aa222b',
     )
-    expect(workflow).toContain('tool: cargo-zigbuild')
+    expect(workflow).toContain('tool: cargo-zigbuild@0.23.0')
     expect(workflow).not.toContain('musl-tools')
     expect(nativeBuildScript).toContain("'--cross-compile'")
     expect(nativeBuildScript).not.toContain(
