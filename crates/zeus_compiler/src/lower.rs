@@ -2,16 +2,18 @@ use std::collections::{HashMap, HashSet};
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{
-    BindingPattern, Declaration, Expression, FunctionType, ImportDeclarationSpecifier,
-    JSXAttribute, JSXAttributeItem, JSXAttributeName, JSXAttributeValue, JSXChild, JSXElement,
-    JSXElementName, JSXExpression, JSXExpressionContainer, JSXFragment, JSXSpreadAttribute,
-    MemberExpression, ModuleDeclaration, Statement, VariableDeclarator,
+    BindingPattern, Declaration, Expression, FunctionType, IdentifierReference,
+    ImportDeclarationSpecifier, JSXAttribute, JSXAttributeItem, JSXAttributeName,
+    JSXAttributeValue, JSXChild, JSXElement, JSXElementName, JSXExpression, JSXExpressionContainer,
+    JSXFragment, JSXSpreadAttribute, MemberExpression, ModuleDeclaration, Statement,
+    VariableDeclarator,
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_diagnostics::{OxcDiagnostic, Severity};
 use oxc_parser::Parser;
-use oxc_semantic::SemanticBuilder;
+use oxc_semantic::{Scoping, SemanticBuilder};
 use oxc_span::{GetSpan, SourceType, Span};
+use oxc_syntax::symbol::SymbolId;
 use oxc_syntax::xml_entities::decode_entities;
 
 use crate::html::{is_raw_text_element, is_unsupported_raw_text_element, is_void_element};
@@ -20,9 +22,9 @@ use crate::{
     ir::{
         AttrBindingIr, AttributeIr, ChildIr, ComponentBindingIr, ComponentIr, ComponentPropIr,
         ComponentPropValueIr, DynamicTextIr, ElementIr, EventBindingIr, ExpressionForm,
-        ExpressionIr, ForBindingIr, FragmentIr, IrRef, ModuleIr, NodeId, PropBindingIr,
-        RefBindingIr, RootIr, ShowBindingIr, StaticAttributeIr, StaticAttributeValue, TextIr,
-        is_children_expression,
+        ExpressionIr, ForAccessorIr, ForBindingIr, FragmentIr, IrRef, ModuleIr, NodeId,
+        PropBindingIr, RefBindingIr, RootIr, ShowBindingIr, StaticAttributeIr,
+        StaticAttributeValue, TextIr, is_children_expression,
     },
     span::SourceIndex,
 };
@@ -100,19 +102,8 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
         };
     }
 
-    let scoping = semantic_result.semantic.scoping();
-    let mut reserved_names = scoping
-        .iter_bindings()
-        .flat_map(|(_, bindings)| bindings.keys().map(ToString::to_string))
-        .collect::<Vec<_>>();
-    reserved_names.extend(
-        scoping
-            .root_unresolved_references()
-            .iter()
-            .map(|(name, _)| name.to_string()),
-    );
-    reserved_names.sort_unstable();
-    reserved_names.dedup();
+    let reserved_names = collect_reserved_names(semantic_result.semantic.scoping());
+    let scoping = semantic_result.semantic.into_scoping();
 
     let builtin_names = collect_builtin_names(&parsed.program);
     let hmr = collect_hmr_info(&parsed.program);
@@ -125,6 +116,7 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
         builtin_names,
         define_element_setup_spans,
         host_root_spans,
+        scoping,
     );
     lowerer.visit_program(&parsed.program);
     let preamble_end = parsed
@@ -157,6 +149,22 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
     }
 }
 
+fn collect_reserved_names(scoping: &Scoping) -> Vec<String> {
+    let mut names = scoping
+        .iter_bindings()
+        .flat_map(|(_, bindings)| bindings.keys().map(ToString::to_string))
+        .collect::<Vec<_>>();
+    names.extend(
+        scoping
+            .root_unresolved_references()
+            .iter()
+            .map(|(name, _)| name.to_string()),
+    );
+    names.sort_unstable();
+    names.dedup();
+    names
+}
+
 struct Lowerer<'source, 'allocator> {
     source: &'source str,
     filename: &'source str,
@@ -169,6 +177,15 @@ struct Lowerer<'source, 'allocator> {
     define_element_setup_spans: Vec<Span>,
     host_root_spans: HashSet<u32>,
     host_depth: usize,
+    scoping: Scoping,
+    for_accessor_scopes: Vec<LowerForAccessorScope>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct LowerForAccessorScope {
+    for_id: NodeId,
+    item: Option<SymbolId>,
+    index: Option<SymbolId>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -187,6 +204,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         builtin_names: HashMap<String, BuiltinKind>,
         define_element_setup_spans: Vec<Span>,
         host_root_spans: HashSet<u32>,
+        scoping: Scoping,
     ) -> Self {
         Self {
             source,
@@ -200,6 +218,8 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             define_element_setup_spans,
             host_root_spans,
             host_depth: 0,
+            scoping,
+            for_accessor_scopes: Vec::new(),
         }
     }
 
@@ -495,6 +515,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         let mut item = "item".into();
         let mut index = None;
         let mut body = Vec::new();
+        let mut rejected_callback_parameter = false;
 
         let rejected_once_callback = element.children.iter().any(|child| {
             let JSXChild::ExpressionContainer(container) = child else {
@@ -528,49 +549,15 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             && has_only_callback_and_whitespace
             && let Some(function) = callback
         {
-            item = function
-                .params
-                .items
-                .first()
-                .and_then(|parameter| binding_name(&parameter.pattern))
-                .unwrap_or_else(|| "item".into());
-            index = function
-                .params
-                .items
-                .get(1)
-                .and_then(|parameter| binding_name(&parameter.pattern));
-            match &function.body {
-                oxc_ast::ast::ArrowFunctionBody::FunctionBody(body_block) => {
-                    if body_block.statements.len() == 1
-                        && let Statement::ReturnStatement(statement) = &body_block.statements[0]
-                        && let Some(argument) = &statement.argument
-                        && let Some(child) = self.lower_expression_child(argument)
-                    {
-                        body.push(child);
-                    }
-                }
-                arrow_body => {
-                    if let Some(expression) = arrow_body.as_expression() {
-                        let expression = unwrap_expression(expression);
-                        if let Some(child) = self.lower_expression_child(expression) {
-                            body.push(child);
-                        } else if !contains_jsx(expression) {
-                            let id = self.allocate_id();
-                            body.push(ChildIr::DynamicText(DynamicTextIr {
-                                id,
-                                kind: "DynamicText".into(),
-                                reference: IrRef { node_id: id },
-                                expression: self.lower_expression(expression),
-                                once: false,
-                                span: self.source_index.span(expression.span()),
-                            }));
-                        }
-                    }
-                }
+            if let Some(span) = unsupported_for_callback_parameter_span(function) {
+                self.unsupported_for_callback_parameter(span);
+                rejected_callback_parameter = true;
+            } else {
+                (item, index, body) = self.lower_for_callback(function, id);
             }
         }
 
-        if body.is_empty() && !rejected_once_callback {
+        if body.is_empty() && !rejected_once_callback && !rejected_callback_parameter {
             self.unsupported(
                 "ZEUS_INVALID_FOR_CHILD",
                 "<For> requires a single item callback returning JSX or a value.",
@@ -588,6 +575,59 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             body,
             span: self.source_index.span(element.span),
         }
+    }
+
+    fn lower_for_callback(
+        &mut self,
+        function: &oxc_ast::ast::ArrowFunctionExpression<'_>,
+        for_id: NodeId,
+    ) -> (String, Option<String>, Vec<ChildIr>) {
+        let item_parameter = function.params.items.first();
+        let item = item_parameter
+            .and_then(|parameter| binding_name(&parameter.pattern))
+            .unwrap_or_else(|| "item".into());
+        let index_parameter = function.params.items.get(1);
+        let index = index_parameter.and_then(|parameter| binding_name(&parameter.pattern));
+        self.for_accessor_scopes.push(LowerForAccessorScope {
+            for_id,
+            item: item_parameter.and_then(|parameter| binding_symbol(&parameter.pattern)),
+            index: index_parameter.and_then(|parameter| binding_symbol(&parameter.pattern)),
+        });
+
+        let mut body = Vec::new();
+        match &function.body {
+            oxc_ast::ast::ArrowFunctionBody::FunctionBody(body_block) => {
+                if body_block.statements.len() == 1
+                    && let Statement::ReturnStatement(statement) = &body_block.statements[0]
+                    && let Some(argument) = &statement.argument
+                    && let Some(child) = self.lower_expression_child(argument)
+                {
+                    body.push(child);
+                }
+            }
+            arrow_body => {
+                if let Some(expression) = arrow_body.as_expression() {
+                    let expression = unwrap_expression(expression);
+                    if let Some(child) = self.lower_expression_child(expression) {
+                        body.push(child);
+                    } else if !contains_jsx(expression) {
+                        let id = self.allocate_id();
+                        body.push(ChildIr::DynamicText(DynamicTextIr {
+                            id,
+                            kind: "DynamicText".into(),
+                            reference: IrRef { node_id: id },
+                            expression: self.lower_expression(expression),
+                            once: false,
+                            span: self.source_index.span(expression.span()),
+                        }));
+                    }
+                }
+            }
+        }
+        self.for_accessor_scopes
+            .pop()
+            .expect("For accessor scopes must be balanced");
+        (item, index, body)
     }
 
     fn lower_show_fallback(&mut self, element: &JSXElement<'_>) -> Option<ComponentPropValueIr> {
@@ -764,6 +804,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             code: code.into(),
             span: self.source_index.span(span),
             form: ExpressionForm::Value,
+            for_accessors: Vec::new(),
         }
     }
 
@@ -784,11 +825,17 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 name.span().source_text(self.source).to_owned()
             }
         };
+        let mut collector = ForAccessorReferenceCollector {
+            scoping: &self.scoping,
+            referenced_symbols: HashSet::new(),
+        };
+        collector.visit_jsx_element_name(name);
         ExpressionIr {
             kind: "Expression".into(),
             code,
             span,
             form: ExpressionForm::Value,
+            for_accessors: self.for_accessors_from_symbols(&collector.referenced_symbols),
         }
     }
 
@@ -808,12 +855,14 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 code: "true".into(),
                 span,
                 form: ExpressionForm::Value,
+                for_accessors: Vec::new(),
             },
             Some(JSXAttributeValue::StringLiteral(value)) => ExpressionIr {
                 kind: "Expression".into(),
                 code: serde_json::to_string(value.value.as_str()).expect("string serializes"),
                 span,
                 form: ExpressionForm::Value,
+                for_accessors: Vec::new(),
             },
             Some(JSXAttributeValue::ExpressionContainer(container)) => {
                 if matches!(&container.expression, JSXExpression::EmptyExpression(_)) {
@@ -1145,14 +1194,55 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         );
     }
 
+    fn unsupported_for_callback_parameter(&mut self, span: Span) {
+        self.diagnostics.push(
+            CompilerDiagnostic::error(
+                "ZEUS_UNSUPPORTED_FOR_CALLBACK_PARAMETER",
+                "<For> callback accepts at most two plain identifier parameters; destructuring, default values, and rest parameters are not supported.",
+                self.filename,
+                Some(self.source_index.span(span)),
+            )
+            .with_hint("Use a callback shaped like `(item, index) => ...`."),
+        );
+    }
+
     fn lower_expression(&self, expression: &Expression<'_>) -> ExpressionIr {
         let span = expression.span();
+        let mut collector = ForAccessorReferenceCollector {
+            scoping: &self.scoping,
+            referenced_symbols: HashSet::new(),
+        };
+        collector.visit_expression(expression);
+        let for_accessors = self.for_accessors_from_symbols(&collector.referenced_symbols);
         ExpressionIr {
             kind: "Expression".into(),
             code: span.source_text(self.source).to_owned(),
             span: self.source_index.span(span),
             form: expression_form(expression),
+            for_accessors,
         }
+    }
+
+    fn for_accessors_from_symbols(
+        &self,
+        referenced_symbols: &HashSet<SymbolId>,
+    ) -> Vec<ForAccessorIr> {
+        self.for_accessor_scopes
+            .iter()
+            .filter_map(|scope| {
+                let item = scope
+                    .item
+                    .is_some_and(|symbol| referenced_symbols.contains(&symbol));
+                let index = scope
+                    .index
+                    .is_some_and(|symbol| referenced_symbols.contains(&symbol));
+                (item || index).then_some(ForAccessorIr {
+                    for_id: scope.for_id,
+                    item,
+                    index,
+                })
+            })
+            .collect()
     }
 
     fn reject_once_marker(&mut self, container: &JSXExpressionContainer<'_>) -> bool {
@@ -1784,9 +1874,63 @@ fn is_component_element(element: &JSXElement<'_>) -> bool {
     }
 }
 
+struct ForAccessorReferenceCollector<'scope> {
+    scoping: &'scope Scoping,
+    referenced_symbols: HashSet<SymbolId>,
+}
+
+impl<'ast> Visit<'ast> for ForAccessorReferenceCollector<'_> {
+    fn visit_identifier_reference(&mut self, identifier: &IdentifierReference<'ast>) {
+        let Some(reference_id) = identifier.reference_id.get() else {
+            return;
+        };
+        let reference = self.scoping.get_reference(reference_id);
+        let flags = reference.flags();
+        if !flags.is_value() || flags.is_value_as_type() {
+            return;
+        }
+        let Some(symbol_id) = reference.symbol_id() else {
+            return;
+        };
+        self.referenced_symbols.insert(symbol_id);
+    }
+}
+
 fn binding_name(pattern: &BindingPattern<'_>) -> Option<String> {
     match pattern {
         BindingPattern::BindingIdentifier(identifier) => Some(identifier.name.to_string()),
+        BindingPattern::ObjectPattern(_)
+        | BindingPattern::ArrayPattern(_)
+        | BindingPattern::AssignmentPattern(_) => None,
+    }
+}
+
+fn unsupported_for_callback_parameter_span(
+    function: &oxc_ast::ast::ArrowFunctionExpression<'_>,
+) -> Option<Span> {
+    function
+        .params
+        .items
+        .iter()
+        .enumerate()
+        .find(|(index, parameter)| {
+            *index >= 2
+                || !matches!(parameter.pattern, BindingPattern::BindingIdentifier(_))
+                || parameter.initializer.is_some()
+        })
+        .map(|(_, parameter)| parameter.span)
+        .or_else(|| {
+            function
+                .params
+                .rest
+                .as_ref()
+                .map(|parameter| parameter.span)
+        })
+}
+
+fn binding_symbol(pattern: &BindingPattern<'_>) -> Option<SymbolId> {
+    match pattern {
+        BindingPattern::BindingIdentifier(identifier) => identifier.symbol_id.get(),
         BindingPattern::ObjectPattern(_)
         | BindingPattern::ArrayPattern(_)
         | BindingPattern::AssignmentPattern(_) => None,

@@ -38,16 +38,14 @@ pub(crate) fn emit_module(
     for component in &module.components {
         match &component.root {
             RootIr::Show(show) => {
-                helper_usage.0.insert(RuntimeHelper::CreateComponent);
-                helper_usage.0.insert(RuntimeHelper::Show);
+                helper_usage.0.insert(RuntimeHelper::MountShow);
                 collect_builtin_helper_usage(&show.children, &mut helper_usage.0);
                 if let Some(ComponentPropValueIr::Children(children)) = &show.fallback {
                     collect_builtin_helper_usage(children, &mut helper_usage.0);
                 }
             }
             RootIr::For(for_binding) => {
-                helper_usage.0.insert(RuntimeHelper::CreateComponent);
-                helper_usage.0.insert(RuntimeHelper::For);
+                helper_usage.0.insert(RuntimeHelper::MountFor);
                 collect_builtin_helper_usage(&for_binding.body, &mut helper_usage.0);
             }
             RootIr::Component(component) => {
@@ -673,8 +671,31 @@ fn emit_event_binding(
 }
 
 fn emit_event_handler(writer: &mut CodeWriter, handler: &ExpressionIr, names: &mut NameAllocator) {
-    if handler.form != ExpressionForm::Member {
+    if !writer.expression_uses_for_accessors(handler) && handler.form != ExpressionForm::Member {
         writer.push_mapped(&handler.code, handler);
+        return;
+    }
+
+    if writer.expression_uses_for_accessors(handler) {
+        let invoke = names.allocate("$zeusInvoke");
+        let receiver = names.allocate("$zeusReceiver");
+        let invoke_arguments = names.allocate("$zeusInvokeArgs");
+        let event_arguments = names.allocate("$zeusEventArgs");
+        writer.push("(() => {\nconst ");
+        writer.push(&invoke);
+        writer.push(" = (");
+        writer.push(&receiver);
+        writer.push(", ");
+        writer.push(&invoke_arguments);
+        writer.push(") => ");
+        writer.push_dom_invocation(handler, &invoke_arguments, &receiver, true);
+        writer.push(";\nreturn function (...");
+        writer.push(&event_arguments);
+        writer.push(") { return ");
+        writer.push(&invoke);
+        writer.push("(this, ");
+        writer.push(&event_arguments);
+        writer.push("); };\n})()");
         return;
     }
 
@@ -800,7 +821,7 @@ fn emit_component_call(
     }
     writer.push(runtime.create_component());
     writer.push("(");
-    writer.push_mapped(&component.callee.code, &component.callee);
+    writer.push_dom_expression(&component.callee);
     writer.push(", {");
     for (index, prop) in component.props.iter().enumerate() {
         if index > 0 {
@@ -811,12 +832,12 @@ fn emit_component_call(
                 if is_static_expression(expression) {
                     writer.push(&object_key(&prop.name));
                     writer.push(": ");
-                    writer.push_mapped(&expression.code, expression);
+                    writer.push_dom_expression(expression);
                 } else {
                     writer.push("get ");
                     writer.push(&object_key(&prop.name));
                     writer.push("() { return ");
-                    writer.push_mapped(&expression.code, expression);
+                    writer.push_dom_expression(expression);
                     writer.push(" }");
                 }
             }
@@ -864,10 +885,10 @@ fn emit_slot_call(
 fn emit_expression_value(writer: &mut CodeWriter, expression: &ExpressionIr) {
     if expression.form == ExpressionForm::Getter {
         writer.push("(");
-        writer.push_mapped(&expression.code, expression);
+        writer.push_dom_expression(expression);
         writer.push(")()");
     } else {
-        writer.push_mapped(&expression.code, expression);
+        writer.push_dom_expression(expression);
     }
 }
 
@@ -877,37 +898,30 @@ fn emit_root_builtin_call(
     runtime: &RuntimeNames,
     names: &mut NameAllocator,
 ) {
+    let region = names.allocate("$zeusRegion");
+    let marker = names.allocate("$zeusRegionMarker");
+    writer.push("(() => {\nconst ");
+    writer.push(&region);
+    writer.push(" = ");
+    writer.push(runtime.template());
+    writer.push("(\"<!>\")();\nconst ");
+    writer.push(&marker);
+    writer.push(" = ");
+    writer.push(&region);
+    writer.push(".firstChild;\n");
+
     match builtin {
         RootBuiltin::Show(show) => {
-            writer.push(runtime.create_component());
-            writer.push("(");
-            writer.push(runtime.show());
-            writer.push(", { get when() { return ");
-            writer.push_mapped(&show.when.code, &show.when);
-            writer.push(" }, get children() { return ");
-            emit_children_value(writer, &show.children, runtime, names);
-            writer.push(" }, get fallback() { return ");
-            emit_fallback_value(writer, show.fallback.as_ref(), runtime, names);
-            writer.push(" } })");
+            emit_show_mount_call(writer, &region, &marker, show, runtime, names);
         }
         RootBuiltin::For(for_binding) => {
-            writer.push(runtime.create_component());
-            writer.push("(");
-            writer.push(runtime.for_component());
-            writer.push(", { get each() { return ");
-            writer.push_mapped(&for_binding.each.code, &for_binding.each);
-            writer.push(" }, get children() { return ");
-            writer.push("(");
-            writer.push(&for_binding.item);
-            if let Some(index) = &for_binding.index {
-                writer.push(", ");
-                writer.push(index);
-            }
-            writer.push(") => ");
-            emit_children_value(writer, &for_binding.body, runtime, names);
-            writer.push(" } })");
+            emit_for_mount_call(writer, &region, &marker, for_binding, runtime, names);
         }
     }
+
+    writer.push("return ");
+    writer.push(&region);
+    writer.push(";\n})()");
 }
 
 fn emit_show_binding(
@@ -917,13 +931,31 @@ fn emit_show_binding(
     runtime: &RuntimeNames,
     names: &mut NameAllocator,
 ) {
+    emit_show_mount_call(
+        writer,
+        &format!("{}.parentNode", marker.marker_name),
+        &marker.marker_name,
+        show,
+        runtime,
+        names,
+    );
+}
+
+fn emit_show_mount_call(
+    writer: &mut CodeWriter,
+    parent: &str,
+    marker: &str,
+    show: &ShowBindingIr,
+    runtime: &RuntimeNames,
+    names: &mut NameAllocator,
+) {
     writer.push(runtime.mount_show());
     writer.push("(");
-    writer.push(&marker.marker_name);
-    writer.push(".parentNode, ");
-    writer.push(&marker.marker_name);
+    writer.push(parent);
+    writer.push(", ");
+    writer.push(marker);
     writer.push(", () => ");
-    writer.push_mapped(&show.when.code, &show.when);
+    writer.push_dom_expression(&show.when);
     writer.push(", () => ");
     emit_children_value(writer, &show.children, runtime, names);
     writer.push(", ");
@@ -943,27 +975,59 @@ fn emit_for_binding(
     runtime: &RuntimeNames,
     names: &mut NameAllocator,
 ) {
+    emit_for_mount_call(
+        writer,
+        &format!("{}.parentNode", marker.marker_name),
+        &marker.marker_name,
+        for_binding,
+        runtime,
+        names,
+    );
+}
+
+fn emit_for_mount_call(
+    writer: &mut CodeWriter,
+    parent: &str,
+    marker: &str,
+    for_binding: &ForBindingIr,
+    runtime: &RuntimeNames,
+    names: &mut NameAllocator,
+) {
     writer.push(runtime.mount_for());
     writer.push("(");
-    writer.push(&marker.marker_name);
-    writer.push(".parentNode, ");
-    writer.push(&marker.marker_name);
+    writer.push(parent);
+    writer.push(", ");
+    writer.push(marker);
     writer.push(", () => ");
-    writer.push_mapped(&for_binding.each.code, &for_binding.each);
+    writer.push_dom_expression(&for_binding.each);
     writer.push(", ");
     if let Some(by) = &for_binding.by {
-        writer.push_mapped(&by.code, by);
+        writer.push_dom_expression(by);
     } else {
         writer.push("undefined");
     }
+
+    let item_accessor = names.allocate("$zeusItem");
+    let index_accessor = for_binding
+        .index
+        .as_ref()
+        .map(|_| names.allocate("$zeusIndex"));
     writer.push(", (");
-    writer.push(&for_binding.item);
-    if let Some(index) = &for_binding.index {
+    writer.push(&item_accessor);
+    if let Some(index_accessor) = &index_accessor {
         writer.push(", ");
-        writer.push(index);
+        writer.push(index_accessor);
     }
     writer.push(") => ");
+    writer.push_for_accessor_scope(ForAccessorScope {
+        for_id: for_binding.id,
+        item: for_binding.item.clone(),
+        index: for_binding.index.clone(),
+        item_accessor,
+        index_accessor,
+    });
     emit_children_value(writer, &for_binding.body, runtime, names);
+    writer.pop_for_accessor_scope();
     writer.push(");\n");
 }
 
@@ -975,7 +1039,7 @@ fn emit_fallback_value(
 ) {
     match fallback {
         Some(ComponentPropValueIr::Expression(expression)) => {
-            writer.push_mapped(&expression.code, expression);
+            writer.push_dom_expression(expression);
         }
         Some(ComponentPropValueIr::Children(children)) => {
             emit_children_value(writer, children, runtime, names);
@@ -1014,7 +1078,19 @@ fn emit_inline_child_value(
 ) {
     match child {
         ChildIr::Text(text) => writer.push(&quote_js(&text.value)),
-        ChildIr::DynamicText(text) => writer.push_mapped(&text.expression.code, &text.expression),
+        ChildIr::DynamicText(text) => {
+            emit_inline_root(
+                writer,
+                &RootIr::Fragment(FragmentIr {
+                    id: text.id,
+                    kind: "Fragment".into(),
+                    span: text.span,
+                    children: vec![ChildIr::DynamicText(text.clone())],
+                }),
+                runtime,
+                names,
+            );
+        }
         ChildIr::Element(element) => {
             emit_inline_root(writer, &RootIr::Element(element.clone()), runtime, names);
         }
@@ -1117,7 +1193,7 @@ fn emit_text_binding(
     writer.push("(");
     writer.push(&binding.text_name);
     writer.push(", () => (");
-    writer.push_mapped(&expression.code, expression);
+    writer.push_dom_expression(expression);
     writer.push(")");
     if once {
         writer.push(", true");
@@ -1135,7 +1211,7 @@ fn emit_node_binding(
     writer.push("(");
     writer.push(&binding.marker_name);
     writer.push(".parentNode, ");
-    writer.push_mapped(&expression.code, expression);
+    writer.push_dom_expression(expression);
     writer.push(", ");
     writer.push(&binding.marker_name);
     writer.push(");\n");
@@ -1179,7 +1255,7 @@ fn emit_text_content_part(writer: &mut CodeWriter, part: &TextContentPart) {
     match part {
         TextContentPart::Static(value) => writer.push(&quote_js(value)),
         TextContentPart::Dynamic { expression, .. } => {
-            writer.push_mapped(&expression.code, expression);
+            writer.push_dom_expression(expression);
         }
     }
 }
@@ -1244,18 +1320,26 @@ fn emit_ref_binding(
     writer.push("(");
     writer.push(target);
     writer.push(", ");
-    writer.push_mapped(&expression.code, expression);
+    writer.push_dom_expression(expression);
     writer.push(");\n");
 }
 
 fn emit_getter(writer: &mut CodeWriter, expression: &ExpressionIr) {
-    if expression.form == ExpressionForm::Getter {
+    if expression.form == ExpressionForm::Getter
+        && !writer.expression_uses_for_accessors(expression)
+    {
         writer.push_mapped(&expression.code, expression);
         return;
     }
 
     writer.push("() => (");
-    writer.push_mapped(&expression.code, expression);
+    if expression.form == ExpressionForm::Getter {
+        writer.push("(");
+        writer.push_dom_expression(expression);
+        writer.push(")()");
+    } else {
+        writer.push_dom_expression(expression);
+    }
     writer.push(")");
 }
 
@@ -2044,8 +2128,6 @@ fn collect_component_helper_usage(
                 }
                 ChildIr::Component(component) => collect_component_helper_usage(component, usage),
                 ChildIr::Show(show) => {
-                    usage.insert(RuntimeHelper::Show);
-                    usage.insert(RuntimeHelper::CreateComponent);
                     usage.insert(RuntimeHelper::MountShow);
                     collect_builtin_helper_usage(&show.children, usage);
                     if let Some(ComponentPropValueIr::Children(children)) = &show.fallback {
@@ -2053,12 +2135,13 @@ fn collect_component_helper_usage(
                     }
                 }
                 ChildIr::For(for_binding) => {
-                    usage.insert(RuntimeHelper::For);
-                    usage.insert(RuntimeHelper::CreateComponent);
                     usage.insert(RuntimeHelper::MountFor);
                     collect_builtin_helper_usage(&for_binding.body, usage);
                 }
-                ChildIr::Text(_) | ChildIr::DynamicText(_) => {}
+                ChildIr::DynamicText(dynamic) => {
+                    collect_binding_helper_usage(&dynamic_binding(dynamic), usage);
+                }
+                ChildIr::Text(_) => {}
             }
         }
     }
@@ -2079,8 +2162,6 @@ fn collect_builtin_helper_usage(children: &[ChildIr], usage: &mut HashSet<Runtim
             }
             ChildIr::Component(component) => collect_component_helper_usage(component, usage),
             ChildIr::Show(show) => {
-                usage.insert(RuntimeHelper::Show);
-                usage.insert(RuntimeHelper::CreateComponent);
                 usage.insert(RuntimeHelper::MountShow);
                 collect_builtin_helper_usage(&show.children, usage);
                 if let Some(ComponentPropValueIr::Children(children)) = &show.fallback {
@@ -2088,12 +2169,13 @@ fn collect_builtin_helper_usage(children: &[ChildIr], usage: &mut HashSet<Runtim
                 }
             }
             ChildIr::For(for_binding) => {
-                usage.insert(RuntimeHelper::For);
-                usage.insert(RuntimeHelper::CreateComponent);
                 usage.insert(RuntimeHelper::MountFor);
                 collect_builtin_helper_usage(&for_binding.body, usage);
             }
-            ChildIr::Text(_) | ChildIr::DynamicText(_) => {}
+            ChildIr::DynamicText(dynamic) => {
+                collect_binding_helper_usage(&dynamic_binding(dynamic), usage);
+            }
+            ChildIr::Text(_) => {}
         }
     }
 }
@@ -2257,14 +2339,6 @@ impl RuntimeNames {
         self.get(RuntimeHelper::CreateSlot)
     }
 
-    fn show(&self) -> &str {
-        self.get(RuntimeHelper::Show)
-    }
-
-    fn for_component(&self) -> &str {
-        self.get(RuntimeHelper::For)
-    }
-
     fn mount_show(&self) -> &str {
         self.get(RuntimeHelper::MountShow)
     }
@@ -2319,8 +2393,6 @@ enum RuntimeHelper {
     Template,
     CreateComponent,
     CreateSlot,
-    Show,
-    For,
     MountShow,
     MountFor,
     Insert,
@@ -2336,12 +2408,10 @@ enum RuntimeHelper {
 }
 
 impl RuntimeHelper {
-    const ORDERED: [Self; 17] = [
+    const ORDERED: [Self; 15] = [
         Self::Template,
         Self::CreateComponent,
         Self::CreateSlot,
-        Self::Show,
-        Self::For,
         Self::MountShow,
         Self::MountFor,
         Self::Insert,
@@ -2361,8 +2431,6 @@ impl RuntimeHelper {
             Self::Template => "template",
             Self::CreateComponent => "createComponent",
             Self::CreateSlot => "createSlot",
-            Self::Show => "Show",
-            Self::For => "For",
             Self::MountShow => "mountShow",
             Self::MountFor => "mountFor",
             Self::Insert => "insert",
@@ -2383,8 +2451,6 @@ impl RuntimeHelper {
             Self::Template => "$zeusTemplate",
             Self::CreateComponent => "$zeusCreateComponent",
             Self::CreateSlot => "$zeusCreateSlot",
-            Self::Show => "$zeusShow",
-            Self::For => "$zeusFor",
             Self::MountShow => "$zeusMountShow",
             Self::MountFor => "$zeusMountFor",
             Self::Insert => "$zeusInsert",
@@ -2401,12 +2467,28 @@ impl RuntimeHelper {
     }
 }
 
+#[derive(Clone)]
+struct ForAccessorScope {
+    for_id: NodeId,
+    item: String,
+    index: Option<String>,
+    item_accessor: String,
+    index_accessor: Option<String>,
+}
+
+struct ForAccessorUse {
+    scope: ForAccessorScope,
+    item: bool,
+    index: bool,
+}
+
 #[derive(Default)]
 struct CodeWriter {
     code: String,
     line: u32,
     column: u32,
     mappings: Vec<Mapping>,
+    for_accessor_scopes: Vec<ForAccessorScope>,
 }
 
 impl CodeWriter {
@@ -2452,6 +2534,128 @@ impl CodeWriter {
             }
         }
         self.push(value);
+    }
+
+    fn push_for_accessor_scope(&mut self, scope: ForAccessorScope) {
+        self.for_accessor_scopes.push(scope);
+    }
+
+    fn pop_for_accessor_scope(&mut self) {
+        self.for_accessor_scopes
+            .pop()
+            .expect("For accessor scopes must be balanced");
+    }
+
+    fn for_accessor_uses(&self, expression: &ExpressionIr) -> Vec<ForAccessorUse> {
+        expression
+            .for_accessors
+            .iter()
+            .filter_map(|accessor| {
+                self.for_accessor_scopes
+                    .iter()
+                    .find(|scope| scope.for_id == accessor.for_id)
+                    .map(|scope| ForAccessorUse {
+                        scope: scope.clone(),
+                        item: accessor.item,
+                        index: accessor.index,
+                    })
+            })
+            .collect()
+    }
+
+    fn expression_uses_for_accessors(&self, expression: &ExpressionIr) -> bool {
+        !self.for_accessor_uses(expression).is_empty()
+    }
+
+    fn push_for_accessor_prefix(&mut self, uses: &[ForAccessorUse]) {
+        for usage in uses {
+            self.push("((");
+            let mut needs_separator = false;
+            if usage.item {
+                self.push(&usage.scope.item);
+                needs_separator = true;
+            }
+            if usage.index {
+                if needs_separator {
+                    self.push(", ");
+                }
+                self.push(
+                    usage
+                        .scope
+                        .index
+                        .as_deref()
+                        .expect("an index use must have an index binding"),
+                );
+            }
+            self.push(") => (");
+        }
+    }
+
+    fn push_for_accessor_suffix(&mut self, uses: &[ForAccessorUse]) {
+        for usage in uses.iter().rev() {
+            self.push("))(");
+            let mut needs_separator = false;
+            if usage.item {
+                self.push(&usage.scope.item_accessor);
+                self.push("()");
+                needs_separator = true;
+            }
+            if usage.index {
+                if needs_separator {
+                    self.push(", ");
+                }
+                self.push(
+                    usage
+                        .scope
+                        .index_accessor
+                        .as_deref()
+                        .expect("an index use must have an index accessor"),
+                );
+                self.push("()");
+            }
+            self.push(")");
+        }
+    }
+
+    fn push_dom_expression(&mut self, expression: &ExpressionIr) {
+        let uses = self.for_accessor_uses(expression);
+        self.push_for_accessor_prefix(&uses);
+
+        self.push_mapped(&expression.code, expression);
+        self.push_for_accessor_suffix(&uses);
+    }
+
+    fn push_dom_invocation(
+        &mut self,
+        expression: &ExpressionIr,
+        arguments: &str,
+        receiver: &str,
+        optional: bool,
+    ) {
+        let uses = self.for_accessor_uses(expression);
+        self.push_for_accessor_prefix(&uses);
+
+        self.push("(");
+        self.push_mapped(&expression.code, expression);
+        self.push(")");
+        if optional && expression.form != ExpressionForm::Member {
+            self.push("?.apply(");
+            self.push(receiver);
+            self.push(", ");
+            self.push(arguments);
+            self.push(")");
+        } else if optional {
+            self.push("?.(");
+            self.push("...");
+            self.push(arguments);
+            self.push(")");
+        } else {
+            self.push("(");
+            self.push("...");
+            self.push(arguments);
+            self.push(")");
+        }
+        self.push_for_accessor_suffix(&uses);
     }
 }
 

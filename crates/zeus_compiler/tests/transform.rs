@@ -741,16 +741,12 @@ export const App = props => <Child><Show when={props.visible}><span>on</span></S
         transformed.diagnostics
     );
     assert!(transformed.code.contains("createComponent as"));
-    assert!(
-        transformed
-            .code
-            .contains("get when() { return props.visible }")
-    );
-    assert!(
-        transformed
-            .code
-            .contains("get each() { return props.items }")
-    );
+    assert!(transformed.code.contains("mountShow as"));
+    assert!(transformed.code.contains("mountFor as"));
+    assert!(transformed.code.contains("() => props.visible"));
+    assert!(transformed.code.contains("() => props.items"));
+    assert!(!transformed.code.contains(", Show as"));
+    assert!(!transformed.code.contains(", For as"));
     assert!(!transformed.code.contains("requires a DOM anchor"));
 
     let allocator = Allocator::default();
@@ -813,7 +809,7 @@ export const Element = d('z-card', { shadow: false }, props => <H><Show when={pr
 #[test]
 fn emits_show_and_for_mounts_with_stable_region_markers() {
     let source = r#"import { Show, For } from '@zeus-js/zeus'
-export const App = props => <div><Show when={props.visible} fallback="hidden"><span>{props.name}</span></Show><For each={props.items}>{item => <b>{item}</b>}</For></div>
+export const App = props => <div><Show when={props.visible} fallback="hidden"><span>{props.name}</span></Show><For each={props.items} by={item => item.id}>{(item, index) => <b data-index={index}>{item.label}</b>}</For></div>
 "#;
     let transformed = transform_module(TransformModuleOptions {
         source: source.into(),
@@ -834,6 +830,9 @@ export const App = props => <div><Show when={props.visible} fallback="hidden"><s
     assert!(transformed.code.contains("mountFor as"));
     assert!(transformed.code.contains("() => props.visible"));
     assert!(transformed.code.contains("() => props.items"));
+    assert!(transformed.code.contains("($zeusItem, $zeusIndex) =>"));
+    assert!(transformed.code.contains("$zeusItem()"));
+    assert!(transformed.code.contains("$zeusIndex()"));
     assert!(!transformed.code.contains("<Show"));
     assert!(!transformed.code.contains("<For"));
 
@@ -843,6 +842,212 @@ export const App = props => <div><Show when={props.visible} fallback="hidden"><s
         parsed.diagnostics.is_empty(),
         "control-flow output must parse: {:?}",
         parsed.diagnostics
+    );
+}
+
+#[test]
+fn subscribes_only_to_referenced_for_accessors() {
+    let source = r"import { For } from '@zeus-js/zeus'
+export const App = props => <div><For each={props.items} by={item => item.id}>{(item, index) => <b title={item.label}>fixed</b>}</For></div>
+";
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "for-accessor-dependencies.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: true,
+        hmr: false,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    assert!(transformed.code.contains("$zeusItem()"));
+    assert!(
+        !transformed.code.contains("$zeusIndex()"),
+        "unused index accessor must not become a binding dependency: {}",
+        transformed.code
+    );
+}
+
+#[test]
+fn subscribes_to_unicode_escaped_for_parameters_and_references() {
+    let source = r"import { For } from '@zeus-js/zeus'
+export const App = props => <For each={props.items}>{(it\u0065m, ind\u0065x) => <b data-index={ind\u0065x}>{it\u0065m.label}</b>}</For>
+";
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "for-unicode-accessors.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: true,
+        hmr: false,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    assert!(transformed.map.is_some(), "source map must be preserved");
+    assert!(
+        transformed.code.contains("$zeusItem()"),
+        "escaped item reference must subscribe to its accessor: {}",
+        transformed.code
+    );
+    assert!(
+        transformed.code.contains("$zeusIndex()"),
+        "escaped index reference must subscribe to its accessor: {}",
+        transformed.code
+    );
+}
+
+#[test]
+fn ignores_non_references_and_shadowed_names_in_for_expressions() {
+    let source = r"import { For } from '@zeus-js/zeus'
+export const App = props => <For each={props.items}>{(item, index) => (
+  <button
+    data-item={props.record.item}
+    title={({ item: 'item', index: 'index' }).item /* item index */}
+    onClick={() => ((item, index) => item.run(index))(props.local, 0)}
+  >fixed</button>
+)}</For>
+";
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "for-shadowed-accessors.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: true,
+        hmr: false,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    assert!(transformed.map.is_some(), "source map must be preserved");
+    assert!(
+        !transformed.code.contains("$zeusItem()"),
+        "non-references and shadowed item names must not subscribe: {}",
+        transformed.code
+    );
+    assert!(
+        !transformed.code.contains("$zeusIndex()"),
+        "non-references and shadowed index names must not subscribe: {}",
+        transformed.code
+    );
+}
+
+#[test]
+fn nested_for_key_callback_does_not_capture_the_outer_item_accessor() {
+    let source = r"import { For } from '@zeus-js/zeus'
+export const App = props => <For each={props.groups}>{item => (
+  <For each={item.rows} by={item => item.id}>{row => <b>{row.label}</b>}</For>
+)}</For>
+";
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "nested-for-key-scope.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: true,
+        hmr: false,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    assert!(transformed.code.contains("item => item.id"));
+    assert_eq!(
+        transformed.code.matches("$zeusItem()").count(),
+        1,
+        "only the nested each expression may read the outer item accessor: {}",
+        transformed.code
+    );
+}
+
+#[test]
+fn subscribes_when_a_for_item_is_used_as_a_component_callee() {
+    let source = r"import { For } from '@zeus-js/zeus'
+export const App = props => <For each={props.components}>{Item => <Item />}</For>
+";
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "for-component-callee.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: true,
+        hmr: false,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    assert!(transformed.code.contains("$zeusItem()"));
+}
+
+#[test]
+fn does_not_subscribe_to_type_only_for_parameter_references() {
+    let source = r"import { For } from '@zeus-js/zeus'
+export const App = props => <For each={props.items}>{(item, index) => <span title={() => (props.calls++, props.value as typeof index)}>{item.label}</span>}</For>
+";
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "for-type-only-reference.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: true,
+        hmr: false,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    assert!(transformed.code.contains("$zeusItem()"));
+    assert!(
+        !transformed.code.contains("$zeusIndex()"),
+        "type-only index reference must not subscribe: {}",
+        transformed.code
+    );
+}
+
+#[test]
+fn rejects_non_identifier_for_callback_parameters_before_codegen() {
+    let source = r"import { For } from '@zeus-js/zeus'
+export const App = props => <For each={props.items}>{({ label }, index) => <b>{index}:{label}</b>}</For>
+";
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "for-destructured-parameter.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: true,
+        hmr: false,
+    });
+
+    assert!(transformed.code.is_empty());
+    assert_eq!(transformed.map, None);
+    assert_eq!(transformed.diagnostics.len(), 1);
+    assert_eq!(
+        transformed.diagnostics[0].code,
+        "ZEUS_UNSUPPORTED_FOR_CALLBACK_PARAMETER"
     );
 }
 

@@ -423,6 +423,100 @@ export const App = props => <ul><For each={props.items}>{item => (
 }
 
 #[test]
+fn lowers_for_accessor_dependencies_from_semantic_symbols() {
+    let source = r"import { For } from '@zeus-js/zeus'
+export const App = props => <For each={props.items}>{(it\u0065m, ind\u0065x) => <b data-index={ind\u0065x}>{it\u0065m.label}</b>}</For>
+";
+    let lowered = lower_module(source, "for-accessor-symbols.tsx");
+
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let module = lowered.ir.expect("For accessor symbols produce IR");
+    let RootIr::For(for_binding) = &module.components[0].root else {
+        panic!("For must lower to a root binding");
+    };
+    let [ChildIr::Element(element)] = for_binding.body.as_slice() else {
+        panic!("For body must contain the returned element");
+    };
+    let AttributeIr::Dynamic(index_attribute) = &element.attributes[0] else {
+        panic!("data-index must be dynamic");
+    };
+    assert_eq!(index_attribute.expression.for_accessors.len(), 1);
+    assert_eq!(
+        index_attribute.expression.for_accessors[0].for_id,
+        for_binding.id
+    );
+    assert!(!index_attribute.expression.for_accessors[0].item);
+    assert!(index_attribute.expression.for_accessors[0].index);
+
+    let ChildIr::DynamicText(label) = &element.children[0] else {
+        panic!("label must be dynamic text");
+    };
+    assert_eq!(label.expression.for_accessors.len(), 1);
+    assert_eq!(label.expression.for_accessors[0].for_id, for_binding.id);
+    assert!(label.expression.for_accessors[0].item);
+    assert!(!label.expression.for_accessors[0].index);
+}
+
+#[test]
+fn rejects_non_identifier_for_callback_parameters() {
+    for (name, callback) in [
+        ("object", "({ label }, index) => <b>{index}:{label}</b>"),
+        ("array", "([label], index) => <b>{index}:{label}</b>"),
+        (
+            "default",
+            "(item = props.fallback, index) => <b>{index}:{item.label}</b>",
+        ),
+        ("rest", "(...items) => <b>{items[0].label}</b>"),
+        (
+            "arity",
+            "(item, index, extra) => <b>{item.label}:{index}:{extra}</b>",
+        ),
+    ] {
+        let source = format!(
+            "import {{ For }} from '@zeus-js/zeus'\nexport const App = props => <For each={{props.items}}>{{{callback}}}</For>\n"
+        );
+        let lowered = lower_module(&source, &format!("for-{name}-parameter.tsx"));
+
+        assert_eq!(
+            lowered
+                .diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.code.as_str())
+                .collect::<Vec<_>>(),
+            ["ZEUS_UNSUPPORTED_FOR_CALLBACK_PARAMETER"],
+            "{name}: {:?}",
+            lowered.diagnostics
+        );
+        assert!(lowered.ir.is_none(), "{name}: invalid IR must not escape");
+    }
+}
+
+#[test]
+fn excludes_type_only_for_parameter_references_from_runtime_dependencies() {
+    let source = r"import { For } from '@zeus-js/zeus'
+export const App = props => <For each={props.items}>{(item, index) => <span title={() => (props.value as typeof index)}>{item.label}</span>}</For>
+";
+    let lowered = lower_module(source, "for-type-only-reference.tsx");
+
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let module = lowered.ir.expect("type-only reference produces IR");
+    let RootIr::For(for_binding) = &module.components[0].root else {
+        panic!("For must lower to a root binding");
+    };
+    let [ChildIr::Element(element)] = for_binding.body.as_slice() else {
+        panic!("For body must contain the returned element");
+    };
+    let AttributeIr::Dynamic(title) = &element.attributes[0] else {
+        panic!("title must be dynamic");
+    };
+    assert!(
+        title.expression.for_accessors.is_empty(),
+        "type-only index reference must not become a runtime dependency: {:?}",
+        title.expression.for_accessors
+    );
+}
+
+#[test]
 fn validates_host_and_slot_builtin_boundaries() {
     let valid = r"import { defineElement as d, Host as H, Slot as S } from '@zeus-js/runtime-dom'
 export const Element = d('z-card', { shadow: false }, props => <H><section><S /></section></H>)

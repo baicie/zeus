@@ -1,5 +1,6 @@
 // packages/runtime-dom/src/range.ts
 
+import { moveNodeBefore } from './domMove'
 import { trackRuntimeDomInsertion } from './domOwnership'
 
 import type { JSXValue } from './types'
@@ -82,7 +83,7 @@ export function moveRangeBefore(
 ): void {
   for (const node of nodes) {
     trackRuntimeDomInsertion(parent, node)
-    parent.insertBefore(node, marker)
+    moveNodeBefore(parent, node, marker)
   }
 }
 

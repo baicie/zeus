@@ -27,8 +27,13 @@ Replacing the range disposes the old scope before removing its DOM.
 When `by` is provided, `mountFor` maintains a `Map` of keyed records:
 
 - Matching keys reuse existing DOM
+- Same-key replacements update item and index bindings without rerunning setup
 - Disappearing keys dispose their item scope and remove DOM
-- Reordering moves DOM via `insertBefore`
+- Reordering moves only ranges that are not already adjacent
+- Duplicate keys fail before any existing keyed record is mutated
+- Failed record setup is rolled back before the error escapes
+- Reentrant list writes are drained until the rendered range matches the source
+- Range moves preserve Zeus custom-element mounts and composed-tree focus
 
 ## Event Delegation
 

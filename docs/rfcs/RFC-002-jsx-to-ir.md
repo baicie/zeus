@@ -28,11 +28,19 @@ export interface SourceSpan {
 export interface ExpressionIR {
   kind: 'Expression'
   code: string
-  span?: SourceSpan
+  span: SourceSpan
+  form: 'value' | 'getter' | 'member'
+  forAccessors: Array<{
+    forId: number
+    item: boolean
+    index: boolean
+  }>
 }
 ```
 
 Babel lowering adapter 负责把 Babel AST 转为 `ExpressionIR`；Babel codegen adapter 负责将 `ExpressionIR.code` 解析回表达式 AST。优化 passes 不接触 Babel NodePath 或 Babel expression。
+
+`forAccessors` 记录表达式对词法外层 `<For>` item/index 参数的精确依赖。前端必须通过 semantic symbol/reference 关系填充该字段；属性名、字符串、注释或被内层函数参数遮蔽的同名标识符都不构成依赖。codegen 只消费这份 IR 元数据，不得重新扫描 `code` 猜测标识符引用。
 
 ## Module 布局
 
