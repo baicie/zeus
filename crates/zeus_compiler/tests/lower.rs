@@ -112,6 +112,34 @@ fn lowers_explicit_once_markers_only_on_supported_dom_bindings() {
 }
 
 #[test]
+fn recognizes_once_after_all_ecmascript_line_terminators() {
+    for (name, terminator) in [
+        ("lf", "\n"),
+        ("cr", "\r"),
+        ("line-separator", "\u{2028}"),
+        ("paragraph-separator", "\u{2029}"),
+    ] {
+        let source = format!(
+            "export const App = props => <div>{{// note{terminator}/* @once */ props.label}}</div>"
+        );
+        let filename = format!("once-{name}.tsx");
+        let lowered = lower_module(&source, &filename);
+
+        assert!(
+            lowered.diagnostics.is_empty(),
+            "{name}: {:?}",
+            lowered.diagnostics
+        );
+        let module = lowered.ir.expect("line terminator fixture lowers");
+        let root = root_element(&module.components[0].root);
+        let ChildIr::DynamicText(label) = &root.children[0] else {
+            panic!("{name}: marked child must be dynamic text");
+        };
+        assert!(label.once, "{name}: @once marker must be preserved");
+    }
+}
+
+#[test]
 fn rejects_once_markers_on_non_binding_targets() {
     for (source, filename) in [
         (
@@ -181,6 +209,43 @@ fn rejects_once_markers_on_non_binding_targets() {
         (
             "import { defineElement, Host, Slot } from '@zeus-js/runtime-dom'; export const El = defineElement('z-once', {}, props => <Host><Slot>{/* @once */ props.fallback}</Slot></Host>)",
             "once-slot-child.tsx",
+        ),
+    ] {
+        let lowered = lower_module(source, filename);
+
+        assert!(lowered.ir.is_none(), "{filename} must fail lowering");
+        assert_eq!(lowered.diagnostics.len(), 1, "{filename}");
+        assert_eq!(lowered.diagnostics[0].code, "ZEUS_INVALID_ONCE_TARGET");
+        assert!(lowered.diagnostics[0].span.is_some());
+    }
+}
+
+#[test]
+fn rejects_once_markers_on_every_builtin_attribute_form() {
+    for (source, filename) in [
+        (
+            "import { Show } from '@zeus-js/zeus'; export const App = props => <Show when={props.visible} extra={/* @once */ props.extra}>yes</Show>",
+            "once-show-unknown-attribute.tsx",
+        ),
+        (
+            "import { For } from '@zeus-js/zeus'; export const App = props => <For each={props.items} extra={/* @once */ props.extra}>{item => item}</For>",
+            "once-for-unknown-attribute.tsx",
+        ),
+        (
+            "import { Show } from '@zeus-js/zeus'; export const App = props => <Show when={props.visible} when={/* @once */ props.other}>yes</Show>",
+            "once-show-duplicate-attribute.tsx",
+        ),
+        (
+            "import { For } from '@zeus-js/zeus'; export const App = props => <For each={props.items} each={/* @once */ props.other}>{item => item}</For>",
+            "once-for-duplicate-attribute.tsx",
+        ),
+        (
+            "import { Show } from '@zeus-js/zeus'; export const App = props => <Show when={props.visible} {.../* @once */ props.extra}>yes</Show>",
+            "once-show-spread-attribute.tsx",
+        ),
+        (
+            "import { For } from '@zeus-js/zeus'; export const App = props => <For each={props.items} {.../* @once */ props.extra}>{item => item}</For>",
+            "once-for-spread-attribute.tsx",
         ),
     ] {
         let lowered = lower_module(source, filename);
