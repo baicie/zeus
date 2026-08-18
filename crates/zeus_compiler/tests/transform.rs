@@ -274,6 +274,50 @@ export const App = (inlineHandler, identifierHandler, theme, maybe, props, asser
 }
 
 #[test]
+fn collects_delegated_events_from_nested_for_show_and_fragments() {
+    let source = r#"import { For, Show } from '@zeus-js/zeus'
+export const App = props => (
+  <For each={props.items}>
+    {item => (
+      <Show
+        when={item.visible}
+        fallback={<button onFocus={props.onFocus}>fallback</button>}
+      >
+        <>
+          <button onClick={props.onClick}>open</button>
+          <input onInput={props.onInput} />
+          <button onClick={props.onAlternateClick}>alternate</button>
+        </>
+      </Show>
+    )}
+  </For>
+)"#;
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "nested-events.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: true,
+        source_map: false,
+        hmr: false,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    assert!(transformed.code.contains("bindEvent as"));
+    assert!(transformed.code.contains("delegateEvents as"));
+    assert_eq!(transformed.code.matches("$zeusDelegateEvents([").count(), 1);
+    assert!(
+        transformed
+            .code
+            .contains("$zeusDelegateEvents([\"click\", \"focus\", \"input\"]);")
+    );
+}
+
+#[test]
 fn leaves_plain_modules_untouched_and_preserves_directive_prologue() {
     let plain_source = "export const value: number = 1\n";
     let plain = transform_module(TransformModuleOptions {

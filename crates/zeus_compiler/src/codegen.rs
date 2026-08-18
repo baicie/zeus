@@ -31,7 +31,7 @@ pub(crate) fn emit_module(
         .iter()
         .map(|component| collect_root_dynamic_bindings(&component.root))
         .collect::<Vec<_>>();
-    let delegated_event_names = collect_delegated_events(&binding_sets, enable_delegation);
+    let delegated_event_names = collect_delegated_events(module, enable_delegation);
     let helper_usage =
         HelperUsage::from_binding_sets(&binding_sets, !delegated_event_names.is_empty());
     let mut helper_usage = helper_usage;
@@ -1466,24 +1466,70 @@ fn collect_text_content_parts(element: &ElementIr) -> Vec<TextContentPart> {
         .collect()
 }
 
-fn collect_delegated_events(
-    binding_sets: &[Vec<DynamicBinding>],
-    enable_delegation: bool,
-) -> Vec<String> {
+fn collect_delegated_events(module: &ModuleIr, enable_delegation: bool) -> Vec<String> {
     if !enable_delegation {
         return Vec::new();
     }
 
-    binding_sets
-        .iter()
-        .flatten()
-        .filter_map(|binding| match binding {
-            DynamicBinding::Event { event_name, .. } => Some(event_name.clone()),
-            _ => None,
-        })
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .collect()
+    let mut names = BTreeSet::new();
+    for component in &module.components {
+        collect_root_delegated_events(&component.root, &mut names);
+    }
+    names.into_iter().collect()
+}
+
+fn collect_root_delegated_events(root: &RootIr, names: &mut BTreeSet<String>) {
+    match root {
+        RootIr::Element(element) => collect_element_delegated_events(element, names),
+        RootIr::Fragment(fragment) => collect_child_delegated_events(&fragment.children, names),
+        RootIr::Component(component) => collect_component_delegated_events(component, names),
+        RootIr::Show(show) => collect_show_delegated_events(show, names),
+        RootIr::For(for_binding) => collect_child_delegated_events(&for_binding.body, names),
+    }
+}
+
+fn collect_element_delegated_events(element: &ElementIr, names: &mut BTreeSet<String>) {
+    for attribute in &element.attributes {
+        if let AttributeIr::Event(event) = attribute {
+            names.insert(event.event_name.clone());
+        }
+    }
+    collect_child_delegated_events(&element.children, names);
+}
+
+fn collect_component_delegated_events(
+    component: &ComponentBindingIr,
+    names: &mut BTreeSet<String>,
+) {
+    for prop in &component.props {
+        if let ComponentPropValueIr::Children(children) = &prop.value {
+            collect_child_delegated_events(children, names);
+        }
+    }
+}
+
+fn collect_show_delegated_events(show: &ShowBindingIr, names: &mut BTreeSet<String>) {
+    collect_child_delegated_events(&show.children, names);
+    if let Some(ComponentPropValueIr::Children(children)) = &show.fallback {
+        collect_child_delegated_events(children, names);
+    }
+}
+
+fn collect_child_delegated_events(children: &[ChildIr], names: &mut BTreeSet<String>) {
+    for child in children {
+        match child {
+            ChildIr::Element(element) => collect_element_delegated_events(element, names),
+            ChildIr::Fragment(fragment) => {
+                collect_child_delegated_events(&fragment.children, names);
+            }
+            ChildIr::Component(component) => collect_component_delegated_events(component, names),
+            ChildIr::Show(show) => collect_show_delegated_events(show, names),
+            ChildIr::For(for_binding) => {
+                collect_child_delegated_events(&for_binding.body, names);
+            }
+            ChildIr::Text(_) | ChildIr::DynamicText(_) => {}
+        }
+    }
 }
 
 fn allocate_locator_attribute(module: &ModuleIr) -> String {
