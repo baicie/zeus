@@ -28,7 +28,7 @@ function applyBinding<T>(
   apply: (next: T) => void,
 ): void {
   if (once) {
-    apply(untrack(value))
+    untrack(() => apply(value()))
     return
   }
 

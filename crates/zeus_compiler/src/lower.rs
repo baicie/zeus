@@ -4,8 +4,8 @@ use oxc_allocator::Allocator;
 use oxc_ast::ast::{
     BindingPattern, Declaration, Expression, FunctionType, ImportDeclarationSpecifier,
     JSXAttribute, JSXAttributeItem, JSXAttributeName, JSXAttributeValue, JSXChild, JSXElement,
-    JSXElementName, JSXExpression, JSXExpressionContainer, JSXFragment, MemberExpression,
-    ModuleDeclaration, Statement, VariableDeclarator,
+    JSXElementName, JSXExpression, JSXExpressionContainer, JSXFragment, JSXSpreadAttribute,
+    MemberExpression, ModuleDeclaration, Statement, VariableDeclarator,
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_diagnostics::{OxcDiagnostic, Severity};
@@ -443,6 +443,16 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
 
     fn lower_show(&mut self, element: &JSXElement<'_>) -> ShowBindingIr {
         let id = self.allocate_id();
+        if self.reject_once_markers_on_builtin_attributes(element) {
+            return ShowBindingIr {
+                id,
+                kind: "Show".into(),
+                when: self.empty_expression(element.span),
+                children: Vec::new(),
+                fallback: None,
+                span: self.source_index.span(element.span),
+            };
+        }
         let Some(when) = self.lower_builtin_expression_attr(element, "when", true) else {
             return ShowBindingIr {
                 id,
@@ -466,6 +476,18 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
 
     fn lower_for(&mut self, element: &JSXElement<'_>) -> ForBindingIr {
         let id = self.allocate_id();
+        if self.reject_once_markers_on_builtin_attributes(element) {
+            return ForBindingIr {
+                id,
+                kind: "For".into(),
+                each: self.empty_expression(element.span),
+                by: None,
+                item: "item".into(),
+                index: None,
+                body: Vec::new(),
+                span: self.source_index.span(element.span),
+            };
+        }
         let each = self
             .lower_builtin_expression_attr(element, "each", true)
             .unwrap_or_else(|| self.empty_expression(element.span));
@@ -1142,6 +1164,32 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         true
     }
 
+    fn reject_once_markers_on_builtin_attributes(&mut self, element: &JSXElement<'_>) -> bool {
+        let mut rejected = false;
+
+        for attribute in &element.opening_element.attributes {
+            let marker_span = match attribute {
+                JSXAttributeItem::Attribute(attribute) => {
+                    let Some(JSXAttributeValue::ExpressionContainer(container)) = &attribute.value
+                    else {
+                        continue;
+                    };
+                    self.has_once_marker(container).then_some(container.span)
+                }
+                JSXAttributeItem::SpreadAttribute(attribute) => self
+                    .has_once_spread_marker(attribute)
+                    .then_some(attribute.span),
+            };
+
+            if let Some(span) = marker_span {
+                self.invalid_once_target(span);
+                rejected = true;
+            }
+        }
+
+        rejected
+    }
+
     fn invalid_once_target(&mut self, span: Span) {
         self.unsupported(
             "ZEUS_INVALID_ONCE_TARGET",
@@ -1161,6 +1209,19 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         };
 
         trivia_contains_once_marker(trivia)
+    }
+
+    fn has_once_spread_marker(&self, attribute: &JSXSpreadAttribute<'_>) -> bool {
+        let start = attribute.span.start as usize;
+        let end = attribute.argument.span().start as usize;
+        let Some(prefix) = self.source.get(start..end) else {
+            return false;
+        };
+        let Some(spread_start) = prefix.find("...") else {
+            return false;
+        };
+
+        trivia_contains_once_marker(&prefix[spread_start + 3..])
     }
 }
 
@@ -1190,7 +1251,10 @@ fn trivia_contains_once_marker(trivia: &str) -> bool {
         }
 
         if rest.starts_with("//") {
-            offset += rest.find('\n').unwrap_or(rest.len());
+            offset += rest
+                .char_indices()
+                .find(|(_, character)| matches!(character, '\n' | '\r' | '\u{2028}' | '\u{2029}'))
+                .map_or(rest.len(), |(index, _)| index);
             continue;
         }
 

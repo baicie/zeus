@@ -187,6 +187,42 @@ fn rejects_once_marked_node_bindings_before_codegen() {
 }
 
 #[test]
+fn rejects_once_markers_on_ignored_builtin_attributes() {
+    for (source, filename) in [
+        (
+            "import { Show } from '@zeus-js/zeus'; export const App = props => <Show when={props.visible} extra={/* @once */ props.extra}>yes</Show>",
+            "once-show-unknown-attribute.tsx",
+        ),
+        (
+            "import { For } from '@zeus-js/zeus'; export const App = props => <For each={props.items} each={/* @once */ props.other}>{item => item}</For>",
+            "once-for-duplicate-attribute.tsx",
+        ),
+        (
+            "import { Show } from '@zeus-js/zeus'; export const App = props => <Show when={props.visible} {.../* @once */ props.extra}>yes</Show>",
+            "once-show-spread-attribute.tsx",
+        ),
+    ] {
+        let transformed = transform_module(TransformModuleOptions {
+            source: source.into(),
+            filename: filename.into(),
+            target: TransformTarget::Dom,
+            runtime_module: "@zeus-js/runtime-dom".into(),
+            delegate_events: false,
+            source_map: false,
+            hmr: false,
+        });
+
+        assert!(transformed.code.is_empty(), "{filename}");
+        assert!(transformed.map.is_none(), "{filename}");
+        assert_eq!(transformed.diagnostics.len(), 1, "{filename}");
+        assert_eq!(
+            transformed.diagnostics[0].code, "ZEUS_INVALID_ONCE_TARGET",
+            "{filename}"
+        );
+    }
+}
+
+#[test]
 fn avoids_collisions_with_user_bindings() {
     let source = r"const $zeusTemplate = 1
 const $zeusTemplate0 = 2

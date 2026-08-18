@@ -394,6 +394,54 @@ describe('runtime bindings', () => {
       bindingScope.stop()
     })
 
+    it('keeps composite reactive value normalization out of an outer effect', () => {
+      const outer = state(0)
+      const textValue = state(['initial', ' text'])
+      const textContentValue = state(['initial', ' content'])
+      const classValue = state({ initial: true, updated: false })
+      const styleValue = state({ color: 'red', width: 12 })
+      const text = document.createTextNode('')
+      const content = document.createElement('div')
+      const className = document.createElement('div')
+      const style = document.createElement('div')
+      const bindingScope = effectScope()
+      let outerRuns = 0
+
+      bindingScope.run(() => {
+        effect(() => {
+          outerRuns++
+          outer.value
+          bindText(text, () => textValue, true)
+          bindTextContent(content, () => textContentValue, true)
+          bindClass(className, () => classValue, true)
+          bindStyle(style, () => styleValue, true)
+        })
+      })
+
+      expect(outerRuns).toBe(1)
+      expect(text.data).toBe('initial text')
+      expect(content.textContent).toBe('initial content')
+      expect(className.getAttribute('class')).toBe('initial')
+      expect(style.style.color).toBe('red')
+      expect(style.style.width).toBe('12px')
+
+      textValue[0] = 'updated'
+      textContentValue[0] = 'updated'
+      classValue.initial = false
+      classValue.updated = true
+      styleValue.color = 'blue'
+      styleValue.width = 24
+
+      expect(outerRuns).toBe(1)
+      expect(text.data).toBe('initial text')
+      expect(content.textContent).toBe('initial content')
+      expect(className.getAttribute('class')).toBe('initial')
+      expect(style.style.color).toBe('red')
+      expect(style.style.width).toBe('12px')
+
+      bindingScope.stop()
+    })
+
     it('uses the same initial value normalization as reactive bindings', () => {
       const reactiveText = document.createTextNode('stale')
       const onceText = document.createTextNode('stale')
