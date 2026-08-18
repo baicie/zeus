@@ -85,6 +85,108 @@ fn emits_static_template_and_precise_dynamic_text_binding() {
 }
 
 #[test]
+fn emits_explicit_once_flags_without_changing_default_bindings() {
+    let source = r#"export const App = props => <div
+  title={/* @once */ props.title}
+  class={/* @once */ props.className}
+  style={/* @once */ props.style}
+  prop:value={/* @once */ props.value}
+  data-live={props.live}
+>{/* @once */ props.label}{props.detail}</div>
+export const Raw = props => <style>prefix {/* @once */ props.label}</style>
+"#;
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "once.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: true,
+        hmr: false,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    assert!(transformed.code.contains("() => (props.title), true);"));
+    assert!(transformed.code.contains("() => (props.className), true);"));
+    assert!(transformed.code.contains("() => (props.style), true);"));
+    assert!(transformed.code.contains("() => (props.value), true);"));
+    assert!(transformed.code.contains("() => (props.label), true);"));
+    assert!(transformed.code.contains("() => (props.live));"));
+    assert!(transformed.code.contains("() => (props.detail));"));
+
+    for expression in [
+        "props.title",
+        "props.className",
+        "props.style",
+        "props.value",
+        "props.live",
+        "props.detail",
+    ] {
+        assert_expression_mapping(source, &transformed, expression);
+    }
+
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, &transformed.code, SourceType::ts()).parse();
+    assert!(
+        parsed.diagnostics.is_empty(),
+        "generated output must remain valid TypeScript: {:?}",
+        parsed.diagnostics
+    );
+}
+
+#[test]
+fn rejects_once_marked_node_bindings_before_codegen() {
+    for (source, filename) in [
+        (
+            "export const App = children => <div>{/* @once */ children}</div>",
+            "once-children-identifier.tsx",
+        ),
+        (
+            "export const App = props => <div>{/* @once */ props.children}</div>",
+            "once-children-member.tsx",
+        ),
+        (
+            "export const App = props => <div>{/* @once */ props?.children}</div>",
+            "once-children-optional.tsx",
+        ),
+        (
+            "export const App = props => <div>{/* @once */ props['children']}</div>",
+            "once-children-single-index.tsx",
+        ),
+        (
+            "export const App = props => <div>{/* @once */ props[\"children\"]}</div>",
+            "once-children-double-index.tsx",
+        ),
+        (
+            "import { For } from '@zeus-js/zeus'; export const App = props => <For each={props.items}>{item => <div>{/* @once */ item.children}</div>}</For>",
+            "once-for-node-binding.tsx",
+        ),
+    ] {
+        let transformed = transform_module(TransformModuleOptions {
+            source: source.into(),
+            filename: filename.into(),
+            target: TransformTarget::Dom,
+            runtime_module: "@zeus-js/runtime-dom".into(),
+            delegate_events: false,
+            source_map: false,
+            hmr: false,
+        });
+
+        assert!(transformed.code.is_empty(), "{filename}");
+        assert!(transformed.map.is_none(), "{filename}");
+        assert_eq!(transformed.diagnostics.len(), 1, "{filename}");
+        assert_eq!(
+            transformed.diagnostics[0].code, "ZEUS_INVALID_ONCE_TARGET",
+            "{filename}"
+        );
+    }
+}
+
+#[test]
 fn avoids_collisions_with_user_bindings() {
     let source = r"const $zeusTemplate = 1
 const $zeusTemplate0 = 2

@@ -126,12 +126,14 @@ export function attrBindingIR(
   name: string,
   expr: ExpressionIR,
   span: SourceSpan,
+  once = false,
 ): AttrBindingIR {
   return {
     id: id(),
     kind: 'AttrBinding',
     name,
     expr,
+    once,
     span,
   }
 }
@@ -140,12 +142,14 @@ export function propBindingIR(
   name: string,
   expr: ExpressionIR,
   span: SourceSpan,
+  once = false,
 ): PropBindingIR {
   return {
     id: id(),
     kind: 'PropBinding',
     name,
     expr,
+    once,
     span,
   }
 }

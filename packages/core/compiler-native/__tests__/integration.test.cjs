@@ -109,6 +109,19 @@ export const Bindings = (props: { name: string }) => (
   </section>
 )
 
+export const OnceBindings = (props: { name: string }) => (
+  <section
+    title={/* @once */ props.name}
+    class={/* @once */ { initial: props.name === 'Ada', updated: props.name === 'Grace' }}
+    style={/* @once */ () => ({ color: props.name === 'Ada' ? 'red' : 'blue', lineHeight: 1 })}
+  >
+    <b>{/* @once */ props.name}</b>
+    <input prop:value={/* @once */ props.name} />
+    <textarea>{/* @once */ props.name}</textarea>
+    <span data-name={props.name}>{props.name}</span>
+  </section>
+)
+
 export const mount = () => App(props)
 export const mountNested = () => Nested(props)
 export const mountStatic = () => Static()
@@ -116,6 +129,7 @@ export const mountTable = () => Table(props)
 export const mountIcon = () => Icon(props)
 export const mountSpecial = () => Special(props)
 export const mountBindings = (container: Element) => render(() => Bindings(props), container)
+export const mountOnceBindings = (container: Element) => render(() => OnceBindings(props), container)
 export const updateName = setName
 export const executionCount = () => executions
 export const nestedExecutionCount = () => nestedExecutions
@@ -163,9 +177,17 @@ test('native compiler executes through Vite with fine-grained DOM updates', asyn
     const bindingContainer = document.createElement('div')
     document.body.append(bindingContainer)
     const disposeBindings = module.mountBindings(bindingContainer)
+    const onceBindingContainer = document.createElement('div')
+    document.body.append(onceBindingContainer)
+    const disposeOnceBindings = module.mountOnceBindings(onceBindingContainer)
     const bindings = bindingContainer.firstElementChild
+    const onceBindings = onceBindingContainer.firstElementChild
     const bindingInput = bindings.querySelector('input')
     const bindingRow = bindings.querySelector('tr')
+    const onceBindingInput = onceBindings.querySelector('input')
+    const onceBindingText = onceBindings.querySelector('b')
+    const onceBindingTextContent = onceBindings.querySelector('textarea')
+    const reactiveBinding = onceBindings.querySelector('span')
     const greetingLabel = element.firstChild
     const greetingValue = element.lastChild
     const nestedSpan = nested.querySelector('span')
@@ -220,6 +242,15 @@ test('native compiler executes through Vite with fine-grained DOM updates', asyn
     assert.equal(bindingInput.value, 'Ada')
     assert.equal(bindingRow.getAttribute('data-name'), 'Ada')
     assert.equal(bindingRow.parentElement.tagName, 'TBODY')
+    assert.equal(onceBindings.getAttribute('title'), 'Ada')
+    assert.equal(onceBindings.getAttribute('class'), 'initial')
+    assert.equal(onceBindings.style.color, 'red')
+    assert.equal(onceBindings.style.lineHeight, '1')
+    assert.equal(onceBindingText.textContent, 'Ada')
+    assert.equal(onceBindingInput.value, 'Ada')
+    assert.equal(onceBindingTextContent.textContent, 'Ada')
+    assert.equal(reactiveBinding.getAttribute('data-name'), 'Ada')
+    assert.equal(reactiveBinding.textContent, 'Ada')
     assert.strictEqual(module.inputRefValue(), bindingInput)
     assert.equal(module.executionCount(), 1)
     assert.equal(module.nestedExecutionCount(), 1)
@@ -283,6 +314,22 @@ test('native compiler executes through Vite with fine-grained DOM updates', asyn
     assert.equal(bindings.style.lineHeight, '1')
     assert.equal(bindingInput.value, 'Grace')
     assert.equal(bindingRow.getAttribute('data-name'), 'Grace')
+    assert.equal(onceBindings.getAttribute('title'), 'Ada')
+    assert.equal(onceBindings.getAttribute('class'), 'initial')
+    assert.equal(onceBindings.style.color, 'red')
+    assert.equal(onceBindings.style.lineHeight, '1')
+    assert.equal(onceBindingText.textContent, 'Ada')
+    assert.equal(onceBindingInput.value, 'Ada')
+    assert.equal(onceBindingTextContent.textContent, 'Ada')
+    assert.equal(reactiveBinding.getAttribute('data-name'), 'Grace')
+    assert.equal(reactiveBinding.textContent, 'Grace')
+    assert.strictEqual(onceBindings.querySelector('input'), onceBindingInput)
+    assert.strictEqual(onceBindings.querySelector('b'), onceBindingText)
+    assert.strictEqual(
+      onceBindings.querySelector('textarea'),
+      onceBindingTextContent,
+    )
+    assert.strictEqual(onceBindings.querySelector('span'), reactiveBinding)
     assert.strictEqual(bindings.querySelector('input'), bindingInput)
     assert.strictEqual(bindings.querySelector('tr'), bindingRow)
     assert.strictEqual(element.firstChild, greetingLabel)
@@ -296,6 +343,8 @@ test('native compiler executes through Vite with fine-grained DOM updates', asyn
     disposeBindings()
     assert.equal(bindingContainer.textContent, '')
     assert.equal(module.inputRefValue(), null)
+    disposeOnceBindings()
+    assert.equal(onceBindingContainer.textContent, '')
 
     document.body.append(bindings)
     eventButtons[0].dispatchEvent(
@@ -304,6 +353,7 @@ test('native compiler executes through Vite with fine-grained DOM updates', asyn
     assert.equal(module.eventCallLog().length, 5)
     bindings.remove()
     bindingContainer.remove()
+    onceBindingContainer.remove()
 
     const buildResult = await build({
       root: fixture.root,
