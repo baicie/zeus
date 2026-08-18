@@ -63,6 +63,7 @@ describe('zeus release config', () => {
       ['pnpm', 'check:native-packages'],
       ['pnpm', 'check:native-binaries'],
       ['pnpm', 'build'],
+      ['pnpm', 'check:runtime-interop'],
       ['pnpm', 'check:cjs'],
       ['pnpm', 'build-dts'],
       ['pnpm', 'check:release-artifacts', '--require-binaries'],
