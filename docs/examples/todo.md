@@ -40,7 +40,7 @@ function TodoApp() {
       <button onClick={addTodo}>Add</button>
 
       <ul>
-        <For each={todos()}>
+        <For each={todos()} by={todo => todo.id}>
           {todo => (
             <li>
               <input
@@ -62,4 +62,6 @@ function TodoApp() {
 render(() => <TodoApp />, document.getElementById('root')!)
 ```
 
-The list is intentionally unkeyed because each immutable update replaces todo objects. Keyed records preserve their existing subtree and are better suited to items whose changing fields are explicit accessors.
+The keyed list preserves each todo's DOM and owner scope across immutable
+updates. Same-key replacements update the compiled bindings and event payloads
+to the latest todo object.

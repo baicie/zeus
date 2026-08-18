@@ -1,4 +1,4 @@
-import { state } from '@zeus-js/signal/internal'
+import { createSignal, state } from '@zeus-js/signal/internal'
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
@@ -86,7 +86,7 @@ describe('runtime-dom integration', () => {
       undefined,
       item => {
         const li = document.createElement('li')
-        li.textContent = item
+        li.textContent = item()
         return li
       },
     )
@@ -158,5 +158,40 @@ describe('runtime-dom integration', () => {
     document.body.appendChild(el)
 
     expect(el.textContent).toBe('3:true')
+  })
+
+  it('keeps custom element setup mounted while keyed records move', () => {
+    let setupCount = 0
+
+    defineElement('z-keyed-move-test', { shadow: false }, () => {
+      setupCount++
+      return document.createElement('span')
+    })
+
+    const [items, setItems] = createSignal([{ id: 1 }, { id: 2 }])
+    const root = document.createElement('div')
+    const anchor = document.createComment('')
+    root.append(anchor)
+    document.body.append(root)
+
+    mountFor(
+      root,
+      anchor,
+      items,
+      item => item.id,
+      item => {
+        const element = document.createElement('z-keyed-move-test')
+        element.dataset.id = String(item().id)
+        return element
+      },
+    )
+
+    const [first, second] = Array.from(root.children)
+    expect(setupCount).toBe(2)
+
+    setItems([{ id: 2 }, { id: 1 }])
+
+    expect(Array.from(root.children)).toEqual([second, first])
+    expect(setupCount).toBe(2)
   })
 })

@@ -46,15 +46,28 @@ Callback refs are called with `null` when their owner subtree is disposed.
 
 ## For
 
-`For` reuses DOM nodes by key when you provide the `by` prop.
+`For` reuses DOM nodes by key when you provide the `by` prop. Replacing an item
+with a new object that has the same key keeps its DOM and owner scope while
+updating compiled bindings and event handlers to the latest item and index.
 
-Keyed records preserve their existing DOM subtree and owner scope while moving. Put changing fields behind explicit accessors when a record must update in place:
+The item setup callback still runs only once per key. This keeps component
+initialization stable while precise DOM bindings remain current:
 
-```ts
-const [done, setDone] = createSignal(false)
+```tsx
+<For each={rows()} by={row => row.id}>
+  {(row, index) => (
+    <button onClick={() => select(row)}>
+      {index}: {row.title}
+    </button>
+  )}
+</For>
 ```
 
-Replacing a plain object with the same key reuses the old subtree. Use an unkeyed `For` for immutable replacement semantics until keyed item accessors are available.
+Duplicate keys are invalid and throw before Zeus mutates existing keyed
+records. If a new record throws during setup, Zeus removes any records created
+by that failed update. Reordering also preserves mounted Zeus custom elements
+and the deepest focused descendant across Shadow DOM boundaries. Without `by`,
+a collection change replaces the current list subtree.
 
 ---
 

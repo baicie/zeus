@@ -19,8 +19,14 @@ export interface ExpressionIR {
   code: string
   span: SourceSpan
   form: ExpressionForm
+  forAccessors: ForAccessorIR[]
 }
 export type ExpressionForm = 'value' | 'getter' | 'member'
+export interface ForAccessorIR {
+  forId: number
+  item: boolean
+  index: boolean
+}
 export interface IdentifierIR {
   kind: 'Identifier'
   name: string
@@ -208,6 +214,7 @@ export declare function expressionIR(
   code: string,
   span: SourceSpan,
   form?: ExpressionForm,
+  forAccessors?: ExpressionIR['forAccessors'],
 ): ExpressionIR
 export declare function identifierIR(
   name: string,

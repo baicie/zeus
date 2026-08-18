@@ -4,6 +4,7 @@ import { mountDynamic } from './insert'
 import { mountFor as mountForRuntime } from './list'
 
 import type { JSXValue } from './types'
+import type { Accessor } from '@zeus-js/signal'
 
 export type ShowProps = {
   when: unknown
@@ -50,7 +51,7 @@ export function mountFor<T, K = unknown>(
   marker: Node,
   each: () => readonly T[] | null | undefined,
   key: ((item: T, index: number) => K) | undefined,
-  render: (item: T, index: number) => JSXValue,
+  render: (item: Accessor<T>, index: Accessor<number>) => JSXValue,
 ): void {
   mountForRuntime(parent, marker, each, key, render)
 }

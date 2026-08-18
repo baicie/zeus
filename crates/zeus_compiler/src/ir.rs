@@ -330,6 +330,15 @@ pub struct ExpressionIr {
     pub code: String,
     pub span: SourceSpan,
     pub form: ExpressionForm,
+    pub for_accessors: Vec<ForAccessorIr>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ForAccessorIr {
+    pub for_id: NodeId,
+    pub item: bool,
+    pub index: bool,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]

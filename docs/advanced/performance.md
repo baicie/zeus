@@ -10,13 +10,12 @@ pnpm test:benchs
 
 ## Keyed For
 
-Use `by` when items have stable identities and changing fields are explicit
-accessors:
+Use `by` when items have stable identities:
 
 ```tsx
 // Good: reuses DOM on reorder
 <For each={items()} by={item => item.id}>
-  {item => <li>{item.title()}</li>}
+  {(item, index) => <li data-index={index}>{item.title}</li>}
 </For>
 
 // Immutable records: replace the list subtree when records change
@@ -26,7 +25,9 @@ accessors:
 ```
 
 A keyed record preserves its existing DOM and owner scope when it moves. A new
-plain object with the same key does not rerun the item callback.
+plain object with the same key updates bindings and event handlers to the
+latest item and index without rerunning the item setup callback. Keys must be
+unique within one list snapshot.
 
 ## @once static marker
 

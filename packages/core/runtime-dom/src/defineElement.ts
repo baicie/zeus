@@ -9,6 +9,7 @@ import {
   getCustomElementObservedAttributes,
   reflectCustomElementProperty,
 } from './customElementContract'
+import { isWithinRuntimeDomMove } from './domMove'
 import { withHostContext } from './hostContext'
 import { render } from './render'
 import { createLightDomProjection } from './slot'
@@ -460,6 +461,7 @@ export function defineElement<
     }
 
     disconnectedCallback(): void {
+      if (isWithinRuntimeDomMove(this)) return
       this.mountLifecycle.disconnect()
     }
 

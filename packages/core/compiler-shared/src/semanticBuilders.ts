@@ -36,12 +36,14 @@ export function expressionIR(
   code: string,
   span: SourceSpan,
   form: ExpressionForm = 'value',
+  forAccessors: ExpressionIR['forAccessors'] = [],
 ): ExpressionIR {
   return {
     kind: 'Expression',
     code,
     span,
     form,
+    forAccessors,
   }
 }
 

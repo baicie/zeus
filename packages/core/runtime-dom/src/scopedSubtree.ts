@@ -35,13 +35,14 @@ export class ScopedSubtree {
     this.dispose()
 
     const scope = effectScope(true)
+    const parent = this.resolveParent(this.marker)
     let nodes: Node[] = []
 
     try {
       scope.run(() => {
         nodes = runWithOwner(this.context.owner, () =>
           withHostContext(this.context.host, () =>
-            insertTracked(this.parent, render(), this.marker),
+            insertTracked(parent, render(), this.marker),
           ),
         )
       })
@@ -63,10 +64,14 @@ export class ScopedSubtree {
   }
 
   moveBefore(marker: Node | null): void {
-    moveRangeBefore(this.nodes, this.parent, marker)
+    moveRangeBefore(this.nodes, this.resolveParent(marker), marker)
   }
 
   current(): readonly Node[] {
     return this.nodes
+  }
+
+  private resolveParent(marker: Node | null): Node {
+    return marker?.parentNode ?? this.marker?.parentNode ?? this.parent
   }
 }

@@ -43,16 +43,14 @@ The `by` prop enables DOM reuse when items are reordered.
 ### Keyed diff behavior
 
 With `by`, Zeus reuses the existing DOM subtree and owner scope when an item
-moves. Removing an item disposes that item's scope immediately.
-
-The render callback captures the item passed when a key is first mounted.
-Replacing that item with a different object that has the same key does not
-rerun the callback. Put fields that must change in place behind explicit
-accessors, or use unkeyed iteration when replacing whole records.
+moves. Replacing an item with a different object that has the same key updates
+compiled bindings and event handlers to the latest item and index without
+rerunning the item setup callback. Removing an item disposes that item's scope
+immediately. Duplicate keys are rejected before existing records are changed.
 
 ```tsx
 <For each={rows()} by={row => row.id}>
-  {row => <li>{row.title()}</li>}
+  {(row, index) => <li data-index={index}>{row.title}</li>}
 </For>
 ```
 
@@ -70,6 +68,4 @@ Without `by`, items are identified by index:
 </For>
 ```
 
-This replaces the current list subtree when the collection changes. It is the
-straightforward choice for immutable arrays whose records are replaced with
-new objects.
+This replaces the current list subtree when the collection changes.
