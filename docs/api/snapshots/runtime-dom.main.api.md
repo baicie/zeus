@@ -5,6 +5,8 @@
 > Run `pnpm api:snapshot` to update.
 
 ```ts
+import { Accessor } from '@zeus-js/signal'
+
 type JSXPrimitive = string | number | boolean | null | undefined
 export type JSXValue = JSXPrimitive | Node | JSXValue[]
 export type JSXGetter = () => JSXValue
@@ -251,7 +253,7 @@ export declare function mountFor<T, K = unknown>(
   marker: Node,
   each: () => readonly T[] | null | undefined,
   key: ((item: T, index: number) => K) | undefined,
-  render: (item: T, index: number) => JSXValue,
+  render: (item: Accessor<T>, index: Accessor<number>) => JSXValue,
 ): void
 
 export type CustomElementPropType =

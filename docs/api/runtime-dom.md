@@ -120,11 +120,15 @@ function mountFor<T, K>(
   marker: Node,
   each: () => readonly T[] | null | undefined,
   key: ((item: T, index: number) => K) | undefined,
-  render: (item: T, index: number) => JSXValue,
+  render: (item: () => T, index: () => number) => JSXValue,
 ): void
 ```
 
-Mounts a For component with optional keyed diff.
+Mounts a For region with optional keyed reconciliation. The low-level runtime
+helper passes item and index accessors to `render`; keyed records update those
+accessors when a same-key item is replaced or moved. JSX authors continue to
+write ordinary `item` and `index` references inside `<For>` because the
+compiler emits the accessor reads.
 
 ## bindRef
 

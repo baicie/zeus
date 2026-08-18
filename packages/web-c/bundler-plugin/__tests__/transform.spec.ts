@@ -43,7 +43,8 @@ describe('transformZeus', () => {
       `,
     })
 
-    expect(result?.code).toContain('$zeusCreateComponent')
+    expect(result?.code).toContain('$zeusMountShow')
+    expect(result?.code).not.toContain('$zeusCreateComponent')
   })
 
   it('transforms For component', async () => {
@@ -57,7 +58,8 @@ describe('transformZeus', () => {
       `,
     })
 
-    expect(result?.code).toContain('$zeusFor')
+    expect(result?.code).toContain('$zeusMountFor')
+    expect(result?.code).toContain('$zeusItem()')
   })
 
   it('transforms event binding', async () => {

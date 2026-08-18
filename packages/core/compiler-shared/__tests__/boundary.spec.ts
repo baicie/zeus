@@ -38,6 +38,17 @@ describe('compiler-shared boundary', () => {
     expect(JSON.parse(JSON.stringify(node))).toEqual(node)
   })
 
+  it('round-trips precise For accessor dependencies on expressions', () => {
+    const expression = expressionIR('item.label', fixtureSpan, 'member', [
+      { forId: 7, item: true, index: false },
+    ])
+
+    expect(JSON.parse(JSON.stringify(expression))).toEqual(expression)
+    expect(expression.forAccessors).toEqual([
+      { forId: 7, item: true, index: false },
+    ])
+  })
+
   it('keeps explicit once mode on text, attribute, and property bindings', () => {
     const text = dynamicTextIR(
       expressionIR('props.title', fixtureSpan, 'member'),

@@ -23,7 +23,7 @@ describe('keyed For', () => {
       item => item.id,
       item => {
         const li = document.createElement('li')
-        li.textContent = item.title
+        li.textContent = item().title
         return li
       },
     )
@@ -48,7 +48,7 @@ describe('keyed For', () => {
       item => item.id,
       item => {
         const li = document.createElement('li')
-        li.textContent = item.title
+        li.textContent = item().title
         return li
       },
     )
@@ -73,7 +73,7 @@ describe('keyed For', () => {
       item => item.id,
       item => {
         const li = document.createElement('li')
-        li.textContent = item.title
+        li.textContent = item().title
         return li
       },
     )
@@ -100,7 +100,7 @@ describe('keyed For', () => {
       item => item.id,
       item => {
         const li = document.createElement('li')
-        li.textContent = item.title
+        li.textContent = item().title
         return li
       },
     )
@@ -122,7 +122,7 @@ describe('keyed For', () => {
       item => item.id,
       item => {
         const li = document.createElement('li')
-        li.textContent = item.title
+        li.textContent = item().title
         return li
       },
     )
@@ -151,7 +151,7 @@ describe('keyed For', () => {
       item => item.id,
       item => {
         const li = document.createElement('li')
-        li.textContent = item.title
+        li.textContent = item().title
         return li
       },
     )
@@ -180,7 +180,7 @@ describe('index For (no key)', () => {
       undefined,
       item => {
         const li = document.createElement('li')
-        li.textContent = item.title
+        li.textContent = item().title
         return li
       },
     )
@@ -205,7 +205,7 @@ describe('index For (no key)', () => {
       undefined,
       item => {
         const li = document.createElement('li')
-        li.textContent = item.title
+        li.textContent = item().title
         return li
       },
     )

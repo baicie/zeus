@@ -2,8 +2,8 @@ use zeus_compiler::{
     diagnostic::{CompilerDiagnostic, DiagnosticSeverity},
     ir::{
         AttrBindingIr, AttributeIr, ComponentIr, DynamicTextIr, ElementIr, ExpressionForm,
-        ExpressionIr, FragmentIr, IrRef, ModuleIr, RootIr, StaticAttributeIr, StaticAttributeValue,
-        TextIr,
+        ExpressionIr, ForAccessorIr, FragmentIr, IrRef, ModuleIr, RootIr, StaticAttributeIr,
+        StaticAttributeValue, TextIr,
     },
     span::{SourcePosition, SourceSpan},
 };
@@ -105,6 +105,7 @@ fn ir_owned_schema_round_trips_through_json() {
                             code: "props.name".into(),
                             span: span(29, 39),
                             form: ExpressionForm::Member,
+                            for_accessors: Vec::new(),
                         },
                         once: false,
                         span: span(28, 40),
@@ -158,6 +159,7 @@ fn once_binding_ir_round_trips_as_explicit_true() {
             code: "props.title".into(),
             span: span(8, 19),
             form: ExpressionForm::Member,
+            for_accessors: Vec::new(),
         },
         once: true,
         span: span(1, 20),
@@ -168,6 +170,30 @@ fn once_binding_ir_round_trips_as_explicit_true() {
     assert_eq!(
         serde_json::from_value::<AttrBindingIr>(json).expect("once binding deserializes"),
         binding
+    );
+}
+
+#[test]
+fn for_accessor_dependencies_round_trip_through_json() {
+    let expression = ExpressionIr {
+        kind: "Expression".into(),
+        code: "item.label".into(),
+        span: span(8, 18),
+        form: ExpressionForm::Member,
+        for_accessors: vec![ForAccessorIr {
+            for_id: 7,
+            item: true,
+            index: false,
+        }],
+    };
+
+    let json = serde_json::to_value(&expression).expect("For accessor dependency serializes");
+    assert_eq!(json["forAccessors"][0]["forId"], 7);
+    assert_eq!(json["forAccessors"][0]["item"], true);
+    assert_eq!(json["forAccessors"][0]["index"], false);
+    assert_eq!(
+        serde_json::from_value::<ExpressionIr>(json).expect("For accessor dependency deserializes"),
+        expression
     );
 }
 
