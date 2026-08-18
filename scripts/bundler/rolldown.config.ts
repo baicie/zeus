@@ -5,6 +5,7 @@ import replace from '@rollup/plugin-replace'
 import pico from 'picocolors'
 import polyfillNode from 'rollup-plugin-polyfill-node'
 
+import { createExternalMatcher } from './external'
 import { inlineEnums } from './inline-enums'
 import { entries } from '../shared/aliases'
 import { resolvePackageDir } from '../shared/utils'
@@ -283,9 +284,10 @@ function createConfig(
     } else {
       // Node / esm-bundler builds.
       // externalize all direct deps.
-      return [
+      return createExternalMatcher([
         ...Object.keys(pkg.dependencies || {}),
         ...Object.keys(pkg.peerDependencies || {}),
+        ...(packageOptions.external || []),
         ...[
           'module',
           'path',
@@ -302,7 +304,7 @@ function createConfig(
         ],
         // somehow these throw warnings for runtime-* package builds
         ...treeShakenDeps,
-      ]
+      ])
     }
   }
 

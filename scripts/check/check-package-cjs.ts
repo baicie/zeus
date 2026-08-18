@@ -94,6 +94,10 @@ const expectedDevelopmentTargets: Record<string, string> = {
   '@zeus-js/web-c': './dist/web-c.cjs',
 }
 
+const expectedSubpathFallbackTargets: Record<string, string> = {
+  '@zeus-js/signal/internal': './internal.cjs',
+}
+
 let hasError = false
 let checkedConditionalLoads = 0
 let checkedFallbackLoads = 0
@@ -226,11 +230,15 @@ for (const pkg of findWorkspacePackages()) {
       }
     }
 
-    if (subpath !== '.') continue
+    const fallbackTarget =
+      subpath === '.'
+        ? './index.cjs'
+        : expectedSubpathFallbackTargets[specifier]
+    if (!fallbackTarget) continue
 
     for (const nodeEnv of ['development', 'production'] as const) {
       const opposite = nodeEnv === 'development' ? 'production' : 'development'
-      const expectedEntry = path.resolve(pkg.dir, expectedConditions.default)
+      const expectedEntry = path.resolve(pkg.dir, fallbackTarget)
       const expectedRuntime = path.resolve(pkg.dir, expectedConditions[nodeEnv])
       const forbiddenRuntime = path.resolve(
         pkg.dir,
@@ -338,7 +346,10 @@ function createExpectedConditions(
   return {
     production: development.replace(/\.cjs$/, '.prod.cjs'),
     development,
-    default: subpath === '.' ? './index.cjs' : development,
+    default:
+      subpath === '.'
+        ? './index.cjs'
+        : (expectedSubpathFallbackTargets[specifier] ?? development),
   }
 }
 
