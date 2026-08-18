@@ -300,10 +300,12 @@ export type PropSerializer<T = unknown> = {
 export type PropDeserializer<T = unknown> = {
   bivarianceHack(value: string | null): T | undefined
 }['bivarianceHack']
+export type PropReactivity = 'deep' | 'shallow'
 export interface PropDefinitionOptions<T = unknown> {
   type?: ElementPropConstructor
   attr?: string | false
   reflect?: boolean
+  reactivity?: PropReactivity
   default?: T | (() => T)
   values?: readonly T[]
   serialize?(value: T | undefined): string | null | undefined
@@ -465,6 +467,7 @@ export type DefineElementSetup<
 export type NormalizedPropDefinition = CustomElementPropSchema & {
   attrName: string | false
   reflect: boolean
+  reactivity: PropReactivity
   default?: unknown
   serialize?: (value: unknown) => string | null | undefined
   deserialize?: (value: string | null) => unknown
