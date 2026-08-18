@@ -10,7 +10,13 @@ export {
   type Setter,
 } from './primitives'
 
-export { state, isValueState, type State, type ValueState } from './state'
+export {
+  state,
+  shallowState,
+  isValueState,
+  type State,
+  type ValueState,
+} from './state'
 
 export {
   computed,

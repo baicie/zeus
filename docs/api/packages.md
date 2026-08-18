@@ -318,6 +318,7 @@ export {
   type DefineElementSetup,
   type ElementPropConstructor,
   type PropDefinition,
+  type PropReactivity,
   type PropOptions,
 }
 export { Host, Slot, type HostProps, type SlotProps }
@@ -369,6 +370,10 @@ const Counter = defineElement(
       count: Number,
       title: String,
       open: Boolean,
+      rows: {
+        type: Array,
+        reactivity: 'shallow', // 仅跟踪顶层引用替换，保留原始数组/row identity
+      },
       data: {
         type: Object,
         attr: 'data-config', // 指定 attribute 名称
@@ -409,6 +414,10 @@ const Counter = defineElement(
 // 使用
 // <z-counter count="5" title="My Counter"></z-counter>
 ```
+
+prop 默认使用 deep reactivity。`reactivity: 'shallow'` 适用于 rows、columns
+等大型 immutable 集合：替换整个 prop reference 会触发更新；原地修改数组元素
+或嵌套对象不会触发更新。shallow prop 必须采用 replace-on-write。
 
 #### Host / Slot 详解
 

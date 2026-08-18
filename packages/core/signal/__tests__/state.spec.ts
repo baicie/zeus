@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { state, effect, computed, isValueState } from '../src/internal'
+import {
+  state,
+  shallowState,
+  effect,
+  computed,
+  isValueState,
+} from '../src/internal'
 
 describe('state', () => {
   it('creates value state for primitive', () => {
@@ -179,6 +185,32 @@ describe('state', () => {
 
     val.value = 'initialized'
     expect(val.value).toBe('initialized')
+  })
+
+  it('tracks shallow state replacement without proxying nested values', () => {
+    const firstRow = { id: 'row-1' }
+    const firstRows = [firstRow]
+    const rows = shallowState(firstRows)
+    const read = vi.fn(() => rows.value[0]?.id)
+
+    effect(read)
+
+    expect(rows.value).toBe(firstRows)
+    expect(rows.value[0]).toBe(firstRow)
+    expect(read).toHaveBeenCalledTimes(1)
+
+    firstRow.id = 'mutated'
+
+    expect(read).toHaveBeenCalledTimes(1)
+
+    const nextRow = { id: 'row-2' }
+    const nextRows = [nextRow]
+    rows.value = nextRows
+
+    expect(rows.value).toBe(nextRows)
+    expect(rows.value[0]).toBe(nextRow)
+    expect(read).toHaveBeenCalledTimes(2)
+    expect(read).toHaveLastReturnedWith('row-2')
   })
 
   it('tracks reactive array mutation', () => {

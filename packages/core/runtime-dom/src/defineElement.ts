@@ -1,6 +1,6 @@
 // packages/runtime-dom/src/defineElement.ts
 
-import { effect, state } from '@zeus-js/signal/internal'
+import { effect, shallowState, state } from '@zeus-js/signal/internal'
 
 import { createOwner, resolveDOMContext, runWithOwner } from './context'
 import {
@@ -40,10 +40,13 @@ export type PropDeserializer<T = unknown> = {
   bivarianceHack(value: string | null): T | undefined
 }['bivarianceHack']
 
+export type PropReactivity = 'deep' | 'shallow'
+
 export interface PropDefinitionOptions<T = unknown> {
   type?: ElementPropConstructor
   attr?: string | false
   reflect?: boolean
+  reactivity?: PropReactivity
   default?: T | (() => T)
   values?: readonly T[]
   serialize?(value: T | undefined): string | null | undefined
@@ -219,6 +222,7 @@ export type DefineElementSetup<
 export type NormalizedPropDefinition = CustomElementPropSchema & {
   attrName: string | false
   reflect: boolean
+  reactivity: PropReactivity
   default?: unknown
   serialize?: (value: unknown) => string | null | undefined
   deserialize?: (value: string | null) => unknown
@@ -272,6 +276,7 @@ export function prop(
       values: input,
       attr: options.attr,
       reflect: options.reflect,
+      reactivity: options.reactivity,
       default: options.default,
       serialize: options.serialize,
       deserialize: options.deserialize,
@@ -284,6 +289,7 @@ export function prop(
     type,
     attr: options.attr,
     reflect: type === Boolean ? (options.reflect ?? true) : options.reflect,
+    reactivity: options.reactivity,
     default: type === Boolean ? (options.default ?? false) : options.default,
     serialize: options.serialize,
     deserialize: options.deserialize,
@@ -342,7 +348,10 @@ function createPropStore<P extends object>(
   const props: Record<string, unknown> = {}
 
   for (const def of defs) {
-    const slot = state<unknown>() as ValueState<unknown>
+    const slot =
+      def.reactivity === 'shallow'
+        ? shallowState<unknown>()
+        : (state<unknown>() as ValueState<unknown>)
     slots.set(def.name, slot)
 
     Object.defineProperty(props, def.name, {
@@ -780,6 +789,7 @@ function normalizePropDefinitions<P extends object>(
           : false,
         type: normalizePropType(type),
         reflect: false,
+        reactivity: 'deep',
       }
     }
 
@@ -793,6 +803,7 @@ function normalizePropDefinitions<P extends object>(
       attrName: input?.attr === undefined ? defaultAttr : input.attr,
       type: normalizePropType(type),
       reflect: Boolean(input?.reflect),
+      reactivity: input?.reactivity === 'shallow' ? 'shallow' : 'deep',
       default: input?.default,
       serialize: input?.serialize as
         | ((value: unknown) => string | null | undefined)
