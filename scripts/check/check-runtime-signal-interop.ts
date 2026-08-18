@@ -86,7 +86,7 @@ const internalModules = Object.keys(require.cache).filter(id =>
 if (!internalModules.some(id => id.endsWith('internal.prod.cjs'))) {
   throw new Error('production internal engine was not loaded')
 }
-if (internalModules.some(id => id.endsWith('/internal.cjs'))) {
+if (internalModules.some(id => require('node:path').basename(id) === 'internal.cjs')) {
   throw new Error('development internal engine leaked into production')
 }`,
     [],
