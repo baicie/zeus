@@ -349,6 +349,11 @@ describe('defineElement props tracking', () => {
     expect(capturedProps?.rows).toBe(firstRows)
     expect(readRow).toHaveBeenCalledTimes(2)
 
+    el.rows = firstRows
+    await nextFrame()
+
+    expect(readRow).toHaveBeenCalledTimes(2)
+
     firstRow.id = 'mutated'
     await nextFrame()
 
@@ -457,6 +462,11 @@ describe('defineElement props tracking', () => {
 
     expect(capturedProps?.rows).toBe(firstRows)
     expect(capturedProps?.rows?.[0]).toBe(firstRow)
+    expect(readRow).toHaveBeenCalledTimes(1)
+
+    mounted.propertyChanged('rows', firstRows, firstRows)
+    await nextFrame()
+
     expect(readRow).toHaveBeenCalledTimes(1)
 
     firstRow.id = 'mutated'

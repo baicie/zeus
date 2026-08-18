@@ -203,6 +203,10 @@ describe('state', () => {
 
     expect(read).toHaveBeenCalledTimes(1)
 
+    rows.value = firstRows
+
+    expect(read).toHaveBeenCalledTimes(1)
+
     const nextRow = { id: 'row-2' }
     const nextRows = [nextRow]
     rows.value = nextRows
