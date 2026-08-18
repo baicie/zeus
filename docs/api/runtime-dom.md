@@ -15,10 +15,11 @@ Mounts the component tree into the element.
 ## bindText
 
 ```ts
-function bindText(el: Text, getValue: () => string): void
+function bindText(el: Text, getValue: () => JSXValue, once?: boolean): void
 ```
 
-Binds a reactive text node.
+Binds a text node. With `once: true`, the getter is evaluated untracked once and
+no reactive effect is created.
 
 ## bindEvent
 
@@ -31,18 +32,30 @@ Binds an event handler. Handlers are stored on the element for event delegation.
 ## bindAttr
 
 ```ts
-function bindAttr(el: Element, name: string, getValue: () => string): void
+function bindAttr(
+  el: Element,
+  name: string,
+  getValue: () => AttrValue,
+  once?: boolean,
+): void
 ```
 
-Binds a reactive HTML attribute.
+Binds an HTML attribute. With `once: true`, only the normalized initial value is
+written.
 
 ## bindProp
 
 ```ts
-function bindProp(el: Element, name: string, getValue: () => unknown): void
+function bindProp(
+  el: Element,
+  name: string,
+  getValue: () => unknown,
+  once?: boolean,
+): void
 ```
 
-Binds a reactive DOM property.
+Binds a DOM property. `bindTextContent`, `bindClass`, and `bindStyle` accept the
+same trailing `once` flag and preserve their normal initial-value semantics.
 
 ## delegateEvents
 
