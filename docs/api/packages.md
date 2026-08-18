@@ -750,7 +750,9 @@ pnpm add @zeus-ui/cli
 每个 CJS 导出都在 `require` 条件内声明 `production`、`development` 和
 `default`。Node 或打包器显式启用对应 condition 时会直接解析到下列产物；
 未提供自定义 condition 时，包根级 `require` 先解析到 `index.cjs`，再根据
-`NODE_ENV` 选择开发或生产产物。附加入口的 `default` 直接使用开发产物。
+`NODE_ENV` 选择开发或生产产物。附加入口默认直接使用开发产物；
+`@zeus-js/signal/internal` 例外，它通过 `internal.cjs` 按 `NODE_ENV` 选择与包根一致的
+signal engine，避免公共 API 与 runtime helper 各自持有响应式状态。
 
 | 包                     | ESM 入口                          | CJS 开发 / 生产产物                                  | 全局 CDN                     |
 | ---------------------- | --------------------------------- | ---------------------------------------------------- | ---------------------------- |
