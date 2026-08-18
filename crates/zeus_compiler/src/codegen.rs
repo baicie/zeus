@@ -8,7 +8,7 @@ use crate::{
     ir::{
         AttributeIr, ChildIr, ComponentBindingIr, ComponentIr, ComponentPropValueIr, ElementIr,
         ExpressionForm, ExpressionIr, ForBindingIr, FragmentIr, ModuleIr, NodeId, RootIr,
-        ShowBindingIr, StaticAttributeValue,
+        ShowBindingIr, StaticAttributeValue, is_children_expression,
     },
     lower::HmrInfo,
 };
@@ -564,19 +564,24 @@ fn emit_component(
 
     for binding in &component.bindings {
         match binding {
-            DynamicBinding::Text { expression } => {
-                emit_text_binding(writer, expression, &markers[marker_index], runtime);
+            DynamicBinding::Text { expression, once } => {
+                emit_text_binding(writer, expression, *once, &markers[marker_index], runtime);
                 marker_index += 1;
             }
             DynamicBinding::Node { expression } => {
                 emit_node_binding(writer, expression, &markers[marker_index], runtime);
                 marker_index += 1;
             }
-            DynamicBinding::TextContent { target_id, parts } => {
+            DynamicBinding::TextContent {
+                target_id,
+                parts,
+                once,
+            } => {
                 emit_text_content_binding(
                     writer,
                     component.target_name(*target_id),
                     parts,
+                    *once,
                     runtime,
                 );
             }
@@ -585,23 +590,27 @@ fn emit_component(
                 name,
                 expression,
                 kind,
+                once,
             } => emit_attribute_binding(
                 writer,
                 component.target_name(*target_id),
                 name,
                 expression,
                 *kind,
+                *once,
                 runtime,
             ),
             DynamicBinding::Property {
                 target_id,
                 name,
                 expression,
+                once,
             } => emit_property_binding(
                 writer,
                 component.target_name(*target_id),
                 name,
                 expression,
+                *once,
                 runtime,
             ),
             DynamicBinding::Event {
@@ -1085,6 +1094,7 @@ fn is_static_expression(expression: &ExpressionIr) -> bool {
 fn emit_text_binding(
     writer: &mut CodeWriter,
     expression: &ExpressionIr,
+    once: bool,
     binding: &EmittedMarker,
     runtime: &RuntimeNames,
 ) {
@@ -1108,7 +1118,11 @@ fn emit_text_binding(
     writer.push(&binding.text_name);
     writer.push(", () => (");
     writer.push_mapped(&expression.code, expression);
-    writer.push("));\n");
+    writer.push(")");
+    if once {
+        writer.push(", true");
+    }
+    writer.push(");\n");
 }
 
 fn emit_node_binding(
@@ -1133,6 +1147,7 @@ fn emit_text_content_binding(
     writer: &mut CodeWriter,
     target: &str,
     parts: &[TextContentPart],
+    once: bool,
     runtime: &RuntimeNames,
 ) {
     writer.push(runtime.bind_text_content());
@@ -1153,13 +1168,19 @@ fn emit_text_content_binding(
         writer.push("]");
     }
 
-    writer.push("));\n");
+    writer.push(")");
+    if once {
+        writer.push(", true");
+    }
+    writer.push(");\n");
 }
 
 fn emit_text_content_part(writer: &mut CodeWriter, part: &TextContentPart) {
     match part {
         TextContentPart::Static(value) => writer.push(&quote_js(value)),
-        TextContentPart::Dynamic(expression) => writer.push_mapped(&expression.code, expression),
+        TextContentPart::Dynamic { expression, .. } => {
+            writer.push_mapped(&expression.code, expression);
+        }
     }
 }
 
@@ -1169,6 +1190,7 @@ fn emit_attribute_binding(
     name: &str,
     expression: &ExpressionIr,
     kind: AttributeBindingKind,
+    once: bool,
     runtime: &RuntimeNames,
 ) {
     let helper = match kind {
@@ -1185,6 +1207,9 @@ fn emit_attribute_binding(
     }
     writer.push(", ");
     emit_getter(writer, expression);
+    if once {
+        writer.push(", true");
+    }
     writer.push(");\n");
 }
 
@@ -1193,6 +1218,7 @@ fn emit_property_binding(
     target: &str,
     name: &str,
     expression: &ExpressionIr,
+    once: bool,
     runtime: &RuntimeNames,
 ) {
     writer.push(runtime.bind_prop());
@@ -1202,6 +1228,9 @@ fn emit_property_binding(
     writer.push(&quote_js(name));
     writer.push(", ");
     emit_getter(writer, expression);
+    if once {
+        writer.push(", true");
+    }
     writer.push(");\n");
 }
 
@@ -1338,11 +1367,13 @@ fn collect_element_bindings(element: &ElementIr, bindings: &mut Vec<DynamicBindi
                 name: attribute.name.clone(),
                 expression: attribute.expression.clone(),
                 kind: AttributeBindingKind::from_name(&attribute.name),
+                once: attribute.once,
             }),
             AttributeIr::Property(attribute) => bindings.push(DynamicBinding::Property {
                 target_id: element.id,
                 name: attribute.name.clone(),
                 expression: attribute.expression.clone(),
+                once: attribute.once,
             }),
             AttributeIr::Event(attribute) => bindings.push(DynamicBinding::Event {
                 target_id: element.id,
@@ -1361,11 +1392,16 @@ fn collect_element_bindings(element: &ElementIr, bindings: &mut Vec<DynamicBindi
         let parts = collect_text_content_parts(element);
         if parts
             .iter()
-            .any(|part| matches!(part, TextContentPart::Dynamic(_)))
+            .any(|part| matches!(part, TextContentPart::Dynamic { .. }))
         {
+            let once = parts.iter().all(|part| match part {
+                TextContentPart::Static(_) => true,
+                TextContentPart::Dynamic { once, .. } => *once,
+            });
             bindings.push(DynamicBinding::TextContent {
                 target_id: element.id,
                 parts,
+                once,
             });
         }
         return;
@@ -1414,17 +1450,9 @@ fn dynamic_binding(dynamic: &crate::ir::DynamicTextIr) -> DynamicBinding {
     } else {
         DynamicBinding::Text {
             expression: dynamic.expression.clone(),
+            once: dynamic.once,
         }
     }
-}
-
-fn is_children_expression(code: &str) -> bool {
-    let code = code.trim();
-    code == "children"
-        || code.ends_with(".children")
-        || code.ends_with("?.children")
-        || code.ends_with("['children']")
-        || code.ends_with("[\"children\"]")
 }
 
 fn has_element_binding(element: &ElementIr) -> bool {
@@ -1456,7 +1484,10 @@ fn collect_text_content_parts(element: &ElementIr) -> Vec<TextContentPart> {
         .iter()
         .filter_map(|child| match child {
             ChildIr::Text(text) => Some(TextContentPart::Static(text.value.clone())),
-            ChildIr::DynamicText(text) => Some(TextContentPart::Dynamic(text.expression.clone())),
+            ChildIr::DynamicText(text) => Some(TextContentPart::Dynamic {
+                expression: text.expression.clone(),
+                once: text.once,
+            }),
             ChildIr::Element(_)
             | ChildIr::Fragment(_)
             | ChildIr::Component(_)
@@ -1824,6 +1855,7 @@ struct ElementTarget {
 enum DynamicBinding {
     Text {
         expression: ExpressionIr,
+        once: bool,
     },
     Node {
         expression: ExpressionIr,
@@ -1831,17 +1863,20 @@ enum DynamicBinding {
     TextContent {
         target_id: NodeId,
         parts: Vec<TextContentPart>,
+        once: bool,
     },
     Attribute {
         target_id: NodeId,
         name: String,
         expression: ExpressionIr,
         kind: AttributeBindingKind,
+        once: bool,
     },
     Property {
         target_id: NodeId,
         name: String,
         expression: ExpressionIr,
+        once: bool,
     },
     Event {
         target_id: NodeId,
@@ -1882,7 +1917,10 @@ impl DynamicBinding {
 
 enum TextContentPart {
     Static(String),
-    Dynamic(ExpressionIr),
+    Dynamic {
+        expression: ExpressionIr,
+        once: bool,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -164,8 +164,16 @@ export declare function marker(parent: ParentNode, index: number): Comment
 export declare function child(parent: ParentNode, index: number): ChildNode
 export declare function removeNodes(nodes: readonly Node[]): void
 
-export declare function bindText(node: Text, value: () => JSXValue): void
-export declare function bindTextContent(el: Node, value: () => JSXValue): void
+export declare function bindText(
+  node: Text,
+  value: () => JSXValue,
+  once?: boolean,
+): void
+export declare function bindTextContent(
+  el: Node,
+  value: () => JSXValue,
+  once?: boolean,
+): void
 export declare function setAttr(
   el: Element,
   name: string,
@@ -175,17 +183,24 @@ export declare function bindAttr(
   el: Element,
   name: string,
   value: () => AttrValue,
+  once?: boolean,
 ): void
 export declare function bindProp<T extends Element, K extends keyof T>(
   el: T,
   name: K,
   value: () => T[K],
+  once?: boolean,
 ): void
-export declare function bindClass(el: Element, value: () => ClassValue): void
+export declare function bindClass(
+  el: Element,
+  value: () => ClassValue,
+  once?: boolean,
+): void
 export declare function normalizeClass(value: ClassValue): string
 export declare function bindStyle(
   el: HTMLElement | SVGElement,
   value: () => StyleValue,
+  once?: boolean,
 ): void
 
 export declare function bindEvent(

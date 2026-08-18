@@ -22,6 +22,7 @@ use crate::{
         ComponentPropValueIr, DynamicTextIr, ElementIr, EventBindingIr, ExpressionForm,
         ExpressionIr, ForBindingIr, FragmentIr, IrRef, ModuleIr, NodeId, PropBindingIr,
         RefBindingIr, RootIr, ShowBindingIr, StaticAttributeIr, StaticAttributeValue, TextIr,
+        is_children_expression,
     },
     span::SourceIndex,
 };
@@ -320,14 +321,36 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
 
         let id = self.allocate_id();
 
+        let attributes = self.lower_attributes(&element.opening_element.attributes);
+        let children = self.lower_children(&element.children);
+
+        if is_raw_text_element(tag_name) {
+            let mut has_once = false;
+            let mut has_reactive = false;
+            for child in &children {
+                if let ChildIr::DynamicText(text) = child {
+                    has_once |= text.once;
+                    has_reactive |= !text.once;
+                }
+            }
+            if has_once && has_reactive {
+                self.unsupported(
+                    "ZEUS_MIXED_RAW_TEXT_BINDING_MODE",
+                    "Raw-text elements cannot mix @once and reactive dynamic expressions.",
+                    element.span,
+                );
+                return None;
+            }
+        }
+
         Some(ElementIr {
             id,
             kind: "Element".into(),
             reference: IrRef { node_id: id },
             tag_name: identifier.name.to_string(),
             span: self.source_index.span(element.span),
-            attributes: self.lower_attributes(&element.opening_element.attributes),
-            children: self.lower_children(&element.children),
+            attributes,
+            children,
         })
     }
 
@@ -371,11 +394,11 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             let span = self.source_index.span(element.span);
             let children = if kind == "Host" {
                 self.host_depth += 1;
-                let children = self.lower_children(&element.children);
+                let children = self.lower_inline_value_children(&element.children);
                 self.host_depth = self.host_depth.saturating_sub(1);
                 children
             } else {
-                self.lower_children(&element.children)
+                self.lower_inline_value_children(&element.children)
             };
             props.push(ComponentPropIr {
                 id: self.allocate_id(),
@@ -435,7 +458,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             id,
             kind: "Show".into(),
             when,
-            children: self.lower_children(&element.children),
+            children: self.lower_inline_value_children(&element.children),
             fallback,
             span: self.source_index.span(element.span),
         }
@@ -451,6 +474,13 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         let mut index = None;
         let mut body = Vec::new();
 
+        let rejected_once_callback = element.children.iter().any(|child| {
+            let JSXChild::ExpressionContainer(container) = child else {
+                return false;
+            };
+            !matches!(&container.expression, JSXExpression::EmptyExpression(_))
+                && self.reject_once_marker(container)
+        });
         let callback = element.children.iter().find_map(|child| {
             let JSXChild::ExpressionContainer(container) = child else {
                 return None;
@@ -472,7 +502,10 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 }),
             _ => false,
         });
-        if has_only_callback_and_whitespace && let Some(function) = callback {
+        if !rejected_once_callback
+            && has_only_callback_and_whitespace
+            && let Some(function) = callback
+        {
             item = function
                 .params
                 .items
@@ -506,6 +539,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                                 kind: "DynamicText".into(),
                                 reference: IrRef { node_id: id },
                                 expression: self.lower_expression(expression),
+                                once: false,
                                 span: self.source_index.span(expression.span()),
                             }));
                         }
@@ -514,7 +548,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             }
         }
 
-        if body.is_empty() {
+        if body.is_empty() && !rejected_once_callback {
             self.unsupported(
                 "ZEUS_INVALID_FOR_CHILD",
                 "<For> requires a single item callback returning JSX or a value.",
@@ -563,6 +597,9 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                     return None;
                 }
                 let expression = container.expression.to_expression();
+                if self.reject_once_marker(container) {
+                    return None;
+                }
                 if let Some(child) = self.lower_expression_child(expression) {
                     Some(ComponentPropValueIr::Children(vec![child]))
                 } else if contains_jsx(expression) {
@@ -628,6 +665,9 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             return None;
         }
         let expression = container.expression.to_expression();
+        if self.reject_once_marker(container) {
+            return None;
+        }
         if contains_jsx(expression) {
             self.unsupported(
                 "ZEUS_UNSUPPORTED_JSX_ATTRIBUTE_VALUE",
@@ -763,6 +803,9 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                     return None;
                 }
                 let expression = container.expression.to_expression();
+                if self.reject_once_marker(container) {
+                    return None;
+                }
                 if contains_jsx(expression) {
                     self.unsupported(
                         "ZEUS_UNSUPPORTED_JSX_ATTRIBUTE_VALUE",
@@ -929,6 +972,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         }
 
         let expression = container.expression.to_expression();
+        let once = self.has_once_marker(container);
         if contains_jsx(expression) {
             self.unsupported(
                 "ZEUS_UNSUPPORTED_JSX_ATTRIBUTE_VALUE",
@@ -942,11 +986,17 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         let id = self.allocate_id();
         let span = self.source_index.span(attribute.span);
 
+        if once && !is_property && (name == "ref" || is_event_attribute_name(&name)) {
+            self.invalid_once_target(container.span);
+            return None;
+        }
+
         if is_property {
             return Some(AttributeIr::Property(PropBindingIr {
                 id,
                 name,
                 expression,
+                once,
                 span,
             }));
         }
@@ -970,6 +1020,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             id,
             name,
             expression,
+            once,
             span,
         }))
     }
@@ -978,6 +1029,22 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         let mut lowered = Vec::with_capacity(children.len());
 
         for child in children {
+            self.lower_child(child, &mut lowered);
+        }
+
+        lowered
+    }
+
+    fn lower_inline_value_children(&mut self, children: &[JSXChild<'_>]) -> Vec<ChildIr> {
+        let mut lowered = Vec::with_capacity(children.len());
+
+        for child in children {
+            if let JSXChild::ExpressionContainer(container) = child
+                && !matches!(&container.expression, JSXExpression::EmptyExpression(_))
+                && self.reject_once_marker(container)
+            {
+                continue;
+            }
             self.lower_child(child, &mut lowered);
         }
 
@@ -1006,6 +1073,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                     return;
                 }
                 let expression = container.expression.to_expression();
+                let once = self.has_once_marker(container);
                 if contains_jsx(expression) {
                     self.unsupported(
                         "ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION",
@@ -1015,6 +1083,11 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                     return;
                 }
 
+                let expression = self.lower_expression(expression);
+                if once && is_children_expression(&expression.code) {
+                    self.invalid_once_target(container.span);
+                    return;
+                }
                 let dynamic_id = self.allocate_id();
                 lowered.push(ChildIr::DynamicText(DynamicTextIr {
                     id: dynamic_id,
@@ -1022,7 +1095,8 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                     reference: IrRef {
                         node_id: dynamic_id,
                     },
-                    expression: self.lower_expression(expression),
+                    expression,
+                    once,
                     span: self.source_index.span(container.span),
                 }));
             }
@@ -1058,6 +1132,72 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             form: expression_form(expression),
         }
     }
+
+    fn reject_once_marker(&mut self, container: &JSXExpressionContainer<'_>) -> bool {
+        if !self.has_once_marker(container) {
+            return false;
+        }
+
+        self.invalid_once_target(container.span);
+        true
+    }
+
+    fn invalid_once_target(&mut self, span: Span) {
+        self.unsupported(
+            "ZEUS_INVALID_ONCE_TARGET",
+            "@once can only mark native DOM text, attribute, or property bindings.",
+            span,
+        );
+    }
+
+    fn has_once_marker(&self, container: &JSXExpressionContainer<'_>) -> bool {
+        let Some(expression) = container.expression.as_expression() else {
+            return false;
+        };
+        let start = container.span.start.saturating_add(1) as usize;
+        let end = expression.span().start as usize;
+        let Some(trivia) = self.source.get(start..end) else {
+            return false;
+        };
+
+        trivia_contains_once_marker(trivia)
+    }
+}
+
+fn trivia_contains_once_marker(trivia: &str) -> bool {
+    let mut offset = 0;
+
+    while offset < trivia.len() {
+        let rest = &trivia[offset..];
+        let Some(character) = rest.chars().next() else {
+            break;
+        };
+
+        if character.is_whitespace() {
+            offset += character.len_utf8();
+            continue;
+        }
+
+        if let Some(comment) = rest.strip_prefix("/*") {
+            let Some(end) = comment.find("*/") else {
+                return false;
+            };
+            if comment[..end].trim() == "@once" {
+                return true;
+            }
+            offset += 2 + end + 2;
+            continue;
+        }
+
+        if rest.starts_with("//") {
+            offset += rest.find('\n').unwrap_or(rest.len());
+            continue;
+        }
+
+        return false;
+    }
+
+    false
 }
 
 impl<'ast> Visit<'ast> for Lowerer<'_, '_> {

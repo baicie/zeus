@@ -48,6 +48,33 @@ test('compiler diagnostics remain structured data', () => {
   assert.equal(typeof result.diagnostics[0].span.start.offset, 'number')
 })
 
+test('explicit @once bindings use the runtime flag and invalid targets fail', () => {
+  const result = transformModule(
+    options(`export const App = props => (
+  <div title={/* @once */ props.title}>
+    {/* @once */ props.label}
+    {props.detail}
+  </div>
+)`),
+  )
+
+  assert.deepEqual(result.diagnostics, [])
+  assert.match(result.code, /props\.title\), true\)/)
+  assert.match(result.code, /props\.label\), true\)/)
+  assert.match(result.code, /props\.detail\)\)/)
+  assert.doesNotMatch(result.code, /props\.detail\), true\)/)
+
+  const invalid = transformModule(
+    options(
+      'export const App = props => <button onClick={/* @once */ props.onClick} />',
+    ),
+  )
+
+  assert.equal(invalid.code, '')
+  assert.equal(invalid.diagnostics.length, 1)
+  assert.equal(invalid.diagnostics[0].code, 'ZEUS_INVALID_ONCE_TARGET')
+})
+
 test('invalid ABI options throw instead of becoming compiler diagnostics', () => {
   assert.throws(
     () => transformModule({ ...options(), target: 'wasm' }),

@@ -30,13 +30,22 @@ plain object with the same key does not rerun the item callback.
 
 ## @once static marker
 
-Mark expressions that never change to skip reactivity:
+Mark DOM values that never change to skip reactive tracking:
 
 ```tsx
-<div>{/* @once */ expensiveComputation()}</div>
+<div title={/* @once */ getTitle()}>{/* @once */ expensiveComputation()}</div>
 ```
 
-The value is computed once, no `bindText` is created.
+The compiler still emits the normal binding helper with `once: true`, so text,
+attribute, property, class, and style values use the same initial normalization
+as reactive bindings. The getter runs untracked exactly once and the runtime
+does not create a reactive effect. Later signal updates do not update that DOM
+value.
+
+`@once` is an explicit author promise. Use it only inside a JSX expression
+container for a DOM value that is stable for the lifetime of that node. Events,
+refs, component props, and control-flow inputs reject the marker with a compiler
+diagnostic instead of silently ignoring it.
 
 ## Event delegation
 
