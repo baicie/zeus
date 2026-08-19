@@ -1,7 +1,7 @@
 {
   "name": "@zeus-js/component-analyzer",
   "type": "module",
-  "version": "0.1.1-beta.0",
+  "version": "0.1.1-beta.1",
   "description": "Zeus component analyzer",
   "license": "MIT",
   "repository": {
