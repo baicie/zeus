@@ -1,8 +1,9 @@
 use zeus_compiler::{
     diagnostic::{CompilerDiagnostic, DiagnosticSeverity},
     ir::{
-        AttributeIr, ComponentIr, DynamicTextIr, ElementIr, ExpressionForm, ExpressionIr,
-        FragmentIr, IrRef, ModuleIr, RootIr, StaticAttributeIr, StaticAttributeValue, TextIr,
+        AttrBindingIr, AttributeIr, ComponentIr, DynamicTextIr, ElementIr, ExpressionForm,
+        ExpressionIr, ForAccessorIr, FragmentIr, IrRef, ModuleIr, RootIr, StaticAttributeIr,
+        StaticAttributeValue, TextIr,
     },
     span::{SourcePosition, SourceSpan},
 };
@@ -104,7 +105,9 @@ fn ir_owned_schema_round_trips_through_json() {
                             code: "props.name".into(),
                             span: span(29, 39),
                             form: ExpressionForm::Member,
+                            for_accessors: Vec::new(),
                         },
+                        once: false,
                         span: span(28, 40),
                     }
                     .into(),
@@ -141,6 +144,57 @@ fn attribute_ir_matches_compiler_shared_canonical_json() {
 
     let invalid = fixture.replacen("\"value\": true", "\"value\": false", 1);
     assert!(serde_json::from_str::<Vec<AttributeIr>>(&invalid).is_err());
+
+    let missing_once = fixture.replacen("    \"once\": false,\n", "", 1);
+    assert!(serde_json::from_str::<Vec<AttributeIr>>(&missing_once).is_err());
+}
+
+#[test]
+fn once_binding_ir_round_trips_as_explicit_true() {
+    let binding = AttrBindingIr {
+        id: 1,
+        name: "title".into(),
+        expression: ExpressionIr {
+            kind: "Expression".into(),
+            code: "props.title".into(),
+            span: span(8, 19),
+            form: ExpressionForm::Member,
+            for_accessors: Vec::new(),
+        },
+        once: true,
+        span: span(1, 20),
+    };
+
+    let json = serde_json::to_value(&binding).expect("once binding serializes");
+    assert_eq!(json["once"], true);
+    assert_eq!(
+        serde_json::from_value::<AttrBindingIr>(json).expect("once binding deserializes"),
+        binding
+    );
+}
+
+#[test]
+fn for_accessor_dependencies_round_trip_through_json() {
+    let expression = ExpressionIr {
+        kind: "Expression".into(),
+        code: "item.label".into(),
+        span: span(8, 18),
+        form: ExpressionForm::Member,
+        for_accessors: vec![ForAccessorIr {
+            for_id: 7,
+            item: true,
+            index: false,
+        }],
+    };
+
+    let json = serde_json::to_value(&expression).expect("For accessor dependency serializes");
+    assert_eq!(json["forAccessors"][0]["forId"], 7);
+    assert_eq!(json["forAccessors"][0]["item"], true);
+    assert_eq!(json["forAccessors"][0]["index"], false);
+    assert_eq!(
+        serde_json::from_value::<ExpressionIr>(json).expect("For accessor dependency deserializes"),
+        expression
+    );
 }
 
 #[test]

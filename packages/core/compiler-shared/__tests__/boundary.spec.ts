@@ -38,6 +38,46 @@ describe('compiler-shared boundary', () => {
     expect(JSON.parse(JSON.stringify(node))).toEqual(node)
   })
 
+  it('round-trips precise For accessor dependencies on expressions', () => {
+    const expression = expressionIR('item.label', fixtureSpan, 'member', [
+      { forId: 7, item: true, index: false },
+    ])
+
+    expect(JSON.parse(JSON.stringify(expression))).toEqual(expression)
+    expect(expression.forAccessors).toEqual([
+      { forId: 7, item: true, index: false },
+    ])
+  })
+
+  it('keeps explicit once mode on text, attribute, and property bindings', () => {
+    const text = dynamicTextIR(
+      expressionIR('props.title', fixtureSpan, 'member'),
+      ref('text$'),
+      true,
+    )
+    const attribute = attrBindingIR(
+      'title',
+      expressionIR('props.title', fixtureSpan, 'member'),
+      fixtureSpan,
+      true,
+    )
+    const property = propBindingIR(
+      'value',
+      expressionIR('props.value', fixtureSpan, 'member'),
+      fixtureSpan,
+      true,
+    )
+
+    expect(text.once).toBe(true)
+    expect(attribute.once).toBe(true)
+    expect(property.once).toBe(true)
+    expect(JSON.parse(JSON.stringify([text, attribute, property]))).toEqual([
+      text,
+      attribute,
+      property,
+    ])
+  })
+
   it('preserves Host and Slot source spans through semantic builders', () => {
     const hostSpan = {
       start: { line: 2, column: 4, offset: 12 },

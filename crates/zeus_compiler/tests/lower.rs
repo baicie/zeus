@@ -61,6 +61,237 @@ fn lowers_native_element_to_owned_deterministic_ir() {
 }
 
 #[test]
+fn lowers_explicit_once_markers_only_on_supported_dom_bindings() {
+    let source = r"export const App = props => (
+  <div
+    title={/* @once */ props.title}
+    class={/* @once */ props.className}
+    style={/* @once */ props.style}
+    prop:value={/* @once */ props.value}
+    data-literal={'@once'}
+    data-comment={props /* @once */ .note}
+    data-near={/* @once-ish */ props.near}
+  >
+    {/* @once */ props.label}
+    {props.detail}
+  </div>
+)";
+    let lowered = lower_module(source, "once.tsx");
+
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let module = lowered.ir.expect("once bindings produce IR");
+    let root = root_element(&module.components[0].root);
+
+    for index in 0..3 {
+        let AttributeIr::Dynamic(attribute) = &root.attributes[index] else {
+            panic!("attribute {index} must be dynamic");
+        };
+        assert!(attribute.once);
+    }
+
+    let AttributeIr::Property(property) = &root.attributes[3] else {
+        panic!("prop:value must be a property binding");
+    };
+    assert!(property.once);
+
+    for index in 4..7 {
+        let AttributeIr::Dynamic(attribute) = &root.attributes[index] else {
+            panic!("attribute {index} must be dynamic");
+        };
+        assert!(!attribute.once);
+    }
+
+    let ChildIr::DynamicText(label) = &root.children[0] else {
+        panic!("marked child must be dynamic text");
+    };
+    assert!(label.once);
+    let ChildIr::DynamicText(detail) = &root.children[1] else {
+        panic!("unmarked child must be dynamic text");
+    };
+    assert!(!detail.once);
+}
+
+#[test]
+fn recognizes_once_after_all_ecmascript_line_terminators() {
+    for (name, terminator) in [
+        ("lf", "\n"),
+        ("cr", "\r"),
+        ("line-separator", "\u{2028}"),
+        ("paragraph-separator", "\u{2029}"),
+    ] {
+        let source = format!(
+            "export const App = props => <div>{{// note{terminator}/* @once */ props.label}}</div>"
+        );
+        let filename = format!("once-{name}.tsx");
+        let lowered = lower_module(&source, &filename);
+
+        assert!(
+            lowered.diagnostics.is_empty(),
+            "{name}: {:?}",
+            lowered.diagnostics
+        );
+        let module = lowered.ir.expect("line terminator fixture lowers");
+        let root = root_element(&module.components[0].root);
+        let ChildIr::DynamicText(label) = &root.children[0] else {
+            panic!("{name}: marked child must be dynamic text");
+        };
+        assert!(label.once, "{name}: @once marker must be preserved");
+    }
+}
+
+#[test]
+fn rejects_once_markers_on_non_binding_targets() {
+    for (source, filename) in [
+        (
+            "export const App = props => <button onClick={/* @once */ props.onClick} />",
+            "once-event.tsx",
+        ),
+        (
+            "export const App = inputRef => <input ref={/* @once */ inputRef} />",
+            "once-ref.tsx",
+        ),
+        (
+            "export const App = props => <Widget title={/* @once */ props.title} />",
+            "once-component.tsx",
+        ),
+        (
+            "export const App = props => <Widget>{/* @once */ props.label}</Widget>",
+            "once-component-child.tsx",
+        ),
+        (
+            "export const App = props => <div>{/* @once */ props.children}</div>",
+            "once-node-binding.tsx",
+        ),
+        (
+            "import { For } from '@zeus-js/zeus'; export const App = props => <For each={props.items}>{item => <div>{/* @once */ item.children}</div>}</For>",
+            "once-for-node-binding.tsx",
+        ),
+        (
+            "import { Show } from '@zeus-js/zeus'; export const App = props => <Show when={/* @once */ props.visible}>yes</Show>",
+            "once-show.tsx",
+        ),
+        (
+            "import { Show } from '@zeus-js/zeus'; export const App = props => <Show when={props.visible}>{/* @once */ props.label}</Show>",
+            "once-show-child.tsx",
+        ),
+        (
+            "import { For } from '@zeus-js/zeus'; export const App = props => <For each={/* @once */ props.items}>{item => item}</For>",
+            "once-for.tsx",
+        ),
+        (
+            "import { Show } from '@zeus-js/zeus'; export const App = props => <Show when={props.visible} fallback={/* @once */ props.fallback}>yes</Show>",
+            "once-show-fallback.tsx",
+        ),
+        (
+            "import { For } from '@zeus-js/zeus'; export const App = props => <For each={props.items} by={/* @once */ (item => item.id)}>{item => item}</For>",
+            "once-for-key.tsx",
+        ),
+        (
+            "import { For } from '@zeus-js/zeus'; export const App = props => <For each={props.items}>{/* @once */ item => <span>{item}</span>}</For>",
+            "once-for-callback.tsx",
+        ),
+        (
+            "import { For } from '@zeus-js/zeus'; export const App = props => <For each={props.items}>{/* @once */ props.child}</For>",
+            "once-invalid-for-child.tsx",
+        ),
+        (
+            "import { defineElement, Host } from '@zeus-js/runtime-dom'; export const El = defineElement('z-once', {}, props => <Host class={/* @once */ props.className} />)",
+            "once-host.tsx",
+        ),
+        (
+            "import { defineElement, Host } from '@zeus-js/runtime-dom'; export const El = defineElement('z-once', {}, props => <Host>{/* @once */ props.label}</Host>)",
+            "once-host-child.tsx",
+        ),
+        (
+            "import { defineElement, Host, Slot } from '@zeus-js/runtime-dom'; export const El = defineElement('z-once', {}, props => <Host><Slot name={/* @once */ props.name} /></Host>)",
+            "once-slot.tsx",
+        ),
+        (
+            "import { defineElement, Host, Slot } from '@zeus-js/runtime-dom'; export const El = defineElement('z-once', {}, props => <Host><Slot>{/* @once */ props.fallback}</Slot></Host>)",
+            "once-slot-child.tsx",
+        ),
+    ] {
+        let lowered = lower_module(source, filename);
+
+        assert!(lowered.ir.is_none(), "{filename} must fail lowering");
+        assert_eq!(lowered.diagnostics.len(), 1, "{filename}");
+        assert_eq!(lowered.diagnostics[0].code, "ZEUS_INVALID_ONCE_TARGET");
+        assert!(lowered.diagnostics[0].span.is_some());
+    }
+}
+
+#[test]
+fn rejects_once_markers_on_every_builtin_attribute_form() {
+    for (source, filename) in [
+        (
+            "import { Show } from '@zeus-js/zeus'; export const App = props => <Show when={props.visible} extra={/* @once */ props.extra}>yes</Show>",
+            "once-show-unknown-attribute.tsx",
+        ),
+        (
+            "import { For } from '@zeus-js/zeus'; export const App = props => <For each={props.items} extra={/* @once */ props.extra}>{item => item}</For>",
+            "once-for-unknown-attribute.tsx",
+        ),
+        (
+            "import { Show } from '@zeus-js/zeus'; export const App = props => <Show when={props.visible} when={/* @once */ props.other}>yes</Show>",
+            "once-show-duplicate-attribute.tsx",
+        ),
+        (
+            "import { For } from '@zeus-js/zeus'; export const App = props => <For each={props.items} each={/* @once */ props.other}>{item => item}</For>",
+            "once-for-duplicate-attribute.tsx",
+        ),
+        (
+            "import { Show } from '@zeus-js/zeus'; export const App = props => <Show when={props.visible} {.../* @once */ props.extra}>yes</Show>",
+            "once-show-spread-attribute.tsx",
+        ),
+        (
+            "import { For } from '@zeus-js/zeus'; export const App = props => <For each={props.items} {.../* @once */ props.extra}>{item => item}</For>",
+            "once-for-spread-attribute.tsx",
+        ),
+    ] {
+        let lowered = lower_module(source, filename);
+
+        assert!(lowered.ir.is_none(), "{filename} must fail lowering");
+        assert_eq!(lowered.diagnostics.len(), 1, "{filename}");
+        assert_eq!(lowered.diagnostics[0].code, "ZEUS_INVALID_ONCE_TARGET");
+        assert!(lowered.diagnostics[0].span.is_some());
+    }
+}
+
+#[test]
+fn permits_once_on_namespaced_properties_even_when_names_resemble_events_or_refs() {
+    let source = r"export const App = props => <div
+  prop:onClick={/* @once */ props.callback}
+  prop:ref={/* @once */ props.reference}
+/>";
+    let lowered = lower_module(source, "once-property-names.tsx");
+
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let module = lowered.ir.expect("property bindings lower");
+    let root = root_element(&module.components[0].root);
+    for attribute in &root.attributes {
+        let AttributeIr::Property(property) = attribute else {
+            panic!("namespaced binding must remain a property");
+        };
+        assert!(property.once);
+    }
+}
+
+#[test]
+fn rejects_mixed_once_and_reactive_raw_text_bindings() {
+    let lowered = lower_module(
+        "export const App = props => <style>{/* @once */ props.prefix}{props.suffix}</style>",
+        "once-raw-text.tsx",
+    );
+
+    assert!(lowered.ir.is_none());
+    assert_eq!(lowered.diagnostics.len(), 1);
+    assert_eq!(
+        lowered.diagnostics[0].code,
+        "ZEUS_MIXED_RAW_TEXT_BINDING_MODE"
+    );
+}
+
+#[test]
 fn lowers_root_and_nested_fragments_without_extra_components() {
     let source = r"export const App = props => <><span>{props.first}</span><><b>{props.second}</b>tail</></>";
     let lowered = lower_module(source, "fragment.tsx");
@@ -189,6 +420,100 @@ export const App = props => <ul><For each={props.items}>{item => (
     };
     assert_eq!(for_binding.item, "item");
     assert!(matches!(for_binding.body.as_slice(), [ChildIr::Element(_)]));
+}
+
+#[test]
+fn lowers_for_accessor_dependencies_from_semantic_symbols() {
+    let source = r"import { For } from '@zeus-js/zeus'
+export const App = props => <For each={props.items}>{(it\u0065m, ind\u0065x) => <b data-index={ind\u0065x}>{it\u0065m.label}</b>}</For>
+";
+    let lowered = lower_module(source, "for-accessor-symbols.tsx");
+
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let module = lowered.ir.expect("For accessor symbols produce IR");
+    let RootIr::For(for_binding) = &module.components[0].root else {
+        panic!("For must lower to a root binding");
+    };
+    let [ChildIr::Element(element)] = for_binding.body.as_slice() else {
+        panic!("For body must contain the returned element");
+    };
+    let AttributeIr::Dynamic(index_attribute) = &element.attributes[0] else {
+        panic!("data-index must be dynamic");
+    };
+    assert_eq!(index_attribute.expression.for_accessors.len(), 1);
+    assert_eq!(
+        index_attribute.expression.for_accessors[0].for_id,
+        for_binding.id
+    );
+    assert!(!index_attribute.expression.for_accessors[0].item);
+    assert!(index_attribute.expression.for_accessors[0].index);
+
+    let ChildIr::DynamicText(label) = &element.children[0] else {
+        panic!("label must be dynamic text");
+    };
+    assert_eq!(label.expression.for_accessors.len(), 1);
+    assert_eq!(label.expression.for_accessors[0].for_id, for_binding.id);
+    assert!(label.expression.for_accessors[0].item);
+    assert!(!label.expression.for_accessors[0].index);
+}
+
+#[test]
+fn rejects_non_identifier_for_callback_parameters() {
+    for (name, callback) in [
+        ("object", "({ label }, index) => <b>{index}:{label}</b>"),
+        ("array", "([label], index) => <b>{index}:{label}</b>"),
+        (
+            "default",
+            "(item = props.fallback, index) => <b>{index}:{item.label}</b>",
+        ),
+        ("rest", "(...items) => <b>{items[0].label}</b>"),
+        (
+            "arity",
+            "(item, index, extra) => <b>{item.label}:{index}:{extra}</b>",
+        ),
+    ] {
+        let source = format!(
+            "import {{ For }} from '@zeus-js/zeus'\nexport const App = props => <For each={{props.items}}>{{{callback}}}</For>\n"
+        );
+        let lowered = lower_module(&source, &format!("for-{name}-parameter.tsx"));
+
+        assert_eq!(
+            lowered
+                .diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.code.as_str())
+                .collect::<Vec<_>>(),
+            ["ZEUS_UNSUPPORTED_FOR_CALLBACK_PARAMETER"],
+            "{name}: {:?}",
+            lowered.diagnostics
+        );
+        assert!(lowered.ir.is_none(), "{name}: invalid IR must not escape");
+    }
+}
+
+#[test]
+fn excludes_type_only_for_parameter_references_from_runtime_dependencies() {
+    let source = r"import { For } from '@zeus-js/zeus'
+export const App = props => <For each={props.items}>{(item, index) => <span title={() => (props.value as typeof index)}>{item.label}</span>}</For>
+";
+    let lowered = lower_module(source, "for-type-only-reference.tsx");
+
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let module = lowered.ir.expect("type-only reference produces IR");
+    let RootIr::For(for_binding) = &module.components[0].root else {
+        panic!("For must lower to a root binding");
+    };
+    let [ChildIr::Element(element)] = for_binding.body.as_slice() else {
+        panic!("For body must contain the returned element");
+    };
+    let AttributeIr::Dynamic(title) = &element.attributes[0] else {
+        panic!("title must be dynamic");
+    };
+    assert!(
+        title.expression.for_accessors.is_empty(),
+        "type-only index reference must not become a runtime dependency: {:?}",
+        title.expression.for_accessors
+    );
 }
 
 #[test]

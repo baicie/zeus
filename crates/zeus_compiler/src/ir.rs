@@ -156,6 +156,7 @@ pub struct AttrBindingIr {
     pub name: String,
     #[serde(rename = "expr")]
     pub expression: ExpressionIr,
+    pub once: bool,
     pub span: SourceSpan,
 }
 
@@ -166,6 +167,7 @@ pub struct PropBindingIr {
     pub name: String,
     #[serde(rename = "expr")]
     pub expression: ExpressionIr,
+    pub once: bool,
     pub span: SourceSpan,
 }
 
@@ -317,6 +319,7 @@ pub struct DynamicTextIr {
     #[serde(rename = "ref")]
     pub reference: IrRef,
     pub expression: ExpressionIr,
+    pub once: bool,
     pub span: SourceSpan,
 }
 
@@ -327,6 +330,15 @@ pub struct ExpressionIr {
     pub code: String,
     pub span: SourceSpan,
     pub form: ExpressionForm,
+    pub for_accessors: Vec<ForAccessorIr>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ForAccessorIr {
+    pub for_id: NodeId,
+    pub item: bool,
+    pub index: bool,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -336,4 +348,13 @@ pub enum ExpressionForm {
     Value,
     Getter,
     Member,
+}
+
+pub(crate) fn is_children_expression(code: &str) -> bool {
+    let code = code.trim();
+    code == "children"
+        || code.ends_with(".children")
+        || code.ends_with("?.children")
+        || code.ends_with("['children']")
+        || code.ends_with("[\"children\"]")
 }

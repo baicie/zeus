@@ -92,7 +92,7 @@ describe('runtime cleanup', () => {
         item => item.id,
         item => {
           const li = document.createElement('li')
-          li.textContent = String(item.id)
+          li.textContent = String(item().id)
           return li
         },
       )
@@ -122,11 +122,11 @@ describe('runtime cleanup', () => {
         item => item.id,
         item => {
           onScopeDispose(() => {
-            disposedItems.push(item.id)
+            disposedItems.push(item().id)
           })
 
           const li = document.createElement('li')
-          li.textContent = String(item.id)
+          li.textContent = String(item().id)
           return li
         },
       )
@@ -218,10 +218,10 @@ describe('runtime cleanup', () => {
         item => {
           effect(() => {
             pulse.value
-            effectRuns.push(item.id)
+            effectRuns.push(item().id)
           })
           onCleanup(() => {
-            disposedItems.push(item.id)
+            disposedItems.push(item().id)
           })
 
           return document.createElement('li')
@@ -259,10 +259,10 @@ describe('runtime cleanup', () => {
         item => {
           effect(() => {
             pulse.value
-            effectRuns.push(item.id)
+            effectRuns.push(item().id)
           })
           onCleanup(() => {
-            disposedItems.push(item.id)
+            disposedItems.push(item().id)
           })
 
           return document.createElement('li')
@@ -300,10 +300,10 @@ describe('runtime cleanup', () => {
         item => {
           effect(() => {
             pulse.value
-            effectRuns.push(item.id)
+            effectRuns.push(item().id)
           })
           onCleanup(() => {
-            disposedItems.push(item.id)
+            disposedItems.push(item().id)
           })
 
           return document.createElement('li')
@@ -338,7 +338,7 @@ describe('runtime cleanup', () => {
         item => item.id,
         item => {
           onCleanup(() => {
-            disposedItems.push(item.id)
+            disposedItems.push(item().id)
           })
 
           return document.createElement('li')
@@ -370,7 +370,7 @@ describe('runtime cleanup', () => {
         item => item.id,
         item => {
           onCleanup(() => {
-            disposedItems.push(item.id)
+            disposedItems.push(item().id)
           })
 
           return document.createElement('li')

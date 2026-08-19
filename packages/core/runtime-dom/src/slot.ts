@@ -190,7 +190,22 @@ function replaceOutletNodes(
   const parent = outlet.end.parentNode
   if (!parent || parent !== outlet.start.parentNode) return
 
+  const currentNodes: Node[] = []
   let current = outlet.start.nextSibling
+
+  while (current && current !== outlet.end) {
+    currentNodes.push(current)
+    current = current.nextSibling
+  }
+
+  if (
+    currentNodes.length === nextNodes.length &&
+    currentNodes.every((node, index) => node === nextNodes[index])
+  ) {
+    return
+  }
+
+  current = outlet.start.nextSibling
 
   while (current && current !== outlet.end) {
     const next = current.nextSibling

@@ -19,8 +19,14 @@ export interface ExpressionIR {
   code: string
   span: SourceSpan
   form: ExpressionForm
+  forAccessors: ForAccessorIR[]
 }
 export type ExpressionForm = 'value' | 'getter' | 'member'
+export interface ForAccessorIR {
+  forId: number
+  item: boolean
+  index: boolean
+}
 export interface IdentifierIR {
   kind: 'Identifier'
   name: string
@@ -101,7 +107,7 @@ export type DynamicTextIR = SemanticBaseIRNode & {
   kind: 'DynamicText'
   expr: ExpressionIR
   ref: IRRef
-  once?: boolean
+  once: boolean
   domPath?: DomPath
   physicalDomPath?: PhysicalDomPath
 }
@@ -114,11 +120,13 @@ export type AttrBindingIR = AttributeBaseIRNode & {
   kind: 'AttrBinding'
   name: string
   expr: ExpressionIR
+  once: boolean
 }
 export type PropBindingIR = AttributeBaseIRNode & {
   kind: 'PropBinding'
   name: string
   expr: ExpressionIR
+  once: boolean
 }
 export type EventBindingIR = AttributeBaseIRNode & {
   kind: 'EventBinding'
@@ -206,6 +214,7 @@ export declare function expressionIR(
   code: string,
   span: SourceSpan,
   form?: ExpressionForm,
+  forAccessors?: ExpressionIR['forAccessors'],
 ): ExpressionIR
 export declare function identifierIR(
   name: string,
@@ -235,11 +244,13 @@ export declare function attrBindingIR(
   name: string,
   expr: ExpressionIR,
   span: SourceSpan,
+  once?: boolean,
 ): AttrBindingIR
 export declare function propBindingIR(
   name: string,
   expr: ExpressionIR,
   span: SourceSpan,
+  once?: boolean,
 ): PropBindingIR
 export declare function eventBindingIR(
   eventName: string,

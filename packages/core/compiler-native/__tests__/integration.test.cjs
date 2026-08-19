@@ -109,6 +109,19 @@ export const Bindings = (props: { name: string }) => (
   </section>
 )
 
+export const OnceBindings = (props: { name: string }) => (
+  <section
+    title={/* @once */ props.name}
+    class={/* @once */ { initial: props.name === 'Ada', updated: props.name === 'Grace' }}
+    style={/* @once */ () => ({ color: props.name === 'Ada' ? 'red' : 'blue', lineHeight: 1 })}
+  >
+    <b>{/* @once */ props.name}</b>
+    <input prop:value={/* @once */ props.name} />
+    <textarea>{/* @once */ props.name}</textarea>
+    <span data-name={props.name}>{props.name}</span>
+  </section>
+)
+
 export const mount = () => App(props)
 export const mountNested = () => Nested(props)
 export const mountStatic = () => Static()
@@ -116,6 +129,7 @@ export const mountTable = () => Table(props)
 export const mountIcon = () => Icon(props)
 export const mountSpecial = () => Special(props)
 export const mountBindings = (container: Element) => render(() => Bindings(props), container)
+export const mountOnceBindings = (container: Element) => render(() => OnceBindings(props), container)
 export const updateName = setName
 export const executionCount = () => executions
 export const nestedExecutionCount = () => nestedExecutions
@@ -163,9 +177,17 @@ test('native compiler executes through Vite with fine-grained DOM updates', asyn
     const bindingContainer = document.createElement('div')
     document.body.append(bindingContainer)
     const disposeBindings = module.mountBindings(bindingContainer)
+    const onceBindingContainer = document.createElement('div')
+    document.body.append(onceBindingContainer)
+    const disposeOnceBindings = module.mountOnceBindings(onceBindingContainer)
     const bindings = bindingContainer.firstElementChild
+    const onceBindings = onceBindingContainer.firstElementChild
     const bindingInput = bindings.querySelector('input')
     const bindingRow = bindings.querySelector('tr')
+    const onceBindingInput = onceBindings.querySelector('input')
+    const onceBindingText = onceBindings.querySelector('b')
+    const onceBindingTextContent = onceBindings.querySelector('textarea')
+    const reactiveBinding = onceBindings.querySelector('span')
     const greetingLabel = element.firstChild
     const greetingValue = element.lastChild
     const nestedSpan = nested.querySelector('span')
@@ -220,6 +242,15 @@ test('native compiler executes through Vite with fine-grained DOM updates', asyn
     assert.equal(bindingInput.value, 'Ada')
     assert.equal(bindingRow.getAttribute('data-name'), 'Ada')
     assert.equal(bindingRow.parentElement.tagName, 'TBODY')
+    assert.equal(onceBindings.getAttribute('title'), 'Ada')
+    assert.equal(onceBindings.getAttribute('class'), 'initial')
+    assert.equal(onceBindings.style.color, 'red')
+    assert.equal(onceBindings.style.lineHeight, '1')
+    assert.equal(onceBindingText.textContent, 'Ada')
+    assert.equal(onceBindingInput.value, 'Ada')
+    assert.equal(onceBindingTextContent.textContent, 'Ada')
+    assert.equal(reactiveBinding.getAttribute('data-name'), 'Ada')
+    assert.equal(reactiveBinding.textContent, 'Ada')
     assert.strictEqual(module.inputRefValue(), bindingInput)
     assert.equal(module.executionCount(), 1)
     assert.equal(module.nestedExecutionCount(), 1)
@@ -283,6 +314,22 @@ test('native compiler executes through Vite with fine-grained DOM updates', asyn
     assert.equal(bindings.style.lineHeight, '1')
     assert.equal(bindingInput.value, 'Grace')
     assert.equal(bindingRow.getAttribute('data-name'), 'Grace')
+    assert.equal(onceBindings.getAttribute('title'), 'Ada')
+    assert.equal(onceBindings.getAttribute('class'), 'initial')
+    assert.equal(onceBindings.style.color, 'red')
+    assert.equal(onceBindings.style.lineHeight, '1')
+    assert.equal(onceBindingText.textContent, 'Ada')
+    assert.equal(onceBindingInput.value, 'Ada')
+    assert.equal(onceBindingTextContent.textContent, 'Ada')
+    assert.equal(reactiveBinding.getAttribute('data-name'), 'Grace')
+    assert.equal(reactiveBinding.textContent, 'Grace')
+    assert.strictEqual(onceBindings.querySelector('input'), onceBindingInput)
+    assert.strictEqual(onceBindings.querySelector('b'), onceBindingText)
+    assert.strictEqual(
+      onceBindings.querySelector('textarea'),
+      onceBindingTextContent,
+    )
+    assert.strictEqual(onceBindings.querySelector('span'), reactiveBinding)
     assert.strictEqual(bindings.querySelector('input'), bindingInput)
     assert.strictEqual(bindings.querySelector('tr'), bindingRow)
     assert.strictEqual(element.firstChild, greetingLabel)
@@ -296,6 +343,8 @@ test('native compiler executes through Vite with fine-grained DOM updates', asyn
     disposeBindings()
     assert.equal(bindingContainer.textContent, '')
     assert.equal(module.inputRefValue(), null)
+    disposeOnceBindings()
+    assert.equal(onceBindingContainer.textContent, '')
 
     document.body.append(bindings)
     eventButtons[0].dispatchEvent(
@@ -304,6 +353,7 @@ test('native compiler executes through Vite with fine-grained DOM updates', asyn
     assert.equal(module.eventCallLog().length, 5)
     bindings.remove()
     bindingContainer.remove()
+    onceBindingContainer.remove()
 
     const buildResult = await build({
       root: fixture.root,
@@ -500,9 +550,12 @@ export const mount = (container: Element) => render(() => App({ visible: true, i
     const container = document.createElement('div')
     const dispose = module.mount(container)
 
-    assert.equal(
-      container.innerHTML,
-      '<article><span>on</span><b>a</b><b>b</b></article>',
+    assert.equal(container.textContent, 'onab')
+    assert.deepEqual(
+      Array.from(container.querySelectorAll('article > *')).map(
+        element => element.outerHTML,
+      ),
+      ['<span>on</span>', '<b>a</b>', '<b>b</b>'],
     )
 
     dispose()
@@ -520,11 +573,13 @@ import { render, Show, For } from '@zeus-js/runtime-dom'
 
 const [visible, setVisible] = createSignal(false)
 const [items, setItems] = createSignal([{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }])
+const calls = []
 
-const App = () => <main><Show when={visible()} fallback={<i>off</i>}><span>on</span></Show><For each={items()} by={item => item.id}>{item => <b>{item.label}</b>}</For></main>
+const App = () => <main><Show when={visible()} fallback={<i>off</i>}><span>on</span></Show><For each={items()} by={item => item.id}>{(item, index) => <b data-index={index} onClick={() => calls.push(item.label + ':' + index)}>{index}:{item.label}</b>}</For></main>
 
 export const mount = (container: Element) => render(() => App(), container)
 export const update = (nextVisible, nextItems) => { setVisible(nextVisible); setItems(nextItems) }
+export const getCalls = () => calls
 `.replaceAll('\n', '\r\n')
   const fixture = createFixture(controlFlowSource)
   const restoreDOM = installDOMGlobals()
@@ -547,21 +602,154 @@ export const update = (nextVisible, nextItems) => { setVisible(nextVisible); set
   try {
     const module = await server.ssrLoadModule('/src/App.tsx')
     const container = document.createElement('div')
+    document.body.append(container)
     const dispose = module.mount(container)
     const first = container.querySelector('b')
     const second = container.querySelectorAll('b')[1]
 
-    assert.equal(container.textContent, 'offAB')
+    assert.equal(container.textContent, 'off0:A1:B')
     module.update(true, [
       { id: 'b', label: 'B' },
       { id: 'a', label: 'A' },
     ])
-    assert.equal(container.textContent, 'onBA')
+    assert.equal(container.textContent, 'on0:B1:A')
     assert.strictEqual(container.querySelectorAll('b')[0], second)
     assert.strictEqual(container.querySelectorAll('b')[1], first)
 
+    module.update(true, [
+      { id: 'b', label: 'B next' },
+      { id: 'a', label: 'A next' },
+    ])
+    assert.equal(container.textContent, 'on0:B next1:A next')
+    assert.strictEqual(container.querySelectorAll('b')[0], second)
+    assert.strictEqual(container.querySelectorAll('b')[1], first)
+    assert.equal(
+      container.querySelectorAll('b')[0].getAttribute('data-index'),
+      '0',
+    )
+    assert.equal(
+      container.querySelectorAll('b')[1].getAttribute('data-index'),
+      '1',
+    )
+
+    container
+      .querySelectorAll('b')[0]
+      .dispatchEvent(
+        new window.MouseEvent('click', { bubbles: true, cancelable: true }),
+      )
+    container
+      .querySelectorAll('b')[1]
+      .dispatchEvent(
+        new window.MouseEvent('click', { bubbles: true, cancelable: true }),
+      )
+    assert.deepEqual(module.getCalls(), ['B next:0', 'A next:1'])
+
     dispose()
     assert.equal(container.childNodes.length, 0)
+  } finally {
+    await server.close()
+    restoreDOM()
+    rmSync(fixture.root, { force: true, recursive: true })
+  }
+})
+
+test('native compiler keeps root and nested For regions reactive', async () => {
+  const rootForSource = `import { createSignal } from '@zeus-js/signal'
+import { render, For } from '@zeus-js/runtime-dom'
+
+const [items, setItems] = createSignal([{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }])
+const [groups, setGroups] = createSignal([{ id: 'group', items: ['x'], keyFn: undefined }])
+const calls = []
+
+function createRootApp(token) {
+  const expectedThis = this
+  const expectedArguments = arguments
+  return () => <For each={items()} by={item => item.id}>{(item, index) => <button onClick={() => calls.push([this === expectedThis, arguments === expectedArguments, item.label, index])}>{item.label}</button>}</For>
+}
+
+const RootApp = createRootApp.call({ owner: true }, 'token')
+const DirectValues = () => <For each={items()} by={item => item.id}>{item => item.label}</For>
+const UnicodeEscaped = () => <For each={items()} by={it\\u0065m => it\\u0065m.id}>{(it\\u0065m, ind\\u0065x) => <u data-index={ind\\u0065x}>{ind\\u0065x}:{it\\u0065m.label}</u>}</For>
+const Nested = () => <section><For each={groups()} by={group => group.id}>{group => <For each={group.items} by={group.keyFn}>{item => <i>{item}</i>}</For>}</For></section>
+
+export const mountRoot = container => render(() => RootApp(), container)
+export const mountDirect = container => render(() => DirectValues(), container)
+export const mountUnicodeEscaped = container => render(() => UnicodeEscaped(), container)
+export const mountNested = container => render(() => Nested(), container)
+export const updateItems = next => setItems(next)
+export const updateGroups = next => setGroups(next)
+export const getCalls = () => calls
+`.replaceAll('\n', '\r\n')
+  const fixture = createFixture(rootForSource)
+  const restoreDOM = installDOMGlobals()
+  const { createServer } = await import('vite')
+  const server = await createServer({
+    root: fixture.root,
+    configFile: false,
+    logLevel: 'silent',
+    optimizeDeps: { noDiscovery: true },
+    define: {
+      __DEV__: 'true',
+      __TEST__: 'true',
+      __VERSION__: JSON.stringify('test'),
+    },
+    resolve: { alias: runtimeAliases() },
+    plugins: [createNativePlugin()],
+    server: { middlewareMode: true },
+  })
+
+  try {
+    const module = await server.ssrLoadModule('/src/App.tsx')
+    const rootContainer = document.createElement('div')
+    const directContainer = document.createElement('div')
+    const unicodeContainer = document.createElement('div')
+    const nestedContainer = document.createElement('div')
+    document.body.append(
+      rootContainer,
+      directContainer,
+      unicodeContainer,
+      nestedContainer,
+    )
+    const disposeRoot = module.mountRoot(rootContainer)
+    const disposeDirect = module.mountDirect(directContainer)
+    const disposeUnicode = module.mountUnicodeEscaped(unicodeContainer)
+    const disposeNested = module.mountNested(nestedContainer)
+    const firstButton = rootContainer.querySelector('button')
+    const firstUnicode = unicodeContainer.querySelector('u')
+
+    assert.equal(rootContainer.textContent, 'AB')
+    assert.equal(directContainer.textContent, 'AB')
+    assert.equal(unicodeContainer.textContent, '0:A1:B')
+    assert.equal(nestedContainer.textContent, 'x')
+
+    module.updateItems([
+      { id: 'b', label: 'B next' },
+      { id: 'a', label: 'A next' },
+    ])
+    module.updateGroups([{ id: 'group', items: ['y', 'z'], keyFn: undefined }])
+
+    assert.equal(rootContainer.textContent, 'B nextA next')
+    assert.equal(directContainer.textContent, 'B nextA next')
+    assert.equal(unicodeContainer.textContent, '0:B next1:A next')
+    assert.strictEqual(unicodeContainer.querySelectorAll('u')[1], firstUnicode)
+    assert.equal(
+      unicodeContainer.querySelectorAll('u')[1].getAttribute('data-index'),
+      '1',
+    )
+    assert.equal(nestedContainer.textContent, 'yz')
+    assert.strictEqual(rootContainer.querySelectorAll('button')[1], firstButton)
+
+    rootContainer
+      .querySelectorAll('button')[1]
+      .dispatchEvent(
+        new window.MouseEvent('click', { bubbles: true, cancelable: true }),
+      )
+    assert.deepEqual(module.getCalls(), [[true, true, 'A next', 1]])
+
+    disposeNested()
+    disposeUnicode()
+    disposeDirect()
+    disposeRoot()
   } finally {
     await server.close()
     restoreDOM()

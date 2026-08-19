@@ -123,6 +123,41 @@ describe('Slot', () => {
     )
   })
 
+  it('preserves native option selection when another outlet reconciles', async () => {
+    const tag = createTag('light-native-select')
+
+    defineElement(
+      tag,
+      {
+        shadow: false,
+      },
+      () => {
+        const section = document.createElement('section')
+        const select = document.createElement('select')
+        insertTracked(select, Slot({}))
+        const message = document.createElement('div')
+        insertTracked(message, Slot({ name: 'message' }))
+        section.append(select, message)
+        return section
+      },
+    )
+
+    const el = document.createElement(tag)
+    el.innerHTML = `
+      <option value="development">Development</option>
+      <option value="staging">Staging</option>
+      <option value="production">Production</option>
+    `
+    document.body.appendChild(el)
+
+    await nextFrame()
+
+    const select = el.querySelector('select') as HTMLSelectElement
+    expect(select.value).toBe('development')
+    expect(select.options[0].selected).toBe(true)
+    expect(select.options[2].selected).toBe(false)
+  })
+
   it('distributes named light DOM slot nodes in light mode', async () => {
     const tag = createTag('light-named')
 

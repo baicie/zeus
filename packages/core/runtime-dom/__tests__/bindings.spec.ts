@@ -1,10 +1,12 @@
-import { state } from '@zeus-js/signal/internal'
+import { effect, effectScope, state } from '@zeus-js/signal/internal'
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import {
   bindText,
+  bindTextContent,
   bindAttr,
+  bindProp,
   bindClass,
   bindStyle,
   normalizeClass,
@@ -236,6 +238,248 @@ describe('runtime bindings', () => {
 
     expect(el.style.opacity).toBe('1')
     expect(el.style.zIndex).toBe('1')
+  })
+
+  describe('once bindings', () => {
+    it('evaluates each getter once without creating reactive effects', () => {
+      const textValue = state('initial text')
+      const textContentValue = state('initial content')
+      const attrValue = state('initial title')
+      const propValue = state('initial value')
+      const classValue = state('initial-class')
+      const styleValue = state('red')
+      const calls = {
+        text: 0,
+        textContent: 0,
+        attr: 0,
+        prop: 0,
+        class: 0,
+        style: 0,
+      }
+      const text = document.createTextNode('')
+      const content = document.createElement('div')
+      const attr = document.createElement('div')
+      const prop = document.createElement('input')
+      const className = document.createElement('div')
+      const style = document.createElement('div')
+      const bindingScope = effectScope()
+
+      bindingScope.run(() => {
+        bindText(
+          text,
+          () => {
+            calls.text++
+            return textValue.value
+          },
+          true,
+        )
+        bindTextContent(
+          content,
+          () => {
+            calls.textContent++
+            return textContentValue.value
+          },
+          true,
+        )
+        bindAttr(
+          attr,
+          'title',
+          () => {
+            calls.attr++
+            return attrValue.value
+          },
+          true,
+        )
+        bindProp(
+          prop,
+          'value',
+          () => {
+            calls.prop++
+            return propValue.value
+          },
+          true,
+        )
+        bindClass(
+          className,
+          () => {
+            calls.class++
+            return classValue.value
+          },
+          true,
+        )
+        bindStyle(
+          style,
+          () => {
+            calls.style++
+            return { color: styleValue.value }
+          },
+          true,
+        )
+      })
+
+      expect(calls).toEqual({
+        text: 1,
+        textContent: 1,
+        attr: 1,
+        prop: 1,
+        class: 1,
+        style: 1,
+      })
+      expect(bindingScope.effects).toHaveLength(0)
+
+      textValue.value = 'updated text'
+      textContentValue.value = 'updated content'
+      attrValue.value = 'updated title'
+      propValue.value = 'updated value'
+      classValue.value = 'updated-class'
+      styleValue.value = 'blue'
+
+      expect(calls).toEqual({
+        text: 1,
+        textContent: 1,
+        attr: 1,
+        prop: 1,
+        class: 1,
+        style: 1,
+      })
+      expect(text.data).toBe('initial text')
+      expect(content.textContent).toBe('initial content')
+      expect(attr.getAttribute('title')).toBe('initial title')
+      expect(prop.value).toBe('initial value')
+      expect(className.getAttribute('class')).toBe('initial-class')
+      expect(style.style.color).toBe('red')
+
+      bindingScope.stop()
+    })
+
+    it('does not leak getter dependencies into an outer effect', () => {
+      const outer = state(0)
+      const inner = state('red')
+      const text = document.createTextNode('')
+      const content = document.createElement('div')
+      const attr = document.createElement('div')
+      const prop = document.createElement('input')
+      const className = document.createElement('div')
+      const style = document.createElement('div')
+      const bindingScope = effectScope()
+      let outerRuns = 0
+
+      bindingScope.run(() => {
+        effect(() => {
+          outerRuns++
+          outer.value
+          bindText(text, () => inner.value, true)
+          bindTextContent(content, () => inner.value, true)
+          bindAttr(attr, 'title', () => inner.value, true)
+          bindProp(prop, 'value', () => inner.value, true)
+          bindClass(className, () => inner.value, true)
+          bindStyle(style, () => ({ color: inner.value }), true)
+        })
+      })
+
+      expect(outerRuns).toBe(1)
+
+      inner.value = 'blue'
+
+      expect(outerRuns).toBe(1)
+      expect(text.data).toBe('red')
+      expect(style.style.color).toBe('red')
+
+      outer.value++
+
+      expect(outerRuns).toBe(2)
+      expect(text.data).toBe('blue')
+      expect(style.style.color).toBe('blue')
+
+      bindingScope.stop()
+    })
+
+    it('keeps composite reactive value normalization out of an outer effect', () => {
+      const outer = state(0)
+      const textValue = state(['initial', ' text'])
+      const textContentValue = state(['initial', ' content'])
+      const classValue = state({ initial: true, updated: false })
+      const styleValue = state({ color: 'red', width: 12 })
+      const text = document.createTextNode('')
+      const content = document.createElement('div')
+      const className = document.createElement('div')
+      const style = document.createElement('div')
+      const bindingScope = effectScope()
+      let outerRuns = 0
+
+      bindingScope.run(() => {
+        effect(() => {
+          outerRuns++
+          outer.value
+          bindText(text, () => textValue, true)
+          bindTextContent(content, () => textContentValue, true)
+          bindClass(className, () => classValue, true)
+          bindStyle(style, () => styleValue, true)
+        })
+      })
+
+      expect(outerRuns).toBe(1)
+      expect(text.data).toBe('initial text')
+      expect(content.textContent).toBe('initial content')
+      expect(className.getAttribute('class')).toBe('initial')
+      expect(style.style.color).toBe('red')
+      expect(style.style.width).toBe('12px')
+
+      textValue[0] = 'updated'
+      textContentValue[0] = 'updated'
+      classValue.initial = false
+      classValue.updated = true
+      styleValue.color = 'blue'
+      styleValue.width = 24
+
+      expect(outerRuns).toBe(1)
+      expect(text.data).toBe('initial text')
+      expect(content.textContent).toBe('initial content')
+      expect(className.getAttribute('class')).toBe('initial')
+      expect(style.style.color).toBe('red')
+      expect(style.style.width).toBe('12px')
+
+      bindingScope.stop()
+    })
+
+    it('uses the same initial value normalization as reactive bindings', () => {
+      const reactiveText = document.createTextNode('stale')
+      const onceText = document.createTextNode('stale')
+      const reactiveContent = document.createElement('div')
+      const onceContent = document.createElement('div')
+      const reactiveAttr = document.createElement('input')
+      const onceAttr = document.createElement('input')
+      const reactiveProp = document.createElement('input')
+      const onceProp = document.createElement('input')
+      const reactiveClass = document.createElement('div')
+      const onceClass = document.createElement('div')
+      const reactiveStyle = document.createElement('div')
+      const onceStyle = document.createElement('div')
+
+      bindText(reactiveText, () => null)
+      bindText(onceText, () => null, true)
+      bindTextContent(reactiveContent, () => false)
+      bindTextContent(onceContent, () => false, true)
+      bindAttr(reactiveAttr, 'disabled', () => true)
+      bindAttr(onceAttr, 'disabled', () => true, true)
+      bindAttr(reactiveAttr, 'title', () => null)
+      bindAttr(onceAttr, 'title', () => null, true)
+      bindProp(reactiveProp, 'value', () => 'Ada')
+      bindProp(onceProp, 'value', () => 'Ada', true)
+      bindClass(reactiveClass, () => ['base', { active: true }])
+      bindClass(onceClass, () => ['base', { active: true }], true)
+      bindStyle(reactiveStyle, () => ({ width: 12, opacity: 0.5 }))
+      bindStyle(onceStyle, () => ({ width: 12, opacity: 0.5 }), true)
+
+      expect(onceText.data).toBe(reactiveText.data)
+      expect(onceContent.textContent).toBe(reactiveContent.textContent)
+      expect(onceAttr.outerHTML).toBe(reactiveAttr.outerHTML)
+      expect(onceProp.value).toBe(reactiveProp.value)
+      expect(onceClass.getAttribute('class')).toBe(
+        reactiveClass.getAttribute('class'),
+      )
+      expect(onceStyle.style.cssText).toBe(reactiveStyle.style.cssText)
+    })
   })
 
   describe('setAttr', () => {

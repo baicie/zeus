@@ -1,16 +1,39 @@
-import { effect } from '@zeus-js/signal/internal'
+import { effect, untrack } from '@zeus-js/signal/internal'
 
 import type { AttrValue, ClassValue, JSXValue, StyleValue } from './types'
 
-export function bindText(node: Text, value: () => JSXValue): void {
-  effect(() => {
-    node.data = stringifyText(value())
+export function bindText(
+  node: Text,
+  value: () => JSXValue,
+  once = false,
+): void {
+  applyBinding(value, once, next => {
+    node.data = stringifyText(next)
   })
 }
 
-export function bindTextContent(el: Node, value: () => JSXValue): void {
+export function bindTextContent(
+  el: Node,
+  value: () => JSXValue,
+  once = false,
+): void {
+  applyBinding(value, once, next => {
+    el.textContent = stringifyText(next)
+  })
+}
+
+function applyBinding<T>(
+  value: () => T,
+  once: boolean,
+  apply: (next: T) => void,
+): void {
+  if (once) {
+    untrack(() => apply(value()))
+    return
+  }
+
   effect(() => {
-    el.textContent = stringifyText(value())
+    apply(value())
   })
 }
 
@@ -82,9 +105,10 @@ export function bindAttr(
   el: Element,
   name: string,
   value: () => AttrValue,
+  once = false,
 ): void {
-  effect(() => {
-    setAttr(el, name, value())
+  applyBinding(value, once, next => {
+    setAttr(el, name, next)
   })
 }
 
@@ -92,15 +116,20 @@ export function bindProp<T extends Element, K extends keyof T>(
   el: T,
   name: K,
   value: () => T[K],
+  once = false,
 ): void {
-  effect(() => {
-    el[name] = value()
+  applyBinding(value, once, next => {
+    el[name] = next
   })
 }
 
-export function bindClass(el: Element, value: () => ClassValue): void {
-  effect(() => {
-    const next = normalizeClass(value())
+export function bindClass(
+  el: Element,
+  value: () => ClassValue,
+  once = false,
+): void {
+  applyBinding(value, once, value => {
+    const next = normalizeClass(value)
     if (next) {
       el.setAttribute('class', next)
     } else {
@@ -130,12 +159,11 @@ export function normalizeClass(value: ClassValue): string {
 export function bindStyle(
   el: HTMLElement | SVGElement,
   value: () => StyleValue,
+  once = false,
 ): void {
   let prev: Record<string, string | number | null | undefined> | undefined
 
-  effect(() => {
-    const next = value()
-
+  applyBinding(value, once, next => {
     if (next == null) {
       el.removeAttribute('style')
       prev = undefined
