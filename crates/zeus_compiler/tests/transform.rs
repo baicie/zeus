@@ -86,7 +86,7 @@ fn emits_static_template_and_precise_dynamic_text_binding() {
 
 #[test]
 fn emits_explicit_once_flags_without_changing_default_bindings() {
-    let source = r#"export const App = props => <div
+    let source = r"export const App = props => <div
   title={/* @once */ props.title}
   class={/* @once */ props.className}
   style={/* @once */ props.style}
@@ -94,7 +94,7 @@ fn emits_explicit_once_flags_without_changing_default_bindings() {
   data-live={props.live}
 >{/* @once */ props.label}{props.detail}</div>
 export const Raw = props => <style>prefix {/* @once */ props.label}</style>
-"#;
+";
     let transformed = transform_module(TransformModuleOptions {
         source: source.into(),
         filename: "once.tsx".into(),
@@ -413,7 +413,7 @@ export const App = (inlineHandler, identifierHandler, theme, maybe, props, asser
 
 #[test]
 fn collects_delegated_events_from_nested_for_show_and_fragments() {
-    let source = r#"import { For, Show } from '@zeus-js/zeus'
+    let source = r"import { For, Show } from '@zeus-js/zeus'
 export const App = props => (
   <For each={props.items}>
     {item => (
@@ -429,7 +429,7 @@ export const App = props => (
       </Show>
     )}
   </For>
-)"#;
+)";
     let transformed = transform_module(TransformModuleOptions {
         source: source.into(),
         filename: "nested-events.tsx".into(),
