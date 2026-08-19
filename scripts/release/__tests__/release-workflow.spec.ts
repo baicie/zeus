@@ -140,14 +140,14 @@ describe('release workflows', () => {
     expect(buildScript).toContain('if (result.status !== 0)')
   })
 
-  it('rejects polluted native latest tags before a stable release publishes', () => {
+  it('allows beta releases past native latest while guarding other tags', () => {
     const workflow = readFileSync(
       resolve(root, '.github/workflows/release.yml'),
       'utf8',
     )
 
     expect(workflow).toContain(
-      "if: steps.release-version.outputs.dist-tag == 'latest'",
+      "if: steps.release-version.outputs.dist-tag != 'beta'",
     )
     expect(workflow).toContain('pnpm release:verify:native-latest')
     expect(workflow.indexOf('pnpm release:verify:native-latest')).toBeLessThan(

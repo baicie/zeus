@@ -143,6 +143,7 @@ export function getDistTagPolicyErrors(input: DistTagPolicyInput): string[] {
       )
     }
     if (
+      input.expectedTag !== 'beta' &&
       zeusNativePackages.includes(pkg) &&
       tags.latest &&
       semver.prerelease(tags.latest)
