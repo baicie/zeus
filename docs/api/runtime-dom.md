@@ -52,6 +52,39 @@ function delegateEvents(events: readonly string[]): void
 
 Registers event types for delegation at the document level.
 
+## defineElement prop reactivity
+
+`defineElement` props use deep reactivity by default. Large immutable values can
+opt into shallow reactivity so Zeus tracks only top-level replacement and keeps
+the original object or array identity:
+
+```ts
+import { defineElement, prop } from '@zeus-js/runtime-dom'
+
+interface GridProps<Row> {
+  rows: readonly Row[]
+}
+
+defineElement<GridProps<unknown>>(
+  'z-grid',
+  {
+    props: {
+      rows: prop<readonly unknown[]>(Array, { reactivity: 'shallow' }),
+    },
+  },
+  props => {
+    const output = document.createElement('span')
+    output.textContent = String(props.rows.length)
+    return output
+  },
+)
+```
+
+For a shallow prop, assigning `element.rows = nextRows` triggers dependents.
+Mutating `element.rows[index]` or a nested row does not trigger an update. Use
+replace-on-write for shallow props. Props without `reactivity: 'shallow'`
+retain the existing deep reactive behavior.
+
 ## mountShow
 
 ```ts

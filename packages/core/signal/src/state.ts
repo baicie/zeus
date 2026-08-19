@@ -1,5 +1,5 @@
 import { reactive } from './reactive'
-import { ref } from './ref'
+import { ref, shallowRef } from './ref'
 
 export interface ValueState<T = unknown> {
   get value(): T
@@ -41,6 +41,12 @@ export function state(value?: unknown): unknown {
     return ref()
   }
   return isProxyable(value) ? reactive(value as object) : ref(value)
+}
+
+export function shallowState<T>(value: T): ValueState<T>
+export function shallowState<T = undefined>(): ValueState<T | undefined>
+export function shallowState(value?: unknown): ValueState<unknown> {
+  return arguments.length === 0 ? shallowRef() : shallowRef(value)
 }
 
 export function isValueState<T = unknown>(

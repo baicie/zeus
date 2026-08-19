@@ -6,10 +6,16 @@ import {
   describe,
   expect,
   it,
+  type Mock,
   vi,
 } from 'vitest'
 
-import { defineElement } from '../src'
+import {
+  defineElement,
+  getElementDefinition,
+  mountElementDefinition,
+  prop,
+} from '../src'
 import { bindAttr } from '../src/bindings'
 
 let id = 0
@@ -283,5 +289,200 @@ describe('defineElement props tracking', () => {
     await nextFrame()
 
     expect(span.getAttribute('title')).toBe('updated')
+  })
+
+  it('supports opt-in shallow props while keeping deep props reactive', async () => {
+    interface Row {
+      id: string
+    }
+
+    interface Config {
+      nested: {
+        label: string
+      }
+    }
+
+    interface Props {
+      rows?: Row[]
+      config?: Config
+    }
+
+    const name = tag('shallow-prop')
+    let capturedProps: Readonly<Props> | undefined
+    let readRow: Mock<() => string> | undefined
+    let readConfig: Mock<() => string> | undefined
+
+    defineElement<Props>(
+      name,
+      {
+        shadow: false,
+        props: {
+          rows: prop<Row[]>(Array, { reactivity: 'shallow' }),
+          config: Object,
+        },
+      },
+      props => {
+        capturedProps = props
+        const host = document.createElement('div')
+        const row = document.createElement('span')
+        const config = document.createElement('span')
+        readRow = vi.fn(() => props.rows?.[0]?.id ?? '')
+        readConfig = vi.fn(() => props.config?.nested.label ?? '')
+        bindAttr(row, 'data-row-id', readRow)
+        bindAttr(config, 'data-config-label', readConfig)
+        host.append(row, config)
+        return host
+      },
+    )
+
+    const el = document.createElement(name) as HTMLElement & Props
+    document.body.appendChild(el)
+    await nextFrame()
+
+    const firstRow = { id: 'row-1' }
+    const firstRows = [firstRow]
+    el.rows = firstRows
+    await nextFrame()
+
+    expect(el.rows).toBe(firstRows)
+    expect(el.rows?.[0]).toBe(firstRow)
+    expect(capturedProps?.rows).toBe(firstRows)
+    expect(readRow).toHaveBeenCalledTimes(2)
+
+    el.rows = firstRows
+    await nextFrame()
+
+    expect(readRow).toHaveBeenCalledTimes(2)
+
+    firstRow.id = 'mutated'
+    await nextFrame()
+
+    expect(readRow).toHaveBeenCalledTimes(2)
+    expect(el.querySelector('[data-row-id]')?.getAttribute('data-row-id')).toBe(
+      'row-1',
+    )
+
+    const nextRows = [{ id: 'row-2' }]
+    el.rows = nextRows
+    await nextFrame()
+
+    expect(readRow).toHaveBeenCalledTimes(3)
+    expect(el.querySelector('[data-row-id]')?.getAttribute('data-row-id')).toBe(
+      'row-2',
+    )
+
+    const rawConfig: Config = { nested: { label: 'first' } }
+    el.config = rawConfig
+    await nextFrame()
+
+    expect(el.config).not.toBe(rawConfig)
+    expect(el.config?.nested).not.toBe(rawConfig.nested)
+    expect(readConfig).toHaveBeenCalledTimes(2)
+
+    if (!el.config) throw new Error('Expected config prop to be initialized.')
+    el.config.nested.label = 'updated'
+    await nextFrame()
+
+    expect(readConfig).toHaveBeenCalledTimes(3)
+    expect(
+      el
+        .querySelector('[data-config-label]')
+        ?.getAttribute('data-config-label'),
+    ).toBe('updated')
+  })
+
+  it('normalizes prop reactivity metadata with deep as the default', () => {
+    interface Props {
+      rows?: unknown[]
+      title?: string
+    }
+
+    const name = tag('prop-reactivity-metadata')
+    const ctor = defineElement<Props>(
+      name,
+      {
+        props: {
+          rows: prop<unknown[]>(Array, { reactivity: 'shallow' }),
+          title: String,
+        },
+      },
+      () => document.createElement('span'),
+    )
+
+    expect(getElementDefinition(ctor).propDefs).toEqual([
+      expect.objectContaining({
+        name: 'rows',
+        type: 'array',
+        reactivity: 'shallow',
+      }),
+      expect.objectContaining({
+        name: 'title',
+        type: 'string',
+        reactivity: 'deep',
+      }),
+    ])
+  })
+
+  it('preserves shallow prop semantics through lazy definition mounts', async () => {
+    interface Row {
+      id: string
+    }
+
+    interface Props {
+      rows?: Row[]
+    }
+
+    const name = tag('lazy-shallow-prop')
+    let capturedProps: Readonly<Props> | undefined
+    let readRow: Mock<() => string> | undefined
+    const ctor = defineElement<Props>(
+      name,
+      {
+        props: {
+          rows: prop<Row[]>(Array, { reactivity: 'shallow' }),
+        },
+      },
+      props => {
+        capturedProps = props
+        const row = document.createElement('span')
+        readRow = vi.fn(() => props.rows?.[0]?.id ?? '')
+        bindAttr(row, 'data-row-id', readRow)
+        return row
+      },
+    )
+    const firstRow = { id: 'row-1' }
+    const firstRows = [firstRow]
+    const host = document.createElement('div')
+    const mounted = mountElementDefinition(
+      ctor,
+      host,
+      new Map([['rows', firstRows]]),
+    )
+    await nextFrame()
+
+    expect(capturedProps?.rows).toBe(firstRows)
+    expect(capturedProps?.rows?.[0]).toBe(firstRow)
+    expect(readRow).toHaveBeenCalledTimes(1)
+
+    mounted.propertyChanged('rows', firstRows, firstRows)
+    await nextFrame()
+
+    expect(readRow).toHaveBeenCalledTimes(1)
+
+    firstRow.id = 'mutated'
+    await nextFrame()
+
+    expect(readRow).toHaveBeenCalledTimes(1)
+    expect(host.firstElementChild?.getAttribute('data-row-id')).toBe('row-1')
+
+    const nextRows = [{ id: 'row-2' }]
+    mounted.propertyChanged('rows', firstRows, nextRows)
+    await nextFrame()
+
+    expect(capturedProps?.rows).toBe(nextRows)
+    expect(readRow).toHaveBeenCalledTimes(2)
+    expect(host.firstElementChild?.getAttribute('data-row-id')).toBe('row-2')
+
+    mounted.dispose()
   })
 })

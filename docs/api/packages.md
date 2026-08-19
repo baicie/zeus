@@ -318,6 +318,7 @@ export {
   type DefineElementSetup,
   type ElementPropConstructor,
   type PropDefinition,
+  type PropReactivity,
   type PropOptions,
 }
 export { Host, Slot, type HostProps, type SlotProps }
@@ -369,6 +370,10 @@ const Counter = defineElement(
       count: Number,
       title: String,
       open: Boolean,
+      rows: {
+        type: Array,
+        reactivity: 'shallow', // 仅跟踪顶层引用替换，保留原始数组/row identity
+      },
       data: {
         type: Object,
         attr: 'data-config', // 指定 attribute 名称
@@ -409,6 +414,10 @@ const Counter = defineElement(
 // 使用
 // <z-counter count="5" title="My Counter"></z-counter>
 ```
+
+prop 默认使用 deep reactivity。`reactivity: 'shallow'` 适用于 rows、columns
+等大型 immutable 集合：替换整个 prop reference 会触发更新；原地修改数组元素
+或嵌套对象不会触发更新。shallow prop 必须采用 replace-on-write。
 
 #### Host / Slot 详解
 
@@ -741,7 +750,9 @@ pnpm add @zeus-ui/cli
 每个 CJS 导出都在 `require` 条件内声明 `production`、`development` 和
 `default`。Node 或打包器显式启用对应 condition 时会直接解析到下列产物；
 未提供自定义 condition 时，包根级 `require` 先解析到 `index.cjs`，再根据
-`NODE_ENV` 选择开发或生产产物。附加入口的 `default` 直接使用开发产物。
+`NODE_ENV` 选择开发或生产产物。附加入口默认直接使用开发产物；
+`@zeus-js/signal/internal` 例外，它通过 `internal.cjs` 按 `NODE_ENV` 选择与包根一致的
+signal engine，避免公共 API 与 runtime helper 各自持有响应式状态。
 
 | 包                     | ESM 入口                          | CJS 开发 / 生产产物                                  | 全局 CDN                     |
 | ---------------------- | --------------------------------- | ---------------------------------------------------- | ---------------------------- |

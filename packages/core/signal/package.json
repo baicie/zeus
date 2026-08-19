@@ -31,12 +31,13 @@
       "require": {
         "production": "./dist/internal.prod.cjs",
         "development": "./dist/internal.cjs",
-        "default": "./dist/internal.cjs"
+        "default": "./internal.cjs"
       }
     }
   },
   "files": [
     "index.cjs",
+    "internal.cjs",
     "dist"
   ],
   "dependencies": {
@@ -49,6 +50,9 @@
   },
   "buildOptions": {
     "name": "ZeusSignal",
+    "external": [
+      "@zeus-js/signal/internal"
+    ],
     "formats": [
       "esm-bundler",
       "esm-browser",

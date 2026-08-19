@@ -48,6 +48,7 @@ export type {
   FormStateRestoreMode,
   PropDefinition,
   PropDefinitionOptions,
+  PropReactivity,
   PropDeserializer,
   PropSerializer,
   ValuePropDefinition,

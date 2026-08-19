@@ -9,4 +9,4 @@ export {
   batch,
   type Accessor,
   type Setter,
-} from './primitives'
+} from '@zeus-js/signal/internal'

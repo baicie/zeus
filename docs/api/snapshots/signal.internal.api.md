@@ -225,6 +225,8 @@ export declare function state<T extends ValueStateInput>(
 export declare function state<T extends ProxyableInput>(value: T): Reactive<T>
 export declare function state<T>(value: T): ValueState<T>
 export declare function state<T = undefined>(): ValueState<T | undefined>
+export declare function shallowState<T>(value: T): ValueState<T>
+export declare function shallowState<T = undefined>(): ValueState<T | undefined>
 export declare function isValueState<T = unknown>(
   value: unknown,
 ): value is ValueState<T>

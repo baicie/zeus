@@ -41,6 +41,7 @@ export {
   PropDefinition,
   PropDefinitionOptions,
   PropDeserializer,
+  PropReactivity,
   PropSerializer,
   Show,
   ShowProps,

@@ -112,6 +112,7 @@ jobs:
       - name: Build host native compiler
         run: pnpm --filter @zeus-js/compiler-native build:native
       - run: pnpm build
+      - run: pnpm check:runtime-interop
       - run: pnpm build-dts
       - run: pnpm check:cjs
       - run: pnpm api:check
