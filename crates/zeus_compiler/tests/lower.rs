@@ -62,7 +62,7 @@ fn lowers_native_element_to_owned_deterministic_ir() {
 
 #[test]
 fn lowers_explicit_once_markers_only_on_supported_dom_bindings() {
-    let source = r#"export const App = props => (
+    let source = r"export const App = props => (
   <div
     title={/* @once */ props.title}
     class={/* @once */ props.className}
@@ -75,7 +75,7 @@ fn lowers_explicit_once_markers_only_on_supported_dom_bindings() {
     {/* @once */ props.label}
     {props.detail}
   </div>
-)"#;
+)";
     let lowered = lower_module(source, "once.tsx");
 
     assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
@@ -259,10 +259,10 @@ fn rejects_once_markers_on_every_builtin_attribute_form() {
 
 #[test]
 fn permits_once_on_namespaced_properties_even_when_names_resemble_events_or_refs() {
-    let source = r#"export const App = props => <div
+    let source = r"export const App = props => <div
   prop:onClick={/* @once */ props.callback}
   prop:ref={/* @once */ props.reference}
-/>"#;
+/>";
     let lowered = lower_module(source, "once-property-names.tsx");
 
     assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
