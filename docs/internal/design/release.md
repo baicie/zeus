@@ -195,6 +195,7 @@ GitHub Actions 会在 tag push 后执行 `.github/workflows/release.yml`：
 tag v*
   -> native platform matrix
   -> 验证 tag/version 且 tag commit 可从 origin/main 到达
+  -> 非 beta 发布拒绝 native latest 指向 prerelease
   -> release:precheck
   -> pnpm release --publishOnly <version> --skipBuild
   -> npm publish
@@ -233,6 +234,9 @@ pnpm release --publishOnly <version> --skipBuild
   - `beta` -> `beta`
   - `rc` -> `rc`
   - stable -> latest
+
+`beta` 通道只写入并验证 `beta` dist-tag，不要求修复也不会修改 native 包历史遗留的
+`latest`。Canary、alpha、rc 与 stable 发布仍保持 native `latest` 的发布前后守卫。
 
 本地只有在 CI 故障且确认需要人工补发时，才考虑 `--publishOnly`。
 
