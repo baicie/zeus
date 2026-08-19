@@ -1,7 +1,7 @@
 {
   "name": "@zeus-js/bundler-plugin",
   "type": "module",
-  "version": "0.1.1-beta.0",
+  "version": "0.1.1-beta.1",
   "description": "Zeus bundler plugin host",
   "license": "MIT",
   "repository": {

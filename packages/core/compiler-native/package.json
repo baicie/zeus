@@ -1,6 +1,7 @@
 {
   "name": "@zeus-js/compiler-native",
-  "version": "0.1.1-beta.0",
+  "type": "commonjs",
+  "version": "0.1.1-beta.1",
   "description": "Rust-native Zeus compiler Node adapter",
   "license": "MIT",
   "repository": {
@@ -12,15 +13,6 @@
     "access": "public",
     "provenance": true
   },
-  "type": "commonjs",
-  "main": "index.js",
-  "types": "index.d.ts",
-  "files": [
-    "index.js",
-    "index.d.ts",
-    "README.md",
-    "LICENSE"
-  ],
   "exports": {
     ".": {
       "types": "./index.d.ts",
@@ -29,9 +21,21 @@
       "default": "./index.js"
     }
   },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build:native": "napi build --platform --release --js index.js --dts index.d.ts",
     "test:native": "node --test __tests__/*.test.cjs"
+  },
+  "devDependencies": {
+    "@jridgewell/trace-mapping": "^0.3.31",
+    "@napi-rs/cli": "catalog:",
+    "jsdom": "^29.1.1",
+    "vite": "catalog:"
   },
   "optionalDependencies": {
     "@zeus-js/compiler-native-darwin-arm64": "workspace:*",
@@ -42,12 +46,10 @@
     "@zeus-js/compiler-native-win32-arm64-msvc": "workspace:*",
     "@zeus-js/compiler-native-win32-x64-msvc": "workspace:*"
   },
-  "devDependencies": {
-    "@jridgewell/trace-mapping": "^0.3.31",
-    "@napi-rs/cli": "catalog:",
-    "jsdom": "^29.1.1",
-    "vite": "catalog:"
+  "engines": {
+    "node": "^22.18.0 || >=24.11.0"
   },
+  "main": "index.js",
   "napi": {
     "binaryName": "zeus-compiler-native",
     "packageName": "@zeus-js/compiler-native",
@@ -61,7 +63,5 @@
       "aarch64-pc-windows-msvc"
     ]
   },
-  "engines": {
-    "node": "^22.18.0 || >=24.11.0"
-  }
+  "types": "index.d.ts"
 }

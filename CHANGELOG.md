@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.1-beta.1 (2026-08-19)
+
+### Features
+
+- Add explicit `@once` DOM bindings. Once-marked values use normal binding normalization but initialize untracked without creating a reactive effect.
+- Add opt-in shallow reactivity for `defineElement` props. Shallow props track top-level reference replacement while preserving the original object or array identity and leaving nested mutations untracked.
+
+### Fixes
+
+- Keep keyed `For` DOM and owner scopes stable while same-key replacements update compiled item/index bindings and event handlers. Reject duplicate keys before mutation, roll back failed record mounts, drain reentrant list updates, and preserve custom-element mounts and deep focus while ranges move. Record precise semantic `For` accessor dependencies in compiler IR so escaped, shadowed, and non-reference identifier spellings compile correctly.
+
 ## 0.1.1-beta.0 (2026-08-05)
 
 ### Features
