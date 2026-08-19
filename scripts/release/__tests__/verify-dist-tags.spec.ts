@@ -78,6 +78,31 @@ describe('npm dist-tag policy', () => {
     )
   })
 
+  it('allows beta verification while native latest is independently polluted', () => {
+    const betaVersion = '0.1.1-beta.1'
+    const tags = new Map(
+      zeusFixedPackages.map(pkg => [
+        pkg,
+        {
+          beta: betaVersion,
+          ...(zeusNativePackages.includes(pkg)
+            ? { latest: version }
+            : { latest: '0.1.0' }),
+        },
+      ]),
+    )
+
+    expect(
+      getDistTagPolicyErrors({
+        expectedVersion: betaVersion,
+        expectedTag: 'beta',
+        requireProvenance: false,
+        tagsByPackage: tags,
+        provenanceByPackage: new Map(),
+      }),
+    ).toEqual([])
+  })
+
   it('validates the signed repository, workflow, ref, commit and subject', () => {
     const { expected, statement } = validProvenanceStatement()
 
