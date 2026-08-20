@@ -1,6 +1,6 @@
 import * as path from 'node:path'
 
-import { findWorkspacePackages } from './utils'
+import { findWorkspacePackages } from './utils.ts'
 
 /**
  * Generate alias entries for all workspace packages.

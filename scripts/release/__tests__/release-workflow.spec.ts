@@ -243,6 +243,58 @@ describe('release workflows', () => {
     }
   })
 
+  it('gates CI, Canary and tagged releases on the production dependency audit', () => {
+    const packageJson = JSON.parse(
+      readFileSync(resolve(root, 'package.json'), 'utf8'),
+    ) as { scripts?: Record<string, string> }
+    const ciWorkflow = readFileSync(
+      resolve(root, '.github/workflows/ci.yml'),
+      'utf8',
+    )
+    const canaryWorkflow = readFileSync(
+      resolve(root, '.github/workflows/release-canary.yml'),
+      'utf8',
+    )
+    const taggedReleaseWorkflow = readFileSync(
+      resolve(root, '.github/workflows/release.yml'),
+      'utf8',
+    )
+    const releaseConfig = readFileSync(
+      resolve(root, 'scripts/release.config.ts'),
+      'utf8',
+    )
+    const ciGate = ciWorkflow.slice(
+      ciWorkflow.indexOf('lint-and-check:'),
+      ciWorkflow.indexOf('rust-compiler:'),
+    )
+    const canaryGate = canaryWorkflow.slice(
+      canaryWorkflow.indexOf('release-preflight:'),
+      canaryWorkflow.indexOf('native-prebuild:'),
+    )
+    const taggedReleaseGate = taggedReleaseWorkflow.slice(
+      taggedReleaseWorkflow.indexOf('\n  release:\n'),
+      taggedReleaseWorkflow.indexOf('\n  compiler-registry-smoke:\n'),
+    )
+
+    expect(packageJson.scripts?.['audit:prod']).toBe(
+      'pnpm audit --prod --audit-level=high --registry=https://registry.npmjs.org',
+    )
+    expect(ciGate).toContain('pnpm audit:prod')
+    expect(ciGate.indexOf('pnpm install --frozen-lockfile')).toBeLessThan(
+      ciGate.indexOf('pnpm audit:prod'),
+    )
+    expect(canaryGate).toContain('pnpm audit:prod')
+    expect(canaryGate.indexOf('pnpm audit:prod')).toBeLessThan(
+      canaryGate.indexOf('pnpm release:verify:native-latest'),
+    )
+    expect(releaseConfig).toContain("['pnpm', 'audit:prod']")
+    expect(taggedReleaseGate).toContain('pnpm release:precheck')
+    expect(taggedReleaseGate).toContain('pnpm release --publishOnly')
+    expect(taggedReleaseGate.indexOf('pnpm release:precheck')).toBeLessThan(
+      taggedReleaseGate.indexOf('pnpm release --publishOnly'),
+    )
+  })
+
   it('verifies the promoted canary before best-effort staging cleanup', () => {
     const workflow = readFileSync(
       resolve(root, '.github/workflows/release-canary.yml'),

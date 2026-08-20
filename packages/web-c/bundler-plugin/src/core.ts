@@ -33,6 +33,8 @@ import type {
   OutputBundle,
   OutputOptions,
   Plugin as RollupPlugin,
+  ResolvedId,
+  ResolveIdHook,
   SourceMapInput,
 } from 'rollup'
 
@@ -40,6 +42,10 @@ export type ZeusBundlerTarget = 'vite' | 'rollup' | 'rolldown'
 
 export interface CreateZeusBundlerPluginOptions {
   target: ZeusBundlerTarget
+}
+
+type ZeusResolveIdOptions = Parameters<ResolveIdHook>[2] & {
+  kind?: string
 }
 
 export function createZeusBundlerPlugin(
@@ -215,20 +221,39 @@ export function createZeusBundlerPlugin(
         if (!modules) continue
 
         for (const mod of modules) {
-          virtualModules.set(mod.id, mod.code, mod.fileName)
+          virtualModules.set(mod.id, mod.code, mod.fileName, mod.resolveFrom)
         }
 
         emitVirtualEntries(modules, this)
       }
     },
 
-    resolveId(id: string, importer?: string) {
+    async resolveId(
+      this: PluginContext,
+      id: string,
+      importer?: string,
+      resolveOptions?: ZeusResolveIdOptions,
+    ) {
       const resolvedVirtual = virtualModules.resolve(id, importer)
 
       if (resolvedVirtual) {
         return {
           id: resolvedVirtual,
           moduleSideEffects: 'no-treeshake' as const,
+        }
+      }
+
+      const resolveFrom = virtualModules.getResolveFrom(importer)
+
+      if (resolveFrom && isBareImportSpecifier(id)) {
+        const resolved = await this.resolve(
+          id,
+          resolveFrom,
+          createScopedResolveOptions(resolveOptions),
+        )
+
+        if (resolved) {
+          return normalizeScopedResolution(id, resolved)
         }
       }
 
@@ -477,7 +502,44 @@ function resolveTsLikeImport(
 }
 
 export function isAbsoluteImportPath(id: string): boolean {
-  return path.isAbsolute(id) || /^[a-zA-Z]:[\\/]/.test(id)
+  return path.isAbsolute(id) || /^(?:[a-zA-Z]:[\\/]|\\\\)/.test(id)
+}
+
+function isBareImportSpecifier(id: string): boolean {
+  return (
+    !id.startsWith('.') &&
+    !id.startsWith('\0') &&
+    !isAbsoluteImportPath(id) &&
+    !/^[a-zA-Z][a-zA-Z\d+.-]*:/.test(id)
+  )
+}
+
+function isAbsoluteResolvedImport(id: string): boolean {
+  return isAbsoluteImportPath(id) || id.startsWith('file:')
+}
+
+export function normalizeScopedResolution(
+  source: string,
+  resolved: ResolvedId,
+): ResolvedId {
+  if (!resolved.external || !isAbsoluteResolvedImport(resolved.id)) {
+    return resolved
+  }
+
+  return {
+    ...resolved,
+    id: source,
+    external: true,
+  }
+}
+
+export function createScopedResolveOptions(
+  options?: ZeusResolveIdOptions,
+): NonNullable<Parameters<PluginContext['resolve']>[2]> & { kind?: string } {
+  return {
+    ...options,
+    skipSelf: true,
+  }
 }
 
 function emitOutputFile(

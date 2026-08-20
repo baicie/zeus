@@ -77,6 +77,7 @@ export default defineReleaseConfig({
     commands: [
       ['pnpm', 'check:release-worktree', '--capture'],
       ['pnpm', 'check:branch'],
+      ['pnpm', 'audit:prod'],
       ['pnpm', 'check:native-packages'],
       ['pnpm', 'check:native-binaries'],
       ['pnpm', 'build'],

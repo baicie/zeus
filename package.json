@@ -50,6 +50,7 @@
     "check:release-worktree": "tsx scripts/release/check-release-worktree.ts",
     "check:repository": "tsx scripts/check/check-package-repository.ts",
     "check:package-versions": "tsx scripts/check/check-zeus-package-versions.ts",
+    "audit:prod": "pnpm audit --prod --audit-level=high --registry=https://registry.npmjs.org",
     "release:rc-notes": "tsx scripts/release/create-rc-notes.ts",
     "check:component-host-rc:fast": "pnpm build && pnpm check:runtime-interop && pnpm check:package-versions && pnpm check && pnpm test-unit",
     "check:component-host-rc": "pnpm build && pnpm check:runtime-interop && pnpm build-dts && pnpm check:package-versions && pnpm check && pnpm test-unit && pnpm check:cjs && pnpm check:exports && pnpm examples:check:all && pnpm bench:component-host && pnpm release:rc-notes",
@@ -160,6 +161,7 @@
   },
   "pnpm": {
     "overrides": {
+      "brace-expansion@>=4.0.0 <5.0.9": "5.0.9",
       "rollup": "^4.62.2"
     }
   }

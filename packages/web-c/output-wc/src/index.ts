@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { resolvePluginDts } from '@zeus-js/bundler-plugin'
 import {
@@ -31,6 +32,8 @@ import type {
   ZeusVirtualModule,
   ZeusOutputFile,
 } from '@zeus-js/bundler-plugin'
+
+const outputWcModulePath = fileURLToPath(import.meta.url)
 
 export type { OutputWCOptions } from './types'
 
@@ -175,6 +178,7 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
           id: 'zeus:wc:loader',
           fileName: joinPath('loader.js'),
           code: generateLoader(),
+          resolveFrom: outputWcModulePath,
         })
 
         if (normalized.auto) {

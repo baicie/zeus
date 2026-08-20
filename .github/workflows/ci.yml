@@ -42,6 +42,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Production dependency audit
+        run: pnpm audit:prod
+
       - name: Branch name
         run: pnpm check:branch
 
