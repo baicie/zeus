@@ -8,7 +8,12 @@ import {
   isSymbol,
 } from '@zeus-js/shared'
 
-import { ReactiveFlags, TrackOpTypes, TriggerOpTypes } from './constants'
+import {
+  ReactiveFlags,
+  RuntimeDiagnosticsField,
+  TrackOpTypes,
+  TriggerOpTypes,
+} from './constants'
 import { Dep, getDepFromReactive } from './dep'
 import {
   type Builtin,
@@ -21,6 +26,7 @@ import {
   toRaw,
   toReactive,
 } from './reactive'
+import { activeRuntimeDiagnostics } from './runtime-diagnostics'
 import { warn } from './warning'
 
 import type { ComputedRef, WritableComputedRef } from './computed'
@@ -124,6 +130,8 @@ class RefImpl<T = any> {
   public readonly [ReactiveFlags.IS_SHALLOW]: boolean = false
 
   constructor(value: T, isShallow: boolean) {
+    const diagnostics = activeRuntimeDiagnostics
+    if (diagnostics) diagnostics[RuntimeDiagnosticsField.REFS_CREATED]++
     this._rawValue = isShallow ? value : toRaw(value)
     this._value = isShallow ? value : toReactive(value)
     this[ReactiveFlags.IS_SHALLOW] = isShallow

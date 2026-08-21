@@ -75,6 +75,7 @@ const expectedDevelopmentTargets: Record<string, string> = {
   '@zeus-js/runtime-ssr': './dist/runtime-ssr.cjs',
   '@zeus-js/shared': './dist/shared.cjs',
   '@zeus-js/signal': './dist/signal.cjs',
+  '@zeus-js/signal/diagnostics': './dist/diagnostics.cjs',
   '@zeus-js/signal/internal': './dist/internal.cjs',
   '@zeus-js/zeus': './dist/zeus.cjs',
   '@zeus-js/zeus/capabilities': './dist/capabilities.cjs',
@@ -95,6 +96,7 @@ const expectedDevelopmentTargets: Record<string, string> = {
 }
 
 const expectedSubpathFallbackTargets: Record<string, string> = {
+  '@zeus-js/signal/diagnostics': './diagnostics.cjs',
   '@zeus-js/signal/internal': './internal.cjs',
 }
 

@@ -22,3 +22,16 @@ export enum ReactiveFlags {
   RAW = '__v_raw',
   IS_REF = '__v_isRef',
 }
+
+export enum RuntimeDiagnosticsField {
+  ACTIVE,
+  EFFECTS_CREATED,
+  EFFECTS_DISPOSED,
+  PROXIES_CREATED,
+  SCOPES_CREATED,
+  SCOPES_DISPOSED,
+  REFS_CREATED,
+  MEMOS_CREATED,
+  WRAP_EFFECT,
+  WRAP_SCOPE,
+}
