@@ -1,6 +1,6 @@
 {
   "name": "@zeus-js/compiler-native-win32-x64-msvc",
-  "version": "0.1.1-beta.1",
+  "version": "0.1.1-beta.2",
   "description": "Zeus Rust compiler native binary for Windows x64 MSVC",
   "license": "MIT",
   "repository": {

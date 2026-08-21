@@ -1,7 +1,7 @@
 {
   "name": "@zeus-js/output-vue-wrapper",
   "type": "module",
-  "version": "0.1.1-beta.1",
+  "version": "0.1.1-beta.2",
   "description": "Zeus Vue wrapper output plugin",
   "license": "MIT",
   "repository": {

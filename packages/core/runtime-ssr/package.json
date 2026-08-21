@@ -1,7 +1,7 @@
 {
   "name": "@zeus-js/runtime-ssr",
   "type": "module",
-  "version": "0.1.1-beta.1",
+  "version": "0.1.1-beta.2",
   "description": "Server-side string rendering runtime for Zeus",
   "license": "MIT",
   "repository": {
