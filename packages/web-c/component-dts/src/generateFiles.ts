@@ -1,8 +1,13 @@
 import path from 'node:path'
 
 import { generateWCJsxDts } from './generateJsxDts'
-import { generateComponentWCDts, generateWCIndexDts } from './generateWcDts'
-import { getComponentDtsFileName, getComponentFileBaseName } from './naming'
+import { generatePropTypeDeclarations } from './generatePropTypeDeclarations'
+import { generateComponentWCDtsFile, generateWCIndexDts } from './generateWcDts'
+import {
+  getComponentDtsFileName,
+  getComponentFileBaseName,
+  getGeneratedDeclarationNames,
+} from './naming'
 
 import type {
   ComponentDtsOptions,
@@ -17,15 +22,22 @@ export function generateWCDtsFiles(
 ): DtsOutputFile[] {
   const normalized = normalizeOptions(options)
   const files: DtsOutputFile[] = []
+  const reservedNames = getGeneratedDeclarationNames(manifest.components)
+  const resolvedComponents = generatePropTypeDeclarations(manifest.components, {
+    reservedNames,
+  }).components
 
   if (normalized.perComponent) {
-    for (const component of manifest.components) {
+    for (const component of resolvedComponents) {
       files.push({
         fileName: path.posix.join(
           normalized.outDir,
           getComponentDtsFileName(component.tag, normalized),
         ),
-        source: generateComponentWCDts(component),
+        source: generateComponentWCDtsFile(component, {
+          exportPropTypes: false,
+          reservedNames,
+        }),
       })
     }
   }

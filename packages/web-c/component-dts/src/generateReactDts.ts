@@ -5,7 +5,12 @@ import {
   safePropertyName,
 } from './formatType'
 import { generateElementType } from './generateElementType'
-import { getElementTypeName, getPropsTypeName } from './naming'
+import { generatePropTypeDeclarations } from './generatePropTypeDeclarations'
+import {
+  getElementTypeName,
+  getGeneratedDeclarationNames,
+  getPropsTypeName,
+} from './naming'
 
 import type {
   ComponentManifest,
@@ -27,8 +32,18 @@ export function generateReactDts(
   lines.push('')
   lines.push(`import type * as React from 'react'`)
   lines.push('')
+  const reservedNames = getGeneratedDeclarationNames(manifest.components)
+  reservedNames.add('React')
+  const propTypeDeclarations = generatePropTypeDeclarations(
+    manifest.components,
+    { reservedNames },
+  )
+  if (propTypeDeclarations.code) {
+    lines.push(propTypeDeclarations.code)
+    lines.push('')
+  }
 
-  for (const component of manifest.components) {
+  for (const component of propTypeDeclarations.components) {
     lines.push(generateReactComponentDts(component, options))
     lines.push('')
   }

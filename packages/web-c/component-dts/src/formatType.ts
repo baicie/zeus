@@ -5,6 +5,10 @@ import type {
 } from '@zeus-js/component-analyzer'
 
 export function formatPropType(prop: ComponentProp): string {
+  if (prop.declaration) {
+    return prop.declaration.reference ?? prop.declaration.type
+  }
+
   if (prop.values?.length) {
     return prop.values.map(value => JSON.stringify(value)).join(' | ')
   }
@@ -57,6 +61,8 @@ export function normalizeKnownType(type: string): string {
     case 'InputEvent':
     case 'Event':
       return type
+    case 'function':
+      return 'Function'
     case 'object':
       return 'Record<string, unknown>'
     case 'array':

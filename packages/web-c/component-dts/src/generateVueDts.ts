@@ -4,7 +4,8 @@ import {
   isRequiredProp,
   safePropertyName,
 } from './formatType'
-import { getPropsTypeName } from './naming'
+import { generatePropTypeDeclarations } from './generatePropTypeDeclarations'
+import { getGeneratedDeclarationNames, getPropsTypeName } from './naming'
 
 import type {
   ComponentManifest,
@@ -19,8 +20,18 @@ export function generateVueDts(manifest: ComponentManifest): string {
   lines.push('')
   lines.push(`import type { DefineComponent } from 'vue'`)
   lines.push('')
+  const reservedNames = getGeneratedDeclarationNames(manifest.components)
+  reservedNames.add('DefineComponent')
+  const propTypeDeclarations = generatePropTypeDeclarations(
+    manifest.components,
+    { reservedNames },
+  )
+  if (propTypeDeclarations.code) {
+    lines.push(propTypeDeclarations.code)
+    lines.push('')
+  }
 
-  for (const component of manifest.components) {
+  for (const component of propTypeDeclarations.components) {
     lines.push(generateVueComponentDts(component))
     lines.push('')
   }
