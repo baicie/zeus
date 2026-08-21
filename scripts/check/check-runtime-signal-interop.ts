@@ -21,6 +21,10 @@ export function checkRuntimeSignalInterop(rootDir = getRootDir()): void {
     rootDir,
     'packages/core/signal/dist/internal.js',
   )
+  const esmDiagnostics = path.resolve(
+    rootDir,
+    'packages/core/signal/dist/diagnostics.js',
+  )
   const zeusPackageJson = path.resolve(
     rootDir,
     'packages/core/zeus/package.json',
@@ -36,6 +40,26 @@ if (seen !== 0) throw new Error('initial engine effect failed')
 setEngineValue(1)
 if (seen !== 1) throw new Error('public and internal signal engines diverged')
 internal.stop(runner)
+`
+
+  const exerciseDiagnostics = `
+const diagnosticsSession = diagnostics.createRuntimeDiagnosticsSession()
+let disposeDiagnosticsRoot
+diagnosticsSession.run(() => {
+  const diagnosticsRoot = internal.effectScope(true)
+  diagnosticsRoot.run(() => internal.effect(() => {}))
+  disposeDiagnosticsRoot = () => diagnosticsRoot.stop()
+})
+disposeDiagnosticsRoot()
+const diagnosticsSnapshot = diagnosticsSession.snapshot()
+if (
+  diagnosticsSnapshot.effectsCreated !== 1 ||
+  diagnosticsSnapshot.effectsDisposed !== 1 ||
+  diagnosticsSnapshot.scopesCreated !== 1 ||
+  diagnosticsSnapshot.scopesDisposed !== 1
+) {
+  throw new Error('diagnostics and internal signal engines diverged: ' + JSON.stringify(diagnosticsSnapshot))
+}
 `
 
   const exercise = `
@@ -54,13 +78,15 @@ if (text.data !== 'after') throw new Error('cross-package root disposal failed')
 
   runNode(
     'ESM bundler',
-    `const [signal, internal, zeus, dom] = await Promise.all([
+    `const [signal, internal, diagnostics, zeus, dom] = await Promise.all([
   import(${JSON.stringify(pathToFileURL(esmSignal).href)}),
   import(${JSON.stringify(pathToFileURL(esmInternal).href)}),
+  import(${JSON.stringify(pathToFileURL(esmDiagnostics).href)}),
   import(${JSON.stringify(pathToFileURL(esmZeus).href)}),
   import(${JSON.stringify(pathToFileURL(esmDom).href)}),
 ])
 ${exerciseEngine}
+${exerciseDiagnostics}
 ${exercise}`,
     ['--input-type=module'],
     rootDir,
@@ -70,9 +96,11 @@ ${exercise}`,
 const packageRequire = createRequire(${JSON.stringify(zeusPackageJson)})
 const signal = packageRequire('@zeus-js/signal')
 const internal = packageRequire('@zeus-js/signal/internal')
+const diagnostics = packageRequire('@zeus-js/signal/diagnostics')
 const zeus = packageRequire('@zeus-js/zeus')
 const dom = packageRequire('@zeus-js/runtime-dom')
 ${exerciseEngine}
+${exerciseDiagnostics}
 ${exercise}
 `
 
@@ -80,15 +108,24 @@ ${exercise}
   runNode(
     'CJS production',
     `${cjsSource}
-const internalModules = Object.keys(require.cache).filter(id =>
-  /signal[\\\\/]dist[\\\\/]internal(?:\\.prod)?\\.cjs$/.test(id),
-)
-if (!internalModules.some(id => id.endsWith('internal.prod.cjs'))) {
-  throw new Error('production internal engine was not loaded')
-}
-if (internalModules.some(id => require('node:path').basename(id) === 'internal.cjs')) {
-  throw new Error('development internal engine leaked into production')
-}`,
+	const internalModules = Object.keys(require.cache).filter(id =>
+	  /signal[\\\\/]dist[\\\\/]internal(?:\\.prod)?\\.cjs$/.test(id),
+	)
+	const diagnosticsModules = Object.keys(require.cache).filter(id =>
+	  /signal[\\\\/]dist[\\\\/]diagnostics(?:\\.prod)?\\.cjs$/.test(id),
+	)
+	if (!internalModules.some(id => id.endsWith('internal.prod.cjs'))) {
+	  throw new Error('production internal engine was not loaded')
+	}
+	if (internalModules.some(id => require('node:path').basename(id) === 'internal.cjs')) {
+	  throw new Error('development internal engine leaked into production')
+	}
+	if (!diagnosticsModules.some(id => id.endsWith('diagnostics.prod.cjs'))) {
+	  throw new Error('production diagnostics entry was not loaded')
+	}
+	if (diagnosticsModules.some(id => require('node:path').basename(id) === 'diagnostics.cjs')) {
+	  throw new Error('development diagnostics entry leaked into production')
+	}`,
     [],
     rootDir,
     'production',

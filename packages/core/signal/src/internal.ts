@@ -88,3 +88,9 @@ export {
 } from './watch'
 
 export { onCleanup } from './lifecycle'
+
+export {
+  createRuntimeDiagnosticsSession,
+  type RuntimeDiagnosticsSession,
+  type RuntimeDiagnosticsSnapshot,
+} from './runtime-diagnostics'

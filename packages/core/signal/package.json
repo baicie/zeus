@@ -33,11 +33,21 @@
         "development": "./dist/internal.cjs",
         "default": "./internal.cjs"
       }
+    },
+    "./diagnostics": {
+      "types": "./dist/diagnostics.d.ts",
+      "import": "./dist/diagnostics.js",
+      "require": {
+        "production": "./dist/diagnostics.prod.cjs",
+        "development": "./dist/diagnostics.cjs",
+        "default": "./diagnostics.cjs"
+      }
     }
   },
   "files": [
     "index.cjs",
     "internal.cjs",
+    "diagnostics.cjs",
     "dist"
   ],
   "dependencies": {
@@ -63,6 +73,10 @@
       {
         "entry": "internal.ts",
         "output": "dist/internal.js"
+      },
+      {
+        "entry": "diagnostics.ts",
+        "output": "dist/diagnostics.js"
       }
     ]
   },

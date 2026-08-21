@@ -427,5 +427,25 @@ export declare function traverse(
   seen?: Map<unknown, number>,
 ): unknown
 
+export interface RuntimeDiagnosticsSnapshot {
+  effectsCreated: number
+  effectsDisposed: number
+  proxiesCreated: number
+  scopesCreated: number
+  scopesDisposed: number
+  refsCreated: number
+  memosCreated: number
+  allocationsCreated: number
+  allocationsDisposed: number
+}
+export interface RuntimeDiagnosticsSession {
+  run<T extends () => unknown>(fn: SynchronousCallback<T>): ReturnType<T>
+  snapshot(): Readonly<RuntimeDiagnosticsSnapshot>
+  dispose(): void
+}
+type SynchronousCallback<T extends () => unknown> = T &
+  (Extract<ReturnType<T>, PromiseLike<unknown>> extends never ? unknown : never)
+export declare function createRuntimeDiagnosticsSession(): RuntimeDiagnosticsSession
+
 export { EffectScope as Scope, effectScope as scope }
 ````

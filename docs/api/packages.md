@@ -244,6 +244,17 @@ export {
 may change whenever Zeus changes its runtime implementation, and application or
 downstream package code must not import it.
 
+性能测试与组件诊断可显式使用 `@zeus-js/signal/diagnostics`：
+
+```ts
+import { createRuntimeDiagnosticsSession } from '@zeus-js/signal/diagnostics'
+```
+
+该入口统计 effect、scope、ref、memo 和 Proxy cache miss 的创建，以及 effect
+与 scope 的确定性释放。它不提供由 GC 管理对象的伪释放计数，也不代表完整的 JS
+heap allocation profile。`run()` 只接受同步 callback；callback 内创建的 effect/scope
+会保留后续同步运行的归因，但 Promise continuation 不会被隐式纳入 session。
+
 ---
 
 ### 3.3 `@zeus-js/runtime-dom`
@@ -751,8 +762,9 @@ pnpm add @zeus-ui/cli
 `default`。Node 或打包器显式启用对应 condition 时会直接解析到下列产物；
 未提供自定义 condition 时，包根级 `require` 先解析到 `index.cjs`，再根据
 `NODE_ENV` 选择开发或生产产物。附加入口默认直接使用开发产物；
-`@zeus-js/signal/internal` 例外，它通过 `internal.cjs` 按 `NODE_ENV` 选择与包根一致的
-signal engine，避免公共 API 与 runtime helper 各自持有响应式状态。
+`@zeus-js/signal/internal` 与 `@zeus-js/signal/diagnostics` 例外，它们分别通过
+`internal.cjs` 与 `diagnostics.cjs` 按 `NODE_ENV` 选择同一套 signal engine，避免公共
+API、runtime helper 与 diagnostics 各自持有响应式状态。
 
 | 包                     | ESM 入口                          | CJS 开发 / 生产产物                                  | 全局 CDN                     |
 | ---------------------- | --------------------------------- | ---------------------------------------------------- | ---------------------------- |

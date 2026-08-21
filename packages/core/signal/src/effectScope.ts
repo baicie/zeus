@@ -1,3 +1,5 @@
+import { RuntimeDiagnosticsField } from './constants'
+import { activeRuntimeDiagnostics } from './runtime-diagnostics'
 import { warn } from './warning'
 
 import type { ReactiveEffect } from './effect'
@@ -46,6 +48,28 @@ export class EffectScope {
   // TODO isolatedDeclarations ReactiveFlags.SKIP
 
   constructor(public detached = false) {
+    const diagnostics = activeRuntimeDiagnostics
+    if (diagnostics) {
+      diagnostics[RuntimeDiagnosticsField.SCOPES_CREATED]++
+      this.run = diagnostics[RuntimeDiagnosticsField.WRAP_SCOPE](
+        this.run.bind(this),
+      )
+      const stop = this.stop.bind(this)
+      this.stop = fromParent => {
+        const active = this._active
+        try {
+          stop(fromParent)
+        } finally {
+          if (
+            active &&
+            !this._active &&
+            diagnostics[RuntimeDiagnosticsField.ACTIVE]
+          ) {
+            diagnostics[RuntimeDiagnosticsField.SCOPES_DISPOSED]++
+          }
+        }
+      }
+    }
     if (!detached && activeEffectScope) {
       if (activeEffectScope.active) {
         this.parent = activeEffectScope
@@ -58,6 +82,9 @@ export class EffectScope {
         // a detached live scope.
         this._active = false
         this._warnOnRun = false
+        if (diagnostics) {
+          diagnostics[RuntimeDiagnosticsField.SCOPES_DISPOSED]++
+        }
       }
     }
   }

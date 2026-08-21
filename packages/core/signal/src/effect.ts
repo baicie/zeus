@@ -1,7 +1,9 @@
 import { extend, hasChanged } from '@zeus-js/shared'
 
+import { RuntimeDiagnosticsField } from './constants'
 import { type Link, globalVersion } from './dep'
 import { activeEffectScope } from './effectScope'
+import { activeRuntimeDiagnostics } from './runtime-diagnostics'
 import { warn } from './warning'
 
 import type { ComputedRefImpl } from './computed'
@@ -118,6 +120,25 @@ export class ReactiveEffect<T = any>
   onTrigger?: (event: DebuggerEvent) => void
 
   constructor(public fn: () => T) {
+    const diagnostics = activeRuntimeDiagnostics
+    if (diagnostics) {
+      diagnostics[RuntimeDiagnosticsField.EFFECTS_CREATED]++
+      this.run = diagnostics[RuntimeDiagnosticsField.WRAP_EFFECT](
+        this.run.bind(this),
+      )
+      const stop = this.stop.bind(this)
+      this.stop = () => {
+        const active = !!(this.flags & EffectFlags.ACTIVE)
+        stop()
+        if (
+          active &&
+          !(this.flags & EffectFlags.ACTIVE) &&
+          diagnostics[RuntimeDiagnosticsField.ACTIVE]
+        ) {
+          diagnostics[RuntimeDiagnosticsField.EFFECTS_DISPOSED]++
+        }
+      }
+    }
     this.scope = activeEffectScope
 
     if (activeEffectScope) {
@@ -132,6 +153,9 @@ export class ReactiveEffect<T = any>
         // scope (so it cannot be stopped via the scope chain) yet still
         // able to subscribe to reactive deps and fire forever.
         this.flags &= ~EffectFlags.ACTIVE
+        if (diagnostics) {
+          diagnostics[RuntimeDiagnosticsField.EFFECTS_DISPOSED]++
+        }
       }
     }
   }

@@ -85,6 +85,41 @@ batch(() => {
 
 Dependent effects flush once with the final value.
 
+## Runtime diagnostics
+
+`@zeus-js/signal/diagnostics` provides opt-in counters for performance tests and
+component diagnostics. It is separate from the application entry so normal
+application code does not expand the public `@zeus-js/signal` surface.
+
+```ts
+import { createRuntimeDiagnosticsSession } from '@zeus-js/signal/diagnostics'
+
+const diagnostics = createRuntimeDiagnosticsSession()
+
+const dispose = diagnostics.run(() =>
+  createRoot(dispose => {
+    createEffect(() => {})
+    return dispose
+  }),
+)
+
+dispose()
+console.log(diagnostics.snapshot())
+diagnostics.dispose()
+```
+
+The snapshot counts effects, scopes, refs, memos and Proxy cache misses created
+under the session. Only effects and scopes have deterministic disposal counts.
+Proxy, ref and memo lifetime remains controlled by garbage collection, so the
+API does not report synthetic disposal values for them. `allocationsCreated`
+and `allocationsDisposed` are aggregates of these runtime-owned categories,
+not a measurement of all JavaScript heap allocations.
+
+`run()` is deliberately synchronous: it returns the callback result and rejects
+Promise-returning callbacks at the type boundary. Effects and scopes created
+during that callback retain their session attribution for later synchronous
+runs, but unrelated asynchronous continuations are not implicitly captured.
+
 ## Internal engine
 
 `@zeus-js/signal/internal` is reserved for Zeus packages. It is not an application interface and has no compatibility guarantees.

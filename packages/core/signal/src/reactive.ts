@@ -12,7 +12,8 @@ import {
   shallowCollectionHandlers,
   shallowReadonlyCollectionHandlers,
 } from './collectionHandlers'
-import { ReactiveFlags } from './constants'
+import { ReactiveFlags, RuntimeDiagnosticsField } from './constants'
+import { activeRuntimeDiagnostics } from './runtime-diagnostics'
 import { warn } from './warning'
 
 import type { RawSymbol, Ref, UnwrapRefSimple } from './ref'
@@ -307,6 +308,8 @@ function createReactiveObject(
     targetType === TargetType.COLLECTION ? collectionHandlers : baseHandlers,
   )
   proxyMap.set(target, proxy)
+  const diagnostics = activeRuntimeDiagnostics
+  if (diagnostics) diagnostics[RuntimeDiagnosticsField.PROXIES_CREATED]++
   return proxy
 }
 

@@ -9,6 +9,7 @@ Downstream packages may import from:
 - `@zeus-js/zeus` — stable user-facing API
 - `@zeus-js/zeus/server` — synchronous server-rendering API
 - `@zeus-js/signal` — the six explicit reactive primitives
+- `@zeus-js/signal/diagnostics` — opt-in runtime allocation counters
 - `@zeus-js/zeus/capabilities` — machine-readable capability manifest
 - `@zeus-js/output-wc` — Web Component output plugin
 - `@zeus-js/output-wc/capabilities` — machine-readable WC output capability manifest

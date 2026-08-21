@@ -1,6 +1,10 @@
 import { isFunction } from '@zeus-js/shared'
 
-import { ReactiveFlags, TrackOpTypes } from './constants'
+import {
+  ReactiveFlags,
+  RuntimeDiagnosticsField,
+  TrackOpTypes,
+} from './constants'
 import { Dep, type Link, globalVersion } from './dep'
 import {
   type DebuggerEvent,
@@ -11,6 +15,7 @@ import {
   queueSubscriber,
   refreshComputed,
 } from './effect'
+import { activeRuntimeDiagnostics } from './runtime-diagnostics'
 import { warn } from './warning'
 
 import type { Ref } from './ref'
@@ -103,6 +108,8 @@ export class ComputedRefImpl<T = any> implements Subscriber {
     private readonly setter: ComputedSetter<T> | undefined,
     isSSR: boolean,
   ) {
+    const diagnostics = activeRuntimeDiagnostics
+    if (diagnostics) diagnostics[RuntimeDiagnosticsField.MEMOS_CREATED]++
     this[ReactiveFlags.IS_READONLY] = !setter
     this.isSSR = isSSR
   }
