@@ -12,12 +12,15 @@ import type { BundleVerifier } from 'sigstore'
 
 const version = '0.1.1-canary.20260813.200.1.b919e736'
 
-function validTags(): Map<string, Record<string, string>> {
+function validTags(
+  expectedTag = 'canary',
+  expectedVersion = version,
+): Map<string, Record<string, string>> {
   return new Map(
     zeusFixedPackages.map(pkg => [
       pkg,
       {
-        canary: version,
+        [expectedTag]: expectedVersion,
         ...(zeusNativePackages.includes(pkg) ? {} : { latest: '0.1.0' }),
       },
     ]),
@@ -58,17 +61,66 @@ describe('npm dist-tag policy', () => {
     )
   })
 
-  it('rejects prerelease versions on native latest', () => {
-    const tags = validTags()
+  it.each(['canary', 'zeus-canary-300-1'])(
+    'allows %s verification while native latest is independently polluted',
+    expectedTag => {
+      const tags = validTags(expectedTag)
+      tags.set('@zeus-js/compiler-native', {
+        [expectedTag]: version,
+        latest: version,
+      })
+
+      expect(
+        getDistTagPolicyErrors({
+          expectedVersion: version,
+          expectedTag,
+          requireProvenance: false,
+          tagsByPackage: tags,
+          provenanceByPackage: new Map(),
+        }),
+      ).toEqual([])
+    },
+  )
+
+  it.each([
+    ['0.1.1-alpha.1', 'alpha'],
+    ['0.1.1-rc.1', 'rc'],
+    ['0.1.1', 'latest'],
+  ])(
+    'rejects polluted native latest for %s',
+    (expectedVersion, expectedTag) => {
+      const tags = validTags(expectedTag, expectedVersion)
+      tags.set('@zeus-js/compiler-native', {
+        [expectedTag]: expectedVersion,
+        latest: version,
+      })
+
+      expect(
+        getDistTagPolicyErrors({
+          expectedVersion,
+          expectedTag,
+          requireProvenance: false,
+          tagsByPackage: tags,
+          provenanceByPackage: new Map(),
+        }),
+      ).toContain(
+        `@zeus-js/compiler-native: latest must not point to prerelease ${version}`,
+      )
+    },
+  )
+
+  it('does not let an alpha version bypass latest policy through the beta tag', () => {
+    const alphaVersion = '0.1.1-alpha.1'
+    const tags = validTags('beta', alphaVersion)
     tags.set('@zeus-js/compiler-native', {
-      canary: version,
+      beta: alphaVersion,
       latest: version,
     })
 
     expect(
       getDistTagPolicyErrors({
-        expectedVersion: version,
-        expectedTag: 'canary',
+        expectedVersion: alphaVersion,
+        expectedTag: 'beta',
         requireProvenance: false,
         tagsByPackage: tags,
         provenanceByPackage: new Map(),
