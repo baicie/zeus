@@ -27,31 +27,8 @@ env:
   PUPPETEER_SKIP_DOWNLOAD: 'true'
 
 jobs:
-  release-preflight:
-    if: github.repository == 'baicie/zeus' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version-file: '.node-version'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Reject prerelease native latest tags
-        run: pnpm release:verify:native-latest
-
   native-prebuild:
     if: github.repository == 'baicie/zeus' && github.ref == 'refs/heads/main'
-    needs: release-preflight
     uses: ./.github/workflows/compiler-native.yml
     secrets: inherit
 

@@ -17,8 +17,9 @@ describe('release workflows', () => {
     expect(workflow).toContain('group: npm-release')
     expect(workflow).toContain('cancel-in-progress: false')
     expect(workflow).toContain("github.ref == 'refs/heads/main'")
-    expect(workflow).toContain('pnpm release:verify:native-latest')
-    expect(workflow).toContain('needs: release-preflight')
+    expect(workflow).not.toContain('pnpm release:verify:native-latest')
+    expect(workflow).not.toContain('release-preflight:')
+    expect(workflow).not.toContain('needs: release-preflight')
   })
 
   it('serializes Canary and tagged releases through one npm writer lock', () => {
