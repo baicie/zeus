@@ -52,6 +52,7 @@ export interface ComponentRecord {
 }
 export interface ComponentProp {
   type: ComponentPropType
+  declaration?: ComponentPropDeclaration
   required?: boolean
   values?: string[]
   default?: unknown
@@ -60,6 +61,10 @@ export interface ComponentProp {
   serialize?: boolean
   deserialize?: boolean
   description?: string
+}
+export interface ComponentPropDeclaration {
+  reference?: string
+  type: string
 }
 export interface ComponentEvent {
   key?: string
@@ -128,4 +133,44 @@ export declare function analyzeFile(
 export declare function analyzeComponents(
   options: AnalyzeComponentsOptions,
 ): Promise<AnalyzeComponentsResult>
+
+export declare const PORTABLE_GLOBAL_TYPE_REFERENCES: readonly [
+  'AbortSignal',
+  'AddEventListenerOptions',
+  'Array',
+  'Blob',
+  'CustomEvent',
+  'Date',
+  'Element',
+  'Event',
+  'EventListenerOptions',
+  'EventListenerOrEventListenerObject',
+  'File',
+  'FocusEvent',
+  'FormData',
+  'Function',
+  'HTMLElement',
+  'InputEvent',
+  'KeyboardEvent',
+  'Map',
+  'MouseEvent',
+  'Node',
+  'Omit',
+  'Partial',
+  'Pick',
+  'PointerEvent',
+  'Promise',
+  'PromiseLike',
+  'Readonly',
+  'ReadonlyArray',
+  'ReadonlyMap',
+  'ReadonlySet',
+  'Record',
+  'Required',
+  'Set',
+  'URL',
+  'UIEvent',
+]
+export type PortableGlobalTypeReference =
+  (typeof PORTABLE_GLOBAL_TYPE_REFERENCES)[number]
 ```

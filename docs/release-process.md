@@ -924,7 +924,7 @@ Git hooks（在 `package.json` 中配置）：
 {
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged && pnpm check",
-    "commit-msg": "node -e \"import('@baicie/scripts').then(m => m.verifyCommit())\""
+    "commit-msg": "node -e \"import('@baicie/scripts').then(m => m.verifyCommit(process.argv[1]))\" \"$1\""
   },
   "lint-staged": {
     "*.ts?(x)": ["eslint --fix", "prettier --parser=typescript --write"]

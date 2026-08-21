@@ -2,7 +2,10 @@ import * as t from '@babel/types'
 
 import { walk } from './ast'
 import { createComponentEvent } from './extractEmits'
-import { isPortableTypeReference } from './portable-types'
+import {
+  isPortableTypeReference,
+  withTypeParameterBindings,
+} from './portable-types'
 import { getObjectKey, staticValue, uniqueSorted } from './utils'
 
 import type {
@@ -20,7 +23,10 @@ export interface SetupMeta {
   cssParts: string[]
 }
 
-export function extractSetupMeta(setup: t.Node | undefined): SetupMeta {
+export function extractSetupMeta(
+  setup: t.Node | undefined,
+  sourceBoundTypeNames: ReadonlySet<string> = new Set(),
+): SetupMeta {
   const events: Record<string, ComponentEvent> = {}
   const methods: Record<string, ComponentMethod> = {}
   const slots: Record<string, ComponentSlot> = {}
@@ -37,9 +43,14 @@ export function extractSetupMeta(setup: t.Node | undefined): SetupMeta {
     }
   }
 
+  const setupTypeNames = collectSetupSourceBoundTypeNames(
+    setup,
+    sourceBoundTypeNames,
+  )
+
   walk(setup, node => {
     extractEmit(node, events)
-    extractExpose(node, methods)
+    extractExpose(node, methods, setupTypeNames)
     extractSlot(node, slots)
     extractHostAttributes(node, hostAttributes)
     extractCssParts(node, cssParts)
@@ -52,6 +63,38 @@ export function extractSetupMeta(setup: t.Node | undefined): SetupMeta {
     hostAttributes: uniqueSorted(hostAttributes),
     cssParts: uniqueSorted(cssParts),
   }
+}
+
+function collectSetupSourceBoundTypeNames(
+  setup: t.Node,
+  sourceBoundTypeNames: ReadonlySet<string>,
+): ReadonlySet<string> {
+  let names = new Set(sourceBoundTypeNames)
+
+  walk(setup, node => {
+    if (
+      t.isTSInterfaceDeclaration(node) ||
+      t.isTSTypeAliasDeclaration(node) ||
+      t.isClassDeclaration(node) ||
+      t.isTSEnumDeclaration(node) ||
+      t.isTSImportEqualsDeclaration(node)
+    ) {
+      if (node.id) names.add(node.id.name)
+      return
+    }
+
+    if (t.isTSModuleDeclaration(node)) {
+      if (t.isIdentifier(node.id)) names.add(node.id.name)
+      if (t.isStringLiteral(node.id)) names.add(node.id.value)
+      return
+    }
+
+    if (isFunctionWithTypeParameters(node)) {
+      names = new Set(withTypeParameterBindings(names, node.typeParameters))
+    }
+  })
+
+  return names
 }
 
 function extractEmit(
@@ -69,7 +112,11 @@ function extractEmit(
   const detailNode = node.arguments[0]
 
   if (t.isObjectExpression(detailNode)) {
-    events[emitKey].detail = inferDetail(detailNode)
+    const detail = inferDetail(detailNode)
+
+    if (detail) {
+      events[emitKey].detail = detail
+    }
   }
 }
 
@@ -101,30 +148,45 @@ function getMemberPropertyName(
   return undefined
 }
 
-function inferDetail(node: t.ObjectExpression): Record<string, string> {
+function inferDetail(
+  node: t.ObjectExpression,
+): Record<string, string> | undefined {
   const result: Record<string, string> = {}
 
   for (const prop of node.properties) {
-    if (!t.isObjectProperty(prop)) continue
+    if (!t.isObjectProperty(prop) || prop.computed) return undefined
 
     const key = getObjectKey(prop.key)
-    if (!key) continue
+    if (!key) return undefined
 
-    result[key] = inferExpressionType(prop.value)
+    const type = inferExpressionType(prop.value)
+    if (type === undefined) return undefined
+
+    result[key] = type
   }
 
   return result
 }
 
-function inferExpressionType(node: t.Expression | t.PatternLike): string {
+function inferExpressionType(
+  node: t.Expression | t.PatternLike,
+): string | undefined {
   if (t.isStringLiteral(node)) return 'string'
   if (t.isNumericLiteral(node)) return 'number'
   if (t.isBooleanLiteral(node)) return 'boolean'
-  if (t.isObjectExpression(node)) return 'object'
-  if (t.isArrayExpression(node)) return 'array'
+  if (t.isObjectExpression(node)) {
+    return inferDetail(node) ? 'object' : undefined
+  }
+  if (t.isArrayExpression(node)) {
+    for (const element of node.elements) {
+      if (!element || !t.isExpression(element)) return undefined
+      if (inferExpressionType(element) === undefined) return undefined
+    }
+    return 'array'
+  }
   if (t.isIdentifier(node)) return 'unknown'
 
-  return 'unknown'
+  return undefined
 }
 
 function extractSlot(node: t.Node, slots: Record<string, ComponentSlot>): void {
@@ -149,6 +211,7 @@ function extractSlot(node: t.Node, slots: Record<string, ComponentSlot>): void {
 function extractExpose(
   node: t.Node,
   methods: Record<string, ComponentMethod>,
+  sourceBoundTypeNames: ReadonlySet<string>,
 ): void {
   if (!t.isCallExpression(node)) return
   if (!isExposeCallee(node.callee)) return
@@ -158,19 +221,25 @@ function extractExpose(
   if (!t.isObjectExpression(first)) return
 
   for (const member of first.properties) {
-    if (!t.isObjectMethod(member) && !t.isObjectProperty(member)) continue
+    if (
+      (!t.isObjectMethod(member) && !t.isObjectProperty(member)) ||
+      member.computed
+    ) {
+      continue
+    }
 
     const name = getObjectKey(member.key)
 
     if (!name) continue
 
-    methods[name] = extractMethod(member, name)
+    methods[name] = extractMethod(member, name, sourceBoundTypeNames)
   }
 }
 
 function extractMethod(
   member: t.ObjectMethod | t.ObjectProperty,
   name: string,
+  sourceBoundTypeNames: ReadonlySet<string>,
 ): ComponentMethod {
   const fn = t.isObjectMethod(member)
     ? member
@@ -183,19 +252,24 @@ function extractMethod(
     return { name }
   }
 
+  const methodTypeNames = withTypeParameterBindings(
+    sourceBoundTypeNames,
+    fn.typeParameters,
+  )
+
   const returnType = t.isTSTypeAnnotation(fn.returnType)
     ? fn.returnType.typeAnnotation
     : undefined
   const normalizedReturn = fn.async
-    ? (unwrapPromiseType(returnType) ?? returnType)
+    ? (unwrapPromiseType(returnType, methodTypeNames) ?? returnType)
     : returnType
 
   return {
     name,
     parameters: fn.params.map((param, index) =>
-      extractMethodParameter(param, index),
+      extractMethodParameter(param, index, methodTypeNames),
     ),
-    returns: formatTsType(normalizedReturn) ?? 'unknown',
+    returns: formatTsType(normalizedReturn, methodTypeNames) ?? 'unknown',
     async: fn.async,
   }
 }
@@ -203,17 +277,22 @@ function extractMethod(
 function extractMethodParameter(
   param: t.Identifier | t.Pattern | t.RestElement | t.TSParameterProperty,
   index: number,
+  sourceBoundTypeNames: ReadonlySet<string>,
 ): ComponentMethodParameter {
   if (t.isTSParameterProperty(param)) {
-    return extractMethodParameter(param.parameter, index)
+    return extractMethodParameter(param.parameter, index, sourceBoundTypeNames)
   }
 
   if (t.isAssignmentPattern(param)) {
     return {
       name: t.isIdentifier(param.left) ? param.left.name : `arg${index}`,
       type:
-        formatTsType(getPatternTypeAnnotation(param.left)) ??
-        inferExpressionType(param.right),
+        formatTsType(
+          getPatternTypeAnnotation(param.left),
+          sourceBoundTypeNames,
+        ) ??
+        inferExpressionType(param.right) ??
+        'unknown',
       optional: true,
     }
   }
@@ -224,8 +303,11 @@ function extractMethodParameter(
         ? param.argument.name
         : `args${index}`,
       type:
-        formatTsType(getPatternTypeAnnotation(param)) ??
-        formatTsType(getPatternTypeAnnotation(param.argument)) ??
+        formatTsType(getPatternTypeAnnotation(param), sourceBoundTypeNames) ??
+        formatTsType(
+          getPatternTypeAnnotation(param.argument),
+          sourceBoundTypeNames,
+        ) ??
         'unknown[]',
       optional: false,
       rest: true,
@@ -234,7 +316,9 @@ function extractMethodParameter(
 
   return {
     name: t.isIdentifier(param) ? param.name : `arg${index}`,
-    type: formatTsType(getPatternTypeAnnotation(param)) ?? 'unknown',
+    type:
+      formatTsType(getPatternTypeAnnotation(param), sourceBoundTypeNames) ??
+      'unknown',
     optional: Boolean(t.isIdentifier(param) && param.optional),
   }
 }
@@ -256,10 +340,12 @@ function getPatternTypeAnnotation(node: t.Node): t.TSType | null | undefined {
 
 function unwrapPromiseType(
   node: t.TSType | null | undefined,
+  sourceBoundTypeNames: ReadonlySet<string>,
 ): t.TSType | undefined {
   if (
     t.isTSTypeReference(node) &&
-    t.isIdentifier(node.typeName, { name: 'Promise' })
+    t.isIdentifier(node.typeName, { name: 'Promise' }) &&
+    !sourceBoundTypeNames.has('Promise')
   ) {
     return node.typeArguments?.params[0]
   }
@@ -267,7 +353,10 @@ function unwrapPromiseType(
   return undefined
 }
 
-function formatTsType(node: t.TSType | null | undefined): string | undefined {
+function formatTsType(
+  node: t.TSType | null | undefined,
+  sourceBoundTypeNames: ReadonlySet<string>,
+): string | undefined {
   if (!node) return undefined
   if (t.isTSStringKeyword(node)) return 'string'
   if (t.isTSNumberKeyword(node)) return 'number'
@@ -278,10 +367,12 @@ function formatTsType(node: t.TSType | null | undefined): string | undefined {
   if (t.isTSNullKeyword(node)) return 'null'
   if (t.isTSUndefinedKeyword(node)) return 'undefined'
   if (t.isTSArrayType(node)) {
-    return `${formatTsType(node.elementType) ?? 'unknown'}[]`
+    return `${formatTsType(node.elementType, sourceBoundTypeNames) ?? 'unknown'}[]`
   }
   if (t.isTSUnionType(node)) {
-    return node.types.map(type => formatTsType(type) ?? 'unknown').join(' | ')
+    return node.types
+      .map(type => formatTsType(type, sourceBoundTypeNames) ?? 'unknown')
+      .join(' | ')
   }
   if (t.isTSLiteralType(node)) {
     return staticLiteralType(node.literal)
@@ -290,17 +381,21 @@ function formatTsType(node: t.TSType | null | undefined): string | undefined {
     const name = formatEntityName(node.typeName)
     const params = node.typeArguments?.params
 
-    if (!isPortableTypeReference(name)) {
+    if (!isPortableTypeReference(name, sourceBoundTypeNames)) {
       return undefined
     }
 
     if (!params?.length) return name
-    if (!params.every(isFullyPortableType)) return undefined
+    if (
+      !params.every(param => isFullyPortableType(param, sourceBoundTypeNames))
+    ) {
+      return undefined
+    }
 
     const formattedParams: string[] = []
 
     for (const param of params) {
-      const formatted = formatTsType(param)
+      const formatted = formatTsType(param, sourceBoundTypeNames)
 
       if (formatted === undefined) return undefined
       formattedParams.push(formatted)
@@ -312,7 +407,10 @@ function formatTsType(node: t.TSType | null | undefined): string | undefined {
   return 'unknown'
 }
 
-function isFullyPortableType(node: t.TSType): boolean {
+function isFullyPortableType(
+  node: t.TSType,
+  sourceBoundTypeNames: ReadonlySet<string>,
+): boolean {
   if (
     t.isTSStringKeyword(node) ||
     t.isTSNumberKeyword(node) ||
@@ -327,11 +425,13 @@ function isFullyPortableType(node: t.TSType): boolean {
   }
 
   if (t.isTSArrayType(node)) {
-    return isFullyPortableType(node.elementType)
+    return isFullyPortableType(node.elementType, sourceBoundTypeNames)
   }
 
   if (t.isTSUnionType(node)) {
-    return node.types.every(isFullyPortableType)
+    return node.types.every(type =>
+      isFullyPortableType(type, sourceBoundTypeNames),
+    )
   }
 
   if (t.isTSLiteralType(node)) {
@@ -343,12 +443,26 @@ function isFullyPortableType(node: t.TSType): boolean {
     const params = node.typeArguments?.params
 
     return (
-      isPortableTypeReference(name) &&
-      (!params?.length || params.every(isFullyPortableType))
+      isPortableTypeReference(name, sourceBoundTypeNames) &&
+      (!params?.length ||
+        params.every(param => isFullyPortableType(param, sourceBoundTypeNames)))
     )
   }
 
   return false
+}
+
+function isFunctionWithTypeParameters(
+  node: t.Node,
+): node is
+  | t.FunctionDeclaration
+  | t.FunctionExpression
+  | t.ArrowFunctionExpression {
+  return (
+    t.isFunctionDeclaration(node) ||
+    t.isFunctionExpression(node) ||
+    t.isArrowFunctionExpression(node)
+  )
 }
 
 function formatEntityName(name: t.TSEntityName): string {

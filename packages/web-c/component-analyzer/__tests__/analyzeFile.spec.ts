@@ -662,6 +662,8 @@ describe('analyzeFile', () => {
               nativeEvent: MouseEvent
               keyboardEvent: KeyboardEvent
               createdAt: Date
+              rows: Array
+              readonlyRows: ReadonlyArray
               row: GridRow
             }>(),
           },
@@ -691,6 +693,8 @@ describe('analyzeFile', () => {
       nativeEvent: 'MouseEvent',
       keyboardEvent: 'KeyboardEvent',
       createdAt: 'Date',
+      rows: 'array',
+      readonlyRows: 'array',
       row: 'unknown',
     })
     expect(result.components[0].methods).toMatchObject({
@@ -727,6 +731,18 @@ describe('analyzeFile', () => {
     [
       'a qualified interface heritage',
       'interface PublicProps extends LocalProps, Package.Props {}',
+    ],
+    [
+      'a props interface method signature',
+      'interface PublicProps { localOnly?: string; onCommit(): void }',
+    ],
+    [
+      'a props interface index signature',
+      'interface PublicProps { localOnly?: string; [key: string]: unknown }',
+    ],
+    [
+      'a props type literal call signature',
+      'type PublicProps = { localOnly?: string; (value: string): void }',
     ],
   ])('fails closed for %s', (_case, declaration) => {
     const code = `
@@ -1012,5 +1028,352 @@ describe('analyzeFile', () => {
       change: { detail: { value: 'boolean' } },
       toggle: { detail: { active: 'boolean' } },
     })
+  })
+
+  it('does not leak source-bound names into consumer declarations', () => {
+    const code = `
+      import { defineElement } from '@zeus-js/zeus'
+      import type { Event as ImportedEvent } from 'external-events'
+      import Blob = require('external-blob')
+
+      class Event {}
+      enum Promise { pending }
+      namespace Date {}
+
+      interface BoundProps {
+        imported?: ImportedEvent
+        event?: Event
+        promise?: Promise
+        date?: Date
+        blob?: Blob
+        native?: MouseEvent
+      }
+
+      export const ZBound = defineElement<BoundProps>(
+        'z-bound',
+        {},
+        () => null,
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/bound.tsx',
+      code,
+    })
+
+    expect(result.diagnostics).toEqual([])
+    expect(result.components[0].props).toMatchObject({
+      imported: { type: 'unknown' },
+      event: { type: 'unknown' },
+      promise: { type: 'unknown' },
+      date: { type: 'unknown' },
+      blob: { type: 'unknown' },
+      native: {
+        type: 'unknown',
+        declaration: { type: 'MouseEvent' },
+      },
+    })
+  })
+
+  it('expands a local Date alias for later PropType renaming', () => {
+    const code = `
+      import { defineElement } from '@zeus-js/zeus'
+
+      type Date = { iso: string }
+      interface DateProps {
+        createdAt?: Date
+      }
+
+      export const ZDate = defineElement<DateProps>(
+        'z-date',
+        {},
+        () => null,
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/date.tsx',
+      code,
+    })
+
+    expect(result.diagnostics).toEqual([])
+    expect(result.components[0].props.createdAt).toMatchObject({
+      type: 'unknown',
+      declaration: {
+        reference: 'Date',
+        type: '{ iso: string }',
+      },
+    })
+  })
+
+  it.each([
+    [
+      'an interface computed property',
+      `interface PublicProps { [propName]: string }`,
+    ],
+    [
+      'a type literal computed property',
+      `type PublicProps = { [propName]: string }`,
+    ],
+    [
+      'a nested type literal computed property',
+      `interface PublicProps { config?: { [propName]: string } }`,
+    ],
+  ])('fails closed for %s', (_description, declaration) => {
+    const code = `
+      import { defineElement } from '@zeus-js/zeus'
+      const propName = 'value'
+      ${declaration}
+
+      export const ZComputed = defineElement<PublicProps>(
+        'z-computed',
+        {},
+        () => null,
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/computed.tsx',
+      code,
+    })
+
+    if (_description === 'a nested type literal computed property') {
+      expect(result.diagnostics).toEqual([])
+      expect(result.components[0].props.config).toMatchObject({
+        type: 'object',
+      })
+      expect(result.components[0].props.config.declaration).toBeUndefined()
+    } else {
+      expect(result.diagnostics).toEqual([
+        {
+          level: 'warning',
+          file: 'src/computed.tsx',
+          message: 'Cannot resolve local props type "PublicProps".',
+        },
+      ])
+      expect(result.components[0].props).toEqual({})
+    }
+  })
+
+  it('fails closed for unsupported emit details and generic exposed methods', () => {
+    const code = `
+      import { defineElement, event } from '@zeus-js/zeus'
+
+      class Event {}
+      type Promise = { local: true }
+      type Date = { iso: string }
+
+      export const ZEmit = defineElement(
+        'z-emit',
+        {
+          emits: {
+            typed: event<{ value: string; [key: string]: unknown }>(),
+            runtime: event(),
+            computed: event(),
+          },
+        },
+        (_props, { emit, expose }) => {
+          expose({
+            identity<T>(value: T): T {
+              return value
+            },
+            local(value: Event): Promise {
+              return value as unknown as Promise
+            },
+            dated(value: Date): Date {
+              return value
+            },
+          })
+
+          emit.runtime({ value: '', ...{ unsafe: true } })
+          emit.computed({ [String('value')]: true })
+          return null
+        },
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/emit.tsx',
+      code,
+    })
+    const component = result.components[0]
+
+    expect(result.diagnostics).toEqual([])
+    expect(component.events.typed.detail).toBeUndefined()
+    expect(component.events.runtime.detail).toBeUndefined()
+    expect(component.events.computed.detail).toBeUndefined()
+    expect(component.methods).toMatchObject({
+      identity: {
+        parameters: [{ type: 'unknown' }],
+        returns: 'unknown',
+      },
+      local: {
+        parameters: [{ type: 'unknown' }],
+        returns: 'unknown',
+      },
+      dated: {
+        parameters: [{ type: 'unknown' }],
+        returns: 'unknown',
+      },
+    })
+  })
+
+  it('fails closed for generic roots, generic function types, and declaration merges', () => {
+    const code = `
+      import { defineElement } from '@zeus-js/zeus'
+
+      interface GenericProps<T> {
+        value: T
+      }
+      type GenericCallback = <T>(value: T) => T
+      type CallbackProps = { callback?: GenericCallback }
+      interface MergedProps { first: string }
+      interface MergedProps { second: number }
+
+      export const ZGeneric = defineElement<GenericProps<string>>(
+        'z-generic',
+        {},
+        () => null,
+      )
+      export const ZMerged = defineElement<MergedProps>(
+        'z-merged',
+        {},
+        () => null,
+      )
+      export const ZCallback = defineElement<CallbackProps>(
+        'z-callback',
+        {},
+        () => null,
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/generic.tsx',
+      code,
+    })
+
+    expect(result.components).toHaveLength(3)
+    expect(result.diagnostics).toEqual([
+      {
+        level: 'warning',
+        file: 'src/generic.tsx',
+        message: 'Cannot resolve local props type "GenericProps".',
+      },
+      {
+        level: 'warning',
+        file: 'src/generic.tsx',
+        message: 'Cannot resolve local props type "MergedProps".',
+      },
+    ])
+    expect(result.components[2].props.callback).toMatchObject({
+      type: 'unknown',
+    })
+    expect(result.components[2].props.callback.declaration).toBeUndefined()
+  })
+
+  it('does not leak setup-local types or nested function generics', () => {
+    const code = `
+      import { defineElement } from '@zeus-js/zeus'
+
+      export const ZScoped = defineElement(
+        'z-scoped',
+        {},
+        (_props, { expose }) => {
+          type Event = { localEvent: true }
+          type Promise = { localPromise: true }
+
+          expose({
+            leak(value: Event): Promise {
+              return value as unknown as Promise
+            },
+          })
+
+          function nested<T>() {
+            expose({
+              identity(value: T): T {
+                return value
+              },
+            })
+          }
+          void nested
+          return null
+        },
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/scoped.tsx',
+      code,
+    })
+
+    expect(result.components[0].methods).toMatchObject({
+      leak: {
+        parameters: [{ type: 'unknown' }],
+        returns: 'unknown',
+      },
+      identity: {
+        parameters: [{ type: 'unknown' }],
+        returns: 'unknown',
+      },
+    })
+  })
+
+  it('fails closed when intersection branches declare the same prop', () => {
+    const code = `
+      import { defineElement } from '@zeus-js/zeus'
+
+      type PublicProps =
+        { config: { a: string } } &
+        { config: { b: number } }
+
+      export const ZIntersection = defineElement<PublicProps>(
+        'z-intersection',
+        {},
+        () => null,
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/intersection.tsx',
+      code,
+    })
+
+    expect(result.components[0].props).toEqual({})
+    expect(result.diagnostics).toEqual([
+      {
+        level: 'warning',
+        file: 'src/intersection.tsx',
+        message: 'Cannot resolve local props type "PublicProps".',
+      },
+    ])
+  })
+
+  it('bounds recursive local type expansion', () => {
+    const aliases = Array.from(
+      { length: 18 },
+      (_, index) =>
+        `type Node${index + 1} = { left: Node${index}; right: Node${index} }`,
+    ).join('\n')
+    const code = `
+      import { defineElement } from '@zeus-js/zeus'
+
+      type Node0 = { value: string }
+      ${aliases}
+      interface PublicProps { tree?: Node18 }
+
+      export const ZBounded = defineElement<PublicProps>(
+        'z-bounded',
+        {},
+        () => null,
+      )
+    `
+
+    const result = analyzeFile({
+      file: 'src/bounded.tsx',
+      code,
+    })
+
+    expect(result.components[0].props.tree).toMatchObject({ type: 'unknown' })
+    expect(result.components[0].props.tree.declaration).toBeUndefined()
   })
 })

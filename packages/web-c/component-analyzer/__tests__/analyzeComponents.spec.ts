@@ -209,6 +209,76 @@ describe('analyzeComponents', () => {
     )
   })
 
+  it('preserves imported local aliases and erases source-bound globals', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'zeus-analyzer-'))
+
+    await fs.mkdir(path.join(root, 'src/components'), {
+      recursive: true,
+    })
+    await fs.writeFile(
+      path.join(root, 'src/types.ts'),
+      `
+        export type Date = { iso: string }
+
+        export interface CalendarProps {
+          createdAt?: Date
+          nativeEvent?: MouseEvent
+        }
+      `,
+    )
+    await fs.writeFile(
+      path.join(root, 'src/components/calendar.tsx'),
+      `
+        import { defineElement, event } from '@zeus-js/zeus'
+        import type { CalendarProps } from '../types'
+        import type { Event } from 'external-events'
+
+        export const ZCalendar = defineElement<CalendarProps>(
+          'z-calendar',
+          {
+            emits: {
+              change: event<{
+                sourceEvent: Event
+                nativeEvent: MouseEvent
+              }>(),
+            },
+          },
+          () => null,
+        )
+      `,
+    )
+
+    const result = await analyzeComponents({
+      root,
+      include: ['src/components/**/*.tsx'],
+    })
+
+    expect(result.diagnostics).toEqual([])
+    expect(result.manifest.components[0]).toMatchObject({
+      props: {
+        createdAt: {
+          declaration: {
+            reference: 'Date',
+            type: '{ iso: string }',
+          },
+        },
+        nativeEvent: {
+          declaration: {
+            type: 'MouseEvent',
+          },
+        },
+      },
+      events: {
+        change: {
+          detail: {
+            sourceEvent: 'unknown',
+            nativeEvent: 'MouseEvent',
+          },
+        },
+      },
+    })
+  })
+
   it('resolves NodeNext type paths through named, star and default barrels', async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'zeus-analyzer-'))
     const typesRoot = path.join(root, 'src/types')

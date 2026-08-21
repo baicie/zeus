@@ -99,7 +99,7 @@
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged && pnpm check",
-    "commit-msg": "node -e \"import('@baicie/scripts').then(m => m.verifyCommit())\""
+    "commit-msg": "node -e \"import('@baicie/scripts').then(m => m.verifyCommit(process.argv[1]))\" \"$1\""
   },
   "lint-staged": {
     "*.{js,json,ts,tsx,md}": [

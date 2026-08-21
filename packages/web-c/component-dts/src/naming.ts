@@ -1,3 +1,5 @@
+import { PORTABLE_GLOBAL_TYPE_REFERENCES } from '@zeus-js/component-analyzer'
+
 import type { NormalizedComponentDtsOptions } from './types'
 import type { ComponentRecord } from '@zeus-js/component-analyzer'
 
@@ -34,6 +36,32 @@ export function getEventMapTypeName(component: ComponentRecord): string {
 
 export function getPropsTypeName(component: ComponentRecord): string {
   return `${component.name}Props`
+}
+
+export function getGeneratedDeclarationNames(
+  components: readonly ComponentRecord[],
+): Set<string> {
+  const names = new Set<string>(PORTABLE_GLOBAL_TYPE_REFERENCES)
+
+  names.add('HTMLElementTagNameMap')
+  names.add('JSX')
+  names.add('React')
+  names.add('DefineComponent')
+  names.add('GlobalComponents')
+
+  for (const component of components) {
+    const elementTypeName = getElementTypeName(component)
+    names.add(component.name)
+    names.add(component.exportName)
+    names.add(elementTypeName)
+    names.add(`${elementTypeName}Props`)
+    names.add(`${elementTypeName}Methods`)
+    names.add(`${elementTypeName}EventTarget`)
+    names.add(getEventMapTypeName(component))
+    names.add(getPropsTypeName(component))
+  }
+
+  return names
 }
 
 export function getComponentFileBaseName(

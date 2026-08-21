@@ -12,6 +12,7 @@ import {
 import { extractSetupMeta } from './extractSetup'
 import { collectLocalPropTypes } from './extractTypeProps'
 import { buildComponentRecord } from './merge'
+import { collectSourceBoundTypeNames } from './portable-types'
 
 import type {
   AnalyzeFileOptions,
@@ -34,7 +35,17 @@ export function analyzeFileWithImportedPropTypes(
   try {
     const ast = parseSource(code, file)
     const calls = extractDefineElementCalls(ast)
-    const localPropTypes = collectLocalPropTypes(ast, importedPropTypes)
+    const sourceBoundTypeNames = collectSourceBoundTypeNames(ast)
+
+    for (const name of importedPropTypes.keys()) {
+      sourceBoundTypeNames.add(name)
+    }
+
+    const localPropTypes = collectLocalPropTypes(
+      ast,
+      importedPropTypes,
+      sourceBoundTypeNames,
+    )
     const localSetupBindings = collectLocalSetupBindings(ast)
 
     for (const call of calls) {
@@ -52,7 +63,7 @@ export function analyzeFileWithImportedPropTypes(
       }
 
       const runtimeProps = extractRuntimeProps(call.options)
-      const emits = extractEmits(call.options)
+      const emits = extractEmits(call.options, sourceBoundTypeNames)
       const componentOptions = extractComponentOptions(call.options)
 
       const typeProps = call.propsTypeName
@@ -73,6 +84,7 @@ export function analyzeFileWithImportedPropTypes(
 
       const setupMeta = extractSetupMeta(
         resolveSetupBinding(call.setup, localSetupBindings),
+        sourceBoundTypeNames,
       )
       const inlineMeta = extractInlineMeta(call.options)
 

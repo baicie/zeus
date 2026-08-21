@@ -113,7 +113,10 @@ describe('generateWcDts', () => {
       },
     )
 
-    expect(code).toContain('export * from "./z-button"')
+    expect(code).toContain('export { ZButton } from "./z-button"')
+    expect(code).toContain(
+      'export type { ZButtonElement, ZButtonEventMap } from "./z-button"',
+    )
     expect(code).toContain('interface HTMLElementTagNameMap')
     expect(code).toContain('"z-button": ZButtonElement')
   })
@@ -154,8 +157,9 @@ describe('generateWcDts', () => {
       },
     )
 
-    expect(code).toContain('export * from "./z-button"')
-    expect(code).toContain('export * from "./z-card"')
+    expect(code).toContain('export { ZButton } from "./z-button"')
+    expect(code).toContain('export { ZCard } from "./z-card"')
+    expect(code).not.toContain('export * from')
     expect(code).toContain('"z-button": ZButtonElement')
     expect(code).toContain('"z-card": ZCardElement')
   })
@@ -232,6 +236,42 @@ describe('generateWcDts', () => {
     })
 
     expect(code).toContain('change: CustomEvent<unknown>')
+  })
+
+  it('renames local aliases that collide with portable and export names', () => {
+    const code = generateComponentWCDts({
+      tag: 'z-date',
+      name: 'ZDateInternal',
+      exportName: 'ZDate',
+      source: 'src/date.tsx',
+      props: {
+        createdAt: {
+          type: 'unknown',
+          declaration: {
+            reference: 'Date',
+            type: '{ iso: string }',
+          },
+        },
+        constructorValue: {
+          type: 'unknown',
+          declaration: {
+            reference: 'ZDate',
+            type: '{ value: string }',
+          },
+        },
+      },
+      events: {},
+      slots: {},
+      hostAttributes: [],
+      cssParts: [],
+      cssVars: {},
+    })
+
+    expect(code).toContain('export type DatePropType = { iso: string }')
+    expect(code).toContain('createdAt?: DatePropType')
+    expect(code).toContain('export type ZDatePropType = { value: string }')
+    expect(code).toContain('constructorValue?: ZDatePropType')
+    expect(code).toContain('export declare const ZDate: {')
   })
 
   it('handles all prop type variants', () => {
