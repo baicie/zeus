@@ -179,6 +179,7 @@ function mergeProps(
 
     result[name] = {
       type: rp.type ?? tp.type ?? 'unknown',
+      declaration: tp.declaration,
       required: tp.required,
       values: rp.values ?? tp.values,
       description: tp.description ?? mp.description,

@@ -54,6 +54,7 @@ export interface ComponentRecord {
 
 export interface ComponentProp {
   type: ComponentPropType
+  declaration?: ComponentPropDeclaration
   required?: boolean
   values?: string[]
   default?: unknown
@@ -62,6 +63,11 @@ export interface ComponentProp {
   serialize?: boolean
   deserialize?: boolean
   description?: string
+}
+
+export interface ComponentPropDeclaration {
+  reference?: string
+  type: string
 }
 
 export interface ComponentEvent {

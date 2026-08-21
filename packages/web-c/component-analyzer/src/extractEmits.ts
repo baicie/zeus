@@ -7,6 +7,7 @@ import type { ComponentEvent } from './types'
 
 export function extractEmits(
   options: t.ObjectExpression | undefined,
+  sourceBoundTypeNames: ReadonlySet<string> = new Set(),
 ): Record<string, ComponentEvent> {
   const emitsNode = options ? getObjectProperty(options, 'emits') : undefined
 
@@ -21,7 +22,11 @@ export function extractEmits(
 
     if (!key) continue
 
-    events[key] = extractEventDefinition(key, member.value)
+    events[key] = extractEventDefinition(
+      key,
+      member.value,
+      sourceBoundTypeNames,
+    )
   }
 
   return events
@@ -45,13 +50,15 @@ export function createComponentEvent(
 function extractEventDefinition(
   key: string,
   node: t.Expression | t.PatternLike,
+  sourceBoundTypeNames: ReadonlySet<string>,
 ): ComponentEvent {
   const result = createComponentEvent(key)
 
   if (!t.isCallExpression(node)) return result
   if (!t.isIdentifier(node.callee, { name: 'event' })) return result
 
-  result.detail = extractEventDetailType(node) ?? result.detail
+  result.detail =
+    extractEventDetailType(node, sourceBoundTypeNames) ?? result.detail
 
   const first = node.arguments[0]
 
@@ -84,6 +91,7 @@ function extractEventDefinition(
 
 function extractEventDetailType(
   node: t.CallExpression,
+  sourceBoundTypeNames: ReadonlySet<string>,
 ): Record<string, string> | undefined {
   const first = node.typeArguments?.params[0]
 
@@ -92,32 +100,82 @@ function extractEventDetailType(
   const detail: Record<string, string> = {}
 
   for (const member of first.members) {
-    if (!t.isTSPropertySignature(member)) continue
+    if (!t.isTSPropertySignature(member) || member.computed) return undefined
 
     const key = getObjectKey(member.key)
-    if (!key) continue
+    if (!key) return undefined
 
-    detail[key] = inferTsType(member.typeAnnotation?.typeAnnotation)
+    const type = inferTsType(
+      member.typeAnnotation?.typeAnnotation,
+      sourceBoundTypeNames,
+    )
+    if (type === undefined) return undefined
+
+    detail[key] = type
   }
 
   return Object.keys(detail).length > 0 ? detail : undefined
 }
 
-function inferTsType(node: t.TSType | undefined): string {
+function inferTsType(
+  node: t.TSType | undefined,
+  sourceBoundTypeNames: ReadonlySet<string>,
+): string | undefined {
   if (!node) return 'unknown'
   if (t.isTSStringKeyword(node)) return 'string'
   if (t.isTSNumberKeyword(node)) return 'number'
   if (t.isTSBooleanKeyword(node)) return 'boolean'
-  if (t.isTSObjectKeyword(node) || t.isTSTypeLiteral(node)) return 'object'
-  if (t.isTSArrayType(node) || t.isTSTupleType(node)) return 'array'
-  if (t.isTSFunctionType(node)) return 'function'
-  if (t.isTSTypeReference(node)) return inferTsTypeReference(node)
+  if (t.isTSObjectKeyword(node)) return 'object'
+  if (t.isTSTypeLiteral(node)) {
+    for (const member of node.members) {
+      if (!t.isTSPropertySignature(member) || member.computed) {
+        return undefined
+      }
 
-  return 'unknown'
+      if (
+        inferTsType(
+          member.typeAnnotation?.typeAnnotation,
+          sourceBoundTypeNames,
+        ) === undefined
+      ) {
+        return undefined
+      }
+    }
+
+    return 'object'
+  }
+  if (t.isTSArrayType(node)) {
+    return inferTsType(node.elementType, sourceBoundTypeNames) === undefined
+      ? undefined
+      : 'array'
+  }
+  if (t.isTSTupleType(node)) {
+    return node.elementTypes.every(element => {
+      const type = t.isTSNamedTupleMember(element)
+        ? element.elementType
+        : element
+      return inferTsType(type, sourceBoundTypeNames) !== undefined
+    })
+      ? 'array'
+      : undefined
+  }
+  if (t.isTSFunctionType(node)) {
+    return node.typeParameters?.params.length ? undefined : 'function'
+  }
+  if (t.isTSTypeReference(node)) {
+    return inferTsTypeReference(node, sourceBoundTypeNames)
+  }
+
+  return undefined
 }
 
-function inferTsTypeReference(node: t.TSTypeReference): string {
+function inferTsTypeReference(
+  node: t.TSTypeReference,
+  sourceBoundTypeNames: ReadonlySet<string>,
+): string {
   const name = t.isIdentifier(node.typeName) ? node.typeName.name : undefined
+
+  if (!name || sourceBoundTypeNames.has(name)) return 'unknown'
 
   switch (name) {
     case 'String':
@@ -128,15 +186,20 @@ function inferTsTypeReference(node: t.TSTypeReference): string {
       return 'boolean'
     case 'Array':
     case 'ReadonlyArray':
-      return 'array'
+      return !node.typeArguments?.params.length ||
+        node.typeArguments.params.every(
+          parameter =>
+            inferTsType(parameter, sourceBoundTypeNames) !== undefined,
+        )
+        ? 'array'
+        : 'unknown'
     case 'Function':
       return 'function'
     case 'Record':
       return 'object'
     default:
-      return name &&
-        !node.typeArguments?.params.length &&
-        isPortableTypeReference(name)
+      return !node.typeArguments?.params.length &&
+        isPortableTypeReference(name, sourceBoundTypeNames)
         ? name
         : 'unknown'
   }
