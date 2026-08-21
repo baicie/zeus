@@ -120,6 +120,9 @@ export async function createVerifierWithRetry(
 export function getDistTagPolicyErrors(input: DistTagPolicyInput): string[] {
   const errors: string[] = []
   const expectedShortSha = input.expectedSha?.slice(0, 8).toLowerCase()
+  const prereleaseChannel = semver.prerelease(input.expectedVersion)?.[0]
+  const ignoresNativeLatest =
+    prereleaseChannel === 'beta' || prereleaseChannel === 'canary'
 
   if (
     expectedShortSha &&
@@ -143,7 +146,7 @@ export function getDistTagPolicyErrors(input: DistTagPolicyInput): string[] {
       )
     }
     if (
-      input.expectedTag !== 'beta' &&
+      !ignoresNativeLatest &&
       zeusNativePackages.includes(pkg) &&
       tags.latest &&
       semver.prerelease(tags.latest)
