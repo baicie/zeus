@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.1-beta.2 (2026-08-21)
+
+### Features
+
+- Add opt-in runtime allocation diagnostics for effects, proxies, scopes, refs, and computed values.
+
+### Fixes
+
+- Generate self-contained component declarations for portable local prop types and fail closed when source-bound or unsupported TypeScript types cannot be emitted safely for downstream consumers.
+
 ## 0.1.1-beta.1 (2026-08-19)
 
 ### Features
