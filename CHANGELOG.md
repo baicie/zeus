@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1-beta.3 (2026-10-09)
+
+### Fixes
+
+- perf(runtime-dom): fast-path stable keyed list updates without rebuilding reconciliation maps or moving unchanged DOM ranges; correct the list benchmark to use one reactive runtime.
+
 ## 0.1.1-beta.2 (2026-08-21)
 
 ### Features
