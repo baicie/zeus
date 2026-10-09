@@ -220,6 +220,27 @@ function mountKeyedFor<T, K>(
   const reconcile = (nextEntries: readonly ListEntry<T>[]) => {
     if (disposed) return
 
+    // Fixed viewport slots only change their item values. Keep their records
+    // and scopes instead of allocating a reorder map or inspecting focus.
+    if (
+      nextEntries.length === records.length &&
+      nextEntries.every((entry, index) =>
+        Object.is(entry.key, records[index].key),
+      )
+    ) {
+      batch(() => {
+        for (let i = 0; i < nextEntries.length; i++) {
+          const item = nextEntries[i].item
+          records[i].setItem(() => item)
+        }
+      })
+
+      if (!disposed) {
+        emitDevtoolsEvent({ type: 'mount-for', length: records.length })
+      }
+      return
+    }
+
     const oldMap = new Map<Key, ListRecord<T>>()
 
     for (const record of records) {
