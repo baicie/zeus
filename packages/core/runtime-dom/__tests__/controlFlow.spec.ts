@@ -653,6 +653,80 @@ describe('mountFor', () => {
     expect(insertBefore).not.toHaveBeenCalled()
   })
 
+  it('updates fixed keyed slots without traversing focus or rerunning index effects', () => {
+    const slotCount = 24
+    const [items, setItems] = createSignal(
+      Array.from({ length: slotCount }, (_, slot) => ({
+        slot,
+        title: 'initial',
+      })),
+    )
+    const root = document.createElement('div')
+    const anchor = document.createComment('')
+    root.append(anchor)
+    document.body.append(root)
+    let itemRuns = 0
+    let indexRuns = 0
+    let disposeRoot!: () => void
+
+    createRoot(dispose => {
+      disposeRoot = dispose
+      mountFor(
+        root,
+        anchor,
+        items,
+        item => item.slot,
+        (item, index) => {
+          const input = document.createElement('input')
+          effect(() => {
+            itemRuns++
+            input.value = item().title
+          })
+          effect(() => {
+            indexRuns++
+            input.dataset.index = String(index())
+          })
+          return input
+        },
+      )
+    })
+
+    const initialNodes = Array.from(root.querySelectorAll('input'))
+    initialNodes[12].focus()
+    const activeElement = vi.spyOn(document, 'activeElement', 'get')
+    const contains = vi.spyOn(dom.window.Node.prototype, 'contains')
+    const insertBefore = vi.spyOn(root, 'insertBefore')
+
+    for (let step = 0; step < 100; step++) {
+      setItems(
+        Array.from({ length: slotCount }, (_, slot) => ({
+          slot,
+          title: `step ${step}: slot ${slot}`,
+        })),
+      )
+    }
+
+    const focusReads = activeElement.mock.calls.length
+    const containsCalls = contains.mock.calls.length
+    const domMoves = insertBefore.mock.calls.length
+    activeElement.mockRestore()
+    contains.mockRestore()
+    insertBefore.mockRestore()
+
+    expect(itemRuns).toBe(slotCount * 101)
+    expect(indexRuns).toBe(slotCount)
+    expect(Array.from(root.querySelectorAll('input'))).toEqual(initialNodes)
+    expect(initialNodes[12].value).toBe('step 99: slot 12')
+    expect(domMoves).toBe(0)
+    expect({ containsCalls, focusReads }).toEqual({
+      containsCalls: 0,
+      focusReads: 0,
+    })
+    expect(document.activeElement).toBe(initialNodes[12])
+    disposeRoot()
+    expect(root.childNodes).toHaveLength(1)
+  })
+
   it('rejects duplicate keys before mutating rendered records', () => {
     const [items, setItems] = createSignal([{ id: 1, title: 'a' }])
     const clone = template('<ul><!></ul>')()
@@ -764,6 +838,45 @@ describe('mountFor', () => {
 
     expect(items()[0].title).toBe('final')
     expect(root.textContent).toBe('final')
+  })
+
+  it('disposes fixed keyed slots when an item effect stops their root', () => {
+    const [items, setItems] = createSignal([{ id: 1, title: 'initial' }])
+    const root = document.createElement('div')
+    const anchor = document.createComment('')
+    root.append(anchor)
+    let itemRuns = 0
+    let cleanupRuns = 0
+
+    createRoot(dispose => {
+      mountFor(
+        root,
+        anchor,
+        items,
+        item => item.id,
+        item => {
+          const node = document.createElement('span')
+          onScopeDispose(() => cleanupRuns++)
+          effect(() => {
+            itemRuns++
+            const title = item().title
+            node.textContent = title
+            if (title === 'dispose') dispose()
+          })
+          return node
+        },
+      )
+    })
+
+    setItems([{ id: 1, title: 'dispose' }])
+    expect(root.childNodes).toHaveLength(1)
+    expect(root.firstChild).toBe(anchor)
+    expect(cleanupRuns).toBe(1)
+
+    setItems([{ id: 1, title: 'after disposal' }])
+    expect(itemRuns).toBe(2)
+    expect(cleanupRuns).toBe(1)
+    expect(root.textContent).toBe('')
   })
 
   it('reconciles an unkeyed source update triggered while mounting a row', () => {
