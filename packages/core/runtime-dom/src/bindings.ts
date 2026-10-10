@@ -192,20 +192,24 @@ function patchStyle(
   next: Record<string, string | number | null | undefined>,
 ): StyleSnapshot {
   const style = (el as HTMLElement).style
-  const values = prev?.[0] ?? (Object.create(null) as Record<string, string>)
+  const values = prev
+    ? prev[0]
+    : (Object.create(null) as Record<string, string>)
   const state = style.cssText + Object.keys(next)
-  const styleChanged = prev !== undefined && state !== prev[1]
+  const styleChanged = prev && state != prev[1]
 
   for (const key in values) {
     if (!(key in next)) {
-      style.setProperty(toKebabCase(key), '')
+      style.setProperty(
+        key.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`),
+        '',
+      )
       delete values[key]
     }
   }
 
   for (const key in next) {
     const value = next[key]
-    const name = toKebabCase(key)
     const expected = value == null ? '' : normalizeStyleValue(key, value)
     const previous = values[key]
 
@@ -213,7 +217,10 @@ function patchStyle(
       continue
     }
 
-    style.setProperty(name, expected)
+    style.setProperty(
+      key.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`),
+      expected,
+    )
     values[key] = expected
   }
 
@@ -221,28 +228,24 @@ function patchStyle(
 }
 
 function normalizeStyleValue(key: string, value: string | number): string {
-  if (typeof value === 'number' && value !== 0 && !isUnitlessNumber(key)) {
+  if (
+    typeof value === 'number' &&
+    value !== 0 &&
+    unitlessNumbers[key] !== true
+  ) {
     return `${value}px`
   }
 
   return String(value)
 }
 
-const unitlessNumbers = new Set([
-  'opacity',
-  'zIndex',
-  'fontWeight',
-  'lineHeight',
-  'flex',
-  'flexGrow',
-  'flexShrink',
-  'order',
-])
-
-function isUnitlessNumber(key: string): boolean {
-  return unitlessNumbers.has(key)
-}
-
-function toKebabCase(value: string): string {
-  return value.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
+const unitlessNumbers: Record<string, true> = {
+  opacity: true,
+  zIndex: true,
+  fontWeight: true,
+  lineHeight: true,
+  flex: true,
+  flexGrow: true,
+  flexShrink: true,
+  order: true,
 }

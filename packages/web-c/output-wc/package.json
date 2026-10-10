@@ -1,7 +1,7 @@
 {
   "name": "@zeus-js/output-wc",
   "type": "module",
-  "version": "0.1.1-beta.5",
+  "version": "0.1.1-beta.6",
   "description": "Zeus Web Component output plugin",
   "license": "MIT",
   "repository": {
