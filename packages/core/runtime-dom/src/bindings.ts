@@ -161,7 +161,7 @@ export function bindStyle(
   value: () => StyleValue,
   once = false,
 ): void {
-  let prev: Record<string, string | number | null | undefined> | undefined
+  let prev: StyleSnapshot | undefined
 
   applyBinding(value, once, next => {
     if (next == null) {
@@ -176,40 +176,48 @@ export function bindStyle(
       return
     }
 
-    patchStyle(
+    prev = patchStyle(
       el,
       prev,
       next as Record<string, string | number | null | undefined>,
     )
-    prev = next as Record<string, string | number | null | undefined>
   })
 }
 
+type StyleSnapshot = [values: Record<string, string>, state: string]
+
 function patchStyle(
   el: HTMLElement | SVGElement,
-  prev: Record<string, string | number | null | undefined> | undefined,
+  prev: StyleSnapshot | undefined,
   next: Record<string, string | number | null | undefined>,
-): void {
+): StyleSnapshot {
   const style = (el as HTMLElement).style
+  const values = prev?.[0] ?? (Object.create(null) as Record<string, string>)
+  const state = style.cssText + Object.keys(next)
+  const styleChanged = prev !== undefined && state !== prev[1]
 
-  if (prev) {
-    for (const key in prev) {
-      if (!(key in next)) {
-        style.setProperty(toKebabCase(key), '')
-      }
+  for (const key in values) {
+    if (!(key in next)) {
+      style.setProperty(toKebabCase(key), '')
+      delete values[key]
     }
   }
 
   for (const key in next) {
     const value = next[key]
     const name = toKebabCase(key)
+    const expected = value == null ? '' : normalizeStyleValue(key, value)
+    const previous = values[key]
 
-    if (value == null) {
-      style.setProperty(name, '')
-    } else {
-      style.setProperty(name, normalizeStyleValue(key, value))
+    if (previous === expected && !styleChanged) {
+      continue
     }
+
+    style.setProperty(name, expected)
+    values[key] = expected
   }
+
+  return [values, style.cssText + Object.keys(next)]
 }
 
 function normalizeStyleValue(key: string, value: string | number): string {

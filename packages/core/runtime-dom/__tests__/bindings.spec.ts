@@ -181,6 +181,150 @@ describe('runtime bindings', () => {
     expect(el.style.width).toBe('200px')
   })
 
+  it('skips unchanged style writes when a reactive object is recreated', () => {
+    const offset = state(0)
+    const el = document.createElement('div')
+    const setProperty = vi.spyOn(el.style, 'setProperty')
+
+    bindStyle(el, () => ({
+      display: 'grid',
+      width: '100%',
+      transform: `translateY(${offset.value}px)`,
+    }))
+
+    expect(setProperty).toHaveBeenCalledTimes(3)
+
+    offset.value = 40
+
+    expect(setProperty).toHaveBeenCalledTimes(4)
+    expect(el.style.transform).toBe('translateY(40px)')
+
+    offset.value = 80
+
+    expect(setProperty).toHaveBeenCalledTimes(5)
+    expect(el.style.transform).toBe('translateY(80px)')
+  })
+
+  it('does not read unchanged CSSOM properties when one style changes', () => {
+    const offset = state(0)
+    const el = document.createElement('div')
+    const getPropertyValue = vi.spyOn(el.style, 'getPropertyValue')
+
+    bindStyle(el, () => ({
+      display: 'grid',
+      width: '100%',
+      transform: `translateY(${offset.value}px)`,
+    }))
+    getPropertyValue.mockClear()
+
+    offset.value = 40
+
+    expect(getPropertyValue).not.toHaveBeenCalled()
+  })
+
+  it('applies updates when the same style object is mutated', () => {
+    const offset = state(0)
+    const el = document.createElement('div')
+    const style = { transform: 'translateY(0px)' }
+
+    bindStyle(el, () => {
+      style.transform = `translateY(${offset.value}px)`
+      return style
+    })
+
+    offset.value = 40
+
+    expect(el.style.transform).toBe('translateY(40px)')
+  })
+
+  it('restores a bound style after an external mutation', () => {
+    const width = state(100)
+    const tick = state(0)
+    const el = document.createElement('div')
+
+    bindStyle(el, () => {
+      tick.value
+      return { width: width.value }
+    })
+    el.style.setProperty('width', '240px')
+
+    tick.value++
+
+    expect(el.style.width).toBe('100px')
+  })
+
+  it('does not rewrite CSSOM-normalized values', () => {
+    const tick = state(0)
+    const el = document.createElement('div')
+    const setProperty = vi.spyOn(el.style, 'setProperty')
+
+    bindStyle(el, () => {
+      tick.value
+      return { margin: '0 0' }
+    })
+
+    tick.value++
+
+    expect(setProperty).toHaveBeenCalledTimes(1)
+  })
+
+  it('preserves shorthand and longhand declaration order', () => {
+    const order = state<'shorthand' | 'longhand'>('shorthand')
+    const el = document.createElement('div')
+
+    bindStyle(el, () =>
+      order.value === 'shorthand'
+        ? { margin: '1px', marginLeft: '2px' }
+        : { marginLeft: '2px', margin: '1px' },
+    )
+
+    order.value = 'longhand'
+
+    expect(el.style.marginLeft).toBe('1px')
+  })
+
+  it('clears an external style priority for a bound value', () => {
+    const tick = state(0)
+    const el = document.createElement('div')
+    el.style.setProperty('color', 'red', 'important')
+
+    bindStyle(el, () => {
+      tick.value
+      return { color: 'red' }
+    })
+
+    expect(el.style.getPropertyPriority('color')).toBe('')
+  })
+
+  it('removes a key deleted from the same style object', () => {
+    const remove = state(false)
+    const el = document.createElement('div')
+    const style: Record<string, string> = { color: 'red', width: '10px' }
+
+    bindStyle(el, () => {
+      remove.value
+      if (remove.value) delete style.width
+      return style
+    })
+
+    remove.value = true
+
+    expect(el.style.color).toBe('red')
+    expect(el.style.width).toBe('')
+  })
+
+  it('patches SVG styles with the same CSSOM semantics', () => {
+    const transform = state('translateX(0px)')
+    const el = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    const setProperty = vi.spyOn(el.style, 'setProperty')
+
+    bindStyle(el, () => ({ transform: transform.value }))
+    transform.value = 'translateX(4px)'
+
+    expect(el.style.getPropertyValue('transform')).toBe('translateX(4px)')
+    expect(setProperty).toHaveBeenCalledTimes(2)
+  })
+
   it('removes style when null', () => {
     const value = state<Record<string, string> | null>({ color: 'red' })
     const el = document.createElement('div')
