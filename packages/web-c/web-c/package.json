@@ -1,7 +1,7 @@
 {
   "name": "@zeus-js/web-c",
   "type": "module",
-  "version": "0.1.1-beta.4",
+  "version": "0.1.1-beta.5",
   "description": "Zeus Web-C component library toolchain",
   "license": "MIT",
   "repository": {

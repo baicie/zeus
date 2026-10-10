@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1-beta.5 (2026-10-10)
+
+### Fixes
+
+- Reduce the production JSX runtime bundle by sharing the `jsx`, `jsxs`, and `jsxDEV` implementation while preserving their public callable API.
+- Avoid redundant CSSOM reads for stable reactive style bindings.
+
 ## 0.1.1-beta.3 (2026-10-09)
 
 ### Fixes
