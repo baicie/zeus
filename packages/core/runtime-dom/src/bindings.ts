@@ -161,7 +161,7 @@ export function bindStyle(
   value: () => StyleValue,
   once = false,
 ): void {
-  let prev: Record<string, string | number | null | undefined> | undefined
+  let prev: StyleSnapshot | undefined
 
   applyBinding(value, once, next => {
     if (next == null) {
@@ -176,40 +176,63 @@ export function bindStyle(
       return
     }
 
-    patchStyle(
+    prev = patchStyle(
       el,
       prev,
       next as Record<string, string | number | null | undefined>,
     )
-    prev = next as Record<string, string | number | null | undefined>
   })
+}
+
+type StyleSnapshot = {
+  values: Record<string, string>
+  cssText: string
 }
 
 function patchStyle(
   el: HTMLElement | SVGElement,
-  prev: Record<string, string | number | null | undefined> | undefined,
+  prev: StyleSnapshot | undefined,
   next: Record<string, string | number | null | undefined>,
-): void {
+): StyleSnapshot {
   const style = (el as HTMLElement).style
+  const values = Object.create(null) as Record<string, string>
+  const previousValues = prev?.values
+  const styleChanged = prev !== undefined && style.cssText !== prev.cssText
 
-  if (prev) {
-    for (const key in prev) {
-      if (!(key in next)) {
-        style.setProperty(toKebabCase(key), '')
-      }
+  for (const key in next) {
+    const value = next[key]
+    const expected = value == null ? '' : normalizeStyleValue(key, value)
+    values[key] = expected
+  }
+
+  for (const key in previousValues ?? {}) {
+    if (!(key in next)) {
+      style.setProperty(toKebabCase(key), '')
     }
   }
 
   for (const key in next) {
-    const value = next[key]
     const name = toKebabCase(key)
+    const expected = values[key]
+    const previous = previousValues?.[key]
 
-    if (value == null) {
-      style.setProperty(name, '')
-    } else {
-      style.setProperty(name, normalizeStyleValue(key, value))
+    if (previous === expected && !styleChanged) {
+      continue
     }
+
+    if (styleChanged && previous === expected) {
+      if (
+        style.getPropertyValue(name) === expected &&
+        style.getPropertyPriority(name) === ''
+      ) {
+        continue
+      }
+    }
+
+    style.setProperty(name, expected)
   }
+
+  return { values, cssText: style.cssText }
 }
 
 function normalizeStyleValue(key: string, value: string | number): string {
