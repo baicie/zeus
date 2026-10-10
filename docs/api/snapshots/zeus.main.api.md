@@ -67,18 +67,6 @@ export declare function jsx(
     | ((props: Record<string, unknown>) => JSXValue),
   props: Record<string, unknown> | null,
 ): JSXValue
-export declare function jsxs(
-  type:
-    | string
-    | typeof Fragment
-    | ((props: Record<string, unknown>) => JSXValue),
-  props: Record<string, unknown> | null,
-): JSXValue
-export declare function jsxDEV(
-  type:
-    | string
-    | typeof Fragment
-    | ((props: Record<string, unknown>) => JSXValue),
-  props: Record<string, unknown> | null,
-): JSXValue
+
+export { jsx as jsxDEV, jsx as jsxs }
 ```

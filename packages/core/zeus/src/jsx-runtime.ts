@@ -18,36 +18,6 @@ export function jsx(
     | ((props: Record<string, unknown>) => JSXValue),
   props: Record<string, unknown> | null,
 ): JSXValue {
-  return createJSXNode(type, props)
-}
-
-export function jsxs(
-  type:
-    | string
-    | typeof Fragment
-    | ((props: Record<string, unknown>) => JSXValue),
-  props: Record<string, unknown> | null,
-): JSXValue {
-  return createJSXNode(type, props)
-}
-
-export function jsxDEV(
-  type:
-    | string
-    | typeof Fragment
-    | ((props: Record<string, unknown>) => JSXValue),
-  props: Record<string, unknown> | null,
-): JSXValue {
-  return createJSXNode(type, props)
-}
-
-function createJSXNode(
-  type:
-    | string
-    | typeof Fragment
-    | ((props: Record<string, unknown>) => JSXValue),
-  props: Record<string, unknown> | null,
-): JSXValue {
   if (type === Fragment) {
     return props?.children as JSXValue
   }
@@ -104,21 +74,17 @@ function createJSXNode(
   return el as unknown as JSXValue
 }
 
+export { jsx as jsxs, jsx as jsxDEV }
+
 function setFallbackRef(target: unknown, el: Element): void {
   if (target == null) return
 
   if (typeof target === 'function') {
     ;(target as (value: Element | null) => void)(el)
-    return
-  }
-
-  if (typeof target === 'object') {
+  } else if (typeof target === 'object') {
     if ('value' in target) {
       ;(target as { value: Element | null }).value = el as never
-      return
-    }
-
-    if ('current' in target) {
+    } else if ('current' in target) {
       ;(target as { current: Element | null }).current = el as never
     }
   }
