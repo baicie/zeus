@@ -268,6 +268,21 @@ describe('runtime bindings', () => {
     expect(setProperty).toHaveBeenCalledTimes(1)
   })
 
+  it('preserves shorthand and longhand declaration order', () => {
+    const order = state<'shorthand' | 'longhand'>('shorthand')
+    const el = document.createElement('div')
+
+    bindStyle(el, () =>
+      order.value === 'shorthand'
+        ? { margin: '1px', marginLeft: '2px' }
+        : { marginLeft: '2px', margin: '1px' },
+    )
+
+    order.value = 'longhand'
+
+    expect(el.style.marginLeft).toBe('1px')
+  })
+
   it('clears an external style priority for a bound value', () => {
     const tick = state(0)
     const el = document.createElement('div')

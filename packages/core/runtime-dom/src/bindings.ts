@@ -184,10 +184,7 @@ export function bindStyle(
   })
 }
 
-type StyleSnapshot = {
-  values: Record<string, string>
-  cssText: string
-}
+type StyleSnapshot = [values: Record<string, string>, state: string]
 
 function patchStyle(
   el: HTMLElement | SVGElement,
@@ -195,44 +192,32 @@ function patchStyle(
   next: Record<string, string | number | null | undefined>,
 ): StyleSnapshot {
   const style = (el as HTMLElement).style
-  const values = Object.create(null) as Record<string, string>
-  const previousValues = prev?.values
-  const styleChanged = prev !== undefined && style.cssText !== prev.cssText
+  const values = prev?.[0] ?? (Object.create(null) as Record<string, string>)
+  const state = style.cssText + Object.keys(next)
+  const styleChanged = prev !== undefined && state !== prev[1]
 
-  for (const key in next) {
-    const value = next[key]
-    const expected = value == null ? '' : normalizeStyleValue(key, value)
-    values[key] = expected
-  }
-
-  for (const key in previousValues ?? {}) {
+  for (const key in values) {
     if (!(key in next)) {
       style.setProperty(toKebabCase(key), '')
+      delete values[key]
     }
   }
 
   for (const key in next) {
+    const value = next[key]
     const name = toKebabCase(key)
-    const expected = values[key]
-    const previous = previousValues?.[key]
+    const expected = value == null ? '' : normalizeStyleValue(key, value)
+    const previous = values[key]
 
     if (previous === expected && !styleChanged) {
       continue
     }
 
-    if (styleChanged && previous === expected) {
-      if (
-        style.getPropertyValue(name) === expected &&
-        style.getPropertyPriority(name) === ''
-      ) {
-        continue
-      }
-    }
-
     style.setProperty(name, expected)
+    values[key] = expected
   }
 
-  return { values, cssText: style.cssText }
+  return [values, style.cssText + Object.keys(next)]
 }
 
 function normalizeStyleValue(key: string, value: string | number): string {
