@@ -408,7 +408,6 @@ function mountKeyedFor<T, K>(
 
         for (let i = 0; i < nextItems.length; i++) {
           const item = nextItems[i]
-          void item
           const itemKey = key(item, i)
           latestKeys[i] = itemKey
 
