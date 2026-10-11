@@ -767,6 +767,41 @@ describe('mountFor', () => {
     expect(root.querySelectorAll('li')[0]).toBe(first)
   })
 
+  it('rejects duplicate keys when fixed slots no longer match', () => {
+    const [items, setItems] = createSignal([
+      { id: 1, title: 'a' },
+      { id: 2, title: 'b' },
+    ])
+    const clone = template('<ul><!></ul>')()
+    const root = clone.firstChild as Element
+    const anchor = marker(root, 0)
+
+    mountFor(
+      root,
+      anchor,
+      items,
+      item => item.id,
+      item => {
+        const li = document.createElement('li')
+        effect(() => {
+          li.textContent = item().title
+        })
+        return li
+      },
+    )
+
+    const initialNodes = Array.from(root.querySelectorAll('li'))
+
+    expect(() =>
+      setItems([
+        { id: 1, title: 'first duplicate' },
+        { id: 1, title: 'second duplicate' },
+      ]),
+    ).toThrow(/duplicate key 1 at index 1/)
+    expect(root.textContent).toBe('ab')
+    expect(Array.from(root.querySelectorAll('li'))).toEqual(initialNodes)
+  })
+
   it('rolls back newly mounted records when a later render throws', () => {
     const [items, setItems] = createSignal([{ id: 1, title: 'a' }])
     const disposedItems: number[] = []

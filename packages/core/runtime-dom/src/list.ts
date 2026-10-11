@@ -196,7 +196,11 @@ function mountKeyedFor<T, K>(
 ): void {
   let records: ListRecord<T>[] = []
   const subtreeContext = captureScopedSubtreeContext()
-  let latestEntries: readonly ListEntry<T>[] = []
+  let latestItems: readonly T[] = []
+  // Reuse key storage across updates so fixed-slot scrolls avoid allocating
+  // ListEntry objects and a duplicate-key Set on every reconciliation.
+  const latestKeys: Key[] = []
+  let latestItemsUseFixedSlots = false
   let reconcileRequested = false
   let reconciling = false
   let disposed = false
@@ -217,29 +221,8 @@ function mountKeyedFor<T, K>(
 
   onScopeDispose(dispose, true)
 
-  const reconcile = (nextEntries: readonly ListEntry<T>[]) => {
+  const reconcileEntries = (nextEntries: readonly ListEntry<T>[]) => {
     if (disposed) return
-
-    // Fixed viewport slots only change their item values. Keep their records
-    // and scopes instead of allocating a reorder map or inspecting focus.
-    if (
-      nextEntries.length === records.length &&
-      nextEntries.every((entry, index) =>
-        Object.is(entry.key, records[index].key),
-      )
-    ) {
-      batch(() => {
-        for (let i = 0; i < nextEntries.length; i++) {
-          const item = nextEntries[i].item
-          records[i].setItem(() => item)
-        }
-      })
-
-      if (!disposed) {
-        emitDevtoolsEvent({ type: 'mount-for', length: records.length })
-      }
-      return
-    }
 
     const oldMap = new Map<Key, ListRecord<T>>()
 
@@ -353,6 +336,46 @@ function mountKeyedFor<T, K>(
     }
   }
 
+  const reconcileLatestItems = (): void => {
+    if (disposed) return
+
+    // Fixed viewport slots only change their item values. Keep their records
+    // and scopes instead of allocating a reorder map or inspecting focus.
+    if (latestItemsUseFixedSlots) {
+      const items = latestItems
+
+      batch(() => {
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i]
+          records[i].setItem(() => item)
+        }
+      })
+
+      if (!disposed) {
+        emitDevtoolsEvent({ type: 'mount-for', length: records.length })
+      }
+      return
+    }
+
+    const items = latestItems
+    const nextEntries: ListEntry<T>[] = []
+    const nextKeys = new Set<Key>()
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      const itemKey = latestKeys[i]
+
+      if (nextKeys.has(itemKey)) {
+        throw duplicateKeyError(itemKey, i)
+      }
+
+      nextKeys.add(itemKey)
+      nextEntries.push({ item, key: itemKey })
+    }
+
+    reconcileEntries(nextEntries)
+  }
+
   const drainReconciliations = () => {
     if (reconciling) return
 
@@ -360,7 +383,7 @@ function mountKeyedFor<T, K>(
     try {
       while (reconcileRequested) {
         reconcileRequested = false
-        untrack(() => reconcile(latestEntries))
+        untrack(reconcileLatestItems)
       }
     } finally {
       reconciling = false
@@ -381,22 +404,22 @@ function mountKeyedFor<T, K>(
     runner = effect(
       () => {
         const nextItems = each() ?? []
-        const nextEntries: ListEntry<T>[] = []
-        const nextKeys = new Set<Key>()
+        let useFixedSlots = nextItems.length === records.length
 
         for (let i = 0; i < nextItems.length; i++) {
           const item = nextItems[i]
+          void item
           const itemKey = key(item, i)
+          latestKeys[i] = itemKey
 
-          if (nextKeys.has(itemKey)) {
-            throw duplicateKeyError(itemKey, i)
+          if (useFixedSlots && !Object.is(itemKey, records[i].key)) {
+            useFixedSlots = false
           }
-
-          nextKeys.add(itemKey)
-          nextEntries.push({ item, key: itemKey })
         }
 
-        latestEntries = nextEntries
+        latestKeys.length = nextItems.length
+        latestItems = nextItems
+        latestItemsUseFixedSlots = useFixedSlots
       },
       { scheduler: scheduleReconciliation },
     )
