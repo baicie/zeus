@@ -727,6 +727,40 @@ describe('mountFor', () => {
     expect(root.childNodes).toHaveLength(1)
   })
 
+  it('skips fixed-slot item updates when the item reference is unchanged', () => {
+    const item = { id: 1, title: 'same' }
+    const [items, setItems] = createSignal([item])
+    const root = document.createElement('div')
+    const anchor = document.createComment('')
+    root.append(anchor)
+    document.body.append(root)
+    let itemRuns = 0
+
+    mountFor(
+      root,
+      anchor,
+      items,
+      value => value.id,
+      value => {
+        const span = document.createElement('span')
+        effect(() => {
+          itemRuns += 1
+          span.textContent = value().title
+        })
+        return span
+      },
+    )
+
+    expect(itemRuns).toBe(1)
+
+    setItems([item])
+    expect(itemRuns).toBe(1)
+
+    setItems([{ id: 1, title: 'changed' }])
+    expect(itemRuns).toBe(2)
+    expect(root.textContent).toBe('changed')
+  })
+
   it('rejects duplicate keys before mutating rendered records', () => {
     const [items, setItems] = createSignal([{ id: 1, title: 'a' }])
     const clone = template('<ul><!></ul>')()

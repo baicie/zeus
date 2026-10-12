@@ -24,6 +24,7 @@ type ListEntry<T> = {
 }
 
 type ListRecord<T> = {
+  item: T
   key: Key
   setItem: Setter<T>
   setIndex: Setter<number>
@@ -241,7 +242,10 @@ function mountKeyedFor<T, K>(
 
           if (oldRecord) {
             oldMap.delete(itemKey)
-            oldRecord.setItem(() => item)
+            if (!Object.is(oldRecord.item, item)) {
+              oldRecord.item = item
+              oldRecord.setItem(() => item)
+            }
             oldRecord.setIndex(i)
             nextRecords.push(oldRecord)
           } else {
@@ -249,6 +253,7 @@ function mountKeyedFor<T, K>(
             const [readIndex, setIndex] = createSignal(i)
             const subtree = new ScopedSubtree(parent, marker, subtreeContext)
             const record = {
+              item,
               key: itemKey,
               setItem,
               setIndex,
@@ -347,7 +352,11 @@ function mountKeyedFor<T, K>(
       batch(() => {
         for (let i = 0; i < items.length; i++) {
           const item = items[i]
-          records[i].setItem(() => item)
+          const record = records[i]
+          if (!Object.is(record.item, item)) {
+            record.item = item
+            record.setItem(() => item)
+          }
         }
       })
 
