@@ -341,8 +341,10 @@ export function endBatch(): void {
           const effect = e as ReactiveEffect
           if (
             !effect.scheduler &&
-            !(effect.flags & EffectFlags.PAUSED) &&
-            !(effect.flags & EffectFlags.HAS_COMPUTED_DEPS)
+            !(
+              effect.flags &
+              (EffectFlags.PAUSED | EffectFlags.HAS_COMPUTED_DEPS)
+            )
           ) {
             effect.run()
           } else {

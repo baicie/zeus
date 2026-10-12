@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1-beta.9 (2026-10-13)
+
+### Performance
+
+- Fast-path plain signal effects during batch flushes when no scheduler, pause state, or computed dependency requires the dirty-check path.
+
 ## 0.1.1-beta.8 (2026-10-12)
 
 ### Fixes
