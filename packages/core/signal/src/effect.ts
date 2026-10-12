@@ -55,6 +55,11 @@ export enum EffectFlags {
   ALLOW_RECURSE = 1 << 5,
   PAUSED = 1 << 6,
   EVALUATED = 1 << 7,
+  /**
+   * ReactiveEffect has tracked a computed dependency. This is sticky so the
+   * batch flush can retain the dirty check when a computed value is unchanged.
+   */
+  HAS_COMPUTED_DEPS = 1 << 8,
 }
 
 /**
@@ -329,8 +334,20 @@ export function endBatch(): void {
       e.flags &= ~EffectFlags.NOTIFIED
       if (e.flags & EffectFlags.ACTIVE) {
         try {
-          // ACTIVE flag is effect-only
-          ;(e as ReactiveEffect).trigger()
+          // ACTIVE flag is effect-only. A plain effect that has no computed
+          // dependencies is known to be dirty after notification, so skip the
+          // trigger()/isDirty() chain. Scheduler, paused, and computed-backed
+          // effects must keep the full trigger path.
+          const effect = e as ReactiveEffect
+          if (
+            !effect.scheduler &&
+            !(effect.flags & EffectFlags.PAUSED) &&
+            !(effect.flags & EffectFlags.HAS_COMPUTED_DEPS)
+          ) {
+            effect.run()
+          } else {
+            effect.trigger()
+          }
         } catch (err) {
           if (!error) error = err
         }

@@ -112,6 +112,10 @@ export class Dep {
       return
     }
 
+    if (this.computed) {
+      activeSub.flags |= EffectFlags.HAS_COMPUTED_DEPS
+    }
+
     let link = this.activeLink
     if (link === undefined || link.sub !== activeSub) {
       link = this.activeLink = new Link(activeSub, this)
