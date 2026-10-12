@@ -106,6 +106,11 @@ export declare enum EffectFlags {
   ALLOW_RECURSE = 32,
   PAUSED = 64,
   EVALUATED = 128,
+  /**
+   * ReactiveEffect has tracked a computed dependency. This is sticky so the
+   * batch flush can retain the dirty check when a computed value is unchanged.
+   */
+  HAS_COMPUTED_DEPS = 256,
 }
 /**
  * Subscriber is a type that tracks (or subscribes to) a list of deps.
