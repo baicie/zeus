@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1-beta.8 (2026-10-12)
+
+### Fixes
+
+- Release v0.1.1-beta.8.
+
 ## 0.1.1-beta.7 (2026-10-11)
 
 ### Fixes
