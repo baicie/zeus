@@ -1,7 +1,7 @@
 {
   "name": "@zeus-js/compiler-native",
   "type": "commonjs",
-  "version": "0.1.1-beta.9",
+  "version": "0.1.1-beta.10",
   "description": "Rust-native Zeus compiler Node adapter",
   "license": "MIT",
   "repository": {
