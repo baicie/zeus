@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.1-beta.12 (2026-10-13)
+
+### Features
+
+- Add opt-in runtime allocation diagnostics for effects, proxies, scopes, refs, and computed values.
+
+### Fixes
+
+- Avoid reading the live DOM before writing a changed reactive attribute value.
+
 ## 0.1.1-beta.9 (2026-10-13)
 
 ### Performance
