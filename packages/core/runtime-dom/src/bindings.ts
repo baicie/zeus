@@ -49,61 +49,40 @@ function stringifyText(value: JSXValue): string {
 export function setAttr(el: Element, name: string, value: AttrValue): void {
   const attrName = normalizeAttrName(name)
   const propName = getBooleanDomPropertyName(name)
+  const serialized =
+    value == null || value === false
+      ? null
+      : value === true
+        ? ''
+        : String(value)
+
+  // Reading the current attribute is far cheaper than writing it: a write
+  // invalidates attribute caches and can force style or presentation work even
+  // when the serialized value is identical. Reactive bindings usually re-run
+  // with unchanged values (any dependency of the expression may have changed),
+  // so skipping redundant writes removes a large amount of per-commit DOM work.
+  // Comparing against live DOM state also repairs external mutations.
+  const attrMatches =
+    serialized === null
+      ? !el.hasAttribute(attrName)
+      : el.getAttribute(attrName) === serialized
+
+  if (attrMatches) {
+    if (!propName || !(el instanceof HTMLElement)) return
+    if (
+      Boolean(value) ===
+      Boolean((el as HTMLElement & Record<string, unknown>)[propName])
+    ) {
+      return
+    }
+  }
 
   if (propName && el instanceof HTMLElement) {
     ;(el as HTMLElement & Record<string, unknown>)[propName] = Boolean(value)
-
-    if (value == null || value === false) {
-      el.removeAttribute(attrName)
-    } else if (value === true) {
-      el.setAttribute(attrName, '')
-    } else {
-      el.setAttribute(attrName, String(value))
-    }
-
-    return
   }
 
-  if (value == null || value === false) {
-    el.removeAttribute(attrName)
-    return
-  }
-
-  if (value === true) {
-    el.setAttribute(attrName, '')
-    return
-  }
-
-  el.setAttribute(attrName, String(value))
-}
-
-// Reading the current attribute is far cheaper than writing it: a write
-// invalidates attribute caches and can force style or presentation work even
-// when the serialized value is identical. Reactive bindings usually re-run
-// with unchanged values (any dependency of the expression may have changed),
-// so skipping redundant writes removes a large amount of per-commit DOM work.
-function isAttrUnchanged(el: Element, name: string, value: AttrValue): boolean {
-  const attrName = normalizeAttrName(name)
-  const propName = getBooleanDomPropertyName(name)
-
-  if (propName && el instanceof HTMLElement) {
-    if (
-      Boolean(value) !==
-      Boolean((el as HTMLElement & Record<string, unknown>)[propName])
-    ) {
-      return false
-    }
-  }
-
-  if (value == null || value === false) {
-    return !el.hasAttribute(attrName)
-  }
-
-  if (value === true) {
-    return el.getAttribute(attrName) === ''
-  }
-
-  return el.getAttribute(attrName) === String(value)
+  if (serialized === null) el.removeAttribute(attrName)
+  else el.setAttribute(attrName, serialized)
 }
 
 function getBooleanDomPropertyName(name: string): string | undefined {
@@ -136,10 +115,7 @@ export function bindAttr(
   value: () => AttrValue,
   once = false,
 ): void {
-  applyBinding(value, once, next => {
-    if (isAttrUnchanged(el, name, next)) return
-    setAttr(el, name, next)
-  })
+  applyBinding(value, once, next => setAttr(el, name, next))
 }
 
 export function bindProp<T extends Element, K extends keyof T>(
@@ -263,9 +239,7 @@ function patchStyle(
     values[key] = expected
   }
 
-  if (prev && !wrote) return prev
-
-  return [values, style.cssText + keys.join(',')]
+  return prev && !wrote ? prev : [values, style.cssText + keys.join(',')]
 }
 
 function normalizeStyleValue(key: string, value: string | number): string {
