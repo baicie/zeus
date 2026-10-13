@@ -77,6 +77,35 @@ export function setAttr(el: Element, name: string, value: AttrValue): void {
   el.setAttribute(attrName, String(value))
 }
 
+// Reading the current attribute is far cheaper than writing it: a write
+// invalidates attribute caches and can force style or presentation work even
+// when the serialized value is identical. Reactive bindings usually re-run
+// with unchanged values (any dependency of the expression may have changed),
+// so skipping redundant writes removes a large amount of per-commit DOM work.
+function isAttrUnchanged(el: Element, name: string, value: AttrValue): boolean {
+  const attrName = normalizeAttrName(name)
+  const propName = getBooleanDomPropertyName(name)
+
+  if (propName && el instanceof HTMLElement) {
+    if (
+      Boolean(value) !==
+      Boolean((el as HTMLElement & Record<string, unknown>)[propName])
+    ) {
+      return false
+    }
+  }
+
+  if (value == null || value === false) {
+    return !el.hasAttribute(attrName)
+  }
+
+  if (value === true) {
+    return el.getAttribute(attrName) === ''
+  }
+
+  return el.getAttribute(attrName) === String(value)
+}
+
 function getBooleanDomPropertyName(name: string): string | undefined {
   return BOOLEAN_DOM_PROPERTY_NAME[name]
 }
@@ -108,6 +137,7 @@ export function bindAttr(
   once = false,
 ): void {
   applyBinding(value, once, next => {
+    if (isAttrUnchanged(el, name, next)) return
     setAttr(el, name, next)
   })
 }
@@ -195,8 +225,15 @@ function patchStyle(
   const values = prev
     ? prev[0]
     : (Object.create(null) as Record<string, string>)
-  const state = style.cssText + Object.keys(next)
+  const keys = Object.keys(next)
+  // `cssText` forces the CSSOM to re-serialize every declaration, so it is the
+  // most expensive part of patching a style binding. Read it once to detect
+  // external mutation, and only read it again when this patch actually wrote a
+  // declaration. Bindings whose values are unchanged then cost zero writes
+  // and zero re-serialization.
+  const state = style.cssText + keys.join(',')
   const styleChanged = prev && state != prev[1]
+  let wrote = false
 
   for (const key in values) {
     if (!(key in next)) {
@@ -204,6 +241,7 @@ function patchStyle(
         key.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`),
         '',
       )
+      wrote = true
       delete values[key]
     }
   }
@@ -221,10 +259,13 @@ function patchStyle(
       key.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`),
       expected,
     )
+    wrote = true
     values[key] = expected
   }
 
-  return [values, style.cssText + Object.keys(next)]
+  if (prev && !wrote) return prev
+
+  return [values, style.cssText + keys.join(',')]
 }
 
 function normalizeStyleValue(key: string, value: string | number): string {

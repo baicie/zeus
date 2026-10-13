@@ -102,6 +102,40 @@ describe('runtime bindings', () => {
     expect(el.getAttribute('class')).toBe('foo')
   })
 
+  it('skips redundant attribute writes', () => {
+    const other = state(0)
+    const el = document.createElement('div')
+
+    bindAttr(el, 'title', () => {
+      other.value
+      return 'hello'
+    })
+
+    const setAttribute = vi.spyOn(el, 'setAttribute')
+    const removeAttribute = vi.spyOn(el, 'removeAttribute')
+
+    other.value++
+
+    expect(setAttribute).not.toHaveBeenCalled()
+    expect(removeAttribute).not.toHaveBeenCalled()
+    expect(el.getAttribute('title')).toBe('hello')
+  })
+
+  it('restores an externally removed attribute', () => {
+    const other = state(0)
+    const el = document.createElement('div')
+
+    bindAttr(el, 'title', () => {
+      other.value
+      return 'hello'
+    })
+    el.removeAttribute('title')
+
+    other.value++
+
+    expect(el.getAttribute('title')).toBe('hello')
+  })
+
   it('binds class string', () => {
     const cls = state('active')
     const el = document.createElement('div')
@@ -220,6 +254,26 @@ describe('runtime bindings', () => {
     offset.value = 40
 
     expect(getPropertyValue).not.toHaveBeenCalled()
+  })
+
+  it('does not re-serialize an unchanged style binding', () => {
+    const tick = state(0)
+    const el = document.createElement('div')
+
+    bindStyle(el, () => {
+      tick.value
+      return { display: 'grid', transform: 'translateY(40px)' }
+    })
+
+    const cssText = vi.spyOn(el.style, 'cssText', 'get')
+    const setProperty = vi.spyOn(el.style, 'setProperty')
+
+    tick.value++
+
+    // One read still detects external mutation, but an unchanged binding must
+    // not serialize the declaration list a second time or rewrite any value.
+    expect(cssText).toHaveBeenCalledTimes(1)
+    expect(setProperty).not.toHaveBeenCalled()
   })
 
   it('applies updates when the same style object is mutated', () => {
