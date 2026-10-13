@@ -10,11 +10,13 @@ describe('effect batch flush fast path', () => {
     const runs = vi.fn(() => source.value)
     const runner = effect(runs)
     const trigger = vi.spyOn(runner.effect, 'trigger')
+    const runIfDirty = vi.spyOn(runner.effect, 'runIfDirty')
 
     source.value = 1
 
     expect(runs).toHaveBeenCalledTimes(2)
-    expect(trigger).not.toHaveBeenCalled()
+    expect(trigger).toHaveBeenCalledTimes(1)
+    expect(runIfDirty).not.toHaveBeenCalled()
   })
 
   it('keeps the dirty check for a computed dependency', () => {
@@ -23,11 +25,13 @@ describe('effect batch flush fast path', () => {
     const runs = vi.fn(() => memo.value)
     const runner = effect(runs)
     const trigger = vi.spyOn(runner.effect, 'trigger')
+    const runIfDirty = vi.spyOn(runner.effect, 'runIfDirty')
 
     source.value = 1
 
     expect(runs).toHaveBeenCalledTimes(1)
     expect(trigger).toHaveBeenCalledTimes(1)
+    expect(runIfDirty).toHaveBeenCalledTimes(1)
 
     source.value = 2
 

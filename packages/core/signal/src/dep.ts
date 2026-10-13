@@ -113,7 +113,7 @@ export class Dep {
     }
 
     if (this.computed) {
-      activeSub.flags |= EffectFlags.HAS_COMPUTED_DEPS
+      activeSub.flags |= EffectFlags.EVALUATED
     }
 
     let link = this.activeLink
