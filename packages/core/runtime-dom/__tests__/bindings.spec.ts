@@ -66,6 +66,21 @@ describe('runtime bindings', () => {
     expect(el.getAttribute('title')).toBe('world')
   })
 
+  it('does not read the old DOM value before a changed attr write', () => {
+    const title = state('hello')
+    const el = document.createElement('div')
+
+    bindAttr(el, 'title', () => title.value)
+    const getAttribute = vi.spyOn(el, 'getAttribute')
+    const hasAttribute = vi.spyOn(el, 'hasAttribute')
+
+    title.value = 'world'
+
+    expect(getAttribute).not.toHaveBeenCalled()
+    expect(hasAttribute).not.toHaveBeenCalled()
+    expect(el.getAttribute('title')).toBe('world')
+  })
+
   it('removes attr when value is null', () => {
     const value = state<string | null>('hello')
     const el = document.createElement('div')

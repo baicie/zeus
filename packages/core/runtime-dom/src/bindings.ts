@@ -49,12 +49,7 @@ function stringifyText(value: JSXValue): string {
 export function setAttr(el: Element, name: string, value: AttrValue): void {
   const attrName = normalizeAttrName(name)
   const propName = getBooleanDomPropertyName(name)
-  const serialized =
-    value == null || value === false
-      ? null
-      : value === true
-        ? ''
-        : String(value)
+  const serialized = serializeAttrValue(value)
 
   // Reading the current attribute is far cheaper than writing it: a write
   // invalidates attribute caches and can force style or presentation work even
@@ -83,6 +78,27 @@ export function setAttr(el: Element, name: string, value: AttrValue): void {
 
   if (serialized === null) el.removeAttribute(attrName)
   else el.setAttribute(attrName, serialized)
+}
+
+function writeAttr(el: Element, name: string, value: AttrValue): void {
+  const attrName = normalizeAttrName(name)
+  const propName = getBooleanDomPropertyName(name)
+  const serialized = serializeAttrValue(value)
+
+  if (propName && el instanceof HTMLElement) {
+    ;(el as HTMLElement & Record<string, unknown>)[propName] = Boolean(value)
+  }
+
+  if (serialized === null) el.removeAttribute(attrName)
+  else el.setAttribute(attrName, serialized)
+}
+
+function serializeAttrValue(value: AttrValue): string | null {
+  return value == null || value === false
+    ? null
+    : value === true
+      ? ''
+      : String(value)
 }
 
 function getBooleanDomPropertyName(name: string): string | undefined {
@@ -115,7 +131,24 @@ export function bindAttr(
   value: () => AttrValue,
   once = false,
 ): void {
-  applyBinding(value, once, next => setAttr(el, name, next))
+  let previous: string | null | undefined
+  let hasPrevious = false
+
+  applyBinding(value, once, next => {
+    const serialized = serializeAttrValue(next)
+
+    // When a reactive binding changes, its target value is authoritative and
+    // reading the old DOM value only adds work before the write. Keep the DOM
+    // check for unchanged values so external mutations are still repaired.
+    if (hasPrevious && serialized === previous) {
+      setAttr(el, name, next)
+    } else {
+      writeAttr(el, name, next)
+    }
+
+    previous = serialized
+    hasPrevious = true
+  })
 }
 
 export function bindProp<T extends Element, K extends keyof T>(
