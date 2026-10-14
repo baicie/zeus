@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1-beta.13 (2026-10-14)
+
+### Performance
+
+- Skip redundant DOM text writes so pooled virtual lists stop reshaping unchanged strings on every scroll commit.
+
 ## 0.1.1-beta.12 (2026-10-13)
 
 ### Features
