@@ -8,7 +8,7 @@ export function bindText(
   once = false,
 ): void {
   applyBinding(value, once, next => {
-    node.data = stringifyText(next)
+    setTextData(node, stringifyText(next))
   })
 }
 
@@ -18,8 +18,23 @@ export function bindTextContent(
   once = false,
 ): void {
   applyBinding(value, once, next => {
-    el.textContent = stringifyText(next)
+    setTextContent(el, stringifyText(next))
   })
+}
+
+// Writing text is not as cheap as it looks: assigning `data` or `textContent`
+// invalidates the element's text caches, and WebKit re-runs text shaping for
+// the new string. Reactive bindings re-run whenever any dependency changes, so a
+// grid that recycles pooled cells and rebinds the same visible text on every
+// scroll would otherwise reshape thousands of long `nowrap` + ellipsis strings
+// per commit. Comparing against live DOM state skips redundant writes and also
+// repairs external mutations.
+function setTextData(node: Text, serialized: string): void {
+  if (node.data !== serialized) node.data = serialized
+}
+
+function setTextContent(el: Node, serialized: string): void {
+  if (el.textContent !== serialized) el.textContent = serialized
 }
 
 function applyBinding<T>(

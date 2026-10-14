@@ -136,6 +136,63 @@ describe('runtime bindings', () => {
     expect(el.getAttribute('title')).toBe('hello')
   })
 
+  it('skips redundant text writes', () => {
+    const other = state(0)
+    const value = state('hello')
+    const text = document.createTextNode('')
+
+    bindText(text, () => {
+      other.value
+      return value.value
+    })
+
+    const data = vi.spyOn(text, 'data', 'set')
+
+    other.value++
+    expect(data).not.toHaveBeenCalled()
+    expect(text.data).toBe('hello')
+
+    value.value = 'updated'
+    expect(data).toHaveBeenCalledTimes(1)
+    expect(text.data).toBe('updated')
+  })
+
+  it('skips redundant textContent writes', () => {
+    const other = state(0)
+    const value = state('hello')
+    const el = document.createElement('div')
+
+    bindTextContent(el, () => {
+      other.value
+      return value.value
+    })
+
+    const setTextContent = vi.spyOn(el, 'textContent', 'set')
+
+    other.value++
+    expect(setTextContent).not.toHaveBeenCalled()
+    expect(el.textContent).toBe('hello')
+
+    value.value = 'updated'
+    expect(setTextContent).toHaveBeenCalledTimes(1)
+    expect(el.textContent).toBe('updated')
+  })
+
+  it('repairs an externally mutated text node', () => {
+    const other = state(0)
+    const text = document.createTextNode('hello')
+
+    bindText(text, () => {
+      other.value
+      return 'hello'
+    })
+
+    text.data = 'tampered'
+    other.value++
+
+    expect(text.data).toBe('hello')
+  })
+
   it('restores an externally removed attribute', () => {
     const other = state(0)
     const el = document.createElement('div')
