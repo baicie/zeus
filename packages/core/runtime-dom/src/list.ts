@@ -31,6 +31,17 @@ type ListRecord<T> = {
   subtree: ScopedSubtree
 }
 
+function setListRecordItem<T>(record: ListRecord<T>, item: T): void {
+  record.item = item
+
+  // Setter treats functions as updater callbacks. Keep function-valued list
+  // items wrapped, while passing ordinary values directly to avoid allocating
+  // a closure for every pooled slot update.
+  record.setItem(
+    typeof item === 'function' ? ((() => item) as (previous: T) => T) : item,
+  )
+}
+
 function disposeListRecord<T>(record: ListRecord<T>): void {
   record.subtree.dispose()
 }
@@ -243,8 +254,7 @@ function mountKeyedFor<T, K>(
           if (oldRecord) {
             oldMap.delete(itemKey)
             if (!Object.is(oldRecord.item, item)) {
-              oldRecord.item = item
-              oldRecord.setItem(() => item)
+              setListRecordItem(oldRecord, item)
             }
             oldRecord.setIndex(i)
             nextRecords.push(oldRecord)
@@ -354,8 +364,7 @@ function mountKeyedFor<T, K>(
           const item = items[i]
           const record = records[i]
           if (!Object.is(record.item, item)) {
-            record.item = item
-            record.setItem(() => item)
+            setListRecordItem(record, item)
           }
         }
       })
