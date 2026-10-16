@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1-beta.14 (2026-10-16)
+
+### Fixes
+
+- Avoid allocating an updater closure when keyed `For` reuses a slot for an ordinary item value.
+
 ## 0.1.1-beta.13 (2026-10-14)
 
 ### Performance
