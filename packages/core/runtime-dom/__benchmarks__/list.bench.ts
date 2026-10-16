@@ -119,6 +119,20 @@ function listBenchmark(
 }
 
 describe('keyed For', () => {
+  const fixedSlotIds = makeItems(24).map(item => item.id)
+  listBenchmark(
+    'update 24 fixed slots',
+    fixedSlotIds.length,
+    true,
+    fixedSlotIds,
+    list =>
+      batch(() => {
+        for (const id of fixedSlotIds) {
+          list[id] = { id, title: `item ${id}` }
+        }
+      }),
+  )
+
   for (const length of [100, 1000]) {
     const ids = makeItems(length).map(item => item.id)
     listBenchmark(`create ${length} items`, length, true, ids)
