@@ -501,9 +501,10 @@ describe('output-wc', () => {
         {} as OutputBundle,
       ) as ZeusOutputAsset[]
 
-      expect(result).toHaveLength(4)
+      expect(result).toHaveLength(5)
       const fileNames = new Set(result.map(f => f.fileName))
       expect(fileNames).toContain('custom-elements.json')
+      expect(fileNames).toContain('vscode.html-custom-data.json')
       expect(fileNames).toContain('zeus.components.json')
     })
 
@@ -557,9 +558,10 @@ describe('output-wc', () => {
         {} as OutputBundle,
       ) as ZeusOutputAsset[]
 
-      expect(result).toHaveLength(5)
+      expect(result).toHaveLength(6)
       const fileNames = new Set(result.map(f => f.fileName))
       expect(fileNames).toContain('custom-elements.json')
+      expect(fileNames).toContain('vscode.html-custom-data.json')
       expect(fileNames).toContain('zeus.components.json')
       expect(fileNames).toContain('wc/index.d.ts')
       expect(fileNames).toContain('wc/jsx.d.ts')
@@ -644,6 +646,14 @@ describe('output-wc', () => {
             ],
           },
         ],
+      })
+
+      const vscodeCustomData = result.find(
+        file => file.fileName === 'vscode.html-custom-data.json',
+      )
+      expect(JSON.parse(vscodeCustomData!.source as string)).toMatchObject({
+        version: 1.1,
+        tags: [{ name: 'z-button' }],
       })
     })
 
