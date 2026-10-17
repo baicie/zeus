@@ -130,3 +130,14 @@ cleanup、SSR 编译产物不含 DOM 引用，以及 Vite SSR transform 的 runt
 2. Babel `generate: 'ssr'` 编译上述基线节点并只导入 SSR runtime。
 3. Vite SSR transform 自动生成 SSR 代码，浏览器 transform 行为保持不变。
 4. 新增行为有单元及集成测试，类型检查、目标构建和完整单元测试通过。
+
+## SSR-0 验收记录（2026-10-18）
+
+- `pnpm check:ssr-safe-import` 在独立 Node 子进程中导入 `@zeus-js/runtime-ssr` 与
+  `@zeus-js/zeus/server` 的源码入口，确认导入阶段不读取 `document`、`window` 或其他
+  DOM 全局，并渲染 `<main id="ssr">ok</main>`。
+- `pnpm exec vitest run packages/core/runtime-ssr packages/core/zeus` 覆盖同步
+  `renderToString`、原始属性序列化、转义、控制流、scope cleanup、thenable 拒绝和公开
+  server 入口。
+- SSR 输出没有 hydration marker，也不会接管已有 DOM；客户端必须重新执行编译后的 DOM
+  模块。Hydration、Declarative Shadow DOM 和 Web Component 内部 SSR 仍属于 E-006/E-007。

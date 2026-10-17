@@ -118,6 +118,8 @@ jobs:
       - run: pnpm build
       - run: pnpm check:runtime-interop
       - run: pnpm build-dts
+      - name: SSR safe import
+        run: pnpm check:ssr-safe-import
       - run: pnpm check:cjs
       - run: pnpm api:check
       - run: pnpm check:exports
