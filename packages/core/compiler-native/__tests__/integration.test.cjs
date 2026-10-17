@@ -111,13 +111,13 @@ export const Bindings = (props: { name: string }) => (
 
 export const OnceBindings = (props: { name: string }) => (
   <section
-    title={/* @once */ props.name}
-    class={/* @once */ { initial: props.name === 'Ada', updated: props.name === 'Grace' }}
-    style={/* @once */ { color: props.name === 'Ada' ? 'red' : 'blue', lineHeight: 1 }}
+    title={once(props.name)}
+    class={once({ initial: props.name === 'Ada', updated: props.name === 'Grace' })}
+    style={once({ color: props.name === 'Ada' ? 'red' : 'blue', lineHeight: 1 })}
   >
-    <b>{/* @once */ props.name}</b>
-    <input prop:value={/* @once */ props.name} />
-    <textarea>{/* @once */ props.name}</textarea>
+    <b>{once(props.name)}</b>
+    <input prop:value={once(props.name)} />
+    <textarea>{once(props.name)}</textarea>
     <span data-name={props.name}>{props.name}</span>
   </section>
 )
@@ -1001,7 +1001,7 @@ const Child = props => {
   return <button title={props.title} prop:formatter={props.formatter}>child</button>
 }
 const App = () => <main>
-  <section {...{ id: 'base', title: label() }} id="fixed" {...native()} data-once={/* @once */ label()}>native</section>
+  <section {...{ id: 'base', title: label() }} id="fixed" {...native()} data-once={once(label())}>native</section>
   <Child {...{ title: 'base' }} title={label()} {...child()} formatter={formatter} />
 </main>
 export const mount = container => render(() => App(), container)
