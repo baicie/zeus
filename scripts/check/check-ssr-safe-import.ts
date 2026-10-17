@@ -1,14 +1,14 @@
 import { spawnSync } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
 const runtimeSSR = new URL(
   './packages/core/runtime-ssr/dist/runtime-ssr.esm-bundler.js',
-  `file://${root}/`,
+  pathToFileURL(`${root}/`).href,
 ).href
 const zeusServer = new URL(
   './packages/core/zeus/dist/server.js',
-  `file://${root}/`,
+  pathToFileURL(`${root}/`).href,
 ).href
 const source = `
   import { renderToString } from ${JSON.stringify(zeusServer)}
