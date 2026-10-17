@@ -51,7 +51,7 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
     let locator_attribute = allocate_locator_attribute(module);
     let runtime = RuntimeNames::allocate(&helper_usage, &locator_attribute, &mut names);
 
-    let generated = module
+    let mut generated = module
         .components
         .iter()
         .zip(binding_sets)
@@ -59,6 +59,7 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
             GeneratedComponent::new(component, bindings, &locator_attribute, &mut names)
         })
         .collect::<Vec<_>>();
+    intern_static_templates(&mut generated);
 
     let mut writer = CodeWriter::default();
     let mut cursor = usize::try_from(module.preamble_end)
@@ -114,6 +115,21 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
     }
 }
 
+fn intern_static_templates(components: &mut [GeneratedComponent]) {
+    let mut templates = HashMap::<(bool, String), String>::new();
+    for component in components {
+        if !component.bindings.is_empty() || component.template_html.is_empty() {
+            continue;
+        }
+        let key = (component.is_svg, component.template_html.clone());
+        if let Some(template_name) = templates.get(&key) {
+            component.template_name.clone_from(template_name);
+        } else {
+            templates.insert(key, component.template_name.clone());
+        }
+    }
+}
+
 fn collect_component_bindings(module: &ModuleIr) -> Vec<Vec<DynamicBinding>> {
     module
         .components
@@ -155,8 +171,9 @@ fn emit_templates(
     components: &[GeneratedComponent],
     runtime: &RuntimeNames,
 ) {
+    let mut emitted = HashSet::new();
     for component in components {
-        if component.template_html.is_empty() {
+        if component.template_html.is_empty() || !emitted.insert(component.template_name.as_str()) {
             continue;
         }
         writer.push("const ");

@@ -221,6 +221,69 @@ describe('runtime bindings', () => {
     expect(el.getAttribute('class')).toBe('disabled')
   })
 
+  it('skips redundant class and style string writes', () => {
+    const tick = state(0)
+    const el = document.createElement('div')
+    const setAttribute = vi.spyOn(el, 'setAttribute')
+
+    bindClass(el, () => {
+      tick.value
+      return 'active'
+    })
+    bindStyle(el, () => {
+      tick.value
+      return 'color:red'
+    })
+
+    setAttribute.mockClear()
+    tick.value++
+
+    expect(setAttribute).not.toHaveBeenCalled()
+    expect(el.className).toBe('active')
+    expect(el.getAttribute('style')).toBe('color:red')
+  })
+
+  it('skips redundant native property writes', () => {
+    const tick = state(0)
+    const input = document.createElement('input')
+    const setter = vi.spyOn(input, 'value', 'set')
+
+    bindProp(input, 'value', () => {
+      tick.value
+      return 'Ada'
+    })
+    setter.mockClear()
+    tick.value++
+
+    expect(setter).not.toHaveBeenCalled()
+    expect(input.value).toBe('Ada')
+  })
+
+  it('preserves custom element property setter calls', () => {
+    let setterCalls = 0
+    let currentValue = ''
+    const counter = {
+      localName: 'x-binding-counter',
+      get value() {
+        return currentValue
+      },
+      set value(value: string) {
+        setterCalls++
+        currentValue = value
+      },
+    } as unknown as HTMLElement & { value: string }
+    const tick = state(0)
+
+    bindProp(counter, 'value', () => {
+      tick.value
+      return 'Ada'
+    })
+    tick.value++
+
+    expect(counter.value).toBe('Ada')
+    expect(setterCalls).toBe(2)
+  })
+
   it('binds class object', () => {
     const active = state(false)
     const el = document.createElement('div')

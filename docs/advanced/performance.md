@@ -29,12 +29,12 @@ plain object with the same key updates bindings and event handlers to the
 latest item and index without rerunning the item setup callback. Keys must be
 unique within one list snapshot.
 
-## @once static marker
+## `once(expr)` initialization binding
 
 Mark DOM values that never change to skip reactive tracking:
 
 ```tsx
-<div title={/* @once */ getTitle()}>{/* @once */ expensiveComputation()}</div>
+<div title={once(getTitle())}>{once(expensiveComputation())}</div>
 ```
 
 The compiler still emits the normal binding helper with `once: true`, so text,
@@ -43,10 +43,9 @@ as reactive bindings. The getter runs untracked exactly once and the runtime
 does not create a reactive effect. Later signal updates do not update that DOM
 value.
 
-`@once` is an explicit author promise. Use it only inside a JSX expression
-container for a DOM value that is stable for the lifetime of that node. Events,
-refs, component props, and control-flow inputs reject the marker with a compiler
-diagnostic instead of silently ignoring it.
+`once(expr)` is an explicit author promise. Use it only for a native DOM value that
+is stable for the lifetime of that node. Events, refs, component props, and
+control-flow inputs reject the intrinsic with a compiler diagnostic.
 
 ## Event delegation
 

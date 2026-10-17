@@ -254,7 +254,6 @@ struct Lowerer<'source, 'allocator> {
     host_depth: usize,
     scoping: Scoping,
     for_accessor_scopes: Vec<LowerForAccessorScope>,
-    once_dynamic_regions: HashSet<NodeId>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -302,7 +301,6 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             host_depth: 0,
             scoping,
             for_accessor_scopes: Vec::new(),
-            once_dynamic_regions: HashSet::new(),
         }
     }
 
@@ -471,13 +469,12 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 return None;
             };
             let id = region.id;
-            let once = self.once_dynamic_regions.remove(&id);
             *child = ChildIr::DynamicText(DynamicTextIr {
                 id,
                 kind: "DynamicText".into(),
                 reference: IrRef { node_id: id },
                 expression: expression.clone(),
-                once,
+                once: false,
                 span: region.span,
             });
         }
@@ -492,7 +489,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         if has_once && has_reactive {
             self.unsupported(
                 "ZEUS_MIXED_RAW_TEXT_BINDING_MODE",
-                "Raw-text elements cannot mix @once and reactive dynamic expressions.",
+                "Raw-text elements cannot mix once and reactive dynamic expressions.",
                 element.span,
             );
             return None;
@@ -552,9 +549,8 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                         && name.name == "name"
                         && let Some(JSXAttributeValue::ExpressionContainer(container)) =
                             &attribute.value
-                        && self.has_once_marker(container)
+                        && self.reject_once_marker(container)
                     {
-                        self.invalid_once_target(container.span);
                         continue;
                     }
                     if kind == "Slot"
@@ -986,6 +982,10 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 "Builtin expressions cannot be empty.",
                 container.span,
             );
+            return None;
+        }
+        if self.has_once_marker(container) {
+            self.removed_once_marker(container.span);
             return None;
         }
         let expression = container.expression.to_expression();
@@ -1514,9 +1514,23 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             );
             return None;
         }
-
+        if self.has_once_marker(container) {
+            self.removed_once_marker(container.span);
+            return None;
+        }
         let expression = container.expression.to_expression();
-        let once = self.has_once_marker(container);
+        let (expression, once) = if let Some(argument) = self.once_argument(expression) {
+            (argument, true)
+        } else if self.is_once_intrinsic_call(expression) {
+            self.unsupported(
+                "ZEUS_INVALID_ONCE_INTRINSIC",
+                "The once intrinsic accepts exactly one non-spread expression.",
+                container.span,
+            );
+            return None;
+        } else {
+            (expression, false)
+        };
         if contains_jsx(expression) {
             self.unsupported(
                 "ZEUS_UNSUPPORTED_JSX_ATTRIBUTE_VALUE",
@@ -1624,12 +1638,28 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 if matches!(&container.expression, JSXExpression::EmptyExpression(_)) {
                     return;
                 }
+                if self.has_once_marker(container) {
+                    self.removed_once_marker(container.span);
+                    return;
+                }
                 let expression = container.expression.to_expression();
-                let once = self.has_once_marker(container);
+                let (expression, once) = if let Some(argument) = self.once_argument(expression) {
+                    (argument, true)
+                } else if self.is_once_intrinsic_call(expression) {
+                    self.unsupported(
+                        "ZEUS_INVALID_ONCE_INTRINSIC",
+                        "The once intrinsic accepts exactly one non-spread expression.",
+                        container.span,
+                    );
+                    return;
+                } else {
+                    (expression, false)
+                };
                 let diagnostic_count = self.diagnostics.len();
                 if let Some(region) = self.lower_dynamic_region(expression) {
                     if once {
-                        self.once_dynamic_regions.insert(region.id);
+                        self.invalid_once_target(container.span);
+                        return;
                     }
                     lowered.push(ChildIr::DynamicRegion(region));
                     return;
@@ -1760,11 +1790,28 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
     }
 
     fn reject_once_marker(&mut self, container: &JSXExpressionContainer<'_>) -> bool {
+        let Some(expression) = container.expression.as_expression() else {
+            return false;
+        };
+        if self.reject_once_call(expression, container.span) {
+            return true;
+        }
         if !self.has_once_marker(container) {
             return false;
         }
+        self.removed_once_marker(container.span);
+        true
+    }
 
-        self.invalid_once_target(container.span);
+    fn reject_once_call(&mut self, expression: &Expression<'_>, span: Span) -> bool {
+        if !self.is_once_intrinsic_call(expression) {
+            return false;
+        }
+        if self.once_argument(expression).is_some() {
+            self.invalid_once_target(span);
+        } else {
+            self.invalid_once_intrinsic(span);
+        }
         true
     }
 
@@ -1772,17 +1819,29 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         let mut rejected = false;
 
         for attribute in &element.opening_element.attributes {
-            let marker_span = match attribute {
+            match attribute {
                 JSXAttributeItem::Attribute(attribute) => {
                     let Some(JSXAttributeValue::ExpressionContainer(container)) = &attribute.value
                     else {
                         continue;
                     };
-                    self.has_once_marker(container).then_some(container.span)
+                    if self.has_once_marker(container) {
+                        self.removed_once_marker(container.span);
+                        rejected = true;
+                    } else if container
+                        .expression
+                        .as_expression()
+                        .is_some_and(|expression| self.reject_once_call(expression, container.span))
+                    {
+                        rejected = true;
+                    }
                 }
                 JSXAttributeItem::SpreadAttribute(attribute) => {
                     if self.has_once_spread_marker(attribute) {
-                        Some(attribute.span)
+                        self.removed_once_marker(attribute.span);
+                        rejected = true;
+                    } else if self.reject_once_call(&attribute.argument, attribute.span) {
+                        rejected = true;
                     } else {
                         self.unsupported(
                             "ZEUS_UNSUPPORTED_BUILTIN_SPREAD",
@@ -1790,14 +1849,8 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                             attribute.span,
                         );
                         rejected = true;
-                        None
                     }
                 }
-            };
-
-            if let Some(span) = marker_span {
-                self.invalid_once_target(span);
-                rejected = true;
             }
         }
 
@@ -1807,8 +1860,28 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
     fn invalid_once_target(&mut self, span: Span) {
         self.unsupported(
             "ZEUS_INVALID_ONCE_TARGET",
-            "@once can only mark native DOM text, attribute, or property bindings.",
+            "The once intrinsic only supports native DOM text, attribute, and property bindings.",
             span,
+        );
+    }
+
+    fn invalid_once_intrinsic(&mut self, span: Span) {
+        self.unsupported(
+            "ZEUS_INVALID_ONCE_INTRINSIC",
+            "The once intrinsic accepts exactly one non-spread expression.",
+            span,
+        );
+    }
+
+    fn removed_once_marker(&mut self, span: Span) {
+        self.diagnostics.push(
+            CompilerDiagnostic::error(
+                "ZEUS_INVALID_ONCE_TARGET",
+                "The @once comment syntax is no longer accepted; use once(expression) in a native DOM binding.",
+                self.filename,
+                Some(self.source_index.span(span)),
+            )
+            .with_hint("Replace `{/* @once */ value}` with `{once(value)}` and use `once(value)` for DOM attributes or properties."),
         );
     }
 
@@ -1823,6 +1896,36 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         };
 
         trivia_contains_once_marker(trivia)
+    }
+
+    fn is_once_intrinsic_call(&self, expression: &Expression<'_>) -> bool {
+        let Expression::CallExpression(call) = unwrap_expression(expression) else {
+            return false;
+        };
+        let Expression::Identifier(identifier) = &call.callee else {
+            return false;
+        };
+        identifier.name.as_str() == "once"
+            && identifier.reference_id.get().is_some_and(|reference| {
+                self.scoping.get_reference(reference).symbol_id().is_none()
+            })
+    }
+
+    fn once_argument<'ast>(
+        &self,
+        expression: &'ast Expression<'ast>,
+    ) -> Option<&'ast Expression<'ast>> {
+        let Expression::CallExpression(call) = unwrap_expression(expression) else {
+            return None;
+        };
+        if !self.is_once_intrinsic_call(expression) || call.arguments.len() != 1 {
+            return None;
+        }
+        let argument = call.arguments.first()?;
+        if argument.is_spread() {
+            return None;
+        }
+        argument.as_expression()
     }
 
     fn has_once_spread_marker(&self, attribute: &JSXSpreadAttribute<'_>) -> bool {
