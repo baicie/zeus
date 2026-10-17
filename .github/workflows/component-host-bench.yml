@@ -2,6 +2,8 @@ name: Component Host Bench
 
 on:
   pull_request:
+    branches:
+      - main
     paths:
       - 'packages/core/**'
       - 'packages/web-c/**'
@@ -10,10 +12,41 @@ on:
       - 'scripts/bench/**'
       - 'pnpm-workspace.yaml'
       - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.node-version'
+      - '.github/workflows/component-host-bench.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'packages/core/**'
+      - 'packages/web-c/**'
+      - 'packages/headless/**'
+      - 'benchmarks/component-host/**'
+      - 'scripts/bench/**'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.node-version'
+      - '.github/workflows/component-host-bench.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: component-host-bench-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PUPPETEER_SKIP_DOWNLOAD: 'true'
+  ZEUS_BENCH_GIT_BRANCH: ${{ github.head_ref || github.ref_name }}
+  ZEUS_BENCH_GIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
   bench:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v5
@@ -28,6 +61,38 @@ jobs:
           cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile
+
+      - name: Install Puppeteer Chrome
+        run: pnpm exec puppeteer browsers install chrome
+
+      - name: Restore benchmark history
+        id: previous-run
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data } = await github.rest.actions.listWorkflowRunsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'component-host-bench.yml',
+              branch: 'main',
+              status: 'success',
+              per_page: 100,
+            })
+            const previous = data.workflow_runs.find(run =>
+              run.id !== context.runId && run.event === 'push'
+            )
+            core.setOutput('run-id', previous?.id ?? '')
+
+      - name: Download previous main benchmark history
+        if: steps.previous-run.outputs.run-id != ''
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: component-host-benchmark
+          run-id: ${{ steps.previous-run.outputs.run-id }}
+          github-token: ${{ github.token }}
+          path: temp/bench/component-host
+
       - name: Build host native compiler
         run: pnpm --filter @zeus-js/compiler-native build:native
 
@@ -35,8 +100,36 @@ jobs:
 
       - run: pnpm bench:component-host:ci
 
-      - uses: actions/upload-artifact@v4
+      - name: Validate benchmark runtime data
         if: always()
+        run: |
+          test -s temp/bench/component-host/report.json
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs'
+          const report = JSON.parse(readFileSync('temp/bench/component-host/report.json', 'utf8'))
+          if (!Array.isArray(report.runtime) || report.runtime.length === 0) {
+            throw new Error('runtime benchmark missing')
+          }
+          NODE
+
+      - name: Add benchmark report to job summary
+        if: always()
+        run: |
+          if test -f temp/bench/component-host/report.md; then
+            cat temp/bench/component-host/report.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Component host benchmark report unavailable.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload benchmark report and trend
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: component-host-benchmark
-          path: temp/bench/component-host
+          path: |
+            temp/bench/component-host/report.json
+            temp/bench/component-host/report.md
+            temp/bench/component-host/trend.json
+            temp/bench/component-host/trend.csv
+          if-no-files-found: warn
+          retention-days: 90

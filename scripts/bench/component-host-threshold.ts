@@ -62,7 +62,10 @@ function checkMetricList(
   thresholds: Record<string, number>,
   errors: string[],
 ): void {
-  if (!value || value.length === 0) {
+  // An omitted section means that the caller intentionally ran a partial
+  // benchmark. An explicit empty section means the benchmark ran but failed to
+  // produce required measurements, so report missing entries below.
+  if (!value) {
     return
   }
 

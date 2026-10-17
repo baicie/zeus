@@ -36,6 +36,39 @@ describe('component-host thresholds', () => {
     )
   })
 
+  it('fails when the CSS gzip budget is exceeded', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`)
+    })
+
+    const report: BenchmarkReport = {
+      name: 'component-host',
+      createdAt: '2026-06-07T00:00:00.000Z',
+      git: null,
+      size: [
+        {
+          file: 'component-host.css',
+          raw: 100,
+          gzip: 20,
+          brotli: 15,
+        },
+      ],
+    }
+
+    expect(() =>
+      checkThresholds(report, {
+        size: { 'component-host.css:gzip': 10 },
+        compile: {},
+        runtime: {},
+      } as unknown as ComponentHostBenchThresholds),
+    ).toThrow('process.exit(1)')
+
+    expect(console.error).toHaveBeenCalledWith(
+      '  - component-host.css:gzip = 20 bytes, limit = 10 bytes',
+    )
+  })
+
   it('fails when a metric threshold points to a missing report entry', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.spyOn(process, 'exit').mockImplementation(code => {
@@ -59,6 +92,58 @@ describe('component-host thresholds', () => {
 
     expect(console.error).toHaveBeenCalledWith(
       '  - wc.missing.1000 did not match any benchmark report entry',
+    )
+  })
+
+  it('fails when runtime ran but returned no measurements', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`)
+    })
+
+    const report: BenchmarkReport = {
+      name: 'component-host',
+      createdAt: '2026-06-07T00:00:00.000Z',
+      git: null,
+      runtime: [],
+    }
+
+    expect(() =>
+      checkThresholds(report, {
+        size: {},
+        compile: {},
+        runtime: { 'wc.firstInteraction.z-bench-button': 500 },
+      } as unknown as ComponentHostBenchThresholds),
+    ).toThrow('process.exit(1)')
+
+    expect(console.error).toHaveBeenCalledWith(
+      '  - wc.firstInteraction.z-bench-button did not match any benchmark report entry',
+    )
+  })
+
+  it('fails when the first interaction budget is exceeded', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(process, 'exit').mockImplementation(code => {
+      throw new Error(`process.exit(${code})`)
+    })
+
+    const report: BenchmarkReport = {
+      name: 'component-host',
+      createdAt: '2026-06-07T00:00:00.000Z',
+      git: null,
+      runtime: [{ name: 'wc.firstInteraction.z-bench-button', ms: 501 }],
+    }
+
+    expect(() =>
+      checkThresholds(report, {
+        size: {},
+        compile: {},
+        runtime: { 'wc.firstInteraction.z-bench-button': 500 },
+      } as unknown as ComponentHostBenchThresholds),
+    ).toThrow('process.exit(1)')
+
+    expect(console.error).toHaveBeenCalledWith(
+      '  - wc.firstInteraction.z-bench-button = 501ms, limit = 500ms',
     )
   })
 })

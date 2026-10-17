@@ -10,6 +10,7 @@
     "src",
     "vite.config.ts",
     "../../packages/global.d.ts",
+    "../../packages/web-c/bundler-plugin/src/picomatch.d.ts",
     "../../packages/core/compiler/src/utils/global.d.ts"
   ]
 }

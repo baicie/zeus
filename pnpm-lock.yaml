@@ -172,6 +172,9 @@ importers:
       '@zeus-js/bundler-plugin':
         specifier: workspace:*
         version: link:../../packages/web-c/bundler-plugin
+      '@zeus-js/output-css':
+        specifier: workspace:*
+        version: link:../../packages/web-c/output-css
       '@zeus-js/output-react-wrapper':
         specifier: workspace:*
         version: link:../../packages/web-c/output-react-wrapper
