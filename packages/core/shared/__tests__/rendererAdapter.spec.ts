@@ -266,4 +266,83 @@ describe('renderer adapter contract', () => {
     expect(() => host.render([])).not.toThrow()
     expect(calls.filter(call => call.type === 'dispose')).toHaveLength(2)
   })
+
+  it('retains old entries when adapter disposal fails before a renderer swap', () => {
+    const firstCalls: Call[] = []
+    const secondCalls: Call[] = []
+    let shouldFail = true
+    const firstBase = createAdapter(firstCalls)
+    let failHandle: unknown
+    const first = {
+      ...firstBase,
+      dispose(handle: unknown) {
+        firstCalls.push({ type: 'dispose', handle })
+        if (shouldFail && handle === failHandle) {
+          shouldFail = false
+          throw new Error('old adapter dispose failed')
+        }
+      },
+    }
+    const second = createAdapter(secondCalls)
+    const host = createRendererHost(first)
+
+    host.render([entry('a', 'cell-a', 'A'), entry('b', 'cell-b', 'B')])
+    failHandle = firstCalls.filter(call => call.type === 'mount')[1].handle
+    expect(() => host.setAdapter(second)).toThrow('old adapter dispose failed')
+    expect(secondCalls.filter(call => call.type === 'mount')).toHaveLength(0)
+    expect(firstCalls.filter(call => call.type === 'dispose')).toHaveLength(2)
+    expect(() => host.render([])).toThrow(
+      'Renderer adapter swap must complete before rendering',
+    )
+
+    expect(() => host.setAdapter(second)).not.toThrow()
+    expect(secondCalls.filter(call => call.type === 'mount')).toHaveLength(2)
+    expect(firstCalls.filter(call => call.type === 'dispose')).toHaveLength(3)
+    expect(
+      firstCalls
+        .filter(call => call.type === 'dispose')
+        .map(call => call.handle),
+    ).toEqual([
+      firstCalls.filter(call => call.type === 'mount')[0].handle,
+      failHandle,
+      failHandle,
+    ])
+    expect(secondCalls.filter(call => call.type === 'mount')).toEqual([
+      expect.objectContaining({
+        container: 'cell-a',
+        data: { label: 'A' },
+        context: { owner: 'grid' },
+      }),
+      expect.objectContaining({
+        container: 'cell-b',
+        data: { label: 'B' },
+        context: { owner: 'grid' },
+      }),
+    ])
+  })
+
+  it('retries failed host disposal without losing the handle', () => {
+    const calls: Call[] = []
+    let shouldFail = true
+    const base = createAdapter(calls)
+    const adapter = {
+      ...base,
+      dispose(handle: unknown) {
+        calls.push({ type: 'dispose', handle })
+        if (shouldFail) {
+          shouldFail = false
+          throw new Error('host dispose failed')
+        }
+      },
+    }
+    const host = createRendererHost(adapter)
+
+    host.render([entry('a', 'cell-a', 'A')])
+    expect(() => host.dispose()).toThrow('host dispose failed')
+    expect(() => host.dispose()).not.toThrow()
+    expect(calls.filter(call => call.type === 'dispose')).toHaveLength(2)
+    expect(() => host.render([])).toThrow(
+      'Renderer host has already been disposed',
+    )
+  })
 })

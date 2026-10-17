@@ -66,6 +66,13 @@ export function createRendererHost<
   const pendingDisposals = new Set<
     MountedRenderer<Container, Data, Context, Handle>
   >()
+  let pendingAdapterSwap:
+    | {
+        adapter: RendererAdapter<Container, Data, Context, Handle>
+        entries: MountedRenderer<Container, Data, Context, Handle>[]
+        disposedEntries: Set<MountedRenderer<Container, Data, Context, Handle>>
+      }
+    | undefined
 
   function assertActive(): void {
     if (disposed) throw new Error(rendererHostDisposedError)
@@ -90,6 +97,9 @@ export function createRendererHost<
   return {
     render(entries) {
       assertActive()
+      if (pendingAdapterSwap) {
+        throw new Error('Renderer adapter swap must complete before rendering')
+      }
       const pendingError = disposeEntries(Array.from(pendingDisposals))
       if (pendingError) throw pendingError
 
@@ -158,15 +168,38 @@ export function createRendererHost<
 
     setAdapter(nextAdapter) {
       assertActive()
-      if (nextAdapter === currentAdapter) return
-      const pendingError = disposeEntries(Array.from(pendingDisposals))
-      if (pendingError) throw pendingError
+      if (!pendingAdapterSwap && nextAdapter === currentAdapter) return
 
-      const previousEntries = Array.from(mounted.values())
+      if (!pendingAdapterSwap) {
+        const pendingError = disposeEntries(Array.from(pendingDisposals))
+        if (pendingError) throw pendingError
+        pendingAdapterSwap = {
+          adapter: nextAdapter,
+          entries: Array.from(mounted.values()),
+          disposedEntries: new Set(),
+        }
+      } else {
+        pendingAdapterSwap.adapter = nextAdapter
+      }
+
+      let firstError: unknown
+      for (const entry of pendingAdapterSwap.entries) {
+        if (pendingAdapterSwap.disposedEntries.has(entry)) continue
+        try {
+          entry.adapter.dispose(entry.handle)
+          pendingDisposals.delete(entry)
+          pendingAdapterSwap.disposedEntries.add(entry)
+        } catch (error) {
+          pendingDisposals.add(entry)
+          firstError ??= error
+        }
+      }
+      if (firstError) throw firstError
+
+      const previousEntries = pendingAdapterSwap.entries
+      currentAdapter = pendingAdapterSwap.adapter
+      pendingAdapterSwap = undefined
       mounted.clear()
-      const disposeError = disposeEntries(previousEntries)
-      if (disposeError) throw disposeError
-      currentAdapter = nextAdapter
 
       try {
         for (const entry of previousEntries) {
@@ -198,9 +231,16 @@ export function createRendererHost<
         return
       }
       disposed = true
-      const entries = Array.from(mounted.values())
-      mounted = new Map()
-      const firstError = disposeEntries(entries)
+      const entries = pendingAdapterSwap
+        ? pendingAdapterSwap.entries.filter(
+            entry => !pendingAdapterSwap?.disposedEntries.has(entry),
+          )
+        : Array.from(mounted.values())
+      mounted.clear()
+      pendingAdapterSwap = undefined
+      const firstError = disposeEntries([
+        ...new Set([...pendingDisposals, ...entries]),
+      ])
       if (firstError) throw firstError
     },
   }
