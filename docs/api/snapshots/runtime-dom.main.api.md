@@ -431,6 +431,7 @@ export interface DefineElementOptions<
   props?: PropOptions<P>
   emits?: E
   styles?: string | string[]
+  styleNonce?: string
   consumes?: Context<any>[]
   models?: readonly ElementModelDefinition<P>[]
   slots?: readonly string[]

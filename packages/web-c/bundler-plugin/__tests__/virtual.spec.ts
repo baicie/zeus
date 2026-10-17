@@ -34,12 +34,52 @@ describe('VirtualModuleRegistry', () => {
   describe('clear', () => {
     it('removes all modules', () => {
       const registry = new VirtualModuleRegistry()
-      registry.set('a', 'code a')
+      registry.set('a', 'code a', undefined, '/plugins/output-a.js')
       registry.set('b', 'code b')
       registry.clear()
 
       expect(registry.has('a')).toBe(false)
       expect(registry.has('b')).toBe(false)
+      expect(registry.getResolveFrom('a')).toBeUndefined()
+    })
+  })
+
+  describe('resolveFrom', () => {
+    it('keeps package resolution anchors scoped to their virtual importer', () => {
+      const registry = new VirtualModuleRegistry()
+      registry.set(
+        'zeus:wc:loader',
+        'import "runtime"',
+        'wc/loader.js',
+        '/plugins/output-wc.js',
+      )
+      registry.set('zeus:other:loader', 'import "runtime"')
+
+      expect(registry.getResolveFrom('\0zeus:wc:loader')).toBe(
+        '/plugins/output-wc.js',
+      )
+      expect(registry.getResolveFrom('zeus:other:loader')).toBeUndefined()
+    })
+
+    it('preserves Windows package resolution anchors', () => {
+      const registry = new VirtualModuleRegistry()
+      const anchor = String.raw`C:\repo\node_modules\output-wc\index.js`
+      registry.set('zeus:wc:loader', 'code', undefined, anchor)
+
+      expect(registry.getResolveFrom('\0zeus:wc:loader')).toBe(anchor)
+    })
+
+    it('clears a stale anchor when a virtual module is replaced', () => {
+      const registry = new VirtualModuleRegistry()
+      registry.set(
+        'zeus:wc:loader',
+        'first',
+        undefined,
+        '/plugins/output-wc.js',
+      )
+      registry.set('zeus:wc:loader', 'second')
+
+      expect(registry.getResolveFrom('zeus:wc:loader')).toBeUndefined()
     })
   })
 

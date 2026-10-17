@@ -2,7 +2,9 @@ use oxc_allocator::Allocator;
 use oxc_parser::Parser;
 use oxc_sourcemap::SourceMap;
 use oxc_span::SourceType;
-use zeus_compiler::{TransformModuleOptions, TransformTarget, transform_module};
+use zeus_compiler::{
+    PureDefineElementMode, TransformModuleOptions, TransformTarget, transform_module,
+};
 
 const FIXTURE: &str = r#"export const App = (props: { name: string }) => (
   <div class="greeting">Hello {props.name}</div>
@@ -18,8 +20,18 @@ fn options(source_map: bool) -> TransformModuleOptions {
         delegate_events: false,
         source_map,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     }
+}
+
+#[test]
+fn pure_define_element_mode_keeps_boolean_json_shape() {
+    let enabled = serde_json::to_value(PureDefineElementMode::Enabled).unwrap();
+    let disabled =
+        serde_json::from_value::<PureDefineElementMode>(serde_json::Value::Bool(false)).unwrap();
+
+    assert_eq!(enabled, serde_json::Value::Bool(true));
+    assert_eq!(disabled, PureDefineElementMode::Disabled);
 }
 
 #[test]
@@ -87,7 +99,7 @@ fn emits_static_template_and_precise_dynamic_text_binding() {
 
 #[test]
 fn maps_spread_nested_jsx_dynamic_attributes_and_higher_order_callbacks() {
-    let source = r#"const Child = props => <article data-child={props.childAttribute}>{props.childText}</article>
+    let source = r"const Child = props => <article data-child={props.childAttribute}>{props.childText}</article>
 export const App = props => (
   <section {...props.spreadAttributes} data-title={props.dynamicAttribute}>
     <Child childAttribute={props.nestedAttribute} childText={props.nestedText} />
@@ -95,7 +107,7 @@ export const App = props => (
     {props.rows.map((row, index) => <button data-row={row.id} onClick={() => props.onRow(row, index)}>{row.label}</button>)}
   </section>
 )
-"#;
+";
     let transformed = transform_module(TransformModuleOptions {
         source: source.into(),
         filename: "source-map-coverage.tsx".into(),
@@ -104,7 +116,7 @@ export const App = props => (
         delegate_events: true,
         source_map: true,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(
@@ -144,7 +156,7 @@ export const App = props => (
         delegate_events: false,
         source_map: true,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
     assert!(ssr.diagnostics.is_empty(), "{:?}", ssr.diagnostics);
     for expression in [
@@ -165,11 +177,11 @@ export const App = props => (
 
 #[test]
 fn marks_only_top_level_define_element_initializers_pure_when_requested() {
-    let source = r#"import { defineElement as define } from '@zeus-js/runtime-dom'
+    let source = r"import { defineElement as define } from '@zeus-js/runtime-dom'
 export const ZPackedButton = define<{ label: string }>('z-packed-button', {}, props => <button>{props.label}</button>)
 export const ZPackedUnused = define('z-packed-unused', {}, () => <span>unused</span>)
 export const LocalCall = (define => define('local-call', {}))(callback)
-"#;
+";
     let options = TransformModuleOptions {
         source: source.into(),
         filename: "components.tsx".into(),
@@ -178,7 +190,7 @@ export const LocalCall = (define => define('local-call', {}))(callback)
         delegate_events: false,
         source_map: false,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     };
 
     let ordinary = transform_module(options.clone());
@@ -190,7 +202,7 @@ export const LocalCall = (define => define('local-call', {}))(callback)
     assert!(!ordinary.code.contains("/* @__PURE__ */ define"));
 
     let lazy = transform_module(TransformModuleOptions {
-        pure_define_element: true,
+        pure_define_element: PureDefineElementMode::Enabled,
         ..options
     });
     assert!(lazy.diagnostics.is_empty(), "{:?}", lazy.diagnostics);
@@ -215,7 +227,7 @@ fn emits_explicit_once_flags_without_changing_default_bindings() {
   prop:value={/* @once */ props.value}
   data-live={props.live}
 >{/* @once */ props.label}{props.detail}</div>
-export const Raw = props => <style>prefix {/* @once */ props.label}</style>
+export const Raw = props => <style>prefix {/* @once */ props.label} {/* @once */ props.prefix()}</style>
 ";
     let transformed = transform_module(TransformModuleOptions {
         source: source.into(),
@@ -225,7 +237,7 @@ export const Raw = props => <style>prefix {/* @once */ props.label}</style>
         delegate_events: false,
         source_map: true,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(
@@ -238,6 +250,7 @@ export const Raw = props => <style>prefix {/* @once */ props.label}</style>
     assert!(transformed.code.contains("() => (props.style), true);"));
     assert!(transformed.code.contains("() => (props.value), true);"));
     assert!(transformed.code.contains("() => (props.label), true);"));
+    assert!(transformed.code.contains("props.prefix()]), true);"));
     assert!(transformed.code.contains("() => (props.live));"));
     assert!(transformed.code.contains("() => (props.detail));"));
 
@@ -297,7 +310,7 @@ fn rejects_once_marked_node_bindings_before_codegen() {
             delegate_events: false,
             source_map: false,
             hmr: false,
-            pure_define_element: false,
+            pure_define_element: PureDefineElementMode::Disabled,
         });
 
         assert!(transformed.code.is_empty(), "{filename}");
@@ -334,7 +347,7 @@ fn rejects_once_markers_on_ignored_builtin_attributes() {
             delegate_events: false,
             source_map: false,
             hmr: false,
-            pure_define_element: false,
+            pure_define_element: PureDefineElementMode::Disabled,
         });
 
         assert!(transformed.code.is_empty(), "{filename}");
@@ -361,7 +374,7 @@ export const App = props => <div>{props.name}</div>
         delegate_events: false,
         source_map: false,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -379,7 +392,7 @@ fn avoids_collisions_with_unresolved_references() {
         delegate_events: false,
         source_map: false,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -398,7 +411,7 @@ fn preserves_object_literal_expression_semantics() {
         delegate_events: false,
         source_map: false,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -416,7 +429,7 @@ fn does_not_resolve_text_creation_through_component_scope() {
         delegate_events: false,
         source_map: false,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -434,7 +447,7 @@ fn returns_diagnostics_without_emitting_partial_code() {
         delegate_events: false,
         source_map: true,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(transformed.code.is_empty());
@@ -463,7 +476,7 @@ export const App = (inlineHandler, identifierHandler, theme, maybe, props, asser
         delegate_events: true,
         source_map: true,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -531,7 +544,7 @@ export const App = (inlineHandler, identifierHandler, theme, maybe, props, asser
         delegate_events: false,
         source_map: false,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(without_delegation.diagnostics.is_empty());
@@ -567,7 +580,7 @@ export const App = props => (
         delegate_events: true,
         source_map: false,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(
@@ -602,7 +615,7 @@ fn collects_delegated_events_and_locator_names_from_dynamic_regions() {
         delegate_events: true,
         source_map: false,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(
@@ -636,7 +649,7 @@ export const App = props => <div><Show when={props.ok} fallback={<button data-ze
         delegate_events: false,
         source_map: false,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(
@@ -662,7 +675,7 @@ fn leaves_plain_modules_untouched_and_preserves_directive_prologue() {
         delegate_events: false,
         source_map: true,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(plain.diagnostics.is_empty());
@@ -679,7 +692,7 @@ fn leaves_plain_modules_untouched_and_preserves_directive_prologue() {
         delegate_events: false,
         source_map: false,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(directive.diagnostics.is_empty());
@@ -778,7 +791,7 @@ fn emits_attribute_property_and_ref_bindings_with_stable_locators() {
         delegate_events: false,
         source_map: true,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -832,7 +845,7 @@ export const Static = () => <script>const amp = "a&b";</script>
         delegate_events: false,
         source_map: true,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -878,7 +891,7 @@ fn emits_root_and_nested_fragment_templates_with_stable_markers() {
         delegate_events: false,
         source_map: true,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(
@@ -921,7 +934,7 @@ export const App = props => <section><Child title={props.name}><span>{props.name
         delegate_events: false,
         source_map: true,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(
@@ -962,7 +975,7 @@ export const App = props => <Child><Show when={props.visible}><span>on</span></S
         delegate_events: false,
         source_map: true,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(
@@ -1000,7 +1013,7 @@ fn emits_dynamic_region_for_nested_conditional_and_array_jsx() {
         delegate_events: false,
         source_map: true,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(
@@ -1035,7 +1048,7 @@ export const App = props => <div>{render()}</div>
         delegate_events: false,
         source_map: false,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(
@@ -1059,7 +1072,7 @@ fn emits_dom_and_ssr_dynamic_regions_for_array_literal_children() {
         delegate_events: false,
         source_map: false,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
     assert!(dom.diagnostics.is_empty(), "{:?}", dom.diagnostics);
     assert!(dom.code.contains("mountDynamic"));
@@ -1079,7 +1092,7 @@ fn emits_dom_and_ssr_dynamic_regions_for_array_literal_children() {
         delegate_events: false,
         source_map: false,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
     assert!(ssr.diagnostics.is_empty(), "{:?}", ssr.diagnostics);
     let allocator = Allocator::default();
@@ -1104,7 +1117,7 @@ export const Element = d('z-card', { shadow: false }, props => <H><section><S na
         delegate_events: false,
         source_map: true,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(
@@ -1130,7 +1143,7 @@ export const Element = d('z-card', { shadow: false }, props => <H><Show when={pr
         delegate_events: false,
         source_map: true,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(
@@ -1154,7 +1167,7 @@ export const App = props => <div><Show when={props.visible} fallback="hidden"><s
         delegate_events: false,
         source_map: true,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(
@@ -1194,7 +1207,7 @@ export const App = props => <div><For each={props.items} by={item => item.id}>{(
         delegate_events: false,
         source_map: true,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(
@@ -1223,7 +1236,7 @@ export const App = props => <For each={props.items}>{(it\u0065m, ind\u0065x) => 
         delegate_events: false,
         source_map: true,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(
@@ -1263,7 +1276,7 @@ export const App = props => <For each={props.items}>{(item, index) => (
         delegate_events: false,
         source_map: true,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(
@@ -1299,7 +1312,7 @@ export const App = props => <For each={props.groups}>{item => (
         delegate_events: false,
         source_map: true,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(
@@ -1329,7 +1342,7 @@ export const App = props => <For each={props.components}>{Item => <Item />}</For
         delegate_events: false,
         source_map: true,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(
@@ -1353,7 +1366,7 @@ export const App = props => <For each={props.items}>{(item, index) => <span titl
         delegate_events: false,
         source_map: true,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(
@@ -1382,7 +1395,7 @@ export const App = props => <For each={props.items}>{({ label }, index) => <b>{i
         delegate_events: false,
         source_map: true,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(transformed.code.is_empty());
@@ -1408,7 +1421,7 @@ export const App = props => <><Show when={props.visible} fallback="off"><Child n
         delegate_events: false,
         source_map: true,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(
@@ -1444,7 +1457,7 @@ export const Native = props => <z-card data-value={props.value}><input disabled 
         delegate_events: false,
         source_map: false,
         hmr: false,
-        pure_define_element: false,
+        pure_define_element: PureDefineElementMode::Disabled,
     });
 
     assert!(transformed.diagnostics.is_empty());

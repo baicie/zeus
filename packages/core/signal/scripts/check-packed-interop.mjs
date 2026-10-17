@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { cpSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -46,10 +55,18 @@ try {
   )
   const duplicateDir = join(fixture, 'nested/node_modules/@zeus-js/signal')
   mkdirSync(join(fixture, 'nested'), { recursive: true })
-  writeFileSync(join(fixture, 'nested/package.json'), JSON.stringify({ name: 'nested-consumer', private: true }))
-  cpSync(join(fixture, 'node_modules/@zeus-js/signal'), duplicateDir, { recursive: true })
+  writeFileSync(
+    join(fixture, 'nested/package.json'),
+    JSON.stringify({ name: 'nested-consumer', private: true }),
+  )
+  cpSync(join(fixture, 'node_modules/@zeus-js/signal'), duplicateDir, {
+    recursive: true,
+  })
   assert.equal(lstatSync(duplicateDir).isSymbolicLink(), false)
-  assert.notEqual(realpathSync(duplicateDir), realpathSync(join(fixture, 'node_modules/@zeus-js/signal')))
+  assert.notEqual(
+    realpathSync(duplicateDir),
+    realpathSync(join(fixture, 'node_modules/@zeus-js/signal')),
+  )
   mkdirSync(join(fixture, 'nested-dedup'), { recursive: true })
   writeFileSync(
     join(fixture, 'nested-dedup/package.json'),
@@ -149,11 +166,15 @@ for (const [source, owner] of [[esm, cjs], [cjs, esm]]) {
 `
   writeFileSync(join(fixture, 'consumer.mjs'), source)
   for (const environment of ['development', 'production']) {
-    const result = spawnSync(process.execPath, ['consumer.mjs', ...process.argv.slice(2)], {
-      cwd: fixture,
-      encoding: 'utf8',
-      env: { ...process.env, NODE_ENV: environment },
-    })
+    const result = spawnSync(
+      process.execPath,
+      ['consumer.mjs', ...process.argv.slice(2)],
+      {
+        cwd: fixture,
+        encoding: 'utf8',
+        env: { ...process.env, NODE_ENV: environment },
+      },
+    )
     assert.equal(result.status, 0, `${environment}: ${result.stderr}`)
     if (process.argv.includes('--baseline')) process.stdout.write(result.stdout)
   }

@@ -1,6 +1,6 @@
 // benchmarks/component-host/src/components/bench-nested.tsx
 
-import { defineElement, Host } from '@zeus-js/zeus'
+import { defineElement, Host, Show } from '@zeus-js/zeus'
 
 export interface BenchNestedProps {
   depth?: number
@@ -38,9 +38,18 @@ export const ZBenchNested = defineElement<BenchNestedProps>(
       leaves.push(<z-bench-nested-leaf data-index={i} data-leaf={true} />)
     }
 
-    if ((props.depth ?? 2) > 1) {
-      return (
-        <Host data-depth={props.depth}>
+    return (
+      <Host data-depth={props.depth}>
+        <Show
+          when={(props.depth ?? 2) > 1}
+          fallback={
+            <div part="root">
+              <z-bench-nested-leaf data-depth={0} data-leaf={true} />
+              <z-bench-nested-leaf data-depth={0} data-leaf={true} />
+              <z-bench-nested-leaf data-depth={0} data-leaf={true} />
+            </div>
+          }
+        >
           <div part="root">
             {leaves}
             <z-bench-nested-leaf
@@ -48,17 +57,7 @@ export const ZBenchNested = defineElement<BenchNestedProps>(
               data-depth={(props.depth ?? 2) - 1}
             />
           </div>
-        </Host>
-      )
-    }
-
-    return (
-      <Host data-depth={props.depth}>
-        <div part="root">
-          <z-bench-nested-leaf data-depth={0} data-leaf={true} />
-          <z-bench-nested-leaf data-depth={0} data-leaf={true} />
-          <z-bench-nested-leaf data-depth={0} data-leaf={true} />
-        </div>
+        </Show>
       </Host>
     )
   },
