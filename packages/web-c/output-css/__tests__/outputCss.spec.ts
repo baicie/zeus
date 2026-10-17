@@ -15,7 +15,7 @@ function createMockCtx(root: string): any {
   return {
     root,
     manifest: {
-      version: 1 as const,
+      schemaVersion: 1 as const,
       components: [],
     },
     diagnostics: [],

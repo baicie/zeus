@@ -13,17 +13,20 @@ export interface GenerateLazyEntryOptions {
 
 export function generateLazyEntry(options: GenerateLazyEntryOptions): string {
   const { component, outPath, sourceImport } = options
-  const source = sourceImport ?? toRelativeImport(component.source, outPath)
+  const source = `${sourceImport ?? toRelativeImport(component.source, outPath)}?zeus-lazy-component=${component.exportName}`
 
   return [
-    `import { createCustomElementMountLifecycle, mountElementDefinition } from "@zeus-js/runtime-dom";`,
+    `import { createCustomElementMountLifecycle, getElementDefinition, mountElementDefinition } from "@zeus-js/runtime-dom";`,
+    `import { resolveHostProperties } from "@zeus-js/web-c-runtime";`,
     `import { ${component.exportName} } from ${JSON.stringify(source)};`,
     '',
     `export function createComponent(hostRef) {`,
+    `  resolveHostProperties(hostRef, getElementDefinition(${component.exportName}).propDefs);`,
     `  const mountState = {`,
     `    attributeProps: hostRef.attributeProps,`,
     `    internals: hostRef.internals,`,
     `    reflectingAttrs: hostRef.reflectingAttrs,`,
+    `    exposedMethods: hostRef.exposedMethods,`,
     `  };`,
     `  const lifecycle = createCustomElementMountLifecycle(() =>`,
     `    mountElementDefinition(`,
@@ -43,8 +46,8 @@ export function generateLazyEntry(options: GenerateLazyEntryOptions): string {
     `      lifecycle.disconnect();`,
     `    },`,
     '',
-    `    propertyChanged(name, oldValue, newValue) {`,
-    `      lifecycle.current()?.propertyChanged(name, oldValue, newValue);`,
+    `    propertyChanged(change) {`,
+    `      lifecycle.current()?.propertyChanged(change);`,
     `    },`,
     '',
     `    formAssociated(form) {`,

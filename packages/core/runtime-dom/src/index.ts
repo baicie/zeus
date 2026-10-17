@@ -18,6 +18,7 @@ export { render, type RenderOptions } from './render'
 export { insert, mountDynamic } from './insert'
 
 export { insertTracked } from './insert'
+export { isWithinRuntimeDomMove } from './domMove'
 
 export { marker, child, removeNodes } from './dom'
 
@@ -96,6 +97,7 @@ export type {
   CustomElementMountLifecycle,
   CustomElementPropSchema,
   CustomElementPropType,
+  NormalizedPropChange,
 } from './customElementContract'
 
 export { Host, Slot, type HostProps, type SlotProps } from './webComponents'
@@ -132,3 +134,4 @@ export {
   type ZeusContextRequestEvent,
   type DOMContextResolution,
 } from './context'
+export { bindSpread, mergeProps } from './spread'

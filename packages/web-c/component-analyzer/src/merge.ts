@@ -176,6 +176,19 @@ function mergeProps(
     const tp = typeProps[name] ?? {}
     const rp = runtimeProps[name] ?? {}
     const mp = metaProps?.[name] ?? {}
+    const defaultSource =
+      hasOwn(rp, 'hasDefault') || hasOwn(rp, 'default')
+        ? rp
+        : hasOwn(mp, 'hasDefault') || hasOwn(mp, 'default')
+          ? mp
+          : tp
+    const hasDefault =
+      defaultSource.hasDefault ?? hasOwn(defaultSource, 'default')
+    const defaultValue = hasOwn(rp, 'default')
+      ? rp.default
+      : hasOwn(mp, 'default')
+        ? mp.default
+        : tp.default
 
     result[name] = {
       type: rp.type ?? tp.type ?? 'unknown',
@@ -183,7 +196,14 @@ function mergeProps(
       required: tp.required,
       values: rp.values ?? tp.values,
       description: tp.description ?? mp.description,
-      default: rp.default ?? mp.default,
+      ...(hasOwn(rp, 'default') ||
+      hasOwn(mp, 'default') ||
+      hasOwn(tp, 'default')
+        ? { default: defaultValue }
+        : {}),
+      hasDefault,
+      defaultStrategy:
+        defaultSource.defaultStrategy ?? (hasDefault ? 'static' : undefined),
       reflect: rp.reflect ?? mp.reflect,
       attr: rp.attr ?? mp.attr,
       serialize: rp.serialize ?? mp.serialize,
@@ -192,6 +212,10 @@ function mergeProps(
   }
 
   return result
+}
+
+function hasOwn(value: object, key: PropertyKey): boolean {
+  return Object.prototype.hasOwnProperty.call(value, key)
 }
 
 function mergeEvents(

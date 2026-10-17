@@ -12,7 +12,9 @@ JSX → AST → IR → DOM codegen
 
 ### 1. Parser
 
-Babel parses JSX into an AST.
+The Rust compiler uses OXC to parse TypeScript and JSX and resolve lexical
+bindings. The Node adapter is `@zeus-js/compiler-native`; `@zeus-js/compiler`
+provides the public compiler entry.
 
 ### 2. Lowering
 
@@ -30,9 +32,9 @@ The AST is lowered into Zeus Intermediate Representation (IR):
 IR nodes are transformed into DOM runtime helper calls:
 
 ```ts
-_h(tagName, ...children)
-text(value)
-_bindEvent(el, event, handler)
+template('<button><!></button>')
+bindText(textNode, () => count())
+bindEvent(button, 'click', handler)
 ```
 
 ## Static Template Cloning
@@ -40,10 +42,12 @@ _bindEvent(el, event, handler)
 Static HTML is extracted into cached templates. The compiler emits clone calls:
 
 ```ts
-const _t$1 = _clone(_tmpl$1)
+const button = templateFactory()
 ```
 
-This avoids recreating static DOM nodes on each render.
+The template factory clones cached static HTML during component initialization.
+The component initializes once; later Signal updates write only the affected
+bindings. The same semantic IR also supports the string-producing SSR target.
 
 ## Hot Module Replacement
 

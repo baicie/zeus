@@ -896,3 +896,45 @@ describe('normalizeClass', () => {
     ).toBe('a')
   })
 })
+
+describe('JSX function value boundaries', () => {
+  it('rejects a function child supplied through an identifier', () => {
+    const text = { data: '' } as Text
+    const callback = vi.fn(() => 'value')
+    expect(() => bindText(text, () => callback as unknown as string)).toThrow(
+      'JSX children require values',
+    )
+    expect(callback).not.toHaveBeenCalled()
+    expect(text.data).toBe('')
+  })
+
+  it('rejects Promise and Symbol text values instead of stringifying them', () => {
+    const text = { data: '' } as Text
+    const rejected = Promise.reject(new Error('later'))
+
+    expect(() => bindText(text, () => rejected as unknown as string)).toThrow(
+      'JSX children cannot contain Promises',
+    )
+    expect(() =>
+      bindText(text, () => Symbol('value') as unknown as string),
+    ).toThrow('JSX children cannot contain Symbols')
+    expect(text.data).toBe('')
+  })
+
+  it('rejects a function attribute while preserving function DOM properties', () => {
+    const dom = new JSDOM('<div></div>')
+    const el = dom.window.document.querySelector('div')!
+    const callback = vi.fn(() => 'value')
+    expect(() =>
+      bindAttr(el, 'title', () => callback as unknown as string),
+    ).toThrow('cannot contain functions')
+    bindProp(
+      el as Element & { formatter?: () => string },
+      'formatter',
+      () => callback,
+    )
+    expect(Reflect.get(el, 'formatter')).toBe(callback)
+    expect(callback).not.toHaveBeenCalled()
+    dom.window.close()
+  })
+})

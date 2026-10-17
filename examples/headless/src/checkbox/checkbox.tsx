@@ -50,18 +50,18 @@ function setup(
   return (
     <Host
       data-slot="checkbox"
-      data-state={checkedState}
-      data-disabled={() => (props.disabled ? '' : undefined)}
+      data-state={checkedState()}
+      data-disabled={props.disabled ? '' : undefined}
     >
       <button
         part="root"
         type="button"
         role="checkbox"
-        disabled={() => Boolean(props.disabled)}
-        aria-checked={() =>
+        disabled={Boolean(props.disabled)}
+        aria-checked={
           props.indeterminate ? 'mixed' : props.checked ? 'true' : 'false'
         }
-        aria-disabled={() => (props.disabled ? 'true' : undefined)}
+        aria-disabled={props.disabled ? 'true' : undefined}
         onClick={toggle}
         onKeyDown={onKeyDown}
       >

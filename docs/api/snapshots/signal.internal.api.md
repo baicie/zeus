@@ -29,6 +29,8 @@ export declare class EffectScope {
   detached: boolean
   private _isPaused
   private _warnOnRun
+  private readonly _engineFrame
+  private _engineOn
   readonly __v_skip = true
   constructor(detached?: boolean)
   get active(): boolean
@@ -89,6 +91,7 @@ export interface ReactiveEffectOptions extends DebuggerOptions {
   scheduler?: EffectScheduler
   allowRecurse?: boolean
   onStop?: () => void
+  rejectReentry?: boolean
 }
 export interface ReactiveEffectRunner<T = any> {
   (): T
@@ -124,6 +127,8 @@ export declare class ReactiveEffect<T = any>
   onStop?: () => void
   onTrack?: (event: DebuggerEvent) => void
   onTrigger?: (event: DebuggerEvent) => void
+  rejectReentry?: boolean
+  private readonly engineFrame
   constructor(fn: () => T)
   pause(): void
   resume(): void

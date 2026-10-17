@@ -132,4 +132,16 @@ type OverloadUnion<TOverload extends (...args: any[]) => any> = Exclude<
   OverloadUnionRecursive<(() => never) & TOverload>,
   TOverload extends () => never ? never : () => never
 >
+
+export type PropsSource = () => unknown
+export declare function normalizeDOMAttributeName(name: string): string
+export declare function normalizeDOMProps(
+  source: unknown,
+): Record<string, unknown>
+export declare function resolveDOMProps(
+  sources: readonly unknown[],
+): Map<string, unknown>
+export declare function mergeProps<T extends object = Record<string, unknown>>(
+  sources: readonly PropsSource[],
+): T
 ```

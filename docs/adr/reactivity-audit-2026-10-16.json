@@ -1,0 +1,202 @@
+{
+  "environment": {
+    "node": "v24.19.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "nodeEnv": "production"
+  },
+  "method": {
+    "iterations": 50000,
+    "warmup": 5000,
+    "rounds": 5,
+    "metric": "median elapsed milliseconds; setup/disposal excluded; real synchronous updates asserted"
+  },
+  "package": "packages/core/signal",
+  "sourceGraph": {
+    "arrayInstrumentations.ts": [
+      "./constants",
+      "./dep",
+      "./effect",
+      "./reactive",
+      "@zeus-js/shared"
+    ],
+    "baseHandlers.ts": [
+      "./arrayInstrumentations",
+      "./constants",
+      "./dep",
+      "./reactive",
+      "./ref",
+      "./warning",
+      "@zeus-js/shared"
+    ],
+    "collectionHandlers.ts": [
+      "./constants",
+      "./dep",
+      "./reactive",
+      "./warning",
+      "@zeus-js/shared"
+    ],
+    "computed.ts": [
+      "./constants",
+      "./dep",
+      "./effect",
+      "./ref",
+      "./runtime-diagnostics",
+      "./warning",
+      "@zeus-js/shared"
+    ],
+    "constants.ts": [],
+    "dep.ts": ["./computed", "./constants", "./effect", "@zeus-js/shared"],
+    "diagnostics.ts": ["@zeus-js/signal/internal"],
+    "effect.ts": [
+      "./computed",
+      "./constants",
+      "./dep",
+      "./effectScope",
+      "./runtime-diagnostics",
+      "./warning",
+      "@zeus-js/shared"
+    ],
+    "effectScope.ts": [
+      "./constants",
+      "./effect",
+      "./runtime-diagnostics",
+      "./warning"
+    ],
+    "index.ts": ["@zeus-js/signal/internal"],
+    "internal.ts": [
+      "./arrayInstrumentations",
+      "./computed",
+      "./constants",
+      "./dep",
+      "./effect",
+      "./effectScope",
+      "./lifecycle",
+      "./primitives",
+      "./runtime-diagnostics",
+      "./scheduler",
+      "./scope",
+      "./state",
+      "./watch"
+    ],
+    "lifecycle.ts": ["./effect", "./effectScope", "./warning"],
+    "primitives.ts": [
+      "./computed",
+      "./effect",
+      "./effectScope",
+      "./lifecycle",
+      "./ref"
+    ],
+    "reactive.ts": [
+      "./baseHandlers",
+      "./collectionHandlers",
+      "./constants",
+      "./ref",
+      "./runtime-diagnostics",
+      "./warning",
+      "@zeus-js/shared"
+    ],
+    "ref.ts": [
+      "./computed",
+      "./constants",
+      "./dep",
+      "./reactive",
+      "./runtime-diagnostics",
+      "./warning",
+      "@zeus-js/shared"
+    ],
+    "runtime-diagnostics.ts": ["./constants"],
+    "scheduler.ts": [],
+    "scope.ts": ["./effectScope"],
+    "state.ts": ["./reactive", "./ref"],
+    "warning.ts": [],
+    "watch.ts": [
+      "./computed",
+      "./constants",
+      "./effect",
+      "./effectScope",
+      "./reactive",
+      "./ref",
+      "./warning",
+      "@zeus-js/shared"
+    ]
+  },
+  "artifactGraph": {
+    "diagnostics.cjs": ["@zeus-js/signal/internal"],
+    "diagnostics.js": ["@zeus-js/signal/internal"],
+    "diagnostics.prod.cjs": ["@zeus-js/signal/internal"],
+    "diagnostics.prod.js": ["@zeus-js/signal/internal"],
+    "internal.cjs": ["@zeus-js/shared"],
+    "internal.js": ["@zeus-js/shared"],
+    "internal.prod.cjs": ["@zeus-js/shared"],
+    "internal.prod.js": ["@zeus-js/shared"],
+    "signal.cjs": ["@zeus-js/signal/internal"],
+    "signal.esm-browser.js": [],
+    "signal.esm-browser.prod.js": [],
+    "signal.esm-bundler.js": ["@zeus-js/signal/internal"],
+    "signal.global.js": [],
+    "signal.global.prod.js": [],
+    "signal.prod.cjs": ["@zeus-js/signal/internal"]
+  },
+  "sizes": {
+    "signal.esm-bundler.js": {
+      "bytes": 278,
+      "gzipBytes": 181
+    },
+    "internal.js": {
+      "bytes": 57512,
+      "gzipBytes": 14504
+    },
+    "internal.prod.cjs": {
+      "bytes": 56359,
+      "gzipBytes": 13817
+    },
+    "signal.esm-browser.prod.js": {
+      "bytes": 15391,
+      "gzipBytes": 5513
+    }
+  },
+  "runtimeObjects": {
+    "ref": "RefImpl",
+    "dependency": "Dep",
+    "effect": "ReactiveEffect",
+    "memo": "ComputedRefImpl",
+    "scope": "EffectScope"
+  },
+  "measurements": {
+    "zeus": {
+      "writeOneEffect": {
+        "medianMs": 2.932,
+        "samplesMs": [2.82, 2.844, 2.932, 3.648, 5.05]
+      },
+      "diamond": {
+        "medianMs": 8.602,
+        "samplesMs": [8.425, 8.511, 8.602, 8.699, 10.49]
+      }
+    },
+    "alien": {
+      "writeOneEffect": {
+        "medianMs": 3.116,
+        "samplesMs": [2.882, 3.066, 3.116, 3.806, 3.999]
+      },
+      "diamond": {
+        "medianMs": 7.187,
+        "samplesMs": [6.678, 6.692, 7.187, 7.262, 7.403]
+      }
+    }
+  },
+  "comparison": {
+    "modules": [
+      {
+        "file": "index.mjs",
+        "bytes": 9170,
+        "gzipBytes": 1852
+      },
+      {
+        "file": "system.mjs",
+        "bytes": 6620,
+        "gzipBytes": 1272
+      }
+    ]
+  }
+}

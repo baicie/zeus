@@ -33,6 +33,15 @@ const source = `export const App = (condition, consequent, alternate) => (
   </div>
 )
 `
+const coverageSource = `const Child = props => <article data-child={props.childAttribute}>{props.childText}</article>
+export const App = props => (
+  <section {...props.spreadAttributes} data-title={props.dynamicAttribute}>
+    <Child childAttribute={props.nestedAttribute} childText={props.nestedText} />
+    <input prop:value={props.dynamicProperty} />
+    {props.rows.map((row, index) => <button data-row={row.id} onClick={() => props.onRow(row, index)}>{row.label}</button>)}
+  </section>
+)
+`
 const tempDirs: string[] = []
 
 afterEach(() => {
@@ -46,6 +55,12 @@ describe('vite-plugin-zeus source maps', () => {
     const result = await transform(source, '/src/App.tsx')
 
     expectExpressionMapping(result.code, result.map)
+  })
+
+  it('maps spread, nested JSX, dynamic attributes, and higher-order callbacks', async () => {
+    const result = await transform(coverageSource, '/src/Coverage.tsx')
+
+    expectCoverageExpressionMappings(result.code, result.map)
   })
 
   it('uses clean source names for queried module ids', async () => {
@@ -63,6 +78,31 @@ describe('vite-plugin-zeus source maps', () => {
     })
 
     expectExpressionMapping(result.code, result.map, '$zeusSsrText')
+  })
+
+  it('maps the coverage fixture through SSR transforms', async () => {
+    const result = await transform(coverageSource, '/src/Coverage.tsx', {
+      moduleType: 'tsx',
+      ssr: true,
+    })
+
+    expectCoverageExpressionMappings(
+      result.code,
+      result.map,
+      /Coverage\.tsx$/,
+      [
+        'props.childAttribute',
+        'props.childText',
+        'props.spreadAttributes',
+        'props.dynamicAttribute',
+        'props.nestedAttribute',
+        'props.nestedText',
+        'props.dynamicProperty',
+        'props.rows',
+        'row.id',
+        'row.label',
+      ],
+    )
   })
 
   it('preserves expression mappings through Vite dev transforms', async () => {
@@ -120,6 +160,68 @@ describe('vite-plugin-zeus source maps', () => {
 
     if (!chunk?.map) throw new Error('Expected Vite build source map')
     expectExpressionMapping(chunk.code, chunk.map as SourceMapInput)
+  })
+
+  it('preserves coverage mappings through Vite dev transforms and builds', async () => {
+    const fixture = createFixture(coverageSource)
+    const server = await createServer({
+      root: fixture.root,
+      configFile: false,
+      logLevel: 'silent',
+      optimizeDeps: { noDiscovery: true },
+      plugins: [
+        createZeus({ compiler: { moduleName: runtimeId } }),
+        createVirtualRuntime(),
+      ],
+      server: { middlewareMode: true },
+    })
+
+    try {
+      const result = await server.transformRequest('/src/App.tsx')
+      if (!result?.map) throw new Error('Expected Vite dev source map')
+
+      expectCoverageExpressionMappings(
+        result.code,
+        result.map as SourceMapInput,
+        /App\.tsx$/,
+      )
+    } finally {
+      await server.close()
+    }
+
+    const buildResult = await build({
+      root: fixture.root,
+      configFile: false,
+      logLevel: 'silent',
+      plugins: [createZeus({ compiler: { moduleName: runtimeId } })],
+      build: {
+        lib: {
+          entry: fixture.entry,
+          formats: ['es'],
+        },
+        minify: false,
+        write: false,
+        sourcemap: true,
+        rolldownOptions: {
+          external: [runtimeId],
+        },
+      },
+    })
+
+    const outputs = Array.isArray(buildResult) ? buildResult : [buildResult]
+    const chunk = outputs
+      .flatMap(output => {
+        if (!('output' in output)) throw new Error('Expected Vite build output')
+        return output.output
+      })
+      .find(output => output.type === 'chunk')
+
+    if (!chunk?.map) throw new Error('Expected Vite build source map')
+    expectCoverageExpressionMappings(
+      chunk.code,
+      chunk.map as SourceMapInput,
+      /App\.tsx$/,
+    )
   })
 })
 
@@ -190,7 +292,7 @@ function positionOf(code: string, needle: string, fromIndex: number) {
   }
 }
 
-function createFixture(): { root: string; entry: string } {
+function createFixture(code = source): { root: string; entry: string } {
   const root = realpathSync(
     mkdtempSync(join(tmpdir(), 'zeus-vite-source-map-')),
   )
@@ -199,9 +301,41 @@ function createFixture(): { root: string; entry: string } {
   tempDirs.push(root)
 
   mkdirSync(sourceDir)
-  writeFileSync(entry, source)
+  writeFileSync(entry, code)
 
   return { root, entry }
+}
+
+function expectCoverageExpressionMappings(
+  generatedCode: string,
+  map: SourceMapInput,
+  sourceSuffix: RegExp = /Coverage\.tsx$/,
+  names: readonly string[] = [
+    'props.childAttribute',
+    'props.childText',
+    'props.spreadAttributes',
+    'props.dynamicAttribute',
+    'props.nestedAttribute',
+    'props.nestedText',
+    'props.dynamicProperty',
+    'props.rows',
+    'row.id',
+    'props.onRow(row, index)',
+    'row.label',
+  ],
+): void {
+  const traceMap = new TraceMap(map)
+  for (const name of names) {
+    const generated = positionOf(generatedCode, name, 0)
+    const original = positionOf(coverageSource, name, 0)
+    const traced = originalPositionFor(traceMap, generated)
+
+    expect(traced).toMatchObject({
+      line: original.line,
+      column: original.column,
+    })
+    expect(traced.source).toMatch(sourceSuffix)
+  }
 }
 
 function createVirtualRuntime(): Plugin {

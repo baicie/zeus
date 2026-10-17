@@ -10,6 +10,7 @@ import {
   shouldTrack,
   startBatch,
 } from './effect'
+import { canTrackEngine } from './engine-context'
 
 import type { ComputedRefImpl } from './computed'
 
@@ -108,7 +109,12 @@ export class Dep {
   }
 
   track(debugInfo?: DebuggerEventExtraInfo): Link | undefined {
-    if (!activeSub || !shouldTrack || activeSub === this.computed) {
+    if (
+      !canTrackEngine() ||
+      !activeSub ||
+      !shouldTrack ||
+      activeSub === this.computed
+    ) {
       return
     }
 
@@ -266,6 +272,7 @@ export const ARRAY_ITERATE_KEY: unique symbol = Symbol(
  * @param key - Identifier of the reactive property to track.
  */
 export function track(target: object, type: TrackOpTypes, key: unknown): void {
+  if (!canTrackEngine()) return
   if (shouldTrack && activeSub) {
     let depsMap = targetMap.get(target)
     if (!depsMap) {

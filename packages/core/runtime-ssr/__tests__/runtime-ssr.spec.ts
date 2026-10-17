@@ -23,6 +23,7 @@ describe('@zeus-js/runtime-ssr', () => {
     expect(Object.keys(runtimeSSR).sort()).toEqual([
       'For',
       'Show',
+      'mergeProps',
       'renderToString',
       'ssrAttr',
       'ssrComponent',
@@ -30,6 +31,7 @@ describe('@zeus-js/runtime-ssr', () => {
       'ssrFor',
       'ssrProp',
       'ssrShow',
+      'ssrSpread',
       'ssrStatic',
       'ssrText',
     ])
@@ -84,6 +86,21 @@ describe('@zeus-js/runtime-ssr', () => {
     expect(() =>
       renderToString(() => ({ invalid: true }) as unknown as SSRNode),
     ).toThrow('renderToString() received an unsupported SSR value.')
+    expect(() =>
+      renderToString(() => Symbol('value') as unknown as SSRNode),
+    ).toThrow('renderToString() received an unsupported SSR value.')
+  })
+
+  it('rejects functions in Show.when and For.each value positions', () => {
+    expect(() => Show({ when: (() => false) as unknown as boolean })).toThrow(
+      'Show `when` must be a value',
+    )
+    expect(() =>
+      For({
+        each: (() => []) as unknown as readonly string[],
+        children: item => item,
+      }),
+    ).toThrow('<For> `each` must resolve to an array')
   })
 
   it('rejects async values across attribute, class, style, and property paths', () => {
@@ -380,16 +397,16 @@ describe('@zeus-js/runtime-ssr', () => {
     ).toBe('A0B1')
   })
 
-  it('keeps public Show condition semantics aligned with the DOM runtime', () => {
+  it('requires Show conditions to be value expressions', () => {
     expect(
       renderToString(() =>
         Show({
-          when: () => false,
+          when: false,
           children: ssrText('shown'),
           fallback: ssrText('hidden'),
         }),
       ),
-    ).toBe('shown')
+    ).toBe('hidden')
   })
 
   it('preserves lazy component props and escapes their rendered values', () => {

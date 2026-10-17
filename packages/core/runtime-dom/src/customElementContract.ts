@@ -16,6 +16,14 @@ export interface CustomElementPropSchema {
   deserialize?: true | ((value: string | null) => unknown)
 }
 
+/** A value already normalized at the host's input boundary. */
+export interface NormalizedPropChange {
+  name: string
+  value: unknown
+  source: 'property' | 'attribute'
+  rawAttributeValue?: string | null
+}
+
 export interface CustomElementMount {
   dispose(): void
 }

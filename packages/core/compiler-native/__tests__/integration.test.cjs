@@ -97,7 +97,7 @@ export const Bindings = (props: { name: string }) => (
     data-zeus-node="user"
     title={props.name}
     class={{ initial: props.name === 'Ada', updated: props.name === 'Grace' }}
-    style={() => ({ color: props.name === 'Ada' ? 'red' : 'blue', lineHeight: 1 })}
+    style={{ color: props.name === 'Ada' ? 'red' : 'blue', lineHeight: 1 }}
   >
     <input prop:value={props.name} ref={inputRef} />
     <table><tr data-name={props.name}><td>bound</td></tr></table>
@@ -113,7 +113,7 @@ export const OnceBindings = (props: { name: string }) => (
   <section
     title={/* @once */ props.name}
     class={/* @once */ { initial: props.name === 'Ada', updated: props.name === 'Grace' }}
-    style={/* @once */ () => ({ color: props.name === 'Ada' ? 'red' : 'blue', lineHeight: 1 })}
+    style={/* @once */ { color: props.name === 'Ada' ? 'red' : 'blue', lineHeight: 1 }}
   >
     <b>{/* @once */ props.name}</b>
     <input prop:value={/* @once */ props.name} />
@@ -425,7 +425,7 @@ export const executionCount = () => executions
     const initialNodes = Array.from(fragment.childNodes)
     assert.deepEqual(
       initialNodes.map(node => node.nodeName),
-      ['SPAN', 'STRONG', 'EM', '#text'],
+      ['SPAN', 'STRONG', 'EM', '#text', '#comment'],
     )
     assert.equal(fragment.textContent, 'leftonenestedone')
     assert.equal(module.executionCount(), 1)
@@ -548,6 +548,7 @@ export const mount = (container: Element) => render(() => App({ visible: true, i
   try {
     const module = await server.ssrLoadModule('/src/App.tsx')
     const container = document.createElement('div')
+    document.body.append(container)
     const dispose = module.mount(container)
 
     assert.equal(container.textContent, 'onab')
@@ -560,6 +561,7 @@ export const mount = (container: Element) => render(() => App({ visible: true, i
 
     dispose()
     assert.equal(container.childNodes.length, 0)
+    container.remove()
   } finally {
     await server.close()
     restoreDOM()
@@ -979,3 +981,329 @@ function findChunk(result) {
   assert.ok(chunk)
   return chunk
 }
+
+test('native compiler executes ordered spreads and preserves component and function identities', async () => {
+  const spreadSource = `import { createSignal } from '@zeus-js/signal'
+import { render } from '@zeus-js/runtime-dom'
+const [label, setLabel] = createSignal('first')
+const calls: string[] = []
+const firstRef = { current: null }
+const secondRef = { current: null }
+const firstClick = () => calls.push('first')
+const secondClick = () => calls.push('second')
+const [native, setNative] = createSignal<Record<string, unknown>>({ title: 'override', onClick: firstClick, ref: firstRef })
+const [child, setChild] = createSignal<Record<string, unknown>>({ title: 'child override' })
+let childSetups = 0
+let formatterCalls = 0
+const formatter = (value: string) => { formatterCalls++; return value.toUpperCase() }
+const Child = props => {
+  childSetups++
+  return <button title={props.title} prop:formatter={props.formatter}>child</button>
+}
+const App = () => <main>
+  <section {...{ id: 'base', title: label() }} id="fixed" {...native()} data-once={/* @once */ label()}>native</section>
+  <Child {...{ title: 'base' }} title={label()} {...child()} formatter={formatter} />
+</main>
+export const mount = container => render(() => App(), container)
+export const updateLabel = setLabel
+export const replaceNative = () => setNative({ onClick: secondClick, ref: secondRef })
+export const removeChildOverride = () => setChild({})
+export const state = () => ({ childSetups, formatterCalls, calls: [...calls], firstRef: firstRef.current, secondRef: secondRef.current, formatter })
+`
+  const fixture = createFixture(spreadSource)
+  const restoreDOM = installDOMGlobals()
+  const { createServer } = await import('vite')
+  const server = await createServer({
+    root: fixture.root,
+    configFile: false,
+    logLevel: 'silent',
+    optimizeDeps: { noDiscovery: true },
+    define: {
+      __DEV__: 'true',
+      __TEST__: 'true',
+      __VERSION__: JSON.stringify('test'),
+    },
+    resolve: { alias: runtimeAliases() },
+    plugins: [createNativePlugin()],
+    server: { middlewareMode: true },
+  })
+  try {
+    const module = await server.ssrLoadModule('/src/App.tsx')
+    const container = document.createElement('div')
+    const dispose = module.mount(container)
+    const section = container.querySelector('section')
+    const button = container.querySelector('button')
+    assert.equal(section.id, 'fixed')
+    assert.equal(section.title, 'override')
+    assert.equal(section.getAttribute('data-once'), 'first')
+    assert.equal(button.title, 'child override')
+    assert.strictEqual(button.formatter, module.state().formatter)
+    assert.equal(module.state().formatterCalls, 0)
+    section.click()
+    module.updateLabel('second')
+    module.replaceNative()
+    module.removeChildOverride()
+    assert.strictEqual(container.querySelector('section'), section)
+    assert.strictEqual(container.querySelector('button'), button)
+    assert.equal(section.title, 'second')
+    assert.equal(button.title, 'second')
+    assert.equal(section.getAttribute('data-once'), 'first')
+    assert.equal(module.state().firstRef, null)
+    assert.strictEqual(module.state().secondRef, section)
+    assert.equal(module.state().childSetups, 1)
+    assert.equal(module.state().formatterCalls, 0)
+    section.click()
+    assert.deepEqual(module.state().calls, ['first', 'second'])
+    dispose()
+    section.click()
+    assert.deepEqual(module.state().calls, ['first', 'second'])
+    assert.equal(module.state().secondRef, null)
+    assert.equal(container.childNodes.length, 0)
+  } finally {
+    await server.close()
+    restoreDOM()
+    rmSync(fixture.root, { force: true, recursive: true })
+  }
+})
+
+test('native compiler preserves component spread names, precedence, children and identity', async () => {
+  const spreadSource = `import { createSignal } from '@zeus-js/signal'
+import { render } from '@zeus-js/runtime-dom'
+const [label, setLabel] = createSignal('first')
+const spreadRef = () => {}
+const explicitRef = () => {}
+const [spread, setSpread] = createSignal({ className: 'spread', title: 'spread', mode: 'spread first', key: 'spread-key', ref: spreadRef, children: 'spread child' })
+let childSetups = 0
+let receivedRef
+const Child = props => {
+  childSetups++
+  receivedRef = props.ref
+  return <section className={props.className} title={props.title} data-mode={props.mode} data-key={props.key}>{props.children}</section>
+}
+const App = () => <Child {...spread()} className="explicit" title={label()} key="explicit-key" ref={explicitRef}>JSX child</Child>
+export const mount = container => render(() => App(), container)
+export const update = (nextLabel, nextSpread) => { setLabel(nextLabel); setSpread(nextSpread) }
+export const state = () => ({ childSetups, receivedRef, explicitRef, spreadRef })
+`
+  const fixture = createFixture(spreadSource)
+  const restoreDOM = installDOMGlobals()
+  const { createServer } = await import('vite')
+  const server = await createServer({
+    root: fixture.root,
+    configFile: false,
+    logLevel: 'silent',
+    optimizeDeps: { noDiscovery: true },
+    define: {
+      __DEV__: 'true',
+      __TEST__: 'true',
+      __VERSION__: JSON.stringify('test'),
+    },
+    resolve: { alias: runtimeAliases() },
+    plugins: [createNativePlugin()],
+    server: { middlewareMode: true },
+  })
+  try {
+    const module = await server.ssrLoadModule('/src/App.tsx')
+    const container = document.createElement('div')
+    const dispose = module.mount(container)
+    const section = container.querySelector('section')
+    assert.ok(section)
+    assert.equal(section.className, 'explicit')
+    assert.equal(section.title, 'first')
+    assert.equal(section.getAttribute('data-mode'), 'spread first')
+    assert.equal(section.getAttribute('data-key'), 'explicit-key')
+    assert.equal(section.textContent, 'JSX child')
+    assert.equal(module.state().childSetups, 1)
+    assert.strictEqual(module.state().receivedRef, module.state().explicitRef)
+
+    module.update('second', {
+      className: 'later spread',
+      title: 'later spread title',
+      mode: 'spread second',
+      key: 'later spread key',
+      ref: module.state().spreadRef,
+      children: 'later spread child',
+    })
+
+    assert.strictEqual(container.querySelector('section'), section)
+    assert.equal(section.className, 'explicit')
+    assert.equal(section.title, 'second')
+    assert.equal(section.getAttribute('data-mode'), 'spread second')
+    assert.equal(section.getAttribute('data-key'), 'explicit-key')
+    assert.equal(section.textContent, 'JSX child')
+    assert.equal(module.state().childSetups, 1)
+    dispose()
+  } finally {
+    await server.close()
+    restoreDOM()
+    rmSync(fixture.root, { force: true, recursive: true })
+  }
+})
+
+test('native compiler executes ordered spreads through SSR without DOM globals', async () => {
+  const spreadSource = `import { renderToString } from '@zeus-js/runtime-ssr'
+let formatterCalls = 0
+const formatter = value => { formatterCalls++; return value.toUpperCase() }
+const Child = props => <span title={props.title}>{props.formatter('value')}</span>
+const App = () => <main>
+  <input {...{ disabled: false, title: 'first' }} {...{ 'prop:disabled': true }} disabled={false} title="last" />
+  <Child {...{ title: 'base', formatter }} title="final" />
+</main>
+export const html = () => renderToString(() => App())
+export const count = () => formatterCalls
+`
+  const fixture = createFixture(spreadSource)
+  const { createServer } = await import('vite')
+  const server = await createServer({
+    root: fixture.root,
+    configFile: false,
+    logLevel: 'silent',
+    optimizeDeps: { noDiscovery: true },
+    define: {
+      __DEV__: 'true',
+      __TEST__: 'true',
+      __VERSION__: JSON.stringify('test'),
+    },
+    resolve: { alias: runtimeAliases() },
+    plugins: [createNativePlugin('ssr')],
+    server: { middlewareMode: true },
+  })
+  try {
+    const module = await server.ssrLoadModule('/src/App.tsx')
+    assert.equal(
+      module.html(),
+      '<main><input title="last"><span title="final">VALUE</span></main>',
+    )
+    assert.equal(module.count(), 1)
+  } finally {
+    await server.close()
+    rmSync(fixture.root, { force: true, recursive: true })
+  }
+})
+
+test('native compiler mounts dynamic JSX arrays and delegates branch events', async () => {
+  const dynamicSource = `import { createSignal } from '@zeus-js/signal'
+import { render } from '@zeus-js/runtime-dom'
+const [visible, setVisible] = createSignal(false)
+const [items, setItems] = createSignal([])
+const calls = []
+const renderFunctionChild = () => <button data-region="function" onClick={() => calls.push('function')}>function</button>
+const App = () => <main>
+  {visible() ? <button data-zeus-node="user" data-region="conditional" onClick={() => calls.push('conditional')}>conditional</button> : null}
+  {items().map(item => <button data-region={item} onClick={() => calls.push(item)}>{item}</button>)}
+  {[<button data-region="literal" onClick={() => calls.push('literal')}>literal</button>]}
+  {renderFunctionChild()}
+</main>
+export const mount = container => render(() => App(), container)
+export const update = (nextVisible, nextItems) => { setVisible(nextVisible); setItems(nextItems) }
+export const getCalls = () => [...calls]
+`
+  const fixture = createFixture(dynamicSource)
+  const restoreDOM = installDOMGlobals()
+  const { createServer } = await import('vite')
+  const server = await createServer({
+    root: fixture.root,
+    configFile: false,
+    logLevel: 'silent',
+    optimizeDeps: { noDiscovery: true },
+    define: {
+      __DEV__: 'true',
+      __TEST__: 'true',
+      __VERSION__: JSON.stringify('test'),
+    },
+    resolve: { alias: runtimeAliases() },
+    plugins: [createNativePlugin()],
+    server: { middlewareMode: true },
+  })
+
+  try {
+    const module = await server.ssrLoadModule('/src/App.tsx')
+    const container = document.createElement('div')
+    document.body.append(container)
+    const dispose = module.mount(container)
+    const literalButton = container.querySelector('[data-region="literal"]')
+    const functionButton = container.querySelector('[data-region="function"]')
+    assert.ok(literalButton)
+    assert.ok(functionButton)
+    literalButton.click()
+    functionButton.click()
+    assert.deepEqual(module.getCalls(), ['literal', 'function'])
+
+    module.update(true, ['first', 'second'])
+    const conditionalButton = container.querySelector(
+      '[data-region="conditional"]',
+    )
+    assert.ok(conditionalButton)
+    assert.equal(conditionalButton.getAttribute('data-zeus-node'), 'user')
+    conditionalButton.click()
+    container.querySelector('[data-region="first"]').click()
+    container.querySelector('[data-region="second"]').click()
+    assert.deepEqual(module.getCalls(), [
+      'literal',
+      'function',
+      'conditional',
+      'first',
+      'second',
+    ])
+
+    module.update(false, [])
+    conditionalButton.click()
+    assert.deepEqual(module.getCalls(), [
+      'literal',
+      'function',
+      'conditional',
+      'first',
+      'second',
+    ])
+    dispose()
+    assert.equal(container.childNodes.length, 0)
+    container.remove()
+  } finally {
+    await server.close()
+    restoreDOM()
+    rmSync(fixture.root, { force: true, recursive: true })
+  }
+})
+
+test('native compiler renders conditional, mapped, and array JSX through SSR', async () => {
+  const dynamicSource = `import { renderToString } from '@zeus-js/runtime-ssr'
+const renderFunctionChild = () => <u>fn</u>
+const App = props => <div>
+  {props.ok ? <span>yes</span> : <em>no</em>}
+  {props.items.map(item => <b>{item}</b>)}
+  {[<i>fixed</i>, props.label]}
+  {renderFunctionChild()}
+</div>
+export const html = props => renderToString(() => App(props))
+`
+  const fixture = createFixture(dynamicSource)
+  const { createServer } = await import('vite')
+  const server = await createServer({
+    root: fixture.root,
+    configFile: false,
+    logLevel: 'silent',
+    optimizeDeps: { noDiscovery: true },
+    define: {
+      __DEV__: 'true',
+      __TEST__: 'true',
+      __VERSION__: JSON.stringify('test'),
+    },
+    resolve: { alias: runtimeAliases() },
+    plugins: [createNativePlugin('ssr')],
+    server: { middlewareMode: true },
+  })
+  try {
+    const module = await server.ssrLoadModule('/src/App.tsx')
+    assert.equal(
+      module.html({ ok: true, items: ['a', 'b'], label: 'end' }),
+      '<div><span>yes</span><b>a</b><b>b</b><i>fixed</i>end<u>fn</u></div>',
+    )
+    assert.equal(
+      module.html({ ok: false, items: [], label: 'tail' }),
+      '<div><em>no</em><i>fixed</i>tail<u>fn</u></div>',
+    )
+  } finally {
+    await server.close()
+    rmSync(fixture.root, { force: true, recursive: true })
+  }
+})

@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{
-    BindingPattern, Declaration, Expression, FunctionType, IdentifierReference,
+    BindingPattern, CallExpression, Declaration, Expression, FunctionType, IdentifierReference,
     ImportDeclarationSpecifier, JSXAttribute, JSXAttributeItem, JSXAttributeName,
     JSXAttributeValue, JSXChild, JSXElement, JSXElementName, JSXExpression, JSXExpressionContainer,
     JSXFragment, JSXSpreadAttribute, MemberExpression, ModuleDeclaration, Statement,
@@ -20,10 +20,11 @@ use crate::html::{is_raw_text_element, is_unsupported_raw_text_element, is_void_
 use crate::{
     diagnostic::{CompilerDiagnostic, DiagnosticSeverity},
     ir::{
-        AttrBindingIr, AttributeIr, ChildIr, ComponentBindingIr, ComponentIr, ComponentPropIr,
-        ComponentPropValueIr, DynamicTextIr, ElementIr, EventBindingIr, ExpressionForm,
+        AttrBindingIr, AttributeIr, ChildIr, ComponentBindingIr, ComponentIr, ComponentNamedPropIr,
+        ComponentPropIr, ComponentPropValueIr, DynamicRegionExpressionIr, DynamicRegionIr,
+        DynamicRegionValueIr, DynamicTextIr, ElementIr, EventBindingIr, ExpressionForm,
         ExpressionIr, ForAccessorIr, ForBindingIr, FragmentIr, IrRef, ModuleIr, NodeId,
-        PropBindingIr, RefBindingIr, RootIr, ShowBindingIr, StaticAttributeIr,
+        PropBindingIr, RefBindingIr, RootIr, ShowBindingIr, SpreadBindingIr, StaticAttributeIr,
         StaticAttributeValue, TextIr, is_children_expression,
     },
     span::SourceIndex,
@@ -35,6 +36,7 @@ pub struct LowerResult {
     pub diagnostics: Vec<CompilerDiagnostic>,
     pub(crate) reserved_names: Vec<String>,
     pub(crate) hmr: HmrInfo,
+    pub(crate) pure_define_element_calls: Vec<Span>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -46,7 +48,8 @@ pub(crate) struct HmrInfo {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct HmrRenderCall {
     pub offset: u32,
-    pub disposer: Option<String>,
+    pub end: u32,
+    pub terminate_statement: bool,
 }
 
 pub fn lower_module(source: &str, filename: &str) -> LowerResult {
@@ -63,6 +66,7 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
                 )],
                 reserved_names: Vec::new(),
                 hmr: HmrInfo::default(),
+                pure_define_element_calls: Vec::new(),
             };
         }
     };
@@ -83,6 +87,7 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
                 .collect(),
             reserved_names: Vec::new(),
             hmr: HmrInfo::default(),
+            pure_define_element_calls: Vec::new(),
         };
     }
 
@@ -99,14 +104,15 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
                 .collect(),
             reserved_names: Vec::new(),
             hmr: HmrInfo::default(),
+            pure_define_element_calls: Vec::new(),
         };
     }
 
     let reserved_names = collect_reserved_names(semantic_result.semantic.scoping());
     let scoping = semantic_result.semantic.into_scoping();
 
-    let builtin_names = collect_builtin_names(&parsed.program);
     let hmr = collect_hmr_info(&parsed.program);
+    let builtin_names = collect_builtin_names(&parsed.program);
     let (define_element_setup_spans, host_root_spans) =
         collect_define_element_spans(&parsed.program, &builtin_names);
     let mut lowerer = Lowerer::new(
@@ -133,6 +139,7 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
             diagnostics: lowerer.diagnostics,
             reserved_names,
             hmr,
+            pure_define_element_calls: Vec::new(),
         };
     }
 
@@ -146,6 +153,74 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
         diagnostics: Vec::new(),
         reserved_names,
         hmr,
+        pure_define_element_calls: collect_top_level_define_element_calls(&parsed.program),
+    }
+}
+
+/// Collect direct `defineElement(...)` initializers. These are the only calls
+/// that a component library can safely mark pure for a per-component lazy
+/// entry: a top-level imported binding cannot be shadowed by a local scope.
+fn collect_top_level_define_element_calls(program: &oxc_ast::ast::Program<'_>) -> Vec<Span> {
+    let define_names = collect_imported_names(program, "defineElement");
+    if define_names.is_empty() {
+        return Vec::new();
+    }
+
+    let mut calls = Vec::new();
+    for statement in &program.body {
+        let declaration = statement
+            .as_declaration()
+            .and_then(|declaration| match declaration {
+                Declaration::VariableDeclaration(declaration) => Some(declaration),
+                _ => None,
+            })
+            .or_else(|| match statement.as_module_declaration() {
+                Some(ModuleDeclaration::ExportDeclaration(export)) => match &export.declaration {
+                    Declaration::VariableDeclaration(declaration) => Some(declaration),
+                    _ => None,
+                },
+                _ => None,
+            });
+        let Some(declaration) = declaration else {
+            continue;
+        };
+
+        for declarator in &declaration.declarations {
+            let Some(initializer) = &declarator.init else {
+                continue;
+            };
+            if let Some(span) = direct_define_element_call(initializer, &define_names) {
+                calls.push(span);
+            }
+        }
+    }
+    calls
+}
+
+fn direct_define_element_call(
+    expression: &Expression<'_>,
+    define_names: &HashSet<String>,
+) -> Option<Span> {
+    match expression {
+        Expression::CallExpression(call) if matches!(&call.callee, Expression::Identifier(identifier) if define_names.contains(identifier.name.as_str())) => {
+            Some(call.span)
+        }
+        Expression::ParenthesizedExpression(expression) => {
+            direct_define_element_call(&expression.expression, define_names)
+        }
+        Expression::TSAsExpression(expression) => {
+            direct_define_element_call(&expression.expression, define_names)
+        }
+        Expression::TSSatisfiesExpression(expression) => {
+            direct_define_element_call(&expression.expression, define_names)
+        }
+        Expression::TSNonNullExpression(expression) => {
+            direct_define_element_call(&expression.expression, define_names)
+        }
+        Expression::TSInstantiationExpression(expression) => {
+            direct_define_element_call(&expression.expression, define_names)
+        }
+        _ => None,
     }
 }
 
@@ -173,7 +248,7 @@ struct Lowerer<'source, 'allocator> {
     next_id: NodeId,
     components: Vec<ComponentIr>,
     diagnostics: Vec<CompilerDiagnostic>,
-    builtin_names: HashMap<String, BuiltinKind>,
+    builtin_names: HashMap<String, BuiltinBinding>,
     define_element_setup_spans: Vec<Span>,
     host_root_spans: HashSet<u32>,
     host_depth: usize,
@@ -196,12 +271,18 @@ enum BuiltinKind {
     Slot,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct BuiltinBinding {
+    kind: BuiltinKind,
+    symbol_id: SymbolId,
+}
+
 impl<'source, 'allocator> Lowerer<'source, 'allocator> {
     fn new(
         source: &'source str,
         filename: &'source str,
         allocator: &'allocator Allocator,
-        builtin_names: HashMap<String, BuiltinKind>,
+        builtin_names: HashMap<String, BuiltinBinding>,
         define_element_setup_spans: Vec<Span>,
         host_root_spans: HashSet<u32>,
         scoping: Scoping,
@@ -342,9 +423,31 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         let id = self.allocate_id();
 
         let attributes = self.lower_attributes(&element.opening_element.attributes);
-        let children = self.lower_children(&element.children);
+        let mut children = self.lower_children(&element.children);
 
         if is_raw_text_element(tag_name) {
+            for child in &mut children {
+                let ChildIr::DynamicRegion(region) = child else {
+                    continue;
+                };
+                let DynamicRegionExpressionIr::Value { expression } = &region.expression else {
+                    self.unsupported(
+                        "ZEUS_UNSUPPORTED_RAW_TEXT_CHILD",
+                        "Raw-text elements may only contain text and scalar dynamic expressions.",
+                        element.span,
+                    );
+                    return None;
+                };
+                let id = region.id;
+                *child = ChildIr::DynamicText(DynamicTextIr {
+                    id,
+                    kind: "DynamicText".into(),
+                    reference: IrRef { node_id: id },
+                    expression: expression.clone(),
+                    once: false,
+                    span: region.span,
+                });
+            }
             let mut has_once = false;
             let mut has_reactive = false;
             for child in &children {
@@ -397,12 +500,56 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
 
         for attribute in &element.opening_element.attributes {
             match attribute {
-                JSXAttributeItem::SpreadAttribute(attribute) => self.unsupported(
-                    "ZEUS_UNSUPPORTED_COMPONENT_PROP",
-                    "Component spread props are not supported by this compiler slice.",
-                    attribute.span,
-                ),
+                JSXAttributeItem::SpreadAttribute(attribute) => {
+                    if kind == "Host" || kind == "Slot" {
+                        self.unsupported(
+                            "ZEUS_UNSUPPORTED_BUILTIN_SPREAD",
+                            "Host and Slot require explicit attributes.",
+                            attribute.span,
+                        );
+                    } else {
+                        props.push(ComponentPropIr::Spread(
+                            self.lower_spread(attribute, "component"),
+                        ));
+                    }
+                }
                 JSXAttributeItem::Attribute(attribute) => {
+                    if kind == "Component"
+                        && matches!(&attribute.name, JSXAttributeName::NamespacedName(_))
+                    {
+                        self.unsupported(
+                            "ZEUS_UNSUPPORTED_COMPONENT_PROP_NAMESPACE",
+                            "Function component props use JavaScript property names; DOM namespaces such as `prop:name` are not valid here.",
+                            attribute.span,
+                        );
+                        continue;
+                    }
+                    if kind == "Slot"
+                        && let JSXAttributeName::Identifier(name) = &attribute.name
+                        && name.name == "name"
+                        && let Some(JSXAttributeValue::ExpressionContainer(container)) =
+                            &attribute.value
+                        && self.has_once_marker(container)
+                    {
+                        self.invalid_once_target(container.span);
+                        continue;
+                    }
+                    if kind == "Slot"
+                        && !matches!(
+                            (&attribute.name, &attribute.value),
+                            (
+                                JSXAttributeName::Identifier(name),
+                                Some(JSXAttributeValue::StringLiteral(_))
+                            ) if name.name == "name"
+                        )
+                    {
+                        self.unsupported(
+                            "ZEUS_INVALID_SLOT_NAME",
+                            "Slot `name` must be a static string literal; omit it for the default slot.",
+                            attribute.span,
+                        );
+                        continue;
+                    }
                     if let Some(prop) = self.lower_component_prop(attribute) {
                         props.push(prop);
                     }
@@ -420,12 +567,12 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             } else {
                 self.lower_inline_value_children(&element.children)
             };
-            props.push(ComponentPropIr {
+            props.push(ComponentPropIr::Named(ComponentNamedPropIr {
                 id: self.allocate_id(),
                 name: "children".into(),
                 value: ComponentPropValueIr::Children(children),
                 span,
-            });
+            }));
         }
 
         ComponentBindingIr {
@@ -445,7 +592,13 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             | JSXElementName::NamespacedName(_)
             | JSXElementName::ThisExpression(_) => return None,
         };
-        self.builtin_names.get(name).copied()
+        let JSXElementName::IdentifierReference(identifier) = &element.opening_element.name else {
+            return None;
+        };
+        let binding = self.builtin_names.get(name)?;
+        let reference_id = identifier.reference_id.get()?;
+        let symbol_id = self.scoping.get_reference(reference_id).symbol_id()?;
+        (symbol_id == binding.symbol_id).then_some(binding.kind)
     }
 
     fn is_host_root(&self, element: &JSXElement<'_>) -> bool {
@@ -464,6 +617,16 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
     fn lower_show(&mut self, element: &JSXElement<'_>) -> ShowBindingIr {
         let id = self.allocate_id();
         if self.reject_once_markers_on_builtin_attributes(element) {
+            return ShowBindingIr {
+                id,
+                kind: "Show".into(),
+                when: self.empty_expression(element.span),
+                children: Vec::new(),
+                fallback: None,
+                span: self.source_index.span(element.span),
+            };
+        }
+        if self.reject_unknown_builtin_attributes(element, "Show", &["when", "fallback"]) {
             return ShowBindingIr {
                 id,
                 kind: "Show".into(),
@@ -497,6 +660,18 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
     fn lower_for(&mut self, element: &JSXElement<'_>) -> ForBindingIr {
         let id = self.allocate_id();
         if self.reject_once_markers_on_builtin_attributes(element) {
+            return ForBindingIr {
+                id,
+                kind: "For".into(),
+                each: self.empty_expression(element.span),
+                by: None,
+                item: "item".into(),
+                index: None,
+                body: Vec::new(),
+                span: self.source_index.span(element.span),
+            };
+        }
+        if self.reject_unknown_builtin_attributes(element, "For", &["each", "by"]) {
             return ForBindingIr {
                 id,
                 kind: "For".into(),
@@ -575,6 +750,55 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             body,
             span: self.source_index.span(element.span),
         }
+    }
+
+    fn reject_unknown_builtin_attributes(
+        &mut self,
+        element: &JSXElement<'_>,
+        builtin: &str,
+        allowed: &[&str],
+    ) -> bool {
+        let mut rejected = false;
+        let mut seen = HashSet::new();
+        for attribute in &element.opening_element.attributes {
+            let JSXAttributeItem::Attribute(attribute) = attribute else {
+                continue;
+            };
+            let JSXAttributeName::Identifier(name) = &attribute.name else {
+                self.unsupported(
+                    "ZEUS_INVALID_BUILTIN_USAGE",
+                    &format!(
+                        "Builtin `{builtin}` only accepts the explicit attributes: {}.",
+                        allowed.join(", ")
+                    ),
+                    attribute.span,
+                );
+                rejected = true;
+                continue;
+            };
+            if !allowed
+                .iter()
+                .any(|allowed_name| *allowed_name == name.name)
+            {
+                self.unsupported(
+                    "ZEUS_INVALID_BUILTIN_USAGE",
+                    &format!("Builtin `{builtin}` does not accept the `{}` attribute; allowed attributes: {}.", name.name, allowed.join(", ")),
+                    attribute.span,
+                );
+                rejected = true;
+            } else if !seen.insert(name.name.as_str()) {
+                self.unsupported(
+                    "ZEUS_INVALID_BUILTIN_USAGE",
+                    &format!(
+                        "Builtin `{builtin}` accepts each attribute at most once; `{}` is duplicated.",
+                        name.name
+                    ),
+                    attribute.span,
+                );
+                rejected = true;
+            }
+        }
+        rejected
     }
 
     fn lower_for_callback(
@@ -672,12 +896,27 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                     );
                     None
                 } else {
-                    Some(ComponentPropValueIr::Expression(
-                        self.lower_expression(expression),
-                    ))
+                    let lowered = self.lower_expression(expression);
+                    if lowered.form == ExpressionForm::Function {
+                        self.unsupported(
+                            "ZEUS_FUNCTION_BUILTIN_VALUE",
+                            "Show `fallback` expects a value; call the function explicitly when reading a signal.",
+                            container.span,
+                        );
+                        None
+                    } else {
+                        Some(ComponentPropValueIr::Expression(lowered))
+                    }
                 }
             }
-            Some(JSXAttributeValue::Element(_) | JSXAttributeValue::Fragment(_)) => None,
+            Some(JSXAttributeValue::Element(element)) => {
+                Some(ComponentPropValueIr::Children(vec![
+                    self.lower_element_child(element),
+                ]))
+            }
+            Some(JSXAttributeValue::Fragment(fragment)) => Some(ComponentPropValueIr::Children(
+                vec![ChildIr::Fragment(self.lower_fragment(fragment))],
+            )),
         }
     }
 
@@ -738,7 +977,16 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             );
             return None;
         }
-        Some(self.lower_expression(expression))
+        let lowered = self.lower_expression(expression);
+        if (name == "when" || name == "each") && lowered.form == ExpressionForm::Function {
+            self.unsupported(
+                "ZEUS_FUNCTION_BUILTIN_VALUE",
+                &format!("Builtin `{name}` expects a value; call the function explicitly when reading a signal."),
+                container.span,
+            );
+            return None;
+        }
+        Some(lowered)
     }
 
     fn lower_expression_child(&mut self, expression: &Expression<'_>) -> Option<ChildIr> {
@@ -748,8 +996,190 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             Expression::JSXFragment(fragment) => {
                 Some(ChildIr::Fragment(self.lower_fragment(fragment)))
             }
-            _ => None,
+            _ => self
+                .lower_dynamic_region(expression)
+                .map(ChildIr::DynamicRegion),
         }
+    }
+
+    fn lower_dynamic_region(&mut self, expression: &Expression<'_>) -> Option<DynamicRegionIr> {
+        let expression = unwrap_expression(expression);
+        let region_expression = match expression {
+            Expression::ConditionalExpression(expression) => {
+                if !contains_jsx(&expression.consequent) && !contains_jsx(&expression.alternate) {
+                    return None;
+                }
+                if contains_jsx(&expression.test) {
+                    self.unsupported(
+                        "ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION",
+                        "Nested JSX expressions are not supported in a dynamic condition.",
+                        expression.test.span(),
+                    );
+                    return None;
+                }
+                DynamicRegionExpressionIr::Conditional {
+                    test: self.lower_expression(&expression.test),
+                    consequent: self.lower_dynamic_region_value(&expression.consequent)?,
+                    alternate: self.lower_dynamic_region_value(&expression.alternate)?,
+                }
+            }
+            Expression::LogicalExpression(expression) => {
+                if !contains_jsx(&expression.right) {
+                    return None;
+                }
+                if contains_jsx(&expression.left) {
+                    self.unsupported(
+                        "ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION",
+                        "Nested JSX expressions are not supported in a logical condition.",
+                        expression.left.span(),
+                    );
+                    return None;
+                }
+                DynamicRegionExpressionIr::Logical {
+                    left: self.lower_expression(&expression.left),
+                    operator: expression.operator.as_str().into(),
+                    right: self.lower_dynamic_region_value(&expression.right)?,
+                }
+            }
+            Expression::CallExpression(call) => {
+                if let Some(region) = self.lower_array_map_region(call) {
+                    region
+                } else {
+                    if contains_jsx(unwrap_expression(expression)) {
+                        return None;
+                    }
+                    DynamicRegionExpressionIr::Value {
+                        expression: self.lower_call_expression(call),
+                    }
+                }
+            }
+            Expression::ArrayExpression(expression) => {
+                self.lower_array_literal_region(expression)?
+            }
+            _ => return None,
+        };
+
+        let id = self.allocate_id();
+        let span = self.source_index.span(expression.span());
+        Some(DynamicRegionIr {
+            id,
+            kind: "DynamicRegion".into(),
+            reference: IrRef { node_id: id },
+            expression: region_expression,
+            span,
+        })
+    }
+
+    fn lower_array_literal_region(
+        &mut self,
+        expression: &oxc_ast::ast::ArrayExpression<'_>,
+    ) -> Option<DynamicRegionExpressionIr> {
+        let mut items = Vec::with_capacity(expression.elements.len());
+        for element in &expression.elements {
+            let Some(item_expression) = element.as_expression() else {
+                if element.is_elision() {
+                    continue;
+                }
+                self.unsupported(
+                    "ZEUS_UNSUPPORTED_ARRAY_SPREAD",
+                    "Spread elements are not supported in JSX array children.",
+                    element.span(),
+                );
+                return None;
+            };
+            items.push(self.lower_dynamic_region_value(item_expression)?);
+        }
+        Some(DynamicRegionExpressionIr::ArrayLiteral { items })
+    }
+
+    fn lower_dynamic_region_value(
+        &mut self,
+        expression: &Expression<'_>,
+    ) -> Option<DynamicRegionValueIr> {
+        if let Some(child) = self.lower_expression_child(expression) {
+            return Some(DynamicRegionValueIr::Children(vec![child]));
+        }
+        if contains_jsx(expression) {
+            self.unsupported(
+                "ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION",
+                "Nested JSX expressions are not supported in this dynamic region shape.",
+                expression.span(),
+            );
+            return None;
+        }
+        Some(DynamicRegionValueIr::Expression(
+            self.lower_expression(expression),
+        ))
+    }
+
+    fn lower_array_map_region(
+        &mut self,
+        expression: &oxc_ast::ast::CallExpression<'_>,
+    ) -> Option<DynamicRegionExpressionIr> {
+        let Expression::StaticMemberExpression(member) = &expression.callee else {
+            return None;
+        };
+        if member.property.name.as_str() != "map" {
+            return None;
+        }
+        let callback = expression.arguments.first()?.as_expression()?;
+        let Expression::ArrowFunctionExpression(callback) = unwrap_expression(callback) else {
+            return None;
+        };
+        let callback_expression = callback.body.as_expression()?;
+        let callback_expression = unwrap_expression(callback_expression);
+        if !contains_jsx(callback_expression) {
+            return None;
+        }
+        for argument in expression.arguments.iter().skip(1) {
+            if let Some(argument) = argument.as_expression()
+                && contains_jsx(argument)
+            {
+                self.unsupported(
+                    "ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION",
+                    "JSX in additional Array.map arguments is not supported.",
+                    argument.span(),
+                );
+                return None;
+            }
+        }
+        if let Some(span) = unsupported_for_callback_parameter_span(callback) {
+            self.unsupported(
+                "ZEUS_UNSUPPORTED_ARRAY_MAP_CALLBACK_PARAMETER",
+                "Array map callbacks accept at most two plain identifier parameters; destructuring, default values, and rest parameters are not supported.",
+                span,
+            );
+            return None;
+        }
+        let Some(item_parameter) = callback.params.items.first() else {
+            self.unsupported(
+                "ZEUS_UNSUPPORTED_ARRAY_MAP_CALLBACK_PARAMETER",
+                "Array map callbacks require at least one plain identifier parameter.",
+                callback.span,
+            );
+            return None;
+        };
+        if contains_jsx(&member.object) {
+            self.unsupported(
+                "ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION",
+                "Nested JSX expressions are not supported in an array map source.",
+                member.object.span(),
+            );
+            return None;
+        }
+        let item = binding_name(&item_parameter.pattern)?;
+        let index = callback
+            .params
+            .items
+            .get(1)
+            .and_then(|parameter| binding_name(&parameter.pattern));
+        let child = self.lower_expression_child(callback_expression)?;
+        Some(DynamicRegionExpressionIr::ArrayMap {
+            each: self.lower_expression(&member.object),
+            item,
+            index,
+            body: vec![child],
+        })
     }
 
     fn lower_element_child(&mut self, element: &JSXElement<'_>) -> ChildIr {
@@ -842,7 +1272,9 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
     fn lower_component_prop(&mut self, attribute: &JSXAttribute<'_>) -> Option<ComponentPropIr> {
         let name = match &attribute.name {
             JSXAttributeName::Identifier(identifier) => {
-                normalize_attribute_name(identifier.name.as_str())
+                // Component props use JavaScript keys. DOM alias normalization
+                // applies only to native attributes and Host bindings.
+                identifier.name.to_string()
             }
             JSXAttributeName::NamespacedName(namespaced) => {
                 format!("{}:{}", namespaced.namespace.name, namespaced.name.name)
@@ -897,12 +1329,12 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             }
         };
 
-        Some(ComponentPropIr {
+        Some(ComponentPropIr::Named(ComponentNamedPropIr {
             id: self.allocate_id(),
             name,
             value: ComponentPropValueIr::Expression(value),
             span,
-        })
+        }))
     }
 
     fn lower_fragment(&mut self, fragment: &JSXFragment<'_>) -> FragmentIr {
@@ -925,15 +1357,33 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                         lowered.push(attribute);
                     }
                 }
-                JSXAttributeItem::SpreadAttribute(attribute) => self.unsupported(
-                    "ZEUS_UNSUPPORTED_SPREAD_ATTRIBUTE",
-                    "JSX spread attributes are not supported by this compiler slice.",
-                    attribute.span,
-                ),
+                JSXAttributeItem::SpreadAttribute(attribute) => {
+                    lowered.push(AttributeIr::Spread(self.lower_spread(attribute, "native")));
+                }
             }
         }
 
         lowered
+    }
+
+    fn lower_spread(
+        &mut self,
+        attribute: &JSXSpreadAttribute<'_>,
+        target: &str,
+    ) -> SpreadBindingIr {
+        if contains_jsx(&attribute.argument) {
+            self.unsupported(
+                "ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION",
+                "JSX inside a spread expression requires a dynamic region and is not supported by this compiler slice.",
+                attribute.span,
+            );
+        }
+        SpreadBindingIr {
+            id: self.allocate_id(),
+            target: target.into(),
+            expression: self.lower_expression(&attribute.argument),
+            span: self.source_index.span(attribute.span),
+        }
     }
 
     fn lower_attribute(&mut self, attribute: &JSXAttribute<'_>) -> Option<AttributeIr> {
@@ -1054,6 +1504,14 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         }
 
         let expression = self.lower_expression(expression);
+        if expression.form == ExpressionForm::Function
+            && !is_property
+            && name != "ref"
+            && !is_event_attribute_name(&name)
+        {
+            self.unsupported("ZEUS_FUNCTION_ATTRIBUTE", "Native JSX attributes require values; call the function or use prop:name for a function property.", container.span);
+            return None;
+        }
         let id = self.allocate_id();
         let span = self.source_index.span(attribute.span);
 
@@ -1145,16 +1603,31 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 }
                 let expression = container.expression.to_expression();
                 let once = self.has_once_marker(container);
-                if contains_jsx(expression) {
+                let diagnostic_count = self.diagnostics.len();
+                if let Some(region) = self.lower_dynamic_region(expression) {
+                    lowered.push(ChildIr::DynamicRegion(region));
+                    return;
+                }
+                if contains_jsx(expression) && self.diagnostics.len() == diagnostic_count {
                     self.unsupported(
                         "ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION",
                         "Nested JSX expressions are not supported by this compiler slice.",
                         container.span,
                     );
+                }
+                if contains_jsx(expression) {
                     return;
                 }
 
                 let expression = self.lower_expression(expression);
+                if expression.form == ExpressionForm::Function {
+                    self.unsupported(
+                        "ZEUS_FUNCTION_CHILD",
+                        "JSX children require values; call the function explicitly.",
+                        container.span,
+                    );
+                    return;
+                }
                 if once && is_children_expression(&expression.code) {
                     self.invalid_once_target(container.span);
                     return;
@@ -1223,6 +1696,21 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         }
     }
 
+    fn lower_call_expression(&self, expression: &CallExpression<'_>) -> ExpressionIr {
+        let mut collector = ForAccessorReferenceCollector {
+            scoping: &self.scoping,
+            referenced_symbols: HashSet::new(),
+        };
+        collector.visit_call_expression(expression);
+        ExpressionIr {
+            kind: "Expression".into(),
+            code: expression.span.source_text(self.source).to_owned(),
+            span: self.source_index.span(expression.span),
+            form: ExpressionForm::Value,
+            for_accessors: self.for_accessors_from_symbols(&collector.referenced_symbols),
+        }
+    }
+
     fn for_accessors_from_symbols(
         &self,
         referenced_symbols: &HashSet<SymbolId>,
@@ -1266,9 +1754,19 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                     };
                     self.has_once_marker(container).then_some(container.span)
                 }
-                JSXAttributeItem::SpreadAttribute(attribute) => self
-                    .has_once_spread_marker(attribute)
-                    .then_some(attribute.span),
+                JSXAttributeItem::SpreadAttribute(attribute) => {
+                    if self.has_once_spread_marker(attribute) {
+                        Some(attribute.span)
+                    } else {
+                        self.unsupported(
+                            "ZEUS_UNSUPPORTED_BUILTIN_SPREAD",
+                            "Control-flow builtins require explicit attributes.",
+                            attribute.span,
+                        );
+                        rejected = true;
+                        None
+                    }
+                }
             };
 
             if let Some(span) = marker_span {
@@ -1399,14 +1897,17 @@ fn unwrap_expression<'ast, 'expr>(expression: &'expr Expression<'ast>) -> &'expr
 }
 
 fn normalize_attribute_name(name: &str) -> String {
-    if name == "className" {
-        "class".into()
-    } else {
-        name.into()
+    match name {
+        "className" => "class",
+        "htmlFor" => "for",
+        "tabIndex" => "tabindex",
+        "readOnly" => "readonly",
+        _ => name,
     }
+    .into()
 }
 
-fn collect_builtin_names(program: &oxc_ast::ast::Program<'_>) -> HashMap<String, BuiltinKind> {
+fn collect_builtin_names(program: &oxc_ast::ast::Program<'_>) -> HashMap<String, BuiltinBinding> {
     let mut names = HashMap::new();
     for statement in &program.body {
         let Some(ModuleDeclaration::ImportDeclaration(import)) = statement.as_module_declaration()
@@ -1436,7 +1937,13 @@ fn collect_builtin_names(program: &oxc_ast::ast::Program<'_>) -> HashMap<String,
                 "Slot" => BuiltinKind::Slot,
                 _ => continue,
             };
-            names.insert(specifier.local.name.to_string(), kind);
+            let Some(symbol_id) = specifier.local.symbol_id.get() else {
+                continue;
+            };
+            names.insert(
+                specifier.local.name.to_string(),
+                BuiltinBinding { kind, symbol_id },
+            );
         }
     }
     names
@@ -1444,7 +1951,7 @@ fn collect_builtin_names(program: &oxc_ast::ast::Program<'_>) -> HashMap<String,
 
 fn collect_define_element_spans(
     program: &oxc_ast::ast::Program<'_>,
-    builtin_names: &HashMap<String, BuiltinKind>,
+    builtin_names: &HashMap<String, BuiltinBinding>,
 ) -> (Vec<Span>, HashSet<u32>) {
     let define_names = collect_imported_names(program, "defineElement");
     if define_names.is_empty() {
@@ -1453,7 +1960,7 @@ fn collect_define_element_spans(
 
     let host_names = builtin_names
         .iter()
-        .filter_map(|(name, kind)| (*kind == BuiltinKind::Host).then_some(name.clone()))
+        .filter_map(|(name, binding)| (binding.kind == BuiltinKind::Host).then_some(name.clone()))
         .collect::<HashSet<_>>();
     let setup_functions = collect_setup_functions(program, &host_names);
     let mut collector = DefineElementCollector {
@@ -1518,7 +2025,8 @@ fn collect_hmr_info(program: &oxc_ast::ast::Program<'_>) -> HmrInfo {
                 if let Some(call) = render_call(&statement.expression, &render_names) {
                     render_calls.push(HmrRenderCall {
                         offset: call.start,
-                        disposer: None,
+                        end: call.end,
+                        terminate_statement: true,
                     });
                 }
             }
@@ -1609,10 +2117,10 @@ fn collect_variable_render_calls<'a>(
         let Some(call) = render_call(initializer, render_names) else {
             continue;
         };
-        let disposer = binding_name(&declaration.id);
         render_calls.push(HmrRenderCall {
             offset: call.start,
-            disposer,
+            end: call.end,
+            terminate_statement: false,
         });
     }
 }
@@ -1849,6 +2357,21 @@ fn function_setup_root(
 }
 
 fn jsx_host_span(expression: &Expression<'_>, host_names: &HashSet<String>) -> Option<Span> {
+    match expression {
+        Expression::ParenthesizedExpression(expression) => {
+            return jsx_host_span(&expression.expression, host_names);
+        }
+        Expression::TSAsExpression(expression) => {
+            return jsx_host_span(&expression.expression, host_names);
+        }
+        Expression::TSSatisfiesExpression(expression) => {
+            return jsx_host_span(&expression.expression, host_names);
+        }
+        Expression::TSNonNullExpression(expression) => {
+            return jsx_host_span(&expression.expression, host_names);
+        }
+        _ => {}
+    }
     let Expression::JSXElement(element) = expression else {
         return None;
     };
@@ -1945,7 +2468,7 @@ fn is_event_attribute_name(name: &str) -> bool {
 fn expression_form(expression: &Expression<'_>) -> ExpressionForm {
     match expression {
         Expression::ArrowFunctionExpression(_) | Expression::FunctionExpression(_) => {
-            ExpressionForm::Getter
+            ExpressionForm::Function
         }
         expression if expression.is_member_expression() => ExpressionForm::Member,
         Expression::ChainExpression(chain) if chain.expression.is_member_expression() => {

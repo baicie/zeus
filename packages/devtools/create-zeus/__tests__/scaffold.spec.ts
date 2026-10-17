@@ -83,7 +83,7 @@ describe('create-zeus scaffold', () => {
     })
   })
 
-  it('overwrites existing directory', async () => {
+  it('refuses to overwrite a non-empty directory without explicit force', async () => {
     const root = mkdtempSync(join(tmpdir(), 'zeus-'))
 
     // Create a file first
@@ -93,18 +93,20 @@ describe('create-zeus scaffold', () => {
       template: 'basic-ts',
     })
 
-    // Scaffold again (should overwrite)
-    await scaffold({
-      root,
-      projectName: 'second',
-      template: 'web-component-ts',
-    })
+    // A second generation must not remove existing user files.
+    await expect(
+      scaffold({
+        root,
+        projectName: 'second',
+        template: 'web-component-ts',
+      }),
+    ).rejects.toThrow('not empty')
 
-    // Should have web-component-ts content
+    // The original project survives
     const packageJsonPath = join(root, 'package.json')
     const { readFileSync } = await import('node:fs')
     const json = JSON.parse(readFileSync(packageJsonPath, 'utf-8'))
-    expect(json.name).toBe('second')
+    expect(json.name).toBe('first')
 
     rmSync(root, {
       recursive: true,

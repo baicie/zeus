@@ -26,7 +26,7 @@ export function getIRChildren(node: ZeusIRNode): ZeusIRNode[] {
       return node.children
     case 'Component':
       return node.props.flatMap(prop =>
-        Array.isArray(prop.value) ? prop.value : [],
+        'value' in prop && Array.isArray(prop.value) ? prop.value : [],
       )
     case 'Show':
       return [
@@ -46,6 +46,8 @@ export function getIRChildren(node: ZeusIRNode): ZeusIRNode[] {
 }
 
 export function getComponentChildren(node: ComponentIR): ZeusIRNode[] {
-  const prop = node.props.find(prop => prop.name === 'children')
-  return prop && Array.isArray(prop.value) ? prop.value : []
+  const prop = node.props.find(
+    prop => 'name' in prop && prop.name === 'children',
+  )
+  return prop && 'value' in prop && Array.isArray(prop.value) ? prop.value : []
 }

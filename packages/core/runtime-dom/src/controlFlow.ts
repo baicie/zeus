@@ -13,6 +13,7 @@ export type ShowProps = {
 }
 
 export function Show(props: ShowProps): JSXValue {
+  assertValue(props.when, 'Show `when`')
   const value = props.when ? props.children : props.fallback
   return resolveValue(value)
 }
@@ -31,9 +32,11 @@ export function mountShow(
   children: () => JSXValue,
   fallback?: () => JSXValue,
 ): void {
-  mountDynamic(parent, marker, () =>
-    when() ? children() : fallback ? fallback() : null,
-  )
+  mountDynamic(parent, marker, () => {
+    const condition = when()
+    assertValue(condition, 'Show `when`')
+    return condition ? children() : fallback ? fallback() : null
+  })
 }
 
 export type ForProps<T, K = unknown> = {
@@ -43,7 +46,10 @@ export type ForProps<T, K = unknown> = {
 }
 
 export function For<T, K = unknown>(props: ForProps<T, K>): JSXValue {
-  return props.each?.map((item, index) => props.children(item, index)) ?? null
+  return (
+    readItems(props.each)?.map((item, index) => props.children(item, index)) ??
+    null
+  )
 }
 
 export function mountFor<T, K = unknown>(
@@ -53,5 +59,24 @@ export function mountFor<T, K = unknown>(
   key: ((item: T, index: number) => K) | undefined,
   render: (item: Accessor<T>, index: Accessor<number>) => JSXValue,
 ): void {
-  mountForRuntime(parent, marker, each, key, render)
+  const readEach = () => readItems(each())
+  mountForRuntime(parent, marker, readEach, key, render)
+}
+
+function readItems<T>(
+  value: readonly T[] | null | undefined,
+): readonly T[] | null {
+  if (value == null) return null
+  if (!Array.isArray(value)) {
+    throw new TypeError('[Zeus runtime] <For> `each` must resolve to an array.')
+  }
+  return value
+}
+
+function assertValue(value: unknown, label: string): void {
+  if (typeof value === 'function') {
+    throw new TypeError(
+      `[Zeus runtime] ${label} must be a value; call the function explicitly when reading a signal.`,
+    )
+  }
 }

@@ -252,6 +252,85 @@ describe('defineElement', () => {
     expect(el.textContent).toBe('associated')
   })
 
+  it('degrades form-associated elements when ElementInternals is unavailable', async () => {
+    const tag = createTag('form-associated-fallback')
+    const associated = vi.fn()
+    const disabled = vi.fn()
+    const reset = vi.fn()
+    const stateRestore = vi.fn()
+    let captured: ElementInternals | undefined
+
+    defineElement<{ value?: string }>(
+      tag,
+      {
+        shadow: false,
+        formAssociated: true,
+        props: {
+          value: {
+            type: String,
+            default: 'initial',
+          },
+        },
+        form: {
+          value: 'value',
+          associated,
+          disabled,
+          reset,
+          stateRestore,
+        },
+      },
+      (props, context) => {
+        captured = context.internals
+        const output = document.createElement('span')
+        output.textContent = props.value ?? ''
+        return output
+      },
+    )
+
+    const el = document.createElement(tag) as HTMLElement & {
+      formAssociatedCallback(form: HTMLFormElement | null): void
+      formDisabledCallback(disabled: boolean): void
+      formResetCallback(): void
+      formStateRestoreCallback(
+        state: File | FormData | string | null,
+        mode: 'restore' | 'autocomplete',
+      ): void
+    }
+
+    document.body.appendChild(el)
+    await nextFrame()
+
+    expect(captured).toBeUndefined()
+    expect(el.textContent).toBe('initial')
+
+    const form = document.createElement('form')
+    el.formAssociatedCallback(form)
+    el.formDisabledCallback(true)
+    el.formResetCallback()
+    el.formStateRestoreCallback('restored', 'restore')
+
+    expect(associated).toHaveBeenCalledWith(
+      form,
+      expect.any(Object),
+      expect.objectContaining({ host: el, internals: undefined }),
+    )
+    expect(disabled).toHaveBeenCalledWith(
+      true,
+      expect.any(Object),
+      expect.objectContaining({ host: el, internals: undefined }),
+    )
+    expect(reset).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({ host: el, internals: undefined }),
+    )
+    expect(stateRestore).toHaveBeenCalledWith(
+      'restored',
+      'restore',
+      expect.any(Object),
+      expect.objectContaining({ host: el, internals: undefined }),
+    )
+  })
+
   it('synchronizes form value and forwards form lifecycle callbacks', async () => {
     const tag = createTag('form-lifecycle')
     const setFormValue = vi.fn()
@@ -393,7 +472,7 @@ describe('defineElement', () => {
     expect(el.hasAttribute('items')).toBe(false)
   })
 
-  it('applies custom serialization when mounted through a lazy proxy', async () => {
+  it('consumes normalized codec values when mounted through a lazy proxy', async () => {
     const tag = createTag('lazy-prop-serialization')
     let capturedProps: Readonly<{ items?: string[] }> | undefined
     const ctor = defineElement<{ items?: string[] }>(
@@ -420,7 +499,7 @@ describe('defineElement', () => {
     )
     const host = document.createElement('div')
     host.setAttribute('items', 'a|b')
-    const values = new Map<string, unknown>([['items', 'a|b']])
+    const values = new Map<string, unknown>([['items', ['a', 'b']]])
 
     const attributeProps = new Set(['items'])
     const mounted = mountElementDefinition(ctor, host, values, {
@@ -433,14 +512,23 @@ describe('defineElement', () => {
     expect(capturedProps?.items).toEqual(['a', 'b'])
 
     attributeProps.delete('items')
-    mounted.propertyChanged('items', ['a', 'b'], ['c', 'd'])
+    mounted.propertyChanged({
+      name: 'items',
+      value: ['c', 'd'],
+      source: 'property',
+    })
     await nextFrame()
 
-    expect(host.getAttribute('items')).toBe('c|d')
+    expect(capturedProps?.items).toEqual(['c', 'd'])
 
     attributeProps.add('items')
     host.setAttribute('items', 'e|f')
-    mounted.propertyChanged('items', ['c', 'd'], 'e|f')
+    mounted.propertyChanged({
+      name: 'items',
+      value: ['e', 'f'],
+      source: 'attribute',
+      rawAttributeValue: 'e|f',
+    })
     await nextFrame()
 
     expect(capturedProps?.items).toEqual(['e', 'f'])
@@ -448,7 +536,12 @@ describe('defineElement', () => {
 
     attributeProps.add('items')
     host.removeAttribute('items')
-    mounted.propertyChanged('items', ['e', 'f'], null)
+    mounted.propertyChanged({
+      name: 'items',
+      value: [],
+      source: 'attribute',
+      rawAttributeValue: null,
+    })
     await nextFrame()
 
     expect(capturedProps?.items).toEqual([])
@@ -555,6 +648,72 @@ describe('defineElement', () => {
     expect(dispatchedEvent.cancelable).toBe(false)
   })
 
+  it('applies declared event metadata and per-emission flag overrides', async () => {
+    const tag = createTag('event-options')
+    const detail = { value: 'next' }
+    let dispatchResults: boolean[] = []
+
+    defineElement(
+      tag,
+      {
+        shadow: false,
+        emits: {
+          valueChange: event<typeof detail>({
+            name: 'value-change',
+            bubbles: false,
+            composed: false,
+            cancelable: true,
+          }),
+        },
+      },
+      (_props, { emit }) => {
+        const button = document.createElement('button')
+        button.addEventListener('click', () => {
+          dispatchResults = [
+            emit.valueChange(detail),
+            emit.valueChange(detail, {
+              bubbles: true,
+              composed: true,
+              cancelable: false,
+            }),
+          ]
+        })
+        return button
+      },
+    )
+
+    const received: CustomEvent<typeof detail>[] = []
+    const host = document.createElement(tag)
+    host.addEventListener('value-change', event => {
+      const customEvent = event as CustomEvent<typeof detail>
+      received.push(customEvent)
+      if (customEvent.cancelable) customEvent.preventDefault()
+    })
+    document.body.appendChild(host)
+    await nextFrame()
+
+    host.querySelector('button')!.dispatchEvent(new MouseEvent('click'))
+
+    expect(received).toHaveLength(2)
+    expect(received[0].detail).toBe(detail)
+    expect(received[0]).toMatchObject({
+      type: 'value-change',
+      bubbles: false,
+      composed: false,
+      cancelable: true,
+      defaultPrevented: true,
+    })
+    expect(received[1].detail).toBe(detail)
+    expect(received[1]).toMatchObject({
+      type: 'value-change',
+      bubbles: true,
+      composed: true,
+      cancelable: false,
+      defaultPrevented: false,
+    })
+    expect(dispatchResults).toEqual([false, true])
+  })
+
   it('dispatches declared events and exposes host methods', async () => {
     const tag = createTag('primitive-events')
 
@@ -616,6 +775,21 @@ describe('defineElement', () => {
     expect(el.focus()).toBe('primary')
     expect('formatter' in el).toBe(true)
     expect((el as unknown as { formatter?: unknown }).formatter).toBeUndefined()
+  })
+
+  it('stores lazy exposed methods in mount state instead of host properties', () => {
+    const tag = createTag('lazy-method-state')
+    const ctor = defineElement(tag, { shadow: false }, (_props, { expose }) => {
+      expose({ refresh: () => 'ok' })
+      return document.createElement('span')
+    })
+    const host = document.createElement('div')
+    const exposedMethods: Record<string, Function> = Object.create(null)
+
+    mountElementDefinition(ctor, host, new Map(), { exposedMethods })
+
+    expect(exposedMethods.refresh()).toBe('ok')
+    expect(Object.prototype.hasOwnProperty.call(host, 'refresh')).toBe(false)
   })
 
   it('supports reflected boolean prop shorthand', async () => {
@@ -707,6 +881,39 @@ describe('defineElement', () => {
 
     expect(style).toBeTruthy()
     expect(style!.textContent).toContain('display: block')
+  })
+
+  it('applies a CSP nonce and removes injected styles on disconnect', async () => {
+    const tag = createTag('styles-nonce')
+
+    defineElement(
+      tag,
+      {
+        shadow: false,
+        styles: ['z-style-nonce { color: red; }'],
+        styleNonce: 'nonce-value',
+      },
+      () => document.createElement('span'),
+    )
+
+    const el = document.createElement(tag)
+    document.body.appendChild(el)
+    await nextFrame()
+
+    const style = el.querySelector('style')
+    expect(style?.nonce).toBe('nonce-value')
+    expect(document.querySelectorAll('style')).toHaveLength(1)
+
+    el.remove()
+    await nextFrame()
+
+    expect(el.querySelector('style')).toBeNull()
+
+    document.body.appendChild(el)
+    await nextFrame()
+
+    expect(el.querySelectorAll('style')).toHaveLength(1)
+    expect(el.querySelector('style')?.nonce).toBe('nonce-value')
   })
 
   it('does not throw when defineElement is called twice with same tag', () => {

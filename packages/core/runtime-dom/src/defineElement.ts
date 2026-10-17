@@ -20,6 +20,7 @@ import type {
   CustomElementMountLifecycle,
   CustomElementPropSchema,
   CustomElementPropType,
+  NormalizedPropChange,
 } from './customElementContract'
 import type { HostRenderContext } from './hostContext'
 import type { JSXValue } from './types'
@@ -158,6 +159,7 @@ export interface DefineElementOptions<
   props?: PropOptions<P>
   emits?: E
   styles?: string | string[]
+  styleNonce?: string
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   consumes?: Context<any>[]
   models?: readonly ElementModelDefinition<P>[]
@@ -247,7 +249,7 @@ export type ZeusElementConstructor = CustomElementConstructor & {
 }
 
 export interface MountedElementDefinition {
-  propertyChanged(name: string, _oldValue: unknown, newValue: unknown): void
+  propertyChanged(change: NormalizedPropChange): void
   formAssociated(form: HTMLFormElement | null): void
   formDisabled(disabled: boolean): void
   formReset(): void
@@ -333,6 +335,7 @@ export interface ElementDefinitionMountState {
   internals?: ElementInternals
   attributeProps?: Set<string>
   reflectingAttrs?: Set<string>
+  exposedMethods?: Record<string, Function>
 }
 
 interface PropStore<P extends object> {
@@ -430,6 +433,7 @@ export function defineElement<
     private capturedLightChildren = false
     private readonly attributeProps = new Set<string>()
     private readonly reflectingAttrs = new Set<string>()
+    private readonly preUpgradeAttributes = new Map<string, string>()
 
     constructor() {
       super()
@@ -438,6 +442,15 @@ export function defineElement<
       this.props = this.propStore.props
 
       applyPropDefaults(this.propStore, propDefs)
+      for (const def of propDefs) {
+        if (
+          def.attrName === false ||
+          !Object.prototype.hasOwnProperty.call(this, def.name)
+        )
+          continue
+        const value = this.getAttribute(def.attrName)
+        if (value !== null) this.preUpgradeAttributes.set(def.attrName, value)
+      }
       definePropAccessors(this, this.propStore, propDefs)
 
       if (options.formAssociated) {
@@ -513,7 +526,7 @@ export function defineElement<
         { owner },
       )
 
-      mountStyles(target, options.styles)
+      const styleNodes = mountStyles(target, options.styles, options.styleNonce)
 
       projection?.connect()
 
@@ -521,6 +534,7 @@ export function defineElement<
         dispose() {
           projection?.disconnect()
           dispose()
+          for (const style of styleNodes) style.remove()
         },
       }
     }
@@ -550,6 +564,10 @@ export function defineElement<
       newValue: string | null,
     ): void {
       if (oldValue === newValue || this.reflectingAttrs.has(name)) return
+
+      const initialValue = this.preUpgradeAttributes.get(name)
+      this.preUpgradeAttributes.delete(name)
+      if (oldValue === null && newValue === initialValue) return
 
       const def = propDefs.find(item => item.attrName === name)
 
@@ -621,18 +639,9 @@ export function mountElementDefinition(
   const { options, setup, propDefs } = definition
   const propStore = createPropStore(propDefs)
 
-  applyPropDefaults(propStore, propDefs)
+  applyPropDefaults(propStore, propDefs, initialValues)
 
   for (const def of propDefs) {
-    if (def.attrName !== false && mountState.attributeProps?.has(def.name)) {
-      propStore.set(
-        def.name,
-        coerceCustomElementAttribute(def, host.getAttribute(def.attrName)),
-      )
-      initialValues.set(def.name, propStore.get(def.name))
-      continue
-    }
-
     if (initialValues.has(def.name)) {
       propStore.set(def.name, initialValues.get(def.name))
       continue
@@ -696,13 +705,18 @@ export function mountElementDefinition(
     projection,
   }
 
+  const exposedMethods = mountState.exposedMethods
+  if (exposedMethods) {
+    for (const key of Object.keys(exposedMethods)) delete exposedMethods[key]
+  }
+
   const setupContext: DefineElementContext<HTMLElement> = {
     host,
     internals:
       mountState.internals ??
       (options.formAssociated ? attachElementInternals(host) : undefined),
     emit: createEmitApi(host, options.emits) as EmitApi<EmitsOptions>,
-    expose: createExpose(host),
+    expose: createExpose(host, exposedMethods),
   }
 
   mountState.internals = setupContext.internals
@@ -719,34 +733,13 @@ export function mountElementDefinition(
     { owner },
   )
 
-  mountStyles(target, options.styles)
+  const styleNodes = mountStyles(target, options.styles, options.styleNonce)
   projection?.connect()
 
   return {
-    propertyChanged(name, _oldValue, newValue) {
-      const def = propDefs.find(item => item.name === name)
-      const fromAttribute = Boolean(
-        def?.attrName !== false && mountState.attributeProps?.has(name),
-      )
-      const value =
-        fromAttribute && def
-          ? coerceCustomElementAttribute(
-              def,
-              typeof newValue === 'string' ? newValue : null,
-            )
-          : newValue
-
+    propertyChanged({ name, value }) {
       propStore.set(name, value)
       initialValues.set(name, value)
-
-      if (def?.reflect && !fromAttribute) {
-        reflectCustomElementProperty(
-          host,
-          def,
-          value,
-          mountState.reflectingAttrs,
-        )
-      }
     },
 
     formAssociated(form) {
@@ -768,6 +761,7 @@ export function mountElementDefinition(
     dispose() {
       projection?.disconnect()
       dispose()
+      for (const style of styleNodes) style.remove()
     },
   }
 }
@@ -791,7 +785,7 @@ function normalizePropDefinitions<P extends object>(
           : false,
         type: normalizePropType(type),
         reflect: false,
-        reactivity: 'deep',
+        reactivity: 'shallow',
       }
     }
 
@@ -805,7 +799,7 @@ function normalizePropDefinitions<P extends object>(
       attrName: input?.attr === undefined ? defaultAttr : input.attr,
       type: normalizePropType(type),
       reflect: Boolean(input?.reflect),
-      reactivity: input?.reactivity === 'shallow' ? 'shallow' : 'deep',
+      reactivity: input?.reactivity === 'deep' ? 'deep' : 'shallow',
       default: input?.default,
       serialize: input?.serialize as
         | ((value: unknown) => string | null | undefined)
@@ -820,9 +814,10 @@ function normalizePropDefinitions<P extends object>(
 function applyPropDefaults<P extends object>(
   store: PropStore<P>,
   defs: readonly NormalizedPropDefinition[],
+  initialValues?: Map<string, unknown>,
 ): void {
   for (const def of defs) {
-    if (!('default' in def)) continue
+    if (!('default' in def) || initialValues?.has(def.name)) continue
 
     const value =
       typeof def.default === 'function'
@@ -990,14 +985,19 @@ function createEmitApi(
 
 function createExpose(
   host: HTMLElement,
+  exposedMethods?: Record<string, Function>,
 ): (methods: Record<string, Function>) => void {
   return methods => {
     for (const key of Object.keys(methods)) {
-      Object.defineProperty(host, key, {
-        configurable: true,
-        enumerable: false,
-        value: methods[key],
-      })
+      if (exposedMethods) {
+        exposedMethods[key] = methods[key]!
+      } else {
+        Object.defineProperty(host, key, {
+          configurable: true,
+          enumerable: false,
+          value: methods[key],
+        })
+      }
     }
   }
 }
@@ -1037,16 +1037,22 @@ function resolveExternalRenderTarget(
 function mountStyles(
   target: Element | ShadowRoot,
   styles: string | string[] | undefined,
-): void {
-  if (!styles) return
+  nonce?: string,
+): HTMLStyleElement[] {
+  if (!styles) return []
 
   const list = Array.isArray(styles) ? styles : [styles]
+  const mounted: HTMLStyleElement[] = []
 
   for (const css of list) {
     const style = document.createElement('style')
+    if (nonce) style.nonce = nonce
     style.textContent = css
     target.appendChild(style)
+    mounted.push(style)
   }
+
+  return mounted
 }
 
 function toKebabCase(value: string): string {

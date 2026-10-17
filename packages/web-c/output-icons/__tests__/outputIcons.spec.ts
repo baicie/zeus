@@ -9,7 +9,7 @@ function createMockCtx(): ZeusBuildContext {
   return {
     root: process.cwd(),
     manifest: {
-      version: 1 as const,
+      schemaVersion: 1 as const,
       components: [],
     },
     diagnostics: [],

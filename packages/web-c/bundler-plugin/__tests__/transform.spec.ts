@@ -16,6 +16,28 @@ describe('transformZeus', () => {
     expect(result?.code).toContain('@zeus-js/runtime-dom')
   })
 
+  it('marks imported top-level defineElement calls pure only when requested', async () => {
+    const code = `
+      import { defineElement as define } from '@zeus-js/runtime-dom'
+      export const First = define('z-first', {}, () => <button>first</button>)
+      export const Second = define('z-second', {}, () => <span>second</span>)
+    `
+    const ordinary = await transformZeus({
+      id: 'components.tsx',
+      code,
+      sourcemap: false,
+    })
+    const lazy = await transformZeus({
+      id: 'components.tsx?zeus-lazy-component=First',
+      code,
+      sourcemap: false,
+      pureDefineElement: true,
+    })
+
+    expect(ordinary?.code).not.toContain('/* @__PURE__ */ define')
+    expect(lazy?.code.match(/\/\* @__PURE__ \*\/ define/g)).toHaveLength(2)
+  })
+
   it('supports custom runtime moduleName', async () => {
     const result = await transformZeus({
       id: 'fixture.tsx',

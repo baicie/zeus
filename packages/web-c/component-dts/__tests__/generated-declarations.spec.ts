@@ -14,6 +14,103 @@ import { generateVueDts } from '../src/generateVueDts'
 import { generateComponentWCDts } from '../src/generateWcDts'
 
 describe('generated declaration consumer contract', () => {
+  it('shares analyzer event, prop, and named slot types across React and Vue', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'zeus-dts-abi-'))
+
+    await writeComponentSource(
+      root,
+      'notice.tsx',
+      `
+        import { defineElement, event } from '@zeus-js/zeus'
+
+        interface NoticeProps {
+          value: number
+        }
+
+        export const ZNotice = defineElement<NoticeProps>(
+          'z-notice',
+          {
+            emits: {
+              rowChange: event<{ rowId: string }>(),
+            },
+          },
+          () => <Host><Slot name="header" /><Slot /></Host>,
+        )
+      `,
+    )
+
+    const result = await analyzeComponents({
+      root,
+      include: ['src/components/**/*.tsx'],
+    })
+    expect(result.diagnostics).toEqual([])
+    expect(result.manifest.components[0]).toMatchObject({
+      events: {
+        rowChange: {
+          name: 'row-change',
+          reactName: 'onRowChange',
+          detail: { rowId: 'string' },
+        },
+      },
+      slots: { header: { name: 'header' }, default: { name: 'default' } },
+    })
+
+    const reactRootNames = await writeDeclarationConsumer(
+      root,
+      'typed-react',
+      generateReactDts(result.manifest),
+      `
+        import type { ZNoticeProps } from './index'
+
+        const valid: ZNoticeProps = {
+          value: 1,
+          header: 'heading',
+          onRowChange(event) {
+            const rowId: string = event.detail.rowId
+            // @ts-expect-error Event detail fields come from the analyzer.
+            const missing: string = event.detail.missing
+            void [rowId, missing]
+          },
+        }
+        // @ts-expect-error Component props retain their declared type.
+        const invalidProp: ZNoticeProps = { value: '1' }
+        // @ts-expect-error Event callback names retain their declared name.
+        const invalidEvent: ZNoticeProps = { value: 1, onMissing: () => {} }
+        void [valid, invalidProp, invalidEvent]
+      `,
+    )
+    reactRootNames.push(await writeReactStub(root, 'typed-react'))
+
+    const vueRootNames = await writeDeclarationConsumer(
+      root,
+      'typed-vue',
+      generateVueDts(result.manifest),
+      `
+        import { ZNotice } from './index'
+
+        ZNotice.$emit('row-change', new CustomEvent('row-change', {
+          detail: { rowId: 'row-1' },
+        }))
+        // @ts-expect-error The analyzer's event detail type is preserved.
+        ZNotice.$emit('row-change', new CustomEvent('row-change', {
+          detail: { rowId: 1 },
+        }))
+        // @ts-expect-error The analyzer's DOM event name is preserved.
+        ZNotice.$emit('rowChange', new CustomEvent('rowChange'))
+
+        type Slots = typeof ZNotice extends { __slots?: infer T } ? T : never
+        declare const slots: Slots
+        const header: unknown = slots.header
+        // @ts-expect-error Only analyzer-declared named slots are exposed.
+        const footer = slots.footer
+        void [header, footer]
+      `,
+    )
+    vueRootNames.push(await writeVueStub(root, 'typed-vue'))
+
+    expectDeclarationsToCompile([...reactRootNames, ...vueRootNames])
+  }, 15000)
+
   it('emits self-contained React and custom element declarations', async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'zeus-dts-consumer-'))
 
@@ -156,6 +253,7 @@ describe('generated declaration consumer contract', () => {
       vueStubPath,
       `
         declare module 'vue' {
+          export type SlotsType<T extends Record<string, unknown> = Record<string, unknown>> = T
           export interface DefineComponent<
             Props = {},
             RawBindings = {},
@@ -165,6 +263,11 @@ describe('generated declaration consumer contract', () => {
             Mixin = {},
             Extends = {},
             E = {},
+            EE = string,
+            PP = {},
+            PropsOptions = {},
+            Defaults = {},
+            S = {},
           > {}
         }
       `,
@@ -1058,6 +1161,7 @@ async function writeVueStub(root: string, outputName: string): Promise<string> {
     stubPath,
     `
       declare module 'vue' {
+        export type SlotsType<T extends Record<string, unknown> = Record<string, unknown>> = T
         export interface DefineComponent<
           Props = {},
           RawBindings = {},
@@ -1067,7 +1171,22 @@ async function writeVueStub(root: string, outputName: string): Promise<string> {
           Mixin = {},
           Extends = {},
           E = {},
-        > {}
+          EE = string,
+          PP = {},
+          PropsOptions = {},
+          Defaults = {},
+          S = {},
+        > {
+          $emit: {
+            [Name in keyof E]: (
+              event: Name,
+              ...args: E[Name] extends (...args: infer Args) => unknown
+                ? Args
+                : never
+            ) => void
+          }[keyof E]
+          __slots?: S
+        }
       }
     `,
   )

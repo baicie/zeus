@@ -17,10 +17,6 @@ describe('@zeus-js/zeus public API', () => {
     expect(zeus).toHaveProperty('Host')
     expect(zeus).toHaveProperty('Slot')
     expect(zeus).toHaveProperty('defineElement')
-    expect(zeus).toHaveProperty('Fragment')
-    expect(zeus).toHaveProperty('jsx')
-    expect(zeus).toHaveProperty('jsxs')
-    expect(zeus).toHaveProperty('jsxDEV')
   })
 
   it('does not retain the superseded beta reactivity surface', () => {
@@ -38,6 +34,10 @@ describe('@zeus-js/zeus public API', () => {
   })
 
   it('does not export compiler/runtime internal helpers from main entry', () => {
+    expect(zeus).not.toHaveProperty('Fragment')
+    expect(zeus).not.toHaveProperty('jsx')
+    expect(zeus).not.toHaveProperty('jsxs')
+    expect(zeus).not.toHaveProperty('jsxDEV')
     expect(zeus).not.toHaveProperty('template')
     expect(zeus).not.toHaveProperty('insert')
     expect(zeus).not.toHaveProperty('marker')

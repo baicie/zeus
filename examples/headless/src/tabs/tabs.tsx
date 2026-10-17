@@ -7,7 +7,7 @@ export interface TabsProps {
 
 function setup(props: TabsProps) {
   return (
-    <Host data-slot="tabs" data-orientation={() => props.orientation}>
+    <Host data-slot="tabs" data-orientation={props.orientation}>
       <Slot />
     </Host>
   )

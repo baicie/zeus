@@ -40,6 +40,7 @@ export interface TransformModuleOptions {
   delegateEvents: boolean
   sourceMap: boolean
   hmr?: boolean
+  pureDefineElement?: boolean
 }
 
 export interface TransformModuleResult {

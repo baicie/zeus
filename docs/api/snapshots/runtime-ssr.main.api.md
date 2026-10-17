@@ -5,6 +5,8 @@
 > Run `pnpm api:snapshot` to update.
 
 ```ts
+import { PropsSource } from '@zeus-js/shared'
+
 export type SSRPrimitive = string | number | boolean | null | undefined
 declare const SSR_FRAGMENT: unique symbol
 export interface SSRFragment {
@@ -79,4 +81,11 @@ export declare function ssrFor<T>(
   render: (item: T, index: number) => SSRNode,
 ): SSRNode
 export declare function For<T, K = unknown>(props: ForProps<T, K>): SSRNode
+
+export declare function mergeProps<T extends object = Record<string, unknown>>(
+  sources: readonly PropsSource[],
+): T
+export declare function ssrSpread(
+  sources: readonly PropsSource[],
+): SSRAttributeEntry[]
 ```

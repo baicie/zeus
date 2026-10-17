@@ -17,10 +17,6 @@ export function checkRuntimeSignalInterop(rootDir = getRootDir()): void {
     rootDir,
     'packages/core/signal/dist/signal.esm-bundler.js',
   )
-  const esmInternal = path.resolve(
-    rootDir,
-    'packages/core/signal/dist/internal.js',
-  )
   const esmDiagnostics = path.resolve(
     rootDir,
     'packages/core/signal/dist/diagnostics.js',
@@ -29,6 +25,9 @@ export function checkRuntimeSignalInterop(rootDir = getRootDir()): void {
     rootDir,
     'packages/core/zeus/package.json',
   )
+  // Node imports and requires must resolve the same engine, including when a
+  // package's public ESM facade is loaded alongside its CJS facade.
+  const esmInternal = path.resolve(rootDir, 'packages/core/signal/internal.cjs')
 
   const exerciseEngine = `
 const [engineValue, setEngineValue] = signal.createSignal(0)
@@ -130,6 +129,33 @@ ${exercise}
     rootDir,
     'production',
   )
+
+  const mixedSource = `${cjsSource}
+;(async () => {
+  const esm = await import(${JSON.stringify(pathToFileURL(esmSignal).href)})
+  const esmDiagnostics = await import(${JSON.stringify(pathToFileURL(esmDiagnostics).href)})
+  if (esm.createEffect !== signal.createEffect || esm.createRoot !== signal.createRoot) {
+    throw new Error('Node import and require loaded separate signal engines')
+  }
+  if (esmDiagnostics.createRuntimeDiagnosticsSession !== diagnostics.createRuntimeDiagnosticsSession) {
+    throw new Error('Node import and require loaded separate diagnostics engines')
+  }
+  for (const [source, owner] of [[esm, signal], [signal, esm]]) {
+    const [value, setValue] = source.createSignal(0)
+    let seen = -1
+    owner.createRoot(dispose => {
+      owner.createEffect(() => { seen = value() })
+      setValue(1)
+      if (seen !== 1) throw new Error('mixed-format reactive update failed')
+      dispose()
+    })
+    setValue(2)
+    if (seen !== 1) throw new Error('mixed-format root disposal failed')
+  }
+})().catch(error => { console.error(error); process.exitCode = 1 })
+`
+  runNode('Mixed ESM/CJS development', mixedSource, [], rootDir, 'development')
+  runNode('Mixed ESM/CJS production', mixedSource, [], rootDir, 'production')
 }
 
 function runNode(
@@ -163,6 +189,6 @@ function isDirectExecution(): boolean {
 if (isDirectExecution()) {
   checkRuntimeSignalInterop()
   console.log(
-    'Runtime signal interoperability passed for ESM and development/production CJS builds.',
+    'Runtime signal interoperability passed for ESM, CJS, and mixed ESM/CJS development/production builds.',
   )
 }

@@ -185,29 +185,27 @@ describe('bootstrapLazy', () => {
     expect(attachInternals).toHaveBeenCalledTimes(1)
   })
 
-  it('skips already defined tags', () => {
-    const load = vi.fn()
+  it('keeps repeated registration of the same definition idempotent', () => {
+    const meta = { tagName: 'zw-skip', load: vi.fn(), props: [] }
+    bootstrapLazy([meta])
+    const ctor = customElements.get(meta.tagName)
+    bootstrapLazy([meta])
+    expect(customElements.get(meta.tagName)).toBe(ctor)
+    expect(meta.load).not.toHaveBeenCalled()
+  })
 
-    bootstrapLazy([
-      {
-        tagName: 'zw-skip',
-        shadow: true,
-        load,
-        props: [],
-      },
-    ])
+  it('diagnoses a different definition registered under the same tag', () => {
+    bootstrapLazy([{ tagName: 'zw-conflict', load: vi.fn(), props: [] }])
+    expect(() =>
+      bootstrapLazy([{ tagName: 'zw-conflict', load: vi.fn(), props: [] }]),
+    ).toThrow('[ZEUS_WC_DUPLICATE_TAG]')
+  })
 
-    bootstrapLazy([
-      {
-        tagName: 'zw-skip',
-        shadow: true,
-        load,
-        props: [],
-      },
-    ])
-
-    expect(customElements.get('zw-skip')).toBeTruthy()
-    expect(load).not.toHaveBeenCalled()
+  it('diagnoses conflicts with externally registered constructors', () => {
+    customElements.define('zw-external', class extends HTMLElement {})
+    expect(() =>
+      bootstrapLazy([{ tagName: 'zw-external', load: vi.fn(), props: [] }]),
+    ).toThrow('[ZEUS_WC_DUPLICATE_TAG]')
   })
 
   it('does not throw when customElements is unavailable and no registry is passed', () => {
@@ -561,11 +559,12 @@ describe('lazy element lifecycle', () => {
 
     el.setAttribute('size', 'lg')
 
-    expect(instance!.propertyChanged).toHaveBeenCalledWith(
-      'size',
-      undefined,
-      'lg',
-    )
+    expect(instance!.propertyChanged).toHaveBeenCalledWith({
+      name: 'size',
+      value: 'lg',
+      source: 'attribute',
+      rawAttributeValue: 'lg',
+    })
   })
 
   it('applies initial attribute values before loaded', async () => {
@@ -744,10 +743,7 @@ describe('lazy element lifecycle', () => {
         shadow: false,
         load: vi.fn().mockResolvedValue({
           createComponent(hostRef: HostRef) {
-            Object.defineProperty(hostRef.host, 'focusInput', {
-              configurable: true,
-              value: focusInput,
-            })
+            hostRef.exposedMethods.focusInput = focusInput
 
             return {
               connected() {},
@@ -767,6 +763,40 @@ describe('lazy element lifecycle', () => {
 
     await expect(el.focusInput()).resolves.toBe('focused')
     expect(focusInput).toHaveBeenCalledTimes(1)
+
+    document.body.removeChild(el)
+    await expect(el.focusInput()).rejects.toThrow(
+      '[ZEUS_WC_DISCONNECTED_BEFORE_READY]',
+    )
+  })
+
+  it('rejects lazy method calls when the exposed method throws', async () => {
+    bootstrapLazy([
+      {
+        tagName: 'zw-method-error-test',
+        shadow: false,
+        load: vi.fn().mockResolvedValue({
+          createComponent(hostRef: HostRef) {
+            hostRef.exposedMethods.refresh = () => {
+              throw new Error('refresh failed')
+            }
+            return { connected() {} }
+          },
+        }),
+        props: [],
+        methods: ['refresh'],
+      },
+    ])
+
+    const el = document.createElement(
+      'zw-method-error-test',
+    ) as ZeusLazyElement & {
+      refresh(): Promise<unknown>
+    }
+    document.body.appendChild(el)
+    await (el as ZeusLazyElement).componentOnReady()
+
+    await expect(el.refresh()).rejects.toThrow('refresh failed')
   })
 })
 
@@ -840,6 +870,62 @@ describe('componentOnReady', () => {
     await el.componentOnReady()
 
     expect(resolved).toBe(true)
+  })
+
+  it('rejects readiness waiters on detach during loading and retries after reconnect', async () => {
+    let resolveLoad!: (module: {
+      createComponent(hostRef: HostRef): ZeusComponentInstance
+    }) => void
+    const load = vi.fn(
+      () =>
+        new Promise<{
+          createComponent(hostRef: HostRef): ZeusComponentInstance
+        }>(resolve => {
+          resolveLoad = resolve
+        }),
+    )
+
+    bootstrapLazy([
+      {
+        tagName: 'zw-ready-detach-test',
+        shadow: false,
+        load,
+        props: [],
+        methods: ['refresh'],
+      },
+    ])
+
+    const el = document.createElement(
+      'zw-ready-detach-test',
+    ) as ZeusLazyElement & { refresh(): Promise<unknown> }
+    document.body.appendChild(el)
+
+    const firstReady = el.componentOnReady()
+    const firstMethod = el.refresh()
+    document.body.removeChild(el)
+
+    await expect(firstReady).rejects.toThrow(
+      '[ZEUS_WC_DISCONNECTED_BEFORE_READY]',
+    )
+    await expect(firstMethod).rejects.toThrow(
+      '[ZEUS_WC_DISCONNECTED_BEFORE_READY]',
+    )
+    await expect(el.refresh()).rejects.toThrow(
+      '[ZEUS_WC_DISCONNECTED_BEFORE_READY]',
+    )
+
+    document.body.appendChild(el)
+    const nextReady = el.componentOnReady()
+    resolveLoad({
+      createComponent(hostRef) {
+        hostRef.exposedMethods.refresh = () => 'ready'
+        return { connected() {} }
+      },
+    })
+
+    await expect(nextReady).resolves.toBe(el)
+    await expect(el.refresh()).resolves.toBe('ready')
+    expect(load).toHaveBeenCalledTimes(1)
   })
 
   it('reports initialization errors to console.error', async () => {

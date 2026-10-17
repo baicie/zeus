@@ -76,7 +76,9 @@ describe('generateVueWrapper', () => {
       mode: 'event-bridge',
     })
 
-    expect(code).toContain('import "zeus:wc:z-button"')
+    expect(code).toContain(
+      'import { defineCustomElement } from "zeus:wc:z-button"',
+    )
     expect(code).toContain('export const ZButton = defineComponent')
     expect(code).toContain('name: "ZButton"')
     expect(code).toContain('props: {')
@@ -238,7 +240,9 @@ describe('generateVueWrapper', () => {
     })
 
     // minimal wrapper imports wcModuleId to bootstrap Proxy Elements
-    expect(code).toContain('import "zeus:wc:z-button"')
+    expect(code).toContain(
+      'import { defineCustomElement } from "zeus:wc:z-button"',
+    )
     expect(code).not.toContain('el.variant = props.variant')
     expect(code).not.toContain('watch(')
     expect(code).not.toContain('onMounted(')
@@ -378,14 +382,12 @@ describe('generateVueWrapper', () => {
       "import { defineContainer } from '@zeus-js/output-vue-wrapper/runtime'",
     )
     expect(code).toContain(
-      "import { defineCustomElement } from '../wc/loader.js'",
+      'import { defineCustomElement } from "../wc/loader.js"',
     )
     expect(code).toContain('export const ZInput = defineContainer')
     expect(code).toContain('tagName: "z-input"')
     expect(code).toContain('displayName: "ZInput"')
-    expect(code).toContain(
-      'defineCustomElement: () => defineCustomElement("z-input")',
-    )
+    expect(code).toContain('  defineCustomElement,')
     expect(code).toContain('props: ["value","disabled"]')
     expect(code).toContain('events: ["value-change","focus-change"]')
     expect(code).toContain('slots: ["prefix","suffix"]')

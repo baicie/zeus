@@ -5,6 +5,7 @@ import {
   defineComponent,
   h,
   onBeforeUnmount,
+  onBeforeMount,
   onMounted,
   ref,
   withDirectives,
@@ -44,7 +45,7 @@ export function defineContainer(options: ZeusVueContainerOptions) {
     transformTag,
   } = options
 
-  defineCustomElement?.()
+  const registeredRegistries = new WeakSet<CustomElementRegistry>()
 
   const emits = [...emitProps]
 
@@ -70,6 +71,13 @@ export function defineContainer(options: ZeusVueContainerOptions) {
         eventName: string
         listener: EventListener
       }> = []
+
+      onBeforeMount(() => {
+        if (typeof customElements === 'undefined') return
+        if (registeredRegistries.has(customElements)) return
+        defineCustomElement?.()
+        registeredRegistries.add(customElements)
+      })
 
       onMounted(() => {
         const el = containerRef.value
@@ -101,15 +109,12 @@ export function defineContainer(options: ZeusVueContainerOptions) {
           if (!model) return
 
           for (const eventName of toArray(model.event)) {
-            el.addEventListener(eventName, event => {
+            const listener: EventListener = event => {
               if ((event.target as HTMLElement).tagName !== el.tagName) {
                 return
               }
 
-              const value = readEventPath(
-                event,
-                model.eventPath ?? `target.${model.prop}`,
-              )
+              const value = readEventPath(event, model.eventPath ?? 'detail')
 
               emit(getModelUpdateEvent(model.prop), value)
 
@@ -119,7 +124,9 @@ export function defineContainer(options: ZeusVueContainerOptions) {
               ) {
                 emit(UPDATE_MODEL_VALUE_EVENT, value)
               }
-            })
+            }
+            el.addEventListener(eventName, listener)
+            listeners.push({ eventName, listener })
           }
         },
       }

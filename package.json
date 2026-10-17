@@ -95,7 +95,8 @@
     "create-zeus:build": "pnpm -F create-zeus build",
     "build-and-link": "tsx scripts/build-and-link.ts",
     "preinstall": "npx only-allow pnpm",
-    "postinstall": "simple-git-hooks"
+    "postinstall": "simple-git-hooks",
+    "check:packed-consumers": "tsx scripts/check/check-packed-consumers.ts"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged && pnpm check",
@@ -122,6 +123,7 @@
     "@changesets/cli": "^2.31.0",
     "@jridgewell/trace-mapping": "^0.3.31",
     "@napi-rs/cli": "catalog:",
+    "@playwright/test": "^1.64.1",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-replace": "^6.0.3",
     "@rollup/plugin-typescript": "^12.3.0",

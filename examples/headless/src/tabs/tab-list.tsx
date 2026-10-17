@@ -8,9 +8,7 @@ function setup(_props: unknown, ctx: { host: HTMLElement }) {
       <div
         part="root"
         role="tablist"
-        aria-orientation={() =>
-          findTabsHost(ctx.host)?.orientation ?? 'horizontal'
-        }
+        aria-orientation={findTabsHost(ctx.host)?.orientation ?? 'horizontal'}
       >
         <Slot />
       </div>

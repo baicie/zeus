@@ -6,9 +6,10 @@ use crate::{
     RawSourceMap, TransformModuleResult,
     html::{is_raw_text_element, is_svg_element, is_void_element},
     ir::{
-        AttributeIr, ChildIr, ComponentBindingIr, ComponentIr, ComponentPropValueIr, ElementIr,
-        ExpressionForm, ExpressionIr, ForBindingIr, FragmentIr, ModuleIr, NodeId, RootIr,
-        ShowBindingIr, StaticAttributeValue, is_children_expression,
+        AttributeIr, ChildIr, ComponentBindingIr, ComponentIr, ComponentPropIr,
+        ComponentPropValueIr, DynamicRegionExpressionIr, DynamicRegionIr, DynamicRegionValueIr,
+        ElementIr, ExpressionForm, ExpressionIr, ForBindingIr, FragmentIr, ModuleIr, NodeId,
+        RootIr, ShowBindingIr, StaticAttributeValue, is_children_expression,
     },
     lower::HmrInfo,
 };
@@ -24,6 +25,8 @@ pub(crate) fn emit_module(
     reserved_names: &[String],
     enable_hmr: bool,
     hmr: &HmrInfo,
+    pure_define_element: bool,
+    pure_define_element_calls: &[oxc_span::Span],
 ) -> TransformModuleResult {
     let mut names = NameAllocator::new(reserved_names);
     let binding_sets = module
@@ -54,8 +57,8 @@ pub(crate) fn emit_module(
             RootIr::Element(_) | RootIr::Fragment(_) => {}
         }
     }
-    let runtime = RuntimeNames::allocate(&helper_usage, &mut names);
     let locator_attribute = allocate_locator_attribute(module);
+    let runtime = RuntimeNames::allocate(&helper_usage, &locator_attribute, &mut names);
 
     let generated = module
         .components
@@ -70,14 +73,21 @@ pub(crate) fn emit_module(
     let mut cursor = usize::try_from(module.preamble_end)
         .unwrap_or(usize::MAX)
         .min(source.len());
-    let hmr_insertions = allocate_hmr_insertions(enable_hmr, hmr, &mut names);
-    push_source_range(&mut writer, source, 0, cursor, &hmr_insertions);
+    let (hmr_disposers, hmr_insertions) = allocate_hmr_insertions(enable_hmr, hmr, &mut names);
+    let source_insertions = allocate_source_insertions(
+        &hmr_insertions,
+        &hmr_disposers,
+        pure_define_element,
+        pure_define_element_calls,
+    );
+    push_source_range(&mut writer, source, 0, cursor, &source_insertions, false);
     if cursor > 0 && !writer.code.ends_with('\n') {
         writer.push("\n");
     }
     if !module.components.is_empty() {
         emit_runtime_import(&mut writer, &runtime, runtime_module);
     }
+    emit_hmr_boundary(&mut writer, enable_hmr, hmr, &hmr_disposers);
 
     for component in &generated {
         if component.template_html.is_empty() {
@@ -102,7 +112,14 @@ pub(crate) fn emit_module(
             continue;
         }
 
-        push_source_range(&mut writer, source, cursor, start, &hmr_insertions);
+        push_source_range(
+            &mut writer,
+            source,
+            cursor,
+            start,
+            &source_insertions,
+            false,
+        );
         emit_component(
             &mut writer,
             component,
@@ -112,10 +129,15 @@ pub(crate) fn emit_module(
         );
         cursor = end;
     }
-    push_source_range(&mut writer, source, cursor, source.len(), &hmr_insertions);
+    push_source_range(
+        &mut writer,
+        source,
+        cursor,
+        source.len(),
+        &source_insertions,
+        true,
+    );
     emit_delegated_events(&mut writer, &runtime, &delegated_event_names);
-
-    emit_hmr_boundary(&mut writer, enable_hmr, hmr, &hmr_insertions);
 
     let map = source_map.then(|| build_source_map(filename, source, &writer.mappings));
 
@@ -128,39 +150,33 @@ pub(crate) fn emit_module(
 
 #[derive(Debug, Clone)]
 struct HmrInsertion {
-    offset: usize,
-    text: String,
-    disposer: String,
+    start: usize,
+    end: usize,
+    terminate_statement: bool,
 }
 
 fn allocate_hmr_insertions(
     enabled: bool,
     hmr: &HmrInfo,
     names: &mut NameAllocator,
-) -> Vec<HmrInsertion> {
+) -> (String, Vec<HmrInsertion>) {
     if !enabled || hmr.manual_boundary || hmr.render_calls.is_empty() {
-        return Vec::new();
+        return (String::new(), Vec::new());
     }
 
-    hmr.render_calls
+    let disposers = names.allocate("_zeusHmrDisposers");
+    let insertions = hmr
+        .render_calls
         .iter()
         .filter_map(|call| {
-            let disposer = call
-                .disposer
-                .clone()
-                .unwrap_or_else(|| names.allocate("_dispose"));
-            let text = if call.disposer.is_none() {
-                format!("const {disposer} = ")
-            } else {
-                String::new()
-            };
             Some(HmrInsertion {
-                offset: usize::try_from(call.offset).ok()?,
-                text,
-                disposer,
+                start: usize::try_from(call.offset).ok()?,
+                end: usize::try_from(call.end).ok()?,
+                terminate_statement: call.terminate_statement,
             })
         })
-        .collect()
+        .collect();
+    (disposers, insertions)
 }
 
 fn push_source_range(
@@ -168,11 +184,15 @@ fn push_source_range(
     source: &str,
     start: usize,
     end: usize,
-    insertions: &[HmrInsertion],
+    insertions: &[SourceInsertion],
+    include_end: bool,
 ) {
     let mut cursor = start;
     for insertion in insertions {
-        if insertion.offset < start || insertion.offset >= end {
+        if insertion.offset < start
+            || insertion.offset > end
+            || (insertion.offset == end && !include_end)
+        {
             continue;
         }
         writer.push(&source[cursor..insertion.offset]);
@@ -182,28 +202,68 @@ fn push_source_range(
     writer.push(&source[cursor..end]);
 }
 
-fn emit_hmr_boundary(
-    writer: &mut CodeWriter,
-    enabled: bool,
-    hmr: &HmrInfo,
-    insertions: &[HmrInsertion],
-) {
-    if !enabled || hmr.manual_boundary || insertions.is_empty() {
+#[derive(Debug, Clone)]
+struct SourceInsertion {
+    offset: usize,
+    text: String,
+}
+
+fn allocate_source_insertions(
+    hmr_insertions: &[HmrInsertion],
+    hmr_disposers: &str,
+    pure_define_element: bool,
+    pure_define_element_calls: &[oxc_span::Span],
+) -> Vec<SourceInsertion> {
+    let mut insertions = Vec::with_capacity(hmr_insertions.len() * 2);
+    for insertion in hmr_insertions {
+        insertions.push(SourceInsertion {
+            offset: insertion.start,
+            text: format!("({hmr_disposers}.push("),
+        });
+        insertions.push(SourceInsertion {
+            offset: insertion.end,
+            text: format!(
+                "), {hmr_disposers}[{hmr_disposers}.length - 1]){}",
+                if insertion.terminate_statement {
+                    ";"
+                } else {
+                    ""
+                }
+            ),
+        });
+    }
+    if pure_define_element {
+        insertions.extend(
+            pure_define_element_calls
+                .iter()
+                .map(|span| SourceInsertion {
+                    offset: usize::try_from(span.start).unwrap_or(usize::MAX),
+                    text: "/* @__PURE__ */ ".into(),
+                }),
+        );
+    }
+    insertions.sort_by_key(|insertion| insertion.offset);
+    insertions
+}
+
+fn emit_hmr_boundary(writer: &mut CodeWriter, enabled: bool, hmr: &HmrInfo, disposers: &str) {
+    if !enabled || hmr.manual_boundary || disposers.is_empty() {
         return;
     }
     if !writer.code.ends_with('\n') {
         writer.push("\n");
     }
-    writer.push("if (import.meta.hot) {\n");
+    writer.push("const ");
+    writer.push(disposers);
+    writer.push(" = [];\nif (import.meta.hot) {\n");
     writer.push("  import.meta.hot.accept()\n");
     writer.push("  import.meta.hot.dispose(() => {\n");
-    for insertion in insertions.iter().rev() {
-        writer.push("    ");
-        writer.push(&insertion.disposer);
-        writer.push("()\n");
-    }
-    writer.push("  })\n");
-    writer.push("}\n");
+    writer.push("    for (const dispose of ");
+    writer.push(disposers);
+    writer.push(".splice(0).reverse()) {\n");
+    writer.push("      try { dispose() } catch (error) {\n");
+    writer.push("        console.error('[Zeus HMR] root disposal failed', error)\n");
+    writer.push("      }\n    }\n  })\n}\n");
 }
 
 pub(crate) fn emit_ssr_module(
@@ -303,6 +363,7 @@ fn emit_ssr_child(
         ChildIr::Component(component) => emit_ssr_component(writer, component, runtime),
         ChildIr::Show(show) => emit_ssr_show(writer, show, runtime),
         ChildIr::For(for_binding) => emit_ssr_for(writer, for_binding, runtime),
+        ChildIr::DynamicRegion(region) => emit_ssr_dynamic_region(writer, region, runtime),
     }
 }
 
@@ -326,6 +387,87 @@ fn emit_ssr_children(
     writer.push("]");
 }
 
+fn emit_ssr_dynamic_region(
+    writer: &mut CodeWriter,
+    region: &DynamicRegionIr,
+    runtime: &SsrRuntimeNames,
+) {
+    match &region.expression {
+        DynamicRegionExpressionIr::Value { expression } => {
+            writer.push_mapped(&expression.code, expression);
+        }
+        DynamicRegionExpressionIr::Conditional {
+            test,
+            consequent,
+            alternate,
+        } => {
+            writer.push("(");
+            writer.push_mapped(&test.code, test);
+            writer.push(" ? ");
+            emit_ssr_dynamic_region_value(writer, consequent, runtime);
+            writer.push(" : ");
+            emit_ssr_dynamic_region_value(writer, alternate, runtime);
+            writer.push(")");
+        }
+        DynamicRegionExpressionIr::Logical {
+            left,
+            operator,
+            right,
+        } => {
+            writer.push("(");
+            writer.push_mapped(&left.code, left);
+            writer.push(" ");
+            writer.push(operator);
+            writer.push(" ");
+            emit_ssr_dynamic_region_value(writer, right, runtime);
+            writer.push(")");
+        }
+        DynamicRegionExpressionIr::ArrayMap {
+            each,
+            item,
+            index,
+            body,
+        } => {
+            writer.push("(");
+            writer.push_mapped(&each.code, each);
+            writer.push(" ?? []).map((");
+            writer.push(item);
+            if let Some(index) = index {
+                writer.push(", ");
+                writer.push(index);
+            }
+            writer.push(") => ");
+            emit_ssr_children(writer, body, runtime, false);
+            writer.push(")");
+        }
+        DynamicRegionExpressionIr::ArrayLiteral { items } => {
+            writer.push("[");
+            for (index, item) in items.iter().enumerate() {
+                if index > 0 {
+                    writer.push(", ");
+                }
+                emit_ssr_dynamic_region_value(writer, item, runtime);
+            }
+            writer.push("]");
+        }
+    }
+}
+
+fn emit_ssr_dynamic_region_value(
+    writer: &mut CodeWriter,
+    value: &DynamicRegionValueIr,
+    runtime: &SsrRuntimeNames,
+) {
+    match value {
+        DynamicRegionValueIr::Expression(expression) => {
+            writer.push_mapped(&expression.code, expression);
+        }
+        DynamicRegionValueIr::Children(children) => {
+            emit_ssr_children(writer, children, runtime, false);
+        }
+    }
+}
+
 fn emit_ssr_element(writer: &mut CodeWriter, element: &ElementIr, runtime: &SsrRuntimeNames) {
     emit_ssr_element_with_context(writer, element, runtime, false);
 }
@@ -339,53 +481,61 @@ fn emit_ssr_element_with_context(
     writer.push(runtime.element());
     writer.push("(");
     writer.push(&quote_js(&element.tag_name));
-    writer.push(", [");
-    let mut first = true;
-    for attribute in &element.attributes {
-        match attribute {
-            AttributeIr::Static(attribute) => {
-                if !first {
+    writer.push(", ");
+    if element_has_spread(element) {
+        writer.push(&runtime.spread);
+        writer.push("(");
+        emit_attribute_sources(writer, &element.attributes, None);
+        writer.push(")");
+    } else {
+        writer.push("[");
+        let mut first = true;
+        for attribute in &element.attributes {
+            match attribute {
+                AttributeIr::Static(attribute) => {
+                    if !first {
+                        writer.push(", ");
+                    }
+                    first = false;
+                    writer.push(runtime.attr());
+                    writer.push("(");
+                    writer.push(&quote_js(&attribute.name));
                     writer.push(", ");
+                    match &attribute.value {
+                        StaticAttributeValue::String(value) => writer.push(&quote_js(value)),
+                        StaticAttributeValue::Boolean => writer.push("true"),
+                    }
+                    writer.push(")");
                 }
-                first = false;
-                writer.push(runtime.attr());
-                writer.push("(");
-                writer.push(&quote_js(&attribute.name));
-                writer.push(", ");
-                match &attribute.value {
-                    StaticAttributeValue::String(value) => writer.push(&quote_js(value)),
-                    StaticAttributeValue::Boolean => writer.push("true"),
-                }
-                writer.push(")");
-            }
-            AttributeIr::Dynamic(attribute) => {
-                if !first {
+                AttributeIr::Dynamic(attribute) => {
+                    if !first {
+                        writer.push(", ");
+                    }
+                    first = false;
+                    writer.push(runtime.attr());
+                    writer.push("(");
+                    writer.push(&quote_js(&attribute.name));
                     writer.push(", ");
+                    emit_ssr_expression_value(writer, &attribute.expression);
+                    writer.push(")");
                 }
-                first = false;
-                writer.push(runtime.attr());
-                writer.push("(");
-                writer.push(&quote_js(&attribute.name));
-                writer.push(", ");
-                emit_ssr_expression_value(writer, &attribute.expression);
-                writer.push(")");
-            }
-            AttributeIr::Property(attribute) => {
-                if !first {
+                AttributeIr::Property(attribute) => {
+                    if !first {
+                        writer.push(", ");
+                    }
+                    first = false;
+                    writer.push(runtime.prop());
+                    writer.push("(");
+                    writer.push(&quote_js(&attribute.name));
                     writer.push(", ");
+                    emit_ssr_expression_value(writer, &attribute.expression);
+                    writer.push(")");
                 }
-                first = false;
-                writer.push(runtime.prop());
-                writer.push("(");
-                writer.push(&quote_js(&attribute.name));
-                writer.push(", ");
-                emit_ssr_expression_value(writer, &attribute.expression);
-                writer.push(")");
+                AttributeIr::Event(_) | AttributeIr::Ref(_) | AttributeIr::Spread(_) => {}
             }
-            AttributeIr::Event(_) | AttributeIr::Ref(_) => {}
         }
+        writer.push("]");
     }
-    writer.push("]");
     if !element.children.is_empty() && !is_void_element(&element.tag_name) {
         writer.push(", ");
         emit_ssr_children(
@@ -401,13 +551,7 @@ fn emit_ssr_element_with_context(
 }
 
 fn emit_ssr_expression_value(writer: &mut CodeWriter, expression: &ExpressionIr) {
-    if expression.form == ExpressionForm::Getter {
-        writer.push("(");
-        writer.push_mapped(&expression.code, expression);
-        writer.push(")()");
-    } else {
-        writer.push_mapped(&expression.code, expression);
-    }
+    writer.push_mapped(&expression.code, expression);
 }
 
 fn emit_ssr_component(
@@ -418,36 +562,68 @@ fn emit_ssr_component(
     writer.push(runtime.component());
     writer.push("(");
     writer.push_mapped(&component.callee.code, &component.callee);
-    writer.push(", {");
-    for (index, prop) in component.props.iter().enumerate() {
+    writer.push(", ");
+    let spread = component
+        .props
+        .iter()
+        .any(|prop| matches!(prop, ComponentPropIr::Spread(_)));
+    if spread {
+        writer.push(&runtime.merge_props);
+        writer.push("([");
+    } else {
+        writer.push("{");
+    }
+    for (index, entry) in component.props.iter().enumerate() {
         if index > 0 {
             writer.push(", ");
         }
-        match &prop.value {
-            ComponentPropValueIr::Expression(expression) if is_static_expression(expression) => {
-                writer.push(&object_key(&prop.name));
-                writer.push(": ");
-                writer.push_mapped(&expression.code, expression);
+        match entry {
+            ComponentPropIr::Spread(prop) => {
+                writer.push("() => (");
+                writer.push_dom_expression(&prop.expression);
+                writer.push(")");
             }
-            ComponentPropValueIr::Expression(expression) => {
-                writer.push("get ");
-                writer.push(&object_key(&prop.name));
-                writer.push("() { return ");
-                emit_ssr_expression_value(writer, expression);
-                writer.push(" }");
-            }
-            ComponentPropValueIr::Children(children) => {
-                writer.push("get ");
-                writer.push(&object_key(&prop.name));
-                writer.push("() { return ");
-                emit_ssr_children(writer, children, runtime, false);
-                writer.push(" }");
+            ComponentPropIr::Named(prop) => {
+                if spread {
+                    writer.push("() => ({");
+                }
+                match &prop.value {
+                    ComponentPropValueIr::Expression(expression)
+                        if is_static_expression(expression) =>
+                    {
+                        writer.push(&object_key(&prop.name));
+                        writer.push(": ");
+                        writer.push_mapped(&expression.code, expression);
+                    }
+                    ComponentPropValueIr::Expression(expression) => {
+                        writer.push("get ");
+                        writer.push(&object_key(&prop.name));
+                        writer.push("() { return ");
+                        emit_ssr_expression_value(writer, expression);
+                        writer.push(" }");
+                    }
+                    ComponentPropValueIr::Children(children) => {
+                        writer.push("get ");
+                        writer.push(&object_key(&prop.name));
+                        writer.push("() { return ");
+                        emit_ssr_children(writer, children, runtime, false);
+                        writer.push(" }");
+                    }
+                }
+
+                if spread {
+                    writer.push("})");
+                }
             }
         }
     }
-    writer.push("})");
+    if spread {
+        writer.push("])");
+    } else {
+        writer.push("}");
+    }
+    writer.push(")");
 }
-
 fn emit_ssr_show(writer: &mut CodeWriter, show: &ShowBindingIr, runtime: &SsrRuntimeNames) {
     writer.push(runtime.show());
     writer.push("(() => ");
@@ -598,6 +774,36 @@ fn emit_component(
                 *once,
                 runtime,
             ),
+            DynamicBinding::Spread {
+                target_id,
+                attributes,
+            } => {
+                writer.push(runtime.bind_spread());
+                writer.push("(");
+                writer.push(component.target_name(*target_id));
+                writer.push(", ");
+                emit_attribute_sources(writer, attributes, Some(names));
+                let once = attributes
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, attr)| match attr {
+                        AttributeIr::Dynamic(attr) if attr.once => Some(index),
+                        AttributeIr::Property(attr) if attr.once => Some(index),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>();
+                if !once.is_empty() {
+                    writer.push(", [");
+                    for (index, value) in once.iter().enumerate() {
+                        if index > 0 {
+                            writer.push(", ");
+                        }
+                        writer.push(&value.to_string());
+                    }
+                    writer.push("]");
+                }
+                writer.push(");\n");
+            }
             DynamicBinding::Property {
                 target_id,
                 name,
@@ -642,6 +848,10 @@ fn emit_component(
             }
             DynamicBinding::For { for_binding } => {
                 emit_for_binding(writer, &markers[marker_index], for_binding, runtime, names);
+                marker_index += 1;
+            }
+            DynamicBinding::DynamicRegion { region } => {
+                emit_dynamic_region_binding(writer, &markers[marker_index], region, runtime, names);
                 marker_index += 1;
             }
         }
@@ -748,6 +958,7 @@ fn emit_dynamic_markers(
                     | DynamicBinding::Component { .. }
                     | DynamicBinding::Show { .. }
                     | DynamicBinding::For { .. }
+                    | DynamicBinding::DynamicRegion { .. }
             )
         })
         .count();
@@ -822,37 +1033,67 @@ fn emit_component_call(
     writer.push(runtime.create_component());
     writer.push("(");
     writer.push_dom_expression(&component.callee);
-    writer.push(", {");
-    for (index, prop) in component.props.iter().enumerate() {
+    writer.push(", ");
+    let spread = component
+        .props
+        .iter()
+        .any(|prop| matches!(prop, ComponentPropIr::Spread(_)));
+    if spread {
+        writer.push(runtime.merge_props());
+        writer.push("([");
+    } else {
+        writer.push("{");
+    }
+    for (index, entry) in component.props.iter().enumerate() {
         if index > 0 {
             writer.push(", ");
         }
-        match &prop.value {
-            ComponentPropValueIr::Expression(expression) => {
-                if is_static_expression(expression) {
-                    writer.push(&object_key(&prop.name));
-                    writer.push(": ");
-                    writer.push_dom_expression(expression);
-                } else {
-                    writer.push("get ");
-                    writer.push(&object_key(&prop.name));
-                    writer.push("() { return ");
-                    writer.push_dom_expression(expression);
-                    writer.push(" }");
-                }
+        match entry {
+            ComponentPropIr::Spread(prop) => {
+                writer.push("() => (");
+                writer.push_dom_expression(&prop.expression);
+                writer.push(")");
             }
-            ComponentPropValueIr::Children(children) => {
-                writer.push("get ");
-                writer.push(&object_key(&prop.name));
-                writer.push("() { return ");
-                emit_children_value(writer, children, runtime, names);
-                writer.push(" }");
+            ComponentPropIr::Named(prop) => {
+                if spread {
+                    writer.push("() => ({");
+                }
+                match &prop.value {
+                    ComponentPropValueIr::Expression(expression) => {
+                        if is_static_expression(expression) {
+                            writer.push(&object_key(&prop.name));
+                            writer.push(": ");
+                            writer.push_dom_expression(expression);
+                        } else {
+                            writer.push("get ");
+                            writer.push(&object_key(&prop.name));
+                            writer.push("() { return ");
+                            writer.push_dom_expression(expression);
+                            writer.push(" }");
+                        }
+                    }
+                    ComponentPropValueIr::Children(children) => {
+                        writer.push("get ");
+                        writer.push(&object_key(&prop.name));
+                        writer.push("() { return ");
+                        emit_children_value(writer, children, runtime, names);
+                        writer.push(" }");
+                    }
+                }
+
+                if spread {
+                    writer.push("})");
+                }
             }
         }
     }
-    writer.push("})");
+    if spread {
+        writer.push("])");
+    } else {
+        writer.push("}");
+    }
+    writer.push(")");
 }
-
 fn emit_slot_call(
     writer: &mut CodeWriter,
     component: &ComponentBindingIr,
@@ -862,6 +1103,7 @@ fn emit_slot_call(
     let name = component
         .props
         .iter()
+        .filter_map(ComponentPropIr::named)
         .find_map(|prop| (prop.name == "name").then_some(&prop.value));
     writer.push(runtime.create_slot());
     writer.push("(");
@@ -874,6 +1116,7 @@ fn emit_slot_call(
     let children = component
         .props
         .iter()
+        .filter_map(ComponentPropIr::named)
         .find_map(|prop| (prop.name == "children").then_some(&prop.value));
     if let Some(ComponentPropValueIr::Children(children)) = children {
         writer.push(", () => ");
@@ -883,13 +1126,7 @@ fn emit_slot_call(
 }
 
 fn emit_expression_value(writer: &mut CodeWriter, expression: &ExpressionIr) {
-    if expression.form == ExpressionForm::Getter {
-        writer.push("(");
-        writer.push_dom_expression(expression);
-        writer.push(")()");
-    } else {
-        writer.push_dom_expression(expression);
-    }
+    writer.push_dom_expression(expression);
 }
 
 fn emit_root_builtin_call(
@@ -1031,6 +1268,102 @@ fn emit_for_mount_call(
     writer.push(");\n");
 }
 
+fn emit_dynamic_region_binding(
+    writer: &mut CodeWriter,
+    marker: &EmittedMarker,
+    region: &DynamicRegionIr,
+    runtime: &RuntimeNames,
+    names: &mut NameAllocator,
+) {
+    writer.push(runtime.mount_dynamic());
+    writer.push("(");
+    writer.push(&marker.marker_name);
+    writer.push(".parentNode, ");
+    writer.push(&marker.marker_name);
+    writer.push(", () => ");
+    emit_dynamic_region_value(writer, &region.expression, runtime, names);
+    writer.push(");\n");
+}
+
+fn emit_dynamic_region_value(
+    writer: &mut CodeWriter,
+    expression: &DynamicRegionExpressionIr,
+    runtime: &RuntimeNames,
+    names: &mut NameAllocator,
+) {
+    match expression {
+        DynamicRegionExpressionIr::Value { expression } => writer.push_dom_expression(expression),
+        DynamicRegionExpressionIr::Conditional {
+            test,
+            consequent,
+            alternate,
+        } => {
+            writer.push("(");
+            writer.push_dom_expression(test);
+            writer.push(" ? ");
+            emit_region_branch_value(writer, consequent, runtime, names);
+            writer.push(" : ");
+            emit_region_branch_value(writer, alternate, runtime, names);
+            writer.push(")");
+        }
+        DynamicRegionExpressionIr::Logical {
+            left,
+            operator,
+            right,
+        } => {
+            writer.push("(");
+            writer.push_dom_expression(left);
+            writer.push(" ");
+            writer.push(operator);
+            writer.push(" ");
+            emit_region_branch_value(writer, right, runtime, names);
+            writer.push(")");
+        }
+        DynamicRegionExpressionIr::ArrayMap {
+            each,
+            item,
+            index,
+            body,
+        } => {
+            writer.push("(");
+            writer.push_dom_expression(each);
+            writer.push(" ?? []).map((");
+            writer.push(item);
+            if let Some(index) = index {
+                writer.push(", ");
+                writer.push(index);
+            }
+            writer.push(") => ");
+            emit_children_value(writer, body, runtime, names);
+            writer.push(")");
+        }
+        DynamicRegionExpressionIr::ArrayLiteral { items } => {
+            writer.push("[");
+            for (index, item) in items.iter().enumerate() {
+                if index > 0 {
+                    writer.push(", ");
+                }
+                emit_region_branch_value(writer, item, runtime, names);
+            }
+            writer.push("]");
+        }
+    }
+}
+
+fn emit_region_branch_value(
+    writer: &mut CodeWriter,
+    value: &DynamicRegionValueIr,
+    runtime: &RuntimeNames,
+    names: &mut NameAllocator,
+) {
+    match value {
+        DynamicRegionValueIr::Expression(expression) => writer.push_dom_expression(expression),
+        DynamicRegionValueIr::Children(children) => {
+            emit_children_value(writer, children, runtime, names);
+        }
+    }
+}
+
 fn emit_fallback_value(
     writer: &mut CodeWriter,
     fallback: Option<&ComponentPropValueIr>,
@@ -1109,7 +1442,39 @@ fn emit_inline_child_value(
                 names,
             );
         }
+        ChildIr::DynamicRegion(region) => {
+            emit_dynamic_region_root_call(writer, region, runtime, names);
+        }
     }
+}
+
+fn emit_dynamic_region_root_call(
+    writer: &mut CodeWriter,
+    region: &DynamicRegionIr,
+    runtime: &RuntimeNames,
+    names: &mut NameAllocator,
+) {
+    let fragment = names.allocate("$zeusRegion");
+    let marker = names.allocate("$zeusRegionMarker");
+    writer.push("(() => {\nconst ");
+    writer.push(&fragment);
+    writer.push(" = ");
+    writer.push(runtime.template());
+    writer.push("(\"<!>\")();\nconst ");
+    writer.push(&marker);
+    writer.push(" = ");
+    writer.push(&fragment);
+    writer.push(".firstChild;\n");
+    writer.push(runtime.mount_dynamic());
+    writer.push("(");
+    writer.push(&fragment);
+    writer.push(", ");
+    writer.push(&marker);
+    writer.push(", () => ");
+    emit_dynamic_region_value(writer, &region.expression, runtime, names);
+    writer.push(");\nreturn ");
+    writer.push(&fragment);
+    writer.push(";\n})()");
 }
 
 fn emit_inline_root(
@@ -1119,7 +1484,8 @@ fn emit_inline_root(
     names: &mut NameAllocator,
 ) {
     let bindings = collect_root_dynamic_bindings(root);
-    let generated = GeneratedComponent::new_inline(root, bindings, "data-zeus-node", names);
+    let locator_attribute = runtime.locator_attribute();
+    let generated = GeneratedComponent::new_inline(root, bindings, locator_attribute, names);
     writer.push("(() => {\nconst ");
     writer.push(&generated.template_name);
     writer.push(" = ");
@@ -1130,7 +1496,7 @@ fn emit_inline_root(
         writer.push(", false, true");
     }
     writer.push(");\nreturn ");
-    emit_component(writer, &generated, runtime, "data-zeus-node", names);
+    emit_component(writer, &generated, runtime, locator_attribute, names);
     writer.push(";\n})()");
 }
 
@@ -1324,22 +1690,64 @@ fn emit_ref_binding(
     writer.push(");\n");
 }
 
-fn emit_getter(writer: &mut CodeWriter, expression: &ExpressionIr) {
-    if expression.form == ExpressionForm::Getter
-        && !writer.expression_uses_for_accessors(expression)
-    {
-        writer.push_mapped(&expression.code, expression);
-        return;
+fn emit_attribute_sources(
+    writer: &mut CodeWriter,
+    attributes: &[AttributeIr],
+    mut names: Option<&mut NameAllocator>,
+) {
+    writer.push("[");
+    for (index, attribute) in attributes.iter().enumerate() {
+        if index > 0 {
+            writer.push(", ");
+        }
+        writer.push("() => (");
+        if let AttributeIr::Spread(spread) = attribute {
+            writer.push_dom_expression(&spread.expression);
+        } else {
+            writer.push("{");
+            let name = match attribute {
+                AttributeIr::Static(attr) => attr.name.clone(),
+                AttributeIr::Dynamic(attr) => attr.name.clone(),
+                AttributeIr::Property(attr) => format!("prop:{}", attr.name),
+                AttributeIr::Event(attr) => format!("on{}", attr.event_name),
+                AttributeIr::Ref(_) => "ref".into(),
+                AttributeIr::Spread(_) => unreachable!(),
+            };
+            writer.push(&quote_js(&name));
+            writer.push(": ");
+            match attribute {
+                AttributeIr::Static(attr) => match &attr.value {
+                    StaticAttributeValue::String(value) => writer.push(&quote_js(value)),
+                    StaticAttributeValue::Boolean => writer.push("true"),
+                },
+                AttributeIr::Dynamic(attr) => writer.push_dom_expression(&attr.expression),
+                AttributeIr::Property(attr) => writer.push_dom_expression(&attr.expression),
+                AttributeIr::Event(attr) => {
+                    if let Some(names) = names.as_deref_mut() {
+                        emit_event_handler(writer, &attr.handler, names);
+                    } else {
+                        writer.push("undefined");
+                    }
+                }
+                AttributeIr::Ref(attr) => {
+                    if names.is_some() {
+                        writer.push_dom_expression(&attr.expression);
+                    } else {
+                        writer.push("undefined");
+                    }
+                }
+                AttributeIr::Spread(_) => unreachable!(),
+            }
+            writer.push("}");
+        }
+        writer.push(")");
     }
+    writer.push("]");
+}
 
+fn emit_getter(writer: &mut CodeWriter, expression: &ExpressionIr) {
     writer.push("() => (");
-    if expression.form == ExpressionForm::Getter {
-        writer.push("(");
-        writer.push_dom_expression(expression);
-        writer.push(")()");
-    } else {
-        writer.push_dom_expression(expression);
-    }
+    writer.push_dom_expression(expression);
     writer.push(")");
 }
 
@@ -1364,7 +1772,11 @@ fn render_child_template(child: &ChildIr, locator_attribute: &str, html: &mut St
         ChildIr::Element(element) => render_element(element, locator_attribute, html),
         ChildIr::Fragment(fragment) => render_fragment(fragment, locator_attribute, html),
         ChildIr::Text(text) => html.push_str(&escape_html_text(&text.value)),
-        ChildIr::DynamicText(_) | ChildIr::Component(_) | ChildIr::Show(_) | ChildIr::For(_) => {
+        ChildIr::DynamicText(_)
+        | ChildIr::DynamicRegion(_)
+        | ChildIr::Component(_)
+        | ChildIr::Show(_)
+        | ChildIr::For(_) => {
             html.push_str("<!>");
         }
     }
@@ -1375,6 +1787,9 @@ fn render_element(element: &ElementIr, locator_attribute: &str, html: &mut Strin
     html.push('<');
     html.push_str(&element.tag_name);
     for attribute in &element.attributes {
+        if element_has_spread(element) {
+            break;
+        }
         if let AttributeIr::Static(attribute) = attribute {
             html.push(' ');
             html.push_str(&attribute.name);
@@ -1414,6 +1829,7 @@ fn render_element(element: &ElementIr, locator_attribute: &str, html: &mut Strin
             }
             ChildIr::Text(text) => html.push_str(&escape_html_text(&text.value)),
             ChildIr::DynamicText(_)
+            | ChildIr::DynamicRegion(_)
             | ChildIr::Component(_)
             | ChildIr::Show(_)
             | ChildIr::For(_) => html.push_str("<!>"),
@@ -1443,8 +1859,24 @@ fn collect_root_dynamic_bindings(root: &RootIr) -> Vec<DynamicBinding> {
     }
 }
 
+fn element_has_spread(element: &ElementIr) -> bool {
+    element
+        .attributes
+        .iter()
+        .any(|attribute| matches!(attribute, AttributeIr::Spread(_)))
+}
+
 fn collect_element_bindings(element: &ElementIr, bindings: &mut Vec<DynamicBinding>) {
+    if element_has_spread(element) {
+        bindings.push(DynamicBinding::Spread {
+            target_id: element.id,
+            attributes: element.attributes.clone(),
+        });
+    }
     for attribute in &element.attributes {
+        if element_has_spread(element) {
+            break;
+        }
         match attribute {
             AttributeIr::Dynamic(attribute) => bindings.push(DynamicBinding::Attribute {
                 target_id: element.id,
@@ -1468,7 +1900,7 @@ fn collect_element_bindings(element: &ElementIr, bindings: &mut Vec<DynamicBindi
                 target_id: element.id,
                 expression: attribute.expression.clone(),
             }),
-            AttributeIr::Static(_) => {}
+            AttributeIr::Static(_) | AttributeIr::Spread(_) => {}
         }
     }
 
@@ -1496,6 +1928,9 @@ fn collect_element_bindings(element: &ElementIr, bindings: &mut Vec<DynamicBindi
             ChildIr::Element(element) => collect_element_bindings(element, bindings),
             ChildIr::Fragment(fragment) => collect_fragment_bindings(fragment, bindings),
             ChildIr::DynamicText(dynamic) => bindings.push(dynamic_binding(dynamic)),
+            ChildIr::DynamicRegion(region) => bindings.push(DynamicBinding::DynamicRegion {
+                region: region.clone(),
+            }),
             ChildIr::Component(component) => bindings.push(DynamicBinding::Component {
                 component: component.clone(),
             }),
@@ -1514,6 +1949,9 @@ fn collect_fragment_bindings(fragment: &FragmentIr, bindings: &mut Vec<DynamicBi
             ChildIr::Element(element) => collect_element_bindings(element, bindings),
             ChildIr::Fragment(fragment) => collect_fragment_bindings(fragment, bindings),
             ChildIr::DynamicText(dynamic) => bindings.push(dynamic_binding(dynamic)),
+            ChildIr::DynamicRegion(region) => bindings.push(DynamicBinding::DynamicRegion {
+                region: region.clone(),
+            }),
             ChildIr::Component(component) => bindings.push(DynamicBinding::Component {
                 component: component.clone(),
             }),
@@ -1547,6 +1985,7 @@ fn has_element_binding(element: &ElementIr) -> bool {
                 | AttributeIr::Property(_)
                 | AttributeIr::Event(_)
                 | AttributeIr::Ref(_)
+                | AttributeIr::Spread(_)
         )
     }) || (is_raw_text_element(&element.tag_name) && has_dynamic_raw_text(element))
 }
@@ -1574,6 +2013,7 @@ fn collect_text_content_parts(element: &ElementIr) -> Vec<TextContentPart> {
             }),
             ChildIr::Element(_)
             | ChildIr::Fragment(_)
+            | ChildIr::DynamicRegion(_)
             | ChildIr::Component(_)
             | ChildIr::Show(_)
             | ChildIr::For(_) => None,
@@ -1616,7 +2056,7 @@ fn collect_component_delegated_events(
     component: &ComponentBindingIr,
     names: &mut BTreeSet<String>,
 ) {
-    for prop in &component.props {
+    for prop in component.props.iter().filter_map(ComponentPropIr::named) {
         if let ComponentPropValueIr::Children(children) = &prop.value {
             collect_child_delegated_events(children, names);
         }
@@ -1642,8 +2082,45 @@ fn collect_child_delegated_events(children: &[ChildIr], names: &mut BTreeSet<Str
             ChildIr::For(for_binding) => {
                 collect_child_delegated_events(&for_binding.body, names);
             }
+            ChildIr::DynamicRegion(region) => {
+                collect_dynamic_region_delegated_events(region, names);
+            }
             ChildIr::Text(_) | ChildIr::DynamicText(_) => {}
         }
+    }
+}
+
+fn collect_dynamic_region_delegated_events(region: &DynamicRegionIr, names: &mut BTreeSet<String>) {
+    match &region.expression {
+        DynamicRegionExpressionIr::Value { .. } => {}
+        DynamicRegionExpressionIr::Conditional {
+            consequent,
+            alternate,
+            ..
+        } => {
+            collect_dynamic_region_value_delegated_events(consequent, names);
+            collect_dynamic_region_value_delegated_events(alternate, names);
+        }
+        DynamicRegionExpressionIr::Logical { right, .. } => {
+            collect_dynamic_region_value_delegated_events(right, names);
+        }
+        DynamicRegionExpressionIr::ArrayMap { body, .. } => {
+            collect_child_delegated_events(body, names);
+        }
+        DynamicRegionExpressionIr::ArrayLiteral { items } => {
+            for item in items {
+                collect_dynamic_region_value_delegated_events(item, names);
+            }
+        }
+    }
+}
+
+fn collect_dynamic_region_value_delegated_events(
+    value: &DynamicRegionValueIr,
+    names: &mut BTreeSet<String>,
+) {
+    if let DynamicRegionValueIr::Children(children) = value {
+        collect_child_delegated_events(children, names);
     }
 }
 
@@ -1672,7 +2149,7 @@ fn collect_root_attribute_names(root: &RootIr, names: &mut HashSet<String>) {
         RootIr::Element(element) => collect_attribute_names(element, names),
         RootIr::Fragment(fragment) => collect_fragment_attribute_names(fragment, names),
         RootIr::Component(component) => collect_component_attribute_names(component, names),
-        RootIr::Show(show) => collect_builtin_attribute_names(&show.children, names),
+        RootIr::Show(show) => collect_show_attribute_names(show, names),
         RootIr::For(for_binding) => collect_builtin_attribute_names(&for_binding.body, names),
     }
 }
@@ -1683,7 +2160,7 @@ fn collect_attribute_names(element: &ElementIr, names: &mut HashSet<String>) {
             AttributeIr::Static(attribute) => &attribute.name,
             AttributeIr::Dynamic(attribute) => &attribute.name,
             AttributeIr::Property(attribute) => &attribute.name,
-            AttributeIr::Event(_) | AttributeIr::Ref(_) => continue,
+            AttributeIr::Event(_) | AttributeIr::Ref(_) | AttributeIr::Spread(_) => continue,
         };
         names.insert(name.to_ascii_lowercase());
     }
@@ -1695,9 +2172,11 @@ fn collect_attribute_names(element: &ElementIr, names: &mut HashSet<String>) {
         } else if let ChildIr::Component(component) = child {
             collect_component_attribute_names(component, names);
         } else if let ChildIr::Show(show) = child {
-            collect_builtin_attribute_names(&show.children, names);
+            collect_show_attribute_names(show, names);
         } else if let ChildIr::For(for_binding) = child {
             collect_builtin_attribute_names(&for_binding.body, names);
+        } else if let ChildIr::DynamicRegion(region) = child {
+            collect_dynamic_region_attribute_names(region, names);
         }
     }
 }
@@ -1708,15 +2187,16 @@ fn collect_fragment_attribute_names(fragment: &FragmentIr, names: &mut HashSet<S
             ChildIr::Element(element) => collect_attribute_names(element, names),
             ChildIr::Fragment(fragment) => collect_fragment_attribute_names(fragment, names),
             ChildIr::Component(component) => collect_component_attribute_names(component, names),
-            ChildIr::Show(show) => collect_builtin_attribute_names(&show.children, names),
+            ChildIr::Show(show) => collect_show_attribute_names(show, names),
             ChildIr::For(for_binding) => collect_builtin_attribute_names(&for_binding.body, names),
+            ChildIr::DynamicRegion(region) => collect_dynamic_region_attribute_names(region, names),
             ChildIr::Text(_) | ChildIr::DynamicText(_) => {}
         }
     }
 }
 
 fn collect_component_attribute_names(component: &ComponentBindingIr, names: &mut HashSet<String>) {
-    for prop in &component.props {
+    for prop in component.props.iter().filter_map(ComponentPropIr::named) {
         if let ComponentPropValueIr::Children(children) = &prop.value {
             for child in children {
                 match child {
@@ -1727,9 +2207,12 @@ fn collect_component_attribute_names(component: &ComponentBindingIr, names: &mut
                     ChildIr::Component(component) => {
                         collect_component_attribute_names(component, names);
                     }
-                    ChildIr::Show(show) => collect_builtin_attribute_names(&show.children, names),
+                    ChildIr::Show(show) => collect_show_attribute_names(show, names),
                     ChildIr::For(for_binding) => {
                         collect_builtin_attribute_names(&for_binding.body, names);
+                    }
+                    ChildIr::DynamicRegion(region) => {
+                        collect_dynamic_region_attribute_names(region, names);
                     }
                     ChildIr::Text(_) | ChildIr::DynamicText(_) => {}
                 }
@@ -1744,10 +2227,52 @@ fn collect_builtin_attribute_names(children: &[ChildIr], names: &mut HashSet<Str
             ChildIr::Element(element) => collect_attribute_names(element, names),
             ChildIr::Fragment(fragment) => collect_fragment_attribute_names(fragment, names),
             ChildIr::Component(component) => collect_component_attribute_names(component, names),
-            ChildIr::Show(show) => collect_builtin_attribute_names(&show.children, names),
+            ChildIr::Show(show) => collect_show_attribute_names(show, names),
             ChildIr::For(for_binding) => collect_builtin_attribute_names(&for_binding.body, names),
+            ChildIr::DynamicRegion(region) => collect_dynamic_region_attribute_names(region, names),
             ChildIr::Text(_) | ChildIr::DynamicText(_) => {}
         }
+    }
+}
+
+fn collect_show_attribute_names(show: &ShowBindingIr, names: &mut HashSet<String>) {
+    collect_builtin_attribute_names(&show.children, names);
+    if let Some(ComponentPropValueIr::Children(fallback)) = &show.fallback {
+        collect_builtin_attribute_names(fallback, names);
+    }
+}
+
+fn collect_dynamic_region_attribute_names(region: &DynamicRegionIr, names: &mut HashSet<String>) {
+    match &region.expression {
+        DynamicRegionExpressionIr::Value { .. } => {}
+        DynamicRegionExpressionIr::Conditional {
+            consequent,
+            alternate,
+            ..
+        } => {
+            collect_dynamic_region_value_attribute_names(consequent, names);
+            collect_dynamic_region_value_attribute_names(alternate, names);
+        }
+        DynamicRegionExpressionIr::Logical { right, .. } => {
+            collect_dynamic_region_value_attribute_names(right, names);
+        }
+        DynamicRegionExpressionIr::ArrayMap { body, .. } => {
+            collect_builtin_attribute_names(body, names);
+        }
+        DynamicRegionExpressionIr::ArrayLiteral { items } => {
+            for item in items {
+                collect_dynamic_region_value_attribute_names(item, names);
+            }
+        }
+    }
+}
+
+fn collect_dynamic_region_value_attribute_names(
+    value: &DynamicRegionValueIr,
+    names: &mut HashSet<String>,
+) {
+    if let DynamicRegionValueIr::Children(children) = value {
+        collect_builtin_attribute_names(children, names);
     }
 }
 
@@ -1956,6 +2481,10 @@ enum DynamicBinding {
         kind: AttributeBindingKind,
         once: bool,
     },
+    Spread {
+        target_id: NodeId,
+        attributes: Vec<AttributeIr>,
+    },
     Property {
         target_id: NodeId,
         name: String,
@@ -1980,6 +2509,9 @@ enum DynamicBinding {
     For {
         for_binding: ForBindingIr,
     },
+    DynamicRegion {
+        region: DynamicRegionIr,
+    },
 }
 
 impl DynamicBinding {
@@ -1989,9 +2521,11 @@ impl DynamicBinding {
             | Self::Node { .. }
             | Self::Component { .. }
             | Self::Show { .. }
-            | Self::For { .. } => None,
+            | Self::For { .. }
+            | Self::DynamicRegion { .. } => None,
             Self::TextContent { target_id, .. }
             | Self::Attribute { target_id, .. }
+            | Self::Spread { target_id, .. }
             | Self::Property { target_id, .. }
             | Self::Event { target_id, .. }
             | Self::Ref { target_id, .. } => Some(*target_id),
@@ -2064,6 +2598,9 @@ impl HelperUsage {
                         usage.0.insert(RuntimeHelper::BindStyle);
                     }
                 },
+                DynamicBinding::Spread { .. } => {
+                    usage.0.insert(RuntimeHelper::BindSpread);
+                }
                 DynamicBinding::Property { .. } => {
                     usage.0.insert(RuntimeHelper::BindProp);
                 }
@@ -2093,6 +2630,10 @@ impl HelperUsage {
                     usage.0.insert(RuntimeHelper::MountFor);
                     collect_builtin_helper_usage(&for_binding.body, &mut usage.0);
                 }
+                DynamicBinding::DynamicRegion { region } => {
+                    usage.0.insert(RuntimeHelper::MountDynamic);
+                    collect_dynamic_region_helper_usage(region, &mut usage.0);
+                }
             }
         }
         usage
@@ -2108,7 +2649,14 @@ fn collect_component_helper_usage(
     } else {
         usage.insert(RuntimeHelper::CreateComponent);
     }
-    for prop in &component.props {
+    if component
+        .props
+        .iter()
+        .any(|prop| matches!(prop, ComponentPropIr::Spread(_)))
+    {
+        usage.insert(RuntimeHelper::MergeProps);
+    }
+    for prop in component.props.iter().filter_map(ComponentPropIr::named) {
         let ComponentPropValueIr::Children(children) = &prop.value else {
             continue;
         };
@@ -2140,6 +2688,14 @@ fn collect_component_helper_usage(
                 }
                 ChildIr::DynamicText(dynamic) => {
                     collect_binding_helper_usage(&dynamic_binding(dynamic), usage);
+                }
+                ChildIr::DynamicRegion(region) => {
+                    collect_binding_helper_usage(
+                        &DynamicBinding::DynamicRegion {
+                            region: region.clone(),
+                        },
+                        usage,
+                    );
                 }
                 ChildIr::Text(_) => {}
             }
@@ -2175,6 +2731,14 @@ fn collect_builtin_helper_usage(children: &[ChildIr], usage: &mut HashSet<Runtim
             ChildIr::DynamicText(dynamic) => {
                 collect_binding_helper_usage(&dynamic_binding(dynamic), usage);
             }
+            ChildIr::DynamicRegion(region) => {
+                collect_binding_helper_usage(
+                    &DynamicBinding::DynamicRegion {
+                        region: region.clone(),
+                    },
+                    usage,
+                );
+            }
             ChildIr::Text(_) => {}
         }
     }
@@ -2198,6 +2762,9 @@ fn collect_binding_helper_usage(binding: &DynamicBinding, usage: &mut HashSet<Ru
                 AttributeBindingKind::Class => RuntimeHelper::BindClass,
                 AttributeBindingKind::Style => RuntimeHelper::BindStyle,
             });
+        }
+        DynamicBinding::Spread { .. } => {
+            usage.insert(RuntimeHelper::BindSpread);
         }
         DynamicBinding::Property { .. } => {
             usage.insert(RuntimeHelper::BindProp);
@@ -2228,11 +2795,53 @@ fn collect_binding_helper_usage(binding: &DynamicBinding, usage: &mut HashSet<Ru
             usage.insert(RuntimeHelper::MountFor);
             collect_builtin_helper_usage(&for_binding.body, usage);
         }
+        DynamicBinding::DynamicRegion { region } => {
+            usage.insert(RuntimeHelper::MountDynamic);
+            collect_dynamic_region_helper_usage(region, usage);
+        }
+    }
+}
+
+fn collect_dynamic_region_helper_usage(
+    region: &DynamicRegionIr,
+    usage: &mut HashSet<RuntimeHelper>,
+) {
+    match &region.expression {
+        DynamicRegionExpressionIr::Value { .. } => {}
+        DynamicRegionExpressionIr::Conditional {
+            consequent,
+            alternate,
+            ..
+        } => {
+            collect_dynamic_region_value_helper_usage(consequent, usage);
+            collect_dynamic_region_value_helper_usage(alternate, usage);
+        }
+        DynamicRegionExpressionIr::Logical { right, .. } => {
+            collect_dynamic_region_value_helper_usage(right, usage);
+        }
+        DynamicRegionExpressionIr::ArrayMap { body, .. } => {
+            collect_builtin_helper_usage(body, usage);
+        }
+        DynamicRegionExpressionIr::ArrayLiteral { items } => {
+            for item in items {
+                collect_dynamic_region_value_helper_usage(item, usage);
+            }
+        }
+    }
+}
+
+fn collect_dynamic_region_value_helper_usage(
+    value: &DynamicRegionValueIr,
+    usage: &mut HashSet<RuntimeHelper>,
+) {
+    if let DynamicRegionValueIr::Children(children) = value {
+        collect_builtin_helper_usage(children, usage);
     }
 }
 
 struct RuntimeNames {
     locals: HashMap<RuntimeHelper, String>,
+    locator_attribute: String,
 }
 
 struct SsrRuntimeNames {
@@ -2244,6 +2853,8 @@ struct SsrRuntimeNames {
     component: String,
     show: String,
     for_each: String,
+    spread: String,
+    merge_props: String,
 }
 
 impl SsrRuntimeNames {
@@ -2257,10 +2868,12 @@ impl SsrRuntimeNames {
             component: names.allocate("$zeusSsrComponent"),
             show: names.allocate("$zeusSsrShow"),
             for_each: names.allocate("$zeusSsrFor"),
+            spread: names.allocate("$zeusSsrSpread"),
+            merge_props: names.allocate("$zeusMergeProps"),
         }
     }
 
-    fn entries(&self) -> [(&'static str, &str); 8] {
+    fn entries(&self) -> [(&'static str, &str); 10] {
         [
             ("ssrStatic", &self.static_text),
             ("ssrText", &self.text),
@@ -2270,6 +2883,8 @@ impl SsrRuntimeNames {
             ("ssrComponent", &self.component),
             ("ssrShow", &self.show),
             ("ssrFor", &self.for_each),
+            ("ssrSpread", &self.spread),
+            ("mergeProps", &self.merge_props),
         ]
     }
 
@@ -2300,13 +2915,20 @@ impl SsrRuntimeNames {
 }
 
 impl RuntimeNames {
-    fn allocate(usage: &HelperUsage, names: &mut NameAllocator) -> Self {
+    fn allocate(usage: &HelperUsage, locator_attribute: &str, names: &mut NameAllocator) -> Self {
         let locals = RuntimeHelper::ORDERED
             .iter()
             .filter(|helper| **helper == RuntimeHelper::Template || usage.0.contains(helper))
             .map(|helper| (*helper, names.allocate(helper.local_base())))
             .collect();
-        Self { locals }
+        Self {
+            locals,
+            locator_attribute: locator_attribute.into(),
+        }
+    }
+
+    fn locator_attribute(&self) -> &str {
+        &self.locator_attribute
     }
 
     fn entries(&self) -> Vec<(&'static str, &str)> {
@@ -2347,6 +2969,10 @@ impl RuntimeNames {
         self.get(RuntimeHelper::MountFor)
     }
 
+    fn mount_dynamic(&self) -> &str {
+        self.get(RuntimeHelper::MountDynamic)
+    }
+
     fn insert(&self) -> &str {
         self.get(RuntimeHelper::Insert)
     }
@@ -2369,6 +2995,13 @@ impl RuntimeNames {
 
     fn bind_style(&self) -> &str {
         self.get(RuntimeHelper::BindStyle)
+    }
+
+    fn bind_spread(&self) -> &str {
+        self.get(RuntimeHelper::BindSpread)
+    }
+    fn merge_props(&self) -> &str {
+        self.get(RuntimeHelper::MergeProps)
     }
 
     fn bind_prop(&self) -> &str {
@@ -2395,6 +3028,7 @@ enum RuntimeHelper {
     CreateSlot,
     MountShow,
     MountFor,
+    MountDynamic,
     Insert,
     BindText,
     BindTextContent,
@@ -2402,18 +3036,21 @@ enum RuntimeHelper {
     BindClass,
     BindStyle,
     BindProp,
+    BindSpread,
+    MergeProps,
     BindEvent,
     BindRef,
     DelegateEvents,
 }
 
 impl RuntimeHelper {
-    const ORDERED: [Self; 15] = [
+    const ORDERED: [Self; 18] = [
         Self::Template,
         Self::CreateComponent,
         Self::CreateSlot,
         Self::MountShow,
         Self::MountFor,
+        Self::MountDynamic,
         Self::Insert,
         Self::BindText,
         Self::BindTextContent,
@@ -2421,6 +3058,8 @@ impl RuntimeHelper {
         Self::BindClass,
         Self::BindStyle,
         Self::BindProp,
+        Self::BindSpread,
+        Self::MergeProps,
         Self::BindEvent,
         Self::BindRef,
         Self::DelegateEvents,
@@ -2433,6 +3072,7 @@ impl RuntimeHelper {
             Self::CreateSlot => "createSlot",
             Self::MountShow => "mountShow",
             Self::MountFor => "mountFor",
+            Self::MountDynamic => "mountDynamic",
             Self::Insert => "insert",
             Self::BindText => "bindText",
             Self::BindTextContent => "bindTextContent",
@@ -2440,6 +3080,8 @@ impl RuntimeHelper {
             Self::BindClass => "bindClass",
             Self::BindStyle => "bindStyle",
             Self::BindProp => "bindProp",
+            Self::BindSpread => "bindSpread",
+            Self::MergeProps => "mergeProps",
             Self::BindEvent => "bindEvent",
             Self::BindRef => "bindRef",
             Self::DelegateEvents => "delegateEvents",
@@ -2453,6 +3095,7 @@ impl RuntimeHelper {
             Self::CreateSlot => "$zeusCreateSlot",
             Self::MountShow => "$zeusMountShow",
             Self::MountFor => "$zeusMountFor",
+            Self::MountDynamic => "$zeusMountDynamic",
             Self::Insert => "$zeusInsert",
             Self::BindText => "$zeusBindText",
             Self::BindTextContent => "$zeusBindTextContent",
@@ -2460,6 +3103,8 @@ impl RuntimeHelper {
             Self::BindClass => "$zeusBindClass",
             Self::BindStyle => "$zeusBindStyle",
             Self::BindProp => "$zeusBindProp",
+            Self::BindSpread => "$zeusBindSpread",
+            Self::MergeProps => "$zeusMergeProps",
             Self::BindEvent => "$zeusBindEvent",
             Self::BindRef => "$zeusBindRef",
             Self::DelegateEvents => "$zeusDelegateEvents",

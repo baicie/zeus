@@ -3,6 +3,43 @@ import { describe, expect, it } from 'vitest'
 import { analyzeFile } from '../src/analyzeFile'
 
 describe('analyzeFile', () => {
+  it('freezes CustomEvent names and propagation flags in the manifest', () => {
+    const result = analyzeFile({
+      file: 'src/input.tsx',
+      code: `
+        import { defineElement, event } from '@zeus-js/zeus'
+
+        export const ZInput = defineElement(
+          'z-input',
+          {
+            emits: {
+              valueChange: event<{ value: string }>({
+                name: 'value-change',
+                bubbles: false,
+                composed: false,
+                cancelable: true,
+              }),
+            },
+          },
+          () => document.createElement('input'),
+        )
+      `,
+    })
+
+    expect(result.diagnostics).toEqual([])
+    expect(result.components[0]?.events).toEqual({
+      valueChange: {
+        key: 'valueChange',
+        name: 'value-change',
+        reactName: 'onValueChange',
+        detail: { value: 'string' },
+        bubbles: false,
+        composed: false,
+        cancelable: true,
+      },
+    })
+  })
+
   it('extracts component manifest from defineElement', () => {
     const code = `
       import { defineElement, event, Host, Slot } from '@zeus-js/zeus'

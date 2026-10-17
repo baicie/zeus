@@ -1,12 +1,9 @@
-/* eslint-disable no-unused-vars */
 import type { JSXValue, RefTarget } from '@zeus-js/runtime-dom'
 import type { HostProps, SlotProps } from '@zeus-js/runtime-dom'
 
 type EventHandler<E extends Event = Event> = (event: E) => void
 
 type PrimitiveAttr = string | number | boolean | null | undefined
-type MaybeGetter<T> = T | (() => T)
-type ReactiveAttr = MaybeGetter<PrimitiveAttr>
 
 type ClassValue =
   | string
@@ -24,15 +21,22 @@ type StyleValue =
   | Record<string, string | number | null | undefined>
 
 type CommonDOMAttributes<T extends Element> = {
+  [key: `data-${string}`]: PrimitiveAttr
+  [key: `aria-${string}`]: PrimitiveAttr
+  [key: `prop:${string}`]: unknown
+
   ref?: RefTarget<T>
 
-  class?: MaybeGetter<ClassValue>
-  className?: MaybeGetter<ClassValue>
-  style?: MaybeGetter<StyleValue>
+  class?: ClassValue
+  className?: ClassValue
+  style?: StyleValue
 
-  id?: ReactiveAttr
-  title?: ReactiveAttr
-  role?: ReactiveAttr
+  id?: PrimitiveAttr
+  title?: PrimitiveAttr
+  role?: PrimitiveAttr
+  slot?: string
+  part?: string
+  exportparts?: string
 
   onClick?: EventHandler<MouseEvent>
   onDblClick?: EventHandler<MouseEvent>
@@ -57,156 +61,187 @@ type CommonDOMAttributes<T extends Element> = {
   onTouchStart?: EventHandler<TouchEvent>
   onTouchMove?: EventHandler<TouchEvent>
   onTouchEnd?: EventHandler<TouchEvent>
+  onTouchCancel?: EventHandler<TouchEvent>
+  onPointerDown?: EventHandler<PointerEvent>
+  onPointerUp?: EventHandler<PointerEvent>
+  onPointerMove?: EventHandler<PointerEvent>
+  onPointerEnter?: EventHandler<PointerEvent>
+  onPointerLeave?: EventHandler<PointerEvent>
+  onPointerCancel?: EventHandler<PointerEvent>
+  onGotPointerCapture?: EventHandler<PointerEvent>
+  onLostPointerCapture?: EventHandler<PointerEvent>
+  onContextMenu?: EventHandler<PointerEvent>
+  onDragEnter?: EventHandler<DragEvent>
+  onDragLeave?: EventHandler<DragEvent>
+  onDragOver?: EventHandler<DragEvent>
+  onLoad?: EventHandler<Event>
+  onError?: EventHandler<Event>
+  onAnimationStart?: EventHandler<AnimationEvent>
+  onAnimationEnd?: EventHandler<AnimationEvent>
+  onAnimationIteration?: EventHandler<AnimationEvent>
+  onTransitionEnd?: EventHandler<TransitionEvent>
+  onCompositionStart?: EventHandler<CompositionEvent>
+  onCompositionUpdate?: EventHandler<CompositionEvent>
+  onCompositionEnd?: EventHandler<CompositionEvent>
+  onCancel?: EventHandler<Event>
+  onClose?: EventHandler<Event>
+  onToggle?: EventHandler<Event>
 
   children?: JSXValue
 }
 
 type HTMLAttributes<T extends HTMLElement> = CommonDOMAttributes<T> & {
-  [key: `data-${string}`]: ReactiveAttr
-  [key: `aria-${string}`]: ReactiveAttr
-  [key: `prop:${string}`]: unknown
-  [key: string]: unknown
   type?: string
-  checked?: MaybeGetter<boolean | undefined>
-  value?: MaybeGetter<string | number | undefined>
-  placeholder?: ReactiveAttr
-  disabled?: MaybeGetter<boolean | undefined>
-  readonly?: MaybeGetter<boolean | undefined>
-  multiple?: MaybeGetter<boolean | undefined>
-  name?: ReactiveAttr
-  for?: ReactiveAttr
-  href?: ReactiveAttr
-  target?: ReactiveAttr
-  rel?: ReactiveAttr
-  src?: ReactiveAttr
-  alt?: ReactiveAttr
-  width?: MaybeGetter<number | string | undefined>
-  height?: MaybeGetter<number | string | undefined>
-  download?: ReactiveAttr
-  accept?: ReactiveAttr
-  maxlength?: MaybeGetter<number | undefined>
-  minlength?: MaybeGetter<number | undefined>
-  max?: MaybeGetter<number | string | undefined>
-  min?: MaybeGetter<number | string | undefined>
-  step?: MaybeGetter<number | string | undefined>
-  rows?: MaybeGetter<number | undefined>
-  cols?: MaybeGetter<number | undefined>
-  wrap?: ReactiveAttr
-  autofocus?: MaybeGetter<boolean | undefined>
-  autoplay?: MaybeGetter<boolean | undefined>
-  controls?: MaybeGetter<boolean | undefined>
-  loop?: MaybeGetter<boolean | undefined>
-  muted?: MaybeGetter<boolean | undefined>
-  preload?: ReactiveAttr
-  poster?: ReactiveAttr
-  srcset?: ReactiveAttr
-  sizes?: ReactiveAttr
-  crossorigin?: ReactiveAttr
-  defer?: MaybeGetter<boolean | undefined>
-  async?: MaybeGetter<boolean | undefined>
-  integrity?: ReactiveAttr
-  charset?: ReactiveAttr
-  'http-equiv'?: ReactiveAttr
-  content?: ReactiveAttr
-  lang?: ReactiveAttr
-  dir?: ReactiveAttr
-  spellcheck?: MaybeGetter<boolean | undefined>
-  translate?: MaybeGetter<boolean | undefined>
-  tabindex?: MaybeGetter<number | undefined>
-  accesskey?: ReactiveAttr
-  draggable?: MaybeGetter<boolean | undefined>
-  hidden?: MaybeGetter<boolean | undefined>
-  contenteditable?: MaybeGetter<boolean | undefined>
+  checked?: boolean | undefined
+  value?: string | number | undefined
+  placeholder?: PrimitiveAttr
+  disabled?: boolean | undefined
+  readonly?: boolean | undefined
+  multiple?: boolean | undefined
+  name?: PrimitiveAttr
+  for?: PrimitiveAttr
+  href?: PrimitiveAttr
+  target?: PrimitiveAttr
+  rel?: PrimitiveAttr
+  src?: PrimitiveAttr
+  alt?: PrimitiveAttr
+  width?: number | string | undefined
+  height?: number | string | undefined
+  download?: PrimitiveAttr
+  accept?: PrimitiveAttr
+  maxlength?: number | undefined
+  minlength?: number | undefined
+  max?: number | string | undefined
+  min?: number | string | undefined
+  step?: number | string | undefined
+  rows?: number | undefined
+  cols?: number | undefined
+  wrap?: PrimitiveAttr
+  autofocus?: boolean | undefined
+  autoplay?: boolean | undefined
+  controls?: boolean | undefined
+  loop?: boolean | undefined
+  muted?: boolean | undefined
+  preload?: PrimitiveAttr
+  poster?: PrimitiveAttr
+  srcset?: PrimitiveAttr
+  sizes?: PrimitiveAttr
+  crossorigin?: PrimitiveAttr
+  defer?: boolean | undefined
+  async?: boolean | undefined
+  integrity?: PrimitiveAttr
+  charset?: PrimitiveAttr
+  'http-equiv'?: PrimitiveAttr
+  content?: PrimitiveAttr
+  lang?: PrimitiveAttr
+  dir?: PrimitiveAttr
+  spellcheck?: boolean | undefined
+  translate?: boolean | undefined
+  tabindex?: number | undefined
+  tabIndex?: number | undefined
+  accesskey?: PrimitiveAttr
+  draggable?: boolean | undefined
+  hidden?: boolean | undefined
+  contenteditable?: boolean | 'true' | 'false' | 'plaintext-only' | undefined
+  autocomplete?: PrimitiveAttr
+  inputmode?: PrimitiveAttr
+  enterkeyhint?: PrimitiveAttr
+  pattern?: PrimitiveAttr
+  required?: boolean
+  form?: PrimitiveAttr
+  formaction?: PrimitiveAttr
+  formmethod?: PrimitiveAttr
+  formenctype?: PrimitiveAttr
+  formtarget?: PrimitiveAttr
+  novalidate?: boolean
+  method?: PrimitiveAttr
+  action?: PrimitiveAttr
+  enctype?: PrimitiveAttr
+  selected?: boolean
+  size?: number
+  span?: number
+  colspan?: number
+  rowspan?: number
+  scope?: PrimitiveAttr
+  datetime?: PrimitiveAttr
+  open?: boolean
+  inert?: boolean
+  popover?: '' | 'auto' | 'manual' | 'hint'
+  loading?: 'eager' | 'lazy'
+  decoding?: 'async' | 'sync' | 'auto'
+  capture?: PrimitiveAttr
+  is?: string
 }
 
 type SVGAttributes<T extends SVGElement> = CommonDOMAttributes<T> & {
-  [key: string]: unknown
-  d?: ReactiveAttr
-  cx?: MaybeGetter<number | string | undefined>
-  cy?: MaybeGetter<number | string | undefined>
-  r?: MaybeGetter<number | string | undefined>
-  rx?: MaybeGetter<number | string | undefined>
-  ry?: MaybeGetter<number | string | undefined>
-  x?: MaybeGetter<number | string | undefined>
-  y?: MaybeGetter<number | string | undefined>
-  width?: MaybeGetter<number | string | undefined>
-  height?: MaybeGetter<number | string | undefined>
-  viewBox?: ReactiveAttr
-  fill?: ReactiveAttr
-  stroke?: ReactiveAttr
-  'stroke-width'?: MaybeGetter<number | string | undefined>
-  'stroke-linecap'?: ReactiveAttr
-  'stroke-linejoin'?: ReactiveAttr
-  'stroke-dasharray'?: ReactiveAttr
-  'stroke-dashoffset'?: MaybeGetter<number | string | undefined>
-  'stroke-opacity'?: MaybeGetter<number | string | undefined>
-  'fill-opacity'?: MaybeGetter<number | string | undefined>
-  opacity?: MaybeGetter<number | string | undefined>
-  transform?: ReactiveAttr
-  points?: ReactiveAttr
-  x1?: MaybeGetter<number | string | undefined>
-  y1?: MaybeGetter<number | string | undefined>
-  x2?: MaybeGetter<number | string | undefined>
-  y2?: MaybeGetter<number | string | undefined>
+  d?: PrimitiveAttr
+  cx?: number | string | undefined
+  cy?: number | string | undefined
+  r?: number | string | undefined
+  rx?: number | string | undefined
+  ry?: number | string | undefined
+  x?: number | string | undefined
+  y?: number | string | undefined
+  width?: number | string | undefined
+  height?: number | string | undefined
+  viewBox?: PrimitiveAttr
+  focusable?: boolean | 'true' | 'false' | 'auto'
+  fill?: PrimitiveAttr
+  stroke?: PrimitiveAttr
+  'stroke-width'?: number | string | undefined
+  'stroke-linecap'?: PrimitiveAttr
+  'stroke-linejoin'?: PrimitiveAttr
+  'stroke-dasharray'?: PrimitiveAttr
+  'stroke-dashoffset'?: number | string | undefined
+  'stroke-opacity'?: number | string | undefined
+  'fill-opacity'?: number | string | undefined
+  opacity?: number | string | undefined
+  transform?: PrimitiveAttr
+  points?: PrimitiveAttr
+  xmlns?: string
+  'xmlns:xlink'?: string
+  'xlink:href'?: string
+  preserveAspectRatio?: PrimitiveAttr
+  offset?: number | string
+  'stop-color'?: PrimitiveAttr
+  'stop-opacity'?: number | string
+  'fill-rule'?: PrimitiveAttr
+  'clip-rule'?: PrimitiveAttr
+  'clip-path'?: PrimitiveAttr
+  'stroke-miterlimit'?: number | string
+  'text-anchor'?: PrimitiveAttr
+  'font-size'?: number | string
+  x1?: number | string | undefined
+  y1?: number | string | undefined
+  x2?: number | string | undefined
+  y2?: number | string | undefined
 }
 
-declare global {
-  namespace JSX {
-    type Element = JSXValue
+type HTMLIntrinsicElements = {
+  [Name in keyof HTMLElementTagNameMap]: HTMLAttributes<
+    HTMLElementTagNameMap[Name]
+  >
+}
 
-    interface ElementChildrenAttribute {
-      children: {}
-    }
+type SVGIntrinsicElements = {
+  [Name in Exclude<
+    keyof SVGElementTagNameMap,
+    keyof HTMLElementTagNameMap
+  >]: SVGAttributes<SVGElementTagNameMap[Name]>
+}
 
-    interface IntrinsicElements {
-      div: HTMLAttributes<HTMLDivElement>
-      span: HTMLAttributes<HTMLSpanElement>
-      p: HTMLAttributes<HTMLParagraphElement>
-      a: HTMLAttributes<HTMLAnchorElement>
-      button: HTMLAttributes<HTMLButtonElement>
-      input: HTMLAttributes<HTMLInputElement>
-      textarea: HTMLAttributes<HTMLTextAreaElement>
-      select: HTMLAttributes<HTMLSelectElement>
-      option: HTMLAttributes<HTMLOptionElement>
-      form: HTMLAttributes<HTMLFormElement>
-      label: HTMLAttributes<HTMLLabelElement>
-      ul: HTMLAttributes<HTMLUListElement>
-      ol: HTMLAttributes<HTMLOListElement>
-      li: HTMLAttributes<HTMLLIElement>
-      h1: HTMLAttributes<HTMLHeadingElement>
-      h2: HTMLAttributes<HTMLHeadingElement>
-      h3: HTMLAttributes<HTMLHeadingElement>
-      h4: HTMLAttributes<HTMLHeadingElement>
-      h5: HTMLAttributes<HTMLHeadingElement>
-      h6: HTMLAttributes<HTMLHeadingElement>
-      img: HTMLAttributes<HTMLImageElement>
-      video: HTMLAttributes<HTMLVideoElement>
-      audio: HTMLAttributes<HTMLAudioElement>
-      canvas: HTMLAttributes<HTMLCanvasElement>
-      table: HTMLAttributes<HTMLTableElement>
-      tbody: HTMLAttributes<HTMLTableSectionElement>
-      thead: HTMLAttributes<HTMLTableSectionElement>
-      tr: HTMLAttributes<HTMLTableRowElement>
-      td: HTMLAttributes<HTMLTableCellElement>
-      th: HTMLAttributes<HTMLTableCellElement>
+/** Zeus owns this JSX namespace; importing its types never augments another framework. */
+export namespace JSX {
+  export type Element = JSXValue
 
-      svg: SVGAttributes<SVGSVGElement>
-      path: SVGAttributes<SVGPathElement>
-      circle: SVGAttributes<SVGCircleElement>
-      rect: SVGAttributes<SVGRectElement>
-      line: SVGAttributes<SVGLineElement>
-      ellipse: SVGAttributes<SVGEllipseElement>
-      polyline: SVGAttributes<SVGPolylineElement>
-      polygon: SVGAttributes<SVGPolygonElement>
-      g: SVGAttributes<SVGGElement>
+  export interface ElementChildrenAttribute {
+    children: {}
+  }
 
-      slot: HTMLAttributes<HTMLSlotElement> & {
-        name?: string
-      }
-
-      [name: string]: Record<string, unknown> & {
-        consumes?: unknown[]
-      }
+  export interface IntrinsicElements
+    extends HTMLIntrinsicElements, SVGIntrinsicElements {
+    [name: `${string}-${string}`]: Record<string, unknown> & {
+      consumes?: unknown[]
     }
   }
 }

@@ -153,7 +153,7 @@ describe('output-react-wrapper', () => {
     expect(code).toContain('const className = props.className')
     expect(code).toContain('const style = props.style')
     expect(code).toContain('const rest = omitProps(props')
-    expect(code).toContain('rest.ref = innerRef')
+    expect(code).toContain('rest.ref = setRef')
     expect(code).toContain('rest.className = className')
     expect(code).toContain('rest.style = style')
     expect(code).not.toContain('...rest')

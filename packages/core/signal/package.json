@@ -27,7 +27,14 @@
     },
     "./internal": {
       "types": "./dist/internal.d.ts",
-      "import": "./dist/internal.js",
+      "import": {
+        "node": {
+          "production": "./dist/internal.prod.cjs",
+          "development": "./dist/internal.cjs",
+          "default": "./internal.cjs"
+        },
+        "default": "./dist/internal.js"
+      },
       "require": {
         "production": "./dist/internal.prod.cjs",
         "development": "./dist/internal.cjs",
@@ -51,8 +58,7 @@
     "dist"
   ],
   "dependencies": {
-    "@zeus-js/shared": "workspace:*",
-    "alien-signals": "^3.2.1"
+    "@zeus-js/shared": "workspace:*"
   },
   "author": "Baicie",
   "bugs": {

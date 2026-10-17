@@ -67,9 +67,8 @@ Registers event types for delegation at the document level.
 
 ## defineElement prop reactivity
 
-`defineElement` props use deep reactivity by default. Large immutable values can
-opt into shallow reactivity so Zeus tracks only top-level replacement and keeps
-the original object or array identity:
+`defineElement` 的 props 默认使用浅响应式，只追踪整个值的替换，并保持传入对象、
+数组和函数的 identity。确实需要嵌套代理时，可显式指定 `reactivity: 'deep'`：
 
 ```ts
 import { defineElement, prop } from '@zeus-js/runtime-dom'
@@ -93,10 +92,9 @@ defineElement<GridProps<unknown>>(
 )
 ```
 
-For a shallow prop, assigning `element.rows = nextRows` triggers dependents.
-Mutating `element.rows[index]` or a nested row does not trigger an update. Use
-replace-on-write for shallow props. Props without `reactivity: 'shallow'`
-retain the existing deep reactive behavior.
+赋值 `element.rows = nextRows` 会触发依赖更新；原地修改数组元素或嵌套对象不会触发
+更新，应通过新引用替换。显式使用 `reactivity: 'deep'` 时，对象会被代理，因而不再
+承诺保留原始 identity。完整 eager/lazy 属性契约见 [RFC-007](../rfcs/RFC-007-wc-prop-contract.md)。
 
 ## mountShow
 

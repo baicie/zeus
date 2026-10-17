@@ -1,5 +1,5 @@
 import { rollup } from 'rollup'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { createZeus } from '../src'
 
@@ -9,6 +9,7 @@ import type { HookHandler, Plugin, ResolvedConfig } from 'vite'
 
 type TransformHook = NonNullable<HookHandler<Plugin['transform']>>
 type ConfigResolvedHook = NonNullable<HookHandler<Plugin['configResolved']>>
+type HandleHotUpdateHook = NonNullable<HookHandler<Plugin['handleHotUpdate']>>
 type TransformOutput = Awaited<ReturnType<TransformHook>>
 type TransformOptions = Parameters<TransformHook>[2]
 
@@ -38,6 +39,12 @@ const statefulPatterns: [string, () => RegExp][] = [
 function getTransformHook(plugin: Plugin): TransformHook {
   const hook = plugin.transform
   if (!hook) throw new Error('Expected transform hook')
+  return typeof hook === 'function' ? hook : hook.handler
+}
+
+function getHandleHotUpdateHook(plugin: Plugin): HandleHotUpdateHook {
+  const hook = plugin.handleHotUpdate
+  if (!hook) throw new Error('Expected handleHotUpdate hook')
   return typeof hook === 'function' ? hook : hook.handler
 }
 
@@ -97,6 +104,33 @@ describe('vite-plugin-zeus transform', () => {
 
     expect(plugin.name).toBe('vite-plugin-zeus')
     expect(plugin.enforce).toBe('pre')
+  })
+
+  it('reports conservative classifications for TSX updates', async () => {
+    const plugin = createZeus()
+    runConfigResolved(plugin, 'serve', false)
+    const transform = getTransformHook(plugin)
+    const transformContext = {
+      error(error: string | { message: string }): never {
+        throw new Error(typeof error === 'string' ? error : error.message)
+      },
+    } as ThisParameterType<TransformHook>
+    const previous = 'const App = () => <div>hello</div>'
+    await transform.call(transformContext, previous, '/src/App.tsx', undefined)
+
+    const debug = vi.fn()
+    const update: Parameters<HandleHotUpdateHook>[0] = {
+      file: '/src/App.tsx',
+      read: async () => 'const App = () => <button>hello</button>',
+    } as Parameters<HandleHotUpdateHook>[0]
+    await getHandleHotUpdateHook(plugin).call(
+      { debug } as unknown as ThisParameterType<HandleHotUpdateHook>,
+      update,
+    )
+
+    expect(debug).toHaveBeenCalledWith(
+      '[Zeus HMR] template-structure -> dispose-remount: /src/App.tsx',
+    )
   })
 
   it.each(['/src/App.tsx', '/src/App.jsx'])(
@@ -236,18 +270,23 @@ describe('vite-plugin-zeus transform', () => {
     expect(domCode).toContain('from "virtual:dom-runtime"')
   })
 
-  it('adds a disposal HMR boundary to top-level render roots in serve mode', async () => {
+  it('registers a full-remount HMR boundary before top-level roots in serve mode', async () => {
     const code = getCode(
       await createTransformHarness({}, 'serve')(rootSource, '/src/main.tsx'),
     )
+    if (!code) throw new Error('Expected transformed root module')
 
-    expect(code).toContain('const _dispose = mount')
+    expect(code).toContain('const _zeusHmrDisposers = []')
+    expect(code).toContain('_zeusHmrDisposers.push(mount')
     expect(code).toContain('import.meta.hot.accept()')
     expect(code).toContain('import.meta.hot.dispose')
-    expect(code).toContain('_dispose()')
+    expect(code).toContain('root disposal failed')
+    expect(code.indexOf('import.meta.hot.dispose')).toBeLessThan(
+      code.indexOf("mount('view'"),
+    )
   })
 
-  it('reuses an explicitly captured top-level render disposer', async () => {
+  it('captures an explicitly exported top-level render disposer', async () => {
     const capturedSource = [
       "import { render } from '@zeus-js/zeus'",
       '',
@@ -260,8 +299,10 @@ describe('vite-plugin-zeus transform', () => {
       ),
     )
 
-    expect(code).toContain('export const disposeApp = render')
-    expect(code).toContain('disposeApp()')
+    expect(code).toContain(
+      'export const disposeApp = (_zeusHmrDisposers.push(render',
+    )
+    expect(code).toContain('_zeusHmrDisposers[_zeusHmrDisposers.length - 1]')
     expect(code).not.toContain('const _dispose')
   })
 
@@ -360,6 +401,7 @@ describe('vite-plugin-zeus transform', () => {
         '  globalThis.__zeusRootHMRTest.events.push(`mount:${label}`)',
         '  return () => {',
         '    globalThis.__zeusRootHMRTest.events.push(`dispose:${label}`)',
+        "    if (label === 'second') throw new Error('cleanup failed')",
         '  }',
         '}',
       ].join('\n'),
@@ -373,31 +415,111 @@ describe('vite-plugin-zeus transform', () => {
       .split('import.meta.hot')
       .join('globalThis.__zeusRootHMRTest.hot')
 
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
       await import(`${toDataURL(executableCode)}#initial`)
       expect(state.events).toEqual([
-        'mount:first',
-        'mount:second',
         'accept',
         'register-dispose',
+        'mount:first',
+        'mount:second',
       ])
 
       const dispose = state.disposers.shift()
       if (!dispose) throw new Error('Expected registered HMR disposer')
       dispose()
+      expect(state.events).toEqual([
+        'accept',
+        'register-dispose',
+        'mount:first',
+        'mount:second',
+        'dispose:second',
+        'dispose:first',
+      ])
+      dispose()
+      expect(state.events).toHaveLength(6)
 
       await import(`${toDataURL(executableCode)}#updated`)
       expect(state.events).toEqual([
-        'mount:first',
-        'mount:second',
         'accept',
         'register-dispose',
+        'mount:first',
+        'mount:second',
         'dispose:second',
         'dispose:first',
-        'mount:first',
-        'mount:second',
         'accept',
         'register-dispose',
+        'mount:first',
+        'mount:second',
+      ])
+      expect(consoleError).toHaveBeenCalledWith(
+        '[Zeus HMR] root disposal failed',
+        expect.any(Error),
+      )
+    } finally {
+      consoleError.mockRestore()
+      delete globalState.__zeusRootHMRTest
+    }
+  })
+
+  it('keeps cleanup registered when module initialization throws after mounting', async () => {
+    const state: RootHMRTestState = {
+      events: [],
+      disposers: [],
+      hot: {
+        accept() {
+          state.events.push('accept')
+        },
+        dispose(callback) {
+          state.events.push('register-dispose')
+          state.disposers.push(callback)
+        },
+      },
+    }
+    const globalState = globalThis as typeof globalThis & {
+      __zeusRootHMRTest?: RootHMRTestState
+    }
+    globalState.__zeusRootHMRTest = state
+    const source = [
+      "import { render as mount } from '@zeus-js/zeus'",
+      "mount('partial', undefined)",
+      "throw new Error('module initialization failed')",
+    ].join('\n')
+    const code = getCode(
+      await createTransformHarness({}, 'serve')(source, '/src/main.tsx'),
+    )
+    if (!code) throw new Error('Expected transformed root module')
+    const runtimeURL = toDataURL(
+      [
+        'export function render(label) {',
+        '  globalThis.__zeusRootHMRTest.events.push(`mount:${label}`)',
+        '  return () => globalThis.__zeusRootHMRTest.events.push(`dispose:${label}`)',
+        '}',
+      ].join('\n'),
+    )
+    const executableCode = code
+      .replace(
+        /from ['"]@zeus-js\/zeus['"]/,
+        `from ${JSON.stringify(runtimeURL)}`,
+      )
+      .split('import.meta.hot')
+      .join('globalThis.__zeusRootHMRTest.hot')
+
+    try {
+      await expect(import(toDataURL(executableCode))).rejects.toThrow(
+        'module initialization failed',
+      )
+      expect(state.events).toEqual([
+        'accept',
+        'register-dispose',
+        'mount:partial',
+      ])
+      state.disposers.shift()?.()
+      expect(state.events).toEqual([
+        'accept',
+        'register-dispose',
+        'mount:partial',
+        'dispose:partial',
       ])
     } finally {
       delete globalState.__zeusRootHMRTest

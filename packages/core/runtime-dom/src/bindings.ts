@@ -1,4 +1,7 @@
+import { normalizeDOMAttributeName } from '@zeus-js/shared'
 import { effect, untrack } from '@zeus-js/signal/internal'
+
+import { assertRenderableJSXValue } from './jsxValue'
 
 import type { AttrValue, ClassValue, JSXValue, StyleValue } from './types'
 
@@ -53,7 +56,13 @@ function applyBinding<T>(
 }
 
 function stringifyText(value: JSXValue): string {
+  if (typeof value === 'function') {
+    throw new TypeError(
+      'JSX children require values; call the function explicitly.',
+    )
+  }
   if (Array.isArray(value)) return value.map(stringifyText).join('')
+  assertRenderableJSXValue(value)
   if (value == null || value === false || value === true) return ''
   if (typeof Node !== 'undefined' && value instanceof Node) {
     return value.textContent ?? ''
@@ -109,6 +118,11 @@ function writeAttr(el: Element, name: string, value: AttrValue): void {
 }
 
 function serializeAttrValue(value: AttrValue): string | null {
+  if (typeof value === 'function') {
+    throw new TypeError(
+      'JSX attributes cannot contain functions; use prop:name for function values.',
+    )
+  }
   return value == null || value === false
     ? null
     : value === true
@@ -137,7 +151,7 @@ const BOOLEAN_DOM_PROPERTY_NAME: Record<string, string> = {
 }
 
 function normalizeAttrName(name: string): string {
-  return name === 'className' ? 'class' : name
+  return normalizeDOMAttributeName(name)
 }
 
 export function bindAttr(
@@ -240,7 +254,7 @@ export function bindStyle(
 
 type StyleSnapshot = [values: Record<string, string>, state: string]
 
-function patchStyle(
+export function patchStyle(
   el: HTMLElement | SVGElement,
   prev: StyleSnapshot | undefined,
   next: Record<string, string | number | null | undefined>,

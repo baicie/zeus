@@ -30,19 +30,21 @@ function generateMinimalVueWrapper(input: GenerateVueWrapperOptions): string {
   const slotNames = getNamedSlots(component)
   const hasNamedSlots = slotNames.length > 0
   const vueImports = hasNamedSlots
-    ? 'cloneVNode, defineComponent, h'
-    : 'defineComponent, h'
+    ? 'cloneVNode, defineComponent, h, onBeforeMount'
+    : 'defineComponent, h, onBeforeMount'
 
   return `
 import { ${vueImports} } from 'vue';
 
-import ${JSON.stringify(wcModuleId)};
+import { defineCustomElement } from ${JSON.stringify(wcModuleId)};
+${VUE_REGISTRATION_HELPER}
 ${hasNamedSlots ? `\nconst NAMED_SLOTS = ${JSON.stringify(slotNames)};\n` : ''}
 export const ${component.name} = defineComponent({
   name: ${JSON.stringify(component.name)},
   inheritAttrs: false,
 
   setup(_props, { attrs, slots }) {
+    onBeforeMount(registerCustomElement);
     return () => {
 ${generateVueChildren(slotNames)}
       return h(${JSON.stringify(component.tag)}, attrs, children);
@@ -73,6 +75,7 @@ function generateEventBridgeVueWrapper(
   const vueImports = [
     ...(hasNamedSlots ? ['cloneVNode'] : []),
     'defineComponent',
+    'onBeforeMount',
     ...(hasProps ? ['getCurrentInstance'] : []),
     'h',
     ...(hasEvents ? ['onBeforeUnmount'] : []),
@@ -86,7 +89,8 @@ import {
   ${vueImports.join(',\n  ')},
 } from 'vue';
 
-import ${JSON.stringify(wcModuleId)};
+import { defineCustomElement } from ${JSON.stringify(wcModuleId)};
+${VUE_REGISTRATION_HELPER}
 ${generateVueConstants(capabilities)}
 export const ${component.name} = defineComponent({
   name: ${JSON.stringify(component.name)},
@@ -94,6 +98,7 @@ export const ${component.name} = defineComponent({
 ${hasProps ? `\n  props: {\n    ${generateVueProps(component)}\n  },\n` : ''}
 ${hasEvents ? `  emits: ${models.length ? JSON.stringify(emitNames) : 'EVENT_NAMES'},\n` : ''}
   setup(${hasProps ? 'props' : '_props'}, { attrs, slots${hasEvents ? ', emit' : ''} }) {
+    onBeforeMount(registerCustomElement);
     const elRef = ref(null);
 ${generateVuePropSetup(hasProps)}
 ${generateVueEventSetup(hasEvents, models.length > 0)}
@@ -285,7 +290,7 @@ function generateVueProps(component: ComponentRecord): string {
 }
 
 function generateRuntimeVueWrapper(input: GenerateVueWrapperOptions): string {
-  const { component } = input
+  const { component, wcModuleId } = input
   const propNames = Object.keys(component.props)
   const eventNames = getEventNames(component)
   const slotNames = Object.keys(component.slots).filter(
@@ -295,12 +300,12 @@ function generateRuntimeVueWrapper(input: GenerateVueWrapperOptions): string {
 
   return [
     `import { defineContainer } from '@zeus-js/output-vue-wrapper/runtime'`,
-    `import { defineCustomElement } from '../wc/loader.js'`,
+    `import { defineCustomElement } from ${JSON.stringify(wcModuleId)}`,
     ``,
     `export const ${component.name} = defineContainer({`,
     `  tagName: ${JSON.stringify(component.tag)},`,
     `  displayName: ${JSON.stringify(component.name)},`,
-    `  defineCustomElement: () => defineCustomElement(${JSON.stringify(component.tag)}),`,
+    `  defineCustomElement,`,
     `  props: ${JSON.stringify(propNames)},`,
     `  events: ${JSON.stringify(eventNames)},`,
     `  slots: ${JSON.stringify(slotNames)},`,
@@ -372,6 +377,16 @@ function hasRawProp(rawProps, name) {
 
 function hasOwn(source, key) {
   return Object.prototype.hasOwnProperty.call(source, key);
+}
+`
+
+const VUE_REGISTRATION_HELPER = `
+const registeredRegistries = new WeakSet();
+function registerCustomElement() {
+  if (typeof customElements === 'undefined') return;
+  if (registeredRegistries.has(customElements)) return;
+  defineCustomElement();
+  registeredRegistries.add(customElements);
 }
 `
 

@@ -37,15 +37,15 @@ function setup(
   return (
     <Host
       data-slot="button"
-      data-variant={() => props.variant}
-      data-size={() => props.size}
-      data-disabled={() => (props.disabled ? '' : undefined)}
+      data-variant={props.variant}
+      data-size={props.size}
+      data-disabled={props.disabled ? '' : undefined}
     >
       <button
         part="root"
         type="button"
-        disabled={() => Boolean(props.disabled)}
-        aria-disabled={() => (props.disabled ? 'true' : undefined)}
+        disabled={Boolean(props.disabled)}
+        aria-disabled={props.disabled ? 'true' : undefined}
         onClick={handleClick}
       >
         <Slot />

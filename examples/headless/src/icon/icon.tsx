@@ -24,7 +24,7 @@ function setup(props: IconProps) {
   })
 
   return (
-    <Host data-slot="icon" data-name={() => props.name}>
+    <Host data-slot="icon" data-name={props.name}>
       <svg
         ref={(svgEl: SVGSVGElement | null) => {
           if (svgEl) {
@@ -34,10 +34,10 @@ function setup(props: IconProps) {
         }}
         part="root"
         focusable="false"
-        width={() => props.size}
-        height={() => props.size}
-        aria-hidden={() => (props.label ? undefined : 'true')}
-        aria-label={() => props.label}
+        width={props.size}
+        height={props.size}
+        aria-hidden={props.label ? undefined : 'true'}
+        aria-label={props.label}
       />
     </Host>
   )

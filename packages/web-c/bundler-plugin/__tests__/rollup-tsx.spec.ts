@@ -102,6 +102,23 @@ describe('rollup adapter', () => {
     expect(resolved).toBeNull()
   })
 
+  it('resolves component-isolated lazy imports', () => {
+    const plugin = zeus({ root })
+    const resolveId = plugin.resolveId as (
+      id: string,
+      importer?: string,
+    ) => string | null
+
+    const resolved = resolveId(
+      './Button.tsx?zeus-lazy-component=Button',
+      path.join(root, 'src/index.ts'),
+    )
+
+    expect(resolved).toBe(
+      path.join(root, 'src/Button.tsx') + '?zeus-lazy-component=Button',
+    )
+  })
+
   it('does not resolve imports that already have an extension', () => {
     const plugin = zeus({
       root,

@@ -1,3 +1,4 @@
+import { classifyHmrUpdate } from './hmr'
 import { transformModule } from './native'
 import {
   resolveRuntimeDOMEntry,
@@ -57,6 +58,7 @@ function createFilter(options: ZeusVitePluginOptions = {}) {
 
 export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
   const shouldTransform = createFilter(options)
+  const previousSources = new Map<string, string>()
   let enableRootHMR = false
 
   return {
@@ -99,6 +101,33 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
       enableRootHMR = options.hmr !== false && config.command === 'serve'
     },
 
+    async handleHotUpdate(context) {
+      if (!enableRootHMR) return
+
+      const filename = cleanModuleId(context.file)
+      if (
+        !shouldTransform(filename) &&
+        !/\.(?:css|pcss|postcss|scss|sass|less|styl|stylus)$/i.test(filename)
+      ) {
+        return
+      }
+
+      let nextSource: string
+      try {
+        nextSource = await context.read()
+      } catch {
+        return
+      }
+      const classification = classifyHmrUpdate(
+        filename,
+        previousSources.get(filename),
+        nextSource,
+      )
+      this.debug(
+        `[Zeus HMR] ${classification.kind} -> ${classification.strategy}: ${filename}`,
+      )
+    },
+
     async transform(code, id, transformOptions) {
       const filename = cleanModuleId(id)
       const isSSR = transformOptions?.ssr === true
@@ -135,6 +164,8 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
           meta: { zeusDiagnostic: diagnostic },
         })
       }
+
+      if (enableRootHMR && !isSSR) previousSources.set(filename, code)
 
       return { code: result.code, map: result.map }
     },

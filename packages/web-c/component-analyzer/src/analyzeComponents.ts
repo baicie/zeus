@@ -83,7 +83,7 @@ export async function analyzeComponentsWithDependencies(
 
   return {
     manifest: {
-      version: 1,
+      schemaVersion: 1,
       components,
     },
     diagnostics,

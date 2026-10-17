@@ -41,6 +41,12 @@ describe('Slot', () => {
     expect((slot as HTMLSlotElement).name).toBe('')
   })
 
+  it('rejects non-string slot names', () => {
+    expect(() => createSlot((() => 'header') as unknown as string)).toThrow(
+      '<Slot> `name` must be a static string value',
+    )
+  })
+
   it('creates named native slot when used outside host context', () => {
     const slot = createSlot('prefix')
 
@@ -552,5 +558,55 @@ describe('Slot', () => {
       first,
       second,
     ])
+  })
+
+  it('preserves nested projection identity and selection through reorder', async () => {
+    const childTag = createTag('nested-child')
+    const parentTag = createTag('nested-parent')
+
+    defineElement(childTag, { shadow: false }, () => {
+      const article = document.createElement('article')
+      insertTracked(article, Slot({}))
+      return article
+    })
+
+    defineElement(parentTag, { shadow: false }, () => {
+      const section = document.createElement('section')
+      const main = document.createElement('main')
+      insertTracked(main, Slot({}))
+      section.append(main)
+      return section
+    })
+
+    const parent = document.createElement(parentTag)
+    const nested = document.createElement(childTag)
+    const field = document.createElement('input')
+    field.value = 'abcdef'
+    nested.append(field)
+
+    const peer = document.createElement('button')
+    peer.textContent = 'peer'
+    parent.append(nested, peer)
+    document.body.append(parent)
+    await nextFrame()
+
+    expect(nested.querySelector('article input')).toBe(field)
+    expect(Array.from(parent.querySelector('main')!.children)).toEqual(
+      expect.arrayContaining([nested, peer]),
+    )
+
+    field.focus()
+    field.setSelectionRange(2, 4)
+
+    // Moving a projected source node through the host is the observable
+    // operation a consumer performs when reconciling light DOM children.
+    parent.append(nested)
+    await nextFrame()
+
+    const main = parent.querySelector('main')!
+    expect(Array.from(main.children)).toEqual([peer, nested])
+    expect(nested.querySelector('article input')).toBe(field)
+    expect(field.selectionStart).toBe(2)
+    expect(field.selectionEnd).toBe(4)
   })
 })

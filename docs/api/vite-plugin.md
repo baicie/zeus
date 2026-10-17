@@ -50,6 +50,29 @@ transforms do not contain the HMR boundary.
 Set `hmr: false` to disable automatic boundaries. A module that contains its
 own `import.meta.hot` handling is also left unchanged.
 
+### HMR update classes
+
+The plugin records a conservative update class for development diagnostics:
+
+| Update                                          | Current strategy                                                                             |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| CSS/stylesheet module                           | Vite CSS HMR (`vite-style`); Zeus roots are not remounted                                    |
+| Template structure                              | `dispose-remount`; direct render roots are disposed and remounted                            |
+| Signal initialization                           | `dispose-remount`; direct render roots are disposed and remounted                            |
+| Component API (`defineElement`, props, exports) | `dispose-remount`; direct roots are disposed, dependency-only updates propagate through Vite |
+| Unknown change                                  | `dispose-remount`; direct render roots are disposed and remounted                            |
+
+Only stylesheet updates use Vite's style-preserving path. No TSX update class
+currently retains Signal state or DOM identity. The generated root boundary is
+registered before module initialization, captures each successful `render()`
+disposer immediately, and disposes roots in reverse mount order. Each disposer
+is isolated so one cleanup error cannot leave other owners or listeners alive.
+The classification is intentionally diagnostic and conservative; state
+retention requires a separate proof of owner, listener, and DOM identity safety.
+When a changed dependency has no local render root, Vite's unaccepted-update
+propagation may reload the importing page; the plugin does not claim component
+state preservation for that path.
+
 ### compiler
 
 Overrides the native transform options passed to `transformModule`. The only

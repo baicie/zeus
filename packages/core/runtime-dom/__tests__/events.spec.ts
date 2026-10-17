@@ -194,4 +194,85 @@ describe('delegated events', () => {
 
     parent.remove()
   })
+
+  it('delegates composed events across a shadow root', () => {
+    const host = document.createElement('div')
+    const shadow = host.attachShadow({ mode: 'open' })
+    const button = document.createElement('button')
+    const fn = vi.fn()
+    shadow.appendChild(button)
+    document.body.appendChild(host)
+
+    delegateEvents(['click'])
+    bindEvent(button, 'click', fn)
+
+    button.dispatchEvent(
+      new dom.window.MouseEvent('click', {
+        bubbles: true,
+        composed: true,
+        cancelable: true,
+      }),
+    )
+
+    expect(fn).toHaveBeenCalledTimes(1)
+    host.remove()
+  })
+
+  it('does not cross a shadow root for non-composed events', () => {
+    const host = document.createElement('div')
+    const shadow = host.attachShadow({ mode: 'open' })
+    const button = document.createElement('button')
+    const fn = vi.fn()
+    shadow.appendChild(button)
+    document.body.appendChild(host)
+
+    delegateEvents(['click'])
+    bindEvent(button, 'click', fn)
+
+    button.dispatchEvent(
+      new dom.window.MouseEvent('click', {
+        bubbles: true,
+        composed: false,
+        cancelable: true,
+      }),
+    )
+
+    expect(fn).not.toHaveBeenCalled()
+    host.remove()
+  })
+
+  it('handles closed shadow roots locally and cleans up with the owner', () => {
+    const host = document.createElement('div')
+    const shadow = host.attachShadow({ mode: 'closed' })
+    const button = document.createElement('button')
+    const innerFn = vi.fn()
+    const hostFn = vi.fn()
+    const owner = scope()
+    shadow.appendChild(button)
+    document.body.appendChild(host)
+
+    delegateEvents(['click'])
+    bindEvent(host, 'click', hostFn)
+    owner.run(() => bindEvent(button, 'click', innerFn))
+
+    const dispatchClick = () =>
+      button.dispatchEvent(
+        new dom.window.MouseEvent('click', {
+          bubbles: true,
+          composed: true,
+          cancelable: true,
+        }),
+      )
+    dispatchClick()
+
+    expect(innerFn).toHaveBeenCalledTimes(1)
+    expect(hostFn).toHaveBeenCalledTimes(1)
+
+    owner.stop()
+    dispatchClick()
+
+    expect(innerFn).toHaveBeenCalledTimes(1)
+    expect(hostFn).toHaveBeenCalledTimes(2)
+    host.remove()
+  })
 })

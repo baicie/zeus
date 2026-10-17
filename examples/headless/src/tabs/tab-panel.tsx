@@ -10,11 +10,8 @@ function setup(props: TabPanelProps, ctx: { host: HTMLElement }) {
   const active = () => findTabsHost(ctx.host)?.value === props.value
 
   return (
-    <Host
-      data-slot="tab-panel"
-      data-state={() => (active() ? 'active' : 'inactive')}
-    >
-      <div part="root" role="tabpanel" hidden={() => !active()}>
+    <Host data-slot="tab-panel" data-state={active() ? 'active' : 'inactive'}>
+      <div part="root" role="tabpanel" hidden={!active()}>
         <Slot />
       </div>
     </Host>

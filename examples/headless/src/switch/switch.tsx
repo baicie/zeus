@@ -38,16 +38,16 @@ function setup(
   return (
     <Host
       data-slot="switch"
-      data-state={() => (props.checked ? 'checked' : 'unchecked')}
-      data-disabled={() => (props.disabled ? '' : undefined)}
+      data-state={props.checked ? 'checked' : 'unchecked'}
+      data-disabled={props.disabled ? '' : undefined}
     >
       <button
         part="root"
         type="button"
         role="switch"
-        disabled={() => Boolean(props.disabled)}
-        aria-checked={() => (props.checked ? 'true' : 'false')}
-        aria-disabled={() => (props.disabled ? 'true' : undefined)}
+        disabled={Boolean(props.disabled)}
+        aria-checked={props.checked ? 'true' : 'false'}
+        aria-disabled={props.disabled ? 'true' : undefined}
         onClick={toggle}
         onKeyDown={onKeyDown}
       >

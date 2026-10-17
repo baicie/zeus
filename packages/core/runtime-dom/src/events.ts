@@ -8,6 +8,7 @@ type ZeusEventMap = Record<string, EventListener>
 
 type ZeusElementWithEvents = Element & {
   __zeusEvents?: ZeusEventMap
+  __zeusDirectEvents?: ZeusEventMap
 }
 
 const delegatedEvents = new Set<string>()
@@ -25,12 +26,29 @@ export function bindEvent(
 ): void {
   const target = el as ZeusElementWithEvents
   const events = (target.__zeusEvents ||= {})
+  const directEvents = (target.__zeusDirectEvents ||= {})
+
+  const previousDirectHandler = directEvents[name]
+  if (previousDirectHandler) {
+    el.removeEventListener(name, previousDirectHandler)
+    delete directEvents[name]
+  }
 
   events[name] = handler
+
+  if (isInClosedShadowRoot(el)) {
+    directEvents[name] = handler
+    el.addEventListener(name, handler)
+  }
 
   onScopeDispose(() => {
     if (target.__zeusEvents?.[name] === handler) {
       delete target.__zeusEvents[name]
+
+      if (target.__zeusDirectEvents?.[name] === handler) {
+        el.removeEventListener(name, handler)
+        delete target.__zeusDirectEvents[name]
+      }
     }
   }, true)
 }
@@ -68,8 +86,31 @@ function normalizeOriginalEventName(name: string): string {
   return name
 }
 
+function isInClosedShadowRoot(el: Element): boolean {
+  const root = el.getRootNode() as DocumentFragment & { mode?: string }
+  return root.nodeType === Node.DOCUMENT_FRAGMENT_NODE && root.mode === 'closed'
+}
+
 function dispatchDelegatedEvent(event: Event): void {
   const eventName = normalizeOriginalEventName(event.type)
+
+  const composedPath = event.composedPath?.()
+  if (composedPath?.length) {
+    for (const target of composedPath) {
+      if (target === document || target === document.defaultView) break
+      if (target && (target as Node).nodeType === Node.ELEMENT_NODE) {
+        const el = target as ZeusElementWithEvents
+        const handler = el.__zeusEvents?.[eventName]
+
+        if (handler) {
+          callDelegatedHandler(el, handler, event)
+
+          if (event.cancelBubble) return
+        }
+      }
+    }
+    return
+  }
 
   let node = event.target as Node | null
 

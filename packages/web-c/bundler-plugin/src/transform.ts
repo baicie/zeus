@@ -25,6 +25,7 @@ export interface TransformZeusOptions {
   compiler?: Partial<NativeCompilerOptions> | false
   sourcemap?: boolean
   transpile?: boolean
+  pureDefineElement?: boolean
 }
 
 export async function transformZeus(
@@ -54,6 +55,7 @@ export async function transformZeus(
       runtimeModule: compilerOptions.moduleName ?? '@zeus-js/runtime-dom',
       delegateEvents: compilerOptions.delegateEvents ?? true,
       sourceMap: sourcemap,
+      pureDefineElement: options.pureDefineElement ?? false,
     })
     const diagnostic = result.diagnostics.find(
       entry => entry.severity === 'error',

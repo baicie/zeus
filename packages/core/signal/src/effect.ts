@@ -3,6 +3,14 @@ import { extend, hasChanged } from '@zeus-js/shared'
 import { RuntimeDiagnosticsField } from './constants'
 import { type Link, globalVersion } from './dep'
 import { activeEffectScope } from './effectScope'
+import {
+  assertEngineOwner,
+  createEngineOwnerFrame,
+  engineContext,
+  engineToken,
+  enterEngineOwner,
+  leaveEngineOwner,
+} from './engine-context'
 import { activeRuntimeDiagnostics } from './runtime-diagnostics'
 import { warn } from './warning'
 
@@ -34,6 +42,7 @@ export interface ReactiveEffectOptions extends DebuggerOptions {
   scheduler?: EffectScheduler
   allowRecurse?: boolean
   onStop?: () => void
+  rejectReentry?: boolean
 }
 
 export interface ReactiveEffectRunner<T = any> {
@@ -122,8 +131,12 @@ export class ReactiveEffect<T = any>
   onStop?: () => void
   onTrack?: (event: DebuggerEvent) => void
   onTrigger?: (event: DebuggerEvent) => void
+  rejectReentry?: boolean
+
+  private readonly engineFrame = createEngineOwnerFrame()
 
   constructor(public fn: () => T) {
+    assertEngineOwner('create an effect')
     const diagnostics = activeRuntimeDiagnostics
     if (diagnostics) {
       diagnostics[RuntimeDiagnosticsField.EFFECTS_CREATED]++
@@ -133,13 +146,16 @@ export class ReactiveEffect<T = any>
       const stop = this.stop.bind(this)
       this.stop = () => {
         const active = !!(this.flags & EffectFlags.ACTIVE)
-        stop()
-        if (
-          active &&
-          !(this.flags & EffectFlags.ACTIVE) &&
-          diagnostics[RuntimeDiagnosticsField.ACTIVE]
-        ) {
-          diagnostics[RuntimeDiagnosticsField.EFFECTS_DISPOSED]++
+        try {
+          stop()
+        } finally {
+          if (
+            active &&
+            !(this.flags & EffectFlags.ACTIVE) &&
+            diagnostics[RuntimeDiagnosticsField.ACTIVE]
+          ) {
+            diagnostics[RuntimeDiagnosticsField.EFFECTS_DISPOSED]++
+          }
         }
       }
     }
@@ -182,6 +198,11 @@ export class ReactiveEffect<T = any>
    * @internal
    */
   notify(): void {
+    if (this.flags & EffectFlags.RUNNING && this.rejectReentry) {
+      throw new Error(
+        'A reactive effect cannot synchronously update its own dependencies. Move the write to an event or a separate effect.',
+      )
+    }
     if (
       this.flags & EffectFlags.RUNNING &&
       !(this.flags & EffectFlags.ALLOW_RECURSE)
@@ -194,46 +215,67 @@ export class ReactiveEffect<T = any>
   }
 
   run(): T {
-    // TODO cleanupEffect
-
+    if (this.flags & EffectFlags.RUNNING) {
+      throw new Error('A reactive effect cannot re-enter while it is running.')
+    }
     if (!(this.flags & EffectFlags.ACTIVE)) {
       // stopped during cleanup
       return this.fn()
     }
 
     this.flags |= EffectFlags.RUNNING
-    cleanupEffect(this)
-    prepareDeps(this)
     const prevEffect = activeSub
     const prevShouldTrack = shouldTrack
-    activeSub = this
-    shouldTrack = true
+    const previousTracker = engineContext.tracker
+    this.scope?.on()
+    const entered = this.scope ? false : enterEngineOwner(this.engineFrame)
+    let prepared = false
 
     try {
+      cleanupEffect(this)
+      prepareDeps(this)
+      prepared = true
+      activeSub = this
+      shouldTrack = true
+      engineContext.tracker = engineToken
       return this.fn()
     } finally {
-      if (__DEV__ && activeSub !== this) {
+      if (__DEV__ && prepared && activeSub !== this) {
         warn(
           'Active effect was not restored correctly - ' +
             'this is likely a Vue internal bug.',
         )
       }
-      cleanupDeps(this)
+      if (prepared) cleanupDeps(this)
       activeSub = prevEffect
       shouldTrack = prevShouldTrack
       this.flags &= ~EffectFlags.RUNNING
+      engineContext.tracker = previousTracker
+      if (entered) leaveEngineOwner(this.engineFrame)
+      this.scope?.off()
     }
   }
 
   stop(): void {
     if (this.flags & EffectFlags.ACTIVE) {
+      // Mark stopped before user callbacks so reentrant stop() is idempotent.
+      this.flags &= ~EffectFlags.ACTIVE
       for (let link = this.deps; link; link = link.nextDep) {
         removeSub(link)
       }
       this.deps = this.depsTail = undefined
-      cleanupEffect(this)
-      this.onStop && this.onStop()
-      this.flags &= ~EffectFlags.ACTIVE
+      const errors: unknown[] = []
+      try {
+        cleanupEffect(this)
+      } catch (error) {
+        errors.push(error)
+      }
+      try {
+        this.onStop?.()
+      } catch (error) {
+        errors.push(error)
+      }
+      if (errors.length) throw errors[0]
     }
   }
 
@@ -326,6 +368,7 @@ export function endBatch(): void {
   }
 
   let error: unknown
+  let hasError = false
   while (batchedSub) {
     let e: Subscriber | undefined = batchedSub
     batchedSub = undefined
@@ -338,14 +381,17 @@ export function endBatch(): void {
           // ACTIVE flag is effect-only.
           ;(e as ReactiveEffect).trigger()
         } catch (err) {
-          if (!error) error = err
+          if (!hasError) {
+            hasError = true
+            error = err
+          }
         }
       }
       e = next
     }
   }
 
-  if (error) throw error
+  if (hasError) throw error
 }
 
 function prepareDeps(sub: Subscriber) {
@@ -441,8 +487,10 @@ export function refreshComputed(computed: ComputedRefImpl): undefined {
   const dep = computed.dep
   const prevSub = activeSub
   const prevShouldTrack = shouldTrack
+  const previousTracker = engineContext.tracker
   activeSub = computed
   shouldTrack = true
+  engineContext.tracker = engineToken
 
   try {
     prepareDeps(computed)
@@ -458,6 +506,7 @@ export function refreshComputed(computed: ComputedRefImpl): undefined {
   } finally {
     activeSub = prevSub
     shouldTrack = prevShouldTrack
+    engineContext.tracker = previousTracker
     cleanupDeps(computed)
     computed.flags &= ~EffectFlags.RUNNING
   }
@@ -528,9 +577,13 @@ export function effect<T = any>(
     extend(e, options)
   }
   try {
-    e.run()
+    if (e.flags & EffectFlags.ACTIVE) e.run()
   } catch (err) {
-    e.stop()
+    try {
+      e.stop()
+    } catch {
+      /* Preserve the initial effect failure. */
+    }
     throw err
   }
   const runner = e.run.bind(e) as ReactiveEffectRunner
@@ -552,13 +605,16 @@ export function stop(runner: ReactiveEffectRunner): void {
  */
 export let shouldTrack = true
 const trackStack: boolean[] = []
+const engineTrackStack: (object | undefined)[] = []
 
 /**
  * Temporarily pauses tracking.
  */
 export function pauseTracking(): void {
   trackStack.push(shouldTrack)
+  engineTrackStack.push(engineContext.tracker)
   shouldTrack = false
+  engineContext.tracker = undefined
 }
 
 /**
@@ -566,7 +622,9 @@ export function pauseTracking(): void {
  */
 export function enableTracking(): void {
   trackStack.push(shouldTrack)
+  engineTrackStack.push(engineContext.tracker)
   shouldTrack = true
+  engineContext.tracker = activeSub ? engineToken : undefined
 }
 
 /**
@@ -575,6 +633,7 @@ export function enableTracking(): void {
 export function resetTracking(): void {
   const last = trackStack.pop()
   shouldTrack = last === undefined ? true : last
+  engineContext.tracker = engineTrackStack.pop()
 }
 
 /**
@@ -590,6 +649,7 @@ export function resetTracking(): void {
  * an active effect.
  */
 export function onEffectCleanup(fn: () => void, failSilently = false): void {
+  assertEngineOwner('register effect cleanup')
   if (activeSub instanceof ReactiveEffect) {
     ;(activeSub.cleanups ??= []).push(fn)
   } else if (__DEV__ && !failSilently) {
@@ -606,21 +666,24 @@ function cleanupEffect(e: ReactiveEffect) {
   if (cleanups) {
     // run cleanup without active effect
     const prevSub = activeSub
+    const previousTracker = engineContext.tracker
     activeSub = undefined
+    engineContext.tracker = undefined
     try {
-      let error: unknown
+      const errors: unknown[] = []
 
       for (const cleanup of cleanups) {
         try {
           cleanup()
         } catch (cleanupError) {
-          error ??= cleanupError
+          errors.push(cleanupError)
         }
       }
 
-      if (error) throw error
+      if (errors.length) throw errors[0]
     } finally {
       activeSub = prevSub
+      engineContext.tracker = previousTracker
     }
   }
 }
@@ -632,11 +695,22 @@ function cleanupEffect(e: ReactiveEffect) {
  */
 export function batch<T>(fn: () => T): T {
   startBatch()
+  let value!: T
+  let failed = false
+  let failure: unknown
   try {
-    return fn()
-  } finally {
-    endBatch()
+    value = fn()
+  } catch (error) {
+    failed = true
+    failure = error
   }
+  try {
+    endBatch()
+  } catch (error) {
+    if (!failed) throw error
+  }
+  if (failed) throw failure
+  return value
 }
 
 /**
@@ -656,5 +730,6 @@ export function untrack<T>(fn: () => T): T {
  * Returns the currently executing reactive effect, if any.
  */
 export function getCurrentEffect(): ReactiveEffect | undefined {
+  assertEngineOwner('read the current effect')
   return activeSub instanceof ReactiveEffect ? activeSub : undefined
 }

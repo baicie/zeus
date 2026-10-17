@@ -3,6 +3,7 @@
 import type {
   CustomElementPropSchema,
   CustomElementPropType,
+  NormalizedPropChange,
 } from '@zeus-js/runtime-dom'
 
 export type ZeusPropType = CustomElementPropType
@@ -47,13 +48,18 @@ export interface HostRef {
   connected: boolean
   loaded: boolean
   loading?: Promise<void>
+  readinessError?: Error
+  exposedMethods: Record<string, Function>
 
   instance?: ZeusComponentInstance
 
   values: Map<string, unknown>
+  propDefinitions: ZeusPropMeta[]
   attributeProps: Set<string>
 
   reflectingAttrs: Set<string>
+  preUpgradeAttributes: Map<string, string>
+  pendingAttributes: Map<string, string | null>
   pendingFormCallbacks: ZeusFormCallback[]
 
   readyWaiters: Array<{
@@ -66,7 +72,7 @@ export interface ZeusComponentInstance {
   connected?(): void
   disconnected?(): void
 
-  propertyChanged?(name: string, oldValue: unknown, newValue: unknown): void
+  propertyChanged?(change: NormalizedPropChange): void
   formAssociated?(form: HTMLFormElement | null): void
   formDisabled?(disabled: boolean): void
   formReset?(): void

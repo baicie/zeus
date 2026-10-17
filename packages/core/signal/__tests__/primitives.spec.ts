@@ -119,3 +119,69 @@ describe('Zeus reactive primitives', () => {
     expect(values).toEqual([3, 7])
   })
 })
+
+describe('stable shallow signal values', () => {
+  it.each([
+    {
+      name: 'array',
+      initial: [1],
+      mutate: (value: number[]) => value.push(2),
+      read: (value: number[]) => value.length,
+      replacement: [1, 2, 3],
+    },
+    {
+      name: 'Map',
+      initial: new Map([['a', 1]]),
+      mutate: (value: Map<string, number>) => value.set('b', 2),
+      read: (value: Map<string, number>) => value.size,
+      replacement: new Map([
+        ['a', 1],
+        ['b', 2],
+        ['c', 3],
+      ]),
+    },
+    {
+      name: 'Set',
+      initial: new Set([1]),
+      mutate: (value: Set<number>) => value.add(2),
+      read: (value: Set<number>) => value.size,
+      replacement: new Set([1, 2, 3]),
+    },
+  ])(
+    'keeps $name contents shallow and updates only when the container changes',
+    ({ initial, mutate, read, replacement }) => {
+      // Each case exercises the same public container contract, with its own
+      // native collection operations rather than any internal proxy API.
+      const [value, write] = createSignal(initial)
+      const observed: number[] = []
+      createRoot(dispose => {
+        createEffect(() =>
+          observed.push((read as (value: typeof initial) => number)(value())),
+        )
+        ;(mutate as (value: typeof initial) => unknown)(value())
+        write(initial)
+        expect(observed).toEqual([1])
+        write(replacement)
+        expect(observed).toEqual([1, 3])
+        expect(value()).toBe(replacement)
+        dispose()
+      })
+    },
+  )
+
+  it('uses Object.is equality, including NaN and signed zero', () => {
+    const [value, write] = createSignal(NaN)
+    const observed: number[] = []
+    createRoot(dispose => {
+      createEffect(() => observed.push(value()))
+      write(NaN)
+      expect(observed).toHaveLength(1)
+      write(-0)
+      write(0)
+      expect(observed).toHaveLength(3)
+      expect(Object.is(observed[1], -0)).toBe(true)
+      expect(Object.is(observed[2], 0)).toBe(true)
+      dispose()
+    })
+  })
+})

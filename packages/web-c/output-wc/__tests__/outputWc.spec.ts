@@ -141,7 +141,7 @@ describe('output-wc', () => {
     it('uses lazy registration by default', () => {
       const plugin = wc()
       const ctx = createMockCtx({
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-button',
@@ -171,7 +171,7 @@ describe('output-wc', () => {
     it('generates lazy registration bridge for framework wrappers', () => {
       const plugin = wc()
       const ctx = createMockCtx({
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-button',
@@ -196,16 +196,19 @@ describe('output-wc', () => {
 
       expect(wrapperBridge).toBeTruthy()
       expect(wrapperBridge.code).toContain(
-        'import { defineCustomElements } from "zeus:wc:loader"',
+        'import { bootstrapLazy } from "@zeus-js/web-c-runtime"',
       )
-      expect(wrapperBridge.code).toContain('defineCustomElements()')
-      expect(wrapperBridge.code).toContain('export {}')
+      expect(wrapperBridge.code).toContain(
+        'export function defineCustomElement(options',
+      )
+      expect(wrapperBridge.code).not.toContain('zeus:wc:loader')
+      expect(wrapperBridge.fileName).toBe('wc/z-button.js')
     })
 
     it('emits lazy runtime chunks with js extensions', () => {
       const plugin = wc()
       const ctx = createMockCtx({
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-button',
@@ -236,7 +239,7 @@ describe('output-wc', () => {
     it('always generates lazy manifest, loader, and registration bridges', () => {
       const plugin = wc({ auto: false })
       const ctx = createMockCtx({
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-button',
@@ -264,7 +267,7 @@ describe('output-wc', () => {
 
     it('generates only index module when manifest has no components (with index enabled)', () => {
       const plugin = wc({ register: 'side-effect' })
-      const ctx = createMockCtx({ version: 1, components: [] })
+      const ctx = createMockCtx({ schemaVersion: 1, components: [] })
 
       const result = plugin.virtualModules!(ctx as any) as any
 
@@ -276,7 +279,7 @@ describe('output-wc', () => {
     it('generates one virtual module per component plus index', () => {
       const plugin = wc({ register: 'side-effect' })
       const ctx = createMockCtx({
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-button',
@@ -309,7 +312,7 @@ describe('output-wc', () => {
       const plugin = wc({ register: 'side-effect', stripPrefix: 'z-' })
       const ctx = createMockCtx(
         {
-          version: 1,
+          schemaVersion: 1,
           components: [
             {
               tag: 'z-button',
@@ -340,7 +343,7 @@ describe('output-wc', () => {
       })
       const ctx = createMockCtx(
         {
-          version: 1,
+          schemaVersion: 1,
           components: [
             {
               tag: 'z-button',
@@ -368,7 +371,7 @@ describe('output-wc', () => {
       const plugin = wc({ register: 'side-effect', outDir: 'web-components' })
       const ctx = createMockCtx(
         {
-          version: 1,
+          schemaVersion: 1,
           components: [
             {
               tag: 'z-button',
@@ -395,7 +398,7 @@ describe('output-wc', () => {
     it('skips index module when index is false', () => {
       const plugin = wc({ register: 'side-effect', index: false })
       const ctx = createMockCtx({
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-button',
@@ -423,7 +426,7 @@ describe('output-wc', () => {
     it('generates only lazy declaration assets by default', () => {
       const plugin = wc()
       const ctx = createMockCtx({
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-button',
@@ -468,13 +471,15 @@ describe('output-wc', () => {
       expect(loaderDts?.source).not.toContain(
         'export interface DefineCustomElementsOptions',
       )
-      expect(loaderDts?.source).toContain('defineCustomElements(): void')
+      expect(loaderDts?.source).toContain(
+        'defineCustomElements(options?: DefineCustomElementOptions): void',
+      )
       expect(loaderDts?.source).toContain('focus(): Promise<void>')
     })
 
     it('generates default assets even when manifest has no components', () => {
       const plugin = wc({ register: 'side-effect' })
-      const ctx = createMockCtx({ version: 1, components: [] })
+      const ctx = createMockCtx({ schemaVersion: 1, components: [] })
 
       const result = plugin.generateBundle!(
         ctx as any,
@@ -489,7 +494,7 @@ describe('output-wc', () => {
 
     it('always emits lazy loader declarations', () => {
       const plugin = wc({ auto: false })
-      const ctx = createMockCtx({ version: 1, components: [] })
+      const ctx = createMockCtx({ schemaVersion: 1, components: [] })
 
       const result = plugin.generateBundle!(
         ctx as any,
@@ -508,7 +513,7 @@ describe('output-wc', () => {
     it('generates all default assets with components', () => {
       const plugin = wc({ register: 'side-effect' })
       const ctx = createMockCtx({
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-button',
@@ -549,7 +554,7 @@ describe('output-wc', () => {
     it('generates zeus.components.json', () => {
       const plugin = wc({ register: 'side-effect' })
       const ctx = createMockCtx({
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-button',
@@ -574,7 +579,7 @@ describe('output-wc', () => {
 
       expect(manifest).toBeTruthy()
       expect(JSON.parse(manifest!.source as string)).toMatchObject({
-        version: 1,
+        schemaVersion: 1,
         components: [{ tag: 'z-button' }],
       })
     })
@@ -582,7 +587,7 @@ describe('output-wc', () => {
     it('generates custom-elements.json', () => {
       const plugin = wc({ register: 'side-effect' })
       const ctx = createMockCtx({
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-button',
@@ -630,7 +635,7 @@ describe('output-wc', () => {
     it('generates index.d.ts with HTMLElementTagNameMap', () => {
       const plugin = wc({ register: 'side-effect' })
       const ctx = createMockCtx({
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-button',
@@ -663,7 +668,7 @@ describe('output-wc', () => {
     it('generates jsx.d.ts with JSX namespace', () => {
       const plugin = wc({ register: 'side-effect' })
       const ctx = createMockCtx({
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-button',
@@ -693,7 +698,7 @@ describe('output-wc', () => {
     it('respects custom outDir', () => {
       const plugin = wc({ register: 'side-effect', outDir: 'web-components' })
       const ctx = createMockCtx({
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-button',
@@ -728,7 +733,7 @@ describe('output-wc', () => {
         jsxDts: false,
       })
       const ctx = createMockCtx({
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-button',
@@ -758,7 +763,7 @@ describe('output-wc', () => {
         register: 'lazy',
       })
       const ctx = createMockCtx({
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'zw-table',
@@ -795,7 +800,7 @@ describe('output-wc', () => {
       const errors: string[] = []
       const plugin = wc({ register: 'lazy' })
       const ctx = createMockCtx({
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'zw-table',
@@ -833,7 +838,7 @@ describe('output-wc', () => {
         register: 'lazy',
       })
       const ctx = createMockCtx({
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'zw-table',
@@ -870,7 +875,7 @@ describe('output-wc', () => {
       const errors: string[] = []
       const plugin = wc({ register: 'lazy' })
       const ctx = createMockCtx({
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'zw-table',
@@ -912,7 +917,7 @@ describe('output-wc', () => {
         fileName: () => 'button.js',
       })
       const ctx = createMockCtx({
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-button',
@@ -957,7 +962,7 @@ describe('output-wc', () => {
         fileName: () => 'button.js',
       })
       const ctx = createMockCtx({
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-button',
@@ -998,7 +1003,7 @@ describe('output-wc', () => {
       const warns: string[] = []
       const plugin = wc({ warnOnFileNameCollision: true })
       const ctx = createMockCtx({
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-button',
@@ -1221,7 +1226,13 @@ describe('output-wc', () => {
       )
 
       expect(manifestChunk).toBeTruthy()
-      expect((manifestChunk as any).code).toContain('./chunks/z-button.lazy.js')
+      const registrationChunk = result.output.find(
+        item => item.type === 'chunk' && item.fileName === 'wc/z-button.js',
+      )
+      expect((registrationChunk as any).code).toContain(
+        './chunks/z-button.lazy.js',
+      )
+      expect((manifestChunk as any).code).toContain('./z-button.js')
 
       await bundle.close()
     })

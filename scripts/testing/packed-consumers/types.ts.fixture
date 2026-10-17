@@ -1,0 +1,25 @@
+import { ZPackedButton as ReactButton } from '@zeus-test/components/react'
+import { ZPackedButton as VueButton } from '@zeus-test/components/vue'
+import { defineCustomElement } from '@zeus-test/components/button'
+import { defineCustomElement as defineByTag } from '@zeus-test/components/wc'
+import type { ZPackedButtonElement } from '@zeus-test/components/wc'
+import type { ComponentProps } from 'react'
+
+const props: ComponentProps<typeof ReactButton> = {
+  label: 'ready',
+  defaultValue: 'ready',
+  name: 'packed',
+  disabled: false,
+  config: { value: 7 },
+  formatter: value => String(value),
+  onPress: event => {
+    const value: number = event.detail.value
+    void value
+  },
+}
+// @ts-expect-error primitive prop types must survive declaration generation
+const wrong: ComponentProps<typeof ReactButton> = { disabled: 'yes' }
+void [props, wrong, VueButton, defineCustomElement, defineByTag]
+declare const button: ZPackedButtonElement
+const focusReady: Promise<void> = button.focusInput()
+void focusReady

@@ -238,6 +238,33 @@ describe('generateLazyManifest', () => {
     expect(code).not.toContain('default:')
   })
 
+  it('carries JSON-safe static defaults without serializing factories or unsafe values', () => {
+    const code = generateLazyManifest({
+      components: [
+        {
+          tag: 'z-defaults',
+          props: {
+            label: { type: 'string', default: 'ready' },
+            count: { type: 'number', default: 3 },
+            disabled: { type: 'boolean', default: false },
+            empty: { type: 'object', default: null },
+            rows: { type: 'array', default: ['a'] },
+            factory: { type: 'array', default: () => [] },
+            invalid: { type: 'number', default: Infinity },
+          },
+        } as any,
+      ],
+      getEntryFileName: () => 'defaults.js',
+    })
+    expect(code).toContain('default: "ready"')
+    expect(code).toContain('default: 3')
+    expect(code).toContain('default: false')
+    expect(code).toContain('default: null')
+    expect(code).toContain('default: JSON.parse("[\\"a\\"]")')
+    expect(code).not.toContain('=> []')
+    expect(code).not.toContain('Infinity')
+  })
+
   it('preserves property-only props with attrName false', () => {
     const code = generateLazyManifest({
       components: [
@@ -470,17 +497,11 @@ describe('generateLoader', () => {
       'export function defineCustomElement(tagName, options',
     )
     expect(code).toContain('export function defineCustomElements(options')
-    expect(code).toContain(
-      'export const defineLazyElement = defineCustomElement',
-    )
-    expect(code).toContain(
-      'export const defineLazyElements = defineCustomElements',
-    )
+    expect(code).not.toContain('defineLazyElement')
     expect(code).toContain('componentsByTagName.get(tagName)')
     expect(code).toContain('bootstrapLazy([component], { registry })')
     expect(code).toContain('typeof customElements === "undefined"')
-    expect(code).toContain('definedTagsByRegistry')
-    expect(code).toContain('definedTags.has(tagName)')
+    expect(code).not.toContain('registry.get(tagName)')
   })
 
   it('generates componentsByTagName map', () => {
@@ -508,8 +529,7 @@ describe('generateLazyIndex', () => {
     expect(code).toContain('export {')
     expect(code).toContain('defineCustomElement,')
     expect(code).toContain('defineCustomElements,')
-    expect(code).toContain('defineLazyElement,')
-    expect(code).toContain('defineLazyElements,')
+    expect(code).not.toContain('defineLazyElement')
     expect(code).toContain('from "./loader.js"')
   })
 })
@@ -544,7 +564,7 @@ describe('generateLazyEntry', () => {
 
     expect(code).not.toContain('import type')
     expect(code).toContain(
-      'createCustomElementMountLifecycle, mountElementDefinition',
+      'createCustomElementMountLifecycle, getElementDefinition, mountElementDefinition',
     )
     expect(code).toContain('export function createComponent(hostRef)')
     expect(code).toContain(
@@ -555,6 +575,7 @@ describe('generateLazyEntry', () => {
     expect(code).toContain('attributeProps: hostRef.attributeProps')
     expect(code).toContain('internals: hostRef.internals')
     expect(code).toContain('reflectingAttrs: hostRef.reflectingAttrs')
+    expect(code).toContain('exposedMethods: hostRef.exposedMethods')
     expect(code).toContain('ZwButton,')
     expect(code).toContain('hostRef.host,')
     expect(code).toContain('hostRef.values,')
@@ -607,6 +628,8 @@ describe('generateLazyEntry', () => {
       outPath: 'wc/zw-button.entry.js',
     })
 
-    expect(code).toContain('from "../../src/components/button.tsx"')
+    expect(code).toContain(
+      'from "../../src/components/button.tsx?zeus-lazy-component=ZwButton"',
+    )
   })
 })

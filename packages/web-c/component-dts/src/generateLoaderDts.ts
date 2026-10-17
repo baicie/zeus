@@ -33,10 +33,15 @@ export function generateLoaderDts(manifest: ComponentManifest): string {
     lines.push('')
   }
 
-  lines.push('export declare function defineCustomElements(): void')
+  lines.push(
+    'export interface DefineCustomElementOptions { registry?: CustomElementRegistry }',
+  )
   lines.push('')
   lines.push(
-    'export declare const defineLazyElements: typeof defineCustomElements',
+    'export declare function defineCustomElement(tagName: string, options?: DefineCustomElementOptions): void',
+  )
+  lines.push(
+    'export declare function defineCustomElements(options?: DefineCustomElementOptions): void',
   )
   lines.push('')
 

@@ -21,10 +21,14 @@ export function registerHost(
     connected: false,
     loaded: false,
     values: new Map(),
+    propDefinitions: [...meta.props],
     attributeProps: new Set(),
     reflectingAttrs: new Set(),
+    preUpgradeAttributes: new Map(),
+    pendingAttributes: new Map(),
     pendingFormCallbacks: [],
     readyWaiters: [],
+    exposedMethods: Object.create(null) as Record<string, Function>,
   }
 
   hostRefs.set(host, hostRef)

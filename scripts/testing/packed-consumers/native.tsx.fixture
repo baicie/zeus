@@ -1,0 +1,57 @@
+import { createSignal, onCleanup, render } from '@zeus-js/zeus'
+
+export function mountCounter(container: Element) {
+  let setups = 0
+  let cleanups = 0
+  const [count, setCount] = createSignal(0)
+  const dispose = render(() => {
+    setups++
+    onCleanup(() => cleanups++)
+    return <button id="counter" onClick={() => setCount(n => n + 1)}>{count()}</button>
+  }, container)
+  return { setups: () => setups, cleanups: () => cleanups, dispose, setCount }
+}
+
+export function mountSpreadProbe(container: Element) {
+  let childSetups = 0
+  let firstClicks = 0
+  let secondClicks = 0
+  let formatterCalls = 0
+  let attached = 0
+  let detached = 0
+  const formatter = (value: number) => { formatterCalls++; return String(value) }
+  const reference = (element: Element | null) => { element ? attached++ : detached++ }
+  const [label, setLabel] = createSignal('first')
+  const [attrs, setAttrs] = createSignal<Record<string, unknown>>({
+    id: 'spread-probe',
+    title: 'initial',
+    class: 'overridden',
+    style: { color: 'red', backgroundColor: 'white' },
+    onClick: () => firstClicks++,
+    ref: reference,
+    'prop:formatter': formatter,
+  })
+  const childProps = { get label() { return label() }, formatter }
+  function Child(props: typeof childProps) {
+    childSetups++
+    return <output id="spread-child">{props.label}</output>
+  }
+  const dispose = render(() => <section>
+    <button {...attrs()} class="fixed">spread</button>
+    <Child {...childProps} />
+  </section>, container)
+  return {
+    formatter, dispose,
+    update() {
+      setAttrs({
+        id: 'spread-probe',
+        style: { color: 'blue' },
+        onClick: () => secondClicks++,
+        ref: reference,
+        'prop:formatter': formatter,
+      })
+      setLabel('second')
+    },
+    state: () => ({ childSetups, firstClicks, secondClicks, formatterCalls, attached, detached }),
+  }
+}

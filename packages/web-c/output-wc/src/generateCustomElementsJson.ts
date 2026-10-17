@@ -1,4 +1,7 @@
+import { validateComponentManifest } from './generateManifest'
+
 import type {
+  ComponentMethod,
   ComponentManifest,
   ComponentProp,
   ComponentRecord,
@@ -48,6 +51,21 @@ export interface CustomElementMember {
     text: string
   }
   default?: string
+  parameters?: CustomElementMethodParameter[]
+  return?: {
+    type: {
+      text: string
+    }
+  }
+}
+
+export interface CustomElementMethodParameter {
+  name: string
+  type?: {
+    text: string
+  }
+  optional?: boolean
+  rest?: boolean
 }
 
 export interface CustomElementEvent {
@@ -91,6 +109,7 @@ export function generateCustomElementsJson(
   options: GenerateCustomElementsOptions,
 ): string {
   const { manifest, getModulePath } = options
+  validateComponentManifest(manifest)
 
   const result: CustomElementsManifest = {
     schemaVersion: '1.0.0',
@@ -173,14 +192,39 @@ function generateMembers(component: ComponentRecord): CustomElementMember[] {
     }
   })
 
-  const methods = Object.keys(component.methods ?? {}).map(name => {
-    return {
-      kind: 'method' as const,
-      name,
-    }
-  })
+  const methods = Object.entries(component.methods ?? {}).map(
+    ([name, method]) => generateMethodMember(name, method),
+  )
 
   return [...fields, ...methods]
+}
+
+function generateMethodMember(
+  name: string,
+  method: ComponentMethod,
+): CustomElementMember {
+  const member: CustomElementMember = {
+    kind: 'method',
+    name,
+    return: {
+      type: {
+        text: method.async
+          ? `Promise<${method.returns ?? 'unknown'}>`
+          : (method.returns ?? 'unknown'),
+      },
+    },
+  }
+
+  if (method.parameters) {
+    member.parameters = method.parameters.map(parameter => ({
+      name: parameter.name,
+      type: { text: parameter.type },
+      optional: parameter.optional,
+      rest: parameter.rest,
+    }))
+  }
+
+  return member
 }
 
 function generateEvents(component: ComponentRecord): CustomElementEvent[] {

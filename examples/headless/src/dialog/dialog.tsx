@@ -6,10 +6,7 @@ export interface DialogProps {
 
 function setup(props: DialogProps) {
   return (
-    <Host
-      data-slot="dialog"
-      data-state={() => (props.open ? 'open' : 'closed')}
-    >
+    <Host data-slot="dialog" data-state={props.open ? 'open' : 'closed'}>
       <Slot />
     </Host>
   )

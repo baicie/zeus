@@ -18,11 +18,17 @@
     "esModuleInterop": true,
     "removeComments": false,
     "jsx": "preserve",
+    "jsxImportSource": "@zeus-js/zeus",
     "lib": ["es2016", "dom"],
     "types": ["vitest/globals", "puppeteer", "node"],
     "rootDir": ".",
     "paths": {
       "*": ["./*"],
+      "@zeus-js/zeus/jsx": ["./packages/core/zeus/src/jsx.d.ts"],
+      "@zeus-js/zeus/jsx-runtime": ["./packages/core/zeus/src/jsx-runtime.ts"],
+      "@zeus-js/zeus/jsx-dev-runtime": [
+        "./packages/core/zeus/src/jsx-dev-runtime.ts"
+      ],
       "@zeus-js/signal/internal": ["./packages/core/signal/src/internal.ts"],
       "@zeus-js/*": [
         "./packages/core/*/src",

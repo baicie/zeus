@@ -6,6 +6,8 @@
 
 ```ts
 import { DtsMode, ZeusComponentPlugin } from '@zeus-js/bundler-plugin'
+import * as react from 'react'
+import { ForwardRefExoticComponent, HTMLAttributes, RefAttributes } from 'react'
 
 type ReactWrapperMode = 'runtime' | 'minimal' | 'event-bridge'
 export interface OutputReactWrapperOptions {
@@ -40,7 +42,7 @@ export interface OutputReactWrapperOptions {
   /**
    * runtime:
    *   Default. Generates thin proxies powered by @zeus-js/output-react-wrapper/runtime.
-   *   No useEffect, no addEventListener, no prop sync — delegates to @lit/react.
+   *   Registers during DOM commit and bridges properties, events, and refs.
    *
    * minimal:
    *   Requires React 19+.
@@ -53,7 +55,7 @@ export interface OutputReactWrapperOptions {
    */
   wrapper?: ReactWrapperMode
   /**
-   * Named slot strategy (event-bridge mode only).
+   * Named slot strategy.
    *
    * props:
    *   <ZCard header={<div />} />
@@ -70,35 +72,33 @@ export type EventName<T extends Event = Event> = string & {
   __eventType: T
 }
 type EventNames = Record<string, EventName | string>
+type PropertyConfig = string[] | Record<string, string | false>
 type ElementProps<I extends HTMLElement> = Partial<Omit<I, keyof HTMLElement>>
-type ReactRef<I extends HTMLElement> =
-  | ((instance: I | null) => void)
-  | {
-      current: I | null
-    }
-  | null
-export interface ReactModule {
-  createElement: (...args: unknown[]) => unknown
-  forwardRef: (...args: unknown[]) => unknown
-}
+export type ReactModule = Pick<
+  typeof react,
+  | 'createElement'
+  | 'forwardRef'
+  | 'useRef'
+  | 'useCallback'
+  | 'useEffect'
+  | 'useLayoutEffect'
+>
 type EventListeners<E extends EventNames> = {
   [K in keyof E]?: E[K] extends EventName<infer T>
     ? (event: T) => void
     : (event: Event) => void
 }
-type ComponentProps<I extends HTMLElement, E extends EventNames> = {
-  children?: unknown
-  className?: string
-  ref?: ReactRef<I>
-  style?: unknown
-} & {
-  [key: string]: unknown
-} & EventListeners<E> &
+type ComponentProps<I extends HTMLElement, E extends EventNames> = Omit<
+  HTMLAttributes<I>,
+  keyof E | keyof ElementProps<I>
+> &
+  Record<string, unknown> &
+  EventListeners<E> &
   ElementProps<I>
 export type ZeusReactComponent<
   I extends HTMLElement,
   E extends EventNames = {},
-> = (props: ComponentProps<I, E>) => unknown
+> = ForwardRefExoticComponent<ComponentProps<I, E> & RefAttributes<I>>
 export interface ZeusReactCreateComponentOptions<
   I extends HTMLElement,
   E extends EventNames,
@@ -109,6 +109,8 @@ export interface ZeusReactCreateComponentOptions<
   elementClass?: {
     new (): I
   }
+  /** Declared properties and optional reflected attribute aliases. */
+  props?: PropertyConfig
   events?: E
   slots?: string[]
   displayName?: string

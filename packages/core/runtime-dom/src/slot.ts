@@ -1,5 +1,6 @@
 // packages/runtime-dom/src/slot.ts
 
+import { moveNodeBefore } from './domMove'
 import { isRuntimeOwnedNode, registerLightDomHost } from './domOwnership'
 import { getCurrentHostContext } from './hostContext'
 import { insert } from './insert'
@@ -8,6 +9,12 @@ import { insertTracked } from './range'
 import type { JSXValue } from './types'
 
 export function createSlot(name?: string, fallback?: () => JSXValue): JSXValue {
+  if (name !== undefined && typeof name !== 'string') {
+    throw new TypeError(
+      '[Zeus runtime] <Slot> `name` must be a static string value.',
+    )
+  }
+
   const context = getCurrentHostContext()
 
   if (!context) {
@@ -205,16 +212,17 @@ function replaceOutletNodes(
     return
   }
 
+  const nextSet = new Set(nextNodes)
   current = outlet.start.nextSibling
 
   while (current && current !== outlet.end) {
     const next = current.nextSibling
-    parent.removeChild(current)
+    if (!nextSet.has(current)) parent.removeChild(current)
     current = next
   }
 
   for (const node of nextNodes) {
-    parent.insertBefore(node, outlet.end)
+    moveNodeBefore(parent, node, outlet.end)
   }
 }
 

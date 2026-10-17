@@ -9,38 +9,51 @@ import {
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { inspectScaffoldTarget } from './target'
+
 export interface ScaffoldOptions {
   root: string
   projectName: string
   template: string
+  force?: boolean
 }
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 export async function scaffold(options: ScaffoldOptions): Promise<void> {
+  if (!['basic-ts', 'web-component-ts'].includes(options.template)) {
+    throw new Error(`Template "${options.template}" not found.`)
+  }
   const templateRoot = resolve(__dirname, '../templates', options.template)
 
   if (!existsSync(templateRoot)) {
     throw new Error(`Template "${options.template}" not found.`)
   }
 
-  if (existsSync(options.root)) {
-    rmSync(options.root, {
+  const target = inspectScaffoldTarget(options.root, [templateRoot])
+  if (target.nonEmpty && options.force !== true) {
+    throw new Error(
+      `Directory "${target.root}" is not empty. Use --force to explicitly replace its contents.`,
+    )
+  }
+
+  if (target.nonEmpty) {
+    rmSync(target.root, {
       recursive: true,
       force: true,
     })
   }
 
-  mkdirSync(options.root, {
+  mkdirSync(target.root, {
     recursive: true,
   })
 
-  cpSync(templateRoot, options.root, {
+  cpSync(templateRoot, target.root, {
     recursive: true,
   })
 
-  patchPackageJson(options.root, options.projectName)
+  patchPackageJson(target.root, options.projectName)
 }
 
 function patchPackageJson(root: string, projectName: string): void {

@@ -12,12 +12,24 @@ export function waitForComponentReady(hostRef: HostRef): Promise<HTMLElement> {
     return Promise.resolve(hostRef.host)
   }
 
+  if (hostRef.readinessError) {
+    return Promise.reject(hostRef.readinessError)
+  }
+
   return new Promise((resolve, reject) => {
     hostRef.readyWaiters.push({
       resolve,
       reject,
     })
   })
+}
+
+export function rejectComponentReady(hostRef: HostRef, error: Error): void {
+  hostRef.readinessError = error
+  for (const name of Object.keys(hostRef.exposedMethods)) {
+    delete hostRef.exposedMethods[name]
+  }
+  rejectReadyWaiters(hostRef, error)
 }
 
 export async function initializeComponent(hostRef: HostRef): Promise<void> {
@@ -29,6 +41,7 @@ export async function initializeComponent(hostRef: HostRef): Promise<void> {
 
   if (hostRef.loading) {
     await hostRef.loading
+    if (hostRef.connected && !hostRef.loaded) await initializeComponent(hostRef)
     return
   }
 
@@ -39,7 +52,10 @@ export async function initializeComponent(hostRef: HostRef): Promise<void> {
   try {
     await loading
   } catch (error) {
-    rejectReadyWaiters(hostRef, error)
+    rejectComponentReady(
+      hostRef,
+      error instanceof Error ? error : new Error(String(error)),
+    )
     throw error
   } finally {
     if (hostRef.loading === loading) {

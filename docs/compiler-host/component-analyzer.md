@@ -74,7 +74,7 @@ Relative props type imports are followed even when the imported file is outside 
 
 ```json
 {
-  "version": 1,
+  "schemaVersion": 1,
   "components": [
     {
       "tag": "z-input",

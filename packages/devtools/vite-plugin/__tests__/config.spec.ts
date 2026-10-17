@@ -4,13 +4,16 @@ import {
   mkdirSync,
   mkdtempSync,
   realpathSync,
+  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 
+import ts from 'typescript'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { createZeus } from '../src'
@@ -184,8 +187,18 @@ function resolveNestedRuntimeWithNodeCondition(
   preserveSymlinks = false,
   runtime: 'dom' | 'ssr' = 'dom',
 ): string {
-  const resolverEntry = new URL('../src/runtime-resolution.ts', import.meta.url)
-    .href
+  const resolverEntry = path.join(root, 'runtime-resolution.mjs')
+  const source = readFileSync(
+    new URL('../src/runtime-resolution.ts', import.meta.url),
+    'utf8',
+  )
+  const { outputText } = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.ESNext,
+      target: ts.ScriptTarget.ES2022,
+    },
+  })
+  writeFileSync(resolverEntry, outputText)
   const runner = path.join(root, 'resolve-runtime.mjs')
   writeFileSync(
     runner,
@@ -193,7 +206,7 @@ function resolveNestedRuntimeWithNodeCondition(
       import {
         resolveRuntimeDOMEntry,
         resolveRuntimeSSREntry,
-      } from ${JSON.stringify(resolverEntry)}
+      } from ${JSON.stringify(pathToFileURL(resolverEntry).href)}
 
       const projectRoot = process.env.ZEUS_TEST_PROJECT_ROOT
       const resolveRuntime = process.env.ZEUS_TEST_RUNTIME === 'ssr'

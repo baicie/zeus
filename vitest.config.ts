@@ -1,6 +1,7 @@
 import { configDefaults, defineConfig } from 'vitest/config'
 
 import { entries } from './scripts/shared/aliases.ts'
+import { compileTestViews } from './scripts/testing/compile-test-views.ts'
 
 // 测试项目配置
 const testProjects = [
@@ -28,6 +29,7 @@ const resolveEntries = {
 }
 
 export default defineConfig({
+  plugins: [compileTestViews()],
   define: {
     __DEV__: 'true',
     __TEST__: 'true',

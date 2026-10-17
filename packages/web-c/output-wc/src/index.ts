@@ -15,13 +15,13 @@ import {
   getVirtualIndexId,
 } from './generateIndex'
 import { generateLazyEntry } from './generateLazyEntry'
-import { generateLazyManifest } from './generateLazyManifest'
 import {
   generateAutoEntry,
   generateLazyIndex,
   generateLoader,
 } from './generateLoader'
 import { generateZeusComponentsManifest } from './generateManifest'
+import { generateLazyRegistration } from './generateRegistration'
 import { toAbsoluteImportPath } from './imports'
 
 import type { OutputWCOptions } from './types'
@@ -164,11 +164,13 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
         modules.push({
           id: 'zeus:wc:components.manifest',
           fileName: joinPath('components.manifest.js'),
-          code: generateLazyManifest({
-            components: ctx.manifest.components,
-            getEntryFileName: tag =>
-              getLazyEntryFileName(normalized.entryFileName, tag),
-          }),
+          code: [
+            ...ctx.manifest.components.map(
+              (component, index) =>
+                `import { component as c${index} } from ${JSON.stringify(getVirtualComponentId(component))};`,
+            ),
+            `export const components = [${ctx.manifest.components.map((_, index) => `c${index}`).join(', ')}];`,
+          ].join('\n'),
         })
 
         modules.push({
@@ -196,13 +198,16 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
            */
           modules.push({
             id: getVirtualComponentId(component),
-            code: `
-import { defineCustomElements } from "zeus:wc:loader";
-
-defineCustomElements();
-
-export {};
-`.trimStart(),
+            fileName: joinPath(getFileName(component.tag)),
+            code: generateLazyRegistration(
+              component,
+              path.posix.relative(
+                path.posix.dirname(joinPath(getFileName(component.tag))),
+                joinPath(
+                  getLazyEntryFileName(normalized.entryFileName, component.tag),
+                ),
+              ),
+            ),
           })
 
           const entryFileName = getLazyEntryFileName(
@@ -287,6 +292,17 @@ export {};
             fileName: joinPath('loader.d.ts'),
             source: loaderDts,
           })
+
+          for (const component of ctx.manifest.components) {
+            files.push({
+              type: 'asset',
+              fileName: joinPath(
+                getFileName(component.tag).replace(/\.js$/, '.d.ts'),
+              ),
+              source:
+                'export declare function defineCustomElement(options?: { registry?: CustomElementRegistry }): void\n',
+            })
+          }
 
           if (normalized.index) {
             files.push({

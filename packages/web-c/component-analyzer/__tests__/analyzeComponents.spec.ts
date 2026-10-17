@@ -41,7 +41,7 @@ describe('analyzeComponents', () => {
 
     expect(result.diagnostics).toEqual([])
     expect(result.manifest).toMatchObject({
-      version: 1,
+      schemaVersion: 1,
       components: [
         {
           tag: 'z-button',
@@ -97,6 +97,80 @@ describe('analyzeComponents', () => {
       'z-button',
       'z-icon',
     ])
+  })
+
+  it('emits normalized ABI metadata for defaults, events, slots, methods, and styles', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'zeus-analyzer-abi-'))
+    await fs.mkdir(path.join(root, 'src'), { recursive: true })
+    await fs.writeFile(
+      path.join(root, 'src/contract.tsx'),
+      `
+        import { defineElement, event } from '@zeus-js/zeus'
+
+        function setup(_props, { expose }) {
+          expose({
+            focus(): void {},
+            refresh: async (): Promise<boolean> => true,
+          })
+          return <Host><Slot name="header" /></Host>
+        }
+
+        export const ZContract = defineElement(
+          'z-contract',
+          {
+            props: {
+              label: { type: String, default: 'ready' },
+              rows: { type: Array, default: () => [] },
+            },
+            emits: {
+              valueChange: event<{ value: number }>(),
+            },
+            meta: {
+              cssParts: ['root'],
+              cssVars: { '--z-contract-gap': { description: 'Gap.' } },
+            },
+          },
+          setup,
+        )
+      `,
+    )
+
+    const result = await analyzeComponents({
+      root,
+      include: ['src/**/*.tsx'],
+    })
+    const component = result.manifest.components[0]
+
+    expect(result.diagnostics).toEqual([])
+    expect(result.manifest.schemaVersion).toBe(1)
+    expect(component.props.label).toMatchObject({
+      hasDefault: true,
+      defaultStrategy: 'static',
+      default: 'ready',
+    })
+    expect(component.props.rows).toMatchObject({
+      hasDefault: true,
+      defaultStrategy: 'factory',
+    })
+    expect(component.props.rows).not.toHaveProperty('default')
+    expect(component.events.valueChange).toMatchObject({
+      name: 'value-change',
+      reactName: 'onValueChange',
+      detail: { value: 'number' },
+      bubbles: true,
+      composed: true,
+      cancelable: false,
+    })
+    expect(component.slots.header).toEqual({ name: 'header' })
+    expect(component.methods).toMatchObject({
+      focus: { name: 'focus', returns: 'void', async: false },
+      refresh: { name: 'refresh', returns: 'boolean', async: true },
+    })
+    expect(component.cssParts).toEqual(['root'])
+    expect(component.cssVars['--z-contract-gap']).toEqual({
+      name: '--z-contract-gap',
+      description: 'Gap.',
+    })
   })
 
   it('excludes files matching exclude patterns', async () => {

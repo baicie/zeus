@@ -7,7 +7,7 @@ describe('generateCustomElementsJson', () => {
   it('generates custom-elements.json', () => {
     const source = generateCustomElementsJson({
       manifest: {
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-button',
@@ -117,7 +117,7 @@ describe('generateCustomElementsJson', () => {
   it('skips props with attr: false from attributes', () => {
     const source = generateCustomElementsJson({
       manifest: {
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-input',
@@ -155,7 +155,7 @@ describe('generateCustomElementsJson', () => {
   it('uses custom attr name when specified as string', () => {
     const source = generateCustomElementsJson({
       manifest: {
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-input',
@@ -186,7 +186,7 @@ describe('generateCustomElementsJson', () => {
   it('converts camelCase prop name to kebab-case attribute', () => {
     const source = generateCustomElementsJson({
       manifest: {
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-input',
@@ -216,7 +216,7 @@ describe('generateCustomElementsJson', () => {
   it('includes exports section with correct declaration reference', () => {
     const source = generateCustomElementsJson({
       manifest: {
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-button',
@@ -244,10 +244,59 @@ describe('generateCustomElementsJson', () => {
     expect(exp.declaration.module).toBe('dist/wc/z-button.js')
   })
 
+  it('preserves typed method parameters and return type in custom-elements metadata', () => {
+    const source = generateCustomElementsJson({
+      manifest: {
+        schemaVersion: 1,
+        components: [
+          {
+            tag: 'z-grid',
+            name: 'ZGrid',
+            exportName: 'ZGrid',
+            source: 'src/grid.tsx',
+            props: {},
+            events: {},
+            methods: {
+              selectRow: {
+                name: 'selectRow',
+                parameters: [{ name: 'id', type: 'string', optional: false }],
+                returns: 'void',
+                async: false,
+              },
+              refresh: {
+                name: 'refresh',
+                returns: 'boolean',
+                async: true,
+              },
+            },
+            slots: { header: { name: 'header' } },
+            hostAttributes: [],
+            cssParts: ['root'],
+            cssVars: { '--z-grid-gap': { name: '--z-grid-gap' } },
+          },
+        ],
+      },
+      getModulePath: () => 'dist/wc/z-grid.js',
+    })
+
+    const methods = JSON.parse(source).modules[0].declarations[0].members
+    expect(methods).toContainEqual({
+      kind: 'method',
+      name: 'selectRow',
+      parameters: [{ name: 'id', type: { text: 'string' }, optional: false }],
+      return: { type: { text: 'void' } },
+    })
+    expect(methods).toContainEqual({
+      kind: 'method',
+      name: 'refresh',
+      return: { type: { text: 'Promise<boolean>' } },
+    })
+  })
+
   it('normalizes module paths (backslashes)', () => {
     const source = generateCustomElementsJson({
       manifest: {
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-button',
@@ -274,7 +323,7 @@ describe('generateCustomElementsJson', () => {
   it('handles named slots correctly', () => {
     const source = generateCustomElementsJson({
       manifest: {
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-card',
@@ -312,7 +361,7 @@ describe('generateCustomElementsJson', () => {
   it('handles empty component fields', () => {
     const source = generateCustomElementsJson({
       manifest: {
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-button',
@@ -343,7 +392,7 @@ describe('generateCustomElementsJson', () => {
   it('handles props without values (primitive types)', () => {
     const source = generateCustomElementsJson({
       manifest: {
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-demo',

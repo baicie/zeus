@@ -223,6 +223,18 @@ export function createZeusBundlerPlugin(
     },
 
     resolveId(id: string, importer?: string) {
+      const lazyComponentQuery = getLazyComponentQuery(id)
+      if (lazyComponentQuery) {
+        const source = id.slice(0, -lazyComponentQuery.length)
+        const importerPath = importer ? cleanUrl(importer) : process.cwd()
+        const resolved = isAbsoluteImportPath(source)
+          ? path.resolve(source)
+          : path.resolve(path.dirname(importerPath), source)
+        if (fs.existsSync(resolved) && fs.statSync(resolved).isFile()) {
+          return `${resolved}${lazyComponentQuery}`
+        }
+      }
+
       const resolvedVirtual = virtualModules.resolve(id, importer)
 
       if (resolvedVirtual) {
@@ -261,6 +273,9 @@ export function createZeusBundlerPlugin(
     },
 
     load(id: string) {
+      if (getLazyComponentQuery(id)) {
+        return fs.readFileSync(cleanUrl(id), 'utf8')
+      }
       return virtualModules.load(id)
     },
 
@@ -279,6 +294,7 @@ export function createZeusBundlerPlugin(
         compiler: shouldRunZeus ? options.compiler : false,
         sourcemap: true,
         transpile: shouldStripTs,
+        pureDefineElement: getLazyComponentQuery(id) !== null,
       })
 
       if (!result) return null
@@ -402,7 +418,7 @@ async function createManifest(
   if (!include.length) {
     return {
       manifest: {
-        version: 1 as const,
+        schemaVersion: 1 as const,
         components: [],
       },
       diagnostics: [],
@@ -478,6 +494,15 @@ function resolveTsLikeImport(
 
 export function isAbsoluteImportPath(id: string): boolean {
   return path.isAbsolute(id) || /^[a-zA-Z]:[\\/]/.test(id)
+}
+
+function getLazyComponentQuery(id: string): string | null {
+  const marker = '?zeus-lazy-component='
+  const markerIndex = id.lastIndexOf(marker)
+  if (markerIndex < 0) return null
+
+  const query = id.slice(markerIndex)
+  return query.length > marker.length ? query : null
 }
 
 function emitOutputFile(

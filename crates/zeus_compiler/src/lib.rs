@@ -28,6 +28,8 @@ pub struct TransformModuleOptions {
     pub source_map: bool,
     #[serde(default)]
     pub hmr: bool,
+    #[serde(default)]
+    pub pure_define_element: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -71,7 +73,10 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
         };
     };
 
-    if ir.components.is_empty() && (!options.hmr || lowered.hmr.render_calls.is_empty()) {
+    if ir.components.is_empty()
+        && (!options.hmr || lowered.hmr.render_calls.is_empty())
+        && (!options.pure_define_element || lowered.pure_define_element_calls.is_empty())
+    {
         return TransformModuleResult {
             code: options.source,
             map: None,
@@ -100,5 +105,7 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
         &lowered.reserved_names,
         options.hmr,
         &lowered.hmr,
+        options.pure_define_element,
+        &lowered.pure_define_element_calls,
     )
 }

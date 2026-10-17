@@ -69,6 +69,8 @@ pub enum AttributeIr {
     Event(EventBindingIr),
     #[serde(rename = "RefBinding")]
     Ref(RefBindingIr),
+    #[serde(rename = "SpreadBinding")]
+    Spread(SpreadBindingIr),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -190,11 +192,22 @@ pub struct RefBindingIr {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpreadBindingIr {
+    pub id: NodeId,
+    pub target: String,
+    #[serde(rename = "expr")]
+    pub expression: ExpressionIr,
+    pub span: SourceSpan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum ChildIr {
     Element(ElementIr),
     Text(TextIr),
     DynamicText(DynamicTextIr),
+    DynamicRegion(DynamicRegionIr),
     Fragment(FragmentIr),
     Component(ComponentBindingIr),
     Show(ShowBindingIr),
@@ -216,6 +229,12 @@ impl From<TextIr> for ChildIr {
 impl From<DynamicTextIr> for ChildIr {
     fn from(value: DynamicTextIr) -> Self {
         Self::DynamicText(value)
+    }
+}
+
+impl From<DynamicRegionIr> for ChildIr {
+    fn from(value: DynamicRegionIr) -> Self {
+        Self::DynamicRegion(value)
     }
 }
 
@@ -263,8 +282,26 @@ pub struct ComponentBindingIr {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind")]
+pub enum ComponentPropIr {
+    #[serde(rename = "SpreadBinding")]
+    Spread(SpreadBindingIr),
+    #[serde(rename = "ComponentProp")]
+    Named(ComponentNamedPropIr),
+}
+
+impl ComponentPropIr {
+    pub fn named(&self) -> Option<&ComponentNamedPropIr> {
+        match self {
+            Self::Named(prop) => Some(prop),
+            Self::Spread(_) => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ComponentPropIr {
+pub struct ComponentNamedPropIr {
     pub id: NodeId,
     pub name: String,
     pub value: ComponentPropValueIr,
@@ -325,6 +362,52 @@ pub struct DynamicTextIr {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct DynamicRegionIr {
+    pub id: NodeId,
+    pub kind: String,
+    #[serde(rename = "ref")]
+    pub reference: IrRef,
+    pub expression: DynamicRegionExpressionIr,
+    pub span: SourceSpan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind")]
+pub enum DynamicRegionExpressionIr {
+    #[serde(rename = "ValueChild")]
+    Value { expression: ExpressionIr },
+    #[serde(rename = "ConditionalChild")]
+    Conditional {
+        test: ExpressionIr,
+        consequent: DynamicRegionValueIr,
+        alternate: DynamicRegionValueIr,
+    },
+    #[serde(rename = "LogicalChild")]
+    Logical {
+        left: ExpressionIr,
+        operator: String,
+        right: DynamicRegionValueIr,
+    },
+    #[serde(rename = "ArrayChild")]
+    ArrayMap {
+        each: ExpressionIr,
+        item: String,
+        index: Option<String>,
+        body: Vec<ChildIr>,
+    },
+    #[serde(rename = "ArrayLiteralChild")]
+    ArrayLiteral { items: Vec<DynamicRegionValueIr> },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum DynamicRegionValueIr {
+    Expression(ExpressionIr),
+    Children(Vec<ChildIr>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ExpressionIr {
     pub kind: String,
     pub code: String,
@@ -346,7 +429,7 @@ pub struct ForAccessorIr {
 pub enum ExpressionForm {
     #[default]
     Value,
-    Getter,
+    Function,
     Member,
 }
 

@@ -12,6 +12,7 @@ const topic = '[a-z0-9]+(?:-[a-z0-9]+)*'
 const version = '\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?'
 const allowed = [
   /^main$/,
+  new RegExp(`^codex\\/${topic}$`),
   new RegExp(`^(feat|fix|refactor|chore|docs|test)\\/${topic}-${topic}$`),
   new RegExp(`^release\\/${version}$`),
   new RegExp(`^v${version}$`),
@@ -32,6 +33,7 @@ console.error(pico.red(`Invalid branch name: ${branch}`))
 console.error('')
 console.error('Use one of:')
 console.error('  main')
+console.error('  codex/<topic>')
 console.error('  feat/<scope>-<topic>')
 console.error('  fix/<scope>-<topic>')
 console.error('  refactor/<scope>-<topic>')

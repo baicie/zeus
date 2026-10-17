@@ -26,17 +26,17 @@ function setup(props: TabTriggerProps, ctx: { host: HTMLElement }) {
   return (
     <Host
       data-slot="tab-trigger"
-      data-state={() => (selected() ? 'active' : 'inactive')}
-      data-disabled={() => (props.disabled ? '' : undefined)}
+      data-state={selected() ? 'active' : 'inactive'}
+      data-disabled={props.disabled ? '' : undefined}
     >
       <button
         part="root"
         type="button"
         role="tab"
-        disabled={() => Boolean(props.disabled)}
-        aria-selected={() => (selected() ? 'true' : 'false')}
-        aria-disabled={() => (props.disabled ? 'true' : undefined)}
-        prop:tabIndex={() => (selected() ? 0 : -1)}
+        disabled={Boolean(props.disabled)}
+        aria-selected={selected() ? 'true' : 'false'}
+        aria-disabled={props.disabled ? 'true' : undefined}
+        prop:tabIndex={selected() ? 0 : -1}
         onClick={select}
         onKeyDown={onKeyDown}
       >

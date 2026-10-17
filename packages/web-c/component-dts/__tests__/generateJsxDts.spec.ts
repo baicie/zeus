@@ -5,7 +5,7 @@ import { generateWCJsxDts } from '../src/generateJsxDts'
 describe('generateWCJsxDts', () => {
   it('generates JSX intrinsic elements', () => {
     const code = generateWCJsxDts({
-      version: 1,
+      schemaVersion: 1,
       components: [
         {
           tag: 'z-button',
@@ -28,6 +28,8 @@ describe('generateWCJsxDts', () => {
     })
 
     expect(code).toContain('namespace JSX')
+    expect(code).toContain("declare module '@zeus-js/zeus/jsx'")
+    expect(code).not.toContain('declare global')
     expect(code).toContain('"z-button": ZButtonProps')
     expect(code).toContain('variant?: "default" | "outline"')
     expect(code).toContain('[key: `data-${string}`]: unknown')
@@ -36,7 +38,7 @@ describe('generateWCJsxDts', () => {
 
   it('generates JSX props with common HTML attributes', () => {
     const code = generateWCJsxDts({
-      version: 1,
+      schemaVersion: 1,
       components: [
         {
           tag: 'z-button',
@@ -72,7 +74,7 @@ describe('generateWCJsxDts', () => {
 
   it('generates multiple component JSX types', () => {
     const code = generateWCJsxDts({
-      version: 1,
+      schemaVersion: 1,
       components: [
         {
           tag: 'z-button',
@@ -109,7 +111,7 @@ describe('generateWCJsxDts', () => {
 
   it('marks required props without ?', () => {
     const code = generateWCJsxDts({
-      version: 1,
+      schemaVersion: 1,
       components: [
         {
           tag: 'z-input',
@@ -137,7 +139,7 @@ describe('generateWCJsxDts', () => {
 
   it('escapes hyphenated tag names', () => {
     const code = generateWCJsxDts({
-      version: 1,
+      schemaVersion: 1,
       components: [
         {
           tag: 'z-my-button',

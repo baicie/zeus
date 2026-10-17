@@ -51,7 +51,7 @@ function setup(
   })
 
   return (
-    <Host data-invalid={() => (props.invalid ? '' : undefined)}>
+    <Host data-invalid={props.invalid ? '' : undefined}>
       <span part="prefix">
         <Slot name="prefix" />
       </span>
@@ -61,9 +61,9 @@ function setup(
           if (el) control = el
         }}
         part="control"
-        prop:value={() => props.value ?? ''}
-        placeholder={() => props.placeholder}
-        disabled={() => Boolean(props.disabled)}
+        prop:value={props.value ?? ''}
+        placeholder={props.placeholder}
+        disabled={Boolean(props.disabled)}
         onInput={nativeEvent => {
           const value = control.value
           ctx.host.value = value
@@ -109,6 +109,7 @@ interface DefineElementOptions<TProps, TEmits> {
   emits?: TEmits
   form?: FormAssociatedOptions<TProps>
   styles?: string | string[]
+  styleNonce?: string
   models?: readonly ElementModelDefinition<TProps>[]
   cssVars?: Record<string, { description?: string }>
   meta?: DefineElementMeta
@@ -121,6 +122,23 @@ The author-facing surface should stay small. Prefer source inference over metada
 - `slots` is inferred from `<Slot>` and native `<slot>`.
 - `cssParts` is inferred from static `part="..."`.
 - `cssVars` is optional documentation for public styling tokens only.
+
+`styles` are injected into the active ShadowRoot or Light DOM host on connect.
+When a Content Security Policy requires a nonce, pass the server-provided value
+as `styleNonce`; every generated `<style>` receives that nonce. Injected style
+nodes are removed with the component owner and recreated on a real reconnect,
+so reconnects do not accumulate duplicate CSS. DOM `part` and `data-*` Host
+attributes remain the author-facing primitives for `::part` selectors and
+stateful host theming. Custom properties declared in `cssVars` are the single
+metadata source for public design tokens; update the variables on an ancestor
+or the host to switch themes without rerendering the component. The analyzer
+emits them as `cssProperties` in `custom-elements.json` and as the corresponding
+`cssVars` entries in `zeus.components.json`.
+
+Controlled and uncontrolled state ownership is defined separately in
+[controlled-components.md](./controlled-components.md). In particular,
+`value`/`defaultValue` and Data Grid selection/sort properties must not be
+treated as interchangeable defaults.
 
 ## Props
 

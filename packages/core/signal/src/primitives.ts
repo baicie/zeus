@@ -1,5 +1,5 @@
 import { computed } from './computed'
-import { batch as runBatch, effect } from './effect'
+import { batch as runBatch, effect, untrack } from './effect'
 import { effectScope } from './effectScope'
 import { onCleanup } from './lifecycle'
 import { shallowRef } from './ref'
@@ -14,7 +14,7 @@ export function createSignal<T>(initialValue: T): [Accessor<T>, Setter<T>] {
   const write: Setter<T> = value => {
     const next =
       typeof value === 'function'
-        ? (value as (previous: T) => T)(source.value)
+        ? untrack(() => (value as (previous: T) => T)(source.value))
         : value
 
     source.value = next
@@ -30,7 +30,7 @@ export function createMemo<T>(compute: () => T): Accessor<T> {
 }
 
 export function createEffect(run: () => void): void {
-  effect(run)
+  effect(run, { rejectReentry: true })
 }
 
 export function createRoot<T>(run: (dispose: () => void) => T): T {
@@ -44,9 +44,13 @@ export function createRoot<T>(run: (dispose: () => void) => T): T {
   }
 
   try {
-    return root.run(() => run(dispose)) as T
+    return untrack(() => root.run(() => run(dispose))) as T
   } catch (error) {
-    dispose()
+    try {
+      dispose()
+    } catch {
+      /* Preserve the initial root setup failure. */
+    }
     throw error
   }
 }

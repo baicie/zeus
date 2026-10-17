@@ -71,6 +71,13 @@ function generatePropsArray(props: Record<string, ComponentProp>): string {
 
     parts.push(`type: ${JSON.stringify(prop.type)}`)
 
+    if (isJsonSafeDefault(prop.default)) {
+      const encoded = JSON.stringify(prop.default)
+      parts.push(
+        `default: ${typeof prop.default === 'object' && prop.default !== null ? `JSON.parse(${JSON.stringify(encoded)})` : encoded}`,
+      )
+    }
+
     if (
       prop.reflect &&
       (isAttributeBackedType(prop.type) || Boolean(prop.serialize))
@@ -90,6 +97,42 @@ function generatePropsArray(props: Record<string, ComponentProp>): string {
   })
 
   return `[\n${lines.join(',\n')}\n    ]`
+}
+
+function isJsonSafeDefault(
+  value: unknown,
+  parents = new Set<object>(),
+): boolean {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean')
+    return true
+  if (typeof value === 'number')
+    return Number.isFinite(value) && !Object.is(value, -0)
+  if (typeof value !== 'object' || parents.has(value)) return false
+  if (
+    !Array.isArray(value) &&
+    Object.getPrototypeOf(value) !== Object.prototype
+  )
+    return false
+  if (Object.getOwnPropertySymbols(value).length) return false
+
+  parents.add(value)
+  const descriptors = Object.getOwnPropertyDescriptors(value)
+  const valid = Array.isArray(value)
+    ? Array.from(
+        { length: value.length },
+        (_, index) => descriptors[index],
+      ).every(
+        descriptor =>
+          descriptor &&
+          'value' in descriptor &&
+          isJsonSafeDefault(descriptor.value, parents),
+      )
+    : Object.values(descriptors).every(
+        descriptor =>
+          'value' in descriptor && isJsonSafeDefault(descriptor.value, parents),
+      )
+  parents.delete(value)
+  return valid
 }
 
 function isAttributeBackedType(type: ComponentProp['type']): boolean {

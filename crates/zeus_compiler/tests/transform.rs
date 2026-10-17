@@ -18,6 +18,7 @@ fn options(source_map: bool) -> TransformModuleOptions {
         delegate_events: false,
         source_map,
         hmr: false,
+        pure_define_element: false,
     }
 }
 
@@ -85,6 +86,127 @@ fn emits_static_template_and_precise_dynamic_text_binding() {
 }
 
 #[test]
+fn maps_spread_nested_jsx_dynamic_attributes_and_higher_order_callbacks() {
+    let source = r#"const Child = props => <article data-child={props.childAttribute}>{props.childText}</article>
+export const App = props => (
+  <section {...props.spreadAttributes} data-title={props.dynamicAttribute}>
+    <Child childAttribute={props.nestedAttribute} childText={props.nestedText} />
+    <input prop:value={props.dynamicProperty} />
+    {props.rows.map((row, index) => <button data-row={row.id} onClick={() => props.onRow(row, index)}>{row.label}</button>)}
+  </section>
+)
+"#;
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "source-map-coverage.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: true,
+        source_map: true,
+        hmr: false,
+        pure_define_element: false,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "unexpected diagnostics: {:?}",
+        transformed.diagnostics
+    );
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, &transformed.code, SourceType::ts()).parse();
+    assert!(
+        parsed.diagnostics.is_empty(),
+        "generated source-map fixture must parse: {:?}",
+        parsed.diagnostics
+    );
+
+    for expression in [
+        "props.childAttribute",
+        "props.childText",
+        "props.spreadAttributes",
+        "props.dynamicAttribute",
+        "props.nestedAttribute",
+        "props.nestedText",
+        "props.dynamicProperty",
+        "props.rows",
+        "row.id",
+        "props.onRow(row, index)",
+        "row.label",
+    ] {
+        assert_expression_mapping(source, &transformed, expression);
+    }
+
+    let ssr = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "source-map-coverage.tsx".into(),
+        target: TransformTarget::Ssr,
+        runtime_module: "@zeus-js/runtime-ssr".into(),
+        delegate_events: false,
+        source_map: true,
+        hmr: false,
+        pure_define_element: false,
+    });
+    assert!(ssr.diagnostics.is_empty(), "{:?}", ssr.diagnostics);
+    for expression in [
+        "props.childAttribute",
+        "props.childText",
+        "props.spreadAttributes",
+        "props.dynamicAttribute",
+        "props.nestedAttribute",
+        "props.nestedText",
+        "props.dynamicProperty",
+        "props.rows",
+        "row.id",
+        "row.label",
+    ] {
+        assert_expression_mapping(source, &ssr, expression);
+    }
+}
+
+#[test]
+fn marks_only_top_level_define_element_initializers_pure_when_requested() {
+    let source = r#"import { defineElement as define } from '@zeus-js/runtime-dom'
+export const ZPackedButton = define<{ label: string }>('z-packed-button', {}, props => <button>{props.label}</button>)
+export const ZPackedUnused = define('z-packed-unused', {}, () => <span>unused</span>)
+export const LocalCall = (define => define('local-call', {}))(callback)
+"#;
+    let options = TransformModuleOptions {
+        source: source.into(),
+        filename: "components.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: false,
+        hmr: false,
+        pure_define_element: false,
+    };
+
+    let ordinary = transform_module(options.clone());
+    assert!(
+        ordinary.diagnostics.is_empty(),
+        "{:?}",
+        ordinary.diagnostics
+    );
+    assert!(!ordinary.code.contains("/* @__PURE__ */ define"));
+
+    let lazy = transform_module(TransformModuleOptions {
+        pure_define_element: true,
+        ..options
+    });
+    assert!(lazy.diagnostics.is_empty(), "{:?}", lazy.diagnostics);
+    assert_eq!(lazy.code.matches("/* @__PURE__ */ define").count(), 2);
+    assert!(
+        lazy.code
+            .contains("ZPackedButton = /* @__PURE__ */ define<")
+    );
+    assert!(
+        lazy.code
+            .contains("ZPackedUnused = /* @__PURE__ */ define(")
+    );
+    assert!(lazy.code.contains("LocalCall = (define => define("));
+}
+
+#[test]
 fn emits_explicit_once_flags_without_changing_default_bindings() {
     let source = r"export const App = props => <div
   title={/* @once */ props.title}
@@ -103,6 +225,7 @@ export const Raw = props => <style>prefix {/* @once */ props.label}</style>
         delegate_events: false,
         source_map: true,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(
@@ -174,6 +297,7 @@ fn rejects_once_marked_node_bindings_before_codegen() {
             delegate_events: false,
             source_map: false,
             hmr: false,
+            pure_define_element: false,
         });
 
         assert!(transformed.code.is_empty(), "{filename}");
@@ -210,6 +334,7 @@ fn rejects_once_markers_on_ignored_builtin_attributes() {
             delegate_events: false,
             source_map: false,
             hmr: false,
+            pure_define_element: false,
         });
 
         assert!(transformed.code.is_empty(), "{filename}");
@@ -236,6 +361,7 @@ export const App = props => <div>{props.name}</div>
         delegate_events: false,
         source_map: false,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -253,6 +379,7 @@ fn avoids_collisions_with_unresolved_references() {
         delegate_events: false,
         source_map: false,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -271,6 +398,7 @@ fn preserves_object_literal_expression_semantics() {
         delegate_events: false,
         source_map: false,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -288,6 +416,7 @@ fn does_not_resolve_text_creation_through_component_scope() {
         delegate_events: false,
         source_map: false,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -298,21 +427,19 @@ fn does_not_resolve_text_creation_through_component_scope() {
 #[test]
 fn returns_diagnostics_without_emitting_partial_code() {
     let transformed = transform_module(TransformModuleOptions {
-        source: "export const App = props => <div {...props} />".into(),
+        source: "export const App = props => <div>{() => props.title}</div>".into(),
         filename: "spread.tsx".into(),
         target: TransformTarget::Dom,
         runtime_module: "@zeus-js/runtime-dom".into(),
         delegate_events: false,
         source_map: true,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(transformed.code.is_empty());
     assert!(transformed.map.is_none());
-    assert_eq!(
-        transformed.diagnostics[0].code,
-        "ZEUS_UNSUPPORTED_SPREAD_ATTRIBUTE"
-    );
+    assert_eq!(transformed.diagnostics[0].code, "ZEUS_FUNCTION_CHILD");
 }
 
 #[test]
@@ -336,6 +463,7 @@ export const App = (inlineHandler, identifierHandler, theme, maybe, props, asser
         delegate_events: true,
         source_map: true,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -403,6 +531,7 @@ export const App = (inlineHandler, identifierHandler, theme, maybe, props, asser
         delegate_events: false,
         source_map: false,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(without_delegation.diagnostics.is_empty());
@@ -438,6 +567,7 @@ export const App = props => (
         delegate_events: true,
         source_map: false,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(
@@ -456,6 +586,72 @@ export const App = props => (
 }
 
 #[test]
+fn collects_delegated_events_and_locator_names_from_dynamic_regions() {
+    let source = r#"export const App = props => <div>
+  {props.ok ? <button data-zeus-node="user" onClick={props.onClick}>ok</button> : null}
+  {props.ready && <button onFocus={props.onFocus}>ready</button>}
+  {props.items.map(item => <button onInput={props.onInput}>{item}</button>)}
+  {[<button onChange={props.onChange}>changed</button>]}
+</div>
+"#;
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "dynamic-region-events.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: true,
+        source_map: false,
+        hmr: false,
+        pure_define_element: false,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    assert!(
+        transformed.code.contains("data-zeus-node-0"),
+        "{}",
+        transformed.code
+    );
+    assert!(transformed.code.contains("delegateEvents as"));
+    assert!(
+        transformed
+            .code
+            .contains("$zeusDelegateEvents([\"change\", \"click\", \"focus\", \"input\"]);")
+    );
+}
+
+#[test]
+fn collects_locator_names_from_show_fallback_subtrees() {
+    let source = r#"import { Show } from '@zeus-js/zeus'
+export const App = props => <div><Show when={props.ok} fallback={<button data-zeus-node="user" onClick={props.onClick}>fallback</button>}><span>{props.name}</span></Show></div>
+"#;
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "show-fallback-locator.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: false,
+        hmr: false,
+        pure_define_element: false,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    assert!(
+        transformed.code.contains("data-zeus-node-0"),
+        "fallback attributes must reserve the locator name: {}",
+        transformed.code
+    );
+}
+
+#[test]
 fn leaves_plain_modules_untouched_and_preserves_directive_prologue() {
     let plain_source = "export const value: number = 1\n";
     let plain = transform_module(TransformModuleOptions {
@@ -466,6 +662,7 @@ fn leaves_plain_modules_untouched_and_preserves_directive_prologue() {
         delegate_events: false,
         source_map: true,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(plain.diagnostics.is_empty());
@@ -482,6 +679,7 @@ fn leaves_plain_modules_untouched_and_preserves_directive_prologue() {
         delegate_events: false,
         source_map: false,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(directive.diagnostics.is_empty());
@@ -502,21 +700,32 @@ fn emits_rust_hmr_boundary_for_top_level_render_roots() {
     let transformed = transform_module(options);
 
     assert!(transformed.diagnostics.is_empty());
-    assert!(transformed.code.contains("const _dispose = mount('first'"));
+    assert!(transformed.code.contains("const _zeusHmrDisposers = []"));
     assert!(
         transformed
             .code
-            .contains("const _dispose0 = mount('second'")
+            .contains("_zeusHmrDisposers.push(mount('first'")
     );
-    let dispose_second = transformed
+    assert!(
+        transformed
+            .code
+            .contains("_zeusHmrDisposers.push(mount('second'")
+    );
+    assert!(
+        transformed
+            .code
+            .contains("for (const dispose of _zeusHmrDisposers.splice(0).reverse())")
+    );
+    let register = transformed
         .code
-        .find("    _dispose0()")
-        .expect("second root is disposed first");
-    let dispose_first = transformed
+        .find("import.meta.hot.dispose")
+        .expect("HMR disposal is registered");
+    let mount = transformed
         .code
-        .find("    _dispose()")
-        .expect("first root is disposed");
-    assert!(dispose_second < dispose_first);
+        .find("mount('first'")
+        .expect("first root is mounted");
+    assert!(register < mount, "disposal must be registered before mount");
+    assert!(transformed.code.contains("root disposal failed"));
 }
 
 #[test]
@@ -534,11 +743,27 @@ fn skips_rust_hmr_when_module_has_an_explicit_boundary() {
 }
 
 #[test]
+fn wraps_destructured_render_results_without_synthetic_declarations() {
+    let mut options = options(false);
+    options.source = "import { render } from '@zeus-js/zeus'\n\nconst { dispose } = render('view', document.body)".into();
+    options.filename = "main.tsx".into();
+    options.hmr = true;
+
+    let transformed = transform_module(options);
+
+    assert!(transformed.diagnostics.is_empty());
+    assert!(transformed.code.contains(
+        "const { dispose } = (_zeusHmrDisposers.push(render('view', document.body)), _zeusHmrDisposers[_zeusHmrDisposers.length - 1])"
+    ));
+    assert!(!transformed.code.contains("= const _dispose"));
+}
+
+#[test]
 fn emits_attribute_property_and_ref_bindings_with_stable_locators() {
     let source = r"export const App = (props, inputRef) => (
   <section title={props.title}>
     prefix
-    <div className={props.className} style={() => props.style}>
+    <div className={props.className} style={props.style}>
       <input prop:value={props.value} ref={inputRef} />
     </div>
     <table><tr data-row={props.row}><td>cell</td></tr></table>
@@ -553,6 +778,7 @@ fn emits_attribute_property_and_ref_bindings_with_stable_locators() {
         delegate_events: false,
         source_map: true,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -565,7 +791,7 @@ fn emits_attribute_property_and_ref_bindings_with_stable_locators() {
     assert!(transformed.code.contains(".removeAttribute("));
     assert!(!transformed.code.contains(".childNodes["));
     assert!(transformed.code.contains("() => (props.title)"));
-    assert!(transformed.code.contains("() => props.style"));
+    assert!(transformed.code.contains("() => (props.style)"));
     assert!(!transformed.code.contains("() => (() => props.style)"));
     assert!(transformed.code.contains(", inputRef);"));
     assert!(!transformed.code.contains("() => (inputRef)"));
@@ -581,7 +807,7 @@ fn emits_attribute_property_and_ref_bindings_with_stable_locators() {
     for expression in [
         "props.title",
         "props.className",
-        "() => props.style",
+        "props.style",
         "props.value",
         "inputRef",
         "props.row",
@@ -606,6 +832,7 @@ export const Static = () => <script>const amp = "a&b";</script>
         delegate_events: false,
         source_map: true,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -651,6 +878,7 @@ fn emits_root_and_nested_fragment_templates_with_stable_markers() {
         delegate_events: false,
         source_map: true,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(
@@ -693,6 +921,7 @@ export const App = props => <section><Child title={props.name}><span>{props.name
         delegate_events: false,
         source_map: true,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(
@@ -733,6 +962,7 @@ export const App = props => <Child><Show when={props.visible}><span>on</span></S
         delegate_events: false,
         source_map: true,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(
@@ -759,6 +989,109 @@ export const App = props => <Child><Show when={props.visible}><span>on</span></S
 }
 
 #[test]
+fn emits_dynamic_region_for_nested_conditional_and_array_jsx() {
+    let source = r"export const App = props => <section>{props.ok ? <span>yes</span> : null}{props.items.map(item => <b>{item.name}</b>)}</section>
+";
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "nested-regions.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: true,
+        hmr: false,
+        pure_define_element: false,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    assert!(transformed.code.contains("mountDynamic"));
+    assert!(transformed.code.contains("() => (props.ok ?"));
+    assert!(transformed.code.contains("props.items ?? []).map"));
+    assert!(transformed.code.contains("<b"));
+
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, &transformed.code, SourceType::ts()).parse();
+    assert!(
+        parsed.diagnostics.is_empty(),
+        "nested region output must parse: {:?}",
+        parsed.diagnostics
+    );
+}
+
+#[test]
+fn emits_dynamic_region_for_explicit_function_call_children() {
+    let source = r"const render = () => <span>node</span>
+export const App = props => <div>{render()}</div>
+";
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "function-child.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: false,
+        hmr: false,
+        pure_define_element: false,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    assert!(transformed.code.contains("mountDynamic"));
+    assert!(transformed.code.contains("() => render()"));
+}
+
+#[test]
+fn emits_dom_and_ssr_dynamic_regions_for_array_literal_children() {
+    let source = r"export const App = props => <div>{[<A />, props.value, <B />]}</div>
+";
+    let dom = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "array-literal-region.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: false,
+        hmr: false,
+        pure_define_element: false,
+    });
+    assert!(dom.diagnostics.is_empty(), "{:?}", dom.diagnostics);
+    assert!(dom.code.contains("mountDynamic"));
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, &dom.code, SourceType::ts()).parse();
+    assert!(
+        parsed.diagnostics.is_empty(),
+        "array literal DOM output must parse: {:?}",
+        parsed.diagnostics
+    );
+
+    let ssr = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "array-literal-region.ssr.tsx".into(),
+        target: TransformTarget::Ssr,
+        runtime_module: "@zeus-js/runtime-ssr".into(),
+        delegate_events: false,
+        source_map: false,
+        hmr: false,
+        pure_define_element: false,
+    });
+    assert!(ssr.diagnostics.is_empty(), "{:?}", ssr.diagnostics);
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, &ssr.code, SourceType::ts()).parse();
+    assert!(
+        parsed.diagnostics.is_empty(),
+        "array literal SSR output must parse: {:?}",
+        parsed.diagnostics
+    );
+}
+
+#[test]
 fn emits_create_slot_for_web_component_slot_ir() {
     let source = r#"import { defineElement as d, Host as H, Slot as S } from '@zeus-js/runtime-dom'
 export const Element = d('z-card', { shadow: false }, props => <H><section><S name="header">fallback</S></section></H>)
@@ -771,6 +1104,7 @@ export const Element = d('z-card', { shadow: false }, props => <H><section><S na
         delegate_events: false,
         source_map: true,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(
@@ -796,6 +1130,7 @@ export const Element = d('z-card', { shadow: false }, props => <H><Show when={pr
         delegate_events: false,
         source_map: true,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(
@@ -819,6 +1154,7 @@ export const App = props => <div><Show when={props.visible} fallback="hidden"><s
         delegate_events: false,
         source_map: true,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(
@@ -858,6 +1194,7 @@ export const App = props => <div><For each={props.items} by={item => item.id}>{(
         delegate_events: false,
         source_map: true,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(
@@ -886,6 +1223,7 @@ export const App = props => <For each={props.items}>{(it\u0065m, ind\u0065x) => 
         delegate_events: false,
         source_map: true,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(
@@ -925,6 +1263,7 @@ export const App = props => <For each={props.items}>{(item, index) => (
         delegate_events: false,
         source_map: true,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(
@@ -960,6 +1299,7 @@ export const App = props => <For each={props.groups}>{item => (
         delegate_events: false,
         source_map: true,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(
@@ -989,6 +1329,7 @@ export const App = props => <For each={props.components}>{Item => <Item />}</For
         delegate_events: false,
         source_map: true,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(
@@ -1002,7 +1343,7 @@ export const App = props => <For each={props.components}>{Item => <Item />}</For
 #[test]
 fn does_not_subscribe_to_type_only_for_parameter_references() {
     let source = r"import { For } from '@zeus-js/zeus'
-export const App = props => <For each={props.items}>{(item, index) => <span title={() => (props.calls++, props.value as typeof index)}>{item.label}</span>}</For>
+export const App = props => <For each={props.items}>{(item, index) => <span title={(props.calls++, props.value as typeof index)}>{item.label}</span>}</For>
 ";
     let transformed = transform_module(TransformModuleOptions {
         source: source.into(),
@@ -1012,6 +1353,7 @@ export const App = props => <For each={props.items}>{(item, index) => <span titl
         delegate_events: false,
         source_map: true,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(
@@ -1040,6 +1382,7 @@ export const App = props => <For each={props.items}>{({ label }, index) => <b>{i
         delegate_events: false,
         source_map: true,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(transformed.code.is_empty());
@@ -1065,6 +1408,7 @@ export const App = props => <><Show when={props.visible} fallback="off"><Child n
         delegate_events: false,
         source_map: true,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(
@@ -1100,6 +1444,7 @@ export const Native = props => <z-card data-value={props.value}><input disabled 
         delegate_events: false,
         source_map: false,
         hmr: false,
+        pure_define_element: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -1167,4 +1512,44 @@ fn assert_expression_mapping(
         .unwrap(),
         "column mapping for {expression}"
     );
+}
+
+#[test]
+fn preserves_function_property_values_without_invoking_them() {
+    let mut input = options(false);
+    input.source = "export const App = () => <z-grid prop:formatter={(row) => row.name} />".into();
+    let result = transform_module(input);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(
+        result.code.contains("() => ((row) => row.name)"),
+        "{}",
+        result.code
+    );
+    assert!(!result.code.contains("row.name)()"));
+}
+
+#[test]
+fn lowers_ordered_native_and_component_spreads_for_both_targets() {
+    for target in [TransformTarget::Dom, TransformTarget::Ssr] {
+        let mut input = options(true);
+        input.target = target;
+        input.source = "const View = props => <div {...base()} id=\"fixed\" {...later()} />; export const App = () => <View {...base()} value={count()} />".into();
+        let result = transform_module(input);
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert!(result.code.contains("mergeProps"), "{}", result.code);
+        assert!(
+            result.code.contains(if target == TransformTarget::Dom {
+                "bindSpread"
+            } else {
+                "ssrSpread"
+            }),
+            "{}",
+            result.code
+        );
+        assert!(result.code.contains("base()"));
+        assert!(result.code.contains("later()"));
+        let allocator = Allocator::default();
+        let parsed = Parser::new(&allocator, &result.code, SourceType::ts()).parse();
+        assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+    }
 }

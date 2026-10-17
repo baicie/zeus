@@ -8,7 +8,7 @@ export type ComponentPropType =
   | 'unknown'
 
 export interface ComponentManifest {
-  version: 1
+  schemaVersion: 1
   components: ComponentRecord[]
 }
 
@@ -58,6 +58,8 @@ export interface ComponentProp {
   required?: boolean
   values?: string[]
   default?: unknown
+  hasDefault?: boolean
+  defaultStrategy?: 'static' | 'factory'
   reflect?: boolean
   attr?: string | false
   serialize?: boolean

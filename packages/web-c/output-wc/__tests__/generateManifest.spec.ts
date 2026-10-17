@@ -1,12 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, it } from 'vitest'
 
-import { generateZeusComponentsManifest } from '../src/generateManifest'
+import {
+  generateZeusComponentsManifest,
+  validateComponentManifest,
+} from '../src/generateManifest'
 
 describe('generateManifest', () => {
   it('outputs formatted JSON manifest', () => {
     const manifest = {
-      version: 1,
+      schemaVersion: 1,
       components: [
         {
           tag: 'z-button',
@@ -33,14 +36,14 @@ describe('generateManifest', () => {
     const result = generateZeusComponentsManifest(manifest as any)
     const parsed = JSON.parse(result)
 
-    expect(parsed.version).toBe(1)
+    expect(parsed.schemaVersion).toBe(1)
     expect(parsed.components).toHaveLength(1)
     expect(parsed.components[0].tag).toBe('z-button')
   })
 
   it('ends with trailing newline', () => {
     const result = generateZeusComponentsManifest({
-      version: 1,
+      schemaVersion: 1,
       components: [],
     } as any)
     expect(result.endsWith('\n')).toBe(true)
@@ -48,7 +51,7 @@ describe('generateManifest', () => {
 
   it('pretty prints with 2-space indent', () => {
     const result = generateZeusComponentsManifest({
-      version: 1,
+      schemaVersion: 1,
       components: [
         {
           tag: 'z-button',
@@ -70,17 +73,135 @@ describe('generateManifest', () => {
 
   it('handles empty manifest', () => {
     const result = generateZeusComponentsManifest({
-      version: 1,
+      schemaVersion: 1,
       components: [],
     } as any)
     const parsed = JSON.parse(result)
-    expect(parsed.version).toBe(1)
+    expect(parsed.schemaVersion).toBe(1)
     expect(parsed.components).toEqual([])
+  })
+
+  it('rejects the removed version field and unsupported ABI values', () => {
+    expect(() =>
+      generateZeusComponentsManifest({
+        version: 1,
+        components: [],
+      } as any),
+    ).toThrow('[ZEUS_WC_ABI_VERSION]')
+
+    expect(() =>
+      validateComponentManifest({
+        schemaVersion: 1,
+        components: [
+          {
+            tag: 'z-invalid',
+            name: 'ZInvalid',
+            exportName: 'ZInvalid',
+            source: 'src/invalid.tsx',
+            props: {
+              value: {
+                type: 'string',
+                default: () => 'not serializable',
+                defaultStrategy: 'factory',
+              },
+            },
+            events: {},
+            slots: {},
+            hostAttributes: [],
+            cssParts: [],
+            cssVars: {},
+          },
+        ],
+      }),
+    ).toThrow('[ZEUS_WC_INVALID_DEFAULT_META]')
+  })
+
+  it('rejects duplicate tags and attribute aliases', () => {
+    const component = {
+      tag: 'z-input',
+      name: 'ZInput',
+      exportName: 'ZInput',
+      source: 'src/input.tsx',
+      props: { value: { type: 'string' as const, attr: 'value' } },
+      events: {},
+      slots: {},
+      hostAttributes: [],
+      cssParts: [],
+      cssVars: {},
+    }
+
+    expect(() =>
+      validateComponentManifest({
+        schemaVersion: 1,
+        components: [component, { ...component, name: 'ZInputCopy' }],
+      }),
+    ).toThrow('[ZEUS_WC_DUPLICATE_TAG]')
+
+    expect(() =>
+      validateComponentManifest({
+        schemaVersion: 1,
+        components: [
+          {
+            ...component,
+            props: {
+              value: { type: 'string' as const, attr: 'value' },
+              label: { type: 'string' as const, attr: 'value' },
+            },
+          },
+        ],
+      }),
+    ).toThrow('[ZEUS_WC_ATTR_COLLISION]')
+  })
+
+  it('rejects non-serializable event, slot, method, and style metadata', () => {
+    const base = {
+      tag: 'z-contract',
+      name: 'ZContract',
+      exportName: 'ZContract',
+      source: 'src/contract.tsx',
+      props: {},
+      events: {},
+      slots: {},
+      hostAttributes: [],
+      cssParts: [],
+      cssVars: {},
+    }
+    const manifest = (component: Record<string, unknown>) => ({
+      schemaVersion: 1 as const,
+      components: [{ ...base, ...component }],
+    })
+
+    expect(() =>
+      validateComponentManifest(
+        manifest({ events: { change: { detail: { value: () => 1 } } } }) as any,
+      ),
+    ).toThrow('[ZEUS_WC_INVALID_MANIFEST]')
+    expect(() =>
+      validateComponentManifest(
+        manifest({ slots: { header: { description: Symbol('slot') } } }) as any,
+      ),
+    ).toThrow('[ZEUS_WC_INVALID_MANIFEST]')
+    expect(() =>
+      validateComponentManifest(
+        manifest({
+          methods: {
+            run: { name: 'run', returns: Reflect.get(globalThis, 'BigInt')(1) },
+          },
+        }) as any,
+      ),
+    ).toThrow('[ZEUS_WC_INVALID_MANIFEST]')
+    expect(() =>
+      validateComponentManifest(
+        manifest({
+          cssVars: { '--gap': { name: '--gap', value: new Date() } },
+        }) as any,
+      ),
+    ).toThrow('[ZEUS_WC_INVALID_MANIFEST]')
   })
 
   it('preserves all component fields', () => {
     const manifest = {
-      version: 1,
+      schemaVersion: 1,
       components: [
         {
           tag: 'z-button',

@@ -51,6 +51,10 @@ export function generateComponentWCDtsFile(
   lines.push(`  new (): ${elementTypeName}`)
   lines.push('}')
   lines.push('')
+  lines.push(
+    'export declare function defineCustomElement(options?: { registry?: CustomElementRegistry }): void',
+  )
+  lines.push('')
 
   return lines.join('\n')
 }

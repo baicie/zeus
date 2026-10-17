@@ -5,7 +5,7 @@ import { generateVueDts, generateVueGlobalDts } from '../src/generateVueDts'
 describe('generateVueDts', () => {
   it('includes Vue model update event types', () => {
     const code = generateVueDts({
-      version: 1,
+      schemaVersion: 1,
       components: [
         {
           tag: 'z-input',
@@ -42,7 +42,7 @@ describe('generateVueDts', () => {
 
   it('generates Vue wrapper dts', () => {
     const code = generateVueDts({
-      version: 1,
+      schemaVersion: 1,
       components: [
         {
           tag: 'z-button',
@@ -70,7 +70,9 @@ describe('generateVueDts', () => {
       ],
     })
 
-    expect(code).toContain(`import type { DefineComponent } from 'vue'`)
+    expect(code).toContain(
+      `import type { DefineComponent, SlotsType } from 'vue'`,
+    )
     expect(code).toContain('export interface ZButtonProps')
     expect(code).toContain(
       '"press": (event: CustomEvent<{ nativeEvent: MouseEvent }>) => void',
@@ -80,7 +82,7 @@ describe('generateVueDts', () => {
 
   it('handles event with no detail', () => {
     const code = generateVueDts({
-      version: 1,
+      schemaVersion: 1,
       components: [
         {
           tag: 'z-toggle',
@@ -104,7 +106,7 @@ describe('generateVueDts', () => {
 
   it('handles no events with empty emits', () => {
     const code = generateVueDts({
-      version: 1,
+      schemaVersion: 1,
       components: [
         {
           tag: 'z-simple',
@@ -128,7 +130,7 @@ describe('generateVueDts', () => {
 describe('generateVueGlobalDts', () => {
   it('generates Vue global component declarations', () => {
     const code = generateVueGlobalDts({
-      version: 1,
+      schemaVersion: 1,
       components: [
         {
           tag: 'z-button',
@@ -151,7 +153,7 @@ describe('generateVueGlobalDts', () => {
 
   it('generates global declarations for multiple components', () => {
     const code = generateVueGlobalDts({
-      version: 1,
+      schemaVersion: 1,
       components: [
         {
           tag: 'z-button',

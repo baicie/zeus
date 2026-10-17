@@ -87,10 +87,10 @@ describe('Host', () => {
     expect(container.textContent).toBe('')
   })
 
-  it('renders function children', () => {
+  it('renders compiler getter children', () => {
     const container = document.createElement('div')
     const result = Host({
-      children: () => {
+      get children() {
         const el = document.createElement('span')
         el.textContent = 'lazy child'
         return el
@@ -186,7 +186,9 @@ describe('Host', () => {
         insertTracked(div, slotEl)
 
         Host({
-          'data-state': () => (props.open ? 'open' : 'closed'),
+          get 'data-state'() {
+            return props.open ? 'open' : 'closed'
+          },
           children: div,
         })
 
@@ -230,8 +232,12 @@ describe('Host', () => {
         button.textContent = 'button'
 
         Host({
-          'data-disabled': () => (props.disabled ? '' : undefined),
-          'aria-disabled': () => (props.disabled ? 'true' : undefined),
+          get 'data-disabled'() {
+            return props.disabled ? '' : undefined
+          },
+          get 'aria-disabled'() {
+            return props.disabled ? 'true' : undefined
+          },
           children: button,
         })
 
@@ -308,12 +314,14 @@ describe('Host', () => {
         button.textContent = 'button'
 
         Host({
-          class: () => [
-            'z-button',
-            {
-              'is-active': props.active,
-            },
-          ],
+          get class() {
+            return [
+              'z-button',
+              {
+                'is-active': props.active,
+              },
+            ]
+          },
           children: button,
         })
 
@@ -387,11 +395,13 @@ describe('Host', () => {
         span.textContent = 'styled'
 
         Host({
-          style: () => ({
-            display: 'inline-flex',
-            gap: props.gap,
-            opacity: 1,
-          }),
+          get style() {
+            return {
+              display: 'inline-flex',
+              gap: props.gap,
+              opacity: 1,
+            }
+          },
           children: span,
         })
 
@@ -536,7 +546,9 @@ describe('Host', () => {
 
         Host({
           role: 'button',
-          'aria-disabled': () => (props.disabled ? 'true' : 'false'),
+          get 'aria-disabled'() {
+            return props.disabled ? 'true' : 'false'
+          },
           'aria-label': 'test button',
           children: span,
         })
@@ -585,7 +597,9 @@ describe('Host', () => {
         Host({
           id: 'my-element',
           title: 'My Element',
-          tabIndex: () => props.tabindex ?? 0,
+          get tabIndex() {
+            return props.tabindex ?? 0
+          },
           children: span,
         })
 

@@ -36,16 +36,34 @@ test('transformModule returns code, source map, and diagnostics', () => {
 
 test('compiler diagnostics remain structured data', () => {
   const result = transformModule(
-    options('export const App = props => <div {...props} />'),
+    options('export const App = props => <div>{() => props.title}</div>'),
   )
 
   assert.equal(result.code, '')
   assert.equal(result.map, null)
   assert.equal(result.diagnostics.length, 1)
-  assert.equal(result.diagnostics[0].code, 'ZEUS_UNSUPPORTED_SPREAD_ATTRIBUTE')
+  assert.equal(result.diagnostics[0].code, 'ZEUS_FUNCTION_CHILD')
   assert.equal(result.diagnostics[0].filename, 'App.tsx')
   assert.equal(result.diagnostics[0].severity, 'error')
   assert.equal(typeof result.diagnostics[0].span.start.offset, 'number')
+})
+
+test('unsupported JSX attributes are diagnosed instead of silently discarded', () => {
+  for (const source of [
+    `import { Show } from '@zeus-js/zeus'; export const App = props => <Show when={props.ok} extra={<i />} />`,
+    `export const App = props => <div>{props.items.map(item => <b>{item}</b>, <i />)}</div>`,
+  ]) {
+    const result = transformModule(options(source))
+
+    assert.equal(result.code, '')
+    assert.equal(result.diagnostics.length, 1)
+    assert.equal(typeof result.diagnostics[0].span.start.offset, 'number')
+    assert.equal(typeof result.diagnostics[0].span.end.offset, 'number')
+    assert.match(
+      result.diagnostics[0].code,
+      /^ZEUS_(INVALID_BUILTIN_USAGE|UNSUPPORTED_NESTED_JSX_EXPRESSION)$/,
+    )
+  }
 })
 
 test('explicit @once bindings use the runtime flag and invalid targets fail', () => {

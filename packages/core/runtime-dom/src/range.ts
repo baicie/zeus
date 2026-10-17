@@ -2,6 +2,7 @@
 
 import { moveNodeBefore } from './domMove'
 import { trackRuntimeDomInsertion } from './domOwnership'
+import { assertRenderableJSXTree } from './jsxValue'
 
 import type { JSXValue } from './types'
 
@@ -14,6 +15,7 @@ export class DynamicRange {
   ) {}
 
   replace(value: JSXValue): void {
+    assertRenderableJSXTree(value)
     this.clear()
     this.nodes = insertTracked(this.parent, value, this.marker)
   }
@@ -35,6 +37,8 @@ export function insertTracked(
   value: JSXValue,
   marker: Node | null = null,
 ): Node[] {
+  assertRenderableJSXTree(value)
+
   if (
     value === undefined ||
     value == null ||

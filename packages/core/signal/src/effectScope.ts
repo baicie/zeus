@@ -1,4 +1,11 @@
 import { RuntimeDiagnosticsField } from './constants'
+import {
+  assertEngineOwner,
+  createEngineOwnerFrame,
+  engineContext,
+  enterEngineOwner,
+  leaveEngineOwner,
+} from './engine-context'
 import { activeRuntimeDiagnostics } from './runtime-diagnostics'
 import { warn } from './warning'
 
@@ -26,6 +33,8 @@ export class EffectScope {
 
   private _isPaused = false
   private _warnOnRun = true
+  private readonly _engineFrame = createEngineOwnerFrame()
+  private _engineOn = false
 
   /**
    * only assigned by undetached scope
@@ -48,6 +57,7 @@ export class EffectScope {
   // TODO isolatedDeclarations ReactiveFlags.SKIP
 
   constructor(public detached = false) {
+    if (!detached) assertEngineOwner('create a child scope')
     const diagnostics = activeRuntimeDiagnostics
     if (diagnostics) {
       diagnostics[RuntimeDiagnosticsField.SCOPES_CREATED]++
@@ -131,11 +141,14 @@ export class EffectScope {
   run<T>(fn: () => T): T | undefined {
     if (this._active) {
       const currentEffectScope = activeEffectScope
+      const frame = createEngineOwnerFrame()
+      const entered = enterEngineOwner(frame)
       try {
         activeEffectScope = this
         return fn()
       } finally {
         activeEffectScope = currentEffectScope
+        if (entered) leaveEngineOwner(frame)
       }
     } else if (__DEV__ && this._warnOnRun) {
       warn(`cannot run an inactive effect scope.`)
@@ -149,6 +162,7 @@ export class EffectScope {
    */
   on(): void {
     if (++this._on === 1) {
+      this._engineOn = enterEngineOwner(this._engineFrame)
       this.prevScope = activeEffectScope
       activeEffectScope = this
     }
@@ -181,40 +195,59 @@ export class EffectScope {
         }
       }
       this.prevScope = undefined
+      if (this._engineOn) leaveEngineOwner(this._engineFrame)
+      this._engineOn = false
     }
   }
 
   stop(fromParent?: boolean): void {
     if (this._active) {
       this._active = false
-      let i, l
-      for (i = 0, l = this.effects.length; i < l; i++) {
-        this.effects[i].stop()
-      }
-      this.effects.length = 0
-
-      for (i = 0, l = this.cleanups.length; i < l; i++) {
-        this.cleanups[i]()
-      }
-      this.cleanups.length = 0
-
-      if (this.scopes) {
-        for (i = 0, l = this.scopes.length; i < l; i++) {
-          this.scopes[i].stop(true)
+      this.on()
+      const previousTracker = engineContext.tracker
+      engineContext.tracker = undefined
+      try {
+        const errors: unknown[] = []
+        const dispose = (callback: () => void) => {
+          try {
+            callback()
+          } catch (error) {
+            errors.push(error)
+          }
         }
-        this.scopes.length = 0
-      }
-
-      // nested scope, dereference from parent to avoid memory leaks
-      if (!this.detached && this.parent && !fromParent) {
-        // optimized O(1) removal
-        const last = this.parent.scopes!.pop()
-        if (last && last !== this) {
-          this.parent.scopes![this.index!] = last
-          last.index = this.index!
+        let i: number, l: number
+        for (i = 0, l = this.effects.length; i < l; i++) {
+          dispose(() => this.effects[i].stop())
         }
+        this.effects.length = 0
+
+        for (i = 0, l = this.cleanups.length; i < l; i++) {
+          dispose(this.cleanups[i])
+        }
+        this.cleanups.length = 0
+
+        if (this.scopes) {
+          for (i = 0, l = this.scopes.length; i < l; i++) {
+            dispose(() => this.scopes![i].stop(true))
+          }
+          this.scopes.length = 0
+        }
+
+        // nested scope, dereference from parent to avoid memory leaks
+        if (!this.detached && this.parent && !fromParent) {
+          // optimized O(1) removal
+          const last = this.parent.scopes!.pop()
+          if (last && last !== this) {
+            this.parent.scopes![this.index!] = last
+            last.index = this.index!
+          }
+        }
+        this.parent = undefined
+        if (errors.length) throw errors[0]
+      } finally {
+        engineContext.tracker = previousTracker
+        this.off()
       }
-      this.parent = undefined
     }
   }
 }
@@ -238,6 +271,7 @@ export function effectScope(detached?: boolean): EffectScope {
  * @see {@link https://vuejs.org/api/reactivity-advanced.html#getcurrentscope}
  */
 export function getCurrentScope(): EffectScope | undefined {
+  assertEngineOwner('read the current owner')
   return activeEffectScope
 }
 
@@ -249,8 +283,10 @@ export function getCurrentScope(): EffectScope | undefined {
  * @see {@link https://vuejs.org/api/reactivity-advanced.html#onscopedispose}
  */
 export function onScopeDispose(fn: () => void, failSilently = false): void {
+  assertEngineOwner('register owner cleanup')
   if (activeEffectScope) {
-    activeEffectScope.cleanups.push(fn)
+    if (activeEffectScope.active) activeEffectScope.cleanups.push(fn)
+    else fn()
   } else if (__DEV__ && !failSilently) {
     warn(
       `onScopeDispose() is called when there is no active effect scope` +

@@ -2,6 +2,7 @@ import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { insert, mountDynamic } from '../src'
+import { DynamicRange } from '../src/range'
 
 describe('insert', () => {
   let dom: JSDOM
@@ -75,6 +76,47 @@ describe('insert', () => {
 
     expect(parent.childNodes.length).toBe(3)
     expect(parent.textContent).toBe('420')
+  })
+
+  it('rejects function values instead of stringifying function source', () => {
+    const parent = document.createElement('div')
+    const callback = () => 'value'
+
+    expect(() => insert(parent, callback as never, null)).toThrow(
+      'JSX children cannot contain functions',
+    )
+    expect(parent.childNodes).toHaveLength(0)
+  })
+
+  it('rejects Promise, Symbol, and object values instead of stringifying them', () => {
+    const parent = document.createElement('div')
+    const rejected = Promise.reject(new Error('later'))
+
+    expect(() => insert(parent, rejected as never, null)).toThrow(
+      'JSX children cannot contain Promises',
+    )
+    expect(() => insert(parent, Symbol('value') as never, null)).toThrow(
+      'JSX children cannot contain Symbols',
+    )
+    expect(() => insert(parent, { value: 1 } as never, null)).toThrow(
+      'JSX children must be primitives',
+    )
+    expect(parent.childNodes).toHaveLength(0)
+  })
+
+  it('validates a dynamic tree before replacing the current nodes', () => {
+    const parent = document.createElement('div')
+    const marker = document.createComment('marker')
+    parent.append(marker)
+    const range = new DynamicRange(parent, marker)
+
+    range.replace('stable')
+    expect(parent.textContent).toBe('stable')
+
+    expect(() =>
+      range.replace(['next', Promise.resolve('later')] as never),
+    ).toThrow('JSX children cannot contain Promises')
+    expect(parent.textContent).toBe('stable')
   })
 })
 

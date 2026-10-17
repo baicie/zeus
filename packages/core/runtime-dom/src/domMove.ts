@@ -10,7 +10,14 @@ export function moveNodeBefore(
   try {
     const moveBefore = (parent as ParentNode).moveBefore
 
-    if (typeof moveBefore === 'function') {
+    // moveBefore only supports state-preserving moves when both sides have the
+    // same connection state. Initial projection and slot reassignment can move
+    // a detached node into a connected outlet, so those moves use insertBefore.
+    if (
+      typeof moveBefore === 'function' &&
+      parent.nodeType !== 11 &&
+      parent.isConnected === node.isConnected
+    ) {
       moveBefore.call(parent, node, marker)
     } else {
       parent.insertBefore(node, marker)
@@ -21,6 +28,7 @@ export function moveNodeBefore(
 }
 
 export function isWithinRuntimeDomMove(node: Node): boolean {
+  if (activeMoveRoots.size === 0) return false
   let current: Node | null = node
 
   while (current) {

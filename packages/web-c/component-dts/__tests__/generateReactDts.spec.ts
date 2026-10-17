@@ -5,7 +5,7 @@ import { generateReactDts } from '../src/generateReactDts'
 describe('generateReactDts', () => {
   it('generates React wrapper dts', () => {
     const code = generateReactDts({
-      version: 1,
+      schemaVersion: 1,
       components: [
         {
           tag: 'z-button',
@@ -43,7 +43,7 @@ describe('generateReactDts', () => {
 
   it('includes common React attributes', () => {
     const code = generateReactDts({
-      version: 1,
+      schemaVersion: 1,
       components: [
         {
           tag: 'z-button',
@@ -67,7 +67,7 @@ describe('generateReactDts', () => {
 
   it('handles event with no detail', () => {
     const code = generateReactDts({
-      version: 1,
+      schemaVersion: 1,
       components: [
         {
           tag: 'z-toggle',
@@ -91,7 +91,7 @@ describe('generateReactDts', () => {
 
   it('generates multiple components', () => {
     const code = generateReactDts({
-      version: 1,
+      schemaVersion: 1,
       components: [
         {
           tag: 'z-button',
@@ -128,7 +128,7 @@ describe('generateReactDts', () => {
 
   it('generates valid property names for kebab-case events', () => {
     const code = generateReactDts({
-      version: 1,
+      schemaVersion: 1,
       components: [
         {
           tag: 'z-input',
@@ -156,7 +156,7 @@ describe('generateReactDts', () => {
   it('omits named slot props when namedSlots is none', () => {
     const code = generateReactDts(
       {
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-card',
@@ -187,7 +187,7 @@ describe('generateReactDts', () => {
 
   it('includes named slot props by default', () => {
     const code = generateReactDts({
-      version: 1,
+      schemaVersion: 1,
       components: [
         {
           tag: 'z-card',

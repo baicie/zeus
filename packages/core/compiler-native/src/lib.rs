@@ -19,6 +19,7 @@ pub struct TransformModuleOptions {
     pub delegate_events: bool,
     pub source_map: bool,
     pub hmr: Option<bool>,
+    pub pure_define_element: Option<bool>,
 }
 
 #[napi(object, use_nullable = true)]
@@ -95,6 +96,7 @@ pub fn transform_module(options: TransformModuleOptions) -> Result<TransformModu
         delegate_events: options.delegate_events,
         source_map: options.source_map,
         hmr: options.hmr.unwrap_or(false),
+        pure_define_element: options.pure_define_element.unwrap_or(false),
     })
     .into())
 }

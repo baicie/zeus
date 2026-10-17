@@ -1,7 +1,10 @@
 use std::thread;
 
 use zeus_compiler::{
-    ir::{AttributeIr, ChildIr, ExpressionForm, RootIr, StaticAttributeValue},
+    ir::{
+        AttributeIr, ChildIr, ComponentPropIr, ComponentPropValueIr, ExpressionForm, RootIr,
+        StaticAttributeValue,
+    },
     lower::lower_module,
 };
 
@@ -354,18 +357,18 @@ fn returns_structured_parser_diagnostics() {
 }
 
 #[test]
-fn rejects_spread_attributes_with_stable_diagnostic() {
+fn lowers_spread_attributes_with_owned_source_spans() {
     let source = "export const App = props => <div {...props} />";
     let lowered = lower_module(source, "spread.tsx");
-
-    assert!(lowered.ir.is_none());
-    assert_eq!(lowered.diagnostics.len(), 1);
-    assert_eq!(
-        lowered.diagnostics[0].code,
-        "ZEUS_UNSUPPORTED_SPREAD_ATTRIBUTE"
-    );
-    assert_eq!(lowered.diagnostics[0].filename, "spread.tsx");
-    assert!(lowered.diagnostics[0].span.is_some());
+    assert!(lowered.diagnostics.is_empty());
+    let module = lowered.ir.unwrap();
+    let AttributeIr::Spread(spread) = &root_element(&module.components[0].root).attributes[0]
+    else {
+        panic!("spread IR required");
+    };
+    assert_eq!(spread.target, "native");
+    assert_eq!(spread.expression.code, "props");
+    assert!(spread.span.end.offset > spread.span.start.offset);
 }
 
 #[test]
@@ -380,9 +383,9 @@ fn lowers_component_elements_with_lazy_props_and_children() {
     };
     assert_eq!(component.callee.code, "Widget");
     assert_eq!(component.props.len(), 3);
-    assert_eq!(component.props[0].name, "title");
-    assert_eq!(component.props[1].name, "enabled");
-    assert_eq!(component.props[2].name, "children");
+    assert_eq!(component.props[0].named().unwrap().name, "title");
+    assert_eq!(component.props[1].named().unwrap().name, "enabled");
+    assert_eq!(component.props[2].named().unwrap().name, "children");
 }
 
 #[test]
@@ -494,7 +497,7 @@ fn rejects_non_identifier_for_callback_parameters() {
 #[test]
 fn excludes_type_only_for_parameter_references_from_runtime_dependencies() {
     let source = r"import { For } from '@zeus-js/zeus'
-export const App = props => <For each={props.items}>{(item, index) => <span title={() => (props.value as typeof index)}>{item.label}</span>}</For>
+export const App = props => <For each={props.items}>{(item, index) => <span title={(props.value as typeof index)}>{item.label}</span>}</For>
 ";
     let lowered = lower_module(source, "for-type-only-reference.tsx");
 
@@ -550,6 +553,47 @@ export const App = () => <Slot />
 }
 
 #[test]
+fn builtin_aliases_respect_lexical_shadowing() {
+    let show_source = r"import { Show as If } from '@zeus-js/zeus'
+export const App = (If, props) => <If when={props.visible}><span>content</span></If>
+";
+    let lowered = lower_module(show_source, "shadowed-show.tsx");
+
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let module = lowered.ir.expect("shadowed Show name remains a component");
+    let RootIr::Component(component) = &module.components[0].root else {
+        panic!("a shadowing component must not lower as Show");
+    };
+    assert_eq!(component.kind, "Component");
+    assert_eq!(component.callee.code, "If");
+    assert!(
+        component
+            .props
+            .iter()
+            .any(|prop| { prop.named().is_some_and(|prop| prop.name == "when") })
+    );
+
+    let for_source = r"import { For as Each } from '@zeus-js/zeus'
+export const App = Each => <Each each={items} />
+";
+    let lowered = lower_module(for_source, "shadowed-for.tsx");
+
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let module = lowered.ir.expect("shadowed For name remains a component");
+    let RootIr::Component(component) = &module.components[0].root else {
+        panic!("a shadowing component must not lower as For");
+    };
+    assert_eq!(component.kind, "Component");
+    assert_eq!(component.callee.code, "Each");
+    assert!(
+        component
+            .props
+            .iter()
+            .any(|prop| { prop.named().is_some_and(|prop| prop.name == "each") })
+    );
+}
+
+#[test]
 fn resolves_named_define_element_setup_functions() {
     let source = r"import { defineElement, Host, Slot } from '@zeus-js/runtime-dom'
 
@@ -568,22 +612,170 @@ export const Element = defineElement('z-card', { shadow: false }, setup)
     };
     assert_eq!(component.kind, "Host");
     assert!(matches!(
-        component.props.last().map(|prop| &prop.value),
+        component
+            .props
+            .last()
+            .and_then(|prop| prop.named())
+            .map(|prop| &prop.value),
         Some(zeus_compiler::ir::ComponentPropValueIr::Children(_))
     ));
 }
 
 #[test]
-fn rejects_nested_jsx_inside_dynamic_text_expression() {
-    let source = "export const App = ok => <div>{ok ? <span /> : null}</div>";
+fn lowers_conditional_and_logical_nested_jsx_regions() {
+    let source = "export const App = props => <div>{props.ok ? <span>yes</span> : null}{props.ready && <b>ready</b>}</div>";
     let lowered = lower_module(source, "nested-expression.tsx");
 
-    assert!(lowered.ir.is_none());
-    assert_eq!(lowered.diagnostics.len(), 1);
-    assert_eq!(
-        lowered.diagnostics[0].code,
-        "ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION"
-    );
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let module = lowered.ir.expect("nested regions produce IR");
+    let root = root_element(&module.components[0].root);
+    assert!(matches!(root.children[0], ChildIr::DynamicRegion(_)));
+    assert!(matches!(root.children[1], ChildIr::DynamicRegion(_)));
+}
+
+#[test]
+fn lowers_array_map_nested_jsx_region() {
+    let source =
+        "export const App = props => <ul>{props.items.map(item => <li>{item.name}</li>)}</ul>";
+    let lowered = lower_module(source, "nested-array.tsx");
+
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let module = lowered.ir.expect("array region produces IR");
+    let root = root_element(&module.components[0].root);
+    let ChildIr::DynamicRegion(region) = &root.children[0] else {
+        panic!("array map must lower to a dynamic region");
+    };
+    assert!(matches!(
+        region.expression,
+        zeus_compiler::ir::DynamicRegionExpressionIr::ArrayMap { .. }
+    ));
+}
+
+#[test]
+fn diagnoses_unsupported_nested_jsx_conditions_and_array_map_parameters() {
+    for (name, source, expected_code) in [
+        (
+            "conditional-test",
+            "export const App = () => <div>{(<i /> as any) ? <b /> : null}</div>",
+            "ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION",
+        ),
+        (
+            "logical-left",
+            "export const App = () => <div>{(<i /> as any) && <b />}</div>",
+            "ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION",
+        ),
+        (
+            "array-map-source",
+            "export const App = () => <div>{[<i />].map(item => <b />)}</div>",
+            "ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION",
+        ),
+        (
+            "array-map-third-parameter",
+            "export const App = props => <div>{props.items.map((item, index, array) => <b>{array.length}</b>)}</div>",
+            "ZEUS_UNSUPPORTED_ARRAY_MAP_CALLBACK_PARAMETER",
+        ),
+        (
+            "array-map-default-index",
+            "export const App = props => <div>{props.items.map((item, index = 0) => <b>{index}</b>)}</div>",
+            "ZEUS_UNSUPPORTED_ARRAY_MAP_CALLBACK_PARAMETER",
+        ),
+    ] {
+        let lowered = lower_module(source, &format!("nested-jsx-{name}.tsx"));
+
+        assert!(lowered.ir.is_none(), "{name}: invalid IR must not escape");
+        assert_eq!(
+            lowered.diagnostics.len(),
+            1,
+            "{name}: {:?}",
+            lowered.diagnostics
+        );
+        assert_eq!(lowered.diagnostics[0].code, expected_code, "{name}");
+        assert!(lowered.diagnostics[0].span.is_some(), "{name}");
+    }
+}
+
+#[test]
+fn lowers_direct_show_fallback_jsx_attributes() {
+    let source = "import { Show } from '@zeus-js/zeus'; export const App = props => <Show when={props.ok} fallback=<i>off</i>><b>on</b></Show>";
+    let lowered = lower_module(source, "show-direct-fallback.tsx");
+
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let module = lowered.ir.expect("direct Show fallback produces IR");
+    let RootIr::Show(show) = &module.components[0].root else {
+        panic!("Show must lower as a builtin root");
+    };
+    assert!(matches!(
+        show.fallback,
+        Some(ComponentPropValueIr::Children(_))
+    ));
+}
+
+#[test]
+fn lowers_array_literal_nested_jsx_region() {
+    let source = "export const App = props => <div>{[<A />, props.value, <B />]}</div>";
+    let lowered = lower_module(source, "nested-array-literal.tsx");
+
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let module = lowered.ir.expect("array literal produces IR");
+    let root = root_element(&module.components[0].root);
+    let ChildIr::DynamicRegion(region) = &root.children[0] else {
+        panic!("array literal must lower to a dynamic region");
+    };
+    let zeus_compiler::ir::DynamicRegionExpressionIr::ArrayLiteral { items } = &region.expression
+    else {
+        panic!("array literal must use the array literal region variant");
+    };
+    assert_eq!(items.len(), 3);
+    assert!(matches!(
+        items[0],
+        zeus_compiler::ir::DynamicRegionValueIr::Children(_)
+    ));
+    assert!(matches!(
+        items[1],
+        zeus_compiler::ir::DynamicRegionValueIr::Expression(_)
+    ));
+    assert!(matches!(
+        items[2],
+        zeus_compiler::ir::DynamicRegionValueIr::Children(_)
+    ));
+}
+
+#[test]
+fn diagnoses_jsx_nested_in_unsupported_calls_and_array_spreads() {
+    for (name, source, expected_code) in [
+        (
+            "call",
+            "const render = value => value; export const App = () => <div>{render(<A />)}</div>",
+            "ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION",
+        ),
+        (
+            "map-callback",
+            "const render = value => value; export const App = props => <div>{props.items.map(item => render(<A />))}</div>",
+            "ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION",
+        ),
+        (
+            "array-spread",
+            "export const App = props => <div>{[...props.children, <A />]}</div>",
+            "ZEUS_UNSUPPORTED_ARRAY_SPREAD",
+        ),
+    ] {
+        let lowered = lower_module(source, &format!("nested-jsx-{name}.tsx"));
+        assert!(lowered.ir.is_none(), "{name}: invalid IR must not escape");
+        assert_eq!(
+            lowered
+                .diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.code.as_str())
+                .collect::<Vec<_>>(),
+            [expected_code],
+            "{name}: {:?}",
+            lowered.diagnostics
+        );
+        assert!(
+            lowered.diagnostics[0].span.is_some(),
+            "{name}: diagnostic must include a source span"
+        );
+    }
 }
 
 #[test]
@@ -610,6 +802,47 @@ fn lowers_supported_raw_text_elements_and_rejects_nested_elements() {
         nested.diagnostics[0].code,
         "ZEUS_UNSUPPORTED_RAW_TEXT_CHILD"
     );
+}
+
+#[test]
+fn lowers_scalar_calls_and_rejects_dynamic_regions_in_raw_text_elements() {
+    let scalar = lower_module(
+        "export const App = props => <style>{props.value()}</style>",
+        "raw-text-call.tsx",
+    );
+    assert!(scalar.diagnostics.is_empty(), "{:?}", scalar.diagnostics);
+    let module = scalar.ir.expect("raw-text scalar call produces IR");
+    let root = root_element(&module.components[0].root);
+    assert!(matches!(
+        root.children.as_slice(),
+        [ChildIr::DynamicText(_)]
+    ));
+
+    for (name, source) in [
+        (
+            "conditional",
+            "export const App = props => <style>{props.visible ? <b /> : null}</style>",
+        ),
+        ("array", "export const App = () => <style>{[<b />]}</style>"),
+        (
+            "array-map",
+            "export const App = props => <style>{props.items.map(item => <b>{item}</b>)}</style>",
+        ),
+    ] {
+        let lowered = lower_module(source, &format!("raw-text-{name}.tsx"));
+        assert!(lowered.ir.is_none(), "{name}: invalid IR must not escape");
+        assert_eq!(
+            lowered.diagnostics.len(),
+            1,
+            "{name}: {:?}",
+            lowered.diagnostics
+        );
+        assert_eq!(
+            lowered.diagnostics[0].code,
+            "ZEUS_UNSUPPORTED_RAW_TEXT_CHILD"
+        );
+        assert!(lowered.diagnostics[0].span.is_some(), "{name}");
+    }
 }
 
 #[test]
@@ -652,7 +885,7 @@ fn lowers_dom_attribute_binding_variants() {
     disabled
     title={props.title}
     class={props.classes}
-    style={() => props.style}
+    style={props.style}
     prop:value={props.value}
     onClick={props.handlers.click}
     ref={props.input}
@@ -692,7 +925,7 @@ fn lowers_dom_attribute_binding_variants() {
     let AttributeIr::Dynamic(style) = &attributes[4] else {
         panic!("style must be an attribute binding");
     };
-    assert_eq!(style.expression.form, ExpressionForm::Getter);
+    assert_eq!(style.expression.form, ExpressionForm::Member);
 
     let AttributeIr::Property(property) = &attributes[5] else {
         panic!("prop:value must be a property binding");
@@ -742,11 +975,11 @@ fn reports_stable_attribute_binding_diagnostics() {
 }
 
 #[test]
-fn preserves_wrapped_getter_and_member_expression_forms() {
+fn preserves_wrapped_function_and_member_expression_forms() {
     let source = r"export const App = (props, handlers, inputRef) => (
   <button
     title={(props.title)}
-    data-value={(() => props.value) as () => string}
+    prop:formatter={(() => props.value) as () => string}
     onClick={handlers?.['click']}
     ref={inputRef!}
   />
@@ -762,10 +995,10 @@ fn preserves_wrapped_getter_and_member_expression_forms() {
     };
     assert_eq!(title.expression.form, ExpressionForm::Member);
 
-    let AttributeIr::Dynamic(value) = &attributes[1] else {
+    let AttributeIr::Property(value) = &attributes[1] else {
         panic!("data-value must be dynamic");
     };
-    assert_eq!(value.expression.form, ExpressionForm::Getter);
+    assert_eq!(value.expression.form, ExpressionForm::Function);
 
     let AttributeIr::Event(event) = &attributes[2] else {
         panic!("onClick must be an event");
@@ -776,4 +1009,129 @@ fn preserves_wrapped_getter_and_member_expression_forms() {
         panic!("ref must be a ref binding");
     };
     assert_eq!(reference.expression.form, ExpressionForm::Value);
+}
+
+#[test]
+fn recognizes_parenthesized_host_in_generic_define_element_setup() {
+    let source = r"import { Host, Slot, defineElement } from '@zeus-js/zeus';
+interface Props { label: string }
+export const Button = defineElement<Props>('z-button', {}, (props, ctx) => (
+  <Host><button>{props.label}<Slot /></button></Host>
+));";
+    let lowered = lower_module(source, "generic-host.tsx");
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    assert!(lowered.ir.is_some());
+}
+
+#[test]
+fn preserves_component_prop_names_without_dom_alias_normalization() {
+    let source = r#"const Child = props => <span>{props.className}:{props.htmlFor}:{props.tabIndex}:{props.readOnly}</span>
+export const App = () => <Child className="a" htmlFor="b" tabIndex={1} readOnly />"#;
+    let lowered = lower_module(source, "component-prop-names.tsx");
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let module = lowered.ir.expect("component props produce IR");
+    let RootIr::Component(component) = &module.components.last().expect("App component").root
+    else {
+        panic!("expected component root");
+    };
+    let names: Vec<_> = component
+        .props
+        .iter()
+        .filter_map(|prop| match prop {
+            ComponentPropIr::Named(named) => Some(named.name.as_str()),
+            ComponentPropIr::Spread(_) => None,
+        })
+        .collect();
+    assert_eq!(names, vec!["className", "htmlFor", "tabIndex", "readOnly"]);
+}
+
+#[test]
+fn rejects_nested_jsx_in_spreads_and_spreads_on_compiler_builtins() {
+    for source in [
+        "export const App = () => <div {...(<Child />)} />",
+        "import { Show } from '@zeus-js/zeus'; export const App = () => <Show {...props} when={true}><b /></Show>",
+        "import { For } from '@zeus-js/zeus'; export const App = () => <For {...props} each={items}>{item => <b>{item}</b>}</For>",
+    ] {
+        let lowered = lower_module(source, "invalid-spread.tsx");
+        assert!(lowered.ir.is_none());
+        assert_eq!(lowered.diagnostics.len(), 1, "{:?}", lowered.diagnostics);
+        assert!(lowered.diagnostics[0].span.is_some());
+    }
+}
+
+#[test]
+fn rejects_function_values_for_control_builtins_and_dynamic_slot_names() {
+    for (source, expected) in [
+        (
+            "import { Show } from '@zeus-js/zeus'; export const App = () => <Show when={() => true}>yes</Show>",
+            "ZEUS_FUNCTION_BUILTIN_VALUE",
+        ),
+        (
+            "import { For } from '@zeus-js/zeus'; export const App = () => <For each={() => items}>{item => item}</For>",
+            "ZEUS_FUNCTION_BUILTIN_VALUE",
+        ),
+        (
+            "import { defineElement, Host, Slot } from '@zeus-js/zeus'; export const App = defineElement('z-slot', {}, () => <Host><Slot name={slotName} /></Host>)",
+            "ZEUS_INVALID_SLOT_NAME",
+        ),
+        (
+            "const Child = props => <span />; export const App = () => <Child prop:value={1} />",
+            "ZEUS_UNSUPPORTED_COMPONENT_PROP_NAMESPACE",
+        ),
+    ] {
+        let lowered = lower_module(source, "builtin-value-diagnostic.tsx");
+        assert!(lowered.ir.is_none(), "{expected}: {:?}", lowered.ir);
+        assert_eq!(
+            lowered.diagnostics.len(),
+            1,
+            "{expected}: {:?}",
+            lowered.diagnostics
+        );
+        assert_eq!(lowered.diagnostics[0].code, expected);
+        assert!(lowered.diagnostics[0].span.is_some());
+    }
+}
+
+#[test]
+fn rejects_unknown_attributes_on_control_builtins_without_dropping_them() {
+    for (source, expected_code, expected_message) in [
+        (
+            "import { Show } from '@zeus-js/zeus'; export const App = props => <Show when={props.ok} extra={<i>ignored</i>}><b>on</b></Show>",
+            "ZEUS_INVALID_BUILTIN_USAGE",
+            "Builtin `Show` does not accept the `extra` attribute",
+        ),
+        (
+            "import { For } from '@zeus-js/zeus'; export const App = props => <For each={props.items} extra={<i>ignored</i>}>{item => <b>{item}</b>}</For>",
+            "ZEUS_INVALID_BUILTIN_USAGE",
+            "Builtin `For` does not accept the `extra` attribute",
+        ),
+        (
+            "import { Show } from '@zeus-js/zeus'; export const App = props => <Show when={props.ok} when={<i>ignored</i>}><b>on</b></Show>",
+            "ZEUS_INVALID_BUILTIN_USAGE",
+            "`when` is duplicated",
+        ),
+        (
+            "import { Show } from '@zeus-js/zeus'; export const App = props => <Show when={props.ok} fallback=\"off\" fallback={<i>ignored</i>}><b>on</b></Show>",
+            "ZEUS_INVALID_BUILTIN_USAGE",
+            "`fallback` is duplicated",
+        ),
+        (
+            "import { For } from '@zeus-js/zeus'; export const App = props => <For each={props.items} each={<i>ignored</i>}>{item => <b>{item}</b>}</For>",
+            "ZEUS_INVALID_BUILTIN_USAGE",
+            "`each` is duplicated",
+        ),
+        (
+            "export const App = props => <div>{props.items.map(item => <b>{item}</b>, <i>ignored</i>)}</div>",
+            "ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION",
+            "JSX in additional Array.map arguments is not supported",
+        ),
+    ] {
+        let lowered = lower_module(source, "invalid-builtin-or-map-argument.tsx");
+        assert!(lowered.ir.is_none(), "unexpected IR: {:?}", lowered.ir);
+        assert_eq!(lowered.diagnostics.len(), 1, "{:?}", lowered.diagnostics);
+        assert_eq!(lowered.diagnostics[0].code, expected_code);
+        assert!(lowered.diagnostics[0].message.contains(expected_message));
+        let span = lowered.diagnostics[0].span.expect("attribute span");
+        assert!(span.start.offset < span.end.offset);
+    }
 }

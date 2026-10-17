@@ -214,3 +214,18 @@ fn compiler_diagnostic_is_owned_and_structured() {
     assert_eq!(json["filename"], "fixture.tsx");
     assert_eq!(json["span"]["start"]["offset"], 12);
 }
+
+#[test]
+fn spread_ir_round_trips_without_duplicate_kind_fields() {
+    let lowered = zeus_compiler::lower::lower_module(
+        "const View = props => <div {...props} />; export const App = () => <View {...base} value={count()} />",
+        "spread.tsx",
+    );
+    assert!(lowered.diagnostics.is_empty());
+    let ir = lowered.ir.unwrap();
+    let json = serde_json::to_string(&ir).unwrap();
+    let roundtrip: ModuleIr = serde_json::from_str(&json).unwrap();
+    assert_eq!(ir, roundtrip);
+    assert!(json.contains("SpreadBinding"));
+    assert!(json.contains("ComponentProp"));
+}

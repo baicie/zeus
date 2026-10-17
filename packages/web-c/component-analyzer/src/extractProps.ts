@@ -271,11 +271,15 @@ function extractRuntimeProp(node: t.Expression | t.PatternLike): ComponentProp {
     }
 
     if (defaultNode) {
+      prop.hasDefault = true
       if (
         !t.isFunctionExpression(defaultNode) &&
         !t.isArrowFunctionExpression(defaultNode)
       ) {
+        prop.defaultStrategy = 'static'
         prop.default = staticValue(defaultNode)
+      } else {
+        prop.defaultStrategy = 'factory'
       }
     }
 
@@ -348,6 +352,8 @@ function extractPropCall(node: t.CallExpression): ComponentProp {
 
     if (inputNode.name === 'Boolean') {
       prop.default ??= false
+      prop.hasDefault = true
+      prop.defaultStrategy ??= 'static'
       prop.reflect ??= true
     }
 

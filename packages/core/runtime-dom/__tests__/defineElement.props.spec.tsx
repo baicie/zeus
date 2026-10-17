@@ -291,7 +291,7 @@ describe('defineElement props tracking', () => {
     expect(span.getAttribute('title')).toBe('updated')
   })
 
-  it('supports opt-in shallow props while keeping deep props reactive', async () => {
+  it('preserves shallow props while supporting explicitly deep props', async () => {
     interface Row {
       id: string
     }
@@ -318,7 +318,7 @@ describe('defineElement props tracking', () => {
         shadow: false,
         props: {
           rows: prop<Row[]>(Array, { reactivity: 'shallow' }),
-          config: Object,
+          config: prop<Config>(Object, { reactivity: 'deep' }),
         },
       },
       props => {
@@ -391,7 +391,7 @@ describe('defineElement props tracking', () => {
     ).toBe('updated')
   })
 
-  it('normalizes prop reactivity metadata with deep as the default', () => {
+  it('normalizes prop reactivity metadata with shallow as the default', () => {
     interface Props {
       rows?: unknown[]
       title?: string
@@ -418,7 +418,7 @@ describe('defineElement props tracking', () => {
       expect.objectContaining({
         name: 'title',
         type: 'string',
-        reactivity: 'deep',
+        reactivity: 'shallow',
       }),
     ])
   })
@@ -464,7 +464,11 @@ describe('defineElement props tracking', () => {
     expect(capturedProps?.rows?.[0]).toBe(firstRow)
     expect(readRow).toHaveBeenCalledTimes(1)
 
-    mounted.propertyChanged('rows', firstRows, firstRows)
+    mounted.propertyChanged({
+      name: 'rows',
+      value: firstRows,
+      source: 'property',
+    })
     await nextFrame()
 
     expect(readRow).toHaveBeenCalledTimes(1)
@@ -476,7 +480,11 @@ describe('defineElement props tracking', () => {
     expect(host.firstElementChild?.getAttribute('data-row-id')).toBe('row-1')
 
     const nextRows = [{ id: 'row-2' }]
-    mounted.propertyChanged('rows', firstRows, nextRows)
+    mounted.propertyChanged({
+      name: 'rows',
+      value: nextRows,
+      source: 'property',
+    })
     await nextFrame()
 
     expect(capturedProps?.rows).toBe(nextRows)

@@ -14,40 +14,51 @@ dist/zeus.components.json
 
 ```json
 {
-  "version": "1.0",
-  "generatedAt": "2026-06-01T12:00:00.000Z",
+  "schemaVersion": 1,
   "components": [
     {
       "tag": "z-button",
       "name": "ZButton",
-      "file": "src/components/button.ts",
+      "exportName": "ZButton",
+      "source": "src/components/button.tsx",
       "description": "Button with variants and sizes",
       "props": {
         "variant": {
-          "type": "String",
+          "type": "string",
           "default": "default",
           "values": ["default", "outline", "ghost", "destructive"],
           "reflect": true,
-          "attribute": "variant"
+          "attr": "variant",
+          "hasDefault": true,
+          "defaultStrategy": "static"
         },
         "disabled": {
-          "type": "Boolean",
+          "type": "boolean",
           "default": false,
-          "reflect": true
+          "reflect": true,
+          "hasDefault": true,
+          "defaultStrategy": "static"
         }
       },
       "events": {
         "press": {
+          "key": "press",
+          "name": "press",
+          "reactName": "onPress",
           "detail": { "nativeEvent": "MouseEvent" },
           "bubbles": true,
-          "composed": true
+          "composed": true,
+          "cancelable": false
         }
       },
       "slots": {
-        "": { "description": "Button label content" }
+        "default": { "name": "default", "description": "Button label content" }
       },
       "cssParts": ["button"],
-      "cssVars": ["--button-padding", "--button-radius"]
+      "cssVars": {
+        "--button-padding": { "name": "--button-padding" },
+        "--button-radius": { "name": "--button-radius" }
+      }
     }
   ]
 }

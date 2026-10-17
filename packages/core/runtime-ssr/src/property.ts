@@ -3,6 +3,22 @@ import { assertSyncSSRValue } from './serialize'
 import type { SSRAttribute, SSRAttributeEntry, SSRNode } from './types'
 
 const SSR_PROPERTY = Symbol.for('zeus.ssr.property')
+const SSR_ATTRIBUTE_REMOVAL = Symbol.for('zeus.ssr.attribute-removal')
+
+interface SSRAttributeRemoval extends SSRAttribute {
+  readonly [SSR_ATTRIBUTE_REMOVAL]: boolean
+}
+
+export function createSSRAttributeRemoval(
+  name: string,
+  property = false,
+): SSRAttribute {
+  return {
+    name,
+    value: '',
+    [SSR_ATTRIBUTE_REMOVAL]: property,
+  } as SSRAttributeRemoval
+}
 
 type SSRPropertyValue = string | number | boolean
 
@@ -75,18 +91,31 @@ export function resolveSSRElementProperties(
   children: SSRNode,
 ): ResolvedSSRElementEntries {
   const attributes: SSRAttribute[] = []
-  const properties: SSRPropertyAttribute[] = []
-
+  let resolvedChildren = children
   for (const entry of entries) {
     assertSyncSSRValue(entry)
     if (!entry) continue
     assertSyncSSRValue(entry.value)
-    if (isSSRProperty(entry)) properties.push(entry)
-    else attributes.push(entry)
-  }
-
-  let resolvedChildren = children
-  for (const property of properties) {
+    if (SSR_ATTRIBUTE_REMOVAL in entry) {
+      if (!(entry as SSRAttributeRemoval)[SSR_ATTRIBUTE_REMOVAL]) {
+        removeAttribute(attributes, entry.name)
+        continue
+      }
+      const serialization = getSSRPropertySerialization(tag, entry.name)
+      if (!serialization)
+        throw new TypeError(
+          `SSR cannot serialize property "${entry.name}" on <${tag}>.`,
+        )
+      if (serialization.kind === 'text-content') resolvedChildren = null
+      else removeAttribute(attributes, serialization.name)
+      continue
+    }
+    if (!isSSRProperty(entry)) {
+      removeAttribute(attributes, entry.name)
+      attributes.push(entry)
+      continue
+    }
+    const property = entry
     const serialization = getSSRPropertySerialization(tag, property.name)
     if (!serialization) {
       throw new TypeError(

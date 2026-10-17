@@ -115,7 +115,7 @@ describe('compiler-shared boundary', () => {
       ),
       propBindingIR(
         'value',
-        expressionIR('() => props.value', fixtureSpan, 'getter'),
+        expressionIR('() => props.value', fixtureSpan, 'function'),
         fixtureSpan,
       ),
       eventBindingIR(

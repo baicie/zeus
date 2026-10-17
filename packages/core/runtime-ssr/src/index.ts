@@ -24,3 +24,4 @@ export {
   type ShowProps,
   type ForProps,
 } from './controlFlow'
+export { ssrSpread, mergeProps } from './spread'

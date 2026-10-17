@@ -1,0 +1,131 @@
+import {
+  Host,
+  Slot,
+  createEffect,
+  defineElement,
+  event,
+  prop,
+} from '@zeus-js/zeus'
+
+interface PackedButtonProps {
+  label: string
+  defaultValue: string
+  name: string
+  disabled: boolean
+  config: { value: number } | undefined
+  formatter: ((value: number) => string) | undefined
+}
+
+interface PackedButtonHost extends HTMLElement {
+  focusInput(): void
+  checkFormValidity(): boolean
+  getFormValidity(): ValidityState | undefined
+  getFormValidationMessage(): string
+  label: string
+  defaultValue: string
+  disabled: boolean
+}
+
+export const ZPackedButton = defineElement<PackedButtonProps, PackedButtonHost>(
+  'z-packed-button',
+  {
+    shadow: true,
+    formAssociated: true,
+    props: {
+      label: prop(String, { default: 'ready' }),
+      defaultValue: prop(String, { default: 'ready' }),
+      name: prop(String, { default: 'packed', reflect: true }),
+      disabled: prop(Boolean),
+      config: prop(Object),
+      formatter: prop(Function),
+    },
+    styles: [
+      ':host { --packed-accent: rgb(1, 2, 3); } button { color: var(--packed-accent); }',
+    ],
+    styleNonce: 'packed-style-nonce',
+    emits: { press: event<{ value: number }>() },
+    form: {
+      value: props => props.label,
+      state: props => props.label,
+      reset: (_props, ctx) => {
+        ctx.host.label = ctx.host.defaultValue
+      },
+      stateRestore: (state, _mode, _props, ctx) => {
+        if (typeof state === 'string') ctx.host.label = state
+      },
+      disabled: (disabled, _props, ctx) => {
+        ctx.host.dataset.fieldsetDisabled = String(disabled)
+        const button = ctx.host.shadowRoot?.querySelector('button')
+        if (button) button.disabled = disabled
+      },
+    },
+  },
+  (props, ctx) => {
+    createEffect(() => {
+      if (props.label) {
+        ctx.internals?.setValidity({})
+      } else {
+        ctx.internals?.setValidity(
+          { valueMissing: true },
+          'A label is required',
+        )
+      }
+    })
+
+    return (
+      <Host>
+        <button
+          part="control"
+          disabled={props.disabled}
+          onClick={() => ctx.emit.press({ value: props.config?.value ?? 7 })}
+          ref={button => {
+            ctx.expose({
+              focusInput(): void {
+                button?.focus()
+              },
+              checkFormValidity(): boolean {
+                return ctx.internals?.checkValidity() ?? true
+              },
+              getFormValidity(): ValidityState | undefined {
+                return ctx.internals?.validity
+              },
+              getFormValidationMessage(): string {
+                return ctx.internals?.validationMessage ?? ''
+              },
+            })
+          }}
+        >
+          {props.label}
+          <Slot />
+        </button>
+      </Host>
+    )
+  },
+)
+
+export const ZPackedLightPanel = defineElement(
+  'z-packed-light-panel',
+  { shadow: false },
+  () => (
+    <Host>
+      <section>
+        <header>
+          <Slot name="heading">
+            <strong data-fallback="heading">Heading fallback</strong>
+          </Slot>
+        </header>
+        <main>
+          <div data-nested-slot="body">
+            <Slot>
+              <span data-fallback="body">Body fallback</span>
+            </Slot>
+          </div>
+        </main>
+      </section>
+    </Host>
+  ),
+)
+
+export const ZPackedUnused = defineElement('z-packed-unused', {}, () => (
+  <Host>unused implementation must stay unloaded</Host>
+))

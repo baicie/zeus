@@ -112,7 +112,9 @@ describe('z-dialog', () => {
 
     document
       .querySelector<HTMLElement>('z-dialog-content [part="root"]')!
-      .dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+      .dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+      )
     await nextFrame()
 
     expect(dialog.open).toBe(false)

@@ -9,22 +9,9 @@ const componentsByTagName = new Map(
   components.map(component => [component.tagName, component]),
 );
 
-const definedTagsByRegistry = new WeakMap();
-
 function resolveRegistry(options) {
   return options.registry ??
     (typeof customElements === "undefined" ? undefined : customElements);
-}
-
-function getDefinedTags(registry) {
-  let definedTags = definedTagsByRegistry.get(registry);
-
-  if (!definedTags) {
-    definedTags = new Set();
-    definedTagsByRegistry.set(registry, definedTags);
-  }
-
-  return definedTags;
 }
 
 export function defineCustomElement(tagName, options = {}) {
@@ -40,16 +27,7 @@ export function defineCustomElement(tagName, options = {}) {
     throw new Error(\`[zeus:web-c] Unknown custom element: <\${tagName}>.\`);
   }
 
-  const definedTags = getDefinedTags(registry);
-
-  if (definedTags.has(tagName) || registry.get(tagName)) {
-    definedTags.add(tagName);
-    return;
-  }
-
   bootstrapLazy([component], { registry });
-
-  definedTags.add(tagName);
 }
 
 export function defineCustomElements(options = {}) {
@@ -58,8 +36,6 @@ export function defineCustomElements(options = {}) {
   }
 }
 
-export const defineLazyElement = defineCustomElement;
-export const defineLazyElements = defineCustomElements;
 `
 }
 
@@ -76,8 +52,6 @@ export function generateLazyIndex(): string {
   return `export {
   defineCustomElement,
   defineCustomElements,
-  defineLazyElement,
-  defineLazyElements,
 } from "./loader.js";
 `
 }

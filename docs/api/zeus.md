@@ -43,9 +43,11 @@ import { For, Show, createSignal, renderToString } from '@zeus-js/zeus/server'
 
 ## JSX Runtime
 
-```ts
-import { Fragment, jsx, jsxs, jsxDEV } from '@zeus-js/zeus'
-```
+Use `jsx: "preserve"` and `jsxImportSource: "@zeus-js/zeus"` with the Zeus
+compiler or Vite plugin. JSX is compiled to templates and direct DOM bindings.
+The `jsx-runtime` and `jsx-dev-runtime` subpaths provide toolchain type entries;
+executing their helpers throws `ZEUS_JSX_COMPILATION_REQUIRED` so a missing
+compiler integration fails explicitly. They are not main-entry application APIs.
 
 ## render
 

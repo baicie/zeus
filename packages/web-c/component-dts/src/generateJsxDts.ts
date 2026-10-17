@@ -34,7 +34,7 @@ export function generateWCJsxDts(manifest: ComponentManifest): string {
     lines.push('')
   }
 
-  lines.push('declare global {')
+  lines.push("declare module '@zeus-js/zeus/jsx' {")
   lines.push('  namespace JSX {')
   lines.push('    interface IntrinsicElements {')
 

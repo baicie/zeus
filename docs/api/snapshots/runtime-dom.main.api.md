@@ -6,6 +6,7 @@
 
 ```ts
 import { Accessor } from '@zeus-js/signal'
+import { PropsSource } from '@zeus-js/shared'
 
 type JSXPrimitive = string | number | boolean | null | undefined
 export type JSXValue = JSXPrimitive | Node | JSXValue[]
@@ -162,6 +163,8 @@ export declare function mountDynamic(
   value: () => JSXValue,
 ): void
 
+export declare function isWithinRuntimeDomMove(node: Node): boolean
+
 export declare function marker(parent: ParentNode, index: number): Comment
 export declare function child(parent: ParentNode, index: number): ChildNode
 export declare function removeNodes(nodes: readonly Node[]): void
@@ -271,6 +274,13 @@ export interface CustomElementPropSchema {
   reflect?: boolean
   serialize?: true | ((value: unknown) => string | null | undefined)
   deserialize?: true | ((value: string | null) => unknown)
+}
+/** A value already normalized at the host's input boundary. */
+export interface NormalizedPropChange {
+  name: string
+  value: unknown
+  source: 'property' | 'attribute'
+  rawAttributeValue?: string | null
 }
 export interface CustomElementMount {
   dispose(): void
@@ -504,7 +514,7 @@ export type ZeusElementConstructor = CustomElementConstructor & {
   [ZEUS_ELEMENT_DEFINITION]?: ZeusElementDefinition
 }
 export interface MountedElementDefinition {
-  propertyChanged(name: string, _oldValue: unknown, newValue: unknown): void
+  propertyChanged(change: NormalizedPropChange): void
   formAssociated(form: HTMLFormElement | null): void
   formDisabled(disabled: boolean): void
   formReset(): void
@@ -542,6 +552,7 @@ export interface ElementDefinitionMountState {
   internals?: ElementInternals
   attributeProps?: Set<string>
   reflectingAttrs?: Set<string>
+  exposedMethods?: Record<string, Function>
 }
 export declare function defineElement<
   P extends object = Record<string, unknown>,
@@ -562,9 +573,8 @@ export declare function mountElementDefinition(
   mountState?: ElementDefinitionMountState,
 ): MountedElementDefinition
 
-type HostValue<T> = T | (() => T)
 export interface HostProps extends Record<string, unknown> {
-  children?: JSXValue | (() => JSXValue)
+  children?: JSXValue
   /**
    * Ref to current custom element host.
    */
@@ -572,26 +582,27 @@ export interface HostProps extends Record<string, unknown> {
   /**
    * class and className both map to host class attribute.
    */
-  class?: HostValue<ClassValue>
-  className?: HostValue<ClassValue>
+  class?: ClassValue
+  className?: ClassValue
   /**
    * Inline style for host element.
    */
-  style?: HostValue<StyleValue>
+  style?: StyleValue
   /**
    * Common host attributes.
    */
-  id?: HostValue<AttrValue>
-  role?: HostValue<AttrValue>
-  part?: HostValue<AttrValue>
-  title?: HostValue<AttrValue>
-  slot?: HostValue<AttrValue>
-  tabIndex?: HostValue<number | null | undefined | false>
+  id?: AttrValue
+  role?: AttrValue
+  part?: AttrValue
+  title?: AttrValue
+  slot?: AttrValue
+  tabIndex?: number | null | undefined | false
 }
 export interface SlotProps {
   name?: string
-  children?: JSXValue | (() => JSXValue)
+  children?: JSXValue
 }
+/** Runtime bridge used only by the compiler's Host boundary. */
 export declare function Host(props: HostProps): JSXValue
 export declare function Slot(props: SlotProps): JSXValue
 
@@ -623,4 +634,13 @@ export declare function captureCurrentHostContext():
 export declare function withCapturedHostContext<
   T extends (...args: never[]) => unknown,
 >(fn: T): T
+
+export declare function mergeProps<T extends object = Record<string, unknown>>(
+  sources: readonly PropsSource[],
+): T
+export declare function bindSpread(
+  el: Element,
+  sources: readonly PropsSource[],
+  onceSources?: readonly number[],
+): void
 ```

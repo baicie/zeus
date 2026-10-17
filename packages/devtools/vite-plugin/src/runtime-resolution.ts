@@ -1,20 +1,28 @@
-import { realpathSync } from 'node:fs'
-import { createRequire, findPackageJSON } from 'node:module'
+import { existsSync, realpathSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
-
-const require = createRequire(import.meta.url)
 
 function resolveRuntimeEntryFromPackage(
   packageEntry: string,
   outputFile: string,
 ): string {
-  const packageJSON = findPackageJSON('.', pathToFileURL(packageEntry))
+  let current = path.dirname(packageEntry)
+  let packageJSON: string | undefined
+  while (true) {
+    const candidate = path.join(current, 'package.json')
+    if (existsSync(candidate)) {
+      packageJSON = candidate
+      break
+    }
+    const parent = path.dirname(current)
+    if (parent === current) break
+    current = parent
+  }
   if (!packageJSON) {
     throw new Error(`Cannot find package.json for ${packageEntry}`)
   }
 
-  return path.join(path.dirname(packageJSON), 'dist', outputFile)
+  return realpathSync(path.join(path.dirname(packageJSON), 'dist', outputFile))
 }
 
 function resolveRuntimeEntry(
@@ -23,11 +31,10 @@ function resolveRuntimeEntry(
   root: string | undefined,
 ): string | undefined {
   const projectRoot = path.resolve(process.cwd(), root ?? '.')
+  const projectRequire = createRequire(path.join(projectRoot, '__zeus__.cjs'))
 
   try {
-    const runtimePackage = require.resolve(packageName, {
-      paths: [projectRoot],
-    })
+    const runtimePackage = projectRequire.resolve(packageName)
 
     return resolveRuntimeEntryFromPackage(runtimePackage, outputFile)
   } catch {
@@ -36,9 +43,7 @@ function resolveRuntimeEntry(
   }
 
   try {
-    const zeusEntry = require.resolve('@zeus-js/zeus', {
-      paths: [projectRoot],
-    })
+    const zeusEntry = projectRequire.resolve('@zeus-js/zeus')
     const runtimePackage = createRequire(realpathSync(zeusEntry)).resolve(
       packageName,
     )

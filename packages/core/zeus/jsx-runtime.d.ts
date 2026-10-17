@@ -1,15 +1,26 @@
-import type { JSXValue } from './dist/zeus'
+import type { JSXValue } from '@zeus-js/runtime-dom'
+
+export type { JSX } from './src/jsx'
 
 export declare const Fragment: symbol
 export declare function jsx(
-  type: string | ((props: Record<string, unknown>) => JSXValue),
+  type:
+    | string
+    | typeof Fragment
+    | ((props: Record<string, unknown>) => JSXValue),
   props: Record<string, unknown> | null,
 ): JSXValue
 export declare function jsxs(
-  type: string | ((props: Record<string, unknown>) => JSXValue),
+  type:
+    | string
+    | typeof Fragment
+    | ((props: Record<string, unknown>) => JSXValue),
   props: Record<string, unknown> | null,
 ): JSXValue
 export declare function jsxDEV(
-  type: string | ((props: Record<string, unknown>) => JSXValue),
+  type:
+    | string
+    | typeof Fragment
+    | ((props: Record<string, unknown>) => JSXValue),
   props: Record<string, unknown> | null,
 ): JSXValue

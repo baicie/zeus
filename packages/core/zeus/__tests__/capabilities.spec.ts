@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import * as zeus from '../src'
 import { ZEUS_CAPABILITIES } from '../src/capabilities'
+import * as jsxDevRuntime from '../src/jsx-dev-runtime'
+import * as jsxRuntime from '../src/jsx-runtime'
 
 describe('@zeus-js/zeus capabilities', () => {
   it('advertises only application and private stability boundaries', () => {
@@ -40,10 +42,13 @@ describe('@zeus-js/zeus capabilities', () => {
     }
 
     if (jsxCapabilities.jsxRuntime) {
-      expect(zeus).toHaveProperty('jsx')
+      expect(jsxRuntime).toHaveProperty('jsx')
     }
     if (jsxCapabilities.fragment) {
-      expect(zeus).toHaveProperty('Fragment')
+      expect(jsxRuntime).toHaveProperty('Fragment')
+    }
+    if (jsxCapabilities.jsxDevRuntime) {
+      expect(jsxDevRuntime).toHaveProperty('jsxDEV')
     }
   })
 })

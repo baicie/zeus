@@ -92,7 +92,7 @@ describe('generateWcDts', () => {
   it('generates HTMLElementTagNameMap declaration', () => {
     const code = generateWCIndexDts(
       {
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-button',
@@ -124,7 +124,7 @@ describe('generateWcDts', () => {
   it('generates index with multiple components', () => {
     const code = generateWCIndexDts(
       {
-        version: 1,
+        schemaVersion: 1,
         components: [
           {
             tag: 'z-button',

@@ -43,7 +43,7 @@ try {
       'If this is intentional, commit updated docs/api/snapshots files.',
     )
     console.error(
-      'If this is breaking, add a major changeset and migration notes.\n',
+      'Beta API changes must update callers, tests and documentation together; see docs/rfcs/RFC-009-beta-stability.md.\n',
     )
     console.error(status)
 

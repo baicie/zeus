@@ -26,12 +26,12 @@ export function installPropertyAccessors(
     Object.defineProperty(proto, prop.name, {
       get(this: HTMLElement) {
         const hostRef = requireHostRef(this)
-        return getPropValue(hostRef, prop)
+        return getPropValue(hostRef, findProp(hostRef, prop.name))
       },
 
       set(this: HTMLElement, value: unknown) {
         const hostRef = requireHostRef(this)
-        setPropValue(hostRef, prop, value)
+        setPropValue(hostRef, findProp(hostRef, prop.name), value)
       },
 
       configurable: true,
@@ -55,12 +55,9 @@ export function setPropValue(
 ): void {
   const oldValue = getPropValue(hostRef, prop)
 
-  if (Object.is(oldValue, value)) {
-    return
-  }
-
   hostRef.values.set(prop.name, value)
   hostRef.attributeProps.delete(prop.name)
+  hostRef.pendingAttributes.delete(prop.name)
 
   if (prop.reflect) {
     reflectCustomElementProperty(
@@ -71,15 +68,19 @@ export function setPropValue(
     )
   }
 
-  if (hostRef.loaded) {
-    hostRef.instance?.propertyChanged?.(prop.name, oldValue, value)
+  if (hostRef.loaded && !Object.is(oldValue, value)) {
+    hostRef.instance?.propertyChanged?.({
+      name: prop.name,
+      value,
+      source: 'property',
+    })
   }
 }
 
 export function syncAttributeToProperty(
   hostRef: HostRef,
   attrName: string,
-  _oldValue: string | null,
+  oldValue: string | null,
   newValue: string | null,
 ): void {
   const normalizedAttrName = normalizeAttrName(attrName)
@@ -88,8 +89,12 @@ export function syncAttributeToProperty(
     return
   }
 
+  const initialValue = hostRef.preUpgradeAttributes.get(normalizedAttrName)
+  hostRef.preUpgradeAttributes.delete(normalizedAttrName)
+  if (oldValue === null && newValue === initialValue) return
+
   const prop = findCustomElementPropByAttribute(
-    hostRef.meta.props,
+    hostRef.propDefinitions,
     normalizedAttrName,
   ) as ZeusPropMeta | undefined
 
@@ -97,25 +102,31 @@ export function syncAttributeToProperty(
     return
   }
 
-  const oldPropValue = getPropValue(hostRef, prop)
-  const newPropValue = coerceCustomElementAttribute(prop, newValue)
-
-  if (Object.is(oldPropValue, newPropValue)) {
+  hostRef.attributeProps.add(prop.name)
+  if (prop.deserialize === true) {
+    hostRef.pendingAttributes.set(prop.name, newValue)
     return
   }
 
-  hostRef.values.set(prop.name, newPropValue)
-  hostRef.attributeProps.add(prop.name)
+  const oldPropValue = getPropValue(hostRef, prop)
+  const newPropValue = coerceCustomElementAttribute(prop, newValue)
 
-  if (hostRef.loaded) {
-    hostRef.instance?.propertyChanged?.(prop.name, oldPropValue, newPropValue)
+  hostRef.values.set(prop.name, newPropValue)
+
+  if (hostRef.loaded && !Object.is(oldPropValue, newPropValue)) {
+    hostRef.instance?.propertyChanged?.({
+      name: prop.name,
+      value: newPropValue,
+      source: 'attribute',
+      rawAttributeValue: newValue,
+    })
   }
 }
 
 export function applyInitialValues(hostRef: HostRef): void {
   const host = hostRef.host
 
-  for (const prop of hostRef.meta.props) {
+  for (const prop of hostRef.propDefinitions) {
     if (hostRef.values.has(prop.name)) {
       continue
     }
@@ -123,6 +134,11 @@ export function applyInitialValues(hostRef: HostRef): void {
     const attrName = getCustomElementAttributeName(prop)
 
     if (attrName && host.hasAttribute(attrName)) {
+      if (prop.deserialize === true) {
+        hostRef.pendingAttributes.set(prop.name, host.getAttribute(attrName))
+        hostRef.attributeProps.add(prop.name)
+        continue
+      }
       hostRef.values.set(
         prop.name,
         coerceCustomElementAttribute(prop, host.getAttribute(attrName)),
@@ -135,6 +151,33 @@ export function applyInitialValues(hostRef: HostRef): void {
       hostRef.values.set(prop.name, prop.default)
     }
   }
+}
+
+/** Replace deferred codec markers with the implementation's real schema. */
+export function resolveHostProperties(
+  hostRef: HostRef,
+  definitions: ZeusPropMeta[],
+): void {
+  for (const previous of hostRef.propDefinitions) {
+    if (!hostRef.pendingAttributes.has(previous.name)) continue
+    const definition = definitions.find(prop => prop.name === previous.name)
+    const attrName = definition && getCustomElementAttributeName(definition)
+    if (definition && attrName) {
+      hostRef.values.set(
+        previous.name,
+        coerceCustomElementAttribute(
+          definition,
+          hostRef.pendingAttributes.get(previous.name)!,
+        ),
+      )
+    }
+  }
+  hostRef.propDefinitions = definitions
+  hostRef.pendingAttributes.clear()
+}
+
+function findProp(hostRef: HostRef, name: string): ZeusPropMeta {
+  return hostRef.propDefinitions.find(prop => prop.name === name)!
 }
 
 export function getObservedAttributes(props: ZeusPropMeta[]): string[] {
@@ -166,6 +209,11 @@ export function upgradePreDefinedProperties(
     }
 
     const value = target[prop.name]
+
+    const attrName = getCustomElementAttributeName(prop)
+    const attrValue = attrName ? host.getAttribute(attrName) : null
+    if (attrName && attrValue !== null)
+      hostRef.preUpgradeAttributes.set(attrName, attrValue)
 
     delete target[prop.name]
 

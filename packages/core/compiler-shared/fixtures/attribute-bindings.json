@@ -46,7 +46,7 @@
     "expr": {
       "kind": "Expression",
       "code": "() => props.value",
-      "form": "getter",
+      "form": "function",
       "forAccessors": [],
       "span": {
         "start": { "line": 1, "column": 0, "offset": 0 },

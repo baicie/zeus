@@ -1,16 +1,10 @@
-import {
-  bindAttr,
-  bindProp,
-  createComponent,
-  insert,
-  type AttrValue,
-  type JSXValue,
-} from '@zeus-js/runtime-dom'
+import type { JSXValue } from '@zeus-js/runtime-dom'
 
-const Fragment = Symbol.for('zeus.fragment')
+export type { JSX } from './jsx'
 
-export { Fragment }
+export const Fragment: symbol = Symbol.for('zeus.fragment')
 
+/** Toolchain boundary: Zeus JSX must be lowered before execution. */
 export function jsx(
   type:
     | string
@@ -18,74 +12,9 @@ export function jsx(
     | ((props: Record<string, unknown>) => JSXValue),
   props: Record<string, unknown> | null,
 ): JSXValue {
-  if (type === Fragment) {
-    return props?.children as JSXValue
-  }
-
-  if (typeof type === 'function') {
-    return createComponent(
-      type as (props: Record<string, unknown>) => JSXValue,
-      props ?? {},
-    )
-  }
-
-  if (typeof type !== 'string') {
-    return null
-  }
-
-  const el = document.createElement(type)
-
-  if (props) {
-    const children = props.children as JSXValue | undefined
-
-    for (const key of Object.keys(props)) {
-      if (key === 'children') continue
-
-      const value = props[key]
-
-      if (key.startsWith('on') && typeof value === 'function') {
-        el.addEventListener(key.slice(2).toLowerCase(), value as EventListener)
-      } else if (key === 'ref') {
-        setFallbackRef(value, el)
-      } else if (key.startsWith('prop:')) {
-        const propName = key.slice(5)
-
-        if (typeof value === 'function') {
-          bindProp(
-            el,
-            propName as keyof Element,
-            value as () => Element[keyof Element],
-          )
-        } else {
-          ;(el as unknown as Record<string, unknown>)[propName] = value
-        }
-      } else if (typeof value === 'function') {
-        bindAttr(el, key, value as () => AttrValue)
-      } else if (value != null && value !== false) {
-        el.setAttribute(key === 'className' ? 'class' : key, String(value))
-      }
-    }
-
-    if (children !== undefined) {
-      insert(el, children)
-    }
-  }
-
-  return el as unknown as JSXValue
+  throw new Error(
+    '[ZEUS_JSX_COMPILATION_REQUIRED] Compile JSX with @zeus-js/vite-plugin or @zeus-js/compiler before execution.',
+  )
 }
 
 export { jsx as jsxs, jsx as jsxDEV }
-
-function setFallbackRef(target: unknown, el: Element): void {
-  if (target == null) return
-
-  if (typeof target === 'function') {
-    ;(target as (value: Element | null) => void)(el)
-  } else if (typeof target === 'object') {
-    if ('value' in target) {
-      ;(target as { value: Element | null }).value = el as never
-    } else if ('current' in target) {
-      ;(target as { current: Element | null }).current = el as never
-    }
-  }
-}

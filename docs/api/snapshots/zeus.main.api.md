@@ -15,7 +15,6 @@ export {
   createSignal,
   onCleanup,
 } from '@zeus-js/signal'
-import { JSXValue } from '@zeus-js/runtime-dom'
 export {
   Component,
   Context,
@@ -57,16 +56,4 @@ export {
   render,
   useContext,
 } from '@zeus-js/runtime-dom'
-
-export declare const Fragment: unique symbol
-
-export declare function jsx(
-  type:
-    | string
-    | typeof Fragment
-    | ((props: Record<string, unknown>) => JSXValue),
-  props: Record<string, unknown> | null,
-): JSXValue
-
-export { jsx as jsxDEV, jsx as jsxs }
 ```

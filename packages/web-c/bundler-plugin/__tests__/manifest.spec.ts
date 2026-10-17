@@ -9,7 +9,7 @@ import type { OutputBundle, RollupError } from 'rollup'
 function createMockCtx(): ZeusBuildContext {
   return {
     manifest: {
-      version: 1,
+      schemaVersion: 1,
       components: [],
     },
     root: '/project',
@@ -109,6 +109,6 @@ describe('manifest output plugin', () => {
     const source = result[0].source as string
 
     expect(source).not.toContain('\n')
-    expect(source).toContain('"version":1')
+    expect(source).toContain('"schemaVersion":1')
   })
 })

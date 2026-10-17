@@ -29,6 +29,12 @@ describe('Show', () => {
     expect(result).toBeNull()
   })
 
+  it('rejects a function in the when value position', () => {
+    expect(() => Show({ when: (() => false) as unknown as boolean })).toThrow(
+      'Show `when` must be a value',
+    )
+  })
+
   it('calls children function', () => {
     const result = Show({ when: true, children: () => 'computed' })
     expect(result).toBe('computed')
@@ -83,6 +89,15 @@ describe('For', () => {
   it('returns empty array for empty each', () => {
     const result = For({ each: [], children: item => item })
     expect(result).toEqual([])
+  })
+
+  it('rejects a function in the each value position', () => {
+    expect(() =>
+      For({
+        each: (() => []) as unknown as readonly string[],
+        children: item => item,
+      }),
+    ).toThrow('<For> `each` must resolve to an array')
   })
 })
 

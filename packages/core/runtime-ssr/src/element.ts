@@ -1,3 +1,5 @@
+import { normalizeDOMAttributeName } from '@zeus-js/shared'
+
 import { createSSRProperty, resolveSSRElementProperties } from './property'
 import {
   createSSRFragment,
@@ -57,6 +59,12 @@ export function ssrAttr(
 ): SSRAttributeEntry {
   assertSyncSSRValue(value)
   const normalizedName = normalizeAttributeName(name)
+  assertSSRAttributeName(normalizedName)
+  if (typeof value === 'function') {
+    throw new TypeError(
+      `JSX attribute "${name}" cannot contain a function; use prop:${name} for function values.`,
+    )
+  }
   if (normalizedName === 'class') {
     const normalized = normalizeClass(value as SSRClassValue)
     return normalized ? createSSRAttribute('class', normalized) : null
@@ -104,6 +112,7 @@ function serializeAttributes(attributes: readonly SSRAttributeEntry[]): string {
   for (const attribute of attributes) {
     assertSyncSSRValue(attribute)
     if (!attribute) continue
+    assertSSRAttributeName(attribute.name)
     assertSyncSSRValue(attribute.value)
     html += ` ${attribute.name}`
     if (attribute.value !== true) {
@@ -114,8 +123,30 @@ function serializeAttributes(attributes: readonly SSRAttributeEntry[]): string {
   return html
 }
 
+const XML_NAME_START =
+  /^[:A-Z_a-z\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u02ff\u0370-\u037d\u037f-\u1fff\u200c-\u200d\u2070-\u218f\u2c00-\u2fef\u3001-\ud7ff\uf900-\ufdcf\ufdf0-\ufffd]$/
+const XML_NAME_EXTRA = /^[-.0-9\u00b7\u0300-\u036f\u203f-\u2040]$/
+
+// DOM setAttribute validates XML Names. SSR has no DOM available, so apply
+// the same code-point grammar before interpolating an attribute name.
+function assertSSRAttributeName(name: string): void {
+  let first = true
+  for (const character of name) {
+    const point = character.codePointAt(0)!
+    const start =
+      XML_NAME_START.test(character) || (point >= 0x10000 && point <= 0xeffff)
+    if (!start && (first || !XML_NAME_EXTRA.test(character))) {
+      throw new TypeError(
+        `Invalid SSR attribute name: ${JSON.stringify(name)}.`,
+      )
+    }
+    first = false
+  }
+  if (first) throw new TypeError('Invalid SSR attribute name: "".')
+}
+
 function normalizeAttributeName(name: string): string {
-  return name === 'className' ? 'class' : name
+  return normalizeDOMAttributeName(name)
 }
 
 function normalizeClass(value: SSRClassValue): string {

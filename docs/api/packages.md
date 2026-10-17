@@ -143,12 +143,10 @@
 
 #### JSX Runtime
 
-| API        | 说明                         |
-| ---------- | ---------------------------- |
-| `jsx`      | 编译时调用，创建 JSX 元素    |
-| `jsxs`     | 编译时调用，创建多个子元素   |
-| `jsxDEV`   | 开发环境 JSX 运行时          |
-| `Fragment` | JSX Fragment，等价于 `<></>` |
+| API                       | 说明                                                                                             |
+| ------------------------- | ------------------------------------------------------------------------------------------------ |
+| `jsx` / `jsxs` / `jsxDEV` | `jsx-runtime` / `jsx-dev-runtime` 工具链边界；未经编译调用会抛出 `ZEUS_JSX_COMPILATION_REQUIRED` |
+| `Fragment`                | JSX 工具链标记；`<></>` 由 Zeus 编译器降级为 DOM 区域                                            |
 
 #### 类型导出
 
@@ -426,9 +424,9 @@ const Counter = defineElement(
 // <z-counter count="5" title="My Counter"></z-counter>
 ```
 
-prop 默认使用 deep reactivity。`reactivity: 'shallow'` 适用于 rows、columns
-等大型 immutable 集合：替换整个 prop reference 会触发更新；原地修改数组元素
-或嵌套对象不会触发更新。shallow prop 必须采用 replace-on-write。
+prop 默认使用 shallow reactivity，保持传入对象、数组和函数的 identity。
+替换整个 prop 引用会触发更新；原地修改数组元素或嵌套对象不会触发更新，
+应通过新引用替换。需要嵌套代理时可显式设置 `reactivity: 'deep'`，此时对象 identity 会改变。
 
 #### Host / Slot 详解
 

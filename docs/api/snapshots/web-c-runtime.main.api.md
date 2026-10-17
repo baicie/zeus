@@ -6,6 +6,7 @@
 
 ```ts
 import {
+  NormalizedPropChange,
   CustomElementPropSchema,
   CustomElementPropType,
 } from '@zeus-js/runtime-dom'
@@ -49,10 +50,15 @@ export interface HostRef {
   connected: boolean
   loaded: boolean
   loading?: Promise<void>
+  readinessError?: Error
+  exposedMethods: Record<string, Function>
   instance?: ZeusComponentInstance
   values: Map<string, unknown>
+  propDefinitions: ZeusPropMeta[]
   attributeProps: Set<string>
   reflectingAttrs: Set<string>
+  preUpgradeAttributes: Map<string, string>
+  pendingAttributes: Map<string, string | null>
   pendingFormCallbacks: ZeusFormCallback[]
   readyWaiters: Array<{
     resolve(host: HTMLElement): void
@@ -62,7 +68,7 @@ export interface HostRef {
 export interface ZeusComponentInstance {
   connected?(): void
   disconnected?(): void
-  propertyChanged?(name: string, oldValue: unknown, newValue: unknown): void
+  propertyChanged?(change: NormalizedPropChange): void
   formAssociated?(form: HTMLFormElement | null): void
   formDisabled?(disabled: boolean): void
   formReset?(): void
@@ -109,4 +115,10 @@ export declare function bootstrapLazy(
 export declare function createLazyElementClass(
   meta: ZeusLazyComponentMeta,
 ): CustomElementConstructor
+
+/** Replace deferred codec markers with the implementation's real schema. */
+export declare function resolveHostProperties(
+  hostRef: HostRef,
+  definitions: ZeusPropMeta[],
+): void
 ```

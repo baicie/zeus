@@ -1,8 +1,14 @@
 // packages/web-c-runtime/src/lazy-element.ts
 
+import { isWithinRuntimeDomMove } from '@zeus-js/runtime-dom'
+
 import { invokeFormCallback } from './form-callbacks'
 import { registerHost, requireHostRef } from './host-ref'
-import { initializeComponent, waitForComponentReady } from './lifecycle'
+import {
+  initializeComponent,
+  rejectComponentReady,
+  waitForComponentReady,
+} from './lifecycle'
 import {
   getObservedAttributes,
   installPropertyAccessors,
@@ -41,6 +47,7 @@ export function createLazyElementClass(
       const hostRef = requireHostRef(this)
 
       hostRef.connected = true
+      hostRef.readinessError = undefined
 
       void initializeComponent(hostRef).catch(error => {
         reportInitializationError(meta.tagName, error)
@@ -48,12 +55,28 @@ export function createLazyElementClass(
     }
 
     disconnectedCallback(): void {
+      if (isWithinRuntimeDomMove(this)) return
       const hostRef = requireHostRef(this)
 
       hostRef.connected = false
 
+      if (!hostRef.loaded) {
+        rejectComponentReady(
+          hostRef,
+          new Error(
+            `[ZEUS_WC_DISCONNECTED_BEFORE_READY] <${meta.tagName}> disconnected before initialization completed.`,
+          ),
+        )
+      }
+
       if (hostRef.loaded) {
-        hostRef.instance?.disconnected?.()
+        try {
+          hostRef.instance?.disconnected?.()
+        } finally {
+          for (const name of Object.keys(hostRef.exposedMethods)) {
+            delete hostRef.exposedMethods[name]
+          }
+        }
       }
     }
 
@@ -156,9 +179,13 @@ function installMethodProxies(
         const hostRef = requireHostRef(host)
 
         return waitForComponentReady(hostRef).then(readyHost => {
-          const method = (readyHost as HTMLElement & Record<string, unknown>)[
-            name
-          ]
+          if (!hostRef.connected) {
+            throw new Error(
+              `[ZEUS_WC_DISCONNECTED_BEFORE_READY] <${hostRef.meta.tagName}> is disconnected.`,
+            )
+          }
+
+          const method = hostRef.exposedMethods[name]
 
           if (typeof method !== 'function') {
             throw new Error(

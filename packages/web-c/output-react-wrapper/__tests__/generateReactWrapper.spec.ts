@@ -38,11 +38,17 @@ describe('generateReactWrapper', () => {
       mode: 'minimal',
     })
 
-    // minimal wrapper imports wcModuleId to bootstrap Proxy Elements
-    expect(code).toContain('import "zeus:wc:z-button"')
+    // Each wrapper imports a side-effect-free per-component registration entry.
+    expect(code).toContain(
+      'import { defineCustomElement } from "zeus:wc:z-button"',
+    )
     expect(code).toContain('export const ZButton = React.forwardRef')
     expect(code).not.toContain('useImperativeHandle')
-    expect(code).not.toContain('useRef')
+    expect(code).toContain('const propsRef = React.useRef(props)')
+    expect(code).toContain(
+      'const OMITTED_PROPS = new Set(["children","onPress"])',
+    )
+    expect(code).toContain('rest["onpress"] = props["onPress"]')
     expect(code).not.toContain('el.variant = variant')
     expect(code).not.toContain('addEventListener')
     expect(code).toContain('React.createElement')
@@ -79,12 +85,14 @@ describe('generateReactWrapper', () => {
 
     // All component props stay in rest props, not destructured.
     expect(code).toContain('const rest = omitProps(props')
-    expect(code).toContain('rest.ref = ref')
+    expect(code).toContain('rest.ref = React.useCallback')
     expect(code).toContain('!OMITTED_PROPS.has(key)')
     expect(code).not.toContain('...rest')
     expect(code).not.toContain('variant,')
     expect(code).not.toContain('disabled,')
-    expect(code).toContain('import "zeus:wc:z-button"')
+    expect(code).toContain(
+      'import { defineCustomElement } from "zeus:wc:z-button"',
+    )
   })
 
   it('generates event-bridge React wrapper code', () => {
@@ -122,7 +130,9 @@ describe('generateReactWrapper', () => {
       mode: 'event-bridge',
     })
 
-    expect(code).toContain('import "zeus:wc:z-button"')
+    expect(code).toContain(
+      'import { defineCustomElement } from "zeus:wc:z-button"',
+    )
     expect(code).toContain('export const ZButton = forwardRef(function ZButton')
     expect(code).toContain('const props = inputProps || {}')
     expect(code).toContain('const rest = omitProps(props')
@@ -191,7 +201,7 @@ describe('generateReactWrapper', () => {
     expect(code).toContain('slot: "footer"')
     expect(code).toContain("{ display: 'contents' }")
     expect(code).toContain('pushAll(childArgs, slotNodes)')
-    expect(code).not.toContain('useRef')
+    expect(code).toContain('const propsRef = React.useRef(props)')
     expect(code).not.toContain('addEventListener')
   })
 
@@ -397,17 +407,17 @@ describe('generateReactWrapper', () => {
       "import { createComponent } from '@zeus-js/output-react-wrapper/runtime'",
     )
     expect(code).toContain(
-      "import { defineCustomElement } from '../wc/loader.js'",
+      'import { defineCustomElement } from "../wc/loader.js"',
     )
     expect(code).toContain('export const ZButton = createComponent')
     expect(code).toContain('tagName: "z-button"')
-    expect(code).toContain(
-      'defineCustomElement: () => defineCustomElement("z-button")',
-    )
+    expect(code).toContain('  defineCustomElement,')
     expect(code).toContain('"onPress": "press"')
     expect(code).toContain('slots: []')
 
-    expect(code).not.toContain('import "zeus:wc:z-button"')
+    expect(code).not.toContain(
+      'import { defineCustomElement } from "zeus:wc:z-button"',
+    )
     expect(code).not.toContain('useEffect')
     expect(code).not.toContain('addEventListener')
   })

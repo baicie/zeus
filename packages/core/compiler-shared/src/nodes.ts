@@ -17,7 +17,7 @@ export interface ExpressionIR {
   forAccessors: ForAccessorIR[]
 }
 
-export type ExpressionForm = 'value' | 'getter' | 'member'
+export type ExpressionForm = 'value' | 'function' | 'member'
 
 export interface ForAccessorIR {
   forId: number
@@ -122,17 +122,27 @@ export type RefBindingIR = AttributeBaseIRNode & {
   expr: ExpressionIR
 }
 
+export type SpreadBindingIR = AttributeBaseIRNode & {
+  kind: 'SpreadBinding'
+  target: 'native' | 'component'
+  expr: ExpressionIR
+}
+
 export type AttributeIR =
   | StaticAttributeIR
   | AttrBindingIR
   | PropBindingIR
   | EventBindingIR
   | RefBindingIR
+  | SpreadBindingIR
 
-export interface ComponentPropIR {
+export interface ComponentNamedPropIR {
+  kind: 'ComponentProp'
   name: string
   value: ExpressionIR | ZeusIRNode[]
 }
+
+export type ComponentPropIR = ComponentNamedPropIR | SpreadBindingIR
 
 export type ComponentIR = SemanticBaseIRNode & {
   kind: 'Component'

@@ -56,8 +56,9 @@ Browser transforms import `@zeus-js/runtime-dom`. SSR transforms import
 zeus({ ssrModuleName: 'virtual:my-zeus-ssr-runtime' })
 ```
 
-When using the Babel compiler directly, set `generate: 'ssr'` and point
-`moduleName` at the SSR runtime.
+When using the Rust compiler adapter directly, call `transformModule` with
+`target: 'ssr'` and `runtimeModule: '@zeus-js/runtime-ssr'`. The Vite plugin
+selects these options for SSR module transforms.
 
 ## Serialization
 

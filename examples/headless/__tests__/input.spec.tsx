@@ -147,8 +147,8 @@ describe('z-input', () => {
     await nextFrame()
 
     const input = el.querySelector('input')!
-    input.dispatchEvent(new FocusEvent('focus'))
-    input.dispatchEvent(new FocusEvent('blur'))
+    input.focus()
+    input.blur()
 
     expect(listener).toHaveBeenCalledTimes(2)
     expect(listener.mock.calls[0][0].detail.focused).toBe(true)

@@ -52,7 +52,6 @@
     }
   },
   "dependencies": {
-    "@lit/react": "^1.0.8",
     "@zeus-js/bundler-plugin": "workspace:*",
     "@zeus-js/component-analyzer": "workspace:*",
     "@zeus-js/component-dts": "workspace:*"

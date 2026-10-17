@@ -39,7 +39,7 @@ export interface OutputReactWrapperOptions {
   /**
    * runtime:
    *   Default. Generates thin proxies powered by @zeus-js/output-react-wrapper/runtime.
-   *   No useEffect, no addEventListener, no prop sync — delegates to @lit/react.
+   *   Registers during DOM commit and bridges properties, events, and refs.
    *
    * minimal:
    *   Requires React 19+.
@@ -53,7 +53,7 @@ export interface OutputReactWrapperOptions {
   wrapper?: ReactWrapperMode
 
   /**
-   * Named slot strategy (event-bridge mode only).
+   * Named slot strategy.
    *
    * props:
    *   <ZCard header={<div />} />

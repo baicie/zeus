@@ -67,6 +67,3 @@ export type {
   ContextProviderProps,
   ContextBridgeProps,
 } from '@zeus-js/runtime-dom'
-
-// TS jsx runtime fallback
-export { Fragment, jsx, jsxs, jsxDEV } from './jsx-runtime'

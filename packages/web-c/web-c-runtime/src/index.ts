@@ -2,6 +2,7 @@
 
 export { bootstrapLazy } from './bootstrapLazy'
 export { createLazyElementClass } from './lazy-element'
+export { resolveHostProperties } from './props'
 
 export type { BootstrapLazyOptions } from './bootstrapLazy'
 

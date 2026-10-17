@@ -1,0 +1,1183 @@
+{
+  "schemaVersion": 1,
+  "frozenAt": "2026-10-16",
+  "scope": "Observed API snapshot and pending browser acceptance; not a claim that Golden stories pass.",
+  "source": {
+    "repository": "https://github.com/baicie/zeus-ui",
+    "commit": "1d2c24db27b5d618083133f241d5078974a353bf",
+    "version": "0.1.0-beta.32",
+    "frameworkDependency": "0.1.1-beta.13"
+  },
+  "consumers": [
+    "native-custom-elements",
+    "react18-react19-wrapper",
+    "vue3-wrapper"
+  ],
+  "groups": [
+    {
+      "id": "G-01",
+      "name": "Button",
+      "package": "@zeus-web/button",
+      "entries": {
+        "native": "@zeus-web/button/wc",
+        "react": "@zeus-web/button/react",
+        "vue": "@zeus-web/button/vue"
+      },
+      "sourceFile": "packages/primitives/button/src/button.tsx",
+      "sourceSha256": "1c2f428646372b70218dd83ed1540102f1db61dbe3aec28be89c98b80d71951e",
+      "manifestFile": "packages/primitives/button/dist/zeus.components.json",
+      "manifestSha256": "2401fb53bcb3f33da8f0a9ac7e57cd56a6109e9d93e29d22529a0785b517ec90",
+      "verification": {
+        "sourceAndManifestInspected": true,
+        "browserAcceptance": "pending",
+        "packedUiConsumers": "pending"
+      },
+      "components": [
+        {
+          "tag": "zw-button",
+          "exportName": "Button",
+          "shadow": false,
+          "props": [
+            {
+              "name": "ariaLabel",
+              "type": "string",
+              "attribute": "aria-label",
+              "reflect": false,
+              "declaration": "string"
+            },
+            {
+              "name": "disabled",
+              "type": "boolean",
+              "attribute": "disabled",
+              "reflect": true,
+              "default": false,
+              "declaration": "boolean"
+            },
+            {
+              "name": "loading",
+              "type": "boolean",
+              "attribute": "loading",
+              "reflect": true,
+              "default": false,
+              "declaration": "boolean"
+            },
+            {
+              "name": "name",
+              "type": "string",
+              "attribute": "name",
+              "reflect": false,
+              "declaration": "string"
+            },
+            {
+              "name": "pressed",
+              "type": "boolean",
+              "attribute": "pressed",
+              "reflect": true,
+              "default": false,
+              "declaration": "boolean"
+            },
+            {
+              "name": "size",
+              "type": "string",
+              "attribute": "size",
+              "reflect": true,
+              "default": "md",
+              "values": ["sm", "md", "lg", "icon"],
+              "declaration": "\"sm\" | \"md\" | \"lg\" | \"icon\""
+            },
+            {
+              "name": "type",
+              "type": "string",
+              "attribute": "type",
+              "reflect": false,
+              "default": "button",
+              "values": ["button", "submit", "reset"],
+              "declaration": "\"button\" | \"submit\" | \"reset\""
+            },
+            {
+              "name": "value",
+              "type": "string",
+              "attribute": "value",
+              "reflect": false,
+              "declaration": "string"
+            },
+            {
+              "name": "variant",
+              "type": "string",
+              "attribute": "variant",
+              "reflect": true,
+              "default": "default",
+              "values": [
+                "default",
+                "primary",
+                "secondary",
+                "outline",
+                "ghost",
+                "danger"
+              ],
+              "declaration": "\"default\" | \"primary\" | \"secondary\" | \"outline\" | \"ghost\" | \"danger\""
+            }
+          ],
+          "events": {
+            "press": {
+              "key": "press",
+              "name": "press",
+              "reactName": "onPress",
+              "detail": {
+                "nativeEvent": "MouseEvent"
+              },
+              "bubbles": true,
+              "composed": true,
+              "cancelable": false
+            }
+          },
+          "methods": {
+            "focus": {
+              "name": "focus",
+              "parameters": [],
+              "returns": "void",
+              "async": false
+            },
+            "blur": {
+              "name": "blur",
+              "parameters": [],
+              "returns": "void",
+              "async": false
+            },
+            "click": {
+              "name": "click",
+              "parameters": [],
+              "returns": "void",
+              "async": false
+            }
+          },
+          "models": [],
+          "slots": ["prefix", "default", "suffix"]
+        }
+      ],
+      "requiredBrowserAssertions": [
+        "disabled/loading prevents press",
+        "one press carries detail.nativeEvent",
+        "default/prefix/suffix projection",
+        "focus/blur/click after ready",
+        "runtime detach/reconnect cleanup"
+      ],
+      "knownLimits": [
+        "Browser keyboard/form behavior has not been accepted by this contract snapshot."
+      ]
+    },
+    {
+      "id": "G-02",
+      "name": "Input",
+      "package": "@zeus-web/input",
+      "entries": {
+        "native": "@zeus-web/input/wc",
+        "react": "@zeus-web/input/react",
+        "vue": "@zeus-web/input/vue"
+      },
+      "sourceFile": "packages/primitives/input/src/input.tsx",
+      "sourceSha256": "ddea25b204be3a8682f79c4adbb5dcc2374ed55e4409be6198eaaf6cc877fbda",
+      "manifestFile": "packages/primitives/input/dist/zeus.components.json",
+      "manifestSha256": "f775201c10c9cc91bd6728b66b1ce861f8b358483ad669aea3e205833cbee9cf",
+      "verification": {
+        "sourceAndManifestInspected": true,
+        "browserAcceptance": "pending",
+        "packedUiConsumers": "pending"
+      },
+      "components": [
+        {
+          "tag": "zw-input",
+          "exportName": "Input",
+          "shadow": false,
+          "props": [
+            {
+              "name": "ariaDescribedby",
+              "type": "string",
+              "attribute": "aria-describedby",
+              "reflect": false,
+              "declaration": "string"
+            },
+            {
+              "name": "ariaErrormessage",
+              "type": "string",
+              "attribute": "aria-errormessage",
+              "reflect": false,
+              "declaration": "string"
+            },
+            {
+              "name": "ariaLabel",
+              "type": "string",
+              "attribute": "aria-label",
+              "reflect": false,
+              "declaration": "string"
+            },
+            {
+              "name": "autocomplete",
+              "type": "string",
+              "attribute": "autocomplete",
+              "reflect": false,
+              "declaration": "string"
+            },
+            {
+              "name": "defaultValue",
+              "type": "string",
+              "attribute": "default-value",
+              "reflect": false,
+              "declaration": "string"
+            },
+            {
+              "name": "disabled",
+              "type": "boolean",
+              "attribute": "disabled",
+              "reflect": true,
+              "default": false,
+              "declaration": "boolean"
+            },
+            {
+              "name": "formatter",
+              "type": "function",
+              "attribute": false,
+              "reflect": false,
+              "declaration": "(value: string) => string"
+            },
+            {
+              "name": "id",
+              "type": "string",
+              "attribute": "id",
+              "reflect": false,
+              "declaration": "string"
+            },
+            {
+              "name": "invalid",
+              "type": "boolean",
+              "attribute": "invalid",
+              "reflect": true,
+              "default": false,
+              "declaration": "boolean"
+            },
+            {
+              "name": "name",
+              "type": "string",
+              "attribute": "name",
+              "reflect": false,
+              "declaration": "string"
+            },
+            {
+              "name": "placeholder",
+              "type": "string",
+              "attribute": "placeholder",
+              "reflect": false,
+              "declaration": "string"
+            },
+            {
+              "name": "readonly",
+              "type": "boolean",
+              "attribute": "readonly",
+              "reflect": true,
+              "default": false,
+              "declaration": "boolean"
+            },
+            {
+              "name": "required",
+              "type": "boolean",
+              "attribute": "required",
+              "reflect": true,
+              "default": false,
+              "declaration": "boolean"
+            },
+            {
+              "name": "size",
+              "type": "string",
+              "attribute": "size",
+              "reflect": true,
+              "default": "md",
+              "values": ["sm", "md", "lg"],
+              "declaration": "\"sm\" | \"md\" | \"lg\""
+            },
+            {
+              "name": "type",
+              "type": "string",
+              "attribute": "type",
+              "reflect": true,
+              "default": "text",
+              "values": [
+                "text",
+                "email",
+                "password",
+                "search",
+                "tel",
+                "url",
+                "number"
+              ],
+              "declaration": "\"text\" | \"email\" | \"password\" | \"search\" | \"tel\" | \"url\" | \"number\""
+            },
+            {
+              "name": "value",
+              "type": "string",
+              "attribute": "value",
+              "reflect": true,
+              "declaration": "string"
+            }
+          ],
+          "events": {
+            "valueChange": {
+              "key": "valueChange",
+              "name": "value-change",
+              "reactName": "onValueChange",
+              "detail": {
+                "value": "string",
+                "nativeEvent": "Event"
+              },
+              "bubbles": true,
+              "composed": true,
+              "cancelable": false
+            },
+            "focusChange": {
+              "key": "focusChange",
+              "name": "focus-change",
+              "reactName": "onFocusChange",
+              "detail": {
+                "focused": "boolean",
+                "nativeEvent": "FocusEvent"
+              },
+              "bubbles": true,
+              "composed": true,
+              "cancelable": false
+            }
+          },
+          "methods": {
+            "focus": {
+              "name": "focus",
+              "parameters": [],
+              "returns": "void",
+              "async": false
+            },
+            "blur": {
+              "name": "blur",
+              "parameters": [],
+              "returns": "void",
+              "async": false
+            },
+            "select": {
+              "name": "select",
+              "parameters": [],
+              "returns": "void",
+              "async": false
+            }
+          },
+          "models": [
+            {
+              "prop": "value",
+              "event": "value-change",
+              "eventPath": "detail.value"
+            }
+          ],
+          "slots": ["prefix", "suffix", "message"]
+        }
+      ],
+      "requiredBrowserAssertions": [
+        "value and defaultValue precedence",
+        "formatter is passed as function property and runs on input only",
+        "value-change carries detail.value",
+        "focus-change carries detail.focused",
+        "native form submission/reset/required validity and focus in real browser"
+      ],
+      "knownLimits": [
+        "Source does not set formAssociated or options.form; full ElementInternals form semantics are not claimed.",
+        "handleInput writes ctx.host.value before emitting; strict React controlled rollback behavior is not established."
+      ]
+    },
+    {
+      "id": "G-03",
+      "name": "Dialog",
+      "package": "@zeus-web/dialog",
+      "entries": {
+        "native": "@zeus-web/dialog/wc",
+        "react": "@zeus-web/dialog/react",
+        "vue": "@zeus-web/dialog/vue"
+      },
+      "sourceFile": "packages/primitives/dialog/src/dialog.tsx",
+      "sourceSha256": "999696b8a2d4aec1a1b08e3eaf55459e64d1efed47672ad1cf55b8395dbdaad8",
+      "manifestFile": "packages/primitives/dialog/dist/zeus.components.json",
+      "manifestSha256": "f31a5488697938227914681cded433a0caad667951c55234ebb63cafeee4a96d",
+      "verification": {
+        "sourceAndManifestInspected": true,
+        "browserAcceptance": "pending",
+        "packedUiConsumers": "pending"
+      },
+      "components": [
+        {
+          "tag": "zw-dialog",
+          "exportName": "Dialog",
+          "shadow": false,
+          "props": [
+            {
+              "name": "defaultOpen",
+              "type": "boolean",
+              "attribute": "default-open",
+              "reflect": true,
+              "default": false,
+              "declaration": "boolean"
+            },
+            {
+              "name": "modal",
+              "type": "boolean",
+              "attribute": "modal",
+              "reflect": true,
+              "default": true,
+              "declaration": "boolean"
+            },
+            {
+              "name": "open",
+              "type": "boolean",
+              "attribute": "open",
+              "reflect": true,
+              "default": false,
+              "declaration": "boolean"
+            }
+          ],
+          "events": {
+            "openChange": {
+              "key": "openChange",
+              "name": "open-change",
+              "reactName": "onOpenChange",
+              "detail": {
+                "open": "boolean",
+                "nativeEvent": "Event"
+              },
+              "bubbles": true,
+              "composed": true,
+              "cancelable": false
+            }
+          },
+          "methods": {
+            "show": {
+              "name": "show",
+              "parameters": [],
+              "returns": "void",
+              "async": false
+            },
+            "close": {
+              "name": "close",
+              "parameters": [],
+              "returns": "void",
+              "async": false
+            }
+          },
+          "models": [
+            {
+              "prop": "open",
+              "event": "open-change",
+              "eventPath": "detail.open"
+            }
+          ],
+          "slots": ["default"]
+        },
+        {
+          "tag": "zw-dialog-trigger",
+          "exportName": "DialogTrigger",
+          "shadow": false,
+          "props": [
+            {
+              "name": "disabled",
+              "type": "boolean",
+              "attribute": "disabled",
+              "reflect": true,
+              "default": false,
+              "declaration": "boolean"
+            }
+          ],
+          "events": {},
+          "methods": {
+            "focus": {
+              "name": "focus",
+              "parameters": [],
+              "returns": "void",
+              "async": false
+            }
+          },
+          "models": [],
+          "slots": ["default"]
+        },
+        {
+          "tag": "zw-dialog-content",
+          "exportName": "DialogContent",
+          "shadow": false,
+          "props": [
+            {
+              "name": "forceMount",
+              "type": "boolean",
+              "attribute": "force-mount",
+              "reflect": true,
+              "default": false,
+              "declaration": "boolean"
+            }
+          ],
+          "events": {},
+          "methods": {
+            "focus": {
+              "name": "focus",
+              "parameters": [],
+              "returns": "void",
+              "async": false
+            }
+          },
+          "models": [],
+          "slots": ["default"]
+        },
+        {
+          "tag": "zw-dialog-close",
+          "exportName": "DialogClose",
+          "shadow": false,
+          "props": [
+            {
+              "name": "disabled",
+              "type": "boolean",
+              "attribute": "disabled",
+              "reflect": true,
+              "default": false,
+              "declaration": "boolean"
+            }
+          ],
+          "events": {},
+          "methods": {
+            "focus": {
+              "name": "focus",
+              "parameters": [],
+              "returns": "void",
+              "async": false
+            }
+          },
+          "models": [],
+          "slots": ["default"]
+        },
+        {
+          "tag": "zw-dialog-title",
+          "exportName": "DialogTitle",
+          "shadow": false,
+          "props": [],
+          "events": {},
+          "methods": {},
+          "models": [],
+          "slots": ["default"]
+        },
+        {
+          "tag": "zw-dialog-description",
+          "exportName": "DialogDescription",
+          "shadow": false,
+          "props": [],
+          "events": {},
+          "methods": {},
+          "models": [],
+          "slots": ["default"]
+        }
+      ],
+      "requiredBrowserAssertions": [
+        "open-change carries detail.open",
+        "trigger opens and close/Escape closes",
+        "dialog/title/description relationships",
+        "modal Tab and Shift+Tab trap",
+        "close restores trigger focus",
+        "pending focus timers do not target detached nodes"
+      ],
+      "knownLimits": [
+        "Schema open defaults to false, so resolveOpen reads open before defaultOpen; defaultOpen alone is not promised to open the dialog.",
+        "Source schedules focus with setTimeout; cancellation and detached-node focus need browser verification.",
+        "Manifest requires nativeEvent while source declares it optional; this mismatch is recorded, not normalized away."
+      ]
+    },
+    {
+      "id": "G-04",
+      "name": "Data Grid",
+      "package": "@zeus-web/data-grid",
+      "entries": {
+        "native": "@zeus-web/data-grid/wc",
+        "react": "@zeus-web/data-grid/react",
+        "vue": "@zeus-web/data-grid/vue"
+      },
+      "sourceFile": "packages/advanced/data-grid/src/components/data-grid.tsx",
+      "sourceSha256": "d85cc6d51d9b3e8bd5e901cff60688532bae7893bd92df633b070c767a642282",
+      "manifestFile": "packages/advanced/data-grid/dist/zeus.components.json",
+      "manifestSha256": "5f9b5e7afd2c75045ba1988f2fd3b6237a41afc7afbe747b99f03f4c84d7088c",
+      "verification": {
+        "sourceAndManifestInspected": true,
+        "browserAcceptance": "pending",
+        "packedUiConsumers": "pending"
+      },
+      "components": [
+        {
+          "tag": "zw-data-grid",
+          "exportName": "DataGrid",
+          "shadow": false,
+          "props": [
+            {
+              "name": "activeColumnId",
+              "type": "string",
+              "attribute": "active-column-id",
+              "reflect": false,
+              "declaration": "string"
+            },
+            {
+              "name": "activeRowKey",
+              "type": "string",
+              "attribute": "active-row-key",
+              "reflect": false
+            },
+            {
+              "name": "ariaLabel",
+              "type": "string",
+              "attribute": "aria-label",
+              "reflect": false,
+              "declaration": "string"
+            },
+            {
+              "name": "columns",
+              "type": "array",
+              "attribute": false,
+              "reflect": false,
+              "declaration": "Array<{ id: string; header?: string; field?: string; width?: number; minWidth?: number; maxWidth?: number; align?: \"start\" | \"center\" | \"end\"; sortable?: boolean; hidden?: boolean; resizable?: boolean }>"
+            },
+            {
+              "name": "diagnostics",
+              "type": "object",
+              "attribute": false,
+              "reflect": false,
+              "declaration": "{ onModelBuild?: (sample: Readonly<{ sequence: number; modelVersion: number; startTime: number; endTime: number; rowCount: number; columnCount: number; visibleColumnCount: number; sortActive: boolean; rowModelReused: boolean; rowIndexEntryCount: number; eagerRowWrapperAllocationCount: number }>) => void; onCommit?: (sample: Readonly<{ transactionId: number; source: \"mount\" | \"scroll\" | \"resize\" | \"data\" | \"api\"; inputTime?: number; handlerStartTime: number; handlerEndTime: number; rangeStartTime: number; rangeCalculatedTime: number; commitStartTime: number; signalPublishStartTime: number; signalPublishEndTime: number; commitEndTime: number; diagnosticsEndTime: number; layoutReadIntervals: ReadonlyArray<readonly [number, number]>; firstRowIndex: number; lastRowIndex: number; firstColumnIndex: number; lastColumnIndex: number; createdNodeCount: number; removedNodeCount: number; rowWrapperAllocationCount: number }>) => void; measureNodeChurn?: boolean }"
+            },
+            {
+              "name": "keyboardNavigation",
+              "type": "boolean",
+              "attribute": "keyboard-navigation",
+              "reflect": true,
+              "default": true,
+              "declaration": "boolean"
+            },
+            {
+              "name": "overscan",
+              "type": "number",
+              "attribute": "overscan",
+              "reflect": false,
+              "default": 4,
+              "declaration": "number"
+            },
+            {
+              "name": "overscanColumns",
+              "type": "number",
+              "attribute": "overscan-columns",
+              "reflect": false,
+              "default": 2,
+              "declaration": "number"
+            },
+            {
+              "name": "resizable",
+              "type": "boolean",
+              "attribute": "resizable",
+              "reflect": true,
+              "default": false,
+              "declaration": "boolean"
+            },
+            {
+              "name": "rowHeight",
+              "type": "number",
+              "attribute": "row-height",
+              "reflect": false,
+              "default": 40,
+              "declaration": "number"
+            },
+            {
+              "name": "rows",
+              "type": "array",
+              "attribute": false,
+              "reflect": false
+            },
+            {
+              "name": "selectedKeys",
+              "type": "array",
+              "attribute": false,
+              "reflect": false
+            },
+            {
+              "name": "selectionMode",
+              "type": "string",
+              "attribute": "selection-mode",
+              "reflect": true,
+              "default": "none",
+              "values": ["none", "single", "multiple"]
+            },
+            {
+              "name": "sortColumn",
+              "type": "string",
+              "attribute": "sort-column",
+              "reflect": false,
+              "declaration": "string"
+            },
+            {
+              "name": "sortDirection",
+              "type": "string",
+              "attribute": "sort-direction",
+              "reflect": false,
+              "values": ["asc", "desc"]
+            },
+            {
+              "name": "virtual",
+              "type": "boolean",
+              "attribute": "virtual",
+              "reflect": true,
+              "default": false,
+              "declaration": "boolean"
+            }
+          ],
+          "events": {
+            "rangeChange": {
+              "key": "rangeChange",
+              "name": "range-change",
+              "reactName": "onRangeChange",
+              "bubbles": true,
+              "composed": true,
+              "cancelable": false
+            },
+            "scrollOffsetChange": {
+              "key": "scrollOffsetChange",
+              "name": "scroll-offset-change",
+              "reactName": "onScrollOffsetChange",
+              "detail": {
+                "offset": "unknown",
+                "nativeEvent": "unknown"
+              },
+              "bubbles": true,
+              "composed": true,
+              "cancelable": false
+            },
+            "viewportResize": {
+              "key": "viewportResize",
+              "name": "viewport-resize",
+              "reactName": "onViewportResize",
+              "bubbles": true,
+              "composed": true,
+              "cancelable": false
+            },
+            "selectionChange": {
+              "key": "selectionChange",
+              "name": "selection-change",
+              "reactName": "onSelectionChange",
+              "bubbles": true,
+              "composed": true,
+              "cancelable": false
+            },
+            "sortChange": {
+              "key": "sortChange",
+              "name": "sort-change",
+              "reactName": "onSortChange",
+              "detail": {
+                "sort": "unknown"
+              },
+              "bubbles": true,
+              "composed": true,
+              "cancelable": false
+            },
+            "rowAction": {
+              "key": "rowAction",
+              "name": "row-action",
+              "reactName": "onRowAction",
+              "detail": {
+                "action": "unknown",
+                "row": "unknown",
+                "nativeEvent": "unknown"
+              },
+              "bubbles": true,
+              "composed": true,
+              "cancelable": false
+            },
+            "cellAction": {
+              "key": "cellAction",
+              "name": "cell-action",
+              "reactName": "onCellAction",
+              "bubbles": true,
+              "composed": true,
+              "cancelable": false
+            },
+            "columnResizeStart": {
+              "key": "columnResizeStart",
+              "name": "column-resize-start",
+              "reactName": "onColumnResizeStart",
+              "bubbles": true,
+              "composed": true,
+              "cancelable": false
+            },
+            "columnResize": {
+              "key": "columnResize",
+              "name": "column-resize",
+              "reactName": "onColumnResize",
+              "bubbles": true,
+              "composed": true,
+              "cancelable": false
+            },
+            "columnResizeEnd": {
+              "key": "columnResizeEnd",
+              "name": "column-resize-end",
+              "reactName": "onColumnResizeEnd",
+              "bubbles": true,
+              "composed": true,
+              "cancelable": false
+            },
+            "activeCellChange": {
+              "key": "activeCellChange",
+              "name": "active-cell-change",
+              "reactName": "onActiveCellChange",
+              "detail": {
+                "activeCell": "unknown",
+                "previousActiveCell": "unknown",
+                "nativeEvent": "unknown"
+              },
+              "bubbles": true,
+              "composed": true,
+              "cancelable": false
+            }
+          },
+          "methods": {
+            "setRows": {
+              "name": "setRows",
+              "parameters": [
+                {
+                  "name": "nextRows",
+                  "type": "unknown[]",
+                  "optional": false
+                }
+              ],
+              "returns": "void",
+              "async": false
+            },
+            "setColumns": {
+              "name": "setColumns",
+              "parameters": [
+                {
+                  "name": "nextColumns",
+                  "type": "unknown[]",
+                  "optional": false
+                }
+              ],
+              "returns": "void",
+              "async": false
+            },
+            "getRows": {
+              "name": "getRows",
+              "parameters": [],
+              "returns": "unknown[]",
+              "async": false
+            },
+            "getColumns": {
+              "name": "getColumns",
+              "parameters": [],
+              "returns": "unknown[]",
+              "async": false
+            },
+            "getVisibleRows": {
+              "name": "getVisibleRows",
+              "parameters": [],
+              "returns": "unknown[]",
+              "async": false
+            },
+            "getSelection": {
+              "name": "getSelection",
+              "parameters": [],
+              "returns": "unknown",
+              "async": false
+            },
+            "setSelection": {
+              "name": "setSelection",
+              "parameters": [
+                {
+                  "name": "keys",
+                  "type": "unknown[]",
+                  "optional": false
+                }
+              ],
+              "returns": "void",
+              "async": false
+            },
+            "clearSelection": {
+              "name": "clearSelection",
+              "parameters": [],
+              "returns": "void",
+              "async": false
+            },
+            "toggleRowSelection": {
+              "name": "toggleRowSelection",
+              "parameters": [
+                {
+                  "name": "key",
+                  "type": "unknown",
+                  "optional": false
+                }
+              ],
+              "returns": "void",
+              "async": false
+            },
+            "setSort": {
+              "name": "setSort",
+              "parameters": [
+                {
+                  "name": "columnId",
+                  "type": "string",
+                  "optional": false
+                },
+                {
+                  "name": "direction",
+                  "type": "unknown",
+                  "optional": true
+                },
+                {
+                  "name": "nativeEvent",
+                  "type": "Event",
+                  "optional": true
+                }
+              ],
+              "returns": "void",
+              "async": false
+            },
+            "clearSort": {
+              "name": "clearSort",
+              "parameters": [],
+              "returns": "void",
+              "async": false
+            },
+            "getSort": {
+              "name": "getSort",
+              "parameters": [],
+              "returns": "unknown | undefined",
+              "async": false
+            },
+            "getRange": {
+              "name": "getRange",
+              "parameters": [],
+              "returns": "unknown",
+              "async": false
+            },
+            "getItems": {
+              "name": "getItems",
+              "parameters": [],
+              "returns": "unknown[]",
+              "async": false
+            },
+            "getTotalSize": {
+              "name": "getTotalSize",
+              "parameters": [],
+              "returns": "number",
+              "async": false
+            },
+            "getColumnRange": {
+              "name": "getColumnRange",
+              "parameters": [],
+              "returns": "unknown",
+              "async": false
+            },
+            "getColumnItems": {
+              "name": "getColumnItems",
+              "parameters": [],
+              "returns": "unknown[]",
+              "async": false
+            },
+            "getTotalColumnSize": {
+              "name": "getTotalColumnSize",
+              "parameters": [],
+              "returns": "number",
+              "async": false
+            },
+            "scrollToIndex": {
+              "name": "scrollToIndex",
+              "parameters": [
+                {
+                  "name": "index",
+                  "type": "number",
+                  "optional": false
+                },
+                {
+                  "name": "align",
+                  "type": "string",
+                  "optional": true
+                }
+              ],
+              "returns": "void",
+              "async": false
+            },
+            "scrollToOffset": {
+              "name": "scrollToOffset",
+              "parameters": [
+                {
+                  "name": "offset",
+                  "type": "number",
+                  "optional": false
+                }
+              ],
+              "returns": "void",
+              "async": false
+            },
+            "scrollToColumn": {
+              "name": "scrollToColumn",
+              "parameters": [
+                {
+                  "name": "index",
+                  "type": "number",
+                  "optional": false
+                },
+                {
+                  "name": "align",
+                  "type": "string",
+                  "optional": true
+                }
+              ],
+              "returns": "void",
+              "async": false
+            },
+            "measure": {
+              "name": "measure",
+              "parameters": [
+                {
+                  "name": "index",
+                  "type": "number",
+                  "optional": true
+                },
+                {
+                  "name": "size",
+                  "type": "number",
+                  "optional": true
+                }
+              ],
+              "returns": "void",
+              "async": false
+            },
+            "resetMeasurements": {
+              "name": "resetMeasurements",
+              "parameters": [],
+              "returns": "void",
+              "async": false
+            },
+            "resizeColumn": {
+              "name": "resizeColumn",
+              "parameters": [
+                {
+                  "name": "columnId",
+                  "type": "string",
+                  "optional": false
+                },
+                {
+                  "name": "width",
+                  "type": "number",
+                  "optional": false
+                },
+                {
+                  "name": "nativeEvent",
+                  "type": "Event",
+                  "optional": true
+                }
+              ],
+              "returns": "void",
+              "async": false
+            },
+            "resetColumnWidths": {
+              "name": "resetColumnWidths",
+              "parameters": [],
+              "returns": "void",
+              "async": false
+            },
+            "getColumnWidths": {
+              "name": "getColumnWidths",
+              "parameters": [],
+              "returns": "Record<string, number>",
+              "async": false
+            },
+            "setActiveCell": {
+              "name": "setActiveCell",
+              "parameters": [
+                {
+                  "name": "rowKey",
+                  "type": "unknown",
+                  "optional": false
+                },
+                {
+                  "name": "columnId",
+                  "type": "string",
+                  "optional": false
+                },
+                {
+                  "name": "nativeEvent",
+                  "type": "Event",
+                  "optional": true
+                }
+              ],
+              "returns": "void",
+              "async": false
+            },
+            "getActiveCell": {
+              "name": "getActiveCell",
+              "parameters": [],
+              "returns": "unknown | undefined",
+              "async": false
+            },
+            "moveActiveCell": {
+              "name": "moveActiveCell",
+              "parameters": [
+                {
+                  "name": "key",
+                  "type": "unknown",
+                  "optional": false
+                },
+                {
+                  "name": "nativeEvent",
+                  "type": "Event",
+                  "optional": true
+                }
+              ],
+              "returns": "void",
+              "async": false
+            },
+            "focusCell": {
+              "name": "focusCell",
+              "parameters": [
+                {
+                  "name": "rowKey",
+                  "type": "unknown",
+                  "optional": false
+                },
+                {
+                  "name": "columnId",
+                  "type": "string",
+                  "optional": false
+                }
+              ],
+              "returns": "void",
+              "async": false
+            },
+            "focusActiveCell": {
+              "name": "focusActiveCell",
+              "parameters": [],
+              "returns": "void",
+              "async": false
+            },
+            "refreshViewport": {
+              "name": "refreshViewport",
+              "parameters": [],
+              "returns": "void",
+              "async": false
+            }
+          },
+          "models": [],
+          "slots": ["empty"]
+        }
+      ],
+      "requiredBrowserAssertions": [
+        "rows/columns/selectedKeys pass through DOM properties",
+        "selection/sort/active-cell events preserve source detail",
+        "same-key data updates preserve current row behavior",
+        "virtual viewport keeps bounded rendered nodes",
+        "keyboard navigation/resize/scroll preserves active cell focus",
+        "large dataset performance uses measured baseline, not invented thresholds"
+      ],
+      "knownLimits": [
+        "Current generated declarations retain unknown for several event payloads and row types.",
+        "No framework cell renderer or React/Vue VNode renderer API is declared.",
+        "virtual defaults to false and must be enabled explicitly."
+      ]
+    }
+  ]
+}

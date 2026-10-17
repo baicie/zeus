@@ -64,9 +64,9 @@ function setup(
   return (
     <Host
       data-slot="input"
-      data-size={() => props.size}
-      data-disabled={() => (props.disabled ? '' : undefined)}
-      data-invalid={() => (props.invalid ? '' : undefined)}
+      data-size={props.size}
+      data-disabled={props.disabled ? '' : undefined}
+      data-invalid={props.invalid ? '' : undefined}
     >
       <label part="root">
         <span part="prefix" data-slot="input-prefix">
@@ -78,12 +78,12 @@ function setup(
             if (el) control = el
           }}
           part="control"
-          prop:type={() => props.type ?? 'text'}
-          prop:value={() => props.value ?? ''}
-          placeholder={() => props.placeholder}
-          disabled={() => Boolean(props.disabled)}
-          required={() => Boolean(props.required)}
-          aria-invalid={() => (props.invalid ? 'true' : undefined)}
+          prop:type={props.type ?? 'text'}
+          prop:value={props.value ?? ''}
+          placeholder={props.placeholder}
+          disabled={Boolean(props.disabled)}
+          required={Boolean(props.required)}
+          aria-invalid={props.invalid ? 'true' : undefined}
           onInput={handleInput}
           onFocus={handleFocus}
           onBlur={handleBlur}

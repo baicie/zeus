@@ -17,12 +17,12 @@ const source = `
 
   export const App = props => (
     <main
-      title={() => props.title}
-      class={() => ['app', { visible: props.visible }]}
-      style={() => ({ lineHeight: 2 })}
+      title={props.title}
+      class={['app', { visible: props.visible }]}
+      style={{ lineHeight: 2 }}
       onClick={() => {}}
     >
-      <input prop:value={() => props.title} />
+      <input prop:value={props.title} />
       <script>{props.script}</script>
       <style>{props.css}</style>
       <Show when={props.visible} fallback={<p>empty</p>}>
@@ -127,6 +127,8 @@ function createRuntimeProxyURL(): string {
     'ssrComponent',
     'ssrShow',
     'ssrFor',
+    'ssrSpread',
+    'mergeProps',
   ] as const
   const code =
     helpers
