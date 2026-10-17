@@ -23,6 +23,7 @@ import {
 } from './generateLoader'
 import { generateZeusComponentsManifest } from './generateManifest'
 import { generateLazyRegistration } from './generateRegistration'
+import { generateVSCodeCustomData } from './generateVSCodeCustomData'
 import { toAbsoluteImportPath } from './imports'
 
 import type { OutputWCOptions } from './types'
@@ -337,21 +338,24 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
       }
 
       if (normalized.customElementsFile) {
+        const customElementsJson = generateCustomElementsJson({
+          manifest: ctx.manifest,
+          getModulePath: component =>
+            isLazy
+              ? joinPath(
+                  getLazyEntryFileName(normalized.entryFileName, component.tag),
+                )
+              : joinPath(getFileName(component.tag)),
+        })
         files.push({
           type: 'asset',
           fileName: normalized.customElementsFile,
-          source: generateCustomElementsJson({
-            manifest: ctx.manifest,
-            getModulePath: component =>
-              isLazy
-                ? joinPath(
-                    getLazyEntryFileName(
-                      normalized.entryFileName,
-                      component.tag,
-                    ),
-                  )
-                : joinPath(getFileName(component.tag)),
-          }),
+          source: customElementsJson,
+        })
+        files.push({
+          type: 'asset',
+          fileName: 'vscode.html-custom-data.json',
+          source: generateVSCodeCustomData(customElementsJson),
         })
       }
 

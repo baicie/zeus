@@ -26,6 +26,7 @@ export default defineConfig({
             { text: 'Getting Started', link: '/guide/getting-started' },
             { text: 'Quick Start', link: '/guide/quick-start' },
             { text: 'Web Components', link: '/guide/web-components' },
+            { text: 'VS Code Custom Data', link: '/guide/vscode-custom-data' },
             { text: 'React', link: '/guide/react' },
             { text: 'Vue', link: '/guide/vue' },
             { text: 'Registry', link: '/guide/registry' },
