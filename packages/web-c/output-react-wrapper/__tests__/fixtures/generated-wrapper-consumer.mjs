@@ -101,11 +101,26 @@ if (mode === 'browser') {
       React.createElement(
         React.StrictMode,
         null,
-        React.createElement(ZButton, { ...props, value: nextValue }),
+        React.createElement(ZButton, {
+          ...props,
+          value: nextValue,
+          prefix: React.createElement('em', null, 'Next prefix'),
+          children: React.createElement('i', null, 'Next content'),
+        }),
       ),
     ),
   )
+  await new Promise(resolve => setTimeout(resolve, 0))
   assert.equal(element.value, nextValue)
+  const nextSlot = element.querySelector('[slot="prefix"]')
+  assert.equal(nextSlot.textContent, 'Next prefix')
+  if (wrapperMode === 'runtime') {
+    assert.equal(nextSlot.tagName, 'SPAN')
+    assert.equal(nextSlot.querySelector('em').textContent, 'Next prefix')
+  } else {
+    assert.equal(nextSlot.tagName, 'EM')
+  }
+  assert.equal(element.querySelector('i').textContent, 'Next content')
   assert.equal(element.querySelector('i'), child)
   assert.equal(element.hasAttribute('value'), false)
   const valueChangeEvent = new CustomEvent('value-change', {
