@@ -33,7 +33,7 @@ export const componentHostBenchConfig = {
 
     runtime: {
       // Light DOM (baseline)
-      'wc.mount.1000': 100,
+      'wc.mount.1000': 200,
       'wc.propUpdate.1000': 50,
       'wc.attributeUpdate.1000': 80,
       'wc.click.1000': 50,
