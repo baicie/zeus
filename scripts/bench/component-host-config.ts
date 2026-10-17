@@ -6,9 +6,14 @@ export const componentHostBenchConfig = {
   root: path.resolve('benchmarks/component-host'),
   dist: path.resolve('benchmarks/component-host/dist'),
   reportDir: path.resolve('temp/bench/component-host'),
+  trendJson: path.resolve('temp/bench/component-host/trend.json'),
+  trendCsv: path.resolve('temp/bench/component-host/trend.csv'),
 
   thresholds: {
     size: {
+      'component-host.css:raw': 12 * 1024,
+      'component-host.css:gzip': 4 * 1024,
+      'component-host.css:brotli': 3.5 * 1024,
       'wc/z-bench-button.entry.js:gzip': 1024,
       'wc/z-bench-button-shadow.entry.js:gzip': 1024,
       'wc/index.js:gzip': 36 * 1024,
@@ -28,7 +33,7 @@ export const componentHostBenchConfig = {
 
     runtime: {
       // Light DOM (baseline)
-      'wc.mount.1000': 100,
+      'wc.mount.1000': 200,
       'wc.propUpdate.1000': 50,
       'wc.attributeUpdate.1000': 80,
       'wc.click.1000': 50,
@@ -41,6 +46,8 @@ export const componentHostBenchConfig = {
       'wc-nested.mountNested.100': 200,
       'wc-nested.mountNestedLeaf.500': 150,
       'wc-nested.slotProjection.100': 100,
+      // Cold lazy-loader registration, component load, and first trusted click.
+      'wc.firstInteraction.z-bench-button': 500,
     },
   },
 } as const

@@ -114,9 +114,8 @@ async function checkTreeShaking(): Promise<void> {
 
     const code = await fs.readFile(file.absolute, 'utf-8')
 
-    const definedTags = code.match(/[a-z]\("[^"]+"/g) ?? []
-    for (const match of definedTags) {
-      const definedName = match.slice(2)
+    const definedTags = extractDefinedTags(code)
+    for (const definedName of definedTags) {
       if (cfg.forbidden.includes(definedName)) {
         errors.push(
           `[tree-shaking] ${file.relative} should not define ${definedName}`,
@@ -128,6 +127,12 @@ async function checkTreeShaking(): Promise<void> {
   if (errors.length) {
     throw new Error(errors.join('\n'))
   }
+}
+
+export function extractDefinedTags(code: string): string[] {
+  return Array.from(
+    (code.match(/[a-z]\("[^"]+"/g) ?? []).map(match => match.slice(3, -1)),
+  )
 }
 
 export interface TreeShakingFile {

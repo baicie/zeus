@@ -1,6 +1,7 @@
 // benchmarks/component-host/vite.config.ts
 
 import zeus from '@zeus-js/bundler-plugin/vite'
+import css from '@zeus-js/output-css'
 import react from '@zeus-js/output-react-wrapper'
 import vue from '@zeus-js/output-vue-wrapper'
 import wc from '@zeus-js/output-wc'
@@ -19,6 +20,11 @@ export default defineConfig({
       },
 
       plugins: [
+        css({
+          input: 'src/styles.css',
+          fileName: 'component-host.css',
+          minify: true,
+        }),
         wc({
           outDir: 'wc',
           manifestFile: 'zeus.components.json',

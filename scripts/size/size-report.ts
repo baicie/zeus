@@ -19,16 +19,15 @@ const targets: SizeTarget[] = [
   {
     name: '@zeus-js/runtime-dom',
     file: 'dist/runtime-dom.esm-browser.prod.js',
-    limit: 40,
+    // Current main includes spread bindings, JSX value validation, and the
+    // updated slot/runtime contracts (48.09 KB as of 2026-10-17).
+    limit: 50,
   },
   {
     name: '@zeus-js/zeus',
     file: 'dist/zeus.esm-browser.prod.js',
-    // The redundant attribute/style write elision in runtime-dom adds real
-    // bytes here (32.76 KB as of 2026-10-13, was 32.20 KB before it). Keep
-    // headroom so the guardrail tracks real regressions instead of blocking
-    // deliberate runtime work.
-    limit: 33,
+    // This browser entry embeds runtime-dom (37.56 KB as of 2026-10-17).
+    limit: 39,
   },
   {
     name: '@zeus-js/compiler',

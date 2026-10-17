@@ -1,5 +1,6 @@
 // scripts/bench/component-host.ts
 
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
@@ -8,6 +9,7 @@ import { runComponentHostCompileBench } from './component-host-compile'
 import { componentHostBenchConfig } from './component-host-config'
 import {
   renderMarkdownReport,
+  writeTrendReports,
   writeJsonReport,
   type BenchmarkReport,
 } from './component-host-report'
@@ -37,14 +39,16 @@ async function main() {
     },
   })
 
-  await fs.rm(componentHostBenchConfig.reportDir, {
-    recursive: true,
-    force: true,
-  })
-
   await fs.mkdir(componentHostBenchConfig.reportDir, {
     recursive: true,
   })
+  await Promise.all(
+    ['report.json', 'report.md'].map(file =>
+      fs.rm(path.join(componentHostBenchConfig.reportDir, file), {
+        force: true,
+      }),
+    ),
+  )
 
   const report: BenchmarkReport = {
     name: 'component-host',
@@ -69,6 +73,7 @@ async function main() {
   }
 
   await writeJsonReport(report)
+  await writeTrendReports(report)
   await renderMarkdownReport(report)
 
   if (values.ci) {
@@ -85,14 +90,16 @@ async function main() {
 
 function readGitInfo() {
   try {
-    const { execFileSync } =
-      require('node:child_process') as typeof import('node:child_process')
+    const branch = process.env.ZEUS_BENCH_GIT_BRANCH
+    const sha = process.env.ZEUS_BENCH_GIT_SHA
 
     return {
-      branch: execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'])
-        .toString()
-        .trim(),
-      sha: execFileSync('git', ['rev-parse', 'HEAD']).toString().trim(),
+      branch:
+        branch ||
+        execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'])
+          .toString()
+          .trim(),
+      sha: sha || execFileSync('git', ['rev-parse', 'HEAD']).toString().trim(),
     }
   } catch {
     return null

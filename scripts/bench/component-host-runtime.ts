@@ -1,5 +1,6 @@
 // scripts/bench/component-host-runtime.ts
 
+import { existsSync } from 'node:fs'
 import fs from 'node:fs/promises'
 import http from 'node:http'
 import path from 'node:path'
@@ -16,53 +17,62 @@ export interface RuntimeBenchEntry {
   ms: number
 }
 
+export const FIRST_INTERACTION_METRIC = 'wc.firstInteraction.z-bench-button'
+
 export async function runComponentHostRuntimeBench(): Promise<
   RuntimeBenchEntry[]
 > {
-  let browser: Browser | null
+  let browser: Browser | null = null
+  let server: Awaited<ReturnType<typeof createStaticServer>> | null = null
 
   try {
-    browser = await findBrowser()
-  } catch {
-    browser = null
-  }
+    try {
+      browser = await findBrowser()
+    } catch (error) {
+      const reason = error instanceof Error ? `: ${error.message}` : ''
+      throw new Error(
+        '[runtime] Chrome could not be started' +
+          reason +
+          '. Install Chrome or run: npx puppeteer browsers install chrome',
+      )
+    }
 
-  if (!browser) {
-    console.warn(
-      '  [runtime] Chrome not found, skipping browser benchmarks. ' +
-        'Install Chrome or run: npx puppeteer browsers install chrome',
-    )
-    return []
-  }
+    if (!browser) {
+      throw new Error(
+        '[runtime] Chrome not found. Install Chrome or run: npx puppeteer browsers install chrome',
+      )
+    }
 
-  buildComponentHostFixture('all')
+    buildComponentHostFixture('all')
 
-  const dist = componentHostBenchConfig.dist
+    const dist = componentHostBenchConfig.dist
 
-  const jsFiles = (await collectJsFiles(dist)).map(f => f.replace(/\\/g, '/'))
-  const runtimeDom = jsFiles.find(f => f.includes('runtime-dom'))
-  const wcAll = jsFiles.find(f => f.includes('/assets/wc-all-'))
-  const wcShadowAll = jsFiles.find(f => f.includes('/assets/wc-shadow-all-'))
-  const wcNested = jsFiles.find(f => f.includes('/assets/wc-nested-'))
+    const jsFiles = (await collectJsFiles(dist)).map(f => f.replace(/\\/g, '/'))
+    const runtimeDom = jsFiles.find(f => f.includes('runtime-dom'))
+    const wcAll = jsFiles.find(f => f.includes('/assets/wc-all-'))
+    const wcShadowAll = jsFiles.find(f => f.includes('/assets/wc-shadow-all-'))
+    const wcNested = jsFiles.find(f => f.includes('/assets/wc-nested-'))
 
-  if (!runtimeDom || !wcAll || !wcShadowAll || !wcNested) {
-    throw new Error(
-      `[runtime] missing: runtimeDom=${!!runtimeDom}, wcAll=${!!wcAll}, wcShadowAll=${!!wcShadowAll}, wcNested=${!!wcNested}`,
-    )
-  }
+    if (!runtimeDom || !wcAll || !wcShadowAll || !wcNested) {
+      throw new Error(
+        `[runtime] missing: runtimeDom=${!!runtimeDom}, wcAll=${!!wcAll}, wcShadowAll=${!!wcShadowAll}, wcNested=${!!wcNested}`,
+      )
+    }
 
-  const toSrc = (f: string) => '/' + path.relative(dist, f).replace(/\\/g, '/')
-  const runtimeDomSrc = toSrc(runtimeDom)
-  const wcAllSrc = toSrc(wcAll)
-  const wcShadowAllSrc = toSrc(wcShadowAll)
-  const wcNestedSrc = toSrc(wcNested)
+    const toSrc = (f: string) =>
+      '/' + path.relative(dist, f).replace(/\\/g, '/')
+    const runtimeDomSrc = toSrc(runtimeDom)
+    const wcAllSrc = toSrc(wcAll)
+    const wcShadowAllSrc = toSrc(wcShadowAll)
+    const wcNestedSrc = toSrc(wcNested)
 
-  await fs.writeFile(
-    path.join(dist, 'runtime.html'),
-    `<!doctype html>
+    await fs.writeFile(
+      path.join(dist, 'runtime.html'),
+      `<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
+    <link rel="stylesheet" href="/component-host.css" />
     <script type="module" src="${runtimeDomSrc}"></script>
     <script type="module" src="${wcAllSrc}"></script>
     <script type="module" src="${wcShadowAllSrc}"></script>
@@ -72,12 +82,45 @@ export async function runComponentHostRuntimeBench(): Promise<
   <body></body>
 </html>
 `,
-  )
-  await fs.writeFile(path.join(dist, '__bench_runner.js'), buildRunner())
+    )
+    await fs.writeFile(path.join(dist, '__bench_runner.js'), buildRunner())
+    await fs.writeFile(
+      path.join(dist, 'runtime-cold.html'),
+      `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script>
+      window.__BENCH_FIRST_INTERACTION_STARTED_AT__ = performance.now();
+      window.__BENCH_CSS_READY__ = new Promise((resolve, reject) => {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = '/component-host.css';
+        link.addEventListener('load', resolve, { once: true });
+        link.addEventListener('error', reject, { once: true });
+        document.head.appendChild(link);
+      });
+    </script>
+    <script type="module">
+      try {
+        await window.__BENCH_CSS_READY__;
+        const { defineCustomElement } = await import('/wc/z-bench-button.js');
+        defineCustomElement();
+        window.__BENCH_COLD_REGISTERED__ = true;
+      } catch (error) {
+        window.__BENCH_COLD_ERROR__ = String(error?.message ?? error);
+      }
+    </script>
+  </head>
+  <body></body>
+</html>
+`,
+    )
 
-  const server = await createStaticServer(componentHostBenchConfig.dist)
+    server = await createStaticServer(componentHostBenchConfig.dist)
 
-  try {
+    const firstInteraction = await runFirstInteractionBench(browser, server.url)
+
     const page = await browser.newPage()
 
     const consoleLogs: string[] = []
@@ -111,20 +154,181 @@ export async function runComponentHostRuntimeBench(): Promise<
     })
 
     if (!raw.results || (raw.results as unknown[]).length === 0) {
-      console.error(
-        `  [runtime] empty results. Window state: ${JSON.stringify(raw)}`,
-      )
-    } else {
-      console.log(
-        `  [runtime] got ${(raw.results as RuntimeBenchEntry[]).length} entries`,
+      throw new Error(
+        `[runtime] empty results. Window state: ${JSON.stringify(raw)}`,
       )
     }
 
-    return (raw.results as RuntimeBenchEntry[]) || []
+    if (raw.err) {
+      throw new Error(`[runtime] runner failed: ${String(raw.err)}`)
+    }
+
+    const results = validateRuntimeBenchResults(raw.results)
+    const combined = requireRuntimeBenchResults([firstInteraction, ...results])
+    console.log(`  [runtime] got ${combined.length} entries`)
+    return combined
   } finally {
-    await browser.close()
-    await server.close()
+    try {
+      if (browser) await browser.close()
+    } finally {
+      if (server) await server.close()
+    }
   }
+}
+
+async function runFirstInteractionBench(
+  browser: Browser,
+  serverUrl: string,
+): Promise<RuntimeBenchEntry> {
+  const page = await browser.newPage()
+  await page.setCacheEnabled(false)
+
+  const consoleLogs: string[] = []
+  page.on('console', msg => {
+    consoleLogs.push(`[puppeteer] ${msg.type()}: ${msg.text()}`)
+  })
+
+  try {
+    await page.goto(`${serverUrl}/runtime-cold.html`, {
+      waitUntil: 'load',
+    })
+
+    await page.waitForFunction(
+      () =>
+        (window as unknown as Record<string, unknown>)
+          .__BENCH_COLD_REGISTERED__ === true ||
+        (window as unknown as Record<string, unknown>).__BENCH_COLD_ERROR__ !==
+          undefined,
+      { timeout: 30000 },
+    )
+
+    const target = await page.evaluate(async () => {
+      const state = window as unknown as Record<string, unknown>
+      if (state.__BENCH_COLD_ERROR__) {
+        throw new Error(String(state.__BENCH_COLD_ERROR__))
+      }
+      if (state.__BENCH_COLD_REGISTERED__ !== true) {
+        throw new Error('z-bench-button lazy registration did not complete')
+      }
+
+      const startedAt = state.__BENCH_FIRST_INTERACTION_STARTED_AT__
+      if (typeof startedAt !== 'number' || !Number.isFinite(startedAt)) {
+        throw new Error('first interaction timer was not initialized')
+      }
+      const element = document.createElement(
+        'z-bench-button',
+      ) as HTMLElement & {
+        componentOnReady?: () => Promise<HTMLElement>
+      }
+      if (typeof element.componentOnReady !== 'function') {
+        throw new Error('z-bench-button does not expose componentOnReady()')
+      }
+
+      state.__BENCH_FIRST_INTERACTION__ = new Promise<RuntimeBenchEntry>(
+        (resolve, reject) => {
+          const timeout = window.setTimeout(() => {
+            reject(new Error('first click handler did not fire within 30s'))
+          }, 30000)
+
+          element.addEventListener(
+            'press',
+            event => {
+              const nativeEvent = (
+                event as CustomEvent<{ nativeEvent?: MouseEvent }>
+              ).detail?.nativeEvent
+              if (!nativeEvent?.isTrusted) {
+                window.clearTimeout(timeout)
+                reject(new Error('first click was not a trusted browser click'))
+                return
+              }
+
+              window.clearTimeout(timeout)
+              resolve({
+                name: 'wc.firstInteraction.z-bench-button',
+                ms: Math.round((performance.now() - startedAt) * 100) / 100,
+              })
+            },
+            { once: true },
+          )
+        },
+      )
+
+      document.body.appendChild(element)
+      await element.componentOnReady()
+
+      const button = element.querySelector('button')
+      if (!button) {
+        throw new Error('z-bench-button did not render its native button')
+      }
+
+      const rect = button.getBoundingClientRect()
+      if (rect.width <= 0 || rect.height <= 0) {
+        throw new Error('z-bench-button native button has no clickable area')
+      }
+
+      return {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      }
+    })
+
+    await page.mouse.click(target.x, target.y)
+
+    const entry = await page.evaluate(() => {
+      const promise = (window as unknown as Record<string, unknown>)[
+        '__BENCH_FIRST_INTERACTION__'
+      ] as Promise<RuntimeBenchEntry> | undefined
+      if (!promise) {
+        throw new Error('first interaction measurement was not initialized')
+      }
+      return promise
+    })
+
+    return requireRuntimeBenchResults([entry])[0]!
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error)
+    throw new Error(
+      `[runtime] first interaction benchmark failed: ${reason}. Console logs: ${consoleLogs.join(' | ') || 'none'}`,
+    )
+  } finally {
+    await page.close()
+  }
+}
+
+export function requireRuntimeBenchResults(
+  value: unknown,
+): RuntimeBenchEntry[] {
+  const results = validateRuntimeBenchResults(value)
+
+  if (!results.some(result => result.name === FIRST_INTERACTION_METRIC)) {
+    throw new Error(
+      `[runtime] required metric ${FIRST_INTERACTION_METRIC} is missing`,
+    )
+  }
+
+  return results
+}
+
+function validateRuntimeBenchResults(value: unknown): RuntimeBenchEntry[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error('[runtime] benchmark returned no results')
+  }
+
+  const results = value as RuntimeBenchEntry[]
+  for (const result of results) {
+    if (
+      !result ||
+      typeof result.name !== 'string' ||
+      !result.name ||
+      typeof result.ms !== 'number' ||
+      !Number.isFinite(result.ms) ||
+      result.ms < 0
+    ) {
+      throw new Error('[runtime] benchmark returned an invalid result entry')
+    }
+  }
+
+  return results
 }
 
 async function findBrowser(): Promise<Browser | null> {
@@ -134,8 +338,36 @@ async function findBrowser(): Promise<Browser | null> {
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     })
   } catch {
-    return null
+    const executablePath = findSystemBrowser()
+    if (!executablePath) return null
+
+    try {
+      return await puppeteer.launch({
+        headless: true,
+        executablePath,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      })
+    } catch {
+      return null
+    }
   }
+}
+
+function findSystemBrowser(): string | undefined {
+  const candidates = [
+    process.env.PUPPETEER_EXECUTABLE_PATH,
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary',
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium',
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+  ]
+
+  return candidates.find(
+    (candidate): candidate is string =>
+      typeof candidate === 'string' && existsSync(candidate),
+  )
 }
 
 function buildRunner(): string {

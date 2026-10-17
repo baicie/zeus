@@ -1,0 +1,104 @@
+:root {
+  color-scheme: light dark;
+  --bench-color-accent: #2563eb;
+  --bench-color-border: #94a3b8;
+  --bench-color-surface: #f8fafc;
+  --bench-radius: 0.375rem;
+  --bench-space: 0.75rem;
+}
+
+z-bench-button::part(root) {
+  align-items: center;
+  background: var(--bench-color-accent);
+  border: 1px solid transparent;
+  border-radius: var(--bench-radius);
+  color: white;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0 var(--bench-space);
+}
+
+z-bench-button[variant='outline']::part(root) {
+  background: transparent;
+  border-color: var(--bench-color-border);
+  color: inherit;
+}
+
+z-bench-button[disabled]::part(root) {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+z-bench-counter::part(root),
+z-bench-counter-shadow::part(root) {
+  align-items: center;
+  border: 1px solid var(--bench-color-border);
+  border-radius: var(--bench-radius);
+  display: inline-flex;
+  gap: var(--bench-space);
+  padding: var(--bench-space);
+}
+
+z-bench-counter::part(label),
+z-bench-counter-shadow::part(label) {
+  color: #475569;
+  font-size: 0.875rem;
+}
+
+z-bench-counter::part(value),
+z-bench-counter-shadow::part(value) {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+z-bench-card::part(root),
+z-bench-card-shadow::part(root) {
+  background: var(--bench-color-surface);
+  border: 1px solid var(--bench-color-border);
+  border-radius: var(--bench-radius);
+  display: block;
+  overflow: hidden;
+}
+
+z-bench-card::part(header),
+z-bench-card-shadow::part(header) {
+  border-bottom: 1px solid var(--bench-color-border);
+  font-weight: 700;
+  padding: var(--bench-space);
+}
+
+z-bench-card::part(body),
+z-bench-card-shadow::part(body) {
+  padding: var(--bench-space);
+}
+
+z-bench-card::part(footer),
+z-bench-card-shadow::part(footer) {
+  border-top: 1px solid var(--bench-color-border);
+  padding: var(--bench-space);
+}
+
+z-bench-dialog::part(root),
+z-bench-dialog-shadow::part(root) {
+  background: rgb(15 23 42 / 0.45);
+  inset: 0;
+  position: fixed;
+}
+
+z-bench-dialog::part(panel),
+z-bench-dialog-shadow::part(panel) {
+  background: var(--bench-color-surface);
+  border-radius: var(--bench-radius);
+  margin: 10vh auto;
+  max-width: 36rem;
+  padding: calc(var(--bench-space) * 2);
+}
+
+z-bench-nested::part(root),
+z-bench-nested-leaf::part(root) {
+  display: block;
+  padding: var(--bench-space);
+}

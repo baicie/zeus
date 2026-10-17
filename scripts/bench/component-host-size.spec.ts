@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  extractDefinedTags,
   findTreeShakingFile,
   type TreeShakingFile,
 } from './component-host-size'
@@ -59,5 +60,11 @@ describe('component-host size bench tree-shaking file lookup', () => {
         tag: 'z-bench-button',
       })?.relative,
     ).toBe('vue/z-bench-button.js')
+  })
+
+  it('extracts defined custom element names without the opening quote', () => {
+    expect(
+      extractDefinedTags('e("z-bench-button");e("z-bench-counter");'),
+    ).toEqual(['z-bench-button', 'z-bench-counter'])
   })
 })
