@@ -34,7 +34,13 @@ const { defineContainer } = await import(
 let registrations = 0
 const Wrapper = defineContainer({
   tagName: 'z-vue-input',
-  props: ['value', 'config', 'formatter'],
+  props: {
+    value: 'value',
+    expanded: 'expanded',
+    config: false,
+    formatter: false,
+  },
+  booleanProps: ['expanded'],
   events: ['value-change'],
   slots: ['prefix'],
   model: { prop: 'value', event: 'value-change' },
@@ -68,9 +74,24 @@ const Wrapper = defineContainer({
 assert.equal(registrations, 0, 'wrapper creation must not register')
 if (mode === 'server') {
   const html = await renderToString(
-    createSSRApp({ render: () => h(Wrapper, null, () => 'Content') }),
+    createSSRApp({
+      render: () =>
+        h(
+          Wrapper,
+          {
+            value: 'server',
+            config: { items: ['server'] },
+            formatter: () => 'secret',
+            expanded: false,
+          },
+          () => 'Content',
+        ),
+    }),
   )
   assert.match(html, /<z-vue-input/)
+  assert.match(html, /value="server"/)
+  assert.doesNotMatch(html, /(?:config|formatter|expanded)=/i)
+  assert.doesNotMatch(html, /\[object Object\]|secret/)
   assert.match(html, /Content/)
   assert.equal(registrations, 0)
 } else {

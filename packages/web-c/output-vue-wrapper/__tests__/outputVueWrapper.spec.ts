@@ -216,7 +216,9 @@ describe('output-vue-wrapper', () => {
     expect(code).not.toContain('watch(')
     expect(code).not.toContain('onMounted(')
     expect(code).not.toContain('addEventListener')
-    expect(code).toContain('h("z-button", attrs, children)')
+    expect(code).toContain(
+      'h("z-button", getMinimalHostProps(attrs), children)',
+    )
     expect(code).not.toContain('...attrs')
     expect(code).toContain('inheritAttrs: false')
 

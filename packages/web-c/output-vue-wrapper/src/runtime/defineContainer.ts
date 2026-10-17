@@ -26,7 +26,8 @@ export interface ZeusVueContainerOptions {
   tagName: string
   displayName?: string
   defineCustomElement?: () => void
-  props?: string[]
+  props?: Record<string, string | false>
+  booleanProps?: string[]
   events?: string[]
   slots?: string[]
   model?: ZeusVueModelOptions
@@ -38,7 +39,8 @@ export function defineContainer(options: ZeusVueContainerOptions) {
     tagName,
     displayName,
     defineCustomElement,
-    props: componentProps = [],
+    props: componentProps = {},
+    booleanProps = [],
     events: emitProps = [],
     slots: slotNames = [],
     model,
@@ -51,7 +53,7 @@ export function defineContainer(options: ZeusVueContainerOptions) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const componentPropsMap: Record<string, any> = {}
-  for (const prop of componentProps) {
+  for (const prop of Object.keys(componentProps)) {
     componentPropsMap[prop] = DEFAULT_EMPTY_PROP
   }
 
@@ -136,15 +138,29 @@ export function defineContainer(options: ZeusVueContainerOptions) {
           ref: containerRef,
         }
 
+        const isServer = typeof window === 'undefined'
+
         for (const key in propsValue) {
           const value = (propsValue as Record<string, unknown>)[key]
 
           if (value !== EMPTY_PROP) {
-            propsToAdd[key] = value
+            if (isServer) {
+              const attributeName = componentProps[key]
+              if (
+                attributeName !== false &&
+                attributeName !== undefined &&
+                !(booleanProps.includes(key) && value === false)
+              ) {
+                propsToAdd[attributeName] = value
+              }
+            } else {
+              propsToAdd[key] = value
+            }
           }
         }
 
         for (const key in attrs) {
+          if (isServer && isDeclaredAttribute(key, componentProps)) continue
           propsToAdd[key] = attrs[key]
         }
 
@@ -156,10 +172,26 @@ export function defineContainer(options: ZeusVueContainerOptions) {
             model.prop
           ]
 
+          const modelPropName = isServer
+            ? componentProps[model.prop]
+            : model.prop
+
           if (modelValue !== EMPTY_PROP) {
-            propsToAdd[model.prop] = modelValue
+            if (
+              modelPropName !== false &&
+              modelPropName !== undefined &&
+              !(booleanProps.includes(model.prop) && modelValue === false)
+            ) {
+              propsToAdd[modelPropName] = modelValue
+            }
           } else if (modelPropValue !== EMPTY_PROP) {
-            propsToAdd[model.prop] = modelPropValue
+            if (
+              modelPropName !== false &&
+              modelPropName !== undefined &&
+              !(booleanProps.includes(model.prop) && modelPropValue === false)
+            ) {
+              propsToAdd[modelPropName] = modelPropValue
+            }
           }
         }
 
@@ -176,6 +208,16 @@ export function defineContainer(options: ZeusVueContainerOptions) {
       emits,
     },
   )
+}
+
+function isDeclaredAttribute(
+  key: string,
+  props: Record<string, string | false>,
+): boolean {
+  for (const attributeName of Object.values(props)) {
+    if (attributeName === key) return true
+  }
+  return false
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

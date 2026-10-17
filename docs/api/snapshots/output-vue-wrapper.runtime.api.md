@@ -16,7 +16,8 @@ export interface ZeusVueContainerOptions {
   tagName: string
   displayName?: string
   defineCustomElement?: () => void
-  props?: string[]
+  props?: Record<string, string | false>
+  booleanProps?: string[]
   events?: string[]
   slots?: string[]
   model?: ZeusVueModelOptions

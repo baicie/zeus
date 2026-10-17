@@ -26,7 +26,7 @@ describe('output-vue-wrapper runtime', () => {
 
     const ZModelInput = defineContainer({
       tagName: 'z-model-input',
-      props: ['value'],
+      props: { value: 'value' },
       events: ['value-change'],
       model: {
         prop: 'value',
@@ -78,7 +78,7 @@ describe('output-vue-wrapper runtime', () => {
 
     const ZModelInput = defineContainer({
       tagName: 'z-model-input',
-      props: ['value'],
+      props: { value: 'value' },
       model: {
         prop: 'value',
         event: ['value-input', 'value-change'],

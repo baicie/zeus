@@ -14,8 +14,12 @@ interface WrapperCapabilities {
     updateEvent: string
   }>
   propNames: string[]
+  propertyConfig: VueSSRPropertyConfig
+  booleanPropNames: string[]
   slotNames: string[]
 }
+
+type VueSSRPropertyConfig = Record<string, string | false>
 
 export function generateVueWrapper(input: GenerateVueWrapperOptions): string {
   return input.mode === 'runtime'
@@ -29,6 +33,7 @@ function generateMinimalVueWrapper(input: GenerateVueWrapperOptions): string {
   const { component, wcModuleId } = input
   const slotNames = getNamedSlots(component)
   const hasNamedSlots = slotNames.length > 0
+  const propertyConfig = formatVueSSRPropertyConfig(component)
   const vueImports = hasNamedSlots
     ? 'cloneVNode, defineComponent, h, onBeforeMount'
     : 'defineComponent, h, onBeforeMount'
@@ -39,6 +44,9 @@ import { ${vueImports} } from 'vue';
 import { defineCustomElement } from ${JSON.stringify(wcModuleId)};
 ${VUE_REGISTRATION_HELPER}
 ${hasNamedSlots ? `\nconst NAMED_SLOTS = ${JSON.stringify(slotNames)};\n` : ''}
+const SSR_PROPERTY_CONFIG = ${propertyConfig};
+const SSR_PROPERTY_INPUT_KEYS = ${JSON.stringify(createVuePropInputKeys(Object.keys(component.props)))};
+const SSR_BOOLEAN_PROPS = ${JSON.stringify(getBooleanPropNames(component))};
 export const ${component.name} = defineComponent({
   name: ${JSON.stringify(component.name)},
   inheritAttrs: false,
@@ -47,11 +55,12 @@ export const ${component.name} = defineComponent({
     onBeforeMount(registerCustomElement);
     return () => {
 ${generateVueChildren(slotNames)}
-      return h(${JSON.stringify(component.tag)}, attrs, children);
+      return h(${JSON.stringify(component.tag)}, getMinimalHostProps(attrs), children);
     };
   },
 });
 ${hasNamedSlots ? VUE_NAMED_SLOT_HELPERS : ''}
+${VUE_MINIMAL_PROP_HELPERS}
 `.trimStart()
 }
 
@@ -108,6 +117,16 @@ ${generateVueUnmountHook(hasEvents)}
     return () => {
 ${generateVueChildren(slotNames)}
       const hostProps = Object.assign({}, attrs);
+      const rawProps = instance?.vnode.props || EMPTY_PROPS;
+      for (const name of PROP_KEYS) {
+        if (!hasRawProp(rawProps, name)) continue;
+        const attributeName = SSR_PROPERTY_CONFIG[name];
+        if (
+          attributeName === false ||
+          (SSR_BOOLEAN_PROPS.includes(name) && props[name] === false)
+        ) continue;
+        hostProps[attributeName] = props[name];
+      }
       hostProps.ref = elRef;
 
       return h(${JSON.stringify(component.tag)}, hostProps, children);
@@ -129,6 +148,8 @@ function getCapabilities(component: ComponentRecord): WrapperCapabilities {
 
   return {
     propNames: Object.keys(component.props),
+    propertyConfig: getVueSSRPropertyConfig(component),
+    booleanPropNames: getBooleanPropNames(component),
     eventNames: Array.from(
       new Set([
         ...Object.entries(component.events).map(([key, event]) => {
@@ -152,6 +173,12 @@ function generateVueConstants(capabilities: WrapperCapabilities): string {
 
   if (propNames.length) {
     lines.push(`const PROP_KEYS = ${JSON.stringify(propNames)};`)
+    lines.push(
+      `const SSR_PROPERTY_CONFIG = ${JSON.stringify(capabilities.propertyConfig)};`,
+    )
+    lines.push(
+      `const SSR_BOOLEAN_PROPS = ${JSON.stringify(capabilities.booleanPropNames)};`,
+    )
     lines.push(
       `const PROP_INPUT_KEYS = ${JSON.stringify(createVuePropInputKeys(propNames))};`,
     )
@@ -291,7 +318,6 @@ function generateVueProps(component: ComponentRecord): string {
 
 function generateRuntimeVueWrapper(input: GenerateVueWrapperOptions): string {
   const { component, wcModuleId } = input
-  const propNames = Object.keys(component.props)
   const eventNames = getEventNames(component)
   const slotNames = Object.keys(component.slots).filter(
     name => name !== 'default',
@@ -306,7 +332,8 @@ function generateRuntimeVueWrapper(input: GenerateVueWrapperOptions): string {
     `  tagName: ${JSON.stringify(component.tag)},`,
     `  displayName: ${JSON.stringify(component.name)},`,
     `  defineCustomElement,`,
-    `  props: ${JSON.stringify(propNames)},`,
+    `  props: ${formatVueSSRPropertyConfig(component)},`,
+    `  booleanProps: ${JSON.stringify(getBooleanPropNames(component))},`,
     `  events: ${JSON.stringify(eventNames)},`,
     `  slots: ${JSON.stringify(slotNames)},`,
     `  model: ${model ? formatModel(model) : 'undefined'},`,
@@ -353,6 +380,38 @@ function toVuePropOption(prop: ComponentRecord['props'][string]): string {
   } }`
 }
 
+function formatVueSSRPropertyConfig(component: ComponentRecord): string {
+  return JSON.stringify(getVueSSRPropertyConfig(component))
+}
+
+function getVueSSRPropertyConfig(
+  component: ComponentRecord,
+): VueSSRPropertyConfig {
+  const config: VueSSRPropertyConfig = {}
+
+  for (const [name, prop] of Object.entries(component.props)) {
+    if (
+      prop.attr === false ||
+      prop.type === 'object' ||
+      prop.type === 'array' ||
+      prop.type === 'function' ||
+      prop.type === 'unknown'
+    ) {
+      config[name] = false
+    } else {
+      config[name] = prop.attr ?? name
+    }
+  }
+
+  return config
+}
+
+function getBooleanPropNames(component: ComponentRecord): string[] {
+  return Object.entries(component.props)
+    .filter(([, prop]) => prop.type === 'boolean')
+    .map(([name]) => name)
+}
+
 function createVuePropInputKeys(propNames: string[]): Record<string, string[]> {
   return Object.fromEntries(
     propNames.map(name => [
@@ -373,6 +432,34 @@ function hasRawProp(rawProps, name) {
     if (hasOwn(rawProps, key)) return true;
   }
   return false;
+}
+
+function hasOwn(source, key) {
+  return Object.prototype.hasOwnProperty.call(source, key);
+}
+`
+
+const VUE_MINIMAL_PROP_HELPERS = `
+function getMinimalHostProps(attrs) {
+  if (typeof window !== 'undefined') return attrs;
+
+  const output = Object.assign({}, attrs);
+  for (const name of Object.keys(SSR_PROPERTY_CONFIG)) {
+    const keys = SSR_PROPERTY_INPUT_KEYS[name];
+    for (const key of keys) {
+      if (!hasOwn(attrs, key)) continue;
+      delete output[key];
+      const attributeName = SSR_PROPERTY_CONFIG[name];
+      if (
+        attributeName !== false &&
+        !(SSR_BOOLEAN_PROPS.includes(name) && attrs[key] === false)
+      ) {
+        output[attributeName] = attrs[key];
+      }
+      break;
+    }
+  }
+  return output;
 }
 
 function hasOwn(source, key) {

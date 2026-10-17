@@ -100,6 +100,24 @@ content and replaces any JSX children. Other property/tag combinations, such as
 structured `ZEUS_UNSUPPORTED_SSR_PROPERTY` diagnostic because they have no
 equivalent static HTML representation.
 
+## Web Component Wrappers
+
+React and Vue Web Component wrappers use an SSR-0 contract. Server output
+contains the custom element host tag (for example, `<z-button>`); it does not
+render the component's Shadow DOM or Light DOM internals. String, number, and
+boolean component props may be emitted as host attributes, including declared
+attribute aliases. Object, array, function, unknown, and `attr: false` props
+remain client-side properties and are omitted from the server HTML, so values
+are never coerced to `[object Object]` or function source.
+
+Wrapper SSR never registers a custom element. In the browser, the client
+mounts a fresh tree, registers and upgrades the host, then assigns property
+values. This is intentionally no hydration; a framework integration that
+needs a browser-only custom element should place it behind its client boundary
+(for example, a Next.js `"use client"` component). Declarative Shadow DOM,
+streaming, and Web Component internal SSR are separate future contracts.
+
 The initial SSR release does not hydrate the generated HTML. Mounting the same
 application in a browser creates a fresh DOM tree. Streaming, asynchronous SSR,
-and Web Components SSR are also outside the current contract.
+and Web Component internal SSR are also outside the current contract; wrapper
+host tag SSR is limited to the contract above.

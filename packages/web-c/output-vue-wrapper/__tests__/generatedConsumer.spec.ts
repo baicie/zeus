@@ -31,6 +31,8 @@ export function defineCustomElement() {
     set value(value) { this._value = value; }
     get config() { return this._config; }
     set config(value) { this._config = value; }
+    get formatter() { return this._formatter; }
+    set formatter(value) { this._formatter = value; }
   });
 }
 `,
@@ -42,7 +44,17 @@ export function defineCustomElement() {
             name: 'ZInput',
             exportName: 'ZInput',
             source: 'src/input.tsx',
-            props: { value: { type: 'string' }, config: { type: 'object' } },
+            props: {
+              value: { type: 'string' },
+              labelText: { type: 'string', attr: 'heading' },
+              count: { type: 'number' },
+              open: { type: 'boolean' },
+              expanded: { type: 'boolean' },
+              config: { type: 'object' },
+              formatter: { type: 'function' },
+              unknownValue: { type: 'unknown' },
+              internal: { type: 'string', attr: false },
+            },
             events: { valueChange: {} },
             slots: { prefix: {}, default: {} },
             models:

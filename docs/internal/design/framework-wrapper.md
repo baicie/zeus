@@ -478,7 +478,8 @@ export interface ZeusVueContainerOptions<Props = unknown> {
   tagName: string
   displayName?: string
   defineCustomElement?: () => void
-  props?: string[]
+  props?: Record<string, string | false>
+  booleanProps?: string[]
   events?: string[]
   slots?: string[]
   model?: ZeusVueModelOptions
@@ -747,7 +748,8 @@ export const ZInput = defineContainer({
   tagName: 'z-input',
   displayName: 'ZInput',
   defineCustomElement: () => defineCustomElement('z-input'),
-  props: ['value', 'disabled', 'placeholder'],
+  props: { value: 'value', disabled: 'disabled', placeholder: 'placeholder' },
+  booleanProps: ['disabled'],
   events: ['value-change', 'focus-change'],
   slots: ['prefix', 'suffix'],
   model: {
@@ -866,7 +868,7 @@ it('generates Stencil-style Vue proxy', () => {
   )
   expect(code).toContain('export const ZInput = defineContainer')
   expect(code).toContain('tagName: "z-input"')
-  expect(code).toContain('props: ["value","disabled"]')
+  expect(code).toContain('props: {"value":"value","disabled":"disabled"}')
   expect(code).toContain('events: ["value-change"]')
   expect(code).toContain('model:')
   expect(code).not.toContain('import "zeus:wc:z-input"')

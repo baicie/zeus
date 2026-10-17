@@ -250,7 +250,9 @@ describe('generateVueWrapper', () => {
     expect(code).toContain('export const ZButton = defineComponent')
     expect(code).toContain('inheritAttrs: false')
     expect(code).toContain('slots.default')
-    expect(code).toContain('h("z-button", attrs, children)')
+    expect(code).toContain(
+      'h("z-button", getMinimalHostProps(attrs), children)',
+    )
     expect(code).not.toContain('cloneVNode')
     expect(code).not.toContain('NAMED_SLOTS')
     expect(code).not.toContain('pushAll')
@@ -388,7 +390,8 @@ describe('generateVueWrapper', () => {
     expect(code).toContain('tagName: "z-input"')
     expect(code).toContain('displayName: "ZInput"')
     expect(code).toContain('  defineCustomElement,')
-    expect(code).toContain('props: ["value","disabled"]')
+    expect(code).toContain('props: {"value":"value","disabled":"disabled"}')
+    expect(code).toContain('booleanProps: ["disabled"]')
     expect(code).toContain('events: ["value-change","focus-change"]')
     expect(code).toContain('slots: ["prefix","suffix"]')
 
