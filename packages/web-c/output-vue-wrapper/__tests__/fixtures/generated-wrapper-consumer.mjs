@@ -34,7 +34,7 @@ if (mode === 'browser') {
     })
   }
 }
-const { h, createApp, createSSRApp, nextTick } = await import(
+const { h, createApp, createSSRApp, nextTick, ref } = await import(
   pathToFileURL(vuePath)
 )
 const { renderToString } = await import(pathToFileURL(rendererPath))
@@ -79,9 +79,12 @@ if (mode === 'server') {
   const formatter = item => item.toUpperCase()
   const events = []
   const updates = []
+  const slotVersion = ref(0)
   const app = createApp({
-    render: () =>
-      h(
+    render: () => {
+      // Keep the parent render reactive so slot replacement/removal is exercised.
+      void slotVersion.value
+      return h(
         ZInput,
         {
           value: 'initial',
@@ -99,10 +102,21 @@ if (mode === 'server') {
             : {}),
         },
         {
-          default: () => h('i', null, 'Content'),
-          prefix: () => h('b', null, 'Prefix'),
+          default: () =>
+            slotVersion.value === 2 ? [] : h('i', null, 'Content'),
+          prefix: () => {
+            if (slotVersion.value === 1) {
+              return [
+                h('b', null, 'Next prefix'),
+                h('em', null, 'Second prefix'),
+              ]
+            }
+            if (slotVersion.value === 2) return []
+            return h('b', null, 'Prefix')
+          },
         },
-      ),
+      )
+    },
   })
   app.mount(document.querySelector('main'))
   await nextTick()
@@ -113,6 +127,22 @@ if (mode === 'server') {
   assert.equal(element.formatter, formatter)
   assert.equal(element.hasAttribute('config'), false)
   assert.equal(element.querySelector('[slot="prefix"]').textContent, 'Prefix')
+
+  slotVersion.value = 1
+  await nextTick()
+  const nextSlots = element.querySelectorAll('[slot="prefix"]')
+  assert.equal(nextSlots.length, 2)
+  assert.equal(
+    Array.from(nextSlots, node => node.textContent).join(''),
+    'Next prefixSecond prefix',
+  )
+
+  slotVersion.value = 2
+  await nextTick()
+  await new Promise(resolve => setTimeout(resolve, 0))
+  assert.equal(element.querySelector('[slot="prefix"]'), null)
+  assert.equal(element.querySelector('i'), null)
+
   const detail = { value: 'next' }
   const valueChangeEvent = new CustomEvent('value-change', {
     detail,

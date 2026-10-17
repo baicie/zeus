@@ -14,3 +14,4 @@
 | [RFC-008](./RFC-008-tsx-values-and-spread.md)              | TSX 值语义与 Spread                   | Accepted |
 | [RFC-009](./RFC-009-beta-stability.md)                     | Beta 稳定性与破坏性变更规则           | Accepted |
 | [RFC-010](./RFC-010-wc-abi-v1.md)                          | Web Component ABI V1                  | Accepted |
+| [RFC-011](./RFC-011-framework-renderer-adapter.md)         | Renderer Adapter 与交互插槽边界       | Proposal |
