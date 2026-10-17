@@ -1,0 +1,7 @@
+:host {
+  font-family: system-ui, sans-serif;
+}
+
+[data-component='greeting'] {
+  color: #334155;
+}

@@ -1,12 +1,17 @@
 # create-zeus
 
-交互式生成 Zeus + Vite + TypeScript 应用，提供 `basic-ts` 与 `web-component-ts` 两个模板。
+交互式生成 Zeus + Vite + TypeScript 项目，提供四类模板：
+
+- `basic-ts`：最小 Zeus Native 应用。
+- `application-ts`：Zeus Native 应用，包含 Vitest 测试命令。
+- `web-component-ts`：最小 Zeus Web Component。
+- `component-library-ts`：Web Component、React/Vue wrapper、DTS 和组件 manifest 输出。
 
 ```bash
 pnpm create zeus
 ```
 
-运行后输入项目路径并选择模板。目标不存在时创建；目标为空目录时直接写入。目标是非空目录时，默认报错并保留全部现有文件，不提供默认覆盖选项。
+运行后输入项目目录名并选择模板。目标不存在时创建；目标为空目录时直接写入。目标是非空目录时，默认报错并保留全部现有文件，不提供默认覆盖选项。
 
 如需替换普通项目目录，必须显式传入 `--force`：
 
@@ -33,6 +38,11 @@ macOS 固定的 `/var`、`/tmp`、`/etc` 到 `/private/...` 系统目录别名�
 pnpm exec vitest run --project unit packages/devtools/create-zeus
 pnpm --filter create-zeus build
 pnpm check:create-zeus
+pnpm check:create-zeus-registry
 ```
+
+`check:create-zeus` 会为四种模板生成临时项目，运行 TypeScript 检查和 Vite
+生产构建。`check:create-zeus-registry` 会检查模板依赖范围是否能匹配 npm
+registry 中已发布的 Zeus 包版本。
 
 测试使用真实临时目录、文件、Git 标记和符号链接，并模拟 CLI 确认；不会对真实仓库根或家目录执行覆盖。

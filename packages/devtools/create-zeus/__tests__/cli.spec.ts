@@ -85,6 +85,23 @@ describe('create-zeus CLI overwrite flow', () => {
     expect(prompts.outro).toHaveBeenCalled()
   })
 
+  it('offers application and component library templates', async () => {
+    rmSync(root, { recursive: true, force: true })
+    prompts.select.mockResolvedValue('application-ts')
+
+    await runCreateZeus([])
+
+    expect(prompts.select).toHaveBeenCalledWith(
+      expect.objectContaining({
+        options: expect.arrayContaining([
+          expect.objectContaining({ value: 'application-ts' }),
+          expect.objectContaining({ value: 'component-library-ts' }),
+        ]),
+      }),
+    )
+    expect(existsSync(join(root, 'src/app.tsx'))).toBe(true)
+  })
+
   it('rejects protected paths before even prompting for deletion', async () => {
     prompts.text.mockResolvedValue('..')
     await expect(runCreateZeus(['--force'])).rejects.toThrow(

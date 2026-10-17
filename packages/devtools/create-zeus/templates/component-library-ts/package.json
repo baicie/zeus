@@ -1,0 +1,22 @@
+{
+  "name": "my-zeus-component-library",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@zeus-js/web-c": "^0.1.0",
+    "@zeus-js/zeus": "^0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16",
+    "vitest": "^4.0.0"
+  }
+}
