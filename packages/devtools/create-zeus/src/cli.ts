@@ -18,6 +18,16 @@ import { inspectScaffoldTarget } from './target'
 const templates = [
   { value: 'basic-ts', label: 'Basic TypeScript', hint: 'Zeus + Vite + TSX' },
   {
+    value: 'application-ts',
+    label: 'Application TypeScript',
+    hint: 'Zeus app + Vite + Vitest smoke test',
+  },
+  {
+    value: 'component-library-ts',
+    label: 'Component Library TypeScript',
+    hint: 'Web Components + React/Vue outputs',
+  },
+  {
     value: 'web-component-ts',
     label: 'Web Component TypeScript',
     hint: 'Zeus defineElement + Host + Slot',

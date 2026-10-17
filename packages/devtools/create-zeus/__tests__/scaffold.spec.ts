@@ -26,7 +26,7 @@ describe('create-zeus scaffold', () => {
       readFileSync(join(root, 'package.json'), 'utf-8'),
     )
     expect(packageJson.dependencies['@zeus-js/zeus']).toBe('^0.1.0')
-    expect(packageJson.devDependencies['@zeus-js/vite-plugin']).toBe('^0.0.5')
+    expect(packageJson.devDependencies['@zeus-js/vite-plugin']).toBe('^0.0.4')
 
     rmSync(root, {
       recursive: true,
@@ -53,8 +53,40 @@ describe('create-zeus scaffold', () => {
     )
     const viteConfig = readFileSync(join(root, 'vite.config.ts'), 'utf-8')
     expect(packageJson.dependencies['@zeus-js/zeus']).toBe('^0.1.0')
-    expect(packageJson.devDependencies['@zeus-js/vite-plugin']).toBe('^0.0.5')
+    expect(packageJson.devDependencies['@zeus-js/vite-plugin']).toBe('^0.0.4')
     expect(viteConfig).not.toContain("target: 'web-components'")
+
+    rmSync(root, {
+      recursive: true,
+      force: true,
+    })
+  })
+
+  it.each([
+    ['application-ts', 'vitest', 'src/app.tsx'],
+    ['component-library-ts', '@zeus-js/web-c', 'src/components/greeting.tsx'],
+  ] as const)('creates %s project', async (template, dependency, entry) => {
+    const root = mkdtempSync(join(tmpdir(), 'zeus-'))
+
+    await scaffold({
+      root,
+      projectName: `my-${template}`,
+      template,
+    })
+
+    const packageJson = JSON.parse(
+      readFileSync(join(root, 'package.json'), 'utf-8'),
+    )
+    const dependencies = {
+      ...packageJson.dependencies,
+      ...packageJson.devDependencies,
+    }
+
+    expect(existsSync(join(root, entry))).toBe(true)
+    expect(dependencies[dependency]).toBeTruthy()
+    expect(packageJson.scripts.build).toBe('vite build')
+    expect(packageJson.scripts.check).toBe('tsc --noEmit')
+    expect(packageJson.scripts.test).toBe('vitest run')
 
     rmSync(root, {
       recursive: true,

@@ -22,7 +22,14 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 export async function scaffold(options: ScaffoldOptions): Promise<void> {
-  if (!['basic-ts', 'web-component-ts'].includes(options.template)) {
+  if (
+    ![
+      'basic-ts',
+      'application-ts',
+      'component-library-ts',
+      'web-component-ts',
+    ].includes(options.template)
+  ) {
     throw new Error(`Template "${options.template}" not found.`)
   }
   const templateRoot = resolve(__dirname, '../templates', options.template)
