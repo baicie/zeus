@@ -17,6 +17,7 @@
     "check:exports": "tsx scripts/check/check-package-exports.ts",
     "check:vite-plugin-package": "tsx scripts/check/check-packed-files.ts packages/devtools/vite-plugin dist/vite-plugin.d.ts",
     "check:release-artifacts": "tsx scripts/check/check-release-artifacts.ts",
+    "check:ssr-safe-import": "tsx scripts/check/check-ssr-safe-import.ts",
     "lint": "eslint --cache .",
     "lint-fix": "eslint --fix .",
     "format": "prettier --write --cache .",
