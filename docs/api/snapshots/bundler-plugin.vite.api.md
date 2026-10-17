@@ -76,6 +76,13 @@ interface ZeusVirtualModule {
   id: string
   code: string
   fileName?: string
+  /**
+   * Resolve bare imports in this virtual module from a real module path.
+   *
+   * This keeps generated source portable while allowing output plugins to
+   * resolve their private runtime dependencies from their own package tree.
+   */
+  resolveFrom?: string
 }
 interface ZeusOutputAsset {
   type: 'asset'

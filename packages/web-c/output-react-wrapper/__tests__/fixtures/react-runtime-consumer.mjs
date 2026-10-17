@@ -19,7 +19,14 @@ const Wrapper = createComponent({
   react: React,
   tagName: 'z-runtime-button',
   displayName: 'RuntimeButton',
-  props: { value: false, formatter: false, label: 'heading', count: 'count', enabled: 'enabled', internal: false },
+  props: {
+    value: false,
+    formatter: false,
+    label: 'heading',
+    count: 'count',
+    enabled: 'enabled',
+    internal: false,
+  },
   events: { onValueChange: 'value-change' },
   slots: ['prefix'],
   defineCustomElement() {
@@ -62,7 +69,10 @@ assert.equal(
   ),
   '<z-runtime-button id="server" class="button" heading="server" count="0" enabled=""><span slot="prefix" style="display:contents">Prefix</span>Content</z-runtime-button>',
 )
-assert.equal(renderToString(React.createElement(Wrapper, { enabled: false })), '<z-runtime-button></z-runtime-button>')
+assert.equal(
+  renderToString(React.createElement(Wrapper, { enabled: false })),
+  '<z-runtime-button></z-runtime-button>',
+)
 assert.equal(registrations, 0, 'server rendering must not register an element')
 
 if (mode === 'browser') {

@@ -17,6 +17,36 @@ pub enum TransformTarget {
     Ssr,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(from = "bool", into = "bool")]
+pub enum PureDefineElementMode {
+    #[default]
+    Disabled,
+    Enabled,
+}
+
+impl PureDefineElementMode {
+    pub(crate) const fn is_enabled(self) -> bool {
+        matches!(self, Self::Enabled)
+    }
+}
+
+impl From<bool> for PureDefineElementMode {
+    fn from(enabled: bool) -> Self {
+        if enabled {
+            Self::Enabled
+        } else {
+            Self::Disabled
+        }
+    }
+}
+
+impl From<PureDefineElementMode> for bool {
+    fn from(mode: PureDefineElementMode) -> Self {
+        mode.is_enabled()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TransformModuleOptions {
@@ -29,7 +59,7 @@ pub struct TransformModuleOptions {
     #[serde(default)]
     pub hmr: bool,
     #[serde(default)]
-    pub pure_define_element: bool,
+    pub pure_define_element: PureDefineElementMode,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -75,7 +105,8 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
 
     if ir.components.is_empty()
         && (!options.hmr || lowered.hmr.render_calls.is_empty())
-        && (!options.pure_define_element || lowered.pure_define_element_calls.is_empty())
+        && (!options.pure_define_element.is_enabled()
+            || lowered.pure_define_element_calls.is_empty())
     {
         return TransformModuleResult {
             code: options.source,
@@ -95,17 +126,17 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
         );
     }
 
-    codegen::emit_module(
-        &options.source,
-        &options.filename,
-        &options.runtime_module,
-        options.delegate_events,
-        options.source_map,
-        &ir,
-        &lowered.reserved_names,
-        options.hmr,
-        &lowered.hmr,
-        options.pure_define_element,
-        &lowered.pure_define_element_calls,
-    )
+    codegen::emit_module(&codegen::EmitModuleOptions {
+        source: &options.source,
+        filename: &options.filename,
+        runtime_module: &options.runtime_module,
+        enable_delegation: options.delegate_events,
+        source_map: options.source_map,
+        module: &ir,
+        reserved_names: &lowered.reserved_names,
+        enable_hmr: options.hmr,
+        hmr: &lowered.hmr,
+        pure_define_element: options.pure_define_element,
+        pure_define_element_calls: &lowered.pure_define_element_calls,
+    })
 }

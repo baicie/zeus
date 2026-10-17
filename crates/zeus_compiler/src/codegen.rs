@@ -3,7 +3,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use oxc_sourcemap::SourceMapBuilder;
 
 use crate::{
-    RawSourceMap, TransformModuleResult,
+    PureDefineElementMode, RawSourceMap, TransformModuleResult,
     html::{is_raw_text_element, is_svg_element, is_void_element},
     ir::{
         AttributeIr, ChildIr, ComponentBindingIr, ComponentIr, ComponentPropIr,
@@ -14,49 +14,40 @@ use crate::{
     lower::HmrInfo,
 };
 
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn emit_module(
-    source: &str,
-    filename: &str,
-    runtime_module: &str,
-    enable_delegation: bool,
-    source_map: bool,
-    module: &ModuleIr,
-    reserved_names: &[String],
-    enable_hmr: bool,
-    hmr: &HmrInfo,
-    pure_define_element: bool,
-    pure_define_element_calls: &[oxc_span::Span],
-) -> TransformModuleResult {
+#[derive(Clone, Copy)]
+pub(crate) struct EmitModuleOptions<'a> {
+    pub(crate) source: &'a str,
+    pub(crate) filename: &'a str,
+    pub(crate) runtime_module: &'a str,
+    pub(crate) enable_delegation: bool,
+    pub(crate) source_map: bool,
+    pub(crate) module: &'a ModuleIr,
+    pub(crate) reserved_names: &'a [String],
+    pub(crate) enable_hmr: bool,
+    pub(crate) hmr: &'a HmrInfo,
+    pub(crate) pure_define_element: PureDefineElementMode,
+    pub(crate) pure_define_element_calls: &'a [oxc_span::Span],
+}
+
+pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleResult {
+    let EmitModuleOptions {
+        source,
+        filename,
+        runtime_module,
+        enable_delegation,
+        source_map,
+        module,
+        reserved_names,
+        enable_hmr,
+        hmr,
+        pure_define_element,
+        pure_define_element_calls,
+    } = *options;
     let mut names = NameAllocator::new(reserved_names);
-    let binding_sets = module
-        .components
-        .iter()
-        .map(|component| collect_root_dynamic_bindings(&component.root))
-        .collect::<Vec<_>>();
+    let binding_sets = collect_component_bindings(module);
     let delegated_event_names = collect_delegated_events(module, enable_delegation);
     let helper_usage =
-        HelperUsage::from_binding_sets(&binding_sets, !delegated_event_names.is_empty());
-    let mut helper_usage = helper_usage;
-    for component in &module.components {
-        match &component.root {
-            RootIr::Show(show) => {
-                helper_usage.0.insert(RuntimeHelper::MountShow);
-                collect_builtin_helper_usage(&show.children, &mut helper_usage.0);
-                if let Some(ComponentPropValueIr::Children(children)) = &show.fallback {
-                    collect_builtin_helper_usage(children, &mut helper_usage.0);
-                }
-            }
-            RootIr::For(for_binding) => {
-                helper_usage.0.insert(RuntimeHelper::MountFor);
-                collect_builtin_helper_usage(&for_binding.body, &mut helper_usage.0);
-            }
-            RootIr::Component(component) => {
-                collect_component_helper_usage(component, &mut helper_usage.0);
-            }
-            RootIr::Element(_) | RootIr::Fragment(_) => {}
-        }
-    }
+        collect_module_helper_usage(module, &binding_sets, !delegated_event_names.is_empty());
     let locator_attribute = allocate_locator_attribute(module);
     let runtime = RuntimeNames::allocate(&helper_usage, &locator_attribute, &mut names);
 
@@ -77,7 +68,7 @@ pub(crate) fn emit_module(
     let source_insertions = allocate_source_insertions(
         &hmr_insertions,
         &hmr_disposers,
-        pure_define_element,
+        pure_define_element.is_enabled(),
         pure_define_element_calls,
     );
     push_source_range(&mut writer, source, 0, cursor, &source_insertions, false);
@@ -89,46 +80,21 @@ pub(crate) fn emit_module(
     }
     emit_hmr_boundary(&mut writer, enable_hmr, hmr, &hmr_disposers);
 
-    for component in &generated {
-        if component.template_html.is_empty() {
-            continue;
-        }
-        writer.push("const ");
-        writer.push(&component.template_name);
-        writer.push(" = /* @__PURE__ */ ");
-        writer.push(runtime.template());
-        writer.push("(");
-        writer.push(&quote_js(&component.template_html));
-        if component.is_svg {
-            writer.push(", false, true");
-        }
-        writer.push(");\n");
-    }
+    emit_templates(&mut writer, &generated, &runtime);
 
-    for component in &generated {
-        let start = usize::try_from(component.start).unwrap_or(usize::MAX);
-        let end = usize::try_from(component.end).unwrap_or(usize::MAX);
-        if start < cursor || end > source.len() {
-            continue;
-        }
-
-        push_source_range(
-            &mut writer,
-            source,
-            cursor,
-            start,
-            &source_insertions,
-            false,
-        );
-        emit_component(
-            &mut writer,
-            component,
-            &runtime,
-            &locator_attribute,
-            &mut names,
-        );
-        cursor = end;
-    }
+    let mut component_emitter = ComponentEmitter {
+        runtime: &runtime,
+        locator_attribute: &locator_attribute,
+        names: &mut names,
+    };
+    cursor = emit_components(
+        &mut writer,
+        source,
+        cursor,
+        &generated,
+        &source_insertions,
+        &mut component_emitter,
+    );
     push_source_range(
         &mut writer,
         source,
@@ -146,6 +112,97 @@ pub(crate) fn emit_module(
         map,
         diagnostics: Vec::new(),
     }
+}
+
+fn collect_component_bindings(module: &ModuleIr) -> Vec<Vec<DynamicBinding>> {
+    module
+        .components
+        .iter()
+        .map(|component| collect_root_dynamic_bindings(&component.root))
+        .collect()
+}
+
+fn collect_module_helper_usage(
+    module: &ModuleIr,
+    binding_sets: &[Vec<DynamicBinding>],
+    has_delegated_events: bool,
+) -> HelperUsage {
+    let mut usage = HelperUsage::from_binding_sets(binding_sets, has_delegated_events);
+    for component in &module.components {
+        match &component.root {
+            RootIr::Show(show) => {
+                usage.0.insert(RuntimeHelper::MountShow);
+                collect_builtin_helper_usage(&show.children, &mut usage.0);
+                if let Some(ComponentPropValueIr::Children(children)) = &show.fallback {
+                    collect_builtin_helper_usage(children, &mut usage.0);
+                }
+            }
+            RootIr::For(for_binding) => {
+                usage.0.insert(RuntimeHelper::MountFor);
+                collect_builtin_helper_usage(&for_binding.body, &mut usage.0);
+            }
+            RootIr::Component(component) => {
+                collect_component_helper_usage(component, &mut usage.0);
+            }
+            RootIr::Element(_) | RootIr::Fragment(_) => {}
+        }
+    }
+    usage
+}
+
+fn emit_templates(
+    writer: &mut CodeWriter,
+    components: &[GeneratedComponent],
+    runtime: &RuntimeNames,
+) {
+    for component in components {
+        if component.template_html.is_empty() {
+            continue;
+        }
+        writer.push("const ");
+        writer.push(&component.template_name);
+        writer.push(" = /* @__PURE__ */ ");
+        writer.push(runtime.template());
+        writer.push("(");
+        writer.push(&quote_js(&component.template_html));
+        if component.is_svg {
+            writer.push(", false, true");
+        }
+        writer.push(");\n");
+    }
+}
+
+struct ComponentEmitter<'a> {
+    runtime: &'a RuntimeNames,
+    locator_attribute: &'a str,
+    names: &'a mut NameAllocator,
+}
+
+fn emit_components(
+    writer: &mut CodeWriter,
+    source: &str,
+    mut cursor: usize,
+    components: &[GeneratedComponent],
+    source_insertions: &[SourceInsertion],
+    emitter: &mut ComponentEmitter<'_>,
+) -> usize {
+    for component in components {
+        let start = usize::try_from(component.start).unwrap_or(usize::MAX);
+        let end = usize::try_from(component.end).unwrap_or(usize::MAX);
+        if start < cursor || end > source.len() {
+            continue;
+        }
+        push_source_range(writer, source, cursor, start, source_insertions, false);
+        emit_component(
+            writer,
+            component,
+            emitter.runtime,
+            emitter.locator_attribute,
+            emitter.names,
+        );
+        cursor = end;
+    }
+    cursor
 }
 
 #[derive(Debug, Clone)]

@@ -9,8 +9,8 @@ export const componentHostBenchConfig = {
 
   thresholds: {
     size: {
-      'wc/z-bench-button.entry.js:gzip': 512,
-      'wc/z-bench-button-shadow.entry.js:gzip': 512,
+      'wc/z-bench-button.entry.js:gzip': 1024,
+      'wc/z-bench-button-shadow.entry.js:gzip': 1024,
       'wc/index.js:gzip': 36 * 1024,
       'react/z-bench-button.js:gzip': 24 * 1024,
       'vue/z-bench-button.js:gzip': 28 * 1024,

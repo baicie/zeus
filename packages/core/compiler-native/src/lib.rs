@@ -3,7 +3,8 @@
 use napi::{Error, Result, Status};
 use napi_derive::napi;
 use zeus_compiler::{
-    RawSourceMap as CoreRawSourceMap, TransformModuleOptions as CoreTransformModuleOptions,
+    PureDefineElementMode, RawSourceMap as CoreRawSourceMap,
+    TransformModuleOptions as CoreTransformModuleOptions,
     TransformModuleResult as CoreTransformModuleResult, TransformTarget,
     diagnostic::{CompilerDiagnostic as CoreCompilerDiagnostic, DiagnosticSeverity},
     span::{SourcePosition as CoreSourcePosition, SourceSpan as CoreSourceSpan},
@@ -96,7 +97,9 @@ pub fn transform_module(options: TransformModuleOptions) -> Result<TransformModu
         delegate_events: options.delegate_events,
         source_map: options.source_map,
         hmr: options.hmr.unwrap_or(false),
-        pure_define_element: options.pure_define_element.unwrap_or(false),
+        pure_define_element: PureDefineElementMode::from(
+            options.pure_define_element.unwrap_or(false),
+        ),
     })
     .into())
 }

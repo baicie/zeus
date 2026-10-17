@@ -32,11 +32,11 @@
   ],
   "peerDependencies": {
     "lightningcss": "^1.29.0",
-    "postcss": "*",
+    "postcss": "^8.5.23",
     "postcss-load-config": "*",
     "rollup": "^4.0.0",
-    "sass": "*",
-    "less": "*"
+    "sass": "^1.102.0",
+    "less": "^4.9.0"
   },
   "peerDependenciesMeta": {
     "lightningcss": {

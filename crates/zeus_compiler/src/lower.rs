@@ -254,6 +254,7 @@ struct Lowerer<'source, 'allocator> {
     host_depth: usize,
     scoping: Scoping,
     for_accessor_scopes: Vec<LowerForAccessorScope>,
+    once_dynamic_regions: HashSet<NodeId>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -301,6 +302,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             host_depth: 0,
             scoping,
             for_accessor_scopes: Vec::new(),
+            once_dynamic_regions: HashSet::new(),
         }
     }
 
@@ -372,11 +374,36 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             return None;
         };
         let tag_name = identifier.name.as_str();
+        self.validate_element(tag_name, element, identifier.span)?;
+
+        let id = self.allocate_id();
+
+        let attributes = self.lower_attributes(&element.opening_element.attributes);
+        let mut children = self.lower_children(&element.children);
+        self.lower_raw_text_children(tag_name, element, &mut children)?;
+
+        Some(ElementIr {
+            id,
+            kind: "Element".into(),
+            reference: IrRef { node_id: id },
+            tag_name: identifier.name.to_string(),
+            span: self.source_index.span(element.span),
+            attributes,
+            children,
+        })
+    }
+
+    fn validate_element(
+        &mut self,
+        tag_name: &str,
+        element: &JSXElement<'_>,
+        identifier_span: Span,
+    ) -> Option<()> {
         if is_unsupported_raw_text_element(tag_name) {
             self.unsupported(
                 "ZEUS_UNSUPPORTED_RAW_TEXT_ELEMENT",
                 "This raw-text element has no dedicated DOM text binding path.",
-                identifier.span,
+                identifier_span,
             );
             return None;
         }
@@ -399,7 +426,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             self.unsupported(
                 "ZEUS_UNSUPPORTED_DOCUMENT_ELEMENT",
                 "Document-structure elements cannot be cloned as component roots.",
-                identifier.span,
+                identifier_span,
             );
             return None;
         }
@@ -407,7 +434,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             self.unsupported(
                 "ZEUS_UNSUPPORTED_TEMPLATE_ELEMENT",
                 "Template element children need dedicated anchor code generation.",
-                identifier.span,
+                identifier_span,
             );
             return None;
         }
@@ -419,62 +446,58 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             );
             return None;
         }
+        Some(())
+    }
 
-        let id = self.allocate_id();
-
-        let attributes = self.lower_attributes(&element.opening_element.attributes);
-        let mut children = self.lower_children(&element.children);
-
-        if is_raw_text_element(tag_name) {
-            for child in &mut children {
-                let ChildIr::DynamicRegion(region) = child else {
-                    continue;
-                };
-                let DynamicRegionExpressionIr::Value { expression } = &region.expression else {
-                    self.unsupported(
-                        "ZEUS_UNSUPPORTED_RAW_TEXT_CHILD",
-                        "Raw-text elements may only contain text and scalar dynamic expressions.",
-                        element.span,
-                    );
-                    return None;
-                };
-                let id = region.id;
-                *child = ChildIr::DynamicText(DynamicTextIr {
-                    id,
-                    kind: "DynamicText".into(),
-                    reference: IrRef { node_id: id },
-                    expression: expression.clone(),
-                    once: false,
-                    span: region.span,
-                });
-            }
-            let mut has_once = false;
-            let mut has_reactive = false;
-            for child in &children {
-                if let ChildIr::DynamicText(text) = child {
-                    has_once |= text.once;
-                    has_reactive |= !text.once;
-                }
-            }
-            if has_once && has_reactive {
+    fn lower_raw_text_children(
+        &mut self,
+        tag_name: &str,
+        element: &JSXElement<'_>,
+        children: &mut [ChildIr],
+    ) -> Option<()> {
+        if !is_raw_text_element(tag_name) {
+            return Some(());
+        }
+        for child in children.iter_mut() {
+            let ChildIr::DynamicRegion(region) = child else {
+                continue;
+            };
+            let DynamicRegionExpressionIr::Value { expression } = &region.expression else {
                 self.unsupported(
-                    "ZEUS_MIXED_RAW_TEXT_BINDING_MODE",
-                    "Raw-text elements cannot mix @once and reactive dynamic expressions.",
+                    "ZEUS_UNSUPPORTED_RAW_TEXT_CHILD",
+                    "Raw-text elements may only contain text and scalar dynamic expressions.",
                     element.span,
                 );
                 return None;
+            };
+            let id = region.id;
+            let once = self.once_dynamic_regions.remove(&id);
+            *child = ChildIr::DynamicText(DynamicTextIr {
+                id,
+                kind: "DynamicText".into(),
+                reference: IrRef { node_id: id },
+                expression: expression.clone(),
+                once,
+                span: region.span,
+            });
+        }
+        let mut has_once = false;
+        let mut has_reactive = false;
+        for child in children {
+            if let ChildIr::DynamicText(text) = child {
+                has_once |= text.once;
+                has_reactive |= !text.once;
             }
         }
-
-        Some(ElementIr {
-            id,
-            kind: "Element".into(),
-            reference: IrRef { node_id: id },
-            tag_name: identifier.name.to_string(),
-            span: self.source_index.span(element.span),
-            attributes,
-            children,
-        })
+        if has_once && has_reactive {
+            self.unsupported(
+                "ZEUS_MIXED_RAW_TEXT_BINDING_MODE",
+                "Raw-text elements cannot mix @once and reactive dynamic expressions.",
+                element.span,
+            );
+            return None;
+        }
+        Some(())
     }
 
     fn lower_component(&mut self, element: &JSXElement<'_>) -> ComponentBindingIr {
@@ -1605,6 +1628,9 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 let once = self.has_once_marker(container);
                 let diagnostic_count = self.diagnostics.len();
                 if let Some(region) = self.lower_dynamic_region(expression) {
+                    if once {
+                        self.once_dynamic_regions.insert(region.id);
+                    }
                     lowered.push(ChildIr::DynamicRegion(region));
                     return;
                 }
