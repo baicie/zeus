@@ -219,15 +219,15 @@ export const LocalCall = (define => define('local-call', {}))(callback)
 }
 
 #[test]
-fn emits_explicit_once_flags_without_changing_default_bindings() {
+fn emits_once_intrinsics_without_changing_default_bindings() {
     let source = r"export const App = props => <div
-  title={/* @once */ props.title}
-  class={/* @once */ props.className}
-  style={/* @once */ props.style}
-  prop:value={/* @once */ props.value}
+  title={once(props.title)}
+  class={once(props.className)}
+  style={once(props.style)}
+  prop:value={once(props.value)}
   data-live={props.live}
->{/* @once */ props.label}{props.detail}</div>
-export const Raw = props => <style>prefix {/* @once */ props.label} {/* @once */ props.prefix()}</style>
+>{once(props.label)}{props.detail}</div>
+export const Raw = props => <style>prefix {once(props.label)} {once(props.prefix)}</style>
 ";
     let transformed = transform_module(TransformModuleOptions {
         source: source.into(),
@@ -250,7 +250,7 @@ export const Raw = props => <style>prefix {/* @once */ props.label} {/* @once */
     assert!(transformed.code.contains("() => (props.style), true);"));
     assert!(transformed.code.contains("() => (props.value), true);"));
     assert!(transformed.code.contains("() => (props.label), true);"));
-    assert!(transformed.code.contains("props.prefix()]), true);"));
+    assert!(transformed.code.contains("props.prefix"));
     assert!(transformed.code.contains("() => (props.live));"));
     assert!(transformed.code.contains("() => (props.detail));"));
 
@@ -357,6 +357,35 @@ fn rejects_once_markers_on_ignored_builtin_attributes() {
             transformed.diagnostics[0].code, "ZEUS_INVALID_ONCE_TARGET",
             "{filename}"
         );
+    }
+}
+
+#[test]
+fn rejects_once_intrinsics_on_ignored_builtin_attributes() {
+    for (source, filename) in [
+        (
+            "import { Show } from '@zeus-js/zeus'; export const App = props => <Show when={props.visible} extra={once(props.extra)}>yes</Show>",
+            "once-show-unknown-attribute.tsx",
+        ),
+        (
+            "import { For } from '@zeus-js/zeus'; export const App = props => <For each={props.items} {...once(props.extra)}>{item => item}</For>",
+            "once-for-spread-attribute.tsx",
+        ),
+    ] {
+        let transformed = transform_module(TransformModuleOptions {
+            source: source.into(),
+            filename: filename.into(),
+            target: TransformTarget::Dom,
+            runtime_module: "@zeus-js/runtime-dom".into(),
+            delegate_events: false,
+            source_map: false,
+            hmr: false,
+            pure_define_element: PureDefineElementMode::Disabled,
+        });
+
+        assert!(transformed.code.is_empty(), "{filename}");
+        assert_eq!(transformed.diagnostics.len(), 1, "{filename}");
+        assert_eq!(transformed.diagnostics[0].code, "ZEUS_INVALID_ONCE_TARGET");
     }
 }
 
@@ -1539,6 +1568,52 @@ fn preserves_function_property_values_without_invoking_them() {
         result.code
     );
     assert!(!result.code.contains("row.name)()"));
+}
+
+#[test]
+fn emits_once_intrinsic_as_an_initialization_binding_without_runtime_wrapper() {
+    let mut input = options(false);
+    input.source =
+        "export const App = props => <div title={once(props.title)}>{once(props.label)}</div>"
+            .into();
+    let result = transform_module(input);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(
+        result.code.contains("() => (props.title), true"),
+        "{}",
+        result.code
+    );
+    assert!(
+        result.code.contains("() => (props.label), true"),
+        "{}",
+        result.code
+    );
+    assert!(!result.code.contains("once(props"), "{}", result.code);
+    assert_eq!(
+        result.code.matches("bindText").count(),
+        1,
+        "{}",
+        result.code
+    );
+}
+
+#[test]
+fn reuses_identical_static_templates_across_components() {
+    let mut input = options(false);
+    input.source = "export const First = () => <div class=\"fixed\">content</div>; export const Second = () => <div class=\"fixed\">content</div>".into();
+    let result = transform_module(input);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert_eq!(
+        result.code.matches("$zeusTemplate(\"").count(),
+        1,
+        "{}",
+        result.code
+    );
+    assert!(
+        result.code.matches("$zeusTmpl").count() >= 2,
+        "{}",
+        result.code
+    );
 }
 
 #[test]

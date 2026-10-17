@@ -187,6 +187,7 @@ export function bindProp<T extends Element, K extends keyof T>(
   once = false,
 ): void {
   applyBinding(value, once, next => {
+    if (!el.localName.includes('-') && Object.is(el[name], next)) return
     el[name] = next
   })
 }
@@ -198,6 +199,7 @@ export function bindClass(
 ): void {
   applyBinding(value, once, value => {
     const next = normalizeClass(value)
+    if (el.getAttribute('class') === (next || null)) return
     if (next) {
       el.setAttribute('class', next)
     } else {
@@ -239,6 +241,7 @@ export function bindStyle(
     }
 
     if (typeof next === 'string') {
+      if (el.getAttribute('style') === next) return
       el.setAttribute('style', next)
       prev = undefined
       return

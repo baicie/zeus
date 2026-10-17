@@ -66,11 +66,11 @@ test('unsupported JSX attributes are diagnosed instead of silently discarded', (
   }
 })
 
-test('explicit @once bindings use the runtime flag and invalid targets fail', () => {
+test('once bindings use the runtime flag and invalid targets fail', () => {
   const result = transformModule(
     options(`export const App = props => (
-  <div title={/* @once */ props.title}>
-    {/* @once */ props.label}
+  <div title={once(props.title)}>
+    {once(props.label)}
     {props.detail}
   </div>
 )`),
@@ -84,13 +84,23 @@ test('explicit @once bindings use the runtime flag and invalid targets fail', ()
 
   const invalid = transformModule(
     options(
-      'export const App = props => <button onClick={/* @once */ props.onClick} />',
+      'export const App = props => <button onClick={once(props.onClick)} />',
     ),
   )
 
   assert.equal(invalid.code, '')
   assert.equal(invalid.diagnostics.length, 1)
   assert.equal(invalid.diagnostics[0].code, 'ZEUS_INVALID_ONCE_TARGET')
+
+  const legacy = transformModule(
+    options('export const App = props => <div>{/* @once */ props.label}</div>'),
+  )
+
+  assert.equal(legacy.code, '')
+  assert.equal(legacy.diagnostics.length, 1)
+  assert.equal(legacy.diagnostics[0].code, 'ZEUS_INVALID_ONCE_TARGET')
+  assert.match(legacy.diagnostics[0].message, /no longer accepted/)
+  assert.match(legacy.diagnostics[0].hint, /once\(value\)/)
 })
 
 test('invalid ABI options throw instead of becoming compiler diagnostics', () => {

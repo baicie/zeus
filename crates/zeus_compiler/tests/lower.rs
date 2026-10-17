@@ -2,8 +2,8 @@ use std::thread;
 
 use zeus_compiler::{
     ir::{
-        AttributeIr, ChildIr, ComponentPropIr, ComponentPropValueIr, ExpressionForm, RootIr,
-        StaticAttributeValue,
+        AttributeIr, ChildIr, ComponentPropIr, ComponentPropValueIr, DynamicRegionExpressionIr,
+        ExpressionForm, RootIr, StaticAttributeValue,
     },
     lower::lower_module,
 };
@@ -64,18 +64,18 @@ fn lowers_native_element_to_owned_deterministic_ir() {
 }
 
 #[test]
-fn lowers_explicit_once_markers_only_on_supported_dom_bindings() {
+fn lowers_once_intrinsics_only_on_supported_dom_bindings() {
     let source = r"export const App = props => (
   <div
-    title={/* @once */ props.title}
-    class={/* @once */ props.className}
-    style={/* @once */ props.style}
-    prop:value={/* @once */ props.value}
+    title={once(props.title)}
+    class={once(props.className)}
+    style={once(props.style)}
+    prop:value={once(props.value)}
     data-literal={'@once'}
-    data-comment={props /* @once */ .note}
+    data-comment={props.note}
     data-near={/* @once-ish */ props.near}
   >
-    {/* @once */ props.label}
+    {once(props.label)}
     {props.detail}
   </div>
 )";
@@ -115,7 +115,64 @@ fn lowers_explicit_once_markers_only_on_supported_dom_bindings() {
 }
 
 #[test]
-fn recognizes_once_after_all_ecmascript_line_terminators() {
+fn treats_shadowed_once_as_a_regular_function_call() {
+    let lowered = lower_module(
+        "const once = value => value; export const App = props => <div>{once(props.label)}</div>",
+        "shadowed-once.tsx",
+    );
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let module = lowered.ir.expect("shadowed call lowers");
+    let root = root_element(&module.components[0].root);
+    let ChildIr::DynamicRegion(region) = &root.children[0] else {
+        panic!("shadowed once call must retain ordinary call semantics");
+    };
+    let DynamicRegionExpressionIr::Value { expression } = &region.expression else {
+        panic!("shadowed call should remain a regular value expression");
+    };
+    assert_eq!(expression.code, "once(props.label)");
+}
+
+#[test]
+fn rejects_invalid_once_intrinsic_shapes_and_non_dom_targets() {
+    for (source, expected) in [
+        (
+            "export const App = props => <div>{once()}</div>",
+            "ZEUS_INVALID_ONCE_INTRINSIC",
+        ),
+        (
+            "export const App = props => <div>{once(props.a, props.b)}</div>",
+            "ZEUS_INVALID_ONCE_INTRINSIC",
+        ),
+        (
+            "export const App = props => <div>{once(...props.values)}</div>",
+            "ZEUS_INVALID_ONCE_INTRINSIC",
+        ),
+        (
+            "export const App = props => <div>{once(props.render())}</div>",
+            "ZEUS_INVALID_ONCE_TARGET",
+        ),
+        (
+            "export const App = props => <button title={once()} />",
+            "ZEUS_INVALID_ONCE_INTRINSIC",
+        ),
+        (
+            "export const App = props => <button onClick={once(props.click)} />",
+            "ZEUS_INVALID_ONCE_TARGET",
+        ),
+        (
+            "export const App = props => <Widget value={once(props.value)} />",
+            "ZEUS_INVALID_ONCE_TARGET",
+        ),
+    ] {
+        let lowered = lower_module(source, "invalid-once-intrinsic.tsx");
+        assert!(lowered.ir.is_none(), "unexpected IR: {:?}", lowered.ir);
+        assert_eq!(lowered.diagnostics.len(), 1, "{:?}", lowered.diagnostics);
+        assert_eq!(lowered.diagnostics[0].code, expected);
+    }
+}
+
+#[test]
+fn lowers_once_intrinsics_after_all_ecmascript_line_terminators() {
     for (name, terminator) in [
         ("lf", "\n"),
         ("cr", "\r"),
@@ -123,7 +180,7 @@ fn recognizes_once_after_all_ecmascript_line_terminators() {
         ("paragraph-separator", "\u{2029}"),
     ] {
         let source = format!(
-            "export const App = props => <div>{{// note{terminator}/* @once */ props.label}}</div>"
+            "export const App = props => <div>{{// note{terminator}once(props.label)}}</div>"
         );
         let filename = format!("once-{name}.tsx");
         let lowered = lower_module(&source, &filename);
@@ -138,7 +195,7 @@ fn recognizes_once_after_all_ecmascript_line_terminators() {
         let ChildIr::DynamicText(label) = &root.children[0] else {
             panic!("{name}: marked child must be dynamic text");
         };
-        assert!(label.once, "{name}: @once marker must be preserved");
+        assert!(label.once, "{name}: once intrinsic must be preserved");
     }
 }
 
@@ -220,6 +277,17 @@ fn rejects_once_markers_on_non_binding_targets() {
         assert_eq!(lowered.diagnostics.len(), 1, "{filename}");
         assert_eq!(lowered.diagnostics[0].code, "ZEUS_INVALID_ONCE_TARGET");
         assert!(lowered.diagnostics[0].span.is_some());
+        assert!(
+            lowered.diagnostics[0]
+                .message
+                .contains("no longer accepted")
+        );
+        assert!(
+            lowered.diagnostics[0]
+                .hint
+                .as_deref()
+                .is_some_and(|hint| hint.contains("once(value)"))
+        );
     }
 }
 
@@ -261,10 +329,30 @@ fn rejects_once_markers_on_every_builtin_attribute_form() {
 }
 
 #[test]
+fn rejects_once_intrinsics_on_ignored_builtin_attributes() {
+    for (source, filename) in [
+        (
+            "import { Show } from '@zeus-js/zeus'; export const App = props => <Show when={props.visible} extra={once(props.extra)}>yes</Show>",
+            "once-show-unknown-attribute.tsx",
+        ),
+        (
+            "import { For } from '@zeus-js/zeus'; export const App = props => <For each={props.items} {...once(props.extra)}>{item => item}</For>",
+            "once-for-spread-attribute.tsx",
+        ),
+    ] {
+        let lowered = lower_module(source, filename);
+
+        assert!(lowered.ir.is_none(), "{filename} must fail lowering");
+        assert_eq!(lowered.diagnostics.len(), 1, "{filename}");
+        assert_eq!(lowered.diagnostics[0].code, "ZEUS_INVALID_ONCE_TARGET");
+    }
+}
+
+#[test]
 fn permits_once_on_namespaced_properties_even_when_names_resemble_events_or_refs() {
     let source = r"export const App = props => <div
-  prop:onClick={/* @once */ props.callback}
-  prop:ref={/* @once */ props.reference}
+  prop:onClick={once(props.callback)}
+  prop:ref={once(props.reference)}
 />";
     let lowered = lower_module(source, "once-property-names.tsx");
 
@@ -282,7 +370,7 @@ fn permits_once_on_namespaced_properties_even_when_names_resemble_events_or_refs
 #[test]
 fn rejects_mixed_once_and_reactive_raw_text_bindings() {
     let lowered = lower_module(
-        "export const App = props => <style>{/* @once */ props.prefix}{props.suffix}</style>",
+        "export const App = props => <style>{once(props.prefix)}{props.suffix}</style>",
         "once-raw-text.tsx",
     );
 

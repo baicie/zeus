@@ -69,7 +69,7 @@ createComponent(
 
 ## Native DOM 提交
 
-- 首次按源码顺序求 source 及其可枚举自有字段；`@once` 层在首次轮到该层时 untrack 并缓存，不能抢先执行。
+- 首次按源码顺序求 source 及其可枚举自有字段；`once(expr)` 层在首次轮到该层时 untrack 并缓存，不能抢先执行。
 - 每个 source 用惰性 memo 缓存表达式，内部字段通过实际读取的 Proxy/getter 追踪；普通对象原地修改不自动通知。
 - `className` 与 `class`、大小写 event 名称先归一化；同 key 以最后出现的位置参与提交，保留 attribute/property 可能影响同一 DOM 状态时的先后关系。
 - 读取快照在 effect 内完成；DOM 写入、ref callback、custom element setter 在退出 effect 后同步提交。提交期间产生的信号更新在返回前继续刷新；最多 100 轮，循环写入抛明确错误并释放绑定资源。
@@ -95,4 +95,4 @@ SSR 使用 `ssrSpread` 和相同的覆盖/归一化策略，source 表达式与�
 
 Host、Slot、Show、For 仍是编译器内置节点，当前要求明确属性，Spread 给结构化错误。包含 JSX 的 Spread 表达式继续报不支持的动态区域诊断，不残留未编译 JSX。
 
-验证覆盖 Rust IR/代码生成/source map、DOM/SSR helper、真实 N-API + Vite 执行。关键行为包括函数 property 不被误调用、组件 setup 一次、DOM identity 保留、覆盖/删除/动态 keys、event/ref 替换和清理、ref 中的信号写入/同步卸载、@once 顺序、SSR 名称注入与 attr/property 顺序，以及 generic defineElement 的括号 Host 根识别。
+验证覆盖 Rust IR/代码生成/source map、DOM/SSR helper、真实 N-API + Vite 执行。关键行为包括函数 property 不被误调用、组件 setup 一次、DOM identity 保留、覆盖/删除/动态 keys、event/ref 替换和清理、ref 中的信号写入/同步卸载、`once(expr)` 顺序、SSR 名称注入与 attr/property 顺序，以及 generic defineElement 的括号 Host 根识别。
