@@ -17,6 +17,8 @@ export { render, type RenderOptions } from './render'
 
 export { insert, mountDynamic } from './insert'
 
+export { Portal, type PortalProps } from './portal'
+
 export { insertTracked } from './insert'
 export { isWithinRuntimeDomMove } from './domMove'
 
