@@ -12,6 +12,9 @@ export type ZeusDevtoolsEventType =
   | 'effect:run'
   | 'binding:commit'
   | 'binding:cleanup'
+  | 'dependency:track'
+  | 'dependency:trigger'
+  | 'dependency:untrack'
 
 export interface ZeusDevtoolsEvent {
   readonly id: number
@@ -22,6 +25,8 @@ export interface ZeusDevtoolsEvent {
   readonly ownerId?: number
   readonly bindingId?: number
   readonly effectId?: number
+  /** Opaque identity of the reactive dependency target. */
+  readonly sourceId?: number
   readonly event?: string
   readonly length?: number
   readonly name?: string

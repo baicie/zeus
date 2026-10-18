@@ -1,10 +1,16 @@
 import { normalizeDOMAttributeName } from '@zeus-js/shared'
-import { effect, onScopeDispose, untrack } from '@zeus-js/signal/internal'
+import {
+  effect,
+  getCurrentEffect,
+  onScopeDispose,
+  untrack,
+} from '@zeus-js/signal/internal'
 
 import { emitDevtoolsEvent, getDevtoolsObjectId } from './devtools'
 import { assertRenderableJSXValue } from './jsxValue'
 
 import type { AttrValue, ClassValue, JSXValue, StyleValue } from './types'
+import type { DebuggerEvent } from '@zeus-js/signal/internal'
 
 export function bindText(
   node: Text,
@@ -57,38 +63,74 @@ function applyBinding<T>(
   apply: (next: T) => void,
   metadata: BindingMetadata,
 ): void {
+  const devtoolsInstrumentation = __DEV__
+  let bindingIdentity: object | undefined
+  let trackedDependencies: DependencyMap | undefined
+  let collectingDependencies: DependencyMap | undefined
   let bindingId: number | undefined
   let effectId: number | undefined
 
+  const ensureBindingId = (): number => {
+    bindingIdentity ??= {}
+    bindingId ??= getDevtoolsObjectId(bindingIdentity)
+    return bindingId
+  }
+
   const run = () => {
+    const activeEffect = devtoolsInstrumentation
+      ? getCurrentEffect()
+      : undefined
+    const observing = devtoolsInstrumentation && hasDevtoolsHook()
+    if (observing) {
+      ensureBindingId()
+      if (activeEffect) effectId = getDevtoolsObjectId(activeEffect)
+      trackedDependencies ??= new Map()
+    }
+    collectingDependencies = observing ? new Map() : undefined
     const started =
       typeof performance !== 'undefined' ? performance.now() : Date.now()
-    const next = value()
-    apply(next)
+    let nextDependencies: DependencyMap | undefined
+    let next: T
+    try {
+      next = value()
+      apply(next)
+      nextDependencies = collectingDependencies
+    } finally {
+      collectingDependencies = undefined
+    }
     const ended =
       typeof performance !== 'undefined' ? performance.now() : Date.now()
 
-    if (typeof window !== 'undefined' && window.__ZEUS_DEVTOOLS_HOOK__) {
-      bindingId ??= getDevtoolsObjectId({})
-      effectId ??= getDevtoolsObjectId({})
-      emitDevtoolsEvent(
-        {
-          type: 'effect:run',
+    if (devtoolsInstrumentation && hasDevtoolsHook()) {
+      if (effectId !== undefined) {
+        emitDevtoolsEvent(
+          {
+            type: 'effect:run',
+            effectId,
+            bindingId,
+            payload: { duration: Math.max(0, ended - started) },
+          },
+          { swallowErrors: true },
+        )
+        reconcileDependencies(
+          trackedDependencies,
+          nextDependencies ?? new Map(),
+          bindingId!,
           effectId,
-          bindingId,
-          payload: { duration: Math.max(0, ended - started) },
-        },
-        { swallowErrors: true },
-      )
+        )
+      }
       emitDevtoolsEvent(
         {
           type: 'binding:commit',
           bindingId,
+          effectId,
           target: metadata.target,
           payload: { kind: metadata.kind, once },
         },
         { swallowErrors: true },
       )
+    } else if (devtoolsInstrumentation) {
+      trackedDependencies?.clear()
     }
   }
 
@@ -97,21 +139,138 @@ function applyBinding<T>(
     return
   }
 
-  effect(run)
-  onScopeDispose(
-    () =>
-      bindingId === undefined
-        ? undefined
-        : emitDevtoolsEvent(
-            {
-              type: 'binding:cleanup',
-              bindingId,
-              target: metadata.target,
-              payload: { kind: metadata.kind },
-            },
-            { swallowErrors: true },
-          ),
-    true,
+  effect(
+    run,
+    devtoolsInstrumentation
+      ? {
+          onTrack: event => trackDependency(collectingDependencies, event),
+          onTrigger: event => {
+            if (!hasDevtoolsHook()) return
+            triggerDependency(event, ensureBindingId())
+          },
+        }
+      : undefined,
+  )
+  onScopeDispose(() => {
+    if (bindingId === undefined) return
+    if (effectId !== undefined && trackedDependencies) {
+      reconcileDependencies(trackedDependencies, new Map(), bindingId, effectId)
+    }
+    emitDevtoolsEvent(
+      {
+        type: 'binding:cleanup',
+        bindingId,
+        effectId,
+        target: metadata.target,
+        payload: { kind: metadata.kind },
+      },
+      { swallowErrors: true },
+    )
+  }, true)
+}
+
+interface DependencyEdge {
+  readonly sourceId: number
+  readonly key: unknown
+  readonly operation: unknown
+}
+
+type DependencyMap = Map<object, Map<unknown, DependencyEdge>>
+
+function hasDevtoolsHook(): boolean {
+  return typeof window !== 'undefined' && !!window.__ZEUS_DEVTOOLS_HOOK__
+}
+
+function trackDependency(
+  dependencies: DependencyMap | undefined,
+  event: DebuggerEvent,
+): void {
+  if (!dependencies || !hasDevtoolsHook() || !event.target) return
+
+  let keys = dependencies.get(event.target)
+  if (!keys) {
+    keys = new Map()
+    dependencies.set(event.target, keys)
+  }
+  keys.set(event.key, {
+    sourceId: getDevtoolsObjectId(event.target),
+    key: event.key,
+    operation: event.type,
+  })
+}
+
+function triggerDependency(
+  event: DebuggerEvent,
+  currentBindingId: number | undefined,
+): void {
+  if (!hasDevtoolsHook() || !event.target) return
+  const activeEffect = event.effect
+  emitDevtoolsEvent(
+    {
+      type: 'dependency:trigger',
+      bindingId: currentBindingId,
+      effectId: getDevtoolsObjectId(activeEffect),
+      sourceId: getDevtoolsObjectId(event.target),
+      payload: { key: event.key, operation: event.type },
+    },
+    { swallowErrors: true },
+  )
+}
+
+function reconcileDependencies(
+  previous: DependencyMap | undefined,
+  next: DependencyMap,
+  currentBindingId: number,
+  currentEffectId: number,
+): void {
+  if (!previous) return
+  for (const [target, previousKeys] of previous) {
+    const nextKeys = next.get(target)
+    for (const [key, edge] of previousKeys) {
+      if (!nextKeys?.has(key)) {
+        emitDependencyEvent(
+          'dependency:untrack',
+          edge,
+          currentBindingId,
+          currentEffectId,
+        )
+      }
+    }
+  }
+
+  for (const [target, nextKeys] of next) {
+    const previousKeys = previous.get(target)
+    for (const [key, edge] of nextKeys) {
+      if (!previousKeys?.has(key)) {
+        emitDependencyEvent(
+          'dependency:track',
+          edge,
+          currentBindingId,
+          currentEffectId,
+        )
+      }
+    }
+  }
+
+  previous.clear()
+  for (const [target, keys] of next) previous.set(target, keys)
+}
+
+function emitDependencyEvent(
+  type: 'dependency:track' | 'dependency:untrack',
+  edge: DependencyEdge,
+  currentBindingId: number,
+  currentEffectId: number,
+): void {
+  emitDevtoolsEvent(
+    {
+      type,
+      bindingId: currentBindingId,
+      effectId: currentEffectId,
+      sourceId: edge.sourceId,
+      payload: { key: edge.key, operation: edge.operation },
+    },
+    { swallowErrors: true },
   )
 }
 
