@@ -105,9 +105,23 @@ export const ZPackedButton = defineElement<PackedButtonProps, PackedButtonHost>(
 
 export const ZPackedLightPanel = defineElement(
   'z-packed-light-panel',
-  { shadow: false },
-  () => (
-    <Host>
+  {
+    shadow: false,
+    props: {
+      theme: prop(String, { default: 'light', reflect: true }),
+    },
+    cssVars: {
+      '--packed-light-accent': {
+        description: 'Accent used by the light DOM panel.',
+      },
+    },
+    styles: [
+      'z-packed-light-panel { --packed-light-accent: rgb(7, 8, 9); color: var(--packed-light-accent); } z-packed-light-panel [part="body"] { border-color: var(--packed-light-accent); }',
+    ],
+    styleNonce: 'packed-light-style-nonce',
+  },
+  props => (
+    <Host data-theme={props.theme}>
       <section>
         <header>
           <Slot name="heading">
@@ -115,7 +129,7 @@ export const ZPackedLightPanel = defineElement(
           </Slot>
         </header>
         <main>
-          <div data-nested-slot="body">
+          <div data-nested-slot="body" part="body">
             <Slot>
               <span data-fallback="body">Body fallback</span>
             </Slot>

@@ -176,7 +176,7 @@ window.packedResult = (async () => {
     )
     fs.writeFileSync(
       path.join(project, 'index.html'),
-      '<div id="app"></div><script type="module" src="/entry.mjs"></script>',
+      `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'nonce-packed-style-nonce' 'nonce-packed-light-style-nonce'"><div id="app"></div><script type="module" src="/entry.mjs"></script>`,
     )
     const environment = { ...process.env, ZEUS_CONSUMER_MODE: mode }
     step(`${mode}:ssr`, () =>
