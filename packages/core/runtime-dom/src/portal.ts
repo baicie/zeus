@@ -41,18 +41,13 @@ export function Portal(props: PortalProps): Comment {
   target.append(start, end)
 
   const subtree = new ScopedSubtree(target, end, captureScopedSubtreeContext())
-  const children = props.children ?? null
-  let runner: ReturnType<typeof effect> | undefined
+  let runner: ReturnType<typeof effect>
   let disposed = false
 
   try {
-    if (typeof children === 'function') {
-      runner = effect(() => {
-        subtree.replace(children as () => JSXValue)
-      })
-    } else {
-      subtree.replace(() => children)
-    }
+    runner = effect(() => {
+      subtree.replace(() => resolveChildren(props.children))
+    })
   } catch (error) {
     subtree.dispose()
     start.remove()
@@ -63,13 +58,19 @@ export function Portal(props: PortalProps): Comment {
   onScopeDispose(() => {
     if (disposed) return
     disposed = true
-    if (runner) stop(runner)
+    stop(runner)
     subtree.dispose()
     start.remove()
     end.remove()
   }, true)
 
   return source
+}
+
+function resolveChildren(
+  value: JSXValue | (() => JSXValue) | undefined,
+): JSXValue {
+  return typeof value === 'function' ? value() : (value ?? null)
 }
 
 function getDocument(): Document {

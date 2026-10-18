@@ -1,7 +1,10 @@
 import { createSignal } from '@zeus-js/signal'
+import { effect, onCleanup } from '@zeus-js/signal/internal'
 import { Portal, render } from '@zeus-js/zeus'
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+
+import { createComponent } from '../src'
 
 describe('Portal', () => {
   let dom: JSDOM
@@ -93,6 +96,50 @@ describe('Portal', () => {
     ).toThrow('ZEUS_PORTAL_TARGET_INVALID')
 
     other.window.close()
+  })
+
+  it('owns nested component effects and cleanup inside each portal replacement', () => {
+    const source = document.createElement('main')
+    const target = document.createElement('div')
+    document.body.append(source, target)
+    const [active, setActive] = createSignal('first')
+    const [pulse, setPulse] = createSignal(0)
+    const effectRuns: string[] = []
+    const cleanups: string[] = []
+
+    function Child(props: { id: string }) {
+      effect(() => {
+        pulse()
+        effectRuns.push(props.id)
+      })
+      onCleanup(() => cleanups.push(props.id))
+      const span = document.createElement('span')
+      span.dataset.id = props.id
+      return span
+    }
+
+    const portalProps = {
+      target,
+      get children() {
+        return createComponent(Child, { id: active() })
+      },
+    }
+
+    const dispose = render(() => Portal(portalProps), source)
+
+    expect(effectRuns).toEqual(['first'])
+    setActive('second')
+    expect(cleanups).toEqual(['first'])
+    expect(effectRuns).toEqual(['first', 'second'])
+    expect(target.querySelector('[data-id="first"]')).toBeNull()
+    expect(target.querySelector('[data-id="second"]')).not.toBeNull()
+
+    effectRuns.length = 0
+    setPulse(1)
+    expect(effectRuns).toEqual(['second'])
+
+    dispose()
+    expect(cleanups).toEqual(['first', 'second'])
   })
 
   it('requires a render scope before allocating target nodes', () => {
