@@ -1,0 +1,51 @@
+{
+  "name": "@zeus-js/router",
+  "type": "module",
+  "version": "0.1.1-beta.14",
+  "description": "Fine-grained router adapter for Zeus",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baicie/zeus.git",
+    "directory": "packages/core/router"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/router.d.ts",
+      "module": "./dist/router.esm-bundler.js",
+      "import": "./dist/router.esm-bundler.js",
+      "require": {
+        "production": "./dist/router.prod.cjs",
+        "development": "./dist/router.cjs",
+        "default": "./index.cjs"
+      }
+    }
+  },
+  "files": [
+    "index.cjs",
+    "dist"
+  ],
+  "dependencies": {
+    "@remix-run/router": "^1.23.4",
+    "@zeus-js/signal": "workspace:*"
+  },
+  "buildOptions": {
+    "name": "ZeusRouter",
+    "formats": [
+      "esm-bundler",
+      "esm-browser",
+      "cjs"
+    ]
+  },
+  "engines": {
+    "node": "^22.18.0 || >=24.11.0"
+  },
+  "main": "index.cjs",
+  "module": "dist/router.esm-bundler.js",
+  "types": "dist/router.d.ts"
+}

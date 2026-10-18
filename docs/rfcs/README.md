@@ -17,3 +17,5 @@
 | [RFC-011](./RFC-011-framework-renderer-adapter.md)         | Renderer Adapter 与交互插槽边界       | Proposal |
 | [RFC-012](./RFC-012-state-derived-syntax.md)               | State/Derived 语法糖边界              | Proposal |
 | [RFC-013](./RFC-013-once-intrinsic.md)                     | once(expr) DOM 初始化 intrinsic       | Accepted |
+| [RFC-014](./RFC-014-router-adapter.md)                     | Zeus Router Adapter                   | Accepted |
+| [RFC-015](./RFC-015-resource-query-contract.md)            | Resource / Query Contract             | Accepted |

@@ -716,6 +716,30 @@ importers:
 
   packages/core/compiler-shared: {}
 
+  packages/core/query:
+    dependencies:
+      '@tanstack/query-core':
+        specifier: ^5.104.3
+        version: 5.104.3
+      '@zeus-js/signal':
+        specifier: workspace:*
+        version: link:../signal
+
+  packages/core/resource:
+    dependencies:
+      '@zeus-js/signal':
+        specifier: workspace:*
+        version: link:../signal
+
+  packages/core/router:
+    dependencies:
+      '@remix-run/router':
+        specifier: ^1.23.4
+        version: 1.23.4
+      '@zeus-js/signal':
+        specifier: workspace:*
+        version: link:../signal
+
   packages/core/runtime-dom:
     dependencies:
       '@zeus-js/signal':
@@ -2593,6 +2617,10 @@ packages:
       proxy-agent:
         optional: true
 
+  '@remix-run/router@1.23.4':
+    resolution: {integrity: sha512-q7j5geK7xs3UJSdm9/iytUNclBnLmYx1EnSeCFXHPeutdqgIMeFeHtUZgS3EhlKxdBEAu8OwtJCwmLrEzpSs7Q==}
+    engines: {node: '>=14.0.0'}
+
   '@rolldown/binding-android-arm-eabi@1.2.14':
     resolution: {integrity: sha512-aWR+XKH9+rW7m5fWq/5360J3mHycrx/o6xZM2DQFdJnTMdyP7/WzxPjhtLbVWdKo2y612/4U1bWqb3HQhiF7vg==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -3388,6 +3416,9 @@ packages:
     resolution: {integrity: sha512-hItDHuIIlEV61R+faXu66s1K36aTurO/Qw0e45Vskz57gXl9pWOT6eg3zmcEui6CZXddbN7zd41bwmvag4JGwQ==}
     peerDependencies:
       vite: ^5.2.0 || ^6 || ^7 || ^8
+
+  '@tanstack/query-core@5.104.3':
+    resolution: {integrity: sha512-DZY9TuJAOgU3UyHUhXb4CcTYEHNZszlwkPg4VViIwTxOKzLprPUU+rbaPZQd3srqkGOtpaDdKpW972UV/LKlcg==}
 
   '@ts-morph/common@0.29.0':
     resolution: {integrity: sha512-35oUmphHbJvQ/+UTwFNme/t2p3FoKiGJ5auTjjpNTop2dyREspirjMy82PLSC1pnDJ8ah1GU98hwpVt64YXQsg==}
@@ -7775,6 +7806,8 @@ snapshots:
       modern-tar: 0.7.6
       yargs: 17.7.2
 
+  '@remix-run/router@1.23.4': {}
+
   '@rolldown/binding-android-arm-eabi@1.2.14':
     optional: true
 
@@ -8289,6 +8322,8 @@ snapshots:
       '@tailwindcss/oxide': 4.3.1
       tailwindcss: 4.3.1
       vite: 8.3.4(@types/node@26.0.0)(esbuild@0.28.0)(jiti@2.7.0)(less@4.9.1)(sass@1.105.2)(tsx@4.22.4)(yaml@2.9.0)
+
+  '@tanstack/query-core@5.104.3': {}
 
   '@ts-morph/common@0.29.0':
     dependencies:
