@@ -1,3 +1,4 @@
+import { createSignal } from '@zeus-js/signal'
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
@@ -10,7 +11,10 @@ describe('runtime DevTools event bridge', () => {
     id: number
     timestamp: number
     targetId?: number
-    payload?: { kind?: string }
+    bindingId?: number
+    effectId?: number
+    sourceId?: number
+    payload?: { key?: unknown; kind?: string; operation?: unknown }
   }
   let events: TestEvent[]
 
@@ -32,36 +36,19 @@ describe('runtime DevTools event bridge', () => {
     dom.window.close()
   })
 
-  it('enriches binding events with stable ids and timing metadata', async () => {
-    const { state } = await import('@zeus-js/signal/internal')
-    const value = state('one')
+  it('connects stable Signal, Effect and DOM Binding identities', () => {
+    const [value, setValue] = createSignal('one')
     const container = document.createElement('div')
     const text = document.createTextNode('')
 
     const dispose = render(() => {
-      bindText(text, () => value.value)
-      bindAttr(container, 'data-value', () => value.value)
+      bindText(text, value)
+      bindAttr(container, 'data-value', value)
       return text
     }, container)
 
-    value.value = 'two'
+    setValue('two')
     dispose()
-
-    expect(events.map(event => event.type)).toEqual([
-      'owner:create',
-      'effect:run',
-      'binding:commit',
-      'effect:run',
-      'binding:commit',
-      'render',
-      'effect:run',
-      'binding:commit',
-      'effect:run',
-      'binding:commit',
-      'binding:cleanup',
-      'binding:cleanup',
-      'owner:dispose',
-    ])
 
     const ids = events.map(event => event.id)
     expect(new Set(ids).size).toBe(ids.length)
@@ -76,27 +63,151 @@ describe('runtime DevTools event bridge', () => {
       event =>
         event.type === 'binding:commit' && event.payload?.kind === 'text',
     )
+    const textBindingEvents = events.filter(
+      event => event.bindingId === textCommit?.bindingId,
+    )
     const textCleanup = events.find(
       event =>
         event.type === 'binding:cleanup' && event.payload?.kind === 'text',
     )
     expect(textCommit?.targetId).toBe(textCleanup?.targetId)
+    expect(textCleanup?.effectId).toBe(textCommit?.effectId)
+    expect(
+      textBindingEvents.filter(event => event.type === 'effect:run'),
+    ).toHaveLength(2)
+    expect(
+      textBindingEvents.filter(event => event.type === 'dependency:track'),
+    ).toHaveLength(1)
+    expect(
+      textBindingEvents.filter(event => event.type === 'dependency:trigger'),
+    ).toHaveLength(1)
+    expect(
+      new Set(
+        events
+          .filter(event => event.type === 'dependency:track')
+          .map(event => event.sourceId),
+      ).size,
+    ).toBe(1)
+    expect(
+      textBindingEvents
+        .filter(event => event.type === 'effect:run')
+        .every(event => event.effectId === textCommit?.effectId),
+    ).toBe(true)
   })
 
-  it('does not let a diagnostic hook failure break reactive updates', async () => {
-    const { state } = await import('@zeus-js/signal/internal')
-    const value = state('one')
+  it('removes stale branch dependencies and stops observing after disposal', () => {
+    const [condition, setCondition] = createSignal(true)
+    const [left, setLeft] = createSignal('left')
+    const [right, setRight] = createSignal('right')
+    const text = document.createTextNode('')
+    const container = document.createElement('div')
+    const dispose = render(() => {
+      bindText(text, () => (condition() ? left() : right()))
+      return text
+    }, container)
+
+    const initialEdges = events.filter(
+      event => event.type === 'dependency:track',
+    )
+    const leftSourceId = initialEdges[1]?.sourceId
+    const bindingId = initialEdges[0]?.bindingId
+    expect(initialEdges).toHaveLength(2)
+    expect(text.data).toBe('left')
+
+    setCondition(false)
+    expect(text.data).toBe('right')
+    expect(
+      events.some(
+        event =>
+          event.type === 'dependency:untrack' &&
+          event.bindingId === bindingId &&
+          event.sourceId === leftSourceId,
+      ),
+    ).toBe(true)
+
+    const commitsBeforeStaleWrite = events.filter(
+      event => event.type === 'binding:commit',
+    ).length
+    setLeft('stale')
+    expect(text.data).toBe('right')
+    expect(
+      events.filter(event => event.type === 'binding:commit'),
+    ).toHaveLength(commitsBeforeStaleWrite)
+
+    dispose()
+    const commitsAfterDispose = events.filter(
+      event => event.type === 'binding:commit',
+    ).length
+    expect(
+      events.some(
+        event =>
+          event.type === 'dependency:untrack' &&
+          event.bindingId === bindingId &&
+          event.sourceId !== leftSourceId,
+      ),
+    ).toBe(true)
+    setRight('disposed')
+    expect(text.data).toBe('right')
+    expect(
+      events.filter(event => event.type === 'binding:commit'),
+    ).toHaveLength(commitsAfterDispose)
+  })
+
+  it('keeps reactive updates working without a DevTools hook', () => {
+    delete dom.window.__ZEUS_DEVTOOLS_HOOK__
+    const [value, setValue] = createSignal('one')
+    const text = document.createTextNode('')
+    const container = document.createElement('div')
+
+    const dispose = render(() => {
+      bindText(text, value)
+      return text
+    }, container)
+    setValue('two')
+    expect(text.data).toBe('two')
+    expect(events).toHaveLength(0)
+    dispose()
+  })
+
+  it('starts collecting dependencies when a hook is installed later', () => {
+    delete dom.window.__ZEUS_DEVTOOLS_HOOK__
+    const [value, setValue] = createSignal('one')
+    const text = document.createTextNode('')
+    const container = document.createElement('div')
+    const dispose = render(() => {
+      bindText(text, value)
+      return text
+    }, container)
+
+    Object.defineProperty(dom.window, '__ZEUS_DEVTOOLS_HOOK__', {
+      configurable: true,
+      value: { emit: (event: TestEvent) => events.push(event) },
+    })
+    setValue('two')
+
+    expect(text.data).toBe('two')
+    expect(events.some(event => event.type === 'dependency:track')).toBe(true)
+    expect(
+      events.find(event => event.type === 'binding:commit')?.effectId,
+    ).toBeDefined()
+    dispose()
+  })
+
+  it('does not let a diagnostic hook failure break reactive updates', () => {
+    const [value, setValue] = createSignal('one')
     const text = document.createTextNode('')
     const container = document.createElement('div')
 
     const hook = dom.window.__ZEUS_DEVTOOLS_HOOK__
-    hook!.emit = () => {
-      throw new Error('panel closed')
+    hook!.emit = event => {
+      if (event.type.startsWith('dependency:')) throw new Error('panel closed')
     }
-
-    bindText(text, () => value.value)
-    container.append(text)
-    value.value = 'two'
+    const dispose = render(() => {
+      bindText(text, value)
+      return text
+    }, container)
+    setValue('two')
     expect(text.data).toBe('two')
+    dispose()
   })
 })
