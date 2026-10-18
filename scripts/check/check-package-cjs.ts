@@ -81,6 +81,7 @@ const expectedDevelopmentTargets: Record<string, string> = {
   '@zeus-js/signal/diagnostics': './dist/diagnostics.cjs',
   '@zeus-js/signal/internal': './dist/internal.cjs',
   '@zeus-js/zeus': './dist/zeus.cjs',
+  '@zeus-js/testing': './dist/testing.cjs',
   '@zeus-js/zeus/capabilities': './dist/capabilities.cjs',
   '@zeus-js/zeus/server': './dist/server.cjs',
   '@zeus-js/vite-plugin': './dist/vite-plugin.cjs',

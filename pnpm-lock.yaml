@@ -763,6 +763,12 @@ importers:
         specifier: workspace:*
         version: link:../shared
 
+  packages/core/testing:
+    dependencies:
+      '@zeus-js/zeus':
+        specifier: workspace:*
+        version: link:../zeus
+
   packages/core/zeus:
     dependencies:
       '@zeus-js/runtime-dom':

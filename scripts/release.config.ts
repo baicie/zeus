@@ -21,6 +21,7 @@ export const zeusFixedPackages = [
   '@zeus-js/query',
   '@zeus-js/compiler',
   '@zeus-js/zeus',
+  '@zeus-js/testing',
   '@zeus-js/bundler-plugin',
   '@zeus-js/component-analyzer',
   '@zeus-js/component-dts',

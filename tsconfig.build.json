@@ -18,6 +18,7 @@
     "packages/core/query/src",
     "packages/core/compiler/src",
     "packages/core/zeus/src",
+    "packages/core/testing/src",
     "packages/devtools/vite-plugin/src",
     "packages/web-c/bundler-plugin/src",
     "packages/web-c/web-c/src",
