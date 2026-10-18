@@ -1,6 +1,7 @@
 import { normalizeDOMAttributeName } from '@zeus-js/shared'
-import { effect, untrack } from '@zeus-js/signal/internal'
+import { effect, onScopeDispose, untrack } from '@zeus-js/signal/internal'
 
+import { emitDevtoolsEvent, getDevtoolsObjectId } from './devtools'
 import { assertRenderableJSXValue } from './jsxValue'
 
 import type { AttrValue, ClassValue, JSXValue, StyleValue } from './types'
@@ -10,9 +11,14 @@ export function bindText(
   value: () => JSXValue,
   once = false,
 ): void {
-  applyBinding(value, once, next => {
-    setTextData(node, stringifyText(next))
-  })
+  applyBinding(
+    value,
+    once,
+    next => {
+      setTextData(node, stringifyText(next))
+    },
+    { kind: 'text', target: node },
+  )
 }
 
 export function bindTextContent(
@@ -20,9 +26,14 @@ export function bindTextContent(
   value: () => JSXValue,
   once = false,
 ): void {
-  applyBinding(value, once, next => {
-    setTextContent(el, stringifyText(next))
-  })
+  applyBinding(
+    value,
+    once,
+    next => {
+      setTextContent(el, stringifyText(next))
+    },
+    { kind: 'text-content', target: el },
+  )
 }
 
 // Writing text is not as cheap as it looks: assigning `data` or `textContent`
@@ -44,15 +55,69 @@ function applyBinding<T>(
   value: () => T,
   once: boolean,
   apply: (next: T) => void,
+  metadata: BindingMetadata,
 ): void {
+  let bindingId: number | undefined
+  let effectId: number | undefined
+
+  const run = () => {
+    const started =
+      typeof performance !== 'undefined' ? performance.now() : Date.now()
+    const next = value()
+    apply(next)
+    const ended =
+      typeof performance !== 'undefined' ? performance.now() : Date.now()
+
+    if (typeof window !== 'undefined' && window.__ZEUS_DEVTOOLS_HOOK__) {
+      bindingId ??= getDevtoolsObjectId({})
+      effectId ??= getDevtoolsObjectId({})
+      emitDevtoolsEvent(
+        {
+          type: 'effect:run',
+          effectId,
+          bindingId,
+          payload: { duration: Math.max(0, ended - started) },
+        },
+        { swallowErrors: true },
+      )
+      emitDevtoolsEvent(
+        {
+          type: 'binding:commit',
+          bindingId,
+          target: metadata.target,
+          payload: { kind: metadata.kind, once },
+        },
+        { swallowErrors: true },
+      )
+    }
+  }
+
   if (once) {
-    untrack(() => apply(value()))
+    untrack(run)
     return
   }
 
-  effect(() => {
-    apply(value())
-  })
+  effect(run)
+  onScopeDispose(
+    () =>
+      bindingId === undefined
+        ? undefined
+        : emitDevtoolsEvent(
+            {
+              type: 'binding:cleanup',
+              bindingId,
+              target: metadata.target,
+              payload: { kind: metadata.kind },
+            },
+            { swallowErrors: true },
+          ),
+    true,
+  )
+}
+
+interface BindingMetadata {
+  kind: string
+  target: Node
 }
 
 function stringifyText(value: JSXValue): string {
@@ -163,21 +228,26 @@ export function bindAttr(
   let previous: string | null | undefined
   let hasPrevious = false
 
-  applyBinding(value, once, next => {
-    const serialized = serializeAttrValue(next)
+  applyBinding(
+    value,
+    once,
+    next => {
+      const serialized = serializeAttrValue(next)
 
-    // When a reactive binding changes, its target value is authoritative and
-    // reading the old DOM value only adds work before the write. Keep the DOM
-    // check for unchanged values so external mutations are still repaired.
-    if (hasPrevious && serialized === previous) {
-      setAttr(el, name, next)
-    } else {
-      writeAttr(el, name, next)
-    }
+      // When a reactive binding changes, its target value is authoritative and
+      // reading the old DOM value only adds work before the write. Keep the DOM
+      // check for unchanged values so external mutations are still repaired.
+      if (hasPrevious && serialized === previous) {
+        setAttr(el, name, next)
+      } else {
+        writeAttr(el, name, next)
+      }
 
-    previous = serialized
-    hasPrevious = true
-  })
+      previous = serialized
+      hasPrevious = true
+    },
+    { kind: `attr:${name}`, target: el },
+  )
 }
 
 export function bindProp<T extends Element, K extends keyof T>(
@@ -186,10 +256,15 @@ export function bindProp<T extends Element, K extends keyof T>(
   value: () => T[K],
   once = false,
 ): void {
-  applyBinding(value, once, next => {
-    if (!el.localName.includes('-') && Object.is(el[name], next)) return
-    el[name] = next
-  })
+  applyBinding(
+    value,
+    once,
+    next => {
+      if (!el.localName.includes('-') && Object.is(el[name], next)) return
+      el[name] = next
+    },
+    { kind: `prop:${String(name)}`, target: el },
+  )
 }
 
 export function bindClass(
@@ -197,15 +272,20 @@ export function bindClass(
   value: () => ClassValue,
   once = false,
 ): void {
-  applyBinding(value, once, value => {
-    const next = normalizeClass(value)
-    if (el.getAttribute('class') === (next || null)) return
-    if (next) {
-      el.setAttribute('class', next)
-    } else {
-      el.removeAttribute('class')
-    }
-  })
+  applyBinding(
+    value,
+    once,
+    value => {
+      const next = normalizeClass(value)
+      if (el.getAttribute('class') === (next || null)) return
+      if (next) {
+        el.setAttribute('class', next)
+      } else {
+        el.removeAttribute('class')
+      }
+    },
+    { kind: 'class', target: el },
+  )
 }
 
 export function normalizeClass(value: ClassValue): string {
@@ -233,26 +313,31 @@ export function bindStyle(
 ): void {
   let prev: StyleSnapshot | undefined
 
-  applyBinding(value, once, next => {
-    if (next == null) {
-      if (el.hasAttribute('style')) el.removeAttribute('style')
-      prev = undefined
-      return
-    }
+  applyBinding(
+    value,
+    once,
+    next => {
+      if (next == null) {
+        if (el.hasAttribute('style')) el.removeAttribute('style')
+        prev = undefined
+        return
+      }
 
-    if (typeof next === 'string') {
-      if (el.getAttribute('style') === next) return
-      el.setAttribute('style', next)
-      prev = undefined
-      return
-    }
+      if (typeof next === 'string') {
+        if (el.getAttribute('style') === next) return
+        el.setAttribute('style', next)
+        prev = undefined
+        return
+      }
 
-    prev = patchStyle(
-      el,
-      prev,
-      next as Record<string, string | number | null | undefined>,
-    )
-  })
+      prev = patchStyle(
+        el,
+        prev,
+        next as Record<string, string | number | null | undefined>,
+      )
+    },
+    { kind: 'style', target: el },
+  )
 }
 
 type StyleSnapshot = [values: Record<string, string>, state: string]
