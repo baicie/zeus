@@ -120,6 +120,8 @@ jobs:
       - run: pnpm build-dts
       - name: Docs smoke
         run: pnpm check:docs
+      - name: Compiler playground snapshots
+        run: pnpm playground:check
       - name: Quick Start smoke
         run: pnpm check:quick-start
       - name: SSR safe import

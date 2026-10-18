@@ -49,6 +49,8 @@
     "check:create-zeus": "tsx scripts/check/check-create-zeus.ts",
     "check:quick-start": "tsx scripts/check/check-quick-start.ts",
     "check:docs": "tsx scripts/check/check-docs.ts",
+    "playground:check": "tsx scripts/playground/check-playground.ts",
+    "playground:update": "tsx scripts/playground/check-playground.ts --update",
     "check:create-zeus-registry": "tsx scripts/check/check-template-dependencies.ts packages/devtools/create-zeus/templates/basic-ts/package.json packages/devtools/create-zeus/templates/application-ts/package.json packages/devtools/create-zeus/templates/component-library-ts/package.json packages/devtools/create-zeus/templates/web-component-ts/package.json",
     "check:release-worktree": "tsx scripts/release/check-release-worktree.ts",
     "check:repository": "tsx scripts/check/check-package-repository.ts",

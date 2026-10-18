@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 1,
+  "title": "Counter",
+  "source": "import { createSignal } from '@zeus-js/signal'\n\nexport const Counter = () => {\n  const [count, setCount] = createSignal(0)\n\n  return (\n    <button type=\"button\" onClick={() => setCount(count() + 1)}>\n      Count: {count()}\n    </button>\n  )\n}\n",
+  "dom": "import { template as $zeusTemplate, mountDynamic as $zeusMountDynamic, bindEvent as $zeusBindEvent, delegateEvents as $zeusDelegateEvents } from \"@zeus-js/runtime-dom\";\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"<button type=\\\"button\\\" data-zeus-node=\\\"2\\\">Count: <!></button>\");\nimport { createSignal } from '@zeus-js/signal'\n\nexport const Counter = () => {\n  const [count, setCount] = createSignal(0)\n\n  return (\n    (() => {\nconst $zeusEl = $zeusTmpl().firstChild;\n$zeusEl.removeAttribute(\"data-zeus-node\");\nconst $zeusWalker = $zeusEl.ownerDocument.createTreeWalker($zeusEl, 128);\nconst $zeusMarker = $zeusWalker.nextNode();\n$zeusBindEvent($zeusEl, \"click\", () => setCount(count() + 1));\n$zeusMountDynamic($zeusMarker.parentNode, $zeusMarker, () => count());\nreturn $zeusEl;\n})()\n  )\n}\n$zeusDelegateEvents([\"click\"]);\n",
+  "ssr": "import { ssrStatic as $zeusSsrStatic, ssrText as $zeusSsrText, ssrElement as $zeusSsrElement, ssrAttr as $zeusSsrAttr, ssrProp as $zeusSsrProp, ssrComponent as $zeusSsrComponent, ssrShow as $zeusSsrShow, ssrFor as $zeusSsrFor, ssrSpread as $zeusSsrSpread, mergeProps as $zeusMergeProps } from \"@zeus-js/runtime-ssr\";\nimport { createSignal } from '@zeus-js/signal'\n\nexport const Counter = () => {\n  const [count, setCount] = createSignal(0)\n\n  return (\n    $zeusSsrElement(\"button\", [$zeusSsrAttr(\"type\", \"button\")], [$zeusSsrStatic(\"Count: \"), count()])\n  )\n}\n",
+  "diagnostics": [
+    {
+      "code": "ZEUS_INVALID_BUILTIN_USAGE",
+      "message": "Builtin `Show` does not accept the `extra` attribute; allowed attributes: when, fallback.",
+      "severity": "error",
+      "filename": "invalid.tsx",
+      "hint": "Use a native element with static attributes and dynamic text.",
+      "span": {
+        "start": {
+          "offset": 84,
+          "line": 3,
+          "column": 46
+        },
+        "end": {
+          "offset": 103,
+          "line": 3,
+          "column": 65
+        }
+      }
+    }
+  ],
+  "ir": {
+    "id": 0,
+    "kind": "Module",
+    "preambleEnd": 0,
+    "components": [
+      {
+        "id": 1,
+        "kind": "Component",
+        "span": {
+          "start": {
+            "offset": 139,
+            "line": 7,
+            "column": 4
+          },
+          "end": {
+            "offset": 236,
+            "line": 9,
+            "column": 13
+          }
+        },
+        "root": {
+          "id": 2,
+          "kind": "Element",
+          "ref": {
+            "nodeId": 2
+          },
+          "tagName": "button",
+          "span": {
+            "start": {
+              "offset": 139,
+              "line": 7,
+              "column": 4
+            },
+            "end": {
+              "offset": 236,
+              "line": 9,
+              "column": 13
+            }
+          },
+          "attributes": [
+            {
+              "kind": "StaticAttribute",
+              "id": 3,
+              "name": "type",
+              "value": "button",
+              "span": {
+                "start": {
+                  "offset": 147,
+                  "line": 7,
+                  "column": 12
+                },
+                "end": {
+                  "offset": 160,
+                  "line": 7,
+                  "column": 25
+                }
+              }
+            },
+            {
+              "kind": "EventBinding",
+              "id": 4,
+              "eventName": "click",
+              "handler": {
+                "kind": "Expression",
+                "code": "() => setCount(count() + 1)",
+                "span": {
+                  "start": {
+                    "offset": 170,
+                    "line": 7,
+                    "column": 35
+                  },
+                  "end": {
+                    "offset": 197,
+                    "line": 7,
+                    "column": 62
+                  }
+                },
+                "form": "function",
+                "forAccessors": []
+              },
+              "span": {
+                "start": {
+                  "offset": 161,
+                  "line": 7,
+                  "column": 26
+                },
+                "end": {
+                  "offset": 198,
+                  "line": 7,
+                  "column": 63
+                }
+              }
+            }
+          ],
+          "children": [
+            {
+              "id": 5,
+              "kind": "Text",
+              "value": "Count: ",
+              "span": {
+                "start": {
+                  "offset": 199,
+                  "line": 7,
+                  "column": 64
+                },
+                "end": {
+                  "offset": 213,
+                  "line": 8,
+                  "column": 13
+                }
+              }
+            },
+            {
+              "id": 6,
+              "kind": "DynamicRegion",
+              "ref": {
+                "nodeId": 6
+              },
+              "expression": {
+                "kind": "ValueChild",
+                "expression": {
+                  "kind": "Expression",
+                  "code": "count()",
+                  "span": {
+                    "start": {
+                      "offset": 214,
+                      "line": 8,
+                      "column": 14
+                    },
+                    "end": {
+                      "offset": 221,
+                      "line": 8,
+                      "column": 21
+                    }
+                  },
+                  "form": "value",
+                  "forAccessors": []
+                }
+              },
+              "span": {
+                "start": {
+                  "offset": 214,
+                  "line": 8,
+                  "column": 14
+                },
+                "end": {
+                  "offset": 221,
+                  "line": 8,
+                  "column": 21
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "irNotice": "由 Rust lower_module 生成的内部 IR 调试快照；不是 transformModule 返回值或稳定公共 API。",
+  "outputSize": {
+    "label": "生成的 JS 模块；不含依赖与应用打包",
+    "dom": {
+      "raw": 828,
+      "gzip": 429,
+      "brotli": 349
+    },
+    "ssr": {
+      "raw": 560,
+      "gzip": 285,
+      "brotli": 243
+    }
+  },
+  "artifactSize": {
+    "raw": 6706,
+    "gzip": 1792,
+    "brotli": 1441
+  }
+}
