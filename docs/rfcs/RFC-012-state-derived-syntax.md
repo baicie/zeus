@@ -1,6 +1,6 @@
 # RFC-012：State/Derived 语法糖边界
 
-- 状态：Proposal
+- 状态：Accepted（设计边界；不代表语法已实现）
 - 任务：S-010
 - 范围：编译期语法设计；本 RFC 不实现新的语法转换
 
@@ -11,6 +11,15 @@ Zeus 可以在显式运行时 primitive 之上提供可选的 `$state`、`$deriv
 `createEffect`、`createRoot` 和 `onCleanup` 语义，不能改变组件只初始化一次的模型，
 也不能把普通 JavaScript 变量隐式变成响应式变量。
 
+语法糖必须显式 opt-in，默认关闭；未启用的模块中这些名字保持普通 JavaScript
+语义。启用入口和配置名称留给实现提案确定，不能通过文件扩展名或全局编译选项
+静默启用。实现提案必须说明 opt-in 的作用范围，并在 diagnostics 中区分未启用的
+普通调用与启用模块中的语法糖。
+
+在启用模块中，`$state`、`$derived` 和 `$effect` 仅在直接标识符调用位置作为
+编译期 intrinsic 识别。局部声明或导入若遮蔽这些名字，必须产生诊断；编译器
+不得把它们静默解释成 intrinsic，也不得对别名或成员访问做猜测式转换。
+
 ```tsx
 let count = $state(0)
 const doubled = $derived(count * 2)
@@ -19,8 +28,9 @@ $effect(() => console.log(doubled))
 
 ## 作用域与捕获
 
-编译器为每个启用语法糖的模块建立显式的 state scope。`$state` 绑定只能在其
-声明 scope 内通过 getter/setter 访问；`$derived` 捕获的 `$state` 和其他
+编译器为每个启用语法糖的组件初始化或显式 owner scope 建立 state scope；模块
+顶层初始化不是组件 scope，不能隐式创建跨实例共享的 state。`$state` 绑定只能
+在其词法声明 scope 内通过 getter/setter 访问；`$derived` 捕获的 `$state` 和其他
 `$derived` 读取在 memo 内重新执行。嵌套函数可以捕获绑定，但捕获的是 accessor
 语义，不是初始化时的值快照。
 
@@ -80,3 +90,7 @@ JSX 动态 region，以及会改变函数调用/事件 receiver 语义的隐藏�
 在该 RFC 被采纳并完成上述契约测试前，用户代码继续使用显式
 `createSignal/createMemo/createEffect`。任何语法糖实现都必须生成同一套运行时
 primitive，而不是新增公共响应式引擎。
+
+本 RFC 采纳的是语义边界，不授权实现语法转换。实现前仍须另行提交实现提案，
+冻结 opt-in 配置、稳定诊断、JSX/TypeScript 位置规则，并完成上文测试矩阵；在
+这些条件满足前，编译器必须拒绝启用请求并建议使用显式 runtime API。
