@@ -18,6 +18,7 @@ export {
 // runtime
 export {
   render,
+  Portal,
   Show,
   For,
   Host,
@@ -29,6 +30,7 @@ export {
 
 export type {
   JSXValue,
+  PortalProps,
   Component,
   ShowProps,
   ForProps,

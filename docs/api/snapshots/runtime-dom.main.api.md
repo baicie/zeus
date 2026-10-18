@@ -163,6 +163,18 @@ export declare function mountDynamic(
   value: () => JSXValue,
 ): void
 
+export interface PortalProps {
+  target: Element | DocumentFragment
+  children?: JSXValue | (() => JSXValue)
+}
+/**
+ * Mounts a Native JSX range into a target owned by the same document.
+ *
+ * The returned comment is the source-tree placeholder. Portal owns only the
+ * target anchors and nodes inserted between them.
+ */
+export declare function Portal(props: PortalProps): Comment
+
 export declare function isWithinRuntimeDomMove(node: Node): boolean
 
 export declare function marker(parent: ParentNode, index: number): Comment

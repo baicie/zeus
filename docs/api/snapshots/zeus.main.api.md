@@ -37,6 +37,8 @@ export {
   Host,
   HostProps,
   JSXValue,
+  Portal,
+  PortalProps,
   PropDefinition,
   PropDefinitionOptions,
   PropDeserializer,
