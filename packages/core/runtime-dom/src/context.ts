@@ -6,6 +6,7 @@
 
 import { onScopeDispose } from '@zeus-js/signal/internal'
 
+import { emitDevtoolsEvent, getDevtoolsObjectId } from './devtools'
 import { insert } from './insert'
 
 import type { JSXValue } from './types'
@@ -67,10 +68,23 @@ export function getCurrentOwner(): Owner | undefined {
 }
 
 export function createOwner(parent: Owner | undefined = currentOwner): Owner {
-  return {
+  const owner = {
     parent,
     provides: new Map(),
   }
+
+  if (typeof window !== 'undefined' && window.__ZEUS_DEVTOOLS_HOOK__) {
+    emitDevtoolsEvent(
+      {
+        type: 'owner:create',
+        ownerId: getDevtoolsObjectId(owner),
+        payload: parent ? { parentId: getDevtoolsObjectId(parent) } : undefined,
+      },
+      { swallowErrors: true },
+    )
+  }
+
+  return owner
 }
 
 export function runWithOwner<T>(owner: Owner | undefined, fn: () => T): T {

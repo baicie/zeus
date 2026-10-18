@@ -1,7 +1,7 @@
 import { scope } from '@zeus-js/signal/internal'
 
 import { createOwner, runWithOwner } from './context'
-import { emitDevtoolsEvent } from './devtools'
+import { emitDevtoolsEvent, getDevtoolsObjectId } from './devtools'
 import { insert } from './insert'
 
 import type { JSXValue } from './types'
@@ -36,6 +36,16 @@ export function render(
 
     renderScope.stop()
     container.textContent = ''
+    if (typeof window !== 'undefined' && window.__ZEUS_DEVTOOLS_HOOK__) {
+      emitDevtoolsEvent(
+        {
+          type: 'owner:dispose',
+          ownerId: getDevtoolsObjectId(owner),
+          target: container,
+        },
+        { swallowErrors: true },
+      )
+    }
   }
 }
 

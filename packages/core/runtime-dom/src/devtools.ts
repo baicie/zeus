@@ -1,26 +1,42 @@
-// packages/runtime-dom/src/devtools.ts
+// Runtime-only bridge for the optional DevTools integration.
 
 /* eslint-disable no-unused-vars */
-export type ZeusDevtoolsEvent =
-  | {
-      type: 'render'
-      target: Element | DocumentFragment
-    }
-  | {
-      type: 'effect'
-      name?: string
-    }
-  | {
-      type: 'mount-for'
-      length: number
-    }
-  | {
-      type: 'delegate-event'
-      event: string
-    }
+
+export type ZeusDevtoolsEventType =
+  | 'render'
+  | 'effect'
+  | 'mount-for'
+  | 'delegate-event'
+  | 'owner:create'
+  | 'owner:dispose'
+  | 'effect:run'
+  | 'binding:commit'
+  | 'binding:cleanup'
+
+export interface ZeusDevtoolsEvent {
+  readonly id: number
+  readonly timestamp: number
+  readonly type: ZeusDevtoolsEventType
+  readonly target?: Node
+  readonly targetId?: number
+  readonly ownerId?: number
+  readonly bindingId?: number
+  readonly effectId?: number
+  readonly event?: string
+  readonly length?: number
+  readonly name?: string
+  readonly payload?: Readonly<Record<string, unknown>>
+}
+
+type ZeusDevtoolsEventInput = Omit<ZeusDevtoolsEvent, 'id' | 'timestamp'>
 
 export type ZeusDevtoolsHook = {
   emit: (event: ZeusDevtoolsEvent) => void
+}
+
+export interface ZeusDevtoolsEmitOptions {
+  /** Diagnostic events must never make an application update fail. */
+  readonly swallowErrors?: boolean
 }
 
 declare global {
@@ -29,7 +45,45 @@ declare global {
   }
 }
 
-export function emitDevtoolsEvent(event: ZeusDevtoolsEvent): void {
+let nextEventId = 1
+let nextObjectId = 1
+const objectIds = new WeakMap<object, number>()
+
+export function getDevtoolsObjectId(value: object): number {
+  const existing = objectIds.get(value)
+  if (existing !== undefined) return existing
+
+  const id = nextObjectId++
+  objectIds.set(value, id)
+  return id
+}
+
+export function emitDevtoolsEvent(
+  event: ZeusDevtoolsEventInput,
+  options: ZeusDevtoolsEmitOptions = {},
+): void {
   if (typeof window === 'undefined') return
-  window.__ZEUS_DEVTOOLS_HOOK__?.emit(event)
+
+  const hook = window.__ZEUS_DEVTOOLS_HOOK__
+  if (!hook) return
+
+  const targetId = event.target ? getDevtoolsObjectId(event.target) : undefined
+  const enriched: ZeusDevtoolsEvent = {
+    ...event,
+    id: nextEventId++,
+    timestamp:
+      typeof performance !== 'undefined' ? performance.now() : Date.now(),
+    ...(targetId === undefined ? {} : { targetId }),
+  }
+
+  if (options.swallowErrors) {
+    try {
+      hook.emit(enriched)
+    } catch {
+      // DevTools must remain an observer. A broken panel cannot break updates.
+    }
+    return
+  }
+
+  hook.emit(enriched)
 }
