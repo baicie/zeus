@@ -5,17 +5,15 @@ Generate React wrappers from Web Component sources.
 ## Install
 
 ```bash
-pnpm add @zeus-js/zeus
-pnpm add -D @zeus-js/vite-plugin @zeus-js/output-wc @zeus-js/output-react-wrapper
+pnpm add @zeus-js/zeus @zeus-js/web-c
+pnpm add -D vite typescript
 ```
 
 ## Configure
 
 ```ts
 import { defineConfig } from 'vite'
-import zeus from '@zeus-js/vite-plugin/vite'
-import wc from '@zeus-js/output-wc/vite'
-import react from '@zeus-js/output-react-wrapper/vite'
+import zeus, { componentLibrary } from '@zeus-js/web-c/vite'
 
 export default defineConfig({
   plugins: [
@@ -23,7 +21,9 @@ export default defineConfig({
       components: {
         include: ['src/components/**/*.{ts,tsx}'],
       },
-      outputs: [wc({ outDir: 'dist/wc' }), react({ outDir: 'dist/react' })],
+      plugins: componentLibrary({
+        targets: ['wc', 'react'],
+      }),
     }),
   ],
 })

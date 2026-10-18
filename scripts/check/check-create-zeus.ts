@@ -10,7 +10,7 @@ import {
 import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { scaffold } from '../../packages/devtools/create-zeus/src/scaffold'
 
@@ -19,7 +19,6 @@ const rootDir = path.resolve(
   '../..',
 )
 const require = createRequire(import.meta.url)
-const smokeRoot = mkdtempSync(path.join(os.tmpdir(), 'zeus-create-smoke-'))
 const templates = [
   'basic-ts',
   'application-ts',
@@ -27,30 +26,37 @@ const templates = [
   'web-component-ts',
 ] as const
 
-try {
-  for (const template of templates) {
-    const projectRoot = path.join(smokeRoot, template)
+export async function checkCreateZeus(): Promise<void> {
+  const smokeRoot = mkdtempSync(path.join(os.tmpdir(), 'zeus-create-smoke-'))
 
-    await scaffold({
-      root: projectRoot,
-      projectName: `smoke-${template}`,
-      template,
-    })
+  try {
+    for (const template of templates) {
+      const projectRoot = path.join(smokeRoot, template)
 
-    linkWorkspacePackages(projectRoot)
-    run(projectRoot, 'tsc', ['--noEmit', '--project', 'tsconfig.json'])
-    run(projectRoot, 'vite', ['build'])
-    if (template === 'application-ts' || template === 'component-library-ts') {
-      run(projectRoot, 'vitest', ['run'])
+      await scaffold({
+        root: projectRoot,
+        projectName: `smoke-${template}`,
+        template,
+      })
+
+      linkWorkspacePackages(projectRoot)
+      run(projectRoot, 'tsc', ['--noEmit', '--project', 'tsconfig.json'])
+      run(projectRoot, 'vite', ['build'])
+      if (
+        template === 'application-ts' ||
+        template === 'component-library-ts'
+      ) {
+        run(projectRoot, 'vitest', ['run'])
+      }
+      if (template === 'component-library-ts') {
+        assertComponentLibraryOutputs(projectRoot)
+      }
+
+      console.log(`[create-zeus] ${template} template passed typecheck + build`)
     }
-    if (template === 'component-library-ts') {
-      assertComponentLibraryOutputs(projectRoot)
-    }
-
-    console.log(`[create-zeus] ${template} template passed typecheck + build`)
+  } finally {
+    rmSync(smokeRoot, { recursive: true, force: true })
   }
-} finally {
-  rmSync(smokeRoot, { recursive: true, force: true })
 }
 
 function assertComponentLibraryOutputs(projectRoot: string): void {
@@ -162,4 +168,8 @@ function resolveExecutable(command: string): string {
     packageDir,
     command === 'vite' ? 'bin/vite.js' : 'vitest.mjs',
   )
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  await checkCreateZeus()
 }

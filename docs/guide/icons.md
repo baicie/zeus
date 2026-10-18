@@ -4,30 +4,35 @@ Zero-runtime SVG icon output.
 
 ## How it works
 
-Icons are extracted from `@zeus-ui/headless` at build time and emitted as pure SVG files — no JavaScript runtime needed to render them.
+Icons are declared as build inputs and emitted as pure SVG files. No JavaScript
+runtime is needed to render the generated files.
 
 ## Install
 
 ```bash
-pnpm add @zeus-js/vite-plugin @zeus-js/output-icons
+pnpm add @zeus-js/web-c
+pnpm add -D vite
 ```
 
 ## Configure
 
 ```ts
 import { defineConfig } from 'vite'
-import zeus from '@zeus-js/vite-plugin/vite'
-import icons from '@zeus-js/output-icons/vite'
+import zeus from '@zeus-js/web-c/vite'
+import { icons } from '@zeus-js/web-c'
 
 export default defineConfig({
   plugins: [
     zeus({
-      components: {
-        include: ['node_modules/@zeus-ui/headless/dist/wc/*.js'],
-      },
-      outputs: [
+      plugins: [
         icons({
-          outDir: 'dist/icons',
+          icons: [
+            {
+              name: 'check',
+              svg: '<svg viewBox="0 0 16 16"><path d="M3 8l3 3 7-7" /></svg>',
+            },
+          ],
+          outDir: 'icons',
         }),
       ],
     }),
@@ -40,16 +45,16 @@ export default defineConfig({
 Each icon becomes a standalone `.svg` file:
 
 ```
-dist/icons/chevron-left.svg
-dist/icons/chevron-right.svg
-dist/icons/x.svg
+dist/icons/svg/chevron-left.svg
+dist/icons/svg/chevron-right.svg
+dist/icons/svg/x.svg
 ...
 ```
 
 ## Use in HTML
 
 ```html
-<img src="/dist/icons/chevron-left.svg" alt="Previous" />
+<img src="/icons/svg/chevron-left.svg" alt="Previous" />
 ```
 
 ## Use as React/Vue component
@@ -57,7 +62,7 @@ dist/icons/x.svg
 The icons output can be consumed as inline SVG in your framework:
 
 ```tsx
-import { IconX } from '@zeus-ui/headless/icons'
+import { IconX } from './dist/icons/react'
 ```
 
 This uses the runtime icon component from headless, which inlines the SVG at runtime.

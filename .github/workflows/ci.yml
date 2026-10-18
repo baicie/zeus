@@ -118,6 +118,10 @@ jobs:
       - run: pnpm build
       - run: pnpm check:runtime-interop
       - run: pnpm build-dts
+      - name: Docs smoke
+        run: pnpm check:docs
+      - name: Quick Start smoke
+        run: pnpm check:quick-start
       - name: SSR safe import
         run: pnpm check:ssr-safe-import
       - run: pnpm check:cjs
