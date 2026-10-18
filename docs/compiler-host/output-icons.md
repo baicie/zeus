@@ -1,27 +1,18 @@
 # Icons Output
 
-Extract icon components from headless and emit zero-runtime SVG files.
+Provide inline SVG sources and emit zero-runtime SVG files.
 
 ## Options
 
 ```ts
 interface OutputIconsOptions {
-  /** Output directory for SVG files */
-  outDir: string
-
-  /** Icon names to extract (default: all) */
-  include?: string[]
-
-  /** Icon names to exclude */
-  exclude?: string[]
-
-  /** SVG optimization options */
-  optimize?: {
-    /** Remove empty attributes (default: true) */
-    removeEmptyAttrs?: boolean
-    /** Convert colors (default: 'currentColor') */
-    color?: string
-  }
+  icons: Array<{ name: string; svg: string; title?: string }>
+  outDir?: string
+  svg?: boolean
+  react?: boolean | { outDir?: string }
+  vue?: boolean | { outDir?: string }
+  wc?: boolean | { outDir?: string; tagPrefix?: string }
+  dts?: boolean
 }
 ```
 
@@ -29,19 +20,21 @@ interface OutputIconsOptions {
 
 ```ts
 import { defineConfig } from 'vite'
-import zeus from '@zeus-js/vite-plugin/vite'
-import icons from '@zeus-js/output-icons/vite'
+import zeus from '@zeus-js/web-c/vite'
+import { icons } from '@zeus-js/web-c'
 
 export default defineConfig({
   plugins: [
     zeus({
-      components: {
-        include: ['node_modules/@zeus-ui/headless/dist/wc/*.js'],
-      },
-      outputs: [
+      plugins: [
         icons({
-          outDir: 'public/icons',
-          optimize: { color: 'currentColor' },
+          icons: [
+            {
+              name: 'check',
+              svg: '<svg viewBox="0 0 16 16"><path d="M3 8l3 3 7-7" /></svg>',
+            },
+          ],
+          outDir: 'icons',
         }),
       ],
     }),
@@ -54,12 +47,12 @@ export default defineConfig({
 Each icon becomes a standalone `.svg` file:
 
 ```
-public/icons/
-  x.svg
-  check.svg
-  chevron-left.svg
-  chevron-right.svg
-  plus.svg
+dist/icons/
+  svg/check.svg
+  react/check.js
+  react/index.js
+  vue/check.js
+  vue/index.js
   ...
 ```
 
@@ -74,10 +67,10 @@ public/icons/
 ### As React component
 
 ```tsx
-import { IconX } from '@zeus-ui/headless/react'
+import { IconCheck } from './dist/icons/react'
 
 // Inline SVG rendered at runtime
-;<IconX size={24} class="text-muted-foreground" />
+;<IconCheck size={24} className="text-muted-foreground" />
 ```
 
 The `IconX` component inlines the SVG path, useful when you need dynamic color or sizing.

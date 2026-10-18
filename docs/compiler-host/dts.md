@@ -4,29 +4,26 @@ Generate TypeScript declaration files for component props and events.
 
 ## Options
 
-```ts
-interface OutputDtsOptions {
-  /** Output directory for .d.ts files */
-  outDir: string
-
-  /** Include or exclude specific components */
-  filter?: (component: ComponentEntry) => boolean
-}
-```
+Declaration files are enabled by the Web Component output plugin with its
+`dts` and `jsxDts` options.
 
 ## Usage
 
 ```ts
 import { defineConfig } from 'vite'
-import zeus from '@zeus-js/vite-plugin/vite'
-import wc from '@zeus-js/output-wc/vite'
-import dts from '@zeus-js/component-dts/vite'
+import zeus, { wc } from '@zeus-js/web-c/vite'
 
 export default defineConfig({
   plugins: [
     zeus({
       components: { include: ['src/components/**/*.ts'] },
-      outputs: [wc({ outDir: 'dist/wc' }), dts({ outDir: 'dist/wc' })],
+      plugins: [
+        wc({
+          outDir: 'wc',
+          dts: true,
+          jsxDts: true,
+        }),
+      ],
     }),
   ],
 })
@@ -34,48 +31,39 @@ export default defineConfig({
 
 ## Generated output
 
-For each component:
+With the default lazy loader, the output includes `wc/loader.d.ts`,
+`wc/index.d.ts`, `wc/types/jsx.d.ts`, and one small declaration per component:
 
 ```ts
+// dist/wc/loader.d.ts
+export declare function defineCustomElement(
+  tagName: string,
+  options?: { registry?: CustomElementRegistry },
+): void
+export declare function defineCustomElements(options?: {
+  registry?: CustomElementRegistry
+}): void
+
 // dist/wc/z-button.d.ts
-
-import type { CustomElement } from '@zeus-js/zeus'
-
-export interface ButtonProps {
-  variant?: 'default' | 'outline' | 'ghost' | 'destructive'
-  disabled?: boolean
-}
-
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'z-button': CustomElement<ButtonProps> & {
-        onpress?: (event: CustomEvent<{ nativeEvent: MouseEvent }>) => void
-      }
-    }
-  }
-}
-
-export const ZButton: (
-  props: ButtonProps & {
-    onpress?: (event: CustomEvent<{ nativeEvent: MouseEvent }>) => void
-    children?: any
-  },
-) => HTMLElement
+export declare function defineCustomElement(options?: {
+  registry?: CustomElementRegistry
+}): void
 ```
 
-## Global types
+`wc/types/jsx.d.ts` extends the Zeus JSX namespace with component props and
+event handlers. In side-effect mode (`register: 'side-effect'`), the plugin
+also emits per-component element types and `wc/index.d.ts` exports them.
 
-The DTS output also writes a `global.d.ts` that extends `HTMLElementTagNameMap`:
+The loader declaration adds component types to `HTMLElementTagNameMap`:
 
 ```ts
-// dist/wc/global.d.ts
+// dist/wc/loader.d.ts
 
 declare global {
   interface HTMLElementTagNameMap {
-    'z-button': HTMLZButtonElement
-    'z-card': HTMLZCardElement
-    'z-dialog': HTMLZDialogElement
+    'z-button': ZButtonElement
+    'z-card': ZCardElement
+    'z-dialog': ZDialogElement
   }
 }
 ```

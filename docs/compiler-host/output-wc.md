@@ -5,15 +5,17 @@ Emits native custom element JavaScript files from `defineElement` sources.
 ## Options
 
 ```ts
-interface OutputWcOptions {
-  /** Output directory (relative to project root) */
-  outDir: string
-
-  /** Inject import statements into generated files */
-  injectImports?: string[]
-
-  /** Additional file extensions to process */
-  extensions?: string[]
+interface OutputWCOptions {
+  outDir?: string
+  stripPrefix?: string | false
+  fileName?: (tag: string) => string
+  manifestFile?: string | false
+  customElementsFile?: string | false
+  dts?: boolean | 'auto'
+  jsxDts?: boolean | 'auto'
+  index?: boolean
+  register?: 'lazy' | 'side-effect'
+  auto?: boolean
 }
 ```
 
@@ -21,24 +23,37 @@ interface OutputWcOptions {
 
 ```
 dist/wc/
-  z-button.js
+  z-button.js          # lazy registration bridge
+  z-button.entry.js    # component implementation chunk
   z-card.js
+  z-card.entry.js
   z-dialog.js
-  index.js       # barrel with all registered elements
+  z-dialog.entry.js
+  components.manifest.js
+  loader.js
+  auto.js              # registers every component when imported
+  index.js              # exports loader functions
 ```
 
 ## Usage
 
 ```ts
 import { defineConfig } from 'vite'
-import zeus from '@zeus-js/vite-plugin/vite'
-import wc from '@zeus-js/output-wc/vite'
+import zeus, { wc } from '@zeus-js/web-c/vite'
 
 export default defineConfig({
   plugins: [
     zeus({
       components: { include: ['src/components/**/*.ts'] },
-      outputs: [wc({ outDir: 'dist/wc' })],
+      plugins: [
+        wc({
+          outDir: 'wc',
+          manifestFile: 'zeus.components.json',
+          customElementsFile: 'custom-elements.json',
+          dts: true,
+          jsxDts: true,
+        }),
+      ],
     }),
   ],
 })
@@ -46,18 +61,23 @@ export default defineConfig({
 
 ## Registering elements
 
-Import the barrel file to register all elements:
+Import the auto entry to register all elements:
 
 ```ts
-import './dist/wc/index.js'
+import './dist/wc/auto.js'
 ```
 
-Or import individual elements:
+For explicit registration, import the loader and call it with a registry:
 
 ```ts
-import './dist/wc/z-button.js'
+import { defineCustomElements } from './dist/wc/index.js'
+
+defineCustomElements()
 ```
+
+The per-component `z-button.js` files expose `defineCustomElement()` and are
+registration bridges; importing them alone does not register the element.
 
 ## Custom elements.json
 
-The output includes a `custom-elements.json` manifest at `dist/wc/custom-elements.json`, compatible with tooling like Web Component devtools and IDE extensions.
+The output includes a `custom-elements.json` manifest at `dist/custom-elements.json`, compatible with tooling like Web Component devtools and IDE extensions.

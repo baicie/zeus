@@ -5,8 +5,8 @@ Generate Vue 3 wrappers from Web Component sources.
 ## Install
 
 ```bash
-pnpm add @zeus-js/zeus
-pnpm add -D @zeus-js/vite-plugin @zeus-js/output-wc @zeus-js/output-vue-wrapper
+pnpm add @zeus-js/zeus @zeus-js/web-c
+pnpm add -D @vitejs/plugin-vue vite typescript
 ```
 
 ## Configure
@@ -14,9 +14,7 @@ pnpm add -D @zeus-js/vite-plugin @zeus-js/output-wc @zeus-js/output-vue-wrapper
 ```ts
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import zeus from '@zeus-js/vite-plugin/vite'
-import wc from '@zeus-js/output-wc/vite'
-import vueWrapper from '@zeus-js/output-vue-wrapper/vite'
+import zeus, { componentLibrary } from '@zeus-js/web-c/vite'
 
 export default defineConfig({
   plugins: [
@@ -25,7 +23,9 @@ export default defineConfig({
       components: {
         include: ['src/components/**/*.{ts,tsx}'],
       },
-      outputs: [wc({ outDir: 'dist/wc' }), vueWrapper({ outDir: 'dist/vue' })],
+      plugins: componentLibrary({
+        targets: ['wc', 'vue'],
+      }),
     }),
   ],
 })

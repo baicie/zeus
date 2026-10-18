@@ -1,6 +1,9 @@
-# Component Compiler Host
+# Web-C Component Build
 
-The Component Compiler Host is the build-time layer that turns Zeus Web Component source into multiple outputs.
+`@zeus-js/web-c` is the public build entry for turning Zeus component source
+into Web Component, React, and Vue outputs. Its Vite, Rollup, and Rolldown
+subpaths provide the matching bundler adapter; `@zeus-js/vite-plugin` remains
+the application entry for compiling Zeus Native TSX.
 
 ## Architecture
 
@@ -8,32 +11,39 @@ The Component Compiler Host is the build-time layer that turns Zeus Web Componen
 defineElement source
   │
   ▼
-component-analyzer
+@zeus-js/web-c
   │
   ▼
-ComponentManifest
+component analyzer → component manifest
   │
   ▼
-bundler-plugin
+bundler adapter + output plugins
   │
   ▼
-┌───────────────┬─────────────────┬──────────────┐
-│  output-wc    │ output-react    │ output-vue   │
-│               │ output-icons    │              │
-└───────────────┴─────────────────┴──────────────┘
+┌──────────────────┬──────────────────┬──────────────────┐
+│ Web Components   │ React wrappers   │ Vue wrappers     │
+└──────────────────┴──────────────────┴──────────────────┘
 ```
 
-## Packages
+## Public entry points
 
-| Package                         | Description                                      |
-| ------------------------------- | ------------------------------------------------ |
-| `@zeus-js/component-analyzer`   | Extracts manifest from `defineElement` source    |
-| `@zeus-js/component-dts`        | Generates `.d.ts` for component props and events |
-| `@zeus-js/bundler-plugin`       | Vite plugin host for component analysis          |
-| `@zeus-js/output-wc`            | Emits native Web Component files                 |
-| `@zeus-js/output-react-wrapper` | Generates React wrapper components               |
-| `@zeus-js/output-vue-wrapper`   | Generates Vue 3 wrapper components               |
-| `@zeus-js/output-icons`         | Extracts and emits zero-runtime SVG icons        |
+| Entry point               | Use it for                                  |
+| ------------------------- | ------------------------------------------- |
+| `@zeus-js/web-c`          | Output plugins and component-library preset |
+| `@zeus-js/web-c/vite`     | Vite component-library builds               |
+| `@zeus-js/web-c/rollup`   | Rollup component-library builds             |
+| `@zeus-js/web-c/rolldown` | Rolldown component-library builds           |
+| `@zeus-js/vite-plugin`    | Zeus Native application TSX compilation     |
+
+```ts
+import zeus, { componentLibrary } from '@zeus-js/web-c/vite'
+
+zeus({ plugins: componentLibrary() })
+```
+
+The lower-level analyzer, bundler host, and output packages are implementation
+dependencies of the public Web-C entry. Install those packages directly only
+when building an integration around their individual contracts.
 
 ## Source of truth
 

@@ -6,9 +6,7 @@ The Vite plugin orchestrates component analysis and output generation as part of
 
 ```ts
 import { defineConfig } from 'vite'
-import zeus from '@zeus-js/vite-plugin/vite'
-import wc from '@zeus-js/output-wc/vite'
-import react from '@zeus-js/output-react-wrapper/vite'
+import zeus, { componentLibrary } from '@zeus-js/web-c/vite'
 
 export default defineConfig({
   plugins: [
@@ -17,7 +15,7 @@ export default defineConfig({
         include: ['src/components/**/*.{ts,tsx}'],
         exclude: ['src/components/**/*.test.{ts,tsx}'],
       },
-      outputs: [wc({ outDir: 'dist/wc' }), react({ outDir: 'dist/react' })],
+      plugins: componentLibrary({ targets: ['wc', 'react'] }),
     }),
   ],
 })
@@ -34,19 +32,17 @@ interface ZeusPluginOptions {
   }
 
   /** Output generators */
-  outputs: OutputPlugin[]
+  plugins: ZeusComponentPlugin[]
 }
 ```
 
 ## Outputs
 
-Outputs are plugins that receive the component manifest and generate files:
+The `componentLibrary()` preset receives the component manifest and generates:
 
-- `wc` — native Web Component JS files
-- `react` — React wrapper components
-- `vue` — Vue 3 wrapper components
-- `icons` — pure SVG icon files
-- `dts` — TypeScript declaration files
+- Web Component JS files
+- React/Vue wrapper components
+- CSS, manifest, and TypeScript declaration files
 
 ## Dev mode
 
