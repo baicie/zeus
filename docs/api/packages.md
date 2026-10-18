@@ -26,6 +26,7 @@
 | `@zeus-js/resource`             | `packages/core/resource`              | 0.1.1-beta.14 | core     | 异步资源、取消与 stale cache 原语            |
 | `@zeus-js/query`                | `packages/core/query`                 | 0.1.1-beta.14 | core     | @tanstack/query-core 细粒度适配器            |
 | `@zeus-js/zeus`                 | `packages/core/zeus`                  | 0.1.0         | core     | 统一入口，导出所有公共 API                   |
+| `@zeus-js/testing`              | `packages/core/testing`               | 0.1.1-beta.14 | core     | 官方测试工具：渲染、事件、查询与 effect 刷新 |
 | `@zeus-js/signal`               | `packages/core/signal`                | 0.1.0         | core     | 响应式核心，基于 alien-signals               |
 | `@zeus-js/runtime-dom`          | `packages/core/runtime-dom`           | 0.1.0         | core     | DOM runtime helpers                          |
 | `@zeus-js/runtime-ssr`          | `packages/core/runtime-ssr`           | 0.1.0         | core     | 服务端字符串渲染 runtime                     |
@@ -63,6 +64,9 @@
 │   └── @zeus-js/signal
 └── @zeus-js/runtime-ssr
     └── @zeus-js/signal
+
+@zeus-js/testing
+└── @zeus-js/zeus
 
 @zeus-js/compiler
 └── @zeus-js/compiler-native
@@ -510,6 +514,35 @@ export { makeMap } from './makeMap'
 export * from './general' // 通用工具函数
 export * from './typeUtils' // 类型工具
 ```
+
+### 3.6 `@zeus-js/testing`
+
+**用途**：面向组件和应用测试的官方组合工具。测试代码只需依赖
+`@zeus-js/zeus` 的公共入口，不应导入 `@zeus-js/runtime-dom` 或
+`@zeus-js/signal/internal`。
+
+```ts
+import {
+  fireEvent,
+  flushEffects,
+  queryByRole,
+  render,
+} from '@zeus-js/testing'
+
+const view = render(() => <button onClick={() => {}}>Save</button>)
+fireEvent.click(queryByRole(view.container, 'button', { name: 'Save' })!)
+await flushEffects()
+view.dispose()
+```
+
+公共 API：
+
+- `render(value, options?)`：创建测试容器，返回 `container`、`baseElement`、`dispose`、`unmount` 和 `rerender`。
+- `fireEvent(element, eventOrType, init?)`：派发事件，并提供 `click`、`input`、`change`、`submit`、`focus`、`blur` 便利方法。
+- `flushEffects()`：等待当前微任务队列完成后再断言异步 effect 结果。
+- `queryByRole(container, role, options?)`：按显式或常用隐式 ARIA role 查询，并支持 `aria-label`、`aria-labelledby`、`alt`、`title` 与文本 accessible name。
+
+该包提供 DOM 测试组合，不负责启动浏览器、网络请求或快照；浏览器级场景继续使用 Playwright/Puppeteer。
 
 ---
 

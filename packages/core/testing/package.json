@@ -1,0 +1,57 @@
+{
+  "name": "@zeus-js/testing",
+  "type": "module",
+  "version": "0.1.1-beta.14",
+  "description": "Official testing utilities for Zeus applications and components",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baicie/zeus",
+    "directory": "packages/core/testing"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/testing.d.ts",
+      "module": "./dist/testing.esm-bundler.js",
+      "import": "./dist/testing.esm-bundler.js",
+      "require": {
+        "production": "./dist/testing.prod.cjs",
+        "development": "./dist/testing.cjs",
+        "default": "./index.cjs"
+      }
+    }
+  },
+  "files": [
+    "index.cjs",
+    "dist"
+  ],
+  "dependencies": {
+    "@zeus-js/zeus": "workspace:*"
+  },
+  "author": "Baicie",
+  "bugs": {
+    "url": "https://github.com/baicie/zeus/issues"
+  },
+  "buildOptions": {
+    "name": "ZeusTesting",
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ],
+    "target": "es2022"
+  },
+  "homepage": "https://github.com/baicie/zeus/tree/main/packages/core/testing#readme",
+  "keywords": [
+    "zeus",
+    "testing",
+    "vitest"
+  ],
+  "main": "index.cjs",
+  "module": "dist/testing.esm-bundler.js",
+  "types": "dist/testing.d.ts"
+}
