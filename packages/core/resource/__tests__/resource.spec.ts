@@ -57,7 +57,9 @@ describe('@zeus-js/resource', () => {
 
   it('reuses fresh cached results and marks stale data while revalidating', async () => {
     const fetcher = vi
-      .fn<(value: string, context: { signal: AbortSignal }) => Promise<string>>()
+      .fn<
+        (value: string, context: { signal: AbortSignal }) => Promise<string>
+      >()
       .mockResolvedValueOnce('cached')
       .mockResolvedValueOnce('fresh')
     const resource = createResource('key', fetcher, {

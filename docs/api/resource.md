@@ -6,7 +6,8 @@
 ```ts
 const resource = createResource(
   () => search(),
-  (query, { signal }) => fetch(`/api/search?q=${query}`, { signal }).then(r => r.json()),
+  (query, { signal }) =>
+    fetch(`/api/search?q=${query}`, { signal }).then(r => r.json()),
   { key: query => query, staleTime: 5_000 },
 )
 

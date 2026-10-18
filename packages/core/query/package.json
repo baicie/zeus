@@ -26,14 +26,20 @@
       }
     }
   },
-  "files": ["index.cjs", "dist"],
+  "files": [
+    "index.cjs",
+    "dist"
+  ],
   "dependencies": {
     "@tanstack/query-core": "^5.104.3",
     "@zeus-js/signal": "workspace:*"
   },
   "buildOptions": {
     "name": "ZeusQuery",
-    "formats": ["esm-bundler", "cjs"]
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ]
   },
   "main": "index.cjs",
   "module": "dist/query.esm-bundler.js",

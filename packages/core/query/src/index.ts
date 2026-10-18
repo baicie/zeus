@@ -229,7 +229,8 @@ export function createMutation<T, V, E = DefaultError>(
       let requestController = controllersByContext.get(context)
       if (!requestController) {
         requestController = queuedControllers.shift()
-        if (requestController) controllersByContext.set(context, requestController)
+        if (requestController)
+          controllersByContext.set(context, requestController)
       }
       if (!requestController)
         throw new Error('Mutation request was not initialized')

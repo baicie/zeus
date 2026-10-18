@@ -184,9 +184,7 @@ export function createResource<T, K>(
   }
 
   const readSource = (): K =>
-    typeof source === 'function'
-      ? (source as Accessor<K>)()
-      : source
+    typeof source === 'function' ? (source as Accessor<K>)() : source
 
   const load = (): void => {
     lastSource = readSource()

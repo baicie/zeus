@@ -26,13 +26,19 @@
       }
     }
   },
-  "files": ["index.cjs", "dist"],
+  "files": [
+    "index.cjs",
+    "dist"
+  ],
   "dependencies": {
     "@zeus-js/signal": "workspace:*"
   },
   "buildOptions": {
     "name": "ZeusResource",
-    "formats": ["esm-bundler", "cjs"]
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ]
   },
   "main": "index.cjs",
   "module": "dist/resource.esm-bundler.js",

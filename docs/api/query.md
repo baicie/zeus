@@ -7,7 +7,8 @@ Zeus accessor。重试、缓存、去重和查询取消由 query-core 处理。
 const client = createQueryClient()
 const users = createQuery(client, {
   queryKey: ['users', page],
-  queryFn: ({ signal }) => fetch(`/api/users?page=${page}`, { signal }).then(r => r.json()),
+  queryFn: ({ signal }) =>
+    fetch(`/api/users?page=${page}`, { signal }).then(r => r.json()),
   retry: 2,
 })
 
