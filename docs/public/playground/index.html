@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f5f7f8" />
+    <title>Zeus Compiler Playground</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        color: #20292c;
+        background: #f5f7f8;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 14px 22px;
+        border-bottom: 1px solid #d9e0e2;
+        background: #fff;
+      }
+      header strong {
+        font-size: 15px;
+      }
+      header a {
+        color: #176b58;
+        text-decoration: none;
+      }
+      main {
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 14px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 22px;
+      }
+      .toolbar p {
+        margin: 5px 0 0;
+        color: #59666a;
+        font-size: 13px;
+      }
+      button {
+        min-height: 36px;
+        padding: 0 12px;
+        border: 1px solid #c7d2d4;
+        border-radius: 5px;
+        color: #263236;
+        background: #fff;
+        font: inherit;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #eef5f3;
+      }
+      button:focus-visible {
+        outline: 3px solid #79b6a5;
+        outline-offset: 2px;
+      }
+      .workspace {
+        display: grid;
+        grid-template-columns: minmax(280px, 0.82fr) minmax(0, 1.35fr);
+        min-height: 560px;
+        border: 1px solid #d9e0e2;
+        border-radius: 6px;
+        overflow: hidden;
+        background: #fff;
+      }
+      .source-pane {
+        border-right: 1px solid #d9e0e2;
+      }
+      .pane-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 44px;
+        padding: 0 14px;
+        border-bottom: 1px solid #d9e0e2;
+        font-size: 13px;
+        font-weight: 650;
+      }
+      .file-name {
+        color: #687579;
+        font-weight: 450;
+      }
+      .tabs {
+        display: flex;
+        gap: 4px;
+        padding: 8px 10px 0;
+        border-bottom: 1px solid #d9e0e2;
+        overflow-x: auto;
+      }
+      .tabs button {
+        flex: 0 0 auto;
+        min-height: 34px;
+        border: 0;
+        border-bottom: 2px solid transparent;
+        border-radius: 0;
+        color: #59666a;
+        background: transparent;
+        font-size: 13px;
+      }
+      .tabs button[aria-selected='true'] {
+        border-bottom-color: #17755f;
+        color: #145b4c;
+        font-weight: 650;
+      }
+      pre {
+        min-height: 500px;
+        margin: 0;
+        padding: 18px;
+        overflow: auto;
+        color: #e8eeef;
+        background: #20292c;
+        font:
+          12px/1.65 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        tab-size: 2;
+        white-space: pre;
+      }
+      .source-pane pre {
+        min-height: 516px;
+      }
+      .meta {
+        padding: 14px 16px;
+        border-top: 1px solid #d9e0e2;
+      }
+      .meta p {
+        margin: 0;
+        color: #59666a;
+        font-size: 12px;
+        line-height: 1.6;
+      }
+      #size-view {
+        min-height: 500px;
+        padding: 20px;
+        background: #fff;
+      }
+      .sizes {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+      }
+      .sizes h2 {
+        margin: 0 0 8px;
+        font-size: 14px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      th,
+      td {
+        padding: 7px 4px;
+        border-bottom: 1px solid #e2e8e9;
+        text-align: left;
+      }
+      th {
+        color: #59666a;
+        font-weight: 500;
+      }
+      td:last-child {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .error {
+        color: #ffd8d4;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      @media (max-width: 760px) {
+        main {
+          padding: 16px;
+        }
+        .toolbar {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+        .source-pane {
+          border-right: 0;
+          border-bottom: 1px solid #d9e0e2;
+        }
+        .source-pane pre,
+        pre {
+          min-height: 280px;
+        }
+        .sizes {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <strong>Zeus Compiler Playground</strong>
+      <a href="../guide/getting-started">文档</a>
+    </header>
+    <main>
+      <div class="toolbar">
+        <div>
+          <h1>Counter 编译样例</h1>
+          <p>
+            静态示例由当前 Rust 编译器生成，可查看 DOM、SSR、内部 IR 与诊断。
+          </p>
+        </div>
+        <button id="copy-source" type="button" title="复制 TSX 源码" disabled>
+          复制源码
+        </button>
+      </div>
+      <section class="workspace" aria-label="编译结果浏览器">
+        <div class="source-pane">
+          <div class="pane-heading">
+            <span>输入</span><span class="file-name">counter.tsx</span>
+          </div>
+          <pre><code id="source">读取样例中…</code></pre>
+        </div>
+        <div class="output-pane">
+          <div class="pane-heading">
+            <span>编译结果</span
+            ><span class="file-name">Rust Native Compiler</span>
+          </div>
+          <div class="tabs" role="tablist" aria-label="编译结果类型">
+            <button
+              id="tab-dom"
+              type="button"
+              role="tab"
+              aria-selected="true"
+              aria-controls="panel"
+              disabled
+              data-view="dom"
+            >
+              DOM JS
+            </button>
+            <button
+              id="tab-ssr"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="panel"
+              disabled
+              data-view="ssr"
+            >
+              SSR JS
+            </button>
+            <button
+              id="tab-ir"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="panel"
+              disabled
+              data-view="ir"
+            >
+              IR
+            </button>
+            <button
+              id="tab-diagnostics"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="panel"
+              disabled
+              data-view="diagnostics"
+            >
+              诊断
+            </button>
+            <button
+              id="tab-size"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="panel"
+              disabled
+              data-view="size"
+            >
+              输出尺寸
+            </button>
+          </div>
+          <div id="panel" role="tabpanel" aria-labelledby="tab-dom">
+            <pre id="output"><code>加载中…</code></pre>
+            <div id="size-view" hidden></div>
+          </div>
+          <div class="meta"><p id="notice"></p></div>
+        </div>
+      </section>
+    </main>
+    <script>
+      const sourceNode = document.querySelector('#source')
+      const output = document.querySelector('#output')
+      const outputNode = document.querySelector('#output code')
+      const sizeView = document.querySelector('#size-view')
+      const panel = document.querySelector('#panel')
+      const notice = document.querySelector('#notice')
+      const tabs = [...document.querySelectorAll('[role="tab"]')]
+      let sample
+      let currentView = 'dom'
+
+      const formatBytes = value => `${value.toLocaleString('en-US')} B`
+      const renderSize = () => {
+        const rows = size => `<table><tbody>
+          <tr><th>原始</th><td>${formatBytes(size.raw)}</td></tr>
+          <tr><th>gzip</th><td>${formatBytes(size.gzip)}</td></tr>
+          <tr><th>Brotli</th><td>${formatBytes(size.brotli)}</td></tr>
+        </tbody></table>`
+        return `<div class="sizes"><section><h2>DOM JS 模块</h2>${rows(sample.outputSize.dom)}</section>
+          <section><h2>SSR JS 模块</h2>${rows(sample.outputSize.ssr)}</section>
+          <section><h2>静态 artifact</h2>${rows(sample.artifactSize)}</section></div>`
+      }
+      const renderView = view => {
+        if (!sample) return
+        currentView = view
+        tabs.forEach(tab => {
+          const selected = tab.dataset.view === view
+          tab.setAttribute('aria-selected', String(selected))
+          tab.tabIndex = selected ? 0 : -1
+        })
+        panel.setAttribute('aria-labelledby', `tab-${view}`)
+        outputNode.classList.toggle('error', view === 'diagnostics')
+        notice.textContent = ''
+        output.hidden = view === 'size'
+        sizeView.hidden = view !== 'size'
+        if (view === 'dom' || view === 'ssr') {
+          outputNode.textContent = sample[view]
+          notice.textContent = sample.outputSize.label
+        } else if (view === 'ir') {
+          outputNode.textContent = JSON.stringify(sample.ir, null, 2)
+          notice.textContent = sample.irNotice
+        } else if (view === 'diagnostics') {
+          outputNode.textContent = JSON.stringify(sample.diagnostics, null, 2)
+          notice.textContent = '诊断来自独立的故意错误 TSX fixture。'
+        } else {
+          sizeView.innerHTML = renderSize()
+          notice.textContent = `静态 artifact：counter.json（含源码、输出、IR 与诊断）`
+        }
+      }
+
+      fetch('./counter.json')
+        .then(response => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`)
+          return response.json()
+        })
+        .then(data => {
+          sample = data
+          tabs.forEach(tab => (tab.disabled = false))
+          document.querySelector('#copy-source').disabled = false
+          sourceNode.textContent = sample.source
+          renderView(currentView)
+        })
+        .catch(error => {
+          sourceNode.textContent = '样例加载失败。'
+          outputNode.textContent = String(error)
+        })
+
+      tabs.forEach((tab, index) => {
+        tab.addEventListener('click', () => renderView(tab.dataset.view))
+        tab.addEventListener('keydown', event => {
+          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key))
+            return
+          event.preventDefault()
+          const next =
+            event.key === 'Home'
+              ? 0
+              : event.key === 'End'
+                ? tabs.length - 1
+                : (index + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) %
+                  tabs.length
+          tabs[next].focus()
+          renderView(tabs[next].dataset.view)
+        })
+      })
+      document
+        .querySelector('#copy-source')
+        .addEventListener('click', async event => {
+          if (!sample) return
+          const button = event.currentTarget
+          await navigator.clipboard.writeText(sample.source)
+          button.textContent = '已复制'
+          setTimeout(() => {
+            button.textContent = '复制源码'
+          }, 1400)
+        })
+    </script>
+  </body>
+</html>

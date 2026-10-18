@@ -1,0 +1,157 @@
+{
+  "id": 0,
+  "kind": "Module",
+  "preambleEnd": 0,
+  "components": [
+    {
+      "id": 1,
+      "kind": "Component",
+      "span": {
+        "start": {
+          "offset": 139,
+          "line": 7,
+          "column": 4
+        },
+        "end": {
+          "offset": 236,
+          "line": 9,
+          "column": 13
+        }
+      },
+      "root": {
+        "id": 2,
+        "kind": "Element",
+        "ref": {
+          "nodeId": 2
+        },
+        "tagName": "button",
+        "span": {
+          "start": {
+            "offset": 139,
+            "line": 7,
+            "column": 4
+          },
+          "end": {
+            "offset": 236,
+            "line": 9,
+            "column": 13
+          }
+        },
+        "attributes": [
+          {
+            "kind": "StaticAttribute",
+            "id": 3,
+            "name": "type",
+            "value": "button",
+            "span": {
+              "start": {
+                "offset": 147,
+                "line": 7,
+                "column": 12
+              },
+              "end": {
+                "offset": 160,
+                "line": 7,
+                "column": 25
+              }
+            }
+          },
+          {
+            "kind": "EventBinding",
+            "id": 4,
+            "eventName": "click",
+            "handler": {
+              "kind": "Expression",
+              "code": "() => setCount(count() + 1)",
+              "span": {
+                "start": {
+                  "offset": 170,
+                  "line": 7,
+                  "column": 35
+                },
+                "end": {
+                  "offset": 197,
+                  "line": 7,
+                  "column": 62
+                }
+              },
+              "form": "function",
+              "forAccessors": []
+            },
+            "span": {
+              "start": {
+                "offset": 161,
+                "line": 7,
+                "column": 26
+              },
+              "end": {
+                "offset": 198,
+                "line": 7,
+                "column": 63
+              }
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": 5,
+            "kind": "Text",
+            "value": "Count: ",
+            "span": {
+              "start": {
+                "offset": 199,
+                "line": 7,
+                "column": 64
+              },
+              "end": {
+                "offset": 213,
+                "line": 8,
+                "column": 13
+              }
+            }
+          },
+          {
+            "id": 6,
+            "kind": "DynamicRegion",
+            "ref": {
+              "nodeId": 6
+            },
+            "expression": {
+              "kind": "ValueChild",
+              "expression": {
+                "kind": "Expression",
+                "code": "count()",
+                "span": {
+                  "start": {
+                    "offset": 214,
+                    "line": 8,
+                    "column": 14
+                  },
+                  "end": {
+                    "offset": 221,
+                    "line": 8,
+                    "column": 21
+                  }
+                },
+                "form": "value",
+                "forAccessors": []
+              }
+            },
+            "span": {
+              "start": {
+                "offset": 214,
+                "line": 8,
+                "column": 14
+              },
+              "end": {
+                "offset": 221,
+                "line": 8,
+                "column": 21
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

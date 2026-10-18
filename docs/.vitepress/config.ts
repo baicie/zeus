@@ -12,6 +12,7 @@ export default defineConfig({
 
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
+      { text: 'Playground', link: '/playground/' },
       { text: 'Examples', link: '/examples/counter' },
       { text: 'Components', link: '/components/button' },
       { text: 'Compiler Host', link: '/compiler-host/overview' },
