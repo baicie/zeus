@@ -142,6 +142,7 @@ export async function runConsumer() {
     'design token update did not reach shadow content',
   )
   const partStyle = document.createElement('style')
+  partStyle.nonce = 'packed-style-nonce'
   partStyle.textContent =
     'z-packed-button::part(control) { border-top-width: 3px; }'
   document.head.append(partStyle)
@@ -276,6 +277,7 @@ export async function runConsumer() {
     await import('@zeus-test/components/light-panel')
   defineLightPanel()
   const panel = document.createElement('z-packed-light-panel')
+  panel.theme = 'light'
   const initialBody = document.createElement('p')
   initialBody.textContent = 'initial body'
   const projectedInput = document.createElement('input')
@@ -284,6 +286,50 @@ export async function runConsumer() {
   panel.append(initialBody)
   form.append(panel)
   await panel.componentOnReady()
+
+  const panelStyle = panel.querySelector('style')
+  assert(panelStyle, `light DOM style missing: ${panel.innerHTML}`)
+  assert(
+    panelStyle.nonce === 'packed-light-style-nonce' ||
+      panelStyle.getAttribute('nonce') === 'packed-light-style-nonce',
+    `light DOM style nonce missing: ${panelStyle.outerHTML}`,
+  )
+  assert(
+    getComputedStyle(panel).color === 'rgb(7, 8, 9)',
+    'light DOM design token did not reach host',
+  )
+  panel.style.setProperty('--packed-light-accent', 'rgb(10, 11, 12)')
+  await new Promise(resolve => requestAnimationFrame(resolve))
+  assert(
+    getComputedStyle(panel).color === 'rgb(10, 11, 12)',
+    'light DOM design token update did not reach host',
+  )
+
+  const hostThemeStyle = document.createElement('style')
+  hostThemeStyle.nonce = 'packed-light-style-nonce'
+  hostThemeStyle.textContent =
+    'z-packed-light-panel[data-theme="dark"] { color: rgb(13, 14, 15); }'
+  document.head.append(hostThemeStyle)
+  panel.theme = 'dark'
+  await new Promise(resolve => requestAnimationFrame(resolve))
+  assert(
+    panel.dataset.theme === 'dark',
+    'Host data-theme attribute did not update',
+  )
+  assert(
+    getComputedStyle(panel).color === 'rgb(13, 14, 15)',
+    'Host data-theme CSS did not update theme',
+  )
+  const blockedStyle = document.createElement('style')
+  blockedStyle.textContent =
+    'z-packed-light-panel[data-theme="dark"] { outline-width: 9px; }'
+  document.head.append(blockedStyle)
+  await new Promise(resolve => requestAnimationFrame(resolve))
+  assert(
+    getComputedStyle(panel).outlineWidth !== '9px',
+    'Content Security Policy allowed a style without a nonce',
+  )
+  blockedStyle.remove()
 
   const headingFallback = panel.querySelector('[data-fallback="heading"]')
   const body = panel.querySelector('main p')
@@ -359,6 +405,14 @@ export async function runConsumer() {
   panel.remove()
   document.body.append(panel)
   await panel.componentOnReady()
+  assert(
+    panel.querySelectorAll('style').length === 1,
+    'light DOM reconnect accumulated duplicate styles',
+  )
+  assert(
+    panel.querySelector('style')?.nonce === 'packed-light-style-nonce',
+    'light DOM reconnect lost style nonce',
+  )
   const reconnectedBody = document.createElement('p')
   reconnectedBody.textContent = 'after reconnect'
   panel.append(reconnectedBody)
