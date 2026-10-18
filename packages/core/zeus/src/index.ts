@@ -19,6 +19,7 @@ export {
 export {
   render,
   Portal,
+  ErrorBoundary,
   Show,
   For,
   Host,
@@ -31,6 +32,7 @@ export {
 export type {
   JSXValue,
   PortalProps,
+  ErrorBoundaryProps,
   Component,
   ShowProps,
   ForProps,

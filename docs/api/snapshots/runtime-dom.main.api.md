@@ -175,6 +175,21 @@ export interface PortalProps {
  */
 export declare function Portal(props: PortalProps): Comment
 
+export interface ErrorBoundaryProps {
+  /** The child must be a factory so setup errors stay inside the boundary. */
+  children: () => JSXValue
+  fallback: (error: unknown, reset: () => void) => JSXValue
+  onError?: (error: unknown) => void
+}
+/**
+ * Mounts an explicit-factory error boundary without introducing a wrapper node.
+ * Compiler lowering may target this helper once boundary children are emitted
+ * as factories automatically.
+ */
+export declare function ErrorBoundary(
+  props: ErrorBoundaryProps,
+): DocumentFragment
+
 export declare function isWithinRuntimeDomMove(node: Node): boolean
 
 export declare function marker(parent: ParentNode, index: number): Comment

@@ -19,6 +19,8 @@ export { insert, mountDynamic } from './insert'
 
 export { Portal, type PortalProps } from './portal'
 
+export { ErrorBoundary, type ErrorBoundaryProps } from './errorBoundary'
+
 export { insertTracked } from './insert'
 export { isWithinRuntimeDomMove } from './domMove'
 

@@ -1,9 +1,9 @@
 # RFC-016：ErrorBoundary、Portal 与 Transition 契约
 
-- 状态：Proposed（E-004 最小契约切片）
+- 状态：Accepted（E-004 Native runtime slice；compiler lowering 与 Transition 待后续）
 - 日期：2026-10-19
 - 依赖：RFC-001、RFC-006、RFC-008、RFC-011、RFC-015
-- 实现范围：Native Portal runtime；ErrorBoundary 与 Transition 先冻结契约
+- 实现范围：Native Portal 与显式 factory ErrorBoundary runtime；Transition 先冻结契约
 
 ## 摘要
 
@@ -11,9 +11,9 @@ E-004 需要把错误恢复、跨目标 DOM 挂载和离场动画放进同一套
 生命周期里。本 RFC 只承诺细粒度 DOM runtime 能够实现的语义，不引入 Virtual DOM、
 组件重新执行或隐式 Promise 渲染。
 
-本切片交付 Native Portal 的最小实现和 cleanup 回归。ErrorBoundary 需要 compiler
-把边界 children 降低成显式 render factory，Transition 需要延迟子树 scope 销毁；两者
-在这些前置条件稳定前只保留契约和测试设计，不导出半成品公共 API。
+本切片交付 Native Portal 与显式 render-factory ErrorBoundary 的最小实现和 cleanup
+回归。Transition 需要延迟子树 scope 销毁；在 compiler lowering 和状态机稳定前不导出
+Transition 公共 API。
 
 ## 1. ErrorBoundary
 
@@ -31,21 +31,25 @@ interface ErrorBoundaryProps {
 ```
 
 `<ErrorBoundary><Child /></ErrorBoundary>` 在当前 TSX 语义下不能承诺捕获 `Child`
-初始化错误：普通 component children 是 JSX 值，不是默认惰性函数（RFC-008）。只有
-compiler 为 ErrorBoundary 建立专用 boundary lowering 后，边界才可以接管 child 的
-render factory。未完成 lowering 前，调用方应显式传入 factory 形式，测试也必须使用
-该形式。
+初始化错误：普通 component children 是 JSX 值，不是默认惰性函数（RFC-008）。当前
+runtime 只接受显式 factory 形式；compiler lowering 完成后才可把普通边界 children 自动
+降级为 factory。
 
 ### 1.2 捕获范围和恢复
 
-- 捕获 child factory 调用、子树初次插入和该边界拥有的动态 render effect 的同步错误。
-- 不捕获事件处理器错误、独立 owner 的错误或未观察的 Promise rejection。
+- 当前 runtime 切片捕获 child factory 调用和子树初次插入的同步错误。运行中 binding
+  effect 的错误转发需要 signal owner error hook，仍待单独实现；事件处理器错误、独立
+  owner 错误或未观察的 Promise rejection 不由当前切片捕获。
 - `fallback` 在新的子树 scope 中挂载；fallback 自身抛错继续传播到最近外层边界或
   `render()` 调用方，不递归吞错。
 - 一次失败只调用一次 `onError`。`reset()` 先停止失败子树并移除其节点，再重新
   执行 child factory；重试失败按新的错误再次通知。
 - 边界销毁时先停止 child/fallback effect，再移除节点。错误恢复不能遗留 effect、
   listener、ref 或 Portal target 节点。
+
+当前实现入口为 `ErrorBoundary({ children, fallback, onError })`，必须在活动 owner/scope
+内调用。它使用稳定的 comment range，不生成 wrapper element；`reset()` 会先停止失败
+分支，再重新执行 child factory。
 
 ### 1.3 Resource 错误
 
@@ -54,8 +58,8 @@ render factory。未完成 lowering 前，调用方应显式传入 factory 形�
 render factory 中抛出该错误。`refetch()` 的 reject 仍由调用方处理，边界不能把异步
 Promise 当作 JSX child。
 
-最小验收需要覆盖：pending → error 的状态发布、错误 UI 显示、重新 refetch 成功后的
-恢复，以及边界/owner 销毁后请求取消和 cleanup 顺序。
+Resource 集成仍待验收：pending → error 的状态发布、错误 UI 显示、重新 refetch 成功后
+的恢复，以及边界/owner 销毁后请求取消和 cleanup 顺序。
 
 ## 2. Portal
 

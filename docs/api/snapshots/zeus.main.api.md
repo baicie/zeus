@@ -27,6 +27,8 @@ export {
   ElementModelDefinition,
   EmitApi,
   EmitsOptions,
+  ErrorBoundary,
+  ErrorBoundaryProps,
   EventDefinition,
   EventOptions,
   For,

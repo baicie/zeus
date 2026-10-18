@@ -55,6 +55,20 @@ control-flow inputs reject the intrinsic with a compiler diagnostic.
 
 Static subtrees are cloned from cached templates, not created from scratch.
 
+## Compiler optimization budget
+
+The compiler fixture checks the code generation budget for the C-005 slice:
+
+```bash
+pnpm bench:compiler-optimization
+```
+
+The command fails when the two identical static components stop sharing one
+template factory, when the fixture's two reactive binding effects or its event
+binding/delegation setup are missing or duplicated.
+The report is written to `temp/bench/compiler-optimization.json`; the same
+budget assertions are covered by `scripts/bench/compiler-optimization.spec.ts`.
+
 ## Size reporting
 
 Check bundle sizes:

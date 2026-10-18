@@ -98,6 +98,9 @@ jobs:
       - name: Native compiler integration
         run: pnpm test:compiler-native
 
+      - name: Compiler optimization budget
+        run: pnpm bench:compiler-optimization
+
   build:
     runs-on: ubuntu-latest
     steps:

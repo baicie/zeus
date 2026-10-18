@@ -135,3 +135,23 @@ function bindRef(el: Element, ref: { value: unknown }): void
 ```
 
 Binds a DOM element to a reactive ref.
+
+## ErrorBoundary
+
+```ts
+interface ErrorBoundaryProps {
+  children: () => JSXValue
+  fallback: (error: unknown, reset: () => void) => JSXValue
+  onError?: (error: unknown) => void
+}
+
+function ErrorBoundary(props: ErrorBoundaryProps): DocumentFragment
+```
+
+`ErrorBoundary` currently requires an explicit child factory and an active
+render scope so it can catch synchronous initialization and first-insertion
+errors and release its subtree with the owner. Its fallback owns a separate
+scope, and `reset()` disposes that branch before retrying the child.
+The runtime does not yet catch errors from later binding effects, event handlers,
+independent owners, or unobserved Promise rejections. Resource error integration
+and compiler lowering for `<ErrorBoundary>` remain pending.
