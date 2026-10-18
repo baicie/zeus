@@ -553,47 +553,21 @@ pnpm release:publishOnly 0.1.0-beta.5 --skipBuild
 
 ---
 
-# 8. canary 自测
+# 8. canary dry-run-only 自测
 
-本地 canary 默认会拒绝运行，因为 canary 是 CI 场景。
-
-本地强制 dry 环境自测命令：
+真实 Canary 仍只允许 GitHub Actions 发布。需要在本地验证版本准备、严格 precheck
+和每个固定包的 npm publish dry-run 时，使用 `--dry-run-only`；它完成 dry-run 后立即退出，
+不会检查 npm 写权限或 OIDC，也不会执行真实 publish：
 
 ```bash
-CI=1 \
-NODE_AUTH_TOKEN=dummy \
 GITHUB_SHA=0000000000000000000000000000000000000000 \
 GITHUB_RUN_NUMBER=1 \
 GITHUB_RUN_ATTEMPT=1 \
-pnpm release:canary --force-local
+GITHUB_RUN_ID=1 \
+pnpm release:canary --dry-run-only
 ```
 
-但是它会真的走 publish dry-run 后再走 publish。如果 `@baicie/release` 当前 canary 还没有 `--dry-run-only`，本地不要跑完整 canary，除非你确认 token 是 dummy 且 publish 会失败在认证阶段。
-
-更建议给 `@baicie/release` 的 `runCanaryCli` 补一个参数：
-
-```txt
---dry-run-only
-```
-
-然后本地跑：
-
-```bash
-CI=1 \
-NODE_AUTH_TOKEN=dummy \
-GITHUB_SHA=0000000000000000000000000000000000000000 \
-GITHUB_RUN_NUMBER=1 \
-GITHUB_RUN_ATTEMPT=1 \
-pnpm release:canary --force-local --dry-run-only
-```
-
-如果暂时不改 tools，那 zeus 侧 canary 自测只跑：
-
-```bash
-pnpm exec tsx scripts/release/release-canary.ts --force-local
-```
-
-并在它进入真实 publish 前中断，不作为最终验收。
+该命令仍会修改版本文件和 lockfile；运行后按 dry-run 规则检查并恢复工作区。
 
 ---
 

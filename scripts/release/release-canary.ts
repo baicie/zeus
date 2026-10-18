@@ -28,11 +28,31 @@ export interface CanaryPublishDependencies {
   wait: (ms: number) => Promise<void>
 }
 
+export interface CanaryPublishPhasesDependencies extends Omit<
+  CanaryPublishDependencies,
+  'dryRun' | 'maxAttempts'
+> {
+  dryRunOnly: boolean
+  maxAttempts: number
+}
+
+export interface CanaryOptions {
+  dryRunOnly: boolean
+}
+
+export function parseCanaryOptions(args: readonly string[]): CanaryOptions {
+  return { dryRunOnly: args.includes('--dry-run-only') }
+}
+
 export async function publishCanaryPackages(
   dependencies: CanaryPublishDependencies,
+  options: { skipExistingVersions?: boolean } = {},
 ): Promise<void> {
   for (const pkg of dependencies.packages) {
-    if (await dependencies.versionExists(pkg, dependencies.version)) {
+    if (
+      options.skipExistingVersions !== false &&
+      (await dependencies.versionExists(pkg, dependencies.version))
+    ) {
       console.log(pico.yellow(`skip existing ${pkg}@${dependencies.version}`))
       continue
     }
@@ -87,6 +107,30 @@ export async function publishCanaryPackages(
   }
 }
 
+export async function publishCanaryPhases(
+  dependencies: CanaryPublishPhasesDependencies,
+): Promise<'dry-run-only' | 'published'> {
+  const { dryRunOnly, maxAttempts, ...publishDependencies } = dependencies
+
+  await publishCanaryPackages(
+    {
+      ...publishDependencies,
+      dryRun: true,
+      maxAttempts: 1,
+    },
+    { skipExistingVersions: !dryRunOnly },
+  )
+
+  if (dryRunOnly) return 'dry-run-only'
+
+  await publishCanaryPackages({
+    ...publishDependencies,
+    dryRun: false,
+    maxAttempts,
+  })
+  return 'published'
+}
+
 export function getCanaryVersion(
   environment: NodeJS.ProcessEnv,
   now = new Date(),
@@ -118,13 +162,16 @@ export function getCanaryStagingTag(environment: NodeJS.ProcessEnv): string {
 }
 
 async function main(): Promise<void> {
-  assertCanaryEnvironment(process.env)
+  const { dryRunOnly } = parseCanaryOptions(process.argv.slice(2))
+  assertCanaryEnvironment(process.env, { dryRunOnly })
   const version = getCanaryVersion(process.env)
   const stagingTag = getCanaryStagingTag(process.env)
   const registry = config.publish?.registry ?? defaultRegistry
 
-  verifyCurrentMainHead()
-  exposeCanaryEnvironment(version, stagingTag)
+  if (!dryRunOnly) {
+    verifyCurrentMainHead()
+    exposeCanaryEnvironment(version, stagingTag)
+  }
 
   run('pnpm', ['release:version-packages', version])
   run('pnpm', ['install', '--lockfile-only'])
@@ -138,28 +185,11 @@ async function main(): Promise<void> {
       throw new Error(`Missing release package: ${pkg}`)
   }
 
-  await publishCanaryPackages({
+  const result = await publishCanaryPhases({
     packages: zeusFixedPackages,
     version,
     tag: stagingTag,
-    dryRun: true,
-    maxAttempts: 1,
-    versionExists: async (pkg, expectedVersion) =>
-      npmVersionExists(pkg, expectedVersion, registry),
-    verifyHead: async () => {
-      verifyCurrentMainHead()
-    },
-    publishPackage: async (pkg, expectedVersion, tag, dryRun) => {
-      publishPackage(pkg, expectedVersion, tag, registry, dryRun)
-    },
-    wait,
-  })
-
-  await publishCanaryPackages({
-    packages: zeusFixedPackages,
-    version,
-    tag: stagingTag,
-    dryRun: false,
+    dryRunOnly,
     maxAttempts: config.publish?.retry ?? 5,
     versionExists: async (pkg, expectedVersion) =>
       npmVersionExists(pkg, expectedVersion, registry),
@@ -172,6 +202,15 @@ async function main(): Promise<void> {
     wait,
   })
 
+  if (result === 'dry-run-only') {
+    console.log(
+      pico.green(
+        `Canary dry-run-only passed (${zeusFixedPackages.length} packages, ${stagingTag} -> ${version}); no packages were published.`,
+      ),
+    )
+    return
+  }
+
   verifyCurrentMainHead()
   console.log(
     pico.green(
@@ -180,15 +219,25 @@ async function main(): Promise<void> {
   )
 }
 
-function assertCanaryEnvironment(environment: NodeJS.ProcessEnv): void {
+export function assertCanaryEnvironment(
+  environment: NodeJS.ProcessEnv,
+  options: { dryRunOnly?: boolean } = {},
+): void {
   if (!config.canary?.enabled) throw new Error('Canary publication is disabled')
-  if (!environment.CI || environment.GITHUB_ACTIONS !== 'true') {
+  if (
+    !options.dryRunOnly &&
+    (!environment.CI || environment.GITHUB_ACTIONS !== 'true')
+  ) {
     throw new Error('Canary publication is only allowed in GitHub Actions')
   }
-  if (!environment.NODE_AUTH_TOKEN && !environment.NPM_TOKEN) {
+  if (
+    !options.dryRunOnly &&
+    !environment.NODE_AUTH_TOKEN &&
+    !environment.NPM_TOKEN
+  ) {
     throw new Error('NODE_AUTH_TOKEN or NPM_TOKEN is required')
   }
-  if (!environment.ACTIONS_ID_TOKEN_REQUEST_TOKEN) {
+  if (!options.dryRunOnly && !environment.ACTIONS_ID_TOKEN_REQUEST_TOKEN) {
     throw new Error('GitHub OIDC token permission is required for provenance')
   }
 }
@@ -232,10 +281,7 @@ function publishPackage(
     ],
     {
       cwd: process.cwd(),
-      env: {
-        ...process.env,
-        NODE_AUTH_TOKEN: process.env.NODE_AUTH_TOKEN ?? process.env.NPM_TOKEN,
-      },
+      env: getPublishEnvironment(dryRun),
       encoding: 'utf8',
       shell: process.platform === 'win32',
     },
@@ -247,6 +293,20 @@ function publishPackage(
       `Publishing ${pkg}@${version} failed (${result.status ?? 'unknown'}): ${result.stderr || result.error?.message || 'unknown npm error'}`,
     )
   }
+}
+
+export function getPublishEnvironment(
+  dryRun: boolean,
+  source: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+  const environment = { ...source }
+  if (dryRun) {
+    delete environment.NODE_AUTH_TOKEN
+    delete environment.NPM_TOKEN
+  } else {
+    environment.NODE_AUTH_TOKEN = source.NODE_AUTH_TOKEN ?? source.NPM_TOKEN
+  }
+  return environment
 }
 
 function npmVersionExists(

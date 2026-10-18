@@ -1,4 +1,10 @@
-import { publishCanaryPackages } from '../release-canary'
+import {
+  assertCanaryEnvironment,
+  getPublishEnvironment,
+  parseCanaryOptions,
+  publishCanaryPackages,
+  publishCanaryPhases,
+} from '../release-canary'
 
 const version = '0.1.1-canary.20260814.300.1.b919e736'
 
@@ -213,5 +219,69 @@ describe('publishCanaryPackages', () => {
 
     expect(guards).toBe(0)
     expect(publishes).toBe(1)
+  })
+})
+
+describe('Canary dry-run-only contract', () => {
+  it('parses the explicit dry-run-only option', () => {
+    expect(parseCanaryOptions(['--dry-run-only'])).toEqual({
+      dryRunOnly: true,
+    })
+    expect(parseCanaryOptions([])).toEqual({ dryRunOnly: false })
+  })
+
+  it('allows dry-run-only without CI credentials', () => {
+    expect(() =>
+      assertCanaryEnvironment({}, { dryRunOnly: true }),
+    ).not.toThrow()
+    expect(() => assertCanaryEnvironment({})).toThrow(
+      'Canary publication is only allowed in GitHub Actions',
+    )
+  })
+
+  it('runs every package dry-run and never enters the real publish phase', async () => {
+    const calls: Array<[string, string, boolean]> = []
+    const registryQueries: string[] = []
+    const guards: string[] = []
+
+    const result = await publishCanaryPhases({
+      packages: ['@zeus-js/shared', '@zeus-js/compiler'],
+      version,
+      tag: 'zeus-canary-300-1',
+      dryRunOnly: true,
+      maxAttempts: 5,
+      versionExists: async pkg => {
+        registryQueries.push(pkg)
+        return false
+      },
+      verifyHead: async () => {
+        guards.push('verify')
+      },
+      publishPackage: async (pkg, expectedVersion, tag, dryRun) => {
+        calls.push([pkg, `${expectedVersion}:${tag}`, dryRun])
+      },
+      wait: async () => {},
+    })
+
+    expect(result).toBe('dry-run-only')
+    expect(calls).toEqual([
+      ['@zeus-js/shared', `${version}:zeus-canary-300-1`, true],
+      ['@zeus-js/compiler', `${version}:zeus-canary-300-1`, true],
+    ])
+    expect(registryQueries).toEqual([])
+    expect(guards).toEqual([])
+  })
+
+  it('does not pass npm credentials to a dry-run subprocess', () => {
+    const source = {
+      NODE_AUTH_TOKEN: 'test-node-token',
+      NPM_TOKEN: 'test-npm-token',
+    }
+    const dryEnvironment = getPublishEnvironment(true, source)
+    expect(dryEnvironment.NODE_AUTH_TOKEN).toBeUndefined()
+    expect(dryEnvironment.NPM_TOKEN).toBeUndefined()
+
+    const publishEnvironment = getPublishEnvironment(false, source)
+    expect(publishEnvironment.NODE_AUTH_TOKEN).toBe('test-node-token')
   })
 })
