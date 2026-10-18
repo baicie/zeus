@@ -13,14 +13,14 @@
       "hint": "Use a native element with static attributes and dynamic text.",
       "span": {
         "start": {
-          "offset": 84,
-          "line": 3,
-          "column": 46
+          "offset": 88,
+          "line": 4,
+          "column": 20
         },
         "end": {
-          "offset": 103,
-          "line": 3,
-          "column": 65
+          "offset": 107,
+          "line": 4,
+          "column": 39
         }
       }
     }
@@ -198,7 +198,7 @@
   },
   "artifactSize": {
     "raw": 6706,
-    "gzip": 1792,
-    "brotli": 1441
+    "gzip": 1791,
+    "brotli": 1435
   }
 }
