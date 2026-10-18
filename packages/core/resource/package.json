@@ -1,0 +1,46 @@
+{
+  "name": "@zeus-js/resource",
+  "type": "module",
+  "version": "0.1.1-beta.14",
+  "description": "Fine-grained async resource primitives for Zeus",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baicie/zeus.git",
+    "directory": "packages/core/resource"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/resource.d.ts",
+      "module": "./dist/resource.esm-bundler.js",
+      "import": "./dist/resource.esm-bundler.js",
+      "require": {
+        "production": "./dist/resource.prod.cjs",
+        "development": "./dist/resource.cjs",
+        "default": "./index.cjs"
+      }
+    }
+  },
+  "files": [
+    "index.cjs",
+    "dist"
+  ],
+  "dependencies": {
+    "@zeus-js/signal": "workspace:*"
+  },
+  "buildOptions": {
+    "name": "ZeusResource",
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ]
+  },
+  "main": "index.cjs",
+  "module": "dist/resource.esm-bundler.js",
+  "types": "dist/resource.d.ts"
+}

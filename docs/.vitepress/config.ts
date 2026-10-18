@@ -95,6 +95,9 @@ export default defineConfig({
             { text: '@zeus-js/signal', link: '/api/signal' },
             { text: '@zeus-js/runtime-dom', link: '/api/runtime-dom' },
             { text: '@zeus-js/runtime-ssr', link: '/api/runtime-ssr' },
+            { text: '@zeus-js/router', link: '/api/router' },
+            { text: '@zeus-js/resource', link: '/api/resource' },
+            { text: '@zeus-js/query', link: '/api/query' },
           ],
         },
         {
