@@ -235,7 +235,7 @@ export function bindStyle(
 
   applyBinding(value, once, next => {
     if (next == null) {
-      el.removeAttribute('style')
+      if (el.hasAttribute('style')) el.removeAttribute('style')
       prev = undefined
       return
     }

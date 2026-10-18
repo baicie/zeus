@@ -335,6 +335,29 @@ describe('runtime bindings', () => {
     expect(el.getAttribute('style')).toBe('color:blue')
   })
 
+  it('skips redundant style removal while repairing external style mutations', () => {
+    const tick = state(0)
+    const el = document.createElement('div')
+    const removeAttribute = vi.spyOn(el, 'removeAttribute')
+
+    bindStyle(el, () => {
+      tick.value
+      return null
+    })
+
+    expect(removeAttribute).not.toHaveBeenCalled()
+
+    el.setAttribute('style', 'color:red')
+    tick.value++
+
+    expect(removeAttribute).toHaveBeenCalledTimes(1)
+    expect(el.hasAttribute('style')).toBe(false)
+
+    tick.value++
+
+    expect(removeAttribute).toHaveBeenCalledTimes(1)
+  })
+
   it('binds style object', () => {
     const width = state(100)
     const el = document.createElement('div')
