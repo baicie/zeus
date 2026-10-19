@@ -1,5 +1,6 @@
 import { getCurrentScope, onScopeDispose } from '@zeus-js/signal/internal'
 
+import { withErrorBoundaryHandler } from './errorBoundaryContext'
 import { captureScopedSubtreeContext, ScopedSubtree } from './scopedSubtree'
 
 import type { JSXValue } from './types'
@@ -33,6 +34,7 @@ export function ErrorBoundary(props: ErrorBoundaryProps): DocumentFragment {
   const subtree = new ScopedSubtree(source, end, captureScopedSubtreeContext())
   let failed = false
   let disposed = false
+  let handlingError = false
 
   const reset = (): void => {
     if (disposed || !failed) return
@@ -40,15 +42,32 @@ export function ErrorBoundary(props: ErrorBoundaryProps): DocumentFragment {
     renderChild()
   }
 
-  function renderChild(): void {
+  const handleError = (error: unknown): void => {
+    if (disposed) return
+    if (handlingError) throw error
+    if (failed) return
+    handlingError = true
+    failed = true
     try {
-      subtree.replace(props.children)
-      failed = false
-    } catch (error) {
-      failed = true
       props.onError?.(error)
       // A fallback error is intentionally allowed to escape to the caller.
-      subtree.replace(() => props.fallback(error, reset))
+      // The fallback is outside this boundary. A later fallback binding error
+      // must escape instead of being routed back into the failed branch.
+      subtree.replace(() => props.fallback(error, reset), null)
+    } finally {
+      handlingError = false
+    }
+  }
+
+  function renderChild(): void {
+    failed = false
+    try {
+      withErrorBoundaryHandler(handleError, () =>
+        subtree.replace(props.children),
+      )
+      if (!failed) subtree.setErrorHandler(handleError)
+    } catch (error) {
+      handleError(error)
     }
   }
 

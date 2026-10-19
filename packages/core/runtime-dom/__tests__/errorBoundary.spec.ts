@@ -3,6 +3,8 @@ import { ErrorBoundary, render } from '@zeus-js/zeus'
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { bindText } from '../src'
+
 describe('ErrorBoundary', () => {
   let dom: JSDOM
 
@@ -138,5 +140,138 @@ describe('ErrorBoundary', () => {
         document.createElement('main'),
       ),
     ).toThrow('fallback')
+  })
+
+  it('preserves the child render error when cleanup also fails', () => {
+    const childError = new Error('child render')
+    const cleanupError = new Error('child cleanup')
+    const container = document.createElement('main')
+
+    const dispose = render(
+      () =>
+        ErrorBoundary({
+          children: () => {
+            onCleanup(() => {
+              throw cleanupError
+            })
+            throw childError
+          },
+          fallback: caught => {
+            const node = document.createElement('p')
+            node.textContent = caught === childError ? 'child' : 'wrong'
+            return node
+          },
+        }),
+      container,
+    )
+
+    expect(container.textContent).toBe('child')
+    dispose()
+  })
+
+  it('captures errors from a child binding effect and switches to fallback', () => {
+    const container = document.createElement('main')
+    const [shouldThrow, setShouldThrow] = createSignal(false)
+    const onError = vi.fn()
+    const error = new Error('binding')
+
+    const dispose = render(
+      () =>
+        ErrorBoundary({
+          children: () => {
+            const text = document.createTextNode('')
+            bindText(text, () => {
+              if (shouldThrow()) throw error
+              return 'ready'
+            })
+            return text
+          },
+          fallback: caught => {
+            const node = document.createElement('strong')
+            node.textContent = caught === error ? 'fallback' : 'wrong'
+            return node
+          },
+          onError,
+        }),
+      container,
+    )
+
+    expect(container.textContent).toBe('ready')
+    expect(() => setShouldThrow(true)).not.toThrow()
+    expect(container.textContent).toBe('fallback')
+    expect(onError).toHaveBeenCalledWith(error)
+
+    dispose()
+  })
+
+  it('lets later fallback binding errors escape the failed boundary', () => {
+    const container = document.createElement('main')
+    const [shouldThrow, setShouldThrow] = createSignal(false)
+    const fallbackError = new Error('fallback binding')
+
+    const dispose = render(
+      () =>
+        ErrorBoundary({
+          children: () => {
+            throw new Error('child')
+          },
+          fallback: () => {
+            const text = document.createTextNode('fallback')
+            bindText(text, () => {
+              if (shouldThrow()) throw fallbackError
+              return 'fallback'
+            })
+            return text
+          },
+        }),
+      container,
+    )
+
+    expect(() => setShouldThrow(true)).toThrow(fallbackError)
+    dispose()
+  })
+
+  it('disposes a failed binding scope and can reset it without duplicate effects', () => {
+    const container = document.createElement('main')
+    const [shouldThrow, setShouldThrow] = createSignal(false)
+    const onError = vi.fn()
+    const error = new Error('binding retry')
+    let reset!: () => void
+    let runs = 0
+
+    const dispose = render(
+      () =>
+        ErrorBoundary({
+          children: () => {
+            const text = document.createTextNode('')
+            bindText(text, () => {
+              runs += 1
+              if (shouldThrow()) throw error
+              return `value-${runs}`
+            })
+            return text
+          },
+          fallback: (_caught, retry) => {
+            reset = retry
+            return document.createTextNode('fallback')
+          },
+          onError,
+        }),
+      container,
+    )
+
+    setShouldThrow(true)
+    expect(container.textContent).toBe('fallback')
+    const errorCount = onError.mock.calls.length
+
+    setShouldThrow(false)
+    reset()
+    expect(container.textContent).toMatch(/^value-/)
+    expect(onError).toHaveBeenCalledTimes(errorCount)
+
+    const runsAfterReset = runs
+    dispose()
+    setShouldThrow(true)
+    expect(runs).toBe(runsAfterReset)
   })
 })

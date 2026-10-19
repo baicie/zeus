@@ -2,11 +2,13 @@ import { normalizeDOMAttributeName } from '@zeus-js/shared'
 import {
   effect,
   getCurrentEffect,
+  getCurrentScope,
   onScopeDispose,
   untrack,
 } from '@zeus-js/signal/internal'
 
 import { emitDevtoolsEvent, getDevtoolsObjectId } from './devtools'
+import { getScopeErrorBoundaryHandler } from './errorBoundaryContext'
 import { assertRenderableJSXValue } from './jsxValue'
 
 import type { AttrValue, ClassValue, JSXValue, StyleValue } from './types'
@@ -77,6 +79,7 @@ function applyBinding<T>(
   }
 
   const run = () => {
+    const scopeErrorHandler = getScopeErrorBoundaryHandler(getCurrentScope())
     const activeEffect = devtoolsInstrumentation
       ? getCurrentEffect()
       : undefined
@@ -95,6 +98,12 @@ function applyBinding<T>(
       next = value()
       apply(next)
       nextDependencies = collectingDependencies
+    } catch (error) {
+      if (scopeErrorHandler) {
+        scopeErrorHandler(error)
+        return
+      }
+      throw error
     } finally {
       collectingDependencies = undefined
     }

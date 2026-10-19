@@ -150,8 +150,10 @@ function ErrorBoundary(props: ErrorBoundaryProps): DocumentFragment
 
 `ErrorBoundary` currently requires an explicit child factory and an active
 render scope so it can catch synchronous initialization and first-insertion
-errors and release its subtree with the owner. Its fallback owns a separate
-scope, and `reset()` disposes that branch before retrying the child.
-The runtime does not yet catch errors from later binding effects, event handlers,
-independent owners, or unobserved Promise rejections. Resource error integration
-and compiler lowering for `<ErrorBoundary>` remain pending.
+errors and release its subtree with the owner. Binding effects created in that
+factory's subtree are also routed to the boundary after mount; a later binding
+error calls `onError` and switches to the fallback. Its fallback owns a separate
+scope, and `reset()` disposes that branch before retrying the child. Event
+handlers, independent owners, and unobserved Promise rejections remain outside
+the boundary. Resource integration and compiler lowering for `<ErrorBoundary>`
+remain pending.

@@ -133,6 +133,34 @@ describe('vite-plugin-zeus transform', () => {
     )
   })
 
+  it('suppresses remounts for comment-only edits', async () => {
+    const plugin = createZeus()
+    runConfigResolved(plugin, 'serve', false)
+    const transform = getTransformHook(plugin)
+    const transformContext = {
+      error(error: string | { message: string }): never {
+        throw new Error(typeof error === 'string' ? error : error.message)
+      },
+    } as ThisParameterType<TransformHook>
+    const previous = 'const App = () => <div>hello</div>\n// before'
+    await transform.call(transformContext, previous, '/src/App.tsx', undefined)
+
+    const debug = vi.fn()
+    const update: Parameters<HandleHotUpdateHook>[0] = {
+      file: '/src/App.tsx',
+      read: async () => 'const App = () => <div>hello</div>\n// after',
+    } as Parameters<HandleHotUpdateHook>[0]
+    const result = await getHandleHotUpdateHook(plugin).call(
+      { debug } as unknown as ThisParameterType<HandleHotUpdateHook>,
+      update,
+    )
+
+    expect(result).toEqual([])
+    expect(debug).toHaveBeenCalledWith(
+      '[Zeus HMR] comment-only -> preserve-state: /src/App.tsx',
+    )
+  })
+
   it.each(['/src/App.tsx', '/src/App.jsx'])(
     'transforms JSX modules by default: %s',
     async id => {

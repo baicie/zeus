@@ -11,6 +11,104 @@ describe('vite-plugin-zeus HMR classification', () => {
     })
   })
 
+  it('preserves state for comment-only edits', () => {
+    expect(
+      classifyHmrUpdate(
+        '/src/App.tsx',
+        'const App = () => <div>hello</div>\n// before',
+        'const App = () => <div>hello</div>\n// after',
+      ),
+    ).toEqual({
+      kind: 'comment-only',
+      strategy: 'preserve-state',
+      preserveState: true,
+    })
+  })
+
+  it('does not preserve state for JSX whitespace or string contents', () => {
+    expect(
+      classifyHmrUpdate(
+        '/src/App.tsx',
+        'const App = () => <div>hello world</div>\n// note',
+        'const App = () => <div>helloworld</div>\n// note',
+      ),
+    ).toMatchObject({
+      kind: 'template-structure',
+      strategy: 'dispose-remount',
+      preserveState: false,
+    })
+    expect(
+      classifyHmrUpdate(
+        '/src/App.tsx',
+        'const value = "// before"\n// note',
+        'const value = "// after"\n// note',
+      ),
+    ).toMatchObject({
+      strategy: 'dispose-remount',
+      preserveState: false,
+    })
+    expect(
+      classifyHmrUpdate(
+        '/src/App.tsx',
+        'const pattern = /https?:\\/\\/example.test/\n// note',
+        'const pattern = /https?:\\/\\/example.test/\n// changed',
+      ),
+    ).toMatchObject({
+      strategy: 'dispose-remount',
+      preserveState: false,
+    })
+    expect(
+      classifyHmrUpdate(
+        '/src/App.tsx',
+        'const App = () => <div>/*before*/</div>',
+        'const App = () => <div>/*after*/</div>',
+      ),
+    ).toMatchObject({
+      strategy: 'dispose-remount',
+      preserveState: false,
+    })
+    expect(
+      classifyHmrUpdate(
+        '/src/App.tsx',
+        'const App = () => <div>//before</div>',
+        'const App = () => <div>//after</div>',
+      ),
+    ).toMatchObject({
+      strategy: 'dispose-remount',
+      preserveState: false,
+    })
+    expect(
+      classifyHmrUpdate(
+        '/src/App.tsx',
+        'const value = 1 /* before',
+        'const value = 1 /* after',
+      ),
+    ).toMatchObject({
+      strategy: 'dispose-remount',
+      preserveState: false,
+    })
+    expect(
+      classifyHmrUpdate(
+        '/src/App.tsx',
+        'const App = () => <div>/*before*/</div>\n// note',
+        'const App = () => <div>/*after*/</div>\n// note',
+      ),
+    ).toMatchObject({
+      strategy: 'dispose-remount',
+      preserveState: false,
+    })
+    expect(
+      classifyHmrUpdate(
+        '/src/App.tsx',
+        'const App = () => <div>//before</div>\n// note',
+        'const App = () => <div>//after</div>\n// note',
+      ),
+    ).toMatchObject({
+      strategy: 'dispose-remount',
+      preserveState: false,
+    })
+  })
+
   it.each([
     ['template structure', '<div />', '<button />', 'template-structure'],
     [
