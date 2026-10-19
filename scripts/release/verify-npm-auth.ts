@@ -21,6 +21,24 @@ export interface NpmReleaseAuthResult {
   verifiedPackages: number
 }
 
+export function isCiEnvironment(
+  environment: Readonly<NodeJS.ProcessEnv>,
+): boolean {
+  return environment.GITHUB_ACTIONS === 'true' || environment.CI === 'true'
+}
+
+export function resolveNpmAuthToken(
+  environment: Readonly<NodeJS.ProcessEnv>,
+): string | undefined {
+  const token = [environment.NODE_AUTH_TOKEN, environment.NPM_TOKEN].find(
+    value => value?.trim(),
+  )
+  if (isCiEnvironment(environment) && !token) {
+    throw new Error('NODE_AUTH_TOKEN or NPM_TOKEN is required in CI')
+  }
+  return token
+}
+
 export function verifyNpmReleaseAuth(
   dependencies: NpmReleaseAuthDependencies,
 ): NpmReleaseAuthResult {
@@ -59,15 +77,17 @@ export function verifyNpmReleaseAuth(
 
 function main(): void {
   const registry = readOption('--registry') ?? defaultRegistry
-  if (!process.env.NODE_AUTH_TOKEN && !process.env.NPM_TOKEN) {
-    throw new Error('NODE_AUTH_TOKEN or NPM_TOKEN is required')
-  }
+  const authToken = resolveNpmAuthToken(process.env)
 
   const result = verifyNpmReleaseAuth({
     packages: zeusFixedPackages,
     whoami: () =>
-      runNpm(['whoami', '--registry', registry], 'resolve npm identity'),
-    readTwoFactorPolicy: () => readTwoFactorPolicy(registry),
+      runNpm(
+        ['whoami', '--registry', registry],
+        'resolve npm identity',
+        authToken,
+      ),
+    readTwoFactorPolicy: () => readTwoFactorPolicy(registry, authToken),
     readCollaborators: pkg =>
       JSON.parse(
         runNpm(
@@ -81,6 +101,7 @@ function main(): void {
             registry,
           ],
           `read ${pkg} collaborators`,
+          authToken,
         ),
       ) as Record<string, string>,
   })
@@ -92,23 +113,28 @@ function main(): void {
   )
 }
 
-function readTwoFactorPolicy(registry: string): string {
+function readTwoFactorPolicy(registry: string, authToken?: string): string {
   const profile = JSON.parse(
     runNpm(
       ['profile', 'get', 'tfa', '--json', '--registry', registry],
       'read npm account 2FA policy',
+      authToken,
     ),
   ) as { tfa?: unknown }
-  return typeof profile.tfa === 'string' ? profile.tfa : ''
+  if (typeof profile.tfa === 'string') return profile.tfa
+  if (profile.tfa === false) return 'disabled'
+  if (profile.tfa === true) return 'enabled'
+  return ''
 }
 
-function runNpm(args: string[], label: string): string {
+function runNpm(args: string[], label: string, authToken?: string): string {
+  const environment = { ...process.env }
+  if (authToken) environment.NODE_AUTH_TOKEN = authToken
+  else delete environment.NODE_AUTH_TOKEN
+
   const result = spawnSync('npm', args, {
     cwd: process.cwd(),
-    env: {
-      ...process.env,
-      NODE_AUTH_TOKEN: process.env.NODE_AUTH_TOKEN ?? process.env.NPM_TOKEN,
-    },
+    env: environment,
     encoding: 'utf8',
     shell: process.platform === 'win32',
   })

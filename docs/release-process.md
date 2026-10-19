@@ -368,7 +368,27 @@ pnpm release --dry --skipGit
 pnpm release 0.2.0 --tag beta
 ```
 
-### 4.4 GitHub Actions: release.yml
+### 4.4 npm 认证预检：本机与 GitHub Actions
+
+发布前可先运行认证预检：
+
+```bash
+pnpm release:verify:npm-auth
+```
+
+本机运行时，预检会使用当前用户的 npm 配置（例如先执行 `npm login` 生成的
+`~/.npmrc`）。不要求设置 `NODE_AUTH_TOKEN` 或 `NPM_TOKEN`，但仍会检查
+`npm whoami`、账户 2FA 策略必须为 `auth-and-writes`，以及当前身份对全部 fixed 包拥有
+`read-write` 权限。
+
+GitHub Actions 运行时会识别 `GITHUB_ACTIONS=true` 或 `CI=true`，并强制要求受保护的
+`NODE_AUTH_TOKEN` 或 `NPM_TOKEN`。仓库的 Release environment 通过
+`${{ secrets.NPM_TOKEN }}` 注入该变量；本机 npm 登录态不会被带入 CI，也不能替代 CI secret。
+
+认证预检允许本机复用 npm 登录态，但实际发布、Canary promote、dist-tag 清理和 repair
+脚本仍始终要求 token 环境变量，以避免误用本机会话执行写操作。
+
+### 4.5 GitHub Actions: release.yml
 
 ```yaml
 name: Release
