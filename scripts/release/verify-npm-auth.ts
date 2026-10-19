@@ -12,7 +12,7 @@ export interface NpmReleaseAuthDependencies {
   whoami: () => string
   readCollaborators: (
     pkg: string,
-  ) => Readonly<Record<string, string | undefined>>
+  ) => Readonly<Record<string, string | undefined>> | undefined
   readTwoFactorPolicy: () => string
   requireTwoFactorPolicy?: boolean
 }
@@ -20,6 +20,7 @@ export interface NpmReleaseAuthDependencies {
 export interface NpmReleaseAuthResult {
   username: string
   verifiedPackages: number
+  unpublishedPackages?: readonly string[]
 }
 
 export function isCiEnvironment(
@@ -67,8 +68,14 @@ export function verifyNpmReleaseAuth(
   }
 
   const errors: string[] = []
+  const unpublishedPackages: string[] = []
   for (const pkg of dependencies.packages) {
-    const access = dependencies.readCollaborators(pkg)[username]
+    const collaborators = dependencies.readCollaborators(pkg)
+    if (!collaborators) {
+      unpublishedPackages.push(pkg)
+      continue
+    }
+    const access = collaborators[username]
     if (access !== 'read-write') {
       errors.push(
         `${pkg}: ${username} has ${access ?? 'no'} access; expected read-write`,
@@ -82,7 +89,11 @@ export function verifyNpmReleaseAuth(
     )
   }
 
-  return { username, verifiedPackages: dependencies.packages.length }
+  return {
+    username,
+    verifiedPackages: dependencies.packages.length - unpublishedPackages.length,
+    ...(unpublishedPackages.length > 0 ? { unpublishedPackages } : {}),
+  }
 }
 
 function main(): void {
@@ -99,29 +110,43 @@ function main(): void {
       ),
     readTwoFactorPolicy: () => readTwoFactorPolicy(registry, authToken),
     requireTwoFactorPolicy: shouldRequireTwoFactorPolicy(process.env),
-    readCollaborators: pkg =>
-      JSON.parse(
-        runNpm(
-          [
-            'access',
-            'list',
-            'collaborators',
-            pkg,
-            '--json',
-            '--registry',
-            registry,
-          ],
-          `read ${pkg} collaborators`,
-          authToken,
-        ),
-      ) as Record<string, string>,
+    readCollaborators: pkg => {
+      try {
+        return JSON.parse(
+          runNpm(
+            [
+              'access',
+              'list',
+              'collaborators',
+              pkg,
+              '--json',
+              '--registry',
+              registry,
+            ],
+            `read ${pkg} collaborators`,
+            authToken,
+          ),
+        ) as Record<string, string>
+      } catch (error) {
+        if (isUnpublishedPackageError(error)) return undefined
+        throw error
+      }
+    },
   })
 
+  const unpublished = result.unpublishedPackages?.length ?? 0
+  const suffix = unpublished
+    ? `; ${unpublished} unpublished package${unpublished === 1 ? '' : 's'} will be verified by publish`
+    : ''
   console.log(
     pico.green(
-      `npm release auth passed (${result.username}, ${result.verifiedPackages} packages with read-write access).`,
+      `npm release auth passed (${result.username}, ${result.verifiedPackages} published packages with read-write access${suffix}).`,
     ),
   )
+}
+
+function isUnpublishedPackageError(error: unknown): boolean {
+  return error instanceof Error && /(?:E404|404 Not Found)/.test(error.message)
 }
 
 function readTwoFactorPolicy(registry: string, authToken?: string): string {

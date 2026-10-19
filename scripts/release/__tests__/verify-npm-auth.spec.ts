@@ -109,4 +109,20 @@ describe('npm release auth preflight', () => {
       }),
     ).toEqual({ username: 'baicie2', verifiedPackages: 1 })
   })
+
+  it('defers access verification for packages that are not published yet', () => {
+    expect(
+      verifyNpmReleaseAuth({
+        packages: ['@zeus-js/router', '@zeus-js/compiler'],
+        whoami: () => 'baicie2',
+        readTwoFactorPolicy: () => 'auth-and-writes',
+        readCollaborators: pkg =>
+          pkg === '@zeus-js/router' ? undefined : { baicie2: 'read-write' },
+      }),
+    ).toEqual({
+      username: 'baicie2',
+      verifiedPackages: 1,
+      unpublishedPackages: ['@zeus-js/router'],
+    })
+  })
 })
