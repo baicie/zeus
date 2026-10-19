@@ -11,6 +11,7 @@ import {
 
 class TestPort implements ZeusDevtoolsMessagePort {
   readonly messages: unknown[] = []
+  startError?: Error
   private readonly listeners = new Set<
     (event: { readonly data: unknown }) => void
   >()
@@ -37,6 +38,10 @@ class TestPort implements ZeusDevtoolsMessagePort {
     listener: (event: { readonly data: unknown }) => void,
   ): void {
     this.listeners.delete(listener)
+  }
+
+  start(): void {
+    if (this.startError) throw this.startError
   }
 }
 
@@ -608,6 +613,27 @@ describe('DevTools consumer/panel', () => {
       port.deliver(message)
     }
     expect(panel.getSnapshot().eventCount).toBe(0)
+    panel.disconnect()
+  })
+
+  it('rolls back a panel listener when MessagePort startup fails', () => {
+    const port = new TestPort()
+    port.startError = new Error('port startup failed')
+    const panel = createDevtoolsPortConsumer(port)
+
+    expect(() => panel.connect()).toThrow('port startup failed')
+    port.deliver(event('owner:create', { ownerId: 1 }))
+    expect(panel.getSnapshot().eventCount).toBe(0)
+
+    port.startError = undefined
+    panel.connect()
+    port.deliver({
+      channel: 'zeus-devtools',
+      version: 1,
+      kind: 'event',
+      event: { id: 1, timestamp: 1, type: 'owner:create', ownerId: 1 },
+    })
+    expect(panel.getSnapshot().eventCount).toBe(1)
     panel.disconnect()
   })
 })

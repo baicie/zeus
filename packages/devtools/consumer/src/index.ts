@@ -218,8 +218,13 @@ export function createDevtoolsPortConsumer(
     connect() {
       if (connected) return
       port.addEventListener('message', onMessage)
-      port.start?.()
-      connected = true
+      try {
+        port.start?.()
+        connected = true
+      } catch (error) {
+        port.removeEventListener('message', onMessage)
+        throw error
+      }
     },
     disconnect() {
       if (!connected) return
