@@ -1,6 +1,7 @@
 import {
   isCiEnvironment,
   resolveNpmAuthToken,
+  shouldRequireTwoFactorPolicy,
   verifyNpmReleaseAuth,
 } from '../verify-npm-auth'
 
@@ -30,6 +31,20 @@ describe('npm release auth environment', () => {
         NPM_TOKEN: 'test-token',
       }),
     ).toBe('test-token')
+  })
+
+  it('does not require account 2FA policy for local npm login', () => {
+    expect(shouldRequireTwoFactorPolicy({})).toBe(false)
+  })
+
+  it('requires account 2FA policy in CI unless the token bypass is declared', () => {
+    expect(shouldRequireTwoFactorPolicy({ CI: 'true' })).toBe(true)
+    expect(
+      shouldRequireTwoFactorPolicy({
+        GITHUB_ACTIONS: 'true',
+        NPM_TOKEN_BYPASS_2FA: 'true',
+      }),
+    ).toBe(false)
   })
 })
 
@@ -81,5 +96,17 @@ describe('npm release auth preflight', () => {
         readCollaborators: () => ({ baicie2: 'read-write' }),
       }),
     ).toThrow('expected auth-and-writes')
+  })
+
+  it('can verify package access without account 2FA policy for local login', () => {
+    expect(
+      verifyNpmReleaseAuth({
+        packages: ['@zeus-js/compiler-native'],
+        whoami: () => 'baicie2',
+        readTwoFactorPolicy: () => 'disabled',
+        requireTwoFactorPolicy: false,
+        readCollaborators: () => ({ baicie2: 'read-write' }),
+      }),
+    ).toEqual({ username: 'baicie2', verifiedPackages: 1 })
   })
 })
