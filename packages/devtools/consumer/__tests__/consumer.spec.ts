@@ -590,6 +590,29 @@ describe('DevTools consumer/panel', () => {
     expect(runtimePort.messages).toHaveLength(1)
   })
 
+  it('chains a port emitter with an existing runtime hook', () => {
+    dom = new JSDOM('<!doctype html><html><body /></html>')
+    const runtimePort = new TestPort()
+    const previousEvents: ZeusDevtoolsEvent[] = []
+    const previousHook = {
+      emit: (next: ZeusDevtoolsEvent) => previousEvents.push(next),
+    }
+    Object.defineProperty(dom.window, '__ZEUS_DEVTOOLS_HOOK__', {
+      configurable: true,
+      value: previousHook,
+    })
+    const emitter = createDevtoolsPortEmitter(dom.window, runtimePort)
+    emitter.connect()
+
+    const next = event('render', { id: 9 })
+    dom.window.__ZEUS_DEVTOOLS_HOOK__!.emit(next)
+    expect(previousEvents).toEqual([next])
+    expect(runtimePort.messages).toHaveLength(1)
+
+    emitter.disconnect()
+    expect(dom.window.__ZEUS_DEVTOOLS_HOOK__).toBe(previousHook)
+  })
+
   it('ignores malformed or unrelated port messages', () => {
     const port = new TestPort()
     const panel = createDevtoolsPortConsumer(port)
