@@ -37,9 +37,11 @@ runtime 只接受显式 factory 形式；compiler lowering 完成后才可把普
 
 ### 1.2 捕获范围和恢复
 
-- 当前 runtime 切片捕获 child factory 调用和子树初次插入的同步错误。运行中 binding
-  effect 的错误转发需要 signal owner error hook，仍待单独实现；事件处理器错误、独立
-  owner 错误或未观察的 Promise rejection 不由当前切片捕获。
+- 当前 runtime 切片捕获 child factory 调用和子树初次插入的同步错误；子树 scope 内
+  的 `bindText`/attribute/property/class/style 等 binding effect 后续运行抛错时，也会
+  转发到该边界的 `onError` 并切换 fallback。绑定错误只在显式 factory 子树 scope 内
+  捕获，不会影响其他 owner；事件处理器错误、独立 owner 错误或未观察的 Promise
+  rejection 不由当前切片捕获。
 - `fallback` 在新的子树 scope 中挂载；fallback 自身抛错继续传播到最近外层边界或
   `render()` 调用方，不递归吞错。
 - 一次失败只调用一次 `onError`。`reset()` 先停止失败子树并移除其节点，再重新
@@ -59,7 +61,8 @@ render factory 中抛出该错误。`refetch()` 的 reject 仍由调用方处理
 Promise 当作 JSX child。
 
 Resource 集成仍待验收：pending → error 的状态发布、错误 UI 显示、重新 refetch 成功后
-的恢复，以及边界/owner 销毁后请求取消和 cleanup 顺序。
+的恢复，以及边界/owner 销毁后请求取消和 cleanup 顺序。Resource 错误目前仍须由
+factory 显式读取并抛出，才会进入上述边界路径。
 
 ## 2. Portal
 

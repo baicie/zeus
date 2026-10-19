@@ -126,6 +126,10 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
       this.debug(
         `[Zeus HMR] ${classification.kind} -> ${classification.strategy}: ${filename}`,
       )
+
+      // A comment-only edit has no executable update to apply. Returning an
+      // empty module list keeps Vite from disposing and remounting the root.
+      if (classification.preserveState) return []
     },
 
     async transform(code, id, transformOptions) {
