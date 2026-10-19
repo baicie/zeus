@@ -1,4 +1,37 @@
-import { verifyNpmReleaseAuth } from '../verify-npm-auth'
+import {
+  isCiEnvironment,
+  resolveNpmAuthToken,
+  verifyNpmReleaseAuth,
+} from '../verify-npm-auth'
+
+describe('npm release auth environment', () => {
+  it('allows a local npm login without a token environment variable', () => {
+    expect(resolveNpmAuthToken({})).toBeUndefined()
+    expect(isCiEnvironment({})).toBe(false)
+  })
+
+  it('requires a token in GitHub Actions', () => {
+    expect(() => resolveNpmAuthToken({ GITHUB_ACTIONS: 'true' })).toThrow(
+      'NODE_AUTH_TOKEN or NPM_TOKEN is required in CI',
+    )
+  })
+
+  it('accepts either supported token variable in CI', () => {
+    expect(resolveNpmAuthToken({ CI: 'true', NPM_TOKEN: 'test-token' })).toBe(
+      'test-token',
+    )
+  })
+
+  it('falls back to NPM_TOKEN when NODE_AUTH_TOKEN is empty', () => {
+    expect(
+      resolveNpmAuthToken({
+        GITHUB_ACTIONS: 'true',
+        NODE_AUTH_TOKEN: '',
+        NPM_TOKEN: 'test-token',
+      }),
+    ).toBe('test-token')
+  })
+})
 
 describe('npm release auth preflight', () => {
   it('accepts a token identity with read-write access to every release package', () => {
