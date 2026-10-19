@@ -1659,7 +1659,12 @@ fn emits_transition_mount_for_dom_and_static_branch_for_ssr() {
     assert!(result.code.contains("duration: 120"), "{}", result.code);
     let allocator = Allocator::default();
     let parsed = Parser::new(&allocator, &result.code, SourceType::ts()).parse();
-    assert!(parsed.diagnostics.is_empty(), "{:?}\n{}", parsed.diagnostics, result.code);
+    assert!(
+        parsed.diagnostics.is_empty(),
+        "{:?}\n{}",
+        parsed.diagnostics,
+        result.code
+    );
 
     let mut ssr = options(false);
     ssr.target = TransformTarget::Ssr;
