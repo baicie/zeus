@@ -213,6 +213,7 @@ describe('release workflows', () => {
     expect(workflow).toContain("format('remove-native-latest:{0}'")
     expect(workflow).toContain('pnpm release:cleanup:native-latest')
     expect(workflow).toContain('pnpm release:verify:npm-auth')
+    expect(workflow).toContain("NPM_TOKEN_BYPASS_2FA: 'true'")
     expect(workflow.indexOf('pnpm release:verify:npm-auth')).toBeLessThan(
       workflow.indexOf('pnpm release:cleanup:native-latest'),
     )
@@ -241,6 +242,7 @@ describe('release workflows', () => {
       expect(workflow.indexOf('pnpm release:verify:npm-auth')).toBeLessThan(
         workflow.indexOf(firstWrite),
       )
+      expect(workflow).toContain("NPM_TOKEN_BYPASS_2FA: 'true'")
     }
   })
 

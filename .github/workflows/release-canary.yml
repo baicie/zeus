@@ -94,6 +94,7 @@ jobs:
         run: pnpm release:verify:npm-auth
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN_BYPASS_2FA: 'true'
 
       - name: Download native platform artifacts
         uses: actions/download-artifact@v4

@@ -14,6 +14,7 @@ export interface NpmReleaseAuthDependencies {
     pkg: string,
   ) => Readonly<Record<string, string | undefined>>
   readTwoFactorPolicy: () => string
+  requireTwoFactorPolicy?: boolean
 }
 
 export interface NpmReleaseAuthResult {
@@ -39,6 +40,13 @@ export function resolveNpmAuthToken(
   return token
 }
 
+export function shouldRequireTwoFactorPolicy(
+  environment: Readonly<NodeJS.ProcessEnv>,
+): boolean {
+  if (!isCiEnvironment(environment)) return false
+  return environment.NPM_TOKEN_BYPASS_2FA !== 'true'
+}
+
 export function verifyNpmReleaseAuth(
   dependencies: NpmReleaseAuthDependencies,
 ): NpmReleaseAuthResult {
@@ -49,11 +57,13 @@ export function verifyNpmReleaseAuth(
   const username = dependencies.whoami().trim()
   if (!username) throw new Error('npm whoami returned an empty identity')
 
-  const twoFactorPolicy = dependencies.readTwoFactorPolicy().trim()
-  if (twoFactorPolicy !== 'auth-and-writes') {
-    throw new Error(
-      `npm release auth preflight failed: account 2FA policy is ${twoFactorPolicy || 'unset'}; expected auth-and-writes`,
-    )
+  if (dependencies.requireTwoFactorPolicy !== false) {
+    const twoFactorPolicy = dependencies.readTwoFactorPolicy().trim()
+    if (twoFactorPolicy !== 'auth-and-writes') {
+      throw new Error(
+        `npm release auth preflight failed: account 2FA policy is ${twoFactorPolicy || 'unset'}; expected auth-and-writes`,
+      )
+    }
   }
 
   const errors: string[] = []
@@ -88,6 +98,7 @@ function main(): void {
         authToken,
       ),
     readTwoFactorPolicy: () => readTwoFactorPolicy(registry, authToken),
+    requireTwoFactorPolicy: shouldRequireTwoFactorPolicy(process.env),
     readCollaborators: pkg =>
       JSON.parse(
         runNpm(
