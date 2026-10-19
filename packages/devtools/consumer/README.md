@@ -21,3 +21,5 @@ consumer.subscribe(snapshot => renderPanel(snapshot))
 ```
 
 调用 `disconnect()` 会移除 click listener，并恢复安装 consumer 之前的 runtime hook。
+`getSnapshot()` 同步读取当前状态；`subscribe()` 首次同步交付，后续事件按 microtask 合并。
+每类非活动诊断历史默认保留 500 条，可用 `historyLimit` 调整；活动条目不会被裁剪。

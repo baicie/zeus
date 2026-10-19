@@ -27,34 +27,30 @@ Resource 错误不会自动穿透到 `ErrorBoundary`。在边界 child 的绑定
 fallback 提供的 `reset()` 重新挂载 child：
 
 ```ts
-const resource = createResource('key', load)
-
-render(
-  () =>
-    ErrorBoundary({
-      children: () => {
-        const text = document.createTextNode('')
-        bindText(text, () => {
-          const error = resource.error()
-          if (error) throw error
-          return resource.pending() ? 'loading' : (resource.data() ?? 'empty')
-        })
-        return text
-      },
-      fallback: (_error, reset) => {
-        const button = document.createElement('button')
-        button.textContent = 'retry'
-        button.onclick = () => {
-          void resource.refetch().then(
-            () => reset(),
-            () => undefined,
-          )
-        }
-        return button
-      },
-    }),
-  container,
-)
+render(() => {
+  const resource = createResource('key', load)
+  return ErrorBoundary({
+    children: () => {
+      const text = document.createTextNode('')
+      bindText(text, () => {
+        if (resource.status() === 'error') throw resource.error()
+        return resource.pending() ? 'loading' : (resource.data() ?? 'empty')
+      })
+      return text
+    },
+    fallback: (_error, reset) => {
+      const button = document.createElement('button')
+      button.textContent = 'retry'
+      button.onclick = () => {
+        void resource.refetch().then(
+          () => reset(),
+          () => undefined,
+        )
+      }
+      return button
+    },
+  })
+}, container)
 ```
 
 资源应由边界的外层 owner 持有，才能在失败分支销毁后继续 `refetch()`；owner 释放时

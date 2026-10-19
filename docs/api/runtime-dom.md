@@ -156,7 +156,7 @@ error calls `onError` and switches to the fallback. Its fallback owns a separate
 scope, and `reset()` disposes that branch before retrying the child. Event
 handlers, independent owners, and unobserved Promise rejections remain outside
 the boundary. To integrate `@zeus-js/resource`, read the resource state from a
-binding and explicitly throw `resource.error()` when it is present. The boundary
+binding and explicitly throw `resource.error()` when `resource.status() === 'error'`. The boundary
 then displays its fallback; call `resource.refetch()` and `reset()` after a
 successful request to restore the child branch. Resource errors are not
 automatically promoted to boundary errors, and compiler lowering for

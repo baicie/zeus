@@ -34,6 +34,18 @@ const unsubscribe = consumer.subscribe(snapshot => {
 listener，并在最后一个 consumer 断开时恢复之前的 hook。consumer 的 listener 和
 `onSelect` 回调异常会被隔离，不能中断 runtime 的响应式更新。
 
+`getSnapshot()` 始终同步返回当前状态。`subscribe()` 首次同步交付快照，后续事件在一个
+microtask 内合并为一次交付，避免每个 binding/依赖事件都复制并排序整个图；没有订阅者时
+不创建通知快照。订阅首次交付中的异常同样被隔离。连接 hook 或安装 click listener 失败
+会回滚本次连接，调用方可在原因消除后再次 `connect()`。
+
+清理后的诊断历史默认在 owners/effects/bindings/sources 各保留最近 500 条。可用
+`historyLimit` 设置每类非活动条目的上限，`0` 表示不保留；活动条目不受此上限影响。
+已释放 owner、已清理 binding、最后一个 binding 被清理后的 effect，以及没有依赖 binding
+的 source 才会进入历史。超限时移除最早的历史项，避免反复挂载/卸载导致图无限增长。
+根 owner 释放时，它的后代 owner 同时进入历史，符合 owner 子树的生命周期。
+binding 耗时只使用自身 `binding:commit.payload.duration`，不从其它 effect 事件推断。
+
 ## DOM 点击追踪边界
 
 MVP 在同一个浏览器 realm 内用事件里的 `target: Node` 和 `composedPath()` 做反查。点击

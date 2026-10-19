@@ -104,6 +104,8 @@ export interface ZeusDevtoolsSnapshot {
 export interface ZeusDevtoolsConsumerOptions {
   /** Capture click events and expose DOM-to-binding selection. */
   readonly captureClicks?: boolean
+  /** Maximum inactive diagnostic entries retained per graph category. */
+  readonly historyLimit?: number
   readonly onSelect?: (selection: ZeusDevtoolsSelection) => void
 }
 
@@ -153,6 +155,7 @@ interface BindingState {
 interface EffectState {
   id: number
   bindingIds: Set<number>
+  activeBindingIds: Set<number>
   runCount: number
   triggerCount: number
   totalDuration: number
@@ -194,16 +197,25 @@ export function createDevtoolsConsumer(
     : window,
   options: ZeusDevtoolsConsumerOptions = {},
 ): ZeusDevtoolsConsumer {
+  const historyLimit = options.historyLimit ?? 500
+  if (!Number.isInteger(historyLimit) || historyLimit < 0) {
+    throw new RangeError('DevTools historyLimit must be a non-negative integer')
+  }
   const owners = new Map<number, OwnerState>()
   const effects = new Map<number, EffectState>()
   const bindings = new Map<number, BindingState>()
   const sources = new Map<number, SourceState>()
+  const inactiveOwners = new Map<number, OwnerState>()
+  const inactiveEffects = new Map<number, EffectState>()
+  const inactiveBindings = new Map<number, BindingState>()
+  const inactiveSources = new Map<number, SourceState>()
   const listeners = new Set<(snapshot: ZeusDevtoolsSnapshot) => void>()
 
   let revision = 0
   let eventCount = 0
   let selected: ZeusDevtoolsSelection | undefined
   let connected = false
+  let notificationPending = false
   let windowHookState: WindowHookState | undefined
   const runtimeWindow = targetWindow as DevtoolsWindow | undefined
 
@@ -268,14 +280,20 @@ export function createDevtoolsConsumer(
   })
 
   const notify = (): void => {
-    const next = snapshot()
-    for (const listener of listeners) {
-      try {
-        listener(next)
-      } catch {
-        // A panel is an observer and must not break runtime updates.
+    if (listeners.size === 0 || notificationPending) return
+    notificationPending = true
+    queueMicrotask(() => {
+      notificationPending = false
+      if (listeners.size === 0) return
+      const next = snapshot()
+      for (const listener of [...listeners]) {
+        try {
+          listener(next)
+        } catch {
+          // A panel is an observer and must not break runtime updates.
+        }
       }
-    }
+    })
   }
 
   const consume = (event: ZeusDevtoolsEvent): void => {
@@ -360,7 +378,11 @@ export function createDevtoolsConsumer(
     getSnapshot: snapshot,
     subscribe(listener) {
       listeners.add(listener)
-      listener(snapshot())
+      try {
+        listener(snapshot())
+      } catch {
+        // Initial delivery follows the same observer isolation as updates.
+      }
       return () => listeners.delete(listener)
     },
     selectNode,
@@ -394,13 +416,22 @@ export function createDevtoolsConsumer(
 
   const connect = (): void => {
     if (connected || !targetWindow) return
-    connected = true
-    if (runtimeWindow) {
-      windowHookState = getOrCreateWindowHookState(runtimeWindow)
-      windowHookState.consumers.add(hook)
-    }
-    if (options.captureClicks !== false) {
-      targetWindow.document.addEventListener('click', clickListener, true)
+    let nextHookState: WindowHookState | undefined
+    try {
+      if (runtimeWindow) {
+        nextHookState = getOrCreateWindowHookState(runtimeWindow)
+        nextHookState.consumers.add(hook)
+      }
+      if (options.captureClicks !== false) {
+        targetWindow.document.addEventListener('click', clickListener, true)
+      }
+      windowHookState = nextHookState
+      connected = true
+    } catch (error) {
+      if (runtimeWindow && nextHookState) {
+        releaseWindowHook(runtimeWindow, nextHookState, hook)
+      }
+      throw error
     }
   }
 
@@ -411,15 +442,7 @@ export function createDevtoolsConsumer(
       targetWindow.document.removeEventListener('click', clickListener, true)
     }
     if (runtimeWindow && windowHookState) {
-      windowHookState.consumers.delete(hook)
-      if (windowHookState.consumers.size === 0) {
-        if (
-          runtimeWindow.__ZEUS_DEVTOOLS_HOOK__ === windowHookState.managerHook
-        ) {
-          restoreWindowHook(runtimeWindow, windowHookState)
-        }
-        windowHookStates.delete(runtimeWindow)
-      }
+      releaseWindowHook(runtimeWindow, windowHookState, hook)
     }
     windowHookState = undefined
   }
@@ -456,6 +479,8 @@ export function createDevtoolsConsumer(
           parent.childIds.add(owner.id)
           owners.set(parentId, parent)
         }
+        owner.disposed = false
+        inactiveOwners.delete(owner.id)
         owners.set(owner.id, owner)
         return true
       }
@@ -466,13 +491,30 @@ export function createDevtoolsConsumer(
           childIds: new Set<number>(),
           disposed: false,
         }
-        owner.disposed = true
         owners.set(owner.id, owner)
+        const pending = [owner]
+        const visited = new Set<number>()
+        while (pending.length > 0) {
+          const current = pending.pop()!
+          if (visited.has(current.id)) continue
+          visited.add(current.id)
+          for (const childId of current.childIds) {
+            const child = owners.get(childId)
+            if (child) pending.push(child)
+          }
+          current.disposed = true
+          retainInactive(owners, inactiveOwners, current, removed => {
+            if (removed.parentId !== undefined) {
+              owners.get(removed.parentId)?.childIds.delete(removed.id)
+            }
+          })
+        }
         return true
       }
       case 'effect:run': {
         if (event.effectId === undefined) return false
         const effect = ensureEffect(event.effectId)
+        inactiveEffects.delete(effect.id)
         const duration = numberPayload(event.payload, 'duration') ?? 0
         effect.runCount++
         effect.totalDuration += duration
@@ -483,6 +525,8 @@ export function createDevtoolsConsumer(
       case 'binding:commit': {
         if (event.bindingId === undefined) return false
         const binding = ensureBinding(event.bindingId)
+        binding.cleaned = false
+        inactiveBindings.delete(binding.id)
         binding.target = event.target ?? binding.target
         binding.targetId = event.targetId ?? binding.targetId
         binding.effectId = event.effectId ?? binding.effectId
@@ -497,13 +541,8 @@ export function createDevtoolsConsumer(
         if (binding.effectId !== undefined) {
           const effect = ensureEffect(binding.effectId)
           effect.bindingIds.add(binding.id)
-          if (
-            commitDuration === undefined &&
-            effect.lastDuration !== undefined
-          ) {
-            binding.lastDuration = effect.lastDuration
-            binding.totalDuration += effect.lastDuration
-          }
+          effect.activeBindingIds.add(binding.id)
+          inactiveEffects.delete(effect.id)
         }
         return true
       }
@@ -522,6 +561,19 @@ export function createDevtoolsConsumer(
         binding.targetId = event.targetId ?? binding.targetId
         binding.effectId = event.effectId ?? binding.effectId
         clearBindingDependencies(binding)
+        if (binding.effectId !== undefined) {
+          const effect = ensureEffect(binding.effectId)
+          effect.bindingIds.add(binding.id)
+          effect.activeBindingIds.delete(binding.id)
+          if (effect.activeBindingIds.size === 0) {
+            retainInactive(effects, inactiveEffects, effect)
+          }
+        }
+        retainInactive(bindings, inactiveBindings, binding, removed => {
+          if (removed.effectId !== undefined) {
+            effects.get(removed.effectId)?.bindingIds.delete(removed.id)
+          }
+        })
         return true
       }
       case 'dependency:track':
@@ -532,6 +584,9 @@ export function createDevtoolsConsumer(
         if (event.sourceId === undefined) return false
         const source = ensureSource(event.sourceId)
         source.triggerCount++
+        if (source.bindingIds.size === 0) {
+          retainInactive(sources, inactiveSources, source)
+        }
         if (event.bindingId !== undefined) {
           const binding = ensureBinding(event.bindingId)
           binding.triggerCount++
@@ -570,6 +625,7 @@ export function createDevtoolsConsumer(
       binding.dependencies.set(event.sourceId, sourceKeys)
     }
     if (operation === 'track') {
+      inactiveSources.delete(source.id)
       sourceKeys.set(key, dependency)
       source.bindingIds.add(binding.id)
       let sourceKeysByBinding = source.dependencies.get(binding.id)
@@ -588,6 +644,9 @@ export function createDevtoolsConsumer(
         source.dependencies.delete(binding.id)
         source.bindingIds.delete(binding.id)
       }
+      if (source.bindingIds.size === 0) {
+        retainInactive(sources, inactiveSources, source)
+      }
     }
     return true
   }
@@ -598,6 +657,7 @@ export function createDevtoolsConsumer(
       effect = {
         id,
         bindingIds: new Set(),
+        activeBindingIds: new Set(),
         runCount: 0,
         triggerCount: 0,
         totalDuration: 0,
@@ -645,9 +705,28 @@ export function createDevtoolsConsumer(
       if (source) {
         source.dependencies.delete(binding.id)
         source.bindingIds.delete(binding.id)
+        if (source.bindingIds.size === 0) {
+          retainInactive(sources, inactiveSources, source)
+        }
       }
     }
     binding.dependencies.clear()
+  }
+
+  function retainInactive<T extends { id: number }>(
+    entries: Map<number, T>,
+    history: Map<number, T>,
+    entry: T,
+    onEvict?: (entry: T) => void,
+  ): void {
+    history.delete(entry.id)
+    history.set(entry.id, entry)
+    while (history.size > historyLimit) {
+      const oldest = history.values().next().value as T
+      history.delete(oldest.id)
+      entries.delete(oldest.id)
+      onEvict?.(oldest)
+    }
   }
 }
 
@@ -715,6 +794,19 @@ function restoreWindowHook(
   } else {
     delete runtimeWindow.__ZEUS_DEVTOOLS_HOOK__
   }
+}
+
+function releaseWindowHook(
+  runtimeWindow: DevtoolsWindow,
+  state: WindowHookState,
+  hook: ZeusDevtoolsHook,
+): void {
+  state.consumers.delete(hook)
+  if (state.consumers.size > 0) return
+  if (runtimeWindow.__ZEUS_DEVTOOLS_HOOK__ === state.managerHook) {
+    restoreWindowHook(runtimeWindow, state)
+  }
+  windowHookStates.delete(runtimeWindow)
 }
 
 function installWindowHook(

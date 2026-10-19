@@ -31,55 +31,56 @@ describe('Resource and ErrorBoundary integration', () => {
     dom.window.close()
   })
 
-  it('routes an explicit resource error through a boundary after pending state', async () => {
-    const container = document.createElement('main')
-    const request = deferred<string>()
-    const error = new Error('load failed')
-    const resource = createResource('key', (_key, context) => {
-      context.signal.addEventListener(
-        'abort',
-        () => request.reject('aborted'),
-        {
-          once: true,
-        },
+  it.each([new Error('load failed'), 0, false, null, undefined])(
+    'routes resource rejection %s through a boundary after pending state',
+    async error => {
+      const container = document.createElement('main')
+      const request = deferred<string>()
+      const resource = createResource('key', (_key, context) => {
+        context.signal.addEventListener(
+          'abort',
+          () => request.reject('aborted'),
+          {
+            once: true,
+          },
+        )
+        return request.promise
+      })
+
+      const dispose = render(
+        () =>
+          ErrorBoundary({
+            children: () => {
+              const text = document.createTextNode('')
+              bindText(text, () => {
+                if (resource.status() === 'error') throw resource.error()
+                return resource.pending()
+                  ? 'loading'
+                  : (resource.data() ?? 'empty')
+              })
+              return text
+            },
+            fallback: caught => {
+              const node = document.createElement('strong')
+              node.textContent = caught === error ? 'error' : 'wrong error'
+              return node
+            },
+          }),
+        container,
       )
-      return request.promise
-    })
 
-    const dispose = render(
-      () =>
-        ErrorBoundary({
-          children: () => {
-            const text = document.createTextNode('')
-            bindText(text, () => {
-              const currentError = resource.error()
-              if (currentError) throw currentError
-              return resource.pending()
-                ? 'loading'
-                : (resource.data() ?? 'empty')
-            })
-            return text
-          },
-          fallback: caught => {
-            const node = document.createElement('strong')
-            node.textContent = caught === error ? 'error' : 'wrong error'
-            return node
-          },
-        }),
-      container,
-    )
+      expect(container.textContent).toBe('loading')
+      request.reject(error)
 
-    expect(container.textContent).toBe('loading')
-    request.reject(error)
+      await vi.waitFor(() => {
+        expect(resource.status()).toBe('error')
+        expect(container.textContent).toBe('error')
+      })
 
-    await vi.waitFor(() => {
-      expect(resource.status()).toBe('error')
-      expect(container.textContent).toBe('error')
-    })
-
-    dispose()
-    resource.dispose()
-  })
+      dispose()
+      resource.dispose()
+    },
+  )
 
   it('recovers after refetch succeeds and the failed branch is reset', async () => {
     const container = document.createElement('main')
@@ -98,8 +99,7 @@ describe('Resource and ErrorBoundary integration', () => {
           children: () => {
             const text = document.createTextNode('')
             bindText(text, () => {
-              const currentError = resource.error()
-              if (currentError) throw currentError
+              if (resource.status() === 'error') throw resource.error()
               return resource.pending()
                 ? 'loading'
                 : (resource.data() ?? 'empty')

@@ -10,6 +10,7 @@ describe('runtime DevTools event bridge', () => {
     type: string
     id: number
     timestamp: number
+    target?: Node
     targetId?: number
     bindingId?: number
     effectId?: number
@@ -17,6 +18,7 @@ describe('runtime DevTools event bridge', () => {
     payload?: {
       key?: unknown
       kind?: string
+      once?: boolean
       operation?: unknown
       duration?: number
     }
@@ -157,6 +159,54 @@ describe('runtime DevTools event bridge', () => {
     expect(
       events.filter(event => event.type === 'binding:commit'),
     ).toHaveLength(commitsAfterDispose)
+  })
+
+  it('cleans up once bindings with their original DOM identities on disposal', () => {
+    const [value, setValue] = createSignal('initial')
+    const container = document.createElement('div')
+    const element = document.createElement('button')
+    const text = document.createTextNode('')
+    element.append(text)
+
+    const dispose = render(() => {
+      bindText(text, value, true)
+      bindAttr(element, 'data-value', value, true)
+      return element
+    }, container)
+
+    const commits = events.filter(event => event.type === 'binding:commit')
+    expect(commits).toHaveLength(2)
+    expect(commits.map(event => event.target)).toEqual([text, element])
+    expect(commits.every(event => event.payload?.once === true)).toBe(true)
+    expect(
+      events.filter(event => event.type === 'binding:cleanup'),
+    ).toHaveLength(0)
+
+    setValue('updated')
+    expect(text.data).toBe('initial')
+    expect(element.getAttribute('data-value')).toBe('initial')
+    expect(
+      events.filter(event => event.type === 'binding:commit'),
+    ).toHaveLength(2)
+
+    dispose()
+    const cleanups = events.filter(event => event.type === 'binding:cleanup')
+    expect(cleanups).toHaveLength(2)
+    for (const commit of commits) {
+      const cleanup = cleanups.find(
+        event => event.bindingId === commit.bindingId,
+      )
+      expect(commit.bindingId).toEqual(expect.any(Number))
+      expect(commit.targetId).toEqual(expect.any(Number))
+      expect(cleanup?.targetId).toBe(commit.targetId)
+      expect(cleanup?.target).toBe(commit.target)
+      expect(cleanup?.payload?.kind).toBe(commit.payload?.kind)
+    }
+
+    dispose()
+    expect(
+      events.filter(event => event.type === 'binding:cleanup'),
+    ).toHaveLength(2)
   })
 
   it('keeps reactive updates working without a DevTools hook', () => {

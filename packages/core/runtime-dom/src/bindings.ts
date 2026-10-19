@@ -149,21 +149,20 @@ function applyBinding<T>(
 
   if (once) {
     untrack(run)
-    return
+  } else {
+    effect(
+      run,
+      devtoolsInstrumentation
+        ? {
+            onTrack: event => trackDependency(collectingDependencies, event),
+            onTrigger: event => {
+              if (!hasDevtoolsHook()) return
+              triggerDependency(event, ensureBindingId())
+            },
+          }
+        : undefined,
+    )
   }
-
-  effect(
-    run,
-    devtoolsInstrumentation
-      ? {
-          onTrack: event => trackDependency(collectingDependencies, event),
-          onTrigger: event => {
-            if (!hasDevtoolsHook()) return
-            triggerDependency(event, ensureBindingId())
-          },
-        }
-      : undefined,
-  )
   onScopeDispose(() => {
     if (bindingId === undefined) return
     if (effectId !== undefined && trackedDependencies) {

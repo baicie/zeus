@@ -229,6 +229,183 @@ describe('DevTools consumer/panel', () => {
     ])
   })
 
+  it('delivers one notification per microtask while snapshots stay synchronous', async () => {
+    const consumer = createDevtoolsConsumer()
+    const snapshots: number[] = []
+    const unsubscribe = consumer.subscribe(snapshot => {
+      snapshots.push(snapshot.eventCount)
+    })
+
+    for (let id = 1; id <= 2000; id++) {
+      consumer.consume(event('binding:commit', { bindingId: id }))
+    }
+
+    expect(snapshots).toEqual([0])
+    expect(consumer.getSnapshot().bindings).toHaveLength(2000)
+    expect(consumer.getSnapshot().eventCount).toBe(2000)
+    await Promise.resolve()
+    expect(snapshots).toEqual([0, 2000])
+
+    consumer.consume(event('binding:cleanup', { bindingId: 1 }))
+    unsubscribe()
+    await Promise.resolve()
+    expect(snapshots).toEqual([0, 2000])
+  })
+
+  it('bounds inactive history without removing active graph entries', () => {
+    const consumer = createDevtoolsConsumer(undefined, { historyLimit: 2 })
+    const mount = (id: number) => {
+      consumer.consume(event('owner:create', { ownerId: id }))
+      consumer.consume(event('effect:run', { effectId: id }))
+      consumer.consume(
+        event('dependency:track', {
+          bindingId: id,
+          sourceId: id,
+          payload: { key: 'value', operation: 'get' },
+        }),
+      )
+      consumer.consume(event('binding:commit', { bindingId: id, effectId: id }))
+    }
+
+    for (const id of [1, 2, 3]) mount(id)
+    for (let id = 10; id < 30; id++) {
+      mount(id)
+      consumer.consume(event('binding:cleanup', { bindingId: id }))
+      consumer.consume(event('owner:dispose', { ownerId: id }))
+    }
+
+    const snapshot = consumer.getSnapshot()
+    for (const entries of [
+      snapshot.owners,
+      snapshot.effects,
+      snapshot.bindings,
+      snapshot.sources,
+    ]) {
+      expect(entries.map(entry => entry.id)).toEqual([1, 2, 3, 28, 29])
+    }
+    expect(snapshot.bindings.filter(binding => binding.cleaned)).toHaveLength(2)
+    expect(snapshot.bindings[0]?.dependencies).toHaveLength(1)
+    expect(snapshot.sources[0]?.bindingIds).toEqual([1])
+  })
+
+  it('keeps an effect and source active until their last binding is cleaned', () => {
+    const consumer = createDevtoolsConsumer(undefined, { historyLimit: 0 })
+    for (const bindingId of [1, 2]) {
+      consumer.consume(event('binding:commit', { bindingId, effectId: 3 }))
+      consumer.consume(
+        event('dependency:track', {
+          bindingId,
+          sourceId: 4,
+          payload: { key: 'value', operation: 'get' },
+        }),
+      )
+    }
+
+    consumer.consume(event('binding:cleanup', { bindingId: 1 }))
+    expect(consumer.getSnapshot().effects).toMatchObject([
+      { id: 3, bindingIds: [2] },
+    ])
+    expect(consumer.getSnapshot().sources).toMatchObject([
+      { id: 4, bindingIds: [2] },
+    ])
+
+    consumer.consume(event('binding:cleanup', { bindingId: 2 }))
+    const snapshot = consumer.getSnapshot()
+    expect(snapshot.effects).toEqual([])
+    expect(snapshot.bindings).toEqual([])
+    expect(snapshot.sources).toEqual([])
+  })
+
+  it('retires descendant owners when their root owner is disposed', () => {
+    const consumer = createDevtoolsConsumer(undefined, { historyLimit: 2 })
+    consumer.consume(event('owner:create', { ownerId: 1 }))
+    for (let rootId = 10; rootId < 30; rootId += 2) {
+      consumer.consume(event('owner:create', { ownerId: rootId }))
+      consumer.consume(
+        event('owner:create', {
+          ownerId: rootId + 1,
+          payload: { parentId: rootId },
+        }),
+      )
+      consumer.consume(event('owner:dispose', { ownerId: rootId }))
+    }
+
+    expect(consumer.getSnapshot().owners).toEqual([
+      { id: 1, childIds: [], disposed: false },
+      { id: 28, childIds: [29], disposed: true },
+      { id: 29, parentId: 28, childIds: [], disposed: true },
+    ])
+  })
+
+  it('does not infer a missing binding duration from an effect event', () => {
+    const consumer = createDevtoolsConsumer()
+    consumer.consume(
+      event('effect:run', { effectId: 1, payload: { duration: 10 } }),
+    )
+    consumer.consume(event('binding:commit', { bindingId: 2, effectId: 1 }))
+
+    expect(consumer.getSnapshot().bindings[0]).toMatchObject({
+      id: 2,
+      totalDuration: 0,
+    })
+    expect(consumer.getSnapshot().bindings[0]?.lastDuration).toBeUndefined()
+  })
+
+  it('isolates initial subscription errors and continues delivering updates', async () => {
+    const consumer = createDevtoolsConsumer()
+    const failing = vi.fn(() => {
+      throw new Error('panel failed')
+    })
+    let unsubscribe!: () => void
+    expect(() => {
+      unsubscribe = consumer.subscribe(failing)
+    }).not.toThrow()
+
+    consumer.consume(event('owner:create', { ownerId: 1 }))
+    await Promise.resolve()
+    expect(failing).toHaveBeenCalledTimes(2)
+    unsubscribe()
+  })
+
+  it('keeps failed hook connections retryable', () => {
+    dom = new JSDOM('<!doctype html><html><body /></html>')
+    const previousHook = { emit: vi.fn() }
+    Object.defineProperty(dom.window, '__ZEUS_DEVTOOLS_HOOK__', {
+      configurable: false,
+      get: () => previousHook,
+    })
+    const consumer = createDevtoolsConsumer(dom.window)
+    expect(() => consumer.connect()).toThrow('non-configurable hook accessor')
+    expect(() => consumer.connect()).toThrow('non-configurable hook accessor')
+    expect(() => consumer.disconnect()).not.toThrow()
+    expect(dom.window.__ZEUS_DEVTOOLS_HOOK__).toBe(previousHook)
+  })
+
+  it('restores the hook if registering the click listener fails', () => {
+    dom = new JSDOM('<!doctype html><html><body /></html>')
+    const previousHook = { emit: vi.fn() }
+    Object.defineProperty(dom.window, '__ZEUS_DEVTOOLS_HOOK__', {
+      configurable: true,
+      value: previousHook,
+    })
+    const consumer = createDevtoolsConsumer(dom.window)
+    const register = vi.spyOn(dom.window.document, 'addEventListener')
+    register.mockImplementationOnce(() => {
+      throw new Error('listener registration failed')
+    })
+    expect(() => consumer.connect()).toThrow('listener registration failed')
+    expect(dom.window.__ZEUS_DEVTOOLS_HOOK__).toBe(previousHook)
+    register.mockRestore()
+
+    consumer.connect()
+    dom.window.__ZEUS_DEVTOOLS_HOOK__!.emit(
+      event('owner:create', { ownerId: 1 }),
+    )
+    expect(consumer.getSnapshot().owners).toMatchObject([{ id: 1 }])
+    consumer.disconnect()
+    expect(dom.window.__ZEUS_DEVTOOLS_HOOK__).toBe(previousHook)
+  })
+
   it('follows composedPath to select bindings inside an open shadow root', () => {
     dom = new JSDOM(
       '<!doctype html><html><body><div id="host" /></body></html>',
