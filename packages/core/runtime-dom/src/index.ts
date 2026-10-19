@@ -14,12 +14,30 @@ export type {
 export { template } from './template'
 
 export { render, type RenderOptions } from './render'
+export { hydrate, type HydrationContext } from './hydration'
 
 export { insert, mountDynamic } from './insert'
 
 export { Portal, type PortalProps } from './portal'
 
 export { ErrorBoundary, type ErrorBoundaryProps } from './errorBoundary'
+
+export {
+  Transition,
+  mountTransition,
+  transition,
+  type TransitionClassSpec,
+  type TransitionClassValue,
+  type TransitionContext,
+  type TransitionDuration,
+  type TransitionHandle,
+  type TransitionHook,
+  type TransitionHookResult,
+  type TransitionOptions,
+  type TransitionPhase,
+  type TransitionProps,
+  type TransitionSpec,
+} from './transition'
 
 export { insertTracked } from './insert'
 export { isWithinRuntimeDomMove } from './domMove'

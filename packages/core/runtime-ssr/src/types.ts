@@ -37,3 +37,16 @@ export type SSRStyleValue =
   | Readonly<Record<string, string | number | null | undefined>>
 
 export type SSRRenderInput = () => SSRNode
+
+export interface SSRShadowRootOptions {
+  readonly mode: 'open' | 'closed'
+  readonly delegatesFocus?: boolean
+  readonly serializable?: boolean
+}
+
+export interface SSRCustomElementOptions {
+  readonly attributes?: readonly SSRAttributeEntry[]
+  readonly children?: SSRNode
+  readonly shadowRoot?: SSRNode
+  readonly shadowRootOptions?: SSRShadowRootOptions
+}

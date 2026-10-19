@@ -8,6 +8,7 @@
 
 ```sh
 pnpm example:counter
+pnpm example:admin
 pnpm example:web-component
 pnpm example:use-headless-react
 ```
@@ -26,12 +27,18 @@ pnpm examples:check:all --build-first
 
 ## 基础 Zeus 示例
 
-| 示例            | 说明                                |
-| --------------- | ----------------------------------- |
-| `counter`       | `createSignal` + `render` 入门示例  |
-| `todo`          | 列表、事件与基础状态更新            |
-| `context`       | `createContext` / `inject` 依赖注入 |
-| `project-board` | 综合 Kanban 示例，覆盖核心交互能力  |
+| 示例            | 说明                                        |
+| --------------- | ------------------------------------------- |
+| `counter`       | `createSignal` + `render` 入门示例          |
+| `todo`          | 列表、事件与基础状态更新                    |
+| `context`       | `createContext` / `inject` 依赖注入         |
+| `project-board` | 综合 Kanban 示例，覆盖核心交互能力          |
+| `admin`         | 嵌套路由、loader、权限、错误与 history 导航 |
+
+`admin` 通过公开的 Router API 消费当前 workspace 包。构建后运行 `pnpm check:admin`，
+可在 Chromium、Firefox、WebKit 中检查生产产物的客户端导航、前进后退、预加载、
+深链接刷新及权限错误。部署时应将 `/admin/*` 的页面请求回退到 `index.html`；详情见
+[`admin/README.md`](./admin/README.md)。
 
 ## Web Components 示例
 

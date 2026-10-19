@@ -146,6 +146,23 @@ export declare function render(
   options?: RenderOptions,
 ): () => void
 
+export interface HydrationContext {
+  node(id: string): Node
+  text(id: string, value: () => unknown): void
+  attr(id: string, name: string, value: () => unknown): void
+  prop(id: string, name: string, value: () => unknown): void
+  event(id: string, name: string, handler: EventListener): void
+}
+/**
+ * Reuses server-created nodes and attaches fine-grained bindings. This API is
+ * intentionally explicit: compiler-generated plans can map each marker to a
+ * precise node without guessing a component tree from arbitrary HTML.
+ */
+export declare function hydrate(
+  container: Element | DocumentFragment,
+  setup: (context: HydrationContext) => void,
+): () => void
+
 export declare function insertTracked(
   parent: Node,
   value: JSXValue,
@@ -181,14 +198,113 @@ export interface ErrorBoundaryProps {
   fallback: (error: unknown, reset: () => void) => JSXValue
   onError?: (error: unknown) => void
 }
+declare const errorBoundaryIntrinsic: unique symbol
+/** Marks the compiler intrinsic for JSX typing without changing its runtime identity. */
+export declare const ErrorBoundary: typeof renderErrorBoundary & {
+  readonly [errorBoundaryIntrinsic]: true
+}
 /**
  * Mounts an explicit-factory error boundary without introducing a wrapper node.
  * Compiler lowering may target this helper once boundary children are emitted
  * as factories automatically.
  */
-export declare function ErrorBoundary(
+declare function renderErrorBoundary(
   props: ErrorBoundaryProps,
 ): DocumentFragment
+
+export type TransitionPhase = 'enter' | 'leave'
+export type TransitionClassValue = string | readonly string[]
+export interface TransitionClassSpec {
+  from?: TransitionClassValue
+  active?: TransitionClassValue
+  to?: TransitionClassValue
+}
+export interface TransitionContext {
+  readonly nodes: readonly Node[]
+  readonly phase: TransitionPhase
+  done: () => void
+  cancel: () => void
+}
+type TransitionCleanup = () => void
+export type TransitionHookResult =
+  | void
+  | TransitionCleanup
+  | Promise<void | TransitionCleanup>
+/**
+ * A hook with one argument receives a context. A two-argument hook receives
+ * the nodes and a done callback, which is useful for callback-style animation
+ * libraries. Returning a Promise is the async form of the same contract.
+ */
+export type TransitionHook =
+  | ((context: TransitionContext) => TransitionHookResult)
+  | ((nodes: readonly Node[], done: () => void) => TransitionHookResult)
+export type TransitionSpec =
+  | TransitionClassValue
+  | TransitionClassSpec
+  | TransitionHook
+export type TransitionDuration =
+  | number
+  | PromiseLike<number>
+  | (() => number | PromiseLike<number>)
+export interface TransitionOptions {
+  enter?: TransitionSpec
+  leave?: TransitionSpec
+  onEnter?: TransitionHook
+  onLeave?: TransitionHook
+  duration?:
+    | TransitionDuration
+    | {
+        enter?: TransitionDuration
+        leave?: TransitionDuration
+      }
+  onEnterDone?: () => void
+  onLeaveDone?: () => void
+  /** Skip visual hooks when the user agent requests reduced motion. */
+  respectReducedMotion?: boolean
+}
+export interface TransitionHandle {
+  readonly phase: TransitionPhase
+  readonly promise: Promise<void>
+  done: () => void
+  cancel: () => void
+  dispose: () => void
+}
+export interface TransitionProps extends TransitionOptions {
+  when: unknown
+  children?: JSXValue | (() => JSXValue)
+  fallback?: JSXValue | (() => JSXValue)
+}
+type Complete = () => void
+/**
+ * Apply an enter or leave transition to an already mounted node range.
+ *
+ * A numeric duration is a timeout fallback. A Promise or Promise-returning
+ * function is awaited. Callback hooks may call `done()` explicitly; calling
+ * `done()` or `cancel()` more than once is harmless.
+ */
+export declare function transition(
+  value: Node | readonly Node[],
+  phase: TransitionPhase,
+  options?: TransitionOptions,
+  complete?: Complete,
+): TransitionHandle
+/**
+ * Mount a reactive transition region. This is the runtime lowering boundary
+ * used by the native compiler's `<Transition>` intrinsic.
+ */
+export declare function mountTransition(
+  parent: Node,
+  marker: Node,
+  when: () => unknown,
+  children: () => JSXValue,
+  options?: TransitionOptions,
+): void
+/**
+ * Runtime value form for explicit calls. JSX compilation of this boundary is
+ * The compiler lowers the intrinsic form to `mountTransition`; direct calls
+ * remain available for runtime-only integrations.
+ */
+export declare function Transition(props: TransitionProps): JSXValue
 
 export declare function isWithinRuntimeDomMove(node: Node): boolean
 

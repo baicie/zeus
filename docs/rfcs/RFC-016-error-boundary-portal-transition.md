@@ -1,9 +1,9 @@
 # RFC-016：ErrorBoundary、Portal 与 Transition 契约
 
-- 状态：Accepted（E-004 Native runtime slice；Resource 集成已验收，compiler lowering 与 Transition 待后续）
+- 状态：Accepted（E-004 Native runtime slice；Resource 集成、Transition runtime 与 compiler lowering 已验收）
 - 日期：2026-10-19
 - 依赖：RFC-001、RFC-006、RFC-008、RFC-011、RFC-015
-- 实现范围：Native Portal、显式 factory ErrorBoundary runtime 与 Resource 显式集成；Transition 先冻结契约
+- 实现范围：Native Portal、显式 factory ErrorBoundary、Resource 显式集成与 Transition runtime/compiler lowering
 
 ## 摘要
 
@@ -11,9 +11,10 @@ E-004 需要把错误恢复、跨目标 DOM 挂载和离场动画放进同一套
 生命周期里。本 RFC 只承诺细粒度 DOM runtime 能够实现的语义，不引入 Virtual DOM、
 组件重新执行或隐式 Promise 渲染。
 
-本切片交付 Native Portal、显式 render-factory ErrorBoundary 与 Resource 集成的最小实现
-和 cleanup 回归。Transition 需要延迟子树 scope 销毁；在 compiler lowering 和状态机稳定
-前不导出 Transition 公共 API。
+本切片交付 Native Portal、显式 render-factory ErrorBoundary、Resource 集成和
+runtime-only Transition 的最小实现与 cleanup 回归。Transition 的状态机不改变
+`ScopedSubtree.replace()` 的立即替换语义；只有显式 `mountTransition()` 区域会在离场
+完成前保留旧节点。
 
 ## 1. ErrorBoundary
 
@@ -108,21 +109,33 @@ function Portal(props: PortalProps): Comment
 
 ## 3. Transition
 
-Transition 在实现前先冻结以下行为，避免把现有 `ScopedSubtree.replace()` 的立即
+Transition runtime 实现冻结以下行为，避免把现有 `ScopedSubtree.replace()` 的立即
 销毁语义改成不可逆的隐式调度：
 
-- compiler 识别 `Transition` 边界并生成一个拥有稳定 range 的动态区域；普通组件名
-  不能自动获得该语义。
+- `mountTransition(parent, marker, when, children, options)` 是当前唯一的动态 runtime
+  入口。它生成稳定 range，普通组件名不能自动获得该语义。
 - enter 在新节点插入后执行，leave 在节点从 DOM 移除前执行；leave 完成后才停止
   子树 scope 和移除节点，节点 identity 在动画期间保持。
 - 每个 range 必须有可取消的 enter/leave 状态；快速重入、重复 `done()`、父 scope
   dispose 都必须幂等。没有 `transitionend`/`animationend` 的环境要有显式完成或
   超时兜底。
-- reduced-motion 和 SSR 只输出静态内容，不启动浏览器动画。Transition 不负责
+- reduced-motion 和没有 DOM 的环境只输出静态内容，不启动浏览器动画。Transition 不负责
   focus、Escape、Portal target 或跨框架 renderer 生命周期。
 
-该切片不导出 `Transition` runtime，也不修改 compiler IR。后续实现必须先补充
-transition 状态机和真实浏览器时序测试，再更新本 RFC 状态。
+runtime 导出 `transition()`、`mountTransition()` 和值形式 `Transition()`。`transition()`
+接受 `enter`/`leave` class 或回调，class 会在节点保留期间清理；回调可以返回 cleanup、
+返回 Promise，或使用 `(nodes, done)` 显式完成。`duration` 接受数字、Promise 或按
+`enter`/`leave` 区分的配置；数字 `0` 同步完成，正数作为超时兜底，异步 duration 会在
+解析后再计时。`done()`、`cancel()`、owner dispose 和 leave 完成均幂等，快速重入会
+取消离场并保留原节点 identity。
+
+Native compiler 只将从 `@zeus-js/zeus` 或 `@zeus-js/runtime-dom` 导入的
+`Transition` 识别为 intrinsic，并要求显式 `when` 属性。其余 `enter`、`leave`、
+`onEnter`、`onLeave`、`duration`、`onEnterDone`、`onLeaveDone` 和
+`respectReducedMotion` 选项原样传给 `mountTransition()`；未知属性、spread 和包含
+JSX 的选项会产生编译期诊断。生成的 DOM 代码仍只调用上述 runtime 状态机，不会为
+普通同名组件或 runtime `Transition()` 值形式注入动画语义。SSR 只输出 `when` 为真时
+的初始 children，不启动浏览器 transition。
 
 ## 4. 非目标与诊断
 

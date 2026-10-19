@@ -13,6 +13,7 @@ export interface NpmReleaseAuthDependencies {
   readCollaborators: (
     pkg: string,
   ) => Readonly<Record<string, string | undefined>>
+  readTwoFactorPolicy: () => string
 }
 
 export interface NpmReleaseAuthResult {
@@ -29,6 +30,13 @@ export function verifyNpmReleaseAuth(
 
   const username = dependencies.whoami().trim()
   if (!username) throw new Error('npm whoami returned an empty identity')
+
+  const twoFactorPolicy = dependencies.readTwoFactorPolicy().trim()
+  if (twoFactorPolicy !== 'auth-and-writes') {
+    throw new Error(
+      `npm release auth preflight failed: account 2FA policy is ${twoFactorPolicy || 'unset'}; expected auth-and-writes`,
+    )
+  }
 
   const errors: string[] = []
   for (const pkg of dependencies.packages) {
@@ -59,6 +67,7 @@ function main(): void {
     packages: zeusFixedPackages,
     whoami: () =>
       runNpm(['whoami', '--registry', registry], 'resolve npm identity'),
+    readTwoFactorPolicy: () => readTwoFactorPolicy(registry),
     readCollaborators: pkg =>
       JSON.parse(
         runNpm(
@@ -81,6 +90,16 @@ function main(): void {
       `npm release auth passed (${result.username}, ${result.verifiedPackages} packages with read-write access).`,
     ),
   )
+}
+
+function readTwoFactorPolicy(registry: string): string {
+  const profile = JSON.parse(
+    runNpm(
+      ['profile', 'get', 'tfa', '--json', '--registry', registry],
+      'read npm account 2FA policy',
+    ),
+  ) as { tfa?: unknown }
+  return typeof profile.tfa === 'string' ? profile.tfa : ''
 }
 
 function runNpm(args: string[], label: string): string {

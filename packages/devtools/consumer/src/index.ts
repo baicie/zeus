@@ -13,6 +13,8 @@ export type ZeusDevtoolsEventType =
   | 'delegate-event'
   | 'owner:create'
   | 'owner:dispose'
+  | 'component:create'
+  | 'component:dispose'
   | 'effect:run'
   | 'binding:commit'
   | 'binding:cleanup'
@@ -27,6 +29,8 @@ export interface ZeusDevtoolsEvent {
   readonly target?: Node
   readonly targetId?: number
   readonly ownerId?: number
+  readonly componentId?: number
+  readonly componentName?: string
   readonly bindingId?: number
   readonly effectId?: number
   readonly sourceId?: number
@@ -41,6 +45,13 @@ export interface ZeusDevtoolsOwnerSnapshot {
   readonly id: number
   readonly parentId?: number
   readonly childIds: readonly number[]
+  readonly disposed: boolean
+}
+
+export interface ZeusDevtoolsComponentSnapshot {
+  readonly id: number
+  readonly name: string
+  readonly ownerId?: number
   readonly disposed: boolean
 }
 
@@ -95,6 +106,7 @@ export interface ZeusDevtoolsSnapshot {
   readonly revision: number
   readonly eventCount: number
   readonly owners: readonly ZeusDevtoolsOwnerSnapshot[]
+  readonly components: readonly ZeusDevtoolsComponentSnapshot[]
   readonly effects: readonly ZeusDevtoolsEffectSnapshot[]
   readonly bindings: readonly ZeusDevtoolsBindingSnapshot[]
   readonly sources: readonly ZeusDevtoolsSourceSnapshot[]
@@ -124,10 +136,127 @@ export interface ZeusDevtoolsConsumer extends ZeusDevtoolsPanel {
   consume(event: ZeusDevtoolsEvent): void
 }
 
+/**
+ * Minimal MessagePort contract used by the cross-window panel bridge. The
+ * structural type keeps the consumer usable with MessageChannel, browser
+ * extension ports, and small test doubles without importing DOM globals in
+ * the public API.
+ */
+export interface ZeusDevtoolsMessagePort {
+  postMessage(message: unknown): void
+  addEventListener(
+    type: 'message',
+    listener: (event: { readonly data: unknown }) => void,
+  ): void
+  removeEventListener(
+    type: 'message',
+    listener: (event: { readonly data: unknown }) => void,
+  ): void
+  start?: () => void
+}
+
+export interface ZeusDevtoolsPortEmitter {
+  connect(): void
+  disconnect(): void
+}
+
+export interface ZeusDevtoolsPortConsumer extends ZeusDevtoolsPanel {
+  connect(): void
+  disconnect(): void
+  consume(event: ZeusDevtoolsEvent): void
+}
+
+/**
+ * Installs a serializing event forwarder on a runtime window. The returned
+ * bridge chains through the existing runtime hook and restores it when the
+ * panel disconnects. Runtime events never carry DOM references across the
+ * port; `targetId` remains available for panel-side lookup protocols.
+ */
+export function createDevtoolsPortEmitter(
+  runtimeWindow: Window | undefined,
+  port: ZeusDevtoolsMessagePort,
+): ZeusDevtoolsPortEmitter {
+  const runtime = runtimeWindow as DevtoolsWindow | undefined
+  const forwarder: ZeusDevtoolsHook = {
+    emit(event) {
+      try {
+        port.postMessage(serializePortEvent(event))
+      } catch {
+        // A disconnected panel must never affect application updates.
+      }
+    },
+  }
+  let state: WindowHookState | undefined
+  let connected = false
+
+  return {
+    connect() {
+      if (connected || !runtime) return
+      state = getOrCreateWindowHookState(runtime)
+      state.consumers.add(forwarder)
+      connected = true
+    },
+    disconnect() {
+      if (!connected) return
+      connected = false
+      if (runtime && state) releaseWindowHook(runtime, state, forwarder)
+      state = undefined
+    },
+  }
+}
+
+/**
+ * Creates a panel consumer backed by a MessagePort. Incoming messages are
+ * validated and reduced by the regular panel graph; malformed or unrelated
+ * messages are ignored. This API is safe to import in Node/SSR environments.
+ */
+export function createDevtoolsPortConsumer(
+  port: ZeusDevtoolsMessagePort,
+  options: ZeusDevtoolsConsumerOptions = {},
+): ZeusDevtoolsPortConsumer {
+  const consumer = createDevtoolsConsumer(undefined, options)
+  let connected = false
+  const onMessage = (message: { readonly data: unknown }): void => {
+    const event = deserializePortEvent(message.data)
+    if (event) consumer.consume(event)
+  }
+
+  return {
+    getSnapshot: consumer.getSnapshot,
+    subscribe: consumer.subscribe,
+    selectNode: consumer.selectNode,
+    clearSelection: consumer.clearSelection,
+    consume: consumer.consume,
+    connect() {
+      if (connected) return
+      port.addEventListener('message', onMessage)
+      try {
+        port.start?.()
+        connected = true
+      } catch (error) {
+        port.removeEventListener('message', onMessage)
+        throw error
+      }
+    },
+    disconnect() {
+      if (!connected) return
+      connected = false
+      port.removeEventListener('message', onMessage)
+    },
+  }
+}
+
 interface OwnerState {
   id: number
   parentId?: number
   childIds: Set<number>
+  disposed: boolean
+}
+
+interface ComponentState {
+  id: number
+  name: string
+  ownerId?: number
   disposed: boolean
 }
 
@@ -202,6 +331,7 @@ export function createDevtoolsConsumer(
     throw new RangeError('DevTools historyLimit must be a non-negative integer')
   }
   const owners = new Map<number, OwnerState>()
+  const components = new Map<number, ComponentState>()
   const effects = new Map<number, EffectState>()
   const bindings = new Map<number, BindingState>()
   const sources = new Map<number, SourceState>()
@@ -229,6 +359,16 @@ export function createDevtoolsConsumer(
         ...(owner.parentId === undefined ? {} : { parentId: owner.parentId }),
         childIds: [...owner.childIds].sort((left, right) => left - right),
         disposed: owner.disposed,
+      })),
+    components: [...components.values()]
+      .sort((left, right) => left.id - right.id)
+      .map(component => ({
+        id: component.id,
+        name: component.name,
+        ...(component.ownerId === undefined
+          ? {}
+          : { ownerId: component.ownerId }),
+        disposed: component.disposed,
       })),
     effects: [...effects.values()]
       .sort((left, right) => left.id - right.id)
@@ -511,6 +651,23 @@ export function createDevtoolsConsumer(
         }
         return true
       }
+      case 'component:create': {
+        if (event.componentId === undefined) return false
+        components.set(event.componentId, {
+          id: event.componentId,
+          name: event.componentName ?? 'Anonymous',
+          ...(event.ownerId === undefined ? {} : { ownerId: event.ownerId }),
+          disposed: false,
+        })
+        return true
+      }
+      case 'component:dispose': {
+        if (event.componentId === undefined) return false
+        const component = components.get(event.componentId)
+        if (!component) return false
+        component.disposed = true
+        return true
+      }
       case 'effect:run': {
         if (event.effectId === undefined) return false
         const effect = ensureEffect(event.effectId)
@@ -736,6 +893,158 @@ function dependencyValues(
   return [...dependencies.values()]
     .flatMap(entries => [...entries.values()])
     .map(dependency => ({ ...dependency }))
+}
+
+const DEVTOOLS_PORT_VERSION = 1
+const DEVTOOLS_PORT_CHANNEL = 'zeus-devtools'
+
+interface ZeusDevtoolsPortEventMessage {
+  readonly channel: typeof DEVTOOLS_PORT_CHANNEL
+  readonly version: typeof DEVTOOLS_PORT_VERSION
+  readonly kind: 'event'
+  readonly event: {
+    readonly id: number
+    readonly timestamp: number
+    readonly type: ZeusDevtoolsEventType
+    readonly targetId?: number
+    readonly ownerId?: number
+    readonly componentId?: number
+    readonly componentName?: string
+    readonly bindingId?: number
+    readonly effectId?: number
+    readonly sourceId?: number
+    readonly payload?: Readonly<Record<string, unknown>>
+  }
+}
+
+function serializePortEvent(
+  event: ZeusDevtoolsEvent,
+): ZeusDevtoolsPortEventMessage {
+  const payload = serializePortValue(event.payload)
+  return {
+    channel: DEVTOOLS_PORT_CHANNEL,
+    version: DEVTOOLS_PORT_VERSION,
+    kind: 'event',
+    event: {
+      id: event.id,
+      timestamp: event.timestamp,
+      type: event.type,
+      ...(event.targetId === undefined ? {} : { targetId: event.targetId }),
+      ...(event.ownerId === undefined ? {} : { ownerId: event.ownerId }),
+      ...(event.componentId === undefined
+        ? {}
+        : { componentId: event.componentId }),
+      ...(event.componentName === undefined
+        ? {}
+        : { componentName: event.componentName }),
+      ...(event.bindingId === undefined ? {} : { bindingId: event.bindingId }),
+      ...(event.effectId === undefined ? {} : { effectId: event.effectId }),
+      ...(event.sourceId === undefined ? {} : { sourceId: event.sourceId }),
+      ...(payload === undefined ? {} : { payload }),
+    },
+  }
+}
+
+function deserializePortEvent(value: unknown): ZeusDevtoolsEvent | undefined {
+  if (!isRecord(value)) return undefined
+  if (
+    value.channel !== DEVTOOLS_PORT_CHANNEL ||
+    value.version !== DEVTOOLS_PORT_VERSION ||
+    value.kind !== 'event' ||
+    !isRecord(value.event)
+  ) {
+    return undefined
+  }
+  const event = value.event
+  if (
+    typeof event.id !== 'number' ||
+    typeof event.timestamp !== 'number' ||
+    !isDevtoolsEventType(event.type)
+  ) {
+    return undefined
+  }
+  const payload = event.payload
+  if (payload !== undefined && !isRecord(payload)) return undefined
+  return {
+    id: event.id,
+    timestamp: event.timestamp,
+    type: event.type,
+    ...(typeof event.targetId === 'number' ? { targetId: event.targetId } : {}),
+    ...(typeof event.ownerId === 'number' ? { ownerId: event.ownerId } : {}),
+    ...(typeof event.componentId === 'number'
+      ? { componentId: event.componentId }
+      : {}),
+    ...(typeof event.componentName === 'string'
+      ? { componentName: event.componentName }
+      : {}),
+    ...(typeof event.bindingId === 'number'
+      ? { bindingId: event.bindingId }
+      : {}),
+    ...(typeof event.effectId === 'number' ? { effectId: event.effectId } : {}),
+    ...(typeof event.sourceId === 'number' ? { sourceId: event.sourceId } : {}),
+    ...(payload === undefined ? {} : { payload }),
+  }
+}
+
+function isDevtoolsEventType(value: unknown): value is ZeusDevtoolsEventType {
+  return (
+    value === 'render' ||
+    value === 'effect' ||
+    value === 'mount-for' ||
+    value === 'delegate-event' ||
+    value === 'owner:create' ||
+    value === 'owner:dispose' ||
+    value === 'component:create' ||
+    value === 'component:dispose' ||
+    value === 'effect:run' ||
+    value === 'binding:commit' ||
+    value === 'binding:cleanup' ||
+    value === 'dependency:track' ||
+    value === 'dependency:trigger' ||
+    value === 'dependency:untrack'
+  )
+}
+
+function serializePortValue(
+  value: unknown,
+): Readonly<Record<string, unknown>> | undefined {
+  if (!isRecord(value)) return undefined
+  const result: Record<string, unknown> = {}
+  for (const [key, entry] of Object.entries(value)) {
+    const serialized = serializePortEntry(entry, new Set())
+    if (serialized !== undefined) result[key] = serialized
+  }
+  return result
+}
+
+function serializePortEntry(value: unknown, seen: Set<object>): unknown {
+  if (
+    value === null ||
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  ) {
+    return value
+  }
+  if (typeof value !== 'object') return undefined
+  if (seen.has(value)) return undefined
+  seen.add(value)
+  if (Array.isArray(value)) {
+    return value
+      .map(entry => serializePortEntry(entry, seen))
+      .filter(entry => entry !== undefined)
+  }
+  if (!isRecord(value)) return undefined
+  const result: Record<string, unknown> = {}
+  for (const [key, entry] of Object.entries(value)) {
+    const serialized = serializePortEntry(entry, seen)
+    if (serialized !== undefined) result[key] = serialized
+  }
+  return result
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function getOrCreateWindowHookState(

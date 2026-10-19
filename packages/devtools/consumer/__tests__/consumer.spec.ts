@@ -1,7 +1,49 @@
 import { JSDOM } from 'jsdom'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { createDevtoolsConsumer, type ZeusDevtoolsEvent } from '../src'
+import {
+  createDevtoolsConsumer,
+  createDevtoolsPortConsumer,
+  createDevtoolsPortEmitter,
+  type ZeusDevtoolsEvent,
+  type ZeusDevtoolsMessagePort,
+} from '../src'
+
+class TestPort implements ZeusDevtoolsMessagePort {
+  readonly messages: unknown[] = []
+  startError?: Error
+  private readonly listeners = new Set<
+    (event: { readonly data: unknown }) => void
+  >()
+  peer?: TestPort
+
+  postMessage(message: unknown): void {
+    this.messages.push(message)
+    this.peer?.deliver(message)
+  }
+
+  deliver(message: unknown): void {
+    for (const listener of this.listeners) listener({ data: message })
+  }
+
+  addEventListener(
+    _type: 'message',
+    listener: (event: { readonly data: unknown }) => void,
+  ): void {
+    this.listeners.add(listener)
+  }
+
+  removeEventListener(
+    _type: 'message',
+    listener: (event: { readonly data: unknown }) => void,
+  ): void {
+    this.listeners.delete(listener)
+  }
+
+  start(): void {
+    if (this.startError) throw this.startError
+  }
+}
 
 function event(
   type: ZeusDevtoolsEvent['type'],
@@ -337,6 +379,25 @@ describe('DevTools consumer/panel', () => {
     ])
   })
 
+  it('tracks component metadata independently from owner lifetimes', () => {
+    const consumer = createDevtoolsConsumer()
+    consumer.consume(
+      event('component:create', {
+        componentId: 7,
+        ownerId: 3,
+        componentName: 'UserCard',
+      }),
+    )
+    expect(consumer.getSnapshot().components).toEqual([
+      { id: 7, name: 'UserCard', ownerId: 3, disposed: false },
+    ])
+    consumer.consume(event('component:dispose', { componentId: 7 }))
+    expect(consumer.getSnapshot().components[0]).toMatchObject({
+      id: 7,
+      disposed: true,
+    })
+  })
+
   it('does not infer a missing binding duration from an effect event', () => {
     const consumer = createDevtoolsConsumer()
     consumer.consume(
@@ -496,5 +557,125 @@ describe('DevTools consumer/panel', () => {
     )
     expect(descriptor?.get).toBeDefined()
     expect(dom.window.__ZEUS_DEVTOOLS_HOOK__).toBe(previousHook)
+  })
+
+  it('forwards serializable runtime events through a MessagePort bridge', () => {
+    dom = new JSDOM('<!doctype html><html><body /></html>')
+    const runtimePort = new TestPort()
+    const panelPort = new TestPort()
+    runtimePort.peer = panelPort
+    panelPort.peer = runtimePort
+    const emitter = createDevtoolsPortEmitter(dom.window, runtimePort)
+    const panel = createDevtoolsPortConsumer(panelPort)
+    panel.connect()
+    emitter.connect()
+
+    dom.window.__ZEUS_DEVTOOLS_HOOK__!.emit(
+      event('binding:commit', {
+        bindingId: 4,
+        effectId: 3,
+        targetId: 6,
+        payload: {
+          kind: 'text',
+          once: false,
+          dropped: () => 'not cloneable',
+          nested: { key: 'value' },
+        },
+      }),
+    )
+
+    expect(panel.getSnapshot().bindings).toMatchObject([
+      {
+        id: 4,
+        effectId: 3,
+        targetId: 6,
+        kind: 'text',
+      },
+    ])
+    expect(runtimePort.messages[0]).toMatchObject({
+      channel: 'zeus-devtools',
+      version: 1,
+      kind: 'event',
+      event: {
+        bindingId: 4,
+        targetId: 6,
+        payload: { kind: 'text', once: false, nested: { key: 'value' } },
+      },
+    })
+
+    emitter.disconnect()
+    panel.disconnect()
+    expect(dom.window.__ZEUS_DEVTOOLS_HOOK__).toBeUndefined()
+    expect(runtimePort.messages).toHaveLength(1)
+  })
+
+  it('chains a port emitter with an existing runtime hook', () => {
+    dom = new JSDOM('<!doctype html><html><body /></html>')
+    const runtimePort = new TestPort()
+    const previousEvents: ZeusDevtoolsEvent[] = []
+    const previousHook = {
+      emit: (next: ZeusDevtoolsEvent) => previousEvents.push(next),
+    }
+    Object.defineProperty(dom.window, '__ZEUS_DEVTOOLS_HOOK__', {
+      configurable: true,
+      value: previousHook,
+    })
+    const emitter = createDevtoolsPortEmitter(dom.window, runtimePort)
+    emitter.connect()
+
+    const next = event('render', { id: 9 })
+    dom.window.__ZEUS_DEVTOOLS_HOOK__!.emit(next)
+    expect(previousEvents).toEqual([next])
+    expect(runtimePort.messages).toHaveLength(1)
+
+    emitter.disconnect()
+    expect(dom.window.__ZEUS_DEVTOOLS_HOOK__).toBe(previousHook)
+  })
+
+  it('ignores malformed or unrelated port messages', () => {
+    const port = new TestPort()
+    const panel = createDevtoolsPortConsumer(port)
+    panel.connect()
+    for (const message of [
+      { channel: 'other', version: 1, kind: 'event' },
+      { channel: 'zeus-devtools', version: 2, kind: 'event' },
+      {
+        channel: 'zeus-devtools',
+        version: 1,
+        kind: 'event',
+        event: { id: 'wrong', timestamp: 1, type: 'render' },
+      },
+      {
+        channel: 'zeus-devtools',
+        version: 1,
+        kind: 'event',
+        event: { id: 1, timestamp: 1, type: 'unknown' },
+      },
+    ]) {
+      port.deliver(message)
+    }
+    expect(panel.getSnapshot().eventCount).toBe(0)
+    panel.disconnect()
+  })
+
+  it('rolls back a panel listener when MessagePort startup fails', () => {
+    const port = new TestPort()
+    port.startError = new Error('port startup failed')
+    const panel = createDevtoolsPortConsumer(port)
+
+    expect(() => panel.connect()).toThrow('port startup failed')
+    port.deliver(event('owner:create', { ownerId: 1 }))
+    expect(panel.getSnapshot().eventCount).toBe(0)
+
+    port.startError = undefined
+    panel.connect()
+    port.deliver({
+      channel: 'zeus-devtools',
+      version: 1,
+      kind: 'event',
+      event: { id: 1, timestamp: 1, type: 'owner:create', ownerId: 1 },
+    })
+    expect(panel.getSnapshot().eventCount).toBe(1)
+    panel.disconnect()
   })
 })

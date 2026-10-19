@@ -35,6 +35,8 @@ pub enum RootIr {
     Component(ComponentBindingIr),
     Show(ShowBindingIr),
     For(ForBindingIr),
+    ErrorBoundary(ErrorBoundaryBindingIr),
+    Transition(TransitionBindingIr),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -212,6 +214,8 @@ pub enum ChildIr {
     Component(ComponentBindingIr),
     Show(ShowBindingIr),
     For(ForBindingIr),
+    ErrorBoundary(ErrorBoundaryBindingIr),
+    Transition(TransitionBindingIr),
 }
 
 impl From<ElementIr> for ChildIr {
@@ -323,6 +327,55 @@ pub struct ShowBindingIr {
     pub when: ExpressionIr,
     pub children: Vec<ChildIr>,
     pub fallback: Option<ComponentPropValueIr>,
+    pub span: SourceSpan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ErrorBoundaryBindingIr {
+    pub id: NodeId,
+    pub kind: String,
+    pub children: Vec<ChildIr>,
+    pub fallback: ErrorBoundaryFallbackIr,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub on_error: Option<ExpressionIr>,
+    pub span: SourceSpan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransitionBindingIr {
+    pub id: NodeId,
+    pub kind: String,
+    pub when: ExpressionIr,
+    pub children: Vec<ChildIr>,
+    pub options: Vec<TransitionOptionIr>,
+    pub span: SourceSpan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransitionOptionIr {
+    pub id: NodeId,
+    pub name: String,
+    #[serde(rename = "expr")]
+    pub expression: ExpressionIr,
+    pub span: SourceSpan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ErrorBoundaryFallbackIr {
+    Expression(ExpressionIr),
+    Render(RenderFallbackIr),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RenderFallbackIr {
+    pub kind: String,
+    pub parameters: Vec<String>,
+    pub body: Vec<ChildIr>,
     pub span: SourceSpan,
 }
 

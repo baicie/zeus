@@ -36,6 +36,17 @@ export type SSRStyleValue =
   | undefined
   | Readonly<Record<string, string | number | null | undefined>>
 export type SSRRenderInput = () => SSRNode
+export interface SSRShadowRootOptions {
+  readonly mode: 'open' | 'closed'
+  readonly delegatesFocus?: boolean
+  readonly serializable?: boolean
+}
+export interface SSRCustomElementOptions {
+  readonly attributes?: readonly SSRAttributeEntry[]
+  readonly children?: SSRNode
+  readonly shadowRoot?: SSRNode
+  readonly shadowRootOptions?: SSRShadowRootOptions
+}
 
 export declare function renderToString(input: SSRRenderInput): string
 
@@ -88,4 +99,15 @@ export declare function mergeProps<T extends object = Record<string, unknown>>(
 export declare function ssrSpread(
   sources: readonly PropsSource[],
 ): SSRAttributeEntry[]
+
+/** Emits a stable, comment-only marker consumed by the opt-in DOM hydrator. */
+export declare function ssrHydrationMarker(id: string): SSRFragment
+/**
+ * Serializes a custom-element host and, when requested, a Declarative Shadow
+ * DOM template. The runtime never registers a custom element during SSR.
+ */
+export declare function ssrCustomElement(
+  tag: string,
+  options?: SSRCustomElementOptions,
+): SSRFragment
 ```

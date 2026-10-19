@@ -15,6 +15,7 @@ The main entry exports stable, user-facing APIs:
 | `batch`         | Batch reactive updates              |
 | `onCleanup`     | Register effect or owner cleanup    |
 | `render`        | Mount a component tree to DOM       |
+| `Transition`    | Explicit transition value boundary  |
 | `Show`          | Conditional rendering               |
 | `For`           | List rendering                      |
 | `Host`          | Web Component host boundary         |
@@ -75,6 +76,14 @@ See [Control Flow](/guide/control-flow) guide.
 ## For
 
 See [Control Flow](/guide/control-flow) guide.
+
+## Transition
+
+Use `transition()` for an existing node range or `mountTransition()` for a
+reactive range that must remain mounted during leave. The compiler recognizes
+an imported `<Transition when={...}>` intrinsic and lowers it to
+`mountTransition()`; its explicit runtime options are passed through unchanged.
+See the [`runtime-dom` Transition contract](/api/runtime-dom#transition).
 
 ## defineElement
 

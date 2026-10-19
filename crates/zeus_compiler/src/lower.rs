@@ -22,12 +22,14 @@ use crate::{
     ir::{
         AttrBindingIr, AttributeIr, ChildIr, ComponentBindingIr, ComponentIr, ComponentNamedPropIr,
         ComponentPropIr, ComponentPropValueIr, DynamicRegionExpressionIr, DynamicRegionIr,
-        DynamicRegionValueIr, DynamicTextIr, ElementIr, EventBindingIr, ExpressionForm,
-        ExpressionIr, ForAccessorIr, ForBindingIr, FragmentIr, IrRef, ModuleIr, NodeId,
-        PropBindingIr, RefBindingIr, RootIr, ShowBindingIr, SpreadBindingIr, StaticAttributeIr,
-        StaticAttributeValue, TextIr, is_children_expression,
+        DynamicRegionValueIr, DynamicTextIr, ElementIr, ErrorBoundaryBindingIr,
+        ErrorBoundaryFallbackIr, EventBindingIr, ExpressionForm, ExpressionIr, ForAccessorIr,
+        ForBindingIr, FragmentIr, IrRef, ModuleIr, NodeId, PropBindingIr, RefBindingIr,
+        RenderFallbackIr, RootIr, ShowBindingIr, SpreadBindingIr, StaticAttributeIr,
+        StaticAttributeValue, TextIr, TransitionBindingIr, TransitionOptionIr,
+        is_children_expression,
     },
-    span::SourceIndex,
+    span::{SourceIndex, SourceSpan},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,6 +37,7 @@ pub struct LowerResult {
     pub ir: Option<ModuleIr>,
     pub diagnostics: Vec<CompilerDiagnostic>,
     pub(crate) reserved_names: Vec<String>,
+    pub(crate) error_boundary_spans: Vec<SourceSpan>,
     pub(crate) hmr: HmrInfo,
     pub(crate) pure_define_element_calls: Vec<Span>,
 }
@@ -64,6 +67,7 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
                     filename,
                     None,
                 )],
+                error_boundary_spans: Vec::new(),
                 reserved_names: Vec::new(),
                 hmr: HmrInfo::default(),
                 pure_define_element_calls: Vec::new(),
@@ -85,6 +89,7 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
                     from_oxc_diagnostic(diagnostic, "ZEUS_PARSE_ERROR", filename, &source_index)
                 })
                 .collect(),
+            error_boundary_spans: Vec::new(),
             reserved_names: Vec::new(),
             hmr: HmrInfo::default(),
             pure_define_element_calls: Vec::new(),
@@ -102,6 +107,7 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
                     from_oxc_diagnostic(diagnostic, "ZEUS_SEMANTIC_ERROR", filename, &source_index)
                 })
                 .collect(),
+            error_boundary_spans: Vec::new(),
             reserved_names: Vec::new(),
             hmr: HmrInfo::default(),
             pure_define_element_calls: Vec::new(),
@@ -137,6 +143,7 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
         return LowerResult {
             ir: None,
             diagnostics: lowerer.diagnostics,
+            error_boundary_spans: lowerer.error_boundary_spans,
             reserved_names,
             hmr,
             pure_define_element_calls: Vec::new(),
@@ -151,6 +158,7 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
             components: lowerer.components,
         }),
         diagnostics: Vec::new(),
+        error_boundary_spans: lowerer.error_boundary_spans,
         reserved_names,
         hmr,
         pure_define_element_calls: collect_top_level_define_element_calls(&parsed.program),
@@ -249,6 +257,7 @@ struct Lowerer<'source, 'allocator> {
     components: Vec<ComponentIr>,
     diagnostics: Vec<CompilerDiagnostic>,
     builtin_names: HashMap<String, BuiltinBinding>,
+    error_boundary_spans: Vec<SourceSpan>,
     define_element_setup_spans: Vec<Span>,
     host_root_spans: HashSet<u32>,
     host_depth: usize,
@@ -265,8 +274,10 @@ struct LowerForAccessorScope {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum BuiltinKind {
+    ErrorBoundary,
     Show,
     For,
+    Transition,
     Host,
     Slot,
 }
@@ -296,6 +307,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             components: Vec::new(),
             diagnostics: Vec::new(),
             builtin_names,
+            error_boundary_spans: Vec::new(),
             define_element_setup_spans,
             host_root_spans,
             host_depth: 0,
@@ -314,8 +326,12 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         let id = self.allocate_id();
         let root = if let Some(kind) = self.builtin_kind(element) {
             match kind {
+                BuiltinKind::ErrorBoundary => {
+                    RootIr::ErrorBoundary(self.lower_error_boundary(element))
+                }
                 BuiltinKind::Show => RootIr::Show(self.lower_show(element)),
                 BuiltinKind::For => RootIr::For(self.lower_for(element)),
+                BuiltinKind::Transition => RootIr::Transition(self.lower_transition(element)),
                 BuiltinKind::Host => {
                     if !self.is_host_root(element) {
                         self.unsupported(
@@ -633,6 +649,127 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             .any(|setup| setup.start <= span.start && span.end <= setup.end)
     }
 
+    fn lower_error_boundary(&mut self, element: &JSXElement<'_>) -> ErrorBoundaryBindingIr {
+        let id = self.allocate_id();
+        let span = self.source_index.span(element.span);
+        self.error_boundary_spans.push(span);
+        self.reject_once_markers_on_builtin_attributes(element);
+        self.reject_unknown_builtin_attributes(element, "ErrorBoundary", &["fallback", "onError"]);
+        for attribute in &element.opening_element.attributes {
+            if let JSXAttributeItem::SpreadAttribute(attribute) = attribute {
+                self.unsupported(
+                    "ZEUS_UNSUPPORTED_BUILTIN_SPREAD",
+                    "ErrorBoundary requires explicit fallback and onError attributes.",
+                    attribute.span,
+                );
+            }
+        }
+        let fallback_attribute = element.opening_element.attributes.iter().find_map(|attribute| {
+            let JSXAttributeItem::Attribute(attribute) = attribute else { return None };
+            matches!(&attribute.name, JSXAttributeName::Identifier(name) if name.name == "fallback")
+                .then_some(attribute)
+        });
+        let fallback =
+            fallback_attribute.and_then(|attribute| self.lower_error_fallback(attribute));
+        let fallback = fallback.unwrap_or_else(|| {
+            if fallback_attribute.is_none() {
+                self.unsupported(
+                    "ZEUS_INVALID_ERROR_BOUNDARY_FALLBACK",
+                    "ErrorBoundary requires a fallback render function.",
+                    element.span,
+                );
+            }
+            ErrorBoundaryFallbackIr::Expression(self.empty_expression(element.span))
+        });
+        ErrorBoundaryBindingIr {
+            id,
+            kind: "ErrorBoundary".into(),
+            children: self.lower_inline_value_children(&element.children),
+            fallback,
+            on_error: self.lower_builtin_expression_attr(element, "onError", false),
+            span,
+        }
+    }
+
+    fn lower_error_fallback(
+        &mut self,
+        attribute: &JSXAttribute<'_>,
+    ) -> Option<ErrorBoundaryFallbackIr> {
+        let Some(JSXAttributeValue::ExpressionContainer(container)) = &attribute.value else {
+            self.invalid_error_fallback(attribute.span);
+            return None;
+        };
+        let Some(expression) = container.expression.as_expression() else {
+            self.invalid_error_fallback(container.span);
+            return None;
+        };
+        let expression = unwrap_expression(expression);
+        if matches!(
+            expression,
+            Expression::StringLiteral(_)
+                | Expression::NumericLiteral(_)
+                | Expression::BooleanLiteral(_)
+                | Expression::NullLiteral(_)
+                | Expression::ObjectExpression(_)
+                | Expression::ArrayExpression(_)
+        ) {
+            self.invalid_error_fallback(expression.span());
+            return None;
+        }
+        if !contains_jsx(expression) {
+            return Some(ErrorBoundaryFallbackIr::Expression(
+                self.lower_expression(expression),
+            ));
+        }
+        let Expression::ArrowFunctionExpression(function) = expression else {
+            self.invalid_error_fallback(expression.span());
+            return None;
+        };
+        if function.r#async || unsupported_for_callback_parameter_span(function).is_some() {
+            self.invalid_error_fallback(function.span);
+            return None;
+        }
+        let body = match &function.body {
+            oxc_ast::ast::ArrowFunctionBody::FunctionBody(block) => {
+                if block.statements.len() != 1 {
+                    self.invalid_error_fallback(function.span);
+                    return None;
+                }
+                let Statement::ReturnStatement(statement) = &block.statements[0] else {
+                    self.invalid_error_fallback(function.span);
+                    return None;
+                };
+                statement.argument.as_ref()
+            }
+            body => body.as_expression(),
+        };
+        let Some(body) = body.and_then(|expression| self.lower_expression_child(expression)) else {
+            self.invalid_error_fallback(function.span);
+            return None;
+        };
+        Some(ErrorBoundaryFallbackIr::Render(RenderFallbackIr {
+            kind: "RenderFallback".into(),
+            parameters: function
+                .params
+                .items
+                .iter()
+                .map(|parameter| {
+                    binding_name(&parameter.pattern).expect("fallback parameters were validated")
+                })
+                .collect(),
+            body: vec![body],
+            span: self.source_index.span(function.span),
+        }))
+    }
+
+    fn invalid_error_fallback(&mut self, span: Span) {
+        self.unsupported(
+            "ZEUS_INVALID_ERROR_BOUNDARY_FALLBACK",
+            "ErrorBoundary fallback must be a function value or a synchronous arrow render factory with up to two identifier parameters and a JSX expression or single return statement.",
+            span,
+        );
+    }
+
     fn lower_show(&mut self, element: &JSXElement<'_>) -> ShowBindingIr {
         let id = self.allocate_id();
         if self.reject_once_markers_on_builtin_attributes(element) {
@@ -769,6 +906,112 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             body,
             span: self.source_index.span(element.span),
         }
+    }
+
+    fn lower_transition(&mut self, element: &JSXElement<'_>) -> TransitionBindingIr {
+        const ALLOWED: &[&str] = &[
+            "when",
+            "enter",
+            "leave",
+            "onEnter",
+            "onLeave",
+            "duration",
+            "onEnterDone",
+            "onLeaveDone",
+            "respectReducedMotion",
+        ];
+        let id = self.allocate_id();
+        let span = self.source_index.span(element.span);
+        if self.reject_once_markers_on_builtin_attributes(element)
+            || self.reject_unknown_builtin_attributes(element, "Transition", ALLOWED)
+        {
+            return TransitionBindingIr {
+                id,
+                kind: "Transition".into(),
+                when: self.empty_expression(element.span),
+                children: Vec::new(),
+                options: Vec::new(),
+                span,
+            };
+        }
+
+        let when = self
+            .lower_builtin_expression_attr(element, "when", true)
+            .unwrap_or_else(|| self.empty_expression(element.span));
+        let options = self.lower_transition_options(element);
+        TransitionBindingIr {
+            id,
+            kind: "Transition".into(),
+            when,
+            children: self.lower_inline_value_children(&element.children),
+            options,
+            span,
+        }
+    }
+
+    fn lower_transition_options(&mut self, element: &JSXElement<'_>) -> Vec<TransitionOptionIr> {
+        let mut options = Vec::new();
+        for attribute in &element.opening_element.attributes {
+            let JSXAttributeItem::Attribute(attribute) = attribute else {
+                self.unsupported(
+                    "ZEUS_UNSUPPORTED_BUILTIN_SPREAD",
+                    "Transition requires explicit attributes.",
+                    attribute.span(),
+                );
+                continue;
+            };
+            let JSXAttributeName::Identifier(name) = &attribute.name else {
+                continue;
+            };
+            if name.name == "when" {
+                continue;
+            }
+            let expression = match &attribute.value {
+                None => self.literal_expression("true", attribute.span),
+                Some(JSXAttributeValue::StringLiteral(value)) => self.literal_expression(
+                    &serde_json::to_string(value.value.as_str()).expect("string serializes"),
+                    attribute.span,
+                ),
+                Some(JSXAttributeValue::Element(_) | JSXAttributeValue::Fragment(_)) => {
+                    self.unsupported(
+                        "ZEUS_UNSUPPORTED_JSX_ATTRIBUTE_VALUE",
+                        "Transition options cannot contain JSX.",
+                        attribute.span,
+                    );
+                    continue;
+                }
+                Some(JSXAttributeValue::ExpressionContainer(container)) => {
+                    if matches!(&container.expression, JSXExpression::EmptyExpression(_)) {
+                        self.unsupported(
+                            "ZEUS_EMPTY_EXPRESSION",
+                            "Transition options cannot be empty.",
+                            container.span,
+                        );
+                        continue;
+                    }
+                    let expression = container.expression.to_expression();
+                    if self.reject_once_marker(container) {
+                        continue;
+                    }
+                    if contains_jsx(expression) {
+                        self.unsupported(
+                            "ZEUS_UNSUPPORTED_JSX_ATTRIBUTE_VALUE",
+                            "Transition options cannot contain JSX.",
+                            container.span,
+                        );
+                        continue;
+                    }
+                    self.lower_expression(expression)
+                }
+            };
+            options.push(TransitionOptionIr {
+                id: self.allocate_id(),
+                name: name.name.to_string(),
+                expression,
+                span: self.source_index.span(attribute.span),
+            });
+        }
+        options
     }
 
     fn reject_unknown_builtin_attributes(
@@ -1208,8 +1451,12 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
     fn lower_element_child(&mut self, element: &JSXElement<'_>) -> ChildIr {
         if let Some(kind) = self.builtin_kind(element) {
             return match kind {
+                BuiltinKind::ErrorBoundary => {
+                    ChildIr::ErrorBoundary(self.lower_error_boundary(element))
+                }
                 BuiltinKind::Show => ChildIr::Show(self.lower_show(element)),
                 BuiltinKind::For => ChildIr::For(self.lower_for(element)),
+                BuiltinKind::Transition => ChildIr::Transition(self.lower_transition(element)),
                 BuiltinKind::Host => {
                     self.unsupported(
                         "ZEUS_INVALID_HOST_USAGE",
@@ -2060,8 +2307,10 @@ fn collect_builtin_names(program: &oxc_ast::ast::Program<'_>) -> HashMap<String,
                 oxc_ast::ast::ModuleExportName::StringLiteral(name) => name.value.as_str(),
             };
             let kind = match imported {
+                "ErrorBoundary" => BuiltinKind::ErrorBoundary,
                 "Show" => BuiltinKind::Show,
                 "For" => BuiltinKind::For,
+                "Transition" => BuiltinKind::Transition,
                 "Host" => BuiltinKind::Host,
                 "Slot" => BuiltinKind::Slot,
                 _ => continue,

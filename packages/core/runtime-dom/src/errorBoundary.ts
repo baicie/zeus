@@ -12,12 +12,20 @@ export interface ErrorBoundaryProps {
   onError?: (error: unknown) => void
 }
 
+declare const errorBoundaryIntrinsic: unique symbol
+
+/** Marks the compiler intrinsic for JSX typing without changing its runtime identity. */
+export const ErrorBoundary =
+  renderErrorBoundary as typeof renderErrorBoundary & {
+    readonly [errorBoundaryIntrinsic]: true
+  }
+
 /**
  * Mounts an explicit-factory error boundary without introducing a wrapper node.
  * Compiler lowering may target this helper once boundary children are emitted
  * as factories automatically.
  */
-export function ErrorBoundary(props: ErrorBoundaryProps): DocumentFragment {
+function renderErrorBoundary(props: ErrorBoundaryProps): DocumentFragment {
   if (getCurrentScope() === undefined) {
     throw new Error(
       'ZEUS_ERROR_BOUNDARY_SCOPE_REQUIRED: ErrorBoundary must be rendered inside a scope.',

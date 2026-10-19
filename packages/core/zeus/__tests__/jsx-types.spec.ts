@@ -55,6 +55,8 @@ import type {} from 'vue/jsx'
 import type { JSX as PublicJSX } from '@zeus-js/zeus/jsx'
 import type { JSX as RuntimeJSX } from '@zeus-js/zeus/jsx-runtime'
 import type { JSX as DevJSX } from '@zeus-js/zeus/jsx-dev-runtime'
+import { ErrorBoundary, ErrorBoundary as Boundary, type ErrorBoundaryProps } from '@zeus-js/zeus'
+import { ErrorBoundary as RuntimeBoundary } from '@zeus-js/runtime-dom'
 import './custom-elements'
 const fragment = <><section><header>Header</header><footer>Footer</footer></section></>
 const button = <button disabled={true} data-count={1} aria-disabled={false}
@@ -69,6 +71,32 @@ const custom = <z-untyped-widget config={{ page: 1 }} prop:formatter={formatter}
 const typedCustom = <z-typed-counter count={1} />
 function DOMComponent() { return document.createElement('div') }
 const component = <DOMComponent />
+const boundary = <ErrorBoundary fallback={(error, reset) => {
+  const caught: unknown = error
+  const retry: () => void = reset
+  void caught
+  return <button onClick={retry}>Retry</button>
+}} onError={error => { const caught: unknown = error; void caught }}>
+  <DOMComponent /><section>Child</section>
+</ErrorBoundary>
+const aliasedBoundary = <Boundary fallback={() => <span>Fallback</span>}><DOMComponent /></Boundary>
+const runtimeBoundary = <RuntimeBoundary fallback={() => <span>Fallback</span>}><DOMComponent /></RuntimeBoundary>
+const emptyBoundary = <ErrorBoundary fallback={() => null} />
+const explicitBoundary = ErrorBoundary({ children: () => document.createTextNode('child'), fallback: () => null })
+function FactoryComponent(props: ErrorBoundaryProps) { return props.children() }
+const factoryComponent = <FactoryComponent fallback={() => null}>{() => document.createTextNode('child')}</FactoryComponent>
+// @ts-expect-error A normal component with the same props still requires factory children.
+const eagerFactoryComponent = <FactoryComponent fallback={() => null}><DOMComponent /></FactoryComponent>
+// @ts-expect-error Direct runtime calls require an explicit child factory.
+const eagerRuntimeBoundary = ErrorBoundary({ children: document.createElement('div'), fallback: () => null })
+// @ts-expect-error Boundary JSX accepts view children; the compiler creates the child factory.
+const factoryBoundary = <ErrorBoundary fallback={() => null}>{() => document.createTextNode('child')}</ErrorBoundary>
+// @ts-expect-error A boundary always needs a fallback callback.
+const missingBoundaryFallback = <ErrorBoundary><DOMComponent /></ErrorBoundary>
+// @ts-expect-error A boundary fallback is a callback, not an eagerly created node.
+const eagerBoundaryFallback = <ErrorBoundary fallback={<span>Fallback</span>}><DOMComponent /></ErrorBoundary>
+// @ts-expect-error A boundary error is unknown until the callback narrows it.
+const invalidBoundaryOnError = <ErrorBoundary fallback={() => null} onError={(error: Error) => error.message} />
 const runtimeValue: RuntimeJSX.Element = document.createElement('div')
 const publicValue: PublicJSX.Element = runtimeValue
 const developmentValue: DevJSX.Element = publicValue
@@ -94,7 +122,10 @@ const invalidCustom = <z-typed-counter count="wrong" />
 const missingCustom = <z-typed-counter />
 void [fragment, button, image, graphic, custom, typedCustom, component, developmentValue,
   misspelled, misspelledTag, getterAttribute, getterClass, getterStyle, syntheticEvent,
-  getterSVG, misspelledSVG, invalidCustom, missingCustom]
+  getterSVG, misspelledSVG, invalidCustom, missingCustom, boundary, aliasedBoundary,
+  runtimeBoundary, emptyBoundary, explicitBoundary, factoryComponent, eagerFactoryComponent,
+  eagerRuntimeBoundary, factoryBoundary, missingBoundaryFallback, eagerBoundaryFallback,
+  invalidBoundaryOnError]
 `,
         )
         const paths = {

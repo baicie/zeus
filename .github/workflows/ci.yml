@@ -188,12 +188,16 @@ jobs:
         run: pnpm exec playwright install --with-deps --no-shell chromium firefox webkit
       - name: Native, React 18/19 and Vue 3 packed consumers
         run: pnpm check:packed-consumers
+      - name: Admin navigation in Chromium, Firefox and WebKit
+        run: pnpm check:admin
       - name: Preserve consumer reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: packed-consumer-reports
-          path: temp/packed-consumers
+          path: |
+            temp/packed-consumers
+            temp/admin
 
   docs-build:
     runs-on: ubuntu-latest

@@ -655,6 +655,61 @@ export const getCalls = () => calls
   }
 })
 
+test('native compiler lowers Transition intrinsic to mountTransition', async () => {
+  const transitionSource = `import { createSignal } from '@zeus-js/signal'
+import { render } from '@zeus-js/runtime-dom'
+import { Transition } from '@zeus-js/zeus'
+
+const [visible, setVisible] = createSignal(true)
+const leaveDone = []
+export const mount = container => render(() => (
+  <Transition when={visible()} enter="fade-in" leave="fade-out" duration={0} onLeaveDone={() => leaveDone.push('done')}>
+    <span data-transition>{visible() ? 'shown' : 'hidden'}</span>
+  </Transition>
+), container)
+export const set = setVisible
+export const completed = () => [...leaveDone]
+`
+  const fixture = createFixture(transitionSource)
+  const restoreDOM = installDOMGlobals()
+  const { createServer } = await import('vite')
+  const server = await createServer({
+    root: fixture.root,
+    configFile: false,
+    logLevel: 'silent',
+    optimizeDeps: { noDiscovery: true },
+    define: {
+      __DEV__: 'true',
+      __TEST__: 'true',
+      __VERSION__: JSON.stringify('test'),
+    },
+    resolve: { alias: runtimeAliases() },
+    plugins: [createNativePlugin()],
+    server: { middlewareMode: true },
+  })
+
+  try {
+    const module = await server.ssrLoadModule('/src/App.tsx')
+    const container = document.createElement('div')
+    document.body.append(container)
+    const dispose = module.mount(container)
+    const first = container.querySelector('[data-transition]')
+    assert.equal(first?.textContent, 'shown')
+    module.set(false)
+    assert.equal(container.querySelector('[data-transition]'), null)
+    assert.deepEqual(module.completed(), ['done'])
+    module.set(true)
+    const second = container.querySelector('[data-transition]')
+    assert.equal(second?.textContent, 'shown')
+    assert.notStrictEqual(second, first)
+    dispose()
+  } finally {
+    await server.close()
+    restoreDOM()
+    rmSync(fixture.root, { force: true, recursive: true })
+  }
+})
+
 test('native compiler keeps root and nested For regions reactive', async () => {
   const rootForSource = `import { createSignal } from '@zeus-js/signal'
 import { render, For } from '@zeus-js/runtime-dom'

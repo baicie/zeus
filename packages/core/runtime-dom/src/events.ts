@@ -88,7 +88,7 @@ function normalizeOriginalEventName(name: string): string {
 
 function isInClosedShadowRoot(el: Element): boolean {
   const root = el.getRootNode() as DocumentFragment & { mode?: string }
-  return root.nodeType === Node.DOCUMENT_FRAGMENT_NODE && root.mode === 'closed'
+  return root.nodeType === 11 && root.mode === 'closed'
 }
 
 function dispatchDelegatedEvent(event: Event): void {

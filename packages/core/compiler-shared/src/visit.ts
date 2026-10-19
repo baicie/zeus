@@ -35,6 +35,13 @@ export function getIRChildren(node: ZeusIRNode): ZeusIRNode[] {
       ]
     case 'For':
       return node.body
+    case 'ErrorBoundary':
+      return [
+        ...node.children,
+        ...(node.fallback.kind === 'RenderFallback' ? node.fallback.body : []),
+      ]
+    case 'Transition':
+      return node.children
     case 'Slot':
       return node.fallback
     case 'Host':
