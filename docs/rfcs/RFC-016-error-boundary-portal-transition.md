@@ -1,9 +1,9 @@
 # RFC-016：ErrorBoundary、Portal 与 Transition 契约
 
-- 状态：Accepted（E-004 Native runtime slice；compiler lowering 与 Transition 待后续）
+- 状态：Accepted（E-004 Native runtime slice；Resource 集成已验收，compiler lowering 与 Transition 待后续）
 - 日期：2026-10-19
 - 依赖：RFC-001、RFC-006、RFC-008、RFC-011、RFC-015
-- 实现范围：Native Portal 与显式 factory ErrorBoundary runtime；Transition 先冻结契约
+- 实现范围：Native Portal、显式 factory ErrorBoundary runtime 与 Resource 显式集成；Transition 先冻结契约
 
 ## 摘要
 
@@ -11,9 +11,9 @@ E-004 需要把错误恢复、跨目标 DOM 挂载和离场动画放进同一套
 生命周期里。本 RFC 只承诺细粒度 DOM runtime 能够实现的语义，不引入 Virtual DOM、
 组件重新执行或隐式 Promise 渲染。
 
-本切片交付 Native Portal 与显式 render-factory ErrorBoundary 的最小实现和 cleanup
-回归。Transition 需要延迟子树 scope 销毁；在 compiler lowering 和状态机稳定前不导出
-Transition 公共 API。
+本切片交付 Native Portal、显式 render-factory ErrorBoundary 与 Resource 集成的最小实现
+和 cleanup 回归。Transition 需要延迟子树 scope 销毁；在 compiler lowering 和状态机稳定
+前不导出 Transition 公共 API。
 
 ## 1. ErrorBoundary
 
@@ -60,9 +60,12 @@ runtime 只接受显式 factory 形式；compiler lowering 完成后才可把普
 render factory 中抛出该错误。`refetch()` 的 reject 仍由调用方处理，边界不能把异步
 Promise 当作 JSX child。
 
-Resource 集成仍待验收：pending → error 的状态发布、错误 UI 显示、重新 refetch 成功后
-的恢复，以及边界/owner 销毁后请求取消和 cleanup 顺序。Resource 错误目前仍须由
-factory 显式读取并抛出，才会进入上述边界路径。
+Resource 集成已按显式路径验收：资源进入 `pending` 后失败会发布 `error()` 和
+`status() === 'error'`，child binding 依据该状态显式抛出该错误后切换 fallback（包括 `0`、`false`、`null`、`undefined` 等 falsy rejection）；调用方处理
+`refetch()` 的 Promise，成功后调用 `reset()` 恢复 child。资源由边界外层 owner 持有时，
+边界失败分支可安全销毁而不取消资源；owner 销毁仍会通过 `AbortSignal` 取消活动请求，
+晚到结果不能提交到已销毁的资源状态。Resource 错误不会自动穿透边界，也不会把异步
+Promise 当作 JSX child。
 
 ## 2. Portal
 
