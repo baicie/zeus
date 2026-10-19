@@ -134,7 +134,11 @@ function applyBinding<T>(
           bindingId,
           effectId,
           target: metadata.target,
-          payload: { kind: metadata.kind, once },
+          payload: {
+            kind: metadata.kind,
+            once,
+            duration: Math.max(0, ended - started),
+          },
         },
         { swallowErrors: true },
       )

@@ -14,7 +14,12 @@ describe('runtime DevTools event bridge', () => {
     bindingId?: number
     effectId?: number
     sourceId?: number
-    payload?: { key?: unknown; kind?: string; operation?: unknown }
+    payload?: {
+      key?: unknown
+      kind?: string
+      operation?: unknown
+      duration?: number
+    }
   }
   let events: TestEvent[]
 
@@ -72,6 +77,7 @@ describe('runtime DevTools event bridge', () => {
     )
     expect(textCommit?.targetId).toBe(textCleanup?.targetId)
     expect(textCleanup?.effectId).toBe(textCommit?.effectId)
+    expect(textCommit?.payload?.duration).toEqual(expect.any(Number))
     expect(
       textBindingEvents.filter(event => event.type === 'effect:run'),
     ).toHaveLength(2)
