@@ -148,7 +148,7 @@ fn collect_module_helper_usage(
     for component in &module.components {
         match &component.root {
             RootIr::ErrorBoundary(boundary) => {
-                collect_error_boundary_helper_usage(boundary, &mut usage.0)
+                collect_error_boundary_helper_usage(boundary, &mut usage.0);
             }
             RootIr::Show(show) => {
                 usage.0.insert(RuntimeHelper::MountShow);
@@ -1654,7 +1654,7 @@ fn emit_inline_child_value(
         }
         ChildIr::Component(component) => emit_component_call(writer, component, runtime, names),
         ChildIr::ErrorBoundary(boundary) => {
-            emit_error_boundary_call(writer, boundary, runtime, names)
+            emit_error_boundary_call(writer, boundary, runtime, names);
         }
         ChildIr::Show(show) => {
             emit_root_builtin_call(writer, &RootBuiltin::Show(show.clone()), runtime, names);
@@ -2301,7 +2301,7 @@ fn collect_root_delegated_events(root: &RootIr, names: &mut BTreeSet<String>) {
         RootIr::Show(show) => collect_show_delegated_events(show, names),
         RootIr::For(for_binding) => collect_child_delegated_events(&for_binding.body, names),
         RootIr::Transition(transition) => {
-            collect_child_delegated_events(&transition.children, names)
+            collect_child_delegated_events(&transition.children, names);
         }
     }
 }
@@ -2373,7 +2373,7 @@ fn collect_child_delegated_events(children: &[ChildIr], names: &mut BTreeSet<Str
             }
             ChildIr::Component(component) => collect_component_delegated_events(component, names),
             ChildIr::ErrorBoundary(boundary) => {
-                collect_error_boundary_delegated_events(boundary, names)
+                collect_error_boundary_delegated_events(boundary, names);
             }
             ChildIr::Show(show) => collect_show_delegated_events(show, names),
             ChildIr::For(for_binding) => {
@@ -2453,7 +2453,7 @@ fn collect_root_attribute_names(root: &RootIr, names: &mut HashSet<String>) {
         RootIr::Show(show) => collect_show_attribute_names(show, names),
         RootIr::For(for_binding) => collect_builtin_attribute_names(&for_binding.body, names),
         RootIr::Transition(transition) => {
-            collect_builtin_attribute_names(&transition.children, names)
+            collect_builtin_attribute_names(&transition.children, names);
         }
     }
 }
@@ -2496,12 +2496,12 @@ fn collect_fragment_attribute_names(fragment: &FragmentIr, names: &mut HashSet<S
             ChildIr::Fragment(fragment) => collect_fragment_attribute_names(fragment, names),
             ChildIr::Component(component) => collect_component_attribute_names(component, names),
             ChildIr::ErrorBoundary(boundary) => {
-                collect_error_boundary_attribute_names(boundary, names)
+                collect_error_boundary_attribute_names(boundary, names);
             }
             ChildIr::Show(show) => collect_show_attribute_names(show, names),
             ChildIr::For(for_binding) => collect_builtin_attribute_names(&for_binding.body, names),
             ChildIr::Transition(transition) => {
-                collect_builtin_attribute_names(&transition.children, names)
+                collect_builtin_attribute_names(&transition.children, names);
             }
             ChildIr::DynamicRegion(region) => collect_dynamic_region_attribute_names(region, names),
             ChildIr::Text(_) | ChildIr::DynamicText(_) => {}
@@ -2522,7 +2522,7 @@ fn collect_component_attribute_names(component: &ComponentBindingIr, names: &mut
                         collect_component_attribute_names(component, names);
                     }
                     ChildIr::ErrorBoundary(boundary) => {
-                        collect_error_boundary_attribute_names(boundary, names)
+                        collect_error_boundary_attribute_names(boundary, names);
                     }
                     ChildIr::Show(show) => collect_show_attribute_names(show, names),
                     ChildIr::For(for_binding) => {
@@ -2548,12 +2548,12 @@ fn collect_builtin_attribute_names(children: &[ChildIr], names: &mut HashSet<Str
             ChildIr::Fragment(fragment) => collect_fragment_attribute_names(fragment, names),
             ChildIr::Component(component) => collect_component_attribute_names(component, names),
             ChildIr::ErrorBoundary(boundary) => {
-                collect_error_boundary_attribute_names(boundary, names)
+                collect_error_boundary_attribute_names(boundary, names);
             }
             ChildIr::Show(show) => collect_show_attribute_names(show, names),
             ChildIr::For(for_binding) => collect_builtin_attribute_names(&for_binding.body, names),
             ChildIr::Transition(transition) => {
-                collect_builtin_attribute_names(&transition.children, names)
+                collect_builtin_attribute_names(&transition.children, names);
             }
             ChildIr::DynamicRegion(region) => collect_dynamic_region_attribute_names(region, names),
             ChildIr::Text(_) | ChildIr::DynamicText(_) => {}
@@ -3048,7 +3048,7 @@ fn collect_component_helper_usage(
                 }
                 ChildIr::Component(component) => collect_component_helper_usage(component, usage),
                 ChildIr::ErrorBoundary(boundary) => {
-                    collect_error_boundary_helper_usage(boundary, usage)
+                    collect_error_boundary_helper_usage(boundary, usage);
                 }
                 ChildIr::Show(show) => {
                     usage.insert(RuntimeHelper::MountShow);
@@ -3097,7 +3097,7 @@ fn collect_builtin_helper_usage(children: &[ChildIr], usage: &mut HashSet<Runtim
             }
             ChildIr::Component(component) => collect_component_helper_usage(component, usage),
             ChildIr::ErrorBoundary(boundary) => {
-                collect_error_boundary_helper_usage(boundary, usage)
+                collect_error_boundary_helper_usage(boundary, usage);
             }
             ChildIr::Show(show) => {
                 usage.insert(RuntimeHelper::MountShow);

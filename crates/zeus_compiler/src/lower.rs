@@ -909,8 +909,6 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
     }
 
     fn lower_transition(&mut self, element: &JSXElement<'_>) -> TransitionBindingIr {
-        let id = self.allocate_id();
-        let span = self.source_index.span(element.span);
         const ALLOWED: &[&str] = &[
             "when",
             "enter",
@@ -922,6 +920,8 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             "onLeaveDone",
             "respectReducedMotion",
         ];
+        let id = self.allocate_id();
+        let span = self.source_index.span(element.span);
         if self.reject_once_markers_on_builtin_attributes(element)
             || self.reject_unknown_builtin_attributes(element, "Transition", ALLOWED)
         {
