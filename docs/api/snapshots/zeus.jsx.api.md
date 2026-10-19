@@ -5,7 +5,7 @@
 > Run `pnpm api:snapshot` to update.
 
 ```ts
-import type { JSXValue, RefTarget } from '@zeus-js/runtime-dom'
+import type { ErrorBoundary, JSXValue, RefTarget } from '@zeus-js/runtime-dom'
 import type { HostProps, SlotProps } from '@zeus-js/runtime-dom'
 
 type EventHandler<E extends Event = Event> = (event: E) => void
@@ -240,6 +240,12 @@ type SVGIntrinsicElements = {
 /** Zeus owns this JSX namespace; importing its types never augments another framework. */
 export namespace JSX {
   export type Element = JSXValue
+
+  /** Only compiler-owned boundaries turn JSX children into a lazy factory. */
+  export type LibraryManagedAttributes<Component, Props> =
+    Component extends typeof ErrorBoundary
+      ? Omit<Props, 'children'> & { children?: JSXValue }
+      : Props
 
   export interface ElementChildrenAttribute {
     children: {}

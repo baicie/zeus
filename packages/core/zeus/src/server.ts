@@ -9,11 +9,19 @@ export {
   type Setter,
 } from '@zeus-js/signal'
 
-export { renderToString, Show, For } from '@zeus-js/runtime-ssr'
+export {
+  renderToString,
+  Show,
+  For,
+  ssrCustomElement,
+  ssrHydrationMarker,
+} from '@zeus-js/runtime-ssr'
 
 export type {
   SSRNode,
   SSRPrimitive,
   ShowProps,
   ForProps,
+  SSRCustomElementOptions,
+  SSRShadowRootOptions,
 } from '@zeus-js/runtime-ssr'

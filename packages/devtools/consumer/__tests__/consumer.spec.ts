@@ -379,6 +379,25 @@ describe('DevTools consumer/panel', () => {
     ])
   })
 
+  it('tracks component metadata independently from owner lifetimes', () => {
+    const consumer = createDevtoolsConsumer()
+    consumer.consume(
+      event('component:create', {
+        componentId: 7,
+        ownerId: 3,
+        componentName: 'UserCard',
+      }),
+    )
+    expect(consumer.getSnapshot().components).toEqual([
+      { id: 7, name: 'UserCard', ownerId: 3, disposed: false },
+    ])
+    consumer.consume(event('component:dispose', { componentId: 7 }))
+    expect(consumer.getSnapshot().components[0]).toMatchObject({
+      id: 7,
+      disposed: true,
+    })
+  })
+
   it('does not infer a missing binding duration from an effect event', () => {
     const consumer = createDevtoolsConsumer()
     consumer.consume(

@@ -49,6 +49,7 @@
     "check:registry-cli": "tsx scripts/release/check-registry-cli.ts",
     "check:create-zeus": "tsx scripts/check/check-create-zeus.ts",
     "check:quick-start": "tsx scripts/check/check-quick-start.ts",
+    "check:admin": "tsx scripts/check/check-admin.ts",
     "check:docs": "tsx scripts/check/check-docs.ts",
     "playground:check": "tsx scripts/playground/check-playground.ts",
     "playground:update": "tsx scripts/playground/check-playground.ts --update",
@@ -69,6 +70,7 @@
     "example:react-wrapper": "pnpm -C examples/react-wrapper dev",
     "example:vue-wrapper": "pnpm -C examples/vue-wrapper dev",
     "example:project-board": "pnpm -C examples/project-board dev",
+    "example:admin": "pnpm -C examples/admin dev",
     "example:light-dom-slots": "pnpm -C examples/light-dom-slots dev",
     "example:use-headless-cli": "pnpm -C examples/use-headless-cli dev",
     "example:use-headless-react": "pnpm -C examples/use-headless-react dev",
@@ -103,7 +105,8 @@
     "build-and-link": "tsx scripts/build-and-link.ts",
     "preinstall": "npx only-allow pnpm",
     "postinstall": "simple-git-hooks",
-    "check:packed-consumers": "tsx scripts/check/check-packed-consumers.ts"
+    "check:packed-consumers": "tsx scripts/check/check-packed-consumers.ts",
+    "check:web-ui-reference": "pnpm check:packed-consumers"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged && pnpm check",

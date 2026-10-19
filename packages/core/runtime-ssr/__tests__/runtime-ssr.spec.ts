@@ -27,14 +27,44 @@ describe('@zeus-js/runtime-ssr', () => {
       'renderToString',
       'ssrAttr',
       'ssrComponent',
+      'ssrCustomElement',
       'ssrElement',
       'ssrFor',
+      'ssrHydrationMarker',
       'ssrProp',
       'ssrShow',
       'ssrSpread',
       'ssrStatic',
       'ssrText',
     ])
+  })
+
+  it('serializes Declarative Shadow DOM without registering the host', () => {
+    expect(
+      renderToString(() =>
+        runtimeSSR.ssrCustomElement('z-card', {
+          attributes: [ssrAttr('title', 'Card')],
+          shadowRoot: ssrElement('strong', [], 'Hello'),
+          shadowRootOptions: {
+            mode: 'open',
+            delegatesFocus: true,
+            serializable: true,
+          },
+          children: ssrElement('span', [], 'fallback'),
+        }),
+      ),
+    ).toBe(
+      '<z-card title="Card"><template shadowrootmode="open" shadowrootdelegatesfocus shadowrootserializable><strong>Hello</strong></template><span>fallback</span></z-card>',
+    )
+  })
+
+  it('emits validated hydration markers', () => {
+    expect(
+      renderToString(() => runtimeSSR.ssrHydrationMarker('card.title')),
+    ).toBe('<!--zeus:hydrate:card.title-->')
+    expect(() => runtimeSSR.ssrHydrationMarker('bad id')).toThrow(
+      'Invalid hydration marker id',
+    )
   })
 
   it('requires a render factory so component initialization is scope-owned', () => {

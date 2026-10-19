@@ -1641,3 +1641,31 @@ fn lowers_ordered_native_and_component_spreads_for_both_targets() {
         assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
     }
 }
+
+#[test]
+fn emits_transition_mount_for_dom_and_static_branch_for_ssr() {
+    let source = "import { Transition } from '@zeus-js/zeus'; export const App = props => <Transition when={props.open} enter=\"fade-in\" duration={120}><span>{props.label}</span></Transition>";
+    let mut dom = options(false);
+    dom.source = source.into();
+    let result = transform_module(dom);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(result.code.contains("mountTransition"), "{}", result.code);
+    assert!(result.code.contains("props.open"), "{}", result.code);
+    assert!(
+        result.code.contains("enter: \"fade-in\""),
+        "{}",
+        result.code
+    );
+    assert!(result.code.contains("duration: 120"), "{}", result.code);
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, &result.code, SourceType::ts()).parse();
+    assert!(parsed.diagnostics.is_empty(), "{:?}\n{}", parsed.diagnostics, result.code);
+
+    let mut ssr = options(false);
+    ssr.target = TransformTarget::Ssr;
+    ssr.source = source.into();
+    let result = transform_module(ssr);
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(!result.code.contains("mountTransition"), "{}", result.code);
+    assert!(result.code.contains("props.open ?"), "{}", result.code);
+}

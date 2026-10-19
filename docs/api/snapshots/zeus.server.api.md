@@ -18,10 +18,14 @@ export {
 export {
   For,
   ForProps,
+  SSRCustomElementOptions,
   SSRNode,
   SSRPrimitive,
+  SSRShadowRootOptions,
   Show,
   ShowProps,
   renderToString,
+  ssrCustomElement,
+  ssrHydrationMarker,
 } from '@zeus-js/runtime-ssr'
 ```

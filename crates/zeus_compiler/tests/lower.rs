@@ -14,7 +14,9 @@ fn root_element(root: &zeus_compiler::ir::RootIr) -> &zeus_compiler::ir::Element
         zeus_compiler::ir::RootIr::Fragment(_)
         | zeus_compiler::ir::RootIr::Component(_)
         | zeus_compiler::ir::RootIr::Show(_)
-        | zeus_compiler::ir::RootIr::For(_) => panic!("expected element root"),
+        | zeus_compiler::ir::RootIr::For(_)
+        | zeus_compiler::ir::RootIr::ErrorBoundary(_)
+        | zeus_compiler::ir::RootIr::Transition(_) => panic!("expected element root"),
     }
 }
 
@@ -1221,5 +1223,50 @@ fn rejects_unknown_attributes_on_control_builtins_without_dropping_them() {
         assert!(lowered.diagnostics[0].message.contains(expected_message));
         let span = lowered.diagnostics[0].span.expect("attribute span");
         assert!(span.start.offset < span.end.offset);
+    }
+}
+
+#[test]
+fn lowers_transition_intrinsic_with_explicit_runtime_options() {
+    let source = r#"import { Transition } from '@zeus-js/zeus';
+export const App = props => <Transition when={props.open} enter="fade-in" leave={props.leave} duration={120} onEnterDone={props.done}><span>{props.label}</span></Transition>"#;
+    let lowered = lower_module(source, "transition.tsx");
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let module = lowered.ir.expect("Transition lowers to native IR");
+    let zeus_compiler::ir::RootIr::Transition(transition) = &module.components[0].root else {
+        panic!("expected Transition root")
+    };
+    assert_eq!(transition.kind, "Transition");
+    assert_eq!(transition.when.code, "props.open");
+    assert_eq!(transition.children.len(), 1);
+    assert_eq!(
+        transition
+            .options
+            .iter()
+            .map(|option| option.name.as_str())
+            .collect::<Vec<_>>(),
+        vec!["enter", "leave", "duration", "onEnterDone"]
+    );
+    assert_eq!(transition.options[0].expression.code, "\"fade-in\"");
+    assert_eq!(transition.options[2].expression.code, "120");
+}
+
+#[test]
+fn diagnoses_transition_unknown_and_jsx_options() {
+    for (source, code) in [
+        (
+            "import { Transition } from '@zeus-js/zeus'; export const App = props => <Transition when={props.open} fallback={<i />} />",
+            "ZEUS_INVALID_BUILTIN_USAGE",
+        ),
+        (
+            "import { Transition } from '@zeus-js/zeus'; export const App = props => <Transition when={props.open} enter={<i />} />",
+            "ZEUS_UNSUPPORTED_JSX_ATTRIBUTE_VALUE",
+        ),
+    ] {
+        let lowered = lower_module(source, "invalid-transition.tsx");
+        assert!(lowered.ir.is_none(), "unexpected IR: {:?}", lowered.ir);
+        assert_eq!(lowered.diagnostics.len(), 1, "{:?}", lowered.diagnostics);
+        assert_eq!(lowered.diagnostics[0].code, code);
+        assert!(lowered.diagnostics[0].span.is_some());
     }
 }

@@ -8,8 +8,9 @@ use crate::{
     ir::{
         AttributeIr, ChildIr, ComponentBindingIr, ComponentIr, ComponentPropIr,
         ComponentPropValueIr, DynamicRegionExpressionIr, DynamicRegionIr, DynamicRegionValueIr,
-        ElementIr, ExpressionForm, ExpressionIr, ForBindingIr, FragmentIr, ModuleIr, NodeId,
-        RootIr, ShowBindingIr, StaticAttributeValue, is_children_expression,
+        ElementIr, ErrorBoundaryBindingIr, ErrorBoundaryFallbackIr, ExpressionForm, ExpressionIr,
+        ForBindingIr, FragmentIr, ModuleIr, NodeId, RootIr, ShowBindingIr, StaticAttributeValue,
+        TransitionBindingIr, TransitionOptionIr, is_children_expression,
     },
     lower::HmrInfo,
 };
@@ -146,6 +147,9 @@ fn collect_module_helper_usage(
     let mut usage = HelperUsage::from_binding_sets(binding_sets, has_delegated_events);
     for component in &module.components {
         match &component.root {
+            RootIr::ErrorBoundary(boundary) => {
+                collect_error_boundary_helper_usage(boundary, &mut usage.0)
+            }
             RootIr::Show(show) => {
                 usage.0.insert(RuntimeHelper::MountShow);
                 collect_builtin_helper_usage(&show.children, &mut usage.0);
@@ -156,6 +160,10 @@ fn collect_module_helper_usage(
             RootIr::For(for_binding) => {
                 usage.0.insert(RuntimeHelper::MountFor);
                 collect_builtin_helper_usage(&for_binding.body, &mut usage.0);
+            }
+            RootIr::Transition(transition) => {
+                usage.0.insert(RuntimeHelper::MountTransition);
+                collect_builtin_helper_usage(&transition.children, &mut usage.0);
             }
             RootIr::Component(component) => {
                 collect_component_helper_usage(component, &mut usage.0);
@@ -398,6 +406,8 @@ fn emit_ssr_root(writer: &mut CodeWriter, root: &RootIr, runtime: &SsrRuntimeNam
         RootIr::Component(component) => emit_ssr_component(writer, component, runtime),
         RootIr::Show(show) => emit_ssr_show(writer, show, runtime),
         RootIr::For(for_binding) => emit_ssr_for(writer, for_binding, runtime),
+        RootIr::Transition(transition) => emit_ssr_transition(writer, transition, runtime),
+        RootIr::ErrorBoundary(_) => unreachable!("ErrorBoundary SSR is rejected before codegen"),
     }
 }
 
@@ -437,6 +447,8 @@ fn emit_ssr_child(
         ChildIr::Component(component) => emit_ssr_component(writer, component, runtime),
         ChildIr::Show(show) => emit_ssr_show(writer, show, runtime),
         ChildIr::For(for_binding) => emit_ssr_for(writer, for_binding, runtime),
+        ChildIr::Transition(transition) => emit_ssr_transition(writer, transition, runtime),
+        ChildIr::ErrorBoundary(_) => unreachable!("ErrorBoundary SSR is rejected before codegen"),
         ChildIr::DynamicRegion(region) => emit_ssr_dynamic_region(writer, region, runtime),
     }
 }
@@ -733,6 +745,20 @@ fn emit_ssr_for(writer: &mut CodeWriter, for_binding: &ForBindingIr, runtime: &S
     writer.push(")");
 }
 
+fn emit_ssr_transition(
+    writer: &mut CodeWriter,
+    transition: &TransitionBindingIr,
+    runtime: &SsrRuntimeNames,
+) {
+    // SSR has no animation lifecycle. Preserve the runtime's initial visibility
+    // decision and serialize only the mounted branch.
+    writer.push("(");
+    writer.push_mapped(&transition.when.code, &transition.when);
+    writer.push(" ? ");
+    emit_ssr_children(writer, &transition.children, runtime, false);
+    writer.push(" : null)");
+}
+
 fn emit_delegated_events(
     writer: &mut CodeWriter,
     runtime: &RuntimeNames,
@@ -916,12 +942,30 @@ fn emit_component(
                 emit_component_binding(writer, &markers[marker_index], child, runtime, names);
                 marker_index += 1;
             }
+            DynamicBinding::ErrorBoundary { boundary } => {
+                let marker = &markers[marker_index];
+                writer.push(runtime.insert());
+                writer.push("(");
+                writer.push(&marker.marker_name);
+                writer.push(".parentNode, ");
+                emit_error_boundary_call(writer, boundary, runtime, names);
+                writer.push(", ");
+                writer.push(&marker.marker_name);
+                writer.push(");\n");
+                writer.push(&marker.marker_name);
+                writer.push(".remove();\n");
+                marker_index += 1;
+            }
             DynamicBinding::Show { show } => {
                 emit_show_binding(writer, &markers[marker_index], show, runtime, names);
                 marker_index += 1;
             }
             DynamicBinding::For { for_binding } => {
                 emit_for_binding(writer, &markers[marker_index], for_binding, runtime, names);
+                marker_index += 1;
+            }
+            DynamicBinding::Transition { transition } => {
+                emit_transition_binding(writer, &markers[marker_index], transition, runtime, names);
                 marker_index += 1;
             }
             DynamicBinding::DynamicRegion { region } => {
@@ -1030,8 +1074,10 @@ fn emit_dynamic_markers(
                 DynamicBinding::Text { .. }
                     | DynamicBinding::Node { .. }
                     | DynamicBinding::Component { .. }
+                    | DynamicBinding::ErrorBoundary { .. }
                     | DynamicBinding::Show { .. }
                     | DynamicBinding::For { .. }
+                    | DynamicBinding::Transition { .. }
                     | DynamicBinding::DynamicRegion { .. }
             )
         })
@@ -1092,6 +1138,32 @@ fn emit_component_binding(
     writer.push(");\n");
     writer.push(&marker.marker_name);
     writer.push(".remove();\n");
+}
+
+fn emit_error_boundary_call(
+    writer: &mut CodeWriter,
+    boundary: &ErrorBoundaryBindingIr,
+    runtime: &RuntimeNames,
+    names: &mut NameAllocator,
+) {
+    writer.push(runtime.error_boundary());
+    writer.push("({ children: () => ");
+    emit_children_value(writer, &boundary.children, runtime, names);
+    writer.push(", fallback: ");
+    match &boundary.fallback {
+        ErrorBoundaryFallbackIr::Expression(expression) => writer.push_dom_expression(expression),
+        ErrorBoundaryFallbackIr::Render(render) => {
+            writer.push("(");
+            writer.push(&render.parameters.join(", "));
+            writer.push(") => ");
+            emit_children_value(writer, &render.body, runtime, names);
+        }
+    }
+    if let Some(on_error) = &boundary.on_error {
+        writer.push(", onError: ");
+        writer.push_dom_expression(on_error);
+    }
+    writer.push(" })");
 }
 
 fn emit_component_call(
@@ -1209,6 +1281,10 @@ fn emit_root_builtin_call(
     runtime: &RuntimeNames,
     names: &mut NameAllocator,
 ) {
+    if let RootBuiltin::ErrorBoundary(boundary) = builtin {
+        emit_error_boundary_call(writer, boundary, runtime, names);
+        return;
+    }
     let region = names.allocate("$zeusRegion");
     let marker = names.allocate("$zeusRegionMarker");
     writer.push("(() => {\nconst ");
@@ -1222,11 +1298,15 @@ fn emit_root_builtin_call(
     writer.push(".firstChild;\n");
 
     match builtin {
+        RootBuiltin::ErrorBoundary(_) => unreachable!("ErrorBoundary was emitted above"),
         RootBuiltin::Show(show) => {
             emit_show_mount_call(writer, &region, &marker, show, runtime, names);
         }
         RootBuiltin::For(for_binding) => {
             emit_for_mount_call(writer, &region, &marker, for_binding, runtime, names);
+        }
+        RootBuiltin::Transition(transition) => {
+            emit_transition_mount_call(writer, &region, &marker, transition, runtime, names);
         }
     }
 
@@ -1340,6 +1420,74 @@ fn emit_for_mount_call(
     emit_children_value(writer, &for_binding.body, runtime, names);
     writer.pop_for_accessor_scope();
     writer.push(");\n");
+}
+
+fn emit_transition_binding(
+    writer: &mut CodeWriter,
+    marker: &EmittedMarker,
+    transition: &TransitionBindingIr,
+    runtime: &RuntimeNames,
+    names: &mut NameAllocator,
+) {
+    emit_transition_mount_call(
+        writer,
+        &format!("{}.parentNode", marker.marker_name),
+        &marker.marker_name,
+        transition,
+        runtime,
+        names,
+    );
+}
+
+fn emit_transition_mount_call(
+    writer: &mut CodeWriter,
+    parent: &str,
+    marker: &str,
+    transition: &TransitionBindingIr,
+    runtime: &RuntimeNames,
+    names: &mut NameAllocator,
+) {
+    writer.push(runtime.mount_transition());
+    writer.push("(");
+    writer.push(parent);
+    writer.push(", ");
+    writer.push(marker);
+    writer.push(", () => ");
+    writer.push_dom_expression(&transition.when);
+    writer.push(", () => ");
+    emit_children_value(writer, &transition.children, runtime, names);
+    writer.push(", ");
+    emit_transition_options(writer, &transition.options, names);
+    writer.push(");\n");
+}
+
+fn emit_transition_options(
+    writer: &mut CodeWriter,
+    options: &[TransitionOptionIr],
+    _names: &mut NameAllocator,
+) {
+    if options.is_empty() {
+        writer.push("{}");
+        return;
+    }
+    writer.push("{");
+    for (index, option) in options.iter().enumerate() {
+        if index > 0 {
+            writer.push(", ");
+        }
+        if is_static_expression(&option.expression) {
+            writer.push(&object_key(&option.name));
+            writer.push(": ");
+            writer.push_dom_expression(&option.expression);
+        } else {
+            writer.push("get ");
+            writer.push(&object_key(&option.name));
+            writer.push("() { return ");
+            writer.push_dom_expression(&option.expression);
+            writer.push(" }");
+        }
+    }
+    writer.push("}");
 }
 
 fn emit_dynamic_region_binding(
@@ -1505,6 +1653,9 @@ fn emit_inline_child_value(
             emit_inline_root(writer, &RootIr::Fragment(fragment.clone()), runtime, names);
         }
         ChildIr::Component(component) => emit_component_call(writer, component, runtime, names),
+        ChildIr::ErrorBoundary(boundary) => {
+            emit_error_boundary_call(writer, boundary, runtime, names)
+        }
         ChildIr::Show(show) => {
             emit_root_builtin_call(writer, &RootBuiltin::Show(show.clone()), runtime, names);
         }
@@ -1512,6 +1663,14 @@ fn emit_inline_child_value(
             emit_root_builtin_call(
                 writer,
                 &RootBuiltin::For(for_binding.clone()),
+                runtime,
+                names,
+            );
+        }
+        ChildIr::Transition(transition) => {
+            emit_root_builtin_call(
+                writer,
+                &RootBuiltin::Transition(transition.clone()),
                 runtime,
                 names,
             );
@@ -1830,7 +1989,11 @@ fn render_template(root: &RootIr, locator_attribute: &str) -> String {
     match root {
         RootIr::Element(element) => render_element(element, locator_attribute, &mut html),
         RootIr::Fragment(fragment) => render_fragment(fragment, locator_attribute, &mut html),
-        RootIr::Component(_) | RootIr::Show(_) | RootIr::For(_) => {}
+        RootIr::Component(_)
+        | RootIr::Show(_)
+        | RootIr::For(_)
+        | RootIr::ErrorBoundary(_)
+        | RootIr::Transition(_) => {}
     }
     html
 }
@@ -1850,7 +2013,9 @@ fn render_child_template(child: &ChildIr, locator_attribute: &str, html: &mut St
         | ChildIr::DynamicRegion(_)
         | ChildIr::Component(_)
         | ChildIr::Show(_)
-        | ChildIr::For(_) => {
+        | ChildIr::For(_)
+        | ChildIr::ErrorBoundary(_)
+        | ChildIr::Transition(_) => {
             html.push_str("<!>");
         }
     }
@@ -1906,7 +2071,9 @@ fn render_element(element: &ElementIr, locator_attribute: &str, html: &mut Strin
             | ChildIr::DynamicRegion(_)
             | ChildIr::Component(_)
             | ChildIr::Show(_)
-            | ChildIr::For(_) => html.push_str("<!>"),
+            | ChildIr::For(_)
+            | ChildIr::ErrorBoundary(_)
+            | ChildIr::Transition(_) => html.push_str("<!>"),
         }
     }
 
@@ -1929,7 +2096,11 @@ fn collect_root_dynamic_bindings(root: &RootIr) -> Vec<DynamicBinding> {
             collect_fragment_bindings(fragment, &mut bindings);
             bindings
         }
-        RootIr::Component(_) | RootIr::Show(_) | RootIr::For(_) => Vec::new(),
+        RootIr::Component(_)
+        | RootIr::Show(_)
+        | RootIr::For(_)
+        | RootIr::ErrorBoundary(_)
+        | RootIr::Transition(_) => Vec::new(),
     }
 }
 
@@ -2008,9 +2179,15 @@ fn collect_element_bindings(element: &ElementIr, bindings: &mut Vec<DynamicBindi
             ChildIr::Component(component) => bindings.push(DynamicBinding::Component {
                 component: component.clone(),
             }),
+            ChildIr::ErrorBoundary(boundary) => bindings.push(DynamicBinding::ErrorBoundary {
+                boundary: boundary.clone(),
+            }),
             ChildIr::Show(show) => bindings.push(DynamicBinding::Show { show: show.clone() }),
             ChildIr::For(for_binding) => bindings.push(DynamicBinding::For {
                 for_binding: for_binding.clone(),
+            }),
+            ChildIr::Transition(transition) => bindings.push(DynamicBinding::Transition {
+                transition: transition.clone(),
             }),
             ChildIr::Text(_) => {}
         }
@@ -2029,9 +2206,15 @@ fn collect_fragment_bindings(fragment: &FragmentIr, bindings: &mut Vec<DynamicBi
             ChildIr::Component(component) => bindings.push(DynamicBinding::Component {
                 component: component.clone(),
             }),
+            ChildIr::ErrorBoundary(boundary) => bindings.push(DynamicBinding::ErrorBoundary {
+                boundary: boundary.clone(),
+            }),
             ChildIr::Show(show) => bindings.push(DynamicBinding::Show { show: show.clone() }),
             ChildIr::For(for_binding) => bindings.push(DynamicBinding::For {
                 for_binding: for_binding.clone(),
+            }),
+            ChildIr::Transition(transition) => bindings.push(DynamicBinding::Transition {
+                transition: transition.clone(),
             }),
             ChildIr::Text(_) => {}
         }
@@ -2090,7 +2273,9 @@ fn collect_text_content_parts(element: &ElementIr) -> Vec<TextContentPart> {
             | ChildIr::DynamicRegion(_)
             | ChildIr::Component(_)
             | ChildIr::Show(_)
-            | ChildIr::For(_) => None,
+            | ChildIr::For(_)
+            | ChildIr::ErrorBoundary(_)
+            | ChildIr::Transition(_) => None,
         })
         .collect()
 }
@@ -2112,8 +2297,12 @@ fn collect_root_delegated_events(root: &RootIr, names: &mut BTreeSet<String>) {
         RootIr::Element(element) => collect_element_delegated_events(element, names),
         RootIr::Fragment(fragment) => collect_child_delegated_events(&fragment.children, names),
         RootIr::Component(component) => collect_component_delegated_events(component, names),
+        RootIr::ErrorBoundary(boundary) => collect_error_boundary_delegated_events(boundary, names),
         RootIr::Show(show) => collect_show_delegated_events(show, names),
         RootIr::For(for_binding) => collect_child_delegated_events(&for_binding.body, names),
+        RootIr::Transition(transition) => {
+            collect_child_delegated_events(&transition.children, names)
+        }
     }
 }
 
@@ -2137,6 +2326,37 @@ fn collect_component_delegated_events(
     }
 }
 
+fn collect_error_boundary_delegated_events(
+    boundary: &ErrorBoundaryBindingIr,
+    names: &mut BTreeSet<String>,
+) {
+    collect_child_delegated_events(&boundary.children, names);
+    if let ErrorBoundaryFallbackIr::Render(render) = &boundary.fallback {
+        collect_child_delegated_events(&render.body, names);
+    }
+}
+
+fn collect_error_boundary_attribute_names(
+    boundary: &ErrorBoundaryBindingIr,
+    names: &mut HashSet<String>,
+) {
+    collect_builtin_attribute_names(&boundary.children, names);
+    if let ErrorBoundaryFallbackIr::Render(render) = &boundary.fallback {
+        collect_builtin_attribute_names(&render.body, names);
+    }
+}
+
+fn collect_error_boundary_helper_usage(
+    boundary: &ErrorBoundaryBindingIr,
+    usage: &mut HashSet<RuntimeHelper>,
+) {
+    usage.insert(RuntimeHelper::ErrorBoundary);
+    collect_builtin_helper_usage(&boundary.children, usage);
+    if let ErrorBoundaryFallbackIr::Render(render) = &boundary.fallback {
+        collect_builtin_helper_usage(&render.body, usage);
+    }
+}
+
 fn collect_show_delegated_events(show: &ShowBindingIr, names: &mut BTreeSet<String>) {
     collect_child_delegated_events(&show.children, names);
     if let Some(ComponentPropValueIr::Children(children)) = &show.fallback {
@@ -2152,9 +2372,15 @@ fn collect_child_delegated_events(children: &[ChildIr], names: &mut BTreeSet<Str
                 collect_child_delegated_events(&fragment.children, names);
             }
             ChildIr::Component(component) => collect_component_delegated_events(component, names),
+            ChildIr::ErrorBoundary(boundary) => {
+                collect_error_boundary_delegated_events(boundary, names)
+            }
             ChildIr::Show(show) => collect_show_delegated_events(show, names),
             ChildIr::For(for_binding) => {
                 collect_child_delegated_events(&for_binding.body, names);
+            }
+            ChildIr::Transition(transition) => {
+                collect_child_delegated_events(&transition.children, names);
             }
             ChildIr::DynamicRegion(region) => {
                 collect_dynamic_region_delegated_events(region, names);
@@ -2223,8 +2449,12 @@ fn collect_root_attribute_names(root: &RootIr, names: &mut HashSet<String>) {
         RootIr::Element(element) => collect_attribute_names(element, names),
         RootIr::Fragment(fragment) => collect_fragment_attribute_names(fragment, names),
         RootIr::Component(component) => collect_component_attribute_names(component, names),
+        RootIr::ErrorBoundary(boundary) => collect_error_boundary_attribute_names(boundary, names),
         RootIr::Show(show) => collect_show_attribute_names(show, names),
         RootIr::For(for_binding) => collect_builtin_attribute_names(&for_binding.body, names),
+        RootIr::Transition(transition) => {
+            collect_builtin_attribute_names(&transition.children, names)
+        }
     }
 }
 
@@ -2245,10 +2475,14 @@ fn collect_attribute_names(element: &ElementIr, names: &mut HashSet<String>) {
             collect_fragment_attribute_names(fragment, names);
         } else if let ChildIr::Component(component) = child {
             collect_component_attribute_names(component, names);
+        } else if let ChildIr::ErrorBoundary(boundary) = child {
+            collect_error_boundary_attribute_names(boundary, names);
         } else if let ChildIr::Show(show) = child {
             collect_show_attribute_names(show, names);
         } else if let ChildIr::For(for_binding) = child {
             collect_builtin_attribute_names(&for_binding.body, names);
+        } else if let ChildIr::Transition(transition) = child {
+            collect_builtin_attribute_names(&transition.children, names);
         } else if let ChildIr::DynamicRegion(region) = child {
             collect_dynamic_region_attribute_names(region, names);
         }
@@ -2261,8 +2495,14 @@ fn collect_fragment_attribute_names(fragment: &FragmentIr, names: &mut HashSet<S
             ChildIr::Element(element) => collect_attribute_names(element, names),
             ChildIr::Fragment(fragment) => collect_fragment_attribute_names(fragment, names),
             ChildIr::Component(component) => collect_component_attribute_names(component, names),
+            ChildIr::ErrorBoundary(boundary) => {
+                collect_error_boundary_attribute_names(boundary, names)
+            }
             ChildIr::Show(show) => collect_show_attribute_names(show, names),
             ChildIr::For(for_binding) => collect_builtin_attribute_names(&for_binding.body, names),
+            ChildIr::Transition(transition) => {
+                collect_builtin_attribute_names(&transition.children, names)
+            }
             ChildIr::DynamicRegion(region) => collect_dynamic_region_attribute_names(region, names),
             ChildIr::Text(_) | ChildIr::DynamicText(_) => {}
         }
@@ -2281,9 +2521,15 @@ fn collect_component_attribute_names(component: &ComponentBindingIr, names: &mut
                     ChildIr::Component(component) => {
                         collect_component_attribute_names(component, names);
                     }
+                    ChildIr::ErrorBoundary(boundary) => {
+                        collect_error_boundary_attribute_names(boundary, names)
+                    }
                     ChildIr::Show(show) => collect_show_attribute_names(show, names),
                     ChildIr::For(for_binding) => {
                         collect_builtin_attribute_names(&for_binding.body, names);
+                    }
+                    ChildIr::Transition(transition) => {
+                        collect_builtin_attribute_names(&transition.children, names);
                     }
                     ChildIr::DynamicRegion(region) => {
                         collect_dynamic_region_attribute_names(region, names);
@@ -2301,8 +2547,14 @@ fn collect_builtin_attribute_names(children: &[ChildIr], names: &mut HashSet<Str
             ChildIr::Element(element) => collect_attribute_names(element, names),
             ChildIr::Fragment(fragment) => collect_fragment_attribute_names(fragment, names),
             ChildIr::Component(component) => collect_component_attribute_names(component, names),
+            ChildIr::ErrorBoundary(boundary) => {
+                collect_error_boundary_attribute_names(boundary, names)
+            }
             ChildIr::Show(show) => collect_show_attribute_names(show, names),
             ChildIr::For(for_binding) => collect_builtin_attribute_names(&for_binding.body, names),
+            ChildIr::Transition(transition) => {
+                collect_builtin_attribute_names(&transition.children, names)
+            }
             ChildIr::DynamicRegion(region) => collect_dynamic_region_attribute_names(region, names),
             ChildIr::Text(_) | ChildIr::DynamicText(_) => {}
         }
@@ -2391,8 +2643,10 @@ fn escape_html_attribute(value: &str) -> String {
 }
 
 enum RootBuiltin {
+    ErrorBoundary(ErrorBoundaryBindingIr),
     Show(ShowBindingIr),
     For(ForBindingIr),
+    Transition(TransitionBindingIr),
 }
 
 struct GeneratedComponent {
@@ -2416,6 +2670,8 @@ fn root_span(root: &RootIr) -> &crate::span::SourceSpan {
         RootIr::Component(component) => &component.span,
         RootIr::Show(show) => &show.span,
         RootIr::For(for_binding) => &for_binding.span,
+        RootIr::ErrorBoundary(boundary) => &boundary.span,
+        RootIr::Transition(transition) => &transition.span,
     }
 }
 
@@ -2430,7 +2686,12 @@ impl GeneratedComponent {
         let element_name = names.allocate("$zeusEl");
         let root_id = match &component.root {
             RootIr::Element(element) => Some(element.id),
-            RootIr::Fragment(_) | RootIr::Component(_) | RootIr::Show(_) | RootIr::For(_) => None,
+            RootIr::Fragment(_)
+            | RootIr::Component(_)
+            | RootIr::Show(_)
+            | RootIr::For(_)
+            | RootIr::ErrorBoundary(_)
+            | RootIr::Transition(_) => None,
         };
         let mut seen = HashSet::new();
         let targets = bindings
@@ -2457,11 +2718,20 @@ impl GeneratedComponent {
             is_svg: matches!(&component.root, RootIr::Element(element) if is_svg_element(&element.tag_name)),
             root_component: match &component.root {
                 RootIr::Component(component) => Some(component.clone()),
-                RootIr::Element(_) | RootIr::Fragment(_) | RootIr::Show(_) | RootIr::For(_) => None,
+                RootIr::Element(_)
+                | RootIr::Fragment(_)
+                | RootIr::Show(_)
+                | RootIr::For(_)
+                | RootIr::ErrorBoundary(_)
+                | RootIr::Transition(_) => None,
             },
             root_builtin: match &component.root {
                 RootIr::Show(show) => Some(RootBuiltin::Show(show.clone())),
                 RootIr::For(for_binding) => Some(RootBuiltin::For(for_binding.clone())),
+                RootIr::ErrorBoundary(boundary) => {
+                    Some(RootBuiltin::ErrorBoundary(boundary.clone()))
+                }
+                RootIr::Transition(transition) => Some(RootBuiltin::Transition(transition.clone())),
                 RootIr::Element(_) | RootIr::Fragment(_) | RootIr::Component(_) => None,
             },
             bindings,
@@ -2479,7 +2749,12 @@ impl GeneratedComponent {
         let element_name = names.allocate("$zeusInlineElement");
         let root_id = match root {
             RootIr::Element(element) => Some(element.id),
-            RootIr::Fragment(_) | RootIr::Component(_) | RootIr::Show(_) | RootIr::For(_) => None,
+            RootIr::Fragment(_)
+            | RootIr::Component(_)
+            | RootIr::Show(_)
+            | RootIr::For(_)
+            | RootIr::ErrorBoundary(_)
+            | RootIr::Transition(_) => None,
         };
         let mut seen = HashSet::new();
         let targets = bindings
@@ -2497,11 +2772,18 @@ impl GeneratedComponent {
             .collect();
         let root_component = match root {
             RootIr::Component(component) => Some(component.clone()),
-            RootIr::Element(_) | RootIr::Fragment(_) | RootIr::Show(_) | RootIr::For(_) => None,
+            RootIr::Element(_)
+            | RootIr::Fragment(_)
+            | RootIr::Show(_)
+            | RootIr::For(_)
+            | RootIr::ErrorBoundary(_)
+            | RootIr::Transition(_) => None,
         };
         let root_builtin = match root {
             RootIr::Show(show) => Some(RootBuiltin::Show(show.clone())),
             RootIr::For(for_binding) => Some(RootBuiltin::For(for_binding.clone())),
+            RootIr::ErrorBoundary(boundary) => Some(RootBuiltin::ErrorBoundary(boundary.clone())),
+            RootIr::Transition(transition) => Some(RootBuiltin::Transition(transition.clone())),
             RootIr::Element(_) | RootIr::Fragment(_) | RootIr::Component(_) => None,
         };
         let template_html = render_template(root, locator_attribute);
@@ -2577,11 +2859,17 @@ enum DynamicBinding {
     Component {
         component: ComponentBindingIr,
     },
+    ErrorBoundary {
+        boundary: ErrorBoundaryBindingIr,
+    },
     Show {
         show: ShowBindingIr,
     },
     For {
         for_binding: ForBindingIr,
+    },
+    Transition {
+        transition: TransitionBindingIr,
     },
     DynamicRegion {
         region: DynamicRegionIr,
@@ -2594,8 +2882,10 @@ impl DynamicBinding {
             Self::Text { .. }
             | Self::Node { .. }
             | Self::Component { .. }
+            | Self::ErrorBoundary { .. }
             | Self::Show { .. }
             | Self::For { .. }
+            | Self::Transition { .. }
             | Self::DynamicRegion { .. } => None,
             Self::TextContent { target_id, .. }
             | Self::Attribute { target_id, .. }
@@ -2693,6 +2983,10 @@ impl HelperUsage {
                     usage.0.insert(RuntimeHelper::Insert);
                     collect_component_helper_usage(component, &mut usage.0);
                 }
+                DynamicBinding::ErrorBoundary { boundary } => {
+                    usage.0.insert(RuntimeHelper::Insert);
+                    collect_error_boundary_helper_usage(boundary, &mut usage.0);
+                }
                 DynamicBinding::Show { show } => {
                     usage.0.insert(RuntimeHelper::MountShow);
                     collect_builtin_helper_usage(&show.children, &mut usage.0);
@@ -2703,6 +2997,10 @@ impl HelperUsage {
                 DynamicBinding::For { for_binding } => {
                     usage.0.insert(RuntimeHelper::MountFor);
                     collect_builtin_helper_usage(&for_binding.body, &mut usage.0);
+                }
+                DynamicBinding::Transition { transition } => {
+                    usage.0.insert(RuntimeHelper::MountTransition);
+                    collect_builtin_helper_usage(&transition.children, &mut usage.0);
                 }
                 DynamicBinding::DynamicRegion { region } => {
                     usage.0.insert(RuntimeHelper::MountDynamic);
@@ -2749,6 +3047,9 @@ fn collect_component_helper_usage(
                     }
                 }
                 ChildIr::Component(component) => collect_component_helper_usage(component, usage),
+                ChildIr::ErrorBoundary(boundary) => {
+                    collect_error_boundary_helper_usage(boundary, usage)
+                }
                 ChildIr::Show(show) => {
                     usage.insert(RuntimeHelper::MountShow);
                     collect_builtin_helper_usage(&show.children, usage);
@@ -2759,6 +3060,10 @@ fn collect_component_helper_usage(
                 ChildIr::For(for_binding) => {
                     usage.insert(RuntimeHelper::MountFor);
                     collect_builtin_helper_usage(&for_binding.body, usage);
+                }
+                ChildIr::Transition(transition) => {
+                    usage.insert(RuntimeHelper::MountTransition);
+                    collect_builtin_helper_usage(&transition.children, usage);
                 }
                 ChildIr::DynamicText(dynamic) => {
                     collect_binding_helper_usage(&dynamic_binding(dynamic), usage);
@@ -2791,6 +3096,9 @@ fn collect_builtin_helper_usage(children: &[ChildIr], usage: &mut HashSet<Runtim
                 }
             }
             ChildIr::Component(component) => collect_component_helper_usage(component, usage),
+            ChildIr::ErrorBoundary(boundary) => {
+                collect_error_boundary_helper_usage(boundary, usage)
+            }
             ChildIr::Show(show) => {
                 usage.insert(RuntimeHelper::MountShow);
                 collect_builtin_helper_usage(&show.children, usage);
@@ -2801,6 +3109,10 @@ fn collect_builtin_helper_usage(children: &[ChildIr], usage: &mut HashSet<Runtim
             ChildIr::For(for_binding) => {
                 usage.insert(RuntimeHelper::MountFor);
                 collect_builtin_helper_usage(&for_binding.body, usage);
+            }
+            ChildIr::Transition(transition) => {
+                usage.insert(RuntimeHelper::MountTransition);
+                collect_builtin_helper_usage(&transition.children, usage);
             }
             ChildIr::DynamicText(dynamic) => {
                 collect_binding_helper_usage(&dynamic_binding(dynamic), usage);
@@ -2858,6 +3170,10 @@ fn collect_binding_helper_usage(binding: &DynamicBinding, usage: &mut HashSet<Ru
             usage.insert(RuntimeHelper::Insert);
             collect_component_helper_usage(component, usage);
         }
+        DynamicBinding::ErrorBoundary { boundary } => {
+            usage.insert(RuntimeHelper::Insert);
+            collect_error_boundary_helper_usage(boundary, usage);
+        }
         DynamicBinding::Show { show } => {
             usage.insert(RuntimeHelper::MountShow);
             collect_builtin_helper_usage(&show.children, usage);
@@ -2868,6 +3184,10 @@ fn collect_binding_helper_usage(binding: &DynamicBinding, usage: &mut HashSet<Ru
         DynamicBinding::For { for_binding } => {
             usage.insert(RuntimeHelper::MountFor);
             collect_builtin_helper_usage(&for_binding.body, usage);
+        }
+        DynamicBinding::Transition { transition } => {
+            usage.insert(RuntimeHelper::MountTransition);
+            collect_builtin_helper_usage(&transition.children, usage);
         }
         DynamicBinding::DynamicRegion { region } => {
             usage.insert(RuntimeHelper::MountDynamic);
@@ -3035,12 +3355,20 @@ impl RuntimeNames {
         self.get(RuntimeHelper::CreateSlot)
     }
 
+    fn error_boundary(&self) -> &str {
+        self.get(RuntimeHelper::ErrorBoundary)
+    }
+
     fn mount_show(&self) -> &str {
         self.get(RuntimeHelper::MountShow)
     }
 
     fn mount_for(&self) -> &str {
         self.get(RuntimeHelper::MountFor)
+    }
+
+    fn mount_transition(&self) -> &str {
+        self.get(RuntimeHelper::MountTransition)
     }
 
     fn mount_dynamic(&self) -> &str {
@@ -3100,8 +3428,10 @@ enum RuntimeHelper {
     Template,
     CreateComponent,
     CreateSlot,
+    ErrorBoundary,
     MountShow,
     MountFor,
+    MountTransition,
     MountDynamic,
     Insert,
     BindText,
@@ -3118,12 +3448,14 @@ enum RuntimeHelper {
 }
 
 impl RuntimeHelper {
-    const ORDERED: [Self; 18] = [
+    const ORDERED: [Self; 20] = [
         Self::Template,
         Self::CreateComponent,
         Self::CreateSlot,
+        Self::ErrorBoundary,
         Self::MountShow,
         Self::MountFor,
+        Self::MountTransition,
         Self::MountDynamic,
         Self::Insert,
         Self::BindText,
@@ -3144,8 +3476,10 @@ impl RuntimeHelper {
             Self::Template => "template",
             Self::CreateComponent => "createComponent",
             Self::CreateSlot => "createSlot",
+            Self::ErrorBoundary => "ErrorBoundary",
             Self::MountShow => "mountShow",
             Self::MountFor => "mountFor",
+            Self::MountTransition => "mountTransition",
             Self::MountDynamic => "mountDynamic",
             Self::Insert => "insert",
             Self::BindText => "bindText",
@@ -3167,8 +3501,10 @@ impl RuntimeHelper {
             Self::Template => "$zeusTemplate",
             Self::CreateComponent => "$zeusCreateComponent",
             Self::CreateSlot => "$zeusCreateSlot",
+            Self::ErrorBoundary => "$zeusErrorBoundary",
             Self::MountShow => "$zeusMountShow",
             Self::MountFor => "$zeusMountFor",
+            Self::MountTransition => "$zeusMountTransition",
             Self::MountDynamic => "$zeusMountDynamic",
             Self::Insert => "$zeusInsert",
             Self::BindText => "$zeusBindText",

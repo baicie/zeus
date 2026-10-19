@@ -3,6 +3,7 @@ import type {
   ComponentIR,
   DynamicTextIR,
   ElementIR,
+  ErrorBoundaryIR,
   EventBindingIR,
   ExpressionForm,
   ExpressionIR,
@@ -14,11 +15,14 @@ import type {
   IRRef,
   PropBindingIR,
   RefBindingIR,
+  RenderFallbackIR,
   ShowIR,
   SlotIR,
   SourceSpan,
   StaticAttributeIR,
   TextIR,
+  TransitionIR,
+  TransitionOptionIR,
   ZeusIRNode,
 } from './nodes'
 
@@ -231,6 +235,48 @@ export function forIR(input: {
     item: input.item,
     index: input.index,
     body: input.body,
+  }
+}
+
+export function renderFallbackIR(
+  parameters: string[],
+  body: ZeusIRNode[],
+  span: SourceSpan,
+): RenderFallbackIR {
+  return { kind: 'RenderFallback', parameters, body, span }
+}
+
+export function errorBoundaryIR(input: {
+  children: ZeusIRNode[]
+  fallback: ErrorBoundaryIR['fallback']
+  onError?: ExpressionIR
+  span: SourceSpan
+}): ErrorBoundaryIR {
+  return {
+    id: id(),
+    kind: 'ErrorBoundary',
+    children: input.children,
+    fallback: input.fallback,
+    ...(input.onError === undefined ? {} : { onError: input.onError }),
+    span: input.span,
+  }
+}
+
+export function transitionIR(input: {
+  ref: IRRef
+  when: ExpressionIR
+  children: ZeusIRNode[]
+  options?: TransitionOptionIR[]
+  span: SourceSpan
+}): TransitionIR {
+  return {
+    id: id(),
+    kind: 'Transition',
+    ref: input.ref,
+    when: input.when,
+    children: input.children,
+    options: input.options ?? [],
+    span: input.span,
   }
 }
 

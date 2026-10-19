@@ -13,6 +13,8 @@ export type ZeusDevtoolsEventType =
   | 'delegate-event'
   | 'owner:create'
   | 'owner:dispose'
+  | 'component:create'
+  | 'component:dispose'
   | 'effect:run'
   | 'binding:commit'
   | 'binding:cleanup'
@@ -27,6 +29,8 @@ export interface ZeusDevtoolsEvent {
   readonly target?: Node
   readonly targetId?: number
   readonly ownerId?: number
+  readonly componentId?: number
+  readonly componentName?: string
   readonly bindingId?: number
   readonly effectId?: number
   readonly sourceId?: number
@@ -41,6 +45,13 @@ export interface ZeusDevtoolsOwnerSnapshot {
   readonly id: number
   readonly parentId?: number
   readonly childIds: readonly number[]
+  readonly disposed: boolean
+}
+
+export interface ZeusDevtoolsComponentSnapshot {
+  readonly id: number
+  readonly name: string
+  readonly ownerId?: number
   readonly disposed: boolean
 }
 
@@ -95,6 +106,7 @@ export interface ZeusDevtoolsSnapshot {
   readonly revision: number
   readonly eventCount: number
   readonly owners: readonly ZeusDevtoolsOwnerSnapshot[]
+  readonly components: readonly ZeusDevtoolsComponentSnapshot[]
   readonly effects: readonly ZeusDevtoolsEffectSnapshot[]
   readonly bindings: readonly ZeusDevtoolsBindingSnapshot[]
   readonly sources: readonly ZeusDevtoolsSourceSnapshot[]
@@ -241,6 +253,13 @@ interface OwnerState {
   disposed: boolean
 }
 
+interface ComponentState {
+  id: number
+  name: string
+  ownerId?: number
+  disposed: boolean
+}
+
 interface DependencyState {
   sourceId: number
   key: unknown
@@ -312,6 +331,7 @@ export function createDevtoolsConsumer(
     throw new RangeError('DevTools historyLimit must be a non-negative integer')
   }
   const owners = new Map<number, OwnerState>()
+  const components = new Map<number, ComponentState>()
   const effects = new Map<number, EffectState>()
   const bindings = new Map<number, BindingState>()
   const sources = new Map<number, SourceState>()
@@ -339,6 +359,16 @@ export function createDevtoolsConsumer(
         ...(owner.parentId === undefined ? {} : { parentId: owner.parentId }),
         childIds: [...owner.childIds].sort((left, right) => left - right),
         disposed: owner.disposed,
+      })),
+    components: [...components.values()]
+      .sort((left, right) => left.id - right.id)
+      .map(component => ({
+        id: component.id,
+        name: component.name,
+        ...(component.ownerId === undefined
+          ? {}
+          : { ownerId: component.ownerId }),
+        disposed: component.disposed,
       })),
     effects: [...effects.values()]
       .sort((left, right) => left.id - right.id)
@@ -621,6 +651,23 @@ export function createDevtoolsConsumer(
         }
         return true
       }
+      case 'component:create': {
+        if (event.componentId === undefined) return false
+        components.set(event.componentId, {
+          id: event.componentId,
+          name: event.componentName ?? 'Anonymous',
+          ...(event.ownerId === undefined ? {} : { ownerId: event.ownerId }),
+          disposed: false,
+        })
+        return true
+      }
+      case 'component:dispose': {
+        if (event.componentId === undefined) return false
+        const component = components.get(event.componentId)
+        if (!component) return false
+        component.disposed = true
+        return true
+      }
       case 'effect:run': {
         if (event.effectId === undefined) return false
         const effect = ensureEffect(event.effectId)
@@ -861,6 +908,8 @@ interface ZeusDevtoolsPortEventMessage {
     readonly type: ZeusDevtoolsEventType
     readonly targetId?: number
     readonly ownerId?: number
+    readonly componentId?: number
+    readonly componentName?: string
     readonly bindingId?: number
     readonly effectId?: number
     readonly sourceId?: number
@@ -882,6 +931,12 @@ function serializePortEvent(
       type: event.type,
       ...(event.targetId === undefined ? {} : { targetId: event.targetId }),
       ...(event.ownerId === undefined ? {} : { ownerId: event.ownerId }),
+      ...(event.componentId === undefined
+        ? {}
+        : { componentId: event.componentId }),
+      ...(event.componentName === undefined
+        ? {}
+        : { componentName: event.componentName }),
       ...(event.bindingId === undefined ? {} : { bindingId: event.bindingId }),
       ...(event.effectId === undefined ? {} : { effectId: event.effectId }),
       ...(event.sourceId === undefined ? {} : { sourceId: event.sourceId }),
@@ -916,6 +971,12 @@ function deserializePortEvent(value: unknown): ZeusDevtoolsEvent | undefined {
     type: event.type,
     ...(typeof event.targetId === 'number' ? { targetId: event.targetId } : {}),
     ...(typeof event.ownerId === 'number' ? { ownerId: event.ownerId } : {}),
+    ...(typeof event.componentId === 'number'
+      ? { componentId: event.componentId }
+      : {}),
+    ...(typeof event.componentName === 'string'
+      ? { componentName: event.componentName }
+      : {}),
     ...(typeof event.bindingId === 'number'
       ? { bindingId: event.bindingId }
       : {}),
@@ -933,6 +994,8 @@ function isDevtoolsEventType(value: unknown): value is ZeusDevtoolsEventType {
     value === 'delegate-event' ||
     value === 'owner:create' ||
     value === 'owner:dispose' ||
+    value === 'component:create' ||
+    value === 'component:dispose' ||
     value === 'effect:run' ||
     value === 'binding:commit' ||
     value === 'binding:cleanup' ||

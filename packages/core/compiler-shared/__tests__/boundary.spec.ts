@@ -7,17 +7,21 @@ import { describe, expect, it } from 'vitest'
 import {
   attrBindingIR,
   dynamicTextIR,
+  errorBoundaryIR,
   eventBindingIR,
   expressionIR,
   hostIR,
   propBindingIR,
   ref,
   refBindingIR,
+  renderFallbackIR,
   slotIR,
   staticAttrIR,
+  textIR,
+  visitIR,
 } from '../src'
 
-import type { AttributeIR } from '../src'
+import type { AttributeIR, ErrorBoundaryIR } from '../src'
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)))
 const fixtureSpan = {
@@ -132,6 +136,56 @@ describe('compiler-shared boundary', () => {
 
     expect(normalized).toEqual(fixture)
     expect(JSON.parse(JSON.stringify(normalized))).toEqual(fixture)
+  })
+
+  it('shares the lazy ErrorBoundary and fallback JSON schema with Rust', () => {
+    const fixture = JSON.parse(
+      readFileSync(join(packageRoot, 'fixtures/error-boundary.json'), 'utf8'),
+    ) as ErrorBoundaryIR
+    const node = errorBoundaryIR({
+      children: [{ ...textIR('child'), id: 2, span: fixtureSpan }],
+      fallback: renderFallbackIR(
+        ['error', 'reset'],
+        [{ ...textIR('fallback'), id: 3, span: fixtureSpan }],
+        fixtureSpan,
+      ),
+      onError: expressionIR('reportError', fixtureSpan),
+      span: fixtureSpan,
+    })
+    const normalized = { ...node, id: 1 }
+
+    expect(normalized).toEqual(fixture)
+    expect(JSON.parse(JSON.stringify(normalized))).toEqual(fixture)
+
+    const visited: string[] = []
+    visitIR(node, {
+      enter(child, parent) {
+        visited.push(`${parent?.kind ?? 'root'}:${child.kind}`)
+      },
+    })
+    expect(visited).toEqual([
+      'root:ErrorBoundary',
+      'ErrorBoundary:Text',
+      'ErrorBoundary:Text',
+    ])
+  })
+
+  it('keeps referenced ErrorBoundary fallback callbacks as opaque expressions', () => {
+    const node = errorBoundaryIR({
+      children: [textIR('child')],
+      fallback: expressionIR('fallback', fixtureSpan),
+      span: fixtureSpan,
+    })
+    const visited: string[] = []
+    visitIR(node, {
+      enter(child) {
+        visited.push(child.kind)
+      },
+    })
+
+    expect(visited).toEqual(['ErrorBoundary', 'Text'])
+    expect(JSON.parse(JSON.stringify(node))).toEqual(node)
+    expect(node).not.toHaveProperty('onError')
   })
 
   it('declares no Babel package dependencies', () => {

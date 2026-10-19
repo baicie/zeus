@@ -161,3 +161,36 @@ then displays its fallback; call `resource.refetch()` and `reset()` after a
 successful request to restore the child branch. Resource errors are not
 automatically promoted to boundary errors, and compiler lowering for
 `<ErrorBoundary>` remains pending.
+
+## Transition
+
+```ts
+function transition(
+  nodes: Node | readonly Node[],
+  phase: 'enter' | 'leave',
+  options?: TransitionOptions,
+): TransitionHandle
+
+function mountTransition(
+  parent: Node,
+  marker: Node,
+  when: () => unknown,
+  children: () => JSXValue,
+  options?: TransitionOptions,
+): void
+```
+
+`transition()` drives an existing node range. `enter` and `leave` accept a class
+name (or `{ from, active, to }`) or a callback. A callback may return a cleanup
+function, return a Promise, or use `(nodes, done)` and call `done()` explicitly.
+`duration` accepts a number, Promise, function, or `{ enter, leave }`; `0` is
+synchronous, a positive number is a timeout fallback, and an async duration is
+resolved before the timeout starts. `cancel()`/`dispose()` remove classes and run
+cleanup exactly once.
+
+`mountTransition()` retains a leaving range until its transition completes, and
+re-entry cancels the leave while preserving node identity. The native compiler
+lowers an imported `<Transition when={...}>` intrinsic to this helper, passing
+the explicit transition options through as a runtime object. The main
+`@zeus-js/zeus` entry exports the explicit APIs, while SSR emits the initial
+visible branch and does not start browser transitions.

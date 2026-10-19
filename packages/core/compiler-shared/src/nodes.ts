@@ -180,6 +180,37 @@ export type ForIR = SemanticBaseIRNode & {
   physicalDomPath?: PhysicalDomPath
 }
 
+export interface RenderFallbackIR {
+  kind: 'RenderFallback'
+  parameters: string[]
+  body: ZeusIRNode[]
+  span: SourceSpan
+}
+
+export type ErrorBoundaryIR = Omit<SemanticBaseIRNode, 'span'> & {
+  kind: 'ErrorBoundary'
+  children: ZeusIRNode[]
+  fallback: ExpressionIR | RenderFallbackIR
+  onError?: ExpressionIR
+  span: SourceSpan
+}
+
+export type TransitionOptionIR = SemanticBaseIRNode & {
+  kind: 'TransitionOption'
+  name: string
+  expr: ExpressionIR
+  span: SourceSpan
+}
+
+export type TransitionIR = Omit<SemanticBaseIRNode, 'span'> & {
+  kind: 'Transition'
+  ref: IRRef
+  when: ExpressionIR
+  children: ZeusIRNode[]
+  options: TransitionOptionIR[]
+  span: SourceSpan
+}
+
 export type HostAttrIR = SemanticBaseIRNode & {
   kind: 'HostAttr'
   name: string
@@ -209,5 +240,7 @@ export type ZeusIRNode =
   | FragmentIR
   | ShowIR
   | ForIR
+  | ErrorBoundaryIR
+  | TransitionIR
   | HostIR
   | SlotIR

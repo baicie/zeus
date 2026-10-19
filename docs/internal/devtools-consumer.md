@@ -54,4 +54,6 @@ binding，然后通过当前依赖边得到对应 `sourceId`。事件没有 targ
 时不会产生有效选择；cleanup 后只保留诊断摘要，不继续持有 DOM 节点。
 
 节点不跨窗口序列化，consumer 也不会注入生产环境 runtime。独立 DevTools iframe/
-浏览器扩展所需的 postMessage 协议、组件树元数据和 source signal 值展示留给后续切片。
+跨窗口 `MessagePort` emitter/consumer 已提供版本化、可序列化的事件通道；组件 create/dispose
+元数据也会进入 panel 快照。浏览器扩展所需的更高层 postMessage 握手和 source signal 值展示
+仍留给后续切片。

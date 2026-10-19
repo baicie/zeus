@@ -14,6 +14,8 @@ describe('@zeus-js/zeus/server public API', () => {
       'createSignal',
       'onCleanup',
       'renderToString',
+      'ssrCustomElement',
+      'ssrHydrationMarker',
     ])
   })
 })

@@ -9,6 +9,8 @@ export type {
   SSRClassValue,
   SSRStyleValue,
   SSRRenderInput,
+  SSRShadowRootOptions,
+  SSRCustomElementOptions,
 } from './types'
 
 export { renderToString } from './render'
@@ -25,3 +27,4 @@ export {
   type ForProps,
 } from './controlFlow'
 export { ssrSpread, mergeProps } from './spread'
+export { ssrCustomElement, ssrHydrationMarker } from './webComponent'

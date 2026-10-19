@@ -115,6 +115,21 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
         };
     }
 
+    if options.target == TransformTarget::Ssr && !lowered.error_boundary_spans.is_empty() {
+        return TransformModuleResult {
+            code: String::new(),
+            map: None,
+            diagnostics: lowered.error_boundary_spans.iter().map(|span| {
+                CompilerDiagnostic::error(
+                    "ZEUS_SSR_ERROR_BOUNDARY_UNSUPPORTED",
+                    "ErrorBoundary is a Native DOM boundary and cannot be rendered by the SSR target.",
+                    &options.filename,
+                    Some(*span),
+                )
+            }).collect(),
+        };
+    }
+
     if options.target == TransformTarget::Ssr {
         return codegen::emit_ssr_module(
             &options.source,

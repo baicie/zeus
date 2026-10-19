@@ -187,6 +187,19 @@ export type ForIR = SemanticBaseIRNode & {
   domPath?: DomPath
   physicalDomPath?: PhysicalDomPath
 }
+export interface RenderFallbackIR {
+  kind: 'RenderFallback'
+  parameters: string[]
+  body: ZeusIRNode[]
+  span: SourceSpan
+}
+export type ErrorBoundaryIR = Omit<SemanticBaseIRNode, 'span'> & {
+  kind: 'ErrorBoundary'
+  children: ZeusIRNode[]
+  fallback: ExpressionIR | RenderFallbackIR
+  onError?: ExpressionIR
+  span: SourceSpan
+}
 export type HostAttrIR = SemanticBaseIRNode & {
   kind: 'HostAttr'
   name: string
@@ -213,6 +226,7 @@ export type ZeusIRNode =
   | FragmentIR
   | ShowIR
   | ForIR
+  | ErrorBoundaryIR
   | HostIR
   | SlotIR
 
@@ -289,6 +303,17 @@ export declare function forIR(input: {
   index?: IdentifierIR
   body: ZeusIRNode[]
 }): ForIR
+export declare function renderFallbackIR(
+  parameters: string[],
+  body: ZeusIRNode[],
+  span: SourceSpan,
+): RenderFallbackIR
+export declare function errorBoundaryIR(input: {
+  children: ZeusIRNode[]
+  fallback: ErrorBoundaryIR['fallback']
+  onError?: ExpressionIR
+  span: SourceSpan
+}): ErrorBoundaryIR
 export declare function hostIR(input: {
   attrs: HostAttrIR[]
   child?: ZeusIRNode

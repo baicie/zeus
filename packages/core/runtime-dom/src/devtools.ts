@@ -9,6 +9,8 @@ export type ZeusDevtoolsEventType =
   | 'delegate-event'
   | 'owner:create'
   | 'owner:dispose'
+  | 'component:create'
+  | 'component:dispose'
   | 'effect:run'
   | 'binding:commit'
   | 'binding:cleanup'
@@ -23,6 +25,8 @@ export interface ZeusDevtoolsEvent {
   readonly target?: Node
   readonly targetId?: number
   readonly ownerId?: number
+  readonly componentId?: number
+  readonly componentName?: string
   readonly bindingId?: number
   readonly effectId?: number
   /** Opaque identity of the reactive dependency target. */
