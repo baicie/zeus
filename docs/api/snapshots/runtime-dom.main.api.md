@@ -289,8 +289,8 @@ export declare function transition(
   complete?: Complete,
 ): TransitionHandle
 /**
- * Mount a reactive transition region. This is the runtime lowering boundary;
- * the compiler does not currently recognize `<Transition>` as an intrinsic.
+ * Mount a reactive transition region. This is the runtime lowering boundary
+ * used by the native compiler's `<Transition>` intrinsic.
  */
 export declare function mountTransition(
   parent: Node,
@@ -301,7 +301,8 @@ export declare function mountTransition(
 ): void
 /**
  * Runtime value form for explicit calls. JSX compilation of this boundary is
- * intentionally deferred; use `mountTransition` from generated/runtime code.
+ * The compiler lowers the intrinsic form to `mountTransition`; direct calls
+ * remain available for runtime-only integrations.
  */
 export declare function Transition(props: TransitionProps): JSXValue
 

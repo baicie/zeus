@@ -200,6 +200,20 @@ export type ErrorBoundaryIR = Omit<SemanticBaseIRNode, 'span'> & {
   onError?: ExpressionIR
   span: SourceSpan
 }
+export type TransitionOptionIR = SemanticBaseIRNode & {
+  kind: 'TransitionOption'
+  name: string
+  expr: ExpressionIR
+  span: SourceSpan
+}
+export type TransitionIR = Omit<SemanticBaseIRNode, 'span'> & {
+  kind: 'Transition'
+  ref: IRRef
+  when: ExpressionIR
+  children: ZeusIRNode[]
+  options: TransitionOptionIR[]
+  span: SourceSpan
+}
 export type HostAttrIR = SemanticBaseIRNode & {
   kind: 'HostAttr'
   name: string
@@ -227,6 +241,7 @@ export type ZeusIRNode =
   | ShowIR
   | ForIR
   | ErrorBoundaryIR
+  | TransitionIR
   | HostIR
   | SlotIR
 
@@ -314,6 +329,13 @@ export declare function errorBoundaryIR(input: {
   onError?: ExpressionIR
   span: SourceSpan
 }): ErrorBoundaryIR
+export declare function transitionIR(input: {
+  ref: IRRef
+  when: ExpressionIR
+  children: ZeusIRNode[]
+  options?: TransitionOptionIR[]
+  span: SourceSpan
+}): TransitionIR
 export declare function hostIR(input: {
   attrs: HostAttrIR[]
   child?: ZeusIRNode

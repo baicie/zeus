@@ -159,8 +159,9 @@ the boundary. To integrate `@zeus-js/resource`, read the resource state from a
 binding and explicitly throw `resource.error()` when `resource.status() === 'error'`. The boundary
 then displays its fallback; call `resource.refetch()` and `reset()` after a
 successful request to restore the child branch. Resource errors are not
-automatically promoted to boundary errors, and compiler lowering for
-`<ErrorBoundary>` remains pending.
+automatically promoted to boundary errors. The compiler lowering accepts the
+same explicit child factory contract; ordinary JSX children still do not gain
+implicit initialization-error capture.
 
 ## Transition
 
