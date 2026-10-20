@@ -138,7 +138,7 @@ fn collect_children_with_raw_text(
                 });
             }
             ChildIr::Fragment(fragment) => {
-                collect_children(component_id, &fragment.children, nodes)
+                collect_children(component_id, &fragment.children, nodes);
             }
             ChildIr::Component(component) => collect_component(component_id, component, nodes),
             ChildIr::Show(show) => collect_show(component_id, show, nodes),
@@ -222,10 +222,10 @@ fn collect_component(
             .collect(),
     });
     for prop in &component.props {
-        if let ComponentPropIr::Named(named) = prop {
-            if let ComponentPropValueIr::Children(children) = &named.value {
-                collect_children(component_id, children, nodes);
-            }
+        if let ComponentPropIr::Named(named) = prop
+            && let ComponentPropValueIr::Children(children) = &named.value
+        {
+            collect_children(component_id, children, nodes);
         }
     }
 }

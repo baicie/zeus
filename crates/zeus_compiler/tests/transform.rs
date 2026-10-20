@@ -1475,13 +1475,13 @@ export const App = props => <><Show when={props.visible} fallback="off"><Child n
 
 #[test]
 fn emits_stable_hydration_plan_and_ssr_markers_for_dom_and_ssr_targets() {
-    let source = r#"import { Show } from '@zeus-js/zeus'
+    let source = r"import { Show } from '@zeus-js/zeus'
 export const App = props => <main title={props.title}>
   <Show when={props.visible} fallback=<i>off</i>>
     <button onClick={props.onClick}>{props.label}</button>
   </Show>
 </main>
-"#;
+";
     let dom = transform_module(TransformModuleOptions {
         source: source.into(),
         filename: "hydration-plan.tsx".into(),
@@ -1512,7 +1512,11 @@ export const App = props => <main title={props.title}>
     assert_eq!(plan.version, 1);
     assert_eq!(plan.components.len(), 1);
     let component = &plan.components[0];
-    assert!(component.template_id.ends_with(".root"));
+    assert!(
+        std::path::Path::new(&component.template_id)
+            .extension()
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("root"))
+    );
     assert!(component.nodes.iter().any(|node| {
         node.kind == "element"
             && node.tag_name.as_deref() == Some("main")
