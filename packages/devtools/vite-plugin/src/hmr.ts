@@ -1,5 +1,7 @@
 import path from 'node:path'
 
+import { parse } from '@babel/parser'
+
 export type ZeusHmrUpdateKind =
   | 'style-only'
   | 'comment-only'
@@ -20,6 +22,18 @@ const SIGNAL_API =
 const COMPONENT_API =
   /\b(?:defineElement|props|emits|expose|customElements|export\s+(?:default|const|function|class))\b/m
 const TEMPLATE_SYNTAX = /<\/?[A-Za-z][^>]*>|\b(?:Show|For|Host|Slot)\b/m
+const DIRECTIVE_COMMENT =
+  /[@#]|\b(?:webpack\w*|vite\w*|rollup\w*|sourceMappingURL|sourceURL|__PURE__|__NO_SIDE_EFFECTS__)\b/
+
+function canonicalizeCommentBody(body: string): string {
+  // Compiler/bundler directives are executable inputs, even inside comments.
+  // Keep their exact contents so adding, removing, or changing one recompiles.
+  if (DIRECTIVE_COMMENT.test(body)) return body
+
+  // A LineTerminator inside a block comment participates in ASI (for example,
+  // after `return`). Preserve its exact sequence, including Unicode separators.
+  return '__ZEUS_HMR_COMMENT__' + body.replace(/[^\r\n\u2028\u2029]/g, '')
+}
 
 function changedLines(previousSource: string, nextSource: string): string[] {
   const previous = new Set(previousSource.split(/\r?\n/))
@@ -31,174 +45,31 @@ function changedLines(previousSource: string, nextSource: string): string[] {
   ]
 }
 
-interface CommentCanonicalization {
-  text: string
-  unsafe: boolean
-}
+/** Normalizes only parser-identified comments, preserving all other bytes. */
+function canonicalizeComments(source: string): string | undefined {
+  try {
+    const { comments = [] } = parse(source, {
+      sourceType: 'module',
+      plugins: ['typescript', 'jsx'],
+      attachComment: false,
+    })
+    let text = ''
+    let offset = 0
 
-/**
- * Replaces comment bodies while keeping all executable and JSX text bytes.
- * This intentionally recognises only lexical string/template literals; an
- * ambiguous slash sequence is left untouched, which makes the classifier
- * conservative rather than risking a false state-preserving decision.
- */
-function canonicalizeComments(source: string): CommentCanonicalization {
-  let text = ''
-  let unsafe = false
-  let index = 0
-  let state: 'normal' | 'single' | 'double' | 'template' = 'normal'
-  let jsxDepth = 0
-  let jsxTag = false
-  let jsxClosingTag = false
-  let jsxTagSelfClosing = false
-  let jsxExpressionDepth = 0
-
-  while (index < source.length) {
-    const current = source[index]
-    const next = source[index + 1]
-
-    if (state === 'normal') {
-      if (current === "'") {
-        state = 'single'
-        text += current
-        index += 1
-        continue
-      }
-      if (current === '"') {
-        state = 'double'
-        text += current
-        index += 1
-        continue
-      }
-      if (current === '`') {
-        state = 'template'
-        text += current
-        index += 1
-        continue
-      }
-      if (
-        current === '<' &&
-        !jsxTag &&
-        isLikelyJSXTagStart(source, index, jsxDepth > 0)
-      ) {
-        jsxTag = true
-        jsxClosingTag = next === '/'
-        jsxTagSelfClosing = false
-        text += current
-        index += 1
-        continue
-      }
-      if (jsxTag && jsxExpressionDepth === 0 && current === '>') {
-        if (jsxClosingTag) {
-          jsxDepth = Math.max(0, jsxDepth - 1)
-        } else if (!jsxTagSelfClosing) {
-          jsxDepth += 1
-        }
-        jsxTag = false
-        jsxClosingTag = false
-        jsxTagSelfClosing = false
-        text += current
-        index += 1
-        continue
-      }
-      if (current === '{' && (jsxTag || jsxDepth > 0)) {
-        jsxExpressionDepth += 1
-        text += current
-        index += 1
-        continue
-      }
-      if (current === '}' && jsxExpressionDepth > 0) {
-        jsxExpressionDepth -= 1
-        text += current
-        index += 1
-        continue
-      }
-      if (jsxTag && current === '/' && next === '>') {
-        jsxTagSelfClosing = true
-      }
-      if (
-        jsxDepth > 0 &&
-        !jsxTag &&
-        jsxExpressionDepth === 0 &&
-        current === '/' &&
-        (next === '/' || next === '*')
-      ) {
-        // `/* ... */` and `// ...` are literal JSX text outside braces, not
-        // JavaScript comments. Never preserve state for these edits.
-        unsafe = true
-        text += current
-        index += 1
-        continue
-      }
-      if (current === '/' && next === '/') {
-        text += '//__ZEUS_HMR_COMMENT__'
-        index += 2
-        while (index < source.length && source[index] !== '\n') index += 1
-        continue
-      }
-      if (current === '/' && next === '*') {
-        text += '/*__ZEUS_HMR_COMMENT__*/'
-        index += 2
-        let closed = false
-        while (
-          index < source.length &&
-          !(source[index] === '*' && source[index + 1] === '/')
-        ) {
-          index += 1
-        }
-        if (index < source.length) closed = true
-        if (!closed) unsafe = true
-        index = Math.min(source.length, index + 2)
-        continue
-      }
-      if (current === '/' && next !== '>' && source[index - 1] !== '<') {
-        // A regex literal or division can contain comment-like text. Once
-        // one is encountered, reject preservation for the whole module.
-        unsafe = true
-      }
-      text += current
-      index += 1
-      continue
+    for (const comment of comments ?? []) {
+      const { start, end } = comment
+      if (start == null || end == null) return undefined
+      text += source.slice(offset, start)
+      const body = canonicalizeCommentBody(comment.value)
+      text += comment.type === 'CommentBlock' ? `/*${body}*/` : `//${body}`
+      offset = end
     }
 
-    text += current
-    if (current === '\\') {
-      if (index + 1 < source.length) text += source[index + 1]
-      index += 2
-      continue
-    }
-    if (
-      (state === 'single' && current === "'") ||
-      (state === 'double' && current === '"') ||
-      (state === 'template' && current === '`')
-    ) {
-      state = 'normal'
-    }
-    index += 1
+    return text + source.slice(offset)
+  } catch {
+    // Unsupported or invalid syntax must reach Vite's normal recompilation.
+    return undefined
   }
-
-  return { text, unsafe }
-}
-
-function isLikelyJSXTagStart(
-  source: string,
-  index: number,
-  insideJSX: boolean,
-): boolean {
-  const next = source[index + 1]
-  const nameStart = next === '/' ? source[index + 2] : next
-  if (nameStart !== '>' && !/[A-Za-z]/.test(nameStart ?? '')) return false
-  if (insideJSX) return true
-
-  let previous = index - 1
-  while (previous >= 0 && /\s/.test(source[previous] ?? '')) previous -= 1
-  if (previous < 0 || /[([{=,:;!?&|>]/.test(source[previous] ?? '')) {
-    return true
-  }
-
-  return /\b(?:return|yield|await|default)\s*$/.test(
-    source.slice(Math.max(0, previous - 24), index),
-  )
 }
 
 /**
@@ -232,9 +103,9 @@ export function classifyHmrUpdate(
   const nextComments = canonicalizeComments(nextSource)
   if (
     previousSource !== nextSource &&
-    !previousComments.unsafe &&
-    !nextComments.unsafe &&
-    previousComments.text === nextComments.text
+    previousComments !== undefined &&
+    nextComments !== undefined &&
+    previousComments === nextComments
   ) {
     return {
       kind: 'comment-only',

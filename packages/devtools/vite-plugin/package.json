@@ -48,6 +48,7 @@
   },
   "homepage": "https://github.com/baicie/zeus/tree/main/packages/devtools/vite-plugin#readme",
   "dependencies": {
+    "@babel/parser": "catalog:",
     "@zeus-js/compiler-native": "workspace:*"
   },
   "engines": {
