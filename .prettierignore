@@ -1,4 +1,8 @@
 dist
+examples/next-boundary/.next
+examples/next-boundary/dist
+examples/next-boundary/next-env.d.ts
+examples/next-boundary/tsconfig.tsbuildinfo
 examples/stencil-wrapper/src/generated
 examples/stencil-wrapper/src/components.d.ts
 examples/stencil-wrapper/loader

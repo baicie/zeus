@@ -194,6 +194,8 @@ jobs:
         run: pnpm exec playwright install --with-deps --no-shell chromium firefox webkit
       - name: Native, React 18/19 and Vue 3 packed consumers
         run: pnpm check:packed-consumers
+      - name: Published Golden UI consumers
+        run: pnpm check:golden-components
       - name: Admin navigation in Chromium, Firefox and WebKit
         run: pnpm check:admin
       - name: Explicit SSR hydration in Chromium, Firefox and WebKit
@@ -211,6 +213,7 @@ jobs:
           name: packed-consumer-reports
           path: |
             temp/packed-consumers
+            temp/golden-components
             temp/admin
             temp/hydration
             temp/next-boundary

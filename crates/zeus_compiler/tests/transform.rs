@@ -1474,6 +1474,164 @@ export const App = props => <><Show when={props.visible} fallback="off"><Child n
 }
 
 #[test]
+fn emits_server_web_component_runtime_calls_for_define_element_host_and_slot() {
+    let source = r#"import { defineElement, Host, Slot } from '@zeus-js/zeus'
+export const Card = defineElement('z-card', { shadow: true }, props => <Host title={props.title}><section><Slot name="heading">Fallback</Slot><Slot /></section></Host>)
+"#;
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "ssr-web-component.tsx".into(),
+        target: TransformTarget::Ssr,
+        runtime_module: "@zeus-js/runtime-ssr".into(),
+        delegate_events: false,
+        source_map: true,
+        hmr: false,
+        pure_define_element: PureDefineElementMode::Disabled,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    assert!(
+        transformed
+            .code
+            .contains("defineElement as $zeusSsrDefineElement")
+    );
+    assert!(transformed.code.contains("Host as $zeusSsrHost"));
+    assert!(transformed.code.contains("Slot as $zeusSsrSlot"));
+    assert!(transformed.code.contains("$zeusSsrDefineElement('z-card'"));
+    assert!(!transformed.code.contains("Card = defineElement("));
+    assert!(!transformed.code.contains("@zeus-js/runtime-dom"));
+    assert!(transformed.code.contains("$zeusSsrHost({"));
+    assert!(transformed.code.contains("$zeusSsrSlot({"));
+
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, &transformed.code, SourceType::ts()).parse();
+    assert!(
+        parsed.diagnostics.is_empty(),
+        "SSR Web Component output must parse: {:?}",
+        parsed.diagnostics
+    );
+}
+
+#[test]
+fn rewrites_default_define_element_exports_for_ssr() {
+    for source in [
+        r#"import { defineElement, Host } from '@zeus-js/zeus'
+export default defineElement('z-card', { shadow: true }, () => <Host><article>Card</article></Host>)
+"#,
+        r#"import { defineElement, Host } from '@zeus-js/zeus'
+export default (defineElement('z-card', { shadow: true }, () => <Host><article>Card</article></Host>) as unknown)
+"#,
+    ] {
+        let transformed = transform_module(TransformModuleOptions {
+            source: source.into(),
+            filename: "ssr-default-web-component.tsx".into(),
+            target: TransformTarget::Ssr,
+            runtime_module: "@zeus-js/runtime-ssr".into(),
+            delegate_events: false,
+            source_map: true,
+            hmr: false,
+            pure_define_element: PureDefineElementMode::Disabled,
+        });
+
+        assert!(
+            transformed.diagnostics.is_empty(),
+            "{:?}",
+            transformed.diagnostics
+        );
+        assert!(transformed.code.contains("$zeusSsrDefineElement('z-card'"));
+        assert!(!transformed.code.contains("export default defineElement("));
+        assert!(!transformed.code.contains("@zeus-js/runtime-dom"));
+
+        let allocator = Allocator::default();
+        let parsed = Parser::new(&allocator, &transformed.code, SourceType::tsx()).parse();
+        assert!(
+            parsed.diagnostics.is_empty(),
+            "SSR default export output must parse: {:?}",
+            parsed.diagnostics
+        );
+    }
+}
+
+#[test]
+fn rewrites_mixed_ssr_safe_imports_to_the_ssr_facade() {
+    let source = r#"import { createSignal, defineElement, Host } from '@zeus-js/zeus'
+export default defineElement('z-counter', {}, () => <Host>{createSignal(0)[0]()}</Host>)
+"#;
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "ssr-mixed-import.tsx".into(),
+        target: TransformTarget::Ssr,
+        runtime_module: "@zeus-js/runtime-ssr".into(),
+        delegate_events: false,
+        source_map: true,
+        hmr: false,
+        pure_define_element: PureDefineElementMode::Disabled,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    assert!(
+        transformed.code.contains("from \"@zeus-js/runtime-ssr\""),
+        "{}",
+        transformed.code
+    );
+    assert!(!transformed.code.contains("from '@zeus-js/zeus'"));
+}
+
+#[test]
+fn rewrites_ssr_safe_imports_without_jsx_or_components() {
+    let source = "import { createSignal } from '@zeus-js/zeus'\nconst count = createSignal(0)\n";
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "ssr-import-only.ts".into(),
+        target: TransformTarget::Ssr,
+        runtime_module: "@zeus-js/runtime-ssr".into(),
+        delegate_events: false,
+        source_map: false,
+        hmr: false,
+        pure_define_element: PureDefineElementMode::Disabled,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    assert!(transformed.code.contains("from \"@zeus-js/runtime-ssr\""));
+    assert!(!transformed.code.contains("from '@zeus-js/zeus'"));
+}
+
+#[test]
+fn rewrites_ssr_safe_imports_with_type_only_specifiers() {
+    let source = "import { createSignal, type Accessor } from '@zeus-js/zeus'\nconst count: Accessor<number> = createSignal(0)[0]\n";
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "ssr-import-type-only.ts".into(),
+        target: TransformTarget::Ssr,
+        runtime_module: "@zeus-js/runtime-ssr".into(),
+        delegate_events: false,
+        source_map: false,
+        hmr: false,
+        pure_define_element: PureDefineElementMode::Disabled,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    assert!(transformed.code.contains("from \"@zeus-js/runtime-ssr\""));
+    assert!(!transformed.code.contains("from '@zeus-js/zeus'"));
+}
+
+#[test]
 fn emits_stable_hydration_plan_and_ssr_markers_for_dom_and_ssr_targets() {
     let source = r"import { Show } from '@zeus-js/zeus'
 export const App = props => <main title={props.title}>

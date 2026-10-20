@@ -901,6 +901,80 @@ export const render = props => renderToString(() => <div class={props.className}
   }
 })
 
+test('native compiler executes SSR Web Components with DSD, styles and slots', async () => {
+  const ssrSource =
+    `import { renderToString, defineElement, Host, Slot, ssrAttr, ssrElement } from '@zeus-js/runtime-ssr'
+
+const Card = defineElement(
+  'z-ssr-card',
+  {
+    shadow: { mode: 'open', delegatesFocus: true },
+    formAssociated: true,
+    styles: '.card { color: red }',
+    props: {
+      title: { type: String, default: 'Default title', reflect: true },
+      open: { type: Boolean, reflect: true },
+      value: { type: String, attr: false },
+    },
+  },
+  props => (
+    <Host class="card" aria-label={props.title}>
+      <section>
+        <Slot name="heading">Heading fallback</Slot>
+        <Slot>Body fallback</Slot>
+        <input prop:value={props.value} />
+      </section>
+    </Host>
+  ),
+)
+
+export const render = props => renderToString(() => Card({
+  ...props,
+  children: props.includeChildren ? [
+    ssrElement('h2', [ssrAttr('slot', 'heading')], 'Profile'),
+    ssrElement('p', [], 'Details'),
+  ] : undefined,
+}))
+`.replaceAll('\\n', '\\r\\n')
+  const fixture = createFixture(ssrSource)
+  const { createServer } = await import('vite')
+  const server = await createServer({
+    root: fixture.root,
+    configFile: false,
+    logLevel: 'silent',
+    optimizeDeps: { noDiscovery: true },
+    define: {
+      __DEV__: 'true',
+      __TEST__: 'true',
+      __VERSION__: JSON.stringify('test'),
+    },
+    resolve: { alias: runtimeAliases() },
+    plugins: [createNativePlugin('ssr')],
+    server: { middlewareMode: true },
+  })
+
+  try {
+    const module = await server.ssrLoadModule('/src/App.tsx')
+    assert.equal(
+      stripHydrationMarkers(
+        module.render({
+          open: true,
+          value: 'initial value',
+          includeChildren: true,
+        }),
+      ),
+      '<z-ssr-card title="Default title" open class="card" aria-label="Default title"><template shadowrootmode="open" shadowrootdelegatesfocus><style>.card { color: red }</style><section><slot name="heading">Heading fallback</slot><slot>Body fallback</slot><input value="initial value"></section></template><h2 slot="heading">Profile</h2><p>Details</p></z-ssr-card>',
+    )
+    assert.equal(
+      stripHydrationMarkers(module.render({ open: false, value: 'fallback' })),
+      '<z-ssr-card title="Default title" class="card" aria-label="Default title"><template shadowrootmode="open" shadowrootdelegatesfocus><style>.card { color: red }</style><section><slot name="heading">Heading fallback</slot><slot>Body fallback</slot><input value="fallback"></section></template></z-ssr-card>',
+    )
+  } finally {
+    await server.close()
+    rmSync(fixture.root, { force: true, recursive: true })
+  }
+})
+
 function createNativePlugin(target = 'dom') {
   return {
     name: 'zeus-native-compiler-test',

@@ -1,22 +1,39 @@
 import type { ZeusRouter } from '@zeus-js/router'
+import { createMutation, createQuery, createQueryClient } from '@zeus-js/query'
+import { createResource } from '@zeus-js/resource'
+import type { DataGridElement } from '@zeus-web/data-grid/wc'
+import type { InputElement } from '@zeus-web/input/wc'
 import {
   createEffect,
   createMemo,
   createSignal,
   For,
+  onCleanup,
   Show,
 } from '@zeus-js/zeus'
 
-import { createAdminRouter, type Role, type User } from './routes'
+import {
+  adminApi,
+  createAdminRouter,
+  type Role,
+  type User,
+  type UserStatus,
+} from './routes'
 
 interface PageProps {
   router: ZeusRouter
+  queryClient: ReturnType<typeof createQueryClient>
 }
 
 export function App() {
   const [role, setRole] = createSignal<Role>('viewer')
   const [preloadStatus, setPreloadStatus] = createSignal('尚未预加载')
+  const queryClient = createQueryClient()
+  onCleanup(() => queryClient.dispose())
   const router = createAdminRouter(role)
+  const summary = createResource('admin-summary', (_key, context) =>
+    adminApi.getSummary(context.signal),
+  )
   const initialized = createMemo(() => router.initialized())
   const routeId = createMemo(() => {
     const matches = router.matches()
@@ -76,7 +93,7 @@ export function App() {
     <div
       class="admin-shell"
       data-testid="admin-layout"
-      onClick={handleLinkClick}
+      prop:onclick={handleLinkClick}
     >
       <aside class="sidebar">
         <a class="brand" href="/admin" aria-label="Zeus Admin 首页">
@@ -113,7 +130,7 @@ export function App() {
             id="session-role"
             data-testid="role-select"
             prop:value={role()}
-            onChange={changeRole}
+            prop:onchange={changeRole}
           >
             <option value="viewer">只读成员</option>
             <option value="admin">管理员</option>
@@ -135,13 +152,13 @@ export function App() {
           <div class="history-controls" aria-label="历史导航">
             <button
               data-testid="history-back"
-              onClick={() => void router.navigate(-1)}
+              prop:onclick={() => void router.navigate(-1)}
             >
               后退
             </button>
             <button
               data-testid="history-forward"
-              onClick={() => void router.navigate(1)}
+              prop:onclick={() => void router.navigate(1)}
             >
               前进
             </button>
@@ -174,16 +191,16 @@ export function App() {
                   <Show
                     when={routeId() === 'start' || routeId() === 'overview'}
                   >
-                    <OverviewPage />
+                    <OverviewPage summary={summary} />
                   </Show>
                   <Show when={routeId() === 'users'}>
-                    <UsersPage router={router} />
+                    <UsersPage router={router} queryClient={queryClient} />
                   </Show>
                   <Show when={routeId() === 'user'}>
-                    <UserPage router={router} />
+                    <UserPage router={router} queryClient={queryClient} />
                   </Show>
                   <Show when={routeId() === 'reports'}>
-                    <ReportsPage />
+                    <ReportsPage summary={summary} />
                   </Show>
                 </>
               }
@@ -197,7 +214,10 @@ export function App() {
               <h2>提前准备下一页</h2>
               <p>预加载会执行详情 loader，并保持当前 URL。</p>
             </div>
-            <button data-testid="preload-ada" onClick={() => void preloadAda()}>
+            <button
+              data-testid="preload-ada"
+              prop:onclick={() => void preloadAda()}
+            >
               预加载 Ada 详情
             </button>
             <p role="status" data-testid="preload-status">
@@ -211,7 +231,11 @@ export function App() {
   )
 }
 
-function OverviewPage() {
+function OverviewPage(props: {
+  summary: ReturnType<
+    typeof createResource<{ totalUsers: number; teams: number }, string>
+  >
+}) {
   return (
     <section class="page" data-testid="overview-page">
       <p class="eyebrow">工作空间概览</p>
@@ -222,12 +246,16 @@ function OverviewPage() {
       <div class="overview-grid">
         <a class="overview-card" href="/admin/users">
           <span>团队成员</span>
-          <strong>3</strong>
+          <strong data-testid="summary-user-count">
+            {props.summary.data()?.totalUsers ?? '…'}
+          </strong>
           <span>查看用户列表 →</span>
         </a>
         <a class="overview-card" href="/admin/reports">
           <span>管理报表</span>
-          <strong>管理员</strong>
+          <strong data-testid="summary-team-count">
+            {props.summary.data()?.teams ?? '…'}
+          </strong>
           <span>检查访问权限 →</span>
         </a>
       </div>
@@ -236,45 +264,203 @@ function OverviewPage() {
 }
 
 function UsersPage(props: PageProps) {
-  const users = () =>
-    (props.router.loaderData().users as readonly User[] | undefined) ?? []
+  const [search, setSearch] = createSignal('')
+  const [status, setStatus] = createSignal<UserStatus | 'all'>('all')
+  const [page, setPage] = createSignal(1)
+  const pageSize = 3
+  const [selectedKeys, setSelectedKeys] = createSignal<readonly string[]>([])
+  const query = createQuery(props.queryClient, () => ({
+    queryKey: ['admin-users', search(), status(), page(), pageSize],
+    queryFn: ({ signal }) =>
+      adminApi.listUsers(
+        { search: search(), status: status(), page: page(), pageSize },
+        signal,
+      ),
+    staleTime: 500,
+    retry: false,
+  }))
+  const result = () => query.data()
+  const users = () => result()?.rows ?? []
+  const pageCount = () =>
+    Math.max(1, Math.ceil((result()?.total ?? 0) / pageSize))
+  const selectedUser = () => users().find(user => user.id === selectedKeys()[0])
+  let inputElement: InputElement | undefined
+  let gridElement: DataGridElement | undefined
+
+  const scheduleGridRows = (
+    element: DataGridElement,
+    rows: readonly User[],
+  ): void => {
+    queueMicrotask(() => {
+      if (typeof element.setRows === 'function') void element.setRows([...rows])
+    })
+  }
+
+  const bindSearchInput = (element: InputElement | null): void => {
+    if (!element) return
+    inputElement = element
+    const onValueChange = (event: Event): void => {
+      const value =
+        (event as CustomEvent<{ value?: string }>).detail?.value ?? ''
+      setSearch(value)
+      setPage(1)
+      setSelectedKeys([])
+    }
+    element.addEventListener('value-change', onValueChange)
+    onCleanup(() => element.removeEventListener('value-change', onValueChange))
+  }
+
+  const bindGrid = (element: DataGridElement | null): void => {
+    if (!element) return
+    gridElement = element
+    // The published DataGrid beta used by this example owns a separate
+    // runtime-dom signal engine. Use its imperative model update API so a
+    // query result change is observed even when the controlled prop effect
+    // cannot cross that engine boundary.
+    scheduleGridRows(element, users())
+    const onSelectionChange = (event: Event): void => {
+      const detail = (
+        event as CustomEvent<{ selection?: { keys?: unknown[] } }>
+      ).detail
+      const keys = detail?.selection?.keys ?? []
+      setSelectedKeys(keys.map(key => String(key)))
+    }
+    element.addEventListener('selection-change', onSelectionChange)
+    onCleanup(() =>
+      element.removeEventListener('selection-change', onSelectionChange),
+    )
+  }
+
+  createEffect(() => {
+    const nextRows = [...users()]
+    if (gridElement && typeof gridElement.setRows === 'function')
+      scheduleGridRows(gridElement, nextRows)
+  })
+
+  function updateStatus(event: Event): void {
+    setStatus(
+      (event.currentTarget as HTMLSelectElement).value as UserStatus | 'all',
+    )
+    setPage(1)
+    setSelectedKeys([])
+  }
+
+  function openSelectedUser(): void {
+    const user = selectedUser()
+    if (user) void props.router.navigate(`/admin/users/${user.id}`)
+  }
+
   return (
     <section class="page" data-testid="users-page">
       <p class="eyebrow">成员目录</p>
       <h1>用户管理</h1>
       <p class="page-intro">
-        选择成员查看详情。列表与详情由嵌套路由和独立 loader 驱动。
+        通过 Query adapter 读取成员目录，输入搜索词或状态筛选会取消旧请求。
       </p>
-      <table role="grid" data-testid="user-grid">
-        <caption>工作空间成员</caption>
-        <thead>
-          <tr>
-            <th scope="col">姓名</th>
-            <th scope="col">邮箱</th>
-            <th scope="col">团队</th>
-            <th scope="col">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <For each={users()}>
-            {(user: User) => (
-              <tr>
-                <td>{user.name}</td>
-                <td>{user.email}</td>
-                <td>{user.team}</td>
-                <td>
-                  <a
-                    data-testid={`user-${user.id}`}
-                    href={`/admin/users/${user.id}`}
-                  >
-                    查看 {user.name}
-                  </a>
-                </td>
-              </tr>
-            )}
-          </For>
-        </tbody>
-      </table>
+      <div class="filter-bar" aria-label="用户筛选">
+        <div class="search-field">
+          <label for="user-search">搜索用户</label>
+          <zw-input
+            id="user-search"
+            aria-label="搜索用户"
+            placeholder="姓名、邮箱或团队"
+            prop:value={search()}
+            ref={bindSearchInput}
+            data-testid="user-search"
+          />
+        </div>
+        <label class="status-field" for="user-status">
+          状态
+          <select
+            id="user-status"
+            data-testid="user-status"
+            prop:onchange={updateStatus}
+          >
+            <option value="all">全部</option>
+            <option value="active">活跃</option>
+            <option value="invited">待邀请</option>
+            <option value="suspended">已暂停</option>
+          </select>
+        </label>
+      </div>
+      <Show when={query.pending()}>
+        <p role="status" data-testid="users-loading">
+          加载中…
+        </p>
+      </Show>
+      <Show when={query.errorState()}>
+        <p role="alert">{String(query.error())}</p>
+      </Show>
+      <zw-data-grid
+        data-testid="user-grid"
+        aria-label="工作空间成员"
+        selection-mode="single"
+        prop:columns={[
+          {
+            id: 'name',
+            header: '姓名',
+            field: 'name',
+            width: 220,
+            sortable: true,
+          },
+          {
+            id: 'email',
+            header: '邮箱',
+            field: 'email',
+            width: 260,
+            sortable: true,
+          },
+          {
+            id: 'team',
+            header: '团队',
+            field: 'team',
+            width: 160,
+            sortable: true,
+          },
+          {
+            id: 'status',
+            header: '状态',
+            field: 'status',
+            width: 120,
+            sortable: true,
+          },
+        ]}
+        prop:selectedKeys={[...selectedKeys()]}
+        ref={bindGrid}
+      />
+      <div class="grid-actions">
+        <span data-testid="selection-status">
+          {selectedUser()
+            ? `已选择：${selectedUser()?.name}`
+            : '请选择一位成员'}
+        </span>
+        <button
+          data-testid="open-selected-user"
+          disabled={!selectedUser()}
+          prop:onclick={openSelectedUser}
+        >
+          查看详情
+        </button>
+      </div>
+      <div class="pagination" aria-label="用户分页">
+        <button
+          data-testid="page-prev"
+          disabled={page() <= 1}
+          prop:onclick={() => setPage(Math.max(1, page() - 1))}
+        >
+          上一页
+        </button>
+        <span data-testid="page-indicator">
+          第 {page()} / {pageCount()} 页
+        </span>
+        <button
+          data-testid="page-next"
+          disabled={page() >= pageCount()}
+          prop:onclick={() => setPage(Math.min(pageCount(), page() + 1))}
+        >
+          下一页
+        </button>
+      </div>
       <p class="example-links">
         <a href="/admin/users/error">体验 loader 失败</a>
         <a href="/admin/users/missing">访问不存在的用户</a>
@@ -284,29 +470,72 @@ function UsersPage(props: PageProps) {
 }
 
 function UserPage(props: PageProps) {
-  const user = () => props.router.loaderData().user as User | undefined
+  const userId = () => props.router.params().id ?? ''
+  const resource = createResource(
+    userId,
+    (id, context) => adminApi.getUser(id, context.signal),
+    { staleTime: 1_000 },
+  )
   const [editing, setEditing] = createSignal(false)
   const [draftEmail, setDraftEmail] = createSignal('')
-  const [saveStatus, setSaveStatus] = createSignal('')
+  const [updatedUser, setUpdatedUser] = createSignal<User | undefined>(
+    undefined,
+  )
+  const mutation = createMutation(props.queryClient, {
+    retry: false,
+    mutationFn: (input: { id: string; email: string }, context) =>
+      adminApi.updateUser(input.id, { email: input.email }, context.signal),
+  })
+  let inputElement: InputElement | undefined
+  let dialogElement: HTMLElement | undefined
+
+  const user = () => updatedUser() ?? resource.data()
 
   function openEditor(): void {
     setDraftEmail(user()?.email ?? '')
-    setSaveStatus('')
     setEditing(true)
   }
 
   function closeEditor(): void {
     setEditing(false)
-    setSaveStatus('')
   }
 
-  function saveUser(event: Event): void {
+  async function saveUser(event: Event): Promise<void> {
     event.preventDefault()
-    setSaveStatus('保存中…')
-    window.setTimeout(() => {
-      setSaveStatus('已保存')
-      setEditing(false)
-    }, 30)
+    const nextUser = await mutation.mutateAsync({
+      id: userId(),
+      email: draftEmail(),
+    })
+    setUpdatedUser(nextUser)
+    void props.queryClient.client
+      .invalidateQueries({ queryKey: ['admin-users'] })
+      .catch(() => undefined)
+    setEditing(false)
+  }
+
+  const bindUserInput = (element: InputElement | null): void => {
+    if (!element) return
+    inputElement = element
+    const onValueChange = (event: Event): void => {
+      setDraftEmail(
+        (event as CustomEvent<{ value?: string }>).detail?.value ?? '',
+      )
+    }
+    element.addEventListener('value-change', onValueChange)
+    onCleanup(() => element.removeEventListener('value-change', onValueChange))
+  }
+
+  const bindDialog = (element: HTMLElement | null): void => {
+    if (!element) return
+    dialogElement = element
+    const onOpenChange = (event: Event): void => {
+      const open = Boolean(
+        (event as CustomEvent<{ open?: boolean }>).detail?.open,
+      )
+      setEditing(open)
+    }
+    element.addEventListener('open-change', onOpenChange)
+    onCleanup(() => element.removeEventListener('open-change', onOpenChange))
   }
 
   return (
@@ -315,6 +544,9 @@ function UserPage(props: PageProps) {
         ← 返回用户列表
       </a>
       <p class="eyebrow">成员详情</p>
+      <Show when={resource.pending()}>
+        <p role="status">加载详情中…</p>
+      </Show>
       <h1>{user()?.name ?? ''}</h1>
       <dl class="detail-grid">
         <div>
@@ -333,48 +565,59 @@ function UserPage(props: PageProps) {
       <p class="page-intro">
         详情数据来自 route loader；地址可直接打开、刷新或使用历史导航返回。
       </p>
-      <button data-testid="edit-user" onClick={openEditor}>
+      <button data-testid="edit-user" prop:onclick={openEditor}>
         编辑成员
       </button>
       <span class="save-status" role="status" data-testid="save-status">
-        {saveStatus()}
+        {mutation.pending()
+          ? '保存中…'
+          : mutation.success()
+            ? '已保存'
+            : mutation.errorState()
+              ? '保存失败'
+              : ''}
       </span>
       <Show when={editing()}>
-        <div class="dialog-backdrop" data-testid="user-dialog-backdrop">
-          <div
-            class="dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="user-dialog-title"
-            data-testid="user-dialog"
-          >
-            <h2 id="user-dialog-title">编辑成员</h2>
-            <form onSubmit={saveUser} data-testid="user-form">
+        <zw-dialog
+          data-testid="user-dialog"
+          prop:open={editing()}
+          ref={bindDialog}
+        >
+          <zw-dialog-content>
+            <zw-dialog-title>编辑成员</zw-dialog-title>
+            <zw-dialog-description>
+              更新邮箱后保存，列表查询会自动失效并刷新。
+            </zw-dialog-description>
+            <form prop:onsubmit={saveUser} data-testid="user-form">
               <label for="user-email">邮箱</label>
-              <input
+              <zw-input
                 id="user-email"
                 type="email"
                 required
                 prop:value={draftEmail()}
-                onInput={event =>
-                  setDraftEmail((event.currentTarget as HTMLInputElement).value)
-                }
+                ref={bindUserInput}
               />
               <div class="dialog-actions">
-                <button type="button" onClick={closeEditor}>
+                <button type="button" prop:onclick={closeEditor}>
                   取消
                 </button>
-                <button type="submit">保存</button>
+                <button type="submit" disabled={mutation.pending()}>
+                  保存
+                </button>
               </div>
             </form>
-          </div>
-        </div>
+          </zw-dialog-content>
+        </zw-dialog>
       </Show>
     </section>
   )
 }
 
-function ReportsPage() {
+function ReportsPage(props: {
+  summary: ReturnType<
+    typeof createResource<{ totalUsers: number; teams: number }, string>
+  >
+}) {
   return (
     <section class="page" data-testid="reports-page">
       <p class="eyebrow">访问权限 · 管理员</p>
@@ -383,11 +626,15 @@ function ReportsPage() {
       <div class="overview-grid">
         <article class="overview-card">
           <span>成员总数</span>
-          <strong>3</strong>
+          <strong data-testid="reports-user-count">
+            {props.summary.data()?.totalUsers ?? '…'}
+          </strong>
         </article>
         <article class="overview-card">
           <span>团队总数</span>
-          <strong>3</strong>
+          <strong data-testid="reports-team-count">
+            {props.summary.data()?.teams ?? '…'}
+          </strong>
         </article>
       </div>
     </section>

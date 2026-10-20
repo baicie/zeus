@@ -5,6 +5,7 @@ import path from 'node:path'
 
 import {
   type Browser,
+  type Page,
   chromium,
   expect,
   firefox,
@@ -14,7 +15,15 @@ import {
 const root = path.resolve(import.meta.dirname, '../..')
 const dist = path.join(root, 'examples/admin/dist')
 const output = path.join(root, 'temp/admin/report.json')
-const results: Array<{ browser: string; status: string; error?: string }> = []
+const results: Array<{
+  browser: string
+  status: string
+  error?: string
+  pageErrors?: string[]
+  failedResponses?: string[]
+  bodyText?: string
+  gridHtml?: string
+}> = []
 
 await fs.mkdir(path.dirname(output), { recursive: true })
 await fs.rm(output, { force: true })
@@ -41,20 +50,30 @@ const origin = `http://127.0.0.1:${address.port}`
 try {
   for (const [name, engine] of Object.entries({ chromium, firefox, webkit })) {
     let browser: Browser | undefined
+    let page: Page | undefined
+    const errors: string[] = []
+    const failedResponses: string[] = []
     try {
       browser = await engine.launch({
         headless: true,
         ...(name === 'chromium' ? { channel: 'chromium' } : {}),
       })
-      const page = await browser.newPage({
+      page = await browser.newPage({
         viewport: { width: 1365, height: 900 },
       })
-      const errors: string[] = []
       page.on('pageerror', error => errors.push(error.message))
+      page.on('response', response => {
+        if (response.status() >= 400)
+          failedResponses.push(`${response.status()} ${response.url()}`)
+      })
 
       await page.goto(`${origin}/admin/users`)
       await expect(page.getByTestId('users-page')).toBeVisible()
       await expect(page.getByTestId('admin-layout')).toBeVisible()
+      const grid = page.getByTestId('user-grid')
+      const row = (key: string) =>
+        grid.locator(`[data-slot="data-grid-row"][data-row-key="${key}"]`)
+      await expect(row('ada')).toBeVisible()
       await page.getByTestId('admin-layout').evaluate(element => {
         element.setAttribute('data-smoke', 'persistent-layout')
       })
@@ -67,18 +86,43 @@ try {
           'same-document'
       })
 
-      await page.getByTestId('user-ada').click()
+      await page.getByTestId('page-next').click()
+      await expect(page.getByTestId('page-indicator')).toHaveText('第 2 / 3 页')
+      await expect(row('margaret')).toBeVisible()
+      await row('margaret').click()
+      await expect(row('margaret')).toHaveAttribute('aria-selected', 'true')
+      await page.locator('#user-search input').fill('Radia')
+      await expect(row('radia')).toBeVisible()
+      await expect(row('ada')).toHaveCount(0)
+      await expect(page.getByTestId('page-indicator')).toHaveText('第 1 / 1 页')
+      await page.locator('#user-search input').fill('')
+      await page.getByTestId('user-status').selectOption('suspended')
+      await expect(row('guido')).toBeVisible()
+      await expect(row('ada')).toHaveCount(0)
+      await page.getByTestId('user-status').selectOption('all')
+      await expect(row('ada')).toBeVisible()
+      await row('ada').click()
+      await expect(page.getByTestId('selection-status')).toContainText(
+        'Ada Lovelace',
+      )
+      await page.getByTestId('open-selected-user').click()
       await expect(page).toHaveURL(`${origin}/admin/users/ada`)
       await expect(page.getByTestId('detail-id')).toHaveText('ada')
       await page.getByTestId('edit-user').click()
       await expect(page.getByTestId('user-dialog')).toBeVisible()
-      await page.getByLabel('邮箱').fill('ada.updated@example.test')
+      await page
+        .getByTestId('user-form')
+        .locator('input')
+        .fill('ada.updated@example.test')
       await page
         .getByTestId('user-form')
         .getByRole('button', { name: '保存' })
         .click()
       await expect(page.getByTestId('save-status')).toHaveText('已保存')
       await expect(page.getByTestId('user-dialog')).toHaveCount(0)
+      await expect(page.getByTestId('user-detail')).toContainText(
+        'ada.updated@example.test',
+      )
       await expect(page.getByTestId('admin-layout')).toHaveAttribute(
         'data-smoke',
         'persistent-layout',
@@ -116,16 +160,36 @@ try {
       }
       await page.getByTestId('role-select').selectOption('admin')
       await expect(page.getByTestId('reports-page')).toBeVisible()
+      await expect(page.getByTestId('reports-user-count')).toHaveText('8')
+      await expect(page.getByTestId('reports-team-count')).toHaveText('5')
       await page.getByTestId('role-select').selectOption('viewer')
       await expect(page.getByTestId('error-status')).toHaveText('403')
 
       expect(errors).toEqual([])
       results.push({ browser: name, status: 'passed' })
       console.log(
-        `[admin] ${name}: navigation, history, deep links, errors, permissions passed`,
+        `[admin] ${name}: query, filtering, pagination, selection, UI components, navigation and permissions passed`,
       )
     } catch (error) {
-      results.push({ browser: name, status: 'failed', error: String(error) })
+      const gridLocator = page?.getByTestId('user-grid')
+      const gridHtml =
+        gridLocator && (await gridLocator.count()) > 0
+          ? (await gridLocator.evaluate(element => element.innerHTML)).slice(
+              0,
+              4000,
+            )
+          : ''
+      results.push({
+        browser: name,
+        status: 'failed',
+        error: String(error),
+        pageErrors: errors,
+        failedResponses,
+        bodyText: page
+          ? (await page.locator('body').innerText()).slice(0, 2000)
+          : '',
+        gridHtml,
+      })
     } finally {
       await browser?.close()
     }

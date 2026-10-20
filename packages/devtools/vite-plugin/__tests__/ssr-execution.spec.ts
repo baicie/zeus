@@ -98,6 +98,114 @@ describe('vite-plugin-zeus SSR execution', () => {
       delete globalState[runtimeGlobal]
     }
   })
+
+  it('executes compiled custom-element definitions into first-paint DSD', async () => {
+    const source = `
+      import { defineElement, Host, Slot } from '@zeus-js/runtime-dom'
+
+      export const Field = defineElement(
+        'z-field',
+        {
+          shadow: true,
+          formAssociated: true,
+          styles: '.field { color: red }',
+          props: {
+            value: { type: String, default: 'Seed', reflect: true },
+          },
+        },
+        props => (
+          <Host role="group">
+            <label><Slot name="label">Name</Slot></label>
+            <input prop:value={props.value} onInput={() => {}} />
+          </Host>
+        ),
+      )
+
+      export const App = () => (
+        <Field value="Server"><span slot="label">Email</span></Field>
+      )
+    `
+    const code = await compileSSR(source)
+    const runtimeURL = createRuntimeProxyURL()
+    const executable = code
+      .replace(/"@zeus-js\/runtime-ssr"/g, JSON.stringify(runtimeURL))
+      .replace(/'@zeus-js\/runtime-dom'/g, JSON.stringify(runtimeURL))
+    const globalState = globalThis as typeof globalThis & {
+      [runtimeGlobal]?: typeof runtime
+    }
+    globalState[runtimeGlobal] = runtime
+
+    try {
+      const module = (await import(toDataURL(executable))) as {
+        App(): runtime.SSRNode
+      }
+      expect(
+        stripHydrationMarkers(runtime.renderToString(() => module.App())),
+      ).toBe(
+        '<z-field value="Server" role="group"><template shadowrootmode="open"><style>.field { color: red }</style><label><slot name="label">Name</slot></label><input value="Server"></template><span slot="label">Email</span></z-field>',
+      )
+      expect(code).toContain('defineElement as $zeusSsrDefineElement')
+      expect(code).toContain('Host as $zeusSsrHost')
+      expect(code).toContain('Slot as $zeusSsrSlot')
+      expect(code).not.toMatch(
+        /\b(?:document|window|HTMLElement|customElements)\b/,
+      )
+    } finally {
+      delete globalState[runtimeGlobal]
+    }
+  })
+
+  it('uses generated Manifest metadata for compiled first-paint Web Component HTML', async () => {
+    const source = `
+      import { ssrComponentFromManifest } from '@zeus-js/runtime-ssr'
+
+      export const App = () => ssrComponentFromManifest(
+        {
+          schemaVersion: 1,
+          components: [{
+            tag: 'z-manifest-field',
+            props: {
+              value: { type: 'string', default: 'Seed', reflect: true },
+              model: { type: 'object', attr: false },
+            },
+            meta: {
+              shadow: true,
+              formAssociated: true,
+            },
+          }],
+        },
+        'z-manifest-field',
+        { value: 'Ada', model: { id: 1 } },
+        props => <input value={props.value} />,
+      )
+    `
+    const code = await compileSSR(source)
+    const runtimeURL = createRuntimeProxyURL()
+    const executable = code
+      .replace(/"@zeus-js\/runtime-ssr"/g, JSON.stringify(runtimeURL))
+      .replace(/'@zeus-js\/runtime-ssr'/g, JSON.stringify(runtimeURL))
+    const globalState = globalThis as typeof globalThis & {
+      [runtimeGlobal]?: typeof runtime
+    }
+    globalState[runtimeGlobal] = runtime
+
+    try {
+      const module = (await import(toDataURL(executable))) as {
+        App(): runtime.SSRNode
+      }
+      expect(
+        stripHydrationMarkers(runtime.renderToString(() => module.App())),
+      ).toBe(
+        '<z-manifest-field value="Ada"><template shadowrootmode="open"><input value="Ada"></template></z-manifest-field>',
+      )
+      expect(code).toContain('ssrComponentFromManifest')
+      expect(code).not.toMatch(
+        /\b(?:document|window|HTMLElement|customElements)\b/,
+      )
+    } finally {
+      delete globalState[runtimeGlobal]
+    }
+  })
 })
 
 async function compileSSR(code: string): Promise<string> {
@@ -107,7 +215,13 @@ async function compileSSR(code: string): Promise<string> {
   const handler: TransformHook =
     typeof hook === 'function' ? hook : hook.handler
   const result = await handler.call(
-    {} as ThisParameterType<TransformHook>,
+    {
+      error(error: Error | string | { message: string }) {
+        throw error instanceof Error
+          ? error
+          : new Error(typeof error === 'string' ? error : error.message)
+      },
+    } as ThisParameterType<TransformHook>,
     code,
     '/src/App.tsx',
     { moduleType: 'tsx', ssr: true },
@@ -136,6 +250,10 @@ function createRuntimeProxyURL(): string {
     'ssrSpread',
     'mergeProps',
     'ssrHydrationMarker',
+    'ssrComponentFromManifest',
+    'defineElement',
+    'Host',
+    'Slot',
   ] as const
   const code =
     helpers

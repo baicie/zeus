@@ -24,6 +24,49 @@ component result, text node, attribute, class, style, or property value throws
 Server equivalents of Zeus control-flow built-ins. Compiled JSX normally uses
 lower-level helpers directly.
 
+### Server Web Components
+
+`defineElement(tag, options, setup)` is the SSR facade for a Zeus custom-element
+definition. It evaluates `setup` once per invocation and returns the
+custom-element host as a string-renderable node. It never touches `document`,
+`HTMLElement`, `customElements`, or `ElementInternals`, and it does not
+register a browser element.
+
+When `shadow` is enabled, the result contains a Declarative Shadow DOM template
+using `shadowrootmode` (and the requested `delegatesFocus` or `serializable`
+flags). `styles` is emitted as the first `<style>` child of that template.
+`Host` contributes host attributes and `Slot` emits native `<slot>` elements in
+Shadow DOM mode. In Light DOM mode, the default `Slot` projects the consumer's
+children into the server output; named Light DOM slots retain their fallback
+because a string SSR node has no per-node `slot` metadata. Add explicit
+`slot="name"` attributes to consumer nodes when the browser-side projection
+needs named Light DOM slots.
+
+`Host` follows the DOM property channels: `prop:*`, `on*`, and `ref` values are
+client-only and are omitted from the server host HTML. Other Host values use the
+same attribute normalization and escaping rules as `ssrAttr`.
+
+The SSR prop policy is deliberately explicit. Static defaults are applied to
+the setup props. A factory default cannot run during SSR and throws
+`ZEUS_SSR_DEFAULT_FACTORY_UNSUPPORTED`; provide the value explicitly or move
+that initialization to the client. Primitive props (`string`, `number`, and
+`boolean`) become host attributes when passed explicitly or when their schema
+sets `reflect: true`; `attr: false` and object, array, and function values stay
+properties and are omitted from HTML. `formAssociated: true` preserves the
+manifest metadata but does not emulate browser form callbacks or
+`ElementInternals` on the server.
+
+Generated component manifests can be consumed with
+`ssrComponentFromManifest(manifest, tag, props, setup)`. The manifest must use
+`schemaVersion: 1`; unknown tags and unsupported schema versions fail with a
+structured `ZEUS_SSR_MANIFEST_*` error. Analyzer output carries component
+`meta.shadow`, `meta.formAssociated`, and prop reflection/default metadata so
+generated SSR code can apply the host, DSD, and attribute policy. CSS text is
+not part of the `ComponentManifest`: `styles` belongs to the
+`defineElement()` definition options and is emitted by that SSR facade. The
+Manifest's `cssParts` and `cssVars` describe styling extension points; they do
+not carry injectable CSS.
+
 ## Compiler Helpers
 
 The package also exports `ssrStatic`, `ssrText`, `ssrAttr`, `ssrProp`,

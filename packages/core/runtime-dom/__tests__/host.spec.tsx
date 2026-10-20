@@ -213,6 +213,34 @@ describe('Host', () => {
     expect(el.getAttribute('data-state')).toBe('open')
   })
 
+  it('evaluates compiler-style Host attribute accessors', async () => {
+    const tag = createTag('accessor')
+
+    defineElement(
+      tag,
+      {
+        shadow: false,
+        props: { size: { type: String, default: 'initial' } },
+      },
+      props => {
+        const child = document.createElement('span')
+        Host({
+          'data-size': () => props.size,
+          children: child,
+        })
+        return child
+      },
+    )
+
+    const el = document.createElement(tag)
+    document.body.appendChild(el)
+    await nextFrame()
+    expect(el.getAttribute('data-size')).toBe('initial')
+    ;(el as HTMLElement & { size: string }).size = 'large'
+    await nextFrame()
+    expect(el.getAttribute('data-size')).toBe('large')
+  })
+
   it('removes host attribute when value is false/null/undefined', async () => {
     const tag = createTag('remove-attrs')
 

@@ -1,4 +1,9 @@
-# Component Compiler Host Release Checklist
+# Component Compiler Host Release Checklist（历史模板）
+
+> 本页保留为 Phase 10/11 的历史核对模板，不作为当前发布状态的判定来源。
+> 当前证据以 `docs/internal/architecture-roadmap-2026-10.md` 和
+> `docs/internal/roadmap-completion-audit-2026-10-19.md` 为准；真实 registry
+> 发布后的 Golden、provenance 和消费者矩阵仍属于 B-003/E-009。
 
 ## Build
 

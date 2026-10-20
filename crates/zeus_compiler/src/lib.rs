@@ -112,6 +112,7 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
         && (!options.hmr || lowered.hmr.render_calls.is_empty())
         && (!options.pure_define_element.is_enabled()
             || lowered.pure_define_element_calls.is_empty())
+        && (options.target != TransformTarget::Ssr || lowered.ssr_runtime_imports.is_empty())
     {
         return TransformModuleResult {
             code: options.source,
@@ -146,6 +147,8 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
             options.source_map,
             &ir,
             &lowered.reserved_names,
+            &lowered.pure_define_element_calls,
+            &lowered.ssr_runtime_imports,
         )
     } else {
         codegen::emit_module(&codegen::EmitModuleOptions {

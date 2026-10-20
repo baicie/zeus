@@ -40,6 +40,7 @@ pub struct LowerResult {
     pub(crate) error_boundary_spans: Vec<SourceSpan>,
     pub(crate) hmr: HmrInfo,
     pub(crate) pure_define_element_calls: Vec<Span>,
+    pub(crate) ssr_runtime_imports: Vec<Span>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -71,6 +72,7 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
                 reserved_names: Vec::new(),
                 hmr: HmrInfo::default(),
                 pure_define_element_calls: Vec::new(),
+                ssr_runtime_imports: Vec::new(),
             };
         }
     };
@@ -93,6 +95,7 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
             reserved_names: Vec::new(),
             hmr: HmrInfo::default(),
             pure_define_element_calls: Vec::new(),
+            ssr_runtime_imports: Vec::new(),
         };
     }
 
@@ -111,6 +114,7 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
             reserved_names: Vec::new(),
             hmr: HmrInfo::default(),
             pure_define_element_calls: Vec::new(),
+            ssr_runtime_imports: Vec::new(),
         };
     }
 
@@ -147,6 +151,7 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
             reserved_names,
             hmr,
             pure_define_element_calls: Vec::new(),
+            ssr_runtime_imports: Vec::new(),
         };
     }
 
@@ -162,7 +167,57 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
         reserved_names,
         hmr,
         pure_define_element_calls: collect_top_level_define_element_calls(&parsed.program),
+        ssr_runtime_imports: collect_ssr_runtime_imports(&parsed.program),
     }
+}
+
+/// Collect imports whose bindings are all available from the SSR facade.
+fn collect_ssr_runtime_imports(program: &oxc_ast::ast::Program<'_>) -> Vec<Span> {
+    let mut imports = Vec::new();
+    for statement in &program.body {
+        let Some(ModuleDeclaration::ImportDeclaration(import)) = statement.as_module_declaration()
+        else {
+            continue;
+        };
+        let source = import.source.value.as_str();
+        let Some(specifiers) = &import.specifiers else {
+            continue;
+        };
+        let rewrite = (source == "@zeus-js/runtime-dom" || source == "@zeus-js/zeus")
+            && import.import_kind != oxc_ast::ast::ImportOrExportKind::Type
+            && !specifiers.is_empty()
+            && specifiers.iter().all(|specifier| {
+                let ImportDeclarationSpecifier::ImportSpecifier(specifier) = specifier else {
+                    return false;
+                };
+                if specifier.import_kind == oxc_ast::ast::ImportOrExportKind::Type {
+                    return true;
+                }
+                let imported = match &specifier.imported {
+                    oxc_ast::ast::ModuleExportName::IdentifierName(name) => name.name.as_str(),
+                    oxc_ast::ast::ModuleExportName::IdentifierReference(name) => name.name.as_str(),
+                    oxc_ast::ast::ModuleExportName::StringLiteral(name) => name.value.as_str(),
+                };
+                matches!(
+                    imported,
+                    "batch"
+                        | "createEffect"
+                        | "createMemo"
+                        | "createRoot"
+                        | "createSignal"
+                        | "defineElement"
+                        | "For"
+                        | "Host"
+                        | "onCleanup"
+                        | "Show"
+                        | "Slot"
+                )
+            });
+        if rewrite {
+            imports.push(import.source.span);
+        }
+    }
+    imports
 }
 
 /// Collect direct `defineElement(...)` initializers. These are the only calls
@@ -189,16 +244,27 @@ fn collect_top_level_define_element_calls(program: &oxc_ast::ast::Program<'_>) -
                 },
                 _ => None,
             });
-        let Some(declaration) = declaration else {
-            continue;
-        };
+        if let Some(declaration) = declaration {
+            for declarator in &declaration.declarations {
+                let Some(initializer) = &declarator.init else {
+                    continue;
+                };
+                if let Some(span) = direct_define_element_call(initializer, &define_names) {
+                    calls.push(span);
+                }
+            }
+        }
 
-        for declarator in &declaration.declarations {
-            let Some(initializer) = &declarator.init else {
-                continue;
-            };
-            if let Some(span) = direct_define_element_call(initializer, &define_names) {
-                calls.push(span);
+        // `export default defineElement(...)` is a common component-library
+        // entry shape. It is still a top-level call and must use the SSR
+        // facade just like a named export initializer.
+        if let Some(ModuleDeclaration::ExportDefaultDeclaration(export)) =
+            statement.as_module_declaration()
+        {
+            if let Some(expression) = export.declaration.as_expression() {
+                if let Some(span) = direct_define_element_call(expression, &define_names) {
+                    calls.push(span);
+                }
             }
         }
     }

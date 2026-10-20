@@ -12,10 +12,14 @@ const RAW_TEXT_ESCAPE = {
 
 export type SSRRawTextTag = 'script' | 'style'
 
-export function createSSRFragment(html: string): SSRFragment {
+export function createSSRFragment(
+  html: string,
+  slotName?: string,
+): SSRFragment {
   return Object.freeze({
     [SSR_FRAGMENT]: true,
     html,
+    ...(slotName === undefined ? {} : { slotName }),
   }) as unknown as SSRFragment
 }
 

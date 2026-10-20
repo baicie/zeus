@@ -7,6 +7,7 @@ import type { ComponentProp, ComponentPropType } from './types'
 export interface ExtractedComponentOptions {
   shadow?: boolean
   formAssociated?: boolean
+  diagnostics?: string[]
 }
 
 export function extractComponentOptions(
@@ -32,6 +33,20 @@ export function extractComponentOptions(
 
     if (typeof value === 'boolean') {
       result.formAssociated = value
+    }
+  }
+
+  const stylesNode = getObjectProperty(options, 'styles')
+  if (stylesNode) {
+    const styles = staticValue(stylesNode)
+    const valid =
+      typeof styles === 'string' ||
+      (Array.isArray(styles) &&
+        styles.every(value => typeof value === 'string'))
+    if (!valid) {
+      result.diagnostics = [
+        'defineElement() styles must be a static string or string array; dynamic styles are not analyzable for the output build.',
+      ]
     }
   }
 

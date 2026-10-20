@@ -65,6 +65,10 @@ export function analyzeFileWithImportedPropTypes(
       const runtimeProps = extractRuntimeProps(call.options)
       const emits = extractEmits(call.options, sourceBoundTypeNames)
       const componentOptions = extractComponentOptions(call.options)
+      for (const message of componentOptions.diagnostics ?? []) {
+        diagnostics.push({ level: 'error', file, message })
+      }
+      if (componentOptions.diagnostics?.length) continue
 
       const typeProps = call.propsTypeName
         ? (localPropTypes.get(call.propsTypeName) ?? {})

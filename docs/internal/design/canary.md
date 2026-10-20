@@ -11,7 +11,7 @@
   -> CI / native matrix（不发布共享 canary）
   -> squash merge main
   -> main 自动发本次运行唯一的 staging tag
-  -> 校验 25 个包、provenance 与来源
+  -> 校验 29 个包、provenance 与来源
   -> promote 到 canary
   -> Node 22/24 registry smoke
   -> zeus-ui 下游验证

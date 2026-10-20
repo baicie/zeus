@@ -139,7 +139,7 @@ Zeus 维护两类发布通道：
 
 ### 3.2 包分组策略
 
-**Fixed 组（同步版本）**：25 个核心包共享同一版本号，任何一个有变更都统一升级。
+**Fixed 组（同步版本）**：29 个核心包共享同一版本号，任何一个有变更都统一升级。
 
 **Ignored 组（不发版）**：以下包不参与 npm 发布：
 
@@ -209,7 +209,7 @@ fix(compiler): preserve boolean attributes in JSX transform
 │     - 完整质量门禁（含 native binary）                    │
 │                                                         │
 │  6. release --publishOnly --skipBuild                   │
-│     - 发布 25 个 fixed group 包                          │
+│     - 发布 29 个 fixed group 包                          │
 │     - 根据版本号自动选择 npm tag（beta/rc/alpha）          │
 │     - 发布到 npm (--access public)                       │
 │     - 重试策略：最多 5 次，指数退避                       │
@@ -465,7 +465,7 @@ jobs:
 
 正式发布会先在 native matrix 中构建并上传 macOS、Linux（glibc/musl）和 Windows
 的 `.node` 产物。发布 job 恢复全部产物后验证 tag/version 与 `origin/main` 来源，再运行
-完整 precheck。发布后必须确认 25 个 fixed 包的目标版本和目标 dist-tag 均可见，并通过
+完整 precheck。发布后必须确认 29 个 fixed 包的目标版本和目标 dist-tag 均可见，并通过
 Sigstore 验证 provenance：签名 subject 必须匹配 npm tarball integrity，来源必须匹配
 `baicie/zeus`、`.github/workflows/release.yml`、tag ref 与精确 commit SHA。Node 22/24
 registry smoke 全部通过后才创建 GitHub Release。
@@ -500,14 +500,14 @@ main push / main workflow_dispatch
   -> 构建并验证全部平台 native artifacts
   -> 校验 event、ref、GITHUB_SHA、checkout HEAD 与远端 main HEAD
   -> 生成 canary version 和本次运行唯一 staging tag
-  -> 改写 25 个 fixed packages 的版本并执行完整 strict precheck
-  -> 25 个包逐个 dry-run
+  -> 改写 29 个 fixed packages 的版本并执行完整 strict precheck
+  -> 29 个包逐个 dry-run
   -> 每个真实 publish 前后再次校验远端 main HEAD
   -> publish --tag zeus-canary-<runId>-<runAttempt> --provenance
   -> 按有上限的退避窗口等待新版本从 npm registry edge 传播
-  -> 验证 25 个 staging dist-tags 与 Sigstore provenance
+  -> 验证 29 个 staging dist-tags 与 Sigstore provenance
   -> promote staging tag 到共享 canary；失败时按旧 tag 快照回滚
-  -> 再次验证 25 个 canary dist-tags 与 provenance
+  -> 再次验证 29 个 canary dist-tags 与 provenance
   -> best-effort 清理 staging tag（清理失败不否定已验证的 canary）
   -> Node 22.18.0 / 24.11.0 从 npm 空目录安装并运行 compiler smoke
   -> 再次校验 main HEAD
@@ -1027,7 +1027,7 @@ pnpm release --dry --skipGit
 ### Q: 哪些包会实际发布到 npm？
 
 只发布 `scripts/release.config.ts` 的 `zeusFixedPackages`（与
-`.changeset/config.json` fixed group 一致）中的 25 个非 private `@zeus-js/*` 包。
+`.changeset/config.json` fixed group 一致）中的 29 个非 private `@zeus-js/*` 包。
 
 ### Q: 固定组内一个包改了 patch，其他包版本也会变吗？
 
