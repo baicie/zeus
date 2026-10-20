@@ -7,6 +7,11 @@ use zeus_compiler::{
     TransformModuleOptions as CoreTransformModuleOptions,
     TransformModuleResult as CoreTransformModuleResult, TransformTarget,
     diagnostic::{CompilerDiagnostic as CoreCompilerDiagnostic, DiagnosticSeverity},
+    hydration::{
+        HydrationBindingPlan as CoreHydrationBindingPlan,
+        HydrationComponentPlan as CoreHydrationComponentPlan,
+        HydrationNodePlan as CoreHydrationNodePlan, HydrationPlan as CoreHydrationPlan,
+    },
     span::{SourcePosition as CoreSourcePosition, SourceSpan as CoreSourceSpan},
 };
 
@@ -28,6 +33,37 @@ pub struct TransformModuleResult {
     pub code: String,
     pub map: Option<RawSourceMap>,
     pub diagnostics: Vec<CompilerDiagnostic>,
+    pub hydration_plan: Option<HydrationPlan>,
+}
+
+#[napi(object)]
+pub struct HydrationPlan {
+    pub version: u8,
+    pub components: Vec<HydrationComponentPlan>,
+}
+
+#[napi(object)]
+pub struct HydrationComponentPlan {
+    pub id: u32,
+    pub template_id: String,
+    pub nodes: Vec<HydrationNodePlan>,
+}
+
+#[napi(object)]
+pub struct HydrationNodePlan {
+    pub id: String,
+    pub node_id: u32,
+    pub kind: String,
+    pub tag_name: Option<String>,
+    pub bindings: Vec<HydrationBindingPlan>,
+}
+
+#[napi(object)]
+pub struct HydrationBindingPlan {
+    pub id: u32,
+    pub kind: String,
+    pub name: Option<String>,
+    pub once: bool,
 }
 
 #[napi(object)]
@@ -110,6 +146,49 @@ impl From<CoreTransformModuleResult> for TransformModuleResult {
             code: result.code,
             map: result.map.map(Into::into),
             diagnostics: result.diagnostics.into_iter().map(Into::into).collect(),
+            hydration_plan: result.hydration_plan.map(Into::into),
+        }
+    }
+}
+
+impl From<CoreHydrationPlan> for HydrationPlan {
+    fn from(plan: CoreHydrationPlan) -> Self {
+        Self {
+            version: plan.version,
+            components: plan.components.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
+impl From<CoreHydrationComponentPlan> for HydrationComponentPlan {
+    fn from(component: CoreHydrationComponentPlan) -> Self {
+        Self {
+            id: component.id,
+            template_id: component.template_id,
+            nodes: component.nodes.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
+impl From<CoreHydrationNodePlan> for HydrationNodePlan {
+    fn from(node: CoreHydrationNodePlan) -> Self {
+        Self {
+            id: node.id,
+            node_id: node.node_id,
+            kind: node.kind,
+            tag_name: node.tag_name,
+            bindings: node.bindings.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
+impl From<CoreHydrationBindingPlan> for HydrationBindingPlan {
+    fn from(binding: CoreHydrationBindingPlan) -> Self {
+        Self {
+            id: binding.id,
+            kind: binding.kind,
+            name: binding.name,
+            once: binding.once,
         }
     }
 }

@@ -139,5 +139,8 @@ cleanup、SSR 编译产物不含 DOM 引用，以及 Vite SSR transform 的 runt
 - `pnpm exec vitest run packages/core/runtime-ssr packages/core/zeus` 覆盖同步
   `renderToString`、原始属性序列化、转义、控制流、scope cleanup、thenable 拒绝和公开
   server 入口。
-- SSR 输出没有 hydration marker，也不会接管已有 DOM；客户端必须重新执行编译后的 DOM
-  模块。Hydration、Declarative Shadow DOM 和 Web Component 内部 SSR 仍属于 E-006/E-007。
+- SSR-0 的原始输出没有 hydration marker。后续 SSR-1 切片已新增与 DOM 编译共享的稳定
+  Node ID、Template ID、binding 重连计划和 opt-in DOM hydrator；SSR 输出默认携带匹配
+  marker，但不会自动接管已有 DOM。客户端必须显式调用
+  `hydrate(container, setup)`。自动组件计划执行、自动 Web Component 内部 hydration、
+  Declarative Shadow DOM 的完整首屏策略和 streaming 仍属于后续 E-006/E-007 工作。

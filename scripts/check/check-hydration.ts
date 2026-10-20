@@ -18,7 +18,7 @@ const html = execFileSync(
   { encoding: 'utf8', cwd: root },
 )
 const client = `
-import { createSignal, hydrate } from '/runtime.js'
+import { createSignal, hydrate, hydratePlan } from '/runtime.js'
 const main = document.querySelector('main')
 const input = main.querySelector('input')
 const initialInput = input
@@ -36,19 +36,77 @@ window.hydrationSmoke = {
     setCount = updateCount
     setName = updateName
     setLabel = updateLabel
-    dispose = hydrate(main, context => {
-      context.node('input', 'input')
-      context.node('button', 'button')
-      context.prop('input', 'value', name)
-      context.attr('input', 'data-hydrated', () => 'yes')
-      context.text('count', count)
-      context.event('button', 'click', () => updateCount(count() + 1))
-      context.event('input', 'input', () => updateName(input.value))
+    dispose = hydratePlan(main, {
+      version: 1,
+      components: [{
+        id: 1,
+        templateId: 'main',
+        nodes: [
+          {
+            id: 'input',
+            nodeId: 1,
+            kind: 'element',
+            tagName: 'input',
+            bindings: [
+              { id: 1, kind: 'prop', name: 'value', once: false },
+              { id: 2, kind: 'attr', name: 'data-hydrated', once: false },
+              { id: 3, kind: 'event', name: 'input', once: false },
+            ],
+          },
+          {
+            id: 'button',
+            nodeId: 2,
+            kind: 'element',
+            tagName: 'button',
+            bindings: [{ id: 5, kind: 'event', name: 'click', once: false }],
+          },
+          {
+            id: 'count',
+            nodeId: 3,
+            kind: 'text',
+            bindings: [{ id: 4, kind: 'text', once: false }],
+          },
+        ],
+      }],
+    }, {
+      1(context, binding, node) {
+        context.node(node.id, node.tagName)
+        context.prop(node.id, binding.name, name)
+      },
+      2(context, binding, node) {
+        context.attr(node.id, binding.name, () => 'yes')
+      },
+      3(context, binding, node) {
+        context.event(node.id, binding.name, () => updateName(input.value))
+      },
+      4(context, binding, node) {
+        context.text(node.id, count)
+      },
+      5(context, binding, node) {
+        context.event(node.id, binding.name, () => updateCount(count() + 1))
+      },
     })
-    disposeShadow = hydrate(document.querySelector('z-ssr-card').shadowRoot, context => {
-      context.node('shadow-text', 'strong')
-      context.text('label', label)
-    })
+    disposeShadow = hydratePlan(
+      document.querySelector('z-ssr-card').shadowRoot,
+      {
+        version: 1,
+        components: [{
+          id: 2,
+          templateId: 'shadow',
+          nodes: [{
+            id: 'label',
+            nodeId: 4,
+            kind: 'text',
+            bindings: [{ id: 6, kind: 'text', once: false }],
+          }],
+        }],
+      },
+      {
+        6(context, _binding, node) {
+          context.text(node.id, label)
+        },
+      },
+    )
     return main.querySelector('input') === initialInput && main.querySelector('button') === initialButton
   },
   mismatch() {

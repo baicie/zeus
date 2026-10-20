@@ -147,12 +147,64 @@ export declare function render(
 ): () => void
 
 export interface HydrationContext {
-  node(id: string, expectedTag?: string): Node
-  text(id: string, value: () => unknown): void
-  attr(id: string, name: string, value: () => unknown): void
-  prop(id: string, name: string, value: () => unknown): void
-  event(id: string, name: string, handler: EventListener): void
+  node(id: string, expectedTag?: string, occurrence?: number): Node
+  nodes(id: string, expectedTag?: string): Node[]
+  text(id: string, value: () => unknown, occurrence?: number): void
+  attr(
+    id: string,
+    name: string,
+    value: () => unknown,
+    occurrence?: number,
+  ): void
+  prop(
+    id: string,
+    name: string,
+    value: () => unknown,
+    occurrence?: number,
+  ): void
+  event(
+    id: string,
+    name: string,
+    handler: EventListener,
+    occurrence?: number,
+  ): void
 }
+export interface HydrationPlanBinding {
+  readonly id: number
+  readonly kind: 'text' | 'attr' | 'prop' | 'event' | 'spread'
+  readonly name?: string
+  readonly once: boolean
+}
+export interface HydrationPlanNode {
+  readonly id: string
+  readonly nodeId: number
+  readonly kind:
+    | 'root'
+    | 'element'
+    | 'text'
+    | 'component'
+    | 'show'
+    | 'for'
+    | 'transition'
+    | 'region'
+  readonly tagName?: string
+  readonly bindings: readonly HydrationPlanBinding[]
+}
+export interface HydrationPlanComponent {
+  readonly id: number
+  readonly templateId: string
+  readonly nodes: readonly HydrationPlanNode[]
+}
+export interface HydrationPlan {
+  readonly version: number
+  readonly components: readonly HydrationPlanComponent[]
+}
+export type HydrationBindingHandler = (
+  context: HydrationContext,
+  binding: HydrationPlanBinding,
+  node: HydrationPlanNode,
+  occurrence: number,
+) => void
 /**
  * Reuses server-created nodes and attaches fine-grained bindings. This API is
  * intentionally explicit: compiler-generated plans can map each marker to a
@@ -161,6 +213,15 @@ export interface HydrationContext {
 export declare function hydrate(
   container: Element | DocumentFragment,
   setup: (context: HydrationContext) => void,
+): () => void
+/**
+ * Reconnects every compiler-planned binding to an existing DOM tree. Missing
+ * handlers fail during setup and dispose the partial hydration scope.
+ */
+export declare function hydratePlan(
+  container: Element | DocumentFragment,
+  plan: HydrationPlan,
+  handlers: Readonly<Record<number, HydrationBindingHandler>>,
 ): () => void
 
 export declare function insertTracked(

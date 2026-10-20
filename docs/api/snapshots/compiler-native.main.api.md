@@ -16,6 +16,32 @@ export interface CompilerDiagnostic {
   span?: SourceSpan
 }
 
+export interface HydrationBindingPlan {
+  id: number
+  kind: string
+  name?: string
+  once: boolean
+}
+
+export interface HydrationComponentPlan {
+  id: number
+  templateId: string
+  nodes: Array<HydrationNodePlan>
+}
+
+export interface HydrationNodePlan {
+  id: string
+  nodeId: number
+  kind: string
+  tagName?: string
+  bindings: Array<HydrationBindingPlan>
+}
+
+export interface HydrationPlan {
+  version: number
+  components: Array<HydrationComponentPlan>
+}
+
 export interface RawSourceMap {
   version: number
   file?: string
@@ -56,5 +82,6 @@ export interface TransformModuleResult {
   code: string
   map: RawSourceMap | null
   diagnostics: Array<CompilerDiagnostic>
+  hydrationPlan: HydrationPlan | null
 }
 ```

@@ -19,6 +19,7 @@ export {
 export {
   render,
   hydrate,
+  hydratePlan,
   Portal,
   ErrorBoundary,
   Transition,
@@ -36,7 +37,12 @@ export {
 export type {
   JSXValue,
   PortalProps,
+  HydrationBindingHandler,
   HydrationContext,
+  HydrationPlan,
+  HydrationPlanBinding,
+  HydrationPlanComponent,
+  HydrationPlanNode,
   ErrorBoundaryProps,
   TransitionProps,
   TransitionOptions,

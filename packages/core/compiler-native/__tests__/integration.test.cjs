@@ -18,6 +18,8 @@ const { JSDOM } = require('jsdom')
 const { transformModule } = require('../index.js')
 
 const repositoryRoot = path.resolve(__dirname, '../../../..')
+const stripHydrationMarkers = html =>
+  html.replace(/<!--zeus:hydrate:[^>]+-->/g, '')
 const source = `import { createSignal } from '@zeus-js/signal'
 import { render } from '@zeus-js/runtime-dom'
 
@@ -887,7 +889,9 @@ export const render = props => renderToString(() => <div class={props.className}
   try {
     const module = await server.ssrLoadModule('/src/App.tsx')
     assert.equal(
-      module.render({ className: 'greeting', name: 'Ada' }),
+      stripHydrationMarkers(
+        module.render({ className: 'greeting', name: 'Ada' }),
+      ),
       '<div class="greeting">Hello Ada</div>',
     )
   } finally {
@@ -1226,7 +1230,7 @@ export const count = () => formatterCalls
   try {
     const module = await server.ssrLoadModule('/src/App.tsx')
     assert.equal(
-      module.html(),
+      stripHydrationMarkers(module.html()),
       '<main><input title="last"><span title="final">VALUE</span></main>',
     )
     assert.equal(module.count(), 1)
@@ -1350,11 +1354,15 @@ export const html = props => renderToString(() => App(props))
   try {
     const module = await server.ssrLoadModule('/src/App.tsx')
     assert.equal(
-      module.html({ ok: true, items: ['a', 'b'], label: 'end' }),
+      stripHydrationMarkers(
+        module.html({ ok: true, items: ['a', 'b'], label: 'end' }),
+      ),
       '<div><span>yes</span><b>a</b><b>b</b><i>fixed</i>end<u>fn</u></div>',
     )
     assert.equal(
-      module.html({ ok: false, items: [], label: 'tail' }),
+      stripHydrationMarkers(
+        module.html({ ok: false, items: [], label: 'tail' }),
+      ),
       '<div><em>no</em><i>fixed</i>tail<u>fn</u></div>',
     )
   } finally {

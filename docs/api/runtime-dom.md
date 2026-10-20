@@ -12,6 +12,34 @@ function render(code: () => JSXValue, element: Element): void
 
 Mounts the component tree into the element.
 
+## hydrate and hydratePlan
+
+```ts
+function hydrate(
+  container: Element | DocumentFragment,
+  setup: (context: HydrationContext) => void,
+): () => void
+
+function hydratePlan(
+  container: Element | DocumentFragment,
+  plan: HydrationPlan,
+  handlers: Readonly<Record<number, HydrationBindingHandler>>,
+): () => void
+```
+
+`hydrate()` reuses DOM nodes located by `<!--zeus:hydrate:id-->` markers and
+attaches explicit text, attribute, property and event bindings. `hydratePlan()`
+iterates the compiler's stable binding plan and invokes one handler for every
+planned binding. Missing handlers throw `ZEUS_HYDRATION_HANDLER_MISSING`; setup
+failures release effects and listeners already attached. The returned disposer
+removes bindings without discarding the server DOM.
+
+`HydrationContext.nodes()` returns every target for a repeated template marker,
+and the optional `occurrence` argument on `node()`, `text()`, `attr()`,
+`prop()`, and `event()` selects one without clearing the container. The plain
+`hydrate()` API still rejects duplicate ids so hand-written plans cannot
+silently select the wrong node.
+
 ## bindText
 
 ```ts
