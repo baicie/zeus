@@ -128,12 +128,152 @@ export interface ZeusDevtoolsPanel {
   clearSelection(): void
 }
 
+export interface ZeusDevtoolsDomPanelOptions {
+  /** Maximum rows rendered in each diagnostic section. */
+  readonly rowLimit?: number
+  readonly title?: string
+}
+
+export interface ZeusDevtoolsDomPanel {
+  readonly element: HTMLElement
+  disconnect(): void
+}
+
 export interface ZeusDevtoolsConsumer extends ZeusDevtoolsPanel {
   readonly hook: ZeusDevtoolsHook
   readonly panel: ZeusDevtoolsPanel
   connect(): void
   disconnect(): void
   consume(event: ZeusDevtoolsEvent): void
+}
+
+interface ZeusDevtoolsOwnerTreeRow {
+  readonly depth: number
+  readonly owner: ZeusDevtoolsOwnerSnapshot
+}
+
+interface ZeusDevtoolsDomPanelSection {
+  readonly body: HTMLOListElement
+  readonly details: HTMLDetailsElement
+}
+
+/**
+ * Mounts a visible, same-realm diagnostics panel. The renderer owns only its
+ * DOM nodes and subscription; the surrounding consumer keeps its existing
+ * lifecycle and click-selection behavior.
+ */
+export function createDevtoolsPanel(
+  container: HTMLElement,
+  panel: ZeusDevtoolsPanel,
+  options: ZeusDevtoolsDomPanelOptions = {},
+): ZeusDevtoolsDomPanel {
+  const document = container.ownerDocument
+  const rowLimit = Math.max(1, Math.floor(options.rowLimit ?? 100))
+  const element = document.createElement('section')
+  element.setAttribute('data-zeus-devtools-panel', '')
+  element.setAttribute('aria-label', options.title ?? 'Zeus DevTools')
+  element.style.cssText = [
+    'background:#10141b',
+    'border:1px solid #334155',
+    'border-radius:8px',
+    'box-sizing:border-box',
+    'color:#e2e8f0',
+    'font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace',
+    'max-height:100vh',
+    'overflow:auto',
+    'padding:10px',
+    'width:min(420px,100vw)',
+  ].join(';')
+
+  const heading = document.createElement('header')
+  const title = document.createElement('strong')
+  title.textContent = options.title ?? 'Zeus DevTools'
+  const summary = document.createElement('div')
+  summary.setAttribute('data-zeus-devtools-summary', '')
+  summary.style.color = '#94a3b8'
+  heading.append(title, summary)
+
+  const components = createPanelSection(document, 'components', 'Components')
+  const owners = createPanelSection(document, 'owners', 'Owner tree')
+  const bindings = createPanelSection(document, 'bindings', 'DOM bindings')
+  const effects = createPanelSection(document, 'effects', 'Effects')
+  const sources = createPanelSection(document, 'sources', 'Signals')
+  const selection = createPanelSection(document, 'selection', 'Selected DOM')
+  element.append(
+    heading,
+    selection.details,
+    components.details,
+    owners.details,
+    bindings.details,
+    effects.details,
+    sources.details,
+  )
+  container.replaceChildren(element)
+
+  const render = (snapshot: ZeusDevtoolsSnapshot): void => {
+    summary.textContent = `${snapshot.components.length} components · ${snapshot.owners.length} owners · ${snapshot.bindings.length} bindings · ${snapshot.effects.length} effects · ${snapshot.sources.length} signals`
+    renderSelection(document, selection, snapshot.selected, rowLimit)
+
+    const ownerRows = getOwnerTreeRows(snapshot.owners)
+    renderRows(
+      document,
+      components,
+      snapshot.components.slice(0, rowLimit).map(component => {
+        const depth =
+          ownerRows.find(row => row.owner.id === component.ownerId)?.depth ?? 0
+        return {
+          depth,
+          text: `component ${component.id} · ${component.name}${component.ownerId === undefined ? '' : ` · owner ${component.ownerId}`}${component.disposed ? ' · disposed' : ''}`,
+        }
+      }),
+      'No components observed.',
+    )
+    renderRows(
+      document,
+      owners,
+      ownerRows.slice(0, rowLimit).map(row => ({
+        depth: row.depth,
+        text: `owner ${row.owner.id}${row.owner.childIds.length ? ` · children ${row.owner.childIds.join(',')}` : ''}${row.owner.disposed ? ' · disposed' : ''}`,
+      })),
+      'No owners observed.',
+    )
+    renderRows(
+      document,
+      bindings,
+      snapshot.bindings.slice(0, rowLimit).map(binding => ({
+        depth: 0,
+        text: `binding ${binding.id} · ${binding.kind ?? 'unknown'}${binding.targetId === undefined ? '' : ` · target ${binding.targetId}`}${binding.effectId === undefined ? '' : ` · effect ${binding.effectId}`} · commit ${binding.commitCount}${binding.cleaned ? ' · cleaned' : ''} · ${formatDuration(binding.lastDuration)}${binding.dependencies.length ? ` · signals ${binding.dependencies.map(dependency => dependency.sourceId).join(',')}` : ''}`,
+      })),
+      'No DOM bindings observed.',
+    )
+    renderRows(
+      document,
+      effects,
+      snapshot.effects.slice(0, rowLimit).map(effect => ({
+        depth: 0,
+        text: `effect ${effect.id} · runs ${effect.runCount} · triggers ${effect.triggerCount} · bindings ${effect.bindingIds.join(',') || '-'} · last ${formatDuration(effect.lastDuration)} · total ${formatDuration(effect.totalDuration)}`,
+      })),
+      'No effects observed.',
+    )
+    renderRows(
+      document,
+      sources,
+      snapshot.sources.slice(0, rowLimit).map(source => ({
+        depth: 0,
+        text: `signal ${source.id} · tracks ${source.trackCount} · triggers ${source.triggerCount} · bindings ${source.bindingIds.join(',') || '-'} · keys ${source.dependencies.map(dependency => String(dependency.key)).join(',') || '-'}`,
+      })),
+      'No signals observed.',
+    )
+  }
+
+  const unsubscribe = panel.subscribe(render)
+  return {
+    element,
+    disconnect() {
+      unsubscribe()
+      if (element.parentNode === container) element.remove()
+    },
+  }
 }
 
 /**
@@ -1212,4 +1352,114 @@ function isBindingForNode(target: Node, node: Node): boolean {
 
 function uniqueSorted(values: readonly number[]): number[] {
   return [...new Set(values)].sort((left, right) => left - right)
+}
+
+function createPanelSection(
+  document: Document,
+  name: string,
+  titleText: string,
+): ZeusDevtoolsDomPanelSection {
+  const details = document.createElement('details')
+  details.open = true
+  details.setAttribute('data-zeus-devtools-section', name)
+  details.style.marginTop = '8px'
+
+  const summary = document.createElement('summary')
+  summary.textContent = titleText
+  summary.style.cursor = 'pointer'
+  summary.style.fontWeight = '700'
+
+  const body = document.createElement('ol')
+  body.setAttribute('role', 'list')
+  body.style.margin = '6px 0 0'
+  body.style.padding = '0'
+  body.style.listStyle = 'none'
+  details.append(summary, body)
+  return { body, details }
+}
+
+function renderSelection(
+  document: Document,
+  section: ZeusDevtoolsDomPanelSection,
+  selected: ZeusDevtoolsSelection | undefined,
+  rowLimit: number,
+): void {
+  const rows = selected
+    ? [
+        {
+          depth: 0,
+          text: `DOM ${selected.node.nodeName.toLowerCase()}${selected.targetId === undefined ? '' : ` · target ${selected.targetId}`} · bindings ${selected.bindingIds.join(',') || '-'} · effects ${selected.effectIds.join(',') || '-'} · signals ${selected.sourceIds.join(',') || '-'}`,
+        },
+      ]
+    : [
+        {
+          depth: 0,
+          text: 'Click an application element to trace its bindings and signals.',
+        },
+      ]
+  renderRows(document, section, rows.slice(0, rowLimit), '')
+}
+
+function renderRows(
+  document: Document,
+  section: ZeusDevtoolsDomPanelSection,
+  rows: readonly { readonly depth: number; readonly text: string }[],
+  emptyText: string,
+): void {
+  section.body.replaceChildren()
+  if (rows.length === 0) {
+    const empty = document.createElement('li')
+    empty.textContent = emptyText
+    empty.style.color = '#94a3b8'
+    empty.style.fontStyle = 'italic'
+    section.body.append(empty)
+    return
+  }
+
+  for (const item of rows) {
+    const row = document.createElement('li')
+    row.setAttribute('data-zeus-devtools-row', '')
+    row.setAttribute('data-depth', String(item.depth))
+    row.textContent = item.text
+    row.style.borderTop = '1px solid #1e293b'
+    row.style.padding = `4px 0 4px ${item.depth * 12}px`
+    row.style.wordBreak = 'break-word'
+    section.body.append(row)
+  }
+}
+
+function getOwnerTreeRows(
+  owners: readonly ZeusDevtoolsOwnerSnapshot[],
+): ZeusDevtoolsOwnerTreeRow[] {
+  const byId = new Map(owners.map(owner => [owner.id, owner]))
+  const children = new Map<number, ZeusDevtoolsOwnerSnapshot[]>()
+  for (const owner of owners) {
+    if (owner.parentId === undefined || !byId.has(owner.parentId)) continue
+    const entries = children.get(owner.parentId) ?? []
+    entries.push(owner)
+    children.set(owner.parentId, entries)
+  }
+  for (const entries of children.values()) {
+    entries.sort((left, right) => left.id - right.id)
+  }
+
+  const roots = owners
+    .filter(owner => owner.parentId === undefined || !byId.has(owner.parentId))
+    .sort((left, right) => left.id - right.id)
+  const rows: ZeusDevtoolsOwnerTreeRow[] = []
+  const seen = new Set<number>()
+  const visit = (owner: ZeusDevtoolsOwnerSnapshot, depth: number): void => {
+    if (seen.has(owner.id)) return
+    seen.add(owner.id)
+    rows.push({ depth, owner })
+    for (const child of children.get(owner.id) ?? []) visit(child, depth + 1)
+  }
+
+  for (const root of roots) visit(root, 0)
+  for (const owner of owners) visit(owner, 0)
+  return rows
+}
+
+function formatDuration(duration: number | undefined): string {
+  return duration === undefined ? '-' : `${Math.round(duration * 100) / 100} ms`
 }

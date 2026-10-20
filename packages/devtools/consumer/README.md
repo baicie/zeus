@@ -8,7 +8,10 @@ Zeus DevTools 的内部 consumer/panel 状态模型。它消费
 它不把 DOM 节点序列化到跨窗口通道，也不在生产构建中启用 runtime instrumentation。
 
 ```ts
-import { createDevtoolsConsumer } from '@zeus-js/devtools-consumer'
+import {
+  createDevtoolsConsumer,
+  createDevtoolsPanel,
+} from '@zeus-js/devtools-consumer'
 
 const consumer = createDevtoolsConsumer(window, {
   onSelect(selection) {
@@ -17,8 +20,14 @@ const consumer = createDevtoolsConsumer(window, {
 })
 
 consumer.connect()
-consumer.subscribe(snapshot => renderPanel(snapshot))
+const panel = createDevtoolsPanel(
+  document.querySelector('#zeus-devtools')!,
+  consumer,
+)
 ```
+
+面板渲染组件树、Owner 树、Binding/Cleanup、Effect 耗时和 Signal 依赖。点击应用
+DOM 后，Selected DOM 区域会显示命中的 Binding、Effect 与 Signal ID。
 
 调用 `disconnect()` 会移除 click listener，并恢复安装 consumer 之前的 runtime hook。
 `getSnapshot()` 同步读取当前状态；`subscribe()` 首次同步交付，后续事件按 microtask 合并。
