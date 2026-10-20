@@ -51,6 +51,7 @@
     "check:quick-start": "tsx scripts/check/check-quick-start.ts",
     "check:admin": "tsx scripts/check/check-admin.ts",
     "check:hydration": "tsx scripts/check/check-hydration.ts",
+    "check:next-boundary": "tsx scripts/check/check-next-boundary.ts",
     "check:docs": "tsx scripts/check/check-docs.ts",
     "playground:check": "tsx scripts/playground/check-playground.ts",
     "playground:smoke": "tsx scripts/playground/check-playground-browser.ts",

@@ -1,0 +1,28 @@
+{
+  "name": "@zeus-js/example-next-boundary",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node build-components.mjs && next dev --webpack",
+    "build": "node build-components.mjs && next build --webpack",
+    "start": "next start",
+    "check": "node build-components.mjs && tsc --noEmit"
+  },
+  "dependencies": {
+    "@zeus-js/output-react-wrapper": "workspace:*",
+    "@zeus-js/runtime-dom": "workspace:*",
+    "@zeus-js/web-c-runtime": "workspace:*",
+    "@zeus-js/zeus": "workspace:*",
+    "next": "16.4.2",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@zeus-js/bundler-plugin": "workspace:*",
+    "@zeus-js/web-c": "workspace:*",
+    "rollup": "^4.62.2",
+    "typescript": "^6.0.3"
+  }
+}
