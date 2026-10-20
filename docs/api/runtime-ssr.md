@@ -48,3 +48,50 @@ cannot be recovered.
 
 See [Server Rendering](/guide/server-rendering) for application setup and the
 current limitations.
+
+## Explicit Shadow DOM serialization and hydration plans
+
+`ssrCustomElement(tag, { attributes, shadowRoot, shadowRootOptions, children })`
+serializes a host, an optional Declarative Shadow DOM template, and light DOM
+children. Values use the same escaping rules as `ssrElement`; complex client
+properties remain outside HTML. This helper accepts already prepared SSR nodes.
+It does not execute `defineElement` setup, browser measurements, form lifecycle
+callbacks or generate HTML from a component Manifest.
+
+`ssrHydrationMarker(id)` emits a comment marker for a manually paired client
+plan. Each id must be unique within the hydration container. On the client,
+`hydrate(container, context => { ... })` from `@zeus-js/zeus` reconnects bindings
+without replacing server nodes:
+
+```ts
+// Server, inside renderToString's synchronous factory:
+ssrElement(
+  'main',
+  [],
+  [
+    ssrHydrationMarker('name'),
+    ssrElement('input', [ssrAttr('value', 'Server')]),
+  ],
+)
+// Client, after locating the existing main element:
+hydrate(main, context => {
+  context.node('name', 'input') // diagnose a structural mismatch
+  context.prop('name', 'value', name)
+})
+```
+
+The optional tag argument checks the expected element before attaching its
+bindings. Missing targets, wrong types, wrong tags and duplicate ids throw
+`ZEUS_HYDRATION_*` diagnostics. Hydration never silently clears the container;
+applications decide how to repair a mismatch. A failed setup disposes any effects
+and listeners attached during that setup. The returned disposer removes bindings
+while leaving the DOM in place. Equal input values do not reset selection; seed
+client state from `input.value` when edits made before hydration should be kept.
+
+An open declarative shadow root is hydrated separately with
+`hydrate(host.shadowRoot, setup)`. The browser owns native slot projection.
+Closed roots cannot be discovered this way. Automatic compiler-generated plans,
+`defineElement` hydration, streaming and async SSR are still unimplemented.
+`pnpm check:hydration` verifies these explicit APIs against built artifacts in
+Chromium, Firefox and WebKit, including JavaScript-disabled first paint, focus,
+selection, DOM identity, mismatches, updates and disposal.

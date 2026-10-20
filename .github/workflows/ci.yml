@@ -190,6 +190,8 @@ jobs:
         run: pnpm check:packed-consumers
       - name: Admin navigation in Chromium, Firefox and WebKit
         run: pnpm check:admin
+      - name: Explicit SSR hydration in Chromium, Firefox and WebKit
+        run: pnpm check:hydration
       - name: Preserve consumer reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -198,6 +200,7 @@ jobs:
           path: |
             temp/packed-consumers
             temp/admin
+            temp/hydration
 
   docs-build:
     runs-on: ubuntu-latest
