@@ -504,6 +504,7 @@ main push / main workflow_dispatch
   -> 25 个包逐个 dry-run
   -> 每个真实 publish 前后再次校验远端 main HEAD
   -> publish --tag zeus-canary-<runId>-<runAttempt> --provenance
+  -> 按有上限的退避窗口等待新版本从 npm registry edge 传播
   -> 验证 25 个 staging dist-tags 与 Sigstore provenance
   -> promote staging tag 到共享 canary；失败时按旧 tag 快照回滚
   -> 再次验证 25 个 canary dist-tags 与 provenance
