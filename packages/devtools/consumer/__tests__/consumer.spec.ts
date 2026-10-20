@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import {
   createDevtoolsConsumer,
+  createDevtoolsPanel,
   createDevtoolsPortConsumer,
   createDevtoolsPortEmitter,
   type ZeusDevtoolsEvent,
@@ -207,6 +208,80 @@ describe('DevTools consumer/panel', () => {
       sourceIds: [5],
     })
     expect(selections).toEqual([[5]])
+    consumer.disconnect()
+  })
+
+  it('renders an interactive DOM panel for trees, timing and click selection', async () => {
+    dom = new JSDOM(
+      '<!doctype html><html><body><button>count</button><aside id="panel"></aside></body></html>',
+    )
+    const button = dom.window.document.querySelector('button')!
+    const container = dom.window.document.querySelector<HTMLElement>('#panel')!
+    const consumer = createDevtoolsConsumer(dom.window)
+    const panel = createDevtoolsPanel(container, consumer, {
+      title: 'Zeus test panel',
+    })
+    consumer.connect()
+
+    consumer.consume(event('owner:create', { ownerId: 1 }))
+    consumer.consume(
+      event('owner:create', { ownerId: 2, payload: { parentId: 1 } }),
+    )
+    consumer.consume(
+      event('component:create', {
+        componentId: 9,
+        componentName: 'Counter',
+        ownerId: 2,
+      }),
+    )
+    consumer.consume(
+      event('effect:run', {
+        effectId: 3,
+        payload: { duration: 12.5 },
+      }),
+    )
+    consumer.consume(
+      event('binding:commit', {
+        bindingId: 4,
+        effectId: 3,
+        target: button,
+        targetId: 6,
+        payload: { kind: 'attr:data-count', once: false, duration: 2.5 },
+      }),
+    )
+    consumer.consume(
+      event('dependency:track', {
+        bindingId: 4,
+        effectId: 3,
+        sourceId: 5,
+        payload: { key: 'count', operation: 'get' },
+      }),
+    )
+
+    await Promise.resolve()
+    const text = (section: string) =>
+      panel.element.querySelector(`[data-zeus-devtools-section="${section}"]`)
+        ?.textContent ?? ''
+    expect(text('components')).toContain('Counter')
+    expect(text('owners')).toContain('owner 2')
+    expect(text('bindings')).toContain('attr:data-count')
+    expect(text('bindings')).toContain('signals 5')
+    expect(text('effects')).toContain('12.5 ms')
+    expect(text('sources')).toContain('signal 5')
+
+    button.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
+    await Promise.resolve()
+    expect(text('selection')).toContain('bindings 4')
+    expect(text('selection')).toContain('effects 3')
+    expect(text('selection')).toContain('signals 5')
+
+    consumer.consume(event('binding:cleanup', { bindingId: 4 }))
+    await Promise.resolve()
+    expect(text('bindings')).toContain('cleaned')
+    expect(text('selection')).toContain('Click an application element')
+
+    panel.disconnect()
+    expect(container.childElementCount).toBe(0)
     consumer.disconnect()
   })
 

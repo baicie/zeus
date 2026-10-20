@@ -13,7 +13,10 @@
 ## 连接 runtime
 
 ```ts
-import { createDevtoolsConsumer } from '@zeus-js/devtools-consumer'
+import {
+  createDevtoolsConsumer,
+  createDevtoolsPanel,
+} from '@zeus-js/devtools-consumer'
 
 const consumer = createDevtoolsConsumer(window, {
   onSelect(selection) {
@@ -23,11 +26,17 @@ const consumer = createDevtoolsConsumer(window, {
 })
 
 consumer.connect()
-const unsubscribe = consumer.subscribe(snapshot => {
-  // 用 snapshot.owners / effects / bindings / sources 渲染面板。
-  renderPanel(snapshot)
-})
+const panel = createDevtoolsPanel(
+  document.querySelector('#zeus-devtools')!,
+  consumer,
+)
 ```
+
+`createDevtoolsPanel()` 返回可直接挂载的 DOM 面板，包含 Components、Owner tree、
+DOM bindings、Effects、Signals 和 Selected DOM 六个可折叠区域。点击应用 DOM 后，
+Selected DOM 会显示命中的 Binding、Effect 与 Signal ID；Binding cleanup 和 Effect
+耗时也会随 snapshot 更新。`panel.disconnect()` 只移除面板订阅和面板节点，不会断开
+consumer 或应用 runtime。
 
 `connect()` 会链上已有 runtime hook，避免覆盖同 realm 的其它观察者；多个 consumer 可以
 同时连接，断开其中一个不会恢复或移除其它 consumer。调用 `disconnect()` 会移除 click
