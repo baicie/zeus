@@ -72,6 +72,35 @@
         outline: 3px solid #79b6a5;
         outline-offset: 2px;
       }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+      }
+      .actions a {
+        color: #176b58;
+      }
+      #status {
+        min-height: 24px;
+        color: #46585d;
+        font-size: 13px;
+      }
+      #manual-copy {
+        margin-bottom: 16px;
+      }
+      #manual-copy label {
+        display: block;
+        margin-bottom: 6px;
+      }
+      #copy-text {
+        width: 100%;
+        min-height: 120px;
+        padding: 10px;
+        font:
+          13px/1.5 ui-monospace,
+          monospace;
+      }
       .workspace {
         display: grid;
         grid-template-columns: minmax(280px, 0.82fr) minmax(0, 1.35fr);
@@ -225,9 +254,19 @@
             静态示例由当前 Rust 编译器生成，可查看 DOM、SSR、内部 IR 与诊断。
           </p>
         </div>
-        <button id="copy-source" type="button" title="复制 TSX 源码" disabled>
-          复制源码
-        </button>
+        <div class="actions">
+          <button id="copy-source" type="button" title="复制 TSX 源码" disabled>
+            复制源码
+          </button>
+          <button id="copy-share" type="button" disabled>复制分享链接</button>
+          <a id="share-link" href="?view=dom">打开当前视图链接</a>
+          <button id="retry-load" type="button" hidden>重新加载样例</button>
+        </div>
+      </div>
+      <p id="status" role="status" aria-live="polite">正在加载编译样例…</p>
+      <div id="manual-copy" hidden>
+        <label for="copy-text">手动复制文本（已选中）</label>
+        <textarea id="copy-text" readonly></textarea>
       </div>
       <section class="workspace" aria-label="编译结果浏览器">
         <div class="source-pane">
@@ -298,7 +337,13 @@
               输出尺寸
             </button>
           </div>
-          <div id="panel" role="tabpanel" aria-labelledby="tab-dom">
+          <div
+            id="panel"
+            role="tabpanel"
+            aria-labelledby="tab-dom"
+            aria-busy="true"
+            tabindex="0"
+          >
             <pre id="output"><code>加载中…</code></pre>
             <div id="size-view" hidden></div>
           </div>
@@ -313,29 +358,83 @@
       const sizeView = document.querySelector('#size-view')
       const panel = document.querySelector('#panel')
       const notice = document.querySelector('#notice')
+      const status = document.querySelector('#status')
+      const copySource = document.querySelector('#copy-source')
+      const copyShare = document.querySelector('#copy-share')
+      const shareLink = document.querySelector('#share-link')
+      const retryLoad = document.querySelector('#retry-load')
+      const manualCopy = document.querySelector('#manual-copy')
+      const copyText = document.querySelector('#copy-text')
       const tabs = [...document.querySelectorAll('[role="tab"]')]
+      const viewNames = {
+        dom: 'DOM JS',
+        ssr: 'SSR JS',
+        ir: 'IR',
+        diagnostics: '诊断',
+        size: '输出尺寸',
+      }
+      const readView = () => {
+        const requested =
+          new URL(location.href).searchParams.get('view') || 'dom'
+        return Object.hasOwn(viewNames, requested) ? requested : 'dom'
+      }
       let sample
-      let currentView = 'dom'
+      let currentView = readView()
 
       const formatBytes = value => `${value.toLocaleString('en-US')} B`
       const renderSize = () => {
-        const rows = size => `<table><tbody>
-          <tr><th>原始</th><td>${formatBytes(size.raw)}</td></tr>
-          <tr><th>gzip</th><td>${formatBytes(size.gzip)}</td></tr>
-          <tr><th>Brotli</th><td>${formatBytes(size.brotli)}</td></tr>
-        </tbody></table>`
-        return `<div class="sizes"><section><h2>DOM JS 模块</h2>${rows(sample.outputSize.dom)}</section>
-          <section><h2>SSR JS 模块</h2>${rows(sample.outputSize.ssr)}</section>
-          <section><h2>静态 artifact</h2>${rows(sample.artifactSize)}</section></div>`
+        sizeView.replaceChildren()
+        const sizes = document.createElement('div')
+        sizes.className = 'sizes'
+        for (const [title, size] of [
+          ['DOM bundle（含 runtime）', sample.bundleSize.dom],
+          ['SSR bundle（含 runtime）', sample.bundleSize.ssr],
+          ['DOM 生成模块（不含依赖）', sample.outputSize.dom],
+          ['SSR 生成模块（不含依赖）', sample.outputSize.ssr],
+        ]) {
+          const section = document.createElement('section')
+          const heading = document.createElement('h2')
+          heading.textContent = title
+          const table = document.createElement('table')
+          const body = document.createElement('tbody')
+          for (const [label, key] of [
+            ['原始', 'raw'],
+            ['gzip', 'gzip'],
+            ['Brotli', 'brotli'],
+          ]) {
+            const row = document.createElement('tr')
+            const name = document.createElement('th')
+            name.scope = 'row'
+            name.textContent = label
+            const value = document.createElement('td')
+            value.textContent = formatBytes(size[key])
+            row.append(name, value)
+            body.append(row)
+          }
+          table.append(body)
+          section.append(heading, table)
+          sizes.append(section)
+        }
+        const scope = document.createElement('p')
+        scope.textContent = sample.bundleSize.label
+        const tools = document.createElement('p')
+        tools.textContent = `${sample.bundleSize.tool} · ESM · ES2022 · production · tree-shaking · minify；${sample.bundleSize.compression}`
+        const platforms = document.createElement('p')
+        platforms.textContent = `DOM 平台：${sample.bundleSize.dom.platform}；SSR 平台：${sample.bundleSize.ssr.platform}；SSR 宿主内置：${sample.bundleSize.ssr.externalBuiltins.join(', ') || '无'}`
+        sizeView.append(sizes, scope, tools, platforms)
       }
-      const renderView = view => {
-        if (!sample) return
+      const renderView = (view, announce = true) => {
+        if (!sample || !Object.hasOwn(viewNames, view)) return
         currentView = view
         tabs.forEach(tab => {
           const selected = tab.dataset.view === view
           tab.setAttribute('aria-selected', String(selected))
           tab.tabIndex = selected ? 0 : -1
         })
+        const url = new URL(location.href)
+        url.searchParams.set('view', view)
+        history.replaceState(null, '', url)
+        shareLink.href = url.href
         panel.setAttribute('aria-labelledby', `tab-${view}`)
         outputNode.classList.toggle('error', view === 'diagnostics')
         notice.textContent = ''
@@ -351,27 +450,75 @@
           outputNode.textContent = JSON.stringify(sample.diagnostics, null, 2)
           notice.textContent = '诊断来自独立的故意错误 TSX fixture。'
         } else {
-          sizeView.innerHTML = renderSize()
-          notice.textContent = `静态 artifact：counter.json（含源码、输出、IR 与诊断）`
+          renderSize()
+          notice.textContent =
+            '生成模块和含 runtime 的生产 bundle 分别测量，完整依赖列表见 counter.json。'
         }
+        if (announce)
+          status.textContent = `已显示 ${viewNames[view]}；分享链接可恢复此视图。`
       }
 
-      fetch('./counter.json')
-        .then(response => {
+      const loadSample = async () => {
+        sample = undefined
+        panel.setAttribute('aria-busy', 'true')
+        retryLoad.hidden = true
+        tabs.forEach(tab => (tab.disabled = true))
+        copySource.disabled = copyShare.disabled = true
+        status.textContent = '正在加载编译样例…'
+        try {
+          const response = await fetch('./counter.json')
           if (!response.ok) throw new Error(`HTTP ${response.status}`)
-          return response.json()
-        })
-        .then(data => {
+          const data = await response.json()
+          if (
+            data.schemaVersion !== 2 ||
+            typeof data.source !== 'string' ||
+            typeof data.dom !== 'string' ||
+            typeof data.ssr !== 'string' ||
+            !data.bundleSize ||
+            !data.outputSize ||
+            !data.ir ||
+            !Array.isArray(data.diagnostics)
+          ) {
+            throw new Error('样例数据格式无效')
+          }
+          for (const size of [
+            data.bundleSize.dom,
+            data.bundleSize.ssr,
+            data.outputSize.dom,
+            data.outputSize.ssr,
+          ]) {
+            if (
+              !size ||
+              !['raw', 'gzip', 'brotli'].every(
+                key => Number.isSafeInteger(size[key]) && size[key] >= 0,
+              )
+            )
+              throw new Error('样例尺寸数据无效')
+          }
+          if (!Array.isArray(data.bundleSize.ssr.externalBuiltins))
+            throw new Error('样例平台数据无效')
           sample = data
-          tabs.forEach(tab => (tab.disabled = false))
-          document.querySelector('#copy-source').disabled = false
           sourceNode.textContent = sample.source
-          renderView(currentView)
-        })
-        .catch(error => {
-          sourceNode.textContent = '样例加载失败。'
+          tabs.forEach(tab => (tab.disabled = false))
+          copySource.disabled = copyShare.disabled = false
+          const requested = new URL(location.href).searchParams.get('view')
+          renderView(currentView, false)
+          status.textContent =
+            requested && !Object.hasOwn(viewNames, requested)
+              ? '未知视图，已显示 DOM JS。可用方向键、Home 和 End 切换视图。'
+              : `样例已加载，当前显示 ${viewNames[currentView]}。可用方向键、Home 和 End 切换视图。`
+        } catch (error) {
+          sourceNode.textContent = '样例加载失败，请重新加载。'
+          output.hidden = false
+          sizeView.hidden = true
+          outputNode.classList.add('error')
           outputNode.textContent = String(error)
-        })
+          status.textContent = '样例加载失败。请检查网络后点击“重新加载样例”。'
+          retryLoad.hidden = false
+        } finally {
+          panel.setAttribute('aria-busy', 'false')
+        }
+      }
 
       tabs.forEach((tab, index) => {
         tab.addEventListener('click', () => renderView(tab.dataset.view))
@@ -390,17 +537,43 @@
           renderView(tabs[next].dataset.view)
         })
       })
-      document
-        .querySelector('#copy-source')
-        .addEventListener('click', async event => {
-          if (!sample) return
-          const button = event.currentTarget
-          await navigator.clipboard.writeText(sample.source)
-          button.textContent = '已复制'
-          setTimeout(() => {
-            button.textContent = '复制源码'
-          }, 1400)
-        })
+      const copy = async (value, success) => {
+        let timeout
+        try {
+          if (!navigator.clipboard?.writeText)
+            throw new Error('Clipboard unavailable')
+          await Promise.race([
+            navigator.clipboard.writeText(value),
+            new Promise((_, reject) => {
+              timeout = setTimeout(
+                () => reject(new Error('Clipboard timeout')),
+                2000,
+              )
+            }),
+          ])
+          manualCopy.hidden = true
+          status.textContent = success
+        } catch {
+          manualCopy.hidden = false
+          copyText.value = value
+          copyText.focus()
+          copyText.select()
+          status.textContent =
+            '浏览器未完成自动复制。文本已在下方选中，请按 Ctrl/Cmd+C 手动复制。'
+        } finally {
+          clearTimeout(timeout)
+        }
+      }
+      copySource.addEventListener('click', () => {
+        if (sample) void copy(sample.source, 'TSX 源码已复制。')
+      })
+      copyShare.addEventListener('click', () => {
+        if (sample)
+          void copy(shareLink.href, '分享链接已复制，可恢复当前视图。')
+      })
+      retryLoad.addEventListener('click', () => void loadSample())
+      window.addEventListener('popstate', () => renderView(readView()))
+      void loadSample()
     </script>
   </body>
 </html>

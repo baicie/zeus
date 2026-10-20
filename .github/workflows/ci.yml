@@ -192,6 +192,10 @@ jobs:
         run: pnpm check:admin
       - name: Explicit SSR hydration in Chromium, Firefox and WebKit
         run: pnpm check:hydration
+      - name: Playground views, copying and sharing in Chromium, Firefox and WebKit
+        run: pnpm playground:smoke
+      - name: Next.js Server and Client boundary in Chromium, Firefox and WebKit
+        run: pnpm check:next-boundary
       - name: Preserve consumer reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -201,6 +205,8 @@ jobs:
             temp/packed-consumers
             temp/admin
             temp/hydration
+            temp/next-boundary
+            temp/playground
 
   docs-build:
     runs-on: ubuntu-latest

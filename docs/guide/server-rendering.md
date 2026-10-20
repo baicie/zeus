@@ -117,6 +117,30 @@ needs a browser-only custom element should place it behind its client boundary
 (for example, a Next.js `"use client"` component). Declarative Shadow DOM,
 streaming, and Web Component internal SSR are separate future contracts.
 
+## Next.js Server and Client Boundaries
+
+The [`examples/next-boundary`](https://github.com/baicie/zeus/tree/main/examples/next-boundary)
+example builds its Web Component, Manifest, React wrapper, and declarations
+through the public Rollup plugin before `next build`. It has two deliberate
+host cases:
+
+- A Server Component emits a static `<z-next-counter count="2">` host with
+  serializable children. No `"use client"` directive, browser registration, or
+  internal DOM execution is required for that HTML.
+- An interactive counter exports a `"use client"` component because React
+  state, event callbacks, refs, and object or function properties cross a
+  browser boundary that Server Component props cannot serialize.
+
+The generated wrapper is safe to import on the server. In the browser it
+registers and upgrades the host, then mounts a fresh Shadow DOM; this example
+does not claim Zeus internal-DOM hydration. A page that only needs the static
+host may omit the client module entirely. A page that expects the host to
+upgrade must load the generated registration entry in a Client Component.
+
+`pnpm check:next-boundary` builds the production Next application and verifies
+the disabled-JavaScript HTML plus upgrade, event, state, host identity, and
+absence of hydration errors in Chromium, Firefox, and WebKit.
+
 The initial SSR release does not hydrate the generated HTML. Mounting the same
 application in a browser creates a fresh DOM tree. Streaming, asynchronous SSR,
 and Web Component internal SSR are also outside the current contract; wrapper
