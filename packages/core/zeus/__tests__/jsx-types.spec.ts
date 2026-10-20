@@ -104,15 +104,12 @@ const developmentValue: DevJSX.Element = publicValue
 const misspelled = <button disabld={true} />
 // @ts-expect-error Unknown standard tag names are not custom elements.
 const misspelledTag = <buton />
-// @ts-expect-error Getter-valued attributes are no longer an implicit binding syntax.
+// Native attributes and class/style values may be supplied as reactive getters.
 const getterAttribute = <button disabled={() => true} />
-// @ts-expect-error Native class takes a value.
 const getterClass = <div class={() => 'active'} />
-// @ts-expect-error Native style takes a value.
 const getterStyle = <div style={() => ({ color: 'red' })} />
 // @ts-expect-error Framework synthetic events do not replace native DOM events.
 const syntheticEvent = <button onClick={(event: ReactMouseEvent) => event.persist()} />
-// @ts-expect-error SVG attributes have the same value semantics.
 const getterSVG = <path d={() => 'M0 0'} />
 // @ts-expect-error SVG attribute typos must be rejected.
 const misspelledSVG = <path strokWidth={1} />

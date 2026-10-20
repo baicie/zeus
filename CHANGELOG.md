@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.1-beta.15 (2026-10-20)
+
+### Features
+
+- Add a signal-based adapter for the framework-agnostic Remix Router core, with nested route state, history navigation, loader preloading, and owner cleanup.
+- Replace the JavaScript and Babel JSX compiler implementation with the Rust and Oxc native backend, including owned Zeus IR, DOM, SSR, and Web Components lowering, structured diagnostics, source maps, platform packages, and native release verification.
+- 增加细粒度 Resource 原语和基于 `@tanstack/query-core` 的 Query adapter，覆盖请求取消、 并发结果保护、stale cache、查询重试、无限分页、mutation 与 owner disposal。
+
+### Fixes
+
+- Raise Vite, PostCSS, Sass, and Less dependency floors to patched releases and enforce zero high or critical production advisories in CI, Canary, and tagged release prechecks.
+- Resolve lazy Web Components runtime imports from the output plugin package while keeping generated bundles free of machine-specific installation paths.
+- Skip redundant `style` attribute removals when a style binding is already empty, while still repairing styles added by external DOM mutations.
+
 ## 0.1.1-beta.14 (2026-10-20)
 
 ### Fixes
