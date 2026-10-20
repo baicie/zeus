@@ -125,8 +125,10 @@ async function main(): Promise<void> {
       'Native latest cleanup confirmation does not match the version',
     )
   }
-  if (!process.env.NODE_AUTH_TOKEN && !process.env.NPM_TOKEN) {
-    throw new Error('NODE_AUTH_TOKEN or NPM_TOKEN is required')
+  if (!hasNpmAuth(registry)) {
+    throw new Error(
+      'NODE_AUTH_TOKEN or NPM_TOKEN is required in CI, or npm login must be active for the selected registry',
+    )
   }
 
   const readTags = async (pkg: string): Promise<Record<string, string>> =>
@@ -175,6 +177,19 @@ function runNpm(args: string[], label: string, capture = false): string {
     )
   }
   return result.stdout.trim()
+}
+
+function hasNpmAuth(registry: string): boolean {
+  if (process.env.NODE_AUTH_TOKEN || process.env.NPM_TOKEN) return true
+
+  const result = spawnSync('npm', ['whoami', '--registry', registry], {
+    cwd: process.cwd(),
+    env: process.env,
+    encoding: 'utf8',
+    stdio: 'ignore',
+    shell: process.platform === 'win32',
+  })
+  return result.status === 0
 }
 
 function readOption(name: string): string | undefined {
