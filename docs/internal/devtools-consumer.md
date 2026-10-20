@@ -38,6 +38,12 @@ Selected DOM 会显示命中的 Binding、Effect 与 Signal ID；Binding cleanup
 耗时也会随 snapshot 更新。`panel.disconnect()` 只移除面板订阅和面板节点，不会断开
 consumer 或应用 runtime。
 
+编译器生成的动态文本/节点区域通过 `mountDynamic()` 建立 reactive
+`dynamic-region` binding；该 binding 与直接 text/attr/property binding 一样发出
+Effect、依赖 track/trigger、commit 和 cleanup 事件。`pnpm check:devtools-panel`
+会先构建生产示例，再在开发服务器的真实 instrumented runtime 中运行
+Chromium/Firefox/WebKit，点击 DOM 并确认面板显示 Binding、Effect 和 Signal。
+
 `connect()` 会链上已有 runtime hook，避免覆盖同 realm 的其它观察者；多个 consumer 可以
 同时连接，断开其中一个不会恢复或移除其它 consumer。调用 `disconnect()` 会移除 click
 listener，并在最后一个 consumer 断开时恢复之前的 hook。consumer 的 listener 和

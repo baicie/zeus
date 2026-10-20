@@ -254,6 +254,28 @@ importers:
         specifier: 'catalog:'
         version: 8.3.4(@types/node@26.0.0)(esbuild@0.28.0)(jiti@2.7.0)(less@4.9.1)(sass@1.105.2)(tsx@4.22.4)(yaml@2.9.0)
 
+  examples/devtools-panel:
+    dependencies:
+      '@zeus-js/devtools-consumer':
+        specifier: workspace:*
+        version: link:../../packages/devtools/consumer
+      '@zeus-js/runtime-dom':
+        specifier: workspace:*
+        version: link:../../packages/core/runtime-dom
+      '@zeus-js/zeus':
+        specifier: workspace:*
+        version: link:../../packages/core/zeus
+    devDependencies:
+      '@zeus-js/vite-plugin':
+        specifier: workspace:*
+        version: link:../../packages/devtools/vite-plugin
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: 'catalog:'
+        version: 8.3.4(@types/node@26.0.0)(esbuild@0.28.0)(jiti@2.7.0)(less@4.9.1)(sass@1.105.2)(tsx@4.22.4)(yaml@2.9.0)
+
   examples/headless:
     dependencies:
       '@zeus-js/output-react-wrapper':

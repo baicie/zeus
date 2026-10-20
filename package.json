@@ -53,6 +53,7 @@
     "check:hydration": "tsx scripts/check/check-hydration.ts",
     "check:next-boundary": "tsx scripts/check/check-next-boundary.ts",
     "check:docs": "tsx scripts/check/check-docs.ts",
+    "check:devtools-panel": "tsx scripts/check/check-devtools-panel.ts",
     "playground:check": "tsx scripts/playground/check-playground.ts",
     "playground:smoke": "tsx scripts/playground/check-playground-browser.ts",
     "playground:update": "tsx scripts/playground/check-playground.ts --update",

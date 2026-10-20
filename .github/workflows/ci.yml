@@ -196,6 +196,8 @@ jobs:
         run: pnpm playground:smoke
       - name: Next.js Server and Client boundary in Chromium, Firefox and WebKit
         run: pnpm check:next-boundary
+      - name: DevTools click-to-binding panel in Chromium, Firefox and WebKit
+        run: pnpm check:devtools-panel
       - name: Preserve consumer reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -207,6 +209,7 @@ jobs:
             temp/hydration
             temp/next-boundary
             temp/playground
+            temp/devtools-panel
 
   docs-build:
     runs-on: ubuntu-latest
