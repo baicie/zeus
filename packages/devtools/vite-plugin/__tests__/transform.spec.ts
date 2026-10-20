@@ -161,6 +161,33 @@ describe('vite-plugin-zeus transform', () => {
     )
   })
 
+  it('recompiles an added @once directive and reports its compiler diagnostic', async () => {
+    const plugin = createZeus()
+    runConfigResolved(plugin, 'serve', false)
+    const transform = getTransformHook(plugin)
+    const transformContext = {
+      error(error: string | { message: string }): never {
+        throw new Error(typeof error === 'string' ? error : error.message)
+      },
+    } as ThisParameterType<TransformHook>
+    const previous = 'const App = () => <div>{/* note */ count()}</div>'
+    const next = 'const App = () => <div>{/* @once */ count()}</div>'
+    await transform.call(transformContext, previous, '/src/App.tsx', undefined)
+
+    const result = await getHandleHotUpdateHook(plugin).call(
+      { debug: vi.fn() } as unknown as ThisParameterType<HandleHotUpdateHook>,
+      {
+        file: '/src/App.tsx',
+        read: async () => next,
+      } as Parameters<HandleHotUpdateHook>[0],
+    )
+
+    expect(result).toBeUndefined()
+    await expect(
+      transform.call(transformContext, next, '/src/App.tsx', undefined),
+    ).rejects.toThrow('The @once comment syntax is no longer accepted')
+  })
+
   it.each(['/src/App.tsx', '/src/App.jsx'])(
     'transforms JSX modules by default: %s',
     async id => {

@@ -847,6 +847,9 @@ importers:
 
   packages/devtools/vite-plugin:
     dependencies:
+      '@babel/parser':
+        specifier: 'catalog:'
+        version: 8.0.0
       '@zeus-js/compiler-native':
         specifier: workspace:*
         version: link:../../core/compiler-native
