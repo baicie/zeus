@@ -5,6 +5,7 @@ use oxc_sourcemap::SourceMapBuilder;
 use crate::{
     PureDefineElementMode, RawSourceMap, TransformModuleResult,
     html::{is_raw_text_element, is_svg_element, is_void_element},
+    hydration::{component_root_marker_id, element_marker_id, node_marker_id, text_marker_id},
     ir::{
         AttributeIr, ChildIr, ComponentBindingIr, ComponentIr, ComponentPropIr,
         ComponentPropValueIr, DynamicRegionExpressionIr, DynamicRegionIr, DynamicRegionValueIr,
@@ -113,6 +114,7 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
         code: writer.code,
         map,
         diagnostics: Vec::new(),
+        hydration_plan: None,
     }
 }
 
@@ -386,7 +388,7 @@ pub(crate) fn emit_ssr_module(
             continue;
         }
         writer.push(&source[cursor..start]);
-        emit_ssr_root(&mut writer, &component.root, &runtime);
+        emit_ssr_root(&mut writer, &component.root, &runtime, component.id);
         cursor = end;
     }
     writer.push(&source[cursor..]);
@@ -396,19 +398,35 @@ pub(crate) fn emit_ssr_module(
         code: writer.code,
         map,
         diagnostics: Vec::new(),
+        hydration_plan: None,
     }
 }
 
-fn emit_ssr_root(writer: &mut CodeWriter, root: &RootIr, runtime: &SsrRuntimeNames) {
+fn emit_ssr_root(
+    writer: &mut CodeWriter,
+    root: &RootIr,
+    runtime: &SsrRuntimeNames,
+    component_id: NodeId,
+) {
+    writer.push("[");
+    emit_ssr_marker(writer, runtime, &component_root_marker_id(component_id));
+    writer.push(", ");
     match root {
-        RootIr::Element(element) => emit_ssr_element(writer, element, runtime),
-        RootIr::Fragment(fragment) => emit_ssr_children(writer, &fragment.children, runtime, false),
-        RootIr::Component(component) => emit_ssr_component(writer, component, runtime),
-        RootIr::Show(show) => emit_ssr_show(writer, show, runtime),
-        RootIr::For(for_binding) => emit_ssr_for(writer, for_binding, runtime),
-        RootIr::Transition(transition) => emit_ssr_transition(writer, transition, runtime),
+        RootIr::Element(element) => emit_ssr_element(writer, element, runtime, component_id),
+        RootIr::Fragment(fragment) => {
+            emit_ssr_children(writer, &fragment.children, runtime, false, component_id);
+        }
+        RootIr::Component(component) => {
+            emit_ssr_component(writer, component, runtime, component_id);
+        }
+        RootIr::Show(show) => emit_ssr_show(writer, show, runtime, component_id),
+        RootIr::For(for_binding) => emit_ssr_for(writer, for_binding, runtime, component_id),
+        RootIr::Transition(transition) => {
+            emit_ssr_transition(writer, transition, runtime, component_id);
+        }
         RootIr::ErrorBoundary(_) => unreachable!("ErrorBoundary SSR is rejected before codegen"),
     }
+    writer.push("]");
 }
 
 fn emit_ssr_child(
@@ -416,13 +434,14 @@ fn emit_ssr_child(
     child: &ChildIr,
     runtime: &SsrRuntimeNames,
     raw_text: bool,
+    component_id: NodeId,
 ) {
     match child {
         ChildIr::Element(element) => {
-            emit_ssr_element_with_context(writer, element, runtime, raw_text);
+            emit_ssr_element_with_context(writer, element, runtime, raw_text, component_id);
         }
         ChildIr::Fragment(fragment) => {
-            emit_ssr_children(writer, &fragment.children, runtime, raw_text);
+            emit_ssr_children(writer, &fragment.children, runtime, raw_text, component_id);
         }
         ChildIr::Text(text) => {
             if raw_text {
@@ -438,18 +457,34 @@ fn emit_ssr_child(
             if raw_text {
                 writer.push_mapped(&text.expression.code, &text.expression);
             } else {
+                writer.push("[");
+                emit_ssr_marker(
+                    writer,
+                    runtime,
+                    &text_marker_id(component_id, text.reference.node_id),
+                );
+                writer.push(", ");
                 writer.push(runtime.text());
                 writer.push("(");
                 writer.push_mapped(&text.expression.code, &text.expression);
                 writer.push(")");
+                writer.push("]");
             }
         }
-        ChildIr::Component(component) => emit_ssr_component(writer, component, runtime),
-        ChildIr::Show(show) => emit_ssr_show(writer, show, runtime),
-        ChildIr::For(for_binding) => emit_ssr_for(writer, for_binding, runtime),
-        ChildIr::Transition(transition) => emit_ssr_transition(writer, transition, runtime),
+        ChildIr::Component(component) => {
+            emit_ssr_component(writer, component, runtime, component_id);
+        }
+        ChildIr::Show(show) => emit_ssr_show(writer, show, runtime, component_id),
+        ChildIr::For(for_binding) => {
+            emit_ssr_for(writer, for_binding, runtime, component_id);
+        }
+        ChildIr::Transition(transition) => {
+            emit_ssr_transition(writer, transition, runtime, component_id);
+        }
         ChildIr::ErrorBoundary(_) => unreachable!("ErrorBoundary SSR is rejected before codegen"),
-        ChildIr::DynamicRegion(region) => emit_ssr_dynamic_region(writer, region, runtime),
+        ChildIr::DynamicRegion(region) => {
+            emit_ssr_dynamic_region(writer, region, runtime, component_id);
+        }
     }
 }
 
@@ -458,9 +493,10 @@ fn emit_ssr_children(
     children: &[ChildIr],
     runtime: &SsrRuntimeNames,
     raw_text: bool,
+    component_id: NodeId,
 ) {
     if children.len() == 1 {
-        emit_ssr_child(writer, &children[0], runtime, raw_text);
+        emit_ssr_child(writer, &children[0], runtime, raw_text, component_id);
         return;
     }
     writer.push("[");
@@ -468,7 +504,7 @@ fn emit_ssr_children(
         if index > 0 {
             writer.push(", ");
         }
-        emit_ssr_child(writer, child, runtime, raw_text);
+        emit_ssr_child(writer, child, runtime, raw_text, component_id);
     }
     writer.push("]");
 }
@@ -477,7 +513,15 @@ fn emit_ssr_dynamic_region(
     writer: &mut CodeWriter,
     region: &DynamicRegionIr,
     runtime: &SsrRuntimeNames,
+    component_id: NodeId,
 ) {
+    writer.push("[");
+    emit_ssr_marker(
+        writer,
+        runtime,
+        &node_marker_id(component_id, "region", region.id),
+    );
+    writer.push(", ");
     match &region.expression {
         DynamicRegionExpressionIr::Value { expression } => {
             writer.push_mapped(&expression.code, expression);
@@ -490,9 +534,9 @@ fn emit_ssr_dynamic_region(
             writer.push("(");
             writer.push_mapped(&test.code, test);
             writer.push(" ? ");
-            emit_ssr_dynamic_region_value(writer, consequent, runtime);
+            emit_ssr_dynamic_region_value(writer, consequent, runtime, component_id);
             writer.push(" : ");
-            emit_ssr_dynamic_region_value(writer, alternate, runtime);
+            emit_ssr_dynamic_region_value(writer, alternate, runtime, component_id);
             writer.push(")");
         }
         DynamicRegionExpressionIr::Logical {
@@ -505,7 +549,7 @@ fn emit_ssr_dynamic_region(
             writer.push(" ");
             writer.push(operator);
             writer.push(" ");
-            emit_ssr_dynamic_region_value(writer, right, runtime);
+            emit_ssr_dynamic_region_value(writer, right, runtime, component_id);
             writer.push(")");
         }
         DynamicRegionExpressionIr::ArrayMap {
@@ -523,7 +567,7 @@ fn emit_ssr_dynamic_region(
                 writer.push(index);
             }
             writer.push(") => ");
-            emit_ssr_children(writer, body, runtime, false);
+            emit_ssr_children(writer, body, runtime, false, component_id);
             writer.push(")");
         }
         DynamicRegionExpressionIr::ArrayLiteral { items } => {
@@ -532,30 +576,37 @@ fn emit_ssr_dynamic_region(
                 if index > 0 {
                     writer.push(", ");
                 }
-                emit_ssr_dynamic_region_value(writer, item, runtime);
+                emit_ssr_dynamic_region_value(writer, item, runtime, component_id);
             }
             writer.push("]");
         }
     }
+    writer.push("]");
 }
 
 fn emit_ssr_dynamic_region_value(
     writer: &mut CodeWriter,
     value: &DynamicRegionValueIr,
     runtime: &SsrRuntimeNames,
+    component_id: NodeId,
 ) {
     match value {
         DynamicRegionValueIr::Expression(expression) => {
             writer.push_mapped(&expression.code, expression);
         }
         DynamicRegionValueIr::Children(children) => {
-            emit_ssr_children(writer, children, runtime, false);
+            emit_ssr_children(writer, children, runtime, false, component_id);
         }
     }
 }
 
-fn emit_ssr_element(writer: &mut CodeWriter, element: &ElementIr, runtime: &SsrRuntimeNames) {
-    emit_ssr_element_with_context(writer, element, runtime, false);
+fn emit_ssr_element(
+    writer: &mut CodeWriter,
+    element: &ElementIr,
+    runtime: &SsrRuntimeNames,
+    component_id: NodeId,
+) {
+    emit_ssr_element_with_context(writer, element, runtime, false, component_id);
 }
 
 fn emit_ssr_element_with_context(
@@ -563,7 +614,15 @@ fn emit_ssr_element_with_context(
     element: &ElementIr,
     runtime: &SsrRuntimeNames,
     _raw_text: bool,
+    component_id: NodeId,
 ) {
+    writer.push("[");
+    emit_ssr_marker(
+        writer,
+        runtime,
+        &element_marker_id(component_id, element.reference.node_id),
+    );
+    writer.push(", ");
     writer.push(runtime.element());
     writer.push("(");
     writer.push(&quote_js(&element.tag_name));
@@ -629,22 +688,39 @@ fn emit_ssr_element_with_context(
             &element.children,
             runtime,
             is_unescaped_raw_text(&element.tag_name),
+            component_id,
         );
     } else if is_void_element(&element.tag_name) {
         writer.push(", undefined, true");
     }
     writer.push(")");
+    writer.push("]");
 }
 
 fn emit_ssr_expression_value(writer: &mut CodeWriter, expression: &ExpressionIr) {
     writer.push_mapped(&expression.code, expression);
 }
 
+fn emit_ssr_marker(writer: &mut CodeWriter, runtime: &SsrRuntimeNames, id: &str) {
+    writer.push(runtime.hydration_marker());
+    writer.push("(");
+    writer.push(&quote_js(id));
+    writer.push(")");
+}
+
 fn emit_ssr_component(
     writer: &mut CodeWriter,
     component: &ComponentBindingIr,
     runtime: &SsrRuntimeNames,
+    component_id: NodeId,
 ) {
+    writer.push("[");
+    emit_ssr_marker(
+        writer,
+        runtime,
+        &node_marker_id(component_id, "component", component.id),
+    );
+    writer.push(", ");
     writer.push(runtime.component());
     writer.push("(");
     writer.push_mapped(&component.callee.code, &component.callee);
@@ -692,7 +768,7 @@ fn emit_ssr_component(
                         writer.push("get ");
                         writer.push(&object_key(&prop.name));
                         writer.push("() { return ");
-                        emit_ssr_children(writer, children, runtime, false);
+                        emit_ssr_children(writer, children, runtime, false, component_id);
                         writer.push(" }");
                     }
                 }
@@ -709,13 +785,26 @@ fn emit_ssr_component(
         writer.push("}");
     }
     writer.push(")");
+    writer.push("]");
 }
-fn emit_ssr_show(writer: &mut CodeWriter, show: &ShowBindingIr, runtime: &SsrRuntimeNames) {
+fn emit_ssr_show(
+    writer: &mut CodeWriter,
+    show: &ShowBindingIr,
+    runtime: &SsrRuntimeNames,
+    component_id: NodeId,
+) {
+    writer.push("[");
+    emit_ssr_marker(
+        writer,
+        runtime,
+        &node_marker_id(component_id, "show", show.id),
+    );
+    writer.push(", ");
     writer.push(runtime.show());
     writer.push("(() => ");
     writer.push_mapped(&show.when.code, &show.when);
     writer.push(", () => ");
-    emit_ssr_children(writer, &show.children, runtime, false);
+    emit_ssr_children(writer, &show.children, runtime, false, component_id);
     if let Some(fallback) = &show.fallback {
         writer.push(", () => ");
         match fallback {
@@ -723,14 +812,27 @@ fn emit_ssr_show(writer: &mut CodeWriter, show: &ShowBindingIr, runtime: &SsrRun
                 emit_ssr_expression_value(writer, expression);
             }
             ComponentPropValueIr::Children(children) => {
-                emit_ssr_children(writer, children, runtime, false);
+                emit_ssr_children(writer, children, runtime, false, component_id);
             }
         }
     }
     writer.push(")");
+    writer.push("]");
 }
 
-fn emit_ssr_for(writer: &mut CodeWriter, for_binding: &ForBindingIr, runtime: &SsrRuntimeNames) {
+fn emit_ssr_for(
+    writer: &mut CodeWriter,
+    for_binding: &ForBindingIr,
+    runtime: &SsrRuntimeNames,
+    component_id: NodeId,
+) {
+    writer.push("[");
+    emit_ssr_marker(
+        writer,
+        runtime,
+        &node_marker_id(component_id, "for", for_binding.id),
+    );
+    writer.push(", ");
     writer.push(runtime.for_each());
     writer.push("(() => ");
     writer.push_mapped(&for_binding.each.code, &for_binding.each);
@@ -741,22 +843,30 @@ fn emit_ssr_for(writer: &mut CodeWriter, for_binding: &ForBindingIr, runtime: &S
         writer.push(index);
     }
     writer.push(") => ");
-    emit_ssr_children(writer, &for_binding.body, runtime, false);
+    emit_ssr_children(writer, &for_binding.body, runtime, false, component_id);
     writer.push(")");
+    writer.push("]");
 }
 
 fn emit_ssr_transition(
     writer: &mut CodeWriter,
     transition: &TransitionBindingIr,
     runtime: &SsrRuntimeNames,
+    component_id: NodeId,
 ) {
     // SSR has no animation lifecycle. Preserve the runtime's initial visibility
     // decision and serialize only the mounted branch.
-    writer.push("(");
+    writer.push("[");
+    emit_ssr_marker(
+        writer,
+        runtime,
+        &node_marker_id(component_id, "transition", transition.id),
+    );
+    writer.push(", (");
     writer.push_mapped(&transition.when.code, &transition.when);
     writer.push(" ? ");
-    emit_ssr_children(writer, &transition.children, runtime, false);
-    writer.push(" : null)");
+    emit_ssr_children(writer, &transition.children, runtime, false, component_id);
+    writer.push(" : null)]");
 }
 
 fn emit_delegated_events(
@@ -3249,6 +3359,7 @@ struct SsrRuntimeNames {
     for_each: String,
     spread: String,
     merge_props: String,
+    hydration_marker: String,
 }
 
 impl SsrRuntimeNames {
@@ -3264,10 +3375,11 @@ impl SsrRuntimeNames {
             for_each: names.allocate("$zeusSsrFor"),
             spread: names.allocate("$zeusSsrSpread"),
             merge_props: names.allocate("$zeusMergeProps"),
+            hydration_marker: names.allocate("$zeusHydrationMarker"),
         }
     }
 
-    fn entries(&self) -> [(&'static str, &str); 10] {
+    fn entries(&self) -> [(&'static str, &str); 11] {
         [
             ("ssrStatic", &self.static_text),
             ("ssrText", &self.text),
@@ -3279,6 +3391,7 @@ impl SsrRuntimeNames {
             ("ssrFor", &self.for_each),
             ("ssrSpread", &self.spread),
             ("mergeProps", &self.merge_props),
+            ("ssrHydrationMarker", &self.hydration_marker),
         ]
     }
 
@@ -3305,6 +3418,9 @@ impl SsrRuntimeNames {
     }
     fn for_each(&self) -> &str {
         &self.for_each
+    }
+    fn hydration_marker(&self) -> &str {
+        &self.hydration_marker
     }
 }
 

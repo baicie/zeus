@@ -14,7 +14,16 @@ export type {
 export { template } from './template'
 
 export { render, type RenderOptions } from './render'
-export { hydrate, type HydrationContext } from './hydration'
+export {
+  hydrate,
+  hydratePlan,
+  type HydrationBindingHandler,
+  type HydrationContext,
+  type HydrationPlan,
+  type HydrationPlanBinding,
+  type HydrationPlanComponent,
+  type HydrationPlanNode,
+} from './hydration'
 
 export { insert, mountDynamic } from './insert'
 

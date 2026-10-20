@@ -8,6 +8,8 @@ import type { HookHandler, Plugin } from 'vite'
 type TransformHook = NonNullable<HookHandler<Plugin['transform']>>
 
 const runtimeGlobal = '__ZEUS_SSR_EXECUTION_RUNTIME__'
+const stripHydrationMarkers = (html: string): string =>
+  html.replace(/<!--zeus:hydrate:[^>]+-->/g, '')
 const source = `
   import { For, Show } from '@zeus-js/runtime-dom'
 
@@ -60,28 +62,32 @@ describe('vite-plugin-zeus SSR execution', () => {
       }
 
       expect(
-        runtime.renderToString(() =>
-          module.App({
-            title: 'people "now" & later',
-            visible: true,
-            items: ['<Ada>', 'Lin'],
-            script: 'const less = 1 < 2; const close = "</script>";',
-            css: '@media (width < 10px) { body::before { content: "</style>"; } }',
-          }),
+        stripHydrationMarkers(
+          runtime.renderToString(() =>
+            module.App({
+              title: 'people "now" & later',
+              visible: true,
+              items: ['<Ada>', 'Lin'],
+              script: 'const less = 1 < 2; const close = "</script>";',
+              css: '@media (width < 10px) { body::before { content: "</style>"; } }',
+            }),
+          ),
         ),
       ).toBe(
         '<main title="people &quot;now&quot; &amp; later" class="app visible" style="line-height:2"><input value="people &quot;now&quot; &amp; later"><script>const less = 1 < 2; const close = "\\u003C/script>";</script><style>@media (width < 10px) { body::before { content: "\\3C /style>"; } }</style><ul><li data-index="0">&lt;Ada&gt;</li><li data-index="1">Lin</li></ul></main>',
       )
 
       expect(
-        runtime.renderToString(() =>
-          module.App({
-            title: 'empty',
-            visible: false,
-            items: [],
-            script: '',
-            css: '',
-          }),
+        stripHydrationMarkers(
+          runtime.renderToString(() =>
+            module.App({
+              title: 'empty',
+              visible: false,
+              items: [],
+              script: '',
+              css: '',
+            }),
+          ),
         ),
       ).toBe(
         '<main title="empty" class="app" style="line-height:2"><input value="empty"><script></script><style></style><p>empty</p></main>',
@@ -129,6 +135,7 @@ function createRuntimeProxyURL(): string {
     'ssrFor',
     'ssrSpread',
     'mergeProps',
+    'ssrHydrationMarker',
   ] as const
   const code =
     helpers

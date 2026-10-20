@@ -7,19 +7,19 @@ Beta 无历史兼容层规则优先于原设计中的兼容窗口建议。
 
 ## 原始验收状态
 
-| 项目              | 现有证据与明确缺口                                                                                                                                 | 后续证明要求                                                                                         |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| B-003 / M2 Golden | `tests/contracts/golden-components.json` 四个真实 UI 组件的 browserAcceptance / packedUiConsumers 仍 pending；packed matrix 使用 synthetic fixture | 真正 Button/Input/Dialog/DataGrid tarball，eager/lazy 属性及生命周期对齐，三种消费者/三浏览器        |
-| F-007             | **已关闭（2026-10-20）**：生产 Next 示例区分无需/需要 `use client`，禁用 JS宿主、升级、事件、DOM identity 与 hydration 错误三浏览器通过            | `examples/next-boundary`、`pnpm check:next-boundary`                                                 |
-| F-011             | 当前主干 CI/Docs/Native Matrix 通过；认证身份正确；native latest 删除 E403，Canary 被污染阻断                                                      | 当前源码 Canary 成功发布、签名来源/dist-tag校验、外部install smoke；失败不能宣称成功                 |
-| D-003             | consumer 可生成 component/owner/binding/source snapshots 和 MessagePort 数据                                                                       | 实际面板，浏览器点击 DOM 能展示对应 Binding/Signal；不能把 renderPanel 占位函数当面板                |
-| D-005             | 一个 Quick Start 的四段配置比对加四模板 smoke                                                                                                      | 其余 Quick Start 与 API 文档示例原样执行，形成片段到命令的覆盖清单                                   |
-| D-006             | 产品边界与上手文档已构建                                                                                                                           | “新用户15分钟”是需真实用户测试的目标，未取得计时记录                                                 |
-| D-007             | **已关闭（2026-10-20）**：真实 runtime 依赖 bundle 测量；五视图、复制、分享 URL/reload、键盘和失败路径三浏览器通过                                 | `pnpm playground:check`、`pnpm playground:smoke`                                                     |
-| E-006             | `ssrCustomElement` 接收手写 SSRNode 并输出 DSD                                                                                                     | 按设计§10.2联动 SSR Codegen/Manifest，关键组件首屏与 CSS/Slot/Form/宿主属性/初始状态政策             |
-| E-007             | `hydrate(container, setup)` 显式计划；当前切片补内存/事件/mismatch/焦点回归                                                                        | 按设计§10.3生成稳定 Marker/Template/Node ID 和绑定重连计划，真实组件保持 DOM/焦点；Streaming明确后置 |
-| E-008             | Admin 的路由、loader、权限和语义表单已通过生产产物三浏览器；尚未使用真实 UI 组件及 Resource/Query                                                  | 按设计§14.1集成真实 Zeus UI Input/Dialog/DataGrid、请求适配器及查询/筛选/编辑/分页/选择完整用户故事  |
-| E-009             | 单一 TSX fixture 已通过本地隔离 `pnpm pack` 消费矩阵                                                                                               | 按设计§14.2对真实 registry 发布 tarball 独立安装，完成同一故事验证与来源校验                         |
+| 项目              | 现有证据与明确缺口                                                                                                                                                                                                                                    | 后续证明要求                                                                                        |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| B-003 / M2 Golden | `tests/contracts/golden-components.json` 四个真实 UI 组件的 browserAcceptance / packedUiConsumers 仍 pending；packed matrix 使用 synthetic fixture                                                                                                    | 真正 Button/Input/Dialog/DataGrid tarball，eager/lazy 属性及生命周期对齐，三种消费者/三浏览器       |
+| F-007             | **已关闭（2026-10-20）**：生产 Next 示例区分无需/需要 `use client`，禁用 JS宿主、升级、事件、DOM identity 与 hydration 错误三浏览器通过                                                                                                               | `examples/next-boundary`、`pnpm check:next-boundary`                                                |
+| F-011             | 当前主干 CI/Docs/Native Matrix 通过；认证身份正确；native latest 删除 E403，Canary 被污染阻断                                                                                                                                                         | 当前源码 Canary 成功发布、签名来源/dist-tag校验、外部install smoke；失败不能宣称成功                |
+| D-003             | consumer 可生成 component/owner/binding/source snapshots 和 MessagePort 数据                                                                                                                                                                          | 实际面板，浏览器点击 DOM 能展示对应 Binding/Signal；不能把 renderPanel 占位函数当面板               |
+| D-005             | 一个 Quick Start 的四段配置比对加四模板 smoke                                                                                                                                                                                                         | 其余 Quick Start 与 API 文档示例原样执行，形成片段到命令的覆盖清单                                  |
+| D-006             | 产品边界与上手文档已构建                                                                                                                                                                                                                              | “新用户15分钟”是需真实用户测试的目标，未取得计时记录                                                |
+| D-007             | **已关闭（2026-10-20）**：真实 runtime 依赖 bundle 测量；五视图、复制、分享 URL/reload、键盘和失败路径三浏览器通过                                                                                                                                    | `pnpm playground:check`、`pnpm playground:smoke`                                                    |
+| E-006             | `ssrCustomElement` 接收手写 SSRNode 并输出 DSD                                                                                                                                                                                                        | 按设计§10.2联动 SSR Codegen/Manifest，关键组件首屏与 CSS/Slot/Form/宿主属性/初始状态政策            |
+| E-007             | **已关闭（2026-10-20）**：`hydrationPlan` 在 DOM/SSR 间共享稳定 Template/Node/Binding ID，SSR 自动写 marker；`hydratePlan` 逐 binding 重连并释放失败 setup；真实 Chromium/Firefox/WebKit 保持首屏、焦点、选区、DOM identity、events、props 和 cleanup | `transformModule()`、`hydratePlan()`、`pnpm check:hydration`；Streaming 按设计后置                  |
+| E-008             | Admin 的路由、loader、权限和语义表单已通过生产产物三浏览器；尚未使用真实 UI 组件及 Resource/Query                                                                                                                                                     | 按设计§14.1集成真实 Zeus UI Input/Dialog/DataGrid、请求适配器及查询/筛选/编辑/分页/选择完整用户故事 |
+| E-009             | 单一 TSX fixture 已通过本地隔离 `pnpm pack` 消费矩阵                                                                                                                                                                                                  | 按设计§14.2对真实 registry 发布 tarball 独立安装，完成同一故事验证与来源校验                        |
 
 D-009 审计另复现了注释换行触发 ASI、编译指令变化、嵌套模板/JSX 被误判安全的缺陷。
 已以 Babel parser 注释范围替代启发式扫描，87 项插件测试及独立审阅通过；解析失败仍重挂载。`$state` 实现不在
@@ -47,11 +47,12 @@ D-009 审计另复现了注释换行触发 ASI、编译指令变化、嵌套模�
 
 ## 当前切片的证据口径
 
-`pnpm check:hydration` 使用当前构建产物、显式手写计划和真实 Chromium/Firefox/WebKit，
+`pnpm check:hydration` 使用当前构建产物、显式 binding 计划和真实 Chromium/Firefox/WebKit，
 验证禁用 JS 的 SSR/DSD 与原生 Slot 分配、输入焦点与选区、DOM identity、属性/Signal、mismatch、cleanup。
 2026-10-20 重建后三浏览器通过；显式 hydration、events 与 DevTools 共 28 项定向测试通过，
 覆盖 cleanup 异常保留原始 mismatch、父 scope 释放和无效 scope 的 owner 配对。
-它不使用真实 UI Golden 组件，不生成编译器 plan，因此不单独关闭 E-006/E-007。
+编译器 plan 由 Rust DOM/SSR 一致性测试、native contract 和 hydration runtime 单测覆盖；
+浏览器脚本验证 plan handler 在当前构建产物中的真实行为。它仍然不使用真实 UI Golden 组件。
 报告为 `temp/hydration/report.json`，CI 保存同目录 artifact。
 
 建议依赖顺序：修 HMR/显式 hydration → CLI 锁安全 → registry/组件依赖 → Golden/Next/

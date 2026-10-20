@@ -21,5 +21,20 @@ describe('@zeus-js/compiler native contract', () => {
     expect(result.code).toContain('template')
     expect(result.code).not.toContain('=> <button>')
     expect(result.map?.version).toBe(3)
+    expect(result.hydrationPlan).toMatchObject({
+      version: 1,
+      components: [
+        {
+          nodes: expect.arrayContaining([
+            expect.objectContaining({ kind: 'root', optional: false }),
+            expect.objectContaining({
+              tagName: 'button',
+              kind: 'element',
+              optional: false,
+            }),
+          ]),
+        },
+      ],
+    })
   })
 })

@@ -1,5 +1,6 @@
 mod codegen;
 mod html;
+pub mod hydration;
 
 pub mod diagnostic;
 pub mod ir;
@@ -9,6 +10,7 @@ pub mod span;
 use serde::{Deserialize, Serialize};
 
 use diagnostic::CompilerDiagnostic;
+use hydration::HydrationPlan;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -83,6 +85,7 @@ pub struct TransformModuleResult {
     pub code: String,
     pub map: Option<RawSourceMap>,
     pub diagnostics: Vec<CompilerDiagnostic>,
+    pub hydration_plan: Option<HydrationPlan>,
 }
 
 pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResult {
@@ -92,6 +95,7 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
             code: String::new(),
             map: None,
             diagnostics: lowered.diagnostics,
+            hydration_plan: None,
         };
     }
 
@@ -100,6 +104,7 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
             code: options.source,
             map: None,
             diagnostics: Vec::new(),
+            hydration_plan: None,
         };
     };
 
@@ -112,6 +117,7 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
             code: options.source,
             map: None,
             diagnostics: Vec::new(),
+            hydration_plan: None,
         };
     }
 
@@ -127,31 +133,35 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
                     Some(*span),
                 )
             }).collect(),
+            hydration_plan: None,
         };
     }
 
-    if options.target == TransformTarget::Ssr {
-        return codegen::emit_ssr_module(
+    let hydration_plan = hydration::build_hydration_plan(&ir);
+    let mut result = if options.target == TransformTarget::Ssr {
+        codegen::emit_ssr_module(
             &options.source,
             &options.filename,
             &options.runtime_module,
             options.source_map,
             &ir,
             &lowered.reserved_names,
-        );
-    }
-
-    codegen::emit_module(&codegen::EmitModuleOptions {
-        source: &options.source,
-        filename: &options.filename,
-        runtime_module: &options.runtime_module,
-        enable_delegation: options.delegate_events,
-        source_map: options.source_map,
-        module: &ir,
-        reserved_names: &lowered.reserved_names,
-        enable_hmr: options.hmr,
-        hmr: &lowered.hmr,
-        pure_define_element: options.pure_define_element,
-        pure_define_element_calls: &lowered.pure_define_element_calls,
-    })
+        )
+    } else {
+        codegen::emit_module(&codegen::EmitModuleOptions {
+            source: &options.source,
+            filename: &options.filename,
+            runtime_module: &options.runtime_module,
+            enable_delegation: options.delegate_events,
+            source_map: options.source_map,
+            module: &ir,
+            reserved_names: &lowered.reserved_names,
+            enable_hmr: options.hmr,
+            hmr: &lowered.hmr,
+            pure_define_element: options.pure_define_element,
+            pure_define_element_calls: &lowered.pure_define_element_calls,
+        })
+    };
+    result.hydration_plan = hydration_plan;
+    result
 }

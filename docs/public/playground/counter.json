@@ -3,7 +3,7 @@
   "title": "Counter",
   "source": "import { createSignal } from '@zeus-js/signal'\n\nexport const Counter = () => {\n  const [count, setCount] = createSignal(0)\n\n  return (\n    <button type=\"button\" onClick={() => setCount(count() + 1)}>\n      Count: {count()}\n    </button>\n  )\n}\n",
   "dom": "import { template as $zeusTemplate, mountDynamic as $zeusMountDynamic, bindEvent as $zeusBindEvent, delegateEvents as $zeusDelegateEvents } from \"@zeus-js/runtime-dom\";\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"<button type=\\\"button\\\" data-zeus-node=\\\"2\\\">Count: <!></button>\");\nimport { createSignal } from '@zeus-js/signal'\n\nexport const Counter = () => {\n  const [count, setCount] = createSignal(0)\n\n  return (\n    (() => {\nconst $zeusEl = $zeusTmpl().firstChild;\n$zeusEl.removeAttribute(\"data-zeus-node\");\nconst $zeusWalker = $zeusEl.ownerDocument.createTreeWalker($zeusEl, 128);\nconst $zeusMarker = $zeusWalker.nextNode();\n$zeusBindEvent($zeusEl, \"click\", () => setCount(count() + 1));\n$zeusMountDynamic($zeusMarker.parentNode, $zeusMarker, () => count());\nreturn $zeusEl;\n})()\n  )\n}\n$zeusDelegateEvents([\"click\"]);\n",
-  "ssr": "import { ssrStatic as $zeusSsrStatic, ssrText as $zeusSsrText, ssrElement as $zeusSsrElement, ssrAttr as $zeusSsrAttr, ssrProp as $zeusSsrProp, ssrComponent as $zeusSsrComponent, ssrShow as $zeusSsrShow, ssrFor as $zeusSsrFor, ssrSpread as $zeusSsrSpread, mergeProps as $zeusMergeProps } from \"@zeus-js/runtime-ssr\";\nimport { createSignal } from '@zeus-js/signal'\n\nexport const Counter = () => {\n  const [count, setCount] = createSignal(0)\n\n  return (\n    $zeusSsrElement(\"button\", [$zeusSsrAttr(\"type\", \"button\")], [$zeusSsrStatic(\"Count: \"), count()])\n  )\n}\n",
+  "ssr": "import { ssrStatic as $zeusSsrStatic, ssrText as $zeusSsrText, ssrElement as $zeusSsrElement, ssrAttr as $zeusSsrAttr, ssrProp as $zeusSsrProp, ssrComponent as $zeusSsrComponent, ssrShow as $zeusSsrShow, ssrFor as $zeusSsrFor, ssrSpread as $zeusSsrSpread, mergeProps as $zeusMergeProps, ssrHydrationMarker as $zeusHydrationMarker } from \"@zeus-js/runtime-ssr\";\nimport { createSignal } from '@zeus-js/signal'\n\nexport const Counter = () => {\n  const [count, setCount] = createSignal(0)\n\n  return (\n    [$zeusHydrationMarker(\"c1.root\"), [$zeusHydrationMarker(\"c1.e2\"), $zeusSsrElement(\"button\", [$zeusSsrAttr(\"type\", \"button\")], [$zeusSsrStatic(\"Count: \"), [$zeusHydrationMarker(\"c1.r6\"), count()]])]]\n  )\n}\n",
   "diagnostics": [
     {
       "code": "ZEUS_INVALID_BUILTIN_USAGE",
@@ -110,7 +110,7 @@
   "outputSize": {
     "label": "生成的 JS 模块；不含依赖与应用打包",
     "dom": { "raw": 828, "gzip": 429, "brotli": 349 },
-    "ssr": { "raw": 560, "gzip": 285, "brotli": 243 }
+    "ssr": { "raw": 705, "gzip": 328, "brotli": 295 }
   },
   "bundleSize": {
     "label": "导出的 Counter 及全部传递 runtime 包依赖；生产模式、tree-shaking、压缩后的单个 ESM bundle。不含页面 HTML/CSS、挂载入口或 hydration；Node 内置模块由宿主提供。",
@@ -134,9 +134,9 @@
     },
     "ssr": {
       "platform": "node",
-      "raw": 32571,
-      "gzip": 11983,
-      "brotli": 10978,
+      "raw": 32775,
+      "gzip": 12065,
+      "brotli": 11050,
       "modules": [
         "packages/core/runtime-ssr/dist/runtime-ssr.esm-bundler.js",
         "packages/core/shared/dist/shared.esm-bundler.js",

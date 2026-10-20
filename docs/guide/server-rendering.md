@@ -60,6 +60,19 @@ When using the Rust compiler adapter directly, call `transformModule` with
 `target: 'ssr'` and `runtimeModule: '@zeus-js/runtime-ssr'`. The Vite plugin
 selects these options for SSR module transforms.
 
+## Compiler Hydration Plan
+
+`transformModule()` returns a `hydrationPlan` for JSX modules. DOM and SSR
+targets from the same source produce the same stable IDs, while SSR output adds
+matching HTML comment markers around component roots, elements, dynamic text,
+components, and control-flow regions. Each node lists its binding IDs and the
+binding kind, so an explicit `hydrate(container, setup)` plan can attach text,
+attribute, property, and event bindings to the existing DOM.
+
+The plan is metadata. Zeus does not execute a second component tree or guess
+bindings from arbitrary HTML. Prefixes, keys, DOM identity, focus, and mismatch
+handling remain part of the explicit hydration runtime contract.
+
 ## Serialization
 
 Dynamic text and attribute values are HTML escaped. Nullish and boolean values
@@ -141,7 +154,9 @@ upgrade must load the generated registration entry in a Client Component.
 the disabled-JavaScript HTML plus upgrade, event, state, host identity, and
 absence of hydration errors in Chromium, Firefox, and WebKit.
 
-The initial SSR release does not hydrate the generated HTML. Mounting the same
-application in a browser creates a fresh DOM tree. Streaming, asynchronous SSR,
-and Web Component internal SSR are also outside the current contract; wrapper
-host tag SSR is limited to the contract above.
+The initial SSR release does not automatically hydrate an application. The
+compiler emits stable markers and a binding-reconnection plan, while browser
+code must opt into `hydrate(container, setup)` before existing DOM is reused.
+Without that call, mounting the same application creates a fresh DOM tree.
+Streaming, asynchronous SSR, and Web Component internal SSR are also outside
+the current contract; wrapper host tag SSR is limited to the contract above.

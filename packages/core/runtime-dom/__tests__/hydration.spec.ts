@@ -3,7 +3,7 @@ import { scope } from '@zeus-js/signal/internal'
 import { JSDOM } from 'jsdom'
 import { describe, expect, it, vi } from 'vitest'
 
-import { hydrate } from '../src'
+import { hydrate, hydratePlan } from '../src'
 import { delegateEvents, resetDelegatedEvents } from '../src/events'
 
 describe('hydrate', () => {
@@ -53,6 +53,242 @@ describe('hydrate', () => {
       }),
     ).toThrow('ZEUS_HYDRATION_TAG_MISMATCH: title; expected <input>')
     expect(main.querySelector('div')).not.toBeNull()
+  })
+
+  it('reconnects every binding from a compiler hydration plan', () => {
+    const dom = new JSDOM(
+      '<main><!--zeus:hydrate:c1.root--><!--zeus:hydrate:c1.e1--><button><!--zeus:hydrate:c1.t2-->Server</button></main>',
+    )
+    const main = dom.window.document.querySelector('main')!
+    const button = main.querySelector('button')!
+    const [label, setLabel] = createSignal('Client')
+    const clicks: number[] = []
+    button.focus()
+
+    const dispose = hydratePlan(
+      main,
+      {
+        version: 1,
+        components: [
+          {
+            id: 1,
+            templateId: 'c1.root',
+            nodes: [
+              {
+                id: 'c1.root',
+                nodeId: 1,
+                kind: 'root',
+                optional: false,
+                bindings: [],
+              },
+              {
+                id: 'c1.e1',
+                nodeId: 1,
+                kind: 'element',
+                optional: false,
+                tagName: 'button',
+                bindings: [
+                  {
+                    id: 3,
+                    kind: 'event',
+                    name: 'click',
+                    once: false,
+                  },
+                ],
+              },
+              {
+                id: 'c1.t2',
+                nodeId: 2,
+                kind: 'text',
+                optional: false,
+                bindings: [{ id: 4, kind: 'text', once: false }],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        3(context, binding, node) {
+          expect(binding.kind).toBe('event')
+          expect(node.tagName).toBe('button')
+          context.event(node.id, binding.name!, () => clicks.push(1))
+        },
+        4(context, binding) {
+          expect(binding.kind).toBe('text')
+          context.text('c1.t2', label)
+        },
+      },
+    )
+
+    expect(main.querySelector('button')).toBe(button)
+    expect(dom.window.document.activeElement).toBe(button)
+    expect(button.textContent).toBe('Client')
+    button.click()
+    setLabel('Updated')
+    expect(button.textContent).toBe('Updated')
+    expect(clicks).toEqual([1])
+    dispose()
+    button.click()
+    setLabel('Disposed')
+    expect(clicks).toEqual([1])
+    expect(button.textContent).toBe('Updated')
+  })
+
+  it('rejects a plan with missing binding handlers and disposes partial work', () => {
+    const dom = new JSDOM(
+      '<main><!--zeus:hydrate:c1.root--><!--zeus:hydrate:c1.e1--><button>go</button></main>',
+    )
+    const main = dom.window.document.querySelector('main')!
+    const button = main.querySelector('button')!
+    expect(() =>
+      hydratePlan(
+        main,
+        {
+          version: 1,
+          components: [
+            {
+              id: 1,
+              templateId: 'c1.root',
+              nodes: [
+                {
+                  id: 'c1.e1',
+                  nodeId: 1,
+                  kind: 'element',
+                  optional: false,
+                  tagName: 'button',
+                  bindings: [
+                    {
+                      id: 3,
+                      kind: 'event',
+                      name: 'click',
+                      once: false,
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {},
+      ),
+    ).toThrow('ZEUS_HYDRATION_HANDLER_MISSING: 3')
+    button.click()
+  })
+
+  it('reconnects repeated template markers through hydration occurrences', () => {
+    const dom = new JSDOM(
+      '<main><span><!--zeus:hydrate:c1.t2-->A</span><span><!--zeus:hydrate:c1.t2-->B</span></main>',
+    )
+    const main = dom.window.document.querySelector('main')!
+    const [first, setFirst] = createSignal('First')
+    const [second, setSecond] = createSignal('Second')
+    const dispose = hydratePlan(
+      main,
+      {
+        version: 1,
+        components: [
+          {
+            id: 1,
+            templateId: 'c1.root',
+            nodes: [
+              {
+                id: 'c1.t2',
+                nodeId: 2,
+                kind: 'text',
+                optional: false,
+                bindings: [{ id: 4, kind: 'text', once: false }],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        4(context, _binding, node, occurrence) {
+          context.text(node.id, occurrence === 0 ? first : second, occurrence)
+        },
+      },
+    )
+    const spans = Array.from(main.querySelectorAll('span'))
+    expect(spans.map(span => span.textContent)).toEqual(['First', 'Second'])
+    setFirst('One')
+    setSecond('Two')
+    expect(spans.map(span => span.textContent)).toEqual(['One', 'Two'])
+    dispose()
+  })
+
+  it('skips compiler branch nodes that were not rendered on the server', () => {
+    const dom = new JSDOM(
+      '<main><!--zeus:hydrate:c1.root--><strong>rendered</strong></main>',
+    )
+    const main = dom.window.document.querySelector('main')!
+    let handled = false
+    const dispose = hydratePlan(
+      main,
+      {
+        version: 1,
+        components: [
+          {
+            id: 1,
+            templateId: 'c1.root',
+            nodes: [
+              {
+                id: 'c1.root',
+                nodeId: 1,
+                kind: 'root',
+                optional: false,
+                bindings: [],
+              },
+              {
+                id: 'c1.t2',
+                nodeId: 2,
+                kind: 'text',
+                optional: true,
+                bindings: [{ id: 4, kind: 'text', once: false }],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        4() {
+          handled = true
+        },
+      },
+    )
+
+    expect(handled).toBe(false)
+    expect(main.textContent).toBe('rendered')
+    dispose()
+  })
+
+  it('still rejects a rendered optional marker without a target node', () => {
+    const dom = new JSDOM('<main><!--zeus:hydrate:c1.t2--></main>')
+    const main = dom.window.document.querySelector('main')!
+
+    expect(() =>
+      hydratePlan(
+        main,
+        {
+          version: 1,
+          components: [
+            {
+              id: 1,
+              templateId: 'c1.root',
+              nodes: [
+                {
+                  id: 'c1.t2',
+                  nodeId: 2,
+                  kind: 'text',
+                  optional: true,
+                  bindings: [{ id: 4, kind: 'text', once: false }],
+                },
+              ],
+            },
+          ],
+        },
+        { 4() {} },
+      ),
+    ).toThrow('ZEUS_HYDRATION_TARGET_MISSING: c1.t2')
   })
 
   it('fires once when compiled components have already delegated the event', () => {

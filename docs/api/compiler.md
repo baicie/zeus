@@ -18,9 +18,18 @@ const result = transformModule({
 })
 ```
 
-The result contains generated JavaScript, an optional Source Map v3, and
-structured diagnostics. Diagnostics are returned for compiler errors and are
-not hidden in an exception message.
+The result contains generated JavaScript, an optional Source Map v3, structured
+diagnostics, and a `hydrationPlan`. Diagnostics are returned for compiler
+errors and are not hidden in an exception message.
+
+`hydrationPlan` is shared by DOM and SSR transforms of the same source. It maps
+stable component, node, element, text, and control-flow IDs to binding IDs and
+kinds such as `text`, `attr`, `prop`, `event`, and `spread`. SSR output writes
+the matching `<!--zeus:hydrate:...-->` markers. Nodes owned by conditional,
+list, transition, and dynamic-region branches carry `optional: true`; absence of
+their marker means that branch did not render on the server, while a marker
+whose target node is malformed remains an error. Diagnostics return
+`hydrationPlan: null` because no code is emitted.
 
 ## Options
 
@@ -44,6 +53,11 @@ DOM output creates static templates and direct runtime bindings. SSR output
 serializes the same owned IR and omits event/ref bindings. `Host` and `Slot`
 remain Web Components compiler builtins; unsupported SSR forms return a
 structured diagnostic.
+
+The generated hydration plan is metadata for the explicit
+`hydrate(container, setup)` runtime API. It provides the stable IDs required to
+reuse existing DOM and reconnect fine-grained bindings; it does not execute a
+component tree or infer state from arbitrary HTML.
 
 ## Native packages
 

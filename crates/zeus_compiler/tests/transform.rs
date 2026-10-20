@@ -1438,7 +1438,7 @@ export const App = props => <For each={props.items}>{({ label }, index) => <b>{i
 
 #[test]
 fn emits_ssr_native_component_and_control_flow_calls() {
-    let source = r#"import { Show } from '@zeus-js/runtime-ssr'
+    let source = r#"import { Show } from '@zeus-js/zeus'
 const Child = props => <p>{props.name}</p>
 export const App = props => <><Show when={props.visible} fallback="off"><Child name={props.name} /></Show><div class={props.className}>Hello {props.name}</div></>
 "#;
@@ -1471,6 +1471,79 @@ export const App = props => <><Show when={props.visible} fallback="off"><Child n
         "SSR output must parse: {:?}",
         parsed.diagnostics
     );
+}
+
+#[test]
+fn emits_stable_hydration_plan_and_ssr_markers_for_dom_and_ssr_targets() {
+    let source = r"import { Show } from '@zeus-js/zeus'
+export const App = props => <main title={props.title}>
+  <Show when={props.visible} fallback=<i>off</i>>
+    <button onClick={props.onClick}>{props.label}</button>
+  </Show>
+</main>
+";
+    let dom = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "hydration-plan.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: false,
+        hmr: false,
+        pure_define_element: PureDefineElementMode::Disabled,
+    });
+    let ssr = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "hydration-plan.tsx".into(),
+        target: TransformTarget::Ssr,
+        runtime_module: "@zeus-js/runtime-ssr".into(),
+        delegate_events: false,
+        source_map: false,
+        hmr: false,
+        pure_define_element: PureDefineElementMode::Disabled,
+    });
+
+    assert!(dom.diagnostics.is_empty(), "{:?}", dom.diagnostics);
+    assert!(ssr.diagnostics.is_empty(), "{:?}", ssr.diagnostics);
+    assert_eq!(dom.hydration_plan, ssr.hydration_plan);
+    let plan = dom
+        .hydration_plan
+        .expect("JSX modules require a hydration plan");
+    assert_eq!(plan.version, 1);
+    assert_eq!(plan.components.len(), 1);
+    let component = &plan.components[0];
+    assert!(!component.nodes[0].optional);
+    assert!(
+        std::path::Path::new(&component.template_id)
+            .extension()
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("root"))
+    );
+    assert!(component.nodes.iter().any(|node| {
+        node.kind == "element"
+            && node.tag_name.as_deref() == Some("main")
+            && !node.optional
+            && node.bindings.iter().any(|binding| binding.kind == "attr")
+    }));
+    assert!(component.nodes.iter().any(|node| {
+        node.kind == "text"
+            && node.optional
+            && node.bindings.iter().any(|binding| binding.kind == "text")
+    }));
+    assert!(component.nodes.iter().any(|node| node.kind == "show"));
+    assert!(component.nodes.iter().any(|node| {
+        node.kind == "element"
+            && node.tag_name.as_deref() == Some("button")
+            && node.optional
+            && node.bindings.iter().any(|binding| binding.kind == "event")
+    }));
+    for node in &component.nodes {
+        assert!(
+            ssr.code.contains(&node.id),
+            "SSR output is missing hydration marker {}: {}",
+            node.id,
+            ssr.code
+        );
+    }
 }
 
 #[test]

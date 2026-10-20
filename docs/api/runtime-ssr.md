@@ -88,10 +88,35 @@ and listeners attached during that setup. The returned disposer removes bindings
 while leaving the DOM in place. Equal input values do not reset selection; seed
 client state from `input.value` when edits made before hydration should be kept.
 
+The compiler returns the matching `hydrationPlan` from `transformModule()`.
+`hydratePlan(container, plan, handlers)` consumes that structure and requires a
+handler for every planned binding:
+
+```ts
+import { hydratePlan } from '@zeus-js/zeus'
+
+const dispose = hydratePlan(main, hydrationPlan, {
+  [propBindingId](context, binding, node) {
+    context.prop(node.id, binding.name!, name)
+  },
+})
+```
+
+The plan marks `text`, `attr`, `prop`, `event` and `spread` bindings with stable
+IDs shared by DOM and SSR compilation. A missing handler fails with
+`ZEUS_HYDRATION_HANDLER_MISSING` and disposes work already attached during that
+setup. Branch-owned nodes are marked optional so a server response that renders
+only one conditional or list branch does not require markers from the inactive
+branch. Repeated templates such as `For` rows reuse one template id;
+`hydratePlan()` invokes their handlers once per occurrence and supplies the
+occurrence index for selecting the matching server node.
+
 An open declarative shadow root is hydrated separately with
 `hydrate(host.shadowRoot, setup)`. The browser owns native slot projection.
-Closed roots cannot be discovered this way. Automatic compiler-generated plans,
-`defineElement` hydration, streaming and async SSR are still unimplemented.
+Closed roots cannot be discovered this way. Compiler marker and binding plans
+are available for DOM trees, while automatic component execution,
+`defineElement` internal hydration, streaming and async SSR remain outside this
+contract.
 `pnpm check:hydration` verifies these explicit APIs against built artifacts in
 Chromium, Firefox and WebKit, including JavaScript-disabled first paint, focus,
 selection, DOM identity, mismatches, updates and disposal.

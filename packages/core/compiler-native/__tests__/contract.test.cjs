@@ -32,6 +32,16 @@ test('transformModule returns code, source map, and diagnostics', () => {
   assert.equal(result.map.version, 3)
   assert.deepEqual(result.map.sources, ['App.tsx'])
   assert.deepEqual(result.map.sourcesContent, [fixture])
+  assert.equal(result.hydrationPlan.version, 1)
+  assert.equal(result.hydrationPlan.components.length, 1)
+  assert.ok(
+    result.hydrationPlan.components[0].nodes.some(
+      node => node.kind === 'text' && node.bindings[0].kind === 'text',
+    ),
+  )
+  assert.ok(
+    result.hydrationPlan.components[0].nodes.every(node => !node.optional),
+  )
 })
 
 test('compiler diagnostics remain structured data', () => {
@@ -41,6 +51,7 @@ test('compiler diagnostics remain structured data', () => {
 
   assert.equal(result.code, '')
   assert.equal(result.map, null)
+  assert.equal(result.hydrationPlan, null)
   assert.equal(result.diagnostics.length, 1)
   assert.equal(result.diagnostics[0].code, 'ZEUS_FUNCTION_CHILD')
   assert.equal(result.diagnostics[0].filename, 'App.tsx')
@@ -120,4 +131,5 @@ test('generated declarations preserve the transform contract', () => {
   assert.match(declarations, /severity: 'error' \| 'warning'/)
   assert.match(declarations, /sourcesContent: Array<string \| null>/)
   assert.match(declarations, /map: RawSourceMap \| null/)
+  assert.match(declarations, /hydrationPlan: HydrationPlan \| null/)
 })
