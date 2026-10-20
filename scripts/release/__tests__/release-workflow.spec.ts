@@ -18,7 +18,7 @@ describe('release workflows', () => {
     expect(workflow).toContain('cancel-in-progress: false')
     expect(workflow).toContain("github.ref == 'refs/heads/main'")
     expect(workflow).toContain('release-preflight:')
-    expect(workflow).toContain('pnpm release:verify:native-latest')
+    expect(workflow).not.toContain('pnpm release:verify:native-latest')
     expect(workflow).toContain('needs: release-preflight')
   })
 
@@ -287,9 +287,7 @@ describe('release workflows', () => {
       ciGate.indexOf('pnpm audit:prod'),
     )
     expect(canaryGate).toContain('pnpm audit:prod')
-    expect(canaryGate.indexOf('pnpm audit:prod')).toBeLessThan(
-      canaryGate.indexOf('pnpm release:verify:native-latest'),
-    )
+    expect(canaryGate).not.toContain('pnpm release:verify:native-latest')
     expect(releaseConfig).toContain("['pnpm', 'audit:prod']")
     expect(taggedReleaseGate).toContain('pnpm release:precheck')
     expect(taggedReleaseGate).toContain('pnpm release --publishOnly')
