@@ -1,12 +1,12 @@
 {
   "name": "@zeus-js/testing",
   "type": "module",
-  "version": "0.1.1-beta.14",
+  "version": "0.1.1-beta.15",
   "description": "Official testing utilities for Zeus applications and components",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/baicie/zeus",
+    "url": "https://github.com/baicie/zeus.git",
     "directory": "packages/core/testing"
   },
   "publishConfig": {

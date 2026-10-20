@@ -15,7 +15,13 @@ export type Component<
   P extends Record<string, unknown> = Record<string, unknown>,
 > = (props: P) => JSXValue
 export type TemplateFactory<T extends Node = Node> = () => T
-export type AttrValue = string | number | boolean | null | undefined
+export type AttrValue =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | (() => string | number | boolean | null | undefined)
 export type ClassValue =
   | string
   | null
@@ -23,12 +29,19 @@ export type ClassValue =
   | false
   | Record<string, boolean | null | undefined>
   | Array<ClassValue>
+  | (() => ClassValue)
 export type StyleValue =
   | string
   | null
   | undefined
   | Partial<CSSStyleDeclaration>
   | Record<string, string | number | null | undefined>
+  | (() =>
+      | string
+      | null
+      | undefined
+      | Partial<CSSStyleDeclaration>
+      | Record<string, string | number | null | undefined>)
 export type RefTarget<T> =
   | ((value: T | null) => void)
   | {
