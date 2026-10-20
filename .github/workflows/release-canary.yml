@@ -49,6 +49,8 @@ jobs:
       - name: Production dependency audit
         run: pnpm audit:prod
 
+      # Canary writes only staging/canary tags. Historical native latest
+      # pollution is checked independently and must not block this channel.
   native-prebuild:
     if: github.repository == 'baicie/zeus' && github.ref == 'refs/heads/main'
     needs: release-preflight
