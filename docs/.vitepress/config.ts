@@ -25,6 +25,7 @@ export default defineConfig({
           text: 'Guide',
           items: [
             { text: 'Choose Zeus', link: '/guide/choosing-zeus' },
+            { text: 'First 15 Minutes', link: '/guide/first-15-minutes' },
             { text: 'Getting Started', link: '/guide/getting-started' },
             { text: 'Quick Start', link: '/guide/quick-start' },
             { text: 'Web Components', link: '/guide/web-components' },
