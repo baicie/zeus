@@ -2,7 +2,7 @@ import { createSignal } from '@zeus-js/signal'
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { bindAttr, bindText, render } from '../src'
+import { bindAttr, bindText, mountDynamic, render } from '../src'
 
 describe('runtime DevTools event bridge', () => {
   let dom: JSDOM
@@ -101,6 +101,43 @@ describe('runtime DevTools event bridge', () => {
         .filter(event => event.type === 'effect:run')
         .every(event => event.effectId === textCommit?.effectId),
     ).toBe(true)
+  })
+
+  it('traces compiled dynamic regions to their signal dependency', () => {
+    const [value, setValue] = createSignal(0)
+    const container = document.createElement('div')
+    let button!: HTMLButtonElement
+    const dispose = render(() => {
+      button = document.createElement('button')
+      const marker = document.createComment('dynamic')
+      button.append(marker)
+      container.append(button)
+      mountDynamic(button, marker, value)
+      return null
+    }, container)
+
+    setValue(1)
+    dispose()
+
+    const commit = events.find(
+      event =>
+        event.type === 'binding:commit' &&
+        event.payload?.kind === 'dynamic-region',
+    )
+    const eventsForBinding = events.filter(
+      event => event.bindingId === commit?.bindingId,
+    )
+    expect(commit?.target).toBe(button)
+    expect(eventsForBinding).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'dependency:track' }),
+        expect.objectContaining({ type: 'dependency:trigger' }),
+        expect.objectContaining({ type: 'binding:cleanup' }),
+      ]),
+    )
+    expect(
+      eventsForBinding.filter(event => event.type === 'effect:run'),
+    ).toHaveLength(2)
   })
 
   it('removes stale branch dependencies and stops observing after disposal', () => {

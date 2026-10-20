@@ -1,0 +1,78 @@
+:root {
+  color: #203035;
+  background: #eef3f3;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) 390px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+#app {
+  display: grid;
+  place-items: center;
+  padding: 32px;
+}
+
+#devtools {
+  min-height: 100vh;
+  border-left: 1px solid #cad5d7;
+}
+
+.app-card {
+  max-width: 520px;
+  padding: 28px;
+  border: 1px solid #cad5d7;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 16px 40px rgb(35 65 70 / 9%);
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #3c7868;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0;
+}
+
+p {
+  line-height: 1.6;
+}
+
+button {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 6px;
+  color: #fff;
+  background: #176f5b;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+button:focus-visible {
+  outline: 3px solid #89c9b9;
+  outline-offset: 2px;
+}
+
+@media (max-width: 760px) {
+  body {
+    grid-template-columns: 1fr;
+  }
+
+  #devtools {
+    min-height: 480px;
+    border-top: 1px solid #cad5d7;
+    border-left: 0;
+  }
+}

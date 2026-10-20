@@ -19,7 +19,7 @@ export function bindText(
   value: () => JSXValue,
   once = false,
 ): void {
-  applyBinding(
+  bindEffect(
     value,
     once,
     next => {
@@ -34,7 +34,7 @@ export function bindTextContent(
   value: () => JSXValue,
   once = false,
 ): void {
-  applyBinding(
+  bindEffect(
     value,
     once,
     next => {
@@ -59,7 +59,8 @@ function setTextContent(el: Node, serialized: string): void {
   if (el.textContent !== serialized) el.textContent = serialized
 }
 
-function applyBinding<T>(
+/** @internal Shared by compiled direct bindings and dynamic DOM regions. */
+export function bindEffect<T>(
   value: () => T,
   once: boolean,
   apply: (next: T) => void,
@@ -286,7 +287,7 @@ function emitDependencyEvent(
   )
 }
 
-interface BindingMetadata {
+export interface BindingMetadata {
   kind: string
   target: Node
 }
@@ -399,7 +400,7 @@ export function bindAttr(
   let previous: string | null | undefined
   let hasPrevious = false
 
-  applyBinding(
+  bindEffect(
     value,
     once,
     next => {
@@ -427,7 +428,7 @@ export function bindProp<T extends Element, K extends keyof T>(
   value: () => T[K],
   once = false,
 ): void {
-  applyBinding(
+  bindEffect(
     value,
     once,
     next => {
@@ -443,7 +444,7 @@ export function bindClass(
   value: () => ClassValue,
   once = false,
 ): void {
-  applyBinding(
+  bindEffect(
     value,
     once,
     value => {
@@ -484,7 +485,7 @@ export function bindStyle(
 ): void {
   let prev: StyleSnapshot | undefined
 
-  applyBinding(
+  bindEffect(
     value,
     once,
     next => {

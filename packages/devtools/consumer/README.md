@@ -29,6 +29,10 @@ const panel = createDevtoolsPanel(
 面板渲染组件树、Owner 树、Binding/Cleanup、Effect 耗时和 Signal 依赖。点击应用
 DOM 后，Selected DOM 区域会显示命中的 Binding、Effect 与 Signal ID。
 
+`examples/devtools-panel` 使用同一份编译器输出创建真实 DOM binding。开发服务器中
+`pnpm check:devtools-panel` 会在 Chromium、Firefox、WebKit 点击 DOM，验证
+`dynamic-region → Effect → Signal` 链路；生产构建也在同一门禁中执行。
+
 调用 `disconnect()` 会移除 click listener，并恢复安装 consumer 之前的 runtime hook。
 `getSnapshot()` 同步读取当前状态；`subscribe()` 首次同步交付，后续事件按 microtask 合并。
 每类非活动诊断历史默认保留 500 条，可用 `historyLimit` 调整；活动条目不会被裁剪。

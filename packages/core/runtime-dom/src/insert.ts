@@ -1,7 +1,8 @@
 // packages/runtime-dom/src/insert.ts
 
-import { effect, onScopeDispose, stop } from '@zeus-js/signal/internal'
+import { onScopeDispose } from '@zeus-js/signal/internal'
 
+import { bindEffect } from './bindings'
 import { insertTracked } from './range'
 import { captureScopedSubtreeContext, ScopedSubtree } from './scopedSubtree'
 
@@ -39,12 +40,29 @@ export function mountDynamic(
     captureScopedSubtreeContext(),
   )
 
-  const runner = effect(() => {
-    subtree.replace(value)
-  })
+  const metadata = {
+    kind: 'dynamic-region',
+    target: parent,
+  }
+
+  bindEffect(
+    () => {
+      subtree.replace(value)
+      metadata.target = dynamicBindingTarget(subtree.current(), parent)
+    },
+    false,
+    () => {},
+    metadata,
+  )
 
   onScopeDispose(() => {
-    stop(runner)
     subtree.dispose()
   }, true)
+}
+
+function dynamicBindingTarget(nodes: readonly Node[], fallback: Node): Node {
+  const first = nodes[0]
+  if (!first) return fallback
+  if (first.nodeType === 3 && first.parentNode) return first.parentNode
+  return first
 }
