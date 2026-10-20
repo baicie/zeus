@@ -7,37 +7,45 @@ import { findWorkspacePackages } from '../shared/utils'
 type SizeTarget = {
   name: string
   file: string
-  limit?: number
+  rawLimit?: number
+  gzipLimit?: number
 }
 
 const targets: SizeTarget[] = [
   {
     name: '@zeus-js/signal',
     file: 'dist/signal.esm-browser.prod.js',
-    limit: 22,
+    rawLimit: 22,
+    gzipLimit: 8,
   },
   {
     name: '@zeus-js/runtime-dom',
     file: 'dist/runtime-dom.esm-browser.prod.js',
-    // Current main includes spread bindings, JSX value validation, and the
-    // updated slot/runtime contracts (48.09 KB as of 2026-10-17).
-    limit: 50,
+    // Includes the complete exported runtime: direct bindings, control flow,
+    // Web Component host support, DevTools observation and explicit hydration.
+    // Baseline on 2026-10-20: 56.69 KB raw / 18.70 KB gzip.
+    rawLimit: 60,
+    gzipLimit: 20,
   },
   {
     name: '@zeus-js/zeus',
     file: 'dist/zeus.esm-browser.prod.js',
-    // This browser entry embeds runtime-dom (37.56 KB as of 2026-10-17).
-    limit: 39,
+    // This browser entry embeds the runtime above.
+    // Baseline on 2026-10-20: 47.38 KB raw / 15.77 KB gzip.
+    rawLimit: 50,
+    gzipLimit: 17,
   },
   {
     name: '@zeus-js/compiler',
     file: 'dist/compiler.esm-bundler.js',
-    limit: 400,
+    rawLimit: 400,
+    gzipLimit: 100,
   },
   {
     name: '@zeus-js/vite-plugin',
     file: 'dist/vite-plugin.esm-bundler.js',
-    limit: 10,
+    rawLimit: 10,
+    gzipLimit: 4,
   },
 ]
 
@@ -77,9 +85,11 @@ for (const target of targets) {
   const rawKb = statSync(resolvedPath).size / 1024
   const gzipKb = gzip.length / 1024
 
+  const exceedsRaw = Boolean(target.rawLimit && rawKb > target.rawLimit)
+  const exceedsGzip = Boolean(target.gzipLimit && gzipKb > target.gzipLimit)
   const marker =
-    ci && target.limit
-      ? rawKb > target.limit
+    ci && (target.rawLimit || target.gzipLimit)
+      ? exceedsRaw || exceedsGzip
         ? ' \x1b[31m[REGRESSION]\x1b[0m'
         : ' \x1b[32m[OK]\x1b[0m'
       : ''
@@ -88,15 +98,24 @@ for (const target of targets) {
   console.log(`  file: ${target.file}`)
   console.log(`  raw:  ${rawKb.toFixed(2)} KB`)
   console.log(`  gzip: ${gzipKb.toFixed(2)} KB`)
-  if (target.limit) {
-    console.log(`  limit: ${target.limit} KB`)
+  if (target.rawLimit) {
+    console.log(`  raw limit:  ${target.rawLimit} KB`)
+  }
+  if (target.gzipLimit) {
+    console.log(`  gzip limit: ${target.gzipLimit} KB`)
   }
   console.log('')
 
-  if (ci && target.limit && rawKb > target.limit) {
+  if (ci && exceedsRaw) {
     hasRegression = true
     console.error(
-      `  \x1b[31mFAIL\x1b[0m: ${target.name} exceeds limit (${rawKb.toFixed(2)} KB > ${target.limit} KB)`,
+      `  \x1b[31mFAIL\x1b[0m: ${target.name} raw exceeds limit (${rawKb.toFixed(2)} KB > ${target.rawLimit} KB)`,
+    )
+  }
+  if (ci && exceedsGzip) {
+    hasRegression = true
+    console.error(
+      `  \x1b[31mFAIL\x1b[0m: ${target.name} gzip exceeds limit (${gzipKb.toFixed(2)} KB > ${target.gzipLimit} KB)`,
     )
   }
 }
