@@ -2,12 +2,12 @@ import { onScopeDispose, scope } from '@zeus-js/signal/internal'
 
 import { bindAttr, bindProp, bindText } from './bindings'
 import { createOwner, runWithOwner } from './context'
-import { bindEvent } from './events'
+import { emitDevtoolsEvent, getDevtoolsObjectId } from './devtools'
 
 const MARKER_PREFIX = 'zeus:hydrate:'
 
 export interface HydrationContext {
-  node(id: string): Node
+  node(id: string, expectedTag?: string): Node
   text(id: string, value: () => unknown): void
   attr(id: string, name: string, value: () => unknown): void
   prop(id: string, name: string, value: () => unknown): void
@@ -23,16 +23,32 @@ export function hydrate(
   container: Element | DocumentFragment,
   setup: (context: HydrationContext) => void,
 ): () => void {
-  const hydrationScope = scope()
-  const owner = createOwner()
   const context = createHydrationContext(container)
+  const hydrationScope = scope()
 
   try {
     hydrationScope.run(() => {
+      const owner = createOwner()
+      onScopeDispose(() => {
+        if (typeof window !== 'undefined' && window.__ZEUS_DEVTOOLS_HOOK__) {
+          emitDevtoolsEvent(
+            {
+              type: 'owner:dispose',
+              ownerId: getDevtoolsObjectId(owner),
+              target: container,
+            },
+            { swallowErrors: true },
+          )
+        }
+      }, true)
       runWithOwner(owner, () => setup(context))
     })
   } catch (error) {
-    hydrationScope.stop()
+    try {
+      hydrationScope.stop()
+    } catch {
+      /* Preserve the initial hydration setup failure. */
+    }
     throw error
   }
 
@@ -47,17 +63,22 @@ export function hydrate(
 function createHydrationContext(
   container: Element | DocumentFragment,
 ): HydrationContext {
-  const cache = new Map<string, Node>()
-  const node = (id: string): Node => {
-    const cached = cache.get(id)
-    if (cached) return cached
-
-    const marker = findMarker(container, id)
+  const markers = indexMarkers(container)
+  const node = (id: string, expectedTag?: string): Node => {
+    const marker = markers.get(id)
+    if (!marker) throw new Error(`ZEUS_HYDRATION_MARKER_MISSING: ${id}`)
     const target = nextHydratableNode(marker)
     if (!target) {
       throw new Error(`ZEUS_HYDRATION_TARGET_MISSING: ${id}`)
     }
-    cache.set(id, target)
+    if (
+      expectedTag !== undefined &&
+      (target.nodeType !== 1 || (target as Element).localName !== expectedTag)
+    ) {
+      throw new Error(
+        `ZEUS_HYDRATION_TAG_MISMATCH: ${id}; expected <${expectedTag}>`,
+      )
+    }
     return target
   }
 
@@ -95,25 +116,30 @@ function createHydrationContext(
         throw new TypeError(`ZEUS_HYDRATION_ELEMENT_TARGET: ${id}`)
       }
       const element = target as Element
-      bindEvent(element, name, handler)
       element.addEventListener(name, handler)
       onScopeDispose(() => element.removeEventListener(name, handler), true)
     },
   }
 }
 
-function findMarker(
+function indexMarkers(
   container: Element | DocumentFragment,
-  id: string,
-): Comment {
-  const expected = `${MARKER_PREFIX}${id}`
+): Map<string, Comment> {
+  const markers = new Map<string, Comment>()
   const walker = container.ownerDocument!.createTreeWalker(container, 0x80)
   let current = walker.nextNode()
   while (current) {
-    if ((current as Comment).data === expected) return current as Comment
+    const data = (current as Comment).data
+    if (data.startsWith(MARKER_PREFIX)) {
+      const id = data.slice(MARKER_PREFIX.length)
+      if (markers.has(id)) {
+        throw new Error(`ZEUS_HYDRATION_DUPLICATE_MARKER: ${id}`)
+      }
+      markers.set(id, current as Comment)
+    }
     current = walker.nextNode()
   }
-  throw new Error(`ZEUS_HYDRATION_MARKER_MISSING: ${id}`)
+  return markers
 }
 
 function nextHydratableNode(marker: Comment): Node | null {

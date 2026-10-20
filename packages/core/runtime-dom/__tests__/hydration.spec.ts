@@ -1,8 +1,10 @@
-import { createSignal } from '@zeus-js/signal'
+import { createSignal, onCleanup } from '@zeus-js/signal'
+import { scope } from '@zeus-js/signal/internal'
 import { JSDOM } from 'jsdom'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { hydrate } from '../src'
+import { delegateEvents, resetDelegatedEvents } from '../src/events'
 
 describe('hydrate', () => {
   it('reuses marked DOM nodes for text, props, attrs and events', () => {
@@ -45,5 +47,214 @@ describe('hydrate', () => {
     expect(() =>
       hydrate(main, context => context.text('title', () => 'x')),
     ).toThrow('ZEUS_HYDRATION_TEXT_TARGET: title')
+    expect(() =>
+      hydrate(main, context => {
+        context.node('title', 'input')
+      }),
+    ).toThrow('ZEUS_HYDRATION_TAG_MISMATCH: title; expected <input>')
+    expect(main.querySelector('div')).not.toBeNull()
   })
+
+  it('fires once when compiled components have already delegated the event', () => {
+    const dom = new JSDOM(
+      '<main><!--zeus:hydrate:button--><button>go</button></main>',
+    )
+    vi.stubGlobal('document', dom.window.document)
+    vi.stubGlobal('Node', dom.window.Node)
+    const main = document.querySelector('main')!
+    const button = main.querySelector('button')!
+    const clicks: EventTarget[] = []
+    delegateEvents(['click'])
+    const dispose = hydrate(main, context => {
+      context.event('button', 'click', event =>
+        clicks.push(event.currentTarget!),
+      )
+    })
+    try {
+      button.click()
+      expect(clicks).toEqual([button])
+      dispose()
+      button.click()
+      expect(clicks).toEqual([button])
+    } finally {
+      dispose()
+      resetDelegatedEvents()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('rejects duplicate marker ids before setup mutates the existing tree', () => {
+    const dom = new JSDOM(
+      '<main><!--zeus:hydrate:input--><input><!--zeus:hydrate:input--><button>go</button></main>',
+    )
+    const main = dom.window.document.querySelector('main')!
+    let setupRan = false
+    expect(() =>
+      hydrate(main, () => {
+        setupRan = true
+      }),
+    ).toThrow('ZEUS_HYDRATION_DUPLICATE_MARKER: input')
+    expect(setupRan).toBe(false)
+    expect(main.querySelectorAll('input,button')).toHaveLength(2)
+  })
+
+  it('preserves the focused input and selection when reconciling equal values', () => {
+    const dom = new JSDOM(
+      '<main><!--zeus:hydrate:input--><input value="server"></main>',
+    )
+    const main = dom.window.document.querySelector('main')!
+    const input = main.querySelector('input')!
+    input.focus()
+    input.setSelectionRange(1, 4)
+    const [value, setValue] = createSignal(input.value)
+    const dispose = hydrate(main, context => {
+      context.node('input', 'input')
+      context.prop('input', 'value', value)
+    })
+    expect(dom.window.document.activeElement).toBe(input)
+    expect([input.selectionStart, input.selectionEnd]).toEqual([1, 4])
+    setValue('updated')
+    expect(input.value).toBe('updated')
+    dispose()
+    setValue('disposed')
+    expect(input.value).toBe('updated')
+  })
+
+  it('releases attached events and reactive bindings when setup fails', () => {
+    const dom = new JSDOM(
+      '<main><!--zeus:hydrate:button--><button><!--zeus:hydrate:text-->server</button></main>',
+    )
+    const main = dom.window.document.querySelector('main')!
+    const button = main.querySelector('button')!
+    const [value, setValue] = createSignal('initial')
+    let clicks = 0
+    expect(() =>
+      hydrate(main, context => {
+        context.text('text', value)
+        context.event('button', 'click', () => {
+          clicks++
+        })
+        context.node('missing')
+      }),
+    ).toThrow('ZEUS_HYDRATION_MARKER_MISSING: missing')
+    setValue('leaked')
+    button.click()
+    expect(button.textContent).toBe('initial')
+    expect(clicks).toBe(0)
+  })
+
+  it('preserves the hydration mismatch while attempting all failing setup cleanup', () => {
+    const dom = new JSDOM(
+      '<main><!--zeus:hydrate:button--><button>go</button></main>',
+    )
+    const main = dom.window.document.querySelector('main')!
+    const button = main.querySelector('button')!
+    let clicks = 0
+    const cleanup = vi.fn()
+    try {
+      expect(() =>
+        hydrate(main, context => {
+          context.event('button', 'click', () => clicks++)
+          onCleanup(() => {
+            throw new Error('cleanup failed')
+          })
+          onCleanup(cleanup)
+          context.node('missing')
+        }),
+      ).toThrow('ZEUS_HYDRATION_MARKER_MISSING: missing')
+      expect(cleanup).toHaveBeenCalledOnce()
+      button.click()
+      expect(clicks).toBe(0)
+    } finally {
+      dom.window.close()
+    }
+  })
+
+  it('hydrates a ShadowRoot from its own DOM realm and releases direct events', () => {
+    const dom = new JSDOM('<main></main>')
+    const shadow = dom.window.document.querySelector('main')!.attachShadow({
+      mode: 'open',
+    })
+    shadow.innerHTML =
+      '<!--zeus:hydrate:input--><input><!--zeus:hydrate:text-->server'
+    const input = shadow.querySelector('input')!
+    const [value, setValue] = createSignal('client')
+    let focuses = 0
+    const dispose = hydrate(shadow, context => {
+      expect(context.node('input', 'input')).toBe(input)
+      context.text('text', value)
+      context.event('input', 'focus', () => focuses++)
+    })
+    try {
+      input.dispatchEvent(new dom.window.Event('focus'))
+      setValue('updated')
+      expect(focuses).toBe(1)
+      expect(shadow.textContent).toBe('updated')
+      dispose()
+      input.dispatchEvent(new dom.window.Event('focus'))
+      setValue('disposed')
+      expect(focuses).toBe(1)
+      expect(shadow.textContent).toBe('updated')
+      expect(shadow.querySelector('input')).toBe(input)
+    } finally {
+      dispose()
+      dom.window.close()
+    }
+  })
+
+  it.each([
+    'dispose',
+    'setup failure',
+    'parent scope stop',
+    'created during parent disposal',
+  ] as const)(
+    'reports the hydration owner disposal to DevTools on %s',
+    mode => {
+      const dom = new JSDOM('<main></main>')
+      const events: { type: string; ownerId?: number }[] = []
+      Object.defineProperty(dom.window, '__ZEUS_DEVTOOLS_HOOK__', {
+        value: {
+          emit: (event: { type: string; ownerId?: number }) =>
+            events.push(event),
+        },
+      })
+      vi.stubGlobal('window', dom.window)
+      try {
+        const main = dom.window.document.querySelector('main')!
+        if (mode === 'setup failure') {
+          expect(() =>
+            hydrate(main, () => {
+              throw new Error('setup failed')
+            }),
+          ).toThrow('setup failed')
+        } else if (mode === 'created during parent disposal') {
+          const parentScope = scope()
+          const setup = vi.fn()
+          parentScope.run(() => onCleanup(() => hydrate(main, setup)))
+          parentScope.stop()
+          expect(setup).not.toHaveBeenCalled()
+        } else if (mode === 'parent scope stop') {
+          const parentScope = scope()
+          const dispose = parentScope.run(() => hydrate(main, () => {}))!
+          parentScope.stop()
+          dispose()
+        } else {
+          const dispose = hydrate(main, () => {})
+          dispose()
+          dispose()
+        }
+        const created = events.filter(event => event.type === 'owner:create')
+        const disposed = events.filter(event => event.type === 'owner:dispose')
+        expect(created).toHaveLength(
+          mode === 'created during parent disposal' ? 0 : 1,
+        )
+        expect(disposed.map(event => event.ownerId)).toEqual(
+          created.map(event => event.ownerId),
+        )
+      } finally {
+        vi.unstubAllGlobals()
+        dom.window.close()
+      }
+    },
+  )
 })

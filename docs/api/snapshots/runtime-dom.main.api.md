@@ -147,7 +147,7 @@ export declare function render(
 ): () => void
 
 export interface HydrationContext {
-  node(id: string): Node
+  node(id: string, expectedTag?: string): Node
   text(id: string, value: () => unknown): void
   attr(id: string, name: string, value: () => unknown): void
   prop(id: string, name: string, value: () => unknown): void

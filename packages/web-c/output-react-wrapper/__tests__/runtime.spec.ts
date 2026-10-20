@@ -35,5 +35,7 @@ describe('React runtime consumer', () => {
       expect(result.status, result.stdout).toBe(0)
       expect(result.stdout).toContain(`${mode}: ok`)
     },
+    // The subprocess has a 15s budget; Vitest must allow it to finish first.
+    20000,
   )
 })

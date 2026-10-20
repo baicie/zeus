@@ -50,6 +50,7 @@
     "check:create-zeus": "tsx scripts/check/check-create-zeus.ts",
     "check:quick-start": "tsx scripts/check/check-quick-start.ts",
     "check:admin": "tsx scripts/check/check-admin.ts",
+    "check:hydration": "tsx scripts/check/check-hydration.ts",
     "check:docs": "tsx scripts/check/check-docs.ts",
     "playground:check": "tsx scripts/playground/check-playground.ts",
     "playground:update": "tsx scripts/playground/check-playground.ts --update",
