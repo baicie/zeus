@@ -383,7 +383,7 @@ pnpm release:verify:npm-auth
 
 GitHub Actions 运行时会识别 `GITHUB_ACTIONS=true` 或 `CI=true`，并强制要求受保护的
 `NODE_AUTH_TOKEN` 或 `NPM_TOKEN`。仓库的 Release environment 通过
-`${{ secrets.NPM_TOKEN }}` 注入该变量，并显式声明该 token 已配置 bypass 2FA；未声明 bypass
+`$&#123;&#123; secrets.NPM_TOKEN &#125;&#125;` 注入该变量，并显式声明该 token 已配置 bypass 2FA；未声明 bypass
 时仍要求账户策略为 `auth-and-writes`。本机 npm 登录态不会被带入 CI，也不能替代 CI secret。
 
 认证预检允许本机复用 npm 登录态，但实际发布、Canary promote、dist-tag 清理和 repair
