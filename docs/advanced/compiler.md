@@ -56,7 +56,10 @@ an HMR boundary. Before Vite replaces the module, Zeus disposes the old render
 root and all owned effects, listeners, refs, and cleanup callbacks. The updated
 module then mounts a fresh root.
 
-This initial HMR contract prioritizes lifecycle correctness over state
-preservation: local signals reset and old DOM nodes are not reused. Component
-modules without a render root continue to propagate updates to their nearest
-accepted root boundary.
+Executable updates reset local signals and create new DOM nodes. Ordinary
+comment edits skip invalidation only when all other source bytes, comment line
+terminators and compiler directives remain unchanged; existing roots and DOM
+then retain their identity. Compiler directive edits such as `@once` recompile
+and report new diagnostics. The HMR classifier uses TS/JSX parser comment ranges,
+preserves template and JSX text, and recompiles on parse failure. Component modules without a render root continue
+to propagate executable updates to their nearest accepted root boundary.
