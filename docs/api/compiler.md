@@ -25,7 +25,10 @@ errors and are not hidden in an exception message.
 `hydrationPlan` is shared by DOM and SSR transforms of the same source. It maps
 stable component, node, element, text, and control-flow IDs to binding IDs and
 kinds such as `text`, `attr`, `prop`, `event`, and `spread`. SSR output writes
-the matching `<!--zeus:hydrate:...-->` markers. Diagnostics return
+the matching `<!--zeus:hydrate:...-->` markers. Nodes owned by conditional,
+list, transition, and dynamic-region branches carry `optional: true`; absence of
+their marker means that branch did not render on the server, while a marker
+whose target node is malformed remains an error. Diagnostics return
 `hydrationPlan: null` because no code is emitted.
 
 ## Options

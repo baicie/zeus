@@ -187,6 +187,7 @@ export interface HydrationPlanNode {
     | 'for'
     | 'transition'
     | 'region'
+  readonly optional: boolean
   readonly tagName?: string
   readonly bindings: readonly HydrationPlanBinding[]
 }

@@ -105,7 +105,9 @@ const dispose = hydratePlan(main, hydrationPlan, {
 The plan marks `text`, `attr`, `prop`, `event` and `spread` bindings with stable
 IDs shared by DOM and SSR compilation. A missing handler fails with
 `ZEUS_HYDRATION_HANDLER_MISSING` and disposes work already attached during that
-setup. Repeated templates such as `For` rows reuse one template id;
+setup. Branch-owned nodes are marked optional so a server response that renders
+only one conditional or list branch does not require markers from the inactive
+branch. Repeated templates such as `For` rows reuse one template id;
 `hydratePlan()` invokes their handlers once per occurrence and supplies the
 occurrence index for selecting the matching server node.
 

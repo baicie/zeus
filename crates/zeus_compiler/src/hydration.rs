@@ -28,6 +28,7 @@ pub struct HydrationNodePlan {
     pub id: String,
     pub node_id: u32,
     pub kind: String,
+    pub optional: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tag_name: Option<String>,
     pub bindings: Vec<HydrationBindingPlan>,
@@ -91,27 +92,35 @@ fn collect_component_nodes(component_id: u32, root: &RootIr) -> Vec<HydrationNod
         id: component_root_marker_id(component_id),
         node_id: component_id,
         kind: "root".into(),
+        optional: false,
         tag_name: None,
         bindings: Vec::new(),
     }];
     match root {
-        RootIr::Element(element) => collect_element(component_id, element, &mut nodes),
+        RootIr::Element(element) => collect_element(component_id, element, &mut nodes, false),
         RootIr::Fragment(fragment) => {
-            collect_children(component_id, &fragment.children, &mut nodes);
+            collect_children(component_id, &fragment.children, &mut nodes, false);
         }
-        RootIr::Component(component) => collect_component(component_id, component, &mut nodes),
-        RootIr::Show(show) => collect_show(component_id, show, &mut nodes),
-        RootIr::For(for_binding) => collect_for(component_id, for_binding, &mut nodes),
+        RootIr::Component(component) => {
+            collect_component(component_id, component, &mut nodes, false);
+        }
+        RootIr::Show(show) => collect_show(component_id, show, &mut nodes, false),
+        RootIr::For(for_binding) => collect_for(component_id, for_binding, &mut nodes, false),
         RootIr::Transition(transition) => {
-            collect_transition(component_id, transition, &mut nodes);
+            collect_transition(component_id, transition, &mut nodes, false);
         }
         RootIr::ErrorBoundary(_) => {}
     }
     nodes
 }
 
-fn collect_children(component_id: u32, children: &[ChildIr], nodes: &mut Vec<HydrationNodePlan>) {
-    collect_children_with_raw_text(component_id, children, nodes, false);
+fn collect_children(
+    component_id: u32,
+    children: &[ChildIr],
+    nodes: &mut Vec<HydrationNodePlan>,
+    optional: bool,
+) {
+    collect_children_with_raw_text(component_id, children, nodes, false, optional);
 }
 
 fn collect_children_with_raw_text(
@@ -119,15 +128,17 @@ fn collect_children_with_raw_text(
     children: &[ChildIr],
     nodes: &mut Vec<HydrationNodePlan>,
     raw_text: bool,
+    optional: bool,
 ) {
     for child in children {
         match child {
-            ChildIr::Element(element) => collect_element(component_id, element, nodes),
+            ChildIr::Element(element) => collect_element(component_id, element, nodes, optional),
             ChildIr::DynamicText(text) if !raw_text => {
                 nodes.push(HydrationNodePlan {
                     id: text_marker_id(component_id, text.reference.node_id),
                     node_id: text.reference.node_id,
                     kind: "text".into(),
+                    optional,
                     tag_name: None,
                     bindings: vec![HydrationBindingPlan {
                         id: text.id,
@@ -138,19 +149,30 @@ fn collect_children_with_raw_text(
                 });
             }
             ChildIr::Fragment(fragment) => {
-                collect_children(component_id, &fragment.children, nodes);
+                collect_children(component_id, &fragment.children, nodes, optional);
             }
-            ChildIr::Component(component) => collect_component(component_id, component, nodes),
-            ChildIr::Show(show) => collect_show(component_id, show, nodes),
-            ChildIr::For(for_binding) => collect_for(component_id, for_binding, nodes),
-            ChildIr::Transition(transition) => collect_transition(component_id, transition, nodes),
-            ChildIr::DynamicRegion(region) => collect_region(component_id, region, nodes),
+            ChildIr::Component(component) => {
+                collect_component(component_id, component, nodes, optional);
+            }
+            ChildIr::Show(show) => collect_show(component_id, show, nodes, optional),
+            ChildIr::For(for_binding) => collect_for(component_id, for_binding, nodes, optional),
+            ChildIr::Transition(transition) => {
+                collect_transition(component_id, transition, nodes, optional);
+            }
+            ChildIr::DynamicRegion(region) => {
+                collect_region(component_id, region, nodes, optional);
+            }
             ChildIr::DynamicText(_) | ChildIr::ErrorBoundary(_) | ChildIr::Text(_) => {}
         }
     }
 }
 
-fn collect_element(component_id: u32, element: &ElementIr, nodes: &mut Vec<HydrationNodePlan>) {
+fn collect_element(
+    component_id: u32,
+    element: &ElementIr,
+    nodes: &mut Vec<HydrationNodePlan>,
+    optional: bool,
+) {
     let bindings = element
         .attributes
         .iter()
@@ -186,6 +208,7 @@ fn collect_element(component_id: u32, element: &ElementIr, nodes: &mut Vec<Hydra
         id: element_marker_id(component_id, element.reference.node_id),
         node_id: element.reference.node_id,
         kind: "element".into(),
+        optional,
         tag_name: Some(element.tag_name.clone()),
         bindings,
     });
@@ -194,6 +217,7 @@ fn collect_element(component_id: u32, element: &ElementIr, nodes: &mut Vec<Hydra
         &element.children,
         nodes,
         is_raw_text_element(&element.tag_name),
+        optional,
     );
 }
 
@@ -201,11 +225,13 @@ fn collect_component(
     component_id: u32,
     component: &ComponentBindingIr,
     nodes: &mut Vec<HydrationNodePlan>,
+    optional: bool,
 ) {
     nodes.push(HydrationNodePlan {
         id: node_marker_id(component_id, "component", component.id),
         node_id: component.id,
         kind: "component".into(),
+        optional,
         tag_name: None,
         bindings: component
             .props
@@ -225,53 +251,74 @@ fn collect_component(
         if let ComponentPropIr::Named(named) = prop
             && let ComponentPropValueIr::Children(children) = &named.value
         {
-            collect_children(component_id, children, nodes);
+            collect_children(component_id, children, nodes, optional);
         }
     }
 }
 
-fn collect_show(component_id: u32, show: &ShowBindingIr, nodes: &mut Vec<HydrationNodePlan>) {
-    nodes.push(node_plan(component_id, "show", show.id));
-    collect_children(component_id, &show.children, nodes);
+fn collect_show(
+    component_id: u32,
+    show: &ShowBindingIr,
+    nodes: &mut Vec<HydrationNodePlan>,
+    optional: bool,
+) {
+    nodes.push(node_plan(component_id, "show", show.id, optional));
+    collect_children(component_id, &show.children, nodes, true);
     if let Some(ComponentPropValueIr::Children(children)) = &show.fallback {
-        collect_children(component_id, children, nodes);
+        collect_children(component_id, children, nodes, true);
     }
 }
 
-fn collect_for(component_id: u32, for_binding: &ForBindingIr, nodes: &mut Vec<HydrationNodePlan>) {
-    nodes.push(node_plan(component_id, "for", for_binding.id));
-    collect_children(component_id, &for_binding.body, nodes);
+fn collect_for(
+    component_id: u32,
+    for_binding: &ForBindingIr,
+    nodes: &mut Vec<HydrationNodePlan>,
+    optional: bool,
+) {
+    nodes.push(node_plan(component_id, "for", for_binding.id, optional));
+    collect_children(component_id, &for_binding.body, nodes, true);
 }
 
 fn collect_transition(
     component_id: u32,
     transition: &TransitionBindingIr,
     nodes: &mut Vec<HydrationNodePlan>,
+    optional: bool,
 ) {
-    nodes.push(node_plan(component_id, "transition", transition.id));
-    collect_children(component_id, &transition.children, nodes);
+    nodes.push(node_plan(
+        component_id,
+        "transition",
+        transition.id,
+        optional,
+    ));
+    collect_children(component_id, &transition.children, nodes, true);
 }
 
-fn collect_region(component_id: u32, region: &DynamicRegionIr, nodes: &mut Vec<HydrationNodePlan>) {
-    nodes.push(node_plan(component_id, "region", region.id));
+fn collect_region(
+    component_id: u32,
+    region: &DynamicRegionIr,
+    nodes: &mut Vec<HydrationNodePlan>,
+    optional: bool,
+) {
+    nodes.push(node_plan(component_id, "region", region.id, optional));
     match &region.expression {
         DynamicRegionExpressionIr::Conditional {
             consequent,
             alternate,
             ..
         } => {
-            collect_region_value(component_id, consequent, nodes);
-            collect_region_value(component_id, alternate, nodes);
+            collect_region_value(component_id, consequent, nodes, true);
+            collect_region_value(component_id, alternate, nodes, true);
         }
         DynamicRegionExpressionIr::Logical { right, .. } => {
-            collect_region_value(component_id, right, nodes);
+            collect_region_value(component_id, right, nodes, true);
         }
         DynamicRegionExpressionIr::ArrayMap { body, .. } => {
-            collect_children(component_id, body, nodes);
+            collect_children(component_id, body, nodes, true);
         }
         DynamicRegionExpressionIr::ArrayLiteral { items } => {
             for item in items {
-                collect_region_value(component_id, item, nodes);
+                collect_region_value(component_id, item, nodes, true);
             }
         }
         DynamicRegionExpressionIr::Value { .. } => {}
@@ -282,17 +329,19 @@ fn collect_region_value(
     component_id: u32,
     value: &DynamicRegionValueIr,
     nodes: &mut Vec<HydrationNodePlan>,
+    optional: bool,
 ) {
     if let DynamicRegionValueIr::Children(children) = value {
-        collect_children(component_id, children, nodes);
+        collect_children(component_id, children, nodes, optional);
     }
 }
 
-fn node_plan(component_id: u32, kind: &str, node_id: u32) -> HydrationNodePlan {
+fn node_plan(component_id: u32, kind: &str, node_id: u32, optional: bool) -> HydrationNodePlan {
     HydrationNodePlan {
         id: node_marker_id(component_id, kind, node_id),
         node_id,
         kind: kind.into(),
+        optional,
         tag_name: None,
         bindings: Vec::new(),
     }

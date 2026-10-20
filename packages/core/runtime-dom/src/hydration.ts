@@ -49,6 +49,7 @@ export interface HydrationPlanNode {
     | 'for'
     | 'transition'
     | 'region'
+  readonly optional: boolean
   readonly tagName?: string
   readonly bindings: readonly HydrationPlanBinding[]
 }
@@ -144,7 +145,7 @@ export function hydratePlan(
       const missing: number[] = []
       for (const component of plan.components) {
         for (const node of component.nodes) {
-          const occurrences = context.nodes(node.id)
+          const occurrences = nodeOccurrences(context, node)
           for (const [occurrence] of occurrences.entries()) {
             for (const binding of node.bindings) {
               const handler = handlers[binding.id]
@@ -167,6 +168,24 @@ export function hydratePlan(
     },
     true,
   )
+}
+
+function nodeOccurrences(
+  context: HydrationContext,
+  node: HydrationPlanNode,
+): Node[] {
+  try {
+    return context.nodes(node.id)
+  } catch (error) {
+    if (
+      node.optional &&
+      error instanceof Error &&
+      error.message.startsWith('ZEUS_HYDRATION_MARKER_MISSING:')
+    ) {
+      return []
+    }
+    throw error
+  }
 }
 
 function createHydrationContext(

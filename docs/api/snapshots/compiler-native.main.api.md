@@ -33,6 +33,7 @@ export interface HydrationNodePlan {
   id: string
   nodeId: number
   kind: string
+  optional: boolean
   tagName?: string
   bindings: Array<HydrationBindingPlan>
 }

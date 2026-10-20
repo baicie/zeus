@@ -26,8 +26,12 @@ describe('@zeus-js/compiler native contract', () => {
       components: [
         {
           nodes: expect.arrayContaining([
-            expect.objectContaining({ kind: 'root' }),
-            expect.objectContaining({ tagName: 'button', kind: 'element' }),
+            expect.objectContaining({ kind: 'root', optional: false }),
+            expect.objectContaining({
+              tagName: 'button',
+              kind: 'element',
+              optional: false,
+            }),
           ]),
         },
       ],

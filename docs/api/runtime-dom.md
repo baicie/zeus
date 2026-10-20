@@ -32,7 +32,9 @@ attaches explicit text, attribute, property and event bindings. `hydratePlan()`
 iterates the compiler's stable binding plan and invokes one handler for every
 planned binding. Missing handlers throw `ZEUS_HYDRATION_HANDLER_MISSING`; setup
 failures release effects and listeners already attached. The returned disposer
-removes bindings without discarding the server DOM.
+removes bindings without discarding the server DOM. Plan nodes marked
+`optional: true` may be absent when their conditional or list branch did not
+render; a present optional marker with a missing target is still diagnosed.
 
 `HydrationContext.nodes()` returns every target for a repeated template marker,
 and the optional `occurrence` argument on `node()`, `text()`, `attr()`,

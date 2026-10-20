@@ -1512,6 +1512,7 @@ export const App = props => <main title={props.title}>
     assert_eq!(plan.version, 1);
     assert_eq!(plan.components.len(), 1);
     let component = &plan.components[0];
+    assert!(!component.nodes[0].optional);
     assert!(
         std::path::Path::new(&component.template_id)
             .extension()
@@ -1520,15 +1521,19 @@ export const App = props => <main title={props.title}>
     assert!(component.nodes.iter().any(|node| {
         node.kind == "element"
             && node.tag_name.as_deref() == Some("main")
+            && !node.optional
             && node.bindings.iter().any(|binding| binding.kind == "attr")
     }));
     assert!(component.nodes.iter().any(|node| {
-        node.kind == "text" && node.bindings.iter().any(|binding| binding.kind == "text")
+        node.kind == "text"
+            && node.optional
+            && node.bindings.iter().any(|binding| binding.kind == "text")
     }));
     assert!(component.nodes.iter().any(|node| node.kind == "show"));
     assert!(component.nodes.iter().any(|node| {
         node.kind == "element"
             && node.tag_name.as_deref() == Some("button")
+            && node.optional
             && node.bindings.iter().any(|binding| binding.kind == "event")
     }));
     for node in &component.nodes {

@@ -39,6 +39,9 @@ test('transformModule returns code, source map, and diagnostics', () => {
       node => node.kind === 'text' && node.bindings[0].kind === 'text',
     ),
   )
+  assert.ok(
+    result.hydrationPlan.components[0].nodes.every(node => !node.optional),
+  )
 })
 
 test('compiler diagnostics remain structured data', () => {

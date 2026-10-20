@@ -54,6 +54,7 @@ pub struct HydrationNodePlan {
     pub id: String,
     pub node_id: u32,
     pub kind: String,
+    pub optional: bool,
     pub tag_name: Option<String>,
     pub bindings: Vec<HydrationBindingPlan>,
 }
@@ -176,6 +177,7 @@ impl From<CoreHydrationNodePlan> for HydrationNodePlan {
             id: node.id,
             node_id: node.node_id,
             kind: node.kind,
+            optional: node.optional,
             tag_name: node.tag_name,
             bindings: node.bindings.into_iter().map(Into::into).collect(),
         }

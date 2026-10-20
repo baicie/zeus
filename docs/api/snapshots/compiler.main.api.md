@@ -67,6 +67,7 @@ export interface HydrationNodePlan {
     | 'for'
     | 'transition'
     | 'region'
+  optional: boolean
   tagName?: string
   bindings: HydrationBindingPlan[]
 }
