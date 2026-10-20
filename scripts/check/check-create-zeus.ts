@@ -63,6 +63,7 @@ function assertComponentLibraryOutputs(projectRoot: string): void {
   const expected = [
     'custom-elements.json',
     'zeus.components.json',
+    'wc/auto.js',
     'wc/index.js',
     'wc/z-greeting.entry.js',
     'react/index.js',

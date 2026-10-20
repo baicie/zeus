@@ -75,6 +75,7 @@ components into its own reconciled subtree.
 
 ## Start here
 
+- [Complete the 15-minute Hello World](/guide/first-15-minutes)
 - [Build a Native app](/guide/getting-started)
 - [Build a Web Component](/guide/quick-start)
 - [Consume components from React](/guide/react)

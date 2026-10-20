@@ -127,6 +127,12 @@ jobs:
         run: pnpm playground:check
       - name: Quick Start smoke
         run: pnpm check:quick-start
+      - name: Preserve first-use journey report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: first-use-journey
+          path: temp/first-15-minutes
       - name: SSR safe import
         run: pnpm check:ssr-safe-import
       - run: pnpm check:cjs

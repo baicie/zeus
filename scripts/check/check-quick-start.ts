@@ -1,10 +1,12 @@
-import { readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { checkCreateZeus } from './check-create-zeus'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+const startedAt = performance.now()
 const quickStart = readFileSync(
   path.join(root, 'docs/guide/quick-start.md'),
   'utf8',
@@ -36,11 +38,48 @@ assertCodeBlock(
   readFileSync(path.join(templateRoot, 'vite.config.ts'), 'utf8'),
   code => code.includes('componentLibrary'),
 )
+assertCodeBlock(quickStart, 'ts', "import './dist/wc/auto.js'\n", code =>
+  code.includes('wc/auto.js'),
+)
+
+assertEveryCodeBlockCovered(quickStart, 5)
 
 await checkCreateZeus()
 
+const elapsedMs = Math.round(performance.now() - startedAt)
+if (elapsedMs > 15 * 60 * 1000) {
+  throw new Error(`The first-use journey exceeded 15 minutes: ${elapsedMs} ms.`)
+}
+const reportDirectory = path.join(root, 'temp/first-15-minutes')
+mkdirSync(reportDirectory, { recursive: true })
+writeFileSync(
+  path.join(reportDirectory, 'report.json'),
+  `${JSON.stringify(
+    {
+      sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root })
+        .toString()
+        .trim(),
+      measuredAt: new Date().toISOString(),
+      elapsedMs,
+      budgetMs: 15 * 60 * 1000,
+      route: [
+        'read Quick Start',
+        'scaffold Component Library TypeScript template',
+        'type-check',
+        'production build',
+        'run generated template test',
+        'verify WC/auto, WC, React, Vue, Manifest and Custom Elements outputs',
+      ],
+      limitation:
+        'Automated journey timing; a human first-time usability session is still recommended.',
+    },
+    null,
+    2,
+  )}\n`,
+)
+
 console.log(
-  'Quick Start snippets match and execute in the component library smoke.',
+  `Quick Start snippets match and execute in the component library smoke (${elapsedMs} ms).`,
 )
 
 function assertCodeBlock(
@@ -68,6 +107,19 @@ function assertCodeBlock(
       'Quick Start ' +
         language +
         ' code block does not match the executable template.',
+    )
+  }
+}
+
+function assertEveryCodeBlockCovered(markdown: string, expected: number): void {
+  const fence = String.fromCharCode(96).repeat(3)
+  let count = 0
+  for (const line of markdown.split(/\r?\n/)) {
+    if (line.startsWith(fence) && line !== fence) count += 1
+  }
+  if (count !== expected) {
+    throw new Error(
+      `Quick Start has ${count} fenced snippets but ${expected} are covered by executable assertions.`,
     )
   }
 }
