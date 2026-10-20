@@ -110,7 +110,9 @@
     "preinstall": "npx only-allow pnpm",
     "postinstall": "simple-git-hooks",
     "check:packed-consumers": "tsx scripts/check/check-packed-consumers.ts",
-    "check:web-ui-reference": "pnpm check:packed-consumers"
+    "check:golden-components": "tsx scripts/check/check-golden-components.ts",
+    "check:web-ui-reference": "pnpm check:packed-consumers",
+    "check:golden": "pnpm check:golden-components"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged && pnpm check",

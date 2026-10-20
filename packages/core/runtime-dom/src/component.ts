@@ -1,4 +1,4 @@
-import { onScopeDispose } from '@zeus-js/signal/internal'
+import { onScopeDispose, untrack } from '@zeus-js/signal/internal'
 
 import { createOwner, getCurrentOwner, runWithOwner } from './context'
 import { emitDevtoolsEvent, getDevtoolsObjectId } from './devtools'
@@ -24,5 +24,9 @@ export function createComponent<
     emitDevtoolsEvent({ type: 'component:dispose', componentId })
   }, true)
 
-  return runWithOwner(owner, () => component(props))
+  // Component setup is initialization, not a dependency of the parent
+  // dynamic region. Reads made while creating queries/resources/signals must
+  // stay local to the component's bindings instead of causing a parent
+  // region to remount when those values change.
+  return runWithOwner(owner, () => untrack(() => component(props)))
 }

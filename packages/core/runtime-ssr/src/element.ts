@@ -44,13 +44,28 @@ export function ssrElement(
 ): SSRFragment {
   const resolved = resolveSSRElementProperties(tag, attributes, children)
   const opening = `<${tag}${serializeAttributes(resolved.attributes)}>`
-  if (isVoid) return createSSRFragment(opening)
+  const slotName = getStaticSlotName(resolved.attributes)
+  if (isVoid) return createSSRFragment(opening, slotName)
   const normalizedTag = tag.toLowerCase()
   const content =
     normalizedTag === 'script' || normalizedTag === 'style'
       ? serializeSSRRawText(resolved.children, normalizedTag)
       : serializeSSRNode(resolved.children)
-  return createSSRFragment(`${opening}${content}</${tag}>`)
+  return createSSRFragment(`${opening}${content}</${tag}>`, slotName)
+}
+
+function getStaticSlotName(
+  attributes: readonly SSRAttributeEntry[],
+): string | undefined {
+  const slot = attributes.find(
+    (attribute): attribute is SSRAttribute =>
+      typeof attribute === 'object' &&
+      attribute !== null &&
+      attribute.name.toLowerCase() === 'slot',
+  )
+  if (!slot || slot.value === true) return undefined
+  const name = String(slot.value)
+  return name === '' ? undefined : name
 }
 
 export function ssrAttr(

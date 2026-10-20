@@ -5,6 +5,16 @@
 > Run `pnpm api:snapshot` to update.
 
 ```ts
+export {
+  Accessor,
+  Setter,
+  batch,
+  createEffect,
+  createMemo,
+  createRoot,
+  createSignal,
+  onCleanup,
+} from '@zeus-js/signal'
 import { PropsSource } from '@zeus-js/shared'
 
 export type SSRPrimitive = string | number | boolean | null | undefined
@@ -12,6 +22,8 @@ declare const SSR_FRAGMENT: unique symbol
 export interface SSRFragment {
   readonly [SSR_FRAGMENT]: true
   readonly html: string
+  /** Internal root-node metadata used by Light DOM slot projection. */
+  readonly slotName?: string
 }
 export type SSRNode = SSRPrimitive | SSRFragment | readonly SSRNode[]
 export type SSRComponent<
@@ -46,6 +58,35 @@ export interface SSRCustomElementOptions {
   readonly children?: SSRNode
   readonly shadowRoot?: SSRNode
   readonly shadowRootOptions?: SSRShadowRootOptions
+}
+/** The JSON-safe subset of a generated Component Manifest consumed by SSR. */
+export interface SSRManifestProp {
+  readonly type?: string | Function
+  readonly attr?: string | false
+  readonly default?: unknown
+  readonly hasDefault?: boolean
+  readonly defaultStrategy?: 'static' | 'factory'
+  readonly reflect?: boolean
+}
+export interface SSRManifestComponent {
+  readonly tag: string
+  readonly props?: Readonly<Record<string, SSRManifestProp>>
+  readonly hostAttributes?: readonly string[]
+  readonly meta?: {
+    readonly shadow?: boolean
+    readonly formAssociated?: boolean
+    readonly [key: string]: unknown
+  }
+}
+export interface SSRComponentManifest {
+  readonly schemaVersion?: number
+  readonly components: readonly SSRManifestComponent[]
+}
+export interface SSRDefineElementOptions {
+  readonly shadow?: boolean | SSRShadowRootOptions
+  readonly formAssociated?: boolean
+  readonly props?: Readonly<Record<string, SSRManifestProp | Function>>
+  readonly styles?: string | readonly string[]
 }
 
 export declare function renderToString(input: SSRRenderInput): string
@@ -109,5 +150,36 @@ export declare function ssrHydrationMarker(id: string): SSRFragment
 export declare function ssrCustomElement(
   tag: string,
   options?: SSRCustomElementOptions,
+): SSRFragment
+/**
+ * Renders a custom element definition in a server-only environment. The
+ * setup function is evaluated once and never registers a browser element.
+ */
+export declare function defineElement<P extends Record<string, unknown>>(
+  tag: string,
+  options: SSRDefineElementOptions | undefined,
+  setup: (props: Readonly<P>, context: SSRDefineElementContext) => SSRNode,
+): (props?: P) => SSRFragment
+export interface SSRDefineElementContext {
+  readonly host: undefined
+  readonly internals: undefined
+  readonly emit: (...args: unknown[]) => boolean
+  readonly expose: (methods: Record<string, Function>) => void
+}
+/** Compiler intrinsic for a custom-element host boundary. */
+export declare function Host(props?: Record<string, unknown>): SSRNode
+/** Compiler intrinsic for shadow slots and light-DOM default projection. */
+export declare function Slot(props?: {
+  name?: string
+  children?: SSRNode
+}): SSRNode
+/** Applies generated manifest defaults and primitive host-attribute policy. */
+export declare function ssrComponentFromManifest<
+  P extends Record<string, unknown>,
+>(
+  manifest: SSRComponentManifest,
+  tag: string,
+  props?: P,
+  setup?: (props: Readonly<P>) => SSRNode,
 ): SSRFragment
 ```

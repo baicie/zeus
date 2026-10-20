@@ -159,4 +159,63 @@ compiler emits stable markers and a binding-reconnection plan, while browser
 code must opt into `hydrate(container, setup)` before existing DOM is reused.
 Without that call, mounting the same application creates a fresh DOM tree.
 Streaming, asynchronous SSR, and Web Component internal SSR are also outside
-the current contract; wrapper host tag SSR is limited to the contract above.
+the current automatic hydration contract; wrapper host tag SSR and the
+explicit Web Component internal SSR contract below are separate paths.
+
+## Web Component Internal SSR
+
+The server facade also supports compiler-generated custom-element definitions:
+
+```tsx
+import { Host, Slot, defineElement } from '@zeus-js/zeus/server'
+
+export const Card = defineElement(
+  'z-card',
+  {
+    shadow: true,
+    styles: '.card { color: red }',
+    props: {
+      title: { type: String, default: 'Card', reflect: true },
+      model: { type: Object, attr: false },
+    },
+  },
+  props =>
+    Host({
+      class: 'card',
+      children: (
+        <section>
+          <Slot />
+        </section>
+      ),
+    }),
+)
+```
+
+This renders a `<z-card>` host and a Declarative Shadow DOM `<template>` on the
+first response. The compiler's SSR transform imports the server `defineElement`,
+`Host`, and `Slot` helpers directly, so setup code never evaluates browser-only
+globals. The browser can upgrade the host later; SSR does not register or
+hydrate the custom element automatically.
+
+`styles` is emitted inside the DSD template before component content. Shadow
+mode uses native `<slot>` output. Light DOM mode uses Zeus-managed projection:
+the default slot can project the complete consumer child sequence during SSR,
+while named slots require consumer nodes to carry explicit `slot` metadata and
+are otherwise rendered with their fallback. `formAssociated` is a declaration
+for the client runtime; the server does not create `ElementInternals`, run form
+callbacks, or serialize form state.
+
+Host `prop:*`, `on*`, and `ref` channels stay client-only and are omitted from
+the serialized host attributes. Host attributes that do render use the normal
+SSR escaping and normalization policy.
+
+Manifest-driven output is available through
+`ssrComponentFromManifest(manifest, tag, props, setup)`. The analyzer emits
+`schemaVersion: 1`, static defaults, `reflect` and `attr` policy, and component
+metadata for shadow mode and form association. `cssParts` and `cssVars` describe
+styling extension points, but CSS text is not part of the Manifest; injectable
+CSS is supplied through `defineElement()`'s `styles` option. Explicit primitive
+props or reflected defaults become host attributes. Object, array, and function
+props, as well as `attr: false`, remain client-side properties. Factory defaults
+throw `ZEUS_SSR_DEFAULT_FACTORY_UNSUPPORTED` unless the caller supplies an
+explicit value, keeping initial HTML deterministic.

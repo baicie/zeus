@@ -22,11 +22,21 @@ describe('@zeus-js/runtime-ssr', () => {
   it('keeps a small explicit compiler and server runtime contract', () => {
     expect(Object.keys(runtimeSSR).sort()).toEqual([
       'For',
+      'Host',
       'Show',
+      'Slot',
+      'batch',
+      'createEffect',
+      'createMemo',
+      'createRoot',
+      'createSignal',
+      'defineElement',
       'mergeProps',
+      'onCleanup',
       'renderToString',
       'ssrAttr',
       'ssrComponent',
+      'ssrComponentFromManifest',
       'ssrCustomElement',
       'ssrElement',
       'ssrFor',
@@ -56,6 +66,265 @@ describe('@zeus-js/runtime-ssr', () => {
     ).toBe(
       '<z-card title="Card"><template shadowrootmode="open" shadowrootdelegatesfocus shadowrootserializable><strong>Hello</strong></template><span>fallback</span></z-card>',
     )
+  })
+
+  it('renders a server-only defineElement with DSD, CSS, defaults, and slots', () => {
+    const Card = runtimeSSR.defineElement(
+      'z-card',
+      {
+        shadow: true,
+        styles: '.card { color: red }',
+        props: {
+          title: { type: String, default: 'Default', reflect: true },
+          count: { type: Number, reflect: true },
+          data: { type: Object, attr: false },
+        },
+      },
+      props =>
+        runtimeSSR.Host({
+          class: 'card',
+          children: runtimeSSR.ssrElement(
+            'section',
+            [],
+            [
+              runtimeSSR.Slot({ name: 'heading', children: 'Fallback' }),
+              runtimeSSR.Slot(),
+            ],
+          ),
+        }),
+    )
+
+    expect(
+      renderToString(() =>
+        Card({
+          count: 2,
+          data: { value: true },
+          children: runtimeSSR.ssrElement('strong', [], 'content'),
+        }),
+      ),
+    ).toBe(
+      '<z-card title="Default" count="2" class="card"><template shadowrootmode="open"><style>.card { color: red }</style><section><slot name="heading">Fallback</slot><slot></slot></section></template><strong>content</strong></z-card>',
+    )
+  })
+
+  it('projects a light-DOM child into only the first matching slot outlet', () => {
+    const Field = runtimeSSR.defineElement(
+      'z-slot-field',
+      { shadow: false },
+      () => [
+        runtimeSSR.Slot({ name: 'label', children: 'first fallback' }),
+        runtimeSSR.Slot({ name: 'label', children: 'second fallback' }),
+      ],
+    )
+
+    expect(
+      renderToString(() =>
+        Field({
+          children: runtimeSSR.ssrElement(
+            'span',
+            [ssrAttr('slot', 'label')],
+            'projected label',
+          ),
+        }),
+      ),
+    ).toBe(
+      '<z-slot-field><span slot="label">projected label</span>second fallback</z-slot-field>',
+    )
+  })
+
+  it('projects consumers with an empty slot attribute into the default slot', () => {
+    const Field = runtimeSSR.defineElement(
+      'z-slot-default',
+      { shadow: false },
+      () => runtimeSSR.Slot(),
+    )
+
+    expect(
+      renderToString(() =>
+        Field({
+          children: [
+            runtimeSSR.ssrElement(
+              'span',
+              [ssrAttr('slot', '')],
+              'explicit default',
+            ),
+            runtimeSSR.ssrElement('span', [], 'implicit default'),
+          ],
+        }),
+      ),
+    ).toBe(
+      '<z-slot-default><span slot="">explicit default</span><span>implicit default</span></z-slot-default>',
+    )
+  })
+
+  it('rejects invalid and reserved custom-element names before serialization', () => {
+    for (const tag of [
+      'z-card><script',
+      'notcustom',
+      'font-face',
+      'xml-widget',
+      'xmlwidget-element',
+    ]) {
+      expect(() => runtimeSSR.ssrCustomElement(tag)).toThrow(
+        '[ZEUS_SSR_INVALID_TAG]',
+      )
+      expect(() => runtimeSSR.defineElement(tag, {}, () => null)).toThrow(
+        '[ZEUS_SSR_INVALID_TAG]',
+      )
+    }
+  })
+
+  it('renders a manifest component with primitive attributes and explicit state policy', () => {
+    const html = renderToString(() =>
+      runtimeSSR.ssrComponentFromManifest(
+        {
+          schemaVersion: 1,
+          components: [
+            {
+              tag: 'z-input',
+              props: {
+                value: { type: 'string', reflect: true },
+                open: { type: 'boolean', default: false, reflect: true },
+                model: { type: 'object', attr: false },
+              },
+              meta: { shadow: false },
+            },
+          ],
+        },
+        'z-input',
+        { value: 'Ada', model: { id: 1 } },
+        props =>
+          runtimeSSR.Host({ children: runtimeSSR.ssrElement('input', []) }),
+      ),
+    )
+
+    expect(html).toBe('<z-input value="Ada"><input></z-input>')
+  })
+
+  it('applies manifest shadow, defaults, and initial form state metadata', () => {
+    const html = renderToString(() =>
+      runtimeSSR.ssrComponentFromManifest(
+        {
+          schemaVersion: 1,
+          components: [
+            {
+              tag: 'z-field',
+              props: {
+                title: {
+                  type: 'string',
+                  default: 'Default title',
+                  reflect: true,
+                },
+                enabled: {
+                  type: 'boolean',
+                  default: false,
+                  reflect: true,
+                },
+                value: { type: 'string', attr: false },
+              },
+              meta: {
+                shadow: true,
+                formAssociated: true,
+              },
+            },
+          ],
+        },
+        'z-field',
+        { value: 'Ada' },
+        props =>
+          runtimeSSR.Host({
+            children: runtimeSSR.ssrElement('input', [
+              runtimeSSR.ssrProp('value', props.value),
+            ]),
+          }),
+      ),
+    )
+
+    expect(html).toBe(
+      '<z-field title="Default title"><template shadowrootmode="open"><input value="Ada"></template></z-field>',
+    )
+  })
+
+  it('serializes primitive constructor props and lets Host attributes override them', () => {
+    const Field = runtimeSSR.defineElement(
+      'z-field',
+      {
+        props: {
+          label: String,
+          count: Number,
+          active: Boolean,
+          model: Object,
+        },
+      },
+      (_props, context) => {
+        expect(context.host).toBeUndefined()
+        expect(context.internals).toBeUndefined()
+        return runtimeSSR.Host({ label: 'Host', children: 'content' })
+      },
+    )
+
+    expect(
+      renderToString(() =>
+        Field({ label: 'Prop', count: 0, active: true, model: { id: 1 } }),
+      ),
+    ).toBe('<z-field count="0" active label="Host">content</z-field>')
+  })
+
+  it('evaluates compiler-style Host attribute accessors', () => {
+    const Field = runtimeSSR.defineElement('z-accessor', {}, () =>
+      runtimeSSR.Host({ 'data-size': () => 'large', children: 'content' }),
+    )
+
+    expect(renderToString(() => Field())).toBe(
+      '<z-accessor data-size="large">content</z-accessor>',
+    )
+  })
+
+  it('omits Host property, event, and ref channels from server HTML', () => {
+    const Field = runtimeSSR.defineElement('z-host-channels', {}, () =>
+      runtimeSSR.Host({
+        'data-state': 'ready',
+        'prop:value': { id: 1 },
+        onClick: () => {},
+        ref: () => {},
+        children: 'content',
+      }),
+    )
+
+    expect(renderToString(() => Field())).toBe(
+      '<z-host-channels data-state="ready">content</z-host-channels>',
+    )
+  })
+
+  it('rejects manifest factory defaults unless the caller supplies a value', () => {
+    const manifest = {
+      schemaVersion: 1,
+      components: [
+        {
+          tag: 'z-clock',
+          props: {
+            value: {
+              type: 'string',
+              defaultStrategy: 'factory' as const,
+              reflect: true,
+            },
+          },
+        },
+      ],
+    }
+
+    expect(() =>
+      renderToString(() =>
+        runtimeSSR.ssrComponentFromManifest(manifest, 'z-clock'),
+      ),
+    ).toThrow('[ZEUS_SSR_DEFAULT_FACTORY_UNSUPPORTED]')
+    expect(
+      renderToString(() =>
+        runtimeSSR.ssrComponentFromManifest(manifest, 'z-clock', {
+          value: 'now',
+        }),
+      ),
+    ).toBe('<z-clock value="now"></z-clock>')
   })
 
   it('emits validated hydration markers', () => {

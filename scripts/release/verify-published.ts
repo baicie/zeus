@@ -1,45 +1,50 @@
 import { execFile } from 'node:child_process'
+import { pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
 
 import pico from 'picocolors'
 
 import { zeusFixedPackages } from '../release.config'
+import { waitForPublishedPackageVisibility } from './published-package-visibility'
 
 const execFileAsync = promisify(execFile)
-const registry = readOption('--registry') ?? 'https://registry.npmjs.org'
-const version = readOption('--version') ?? positionalVersion()
-const selectedPackage = readOption('--package')
 
-if (!version) {
-  throw new Error(
-    'Usage: release:verify:published --version <version> [--package <name>]',
-  )
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  await main()
 }
 
-const packages = selectedPackage
-  ? [normalizePackageName(selectedPackage)]
-  : zeusFixedPackages
-// npm can take several minutes to expose a freshly published platform package
-// through every registry edge, especially for large native tarballs.
-const attempts = [
-  0, 2_000, 5_000, 10_000, 20_000, 30_000, 60_000, 120_000, 180_000,
-]
+async function main(): Promise<void> {
+  const registry = readOption('--registry') ?? 'https://registry.npmjs.org'
+  const version = readOption('--version') ?? positionalVersion()
+  const selectedPackage = readOption('--package')
 
-await Promise.all(packages.map(pkg => verifyPackage(pkg, version)))
-console.log(
-  pico.green(
-    `Published package verification passed (${packages.length} package${packages.length === 1 ? '' : 's'} at ${version}).`,
-  ),
-)
+  if (!version) {
+    throw new Error(
+      'Usage: release:verify:published --version <version> [--package <name>]',
+    )
+  }
+
+  const packages = selectedPackage
+    ? [normalizePackageName(selectedPackage)]
+    : zeusFixedPackages
+
+  await Promise.all(packages.map(pkg => verifyPackage(pkg, version, registry)))
+  console.log(
+    pico.green(
+      `Published package verification passed (${packages.length} package${packages.length === 1 ? '' : 's'} at ${version}).`,
+    ),
+  )
+}
 
 async function verifyPackage(
   pkg: string,
   expectedVersion: string,
+  registry: string,
 ): Promise<void> {
-  let lastError: unknown
-  for (const delay of attempts) {
-    if (delay > 0) await wait(delay)
-    try {
+  await waitForPublishedPackageVisibility({
+    packageName: pkg,
+    expectedVersion,
+    async queryVersion() {
       const { stdout } = await execFileAsync(
         'npm',
         [
@@ -53,18 +58,10 @@ async function verifyPackage(
         { cwd: process.cwd(), maxBuffer: 1024 * 1024 },
       )
       const received = JSON.parse(stdout.trim())
-      if (received === expectedVersion) {
-        console.log(`[release] ${pkg}@${expectedVersion} is visible on npm`)
-        return
-      }
-      lastError = new Error(`npm returned version ${String(received)}`)
-    } catch (error) {
-      lastError = error
-    }
-  }
-  throw new Error(
-    `${pkg}@${expectedVersion} was not visible on ${registry}: ${lastError instanceof Error ? lastError.message : String(lastError)}`,
-  )
+      return String(received)
+    },
+  })
+  console.log(`[release] ${pkg}@${expectedVersion} is visible on ${registry}`)
 }
 
 function normalizePackageName(value: string): string {
@@ -84,8 +81,4 @@ function readOption(name: string): string | undefined {
   if (!value || value.startsWith('--'))
     throw new Error(`${name} requires a value`)
   return value
-}
-
-function wait(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms))
 }

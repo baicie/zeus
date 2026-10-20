@@ -22,20 +22,25 @@ shadcn-like 可复制、可定制 UI 层
 
 ## 当前状态总览
 
-| 阶段     | 内容                       | 状态      |
-| -------- | -------------------------- | --------- |
-| Phase 0  | MVP 稳定化补强             | ✅ 完成   |
-| Phase 1  | 增强 Host 定位             | ✅ 完成   |
-| Phase 2  | Component Analyzer         | ✅ 完成   |
-| Phase 3  | Bundler Plugin Host        | ✅ 完成   |
-| Phase 4  | Web Component Output       | ✅ 完成   |
-| Phase 5  | DTS 输出体系               | ✅ 完成   |
-| Phase 6  | React / Vue Wrapper Output | ✅ 完成   |
-| Phase 7  | Headless Components MVP    | ✅ 完成   |
-| Phase 8  | 性能与体积基准             | ✅ 完成   |
-| Phase 9  | Icon 专用 no-runtime 输出  | ✅ 完成   |
-| Phase 10 | shadcn-like Registry       | 🔄 进行中 |
-| Phase 11 | 文档与生态发布             | 🔄 进行中 |
+| 阶段     | 内容                       | 状态                                          |
+| -------- | -------------------------- | --------------------------------------------- |
+| Phase 0  | MVP 稳定化补强             | ✅ 完成                                       |
+| Phase 1  | 增强 Host 定位             | ✅ 完成                                       |
+| Phase 2  | Component Analyzer         | ✅ 完成                                       |
+| Phase 3  | Bundler Plugin Host        | ✅ 完成                                       |
+| Phase 4  | Web Component Output       | ✅ 完成                                       |
+| Phase 5  | DTS 输出体系               | ✅ 完成                                       |
+| Phase 6  | React / Vue Wrapper Output | ✅ 完成                                       |
+| Phase 7  | Headless Components MVP    | ✅ 完成                                       |
+| Phase 8  | 性能与体积基准             | ✅ 完成                                       |
+| Phase 9  | Icon 专用 no-runtime 输出  | ✅ 完成                                       |
+| Phase 10 | shadcn-like Registry       | ✅ 完成                                       |
+| Phase 11 | 文档与生态发布             | ✅ 实现完成；发布后消费者验收跟随当前发布计划 |
+
+> 状态同步（2026-10-21）：Phase 10 的 Registry、CLI、模板和组件覆盖由
+> `zeus-ui` 的 `check:registry`、`check:component-coverage`、`check:product-contract`
+> 与 `release:verify --strict` 覆盖；Phase 11 的文档与发布检查已具备，稳定版发布和
+> registry/provenance 消费者验收仍记录在当前总路线图的 B-003/E-009 中。
 
 详细设计记录见 `design/` 目录下各 phase 文档。
 

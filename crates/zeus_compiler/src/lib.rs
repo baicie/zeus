@@ -112,6 +112,7 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
         && (!options.hmr || lowered.hmr.render_calls.is_empty())
         && (!options.pure_define_element.is_enabled()
             || lowered.pure_define_element_calls.is_empty())
+        && (options.target != TransformTarget::Ssr || lowered.ssr_runtime_imports.is_empty())
     {
         return TransformModuleResult {
             code: options.source,
@@ -139,14 +140,16 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
 
     let hydration_plan = hydration::build_hydration_plan(&ir);
     let mut result = if options.target == TransformTarget::Ssr {
-        codegen::emit_ssr_module(
-            &options.source,
-            &options.filename,
-            &options.runtime_module,
-            options.source_map,
-            &ir,
-            &lowered.reserved_names,
-        )
+        codegen::emit_ssr_module(&codegen::SsrModuleOptions {
+            source: &options.source,
+            filename: &options.filename,
+            runtime_module: &options.runtime_module,
+            source_map: options.source_map,
+            module: &ir,
+            reserved_names: &lowered.reserved_names,
+            define_element_calls: &lowered.pure_define_element_calls,
+            ssr_runtime_imports: &lowered.ssr_runtime_imports,
+        })
     } else {
         codegen::emit_module(&codegen::EmitModuleOptions {
             source: &options.source,

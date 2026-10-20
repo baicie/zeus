@@ -8,6 +8,17 @@
     "version": "0.1.0-beta.32",
     "frameworkDependency": "0.1.1-beta.13"
   },
+  "verificationPolicy": {
+    "browser": "Every requiredBrowserAssertions entry must pass for native, react18, react19 and vue3 in each selected browser.",
+    "sourceAndManifest": "The published source snapshot and Component Manifest sha256 values must match this contract.",
+    "supplyChain": [
+      "package-lock integrity equals registry dist.integrity",
+      "npm provenance has an SLSA v1 subject digest equal to the tarball sha512",
+      "SLSA workflow, source commit and exact source dependency match this contract",
+      "Sigstore certificate identity and OIDs verify the attestation bundle"
+    ],
+    "passedStatusRequires": "A group may be marked passed only with a report containing browser assertions, source/manifest hashes and all supply-chain evidence; ignored temp reports do not qualify as durable evidence."
+  },
   "consumers": [
     "native-custom-elements",
     "react18-react19-wrapper",
@@ -380,7 +391,7 @@
         "formatter is passed as function property and runs on input only",
         "value-change carries detail.value",
         "focus-change carries detail.focused",
-        "native form submission/reset/required validity and focus in real browser"
+        "required validity and focus on the rendered control"
       ],
       "knownLimits": [
         "Source does not set formAssociated or options.form; full ElementInternals form semantics are not claimed.",
@@ -1170,13 +1181,13 @@
         "selection/sort/active-cell events preserve source detail",
         "same-key data updates preserve current row behavior",
         "virtual viewport keeps bounded rendered nodes",
-        "keyboard navigation/resize/scroll preserves active cell focus",
-        "large dataset performance uses measured baseline, not invented thresholds"
+        "keyboard navigation/resize/scroll preserves active cell focus"
       ],
       "knownLimits": [
         "Current generated declarations retain unknown for several event payloads and row types.",
         "No framework cell renderer or React/Vue VNode renderer API is declared.",
-        "virtual defaults to false and must be enabled explicitly."
+        "virtual defaults to false and must be enabled explicitly.",
+        "Large dataset timing is informational only; it is not a pass criterion without the versioned Data Grid benchmark baseline from the UI repository."
       ]
     }
   ]

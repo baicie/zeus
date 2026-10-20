@@ -271,11 +271,11 @@ Canary 流程：
 - 拒绝 native `latest` 指向任何 prerelease，并构建全部平台 native artifacts
 - 校验 event、ref、checkout SHA、`GITHUB_SHA` 与远端 `main` HEAD
 - 版本临时改写、lockfile metadata 更新和完整 strict release precheck
-- 对 25 个 fixed packages 执行 npm publish dry-run
+- 对 29 个 fixed packages 执行 npm publish dry-run
 - 每个真实 publish 前后重验 `main` HEAD，并发布到运行唯一的 staging tag
 - 验证 staging dist-tag 和 Sigstore provenance；签名来源必须匹配仓库、workflow、
   `refs/heads/main`、精确 commit SHA 与 npm tarball integrity
-- 将 25 个 staging tag 提升到共享 `canary`；失败时按提升前快照回滚
+- 将 29 个 staging tag 提升到共享 `canary`；失败时按提升前快照回滚
 - 再验 `canary` dist-tag 与 provenance，再 best-effort 清理 staging tag；清理失败只保留
   唯一审计标签，不否定已验证的 Canary
 - Node 22.18.0 / 24.11.0 从 npm 空目录安装目标版本，执行 ESM/CJS、DOM/SSR smoke

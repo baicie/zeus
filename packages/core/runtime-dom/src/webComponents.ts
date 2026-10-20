@@ -59,13 +59,24 @@ export function Host(props: HostProps): JSXValue {
       () => {
         const attributes: Record<string, unknown> = Object.create(null)
         for (const key of Object.keys(props)) {
-          if (key !== 'children') attributes[key] = props[key]
+          if (key === 'children') continue
+          const value = props[key]
+          attributes[key] = isHostAccessor(key, value) ? value() : value
         }
         return attributes
       },
     ])
   }
   return props.children
+}
+
+function isHostAccessor(key: string, value: unknown): value is () => unknown {
+  return (
+    typeof value === 'function' &&
+    key !== 'ref' &&
+    !key.startsWith('prop:') &&
+    !(key.length > 2 && /^on/i.test(key))
+  )
 }
 
 export function Slot(props: SlotProps): JSXValue {

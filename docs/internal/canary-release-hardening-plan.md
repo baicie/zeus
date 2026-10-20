@@ -16,7 +16,7 @@
   `cancel-in-progress: false`；运行排队串行完成，不在 publish 中途取消旧运行。
 - 每次真实 publish 与正常的共享 dist-tag 提升写入前后，必须确认 workflow SHA 仍等于
   远端 `main` HEAD；提升失败后的快照回滚是例外，必须能够恢复本次运行已改动的标签。
-- 25 个包先发布到本次运行唯一的 staging tag；全部可见且 provenance 校验通过后才
+- 29 个包先发布到本次运行唯一的 staging tag；全部可见且 provenance 校验通过后才
   提升到 `canary`，提升失败按快照回滚。
 - 共享 `canary` 再验证成功后 best-effort 清理 staging tag；清理失败保留唯一审计标签，
   但不能把已验证的 Canary 错误标记为发布失败并诱发无意义重发。
@@ -72,19 +72,19 @@
 
 - 修复 PR 的 CI、native matrix 与评审全部通过并合并到 `main`。
 - `main` 的 Canary workflow 成功。
-- 25 个 fixed packages 的 `canary` tag 都指向该次 `main` SHA 对应版本。
+- 29 个 fixed packages 的 `canary` tag 都指向该次 `main` SHA 对应版本。
 - Node 22/24 registry smoke 通过后，`zeus-ui` 收到 dispatch 且兼容性检查通过。
 
-### Task 5：发布 `v0.1.1-beta.1`
+### Task 5：发布 `v0.1.1-beta.13`（发布链已完成；native latest 清理阻塞）
 
 验收标准：
 
 - Rust 迁移 changeset/changelog 完整。
 - release dry-run 和完整 precheck 通过。
-- tag workflow 发布并验证 25 个 fixed packages。
+- tag workflow 发布并验证 29 个 fixed packages。
 - `beta` dist-tag 一致，native compiler ESM/CJS 安装 smoke 与 provenance 验证通过。
 - GitHub Release 只在 Node 22/24 registry smoke 全部通过后创建。
-- native `latest` 不指向 Canary。
+- native `latest` 不指向 Canary（当前仍阻塞：`Repair Native Latest` run `39382911550` 返回 npm E403，需要具备 dist-tag 删除权限的 token）。
 
 ## 回滚
 

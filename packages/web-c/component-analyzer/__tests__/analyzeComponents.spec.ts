@@ -99,7 +99,7 @@ describe('analyzeComponents', () => {
     ])
   })
 
-  it('emits normalized ABI metadata for defaults, events, slots, methods, and styles', async () => {
+  it('emits normalized ABI metadata for defaults, events, slots, and methods', async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'zeus-analyzer-abi-'))
     await fs.mkdir(path.join(root, 'src'), { recursive: true })
     await fs.writeFile(
@@ -118,6 +118,7 @@ describe('analyzeComponents', () => {
         export const ZContract = defineElement(
           'z-contract',
           {
+            styles: ['.contract { color: red }'],
             props: {
               label: { type: String, default: 'ready' },
               rows: { type: Array, default: () => [] },
@@ -171,6 +172,7 @@ describe('analyzeComponents', () => {
       name: '--z-contract-gap',
       description: 'Gap.',
     })
+    expect(component.meta?.styles).toBeUndefined()
   })
 
   it('excludes files matching exclude patterns', async () => {

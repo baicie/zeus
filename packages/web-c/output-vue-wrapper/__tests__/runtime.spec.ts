@@ -122,4 +122,38 @@ describe('output-vue-wrapper runtime', () => {
     app.unmount()
     root.remove()
   })
+
+  it('preserves named text and element slot children', async () => {
+    const { Fragment, defineComponent, h, nextTick } = await import('vue')
+    const { defineContainer } = await import('../src/runtime')
+
+    const ZSlots = defineContainer({
+      tagName: 'z-slot-probe',
+      slots: ['prefix', 'suffix'],
+    })
+    const Root = defineComponent(
+      () => () =>
+        h(ZSlots, null, {
+          default: () => 'Golden',
+          prefix: () => h(Fragment, null, ['P', h('em', null, '!')]),
+          suffix: () => h('strong', null, 'S'),
+        }),
+    )
+
+    const { createApp } = await import('vue')
+    const root = document.createElement('div')
+    document.body.append(root)
+
+    const app = createApp(Root)
+    app.mount(root)
+    await nextTick()
+
+    const host = root.querySelector('z-slot-probe')!
+    expect(host.textContent).toBe('GoldenP!S')
+    expect(host.querySelector('[slot="prefix"]')?.textContent).toBe('P!')
+    expect(host.querySelector('[slot="suffix"]')?.textContent).toBe('S')
+
+    app.unmount()
+    root.remove()
+  })
 })

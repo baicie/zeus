@@ -15,6 +15,10 @@ export {
   For,
   ssrCustomElement,
   ssrHydrationMarker,
+  defineElement,
+  Host,
+  Slot,
+  ssrComponentFromManifest,
 } from '@zeus-js/runtime-ssr'
 
 export type {
@@ -24,4 +28,8 @@ export type {
   ForProps,
   SSRCustomElementOptions,
   SSRShadowRootOptions,
+  SSRComponentManifest,
+  SSRManifestComponent,
+  SSRManifestProp,
+  SSRDefineElementOptions,
 } from '@zeus-js/runtime-ssr'

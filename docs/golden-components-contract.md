@@ -4,12 +4,14 @@
 
 这些是待浏览器验收的契约，不是 G-01～G-04 已全部通过的声明。UI 包当前依赖 Zeus beta.13，本轮框架工作树是 beta.14；以下示例是现有 API 的文档用例，尚未完成四个 UI tarball 的完整跨框架浏览器执行。
 
-| Golden         | 真实主要接口                                                                                                                   | 必须补齐的浏览器验收                                                           |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
-| G-01 Button    | `press` / `onPress`；detail.nativeEvent；disabled/loading；default/prefix/suffix slot；focus/blur/click                        | 键盘、disabled/loading 不派发、light slot、ready 后方法和清理                  |
-| G-02 Input     | value/defaultValue；function formatter；`value-change` / `onValueChange`；Vue `v-model:value`；focus-change；focus/blur/select | 外部 value 更新、用户输入同步、Form submit/reset/required、焦点、函数 identity |
-| G-03 Dialog    | Dialog/Trigger/Content/Close/Title/Description；`open-change` / `onOpenChange`；Vue `v-model:open`；show/close                 | Escape、Tab/Shift+Tab、ARIA title/description、关闭还焦点、卸载后定时器        |
-| G-04 Data Grid | rows/columns/selectedKeys 通过 property；selection/sort/active cell 事件；virtual；scroll/resize/focus 方法                    | 大数据节点数量、滚动与键盘焦点、选中排序、resize、真实三浏览器性能             |
+验收由 `pnpm check:golden-components` 执行。脚本会在每种独立安装工程中先执行无 DOM 的 Node SSR import，再对 native、React 18、React 19 和 Vue 3 在所选浏览器中逐条执行 `requiredBrowserAssertions`，并核对 UI tarball、Zeus runtime 依赖的 registry integrity、SLSA provenance subject/source dependency 和 Sigstore 签名；失败时仍会写出完整报告，供定位问题，不能据此把 contract 状态改成 `passed`。Data Grid 性能断言只记录观察值，不替代 Zeus UI 仓库的版本化基准。`temp/` 下的报告是忽略文件，只能作为本地诊断结果，不能作为持久完成证据。
+
+| Golden         | 真实主要接口                                                                                                                   | 必须补齐的浏览器验收                                                                     |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| G-01 Button    | `press` / `onPress`；detail.nativeEvent；disabled/loading；default/prefix/suffix slot；focus/blur/click                        | 键盘、disabled/loading 不派发、light slot、ready 后方法和清理                            |
+| G-02 Input     | value/defaultValue；function formatter；`value-change` / `onValueChange`；Vue `v-model:value`；focus-change；focus/blur/select | 外部 value 更新、用户输入同步、Form submit/reset/required、焦点、函数 identity           |
+| G-03 Dialog    | Dialog/Trigger/Content/Close/Title/Description；`open-change` / `onOpenChange`；Vue `v-model:open`；show/close                 | Escape、Tab/Shift+Tab、ARIA title/description、关闭还焦点、卸载后定时器                  |
+| G-04 Data Grid | rows/columns/selectedKeys 通过 property；selection/sort/active cell 事件；virtual；scroll/resize/focus 方法                    | 大数据节点数量、滚动与键盘焦点、选中排序、resize；性能仅记录趋势，基准由 UI 仓库单独验收 |
 
 Input 源码没有 `formAssociated` 或 `options.form`，不把内层 input 的 light DOM 行为等同于完整 ElementInternals 表单契约。其 input handler 会先写 host.value 再发事件，严格的 React controlled 回滚语义需要独立证明。
 

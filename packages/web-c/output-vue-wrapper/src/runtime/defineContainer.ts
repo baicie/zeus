@@ -3,11 +3,13 @@
 import {
   cloneVNode,
   defineComponent,
+  Fragment,
   h,
   onBeforeUnmount,
   onBeforeMount,
   onMounted,
   ref,
+  Text,
   withDirectives,
 } from 'vue'
 
@@ -242,7 +244,15 @@ function createChildren(slots: Record<string, any>, slotNames: string[]) {
 function withSlot(name: string, vnode: any) {
   if (!vnode) return vnode
 
-  if (typeof vnode === 'string') {
+  // Vue normalizes text slot values into Text VNodes before the wrapper sees
+  // them. A `slot` prop on a Text VNode cannot become a light-DOM attribute,
+  // so it would be consumed by the default outlet. Keep named text in an
+  // element that carries the slot attribute, matching the string path.
+  if (
+    typeof vnode === 'string' ||
+    vnode.type === Text ||
+    vnode.type === Fragment
+  ) {
     return h('span', { slot: name, style: 'display: contents' }, vnode)
   }
 

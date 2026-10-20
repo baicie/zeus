@@ -1,17 +1,20 @@
-import { createSignal, state } from '@zeus-js/signal/internal'
+import { createSignal, scope, state } from '@zeus-js/signal/internal'
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import {
   child,
+  createComponent,
   defineElement,
   insert,
   insertTracked,
   marker,
   mountFor,
+  mountDynamic,
   mountShow,
   render,
   template,
+  bindText,
 } from '../src'
 
 describe('runtime-dom integration', () => {
@@ -103,6 +106,42 @@ describe('runtime-dom integration', () => {
     expect(root.textContent).toBe('hello')
     dispose()
     expect(root.textContent).toBe('')
+  })
+
+  it('keeps component setup reads out of the parent dynamic region', () => {
+    const [page, setPage] = createSignal(1)
+    const root = document.createElement('div')
+    const anchor = document.createComment('component')
+    root.append(anchor)
+    let setupCount = 0
+    let renderedText!: Text
+
+    const parentScope = scope()
+    parentScope.run(() => {
+      mountDynamic(root, anchor, () =>
+        createComponent(() => {
+          setupCount++
+          void page()
+          const element = document.createElement('span')
+          renderedText = document.createTextNode('')
+          element.append(renderedText)
+          bindText(renderedText, page)
+          return element
+        }, {}),
+      )
+    })
+
+    const initialElement = root.querySelector('span')
+    expect(setupCount).toBe(1)
+    expect(renderedText.data).toBe('1')
+
+    setPage(2)
+
+    expect(setupCount).toBe(1)
+    expect(root.querySelector('span')).toBe(initialElement)
+    expect(renderedText.data).toBe('2')
+
+    parentScope.stop()
   })
 
   it('tracks every child when inserting a DocumentFragment', () => {

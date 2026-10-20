@@ -350,21 +350,42 @@ fn emit_hmr_boundary(writer: &mut CodeWriter, enabled: bool, hmr: &HmrInfo, disp
     writer.push("      }\n    }\n  })\n}\n");
 }
 
-pub(crate) fn emit_ssr_module(
-    source: &str,
-    filename: &str,
-    runtime_module: &str,
-    source_map: bool,
-    module: &ModuleIr,
-    reserved_names: &[String],
-) -> TransformModuleResult {
+pub(crate) struct SsrModuleOptions<'a> {
+    pub(crate) source: &'a str,
+    pub(crate) filename: &'a str,
+    pub(crate) runtime_module: &'a str,
+    pub(crate) source_map: bool,
+    pub(crate) module: &'a ModuleIr,
+    pub(crate) reserved_names: &'a [String],
+    pub(crate) define_element_calls: &'a [oxc_span::Span],
+    pub(crate) ssr_runtime_imports: &'a [oxc_span::Span],
+}
+
+pub(crate) fn emit_ssr_module(options: &SsrModuleOptions<'_>) -> TransformModuleResult {
+    let SsrModuleOptions {
+        source,
+        filename,
+        runtime_module,
+        source_map,
+        module,
+        reserved_names,
+        define_element_calls,
+        ssr_runtime_imports,
+    } = *options;
     let mut names = NameAllocator::new(reserved_names);
     let runtime = SsrRuntimeNames::allocate(&mut names);
+    let source_emitter = SsrSourceEmitter {
+        source,
+        runtime_module,
+        define_element_calls,
+        ssr_runtime_imports,
+        runtime: &runtime,
+    };
     let mut writer = CodeWriter::default();
     let mut cursor = usize::try_from(module.preamble_end)
         .unwrap_or(usize::MAX)
         .min(source.len());
-    writer.push(&source[..cursor]);
+    source_emitter.emit(&mut writer, 0, cursor);
     if cursor > 0 && !writer.code.ends_with('\n') {
         writer.push("\n");
     }
@@ -387,11 +408,11 @@ pub(crate) fn emit_ssr_module(
         if start < cursor || end > source.len() {
             continue;
         }
-        writer.push(&source[cursor..start]);
+        source_emitter.emit(&mut writer, cursor, start);
         emit_ssr_root(&mut writer, &component.root, &runtime, component.id);
         cursor = end;
     }
-    writer.push(&source[cursor..]);
+    source_emitter.emit(&mut writer, cursor, source.len());
 
     let map = source_map.then(|| build_source_map(filename, source, &writer.mappings));
     TransformModuleResult {
@@ -400,6 +421,67 @@ pub(crate) fn emit_ssr_module(
         diagnostics: Vec::new(),
         hydration_plan: None,
     }
+}
+
+struct SsrSourceEmitter<'a> {
+    source: &'a str,
+    runtime_module: &'a str,
+    define_element_calls: &'a [oxc_span::Span],
+    ssr_runtime_imports: &'a [oxc_span::Span],
+    runtime: &'a SsrRuntimeNames,
+}
+
+impl SsrSourceEmitter<'_> {
+    fn emit(&self, writer: &mut CodeWriter, start: usize, end: usize) {
+        let mut replacements = self
+            .define_element_calls
+            .iter()
+            .filter_map(|span| {
+                let start = usize::try_from(span.start).ok()?;
+                let name_end = identifier_end(self.source, start, self.source.len())?;
+                Some((start, name_end, self.runtime.define_element().to_string()))
+            })
+            .chain(self.ssr_runtime_imports.iter().filter_map(|span| {
+                let start = usize::try_from(span.start).ok()?;
+                let end = usize::try_from(span.end).ok()?;
+                Some((start, end, quote_js(self.runtime_module)))
+            }))
+            .filter(|(replacement_start, replacement_end, _)| {
+                *replacement_start >= start
+                    && *replacement_start < end
+                    && *replacement_end <= end
+                    && *replacement_end > *replacement_start
+            })
+            .collect::<Vec<_>>();
+        replacements.sort_by_key(|replacement| replacement.0);
+
+        let mut cursor = start;
+        for (replacement_start, replacement_end, replacement) in replacements {
+            if replacement_start < cursor {
+                continue;
+            }
+            writer.push(&self.source[cursor..replacement_start]);
+            writer.push(&replacement);
+            cursor = replacement_end;
+        }
+        writer.push(&self.source[cursor..end]);
+    }
+}
+
+fn identifier_end(source: &str, start: usize, limit: usize) -> Option<usize> {
+    let mut end = start;
+    for (offset, character) in source[start..limit].char_indices() {
+        let valid = if offset == 0 {
+            character == '_' || character == '$' || character.is_alphabetic()
+        } else {
+            character == '_' || character == '$' || character.is_alphanumeric()
+        };
+        if !valid {
+            break;
+        }
+        end = start + offset + character.len_utf8();
+    }
+    (end > start).then_some(end)
 }
 
 fn emit_ssr_root(
@@ -721,10 +803,17 @@ fn emit_ssr_component(
         &node_marker_id(component_id, "component", component.id),
     );
     writer.push(", ");
-    writer.push(runtime.component());
+    let builtin = match component.kind.as_str() {
+        "Host" => Some(runtime.host()),
+        "Slot" => Some(runtime.slot()),
+        _ => None,
+    };
+    writer.push(builtin.unwrap_or_else(|| runtime.component()));
     writer.push("(");
-    writer.push_mapped(&component.callee.code, &component.callee);
-    writer.push(", ");
+    if builtin.is_none() {
+        writer.push_mapped(&component.callee.code, &component.callee);
+        writer.push(", ");
+    }
     let spread = component
         .props
         .iter()
@@ -3360,6 +3449,9 @@ struct SsrRuntimeNames {
     spread: String,
     merge_props: String,
     hydration_marker: String,
+    define_element: String,
+    host: String,
+    slot: String,
 }
 
 impl SsrRuntimeNames {
@@ -3376,10 +3468,13 @@ impl SsrRuntimeNames {
             spread: names.allocate("$zeusSsrSpread"),
             merge_props: names.allocate("$zeusMergeProps"),
             hydration_marker: names.allocate("$zeusHydrationMarker"),
+            define_element: names.allocate("$zeusSsrDefineElement"),
+            host: names.allocate("$zeusSsrHost"),
+            slot: names.allocate("$zeusSsrSlot"),
         }
     }
 
-    fn entries(&self) -> [(&'static str, &str); 11] {
+    fn entries(&self) -> [(&'static str, &str); 14] {
         [
             ("ssrStatic", &self.static_text),
             ("ssrText", &self.text),
@@ -3392,6 +3487,9 @@ impl SsrRuntimeNames {
             ("ssrSpread", &self.spread),
             ("mergeProps", &self.merge_props),
             ("ssrHydrationMarker", &self.hydration_marker),
+            ("defineElement", &self.define_element),
+            ("Host", &self.host),
+            ("Slot", &self.slot),
         ]
     }
 
@@ -3421,6 +3519,15 @@ impl SsrRuntimeNames {
     }
     fn hydration_marker(&self) -> &str {
         &self.hydration_marker
+    }
+    fn define_element(&self) -> &str {
+        &self.define_element
+    }
+    fn host(&self) -> &str {
+        &self.host
+    }
+    fn slot(&self) -> &str {
+        &self.slot
     }
 }
 

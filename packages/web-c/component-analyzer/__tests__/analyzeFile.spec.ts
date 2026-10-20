@@ -330,6 +330,7 @@ describe('analyzeFile', () => {
         {
           shadow: false,
           formAssociated: true,
+          styles: ['input { color: red }', '.hint { display: block }'],
           props: {
             value: {
               type: String,
@@ -375,6 +376,25 @@ describe('analyzeFile', () => {
         formAssociated: true,
       },
     })
+  })
+
+  it('rejects dynamic styles in analyzed output definitions', () => {
+    const result = analyzeFile({
+      file: 'src/input.tsx',
+      code: `
+        import { defineElement } from '@zeus-js/zeus'
+        const styles = getStyles()
+        export const ZInput = defineElement('z-input', { styles }, () => null)
+      `,
+    })
+
+    expect(result.components).toEqual([])
+    expect(result.diagnostics).toEqual([
+      expect.objectContaining({
+        level: 'error',
+        message: expect.stringContaining('styles must be a static string'),
+      }),
+    ])
   })
 
   it('extracts model mappings and exposed method signatures', () => {
