@@ -60,20 +60,12 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
     let source_type = match SourceType::from_path(filename) {
         Ok(source_type) => source_type,
         Err(error) => {
-            return LowerResult {
-                ir: None,
-                diagnostics: vec![CompilerDiagnostic::error(
-                    "ZEUS_UNSUPPORTED_SOURCE_TYPE",
-                    error.to_string(),
-                    filename,
-                    None,
-                )],
-                error_boundary_spans: Vec::new(),
-                reserved_names: Vec::new(),
-                hmr: HmrInfo::default(),
-                pure_define_element_calls: Vec::new(),
-                ssr_runtime_imports: Vec::new(),
-            };
+            return failed_lower_result(vec![CompilerDiagnostic::error(
+                "ZEUS_UNSUPPORTED_SOURCE_TYPE",
+                error.to_string(),
+                filename,
+                None,
+            )]);
         }
     };
 
@@ -82,40 +74,28 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
     let source_index = SourceIndex::new(source);
 
     if !parsed.diagnostics.is_empty() {
-        return LowerResult {
-            ir: None,
-            diagnostics: parsed
+        return failed_lower_result(
+            parsed
                 .diagnostics
                 .iter()
                 .map(|diagnostic| {
                     from_oxc_diagnostic(diagnostic, "ZEUS_PARSE_ERROR", filename, &source_index)
                 })
                 .collect(),
-            error_boundary_spans: Vec::new(),
-            reserved_names: Vec::new(),
-            hmr: HmrInfo::default(),
-            pure_define_element_calls: Vec::new(),
-            ssr_runtime_imports: Vec::new(),
-        };
+        );
     }
 
     let semantic_result = SemanticBuilder::new_compiler().build(&parsed.program);
     if !semantic_result.diagnostics.is_empty() {
-        return LowerResult {
-            ir: None,
-            diagnostics: semantic_result
+        return failed_lower_result(
+            semantic_result
                 .diagnostics
                 .iter()
                 .map(|diagnostic| {
                     from_oxc_diagnostic(diagnostic, "ZEUS_SEMANTIC_ERROR", filename, &source_index)
                 })
                 .collect(),
-            error_boundary_spans: Vec::new(),
-            reserved_names: Vec::new(),
-            hmr: HmrInfo::default(),
-            pure_define_element_calls: Vec::new(),
-            ssr_runtime_imports: Vec::new(),
-        };
+        );
     }
 
     let reserved_names = collect_reserved_names(semantic_result.semantic.scoping());
@@ -260,15 +240,25 @@ fn collect_top_level_define_element_calls(program: &oxc_ast::ast::Program<'_>) -
         // facade just like a named export initializer.
         if let Some(ModuleDeclaration::ExportDefaultDeclaration(export)) =
             statement.as_module_declaration()
+            && let Some(expression) = export.declaration.as_expression()
+            && let Some(span) = direct_define_element_call(expression, &define_names)
         {
-            if let Some(expression) = export.declaration.as_expression() {
-                if let Some(span) = direct_define_element_call(expression, &define_names) {
-                    calls.push(span);
-                }
-            }
+            calls.push(span);
         }
     }
     calls
+}
+
+fn failed_lower_result(diagnostics: Vec<CompilerDiagnostic>) -> LowerResult {
+    LowerResult {
+        ir: None,
+        diagnostics,
+        error_boundary_spans: Vec::new(),
+        reserved_names: Vec::new(),
+        hmr: HmrInfo::default(),
+        pure_define_element_calls: Vec::new(),
+        ssr_runtime_imports: Vec::new(),
+    }
 }
 
 fn direct_define_element_call(

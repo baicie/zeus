@@ -350,32 +350,42 @@ fn emit_hmr_boundary(writer: &mut CodeWriter, enabled: bool, hmr: &HmrInfo, disp
     writer.push("      }\n    }\n  })\n}\n");
 }
 
-pub(crate) fn emit_ssr_module(
-    source: &str,
-    filename: &str,
-    runtime_module: &str,
-    source_map: bool,
-    module: &ModuleIr,
-    reserved_names: &[String],
-    define_element_calls: &[oxc_span::Span],
-    ssr_runtime_imports: &[oxc_span::Span],
-) -> TransformModuleResult {
+pub(crate) struct SsrModuleOptions<'a> {
+    pub(crate) source: &'a str,
+    pub(crate) filename: &'a str,
+    pub(crate) runtime_module: &'a str,
+    pub(crate) source_map: bool,
+    pub(crate) module: &'a ModuleIr,
+    pub(crate) reserved_names: &'a [String],
+    pub(crate) define_element_calls: &'a [oxc_span::Span],
+    pub(crate) ssr_runtime_imports: &'a [oxc_span::Span],
+}
+
+pub(crate) fn emit_ssr_module(options: &SsrModuleOptions<'_>) -> TransformModuleResult {
+    let SsrModuleOptions {
+        source,
+        filename,
+        runtime_module,
+        source_map,
+        module,
+        reserved_names,
+        define_element_calls,
+        ssr_runtime_imports,
+    } = *options;
     let mut names = NameAllocator::new(reserved_names);
     let runtime = SsrRuntimeNames::allocate(&mut names);
+    let source_emitter = SsrSourceEmitter {
+        source,
+        runtime_module,
+        define_element_calls,
+        ssr_runtime_imports,
+        runtime: &runtime,
+    };
     let mut writer = CodeWriter::default();
     let mut cursor = usize::try_from(module.preamble_end)
         .unwrap_or(usize::MAX)
         .min(source.len());
-    emit_ssr_source_slice(
-        &mut writer,
-        source,
-        0,
-        cursor,
-        runtime_module,
-        define_element_calls,
-        ssr_runtime_imports,
-        &runtime,
-    );
+    source_emitter.emit(&mut writer, 0, cursor);
     if cursor > 0 && !writer.code.ends_with('\n') {
         writer.push("\n");
     }
@@ -398,29 +408,11 @@ pub(crate) fn emit_ssr_module(
         if start < cursor || end > source.len() {
             continue;
         }
-        emit_ssr_source_slice(
-            &mut writer,
-            source,
-            cursor,
-            start,
-            runtime_module,
-            define_element_calls,
-            ssr_runtime_imports,
-            &runtime,
-        );
+        source_emitter.emit(&mut writer, cursor, start);
         emit_ssr_root(&mut writer, &component.root, &runtime, component.id);
         cursor = end;
     }
-    emit_ssr_source_slice(
-        &mut writer,
-        source,
-        cursor,
-        source.len(),
-        runtime_module,
-        define_element_calls,
-        ssr_runtime_imports,
-        &runtime,
-    );
+    source_emitter.emit(&mut writer, cursor, source.len());
 
     let map = source_map.then(|| build_source_map(filename, source, &writer.mappings));
     TransformModuleResult {
@@ -431,47 +423,49 @@ pub(crate) fn emit_ssr_module(
     }
 }
 
-fn emit_ssr_source_slice(
-    writer: &mut CodeWriter,
-    source: &str,
-    start: usize,
-    end: usize,
-    runtime_module: &str,
-    define_element_calls: &[oxc_span::Span],
-    ssr_runtime_imports: &[oxc_span::Span],
-    runtime: &SsrRuntimeNames,
-) {
-    let mut replacements = define_element_calls
-        .iter()
-        .filter_map(|span| {
-            let start = usize::try_from(span.start).ok()?;
-            let name_end = identifier_end(source, start, source.len())?;
-            Some((start, name_end, runtime.define_element().to_string()))
-        })
-        .chain(ssr_runtime_imports.iter().filter_map(|span| {
-            let start = usize::try_from(span.start).ok()?;
-            let end = usize::try_from(span.end).ok()?;
-            Some((start, end, quote_js(runtime_module)))
-        }))
-        .filter(|(replacement_start, replacement_end, _)| {
-            *replacement_start >= start
-                && *replacement_start < end
-                && *replacement_end <= end
-                && *replacement_end > *replacement_start
-        })
-        .collect::<Vec<_>>();
-    replacements.sort_by_key(|replacement| replacement.0);
+struct SsrSourceEmitter<'a> {
+    source: &'a str,
+    runtime_module: &'a str,
+    define_element_calls: &'a [oxc_span::Span],
+    ssr_runtime_imports: &'a [oxc_span::Span],
+    runtime: &'a SsrRuntimeNames,
+}
 
-    let mut cursor = start;
-    for (replacement_start, replacement_end, replacement) in replacements {
-        if replacement_start < cursor {
-            continue;
+impl SsrSourceEmitter<'_> {
+    fn emit(&self, writer: &mut CodeWriter, start: usize, end: usize) {
+        let mut replacements = self
+            .define_element_calls
+            .iter()
+            .filter_map(|span| {
+                let start = usize::try_from(span.start).ok()?;
+                let name_end = identifier_end(self.source, start, self.source.len())?;
+                Some((start, name_end, self.runtime.define_element().to_string()))
+            })
+            .chain(self.ssr_runtime_imports.iter().filter_map(|span| {
+                let start = usize::try_from(span.start).ok()?;
+                let end = usize::try_from(span.end).ok()?;
+                Some((start, end, quote_js(self.runtime_module)))
+            }))
+            .filter(|(replacement_start, replacement_end, _)| {
+                *replacement_start >= start
+                    && *replacement_start < end
+                    && *replacement_end <= end
+                    && *replacement_end > *replacement_start
+            })
+            .collect::<Vec<_>>();
+        replacements.sort_by_key(|replacement| replacement.0);
+
+        let mut cursor = start;
+        for (replacement_start, replacement_end, replacement) in replacements {
+            if replacement_start < cursor {
+                continue;
+            }
+            writer.push(&self.source[cursor..replacement_start]);
+            writer.push(&replacement);
+            cursor = replacement_end;
         }
-        writer.push(&source[cursor..replacement_start]);
-        writer.push(&replacement);
-        cursor = replacement_end;
+        writer.push(&self.source[cursor..end]);
     }
-    writer.push(&source[cursor..end]);
 }
 
 fn identifier_end(source: &str, start: usize, limit: usize) -> Option<usize> {

@@ -1519,12 +1519,12 @@ export const Card = defineElement('z-card', { shadow: true }, props => <Host tit
 #[test]
 fn rewrites_default_define_element_exports_for_ssr() {
     for source in [
-        r#"import { defineElement, Host } from '@zeus-js/zeus'
+        r"import { defineElement, Host } from '@zeus-js/zeus'
 export default defineElement('z-card', { shadow: true }, () => <Host><article>Card</article></Host>)
-"#,
-        r#"import { defineElement, Host } from '@zeus-js/zeus'
+",
+        r"import { defineElement, Host } from '@zeus-js/zeus'
 export default (defineElement('z-card', { shadow: true }, () => <Host><article>Card</article></Host>) as unknown)
-"#,
+",
     ] {
         let transformed = transform_module(TransformModuleOptions {
             source: source.into(),
@@ -1558,9 +1558,9 @@ export default (defineElement('z-card', { shadow: true }, () => <Host><article>C
 
 #[test]
 fn rewrites_mixed_ssr_safe_imports_to_the_ssr_facade() {
-    let source = r#"import { createSignal, defineElement, Host } from '@zeus-js/zeus'
+    let source = r"import { createSignal, defineElement, Host } from '@zeus-js/zeus'
 export default defineElement('z-counter', {}, () => <Host>{createSignal(0)[0]()}</Host>)
-"#;
+";
     let transformed = transform_module(TransformModuleOptions {
         source: source.into(),
         filename: "ssr-mixed-import.tsx".into(),
