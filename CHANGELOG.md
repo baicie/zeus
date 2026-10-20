@@ -1,10 +1,40 @@
 # Changelog
 
-## 0.1.1-beta.14 (2026-10-16)
+## 0.1.1-beta.14 (2026-10-20)
 
 ### Fixes
 
 - Avoid allocating an updater closure when keyed `For` reuses a slot for an ordinary item value.
+- Preserve Web Component property identity and decode attributes once across eager and lazy initialization, including pre-upgrade writes, deferred codecs, defaults, disconnect/reconnect, and queued methods.
+- Correct delegated events across open and closed Shadow Roots, React 19 custom event names, Light DOM projection moves, form lifecycle fallbacks, and style cleanup/reinsertion with CSP nonces.
+- Isolate per-component lazy registration and implementation chunks; resolve generated runtime imports without embedding installation paths.
+- Skip redundant style removals while repairing externally changed styles, and strengthen owner cleanup, reactive engine interoperability, and invalid JSX value diagnostics.
+- Prevent duplicate hydration event delivery on pages using delegated events, reject duplicate markers and mismatched tags, and release bindings and DevTools owners across setup failures and parent scope disposal while preserving the initial error.
+- Preserve Vite HMR state only for parser-identified ordinary comment edits; template/JSX content, ASI line terminators, compiler directives, and unsupported syntax take the normal compilation path.
+
+### Features
+
+- Extend the Rust/Oxc compiler with conditional, logical, array, and `map()` JSX regions, ordered native/component spreads, source-spanned builtin validation, and DOM/SSR lowering. Components still initialize once and update their individual bindings.
+- Add the compile-time `once(expression)` intrinsic for native DOM scalar text, attribute, and property initialization without effects; deduplicate static templates and enforce compiler output budgets.
+- Add `Portal`, explicit child-factory `ErrorBoundary`, and `Transition` APIs with owner cleanup. Boundaries handle initialization, insertion, and subsequent binding failures; resource failures can be forwarded explicitly. Transition supports cancellation, class/hook phases, and compiler lowering with an initial-branch SSR result.
+- Introduce `@zeus-js/router` over `@remix-run/router`, `@zeus-js/resource` for cancellable asynchronous resources, `@zeus-js/query` over `@tanstack/query-core`, and `@zeus-js/testing` for render lifecycle, events, effect flushing, and role queries.
+- Extend Web Component manifests, declarations, and React/Vue outputs with explicit event, method, slot, form, style, and property contracts; emit VS Code HTML Custom Data and define renderer-adapter boundaries for framework-owned slot content.
+- Add application and component-library starter templates, guarded scaffold destination handling, a router-based Admin example, and a compiler-output playground. Preserve existing roots for comment-only Vite HMR edits; executable changes dispose and remount.
+- Add a production Next.js Server/Client boundary example that distinguishes static custom-element hosts from interactive `"use client"` wrappers and verifies upgrade behavior in three browsers.
+- Add development binding/dependency diagnostics and an internal DevTools consumer/panel model, including serializable MessagePort transport and bounded disposal history.
+- Add low-level Declarative Shadow DOM serialization and explicit marker-plan hydration helpers. They require an application-supplied binding plan; compiled automatic hydration, streaming, and asynchronous SSR are not delivered by this release. React/Vue wrapper SSR remains host-tag-only and mounts a fresh client tree.
+
+### Beta contract changes
+
+- JSX expressions are values: use `title={label()}`, `when={visible()}`, and `each={items()}`. Functions remain function values for properties, component props, events, and refs; they are not implicitly called as getters. Invalid text/attribute/child values fail explicitly.
+- Replace the old `/* @once */` annotation with `once(expression)`. Web Component props are shallow by default; opt into `reactivity: 'deep'` when nested proxy tracking is required. The main `@zeus-js/zeus` entry no longer re-exports the JSX runtime helpers.
+- Zeus beta follows one current contract: repository consumers, generated artifacts, types, tests, and documentation change together. Removed Zeus APIs have no aliases, legacy modes, or deprecation window; supported React 18/19, Vue 3, Node, browser, ESM, and CommonJS contracts continue to be verified.
+
+### Build and release validation
+
+- Expand independent tarball consumer coverage to Native, React 18/19, and Vue 3 across Chromium, Firefox, and WebKit; add Admin navigation checks, SSR-safe imports, API snapshots, native platform install smoke tests, and component-host/compiler performance budgets.
+- Measure the playground's complete production runtime bundles, include their transitive module manifest and compression sizes, and verify all views, real clipboard copy/paste, shared-URL reloads, retries, keyboard navigation, and clipboard denial in three browsers.
+- Separate local npm login checks from CI bypass-token policy checks, allow first-publication packages through auth preflight, and retain tagged-source, published-version, dist-tag, signed provenance, and registry compiler smoke gates. Native `latest` pollution remains separately guarded for Canary and non-beta tagged releases; a beta publication does not repair those tags.
 
 ## 0.1.1-beta.13 (2026-10-14)
 
