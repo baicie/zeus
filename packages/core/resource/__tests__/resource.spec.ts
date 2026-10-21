@@ -78,6 +78,35 @@ describe('@zeus-js/resource', () => {
     dispose()
   })
 
+  it('can refetch from an effect without subscribing to its own state', async () => {
+    const [trigger, setTrigger] = createSignal(0)
+    let requestCount = 0
+    const fetcher = vi.fn(async () => `result-${++requestCount}`)
+    let resource!: ReturnType<typeof createResource<string, string>>
+    let effectRuns = 0
+    const refetchErrors: unknown[] = []
+    let dispose!: () => void
+
+    createRoot(stop => {
+      dispose = stop
+      resource = createResource('static', fetcher)
+      createEffect(() => {
+        trigger()
+        effectRuns += 1
+        void resource.refetch().catch(error => refetchErrors.push(error))
+      })
+    })
+
+    await vi.waitFor(() => expect(resource.data()).toBe('result-2'))
+    setTrigger(1)
+    await vi.waitFor(() => expect(resource.data()).toBe('result-3'))
+    expect(fetcher).toHaveBeenCalledTimes(3)
+    expect(effectRuns).toBe(2)
+    expect(refetchErrors).toEqual([])
+
+    dispose()
+  })
+
   it('cancels active requests when its owner is disposed', async () => {
     const request = deferred<string>()
     const abort = vi.fn()

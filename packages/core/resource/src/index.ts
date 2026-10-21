@@ -93,88 +93,89 @@ export function createResource<T, K>(
     controller = undefined
   }
 
-  const refetch = async (): Promise<T> => {
-    if (disposed) throw new Error('Resource has been disposed')
-    const currentSource = lastSource
-    const key = keyOf(currentSource)
-    const now = Date.now()
-    cancel()
-    const requestGeneration = ++generation
-    const cached = cache.get(key)
-    if (
-      cached &&
-      options.staleTime !== undefined &&
-      now - cached.updatedAt < options.staleTime
-    ) {
-      setState({
-        status: 'success',
-        pending: false,
-        success: true,
-        error: undefined,
-        data: cached.data,
-        stale: false,
-        updatedAt: cached.updatedAt,
-      })
-      return cached.data
-    }
-
-    const requestController = new AbortController()
-    controller = requestController
-    const previous = state().data
-    setState({
-      status: 'pending',
-      pending: true,
-      success: false,
-      error: undefined,
-      data: previous,
-      stale: previous !== undefined,
-      updatedAt: state().updatedAt,
-    })
-
-    try {
-      const data = await fetcher(currentSource, {
-        signal: requestController.signal,
-      })
-      if (disposed || requestGeneration !== generation) {
-        throw new Error('Resource request became stale')
-      }
-      const updatedAt = Date.now()
-      cache.set(key, { data, updatedAt })
-      setState({
-        status: 'success',
-        pending: false,
-        success: true,
-        error: undefined,
-        data,
-        stale: false,
-        updatedAt,
-      })
-      return data
-    } catch (error) {
-      if (disposed || requestGeneration !== generation) throw error
-      if (requestController.signal.aborted) {
+  const refetch = (): Promise<T> =>
+    untrack(async () => {
+      if (disposed) throw new Error('Resource has been disposed')
+      const currentSource = lastSource
+      const key = keyOf(currentSource)
+      const now = Date.now()
+      cancel()
+      const requestGeneration = ++generation
+      const cached = cache.get(key)
+      if (
+        cached &&
+        options.staleTime !== undefined &&
+        now - cached.updatedAt < options.staleTime
+      ) {
         setState({
-          ...state(),
-          status: 'pending',
-          pending: true,
-          success: false,
-          stale: state().data !== undefined,
-        })
-      } else {
-        setState({
-          ...state(),
-          status: 'error',
+          status: 'success',
           pending: false,
-          success: false,
-          error,
-          stale: state().data !== undefined,
+          success: true,
+          error: undefined,
+          data: cached.data,
+          stale: false,
+          updatedAt: cached.updatedAt,
         })
+        return cached.data
       }
-      throw error
-    } finally {
-      if (controller === requestController) controller = undefined
-    }
-  }
+
+      const requestController = new AbortController()
+      controller = requestController
+      const previous = state().data
+      setState({
+        status: 'pending',
+        pending: true,
+        success: false,
+        error: undefined,
+        data: previous,
+        stale: previous !== undefined,
+        updatedAt: state().updatedAt,
+      })
+
+      try {
+        const data = await fetcher(currentSource, {
+          signal: requestController.signal,
+        })
+        if (disposed || requestGeneration !== generation) {
+          throw new Error('Resource request became stale')
+        }
+        const updatedAt = Date.now()
+        cache.set(key, { data, updatedAt })
+        setState({
+          status: 'success',
+          pending: false,
+          success: true,
+          error: undefined,
+          data,
+          stale: false,
+          updatedAt,
+        })
+        return data
+      } catch (error) {
+        if (disposed || requestGeneration !== generation) throw error
+        if (requestController.signal.aborted) {
+          setState({
+            ...state(),
+            status: 'pending',
+            pending: true,
+            success: false,
+            stale: state().data !== undefined,
+          })
+        } else {
+          setState({
+            ...state(),
+            status: 'error',
+            pending: false,
+            success: false,
+            error,
+            stale: state().data !== undefined,
+          })
+        }
+        throw error
+      } finally {
+        if (controller === requestController) controller = undefined
+      }
+    })
 
   const dispose = (): void => {
     if (disposed) return
