@@ -249,3 +249,18 @@ beta.16 在 registry 可见后更新锁文件并重跑全量 UI CI；完整 show
 - 当前机器 `npm whoami --registry=https://registry.npmjs.org/` 返回 E401，不能在本地执行发布或
   dist-tag 删除；D-006 的首次接触用户 15 分钟计时仍按用户要求留未完成。B-003、E-009、F-011、
   D-006 和总目标继续保持进行中。
+
+### 增量状态（2026-10-22，最终 main Canary 复核）
+
+- PR #148 已合并为 main `3e0e622`。对应 Release Canary run `39679103278` 全部通过：8 个
+  Native prebuild、Canary 发布、Sigstore provenance、Node 22/24 registry smoke 和下游 UI
+  dispatch 均成功；`canary` dist-tag 当前为
+  `0.1.1-canary.20261021.202.1.3e0e6220`。
+- `@zeus-js/compiler-native` 的 `latest` 仍指向历史
+  `0.1.1-canary.20260812.106.1.658fe407`，且本机官方 registry `npm whoami` 返回 E401；
+  F-011 的历史 dist-tag 清理仍需具备删除权限的发布环境完成。
+- UI PR #111 已加入 DropdownMenu 方向键打开、FormField caller-owned 状态保留及回归测试，
+  head `6f751d4`；定向 runtime、类型、格式检查通过，PR CI 正在重跑。UI beta.33 和稳定版
+  尚未发布，因此 B-003/E-009 的新 registry Golden、provenance 和独立消费者报告仍缺失。
+- D-006 仍没有首次接触 Zeus 用户的 15 分钟匿名计时记录，按用户明确要求保持未完成；所以
+  B-003、E-009、F-011、D-006 与本总目标均不能标记完成。

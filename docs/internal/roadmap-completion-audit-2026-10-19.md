@@ -171,3 +171,16 @@ Phase 10/12/14 实现。以下命令均在 `zeus-ui` 根目录执行并通过：
 - 当前 `npm whoami --registry=https://registry.npmjs.org/` 返回 E401，无法在本机发布 UI 或删除历史
   native `latest`。D-006 仍缺真实新用户 15 分钟匿名记录，按用户明确要求保留未完成；因此 B-003、
   E-009、F-011、D-006 和总目标均不得标记完成。
+
+## 2026-10-22 最终 main Canary 复核
+
+- PR #148 已合并为 main `3e0e622`。Release Canary run `39679103278` 的 Native prebuild、发布、
+  provenance、Node 22/24 registry smoke 和下游 dispatch 全部成功；`canary` 为
+  `0.1.1-canary.20261021.202.1.3e0e6220`。
+- `@zeus-js/compiler-native` 的 `latest` 仍为历史 canary
+  `0.1.1-canary.20260812.106.1.658fe407`，官方源本机认证仍 E401，F-011 清理未完成。
+- UI PR #111 当前 head `6f751d4`，已修复 DropdownMenu 方向键打开和 FormField caller-owned
+  状态覆盖问题并通过定向测试；完整 PR CI 正在重跑。UI beta.33/稳定版未发布，B-003/E-009
+  的新 registry Golden、来源与消费者报告仍待完成。
+- 用户已明确无法安排首次接触 Zeus 用户的 15 分钟计时，D-006 按要求保持未完成；因此
+  B-003、E-009、F-011、D-006 和总目标均不得标记完成。
