@@ -65,6 +65,21 @@ B-003/E-009 仍须在修复版 Zeus 与 UI 新 tarball 发布后重跑完整 Gol
 旧 beta.32/beta.13 的失败记录不能替代新版本验收。D-006 的新用户 15 分钟计时由用户确认
 暂时无法安排，必须保留未完成；因此本总目标仍未完成。
 
+## 2026-10-22 当前复核
+
+- Zeus `main` 仍为 `7bc98f8`，本地分支与 `origin/main` 同步且工作区干净。beta.16 尚未发布；官方 npm 源的
+  `npm whoami` 仍返回 E401，因此不能执行真实发布、provenance 核验或删除
+  `@zeus-js/compiler-native` 的历史 `latest` 标签。
+- Zeus UI PR #111 的 `codex/ui-beta33-release-prep` 已推送 `ab948db`，修复 Data Grid benchmark contract
+  中残留的 beta.32 版本断言；本机 759/759 Node unit、定向 benchmark contract 7/7、format/check 通过，
+  Windows CI 的 Node 和 jsdom 阶段通过。该 PR 仍未合并。
+- PR #111 的 Linux unit-test 仍在第一步 Data Grid E2E 失败：Zeus beta.15 diagnostics 默认路径调用
+  `performance.now()` 318 次；修复已在 Zeus `main`，需发布 beta.16 后重锁依赖并重跑。React showcase
+  的完整 route smoke 在 `/playground` 后进入 Select 路由时偶发 Promise 微任务重入；单路由和拆分序列可通过，
+  当前证据不足以安全修改 UI 业务代码，待修复版 runtime 集成后复验。
+- B-003、E-009、F-011 和总目标继续未完成；D-006 按用户要求保持未完成。需完成 beta.16/UI beta.33 发布、
+  provenance 与完整 Golden 消费者矩阵，并取得 D-006 真实新用户计时记录后，才能关闭这些项目。
+
 D-009 审计另复现了注释换行触发 ASI、编译指令变化、嵌套模板/JSX 被误判安全的缺陷。
 已以 Babel parser 注释范围替代启发式扫描，87 项插件测试及独立审阅通过；解析失败仍重挂载。`$state` 实现不在
 原任务要求内；原任务只要求 RFC，不为凑齐数量添加隐式语义。
