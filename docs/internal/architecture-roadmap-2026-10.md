@@ -190,3 +190,16 @@
 - Golden 真实 registry tarball 的既有 React18/19 SSR import 与 Vue3 具名 Slot 失败仍未被新版本发布后的
   消费者矩阵重新证明；本轮重跑另因 GitHub 源码快照网络 fetch 失败而中止。D-006 的真实新用户计时
   由用户确认暂时无法安排，按用户要求保留未完成；B-003、E-009、F-011 与总目标也继续保持未完成。
+
+### 后续状态复核（2026-10-21）
+
+- 随后执行 `npm whoami --registry=https://registry.npmjs.org/` 返回 E401。此前同日成功认证为
+  `baicie2` 并读取到包 ACL 的结果属于较早会话，不是当前发布或删除 dist-tag 的认证证明。
+- Zeus PR #143 已合并到 `main`，merge commit 为 `40f887b`；合并前最新 build、test、lint、Rust、
+  packed-consumers 与 Admin 浏览器检查通过。本地 `main` 与 `origin/main` 同步，工作区干净。
+- registry 上 Zeus beta 仍为 `0.1.1-beta.15`；`@zeus-js/compiler-native` 的 `latest` 仍指向
+  `0.1.1-canary.20260812.106.1.658fe407`，历史清理仍受先前记录的 E403 阻塞。B-003/E-009
+  需要在修复版 Zeus 与新 UI tarball 发布后重新运行 Golden 和来源验证。
+- Zeus UI registry beta 仍为 `0.1.0-beta.32`，`0.1.0-beta.33` 查询返回 E404；beta.33 及
+  稳定版尚未发布，发布后消费者和 provenance 验收未完成。D-006 的真实新用户 15 分钟计时
+  由用户明确表示暂时无法安排，按要求保留未完成；F-011、B-003、E-009 和总目标继续未完成。
