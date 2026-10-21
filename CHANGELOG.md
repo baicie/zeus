@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1-beta.16 (2026-10-21)
+
+### Fixes
+
+- Release v0.1.1-beta.16.
+
 ## 0.1.1-beta.15 (2026-10-20)
 
 ### Features
