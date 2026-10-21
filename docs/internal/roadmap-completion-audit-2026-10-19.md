@@ -129,3 +129,27 @@ Phase 10/12/14 实现。以下命令均在 `zeus-ui` 根目录执行并通过：
 建议依赖顺序：修 HMR/显式 hydration → CLI 锁安全 → registry/组件依赖 → Golden/Next/
 文档与 DevTools/Playground → 编译器 SSR/Hydration → 框架/UI发布与对齐 → 完整验收 →
 分支及工作区核验 → 最后关闭计划和总目标。并行可独立完成的切片，无需等待发布权限。
+
+## 2026-10-22 发布与路线图复核
+
+- Zeus 已在 `main` 提交 `a6f97c7` 创建 `v0.1.1-beta.16` tag 并推送。`pnpm release:precheck`
+  本地通过（29 个发布包及 native binaries、151 个测试文件/1580 项测试、构建、类型、examples、
+  docs、size、exports 等门禁）。GitHub Release run `39665117063` 仍处于 pending；官方 npm
+  registry 查询 `@zeus-js/zeus@0.1.1-beta.16` 返回 E404，故尚无 registry 发布、provenance 或
+  Node 22/24 registry smoke 证据。run `39665108731` 的 Release Canary 与 `39665117063` 共用
+  `npm-release` concurrency group；Canary 仍在 `Publish canary` 步骤，beta 发布在其完成后继续。
+- 当前官方 registry dist-tag 仍为 Zeus beta `0.1.1-beta.15`、canary
+  `0.1.1-canary.20261021.198.1.581e0001`；`@zeus-js/compiler-native` 的 `latest` 仍指向
+  `0.1.1-canary.20260812.106.1.658fe407`。历史 tag 清理仍未完成。旧失败 canary run
+  `39655474019` 的 staging tag 仍在 npm tag 列表中，待发布链完成后核实并按脚本清理。
+- Zeus `main` 的 CI `39665108632`、Docs `39665108442`、Native Matrix `39665108465` 和 Component
+  Host Bench `39665108770` 均成功。beta.16 Release 与新 Canary 的最终结果尚未产生。
+- Zeus UI PR #111 仍 OPEN，head `ab948db`。当前 GitHub CI 的唯一实质 Linux 失败是 Data Grid
+  diagnostics 默认关闭时仍观察到 `performance.now()` 318 次（旧 beta.15 runtime）；修复已包含于
+  Zeus beta.16 候选 `a6f97c7`，但必须待其公开后对齐依赖并重跑。完整 React showcase route smoke
+  仍有不可稳定复现的 Promise 微任务重入，不允许跳过或放宽断言。UI Phase 15 稳定版及发布后
+  registry/provenance/独立消费者验证仍未完成。
+- 全路线图复审未发现额外未完成切片：剩余项目仍是 B-003/E-009 的真实 Golden tarball 矩阵、
+  F-011 的历史 native `latest` 清理、D-006 的首次接触用户 15 分钟计时，以及 beta.16、UI beta.33
+  和 UI 0.1.0 发布后的验证。用户再次明确表示暂时无法安排首次用户测试，并指定 D-006 留未完成。
+  因此 D-006、B-003、E-009、F-011 与总目标均不得标记完成。
