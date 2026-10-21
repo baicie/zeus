@@ -213,3 +213,21 @@ OPEN/BLOCKED，head `ab948db` 已修复 beta.33 benchmark 版本断言，本机 
 DataGrid E2E 仍因 beta.15 runtime 的 diagnostics 时钟读取失败，Windows 的过期 beta.32 断言已修复，
 Node/jsdom 阶段通过。完整 showcase route smoke 的序列微任务问题仍待修复版 runtime 集成后复验。
 B-003/E-009/F-011 与总目标继续保持未完成，D-006 按用户明确要求保留未完成。
+
+### 增量状态（2026-10-22，beta.16 发布追踪）
+
+Zeus `main` 已提交并推送 `a6f97c7`，创建 tag `v0.1.1-beta.16`。本地 release precheck
+通过；GitHub Release run `39665117063` 仍 pending，官方 registry 对 `@zeus-js/zeus@0.1.1-beta.16`
+返回 E404，因此 beta.16 尚不能作为已发布依赖。Release Canary run `39665108731` 正在执行
+`Publish canary`，与 beta Release 共享 `npm-release` 互斥组。
+
+截至本记录，Zeus CI、Docs、Native Matrix 和 Component Host Bench 的 `a6f97c7` 检查通过；
+UI PR #111 仍 OPEN。其 Data Grid E2E 只在 beta.15 runtime 上因 diagnostics 默认计时失败，须待
+beta.16 在 registry 可见后更新锁文件并重跑全量 UI CI；完整 showcase route smoke 的偶发问题
+没有稳定复现，禁止跳过用例或放宽超时。UI Phase 15 的稳定版发布与消费者/source provenance
+验收仍待完成。
+
+官方 registry 的 `@zeus-js/compiler-native` `latest` 仍是旧 canary
+`0.1.1-canary.20260812.106.1.658fe407`，F-011 清理未完成；B-003/E-009 仍缺新发布版本的
+真实 Golden tarball、供应链和消费者矩阵；D-006 仍缺真实新用户 15 分钟匿名计时记录，用户已
+明确要求留未完成。因此路线图和总目标均保持进行中。
