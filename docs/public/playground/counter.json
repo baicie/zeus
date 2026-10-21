@@ -122,9 +122,9 @@
     "compression": "Node zlib gzip/Brotli 默认参数；数值为字节数",
     "dom": {
       "platform": "browser",
-      "raw": 26304,
-      "gzip": 9487,
-      "brotli": 8610,
+      "raw": 26312,
+      "gzip": 9496,
+      "brotli": 8622,
       "modules": [
         "packages/core/runtime-dom/dist/runtime-dom.esm-bundler.js",
         "packages/core/shared/dist/shared.esm-bundler.js",
