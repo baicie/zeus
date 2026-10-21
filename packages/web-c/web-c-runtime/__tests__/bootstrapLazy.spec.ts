@@ -770,6 +770,61 @@ describe('lazy element lifecycle', () => {
     )
   })
 
+  it('proxies explicitly exposed methods that shadow native HTMLElement methods', async () => {
+    const focus = vi.fn().mockReturnValue('focused')
+
+    bootstrapLazy([
+      {
+        tagName: 'zw-native-method-test',
+        shadow: false,
+        load: vi.fn().mockResolvedValue({
+          createComponent(hostRef: HostRef) {
+            hostRef.exposedMethods.focus = focus
+            return { connected() {} }
+          },
+        }),
+        props: [],
+        methods: ['focus'],
+      },
+    ])
+
+    const el = document.createElement(
+      'zw-native-method-test',
+    ) as HTMLElement & {
+      focus(): Promise<unknown>
+    }
+    document.body.appendChild(el)
+
+    await expect(el.focus()).resolves.toBe('focused')
+    expect(focus).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects component methods that conflict with lazy element lifecycle APIs', () => {
+    const reservedMethods = [
+      'connectedCallback',
+      'disconnectedCallback',
+      'attributeChangedCallback',
+      'componentOnReady',
+    ]
+
+    for (const [index, method] of reservedMethods.entries()) {
+      const tagName = `zw-reserved-method-${index}`
+
+      expect(() => {
+        bootstrapLazy([
+          {
+            tagName,
+            load: vi.fn(),
+            props: [],
+            methods: [method],
+          },
+        ])
+      }).toThrow(`[ZEUS_WC_RESERVED_METHOD] Method "${method}"`)
+
+      expect(customElements.get(tagName)).toBeUndefined()
+    }
+  })
+
   it('rejects lazy method calls when the exposed method throws', async () => {
     bootstrapLazy([
       {
