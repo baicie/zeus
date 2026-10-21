@@ -838,4 +838,52 @@ describe('eager and lazy custom element adapters', () => {
       lazySecond,
     ])
   })
+
+  it('keeps nested lazy menu items connected while projecting a light-DOM host', async () => {
+    const menuTag = createTag('dropdown-menu')
+    const itemTag = createTag('dropdown-menu-item')
+    const menuDefinitionTag = createTag('dropdown-menu-definition')
+    const Menu = defineElement(menuDefinitionTag, { shadow: false }, () => {
+      const menu = document.createElement('div')
+      menu.setAttribute('data-slot', 'dropdown-menu')
+      insertTracked(menu, Slot({}))
+      return menu
+    })
+
+    let resolveItem!: (module: ZeusComponentModule) => void
+    const pendingItemModule = new Promise<ZeusComponentModule>(resolve => {
+      resolveItem = resolve
+    })
+    const itemLoad = vi.fn(() => pendingItemModule)
+
+    bootstrapLazy([
+      {
+        tagName: menuTag,
+        shadow: false,
+        props: [],
+        load: async () => createLazyModule(Menu),
+      },
+      {
+        tagName: itemTag,
+        shadow: false,
+        props: [],
+        load: itemLoad,
+      },
+    ])
+
+    const menu = document.createElement(menuTag) as AdapterElement
+    const item = document.createElement(itemTag) as AdapterElement
+    menu.appendChild(item)
+    const itemReady = item.componentOnReady?.()
+    document.body.appendChild(menu)
+
+    await menu.componentOnReady?.()
+    resolveItem({ createComponent: () => ({ connected() {} }) })
+
+    await expect(itemReady).resolves.toBe(item)
+    expect(itemLoad).toHaveBeenCalledTimes(1)
+    expect(
+      menu.querySelector('[data-slot="dropdown-menu"]')?.firstElementChild,
+    ).toBe(item)
+  })
 })
