@@ -13,6 +13,7 @@ describe('output-vue-wrapper runtime', () => {
     vi.stubGlobal('Element', dom.window.Element)
     vi.stubGlobal('Node', dom.window.Node)
     vi.stubGlobal('CustomEvent', dom.window.CustomEvent)
+    vi.stubGlobal('customElements', dom.window.customElements)
   })
 
   afterAll(() => {
@@ -152,6 +153,66 @@ describe('output-vue-wrapper runtime', () => {
     expect(host.textContent).toBe('GoldenP!S')
     expect(host.querySelector('[slot="prefix"]')?.textContent).toBe('P!')
     expect(host.querySelector('[slot="suffix"]')?.textContent).toBe('S')
+
+    app.unmount()
+    root.remove()
+  })
+
+  it('projects Vue default, prefix, and suffix text into Zeus light DOM outlets', async () => {
+    const { defineComponent, h, nextTick } = await import('vue')
+    const { defineContainer } = await import('../src/runtime')
+    const { defineElement } =
+      await import('../../../core/runtime-dom/src/defineElement')
+    const { Slot } = await import('../../../core/runtime-dom/src/webComponents')
+    const { insertTracked } =
+      await import('../../../core/runtime-dom/src/insert')
+
+    const tagName = 'z-vue-slot-projection'
+    defineElement(tagName, { shadow: false }, () => {
+      const button = document.createElement('button')
+
+      for (const [name, selector] of [
+        ['prefix', 'button-prefix'],
+        [undefined, 'button-label'],
+        ['suffix', 'button-suffix'],
+      ] as const) {
+        const outlet = document.createElement('span')
+        outlet.dataset.slot = selector
+        insertTracked(outlet, Slot(name ? { name } : {}))
+        button.append(outlet)
+      }
+
+      return button
+    })
+    const ZButton = defineContainer({
+      tagName,
+      slots: ['prefix', 'suffix'],
+    })
+    const Root = defineComponent(
+      () => () =>
+        h(ZButton, null, {
+          default: () => 'Golden',
+          prefix: () => 'P',
+          suffix: () => 'S',
+        }),
+    )
+    const root = document.createElement('div')
+    document.body.append(root)
+
+    const app = (await import('vue')).createApp(Root)
+    app.mount(root)
+    await nextTick()
+
+    const host = root.querySelector(tagName)!
+    expect(host.querySelector('[data-slot="button-prefix"]')?.textContent).toBe(
+      'P',
+    )
+    expect(host.querySelector('[data-slot="button-label"]')?.textContent).toBe(
+      'Golden',
+    )
+    expect(host.querySelector('[data-slot="button-suffix"]')?.textContent).toBe(
+      'S',
+    )
 
     app.unmount()
     root.remove()
