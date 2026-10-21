@@ -153,3 +153,21 @@ Phase 10/12/14 实现。以下命令均在 `zeus-ui` 根目录执行并通过：
   F-011 的历史 native `latest` 清理、D-006 的首次接触用户 15 分钟计时，以及 beta.16、UI beta.33
   和 UI 0.1.0 发布后的验证。用户再次明确表示暂时无法安排首次用户测试，并指定 D-006 留未完成。
   因此 D-006、B-003、E-009、F-011 与总目标均不得标记完成。
+
+## 2026-10-22 beta.16 与 UI 对齐复核
+
+- Zeus `v0.1.1-beta.16` Release run `39665117063` 已成功，`@zeus-js/zeus@0.1.1-beta.16` 和
+  `@zeus-js/compiler-native@0.1.1-beta.16` 已在官方 registry 可读；新 Canary run `39669096549`
+  仍在运行。`@zeus-js/compiler-native` 的 `latest` 仍是旧 canary，F-011 仍未完成。
+- Zeus main CI `39669096532` 的唯一失败是 GitHub WebKit Admin 选择断言；本机三浏览器 `pnpm check:admin`
+  和重复 WebKit 流程通过，已保留原断言并安排重跑，不能把本地通过替代 CI 结果。
+- UI PR #111 已推送 head `95d478a`：所有 31 个 workspace 包、根开发依赖、peer range、lockfile 和
+  `check:zeus-beta-alignment` 默认基线统一到 Zeus beta.16。frozen install、11/11 对齐测试、Data Grid
+  114/114 E2E、TypeScript、`release:verify --strict` 和 `check:phase24-release` 均通过；完整 `test-unit`
+  与 PR 新 CI 尚未结束。UI beta.33 和稳定版尚未发布。
+- 本轮 Golden runner 仍使用 registry UI beta.32，结果继续是 React18/19 SSR import 失败和 Vue3 三浏览器
+  prefix/suffix projection 失败；由于 beta.33 尚未发布，不能据此宣称新版本验收通过。B-003/E-009 仍需
+  UI 发布后重新产生完整 tarball、source/provenance 和四消费者报告。
+- 当前 `npm whoami --registry=https://registry.npmjs.org/` 返回 E401，无法在本机发布 UI 或删除历史
+  native `latest`。D-006 仍缺真实新用户 15 分钟匿名记录，按用户明确要求保留未完成；因此 B-003、
+  E-009、F-011、D-006 和总目标均不得标记完成。
