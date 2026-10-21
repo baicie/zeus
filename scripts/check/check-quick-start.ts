@@ -62,6 +62,38 @@ writeFileSync(
       measuredAt: new Date().toISOString(),
       elapsedMs,
       budgetMs: 15 * 60 * 1000,
+      snippets: [
+        {
+          language: 'tsx',
+          source: 'docs/guide/quick-start.md#create-a-component',
+          verification:
+            'exact match against component-library/src/components/greeting.tsx and project type-check/build',
+        },
+        {
+          language: 'ts',
+          source: 'docs/guide/quick-start.md#configure-vite',
+          verification:
+            'exact match against component-library/vite.config.ts and production build',
+        },
+        {
+          language: 'ts',
+          source: 'docs/guide/quick-start.md#generated-entry',
+          verification:
+            'exact match against component-library/src/index.ts and generated outputs',
+        },
+        {
+          language: 'css',
+          source: 'docs/guide/quick-start.md#template-styles',
+          verification:
+            'exact match against component-library/src/styles.css and production CSS output',
+        },
+        {
+          language: 'ts',
+          source: 'docs/guide/quick-start.md#generated-auto-entry',
+          verification:
+            'exact match plus component-library dist/wc/auto.js existence and template test',
+        },
+      ],
       route: [
         'read Quick Start',
         'scaffold Component Library TypeScript template',
