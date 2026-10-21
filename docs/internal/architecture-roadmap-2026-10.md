@@ -231,3 +231,21 @@ beta.16 在 registry 可见后更新锁文件并重跑全量 UI CI；完整 show
 `0.1.1-canary.20260812.106.1.658fe407`，F-011 清理未完成；B-003/E-009 仍缺新发布版本的
 真实 Golden tarball、供应链和消费者矩阵；D-006 仍缺真实新用户 15 分钟匿名计时记录，用户已
 明确要求留未完成。因此路线图和总目标均保持进行中。
+
+### 增量状态（2026-10-22，beta.16 registry 与 UI 对齐复核）
+
+- Zeus `v0.1.1-beta.16` 已由 Release run `39665117063` 成功发布；官方 registry 已可读取
+  `@zeus-js/zeus@0.1.1-beta.16`、`@zeus-js/compiler-native@0.1.1-beta.16` 及 beta dist-tag。
+  新 Canary run `39669096549` 针对 main `c8ec9d2` 仍在执行 native/promotion 流程，不能把其
+  未完成状态当作成功证据。`@zeus-js/compiler-native` 的 `latest` 仍指向旧 canary，F-011 继续未完成。
+- Zeus main CI run `39669096532` 仅在 GitHub WebKit 的 Admin 选择断言失败；本机 Chromium/Firefox/WebKit
+  的 `pnpm check:admin` 及独立 WebKit 重复流程均通过，失败尚不能稳定复现，已安排 workflow 重跑，
+  不放宽断言。
+- Zeus UI PR #111 已将根包及 31 个 workspace 包的依赖、peer range、lockfile 和 beta 对齐门禁更新至
+  `0.1.1-beta.16`，当前 head 为 `95d478a`。本机 frozen install、对齐测试 11/11、Data Grid E2E
+  114/114、TypeScript、严格 release readiness 与 Phase 24 gate 通过；PR 的新 CI 和完整
+  `test-unit` 仍待完成。UI beta.33/0.1.0 尚未发布，故 B-003/E-009 的新 registry Golden、
+  provenance 和独立消费者证据仍缺失。
+- 当前机器 `npm whoami --registry=https://registry.npmjs.org/` 返回 E401，不能在本地执行发布或
+  dist-tag 删除；D-006 的首次接触用户 15 分钟计时仍按用户要求留未完成。B-003、E-009、F-011、
+  D-006 和总目标继续保持进行中。
