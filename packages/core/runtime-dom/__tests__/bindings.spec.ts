@@ -259,6 +259,28 @@ describe('runtime bindings', () => {
     expect(input.value).toBe('Ada')
   })
 
+  it('repairs a reflected tabindex attribute when the native value is unchanged', () => {
+    const input = document.createElement('div')
+    const setter = vi.spyOn(input, 'tabIndex', 'set')
+
+    bindProp(input, 'tabIndex', () => -1)
+
+    expect(setter).toHaveBeenCalledOnce()
+    expect(input.tabIndex).toBe(-1)
+    expect(input.getAttribute('tabindex')).toBe('-1')
+  })
+
+  it('does not read the diagnostics clock without a DevTools hook', () => {
+    const now = vi.spyOn(performance, 'now')
+    const text = document.createTextNode('')
+
+    bindText(text, () => 'ready')
+
+    expect(text.data).toBe('ready')
+    expect(now).not.toHaveBeenCalled()
+    now.mockRestore()
+  })
+
   it('preserves custom element property setter calls', () => {
     let setterCalls = 0
     let currentValue = ''

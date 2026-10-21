@@ -49,6 +49,22 @@ Zeus UI 工作区的 Phase 11 实现与测试已加入，但 beta.33 下直接�
 | E-008             | **已关闭（2026-10-20）**：Admin 集成真实 Zeus UI Input/Dialog/DataGrid 与 Resource/Query，包含查询/筛选/分页/选择、编辑/保存及权限流程；生产产物三浏览器检查已接入 CI                                                                                 | `examples/admin`、`pnpm check:admin`；该结论只覆盖当前仓库示例及其 CI 验收，不代表 UI 包的 registry 发布或来源验证                                                                                                                                                                               |
 | E-009             | 真实 registry tarball 的独立安装、来源/供应链读取和消费者矩阵已运行；结果记录在 `temp/golden-components/report.json`，但 React18/19 SSR import 与 Vue3 三浏览器具名 Slot 断言失败，故未完成                                                           | 修复并发布对应包后，重新运行 `pnpm check:golden-components`，要求所有 required assertions、版本、source commit 与 provenance 均通过                                                                                                                                                              |
 
+## 2026-10-21 后续状态复核
+
+随后复核时，`npm whoami --registry=https://registry.npmjs.org/` 返回 E401。此前同日曾成功认证
+为 `baicie2` 并读取到包 ACL；该结果只代表当时会话，不能作为当前发布或删除 dist-tag 的认证证明。
+Zeus PR #143 已合并至 `main`（merge commit `40f887b`），合并前最新 build、test、lint、Rust、
+packed-consumers 与 Admin 浏览器检查通过；Zeus 本地 `main` 与 `origin/main` 同步且工作区干净。
+
+registry 仍显示 `@zeus-js/zeus` beta 为 `0.1.1-beta.15`，`@zeus-js/compiler-native` 的 `latest`
+仍指向 `0.1.1-canary.20260812.106.1.658fe407`；此前清理该 tag 的 workflow 和本机请求均曾返回
+E403。Zeus UI 的 `@zeus-web/ui` beta 仍为 `0.1.0-beta.32`，查询 `0.1.0-beta.33` 返回 E404；
+beta.33 尚未发布，稳定版及发布后 registry/provenance 验收也未完成。
+
+B-003/E-009 仍须在修复版 Zeus 与 UI 新 tarball 发布后重跑完整 Golden 消费者矩阵及来源验证；
+旧 beta.32/beta.13 的失败记录不能替代新版本验收。D-006 的新用户 15 分钟计时由用户确认
+暂时无法安排，必须保留未完成；因此本总目标仍未完成。
+
 D-009 审计另复现了注释换行触发 ASI、编译指令变化、嵌套模板/JSX 被误判安全的缺陷。
 已以 Babel parser 注释范围替代启发式扫描，87 项插件测试及独立审阅通过；解析失败仍重挂载。`$state` 实现不在
 原任务要求内；原任务只要求 RFC，不为凑齐数量添加隐式语义。

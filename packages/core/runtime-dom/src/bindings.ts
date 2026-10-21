@@ -91,8 +91,11 @@ export function bindEffect<T>(
       trackedDependencies ??= new Map()
     }
     collectingDependencies = observing ? new Map() : undefined
-    const started =
-      typeof performance !== 'undefined' ? performance.now() : Date.now()
+    const started = observing
+      ? typeof performance !== 'undefined'
+        ? performance.now()
+        : Date.now()
+      : 0
     let nextDependencies: DependencyMap | undefined
     let next: T
     try {
@@ -108,8 +111,11 @@ export function bindEffect<T>(
     } finally {
       collectingDependencies = undefined
     }
-    const ended =
-      typeof performance !== 'undefined' ? performance.now() : Date.now()
+    const ended = observing
+      ? typeof performance !== 'undefined'
+        ? performance.now()
+        : Date.now()
+      : 0
 
     if (devtoolsInstrumentation && hasDevtoolsHook()) {
       if (effectId !== undefined) {
@@ -432,7 +438,12 @@ export function bindProp<T extends Element, K extends keyof T>(
     value,
     once,
     next => {
-      if (!el.localName.includes('-') && Object.is(el[name], next)) return
+      if (!el.localName.includes('-') && Object.is(el[name], next)) {
+        if (name === 'tabIndex' && el.getAttribute('tabindex') === null) {
+          el[name] = next
+        }
+        return
+      }
       el[name] = next
     },
     { kind: `prop:${String(name)}`, target: el },
