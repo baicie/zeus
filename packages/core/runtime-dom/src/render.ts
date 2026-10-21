@@ -62,6 +62,11 @@ function clearContainer(
   container: Element | DocumentFragment,
   preserveNodes: readonly Node[] = [],
 ): void {
+  if (preserveNodes.length === 0) {
+    container.textContent = ''
+    return
+  }
+
   const preserved = new Set(preserveNodes)
 
   for (const child of Array.from(container.childNodes)) {
