@@ -569,7 +569,11 @@ function UserPage(props: PageProps) {
       <p class="page-intro">
         详情数据来自 route loader；地址可直接打开、刷新或使用历史导航返回。
       </p>
-      <button data-testid="edit-user" prop:onclick={openEditor}>
+      <button
+        data-testid="edit-user"
+        disabled={!user()}
+        prop:onclick={openEditor}
+      >
         编辑成员
       </button>
       <span class="save-status" role="status" data-testid="save-status">

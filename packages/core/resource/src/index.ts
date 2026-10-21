@@ -4,7 +4,7 @@ import {
   onCleanup,
   type Accessor,
 } from '@zeus-js/signal'
-import { getCurrentScope } from '@zeus-js/signal/internal'
+import { getCurrentScope, untrack } from '@zeus-js/signal/internal'
 
 export type ResourceStatus = 'pending' | 'success' | 'error'
 
@@ -188,14 +188,14 @@ export function createResource<T, K>(
 
   const load = (): void => {
     lastSource = readSource()
-    void refetch().catch(() => undefined)
+    untrack(() => void refetch().catch(() => undefined))
   }
 
   if (typeof source === 'function' && getCurrentScope()) {
     createEffect(load)
   } else {
     lastSource = readSource()
-    void refetch().catch(() => undefined)
+    untrack(() => void refetch().catch(() => undefined))
   }
   if (getCurrentScope()) onCleanup(dispose)
 

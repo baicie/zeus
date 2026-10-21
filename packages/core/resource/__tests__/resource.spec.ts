@@ -1,4 +1,4 @@
-import { createRoot } from '@zeus-js/signal'
+import { createEffect, createRoot, createSignal } from '@zeus-js/signal'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createResource } from '../src'
@@ -33,6 +33,49 @@ describe('@zeus-js/resource', () => {
     expect(resource.data()).toBe('new')
     expect(resource.status()).toBe('success')
     resource.dispose()
+  })
+
+  it('does not reload an accessor source when its request state changes', async () => {
+    const [source, setSource] = createSignal('first')
+    const fetcher = vi.fn(async (value: string) => `${value} result`)
+    let resource!: ReturnType<typeof createResource<string, string>>
+    let dispose!: () => void
+
+    createRoot(stop => {
+      dispose = stop
+      resource = createResource(source, fetcher)
+    })
+
+    await vi.waitFor(() => expect(resource.data()).toBe('first result'))
+    expect(fetcher).toHaveBeenCalledTimes(1)
+
+    setSource('second')
+    await vi.waitFor(() => expect(resource.data()).toBe('second result'))
+    expect(fetcher).toHaveBeenCalledTimes(2)
+    expect(resource.pending()).toBe(false)
+
+    dispose()
+  })
+
+  it('does not let a static resource rerun its creating effect', async () => {
+    const fetcher = vi.fn().mockRejectedValue(new Error('unavailable'))
+    let runs = 0
+    let resource!: ReturnType<typeof createResource<string, string>>
+    let dispose!: () => void
+
+    createRoot(stop => {
+      dispose = stop
+      createEffect(() => {
+        runs += 1
+        resource = createResource('static', fetcher)
+      })
+    })
+
+    await vi.waitFor(() => expect(resource.status()).toBe('error'))
+    expect(runs).toBe(1)
+    expect(fetcher).toHaveBeenCalledTimes(1)
+
+    dispose()
   })
 
   it('cancels active requests when its owner is disposed', async () => {

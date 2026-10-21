@@ -112,6 +112,9 @@ try {
       await page.getByTestId('open-selected-user').click()
       await expect(page).toHaveURL(`${origin}/admin/users/ada`)
       await expect(page.getByTestId('detail-id')).toHaveText('ada')
+      await expect(page.getByTestId('user-detail')).toContainText(
+        'ada@example.test',
+      )
       await page.getByTestId('edit-user').click()
       await expect(page.getByTestId('user-dialog')).toBeVisible()
       await page
