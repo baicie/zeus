@@ -337,6 +337,10 @@ function UsersPage(props: PageProps) {
       scheduleGridRows(gridElement, nextRows)
   })
 
+  createEffect(() => {
+    if (!query.pending() && page() > pageCount()) setPage(pageCount())
+  })
+
   function updateStatus(event: Event): void {
     setStatus(
       (event.currentTarget as HTMLSelectElement).value as UserStatus | 'all',

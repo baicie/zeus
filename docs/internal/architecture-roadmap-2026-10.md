@@ -177,12 +177,16 @@
 
 ### 增量复审（2026-10-21）
 
-- Zeus UI Phase 11 的 FormField/DropdownMenu 行为修复已在工作区完成，覆盖控件 ID/ARIA 状态同步、
-  roving focus、方向键、Escape、选择后焦点恢复；6 项 jsdom 行为测试、构建、TypeScript、lint、format、
-  Registry 和 product contract 检查通过。
+- Zeus UI beta.33 的 FormField/DropdownMenu 行为实现已在工作区，但真实 dist runtime 尚未通过：
+  7 项 jsdom runtime 测试在 Zeus beta.15 下失败，根因为 light-DOM mount 丢弃宿主原始子节点；
+  Zeus 当前分支已有保留节点修复，需先完成修复版集成再复验 UI runtime。
 - Zeus UI Phase 13 的主题生成器与带路径安全校验的 `theme add` 已在工作区完成并通过 CLI/主题测试。
-- `npm whoami --registry=https://registry.npmjs.org/` 仍返回 401；native compiler 历史 `latest` 清理和
-  稳定版发布仍需具备发布及 dist-tag 删除权限的维护者执行。
+- `npm whoami --registry=https://registry.npmjs.org/` 已认证为 `baicie2`，包 ACL 为 read-write，
+  但账户 2FA 关闭；历史 native `latest` 删除在 workflow run `39535665906` 和官方源本机重试中均返回 E403。
+  稳定版发布与该 dist-tag 清理尚未完成。
+- Zeus PR #143 的 head `8ce0df3` 有一轮 packed-consumers 的 WebKit Admin 页码断言失败
+  （搜索后仍显示第 2 / 3 页）；同一 CI 批次另一轮通过，本地 `pnpm check:admin` 三浏览器通过，
+  需消除或复现该时序差异并取得同一 head 的全绿 CI 后再合并。
 - Golden 真实 registry tarball 的既有 React18/19 SSR import 与 Vue3 具名 Slot 失败仍未被新版本发布后的
-  消费者矩阵重新证明；本轮重跑另因 GitHub 源码快照网络 fetch 失败而中止。B-003、E-009、D-006 与总目标
-  继续保持未完成。
+  消费者矩阵重新证明；本轮重跑另因 GitHub 源码快照网络 fetch 失败而中止。D-006 的真实新用户计时
+  由用户确认暂时无法安排，按用户要求保留未完成；B-003、E-009、F-011 与总目标也继续保持未完成。

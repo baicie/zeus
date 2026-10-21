@@ -157,6 +157,20 @@ describe('@zeus-js/runtime-ssr', () => {
     )
   })
 
+  it('ignores whitespace-only text in the default light DOM slot', () => {
+    const Field = runtimeSSR.defineElement(
+      'z-slot-whitespace',
+      { shadow: false },
+      () => runtimeSSR.Slot({ children: 'fallback' }),
+    )
+
+    expect(
+      renderToString(() =>
+        Field({ children: [' \n\t', runtimeSSR.ssrText(' \n\t')] }),
+      ),
+    ).toBe('<z-slot-whitespace>fallback</z-slot-whitespace>')
+  })
+
   it('rejects invalid and reserved custom-element names before serialization', () => {
     for (const tag of [
       'z-card><script',

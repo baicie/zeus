@@ -190,9 +190,11 @@ function flattenLightChildren(value: SSRNode, path = '0'): LightChild[] {
     )
   }
   if (isSSRFragmentNode(value)) {
+    if (/^\s*$/.test(value.html)) return []
     return [{ path, node: value, slotName: value.slotName }]
   }
   if (value == null || typeof value === 'boolean') return []
+  if (typeof value === 'string' && !value.trim()) return []
   return [{ path, node: value }]
 }
 
