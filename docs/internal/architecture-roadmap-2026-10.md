@@ -206,8 +206,10 @@
 
 ### 当前审计快照（2026-10-22）
 
-Zeus `main` 为 `7bc98f8`，工作区干净；beta.16 尚未发布，官方 npm 源当前认证为 E401。UI PR #111
-已推送 `ab948db`，beta.33 benchmark 版本断言已修复，本机 Node unit 759/759 通过；Linux DataGrid E2E
-仍因 beta.15 runtime 的 diagnostics 时钟读取失败，Windows 的过期 beta.32 断言已修复，Node/jsdom 阶段
-通过。PR 尚未合并，完整 showcase route smoke 的序列微任务问题仍待修复版 runtime 集成后复验。
+Zeus `origin/main` 已合并 PR #145，当前提交为 `61015c2`；本地工作区干净且本地 `main` 已同步。
+该提交触发的 Release Canary run `39655474019` 中 release-preflight 与 8 个 native prebuild 已通过，
+但 release-canary 仍在运行；beta.16 尚未发布，官方 npm 源当前认证为 E401。UI PR #111 仍为
+OPEN/BLOCKED，head `ab948db` 已修复 beta.33 benchmark 版本断言，本机 Node unit 759/759 通过；Linux
+DataGrid E2E 仍因 beta.15 runtime 的 diagnostics 时钟读取失败，Windows 的过期 beta.32 断言已修复，
+Node/jsdom 阶段通过。完整 showcase route smoke 的序列微任务问题仍待修复版 runtime 集成后复验。
 B-003/E-009/F-011 与总目标继续保持未完成，D-006 按用户明确要求保留未完成。

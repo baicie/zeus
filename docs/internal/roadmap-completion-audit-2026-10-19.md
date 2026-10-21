@@ -67,12 +67,13 @@ B-003/E-009 仍须在修复版 Zeus 与 UI 新 tarball 发布后重跑完整 Gol
 
 ## 2026-10-22 当前复核
 
-- Zeus `main` 仍为 `7bc98f8`，本地分支与 `origin/main` 同步且工作区干净。beta.16 尚未发布；官方 npm 源的
-  `npm whoami` 仍返回 E401，因此不能执行真实发布、provenance 核验或删除
-  `@zeus-js/compiler-native` 的历史 `latest` 标签。
-- Zeus UI PR #111 的 `codex/ui-beta33-release-prep` 已推送 `ab948db`，修复 Data Grid benchmark contract
+- Zeus PR #145 已合并到 `origin/main`，当前提交为 `61015c2`；本地 `main` 已同步且工作区干净。
+  该提交触发的 Release Canary run `39655474019` 中 release-preflight 与 8 个 native prebuild 已通过，
+  release-canary 仍在运行。beta.16 尚未发布；官方 npm 源的 `npm whoami` 仍返回 E401，因此不能执行
+  真实发布、provenance 核验或删除 `@zeus-js/compiler-native` 的历史 `latest` 标签。
+- Zeus UI PR #111 的 `codex/ui-beta33-release-prep` head 为 `ab948db`，修复 Data Grid benchmark contract
   中残留的 beta.32 版本断言；本机 759/759 Node unit、定向 benchmark contract 7/7、format/check 通过，
-  Windows CI 的 Node 和 jsdom 阶段通过。该 PR 仍未合并。
+  Windows CI 的 Node 和 jsdom 阶段通过，但 PR 仍为 OPEN/BLOCKED。
 - PR #111 的 Linux unit-test 仍在第一步 Data Grid E2E 失败：Zeus beta.15 diagnostics 默认路径调用
   `performance.now()` 318 次；修复已在 Zeus `main`，需发布 beta.16 后重锁依赖并重跑。React showcase
   的完整 route smoke 在 `/playground` 后进入 Select 路由时偶发 Promise 微任务重入；单路由和拆分序列可通过，
