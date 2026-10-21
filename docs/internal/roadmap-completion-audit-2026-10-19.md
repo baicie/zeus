@@ -18,16 +18,20 @@ Node SSR import 失败，Vue3 三浏览器的 named prefix/suffix projection 失
 
 ## 2026-10-21 增量复审
 
-官方 npm 源已确认使用 `https://registry.npmjs.org`，但 `npm whoami` 仍返回 401，
-因此尚未具备发布或删除 dist-tag 的可核验权限。`pnpm check:golden-components` 重跑时，
-四个消费者在读取 GitHub 源码快照阶段因网络 fetch 失败中止；这次结果不能替代先前已记录的
-真实 registry 失败，也不能证明已发布 tarball 的 React SSR 或 Vue Slot 问题已经修复。
+官方 npm 源 `https://registry.npmjs.org` 已认证为 `baicie2`，固定包 ACL 显示 read-write；
+账户 2FA 当前关闭。`Repair Native Latest` run `39535665906` 与官方源本地脚本均在删除
+`@zeus-js/compiler-native` 的历史 `latest` 时收到 npm E403，因此 F-011 仍未完成；其他包的
+tag 尚未被脚本改动。`pnpm check:golden-components` 重跑时，四个消费者在读取 GitHub 源码
+快照阶段因网络 fetch 失败中止；这次结果不能替代先前已记录的真实 registry 失败，也不能证明
+已发布 tarball 的 React SSR 或 Vue Slot 问题已经修复。
 
-Zeus UI 工作区的 Phase 11 行为缺口已补齐：FormField 覆盖重复 ID、预置控件 ID、状态同步和
-`aria-describedby` 清理；DropdownMenu 覆盖 roving `tabIndex`、打开时焦点、方向键、Home/End、
-Escape 和选择后的焦点恢复。两个 primitive 的 7 项 jsdom 行为测试、构建、TypeScript、lint、
-format、Registry 与 product contract 检查通过。Phase 13 的主题生成器和安全的 `theme add`
-流程也已存在并通过对应检查。上述改动仍在 zeus-ui 工作区，尚未发布稳定版或完成发布后消费者验证。
+Zeus UI 工作区的 Phase 11 实现与测试已加入，但 beta.33 下直接执行的 7 项 jsdom runtime
+测试全部失败：FormField 的控件 ID/ARIA 未落到原生控件，DropdownMenu 首次挂载遇到
+`ZEUS_WC_DISCONNECTED_BEFORE_READY`。追查到当前 UI registry 依赖的 Zeus beta.15
+`mountElementDefinition` 使用会清空宿主的 `render()`；Zeus 当前分支已加入保留 light-DOM
+原始子节点的修复，须先经合并/发布或隔离消费者验证，再重新判定这些 runtime 测试。Phase 13
+的主题生成器和安全的 `theme add` 流程已存在并通过对应检查。UI 改动仍在 zeus-ui 工作区，
+尚未发布 beta.33 或稳定版，亦未完成发布后消费者验证。
 
 ## 原始验收状态
 
@@ -35,10 +39,10 @@ format、Registry 与 product contract 检查通过。Phase 13 的主题生成�
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | B-003 / M2 Golden | 真实 registry Golden 已执行，但验收失败：UI `0.1.0-beta.32` / Zeus `0.1.1-beta.13` 的 React18/19 无 DOM Node SSR import 失败，Vue3 的 named prefix/suffix projection 在 Chromium/Firefox/WebKit 失败；Native 与 React 浏览器故事通过                  | 修复已发布版本上的 React SSR 与 Vue Slot 问题，重新发布并对 Button/Input/Dialog/DataGrid tarball 完成 Native/React18/React19/Vue3、SSR/types/build、三浏览器与来源验证                                                                                                                           |
 | F-007             | **已关闭（2026-10-20）**：生产 Next 示例区分无需/需要 `use client`，禁用 JS宿主、升级、事件、DOM identity 与 hydration 错误三浏览器通过                                                                                                               | `examples/next-boundary`、`pnpm check:next-boundary`                                                                                                                                                                                                                                             |
-| F-011             | **发布链已完成，历史 native latest 清理仍阻塞**：Canary `0.1.1-canary.20261020.192.1.98809087` 发布、promote、Sigstore provenance、Node22/24 registry smoke、下游 dispatch 全通过；29 个 fixed 包 dist-tag 复核通过                                   | run `39376347136`；`Repair Native Latest` run `39382911550` 使用精确确认串触发但 npm DELETE 返回 E403，需具备 dist-tag 删除权限的维护者 token                                                                                                                                                    |
+| F-011             | **发布链已完成，历史 native latest 清理仍阻塞**：Canary `0.1.1-canary.20261020.192.1.98809087` 发布、promote、Sigstore provenance、Node22/24 registry smoke、下游 dispatch 全通过；29 个 fixed 包 dist-tag 复核通过                                   | run `39376347136`；官方源账户 `baicie2` 与固定包 read-write ACL 已验证，但账户 2FA 关闭；Repair run `39535665906` 和本机官方源删除均返回 npm E403，`latest` 仍指向 `0.1.1-canary.20260812.106.1.658fe407`                                                                                        |
 | D-003             | **已关闭（2026-10-20）**：可视面板与真实编译器 `dynamic-region` 追踪；三浏览器点击 DOM 显示 Binding/Effect/Signal                                                                                                                                     | `pnpm check:devtools-panel`、PR #134/#137                                                                                                                                                                                                                                                        |
 | D-005             | **已关闭（2026-10-20）**：Quick Start 五片段全部映射到模板执行，四模板 typecheck/build/test，WC auto 与全部输出验证                                                                                                                                   | `pnpm check:quick-start`、CI 四模板 smoke、PR #138                                                                                                                                                                                                                                               |
-| D-006             | 产品边界与上手文档已构建                                                                                                                                                                                                                              | “新用户15分钟”是需真实用户测试的目标，未取得计时记录                                                                                                                                                                                                                                             |
+| D-006             | 产品边界与上手文档已构建；用户确认暂时无法安排首次接触 Zeus 的用户进行计时上手                                                                                                                                                                        | “新用户15分钟”需真实用户测试及匿名步骤/耗时记录；按用户要求保留未完成，不得据此将总目标标为完成                                                                                                                                                                                                  |
 | D-007             | **已关闭（2026-10-20）**：真实 runtime 依赖 bundle 测量；五视图、复制、分享 URL/reload、键盘和失败路径三浏览器通过                                                                                                                                    | `pnpm playground:check`、`pnpm playground:smoke`                                                                                                                                                                                                                                                 |
 | E-006             | **已关闭（2026-10-20）**：Rust SSR codegen/native 执行覆盖 defineElement、Host/Slot、DSD、definition option CSS 与首屏控件状态；runtime SSR 覆盖 Manifest 驱动的 shadow、defaults 和反射属性                                                          | `packages/core/compiler-native/__tests__/integration.test.cjs`、`packages/core/runtime-ssr/__tests__/runtime-ssr.spec.ts`、`packages/devtools/vite-plugin/__tests__/ssr-execution.spec.ts`；`styles`/`styleNonce` 是 definition options，不属于 Manifest；SSR 不模拟 `ElementInternals` 生命周期 |
 | E-007             | **已关闭（2026-10-20）**：`hydrationPlan` 在 DOM/SSR 间共享稳定 Template/Node/Binding ID，SSR 自动写 marker；`hydratePlan` 逐 binding 重连并释放失败 setup；真实 Chromium/Firefox/WebKit 保持首屏、焦点、选区、DOM identity、events、props 和 cleanup | `transformModule()`、`hydratePlan()`、`pnpm check:hydration`；Streaming 按设计后置                                                                                                                                                                                                               |

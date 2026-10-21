@@ -91,8 +91,12 @@ try {
       await expect(row('margaret')).toBeVisible()
       await row('margaret').click()
       await expect(row('margaret')).toHaveAttribute('aria-selected', 'true')
-      await page.locator('#user-search input').fill('Radia')
+      const searchInput = page.locator('#user-search input')
+      await searchInput.fill('Radia')
+      await expect(searchInput).toHaveValue('Radia')
       await expect(row('radia')).toBeVisible()
+      await expect(row('margaret')).toHaveCount(0)
+      await expect(row('guido')).toHaveCount(0)
       await expect(row('ada')).toHaveCount(0)
       await expect(page.getByTestId('page-indicator')).toHaveText('第 1 / 1 页')
       await page.locator('#user-search input').fill('')
@@ -108,6 +112,9 @@ try {
       await page.getByTestId('open-selected-user').click()
       await expect(page).toHaveURL(`${origin}/admin/users/ada`)
       await expect(page.getByTestId('detail-id')).toHaveText('ada')
+      await expect(page.getByTestId('user-detail')).toContainText(
+        'ada@example.test',
+      )
       await page.getByTestId('edit-user').click()
       await expect(page.getByTestId('user-dialog')).toBeVisible()
       await page

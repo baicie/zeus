@@ -201,6 +201,44 @@ describe('Slot', () => {
     expect(el.querySelector('main')!.textContent).toContain('body')
   })
 
+  it('projects an explicitly empty slot attribute into the default outlet', async () => {
+    const tag = createTag('light-empty-slot')
+
+    defineElement(tag, { shadow: false }, () => {
+      const section = document.createElement('section')
+      insertTracked(section, Slot({}))
+      return section
+    })
+
+    const el = document.createElement(tag)
+    el.innerHTML = '<span slot="">explicit default</span>'
+    document.body.appendChild(el)
+    await nextFrame()
+
+    expect(el.querySelector('section span')?.textContent).toBe(
+      'explicit default',
+    )
+  })
+
+  it('ignores whitespace-only text in the default light DOM slot', async () => {
+    const tag = createTag('light-whitespace')
+
+    defineElement(tag, { shadow: false }, () => {
+      const section = document.createElement('section')
+      const fallback = document.createElement('strong')
+      fallback.textContent = 'fallback'
+      insertTracked(section, Slot({ children: fallback }))
+      return section
+    })
+
+    const el = document.createElement(tag)
+    el.appendChild(document.createTextNode(' \n\t'))
+    document.body.appendChild(el)
+    await nextFrame()
+
+    expect(el.querySelector('section')?.textContent).toBe('fallback')
+  })
+
   it('renders fallback in shadow DOM when no assigned nodes exist', async () => {
     const tag = createTag('shadow-fallback')
 

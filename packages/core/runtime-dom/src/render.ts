@@ -15,11 +15,20 @@ export function render(
   container: Element | DocumentFragment,
   options: RenderOptions = {},
 ): () => void {
+  return renderWithPreservedNodes(value, container, options)
+}
+
+export function renderWithPreservedNodes(
+  value: JSXValue | (() => JSXValue),
+  container: Element | DocumentFragment,
+  options: RenderOptions = {},
+  preserveNodes: readonly Node[] = [],
+): () => void {
   const renderScope = scope()
   const owner = options.owner ?? createOwner()
 
   renderScope.run(() => {
-    container.textContent = ''
+    clearContainer(container, preserveNodes)
 
     runWithOwner(owner, () => {
       insert(container, resolveValue(value))
@@ -35,7 +44,7 @@ export function render(
     disposed = true
 
     renderScope.stop()
-    container.textContent = ''
+    clearContainer(container, preserveNodes)
     if (typeof window !== 'undefined' && window.__ZEUS_DEVTOOLS_HOOK__) {
       emitDevtoolsEvent(
         {
@@ -46,6 +55,22 @@ export function render(
         { swallowErrors: true },
       )
     }
+  }
+}
+
+function clearContainer(
+  container: Element | DocumentFragment,
+  preserveNodes: readonly Node[] = [],
+): void {
+  if (preserveNodes.length === 0) {
+    container.textContent = ''
+    return
+  }
+
+  const preserved = new Set(preserveNodes)
+
+  for (const child of Array.from(container.childNodes)) {
+    if (!preserved.has(child)) container.removeChild(child)
   }
 }
 

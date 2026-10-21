@@ -11,7 +11,7 @@ import {
 } from './customElementContract'
 import { isWithinRuntimeDomMove } from './domMove'
 import { withHostContext } from './hostContext'
-import { render } from './render'
+import { renderWithPreservedNodes } from './render'
 import { createLightDomProjection } from './slot'
 
 import type { Context } from './context'
@@ -514,7 +514,7 @@ export function defineElement<
         projection,
       }
 
-      const dispose = render(
+      const dispose = renderWithPreservedNodes(
         () =>
           runWithOwner(owner, () =>
             withHostContext(hostContext, () => {
@@ -524,6 +524,7 @@ export function defineElement<
           ),
         target,
         { owner },
+        mode === 'light' ? this.lightChildren : undefined,
       )
 
       const styleNodes = mountStyles(target, options.styles, options.styleNonce)
@@ -721,7 +722,7 @@ export function mountElementDefinition(
 
   mountState.internals = setupContext.internals
 
-  const dispose = render(
+  const dispose = renderWithPreservedNodes(
     () =>
       runWithOwner(owner, () =>
         withHostContext(hostContext, () => {
@@ -731,6 +732,7 @@ export function mountElementDefinition(
       ),
     target,
     { owner },
+    mode === 'light' ? lightChildren : undefined,
   )
 
   const styleNodes = mountStyles(target, options.styles, options.styleNonce)

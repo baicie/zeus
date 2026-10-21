@@ -145,6 +145,7 @@ export function createLazyElementClass(
   installMethodProxies(
     ZeusLazyElement.prototype as unknown as HTMLElement,
     meta.methods,
+    meta.tagName,
   )
 
   return ZeusLazyElement
@@ -165,11 +166,18 @@ function dispatchFormCallback(
 function installMethodProxies(
   proto: HTMLElement,
   methods: readonly string[] | undefined,
+  tagName: string,
 ): void {
   if (!methods) return
 
+  const reservedNames = new Set(Object.getOwnPropertyNames(proto))
+
   for (const name of methods) {
-    if (name in proto) continue
+    if (reservedNames.has(name)) {
+      throw new Error(
+        `[ZEUS_WC_RESERVED_METHOD] Method "${name}" conflicts with a lazy element lifecycle/API method on <${tagName}>.`,
+      )
+    }
 
     Object.defineProperty(proto, name, {
       configurable: true,

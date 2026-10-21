@@ -285,7 +285,8 @@ function matchesLightSlot(node: Node, name?: string): boolean {
   }
 
   if (node.nodeType === Node.ELEMENT_NODE) {
-    return !(node as Element).hasAttribute('slot')
+    const slot = (node as Element).getAttribute('slot')
+    return slot === null || slot === ''
   }
 
   return isMeaningfulTextNode(node)

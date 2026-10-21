@@ -2,9 +2,11 @@
 
 对应 B-003。冻结 API 位于 `tests/contracts/golden-components.json`，来源为 Zeus UI `1d2c24db27b5` / `0.1.0-beta.32` 的源码与当前构建 Manifest。JSON 包含 source/manifest hash、真实 props/default/attribute、事件、方法、models 和 slots；Dialog 包的六个组件一同记录。未修改 Zeus UI 仓库。
 
-这些是待浏览器验收的契约，不是 G-01～G-04 已全部通过的声明。UI 包当前依赖 Zeus beta.13，本轮框架工作树是 beta.14；以下示例是现有 API 的文档用例，尚未完成四个 UI tarball 的完整跨框架浏览器执行。
+这些是待浏览器验收的契约，不是 G-01～G-04 已全部通过的声明。该冻结合同仍指向 UI beta.32 / Zeus beta.13 的已发布 tarball；当前框架工作树为 beta.15，后续发布必须更新 source、Manifest hash、版本和来源证据后才能重新验收。以下示例是现有 API 的文档用例，尚未完成四个 UI tarball 的完整跨框架浏览器执行。
 
 验收由 `pnpm check:golden-components` 执行。脚本会在每种独立安装工程中先执行无 DOM 的 Node SSR import，再对 native、React 18、React 19 和 Vue 3 在所选浏览器中逐条执行 `requiredBrowserAssertions`，并核对 UI tarball、Zeus runtime 依赖的 registry integrity、SLSA provenance subject/source dependency 和 Sigstore 签名；失败时仍会写出完整报告，供定位问题，不能据此把 contract 状态改成 `passed`。Data Grid 性能断言只记录观察值，不替代 Zeus UI 仓库的版本化基准。`temp/` 下的报告是忽略文件，只能作为本地诊断结果，不能作为持久完成证据。
+
+CI 中的 `Published Golden UI consumers` 步骤只在 `workflow_dispatch` 执行。发布新版本后，先更新本合同并确认 registry、provenance、source commit 与 Manifest hash，再手动运行 CI；普通分支和 pull request 继续由本地产物的 `check:packed-consumers` 覆盖消费者矩阵。
 
 | Golden         | 真实主要接口                                                                                                                   | 必须补齐的浏览器验收                                                                     |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
