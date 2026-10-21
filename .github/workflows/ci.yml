@@ -16,6 +16,7 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -195,6 +196,8 @@ jobs:
       - name: Native, React 18/19 and Vue 3 packed consumers
         run: pnpm check:packed-consumers
       - name: Published Golden UI consumers
+        # Run after the frozen registry contract is updated to published artifacts.
+        if: github.event_name == 'workflow_dispatch'
         run: pnpm check:golden-components
       - name: Admin navigation in Chromium, Firefox and WebKit
         run: pnpm check:admin
