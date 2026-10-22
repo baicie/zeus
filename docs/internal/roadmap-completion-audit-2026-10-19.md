@@ -252,7 +252,7 @@ F-011、D-006 与本总目标继续保持未完成。
 - E-009 的 registry 消费者、来源、Manifest、SSR 和供应链验收因此完成。B-003 的四组件 API/功能验收完成。旧基线 `u005-data-grid-2026-10-21` 已由 UI 仓库基于 beta.33 发布提交 `74fe9ea33f7a51eb8551debe9992cebfc1a0ebe7` 生成并合并的 `u005-data-grid-2026-10-23` 替代；新基线的 12 组 render/scroll/update 结果和 signed heap/RSS 趋势已持久化在 UI manifest。Golden 中 1000 行时长仍只作为 observation，不作为跨设备性能阈值。
 - F-011 仍未完成：`@zeus-js/compiler-native@latest` 查询仍指向 `0.1.1-canary.20260812.106.1.658fe407`；历史 tag 的精确删除此前由 npm 返回 E403，需要包 owner 或 npm Support 处理后重试既有清理 workflow。
 - D-006 仍未完成：缺少真实首次接触 Zeus 用户的匿名 15 分钟上手步骤与耗时记录；自动化 Quick Start 检查不能替代真人观察。
-- 当前没有发现 B-003/E-009 之外的新增路线图缺项，但 B-003 的版本化性能基线、F-011、D-006 仍是未完成项，因此本总目标不能标记完成。
+- 本次 Golden 验收后仍缺 B-003 的版本化性能基线；该缺口随后由下节 UI PR #112 合并关闭。当前 F-011 与 D-006 仍未完成，因此本总目标不能标记完成。
 
 ## 2026-10-23 beta.33 Data Grid 基线 PR
 
