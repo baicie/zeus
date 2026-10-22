@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { moveNodeBefore } from '../../../core/runtime-dom/src/domMove'
 import { bootstrapLazy, resolveHostProperties } from '../src'
+import { requireHostRef } from '../src/host-ref'
 
 import type {
   HostRef,
@@ -106,6 +107,344 @@ describe('eager and lazy custom element adapters', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
     dom.window.close()
+  })
+
+  it.each([false, true])(
+    'initializes ancestors before children across shadow=%s',
+    async shadow => {
+      const parentTag = createTag('parent')
+      const childTag = createTag('child')
+      let releaseParent!: (module: ZeusComponentModule) => void
+      const parentModule = new Promise<ZeusComponentModule>(resolve => {
+        releaseParent = resolve
+      })
+      const initialized: string[] = []
+      bootstrapLazy([
+        { tagName: parentTag, props: [], load: () => parentModule },
+        {
+          tagName: childTag,
+          props: [],
+          load: async () => ({
+            createComponent() {
+              initialized.push('child')
+              return {}
+            },
+          }),
+        },
+      ])
+      const parent = document.createElement(parentTag) as AdapterElement
+      const child = document.createElement(childTag) as AdapterElement
+      const root = shadow ? parent.attachShadow({ mode: 'open' }) : parent
+      root.append(child)
+      document.body.append(parent)
+      await nextFrame()
+      expect(initialized).toEqual([])
+
+      releaseParent({
+        createComponent() {
+          initialized.push('parent')
+          return {}
+        },
+      })
+      await Promise.all([
+        parent.componentOnReady?.(),
+        child.componentOnReady?.(),
+      ])
+      expect(initialized).toEqual(['parent', 'child'])
+    },
+  )
+
+  it.each([false, true])(
+    'stops waiting for the old ancestor when moved to new-parent=%s',
+    async useNewParent => {
+      const parentTag = createTag('pending-parent')
+      const nextParentTag = createTag('next-parent')
+      const childTag = createTag('moving-child')
+      let releaseParent!: (module: ZeusComponentModule) => void
+      let releaseNextParent!: (module: ZeusComponentModule) => void
+      const parentModule = new Promise<ZeusComponentModule>(resolve => {
+        releaseParent = resolve
+      })
+      const nextParentModule = new Promise<ZeusComponentModule>(resolve => {
+        releaseNextParent = resolve
+      })
+      const initialized: string[] = []
+      const moduleFor = (name: string): ZeusComponentModule => ({
+        createComponent() {
+          initialized.push(name)
+          return {}
+        },
+      })
+      bootstrapLazy([
+        { tagName: parentTag, props: [], load: () => parentModule },
+        { tagName: nextParentTag, props: [], load: () => nextParentModule },
+        {
+          tagName: childTag,
+          props: [],
+          load: async () => moduleFor('child'),
+        },
+      ])
+      const parent = document.createElement(parentTag) as AdapterElement
+      const nextParent = document.createElement(nextParentTag) as AdapterElement
+      const child = document.createElement(childTag) as AdapterElement
+      parent.append(child)
+      document.body.append(parent)
+      await vi.waitFor(() => {
+        expect(requireHostRef(parent).readyWaiters).toHaveLength(1)
+      })
+
+      try {
+        if (useNewParent) document.body.append(nextParent)
+        const target = useNewParent ? nextParent : document.body
+        target.append(child)
+        const ready = child.componentOnReady?.()
+        await vi.waitFor(() => {
+          expect(requireHostRef(parent).readyWaiters).toHaveLength(0)
+          if (useNewParent) {
+            expect(requireHostRef(nextParent).readyWaiters).toHaveLength(1)
+          }
+          expect(initialized).toEqual(useNewParent ? [] : ['child'])
+        })
+        releaseNextParent(moduleFor('next-parent'))
+        await expect(ready).resolves.toBe(child)
+        expect(initialized).toEqual(
+          useNewParent ? ['next-parent', 'child'] : ['child'],
+        )
+      } finally {
+        releaseParent(moduleFor('old-parent'))
+        releaseNextParent(moduleFor('next-parent'))
+        await parent.componentOnReady?.()
+      }
+    },
+  )
+
+  it('rejects descendants when their current ancestor fails to initialize', async () => {
+    const parentTag = createTag('failed-parent')
+    const childTag = createTag('failed-parent-child')
+    const failure = new Error('parent chunk failed')
+    let rejectParent!: (error: Error) => void
+    const parentModule = new Promise<ZeusComponentModule>(
+      (_resolve, reject) => {
+        rejectParent = reject
+      },
+    )
+    const setupChild = vi.fn(() => ({}))
+    const report = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      bootstrapLazy([
+        { tagName: parentTag, props: [], load: () => parentModule },
+        {
+          tagName: childTag,
+          props: [],
+          load: async () => ({ createComponent: setupChild }),
+        },
+      ])
+      const parent = document.createElement(parentTag)
+      const child = document.createElement(childTag) as AdapterElement
+      parent.append(child)
+      document.body.append(parent)
+      await vi.waitFor(() => {
+        expect(requireHostRef(parent).readyWaiters).toHaveLength(1)
+      })
+      const ready = expect(child.componentOnReady?.()).rejects.toBe(failure)
+      rejectParent(failure)
+      await ready
+      expect(setupChild).not.toHaveBeenCalled()
+      expect(requireHostRef(parent).readyWaiters).toHaveLength(0)
+    } finally {
+      report.mockRestore()
+    }
+  })
+
+  it('retries ancestor readiness after a rapid subtree reconnect', async () => {
+    const parentTag = createTag('reconnecting-parent')
+    const childTag = createTag('reconnecting-child')
+    let releaseParent!: (module: ZeusComponentModule) => void
+    const parentModule = new Promise<ZeusComponentModule>(resolve => {
+      releaseParent = resolve
+    })
+    const initialized: string[] = []
+    bootstrapLazy([
+      { tagName: parentTag, props: [], load: () => parentModule },
+      {
+        tagName: childTag,
+        props: [],
+        load: async () => ({
+          createComponent() {
+            initialized.push('child')
+            return {}
+          },
+        }),
+      },
+    ])
+    const parent = document.createElement(parentTag) as AdapterElement
+    const child = document.createElement(childTag) as AdapterElement
+    parent.append(child)
+    document.body.append(parent)
+    await vi.waitFor(() => {
+      expect(requireHostRef(parent).readyWaiters).toHaveLength(1)
+    })
+    const firstReady = expect(child.componentOnReady?.()).rejects.toThrow(
+      '[ZEUS_WC_DISCONNECTED_BEFORE_READY]',
+    )
+    parent.remove()
+    document.body.append(parent)
+    const ready = child.componentOnReady?.()
+    releaseParent({
+      createComponent() {
+        initialized.push('parent')
+        return {}
+      },
+    })
+    await firstReady
+    await expect(ready).resolves.toBe(child)
+    expect(initialized).toEqual(['parent', 'child'])
+  })
+
+  it('waits for a new ancestor before reconnecting an initialized child', async () => {
+    const parentTag = createTag('late-parent')
+    const childTag = createTag('loaded-child')
+    let releaseParent!: (module: ZeusComponentModule) => void
+    const parentModule = new Promise<ZeusComponentModule>(resolve => {
+      releaseParent = resolve
+    })
+    const connections: string[] = []
+    bootstrapLazy([
+      { tagName: parentTag, props: [], load: () => parentModule },
+      {
+        tagName: childTag,
+        props: [],
+        methods: ['refresh'],
+        load: async () => ({
+          createComponent(hostRef) {
+            return {
+              connected() {
+                connections.push('child')
+                hostRef.exposedMethods.refresh = () => 'refreshed'
+              },
+              disconnected() {
+                connections.push('disconnect')
+              },
+            }
+          },
+        }),
+      },
+    ])
+    const parent = document.createElement(parentTag) as AdapterElement
+    const child = document.createElement(childTag) as AdapterElement & {
+      refresh(): Promise<string>
+    }
+    document.body.append(child)
+    await child.componentOnReady?.()
+    document.body.append(parent)
+    parent.append(child)
+
+    let ready = false
+    let refreshed = false
+    const reconnectReady = child.componentOnReady?.().then(() => {
+      ready = true
+      return child.componentOnReady?.()
+    })
+    const refresh = child.refresh().then(value => {
+      refreshed = true
+      return value
+    })
+    await nextFrame()
+    expect(connections).toEqual(['child', 'disconnect'])
+    expect(ready).toBe(false)
+    expect(refreshed).toBe(false)
+    releaseParent({
+      createComponent() {
+        connections.push('parent')
+        return {}
+      },
+    })
+    await expect(reconnectReady).resolves.toBe(child)
+    await expect(refresh).resolves.toBe('refreshed')
+    expect(connections).toEqual(['child', 'disconnect', 'parent', 'child'])
+
+    document.body.append(child)
+    expect(connections).toEqual([
+      'child',
+      'disconnect',
+      'parent',
+      'child',
+      'disconnect',
+      'child',
+    ])
+  })
+
+  it('reconnects a loaded subtree after its new ancestor becomes ready', async () => {
+    const ancestorTag = createTag('subtree-ancestor')
+    const parentTag = createTag('loaded-parent')
+    const childTag = createTag('loaded-subtree-child')
+    let releaseAncestor!: (module: ZeusComponentModule) => void
+    const ancestorModule = new Promise<ZeusComponentModule>(resolve => {
+      releaseAncestor = resolve
+    })
+    const connected: string[] = []
+    const moduleFor = (name: string): ZeusComponentModule => ({
+      createComponent() {
+        return { connected: () => void connected.push(name) }
+      },
+    })
+    bootstrapLazy([
+      { tagName: ancestorTag, props: [], load: () => ancestorModule },
+      { tagName: parentTag, props: [], load: async () => moduleFor('parent') },
+      { tagName: childTag, props: [], load: async () => moduleFor('child') },
+    ])
+    const ancestor = document.createElement(ancestorTag)
+    const parent = document.createElement(parentTag) as AdapterElement
+    const child = document.createElement(childTag) as AdapterElement
+    parent.append(child)
+    document.body.append(parent)
+    await child.componentOnReady?.()
+    expect(connected).toEqual(['parent', 'child'])
+    connected.length = 0
+
+    document.body.append(ancestor)
+    ancestor.append(parent)
+    await nextFrame()
+    expect(connected).toEqual([])
+    const ready = child.componentOnReady?.()
+    releaseAncestor(moduleFor('ancestor'))
+    await expect(ready).resolves.toBe(child)
+    expect(connected).toEqual(['ancestor', 'parent', 'child'])
+  })
+
+  it('cancels pending reconnect readiness when an initialized child detaches', async () => {
+    const parentTag = createTag('cancel-reconnect-parent')
+    const childTag = createTag('cancel-reconnect-child')
+    let releaseParent!: (module: ZeusComponentModule) => void
+    const parentModule = new Promise<ZeusComponentModule>(resolve => {
+      releaseParent = resolve
+    })
+    const connected = vi.fn()
+    bootstrapLazy([
+      { tagName: parentTag, props: [], load: () => parentModule },
+      {
+        tagName: childTag,
+        props: [],
+        load: async () => ({ createComponent: () => ({ connected }) }),
+      },
+    ])
+    const parent = document.createElement(parentTag) as AdapterElement
+    const child = document.createElement(childTag) as AdapterElement
+    document.body.append(child)
+    await child.componentOnReady?.()
+    document.body.append(parent)
+    parent.append(child)
+    const ready = expect(child.componentOnReady?.()).rejects.toThrow(
+      '[ZEUS_WC_DISCONNECTED_BEFORE_READY]',
+    )
+    child.remove()
+    await ready
+    expect(requireHostRef(parent).readyWaiters).toHaveLength(0)
+    document.body.append(child)
+    await expect(child.componentOnReady?.()).resolves.toBe(child)
+    expect(connected).toHaveBeenCalledTimes(2)
+    releaseParent({ createComponent: () => ({}) })
+    await parent.componentOnReady?.()
   })
 
   it('preserves the same prop and lifecycle contract for one definition', async () => {

@@ -1,19 +1,25 @@
 // packages/web-c-runtime/src/lifecycle.ts
 
 import { invokeFormCallback } from './form-callbacks'
+import { getHostRef } from './host-ref'
 import { applyInitialValues } from './props'
 
 import type { HostRef, ZeusComponentModule } from './types'
 
 const moduleCache = new WeakMap<HostRef['meta'], Promise<ZeusComponentModule>>()
+const ancestorWaitCancellations = new WeakMap<HostRef, () => void>()
+
+export function cancelAncestorWait(hostRef: HostRef): void {
+  ancestorWaitCancellations.get(hostRef)?.()
+}
 
 export function waitForComponentReady(hostRef: HostRef): Promise<HTMLElement> {
-  if (hostRef.loaded) {
-    return Promise.resolve(hostRef.host)
-  }
-
   if (hostRef.readinessError) {
     return Promise.reject(hostRef.readinessError)
+  }
+
+  if (hostRef.loaded && !hostRef.loading) {
+    return Promise.resolve(hostRef.host)
   }
 
   return new Promise((resolve, reject) => {
@@ -33,19 +39,21 @@ export function rejectComponentReady(hostRef: HostRef, error: Error): void {
 }
 
 export async function initializeComponent(hostRef: HostRef): Promise<void> {
-  if (hostRef.loaded) {
-    hostRef.instance?.connected?.()
-    flushPendingFormCallbacks(hostRef)
-    return
-  }
-
   if (hostRef.loading) {
     await hostRef.loading
     if (hostRef.connected && !hostRef.loaded) await initializeComponent(hostRef)
     return
   }
 
-  const loading = doInitializeComponent(hostRef)
+  if (hostRef.loaded && !findPendingAncestor(hostRef.host)) {
+    hostRef.instance?.connected?.()
+    flushPendingFormCallbacks(hostRef)
+    return
+  }
+
+  const loading = hostRef.loaded
+    ? reconnectComponent(hostRef)
+    : doInitializeComponent(hostRef)
 
   hostRef.loading = loading
 
@@ -62,12 +70,16 @@ export async function initializeComponent(hostRef: HostRef): Promise<void> {
       hostRef.loading = undefined
     }
   }
+
+  if (hostRef.connected && hostRef.loaded) resolveReadyWaiters(hostRef)
 }
 
 async function doInitializeComponent(hostRef: HostRef): Promise<void> {
   applyInitialValues(hostRef)
 
   const mod = await loadComponentModule(hostRef)
+
+  await waitForAncestors(hostRef)
 
   if (!hostRef.connected) {
     return
@@ -88,8 +100,6 @@ async function doInitializeComponent(hostRef: HostRef): Promise<void> {
     }
 
     hostRef.loaded = true
-
-    resolveReadyWaiters(hostRef)
   } catch (error) {
     hostRef.instance = undefined
     hostRef.loaded = false
@@ -98,6 +108,90 @@ async function doInitializeComponent(hostRef: HostRef): Promise<void> {
 
     throw error
   }
+}
+
+async function reconnectComponent(hostRef: HostRef): Promise<void> {
+  await waitForAncestors(hostRef)
+  if (!hostRef.connected) return
+  hostRef.instance?.connected?.()
+  flushPendingFormCallbacks(hostRef)
+}
+
+async function waitForAncestors(hostRef: HostRef): Promise<void> {
+  // Fetch chunks concurrently, but establish ancestor scopes and DOM context
+  // before running a descendant's setup. Recheck after each wait in case the
+  // host moved while a chunk was loading.
+  let ancestor = findPendingAncestor(hostRef.host)
+  while (hostRef.connected && ancestor) {
+    try {
+      await waitForAncestorReady(hostRef, ancestor)
+    } catch (error) {
+      // A disconnect can reject the old ancestor waiter before a subtree is
+      // reconnected. Only propagate failures from the current ancestor scope.
+      if (
+        hostRef.connected &&
+        ancestor.connected &&
+        ancestor.readinessError === error &&
+        findPendingAncestor(hostRef.host) === ancestor
+      ) {
+        throw error
+      }
+    }
+    ancestor = findPendingAncestor(hostRef.host)
+  }
+}
+
+function waitForAncestorReady(
+  hostRef: HostRef,
+  ancestor: HostRef,
+): Promise<void> {
+  if (ancestor.readinessError) return Promise.reject(ancestor.readinessError)
+  if (ancestor.loaded && !ancestor.loading) return Promise.resolve()
+
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      const index = ancestor.readyWaiters.indexOf(waiter)
+      if (index >= 0) ancestor.readyWaiters.splice(index, 1)
+      if (ancestorWaitCancellations.get(hostRef) === cancel) {
+        ancestorWaitCancellations.delete(hostRef)
+      }
+    }
+    const cancel = () => {
+      cleanup()
+      resolve()
+    }
+    const waiter = {
+      resolve() {
+        cleanup()
+        resolve()
+      },
+      reject(error: unknown) {
+        cleanup()
+        reject(error)
+      },
+    }
+    ancestorWaitCancellations.set(hostRef, cancel)
+    ancestor.readyWaiters.push(waiter)
+  })
+}
+
+function findPendingAncestor(host: HTMLElement): HostRef | undefined {
+  let node: Node | null = host.parentNode
+  while (node) {
+    if (node.nodeType === 1) {
+      const ancestor = getHostRef(node as HTMLElement)
+      if (
+        ancestor?.connected &&
+        (!ancestor.loaded || ancestor.loading || ancestor.readinessError)
+      ) {
+        return ancestor
+      }
+    }
+    node =
+      node.parentNode ??
+      (node.nodeType === 11 ? (node as ShadowRoot).host : null)
+  }
+  return undefined
 }
 
 function flushPendingFormCallbacks(hostRef: HostRef): void {

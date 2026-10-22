@@ -158,6 +158,8 @@ Lazy manifest 只能携带 JSON-safe default 与 codec 元数据。未加载实�
 - `connectedCallback` 幂等；重连新建响应式 root，复用合法 ShadowRoot。
 - `disconnectedCallback` 立即释放 root、effects、cleanup 和 Light DOM observer。
 - Lazy 加载期间断开不挂载，并拒绝当前 readiness waiter；快速重连复用同一 module Promise 后重新初始化。
+- Lazy 实现 chunk 可以并行加载，但后代初始化必须等待已连接的 Zeus lazy 祖先完成初始化，以建立可用的父级 DOM context；该顺序跨 Shadow DOM 边界成立。
+- 等待中的宿主移动或断开时，取消并释放旧祖先的等待，再依据当前连接和祖先继续；祖先初始化失败会拒绝当前后代的 readiness。已加载组件重连到尚未 ready 的祖先时，同样先等待祖先，`componentOnReady()` 和异步方法代理须等重连完成。
 - Zeus 的受保护 DOM move 可保留当前 owner；普通原生断开/重连按完整生命周期处理。
 
 ## 3. Event、Slot、Style 和 Form ABI

@@ -466,6 +466,7 @@ lazy runtime 负责：
 - serializer/deserializer 延迟到真实组件执行。
 - reflection loop suppression。
 - form-associated internals 与 callback queue。
+- chunk 并行加载、祖先优先初始化，保证同批连接的子组件能读取父级 DOM context。
 
 ### React
 
