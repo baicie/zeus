@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1-beta.17 (2026-10-22)
+
+### Fixes
+
+- Initialize lazy Web Component ancestors before descendants across Light and Shadow DOM, including moves, failed ancestors, and reconnects; keep module loading parallel and readiness/method proxies pending until the current scope is mounted.
+- Verify published Golden Component Manifests against the canonical `schemaVersion: 1` field and their frozen SHA256 hashes.
+
 ## 0.1.1-beta.16 (2026-10-21)
 
 ### Fixes
