@@ -264,3 +264,20 @@ beta.16 在 registry 可见后更新锁文件并重跑全量 UI CI；完整 show
   尚未发布，因此 B-003/E-009 的新 registry Golden、provenance 和独立消费者报告仍缺失。
 - D-006 仍没有首次接触 Zeus 用户的 15 分钟匿名计时记录，按用户明确要求保持未完成；所以
   B-003、E-009、F-011、D-006 与本总目标均不能标记完成。
+
+### 增量状态（2026-10-22，UI beta.33 PR 最终 E2E 复核）
+
+- UI PR #111（`codex/ui-beta33-release-prep`，head `812d1b0`）的 build、docs、showcase
+  build/unit/metadata、lint/DTS、Windows、Data Grid benchmark/framework-browser 和普通
+  unit checks 均通过；两次独立 CI run `39704468981`、`39704473420` 的 `showcase / e2e`
+  均失败，且失败集合一致（8 个文件、16/113 项）。失败覆盖 checkbox/switch/radio
+  accessibility、chat、accordion/tabs、dialog、settings 和 select，包含缺少
+  `aria-orientation`、内容未渲染、元素不可见、重复 placeholder 及 30 秒超时等证据。
+  这不是 Popover 单点回归；PR 保持 `OPEN/BLOCKED`，不能合并或发布 UI beta.33。
+- 本地 `pnpm showcase:e2e` 的依赖构建成功，但 5173 被另一个项目进程占用，global setup
+  无法启动 showcase servers；未终止外部进程，也未以本地不完整运行替代 CI 失败证据。
+- 本机再次使用官方源 `https://registry.npmjs.org` 执行 `npm whoami` 仍返回 E401；只读查询
+  仍显示 `@zeus-js/zeus@beta=0.1.1-beta.16`、`@zeus-web/ui@beta=0.1.0-beta.32`，UI
+  beta.33 尚未发布。历史 `@zeus-js/compiler-native@latest` 仍指向旧 canary，F-011 不能关闭。
+- D-006 仍没有首次接触 Zeus 用户的 15 分钟匿名计时记录，且用户明确要求保留未完成；因此
+  UI 发布后的 B-003/E-009、F-011、D-006 与本总目标继续保持未完成。

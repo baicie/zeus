@@ -184,3 +184,16 @@ Phase 10/12/14 实现。以下命令均在 `zeus-ui` 根目录执行并通过：
   的新 registry Golden、来源与消费者报告仍待完成。
 - 用户已明确无法安排首次接触 Zeus 用户的 15 分钟计时，D-006 按要求保持未完成；因此
   B-003、E-009、F-011、D-006 和总目标均不得标记完成。
+
+## 2026-10-22 UI beta.33 E2E 复核
+
+UI PR #111 的 head `812d1b0` 已通过构建、类型、单元、showcase build/unit/metadata、Windows
+与 Data Grid 检查，但两次独立 GitHub CI run `39704468981`、`39704473420` 的 showcase E2E
+都以同一组 16/113 失败结束，波及多个不相关组件（checkbox/switch/radio、chat、
+accordion/tabs、dialog、settings、select）。失败包含 `aria-orientation` 缺失、组件内容未
+渲染、不可见元素、重复 placeholder 和超时；PR 仍为 `OPEN/BLOCKED`，不能合并。依赖构建后的
+本地 E2E 因 5173 被外部项目占用而无法启动，未放宽断言或跳过用例。
+
+官方 npm 源只读查询仍可用，但当前 `npm whoami --registry=https://registry.npmjs.org/`
+返回 E401；UI beta.33 尚未发布，历史 native `latest` 仍未清理。用户已确认暂时无法安排
+D-006 的新用户 15 分钟计时，因此 B-003、E-009、F-011、D-006 和总目标继续保留未完成。
