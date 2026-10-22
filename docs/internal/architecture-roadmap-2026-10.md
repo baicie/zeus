@@ -113,7 +113,7 @@
 
 ## 当前边界
 
-- 公开 npm 版本必须查询 registry，仓库的 beta.14 不代表已经发布。
+- 公开 npm 版本必须查询 registry；当前 registry 已发布 Zeus beta.18。UI Golden 冻结合同仍为 UI beta.32 / Zeus beta.13，重新验收前不能混用这些版本。
 - Zeus UI 基线 beta.32 仍声明 Zeus beta.13；外部消费验证需显式记录使用的本地产物或 registry 版本。
 - register:"side-effect" 是明确的浏览器副作用输出目标；Lazy Wrapper 的 Node 导入与服务端渲染路径需安全，不能 mock HTMLElement 掩盖错误。
 - 物理重复安装的响应式包与 Node import/require 混用是不同风险，分别验收。
