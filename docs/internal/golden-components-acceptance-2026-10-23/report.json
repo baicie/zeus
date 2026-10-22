@@ -1,0 +1,2617 @@
+{
+  "createdAt": "2026-10-22T19:54:18.778Z",
+  "runtime": {
+    "node": "v24.16.0",
+    "platform": "darwin",
+    "architecture": "arm64"
+  },
+  "uiVersion": "0.1.0-beta.33",
+  "frameworkVersion": "0.1.1-beta.18",
+  "registry": "https://registry.npmjs.org",
+  "packages": [
+    "@zeus-web/button",
+    "@zeus-web/input",
+    "@zeus-web/dialog",
+    "@zeus-web/data-grid"
+  ],
+  "browsers": ["chromium", "firefox", "webkit"],
+  "contract": {
+    "source": {
+      "repository": "https://github.com/baicie/zeus-ui",
+      "commit": "74fe9ea33f7a51eb8551debe9992cebfc1a0ebe7",
+      "version": "0.1.0-beta.33",
+      "frameworkDependency": "0.1.1-beta.18"
+    },
+    "requiredBrowserAssertions": [
+      "disabled/loading prevents press",
+      "one press carries detail.nativeEvent",
+      "default/prefix/suffix projection",
+      "focus/blur/click after ready",
+      "runtime detach/reconnect cleanup",
+      "value and defaultValue precedence",
+      "formatter is passed as function property and runs on input only",
+      "value-change carries detail.value",
+      "focus-change carries detail.focused",
+      "required validity and focus on the rendered control",
+      "open-change carries detail.open",
+      "trigger opens and close/Escape closes",
+      "dialog/title/description relationships",
+      "modal Tab and Shift+Tab trap",
+      "close restores trigger focus",
+      "pending focus timers do not target detached nodes",
+      "rows/columns/selectedKeys pass through DOM properties",
+      "selection/sort/active-cell events preserve source detail",
+      "same-key data updates preserve current row behavior",
+      "virtual viewport keeps bounded rendered nodes",
+      "keyboard navigation/resize/scroll preserves active cell focus"
+    ]
+  },
+  "supplyChain": [
+    {
+      "consumer": "native",
+      "package": "@zeus-js/zeus",
+      "version": "0.1.1-beta.18",
+      "registry": "https://registry.npmjs.org",
+      "tarball": "https://registry.npmjs.org/@zeus-js/zeus/-/zeus-0.1.1-beta.18.tgz",
+      "integrity": "sha512-s6pzv+a7PlZ3TFuKqeh/JMgKJN0y4/8B+9wq8GTWes56yZATwcZ2EfC2Wqi4H999DjnPdmfXS0SBJF3fBk/9Mw==",
+      "status": "verified"
+    },
+    {
+      "consumer": "native",
+      "package": "@zeus-js/runtime-dom",
+      "version": "0.1.1-beta.18",
+      "registry": "https://registry.npmjs.org",
+      "tarball": "https://registry.npmjs.org/@zeus-js/runtime-dom/-/runtime-dom-0.1.1-beta.18.tgz",
+      "integrity": "sha512-bac3Xf1ChCRs3wHjXdzOQvQz/39KuBZn5+7XN4IHdbbTos/C7BklA48tdye1OBJULFioYPlJY5j+x3GsTerpbQ==",
+      "status": "verified"
+    },
+    {
+      "consumer": "native",
+      "package": "@zeus-web/button",
+      "version": "0.1.0-beta.33",
+      "registry": "https://registry.npmjs.org",
+      "tarball": "https://registry.npmjs.org/@zeus-web/button/-/button-0.1.0-beta.33.tgz",
+      "integrity": "sha512-XCB1az+M2O2xQAST3nK4KXm65VrwUfmD/6bIKGM8jzju+rNlHFiqoxrhvtHZfJdytgTqgDhROzt3DzLaIOSpOw==",
+      "provenance": {
+        "subjectSha512": "5c20756b3f8cd8edb1400493de72b82979bae55af051f983ffa6c828633c8f38eefab3651c58aaa31ae1bed1d97c9772b604ea8038513b3b770f32da20e4a93b",
+        "sourceRepository": "https://github.com/baicie/zeus-ui",
+        "sourceCommit": "74fe9ea33f7a51eb8551debe9992cebfc1a0ebe7",
+        "workflow": ".github/workflows/publish.yml",
+        "ref": "refs/tags/v0.1.0-beta.33",
+        "sigstoreVerified": true
+      },
+      "source": {
+        "file": "packages/primitives/button/src/button.tsx",
+        "sha256": "3eb331f997d099a333ea0b8ddbc178d08d98d4cba3c8a5585cb1d0681dd2551a",
+        "contractSha256": "3eb331f997d099a333ea0b8ddbc178d08d98d4cba3c8a5585cb1d0681dd2551a"
+      },
+      "status": "verified"
+    },
+    {
+      "consumer": "native",
+      "package": "@zeus-web/input",
+      "version": "0.1.0-beta.33",
+      "registry": "https://registry.npmjs.org",
+      "tarball": "https://registry.npmjs.org/@zeus-web/input/-/input-0.1.0-beta.33.tgz",
+      "integrity": "sha512-o5uDN9cT1g26m8j6ySGMB6la9++yaWlYcz8N/2AK1H3w95cMkvae3QhCPeHiZoby/83sTZgxyea6FnbjGyBZ6g==",
+      "provenance": {
+        "subjectSha512": "a39b8337d713d60dba9bc8fac9218c07a95af7efb2696958733f0dff600ad47df0f7970c92f69edd08423de1e26686f2ffcdec4d9831c9e6ba1676e31b2059ea",
+        "sourceRepository": "https://github.com/baicie/zeus-ui",
+        "sourceCommit": "74fe9ea33f7a51eb8551debe9992cebfc1a0ebe7",
+        "workflow": ".github/workflows/publish.yml",
+        "ref": "refs/tags/v0.1.0-beta.33",
+        "sigstoreVerified": true
+      },
+      "source": {
+        "file": "packages/primitives/input/src/input.tsx",
+        "sha256": "4b40cd9da3b3813d8c72f90fc14e589a5334e1de064ca205d00ea4cc4a244e27",
+        "contractSha256": "4b40cd9da3b3813d8c72f90fc14e589a5334e1de064ca205d00ea4cc4a244e27"
+      },
+      "status": "verified"
+    },
+    {
+      "consumer": "native",
+      "package": "@zeus-web/dialog",
+      "version": "0.1.0-beta.33",
+      "registry": "https://registry.npmjs.org",
+      "tarball": "https://registry.npmjs.org/@zeus-web/dialog/-/dialog-0.1.0-beta.33.tgz",
+      "integrity": "sha512-+9zv60BaZ9e6YQSbHMrG/jxhqx/5WAUmBwKRkmkcTdlO36Fods783SAmQIGy3G9Ov+nPQJhZTIR+DwNu0dCZHw==",
+      "provenance": {
+        "subjectSha512": "fbdcefeb405a67d7ba61049b1ccac6fe3c61ab1ff958052607029192691c4dd94edfa16876cefcdd20264081b2dc6f4ebfe9cf4098594c847e0f036ed1d0991f",
+        "sourceRepository": "https://github.com/baicie/zeus-ui",
+        "sourceCommit": "74fe9ea33f7a51eb8551debe9992cebfc1a0ebe7",
+        "workflow": ".github/workflows/publish.yml",
+        "ref": "refs/tags/v0.1.0-beta.33",
+        "sigstoreVerified": true
+      },
+      "source": {
+        "file": "packages/primitives/dialog/src/dialog.tsx",
+        "sha256": "f9c388163d4cc873cf56809294cbbf6eaaff163b39888658102690ddd7f944d4",
+        "contractSha256": "f9c388163d4cc873cf56809294cbbf6eaaff163b39888658102690ddd7f944d4"
+      },
+      "status": "verified"
+    },
+    {
+      "consumer": "native",
+      "package": "@zeus-web/data-grid",
+      "version": "0.1.0-beta.33",
+      "registry": "https://registry.npmjs.org",
+      "tarball": "https://registry.npmjs.org/@zeus-web/data-grid/-/data-grid-0.1.0-beta.33.tgz",
+      "integrity": "sha512-1Jj99UGxzXaayMYh1SPGyIU62SZ6AeEav0afcNQcdkVELEOQnikjBV3atO1vWKXSMExB0pZVddMI48E6eAL5PQ==",
+      "provenance": {
+        "subjectSha512": "d498fdf541b1cd769ac8c621d523c6c8853ad9267a01e11abf469f70d41c7645442c43909e2923055ddab4ed6f58a5d2304c41d2965575d308e3c13a7802f93d",
+        "sourceRepository": "https://github.com/baicie/zeus-ui",
+        "sourceCommit": "74fe9ea33f7a51eb8551debe9992cebfc1a0ebe7",
+        "workflow": ".github/workflows/publish.yml",
+        "ref": "refs/tags/v0.1.0-beta.33",
+        "sigstoreVerified": true
+      },
+      "source": {
+        "file": "packages/advanced/data-grid/src/components/data-grid.tsx",
+        "sha256": "bca45e02abf2cdb9037faf056fd6682c6c1dd30b137b691ff7b74014b325c2ed",
+        "contractSha256": "bca45e02abf2cdb9037faf056fd6682c6c1dd30b137b691ff7b74014b325c2ed"
+      },
+      "status": "verified"
+    },
+    {
+      "consumer": "react18",
+      "package": "@zeus-js/zeus",
+      "version": "0.1.1-beta.18",
+      "registry": "https://registry.npmjs.org",
+      "tarball": "https://registry.npmjs.org/@zeus-js/zeus/-/zeus-0.1.1-beta.18.tgz",
+      "integrity": "sha512-s6pzv+a7PlZ3TFuKqeh/JMgKJN0y4/8B+9wq8GTWes56yZATwcZ2EfC2Wqi4H999DjnPdmfXS0SBJF3fBk/9Mw==",
+      "status": "verified"
+    },
+    {
+      "consumer": "react18",
+      "package": "@zeus-js/runtime-dom",
+      "version": "0.1.1-beta.18",
+      "registry": "https://registry.npmjs.org",
+      "tarball": "https://registry.npmjs.org/@zeus-js/runtime-dom/-/runtime-dom-0.1.1-beta.18.tgz",
+      "integrity": "sha512-bac3Xf1ChCRs3wHjXdzOQvQz/39KuBZn5+7XN4IHdbbTos/C7BklA48tdye1OBJULFioYPlJY5j+x3GsTerpbQ==",
+      "status": "verified"
+    },
+    {
+      "consumer": "react18",
+      "package": "@zeus-web/button",
+      "version": "0.1.0-beta.33",
+      "registry": "https://registry.npmjs.org",
+      "tarball": "https://registry.npmjs.org/@zeus-web/button/-/button-0.1.0-beta.33.tgz",
+      "integrity": "sha512-XCB1az+M2O2xQAST3nK4KXm65VrwUfmD/6bIKGM8jzju+rNlHFiqoxrhvtHZfJdytgTqgDhROzt3DzLaIOSpOw==",
+      "provenance": {
+        "subjectSha512": "5c20756b3f8cd8edb1400493de72b82979bae55af051f983ffa6c828633c8f38eefab3651c58aaa31ae1bed1d97c9772b604ea8038513b3b770f32da20e4a93b",
+        "sourceRepository": "https://github.com/baicie/zeus-ui",
+        "sourceCommit": "74fe9ea33f7a51eb8551debe9992cebfc1a0ebe7",
+        "workflow": ".github/workflows/publish.yml",
+        "ref": "refs/tags/v0.1.0-beta.33",
+        "sigstoreVerified": true
+      },
+      "source": {
+        "file": "packages/primitives/button/src/button.tsx",
+        "sha256": "3eb331f997d099a333ea0b8ddbc178d08d98d4cba3c8a5585cb1d0681dd2551a",
+        "contractSha256": "3eb331f997d099a333ea0b8ddbc178d08d98d4cba3c8a5585cb1d0681dd2551a"
+      },
+      "status": "verified"
+    },
+    {
+      "consumer": "react18",
+      "package": "@zeus-web/input",
+      "version": "0.1.0-beta.33",
+      "registry": "https://registry.npmjs.org",
+      "tarball": "https://registry.npmjs.org/@zeus-web/input/-/input-0.1.0-beta.33.tgz",
+      "integrity": "sha512-o5uDN9cT1g26m8j6ySGMB6la9++yaWlYcz8N/2AK1H3w95cMkvae3QhCPeHiZoby/83sTZgxyea6FnbjGyBZ6g==",
+      "provenance": {
+        "subjectSha512": "a39b8337d713d60dba9bc8fac9218c07a95af7efb2696958733f0dff600ad47df0f7970c92f69edd08423de1e26686f2ffcdec4d9831c9e6ba1676e31b2059ea",
+        "sourceRepository": "https://github.com/baicie/zeus-ui",
+        "sourceCommit": "74fe9ea33f7a51eb8551debe9992cebfc1a0ebe7",
+        "workflow": ".github/workflows/publish.yml",
+        "ref": "refs/tags/v0.1.0-beta.33",
+        "sigstoreVerified": true
+      },
+      "source": {
+        "file": "packages/primitives/input/src/input.tsx",
+        "sha256": "4b40cd9da3b3813d8c72f90fc14e589a5334e1de064ca205d00ea4cc4a244e27",
+        "contractSha256": "4b40cd9da3b3813d8c72f90fc14e589a5334e1de064ca205d00ea4cc4a244e27"
+      },
+      "status": "verified"
+    },
+    {
+      "consumer": "react18",
+      "package": "@zeus-web/dialog",
+      "version": "0.1.0-beta.33",
+      "registry": "https://registry.npmjs.org",
+      "tarball": "https://registry.npmjs.org/@zeus-web/dialog/-/dialog-0.1.0-beta.33.tgz",
+      "integrity": "sha512-+9zv60BaZ9e6YQSbHMrG/jxhqx/5WAUmBwKRkmkcTdlO36Fods783SAmQIGy3G9Ov+nPQJhZTIR+DwNu0dCZHw==",
+      "provenance": {
+        "subjectSha512": "fbdcefeb405a67d7ba61049b1ccac6fe3c61ab1ff958052607029192691c4dd94edfa16876cefcdd20264081b2dc6f4ebfe9cf4098594c847e0f036ed1d0991f",
+        "sourceRepository": "https://github.com/baicie/zeus-ui",
+        "sourceCommit": "74fe9ea33f7a51eb8551debe9992cebfc1a0ebe7",
+        "workflow": ".github/workflows/publish.yml",
+        "ref": "refs/tags/v0.1.0-beta.33",
+        "sigstoreVerified": true
+      },
+      "source": {
+        "file": "packages/primitives/dialog/src/dialog.tsx",
+        "sha256": "f9c388163d4cc873cf56809294cbbf6eaaff163b39888658102690ddd7f944d4",
+        "contractSha256": "f9c388163d4cc873cf56809294cbbf6eaaff163b39888658102690ddd7f944d4"
+      },
+      "status": "verified"
+    },
+    {
+      "consumer": "react18",
+      "package": "@zeus-web/data-grid",
+      "version": "0.1.0-beta.33",
+      "registry": "https://registry.npmjs.org",
+      "tarball": "https://registry.npmjs.org/@zeus-web/data-grid/-/data-grid-0.1.0-beta.33.tgz",
+      "integrity": "sha512-1Jj99UGxzXaayMYh1SPGyIU62SZ6AeEav0afcNQcdkVELEOQnikjBV3atO1vWKXSMExB0pZVddMI48E6eAL5PQ==",
+      "provenance": {
+        "subjectSha512": "d498fdf541b1cd769ac8c621d523c6c8853ad9267a01e11abf469f70d41c7645442c43909e2923055ddab4ed6f58a5d2304c41d2965575d308e3c13a7802f93d",
+        "sourceRepository": "https://github.com/baicie/zeus-ui",
+        "sourceCommit": "74fe9ea33f7a51eb8551debe9992cebfc1a0ebe7",
+        "workflow": ".github/workflows/publish.yml",
+        "ref": "refs/tags/v0.1.0-beta.33",
+        "sigstoreVerified": true
+      },
+      "source": {
+        "file": "packages/advanced/data-grid/src/components/data-grid.tsx",
+        "sha256": "bca45e02abf2cdb9037faf056fd6682c6c1dd30b137b691ff7b74014b325c2ed",
+        "contractSha256": "bca45e02abf2cdb9037faf056fd6682c6c1dd30b137b691ff7b74014b325c2ed"
+      },
+      "status": "verified"
+    },
+    {
+      "consumer": "react19",
+      "package": "@zeus-js/zeus",
+      "version": "0.1.1-beta.18",
+      "registry": "https://registry.npmjs.org",
+      "tarball": "https://registry.npmjs.org/@zeus-js/zeus/-/zeus-0.1.1-beta.18.tgz",
+      "integrity": "sha512-s6pzv+a7PlZ3TFuKqeh/JMgKJN0y4/8B+9wq8GTWes56yZATwcZ2EfC2Wqi4H999DjnPdmfXS0SBJF3fBk/9Mw==",
+      "status": "verified"
+    },
+    {
+      "consumer": "react19",
+      "package": "@zeus-js/runtime-dom",
+      "version": "0.1.1-beta.18",
+      "registry": "https://registry.npmjs.org",
+      "tarball": "https://registry.npmjs.org/@zeus-js/runtime-dom/-/runtime-dom-0.1.1-beta.18.tgz",
+      "integrity": "sha512-bac3Xf1ChCRs3wHjXdzOQvQz/39KuBZn5+7XN4IHdbbTos/C7BklA48tdye1OBJULFioYPlJY5j+x3GsTerpbQ==",
+      "status": "verified"
+    },
+    {
+      "consumer": "react19",
+      "package": "@zeus-web/button",
+      "version": "0.1.0-beta.33",
+      "registry": "https://registry.npmjs.org",
+      "tarball": "https://registry.npmjs.org/@zeus-web/button/-/button-0.1.0-beta.33.tgz",
+      "integrity": "sha512-XCB1az+M2O2xQAST3nK4KXm65VrwUfmD/6bIKGM8jzju+rNlHFiqoxrhvtHZfJdytgTqgDhROzt3DzLaIOSpOw==",
+      "provenance": {
+        "subjectSha512": "5c20756b3f8cd8edb1400493de72b82979bae55af051f983ffa6c828633c8f38eefab3651c58aaa31ae1bed1d97c9772b604ea8038513b3b770f32da20e4a93b",
+        "sourceRepository": "https://github.com/baicie/zeus-ui",
+        "sourceCommit": "74fe9ea33f7a51eb8551debe9992cebfc1a0ebe7",
+        "workflow": ".github/workflows/publish.yml",
+        "ref": "refs/tags/v0.1.0-beta.33",
+        "sigstoreVerified": true
+      },
+      "source": {
+        "file": "packages/primitives/button/src/button.tsx",
+        "sha256": "3eb331f997d099a333ea0b8ddbc178d08d98d4cba3c8a5585cb1d0681dd2551a",
+        "contractSha256": "3eb331f997d099a333ea0b8ddbc178d08d98d4cba3c8a5585cb1d0681dd2551a"
+      },
+      "status": "verified"
+    },
+    {
+      "consumer": "react19",
+      "package": "@zeus-web/input",
+      "version": "0.1.0-beta.33",
+      "registry": "https://registry.npmjs.org",
+      "tarball": "https://registry.npmjs.org/@zeus-web/input/-/input-0.1.0-beta.33.tgz",
+      "integrity": "sha512-o5uDN9cT1g26m8j6ySGMB6la9++yaWlYcz8N/2AK1H3w95cMkvae3QhCPeHiZoby/83sTZgxyea6FnbjGyBZ6g==",
+      "provenance": {
+        "subjectSha512": "a39b8337d713d60dba9bc8fac9218c07a95af7efb2696958733f0dff600ad47df0f7970c92f69edd08423de1e26686f2ffcdec4d9831c9e6ba1676e31b2059ea",
+        "sourceRepository": "https://github.com/baicie/zeus-ui",
+        "sourceCommit": "74fe9ea33f7a51eb8551debe9992cebfc1a0ebe7",
+        "workflow": ".github/workflows/publish.yml",
+        "ref": "refs/tags/v0.1.0-beta.33",
+        "sigstoreVerified": true
+      },
+      "source": {
+        "file": "packages/primitives/input/src/input.tsx",
+        "sha256": "4b40cd9da3b3813d8c72f90fc14e589a5334e1de064ca205d00ea4cc4a244e27",
+        "contractSha256": "4b40cd9da3b3813d8c72f90fc14e589a5334e1de064ca205d00ea4cc4a244e27"
+      },
+      "status": "verified"
+    },
+    {
+      "consumer": "react19",
+      "package": "@zeus-web/dialog",
+      "version": "0.1.0-beta.33",
+      "registry": "https://registry.npmjs.org",
+      "tarball": "https://registry.npmjs.org/@zeus-web/dialog/-/dialog-0.1.0-beta.33.tgz",
+      "integrity": "sha512-+9zv60BaZ9e6YQSbHMrG/jxhqx/5WAUmBwKRkmkcTdlO36Fods783SAmQIGy3G9Ov+nPQJhZTIR+DwNu0dCZHw==",
+      "provenance": {
+        "subjectSha512": "fbdcefeb405a67d7ba61049b1ccac6fe3c61ab1ff958052607029192691c4dd94edfa16876cefcdd20264081b2dc6f4ebfe9cf4098594c847e0f036ed1d0991f",
+        "sourceRepository": "https://github.com/baicie/zeus-ui",
+        "sourceCommit": "74fe9ea33f7a51eb8551debe9992cebfc1a0ebe7",
+        "workflow": ".github/workflows/publish.yml",
+        "ref": "refs/tags/v0.1.0-beta.33",
+        "sigstoreVerified": true
+      },
+      "source": {
+        "file": "packages/primitives/dialog/src/dialog.tsx",
+        "sha256": "f9c388163d4cc873cf56809294cbbf6eaaff163b39888658102690ddd7f944d4",
+        "contractSha256": "f9c388163d4cc873cf56809294cbbf6eaaff163b39888658102690ddd7f944d4"
+      },
+      "status": "verified"
+    },
+    {
+      "consumer": "react19",
+      "package": "@zeus-web/data-grid",
+      "version": "0.1.0-beta.33",
+      "registry": "https://registry.npmjs.org",
+      "tarball": "https://registry.npmjs.org/@zeus-web/data-grid/-/data-grid-0.1.0-beta.33.tgz",
+      "integrity": "sha512-1Jj99UGxzXaayMYh1SPGyIU62SZ6AeEav0afcNQcdkVELEOQnikjBV3atO1vWKXSMExB0pZVddMI48E6eAL5PQ==",
+      "provenance": {
+        "subjectSha512": "d498fdf541b1cd769ac8c621d523c6c8853ad9267a01e11abf469f70d41c7645442c43909e2923055ddab4ed6f58a5d2304c41d2965575d308e3c13a7802f93d",
+        "sourceRepository": "https://github.com/baicie/zeus-ui",
+        "sourceCommit": "74fe9ea33f7a51eb8551debe9992cebfc1a0ebe7",
+        "workflow": ".github/workflows/publish.yml",
+        "ref": "refs/tags/v0.1.0-beta.33",
+        "sigstoreVerified": true
+      },
+      "source": {
+        "file": "packages/advanced/data-grid/src/components/data-grid.tsx",
+        "sha256": "bca45e02abf2cdb9037faf056fd6682c6c1dd30b137b691ff7b74014b325c2ed",
+        "contractSha256": "bca45e02abf2cdb9037faf056fd6682c6c1dd30b137b691ff7b74014b325c2ed"
+      },
+      "status": "verified"
+    },
+    {
+      "consumer": "vue3",
+      "package": "@zeus-js/zeus",
+      "version": "0.1.1-beta.18",
+      "registry": "https://registry.npmjs.org",
+      "tarball": "https://registry.npmjs.org/@zeus-js/zeus/-/zeus-0.1.1-beta.18.tgz",
+      "integrity": "sha512-s6pzv+a7PlZ3TFuKqeh/JMgKJN0y4/8B+9wq8GTWes56yZATwcZ2EfC2Wqi4H999DjnPdmfXS0SBJF3fBk/9Mw==",
+      "status": "verified"
+    },
+    {
+      "consumer": "vue3",
+      "package": "@zeus-js/runtime-dom",
+      "version": "0.1.1-beta.18",
+      "registry": "https://registry.npmjs.org",
+      "tarball": "https://registry.npmjs.org/@zeus-js/runtime-dom/-/runtime-dom-0.1.1-beta.18.tgz",
+      "integrity": "sha512-bac3Xf1ChCRs3wHjXdzOQvQz/39KuBZn5+7XN4IHdbbTos/C7BklA48tdye1OBJULFioYPlJY5j+x3GsTerpbQ==",
+      "status": "verified"
+    },
+    {
+      "consumer": "vue3",
+      "package": "@zeus-web/button",
+      "version": "0.1.0-beta.33",
+      "registry": "https://registry.npmjs.org",
+      "tarball": "https://registry.npmjs.org/@zeus-web/button/-/button-0.1.0-beta.33.tgz",
+      "integrity": "sha512-XCB1az+M2O2xQAST3nK4KXm65VrwUfmD/6bIKGM8jzju+rNlHFiqoxrhvtHZfJdytgTqgDhROzt3DzLaIOSpOw==",
+      "provenance": {
+        "subjectSha512": "5c20756b3f8cd8edb1400493de72b82979bae55af051f983ffa6c828633c8f38eefab3651c58aaa31ae1bed1d97c9772b604ea8038513b3b770f32da20e4a93b",
+        "sourceRepository": "https://github.com/baicie/zeus-ui",
+        "sourceCommit": "74fe9ea33f7a51eb8551debe9992cebfc1a0ebe7",
+        "workflow": ".github/workflows/publish.yml",
+        "ref": "refs/tags/v0.1.0-beta.33",
+        "sigstoreVerified": true
+      },
+      "source": {
+        "file": "packages/primitives/button/src/button.tsx",
+        "sha256": "3eb331f997d099a333ea0b8ddbc178d08d98d4cba3c8a5585cb1d0681dd2551a",
+        "contractSha256": "3eb331f997d099a333ea0b8ddbc178d08d98d4cba3c8a5585cb1d0681dd2551a"
+      },
+      "status": "verified"
+    },
+    {
+      "consumer": "vue3",
+      "package": "@zeus-web/input",
+      "version": "0.1.0-beta.33",
+      "registry": "https://registry.npmjs.org",
+      "tarball": "https://registry.npmjs.org/@zeus-web/input/-/input-0.1.0-beta.33.tgz",
+      "integrity": "sha512-o5uDN9cT1g26m8j6ySGMB6la9++yaWlYcz8N/2AK1H3w95cMkvae3QhCPeHiZoby/83sTZgxyea6FnbjGyBZ6g==",
+      "provenance": {
+        "subjectSha512": "a39b8337d713d60dba9bc8fac9218c07a95af7efb2696958733f0dff600ad47df0f7970c92f69edd08423de1e26686f2ffcdec4d9831c9e6ba1676e31b2059ea",
+        "sourceRepository": "https://github.com/baicie/zeus-ui",
+        "sourceCommit": "74fe9ea33f7a51eb8551debe9992cebfc1a0ebe7",
+        "workflow": ".github/workflows/publish.yml",
+        "ref": "refs/tags/v0.1.0-beta.33",
+        "sigstoreVerified": true
+      },
+      "source": {
+        "file": "packages/primitives/input/src/input.tsx",
+        "sha256": "4b40cd9da3b3813d8c72f90fc14e589a5334e1de064ca205d00ea4cc4a244e27",
+        "contractSha256": "4b40cd9da3b3813d8c72f90fc14e589a5334e1de064ca205d00ea4cc4a244e27"
+      },
+      "status": "verified"
+    },
+    {
+      "consumer": "vue3",
+      "package": "@zeus-web/dialog",
+      "version": "0.1.0-beta.33",
+      "registry": "https://registry.npmjs.org",
+      "tarball": "https://registry.npmjs.org/@zeus-web/dialog/-/dialog-0.1.0-beta.33.tgz",
+      "integrity": "sha512-+9zv60BaZ9e6YQSbHMrG/jxhqx/5WAUmBwKRkmkcTdlO36Fods783SAmQIGy3G9Ov+nPQJhZTIR+DwNu0dCZHw==",
+      "provenance": {
+        "subjectSha512": "fbdcefeb405a67d7ba61049b1ccac6fe3c61ab1ff958052607029192691c4dd94edfa16876cefcdd20264081b2dc6f4ebfe9cf4098594c847e0f036ed1d0991f",
+        "sourceRepository": "https://github.com/baicie/zeus-ui",
+        "sourceCommit": "74fe9ea33f7a51eb8551debe9992cebfc1a0ebe7",
+        "workflow": ".github/workflows/publish.yml",
+        "ref": "refs/tags/v0.1.0-beta.33",
+        "sigstoreVerified": true
+      },
+      "source": {
+        "file": "packages/primitives/dialog/src/dialog.tsx",
+        "sha256": "f9c388163d4cc873cf56809294cbbf6eaaff163b39888658102690ddd7f944d4",
+        "contractSha256": "f9c388163d4cc873cf56809294cbbf6eaaff163b39888658102690ddd7f944d4"
+      },
+      "status": "verified"
+    },
+    {
+      "consumer": "vue3",
+      "package": "@zeus-web/data-grid",
+      "version": "0.1.0-beta.33",
+      "registry": "https://registry.npmjs.org",
+      "tarball": "https://registry.npmjs.org/@zeus-web/data-grid/-/data-grid-0.1.0-beta.33.tgz",
+      "integrity": "sha512-1Jj99UGxzXaayMYh1SPGyIU62SZ6AeEav0afcNQcdkVELEOQnikjBV3atO1vWKXSMExB0pZVddMI48E6eAL5PQ==",
+      "provenance": {
+        "subjectSha512": "d498fdf541b1cd769ac8c621d523c6c8853ad9267a01e11abf469f70d41c7645442c43909e2923055ddab4ed6f58a5d2304c41d2965575d308e3c13a7802f93d",
+        "sourceRepository": "https://github.com/baicie/zeus-ui",
+        "sourceCommit": "74fe9ea33f7a51eb8551debe9992cebfc1a0ebe7",
+        "workflow": ".github/workflows/publish.yml",
+        "ref": "refs/tags/v0.1.0-beta.33",
+        "sigstoreVerified": true
+      },
+      "source": {
+        "file": "packages/advanced/data-grid/src/components/data-grid.tsx",
+        "sha256": "bca45e02abf2cdb9037faf056fd6682c6c1dd30b137b691ff7b74014b325c2ed",
+        "contractSha256": "bca45e02abf2cdb9037faf056fd6682c6c1dd30b137b691ff7b74014b325c2ed"
+      },
+      "status": "verified"
+    }
+  ],
+  "manifests": [
+    {
+      "consumer": "native",
+      "package": "@zeus-web/button",
+      "sha256": "1822b218d63f09fcab15dc9c3fe069bfb24831aaa37e53d34f1de217d9b73755",
+      "contractSha256": "1822b218d63f09fcab15dc9c3fe069bfb24831aaa37e53d34f1de217d9b73755",
+      "status": "verified"
+    },
+    {
+      "consumer": "native",
+      "package": "@zeus-web/input",
+      "sha256": "7ccb7cd309248857170523ab81574cab4bab0de06d7e6ca174684cadebd61e0f",
+      "contractSha256": "7ccb7cd309248857170523ab81574cab4bab0de06d7e6ca174684cadebd61e0f",
+      "status": "verified"
+    },
+    {
+      "consumer": "native",
+      "package": "@zeus-web/dialog",
+      "sha256": "06c85d3abcedc3cf14ebf29b7182bdf515d519f85c636239256fcb950eddb694",
+      "contractSha256": "06c85d3abcedc3cf14ebf29b7182bdf515d519f85c636239256fcb950eddb694",
+      "status": "verified"
+    },
+    {
+      "consumer": "native",
+      "package": "@zeus-web/data-grid",
+      "sha256": "635dcee2af2a8e6f0e602db8ed2a58469f00303f139d51bd549e1103328968ea",
+      "contractSha256": "635dcee2af2a8e6f0e602db8ed2a58469f00303f139d51bd549e1103328968ea",
+      "status": "verified"
+    },
+    {
+      "consumer": "react18",
+      "package": "@zeus-web/button",
+      "sha256": "1822b218d63f09fcab15dc9c3fe069bfb24831aaa37e53d34f1de217d9b73755",
+      "contractSha256": "1822b218d63f09fcab15dc9c3fe069bfb24831aaa37e53d34f1de217d9b73755",
+      "status": "verified"
+    },
+    {
+      "consumer": "react18",
+      "package": "@zeus-web/input",
+      "sha256": "7ccb7cd309248857170523ab81574cab4bab0de06d7e6ca174684cadebd61e0f",
+      "contractSha256": "7ccb7cd309248857170523ab81574cab4bab0de06d7e6ca174684cadebd61e0f",
+      "status": "verified"
+    },
+    {
+      "consumer": "react18",
+      "package": "@zeus-web/dialog",
+      "sha256": "06c85d3abcedc3cf14ebf29b7182bdf515d519f85c636239256fcb950eddb694",
+      "contractSha256": "06c85d3abcedc3cf14ebf29b7182bdf515d519f85c636239256fcb950eddb694",
+      "status": "verified"
+    },
+    {
+      "consumer": "react18",
+      "package": "@zeus-web/data-grid",
+      "sha256": "635dcee2af2a8e6f0e602db8ed2a58469f00303f139d51bd549e1103328968ea",
+      "contractSha256": "635dcee2af2a8e6f0e602db8ed2a58469f00303f139d51bd549e1103328968ea",
+      "status": "verified"
+    },
+    {
+      "consumer": "react19",
+      "package": "@zeus-web/button",
+      "sha256": "1822b218d63f09fcab15dc9c3fe069bfb24831aaa37e53d34f1de217d9b73755",
+      "contractSha256": "1822b218d63f09fcab15dc9c3fe069bfb24831aaa37e53d34f1de217d9b73755",
+      "status": "verified"
+    },
+    {
+      "consumer": "react19",
+      "package": "@zeus-web/input",
+      "sha256": "7ccb7cd309248857170523ab81574cab4bab0de06d7e6ca174684cadebd61e0f",
+      "contractSha256": "7ccb7cd309248857170523ab81574cab4bab0de06d7e6ca174684cadebd61e0f",
+      "status": "verified"
+    },
+    {
+      "consumer": "react19",
+      "package": "@zeus-web/dialog",
+      "sha256": "06c85d3abcedc3cf14ebf29b7182bdf515d519f85c636239256fcb950eddb694",
+      "contractSha256": "06c85d3abcedc3cf14ebf29b7182bdf515d519f85c636239256fcb950eddb694",
+      "status": "verified"
+    },
+    {
+      "consumer": "react19",
+      "package": "@zeus-web/data-grid",
+      "sha256": "635dcee2af2a8e6f0e602db8ed2a58469f00303f139d51bd549e1103328968ea",
+      "contractSha256": "635dcee2af2a8e6f0e602db8ed2a58469f00303f139d51bd549e1103328968ea",
+      "status": "verified"
+    },
+    {
+      "consumer": "vue3",
+      "package": "@zeus-web/button",
+      "sha256": "1822b218d63f09fcab15dc9c3fe069bfb24831aaa37e53d34f1de217d9b73755",
+      "contractSha256": "1822b218d63f09fcab15dc9c3fe069bfb24831aaa37e53d34f1de217d9b73755",
+      "status": "verified"
+    },
+    {
+      "consumer": "vue3",
+      "package": "@zeus-web/input",
+      "sha256": "7ccb7cd309248857170523ab81574cab4bab0de06d7e6ca174684cadebd61e0f",
+      "contractSha256": "7ccb7cd309248857170523ab81574cab4bab0de06d7e6ca174684cadebd61e0f",
+      "status": "verified"
+    },
+    {
+      "consumer": "vue3",
+      "package": "@zeus-web/dialog",
+      "sha256": "06c85d3abcedc3cf14ebf29b7182bdf515d519f85c636239256fcb950eddb694",
+      "contractSha256": "06c85d3abcedc3cf14ebf29b7182bdf515d519f85c636239256fcb950eddb694",
+      "status": "verified"
+    },
+    {
+      "consumer": "vue3",
+      "package": "@zeus-web/data-grid",
+      "sha256": "635dcee2af2a8e6f0e602db8ed2a58469f00303f139d51bd549e1103328968ea",
+      "contractSha256": "635dcee2af2a8e6f0e602db8ed2a58469f00303f139d51bd549e1103328968ea",
+      "status": "verified"
+    }
+  ],
+  "ssr": [
+    {
+      "consumer": "native",
+      "entries": [
+        "@zeus-web/button/wc",
+        "@zeus-web/input/wc",
+        "@zeus-web/dialog/wc",
+        "@zeus-web/data-grid/wc"
+      ],
+      "status": "verified",
+      "domGlobals": "absent"
+    },
+    {
+      "consumer": "react18",
+      "entries": [
+        "@zeus-web/button/react",
+        "@zeus-web/input/react",
+        "@zeus-web/dialog/react",
+        "@zeus-web/data-grid/react"
+      ],
+      "status": "verified",
+      "domGlobals": "absent"
+    },
+    {
+      "consumer": "react19",
+      "entries": [
+        "@zeus-web/button/react",
+        "@zeus-web/input/react",
+        "@zeus-web/dialog/react",
+        "@zeus-web/data-grid/react"
+      ],
+      "status": "verified",
+      "domGlobals": "absent"
+    },
+    {
+      "consumer": "vue3",
+      "entries": [
+        "@zeus-web/button/vue",
+        "@zeus-web/input/vue",
+        "@zeus-web/dialog/vue",
+        "@zeus-web/data-grid/vue"
+      ],
+      "status": "verified",
+      "domGlobals": "absent"
+    }
+  ],
+  "results": [
+    {
+      "consumer": "native",
+      "browser": "chromium",
+      "status": "passed",
+      "result": {
+        "passed": true,
+        "consumer": "native",
+        "assertions": [
+          {
+            "name": "disabled/loading prevents press",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "one press carries detail.nativeEvent",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "default/prefix/suffix projection",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "focus/blur/click after ready",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "runtime detach/reconnect cleanup",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "value and defaultValue precedence",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "formatter is passed as function property and runs on input only",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "value-change carries detail.value",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "focus-change carries detail.focused",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "required validity and focus on the rendered control",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "open-change carries detail.open",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "trigger opens and close/Escape closes",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "dialog/title/description relationships",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "modal Tab and Shift+Tab trap",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "close restores trigger focus",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "pending focus timers do not target detached nodes",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "rows/columns/selectedKeys pass through DOM properties",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "selection/sort/active-cell events preserve source detail",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "selection": {
+                "mode": "multiple",
+                "keys": ["row-1", "row-0"]
+              },
+              "sort": {
+                "columnId": "name",
+                "direction": "asc"
+              },
+              "activeCell": {
+                "rowIndex": 1,
+                "rowKey": "row-1",
+                "columnId": "name",
+                "columnIndex": 0
+              }
+            }
+          },
+          {
+            "name": "same-key data updates preserve current row behavior",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "rowKey": "row-0",
+              "updatedValue": "Updated"
+            }
+          },
+          {
+            "name": "virtual viewport keeps bounded rendered nodes",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "viewportHeight": 160,
+              "renderedRows": 13,
+              "totalRows": 120
+            }
+          },
+          {
+            "name": "keyboard navigation/resize/scroll preserves active cell focus",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "activeCell": {
+                "rowIndex": 32,
+                "rowKey": "row-20",
+                "columnId": "name",
+                "columnIndex": 0
+              },
+              "columnWidth": 200,
+              "range": {
+                "start": 2,
+                "end": 5,
+                "overscanStart": 0,
+                "overscanEnd": 12
+              }
+            }
+          },
+          {
+            "name": "large dataset performance records an informational duration",
+            "status": "passed",
+            "kind": "observation",
+            "details": {
+              "rowCount": 1000,
+              "elapsedMs": 1.2999999523162842
+            }
+          }
+        ]
+      }
+    },
+    {
+      "consumer": "native",
+      "browser": "firefox",
+      "status": "passed",
+      "result": {
+        "passed": true,
+        "consumer": "native",
+        "assertions": [
+          {
+            "name": "disabled/loading prevents press",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "one press carries detail.nativeEvent",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "default/prefix/suffix projection",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "focus/blur/click after ready",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "runtime detach/reconnect cleanup",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "value and defaultValue precedence",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "formatter is passed as function property and runs on input only",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "value-change carries detail.value",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "focus-change carries detail.focused",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "required validity and focus on the rendered control",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "open-change carries detail.open",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "trigger opens and close/Escape closes",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "dialog/title/description relationships",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "modal Tab and Shift+Tab trap",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "close restores trigger focus",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "pending focus timers do not target detached nodes",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "rows/columns/selectedKeys pass through DOM properties",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "selection/sort/active-cell events preserve source detail",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "selection": {
+                "mode": "multiple",
+                "keys": ["row-1", "row-0"]
+              },
+              "sort": {
+                "columnId": "name",
+                "direction": "asc"
+              },
+              "activeCell": {
+                "rowIndex": 1,
+                "rowKey": "row-1",
+                "columnId": "name",
+                "columnIndex": 0
+              }
+            }
+          },
+          {
+            "name": "same-key data updates preserve current row behavior",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "rowKey": "row-0",
+              "updatedValue": "Updated"
+            }
+          },
+          {
+            "name": "virtual viewport keeps bounded rendered nodes",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "viewportHeight": 160,
+              "renderedRows": 13,
+              "totalRows": 120
+            }
+          },
+          {
+            "name": "keyboard navigation/resize/scroll preserves active cell focus",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "activeCell": {
+                "rowIndex": 32,
+                "rowKey": "row-20",
+                "columnId": "name",
+                "columnIndex": 0
+              },
+              "columnWidth": 200,
+              "range": {
+                "start": 2,
+                "end": 5,
+                "overscanStart": 0,
+                "overscanEnd": 12
+              }
+            }
+          },
+          {
+            "name": "large dataset performance records an informational duration",
+            "status": "passed",
+            "kind": "observation",
+            "details": {
+              "rowCount": 1000,
+              "elapsedMs": 3
+            }
+          }
+        ]
+      }
+    },
+    {
+      "consumer": "native",
+      "browser": "webkit",
+      "status": "passed",
+      "result": {
+        "passed": true,
+        "consumer": "native",
+        "assertions": [
+          {
+            "name": "disabled/loading prevents press",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "one press carries detail.nativeEvent",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "default/prefix/suffix projection",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "focus/blur/click after ready",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "runtime detach/reconnect cleanup",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "value and defaultValue precedence",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "formatter is passed as function property and runs on input only",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "value-change carries detail.value",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "focus-change carries detail.focused",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "required validity and focus on the rendered control",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "open-change carries detail.open",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "trigger opens and close/Escape closes",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "dialog/title/description relationships",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "modal Tab and Shift+Tab trap",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "close restores trigger focus",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "pending focus timers do not target detached nodes",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "rows/columns/selectedKeys pass through DOM properties",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "selection/sort/active-cell events preserve source detail",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "selection": {
+                "mode": "multiple",
+                "keys": ["row-1", "row-0"]
+              },
+              "sort": {
+                "columnId": "name",
+                "direction": "asc"
+              },
+              "activeCell": {
+                "rowIndex": 1,
+                "rowKey": "row-1",
+                "columnId": "name",
+                "columnIndex": 0
+              }
+            }
+          },
+          {
+            "name": "same-key data updates preserve current row behavior",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "rowKey": "row-0",
+              "updatedValue": "Updated"
+            }
+          },
+          {
+            "name": "virtual viewport keeps bounded rendered nodes",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "viewportHeight": 160,
+              "renderedRows": 13,
+              "totalRows": 120
+            }
+          },
+          {
+            "name": "keyboard navigation/resize/scroll preserves active cell focus",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "activeCell": {
+                "rowIndex": 32,
+                "rowKey": "row-20",
+                "columnId": "name",
+                "columnIndex": 0
+              },
+              "columnWidth": 200,
+              "range": {
+                "start": 2,
+                "end": 5,
+                "overscanStart": 0,
+                "overscanEnd": 12
+              }
+            }
+          },
+          {
+            "name": "large dataset performance records an informational duration",
+            "status": "passed",
+            "kind": "observation",
+            "details": {
+              "rowCount": 1000,
+              "elapsedMs": 3
+            }
+          }
+        ]
+      }
+    },
+    {
+      "consumer": "react18",
+      "browser": "chromium",
+      "status": "passed",
+      "result": {
+        "passed": true,
+        "consumer": "react18",
+        "assertions": [
+          {
+            "name": "disabled/loading prevents press",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "one press carries detail.nativeEvent",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "default/prefix/suffix projection",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "focus/blur/click after ready",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "runtime detach/reconnect cleanup",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "value and defaultValue precedence",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "formatter is passed as function property and runs on input only",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "value-change carries detail.value",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "focus-change carries detail.focused",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "required validity and focus on the rendered control",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "open-change carries detail.open",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "trigger opens and close/Escape closes",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "dialog/title/description relationships",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "modal Tab and Shift+Tab trap",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "close restores trigger focus",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "pending focus timers do not target detached nodes",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "rows/columns/selectedKeys pass through DOM properties",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "selection/sort/active-cell events preserve source detail",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "selection": {
+                "mode": "multiple",
+                "keys": ["row-1", "row-0"]
+              },
+              "sort": {
+                "columnId": "name",
+                "direction": "asc"
+              },
+              "activeCell": {
+                "rowIndex": 1,
+                "rowKey": "row-1",
+                "columnId": "name",
+                "columnIndex": 0
+              }
+            }
+          },
+          {
+            "name": "same-key data updates preserve current row behavior",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "rowKey": "row-0",
+              "updatedValue": "Updated"
+            }
+          },
+          {
+            "name": "virtual viewport keeps bounded rendered nodes",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "viewportHeight": 160,
+              "renderedRows": 13,
+              "totalRows": 120
+            }
+          },
+          {
+            "name": "keyboard navigation/resize/scroll preserves active cell focus",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "activeCell": {
+                "rowIndex": 32,
+                "rowKey": "row-20",
+                "columnId": "name",
+                "columnIndex": 0
+              },
+              "columnWidth": 200,
+              "range": {
+                "start": 2,
+                "end": 5,
+                "overscanStart": 0,
+                "overscanEnd": 12
+              }
+            }
+          },
+          {
+            "name": "large dataset performance records an informational duration",
+            "status": "passed",
+            "kind": "observation",
+            "details": {
+              "rowCount": 1000,
+              "elapsedMs": 1.2999999523162842
+            }
+          }
+        ]
+      }
+    },
+    {
+      "consumer": "react18",
+      "browser": "firefox",
+      "status": "passed",
+      "result": {
+        "passed": true,
+        "consumer": "react18",
+        "assertions": [
+          {
+            "name": "disabled/loading prevents press",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "one press carries detail.nativeEvent",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "default/prefix/suffix projection",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "focus/blur/click after ready",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "runtime detach/reconnect cleanup",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "value and defaultValue precedence",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "formatter is passed as function property and runs on input only",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "value-change carries detail.value",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "focus-change carries detail.focused",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "required validity and focus on the rendered control",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "open-change carries detail.open",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "trigger opens and close/Escape closes",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "dialog/title/description relationships",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "modal Tab and Shift+Tab trap",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "close restores trigger focus",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "pending focus timers do not target detached nodes",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "rows/columns/selectedKeys pass through DOM properties",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "selection/sort/active-cell events preserve source detail",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "selection": {
+                "mode": "multiple",
+                "keys": ["row-1", "row-0"]
+              },
+              "sort": {
+                "columnId": "name",
+                "direction": "asc"
+              },
+              "activeCell": {
+                "rowIndex": 1,
+                "rowKey": "row-1",
+                "columnId": "name",
+                "columnIndex": 0
+              }
+            }
+          },
+          {
+            "name": "same-key data updates preserve current row behavior",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "rowKey": "row-0",
+              "updatedValue": "Updated"
+            }
+          },
+          {
+            "name": "virtual viewport keeps bounded rendered nodes",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "viewportHeight": 160,
+              "renderedRows": 13,
+              "totalRows": 120
+            }
+          },
+          {
+            "name": "keyboard navigation/resize/scroll preserves active cell focus",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "activeCell": {
+                "rowIndex": 32,
+                "rowKey": "row-20",
+                "columnId": "name",
+                "columnIndex": 0
+              },
+              "columnWidth": 200,
+              "range": {
+                "start": 2,
+                "end": 5,
+                "overscanStart": 0,
+                "overscanEnd": 12
+              }
+            }
+          },
+          {
+            "name": "large dataset performance records an informational duration",
+            "status": "passed",
+            "kind": "observation",
+            "details": {
+              "rowCount": 1000,
+              "elapsedMs": 3
+            }
+          }
+        ]
+      }
+    },
+    {
+      "consumer": "react18",
+      "browser": "webkit",
+      "status": "passed",
+      "result": {
+        "passed": true,
+        "consumer": "react18",
+        "assertions": [
+          {
+            "name": "disabled/loading prevents press",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "one press carries detail.nativeEvent",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "default/prefix/suffix projection",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "focus/blur/click after ready",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "runtime detach/reconnect cleanup",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "value and defaultValue precedence",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "formatter is passed as function property and runs on input only",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "value-change carries detail.value",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "focus-change carries detail.focused",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "required validity and focus on the rendered control",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "open-change carries detail.open",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "trigger opens and close/Escape closes",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "dialog/title/description relationships",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "modal Tab and Shift+Tab trap",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "close restores trigger focus",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "pending focus timers do not target detached nodes",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "rows/columns/selectedKeys pass through DOM properties",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "selection/sort/active-cell events preserve source detail",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "selection": {
+                "mode": "multiple",
+                "keys": ["row-1", "row-0"]
+              },
+              "sort": {
+                "columnId": "name",
+                "direction": "asc"
+              },
+              "activeCell": {
+                "rowIndex": 1,
+                "rowKey": "row-1",
+                "columnId": "name",
+                "columnIndex": 0
+              }
+            }
+          },
+          {
+            "name": "same-key data updates preserve current row behavior",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "rowKey": "row-0",
+              "updatedValue": "Updated"
+            }
+          },
+          {
+            "name": "virtual viewport keeps bounded rendered nodes",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "viewportHeight": 160,
+              "renderedRows": 13,
+              "totalRows": 120
+            }
+          },
+          {
+            "name": "keyboard navigation/resize/scroll preserves active cell focus",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "activeCell": {
+                "rowIndex": 32,
+                "rowKey": "row-20",
+                "columnId": "name",
+                "columnIndex": 0
+              },
+              "columnWidth": 200,
+              "range": {
+                "start": 2,
+                "end": 5,
+                "overscanStart": 0,
+                "overscanEnd": 12
+              }
+            }
+          },
+          {
+            "name": "large dataset performance records an informational duration",
+            "status": "passed",
+            "kind": "observation",
+            "details": {
+              "rowCount": 1000,
+              "elapsedMs": 3
+            }
+          }
+        ]
+      }
+    },
+    {
+      "consumer": "react19",
+      "browser": "chromium",
+      "status": "passed",
+      "result": {
+        "passed": true,
+        "consumer": "react19",
+        "assertions": [
+          {
+            "name": "disabled/loading prevents press",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "one press carries detail.nativeEvent",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "default/prefix/suffix projection",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "focus/blur/click after ready",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "runtime detach/reconnect cleanup",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "value and defaultValue precedence",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "formatter is passed as function property and runs on input only",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "value-change carries detail.value",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "focus-change carries detail.focused",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "required validity and focus on the rendered control",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "open-change carries detail.open",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "trigger opens and close/Escape closes",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "dialog/title/description relationships",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "modal Tab and Shift+Tab trap",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "close restores trigger focus",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "pending focus timers do not target detached nodes",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "rows/columns/selectedKeys pass through DOM properties",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "selection/sort/active-cell events preserve source detail",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "selection": {
+                "mode": "multiple",
+                "keys": ["row-1", "row-0"]
+              },
+              "sort": {
+                "columnId": "name",
+                "direction": "asc"
+              },
+              "activeCell": {
+                "rowIndex": 1,
+                "rowKey": "row-1",
+                "columnId": "name",
+                "columnIndex": 0
+              }
+            }
+          },
+          {
+            "name": "same-key data updates preserve current row behavior",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "rowKey": "row-0",
+              "updatedValue": "Updated"
+            }
+          },
+          {
+            "name": "virtual viewport keeps bounded rendered nodes",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "viewportHeight": 160,
+              "renderedRows": 13,
+              "totalRows": 120
+            }
+          },
+          {
+            "name": "keyboard navigation/resize/scroll preserves active cell focus",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "activeCell": {
+                "rowIndex": 32,
+                "rowKey": "row-20",
+                "columnId": "name",
+                "columnIndex": 0
+              },
+              "columnWidth": 200,
+              "range": {
+                "start": 2,
+                "end": 5,
+                "overscanStart": 0,
+                "overscanEnd": 12
+              }
+            }
+          },
+          {
+            "name": "large dataset performance records an informational duration",
+            "status": "passed",
+            "kind": "observation",
+            "details": {
+              "rowCount": 1000,
+              "elapsedMs": 2
+            }
+          }
+        ]
+      }
+    },
+    {
+      "consumer": "react19",
+      "browser": "firefox",
+      "status": "passed",
+      "result": {
+        "passed": true,
+        "consumer": "react19",
+        "assertions": [
+          {
+            "name": "disabled/loading prevents press",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "one press carries detail.nativeEvent",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "default/prefix/suffix projection",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "focus/blur/click after ready",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "runtime detach/reconnect cleanup",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "value and defaultValue precedence",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "formatter is passed as function property and runs on input only",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "value-change carries detail.value",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "focus-change carries detail.focused",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "required validity and focus on the rendered control",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "open-change carries detail.open",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "trigger opens and close/Escape closes",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "dialog/title/description relationships",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "modal Tab and Shift+Tab trap",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "close restores trigger focus",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "pending focus timers do not target detached nodes",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "rows/columns/selectedKeys pass through DOM properties",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "selection/sort/active-cell events preserve source detail",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "selection": {
+                "mode": "multiple",
+                "keys": ["row-1", "row-0"]
+              },
+              "sort": {
+                "columnId": "name",
+                "direction": "asc"
+              },
+              "activeCell": {
+                "rowIndex": 1,
+                "rowKey": "row-1",
+                "columnId": "name",
+                "columnIndex": 0
+              }
+            }
+          },
+          {
+            "name": "same-key data updates preserve current row behavior",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "rowKey": "row-0",
+              "updatedValue": "Updated"
+            }
+          },
+          {
+            "name": "virtual viewport keeps bounded rendered nodes",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "viewportHeight": 160,
+              "renderedRows": 13,
+              "totalRows": 120
+            }
+          },
+          {
+            "name": "keyboard navigation/resize/scroll preserves active cell focus",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "activeCell": {
+                "rowIndex": 32,
+                "rowKey": "row-20",
+                "columnId": "name",
+                "columnIndex": 0
+              },
+              "columnWidth": 200,
+              "range": {
+                "start": 2,
+                "end": 5,
+                "overscanStart": 0,
+                "overscanEnd": 12
+              }
+            }
+          },
+          {
+            "name": "large dataset performance records an informational duration",
+            "status": "passed",
+            "kind": "observation",
+            "details": {
+              "rowCount": 1000,
+              "elapsedMs": 3
+            }
+          }
+        ]
+      }
+    },
+    {
+      "consumer": "react19",
+      "browser": "webkit",
+      "status": "passed",
+      "result": {
+        "passed": true,
+        "consumer": "react19",
+        "assertions": [
+          {
+            "name": "disabled/loading prevents press",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "one press carries detail.nativeEvent",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "default/prefix/suffix projection",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "focus/blur/click after ready",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "runtime detach/reconnect cleanup",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "value and defaultValue precedence",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "formatter is passed as function property and runs on input only",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "value-change carries detail.value",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "focus-change carries detail.focused",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "required validity and focus on the rendered control",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "open-change carries detail.open",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "trigger opens and close/Escape closes",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "dialog/title/description relationships",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "modal Tab and Shift+Tab trap",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "close restores trigger focus",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "pending focus timers do not target detached nodes",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "rows/columns/selectedKeys pass through DOM properties",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "selection/sort/active-cell events preserve source detail",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "selection": {
+                "mode": "multiple",
+                "keys": ["row-1", "row-0"]
+              },
+              "sort": {
+                "columnId": "name",
+                "direction": "asc"
+              },
+              "activeCell": {
+                "rowIndex": 1,
+                "rowKey": "row-1",
+                "columnId": "name",
+                "columnIndex": 0
+              }
+            }
+          },
+          {
+            "name": "same-key data updates preserve current row behavior",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "rowKey": "row-0",
+              "updatedValue": "Updated"
+            }
+          },
+          {
+            "name": "virtual viewport keeps bounded rendered nodes",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "viewportHeight": 160,
+              "renderedRows": 13,
+              "totalRows": 120
+            }
+          },
+          {
+            "name": "keyboard navigation/resize/scroll preserves active cell focus",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "activeCell": {
+                "rowIndex": 32,
+                "rowKey": "row-20",
+                "columnId": "name",
+                "columnIndex": 0
+              },
+              "columnWidth": 200,
+              "range": {
+                "start": 2,
+                "end": 5,
+                "overscanStart": 0,
+                "overscanEnd": 12
+              }
+            }
+          },
+          {
+            "name": "large dataset performance records an informational duration",
+            "status": "passed",
+            "kind": "observation",
+            "details": {
+              "rowCount": 1000,
+              "elapsedMs": 2
+            }
+          }
+        ]
+      }
+    },
+    {
+      "consumer": "vue3",
+      "browser": "chromium",
+      "status": "passed",
+      "result": {
+        "passed": true,
+        "consumer": "vue3",
+        "assertions": [
+          {
+            "name": "disabled/loading prevents press",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "one press carries detail.nativeEvent",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "default/prefix/suffix projection",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "focus/blur/click after ready",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "runtime detach/reconnect cleanup",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "value and defaultValue precedence",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "formatter is passed as function property and runs on input only",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "value-change carries detail.value",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "focus-change carries detail.focused",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "required validity and focus on the rendered control",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "open-change carries detail.open",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "trigger opens and close/Escape closes",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "dialog/title/description relationships",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "modal Tab and Shift+Tab trap",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "close restores trigger focus",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "pending focus timers do not target detached nodes",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "rows/columns/selectedKeys pass through DOM properties",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "selection/sort/active-cell events preserve source detail",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "selection": {
+                "mode": "multiple",
+                "keys": ["row-1", "row-0"]
+              },
+              "sort": {
+                "columnId": "name",
+                "direction": "asc"
+              },
+              "activeCell": {
+                "rowIndex": 1,
+                "rowKey": "row-1",
+                "columnId": "name",
+                "columnIndex": 0
+              }
+            }
+          },
+          {
+            "name": "same-key data updates preserve current row behavior",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "rowKey": "row-0",
+              "updatedValue": "Updated"
+            }
+          },
+          {
+            "name": "virtual viewport keeps bounded rendered nodes",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "viewportHeight": 160,
+              "renderedRows": 13,
+              "totalRows": 120
+            }
+          },
+          {
+            "name": "keyboard navigation/resize/scroll preserves active cell focus",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "activeCell": {
+                "rowIndex": 32,
+                "rowKey": "row-20",
+                "columnId": "name",
+                "columnIndex": 0
+              },
+              "columnWidth": 200,
+              "range": {
+                "start": 2,
+                "end": 5,
+                "overscanStart": 0,
+                "overscanEnd": 12
+              }
+            }
+          },
+          {
+            "name": "large dataset performance records an informational duration",
+            "status": "passed",
+            "kind": "observation",
+            "details": {
+              "rowCount": 1000,
+              "elapsedMs": 1.199999988079071
+            }
+          }
+        ]
+      }
+    },
+    {
+      "consumer": "vue3",
+      "browser": "firefox",
+      "status": "passed",
+      "result": {
+        "passed": true,
+        "consumer": "vue3",
+        "assertions": [
+          {
+            "name": "disabled/loading prevents press",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "one press carries detail.nativeEvent",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "default/prefix/suffix projection",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "focus/blur/click after ready",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "runtime detach/reconnect cleanup",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "value and defaultValue precedence",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "formatter is passed as function property and runs on input only",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "value-change carries detail.value",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "focus-change carries detail.focused",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "required validity and focus on the rendered control",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "open-change carries detail.open",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "trigger opens and close/Escape closes",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "dialog/title/description relationships",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "modal Tab and Shift+Tab trap",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "close restores trigger focus",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "pending focus timers do not target detached nodes",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "rows/columns/selectedKeys pass through DOM properties",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "selection/sort/active-cell events preserve source detail",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "selection": {
+                "mode": "multiple",
+                "keys": ["row-1", "row-0"]
+              },
+              "sort": {
+                "columnId": "name",
+                "direction": "asc"
+              },
+              "activeCell": {
+                "rowIndex": 1,
+                "rowKey": "row-1",
+                "columnId": "name",
+                "columnIndex": 0
+              }
+            }
+          },
+          {
+            "name": "same-key data updates preserve current row behavior",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "rowKey": "row-0",
+              "updatedValue": "Updated"
+            }
+          },
+          {
+            "name": "virtual viewport keeps bounded rendered nodes",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "viewportHeight": 160,
+              "renderedRows": 13,
+              "totalRows": 120
+            }
+          },
+          {
+            "name": "keyboard navigation/resize/scroll preserves active cell focus",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "activeCell": {
+                "rowIndex": 32,
+                "rowKey": "row-20",
+                "columnId": "name",
+                "columnIndex": 0
+              },
+              "columnWidth": 200,
+              "range": {
+                "start": 2,
+                "end": 5,
+                "overscanStart": 0,
+                "overscanEnd": 12
+              }
+            }
+          },
+          {
+            "name": "large dataset performance records an informational duration",
+            "status": "passed",
+            "kind": "observation",
+            "details": {
+              "rowCount": 1000,
+              "elapsedMs": 2
+            }
+          }
+        ]
+      }
+    },
+    {
+      "consumer": "vue3",
+      "browser": "webkit",
+      "status": "passed",
+      "result": {
+        "passed": true,
+        "consumer": "vue3",
+        "assertions": [
+          {
+            "name": "disabled/loading prevents press",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "one press carries detail.nativeEvent",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "default/prefix/suffix projection",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "focus/blur/click after ready",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "runtime detach/reconnect cleanup",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "value and defaultValue precedence",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "formatter is passed as function property and runs on input only",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "value-change carries detail.value",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "focus-change carries detail.focused",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "required validity and focus on the rendered control",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "open-change carries detail.open",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "trigger opens and close/Escape closes",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "dialog/title/description relationships",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "modal Tab and Shift+Tab trap",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "close restores trigger focus",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "pending focus timers do not target detached nodes",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "rows/columns/selectedKeys pass through DOM properties",
+            "status": "passed",
+            "kind": "required"
+          },
+          {
+            "name": "selection/sort/active-cell events preserve source detail",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "selection": {
+                "mode": "multiple",
+                "keys": ["row-1", "row-0"]
+              },
+              "sort": {
+                "columnId": "name",
+                "direction": "asc"
+              },
+              "activeCell": {
+                "rowIndex": 1,
+                "rowKey": "row-1",
+                "columnId": "name",
+                "columnIndex": 0
+              }
+            }
+          },
+          {
+            "name": "same-key data updates preserve current row behavior",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "rowKey": "row-0",
+              "updatedValue": "Updated"
+            }
+          },
+          {
+            "name": "virtual viewport keeps bounded rendered nodes",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "viewportHeight": 160,
+              "renderedRows": 13,
+              "totalRows": 120
+            }
+          },
+          {
+            "name": "keyboard navigation/resize/scroll preserves active cell focus",
+            "status": "passed",
+            "kind": "required",
+            "details": {
+              "activeCell": {
+                "rowIndex": 32,
+                "rowKey": "row-20",
+                "columnId": "name",
+                "columnIndex": 0
+              },
+              "columnWidth": 200,
+              "range": {
+                "start": 2,
+                "end": 5,
+                "overscanStart": 0,
+                "overscanEnd": 12
+              }
+            }
+          },
+          {
+            "name": "large dataset performance records an informational duration",
+            "status": "passed",
+            "kind": "observation",
+            "details": {
+              "rowCount": 1000,
+              "elapsedMs": 2
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
