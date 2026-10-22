@@ -8,6 +8,7 @@ import { pathToFileURL } from 'node:url'
 import { chromium, firefox, webkit, type BrowserType } from '@playwright/test'
 import { createVerifier } from 'sigstore'
 
+import { verifyGoldenComponentManifest } from './golden-component-manifest'
 import { escapeRegExp } from './regexp-utils'
 
 const reportDirectory = path.resolve(
@@ -208,33 +209,16 @@ function verifyManifests(project: string, consumer: string): void {
       packageDirectory,
       'dist/zeus.components.json',
     )
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as {
-      version?: number
-      components?: Array<{ tag?: string }>
-    }
-    if (manifest.version !== 1 || !manifest.components?.length) {
-      throw new Error(
-        `${packageName} does not contain a valid Component Manifest v1`,
-      )
-    }
-    if (
-      !manifest.components.every(component => component.tag?.startsWith('zw-'))
-    ) {
-      throw new Error(
-        `${packageName} manifest contains an invalid custom-element tag`,
-      )
-    }
-    const digest = createHash('sha256')
-      .update(fs.readFileSync(manifestPath))
-      .digest('hex')
     const group = goldenContract.groups.find(
       entry => entry.package === packageName,
     )
-    if (!group || digest !== group.manifestSha256) {
-      throw new Error(
-        `${packageName} Component Manifest differs from the frozen Golden contract`,
-      )
-    }
+    if (!group)
+      throw new Error(`${packageName} is missing from the Golden contract`)
+    const digest = verifyGoldenComponentManifest(
+      fs.readFileSync(manifestPath, 'utf8'),
+      packageName,
+      group.manifestSha256,
+    )
     manifestEvidence.push({
       consumer,
       package: packageName,
@@ -462,14 +446,11 @@ async function verifyPublishedPackages(
       path.dirname(packageJsonPath),
       'dist/zeus.components.json',
     )
-    const manifestHash = createHash('sha256')
-      .update(fs.readFileSync(manifestPath))
-      .digest('hex')
-    if (manifestHash !== group.manifestSha256) {
-      throw new Error(
-        `${packageName} Component Manifest differs from the frozen Golden contract`,
-      )
-    }
+    verifyGoldenComponentManifest(
+      fs.readFileSync(manifestPath, 'utf8'),
+      packageName,
+      group.manifestSha256,
+    )
     const sourceUrl = `${goldenContract.source.repository.replace('https://github.com/', 'https://raw.githubusercontent.com/')}/${goldenContract.source.commit}/${group.sourceFile}`
     const sourceResponse = await fetchWithRetry(
       sourceUrl,
