@@ -335,7 +335,7 @@ Support 处理此前 E403。D-006 仍缺首次接触用户的 15 分钟匿名计
 - E-009 关闭；B-003 的四组件 API、来源和跨框架消费验收完成。Golden 报告中的 1000 行时长只作为 observation，不作为跨设备性能阈值。旧基线 `u005-data-grid-2026-10-21` 已由 UI 仓库基于 beta.33 发布提交 `74fe9ea33f7a51eb8551debe9992cebfc1a0ebe7` 生成并合并的 `u005-data-grid-2026-10-23` 替代；新基线的 12 组 render/scroll/update 结果和 signed heap/RSS 趋势已持久化在 UI manifest。
 - F-011 仍未完成：`@zeus-js/compiler-native@latest` 仍指向历史 canary；精确 dist-tag 删除此前返回 npm E403，需包 owner/npm Support 处理后重试既有清理 workflow。
 - D-006 仍未完成：缺少真实首次接触用户的匿名 15 分钟上手步骤与耗时记录；自动化 Quick Start 不替代人工验收。
-- 路线图复审未发现 B-003/E-009 之外的新缺项；B-003 的版本化性能基线、F-011 与 D-006 仍开放，不关闭本总目标。
+- 当时复审仍缺 B-003 的版本化性能基线；该缺口随后由下节 UI PR #112 合并关闭。当前 F-011 与 D-006 仍开放，因此本总目标不能标记完成。
 
 ## 2026-10-23 beta.33 Data Grid 基线 PR
 
