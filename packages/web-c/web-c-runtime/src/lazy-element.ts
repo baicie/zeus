@@ -5,6 +5,7 @@ import { isWithinRuntimeDomMove } from '@zeus-js/runtime-dom'
 import { invokeFormCallback } from './form-callbacks'
 import { registerHost, requireHostRef } from './host-ref'
 import {
+  cancelAncestorWait,
   initializeComponent,
   rejectComponentReady,
   waitForComponentReady,
@@ -55,12 +56,14 @@ export function createLazyElementClass(
     }
 
     disconnectedCallback(): void {
-      if (isWithinRuntimeDomMove(this)) return
       const hostRef = requireHostRef(this)
+
+      cancelAncestorWait(hostRef)
+      if (isWithinRuntimeDomMove(this)) return
 
       hostRef.connected = false
 
-      if (!hostRef.loaded) {
+      if (!hostRef.loaded || hostRef.loading) {
         rejectComponentReady(
           hostRef,
           new Error(
