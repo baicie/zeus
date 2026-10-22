@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1-beta.18 (2026-10-22)
+
+### Fixes
+
+- Ignore stale lazy custom-element connection reactions while a light-DOM projection is temporarily detached, preserving DOM context and cleanup across reconnects.
+
 ## 0.1.1-beta.17 (2026-10-22)
 
 ### Fixes
