@@ -244,3 +244,18 @@ B-003/E-009 的真实 tarball 矩阵与 provenance 证据仍不能生成。
 `0.1.1-canary.20260812.106.1.658fe407`；F-011 的精确 tag 清理仍需包 owner 与 npm
 Support 处理此前 E403。D-006 仍缺首次接触用户的 15 分钟匿名计时记录。B-003、E-009、
 F-011、D-006 与本总目标继续保持未完成。
+
+## 2026-10-23 Golden beta.33 增量审计
+
+- `scripts/check/check-golden-components.ts` 的夹具已修正 lazy Web Component exposed methods 的异步调用，并在 Input formatter 场景恢复非受控状态后再断言。修正只等待真实 Promise 和恢复测试前置状态，没有放宽断言集合。
+- 在 Node `24.16.0`、官方 npm registry `https://registry.npmjs.org` 上执行 UI `0.1.0-beta.33` / Zeus `0.1.1-beta.18` 的完整验收：Native、React18、React19、Vue3 × Chromium、Firefox、WebKit 共 12/12 通过；4 组 SSR、16 份 Manifest、24 份 tarball integrity，以及 UI 包 16 份 SLSA/Sigstore provenance 证据均通过。持久报告为 [`golden-components-acceptance-2026-10-23/report.json`](./golden-components-acceptance-2026-10-23/report.json)，合同和主路线图已对齐这次发布版本。
+- E-009 的 registry 消费者、来源、Manifest、SSR 和供应链验收因此完成。B-003 的四组件 API/功能验收完成，但 Data Grid 的 `u005-data-grid-2026-10-21` 基线测量提交 `969f976185a9cf6b2eace4c651e04c73a6f1499b` 不在 beta.33 发布提交 `74fe9ea33f7a51eb8551debe9992cebfc1a0ebe7` 的祖先链上，且两提交之间 Data Grid 源码与 baseline manifest 有变化；Golden 中 1000 行计时仍是 observation，不能作为发布源码性能通过证据。需要严格关闭 B-003 的性能子项时，应在发布提交上重跑并生成新的版本化 baseline。
+- F-011 仍未完成：`@zeus-js/compiler-native@latest` 查询仍指向 `0.1.1-canary.20260812.106.1.658fe407`；历史 tag 的精确删除此前由 npm 返回 E403，需要包 owner 或 npm Support 处理后重试既有清理 workflow。
+- D-006 仍未完成：缺少真实首次接触 Zeus 用户的匿名 15 分钟上手步骤与耗时记录；自动化 Quick Start 检查不能替代真人观察。
+- 当前没有发现 B-003/E-009 之外的新增路线图缺项，但 B-003 的版本化性能基线、F-011、D-006 仍是未完成项，因此本总目标不能标记完成。
+
+## 2026-10-23 beta.33 Data Grid 基线 PR
+
+- UI 仓库基于 beta.33 发布源码 commit `74fe9ea33f7a51eb8551debe9992cebfc1a0ebe7` 重新运行 render、scroll、update benchmark，生成日期化基线 `u005-data-grid-2026-10-23`；测量覆盖四个场景的 12 组结果，并将每阶段 signed `heapUsedDelta`/`rssDelta` 写入 manifest。环境为 Darwin 24.6.0 arm64、Node 26.9.0；这些数据只作为同设备趋势，不作为跨设备阈值。
+- UI PR [#112](https://github.com/baicie/zeus-ui/pull/112) 已推送提交 `d1eb73610427d21de6711bd6e9362f06381f4148`。本地基线 checker、Data Grid contract tests（7 项）、benchmark typecheck、格式与提交钩子检查通过；PR 的 benchmark、metadata、lint/DTS 已通过，其余 CI 当时仍运行。
+- GitHub 尚无维护者 review，PR 状态为 `OPEN/BLOCKED`，因此 B-003 性能子项尚未关闭。F-011 仍需包 owner/npm Support 解决历史 `latest` tag；D-006 仍缺真实首次接触用户的 15 分钟观察记录；本总目标保持未完成。

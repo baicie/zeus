@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "frozenAt": "2026-10-16",
-  "scope": "Observed API snapshot and pending browser acceptance; not a claim that Golden stories pass.",
+  "frozenAt": "2026-10-23",
+  "scope": "Published UI beta.33 API snapshot with browser, source, manifest and supply-chain acceptance evidence recorded in the durable Golden report.",
   "source": {
     "repository": "https://github.com/baicie/zeus-ui",
-    "commit": "1d2c24db27b5d618083133f241d5078974a353bf",
-    "version": "0.1.0-beta.32",
-    "frameworkDependency": "0.1.1-beta.13"
+    "commit": "74fe9ea33f7a51eb8551debe9992cebfc1a0ebe7",
+    "version": "0.1.0-beta.33",
+    "frameworkDependency": "0.1.1-beta.18"
   },
   "verificationPolicy": {
     "browser": "Every requiredBrowserAssertions entry must pass for native, react18, react19 and vue3 in each selected browser.",
@@ -35,13 +35,13 @@
         "vue": "@zeus-web/button/vue"
       },
       "sourceFile": "packages/primitives/button/src/button.tsx",
-      "sourceSha256": "1c2f428646372b70218dd83ed1540102f1db61dbe3aec28be89c98b80d71951e",
+      "sourceSha256": "3eb331f997d099a333ea0b8ddbc178d08d98d4cba3c8a5585cb1d0681dd2551a",
       "manifestFile": "packages/primitives/button/dist/zeus.components.json",
-      "manifestSha256": "2401fb53bcb3f33da8f0a9ac7e57cd56a6109e9d93e29d22529a0785b517ec90",
+      "manifestSha256": "1822b218d63f09fcab15dc9c3fe069bfb24831aaa37e53d34f1de217d9b73755",
       "verification": {
         "sourceAndManifestInspected": true,
-        "browserAcceptance": "pending",
-        "packedUiConsumers": "pending"
+        "browserAcceptance": "passed",
+        "packedUiConsumers": "passed"
       },
       "components": [
         {
@@ -187,13 +187,13 @@
         "vue": "@zeus-web/input/vue"
       },
       "sourceFile": "packages/primitives/input/src/input.tsx",
-      "sourceSha256": "ddea25b204be3a8682f79c4adbb5dcc2374ed55e4409be6198eaaf6cc877fbda",
+      "sourceSha256": "4b40cd9da3b3813d8c72f90fc14e589a5334e1de064ca205d00ea4cc4a244e27",
       "manifestFile": "packages/primitives/input/dist/zeus.components.json",
-      "manifestSha256": "f775201c10c9cc91bd6728b66b1ce861f8b358483ad669aea3e205833cbee9cf",
+      "manifestSha256": "7ccb7cd309248857170523ab81574cab4bab0de06d7e6ca174684cadebd61e0f",
       "verification": {
         "sourceAndManifestInspected": true,
-        "browserAcceptance": "pending",
-        "packedUiConsumers": "pending"
+        "browserAcceptance": "passed",
+        "packedUiConsumers": "passed"
       },
       "components": [
         {
@@ -408,13 +408,13 @@
         "vue": "@zeus-web/dialog/vue"
       },
       "sourceFile": "packages/primitives/dialog/src/dialog.tsx",
-      "sourceSha256": "999696b8a2d4aec1a1b08e3eaf55459e64d1efed47672ad1cf55b8395dbdaad8",
+      "sourceSha256": "f9c388163d4cc873cf56809294cbbf6eaaff163b39888658102690ddd7f944d4",
       "manifestFile": "packages/primitives/dialog/dist/zeus.components.json",
-      "manifestSha256": "f31a5488697938227914681cded433a0caad667951c55234ebb63cafeee4a96d",
+      "manifestSha256": "06c85d3abcedc3cf14ebf29b7182bdf515d519f85c636239256fcb950eddb694",
       "verification": {
         "sourceAndManifestInspected": true,
-        "browserAcceptance": "pending",
-        "packedUiConsumers": "pending"
+        "browserAcceptance": "passed",
+        "packedUiConsumers": "passed"
       },
       "components": [
         {
@@ -607,13 +607,13 @@
         "vue": "@zeus-web/data-grid/vue"
       },
       "sourceFile": "packages/advanced/data-grid/src/components/data-grid.tsx",
-      "sourceSha256": "d85cc6d51d9b3e8bd5e901cff60688532bae7893bd92df633b070c767a642282",
+      "sourceSha256": "bca45e02abf2cdb9037faf056fd6682c6c1dd30b137b691ff7b74014b325c2ed",
       "manifestFile": "packages/advanced/data-grid/dist/zeus.components.json",
-      "manifestSha256": "5f9b5e7afd2c75045ba1988f2fd3b6237a41afc7afbe747b99f03f4c84d7088c",
+      "manifestSha256": "635dcee2af2a8e6f0e602db8ed2a58469f00303f139d51bd549e1103328968ea",
       "verification": {
         "sourceAndManifestInspected": true,
-        "browserAcceptance": "pending",
-        "packedUiConsumers": "pending"
+        "browserAcceptance": "passed",
+        "packedUiConsumers": "passed"
       },
       "components": [
         {
