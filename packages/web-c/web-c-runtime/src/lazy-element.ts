@@ -45,6 +45,10 @@ export function createLazyElementClass(
     }
 
     connectedCallback(): void {
+      // An ancestor's light-DOM projection can detach this host before its
+      // queued connected reaction runs. Wait for its actual insertion.
+      if (this.isConnected === false) return
+
       const hostRef = requireHostRef(this)
 
       hostRef.connected = true
