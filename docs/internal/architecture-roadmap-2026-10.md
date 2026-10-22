@@ -281,3 +281,50 @@ beta.16 在 registry 可见后更新锁文件并重跑全量 UI CI；完整 show
   beta.33 尚未发布。历史 `@zeus-js/compiler-native@latest` 仍指向旧 canary，F-011 不能关闭。
 - D-006 仍没有首次接触 Zeus 用户的 15 分钟匿名计时记录，且用户明确要求保留未完成；因此
   UI 发布后的 B-003/E-009、F-011、D-006 与本总目标继续保持未完成。
+
+## 2026-10-22 beta.17 发布与 UI 回归收口
+
+Zeus PR #151 已修复 lazy 子树的祖先初始化、移动与重连等待，PR #152 已修复 Golden
+Manifest 的 canonical `schemaVersion` 校验，并准备 `0.1.1-beta.17`。两 PR 均已通过
+CI 后合并；`v0.1.1-beta.17` 指向 main `c10df229893d80f63c4ad0aa28abc814b02c0020`。
+正式 Release run `39784468635` 的七平台 Native prebuild、npm 认证、完整 release
+precheck、29 包发布、dist-tag/provenance 和 Node22/24 registry smoke 均已通过，GitHub
+Release 已创建。同 SHA 冗余 Canary 在 prebuild 阶段已取消，未进入 publish。
+
+UI PR #111 仍在收口。已修复原生 property 绑定、Select 布尔属性观察循环、Popover
+metadata、Toast 移出计时、菜单 Tab 退出与高级组件 DOM 状态响应式；高级 runtime
+测试 10 文件/141 项通过，CI 已覆盖全部高级 runtime 测试。FormField 清理、跨容器
+控件移交回归已通过；官方 beta.17 下断开重连仍有 1/11 失败：light Slot 在父元素
+投影时触发过期的子元素 `connectedCallback`，使子元素在临时 DocumentFragment 中重建且
+读不到 DOM context。已在 Zeus beta.17 源码复现；仅用 beta.17 依赖的 UI 回归仍失败。
+Zeus 下一补丁需保留普通 loaded 重连同步契约，同时修复该过期连接反应，并加入真实
+light Slot + DOM context 重连测试；beta.17 tag 不变。UI beta.33 与 0.1.0 尚未发布。
+
+F-011 的历史 Native `latest` 删除仍未完成。run `39535665906` 的 npm 账户与
+29 包 read-write ACL 认证通过，但首个精确 DELETE 仍返回通用 E403。现有响应未说明
+服务端原因，不能定性为 token 缺少删除权限，也不能定性为 npm 禁止删除 `latest`。
+需包 owner 核对包设置、token scope 与 bypass-2FA，并向 npm Support 提交该 run、
+请求时间和 DELETE URL 以确认服务端限制或后端清理方式；不得用占位稳定版、移动
+历史 tag 或放宽验收替代真实清理。
+
+B-003/E-009 仍需新 registry tarball 的 Golden 完整矩阵与持久化来源证据。Golden
+runner 现已从版本合同读取默认 UI/Zeus 版本，刷新合同时不再回退到 beta.32/beta.13；
+完整消费与 provenance 报告仍未生成。D-006 按用户要求保留真实新用户计时未完成；路线图
+及总目标继续进行中。
+
+## 2026-10-23 beta.18 基线复核
+
+Zeus `main` 已快进到 `19507ad0a0e59e3340a582183f5d035f9df409b6`，PR #153/#154
+已合并。beta.18 正式 Release run `39817731859` 已成功；官方 registry 当前
+`@zeus-js/zeus@beta` 为 `0.1.1-beta.18`。main CI run `39817094523` 的重跑结果全绿。
+
+Zeus UI PR #111 当前 head 为 `f4cd7bb6c3937b2a06eede8bc6fa53a26dc32093`，尚未合并。
+截至本次复核，docs、build-output、DTS/lint、unit、Windows、Data Grid benchmark 与
+一轮 showcase E2E 检查通过；另有重复 CI run 仍在浏览器安装阶段，PR 总状态尚未全绿。
+官方 registry 的 `@zeus-web/ui@beta` 仍为 `0.1.0-beta.32`，beta.33 尚未发布，因此
+B-003/E-009 的真实 tarball 矩阵与 provenance 证据仍不能生成。
+
+`@zeus-js/compiler-native@latest` 仍指向旧 canary
+`0.1.1-canary.20260812.106.1.658fe407`；F-011 的精确 tag 清理仍需包 owner 与 npm
+Support 处理此前 E403。D-006 仍缺首次接触用户的 15 分钟匿名计时记录。B-003、E-009、
+F-011、D-006 与本总目标继续保持未完成。

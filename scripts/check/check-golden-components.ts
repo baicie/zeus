@@ -15,23 +15,6 @@ const reportDirectory = path.resolve(
   readOption('--output') ?? 'temp/golden-components',
 )
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'zeus-golden-consumer-'))
-const uiVersion =
-  readOption('--ui-version') ?? process.env.ZEUS_UI_VERSION ?? '0.1.0-beta.32'
-const frameworkVersion =
-  readOption('--framework-version') ??
-  process.env.ZEUS_FRAMEWORK_VERSION ??
-  '0.1.1-beta.13'
-const registry = readOption('--registry') ?? 'https://registry.npmjs.org'
-const browsers = (readOption('--browsers') ?? 'chromium,firefox,webkit').split(
-  ',',
-)
-const browserTypes: Record<string, BrowserType> = { chromium, firefox, webkit }
-const packages = [
-  '@zeus-web/button',
-  '@zeus-web/input',
-  '@zeus-web/dialog',
-  '@zeus-web/data-grid',
-] as const
 const goldenContract = JSON.parse(
   fs.readFileSync(
     path.resolve('tests/contracts/golden-components.json'),
@@ -54,6 +37,20 @@ const goldenContract = JSON.parse(
     requiredBrowserAssertions: string[]
   }>
 }
+const uiVersion =
+  readOption('--ui-version') ??
+  process.env.ZEUS_UI_VERSION ??
+  goldenContract.source.version
+const frameworkVersion =
+  readOption('--framework-version') ??
+  process.env.ZEUS_FRAMEWORK_VERSION ??
+  goldenContract.source.frameworkDependency
+const registry = readOption('--registry') ?? 'https://registry.npmjs.org'
+const browsers = (readOption('--browsers') ?? 'chromium,firefox,webkit').split(
+  ',',
+)
+const browserTypes: Record<string, BrowserType> = { chromium, firefox, webkit }
+const packages = goldenContract.groups.map(group => group.package)
 const results: Array<Record<string, unknown>> = []
 const supplyChainEvidence: Array<Record<string, unknown>> = []
 const manifestEvidence: Array<Record<string, unknown>> = []
