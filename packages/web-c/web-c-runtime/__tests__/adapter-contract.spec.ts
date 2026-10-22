@@ -1,9 +1,12 @@
 import {
   createCustomElementMountLifecycle,
+  createContext,
   defineElement,
   getElementDefinition,
   insertTracked,
   mountElementDefinition,
+  provideDOMContext,
+  resolveDOMContext,
   Slot,
 } from '@zeus-js/runtime-dom'
 import { createEffect, onCleanup } from '@zeus-js/signal'
@@ -1176,6 +1179,67 @@ describe('eager and lazy custom element adapters', () => {
       lazyFirst,
       lazySecond,
     ])
+  })
+
+  it('restores descendant DOM context after reconnecting a projected light-DOM subtree', async () => {
+    const parentTag = createTag('projected-context-parent')
+    const childTag = createTag('projected-context-child')
+    const context = createContext<number>()
+    let parentMounts = 0
+    let childCleanups = 0
+    const childMounts: Array<{ connected: boolean; value?: number }> = []
+    const Parent = defineElement(
+      createTag('projected-context-parent-definition'),
+      { shadow: false },
+      (_props, { host }) => {
+        provideDOMContext(host, context, ++parentMounts)
+        return Slot({})
+      },
+    )
+    const Child = defineElement(
+      createTag('projected-context-child-definition'),
+      { shadow: false },
+      (_props, { host }) => {
+        const result = resolveDOMContext(host, context)
+        childMounts.push({ connected: host.isConnected, value: result.value })
+        onCleanup(() => childCleanups++)
+        const output = document.createElement('span')
+        output.textContent = String(result.value)
+        return output
+      },
+    )
+    bootstrapLazy([
+      {
+        tagName: parentTag,
+        shadow: false,
+        props: [],
+        load: async () => createLazyModule(Parent),
+      },
+      {
+        tagName: childTag,
+        shadow: false,
+        props: [],
+        load: async () => createLazyModule(Child),
+      },
+    ])
+    const parent = document.createElement(parentTag) as AdapterElement
+    const child = document.createElement(childTag) as AdapterElement
+    parent.append(child)
+
+    for (let mount = 1; mount <= 3; mount++) {
+      const ready = child.componentOnReady?.()
+      document.body.append(parent)
+      await parent.componentOnReady?.()
+      await ready
+      expect(child.parentElement).toBe(parent)
+      expect(child.textContent).toBe(String(mount))
+      expect(childMounts).toHaveLength(mount)
+      expect(childMounts[mount - 1]).toEqual({ connected: true, value: mount })
+
+      parent.remove()
+      await nextFrame()
+      expect(childCleanups).toBe(mount)
+    }
   })
 
   it('keeps nested lazy menu items connected while projecting a light-DOM host', async () => {
