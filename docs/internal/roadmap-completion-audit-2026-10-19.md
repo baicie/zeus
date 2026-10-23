@@ -264,3 +264,12 @@ F-011、D-006 与本总目标继续保持未完成。
 
 - `Repair Native Latest` workflow run `39884107912` 使用精确确认串重新执行清理。npm 认证预检通过，但标准 `dist-tag rm latest` 对 `@zeus-js/compiler-native` 仍返回 E403；registry 中 `latest` 仍指向 `0.1.1-canary.20260812.106.1.658fe407`。这需要包 owner 或 npm Support 处理服务端/包设置，不能由仓库代码绕过。
 - D-006 的唯一持久结果仍是自动化 Quick Start 的 `8467 ms` 报告；仓库没有真实首次接触者的匿名 session 和步骤观察记录，不能关闭该项。
+
+## 2026-10-23 release diagnostics and blocker audit continuation
+
+- PR [#161](https://github.com/baicie/zeus/pull/161) 已合并为 `cd3d478`。native `latest` 清理报告现在保存 tag 快照、删除前复核、最终一致性和脱敏的 npm diagnostics；Admin 的 Data Grid、Dialog、Input consumer 已升级到 UI `0.1.0-beta.33`。PR SHA `edb1c49` 的 pull-request CI 全绿，packed-consumers、Native matrix、Admin 浏览器、build、test、docs、bench 和 integration 均通过。
+- 独立审查发现未捕获的 `NpmCommandError` 仍可能把原始 npm stderr 放入异常 stack。PR [#162](https://github.com/baicie/zeus/pull/162) 已合并为 `c822ba4`，错误构造时统一脱敏异常 message，并增加敏感信息不出现在 stack 的回归测试；定向测试 10/10、PR CI 与 RC CI 全部通过。
+- F-011 仍未完成：`@zeus-js/compiler-native@latest` 仍指向历史 `0.1.1-canary.20260812.106.1.658fe407`，npm E403 仍阻塞精确历史 tag 删除；报告和重试 workflow 只能提供证据，不能代替包 owner/npm Support 的实际清理。
+- D-006 仍未完成：用户再次确认目前无法安排首次接触者进行真人 15 分钟上手验收，缺少匿名 session、步骤时长、阻塞/提问和成功条件记录；自动化 Quick Start 不构成替代证据。
+- UI Phase 15 已完成 `release:final 0.1.0`、strict readiness、113 项测试和 40 包 tarball dry-run，但 stable publish、tag、registry/provenance 和独立消费者的发布后复核尚未执行。`Release` environment 不配置 required reviewer，按用户决定停在发布前。
+- 本轮没有新的仓库代码缺项；F-011、D-006 和 UI 发布后验收仍开放，因此本总目标不能标记完成。
