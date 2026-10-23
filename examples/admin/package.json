@@ -13,9 +13,9 @@
     "@zeus-js/router": "workspace:*",
     "@zeus-js/resource": "workspace:*",
     "@zeus-js/zeus": "workspace:*",
-    "@zeus-web/data-grid": "0.1.0-beta.32",
-    "@zeus-web/dialog": "0.1.0-beta.32",
-    "@zeus-web/input": "0.1.0-beta.32"
+    "@zeus-web/data-grid": "0.1.0-beta.33",
+    "@zeus-web/dialog": "0.1.0-beta.33",
+    "@zeus-web/input": "0.1.0-beta.33"
   },
   "devDependencies": {
     "@zeus-js/vite-plugin": "workspace:*",
