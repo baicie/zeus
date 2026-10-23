@@ -259,3 +259,8 @@ F-011、D-006 与本总目标继续保持未完成。
 - UI 仓库基于 beta.33 发布源码 commit `74fe9ea33f7a51eb8551debe9992cebfc1a0ebe7` 重新运行 render、scroll、update benchmark，生成日期化基线 `u005-data-grid-2026-10-23`；测量覆盖四个场景的 12 组结果，并将每阶段 signed `heapUsedDelta`/`rssDelta` 写入 manifest。环境为 Darwin 24.6.0 arm64、Node 26.9.0；这些数据只作为同设备趋势，不作为跨设备阈值。
 - UI PR [#112](https://github.com/baicie/zeus-ui/pull/112) 的 head `d1eb73610427d21de6711bd6e9362f06381f4148` 已合并，merge commit 为 `eb25d05bb8b249e708e9890f01af86f752674ed4`。本地基线 checker、Data Grid contract tests（7 项）、benchmark typecheck、格式与提交钩子、benchmark/metadata/lint/DTS 及浏览器 CI 均通过。
 - B-003 性能子项因此关闭，B-003 与 E-009 均已完成。F-011 仍需包 owner/npm Support 解决历史 `latest` tag；D-006 仍缺真实首次接触用户的 15 分钟观察记录；本总目标保持未完成。
+
+## 2026-10-23 resumed blocker audit
+
+- `Repair Native Latest` workflow run `39884107912` 使用精确确认串重新执行清理。npm 认证预检通过，但标准 `dist-tag rm latest` 对 `@zeus-js/compiler-native` 仍返回 E403；registry 中 `latest` 仍指向 `0.1.1-canary.20260812.106.1.658fe407`。这需要包 owner 或 npm Support 处理服务端/包设置，不能由仓库代码绕过。
+- D-006 的唯一持久结果仍是自动化 Quick Start 的 `8467 ms` 报告；仓库没有真实首次接触者的匿名 session 和步骤观察记录，不能关闭该项。
