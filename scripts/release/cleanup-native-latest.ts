@@ -61,7 +61,7 @@ export class NpmCommandError extends Error {
     readonly exitCode: number | null,
     readonly stderr: string,
   ) {
-    super(message)
+    super(summarizeStderr(message))
     this.name = 'NpmCommandError'
   }
 }

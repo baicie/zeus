@@ -227,6 +227,24 @@ describe('native latest cleanup', () => {
     expect(logged.join(' ')).not.toContain('JSON_TOKEN_SECRET')
   })
 
+  it('keeps credentials out of uncaught npm command error output', () => {
+    const error = new NpmCommandError(
+      'remove failed: Authorization: Bearer TOKEN_SECRET; https://npm:URL_PASSWORD@registry.test/?token=QUERY_SECRET; response {"apiKey":"JSON_KEY_SECRET"}',
+      1,
+      'raw stderr is retained for the sanitized report field',
+    )
+
+    expect(error.message).toContain('Authorization: <redacted>')
+    expect(error.message).toContain(
+      'https://<redacted>@registry.test/?token=<redacted>',
+    )
+    expect(error.message).toContain('{"apiKey":"<redacted>"}')
+    expect(error.stack).not.toContain('TOKEN_SECRET')
+    expect(error.stack).not.toContain('URL_PASSWORD')
+    expect(error.stack).not.toContain('QUERY_SECRET')
+    expect(error.stack).not.toContain('JSON_KEY_SECRET')
+  })
+
   it('writes reports as JSON and creates the parent directory', () => {
     const directory = mkdtempSync(resolve(tmpdir(), 'native-latest-cleanup-'))
     const file = resolve(directory, 'reports', 'cleanup.json')
