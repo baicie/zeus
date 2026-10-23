@@ -371,3 +371,10 @@ Support 处理此前 E403。D-006 仍缺首次接触用户的 15 分钟匿名计
 - UI PR [#114](https://github.com/baicie/zeus-ui/pull/114) 已合并为 `d326e68cfbc408f2ed5a6cf74aa8b411d3762d77`；其发布前路线图记录已进入 UI `main`，全部 required CI（build、docs、unit、DTS、Windows、Data Grid、showcase）通过。
 - UI Phase 15 仍停在发布前：稳定版 publish、`v0.1.0` tag、稳定 registry/provenance 和独立消费者的发布后复核均未执行；`Release` environment 没有 required reviewer，按用户决定继续暂不配置审核人。
 - D-006 仍缺真实首次接触者的 15 分钟上手验收，F-011 的历史 `@zeus-js/compiler-native@latest` 仍因 npm E403 未清理；两项及本总目标继续保持未完成。
+
+## 2026-10-23 create-zeus 0.1.3 发布复核
+
+- PR [#168](https://github.com/baicie/zeus/pull/168) 已合并为 `b9fc4eb96e7d86e218dc5161b13db5664ebbfa01`；`create-zeus@0.1.3` tag 已推送，Devtools Release run [39968935677](https://github.com/baicie/zeus/actions/runs/39968935677) 的构建、模板依赖、CommonJS/exports、打包消费者和 npm 可见性校验全部通过。
+- 官方 npm registry 已核验 `create-zeus` 的 `version=0.1.3`、`latest=0.1.3`。发布 tarball 包含 `basic-ts`、`application-ts`、`component-library-ts`、`web-component-ts` 四个模板，并包含组件库模板的 `greeting.tsx`、`index.ts` 和 `styles.css`。
+- D-001 的四模板发布证据已补齐；新增中文《首次 15 分钟》流程并链接到选择指南。自动化 Quick Start 仍只验证流程可运行，不能替代 D-006 所需的真人首次接触验收。
+- F-011 的历史 native `latest` 清理、D-006 真人验收和 UI Phase 15 稳定发布仍按前述用户决定保持未完成；本总目标继续进行中。
