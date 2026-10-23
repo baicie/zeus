@@ -357,3 +357,11 @@ Support 处理此前 E403。D-006 仍缺首次接触用户的 15 分钟匿名计
 - D-006 仍未完成：用户已再次确认目前无法安排首次接触 Zeus 的真实用户完成 15 分钟上手验收，因此没有新的匿名步骤、耗时、阻塞和成功条件记录；自动化 Quick Start 仍不能替代真人观察。
 - UI Phase 15 的 `release:final 0.1.0`、strict readiness、113 项测试和 40 包 tarball dry-run 已通过，但 stable publish、stable tag、registry/provenance 和独立消费者的发布后验收尚未执行。`Release` environment 仍不配置 required reviewer，按用户决定停在发布前；该状态不关闭 UI 路线图或本总目标。
 - 本轮主仓库 PR 与本地验证未发现新的代码缺项；F-011、D-006 和 UI 发布后验收仍开放，因此路线图和本总目标继续保持进行中。
+
+## 2026-10-23 UI Phase 15 路线图合并复核
+
+- UI PR [#112](https://github.com/baicie/zeus-ui/pull/112) 已合并为 `eb25d05bb8b249e708e9890f01af86f752674ed4`，beta.33 发布源码上的 Data Grid 版本化性能基线已验收；B-003 与 E-009 均已完成。
+- UI PR [#113](https://github.com/baicie/zeus-ui/pull/113) 已合并为 `baa5fdfd6dd94244a299a969912c151590e28278`。独立审阅未发现阻塞问题；PR head `eae0f3b8554b6edfadb82ca1ccd1be50afa4448c` 的较新 CI run `39932551708` 所有 required checks 成功。旧重复 run 的浏览器检查超过 9 分钟未更新，在较新 run 全绿后取消。
+- UI 路线图记录的稳定发布前检查为 `release:final 0.1.0`、strict readiness、113 项测试和 40 包 tarball dry-run；稳定版 publish、`v0.1.0` tag、稳定 registry/provenance 与独立消费者发布后复核均未执行。
+- 用户明确决定暂不配置 UI `Release` environment 的 required reviewer，先停在发布前；本记录不授权或暗示继续稳定发布。
+- D-006 仍缺真实首次接触者的 15 分钟上手验收，用户目前无法安排；F-011 的历史 `@zeus-js/compiler-native@latest` 清理仍受 npm E403 阻塞。两项及本总目标继续保持未完成。
