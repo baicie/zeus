@@ -76,6 +76,7 @@ components into its own reconciled subtree.
 ## Start here
 
 - [Complete the 15-minute Hello World](/guide/first-15-minutes)
+- [阅读中文 15 分钟上手流程](/guide/first-15-minutes.zh-CN)
 - [Build a Native app](/guide/getting-started)
 - [Build a Web Component](/guide/quick-start)
 - [Consume components from React](/guide/react)
