@@ -281,3 +281,9 @@ UI PR [#112](https://github.com/baicie/zeus-ui/pull/112) 已合并 Data Grid 版
 UI Phase 15 仍停在发布前：`release:final 0.1.0`、strict readiness、113 项测试和 40 包 tarball dry-run 已通过，但 stable publish、`v0.1.0` tag、发布后 registry/provenance/独立消费者复核未执行。用户决定暂不配置 `Release` environment 的 required reviewer，因此不执行稳定版发布。
 
 D-006 因目前无法安排首次接触者，仍缺真人 15 分钟验收；F-011 的历史 native `latest` tag 仍因 npm E403 未清理。两项继续开放，本总目标不得标记完成。
+
+## 2026-10-23 UI PR #114 合并复核
+
+- UI PR [#114](https://github.com/baicie/zeus-ui/pull/114) 已合并为 `d326e68cfbc408f2ed5a6cf74aa8b411d3762d77`；其发布前路线图记录已进入 UI `main`，全部 required CI（build、docs、unit、DTS、Windows、Data Grid、showcase）通过。
+- UI Phase 15 仍停在发布前：稳定版 publish、`v0.1.0` tag、稳定 registry/provenance 和独立消费者的发布后复核均未执行；`Release` environment 没有 required reviewer，按用户决定继续暂不配置审核人。
+- D-006 仍缺真实首次接触者的 15 分钟上手验收，F-011 的历史 `@zeus-js/compiler-native@latest` 仍因 npm E403 未清理；两项及本总目标继续保持未完成。
