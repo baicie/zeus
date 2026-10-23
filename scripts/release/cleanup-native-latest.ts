@@ -399,23 +399,32 @@ function formatError(error: unknown): string {
 function summarizeStderr(stderr: string): string {
   const normalized = stderr
     .trim()
-    .replace(/\s+/g, ' ')
     .replace(
-      /(authorization\s*[:=]\s*)(basic|bearer)\s+[^\s;,]+/gi,
-      '$1$2 <redacted>',
+      /(["']?authorization["']?\s*[:=]\s*["']?)([^\r\n"';,}]*)(["']?)/gi,
+      '$1<redacted>$3',
     )
     .replace(
-      /((?:_authToken|_auth|_password|npm[_-]?token|access[_-]?token|token|password)\s*[:=]\s*)[^\s;,]+/gi,
-      '$1<redacted>',
+      /(["']?(?:[a-z0-9._-]*(?:token|secret|password|passwd|credential|api[_-]?key|access[_-]?key|private[_-]?key|signature|cookie|session|jwt)|_auth(?:token)?)[a-z0-9._-]*["']?\s*[:=]\s*["']?)([^"'\s,;}]+)(["']?)/gi,
+      '$1<redacted>$3',
     )
     .replace(/(\b[a-z][a-z0-9+.-]*:\/\/)[^/\s@]+@/gi, '$1<redacted>@')
     .replace(
       /([?&](?:_authToken|access[_-]?token|token|auth|password)=)[^&#\s;,]*/gi,
       '$1<redacted>',
     )
+    .replace(/\s+/g, ' ')
   return normalized.length > 2_000
     ? `${normalized.slice(0, 2_000)}...`
     : normalized
+}
+
+export function writeNpmStderr(
+  stderr: string,
+  write: (text: string) => void = text => {
+    process.stderr.write(text)
+  },
+): void {
+  if (stderr) write(summarizeStderr(stderr))
 }
 
 function sanitizeRegistry(registry: string): string {
@@ -442,7 +451,7 @@ function runNpm(args: string[], label: string, capture = false): string {
     shell: process.platform === 'win32',
   })
   if (!capture && result.stdout) process.stdout.write(result.stdout)
-  if (result.stderr) process.stderr.write(result.stderr)
+  writeNpmStderr(result.stderr ?? '')
   if (result.status !== 0) {
     const stderr = result.stderr || result.error?.message || 'unknown npm error'
     throw new NpmCommandError(

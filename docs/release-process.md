@@ -545,8 +545,9 @@ pnpm release:cleanup:native-latest \
 ```
 
 报告会记录 registry、确认版本，以及每个 native 包的初始、删除前和最终 dist-tags。
-registry URL 的 userinfo 和 query 不会写入报告；错误摘要会归一空白，并脱敏 URL 凭据、敏感
-query 参数、Bearer/Basic Authorization 和常见 npm auth 字段，长度最多 2000 个字符。脚本在
+registry URL 的 userinfo 和 query 不会写入报告；错误摘要和 CI stderr 日志会归一空白，并脱敏
+URL 凭据、敏感 query/JSON 字段、Bearer/Basic Authorization 和常见 npm auth 字段，长度最多
+2000 个字符。脚本在
 校验、权限或删除步骤失败时也会尽量写出 `status: "failed"` 的报告，便于把同一次尝试的精确
 包名、带本次时间戳的 registry 状态和 npm 错误交给 owner 复核；转交前仍应审阅报告内容。
 不传该参数时不会写文件，原有清理行为不变。
