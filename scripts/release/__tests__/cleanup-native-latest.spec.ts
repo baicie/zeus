@@ -1,6 +1,14 @@
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { resolve } from 'node:path'
+
 import {
   cleanupNativeLatestTags,
+  createNativeLatestCleanupReport,
   getNativeLatestCleanupErrors,
+  NpmCommandError,
+  writeNativeLatestCleanupReport,
+  writeNpmStderr,
 } from '../cleanup-native-latest'
 
 const packages = [
@@ -150,5 +158,90 @@ describe('native latest cleanup', () => {
     ).rejects.toThrow('changed to 0.1.0 before cleanup')
 
     expect(removed).toEqual([])
+  })
+
+  it('records tag snapshots and npm mutation diagnostics in an optional report', async () => {
+    const pkg = packages[0]
+    const tags = new Map<string, Record<string, string>>([
+      [pkg, { latest: pollutedVersion, canary: pollutedVersion }],
+    ])
+    const report = createNativeLatestCleanupReport(
+      'https://user:secret@registry.npmjs.org/npm?token=leak',
+      pollutedVersion,
+      [pkg],
+    )
+
+    expect(report).toMatchObject({
+      registry: 'https://registry.npmjs.org/npm',
+      status: 'running',
+      finishedAt: null,
+    })
+
+    await expect(
+      cleanupNativeLatestTags({
+        packages: [pkg],
+        expectedVersion: pollutedVersion,
+        readTags: async currentPackage => ({ ...tags.get(currentPackage) }),
+        removeLatest: async () => {
+          throw new NpmCommandError(
+            'remove failed (1): E403 Forbidden; authorization: Bearer super-secret; Authorization: Basic basic-secret; https://npm:password@registry.test/path?token=query-secret; https://registry.test/npm?apiKey=url-key-secret; response {"apiKey":"json-key-secret","client_secret":"json-client-secret"}',
+            1,
+            'npm error code E403\nnpm error _authToken=super-secret\nnpm error _auth=base64-secret\nnpm error Authorization: Basic basic-secret\nnpm error https://npm:password@registry.npmjs.org/?token=url-secret\nnpm error https://registry.test/npm?apiKey=url-key-secret\nnpm error response {"apiKey":"json-key-secret","client_secret":"json-client-secret"}\nnpm error Forbidden',
+          )
+        },
+        report,
+      }),
+    ).rejects.toThrow('E403 Forbidden')
+
+    expect(report.packages[0]).toMatchObject({
+      packageName: pkg,
+      initialTags: { latest: pollutedVersion, canary: pollutedVersion },
+      beforeRemovalTags: { latest: pollutedVersion, canary: pollutedVersion },
+      finalTags: { latest: pollutedVersion, canary: pollutedVersion },
+      removal: {
+        attempted: true,
+        exitCode: 1,
+        stderr:
+          'npm error code E403 npm error _authToken=<redacted> npm error _auth=<redacted> npm error Authorization: <redacted> npm error https://<redacted>@registry.npmjs.org/?token=<redacted> npm error https://registry.test/npm?apiKey=<redacted> npm error response {"apiKey":"<redacted>","client_secret":"<redacted>"} npm error Forbidden',
+      },
+      error:
+        'remove failed (1): E403 Forbidden; authorization: <redacted>; Authorization: <redacted>; https://<redacted>@registry.test/path?token=<redacted>; https://registry.test/npm?apiKey=<redacted>; response {"apiKey":"<redacted>","client_secret":"<redacted>"}',
+    })
+  })
+
+  it('writes only sanitized npm stderr to process logs', () => {
+    const logged: string[] = []
+
+    writeNpmStderr(
+      'Authorization: token TOKEN_SECRET; authorization: OAuth OAUTH_SECRET; npm error response {"authorization":"Token JSON_TOKEN_SECRET","apiKey":"json-key-secret","client_secret":"json-client-secret"}',
+      text => logged.push(text),
+    )
+
+    expect(logged).toEqual([
+      'Authorization: <redacted>; authorization: <redacted>; npm error response {"authorization":"<redacted>","apiKey":"<redacted>","client_secret":"<redacted>"}',
+    ])
+    expect(logged.join(' ')).not.toContain('json-key-secret')
+    expect(logged.join(' ')).not.toContain('json-client-secret')
+    expect(logged.join(' ')).not.toContain('TOKEN_SECRET')
+    expect(logged.join(' ')).not.toContain('OAUTH_SECRET')
+    expect(logged.join(' ')).not.toContain('JSON_TOKEN_SECRET')
+  })
+
+  it('writes reports as JSON and creates the parent directory', () => {
+    const directory = mkdtempSync(resolve(tmpdir(), 'native-latest-cleanup-'))
+    const file = resolve(directory, 'reports', 'cleanup.json')
+    const report = createNativeLatestCleanupReport(
+      'https://registry.npmjs.org',
+      pollutedVersion,
+      packages,
+    )
+
+    try {
+      writeNativeLatestCleanupReport(file, report)
+
+      expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual(report)
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
   })
 })

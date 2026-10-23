@@ -77,18 +77,12 @@ TypeError: Cannot read property 'inherits' of undefined
 
 ## 当前临时方案
 
-使用 `pnpm patch` 机制为 `@babel/plugin-syntax-jsx` 添加 CJS 兼容层补丁：
-
-```bash
-pnpm patch @babel/plugin-syntax-jsx
-# 修改后：
-# - ESM 入口 (exports.module) 返回 { default: fn }
-# - CJS 入口 (exports.default) 返回 fn
-```
+不再需要 `pnpm patch`。Zeus 已移除编译器 CJS 入口对
+`@babel/plugin-syntax-jsx` 的运行时依赖，并将 CJS 互操作检查纳入发布前置校验。
 
 ---
 
-## 建议的长期方案（按优先级）
+## 历史长期方案（仅供记录）
 
 ### 方案 A：修复构建配置（推荐）
 
@@ -131,8 +125,8 @@ import SyntaxJSX from '@babel/plugin-syntax-jsx'
 
 ## 状态
 
-- **状态**：已记录
-- **临时方案**：pnpm patch（进行中）
-- **长期方案**：待定（方案 A 最优）
+- **状态**：已解决
+- **修复**：`5f992ac fix(compiler): remove syntax-jsx dependency from CJS entry (#38)`
+- **回归门禁**：`scripts/check/check-compiler-cjs.ts` 已接入 release precheck
 - **严重性**：中（阻断 CJS 消费路径，ESM 不受影响）
 - **发现日期**：2026-06-03

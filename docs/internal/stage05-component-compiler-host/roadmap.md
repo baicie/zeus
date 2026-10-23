@@ -22,25 +22,26 @@ shadcn-like 可复制、可定制 UI 层
 
 ## 当前状态总览
 
-| 阶段     | 内容                       | 状态                                          |
-| -------- | -------------------------- | --------------------------------------------- |
-| Phase 0  | MVP 稳定化补强             | ✅ 完成                                       |
-| Phase 1  | 增强 Host 定位             | ✅ 完成                                       |
-| Phase 2  | Component Analyzer         | ✅ 完成                                       |
-| Phase 3  | Bundler Plugin Host        | ✅ 完成                                       |
-| Phase 4  | Web Component Output       | ✅ 完成                                       |
-| Phase 5  | DTS 输出体系               | ✅ 完成                                       |
-| Phase 6  | React / Vue Wrapper Output | ✅ 完成                                       |
-| Phase 7  | Headless Components MVP    | ✅ 完成                                       |
-| Phase 8  | 性能与体积基准             | ✅ 完成                                       |
-| Phase 9  | Icon 专用 no-runtime 输出  | ✅ 完成                                       |
-| Phase 10 | shadcn-like Registry       | ✅ 完成                                       |
-| Phase 11 | 文档与生态发布             | ✅ 实现完成；发布后消费者验收跟随当前发布计划 |
+| 阶段     | 内容                       | 状态                                            |
+| -------- | -------------------------- | ----------------------------------------------- |
+| Phase 0  | MVP 稳定化补强             | ✅ 完成                                         |
+| Phase 1  | 增强 Host 定位             | ✅ 完成                                         |
+| Phase 2  | Component Analyzer         | ✅ 完成                                         |
+| Phase 3  | Bundler Plugin Host        | ✅ 完成                                         |
+| Phase 4  | Web Component Output       | ✅ 完成                                         |
+| Phase 5  | DTS 输出体系               | ✅ 完成                                         |
+| Phase 6  | React / Vue Wrapper Output | ✅ 完成                                         |
+| Phase 7  | Headless Components MVP    | ✅ 完成                                         |
+| Phase 8  | 性能与体积基准             | ✅ 完成                                         |
+| Phase 9  | Icon 专用 no-runtime 输出  | ✅ 完成                                         |
+| Phase 10 | shadcn-like Registry       | ✅ 完成                                         |
+| Phase 11 | 文档与生态发布             | ✅ 文档、发布流程与 beta 验收完成；稳定版待发布 |
 
 > 状态同步（2026-10-21）：Phase 10 的 Registry、CLI、模板和组件覆盖由
 > `zeus-ui` 的 `check:registry`、`check:component-coverage`、`check:product-contract`
-> 与 `release:verify --strict` 覆盖；Phase 11 的文档与发布检查已具备，稳定版发布和
-> registry/provenance 消费者验收仍记录在当前总路线图的 B-003/E-009 中。
+> 与 `release:verify --strict` 覆盖；Phase 11 的文档、生态发布流程与 beta 通道验收已完成。
+> `zeus-ui` 的 `0.1.0` 稳定版发布及发布后 registry/provenance 消费者验收仍待完成，详见
+> `zeus-ui/docs/mvp/roadmap.md` 的 Phase 15。
 
 详细设计记录见 `design/` 目录下各 phase 文档。
 
@@ -128,7 +129,7 @@ Benchmark 分类：编译期 benchmark、runtime benchmark、wrapper benchmark�
 
 位于 `@zeus-js/output-icons`。
 
-### Phase 10 — shadcn-like Registry 🔄
+### Phase 10 — shadcn-like Registry ✅
 
 做第二层 UI 封装：用户可以按需复制组件源码到项目里，自定义样式和主题。
 
@@ -147,7 +148,7 @@ pnpm dlx zeus-ui add dialog
 
 生成：`src/components/ui/{component}.tsx`、`src/lib/utils.ts`、`src/styles/theme.css`
 
-### Phase 11 — 文档与生态发布 🔄
+### Phase 11 — 文档与生态发布 ✅
 
 让外部用户能理解这套体系。
 

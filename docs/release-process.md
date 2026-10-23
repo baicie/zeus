@@ -534,6 +534,24 @@ dist-tag：Canary 只写入并验证本次 staging tag 与共享 `canary`，因�
 native 包；只要任一 `latest` 指向其他版本就整体拒绝，然后仅删除仍指向该确认 prerelease
 的标签。该 workflow 同样使用 `npm-release` 锁和受保护的 `Release` Environment。
 
+需要把一次修复尝试交给包 owner 或 npm Support 排查时，可增加只写本地文件的
+`--report-file` 参数：
+
+```bash
+pnpm release:cleanup:native-latest \
+  --expected-version 0.1.1-canary.20260812.106.1.658fe407 \
+  --confirm remove-native-latest:0.1.1-canary.20260812.106.1.658fe407 \
+  --report-file temp/native-latest-cleanup.json
+```
+
+报告会记录 registry、确认版本，以及每个 native 包的初始、删除前和最终 dist-tags。
+registry URL 的 userinfo 和 query 不会写入报告；错误摘要和 CI stderr 日志会归一空白，并脱敏
+URL 凭据、敏感 query/JSON 字段、Bearer/Basic Authorization 和常见 npm auth 字段，长度最多
+2000 个字符。脚本在
+校验、权限或删除步骤失败时也会尽量写出 `status: "failed"` 的报告，便于把同一次尝试的精确
+包名、带本次时间戳的 registry 状态和 npm 错误交给 owner 复核；转交前仍应审阅报告内容。
+不传该参数时不会写文件，原有清理行为不变。
+
 ## 6. 质量门禁
 
 ### 6.1 release:precheck（正式发布前）

@@ -212,6 +212,9 @@ describe('release workflows', () => {
     expect(workflow).toContain("github.ref == 'refs/heads/main'")
     expect(workflow).toContain("format('remove-native-latest:{0}'")
     expect(workflow).toContain('pnpm release:cleanup:native-latest')
+    expect(workflow).toContain('--report-file temp/native-latest-cleanup.json')
+    expect(workflow).toContain('Upload native latest cleanup report')
+    expect(workflow).toContain('actions/upload-artifact@v4')
     expect(workflow).toContain('pnpm release:verify:npm-auth')
     expect(workflow).toContain("NPM_TOKEN_BYPASS_2FA: 'true'")
     expect(workflow.indexOf('pnpm release:verify:npm-auth')).toBeLessThan(
