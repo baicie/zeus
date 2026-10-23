@@ -54,7 +54,16 @@ jobs:
           pnpm release:cleanup:native-latest
           --expected-version "$EXPECTED_VERSION"
           --confirm "$CONFIRMATION"
+          --report-file temp/native-latest-cleanup.json
         env:
           EXPECTED_VERSION: ${{ inputs.expected_version }}
           CONFIRMATION: ${{ inputs.confirmation }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Upload native latest cleanup report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-latest-cleanup-report-${{ github.run_id }}
+          path: temp/native-latest-cleanup.json
+          if-no-files-found: ignore

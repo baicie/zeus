@@ -347,3 +347,4 @@ Support 处理此前 E403。D-006 仍缺首次接触用户的 15 分钟匿名计
 
 - 重新触发 `Repair Native Latest` workflow run `39884107912`，使用精确确认串和当前 main。Release 环境的 npm 认证预检通过，但对 `@zeus-js/compiler-native` 执行标准 `dist-tag rm latest` 仍收到 npm E403；registry 查询确认 `latest` 仍为 `0.1.1-canary.20260812.106.1.658fe407`。仓库脚本、工作流参数和 secret 注入均已实际执行，剩余问题需要包 owner 或 npm Support 处理 npm 服务端/包设置。
 - D-006 仍只有自动化 Quick Start 报告（`8467 ms`），没有真实首次接触者的匿名 session、步骤时间、阻塞/提问和成功条件记录；自动化报告明确不能替代真人验收。
+- UI 仓库的 `docs/mvp/roadmap.md` 仍保留 Phase 15 未完成：`0.1.0` 稳定版发布及发布后的 registry、provenance、独立消费者复核尚未发生；当前 UI `beta` 为 `0.1.0-beta.33`，稳定包查询为 404。该外部发布项与本仓库的 E-009 Golden 验收分开记录，不能互相替代。
