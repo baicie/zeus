@@ -342,3 +342,8 @@ Support 处理此前 E403。D-006 仍缺首次接触用户的 15 分钟匿名计
 - UI beta.33 发布源码 commit `74fe9ea33f7a51eb8551debe9992cebfc1a0ebe7` 上重新执行 Data Grid 的 render/scroll/update 基准，生成 `u005-data-grid-2026-10-23`；记录环境为 Darwin 24.6.0、arm64、Node 26.9.0，覆盖四种场景共 12 组阶段结果，并记录 signed heap/RSS 趋势。
 - UI PR [#112](https://github.com/baicie/zeus-ui/pull/112) 的 head `d1eb73610427d21de6711bd6e9362f06381f4148` 已合并，merge commit 为 `eb25d05bb8b249e708e9890f01af86f752674ed4`。基线 checker、Data Grid benchmark contract、文档、benchmark typecheck、lint/DTS 与浏览器 CI 均通过。
 - B-003 已关闭。F-011 仍待 npm/包 owner 解决历史 `latest` tag，D-006 仍待真实新用户计时，因此本总目标继续进行。
+
+## 2026-10-23 resumed blocker audit
+
+- 重新触发 `Repair Native Latest` workflow run `39884107912`，使用精确确认串和当前 main。Release 环境的 npm 认证预检通过，但对 `@zeus-js/compiler-native` 执行标准 `dist-tag rm latest` 仍收到 npm E403；registry 查询确认 `latest` 仍为 `0.1.1-canary.20260812.106.1.658fe407`。仓库脚本、工作流参数和 secret 注入均已实际执行，剩余问题需要包 owner 或 npm Support 处理 npm 服务端/包设置。
+- D-006 仍只有自动化 Quick Start 报告（`8467 ms`），没有真实首次接触者的匿名 session、步骤时间、阻塞/提问和成功条件记录；自动化报告明确不能替代真人验收。
