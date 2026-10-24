@@ -470,9 +470,9 @@ Sigstore 验证 provenance：签名 subject 必须匹配 npm tarball integrity�
 `baicie/zeus`、`.github/workflows/release.yml`、tag ref 与精确 commit SHA。Node 22/24
 registry smoke 全部通过后才创建 GitHub Release。
 
-`beta` 与 Canary 发布只写入并验证各自的 dist-tag，不把 native 包历史遗留的 `latest`
-状态纳入门禁，也不修改该状态。alpha、rc 与 stable tagged release 仍会在发布前后拒绝
-native `latest` 指向 prerelease。
+各发布通道只写入并验证本次目标 dist-tag，不再要求先删除 native 包历史遗留的 `latest`。
+alpha、beta、rc 与 Canary 不修改其他通道；stable 发布仍必须在发布后验证所有 fixed 包的
+`latest` 均指向本次稳定版本，并完成 provenance 与 registry smoke。
 
 ## 5. Canary 发布流程
 
@@ -526,11 +526,13 @@ SHA。registry smoke 覆盖 ESM/CJS 加载、DOM/SSR transform、source map 与 
 ### 5.4 Native `latest` 异常修复
 
 npm 首次发布包时可能把 prerelease 自动设为 `latest`。日常 workflow 绝不自动删除
-dist-tag：Canary 只写入并验证本次 staging tag 与共享 `canary`，因此不会因已有
-`latest` 污染而阻断；除 `beta` 外的 tagged release 会在发布前拒绝该状态。`beta`
-同样是独立通道，只写入并验证 `beta` 标签，不触碰已有 `latest`。历史污染必须在下一次
-非 `beta` tagged release 前，于 `main` 上手动运行 `Repair Native Latest`：输入当前精确
-污染版本，并输入 `remove-native-latest:<version>` 确认串。修复脚本会先读取全部 8 个
+dist-tag。历史 native `latest` 的精确删除此前由 npm 返回 E403；用户于 2026-10-24
+决定放弃这项清理，不再将它作为后续 `0.2.0` 等版本发布的前置条件，也不自动重试删除。
+正式发布和 Canary 仍必须验证本次版本、目标 dist-tag、provenance 与 compiler registry
+smoke；stable 发布会正常推进并核验 `latest`，因此历史 tag 不能替代本次发布结果。
+
+`Repair Native Latest` 仍保留为维护工具，仅在用户另行明确授权清理时于 `main` 手动运行：
+输入当前精确污染版本，并输入 `remove-native-latest:<version>` 确认串。修复脚本会先读取全部 8 个
 native 包；只要任一 `latest` 指向其他版本就整体拒绝，然后仅删除仍指向该确认 prerelease
 的标签。该 workflow 同样使用 `npm-release` 锁和受保护的 `Release` Environment。
 

@@ -1,5 +1,7 @@
 # Canary 发布加固实施计划
 
+> 当前结论（2026-10-24）：发布链实现及 beta 验收已完成；历史 native `latest` 删除因 npm E403 由用户明确放弃。后续发布不再要求先删除历史 tag，但必须验证本次目标 dist-tag、版本、provenance 和 compiler registry smoke。下文记录原实施方案与当时验收要求。
+
 ## 背景
 
 2026-08-12，旧功能分支的延迟 Canary workflow 在较新的 `main` 发布完成后才结束，
@@ -75,7 +77,7 @@
 - 29 个 fixed packages 的 `canary` tag 都指向该次 `main` SHA 对应版本。
 - Node 22/24 registry smoke 通过后，`zeus-ui` 收到 dispatch 且兼容性检查通过。
 
-### Task 5：发布 `v0.1.1-beta.13`（发布链已完成；native latest 清理阻塞）
+### Task 5：发布 `v0.1.1-beta.13`（发布链已完成；历史 native latest 清理已放弃）
 
 验收标准：
 
@@ -84,7 +86,7 @@
 - tag workflow 发布并验证 29 个 fixed packages。
 - `beta` dist-tag 一致，native compiler ESM/CJS 安装 smoke 与 provenance 验证通过。
 - GitHub Release 只在 Node 22/24 registry smoke 全部通过后创建。
-- native `latest` 不指向 Canary（当前仍阻塞：`Repair Native Latest` run `39382911550` 返回 npm E403，需要具备 dist-tag 删除权限的 token）。
+- 原要求 native `latest` 不指向 Canary；该历史清理项在 `Repair Native Latest` 返回 npm E403 后，由用户于 2026-10-24 明确放弃，不再作为后续发布前置条件。
 
 ## 回滚
 

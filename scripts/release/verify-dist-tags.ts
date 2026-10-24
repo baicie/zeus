@@ -6,7 +6,7 @@ import pico from 'picocolors'
 import semver from 'semver'
 import { createVerifier, type Bundle, type BundleVerifier } from 'sigstore'
 
-import { zeusFixedPackages, zeusNativePackages } from '../release.config'
+import { zeusFixedPackages } from '../release.config'
 
 const execFileAsync = promisify(execFile)
 const provenancePredicate = 'https://slsa.dev/provenance/v1'
@@ -120,9 +120,6 @@ export async function createVerifierWithRetry(
 export function getDistTagPolicyErrors(input: DistTagPolicyInput): string[] {
   const errors: string[] = []
   const expectedShortSha = input.expectedSha?.slice(0, 8).toLowerCase()
-  const prereleaseChannel = semver.prerelease(input.expectedVersion)?.[0]
-  const ignoresNativeLatest =
-    prereleaseChannel === 'beta' || prereleaseChannel === 'canary'
 
   if (
     expectedShortSha &&
@@ -144,14 +141,6 @@ export function getDistTagPolicyErrors(input: DistTagPolicyInput): string[] {
       errors.push(
         `${pkg}: ${input.expectedTag} points to ${tags[input.expectedTag] ?? '<missing>'}, expected ${input.expectedVersion}`,
       )
-    }
-    if (
-      !ignoresNativeLatest &&
-      zeusNativePackages.includes(pkg) &&
-      tags.latest &&
-      semver.prerelease(tags.latest)
-    ) {
-      errors.push(`${pkg}: latest must not point to prerelease ${tags.latest}`)
     }
     if (input.requireProvenance && !input.provenanceByPackage.get(pkg)) {
       errors.push(`${pkg}@${input.expectedVersion}: npm provenance is missing`)
@@ -510,10 +499,8 @@ async function verifyWithRetry(options: {
         ),
       })
       if (errors.length === 0) return
-      const permanentErrors = errors.filter(
-        error =>
-          error.includes('latest must not point to prerelease') ||
-          error.startsWith('version '),
+      const permanentErrors = errors.filter(error =>
+        error.startsWith('version '),
       )
       if (permanentErrors.length) {
         throw new ProvenancePolicyError(permanentErrors.join('\n- '))
