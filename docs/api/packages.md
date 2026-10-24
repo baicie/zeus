@@ -42,7 +42,7 @@
 | `@zeus-js/compiler-native-win32-x64-msvc`   | `packages/core/compiler-native-win32-x64-msvc`   | 0.1.1-beta.18 | core     | Windows x64 MSVC 原生二进制（安装可选依赖）   |
 | `@zeus-js/shared`                           | `packages/core/shared`                           | 0.1.1-beta.18 | core     | 内部工具函数，无外部依赖                      |
 | `@zeus-js/vite-plugin`                      | `packages/devtools/vite-plugin`                  | 0.0.4         | devtools | Vite 集成插件                                 |
-| `create-zeus`                               | `packages/devtools/create-zeus`                  | 0.1.3         | devtools | 项目脚手架生成器（CLI）                       |
+| `create-zeus`                               | `packages/devtools/create-zeus`                  | 0.1.4         | devtools | 项目脚手架生成器（CLI）                       |
 | `@zeus-js/output-wc`                        | `packages/web-c/output-wc`                       | 0.1.1-beta.18 | web-c    | Web Component 输出插件                        |
 | `@zeus-js/output-react-wrapper`             | `packages/web-c/output-react-wrapper`            | 0.1.1-beta.18 | web-c    | React wrapper 输出插件                        |
 | `@zeus-js/output-vue-wrapper`               | `packages/web-c/output-vue-wrapper`              | 0.1.1-beta.18 | web-c    | Vue wrapper 输出插件                          |

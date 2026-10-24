@@ -84,6 +84,19 @@ describe('create-zeus scaffold', () => {
 
     expect(existsSync(join(root, entry))).toBe(true)
     expect(dependencies[dependency]).toBeTruthy()
+    if (template === 'component-library-ts') {
+      expect(packageJson.dependencies['@zeus-js/output-react-wrapper']).toBe(
+        '^0.1.0',
+      )
+      expect(packageJson.dependencies['@zeus-js/output-vue-wrapper']).toBe(
+        '^0.1.0',
+      )
+      expect(packageJson.dependencies['@zeus-js/runtime-dom']).toBe('^0.1.0')
+      expect(packageJson.dependencies['@zeus-js/web-c-runtime']).toBe('^0.1.0')
+      expect(packageJson.dependencies.react).toBe('^19.2.7')
+      expect(packageJson.dependencies.vue).toBe('^3.5.41')
+      expect(packageJson.devDependencies['@types/react']).toBe('^19.2.17')
+    }
     expect(packageJson.scripts.build).toBe('vite build')
     expect(packageJson.scripts.check).toBe('tsc --noEmit')
     expect(packageJson.scripts.test).toBe('vitest run')
