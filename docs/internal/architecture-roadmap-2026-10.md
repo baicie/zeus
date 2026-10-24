@@ -378,3 +378,10 @@ Support 处理此前 E403。D-006 仍缺首次接触用户的 15 分钟匿名计
 - 官方 npm registry 已核验 `create-zeus` 的 `version=0.1.3`、`latest=0.1.3`。发布 tarball 包含 `basic-ts`、`application-ts`、`component-library-ts`、`web-component-ts` 四个模板，并包含组件库模板的 `greeting.tsx`、`index.ts` 和 `styles.css`。
 - D-001 的四模板发布证据已补齐；新增中文《首次 15 分钟》流程并链接到选择指南。自动化 Quick Start 仍只验证流程可运行，不能替代 D-006 所需的真人首次接触验收。
 - F-011 的历史 native `latest` 清理、D-006 真人验收和 UI Phase 15 稳定发布仍按前述用户决定保持未完成；本总目标继续进行中。
+
+## 2026-10-24 create-zeus 0.1.4 依赖修复复核
+
+- 用户从 `Component Library TypeScript` 模板生成的隔离项目在 `vite build` 加载 Vue wrapper 时报告 `ERR_MODULE_NOT_FOUND: vue`；补装框架依赖后又暴露了虚拟产物对 `@zeus-js/runtime-dom`、`@zeus-js/web-c-runtime` 和两个 wrapper runtime 的直接解析要求。
+- PR [#170](https://github.com/baicie/zeus/pull/170) 已合并为 `a2af3419de77daf58071e02a9dde511d5a492896`。模板现在直接声明 `react`、`vue`、`@types/react`、`@zeus-js/runtime-dom`、`@zeus-js/web-c-runtime`、`@zeus-js/output-react-wrapper` 和 `@zeus-js/output-vue-wrapper`，并将 `create-zeus` 升级到 `0.1.4`。
+- Devtools Release run [40067431820](https://github.com/baicie/zeus/actions/runs/40067431820) 已成功；官方 npm registry 的 `latest` 已指向 `0.1.4`，下载 tarball 已核验七项依赖均进入组件库模板。用户项目重新执行 `pnpm check && pnpm build && pnpm test` 全部通过。
+- D-006 真人验收、F-011 native `latest` 清理和 UI Phase 15 稳定发布仍按既有用户决定保持未完成；本总目标继续进行中。
