@@ -20,8 +20,8 @@ function validTags(
     zeusFixedPackages.map(pkg => [
       pkg,
       {
-        [expectedTag]: expectedVersion,
         ...(zeusNativePackages.includes(pkg) ? {} : { latest: '0.1.0' }),
+        [expectedTag]: expectedVersion,
       },
     ]),
   )
@@ -83,11 +83,10 @@ describe('npm dist-tag policy', () => {
   )
 
   it.each([
-    ['0.1.1-alpha.1', 'alpha'],
-    ['0.1.1-rc.1', 'rc'],
-    ['0.1.1', 'latest'],
+    ['0.2.0-alpha.1', 'alpha'],
+    ['0.2.0-rc.1', 'rc'],
   ])(
-    'rejects polluted native latest for %s',
+    'allows %s verification without changing the historical native latest',
     (expectedVersion, expectedTag) => {
       const tags = validTags(expectedTag, expectedVersion)
       tags.set('@zeus-js/compiler-native', {
@@ -99,35 +98,50 @@ describe('npm dist-tag policy', () => {
         getDistTagPolicyErrors({
           expectedVersion,
           expectedTag,
-          requireProvenance: false,
+          requireProvenance: true,
           tagsByPackage: tags,
-          provenanceByPackage: new Map(),
+          provenanceByPackage: new Map(
+            zeusFixedPackages.map(pkg => [pkg, true]),
+          ),
         }),
-      ).toContain(
-        `@zeus-js/compiler-native: latest must not point to prerelease ${version}`,
-      )
+      ).toEqual([])
     },
   )
 
-  it('does not let an alpha version bypass latest policy through the beta tag', () => {
-    const alphaVersion = '0.1.1-alpha.1'
-    const tags = validTags('beta', alphaVersion)
-    tags.set('@zeus-js/compiler-native', {
-      beta: alphaVersion,
-      latest: version,
-    })
+  it('requires the stable latest to point to the published version', () => {
+    const stableVersion = '0.2.0'
+    const tags = validTags('latest', stableVersion)
+    tags.set('@zeus-js/compiler-native', { latest: version })
 
     expect(
       getDistTagPolicyErrors({
-        expectedVersion: alphaVersion,
-        expectedTag: 'beta',
+        expectedVersion: stableVersion,
+        expectedTag: 'latest',
         requireProvenance: false,
         tagsByPackage: tags,
         provenanceByPackage: new Map(),
       }),
-    ).toContain(
-      `@zeus-js/compiler-native: latest must not point to prerelease ${version}`,
-    )
+    ).toEqual([
+      `@zeus-js/compiler-native: latest points to ${version}, expected ${stableVersion}`,
+    ])
+  })
+
+  it('requires stable provenance after latest advances to the release', () => {
+    const stableVersion = '0.2.0'
+    const provenance = new Map(zeusFixedPackages.map(pkg => [pkg, true]))
+    provenance.delete('@zeus-js/compiler-native')
+
+    expect(
+      getDistTagPolicyErrors({
+        expectedVersion: stableVersion,
+        expectedTag: 'latest',
+        requireProvenance: true,
+        tagsByPackage: validTags('latest', stableVersion),
+        provenanceByPackage: provenance,
+      }),
+    ).toEqual([
+      `@zeus-js/compiler-native@${stableVersion}: npm provenance is missing`,
+    ])
   })
 
   it('allows beta verification while native latest is independently polluted', () => {

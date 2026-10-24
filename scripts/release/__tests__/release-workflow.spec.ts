@@ -141,19 +141,17 @@ describe('release workflows', () => {
     expect(buildScript).toContain('if (result.status !== 0)')
   })
 
-  it('allows beta releases past native latest while guarding other tags', () => {
+  it('publishes tagged releases without requiring historical native latest cleanup', () => {
     const workflow = readFileSync(
       resolve(root, '.github/workflows/release.yml'),
       'utf8',
     )
 
-    expect(workflow).toContain(
-      "if: steps.release-version.outputs.dist-tag != 'beta'",
-    )
-    expect(workflow).toContain('pnpm release:verify:native-latest')
-    expect(workflow.indexOf('pnpm release:verify:native-latest')).toBeLessThan(
-      workflow.indexOf('pnpm release --publishOnly'),
-    )
+    expect(workflow).not.toContain('pnpm release:verify:native-latest')
+    expect(workflow).toContain('pnpm release:verify:tag-source')
+    expect(workflow).toContain('pnpm release:precheck')
+    expect(workflow).toContain('pnpm release:verify:dist-tags')
+    expect(workflow).toContain('--require-provenance')
   })
 
   it('dispatches canary only after both registry smoke jobs pass', () => {

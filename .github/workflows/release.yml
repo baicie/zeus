@@ -79,10 +79,6 @@ jobs:
       - name: Verify release tag source
         run: pnpm release:verify:tag-source --version "${{ steps.release-version.outputs.version }}"
 
-      - name: Reject prerelease native latest tags
-        if: steps.release-version.outputs.dist-tag != 'beta'
-        run: pnpm release:verify:native-latest
-
       - name: Release precheck
         run: pnpm release:precheck
 
