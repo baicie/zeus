@@ -292,7 +292,10 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
       // generateBundle() only emits declaration assets to avoid file-name collisions.
       if (isLazy) {
         if (dts) {
-          const loaderDts = generateLoaderDts(ctx.manifest)
+          const loaderDts = [
+            ...(jsxDts ? ["import './types/jsx'", ''] : []),
+            generateLoaderDts(ctx.manifest),
+          ].join('\n')
 
           files.push({
             type: 'asset',

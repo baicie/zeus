@@ -51,8 +51,30 @@ export declare function defineCustomElement(options?: {
 ```
 
 `wc/types/jsx.d.ts` extends the Zeus JSX namespace with component props and
-event handlers. In side-effect mode (`register: 'side-effect'`), the plugin
-also emits per-component element types and `wc/index.d.ts` exports them.
+event handlers. When `jsxDts` is enabled, the loader and index declarations
+reference it, so importing a package entry whose `types` points to
+`wc/index.d.ts` also activates its JSX contract. Side-effect mode
+(`register: 'side-effect'`) uses `wc/jsx.d.ts` in the same way. Disabling
+`jsxDts` omits that reference.
+
+Both modes export each component's element type and event map from
+`wc/index.d.ts`. Event map keys use the declared DOM event names; required
+and optional detail fields follow the analyzer's event schema. Element
+`addEventListener` and `removeEventListener` infer those event payloads while
+retaining standard `HTMLElement` event listeners. For example, a component
+named `ZNotice` with a `row-change` event exports `ZNoticeElement` and
+`ZNoticeEventMap`:
+
+```ts
+import type { ZNoticeEventMap } from '@example/notices/wc'
+
+const payload: ZNoticeEventMap['row-change']['detail'] = { rowId: 'row-1' }
+```
+
+The package must export that entry with its generated declaration path;
+consumers do not need to import a private `dist` declaration file. Component
+schemas also take precedence over common JSX attributes such as `id`, so a
+schema can make that attribute required.
 
 The loader declaration adds component types to `HTMLElementTagNameMap`:
 

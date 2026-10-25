@@ -45,10 +45,13 @@ export function generateWCDtsFiles(
   if (normalized.index) {
     files.push({
       fileName: path.posix.join(normalized.outDir, 'index.d.ts'),
-      source: generateWCIndexDts(manifest, {
-        getComponentImportPath: component =>
-          `./${getComponentFileBaseName(component.tag, normalized)}`,
-      }),
+      source: [
+        ...(normalized.jsx ? ["import './jsx'", ''] : []),
+        generateWCIndexDts(manifest, {
+          getComponentImportPath: component =>
+            `./${getComponentFileBaseName(component.tag, normalized)}`,
+        }),
+      ].join('\n'),
     })
   }
 

@@ -59,7 +59,7 @@ describe('generateWCJsxDts', () => {
       ],
     })
 
-    expect(code).toContain('export interface ZButtonProps')
+    expect(code).toContain('export type ZButtonProps =')
     expect(code).toContain('children?: unknown')
     expect(code).toContain('class?: string')
     expect(code).toContain('className?: string')
@@ -103,8 +103,8 @@ describe('generateWCJsxDts', () => {
       ],
     })
 
-    expect(code).toContain('export interface ZButtonProps')
-    expect(code).toContain('export interface ZCardProps')
+    expect(code).toContain('export type ZButtonProps =')
+    expect(code).toContain('export type ZCardProps =')
     expect(code).toContain('"z-button": ZButtonProps')
     expect(code).toContain('"z-card": ZCardProps')
   })

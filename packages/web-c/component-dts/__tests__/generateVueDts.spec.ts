@@ -71,7 +71,7 @@ describe('generateVueDts', () => {
     })
 
     expect(code).toContain(
-      `import type { DefineComponent, SlotsType } from 'vue'`,
+      `import type { DefineComponent, EmitsToProps, SlotsType } from 'vue'`,
     )
     expect(code).toContain('export interface ZButtonProps')
     expect(code).toContain(
