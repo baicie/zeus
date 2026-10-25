@@ -55,7 +55,7 @@ import type {} from 'vue/jsx'
 import type { JSX as PublicJSX } from '@zeus-js/zeus/jsx'
 import type { JSX as RuntimeJSX } from '@zeus-js/zeus/jsx-runtime'
 import type { JSX as DevJSX } from '@zeus-js/zeus/jsx-dev-runtime'
-import { ErrorBoundary, ErrorBoundary as Boundary, type ErrorBoundaryProps } from '@zeus-js/zeus'
+import { createSignal, ErrorBoundary, ErrorBoundary as Boundary, type ErrorBoundaryProps } from '@zeus-js/zeus'
 import { ErrorBoundary as RuntimeBoundary } from '@zeus-js/runtime-dom'
 import './custom-elements'
 const fragment = <><section><header>Header</header><footer>Footer</footer></section></>
@@ -104,12 +104,29 @@ const developmentValue: DevJSX.Element = publicValue
 const misspelled = <button disabld={true} />
 // @ts-expect-error Unknown standard tag names are not custom elements.
 const misspelledTag = <buton />
-// Native attributes and class/style values may be supplied as reactive getters.
+const [disabled] = createSignal(false)
+const [label] = createSignal('active')
+const signalAttributes = <button disabled={disabled()} title={label()}
+  data-state={label()} aria-label={label()} class={{ active: disabled() }}
+  style={{ color: label() }} />
+const signalSVG = <path d={label()} />
+const nativeFunctionProperty = <input prop:formatter={formatter} />
+// @ts-expect-error Native attributes read values; the compiler rejects function getters.
 const getterAttribute = <button disabled={() => true} />
+// @ts-expect-error Class expressions read values instead of calling function getters.
 const getterClass = <div class={() => 'active'} />
+// @ts-expect-error Style expressions read values instead of calling function getters.
 const getterStyle = <div style={() => ({ color: 'red' })} />
+// @ts-expect-error Common attributes reject getter functions too.
+const getterTitle = <div title={() => 'title'} />
+// TypeScript skips JSX checks for hyphenated names; verify their declared prop types directly.
+// @ts-expect-error Data attributes must contain scalar values.
+const getterData: PublicJSX.IntrinsicElements['div'] = { 'data-state': () => 'active' }
+// @ts-expect-error ARIA attributes must contain scalar values.
+const getterARIA: PublicJSX.IntrinsicElements['div'] = { 'aria-label': () => 'label' }
 // @ts-expect-error Framework synthetic events do not replace native DOM events.
 const syntheticEvent = <button onClick={(event: ReactMouseEvent) => event.persist()} />
+// @ts-expect-error SVG attributes follow the same scalar expression contract.
 const getterSVG = <path d={() => 'M0 0'} />
 // @ts-expect-error SVG attribute typos must be rejected.
 const misspelledSVG = <path strokWidth={1} />
@@ -118,7 +135,8 @@ const invalidCustom = <z-typed-counter count="wrong" />
 // @ts-expect-error Manifest augmentation keeps required properties.
 const missingCustom = <z-typed-counter />
 void [fragment, button, image, graphic, custom, typedCustom, component, developmentValue,
-  misspelled, misspelledTag, getterAttribute, getterClass, getterStyle, syntheticEvent,
+  misspelled, misspelledTag, signalAttributes, signalSVG, nativeFunctionProperty,
+  getterAttribute, getterClass, getterStyle, getterTitle, getterData, getterARIA, syntheticEvent,
   getterSVG, misspelledSVG, invalidCustom, missingCustom, boundary, aliasedBoundary,
   runtimeBoundary, emptyBoundary, explicitBoundary, factoryComponent, eagerFactoryComponent,
   eagerRuntimeBoundary, factoryBoundary, missingBoundaryFallback, eagerBoundaryFallback,

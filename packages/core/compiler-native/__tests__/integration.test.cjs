@@ -520,6 +520,78 @@ export const childExecutionCount = () => childExecutions
   }
 })
 
+test('native compiler calls member components without treating Namespace.Show as a builtin', async () => {
+  const memberSource = `import { createSignal } from '@zeus-js/signal'
+import { render } from '@zeus-js/runtime-dom'
+
+const [label, setLabel] = createSignal('Ada')
+const calls = { app: 0, button: 0, show: 0 }
+const Button = props => (calls.button++, <button>{props.label}</button>)
+const Show = props => (
+  calls.show++,
+  <aside data-kind="ordinary" data-when={props.when ? 'true' : 'false'}>{props.children}</aside>
+)
+const UI = { Button }
+const Namespace = { Show }
+const App = () => (
+  calls.app++,
+  <main>
+    <UI.Button label={label()} />
+    <Namespace.Show when={false}><span>{label()}</span></Namespace.Show>
+  </main>
+)
+export const mount = container => render(() => App(), container)
+export const update = setLabel
+export const executionCounts = () => ({ ...calls })
+`
+  const fixture = createFixture(memberSource)
+  const restoreDOM = installDOMGlobals()
+  const { createServer } = await import('vite')
+  const server = await createServer({
+    root: fixture.root,
+    configFile: false,
+    logLevel: 'silent',
+    optimizeDeps: { noDiscovery: true },
+    define: {
+      __DEV__: 'true',
+      __TEST__: 'true',
+      __VERSION__: JSON.stringify('test'),
+    },
+    resolve: { alias: runtimeAliases() },
+    plugins: [createNativePlugin()],
+    server: { middlewareMode: true },
+  })
+
+  try {
+    const module = await server.ssrLoadModule('/src/App.tsx')
+    const container = document.createElement('div')
+    const dispose = module.mount(container)
+    const button = container.querySelector('button')
+    const ordinaryShow = container.querySelector('aside[data-kind="ordinary"]')
+    const child = ordinaryShow?.querySelector('span')
+
+    assert.equal(button?.textContent, 'Ada')
+    assert.equal(ordinaryShow?.getAttribute('data-when'), 'false')
+    assert.equal(child?.textContent, 'Ada')
+    assert.deepEqual(module.executionCounts(), { app: 1, button: 1, show: 1 })
+
+    module.update('Grace')
+    assert.equal(button.textContent, 'Grace')
+    assert.equal(child.textContent, 'Grace')
+    assert.strictEqual(container.querySelector('button'), button)
+    assert.strictEqual(container.querySelector('aside'), ordinaryShow)
+    assert.strictEqual(ordinaryShow.querySelector('span'), child)
+    assert.deepEqual(module.executionCounts(), { app: 1, button: 1, show: 1 })
+
+    dispose()
+    assert.equal(container.childNodes.length, 0)
+  } finally {
+    await server.close()
+    restoreDOM()
+    rmSync(fixture.root, { force: true, recursive: true })
+  }
+})
+
 test('native compiler preserves nested control flow in component children', async () => {
   const nestedControlFlowSource =
     `import { render, Show, For } from '@zeus-js/runtime-dom'

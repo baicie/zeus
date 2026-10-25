@@ -703,6 +703,48 @@ describe('analyzeFile', () => {
     })
   })
 
+  it.each([
+    {
+      meta: '',
+      expected: { value: 'string', nativeEvent: 'Event' },
+      optional: ['nativeEvent'],
+    },
+    {
+      meta: "meta: { events: { valueChange: { description: 'Description only' } } },",
+      expected: { value: 'string', nativeEvent: 'Event' },
+      optional: ['nativeEvent'],
+    },
+    {
+      meta: "meta: { events: { valueChange: { detail: { value: 'string' } } } },",
+      expected: { value: 'string' },
+      optional: undefined,
+    },
+    {
+      meta: "meta: { events: { valueChange: { detail: { value: 'string', reason: 'string' }, detailOptional: ['reason'] } } },",
+      expected: { value: 'string', reason: 'string' },
+      optional: ['reason'],
+    },
+  ])(
+    'keeps event optional fields with their selected detail ($meta)',
+    ({ meta, expected, optional }) => {
+      const result = analyzeFile({
+        file: 'src/notice.tsx',
+        code: `import { defineElement, event } from '@zeus-js/zeus'
+        export const Notice = defineElement('z-notice', {
+          emits: { valueChange: event<{ value: string; nativeEvent?: Event }>() },
+          ${meta}
+        }, (_props, { emit }) => {
+          emit.valueChange({ value: 'ready' })
+          return null
+        })`,
+      })
+      expect(result.diagnostics).toEqual([])
+      const event = result.components[0].events.valueChange
+      expect(event.detail).toEqual(expected)
+      expect(event.detailOptional).toEqual(optional)
+    },
+  )
+
   it('preserves portable types and erases source-bound references', () => {
     const code = `
       import { defineElement, event } from '@zeus-js/zeus'

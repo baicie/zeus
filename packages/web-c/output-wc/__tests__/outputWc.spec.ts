@@ -1402,6 +1402,7 @@ async function createStrictPnpmViteFixture(): Promise<StrictPnpmViteFixture> {
       'export const generateLoaderDts = () => ""',
       'export const generateWCDtsFiles = () => []',
       'export const generateWCJsxDts = () => ""',
+      'export const formatDetailType = () => "{}"',
       '',
     ].join('\n'),
   )

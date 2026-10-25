@@ -174,7 +174,7 @@ pnpm dlx zeus-ui add dialog
 @zeus-js/zeus            — 统一入口
 @zeus-js/signal          — 响应式核心
 @zeus-js/runtime-dom     — DOM runtime + defineElement
-@zeus-js/compiler        — Babel JSX 编译器
+@zeus-js/compiler        — Rust/Oxc 编译器公共入口，加载 @zeus-js/compiler-native
 @zeus-js/vite-plugin     — Vite 集成插件
 @zeus-js/web-c           — Web-C 聚合入口
 

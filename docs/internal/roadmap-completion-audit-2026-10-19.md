@@ -5,7 +5,19 @@
 [执行表](./architecture-roadmap-2026-10.md) 中的原 Task ID。绿灯只证明其覆盖的范围。
 Beta 无历史兼容层规则优先于原设计中的兼容窗口建议。
 
-## 当前审计结论（2026-10-24）
+## 当前审计结论（2026-10-25）
+
+完整恢复的原始 `01-TASKS.md` 含 75 项任务，SHA-256 与原登记值一致。按明确验收重新核验后，以下项目不能沿用旧的完成标记：
+
+- D-001：`create-zeus@0.1.4` 四模板在仓库外真实安装后，check/build（含有 test 脚本的模板测试）均通过，但 Application 的 dev 页面点击计数仍为 0。旧模板范围解析到 `@zeus-js/zeus@0.1.0` 与 `vite-plugin@0.0.4`；构建通过不构成交互验收。
+- S-001/S-002/S-008：JSX DTS 仍接受编译器明确拒绝的 native attribute getter。已按唯一当前值语义修改类型与三种 JSX 模式回归，尚未合并。
+- S-007：新增 `UI.Button` / `Namespace.Show` 的真实 Native Vite 执行、signal 更新、单次初始化与 DOM identity 回归已通过，尚未合并。
+- F-008：Analyzer 丢失事件详情字段的可选标记，造成源码的 `nativeEvent?: Event` 在生成 DTS 中变成必填。已修复 Analyzer、Manifest 和各输出共同契约；相关 227 项回归、完整构建/DTS 与 API 快照核验通过，源码与四份预期 API 快照已提交，仍待 CI 与合并。
+- U-007：已实际手工走查九类关键交互，发现 Checkbox/Switch 的初始状态与文字不一致；同根因影响 Dialog/Collapsible/Tooltip 的默认打开状态。UI PR #115 已加入五组件修复及 25 项新回归；修复后相关 35 项通过，真实浏览器复查已通过，九类控件的操作、可访问树摘录和截图已由 UI commit `56215f3` 持久化至 `docs/acceptance/u007-manual-2026-10-25/report.md`；该 PR 的最终 CI/合并仍待完成。
+
+D-006 真人反馈闭环与 F-011 历史标签清理放弃决定保持有效。总目标继续进行中；还须完成上述修复的 CI/合并、正确发布工具链、UI `0.1.0` 稳定发布、真实 registry/provenance/消费者验收及对应 Golden 全矩阵。`02-DESIGN.md` 当前只恢复了前 260 行，未将其表述为完整原文。
+
+## 2026-10-24 审计结论（历史快照）
 
 - D-006 已按用户真人反馈关闭：约 10 分钟完成上手，最后一步 HTML 预览是主要卡点；过程有依赖修复与预览指导，未记录逐步精确计时，不表述为无协助实验。
 - F-011 发布链已完成；历史 native `latest` 删除由用户明确放弃，不再作为后续 `0.2.0` 发布的前置条件。发布后目标版本/dist-tag、provenance 与真实 compiler 安装校验仍必须通过，稳定版的 `latest` 必须指向本次版本。

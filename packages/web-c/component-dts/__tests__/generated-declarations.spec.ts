@@ -1,11 +1,14 @@
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { analyzeComponents } from '@zeus-js/component-analyzer'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
+import { generateCustomElementsJson } from '../../output-wc/src/generateCustomElementsJson'
 import { generateWCDtsFiles } from '../src/generateFiles'
 import { generateWCJsxDts } from '../src/generateJsxDts'
 import { generateLoaderDts } from '../src/generateLoaderDts'
@@ -109,6 +112,124 @@ describe('generated declaration consumer contract', () => {
     vueRootNames.push(await writeVueStub(root, 'typed-vue'))
 
     expectDeclarationsToCompile([...reactRootNames, ...vueRootNames])
+  }, 15000)
+
+  it('preserves optional event detail fields across analyzer, declarations and CEM', async () => {
+    const root = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'zeus-dts-optional-event-'),
+    )
+    try {
+      await writeComponentSource(
+        root,
+        'notice.tsx',
+        `
+        import { defineElement, event } from '@zeus-js/zeus'
+        export const ZNotice = defineElement('z-notice', {
+          emits: { valueChange: event<{ value: string; nativeEvent?: Event }>() },
+        }, (_props, { emit }) => {
+          emit.valueChange({ value: 'ready' })
+          return null
+        })
+      `,
+      )
+      const result = await analyzeComponents({
+        root,
+        include: ['src/components/**/*.tsx'],
+      })
+      expect(result.diagnostics).toEqual([])
+      expect(result.manifest.components[0].events.valueChange).toMatchObject({
+        detail: { value: 'string', nativeEvent: 'Event' },
+        detailOptional: ['nativeEvent'],
+      })
+
+      const declarations = {
+        react: generateReactDts(result.manifest),
+        vue: generateVueDts(result.manifest),
+        native: generateComponentWCDts(result.manifest.components[0]),
+        jsx: generateWCJsxDts(result.manifest),
+      }
+      for (const declaration of Object.values(declarations)) {
+        expect(declaration).toContain('value: string; nativeEvent?: Event')
+      }
+      expect(
+        generateCustomElementsJson({
+          manifest: result.manifest,
+          getModulePath: () => './notice.js',
+        }),
+      ).toContain('CustomEvent<{ value: string; nativeEvent?: Event }>')
+      const manifestPath = path.join(root, 'zeus.components.json')
+      const docsPath = path.join(root, 'docs')
+      await fs.writeFile(manifestPath, JSON.stringify(result.manifest))
+      execFileSync(
+        process.execPath,
+        [
+          '--import',
+          'tsx',
+          fileURLToPath(
+            new URL(
+              '../../../../scripts/docs/generate-component-api.ts',
+              import.meta.url,
+            ),
+          ),
+          manifestPath,
+          docsPath,
+        ],
+        { cwd: new URL('../../../../', import.meta.url), stdio: 'pipe' },
+      )
+      expect(
+        await fs.readFile(path.join(docsPath, 'z-notice.md'), 'utf8'),
+      ).toContain('value: string; nativeEvent?: Event')
+      const consumers = {
+        react: `import type { ZNoticeProps } from './index'
+          type Detail = Parameters<NonNullable<ZNoticeProps['onValueChange']>>[0]['detail']`,
+        vue: `import { ZNotice } from './index'
+          type Detail = Parameters<typeof ZNotice.$emit>[1]['detail']`,
+        native: `import type { ZNoticeEventMap } from './index'
+          type Detail = ZNoticeEventMap['value-change']['detail']`,
+        jsx: `import type { ZNoticeProps } from './index'
+          type Detail = Parameters<NonNullable<ZNoticeProps['onValueChange']>>[0]['detail']`,
+      }
+      const roots: string[] = []
+      for (const [kind, declaration] of Object.entries(declarations)) {
+        roots.push(
+          ...(await writeDeclarationConsumer(
+            root,
+            kind,
+            declaration,
+            `
+          ${consumers[kind as keyof typeof consumers]}
+          const withoutNativeEvent: Detail = { value: 'ready' }
+          const withNativeEvent: Detail = { value: 'ready', nativeEvent: new Event('change') }
+          // @ts-expect-error The value field remains required.
+          const missingValue: Detail = { nativeEvent: new Event('change') }
+          // @ts-expect-error Required detail fields retain their precise type.
+          const invalidValue: Detail = { value: 42 }
+          function read(detail: Detail) {
+            const required: string = detail.value
+            const optional: Event | undefined = detail.nativeEvent
+            // @ts-expect-error Optional native events must be checked before use.
+            const requiredEvent: Event = detail.nativeEvent
+            void [required, optional, requiredEvent]
+          }
+          void [withoutNativeEvent, withNativeEvent, missingValue, invalidValue, read]
+        `,
+          )),
+        )
+      }
+      roots.push(await writeReactStub(root, 'react'))
+      roots.push(await writeVueStub(root, 'vue'))
+      const jsxStub = path.join(root, 'jsx-runtime.d.ts')
+      await fs.writeFile(
+        jsxStub,
+        `declare module '@zeus-js/zeus/jsx' {
+        export namespace JSX { interface IntrinsicElements {} }
+      }`,
+      )
+      roots.push(jsxStub)
+      expectDeclarationsToCompile(roots)
+    } finally {
+      await fs.rm(root, { recursive: true, force: true })
+    }
   }, 15000)
 
   it('emits self-contained React and custom element declarations', async () => {

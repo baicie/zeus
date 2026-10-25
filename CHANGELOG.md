@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.1-beta.19 (2026-10-25)
+
+### Fixes
+
+- Preserve optional event detail fields from source through Analyzer metadata, Native/JSX/React/Vue declarations, CEM and component API documentation. Required fields and their precise types remain enforced.
+- Align native HTML/SVG JSX attribute declarations with the compiler's scalar expression semantics; signal accessor calls remain supported while attribute getter functions are rejected.
+- Verify namespaced ordinary components with real Native Vite execution, including signal updates, single initialization, DOM identity and disposal.
+- Stop blocking releases on deletion of the historical native npm `latest` tag, while retaining target dist-tag, provenance and compiler-install verification.
+- Preserve Admin grid rows across query status and staleness updates so a pointer press retains its target and selection completes in WebKit.
+
 ## 0.1.1-beta.18 (2026-10-22)
 
 ### Fixes

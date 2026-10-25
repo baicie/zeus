@@ -11,7 +11,6 @@ import type { HostProps, SlotProps } from '@zeus-js/runtime-dom'
 type EventHandler<E extends Event = Event> = (event: E) => void
 
 type PrimitiveAttr = string | number | boolean | null | undefined
-type Reactive<T> = T | (() => T)
 
 type ClassValue =
   | string
@@ -29,22 +28,22 @@ type StyleValue =
   | Record<string, string | number | null | undefined>
 
 type CommonDOMAttributes<T extends Element> = {
-  [key: `data-${string}`]: Reactive<PrimitiveAttr>
-  [key: `aria-${string}`]: Reactive<PrimitiveAttr>
+  [key: `data-${string}`]: PrimitiveAttr
+  [key: `aria-${string}`]: PrimitiveAttr
   [key: `prop:${string}`]: unknown
 
   ref?: RefTarget<T>
 
-  class?: Reactive<ClassValue>
-  className?: Reactive<ClassValue>
-  style?: Reactive<StyleValue>
+  class?: ClassValue
+  className?: ClassValue
+  style?: StyleValue
 
-  id?: Reactive<PrimitiveAttr>
-  title?: Reactive<PrimitiveAttr>
-  role?: Reactive<PrimitiveAttr>
-  slot?: Reactive<string>
-  part?: Reactive<string>
-  exportparts?: Reactive<string>
+  id?: PrimitiveAttr
+  title?: PrimitiveAttr
+  role?: PrimitiveAttr
+  slot?: string
+  part?: string
+  exportparts?: string
 
   onClick?: EventHandler<MouseEvent>
   onDblClick?: EventHandler<MouseEvent>
@@ -98,138 +97,132 @@ type CommonDOMAttributes<T extends Element> = {
   children?: JSXValue
 }
 
-type ReactiveAttributes<T> = {
-  [K in keyof T]: Reactive<T[K]>
+type HTMLAttributes<T extends HTMLElement> = CommonDOMAttributes<T> & {
+  type?: string
+  checked?: boolean
+  value?: string | number
+  placeholder?: PrimitiveAttr
+  disabled?: boolean
+  readonly?: boolean
+  multiple?: boolean
+  name?: PrimitiveAttr
+  for?: PrimitiveAttr
+  href?: PrimitiveAttr
+  target?: PrimitiveAttr
+  rel?: PrimitiveAttr
+  src?: PrimitiveAttr
+  alt?: PrimitiveAttr
+  width?: number | string
+  height?: number | string
+  download?: PrimitiveAttr
+  accept?: PrimitiveAttr
+  maxlength?: number
+  minlength?: number
+  max?: number | string
+  min?: number | string
+  step?: number | string
+  rows?: number
+  cols?: number
+  wrap?: PrimitiveAttr
+  autofocus?: boolean
+  autoplay?: boolean
+  controls?: boolean
+  loop?: boolean
+  muted?: boolean
+  preload?: PrimitiveAttr
+  poster?: PrimitiveAttr
+  srcset?: PrimitiveAttr
+  sizes?: PrimitiveAttr
+  crossorigin?: PrimitiveAttr
+  defer?: boolean
+  async?: boolean
+  integrity?: PrimitiveAttr
+  charset?: PrimitiveAttr
+  'http-equiv'?: PrimitiveAttr
+  content?: PrimitiveAttr
+  lang?: PrimitiveAttr
+  dir?: PrimitiveAttr
+  spellcheck?: boolean
+  translate?: boolean
+  tabindex?: number
+  tabIndex?: number
+  accesskey?: PrimitiveAttr
+  draggable?: boolean
+  hidden?: boolean
+  contenteditable?: boolean | 'true' | 'false' | 'plaintext-only'
+  autocomplete?: PrimitiveAttr
+  inputmode?: PrimitiveAttr
+  enterkeyhint?: PrimitiveAttr
+  pattern?: PrimitiveAttr
+  required?: boolean
+  form?: PrimitiveAttr
+  formaction?: PrimitiveAttr
+  formmethod?: PrimitiveAttr
+  formenctype?: PrimitiveAttr
+  formtarget?: PrimitiveAttr
+  novalidate?: boolean
+  method?: PrimitiveAttr
+  action?: PrimitiveAttr
+  enctype?: PrimitiveAttr
+  selected?: boolean
+  size?: number
+  span?: number
+  colspan?: number
+  rowspan?: number
+  scope?: PrimitiveAttr
+  datetime?: PrimitiveAttr
+  open?: boolean
+  inert?: boolean
+  popover?: '' | 'auto' | 'manual' | 'hint'
+  loading?: 'eager' | 'lazy'
+  decoding?: 'async' | 'sync' | 'auto'
+  capture?: PrimitiveAttr
+  is?: string
 }
 
-type HTMLAttributes<T extends HTMLElement> = CommonDOMAttributes<T> &
-  ReactiveAttributes<{
-    type?: string
-    checked?: boolean
-    value?: string | number
-    placeholder?: PrimitiveAttr
-    disabled?: boolean
-    readonly?: boolean
-    multiple?: boolean
-    name?: PrimitiveAttr
-    for?: PrimitiveAttr
-    href?: PrimitiveAttr
-    target?: PrimitiveAttr
-    rel?: PrimitiveAttr
-    src?: PrimitiveAttr
-    alt?: PrimitiveAttr
-    width?: number | string
-    height?: number | string
-    download?: PrimitiveAttr
-    accept?: PrimitiveAttr
-    maxlength?: number
-    minlength?: number
-    max?: number | string
-    min?: number | string
-    step?: number | string
-    rows?: number
-    cols?: number
-    wrap?: PrimitiveAttr
-    autofocus?: boolean
-    autoplay?: boolean
-    controls?: boolean
-    loop?: boolean
-    muted?: boolean
-    preload?: PrimitiveAttr
-    poster?: PrimitiveAttr
-    srcset?: PrimitiveAttr
-    sizes?: PrimitiveAttr
-    crossorigin?: PrimitiveAttr
-    defer?: boolean
-    async?: boolean
-    integrity?: PrimitiveAttr
-    charset?: PrimitiveAttr
-    'http-equiv'?: PrimitiveAttr
-    content?: PrimitiveAttr
-    lang?: PrimitiveAttr
-    dir?: PrimitiveAttr
-    spellcheck?: boolean
-    translate?: boolean
-    tabindex?: number
-    tabIndex?: number
-    accesskey?: PrimitiveAttr
-    draggable?: boolean
-    hidden?: boolean
-    contenteditable?: boolean | 'true' | 'false' | 'plaintext-only'
-    autocomplete?: PrimitiveAttr
-    inputmode?: PrimitiveAttr
-    enterkeyhint?: PrimitiveAttr
-    pattern?: PrimitiveAttr
-    required?: boolean
-    form?: PrimitiveAttr
-    formaction?: PrimitiveAttr
-    formmethod?: PrimitiveAttr
-    formenctype?: PrimitiveAttr
-    formtarget?: PrimitiveAttr
-    novalidate?: boolean
-    method?: PrimitiveAttr
-    action?: PrimitiveAttr
-    enctype?: PrimitiveAttr
-    selected?: boolean
-    size?: number
-    span?: number
-    colspan?: number
-    rowspan?: number
-    scope?: PrimitiveAttr
-    datetime?: PrimitiveAttr
-    open?: boolean
-    inert?: boolean
-    popover?: '' | 'auto' | 'manual' | 'hint'
-    loading?: 'eager' | 'lazy'
-    decoding?: 'async' | 'sync' | 'auto'
-    capture?: PrimitiveAttr
-    is?: string
-  }>
-
-type SVGAttributes<T extends SVGElement> = CommonDOMAttributes<T> &
-  ReactiveAttributes<{
-    d?: PrimitiveAttr
-    cx?: number | string
-    cy?: number | string
-    r?: number | string
-    rx?: number | string
-    ry?: number | string
-    x?: number | string
-    y?: number | string
-    width?: number | string
-    height?: number | string
-    viewBox?: PrimitiveAttr
-    focusable?: boolean | 'true' | 'false' | 'auto'
-    fill?: PrimitiveAttr
-    stroke?: PrimitiveAttr
-    'stroke-width'?: number | string
-    'stroke-linecap'?: PrimitiveAttr
-    'stroke-linejoin'?: PrimitiveAttr
-    'stroke-dasharray'?: PrimitiveAttr
-    'stroke-dashoffset'?: number | string
-    'stroke-opacity'?: number | string
-    'fill-opacity'?: number | string
-    opacity?: number | string
-    transform?: PrimitiveAttr
-    points?: PrimitiveAttr
-    xmlns?: string
-    'xmlns:xlink'?: string
-    'xlink:href'?: string
-    preserveAspectRatio?: PrimitiveAttr
-    offset?: number | string
-    'stop-color'?: PrimitiveAttr
-    'stop-opacity'?: number | string
-    'fill-rule'?: PrimitiveAttr
-    'clip-rule'?: PrimitiveAttr
-    'clip-path'?: PrimitiveAttr
-    'stroke-miterlimit'?: number | string
-    'text-anchor'?: PrimitiveAttr
-    'font-size'?: number | string
-    x1?: number | string
-    y1?: number | string
-    x2?: number | string
-    y2?: number | string
-  }>
+type SVGAttributes<T extends SVGElement> = CommonDOMAttributes<T> & {
+  d?: PrimitiveAttr
+  cx?: number | string
+  cy?: number | string
+  r?: number | string
+  rx?: number | string
+  ry?: number | string
+  x?: number | string
+  y?: number | string
+  width?: number | string
+  height?: number | string
+  viewBox?: PrimitiveAttr
+  focusable?: boolean | 'true' | 'false' | 'auto'
+  fill?: PrimitiveAttr
+  stroke?: PrimitiveAttr
+  'stroke-width'?: number | string
+  'stroke-linecap'?: PrimitiveAttr
+  'stroke-linejoin'?: PrimitiveAttr
+  'stroke-dasharray'?: PrimitiveAttr
+  'stroke-dashoffset'?: number | string
+  'stroke-opacity'?: number | string
+  'fill-opacity'?: number | string
+  opacity?: number | string
+  transform?: PrimitiveAttr
+  points?: PrimitiveAttr
+  xmlns?: string
+  'xmlns:xlink'?: string
+  'xlink:href'?: string
+  preserveAspectRatio?: PrimitiveAttr
+  offset?: number | string
+  'stop-color'?: PrimitiveAttr
+  'stop-opacity'?: number | string
+  'fill-rule'?: PrimitiveAttr
+  'clip-rule'?: PrimitiveAttr
+  'clip-path'?: PrimitiveAttr
+  'stroke-miterlimit'?: number | string
+  'text-anchor'?: PrimitiveAttr
+  'font-size'?: number | string
+  x1?: number | string
+  y1?: number | string
+  x2?: number | string
+  y2?: number | string
+}
 
 type HTMLIntrinsicElements = {
   [Name in keyof HTMLElementTagNameMap]: HTMLAttributes<

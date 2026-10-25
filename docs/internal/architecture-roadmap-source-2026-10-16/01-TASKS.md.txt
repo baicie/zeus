@@ -1,0 +1,265 @@
+# Zeus 下一阶段任务清单（执行版）
+
+> 版本：V1.0 · 基线日期：2026-10-16  
+> 适用仓库：[Zeus](https://github.com/baicie/zeus) / [Zeus UI](https://github.com/baicie/zeus-ui)  
+> 参考 `main`：Zeus `d97e35c20014`；Zeus UI `1d2c24db27b5`。仓库基线包版本分别为 `0.1.1-beta.13`、`0.1.0-beta.32`。**仓库版本不代表 npm registry 已成功发布版本**。
+>
+> **使用方式**：`[ ]` 是本轮建议执行/验收项目，不代表仓库完全没有相应实现。`[x]` 仅用于已经通过源码核实的已有能力。每个子任务完成须提交 PR/commit、测试和文档；PR 对应一个 Task ID。详细设计见 `02-DESIGN.md`。
+
+## 0. 目标、非目标与完成定义
+
+### 北极星目标
+
+1. **Zeus Native**：用标准 TSX 开发真实 CSR 应用；compiler-first、fine-grained DOM，不靠组件 rerender/VDOM 兜底。
+2. **Zeus WebC**：一份 TSX 组件源码，产出 Web Components + React / Vue 的类型安全适配包；核心行为只实现一次。
+3. **工程可信**：外部项目能够 `create → develop → test → build → pack/install → publish/use`，不依赖 monorepo 内部路径和私有 API。
+4. **保持稳定**：继续使用当前 Rust Compiler、Signal、DOM Runtime、Component Compiler Host；协议修复优先于新增语法糖。
+
+### 范围排除（当前四个里程碑不做）
+
+- 不重写 Rust Compiler 或全面迁移为另一种编译器。
+- 不为了使用 `alien-signals` 而直接替换正在工作的响应式核心；先审计与验证。
+- 不开发 Next.js 类 Meta-framework、全量 Router/Query/Forms 基础设施。
+- 不承诺任意 React Element / Vue VNode 可以直接作为 WC 的内部 JSX 运行。
+- 不在 TSX 兼容性和 ABI 收敛之前推出 `$state` 公共稳定 API。
+- 不以“组件数量”作为成熟度指标。
+
+### Done 的统一要求
+
+- [ ] 代码变更有最小复现、单测或端到端验证；纯规范任务有可审阅 RFC 和测试计划。
+- [ ] 类型检查、lint、相关单测、生产构建通过；有语义变更时同时覆盖 SSR/浏览器分支。
+- [ ] 任何公共 API/生成结果变更同步修改 Manifest、DTS、文档、CHANGELOG、Snapshot。
+- [ ] 与 `zeus-ui` 的 canary 对齐/兼容回归通过；重要的发布改动经过 `npm pack` 外部消费测试。
+- [ ] 破坏性变更必须有迁移策略、诊断警告与至少一个版本窗口，不在补丁版本静默改变语义。
+
+## 1. 基线盘点（已有实现；不要重复开发）
+
+- [x] Rust `zeus_compiler`、N-API 多平台适配、DOM/SSR target。
+- [x] 基础响应式 API：`createSignal/createMemo/createEffect/createRoot/onCleanup/batch`。
+- [x] 直接 DOM Binding、静态模板、`Show/For`、Owner/Scope/Dispose。
+- [x] `defineElement`、`Host/Slot`、Eager/Lazy WC Runtime、ElementInternals 部分支持。
+- [x] Component Analyzer、Manifest、DTS、WC/React/Vue Output Plugin。
+- [x] Vite 插件、`create-zeus` 两类模板、文档、CI、Benchmark、Canary 工作流。
+- [x] Zeus UI 的基础组件、React/Vue 入口、Registry、Theme、Data Grid / Virtualizer 工作。
+- [ ] **B-001 [P0]** 建立 baseline 记录：两个仓库版本、commit、依赖、公开导出、最新 npm dist-tag、体积和构建时延。验收：`docs/baseline-2026-10.md` 可重现。
+- [ ] **B-002 [P0]** 记录已知兼容性边界与风险：TSX Spread、Nested JSX、React SSR Import、Lazy 属性同步、注册副作用、CI 发布；标注已确认/待复现。验收：issue 清单与最小复现脚本。
+- [ ] **B-003 [P0]** 选择 4 个 Golden Components：Button、Input、Dialog、Data Grid；冻结跨框架 API 预期。验收：`tests/contracts/golden-components.json` 与三种消费者示例。
+- [ ] **B-004 [P0]** 明确 `0.1.x beta → 0.2.0` 稳定性规则和弃用窗口。验收：RFC + CI API Diff Gate。
+
+## 2. M1 — 语法与运行时契约（P0，阻塞后续生态）
+
+> 目标：先确定 **TSX 的语义**，再改变 Rust Compiler。建议在下一轮 beta 优先执行。
+
+### A. Reactivity 引擎审计
+
+- [ ] **R-001 [P0]** 检查 `alien-signals` 是否实际在 `@zeus-js/signal` 的运行时代码中被导入、参与依赖追踪；绘制 `createSignal → shallowRef → Dep → Effect` 链。验收：产物依赖图、静态 import 列表、最小运行测试。
+- [ ] **R-002 [P0]** 针对目前自有 `Dep/Effect/Computed/Proxy`，运行嵌套 effect、批处理、computed diamond、递归更新、cleanup/dispose、跨 owner 测试。验收：契约测试清单 100% 通过。
+- [ ] **R-003 [P0]** 编写 ADR：保留自有引擎 vs 迁移 alien-signals；以功能契约、包大小、性能、Scope 兼容、许可/升级风险为依据。验收：决策记录，不允许“双引擎”混合追踪。
+- [ ] **R-004 [P0]** 修复或禁止同一树上不同响应式实现的跨包实例重复加载。验收：外部安装双入口、多份包去重和共享 Signal 测试。
+- [ ] **R-005 [P1]** 明确 Primitive Signal 的浅响应式、对象代理、数组/Map/Set 的公开支持级别；区分稳定 API 和 internal。验收：契约页与覆盖测试。
+- [ ] **R-006 [P1]** Effect Scope、cleanup、运行中 effect 重入与异步边界的错误语义文档化。验收：Owner Contract 及测试。
+
+### B. TSX 语义
+
+- [ ] **S-001 [P0]** 正式确定 JSX 各位置的值语义：原生 attr/property、事件、ref、组件 prop、children、Slot、`Show/For`。验收：`RFC-TSX-SEMANTICS` + 对照用例。
+- [ ] **S-002 [P0]** 解决 Arrow Function 表示 getter 与函数值的歧义：旧行为兼容、推荐写法、新语义的切换方案。验收：函数型 `formatter`/回调、`value={() => ...}`、`prop:handler` 不会被误执行。
+- [ ] **S-003 [P0]** Native JSX Spread `div {...attrs}`：属性覆盖顺序、class/style merge、事件/ref、动态更新、对象 identity。验收：对照 TSX/DOM 行为用例。
+- [ ] **S-004 [P0]** Component JSX Spread `<Child {...props} />`：getter 传播、覆盖优先级、children 与 key/ref，避免无谓 snapshot。验收：父信号更新后子绑定刷新。
+- [ ] **S-005 [P0]** 支持 JSX Expression 中嵌套 JSX（条件、逻辑、数组、函数返回 JSX）。验收：`{ok ? <A /> : <B />}`、`{items.map(...)}` 至少可编译正确；不会把数组当字符串文本。
+- [ ] **S-006 [P0]** `Show/For` 语义检验：keyed 同 key 替换、排序、重复 key、index、焦点保持、cleanup 顺序。验收：DOM Identity 和生命周期断言。
+- [ ] **S-007 [P1]** 固定函数型组件、WC 组件、普通 DOM 标签的分派边界；禁止错误识别为内建 `Show/For`。验收：别名导入、命名空间组件、shadowing 测试。
+- [ ] **S-008 [P1]** 完善 HTML/SVG/Custom Elements 类型；去除泛化 `[key: string]: unknown` 对原生标签的过宽兜底。验收：拼错 `disabled` 等属性产生 TS 错误，自定义元素可按 Manifest 扩展。
+- [ ] **S-009 [P1]** `@once` 迁移方案：保留注释形式兼容，新增显式 `once(expr)` compile intrinsic（提案阶段）。验收：无混淆、编译后无额外运行时包装；旧代码有迁移提示。
+- [ ] **S-010 [P2]** `$state/$derived` RFC：作用域捕获、赋值/++、解构、逃逸、嵌套对象、export、HMR/SSR。验收：禁止隐式跨模块 snapshot；**本里程碑不要求实现**。
+
+### C. Rust Compiler 与工具链
+
+- [ ] **C-001 [P0]** 扩充语义 IR：NativeSpread/ComponentSpread/ConditionalChild/ArrayChild/函数值语义标记，携带稳定 Span。验收：与 Babel AST 解耦，序列化测试通过。
+- [ ] **C-002 [P0]** 实现 Rust Lowering/Codegen 对新 JSX 语法的支持；输出正确动态 DOM 区域和子 Scope。验收：native compiler golden snapshots + 浏览器结果断言。
+- [ ] **C-003 [P0]** 对未知 JSX 表达式仍不能支持的情况给出准确诊断和修复提示；禁止静默字符串化。验收：所有 unsupported 分支有错误码和可定位 span。
+- [ ] **C-004 [P1]** Source Map 覆盖 Spread、Nested JSX、动态属性与高阶回调。验收：映射检查与构建错误定位。
+- [ ] **C-005 [P1]** 代码生成优化：静态模板复用、冗余 DOM 写入消除、effect 数量、事件委托。验收：性能数据不低于基线预算；不接受以改变语义换性能。
+- [ ] **C-006 [P1]** Vite Plugin HMR 分类：纯样式、模板结构、Signal 初始化、组件 API 变更；先保障销毁重挂正确，再做状态保留。验收：异常编译不会留下僵尸 owner / listener。
+
+### M1 退出条件
+
+- 完成 `R-001~R-004`、`S-001~S-006`、`C-001~C-003`；相关 test/golden 全绿。
+- 不再为了实现常见 TSX 表达式强迫用户重写成大量手工 getter 或 `<Show>`。
+- 旧 Zeus UI 组件在兼容模式下无行为回退；新语义需要 feature flag 或显式版本迁移。
+
+## 3. M2 — Web Component ABI V1 与 Eager/Lazy 一致性（P0）
+
+- [ ] **W-001 [P0]** 建立 `RFC-WC-ABI-V1`：属性/Property/Event/Slot/Method/Style/Form/生命周期/注册规范。验收：schema、非法状态定义、示例齐全。
+- [ ] **W-002 [P0]** 复现并修正 Lazy attribute 二次强制转换问题（`web-c-runtime/props.ts` → `mountElementDefinition`），统一一次性规范化。验收：boolean/number/string/null/自定义反序列化在 eager/lazy 完全一致。
+- [ ] **W-003 [P0]** 实现 Lazy `default` 的前置可观察策略：静态默认值 Manifest + 工厂默认值的明确初始化/ready 协议。验收：before-define/before-connect/during-loading/ready 四阶段行为有测试。
+- [ ] **W-004 [P0]** 明确 Property 先于/后于 attribute 写入的覆盖策略与反射循环保护；支持 pre-upgrade own-property replay。验收：随机属性更新序列的模型测试通过。
+- [ ] **W-005 [P0]** Eager/Lazy 相同的 `connected → disconnected → reconnected` 生命周期、dispose、async race；对 DOM move 做区分。验收：载入前 detach、载入中 detach、快速重连均无泄漏。
+- [ ] **W-006 [P0]** `defineCustomElement(tag)` 显式单组件注册；同名不同构造器/版本冲突抛可诊断错误，不以静默忽略掩盖。验收：多入口组合注册可预期。
+- [ ] **W-007 [P1]** 规范 Methods 的 `ready` 语义：同步方法/async 代理、调用在未 ready 时的行为；方法抛错和销毁后行为。验收：声明类型匹配实际 Promise/同步签名。
+- [ ] **W-008 [P1]** 规范 `CustomEvent` 命名、`detail`、`bubbles/composed/cancelable` 默认值和 React/Vue 映射。验收：跨 Shadow Root 冒泡与类型测试。
+- [ ] **W-009 [P1]** 将 Light DOM Projection 与原生 Shadow Slot 作为两种独立策略；文档说明 MutationObserver、节点所有权边界。验收：嵌套、重排、fallback、detach、焦点测试。
+- [ ] **W-010 [P1]** Form-associated 规范：ElementInternals、disabled/reset/restore、默认/当前 value。验收：native form submit、validation、重置测试。
+- [ ] **W-011 [P1]** 统一样式能力：Design Tokens、CSS Parts、`::part`、`data-*` Host、Shadow/Light CSS 注入。验收：主题切换与 CSP 兼容评估。
+- [ ] **W-012 [P1]** 明确 WC 的受控/非受控组件行为，Button/Input/DataGrid 分别具备契约例子。验收：外部 prop 不改时内部状态不会“假装受控”。
+- [ ] **W-013 [P1]** Manifest v1：组件 ABI Schema 带 `schemaVersion`、默认值策略、属性/事件/Slot/方法/Style 信息。验收：编译器、DTS、产物共享单一模型。
+
+### M2 退出条件
+
+- `Button/Input/Dialog/DataGrid` 的属性和生命周期 Eager/Lazy 差异为零（按文档定义的可观察行为）。
+- 每个组件可独立定义；可生成机器可读组件元数据；重复注册、非法属性都能诊断。
+
+## 4. M3 — React/Vue 多框架输出与发布（P0–P1）
+
+- [ ] **F-001 [P0]** React Wrapper server-safe import：禁用模块初始化时对 `HTMLElement/customElements/document` 的非守卫访问。验收：纯 Node SSR 环境 `import()` 不报错。
+- [ ] **F-002 [P0]** 定义 React 18/19 适配：类型化 Props、事件 `onXxx`、DOM Property、Ref、`className/style` 和儿童内容。验收：独立 Vite React18/19 演示通过。
+- [ ] **F-003 [P0]** Vue 3 适配：`props/attrs/emits`、Property 写入、Slot、`v-model` 事件 Detail 解包。验收：独立 Vue 工程 E2E 通过。
+- [ ] **F-004 [P0]** `minimal/runtime/event-bridge` 注册策略统一为按组件注册；Manifest 不能被不相关组件意外拖入首包。验收：导入 Button 不注册无关 tag，不同步拉取 Data Grid 实现。
+- [ ] **F-005 [P0]** 确保 `package.json` subpath exports、`sideEffects`、peerDependencies、类型指向、CSS import 正确。验收：从 `npm pack` 安装三种消费方式。
+- [ ] **F-006 [P0]** 建立真实 Browser Matrix：Chromium/Firefox/WebKit × Native/React18/React19/Vue3。验收：Props Events Slots Methods Form、焦点操作全部验证。
+- [ ] **F-007 [P1]** Document/SSR tag 输出策略：SSR-0 能输出宿主 tag 和可串行化原始属性，客户端升级无致命 mismatch。验收：Next.js 客户端边界示例，分别标注无需/需要 client component 的场景。
+- [ ] **F-008 [P1]** Typed Event、Named Slot 类型、Custom Element Manifest、React/Vue DTS 共用 Analyzer 数据源。验收：类型测试可检测错误 Detail、事件名、Props。
+- [ ] **F-009 [P1]** React/Vue 交互插槽能力边界：普通 Slot 默认支持；复杂 framework VNode/Portal 不直接跨 WC Runtime；Renderer Adapter RFC。验收：DataGrid custom renderer 的可行性 PoC。
+- [ ] **F-010 [P1]** 组件级 Chunk、动态 Import、CSS 体积与加载成本建立预算。验收：包体积和首次交互指标由 CI 产生趋势数据。
+- [ ] **F-011 [P1]** 生产发布链加上 npm token/provenance/2FA 预校验、dry-run、dist-tag/published verification。验收：成功发布 canary + 外部 smoke；失败绝不误报告发布成功。
+
+### M3 退出条件
+
+- 三种消费者从 registry 安装 tarball 后，类型检查、构建、浏览器测试通过。
+- SSR 导入零 DOM 全局引用错误；WC 组件实现不被不相关入口预加载。
+
+## 5. M4 — Zeus UI、工具链与开发者生态（P1）
+
+### UI 架构
+
+- [ ] **U-001 [P1]** 为 Zeus UI 基础组件定义质量等级（experimental/beta/stable），按行为、a11y、E2E 测试而非数量评级。验收：组件清单机器可读。
+- [ ] **U-002 [P1]** Schema/Manifest 驱动 React/Vue Registry：减少 Variant/Size/Events/Slot 定义重复；CSS 可保留有意义差异。验收：修改公共 Props 只改一处即可同步生成类型和 API 表。
+- [ ] **U-003 [P1]** Data Grid 拆出 Headless Model、Viewport Controller、Render Scheduler、Renderer、WC Host。验收：关键行为单测不依赖 DOM，宿主不包含全部调度细节。
+- [ ] **U-004 [P1]** Virtualizer 与 VirtualList Renderer 分离：提供 `range → 可见节点挂载` 的完整契约，不假设 `<Slot />` 自动虚拟化。验收：10 万数据场景 DOM 节点数随视口大小变化，而非随总行数变化。
+- [ ] **U-005 [P1]** Data Grid 建立基准：10k×20、100k×20、100k×100；记录内存、DOM 总量、滚动帧、更新耗时和可见单元格数量。验收：预算基于当前基线与目标设备共同设定，不臆造绝对阈值。
+- [ ] **U-006 [P2]** Data Grid React/Vue 可扩展 cell renderer PoC：框架节点由 Adapter 管理，Grid Model 保持独立。验收：复杂 cell 卸载、复用、回收无泄漏。
+- [ ] **U-007 [P1]** 组件 accessibility gate：表单组件、Dialog、Tabs、Select、Grid 的键盘/焦点/ARIA 验证。验收：自动化 axe + 手工关键路径审查。
+
+### Tooling 和 DX
+
+- [ ] **D-001 [P1]** `create-zeus` 新增“Application”与“Component Library”模板，保持现有 Basic/WC 模板。验收：创建、安装、dev/build/check 三命令全通。
+- [ ] **D-002 [P1]** 修复 CLI 覆盖目录安全：默认不允许删除非空目录；显式 `--force` 需强提示且拒绝危险路径。验收：覆盖测试含仓库根目录、用户家目录、符号链接。
+- [ ] **D-003 [P1]** DevTools MVP：组件树、Owner 树、Signal/Effect、DOM Binding、Cleanup、耗时。验收：点击 DOM 节点能追踪负责的 Binding 与 Signal。
+- [ ] **D-004 [P1]** 使用 `custom-elements.json` 生成 VS Code HTML Custom Data，不先做独立 LSP。验收：自定义标签/属性提示与文档链接有效。
+- [ ] **D-005 [P1]** 文档清理：移除旧 Babel Runtime 叙述、修复错误 quick-start、对齐真实 `vite-plugin` 与 `web-c` 入口。验收：每段 Quick Start 配置由 CI 原样执行。
+- [ ] **D-006 [P1]** 文档站统一基础概念：Zeus Native vs WebC vs React/Vue Consumer；加入“何时不推荐使用 Zeus”。验收：新用户 15 分钟可完成 Hello World（目标，需要用户测试）。
+- [ ] **D-007 [P1]** 集成 Playground：浏览 TSX → 查看编译后 DOM/SSR JS 与 IR、错误、打包体积。验收：示例可复制分享；本地先实现静态示例也可。
+- [ ] **D-008 [P2]** Testing Utils：render、fireEvent、flushEffects、dispose、queryByRole 等组合封装。验收：官方示例不依赖私有 Runtime。
+- [ ] **D-009 [P2]** HMR 状态保留：只针对证明安全的编辑类型启用；不安全场景完整 remount。验收：避免僵尸 effect 与悬挂事件监听。
+
+## 6. M5 — 应用生态与 SSR（P2，建立在 M1–M4 之上）
+
+- [ ] **E-001 [P2]** Router RFC/Adapter：路由匹配、嵌套路由、history、参数、错误边界、预加载；优先适配已有库，必要时自建轻量核心。验收：Zeus Admin 有真实导航。
+- [ ] **E-002 [P2]** Resource/Query RFC：signal-accessor、pending/error/success、request cancellation、stale/caching 语义。验收：并发请求不会用旧响应覆盖新状态。
+- [ ] **E-003 [P2]** Query Core Adapter PoC：接 `@tanstack/query-core` 等通用库，避免重写全缓存系统。验收：CRUD、分页、重试、销毁取消。
+- [ ] **E-004 [P2]** ErrorBoundary / Portal / Transition 契约。验收：同步 render error、异步资源失败、Teleport 和 cleanup 测试。
+- [ ] **E-005 [P2]** SSR-0：模块安全导入 + 标记/基础属性 SSR；定义 no-hydration 的真实限制。验收：Node 环境 import 与静态渲染通过。
+- [ ] **E-006 [P3]** SSR-1：Web Component 内部 SSR、Declarative Shadow DOM 适配与属性一致性。验收：关键组件首屏 HTML 可用。
+- [ ] **E-007 [P3]** SSR-2：Hydration marker、DOM 复用、事件绑定、props reconciliation；再研究 Streaming。验收：可检测不匹配，保留输入焦点与 DOM。
+- [ ] **E-008 [P2]** Zeus Admin 标杆应用：路由、请求、表单、Dialog、Grid、权限等完整场景。验收：无需修改 Zeus 内部源码运行和部署。
+- [ ] **E-009 [P2]** Zeus Web UI 标杆项目：同一组件源码、三种消费工程与发布产物。验收：跨框架行为测试长期运行。
+
+## 7. 测试矩阵与质量阈值（跨所有里程碑）
+
+| 类别 | 必测场景 | 通过要求 |
+|---|---|---|
+| Reactivity | 依赖变化、diamond、batch、scope/dispose、async race | 无丢更新/孤儿 effect |
+| Compiler | 标准 TSX、Spread、Nested JSX、SVG、异常诊断、Source Map | 运行行为正确，诊断稳定 |
+| WC | Property vs Attribute、默认值、表单、Slot、reconnect、lazy | eager/lazy 对齐 |
+| Framework | React18/19、Vue3、SSR Import | Typecheck + Browser E2E |
+| Browser | Chromium、Firefox、WebKit | 功能契约通过 |
+| Package | `npm pack`、exports、CSS、peer、tree shaking | 无 monorepo-only 依赖 |
+| UI | A11y、Keyboard、Focus、Data Grid | 关键交互通过 |
+| Performance | Compile、Cold Start、JS Gzip、DOM 写入、长列表 | 与冻结基线对比，无未经批准回退 |
+
+### Golden Scenario 编号
+
+- **G-01**：Counter — primitive Signal、DOM text、Event、dispose。
+- **G-02**：Input — value/default/controlled、change Event、focus、Form。
+- **G-03**：Dialog — Slot/Portal/keyboard/focus、disconnect/reconnect。
+- **G-04**：Data Grid — 10k/100k 行、列虚拟化、selection/sort、focus。
+- **G-05**：React/Vue — Object Property、CustomEvent Detail、named slots、SSR import。
+- **G-06**：Compiler — Spread、conditional JSX、array children、function-valued props。
+- **G-07**：Lazy — before upgrade/connected/loading/ready/detached 多阶段状态。
+
+## 8. 推荐实施顺序与依赖图
+
+```mermaid
+flowchart TD
+  B[基线 B-001~004] --> R[响应式 R-001~004]
+  B --> S[语义 S-001~002]
+  S --> C[TSX Compiler C-001~003]
+  C --> W[WC ABI W-001~006]
+  R --> W
+  W --> F[React/Vue F-001~006]
+  F --> U[UI / Tooling U D]
+  C --> D[UI / Tooling U D]
+  F --> E[App / SSR E]
+  U --> E
+```
+
+### 单人执行的建议节奏（非交付承诺）
+
+| 阶段 | 粗估工作量 | 退出关卡 |
+|---|---:|---|
+| M0 基线与 Golden Tests | 3–5 工程日 | 复现与测试基线建立 |
+| M1 语义/编译器/响应式 | 15–30 工程日 | 常规 TSX + Signal Contract |
+| M2 WC ABI | 15–25 工程日 | Eager/Lazy 行为一致 |
+| M3 多框架输出 | 12–20 工程日 | packed 外部 React/Vue/Native E2E |
+| M4 UI/DX | 20–35 工程日 | 标杆示例与工具链闭环 |
+| M5 应用生态/SSR | 30+ 工程日，按需拆分 | 路由/请求/SSR 用例 |
+
+估算不含长期支持、突发兼容性问题以及大型 Data Grid 性能优化；建议按每两周复盘，实际安排视个人可用时间调整。
+
+## 9. 每个 PR 的统一模板
+
+```md
+### Task ID
+S-003
+
+### 用户可见行为
+Before: <div {...props} /> 编译报错
+After: 支持普通 TSX Spread，后面的显式属性优先
+
+### 协议/兼容性
+Native DOM / Component Props / SSR / WC / React / Vue 是否变化？
+
+### 测试
+- Unit/Golen
+- Browser E2E
+- DTS
+- Consumer pack
+
+### 回归风险
+- 事件覆盖
+- 动态 getter/function 值歧义
+- SSR 序列化
+
+### 文档/发布
+- RFC
+- Migration
+- Changelog / Snapshot
+```
+
+## 10. 第一个执行迭代：建议直接开 10 个 Issue
+
+| 顺序 | Task ID | Issue 标题 | 理由 |
+|---|---|---|---|
+| 1 | B-001 + B-002 | 冻结核心与 UI 基线、最小失败复现 | 防止边修边失去对照 |
+| 2 | W-002 | Lazy Attribute 标准化一次性契约 | 疑似真实运行时 bug |
+| 3 | W-003 | Eager/Lazy 默认值可观察语义 | 修正组件消费者预期 |
+| 4 | F-001 | React Wrapper Node SSR import 安全 | 直接影响第三方框架 |
+| 5 | R-001 + R-003 | Alien-signals 实际使用审计与 ADR | 确保响应式核心唯一 |
+| 6 | S-001 + S-002 | JSX 动态 Getter 与函数值语义 RFC | 后续编译器扩展前置条件 |
+| 7 | S-003 | Native Spread 支持 | 最常见 DX 缺口 |
+| 8 | S-004 | Component Spread 支持 | 组件组合基本能力 |
+| 9 | S-005 | Conditional / Nested JSX 支持 | 标准 TSX 基本能力 |
+| 10 | F-005 + F-006 | npm pack + 三框架消费回归 | 验证真正可分发 |
+
+---
+
+**最终验收不是完成 checkbox 数量**：必须同时满足一个原生 Zeus 应用完成开发流程，以及一个只使用 React/Vue 的外部应用成功消费 Zeus WebC 组件。后者完全不要求消费者了解 Zeus Compiler。
