@@ -1,0 +1,260 @@
+# Zeus 0.2 技术详细设计（RFC Draft）
+
+> 设计版本：V1.0 · 日期：2026-10-16 · 状态：**Proposal / 待逐项 RFC 审议**  
+> 代码审查基线：Zeus `d97e35c20014`（`0.1.1-beta.13`）；Zeus UI `1d2c24db27b5`（`0.1.0-beta.32`）。  
+> 配套执行清单：[01-TASKS.md](./01-TASKS.md)  
+> 这份文档是**拟议架构及验收要求**，不是对当前 Zeus 已具备能力的断言。特别是 `$state`、通用 TSX Spread、SSR Hydration、Framework Renderer Adapter 均尚未视为已实现。
+
+---
+
+# 1. 摘要与设计决策
+
+## 1.1 产品定义
+
+Zeus 是一个 **TypeScript-first / TSX-first、Compiler-first、Fine-grained Reactive UI Framework**。核心能力：
+
+1. 使用标准 TSX 编写 UI，Rust Compiler 转换成静态模板及粒度精确的 DOM 操作。
+2. 组件 Setup 只运行一次；之后 Signal 变化更新对应 Binding，而非组件级 VDOM rerender。
+3. 使用 `defineElement()` 描述可移植的 Web Component（WC），在同一组件的 Manifest 基础上生成 WC 原生包和 React/Vue typed wrappers。
+4. 具有明确的可扩展性边界：Zeus 组件可以是 Native TSX Component；只有公开为 WC 的组件才受 WC ABI 约束。
+5. 未来可选提供编译期 `$state/$derived`，但不以此取代公共 Signal API。
+
+**优先原则**：语义正确 > 架构边界稳定 > 开发体验 > 真实性能 > API 简洁度 > 更多输出目标。
+
+## 1.2 本轮不可改变的原则
+
+- 不引入 VDOM 或“更新后重新执行整个组件”的 fallback。
+- Signal API 对外不暴露具体 engine 对象及第三方内部类型。
+- `runtime-dom` 不依赖 React/Vue；UI Primitive 的核心逻辑不依赖 React/Vue。
+- React/Vue 产物是基于 WC 的适配器，不是独立翻译的原生 React/Vue 实现。两种发布目标应明确命名，不能混淆。
+- 所有公共元数据由单一 Manifest 生成；不能由三个 Output Plugin 分别猜测属性/事件类型。
+- 支持多包、多版本和跨应用升级时不允许静默定义冲突或静默类型丢失。
+- 任何编译优化都必须保持语义：节点 identity、ref、焦点、事件、cleanup、SSR 输出。
+
+## 1.3 现有模块复用决策
+
+| 现有模块 | 动作 | 说明 |
+|---|---|---|
+| `crates/zeus_compiler` | **保留并扩展** | Rust Parser/Lowering/Codegen、DOM/SSR 双 target |
+| `packages/core/compiler-native` | 保留 | N-API 包/多平台发布，新增编译契约测试 |
+| `packages/core/signal` | **审计** | `alien-signals` 被声明依赖，但公共 Primitive 调用自有 Ref/Dep/Effect；不盲目替换 |
+| `packages/core/runtime-dom` | 保留并修复 | Binding、Owner、DOM Range、`defineElement` |
+| `packages/web-c/component-analyzer` | 保留并收敛 | TS AST 元数据抽取；统一产出 ABI Schema |
+| `packages/web-c/web-c-runtime` | 保留并修复 | Lazy Host/Loader/Property Protocol |
+| `packages/web-c/output-wc` | 保留 | 单组件注册、产物与 Manifest 重整 |
+| `packages/web-c/output-react-wrapper` | 保留 | SSR-safe、Event/Prop/Ref 桥接 |
+| `packages/web-c/output-vue-wrapper` | 保留 | Props、Emits、`v-model`、Slots 桥接 |
+| `packages/devtools/vite-plugin` | 保留 | 诊断与 HMR 改良 |
+| `packages/devtools/create-zeus` | 保留 | 安全检查与应用模板扩充 |
+| `zeus-ui/packages/advanced/data-grid` | 拆分协作层 | Headless Model 与 Browser Host 分离 |
+
+### 1.4 技术问题严重度（基于源码静态检查，待测试复现）
+
+| 问题 | 证据路径 | 级别 | 本轮处理 |
+|---|---|---|---|
+| Lazy attribute 已解码后在 mount bridge 二次 coercion | `web-c-runtime/src/props.ts` + `runtime-dom/src/defineElement.ts` | P0 | 回归测试再修复 |
+| React wrapper 在无 DOM 环境读取 `HTMLElement` | `output-react-wrapper/src/runtime/createComponent.ts` | P0 | SSR import 安全 |
+| lazy manifest 的 `props` 未携带通常的 `default` 值 | `output-wc/src/generateLazyManifest.ts` | P0 | 初始默认值协议 |
+| Rust Lowering 不支持 JSX Spread / Nested JSX | `crates/zeus_compiler/src/lower.rs` | P0 DX | 扩展 IR + codegen |
+| 以箭头函数作为 Getter 形式 | `lower.rs::expression_form` / `codegen.rs::emit_getter` | P0 语义 | 版本化分离函数值与绑定 |
+| 单组件与全量 lazy 注册入口行为不统一 | `output-wc/src/index.ts` | P1 | 按组件注册 |
+| 同一 UI API 在 React/Vue Registry 重复维护 | `zeus-ui/packages/registry/templates` | P1 | 元数据驱动 |
+| VirtualList 只计算可视 Range，Slot 不自动虚拟化 | `zeus-ui/packages/advanced/virtual/src/components/virtual-list.tsx` | P1 | 独立 Viewport Renderer |
+| 旧文档中还出现 Babel 编译器描述 | `docs/advanced/compiler.md`、`docs/guide/server-rendering.md` | P1 | 文档清理 |
+
+**注意**：上表不是未经运行就认定发布版必然失败；每个缺陷要有单独复现和固定的回归用例。
+
+---
+
+# 2. 架构总览
+
+```mermaid
+flowchart TD
+  SRC[TS / TSX 源码] --> PARSE[Rust TSX Parser & Scope]
+  PARSE --> SEM[Semantic Analysis]
+  SEM --> IR[Zeus UI IR]
+  IR --> OPT[Optimize: template/binding/control-flow]
+  OPT --> DOM[DOM Codegen]
+  OPT --> SSR[SSR Codegen]
+  DOM --> RT[Zeus DOM Runtime]
+  SSR --> SRT[Zeus SSR Runtime]
+
+  SRC --> ANALYZE[Component Analyzer]
+  ANALYZE --> ABI[Component Manifest / WC ABI]
+  ABI --> WC[WC Output]
+  ABI --> REACT[React Typed Wrapper]
+  ABI --> VUE[Vue Typed Wrapper]
+  ABI --> DTS[DTS / custom-elements.json]
+  DOM --> WC
+  RT --> WC
+  WC --> REACT
+  WC --> VUE
+
+  REACT --> RA[React App]
+  VUE --> VA[Vue App]
+  WC --> NA[Native HTML/JS]
+  DOM --> ZA[Zeus Native App]
+```
+
+### 2.1 分层边界
+
+- **语言层**：解析 TypeScript/TSX、符号绑定、表达式语义、控制流与诊断；不认识浏览器的 `HTMLElement` 对象。
+- **IR 层**：以稳定语义结构表达“DOM Template、Binding、Region、Event、Component、Lifecycle”，不持有 AST 指针/NodePath。
+- **Runtime Core**：Signal/Effect/Owner/Batch；不依赖 DOM。
+- **DOM Runtime**：模板克隆、直接 DOM 写入、动态区域、事件/Ref/Style、Dispose；不依赖 React/Vue。
+- **WC Host**：Custom Element 生命周期、props/events/slots/methods/form；只消费规范化输入。
+- **Component Build**：Analyzer 生成 Manifest，插件生成不同适配包；统一使用 ABI Schema，不回读运行时代码猜类型。
+- **App Tooling**：Vite、CLI、DevTools、Testing Utils；不从 private runtime subpath 导入。
+
+### 2.2 数据流
+
+```text
+Native JSX expression → Rust compiler → binding read function
+                               ↓
+                         DOM Runtime Effect
+                               ↓
+                       Signal read dependency
+                               ↓
+                       Signal write notification
+                               ↓
+                         DOM minimal commit
+
+React/Vue component props → framework adapter → WC property setter
+                                               ↓
+                                     normalized PropStore
+                                               ↓
+                                         Signal/Effect
+                                               ↓
+                                           DOM commit
+```
+
+**重要**：编译型 TSX 应用与 WC 组件共享 DOM Runtime，**不是所有 Zeus Native 组件在运行时都包成 Custom Element**。WC 是一个可移植输出目标，非强制基础节点。
+
+---
+
+# 3. TSX 语法详细设计
+
+## 3.1 设计原则：标准 TSX 优先
+
+保证大多数普通 TypeScript 表达式在 JSX 表达式位置有效；对存在响应式信息的 DOM 插槽生成 getter 和 effect；对不可编译的语法给结构化错误。`Show/For` 是高效且稳定的控制流 primitive，不是为了补救普通条件 JSX 不能编译。
+
+```tsx
+function Example(props: Props) {
+  const [count, setCount] = createSignal(0)
+  const label = () => `Count: ${count()}`
+
+  return (
+    <section class={props.className}>
+      <h2>{label()}</h2>
+      {count() > 0 ? <Positive /> : <Empty />}
+      <button disabled={props.disabled} onClick={() => setCount(c => c + 1)}>
+        Add
+      </button>
+    </section>
+  )
+}
+```
+
+### 3.2 JSX 位置语义表（目标 vNext）
+
+| 位置 | 示例 | 语义 | 编译策略 |
+|---|---|---|---|
+| Native text | `{count()}` | 响应式值 | `bindText(node, () => count())` |
+| Native attribute | `disabled={props.disabled}` | 响应式值 | `bindAttr(el, 'disabled', () => props.disabled)` |
+| Native property | `prop:rows={props.rows}` | DOM property 值 | `bindProp(el, 'rows', () => props.rows)` |
+| Function-valued prop | `prop:formatter={formatCell}` | 函数对象，不执行 | Getter 返回 `formatCell`，而非 `formatCell()` |
+| Event | `onClick={handleClick}` | EventHandler 函数 | 事件注册/委托；仅事件触发时执行 |
+| Ref | `ref={node => ...}` | Ref Callback | mount/unmount 钩子，不做 getter 调用 |
+| Child component prop | `<Child value={count()} />` | 保持父到子动态读取 | getter/property descriptor / accessor，不能初始化 snapshot |
+| Show | `<Show when={count() > 0}>` | 区域级条件 | 条件改变时销毁旧 owner，创建新分支 |
+| For | `<For each={rows()} by={r => r.id}>` | keyed 区域 | key → record DOM/Scope 复用；更新 item getter |
+| Slot | `<Slot name="prefix" />` | 投影语义 | WC Shadow/Light 投影协议 |
+| Static value | `title="fixed"` | 真正常量 | 预编译进静态模板 |
+| Once | `{once(calc())}`（提案） | 显式只读取一次 | 无 effect 的初始化 binding |
+
+#### 关于函数歧义：必须有 v1/vNext 切换
+
+当前 Rust `ExpressionForm::Getter` 对箭头函数/普通函数采用“函数可以充当响应式 Getter”语义；这会混淆真正的函数属性。例如：
+
+```tsx
+<some-grid prop:formatter={(row) => String(row.price)} />
+```
+
+这里的函数是 **formatter 值**，不能被编译器在挂载阶段调用。推荐目标语义：
+
+1. DOM/Component 表达式本身产生值，函数也属于普通值；**编译器自动创建外层读值 getter**。
+2. `onX`、`ref` 和 `<For>` children callback 是**上下文特例**，不执行函数表达式的返回值。
+3. `<div>{() => count()}</div>` 在 vNext 可给编译诊断（建议改成 `{count()}`），不得默默 `String(function)`。
+4. 对旧版 `title={() => count()}` 的 Getter 习惯，保留 `jsxReactivity: 'legacy'` 兼容开关；迁移器自动改写为 `title={count()}`。
+5. 不能靠猜测 JS Function.length、函数参数名、JSX 运行结果类型来决定是否执行。
+
+编译示例：
+
+```tsx
+<my-grid prop:formatter={formatCell} prop:rows={rows()} />
+```
+
+```ts
+// 目标示意，非当前具体 helper 名称：
+bindProp(el, 'formatter', () => formatCell)
+bindProp(el, 'rows', () => rows())
+```
+
+`bindProp` 每轮 effect 求值的是 getter 的返回值；**不能继续执行返回的 `formatCell` 函数**。函数 identity 变化时才重新写入 property。固定 old/vNext 模式不得在相同应用中不可预期地混用。
+
+## 3.3 JSX Spread 编译规范
+
+```tsx
+<div {...props} id="fixed" {...later} />
+<Child {...baseProps} disabled={disabled()} />
+```
+
+规则：
+
+1. 与 JS 对象展开语义一致，**后面的属性覆盖前面的属性**；不要默认无差别 class/style 拼接，合并只能显式 helper 或专项 API。
+2. Spread 支持静态/动态混合；对象同一 identity 但内部字段变化需由实际读取的响应式源驱动。普通非响应式对象原地变更不会神奇触发更新。
+3. Native DOM 属性分类：`class/style`、`onX`、`ref`、`prop:*`、普通 Attribute 分别走自身绑定；事件/Ref 变更需要 detach old、attach new。
+4. Component Props Spread 必须保留动态读值，不能只在挂载时 `Object.assign()` 快照；原生 `get foo()` 描述符应保留/转换为动态读取策略。
+5. Spread 的 key 决策在运行时才能确定时，需要轻量 diff（新增/更新/删除属性）及 Owner cleanup；需要为大范围 spread 加性能预算。
+6. 对危险 DOM 属性如 `innerHTML`、URL、事件处理采用明确规则，不能无条件把未知 key 转成 HTML Attribute。
+
+目标 IR：
+
+```ts
+interface SpreadBindingIR {
+  kind: 'SpreadBinding'
+  target: 'native' | 'component'
+  expression: ExpressionIR
+  precedence: number
+  span: SourceSpan
+}
+```
+
+插入顺序不能在编译优化时丢失。`<X a="1" {...x} a="2" />` 允许 TS parser 报重复属性诊断的同时，编译器保持预期覆盖顺序。
+
+## 3.4 JSX 内嵌表达式和数组
+
+```tsx
+<div>{ok() ? <A /> : <B />}</div>
+<div>{items().map(item => <Chip name={item.name} />)}</div>
+```
+
+- `ConditionalExpression/LogicalExpression` → `DynamicRegion`，依赖变化时替换局部子树，旧区域 dispose。
+- Array/Fragment/Node 子级使用有序 DOM Range，不进行 `String(array)`。
+- 普通 `.map()` 支持正确性，但**不承诺 keyed identity 复用**；性能敏感循环推荐 `<For each by>`。
+- `<For by>` 必须保证对象同 Key 替换后 DOM 事件和 binding 读取最新 item，而 setup 不重跑；重复 key 在 DOM 改动前抛错。
+- 非法 JSX 子值（未被显式 Slot 等消费的函数、Promise、Symbol）给清晰诊断/运行错误，不默默吞掉。
+
+## 3.5 组件语法与 defineElement
+
+现有接口保留：
+
+```tsx
+export const Button = defineElement<ButtonProps, ButtonElement, ButtonEmits>(
+  'zw-button',
+  { props: { disabled: prop(Boolean) }, emits: { press: event() } },
+  (props, ctx) => <Host><button disabled={props.disabled}><Slot /></button></Host>,
+)
+```
+
+未来可**新增**不破坏现有 API 的 schema-first overload，以减少类型重复：

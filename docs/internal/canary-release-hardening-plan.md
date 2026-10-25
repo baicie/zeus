@@ -24,11 +24,11 @@
   但不能把已验证的 Canary 错误标记为发布失败并诱发无意义重发。
 - 发布后同时验证版本可见性、fixed group dist-tag 一致性和 Rust compiler 的真实安装/加载。
 - feature/fix/refactor 分支继续运行 CI 与 native matrix；需要分支预发布时另行设计分支专属 tag。
-- native 包首次发布可能被 npm 自动赋予 `latest`；预发布验证必须拒绝 native `latest`
-  指向 Canary。当前历史污染执行一次受控清理，日常 workflow 不自动删除标签，避免与正式
-  发布并发时发生错误删除。
-- 一次性清理由只允许 `main` 手动触发的 `Repair Native Latest` workflow 执行，要求输入
-  精确污染版本与动态确认串，并与所有发布共享 `npm-release` 锁。
+- native 包的历史 `latest` 清理子项已按用户于 2026-10-24 的决定放弃，不再作为
+  Canary、beta 或后续 `0.2.0` 的发布前置条件。每次发布仍须验证本次目标 dist-tag、版本、
+  provenance 和 compiler 安装；稳定版的 `latest` 必须指向本次稳定版本。
+- `Repair Native Latest` 仅保留为手动修复工具；只有用户另行明确授权时才执行。它只允许
+  `main` 手动触发，要求精确版本与动态确认串，并与所有发布共享 `npm-release` 锁。
 
 ## 实施任务
 
@@ -53,7 +53,7 @@
 - 正式预发布后对应 prerelease tag 等于本次版本。
 - provenance 必须通过 Sigstore 签名验证，并匹配 npm tarball integrity、
   `baicie/zeus`、发布 workflow、git ref 与精确 commit SHA。
-- native 包的 `latest` 不得指向 Canary；现有错误标签在发布前执行一次受控清理。
+- 本次发布的目标 dist-tag 必须指向本次版本；历史 native `latest` 清理已按用户决定放弃，不再阻塞发布。
 
 验证：相关单元测试通过，并可对 npm 公共 registry 执行只读校验。
 

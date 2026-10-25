@@ -8,7 +8,11 @@ The main application entry exports:
 
 - `createSignal`, `createMemo`, `createEffect`, `createRoot`, `onCleanup`, `batch`
 - `render`, `Show`, `For`, `Host`, `Slot`, `defineElement`
-- context helpers and the JSX runtime
+- context helpers (`createContext`, `useContext`, `provide`, `inject`)
+
+JSX runtime helpers are available through the dedicated
+`@zeus-js/zeus/jsx-runtime` and `@zeus-js/zeus/jsx-dev-runtime` compiler entries.
+The main application entry does not re-export them.
 
 Zeus is currently beta. A superseded beta interface is removed directly rather than retained as an alias or deprecated export.
 
