@@ -72,6 +72,10 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
 
       if (runtimeDomEntry) alias['@zeus-js/runtime-dom'] = runtimeDomEntry
       if (runtimeSSREntry) alias['@zeus-js/runtime-ssr'] = runtimeSSREntry
+      const prebundleRuntime =
+        runtimeDomEntry !== undefined &&
+        (options.compiler?.moduleName ?? '@zeus-js/runtime-dom') ===
+          '@zeus-js/runtime-dom'
 
       return {
         ...((await isRolldownVite())
@@ -94,6 +98,13 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
             '@zeus-js/zeus',
           ],
         },
+        ...(prebundleRuntime
+          ? {
+              // The initial dependency scan cannot see compiler-injected imports.
+              // Prebundle this runtime with user imports before the first render.
+              optimizeDeps: { include: ['@zeus-js/runtime-dom'] },
+            }
+          : {}),
       } satisfies UserConfig
     },
 
