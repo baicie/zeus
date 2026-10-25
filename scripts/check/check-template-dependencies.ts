@@ -31,7 +31,7 @@ export function findUnpublishedTemplateDependencies(
   })
 }
 
-function readTemplateRequirements(
+export function readTemplateRequirements(
   packageFiles: readonly string[],
 ): TemplateDependencyRequirement[] {
   return packageFiles.flatMap(packageFile => {
@@ -60,6 +60,7 @@ async function readPublishedVersions(
   const registryRoot = registry.endsWith('/') ? registry : `${registry}/`
   const response = await fetch(
     new URL(encodeURIComponent(packageName), registryRoot),
+    { signal: AbortSignal.timeout(30_000) },
   )
 
   if (!response.ok) {
@@ -72,7 +73,36 @@ async function readPublishedVersions(
   return Object.keys(metadata.versions ?? {})
 }
 
-async function main(packageFileArgs: readonly string[]): Promise<void> {
+export function getTemplateVersionPolicyErrors(
+  requirements: readonly TemplateDependencyRequirement[],
+): string[] {
+  const errors = requirements
+    .filter(
+      requirement => semver.valid(requirement.range) !== requirement.range,
+    )
+    .map(
+      requirement =>
+        `${requirement.template}: ${requirement.packageName} must pin an exact published version, got ${requirement.range}`,
+    )
+  const frameworkVersions = new Set(
+    requirements
+      .filter(requirement => requirement.packageName !== '@zeus-js/vite-plugin')
+      .map(requirement => requirement.range),
+  )
+  if (frameworkVersions.size > 1) {
+    errors.push(
+      `Templates must use one Zeus framework version, got ${[...frameworkVersions].join(', ')}`,
+    )
+  }
+  return errors
+}
+
+export async function checkTemplateDependencies(
+  packageFileArgs: readonly string[],
+  registry = process.env.npm_config_registry ??
+    process.env.NPM_CONFIG_REGISTRY ??
+    'https://registry.npmjs.org',
+): Promise<void> {
   if (packageFileArgs.length === 0) {
     throw new Error(
       'Usage: check-template-dependencies <template-package.json> [...]',
@@ -82,10 +112,6 @@ async function main(packageFileArgs: readonly string[]): Promise<void> {
   const packageFiles = packageFileArgs.map(file => path.resolve(file))
   const requirements = readTemplateRequirements(packageFiles)
   const packageNames = [...new Set(requirements.map(item => item.packageName))]
-  const registry =
-    process.env.npm_config_registry ??
-    process.env.NPM_CONFIG_REGISTRY ??
-    'https://registry.npmjs.org'
   const publishedVersions = new Map(
     await Promise.all(
       packageNames.map(
@@ -119,5 +145,5 @@ async function main(packageFileArgs: readonly string[]): Promise<void> {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  await main(process.argv.slice(2))
+  await checkTemplateDependencies(process.argv.slice(2))
 }
