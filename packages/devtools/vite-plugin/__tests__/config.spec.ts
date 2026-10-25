@@ -25,6 +25,12 @@ type ConfigHook = NonNullable<HookHandler<Plugin['config']>>
 
 const configEnv: ConfigEnv = { command: 'serve', mode: 'test' }
 const temporaryRoots: string[] = []
+const runtimePackages = [
+  '@zeus-js/signal',
+  '@zeus-js/runtime-dom',
+  '@zeus-js/runtime-ssr',
+  '@zeus-js/zeus',
+]
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -308,18 +314,19 @@ describe('vite-plugin-zeus config', () => {
     ['direct', createDirectRuntimeProject],
     ['nested', createNestedRuntimeProject],
   ] as const)(
-    'prebundles the injected runtime from a %s dependency before cold dev rendering',
+    'keeps all runtime entries in one unoptimized graph with a %s dependency',
     async (_, createProject) => {
       const { root } = createProject()
       const result = await runConfig({ root })
 
       expect(result).toMatchObject({
-        optimizeDeps: { include: ['@zeus-js/runtime-dom'] },
+        optimizeDeps: { exclude: runtimePackages },
       })
+      expect(result).not.toHaveProperty('optimizeDeps.include')
     },
   )
 
-  it('keeps default DOM prebundling when only the SSR module is customized', async () => {
+  it('preserves the shared runtime graph when only the SSR module is customized', async () => {
     const { root } = createDirectRuntimeProject()
     const result = await runConfig(
       { root },
@@ -327,8 +334,9 @@ describe('vite-plugin-zeus config', () => {
     )
 
     expect(result).toMatchObject({
-      optimizeDeps: { include: ['@zeus-js/runtime-dom'] },
+      optimizeDeps: { exclude: runtimePackages },
     })
+    expect(result).not.toHaveProperty('optimizeDeps.include')
   })
 
   it('does not prebundle a default runtime when the compiler uses a custom module', async () => {
@@ -338,16 +346,22 @@ describe('vite-plugin-zeus config', () => {
       { compiler: { moduleName: 'virtual:zeus-runtime' } },
     )
 
-    expect(result).not.toHaveProperty('optimizeDeps')
+    expect(result).toMatchObject({
+      optimizeDeps: { exclude: runtimePackages },
+    })
+    expect(result).not.toHaveProperty('optimizeDeps.include')
   })
 
-  it('skips prebundling when the default runtime resolver has no entry', async () => {
+  it('does not force missing runtime packages into prebundling', async () => {
     vi.spyOn(runtimeResolution, 'resolveRuntimeDOMEntry').mockReturnValue(
       undefined,
     )
     const result = await runConfig()
 
-    expect(result).not.toHaveProperty('optimizeDeps')
+    expect(result).toMatchObject({
+      optimizeDeps: { exclude: runtimePackages },
+    })
+    expect(result).not.toHaveProperty('optimizeDeps.include')
   })
 
   it('resolves a pnpm-linked runtime when Node preserves symlinks', () => {

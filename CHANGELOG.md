@@ -22,7 +22,7 @@
 ### Fixes
 
 - Publish the current Rust Native compiler integration, runtime resolution, dependency deduplication and scoped HMR support.
-- Prebundle the compiler-injected DOM runtime before the first development render, preventing duplicate signal engines during cold startup.
+- Keep Zeus core ESM packages in one unoptimized module graph for npm and linked workspace projects, preventing duplicate signal engines during cold development startup.
 
 ## 0.1.1-beta.19 (2026-10-25)
 

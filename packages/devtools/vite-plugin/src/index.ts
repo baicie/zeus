@@ -22,6 +22,13 @@ export interface ZeusVitePluginOptions {
   compiler?: ZeusNativeCompilerOptions
 }
 
+const runtimePackages = [
+  '@zeus-js/signal',
+  '@zeus-js/runtime-dom',
+  '@zeus-js/runtime-ssr',
+  '@zeus-js/zeus',
+] as const
+
 function normalizePatterns(value: RegExp | RegExp[]): RegExp[] {
   return Array.isArray(value) ? value : [value]
 }
@@ -72,10 +79,6 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
 
       if (runtimeDomEntry) alias['@zeus-js/runtime-dom'] = runtimeDomEntry
       if (runtimeSSREntry) alias['@zeus-js/runtime-ssr'] = runtimeSSREntry
-      const prebundleRuntime =
-        runtimeDomEntry !== undefined &&
-        (options.compiler?.moduleName ?? '@zeus-js/runtime-dom') ===
-          '@zeus-js/runtime-dom'
 
       return {
         ...((await isRolldownVite())
@@ -91,20 +94,14 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
             }),
         resolve: {
           alias: Object.keys(alias).length > 0 ? alias : undefined,
-          dedupe: [
-            '@zeus-js/signal',
-            '@zeus-js/runtime-dom',
-            '@zeus-js/runtime-ssr',
-            '@zeus-js/zeus',
-          ],
+          dedupe: [...runtimePackages],
         },
-        ...(prebundleRuntime
-          ? {
-              // The initial dependency scan cannot see compiler-injected imports.
-              // Prebundle this runtime with user imports before the first render.
-              optimizeDeps: { include: ['@zeus-js/runtime-dom'] },
-            }
-          : {}),
+        optimizeDeps: {
+          // Compiler-injected imports appear after dependency scanning. Keep
+          // these ESM packages together, including linked workspace entries and
+          // signal's public/internal imports, instead of mixing optimized copies.
+          exclude: [...runtimePackages],
+        },
       } satisfies UserConfig
     },
 
