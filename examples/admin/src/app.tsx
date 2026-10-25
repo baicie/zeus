@@ -280,7 +280,10 @@ function UsersPage(props: PageProps) {
     retry: false,
   }))
   const result = () => query.data()
-  const users = () => result()?.rows ?? []
+  const emptyUsers: readonly User[] = []
+  // Query status and staleness updates retain the same data reference. Only
+  // replace grid rows when that data changes, preserving an in-flight click.
+  const users = createMemo<readonly User[]>(() => result()?.rows ?? emptyUsers)
   const pageCount = () =>
     Math.max(1, Math.ceil((result()?.total ?? 0) / pageSize))
   const selectedUser = () => users().find(user => user.id === selectedKeys()[0])
@@ -332,7 +335,7 @@ function UsersPage(props: PageProps) {
   }
 
   createEffect(() => {
-    const nextRows = [...users()]
+    const nextRows = users()
     if (gridElement && typeof gridElement.setRows === 'function')
       scheduleGridRows(gridElement, nextRows)
   })

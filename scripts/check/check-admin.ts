@@ -109,6 +109,20 @@ try {
       await expect(page.getByTestId('selection-status')).toContainText(
         'Ada Lovelace',
       )
+      // A fresh query becomes stale after 500ms without changing its rows.
+      // Holding the pointer across that notification must keep the same DOM
+      // row so WebKit can dispatch the click to the original target.
+      await page.getByTestId('user-status').selectOption('active')
+      await expect(row('ada')).toBeVisible()
+      await row('ada').evaluate(element => {
+        element.setAttribute('data-stale-check', 'same-row')
+      })
+      await row('ada').click({ delay: 600 })
+      await expect(row('ada')).toHaveAttribute('data-stale-check', 'same-row')
+      await expect(row('ada')).toHaveAttribute('aria-selected', 'true')
+      await expect(page.getByTestId('selection-status')).toContainText(
+        'Ada Lovelace',
+      )
       await page.getByTestId('open-selected-user').click()
       await expect(page).toHaveURL(`${origin}/admin/users/ada`)
       await expect(page.getByTestId('detail-id')).toHaveText('ada')
