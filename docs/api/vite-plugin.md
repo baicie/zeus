@@ -86,6 +86,13 @@ state preservation for that path.
 Overrides the native transform options passed to `transformModule`. The only
 compiler options are `moduleName` and `delegateEvents`.
 
+When the default browser runtime is installed, the plugin includes
+`@zeus-js/runtime-dom` in Vite dependency prebundling before the first render.
+This keeps compiler-injected runtime imports and user imports in the same
+dependency graph during cold development startup. A custom `moduleName` owns its
+dependency setup: add an installed runtime package to `optimizeDeps.include` when
+needed; virtual modules should be resolved by their providing plugin.
+
 ### ssrModuleName
 
 Overrides the runtime module imported by SSR transforms. It defaults to
