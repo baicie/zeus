@@ -133,6 +133,7 @@ export interface DefineElementMeta {
     {
       description?: string
       detail?: Record<string, string>
+      detailOptional?: string[]
     }
   >
 

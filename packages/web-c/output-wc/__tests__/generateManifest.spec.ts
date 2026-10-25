@@ -153,6 +153,59 @@ describe('generateManifest', () => {
     ).toThrow('[ZEUS_WC_ATTR_COLLISION]')
   })
 
+  it.each([
+    'nativeEvent',
+    null,
+    [42],
+    ['missing'],
+    ['nativeEvent', 'nativeEvent'],
+    Array(1),
+  ])('rejects invalid optional event detail metadata: %j', detailOptional => {
+    const manifest = {
+      schemaVersion: 1,
+      components: [
+        {
+          tag: 'z-notice',
+          name: 'Notice',
+          exportName: 'Notice',
+          source: 'notice.tsx',
+          props: {},
+          slots: {},
+          hostAttributes: [],
+          cssParts: [],
+          cssVars: {},
+          events: {
+            change: {
+              detail: { value: 'string', nativeEvent: 'Event' },
+              detailOptional,
+            },
+          },
+        },
+      ],
+    }
+    expect(() => validateComponentManifest(manifest as any)).toThrow(
+      '[ZEUS_WC_EVENT_ABI]',
+    )
+  })
+
+  it('requires optional event fields to belong to an existing detail map', () => {
+    const component = {
+      tag: 'z-notice',
+      name: 'Notice',
+      exportName: 'Notice',
+      source: 'notice.tsx',
+      props: {},
+      slots: {},
+      hostAttributes: [],
+      cssParts: [],
+      cssVars: {},
+      events: { change: { detailOptional: ['nativeEvent'] } },
+    }
+    expect(() =>
+      validateComponentManifest({ schemaVersion: 1, components: [component] }),
+    ).toThrow('[ZEUS_WC_EVENT_ABI]')
+  })
+
   it('rejects non-serializable event, slot, method, and style metadata', () => {
     const base = {
       tag: 'z-contract',

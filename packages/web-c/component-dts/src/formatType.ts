@@ -35,14 +35,18 @@ export function formatEventType(event: ComponentEvent): string {
   if (!event.detail) {
     return 'CustomEvent<unknown>'
   }
-  return `CustomEvent<${formatDetailType(event.detail)}>`
+  return `CustomEvent<${formatDetailType(event.detail, event.detailOptional)}>`
 }
 
-export function formatDetailType(detail: Record<string, string>): string {
+export function formatDetailType(
+  detail: Record<string, string>,
+  optionalFields: readonly string[] = [],
+): string {
+  const optional = new Set(optionalFields)
   const fields = Object.entries(detail)
     .map(
       ([name, type]) =>
-        `${safePropertyName(name)}: ${normalizeKnownType(type)}`,
+        `${safePropertyName(name)}${optional.has(name) ? '?' : ''}: ${normalizeKnownType(type)}`,
     )
     .join('; ')
   return `{ ${fields} }`

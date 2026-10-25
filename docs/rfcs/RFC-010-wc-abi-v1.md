@@ -74,6 +74,7 @@ interface ComponentEvent {
   name?: string
   reactName?: string
   detail?: Record<string, string>
+  detailOptional?: string[]
   bubbles?: boolean
   composed?: boolean
   cancelable?: boolean
@@ -110,9 +111,21 @@ interface ComponentCssVar {
 }
 ```
 
+`detail` 映射事件 payload 字段名与类型；`detailOptional` 是其中可省略字段名的唯一列表。
+Analyzer 保留 `event<{ value: string; nativeEvent?: Event }>()` 的可选标记，生成
+`detail: { value: 'string', nativeEvent: 'Event' }` 和 `detailOptional: ['nativeEvent']`。
+WC/JSX/React/Vue 声明、Custom Elements Manifest 和 API 文档使用同一 formatter，输出
+`{ value: string; nativeEvent?: Event }`；读取可选字段得到 `Event | undefined`，不会将整个
+payload 泛化为 `unknown`。列表只允许唯一字符串，并且每个名字必须存在于 `detail`。
+
+合并时，`detailOptional` 始终跟随所选的 `detail`：已声明的类型优先于 setup 推断；
+只补充描述的 `meta.events` 保留现有类型和可选性。显式 metadata 替换 `detail` 时，必须
+同时提供所需的 `detailOptional`；省略列表表示新 detail 的全部字段必填，不继承旧字段的
+可选性。
+
 `default` 仅用于 JSON-safe 静态默认值；工厂默认值由组件实现创建，并以 `hasDefault: true`、`defaultStrategy: 'factory'` 且不包含 `default` 表达。数组和普通对象可作为 JSON-safe 静态值；函数、实例、循环引用、访问器、symbol、bigint、非有限数及 `-0` 不能写入 Manifest。复杂类型默认使用 `attr: false`，除非声明了受支持的序列化策略。
 
-`schemaVersion: 1` 是唯一接受的版本字段；Analyzer 与各输出层不得写入旧的 `version` 字段，也不得把另一套字段布局混入同一产物。包名/版本来自 package metadata，不属于当前 Manifest schema。`styles` 与 `styleNonce` 是组件实现配置：lazy entry 加载组件模块后由 `mountElementDefinition` 从 definition options 注入，它们不复制进 ABI Manifest。后续若改变 Manifest 结构，必须升级 schema 并显式迁移，符合 beta 阶段不保留兼容入口的规则。
+`schemaVersion: 1` 是唯一接受的版本字段；Analyzer 与各输出层不得写入旧的 `version` 字段，也不得把另一套字段布局混入同一产物。包名/版本来自 package metadata，不属于当前 Manifest schema。`styles` 与 `styleNonce` 是组件实现配置：lazy entry 加载组件模块后由 `mountElementDefinition` 从 definition options 注入，它们不复制进 ABI Manifest。当前 v1 的事件可选字段使用上文唯一表示；后续若改变已有字段的含义或替换字段布局，必须升级 schema 并显式迁移，符合 beta 阶段不保留兼容入口的规则。
 
 ## 2. 值与生命周期语义
 

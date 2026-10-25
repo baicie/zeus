@@ -68,7 +68,9 @@ function generateComponentJsxProps(component: ComponentRecord): string {
   }
 
   for (const [key, event] of Object.entries(component.events)) {
-    const detailType = event.detail ? formatDetailType(event.detail) : 'unknown'
+    const detailType = event.detail
+      ? formatDetailType(event.detail, event.detailOptional)
+      : 'unknown'
     lines.push(
       `  ${safePropertyName(event.reactName ?? toReactEventProp(event.key ?? key))}?: (event: CustomEvent<${detailType}>) => void`,
     )

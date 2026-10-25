@@ -73,6 +73,7 @@ export interface ComponentEvent {
   name?: string
   reactName?: string
   detail?: Record<string, string>
+  detailOptional?: string[]
   bubbles?: boolean
   composed?: boolean
   cancelable?: boolean

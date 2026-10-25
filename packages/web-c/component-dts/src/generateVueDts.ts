@@ -131,7 +131,9 @@ function generateVueEmitsType(component: ComponentRecord): string {
   }
 
   const fields = entries.map(([key, event]) => {
-    const detailType = event.detail ? formatDetailType(event.detail) : 'unknown'
+    const detailType = event.detail
+      ? formatDetailType(event.detail, event.detailOptional)
+      : 'unknown'
     return `${JSON.stringify(event.name ?? toKebabCase(event.key ?? key))}: (event: CustomEvent<${detailType}>) => void`
   })
 

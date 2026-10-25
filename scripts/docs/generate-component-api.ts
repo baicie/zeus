@@ -1,40 +1,12 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
-interface Manifest {
-  version: string
-  generatedAt?: string
-  components: Array<{
-    tag: string
-    name: string
-    description?: string
-    props: Record<string, PropDef>
-    events: Record<string, EventDef>
-    slots: Record<string, SlotDef>
-    cssParts: string[]
-    cssVars: string[]
-  }>
-}
+import { formatDetailType } from '@zeus-js/component-dts'
 
-interface PropDef {
-  type: string
-  default?: unknown
-  values?: unknown[]
-  reflect?: boolean
-  attribute?: string
-  description?: string
-}
-
-interface EventDef {
-  detail?: Record<string, string>
-  bubbles?: boolean
-  composed?: boolean
-  description?: string
-}
-
-interface SlotDef {
-  description?: string
-}
+import type {
+  ComponentManifest,
+  ComponentProp,
+} from '@zeus-js/component-analyzer'
 
 async function main() {
   const manifestPath = process.argv[2]
@@ -47,7 +19,7 @@ async function main() {
     process.exit(1)
   }
 
-  const manifest: Manifest = JSON.parse(
+  const manifest: ComponentManifest = JSON.parse(
     await fs.readFile(manifestPath, 'utf-8'),
   )
 
@@ -62,7 +34,9 @@ async function main() {
   console.log(`\nGenerated ${manifest.components.length} component docs.`)
 }
 
-function renderComponent(component: Manifest['components'][number]): string {
+function renderComponent(
+  component: ComponentManifest['components'][number],
+): string {
   const lines: string[] = []
 
   lines.push(`# \`${component.tag}\``)
@@ -102,7 +76,7 @@ function renderComponent(component: Manifest['components'][number]): string {
 
     for (const [name, event] of eventEntries) {
       lines.push(
-        `| \`${name}\` | \`${formatDetail(event.detail)}\` | ${event.description ?? ''} |`,
+        `| \`${name}\` | \`${formatDetail(event.detail, event.detailOptional)}\` | ${event.description ?? ''} |`,
       )
     }
     lines.push('')
@@ -139,12 +113,12 @@ function renderComponent(component: Manifest['components'][number]): string {
     lines.push('')
   }
 
-  if (component.cssVars.length > 0) {
+  if (Object.keys(component.cssVars).length > 0) {
     lines.push('## CSS Variables')
     lines.push('')
 
-    for (const cssVar of component.cssVars) {
-      lines.push(`- \`${cssVar}\``)
+    for (const cssVar of Object.values(component.cssVars)) {
+      lines.push(`- \`${cssVar.name}\``)
     }
     lines.push('')
   }
@@ -152,7 +126,7 @@ function renderComponent(component: Manifest['components'][number]): string {
   return lines.join('\n')
 }
 
-function formatPropType(prop: PropDef): string {
+function formatPropType(prop: ComponentProp): string {
   if (prop.values?.length) {
     return prop.values.map(item => `\`${JSON.stringify(item)}\``).join(' | ')
   }
@@ -165,11 +139,11 @@ function formatDefault(value: unknown): string {
   return `\`${JSON.stringify(value)}\``
 }
 
-function formatDetail(detail: Record<string, string> | undefined): string {
-  if (!detail) return ''
-  return Object.entries(detail)
-    .map(([key, value]) => `${key}: ${value}`)
-    .join('; ')
+function formatDetail(
+  detail: Record<string, string> | undefined,
+  optionalFields?: readonly string[],
+): string {
+  return detail ? formatDetailType(detail, optionalFields) : ''
 }
 
 main().catch(error => {

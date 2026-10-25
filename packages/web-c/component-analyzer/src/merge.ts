@@ -242,11 +242,13 @@ function mergeEvent(
   primary: ComponentEvent,
   fallback: ComponentEvent | undefined,
 ): ComponentEvent {
+  const detailSource = primary.detail !== undefined ? primary : fallback
   return {
     key: primary.key ?? fallback?.key,
     name: primary.name ?? fallback?.name,
     reactName: primary.reactName ?? fallback?.reactName,
-    detail: primary.detail ?? fallback?.detail,
+    detail: detailSource?.detail,
+    detailOptional: detailSource?.detailOptional,
     bubbles: primary.bubbles ?? fallback?.bubbles,
     composed: primary.composed ?? fallback?.composed,
     cancelable: primary.cancelable ?? fallback?.cancelable,
@@ -260,12 +262,14 @@ function normalizeExplicitEvent(
   base: ComponentEvent | undefined,
 ): ComponentEvent {
   const fallback = base ?? createComponentEvent(key)
+  const detailSource = value.detail !== undefined ? value : fallback
 
   return {
     key: value.key ?? fallback.key,
     name: value.name ?? fallback.name,
     reactName: value.reactName ?? fallback.reactName,
-    detail: value.detail ?? fallback.detail,
+    detail: detailSource.detail,
+    detailOptional: detailSource.detailOptional,
     bubbles: value.bubbles ?? fallback.bubbles,
     composed: value.composed ?? fallback.composed,
     cancelable: value.cancelable ?? fallback.cancelable,

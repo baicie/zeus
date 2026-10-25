@@ -57,8 +57,7 @@ function extractEventDefinition(
   if (!t.isCallExpression(node)) return result
   if (!t.isIdentifier(node.callee, { name: 'event' })) return result
 
-  result.detail =
-    extractEventDetailType(node, sourceBoundTypeNames) ?? result.detail
+  Object.assign(result, extractEventDetailType(node, sourceBoundTypeNames))
 
   const first = node.arguments[0]
 
@@ -92,12 +91,13 @@ function extractEventDefinition(
 function extractEventDetailType(
   node: t.CallExpression,
   sourceBoundTypeNames: ReadonlySet<string>,
-): Record<string, string> | undefined {
+): Pick<ComponentEvent, 'detail' | 'detailOptional'> | undefined {
   const first = node.typeArguments?.params[0]
 
   if (!t.isTSTypeLiteral(first)) return undefined
 
   const detail: Record<string, string> = {}
+  const detailOptional: string[] = []
 
   for (const member of first.members) {
     if (!t.isTSPropertySignature(member) || member.computed) return undefined
@@ -112,9 +112,12 @@ function extractEventDetailType(
     if (type === undefined) return undefined
 
     detail[key] = type
+    if (member.optional) detailOptional.push(key)
   }
 
-  return Object.keys(detail).length > 0 ? detail : undefined
+  return Object.keys(detail).length > 0
+    ? { detail, ...(detailOptional.length ? { detailOptional } : {}) }
+    : undefined
 }
 
 function inferTsType(

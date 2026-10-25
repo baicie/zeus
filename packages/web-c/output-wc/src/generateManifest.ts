@@ -82,6 +82,38 @@ export function validateComponentManifest(manifest: ComponentManifest): void {
           `[ZEUS_WC_EVENT_ABI] ${componentPath}.events.${eventKey} contains invalid names or bubbles/composed/cancelable flags.`,
         )
       }
+      const eventPath = `${componentPath}.events.${eventKey}`
+      if (event.detail !== undefined)
+        assertJsonSafe(event.detail, `${eventPath}.detail`)
+      if (event.detailOptional !== undefined) {
+        assertJsonSafe(event.detailOptional, `${eventPath}.detailOptional`)
+      }
+      if (
+        event.detail !== undefined &&
+        (event.detail === null ||
+          typeof event.detail !== 'object' ||
+          Array.isArray(event.detail) ||
+          Object.values(event.detail).some(type => typeof type !== 'string'))
+      ) {
+        throw new Error(
+          `[ZEUS_WC_EVENT_ABI] ${eventPath}.detail must map field names to type strings.`,
+        )
+      }
+      if (
+        event.detailOptional !== undefined &&
+        (!Array.isArray(event.detailOptional) ||
+          !event.detail ||
+          [...event.detailOptional].some(
+            name =>
+              typeof name !== 'string' ||
+              !Object.prototype.hasOwnProperty.call(event.detail, name),
+          ) ||
+          new Set(event.detailOptional).size !== event.detailOptional.length)
+      ) {
+        throw new Error(
+          `[ZEUS_WC_EVENT_ABI] ${eventPath}.detailOptional must contain unique names from detail.`,
+        )
+      }
     }
 
     for (const [propName, prop] of Object.entries(component.props ?? {})) {

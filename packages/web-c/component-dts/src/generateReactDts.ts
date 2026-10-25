@@ -75,7 +75,9 @@ function generateReactComponentDts(
 
   for (const [key, event] of Object.entries(component.events)) {
     const propName = event.reactName ?? toReactEventProp(event.key ?? key)
-    const detailType = event.detail ? formatDetailType(event.detail) : 'unknown'
+    const detailType = event.detail
+      ? formatDetailType(event.detail, event.detailOptional)
+      : 'unknown'
     lines.push(
       `  ${safePropertyName(propName)}?: (event: CustomEvent<${detailType}>) => void`,
     )

@@ -1,3 +1,5 @@
+import { formatDetailType } from '@zeus-js/component-dts'
+
 import { validateComponentManifest } from './generateManifest'
 
 import type {
@@ -234,7 +236,7 @@ function generateEvents(component: ComponentRecord): CustomElementEvent[] {
       description: event.description,
       type: {
         text: event.detail
-          ? `CustomEvent<${formatDetailType(event.detail)}>`
+          ? `CustomEvent<${formatDetailType(event.detail, event.detailOptional)}>`
           : 'CustomEvent',
       },
     }
@@ -288,14 +290,6 @@ function formatPropType(prop: ComponentProp): string {
 
 function isAttributeBackedType(type: ComponentProp['type']): boolean {
   return type === 'string' || type === 'number' || type === 'boolean'
-}
-
-function formatDetailType(detail: Record<string, string>): string {
-  const fields = Object.entries(detail)
-    .map(([name, type]) => `${name}: ${type}`)
-    .join('; ')
-
-  return `{ ${fields} }`
 }
 
 function normalizeModulePath(value: string): string {
