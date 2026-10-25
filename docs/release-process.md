@@ -488,7 +488,13 @@ alpha、beta、rc 与 Canary 不修改其他通道；stable 发布仍必须在�
 - 自动发布只由 `main` push 触发；手动 `workflow_dispatch` 也只有在
   `refs/heads/main` 上才进入发布 job。
 - Canary、正式 tag 发布和 `Repair Native Latest` 共用 `group: npm-release`，并设置
-  `cancel-in-progress: false`。运行按队列串行完成，不能取消一个正在写 npm 的运行。
+  `cancel-in-progress: false`、`queue: max`，保留最多 100 个等待运行并串行执行，队列满后
+  新增运行仍会被取消；不能取消一个正在写 npm 的运行。GitHub 默认只保留一个 pending 运行，新的请求会替换它；
+  单独设置 `cancel-in-progress: false` 不能保证保留待发布 tag。
+  详见 [GitHub concurrency 队列规则](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency#queueing-multiple-pending-runs)。
+  对仍使用旧队列配置的发布，先等待已排队的正式 tag 发布完成，再合并触发下一次 Canary
+  的变更；若待运行被取消，先核对其终态、tag SHA 和现有 npm 发布状态，再重新运行原 tag
+  对应的 workflow，不能移动或重新创建版本 tag。
 - feature/fix/refactor 等分支仍运行 CI 与 native matrix，但不能发布共享 `canary`。
 - `Canary` GitHub Environment 也应只允许 `main`，形成 workflow 与环境双重约束。
 
