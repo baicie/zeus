@@ -25,8 +25,8 @@ describe('create-zeus scaffold', () => {
     const packageJson = JSON.parse(
       readFileSync(join(root, 'package.json'), 'utf-8'),
     )
-    expect(packageJson.dependencies['@zeus-js/zeus']).toBe('^0.1.0')
-    expect(packageJson.devDependencies['@zeus-js/vite-plugin']).toBe('^0.0.4')
+    expect(packageJson.dependencies['@zeus-js/zeus']).toBe('0.1.1-beta.19')
+    expect(packageJson.devDependencies['@zeus-js/vite-plugin']).toBe('0.0.5')
 
     rmSync(root, {
       recursive: true,
@@ -52,8 +52,8 @@ describe('create-zeus scaffold', () => {
       readFileSync(join(root, 'package.json'), 'utf-8'),
     )
     const viteConfig = readFileSync(join(root, 'vite.config.ts'), 'utf-8')
-    expect(packageJson.dependencies['@zeus-js/zeus']).toBe('^0.1.0')
-    expect(packageJson.devDependencies['@zeus-js/vite-plugin']).toBe('^0.0.4')
+    expect(packageJson.dependencies['@zeus-js/zeus']).toBe('0.1.1-beta.19')
+    expect(packageJson.devDependencies['@zeus-js/vite-plugin']).toBe('0.0.5')
     expect(viteConfig).not.toContain("target: 'web-components'")
 
     rmSync(root, {
@@ -86,13 +86,17 @@ describe('create-zeus scaffold', () => {
     expect(dependencies[dependency]).toBeTruthy()
     if (template === 'component-library-ts') {
       expect(packageJson.dependencies['@zeus-js/output-react-wrapper']).toBe(
-        '^0.1.0',
+        '0.1.1-beta.19',
       )
       expect(packageJson.dependencies['@zeus-js/output-vue-wrapper']).toBe(
-        '^0.1.0',
+        '0.1.1-beta.19',
       )
-      expect(packageJson.dependencies['@zeus-js/runtime-dom']).toBe('^0.1.0')
-      expect(packageJson.dependencies['@zeus-js/web-c-runtime']).toBe('^0.1.0')
+      expect(packageJson.dependencies['@zeus-js/runtime-dom']).toBe(
+        '0.1.1-beta.19',
+      )
+      expect(packageJson.dependencies['@zeus-js/web-c-runtime']).toBe(
+        '0.1.1-beta.19',
+      )
       expect(packageJson.dependencies.react).toBe('^19.2.7')
       expect(packageJson.dependencies.vue).toBe('^3.5.41')
       expect(packageJson.devDependencies['@types/react']).toBe('^19.2.17')

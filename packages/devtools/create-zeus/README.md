@@ -42,7 +42,15 @@ pnpm check:create-zeus-registry
 ```
 
 `check:create-zeus` 会为四种模板生成临时项目，运行 TypeScript 检查和 Vite
-生产构建。`check:create-zeus-registry` 会检查模板依赖范围是否能匹配 npm
-registry 中已发布的 Zeus 包版本。
+生产构建。`check:create-zeus-registry` 要求模板精确固定同一组已发布的 Zeus
+版本，并在仓库外逐个生成四种模板，从 registry 独立安装依赖，运行类型检查、构建、
+模板测试和 dev / production 浏览器交互。计数按钮必须从 0 更新到 1、2；组件库必须
+响应 attribute 更新并保留 slot 内容。仅安装成功或包版本存在不能代替交互验收。
+
+先运行 `pnpm exec playwright install chromium` 安装验收浏览器。本地也可通过
+`ZEUS_CREATE_BROWSER_CHANNEL=chrome` 使用已安装的 Chrome。报告写入
+`temp/create-zeus-registry/report.json`，包含实际安装版本和解析入口。失败时会保留并打印
+隔离项目目录，同时关闭验收浏览器与 Vite 进程。诊断时可传 `--framework-version` 与
+`--vite-plugin-version` 覆盖临时项目依赖；发布工作流不传覆盖参数，以验证实际模板。
 
 测试使用真实临时目录、文件、Git 标记和符号链接，并模拟 CLI 确认；不会对真实仓库根或家目录执行覆盖。

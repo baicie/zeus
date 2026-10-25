@@ -38,7 +38,11 @@ jobs:
       - name: Build host native compiler
         run: pnpm --filter @zeus-js/compiler-native build:native
 
-      - name: Verify published template dependencies
+      - name: Install template smoke browser
+        if: startsWith(github.ref_name, 'create-zeus@')
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Verify published templates and browser interactions
         if: startsWith(github.ref_name, 'create-zeus@')
         run: pnpm check:create-zeus-registry
 
@@ -73,3 +77,11 @@ jobs:
           esac
           VERSION="${RELEASE_REF##*@}"
           pnpm release:verify:published --package "$PACKAGE" --version "$VERSION"
+
+      - name: Preserve template registry report
+        if: always() && startsWith(github.ref_name, 'create-zeus@')
+        uses: actions/upload-artifact@v4
+        with:
+          name: create-zeus-registry-report
+          path: temp/create-zeus-registry/report.json
+          if-no-files-found: warn

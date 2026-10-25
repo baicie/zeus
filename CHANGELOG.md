@@ -1,5 +1,19 @@
 # Changelog
 
+## create-zeus 0.1.5 (2026-10-25)
+
+### Fixes
+
+- Pin all four templates to the same published Zeus 0.1.1-beta.19 framework and Vite plugin 0.0.5 toolchain so new projects use the current Native compiler and one signal engine.
+- Gate CLI publication on isolated registry installs, checks, builds, tests and dev/production browser interactions for all templates, preserving the report in CI.
+
+## vite-plugin 0.0.5 (2026-10-25)
+
+### Fixes
+
+- Publish the current Rust Native compiler integration, runtime resolution, dependency deduplication and scoped HMR support.
+- Prebundle the compiler-injected DOM runtime before the first development render, preventing duplicate signal engines during cold startup.
+
 ## 0.1.1-beta.19 (2026-10-25)
 
 ### Fixes
