@@ -70,28 +70,37 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const { data } = await github.rest.actions.listWorkflowRunsForRepo({
+            const { findBenchmarkHistory } = require('./scripts/bench/component-host-history.cjs')
+            const previous = await findBenchmarkHistory({
+              github,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              workflow_id: 'component-host-bench.yml',
-              branch: 'main',
-              status: 'success',
-              per_page: 100,
+              currentRunId: context.runId,
+              log: core.info,
             })
-            const previous = data.workflow_runs.find(run =>
-              run.id !== context.runId && run.event === 'push'
-            )
-            core.setOutput('run-id', previous?.id ?? '')
+            core.setOutput('run-id', previous?.runId ?? '')
+            core.setOutput('head-sha', previous?.headSha ?? '')
 
       - name: Download previous main benchmark history
         if: steps.previous-run.outputs.run-id != ''
         uses: actions/download-artifact@v4
-        continue-on-error: true
         with:
           name: component-host-benchmark
           run-id: ${{ steps.previous-run.outputs.run-id }}
           github-token: ${{ github.token }}
           path: temp/bench/component-host
+
+      - name: Validate restored benchmark history
+        if: steps.previous-run.outputs.run-id != ''
+        env:
+          PREVIOUS_BENCHMARK_SHA: ${{ steps.previous-run.outputs.head-sha }}
+        run: |
+          node <<'NODE'
+          const { readFileSync } = require('node:fs')
+          const { assertBenchmarkHistory } = require('./scripts/bench/component-host-history.cjs')
+          const history = JSON.parse(readFileSync('temp/bench/component-host/trend.json', 'utf8'))
+          assertBenchmarkHistory(history, process.env.PREVIOUS_BENCHMARK_SHA)
+          NODE
 
       - name: Build host native compiler
         run: pnpm --filter @zeus-js/compiler-native build:native
@@ -102,13 +111,21 @@ jobs:
 
       - name: Validate benchmark runtime data
         if: always()
+        env:
+          PREVIOUS_BENCHMARK_SHA: ${{ steps.previous-run.outputs.head-sha }}
         run: |
           test -s temp/bench/component-host/report.json
           node --input-type=module <<'NODE'
           import { readFileSync } from 'node:fs'
+          import historyChecks from './scripts/bench/component-host-history.cjs'
           const report = JSON.parse(readFileSync('temp/bench/component-host/report.json', 'utf8'))
           if (!Array.isArray(report.runtime) || report.runtime.length === 0) {
             throw new Error('runtime benchmark missing')
+          }
+          const history = JSON.parse(readFileSync('temp/bench/component-host/trend.json', 'utf8'))
+          historyChecks.assertBenchmarkHistory(history, process.env.ZEUS_BENCH_GIT_SHA)
+          if (process.env.PREVIOUS_BENCHMARK_SHA) {
+            historyChecks.assertBenchmarkHistory(history, process.env.PREVIOUS_BENCHMARK_SHA)
           }
           NODE
 
