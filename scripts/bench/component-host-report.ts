@@ -25,6 +25,7 @@ export interface CompileEntry {
 export interface RuntimeEntry {
   name: string
   ms: number
+  samples?: number[]
 }
 
 export interface BenchmarkReport {
@@ -213,11 +214,18 @@ export async function renderMarkdownReport(report: BenchmarkReport) {
   if (report.runtime) {
     lines.push('## Runtime')
     lines.push('')
-    lines.push('| Metric | Time |')
-    lines.push('|---|---:|')
+    lines.push('Time is the median of three fixed, isolated browser contexts.')
+    lines.push(
+      'All samples are retained below and in report.json / trend.json.',
+    )
+    lines.push('')
+    lines.push('| Metric | Median | Samples (ms) |')
+    lines.push('|---|---:|---|')
 
     for (const item of report.runtime) {
-      lines.push(`| ${item.name} | ${item.ms}ms |`)
+      lines.push(
+        `| ${item.name} | ${item.ms}ms | ${item.samples?.join(', ') ?? ''} |`,
+      )
     }
 
     lines.push('')
