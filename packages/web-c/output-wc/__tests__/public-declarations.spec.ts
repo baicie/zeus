@@ -4,6 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { createOutputRegistry } from '@zeus-js/bundler-plugin'
+import { generateDtsBundle } from 'dts-bundle-generator'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
@@ -13,6 +14,7 @@ import type { ZeusBuildContext } from '@zeus-js/bundler-plugin'
 import type { ComponentManifest } from '@zeus-js/component-analyzer'
 
 const repositoryRoot = fileURLToPath(new URL('../../../../', import.meta.url))
+let runtimeDeclarations: string | undefined
 const manifest: ComponentManifest = {
   schemaVersion: 1,
   components: [
@@ -73,12 +75,29 @@ describe('public Web Component declaration entry points', () => {
         }
         const zeusScope = path.join(root, 'node_modules/@zeus-js')
         await fs.mkdir(zeusScope, { recursive: true })
-        // Use the real framework's public exports and declarations, without TS paths.
-        await fs.symlink(
-          path.join(repositoryRoot, 'packages/core/zeus'),
-          path.join(zeusScope, 'zeus'),
-          'dir',
+        // Copy only the checked-in public JSX declarations. A repository symlink
+        // would silently depend on previously built workspace dist directories.
+        for (const relativePath of [
+          'package.json',
+          'jsx-runtime.d.ts',
+          'jsx-dev-runtime.d.ts',
+          'src/jsx.d.ts',
+        ]) {
+          const destination = path.join(zeusScope, 'zeus', relativePath)
+          await fs.mkdir(path.dirname(destination), { recursive: true })
+          await fs.copyFile(
+            path.join(repositoryRoot, 'packages/core/zeus', relativePath),
+            destination,
+          )
+        }
+        const runtimeRoot = path.join(zeusScope, 'runtime-dom')
+        const runtimeTypesPath = path.join(runtimeRoot, 'dist/runtime-dom.d.ts')
+        await fs.mkdir(path.dirname(runtimeTypesPath), { recursive: true })
+        await fs.copyFile(
+          path.join(repositoryRoot, 'packages/core/runtime-dom/package.json'),
+          path.join(runtimeRoot, 'package.json'),
         )
+        await fs.writeFile(runtimeTypesPath, await buildRuntimeDeclarations())
         const rootNames: string[] = []
         for (const entry of [
           '@fixture/notices',
@@ -172,6 +191,15 @@ describe('public Web Component declaration entry points', () => {
           target: ts.ScriptTarget.ESNext,
           types: [],
         })
+        const declarationPaths = program
+          .getSourceFiles()
+          .map(file => file.fileName)
+        expect(declarationPaths).toContain(await fs.realpath(runtimeTypesPath))
+        expect(
+          declarationPaths.some(filename =>
+            filename.startsWith(path.join(repositoryRoot, 'packages')),
+          ),
+        ).toBe(false)
         expect(
           ts
             .getPreEmitDiagnostics(program)
@@ -183,7 +211,7 @@ describe('public Web Component declaration entry points', () => {
         await fs.rm(root, { recursive: true, force: true })
       }
     },
-    15000,
+    30000,
   )
 
   it.each(['lazy', 'side-effect'] as const)(
@@ -197,6 +225,41 @@ describe('public Web Component declaration entry points', () => {
     },
   )
 })
+
+async function buildRuntimeDeclarations(): Promise<string> {
+  if (runtimeDeclarations !== undefined) return runtimeDeclarations
+  // Keep the source entry inside the build config's rootDir, but generate only
+  // in memory: no existing workspace dist file is read or changed.
+  const temporaryRoot = path.join(repositoryRoot, 'temp')
+  await fs.mkdir(temporaryRoot, { recursive: true })
+  const directory = await fs.mkdtemp(
+    path.join(temporaryRoot, 'public-jsx-runtime-'),
+  )
+  try {
+    const entry = path.join(directory, 'runtime.ts')
+    await fs.writeFile(
+      entry,
+      `/// <reference path=${JSON.stringify(path.join(repositoryRoot, 'packages/global.d.ts'))} />\n` +
+        `export * from ${JSON.stringify(path.join(repositoryRoot, 'packages/core/runtime-dom/src/index'))}\n`,
+    )
+    const [declarations] = generateDtsBundle(
+      [
+        {
+          filePath: entry,
+          libraries: {
+            inlinedLibraries: ['@zeus-js/signal', '@zeus-js/shared'],
+          },
+          output: { noBanner: true, exportReferencedTypes: false },
+        },
+      ],
+      { preferredConfigPath: path.join(repositoryRoot, 'tsconfig.build.json') },
+    )
+    runtimeDeclarations = declarations
+    return declarations
+  } finally {
+    await fs.rm(directory, { recursive: true, force: true })
+  }
+}
 
 async function generateDeclarations(
   register: 'lazy' | 'side-effect',
