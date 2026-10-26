@@ -177,7 +177,8 @@ const compilerCases = [
   {
     id: 'nested-jsx',
     source: 'export const App = ok => <div>{ok ? <span /> : null}</div>',
-    expected: 'ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION',
+    previousDiagnostic: 'ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION',
+    expected: null,
   },
 ]
 

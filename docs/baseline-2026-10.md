@@ -28,7 +28,7 @@ pnpm exec tsx scripts/check/capture-architecture-baseline.ts \
 
 脚本读取配置、现有 dist、npm registry 和现有 native binary，不启动构建、不发布、不修改 Zeus UI。结果包括完整 tracked package 配置、dependencies / devDependencies / peerDependencies / optionalDependencies / exports、每个 dist 文件的原始大小 / 独立 gzip 大小 / SHA-256、registry 所有 dist-tags、三条 compiler 最小复现的诊断，以及 component-host bench 原始报告。
 
-`--verify-boundaries` 检查当前编译器契约：Native/Component spread 应成功编译，尚未实现的条件 nested JSX 应保留准确诊断。首次基线采集时三项均拒绝；脚本随已验收的语法更新期望，JSON 区分当前 binary 观察与冻结源码配置。去除此选项仅采集观察。
+`--verify-boundaries` 检查当前编译器契约：Native spread、Component spread 和条件 nested JSX 都应成功编译且无 error 诊断。首次基线采集时三项均拒绝；各用例的 `previousDiagnostic` 保留当时的错误码，`expected: null` 表示当前验收要求成功。冻结源码配置、历史采集报告和当前已安装 binary 的行为观察分别记录，原始历史报告不改写。去除此选项仅采集观察。
 
 如已在外部计时完成根构建，可增加 `--build-duration-ms <实测毫秒>` 与 `--build-log <日志路径>`。未提供时报告保留 `not_measured`；不会把 component-host fixture build 时间冒充整个仓库构建耗时。
 
@@ -101,7 +101,7 @@ Rust 测试日志 `/tmp/zeus-roadmap-baseline-rust.log` 显示初次构建 52.51
 | --------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | S-003 / C-001：Native spread            | 当前编译器已支持有序 spread；冻结 commit 的历史观察为不支持，不能混同当前工作树实现                      | `<div {...props} />`，当前 native integration 与 runtime DOM/SSR spread tests                     |
 | S-004 / C-001：Component spread         | 当前编译器已支持有序 component spread；组件 prop alias 与 children/key/ref 仍在持续验收                  | `<Child {...props} />`，当前 native integration；组件 getter/优先级专项仍待补齐                   |
-| S-005：条件 nested JSX                  | 已确认不支持，`ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION`，无输出代码                                       | `<div>{ok ? <span /> : null}</div>`，采集脚本 `nested-jsx`                                        |
+| S-005：条件 nested JSX                  | 当前编译器已支持；首次基线的历史观察为 `ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION`，不能作为当前拒绝预期    | `<div>{ok ? <span /> : null}</div>`，采集脚本 `nested-jsx` 与当前 native integration              |
 | W-002 / W-003：Lazy 属性/默认值         | 已复现 ready 后 boolean 二次解码、默认值 Manifest 缺失；本轮修复并有回归                                 | [RFC-007](./rfcs/RFC-007-wc-prop-contract.md)、`adapter-contract.spec.ts`、`generateLazy.spec.ts` |
 | W-004 / W-005：重放、identity、生命周期 | 已复现 pre-upgrade 被初始 attribute 覆盖、deep proxy 改变 identity；本轮修复并覆盖模型/竞态/runtime move | `adapter-contract.spec.ts`；真实三浏览器与完整 Form/focus 矩阵仍待执行                            |
 | F-001：React SSR import                 | 设计静态检查指出风险；本轮独立 wrapper 修复与 Node/React 消费测试验收，不以本文代替通过日志              | `output-react-wrapper` runtime / generatedConsumer 测试与 packed consumer 报告                    |

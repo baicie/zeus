@@ -306,3 +306,11 @@ D-006 因目前无法安排首次接触者，仍缺真人 15 分钟验收；F-01
 - UI PR [#114](https://github.com/baicie/zeus-ui/pull/114) 已合并为 `d326e68cfbc408f2ed5a6cf74aa8b411d3762d77`；其发布前路线图记录已进入 UI `main`，全部 required CI（build、docs、unit、DTS、Windows、Data Grid、showcase）通过。
 - UI Phase 15 仍停在发布前：稳定版 publish、`v0.1.0` tag、稳定 registry/provenance 和独立消费者的发布后复核均未执行；`Release` environment 没有 required reviewer，按用户决定继续暂不配置审核人。
 - D-006 仍缺真实首次接触者的 15 分钟上手验收，F-011 的历史 `@zeus-js/compiler-native@latest` 仍因 npm E403 未清理；两项及本总目标继续保持未完成。
+
+## 2026-10-26 发布后增量复核
+
+框架 beta.20、Vite plugin 0.0.5、create-zeus 0.1.5 与 UI beta.34 均已真实发布。
+D-001 四模板原验收已通过；D-006 保留用户约十分钟、有协助的真人记录。
+UI stable 按用户决定后置，新 Golden 使用已发布 beta.34/beta.20。
+精确 run、源码、tarball 比对与原始报告见[发布后复核](./release-verification-2026-10-26/README.md)。
+完整 02-DESIGN 仍缺失，本增量不构成完整设计终审。历史日期化结论保留原样。

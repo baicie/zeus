@@ -8,7 +8,18 @@ import { pathToFileURL } from 'node:url'
 import { chromium, firefox, webkit, type BrowserType } from '@playwright/test'
 import { createVerifier } from 'sigstore'
 
+import {
+  goldenTypeFixture,
+  supportsGoldenDialogDefaults,
+  supportsGoldenDialogOptionalEvent,
+  verifyGoldenComponentSnapshot,
+  type GoldenGroupSnapshot,
+} from './golden-component-fixtures'
 import { verifyGoldenComponentManifest } from './golden-component-manifest'
+import {
+  runGoldenBrowserWithResources,
+  withCloseDeadline,
+} from './golden-component-resources'
 import { escapeRegExp } from './regexp-utils'
 
 const reportDirectory = path.resolve(
@@ -27,15 +38,17 @@ const goldenContract = JSON.parse(
     version: string
     frameworkDependency: string
   }
-  groups: Array<{
-    id: string
-    package: string
-    sourceFile: string
-    sourceSha256: string
-    manifestFile: string
-    manifestSha256: string
-    requiredBrowserAssertions: string[]
-  }>
+  groups: Array<
+    GoldenGroupSnapshot & {
+      id: string
+      package: string
+      sourceFile: string
+      sourceSha256: string
+      manifestFile: string
+      manifestSha256: string
+      requiredBrowserAssertions: string[]
+    }
+  >
 }
 const uiVersion =
   readOption('--ui-version') ??
@@ -55,6 +68,7 @@ const results: Array<Record<string, unknown>> = []
 const supplyChainEvidence: Array<Record<string, unknown>> = []
 const manifestEvidence: Array<Record<string, unknown>> = []
 const ssrEvidence: Array<Record<string, unknown>> = []
+const typeEvidence: Array<Record<string, unknown>> = []
 
 if (browsers.some(name => !browserTypes[name])) {
   throw new Error(
@@ -70,6 +84,7 @@ for (const consumer of ['native', 'react18', 'react19', 'vue3']) {
     install(project, consumer)
     await verifyPublishedPackages(project, consumer)
     verifyManifests(project, consumer)
+    verifyConsumerTypes(project, consumer)
     try {
       verifySsrImports(project, consumer)
     } catch (error) {
@@ -99,7 +114,7 @@ for (const consumer of ['native', 'react18', 'react19', 'vue3']) {
       results.push({
         ...result,
         status: 'failed',
-        stage: 'browser-assertions',
+        stage: result.stage ?? 'browser-assertions',
         verificationError: String(error),
       })
     }
@@ -108,6 +123,7 @@ for (const consumer of ['native', 'react18', 'react19', 'vue3']) {
 
 const report = {
   createdAt: new Date().toISOString(),
+  workDirectory: work,
   runtime: {
     node: process.version,
     platform: process.platform,
@@ -120,6 +136,12 @@ const report = {
   browsers,
   contract: {
     source: goldenContract.source,
+    dialogPolicy: {
+      defaultOpen: supportsGoldenDialogDefaults(goldenContract.groups),
+      optionalNativeEvent: supportsGoldenDialogOptionalEvent(
+        goldenContract.groups,
+      ),
+    },
     requiredBrowserAssertions: [
       ...new Set(
         goldenContract.groups.flatMap(group => group.requiredBrowserAssertions),
@@ -129,6 +151,7 @@ const report = {
   supplyChain: supplyChainEvidence,
   manifests: manifestEvidence,
   ssr: ssrEvidence,
+  types: typeEvidence,
   results,
 }
 fs.writeFileSync(
@@ -151,9 +174,16 @@ function prepareProject(project: string, consumer: string): void {
     ...Object.fromEntries(packages.map(name => [name, uiVersion])),
     '@zeus-js/zeus': frameworkVersion,
     '@zeus-js/runtime-dom': frameworkVersion,
-    react: reactVersion,
-    'react-dom': reactVersion,
-    vue: '^3.5.0',
+    ...(consumer.startsWith('react')
+      ? {
+          react: reactVersion,
+          'react-dom': reactVersion,
+          '@types/react': consumer === 'react18' ? '^18.3.0' : '^19.0.0',
+          '@types/react-dom': consumer === 'react18' ? '^18.3.0' : '^19.0.0',
+        }
+      : consumer === 'vue3'
+        ? { vue: '^3.5.0' }
+        : {}),
     vite: '^8.0.0',
     typescript: '^6.0.0',
   }
@@ -186,18 +216,6 @@ function install(project: string, consumer: string): void {
     cwd: project,
     stdio: 'inherit',
   })
-  // React and Vue wrappers are optional peer paths. Installing only the selected
-  // framework keeps each consumer an independent package installation.
-  if (consumer === 'native') {
-    execFileSync(
-      'npm',
-      ['uninstall', '--no-audit', '--no-fund', 'react', 'react-dom', 'vue'],
-      {
-        cwd: project,
-        stdio: 'ignore',
-      },
-    )
-  }
 }
 
 function verifyManifests(project: string, consumer: string): void {
@@ -221,11 +239,14 @@ function verifyManifests(project: string, consumer: string): void {
       packageName,
       group.manifestSha256,
     )
+    verifyGoldenComponentSnapshot(fs.readFileSync(manifestPath, 'utf8'), group)
     manifestEvidence.push({
       consumer,
       package: packageName,
       sha256: digest,
       contractSha256: group.manifestSha256,
+      componentSnapshot: 'verified',
+      componentCount: group.components.length,
       status: 'verified',
     })
   }
@@ -558,6 +579,77 @@ function verifyFrameworkDependencies(
   }
 }
 
+function verifyConsumerTypes(project: string, consumer: string): void {
+  const fixture = goldenTypeFixture(consumer, goldenContract.groups)
+  const env = { ...process.env }
+  delete env.NODE_OPTIONS
+  delete env.NODE_PATH
+  delete env.TSX_TSCONFIG_PATH
+  const compile = (source: string, stage: string, entries: string[]): void => {
+    const filename = `src/${stage}.ts`
+    fs.writeFileSync(path.join(project, filename), source)
+    fs.writeFileSync(
+      path.join(project, 'tsconfig.golden.json'),
+      JSON.stringify(
+        {
+          compilerOptions: {
+            target: 'ES2022',
+            module: 'ESNext',
+            moduleResolution: 'Bundler',
+            lib: ['ES2022', 'DOM', 'DOM.Iterable'],
+            types: [],
+            strict: true,
+            noEmit: true,
+            skipLibCheck: false,
+          },
+          files: [filename],
+        },
+        null,
+        2,
+      ),
+    )
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          path.join(project, 'node_modules/typescript/bin/tsc'),
+          '--project',
+          'tsconfig.golden.json',
+        ],
+        {
+          cwd: project,
+          env,
+          encoding: 'utf8',
+          stdio: 'pipe',
+        },
+      )
+      typeEvidence.push({
+        consumer,
+        stage,
+        entries,
+        strict: true,
+        fixtureSha256: createHash('sha256').update(source).digest('hex'),
+        status: 'verified',
+      })
+    } catch (error) {
+      const output = error as { stdout?: string; stderr?: string }
+      typeEvidence.push({
+        consumer,
+        stage,
+        entries,
+        strict: true,
+        status: 'failed',
+        error: String(error),
+        output: `${output.stdout ?? ''}${output.stderr ?? ''}`,
+      })
+      throw new Error(
+        `${consumer} ${stage} failed: ${String(error)}\n${output.stdout ?? ''}${output.stderr ?? ''}`,
+      )
+    }
+  }
+  compile(fixture.source, 'public-consumer-types', fixture.publicEntries)
+}
+
 function buildProject(project: string, consumer: string): void {
   execFileSync('npx', ['vite', 'build'], { cwd: project, stdio: 'inherit' })
   void consumer
@@ -613,56 +705,51 @@ async function runBrowser(
   browserName: string,
 ): Promise<Record<string, unknown>> {
   const browserType = browserTypes[browserName]
-  const server = await startPreview(project)
-  let browser
-  try {
-    browser = await browserType.launch({
-      headless: true,
-      ...(browserName === 'chromium' ? { channel: 'chromium' } : {}),
-    })
-    const page = await browser.newPage()
-    const errors: string[] = []
-    page.on('pageerror', error => errors.push(error.message))
-    await page.goto(server.url)
-    await page.waitForFunction(
-      () => (window as Window & { goldenResult?: unknown }).goldenResult,
-      undefined,
-      { timeout: 30_000 },
-    )
-    const result = await page.evaluate(
-      () => (window as Window & { goldenResult?: unknown }).goldenResult,
-    )
-    const passed =
-      typeof result === 'object' &&
-      result !== null &&
-      'passed' in result &&
-      result.passed === true
-    if (!passed || errors.length) {
-      return {
-        consumer,
-        browser: browserName,
-        status: 'failed',
-        result,
-        errors,
+  return runGoldenBrowserWithResources({
+    consumer,
+    browser: browserName,
+    startPreview: () => startPreview(project),
+    launchBrowser: () =>
+      browserType.launchServer({
+        headless: true,
+        ...(browserName === 'chromium' ? { channel: 'chromium' } : {}),
+      }),
+    check: async (server, url) => {
+      const browser = await browserType.connect(server.wsEndpoint())
+      const page = await browser.newPage()
+      const errors: string[] = []
+      page.on('pageerror', error => errors.push(error.message))
+      await page.goto(url)
+      await page.waitForFunction(
+        () => (window as Window & { goldenResult?: unknown }).goldenResult,
+        undefined,
+        { timeout: 30_000 },
+      )
+      const result = await page.evaluate(
+        () => (window as Window & { goldenResult?: unknown }).goldenResult,
+      )
+      const passed =
+        typeof result === 'object' &&
+        result !== null &&
+        'passed' in result &&
+        result.passed === true
+      if (!passed || errors.length) {
+        return {
+          consumer,
+          browser: browserName,
+          status: 'failed',
+          result,
+          errors,
+        }
       }
-    }
-    return { consumer, browser: browserName, status: 'passed', result }
-  } catch (error) {
-    return {
-      consumer,
-      browser: browserName,
-      status: 'failed',
-      error: String(error),
-    }
-  } finally {
-    await browser?.close()
-    server.close()
-  }
+      return { status: 'passed', result }
+    },
+  })
 }
 
 async function startPreview(project: string): Promise<{
   url: string
-  close: () => void
+  close: () => Promise<void>
 }> {
   const { preview } = await import(
     pathToFileURL(path.join(project, 'node_modules/vite/dist/node/index.js'))
@@ -672,12 +759,24 @@ async function startPreview(project: string): Promise<{
     root: project,
     preview: { host: '127.0.0.1', port: 0 },
   })
+  const close = async (): Promise<void> => {
+    server.httpServer.closeAllConnections()
+    await server.close()
+  }
   const address = server.httpServer.address()
-  if (!address || typeof address === 'string')
+  if (!address || typeof address === 'string') {
+    try {
+      await withCloseDeadline(close)
+    } catch (error) {
+      throw new Error(
+        `Vite preview did not expose a port; cleanup failed: ${String(error)}`,
+      )
+    }
     throw new Error('Vite preview did not expose a port')
+  }
   return {
     url: `http://127.0.0.1:${address.port}`,
-    close: () => server.httpServer.close(),
+    close,
   }
 }
 
@@ -780,6 +879,37 @@ async function run() {
   const dialogClose = dialog.querySelector('zw-dialog-close button')
   const rows = Array.from({ length: 120 }, (_, index) => ({ id: 'row-' + index, name: 'Row ' + index }))
 
+  async function mountAuxiliaryDialog(props, onOpenChange) {
+    const container = document.createElement('div')
+    app.append(container)
+    let dispose = () => container.remove()
+    if (${JSON.stringify(consumer)} === 'native') {
+      const element = document.createElement('zw-dialog')
+      Object.assign(element, props)
+      element.innerHTML = '<zw-dialog-content><button>Auxiliary content</button></zw-dialog-content>'
+      if (onOpenChange) element.addEventListener('open-change', onOpenChange)
+      container.append(element)
+    } else if (${JSON.stringify(consumer)}.startsWith('react')) {
+      const React = await import('react')
+      const { createRoot } = await import('react-dom/client')
+      const { Dialog, DialogContent } = await import('@zeus-web/dialog/react')
+      const root = createRoot(container)
+      root.render(React.createElement(Dialog, { ...props, onOpenChange }, React.createElement(DialogContent, null, React.createElement('button', null, 'Auxiliary content'))))
+      dispose = () => { root.unmount(); container.remove() }
+    } else {
+      const { createApp, h } = await import('vue')
+      const { Dialog, DialogContent } = await import('@zeus-web/dialog/vue')
+      const app = createApp({ render: () => h(Dialog, { ...props, 'onOpen-change': onOpenChange }, { default: () => h(DialogContent, null, { default: () => h('button', null, 'Auxiliary content') }) }) })
+      app.mount(container)
+      dispose = () => { app.unmount(); container.remove() }
+    }
+    try {
+      const element = await waitFor(() => container.querySelector('zw-dialog'), 'auxiliary dialog wrapper did not mount')
+      await element.componentOnReady()
+      return { element, dispose }
+    } catch (error) { dispose(); throw error }
+  }
+
   await check('disabled/loading prevents press', async () => {
     let count = 0; button.addEventListener('press', () => count++)
     button.disabled = true; buttonControl.click(); button.loading = true; buttonControl.click(); button.disabled = false; button.loading = false
@@ -815,6 +945,35 @@ async function run() {
     inputControl.value = ''; assert(inputControl.required && !inputControl.checkValidity(), 'required validity missing'); inputControl.value = 'Ada'; assert(inputControl.checkValidity(), 'valid control did not become valid'); await input.focus(); assert(document.activeElement === inputControl, 'input focus missing')
   })
 
+  if (${supportsGoldenDialogDefaults(goldenContract.groups)}) {
+    await check('defaultOpen initializes and explicit false takes precedence', async () => {
+      const initial = await mountAuxiliaryDialog({ defaultOpen: true })
+      let controlled
+      try {
+        controlled = await mountAuxiliaryDialog({ defaultOpen: true, open: false })
+        await waitFor(() => initial.element.getAttribute('data-state') === 'open', 'defaultOpen did not initialize the dialog')
+        assert(controlled.element.getAttribute('data-state') === 'closed', 'explicit false did not override defaultOpen')
+        await initial.element.close(); await tick()
+        assert(initial.element.getAttribute('data-state') === 'closed', 'close reverted to defaultOpen')
+      } finally { initial.dispose(); controlled?.dispose() }
+    })
+  }
+  if (${supportsGoldenDialogOptionalEvent(goldenContract.groups)}) {
+    await check('imperative show/close events allow omitted nativeEvent', async () => {
+      const forwarded = []
+      const mounted = await mountAuxiliaryDialog({}, event => forwarded.push(event.detail))
+      const details = []
+      mounted.element.addEventListener('open-change', event => details.push(event.detail))
+      try {
+        await mounted.element.show(); await mounted.element.close()
+        await waitFor(() => details.length === 2 && forwarded.length === 2, 'imperative open-change events missing from the consumer')
+        for (const events of [details, forwarded]) {
+          assert(events[0].open === true && events[1].open === false, 'imperative events lost required open values')
+          assert(events.every(detail => detail.nativeEvent === undefined), 'imperative events fabricated a nativeEvent')
+        }
+      } finally { mounted.dispose() }
+    })
+  }
   await check('open-change carries detail.open', async () => {
     let detail; dialog.addEventListener('open-change', event => { detail = event.detail }, { once: true }); dialogTrigger.click(); await waitFor(() => detail, 'open-change missing'); assert(detail.open === true, 'open-change did not report open'); if (${JSON.stringify(consumer)} === 'vue3') assert(vueOpen.value === true, 'Vue v-model:open did not receive open-change'); if (${JSON.stringify(consumer)}.startsWith('react')) assert(wrapperEvents.open === true, 'React onOpenChange did not receive open-change')
   })

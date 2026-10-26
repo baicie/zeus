@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "frozenAt": "2026-10-23",
-  "scope": "Published UI beta.33 API snapshot with browser, source, manifest and supply-chain acceptance evidence recorded in the durable Golden report.",
+  "frozenAt": "2026-10-26",
+  "scope": "Published UI beta.34 API snapshot, frozen from exact registry manifests and release source; full registry consumer acceptance must be recorded in a durable Golden report.",
   "source": {
     "repository": "https://github.com/baicie/zeus-ui",
-    "commit": "74fe9ea33f7a51eb8551debe9992cebfc1a0ebe7",
-    "version": "0.1.0-beta.33",
-    "frameworkDependency": "0.1.1-beta.18"
+    "commit": "a8826dd1f81560aaf6459d8d40a3e599f705f6e0",
+    "version": "0.1.0-beta.34",
+    "frameworkDependency": "0.1.1-beta.20"
   },
   "verificationPolicy": {
     "browser": "Every requiredBrowserAssertions entry must pass for native, react18, react19 and vue3 in each selected browser.",
@@ -40,8 +40,8 @@
       "manifestSha256": "1822b218d63f09fcab15dc9c3fe069bfb24831aaa37e53d34f1de217d9b73755",
       "verification": {
         "sourceAndManifestInspected": true,
-        "browserAcceptance": "passed",
-        "packedUiConsumers": "passed"
+        "browserAcceptance": "pending",
+        "packedUiConsumers": "pending"
       },
       "components": [
         {
@@ -192,8 +192,8 @@
       "manifestSha256": "7ccb7cd309248857170523ab81574cab4bab0de06d7e6ca174684cadebd61e0f",
       "verification": {
         "sourceAndManifestInspected": true,
-        "browserAcceptance": "passed",
-        "packedUiConsumers": "passed"
+        "browserAcceptance": "pending",
+        "packedUiConsumers": "pending"
       },
       "components": [
         {
@@ -408,13 +408,13 @@
         "vue": "@zeus-web/dialog/vue"
       },
       "sourceFile": "packages/primitives/dialog/src/dialog.tsx",
-      "sourceSha256": "f9c388163d4cc873cf56809294cbbf6eaaff163b39888658102690ddd7f944d4",
+      "sourceSha256": "fe09422b679edd8fdef299e839576c3a18ae46f2184bea0819c94cfc833e266e",
       "manifestFile": "packages/primitives/dialog/dist/zeus.components.json",
-      "manifestSha256": "06c85d3abcedc3cf14ebf29b7182bdf515d519f85c636239256fcb950eddb694",
+      "manifestSha256": "511cc11f1f6b0f720f8405544f4e2a69959377155092a884ff6c15cfc507719b",
       "verification": {
         "sourceAndManifestInspected": true,
-        "browserAcceptance": "passed",
-        "packedUiConsumers": "passed"
+        "browserAcceptance": "pending",
+        "packedUiConsumers": "pending"
       },
       "components": [
         {
@@ -422,6 +422,14 @@
           "exportName": "Dialog",
           "shadow": false,
           "props": [
+            {
+              "name": "closeOnOutsideClick",
+              "type": "boolean",
+              "attribute": "close-on-outside-click",
+              "reflect": true,
+              "default": true,
+              "declaration": "boolean"
+            },
             {
               "name": "defaultOpen",
               "type": "boolean",
@@ -443,7 +451,7 @@
               "type": "boolean",
               "attribute": "open",
               "reflect": true,
-              "default": false,
+              "defaultStrategy": "factory",
               "declaration": "boolean"
             }
           ],
@@ -456,6 +464,7 @@
                 "open": "boolean",
                 "nativeEvent": "Event"
               },
+              "detailOptional": ["nativeEvent"],
               "bubbles": true,
               "composed": true,
               "cancelable": false
@@ -537,6 +546,24 @@
           "slots": ["default"]
         },
         {
+          "tag": "zw-dialog-overlay",
+          "exportName": "DialogOverlay",
+          "shadow": false,
+          "props": [
+            {
+              "name": "forceMount",
+              "type": "boolean",
+              "attribute": "force-mount",
+              "reflect": true,
+              "default": false
+            }
+          ],
+          "events": {},
+          "methods": {},
+          "models": [],
+          "slots": ["default"]
+        },
+        {
           "tag": "zw-dialog-close",
           "exportName": "DialogClose",
           "shadow": false,
@@ -589,12 +616,12 @@
         "dialog/title/description relationships",
         "modal Tab and Shift+Tab trap",
         "close restores trigger focus",
-        "pending focus timers do not target detached nodes"
+        "pending focus timers do not target detached nodes",
+        "defaultOpen initializes and explicit false takes precedence",
+        "imperative show/close events allow omitted nativeEvent"
       ],
       "knownLimits": [
-        "Schema open defaults to false, so resolveOpen reads open before defaultOpen; defaultOpen alone is not promised to open the dialog.",
-        "Source schedules focus with setTimeout; cancellation and detached-node focus need browser verification.",
-        "Manifest requires nativeEvent while source declares it optional; this mismatch is recorded, not normalized away."
+        "Source schedules focus with setTimeout; cancellation and detached-node focus require the recorded browser assertions."
       ]
     },
     {
@@ -612,8 +639,8 @@
       "manifestSha256": "635dcee2af2a8e6f0e602db8ed2a58469f00303f139d51bd549e1103328968ea",
       "verification": {
         "sourceAndManifestInspected": true,
-        "browserAcceptance": "passed",
-        "packedUiConsumers": "passed"
+        "browserAcceptance": "pending",
+        "packedUiConsumers": "pending"
       },
       "components": [
         {
@@ -771,6 +798,11 @@
               "key": "selectionChange",
               "name": "selection-change",
               "reactName": "onSelectionChange",
+              "detail": {
+                "selection": "unknown",
+                "row": "unknown",
+                "nativeEvent": "unknown"
+              },
               "bubbles": true,
               "composed": true,
               "cancelable": false

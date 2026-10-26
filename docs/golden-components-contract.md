@@ -1,23 +1,23 @@
 # 四个 Golden Components：现有契约与消费者示例
 
-对应 B-003。冻结 API 位于 `tests/contracts/golden-components.json`，来源为 Zeus UI `74fe9ea33f7a51eb8551debe9992cebfc1a0ebe7` / `0.1.0-beta.33` 的发布源码与构建 Manifest。JSON 包含 source/manifest hash、真实 props/default/attribute、事件、方法、models 和 slots；Dialog 包的六个组件一同记录。Data Grid 性能基线另记录在 UI 仓库的 `u005-data-grid-2026-10-23`。
+对应 B-003。冻结 API 位于 `tests/contracts/golden-components.json`，来源为 Zeus UI `a8826dd1f81560aaf6459d8d40a3e599f705f6e0` / `0.1.0-beta.34` 的发布源码与真实 registry Manifest，框架依赖为 `0.1.1-beta.20`。JSON 包含 source/manifest hash、真实 props/default/attribute、事件、方法、models 和 slots；Dialog 包的七个组件（包括 Overlay）一同记录。Data Grid 性能基线另记录在 UI 仓库的 `u005-data-grid-2026-10-23`。
 
-这些契约对应已完成的 UI beta.33 / Zeus beta.18 registry 验收。Native、React18、React19、Vue3 × Chromium、Firefox、WebKit 的 12 组浏览器组合、SSR、Manifest、tarball integrity 和 provenance 均已通过；持久证据见 [`golden-components-acceptance-2026-10-23/report.json`](./internal/golden-components-acceptance-2026-10-23/report.json)。以下示例是已验收 API 的文档用例。
+当前版本正在按 Native、React18、React19、Vue3 × Chromium、Firefox、WebKit 的 12 组浏览器组合、SSR、严格公开类型、Manifest、tarball integrity 和 provenance 重新验收；合同中的 `pending` 在完整报告持久化前不表示通过。此前 UI beta.33 / Zeus beta.18 的通过记录保留在 [`golden-components-acceptance-2026-10-23/report.json`](./internal/golden-components-acceptance-2026-10-23/report.json)，不替代当前版本的结果。
 
 验收由 `pnpm check:golden-components` 执行。脚本会在每种独立安装工程中先执行无 DOM 的 Node SSR import，再对 native、React 18、React 19 和 Vue 3 在所选浏览器中逐条执行 `requiredBrowserAssertions`，并核对 UI tarball、Zeus runtime 依赖的 registry integrity、SLSA provenance subject/source dependency 和 Sigstore 签名；失败时仍会写出完整报告，供定位问题，不能据此把 contract 状态改成 `passed`。Data Grid 性能断言只记录观察值，不替代 Zeus UI 仓库的版本化基准。`temp/` 下的报告是忽略文件，只能作为本地诊断结果，不能作为持久完成证据。
 
 CI 中的 `Published Golden UI consumers` 步骤只在 `workflow_dispatch` 执行。发布新版本后，先更新本合同并确认 registry、provenance、source commit 与 Manifest hash，再手动运行 CI；普通分支和 pull request 继续由本地产物的 `check:packed-consumers` 覆盖消费者矩阵。
 
-| Golden         | 真实主要接口                                                                                                                   | 必须补齐的浏览器验收                                                                     |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| G-01 Button    | `press` / `onPress`；detail.nativeEvent；disabled/loading；default/prefix/suffix slot；focus/blur/click                        | 键盘、disabled/loading 不派发、light slot、ready 后方法和清理                            |
-| G-02 Input     | value/defaultValue；function formatter；`value-change` / `onValueChange`；Vue `v-model:value`；focus-change；focus/blur/select | 外部 value 更新、用户输入同步、Form submit/reset/required、焦点、函数 identity           |
-| G-03 Dialog    | Dialog/Trigger/Content/Close/Title/Description；`open-change` / `onOpenChange`；Vue `v-model:open`；show/close                 | Escape、Tab/Shift+Tab、ARIA title/description、关闭还焦点、卸载后定时器                  |
-| G-04 Data Grid | rows/columns/selectedKeys 通过 property；selection/sort/active cell 事件；virtual；scroll/resize/focus 方法                    | 大数据节点数量、滚动与键盘焦点、选中排序、resize；性能仅记录趋势，基准由 UI 仓库单独验收 |
+| Golden         | 真实主要接口                                                                                                                   | 必须补齐的浏览器验收                                                                                    |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| G-01 Button    | `press` / `onPress`；detail.nativeEvent；disabled/loading；default/prefix/suffix slot；focus/blur/click                        | 键盘、disabled/loading 不派发、light slot、ready 后方法和清理                                           |
+| G-02 Input     | value/defaultValue；function formatter；`value-change` / `onValueChange`；Vue `v-model:value`；focus-change；focus/blur/select | 外部 value 更新、用户输入同步、Form submit/reset/required、焦点、函数 identity                          |
+| G-03 Dialog    | Dialog/Trigger/Content/Overlay/Close/Title/Description；`open-change` / `onOpenChange`；Vue `v-model:open`；show/close         | defaultOpen 与显式 false、命令事件无 nativeEvent、Escape、Tab/Shift+Tab、ARIA、关闭还焦点、卸载后定时器 |
+| G-04 Data Grid | rows/columns/selectedKeys 通过 property；selection/sort/active cell 事件；virtual；scroll/resize/focus 方法                    | 大数据节点数量、滚动与键盘焦点、选中排序、resize；性能仅记录趋势，基准由 UI 仓库单独验收                |
 
 Input 源码没有 `formAssociated` 或 `options.form`，不把内层 input 的 light DOM 行为等同于完整 ElementInternals 表单契约。其 input handler 会先写 host.value 再发事件，严格的 React controlled 回滚语义需要独立证明。
 
-Dialog 的 open 默认 false，`resolveOpen` 又先检查 open 是否存在，因此 defaultOpen 单独设 true 的效果仍有已知边界；示例统一显式管理 open。Manifest 中 open-change.nativeEvent 被标成必选，而源码允许缺失；JSON 保留真实生成结果并记录此差异。
+Dialog 的 open 使用默认工厂保留“未提供”状态，`defaultOpen` 可初始化为打开，显式 `open={false}` 优先。命令 `show()` / `close()` 的 `open-change.nativeEvent` 可以缺失，Manifest 与公开 Native/React/Vue 声明必须一致；这两项均有独立类型和浏览器断言。
 
 Data Grid 的 virtual 默认 false；rows/columns/selectedKeys 不应写进 HTML JSON attribute。当前生成类型中一些 payload 是 unknown；没有 React/Vue cell renderer API。下面只使用现有数据列与 primitive 值。
 

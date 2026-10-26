@@ -1,0 +1,1327 @@
+{
+  "kind": "real-source eager/lazy build and browser parity; not registry acceptance",
+  "createdAt": "2026-10-26T11:57:01.799Z",
+  "commit": "b54fed8bf52100e5d41321038477d4f28e173c29",
+  "node": "v22.12.0",
+  "frameworkVersion": "0.1.1-beta.20",
+  "bundlerVersion": "0.1.1-beta.20",
+  "webComponentRuntime": {
+    "path": "/Users/liuzhiwei/Desktop/workspace/git-code/zeus-ui/node_modules/.pnpm/@zeus-js+web-c-runtime@0.1.1-beta.20/node_modules/@zeus-js/web-c-runtime",
+    "version": "0.1.1-beta.20"
+  },
+  "timeoutMs": 600000,
+  "closeTimeoutMs": 5000,
+  "sourceSha256": {
+    "packages/primitives/button/src/button.tsx": "3eb331f997d099a333ea0b8ddbc178d08d98d4cba3c8a5585cb1d0681dd2551a",
+    "packages/primitives/input/src/input.tsx": "4b40cd9da3b3813d8c72f90fc14e589a5334e1de064ca205d00ea4cc4a244e27",
+    "packages/primitives/dialog/src/dialog.tsx": "fe09422b679edd8fdef299e839576c3a18ae46f2184bea0819c94cfc833e266e",
+    "packages/advanced/data-grid/src/components/data-grid.tsx": "bca45e02abf2cdb9037faf056fd6682c6c1dd30b137b691ff7b74014b325c2ed"
+  },
+  "browsers": [
+    "chromium",
+    "firefox",
+    "webkit"
+  ],
+  "chromiumChannel": "playwright-default",
+  "results": [
+    {
+      "browser": "chromium",
+      "mode": "eager",
+      "status": "passed",
+      "result": {
+        "stages": [
+          {
+            "name": "upgrade",
+            "values": {
+              "readyComponents": [
+                "zw-button",
+                "zw-input",
+                "zw-dialog",
+                "zw-data-grid",
+                "zw-dialog-trigger",
+                "zw-dialog-content",
+                "zw-dialog-title",
+                "zw-dialog-description",
+                "zw-dialog-close"
+              ],
+              "variant": "primary",
+              "pressed": true,
+              "required": true,
+              "value": "controlled",
+              "dialog": "closed",
+              "rowHeight": 36,
+              "rowCount": 2,
+              "slotIdentity": true
+            }
+          },
+          {
+            "name": "updates",
+            "values": {
+              "variant": "danger",
+              "pressed": false,
+              "required": false,
+              "value": "Ada",
+              "rowHeight": 42,
+              "selected": "true",
+              "events": [
+                {
+                  "type": "press",
+                  "detailKeys": [
+                    "nativeEvent"
+                  ],
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                },
+                {
+                  "type": "value-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "value"
+                  ],
+                  "value": "Ada",
+                  "nativeEvent": {
+                    "type": "input",
+                    "className": "InputEvent"
+                  }
+                },
+                {
+                  "type": "open-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "open"
+                  ],
+                  "open": true,
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                },
+                {
+                  "type": "selection-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "row",
+                    "selection"
+                  ],
+                  "keys": [
+                    "row-1"
+                  ],
+                  "rowKey": "row-1",
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "runtime-move",
+            "values": {
+              "controlsPreserved": true,
+              "inputValue": "Ada",
+              "selected": "true",
+              "dialog": "open",
+              "triggerExpanded": "true",
+              "variant": "danger",
+              "projectedCount": 1
+            }
+          },
+          {
+            "name": "imperative",
+            "values": {
+              "events": [
+                {
+                  "type": "open-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "open"
+                  ],
+                  "open": false
+                },
+                {
+                  "type": "open-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "open"
+                  ],
+                  "open": true
+                }
+              ]
+            }
+          },
+          {
+            "name": "move",
+            "values": {
+              "pressCount": 1,
+              "openCount": 1,
+              "projectedCount": 1,
+              "inputValue": "seed",
+              "selected": "false",
+              "rowKeys": [
+                "row-1",
+                "row-2"
+              ],
+              "rowHeight": 42,
+              "dialog": "open",
+              "triggerExpanded": "true",
+              "variant": "danger"
+            }
+          },
+          {
+            "name": "dispose",
+            "values": {
+              "eventCount": 0,
+              "bindingsStopped": true
+            }
+          },
+          {
+            "name": "reconnect",
+            "values": {
+              "value": "after-disconnect",
+              "dialog": "open",
+              "triggerExpanded": "true",
+              "selected": "true",
+              "rowKeys": [
+                "row-3"
+              ],
+              "events": [
+                {
+                  "type": "press",
+                  "detailKeys": [
+                    "nativeEvent"
+                  ],
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                },
+                {
+                  "type": "open-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "open"
+                  ],
+                  "open": true,
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                },
+                {
+                  "type": "selection-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "row",
+                    "selection"
+                  ],
+                  "keys": [
+                    "row-3"
+                  ],
+                  "rowKey": "row-3",
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "diagnostics": {
+          "disposedControls": {
+            "buttonDisabled": false,
+            "inputValue": "seed",
+            "triggerExpanded": "true",
+            "rowText": ""
+          }
+        }
+      }
+    },
+    {
+      "browser": "chromium",
+      "mode": "lazy",
+      "status": "passed",
+      "result": {
+        "stages": [
+          {
+            "name": "upgrade",
+            "values": {
+              "readyComponents": [
+                "zw-button",
+                "zw-input",
+                "zw-dialog",
+                "zw-data-grid",
+                "zw-dialog-trigger",
+                "zw-dialog-content",
+                "zw-dialog-title",
+                "zw-dialog-description",
+                "zw-dialog-close"
+              ],
+              "variant": "primary",
+              "pressed": true,
+              "required": true,
+              "value": "controlled",
+              "dialog": "closed",
+              "rowHeight": 36,
+              "rowCount": 2,
+              "slotIdentity": true
+            }
+          },
+          {
+            "name": "updates",
+            "values": {
+              "variant": "danger",
+              "pressed": false,
+              "required": false,
+              "value": "Ada",
+              "rowHeight": 42,
+              "selected": "true",
+              "events": [
+                {
+                  "type": "press",
+                  "detailKeys": [
+                    "nativeEvent"
+                  ],
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                },
+                {
+                  "type": "value-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "value"
+                  ],
+                  "value": "Ada",
+                  "nativeEvent": {
+                    "type": "input",
+                    "className": "InputEvent"
+                  }
+                },
+                {
+                  "type": "open-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "open"
+                  ],
+                  "open": true,
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                },
+                {
+                  "type": "selection-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "row",
+                    "selection"
+                  ],
+                  "keys": [
+                    "row-1"
+                  ],
+                  "rowKey": "row-1",
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "runtime-move",
+            "values": {
+              "controlsPreserved": true,
+              "inputValue": "Ada",
+              "selected": "true",
+              "dialog": "open",
+              "triggerExpanded": "true",
+              "variant": "danger",
+              "projectedCount": 1
+            }
+          },
+          {
+            "name": "imperative",
+            "values": {
+              "events": [
+                {
+                  "type": "open-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "open"
+                  ],
+                  "open": false
+                },
+                {
+                  "type": "open-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "open"
+                  ],
+                  "open": true
+                }
+              ]
+            }
+          },
+          {
+            "name": "move",
+            "values": {
+              "pressCount": 1,
+              "openCount": 1,
+              "projectedCount": 1,
+              "inputValue": "seed",
+              "selected": "false",
+              "rowKeys": [
+                "row-1",
+                "row-2"
+              ],
+              "rowHeight": 42,
+              "dialog": "open",
+              "triggerExpanded": "true",
+              "variant": "danger"
+            }
+          },
+          {
+            "name": "dispose",
+            "values": {
+              "eventCount": 0,
+              "bindingsStopped": true
+            }
+          },
+          {
+            "name": "reconnect",
+            "values": {
+              "value": "after-disconnect",
+              "dialog": "open",
+              "triggerExpanded": "true",
+              "selected": "true",
+              "rowKeys": [
+                "row-3"
+              ],
+              "events": [
+                {
+                  "type": "press",
+                  "detailKeys": [
+                    "nativeEvent"
+                  ],
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                },
+                {
+                  "type": "open-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "open"
+                  ],
+                  "open": true,
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                },
+                {
+                  "type": "selection-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "row",
+                    "selection"
+                  ],
+                  "keys": [
+                    "row-3"
+                  ],
+                  "rowKey": "row-3",
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "diagnostics": {
+          "disposedControls": {
+            "buttonDisabled": false,
+            "inputValue": "seed",
+            "triggerExpanded": "true",
+            "rowText": ""
+          }
+        }
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "eager",
+      "status": "passed",
+      "result": {
+        "stages": [
+          {
+            "name": "upgrade",
+            "values": {
+              "readyComponents": [
+                "zw-button",
+                "zw-input",
+                "zw-dialog",
+                "zw-data-grid",
+                "zw-dialog-trigger",
+                "zw-dialog-content",
+                "zw-dialog-title",
+                "zw-dialog-description",
+                "zw-dialog-close"
+              ],
+              "variant": "primary",
+              "pressed": true,
+              "required": true,
+              "value": "controlled",
+              "dialog": "closed",
+              "rowHeight": 36,
+              "rowCount": 2,
+              "slotIdentity": true
+            }
+          },
+          {
+            "name": "updates",
+            "values": {
+              "variant": "danger",
+              "pressed": false,
+              "required": false,
+              "value": "Ada",
+              "rowHeight": 42,
+              "selected": "true",
+              "events": [
+                {
+                  "type": "press",
+                  "detailKeys": [
+                    "nativeEvent"
+                  ],
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                },
+                {
+                  "type": "value-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "value"
+                  ],
+                  "value": "Ada",
+                  "nativeEvent": {
+                    "type": "input",
+                    "className": "InputEvent"
+                  }
+                },
+                {
+                  "type": "open-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "open"
+                  ],
+                  "open": true,
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                },
+                {
+                  "type": "selection-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "row",
+                    "selection"
+                  ],
+                  "keys": [
+                    "row-1"
+                  ],
+                  "rowKey": "row-1",
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "runtime-move",
+            "values": {
+              "controlsPreserved": true,
+              "inputValue": "Ada",
+              "selected": "true",
+              "dialog": "open",
+              "triggerExpanded": "true",
+              "variant": "danger",
+              "projectedCount": 1
+            }
+          },
+          {
+            "name": "imperative",
+            "values": {
+              "events": [
+                {
+                  "type": "open-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "open"
+                  ],
+                  "open": false
+                },
+                {
+                  "type": "open-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "open"
+                  ],
+                  "open": true
+                }
+              ]
+            }
+          },
+          {
+            "name": "move",
+            "values": {
+              "pressCount": 1,
+              "openCount": 1,
+              "projectedCount": 1,
+              "inputValue": "seed",
+              "selected": "false",
+              "rowKeys": [
+                "row-1",
+                "row-2"
+              ],
+              "rowHeight": 42,
+              "dialog": "open",
+              "triggerExpanded": "true",
+              "variant": "danger"
+            }
+          },
+          {
+            "name": "dispose",
+            "values": {
+              "eventCount": 0,
+              "bindingsStopped": true
+            }
+          },
+          {
+            "name": "reconnect",
+            "values": {
+              "value": "after-disconnect",
+              "dialog": "open",
+              "triggerExpanded": "true",
+              "selected": "true",
+              "rowKeys": [
+                "row-3"
+              ],
+              "events": [
+                {
+                  "type": "press",
+                  "detailKeys": [
+                    "nativeEvent"
+                  ],
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                },
+                {
+                  "type": "open-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "open"
+                  ],
+                  "open": true,
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                },
+                {
+                  "type": "selection-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "row",
+                    "selection"
+                  ],
+                  "keys": [
+                    "row-3"
+                  ],
+                  "rowKey": "row-3",
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "diagnostics": {
+          "disposedControls": {
+            "buttonDisabled": false,
+            "inputValue": "seed",
+            "triggerExpanded": "true",
+            "rowText": ""
+          }
+        }
+      }
+    },
+    {
+      "browser": "firefox",
+      "mode": "lazy",
+      "status": "passed",
+      "result": {
+        "stages": [
+          {
+            "name": "upgrade",
+            "values": {
+              "readyComponents": [
+                "zw-button",
+                "zw-input",
+                "zw-dialog",
+                "zw-data-grid",
+                "zw-dialog-trigger",
+                "zw-dialog-content",
+                "zw-dialog-title",
+                "zw-dialog-description",
+                "zw-dialog-close"
+              ],
+              "variant": "primary",
+              "pressed": true,
+              "required": true,
+              "value": "controlled",
+              "dialog": "closed",
+              "rowHeight": 36,
+              "rowCount": 2,
+              "slotIdentity": true
+            }
+          },
+          {
+            "name": "updates",
+            "values": {
+              "variant": "danger",
+              "pressed": false,
+              "required": false,
+              "value": "Ada",
+              "rowHeight": 42,
+              "selected": "true",
+              "events": [
+                {
+                  "type": "press",
+                  "detailKeys": [
+                    "nativeEvent"
+                  ],
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                },
+                {
+                  "type": "value-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "value"
+                  ],
+                  "value": "Ada",
+                  "nativeEvent": {
+                    "type": "input",
+                    "className": "InputEvent"
+                  }
+                },
+                {
+                  "type": "open-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "open"
+                  ],
+                  "open": true,
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                },
+                {
+                  "type": "selection-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "row",
+                    "selection"
+                  ],
+                  "keys": [
+                    "row-1"
+                  ],
+                  "rowKey": "row-1",
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "runtime-move",
+            "values": {
+              "controlsPreserved": true,
+              "inputValue": "Ada",
+              "selected": "true",
+              "dialog": "open",
+              "triggerExpanded": "true",
+              "variant": "danger",
+              "projectedCount": 1
+            }
+          },
+          {
+            "name": "imperative",
+            "values": {
+              "events": [
+                {
+                  "type": "open-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "open"
+                  ],
+                  "open": false
+                },
+                {
+                  "type": "open-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "open"
+                  ],
+                  "open": true
+                }
+              ]
+            }
+          },
+          {
+            "name": "move",
+            "values": {
+              "pressCount": 1,
+              "openCount": 1,
+              "projectedCount": 1,
+              "inputValue": "seed",
+              "selected": "false",
+              "rowKeys": [
+                "row-1",
+                "row-2"
+              ],
+              "rowHeight": 42,
+              "dialog": "open",
+              "triggerExpanded": "true",
+              "variant": "danger"
+            }
+          },
+          {
+            "name": "dispose",
+            "values": {
+              "eventCount": 0,
+              "bindingsStopped": true
+            }
+          },
+          {
+            "name": "reconnect",
+            "values": {
+              "value": "after-disconnect",
+              "dialog": "open",
+              "triggerExpanded": "true",
+              "selected": "true",
+              "rowKeys": [
+                "row-3"
+              ],
+              "events": [
+                {
+                  "type": "press",
+                  "detailKeys": [
+                    "nativeEvent"
+                  ],
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                },
+                {
+                  "type": "open-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "open"
+                  ],
+                  "open": true,
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                },
+                {
+                  "type": "selection-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "row",
+                    "selection"
+                  ],
+                  "keys": [
+                    "row-3"
+                  ],
+                  "rowKey": "row-3",
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "diagnostics": {
+          "disposedControls": {
+            "buttonDisabled": false,
+            "inputValue": "seed",
+            "triggerExpanded": "true",
+            "rowText": ""
+          }
+        }
+      }
+    },
+    {
+      "browser": "webkit",
+      "mode": "eager",
+      "status": "passed",
+      "result": {
+        "stages": [
+          {
+            "name": "upgrade",
+            "values": {
+              "readyComponents": [
+                "zw-button",
+                "zw-input",
+                "zw-dialog",
+                "zw-data-grid",
+                "zw-dialog-trigger",
+                "zw-dialog-content",
+                "zw-dialog-title",
+                "zw-dialog-description",
+                "zw-dialog-close"
+              ],
+              "variant": "primary",
+              "pressed": true,
+              "required": true,
+              "value": "controlled",
+              "dialog": "closed",
+              "rowHeight": 36,
+              "rowCount": 2,
+              "slotIdentity": true
+            }
+          },
+          {
+            "name": "updates",
+            "values": {
+              "variant": "danger",
+              "pressed": false,
+              "required": false,
+              "value": "Ada",
+              "rowHeight": 42,
+              "selected": "true",
+              "events": [
+                {
+                  "type": "press",
+                  "detailKeys": [
+                    "nativeEvent"
+                  ],
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                },
+                {
+                  "type": "value-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "value"
+                  ],
+                  "value": "Ada",
+                  "nativeEvent": {
+                    "type": "input",
+                    "className": "InputEvent"
+                  }
+                },
+                {
+                  "type": "open-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "open"
+                  ],
+                  "open": true,
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                },
+                {
+                  "type": "selection-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "row",
+                    "selection"
+                  ],
+                  "keys": [
+                    "row-1"
+                  ],
+                  "rowKey": "row-1",
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "runtime-move",
+            "values": {
+              "controlsPreserved": true,
+              "inputValue": "Ada",
+              "selected": "true",
+              "dialog": "open",
+              "triggerExpanded": "true",
+              "variant": "danger",
+              "projectedCount": 1
+            }
+          },
+          {
+            "name": "imperative",
+            "values": {
+              "events": [
+                {
+                  "type": "open-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "open"
+                  ],
+                  "open": false
+                },
+                {
+                  "type": "open-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "open"
+                  ],
+                  "open": true
+                }
+              ]
+            }
+          },
+          {
+            "name": "move",
+            "values": {
+              "pressCount": 1,
+              "openCount": 1,
+              "projectedCount": 1,
+              "inputValue": "seed",
+              "selected": "false",
+              "rowKeys": [
+                "row-1",
+                "row-2"
+              ],
+              "rowHeight": 42,
+              "dialog": "open",
+              "triggerExpanded": "true",
+              "variant": "danger"
+            }
+          },
+          {
+            "name": "dispose",
+            "values": {
+              "eventCount": 0,
+              "bindingsStopped": true
+            }
+          },
+          {
+            "name": "reconnect",
+            "values": {
+              "value": "after-disconnect",
+              "dialog": "open",
+              "triggerExpanded": "true",
+              "selected": "true",
+              "rowKeys": [
+                "row-3"
+              ],
+              "events": [
+                {
+                  "type": "press",
+                  "detailKeys": [
+                    "nativeEvent"
+                  ],
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                },
+                {
+                  "type": "open-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "open"
+                  ],
+                  "open": true,
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                },
+                {
+                  "type": "selection-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "row",
+                    "selection"
+                  ],
+                  "keys": [
+                    "row-3"
+                  ],
+                  "rowKey": "row-3",
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "diagnostics": {
+          "disposedControls": {
+            "buttonDisabled": false,
+            "inputValue": "seed",
+            "triggerExpanded": "true",
+            "rowText": ""
+          }
+        }
+      }
+    },
+    {
+      "browser": "webkit",
+      "mode": "lazy",
+      "status": "passed",
+      "result": {
+        "stages": [
+          {
+            "name": "upgrade",
+            "values": {
+              "readyComponents": [
+                "zw-button",
+                "zw-input",
+                "zw-dialog",
+                "zw-data-grid",
+                "zw-dialog-trigger",
+                "zw-dialog-content",
+                "zw-dialog-title",
+                "zw-dialog-description",
+                "zw-dialog-close"
+              ],
+              "variant": "primary",
+              "pressed": true,
+              "required": true,
+              "value": "controlled",
+              "dialog": "closed",
+              "rowHeight": 36,
+              "rowCount": 2,
+              "slotIdentity": true
+            }
+          },
+          {
+            "name": "updates",
+            "values": {
+              "variant": "danger",
+              "pressed": false,
+              "required": false,
+              "value": "Ada",
+              "rowHeight": 42,
+              "selected": "true",
+              "events": [
+                {
+                  "type": "press",
+                  "detailKeys": [
+                    "nativeEvent"
+                  ],
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                },
+                {
+                  "type": "value-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "value"
+                  ],
+                  "value": "Ada",
+                  "nativeEvent": {
+                    "type": "input",
+                    "className": "InputEvent"
+                  }
+                },
+                {
+                  "type": "open-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "open"
+                  ],
+                  "open": true,
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                },
+                {
+                  "type": "selection-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "row",
+                    "selection"
+                  ],
+                  "keys": [
+                    "row-1"
+                  ],
+                  "rowKey": "row-1",
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "runtime-move",
+            "values": {
+              "controlsPreserved": true,
+              "inputValue": "Ada",
+              "selected": "true",
+              "dialog": "open",
+              "triggerExpanded": "true",
+              "variant": "danger",
+              "projectedCount": 1
+            }
+          },
+          {
+            "name": "imperative",
+            "values": {
+              "events": [
+                {
+                  "type": "open-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "open"
+                  ],
+                  "open": false
+                },
+                {
+                  "type": "open-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "open"
+                  ],
+                  "open": true
+                }
+              ]
+            }
+          },
+          {
+            "name": "move",
+            "values": {
+              "pressCount": 1,
+              "openCount": 1,
+              "projectedCount": 1,
+              "inputValue": "seed",
+              "selected": "false",
+              "rowKeys": [
+                "row-1",
+                "row-2"
+              ],
+              "rowHeight": 42,
+              "dialog": "open",
+              "triggerExpanded": "true",
+              "variant": "danger"
+            }
+          },
+          {
+            "name": "dispose",
+            "values": {
+              "eventCount": 0,
+              "bindingsStopped": true
+            }
+          },
+          {
+            "name": "reconnect",
+            "values": {
+              "value": "after-disconnect",
+              "dialog": "open",
+              "triggerExpanded": "true",
+              "selected": "true",
+              "rowKeys": [
+                "row-3"
+              ],
+              "events": [
+                {
+                  "type": "press",
+                  "detailKeys": [
+                    "nativeEvent"
+                  ],
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                },
+                {
+                  "type": "open-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "open"
+                  ],
+                  "open": true,
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                },
+                {
+                  "type": "selection-change",
+                  "detailKeys": [
+                    "nativeEvent",
+                    "row",
+                    "selection"
+                  ],
+                  "keys": [
+                    "row-3"
+                  ],
+                  "rowKey": "row-3",
+                  "nativeEvent": {
+                    "type": "click",
+                    "className": "PointerEvent"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "diagnostics": {
+          "disposedControls": {
+            "buttonDisabled": false,
+            "inputValue": "seed",
+            "triggerExpanded": "true",
+            "rowText": ""
+          }
+        }
+      }
+    }
+  ],
+  "manifestSha256": "a93976fc0481d8fc9decd2aae1f69a7fcb1a63b0672a82860ade5e9aba1c6b93",
+  "status": "passed",
+  "differences": 0
+}

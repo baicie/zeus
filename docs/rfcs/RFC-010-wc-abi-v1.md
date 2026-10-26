@@ -164,7 +164,19 @@ property setter
 
 Lazy manifest 只能携带 JSON-safe default 与 codec 元数据。未加载实现前，原始 attribute 放在 pending store；实现加载后只对最终原始值执行一次 codec。不能使用 `Function#toString` 重建 codec。
 
-`componentOnReady()` 的含义是实现已完成初始化。`ready-required` 方法必须在该 Promise 完成后调用；`async-proxy` 返回等待实现的 Promise；`sync-unavailable` 在未 ready 时抛稳定错误。宿主在加载期间断开连接时，当前 readiness waiter 和 async proxy 必须以 `ZEUS_WC_DISCONNECTED_BEFORE_READY` reject，不能永久 pending；重连可复用同一个 module Promise 并重新初始化。已完成初始化后再断开则执行实例的 disconnect/dispose 生命周期；此时新发起的 `componentOnReady()` 和 async proxy 不立即 resolve，而是等重连完成后 resolve（宿主不再重连时保持 pending，不 reject）。
+`componentOnReady()` 完成表示宿主当前已连接，初始化后的挂载作用域仍有效。
+`ready-required` 方法在 ready 后调用；`sync-unavailable` 在未 ready 时抛稳定错误。
+Lazy `async-proxy` 的连接规则如下：
+
+- 首次连接前调用方法，返回等待首次初始化的 Promise。
+- 宿主在加载期间断开，当前 readiness waiter 和等待中的方法以
+  `ZEUS_WC_DISCONNECTED_BEFORE_READY` reject；重连复用 module Promise 后重新初始化。
+- 实现已经加载、宿主当前断开时，新方法调用立即以该稳定错误 reject，避免无限等待。
+  此时新调用 `componentOnReady()` 可以等待下一次连接和挂载重建；它与方法代理的行为不同。
+- 已重新连接且屏障尚未结束时调用方法，等待重建完成，并调用新挂载暴露的方法。
+
+已经 fulfilled 的旧 readiness Promise 不随后续断开改变状态；后续连接应重新调用
+`componentOnReady()`，不能用旧 Promise 证明当前作用域仍有效。
 
 ### 2.3 连接生命周期
 

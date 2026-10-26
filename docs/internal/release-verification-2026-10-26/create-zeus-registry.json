@@ -1,0 +1,171 @@
+{
+  "measuredAt": "2026-10-26T11:52:59.200Z",
+  "registry": "https://registry.npmjs.org",
+  "fixtureRoot": "/tmp/zeus-create-registry-eHjZIT",
+  "scaffoldSource": "workspace candidate source; dependencies from registry",
+  "nodeVersion": "v24.16.0",
+  "overrides": {},
+  "requirements": [
+    {
+      "template": "basic-ts",
+      "packageName": "@zeus-js/zeus",
+      "range": "0.1.1-beta.20"
+    },
+    {
+      "template": "basic-ts",
+      "packageName": "@zeus-js/vite-plugin",
+      "range": "0.0.5"
+    },
+    {
+      "template": "application-ts",
+      "packageName": "@zeus-js/zeus",
+      "range": "0.1.1-beta.20"
+    },
+    {
+      "template": "application-ts",
+      "packageName": "@zeus-js/vite-plugin",
+      "range": "0.0.5"
+    },
+    {
+      "template": "component-library-ts",
+      "packageName": "@zeus-js/output-react-wrapper",
+      "range": "0.1.1-beta.20"
+    },
+    {
+      "template": "component-library-ts",
+      "packageName": "@zeus-js/output-vue-wrapper",
+      "range": "0.1.1-beta.20"
+    },
+    {
+      "template": "component-library-ts",
+      "packageName": "@zeus-js/runtime-dom",
+      "range": "0.1.1-beta.20"
+    },
+    {
+      "template": "component-library-ts",
+      "packageName": "@zeus-js/web-c",
+      "range": "0.1.1-beta.20"
+    },
+    {
+      "template": "component-library-ts",
+      "packageName": "@zeus-js/web-c-runtime",
+      "range": "0.1.1-beta.20"
+    },
+    {
+      "template": "component-library-ts",
+      "packageName": "@zeus-js/zeus",
+      "range": "0.1.1-beta.20"
+    },
+    {
+      "template": "web-component-ts",
+      "packageName": "@zeus-js/zeus",
+      "range": "0.1.1-beta.20"
+    },
+    {
+      "template": "web-component-ts",
+      "packageName": "@zeus-js/vite-plugin",
+      "range": "0.0.5"
+    }
+  ],
+  "passed": true,
+  "templates": [
+    {
+      "template": "basic-ts",
+      "checks": [
+        "isolated registry install",
+        "typecheck",
+        "production build",
+        "dev browser interaction",
+        "preview browser interaction"
+      ],
+      "installed": {
+        "@zeus-js/zeus": {
+          "version": "0.1.1-beta.20",
+          "entry": "/tmp/zeus-create-registry-eHjZIT/basic-ts/node_modules/.pnpm/@zeus-js+zeus@0.1.1-beta.20/node_modules/@zeus-js/zeus/index.cjs"
+        },
+        "@zeus-js/vite-plugin": {
+          "version": "0.0.5",
+          "entry": "/tmp/zeus-create-registry-eHjZIT/basic-ts/node_modules/.pnpm/@zeus-js+vite-plugin@0.0.5_vite@8.3.5/node_modules/@zeus-js/vite-plugin/index.cjs"
+        }
+      }
+    },
+    {
+      "template": "application-ts",
+      "checks": [
+        "isolated registry install",
+        "typecheck",
+        "production build",
+        "template tests",
+        "dev browser interaction",
+        "preview browser interaction"
+      ],
+      "installed": {
+        "@zeus-js/zeus": {
+          "version": "0.1.1-beta.20",
+          "entry": "/tmp/zeus-create-registry-eHjZIT/application-ts/node_modules/.pnpm/@zeus-js+zeus@0.1.1-beta.20/node_modules/@zeus-js/zeus/index.cjs"
+        },
+        "@zeus-js/vite-plugin": {
+          "version": "0.0.5",
+          "entry": "/tmp/zeus-create-registry-eHjZIT/application-ts/node_modules/.pnpm/@zeus-js+vite-plugin@0.0.5_vite@8.3.5/node_modules/@zeus-js/vite-plugin/index.cjs"
+        }
+      }
+    },
+    {
+      "template": "component-library-ts",
+      "checks": [
+        "isolated registry install",
+        "typecheck",
+        "production build",
+        "template tests",
+        "dev browser interaction",
+        "preview browser interaction"
+      ],
+      "installed": {
+        "@zeus-js/output-react-wrapper": {
+          "version": "0.1.1-beta.20",
+          "entry": "/tmp/zeus-create-registry-eHjZIT/component-library-ts/node_modules/.pnpm/@zeus-js+output-react-wrapper@0.1.1-beta.20_@types+react@19.3.0_react@19.3.1_rolldown@1.2.15_vite@8.3.5/node_modules/@zeus-js/output-react-wrapper/index.cjs"
+        },
+        "@zeus-js/output-vue-wrapper": {
+          "version": "0.1.1-beta.20",
+          "entry": "/tmp/zeus-create-registry-eHjZIT/component-library-ts/node_modules/.pnpm/@zeus-js+output-vue-wrapper@0.1.1-beta.20_rolldown@1.2.15_vite@8.3.5_vue@3.5.44_typescript@6.0.3_/node_modules/@zeus-js/output-vue-wrapper/index.cjs"
+        },
+        "@zeus-js/runtime-dom": {
+          "version": "0.1.1-beta.20",
+          "entry": "/tmp/zeus-create-registry-eHjZIT/component-library-ts/node_modules/.pnpm/@zeus-js+runtime-dom@0.1.1-beta.20/node_modules/@zeus-js/runtime-dom/index.cjs"
+        },
+        "@zeus-js/web-c": {
+          "version": "0.1.1-beta.20",
+          "entry": "/tmp/zeus-create-registry-eHjZIT/component-library-ts/node_modules/.pnpm/@zeus-js+web-c@0.1.1-beta.20_@types+react@19.3.0_lightningcss@1.33.0_postcss@8.5.31_rea_c5e360ca38e862c1af13651cddda9283/node_modules/@zeus-js/web-c/index.cjs"
+        },
+        "@zeus-js/web-c-runtime": {
+          "version": "0.1.1-beta.20",
+          "entry": "/tmp/zeus-create-registry-eHjZIT/component-library-ts/node_modules/.pnpm/@zeus-js+web-c-runtime@0.1.1-beta.20/node_modules/@zeus-js/web-c-runtime/dist/web-c-runtime.esm-bundler.js"
+        },
+        "@zeus-js/zeus": {
+          "version": "0.1.1-beta.20",
+          "entry": "/tmp/zeus-create-registry-eHjZIT/component-library-ts/node_modules/.pnpm/@zeus-js+zeus@0.1.1-beta.20/node_modules/@zeus-js/zeus/index.cjs"
+        }
+      }
+    },
+    {
+      "template": "web-component-ts",
+      "checks": [
+        "isolated registry install",
+        "typecheck",
+        "production build",
+        "dev browser interaction",
+        "preview browser interaction"
+      ],
+      "installed": {
+        "@zeus-js/zeus": {
+          "version": "0.1.1-beta.20",
+          "entry": "/tmp/zeus-create-registry-eHjZIT/web-component-ts/node_modules/.pnpm/@zeus-js+zeus@0.1.1-beta.20/node_modules/@zeus-js/zeus/index.cjs"
+        },
+        "@zeus-js/vite-plugin": {
+          "version": "0.0.5",
+          "entry": "/tmp/zeus-create-registry-eHjZIT/web-component-ts/node_modules/.pnpm/@zeus-js+vite-plugin@0.0.5_vite@8.3.5/node_modules/@zeus-js/vite-plugin/index.cjs"
+        }
+      }
+    }
+  ]
+}
