@@ -471,6 +471,8 @@ export function defineElement<
     }
 
     connectedCallback(): void {
+      // Projection can detach a host before its queued connected reaction runs.
+      if (this.isConnected === false) return
       this.mountLifecycle.connect()
     }
 
