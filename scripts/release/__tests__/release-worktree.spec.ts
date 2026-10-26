@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import {
   chmodSync,
+  cpSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
@@ -20,6 +21,51 @@ import {
 } from '../release-worktree'
 
 const tempDirs: string[] = []
+let repositoryFixture = ''
+
+beforeAll(() => {
+  // Git process startup is costly under the full suite. Commit the common
+  // baseline once, then copy it so every test still owns a real repository.
+  repositoryFixture = mkdtempSync(
+    join(tmpdir(), 'zeus-release-worktree-fixture-'),
+  )
+  execFileSync('git', ['init', '--quiet', '--template='], {
+    cwd: repositoryFixture,
+  })
+  writeFileSync(
+    join(repositoryFixture, 'package.json'),
+    '{"version":"0.1.0-beta.9"}\n',
+  )
+  writeFileSync(
+    join(repositoryFixture, 'pnpm-lock.yaml'),
+    'lockfileVersion: 9\n',
+  )
+  execFileSync('git', ['add', '.'], { cwd: repositoryFixture })
+  execFileSync(
+    'git',
+    [
+      '-c',
+      'user.email=test@example.com',
+      '-c',
+      'user.name=Zeus Test',
+      '-c',
+      'core.hooksPath=',
+      '-c',
+      'commit.gpgsign=false',
+      'commit',
+      '--quiet',
+      '-m',
+      'test: initial fixture',
+    ],
+    { cwd: repositoryFixture },
+  )
+})
+
+afterAll(() => {
+  if (repositoryFixture) {
+    rmSync(repositoryFixture, { force: true, recursive: true })
+  }
+})
 
 afterEach(() => {
   for (const dir of tempDirs.splice(0)) {
@@ -27,7 +73,9 @@ afterEach(() => {
   }
 })
 
-describe('release worktree guard', () => {
+// These are real Git integration tests, with up to ten subprocesses per case.
+// Allow scheduling contention without raising the global unit-test timeout.
+describe('release worktree guard', { timeout: 15_000 }, () => {
   it('rejects paths introduced after the release snapshot', () => {
     const cwd = createRepository()
     writeFileSync(join(cwd, 'package.json'), '{"version":"0.1.0"}\n')
@@ -158,17 +206,7 @@ describe('release worktree guard', () => {
 function createRepository(): string {
   const cwd = mkdtempSync(join(tmpdir(), 'zeus-release-worktree-'))
   tempDirs.push(cwd)
-
-  execFileSync('git', ['init', '--quiet'], { cwd })
-  execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd })
-  execFileSync('git', ['config', 'user.name', 'Zeus Test'], { cwd })
-
-  writeFileSync(join(cwd, 'package.json'), '{"version":"0.1.0-beta.9"}\n')
-  writeFileSync(join(cwd, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
-  execFileSync('git', ['add', '.'], { cwd })
-  execFileSync('git', ['commit', '--quiet', '-m', 'test: initial fixture'], {
-    cwd,
-  })
+  cpSync(repositoryFixture, cwd, { recursive: true })
 
   return cwd
 }
