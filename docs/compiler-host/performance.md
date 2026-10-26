@@ -38,6 +38,13 @@ CI runs benchmarks on every PR touching core/web-c/headless:
 pnpm bench:component-host:ci
 ```
 
+Runtime budgets use the median of **three fixed samples**, each in a fresh browser
+context. The cold first interaction still disables the HTTP cache and includes CSS,
+lazy registration, mounting, and the first trusted click. Every sample is retained
+in `report.json`, `report.md`, and `trend.json`; the trend CSV records the median.
+A sample that throws or returns incomplete data fails the run immediately. No
+sample is retried or discarded, and the existing millisecond budgets are unchanged.
+
 ## Tips
 
 - Use `exclude` in component globs to skip test files

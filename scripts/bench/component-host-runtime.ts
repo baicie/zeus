@@ -10,14 +10,16 @@ import puppeteer from 'puppeteer'
 import { buildComponentHostFixture } from './component-host-build'
 import { componentHostBenchConfig } from './component-host-config'
 
-import type { Browser } from 'puppeteer'
+import type { Browser, BrowserContext } from 'puppeteer'
 
 export interface RuntimeBenchEntry {
   name: string
   ms: number
+  samples?: number[]
 }
 
 export const FIRST_INTERACTION_METRIC = 'wc.firstInteraction.z-bench-button'
+const RUNTIME_SAMPLE_COUNT = 3
 
 export async function runComponentHostRuntimeBench(): Promise<
   RuntimeBenchEntry[]
@@ -119,54 +121,18 @@ export async function runComponentHostRuntimeBench(): Promise<
 
     server = await createStaticServer(componentHostBenchConfig.dist)
 
-    const firstInteraction = await runFirstInteractionBench(browser, server.url)
-
-    const page = await browser.newPage()
-
-    const consoleLogs: string[] = []
-    page.on('console', msg => {
-      consoleLogs.push(`[puppeteer] ${msg.type()}: ${msg.text()}`)
-    })
-
-    await page.goto(`${server.url}/runtime.html`, {
-      waitUntil: 'load',
-    })
-
-    await page
-      .waitForFunction(
-        () =>
-          (window as unknown as Record<string, unknown>).__BENCH_RESULTS__ !==
-          undefined,
-        { timeout: 30000 },
-      )
-      .catch(err => {
-        console.error(`  [runtime] failed: ${err.message}`)
-        console.error(`  console logs: ${consoleLogs.join(' | ') || 'none'}`)
-        throw err
-      })
-
-    const raw = await page.evaluate(() => {
-      const r = (window as unknown as Record<string, unknown>).__BENCH_RESULTS__
-      return {
-        results: r,
-        err: (window as unknown as Record<string, unknown>).__bench_err,
+    const samples: RuntimeBenchEntry[][] = []
+    for (let index = 0; index < RUNTIME_SAMPLE_COUNT; index++) {
+      // Each fixed sample gets its own cache/storage context. A failed sample is
+      // an error, never a reason to retry or discard a measurement.
+      const context = await browser.createBrowserContext()
+      try {
+        samples.push(await runRuntimeSample(context, server.url))
+      } finally {
+        await context.close()
       }
-    })
-
-    if (!raw.results || (raw.results as unknown[]).length === 0) {
-      throw new Error(
-        `[runtime] empty results. Window state: ${JSON.stringify(raw)}`,
-      )
     }
-
-    if (raw.err) {
-      throw new Error(`[runtime] runner failed: ${String(raw.err)}`)
-    }
-
-    const results = validateRuntimeBenchResults(raw.results)
-    const combined = requireRuntimeBenchResults([firstInteraction, ...results])
-    console.log(`  [runtime] got ${combined.length} entries`)
-    return combined
+    return summarizeRuntimeBenchSamples(samples)
   } finally {
     try {
       if (browser) await browser.close()
@@ -176,11 +142,98 @@ export async function runComponentHostRuntimeBench(): Promise<
   }
 }
 
+async function runRuntimeSample(
+  context: BrowserContext,
+  serverUrl: string,
+): Promise<RuntimeBenchEntry[]> {
+  const firstInteraction = await runFirstInteractionBench(context, serverUrl)
+
+  const page = await context.newPage()
+
+  const consoleLogs: string[] = []
+  page.on('console', msg => {
+    consoleLogs.push(`[puppeteer] ${msg.type()}: ${msg.text()}`)
+  })
+
+  await page.goto(`${serverUrl}/runtime.html`, {
+    waitUntil: 'load',
+  })
+
+  await page
+    .waitForFunction(
+      () =>
+        (window as unknown as Record<string, unknown>).__BENCH_RESULTS__ !==
+        undefined,
+      { timeout: 30000 },
+    )
+    .catch(err => {
+      console.error(`  [runtime] failed: ${err.message}`)
+      console.error(`  console logs: ${consoleLogs.join(' | ') || 'none'}`)
+      throw err
+    })
+
+  const raw = await page.evaluate(() => {
+    const r = (window as unknown as Record<string, unknown>).__BENCH_RESULTS__
+    return {
+      results: r,
+      err: (window as unknown as Record<string, unknown>).__bench_err,
+    }
+  })
+
+  if (!raw.results || (raw.results as unknown[]).length === 0) {
+    throw new Error(
+      `[runtime] empty results. Window state: ${JSON.stringify(raw)}`,
+    )
+  }
+
+  if (raw.err) {
+    throw new Error(`[runtime] runner failed: ${String(raw.err)}`)
+  }
+
+  const results = validateRuntimeBenchResults(raw.results)
+  const combined = requireRuntimeBenchResults([firstInteraction, ...results])
+  console.log(`  [runtime] got ${combined.length} entries`)
+  return combined
+}
+
+export function summarizeRuntimeBenchSamples(
+  samples: RuntimeBenchEntry[][],
+): RuntimeBenchEntry[] {
+  if (samples.length !== RUNTIME_SAMPLE_COUNT) {
+    throw new Error(
+      `[runtime] expected ${RUNTIME_SAMPLE_COUNT} runtime samples`,
+    )
+  }
+  const runs = samples.map(sample => {
+    const entries = requireRuntimeBenchResults(sample)
+    const byName = new Map(entries.map(entry => [entry.name, entry.ms]))
+    if (byName.size !== entries.length) {
+      throw new Error('[runtime] runtime sample contains duplicate metrics')
+    }
+    return byName
+  })
+  const first = runs[0]!
+  if (
+    runs.some(
+      run =>
+        run.size !== first.size ||
+        [...first.keys()].some(name => !run.has(name)),
+    )
+  ) {
+    throw new Error('[runtime] runtime sample metric names differ')
+  }
+  return [...first.keys()].map(name => {
+    const values = runs.map(run => run.get(name)!)
+    const sorted = [...values].sort((a, b) => a - b)
+    return { name, ms: sorted[1]!, samples: values }
+  })
+}
+
 async function runFirstInteractionBench(
-  browser: Browser,
+  context: BrowserContext,
   serverUrl: string,
 ): Promise<RuntimeBenchEntry> {
-  const page = await browser.newPage()
+  const page = await context.newPage()
   await page.setCacheEnabled(false)
 
   const consoleLogs: string[] = []
