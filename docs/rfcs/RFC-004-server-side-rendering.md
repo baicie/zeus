@@ -2,7 +2,7 @@
 
 ## 状态
 
-Accepted
+Accepted（2026-10-25 按当前 Rust 编译器、WC 内部 SSR 与显式 hydration 契约修订）
 
 ## 目标
 
@@ -26,15 +26,17 @@ property 的任意层级一旦出现 Promise 或其他 thenable，立即抛出
 
 ## 编译器契约
 
-`CompilerOptions.generate` 支持两个唯一模式：
+`@zeus-js/compiler-native` 的 `transformModule()` 通过 `target` 选择两个唯一模式：
 
 - `dom`：生成精确 DOM 创建与绑定代码；
 - `ssr`：生成 `@zeus-js/runtime-ssr` 序列化调用，不引用 `document`、`Node` 或 DOM
   runtime。
 
-Vite 插件在普通 transform 中选择 `dom`，在 `transformOptions.ssr === true` 时自动选择
-`ssr`。用户可以通过 `ssrModuleName` 替换 SSR runtime 模块名；DOM runtime 仍由
-`compiler.moduleName` 配置。
+Vite 插件在普通 transform 中选择 `dom`，在 SSR module transform 时自动选择
+`ssr`，并分别传入 DOM 与 SSR 的 `runtimeModule`。用户可以通过 `ssrModuleName`
+替换 SSR runtime 模块名；默认分别为 `@zeus-js/runtime-dom` 与
+`@zeus-js/runtime-ssr`。两种 target 复用 Rust lowering 和 Zeus IR，不维护 Babel
+编译器分支。
 
 SSR codegen 必须支持：
 
@@ -47,9 +49,9 @@ SSR codegen 必须支持：
 - 组件及惰性 props / children；
 - `Show` 和 `For`。
 
-事件和 ref 没有可序列化的服务端语义，SSR codegen 直接省略它们。`Host`、`Slot` 与
-`defineElement` 的服务端输出不属于本 RFC；SSR codegen 遇到这些内置节点时必须明确
-拒绝，而不是生成含糊的 HTML。
+事件和 ref 没有可序列化的服务端语义，SSR codegen 直接省略它们。编译器将
+`defineElement`、`Host` 与 `Slot` 降级到专用的 server helpers，不执行浏览器中的
+Custom Element 注册或 DOM runtime。其内部 SSR 行为见下节。
 
 ## 序列化规则
 
@@ -92,15 +94,48 @@ SSR codegen 必须支持：
   `runtime-dom`。
 - `@zeus-js/zeus/server`：导出 `renderToString`、SSR 类型、服务端 `Show` / `For`，以及
   Zeus 响应式公共 API。
-- `@zeus-js/compiler`：从同一 IR 分派 DOM 或 SSR codegen。
+- `@zeus-js/compiler-native`：从同一 Rust IR 分派 DOM 或 SSR codegen。
 - `@zeus-js/vite-plugin`：根据 Vite transform 上下文自动选择目标。
+
+## Web Component 内部 SSR
+
+`@zeus-js/zeus/server` 导出 server-only 的 `defineElement`、`Host`、`Slot` 与
+`ssrComponentFromManifest`。Shadow 模式输出宿主及 Declarative Shadow DOM
+`<template shadowrootmode="open">`，先写入显式 `styles`，再写入组件内容；Slot
+使用原生 `<slot>` 标记。Light 模式使用 Zeus 投影语义，默认 slot 接收 consumer
+children；具名 slot 按 consumer 节点的显式 `slot` metadata 分配，否则使用 fallback。
+
+Manifest 输入要求 `schemaVersion: 1`，并共享静态默认值、attribute alias、反射和
+shadow 等声明。可序列化的显式原始值及反射默认值写入宿主 attribute；对象、数组、
+函数、`attr: false` 与 Host 的 `prop:*`、事件、ref 不写入 HTML。工厂默认值必须由
+调用方显式提供，否则抛出 `ZEUS_SSR_DEFAULT_FACTORY_UNSUPPORTED`，不能在 SSR
+中猜测初始值。`cssParts` / `cssVars` 是扩展点 metadata，CSS 正文来自 `styles`。
+
+服务端不会注册 custom element、创建 `ElementInternals` 或执行表单 callbacks。
+React/Vue wrapper 的 SSR-0 仅输出宿主 tag 与原始属性；它与上述内部 SSR 是两个
+明确的入口，不能把 wrapper 的宿主输出当作内部首屏 HTML 验收。
+
+## 显式 Hydration
+
+同一源码的 DOM / SSR target 生成一致的稳定 ID 和 `hydrationPlan`；SSR 输出对应的
+HTML markers。客户端通过 `hydrate(container, setup)` 或
+`hydratePlan(container, plan, handlers)` 显式建立绑定，复用已有 DOM，检测缺失、
+重复或不匹配的 marker，并在失败或 disposal 时清理已经建立的 effects 与 events。
+输入值相等时保留焦点、选区及节点 identity。
+
+`hydrationPlan` 只是 metadata，调用方仍需提供每个 binding 的客户端 handler。
+不会自动执行第二棵组件树或自动接管 WC 内部 DOM；未调用显式 hydration 而重新
+`render` 的应用会创建新节点。Streaming、异步 SSR 和自动组件 hydration 不在当前
+契约中。当前实现与使用方式见 [Server Rendering](../guide/server-rendering.md)。
 
 ## 命令与验证
 
 ```sh
-pnpm exec vitest run packages/core/runtime-ssr packages/core/compiler packages/devtools/vite-plugin
+pnpm exec vitest run --project unit packages/core/runtime-ssr packages/core/zeus packages/core/runtime-dom/__tests__/hydration.spec.ts packages/devtools/vite-plugin
+pnpm test:compiler-native
 pnpm check
-pnpm build runtime-ssr compiler zeus vite-plugin
+pnpm build runtime-ssr zeus vite-plugin
+pnpm check:hydration
 pnpm test-unit
 ```
 
@@ -116,22 +151,23 @@ cleanup、SSR 编译产物不含 DOM 引用，以及 Vite SSR transform 的 runt
 
 ## 非目标
 
-- hydration 与客户端接管；
+- 自动组件 hydration 与自动 Web Component 内部接管；
 - streaming / async SSR；
 - Suspense、资源预取与服务端调度；
-- Web Components、Declarative Shadow DOM、light DOM slot 投影；
-- SSR 专用 IR 或 Rust codegen。
+- SSR 专用 IR 或独立编译器分支。
 
-这些能力需要单独 RFC。当前输出是完整 HTML，客户端若继续挂载会重新创建 DOM。
+这些能力需要单独设计与验收；当前同步输出、WC 内部 SSR 与显式绑定重连均使用
+同一 Rust 编译链和现有 runtime 协议。
 
 ## 验收标准
 
 1. Node 环境可从 `@zeus-js/zeus/server` 同步得到正确 HTML，且不需要 DOM shim。
-2. Babel `generate: 'ssr'` 编译上述基线节点并只导入 SSR runtime。
+2. Rust `transformModule({ target: 'ssr', ... })` 编译上述节点与 WC 内置节点，并只导入 SSR runtime。
 3. Vite SSR transform 自动生成 SSR 代码，浏览器 transform 行为保持不变。
-4. 新增行为有单元及集成测试，类型检查、目标构建和完整单元测试通过。
+4. WC 内部 SSR 覆盖 DSD、样式、默认值、Host/Slot、属性一致性；显式 hydration 覆盖 DOM 复用、事件、props、焦点、失配与 cleanup。
+5. 新增行为有单元及集成测试，类型检查、目标构建和完整单元测试通过。
 
-## SSR-0 验收记录（2026-10-18）
+## SSR-0 阶段记录（2026-10-18，历史观察）
 
 - `pnpm check:ssr-safe-import` 在独立 Node 子进程中导入 `@zeus-js/runtime-ssr` 与
   `@zeus-js/zeus/server` 的源码入口，确认导入阶段不读取 `document`、`window` 或其他
@@ -139,8 +175,6 @@ cleanup、SSR 编译产物不含 DOM 引用，以及 Vite SSR transform 的 runt
 - `pnpm exec vitest run packages/core/runtime-ssr packages/core/zeus` 覆盖同步
   `renderToString`、原始属性序列化、转义、控制流、scope cleanup、thenable 拒绝和公开
   server 入口。
-- SSR-0 的原始输出没有 hydration marker。后续 SSR-1 切片已新增与 DOM 编译共享的稳定
-  Node ID、Template ID、binding 重连计划和 opt-in DOM hydrator；SSR 输出默认携带匹配
-  marker，但不会自动接管已有 DOM。客户端必须显式调用
-  `hydrate(container, setup)`。自动组件计划执行、自动 Web Component 内部 hydration、
-  Declarative Shadow DOM 的完整首屏策略和 streaming 仍属于后续 E-006/E-007 工作。
+- 当时 SSR-0 的原始输出没有 hydration marker；这条历史观察不限制当前能力。后续已
+  实现共享稳定 ID、binding 重连计划、显式 DOM hydrator 与 WC 内部 DSD 首屏输出，
+  按上文当前契约验收。自动组件计划执行、自动 WC 内部 hydration 与 streaming 尚未实现。
