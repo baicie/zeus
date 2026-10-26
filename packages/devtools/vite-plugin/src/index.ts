@@ -22,6 +22,13 @@ export interface ZeusVitePluginOptions {
   compiler?: ZeusNativeCompilerOptions
 }
 
+const runtimePackages = [
+  '@zeus-js/signal',
+  '@zeus-js/runtime-dom',
+  '@zeus-js/runtime-ssr',
+  '@zeus-js/zeus',
+] as const
+
 function normalizePatterns(value: RegExp | RegExp[]): RegExp[] {
   return Array.isArray(value) ? value : [value]
 }
@@ -87,12 +94,13 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
             }),
         resolve: {
           alias: Object.keys(alias).length > 0 ? alias : undefined,
-          dedupe: [
-            '@zeus-js/signal',
-            '@zeus-js/runtime-dom',
-            '@zeus-js/runtime-ssr',
-            '@zeus-js/zeus',
-          ],
+          dedupe: [...runtimePackages],
+        },
+        optimizeDeps: {
+          // Compiler-injected imports appear after dependency scanning. Keep
+          // these ESM packages together, including linked workspace entries and
+          // signal's public/internal imports, instead of mixing optimized copies.
+          exclude: [...runtimePackages],
         },
       } satisfies UserConfig
     },

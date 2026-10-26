@@ -11,10 +11,10 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@zeus-js/zeus": "^0.1.0"
+    "@zeus-js/zeus": "0.1.1-beta.20"
   },
   "devDependencies": {
-    "@zeus-js/vite-plugin": "^0.0.4",
+    "@zeus-js/vite-plugin": "0.0.5",
     "typescript": "^6.0.3",
     "vite": "^8.0.16",
     "vitest": "^4.0.0"

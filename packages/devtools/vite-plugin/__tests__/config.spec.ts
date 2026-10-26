@@ -14,9 +14,10 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 import ts from 'typescript'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createZeus } from '../src'
+import * as runtimeResolution from '../src/runtime-resolution'
 
 import type { ConfigEnv, HookHandler, Plugin, UserConfig } from 'vite'
 
@@ -24,8 +25,15 @@ type ConfigHook = NonNullable<HookHandler<Plugin['config']>>
 
 const configEnv: ConfigEnv = { command: 'serve', mode: 'test' }
 const temporaryRoots: string[] = []
+const runtimePackages = [
+  '@zeus-js/signal',
+  '@zeus-js/runtime-dom',
+  '@zeus-js/runtime-ssr',
+  '@zeus-js/zeus',
+]
 
 afterEach(() => {
+  vi.restoreAllMocks()
   for (const root of temporaryRoots.splice(0)) {
     rmSync(root, { recursive: true, force: true })
   }
@@ -37,8 +45,11 @@ function getConfigHook(plugin: Plugin): ConfigHook {
   return typeof hook === 'function' ? hook : hook.handler
 }
 
-async function runConfig(userConfig: UserConfig = {}) {
-  const hook = getConfigHook(createZeus())
+async function runConfig(
+  userConfig: UserConfig = {},
+  options: Parameters<typeof createZeus>[0] = {},
+) {
+  const hook = getConfigHook(createZeus(options))
 
   return hook.call({} as ThisParameterType<ConfigHook>, userConfig, configEnv)
 }
@@ -297,6 +308,60 @@ describe('vite-plugin-zeus config', () => {
         },
       },
     })
+  })
+
+  it.each([
+    ['direct', createDirectRuntimeProject],
+    ['nested', createNestedRuntimeProject],
+  ] as const)(
+    'keeps all runtime entries in one unoptimized graph with a %s dependency',
+    async (_, createProject) => {
+      const { root } = createProject()
+      const result = await runConfig({ root })
+
+      expect(result).toMatchObject({
+        optimizeDeps: { exclude: runtimePackages },
+      })
+      expect(result).not.toHaveProperty('optimizeDeps.include')
+    },
+  )
+
+  it('preserves the shared runtime graph when only the SSR module is customized', async () => {
+    const { root } = createDirectRuntimeProject()
+    const result = await runConfig(
+      { root },
+      { ssrModuleName: 'virtual:zeus-ssr-runtime' },
+    )
+
+    expect(result).toMatchObject({
+      optimizeDeps: { exclude: runtimePackages },
+    })
+    expect(result).not.toHaveProperty('optimizeDeps.include')
+  })
+
+  it('does not prebundle a default runtime when the compiler uses a custom module', async () => {
+    const { root } = createDirectRuntimeProject()
+    const result = await runConfig(
+      { root },
+      { compiler: { moduleName: 'virtual:zeus-runtime' } },
+    )
+
+    expect(result).toMatchObject({
+      optimizeDeps: { exclude: runtimePackages },
+    })
+    expect(result).not.toHaveProperty('optimizeDeps.include')
+  })
+
+  it('does not force missing runtime packages into prebundling', async () => {
+    vi.spyOn(runtimeResolution, 'resolveRuntimeDOMEntry').mockReturnValue(
+      undefined,
+    )
+    const result = await runConfig()
+
+    expect(result).toMatchObject({
+      optimizeDeps: { exclude: runtimePackages },
+    })
+    expect(result).not.toHaveProperty('optimizeDeps.include')
   })
 
   it('resolves a pnpm-linked runtime when Node preserves symlinks', () => {

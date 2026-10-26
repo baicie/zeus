@@ -52,7 +52,13 @@ devServer.once('error', error => {
   serverError = error
 })
 const url = `http://127.0.0.1:${port}/`
-const results: Array<{ browser: string; status: string; error?: string }> = []
+const results: Array<{
+  browser: string
+  status: string
+  error?: string
+  pageErrors: string[]
+  failedResponses: Array<{ url: string; status: number }>
+}> = []
 
 try {
   const deadline = Date.now() + 30000
@@ -72,10 +78,18 @@ try {
       headless: true,
       ...(name === 'chromium' ? { channel: 'chromium' } : {}),
     })
+    const errors: string[] = []
+    const failedResponses: Array<{ url: string; status: number }> = []
     try {
       const page = await browser.newPage()
-      const errors: string[] = []
       page.on('pageerror', error => errors.push(error.message))
+      page.on('response', response => {
+        if (response.status() >= 400)
+          failedResponses.push({
+            url: response.url(),
+            status: response.status(),
+          })
+      })
       await page.goto(url)
       const counter = page.getByTestId('counter')
       await expect(counter).toHaveText('Count: 0')
@@ -112,9 +126,20 @@ try {
         path: path.join(output, `${name}.png`),
         fullPage: true,
       })
-      results.push({ browser: name, status: 'passed' })
+      results.push({
+        browser: name,
+        status: 'passed',
+        pageErrors: errors,
+        failedResponses,
+      })
     } catch (error) {
-      results.push({ browser: name, status: 'failed', error: String(error) })
+      results.push({
+        browser: name,
+        status: 'failed',
+        error: String(error),
+        pageErrors: errors,
+        failedResponses,
+      })
     } finally {
       await browser.close()
     }

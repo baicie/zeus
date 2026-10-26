@@ -8,6 +8,21 @@
 - Keep custom-element JSX contracts separate from native HTML attributes and preserve required component attributes such as `id`.
 - Include declared Vue event listeners in public component props while preserving typed `$emit` payloads.
 - Skip stale connected reactions for detached eager custom elements, preserving projected descendant context across reconnection.
+- Rebuild custom-element mounts whose render scope was disposed by a native DOM move, and keep lazy reconnects behind the ancestor barrier so projected context, form callbacks and exposed methods bind to the current mount.
+
+## create-zeus 0.1.5 (2026-10-25)
+
+### Fixes
+
+- Pin all four templates to the same published Zeus 0.1.1-beta.20 framework and Vite plugin 0.0.5 toolchain so new projects use the current Native compiler and one signal engine.
+- Gate CLI publication on isolated registry installs, checks, builds, tests and dev/production browser interactions for all templates, preserving the report in CI.
+
+## vite-plugin 0.0.5 (2026-10-25)
+
+### Fixes
+
+- Publish the current Rust Native compiler integration, runtime resolution, dependency deduplication and scoped HMR support.
+- Keep Zeus core ESM packages in one unoptimized module graph for npm and linked workspace projects, preventing duplicate signal engines during cold development startup.
 
 ## 0.1.1-beta.19 (2026-10-25)
 

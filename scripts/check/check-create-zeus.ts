@@ -19,7 +19,7 @@ const rootDir = path.resolve(
   '../..',
 )
 const require = createRequire(import.meta.url)
-const templates = [
+export const createZeusTemplates = [
   'basic-ts',
   'application-ts',
   'component-library-ts',
@@ -30,7 +30,7 @@ export async function checkCreateZeus(): Promise<void> {
   const smokeRoot = mkdtempSync(path.join(os.tmpdir(), 'zeus-create-smoke-'))
 
   try {
-    for (const template of templates) {
+    for (const template of createZeusTemplates) {
       const projectRoot = path.join(smokeRoot, template)
 
       await scaffold({
@@ -59,7 +59,7 @@ export async function checkCreateZeus(): Promise<void> {
   }
 }
 
-function assertComponentLibraryOutputs(projectRoot: string): void {
+export function assertComponentLibraryOutputs(projectRoot: string): void {
   const expected = [
     'custom-elements.json',
     'zeus.components.json',
