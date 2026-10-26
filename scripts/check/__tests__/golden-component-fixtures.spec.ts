@@ -125,6 +125,28 @@ function supportedContract(): GoldenGroupSnapshot[] {
 }
 
 describe('Golden published component API snapshot', () => {
+  it('does not invent HTML attributes for property-only function, array or object values', () => {
+    const original = manifest()
+    Object.assign(original.components[0].props, {
+      formatter: { type: 'function' },
+      rows: { type: 'array' },
+      diagnostics: { type: 'object', attr: false },
+    })
+    const components = snapshotGoldenComponents(JSON.stringify(original))
+    for (const name of ['formatter', 'rows', 'diagnostics']) {
+      expect(
+        components[0].props.find(prop => prop.name === name),
+      ).toMatchObject({
+        attribute: false,
+      })
+    }
+    expect(
+      components[0].props.find(prop => prop.name === 'defaultOpen'),
+    ).toMatchObject({
+      attribute: 'default-open',
+    })
+  })
+
   it('compares the complete public projection, independently of its content hash', () => {
     const content = JSON.stringify(manifest())
     const components = snapshotGoldenComponents(content)

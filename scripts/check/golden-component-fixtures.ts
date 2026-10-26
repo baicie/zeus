@@ -62,7 +62,9 @@ export function snapshotGoldenComponents(
       ...(prop.required === true ? { required: true } : {}),
       attribute:
         prop.attr ??
-        name.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`),
+        (['string', 'number', 'boolean'].includes(prop.type ?? '')
+          ? name.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)
+          : false),
       reflect: prop.reflect ?? false,
       ...(Object.prototype.hasOwnProperty.call(prop, 'default')
         ? { default: prop.default }
