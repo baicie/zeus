@@ -16,6 +16,10 @@ import {
   type GoldenGroupSnapshot,
 } from './golden-component-fixtures'
 import { verifyGoldenComponentManifest } from './golden-component-manifest'
+import {
+  runGoldenBrowserWithResources,
+  withCloseDeadline,
+} from './golden-component-resources'
 import { escapeRegExp } from './regexp-utils'
 
 const reportDirectory = path.resolve(
@@ -110,7 +114,7 @@ for (const consumer of ['native', 'react18', 'react19', 'vue3']) {
       results.push({
         ...result,
         status: 'failed',
-        stage: 'browser-assertions',
+        stage: result.stage ?? 'browser-assertions',
         verificationError: String(error),
       })
     }
@@ -701,56 +705,51 @@ async function runBrowser(
   browserName: string,
 ): Promise<Record<string, unknown>> {
   const browserType = browserTypes[browserName]
-  const server = await startPreview(project)
-  let browser
-  try {
-    browser = await browserType.launch({
-      headless: true,
-      ...(browserName === 'chromium' ? { channel: 'chromium' } : {}),
-    })
-    const page = await browser.newPage()
-    const errors: string[] = []
-    page.on('pageerror', error => errors.push(error.message))
-    await page.goto(server.url)
-    await page.waitForFunction(
-      () => (window as Window & { goldenResult?: unknown }).goldenResult,
-      undefined,
-      { timeout: 30_000 },
-    )
-    const result = await page.evaluate(
-      () => (window as Window & { goldenResult?: unknown }).goldenResult,
-    )
-    const passed =
-      typeof result === 'object' &&
-      result !== null &&
-      'passed' in result &&
-      result.passed === true
-    if (!passed || errors.length) {
-      return {
-        consumer,
-        browser: browserName,
-        status: 'failed',
-        result,
-        errors,
+  return runGoldenBrowserWithResources({
+    consumer,
+    browser: browserName,
+    startPreview: () => startPreview(project),
+    launchBrowser: () =>
+      browserType.launchServer({
+        headless: true,
+        ...(browserName === 'chromium' ? { channel: 'chromium' } : {}),
+      }),
+    check: async (server, url) => {
+      const browser = await browserType.connect(server.wsEndpoint())
+      const page = await browser.newPage()
+      const errors: string[] = []
+      page.on('pageerror', error => errors.push(error.message))
+      await page.goto(url)
+      await page.waitForFunction(
+        () => (window as Window & { goldenResult?: unknown }).goldenResult,
+        undefined,
+        { timeout: 30_000 },
+      )
+      const result = await page.evaluate(
+        () => (window as Window & { goldenResult?: unknown }).goldenResult,
+      )
+      const passed =
+        typeof result === 'object' &&
+        result !== null &&
+        'passed' in result &&
+        result.passed === true
+      if (!passed || errors.length) {
+        return {
+          consumer,
+          browser: browserName,
+          status: 'failed',
+          result,
+          errors,
+        }
       }
-    }
-    return { consumer, browser: browserName, status: 'passed', result }
-  } catch (error) {
-    return {
-      consumer,
-      browser: browserName,
-      status: 'failed',
-      error: String(error),
-    }
-  } finally {
-    await browser?.close()
-    server.close()
-  }
+      return { status: 'passed', result }
+    },
+  })
 }
 
 async function startPreview(project: string): Promise<{
   url: string
-  close: () => void
+  close: () => Promise<void>
 }> {
   const { preview } = await import(
     pathToFileURL(path.join(project, 'node_modules/vite/dist/node/index.js'))
@@ -760,12 +759,24 @@ async function startPreview(project: string): Promise<{
     root: project,
     preview: { host: '127.0.0.1', port: 0 },
   })
+  const close = async (): Promise<void> => {
+    server.httpServer.closeAllConnections()
+    await server.close()
+  }
   const address = server.httpServer.address()
-  if (!address || typeof address === 'string')
+  if (!address || typeof address === 'string') {
+    try {
+      await withCloseDeadline(close)
+    } catch (error) {
+      throw new Error(
+        `Vite preview did not expose a port; cleanup failed: ${String(error)}`,
+      )
+    }
     throw new Error('Vite preview did not expose a port')
+  }
   return {
     url: `http://127.0.0.1:${address.port}`,
-    close: () => server.httpServer.close(),
+    close,
   }
 }
 
