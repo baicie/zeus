@@ -96,7 +96,7 @@
   "flakeFixes": {
     "pullRequest": "https://github.com/baicie/zeus/pull/180",
     "head": "cbbee267adbc582bad018bc2902b56c29307c153",
-    "state": "open_ci_pending",
+    "state": "merged",
     "independentReview": "approved",
     "gitFixture": {
       "subprocessesBefore": 103,
@@ -112,6 +112,26 @@
       "retryOrDroppedSamples": false,
       "invalidOrFailedSample": "fail",
       "warning": "Historical single observations and new medians are different estimators; no performance improvement is claimed."
-    }
+    },
+    "mergeCommit": "28b9bd40595330480b301997ceef9651f167f809",
+    "pullRequestCi": [
+      "https://github.com/baicie/zeus/actions/runs/40332659438",
+      "https://github.com/baicie/zeus/actions/runs/40332659443",
+      "https://github.com/baicie/zeus/actions/runs/40332659547"
+    ]
+  },
+  "goldenLocal": {
+    "status": "failed",
+    "reason": "Playwright Chromium 1248 download failed; its four combinations could not launch.",
+    "passedBrowserCombinations": 8,
+    "failedBrowserCombinations": 4,
+    "requiredAssertionsPerPassingCombination": 23,
+    "ssrPassed": 4,
+    "strictTypesPassed": 4,
+    "manifestsPassed": 16,
+    "uiSignedProvenancePassed": 16,
+    "frameworkIntegrityPassed": 8,
+    "report": "temp/golden-components-beta34-registry-final/report.json",
+    "fullMatrix": "pending Linux workflow_dispatch"
   }
 }
