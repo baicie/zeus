@@ -57,6 +57,7 @@ function createLazyModule(
         attributeProps: hostRef.attributeProps,
         internals: hostRef.internals,
         reflectingAttrs: hostRef.reflectingAttrs,
+        exposedMethods: hostRef.exposedMethods,
       }
       const lifecycle = createCustomElementMountLifecycle(() =>
         mountElementDefinition(
@@ -367,6 +368,7 @@ describe('eager and lazy custom element adapters', () => {
     expect(connections).toEqual(['child', 'disconnect', 'parent', 'child'])
 
     document.body.append(child)
+    await child.componentOnReady?.()
     expect(connections).toEqual([
       'child',
       'disconnect',
@@ -1266,6 +1268,221 @@ describe('eager and lazy custom element adapters', () => {
         expect(childMounts).toHaveLength(mount)
         expect(childCleanups).toBe(mount)
       }
+    },
+  )
+
+  it('rejects method calls while disconnected and invokes the fresh mount method after reconnect', async () => {
+    let generation = 0
+    const Definition = defineElement(
+      createTag('method-reconnect-definition'),
+      { shadow: false },
+      (_props, { expose }) => {
+        const mountedGeneration = ++generation
+        expose({ readGeneration: () => mountedGeneration })
+        return null
+      },
+    )
+    const tag = createTag('method-reconnect')
+    bootstrapLazy([
+      {
+        tagName: tag,
+        shadow: false,
+        props: [],
+        methods: ['readGeneration'],
+        load: async () => createLazyModule(Definition),
+      },
+    ])
+    const host = document.createElement(tag) as AdapterElement & {
+      readGeneration(): Promise<number>
+    }
+    const firstCall = host.readGeneration()
+    document.body.append(host)
+    await expect(firstCall).resolves.toBe(1)
+    host.remove()
+    await expect(host.readGeneration()).rejects.toThrow(
+      '[ZEUS_WC_DISCONNECTED_BEFORE_READY]',
+    )
+    const nextReady = host.componentOnReady?.()
+    document.body.append(host)
+    await nextReady
+    await expect(host.readGeneration()).resolves.toBe(2)
+  })
+
+  it('buffers form callbacks until a loaded component reconnects', async () => {
+    const received: Array<{
+      type: string
+      value?: unknown
+      generation?: string
+    }> = []
+    let generation = 0
+    const record = (type: string, host: HTMLElement, value?: unknown) => {
+      received.push({
+        type,
+        value,
+        generation: host.querySelector('span')?.dataset.generation,
+      })
+    }
+    const Definition = defineElement(
+      createTag('reconnect-form-definition'),
+      {
+        shadow: false,
+        formAssociated: true,
+        form: {
+          associated(form, _props, { host }) {
+            record('associated', host, form)
+          },
+          disabled(disabled, _props, { host }) {
+            record('disabled', host, disabled)
+          },
+          reset(_props, { host }) {
+            record('reset', host)
+          },
+          stateRestore(state, mode, _props, { host }) {
+            record('stateRestore', host, [state, mode])
+          },
+        },
+      },
+      () => {
+        const span = document.createElement('span')
+        span.dataset.generation = String(++generation)
+        return span
+      },
+    )
+    const tag = createTag('reconnect-form')
+    bootstrapLazy([
+      {
+        tagName: tag,
+        shadow: false,
+        formAssociated: true,
+        props: [],
+        load: async () => createLazyModule(Definition),
+      },
+    ])
+    const host = document.createElement(tag) as AdapterElement & {
+      formAssociatedCallback(form: HTMLFormElement | null): void
+      formDisabledCallback(disabled: boolean): void
+      formResetCallback(): void
+      formStateRestoreCallback(state: string, mode: 'restore'): void
+    }
+    document.body.append(host)
+    await host.componentOnReady?.()
+    const destination = document.createElement('section')
+    document.body.append(destination)
+    destination.append(host)
+    const form = document.createElement('form')
+    host.formAssociatedCallback(form)
+    host.formDisabledCallback(true)
+    host.formResetCallback()
+    host.formStateRestoreCallback('saved', 'restore')
+    expect(received).toEqual([])
+    await host.componentOnReady?.()
+    expect(received).toEqual([
+      { type: 'associated', value: form, generation: '2' },
+      { type: 'disabled', value: true, generation: '2' },
+      { type: 'reset', value: undefined, generation: '2' },
+      { type: 'stateRestore', value: ['saved', 'restore'], generation: '2' },
+    ])
+  })
+
+  it.each(['eager', 'lazy'] as const)(
+    'keeps projected context bindings reactive after a native subtree move with %s elements',
+    async adapter => {
+      const parentTag = createTag('native-context-parent')
+      const childTag = createTag('native-context-child')
+      const context = createContext<{
+        getCount: () => number
+        generation: number
+      }>()
+      let parentMounts = 0
+      let childMounts = 0
+      let childCleanups = 0
+      const Parent = defineElement<{ count: number }>(
+        createTag('native-context-parent-definition'),
+        { shadow: false, props: { count: Number } },
+        (props, { host }) => {
+          provideDOMContext(host, context, {
+            getCount: () => props.count,
+            generation: ++parentMounts,
+          })
+          return Slot({})
+        },
+      )
+      const Child = defineElement(
+        createTag('native-context-child-definition'),
+        { shadow: false, styles: '.native-context-child { color: inherit; }' },
+        (_props, { host }) => {
+          const result = resolveDOMContext(host, context)
+          childMounts++
+          onCleanup(() => childCleanups++)
+          const output = document.createElement('span')
+          output.dataset.generation = String(result.value?.generation)
+          createEffect(() => {
+            output.textContent = String(result.value?.getCount())
+          })
+          return output
+        },
+      )
+      if (adapter === 'lazy') {
+        bootstrapLazy([
+          {
+            tagName: parentTag,
+            shadow: false,
+            props: [{ name: 'count', type: 'number' }],
+            load: async () => createLazyModule(Parent),
+          },
+          {
+            tagName: childTag,
+            shadow: false,
+            props: [],
+            load: async () => createLazyModule(Child),
+          },
+        ])
+      }
+      const parent = document.createElement(
+        adapter === 'lazy' ? parentTag : getElementDefinition(Parent).tagName,
+      ) as AdapterElement
+      const child = document.createElement(
+        adapter === 'lazy' ? childTag : getElementDefinition(Child).tagName,
+      ) as AdapterElement
+      parent.count = 1
+      parent.append(child)
+      document.body.append(parent)
+      await parent.componentOnReady?.()
+      await child.componentOnReady?.()
+      expect(child.querySelector('span')?.textContent).toBe('1')
+      expect(child.querySelector('span')?.dataset.generation).toBe('1')
+      expect([parentMounts, childMounts, childCleanups]).toEqual([1, 1, 0])
+
+      const destination = document.createElement('section')
+      document.body.append(destination)
+      destination.append(parent)
+      await parent.componentOnReady?.()
+      await child.componentOnReady?.()
+      await nextFrame()
+      expect(child.querySelector('span')?.textContent).toBe('1')
+      expect(child.querySelector('span')?.dataset.generation).toBe('2')
+      expect([parentMounts, childMounts, childCleanups]).toEqual([2, 2, 1])
+      expect(child.querySelectorAll('style')).toHaveLength(1)
+      parent.count = 2
+      expect(child.querySelector('span')?.textContent).toBe('2')
+
+      parent.remove()
+      await nextFrame()
+      let readyResolved = false
+      const nextReady = child.componentOnReady?.().then(() => {
+        readyResolved = true
+      })
+      await nextFrame()
+      expect(readyResolved).toBe(false)
+      document.body.append(parent)
+      await parent.componentOnReady?.()
+      await child.componentOnReady?.()
+      await nextReady
+      expect(child.querySelector('span')?.dataset.generation).toBe('3')
+      expect([parentMounts, childMounts, childCleanups]).toEqual([3, 3, 2])
+      expect(child.querySelectorAll('style')).toHaveLength(1)
+      parent.count = 3
+      expect(child.querySelector('span')?.textContent).toBe('3')
     },
   )
 

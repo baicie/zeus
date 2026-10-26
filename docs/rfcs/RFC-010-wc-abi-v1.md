@@ -164,7 +164,7 @@ property setter
 
 Lazy manifest 只能携带 JSON-safe default 与 codec 元数据。未加载实现前，原始 attribute 放在 pending store；实现加载后只对最终原始值执行一次 codec。不能使用 `Function#toString` 重建 codec。
 
-`componentOnReady()` 的含义是实现已完成初始化。`ready-required` 方法必须在该 Promise 完成后调用；`async-proxy` 返回等待实现的 Promise；`sync-unavailable` 在未 ready 时抛稳定错误。宿主在加载期间断开连接时，当前 readiness waiter 和 async proxy 必须以 `ZEUS_WC_DISCONNECTED_BEFORE_READY` reject，不能永久 pending；重连可复用同一个 module Promise 并重新初始化。已完成初始化后再断开则执行实例的 disconnect/dispose 生命周期。
+`componentOnReady()` 的含义是实现已完成初始化。`ready-required` 方法必须在该 Promise 完成后调用；`async-proxy` 返回等待实现的 Promise；`sync-unavailable` 在未 ready 时抛稳定错误。宿主在加载期间断开连接时，当前 readiness waiter 和 async proxy 必须以 `ZEUS_WC_DISCONNECTED_BEFORE_READY` reject，不能永久 pending；重连可复用同一个 module Promise 并重新初始化。已完成初始化后再断开则执行实例的 disconnect/dispose 生命周期；此时新发起的 `componentOnReady()` 和 async proxy 不立即 resolve，而是等重连完成后 resolve（宿主不再重连时保持 pending，不 reject）。
 
 ### 2.3 连接生命周期
 

@@ -24,6 +24,12 @@ function reportInitializationError(tagName: string, error: unknown): void {
   console.error(`[zeus:web-c] Failed to initialize <${tagName}>.`, error)
 }
 
+function disconnectedBeforeReadyError(hostRef: HostRef): Error {
+  return new Error(
+    `[ZEUS_WC_DISCONNECTED_BEFORE_READY] <${hostRef.meta.tagName}> is disconnected.`,
+  )
+}
+
 export function createLazyElementClass(
   meta: ZeusLazyComponentMeta,
 ): CustomElementConstructor {
@@ -162,7 +168,7 @@ function dispatchFormCallback(
   hostRef: HostRef,
   callback: ZeusFormCallback,
 ): void {
-  if (!hostRef.instance || !hostRef.connected) {
+  if (!hostRef.instance || !hostRef.connected || hostRef.loading) {
     hostRef.pendingFormCallbacks.push(callback)
     return
   }
@@ -193,11 +199,13 @@ function installMethodProxies(
         const args = Array.prototype.slice.call(arguments) as unknown[]
         const hostRef = requireHostRef(host)
 
+        if (hostRef.loaded && !hostRef.connected) {
+          return Promise.reject(disconnectedBeforeReadyError(hostRef))
+        }
+
         return waitForComponentReady(hostRef).then(readyHost => {
           if (!hostRef.connected) {
-            throw new Error(
-              `[ZEUS_WC_DISCONNECTED_BEFORE_READY] <${hostRef.meta.tagName}> is disconnected.`,
-            )
+            throw disconnectedBeforeReadyError(hostRef)
           }
 
           const method = hostRef.exposedMethods[name]

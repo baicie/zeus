@@ -1,5 +1,7 @@
 // packages/web-c-runtime/src/lifecycle.ts
 
+import { isWithinRuntimeDomMove } from '@zeus-js/runtime-dom'
+
 import { invokeFormCallback } from './form-callbacks'
 import { getHostRef } from './host-ref'
 import { applyInitialValues } from './props'
@@ -18,7 +20,7 @@ export function waitForComponentReady(hostRef: HostRef): Promise<HTMLElement> {
     return Promise.reject(hostRef.readinessError)
   }
 
-  if (hostRef.loaded && !hostRef.loading) {
+  if (hostRef.connected && hostRef.loaded && !hostRef.loading) {
     return Promise.resolve(hostRef.host)
   }
 
@@ -45,12 +47,21 @@ export async function initializeComponent(hostRef: HostRef): Promise<void> {
     return
   }
 
-  if (hostRef.loaded && !findPendingAncestor(hostRef.host)) {
+  // A protected move keeps the current owner and context. It must not start a
+  // new readiness cycle, while an ancestor that is remounting still takes the
+  // asynchronous path below.
+  if (
+    hostRef.loaded &&
+    isWithinRuntimeDomMove(hostRef.host) &&
+    !findPendingAncestor(hostRef.host)
+  ) {
     hostRef.instance?.connected?.()
     flushPendingFormCallbacks(hostRef)
     return
   }
 
+  // Reconnection also establishes a loading boundary before setup can project
+  // descendants, so they wait for the new ancestor context.
   const loading = hostRef.loaded
     ? reconnectComponent(hostRef)
     : doInitializeComponent(hostRef)
