@@ -10,6 +10,16 @@ export interface RenderOptions {
   owner?: ReturnType<typeof createOwner>
 }
 
+/**
+ * Returned by `renderWithPreservedNodes` only. `active` is an internal
+ * custom-element contract — a disposed render scope must not be reused as a
+ * cached mount — so the public `render()` signature stays `() => void`.
+ */
+interface RenderDisposer {
+  (): void
+  readonly active: boolean
+}
+
 export function render(
   value: JSXValue | (() => JSXValue),
   container: Element | DocumentFragment,
@@ -23,7 +33,7 @@ export function renderWithPreservedNodes(
   container: Element | DocumentFragment,
   options: RenderOptions = {},
   preserveNodes: readonly Node[] = [],
-): () => void {
+): RenderDisposer {
   const renderScope = scope()
   const owner = options.owner ?? createOwner()
 
@@ -39,7 +49,7 @@ export function renderWithPreservedNodes(
 
   let disposed = false
 
-  return () => {
+  const dispose = () => {
     if (disposed) return
     disposed = true
 
@@ -56,6 +66,10 @@ export function renderWithPreservedNodes(
       )
     }
   }
+
+  return Object.defineProperty(dispose, 'active', {
+    get: () => renderScope.active,
+  }) as RenderDisposer
 }
 
 function clearContainer(

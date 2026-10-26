@@ -55,7 +55,8 @@ Eager 构造时即可执行工厂，Lazy 必须等实现 chunk；这是明确的
 - 加载期间 detach 不创建实例或 owner；当前 ready 等待者以 `ZEUS_WC_DISCONNECTED_BEFORE_READY` reject，重新连接后新的 waiter 可在初始化完成时 resolve。
 - 快速 detach/reconnect 共享同一加载 promise，不能重复挂载。
 - 已挂载宿主断开时释放 owner、effects 与 cleanup；再次连接新建挂载作用域，props 保留。
-- `componentOnReady()` 表示实现曾完成初始化，已加载后普通 detach 不使该 promise 永久失效。
+- `componentOnReady()` 表示实现已完成初始化且宿主当前已连接。已加载后普通 detach 不 reject 既有等待者，但 detach 期间发起或仍在等待的调用不立即 resolve：它保持 pending，等宿主重连并完成重建后 resolve 到新挂载；宿主不再重连时保持 pending，不 reject，也不永久失效。
+- 已加载组件重连是异步的：`connectedCallback` 之后需等重连屏障结束才重建挂载，因此原生 DOM move 后必须先 `await componentOnReady()` 再断言重建后的 DOM。
 - Zeus runtime 的 `moveNodeBefore` 移动处于 guard 内，Eager/Lazy 均保留当前 owner。直接调用原生 DOM API 的普通断开/重连遵循完整生命周期，不保证等同于 runtime move。
 
 ## 验证

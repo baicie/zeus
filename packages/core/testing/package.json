@@ -1,7 +1,7 @@
 {
   "name": "@zeus-js/testing",
   "type": "module",
-  "version": "0.1.1-beta.19",
+  "version": "0.1.1-beta.20",
   "description": "Official testing utilities for Zeus applications and components",
   "license": "MIT",
   "repository": {

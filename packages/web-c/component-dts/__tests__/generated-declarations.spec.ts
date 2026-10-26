@@ -374,6 +374,7 @@ describe('generated declaration consumer contract', () => {
       vueStubPath,
       `
         declare module 'vue' {
+          export type EmitsToProps<T> = { [K in keyof T as K extends string ? \`on\${Capitalize<K>}\` : never]?: T[K] }
           export type SlotsType<T extends Record<string, unknown> = Record<string, unknown>> = T
           export interface DefineComponent<
             Props = {},
@@ -906,7 +907,9 @@ describe('generated declaration consumer contract', () => {
     for (const declaration of Object.values(declarations)) {
       expect(declaration).toContain('type ZCollisionPropsPropType =')
       expect(declaration).toContain('props?: ZCollisionPropsPropType')
-      expect(declaration).not.toContain('export type ZCollisionProps =')
+      expect(declaration).not.toContain(
+        'export type ZCollisionProps = { nested: string }',
+      )
       expect(declaration).toContain('type ZCollisionElementPropsPropType =')
       expect(declaration).toContain('type ZCollisionElementMethodsPropType =')
       expect(declaration).toContain(
@@ -1282,6 +1285,7 @@ async function writeVueStub(root: string, outputName: string): Promise<string> {
     stubPath,
     `
       declare module 'vue' {
+        export type EmitsToProps<T> = { [K in keyof T as K extends string ? \`on\${Capitalize<K>}\` : never]?: T[K] }
         export type SlotsType<T extends Record<string, unknown> = Record<string, unknown>> = T
         export interface DefineComponent<
           Props = {},

@@ -25,6 +25,7 @@ export interface NormalizedPropChange {
 }
 
 export interface CustomElementMount {
+  readonly active: boolean
   dispose(): void
 }
 
@@ -131,6 +132,13 @@ export function createCustomElementMountLifecycle<M extends CustomElementMount>(
 
   return {
     connect() {
+      // A parent scope can dispose a projected child before its queued custom
+      // element reactions run. Such a mount must not survive an internal move.
+      if (mounted && !mounted.active) {
+        const stale = mounted
+        mounted = undefined
+        stale.dispose()
+      }
       mounted ??= mount()
       return mounted
     },

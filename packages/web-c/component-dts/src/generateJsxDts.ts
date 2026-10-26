@@ -58,7 +58,7 @@ function generateComponentJsxProps(component: ComponentRecord): string {
   const propsTypeName = getPropsTypeName(component)
   const lines: string[] = []
 
-  lines.push(`export interface ${propsTypeName} {`)
+  lines.push(`export type ${propsTypeName} = {`)
 
   for (const [name, prop] of Object.entries(component.props)) {
     const optional = isRequiredProp(prop) ? '' : '?'
@@ -77,16 +77,22 @@ function generateComponentJsxProps(component: ComponentRecord): string {
   }
 
   lines.push('')
-  lines.push('  children?: unknown')
-  lines.push('  class?: string')
-  lines.push('  className?: string')
-  lines.push(
-    '  style?: string | Record<string, string | number | null | undefined>',
-  )
-  lines.push('  id?: string')
-  lines.push('  role?: string')
-  lines.push('  part?: string')
-  lines.push('  slot?: string')
+  const commonProps = {
+    children: 'unknown',
+    class: 'string',
+    className: 'string',
+    style: 'string | Record<string, string | number | null | undefined>',
+    id: 'string',
+    role: 'string',
+    part: 'string',
+    slot: 'string',
+  }
+  for (const [name, type] of Object.entries(commonProps)) {
+    // Component schemas can refine common attributes, including requiredness.
+    if (!Object.prototype.hasOwnProperty.call(component.props, name)) {
+      lines.push(`  ${name}?: ${type}`)
+    }
+  }
   lines.push('')
   lines.push('  [key: `data-${string}`]: unknown')
   lines.push('  [key: `aria-${string}`]: unknown')

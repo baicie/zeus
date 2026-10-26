@@ -2,6 +2,7 @@ import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { bindText, render } from '../src'
+import { renderWithPreservedNodes } from '../src/render'
 
 describe('render', () => {
   let dom: JSDOM
@@ -70,6 +71,52 @@ describe('render', () => {
     dispose()
 
     expect(container.firstChild).toBe(null)
+  })
+
+  it('reports a stopped parent scope and keeps disposal idempotent', async () => {
+    const { scope, onScopeDispose } = await import('@zeus-js/signal/internal')
+    const parent = scope(true)
+    const container = document.createElement('div')
+    let cleanups = 0
+    let dispose!: ReturnType<typeof renderWithPreservedNodes>
+    parent.run(() => {
+      dispose = renderWithPreservedNodes(() => {
+        onScopeDispose(() => cleanups++)
+        return document.createElement('span')
+      }, container)
+    })
+    expect(dispose.active).toBe(true)
+    parent.stop()
+    expect(dispose.active).toBe(false)
+    expect(cleanups).toBe(1)
+    dispose()
+    dispose()
+    expect(cleanups).toBe(1)
+    expect(container.childNodes).toHaveLength(0)
+  })
+
+  it('reports inactive when an already stopped owner prevents setup', async () => {
+    const { scope, onScopeDispose } = await import('@zeus-js/signal/internal')
+    const parent = scope(true)
+    const container = document.createElement('div')
+    let setups = 0
+    let dispose!: ReturnType<typeof renderWithPreservedNodes>
+    parent.run(() => {
+      onScopeDispose(() => {
+        dispose = renderWithPreservedNodes(() => {
+          setups++
+          return document.createElement('span')
+        }, container)
+      })
+    })
+    parent.stop()
+    expect(setups).toBe(0)
+    expect(dispose.active).toBe(false)
+    expect(() => {
+      dispose()
+      dispose()
+    }).not.toThrow()
+    expect(container.childNodes).toHaveLength(0)
   })
 
   it('clears container on re-render', () => {

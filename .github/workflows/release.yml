@@ -8,6 +8,7 @@ on:
 concurrency:
   group: npm-release
   cancel-in-progress: false
+  queue: max
 
 env:
   PUPPETEER_SKIP_DOWNLOAD: 'true'

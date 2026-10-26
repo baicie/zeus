@@ -1,8 +1,13 @@
 // packages/web-c/component-dts/src/generateLoaderDts.ts
 
 import { generateElementType } from './generateElementType'
+import { generateEventMap } from './generateEventMap'
 import { generatePropTypeDeclarations } from './generatePropTypeDeclarations'
-import { getElementTypeName, getGeneratedDeclarationNames } from './naming'
+import {
+  getElementTypeName,
+  getEventMapTypeName,
+  getGeneratedDeclarationNames,
+} from './naming'
 
 import type { ComponentManifest } from '@zeus-js/component-analyzer'
 
@@ -24,9 +29,12 @@ export function generateLoaderDts(manifest: ComponentManifest): string {
   }
 
   for (const component of propTypeDeclarations.components) {
+    lines.push(generateEventMap(component))
+    lines.push('')
     lines.push(
       generateElementType(component, {
         componentOnReady: true,
+        eventMapTypeName: getEventMapTypeName(component),
         forcePromise: true,
       }),
     )

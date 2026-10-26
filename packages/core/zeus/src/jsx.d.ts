@@ -217,10 +217,13 @@ type SVGAttributes<T extends SVGElement> = CommonDOMAttributes<T> & {
   y2?: number | string
 }
 
+// Custom elements receive their JSX contract from component declarations.
+// HTMLElementTagNameMap also contains those tags, but describes their DOM API.
 type HTMLIntrinsicElements = {
-  [Name in keyof HTMLElementTagNameMap]: HTMLAttributes<
-    HTMLElementTagNameMap[Name]
-  >
+  [Name in Exclude<
+    keyof HTMLElementTagNameMap,
+    `${string}-${string}`
+  >]: HTMLAttributes<HTMLElementTagNameMap[Name]>
 }
 
 type SVGIntrinsicElements = {

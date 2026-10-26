@@ -249,13 +249,12 @@ export type ZeusElementConstructor = CustomElementConstructor & {
   [ZEUS_ELEMENT_DEFINITION]?: ZeusElementDefinition
 }
 
-export interface MountedElementDefinition {
+export interface MountedElementDefinition extends CustomElementMount {
   propertyChanged(change: NormalizedPropChange): void
   formAssociated(form: HTMLFormElement | null): void
   formDisabled(disabled: boolean): void
   formReset(): void
   formStateRestore(state: FormAssociatedValue, mode: FormStateRestoreMode): void
-  dispose(): void
 }
 
 export function prop<const V extends readonly string[]>(
@@ -471,6 +470,8 @@ export function defineElement<
     }
 
     connectedCallback(): void {
+      // Projection can detach a host before its queued connected reaction runs.
+      if (this.isConnected === false) return
       this.mountLifecycle.connect()
     }
 
@@ -533,6 +534,9 @@ export function defineElement<
       projection?.connect()
 
       return {
+        get active() {
+          return dispose.active
+        },
         dispose() {
           projection?.disconnect()
           dispose()
@@ -740,6 +744,9 @@ export function mountElementDefinition(
   projection?.connect()
 
   return {
+    get active() {
+      return dispose.active
+    },
     propertyChanged({ name, value }) {
       propStore.set(name, value)
       initialValues.set(name, value)

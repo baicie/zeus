@@ -15,6 +15,7 @@ on:
 concurrency:
   group: npm-release
   cancel-in-progress: false
+  queue: max
 
 jobs:
   repair:

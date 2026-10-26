@@ -501,6 +501,7 @@ export interface NormalizedPropChange {
   rawAttributeValue?: string | null
 }
 export interface CustomElementMount {
+  readonly active: boolean
   dispose(): void
 }
 export interface CustomElementMountLifecycle<M extends CustomElementMount> {
@@ -733,13 +734,12 @@ export interface ZeusElementDefinition<
 export type ZeusElementConstructor = CustomElementConstructor & {
   [ZEUS_ELEMENT_DEFINITION]?: ZeusElementDefinition
 }
-export interface MountedElementDefinition {
+export interface MountedElementDefinition extends CustomElementMount {
   propertyChanged(change: NormalizedPropChange): void
   formAssociated(form: HTMLFormElement | null): void
   formDisabled(disabled: boolean): void
   formReset(): void
   formStateRestore(state: FormAssociatedValue, mode: FormStateRestoreMode): void
-  dispose(): void
 }
 export declare function prop<const V extends readonly string[]>(
   values: V,

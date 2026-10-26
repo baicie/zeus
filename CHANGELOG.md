@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.1-beta.20 (2026-10-25)
+
+### Fixes
+
+- Export typed Web Component event maps from the public loader and activate generated JSX declarations through both lazy and eager package entry points.
+- Keep custom-element JSX contracts separate from native HTML attributes and preserve required component attributes such as `id`.
+- Include declared Vue event listeners in public component props while preserving typed `$emit` payloads.
+- Skip stale connected reactions for detached eager custom elements, preserving projected descendant context across reconnection.
+
 ## 0.1.1-beta.19 (2026-10-25)
 
 ### Fixes

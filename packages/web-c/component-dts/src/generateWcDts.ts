@@ -1,5 +1,5 @@
-import { formatEventType, safePropertyName } from './formatType'
 import { generateElementType } from './generateElementType'
+import { generateEventMap } from './generateEventMap'
 import { generatePropTypeDeclarations } from './generatePropTypeDeclarations'
 import {
   getElementTypeName,
@@ -104,32 +104,12 @@ export function generateWCIndexDts(
   return lines.join('\n')
 }
 
-function generateEventMap(component: ComponentRecord): string {
-  const eventMapName = getEventMapTypeName(component)
-  const lines: string[] = []
-
-  lines.push(`export interface ${eventMapName} {`)
-
-  for (const [key, event] of Object.entries(component.events)) {
-    lines.push(
-      `  ${safePropertyName(event.name ?? toKebabCase(event.key ?? key))}: ${formatEventType(event)}`,
-    )
-  }
-
-  lines.push('}')
-  return lines.join('\n')
-}
-
 function generateElementInterface(component: ComponentRecord): string {
   const eventMapName = getEventMapTypeName(component)
 
   return generateElementType(component, {
     eventMapTypeName: eventMapName,
   })
-}
-
-function toKebabCase(value: string): string {
-  return value.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
 }
 
 function mergeReservedNames(
