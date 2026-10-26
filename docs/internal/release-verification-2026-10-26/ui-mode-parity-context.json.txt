@@ -1,0 +1,149 @@
+{
+  "kind": "phase C: strict component-mode parity on the fully aligned workspace (all workspace packages + root on 0.1.1-beta.20)",
+  "createdAt": "2026-10-26T11:57:34.253Z",
+  "repo": {
+    "path": "/Users/liuzhiwei/Desktop/workspace/git-code/zeus-ui",
+    "branch": "codex/ui-event-detail-optionality",
+    "head": "b54fed8bf52100e5d41321038477d4f28e173c29",
+    "headSubject": "fix(deps): align the workspace to the Zeus 0.1.1-beta.20 toolchain",
+    "workingTree": "clean (read-only verification; no commit, no push)"
+  },
+  "alignment": {
+    "workspaceManifestCount": 55,
+    "manifestsPinningZeusBeta20": 31,
+    "manifestsStillPinningZeusBeta18": 0,
+    "sampleResolved": {
+      "packages/primitives/button -> @zeus-js/zeus": "0.1.1-beta.20",
+      "packages/zeus-compat -> @zeus-js/runtime-dom": "0.1.1-beta.20"
+    }
+  },
+  "command": "pnpm check:component-mode-parity -- --output temp/ui-parity-2026-10-26/after-beta20-aligned-run",
+  "outputDir": "temp/ui-parity-2026-10-26/after-beta20-aligned-run",
+  "exitCode": 0,
+  "reportStatus": "passed",
+  "differences": 0,
+  "environment": {
+    "node": "v22.12.0",
+    "frameworkVersion": "0.1.1-beta.20",
+    "bundlerVersion": "0.1.1-beta.20",
+    "webComponentRuntime": "0.1.1-beta.20",
+    "reportCommit": "b54fed8bf52100e5d41321038477d4f28e173c29",
+    "playwrightBrowsersPath": "temp/ui-parity-2026-10-26/pw-browsers",
+    "browsers": [
+      "chromium",
+      "firefox",
+      "webkit"
+    ],
+    "manifestSha256Matched": true
+  },
+  "installedRootPackages": {
+    "bundler-plugin": "0.1.1-beta.20",
+    "compiler": "0.1.1-beta.20",
+    "component-analyzer": "0.1.1-beta.20",
+    "component-dts": "0.1.1-beta.20",
+    "output-icons": "0.1.1-beta.20",
+    "output-react-wrapper": "0.1.1-beta.20",
+    "output-vue-wrapper": "0.1.1-beta.20",
+    "output-wc": "0.1.1-beta.20",
+    "runtime-dom": "0.1.1-beta.20",
+    "signal": "0.1.1-beta.20",
+    "zeus": "0.1.1-beta.20"
+  },
+  "browsersRun": [
+    {
+      "browser": "chromium",
+      "runs": [
+        {
+          "mode": "eager",
+          "status": "passed",
+          "ariaExpanded": {
+            "runtime-move": "true",
+            "move": "true",
+            "reconnect": "true"
+          },
+          "reconnectEvents": 3
+        },
+        {
+          "mode": "lazy",
+          "status": "passed",
+          "ariaExpanded": {
+            "runtime-move": "true",
+            "move": "true",
+            "reconnect": "true"
+          },
+          "reconnectEvents": 3
+        }
+      ],
+      "eagerEqualsLazy": "eager==lazy (identical stage observations)"
+    },
+    {
+      "browser": "firefox",
+      "runs": [
+        {
+          "mode": "eager",
+          "status": "passed",
+          "ariaExpanded": {
+            "runtime-move": "true",
+            "move": "true",
+            "reconnect": "true"
+          },
+          "reconnectEvents": 3
+        },
+        {
+          "mode": "lazy",
+          "status": "passed",
+          "ariaExpanded": {
+            "runtime-move": "true",
+            "move": "true",
+            "reconnect": "true"
+          },
+          "reconnectEvents": 3
+        }
+      ],
+      "eagerEqualsLazy": "eager==lazy (identical stage observations)"
+    },
+    {
+      "browser": "webkit",
+      "runs": [
+        {
+          "mode": "eager",
+          "status": "passed",
+          "ariaExpanded": {
+            "runtime-move": "true",
+            "move": "true",
+            "reconnect": "true"
+          },
+          "reconnectEvents": 3
+        },
+        {
+          "mode": "lazy",
+          "status": "passed",
+          "ariaExpanded": {
+            "runtime-move": "true",
+            "move": "true",
+            "reconnect": "true"
+          },
+          "reconnectEvents": 3
+        }
+      ],
+      "eagerEqualsLazy": "eager==lazy (identical stage observations)"
+    }
+  ],
+  "previousRunRootOnlyAlignment": {
+    "recordedIn": "temp/ui-parity-2026-10-26/after-beta20.json",
+    "exitCode": 0,
+    "reportStatus": "passed",
+    "differences": 0,
+    "note": "那一次只有根 package.json 的 11 个 @zeus-js pin 升到 beta.20，31 个工作区子包仍 pin beta.18"
+  },
+  "notes": [
+    "本次为全仓对齐后的状态：head b54fed8「fix(deps): align the workspace to the Zeus 0.1.1-beta.20 toolchain」，31 个子包与根依赖全部 0.1.1-beta.20，已无任何 package.json 残留 0.1.1-beta.18。",
+    "只读验证：未 commit / push / tag / publish，未修改任何源码；工作区保持 clean。",
+    "UI 0.1.0 稳定发布已按用户指示取消，后续继续走 beta 版本线。",
+    "Playwright 引擎装在 temp/ui-parity-2026-10-26/pw-browsers（PLAYWRIGHT_BROWSERS_PATH），不用全局缓存。"
+  ],
+  "artifacts": {
+    "report": "temp/ui-parity-2026-10-26/after-beta20-aligned-run/report.json",
+    "log": "temp/ui-parity-2026-10-26/after-beta20-aligned.log"
+  }
+}

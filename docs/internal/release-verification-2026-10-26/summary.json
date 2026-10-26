@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-10-26T21:32:36+08:00",
+  "method": "Read GitHub Actions conclusions/jobs, peeled immutable release refs, npm metadata; downloaded CLI artifact and tarball, compared template bytes with the exact release source. Existing real-browser parity report copied unchanged. No publish or dist-tag mutation in this verification.",
+  "releases": [
+    {
+      "repository": "baicie/zeus",
+      "version": "0.1.1-beta.20",
+      "packages": 29,
+      "tag": "v0.1.1-beta.20",
+      "sourceCommit": "7fc5051590a9c4d0b93f6d7fac1b9f2d46751ab3",
+      "run": "https://github.com/baicie/zeus/actions/runs/40310510887",
+      "conclusion": "success"
+    },
+    {
+      "repository": "baicie/zeus",
+      "package": "@zeus-js/vite-plugin",
+      "version": "0.0.5",
+      "tag": "vite-plugin@0.0.5",
+      "sourceCommit": "7b9c9b5ddaf6ece22d462e6667645c6ac140fd62",
+      "run": "https://github.com/baicie/zeus/actions/runs/40316822160",
+      "conclusion": "success",
+      "distTag": "latest"
+    },
+    {
+      "repository": "baicie/zeus",
+      "package": "create-zeus",
+      "version": "0.1.5",
+      "tag": "create-zeus@0.1.5",
+      "sourceCommit": "7b9c9b5ddaf6ece22d462e6667645c6ac140fd62",
+      "run": "https://github.com/baicie/zeus/actions/runs/40318172136",
+      "conclusion": "success",
+      "distTag": "latest",
+      "artifact": {
+        "id": 12647059070,
+        "digest": "sha256:b39a02fa213ec56476a3c8b85059020d1eb09c803922e8eb09b0d6a30e4bc583"
+      }
+    },
+    {
+      "repository": "baicie/zeus-ui",
+      "version": "0.1.0-beta.34",
+      "packages": 40,
+      "tag": "v0.1.0-beta.34",
+      "sourceCommit": "a8826dd1f81560aaf6459d8d40a3e599f705f6e0",
+      "run": "https://github.com/baicie/zeus-ui/actions/runs/40326776158",
+      "conclusion": "success",
+      "verificationJob": 121588555911,
+      "distTag": "beta",
+      "latestSample": "0.1.0-beta.0",
+      "verifiedStep": "Verify published packages",
+      "finalLog": "Published package smoke passed for 40 packages."
+    }
+  ],
+  "releaseEnvironment": {
+    "zeusProtectionRules": [],
+    "zeusUiProtectionRules": [],
+    "reviewerRequired": false,
+    "environmentRetainedForSecrets": true
+  },
+  "d001": {
+    "status": "complete",
+    "basis": "Original acceptance requires scaffolding/install/dev/build/check, not a new human study. All four templates passed an isolated registry install, typecheck, build, dev/preview interactions with no dependency overrides. Published tarball template bytes match the run source exactly. Not a second local browser rerun or human timing experiment."
+  },
+  "d006": {
+    "status": "complete",
+    "basis": "User reported approximately ten minutes, with assistance and HTML preview guidance; not an unassisted study."
+  },
+  "limitations": [
+    "Current beta releases are not stable releases.",
+    "Golden beta.34/beta.20 full matrix is tracked separately and still pending at this snapshot.",
+    "Original complete 02-DESIGN.md is unavailable; 260-line partial source cannot prove the complete design.",
+    "Prior 2026-10-26 temp roadmap audit predates these releases and must not be treated as current."
+  ],
+  "files": [
+    {
+      "path": "create-zeus-registry.json",
+      "sha256": "a0bd1b7c7f15207c18396bdae745b0db24eefb9346d8b72b69ef801d68f9a9de",
+      "source": "temp/create-zeus-015-release-artifact/report.json"
+    },
+    {
+      "path": "create-zeus-tarball.json",
+      "sha256": "f2c407ee72608e551a8ee73e86a5df73ddd7ca17735c4b4425fef22bd4a82e13",
+      "source": "temp/create-zeus-015-published/source-comparison.json"
+    },
+    {
+      "path": "ui-mode-parity.json.txt",
+      "sha256": "ba6cd0d6d30b5be95d2eb141b82623ddbca34ddf0f4814e59ed4317c2c7c1c87",
+      "source": "../zeus-ui/temp/ui-parity-2026-10-26/after-beta20-aligned-run/report.json"
+    },
+    {
+      "path": "ui-mode-parity-context.json.txt",
+      "sha256": "131840fba4f695b8c6e4337e6f43f44b6af1aa9db0db316c224cd2a914009880",
+      "source": "../zeus-ui/temp/ui-parity-2026-10-26/after-beta20-aligned.json"
+    }
+  ],
+  "flakeFixes": {
+    "pullRequest": "https://github.com/baicie/zeus/pull/180",
+    "head": "cbbee267adbc582bad018bc2902b56c29307c153",
+    "state": "open_ci_pending",
+    "independentReview": "approved",
+    "gitFixture": {
+      "subprocessesBefore": 103,
+      "subprocessesAfter": 61,
+      "suiteTimeoutMs": 15000,
+      "slowGitPassed": 9,
+      "parallelPassed": 36
+    },
+    "benchmark": {
+      "sampleCount": 3,
+      "statistic": "median",
+      "budgetsChanged": false,
+      "retryOrDroppedSamples": false,
+      "invalidOrFailedSample": "fail",
+      "warning": "Historical single observations and new medians are different estimators; no performance improvement is claimed."
+    }
+  }
+}

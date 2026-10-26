@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "7b9c9b5ddaf6ece22d462e6667645c6ac140fd62",
+  "package": "create-zeus",
+  "version": "0.1.5",
+  "registry": "https://registry.npmjs.org",
+  "integrity": "sha512-OqCdlRO4NuEgteVkf19SijmStda9eHfhJH/VPqb46Pb4je2Lebk49xJznIzSp100gm/nI0rzBi1OrgB19KEqxw==",
+  "tarballSha256": "dbb01bf95afe329ec62044997c4c1d8873caebfbbd8c15d7c5f9c23e8183a789",
+  "templateFiles": [
+    {
+      "path": "application-ts/index.html",
+      "sha256": "093790bb161d8acdfea7cb9884fd52d40728051fdc67a90678b61bd8c232869e"
+    },
+    {
+      "path": "application-ts/package.json",
+      "sha256": "af790df8e343cf3fbe406c140efb148742ff6f13ecc36cd9d84e9743cb345117"
+    },
+    {
+      "path": "application-ts/src/app.test.ts",
+      "sha256": "4ec5615aa0c394631683df583bf1c51a5416bbbc03be68da11f608ee43329823"
+    },
+    {
+      "path": "application-ts/src/app.tsx",
+      "sha256": "859ad49e71b63ef3bffec6805ccfc6f7f2790297876487843afcace2e2aac127"
+    },
+    {
+      "path": "application-ts/src/main.tsx",
+      "sha256": "1c7fd9dedecc91c3f8974c33b3a385df61b2c2a775277f32334ed5f5863183bf"
+    },
+    {
+      "path": "application-ts/tsconfig.json",
+      "sha256": "a0a22a6bcca0d3c0176906e302c660834efcf017e9782ad2976220d4f5836786"
+    },
+    {
+      "path": "application-ts/vite.config.ts",
+      "sha256": "4d5bf8b710704cb292a84b003913d7cd39c50690bd4135f920a9807f24dab4e8"
+    },
+    {
+      "path": "basic-ts/index.html",
+      "sha256": "15888a0d003ba63a90f1b903847a81a0b9092db275ba89d7180b89dc7310bd00"
+    },
+    {
+      "path": "basic-ts/package.json",
+      "sha256": "ec019418d5f1755f36e093b1ca08813c8775cd999a3cb4a50cc210bfcee7c411"
+    },
+    {
+      "path": "basic-ts/src/main.tsx",
+      "sha256": "f5704bd406841a5896352759ca7ecd782f607ce2ae52a2eb110ce5ba5ce4d2d5"
+    },
+    {
+      "path": "basic-ts/tsconfig.json",
+      "sha256": "a0a22a6bcca0d3c0176906e302c660834efcf017e9782ad2976220d4f5836786"
+    },
+    {
+      "path": "basic-ts/vite.config.ts",
+      "sha256": "4d5bf8b710704cb292a84b003913d7cd39c50690bd4135f920a9807f24dab4e8"
+    },
+    {
+      "path": "component-library-ts/index.html",
+      "sha256": "78e04745629caa89e46741fa9708cc2cc40aa80b43d27bb337acc6047a48a59c"
+    },
+    {
+      "path": "component-library-ts/package.json",
+      "sha256": "76d9e80976106b98a64e3bf1f4e8651b20427f5b8af164fe9adede27b28b6a0f"
+    },
+    {
+      "path": "component-library-ts/src/components/greeting.tsx",
+      "sha256": "91b0948d90c3058a5bc5d42564cc5bd2670521fc6438cc2f74f35b8c384e3354"
+    },
+    {
+      "path": "component-library-ts/src/index.ts",
+      "sha256": "8f3e8e4d8f0117c2ef84b5aafb9f67cd4bb9b25897513270d94dc20b681dfe91"
+    },
+    {
+      "path": "component-library-ts/src/library.test.ts",
+      "sha256": "9418d31f11c307d99f2f03ed83ee2b8e1fc4b189b9cabec2cc464cd323a0df93"
+    },
+    {
+      "path": "component-library-ts/src/styles.css",
+      "sha256": "8369254a0b23b6b61dd7b1f9173fd1dd1dd09544516d8d3c7776fd381bc304a7"
+    },
+    {
+      "path": "component-library-ts/src/vite-env.d.ts",
+      "sha256": "65996936fbb042915f7b74a200fcdde7e410f32a669b1ab9597cfaa4b0faddb5"
+    },
+    {
+      "path": "component-library-ts/tsconfig.json",
+      "sha256": "a0a22a6bcca0d3c0176906e302c660834efcf017e9782ad2976220d4f5836786"
+    },
+    {
+      "path": "component-library-ts/vite.config.ts",
+      "sha256": "8600e2e44fbf86332b145abb94e9a9bf6421a5da7253a4ba37e9bfb140f5ba74"
+    },
+    {
+      "path": "web-component-ts/index.html",
+      "sha256": "d8a0b7c7cd47445a0958dc80acdb7603b7d8113daacee45d12047b06bf504fd4"
+    },
+    {
+      "path": "web-component-ts/package.json",
+      "sha256": "ec019418d5f1755f36e093b1ca08813c8775cd999a3cb4a50cc210bfcee7c411"
+    },
+    {
+      "path": "web-component-ts/src/main.tsx",
+      "sha256": "f89a8e5b4ae01dbdbbaa0295b4483da3734e0c050d94d08c7c4590e243f4d811"
+    },
+    {
+      "path": "web-component-ts/tsconfig.json",
+      "sha256": "a0a22a6bcca0d3c0176906e302c660834efcf017e9782ad2976220d4f5836786"
+    },
+    {
+      "path": "web-component-ts/vite.config.ts",
+      "sha256": "4d5bf8b710704cb292a84b003913d7cd39c50690bd4135f920a9807f24dab4e8"
+    }
+  ],
+  "fileCount": 26,
+  "publishedTemplateBytesEqualReleaseSource": true,
+  "publishedBundleIncludesAllFourTemplateIds": true,
+  "limits": "Source and tarball comparison; browser interaction is attested separately by run 40318172136, not rerun here."
+}
