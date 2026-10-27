@@ -11,13 +11,13 @@
 
 ## 结果矩阵
 
-| 维度         | 覆盖                                                                       | 结论                                                                                                                    |
-| ------------ | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| 浏览器消费   | native / React 18 / React 19 / Vue 3 × Chromium / Firefox / WebKit = 12 组 | `12/12 passed`，每组 24 条断言（含 Dialog 默认 open 与可选 `nativeEvent` 策略）                                         |
-| SSR import   | 4 种消费工程的 Node 无 DOM import                                          | `4/4 verified`，`domGlobals: absent`                                                                                    |
-| 严格公开类型 | 4 种消费工程的 `public-consumer-types`                                     | `4/4 verified`，fixture sha256 `4e45ba74194868ecb595e0d24585e2e4da4c7314db0a62f8ea372990dd0f3671`                       |
-| Manifest     | 4 消费 × 4 包 = 16 份                                                      | `16/16 verified`，sha256 与合同一致                                                                                     |
-| 供应链       | 24 份 tarball / provenance 记录                                            | `24/24 verified`（integrity 与 registry `dist.integrity` 相等，SLSA subject 与 tarball sha512 相等，Sigstore 签名通过） |
+| 维度         | 覆盖                                                                                          | 结论                                                                                                                           |
+| ------------ | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| 浏览器消费   | native / React 18 / React 19 / Vue 3 × Chromium / Firefox / WebKit = 12 组                    | `12/12 passed`，每组 24 条断言（23 条 required + 1 条 performance observation，含 Dialog 默认 open 与可选 `nativeEvent` 策略） |
+| SSR import   | 4 种消费工程的 Node 无 DOM import                                                             | `4/4 verified`，`domGlobals: absent`                                                                                           |
+| 严格公开类型 | 4 种消费工程的 `public-consumer-types`                                                        | `4/4 verified`，fixture sha256 `4e45ba74194868ecb595e0d24585e2e4da4c7314db0a62f8ea372990dd0f3671`                              |
+| Manifest     | 4 消费 × 4 包 = 16 份                                                                         | `16/16 verified`，sha256 与合同一致                                                                                            |
+| 供应链       | UI 16 份 provenance 记录 + 框架依赖 8 份 integrity 记录；框架 29 包完整 provenance 见发布报告 | UI 16/16 的 integrity、SLSA subject、source 与 Sigstore 验证通过；框架依赖 8/8 的 registry integrity 验证通过                  |
 
 Golden 包：`@zeus-web/button`, `@zeus-web/input`, `@zeus-web/dialog`, `@zeus-web/data-grid`。
 
@@ -29,7 +29,7 @@ npx playwright install chromium firefox webkit
 pnpm check:golden-components --output temp/golden-beta34
 ```
 
-脚本会在隔离临时目录中用真实 registry 安装 UI 与框架 tarball，先跑 Node SSR import，再在三种浏览器执行 `requiredBrowserAssertions`，最后核对 Manifest、integrity 与 provenance。`temp/` 下的报告被 gitignore，只有本目录这份持久报告才算验收证据。
+脚本会在隔离临时目录中用真实 registry 安装 UI 与框架 tarball，先跑 Node SSR import，再在三种浏览器执行 `requiredBrowserAssertions`，最后核对 Manifest、UI tarball integrity/provenance 与框架依赖 integrity；框架 29 包的完整 provenance 由独立发布报告覆盖。`temp/` 下的报告被 gitignore，只有本目录这份持久报告才算验收证据。
 
 ## 与 stable 的边界
 
