@@ -4,7 +4,7 @@
 
 当前版本已按 Native、React18、React19、Vue3 × Chromium、Firefox、WebKit 的 12 组浏览器组合、SSR、严格公开类型、Manifest、tarball integrity 和 provenance 完成验收，持久报告为 [`golden-components-acceptance-2026-10-27/report.json`](./internal/golden-components-acceptance-2026-10-27/report.json)（UI `0.1.0-beta.34` / Zeus `0.1.1-beta.20`，12/12 通过）。此前 UI beta.33 / Zeus beta.18 的通过记录保留在 [`golden-components-acceptance-2026-10-23/report.json`](./internal/golden-components-acceptance-2026-10-23/report.json)，仅作历史对照；UI `0.1.0` stable 后置，届时需按稳定产物重新出具报告。
 
-验收由 `pnpm check:golden-components` 执行。脚本会在每种独立安装工程中先执行无 DOM 的 Node SSR import，再对 native、React 18、React 19 和 Vue 3 在所选浏览器中逐条执行 `requiredBrowserAssertions`，并核对 UI tarball、Zeus runtime 依赖的 registry integrity、SLSA provenance subject/source dependency 和 Sigstore 签名；失败时仍会写出完整报告，供定位问题，不能据此把 contract 状态改成 `passed`。Data Grid 性能断言只记录观察值，不替代 Zeus UI 仓库的版本化基准。`temp/` 下的报告是忽略文件，只能作为本地诊断结果，不能作为持久完成证据。
+验收由 `pnpm check:golden-components` 执行。脚本会在每种独立安装工程中先执行无 DOM 的 Node SSR import，再对 native、React 18、React 19 和 Vue 3 在所选浏览器中逐条执行 `requiredBrowserAssertions`，并核对 UI 16 份 tarball 的 registry integrity、SLSA provenance subject/source dependency 与 Sigstore 签名，以及 8 份 Zeus runtime/framework 依赖的 registry integrity；框架 29 包的完整 provenance 由独立发布报告覆盖。失败时仍会写出完整报告，供定位问题，不能据此把 contract 状态改成 `passed`。Data Grid 性能断言只记录观察值，不替代 Zeus UI 仓库的版本化基准。`temp/` 下的报告是忽略文件，只能作为本地诊断结果，不能作为持久完成证据。
 
 CI 中的 `Published Golden UI consumers` 步骤只在 `workflow_dispatch` 执行。发布新版本后，先更新本合同并确认 registry、provenance、source commit 与 Manifest hash，再手动运行 CI；普通分支和 pull request 继续由本地产物的 `check:packed-consumers` 覆盖消费者矩阵。
 

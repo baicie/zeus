@@ -11,6 +11,8 @@
 
 两仓 `main` 与工作区均干净，无未提交改动；远端与本地一致（`origin/main` 即本地 `main`）。核验时唯一有开放 PR 的分支是 `codex/golden-beta34-acceptance`（#183，Golden beta.34 持久报告）。
 
+该表记录的是 01:20 审计时的快照。随后 Golden、设计来源、仓库审计和台账收尾 PR 已合并：Zeus `main` 继续前进到 `13ea9cd`，Zeus UI `main` 为 `25ed76e`；当前再次核验仍为干净且无开放 PR。
+
 ## 采取的清理动作
 
 1. `git worktree prune`：zeus 清掉 5 条指向已删除目录的工作树登记（`zeus-e006`、`zeus-ssr-codegen2`、`zeus-golden-ui`、`zeus-pr73-base-20261017`、`zeus-hydration-plan`），zeus-ui 清掉 4 条（`zeus-ui-baseline.nnIvdO`、`zeus-ui-phase11-components`、`zeus-ui-roadmap-components`、`zeus-ui-components`）。
