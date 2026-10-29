@@ -65,9 +65,12 @@ components into its own reconciled subtree.
   cache, or SSR and hydration stack as a supported turnkey product. Zeus keeps
   these concerns outside its core and does not currently provide an integrated
   meta-framework.
-- Keep server-rendered pages static or use a framework with hydration when the
-  page must preserve server-created DOM before client code starts. Zeus SSR
-  currently renders HTML without hydrating that markup.
+- Choose a framework with automatic hydration when the client must take over
+  server-rendered pages without setup code for each binding. Zeus reuses
+  server-rendered DOM only when browser code calls `hydrate()` or
+  `hydratePlan()` and attaches each binding explicitly. Streaming,
+  asynchronous SSR, and automatic hydration of components or custom elements
+  are not supported.
 - Choose a VDOM framework when your integration fundamentally requires passing
   arbitrary React elements or Vue VNodes through third-party renderers. Zeus
   Web Components provide DOM slots and a renderer-adapter boundary, not a
