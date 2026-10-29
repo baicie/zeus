@@ -127,8 +127,9 @@ Wrapper SSR never registers a custom element. In the browser, the client
 mounts a fresh tree, registers and upgrades the host, then assigns property
 values. This is intentionally no hydration; a framework integration that
 needs a browser-only custom element should place it behind its client boundary
-(for example, a Next.js `"use client"` component). Declarative Shadow DOM,
-streaming, and Web Component internal SSR are separate future contracts.
+(for example, a Next.js `"use client"` component). Declarative Shadow DOM and
+component internals are rendered by the separate Web Component internal SSR
+path described below, not by wrappers. Streaming SSR is not supported.
 
 ## Next.js Server and Client Boundaries
 
