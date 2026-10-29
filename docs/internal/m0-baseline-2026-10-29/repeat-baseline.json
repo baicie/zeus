@@ -1,0 +1,236 @@
+{
+  "schemaVersion": 1,
+  "startedAt": "2026-10-29T16:30:38.345Z",
+  "completedAt": "2026-10-29T16:31:13.462Z",
+  "git": {
+    "sha": "d8533522c74c289f69d32b04baa1c2fb7645eacb",
+    "trackedChanges": false
+  },
+  "machine": {
+    "platform": "darwin",
+    "osRelease": "24.6.0",
+    "arch": "arm64",
+    "cpu": "Apple M1",
+    "cpus": 8,
+    "totalMemoryBytes": 8589934592,
+    "node": "v24.18.0",
+    "rustc": "rustc 1.95.0 (59807616e 2026-04-14)"
+  },
+  "method": {
+    "rounds": 3,
+    "statistics": "nearest-rank P95; unbiased sample variance (n - 1); cvPercent = stddev / mean",
+    "sources": [
+      "packages/core/signal/scripts/reactivity-audit.mjs (5 in-process rounds per run, NODE_ENV production and development)",
+      "scripts/bench/compiler-native.ts (1 cold call + mean of 100 warm calls per run)",
+      "scripts/bench/component-host.ts --compile-only (1 sample per build mode per run)"
+    ],
+    "notes": [
+      "Each round starts fresh Node processes; component-host builds run sequentially.",
+      "The compiler cold sample includes first-call native binding work and file-system cache state.",
+      "No threshold is inferred from these observations."
+    ]
+  },
+  "summaries": {
+    "signal.production.writeOneEffect.samplesMs": {
+      "n": 15,
+      "min": 3.307,
+      "median": 4.937,
+      "p95": 9.272,
+      "max": 9.272,
+      "mean": 5.231,
+      "variance": 2.401,
+      "cvPercent": 29.626
+    },
+    "signal.production.writeOneEffect.processMedianMs": {
+      "n": 3,
+      "min": 3.909,
+      "median": 4.802,
+      "p95": 6.363,
+      "max": 6.363,
+      "mean": 5.025,
+      "variance": 1.543,
+      "cvPercent": 24.719
+    },
+    "signal.production.diamond.samplesMs": {
+      "n": 15,
+      "min": 9.269,
+      "median": 12.728,
+      "p95": 26.023,
+      "max": 26.023,
+      "mean": 13.432,
+      "variance": 20.328,
+      "cvPercent": 33.567
+    },
+    "signal.production.diamond.processMedianMs": {
+      "n": 3,
+      "min": 9.297,
+      "median": 12.43,
+      "p95": 15.225,
+      "max": 15.225,
+      "mean": 12.317,
+      "variance": 8.795,
+      "cvPercent": 24.077
+    },
+    "signal.development.writeOneEffect.samplesMs": {
+      "n": 15,
+      "min": 3.306,
+      "median": 5.643,
+      "p95": 13.711,
+      "max": 13.711,
+      "mean": 6.966,
+      "variance": 11.726,
+      "cvPercent": 49.159
+    },
+    "signal.development.writeOneEffect.processMedianMs": {
+      "n": 3,
+      "min": 4.171,
+      "median": 5.643,
+      "p95": 10.719,
+      "max": 10.719,
+      "mean": 6.844,
+      "variance": 11.801,
+      "cvPercent": 50.192
+    },
+    "signal.development.diamond.samplesMs": {
+      "n": 15,
+      "min": 9.782,
+      "median": 12.936,
+      "p95": 27.901,
+      "max": 27.901,
+      "mean": 14.79,
+      "variance": 28.205,
+      "cvPercent": 35.91
+    },
+    "signal.development.diamond.processMedianMs": {
+      "n": 3,
+      "min": 10.134,
+      "median": 12.317,
+      "p95": 16.002,
+      "max": 16.002,
+      "mean": 12.818,
+      "variance": 8.796,
+      "cvPercent": 23.139
+    },
+    "compilerNative.coldCompileMs": {
+      "n": 3,
+      "min": 0.215,
+      "median": 0.308,
+      "p95": 15.022,
+      "max": 15.022,
+      "mean": 5.182,
+      "variance": 72.626,
+      "cvPercent": 164.466
+    },
+    "compilerNative.warmCompileMsPerCall": {
+      "n": 3,
+      "min": 0.019,
+      "median": 0.021,
+      "p95": 0.033,
+      "max": 0.033,
+      "mean": 0.024,
+      "variance": 0,
+      "cvPercent": 31.117
+    },
+    "componentHost.analyze.components.ms": {
+      "n": 3,
+      "min": 38.94,
+      "median": 66.05,
+      "p95": 70.91,
+      "max": 70.91,
+      "mean": 58.633,
+      "variance": 296.775,
+      "cvPercent": 29.381
+    },
+    "componentHost.build.wc.ms": {
+      "n": 3,
+      "min": 1308.03,
+      "median": 2006.67,
+      "p95": 2082.14,
+      "max": 2082.14,
+      "mean": 1798.947,
+      "variance": 182173.31,
+      "cvPercent": 23.726
+    },
+    "componentHost.build.wc-shadow.ms": {
+      "n": 3,
+      "min": 1258.12,
+      "median": 1433.26,
+      "p95": 1959.08,
+      "max": 1959.08,
+      "mean": 1550.153,
+      "variance": 133084.269,
+      "cvPercent": 23.534
+    },
+    "componentHost.build.wc-nested.ms": {
+      "n": 3,
+      "min": 1234.19,
+      "median": 1685.73,
+      "p95": 1983.33,
+      "max": 1983.33,
+      "mean": 1634.417,
+      "variance": 142277.479,
+      "cvPercent": 23.078
+    },
+    "componentHost.build.wc-react.ms": {
+      "n": 3,
+      "min": 1320.41,
+      "median": 1849.09,
+      "p95": 2129.62,
+      "max": 2129.62,
+      "mean": 1766.373,
+      "variance": 168836.741,
+      "cvPercent": 23.262
+    },
+    "componentHost.build.wc-vue.ms": {
+      "n": 3,
+      "min": 1032.94,
+      "median": 1501.46,
+      "p95": 1799.67,
+      "max": 1799.67,
+      "mean": 1444.69,
+      "variance": 149385.848,
+      "cvPercent": 26.753
+    },
+    "componentHost.build.all.ms": {
+      "n": 3,
+      "min": 1127.53,
+      "median": 1452.71,
+      "p95": 1764,
+      "max": 1764,
+      "mean": 1448.08,
+      "variance": 101289.593,
+      "cvPercent": 21.978
+    }
+  },
+  "samples": {
+    "signal.production.writeOneEffect.samplesMs": [
+      4.56, 4.937, 6.363, 6.381, 7.213, 4.344, 4.675, 4.802, 5.241, 9.272,
+      3.307, 3.387, 3.909, 4.949, 5.122
+    ],
+    "signal.production.writeOneEffect.processMedianMs": [6.363, 4.802, 3.909],
+    "signal.production.diamond.samplesMs": [
+      9.472, 11.12, 12.43, 12.728, 13.569, 13.275, 14.289, 15.225, 19.189,
+      26.023, 9.269, 9.28, 9.297, 10.456, 15.855
+    ],
+    "signal.production.diamond.processMedianMs": [12.43, 15.225, 9.297],
+    "signal.development.writeOneEffect.samplesMs": [
+      6.045, 7.793, 10.719, 13.35, 13.711, 3.306, 5.158, 5.643, 6.957, 9.725,
+      3.465, 3.585, 4.171, 5.297, 5.56
+    ],
+    "signal.development.writeOneEffect.processMedianMs": [10.719, 5.643, 4.171],
+    "signal.development.diamond.samplesMs": [
+      14.594, 15.059, 16.002, 21.431, 27.901, 10.411, 10.869, 12.317, 19.126,
+      20.27, 9.782, 9.836, 10.134, 11.176, 12.936
+    ],
+    "signal.development.diamond.processMedianMs": [16.002, 12.317, 10.134],
+    "compilerNative.coldCompileMs": [15.022, 0.308, 0.215],
+    "compilerNative.warmCompileMsPerCall": [0.021, 0.033, 0.019],
+    "componentHost.analyze.components.ms": [70.91, 66.05, 38.94],
+    "componentHost.build.wc.ms": [2082.14, 2006.67, 1308.03],
+    "componentHost.build.wc-shadow.ms": [1433.26, 1959.08, 1258.12],
+    "componentHost.build.wc-nested.ms": [1685.73, 1983.33, 1234.19],
+    "componentHost.build.wc-react.ms": [1849.09, 2129.62, 1320.41],
+    "componentHost.build.wc-vue.ms": [1799.67, 1501.46, 1032.94],
+    "componentHost.build.all.ms": [1764, 1452.71, 1127.53]
+  }
+}

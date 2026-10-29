@@ -1,0 +1,1146 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "d8533522c74c289f69d32b04baa1c2fb7645eacb",
+  "node": "v24.18.0",
+  "note": "Each file keeps the result of its last batch. Batch 1 inherited NODE_USE_SYSTEM_CA; later batches unset it. scripts/check/__tests__/golden-component-resources.spec.ts (5 tests) was not run: local listen is EPERM in this sandbox.",
+  "runs": [
+    {
+      "batch": "targeted.json",
+      "startTime": "2026-10-29T15:38:37.587Z",
+      "files": 65,
+      "tests": 895,
+      "passed": 894,
+      "failed": 1
+    },
+    {
+      "batch": "targeted-2.json",
+      "startTime": "2026-10-29T15:52:38.691Z",
+      "files": 39,
+      "tests": 319,
+      "passed": 319,
+      "failed": 0
+    },
+    {
+      "batch": "targeted-3.json",
+      "startTime": "2026-10-29T16:03:41.445Z",
+      "files": 47,
+      "tests": 478,
+      "passed": 478,
+      "failed": 0
+    },
+    {
+      "batch": "targeted-4.json",
+      "startTime": "2026-10-29T16:10:17.813Z",
+      "files": 9,
+      "tests": 24,
+      "passed": 24,
+      "failed": 0
+    }
+  ],
+  "total": {
+    "files": 156,
+    "tests": 1652,
+    "failed": 0
+  },
+  "notRun": [
+    {
+      "file": "scripts/check/__tests__/golden-component-resources.spec.ts",
+      "tests": 5,
+      "reason": "listen EPERM"
+    }
+  ],
+  "files": [
+    {
+      "file": "examples/headless/__tests__/button.spec.tsx",
+      "batch": "targeted-4.json",
+      "tests": 5,
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "file": "examples/headless/__tests__/checkbox.spec.tsx",
+      "batch": "targeted-4.json",
+      "tests": 3,
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "file": "examples/headless/__tests__/dialog.spec.tsx",
+      "batch": "targeted-4.json",
+      "tests": 2,
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "file": "examples/headless/__tests__/icon.spec.tsx",
+      "batch": "targeted-4.json",
+      "tests": 2,
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "file": "examples/headless/__tests__/input.spec.tsx",
+      "batch": "targeted-4.json",
+      "tests": 4,
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "file": "examples/headless/__tests__/switch.spec.tsx",
+      "batch": "targeted-4.json",
+      "tests": 3,
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "file": "examples/headless/__tests__/tabs.spec.tsx",
+      "batch": "targeted-4.json",
+      "tests": 2,
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/compiler-shared/__tests__/boundary.spec.ts",
+      "batch": "targeted.json",
+      "tests": 9,
+      "passed": 9,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/compiler/__tests__/native-contract.spec.ts",
+      "batch": "targeted.json",
+      "tests": 2,
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/query/__tests__/query.spec.ts",
+      "batch": "targeted.json",
+      "tests": 6,
+      "passed": 6,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/resource/__tests__/resource.spec.ts",
+      "batch": "targeted.json",
+      "tests": 6,
+      "passed": 6,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/router/__tests__/router.browser.spec.ts",
+      "batch": "targeted.json",
+      "tests": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/router/__tests__/router.spec.ts",
+      "batch": "targeted.json",
+      "tests": 7,
+      "passed": 7,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/runtime-dom/__tests__/bindings.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 62,
+      "passed": 62,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/runtime-dom/__tests__/cleanup.spec.ts",
+      "batch": "targeted.json",
+      "tests": 14,
+      "passed": 14,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/runtime-dom/__tests__/context.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 29,
+      "passed": 29,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/runtime-dom/__tests__/controlFlow.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 51,
+      "passed": 51,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/runtime-dom/__tests__/createSlot.spec.tsx",
+      "batch": "targeted-3.json",
+      "tests": 4,
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/runtime-dom/__tests__/defineElement.props.spec.tsx",
+      "batch": "targeted.json",
+      "tests": 8,
+      "passed": 8,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/runtime-dom/__tests__/defineElement.spec.tsx",
+      "batch": "targeted.json",
+      "tests": 26,
+      "passed": 26,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/runtime-dom/__tests__/devtools.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 7,
+      "passed": 7,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/runtime-dom/__tests__/domMove.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 3,
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/runtime-dom/__tests__/errorBoundary.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 9,
+      "passed": 9,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/runtime-dom/__tests__/events.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 10,
+      "passed": 10,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/runtime-dom/__tests__/host.spec.tsx",
+      "batch": "targeted-3.json",
+      "tests": 20,
+      "passed": 20,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/runtime-dom/__tests__/hydration.spec.ts",
+      "batch": "targeted.json",
+      "tests": 17,
+      "passed": 17,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/runtime-dom/__tests__/insert.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 9,
+      "passed": 9,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/runtime-dom/__tests__/portal.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 5,
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/runtime-dom/__tests__/ref.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 12,
+      "passed": 12,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/runtime-dom/__tests__/refs.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 4,
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/runtime-dom/__tests__/render.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 9,
+      "passed": 9,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/runtime-dom/__tests__/resourceErrorBoundary.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 8,
+      "passed": 8,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/runtime-dom/__tests__/runtime-dom.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 10,
+      "passed": 10,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/runtime-dom/__tests__/slot.spec.tsx",
+      "batch": "targeted-3.json",
+      "tests": 23,
+      "passed": 23,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/runtime-dom/__tests__/spread.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 10,
+      "passed": 10,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/runtime-dom/__tests__/template.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 7,
+      "passed": 7,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/runtime-dom/__tests__/transition.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 6,
+      "passed": 6,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/runtime-ssr/__tests__/runtime-ssr.spec.ts",
+      "batch": "targeted.json",
+      "tests": 43,
+      "passed": 43,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/runtime-ssr/__tests__/spread.spec.ts",
+      "batch": "targeted.json",
+      "tests": 8,
+      "passed": 8,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/shared/__tests__/rendererAdapter.spec.ts",
+      "batch": "targeted.json",
+      "tests": 11,
+      "passed": 11,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/signal/__tests__/collections/Map.spec.ts",
+      "batch": "targeted.json",
+      "tests": 32,
+      "passed": 32,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/signal/__tests__/collections/Set.spec.ts",
+      "batch": "targeted.json",
+      "tests": 34,
+      "passed": 34,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/signal/__tests__/collections/WeakMap.spec.ts",
+      "batch": "targeted.json",
+      "tests": 11,
+      "passed": 11,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/signal/__tests__/collections/WeakSet.spec.ts",
+      "batch": "targeted.json",
+      "tests": 9,
+      "passed": 9,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/signal/__tests__/diagnostics.spec.ts",
+      "batch": "targeted.json",
+      "tests": 11,
+      "passed": 11,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/signal/__tests__/effect-fast-path.spec.ts",
+      "batch": "targeted.json",
+      "tests": 4,
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/signal/__tests__/effectScope.spec.ts",
+      "batch": "targeted.json",
+      "tests": 17,
+      "passed": 17,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/signal/__tests__/engine-interop.spec.ts",
+      "batch": "targeted.json",
+      "tests": 7,
+      "passed": 7,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/signal/__tests__/owner-contract.spec.ts",
+      "batch": "targeted.json",
+      "tests": 8,
+      "passed": 8,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/signal/__tests__/primitives.spec.ts",
+      "batch": "targeted.json",
+      "tests": 11,
+      "passed": 11,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/signal/__tests__/public-reactivity-contract.spec.ts",
+      "batch": "targeted.json",
+      "tests": 2,
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/signal/__tests__/reactive.spec.ts",
+      "batch": "targeted.json",
+      "tests": 36,
+      "passed": 36,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/signal/__tests__/reactiveArray.spec.ts",
+      "batch": "targeted.json",
+      "tests": 40,
+      "passed": 40,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/signal/__tests__/reactivity-contract.spec.ts",
+      "batch": "targeted.json",
+      "tests": 11,
+      "passed": 11,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/signal/__tests__/shallowReactive.spec.ts",
+      "batch": "targeted.json",
+      "tests": 18,
+      "passed": 18,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/signal/__tests__/shallowReadonly.spec.ts",
+      "batch": "targeted.json",
+      "tests": 16,
+      "passed": 16,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/signal/__tests__/state.spec.ts",
+      "batch": "targeted.json",
+      "tests": 18,
+      "passed": 18,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/signal/__tests__/watch.spec.ts",
+      "batch": "targeted.json",
+      "tests": 10,
+      "passed": 10,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/testing/__tests__/testing.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 5,
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/zeus/__tests__/capabilities.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 4,
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/zeus/__tests__/jsx-runtime.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 2,
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/zeus/__tests__/jsx-types.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 3,
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/zeus/__tests__/public-api-types.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/zeus/__tests__/public-api.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 5,
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "file": "packages/core/zeus/__tests__/server-api.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "file": "packages/devtools/consumer/__tests__/consumer.spec.ts",
+      "batch": "targeted.json",
+      "tests": 22,
+      "passed": 22,
+      "failed": 0
+    },
+    {
+      "file": "packages/devtools/create-zeus/__tests__/cli.spec.ts",
+      "batch": "targeted.json",
+      "tests": 10,
+      "passed": 10,
+      "failed": 0
+    },
+    {
+      "file": "packages/devtools/create-zeus/__tests__/safety.spec.ts",
+      "batch": "targeted.json",
+      "tests": 11,
+      "passed": 11,
+      "failed": 0
+    },
+    {
+      "file": "packages/devtools/create-zeus/__tests__/scaffold.spec.ts",
+      "batch": "targeted.json",
+      "tests": 6,
+      "passed": 6,
+      "failed": 0
+    },
+    {
+      "file": "packages/devtools/create-zeus/templates/application-ts/src/app.test.ts",
+      "batch": "targeted.json",
+      "tests": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "file": "packages/devtools/create-zeus/templates/component-library-ts/src/library.test.ts",
+      "batch": "targeted.json",
+      "tests": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "file": "packages/devtools/vite-plugin/__tests__/config.spec.ts",
+      "batch": "targeted.json",
+      "tests": 14,
+      "passed": 14,
+      "failed": 0
+    },
+    {
+      "file": "packages/devtools/vite-plugin/__tests__/hmr.spec.ts",
+      "batch": "targeted.json",
+      "tests": 33,
+      "passed": 33,
+      "failed": 0
+    },
+    {
+      "file": "packages/devtools/vite-plugin/__tests__/source-map.spec.ts",
+      "batch": "targeted.json",
+      "tests": 8,
+      "passed": 8,
+      "failed": 0
+    },
+    {
+      "file": "packages/devtools/vite-plugin/__tests__/ssr-execution.spec.ts",
+      "batch": "targeted.json",
+      "tests": 3,
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "file": "packages/devtools/vite-plugin/__tests__/transform.spec.ts",
+      "batch": "targeted.json",
+      "tests": 36,
+      "passed": 36,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/bundler-plugin/__tests__/componentTransformFilter.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 7,
+      "passed": 7,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/bundler-plugin/__tests__/diagnostics.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 5,
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/bundler-plugin/__tests__/filter.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 16,
+      "passed": 16,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/bundler-plugin/__tests__/index.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 24,
+      "passed": 24,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/bundler-plugin/__tests__/manifest.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 6,
+      "passed": 6,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/bundler-plugin/__tests__/outputPlugin.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 3,
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/bundler-plugin/__tests__/rolldown-tsx.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 2,
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/bundler-plugin/__tests__/rollup-tsx.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 13,
+      "passed": 13,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/bundler-plugin/__tests__/transform.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 17,
+      "passed": 17,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/bundler-plugin/__tests__/virtual.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 15,
+      "passed": 15,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/bundler-plugin/__tests__/vite-integration.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 10,
+      "passed": 10,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/bundler-plugin/__tests__/vite.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 17,
+      "passed": 17,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/component-analyzer/__tests__/analyzeComponents.spec.ts",
+      "batch": "targeted.json",
+      "tests": 11,
+      "passed": 11,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/component-analyzer/__tests__/analyzeFile.spec.ts",
+      "batch": "targeted.json",
+      "tests": 43,
+      "passed": 43,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/component-dts/__tests__/generated-declarations.spec.ts",
+      "batch": "targeted.json",
+      "tests": 15,
+      "passed": 15,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/component-dts/__tests__/generateJsxDts.spec.ts",
+      "batch": "targeted.json",
+      "tests": 5,
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/component-dts/__tests__/generateReactDts.spec.ts",
+      "batch": "targeted.json",
+      "tests": 7,
+      "passed": 7,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/component-dts/__tests__/generateVueDts.spec.ts",
+      "batch": "targeted.json",
+      "tests": 6,
+      "passed": 6,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/component-dts/__tests__/generateWcDts.spec.ts",
+      "batch": "targeted.json",
+      "tests": 14,
+      "passed": 14,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/component-dts/__tests__/vue-public-listener-props.spec.ts",
+      "batch": "targeted.json",
+      "tests": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/output-css/__tests__/output-css.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 11,
+      "passed": 11,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/output-css/__tests__/outputCss.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 18,
+      "passed": 18,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/output-icons/__tests__/generateReactIcon.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 4,
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/output-icons/__tests__/generateStaticWcIcon.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 4,
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/output-icons/__tests__/generateVueIcon.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 3,
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/output-icons/__tests__/outputIcons.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 9,
+      "passed": 9,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/output-react-wrapper/__tests__/generatedConsumer.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 3,
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/output-react-wrapper/__tests__/generateReactWrapper.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 14,
+      "passed": 14,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/output-react-wrapper/__tests__/outputReactWrapper.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 4,
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/output-react-wrapper/__tests__/runtime.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 2,
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/output-react-wrapper/__tests__/types.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/output-vue-wrapper/__tests__/consumer.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 2,
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/output-vue-wrapper/__tests__/generatedConsumer.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 3,
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/output-vue-wrapper/__tests__/generateVueWrapper.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 12,
+      "passed": 12,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/output-vue-wrapper/__tests__/outputVueWrapper.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 4,
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/output-vue-wrapper/__tests__/runtime.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 4,
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/output-wc/__tests__/capabilities.spec.ts",
+      "batch": "targeted.json",
+      "tests": 4,
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/output-wc/__tests__/generateCustomElementsJson.spec.ts",
+      "batch": "targeted.json",
+      "tests": 10,
+      "passed": 10,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/output-wc/__tests__/generateEntry.spec.ts",
+      "batch": "targeted.json",
+      "tests": 4,
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/output-wc/__tests__/generateIndex.spec.ts",
+      "batch": "targeted.json",
+      "tests": 7,
+      "passed": 7,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/output-wc/__tests__/generateLazy.spec.ts",
+      "batch": "targeted.json",
+      "tests": 24,
+      "passed": 24,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/output-wc/__tests__/generateManifest.spec.ts",
+      "batch": "targeted.json",
+      "tests": 15,
+      "passed": 15,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/output-wc/__tests__/generateVSCodeCustomData.spec.ts",
+      "batch": "targeted.json",
+      "tests": 2,
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/output-wc/__tests__/imports.spec.ts",
+      "batch": "targeted.json",
+      "tests": 5,
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/output-wc/__tests__/naming.spec.ts",
+      "batch": "targeted.json",
+      "tests": 15,
+      "passed": 15,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/output-wc/__tests__/outputWc.spec.ts",
+      "batch": "targeted.json",
+      "tests": 41,
+      "passed": 41,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/output-wc/__tests__/public-declarations.spec.ts",
+      "batch": "targeted.json",
+      "tests": 4,
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/web-c-runtime/__tests__/adapter-contract.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 28,
+      "passed": 28,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/web-c-runtime/__tests__/bootstrapLazy.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 30,
+      "passed": 30,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/web-c/__tests__/componentLibrary.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 5,
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "file": "packages/web-c/web-c/__tests__/web-c.spec.ts",
+      "batch": "targeted-2.json",
+      "tests": 2,
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "file": "scripts/bench/compiler-optimization.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 4,
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "file": "scripts/bench/component-host-history.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 6,
+      "passed": 6,
+      "failed": 0
+    },
+    {
+      "file": "scripts/bench/component-host-report.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 3,
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "file": "scripts/bench/component-host-runtime.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 7,
+      "passed": 7,
+      "failed": 0
+    },
+    {
+      "file": "scripts/bench/component-host-size.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 3,
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "file": "scripts/bench/component-host-threshold.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 5,
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "file": "scripts/bundler/external.spec.ts",
+      "batch": "targeted-4.json",
+      "tests": 2,
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "file": "scripts/check/__tests__/golden-component-fixtures.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 13,
+      "passed": 13,
+      "failed": 0
+    },
+    {
+      "file": "scripts/check/__tests__/golden-component-manifest.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 3,
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "file": "scripts/check/check-packed-files.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 4,
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "file": "scripts/check/check-release-artifacts.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 3,
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "file": "scripts/check/check-template-dependencies.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 5,
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "file": "scripts/check/check-zeus-package-versions.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 7,
+      "passed": 7,
+      "failed": 0
+    },
+    {
+      "file": "scripts/check/commit-hook-config.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "file": "scripts/check/regexp-utils.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "file": "scripts/release/__tests__/cleanup-native-latest.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 10,
+      "passed": 10,
+      "failed": 0
+    },
+    {
+      "file": "scripts/release/__tests__/promote-canary.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 11,
+      "passed": 11,
+      "failed": 0
+    },
+    {
+      "file": "scripts/release/__tests__/published-package-visibility.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 9,
+      "passed": 9,
+      "failed": 0
+    },
+    {
+      "file": "scripts/release/__tests__/release-canary.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 11,
+      "passed": 11,
+      "failed": 0
+    },
+    {
+      "file": "scripts/release/__tests__/release-config.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 7,
+      "passed": 7,
+      "failed": 0
+    },
+    {
+      "file": "scripts/release/__tests__/release-workflow.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 15,
+      "passed": 15,
+      "failed": 0
+    },
+    {
+      "file": "scripts/release/__tests__/release-worktree.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 9,
+      "passed": 9,
+      "failed": 0
+    },
+    {
+      "file": "scripts/release/__tests__/sync-native-loader.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "file": "scripts/release/__tests__/verify-dist-tags.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 20,
+      "passed": 20,
+      "failed": 0
+    },
+    {
+      "file": "scripts/release/__tests__/verify-main-head.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 3,
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "file": "scripts/release/__tests__/verify-native-latest.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 2,
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "file": "scripts/release/__tests__/verify-npm-auth.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 12,
+      "passed": 12,
+      "failed": 0
+    },
+    {
+      "file": "scripts/release/__tests__/verify-tag-source.spec.ts",
+      "batch": "targeted-3.json",
+      "tests": 5,
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "file": "scripts/shared/utils.spec.ts",
+      "batch": "targeted-4.json",
+      "tests": 1,
+      "passed": 1,
+      "failed": 0
+    }
+  ]
+}

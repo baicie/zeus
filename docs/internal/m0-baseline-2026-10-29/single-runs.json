@@ -1,0 +1,182 @@
+{
+  "signal.prod.writeOneEffect.allSamples": {
+    "n": 15,
+    "min": 3.152,
+    "median": 3.898,
+    "p95": 14.775,
+    "max": 14.775,
+    "mean": 4.998,
+    "variance": 9.1103,
+    "cvPct": 60.4
+  },
+  "signal.prod.writeOneEffect.processMedians": {
+    "n": 3,
+    "min": 3.686,
+    "median": 3.898,
+    "p95": 3.99,
+    "max": 3.99,
+    "mean": 3.858,
+    "variance": 0.0243,
+    "cvPct": 4
+  },
+  "signal.prod.diamond.allSamples": {
+    "n": 15,
+    "min": 8.666,
+    "median": 8.969,
+    "p95": 11.905,
+    "max": 11.905,
+    "mean": 9.575,
+    "variance": 1.1955,
+    "cvPct": 11.4
+  },
+  "signal.prod.diamond.processMedians": {
+    "n": 3,
+    "min": 8.74,
+    "median": 8.911,
+    "p95": 9.044,
+    "max": 9.044,
+    "mean": 8.898,
+    "variance": 0.0232,
+    "cvPct": 1.7
+  },
+  "signal.dev.writeOneEffect.allSamples": {
+    "n": 15,
+    "min": 3.445,
+    "median": 4.005,
+    "p95": 6.825,
+    "max": 6.825,
+    "mean": 4.753,
+    "variance": 1.4026,
+    "cvPct": 24.9
+  },
+  "signal.dev.writeOneEffect.processMedians": {
+    "n": 3,
+    "min": 3.804,
+    "median": 3.893,
+    "p95": 4.37,
+    "max": 4.37,
+    "mean": 4.022,
+    "variance": 0.0926,
+    "cvPct": 7.6
+  },
+  "signal.dev.diamond.allSamples": {
+    "n": 15,
+    "min": 9.335,
+    "median": 9.664,
+    "p95": 14.43,
+    "max": 14.43,
+    "mean": 10.466,
+    "variance": 2.4527,
+    "cvPct": 15
+  },
+  "signal.dev.diamond.processMedians": {
+    "n": 3,
+    "min": 9.603,
+    "median": 9.664,
+    "p95": 9.912,
+    "max": 9.912,
+    "mean": 9.726,
+    "variance": 0.0268,
+    "cvPct": 1.7
+  },
+  "compilerNative.coldMs.all5": {
+    "n": 5,
+    "min": 0.139,
+    "median": 0.165,
+    "p95": 17.688,
+    "max": 17.688,
+    "mean": 3.662,
+    "variance": 61.4814,
+    "cvPct": 214.1
+  },
+  "compilerNative.coldMs.runs2to5": {
+    "n": 4,
+    "min": 0.139,
+    "median": 0.155,
+    "p95": 0.171,
+    "max": 0.171,
+    "mean": 0.155,
+    "variance": 0.0002,
+    "cvPct": 9.9
+  },
+  "compilerNative.warmMsPerCall": {
+    "n": 5,
+    "min": 0.019,
+    "median": 0.021,
+    "p95": 0.022,
+    "max": 0.022,
+    "mean": 0.021,
+    "variance": 0,
+    "cvPct": 5.3
+  },
+  "componentHost.analyze.components.ms": {
+    "n": 3,
+    "min": 31.64,
+    "median": 32.69,
+    "p95": 35.73,
+    "max": 35.73,
+    "mean": 33.353,
+    "variance": 4.512,
+    "cvPct": 6.4
+  },
+  "componentHost.build.wc.ms": {
+    "n": 3,
+    "min": 1187.7,
+    "median": 1190.79,
+    "p95": 1512.44,
+    "max": 1512.44,
+    "mean": 1296.977,
+    "variance": 34820.723,
+    "cvPct": 14.4
+  },
+  "componentHost.build.wc-shadow.ms": {
+    "n": 3,
+    "min": 1102.03,
+    "median": 1102.75,
+    "p95": 1311.24,
+    "max": 1311.24,
+    "mean": 1172.007,
+    "variance": 14539.5704,
+    "cvPct": 10.3
+  },
+  "componentHost.build.wc-nested.ms": {
+    "n": 3,
+    "min": 1118.6,
+    "median": 1239.54,
+    "p95": 1241.94,
+    "max": 1241.94,
+    "mean": 1200.027,
+    "variance": 4974.1665,
+    "cvPct": 5.9
+  },
+  "componentHost.build.wc-react.ms": {
+    "n": 3,
+    "min": 1189.6,
+    "median": 1239.08,
+    "p95": 1378.03,
+    "max": 1378.03,
+    "mean": 1268.903,
+    "variance": 9543.5396,
+    "cvPct": 7.7
+  },
+  "componentHost.build.wc-vue.ms": {
+    "n": 3,
+    "min": 1178.16,
+    "median": 1248.87,
+    "p95": 1304.2,
+    "max": 1304.2,
+    "mean": 1243.743,
+    "variance": 3991.2324,
+    "cvPct": 5.1
+  },
+  "componentHost.build.all.ms": {
+    "n": 3,
+    "min": 1220.93,
+    "median": 1330.52,
+    "p95": 1413.33,
+    "max": 1413.33,
+    "mean": 1321.593,
+    "variance": 9314.204,
+    "cvPct": 7.3
+  }
+}
