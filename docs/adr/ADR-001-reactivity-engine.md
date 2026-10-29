@@ -8,6 +8,8 @@
 
 这次审计没有证明迁移可以等价保留所有 owner、同步调度、cleanup 和异步 scope 语义，因此不切换引擎。局部修复已复现的清理错误，不重写追踪算法。
 
+引擎中派生自 Vue 的代码的上游版本、逐文件差异分类、许可证处理与复核路径见 [Reactivity 上游、版权与补丁账本](./reactivity-upstream-ledger.md)。
+
 ## 实际依赖链
 
 ```mermaid
