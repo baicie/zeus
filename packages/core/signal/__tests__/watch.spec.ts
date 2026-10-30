@@ -4,6 +4,7 @@ import {
   type WatchOptions,
   type WatchScheduler,
   computed,
+  effect,
   onWatcherCleanup,
   state,
   watch,
@@ -288,5 +289,38 @@ describe('watch', () => {
     value.value = true
     value.value = true
     expect(value.value).toBe(false)
+  })
+
+  test('once watcher stops even when its callback throws', () => {
+    const source = state(0)
+    let calls = 0
+    watch(
+      source,
+      () => {
+        calls++
+        throw new Error('callback failed')
+      },
+      { once: true },
+    )
+
+    expect(() => source.value++).toThrow('callback failed')
+    source.value++
+    expect(calls).toBe(1)
+  })
+
+  test('callback reads are not tracked by the effect that triggered it', () => {
+    const source = state(0)
+    const other = state(0)
+    watch(source, () => {
+      void other.value
+    })
+    let outerRuns = 0
+    effect(() => {
+      outerRuns++
+      if (outerRuns === 1) source.value = 1
+    })
+
+    other.value = 1
+    expect(outerRuns).toBe(1)
   })
 })

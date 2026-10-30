@@ -227,8 +227,11 @@ export class EffectScope {
         this.cleanups.length = 0
 
         if (this.scopes) {
-          for (i = 0, l = this.scopes.length; i < l; i++) {
-            dispose(() => this.scopes![i].stop(true))
+          // a cleanup may stop a sibling scope, which removes it from
+          // this.scopes while we iterate
+          const scopes = this.scopes.slice()
+          for (i = 0, l = scopes.length; i < l; i++) {
+            dispose(() => scopes[i].stop(true))
           }
           this.scopes.length = 0
         }

@@ -440,4 +440,17 @@ describe('reactivity/effect/scope', () => {
     expect(rs.stage).toBe(1)
     expect(renderCount).toBe(5)
   })
+
+  it('stops a sibling scope that a cleanup stops while the parent stops', () => {
+    const root = new EffectScope()
+    let sibling!: EffectScope
+    root.run(() => {
+      const first = effectScope()
+      sibling = effectScope()
+      first.run(() => onScopeDispose(() => sibling.stop()))
+    })
+
+    expect(() => root.stop()).not.toThrow()
+    expect(sibling.active).toBe(false)
+  })
 })
