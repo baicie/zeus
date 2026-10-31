@@ -128,6 +128,20 @@ test('deeply nested JSX compiles without overflowing the host stack', () => {
   assert.equal(result.code.split('<div').length - 1, depth)
 })
 
+test('pathological nesting returns a diagnostic instead of aborting the host', () => {
+  const depth = 50_000
+  const result = transformModule(
+    options(`export const value = ${'('.repeat(depth)}1${')'.repeat(depth)}\n`),
+  )
+
+  assert.equal(result.code, '')
+  assert.equal(result.map, null)
+  assert.equal(result.hydrationPlan, null)
+  assert.equal(result.diagnostics.length, 1)
+  assert.equal(result.diagnostics[0].code, 'ZEUS_INPUT_TOO_DEEP')
+  assert.equal(result.diagnostics[0].severity, 'error')
+})
+
 test('invalid ABI options throw instead of becoming compiler diagnostics', () => {
   assert.throws(
     () => transformModule({ ...options(), target: 'wasm' }),

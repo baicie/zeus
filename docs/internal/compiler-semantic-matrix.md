@@ -108,6 +108,7 @@ WASM parity（PR-08）不在本矩阵内。
 | `ZEUS_INVALID_SHOW_FALLBACK`                    | `lower.rs:1211`                                                  | —                              | —                   |
 | `ZEUS_INVALID_SLOT_NAME`                        | `lower.rs:638`                                                   | RL                             | RFC-008             |
 | `ZEUS_INVALID_SLOT_USAGE`                       | `lower.rs:403`、`1527`                                           | RL                             | —                   |
+| `ZEUS_INPUT_TOO_DEEP`                           | `compiler-native/src/lib.rs`（N-API 输入预检，C3）               | NC                             | compiler API        |
 | `ZEUS_MIXED_RAW_TEXT_BINDING_MODE`              | `lower.rs:563`                                                   | RL                             | —                   |
 | `ZEUS_PARSE_ERROR`                              | `lower.rs:82`（Oxc 解析诊断）                                    | RL                             | —                   |
 | `ZEUS_SEMANTIC_ERROR`                           | `lower.rs:95`（Oxc 语义诊断）                                    | —                              | —                   |
@@ -138,20 +139,20 @@ WASM parity（PR-08）不在本矩阵内。
 
 ## 缺陷修复状态
 
-| 缺陷 | 状态                                                                                     | 提交             | 回归测试                                                                                                           |
-| ---- | ---------------------------------------------------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------ |
-| C1   | 已修复：SSR 静态文本编译期转义                                                           | `86e6244`        | RT › escapes_ssr_static_text_and_keeps_rcdata_free_of_hydration_markers；NI › escapes static SSR text…             |
-| C2   | 已修复：`textarea` / `title` 内动态文本经 `ssrText` 转义且不写标记                       | `86e6244`        | 同上                                                                                                               |
-| C3   | 已缓解：N-API 在 64 MiB 栈线程编译，5000 层 159 ms、20000 层可编译；50000 层仍会中止进程 | `86e6244`        | NC › deeply nested JSX compiles without overflowing the host stack                                                 |
-| C4   | 已修复：非冒泡事件与 `delegateEvents: false` 直接绑定；文档委托跳过直接 handler          | `86e6244`        | RT › binds_non_bubbling_and_non_delegated_events_directly；NI › binds non-bubbling…；runtime-dom events.spec       |
-| C5   | 已修复：原生元素报 `ZEUS_UNSUPPORTED_SSR_PROPERTY`；自定义元素的 `prop:*` 在 SSR 中省略  | `33c4611` 及本次 | RT › rejects_ssr_properties_without_an_html_equivalent、omits_custom_element_properties_from_ssr；runtime-ssr spec |
-| C6   | 已修复：`ZEUS_UNSUPPORTED_ASYNC_EXPRESSION`、`ZEUS_ASYNC_COMPONENT`                      | `9d0f687`        | RL › rejects_await_and_yield…、rejects_async_and_generator_components、allows_jsx_created_after_await…             |
-| C7   | 已修复：动态文本后写 `<!--zeus:hydrate:/-->`，hydrate 为空串补文本节点                   | `33c4611`        | runtime-dom hydration.spec；NI › SSR text hydrates empty values…；MR parity                                        |
-| C8   | 已修复：原样复制的源码逐行、逐标识符映射；生成代码以无源段结束                           | `33c4611` 及本次 | RT › maps_verbatim_source_outside_jsx_for_dom_and_ssr；MR › does not attribute … runtime helpers                   |
-| C9   | 已修复：文档改为与实现一致（仅文本与标量表达式）                                         | 本次             | MD › ZEUS_UNSUPPORTED_RAW_TEXT_CHILD                                                                               |
-| C10  | 已修复：`unsupported()` 按诊断码给出 hint                                                | 本次             | MD › gives each diagnostic code its own actionable hint                                                            |
-| C11  | 已修复：删除不可达的 `ZEUS_UNSUPPORTED_COMPONENT`                                        | `9d0f687`        | MD › covers every diagnostic code                                                                                  |
-| C12  | 已修复：`<A-b />` 报 `ZEUS_UNSUPPORTED_COMPONENT_NAME`                                   | `9d0f687`        | RL › rejects_hyphenated_component_names                                                                            |
+| 缺陷 | 状态                                                                                                 | 提交             | 回归测试                                                                                                           |
+| ---- | ---------------------------------------------------------------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------ |
+| C1   | 已修复：SSR 静态文本编译期转义                                                                       | `86e6244`        | RT › escapes_ssr_static_text_and_keeps_rcdata_free_of_hydration_markers；NI › escapes static SSR text…             |
+| C2   | 已修复：`textarea` / `title` 内动态文本经 `ssrText` 转义且不写标记                                   | `86e6244`        | 同上                                                                                                               |
+| C3   | 已修复：N-API 在 64 MiB 栈线程编译；超过 32,768 层由预检返回 `ZEUS_INPUT_TOO_DEEP`，不再终止宿主进程 | 本次             | NC › deeply nested JSX compiles；NC › pathological nesting returns a diagnostic                                    |
+| C4   | 已修复：非冒泡事件与 `delegateEvents: false` 直接绑定；文档委托跳过直接 handler                      | `86e6244`        | RT › binds_non_bubbling_and_non_delegated_events_directly；NI › binds non-bubbling…；runtime-dom events.spec       |
+| C5   | 已修复：原生元素报 `ZEUS_UNSUPPORTED_SSR_PROPERTY`；自定义元素的 `prop:*` 在 SSR 中省略              | `33c4611` 及本次 | RT › rejects_ssr_properties_without_an_html_equivalent、omits_custom_element_properties_from_ssr；runtime-ssr spec |
+| C6   | 已修复：`ZEUS_UNSUPPORTED_ASYNC_EXPRESSION`、`ZEUS_ASYNC_COMPONENT`                                  | `9d0f687`        | RL › rejects_await_and_yield…、rejects_async_and_generator_components、allows_jsx_created_after_await…             |
+| C7   | 已修复：动态文本后写 `<!--zeus:hydrate:/-->`，hydrate 为空串补文本节点                               | `33c4611`        | runtime-dom hydration.spec；NI › SSR text hydrates empty values…；MR parity                                        |
+| C8   | 已修复：原样复制的源码逐行、逐标识符映射；生成代码以无源段结束                                       | `33c4611` 及本次 | RT › maps_verbatim_source_outside_jsx_for_dom_and_ssr；MR › does not attribute … runtime helpers                   |
+| C9   | 已修复：文档改为与实现一致（仅文本与标量表达式）                                                     | 本次             | MD › ZEUS_UNSUPPORTED_RAW_TEXT_CHILD                                                                               |
+| C10  | 已修复：`unsupported()` 按诊断码给出 hint                                                            | 本次             | MD › gives each diagnostic code its own actionable hint                                                            |
+| C11  | 已修复：删除不可达的 `ZEUS_UNSUPPORTED_COMPONENT`                                                    | `9d0f687`        | MD › covers every diagnostic code                                                                                  |
+| C12  | 已修复：`<A-b />` 报 `ZEUS_UNSUPPORTED_COMPONENT_NAME`                                               | `9d0f687`        | RL › rejects_hyphenated_component_names                                                                            |
 
 ## 已确认的编译器缺陷（发现记录）
 

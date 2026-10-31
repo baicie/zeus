@@ -61,9 +61,10 @@ the client binds it through `textContent`; `<script>` and `<style>` content is
 emitted raw.
 
 The Node adapter runs each transform on a dedicated thread with a large stack,
-so JSX nested tens of thousands of levels deep compiles without overflowing the
-host's main-thread stack. Input deep enough to exhaust that stack still aborts
-the process.
+so JSX nested tens of thousands of levels deep does not consume the host's
+main-thread stack. A lexical preflight rejects pathological input above the
+32,768-level limit with the structured `ZEUS_INPUT_TOO_DEEP` diagnostic instead
+of allowing a stack overflow to terminate the host process.
 
 ## Targets
 
