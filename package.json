@@ -55,6 +55,7 @@
     "check:admin": "tsx scripts/check/check-admin.ts",
     "check:hydration": "tsx scripts/check/check-hydration.ts",
     "check:form-associated-browser": "tsx scripts/check/check-form-associated-browser.ts",
+    "check:runtime-cleanup-browser": "tsx scripts/check/check-runtime-cleanup-browser.ts",
     "check:compiler-wasm-browser": "tsx scripts/check/check-compiler-wasm-browser.ts",
     "check:next-boundary": "tsx scripts/check/check-next-boundary.ts",
     "check:docs": "tsx scripts/check/check-docs.ts",

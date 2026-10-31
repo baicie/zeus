@@ -8,24 +8,24 @@
 
 ## 切片状态（2026-10-31）
 
-| PR               | 主题                      | 状态   | 证据 / 备注                                                                                                             |
-| ---------------- | ------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------- |
-| PR-01            | Core/WebC 基线            | 部分   | `docs/internal/m0-baseline-2026-10-29.md`；CI、npm、浏览器、人工架构审查当时为 BLOCKED                                  |
-| PR-03            | Vue Reactivity 上游账本   | 完成   | `docs/adr/reactivity-upstream-ledger.md`、LICENSE 审计；上游 commit SHA 需联网补齐                                      |
-| PR-04            | Signal 正确性             | 完成   | scope/watch/scheduler/set trap 四项修复与回归测试                                                                       |
-| PR-05            | Owner/Cleanup 与诊断      | 部分   | cleanup 抛错仍释放 DOM、owner/binding/listener 诊断计数；重复连接清理回归已补；GC 级证据未做                            |
-| PR-06            | 编译器语义矩阵            | 完成   | `docs/internal/compiler-semantic-matrix.md`；C1–C12 全部修复，Q1/Q2 已裁决                                              |
-| PR-07            | 编译器增量缓存            | 部分   | Vite 插件缓存与失效已实现；`pnpm bench:compiler-cache` 记录 cold/warm/changed 与 5,000 entries 内存数据，未设性能阈值   |
-| PR-08            | Rust WASM 编译器          | 完成   | `docs/internal/wasm-compiler-2026-10-31.md`；225 次 transform 与 native 一致；三引擎 Worker 通过；包暂为 private        |
-| PR-09            | WebC ABI/Manifest 版本化  | 完成   | attribute/event/slot/method 单一来源、loader ABI 标记、Manifest 诊断与跨产物一致性测试；`56c6191`                       |
-| PR-10            | CE Lifecycle/Props/Form   | 部分   | adopted 生命周期、属性/反射/表单回调与 ABI 诊断已覆盖；三引擎已验收 FormData/disabled/reset，stateRestore/validity 仍待 |
-| PR-11            | Shadow/Light/Slots/Styles | 未开始 |                                                                                                                         |
-| PR-12            | Standalone/Lazy 输出      | 未开始 |                                                                                                                         |
-| PR-13            | React 18/19 Wrapper       | 未开始 |                                                                                                                         |
-| PR-14            | Vue 3 Wrapper             | 未开始 |                                                                                                                         |
-| PR-15            | 跨框架 Renderer Host      | 未开始 |                                                                                                                         |
-| PR-16–23         | M3/M4                     | 未开始 | 依赖 M2                                                                                                                 |
-| PR-27–31, 34, 36 | M6/M7                     | 未开始 | PR-27 将消费 `@zeus-js/compiler-wasm`                                                                                   |
+| PR               | 主题                      | 状态   | 证据 / 备注                                                                                                               |
+| ---------------- | ------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------- |
+| PR-01            | Core/WebC 基线            | 部分   | `docs/internal/m0-baseline-2026-10-29.md`；CI、npm、浏览器、人工架构审查当时为 BLOCKED                                    |
+| PR-03            | Vue Reactivity 上游账本   | 完成   | `docs/adr/reactivity-upstream-ledger.md`、LICENSE 审计；上游 commit SHA 需联网补齐                                        |
+| PR-04            | Signal 正确性             | 完成   | scope/watch/scheduler/set trap 四项修复与回归测试                                                                         |
+| PR-05            | Owner/Cleanup 与诊断      | 部分   | cleanup 抛错仍释放 DOM、owner/binding/listener 诊断计数；三引擎断开后 listener cleanup 已验收；GC 级证据未做              |
+| PR-06            | 编译器语义矩阵            | 完成   | `docs/internal/compiler-semantic-matrix.md`；C1–C12 全部修复，Q1/Q2 已裁决                                                |
+| PR-07            | 编译器增量缓存            | 部分   | Vite 插件缓存与失效已实现；`pnpm bench:compiler-cache` 记录 cold/warm/changed 与 5,000 entries 内存数据，未设性能阈值     |
+| PR-08            | Rust WASM 编译器          | 完成   | `docs/internal/wasm-compiler-2026-10-31.md`；225 次 transform 与 native 一致；三引擎 Worker 通过；包暂为 private          |
+| PR-09            | WebC ABI/Manifest 版本化  | 完成   | attribute/event/slot/method 单一来源、loader ABI 标记、Manifest 诊断与跨产物一致性测试；`56c6191`                         |
+| PR-10            | CE Lifecycle/Props/Form   | 部分   | adopted 生命周期、属性/反射/表单回调与 ABI 诊断已覆盖；三引擎已验收 FormData/disabled/reset，stateRestore/validity 仍待   |
+| PR-11            | Shadow/Light/Slots/Styles | 完成   | W-009/W-011 的 slot projection、focus/selection、Shadow/Light styles、CSS parts/vars、Host data 与 nonce 已有 packed 证据 |
+| PR-12            | Standalone/Lazy 输出      | 未开始 |                                                                                                                           |
+| PR-13            | React 18/19 Wrapper       | 未开始 |                                                                                                                           |
+| PR-14            | Vue 3 Wrapper             | 未开始 |                                                                                                                           |
+| PR-15            | 跨框架 Renderer Host      | 未开始 |                                                                                                                           |
+| PR-16–23         | M3/M4                     | 未开始 | 依赖 M2                                                                                                                   |
+| PR-27–31, 34, 36 | M6/M7                     | 未开始 | PR-27 将消费 `@zeus-js/compiler-wasm`                                                                                     |
 
 ## 已裁决事项
 

@@ -215,6 +215,8 @@ jobs:
         run: pnpm check:hydration
       - name: Form-associated custom element behavior in Chromium, Firefox and WebKit
         run: pnpm check:form-associated-browser
+      - name: Runtime cleanup in Chromium, Firefox and WebKit
+        run: pnpm check:runtime-cleanup-browser
       - name: Playground views, copying and sharing in Chromium, Firefox and WebKit
         run: pnpm playground:smoke
       - name: Next.js Server and Client boundary in Chromium, Firefox and WebKit
@@ -236,6 +238,7 @@ jobs:
             temp/admin
             temp/hydration
             temp/form-associated-browser
+            temp/runtime-cleanup-browser
             temp/next-boundary
             temp/compiler-wasm
             temp/playground
