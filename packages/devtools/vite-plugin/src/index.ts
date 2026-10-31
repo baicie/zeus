@@ -1,5 +1,6 @@
+import { createCompilerCache, type CompilerCacheOptions } from './cache'
 import { classifyHmrUpdate } from './hmr'
-import { transformModule } from './native'
+import { compilerVersion, transformModule } from './native'
 import {
   resolveRuntimeDOMEntry,
   resolveRuntimeSSREntry,
@@ -7,9 +8,16 @@ import {
 
 import type { Plugin, UserConfig } from 'vite'
 
+export type { CompilerCacheEvent, CompilerCacheOptions } from './cache'
+
 export interface ZeusNativeCompilerOptions {
   moduleName?: string
   delegateEvents?: boolean
+  /**
+   * Cache native compiler results per plugin instance. Pass an observer to
+   * collect hit/miss/invalidation events, or false to disable the cache.
+   */
+  cache?: boolean | CompilerCacheOptions
 }
 
 export interface ZeusVitePluginOptions {
@@ -66,6 +74,9 @@ function createFilter(options: ZeusVitePluginOptions = {}) {
 export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
   const shouldTransform = createFilter(options)
   const previousSources = new Map<string, string>()
+  const compilerCache = createCompilerCache<ReturnType<typeof transformModule>>(
+    normalizeCompilerCacheOptions(options.compiler?.cache),
+  )
   let enableRootHMR = false
 
   return {
@@ -126,6 +137,10 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
       } catch {
         return
       }
+      compilerCache.invalidate(
+        collectAffectedModuleIds(context.modules, filename),
+        'hot-update',
+      )
       const classification = classifyHmrUpdate(
         filename,
         previousSources.get(filename),
@@ -148,10 +163,11 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
         return null
       }
 
-      const result = transformModule({
-        source: code,
+      const cacheInput = {
+        compilerVersion,
         filename,
-        target: isSSR ? 'ssr' : 'dom',
+        source: code,
+        target: isSSR ? ('ssr' as const) : ('dom' as const),
         runtimeModule: isSSR
           ? (options.ssrModuleName ?? '@zeus-js/runtime-ssr')
           : (options.compiler?.moduleName ?? '@zeus-js/runtime-dom'),
@@ -160,7 +176,22 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
           : (options.compiler?.delegateEvents ?? true),
         sourceMap: true,
         hmr: enableRootHMR && !isSSR,
-      })
+        importGraph: readImportGraph(this, filename),
+      }
+
+      let result = compilerCache.get(cacheInput)
+      if (!result) {
+        result = transformModule({
+          source: code,
+          filename,
+          target: cacheInput.target,
+          runtimeModule: cacheInput.runtimeModule,
+          delegateEvents: cacheInput.delegateEvents,
+          sourceMap: cacheInput.sourceMap,
+          hmr: cacheInput.hmr,
+        })
+        compilerCache.set(cacheInput, result)
+      }
 
       const diagnostic = result.diagnostics.find(
         entry => entry.severity === 'error',
@@ -187,6 +218,63 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
 export default createZeus
 
 export { createZeus as zeus }
+
+function normalizeCompilerCacheOptions(
+  cache: boolean | CompilerCacheOptions | undefined,
+): CompilerCacheOptions {
+  if (cache === false) return { enabled: false }
+  if (cache === true || cache === undefined) return { enabled: true }
+  return { ...cache, enabled: cache.enabled !== false }
+}
+
+function readImportGraph(
+  context: unknown,
+  filename: string,
+): readonly string[] {
+  const getModuleInfo = (
+    context as {
+      getModuleInfo?: (
+        id: string,
+      ) => { importedIds?: readonly string[] } | null | undefined
+    }
+  ).getModuleInfo
+
+  if (typeof getModuleInfo !== 'function') return []
+
+  try {
+    return getModuleInfo.call(context, filename)?.importedIds ?? []
+  } catch {
+    return []
+  }
+}
+
+interface HotUpdateModule {
+  id: string | null
+  importers?: ReadonlySet<HotUpdateModule>
+}
+
+function collectAffectedModuleIds(
+  modules: readonly HotUpdateModule[] | undefined,
+  filename: string,
+): string[] {
+  const queue = [...(modules ?? [])]
+  const seen = new Set<string>([filename])
+
+  while (queue.length > 0) {
+    const module = queue.shift()!
+    if (!module.id) continue
+
+    if (seen.has(module.id)) {
+      for (const importer of module.importers ?? []) queue.push(importer)
+      continue
+    }
+
+    seen.add(module.id)
+    for (const importer of module.importers ?? []) queue.push(importer)
+  }
+
+  return [...seen]
+}
 
 async function isRolldownVite(): Promise<boolean> {
   try {

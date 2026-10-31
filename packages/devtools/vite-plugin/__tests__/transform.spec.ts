@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { createZeus } from '../src'
 
-import type { ZeusVitePluginOptions } from '../src'
+import type { CompilerCacheEvent, ZeusVitePluginOptions } from '../src'
 import type { Plugin as RollupPlugin, TransformResult } from 'rollup'
 import type { HookHandler, Plugin, ResolvedConfig } from 'vite'
 
@@ -131,6 +131,103 @@ describe('vite-plugin-zeus transform', () => {
     expect(debug).toHaveBeenCalledWith(
       '[Zeus HMR] template-structure -> dispose-remount: /src/App.tsx',
     )
+  })
+
+  it('reuses identical compiler output and reports cache events', async () => {
+    const events: CompilerCacheEvent[] = []
+    const transform = createTransformHarness({
+      compiler: {
+        cache: {
+          onEvent: event => events.push(event),
+        },
+      },
+    })
+
+    const first = await transform(source, '/src/App.tsx')
+    const second = await transform(source, '/src/App.tsx')
+
+    expect(second).toEqual(first)
+    expect(events.map(event => event.type)).toEqual(['miss', 'hit'])
+    expect(events[0]?.reason).toBe('cold')
+    expect(events[1]?.reason).toBe('cached')
+  })
+
+  it('misses when source changes and supports disabling the cache', async () => {
+    const events: CompilerCacheEvent[] = []
+    const transform = createTransformHarness({
+      compiler: {
+        cache: {
+          onEvent: event => events.push(event),
+        },
+      },
+    })
+
+    await transform(source, '/src/App.tsx')
+    await transform(source.replace('hello', 'changed'), '/src/App.tsx')
+
+    expect(events.map(event => event.reason)).toEqual([
+      'cold',
+      'source-changed',
+    ])
+
+    const disabledEvents: CompilerCacheEvent[] = []
+    const disabled = createTransformHarness({
+      compiler: {
+        cache: {
+          enabled: false,
+          onEvent: event => disabledEvents.push(event),
+        },
+      },
+    })
+
+    await disabled(source, '/src/Disabled.tsx')
+    await disabled(source, '/src/Disabled.tsx')
+
+    expect(disabledEvents).toHaveLength(2)
+    expect(
+      disabledEvents.every(event => event.reason === 'cache-disabled'),
+    ).toBe(true)
+  })
+
+  it('invalidates cached importers on hot updates', async () => {
+    const events: CompilerCacheEvent[] = []
+    const plugin = createZeus({
+      hmr: true,
+      compiler: { cache: { onEvent: event => events.push(event) } },
+    })
+    runConfigResolved(plugin, 'serve', false)
+
+    const transform = getTransformHook(plugin)
+    const transformContext = {
+      error(error: string | { message: string }): never {
+        throw new Error(typeof error === 'string' ? error : error.message)
+      },
+    } as ThisParameterType<TransformHook>
+
+    await transform.call(transformContext, source, '/src/App.tsx', undefined)
+
+    const update = getHandleHotUpdateHook(plugin)
+    await update.call(
+      { debug: vi.fn() } as unknown as ThisParameterType<HandleHotUpdateHook>,
+      {
+        file: '/src/App.tsx',
+        read: async () => source,
+        modules: [
+          {
+            id: '/src/App.tsx',
+            importers: new Set([{ id: '/src/main.tsx', importers: new Set() }]),
+          },
+        ],
+      } as Parameters<HandleHotUpdateHook>[0],
+    )
+
+    await transform.call(transformContext, source, '/src/App.tsx', undefined)
+
+    expect(events.map(event => event.type)).toEqual([
+      'miss',
+      'invalidate',
+      'miss',
+    ])
   })
 
   it('suppresses remounts for comment-only edits', async () => {

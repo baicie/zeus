@@ -572,7 +572,16 @@ export interface ZeusVitePluginOptions {
   exclude?: RegExp | RegExp[] // 排除的文件，默认 node_modules
   hmr?: boolean // dev server 顶层 render root 自动 dispose/remount，默认 true
   ssrModuleName?: string // SSR runtime 模块，默认 @zeus-js/runtime-ssr
-  compiler?: { moduleName?: string; delegateEvents?: boolean } // native transform 选项
+  compiler?: {
+    moduleName?: string
+    delegateEvents?: boolean
+    cache?:
+      | boolean
+      | {
+          enabled?: boolean
+          onEvent?: (event: CompilerCacheEvent) => void
+        }
+  } // native transform 选项
 }
 ```
 

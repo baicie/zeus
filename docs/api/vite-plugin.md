@@ -27,7 +27,14 @@ zeus({
   exclude?: RegExp | RegExp[]
   hmr?: boolean
   ssrModuleName?: string
-  compiler?: { moduleName?: string; delegateEvents?: boolean }
+  compiler?: {
+    moduleName?: string
+    delegateEvents?: boolean
+    cache?: boolean | {
+      enabled?: boolean
+      onEvent?: (event: CompilerCacheEvent) => void
+    }
+  }
 })
 ```
 
@@ -83,8 +90,28 @@ state preservation for that path.
 
 ### compiler
 
-Overrides the native transform options passed to `transformModule`. The only
-compiler options are `moduleName` and `delegateEvents`.
+Overrides the native transform options passed to `transformModule`.
+`moduleName` and `delegateEvents` select the generated runtime contract.
+Compilation caching is enabled by default per plugin instance. Its key includes
+the native compiler version, target, normalized options, source content and
+known import graph. Vite hot updates invalidate the changed module and its
+importers; a stale entry is never reused after an import update.
+
+Set `compiler.cache` to `false` to disable caching. To observe cold misses,
+warm hits and invalidations without affecting compilation, pass an observer:
+
+```ts
+zeus({
+  compiler: {
+    cache: {
+      onEvent(event) {
+        // event.type: "hit" | "miss" | "invalidate" | "skip"
+        console.debug('[Zeus compiler cache]', event)
+      },
+    },
+  },
+})
+```
 
 The plugin excludes `@zeus-js/zeus`, `@zeus-js/signal`,
 `@zeus-js/runtime-dom` and `@zeus-js/runtime-ssr` from dependency prebundling.
