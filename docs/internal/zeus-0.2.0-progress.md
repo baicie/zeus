@@ -6,38 +6,40 @@
 
 状态：`完成` 有代码与测试证据；`部分` 已交付的范围写在备注；`未开始`；`阻塞` 写明原因。
 
-## 切片状态（2026-10-31）
+## 切片状态（2026-11-01）
 
-| PR               | 主题                      | 状态   | 证据 / 备注                                                                                                               |
-| ---------------- | ------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------- |
-| PR-01            | Core/WebC 基线            | 部分   | `docs/internal/m0-baseline-2026-10-29.md`；CI、npm、浏览器、人工架构审查当时为 BLOCKED                                    |
-| PR-03            | Vue Reactivity 上游账本   | 完成   | `docs/adr/reactivity-upstream-ledger.md`、LICENSE 审计；上游 commit SHA 需联网补齐                                        |
-| PR-04            | Signal 正确性             | 完成   | scope/watch/scheduler/set trap 四项修复与回归测试                                                                         |
-| PR-05            | Owner/Cleanup 与诊断      | 部分   | cleanup 抛错仍释放 DOM、owner/binding/listener 诊断计数；三引擎断开后 listener cleanup 已验收；GC 级证据未做              |
-| PR-06            | 编译器语义矩阵            | 完成   | `docs/internal/compiler-semantic-matrix.md`；C1–C12 全部修复，Q1/Q2 已裁决                                                |
-| PR-07            | 编译器增量缓存            | 部分   | Vite 插件缓存与失效已实现；`pnpm bench:compiler-cache` 记录 cold/warm/changed 与 5,000 entries 内存数据，未设性能阈值     |
-| PR-08            | Rust WASM 编译器          | 完成   | `docs/internal/wasm-compiler-2026-10-31.md`；225 次 transform 与 native 一致；三引擎 Worker 通过；包暂为 private          |
-| PR-09            | WebC ABI/Manifest 版本化  | 完成   | attribute/event/slot/method 单一来源、loader ABI 标记、Manifest 诊断与跨产物一致性测试；`56c6191`                         |
-| PR-10            | CE Lifecycle/Props/Form   | 部分   | adopted 生命周期、属性/反射/表单回调与 ABI 诊断已覆盖；三引擎已验收 FormData/disabled/reset，stateRestore/validity 仍待   |
-| PR-11            | Shadow/Light/Slots/Styles | 完成   | W-009/W-011 的 slot projection、focus/selection、Shadow/Light styles、CSS parts/vars、Host data 与 nonce 已有 packed 证据 |
-| PR-12            | Standalone/Lazy 输出      | 部分   | lazy manifest/entry、按组件 chunk、output registry 与 capability 已实现；仓库外第三方 Output Target 仍受 registry 阻塞    |
-| PR-13            | React 18/19 Wrapper       | 部分   | React 18/19 wrapper、类型与 packed 证据已有；本地 registry 矩阵需外部依赖安装，尚未重跑                                   |
-| PR-14            | Vue 3 Wrapper             | 部分   | Vue 3 wrapper、v-model、具名 slot、SSR import 与 packed 证据已有；本地 registry 矩阵尚未重跑                              |
-| PR-15            | 跨框架 Renderer Host      | 部分   | framework-neutral renderer adapter PoC、RFC-011 与生命周期测试已有；公开 React/Vue cell adapter 仍未冻结                  |
-| PR-16–23         | M3/M4                     | 未开始 | 依赖 M2                                                                                                                   |
-| PR-27–31, 34, 36 | M6/M7                     | 未开始 | PR-27 将消费 `@zeus-js/compiler-wasm`                                                                                     |
+| PR               | 主题                      | 状态   | 证据 / 备注                                                                                                                                                                                                        |
+| ---------------- | ------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| PR-01            | Core/WebC 基线            | 部分   | `docs/internal/m0-baseline-2026-10-29.md`；CI、npm、浏览器、人工架构审查当时为 BLOCKED                                                                                                                             |
+| PR-03            | Vue Reactivity 上游账本   | 完成   | `docs/adr/reactivity-upstream-ledger.md`、LICENSE 审计；上游 commit SHA 需联网补齐                                                                                                                                 |
+| PR-04            | Signal 正确性             | 完成   | scope/watch/scheduler/set trap 四项修复与回归测试                                                                                                                                                                  |
+| PR-05            | Owner/Cleanup 与诊断      | 部分   | cleanup 抛错仍释放 DOM、owner/binding/listener 诊断计数；三引擎断开后 listener cleanup 已验收；GC 级证据未做                                                                                                       |
+| PR-06            | 编译器语义矩阵            | 完成   | `docs/internal/compiler-semantic-matrix.md`；C1–C12 全部修复，Q1/Q2 已裁决；C3 预检上限按实测栈深度定为 8,192（`791713a`）                                                                                         |
+| PR-07            | 编译器增量缓存            | 部分   | Vite 插件缓存与失效已实现；`pnpm bench:compiler-cache` 记录 cold/warm/changed 与 5,000 entries 内存数据，未设性能阈值                                                                                              |
+| PR-08            | Rust WASM 编译器          | 完成   | `docs/internal/wasm-compiler-2026-10-31.md`；225 次 transform 与 native 一致；三引擎 Worker 通过；包暂为 private                                                                                                   |
+| PR-09            | WebC ABI/Manifest 版本化  | 完成   | attribute/event/slot/method 单一来源、loader ABI 标记、Manifest 诊断与跨产物一致性测试；`56c6191`                                                                                                                  |
+| PR-10            | CE Lifecycle/Props/Form   | 部分   | adopted 生命周期、属性/反射/表单回调、RFC-010 全部构建诊断（`20906fd`）；CE 反复挂载诊断计数归零；三引擎已验收 FormData/disabled/reset，packed 消费者另覆盖 validity 与 stateRestore；IME 与 labels 尚无浏览器证据 |
+| PR-11            | Shadow/Light/Slots/Styles | 部分   | packed 证据覆盖 slot projection、focus/selection、Shadow/Light styles 与 nonce、CSS parts/vars、CSP、light DOM 重连不重复样式；a11y/zoom 对照记录与嵌套 overlay 焦点（zeus-ui Dialog）未做                         |
+| PR-12            | Standalone/Lazy 输出      | 部分   | lazy manifest/entry、按组件 chunk、chunk 失败重连重试、输出插件契约（apiVersion、命名空间 kind、冲突诊断）与仓库外第三方 Output Target 构建测试（`cad7a08`）；真实消费 bundle 体积基线未建                         |
+| PR-13            | React 18/19 Wrapper       | 部分   | React 18/19 wrapper、类型与 packed 证据已有；本地 registry 矩阵需外部依赖安装，尚未重跑                                                                                                                            |
+| PR-14            | Vue 3 Wrapper             | 部分   | Vue 3 wrapper、v-model、具名 slot、SSR import 与 packed 证据已有；本地 registry 矩阵尚未重跑                                                                                                                       |
+| PR-15            | 跨框架 Renderer Host      | 部分   | framework-neutral renderer adapter PoC、RFC-011 与生命周期测试已有；公开 React/Vue cell adapter 仍未冻结                                                                                                           |
+| PR-16–23         | M3/M4                     | 未开始 | 依赖 M2                                                                                                                                                                                                            |
+| PR-27–31, 34, 36 | M6/M7                     | 未开始 | PR-27 将消费 `@zeus-js/compiler-wasm`                                                                                                                                                                              |
 
 ## 已裁决事项
 
-| 事项                                | 决定                                                                                        | 记录位置                     |
-| ----------------------------------- | ------------------------------------------------------------------------------------------- | ---------------------------- |
-| 兼容政策（ADR-10 vs AGENTS.md 2.6） | beta 阶段不保留兼容层；不兼容时构建期显式失败，迁移方式为用匹配版本重新构建                 | RFC-010 §1.2                 |
-| ABI 版本字段（ADR-02 vs RFC-010）   | Manifest 只保留 `schemaVersion: 1`；运行时 loader 契约用导出名 `ZEUS_WC_RUNTIME_ABI_1` 表达 | RFC-010 §1.2                 |
-| 自定义元素 `prop:*` 的 SSR          | 省略，由升级或 hydration 设置；原生元素仍报 `ZEUS_UNSUPPORTED_SSR_PROPERTY`                 | server-rendering.md、RFC-004 |
-| `prop:innerHTML` / `outerHTML`      | 两个 target 编译期报 `ZEUS_UNSAFE_HTML_PROPERTY`                                            | server-rendering.md、RFC-004 |
-| CE 事件命名                         | 新增 `on:name` 按原名绑定；含 `-` 或大写的事件直接绑定；`on-x` 报错                         | guide/jsx.md                 |
-| raw-text 子节点规则                 | 文档按实现：仅文本与标量表达式                                                              | server-rendering.md、RFC-004 |
-| WASM 宿主形态                       | `wasm32-unknown-unknown` + 线性内存 JSON ABI，不用 wasm-bindgen/WASI；2 MiB shadow stack    | wasm-compiler-2026-10-31.md  |
+| 事项                                | 决定                                                                                                              | 记录位置                                 |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| 兼容政策（ADR-10 vs AGENTS.md 2.6） | beta 阶段不保留兼容层；不兼容时构建期显式失败，迁移方式为用匹配版本重新构建                                       | RFC-010 §1.2                             |
+| ABI 版本字段（ADR-02 vs RFC-010）   | Manifest 只保留 `schemaVersion: 1`；运行时 loader 契约用导出名 `ZEUS_WC_RUNTIME_ABI_1` 表达                       | RFC-010 §1.2                             |
+| 自定义元素 `prop:*` 的 SSR          | 省略，由升级或 hydration 设置；原生元素仍报 `ZEUS_UNSUPPORTED_SSR_PROPERTY`                                       | server-rendering.md、RFC-004             |
+| `prop:innerHTML` / `outerHTML`      | 两个 target 编译期报 `ZEUS_UNSAFE_HTML_PROPERTY`                                                                  | server-rendering.md、RFC-004             |
+| CE 事件命名                         | 新增 `on:name` 按原名绑定；含 `-` 或大写的事件直接绑定；`on-x` 报错                                               | guide/jsx.md                             |
+| raw-text 子节点规则                 | 文档按实现：仅文本与标量表达式                                                                                    | server-rendering.md、RFC-004             |
+| WASM 宿主形态                       | `wasm32-unknown-unknown` + 线性内存 JSON ABI，不用 wasm-bindgen/WASI；2 MiB shadow stack                          | wasm-compiler-2026-10-31.md              |
+| 输出插件契约                        | `apiVersion: 1` 必填；第三方 kind 用 `vendor:name` 并显式 `outDir`；同 kind 或同文件冲突报 `ZEUS_OUTPUT_CONFLICT` | compiler-host/bundler-plugin.md          |
+| 编译嵌套上限                        | N-API 预检上限 8,192 层（64 MiB 栈下各语法 12,288 层实测可编译）；WASM 由引擎栈约束于约 1,400 层且可恢复          | compiler.md、wasm-compiler-2026-10-31.md |
 
 ## 未决与阻塞
 
