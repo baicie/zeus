@@ -50,6 +50,7 @@ describe('bundler plugin entry', () => {
 
   it('accepts plugins', () => {
     const mockPlugin = {
+      apiVersion: 1 as const,
       name: 'test-plugin',
       generateBundle() {
         return [{ type: 'asset' as const, fileName: 'x.json', source: '{}' }]
@@ -97,6 +98,7 @@ describe('bundler plugin entry', () => {
       zeus: {
         plugins: [
           {
+            apiVersion: 1,
             name: 'react-output',
             external: ['react'],
           },
@@ -113,6 +115,7 @@ describe('bundler plugin entry', () => {
       zeus: {
         plugins: [
           {
+            apiVersion: 1,
             name: 'vue-output',
             external: ['vue'],
           },
@@ -177,6 +180,7 @@ describe('bundler plugin entry', () => {
     const plugin = rolldownZeus({
       plugins: [
         {
+          apiVersion: 1,
           name: 'vue-output',
           external: ['vue'],
         },

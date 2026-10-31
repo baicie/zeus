@@ -35,6 +35,7 @@ export default function reactWrapper(
   }
 
   return {
+    apiVersion: 1,
     name: 'zeus-output-react-wrapper',
     external: ['react'],
 

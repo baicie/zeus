@@ -59,6 +59,7 @@ export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
   let _outDir = normalized.outDir
 
   return {
+    apiVersion: 1,
     name: 'zeus-output-wc',
 
     setup(ctx) {

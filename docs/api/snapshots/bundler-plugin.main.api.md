@@ -29,7 +29,7 @@ export type RollupExternalOption =
       isResolved: boolean,
     ) => boolean)
 type RootOption = string | (() => string)
-export type ZeusOutputKind =
+type ZeusBuiltinOutputKind =
   | 'wc'
   | 'react'
   | 'vue'
@@ -37,6 +37,11 @@ export type ZeusOutputKind =
   | 'icons-vue'
   | 'icons-wc'
   | 'asset'
+/**
+ * Third-party output targets register a namespaced kind such as
+ * `acme:svelte`, which can never collide with a built-in kind.
+ */
+export type ZeusOutputKind = ZeusBuiltinOutputKind | `${string}:${string}`
 export type DtsMode = boolean | 'auto'
 export interface ResolvedDts {
   enabled: boolean
@@ -107,6 +112,14 @@ export interface ZeusOutputChunk {
 }
 export type ZeusOutputFile = ZeusOutputAsset | ZeusOutputChunk
 export interface ZeusComponentPlugin {
+  /**
+   * The output plugin contract this plugin implements. The build fails with
+   * `ZEUS_PLUGIN_API_VERSION` unless it equals `ZEUS_PLUGIN_API_VERSION`.
+   *
+   * Hooks run in phases, each over all plugins in array order: `setup`,
+   * `buildStart`, `virtualModules`, then `generateBundle`.
+   */
+  apiVersion: 1
   name: string
   /**
    * Register output dirs / externals / plugin metadata.
@@ -234,6 +247,9 @@ export declare function defineZeusRolldownConfig(
 ): RolldownOptions
 
 export declare function createOutputRegistry(): ZeusOutputRegistry
+
+/** The output plugin contract implemented by this `@zeus-js/bundler-plugin`. */
+export declare const ZEUS_PLUGIN_API_VERSION = 1
 
 export declare function resolveComponentInclude(include?: string[]): string[]
 export declare function resolveComponentExclude(exclude?: string[]): string[]

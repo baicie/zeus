@@ -24,6 +24,7 @@ export default function css(
   let normalized: NormalizedOutputCssOptions | undefined
 
   return {
+    apiVersion: 1,
     name: 'zeus-output-css',
 
     async buildStart(ctx) {

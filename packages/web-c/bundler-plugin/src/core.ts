@@ -15,6 +15,7 @@ import { resolveDts } from './dts'
 import { collectPluginExternals, mergeExternal } from './external'
 import { cleanUrl, isTypeScriptLike } from './filter'
 import { createOutputRegistry } from './outputRegistry'
+import { assertPluginApiVersions, createEmittedFileOwners } from './pluginApi'
 import { transformZeus } from './transform'
 import { VirtualModuleRegistry } from './virtual'
 
@@ -25,6 +26,7 @@ import type {
   ZeusOutputFile,
   ZeusVirtualModule,
   RollupExternalOption,
+  ZeusComponentPlugin,
 } from './types'
 import type {
   InputOptions,
@@ -56,6 +58,7 @@ export function createZeusBundlerPlugin(
 
   let shouldCompileZeus = (_id: string) => false
   let ctx: ZeusBuildContext | undefined
+  let claimEmittedFile = createEmittedFileOwners()
   let root = process.cwd()
   const cleanedOutputDirs = new Set<string>()
 
@@ -126,6 +129,13 @@ export function createZeusBundlerPlugin(
 
     async buildStart(this: PluginContext) {
       virtualModules.clear()
+      claimEmittedFile = createEmittedFileOwners()
+
+      try {
+        assertPluginApiVersions(options.plugins ?? [])
+      } catch (error) {
+        this.error(error instanceof Error ? error.message : String(error))
+      }
 
       root = resolveRoot(options.root)
 
@@ -222,6 +232,7 @@ export function createZeusBundlerPlugin(
 
         for (const mod of modules) {
           virtualModules.set(mod.id, mod.code, mod.fileName, mod.resolveFrom)
+          claimOrFail(this, claimEmittedFile, plugin, mod)
         }
 
         emitVirtualEntries(modules, this)
@@ -344,6 +355,7 @@ export function createZeusBundlerPlugin(
         if (!files) continue
 
         for (const file of files) {
+          claimOrFail(this, claimEmittedFile, plugin, file)
           emitOutputFile(this, file)
         }
       }
@@ -565,6 +577,19 @@ function getLazyComponentQuery(id: string): string | null {
 
   const query = id.slice(markerIndex)
   return query.length > marker.length ? query : null
+}
+
+function claimOrFail(
+  pluginContext: PluginContext,
+  claim: ReturnType<typeof createEmittedFileOwners>,
+  plugin: ZeusComponentPlugin,
+  file: { fileName?: string },
+): void {
+  try {
+    claim(plugin, file)
+  } catch (error) {
+    pluginContext.error(error instanceof Error ? error.message : String(error))
+  }
 }
 
 function emitOutputFile(
