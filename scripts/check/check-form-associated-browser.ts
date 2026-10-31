@@ -13,6 +13,8 @@ declare global {
       associated: number
       disabled: boolean[]
       reset: number
+      labelled: boolean
+      labelClicks: number
     }>
   }
 }
@@ -30,6 +32,7 @@ const page = `<!doctype html>
 import { defineElement } from '/runtime.js'
 
 const events = { associated: 0, disabled: [], reset: 0 }
+let internals
 
 defineElement(${JSON.stringify(tag)}, {
   formAssociated: true,
@@ -42,14 +45,23 @@ defineElement(${JSON.stringify(tag)}, {
     disabled(value) { events.disabled.push(value) },
     reset() { events.reset++ },
   },
-}, () => document.createElement('span'))
+}, (_props, context) => {
+  internals = context.internals
+  return document.createElement('span')
+})
 
 window.runFormFixture = async () => {
   const form = document.createElement('form')
   const fieldset = document.createElement('fieldset')
   const element = document.createElement(${JSON.stringify(tag)})
   element.setAttribute('name', 'field')
-  fieldset.append(element)
+  element.id = 'field'
+  const label = document.createElement('label')
+  label.htmlFor = 'field'
+  label.textContent = 'Field'
+  let labelClicks = 0
+  element.addEventListener('click', () => labelClicks++)
+  fieldset.append(label, element)
   form.append(fieldset)
   document.body.append(form)
 
@@ -65,6 +77,12 @@ window.runFormFixture = async () => {
   await frame()
   const updated = new FormData(form).get('field')
 
+  // A form-associated element is labelable: the label is reported through
+  // ElementInternals and activating it clicks the element.
+  const labelled =
+    internals.labels.length === 1 && internals.labels[0] === label
+  label.click()
+
   fieldset.disabled = true
   await frame()
   form.reset()
@@ -76,6 +94,8 @@ window.runFormFixture = async () => {
     associated: events.associated,
     disabled: events.disabled,
     reset: events.reset,
+    labelled,
+    labelClicks,
   }
 }
 </script>`
@@ -119,6 +139,8 @@ try {
         associated: 1,
         disabled: [true],
         reset: 1,
+        labelled: true,
+        labelClicks: 1,
       })
       assert.deepEqual(errors, [])
       results.push({ browser: name, status: 'passed' })
