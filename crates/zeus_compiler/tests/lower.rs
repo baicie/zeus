@@ -1270,3 +1270,120 @@ fn diagnoses_transition_unknown_and_jsx_options() {
         assert!(lowered.diagnostics[0].span.is_some());
     }
 }
+
+fn diagnostic_codes_and_text<'source>(
+    lowered: &zeus_compiler::lower::LowerResult,
+    source: &'source str,
+) -> Vec<(String, &'source str)> {
+    lowered
+        .diagnostics
+        .iter()
+        .map(|diagnostic| {
+            let span = diagnostic.span.as_ref().expect("diagnostic has a span");
+            let start = usize::try_from(span.start.offset).unwrap();
+            let end = usize::try_from(span.end.offset).unwrap();
+            (diagnostic.code.clone(), &source[start..end])
+        })
+        .collect()
+}
+
+#[test]
+fn rejects_await_and_yield_evaluated_by_jsx() {
+    let source = r"export async function load(props) {
+  return <p title={await props.title}>{await props.body}</p>
+}
+export function* items(props) {
+  return <>{yield props.item}</>
+}
+";
+    let lowered = lower_module(source, "async-expression.tsx");
+
+    assert!(lowered.ir.is_none());
+    assert_eq!(
+        diagnostic_codes_and_text(&lowered, source),
+        vec![
+            (
+                "ZEUS_UNSUPPORTED_ASYNC_EXPRESSION".into(),
+                "await props.title"
+            ),
+            (
+                "ZEUS_UNSUPPORTED_ASYNC_EXPRESSION".into(),
+                "await props.body"
+            ),
+            (
+                "ZEUS_UNSUPPORTED_ASYNC_EXPRESSION".into(),
+                "yield props.item"
+            ),
+        ]
+    );
+    assert!(
+        lowered.diagnostics[0]
+            .hint
+            .as_deref()
+            .is_some_and(|hint| hint.contains("createResource"))
+    );
+}
+
+#[test]
+fn rejects_async_and_generator_components() {
+    let source = r"import { defineElement, Host } from '@zeus-js/zeus'
+export const App = async props => <div>{props.a}</div>
+export async function Page() {
+  return <main />
+}
+export function* List() {
+  yield <ul />
+}
+export const Element = defineElement('z-async', {}, async () => <Host />)
+";
+    let lowered = lower_module(source, "async-component.tsx");
+
+    assert!(lowered.ir.is_none());
+    assert_eq!(
+        diagnostic_codes_and_text(&lowered, source),
+        vec![
+            ("ZEUS_ASYNC_COMPONENT".into(), "async props => "),
+            ("ZEUS_ASYNC_COMPONENT".into(), "async function Page() "),
+            ("ZEUS_ASYNC_COMPONENT".into(), "function* List() "),
+            ("ZEUS_ASYNC_COMPONENT".into(), "async () => "),
+        ]
+    );
+    assert!(lowered.diagnostics[0].message.contains("Component `App`"));
+    assert!(
+        lowered.diagnostics[3]
+            .message
+            .starts_with("A defineElement setup")
+    );
+}
+
+#[test]
+fn allows_jsx_created_after_await_in_async_handlers_and_helpers() {
+    let source = r"const appendLoaded = async props => {
+  const value = await props.load()
+  document.body.append(<p>{value}</p>)
+}
+export const App = props => (
+  <button onClick={() => appendLoaded(props)}>load</button>
+)
+export async function renderLater(props) {
+  const value = await props.load()
+  return <p>{value}</p>
+}
+";
+    let lowered = lower_module(source, "async-handler.tsx");
+
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    assert!(lowered.ir.is_some());
+}
+
+#[test]
+fn rejects_hyphenated_component_names() {
+    let source = "const A = () => null\nexport const App = () => <A-b x={1} />\n";
+    let lowered = lower_module(source, "hyphen-component.tsx");
+
+    assert!(lowered.ir.is_none());
+    assert_eq!(
+        diagnostic_codes_and_text(&lowered, source),
+        vec![("ZEUS_UNSUPPORTED_COMPONENT_NAME".into(), "A-b")]
+    );
+}

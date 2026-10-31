@@ -2,17 +2,18 @@ use std::collections::{HashMap, HashSet};
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{
-    BindingPattern, CallExpression, Declaration, Expression, FunctionType, IdentifierReference,
-    ImportDeclarationSpecifier, JSXAttribute, JSXAttributeItem, JSXAttributeName,
-    JSXAttributeValue, JSXChild, JSXElement, JSXElementName, JSXExpression, JSXExpressionContainer,
-    JSXFragment, JSXSpreadAttribute, MemberExpression, ModuleDeclaration, Statement,
-    VariableDeclarator,
+    ArrowFunctionExpression, AwaitExpression, BindingPattern, CallExpression, Class, Declaration,
+    Expression, Function, FunctionType, IdentifierReference, ImportDeclarationSpecifier,
+    JSXAttribute, JSXAttributeItem, JSXAttributeName, JSXAttributeValue, JSXChild, JSXElement,
+    JSXElementName, JSXExpression, JSXExpressionContainer, JSXFragment, JSXSpreadAttribute,
+    MemberExpression, ModuleDeclaration, Statement, VariableDeclarator, YieldExpression,
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_diagnostics::{OxcDiagnostic, Severity};
 use oxc_parser::Parser;
 use oxc_semantic::{Scoping, SemanticBuilder};
 use oxc_span::{GetSpan, SourceType, Span};
+use oxc_syntax::scope::ScopeFlags;
 use oxc_syntax::symbol::SymbolId;
 use oxc_syntax::xml_entities::decode_entities;
 
@@ -105,6 +106,7 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
     let builtin_names = collect_builtin_names(&parsed.program);
     let (define_element_setup_spans, host_root_spans) =
         collect_define_element_spans(&parsed.program, &builtin_names);
+    let async_components = collect_async_components(&parsed.program, &define_element_setup_spans);
     let mut lowerer = Lowerer::new(
         source,
         filename,
@@ -114,6 +116,7 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
         host_root_spans,
         scoping,
     );
+    lowerer.report_async_components(async_components);
     lowerer.visit_program(&parsed.program);
     let preamble_end = parsed
         .program
@@ -379,6 +382,10 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
     }
 
     fn lower_root(&mut self, element: &JSXElement<'_>) {
+        let mut finder = AsyncExpressionFinder::default();
+        finder.visit_jsx_element(element);
+        self.report_async_expressions(finder.expressions);
+
         let id = self.allocate_id();
         let root = if let Some(kind) = self.builtin_kind(element) {
             match kind {
@@ -424,6 +431,10 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
     }
 
     fn lower_root_fragment(&mut self, fragment: &JSXFragment<'_>) {
+        let mut finder = AsyncExpressionFinder::default();
+        finder.visit_jsx_fragment(fragment);
+        self.report_async_expressions(finder.expressions);
+
         let id = self.allocate_id();
         let root = self.lower_fragment(fragment);
         self.components.push(ComponentIr {
@@ -436,12 +447,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
 
     fn lower_element(&mut self, element: &JSXElement<'_>) -> Option<ElementIr> {
         let JSXElementName::Identifier(identifier) = &element.opening_element.name else {
-            self.unsupported(
-                "ZEUS_UNSUPPORTED_COMPONENT",
-                "The first Rust compiler slice only supports native DOM elements.",
-                element.opening_element.name.span(),
-            );
-            return None;
+            unreachable!("non-identifier JSX names are lowered as components");
         };
         let tag_name = identifier.name.as_str();
         self.validate_element(tag_name, element, identifier.span)?;
@@ -1567,7 +1573,25 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
     fn lower_component_callee(&mut self, name: &JSXElementName<'_>) -> ExpressionIr {
         let span = self.source_index.span(name.span());
         let code = match name {
-            JSXElementName::Identifier(identifier) => identifier.name.to_string(),
+            JSXElementName::Identifier(identifier) => {
+                if identifier.name.contains('-') {
+                    self.diagnostics.push(
+                        CompilerDiagnostic::error(
+                            "ZEUS_UNSUPPORTED_COMPONENT_NAME",
+                            format!(
+                                "<{}> is not a valid component name: a component tag must be a JavaScript identifier.",
+                                identifier.name
+                            ),
+                            self.filename,
+                            Some(self.source_index.span(identifier.span)),
+                        )
+                        .with_hint(
+                            "Rename the component to an identifier such as `AB`, or use a lowercase tag for a custom element.",
+                        ),
+                    );
+                }
+                identifier.name.to_string()
+            }
             JSXElementName::IdentifierReference(identifier) => identifier.name.to_string(),
             JSXElementName::MemberExpression(_) | JSXElementName::ThisExpression(_) => {
                 name.span().source_text(self.source).to_owned()
@@ -2026,6 +2050,50 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         );
     }
 
+    fn report_async_components(&mut self, components: Vec<AsyncComponent>) {
+        for component in components {
+            let subject = component.name.map_or_else(
+                || "A defineElement setup".to_owned(),
+                |name| format!("Component `{name}`"),
+            );
+            self.diagnostics.push(
+                CompilerDiagnostic::error(
+                    "ZEUS_ASYNC_COMPONENT",
+                    format!(
+                        "{subject} is an async function or generator. Components run once synchronously and must return DOM, not a Promise or iterator."
+                    ),
+                    self.filename,
+                    Some(self.source_index.span(component.span)),
+                )
+                .with_hint(
+                    "Make the component synchronous and load data with createResource, rendering the pending state with <Show>.",
+                ),
+            );
+        }
+    }
+
+    fn report_async_expressions(&mut self, expressions: Vec<(Span, AsyncExpressionKind)>) {
+        for (span, kind) in expressions {
+            let keyword = match kind {
+                AsyncExpressionKind::Await => "await",
+                AsyncExpressionKind::Yield => "yield",
+            };
+            self.diagnostics.push(
+                CompilerDiagnostic::error(
+                    "ZEUS_UNSUPPORTED_ASYNC_EXPRESSION",
+                    format!(
+                        "`{keyword}` is not supported in JSX expressions; bindings are evaluated synchronously inside reactive getters."
+                    ),
+                    self.filename,
+                    Some(self.source_index.span(span)),
+                )
+                .with_hint(
+                    "Load the value with createResource and read it in the expression, or await it inside an event handler.",
+                ),
+            );
+        }
+    }
+
     fn unsupported_for_callback_parameter(&mut self, span: Span) {
         self.diagnostics.push(
             CompilerDiagnostic::error(
@@ -2293,6 +2361,167 @@ impl<'ast> Visit<'ast> for Lowerer<'_, '_> {
     fn visit_jsx_fragment(&mut self, fragment: &JSXFragment<'ast>) {
         self.lower_root_fragment(fragment);
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AsyncExpressionKind {
+    Await,
+    Yield,
+}
+
+/// Finds `await` and `yield` evaluated by a JSX tree itself. Nested functions
+/// are skipped: an async event handler may await freely.
+#[derive(Default)]
+struct AsyncExpressionFinder {
+    expressions: Vec<(Span, AsyncExpressionKind)>,
+}
+
+impl<'ast> Visit<'ast> for AsyncExpressionFinder {
+    fn visit_await_expression(&mut self, expression: &AwaitExpression<'ast>) {
+        self.expressions
+            .push((expression.span, AsyncExpressionKind::Await));
+        walk::walk_await_expression(self, expression);
+    }
+
+    fn visit_yield_expression(&mut self, expression: &YieldExpression<'ast>) {
+        self.expressions
+            .push((expression.span, AsyncExpressionKind::Yield));
+        walk::walk_yield_expression(self, expression);
+    }
+
+    fn visit_function(&mut self, _function: &Function<'ast>, _flags: ScopeFlags) {}
+
+    fn visit_arrow_function_expression(&mut self, _arrow: &ArrowFunctionExpression<'ast>) {}
+
+    fn visit_class(&mut self, _class: &Class<'ast>) {}
+}
+
+struct AsyncComponent {
+    /// The component binding name; `None` for a `defineElement` setup.
+    name: Option<String>,
+    /// From the start of the function to the start of its body.
+    span: Span,
+}
+
+/// Collects async or generator functions that render JSX directly and are
+/// components: bound to a `PascalCase` name, or passed as a `defineElement`
+/// setup. Other async functions may legitimately create DOM after an await.
+fn collect_async_components(
+    program: &oxc_ast::ast::Program<'_>,
+    define_element_setup_spans: &[Span],
+) -> Vec<AsyncComponent> {
+    let mut collector = AsyncComponentCollector {
+        define_element_setup_spans,
+        declarator_name: None,
+        components: Vec::new(),
+    };
+    collector.visit_program(program);
+    collector.components
+}
+
+struct AsyncComponentCollector<'a> {
+    define_element_setup_spans: &'a [Span],
+    /// The `PascalCase` binding and the function expression span it initializes.
+    declarator_name: Option<(String, Span)>,
+    components: Vec<AsyncComponent>,
+}
+
+impl AsyncComponentCollector<'_> {
+    fn component_name(&self, function_span: Span, own_name: Option<&str>) -> Option<String> {
+        own_name
+            .filter(|name| is_component_name(name))
+            .map(str::to_owned)
+            .or_else(|| {
+                self.declarator_name
+                    .as_ref()
+                    .filter(|(_, span)| *span == function_span)
+                    .map(|(name, _)| name.clone())
+            })
+    }
+
+    fn check(
+        &mut self,
+        function_span: Span,
+        body_start: u32,
+        own_name: Option<&str>,
+        detect_jsx: impl FnOnce(&mut ShallowJsxDetector),
+    ) {
+        let name = self.component_name(function_span, own_name);
+        let is_setup = self.define_element_setup_spans.contains(&function_span);
+        if name.is_none() && !is_setup {
+            return;
+        }
+        let mut detector = ShallowJsxDetector(false);
+        detect_jsx(&mut detector);
+        if detector.0 {
+            self.components.push(AsyncComponent {
+                name,
+                span: Span::new(function_span.start, body_start),
+            });
+        }
+    }
+}
+
+impl<'ast> Visit<'ast> for AsyncComponentCollector<'_> {
+    fn visit_variable_declarator(&mut self, declarator: &VariableDeclarator<'ast>) {
+        let previous = self.declarator_name.take();
+        if let Some(name) = binding_name(&declarator.id)
+            && is_component_name(&name)
+            && let Some(init) = &declarator.init
+        {
+            self.declarator_name = Some((name, unwrap_expression(init).span()));
+        }
+        walk::walk_variable_declarator(self, declarator);
+        self.declarator_name = previous;
+    }
+
+    fn visit_function(&mut self, function: &Function<'ast>, flags: ScopeFlags) {
+        if (function.r#async || function.generator)
+            && let Some(body) = &function.body
+        {
+            self.check(
+                function.span,
+                body.span.start,
+                function.id.as_ref().map(|id| id.name.as_str()),
+                |detector| detector.visit_function_body(body),
+            );
+        }
+        walk::walk_function(self, function, flags);
+    }
+
+    fn visit_arrow_function_expression(&mut self, arrow: &ArrowFunctionExpression<'ast>) {
+        if arrow.r#async {
+            self.check(arrow.span, arrow.body.span().start, None, |detector| {
+                detector.visit_arrow_function_body(&arrow.body);
+            });
+        }
+        walk::walk_arrow_function_expression(self, arrow);
+    }
+}
+
+fn is_component_name(name: &str) -> bool {
+    name.chars()
+        .next()
+        .is_some_and(|character| character.is_ascii_uppercase())
+}
+
+/// Detects JSX evaluated by a function body itself, not by nested functions.
+struct ShallowJsxDetector(bool);
+
+impl<'ast> Visit<'ast> for ShallowJsxDetector {
+    fn visit_jsx_element(&mut self, _element: &JSXElement<'ast>) {
+        self.0 = true;
+    }
+
+    fn visit_jsx_fragment(&mut self, _fragment: &JSXFragment<'ast>) {
+        self.0 = true;
+    }
+
+    fn visit_function(&mut self, _function: &Function<'ast>, _flags: ScopeFlags) {}
+
+    fn visit_arrow_function_expression(&mut self, _arrow: &ArrowFunctionExpression<'ast>) {}
+
+    fn visit_class(&mut self, _class: &Class<'ast>) {}
 }
 
 struct JsxDetector(bool);
