@@ -38,6 +38,7 @@
     "bench:component-host:size": "tsx scripts/bench/component-host.ts --size-only",
     "bench:component-host:compile": "tsx scripts/bench/component-host.ts --compile-only",
     "bench:component-host:runtime": "tsx scripts/bench/component-host.ts --runtime-only",
+    "bench:repeat-baseline": "tsx scripts/bench/repeat-baseline.ts",
     "size": "tsx scripts/size/size-report.ts",
     "size:ci": "tsx scripts/size/size-report.ts --ci",
     "docs:dev": "pnpm -C docs dev",
