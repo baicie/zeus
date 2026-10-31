@@ -64,6 +64,14 @@ dist/zeus.components.json
 }
 ```
 
+`schemaVersion: 1` is the current Zeus manifest contract. The Web Component
+Manifest, Custom Elements Manifest, DTS, and React/Vue wrapper generators all
+derive their attribute aliases from the same prop metadata: primitive
+`camelCase` props default to kebab-case attributes (for example,
+`userName` → `user-name`), while explicit `attr` and `attr: false` entries are
+preserved. Complex values remain property-only unless an explicit serializer
+and deserializer contract is provided.
+
 ## Usage
 
 ### Documentation

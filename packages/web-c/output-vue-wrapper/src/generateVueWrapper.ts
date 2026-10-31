@@ -399,7 +399,7 @@ function getVueSSRPropertyConfig(
     ) {
       config[name] = false
     } else {
-      config[name] = prop.attr ?? name
+      config[name] = prop.attr ?? toKebabCase(name)
     }
   }
 

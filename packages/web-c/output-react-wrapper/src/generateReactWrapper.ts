@@ -298,7 +298,7 @@ function generateSSRAttributeAssignments(
           prop.type === 'function' ||
           prop.type === 'unknown'
             ? undefined
-            : sourceName))
+            : toKebabCase(sourceName)))
     if (attributeName) {
       lines.push(
         `  if (propPresent${index}) rest[${JSON.stringify(attributeName)}] = ${localName};`,
@@ -508,7 +508,7 @@ function formatRuntimePropertyConfig(component: ComponentRecord): string {
     ) {
       config[name] = false
     } else {
-      config[name] = name
+      config[name] = toKebabCase(name)
     }
   }
   return JSON.stringify(config)

@@ -259,6 +259,30 @@ describe('generateVueWrapper', () => {
     expect(code).not.toContain('...attrs')
   })
 
+  it('uses the manifest attribute name for camelCase primitive props', () => {
+    const code = generateVueWrapper({
+      component: {
+        tag: 'z-input',
+        name: 'ZInput',
+        exportName: 'ZInput',
+        source: 'src/input.tsx',
+        props: {
+          userName: { type: 'string' },
+        },
+        events: {},
+        slots: {},
+        hostAttributes: [],
+        cssParts: [],
+        cssVars: {},
+      },
+      wcModuleId: 'zeus:wc:z-input',
+      mode: 'event-bridge',
+    })
+
+    expect(code).toContain('"userName":"user-name"')
+    expect(code).toContain('hostProps[attributeName] = props[name]')
+  })
+
   it('handles component with named slots in minimal Vue mode', () => {
     const code = generateVueWrapper({
       component: {
