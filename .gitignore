@@ -55,3 +55,6 @@ playground/solidjs/src/output
 # Docs
 docs/.vitepress/.temp
 docs/.vitepress/cache
+
+# Built by `pnpm --filter @zeus-js/compiler-wasm build:wasm`
+packages/core/compiler-wasm/zeus-compiler.wasm

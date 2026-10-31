@@ -815,6 +815,8 @@ importers:
 
   packages/core/compiler-shared: {}
 
+  packages/core/compiler-wasm: {}
+
   packages/core/query:
     dependencies:
       '@tanstack/query-core':
