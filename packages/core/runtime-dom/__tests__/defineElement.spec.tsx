@@ -1013,6 +1013,36 @@ describe('defineElement', () => {
     expect(el.textContent).toBe('rendered-2')
   })
 
+  it('rebuilds an active mount when the host is adopted', async () => {
+    const tag = createTag('adopted')
+    let renderCount = 0
+    let cleanupCount = 0
+
+    defineElement(tag, { shadow: false }, () => {
+      renderCount++
+      onCleanup(() => cleanupCount++)
+      const span = document.createElement('span')
+      span.textContent = `rendered-${renderCount}`
+      return span
+    })
+
+    const el = document.createElement(tag)
+    document.body.appendChild(el)
+    await nextFrame()
+
+    expect(renderCount).toBe(1)
+    expect(cleanupCount).toBe(0)
+    ;(
+      el as HTMLElement & {
+        adoptedCallback(oldDocument: Document, newDocument: Document): void
+      }
+    ).adoptedCallback(document, document)
+
+    expect(cleanupCount).toBe(1)
+    expect(renderCount).toBe(2)
+    expect(el.textContent).toBe('rendered-2')
+  })
+
   it('registers observedAttributes from props', async () => {
     const tag = createTag('attrs')
 

@@ -480,6 +480,20 @@ export function defineElement<
       this.mountLifecycle.disconnect()
     }
 
+    adoptedCallback(): void {
+      // Adoption can move an already-mounted element to another document.
+      // Recreate the mount so document-bound observers and DOM ownership do
+      // not survive across realms. A normal disconnected adoption is already
+      // inactive and will mount again from connectedCallback.
+      if (this.isConnected === false) {
+        this.mountLifecycle.disconnect()
+        return
+      }
+
+      this.mountLifecycle.disconnect()
+      this.mountLifecycle.connect()
+    }
+
     private mountElement(): CustomElementMount {
       const shadow = options.shadow ?? false
       const mode = shadow ? 'shadow' : 'light'

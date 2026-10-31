@@ -93,6 +93,17 @@ export function createLazyElementClass(
       }
     }
 
+    adoptedCallback(): void {
+      const hostRef = requireHostRef(this)
+
+      // The platform normally delivers disconnectedCallback before adoption.
+      // Do not call connected twice when a custom-elements implementation
+      // reports adoption while the host is still connected.
+      if (this.isConnected === false || hostRef.connected) return
+
+      this.connectedCallback()
+    }
+
     attributeChangedCallback(
       name: string,
       oldValue: string | null,

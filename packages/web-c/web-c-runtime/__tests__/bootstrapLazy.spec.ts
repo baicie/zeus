@@ -8,6 +8,8 @@ import type { HostRef, ZeusComponentInstance } from '../src/types'
 
 interface ZeusLazyElement extends HTMLElement {
   componentOnReady(): Promise<HTMLElement>
+  connectedCallback(): void
+  adoptedCallback(): void
 }
 
 function clearCustomElements(): void {
@@ -192,6 +194,28 @@ describe('bootstrapLazy', () => {
     bootstrapLazy([meta])
     expect(customElements.get(meta.tagName)).toBe(ctor)
     expect(meta.load).not.toHaveBeenCalled()
+  })
+
+  it('does not reconnect a still-connected lazy host during adoption', async () => {
+    const connected = vi.fn()
+    const meta = {
+      tagName: 'zw-adopted',
+      load: vi.fn().mockResolvedValue({
+        createComponent() {
+          return { connected }
+        },
+      }),
+      props: [],
+    }
+    bootstrapLazy([meta])
+
+    const el = document.createElement(meta.tagName) as ZeusLazyElement
+    document.body.appendChild(el)
+    await el.componentOnReady()
+
+    el.adoptedCallback()
+
+    expect(connected).toHaveBeenCalledTimes(1)
   })
 
   it('diagnoses a different definition registered under the same tag', () => {
@@ -803,6 +827,7 @@ describe('lazy element lifecycle', () => {
     const reservedMethods = [
       'connectedCallback',
       'disconnectedCallback',
+      'adoptedCallback',
       'attributeChangedCallback',
       'componentOnReady',
     ]
