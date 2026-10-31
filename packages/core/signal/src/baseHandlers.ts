@@ -181,8 +181,9 @@ class MutableReactiveHandler extends BaseReactiveHandler {
       value,
       isRef(target) ? target : receiver,
     )
-    // don't trigger if target is something up in the prototype chain of original
-    if (target === toRaw(receiver)) {
+    // don't trigger if target is something up in the prototype chain of original,
+    // or if the underlying set failed (non-writable, getter-only, non-extensible)
+    if (target === toRaw(receiver) && result) {
       if (!hadKey) {
         trigger(target, TriggerOpTypes.ADD, key, value)
       } else if (hasChanged(value, oldValue)) {

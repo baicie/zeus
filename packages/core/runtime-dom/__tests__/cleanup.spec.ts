@@ -540,4 +540,22 @@ describe('runtime cleanup', () => {
 
     expect(text.data).toBe('42')
   })
+
+  it('disposes a sibling render from a render cleanup while the owner stops', () => {
+    const first = document.createElement('div')
+    const second = document.createElement('div')
+    const owner = scope()
+    let disposeSecond!: () => void
+
+    owner.run(() => {
+      render(() => {
+        onScopeDispose(() => disposeSecond())
+        return document.createTextNode('first')
+      }, first)
+      disposeSecond = render(() => document.createTextNode('second'), second)
+    })
+
+    expect(() => owner.stop()).not.toThrow()
+    expect(second.textContent).toBe('')
+  })
 })

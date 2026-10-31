@@ -452,4 +452,64 @@ describe('reactivity/reactive', () => {
     expect(isReactive(ref(true))).toBe(false)
     expect(isReactive(shallowRef({}).value)).toBe(false)
   })
+
+  test('should not trigger when setting a non-writable property fails', () => {
+    const original: { foo: number } = {} as { foo: number }
+    Object.defineProperty(original, 'foo', {
+      value: 1,
+      writable: false,
+      configurable: true,
+      enumerable: true,
+    })
+    const observed = reactive(original)
+    const fn = vi.fn(() => observed.foo)
+    effect(fn)
+    expect(fn).toHaveBeenCalledTimes(1)
+
+    expect(Reflect.set(observed, 'foo', 2)).toBe(false)
+    expect(observed.foo).toBe(1)
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  test('should not trigger when setting a getter-only property fails', () => {
+    const observed = reactive({
+      get foo() {
+        return 1
+      },
+    })
+    const fn = vi.fn(() => observed.foo)
+    effect(fn)
+
+    expect(Reflect.set(observed, 'foo', 2)).toBe(false)
+    expect(observed.foo).toBe(1)
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  test('should not trigger when adding a key to a non-extensible target fails', () => {
+    const original: Record<string, number> = { foo: 1 }
+    const observed = reactive(original)
+    Object.preventExtensions(original)
+    const fn = vi.fn(() => Object.keys(observed).length)
+    effect(fn)
+
+    expect(Reflect.set(observed, 'bar', 2)).toBe(false)
+    expect('bar' in observed).toBe(false)
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  test('should not trigger when a shallow reactive write fails', () => {
+    const original: { foo: number } = {} as { foo: number }
+    Object.defineProperty(original, 'foo', {
+      value: 1,
+      writable: false,
+      configurable: true,
+      enumerable: true,
+    })
+    const observed = shallowReactive(original)
+    const fn = vi.fn(() => observed.foo)
+    effect(fn)
+
+    expect(Reflect.set(observed, 'foo', 2)).toBe(false)
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
 })

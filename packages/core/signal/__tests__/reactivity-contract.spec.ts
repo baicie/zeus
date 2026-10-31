@@ -256,4 +256,50 @@ describe('reactivity engine contract', () => {
       dispose()
     })
   })
+
+  it('applies 50k synchronous writes exactly and stops after disposal', () => {
+    const [count, setCount] = createSignal(0)
+    const doubled = createMemo(() => count() * 2)
+    let runs = 0
+    let last = -1
+    createRoot(dispose => {
+      createEffect(() => {
+        runs++
+        last = doubled()
+      })
+      for (let i = 1; i <= 50_000; i++) setCount(i)
+      expect(runs).toBe(50_001)
+      expect(last).toBe(100_000)
+      dispose()
+    })
+    setCount(0)
+    expect(runs).toBe(50_001)
+  })
+
+  it('balances allocation counters across repeated root disposal', () => {
+    const diagnostics = createRuntimeDiagnosticsSession()
+    const [source, setSource] = createSignal(0)
+    let runs = 0
+    diagnostics.run(() => {
+      for (let i = 0; i < 1_000; i++) {
+        createRoot(dispose => {
+          const memo = createMemo(() => source() + i)
+          createEffect(() => {
+            runs++
+            memo()
+          })
+          dispose()
+        })
+      }
+    })
+
+    const snapshot = diagnostics.snapshot()
+    expect(snapshot.effectsCreated).toBe(1_000)
+    expect(snapshot.effectsDisposed).toBe(1_000)
+    expect(snapshot.scopesDisposed).toBe(snapshot.scopesCreated)
+    expect(runs).toBe(1_000)
+    setSource(1)
+    expect(runs).toBe(1_000)
+    diagnostics.dispose()
+  })
 })
