@@ -1036,4 +1036,35 @@ describe('componentOnReady', () => {
 
     consoleError.mockRestore()
   })
+
+  it('retries a failed chunk request when the element reconnects', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const connected = vi.fn()
+    const load = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('network down'))
+      .mockResolvedValue({
+        createComponent() {
+          return { connected }
+        },
+      })
+
+    bootstrapLazy([
+      { tagName: 'zw-retry-load', shadow: false, load, props: [] },
+    ])
+
+    const el = document.createElement('zw-retry-load') as ZeusLazyElement
+    document.body.appendChild(el)
+    await expect(el.componentOnReady()).rejects.toThrow('network down')
+
+    document.body.removeChild(el)
+    document.body.appendChild(el)
+
+    await expect(el.componentOnReady()).resolves.toBe(el)
+    expect(load).toHaveBeenCalledTimes(2)
+    expect(connected).toHaveBeenCalledTimes(1)
+
+    document.body.removeChild(el)
+    consoleError.mockRestore()
+  })
 })
