@@ -2,6 +2,7 @@ import { rollup } from 'rollup'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createZeus } from '../src'
+import { createCompilerCache, createCompilerCacheKey } from '../src/cache'
 
 import type { CompilerCacheEvent, ZeusVitePluginOptions } from '../src'
 import type { Plugin as RollupPlugin, TransformResult } from 'rollup'
@@ -189,7 +190,7 @@ describe('vite-plugin-zeus transform', () => {
     ).toBe(true)
   })
 
-  it('invalidates cached importers on hot updates', async () => {
+  it('invalidates only the edited module on hot updates', async () => {
     const events: CompilerCacheEvent[] = []
     const plugin = createZeus({
       hmr: true,
@@ -205,6 +206,7 @@ describe('vite-plugin-zeus transform', () => {
     } as ThisParameterType<TransformHook>
 
     await transform.call(transformContext, source, '/src/App.tsx', undefined)
+    await transform.call(transformContext, source, '/src/main.tsx', undefined)
 
     const update = getHandleHotUpdateHook(plugin)
     await update.call(
@@ -222,12 +224,40 @@ describe('vite-plugin-zeus transform', () => {
     )
 
     await transform.call(transformContext, source, '/src/App.tsx', undefined)
+    await transform.call(transformContext, source, '/src/main.tsx', undefined)
 
-    expect(events.map(event => event.type)).toEqual([
-      'miss',
-      'invalidate',
-      'miss',
+    expect(
+      events.map(event => [event.type, event.filename, event.reason]),
+    ).toEqual([
+      ['miss', '/src/App.tsx', 'cold'],
+      ['miss', '/src/main.tsx', 'cold'],
+      ['invalidate', '/src/App.tsx', 'hot-update'],
+      ['miss', '/src/App.tsx', 'cold'],
+      // An importer's output does not depend on the edited module.
+      ['hit', '/src/main.tsx', 'cached'],
     ])
+  })
+
+  it('hits regardless of the module graph Vite has recorded', async () => {
+    const events: CompilerCacheEvent[] = []
+    const plugin = createZeus({
+      compiler: { cache: { onEvent: event => events.push(event) } },
+    })
+    runConfigResolved(plugin, 'serve', false)
+    const transform = getTransformHook(plugin)
+    let importedIds: string[] = []
+    const transformContext = {
+      error(error: string | { message: string }): never {
+        throw new Error(typeof error === 'string' ? error : error.message)
+      },
+      getModuleInfo: () => ({ importedIds }),
+    } as unknown as ThisParameterType<TransformHook>
+
+    await transform.call(transformContext, source, '/src/App.tsx', undefined)
+    importedIds = ['/src/dependency.ts']
+    await transform.call(transformContext, source, '/src/App.tsx', undefined)
+
+    expect(events.map(event => event.type)).toEqual(['miss', 'hit'])
   })
 
   it('suppresses remounts for comment-only edits', async () => {
@@ -799,3 +829,53 @@ describe('vite-plugin-zeus transform', () => {
 function toDataURL(code: string): string {
   return `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`
 }
+
+describe('createCompilerCache', () => {
+  const input = (source: string, target: 'dom' | 'ssr' = 'dom') => ({
+    compilerVersion: '1.0.0',
+    filename: '/src/App.tsx?v=1',
+    source,
+    target,
+    runtimeModule: '@zeus-js/runtime-dom',
+    delegateEvents: true,
+    sourceMap: true,
+    hmr: false,
+  })
+
+  it('keeps only the latest entry for each module and target', () => {
+    const cache = createCompilerCache<string>()
+
+    cache.set(input('a'), 'A')
+    cache.set(input('b'), 'B')
+    cache.set(input('a', 'ssr'), 'A ssr')
+
+    expect(cache.snapshot().entries).toBe(2)
+    expect(cache.get(input('a'))).toBeUndefined()
+    expect(cache.get(input('b'))).toBe('B')
+    expect(cache.get(input('a', 'ssr'))).toBe('A ssr')
+  })
+
+  it('keys on every option that changes compiler output', () => {
+    const base = input('a')
+    const key = createCompilerCacheKey(base)
+
+    for (const change of [
+      { compilerVersion: '1.0.1' },
+      { target: 'ssr' as const },
+      { runtimeModule: '@acme/runtime' },
+      { delegateEvents: false },
+      { sourceMap: false },
+      { hmr: true },
+      { source: 'b' },
+      { filename: '/src/Other.tsx' },
+    ]) {
+      expect(
+        createCompilerCacheKey({ ...base, ...change }),
+        JSON.stringify(change),
+      ).not.toBe(key)
+    }
+    expect(
+      createCompilerCacheKey({ ...base, filename: '/src/App.tsx?v=2' }),
+    ).toBe(key)
+  })
+})

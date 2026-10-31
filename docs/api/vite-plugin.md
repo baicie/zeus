@@ -93,9 +93,11 @@ state preservation for that path.
 Overrides the native transform options passed to `transformModule`.
 `moduleName` and `delegateEvents` select the generated runtime contract.
 Compilation caching is enabled by default per plugin instance. Its key includes
-the native compiler version, target, normalized options, source content and
-known import graph. Vite hot updates invalidate the changed module and its
-importers; a stale entry is never reused after an import update.
+the native compiler version, target, normalized options, module id and source
+content. The compiler transforms one module at a time, so a module's output never
+depends on the modules it imports and editing one module leaves its importers
+cached. Each module and target keeps only its latest result, and a Vite hot
+update invalidates the edited module.
 
 Set `compiler.cache` to `false` to disable caching. To observe cold misses,
 warm hits and invalidations without affecting compilation, pass an observer:

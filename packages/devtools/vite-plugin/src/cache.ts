@@ -9,10 +9,7 @@ export type CompilerCacheMissReason =
 
 export type CompilerCacheHitReason = 'cached'
 
-export type CompilerCacheInvalidateReason =
-  | 'hot-update'
-  | 'importer-update'
-  | 'manual'
+export type CompilerCacheInvalidateReason = 'hot-update' | 'manual'
 
 export interface CompilerCacheEvent {
   readonly type: CompilerCacheEventType
@@ -39,7 +36,6 @@ export interface CompilerCacheInput {
   readonly delegateEvents: boolean
   readonly sourceMap: boolean
   readonly hmr: boolean
-  readonly importGraph: readonly string[]
 }
 
 interface CacheEntry<T> {
@@ -68,6 +64,10 @@ export interface CompilerCache<T> {
  * Creates a per-plugin compiler cache. Entries are intentionally scoped to a
  * single Vite plugin instance so a dev server cannot reuse output from a
  * different compiler configuration or project.
+ *
+ * The compiler transforms one module at a time: its output depends only on
+ * the key inputs, never on other modules, so imports are not part of the key.
+ * Each module and target keeps only its latest entry.
  */
 export function createCompilerCache<T>(
   options: CompilerCacheOptions = {},
@@ -132,12 +132,17 @@ export function createCompilerCache<T>(
       if (!enabled) return
 
       const key = createCompilerCacheKey(input)
+      const module = moduleKey(input)
+      const superseded = latestKeyByModule.get(module)
+      if (superseded !== undefined && superseded !== key) {
+        entries.delete(superseded)
+      }
       entries.set(key, {
         filename: input.filename,
         target: input.target,
         result,
       })
-      latestKeyByModule.set(moduleKey(input), key)
+      latestKeyByModule.set(module, key)
     },
 
     invalidate(filenames, reason = 'manual') {
@@ -159,9 +164,7 @@ export function createCompilerCache<T>(
       }
 
       for (const [module, key] of latestKeyByModule) {
-        if (modules.has(normalizeModuleId(module)))
-          latestKeyByModule.delete(module)
-        else if (!entries.has(key)) latestKeyByModule.delete(module)
+        if (!entries.has(key)) latestKeyByModule.delete(module)
       }
     },
 
@@ -188,7 +191,6 @@ export function createCompilerCacheKey(input: CompilerCacheInput): string {
       delegateEvents: input.delegateEvents,
       sourceMap: input.sourceMap,
       hmr: input.hmr,
-      importGraph: input.importGraph.map(normalizeModuleId).sort(),
     }),
   )
 }

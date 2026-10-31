@@ -137,10 +137,7 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
       } catch {
         return
       }
-      compilerCache.invalidate(
-        collectAffectedModuleIds(context.modules, filename),
-        'hot-update',
-      )
+      compilerCache.invalidate([filename], 'hot-update')
       const classification = classifyHmrUpdate(
         filename,
         previousSources.get(filename),
@@ -176,7 +173,6 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
           : (options.compiler?.delegateEvents ?? true),
         sourceMap: true,
         hmr: enableRootHMR && !isSSR,
-        importGraph: readImportGraph(this, filename),
       }
 
       let result = compilerCache.get(cacheInput)
@@ -225,55 +221,6 @@ function normalizeCompilerCacheOptions(
   if (cache === false) return { enabled: false }
   if (cache === true || cache === undefined) return { enabled: true }
   return { ...cache, enabled: cache.enabled !== false }
-}
-
-function readImportGraph(
-  context: unknown,
-  filename: string,
-): readonly string[] {
-  const getModuleInfo = (
-    context as {
-      getModuleInfo?: (
-        id: string,
-      ) => { importedIds?: readonly string[] } | null | undefined
-    }
-  ).getModuleInfo
-
-  if (typeof getModuleInfo !== 'function') return []
-
-  try {
-    return getModuleInfo.call(context, filename)?.importedIds ?? []
-  } catch {
-    return []
-  }
-}
-
-interface HotUpdateModule {
-  id: string | null
-  importers?: ReadonlySet<HotUpdateModule>
-}
-
-function collectAffectedModuleIds(
-  modules: readonly HotUpdateModule[] | undefined,
-  filename: string,
-): string[] {
-  const queue = [...(modules ?? [])]
-  const seen = new Set<string>([filename])
-
-  while (queue.length > 0) {
-    const module = queue.shift()!
-    if (!module.id) continue
-
-    if (seen.has(module.id)) {
-      for (const importer of module.importers ?? []) queue.push(importer)
-      continue
-    }
-
-    seen.add(module.id)
-    for (const importer of module.importers ?? []) queue.push(importer)
-  }
-
-  return [...seen]
 }
 
 async function isRolldownVite(): Promise<boolean> {

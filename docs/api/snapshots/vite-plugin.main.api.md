@@ -10,7 +10,7 @@ import { Plugin } from 'vite'
 type CompilerCacheEventType = 'hit' | 'miss' | 'invalidate' | 'skip'
 type CompilerCacheMissReason = 'cold' | 'source-changed' | 'cache-disabled'
 type CompilerCacheHitReason = 'cached'
-type CompilerCacheInvalidateReason = 'hot-update' | 'importer-update' | 'manual'
+type CompilerCacheInvalidateReason = 'hot-update' | 'manual'
 export interface CompilerCacheEvent {
   readonly type: CompilerCacheEventType
   readonly filename: string
