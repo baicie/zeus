@@ -12,6 +12,13 @@ export function createOutputRegistry(): ZeusOutputRegistry {
 
   return {
     register(kind, options) {
+      // One registry serves one build and each output plugin registers once,
+      // so a second registration means two plugins would write one output.
+      if (map.has(kind)) {
+        throw new Error(
+          `[ZEUS_OUTPUT_CONFLICT] output kind "${kind}" is registered by more than one output plugin. Configure a single plugin per output kind.`,
+        )
+      }
       map.set(kind, normalizeRegistration(kind, options))
     },
 
