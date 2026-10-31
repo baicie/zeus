@@ -114,6 +114,20 @@ test('once bindings use the runtime flag and invalid targets fail', () => {
   assert.match(legacy.diagnostics[0].hint, /once\(value\)/)
 })
 
+test('deeply nested JSX compiles without overflowing the host stack', () => {
+  // The Node.js main thread overflowed at roughly 4,000 levels before the
+  // transform moved to a dedicated large-stack thread.
+  const depth = 5000
+  const result = transformModule(
+    options(
+      `export const App = () => ${'<div>'.repeat(depth)}x${'</div>'.repeat(depth)}\n`,
+    ),
+  )
+
+  assert.deepEqual(result.diagnostics, [])
+  assert.equal(result.code.split('<div').length - 1, depth)
+})
+
 test('invalid ABI options throw instead of becoming compiler diagnostics', () => {
   assert.throws(
     () => transformModule({ ...options(), target: 'wasm' }),

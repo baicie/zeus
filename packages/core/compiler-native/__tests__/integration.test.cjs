@@ -973,6 +973,128 @@ export const render = props => renderToString(() => <div class={props.className}
   }
 })
 
+test('native compiler escapes static SSR text and keeps RCDATA free of markers', async () => {
+  const ssrSource = `import { renderToString } from '@zeus-js/runtime-ssr'
+
+export const render = props => renderToString(() => (
+  <main>
+    <p>&lt;script&gt;alert(1)&lt;/script&gt; a &amp; b</p>
+    <textarea>prefix {props.value}</textarea>
+    <title>{props.value} &lt;</title>
+  </main>
+))
+`
+  const fixture = createFixture(ssrSource)
+  const { createServer } = await import('vite')
+  const server = await createServer({
+    root: fixture.root,
+    configFile: false,
+    logLevel: 'silent',
+    optimizeDeps: { noDiscovery: true },
+    define: {
+      __DEV__: 'true',
+      __TEST__: 'true',
+      __VERSION__: JSON.stringify('test'),
+    },
+    resolve: { alias: runtimeAliases() },
+    plugins: [createNativePlugin('ssr')],
+    server: { middlewareMode: true },
+  })
+
+  try {
+    const module = await server.ssrLoadModule('/src/App.tsx')
+    const html = module.render({ value: '</textarea><b>&' })
+
+    assert.match(
+      html,
+      /<p>&lt;script&gt;alert\(1\)&lt;\/script&gt; a &amp; b<\/p>/,
+    )
+    assert.doesNotMatch(html, /<script>/)
+
+    const textarea = /<textarea>([\s\S]*?)<\/textarea>/.exec(html)
+    const title = /<title>([\s\S]*?)<\/title>/.exec(html)
+    assert.equal(textarea?.[1], 'prefix &lt;/textarea&gt;&lt;b&gt;&amp;')
+    assert.equal(title?.[1], '&lt;/textarea&gt;&lt;b&gt;&amp; &lt;')
+
+    const { document } = new JSDOM(`<!doctype html>${html}`).window
+    assert.equal(
+      document.querySelector('textarea').value,
+      'prefix </textarea><b>&',
+    )
+    assert.equal(
+      document.querySelector('p').textContent.includes('<script>'),
+      true,
+    )
+    assert.equal(document.querySelector('p script'), null)
+  } finally {
+    await server.close()
+    rmSync(fixture.root, { force: true, recursive: true })
+  }
+})
+
+test('native compiler binds non-bubbling and non-delegated events on the element', async () => {
+  const eventSource = `import { render } from '@zeus-js/runtime-dom'
+const calls = []
+const App = () => (
+  <div
+    data-target="host"
+    onMouseEnter={() => calls.push('mouseenter')}
+    onClick={() => calls.push('click')}
+  >
+    x
+  </div>
+)
+export const mount = container => render(() => App(), container)
+export const getCalls = () => [...calls]
+`
+
+  for (const delegateEvents of [true, false]) {
+    const fixture = createFixture(eventSource)
+    const restoreDOM = installDOMGlobals()
+    const { createServer } = await import('vite')
+    const server = await createServer({
+      root: fixture.root,
+      configFile: false,
+      logLevel: 'silent',
+      optimizeDeps: { noDiscovery: true },
+      define: {
+        __DEV__: 'true',
+        __TEST__: 'true',
+        __VERSION__: JSON.stringify('test'),
+      },
+      resolve: { alias: runtimeAliases() },
+      plugins: [createNativePlugin('dom', { delegateEvents })],
+      server: { middlewareMode: true },
+    })
+
+    try {
+      const module = await server.ssrLoadModule('/src/App.tsx')
+      const container = document.createElement('div')
+      document.body.append(container)
+      const dispose = module.mount(container)
+      const target = container.querySelector('[data-target="host"]')
+
+      target.dispatchEvent(new window.MouseEvent('mouseenter'))
+      target.click()
+      assert.deepEqual(
+        module.getCalls(),
+        ['mouseenter', 'click'],
+        `delegateEvents: ${delegateEvents}`,
+      )
+
+      dispose()
+      target.dispatchEvent(new window.MouseEvent('mouseenter'))
+      target.click()
+      assert.deepEqual(module.getCalls(), ['mouseenter', 'click'])
+      container.remove()
+    } finally {
+      await server.close()
+      restoreDOM()
+      rmSync(fixture.root, { force: true, recursive: true })
+    }
+  }
+})
+
 test('native compiler executes SSR Web Components with DSD, styles and slots', async () => {
   const ssrSource =
     `import { renderToString, defineElement, Host, Slot, ssrAttr, ssrElement } from '@zeus-js/runtime-ssr'
@@ -1047,7 +1169,7 @@ export const render = props => renderToString(() => Card({
   }
 })
 
-function createNativePlugin(target = 'dom') {
+function createNativePlugin(target = 'dom', { delegateEvents = true } = {}) {
   return {
     name: 'zeus-native-compiler-test',
     enforce: 'pre',
@@ -1061,7 +1183,7 @@ function createNativePlugin(target = 'dom') {
         target,
         runtimeModule:
           target === 'ssr' ? '@zeus-js/runtime-ssr' : '@zeus-js/runtime-dom',
-        delegateEvents: true,
+        delegateEvents,
         sourceMap: true,
       })
       if (result.diagnostics.length > 0) {

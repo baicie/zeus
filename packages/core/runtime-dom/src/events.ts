@@ -22,10 +22,17 @@ const nonBubblingEventMap: Record<string, string> = {
   blur: 'focusout',
 }
 
+/**
+ * Binds `handler` for `name` on `el`. Delegated handlers are dispatched by the
+ * document listener registered through `delegateEvents`; pass
+ * `delegated = false` for events that do not bubble or for modules compiled
+ * without delegation, which attach a native listener on the element instead.
+ */
 export function bindEvent(
   el: Element,
   name: string,
   handler: EventListener,
+  delegated = true,
 ): void {
   const target = el as ZeusElementWithEvents
   const events = (target.__zeusEvents ||= {})
@@ -40,7 +47,7 @@ export function bindEvent(
 
   events[name] = handler
 
-  if (isInClosedShadowRoot(el)) {
+  if (!delegated || isInClosedShadowRoot(el)) {
     directEvents[name] = handler
     el.addEventListener(name, handler)
     incrementRuntimeDiagnostics('listenersCreated')
@@ -99,6 +106,18 @@ function isInClosedShadowRoot(el: Element): boolean {
   return root.nodeType === 11 && root.mode === 'closed'
 }
 
+// A handler attached natively has already run during the event's own
+// propagation; the document delegate must not invoke it a second time when
+// another module delegates the same event name.
+function getDelegatedHandler(
+  el: ZeusElementWithEvents,
+  eventName: string,
+): EventListener | undefined {
+  const handler = el.__zeusEvents?.[eventName]
+  if (!handler || el.__zeusDirectEvents?.[eventName] === handler) return
+  return handler
+}
+
 function dispatchDelegatedEvent(event: Event): void {
   const eventName = normalizeOriginalEventName(event.type)
 
@@ -108,7 +127,7 @@ function dispatchDelegatedEvent(event: Event): void {
       if (target === document || target === document.defaultView) break
       if (target && (target as Node).nodeType === Node.ELEMENT_NODE) {
         const el = target as ZeusElementWithEvents
-        const handler = el.__zeusEvents?.[eventName]
+        const handler = getDelegatedHandler(el, eventName)
 
         if (handler) {
           callDelegatedHandler(el, handler, event)
@@ -125,7 +144,7 @@ function dispatchDelegatedEvent(event: Event): void {
   while (node && node !== document) {
     if (node.nodeType === Node.ELEMENT_NODE) {
       const el = node as ZeusElementWithEvents
-      const handler = el.__zeusEvents?.[eventName]
+      const handler = getDelegatedHandler(el, eventName)
 
       if (handler) {
         callDelegatedHandler(el, handler, event)

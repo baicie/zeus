@@ -126,7 +126,7 @@ pub fn transform_module(options: TransformModuleOptions) -> Result<TransformModu
         ));
     }
 
-    Ok(zeus_compiler::transform_module(CoreTransformModuleOptions {
+    let core_options = CoreTransformModuleOptions {
         source: options.source,
         filename: options.filename,
         target,
@@ -137,8 +137,27 @@ pub fn transform_module(options: TransformModuleOptions) -> Result<TransformModu
         pure_define_element: PureDefineElementMode::from(
             options.pure_define_element.unwrap_or(false),
         ),
-    })
-    .into())
+    };
+
+    // Oxc's recursive parser, the semantic builder and lowering all recurse per
+    // JSX nesting level. A Node.js main thread overflows at a few thousand
+    // levels, and a Rust stack overflow aborts the whole host process, so run
+    // the transform on a dedicated thread whose stack is sized for input tens
+    // of thousands of levels deep. This raises the limit; it does not turn an
+    // overflow into a diagnostic.
+    let worker = std::thread::Builder::new()
+        .name("zeus-compiler".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || zeus_compiler::transform_module(core_options))
+        .map_err(|error| Error::new(Status::GenericFailure, error.to_string()))?;
+    let result = worker.join().map_err(|_| {
+        Error::new(
+            Status::GenericFailure,
+            "Zeus compiler worker panicked while transforming the module.",
+        )
+    })?;
+
+    Ok(result.into())
 }
 
 impl From<CoreTransformModuleResult> for TransformModuleResult {

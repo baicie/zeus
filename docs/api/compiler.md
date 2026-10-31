@@ -47,6 +47,22 @@ whose target node is malformed remains an error. Diagnostics return
 production, component-only modules, and modules with an explicit
 `import.meta.hot` boundary.
 
+With `delegateEvents: true`, bubbling events are dispatched from one document
+listener per event name. Events that do not bubble to `document` (for example
+`mouseenter`, `pointerleave`, `scroll`, `load`, `error`, `toggle` and media
+events) are always bound directly on their element. With `delegateEvents: false`
+every event is bound directly and no `delegateEvents(...)` call is emitted.
+
+In SSR output, static JSX text is HTML-escaped at compile time. Text inside
+`<textarea>` and `<title>` is escaped and carries no hydration markers, because
+the client binds it through `textContent`; `<script>` and `<style>` content is
+emitted raw.
+
+The Node adapter runs each transform on a dedicated thread with a large stack,
+so JSX nested tens of thousands of levels deep compiles without overflowing the
+host's main-thread stack. Input deep enough to exhaust that stack still aborts
+the process.
+
 ## Targets
 
 DOM output creates static templates and direct runtime bindings. SSR output

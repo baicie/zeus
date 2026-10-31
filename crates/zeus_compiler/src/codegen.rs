@@ -51,7 +51,12 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
     let helper_usage =
         collect_module_helper_usage(module, &binding_sets, !delegated_event_names.is_empty());
     let locator_attribute = allocate_locator_attribute(module);
-    let runtime = RuntimeNames::allocate(&helper_usage, &locator_attribute, &mut names);
+    let runtime = RuntimeNames::allocate(
+        &helper_usage,
+        &locator_attribute,
+        enable_delegation,
+        &mut names,
+    );
 
     let mut generated = module
         .components
@@ -203,6 +208,13 @@ struct ComponentEmitter<'a> {
     runtime: &'a RuntimeNames,
     locator_attribute: &'a str,
     names: &'a mut NameAllocator,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SsrTextContext {
+    Normal,
+    Raw,
+    Rcdata,
 }
 
 fn emit_components(
@@ -496,7 +508,13 @@ fn emit_ssr_root(
     match root {
         RootIr::Element(element) => emit_ssr_element(writer, element, runtime, component_id),
         RootIr::Fragment(fragment) => {
-            emit_ssr_children(writer, &fragment.children, runtime, false, component_id);
+            emit_ssr_children(
+                writer,
+                &fragment.children,
+                runtime,
+                SsrTextContext::Normal,
+                component_id,
+            );
         }
         RootIr::Component(component) => {
             emit_ssr_component(writer, component, runtime, component_id);
@@ -515,30 +533,45 @@ fn emit_ssr_child(
     writer: &mut CodeWriter,
     child: &ChildIr,
     runtime: &SsrRuntimeNames,
-    raw_text: bool,
+    text_context: SsrTextContext,
     component_id: NodeId,
 ) {
     match child {
         ChildIr::Element(element) => {
-            emit_ssr_element_with_context(writer, element, runtime, raw_text, component_id);
+            emit_ssr_element(writer, element, runtime, component_id);
         }
         ChildIr::Fragment(fragment) => {
-            emit_ssr_children(writer, &fragment.children, runtime, raw_text, component_id);
+            emit_ssr_children(
+                writer,
+                &fragment.children,
+                runtime,
+                text_context,
+                component_id,
+            );
         }
         ChildIr::Text(text) => {
-            if raw_text {
+            if text_context == SsrTextContext::Raw {
                 writer.push(&quote_js(&text.value));
             } else {
                 writer.push(runtime.static_text());
                 writer.push("(");
-                writer.push(&quote_js(&text.value));
+                writer.push(&quote_js(&escape_html_text(&text.value)));
                 writer.push(")");
             }
         }
-        ChildIr::DynamicText(text) => {
-            if raw_text {
+        ChildIr::DynamicText(text) => match text_context {
+            SsrTextContext::Raw => {
                 writer.push_mapped(&text.expression.code, &text.expression);
-            } else {
+            }
+            // RCDATA content is bound through textContent on the client, so it
+            // is escaped like normal text but carries no hydration marker.
+            SsrTextContext::Rcdata => {
+                writer.push(runtime.text());
+                writer.push("(");
+                writer.push_mapped(&text.expression.code, &text.expression);
+                writer.push(")");
+            }
+            SsrTextContext::Normal => {
                 writer.push("[");
                 emit_ssr_marker(
                     writer,
@@ -552,7 +585,7 @@ fn emit_ssr_child(
                 writer.push(")");
                 writer.push("]");
             }
-        }
+        },
         ChildIr::Component(component) => {
             emit_ssr_component(writer, component, runtime, component_id);
         }
@@ -574,11 +607,11 @@ fn emit_ssr_children(
     writer: &mut CodeWriter,
     children: &[ChildIr],
     runtime: &SsrRuntimeNames,
-    raw_text: bool,
+    text_context: SsrTextContext,
     component_id: NodeId,
 ) {
     if children.len() == 1 {
-        emit_ssr_child(writer, &children[0], runtime, raw_text, component_id);
+        emit_ssr_child(writer, &children[0], runtime, text_context, component_id);
         return;
     }
     writer.push("[");
@@ -586,7 +619,7 @@ fn emit_ssr_children(
         if index > 0 {
             writer.push(", ");
         }
-        emit_ssr_child(writer, child, runtime, raw_text, component_id);
+        emit_ssr_child(writer, child, runtime, text_context, component_id);
     }
     writer.push("]");
 }
@@ -649,7 +682,7 @@ fn emit_ssr_dynamic_region(
                 writer.push(index);
             }
             writer.push(") => ");
-            emit_ssr_children(writer, body, runtime, false, component_id);
+            emit_ssr_children(writer, body, runtime, SsrTextContext::Normal, component_id);
             writer.push(")");
         }
         DynamicRegionExpressionIr::ArrayLiteral { items } => {
@@ -677,7 +710,13 @@ fn emit_ssr_dynamic_region_value(
             writer.push_mapped(&expression.code, expression);
         }
         DynamicRegionValueIr::Children(children) => {
-            emit_ssr_children(writer, children, runtime, false, component_id);
+            emit_ssr_children(
+                writer,
+                children,
+                runtime,
+                SsrTextContext::Normal,
+                component_id,
+            );
         }
     }
 }
@@ -686,16 +725,6 @@ fn emit_ssr_element(
     writer: &mut CodeWriter,
     element: &ElementIr,
     runtime: &SsrRuntimeNames,
-    component_id: NodeId,
-) {
-    emit_ssr_element_with_context(writer, element, runtime, false, component_id);
-}
-
-fn emit_ssr_element_with_context(
-    writer: &mut CodeWriter,
-    element: &ElementIr,
-    runtime: &SsrRuntimeNames,
-    _raw_text: bool,
     component_id: NodeId,
 ) {
     writer.push("[");
@@ -769,7 +798,7 @@ fn emit_ssr_element_with_context(
             writer,
             &element.children,
             runtime,
-            is_unescaped_raw_text(&element.tag_name),
+            ssr_text_context(&element.tag_name),
             component_id,
         );
     } else if is_void_element(&element.tag_name) {
@@ -857,7 +886,13 @@ fn emit_ssr_component(
                         writer.push("get ");
                         writer.push(&object_key(&prop.name));
                         writer.push("() { return ");
-                        emit_ssr_children(writer, children, runtime, false, component_id);
+                        emit_ssr_children(
+                            writer,
+                            children,
+                            runtime,
+                            SsrTextContext::Normal,
+                            component_id,
+                        );
                         writer.push(" }");
                     }
                 }
@@ -893,7 +928,13 @@ fn emit_ssr_show(
     writer.push("(() => ");
     writer.push_mapped(&show.when.code, &show.when);
     writer.push(", () => ");
-    emit_ssr_children(writer, &show.children, runtime, false, component_id);
+    emit_ssr_children(
+        writer,
+        &show.children,
+        runtime,
+        SsrTextContext::Normal,
+        component_id,
+    );
     if let Some(fallback) = &show.fallback {
         writer.push(", () => ");
         match fallback {
@@ -901,7 +942,13 @@ fn emit_ssr_show(
                 emit_ssr_expression_value(writer, expression);
             }
             ComponentPropValueIr::Children(children) => {
-                emit_ssr_children(writer, children, runtime, false, component_id);
+                emit_ssr_children(
+                    writer,
+                    children,
+                    runtime,
+                    SsrTextContext::Normal,
+                    component_id,
+                );
             }
         }
     }
@@ -932,7 +979,13 @@ fn emit_ssr_for(
         writer.push(index);
     }
     writer.push(") => ");
-    emit_ssr_children(writer, &for_binding.body, runtime, false, component_id);
+    emit_ssr_children(
+        writer,
+        &for_binding.body,
+        runtime,
+        SsrTextContext::Normal,
+        component_id,
+    );
     writer.push(")");
     writer.push("]");
 }
@@ -954,7 +1007,13 @@ fn emit_ssr_transition(
     writer.push(", (");
     writer.push_mapped(&transition.when.code, &transition.when);
     writer.push(" ? ");
-    emit_ssr_children(writer, &transition.children, runtime, false, component_id);
+    emit_ssr_children(
+        writer,
+        &transition.children,
+        runtime,
+        SsrTextContext::Normal,
+        component_id,
+    );
     writer.push(" : null)]");
 }
 
@@ -1194,6 +1253,9 @@ fn emit_event_binding(
     writer.push(&quote_js(event_name));
     writer.push(", ");
     emit_event_handler(writer, handler, names);
+    if !runtime.should_delegate_event(event_name) {
+        writer.push(", false");
+    }
     writer.push(");\n");
 }
 
@@ -2457,6 +2519,16 @@ fn is_unescaped_raw_text(tag_name: &str) -> bool {
     tag_name.eq_ignore_ascii_case("script") || tag_name.eq_ignore_ascii_case("style")
 }
 
+fn ssr_text_context(tag_name: &str) -> SsrTextContext {
+    if is_unescaped_raw_text(tag_name) {
+        SsrTextContext::Raw
+    } else if tag_name.eq_ignore_ascii_case("textarea") || tag_name.eq_ignore_ascii_case("title") {
+        SsrTextContext::Rcdata
+    } else {
+        SsrTextContext::Normal
+    }
+}
+
 fn collect_text_content_parts(element: &ElementIr) -> Vec<TextContentPart> {
     element
         .children
@@ -2507,11 +2579,62 @@ fn collect_root_delegated_events(root: &RootIr, names: &mut BTreeSet<String>) {
 
 fn collect_element_delegated_events(element: &ElementIr, names: &mut BTreeSet<String>) {
     for attribute in &element.attributes {
-        if let AttributeIr::Event(event) = attribute {
+        if let AttributeIr::Event(event) = attribute
+            && is_delegatable_event(&event.event_name)
+        {
             names.insert(event.event_name.clone());
         }
     }
     collect_child_delegated_events(&element.children, names);
+}
+
+/// Events that do not bubble to `document` (or only fire on `window`) cannot be
+/// observed by the delegated document listener and are bound on the element.
+fn is_delegatable_event(event_name: &str) -> bool {
+    !matches!(
+        event_name,
+        "abort"
+            | "beforeprint"
+            | "beforetoggle"
+            | "beforeunload"
+            | "cancel"
+            | "canplay"
+            | "canplaythrough"
+            | "close"
+            | "cuechange"
+            | "durationchange"
+            | "emptied"
+            | "ended"
+            | "error"
+            | "invalid"
+            | "load"
+            | "loadeddata"
+            | "loadedmetadata"
+            | "loadend"
+            | "loadstart"
+            | "mouseenter"
+            | "mouseleave"
+            | "pause"
+            | "play"
+            | "playing"
+            | "pointerenter"
+            | "pointerleave"
+            | "progress"
+            | "ratechange"
+            | "resize"
+            | "scroll"
+            | "scrollend"
+            | "seeked"
+            | "seeking"
+            | "slotchange"
+            | "stalled"
+            | "suspend"
+            | "timeupdate"
+            | "toggle"
+            | "unload"
+            | "volumechange"
+            | "waiting"
+    )
 }
 
 fn collect_component_delegated_events(
@@ -3435,6 +3558,7 @@ fn collect_dynamic_region_value_helper_usage(
 struct RuntimeNames {
     locals: HashMap<RuntimeHelper, String>,
     locator_attribute: String,
+    enable_delegation: bool,
 }
 
 struct SsrRuntimeNames {
@@ -3532,7 +3656,12 @@ impl SsrRuntimeNames {
 }
 
 impl RuntimeNames {
-    fn allocate(usage: &HelperUsage, locator_attribute: &str, names: &mut NameAllocator) -> Self {
+    fn allocate(
+        usage: &HelperUsage,
+        locator_attribute: &str,
+        enable_delegation: bool,
+        names: &mut NameAllocator,
+    ) -> Self {
         let locals = RuntimeHelper::ORDERED
             .iter()
             .filter(|helper| **helper == RuntimeHelper::Template || usage.0.contains(helper))
@@ -3541,6 +3670,7 @@ impl RuntimeNames {
         Self {
             locals,
             locator_attribute: locator_attribute.into(),
+            enable_delegation,
         }
     }
 
@@ -3643,6 +3773,10 @@ impl RuntimeNames {
 
     fn delegate_events(&self) -> &str {
         self.get(RuntimeHelper::DelegateEvents)
+    }
+
+    fn should_delegate_event(&self, event_name: &str) -> bool {
+        self.enable_delegation && is_delegatable_event(event_name)
     }
 }
 

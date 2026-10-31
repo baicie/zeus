@@ -54,10 +54,20 @@ no reactive effect is created.
 ## bindEvent
 
 ```ts
-function bindEvent(el: Element, name: string, handler: EventListener): void
+function bindEvent(
+  el: Element,
+  name: string,
+  handler: EventListener,
+  delegated?: boolean,
+): void
 ```
 
-Binds an event handler. Handlers are stored on the element for event delegation.
+Binds an event handler. By default the handler is stored on the element and
+dispatched by the document listener registered through `delegateEvents`. With
+`delegated: false` the handler is attached to the element as a native listener;
+the compiler emits this for events that do not bubble (such as `mouseenter`,
+`scroll` or media events) and for every event when `delegateEvents` is disabled.
+A native handler is never dispatched a second time by the document delegate.
 
 ## bindAttr
 

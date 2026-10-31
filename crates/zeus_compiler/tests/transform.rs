@@ -583,6 +583,58 @@ export const App = (inlineHandler, identifierHandler, theme, maybe, props, asser
 }
 
 #[test]
+fn binds_non_bubbling_and_non_delegated_events_directly() {
+    let source = r"export const App = props => (
+  <div onMouseEnter={props.enter} onScroll={props.scroll} onClick={props.click} />
+)
+";
+    let compile = |delegate_events| {
+        transform_module(TransformModuleOptions {
+            source: source.into(),
+            filename: "direct-events.tsx".into(),
+            target: TransformTarget::Dom,
+            runtime_module: "@zeus-js/runtime-dom".into(),
+            delegate_events,
+            source_map: false,
+            hmr: false,
+            pure_define_element: PureDefineElementMode::Disabled,
+        })
+    };
+
+    let delegated = compile(true);
+    assert!(
+        delegated.diagnostics.is_empty(),
+        "{:?}",
+        delegated.diagnostics
+    );
+    assert!(delegated.code.contains("$zeusDelegateEvents([\"click\"]);"));
+    assert!(
+        delegated
+            .code
+            .contains("\"mouseenter\", $zeusEvent => (props.enter)?.($zeusEvent), false);")
+    );
+    assert!(
+        delegated
+            .code
+            .contains("\"scroll\", $zeusEvent0 => (props.scroll)?.($zeusEvent0), false);")
+    );
+    assert!(
+        delegated
+            .code
+            .contains("\"click\", $zeusEvent1 => (props.click)?.($zeusEvent1));")
+    );
+
+    let direct = compile(false);
+    assert!(direct.diagnostics.is_empty(), "{:?}", direct.diagnostics);
+    assert!(!direct.code.contains("$zeusDelegateEvents(["));
+    assert!(
+        direct
+            .code
+            .contains("\"click\", $zeusEvent1 => (props.click)?.($zeusEvent1), false);")
+    );
+}
+
+#[test]
 fn collects_delegated_events_from_nested_for_show_and_fragments() {
     let source = r"import { For, Show } from '@zeus-js/zeus'
 export const App = props => (
@@ -1701,6 +1753,84 @@ export const App = props => <main title={props.title}>
             node.id,
             ssr.code
         );
+    }
+}
+
+#[test]
+fn escapes_ssr_static_text_and_keeps_rcdata_free_of_hydration_markers() {
+    let source = r"export const App = props => <main>
+  <p>&lt;script&gt;1&lt;/script&gt; a &amp; b</p>
+  <textarea>prefix {props.value}</textarea>
+  <title>{props.title} &lt;</title>
+  <style>{props.css}</style>
+</main>
+";
+    let ssr = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "rcdata.tsx".into(),
+        target: TransformTarget::Ssr,
+        runtime_module: "@zeus-js/runtime-ssr".into(),
+        delegate_events: false,
+        source_map: false,
+        hmr: false,
+        pure_define_element: PureDefineElementMode::Disabled,
+    });
+    let dom = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "rcdata.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: false,
+        hmr: false,
+        pure_define_element: PureDefineElementMode::Disabled,
+    });
+
+    assert!(ssr.diagnostics.is_empty(), "{:?}", ssr.diagnostics);
+    assert!(dom.diagnostics.is_empty(), "{:?}", dom.diagnostics);
+    assert!(
+        ssr.code
+            .contains(r#"$zeusSsrStatic("&lt;script&gt;1&lt;/script&gt; a &amp; b")"#),
+        "{}",
+        ssr.code
+    );
+    assert!(!ssr.code.contains("<script>"), "{}", ssr.code);
+    assert!(
+        ssr.code
+            .contains(r#"$zeusSsrElement("textarea", [], [$zeusSsrStatic("prefix "), $zeusSsrText(props.value)])"#),
+        "{}",
+        ssr.code
+    );
+    assert!(
+        ssr.code.contains(
+            r#"$zeusSsrElement("title", [], [$zeusSsrText(props.title), $zeusSsrStatic(" &lt;")])"#
+        ),
+        "{}",
+        ssr.code
+    );
+    assert!(
+        ssr.code
+            .contains(r#"$zeusSsrElement("style", [], props.css)"#),
+        "{}",
+        ssr.code
+    );
+
+    // Text inside RCDATA and raw-text elements is bound through textContent,
+    // so neither target may emit a hydration node for it.
+    assert_eq!(dom.hydration_plan, ssr.hydration_plan);
+    let plan = ssr
+        .hydration_plan
+        .expect("JSX modules require a hydration plan");
+    assert!(
+        plan.components[0]
+            .nodes
+            .iter()
+            .all(|node| node.kind != "text"),
+        "{:?}",
+        plan.components[0].nodes
+    );
+    for node in &plan.components[0].nodes {
+        assert!(ssr.code.contains(&node.id), "missing marker {}", node.id);
     }
 }
 

@@ -426,10 +426,17 @@ export declare function bindStyle(
   once?: boolean,
 ): void
 
+/**
+ * Binds `handler` for `name` on `el`. Delegated handlers are dispatched by the
+ * document listener registered through `delegateEvents`; pass
+ * `delegated = false` for events that do not bubble or for modules compiled
+ * without delegation, which attach a native listener on the element instead.
+ */
 export declare function bindEvent(
   el: Element,
   name: string,
   handler: EventListener,
+  delegated?: boolean,
 ): void
 export declare function delegateEvents(events: readonly string[]): void
 
