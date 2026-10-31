@@ -211,6 +211,8 @@ jobs:
         run: pnpm check:admin
       - name: Explicit SSR hydration in Chromium, Firefox and WebKit
         run: pnpm check:hydration
+      - name: Form-associated custom element behavior in Chromium, Firefox and WebKit
+        run: pnpm check:form-associated-browser
       - name: Playground views, copying and sharing in Chromium, Firefox and WebKit
         run: pnpm playground:smoke
       - name: Next.js Server and Client boundary in Chromium, Firefox and WebKit
@@ -231,6 +233,7 @@ jobs:
             temp/golden-components
             temp/admin
             temp/hydration
+            temp/form-associated-browser
             temp/next-boundary
             temp/compiler-wasm
             temp/playground
