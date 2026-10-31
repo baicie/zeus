@@ -13,6 +13,7 @@ import {
   bindEvent,
   bindRef,
   bindText,
+  defineElement,
   mountFor,
   mountShow,
   render,
@@ -558,4 +559,78 @@ describe('runtime cleanup', () => {
     expect(() => owner.stop()).not.toThrow()
     expect(second.textContent).toBe('')
   })
+})
+
+describe('custom element lifecycle cleanup', () => {
+  let dom: JSDOM
+
+  beforeEach(() => {
+    dom = new JSDOM('<!doctype html><html><body></body></html>')
+    for (const name of [
+      'window',
+      'document',
+      'Node',
+      'NodeFilter',
+      'HTMLElement',
+      'Element',
+      'customElements',
+      'MutationObserver',
+      'CustomEvent',
+      'Event',
+    ] as const) {
+      vi.stubGlobal(
+        name,
+        name === 'window' ? dom.window : (dom.window as never)[name],
+      )
+    }
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    dom.window.close()
+  })
+
+  it.each([true, false])(
+    'releases every owner, binding, listener and effect across repeated connects (shadow: %s)',
+    shadow => {
+      const tag = `z-leak-${shadow ? 'shadow' : 'light'}`
+      defineElement(tag, { shadow, props: { label: String } }, props => {
+        const button = document.createElement('button')
+        const text = document.createTextNode('')
+        button.append(text)
+        bindText(text, () => String(props.label ?? ''))
+        bindEvent(button, 'click', () => undefined, false)
+        effect(() => {
+          void props.label
+        })
+        onCleanup(() => undefined)
+        return button
+      })
+
+      const diagnostics = createRuntimeDiagnosticsSession()
+      diagnostics.run(() => {
+        const element = document.createElement(tag) as HTMLElement & {
+          label?: string
+        }
+        for (let index = 0; index < 25; index++) {
+          document.body.append(element)
+          element.label = `label-${index}`
+          element.remove()
+        }
+      })
+
+      const snapshot = diagnostics.snapshot()
+      diagnostics.dispose()
+      expect(snapshot.ownersCreated).toBe(25)
+      expect(snapshot.bindingsCreated).toBeGreaterThanOrEqual(25)
+      expect(snapshot.listenersCreated).toBe(25)
+      expect(snapshot).toMatchObject({
+        ownersDisposed: snapshot.ownersCreated,
+        bindingsDisposed: snapshot.bindingsCreated,
+        listenersDisposed: snapshot.listenersCreated,
+        effectsDisposed: snapshot.effectsCreated,
+        scopesDisposed: snapshot.scopesCreated,
+      })
+    },
+  )
 })
