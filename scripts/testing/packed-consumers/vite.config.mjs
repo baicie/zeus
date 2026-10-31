@@ -5,4 +5,6 @@ export default {
   plugins,
   define: { __CONSUMER_MODE__: JSON.stringify(process.env.ZEUS_CONSUMER_MODE) },
   server: { host: '127.0.0.1' },
+  // check-packed-consumers reads the manifest to inspect the chunk graph.
+  build: { manifest: true },
 }

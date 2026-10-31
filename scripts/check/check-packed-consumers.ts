@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
+import { gzipSync } from 'node:zlib'
 
 const root = path.resolve(import.meta.dirname, '../..')
 const destination = path.resolve(
@@ -18,6 +19,7 @@ const results: Array<{
   ms: number
   error?: string
 }> = []
+const bundles: Record<string, ConsumerBundle> = {}
 
 const selected = [
   'core/shared',
@@ -215,6 +217,9 @@ window.packedResult = (async () => {
         environment,
       ),
     )
+    step(`${mode}:bundle`, () => {
+      bundles[mode] = inspectConsumerBundle(project)
+    })
     for (const browser of browsers)
       step(`${mode}:browser:${browser}`, () =>
         run(
@@ -247,6 +252,7 @@ window.packedResult = (async () => {
     node: process.version,
     platform: `${process.platform}-${process.arch}`,
     results,
+    bundles,
   }
   fs.writeFileSync(
     path.join(destination, 'report.json'),
@@ -257,6 +263,92 @@ window.packedResult = (async () => {
   )
   // Keep the independent projects and logs for exact reproduction after failures.
   console.log(`Independent consumer projects: ${work}`)
+}
+
+interface ViteManifestChunk {
+  file: string
+  isEntry?: boolean
+  imports?: string[]
+}
+
+interface ConsumerBundle {
+  unusedImplementation: 'tree-shaken' | 'lazy-chunk'
+  initialFiles: string[]
+  initialBytes: number
+  initialGzipBytes: number
+  totalJsBytes: number
+  totalJsGzipBytes: number
+}
+
+/**
+ * A consumer that never renders <z-packed-unused> must not load its
+ * implementation: the entry module is either tree-shaken or sits in a chunk
+ * that no chunk imports statically, so only its lazy load() can reach it.
+ * The rendered button's implementation must be present, so an empty bundle
+ * cannot pass.
+ */
+function inspectConsumerBundle(project: string): ConsumerBundle {
+  const dist = path.join(project, 'dist')
+  const manifest = JSON.parse(
+    fs.readFileSync(path.join(dist, '.vite/manifest.json'), 'utf8'),
+  ) as Record<string, ViteManifestChunk>
+  const chunks = Object.entries(manifest)
+  const implementation = (tag: string) =>
+    chunks.filter(([source]) => source.endsWith(`/dist/wc/${tag}.entry.js`))
+
+  if (!implementation('z-packed-button').length)
+    throw new Error(
+      'the rendered z-packed-button implementation was not bundled',
+    )
+
+  const staticallyImported = new Set(
+    chunks.flatMap(([, chunk]) =>
+      (chunk.imports ?? []).map(key => manifest[key].file),
+    ),
+  )
+  const unused = implementation('z-packed-unused')
+  for (const [, chunk] of unused) {
+    if (chunk.isEntry || staticallyImported.has(chunk.file))
+      throw new Error(
+        `${chunk.file} holds the unused component and is loaded eagerly`,
+      )
+  }
+
+  const initial = new Set<string>()
+  const visit = (key: string) => {
+    const chunk = manifest[key]
+    if (initial.has(chunk.file)) return
+    initial.add(chunk.file)
+    for (const imported of chunk.imports ?? []) visit(imported)
+  }
+  for (const [key, chunk] of chunks) if (chunk.isEntry) visit(key)
+
+  const size = (files: Iterable<string>) => {
+    let bytes = 0
+    let gzipBytes = 0
+    for (const file of files) {
+      const source = fs.readFileSync(path.join(dist, file))
+      bytes += source.byteLength
+      gzipBytes += gzipSync(source).byteLength
+    }
+    return [bytes, gzipBytes]
+  }
+  const [initialBytes, initialGzipBytes] = size(initial)
+  const [totalJsBytes, totalJsGzipBytes] = size(
+    new Set(
+      chunks
+        .map(([, chunk]) => chunk.file)
+        .filter(file => file.endsWith('.js')),
+    ),
+  )
+  return {
+    unusedImplementation: unused.length ? 'lazy-chunk' : 'tree-shaken',
+    initialFiles: [...initial].sort(),
+    initialBytes,
+    initialGzipBytes,
+    totalJsBytes,
+    totalJsGzipBytes,
+  }
 }
 
 function prepareProject(name: string, reactVersion: string): string {
