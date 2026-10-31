@@ -20,10 +20,10 @@
 | PR-09            | WebC ABI/Manifest 版本化  | 完成   | attribute/event/slot/method 单一来源、loader ABI 标记、Manifest 诊断与跨产物一致性测试；`56c6191`                         |
 | PR-10            | CE Lifecycle/Props/Form   | 部分   | adopted 生命周期、属性/反射/表单回调与 ABI 诊断已覆盖；三引擎已验收 FormData/disabled/reset，stateRestore/validity 仍待   |
 | PR-11            | Shadow/Light/Slots/Styles | 完成   | W-009/W-011 的 slot projection、focus/selection、Shadow/Light styles、CSS parts/vars、Host data 与 nonce 已有 packed 证据 |
-| PR-12            | Standalone/Lazy 输出      | 未开始 |                                                                                                                           |
-| PR-13            | React 18/19 Wrapper       | 未开始 |                                                                                                                           |
-| PR-14            | Vue 3 Wrapper             | 未开始 |                                                                                                                           |
-| PR-15            | 跨框架 Renderer Host      | 未开始 |                                                                                                                           |
+| PR-12            | Standalone/Lazy 输出      | 部分   | lazy manifest/entry、按组件 chunk、output registry 与 capability 已实现；仓库外第三方 Output Target 仍受 registry 阻塞    |
+| PR-13            | React 18/19 Wrapper       | 部分   | React 18/19 wrapper、类型与 packed 证据已有；本地 registry 矩阵需外部依赖安装，尚未重跑                                   |
+| PR-14            | Vue 3 Wrapper             | 部分   | Vue 3 wrapper、v-model、具名 slot、SSR import 与 packed 证据已有；本地 registry 矩阵尚未重跑                              |
+| PR-15            | 跨框架 Renderer Host      | 部分   | framework-neutral renderer adapter PoC、RFC-011 与生命周期测试已有；公开 React/Vue cell adapter 仍未冻结                  |
 | PR-16–23         | M3/M4                     | 未开始 | 依赖 M2                                                                                                                   |
 | PR-27–31, 34, 36 | M6/M7                     | 未开始 | PR-27 将消费 `@zeus-js/compiler-wasm`                                                                                     |
 
