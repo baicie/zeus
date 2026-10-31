@@ -30,6 +30,11 @@ interface DiagnosticCase {
 
 const cases: DiagnosticCase[] = [
   {
+    code: 'ZEUS_ASYNC_COMPONENT',
+    source: 'export const App = async props => <div>{props.a}</div>',
+    text: 'async props => ',
+  },
+  {
     code: 'ZEUS_EMPTY_EXPRESSION',
     source: 'export const App = () => <div ref />',
     text: 'ref',
@@ -58,6 +63,11 @@ const cases: DiagnosticCase[] = [
       BUILTINS +
       'export const App = props => <Show when={props.ok} extra="x"><b /></Show>',
     text: 'extra="x"',
+  },
+  {
+    code: 'ZEUS_INVALID_EVENT_BINDING',
+    source: 'export const App = props => <div on-change={props.change} />',
+    text: 'on-change',
   },
   {
     code: 'ZEUS_INVALID_ERROR_BOUNDARY_FALLBACK',
@@ -158,6 +168,17 @@ const cases: DiagnosticCase[] = [
     text: '...props.items',
   },
   {
+    code: 'ZEUS_UNSAFE_HTML_PROPERTY',
+    source: 'export const App = props => <div prop:innerHTML={props.html} />',
+    text: 'prop:innerHTML',
+  },
+  {
+    code: 'ZEUS_UNSUPPORTED_ASYNC_EXPRESSION',
+    source:
+      'export async function load(props) {\r\n  return <p>{await props.a}</p>\r\n}',
+    text: 'await props.a',
+  },
+  {
     code: 'ZEUS_UNSUPPORTED_BUILTIN_SPREAD',
     source:
       BUILTINS +
@@ -230,6 +251,12 @@ const cases: DiagnosticCase[] = [
     text: '{...props.items}',
   },
   {
+    code: 'ZEUS_UNSUPPORTED_SSR_PROPERTY',
+    source: 'export const App = props => <div prop:textContent={props.t} />',
+    text: 'prop:textContent={props.t}',
+    targets: ['ssr'],
+  },
+  {
     code: 'ZEUS_UNSUPPORTED_TEMPLATE_ELEMENT',
     source: 'export const App = () => <template />',
     anchor: '<template',
@@ -241,13 +268,6 @@ const cases: DiagnosticCase[] = [
     text: '<input>x</input>',
   },
 ]
-
-/**
- * `ZEUS_UNSUPPORTED_COMPONENT` is defined in `lower.rs` but no input reaches
- * it: namespaced element names are classified as components first and report
- * `ZEUS_UNSUPPORTED_COMPONENT_NAME`. The matrix records it as unreachable.
- */
-const UNREACHABLE_CODES = ['ZEUS_UNSUPPORTED_COMPONENT']
 
 function rustDiagnosticCodes(): string[] {
   const directory = join(repositoryRoot, 'crates/zeus_compiler/src')
@@ -264,7 +284,7 @@ function rustDiagnosticCodes(): string[] {
 
 describe('compiler semantic matrix: diagnostics', () => {
   it('covers every diagnostic code defined by the Rust compiler', () => {
-    const covered = [...cases.map(entry => entry.code), ...UNREACHABLE_CODES]
+    const covered = cases.map(entry => entry.code)
     expect([...new Set(covered)].sort()).toEqual(rustDiagnosticCodes())
   })
 
@@ -326,6 +346,24 @@ describe('compiler semantic matrix: diagnostics', () => {
       }
     })
   }
+
+  it('gives each diagnostic code its own actionable hint', () => {
+    const hints = new Map<string, string>()
+    for (const entry of cases) {
+      const target = entry.targets?.[0] ?? 'dom'
+      const [diagnostic] = compile(PREFIX + entry.source, target, {
+        filename: entry.filename ?? FILENAME,
+      }).diagnostics
+      if (diagnostic.hint !== undefined) hints.set(entry.code, diagnostic.hint)
+    }
+
+    const codesByHint = new Map<string, string[]>()
+    for (const [code, hint] of hints) {
+      codesByHint.set(hint, [...(codesByHint.get(hint) ?? []), code])
+    }
+    const shared = [...codesByHint.values()].filter(codes => codes.length > 1)
+    expect(shared).toEqual([])
+  })
 
   it('returns structured diagnostics for malformed input without throwing', () => {
     const inputs: Array<[string, string]> = [

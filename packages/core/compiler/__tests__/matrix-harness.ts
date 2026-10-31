@@ -156,9 +156,12 @@ export function ssrCodeMarkerIds(code: string): string[] {
   )
 }
 
-/** Hydration marker IDs present in rendered server HTML. */
+/** Hydration node marker IDs present in rendered server HTML. */
 export function htmlMarkerIds(html: string): string[] {
-  return [...html.matchAll(MARKER)].map(match => match[1])
+  // `/` closes a dynamic text value; it is a boundary, not a planned node.
+  return [...html.matchAll(MARKER)]
+    .map(match => match[1])
+    .filter(id => id !== '/')
 }
 
 export function planNodeIds(plan: HydrationPlan | null): string[] {
