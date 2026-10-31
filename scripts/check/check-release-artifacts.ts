@@ -1,9 +1,14 @@
+import { existsSync, readFileSync } from 'node:fs'
+import path from 'node:path'
+
 import pico from 'picocolors'
 
 import { readPackedFiles } from './check-packed-files'
 import {
   findMissingRequiredPaths,
+  findVueLicenseProblems,
   normalizePath,
+  vueDerivedPackages,
 } from './release-artifact-utils'
 import { zeusFixedPackages } from '../release.config'
 import { findWorkspacePackages, type WorkspacePackage } from '../shared/utils'
@@ -56,6 +61,17 @@ function main(): void {
             `${pkg.name}: required files are not present in the npm tarball: ${missing.join(', ')}`,
           ),
         )
+      }
+      if (vueDerivedPackages.has(pkg.name)) {
+        const licensePath = path.join(pkg.dir, 'LICENSE')
+        const licenseText = existsSync(licensePath)
+          ? readFileSync(licensePath, 'utf8')
+          : undefined
+        const problems = findVueLicenseProblems(packedFiles, licenseText)
+        if (problems.length > 0) {
+          hasError = true
+          console.error(pico.red(`${pkg.name}: ${problems.join('; ')}`))
+        }
       }
       if (requireBinaries && pkg.name.startsWith('@zeus-js/compiler-native-')) {
         if (!packedFiles.some(file => normalizePath(file).endsWith('.node'))) {
