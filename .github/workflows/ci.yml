@@ -127,6 +127,8 @@ jobs:
       - name: Build host native compiler
         run: pnpm --filter @zeus-js/compiler-native build:native
       - run: pnpm build
+      - name: Compiler cache benchmark
+        run: pnpm bench:compiler-cache
       - run: pnpm check:runtime-interop
       - run: pnpm build-dts
       - name: Docs smoke
