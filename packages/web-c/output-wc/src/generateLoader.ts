@@ -1,8 +1,16 @@
 // packages/web-c/output-wc/src/generateLoader.ts
 // Generates loader.js for lazy loading mode
 
+/**
+ * Import this from `@zeus-js/web-c-runtime` in generated loaders. The runtime
+ * renames the export when its loader contract changes incompatibly, so a
+ * consumer build that mixes them fails with a missing-export error naming the
+ * ABI instead of misbehaving at runtime (RFC-010).
+ */
+export const WC_RUNTIME_ABI_IMPORT = 'ZEUS_WC_RUNTIME_ABI_1'
+
 export function generateLoader(): string {
-  return `import { bootstrapLazy } from "@zeus-js/web-c-runtime";
+  return `import { bootstrapLazy, ${WC_RUNTIME_ABI_IMPORT} } from "@zeus-js/web-c-runtime";
 import { components } from "./components.manifest.js";
 
 const componentsByTagName = new Map(

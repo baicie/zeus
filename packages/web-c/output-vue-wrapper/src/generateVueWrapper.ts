@@ -1,3 +1,8 @@
+import {
+  getComponentAttributeName,
+  isAttributeBackedPropType,
+} from '@zeus-js/component-analyzer'
+
 import type { ComponentRecord } from '@zeus-js/component-analyzer'
 
 export interface GenerateVueWrapperOptions {
@@ -390,17 +395,11 @@ function getVueSSRPropertyConfig(
   const config: VueSSRPropertyConfig = {}
 
   for (const [name, prop] of Object.entries(component.props)) {
-    if (
-      prop.attr === false ||
-      prop.type === 'object' ||
-      prop.type === 'array' ||
-      prop.type === 'function' ||
-      prop.type === 'unknown'
-    ) {
-      config[name] = false
-    } else {
-      config[name] = prop.attr ?? toKebabCase(name)
-    }
+    // Attributes carry primitive values only; structured props stay
+    // properties even when the element can parse them from an attribute.
+    config[name] = isAttributeBackedPropType(prop.type)
+      ? getComponentAttributeName(name, prop)
+      : false
   }
 
   return config

@@ -839,9 +839,12 @@ function normalizePropDefinitions<P extends object>(
     }
 
     const type = input?.type
-    const defaultAttr = isAttributeBackedConstructor(type)
-      ? toKebabCase(propKey)
-      : false
+    // RFC-010: structured props are attribute-backed only with a declared
+    // deserializer, matching the lazy loader and generated manifests.
+    const defaultAttr =
+      isAttributeBackedConstructor(type) || input?.deserialize
+        ? toKebabCase(propKey)
+        : false
 
     return {
       name: propKey,

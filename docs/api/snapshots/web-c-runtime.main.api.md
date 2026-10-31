@@ -121,4 +121,10 @@ export declare function resolveHostProperties(
   hostRef: HostRef,
   definitions: ZeusPropMeta[],
 ): void
+
+/**
+ * Marker for the loader contract that generated `@zeus-js/output-wc` code
+ * imports. Renamed, never redefined, when the contract changes incompatibly.
+ */
+export declare const ZEUS_WC_RUNTIME_ABI_1 = 1
 ```

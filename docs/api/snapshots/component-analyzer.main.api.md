@@ -176,4 +176,22 @@ export declare const PORTABLE_GLOBAL_TYPE_REFERENCES: readonly [
 ]
 export type PortableGlobalTypeReference =
   (typeof PORTABLE_GLOBAL_TYPE_REFERENCES)[number]
+
+/**
+ * Whether the prop type converts to and from an attribute without a codec.
+ */
+export declare function isAttributeBackedPropType(
+  type: ComponentPropType,
+): boolean
+/**
+ * The attribute a custom element observes for a prop, or `false` for a
+ * property-only prop. Structured props are attribute-backed only with a
+ * declared deserializer, and names are lowercase because HTML attribute names
+ * are case-insensitive. Every output must use this so that it matches
+ * `getCustomElementAttributeName` in `@zeus-js/runtime-dom`.
+ */
+export declare function getComponentAttributeName(
+  propName: string,
+  prop: ComponentProp,
+): string | false
 ```

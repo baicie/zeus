@@ -125,6 +125,30 @@ payload 泛化为 `unknown`。列表只允许唯一字符串，并且每个名�
 
 `default` 仅用于 JSON-safe 静态默认值；工厂默认值由组件实现创建，并以 `hasDefault: true`、`defaultStrategy: 'factory'` 且不包含 `default` 表达。数组和普通对象可作为 JSON-safe 静态值；函数、实例、循环引用、访问器、symbol、bigint、非有限数及 `-0` 不能写入 Manifest。复杂类型默认使用 `attr: false`，除非声明了受支持的序列化策略。
 
+### 1.1 Attribute 名称
+
+每个 prop 观察的 attribute 只有一种推导，`@zeus-js/component-analyzer` 的
+`getComponentAttributeName` 与 runtime-dom 的 `getCustomElementAttributeName` 必须一致：
+
+- `attr: false` 表示仅 property；
+- string、number、boolean 以及声明了 `deserialize` 的结构化 prop 由 attribute 承载，其余仅 property；
+- 名称为 `attr` 别名或 camelCase 转 kebab-case，并统一小写（HTML attribute 名不区分大小写，
+  `attr: 'dataURL'` 观察的是 `dataurl`）。
+
+eager `defineElement`、lazy loader、Manifest 校验、Custom Elements Manifest、VSCode Custom Data 与
+React/Vue wrapper 都使用这一规则；wrapper 只为 primitive 值写 attribute，结构化值始终按 property 传递。
+`packages/web-c/output-wc/__tests__/abi-consistency.spec.ts` 以运行时元素的 `observedAttributes`
+为基准逐一比对这些产物。
+
+### 1.2 运行时 loader ABI
+
+`schemaVersion` 只描述 Manifest 布局，不另设 `runtimeAbiVersion` 字段。组件包生成的 loader 以裸
+specifier 导入消费者安装的 `@zeus-js/web-c-runtime`，两者之间的契约用导出名表达：生成代码导入
+`ZEUS_WC_RUNTIME_ABI_1`。当 lazy meta、`hostRef` 或 `createComponent` 契约发生不兼容变化时，运行时把
+该导出改名为下一个编号，output-wc 同步生成新导入。消费者构建混用两者时，打包器在构建期报出
+`"ZEUS_WC_RUNTIME_ABI_1" is not exported`，指明需要重新构建组件包或安装匹配的运行时；不在运行时猜测
+或降级。beta 阶段按 AGENTS.md 2.6 不为旧组件包保留兼容层，迁移方式就是用匹配版本重新构建。
+
 `schemaVersion: 1` 是唯一接受的版本字段；Analyzer 与各输出层不得写入旧的 `version` 字段，也不得把另一套字段布局混入同一产物。包名/版本来自 package metadata，不属于当前 Manifest schema。`styles` 与 `styleNonce` 是组件实现配置：lazy entry 加载组件模块后由 `mountElementDefinition` 从 definition options 注入，它们不复制进 ABI Manifest。当前 v1 的事件可选字段使用上文唯一表示；后续若改变已有字段的含义或替换字段布局，必须升级 schema 并显式迁移，符合 beta 阶段不保留兼容入口的规则。
 
 ## 2. 值与生命周期语义

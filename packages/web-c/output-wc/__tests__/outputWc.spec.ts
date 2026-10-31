@@ -210,7 +210,7 @@ describe('output-wc', () => {
 
       expect(wrapperBridge).toBeTruthy()
       expect(wrapperBridge.code).toContain(
-        'import { bootstrapLazy } from "@zeus-js/web-c-runtime"',
+        'import { bootstrapLazy, ZEUS_WC_RUNTIME_ABI_1 } from "@zeus-js/web-c-runtime"',
       )
       expect(wrapperBridge.code).toContain(
         'export function defineCustomElement(options',
@@ -1087,6 +1087,26 @@ describe('output-wc', () => {
       }
     }, 30_000)
 
+    it('fails the consumer build when the installed runtime implements another loader ABI', async () => {
+      const fixture = await createStrictPnpmViteFixture()
+
+      try {
+        // A runtime whose loader contract changed renames the ABI marker.
+        await fs.writeFile(
+          fixture.runtimeEntry,
+          'export function bootstrapLazy() {}\nexport function resolveHostProperties() {}\nexport const ZEUS_WC_RUNTIME_ABI_2 = 2\n',
+        )
+
+        await expect(
+          buildViteConsumer(fixture, id =>
+            ['@zeus-js/runtime-dom', '@zeus-js/zeus'].includes(id),
+          ),
+        ).rejects.toThrow(/"ZEUS_WC_RUNTIME_ABI_1" is not exported/)
+      } finally {
+        await fs.rm(fixture.root, { force: true, recursive: true })
+      }
+    }, 30_000)
+
     it('does not emit absolute install paths when node_modules are external', async () => {
       const fixture = await createStrictPnpmViteFixture()
 
@@ -1373,7 +1393,7 @@ async function createStrictPnpmViteFixture(): Promise<StrictPnpmViteFixture> {
     runtimeRoot,
     '@zeus-js/web-c-runtime',
     'dist/index.js',
-    'export function bootstrapLazy() {}\nexport function resolveHostProperties() {}\n',
+    'export function bootstrapLazy() {}\nexport function resolveHostProperties() {}\nexport const ZEUS_WC_RUNTIME_ABI_1 = 1\n',
   )
   await writeTestPackage(
     zeusRoot,
@@ -1403,6 +1423,16 @@ async function createStrictPnpmViteFixture(): Promise<StrictPnpmViteFixture> {
       'export const generateWCDtsFiles = () => []',
       'export const generateWCJsxDts = () => ""',
       'export const formatDetailType = () => "{}"',
+      '',
+    ].join('\n'),
+  )
+  await writeTestPackage(
+    path.join(outputWcNodeModules, '@zeus-js/component-analyzer'),
+    '@zeus-js/component-analyzer',
+    'index.js',
+    [
+      'export const isAttributeBackedPropType = () => false',
+      'export const getComponentAttributeName = () => false',
       '',
     ].join('\n'),
   )

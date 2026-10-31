@@ -1,4 +1,12 @@
-import type { ComponentRecord } from '@zeus-js/component-analyzer'
+import {
+  getComponentAttributeName,
+  isAttributeBackedPropType,
+} from '@zeus-js/component-analyzer'
+
+import type {
+  ComponentProp,
+  ComponentRecord,
+} from '@zeus-js/component-analyzer'
 
 export interface GenerateReactWrapperOptions {
   component: ComponentRecord
@@ -289,16 +297,7 @@ function generateSSRAttributeAssignments(
   for (const [index, { sourceName, localName }] of bindings.entries()) {
     const prop = component.props[sourceName]
     if (!prop) continue
-    const attributeName =
-      prop.attr === false
-        ? undefined
-        : (prop.attr ??
-          (prop.type === 'object' ||
-          prop.type === 'array' ||
-          prop.type === 'function' ||
-          prop.type === 'unknown'
-            ? undefined
-            : toKebabCase(sourceName)))
+    const attributeName = getWrapperAttributeName(sourceName, prop)
     if (attributeName) {
       lines.push(
         `  if (propPresent${index}) rest[${JSON.stringify(attributeName)}] = ${localName};`,
@@ -456,6 +455,17 @@ function generateMinimalEventAssignments(bindings: EventBinding[]): string {
     .join('\n')
 }
 
+// The wrapper writes attributes only for primitive values. Structured props
+// stay properties even when the element can also parse them from an attribute.
+function getWrapperAttributeName(
+  name: string,
+  prop: ComponentProp,
+): string | false {
+  return isAttributeBackedPropType(prop.type)
+    ? getComponentAttributeName(name, prop)
+    : false
+}
+
 function toKebabCase(value: string): string {
   return value.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
 }
@@ -496,20 +506,7 @@ function generateRuntimeReactWrapper(
 function formatRuntimePropertyConfig(component: ComponentRecord): string {
   const config: Record<string, string | false> = {}
   for (const [name, prop] of Object.entries(component.props)) {
-    if (prop.attr === false) {
-      config[name] = false
-    } else if (typeof prop.attr === 'string') {
-      config[name] = prop.attr
-    } else if (
-      prop.type === 'object' ||
-      prop.type === 'array' ||
-      prop.type === 'function' ||
-      prop.type === 'unknown'
-    ) {
-      config[name] = false
-    } else {
-      config[name] = toKebabCase(name)
-    }
+    config[name] = getWrapperAttributeName(name, prop)
   }
   return JSON.stringify(config)
 }

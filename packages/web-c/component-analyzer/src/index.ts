@@ -3,6 +3,7 @@ export { analyzeComponents } from './analyzeComponents'
 /** @internal */
 export { analyzeComponentsWithDependencies } from './analyzeComponents'
 export { PORTABLE_GLOBAL_TYPE_REFERENCES } from './portable-types'
+export { getComponentAttributeName, isAttributeBackedPropType } from './abi'
 
 export type {
   AnalyzeComponentsOptions,

@@ -1,3 +1,5 @@
+import { getComponentAttributeName } from '@zeus-js/component-analyzer'
+
 import type { ComponentManifest } from '@zeus-js/component-analyzer'
 
 export function generateZeusComponentsManifest(
@@ -49,14 +51,7 @@ export function validateComponentManifest(manifest: ComponentManifest): void {
 
     const attributes = new Map<string, string>()
     for (const [propName, prop] of Object.entries(component.props ?? {})) {
-      const attrName =
-        prop.attr === false
-          ? false
-          : typeof prop.attr === 'string'
-            ? prop.attr
-            : ['string', 'number', 'boolean'].includes(prop.type)
-              ? propName.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
-              : false
+      const attrName = getComponentAttributeName(propName, prop)
       if (attrName !== false) {
         const previous = attributes.get(attrName)
         if (previous && previous !== propName) {

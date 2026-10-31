@@ -1,3 +1,4 @@
+import { getComponentAttributeName } from '@zeus-js/component-analyzer'
 import { formatDetailType } from '@zeus-js/component-dts'
 
 import { validateComponentManifest } from './generateManifest'
@@ -162,7 +163,7 @@ function generateAttributes(
   const result: CustomElementAttribute[] = []
 
   for (const [name, prop] of Object.entries(component.props)) {
-    const attrName = getAttributeName(name, prop)
+    const attrName = getComponentAttributeName(name, prop)
 
     if (attrName === false) continue
 
@@ -254,17 +255,6 @@ function generateSlots(component: ComponentRecord): CustomElementSlot[] {
   })
 }
 
-function getAttributeName(
-  propName: string,
-  prop: ComponentProp,
-): string | false {
-  if (prop.attr === false) return false
-  if (typeof prop.attr === 'string') return prop.attr
-  if (!isAttributeBackedType(prop.type)) return false
-
-  return propName.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
-}
-
 function formatPropType(prop: ComponentProp): string {
   if (prop.values?.length) {
     return prop.values.map(value => JSON.stringify(value)).join(' | ')
@@ -286,10 +276,6 @@ function formatPropType(prop: ComponentProp): string {
     default:
       return 'unknown'
   }
-}
-
-function isAttributeBackedType(type: ComponentProp['type']): boolean {
-  return type === 'string' || type === 'number' || type === 'boolean'
 }
 
 function normalizeModulePath(value: string): string {
