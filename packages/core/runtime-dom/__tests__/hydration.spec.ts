@@ -38,6 +38,44 @@ describe('hydrate', () => {
     expect(clicks).toEqual([1])
   })
 
+  it('adopts bounded dynamic text without absorbing adjacent static text', () => {
+    const dom = new JSDOM(
+      '<p><!--zeus:hydrate:a-->A<!--zeus:hydrate:/--> world <!--zeus:hydrate:b-->B<!--zeus:hydrate:/--></p>',
+    )
+    const p = dom.window.document.querySelector('p')!
+    const serverText = p.childNodes[1]
+    const [a, setA] = createSignal('A')
+
+    const dispose = hydrate(p, context => {
+      context.text('a', a)
+      context.text('b', () => 'B2')
+    })
+
+    expect(p.childNodes[1]).toBe(serverText)
+    expect(p.textContent).toBe('A world B2')
+    setA('A2')
+    expect(p.textContent).toBe('A2 world B2')
+    dispose()
+  })
+
+  it('creates a text node for a dynamic value the server rendered empty', () => {
+    const dom = new JSDOM(
+      '<p><!--zeus:hydrate:a--><!--zeus:hydrate:/-->tail<!--zeus:hydrate:b--><!--zeus:hydrate:/--></p>',
+    )
+    const p = dom.window.document.querySelector('p')!
+    const [a, setA] = createSignal('')
+
+    const dispose = hydrate(p, context => {
+      context.text('a', a)
+      context.text('b', () => 'end')
+    })
+
+    expect(p.textContent).toBe('tailend')
+    setA('head-')
+    expect(p.textContent).toBe('head-tailend')
+    dispose()
+  })
+
   it('reports missing or mismatched hydration targets', () => {
     const dom = new JSDOM('<main><!--zeus:hydrate:title--><div></div></main>')
     const main = dom.window.document.querySelector('main')!

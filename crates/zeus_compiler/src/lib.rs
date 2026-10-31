@@ -6,6 +6,7 @@ pub mod diagnostic;
 pub mod ir;
 pub mod lower;
 pub mod span;
+mod ssr;
 
 use serde::{Deserialize, Serialize};
 
@@ -136,6 +137,18 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
             }).collect(),
             hydration_plan: None,
         };
+    }
+
+    if options.target == TransformTarget::Ssr {
+        let diagnostics = ssr::validate_ssr_properties(&ir, &options.filename);
+        if !diagnostics.is_empty() {
+            return TransformModuleResult {
+                code: String::new(),
+                map: None,
+                diagnostics,
+                hydration_plan: None,
+            };
+        }
     }
 
     let hydration_plan = hydration::build_hydration_plan(&ir);

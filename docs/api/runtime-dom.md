@@ -28,7 +28,10 @@ function hydratePlan(
 ```
 
 `hydrate()` reuses DOM nodes located by `<!--zeus:hydrate:id-->` markers and
-attaches explicit text, attribute, property and event bindings. `hydratePlan()`
+attaches explicit text, attribute, property and event bindings. A
+`<!--zeus:hydrate:/-->` marker closes a dynamic text value; when it directly
+follows the text's own marker, the server rendered an empty string and
+`hydrate()` inserts an empty text node there to bind. `hydratePlan()`
 iterates the compiler's stable binding plan and invokes one handler for every
 planned binding. Missing handlers throw `ZEUS_HYDRATION_HANDLER_MISSING`; setup
 failures release effects and listeners already attached. The returned disposer

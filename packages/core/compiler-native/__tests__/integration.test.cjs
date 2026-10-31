@@ -1032,6 +1032,84 @@ export const render = props => renderToString(() => (
   }
 })
 
+test('native compiler SSR text hydrates empty values and keeps adjacent static text', async () => {
+  const ssrSource = `import { renderToString } from '@zeus-js/runtime-ssr'
+
+export const App = props => <p>{props.a} world {props.b}</p>
+export const render = props => renderToString(() => App(props))
+`
+  const { hydrationPlan } = transformModule({
+    source: ssrSource,
+    filename: 'App.tsx',
+    target: 'ssr',
+    runtimeModule: '@zeus-js/runtime-ssr',
+    delegateEvents: true,
+    sourceMap: false,
+  })
+  const fixture = createFixture(ssrSource)
+  const { createServer } = await import('vite')
+  const server = await createServer({
+    root: fixture.root,
+    configFile: false,
+    logLevel: 'silent',
+    optimizeDeps: { noDiscovery: true },
+    define: {
+      __DEV__: 'true',
+      __TEST__: 'true',
+      __VERSION__: JSON.stringify('test'),
+    },
+    resolve: { alias: runtimeAliases() },
+    plugins: [createNativePlugin('ssr')],
+    server: { middlewareMode: true },
+  })
+
+  try {
+    const module = await server.ssrLoadModule('/src/App.tsx')
+    const html = module.render({ a: '', b: 'B' })
+    assert.equal(stripHydrationMarkers(html), '<p> world B</p>')
+
+    const restoreDOM = installDOMGlobals()
+    try {
+      const runtime = await server.ssrLoadModule(
+        path.join(repositoryRoot, 'packages/core/runtime-dom/src/index.ts'),
+      )
+      const { createSignal } = await server.ssrLoadModule(
+        path.join(repositoryRoot, 'packages/core/signal/src/index.ts'),
+      )
+      const container = document.createElement('div')
+      container.innerHTML = html
+      const paragraph = container.querySelector('p')
+      const staticText = [...paragraph.childNodes].find(
+        node => node.nodeType === 3 && node.data === ' world ',
+      )
+      assert.ok(staticText)
+
+      const [a, setA] = createSignal('')
+      const [b, setB] = createSignal('B')
+      const values = { 'c1.t3': a, 'c1.t5': b }
+      const handlers = {}
+      for (const node of hydrationPlan.components[0].nodes) {
+        for (const binding of node.bindings) {
+          handlers[binding.id] = (context, _binding, planNode, occurrence) =>
+            context.text(planNode.id, values[planNode.id], occurrence)
+        }
+      }
+      const dispose = runtime.hydratePlan(container, hydrationPlan, handlers)
+
+      setA('A2')
+      setB('B2')
+      assert.equal(paragraph.textContent, 'A2 world B2')
+      assert.ok(paragraph.contains(staticText))
+      dispose()
+    } finally {
+      restoreDOM()
+    }
+  } finally {
+    await server.close()
+    rmSync(fixture.root, { force: true, recursive: true })
+  }
+})
+
 test('native compiler binds non-bubbling and non-delegated events on the element', async () => {
   const eventSource = `import { render } from '@zeus-js/runtime-dom'
 const calls = []

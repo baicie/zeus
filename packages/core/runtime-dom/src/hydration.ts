@@ -5,6 +5,9 @@ import { createOwner, disposeOwner, runWithOwner } from './context'
 import { emitDevtoolsEvent, getDevtoolsObjectId } from './devtools'
 
 const MARKER_PREFIX = 'zeus:hydrate:'
+// Compiled SSR output closes every dynamic text value with this marker so the
+// HTML parser keeps it apart from adjacent static text. It is not a node id.
+const TEXT_END_ID = '/'
 
 export interface HydrationContext {
   node(id: string, expectedTag?: string, occurrence?: number): Node
@@ -282,19 +285,38 @@ function indexMarkers(
   container: Element | DocumentFragment,
 ): Map<string, Comment[]> {
   const markers = new Map<string, Comment[]>()
+  const emptyTextEnds: Comment[] = []
   const walker = container.ownerDocument!.createTreeWalker(container, 0x80)
   let current = walker.nextNode()
   while (current) {
     const data = (current as Comment).data
     if (data.startsWith(MARKER_PREFIX)) {
       const id = data.slice(MARKER_PREFIX.length)
-      const entries = markers.get(id) ?? []
-      entries.push(current as Comment)
-      markers.set(id, entries)
+      if (id === TEXT_END_ID) {
+        if (isMarker(current.previousSibling)) {
+          emptyTextEnds.push(current as Comment)
+        }
+      } else {
+        const entries = markers.get(id) ?? []
+        entries.push(current as Comment)
+        markers.set(id, entries)
+      }
     }
     current = walker.nextNode()
   }
+  // The server rendered an empty string, which leaves no text node to adopt.
+  for (const end of emptyTextEnds) {
+    end.before(end.ownerDocument.createTextNode(''))
+  }
   return markers
+}
+
+function isMarker(node: Node | null): boolean {
+  return (
+    node !== null &&
+    node.nodeType === 8 &&
+    (node as Comment).data.startsWith(MARKER_PREFIX)
+  )
 }
 
 function nextHydratableNode(marker: Comment): Node | null {

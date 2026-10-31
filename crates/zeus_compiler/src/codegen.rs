@@ -14,6 +14,7 @@ use crate::{
         TransitionBindingIr, TransitionOptionIr, is_children_expression,
     },
     lower::HmrInfo,
+    span::SourceIndex,
 };
 
 #[derive(Clone, Copy)]
@@ -68,6 +69,7 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
         .collect::<Vec<_>>();
     intern_static_templates(&mut generated);
 
+    let source_index = SourceIndex::new(source);
     let mut writer = CodeWriter::default();
     let mut cursor = usize::try_from(module.preamble_end)
         .unwrap_or(usize::MAX)
@@ -79,7 +81,14 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
         pure_define_element.is_enabled(),
         pure_define_element_calls,
     );
-    push_source_range(&mut writer, source, 0, cursor, &source_insertions, false);
+    push_source_range(
+        &mut writer,
+        &source_index,
+        0,
+        cursor,
+        &source_insertions,
+        false,
+    );
     if cursor > 0 && !writer.code.ends_with('\n') {
         writer.push("\n");
     }
@@ -97,7 +106,7 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
     };
     cursor = emit_components(
         &mut writer,
-        source,
+        &source_index,
         cursor,
         &generated,
         &source_insertions,
@@ -105,7 +114,7 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
     );
     push_source_range(
         &mut writer,
-        source,
+        &source_index,
         cursor,
         source.len(),
         &source_insertions,
@@ -210,6 +219,10 @@ struct ComponentEmitter<'a> {
     names: &'a mut NameAllocator,
 }
 
+/// Closes an SSR dynamic text node; `hydrate` in `@zeus-js/runtime-dom` reads
+/// it as `zeus:hydrate:/`.
+const SSR_TEXT_END_MARKER: &str = "<!--zeus:hydrate:/-->";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SsrTextContext {
     Normal,
@@ -219,7 +232,7 @@ enum SsrTextContext {
 
 fn emit_components(
     writer: &mut CodeWriter,
-    source: &str,
+    source_index: &SourceIndex<'_>,
     mut cursor: usize,
     components: &[GeneratedComponent],
     source_insertions: &[SourceInsertion],
@@ -228,10 +241,17 @@ fn emit_components(
     for component in components {
         let start = usize::try_from(component.start).unwrap_or(usize::MAX);
         let end = usize::try_from(component.end).unwrap_or(usize::MAX);
-        if start < cursor || end > source.len() {
+        if start < cursor || end > source_index.source().len() {
             continue;
         }
-        push_source_range(writer, source, cursor, start, source_insertions, false);
+        push_source_range(
+            writer,
+            source_index,
+            cursor,
+            start,
+            source_insertions,
+            false,
+        );
         emit_component(
             writer,
             component,
@@ -277,7 +297,7 @@ fn allocate_hmr_insertions(
 
 fn push_source_range(
     writer: &mut CodeWriter,
-    source: &str,
+    source_index: &SourceIndex<'_>,
     start: usize,
     end: usize,
     insertions: &[SourceInsertion],
@@ -291,11 +311,11 @@ fn push_source_range(
         {
             continue;
         }
-        writer.push(&source[cursor..insertion.offset]);
+        writer.push_original(source_index, cursor, insertion.offset);
         writer.push(&insertion.text);
         cursor = insertion.offset;
     }
-    writer.push(&source[cursor..end]);
+    writer.push_original(source_index, cursor, end);
 }
 
 #[derive(Debug, Clone)]
@@ -386,8 +406,10 @@ pub(crate) fn emit_ssr_module(options: &SsrModuleOptions<'_>) -> TransformModule
     } = *options;
     let mut names = NameAllocator::new(reserved_names);
     let runtime = SsrRuntimeNames::allocate(&mut names);
+    let source_index = SourceIndex::new(source);
     let source_emitter = SsrSourceEmitter {
         source,
+        source_index: &source_index,
         runtime_module,
         define_element_calls,
         ssr_runtime_imports,
@@ -437,6 +459,7 @@ pub(crate) fn emit_ssr_module(options: &SsrModuleOptions<'_>) -> TransformModule
 
 struct SsrSourceEmitter<'a> {
     source: &'a str,
+    source_index: &'a SourceIndex<'a>,
     runtime_module: &'a str,
     define_element_calls: &'a [oxc_span::Span],
     ssr_runtime_imports: &'a [oxc_span::Span],
@@ -472,11 +495,11 @@ impl SsrSourceEmitter<'_> {
             if replacement_start < cursor {
                 continue;
             }
-            writer.push(&self.source[cursor..replacement_start]);
+            writer.push_original(self.source_index, cursor, replacement_start);
             writer.push(&replacement);
             cursor = replacement_end;
         }
-        writer.push(&self.source[cursor..end]);
+        writer.push_original(self.source_index, cursor, end);
     }
 }
 
@@ -571,6 +594,8 @@ fn emit_ssr_child(
                 writer.push_mapped(&text.expression.code, &text.expression);
                 writer.push(")");
             }
+            // The end boundary keeps the HTML parser from merging the value
+            // with adjacent static text and gives an empty value a position.
             SsrTextContext::Normal => {
                 writer.push("[");
                 emit_ssr_marker(
@@ -582,8 +607,11 @@ fn emit_ssr_child(
                 writer.push(runtime.text());
                 writer.push("(");
                 writer.push_mapped(&text.expression.code, &text.expression);
-                writer.push(")");
-                writer.push("]");
+                writer.push("), ");
+                writer.push(runtime.static_text());
+                writer.push("(");
+                writer.push(&quote_js(SSR_TEXT_END_MARKER));
+                writer.push(")]");
             }
         },
         ChildIr::Component(component) => {
@@ -3914,6 +3942,44 @@ impl CodeWriter {
                 self.column = self
                     .column
                     .saturating_add(u32::try_from(character.len_utf16()).unwrap_or(u32::MAX));
+            }
+        }
+    }
+
+    /// Copies `start..end` of the original source verbatim, mapping the first
+    /// token of every line and every identifier back to its original position.
+    fn push_original(&mut self, source_index: &SourceIndex<'_>, start: usize, end: usize) {
+        if start >= end {
+            return;
+        }
+        let origin = source_index.position(u32::try_from(start).unwrap_or(u32::MAX));
+        let mut original_line = origin.line.saturating_sub(1);
+        let mut original_column = origin.column;
+        let mut at_line_start = true;
+        let mut in_identifier = false;
+        for character in source_index.source()[start..end].chars() {
+            let identifier = character == '_' || character == '$' || character.is_alphanumeric();
+            if (at_line_start && !character.is_whitespace()) || (identifier && !in_identifier) {
+                self.mappings.push(Mapping {
+                    generated_line: self.line,
+                    generated_column: self.column,
+                    original_line,
+                    original_column,
+                });
+                at_line_start = false;
+            }
+            in_identifier = identifier;
+            self.code.push(character);
+            if character == '\n' {
+                self.line = self.line.saturating_add(1);
+                self.column = 0;
+                original_line = original_line.saturating_add(1);
+                original_column = 0;
+                at_line_start = true;
+            } else {
+                let width = u32::try_from(character.len_utf16()).unwrap_or(u32::MAX);
+                self.column = self.column.saturating_add(width);
+                original_column = original_column.saturating_add(width);
             }
         }
     }

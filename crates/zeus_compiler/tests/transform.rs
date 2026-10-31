@@ -1754,6 +1754,12 @@ export const App = props => <main title={props.title}>
             ssr.code
         );
     }
+    assert!(
+        ssr.code
+            .contains(r#"$zeusSsrText(props.label), $zeusSsrStatic("<!--zeus:hydrate:/-->")]"#),
+        "dynamic text must be closed by an end marker: {}",
+        ssr.code
+    );
 }
 
 #[test]
@@ -1832,6 +1838,68 @@ fn escapes_ssr_static_text_and_keeps_rcdata_free_of_hydration_markers() {
     for node in &plan.components[0].nodes {
         assert!(ssr.code.contains(&node.id), "missing marker {}", node.id);
     }
+}
+
+#[test]
+fn rejects_ssr_properties_without_an_html_equivalent() {
+    let source = r"import { Show } from '@zeus-js/zeus'
+export const App = props => <form>
+  <input prop:value={props.value} prop:checked={props.checked} prop:readOnly={props.locked} />
+  <textarea prop:value={props.text} />
+  <label prop:htmlFor={props.id} prop:tabIndex={0}>label</label>
+  <div prop:textContent={props.text} />
+  <Show when={props.open}>
+    <select prop:value={props.choice} />
+  </Show>
+  <z-card prop:model={props.model} />
+</form>
+";
+    let compile = |target| {
+        transform_module(TransformModuleOptions {
+            source: source.into(),
+            filename: "ssr-property.tsx".into(),
+            target,
+            runtime_module: if target == TransformTarget::Ssr {
+                "@zeus-js/runtime-ssr".into()
+            } else {
+                "@zeus-js/runtime-dom".into()
+            },
+            delegate_events: false,
+            source_map: false,
+            hmr: false,
+            pure_define_element: PureDefineElementMode::Disabled,
+        })
+    };
+
+    let dom = compile(TransformTarget::Dom);
+    assert!(dom.diagnostics.is_empty(), "{:?}", dom.diagnostics);
+
+    let ssr = compile(TransformTarget::Ssr);
+    assert!(ssr.code.is_empty());
+    let rejected = ssr
+        .diagnostics
+        .iter()
+        .map(|diagnostic| {
+            assert_eq!(diagnostic.code, "ZEUS_UNSUPPORTED_SSR_PROPERTY");
+            let span = diagnostic.span.as_ref().expect("property span");
+            let start = usize::try_from(span.start.offset).unwrap();
+            let end = usize::try_from(span.end.offset).unwrap();
+            &source[start..end]
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        rejected,
+        vec![
+            "prop:textContent={props.text}",
+            "prop:value={props.choice}",
+            "prop:model={props.model}",
+        ]
+    );
+    assert!(
+        ssr.diagnostics[1]
+            .message
+            .contains("property \"value\" on <select>")
+    );
 }
 
 #[test]
@@ -1915,6 +1983,42 @@ fn assert_expression_mapping(
         .unwrap(),
         "column mapping for {expression}"
     );
+}
+
+#[test]
+fn maps_verbatim_source_outside_jsx_for_dom_and_ssr() {
+    let source = "const label = '\u{1f600}\u{4e2d}'; const helper = (n: number) => n * 2\r\nexport const App = props => <p>{helper(props.n)}</p>\r\nexport const tail = label\r\n";
+    for (target, runtime_module) in [
+        (TransformTarget::Dom, "@zeus-js/runtime-dom"),
+        (TransformTarget::Ssr, "@zeus-js/runtime-ssr"),
+    ] {
+        let transformed = transform_module(TransformModuleOptions {
+            source: source.into(),
+            filename: "verbatim-map.tsx".into(),
+            target,
+            runtime_module: runtime_module.into(),
+            delegate_events: false,
+            source_map: true,
+            hmr: false,
+            pure_define_element: PureDefineElementMode::Disabled,
+        });
+        assert!(
+            transformed.diagnostics.is_empty(),
+            "{:?}",
+            transformed.diagnostics
+        );
+
+        for expression in [
+            "const label",
+            "const helper",
+            "n * 2",
+            "helper(props.n)",
+            "export const tail",
+            "tail = label",
+        ] {
+            assert_expression_mapping(source, &transformed, expression);
+        }
+    }
 }
 
 #[test]
