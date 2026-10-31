@@ -1,4 +1,4 @@
-import type { ComponentProp, ComponentPropType } from './types'
+import type { ComponentEvent, ComponentProp, ComponentPropType } from './types'
 
 /**
  * Whether the prop type converts to and from an attribute without a codec.
@@ -21,6 +21,23 @@ export function getComponentAttributeName(
   if (prop.attr === false) return false
   if (!isAttributeBackedPropType(prop.type) && !prop.deserialize) return false
   return (prop.attr ?? toKebabCase(propName)).toLowerCase()
+}
+
+/**
+ * The DOM event name a component dispatches for an `emits` entry: the
+ * declared name, or the kebab-case form of its key. Matches the `emit` API of
+ * `defineElement` in `@zeus-js/runtime-dom`.
+ */
+export function getComponentEventName(
+  key: string,
+  event: ComponentEvent,
+): string {
+  return event.name ?? toKebabCase(event.key ?? key)
+}
+
+/** RFC-010 requires unique kebab-case DOM event names. */
+export function isValidComponentEventName(name: string): boolean {
+  return /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(name)
 }
 
 function toKebabCase(value: string): string {

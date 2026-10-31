@@ -1,5 +1,6 @@
 import {
   getComponentAttributeName,
+  getComponentEventName,
   isAttributeBackedPropType,
 } from '@zeus-js/component-analyzer'
 
@@ -264,7 +265,7 @@ function createEventBindings(
     const sourceEventName = event.key ?? key
 
     return {
-      eventName: event.name ?? toKebabCase(sourceEventName),
+      eventName: getComponentEventName(key, event),
       sourceName: event.reactName ?? toReactEventProp(sourceEventName),
       localName: `eventHandler${index}`,
     }
@@ -466,10 +467,6 @@ function getWrapperAttributeName(
     : false
 }
 
-function toKebabCase(value: string): string {
-  return value.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
-}
-
 function toReactEventProp(value: string): string {
   return `on${value
     .split('-')
@@ -518,7 +515,7 @@ function createRuntimeEventMap(
 
   for (const [key, event] of Object.entries(component.events)) {
     const sourceEventName = event.key ?? key
-    const domEventName = event.name ?? toKebabCase(sourceEventName)
+    const domEventName = getComponentEventName(key, event)
     const reactPropName = event.reactName ?? toReactEventProp(sourceEventName)
 
     events[reactPropName] = domEventName

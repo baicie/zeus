@@ -1,5 +1,6 @@
 import {
   getComponentAttributeName,
+  getComponentEventName,
   isAttributeBackedPropType,
 } from '@zeus-js/component-analyzer'
 
@@ -158,7 +159,7 @@ function getCapabilities(component: ComponentRecord): WrapperCapabilities {
     eventNames: Array.from(
       new Set([
         ...Object.entries(component.events).map(([key, event]) => {
-          return event.name ?? toKebabCase(event.key ?? key)
+          return getComponentEventName(key, event)
         }),
         ...models.map(model => model.event),
       ]),
@@ -351,7 +352,7 @@ function getEventNames(component: ComponentRecord): string[] {
   return Array.from(
     new Set(
       Object.entries(component.events).map(([key, event]) => {
-        return event.name ?? toKebabCase(event.key ?? key)
+        return getComponentEventName(key, event)
       }),
     ),
   )

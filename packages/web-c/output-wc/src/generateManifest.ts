@@ -1,4 +1,8 @@
-import { getComponentAttributeName } from '@zeus-js/component-analyzer'
+import {
+  getComponentAttributeName,
+  getComponentEventName,
+  isValidComponentEventName,
+} from '@zeus-js/component-analyzer'
 
 import type { ComponentManifest } from '@zeus-js/component-analyzer'
 
@@ -63,6 +67,7 @@ export function validateComponentManifest(manifest: ComponentManifest): void {
       }
     }
 
+    const eventNames = new Map<string, string>()
     for (const [eventKey, event] of Object.entries(component.events ?? {})) {
       if (
         (event.name !== undefined && typeof event.name !== 'string') ||
@@ -78,6 +83,19 @@ export function validateComponentManifest(manifest: ComponentManifest): void {
         )
       }
       const eventPath = `${componentPath}.events.${eventKey}`
+      const eventName = getComponentEventName(eventKey, event)
+      if (!isValidComponentEventName(eventName)) {
+        throw new Error(
+          `[ZEUS_WC_EVENT_NAME] ${eventPath} dispatches "${eventName}", which is not a kebab-case DOM event name. Declare one explicitly, for example event('value-change').`,
+        )
+      }
+      const previousEvent = eventNames.get(eventName)
+      if (previousEvent !== undefined) {
+        throw new Error(
+          `[ZEUS_WC_EVENT_NAME] ${eventPath} and ${componentPath}.events.${previousEvent} both dispatch "${eventName}".`,
+        )
+      }
+      eventNames.set(eventName, eventKey)
       if (event.detail !== undefined)
         assertJsonSafe(event.detail, `${eventPath}.detail`)
       if (event.detailOptional !== undefined) {

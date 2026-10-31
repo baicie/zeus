@@ -1,3 +1,5 @@
+import { getComponentEventName } from '@zeus-js/component-analyzer'
+
 import { formatEventType, safePropertyName } from './formatType'
 import { getEventMapTypeName } from './naming'
 
@@ -7,14 +9,10 @@ export function generateEventMap(component: ComponentRecord): string {
   const lines = [`export interface ${getEventMapTypeName(component)} {`]
 
   for (const [key, event] of Object.entries(component.events)) {
-    const eventName = event.name ?? toKebabCase(event.key ?? key)
+    const eventName = getComponentEventName(key, event)
     lines.push(`  ${safePropertyName(eventName)}: ${formatEventType(event)}`)
   }
 
   lines.push('}')
   return lines.join('\n')
-}
-
-function toKebabCase(value: string): string {
-  return value.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
 }

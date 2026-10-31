@@ -194,4 +194,15 @@ export declare function getComponentAttributeName(
   propName: string,
   prop: ComponentProp,
 ): string | false
+/**
+ * The DOM event name a component dispatches for an `emits` entry: the
+ * declared name, or the kebab-case form of its key. Matches the `emit` API of
+ * `defineElement` in `@zeus-js/runtime-dom`.
+ */
+export declare function getComponentEventName(
+  key: string,
+  event: ComponentEvent,
+): string
+/** RFC-010 requires unique kebab-case DOM event names. */
+export declare function isValidComponentEventName(name: string): boolean
 ```

@@ -1,4 +1,7 @@
-import { getComponentAttributeName } from '@zeus-js/component-analyzer'
+import {
+  getComponentAttributeName,
+  getComponentEventName,
+} from '@zeus-js/component-analyzer'
 import { formatDetailType } from '@zeus-js/component-dts'
 
 import { validateComponentManifest } from './generateManifest'
@@ -233,7 +236,7 @@ function generateMethodMember(
 function generateEvents(component: ComponentRecord): CustomElementEvent[] {
   return Object.entries(component.events).map(([key, event]) => {
     return {
-      name: event.name ?? toKebabCase(event.key ?? key),
+      name: getComponentEventName(key, event),
       description: event.description,
       type: {
         text: event.detail
@@ -286,8 +289,4 @@ function getCssVars(
   component: ComponentRecord,
 ): Array<{ name: string; description?: string }> {
   return Object.values(component.cssVars)
-}
-
-function toKebabCase(value: string): string {
-  return value.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
 }

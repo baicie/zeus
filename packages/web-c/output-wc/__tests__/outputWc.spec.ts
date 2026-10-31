@@ -1433,6 +1433,8 @@ async function createStrictPnpmViteFixture(): Promise<StrictPnpmViteFixture> {
     [
       'export const isAttributeBackedPropType = () => false',
       'export const getComponentAttributeName = () => false',
+      'export const getComponentEventName = (key, event) => event.name ?? key',
+      'export const isValidComponentEventName = () => true',
       '',
     ].join('\n'),
   )

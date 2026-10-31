@@ -15,3 +15,7 @@ attributes only for primitive values. Generated loaders import
 `ZEUS_WC_RUNTIME_ABI_1` from `@zeus-js/web-c-runtime`, so a consumer build that
 pairs a component package with an incompatible runtime fails with a
 missing-export error instead of misbehaving at runtime.
+
+DOM event names follow the same single derivation. Manifest validation now
+reports `ZEUS_WC_EVENT_NAME` for a malformed or duplicate event name, such as
+the `-u-r-l-change` an `URLChange` key would dispatch.

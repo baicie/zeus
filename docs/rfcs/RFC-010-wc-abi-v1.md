@@ -140,6 +140,12 @@ React/Vue wrapper 都使用这一规则；wrapper 只为 primitive 值写 attrib
 `packages/web-c/output-wc/__tests__/abi-consistency.spec.ts` 以运行时元素的 `observedAttributes`
 为基准逐一比对这些产物。
 
+事件同理：`getComponentEventName` 给出 `emit` 实际派发的 DOM 名称（声明的 `name`，否则为 key 的
+kebab-case），CEM、WC/Vue 声明与 React/Vue wrapper 都使用它。Manifest 校验要求名称匹配
+`^[a-z][a-z0-9]*(-[a-z0-9]+)*$` 且同一组件内唯一，否则报 `ZEUS_WC_EVENT_NAME`；例如 key
+`URLChange` 会派发 `-u-r-l-change`，必须显式声明名称。一致性测试同样以运行时派发的事件、`expose` 安装的方法
+和实际渲染的 slot 为基准。
+
 ### 1.2 运行时 loader ABI
 
 `schemaVersion` 只描述 Manifest 布局，不另设 `runtimeAbiVersion` 字段。组件包生成的 loader 以裸

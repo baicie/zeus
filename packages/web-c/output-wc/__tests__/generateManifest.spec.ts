@@ -188,6 +188,44 @@ describe('generateManifest', () => {
     )
   })
 
+  it.each([
+    [{ URLChange: {} }, '"-u-r-l-change", which is not a kebab-case'],
+    [
+      { change: { name: 'Value Change' } },
+      '"Value Change", which is not a kebab-case',
+    ],
+    [{ change: { name: '' } }, '"", which is not a kebab-case'],
+    [
+      { valueChange: {}, change: { name: 'value-change' } },
+      'events.change and components[0].events.valueChange both dispatch "value-change"',
+    ],
+  ])(
+    'rejects malformed or duplicate DOM event names: %j',
+    (events, message) => {
+      const manifest = {
+        schemaVersion: 1,
+        components: [
+          {
+            tag: 'z-notice',
+            name: 'Notice',
+            exportName: 'Notice',
+            source: 'notice.tsx',
+            props: {},
+            slots: {},
+            hostAttributes: [],
+            cssParts: [],
+            cssVars: {},
+            events,
+          },
+        ],
+      }
+      expect(() => validateComponentManifest(manifest as any)).toThrow(
+        `[ZEUS_WC_EVENT_NAME] components[0].events.`,
+      )
+      expect(() => validateComponentManifest(manifest as any)).toThrow(message)
+    },
+  )
+
   it('requires optional event fields to belong to an existing detail map', () => {
     const component = {
       tag: 'z-notice',
