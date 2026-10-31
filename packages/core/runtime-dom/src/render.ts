@@ -1,6 +1,6 @@
 import { scope } from '@zeus-js/signal/internal'
 
-import { createOwner, runWithOwner } from './context'
+import { createOwner, disposeOwner, runWithOwner } from './context'
 import { emitDevtoolsEvent, getDevtoolsObjectId } from './devtools'
 import { insert } from './insert'
 
@@ -53,8 +53,34 @@ export function renderWithPreservedNodes(
     if (disposed) return
     disposed = true
 
-    renderScope.stop()
-    clearContainer(container, preserveNodes)
+    let failed = false
+    let firstError: unknown
+
+    try {
+      renderScope.stop()
+    } catch (error) {
+      failed = true
+      firstError = error
+    }
+
+    try {
+      clearContainer(container, preserveNodes)
+    } catch (error) {
+      if (!failed) {
+        failed = true
+        firstError = error
+      }
+    }
+
+    try {
+      disposeOwner(owner)
+    } catch (error) {
+      if (!failed) {
+        failed = true
+        firstError = error
+      }
+    }
+
     if (typeof window !== 'undefined' && window.__ZEUS_DEVTOOLS_HOOK__) {
       emitDevtoolsEvent(
         {
@@ -65,6 +91,8 @@ export function renderWithPreservedNodes(
         { swallowErrors: true },
       )
     }
+
+    if (failed) throw firstError
   }
 
   return Object.defineProperty(dispose, 'active', {

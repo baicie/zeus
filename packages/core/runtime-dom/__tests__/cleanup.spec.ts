@@ -1,4 +1,5 @@
 import {
+  createRuntimeDiagnosticsSession,
   effect,
   onCleanup,
   onScopeDispose,
@@ -42,6 +43,46 @@ describe('runtime cleanup', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
     dom.window.close()
+  })
+
+  it('balances owner, binding, and listener diagnostics on disposal', () => {
+    const diagnostics = createRuntimeDiagnosticsSession()
+
+    diagnostics.run(() => {
+      const container = document.createElement('div')
+      const text = document.createTextNode('')
+      const dispose = render(() => {
+        bindText(text, () => 'value')
+        return text
+      }, container)
+
+      const host = document.createElement('div')
+      const shadow = host.attachShadow({ mode: 'closed' })
+      const button = document.createElement('button')
+      shadow.append(button)
+      const listenerScope = scope()
+      listenerScope.run(() => {
+        bindEvent(button, 'click', () => undefined)
+      })
+
+      expect(diagnostics.snapshot()).toMatchObject({
+        ownersCreated: 1,
+        bindingsCreated: 1,
+        listenersCreated: 1,
+      })
+
+      dispose()
+      listenerScope.stop()
+    })
+
+    expect(diagnostics.snapshot()).toMatchObject({
+      ownersCreated: 1,
+      ownersDisposed: 1,
+      bindingsCreated: 1,
+      bindingsDisposed: 1,
+      listenersCreated: 1,
+      listenersDisposed: 1,
+    })
   })
 
   it('clears event handler on scope stop', () => {

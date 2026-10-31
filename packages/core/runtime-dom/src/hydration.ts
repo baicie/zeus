@@ -1,7 +1,7 @@
 import { onScopeDispose, scope } from '@zeus-js/signal/internal'
 
 import { bindAttr, bindProp, bindText } from './bindings'
-import { createOwner, runWithOwner } from './context'
+import { createOwner, disposeOwner, runWithOwner } from './context'
 import { emitDevtoolsEvent, getDevtoolsObjectId } from './devtools'
 
 const MARKER_PREFIX = 'zeus:hydrate:'
@@ -96,15 +96,19 @@ function runHydration(
     hydrationScope.run(() => {
       const owner = createOwner()
       onScopeDispose(() => {
-        if (typeof window !== 'undefined' && window.__ZEUS_DEVTOOLS_HOOK__) {
-          emitDevtoolsEvent(
-            {
-              type: 'owner:dispose',
-              ownerId: getDevtoolsObjectId(owner),
-              target: container,
-            },
-            { swallowErrors: true },
-          )
+        try {
+          if (typeof window !== 'undefined' && window.__ZEUS_DEVTOOLS_HOOK__) {
+            emitDevtoolsEvent(
+              {
+                type: 'owner:dispose',
+                ownerId: getDevtoolsObjectId(owner),
+                target: container,
+              },
+              { swallowErrors: true },
+            )
+          }
+        } finally {
+          disposeOwner(owner)
         }
       }, true)
       runWithOwner(owner, () => setup(context))

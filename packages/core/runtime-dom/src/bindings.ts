@@ -3,6 +3,7 @@ import {
   effect,
   getCurrentEffect,
   getCurrentScope,
+  incrementRuntimeDiagnostics,
   onScopeDispose,
   untrack,
 } from '@zeus-js/signal/internal'
@@ -66,6 +67,8 @@ export function bindEffect<T>(
   apply: (next: T) => void,
   metadata: BindingMetadata,
 ): void {
+  incrementRuntimeDiagnostics('bindingsCreated')
+
   const devtoolsInstrumentation = __DEV__
   let bindingIdentity: object | undefined
   let trackedDependencies: DependencyMap | undefined
@@ -154,23 +157,11 @@ export function bindEffect<T>(
     }
   }
 
-  if (once) {
-    untrack(run)
-  } else {
-    effect(
-      run,
-      devtoolsInstrumentation
-        ? {
-            onTrack: event => trackDependency(collectingDependencies, event),
-            onTrigger: event => {
-              if (!hasDevtoolsHook()) return
-              triggerDependency(event, ensureBindingId())
-            },
-          }
-        : undefined,
-    )
-  }
-  onScopeDispose(() => {
+  let bindingDisposed = false
+  const disposeBinding = (): void => {
+    if (bindingDisposed) return
+    bindingDisposed = true
+    incrementRuntimeDiagnostics('bindingsDisposed')
     if (bindingId === undefined) return
     if (effectId !== undefined && trackedDependencies) {
       reconcileDependencies(trackedDependencies, new Map(), bindingId, effectId)
@@ -185,7 +176,31 @@ export function bindEffect<T>(
       },
       { swallowErrors: true },
     )
-  }, true)
+  }
+
+  try {
+    if (once) {
+      untrack(run)
+    } else {
+      effect(
+        run,
+        devtoolsInstrumentation
+          ? {
+              onTrack: event => trackDependency(collectingDependencies, event),
+              onTrigger: event => {
+                if (!hasDevtoolsHook()) return
+                triggerDependency(event, ensureBindingId())
+              },
+            }
+          : undefined,
+      )
+    }
+  } catch (error) {
+    disposeBinding()
+    throw error
+  }
+
+  onScopeDispose(disposeBinding, true)
 }
 
 interface DependencyEdge {

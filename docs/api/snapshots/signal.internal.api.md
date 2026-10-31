@@ -444,6 +444,12 @@ export interface RuntimeDiagnosticsSnapshot {
   scopesDisposed: number
   refsCreated: number
   memosCreated: number
+  ownersCreated: number
+  ownersDisposed: number
+  bindingsCreated: number
+  bindingsDisposed: number
+  listenersCreated: number
+  listenersDisposed: number
   allocationsCreated: number
   allocationsDisposed: number
 }
@@ -454,6 +460,16 @@ export interface RuntimeDiagnosticsSession {
 }
 type SynchronousCallback<T extends () => unknown> = T &
   (Extract<ReturnType<T>, PromiseLike<unknown>> extends never ? unknown : never)
+export type RuntimeDiagnosticsCounter =
+  | 'ownersCreated'
+  | 'ownersDisposed'
+  | 'bindingsCreated'
+  | 'bindingsDisposed'
+  | 'listenersCreated'
+  | 'listenersDisposed'
+export declare function incrementRuntimeDiagnostics(
+  counter: RuntimeDiagnosticsCounter,
+): void
 export declare function createRuntimeDiagnosticsSession(): RuntimeDiagnosticsSession
 
 export { EffectScope as Scope, effectScope as scope }

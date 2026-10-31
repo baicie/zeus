@@ -263,10 +263,11 @@ downstream package code must not import it.
 import { createRuntimeDiagnosticsSession } from '@zeus-js/signal/diagnostics'
 ```
 
-该入口统计 effect、scope、ref、memo 和 Proxy cache miss 的创建，以及 effect
-与 scope 的确定性释放。它不提供由 GC 管理对象的伪释放计数，也不代表完整的 JS
-heap allocation profile。`run()` 只接受同步 callback；callback 内创建的 effect/scope
-会保留后续同步运行的归因，但 Promise continuation 不会被隐式纳入 session。
+该入口统计 effect、scope、ref、memo、Proxy cache miss，以及 runtime-dom 的
+owner、DOM binding 和真实 listener 的创建；这些确定性资源也会记录释放计数。
+它不提供由 GC 管理对象的伪释放计数，也不代表完整的 JS heap allocation
+profile。`run()` 只接受同步 callback；callback 内创建的 effect/scope 会保留后续
+同步运行的归因，但 Promise continuation 不会被隐式纳入 session。
 
 ---
 

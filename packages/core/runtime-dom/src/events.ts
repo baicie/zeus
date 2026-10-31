@@ -1,6 +1,9 @@
 // packages/runtime-dom/src/events.ts
 
-import { onScopeDispose } from '@zeus-js/signal/internal'
+import {
+  incrementRuntimeDiagnostics,
+  onScopeDispose,
+} from '@zeus-js/signal/internal'
 
 import { emitDevtoolsEvent } from './devtools'
 
@@ -32,6 +35,7 @@ export function bindEvent(
   if (previousDirectHandler) {
     el.removeEventListener(name, previousDirectHandler)
     delete directEvents[name]
+    incrementRuntimeDiagnostics('listenersDisposed')
   }
 
   events[name] = handler
@@ -39,6 +43,7 @@ export function bindEvent(
   if (isInClosedShadowRoot(el)) {
     directEvents[name] = handler
     el.addEventListener(name, handler)
+    incrementRuntimeDiagnostics('listenersCreated')
   }
 
   onScopeDispose(() => {
@@ -48,6 +53,7 @@ export function bindEvent(
       if (target.__zeusDirectEvents?.[name] === handler) {
         el.removeEventListener(name, handler)
         delete target.__zeusDirectEvents[name]
+        incrementRuntimeDiagnostics('listenersDisposed')
       }
     }
   }, true)
@@ -64,6 +70,7 @@ export function delegateEvents(events: readonly string[]): void {
     const handler = dispatchDelegatedEvent
     delegatedListeners.push(delegatedName)
     document.addEventListener(delegatedName, handler)
+    incrementRuntimeDiagnostics('listenersCreated')
     emitDevtoolsEvent({ type: 'delegate-event', event: delegatedName })
   }
 }
@@ -71,6 +78,7 @@ export function delegateEvents(events: readonly string[]): void {
 export function resetDelegatedEvents(): void {
   for (const delegatedName of delegatedListeners) {
     document.removeEventListener(delegatedName, dispatchDelegatedEvent)
+    incrementRuntimeDiagnostics('listenersDisposed')
   }
   delegatedEvents.clear()
   delegatedListeners.length = 0

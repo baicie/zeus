@@ -91,6 +91,8 @@ export { onCleanup } from './lifecycle'
 
 export {
   createRuntimeDiagnosticsSession,
+  incrementRuntimeDiagnostics,
+  type RuntimeDiagnosticsCounter,
   type RuntimeDiagnosticsSession,
   type RuntimeDiagnosticsSnapshot,
 } from './runtime-diagnostics'
