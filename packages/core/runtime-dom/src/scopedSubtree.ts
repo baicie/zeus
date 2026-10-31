@@ -86,13 +86,35 @@ export class ScopedSubtree {
   }
 
   dispose(): void {
+    let failed = false
+    let firstError: unknown
+
     if (this.scope) {
       setScopeErrorBoundaryHandler(this.scope, undefined)
-      this.scope.stop()
+      try {
+        this.scope.stop()
+      } catch (error) {
+        failed = true
+        firstError = error
+      } finally {
+        this.scope = undefined
+      }
     }
-    this.scope = undefined
-    removeNodes(this.nodes)
-    this.nodes = []
+
+    try {
+      // A cleanup callback may throw after the signal scope has already
+      // released its effects. DOM ownership still has to be relinquished.
+      removeNodes(this.nodes)
+    } catch (error) {
+      if (!failed) {
+        failed = true
+        firstError = error
+      }
+    } finally {
+      this.nodes = []
+    }
+
+    if (failed) throw firstError
   }
 
   moveBefore(marker: Node | null): void {

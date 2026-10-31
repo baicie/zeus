@@ -73,6 +73,23 @@ describe('render', () => {
     expect(container.firstChild).toBe(null)
   })
 
+  it('clears the DOM when scope cleanup throws', async () => {
+    const { onScopeDispose } = await import('@zeus-js/signal/internal')
+    const container = document.createElement('div')
+    const failure = new Error('render cleanup failed')
+
+    const dispose = render(() => {
+      onScopeDispose(() => {
+        throw failure
+      })
+      return document.createElement('span')
+    }, container)
+
+    expect(() => dispose()).toThrow(failure)
+    expect(container.childNodes).toHaveLength(0)
+    expect(() => dispose()).not.toThrow()
+  })
+
   it('reports a stopped parent scope and keeps disposal idempotent', async () => {
     const { scope, onScopeDispose } = await import('@zeus-js/signal/internal')
     const parent = scope(true)

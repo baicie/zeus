@@ -18,6 +18,7 @@ import {
   render,
 } from '../src'
 import { marker } from '../src/dom'
+import { ScopedSubtree } from '../src/scopedSubtree'
 import { template } from '../src/template'
 
 type ZeusElementWithEvents = Element & {
@@ -43,6 +44,31 @@ describe('runtime cleanup', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
     dom.window.close()
+  })
+
+  it('removes a dynamic subtree when cleanup throws', () => {
+    const source = document.createDocumentFragment()
+    const markerNode = document.createComment('marker')
+    source.append(markerNode)
+    const subtree = new ScopedSubtree(source, markerNode, {
+      owner: undefined,
+      host: undefined,
+    })
+    const failure = new Error('subtree cleanup failed')
+
+    subtree.replace(() => {
+      onScopeDispose(() => {
+        throw failure
+      })
+      return document.createTextNode('branch')
+    })
+
+    expect(source.textContent).toBe('branch')
+    expect(() => subtree.dispose()).toThrow(failure)
+    expect(source.childNodes).toHaveLength(1)
+    expect(source.firstChild).toBe(markerNode)
+    expect(subtree.current()).toHaveLength(0)
+    expect(() => subtree.dispose()).not.toThrow()
   })
 
   it('balances owner, binding, and listener diagnostics on disposal', () => {

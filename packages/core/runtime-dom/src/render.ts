@@ -64,6 +64,9 @@ export function renderWithPreservedNodes(
     }
 
     try {
+      // Scope cleanup is allowed to throw, but it must not leave the DOM
+      // subtree mounted. Keep disposal idempotent while preserving the first
+      // cleanup error for the caller.
       clearContainer(container, preserveNodes)
     } catch (error) {
       if (!failed) {

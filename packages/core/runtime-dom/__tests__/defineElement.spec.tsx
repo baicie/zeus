@@ -1,3 +1,4 @@
+import { onCleanup } from '@zeus-js/signal'
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -914,6 +915,34 @@ describe('defineElement', () => {
 
     expect(el.querySelectorAll('style')).toHaveLength(1)
     expect(el.querySelector('style')?.nonce).toBe('nonce-value')
+  })
+
+  it('removes styles and DOM when element cleanup throws', () => {
+    const tag = createTag('cleanup-error')
+    const failure = new Error('element cleanup failed')
+
+    const ctor = defineElement(
+      tag,
+      {
+        shadow: false,
+        styles: ['z-cleanup-error { color: red; }'],
+      },
+      () => {
+        onCleanup(() => {
+          throw failure
+        })
+        return document.createElement('span')
+      },
+    )
+
+    const host = document.createElement(tag)
+    const mount = mountElementDefinition(ctor, host)
+
+    expect(host.querySelector('style')).toBeTruthy()
+    expect(() => mount.dispose()).toThrow(failure)
+    expect(host.querySelector('style')).toBeNull()
+    expect(host.querySelector('span')).toBeNull()
+    expect(() => mount.dispose()).not.toThrow()
   })
 
   it('does not throw when defineElement is called twice with same tag', () => {

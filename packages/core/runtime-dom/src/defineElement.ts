@@ -538,9 +538,7 @@ export function defineElement<
           return dispose.active
         },
         dispose() {
-          projection?.disconnect()
-          dispose()
-          for (const style of styleNodes) style.remove()
+          disposeMountedElement(projection, dispose, styleNodes)
         },
       }
     }
@@ -769,11 +767,38 @@ export function mountElementDefinition(
     },
 
     dispose() {
-      projection?.disconnect()
-      dispose()
-      for (const style of styleNodes) style.remove()
+      disposeMountedElement(projection, dispose, styleNodes)
     },
   }
+}
+
+function disposeMountedElement(
+  projection: { disconnect(): void } | undefined,
+  dispose: () => void,
+  styleNodes: readonly HTMLStyleElement[],
+): void {
+  let failed = false
+  let firstError: unknown
+
+  try {
+    projection?.disconnect()
+  } catch (error) {
+    failed = true
+    firstError = error
+  }
+
+  try {
+    dispose()
+  } catch (error) {
+    if (!failed) {
+      failed = true
+      firstError = error
+    }
+  } finally {
+    for (const style of styleNodes) style.remove()
+  }
+
+  if (failed) throw firstError
 }
 
 function normalizePropDefinitions<P extends object>(
