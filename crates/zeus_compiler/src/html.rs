@@ -26,6 +26,11 @@ pub(crate) fn is_unsupported_raw_text_element(tag_name: &str) -> bool {
     )
 }
 
+/// Valid custom element names always contain a hyphen; no HTML element does.
+pub(crate) fn is_custom_element(tag_name: &str) -> bool {
+    tag_name.contains('-')
+}
+
 pub(crate) fn is_svg_element(tag_name: &str) -> bool {
     matches_ignore_ascii_case(
         tag_name,

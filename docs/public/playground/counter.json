@@ -10,7 +10,7 @@
       "message": "Builtin `Show` does not accept the `extra` attribute; allowed attributes: when, fallback.",
       "severity": "error",
       "filename": "invalid.tsx",
-      "hint": "Use a native element with static attributes and dynamic text.",
+      "hint": "Pass only the attributes the message lists, each once and as an expression.",
       "span": {
         "start": { "offset": 88, "line": 4, "column": 20 },
         "end": { "offset": 107, "line": 4, "column": 39 }

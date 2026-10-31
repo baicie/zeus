@@ -1387,3 +1387,62 @@ fn rejects_hyphenated_component_names() {
         vec![("ZEUS_UNSUPPORTED_COMPONENT_NAME".into(), "A-b")]
     );
 }
+
+#[test]
+fn rejects_html_parsing_properties() {
+    let source = "export const App = props => <div prop:innerHTML={props.html}><p prop:outerHTML={props.html} /></div>\n";
+    let lowered = lower_module(source, "unsafe-html.tsx");
+
+    assert!(lowered.ir.is_none());
+    assert_eq!(
+        diagnostic_codes_and_text(&lowered, source),
+        vec![
+            ("ZEUS_UNSAFE_HTML_PROPERTY".into(), "prop:innerHTML"),
+            ("ZEUS_UNSAFE_HTML_PROPERTY".into(), "prop:outerHTML"),
+        ]
+    );
+    assert!(
+        lowered.diagnostics[0]
+            .hint
+            .as_deref()
+            .is_some_and(|hint| hint.contains("ref callback"))
+    );
+}
+
+#[test]
+fn lowers_on_namespace_events_with_exact_names() {
+    let source = "export const App = props => <z-field on:value-change={props.change} on:openChanged={props.open} onvalue-input={props.input} />\n";
+    let lowered = lower_module(source, "custom-events.tsx");
+
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let ir = lowered.ir.expect("custom events lower");
+    let names = root_element(&ir.components[0].root)
+        .attributes
+        .iter()
+        .filter_map(|attribute| match attribute {
+            AttributeIr::Event(event) => Some(event.event_name.as_str()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(names, vec!["value-change", "openChanged", "value-input"]);
+}
+
+#[test]
+fn rejects_event_bindings_without_an_event_name_or_handler() {
+    let source =
+        "export const App = props => <div on-value-change={props.change} on:close=\"x\" />\n";
+    let lowered = lower_module(source, "invalid-events.tsx");
+
+    assert!(lowered.ir.is_none());
+    assert_eq!(
+        diagnostic_codes_and_text(&lowered, source),
+        vec![
+            ("ZEUS_INVALID_EVENT_BINDING".into(), "on-value-change"),
+            ("ZEUS_INVALID_EVENT_BINDING".into(), "on:close=\"x\""),
+        ]
+    );
+    assert_eq!(
+        lowered.diagnostics[0].hint.as_deref(),
+        Some("Use on:value-change to bind an event by its exact name.")
+    );
+}

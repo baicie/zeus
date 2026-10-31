@@ -624,6 +624,37 @@ fn binds_non_bubbling_and_non_delegated_events_directly() {
             .contains("\"click\", $zeusEvent1 => (props.click)?.($zeusEvent1));")
     );
 
+    let custom = transform_module(TransformModuleOptions {
+        source: "export const App = props => <z-field on:value-change={props.change} onvalue-input={props.input} onClick={props.click} />\n".into(),
+        filename: "custom-events.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: true,
+        source_map: false,
+        hmr: false,
+        pure_define_element: PureDefineElementMode::Disabled,
+    });
+    assert!(custom.diagnostics.is_empty(), "{:?}", custom.diagnostics);
+    assert!(
+        custom.code.contains("$zeusDelegateEvents([\"click\"]);"),
+        "{}",
+        custom.code
+    );
+    assert!(
+        custom
+            .code
+            .contains("\"value-change\", $zeusEvent => (props.change)?.($zeusEvent), false);"),
+        "{}",
+        custom.code
+    );
+    assert!(
+        custom
+            .code
+            .contains("\"value-input\", $zeusEvent0 => (props.input)?.($zeusEvent0), false);"),
+        "{}",
+        custom.code
+    );
+
     let direct = compile(false);
     assert!(direct.diagnostics.is_empty(), "{:?}", direct.diagnostics);
     assert!(!direct.code.contains("$zeusDelegateEvents(["));
@@ -1889,17 +1920,38 @@ export const App = props => <form>
         .collect::<Vec<_>>();
     assert_eq!(
         rejected,
-        vec![
-            "prop:textContent={props.text}",
-            "prop:value={props.choice}",
-            "prop:model={props.model}",
-        ]
+        vec!["prop:textContent={props.text}", "prop:value={props.choice}"]
     );
     assert!(
         ssr.diagnostics[1]
             .message
             .contains("property \"value\" on <select>")
     );
+}
+
+#[test]
+fn omits_custom_element_properties_from_ssr() {
+    let source =
+        "export const App = props => <z-card data-id={props.id} prop:model={props.model} />\n";
+    let ssr = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "ssr-custom-element-property.tsx".into(),
+        target: TransformTarget::Ssr,
+        runtime_module: "@zeus-js/runtime-ssr".into(),
+        delegate_events: false,
+        source_map: false,
+        hmr: false,
+        pure_define_element: PureDefineElementMode::Disabled,
+    });
+
+    assert!(ssr.diagnostics.is_empty(), "{:?}", ssr.diagnostics);
+    assert!(
+        ssr.code
+            .contains(r#"$zeusSsrElement("z-card", [$zeusSsrAttr("data-id", props.id)])"#),
+        "{}",
+        ssr.code
+    );
+    assert!(!ssr.code.contains("props.model"), "{}", ssr.code);
 }
 
 #[test]

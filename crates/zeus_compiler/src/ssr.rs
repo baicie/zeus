@@ -2,13 +2,16 @@
 
 use crate::{
     diagnostic::CompilerDiagnostic,
+    html::is_custom_element,
     ir::{
         AttributeIr, ChildIr, ComponentPropIr, ComponentPropValueIr, DynamicRegionExpressionIr,
         DynamicRegionValueIr, ElementIr, ErrorBoundaryFallbackIr, ModuleIr, RootIr,
     },
 };
 
-/// Reports `prop:` bindings that have no deterministic HTML representation.
+/// Reports `prop:` bindings on native elements that have no deterministic HTML
+/// representation. Properties on custom elements are client-only and omitted
+/// from SSR output, matching the Web Component wrapper SSR-0 contract.
 ///
 /// Mirrors `getSSRPropertySerialization` in `@zeus-js/runtime-ssr`; keep the
 /// two tables in sync.
@@ -53,6 +56,7 @@ impl PropertyValidator<'_> {
     fn element(&mut self, element: &ElementIr) {
         for attribute in &element.attributes {
             if let AttributeIr::Property(property) = attribute
+                && !is_custom_element(&element.tag_name)
                 && !is_serializable_property(&element.tag_name, &property.name)
             {
                 self.diagnostics.push(

@@ -60,12 +60,12 @@ Custom Element 注册或 DOM runtime。其内部 SSR 行为见下节。
 - `<script>` 与 `<style>` 使用 HTML raw-text 语义：普通 `<` 和 `&` 保持原样；为防止
   内容提前闭合元素，匹配当前元素名的结束标签会在完整 children 拼接后安全改写
   （script 使用 JavaScript `\\u003C` 转义，style 使用 CSS `\\3C ` 转义）。这也覆盖被
-  Fragment、`Show`、`For` 或相邻 child 拆开的结束标签。script 序列化还会跟踪 HTML
+  相邻的静态与动态 child 拆开的结束标签。script 序列化还会跟踪 HTML
   tokenizer 的 escaped state，并改写会进入 double-escaped state 的 `<script` 序列，
   保证框架生成的结束标签仍能闭合元素。
-- raw-text 元素仅允许直接文本、Fragment、`Show` 和 `For`；原生元素或组件子节点在
-  编译期抛出 `ZEUS_UNSUPPORTED_SSR_RAW_TEXT_CHILD`。动态值若已经是序列化后的
-  `SSRFragment`，运行时也会拒绝，因为此时无法恢复其原始文本转义上下文。
+- raw-text 元素仅允许静态文本和标量动态表达式；元素、组件、Fragment、控制流以及产出
+  JSX 的表达式在两个 target 上都于编译期抛出 `ZEUS_UNSUPPORTED_RAW_TEXT_CHILD`。动态值若
+  已经是序列化后的 `SSRFragment`，运行时也会拒绝，因为此时无法恢复其原始文本转义上下文。
 - attribute 值至少转义 `&`、`"`、`<` 和 `>`。
 - `null`、`undefined`、`false` attribute 被省略；`true` 输出无值的布尔 attribute。
 - 文本位置的 `null`、`undefined` 和 boolean 输出为空字符串。
@@ -82,6 +82,11 @@ Custom Element 注册或 DOM runtime。其内部 SSR 行为见下节。
   property 会覆盖同名静态 attribute。
 - 不具备确定 HTML 等价语义的 property 或元素组合（例如 `textContent`、
   `select.value`）在编译期抛出 `ZEUS_UNSUPPORTED_SSR_PROPERTY` 结构化诊断。
+- 自定义元素（标签名含 `-`）上的 property 只属于客户端：SSR 输出宿主标签和 attribute，
+  省略全部 `prop:*`（包括经 spread 传入的），由元素升级或 hydration 后接收。与 Web
+  Component wrapper 的 SSR-0 规则一致。
+- `prop:innerHTML` 与 `prop:outerHTML` 在两个 target 上都于编译期抛出
+  `ZEUS_UNSAFE_HTML_PROPERTY`。
 - 任何序列化位置出现 thenable 都是同步协议错误，不按普通空值处理。
 - 标签名和 attribute 名只来自编译期 IR，不接受运行时拼接的名称。
 

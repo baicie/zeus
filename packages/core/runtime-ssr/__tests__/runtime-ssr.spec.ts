@@ -13,6 +13,7 @@ import {
   ssrFor,
   ssrProp,
   ssrShow,
+  ssrSpread,
   ssrStatic,
   ssrText,
   type SSRNode,
@@ -619,12 +620,29 @@ describe('@zeus-js/runtime-ssr', () => {
   })
 
   it('rejects properties without an equivalent HTML representation', () => {
-    expect(() => ssrProp('textContent', 'unsafe')).toThrow(
-      'SSR cannot serialize property "textContent".',
+    expect(() => ssrElement('div', [ssrProp('textContent', 'unsafe')])).toThrow(
+      'SSR cannot serialize property "textContent" on <div>.',
     )
     expect(() => ssrElement('select', [ssrProp('value', 'admin')])).toThrow(
       'SSR cannot serialize property "value" on <select>.',
     )
+  })
+
+  it('omits client-only properties on custom elements', () => {
+    expect(
+      renderToString(() =>
+        ssrElement(
+          'z-card',
+          [
+            ssrAttr('data-id', 'a'),
+            ssrProp('model', { name: 'Ada' }),
+            ssrProp('textContent', 'replaced'),
+            ...ssrSpread([() => ({ 'prop:items': [1, 2], title: 'Card' })]),
+          ],
+          'children',
+        ),
+      ),
+    ).toBe('<z-card data-id="a" title="Card">children</z-card>')
   })
 
   it('normalizes nested class and style values without serializing empty attributes', () => {

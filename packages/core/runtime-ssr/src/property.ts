@@ -54,21 +54,17 @@ const BOOLEAN_PROPERTY_ELEMENTS = {
 } satisfies Record<string, ReadonlySet<string>>
 
 const VALUE_PROPERTY_ELEMENTS = new Set(['button', 'input', 'option'])
-const SUPPORTED_PROPERTY_NAMES = new Set([
-  ...Object.keys(BOOLEAN_PROPERTY_ELEMENTS),
-  'htmlFor',
-  'tabIndex',
-  'value',
-])
 
+/**
+ * Whether the property can be serialized is decided per element in
+ * `resolveSSRElementProperties`, because a spread reaches here before the tag
+ * is known.
+ */
 export function createSSRProperty(
   name: string,
   value: unknown,
 ): SSRAttributeEntry {
   assertSyncSSRValue(value)
-  if (!SUPPORTED_PROPERTY_NAMES.has(name)) {
-    throw new TypeError(`SSR cannot serialize property "${name}".`)
-  }
   if (
     typeof value !== 'string' &&
     typeof value !== 'number' &&
@@ -91,6 +87,9 @@ export function resolveSSRElementProperties(
   children: SSRNode,
 ): ResolvedSSRElementEntries {
   const attributes: SSRAttribute[] = []
+  // Custom element properties are client-only: the server renders the host
+  // tag and the element receives its properties after upgrade or hydration.
+  const customElement = tag.includes('-')
   let resolvedChildren = children
   for (const entry of entries) {
     assertSyncSSRValue(entry)
@@ -101,6 +100,7 @@ export function resolveSSRElementProperties(
         removeAttribute(attributes, entry.name)
         continue
       }
+      if (customElement) continue
       const serialization = getSSRPropertySerialization(tag, entry.name)
       if (!serialization)
         throw new TypeError(
@@ -115,6 +115,7 @@ export function resolveSSRElementProperties(
       attributes.push(entry)
       continue
     }
+    if (customElement) continue
     const property = entry
     const serialization = getSSRPropertySerialization(tag, property.name)
     if (!serialization) {

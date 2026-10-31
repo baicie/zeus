@@ -1739,6 +1739,24 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
     fn lower_attribute(&mut self, attribute: &JSXAttribute<'_>) -> Option<AttributeIr> {
         let (name, is_property) = self.lower_attribute_name(&attribute.name)?;
 
+        if name.starts_with("on:")
+            && !matches!(
+                attribute.value,
+                Some(JSXAttributeValue::ExpressionContainer(_))
+            )
+        {
+            self.diagnostics.push(
+                CompilerDiagnostic::error(
+                    "ZEUS_INVALID_EVENT_BINDING",
+                    format!("{name} requires a handler expression."),
+                    self.filename,
+                    Some(self.source_index.span(attribute.span)),
+                )
+                .with_hint("Pass a function, for example `on:value-change={event => ...}`."),
+            );
+            return None;
+        }
+
         match &attribute.value {
             None => {
                 if name == "ref" {
@@ -1813,12 +1831,34 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 Some((normalize_attribute_name(identifier.name.as_str()), false))
             }
             JSXAttributeName::NamespacedName(namespaced) if namespaced.namespace.name == "prop" => {
-                Some((namespaced.name.name.to_string(), true))
+                let property = namespaced.name.name.as_str();
+                if matches!(property, "innerHTML" | "outerHTML") {
+                    self.diagnostics.push(
+                        CompilerDiagnostic::error(
+                            "ZEUS_UNSAFE_HTML_PROPERTY",
+                            format!(
+                                "prop:{property} parses a string as HTML and bypasses escaping; Zeus does not bind it."
+                            ),
+                            self.filename,
+                            Some(self.source_index.span(name.span())),
+                        )
+                        .with_hint(
+                            "Render the markup as JSX. For trusted, sanitized HTML, assign it to the element in a ref callback.",
+                        ),
+                    );
+                    return None;
+                }
+                Some((property.to_owned(), true))
+            }
+            // `on:name` binds the event named exactly `name`, such as the
+            // kebab-case events dispatched by Zeus custom elements.
+            JSXAttributeName::NamespacedName(namespaced) if namespaced.namespace.name == "on" => {
+                Some((format!("on:{}", namespaced.name.name), false))
             }
             JSXAttributeName::NamespacedName(_) => {
                 self.unsupported(
                     "ZEUS_UNSUPPORTED_NAMESPACED_ATTRIBUTE",
-                    "Only the prop:name namespace is supported in DOM attributes.",
+                    "Only the prop:name and on:name namespaces are supported in DOM attributes.",
                     name.span(),
                 );
                 None
@@ -1901,9 +1941,29 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             }));
         }
         if is_event_attribute_name(&name) {
+            let event_name = match name.strip_prefix("on:") {
+                Some(verbatim) => verbatim.to_owned(),
+                None => name[2..].to_ascii_lowercase(),
+            };
+            if let Some(intended) = event_name.strip_prefix('-') {
+                self.diagnostics.push(
+                    CompilerDiagnostic::error(
+                        "ZEUS_INVALID_EVENT_BINDING",
+                        format!(
+                            "{name} does not name an event: the event name would start with \"-\"."
+                        ),
+                        self.filename,
+                        Some(self.source_index.span(attribute.name.span())),
+                    )
+                    .with_hint(format!(
+                        "Use on:{intended} to bind an event by its exact name."
+                    )),
+                );
+                return None;
+            }
             return Some(AttributeIr::Event(EventBindingIr {
                 id,
-                event_name: name[2..].to_ascii_lowercase(),
+                event_name,
                 handler: expression,
                 span,
             }));
@@ -2039,15 +2099,16 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
     }
 
     fn unsupported(&mut self, code: &str, message: &str, span: Span) {
-        self.diagnostics.push(
-            CompilerDiagnostic::error(
-                code,
-                message,
-                self.filename,
-                Some(self.source_index.span(span)),
-            )
-            .with_hint("Use a native element with static attributes and dynamic text."),
+        let diagnostic = CompilerDiagnostic::error(
+            code,
+            message,
+            self.filename,
+            Some(self.source_index.span(span)),
         );
+        self.diagnostics.push(match unsupported_hint(code) {
+            Some(hint) => diagnostic.with_hint(hint),
+            None => diagnostic,
+        });
     }
 
     fn report_async_components(&mut self, components: Vec<AsyncComponent>) {
@@ -2361,6 +2422,97 @@ impl<'ast> Visit<'ast> for Lowerer<'_, '_> {
     fn visit_jsx_fragment(&mut self, fragment: &JSXFragment<'ast>) {
         self.lower_root_fragment(fragment);
     }
+}
+
+/// The next step for each diagnostic reported through `Lowerer::unsupported`.
+fn unsupported_hint(code: &str) -> Option<&'static str> {
+    Some(match code {
+        "ZEUS_EMPTY_EXPRESSION" => "Put an expression inside the braces, or remove the attribute.",
+        "ZEUS_FUNCTION_ATTRIBUTE" => {
+            "Call the function, for example `title={title()}`, or use `prop:name` to pass a function."
+        }
+        "ZEUS_FUNCTION_BUILTIN_VALUE" => {
+            "Read the signal by calling it, for example `when={visible()}`."
+        }
+        "ZEUS_FUNCTION_CHILD" => "Call the function, for example `{count()}`.",
+        "ZEUS_INVALID_BUILTIN_USAGE" => {
+            "Pass only the attributes the message lists, each once and as an expression."
+        }
+        "ZEUS_INVALID_ERROR_BOUNDARY_FALLBACK" => {
+            "Pass a render function, for example `fallback={(error, reset) => <p>{String(error)}</p>}`."
+        }
+        "ZEUS_INVALID_FOR_CHILD" => {
+            "Write one callback child, for example `<For each={items()}>{item => <li>{item.name}</li>}</For>`."
+        }
+        "ZEUS_INVALID_HOST_USAGE" => {
+            "Return a single <Host> as the root JSX of a defineElement setup."
+        }
+        "ZEUS_INVALID_ONCE_INTRINSIC" => {
+            "Call once with exactly one expression, for example `{once(props.title)}`."
+        }
+        "ZEUS_INVALID_ONCE_TARGET" => {
+            "Use once only for native text, attribute and property bindings."
+        }
+        "ZEUS_INVALID_PROPERTY_BINDING" => {
+            "Pass an expression, for example `prop:value={value()}`."
+        }
+        "ZEUS_INVALID_REF_USAGE" => {
+            "Pass a ref object or callback, for example `ref={element => (input = element)}`."
+        }
+        "ZEUS_INVALID_SHOW_FALLBACK" => {
+            "Pass JSX or a value, for example `fallback={<p>Loading</p>}`."
+        }
+        "ZEUS_INVALID_SLOT_NAME" => {
+            "Write the name as a string literal, such as `name=\"title\"`, or omit it for the default slot."
+        }
+        "ZEUS_INVALID_SLOT_USAGE" => {
+            "Place <Slot> inside the <Host> returned by a defineElement setup."
+        }
+        "ZEUS_MIXED_RAW_TEXT_BINDING_MODE" => {
+            "Wrap every dynamic expression in this element in once(...), or none of them."
+        }
+        "ZEUS_UNSUPPORTED_ARRAY_MAP_CALLBACK_PARAMETER" => {
+            "Destructure inside the body of a callback shaped like `items.map((item, index) => ...)`."
+        }
+        "ZEUS_UNSUPPORTED_ARRAY_SPREAD" => {
+            "Map the array instead, for example `{items().map(item => <li>{item}</li>)}`."
+        }
+        "ZEUS_UNSUPPORTED_BUILTIN_SPREAD" => {
+            "Pass each attribute explicitly instead of spreading an object."
+        }
+        "ZEUS_UNSUPPORTED_COMPONENT_NAME" => {
+            "Import the component under a plain identifier and render it as `<Name />`."
+        }
+        "ZEUS_UNSUPPORTED_COMPONENT_PROP_NAMESPACE" => {
+            "Pass the value as a plain prop, for example `value={value()}`."
+        }
+        "ZEUS_UNSUPPORTED_DOCUMENT_ELEMENT" => {
+            "Render into an element inside <body>; Zeus does not create <html>, <head> or <body>."
+        }
+        "ZEUS_UNSUPPORTED_JSX_ATTRIBUTE_VALUE" => {
+            "Pass the JSX as children, or wrap it in a component and pass that component."
+        }
+        "ZEUS_UNSUPPORTED_NAMESPACED_ATTRIBUTE" => {
+            "Use `prop:name` for a DOM property, `on:name` for an exact event name, or a plain attribute name."
+        }
+        "ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION" => {
+            "Move the JSX into a component or a variable, or use <Show> and <For> for conditions and lists."
+        }
+        "ZEUS_UNSUPPORTED_RAW_TEXT_CHILD" => {
+            "Build the content as one string, for example a template literal."
+        }
+        "ZEUS_UNSUPPORTED_RAW_TEXT_ELEMENT" => {
+            "Render the content outside this element, or fill it in a ref callback."
+        }
+        "ZEUS_UNSUPPORTED_SPREAD_CHILD" => "Render the array directly, for example `{items()}`.",
+        "ZEUS_UNSUPPORTED_TEMPLATE_ELEMENT" => {
+            "Use <Show> or a component for deferred content instead of <template>."
+        }
+        "ZEUS_UNSUPPORTED_VOID_ELEMENT_CHILDREN" => {
+            "Remove the children; void elements take their content from attributes."
+        }
+        _ => return None,
+    })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

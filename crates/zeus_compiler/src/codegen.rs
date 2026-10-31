@@ -4,7 +4,7 @@ use oxc_sourcemap::SourceMapBuilder;
 
 use crate::{
     PureDefineElementMode, RawSourceMap, TransformModuleResult,
-    html::{is_raw_text_element, is_svg_element, is_void_element},
+    html::{is_custom_element, is_raw_text_element, is_svg_element, is_void_element},
     hydration::{component_root_marker_id, element_marker_id, node_marker_id, text_marker_id},
     ir::{
         AttributeIr, ChildIr, ComponentBindingIr, ComponentIr, ComponentPropIr,
@@ -803,6 +803,8 @@ fn emit_ssr_element(
                     emit_ssr_expression_value(writer, &attribute.expression);
                     writer.push(")");
                 }
+                // Custom element properties are client-only on the server.
+                AttributeIr::Property(_) if is_custom_element(&element.tag_name) => {}
                 AttributeIr::Property(attribute) => {
                     if !first {
                         writer.push(", ");
@@ -2618,7 +2620,15 @@ fn collect_element_delegated_events(element: &ElementIr, names: &mut BTreeSet<St
 
 /// Events that do not bubble to `document` (or only fire on `window`) cannot be
 /// observed by the delegated document listener and are bound on the element.
+/// Hyphenated or case-sensitive names are custom events, which the dispatcher
+/// may send without bubbling, so they are bound on the element too.
 fn is_delegatable_event(event_name: &str) -> bool {
+    if event_name
+        .bytes()
+        .any(|byte| byte == b'-' || byte.is_ascii_uppercase())
+    {
+        return false;
+    }
     !matches!(
         event_name,
         "abort"
@@ -2963,12 +2973,13 @@ fn build_source_map(filename: &str, source: &str, mappings: &[Mapping]) -> RawSo
     let source_id = builder.add_source_and_content(source_name, source);
 
     for mapping in mappings {
+        let (original_line, original_column) = mapping.original.unwrap_or_default();
         builder.add_token(
             mapping.generated_line,
             mapping.generated_column,
-            mapping.original_line,
-            mapping.original_column,
-            Some(source_id),
+            original_line,
+            original_column,
+            mapping.original.map(|_| source_id),
             None,
         );
     }
@@ -3963,8 +3974,7 @@ impl CodeWriter {
                 self.mappings.push(Mapping {
                     generated_line: self.line,
                     generated_column: self.column,
-                    original_line,
-                    original_column,
+                    original: Some((original_line, original_column)),
                 });
                 at_line_start = false;
             }
@@ -3982,14 +3992,36 @@ impl CodeWriter {
                 original_column = original_column.saturating_add(width);
             }
         }
+        self.end_mapping();
+    }
+
+    /// Stops attributing the generated code that follows on this line to the
+    /// last original token.
+    fn end_mapping(&mut self) {
+        let Some(last) = self.mappings.last() else {
+            return;
+        };
+        if last.original.is_none() || last.generated_line != self.line {
+            return;
+        }
+        if last.generated_column == self.column {
+            self.mappings.pop();
+        }
+        self.mappings.push(Mapping {
+            generated_line: self.line,
+            generated_column: self.column,
+            original: None,
+        });
     }
 
     fn push_mapped(&mut self, value: &str, expression: &ExpressionIr) {
         self.mappings.push(Mapping {
             generated_line: self.line,
             generated_column: self.column,
-            original_line: expression.span.start.line.saturating_sub(1),
-            original_column: expression.span.start.column,
+            original: Some((
+                expression.span.start.line.saturating_sub(1),
+                expression.span.start.column,
+            )),
         });
         if value == expression.code {
             for offset in identifier_offsets(value) {
@@ -4006,12 +4038,12 @@ impl CodeWriter {
                 self.mappings.push(Mapping {
                     generated_line,
                     generated_column,
-                    original_line,
-                    original_column,
+                    original: Some((original_line, original_column)),
                 });
             }
         }
         self.push(value);
+        self.end_mapping();
     }
 
     fn push_for_accessor_scope(&mut self, scope: ForAccessorScope) {
@@ -4179,8 +4211,8 @@ fn advance_position(line: u32, column: u32, value: &str) -> (u32, u32) {
 struct Mapping {
     generated_line: u32,
     generated_column: u32,
-    original_line: u32,
-    original_column: u32,
+    /// `None` marks the start of generated code that has no original source.
+    original: Option<(u32, u32)>,
 }
 
 struct NameAllocator {

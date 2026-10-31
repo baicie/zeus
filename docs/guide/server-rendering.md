@@ -82,17 +82,17 @@ included in server HTML.
 
 `script` and `style` children follow HTML raw-text rules. Ordinary `<` and `&`
 characters remain unchanged. A matching closing tag is rewritten safely after
-all children have been joined, including closing tags split across fragments or
-control-flow branches, so dynamic content cannot terminate the raw-text element
-early. Script serialization also rewrites `<script` when an earlier `<!--` has
+all children have been joined, including closing tags split across adjacent
+static and dynamic children, so dynamic content cannot terminate the raw-text
+element early. Script serialization also rewrites `<script` when an earlier `<!--` has
 put the HTML tokenizer into its escaped state, preventing the tokenizer from
 swallowing the following page in its double-escaped state.
 
-Raw-text elements accept direct text expressions, Fragment, `Show`, and `For`.
-Nested native elements or components fail compilation with
-`ZEUS_UNSUPPORTED_SSR_RAW_TEXT_CHILD`; dynamic values that are already serialized
-SSR fragments fail at runtime because their original text context cannot be
-recovered.
+Raw-text elements accept static text and scalar dynamic expressions only.
+Elements, components, Fragment, control flow, and expressions that produce JSX
+fail compilation for both targets with `ZEUS_UNSUPPORTED_RAW_TEXT_CHILD`;
+dynamic values that are already serialized SSR fragments fail at runtime because
+their original text context cannot be recovered.
 
 SSR accepts `prop:*` only when the property has a deterministic HTML
 representation for that element. The supported bindings are:
@@ -112,6 +112,16 @@ content and replaces any JSX children. Other property/tag combinations, such as
 `textContent`, `div.checked`, or `select.value`, fail compilation with the
 structured `ZEUS_UNSUPPORTED_SSR_PROPERTY` diagnostic because they have no
 equivalent static HTML representation.
+
+Properties on custom elements (any tag containing `-`) are client-only. SSR
+renders the host tag with its attributes and omits every `prop:*` binding,
+including those reached through a spread, so object and function values never
+reach the server HTML. The element receives the properties after upgrade or
+hydration. This matches the Web Component wrapper contract below.
+
+`prop:innerHTML` and `prop:outerHTML` fail compilation for both targets with
+`ZEUS_UNSAFE_HTML_PROPERTY`. Render markup as JSX, or assign trusted, sanitized
+HTML in a `ref` callback.
 
 ## Web Component Wrappers
 

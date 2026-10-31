@@ -41,3 +41,24 @@ Static parts of the template are cloned from a cached template, not recreated.
 ```tsx
 <button onClick={handleClick}>Click</button>
 ```
+
+`onName` binds the lowercase DOM event `name`, so `onClick` listens for
+`click`. Bubbling native events share one document-level listener per event
+name. Events that do not bubble (such as `mouseenter`, `scroll`, `load` and
+media events) are bound directly on the element.
+
+Use `on:name` to bind an event by its exact name, including the kebab-case
+events dispatched by Zeus custom elements. Hyphenated and case-sensitive names
+are always bound directly on the element, because a custom element may dispatch
+them without bubbling:
+
+```tsx
+<z-select
+  on:value-change={(event: CustomEvent<{ value: string }>) =>
+    setValue(event.detail.value)
+  }
+/>
+```
+
+An attribute such as `on-value-change` does not name an event and fails
+compilation with `ZEUS_INVALID_EVENT_BINDING`.

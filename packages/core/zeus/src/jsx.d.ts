@@ -24,6 +24,8 @@ type CommonDOMAttributes<T extends Element> = {
   [key: `data-${string}`]: PrimitiveAttr
   [key: `aria-${string}`]: PrimitiveAttr
   [key: `prop:${string}`]: unknown
+  /** Binds the event named exactly after `on:`, such as a custom element's `value-change`. */
+  [key: `on:${string}`]: EventHandler<CustomEvent> | undefined
 
   ref?: RefTarget<T>
 
