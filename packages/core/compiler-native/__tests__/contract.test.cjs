@@ -128,6 +128,23 @@ test('deeply nested JSX compiles without overflowing the host stack', () => {
   assert.equal(result.code.split('<div').length - 1, depth)
 })
 
+test('nesting just under the limit compiles and just over it is diagnosed', () => {
+  // JSX is the most stack-hungry construct; 32,700 levels used to pass the
+  // preflight and still abort the process.
+  const nest = depth =>
+    transformModule(
+      options(
+        `export const App = () => ${'<div>'.repeat(depth)}x${'</div>'.repeat(depth)}\n`,
+      ),
+    )
+
+  assert.deepEqual(nest(8_000).diagnostics, [])
+  assert.deepEqual(
+    nest(8_200).diagnostics.map(diagnostic => diagnostic.code),
+    ['ZEUS_INPUT_TOO_DEEP'],
+  )
+})
+
 test('pathological nesting returns a diagnostic instead of aborting the host', () => {
   const depth = 50_000
   const result = transformModule(

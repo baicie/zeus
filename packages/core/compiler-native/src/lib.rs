@@ -15,7 +15,11 @@ use zeus_compiler::{
     span::{SourcePosition as CoreSourcePosition, SourceSpan as CoreSourceSpan},
 };
 
-const MAX_INPUT_NESTING_DEPTH: usize = 32_768;
+// Measured with the 64 MiB worker stack below: JSX overflows at about 23,000
+// levels and object literals, arrow chains and ternaries abort below 32,700,
+// while every construct still compiles at 12,288 in both targets. The limit
+// keeps at least 1.5x of that margin; real code never nests this deep.
+const MAX_INPUT_NESTING_DEPTH: usize = 8_192;
 
 #[napi(object)]
 pub struct TransformModuleOptions {

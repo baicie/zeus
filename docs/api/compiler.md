@@ -63,7 +63,7 @@ emitted raw.
 The Node adapter runs each transform on a dedicated thread with a large stack,
 so JSX nested tens of thousands of levels deep does not consume the host's
 main-thread stack. A lexical preflight rejects pathological input above the
-32,768-level limit with the structured `ZEUS_INPUT_TOO_DEEP` diagnostic instead
+8,192-level limit with the structured `ZEUS_INPUT_TOO_DEEP` diagnostic instead
 of allowing a stack overflow to terminate the host process.
 
 ## Targets
