@@ -8,15 +8,15 @@
 `packages/core/compiler-wasm`：Rust 宿主只负责在线性内存上收发 JSON 并按 N-API 相同的规则校验选项，
 解析、lowering、IR 与 codegen 仍是唯一的 `zeus_compiler`，没有第二套 transpiler。
 
-| 项目                                  | 结果                                                                                                                  |
-| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| 产物                                  | `zeus-compiler.wasm`，无 import；导出 `memory`、`zeus_alloc`、`zeus_free`、`zeus_transform`                           |
-| 体积                                  | 1,486,456 B raw、449,982 B gzip（level 9）、324,789 B brotli                                                          |
-| 初始内存                              | 2.19 MiB（2 MiB shadow stack）                                                                                        |
-| Node parity                           | 仓库 75 个 TSX 模块 × 3 组选项 = 225 次 transform，与 native 规范化 JSON 逐字节一致                                   |
-| 耗时（同一语料，M 系 macOS，Node 24） | native 95.5 ms、WASM 116.5 ms（含每次 N-API 线程创建）                                                                |
-| 浏览器                                | Chromium module Worker 中 10 次 transform 与 native 一致，trap 后恢复，主线程路径一致；Firefox、WebKit 本机运行见下文 |
-| 嵌套上限                              | 约 1,424 层后触发引擎调用栈上限，变为可恢复的 `[ZEUS_COMPILER_WASM_TRAP]`；native 为数万层                            |
+| 项目                                  | 结果                                                                                                        |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| 产物                                  | `zeus-compiler.wasm`，无 import；导出 `memory`、`zeus_alloc`、`zeus_free`、`zeus_transform`                 |
+| 体积                                  | 1,486,456 B raw、449,982 B gzip（level 9）、324,789 B brotli                                                |
+| 初始内存                              | 2.19 MiB（2 MiB shadow stack）                                                                              |
+| Node parity                           | 仓库 75 个 TSX 模块 × 3 组选项 = 225 次 transform，与 native 规范化 JSON 逐字节一致                         |
+| 耗时（同一语料，M 系 macOS，Node 24） | native 95.5 ms、WASM 116.5 ms（含每次 N-API 线程创建）                                                      |
+| 浏览器                                | Chromium、Firefox、WebKit 的 module Worker 中各 10 次 transform 与 native 一致，trap 后恢复，主线程路径一致 |
+| 嵌套上限                              | 约 1,424 层后触发引擎调用栈上限，变为可恢复的 `[ZEUS_COMPILER_WASM_TRAP]`；native 为数万层                  |
 
 ## 宿主接口
 
@@ -40,14 +40,14 @@ Worker bridge 另有超时：超时即 `terminate()` 并拒绝所有挂起请求
 
 ## 命令与证据
 
-| 命令                                                                                       | 环境                     | 结果                                                         |
-| ------------------------------------------------------------------------------------------ | ------------------------ | ------------------------------------------------------------ |
-| `cargo build -p zeus_compiler --target wasm32-unknown-unknown --release`                   | rustc 1.95.0             | 通过                                                         |
-| `cargo test --workspace --locked`                                                          | 同上                     | 119 通过                                                     |
-| `cargo clippy --package zeus_compiler_wasm --target wasm32-unknown-unknown -- -D warnings` | 同上                     | 通过                                                         |
-| `pnpm test:compiler-wasm`                                                                  | Node 24.18               | 4 通过（parity、选项错误、trap 恢复、无 import）             |
-| `pnpm check:compiler-wasm-browser`                                                         | Playwright Chromium 1248 | Chromium 通过；Firefox、WebKit 本机未安装，下载中（NOT_RUN） |
-| `__tests__/types.ts`（`pnpm check`）                                                       | tsc                      | WASM 与 native 的选项/结果类型互相可赋值                     |
+| 命令                                                                                       | 环境                                                 | 结果                                             |
+| ------------------------------------------------------------------------------------------ | ---------------------------------------------------- | ------------------------------------------------ |
+| `cargo build -p zeus_compiler --target wasm32-unknown-unknown --release`                   | rustc 1.95.0                                         | 通过                                             |
+| `cargo test --workspace --locked`                                                          | 同上                                                 | 119 通过                                         |
+| `cargo clippy --package zeus_compiler_wasm --target wasm32-unknown-unknown -- -D warnings` | 同上                                                 | 通过                                             |
+| `pnpm test:compiler-wasm`                                                                  | Node 24.18                                           | 4 通过（parity、选项错误、trap 恢复、无 import） |
+| `pnpm check:compiler-wasm-browser`                                                         | Playwright Chromium 1248、Firefox 157.0、WebKit 27.2 | 三引擎通过（`temp/compiler-wasm/report.json`）   |
+| `__tests__/types.ts`（`pnpm check`）                                                       | tsc                                                  | WASM 与 native 的选项/结果类型互相可赋值         |
 
 CI：`rust-compiler` job 增加 wasm target、WASM clippy 与 `pnpm test:compiler-wasm`；`packed-consumers` job
 构建 WASM 并在三引擎运行 Worker 检查，报告随 artifact 上传。
