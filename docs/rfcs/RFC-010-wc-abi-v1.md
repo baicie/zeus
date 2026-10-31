@@ -257,6 +257,11 @@ Shadow 模式使用原生 `<slot>`。Light DOM 模式由 Zeus 管理 projection�
 | `ZEUS_WC_MODEL`                | model 引用不存在的 prop/event 或 eventPath 无法读取   | 修正 model 元数据                                  |
 | `ZEUS_WC_FORM_CONTRACT`        | `formAssociated` 缺少 internals/fallback 定义         | 补齐表单契约或设为 false                           |
 
+`ZEUS_WC_ABI_VERSION`～`ZEUS_WC_MODEL` 由 `validateComponentManifest` 在生成 Manifest、CEM 与 wrapper 前检查。
+`ZEUS_WC_METHOD_READY` 由生成器保证：lazy 元素的方法声明一律返回 `Promise`，与就绪前排队调用的行为一致。
+`ZEUS_WC_FORM_CONTRACT` 是 Analyzer 警告：`formAssociated: true` 但既未声明 `form` 契约、setup 也从不读取
+`internals` 的组件永远不会提交值。
+
 同 tag 的相同构造器/版本注册允许幂等；不同实现必须可诊断报错，不能静默 `return`。自动注册入口必须显式标记为有副作用，SSR-safe 入口不得在 import 时访问 DOM 全局。
 
 ## 5. 单一数据源与验收映射

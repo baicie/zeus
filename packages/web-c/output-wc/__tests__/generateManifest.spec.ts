@@ -226,6 +226,98 @@ describe('generateManifest', () => {
     },
   )
 
+  function noticeManifest(overrides: Record<string, unknown>) {
+    return {
+      schemaVersion: 1,
+      components: [
+        {
+          tag: 'z-notice',
+          name: 'Notice',
+          exportName: 'Notice',
+          source: 'notice.tsx',
+          props: {},
+          events: {},
+          slots: {},
+          hostAttributes: [],
+          cssParts: [],
+          cssVars: {},
+          ...overrides,
+        },
+      ],
+    } as any
+  }
+
+  it.each([
+    [{ items: { type: 'array', attr: 'items' } }, 'ZEUS_WC_OBJECT_ATTRIBUTE'],
+    [
+      { onPick: { type: 'function', attr: 'on-pick' } },
+      'ZEUS_WC_OBJECT_ATTRIBUTE',
+    ],
+    [{ config: { type: 'object', reflect: true } }, 'ZEUS_WC_REFLECT_CODEC'],
+    [
+      { tags: { type: 'array', reflect: true, serialize: true } },
+      'ZEUS_WC_REFLECT_CODEC',
+    ],
+  ])(
+    'rejects structured attribute and reflection without a codec: %j',
+    (props, code) => {
+      expect(() =>
+        validateComponentManifest(noticeManifest({ props })),
+      ).toThrow(`[${code}] components[0].props.`)
+    },
+  )
+
+  it('accepts structured props whose attribute and reflection have a codec', () => {
+    expect(() =>
+      validateComponentManifest(
+        noticeManifest({
+          props: {
+            tags: {
+              type: 'array',
+              attr: 'tags',
+              reflect: true,
+              serialize: true,
+              deserialize: true,
+            },
+            open: { type: 'boolean', attr: false, reflect: true },
+          },
+        }),
+      ),
+    ).not.toThrow()
+  })
+
+  it.each([
+    [{ prop: 'missing', event: 'value-change' }],
+    [{ prop: 'value', event: 'value-input' }],
+    [{ prop: 'value', event: 'value-change', eventPath: 'target.value' }],
+    [{ prop: 'value', event: 'value-change', eventPath: 'detail.missing' }],
+  ])('rejects a model that cannot be read: %j', model => {
+    const manifest = noticeManifest({
+      props: { value: { type: 'string' } },
+      events: {
+        valueChange: { name: 'value-change', detail: { value: 'string' } },
+      },
+      models: [model],
+    })
+    expect(() => validateComponentManifest(manifest)).toThrow(
+      '[ZEUS_WC_MODEL] components[0].models[0]',
+    )
+  })
+
+  it('accepts models bound to a dispatched event and a declared detail field', () => {
+    const manifest = noticeManifest({
+      props: { value: { type: 'string' } },
+      events: {
+        valueChange: { detail: { value: 'string' } },
+      },
+      models: [
+        { prop: 'value', event: 'value-change', eventPath: 'detail.value' },
+        { prop: 'value', event: 'value-change' },
+      ],
+    })
+    expect(() => validateComponentManifest(manifest)).not.toThrow()
+  })
+
   it('requires optional event fields to belong to an existing detail map', () => {
     const component = {
       tag: 'z-notice',

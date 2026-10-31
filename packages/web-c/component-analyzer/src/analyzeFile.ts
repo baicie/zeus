@@ -1,6 +1,6 @@
 import * as t from '@babel/types'
 
-import { parseSource } from './ast'
+import { parseSource, walk } from './ast'
 import { extractDefineElementCalls } from './extractDefineElement'
 import { extractEmits } from './extractEmits'
 import { extractInlineMeta } from './extractMeta'
@@ -13,6 +13,7 @@ import { extractSetupMeta } from './extractSetup'
 import { collectLocalPropTypes } from './extractTypeProps'
 import { buildComponentRecord } from './merge'
 import { collectSourceBoundTypeNames } from './portable-types'
+import { getObjectProperty } from './utils'
 
 import type {
   AnalyzeFileOptions,
@@ -86,11 +87,26 @@ export function analyzeFileWithImportedPropTypes(
         })
       }
 
-      const setupMeta = extractSetupMeta(
-        resolveSetupBinding(call.setup, localSetupBindings),
-        sourceBoundTypeNames,
-      )
+      const setup = resolveSetupBinding(call.setup, localSetupBindings)
+      const setupMeta = extractSetupMeta(setup, sourceBoundTypeNames)
       const inlineMeta = extractInlineMeta(call.options)
+      const formAssociated =
+        componentOptions.formAssociated ??
+        (typeof inlineMeta.formAssociated === 'boolean'
+          ? inlineMeta.formAssociated
+          : undefined)
+
+      if (
+        formAssociated &&
+        !(call.options && getObjectProperty(call.options, 'form')) &&
+        !readsInternals(setup)
+      ) {
+        diagnostics.push({
+          level: 'warning',
+          file,
+          message: `<${call.tag}> [ZEUS_WC_FORM_CONTRACT] is formAssociated but declares no form contract and never reads internals, so it never submits a value. Add form: { value } or set formAssociated: false.`,
+        })
+      }
 
       components.push(
         buildComponentRecord({
@@ -107,11 +123,7 @@ export function analyzeFileWithImportedPropTypes(
             (typeof inlineMeta.shadow === 'boolean'
               ? inlineMeta.shadow
               : undefined),
-          formAssociated:
-            componentOptions.formAssociated ??
-            (typeof inlineMeta.formAssociated === 'boolean'
-              ? inlineMeta.formAssociated
-              : undefined),
+          formAssociated,
         }),
       )
     }
@@ -128,6 +140,15 @@ export function analyzeFileWithImportedPropTypes(
     components,
     diagnostics,
   }
+}
+
+// A setup that touches `internals` manages form participation itself.
+function readsInternals(setup: t.Node | null | undefined): boolean {
+  let found = false
+  walk(setup, node => {
+    if (t.isIdentifier(node, { name: 'internals' })) found = true
+  })
+  return found
 }
 
 function collectLocalSetupBindings(ast: t.File): Map<string, t.Node> {

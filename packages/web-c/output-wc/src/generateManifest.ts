@@ -1,6 +1,7 @@
 import {
   getComponentAttributeName,
   getComponentEventName,
+  isAttributeBackedPropType,
   isValidComponentEventName,
 } from '@zeus-js/component-analyzer'
 
@@ -129,7 +130,45 @@ export function validateComponentManifest(manifest: ComponentManifest): void {
       }
     }
 
+    for (const [modelIndex, model] of (component.models ?? []).entries()) {
+      const modelPath = `${componentPath}.models[${modelIndex}]`
+      const event = Object.entries(component.events ?? {}).find(
+        ([key, entry]) => getComponentEventName(key, entry) === model.event,
+      )?.[1]
+      const field = /^detail(?:\.([A-Za-z_$][\w$]*))*$/.exec(
+        model.eventPath ?? 'detail',
+      )
+      const detailField = model.eventPath?.split('.')[1]
+      if (
+        !Object.prototype.hasOwnProperty.call(
+          component.props ?? {},
+          model.prop,
+        ) ||
+        !event ||
+        !field ||
+        (detailField !== undefined &&
+          event.detail !== undefined &&
+          !Object.prototype.hasOwnProperty.call(event.detail, detailField))
+      ) {
+        throw new Error(
+          `[ZEUS_WC_MODEL] ${modelPath} must bind an existing prop to an event the component dispatches, reading its value from "detail" or a declared detail field (prop "${model.prop}", event "${model.event}", eventPath "${model.eventPath ?? 'detail'}").`,
+        )
+      }
+    }
+
     for (const [propName, prop] of Object.entries(component.props ?? {})) {
+      const propPath = `${componentPath}.props.${propName}`
+      const structured = !isAttributeBackedPropType(prop.type)
+      if (structured && typeof prop.attr === 'string' && !prop.deserialize) {
+        throw new Error(
+          `[ZEUS_WC_OBJECT_ATTRIBUTE] ${propPath} declares attribute "${prop.attr}", but a ${prop.type} prop can only be read from an attribute through a deserialize codec. Set attr: false or declare deserialize.`,
+        )
+      }
+      if (prop.reflect && structured && !(prop.serialize && prop.deserialize)) {
+        throw new Error(
+          `[ZEUS_WC_REFLECT_CODEC] ${propPath} reflects a ${prop.type} value without a reversible codec. Set reflect: false or declare both serialize and deserialize.`,
+        )
+      }
       if (
         prop.hasDefault !== undefined &&
         typeof prop.hasDefault !== 'boolean'
