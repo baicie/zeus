@@ -104,6 +104,7 @@ WASM parity（PR-08）不在本矩阵内。
 | `ZEUS_INVALID_ONCE_INTRINSIC`                   | `lower.rs:1829`、`1953`、`2173`                                  | RL                             | RFC-013             |
 | `ZEUS_INVALID_ONCE_TARGET`                      | `lower.rs:2165`、`2182`                                          | RL、RT、NC                     | RFC-013             |
 | `ZEUS_INVALID_PROPERTY_BINDING`                 | `lower.rs:1730`、`1755`                                          | RL                             | —                   |
+| `ZEUS_INVALID_PROP_NAME`                        | `lower.rs` `lower_attribute_name`（Z-1）                         | RL                             | guide/jsx           |
 | `ZEUS_INVALID_REF_USAGE`                        | `lower.rs:1747`                                                  | RL                             | —                   |
 | `ZEUS_INVALID_SHOW_FALLBACK`                    | `lower.rs:1211`                                                  | —                              | —                   |
 | `ZEUS_INVALID_SLOT_NAME`                        | `lower.rs:638`                                                   | RL                             | RFC-008             |
@@ -289,9 +290,14 @@ WASM parity（PR-08）不在本矩阵内。
 
 - Q1：`prop:innerHTML` 与 `prop:outerHTML` 在两个 target 上报 `ZEUS_UNSAFE_HTML_PROPERTY`。可信且已净化的 HTML
   在 `ref` 回调中显式赋值。与 RFC-008 对 Spread 的限制一致。
-- Q2：`onName` 继续绑定小写的 DOM 事件；新增 `on:name` 按原样绑定事件名（如 Zeus CE 的 `value-change`）。
+- Q2：原生元素上的 `onName` 绑定小写的 DOM 事件；自定义元素上的 `onName` 把 camelCase 词转成
+  kebab-case（`onValueChange` → `value-change`），与组件声明的 DOM 名和生成的 JSX 声明一致。
+  `on:name` 在任何元素上按原样绑定事件名。
   含 `-` 或大写字母的事件名一律直接绑定在元素上，不进入文档委托；`on-x` 报 `ZEUS_INVALID_EVENT_BINDING`。
 - 自定义元素上的 `prop:*` 在 SSR 中省略（与 Wrapper SSR-0 一致），由升级或 hydration 后设置。
+- Q3（2026-11-01，PR-24 的 Z-1）：`prop:name` 的 `name` 按 DOM property 名原样使用；含 `-` 的名字报
+  `ZEUS_INVALID_PROP_NAME`，hint 给出 `prop:selectionMode` 形式的 camelCase 写法。属性写法仍然可用，
+  直接写普通 attribute（`selection-mode={...}`）。
 
 ## 原待裁决语义（记录）
 

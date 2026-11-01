@@ -47,10 +47,15 @@ Static parts of the template are cloned from a cached template, not recreated.
 name. Events that do not bubble (such as `mouseenter`, `scroll`, `load` and
 media events) are bound directly on the element.
 
-Use `on:name` to bind an event by its exact name, including the kebab-case
-events dispatched by Zeus custom elements. Hyphenated and case-sensitive names
+On a custom element the event name belongs to the element, not to the browser,
+and Zeus spells those names in kebab-case. `onValueChange` on `<z-input>`
+therefore listens for `value-change`, matching both the component's declared
+events and the generated JSX declarations. Hyphenated and case-sensitive names
 are always bound directly on the element, because a custom element may dispatch
-them without bubbling:
+them without bubbling.
+
+Use `on:name` to bind an event by its exact name, when the name is not the
+camel-case form of the prop you want to write:
 
 ```tsx
 <z-select
@@ -62,3 +67,21 @@ them without bubbling:
 
 An attribute such as `on-value-change` does not name an event and fails
 compilation with `ZEUS_INVALID_EVENT_BINDING`.
+
+## DOM properties
+
+`prop:name` assigns `element[name]` directly, so `name` is the JavaScript
+property name, not the attribute spelling. Custom elements usually expose a
+camelCase property and observe a kebab-case attribute; pass the property name:
+
+```tsx
+<z-data-grid prop:selectionMode={mode()} />
+```
+
+Writing the attribute spelling there would assign a property no element has, so
+`prop:selection-mode` fails compilation with `ZEUS_INVALID_PROP_NAME`. Bind the
+attribute instead when the attribute is what you mean:
+
+```tsx
+<z-data-grid selection-mode={mode()} />
+```

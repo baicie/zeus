@@ -18,8 +18,8 @@ use oxc_syntax::symbol::SymbolId;
 use oxc_syntax::xml_entities::decode_entities;
 
 use crate::html::{
-    content_namespace, element_namespace, is_raw_text_element, is_unsupported_raw_text_element,
-    is_void_element, ElementNamespace,
+    ElementNamespace, content_namespace, element_namespace, is_raw_text_element,
+    is_unsupported_raw_text_element, is_void_element,
 };
 use crate::{
     diagnostic::{CompilerDiagnostic, DiagnosticSeverity},
@@ -559,16 +559,18 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
 
         let id = self.allocate_id();
 
-        let attributes = self.lower_attributes(&element.opening_element.attributes);
+        // A custom element may dispatch any name it declares, most often
+        // kebab-case (`value-change`), so `onValueChange` keeps its words:
+        // lowercasing it whole would listen for `valuechange` and never fire.
+        let attributes =
+            self.lower_attributes(&element.opening_element.attributes, tag_name.contains('-'));
         // Children inherit the parser context established by the surrounding
         // markup: `<svg>` enters the SVG namespace and `<foreignObject>` leaves
         // it again. The same rule applies inside component and control-flow
         // children, which are transparent to the HTML parser's context.
         let namespace = element_namespace(self.namespace, tag_name);
-        let previous = std::mem::replace(
-            &mut self.namespace,
-            content_namespace(namespace, tag_name),
-        );
+        let previous =
+            std::mem::replace(&mut self.namespace, content_namespace(namespace, tag_name));
         let mut children = self.lower_children(&element.children);
         self.namespace = previous;
         self.lower_raw_text_children(tag_name, element, &mut children)?;
@@ -1813,13 +1815,17 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         }
     }
 
-    fn lower_attributes(&mut self, attributes: &[JSXAttributeItem<'_>]) -> Vec<AttributeIr> {
+    fn lower_attributes(
+        &mut self,
+        attributes: &[JSXAttributeItem<'_>],
+        custom_element: bool,
+    ) -> Vec<AttributeIr> {
         let mut lowered = Vec::with_capacity(attributes.len());
 
         for attribute in attributes {
             match attribute {
                 JSXAttributeItem::Attribute(attribute) => {
-                    if let Some(attribute) = self.lower_attribute(attribute) {
+                    if let Some(attribute) = self.lower_attribute(attribute, custom_element) {
                         lowered.push(attribute);
                     }
                 }
@@ -1852,7 +1858,11 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         }
     }
 
-    fn lower_attribute(&mut self, attribute: &JSXAttribute<'_>) -> Option<AttributeIr> {
+    fn lower_attribute(
+        &mut self,
+        attribute: &JSXAttribute<'_>,
+        custom_element: bool,
+    ) -> Option<AttributeIr> {
         let (name, is_property) = self.lower_attribute_name(&attribute.name)?;
 
         if name.starts_with("on:")
@@ -1927,9 +1937,14 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                     span: self.source_index.span(attribute.span),
                 }))
             }
-            Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                self.lower_expression_attribute(attribute, container, name, is_property)
-            }
+            Some(JSXAttributeValue::ExpressionContainer(container)) => self
+                .lower_expression_attribute(
+                    attribute,
+                    container,
+                    name,
+                    is_property,
+                    custom_element,
+                ),
             Some(JSXAttributeValue::Element(_) | JSXAttributeValue::Fragment(_)) => {
                 self.unsupported(
                     "ZEUS_UNSUPPORTED_JSX_ATTRIBUTE_VALUE",
@@ -1964,6 +1979,27 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                     );
                     return None;
                 }
+                // A DOM property is assigned by name, so `prop:selection-mode`
+                // would write a property no element has. Attribute spelling is
+                // kebab-case, property spelling is not, and silently dropping
+                // the value is the worst outcome: name the fix instead.
+                if property.contains('-') {
+                    self.diagnostics.push(
+                        CompilerDiagnostic::error(
+                            "ZEUS_INVALID_PROP_NAME",
+                            format!(
+                                "prop:{property} names a DOM property, and property names are not kebab-case; no element has a `{property}` property."
+                            ),
+                            self.filename,
+                            Some(self.source_index.span(name.span())),
+                        )
+                        .with_hint(format!(
+                            "Write the property name in camelCase, for example `prop:{}`.",
+                            kebab_to_camel(property)
+                        )),
+                    );
+                    return None;
+                }
                 Some((property.to_owned(), true))
             }
             // `on:name` binds the event named exactly `name`, such as the
@@ -1988,6 +2024,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         container: &JSXExpressionContainer<'_>,
         name: String,
         is_property: bool,
+        custom_element: bool,
     ) -> Option<AttributeIr> {
         if matches!(&container.expression, JSXExpression::EmptyExpression(_)) {
             self.unsupported(
@@ -2059,6 +2096,12 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         if is_event_attribute_name(&name) {
             let event_name = match name.strip_prefix("on:") {
                 Some(verbatim) => verbatim.to_owned(),
+                // Native DOM events are lowercase (`onClick` is `click`).
+                // A custom element declares its own names, which Zeus and the
+                // generated declarations both spell kebab-case, so the camel
+                // case words are preserved there: `onValueChange` listens for
+                // `value-change` rather than the dead `valuechange`.
+                None if custom_element => camel_to_kebab(&name[2..]),
                 None => name[2..].to_ascii_lowercase(),
             };
             if let Some(intended) = event_name.strip_prefix('-') {
@@ -2569,6 +2612,9 @@ fn unsupported_hint(code: &str) -> Option<&'static str> {
         "ZEUS_INVALID_ONCE_TARGET" => {
             "Use once only for native text, attribute and property bindings."
         }
+        "ZEUS_INVALID_PROP_NAME" => {
+            "Write the DOM property in camelCase, for example `prop:selectionMode`."
+        }
         "ZEUS_INVALID_PROPERTY_BINDING" => {
             "Pass an expression, for example `prop:value={value()}`."
         }
@@ -2834,6 +2880,45 @@ fn normalize_attribute_name(name: &str) -> String {
         _ => name,
     }
     .into()
+}
+
+/// Turns an attribute spelling into the property name it most likely meant, so
+/// a `prop:selection-mode` diagnostic can name the exact fix.
+fn kebab_to_camel(name: &str) -> String {
+    let mut camel = String::with_capacity(name.len());
+    let mut upper = false;
+    for character in name.chars() {
+        if character == '-' {
+            upper = true;
+        } else if upper {
+            camel.extend(character.to_uppercase());
+            upper = false;
+        } else {
+            camel.push(character);
+        }
+    }
+    camel
+}
+
+/// `onValueChange` names the custom element event `value-change`. Runs that are
+/// already kebab-case or lowercase pass through unchanged, and a leading case
+/// change does not create an empty segment.
+fn camel_to_kebab(name: &str) -> String {
+    let mut kebab = String::with_capacity(name.len() + 4);
+    let mut previous_lower = false;
+    for character in name.chars() {
+        if character.is_ascii_uppercase() {
+            if previous_lower {
+                kebab.push('-');
+            }
+            kebab.push(character.to_ascii_lowercase());
+            previous_lower = false;
+            continue;
+        }
+        previous_lower = character.is_ascii_lowercase() || character.is_ascii_digit();
+        kebab.push(character);
+    }
+    kebab
 }
 
 fn collect_builtin_names(program: &oxc_ast::ast::Program<'_>) -> HashMap<String, BuiltinBinding> {

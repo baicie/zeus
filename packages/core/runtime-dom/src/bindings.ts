@@ -449,16 +449,34 @@ export function bindProp<T extends Element, K extends keyof T>(
   value: () => T[K],
   once = false,
 ): void {
+  const customElement = el.localName.includes('-')
+  let hasWritten = false
+  let previous: T[K]
+
   bindEffect(
     value,
     once,
     next => {
-      if (!el.localName.includes('-') && Object.is(el[name], next)) {
-        if (name === 'tabIndex' && el.getAttribute('tabindex') === null) {
+      // A custom element may not be upgraded yet, so reading the property
+      // would see a plain own value rather than the element's accessor; a
+      // third-party accessor also may have side effects. Remember what this
+      // binding wrote instead, and write only when it changes.
+      if (
+        customElement
+          ? hasWritten && Object.is(previous, next)
+          : Object.is(el[name], next)
+      ) {
+        if (
+          !customElement &&
+          name === 'tabIndex' &&
+          el.getAttribute('tabindex') === null
+        ) {
           el[name] = next
         }
         return
       }
+      hasWritten = true
+      previous = next
       el[name] = next
     },
     { kind: `prop:${String(name)}`, target: el },

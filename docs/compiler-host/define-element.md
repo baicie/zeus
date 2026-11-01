@@ -283,3 +283,28 @@ ctx.expose({
 ```
 
 The analyzer extracts method names and common TypeScript signatures. Lazy Web Component output creates method proxies that wait for the real component chunk before invoking the exposed method.
+
+## Readiness
+
+`componentOnReady()` resolves once the element is initialized and currently
+connected, with props coerced and the first mount in place. Until it resolves,
+the element's rendered DOM is not yet the tree the setup returned: child
+elements that resolve a DOM context (by walking to their host with
+`closest()`) have not linked yet, and lazy output has not loaded its chunk.
+
+Await readiness before asserting on rendered DOM or interacting from outside
+the framework:
+
+```ts
+const grid = document.createElement('z-data-grid')
+grid.columns = columns
+grid.append(...)
+document.body.append(grid)
+await grid.componentOnReady()
+```
+
+Writing props and attributes before readiness is supported; they are read when
+the mount runs. Reconnecting an already-loaded element is also asynchronous:
+after a native DOM move, wait for `componentOnReady()` again before inspecting
+the rebuilt tree. Framework wrappers resolve the same promise before their
+first external render settles.

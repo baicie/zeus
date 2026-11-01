@@ -1483,6 +1483,26 @@ fn rejects_hyphenated_component_names() {
 }
 
 #[test]
+fn rejects_kebab_case_property_names() {
+    let source = "export const App = props => <div prop:selection-mode={props.mode} prop:columns={props.columns} />\n";
+    let lowered = lower_module(source, "kebab-property.tsx");
+
+    assert!(lowered.ir.is_none());
+    assert_eq!(
+        diagnostic_codes_and_text(&lowered, source),
+        vec![("ZEUS_INVALID_PROP_NAME".into(), "prop:selection-mode")]
+    );
+    assert!(
+        lowered.diagnostics[0]
+            .hint
+            .as_deref()
+            .is_some_and(|hint| hint.contains("prop:selectionMode")),
+        "{:?}",
+        lowered.diagnostics[0].hint
+    );
+}
+
+#[test]
 fn rejects_html_parsing_properties() {
     let source = "export const App = props => <div prop:innerHTML={props.html}><p prop:outerHTML={props.html} /></div>\n";
     let lowered = lower_module(source, "unsafe-html.tsx");
@@ -1519,6 +1539,26 @@ fn lowers_on_namespace_events_with_exact_names() {
         })
         .collect::<Vec<_>>();
     assert_eq!(names, vec!["value-change", "openChanged", "value-input"]);
+}
+
+#[test]
+fn maps_camel_case_event_handlers_to_kebab_case_events() {
+    // `onValueChange` is the name generated JSX declarations and the React
+    // wrapper both use, and Zeus custom elements dispatch `value-change`.
+    let source = "export const App = props => <z-field onValueChange={props.change} onOpenChanged={props.open} onClick={props.click} />\n";
+    let lowered = lower_module(source, "camel-events.tsx");
+
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let ir = lowered.ir.expect("camel case events lower");
+    let names = root_element(&ir.components[0].root)
+        .attributes
+        .iter()
+        .filter_map(|attribute| match attribute {
+            AttributeIr::Event(event) => Some(event.event_name.as_str()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(names, vec!["value-change", "open-changed", "click"]);
 }
 
 #[test]

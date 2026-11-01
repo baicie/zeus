@@ -106,6 +106,12 @@ const cases: DiagnosticCase[] = [
     text: 'prop:value="x"',
   },
   {
+    code: 'ZEUS_INVALID_PROP_NAME',
+    source:
+      'export const App = props => <z-grid prop:selection-mode={props.mode} />',
+    text: 'prop:selection-mode',
+  },
+  {
     code: 'ZEUS_INVALID_REF_USAGE',
     source: 'export const App = () => <div ref="target" />',
     text: 'ref="target"',

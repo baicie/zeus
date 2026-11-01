@@ -281,12 +281,14 @@ describe('runtime bindings', () => {
     now.mockRestore()
   })
 
-  it('preserves custom element property setter calls', () => {
+  it('skips redundant custom element property writes without reading the property', () => {
     let setterCalls = 0
+    let getterCalls = 0
     let currentValue = ''
     const counter = {
       localName: 'x-binding-counter',
       get value() {
+        getterCalls++
         return currentValue
       },
       set value(value: string) {
@@ -300,10 +302,34 @@ describe('runtime bindings', () => {
       tick.value
       return 'Ada'
     })
+    getterCalls = 0
     tick.value++
 
     expect(counter.value).toBe('Ada')
-    expect(setterCalls).toBe(2)
+    // The binding remembers what it wrote: an unchanged value is not written
+    // again, and a custom element's own accessor is never read.
+    expect(setterCalls).toBe(1)
+    expect(getterCalls).toBe(1)
+  })
+
+  it('rewrites a custom element property when the value changes', () => {
+    const values: string[] = []
+    const counter = {
+      localName: 'x-binding-counter',
+      value: '',
+    } as unknown as HTMLElement & { value: string }
+    Object.defineProperty(counter, 'value', {
+      get: () => values[values.length - 1] ?? '',
+      set: (value: string) => values.push(value),
+    })
+    const label = state('a')
+
+    bindProp(counter, 'value', () => label.value)
+
+    label.value = 'b'
+    label.value = 'a'
+
+    expect(values).toEqual(['a', 'b', 'a'])
   })
 
   it('binds class object', () => {

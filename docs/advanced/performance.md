@@ -51,6 +51,14 @@ control-flow inputs reject the intrinsic with a compiler diagnostic.
 
 `bindEvent` + `delegateEvents` reduces event listeners. One listener per event type handles all elements.
 
+Delegation covers events whose names the compiler can enumerate from the
+template. It is decided per module at compile time, and only names spelled
+statically take part. An event bound at runtime through `bindEvent`, or
+dispatched by a child through `dispatchEvent`, is not added to that list; it is
+bound directly on its element, which is correct but costs one listener per
+binding. Custom-element events are always bound directly, because a custom
+element may dispatch them without bubbling.
+
 ## Static template cloning
 
 Static subtrees are cloned from cached templates, not created from scratch.
