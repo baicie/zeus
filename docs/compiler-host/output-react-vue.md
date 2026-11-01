@@ -152,7 +152,9 @@ components and provides from `appContext`. Both adapters commit synchronously,
 unmount Portal and Teleport content on dispose, and report failures as
 `ZEUS_RENDERER_ADAPTER_FAILURE`, `ZEUS_RENDERER_DISPOSED` or
 `ZEUS_RENDERER_CONTAINER_MISMATCH`. The React entry needs `react-dom` as a peer
-dependency.
+dependency. Both renderer entries import only types from
+`@zeus-js/web-c-runtime`, which is an optional peer dependency of the wrappers;
+install it when you use `createRendererHost`.
 
 Errors thrown during `mount`, `update` or `dispose` (including effect cleanups
 and unmount hooks) are thrown to the host as `ZEUS_RENDERER_ADAPTER_FAILURE`
