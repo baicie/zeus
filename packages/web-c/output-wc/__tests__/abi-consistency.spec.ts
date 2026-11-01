@@ -109,7 +109,82 @@ function lazyObservedAttributes(component: ComponentRecord): string[] {
   return [...defined.get('z-abi')!.observedAttributes].sort()
 }
 
+// Writes attributes through the HTML parser (before and after definition) and
+// `setAttribute`, then reads the props the element exposes.
+function readAttributeWrites(tag: string, define: () => void) {
+  const markup = (id: string) =>
+    `<${tag} id="${tag}-${id}" user-name="u" max-count="3" open level2-title="t" dataURL="${id}"></${tag}>`
+  const read = (element: Element) => {
+    const host = element as unknown as Record<string, unknown>
+    return {
+      userName: host.userName,
+      maxCount: host.maxCount,
+      open: host.open,
+      level2Title: host.level2Title,
+      dataUrl: host.dataUrl,
+    }
+  }
+  document.body.insertAdjacentHTML('beforeend', markup('upgraded'))
+  define()
+  document.body.insertAdjacentHTML('beforeend', markup('parsed'))
+  const upgraded = document.getElementById(`${tag}-upgraded`)!
+  const parsed = document.getElementById(`${tag}-parsed`)!
+  const initial = { upgraded: read(upgraded), parsed: read(parsed) }
+
+  parsed.setAttribute('dataurl', 'lower')
+  const lower = read(parsed).dataUrl
+  parsed.setAttribute('dataURL', 'mixed')
+  const mixed = read(parsed).dataUrl
+  parsed.removeAttribute('dataurl')
+  const removed = read(parsed).dataUrl
+  return { initial, runtime: { lower, mixed, removed } }
+}
+
 describe('Web Component attribute ABI consistency', () => {
+  it('routes real attribute writes to the same props in eager and lazy elements', () => {
+    const component = analyzedComponent()
+    const expected = {
+      initial: {
+        upgraded: {
+          userName: 'u',
+          maxCount: 3,
+          open: true,
+          level2Title: 't',
+          dataUrl: 'upgraded',
+        },
+        parsed: {
+          userName: 'u',
+          maxCount: 3,
+          open: true,
+          level2Title: 't',
+          dataUrl: 'parsed',
+        },
+      },
+      runtime: { lower: 'lower', mixed: 'mixed', removed: undefined },
+    }
+
+    const eager = readAttributeWrites('z-abi-eager', () => {
+      const props = new Function('prop', `return ${propsSource}`)(prop)
+      defineElement('z-abi-eager', { shadow: true, props }, () =>
+        document.createElement('span'),
+      )
+    })
+    expect(eager).toEqual(expected)
+
+    const lazy = readAttributeWrites('z-abi', () => {
+      const code = generateLazyManifest({
+        components: [component],
+        getEntryFileName: tag => `${tag}.js`,
+      })
+      // The implementation never loads; attribute writes land in the proxy.
+      const components = new Function(
+        `${code.replace('export const components', 'const components').replace(/import\(/g, '(() => new Promise(() => {}))(')}; return components`,
+      )() as Parameters<typeof bootstrapLazy>[0]
+      bootstrapLazy(components)
+    })
+    expect(lazy).toEqual(expected)
+  })
+
   it('derives the same attribute names in the runtime, lazy loader and documentation outputs', () => {
     const component = analyzedComponent()
     const manifest = { schemaVersion: 1 as const, components: [component] }

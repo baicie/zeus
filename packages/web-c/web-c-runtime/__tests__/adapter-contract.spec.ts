@@ -1008,6 +1008,83 @@ describe('eager and lazy custom element adapters', () => {
     expect(setup).toHaveBeenCalledTimes(2)
   })
 
+  // The platform order for a cross-document move is disconnected, adopted,
+  // then connected in the new document.
+  it.each(['eager', 'lazy'] as const)(
+    'mounts a %s host once per document when it is adopted into another document',
+    async kind => {
+      const eagerTag = createTag('adopt-eager')
+      const lazyTag = createTag('adopt-lazy')
+      const counts = { mounts: 0, cleanups: 0 }
+      const Definition = defineElement<{ label: string }>(
+        eagerTag,
+        { shadow: false, props: { label: String } },
+        props => {
+          counts.mounts++
+          onCleanup(() => counts.cleanups++)
+          const output = document.createElement('span')
+          createEffect(() => {
+            output.textContent = String(props.label)
+          })
+          return output
+        },
+      )
+      bootstrapLazy([
+        {
+          tagName: lazyTag,
+          props: [{ name: 'label', type: 'string' }],
+          load: async () => createLazyModule(Definition),
+        },
+      ])
+      const host = document.createElement(
+        kind === 'eager' ? eagerTag : lazyTag,
+      ) as AdapterElement
+      const settle = async () => {
+        await host.componentOnReady?.()
+        await nextFrame()
+      }
+      host.setAttribute('label', 'main')
+      document.body.append(host)
+      await settle()
+      expect(counts).toEqual({ mounts: 1, cleanups: 0 })
+
+      const other = document.implementation.createHTMLDocument('other')
+      host.remove()
+      other.adoptNode(host)
+      await nextFrame()
+      // Adoption of a detached host releases the old mount and does not
+      // create a new one until the host connects in the new document.
+      expect(host.ownerDocument).toBe(other)
+      expect(counts).toEqual({ mounts: 1, cleanups: 1 })
+      expect(host.querySelectorAll('span')).toHaveLength(0)
+      other.body.append(host)
+      await settle()
+      expect(host.ownerDocument).toBe(other)
+      expect(counts).toEqual({ mounts: 2, cleanups: 1 })
+      expect(host.querySelectorAll('span')).toHaveLength(1)
+      expect(host.textContent).toBe('main')
+
+      host.label = 'other'
+      await nextFrame()
+      expect(host.textContent).toBe('other')
+
+      host.remove()
+      document.adoptNode(host)
+      await nextFrame()
+      expect(counts).toEqual({ mounts: 2, cleanups: 2 })
+      document.body.append(host)
+      await settle()
+      expect(host.ownerDocument).toBe(document)
+      expect(counts).toEqual({ mounts: 3, cleanups: 2 })
+      expect(host.querySelectorAll('span')).toHaveLength(1)
+      expect(host.textContent).toBe('other')
+
+      host.remove()
+      await nextFrame()
+      expect(counts).toEqual({ mounts: 3, cleanups: 3 })
+    },
+  )
+
   it('matches a seeded last-explicit-write model across eager and lazy hosts', async () => {
     const eagerTag = createTag('model-eager')
     const lazyTag = createTag('model-lazy')
