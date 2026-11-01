@@ -23,6 +23,14 @@ export function createSSRFragment(
   }) as unknown as SSRFragment
 }
 
+/** Serializes an HTML comment from a static, compiler-owned marker name. */
+export function ssrMarkerComment(data: string): SSRFragment {
+  if (data.includes('--') || data.includes('>')) {
+    throw new TypeError(`Invalid SSR comment marker: ${JSON.stringify(data)}.`)
+  }
+  return createSSRFragment(`<!--${data}-->`)
+}
+
 function isSSRFragment(value: unknown): value is SSRFragment {
   return (
     typeof value === 'object' &&
@@ -60,14 +68,100 @@ const ATTRIBUTE_ESCAPE: Record<string, string> = {
 }
 
 export function serializeSSRNode(value: SSRNode): string {
+  let html = ''
+  for (const chunk of serializeSSRNodeChunks(value, Number.POSITIVE_INFINITY)) {
+    html += chunk
+  }
+  return html
+}
+
+/**
+ * Yields the serialized HTML of one node in pieces of at least `flushAt`
+ * characters.
+ *
+ * Escaping runs before chunking, so a chunk never contains an unescaped value
+ * or a half-applied raw-text rewrite. A single node larger than `flushAt` is
+ * split into equal pieces: chunks are transport units of one byte stream, so a
+ * consumer must concatenate them before parsing. `Infinity` yields exactly one
+ * piece.
+ */
+export function* serializeSSRNodeChunks(
+  value: SSRNode,
+  flushAt: number,
+): Generator<string, void, undefined> {
   assertSyncSSRValue(value)
 
-  if (isSSRFragment(value)) return value.html
+  if (isSSRFragment(value)) {
+    yield* chunkFragment(value.html, flushAt)
+    return
+  }
 
   if (Array.isArray(value)) {
-    let html = ''
-    for (const child of value) html += serializeSSRNode(child)
-    return html
+    let buffer = ''
+    for (const child of value) {
+      for (const chunk of serializeSSRNodeChunks(child, flushAt)) {
+        buffer += chunk
+        if (buffer.length >= flushAt) {
+          yield buffer
+          buffer = ''
+        }
+      }
+    }
+    if (buffer) yield buffer
+    return
+  }
+
+  if (value == null || typeof value === 'boolean') return
+  if (typeof value === 'string') {
+    yield escapeHTMLText(value)
+    return
+  }
+  if (typeof value === 'number') {
+    yield String(value)
+    return
+  }
+  throw new TypeError('renderToString() received an unsupported SSR value.')
+}
+
+function* chunkFragment(
+  html: string,
+  flushAt: number,
+): Generator<string, void, undefined> {
+  if (!Number.isFinite(flushAt) || html.length <= flushAt) {
+    yield html
+    return
+  }
+
+  for (let start = 0; start < html.length; start += flushAt) {
+    yield html.slice(start, start + flushAt)
+  }
+}
+
+/**
+ * Serializes children of a raw-text tag name that is *not* parsed as HTML raw
+ * text, such as `<style>` inside SVG or MathML. CSS escapes are not honored
+ * there, so the content uses ordinary text escaping instead.
+ */
+export function serializeSSRForeignText(
+  value: SSRNode,
+  tag: SSRRawTextTag,
+): string {
+  return serializeSSRTextValue(value, tag)
+}
+
+function serializeSSRTextValue(value: SSRNode, tag: SSRRawTextTag): string {
+  assertSyncSSRValue(value)
+
+  if (isSSRFragment(value)) {
+    throw new TypeError(
+      `renderToString() does not support serialized fragments inside <${tag}> text.`,
+    )
+  }
+
+  if (Array.isArray(value)) {
+    let text = ''
+    for (const child of value) text += serializeSSRTextValue(child, tag)
+    return escapeHTMLText(text)
   }
 
   if (value == null || typeof value === 'boolean') return ''
