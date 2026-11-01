@@ -60,11 +60,17 @@ In SSR output, static JSX text is HTML-escaped at compile time. Text inside
 the client binds it through `textContent`; `<script>` and `<style>` content is
 emitted raw.
 
-The Node adapter runs each transform on a dedicated thread with a large stack,
-so JSX nested tens of thousands of levels deep does not consume the host's
-main-thread stack. A lexical preflight rejects pathological input above the
-8,192-level limit with the structured `ZEUS_INPUT_TOO_DEEP` diagnostic instead
-of allowing a stack overflow to terminate the host process.
+The Node adapter runs each transform on a dedicated thread with a large stack.
+Because a parser stack overflow aborts the whole process, a lexical preflight
+runs before Oxc and returns the structured `ZEUS_INPUT_TOO_DEEP` diagnostic for
+pathological input. The preflight measures what actually consumes the worker
+stack rather than bracket depth alone, so an arrow chain `(a) => (b) => …`, a
+member chain `a.a.a…`, a template substitution chain or a JSX text apostrophe
+cannot slip past it. The budget is equivalent to 8,192 nested JSX elements,
+which is the documented limit; every other construct is rejected at roughly a
+third of the depth that would abort the worker. Ordinary modules, including
+long sibling sequences, flat argument lists and large object literals, stay far
+below the budget.
 
 ## Targets
 

@@ -1,5 +1,7 @@
 //! Thin Node-API adapter for the Zeus Rust compiler.
 
+mod nesting;
+
 use napi::{Error, Result, Status};
 use napi_derive::napi;
 use zeus_compiler::{
@@ -15,10 +17,7 @@ use zeus_compiler::{
     span::{SourcePosition as CoreSourcePosition, SourceSpan as CoreSourceSpan},
 };
 
-// Measured with the 64 MiB worker stack below: JSX overflows at about 23,000
-// levels and object literals, arrow chains and ternaries abort below 32,700,
-// while every construct still compiles at 12,288 in both targets. The limit
-// keeps at least 1.5x of that margin; real code never nests this deep.
+/// Documented nesting limit, expressed in JSX element levels by `nesting.rs`.
 const MAX_INPUT_NESTING_DEPTH: usize = 8_192;
 
 #[napi(object)]
@@ -145,14 +144,14 @@ pub fn transform_module(options: TransformModuleOptions) -> Result<TransformModu
         ),
     };
 
-    if exceeds_input_nesting_depth(&core_options.source) {
+    if nesting::exceeds_nesting_cost(&core_options.source) {
         return Ok(CoreTransformModuleResult {
             code: String::new(),
             map: None,
             diagnostics: vec![CoreCompilerDiagnostic {
                 code: "ZEUS_INPUT_TOO_DEEP".into(),
                 message: format!(
-                    "Input nesting depth exceeds the supported limit of {MAX_INPUT_NESTING_DEPTH}."
+                    "Input nesting exceeds the supported limit of {MAX_INPUT_NESTING_DEPTH} levels."
                 ),
                 severity: DiagnosticSeverity::Error,
                 filename: core_options.filename.clone(),
@@ -186,151 +185,6 @@ pub fn transform_module(options: TransformModuleOptions) -> Result<TransformModu
     })?;
 
     Ok(result.into())
-}
-
-/// Detects pathological nesting before Oxc gets a chance to recurse through it.
-/// The scan deliberately accepts false positives in malformed input: returning
-/// a compiler diagnostic is safer than letting a parser stack overflow abort
-/// the host process. Strings and comments are skipped so ordinary source text
-/// containing brackets or JSX-looking examples is unaffected.
-fn exceeds_input_nesting_depth(source: &str) -> bool {
-    let bytes = source.as_bytes();
-    let mut index = 0;
-    let mut depth = 0usize;
-    let mut jsx_depth = 0usize;
-    let mut state = ScanState::Code;
-
-    while index < bytes.len() {
-        let byte = bytes[index];
-        match state {
-            ScanState::Code => match byte {
-                b'/' if bytes.get(index + 1) == Some(&b'/') => {
-                    state = ScanState::LineComment;
-                    index += 2;
-                }
-                b'/' if bytes.get(index + 1) == Some(&b'*') => {
-                    state = ScanState::BlockComment;
-                    index += 2;
-                }
-                b'\'' => {
-                    state = ScanState::SingleQuote;
-                    index += 1;
-                }
-                b'"' => {
-                    state = ScanState::DoubleQuote;
-                    index += 1;
-                }
-                b'`' => {
-                    state = ScanState::Template;
-                    index += 1;
-                }
-                b'(' | b'[' | b'{' => {
-                    depth += 1;
-                    if depth.saturating_add(jsx_depth) > MAX_INPUT_NESTING_DEPTH {
-                        return true;
-                    }
-                    index += 1;
-                }
-                b')' | b']' | b'}' => {
-                    depth = depth.saturating_sub(1);
-                    index += 1;
-                }
-                b'<' if looks_like_jsx_tag(bytes, index) => {
-                    let closing = bytes.get(index + 1) == Some(&b'/');
-                    let (end, self_closing) = scan_jsx_tag(bytes, index);
-                    if closing {
-                        jsx_depth = jsx_depth.saturating_sub(1);
-                    } else if !self_closing {
-                        jsx_depth += 1;
-                        if depth.saturating_add(jsx_depth) > MAX_INPUT_NESTING_DEPTH {
-                            return true;
-                        }
-                    }
-                    index = end;
-                }
-                _ => index += 1,
-            },
-            ScanState::LineComment => {
-                index += 1;
-                if byte == b'\n' {
-                    state = ScanState::Code;
-                }
-            }
-            ScanState::BlockComment => {
-                if byte == b'*' && bytes.get(index + 1) == Some(&b'/') {
-                    state = ScanState::Code;
-                    index += 2;
-                } else {
-                    index += 1;
-                }
-            }
-            ScanState::SingleQuote | ScanState::DoubleQuote | ScanState::Template => {
-                let quote = match state {
-                    ScanState::SingleQuote => b'\'',
-                    ScanState::DoubleQuote => b'"',
-                    ScanState::Template => b'`',
-                    ScanState::Code | ScanState::LineComment | ScanState::BlockComment => {
-                        unreachable!()
-                    }
-                };
-                if byte == b'\\' {
-                    index = (index + 2).min(bytes.len());
-                } else {
-                    index += 1;
-                    if byte == quote {
-                        state = ScanState::Code;
-                    }
-                }
-            }
-        }
-    }
-
-    false
-}
-
-#[derive(Clone, Copy)]
-enum ScanState {
-    Code,
-    SingleQuote,
-    DoubleQuote,
-    Template,
-    LineComment,
-    BlockComment,
-}
-
-fn looks_like_jsx_tag(bytes: &[u8], index: usize) -> bool {
-    match bytes.get(index + 1) {
-        Some(b'/' | b'>') => true,
-        Some(byte) => byte.is_ascii_alphabetic() || *byte == b'_',
-        None => false,
-    }
-}
-
-fn scan_jsx_tag(bytes: &[u8], start: usize) -> (usize, bool) {
-    let mut index = start + 1;
-    let mut quote = None;
-    while index < bytes.len() {
-        let byte = bytes[index];
-        if let Some(expected) = quote {
-            if byte == b'\\' {
-                index = (index + 2).min(bytes.len());
-                continue;
-            }
-            if byte == expected {
-                quote = None;
-            }
-        } else if byte == b'\'' || byte == b'"' {
-            quote = Some(byte);
-        } else if byte == b'>' {
-            let mut previous = index;
-            while previous > start && bytes[previous - 1].is_ascii_whitespace() {
-                previous -= 1;
-            }
-            return (index + 1, previous > start && bytes[previous - 1] == b'/');
-        }
-        index += 1;
-    }
-    (bytes.len(), false)
 }
 
 impl From<CoreTransformModuleResult> for TransformModuleResult {
