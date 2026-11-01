@@ -92,7 +92,7 @@
 | `npx vitest run --project unit packages/core/router packages/core/query packages/core/resource` | local               | PASS `5 files / 33 tests`（router 18、query 10、resource 5）  | `/tmp/pr19-verify.log`   |
 | `pnpm check:cjs`                                                                                | local               | PASS                                                          | `/tmp/pr19-pkg.log`      |
 | `pnpm check:exports`                                                                            | local               | PASS                                                          | `/tmp/pr19-pkg.log`      |
-| `pnpm api:snapshot` + `pnpm api:check`                                                          | local               | 快照已重生成；`api:check` 以「未 staged」拒绝，提交后复跑见 E | `/tmp/pr19-apicheck.log` |
+| `pnpm api:snapshot` + `pnpm api:check`                                                          | local               | PASS（快照 staged 后复跑：「API snapshots are up to date.」） | `/tmp/pr19-apicheck.log` |
 | `pnpm --filter @zeus-js/example-admin check`                                                    | local               | PASS                                                          | `examples/admin` tsc     |
 | `pnpm --filter @zeus-js/example-admin build`                                                    | local               | PASS                                                          | `/tmp/pr19-admin2.log`   |
 | `pnpm check:admin`（chromium/firefox/webkit）                                                   | local, headless     | PASS ×3                                                       | `temp/admin/report.json` |
@@ -114,7 +114,7 @@ same-document 断言。
 ## E. Git / PR
 
 - 起始 HEAD：`cff2721c`
-- 最终 HEAD 与提交 SHA：见提交后的 `git log -1`（本报告随后补记）
+- 最终 HEAD：`ea176ef1`（`feat(app-sdk): add declarative router and query layers`）
 - 推送：**未推送**
 - Draft PR：**未创建**（按任务约束）
 - CI：未触发（未推送）
@@ -122,7 +122,8 @@ same-document 断言。
 
 ## F. Risks & Follow-up
 
-1. **build lifecycle**：`pnpm api:check` 依赖快照进入 git index；提交后需复跑确认。
+1. **build lifecycle**：`pnpm api:check` 依赖快照进入 git index；本次已在 staged 后复跑
+   通过，CI 中需保持先 `api:snapshot` 再提交的顺序。
 2. **esm-browser 内联 runtime-dom**：router/query 的 browser 构建现在内联
    `@zeus-js/runtime-dom`，体积增长由既有 ledger/License 覆盖（router 为 Vue-derived
    已登记），未新增依赖许可问题；但 browser 产物体积未做基线对比。
