@@ -125,6 +125,63 @@ describe('renderer adapter contract', () => {
     expect(calls.filter(call => call.type === 'mount')).toHaveLength(2)
   })
 
+  it('disposes every moved key before mounting when keys swap containers', () => {
+    const events: string[] = []
+    const cells = new Map<string, string>([
+      ['c1', ''],
+      ['c2', ''],
+    ])
+    const host = createRendererHost<
+      string,
+      string,
+      undefined,
+      { container: string }
+    >({
+      mount(container, data) {
+        events.push(`mount ${data}@${container}`)
+        cells.set(container, data)
+        return { container }
+      },
+      update() {},
+      dispose(handle) {
+        events.push(`dispose @${handle.container}`)
+        cells.set(handle.container, '')
+      },
+    })
+    const cell = (key: string, container: string) => ({
+      key,
+      container,
+      data: key.toUpperCase(),
+      context: undefined,
+    })
+
+    host.render([cell('a', 'c1'), cell('b', 'c2')])
+    host.render([cell('a', 'c2'), cell('b', 'c1')])
+
+    expect(Object.fromEntries(cells)).toEqual({ c1: 'B', c2: 'A' })
+    expect(events.slice(2)).toEqual([
+      'dispose @c1',
+      'dispose @c2',
+      'mount A@c2',
+      'mount B@c1',
+    ])
+  })
+
+  it('rejects two keys that share a container in one render', () => {
+    const calls: Call[] = []
+    const host = createRendererHost(createAdapter(calls))
+
+    host.render([entry('a', 'cell-a', 'A')])
+    expect(() =>
+      host.render([entry('a', 'shared', 'A'), entry('b', 'shared', 'B')]),
+    ).toThrow(
+      '[ZEUS_RENDERER_DUPLICATE_CONTAINER] Renderer keys a and b use the same container.',
+    )
+    expect(calls.map(call => call.type)).toEqual(['mount'])
+    host.render([entry('a', 'cell-a', 'A2')])
+    expect(calls.map(call => call.type)).toEqual(['mount', 'update'])
+  })
+
   it('swaps renderers by disposing old handles and mounting current entries', () => {
     const firstCalls: Call[] = []
     const secondCalls: Call[] = []

@@ -240,7 +240,13 @@ React 18 和 React 19 都应由同一逻辑契约驱动，差异留在 adapter �
 - adapter 不把 framework renderer 的 root 交给 `runtime-dom` 或 WC Host；
 - React wrapper 的普通 `children` 和 named slot 仍走第 5 节的 DOM Slot 契约，
   不自动转换为 renderer adapter；
-- `ref` 指向 WC host 或 adapter 明确暴露的框架容器，不得混淆两者。
+- `ref` 指向 WC host 或 adapter 明确暴露的框架容器，不得混淆两者；
+- host 的 render/setAdapter/dispose 必须在 React render 与 commit（含
+  `useLayoutEffect`/`useEffect`）之外调用。React 在这些位置无法 `flushSync` 嵌套
+  root，adapter 检测到本次提交未同步完成时抛 `ZEUS_RENDERER_ADAPTER_FAILURE`；
+- 只有同步 mount/update/dispose 期间的错误抛给 host；之后（状态更新、effect）的
+  错误交给 `onError(error, session)`，未提供时调用 `globalThis.reportError`，
+  不存在则 `console.error`。
 
 React Portal 的 target 由 React adapter 创建或接管。target 可以在 host 内部，
 也可以由使用方提供；无论位置如何，target 的 owner、root 和清理都由 adapter
@@ -257,7 +263,10 @@ Vue 3 的 VNode、component instance、provide/inject 和 Teleport 只在 Vue ad
   节点；
 - VNode 不得作为 WC property 或 `CustomEvent.detail` 传给 Zeus Runtime；
 - Teleport target 的创建、更新、卸载和 owner cleanup 由 Vue adapter 负责；
-- host disconnect 后不得继续提交旧 VNode。重连时重新 mount，并重新建立 Vue root。
+- host disconnect 后不得继续提交旧 VNode。重连时重新 mount，并重新建立 Vue root；
+- 每次 update 都重新渲染，即使 `data` 引用不变；
+- 只有同步 patch（mount/update/dispose）期间的错误抛给 host；之后的错误继续向上
+  传播到 `appContext.config.errorHandler`。
 
 Vue adapter 不得要求 `runtime-dom` 依赖 Vue，也不得让 WC host 直接调用 Vue
 renderer。
@@ -361,12 +370,16 @@ Framework Renderer Adapter，并满足：
 已实现的错误码由 `RendererErrorCode` 导出，错误消息以 `[CODE]` 开头，原始异常放在
 `cause`：
 
-| 错误码                             | 触发条件                                                      |
-| ---------------------------------- | ------------------------------------------------------------- |
-| `ZEUS_RENDERER_DISPOSED`           | 对 disposed handle 调用 update，或在 host dispose 后 render。 |
-| `ZEUS_RENDERER_CONTAINER_MISMATCH` | handle 不是本 adapter mount 的，或 container 与记录不一致。   |
-| `ZEUS_RENDERER_ADAPTER_FAILURE`    | mount/update/dispose 内部异常未能完成契约操作。               |
-| `ZEUS_RENDERER_DUPLICATE_KEY`      | 同一次 render 中出现重复 key。                                |
+| 错误码                              | 触发条件                                                      |
+| ----------------------------------- | ------------------------------------------------------------- |
+| `ZEUS_RENDERER_DISPOSED`            | 对 disposed handle 调用 update，或在 host dispose 后 render。 |
+| `ZEUS_RENDERER_CONTAINER_MISMATCH`  | handle 不是本 adapter mount 的，或 container 与记录不一致。   |
+| `ZEUS_RENDERER_ADAPTER_FAILURE`     | mount/update/dispose 内部异常未能完成契约操作。               |
+| `ZEUS_RENDERER_DUPLICATE_KEY`       | 同一次 render 中出现重复 key。                                |
+| `ZEUS_RENDERER_DUPLICATE_CONTAINER` | 同一次 render 中两个 key 使用同一个 container。               |
+
+host 在一次 render 中先 dispose 所有被移除、换了 container 或 adapter 已变化的
+entry，再统一 update/mount，所以两个 key 可以在同一次 render 中交换 container。
 
 以下错误码保留给尚未实现的诊断，名称不变：
 
@@ -414,14 +427,17 @@ property 的历史行为。Beta 阶段不保留旧/new 双协议或转发 alias�
 - React/Vue 普通 default/named Slot wrapper 已实现并有生成器与消费者回归；
 - WC Runtime 已实现 Shadow native Slot 和 Light DOM Projection 的独立语义；
 - keyed renderer host 由 `@zeus-js/web-c-runtime` 导出，jsdom 测试覆盖
-  mount/update/dispose、renderer swap、容器变化、回收、重复 dispose、失败后的重试，
-  以及每次 mount 的 generation 与 abort；
+  mount/update/dispose、renderer swap、容器变化、同一次 render 中交换 container、
+  重复 container 诊断、回收、重复 dispose、失败后的重试，以及每次 mount 的
+  generation 与 abort；
 - `createReactRenderer` 覆盖同步提交、跨 update 保留状态、StrictMode 下 effect 平衡、
-  Portal 卸载、渲染错误清理、disposed/foreign handle 诊断，以及 60 次 host
-  mount/unmount 后计数回到基线；
-- `createVueRenderer` 覆盖同步 patch、组件状态保留、Teleport 卸载、`appContext`
-  provide 解析、render 与后代错误上报、disposed/foreign handle 诊断，以及 60 次
-  mount/unmount 后计数回到基线；
+  Portal 卸载、渲染错误清理、mount 之后的错误路由（`onError`/`reportError`）、
+  effect cleanup 错误经 dispose 抛给 host、在外层 React commit 内调用 mount 的诊断、
+  disposed/foreign handle 诊断，以及 60 次 host mount/unmount 后计数回到基线；
+- `createVueRenderer` 覆盖同步 patch、组件状态保留、data 引用不变时的重新渲染、
+  Teleport 卸载、`appContext` provide 解析、render 与后代错误上报、patch 之后的错误
+  传到 `config.errorHandler`、`onUnmounted` 错误经 dispose 抛给 host、
+  disposed/foreign handle 诊断，以及 60 次 mount/unmount 后计数回到基线；
 - 以上证据都来自 jsdom。三引擎浏览器矩阵、host disconnect/reconnect、DataGrid
   `cellRenderer` 公开 API 与 focus/Selection 尚未验收，所以本 RFC 仍为 Proposal；
   DataGrid 部分由 U-003/U-006 继续实现，不能把它们写入 WC ABI。

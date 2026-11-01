@@ -6,6 +6,8 @@ import { createOwner, resolveDOMContext, runWithOwner } from './context'
 import {
   coerceCustomElementAttribute,
   createCustomElementMountLifecycle,
+  findCustomElementPropByAttribute,
+  getCustomElementAttributeName,
   getCustomElementObservedAttributes,
   reflectCustomElementProperty,
 } from './customElementContract'
@@ -587,7 +589,9 @@ export function defineElement<
       this.preUpgradeAttributes.delete(name)
       if (oldValue === null && newValue === initialValue) return
 
-      const def = propDefs.find(item => item.attrName === name)
+      const def = findCustomElementPropByAttribute(propDefs, name) as
+        | NormalizedPropDefinition
+        | undefined
 
       if (!def) return
       this.attributeProps.add(def.name)
@@ -825,31 +829,32 @@ function normalizePropDefinitions<P extends object>(
     const input = props[key]
 
     if (typeof input === 'function') {
-      const type = input as ElementPropConstructor
+      const type = normalizePropType(input as ElementPropConstructor)
 
       return {
         name: propKey,
-        attrName: isAttributeBackedConstructor(type)
-          ? toKebabCase(propKey)
-          : false,
-        type: normalizePropType(type),
+        attrName:
+          getCustomElementAttributeName({ name: propKey, type }) ?? false,
+        type,
         reflect: false,
         reactivity: 'shallow',
       }
     }
 
-    const type = input?.type
-    // RFC-010: structured props are attribute-backed only with a declared
-    // deserializer, matching the lazy loader and generated manifests.
-    const defaultAttr =
-      isAttributeBackedConstructor(type) || input?.deserialize
-        ? toKebabCase(propKey)
-        : false
+    const type = normalizePropType(input?.type)
 
     return {
       name: propKey,
-      attrName: input?.attr === undefined ? defaultAttr : input.attr,
-      type: normalizePropType(type),
+      // RFC-010: the attribute name is derived once, by the same rule the lazy
+      // loader and generated manifests use (lowercase alias or kebab-case).
+      attrName:
+        getCustomElementAttributeName({
+          name: propKey,
+          attrName: input?.attr,
+          type,
+          deserialize: input?.deserialize ? true : undefined,
+        }) ?? false,
+      type,
       reflect: Boolean(input?.reflect),
       reactivity: input?.reactivity === 'deep' ? 'deep' : 'shallow',
       default: input?.default,
@@ -1052,12 +1057,6 @@ function createExpose(
       }
     }
   }
-}
-
-function isAttributeBackedConstructor(
-  type: ElementPropConstructor | undefined,
-): boolean {
-  return type === String || type === Number || type === Boolean
 }
 
 function normalizePropType(

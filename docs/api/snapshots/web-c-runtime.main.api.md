@@ -167,7 +167,8 @@ export interface RendererHost<
   /**
    * Reconciles the visible entries: a key whose adapter and container are
    * unchanged is updated, a changed container remounts, and missing keys are
-   * disposed.
+   * disposed. All disposals run before any mount, so keys can swap
+   * containers in one call. Keys and containers must each be unique.
    */
   render(entries: readonly RendererEntry<Container, Data, Context>[]): void
   /** Disposes every handle and remounts the current entries with `adapter`. */
@@ -177,6 +178,7 @@ export interface RendererHost<
 export type RendererErrorCode =
   | 'ZEUS_RENDERER_DISPOSED'
   | 'ZEUS_RENDERER_DUPLICATE_KEY'
+  | 'ZEUS_RENDERER_DUPLICATE_CONTAINER'
   | 'ZEUS_RENDERER_ADAPTER_FAILURE'
   | 'ZEUS_RENDERER_CONTAINER_MISMATCH'
 /** Creates an error carrying a stable `[code]` prefix and the original cause. */

@@ -1,5 +1,5 @@
 import { JSDOM } from 'jsdom'
-import { afterAll, afterEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { RendererSession } from '@zeus-js/web-c-runtime'
 
@@ -32,6 +32,7 @@ const {
   defineComponent,
   h,
   inject,
+  nextTick,
   onMounted,
   onUnmounted,
   ref,
@@ -217,5 +218,115 @@ describe('createVueRenderer', () => {
 
     expect(active).toBe(0)
     expect(cells.every(element => element.childNodes.length === 0)).toBe(true)
+  })
+
+  it('keeps both cells when two keys swap containers in one render', () => {
+    const host = createRendererHost(
+      createVueRenderer((label: string) => h('span', label)),
+    )
+    const c1 = container()
+    const c2 = container()
+
+    host.render([
+      { key: 'a', container: c1, data: 'A', context: undefined },
+      { key: 'b', container: c2, data: 'B', context: undefined },
+    ])
+    host.render([
+      { key: 'a', container: c2, data: 'A', context: undefined },
+      { key: 'b', container: c1, data: 'B', context: undefined },
+    ])
+
+    expect({ c1: c1.textContent, c2: c2.textContent }).toEqual({
+      c1: 'B',
+      c2: 'A',
+    })
+    host.dispose()
+    expect(c1.childNodes).toHaveLength(0)
+    expect(c2.childNodes).toHaveLength(0)
+  })
+
+  it('lets errors after a patch reach the application error handler', async () => {
+    const app = createApp({})
+    const errorHandler = vi.fn()
+    app.config.errorHandler = errorHandler
+    const broken = ref(false)
+    const Cell = defineComponent({
+      setup() {
+        return () => {
+          if (broken.value) throw new Error('late render')
+          return h('span', 'ok')
+        }
+      },
+    })
+    const adapter = createVueRenderer(() => h(Cell), {
+      appContext: app._context,
+    })
+    const handle = adapter.mount(container(), undefined, undefined, session())
+
+    broken.value = true
+    await nextTick()
+    expect(errorHandler).toHaveBeenCalledTimes(1)
+    expect(errorHandler.mock.calls[0][0]).toMatchObject({
+      message: 'late render',
+    })
+    // The earlier failure is not attributed to the next synchronous patch.
+    broken.value = false
+    expect(() => adapter.update(handle, undefined, undefined)).not.toThrow()
+    adapter.dispose(handle)
+    expect(errorHandler).toHaveBeenCalledTimes(1)
+  })
+
+  it('throws unmount hook errors from dispose once and lets the host retry', () => {
+    let unmounts = 0
+    const Cell = defineComponent({
+      setup() {
+        onUnmounted(() => {
+          unmounts++
+          throw new Error('unmount exploded')
+        })
+        return () => h('span', 'cell')
+      },
+    })
+    const adapter = createVueRenderer(() => h(Cell))
+    const host = createRendererHost(adapter)
+    const target = container()
+
+    host.render([
+      { key: 'row-1', container: target, data: undefined, context: undefined },
+    ])
+    expect(() => host.render([])).toThrow(
+      expect.objectContaining({
+        message:
+          '[ZEUS_RENDERER_ADAPTER_FAILURE] Vue renderer dispose failed for key row-1.',
+        cause: expect.objectContaining({ message: 'unmount exploded' }),
+      }),
+    )
+    expect(target.childNodes).toHaveLength(0)
+    // The host retries the pending disposal; the handle is already disposed.
+    expect(() => host.render([])).not.toThrow()
+    expect(unmounts).toBe(1)
+
+    const handle = adapter.mount(target, undefined, undefined, session())
+    expect(() => adapter.dispose(handle)).toThrow(
+      '[ZEUS_RENDERER_ADAPTER_FAILURE]',
+    )
+    expect(handle.state).toBe('disposed')
+    expect(() => adapter.dispose(handle)).not.toThrow()
+    expect(unmounts).toBe(2)
+    host.dispose()
+  })
+
+  it('re-renders on update when the data reference is unchanged', () => {
+    const row = { label: 'first' }
+    const adapter = createVueRenderer((data: typeof row) =>
+      h('span', data.label),
+    )
+    const target = container()
+
+    const handle = adapter.mount(target, row, undefined, session())
+    row.label = 'second'
+    adapter.update(handle, row, undefined)
+    expect(target.textContent).toBe('second')
+    adapter.dispose(handle)
   })
 })

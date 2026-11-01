@@ -27,8 +27,10 @@ export type VueRenderFunction<Data, Context> = (
 /**
  * Creates an adapter that renders `render(data, context, session)` into each
  * container with Vue's `render` API. Mount, update and dispose patch
- * synchronously, and errors from the render function or any descendant are
- * reported to the host instead of Vue's global error handler.
+ * synchronously, and every `update` re-renders even when `data` is the same
+ * object. Errors raised during those calls are thrown to the host; errors
+ * raised later (a reactive re-render, a watcher) propagate to the
+ * application's `config.errorHandler` as usual.
  */
 export declare function createVueRenderer<Data, Context = undefined>(
   render: VueRenderFunction<Data, Context>,
