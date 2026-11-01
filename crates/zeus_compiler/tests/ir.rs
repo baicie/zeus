@@ -50,6 +50,7 @@ fn fragment_ir_round_trips_without_ast_types() {
                         kind: "Element".into(),
                         reference: IrRef { node_id: 4 },
                         tag_name: "strong".into(),
+                        namespace: "html".into(),
                         span: span(8, 25),
                         attributes: vec![],
                         children: vec![],
@@ -81,6 +82,7 @@ fn ir_owned_schema_round_trips_through_json() {
                 kind: "Element".into(),
                 reference: IrRef { node_id: 2 },
                 tag_name: "div".into(),
+                namespace: "html".into(),
                 span: span(0, 38),
                 attributes: vec![AttributeIr::Static(StaticAttributeIr {
                     id: 3,

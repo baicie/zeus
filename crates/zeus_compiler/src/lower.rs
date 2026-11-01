@@ -17,7 +17,10 @@ use oxc_syntax::scope::ScopeFlags;
 use oxc_syntax::symbol::SymbolId;
 use oxc_syntax::xml_entities::decode_entities;
 
-use crate::html::{is_raw_text_element, is_unsupported_raw_text_element, is_void_element};
+use crate::html::{
+    content_namespace, element_namespace, is_raw_text_element, is_unsupported_raw_text_element,
+    is_void_element, ElementNamespace,
+};
 use crate::{
     diagnostic::{CompilerDiagnostic, DiagnosticSeverity},
     ir::{
@@ -41,7 +44,7 @@ pub struct LowerResult {
     pub(crate) error_boundary_spans: Vec<SourceSpan>,
     pub(crate) hmr: HmrInfo,
     pub(crate) pure_define_element_calls: Vec<Span>,
-    pub(crate) ssr_runtime_imports: Vec<Span>,
+    pub(crate) ssr_runtime_imports: Vec<SsrImportRewrite>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -150,55 +153,153 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
         reserved_names,
         hmr,
         pure_define_element_calls: collect_top_level_define_element_calls(&parsed.program),
-        ssr_runtime_imports: collect_ssr_runtime_imports(&parsed.program),
+        ssr_runtime_imports: collect_ssr_runtime_imports(source, &parsed.program),
     }
 }
 
-/// Collect imports whose bindings are all available from the SSR facade.
-fn collect_ssr_runtime_imports(program: &oxc_ast::ast::Program<'_>) -> Vec<Span> {
+/// A source replacement the SSR emitter applies to one import statement.
+///
+/// A statement whose bindings are all served by the SSR facade only needs its
+/// module source rewritten. A mixed statement is split instead: the facade
+/// names move to a new import statement and the remaining client-only names
+/// keep importing from the original module.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct SsrImportRewrite {
+    /// Span of the whole statement, replaced verbatim.
+    pub(crate) span: Span,
+    pub(crate) replacement: SsrImportReplacement,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum SsrImportReplacement {
+    /// Replace only the module specifier string of an all-facade import.
+    ModuleSource,
+    /// Split the statement into a facade import and a client import.
+    Split {
+        /// Verbatim specifier source text, in original order.
+        facade: Vec<String>,
+        client: Vec<String>,
+        /// Original module, which keeps serving the client-only names.
+        module: String,
+    },
+}
+
+/// SSR facade names: every binding the server entry can serve, plus the
+/// server-only helpers the SSR target needs directly.
+const SSR_FACADE_EXPORTS: &[&str] = &[
+    "batch",
+    "createContext",
+    "createEffect",
+    "createMemo",
+    "createRoot",
+    "createSignal",
+    "defineElement",
+    "event",
+    "For",
+    "Host",
+    "inject",
+    "onCleanup",
+    "Portal",
+    "prop",
+    "provide",
+    "Show",
+    "Slot",
+    "Transition",
+    "useContext",
+];
+
+/// Collect imports whose bindings are served by the SSR facade.
+fn collect_ssr_runtime_imports(
+    source: &str,
+    program: &oxc_ast::ast::Program<'_>,
+) -> Vec<SsrImportRewrite> {
     let mut imports = Vec::new();
     for statement in &program.body {
         let Some(ModuleDeclaration::ImportDeclaration(import)) = statement.as_module_declaration()
         else {
             continue;
         };
-        let source = import.source.value.as_str();
+        let module = import.source.value.as_str();
+        if module != "@zeus-js/runtime-dom" && module != "@zeus-js/zeus" {
+            continue;
+        }
+        // `import type`, source-phase imports and import attributes keep their
+        // original statement: none of them can be split safely by name.
+        if import.import_kind == oxc_ast::ast::ImportOrExportKind::Type
+            || import.phase.is_some()
+            || import.with_clause.is_some()
+        {
+            continue;
+        }
         let Some(specifiers) = &import.specifiers else {
             continue;
         };
-        let rewrite = (source == "@zeus-js/runtime-dom" || source == "@zeus-js/zeus")
-            && import.import_kind != oxc_ast::ast::ImportOrExportKind::Type
-            && !specifiers.is_empty()
-            && specifiers.iter().all(|specifier| {
-                let ImportDeclarationSpecifier::ImportSpecifier(specifier) = specifier else {
-                    return false;
-                };
-                if specifier.import_kind == oxc_ast::ast::ImportOrExportKind::Type {
-                    return true;
-                }
-                let imported = match &specifier.imported {
-                    oxc_ast::ast::ModuleExportName::IdentifierName(name) => name.name.as_str(),
-                    oxc_ast::ast::ModuleExportName::IdentifierReference(name) => name.name.as_str(),
-                    oxc_ast::ast::ModuleExportName::StringLiteral(name) => name.value.as_str(),
-                };
-                matches!(
-                    imported,
-                    "batch"
-                        | "createEffect"
-                        | "createMemo"
-                        | "createRoot"
-                        | "createSignal"
-                        | "defineElement"
-                        | "For"
-                        | "Host"
-                        | "onCleanup"
-                        | "Show"
-                        | "Slot"
-                )
-            });
-        if rewrite {
-            imports.push(import.source.span);
+        if specifiers.is_empty() {
+            continue;
         }
+
+        let mut facade = Vec::new();
+        let mut client = Vec::new();
+        let mut rewritable = true;
+        for specifier in specifiers {
+            // Default and namespace imports have no per-name semantics the
+            // facade can split, so the statement stays untouched.
+            let ImportDeclarationSpecifier::ImportSpecifier(specifier) = specifier else {
+                rewritable = false;
+                break;
+            };
+            let imported = match &specifier.imported {
+                oxc_ast::ast::ModuleExportName::IdentifierName(name) => name.name.as_str(),
+                oxc_ast::ast::ModuleExportName::IdentifierReference(name) => name.name.as_str(),
+                oxc_ast::ast::ModuleExportName::StringLiteral(name) => name.value.as_str(),
+            };
+            // A string import name (`import { "a-b" as c }`) is legal but never
+            // a facade export, so it stays on the original module.
+            let text = source
+                .get(
+                    usize::try_from(specifier.span.start).unwrap_or(usize::MAX)
+                        ..usize::try_from(specifier.span.end).unwrap_or(0),
+                )
+                .map(str::trim)
+                .filter(|text| !text.is_empty());
+            let Some(text) = text else {
+                rewritable = false;
+                break;
+            };
+            let is_type = specifier.import_kind == oxc_ast::ast::ImportOrExportKind::Type;
+            let is_facade = matches!(
+                &specifier.imported,
+                oxc_ast::ast::ModuleExportName::IdentifierName(_)
+                    | oxc_ast::ast::ModuleExportName::IdentifierReference(_)
+            ) && SSR_FACADE_EXPORTS.contains(&imported);
+            if is_type || is_facade {
+                facade.push(text.to_owned());
+            } else {
+                client.push(text.to_owned());
+            }
+        }
+        if !rewritable {
+            continue;
+        }
+
+        if client.is_empty() {
+            imports.push(SsrImportRewrite {
+                span: import.source.span,
+                replacement: SsrImportReplacement::ModuleSource,
+            });
+            continue;
+        }
+        if facade.is_empty() {
+            continue;
+        }
+        imports.push(SsrImportRewrite {
+            span: import.span,
+            replacement: SsrImportReplacement::Split {
+                facade,
+                client,
+                module: module.to_owned(),
+            },
+        });
     }
     imports
 }
@@ -322,6 +423,9 @@ struct Lowerer<'source, 'allocator> {
     host_depth: usize,
     scoping: Scoping,
     for_accessor_scopes: Vec<LowerForAccessorScope>,
+    /// Namespace the markup being lowered is parsed in. Only elements change
+    /// it; fragments, components and control-flow builtins are transparent.
+    namespace: ElementNamespace,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -372,6 +476,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             host_depth: 0,
             scoping,
             for_accessor_scopes: Vec::new(),
+            namespace: ElementNamespace::default(),
         }
     }
 
@@ -455,7 +560,17 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         let id = self.allocate_id();
 
         let attributes = self.lower_attributes(&element.opening_element.attributes);
+        // Children inherit the parser context established by the surrounding
+        // markup: `<svg>` enters the SVG namespace and `<foreignObject>` leaves
+        // it again. The same rule applies inside component and control-flow
+        // children, which are transparent to the HTML parser's context.
+        let namespace = element_namespace(self.namespace, tag_name);
+        let previous = std::mem::replace(
+            &mut self.namespace,
+            content_namespace(namespace, tag_name),
+        );
         let mut children = self.lower_children(&element.children);
+        self.namespace = previous;
         self.lower_raw_text_children(tag_name, element, &mut children)?;
 
         Some(ElementIr {
@@ -463,6 +578,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             kind: "Element".into(),
             reference: IrRef { node_id: id },
             tag_name: identifier.name.to_string(),
+            namespace: namespace.as_str().into(),
             span: self.source_index.span(element.span),
             attributes,
             children,

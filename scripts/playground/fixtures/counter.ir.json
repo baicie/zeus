@@ -25,6 +25,7 @@
           "nodeId": 2
         },
         "tagName": "button",
+        "namespace": "html",
         "span": {
           "start": {
             "offset": 139,

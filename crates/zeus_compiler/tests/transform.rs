@@ -1669,6 +1669,126 @@ export default defineElement('z-counter', {}, () => <Host>{createSignal(0)[0]()}
 }
 
 #[test]
+fn rewrites_ssr_safe_specifiers_inside_mixed_imports() {
+    let source = r"import { createSignal, Portal, render } from '@zeus-js/zeus'
+const [count] = createSignal(0)
+export const App = () => <Portal><div>{count()}</div></Portal>
+";
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "ssr-mixed-import-partial.tsx".into(),
+        target: TransformTarget::Ssr,
+        runtime_module: "@zeus-js/runtime-ssr".into(),
+        delegate_events: false,
+        source_map: false,
+        hmr: false,
+        pure_define_element: PureDefineElementMode::Disabled,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    // Only the SSR facade can serve `createSignal`/`Portal`; `render` is
+    // client-only and must keep importing from the public entry.
+    assert!(
+        transformed
+            .code
+            .contains(r#"import { createSignal, Portal } from "@zeus-js/runtime-ssr";"#),
+        "{}",
+        transformed.code
+    );
+    assert!(
+        transformed
+            .code
+            .contains(r#"import { render } from "@zeus-js/zeus";"#),
+        "{}",
+        transformed.code
+    );
+
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, &transformed.code, SourceType::ts()).parse();
+    assert!(
+        parsed.diagnostics.is_empty(),
+        "{:?}\n{}",
+        parsed.diagnostics,
+        transformed.code
+    );
+}
+
+#[test]
+fn keeps_type_only_specifiers_with_the_ssr_facade() {
+    let source = r"import { createSignal, type Accessor, render } from '@zeus-js/zeus'
+const count: Accessor<number> = createSignal(0)[0]
+export const App = () => <p>{count()}</p>
+";
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "ssr-mixed-import-type.tsx".into(),
+        target: TransformTarget::Ssr,
+        runtime_module: "@zeus-js/runtime-ssr".into(),
+        delegate_events: false,
+        source_map: false,
+        hmr: false,
+        pure_define_element: PureDefineElementMode::Disabled,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    assert!(
+        transformed
+            .code
+            .contains(r#"import { createSignal, type Accessor } from "@zeus-js/runtime-ssr";"#),
+        "{}",
+        transformed.code
+    );
+    assert!(
+        transformed
+            .code
+            .contains(r#"import { render } from "@zeus-js/zeus";"#),
+        "{}",
+        transformed.code
+    );
+}
+
+#[test]
+fn rewrites_schema_context_and_component_specifiers_to_the_ssr_facade() {
+    let source = r#"import { createContext, defineElement, event, Host, Portal, prop, Transition, useContext } from '@zeus-js/zeus'
+const Theme = createContext('light')
+export default defineElement('z-card', { props: { open: prop(Boolean) }, emits: { change: event() } }, () =>
+  <Host><Portal><Transition when={useContext(Theme) === 'dark'}><b>dark</b></Transition></Portal></Host>)
+"#;
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "ssr-schema-import.tsx".into(),
+        target: TransformTarget::Ssr,
+        runtime_module: "@zeus-js/runtime-ssr".into(),
+        delegate_events: false,
+        source_map: false,
+        hmr: false,
+        pure_define_element: PureDefineElementMode::Disabled,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    assert!(
+        transformed
+            .code
+            .contains(r#"from "@zeus-js/runtime-ssr""#),
+        "{}",
+        transformed.code
+    );
+    assert!(!transformed.code.contains("@zeus-js/zeus"), "{}", transformed.code);
+}
+
+#[test]
 fn rewrites_ssr_safe_imports_without_jsx_or_components() {
     let source = "import { createSignal } from '@zeus-js/zeus'\nconst count = createSignal(0)\n";
     let transformed = transform_module(TransformModuleOptions {
@@ -1869,6 +1989,70 @@ fn escapes_ssr_static_text_and_keeps_rcdata_free_of_hydration_markers() {
     for node in &plan.components[0].nodes {
         assert!(ssr.code.contains(&node.id), "missing marker {}", node.id);
     }
+}
+
+#[test]
+fn escapes_foreign_raw_text_elements_in_svg() {
+    let source = r#"export const Icon = props => <svg>
+  <style>{props.css}</style>
+  <script>if (a &lt; b) run()</script>
+  <foreignObject><style>{props.css}</style><script>if (a &lt; b) run()</script></foreignObject>
+</svg>
+"#;
+    let compile = |target: TransformTarget, runtime_module: &str| {
+        transform_module(TransformModuleOptions {
+            source: source.into(),
+            filename: "svg-raw-text.tsx".into(),
+            target,
+            runtime_module: runtime_module.into(),
+            delegate_events: false,
+            source_map: false,
+            hmr: false,
+            pure_define_element: PureDefineElementMode::Disabled,
+        })
+    };
+    let ssr = compile(TransformTarget::Ssr, "@zeus-js/runtime-ssr");
+
+    assert!(ssr.diagnostics.is_empty(), "{:?}", ssr.diagnostics);
+    // SVG `<style>`/`<script>` are ordinary elements to the parser, so the
+    // runtime must escape their content instead of rewriting raw text: the
+    // fifth argument turns the raw-text path off.
+    assert!(
+        ssr.code
+            .contains(r#"$zeusSsrElement("style", [], $zeusSsrText(props.css), undefined, undefined, true)"#),
+        "{}",
+        ssr.code
+    );
+    assert!(
+        ssr.code.contains(
+            r#"$zeusSsrElement("script", [], $zeusSsrStatic("if (a &lt; b) run()"), undefined, undefined, true)"#
+        ),
+        "{}",
+        ssr.code
+    );
+    // HTML `<style>` inside `<foreignObject>` keeps the raw-text path, which
+    // emits the expression unescaped and does not pass the foreign flag.
+    assert!(
+        ssr.code
+            .contains(r#"$zeusSsrElement("style", [], props.css)"#),
+        "{}",
+        ssr.code
+    );
+    assert!(
+        ssr.code
+            .contains(r#"$zeusSsrElement("script", [], "if (a < b) run()")"#),
+        "{}",
+        ssr.code
+    );
+
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, &ssr.code, SourceType::ts()).parse();
+    assert!(
+        parsed.diagnostics.is_empty(),
+        "{:?}\n{}",
+        parsed.diagnostics,
+        ssr.code
+    );
 }
 
 #[test]

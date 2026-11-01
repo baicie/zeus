@@ -1227,6 +1227,100 @@ fn rejects_unknown_attributes_on_control_builtins_without_dropping_them() {
 }
 
 #[test]
+fn resolves_element_namespace_from_the_surrounding_markup() {
+    let source = r#"export const App = props => <div>
+  <p>html</p>
+  <svg viewBox="0 0 1 1">
+    <style>{props.css}</style>
+    <circle data-r={props.radius} />
+    <foreignObject>
+      <div><svg><script>{props.source}</script></svg></div>
+    </foreignObject>
+  </svg>
+</div>
+"#;
+    let lowered = lower_module(source, "namespaces.tsx");
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let module = lowered.ir.expect("namespaces lower");
+
+    let mut observed = Vec::new();
+    collect_namespaces(&module.components[0].root, &mut observed);
+    assert_eq!(
+        observed,
+        vec![
+            ("div", "html"),
+            ("p", "html"),
+            ("svg", "svg"),
+            ("style", "svg"),
+            ("circle", "svg"),
+            ("foreignObject", "svg"),
+            // `<foreignObject>` content is parsed as HTML again.
+            ("div", "html"),
+            ("svg", "svg"),
+            ("script", "svg"),
+        ]
+    );
+}
+
+#[test]
+fn keeps_control_flow_children_in_the_enclosing_namespace() {
+    let source = r#"import { Show } from '@zeus-js/zeus'
+export const App = props => <svg><Show when={props.open}><style>{props.css}</style></Show></svg>
+"#;
+    let lowered = lower_module(source, "namespaces-control-flow.tsx");
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let module = lowered.ir.expect("control-flow children lower");
+    let zeus_compiler::ir::RootIr::Element(root) = &module.components[0].root else {
+        panic!("expected element root")
+    };
+    let ChildIr::Show(show) = &root.children[0] else {
+        panic!("expected Show child")
+    };
+    let ChildIr::Element(style) = &show.children[0] else {
+        panic!("expected style child")
+    };
+    assert_eq!(style.namespace, "svg");
+}
+
+fn collect_namespaces<'ir>(root: &'ir RootIr, observed: &mut Vec<(&'ir str, &'ir str)>) {
+    fn walk<'ir>(children: &'ir [ChildIr], observed: &mut Vec<(&'ir str, &'ir str)>) {
+        for child in children {
+            match child {
+                ChildIr::Element(element) => {
+                    observed.push((element.tag_name.as_str(), element.namespace.as_str()));
+                    walk(&element.children, observed);
+                }
+                ChildIr::Fragment(fragment) => walk(&fragment.children, observed),
+                ChildIr::Show(show) => {
+                    walk(&show.children, observed);
+                    if let Some(ComponentPropValueIr::Children(children)) = &show.fallback {
+                        walk(children, observed);
+                    }
+                }
+                ChildIr::For(for_binding) => walk(&for_binding.body, observed),
+                ChildIr::ErrorBoundary(boundary) => walk(&boundary.children, observed),
+                ChildIr::Transition(transition) => walk(&transition.children, observed),
+                ChildIr::Text(_) | ChildIr::DynamicText(_) | ChildIr::DynamicRegion(_) => {}
+                ChildIr::Component(_) => {}
+            }
+        }
+    }
+
+    match root {
+        RootIr::Element(element) => {
+            observed.push((element.tag_name.as_str(), element.namespace.as_str()));
+            walk(&element.children, observed);
+        }
+        RootIr::Fragment(fragment) => walk(&fragment.children, observed),
+        RootIr::Show(show) => walk(&show.children, observed),
+        RootIr::For(for_binding) => walk(&for_binding.body, observed),
+        RootIr::ErrorBoundary(boundary) => walk(&boundary.children, observed),
+        RootIr::Transition(transition) => walk(&transition.children, observed),
+        RootIr::Component(_) => {}
+    }
+}
+
+#[test]
 fn lowers_transition_intrinsic_with_explicit_runtime_options() {
     let source = r#"import { Transition } from '@zeus-js/zeus';
 export const App = props => <Transition when={props.open} enter="fade-in" leave={props.leave} duration={120} onEnterDone={props.done}><span>{props.label}</span></Transition>"#;

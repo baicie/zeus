@@ -149,7 +149,9 @@ fn is_serializable_property(tag_name: &str, name: &str) -> bool {
         "tabIndex" => true,
         "htmlFor" => tag == "label",
         "value" => matches!(tag, "button" | "input" | "option" | "textarea"),
+        "defaultValue" => matches!(tag, "button" | "input" | "option" | "textarea"),
         "checked" => tag == "input",
+        "defaultChecked" => tag == "input",
         "disabled" => matches!(
             tag,
             "button" | "fieldset" | "input" | "optgroup" | "option" | "select" | "textarea"
