@@ -11,7 +11,6 @@
   "dependencies": {
     "@zeus-js/query": "workspace:*",
     "@zeus-js/router": "workspace:*",
-    "@zeus-js/resource": "workspace:*",
     "@zeus-js/zeus": "workspace:*",
     "@zeus-web/data-grid": "0.1.0-beta.33",
     "@zeus-web/dialog": "0.1.0-beta.33",

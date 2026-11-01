@@ -32,6 +32,7 @@
   ],
   "dependencies": {
     "@tanstack/query-core": "^5.104.3",
+    "@zeus-js/runtime-dom": "workspace:*",
     "@zeus-js/signal": "workspace:*"
   },
   "buildOptions": {

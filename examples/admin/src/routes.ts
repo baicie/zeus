@@ -1,6 +1,3 @@
-import { createRouter, type ZeusRouter } from '@zeus-js/router'
-import type { Accessor } from '@zeus-js/zeus'
-
 export type Role = 'viewer' | 'admin'
 export type UserStatus = 'active' | 'invited' | 'suspended'
 
@@ -151,70 +148,34 @@ export const adminApi: AdminApi = {
     }),
 }
 
-export function createAdminRouter(
-  role: Accessor<Role>,
-  api: AdminApi = adminApi,
-): ZeusRouter {
-  return createRouter({
-    routes: [
-      {
-        id: 'root',
-        path: '/',
-        hasErrorBoundary: true,
-        children: [
-          { id: 'start', index: true },
-          {
-            id: 'admin',
-            path: 'admin',
-            children: [
-              { id: 'overview', index: true },
-              {
-                id: 'users',
-                path: 'users',
-                loader: ({ request }) =>
-                  api
-                    .listUsers(
-                      { search: '', status: 'all', page: 1, pageSize: 50 },
-                      request.signal,
-                    )
-                    .then(result => result.rows),
-                hasErrorBoundary: true,
-              },
-              {
-                id: 'user',
-                path: 'users/:id',
-                loader: ({ params, request }) =>
-                  api.getUser(params.id ?? '', request.signal),
-                hasErrorBoundary: true,
-              },
-              {
-                id: 'reports',
-                path: 'reports',
-                hasErrorBoundary: true,
-                loader: async ({ request }) => {
-                  await waitForData(request.signal)
-                  if (role() !== 'admin') {
-                    throw new Response('此页面需要管理员权限。', {
-                      status: 403,
-                    })
-                  }
-                  return api.getSummary(request.signal)
-                },
-              },
-            ],
-          },
-          {
-            id: 'not-found',
-            path: '*',
-            loader: () => {
-              throw new Response('该页面不存在。', { status: 404 })
-            },
-          },
-        ],
-      },
-    ],
-  })
+/** Rows per users page; shared by the route loader and the page query. */
+export const USER_PAGE_SIZE = 3
+
+/**
+ * The users list refetches in the background after this window. It is short on
+ * purpose: the browser check holds a row across a stale notification to prove
+ * status updates keep the same DOM node (and therefore the pointer target).
+ */
+export const USER_LIST_STALE_TIME = 500
+
+/**
+ * Query keys are the single cache identity for a request. Route loaders and
+ * components build the same key, so loader prefetching fills the cache the
+ * component observes instead of introducing a second cache.
+ */
+export function userListQueryKey(
+  search: string,
+  status: UserStatus | 'all',
+  page: number,
+): readonly unknown[] {
+  return ['admin-users', search, status, page, USER_PAGE_SIZE]
 }
+
+export function adminUserQueryKey(id: string): readonly unknown[] {
+  return ['admin-user', id]
+}
+
+export const adminSummaryQueryKey = ['admin-summary'] as const
 
 function request<T>(signal: AbortSignal, resolve: () => T): Promise<T> {
   return new Promise((accept, reject) => {
@@ -238,6 +199,6 @@ function request<T>(signal: AbortSignal, resolve: () => T): Promise<T> {
   })
 }
 
-function waitForData(signal: AbortSignal): Promise<void> {
+export function waitForData(signal: AbortSignal): Promise<void> {
   return request(signal, () => undefined)
 }
