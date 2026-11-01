@@ -2,9 +2,11 @@
 
 const assert = require('node:assert/strict')
 const { spawnSync } = require('node:child_process')
-const { readFileSync } = require('node:fs')
+const { mkdtempSync, readFileSync, rmSync, writeFileSync } = require('node:fs')
+const { tmpdir } = require('node:os')
 const path = require('node:path')
 const test = require('node:test')
+const { after } = test
 
 const { transformModule } = require('../index.js')
 
@@ -163,36 +165,58 @@ test('pathological nesting returns a diagnostic instead of aborting the host', (
 // A stack overflow in Oxc aborts the whole process, so each bypass construct
 // has to be transformed in a child. A crash shows up as a signal instead of
 // ending this test run.
+//
+// The probe reads its input from the file named on the command line rather
+// than stdin: these cases are up to tens of megabytes, and writing that much
+// through a `spawnSync` pipe intermittently deadlocks both processes, which
+// shows up as a spurious SIGTERM from the timeout.
+//
+// The file holds one source, or a JSON array of sources so that a group of
+// related cases shares a single child instead of paying a native-module load
+// each time.
 const CRASH_PROBE = `
+const fs = require('node:fs')
 const { transformModule } = require(${JSON.stringify(path.resolve(__dirname, '../index.js'))})
-const source = require('node:fs').readFileSync(0, 'utf8')
+const input = fs.readFileSync(process.argv[1], 'utf8')
+const sources = input.startsWith('[') ? JSON.parse(input) : [input]
 try {
-  const result = transformModule({
+  const results = sources.map(source => transformModule({
     source,
     filename: 'probe.tsx',
     target: 'dom',
     runtimeModule: '@zeus-js/runtime-dom',
     delegateEvents: true,
     sourceMap: false,
-  })
-  process.stdout.write(JSON.stringify(result.diagnostics.map(item => item.code)))
+  }).diagnostics.map(item => item.code))
+  process.stdout.write(JSON.stringify(sources.length > 1 ? results : results[0]))
 } catch (error) {
   process.stdout.write(JSON.stringify({ error: String(error) }))
 }
 `
 
+const probeDir = mkdtempSync(path.join(tmpdir(), 'zeus-contract-probe-'))
+let probeIndex = 0
+after(() => rmSync(probeDir, { force: true, recursive: true }))
+
 function transformInChild(source) {
-  const result = spawnSync(process.execPath, ['-e', CRASH_PROBE], {
-    input: source,
+  const inputPath = path.join(probeDir, `probe-${probeIndex++}.json`)
+  writeFileSync(inputPath, source)
+
+  const result = spawnSync(process.execPath, ['-e', CRASH_PROBE, inputPath], {
     encoding: 'utf8',
     timeout: 120_000,
-    maxBuffer: 8 * 1024 * 1024,
+    maxBuffer: 16 * 1024 * 1024,
   })
 
   if (result.signal) return { crash: result.signal, stderr: result.stderr }
   assert.equal(result.status, 0, result.stderr)
 
   return { diagnostics: JSON.parse(result.stdout) }
+}
+
+/** Transforms every source in one child process; the result lists one entry per source. */
+function transformAllInChild(sources) {
+  return transformInChild(JSON.stringify(sources))
 }
 
 function repeat(unit, times) {
@@ -276,6 +300,11 @@ test('the guard accepts realistic flat and sibling-heavy modules in a child proc
     // Comparisons and generic calls must not be mistaken for JSX tags.
     `export const compare = ${repeat('a < b, ', 20_000)}true\n`,
     `export const calls = ${repeat('id<number>(1), ', 20_000)}0\n`,
+    // Semicolon-free source ends each statement at a line break. Without that
+    // boundary every statement of a flat module accumulates on one spine.
+    repeat('const value = 1 + 2 * 3\n', 5_000),
+    repeat('const App = props => <button>{props.label}</button>\n', 2_000),
+    repeat('function run() { return helper() }\n', 5_000),
     // Realistic component nesting stays well inside the budget.
     `export const App = () => ${repeat('<div>', 400)}x${repeat('</div>', 400)}\n`,
   ]
@@ -307,6 +336,45 @@ test('deep JSX text apostrophes and generic arrows do not hide later code', () =
 
     assert.equal(result.crash, undefined)
     assert.deepEqual(result.diagnostics, ['ZEUS_INPUT_TOO_DEEP'])
+  }
+})
+
+test('a deep construct split across lines is still rejected', () => {
+  // A statement may start on a new line, so the preflight resets its cost
+  // there. None of these constructs may ride that reset: they are all written
+  // one level per line.
+  const cases = [
+    [800_000, '('],
+    [800_000, '<a>'],
+    [800_000, 'f('],
+    [800_000, '(a) => '],
+    [800_000, '.a'],
+    [800_000, '()'],
+    [800_000, 'a+'],
+    [800_000, 'new '],
+    [800_000, 'if(a)'],
+    [84_000, 'while(a)'],
+    [57_000, 'for(;;)'],
+  ]
+
+  for (const [depth, opener] of cases) {
+    const body = Array.from({ length: depth }, () => opener).join('\n')
+    const result = transformAllInChild([
+      `const v = ${body}\n`,
+      `function f(a) {\n${body}\n}\n`,
+      `type T = ${body}1\n`,
+    ])
+
+    assert.equal(
+      result.crash,
+      undefined,
+      `the child aborted on ${opener.trim()} per line`,
+    )
+    assert.deepEqual(
+      result.diagnostics,
+      Array.from({ length: 3 }, () => ['ZEUS_INPUT_TOO_DEEP']),
+      `not rejected: ${opener.trim()} per line`,
+    )
   }
 })
 

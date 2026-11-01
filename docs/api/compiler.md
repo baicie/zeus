@@ -68,9 +68,11 @@ stack rather than bracket depth alone, so an arrow chain `(a) => (b) => …`, a
 member chain `a.a.a…`, a template substitution chain or a JSX text apostrophe
 cannot slip past it. The budget is equivalent to 8,192 nested JSX elements,
 which is the documented limit; every other construct is rejected at roughly a
-third of the depth that would abort the worker. Ordinary modules, including
-long sibling sequences, flat argument lists and large object literals, stay far
-below the budget.
+third of the depth that would abort the worker. Ordinary modules stay far below
+the budget: `,` and `;` end a statement, and so does a line break after a
+completed value, which is what semicolon-free source relies on. Long sibling
+sequences, flat argument lists, large object literals and multi-line modules
+therefore never accumulate.
 
 ## Targets
 

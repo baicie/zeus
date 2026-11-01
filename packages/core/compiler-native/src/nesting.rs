@@ -38,9 +38,11 @@
 //! Weights are `WEIGHT_SCALE / crash_depth`, and the running cost is summed
 //! along the expression spine: a bracket saves the cost of its parent frame
 //! and restores it when it closes, while postfix and infix operators stay on
-//! the same spine, so `f()()()…` and `a.a.a…` accumulate. `,` and `;` start a
-//! sibling, so long flat argument lists, object literals, arrays and statement
-//! sequences never accumulate.
+//! the same spine, so `f()()()…` and `a.a.a…` accumulate. `,`, `;` and a line
+//! break after a completed value end a statement and start a sibling, so long
+//! flat argument lists, object literals, arrays and semicolon-free statement
+//! sequences never accumulate. Body-taking keywords never start a sibling at a
+//! line break, so braceless `if`/`while`/`for` chains still accumulate.
 //!
 //! The budget is 8,192 JSX levels' worth of weight, which is the limit the
 //! compiler documents. For every other construct the same budget maps to a
@@ -117,7 +119,7 @@ pub fn exceeds_nesting_cost(source: &str) -> bool {
         mode: Mode::Code,
         // An expression may start at the beginning of a module.
         expression_expected: true,
-        pending_block_close: false,
+        boundary: Boundary::None,
         exceeded: false,
     };
 
@@ -171,11 +173,25 @@ struct Scanner<'a> {
     /// Whether an expression may start here. This separates `<div>` from the
     /// comparison `a < b`, and a regular expression from a division.
     expression_expected: bool,
-    /// A statement block just closed. `if (a) {} else …` continues the same
-    /// statement and keeps its stack frames, so the sibling reset is deferred
-    /// until the next token is known not to be `else`.
-    pending_block_close: bool,
+    /// A statement may have ended at the token the scan is sitting on, and the
+    /// next token decides it. A closed statement block sets `BlockClosed`
+    /// because `if (a) {} else …` is one statement; a line terminator after a
+    /// value sets `LineBreak` because semicolon-free source ends statements
+    /// there. Both must defer the sibling reset so no construct is split into
+    /// cheap pieces, and both reset the spine when the statement really ends.
+    boundary: Boundary,
     exceeded: bool,
+}
+
+/// A pending statement boundary. See `Scanner::boundary`.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Boundary {
+    /// No boundary is pending.
+    None,
+    /// A statement block just closed; only a following `else` continues it.
+    BlockClosed,
+    /// A line terminator followed a token that can end a statement.
+    LineBreak,
 }
 
 impl Scanner<'_> {
@@ -239,7 +255,14 @@ impl Scanner<'_> {
 
     fn scan_code(&mut self) {
         let byte = self.byte();
-        self.resolve_pending_block_close(byte);
+        self.resolve_block_close(byte);
+
+        if Scanner::is_line_break(byte) {
+            self.index += 1;
+            self.mark_line_boundary();
+            return;
+        }
+        self.resolve_line_boundary(byte);
 
         match byte {
             b'/' if self.peek(1) == Some(b'/') => {
@@ -341,27 +364,115 @@ impl Scanner<'_> {
 
     /// `else if (…) {…}` nests one level per link, so a closed statement block
     /// only ends its statement when no `else` follows.
-    fn resolve_pending_block_close(&mut self, byte: u8) {
-        if !self.pending_block_close || byte.is_ascii_whitespace() || byte == b'/' {
+    fn resolve_block_close(&mut self, byte: u8) {
+        if self.boundary != Boundary::BlockClosed || byte.is_ascii_whitespace() || byte == b'/' {
             return;
         }
 
         if self.word_at(self.index) != Some(b"else") {
             self.start_sibling();
         }
-        self.pending_block_close = false;
+        self.boundary = Boundary::None;
     }
 
     fn skip_separator(&mut self) {
         self.start_sibling();
+        self.boundary = Boundary::None;
         self.index += 1;
         self.expression_expected = true;
     }
 
     fn skip_binary_operator(&mut self) {
         self.charge(W_BINARY);
+        self.boundary = Boundary::None;
         self.index += 1;
         self.expression_expected = true;
+    }
+
+    fn is_line_break(byte: u8) -> bool {
+        matches!(byte, b'\n' | b'\r')
+    }
+
+    /// Arms a statement boundary when the line ends with a token that can end
+    /// an expression. A line ending in an operator, an opening delimiter, a
+    /// member `.` or an operator keyword (`new`, `as`, `typeof`) continues the
+    /// expression, so no boundary is armed there.
+    fn mark_line_boundary(&mut self) {
+        let mut previous = self.index;
+        while previous > 0 && self.bytes[previous - 1].is_ascii_whitespace() {
+            previous -= 1;
+        }
+        let Some(&token) = previous.checked_sub(1).and_then(|at| self.bytes.get(at)) else {
+            return;
+        };
+
+        if self.line_continues_after(previous, token) {
+            return;
+        }
+        // A closed block already records where its statement can end; a line
+        // break inside it must not replace that state.
+        if self.boundary == Boundary::None {
+            self.boundary = Boundary::LineBreak;
+        }
+    }
+
+    /// Whether the token ending at `end` lets the expression run past the line
+    /// break. Judgment is conservative: only a closing bracket, a closed
+    /// literal or a value ends a line, so a construct that can keep growing —
+    /// every one the guard rejects — is never split into siblings.
+    fn line_continues_after(&self, end: usize, token: u8) -> bool {
+        match token {
+            b')' | b']' | b'}' | b'\'' | b'"' | b'`' => false,
+            // `=>` and a comparison both continue; a `>` that closes a JSX tag
+            // or type arguments ends an element, which is a value.
+            b'>' => {
+                let before = end.checked_sub(2).and_then(|at| self.bytes.get(at));
+                matches!(before, Some(b'=')) || before.is_none_or(u8::is_ascii_whitespace)
+            }
+            byte if is_identifier_continue(byte) => {
+                self.word_ending_at(end).is_some_and(line_continues_word)
+            }
+            _ => true,
+        }
+    }
+
+    /// A boundary is applied only when the next word declares a statement at a
+    /// position where a statement can appear. Body-taking keywords (`if`,
+    /// `for`, `while`, `do`, `try`, `switch`) are left out on purpose: a
+    /// braceless chain of them is the one construct whose depth a reset could
+    /// hide, and a block always closes with `}`, which already starts the next
+    /// sibling.
+    fn resolve_line_boundary(&mut self, byte: u8) {
+        if self.boundary != Boundary::LineBreak {
+            return;
+        }
+        if byte.is_ascii_whitespace() {
+            return;
+        }
+        if byte == b'/' && matches!(self.peek(1), Some(b'/' | b'*')) {
+            return;
+        }
+
+        self.boundary = Boundary::None;
+
+        if !self.statements_allowed_here() || !is_identifier_start(byte) {
+            return;
+        }
+
+        if self.word_at(self.index).is_some_and(starts_statement) {
+            self.start_sibling();
+        }
+    }
+
+    /// Automatic semicolon insertion only ends statements. Inside parentheses
+    /// or brackets the previous line is an unfinished expression, so a keyword
+    /// there is not a sibling.
+    fn statements_allowed_here(&self) -> bool {
+        match self.frames.last().map(|frame| frame.kind) {
+            None => true,
+            Some(FrameKind::Braced { block }) => block,
+            _ => false,
+        }
     }
 
     /// Handles `<` in code: JSX, type parameters or a comparison.
@@ -556,9 +667,9 @@ impl Scanner<'_> {
                         // so the next one starts at the enclosing sibling cost
                         // and sibling `if`/`for` bodies never accumulate. An
                         // `else` after it continues the same statement, which
-                        // `pending_block_close` decides on the next token.
+                        // `boundary` decides on the next token.
                         FrameKind::Braced { block: true } => {
-                            self.pending_block_close = true;
+                            self.boundary = Boundary::BlockClosed;
                         }
                         // A closed object literal stays on the expression spine.
                         _ => self.charge(W_CALL_CLOSE),
@@ -785,6 +896,105 @@ impl<'a> Scanner<'a> {
         }
         Some(&self.bytes[start..end])
     }
+
+    /// Returns the identifier word ending just before `end`, if one ends there.
+    fn word_ending_at(&self, end: usize) -> Option<&'a [u8]> {
+        if !self
+            .bytes
+            .get(end - 1)
+            .is_some_and(|byte| is_identifier_continue(*byte))
+        {
+            return None;
+        }
+
+        let mut start = end - 1;
+        while start > 0 && is_identifier_continue(self.bytes[start - 1]) {
+            start -= 1;
+        }
+        if !is_identifier_start(self.bytes[start]) {
+            return None;
+        }
+        Some(&self.bytes[start..end])
+    }
+}
+
+/// Keywords that declare a statement. A line that starts with one after a
+/// completed expression begins that statement, which is how semicolon-free
+/// source separates its top-level declarations. Body-taking keywords are absent
+/// so a braceless chain of them can never be split into cheap siblings.
+fn starts_statement(word: &[u8]) -> bool {
+    matches!(
+        word,
+        b"const"
+            | b"let"
+            | b"var"
+            | b"function"
+            | b"class"
+            | b"import"
+            | b"export"
+            | b"type"
+            | b"interface"
+            | b"enum"
+            | b"declare"
+            | b"abstract"
+            | b"async"
+            | b"return"
+            | b"throw"
+            | b"break"
+            | b"continue"
+    )
+}
+
+/// Keywords that leave an expression unfinished at the end of a line, so the
+/// following line still belongs to the same statement.
+fn line_continues_word(word: &[u8]) -> bool {
+    matches!(
+        word,
+        b"new"
+            | b"typeof"
+            | b"void"
+            | b"delete"
+            | b"await"
+            | b"yield"
+            | b"return"
+            | b"throw"
+            | b"case"
+            | b"in"
+            | b"of"
+            | b"instanceof"
+            | b"as"
+            | b"satisfies"
+            | b"keyof"
+            | b"extends"
+            | b"implements"
+            | b"const"
+            | b"let"
+            | b"var"
+            | b"function"
+            | b"class"
+            | b"import"
+            | b"export"
+            | b"type"
+            | b"interface"
+            | b"enum"
+            | b"declare"
+            | b"abstract"
+            | b"public"
+            | b"private"
+            | b"protected"
+            | b"readonly"
+            | b"static"
+            | b"async"
+            | b"else"
+            | b"do"
+            | b"if"
+            | b"while"
+            | b"for"
+            | b"switch"
+            | b"try"
+            | b"catch"
+            | b"finally"
+    )
 }
 
 fn is_binary_operator(byte: u8) -> bool {
@@ -855,6 +1065,83 @@ mod tests {
             repeat(")", depth)
         );
         assert!(exceeds_nesting_cost(&source));
+    }
+
+    #[test]
+    fn semicolon_free_statements_do_not_accumulate() {
+        // This repository's own style has no semicolons, so a statement ends at
+        // a line break. Each one must start a sibling: a 30,000-line module of
+        // ordinary constant declarations once reported ZEUS_INPUT_TOO_DEEP.
+        assert!(!exceeds_nesting_cost(&repeat(
+            "const a = 1 + 2 * 3\n",
+            100_000
+        )));
+        assert!(!exceeds_nesting_cost(&repeat(
+            "const App = props => <button>{props.label}</button>\n",
+            30_000
+        )));
+        assert!(!exceeds_nesting_cost(&repeat(
+            "function a() { return b() }\n",
+            50_000
+        )));
+    }
+
+    #[test]
+    fn line_breaks_never_hide_a_deep_construct() {
+        // Every construct the guard rejects is also written across lines: an
+        // arrow, a member chain or a braceless `if` body may each start a new
+        // line, and the statement boundary must not split them into siblings.
+        // Depths match `every_deep_construct_is_rejected`.
+        let cases = [
+            (800_000, "("),
+            (800_000, "["),
+            (800_000, "{"),
+            (800_000, "<a>"),
+            (800_000, "<>"),
+            (800_000, "`${"),
+            (800_000, "{{a:"),
+            (800_000, "f("),
+            (800_000, "(a) => "),
+            (800_000, "a ? b : "),
+            (800_000, "a="),
+            (800_000, "new "),
+            (800_000, ".a"),
+            (800_000, "()"),
+            (800_000, "!"),
+            (800_000, "a+"),
+            (800_000, "[..."),
+            (800_000, "!("),
+            (800_000, "if(a){}else "),
+            (800_000, "if(a)"),
+            (4_000_000, "typeof "),
+            (240_000, "a: "),
+            (84_000, "while(a)"),
+            (57_000, "for(;;)"),
+            (300_000, "extends B "),
+            (620_000, "keyof "),
+            (420_000, " as any"),
+            (8_000_000, "@d "),
+            (800_000, "Array<"),
+            (800_000, "<a b={{"),
+        ];
+
+        for (depth, opener) in cases {
+            let body = std::iter::repeat_n(opener, depth)
+                .collect::<Vec<_>>()
+                .join("\n");
+            for source in [
+                format!("const v = {body}\n"),
+                format!("function f(a) {{\n{body}\n}}\n"),
+                format!("type T = {body}1\n"),
+                format!("const A = () => {body}1\n"),
+            ] {
+                assert!(
+                    exceeds_nesting_cost(&source),
+                    "expected a diagnostic when `{}` starts each line",
+                    opener.trim()
+                );
+            }
+        }
     }
 
     #[test]
