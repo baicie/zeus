@@ -47,7 +47,8 @@ export interface RendererHost<
   /**
    * Reconciles the visible entries: a key whose adapter and container are
    * unchanged is updated, a changed container remounts, and missing keys are
-   * disposed.
+   * disposed. All disposals run before any mount, so keys can swap
+   * containers in one call. Keys and containers must each be unique.
    */
   render(entries: readonly RendererEntry<Container, Data, Context>[]): void
   /** Disposes every handle and remounts the current entries with `adapter`. */
@@ -58,6 +59,7 @@ export interface RendererHost<
 export type RendererErrorCode =
   | 'ZEUS_RENDERER_DISPOSED'
   | 'ZEUS_RENDERER_DUPLICATE_KEY'
+  | 'ZEUS_RENDERER_DUPLICATE_CONTAINER'
   | 'ZEUS_RENDERER_ADAPTER_FAILURE'
   | 'ZEUS_RENDERER_CONTAINER_MISMATCH'
 
@@ -175,7 +177,8 @@ export function createRendererHost<
       const pendingError = disposeEntries(Array.from(pendingDisposals))
       if (pendingError) throw pendingError
 
-      const next = new Set<PropertyKey>()
+      const next = new Map<PropertyKey, Container>()
+      const containerKeys = new Map<Container, PropertyKey>()
       for (const entry of entries) {
         if (next.has(entry.key)) {
           throw createRendererError(
@@ -183,45 +186,50 @@ export function createRendererHost<
             `Renderer key ${String(entry.key)} appears more than once.`,
           )
         }
-        next.add(entry.key)
+        if (containerKeys.has(entry.container)) {
+          throw createRendererError(
+            'ZEUS_RENDERER_DUPLICATE_CONTAINER',
+            `Renderer keys ${String(containerKeys.get(entry.container))} and ${String(entry.key)} use the same container.`,
+          )
+        }
+        next.set(entry.key, entry.container)
+        containerKeys.set(entry.container, entry.key)
       }
 
       try {
+        // Release every container that changes owner before mounting into
+        // any of them. Otherwise a key moving into a container that another
+        // key still owns would be cleared when that key is disposed later.
+        const stale: Mounted[] = []
         for (const [key, entry] of mounted) {
-          if (!next.has(key)) {
+          if (
+            !next.has(key) ||
+            entry.adapter !== currentAdapter ||
+            !Object.is(entry.container, next.get(key))
+          ) {
             mounted.delete(key)
-            const disposeError = disposeEntries([entry])
-            if (disposeError) throw disposeError
+            stale.push(entry)
           }
         }
+        const disposeError = disposeEntries(stale)
+        if (disposeError) throw disposeError
 
         for (const entry of entries) {
           const previous = mounted.get(entry.key)
-          if (
-            previous &&
-            previous.adapter === currentAdapter &&
-            Object.is(previous.container, entry.container)
-          ) {
-            try {
-              currentAdapter.update(previous.handle, entry.data, entry.context)
-            } catch (error) {
-              throw adapterFailure('update', entry.key, error)
-            }
-            mounted.set(entry.key, {
-              ...previous,
-              data: entry.data,
-              context: entry.context,
-            })
+          if (!previous) {
+            mounted.set(entry.key, mountEntry(entry))
             continue
           }
-
-          if (previous) {
-            mounted.delete(entry.key)
-            const disposeError = disposeEntries([previous])
-            if (disposeError) throw disposeError
+          try {
+            currentAdapter.update(previous.handle, entry.data, entry.context)
+          } catch (error) {
+            throw adapterFailure('update', entry.key, error)
           }
-
-          mounted.set(entry.key, mountEntry(entry))
+          mounted.set(entry.key, {
+            ...previous,
+            data: entry.data,
+            context: entry.context,
+          })
         }
       } catch (error) {
         const active = Array.from(mounted.values())

@@ -126,8 +126,11 @@ virtualized grid cell, uses a renderer adapter instead
 `@zeus-js/web-c-runtime` exports `createRendererHost(adapter)`. The host
 reconciles keyed entries (`{ key, container, data, context }`): an unchanged key
 and container is updated, a changed container remounts, and a missing key is
-disposed. Every mount receives a `RendererSession` with a strictly increasing
-`generation` and an `AbortSignal` that is aborted before disposal.
+disposed. All disposals of a `render` call run before its mounts, so two keys can
+swap containers in one call. Two keys that use the same container in one call
+throw `ZEUS_RENDERER_DUPLICATE_CONTAINER`. Every mount receives a
+`RendererSession` with a strictly increasing `generation` and an `AbortSignal`
+that is aborted before disposal.
 
 The framework adapters live in separate entries so the wrapper main entries do
 not import React DOM or the Vue renderer:
@@ -150,3 +153,24 @@ unmount Portal and Teleport content on dispose, and report failures as
 `ZEUS_RENDERER_ADAPTER_FAILURE`, `ZEUS_RENDERER_DISPOSED` or
 `ZEUS_RENDERER_CONTAINER_MISMATCH`. The React entry needs `react-dom` as a peer
 dependency.
+
+Errors thrown during `mount`, `update` or `dispose` (including effect cleanups
+and unmount hooks) are thrown to the host as `ZEUS_RENDERER_ADAPTER_FAILURE`
+with the original error as `cause`. A failed `dispose` still unmounts the root
+and marks the handle `disposed`, so the host's retry does not unmount it twice.
+Errors raised later, for example by a state update after the call returned, are
+not attributed to the next call:
+
+- React passes them to the `onError(error, session)` option, or to
+  `globalThis.reportError` (`console.error` where it does not exist).
+- Vue lets them propagate to the application's `config.errorHandler`.
+
+Vue `update` always re-renders, even when `data` is the same object that was
+mutated in place.
+
+Call `host.render`, `host.setAdapter` and `host.dispose` with the React adapter
+outside React rendering and commits, for example from an event handler or a
+scheduled task, not from a render function, `useLayoutEffect` or `useEffect`.
+React cannot flush a nested root there, so `mount` and `update` throw
+`ZEUS_RENDERER_ADAPTER_FAILURE` instead of returning before the DOM is
+committed.

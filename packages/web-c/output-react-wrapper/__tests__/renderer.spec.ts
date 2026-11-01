@@ -1,5 +1,5 @@
 import { JSDOM } from 'jsdom'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 
 import type { RendererSession } from '@zeus-js/web-c-runtime'
 
@@ -28,7 +28,8 @@ for (const [name, value] of Object.entries(globals)) {
 }
 
 const React = await import('react')
-const { createPortal } = await import('react-dom')
+const { createPortal, flushSync } = await import('react-dom')
+const { createRoot } = await import('react-dom/client')
 const { createRendererHost } = await import('@zeus-js/web-c-runtime')
 const { createReactRenderer } = await import('../src/renderer')
 
@@ -213,4 +214,186 @@ describe('createReactRenderer', () => {
     expect(applied).toEqual(['kept#181'])
     expect(active).toBe(0)
   })
+
+  it('keeps both cells when two keys swap containers in one render', () => {
+    const host = createRendererHost(
+      createReactRenderer((label: string) => h('span', null, label)),
+    )
+    const c1 = container()
+    const c2 = container()
+
+    host.render([
+      { key: 'a', container: c1, data: 'A', context: undefined },
+      { key: 'b', container: c2, data: 'B', context: undefined },
+    ])
+    host.render([
+      { key: 'a', container: c2, data: 'A', context: undefined },
+      { key: 'b', container: c1, data: 'B', context: undefined },
+    ])
+
+    expect({ c1: c1.textContent, c2: c2.textContent }).toEqual({
+      c1: 'B',
+      c2: 'A',
+    })
+    host.dispose()
+    expect(c1.childNodes).toHaveLength(0)
+    expect(c2.childNodes).toHaveLength(0)
+  })
+
+  // A cell whose next render throws, triggered outside mount/update/dispose.
+  function lateFailure() {
+    let explode!: () => void
+    function Cell() {
+      const [broken, setBroken] = React.useState(false)
+      explode = () => setBroken(true)
+      if (broken) throw new Error('late render')
+      return h('span', null, 'ok')
+    }
+    return { node: () => h(Cell), explode: () => explode() }
+  }
+
+  it('reports errors after a mount returned to onError with the session', async () => {
+    const reported: Array<[unknown, RendererSession]> = []
+    const cell = lateFailure()
+    const adapter = createReactRenderer(cell.node, {
+      onError: (error, current) => reported.push([error, current]),
+    })
+    const current = session('row-1')
+    const handle = adapter.mount(container(), undefined, undefined, current)
+
+    cell.explode()
+    await vi.waitFor(() => expect(reported).toHaveLength(1))
+    expect(reported[0][0]).toMatchObject({ message: 'late render' })
+    expect(reported[0][1]).toBe(current)
+    // The earlier failure is not attributed to the next synchronous update.
+    expect(() => adapter.update(handle, undefined, undefined)).not.toThrow()
+    adapter.dispose(handle)
+    expect(reported).toHaveLength(1)
+  })
+
+  it('passes errors after a mount to reportError, or console.error without it', async () => {
+    const reportError = vi.fn()
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    // `vi.unstubAllGlobals` would also undo the setup file's stubs, so the
+    // global is swapped by hand.
+    const target = globalThis as { reportError?: unknown }
+    const original = Object.getOwnPropertyDescriptor(target, 'reportError')
+    try {
+      target.reportError = reportError
+      const first = lateFailure()
+      const adapter = createReactRenderer(first.node)
+      const handle = adapter.mount(container(), undefined, undefined, session())
+      first.explode()
+      await vi.waitFor(() => expect(reportError).toHaveBeenCalledTimes(1))
+      expect(reportError.mock.calls[0][0]).toMatchObject({
+        message: 'late render',
+      })
+      adapter.dispose(handle)
+
+      delete target.reportError
+      const second = lateFailure()
+      const fallback = createReactRenderer(second.node)
+      const other = fallback.mount(container(), undefined, undefined, session())
+      second.explode()
+      await vi.waitFor(() =>
+        expect(consoleError).toHaveBeenCalledWith(
+          expect.objectContaining({ message: 'late render' }),
+        ),
+      )
+      fallback.dispose(other)
+      expect(reportError).toHaveBeenCalledTimes(1)
+    } finally {
+      if (original) Object.defineProperty(target, 'reportError', original)
+      else delete target.reportError
+      consoleError.mockRestore()
+    }
+  })
+
+  it.each(['useLayoutEffect', 'useEffect'] as const)(
+    'throws %s cleanup errors from dispose once and lets the host retry',
+    hook => {
+      let cleanups = 0
+      function Cell() {
+        React[hook](
+          () => () => {
+            cleanups++
+            throw new Error('cleanup exploded')
+          },
+          [],
+        )
+        return h('span', null, 'cell')
+      }
+      const adapter = createReactRenderer(() => h(Cell))
+      const host = createRendererHost(adapter)
+      const target = container()
+
+      host.render([
+        {
+          key: 'row-1',
+          container: target,
+          data: undefined,
+          context: undefined,
+        },
+      ])
+      expect(() => host.render([])).toThrow(
+        expect.objectContaining({
+          message:
+            '[ZEUS_RENDERER_ADAPTER_FAILURE] React renderer dispose failed for key row-1.',
+          cause: expect.objectContaining({ message: 'cleanup exploded' }),
+        }),
+      )
+      expect(target.childNodes).toHaveLength(0)
+      // The host retries the pending disposal; the handle is already disposed.
+      expect(() => host.render([])).not.toThrow()
+      expect(cleanups).toBe(1)
+
+      const handle = adapter.mount(target, undefined, undefined, session())
+      expect(() => adapter.dispose(handle)).toThrow(
+        '[ZEUS_RENDERER_ADAPTER_FAILURE]',
+      )
+      expect(handle.state).toBe('disposed')
+      expect(() => adapter.dispose(handle)).not.toThrow()
+      expect(cleanups).toBe(2)
+      host.dispose()
+    },
+  )
+
+  it.each(['useLayoutEffect', 'useEffect'] as const)(
+    'rejects a mount from inside an outer React %s',
+    hook => {
+      // React logs that flushSync cannot run during a commit; keep it quiet.
+      const consoleError = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {})
+      try {
+        const adapter = createReactRenderer((label: string) =>
+          h('span', null, label),
+        )
+        const target = container()
+        let thrown: unknown
+        function Outer() {
+          React[hook](() => {
+            try {
+              adapter.mount(target, 'inner', undefined, session('row-1'))
+            } catch (error) {
+              thrown = error
+            }
+          }, [])
+          return null
+        }
+        const outer = createRoot(container())
+        flushSync(() => outer.render(h(Outer)))
+
+        expect(thrown).toMatchObject({
+          message:
+            '[ZEUS_RENDERER_ADAPTER_FAILURE] React renderer could not commit key row-1 synchronously. Call mount and update outside React rendering and commits.',
+        })
+        // The root created for the rejected mount does not render later.
+        expect(target.childNodes).toHaveLength(0)
+        outer.unmount()
+      } finally {
+        consoleError.mockRestore()
+      }
+    },
+  )
 })
