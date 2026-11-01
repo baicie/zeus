@@ -3,8 +3,8 @@ import {
   effect,
   getCurrentEffect,
   getCurrentScope,
-  incrementRuntimeDiagnostics,
   onScopeDispose,
+  trackRuntimeResource,
   untrack,
 } from '@zeus-js/signal/internal'
 
@@ -67,7 +67,7 @@ export function bindEffect<T>(
   apply: (next: T) => void,
   metadata: BindingMetadata,
 ): void {
-  incrementRuntimeDiagnostics('bindingsCreated')
+  const releaseDiagnostics = trackRuntimeResource('bindings')
 
   const devtoolsInstrumentation = __DEV__
   let bindingIdentity: object | undefined
@@ -161,7 +161,7 @@ export function bindEffect<T>(
   const disposeBinding = (): void => {
     if (bindingDisposed) return
     bindingDisposed = true
-    incrementRuntimeDiagnostics('bindingsDisposed')
+    releaseDiagnostics?.()
     if (bindingId === undefined) return
     if (effectId !== undefined && trackedDependencies) {
       reconcileDependencies(trackedDependencies, new Map(), bindingId, effectId)

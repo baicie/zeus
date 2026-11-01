@@ -438,6 +438,11 @@ export declare function bindEvent(
   handler: EventListener,
   delegated?: boolean,
 ): void
+/**
+ * Registers one shared document listener per event type. These listeners are
+ * process-wide and outlive any component, so runtime diagnostics sessions do
+ * not count them; only per-element native listeners are counted.
+ */
 export declare function delegateEvents(events: readonly string[]): void
 
 export declare function setRef<T>(

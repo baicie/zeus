@@ -1,5 +1,6 @@
 import {
   createRuntimeDiagnosticsSession,
+  createSignal,
   effect,
   onCleanup,
   onScopeDispose,
@@ -558,6 +559,234 @@ describe('runtime cleanup', () => {
 
     expect(() => owner.stop()).not.toThrow()
     expect(second.textContent).toBe('')
+  })
+
+  function mountTrackedKeyedList(
+    items: () => readonly { id: number }[],
+    options: {
+      failingCleanup: number
+      failure: unknown
+      failingRender?: number
+      renderFailure?: unknown
+    },
+  ) {
+    const listScope = scope()
+    const [pulse, setPulse] = createSignal(0)
+    const disposedItems: number[] = []
+    const effectRuns: string[] = []
+    const clone = template('<ul><!></ul>')()
+    const root = clone.firstChild as Element
+    const m = marker(root, 0)
+
+    listScope.run(() => {
+      mountFor(
+        root,
+        m,
+        items,
+        item => item.id,
+        item => {
+          const id = item().id
+          if (id === options.failingRender) throw options.renderFailure
+          effect(() => {
+            effectRuns.push(`${id}:${pulse()}`)
+          })
+          onScopeDispose(() => {
+            disposedItems.push(id)
+            if (id === options.failingCleanup) throw options.failure
+          })
+          const li = document.createElement('li')
+          li.textContent = String(id)
+          return li
+        },
+      )
+    })
+
+    return { listScope, setPulse, disposedItems, effectRuns, root, m }
+  }
+
+  it('disposes every keyed record when one record cleanup throws on stop', () => {
+    const failure = new Error('record cleanup failed')
+    const list = mountTrackedKeyedList(() => [{ id: 1 }, { id: 2 }], {
+      failingCleanup: 1,
+      failure,
+    })
+
+    expect(() => list.listScope.stop()).toThrow(failure)
+    expect(list.disposedItems).toEqual([1, 2])
+    expect(list.root.childNodes.length).toBe(1)
+    expect(list.root.firstChild === list.m).toBe(true)
+
+    list.effectRuns.length = 0
+    list.setPulse(1)
+    expect(list.effectRuns).toEqual([])
+  })
+
+  it('commits the next keyed list when a removed record cleanup throws', () => {
+    const failure = new Error('removed record cleanup failed')
+    const [items, setItems] = createSignal([{ id: 1 }, { id: 2 }, { id: 3 }])
+    const list = mountTrackedKeyedList(items, { failingCleanup: 1, failure })
+
+    expect(() => setItems([{ id: 3 }])).toThrow(failure)
+    expect(list.disposedItems).toEqual([1, 2])
+    expect(list.root.textContent).toBe('3')
+
+    list.effectRuns.length = 0
+    list.setPulse(1)
+    expect(list.effectRuns).toEqual(['3:1'])
+
+    setItems([{ id: 3 }, { id: 4 }])
+    expect(list.root.textContent).toBe('34')
+
+    list.listScope.stop()
+    expect(list.disposedItems).toEqual([1, 2, 3, 4])
+  })
+
+  it('rolls back every new keyed record and keeps the render error when a rollback cleanup throws', () => {
+    const renderFailure = new Error('render failed')
+    const failure = new Error('rollback cleanup failed')
+    const [items, setItems] = createSignal([{ id: 1 }])
+    const list = mountTrackedKeyedList(items, {
+      failingCleanup: 2,
+      failure,
+      failingRender: 4,
+      renderFailure,
+    })
+
+    expect(() =>
+      setItems([{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }]),
+    ).toThrow(renderFailure)
+    expect(list.disposedItems).toEqual([2, 3])
+    expect(list.root.textContent).toBe('1')
+
+    list.effectRuns.length = 0
+    list.setPulse(1)
+    expect(list.effectRuns).toEqual(['1:1'])
+
+    setItems([{ id: 1 }, { id: 3 }])
+    expect(list.root.textContent).toBe('13')
+    list.listScope.stop()
+  })
+
+  it('renders the next Show branch and stays reactive when a branch cleanup throws', () => {
+    const showScope = scope()
+    const [visible, setVisible] = createSignal(true)
+    const failure = new Error('branch cleanup failed')
+    let failCleanup = true
+    const clone = template('<div><!></div>')()
+    const root = clone.firstChild as Element
+    const m = marker(root, 0)
+
+    showScope.run(() => {
+      mountShow(
+        root,
+        m,
+        visible,
+        () => {
+          onCleanup(() => {
+            if (!failCleanup) return
+            failCleanup = false
+            throw failure
+          })
+          return document.createTextNode('yes')
+        },
+        () => document.createTextNode('no'),
+      )
+    })
+
+    expect(root.textContent).toBe('yes')
+    expect(() => setVisible(false)).toThrow(failure)
+    expect(root.textContent).toBe('no')
+
+    setVisible(true)
+    expect(root.textContent).toBe('yes')
+    setVisible(false)
+    expect(root.textContent).toBe('no')
+
+    showScope.stop()
+    expect(root.childNodes.length).toBe(1)
+    expect(root.firstChild === m).toBe(true)
+  })
+
+  it('counts owner, binding and listener disposal on the creating session', () => {
+    const creator = createRuntimeDiagnosticsSession()
+    const other = createRuntimeDiagnosticsSession()
+    const container = document.createElement('div')
+    const text = document.createTextNode('')
+    const host = document.createElement('div')
+    const shadow = host.attachShadow({ mode: 'closed' })
+    const button = document.createElement('button')
+    shadow.append(button)
+    const listenerScope = scope()
+    let dispose!: () => void
+
+    creator.run(() => {
+      dispose = render(() => {
+        bindText(text, () => 'value')
+        return text
+      }, container)
+      listenerScope.run(() => {
+        bindEvent(button, 'click', () => undefined)
+      })
+    })
+
+    // One release runs inside an unrelated session, the other outside any.
+    other.run(() => dispose())
+    listenerScope.stop()
+
+    expect(creator.snapshot()).toMatchObject({
+      ownersCreated: 1,
+      ownersDisposed: 1,
+      bindingsCreated: 1,
+      bindingsDisposed: 1,
+      listenersCreated: 1,
+      listenersDisposed: 1,
+    })
+    expect(other.snapshot()).toMatchObject({
+      ownersCreated: 0,
+      ownersDisposed: 0,
+      bindingsCreated: 0,
+      bindingsDisposed: 0,
+      listenersCreated: 0,
+      listenersDisposed: 0,
+    })
+    creator.dispose()
+    other.dispose()
+  })
+
+  it('counts a replaced direct listener on the session that created it', () => {
+    const creator = createRuntimeDiagnosticsSession()
+    const other = createRuntimeDiagnosticsSession()
+    const button = document.createElement('button')
+    const first = vi.fn()
+    const second = vi.fn()
+    const listenerScope = scope()
+
+    creator.run(() => {
+      listenerScope.run(() => bindEvent(button, 'click', first, false))
+    })
+    other.run(() => {
+      listenerScope.run(() => bindEvent(button, 'click', second, false))
+    })
+
+    button.click()
+    expect(first).not.toHaveBeenCalled()
+    expect(second).toHaveBeenCalledTimes(1)
+    expect(creator.snapshot()).toMatchObject({
+      listenersCreated: 1,
+      listenersDisposed: 1,
+    })
+    expect(other.snapshot()).toMatchObject({
+      listenersCreated: 1,
+      listenersDisposed: 0,
+    })
+
+    listenerScope.stop()
+    expect(other.snapshot()).toMatchObject({
+      listenersCreated: 1,
+      listenersDisposed: 1,
+    })
+    creator.dispose()
+    other.dispose()
   })
 })
 

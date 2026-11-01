@@ -1,4 +1,7 @@
-import { scope } from '@zeus-js/signal/internal'
+import {
+  createRuntimeDiagnosticsSession,
+  scope,
+} from '@zeus-js/signal/internal'
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -54,6 +57,21 @@ describe('delegateEvents', () => {
   it('registers event types for delegation', () => {
     delegateEvents(['click', 'input'])
     expect(true).toBe(true)
+  })
+
+  it('keeps the shared document listener out of session listener counts', () => {
+    const diagnostics = createRuntimeDiagnosticsSession()
+
+    diagnostics.run(() => {
+      delegateEvents(['click'])
+      resetDelegatedEvents()
+    })
+
+    expect(diagnostics.snapshot()).toMatchObject({
+      listenersCreated: 0,
+      listenersDisposed: 0,
+    })
+    diagnostics.dispose()
   })
 })
 

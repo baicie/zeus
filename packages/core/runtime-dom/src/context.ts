@@ -4,10 +4,7 @@
 // Internal APIs: createOwner, runWithOwner, getCurrentOwner
 // DOM bridge APIs: createDOMContextBoundary, provideDOMContext, resolveDOMContext
 
-import {
-  incrementRuntimeDiagnostics,
-  onScopeDispose,
-} from '@zeus-js/signal/internal'
+import { onScopeDispose, trackRuntimeResource } from '@zeus-js/signal/internal'
 
 import { emitDevtoolsEvent, getDevtoolsObjectId } from './devtools'
 import { insert } from './insert'
@@ -68,6 +65,11 @@ export interface Owner {
 
 let currentOwner: Owner | undefined
 
+// Owners created inside a diagnostics session report their disposal to that
+// session, wherever disposal later runs. Kept outside `Owner` so the public
+// shape does not change; only tracked owners have an entry.
+const ownerDiagnostics = new WeakMap<Owner, () => void>()
+
 export function getCurrentOwner(): Owner | undefined {
   return currentOwner
 }
@@ -78,7 +80,8 @@ export function createOwner(parent: Owner | undefined = currentOwner): Owner {
     provides: new Map(),
     disposed: false,
   }
-  incrementRuntimeDiagnostics('ownersCreated')
+  const releaseDiagnostics = trackRuntimeResource('owners')
+  if (releaseDiagnostics) ownerDiagnostics.set(owner, releaseDiagnostics)
 
   if (typeof window !== 'undefined' && window.__ZEUS_DEVTOOLS_HOOK__) {
     emitDevtoolsEvent(
@@ -98,7 +101,8 @@ export function disposeOwner(owner: Owner): void {
   if (owner.disposed) return
   owner.disposed = true
   owner.provides.clear()
-  incrementRuntimeDiagnostics('ownersDisposed')
+  ownerDiagnostics.get(owner)?.()
+  ownerDiagnostics.delete(owner)
 }
 
 export function runWithOwner<T>(owner: Owner | undefined, fn: () => T): T {
