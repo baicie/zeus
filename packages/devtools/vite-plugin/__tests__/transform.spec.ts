@@ -99,6 +99,25 @@ function getCode(result: TransformOutput): string | null {
   return code
 }
 
+interface MutableSourceMap {
+  sources: string[]
+  sourcesContent?: string[]
+  x_google_ignoreList?: number[]
+}
+
+function getSourceMap(result: TransformOutput): MutableSourceMap {
+  if (result == null || typeof result === 'string' || !result.map) {
+    throw new Error('Expected transform source map')
+  }
+
+  const map = result.map as MutableSourceMap
+  if (!Array.isArray(map.sources) || !Array.isArray(map.sourcesContent)) {
+    throw new Error('Expected a decoded source map')
+  }
+
+  return map
+}
+
 describe('vite-plugin-zeus transform', () => {
   it('exposes pre-transform plugin metadata', () => {
     const plugin = createZeus()
@@ -151,6 +170,24 @@ describe('vite-plugin-zeus transform', () => {
     expect(events.map(event => event.type)).toEqual(['miss', 'hit'])
     expect(events[0]?.reason).toBe('cold')
     expect(events[1]?.reason).toBe('cached')
+  })
+
+  it('does not hand consumers the cached source map a second time', async () => {
+    const transform = createTransformHarness()
+
+    const first = getSourceMap(await transform(source, '/src/App.tsx'))
+    // Vite normalizes the map object it receives in place: it rewrites
+    // `sources`, fills `sourcesContent` and appends `x_google_ignoreList`.
+    first.sources[0] = '/dist/App.tsx'
+    first.sourcesContent![0] = 'tampered'
+    first.x_google_ignoreList = [0]
+
+    const second = getSourceMap(await transform(source, '/src/App.tsx'))
+
+    expect(second).not.toBe(first)
+    expect(second.sources).toEqual(['App.tsx'])
+    expect(second.sourcesContent).toEqual([source])
+    expect(second.x_google_ignoreList).toBeUndefined()
   })
 
   it('misses when source changes and supports disabling the cache', async () => {

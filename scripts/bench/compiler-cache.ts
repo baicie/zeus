@@ -20,7 +20,7 @@ const input = (filename: string, source: string) => ({
 })
 
 const source = `export const App = props => <button>{props.label}</button>\n`
-const value = { code: source, map: null, diagnostics: [] }
+const value = createResult(source, '/src/App.tsx')
 const events: string[] = []
 const cache = createCompilerCache({
   onEvent: event => events.push(event.type),
@@ -47,7 +47,9 @@ const changedMs = performance.now() - changedStart
 const beforeFill = heapUsedAfterGc()
 for (let index = 0; index < moduleCount; index++) {
   const filename = `/src/module-${index}.tsx`
-  cache.set(input(filename, source), value)
+  // Each entry keeps its own transform result. Sharing one value would only
+  // measure the Map bookkeeping and understate what a warm cache really holds.
+  cache.set(input(filename, source), createResult(source, filename))
 }
 const afterFill = heapUsedAfterGc()
 const snapshot = cache.snapshot()
@@ -68,6 +70,7 @@ const report = {
   entries: snapshot.entries,
   heapDeltaBytes: afterFill - beforeFill,
   heapBytesPerEntry: round((afterFill - beforeFill) / moduleCount),
+  syntheticResultBytes: resultByteLength(source, '/src/module-0.tsx'),
   cacheCounters: snapshot,
   eventCounts: countEvents(events),
   note: 'Synthetic cache-only measurement; no performance threshold is inferred from these observations.',
@@ -82,6 +85,32 @@ function heapUsedAfterGc(): number {
   const gc = (globalThis as typeof globalThis & { gc?: () => void }).gc
   gc?.()
   return process.memoryUsage().heapUsed
+}
+
+/**
+ * A stand-in for one compiler result: generated code plus a decoded Source Map
+ * v3 whose `sourcesContent` holds the module. The shape and sizes follow a real
+ * `transformModule` result so cache memory is measured against something
+ * comparable to production entries.
+ */
+function createResult(source: string, filename: string) {
+  const code = `${source}${'/* generated */\n'.repeat(6)}`
+  return {
+    code,
+    map: {
+      version: 3 as const,
+      file: filename,
+      sources: [path.basename(filename)],
+      sourcesContent: [source],
+      names: ['App', 'props', 'label'],
+      mappings: ';;AAAA,MAAM,GAAG,CAAC,MAAM,GAAG',
+    },
+    diagnostics: [],
+  }
+}
+
+function resultByteLength(source: string, filename: string): number {
+  return Buffer.byteLength(JSON.stringify(createResult(source, filename)))
 }
 
 function countEvents(values: readonly string[]): Record<string, number> {

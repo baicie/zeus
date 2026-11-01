@@ -6,6 +6,7 @@ import {
   resolveRuntimeSSREntry,
 } from './runtime-resolution'
 
+import type { ExistingRawSourceMap, SourceMapInput } from 'rollup'
 import type { Plugin, UserConfig } from 'vite'
 
 export type { CompilerCacheEvent, CompilerCacheOptions } from './cache'
@@ -206,9 +207,33 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
 
       if (enableRootHMR && !isSSR) previousSources.set(filename, code)
 
-      return { code: result.code, map: result.map }
+      return { code: result.code, map: copySourceMap(result.map) }
     },
   }
+}
+
+/**
+ * Vite rewrites the source map it receives in place: it fills
+ * `sourcesContent`, appends to `x_google_ignoreList` and, in dev, replaces
+ * `sources` with paths relative to the module. The cache stores one result
+ * per module and target, so handing out the cached map would let the first
+ * consumer's normalization leak into every later hit. Each transform returns
+ * its own copy of the mutable parts instead.
+ */
+function copySourceMap(map: SourceMapInput): SourceMapInput {
+  if (!map || typeof map === 'string' || !('sources' in map)) return map
+
+  const copy: ExistingRawSourceMap = {
+    ...map,
+    sources: [...map.sources],
+    names: [...map.names],
+  }
+  if (map.sourcesContent) copy.sourcesContent = [...map.sourcesContent]
+  if (map.x_google_ignoreList) {
+    copy.x_google_ignoreList = [...map.x_google_ignoreList]
+  }
+
+  return copy
 }
 
 export default createZeus
