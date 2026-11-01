@@ -8,6 +8,14 @@ export { bootstrapLazy } from './bootstrapLazy'
 export const ZEUS_WC_RUNTIME_ABI_1 = 1
 export { createLazyElementClass } from './lazy-element'
 export { resolveHostProperties } from './props'
+export { createRendererError, createRendererHost } from './renderer'
+export type {
+  RendererAdapter,
+  RendererEntry,
+  RendererErrorCode,
+  RendererHost,
+  RendererSession,
+} from './renderer'
 
 export type { BootstrapLazyOptions } from './bootstrapLazy'
 

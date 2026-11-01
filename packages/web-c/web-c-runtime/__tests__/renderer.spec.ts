@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { createRendererHost } from '../src/rendererAdapter'
+import { createRendererHost } from '../src/renderer'
+
+import type { RendererSession } from '../src/renderer'
 
 interface Data {
   label: string
@@ -21,7 +23,12 @@ interface Call {
 function createAdapter(calls: Call[]) {
   let nextHandle = 0
   return {
-    mount(container: string, data: Data, context: Context) {
+    mount(
+      container: string,
+      data: Data,
+      context: Context,
+      _session: RendererSession,
+    ) {
       const handle = { id: ++nextHandle }
       calls.push({ type: 'mount', container, data, context, handle })
       return handle
@@ -148,7 +155,7 @@ describe('renderer adapter contract', () => {
     host.dispose()
     expect(secondCalls.filter(call => call.type === 'dispose')).toHaveLength(1)
     expect(() => host.render([entry('a', 'cell-a', 'A3')])).toThrow(
-      'Renderer host has already been disposed',
+      '[ZEUS_RENDERER_DISPOSED] The renderer host has already been disposed.',
     )
     expect(secondCalls.filter(call => call.type === 'update')).toHaveLength(1)
   })
@@ -159,15 +166,17 @@ describe('renderer adapter contract', () => {
 
     expect(() =>
       host.render([entry('duplicate', 'a', 'A'), entry('duplicate', 'b', 'B')]),
-    ).toThrow('Duplicate renderer key: duplicate')
+    ).toThrow(
+      '[ZEUS_RENDERER_DUPLICATE_KEY] Renderer key duplicate appears more than once.',
+    )
     expect(calls).toHaveLength(0)
 
     host.dispose()
     expect(() => host.render([])).toThrow(
-      'Renderer host has already been disposed',
+      '[ZEUS_RENDERER_DISPOSED] The renderer host has already been disposed.',
     )
     expect(() => host.setAdapter(createAdapter([]))).toThrow(
-      'Renderer host has already been disposed',
+      '[ZEUS_RENDERER_DISPOSED] The renderer host has already been disposed.',
     )
   })
 
@@ -199,9 +208,14 @@ describe('renderer adapter contract', () => {
     let failMount = false
     const adapter = {
       ...createAdapter(calls),
-      mount(container: string, data: Data, context: Context) {
+      mount(
+        container: string,
+        data: Data,
+        context: Context,
+        session: RendererSession,
+      ) {
         if (failMount) throw new Error('mount failed')
-        return createAdapter(calls).mount(container, data, context)
+        return createAdapter(calls).mount(container, data, context, session)
       },
       update(handle: unknown, data: Data, context: Context) {
         calls.push({ type: 'update', data, context, handle })
@@ -220,7 +234,7 @@ describe('renderer adapter contract', () => {
 
     failMount = true
     expect(() => host.render([entry('b', 'cell-b', 'B')])).toThrow(
-      'Renderer host has already been disposed',
+      '[ZEUS_RENDERER_DISPOSED] The renderer host has already been disposed.',
     )
   })
 
@@ -288,11 +302,19 @@ describe('renderer adapter contract', () => {
 
     host.render([entry('a', 'cell-a', 'A'), entry('b', 'cell-b', 'B')])
     failHandle = firstCalls.filter(call => call.type === 'mount')[1].handle
-    expect(() => host.setAdapter(second)).toThrow('old adapter dispose failed')
+    expect(() => host.setAdapter(second)).toThrow(
+      expect.objectContaining({
+        message:
+          '[ZEUS_RENDERER_ADAPTER_FAILURE] Renderer dispose failed for key b.',
+        cause: expect.objectContaining({
+          message: 'old adapter dispose failed',
+        }),
+      }),
+    )
     expect(secondCalls.filter(call => call.type === 'mount')).toHaveLength(0)
     expect(firstCalls.filter(call => call.type === 'dispose')).toHaveLength(2)
     expect(() => host.render([])).toThrow(
-      'Renderer adapter swap must complete before rendering',
+      '[ZEUS_RENDERER_ADAPTER_FAILURE] A failed renderer adapter swap must complete before rendering.',
     )
 
     expect(() => host.setAdapter(second)).not.toThrow()
@@ -338,11 +360,84 @@ describe('renderer adapter contract', () => {
     const host = createRendererHost(adapter)
 
     host.render([entry('a', 'cell-a', 'A')])
-    expect(() => host.dispose()).toThrow('host dispose failed')
+    expect(() => host.dispose()).toThrow(
+      expect.objectContaining({
+        message:
+          '[ZEUS_RENDERER_ADAPTER_FAILURE] Renderer dispose failed for key a.',
+        cause: expect.objectContaining({ message: 'host dispose failed' }),
+      }),
+    )
     expect(() => host.dispose()).not.toThrow()
     expect(calls.filter(call => call.type === 'dispose')).toHaveLength(2)
     expect(() => host.render([])).toThrow(
-      'Renderer host has already been disposed',
+      '[ZEUS_RENDERER_DISPOSED] The renderer host has already been disposed.',
     )
+  })
+})
+
+describe('renderer sessions', () => {
+  it('gives every mount a new generation and aborts it before disposal', () => {
+    const sessions: RendererSession[] = []
+    const events: string[] = []
+    const host = createRendererHost<string, string, undefined, number>({
+      mount(_container, _data, _context, session) {
+        sessions.push(session)
+        session.signal.addEventListener('abort', () =>
+          events.push(`abort ${String(session.key)}#${session.generation}`),
+        )
+        return session.generation
+      },
+      update() {},
+      dispose(handle) {
+        events.push(`dispose #${handle}`)
+      },
+    })
+    const entries = (...keys: string[]) =>
+      keys.map(key => ({ key, container: key, data: key, context: undefined }))
+
+    host.render(entries('a', 'b'))
+    host.render(entries('a'))
+    host.render(entries('a', 'b'))
+    host.dispose()
+
+    expect(sessions.map(session => [session.key, session.generation])).toEqual([
+      ['a', 1],
+      ['b', 2],
+      ['b', 3],
+    ])
+    expect(sessions.every(session => session.signal.aborted)).toBe(true)
+    expect(events).toEqual([
+      'abort b#2',
+      'dispose #2',
+      'abort a#1',
+      'dispose #1',
+      'abort b#3',
+      'dispose #3',
+    ])
+  })
+
+  it('aborts the session of a mount that throws', () => {
+    let session: RendererSession | undefined
+    const host = createRendererHost<string, string>({
+      mount(_container, _data, _context, current) {
+        session = current
+        throw new Error('render exploded')
+      },
+      update() {},
+      dispose() {},
+    })
+
+    expect(() =>
+      host.render([
+        { key: 'a', container: 'a', data: 'a', context: undefined },
+      ]),
+    ).toThrow(
+      expect.objectContaining({
+        message:
+          '[ZEUS_RENDERER_ADAPTER_FAILURE] Renderer mount failed for key a.',
+        cause: expect.objectContaining({ message: 'render exploded' }),
+      }),
+    )
+    expect(session?.signal.aborted).toBe(true)
   })
 })
