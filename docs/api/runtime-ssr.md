@@ -24,6 +24,85 @@ component result, text node, attribute, class, style, or property value throws
 Server equivalents of Zeus control-flow built-ins. Compiled JSX normally uses
 lower-level helpers directly.
 
+### `Portal(props)` and `Transition(props)`
+
+`Portal` returns its children inline: a server response has no portal position,
+so the content belongs where the component renders it. `Transition` evaluates
+`when` synchronously and returns `children` or its fallback; enter/leave
+animation options are client-only and ignored. Both are exported from
+`@zeus-js/zeus/server`, so SSR modules do not need to import the DOM entry.
+
+### Context: `createContext`, `useContext`, `provide`, `inject`
+
+The server context API mirrors the DOM runtime's owner tree with a dedicated
+server owner type. A context created on the server is never the same object as
+one created in the browser, and a value never crosses the boundary; the server
+only needs it to render one request consistently.
+
+```ts
+import { createContext, useContext } from '@zeus-js/zeus/server'
+
+const Theme = createContext<'light' | 'dark'>('light')
+// …inside a component:
+const theme = useContext(Theme)
+```
+
+`Provider` and `Bridge` both create a child owner for the duration of their
+children, so `useContext()` inside them reads the provided value. `inject()`
+walks the owner chain and falls back to the explicit argument, then the
+context's default value, then throws. Provider chains follow synchronous scope
+semantics: a provider does not survive an `await` inside a streaming source
+(see the await-boundary rule in [RFC-018](../rfcs/RFC-018-streaming-ssr.md)).
+
+`createSSROwner`, `runWithSSROwner`, `disposeSSROwner`, and `getSSRCurrentOwner`
+are exported for the streaming runtime and for server integrations that need to
+run code inside a request scope. They are runtime plumbing, not application
+APIs; an application that needs shared values should use `createContext`.
+
+### Schema helpers: `prop()` and `event()`
+
+`prop()` and `event()` are the server counterparts of the DOM declaration
+helpers. They return the same plain data, so a `defineElement` schema shared by
+both targets compiles to the SSR entry without importing the DOM runtime:
+
+```ts
+import { defineElement, Host, prop, event } from '@zeus-js/zeus/server'
+
+export const Tag = defineElement(
+  'z-tag',
+  {
+    props: { open: prop(Boolean), label: prop(String) },
+    emits: { close: event() },
+  },
+  props => Host({ children: props.label }),
+)
+```
+
+They never read `document` or register an element.
+
+### `renderToStream(render, options)` — experimental
+
+Renders an SSR node, or an `AsyncIterable<SSRNode>`, into a
+`ReadableStream<Uint8Array>`. This is a versioned experimental entry
+(`SSR_STREAMING_API_VERSION`) and is fully independent of `renderToString()`,
+whose synchronous contract is unchanged. Options are `signal` (an
+`AbortSignal`; abort ends the stream with an `AbortError` and disposes the
+request scope) and `flushAt` (minimum characters buffered before a chunk is
+flushed, default 8 KiB).
+
+The runtime chunks real serialized output, honors `ReadableStream`
+backpressure, keeps already-flushed chunks readable when the source throws,
+escapes every chunk with the same serializer as `renderToString()`, and gives
+each request its own reactive root and context owner. A Promise returned by the
+render factory, or found inside a yielded array, throws
+`renderToStream() cannot serialize a Promise; await the value before yielding it.`
+The complete contract, including unsupported boundaries, is
+[RFC-018](../rfcs/RFC-018-streaming-ssr.md).
+
+`serializeSSRNodeChunks(node, flushAt)` is the generator behind the static
+path. It is exported for streaming integrations that build their own transport;
+chunks are safe to concatenate but must not be parsed individually.
+
 ### Server Web Components
 
 `defineElement(tag, options, setup)` is the SSR facade for a Zeus custom-element
