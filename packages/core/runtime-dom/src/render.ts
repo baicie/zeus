@@ -20,30 +20,82 @@ interface RenderDisposer {
   readonly active: boolean
 }
 
+/** Internal mount options for runtime callers such as custom elements. */
+interface MountOptions extends RenderOptions {
+  /**
+   * Hands `owner` over to this render, which then releases it on dispose or
+   * setup failure. Only the code that created the owner may set this.
+   */
+  readonly ownsOwner?: boolean
+}
+
 export function render(
   value: JSXValue | (() => JSXValue),
   container: Element | DocumentFragment,
   options: RenderOptions = {},
 ): () => void {
-  return renderWithPreservedNodes(value, container, options)
+  return renderWithPreservedNodes(value, container, { owner: options.owner })
 }
 
 export function renderWithPreservedNodes(
   value: JSXValue | (() => JSXValue),
   container: Element | DocumentFragment,
-  options: RenderOptions = {},
+  options: MountOptions = {},
   preserveNodes: readonly Node[] = [],
 ): RenderDisposer {
   const renderScope = scope()
+  // A caller-provided owner may be shared by other renders, so it belongs to
+  // this render's lifetime only when the caller explicitly hands it over.
   const owner = options.owner ?? createOwner()
+  const ownedOwner = !options.owner || options.ownsOwner ? owner : undefined
 
-  renderScope.run(() => {
-    clearContainer(container, preserveNodes)
+  const releaseOwnedOwner = (): void => {
+    if (!ownedOwner) return
+    try {
+      disposeOwner(ownedOwner)
+    } finally {
+      if (typeof window !== 'undefined' && window.__ZEUS_DEVTOOLS_HOOK__) {
+        emitDevtoolsEvent(
+          {
+            type: 'owner:dispose',
+            ownerId: getDevtoolsObjectId(ownedOwner),
+            target: container,
+          },
+          { swallowErrors: true },
+        )
+      }
+    }
+  }
 
-    runWithOwner(owner, () => {
-      insert(container, resolveValue(value))
+  try {
+    renderScope.run(() => {
+      clearContainer(container, preserveNodes)
+
+      runWithOwner(owner, () => {
+        insert(container, resolveValue(value))
+      })
     })
-  })
+  } catch (error) {
+    // Setup failed after bindings or cleanups may already be registered.
+    // Release them so nothing keeps updating a render the caller never got a
+    // disposer for. The setup error is the actionable one.
+    try {
+      renderScope.stop()
+    } catch {
+      /* Preserve the initial render setup failure. */
+    }
+    try {
+      clearContainer(container, preserveNodes)
+    } catch {
+      /* Preserve the initial render setup failure. */
+    }
+    try {
+      releaseOwnedOwner()
+    } catch {
+      /* Preserve the initial render setup failure. */
+    }
+    throw error
+  }
 
   emitDevtoolsEvent({ type: 'render', target: container })
 
@@ -76,23 +128,12 @@ export function renderWithPreservedNodes(
     }
 
     try {
-      disposeOwner(owner)
+      releaseOwnedOwner()
     } catch (error) {
       if (!failed) {
         failed = true
         firstError = error
       }
-    }
-
-    if (typeof window !== 'undefined' && window.__ZEUS_DEVTOOLS_HOOK__) {
-      emitDevtoolsEvent(
-        {
-          type: 'owner:dispose',
-          ownerId: getDevtoolsObjectId(owner),
-          target: container,
-        },
-        { swallowErrors: true },
-      )
     }
 
     if (failed) throw firstError

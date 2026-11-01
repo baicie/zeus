@@ -1,7 +1,21 @@
+import { createSignal } from '@zeus-js/signal'
+import {
+  createRuntimeDiagnosticsSession,
+  onScopeDispose,
+} from '@zeus-js/signal/internal'
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { bindText, render } from '../src'
+import {
+  bindText,
+  createContext,
+  createOwner,
+  inject,
+  mountShow,
+  provide,
+  render,
+  runWithOwner,
+} from '../src'
 import { renderWithPreservedNodes } from '../src/render'
 
 describe('render', () => {
@@ -194,5 +208,101 @@ describe('render', () => {
     count.value = 42
 
     expect(container.textContent).toBe('')
+  })
+  it('keeps a caller-provided owner usable after one render is disposed', () => {
+    const context = createContext<string>()
+    const owner = createOwner(undefined)
+    runWithOwner(owner, () => provide(context, 'shared'))
+    const first = document.createElement('div')
+    const second = document.createElement('div')
+    const [visible, setVisible] = createSignal(false)
+
+    const disposeFirst = render(() => document.createTextNode('first'), first, {
+      owner,
+    })
+    const disposeSecond = render(
+      () => {
+        const fragment = document.createDocumentFragment()
+        const anchor = document.createComment('')
+        fragment.append(anchor)
+        mountShow(fragment, anchor, visible, () =>
+          document.createTextNode(inject(context)),
+        )
+        return fragment
+      },
+      second,
+      { owner },
+    )
+
+    disposeFirst()
+    expect(() => setVisible(true)).not.toThrow()
+    expect(second.textContent).toBe('shared')
+
+    disposeSecond()
+    expect(runWithOwner(owner, () => inject(context))).toBe('shared')
+  })
+
+  it('releases bindings, cleanup and its own owner when setup throws', () => {
+    const container = document.createElement('div')
+    const [count, setCount] = createSignal(0)
+    const text = document.createTextNode('')
+    const failure = new Error('setup failed')
+    let cleanups = 0
+    const diagnostics = createRuntimeDiagnosticsSession()
+
+    expect(() =>
+      diagnostics.run(() =>
+        render(() => {
+          bindText(text, () => String(count()))
+          onScopeDispose(() => cleanups++)
+          container.append(text)
+          throw failure
+        }, container),
+      ),
+    ).toThrow(failure)
+
+    setCount(5)
+    expect(text.data).toBe('0')
+    expect(cleanups).toBe(1)
+    expect(container.childNodes).toHaveLength(0)
+    expect(diagnostics.snapshot()).toMatchObject({
+      ownersCreated: 1,
+      ownersDisposed: 1,
+      bindingsCreated: 1,
+      bindingsDisposed: 1,
+    })
+    diagnostics.dispose()
+  })
+
+  it('keeps the setup error when cleanup also throws during the failed render', () => {
+    const container = document.createElement('div')
+    const failure = new Error('setup failed')
+
+    expect(() =>
+      render(() => {
+        onScopeDispose(() => {
+          throw new Error('cleanup failed')
+        })
+        throw failure
+      }, container),
+    ).toThrow(failure)
+    expect(container.childNodes).toHaveLength(0)
+  })
+
+  it('does not release a caller-provided owner when setup throws', () => {
+    const context = createContext<string>()
+    const owner = createOwner(undefined)
+    runWithOwner(owner, () => provide(context, 'kept'))
+
+    expect(() =>
+      render(
+        () => {
+          throw new Error('setup failed')
+        },
+        document.createElement('div'),
+        { owner },
+      ),
+    ).toThrow('setup failed')
+    expect(runWithOwner(owner, () => inject(context))).toBe('kept')
   })
 })

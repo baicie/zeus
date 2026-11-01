@@ -52,32 +52,47 @@ export type RuntimeDiagnosticsCollector = [
 
 export let activeRuntimeDiagnostics: RuntimeDiagnosticsCollector | undefined
 
-export type RuntimeDiagnosticsCounter =
-  | 'ownersCreated'
-  | 'ownersDisposed'
-  | 'bindingsCreated'
-  | 'bindingsDisposed'
-  | 'listenersCreated'
-  | 'listenersDisposed'
+export type RuntimeDiagnosticsResource = 'owners' | 'bindings' | 'listeners'
 
-const counterFields: Record<
-  RuntimeDiagnosticsCounter,
-  RuntimeDiagnosticsField
+const resourceFields: Record<
+  RuntimeDiagnosticsResource,
+  readonly [created: RuntimeDiagnosticsField, disposed: RuntimeDiagnosticsField]
 > = {
-  ownersCreated: RuntimeDiagnosticsField.OWNERS_CREATED,
-  ownersDisposed: RuntimeDiagnosticsField.OWNERS_DISPOSED,
-  bindingsCreated: RuntimeDiagnosticsField.BINDINGS_CREATED,
-  bindingsDisposed: RuntimeDiagnosticsField.BINDINGS_DISPOSED,
-  listenersCreated: RuntimeDiagnosticsField.LISTENERS_CREATED,
-  listenersDisposed: RuntimeDiagnosticsField.LISTENERS_DISPOSED,
+  owners: [
+    RuntimeDiagnosticsField.OWNERS_CREATED,
+    RuntimeDiagnosticsField.OWNERS_DISPOSED,
+  ],
+  bindings: [
+    RuntimeDiagnosticsField.BINDINGS_CREATED,
+    RuntimeDiagnosticsField.BINDINGS_DISPOSED,
+  ],
+  listeners: [
+    RuntimeDiagnosticsField.LISTENERS_CREATED,
+    RuntimeDiagnosticsField.LISTENERS_DISPOSED,
+  ],
 }
 
-export function incrementRuntimeDiagnostics(
-  counter: RuntimeDiagnosticsCounter,
-): void {
+/**
+ * Counts a runtime-owned resource as created on the active session and
+ * returns a callback that counts its disposal on that same session, like
+ * effects and scopes do. The callback is idempotent. Returns `undefined`
+ * when no session is collecting, so the inactive path allocates nothing.
+ */
+export function trackRuntimeResource(
+  resource: RuntimeDiagnosticsResource,
+): (() => void) | undefined {
   const diagnostics = activeRuntimeDiagnostics
   if (!diagnostics?.[RuntimeDiagnosticsField.ACTIVE]) return
-  diagnostics[counterFields[counter]]++
+
+  const [created, disposed] = resourceFields[resource]
+  diagnostics[created]++
+  let released = false
+
+  return () => {
+    if (released) return
+    released = true
+    if (diagnostics[RuntimeDiagnosticsField.ACTIVE]) diagnostics[disposed]++
+  }
 }
 
 function runWithRuntimeDiagnostics<T>(

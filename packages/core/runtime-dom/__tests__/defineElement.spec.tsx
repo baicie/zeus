@@ -917,9 +917,12 @@ describe('defineElement', () => {
     expect(el.querySelector('style')?.nonce).toBe('nonce-value')
   })
 
-  it('removes styles and DOM when element cleanup throws', () => {
+  it('releases the render and styles when projection disconnect and cleanup throw', () => {
     const tag = createTag('cleanup-error')
-    const failure = new Error('element cleanup failed')
+    const disconnectFailure = new Error('projection disconnect failed')
+    const cleanup = vi.fn(() => {
+      throw new Error('element cleanup failed')
+    })
 
     const ctor = defineElement(
       tag,
@@ -928,21 +931,30 @@ describe('defineElement', () => {
         styles: ['z-cleanup-error { color: red; }'],
       },
       () => {
-        onCleanup(() => {
-          throw failure
-        })
+        onCleanup(cleanup)
         return document.createElement('span')
       },
     )
 
     const host = document.createElement(tag)
+    const light = document.createElement('p')
+    host.append(light)
     const mount = mountElementDefinition(ctor, host)
+    const disconnect = vi
+      .spyOn(dom.window.MutationObserver.prototype, 'disconnect')
+      .mockImplementationOnce(() => {
+        throw disconnectFailure
+      })
 
     expect(host.querySelector('style')).toBeTruthy()
-    expect(() => mount.dispose()).toThrow(failure)
-    expect(host.querySelector('style')).toBeNull()
-    expect(host.querySelector('span')).toBeNull()
+    expect(() => mount.dispose()).toThrow(disconnectFailure)
+    expect(disconnect).toHaveBeenCalledTimes(1)
+    expect(cleanup).toHaveBeenCalledTimes(1)
+    expect(host.childNodes.length).toBe(1)
+    expect(host.firstChild === light).toBe(true)
     expect(() => mount.dispose()).not.toThrow()
+    expect(cleanup).toHaveBeenCalledTimes(1)
+    disconnect.mockRestore()
   })
 
   it('does not throw when defineElement is called twice with same tag', () => {

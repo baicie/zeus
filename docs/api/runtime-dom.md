@@ -7,10 +7,24 @@ These helpers are stable to use directly, but are not considered the primary fra
 ## render
 
 ```ts
-function render(code: () => JSXValue, element: Element): void
+function render(
+  value: JSXValue | (() => JSXValue),
+  container: Element | DocumentFragment,
+  options?: RenderOptions,
+): () => void
 ```
 
-Mounts the component tree into the element.
+Mounts the component tree into the container and returns a disposer that stops
+the render scope, clears the container and disposes the render's own owner.
+The disposer is idempotent and reports the first cleanup error after it has
+released everything, so a throwing cleanup cannot leave the subtree mounted.
+
+`options.owner` is borrowed, not consumed: the caller keeps owning it, so
+disposing one render that shares an owner does not invalidate sibling renders
+that use the same owner and its provided context values. Only an owner created
+inside `render` is disposed by it. When setup throws before the disposer is
+returned, `render` releases the bindings and owner it created and clears the
+container, then rethrows the setup error.
 
 ## hydrate and hydratePlan
 
@@ -106,7 +120,10 @@ same trailing `once` flag and preserve their normal initial-value semantics.
 function delegateEvents(events: readonly string[]): void
 ```
 
-Registers event types for delegation at the document level.
+Registers event types for delegation at the document level. Each event type
+gets one shared `document` listener for the lifetime of the page. It is not
+released with any render scope, so runtime diagnostics sessions do not count it
+in `listenersCreated` or `listenersDisposed`.
 
 ## defineElement prop reactivity
 

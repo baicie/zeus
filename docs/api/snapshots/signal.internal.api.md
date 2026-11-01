@@ -460,16 +460,16 @@ export interface RuntimeDiagnosticsSession {
 }
 type SynchronousCallback<T extends () => unknown> = T &
   (Extract<ReturnType<T>, PromiseLike<unknown>> extends never ? unknown : never)
-export type RuntimeDiagnosticsCounter =
-  | 'ownersCreated'
-  | 'ownersDisposed'
-  | 'bindingsCreated'
-  | 'bindingsDisposed'
-  | 'listenersCreated'
-  | 'listenersDisposed'
-export declare function incrementRuntimeDiagnostics(
-  counter: RuntimeDiagnosticsCounter,
-): void
+export type RuntimeDiagnosticsResource = 'owners' | 'bindings' | 'listeners'
+/**
+ * Counts a runtime-owned resource as created on the active session and
+ * returns a callback that counts its disposal on that same session, like
+ * effects and scopes do. The callback is idempotent. Returns `undefined`
+ * when no session is collecting, so the inactive path allocates nothing.
+ */
+export declare function trackRuntimeResource(
+  resource: RuntimeDiagnosticsResource,
+): (() => void) | undefined
 export declare function createRuntimeDiagnosticsSession(): RuntimeDiagnosticsSession
 
 export { EffectScope as Scope, effectScope as scope }

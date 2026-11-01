@@ -1,9 +1,6 @@
 // packages/runtime-dom/src/events.ts
 
-import {
-  incrementRuntimeDiagnostics,
-  onScopeDispose,
-} from '@zeus-js/signal/internal'
+import { onScopeDispose, trackRuntimeResource } from '@zeus-js/signal/internal'
 
 import { emitDevtoolsEvent } from './devtools'
 
@@ -16,6 +13,21 @@ type ZeusElementWithEvents = Element & {
 
 const delegatedEvents = new Set<string>()
 const delegatedListeners: string[] = []
+
+// A native listener reports its removal to the diagnostics session that was
+// active when it was attached, even if it is replaced or released elsewhere.
+const directListenerDiagnostics = new WeakMap<
+  Element,
+  Map<string, () => void>
+>()
+
+function releaseDirectListenerDiagnostics(el: Element, name: string): void {
+  const releases = directListenerDiagnostics.get(el)
+  const release = releases?.get(name)
+  if (!release) return
+  releases!.delete(name)
+  release()
+}
 
 const nonBubblingEventMap: Record<string, string> = {
   focus: 'focusin',
@@ -42,7 +54,7 @@ export function bindEvent(
   if (previousDirectHandler) {
     el.removeEventListener(name, previousDirectHandler)
     delete directEvents[name]
-    incrementRuntimeDiagnostics('listenersDisposed')
+    releaseDirectListenerDiagnostics(el, name)
   }
 
   events[name] = handler
@@ -50,7 +62,12 @@ export function bindEvent(
   if (!delegated || isInClosedShadowRoot(el)) {
     directEvents[name] = handler
     el.addEventListener(name, handler)
-    incrementRuntimeDiagnostics('listenersCreated')
+    const release = trackRuntimeResource('listeners')
+    if (release) {
+      let releases = directListenerDiagnostics.get(el)
+      if (!releases) directListenerDiagnostics.set(el, (releases = new Map()))
+      releases.set(name, release)
+    }
   }
 
   onScopeDispose(() => {
@@ -60,12 +77,17 @@ export function bindEvent(
       if (target.__zeusDirectEvents?.[name] === handler) {
         el.removeEventListener(name, handler)
         delete target.__zeusDirectEvents[name]
-        incrementRuntimeDiagnostics('listenersDisposed')
+        releaseDirectListenerDiagnostics(el, name)
       }
     }
   }, true)
 }
 
+/**
+ * Registers one shared document listener per event type. These listeners are
+ * process-wide and outlive any component, so runtime diagnostics sessions do
+ * not count them; only per-element native listeners are counted.
+ */
 export function delegateEvents(events: readonly string[]): void {
   for (const event of events) {
     const delegatedName = normalizeDelegatedEventName(event)
@@ -77,7 +99,6 @@ export function delegateEvents(events: readonly string[]): void {
     const handler = dispatchDelegatedEvent
     delegatedListeners.push(delegatedName)
     document.addEventListener(delegatedName, handler)
-    incrementRuntimeDiagnostics('listenersCreated')
     emitDevtoolsEvent({ type: 'delegate-event', event: delegatedName })
   }
 }
@@ -85,7 +106,6 @@ export function delegateEvents(events: readonly string[]): void {
 export function resetDelegatedEvents(): void {
   for (const delegatedName of delegatedListeners) {
     document.removeEventListener(delegatedName, dispatchDelegatedEvent)
-    incrementRuntimeDiagnostics('listenersDisposed')
   }
   delegatedEvents.clear()
   delegatedListeners.length = 0

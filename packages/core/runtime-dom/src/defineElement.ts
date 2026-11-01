@@ -539,11 +539,11 @@ export function defineElement<
             }),
           ),
         target,
-        { owner },
+        { owner, ownsOwner: true },
         mode === 'light' ? this.lightChildren : undefined,
       )
 
-      const styleNodes = mountStyles(target, options.styles, options.styleNonce)
+      mountStyles(target, options.styles, options.styleNonce)
 
       projection?.connect()
 
@@ -552,7 +552,7 @@ export function defineElement<
           return dispose.active
         },
         dispose() {
-          disposeMountedElement(projection, dispose, styleNodes)
+          disposeMountedElement(projection, dispose)
         },
       }
     }
@@ -748,11 +748,11 @@ export function mountElementDefinition(
         }),
       ),
     target,
-    { owner },
+    { owner, ownsOwner: true },
     mode === 'light' ? lightChildren : undefined,
   )
 
-  const styleNodes = mountStyles(target, options.styles, options.styleNonce)
+  mountStyles(target, options.styles, options.styleNonce)
   projection?.connect()
 
   return {
@@ -781,15 +781,18 @@ export function mountElementDefinition(
     },
 
     dispose() {
-      disposeMountedElement(projection, dispose, styleNodes)
+      disposeMountedElement(projection, dispose)
     },
   }
 }
 
+/**
+ * Releases the render even when the projection observer fails to disconnect.
+ * The render disposer clears the target, which also removes injected styles.
+ */
 function disposeMountedElement(
   projection: { disconnect(): void } | undefined,
   dispose: () => void,
-  styleNodes: readonly HTMLStyleElement[],
 ): void {
   let failed = false
   let firstError: unknown
@@ -808,8 +811,6 @@ function disposeMountedElement(
       failed = true
       firstError = error
     }
-  } finally {
-    for (const style of styleNodes) style.remove()
   }
 
   if (failed) throw firstError
@@ -1090,21 +1091,17 @@ function mountStyles(
   target: Element | ShadowRoot,
   styles: string | string[] | undefined,
   nonce?: string,
-): HTMLStyleElement[] {
-  if (!styles) return []
+): void {
+  if (!styles) return
 
   const list = Array.isArray(styles) ? styles : [styles]
-  const mounted: HTMLStyleElement[] = []
 
   for (const css of list) {
     const style = document.createElement('style')
     if (nonce) style.nonce = nonce
     style.textContent = css
     target.appendChild(style)
-    mounted.push(style)
   }
-
-  return mounted
 }
 
 function toKebabCase(value: string): string {

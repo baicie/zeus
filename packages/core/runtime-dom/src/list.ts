@@ -42,8 +42,39 @@ function setListRecordItem<T>(record: ListRecord<T>, item: T): void {
   )
 }
 
-function disposeListRecord<T>(record: ListRecord<T>): void {
-  record.subtree.dispose()
+/**
+ * Releases every record even when a record cleanup throws, then rethrows the
+ * first failure. Record subtrees are detached scopes, so a skipped record
+ * would keep its effects and DOM alive after the list is gone.
+ */
+function disposeListRecords<T>(records: Iterable<ListRecord<T>>): void {
+  let failed = false
+  let firstError: unknown
+
+  for (const record of records) {
+    try {
+      record.subtree.dispose()
+    } catch (error) {
+      if (!failed) {
+        failed = true
+        firstError = error
+      }
+    }
+  }
+
+  if (failed) throw firstError
+}
+
+/**
+ * Rolls back records created by a failed reconciliation. The reconciliation
+ * error is the actionable one, so rollback cleanup errors must not replace it.
+ */
+function rollBackCreatedRecords<T>(records: readonly ListRecord<T>[]): void {
+  try {
+    disposeListRecords(records)
+  } catch {
+    // Preserve the reconciliation failure for the caller.
+  }
 }
 
 function isImmediatelyBefore<T>(record: ListRecord<T>, anchor: Node): boolean {
@@ -226,9 +257,7 @@ function mountKeyedFor<T, K>(
 
     const currentRecords = records
     records = []
-    for (const record of currentRecords) {
-      disposeListRecord(record)
-    }
+    disposeListRecords(currentRecords)
   }
 
   onScopeDispose(dispose, true)
@@ -278,17 +307,12 @@ function mountKeyedFor<T, K>(
         }
       })
     } catch (error) {
-      for (const record of createdRecords) {
-        disposeListRecord(record)
-      }
-
+      rollBackCreatedRecords(createdRecords)
       throw error
     }
 
     if (disposed) {
-      for (const record of createdRecords) {
-        disposeListRecord(record)
-      }
+      disposeListRecords(createdRecords)
       return
     }
 
@@ -299,15 +323,31 @@ function mountKeyedFor<T, K>(
     )
 
     let committed = false
+    let removalFailed = false
+    let removalError: unknown
     try {
-      for (const record of oldMap.values()) {
-        disposeListRecord(record)
+      try {
+        disposeListRecords(oldMap.values())
+      } catch (error) {
+        // Every removed record is already released. Commit the next list so
+        // the surviving records stay mounted and later updates still apply.
+        removalFailed = true
+        removalError = error
       }
 
       if (disposed) {
-        for (const record of createdRecords) {
-          disposeListRecord(record)
+        // A removed record's cleanup disposed the list. The created records
+        // were never committed, so release them before reporting.
+        try {
+          disposeListRecords(createdRecords)
+        } catch (error) {
+          if (!removalFailed) {
+            removalFailed = true
+            removalError = error
+          }
         }
+        committed = true
+        if (removalFailed) throw removalError
         return
       }
 
@@ -342,13 +382,11 @@ function mountKeyedFor<T, K>(
         emitDevtoolsEvent({ type: 'mount-for', length: nextRecords.length })
       }
     } catch (error) {
-      if (!committed) {
-        for (const record of createdRecords) {
-          disposeListRecord(record)
-        }
-      }
+      if (!committed) rollBackCreatedRecords(createdRecords)
       throw error
     }
+
+    if (removalFailed) throw removalError
   }
 
   const reconcileLatestItems = (): void => {

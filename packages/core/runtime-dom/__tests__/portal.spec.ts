@@ -152,4 +152,32 @@ describe('Portal', () => {
     expect(children).not.toHaveBeenCalled()
     expect(target.childNodes).toHaveLength(0)
   })
+
+  it('removes its target anchors when a child cleanup throws', () => {
+    const source = document.createElement('main')
+    const target = document.createElement('div')
+    const foreign = document.createElement('aside')
+    target.append(foreign)
+    document.body.append(source, target)
+    const failure = new Error('portal cleanup failed')
+
+    const dispose = render(
+      () =>
+        Portal({
+          target,
+          children: () => {
+            onCleanup(() => {
+              throw failure
+            })
+            return document.createElement('span')
+          },
+        }),
+      source,
+    )
+
+    expect(target.childNodes.length).toBe(4)
+    expect(() => dispose()).toThrow(failure)
+    expect(target.childNodes.length).toBe(1)
+    expect(target.firstChild === foreign).toBe(true)
+  })
 })
