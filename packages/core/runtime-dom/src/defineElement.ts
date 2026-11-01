@@ -11,6 +11,7 @@ import {
 } from './customElementContract'
 import { isWithinRuntimeDomMove } from './domMove'
 import { withHostContext } from './hostContext'
+import { takeSSRLightDomChildren } from './lightDomSsr'
 import { renderWithPreservedNodes } from './render'
 import { createLightDomProjection } from './slot'
 
@@ -499,7 +500,11 @@ export function defineElement<
       const mode = shadow ? 'shadow' : 'light'
 
       if (mode === 'light' && !this.capturedLightChildren) {
-        this.lightChildren = Array.from(this.childNodes)
+        // An SSR Light DOM host carries explicit markers that separate its
+        // internal content from consumer children. They are the only accepted
+        // evidence; without them every existing child is a consumer child.
+        const ssrChildren = takeSSRLightDomChildren(this)
+        this.lightChildren = ssrChildren ?? Array.from(this.childNodes)
         this.capturedLightChildren = true
       }
 
@@ -530,6 +535,10 @@ export function defineElement<
         projection,
       }
 
+      // Declared styles mount before component content, matching the order a
+      // server-rendered DSD template uses.
+      const styleNodes = mountStyles(target, options.styles, options.styleNonce)
+
       const dispose = renderWithPreservedNodes(
         () =>
           runWithOwner(owner, () =>
@@ -540,10 +549,8 @@ export function defineElement<
           ),
         target,
         { owner },
-        mode === 'light' ? this.lightChildren : undefined,
+        [...styleNodes, ...(mode === 'light' ? this.lightChildren : [])],
       )
-
-      const styleNodes = mountStyles(target, options.styles, options.styleNonce)
 
       projection?.connect()
 
@@ -692,7 +699,8 @@ export function mountElementDefinition(
   const mode = shadow ? 'shadow' : 'light'
 
   if (mode === 'light' && !mountState.capturedLightChildren) {
-    mountState.lightChildren = Array.from(host.childNodes)
+    const ssrChildren = takeSSRLightDomChildren(host)
+    mountState.lightChildren = ssrChildren ?? Array.from(host.childNodes)
     mountState.capturedLightChildren = true
   }
 
@@ -739,6 +747,8 @@ export function mountElementDefinition(
 
   mountState.internals = setupContext.internals
 
+  const styleNodes = mountStyles(target, options.styles, options.styleNonce)
+
   const dispose = renderWithPreservedNodes(
     () =>
       runWithOwner(owner, () =>
@@ -749,10 +759,9 @@ export function mountElementDefinition(
       ),
     target,
     { owner },
-    mode === 'light' ? lightChildren : undefined,
+    [...styleNodes, ...(mode === 'light' ? lightChildren : [])],
   )
 
-  const styleNodes = mountStyles(target, options.styles, options.styleNonce)
   projection?.connect()
 
   return {
