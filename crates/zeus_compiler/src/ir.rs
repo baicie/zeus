@@ -53,9 +53,18 @@ pub struct ElementIr {
     #[serde(rename = "ref")]
     pub reference: IrRef,
     pub tag_name: String,
+    /// `html` or `svg`. Both targets need the namespace: DOM chooses the
+    /// template entry point and SSR keeps raw-text escaping out of foreign
+    /// content, where `<script>`/`<style>` are ordinary elements.
+    #[serde(default = "default_namespace")]
+    pub namespace: String,
     pub span: SourceSpan,
     pub attributes: Vec<AttributeIr>,
     pub children: Vec<ChildIr>,
+}
+
+fn default_namespace() -> String {
+    "html".into()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -27,6 +27,13 @@ interface MountOptions extends RenderOptions {
    * setup failure. Only the code that created the owner may set this.
    */
   readonly ownsOwner?: boolean
+  /**
+   * Nodes the render owns but must not clear: they are mounted before the
+   * value and kept in place, yet removed on dispose because the render created
+   * them. Custom elements use this for injected `<style>` elements, which are
+   * framework-owned even though consumer children next to them are not.
+   */
+  readonly ownedNodes?: readonly Node[]
 }
 
 export function render(
@@ -48,6 +55,14 @@ export function renderWithPreservedNodes(
   // this render's lifetime only when the caller explicitly hands it over.
   const owner = options.owner ?? createOwner()
   const ownedOwner = !options.owner || options.ownsOwner ? owner : undefined
+  const ownedNodes = options.ownedNodes ?? []
+  // Both lists survive the initial clear: consumer nodes stay for the whole
+  // mount, framework-owned nodes are removed on dispose.
+  const keptOnMount =
+    ownedNodes.length === 0 ? preserveNodes : [...preserveNodes, ...ownedNodes]
+  const releaseNodes = (): void => {
+    for (const node of ownedNodes) node.parentNode?.removeChild(node)
+  }
 
   const releaseOwnedOwner = (): void => {
     if (!ownedOwner) return
@@ -69,7 +84,7 @@ export function renderWithPreservedNodes(
 
   try {
     renderScope.run(() => {
-      clearContainer(container, preserveNodes)
+      clearContainer(container, keptOnMount)
 
       runWithOwner(owner, () => {
         insert(container, resolveValue(value))
@@ -86,6 +101,7 @@ export function renderWithPreservedNodes(
     }
     try {
       clearContainer(container, preserveNodes)
+      releaseNodes()
     } catch {
       /* Preserve the initial render setup failure. */
     }
@@ -120,6 +136,7 @@ export function renderWithPreservedNodes(
       // subtree mounted. Keep disposal idempotent while preserving the first
       // cleanup error for the caller.
       clearContainer(container, preserveNodes)
+      releaseNodes()
     } catch (error) {
       if (!failed) {
         failed = true

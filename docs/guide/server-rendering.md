@@ -139,7 +139,9 @@ values. This is intentionally no hydration; a framework integration that
 needs a browser-only custom element should place it behind its client boundary
 (for example, a Next.js `"use client"` component). Declarative Shadow DOM and
 component internals are rendered by the separate Web Component internal SSR
-path described below, not by wrappers. Streaming SSR is not supported.
+path described below, not by wrappers. Wrapper host SSR is always a complete
+synchronous string; it does not participate in streaming or internal
+hydration.
 
 ## Next.js Server and Client Boundaries
 
@@ -169,8 +171,8 @@ The initial SSR release does not automatically hydrate an application. The
 compiler emits stable markers and a binding-reconnection plan, while browser
 code must opt into `hydrate(container, setup)` before existing DOM is reused.
 Without that call, mounting the same application creates a fresh DOM tree.
-Streaming, asynchronous SSR, and Web Component internal SSR are also outside
-the current automatic hydration contract; wrapper host tag SSR and the
+Web Component internal SSR and the experimental streaming entry are also
+outside the automatic hydration contract; wrapper host tag SSR and the
 explicit Web Component internal SSR contract below are separate paths.
 
 ## Web Component Internal SSR
@@ -216,6 +218,48 @@ are otherwise rendered with their fallback. `formAssociated` is a declaration
 for the client runtime; the server does not create `ElementInternals`, run form
 callbacks, or serialize form state.
 
+### Light DOM first paint markers
+
+Light DOM output makes the boundary between component internals and consumer
+children explicit in the HTML. The client upgrade reads only these markers and
+never guesses structure from arbitrary markup:
+
+```html
+<z-card>
+  <!--zeus:light:root-->
+  <style>
+    .card {
+      color: red;
+    }
+  </style>
+  <section><slot></slot></section>
+  <!--zeus:light:child--><b slot="title">Title</b
+  ><!--/zeus:light:child-->
+  <!--zeus:light:child--><i>Body</i
+  ><!--/zeus:light:child-->
+  <!--/zeus:light:root-->
+</z-card>
+```
+
+- `<!--zeus:light:root-->` … `<!--/zeus:light:root-->` wraps the component's own
+  content. Styles come first, matching Shadow DOM order; projected consumer
+  children appear at their slot positions inside the same block.
+- `<!--zeus:light:child-->` … `<!--/zeus:light:child-->` wraps one projected
+  consumer child.
+
+The marker constants live in `@zeus-js/shared` and are internal: they are a
+wire format between the SSR runtime and the DOM upgrade path, not a public API.
+Client behavior is defined in [RFC-003](../rfcs/RFC-003-web-components.md):
+
+- paired root markers: the client removes the markers, reuses the consumer
+  children inside the block as projection sources, and mounts styles before
+  component content. Reconnecting does not insert a second `<style>`.
+- no root markers (or an unterminated pair): the element performs a fresh
+  mount and captures its existing child nodes as consumer children. This keeps
+  hand-written HTML and older output working without a compatibility layer.
+- nested Zeus hosts are opaque: their markers belong to them, and the outer
+  element never collects across that boundary.
+
 Host `prop:*`, `on*`, and `ref` channels stay client-only and are omitted from
 the serialized host attributes. Host attributes that do render use the normal
 SSR escaping and normalization policy.
@@ -230,3 +274,68 @@ props or reflected defaults become host attributes. Object, array, and function
 props, as well as `attr: false`, remain client-side properties. Factory defaults
 throw `ZEUS_SSR_DEFAULT_FACTORY_UNSUPPORTED` unless the caller supplies an
 explicit value, keeping initial HTML deterministic.
+
+## Experimental Streaming
+
+`renderToString()` remains the stable, strictly synchronous contract. A
+separate, versioned entry renders into a web `ReadableStream`:
+
+```tsx
+import { renderToStream } from '@zeus-js/zeus/server'
+
+const stream = renderToStream(
+  () => rows(), // SSR node, or an AsyncIterable<SSRNode>
+  { signal: request.signal, flushAt: 8 * 1024 },
+)
+
+return new Response(stream, {
+  headers: { 'content-type': 'text/html; charset=utf-8' },
+})
+```
+
+The full protocol is specified in [RFC-018](../rfcs/RFC-018-streaming-ssr.md).
+In short:
+
+- chunks are produced by the same escaping serializer as `renderToString()`;
+  static trees flush at `flushAt` characters, and each value yielded by an
+  async source flushes immediately. No pre-split static strings are passed off
+  as streaming.
+- backpressure is the stream's native one: the source advances only when the
+  reader pulls.
+- `signal` abort, reader `cancel()`, and a source error all run the same
+  disposal path (iterator `return()`, request reactive root, request owner).
+  An aborted stream ends with an `AbortError`.
+- an error after some chunks leaves those chunks readable and ends the stream
+  with the error; nothing is silently completed.
+- every request owns its reactive root and context owner, so concurrent
+  requests never see each other's `provide()` values.
+
+`SSR_STREAMING_API_VERSION` identifies the experimental shape. JavaScript
+awaits a Promise yielded by an async generator, so the runtime only rejects
+thenables that arrive unresolved: a render factory that returns a Promise, or a
+Promise inside a yielded array. Provider chains are synchronous scope
+semantics — after an `await`, `useContext()` reads the default value unless the
+source calls `provide()` again. This is the documented await-boundary rule, not
+a bug.
+
+## Renderer Boundary Table
+
+Three server paths exist, and each owns a different part of the markup. A page
+that mixes them must not double-own a node.
+
+| Path                                                       | Server emits                                       | Markers / ownership                                                                                                 | Styles                                                                      |
+| ---------------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Native Zeus app (`renderToString`)                         | compiled element/text/binding markup               | compiler hydration markers (`<!--zeus:hydrate:…-->`); client opts into `hydrate()`                                  | application CSS, outside the runtime                                        |
+| Web Component internal SSR (`defineElement` server facade) | host tag + DSD `<template>` or Light DOM internals | DSD `<template shadowrootmode>` for Shadow; `zeus:light:*` comment markers for Light. Owned by the CE after upgrade | `styles` emitted inside the DSD template / Light root block, before content |
+| React / Vue wrapper host SSR                               | host tag and serializable attributes only          | no internal markers; the outer renderer owns the host node, the CE owns its internals after upgrade                 | wrapper CSS system; Zeus internals arrive only through the internal path    |
+| Experimental streaming (`renderToStream`)                  | the same compiled markup, in chunks                | identical per-node markers; chunk boundaries never split a marker                                                   | same as the path whose components it renders                                |
+
+Rules that follow from the table:
+
+- a node has exactly one owner. React/Vue must not hydrate the CE internals,
+  and a CE must not hydrate nodes owned by an outer renderer.
+- streaming changes when bytes arrive, not who owns them; a streamed tree is
+  hydratable with the same plan as the synchronous string.
+- Light DOM markers are the only way the client distinguishes internals from
+  consumer children. Wrapper output carries none, so the element upgrades it as
+  a fresh mount.

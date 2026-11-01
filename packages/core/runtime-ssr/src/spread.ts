@@ -6,6 +6,7 @@ import {
 
 import { ssrAttr, ssrProp } from './element'
 import { createSSRAttributeRemoval } from './property'
+import { assertSyncSSRValue } from './serialize'
 
 import type {
   SSRAttributeEntry,
@@ -30,10 +31,17 @@ export function ssrSpread(
   sources: readonly PropsSource[],
 ): SSRAttributeEntry[] {
   const props = resolveDOMProps(
-    sources.map(source => normalizeDOMProps(source())),
+    sources.map(source => {
+      const values = source()
+      // A source that resolves to a Promise would otherwise contribute no
+      // attributes at all, silently dropping serializable props.
+      assertSyncSSRValue(values)
+      return normalizeDOMProps(values)
+    }),
   )
   const entries: SSRAttributeEntry[] = []
   for (const [key, value] of props) {
+    assertSyncSSRValue(value)
     if (key === 'ref' || (/^on/i.test(key) && key.length > 2)) continue
     const name = key.startsWith('prop:') ? key.slice(5) : key
     if (['innerHTML', 'outerHTML', 'textContent', 'children'].includes(name)) {

@@ -21,3 +21,4 @@
 | [RFC-015](./RFC-015-resource-query-contract.md)            | Resource / Query Contract                | Accepted |
 | [RFC-016](./RFC-016-error-boundary-portal-transition.md)   | ErrorBoundary、Portal 与 Transition 契约 | Accepted |
 | [RFC-017](./RFC-017-hmr-preservation.md)                   | 可证明安全的 HMR 状态保留                | Accepted |
+| [RFC-018](./RFC-018-streaming-ssr.md)                      | 实验性流式 SSR 入口                      | Proposal |

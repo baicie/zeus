@@ -13,7 +13,7 @@ use crate::{
         ForBindingIr, FragmentIr, ModuleIr, NodeId, RootIr, ShowBindingIr, StaticAttributeValue,
         TransitionBindingIr, TransitionOptionIr, is_children_expression,
     },
-    lower::HmrInfo,
+    lower::{HmrInfo, SsrImportRewrite, SsrImportReplacement},
     span::SourceIndex,
 };
 
@@ -228,6 +228,9 @@ enum SsrTextContext {
     Normal,
     Raw,
     Rcdata,
+    /// `<script>`/`<style>` inside SVG. The HTML parser does not treat those
+    /// as raw text in foreign content, so the content uses ordinary escaping.
+    ForeignRaw,
 }
 
 fn emit_components(
@@ -390,7 +393,7 @@ pub(crate) struct SsrModuleOptions<'a> {
     pub(crate) module: &'a ModuleIr,
     pub(crate) reserved_names: &'a [String],
     pub(crate) define_element_calls: &'a [oxc_span::Span],
-    pub(crate) ssr_runtime_imports: &'a [oxc_span::Span],
+    pub(crate) ssr_runtime_imports: &'a [SsrImportRewrite],
 }
 
 pub(crate) fn emit_ssr_module(options: &SsrModuleOptions<'_>) -> TransformModuleResult {
@@ -462,7 +465,7 @@ struct SsrSourceEmitter<'a> {
     source_index: &'a SourceIndex<'a>,
     runtime_module: &'a str,
     define_element_calls: &'a [oxc_span::Span],
-    ssr_runtime_imports: &'a [oxc_span::Span],
+    ssr_runtime_imports: &'a [SsrImportRewrite],
     runtime: &'a SsrRuntimeNames,
 }
 
@@ -476,10 +479,24 @@ impl SsrSourceEmitter<'_> {
                 let name_end = identifier_end(self.source, start, self.source.len())?;
                 Some((start, name_end, self.runtime.define_element().to_string()))
             })
-            .chain(self.ssr_runtime_imports.iter().filter_map(|span| {
-                let start = usize::try_from(span.start).ok()?;
-                let end = usize::try_from(span.end).ok()?;
-                Some((start, end, quote_js(self.runtime_module)))
+            .chain(self.ssr_runtime_imports.iter().filter_map(|rewrite| {
+                let start = usize::try_from(rewrite.span.start).ok()?;
+                let end = usize::try_from(rewrite.span.end).ok()?;
+                let replacement = match &rewrite.replacement {
+                    SsrImportReplacement::ModuleSource => quote_js(self.runtime_module),
+                    SsrImportReplacement::Split {
+                        facade,
+                        client,
+                        module,
+                    } => format!(
+                        "import {{ {} }} from {}; import {{ {} }} from {};",
+                        facade.join(", "),
+                        quote_js(self.runtime_module),
+                        client.join(", "),
+                        quote_js(module),
+                    ),
+                };
+                Some((start, end, replacement))
             }))
             .filter(|(replacement_start, replacement_end, _)| {
                 *replacement_start >= start
@@ -585,6 +602,14 @@ fn emit_ssr_child(
         ChildIr::DynamicText(text) => match text_context {
             SsrTextContext::Raw => {
                 writer.push_mapped(&text.expression.code, &text.expression);
+            }
+            // Foreign content is escaped like text, even though the tag name is
+            // `script` or `style`: the parser reads it as ordinary markup there.
+            SsrTextContext::ForeignRaw => {
+                writer.push(runtime.text());
+                writer.push("(");
+                writer.push_mapped(&text.expression.code, &text.expression);
+                writer.push(")");
             }
             // RCDATA content is bound through textContent on the client, so it
             // is escaped like normal text but carries no hydration marker.
@@ -828,11 +853,16 @@ fn emit_ssr_element(
             writer,
             &element.children,
             runtime,
-            ssr_text_context(&element.tag_name),
+            ssr_text_context(element),
             component_id,
         );
     } else if is_void_element(&element.tag_name) {
         writer.push(", undefined, true");
+    }
+    if element.namespace == "svg" && is_unescaped_raw_text(&element.tag_name) {
+        // Foreign `<script>`/`<style>` are ordinary elements to the parser, so
+        // the runtime must use text escaping instead of raw-text rewriting.
+        writer.push(", undefined, undefined, true");
     }
     writer.push(")");
     writer.push("]");
@@ -2314,6 +2344,8 @@ fn render_child_template(child: &ChildIr, locator_attribute: &str, html: &mut St
 
 fn render_element(element: &ElementIr, locator_attribute: &str, html: &mut String) {
     let is_raw_text = is_raw_text_element(&element.tag_name);
+    let is_foreign_raw_text =
+        element.namespace == "svg" && is_unescaped_raw_text(&element.tag_name);
     html.push('<');
     html.push_str(&element.tag_name);
     for attribute in &element.attributes {
@@ -2354,7 +2386,9 @@ fn render_element(element: &ElementIr, locator_attribute: &str, html: &mut Strin
         match child {
             ChildIr::Element(element) => render_element(element, locator_attribute, html),
             ChildIr::Fragment(fragment) => render_fragment(fragment, locator_attribute, html),
-            ChildIr::Text(text) if is_unescaped_raw_text(&element.tag_name) => {
+            ChildIr::Text(text)
+                if is_unescaped_raw_text(&element.tag_name) && !is_foreign_raw_text =>
+            {
                 html.push_str(&text.value);
             }
             ChildIr::Text(text) => html.push_str(&escape_html_text(&text.value)),
@@ -2549,10 +2583,16 @@ fn is_unescaped_raw_text(tag_name: &str) -> bool {
     tag_name.eq_ignore_ascii_case("script") || tag_name.eq_ignore_ascii_case("style")
 }
 
-fn ssr_text_context(tag_name: &str) -> SsrTextContext {
-    if is_unescaped_raw_text(tag_name) {
-        SsrTextContext::Raw
-    } else if tag_name.eq_ignore_ascii_case("textarea") || tag_name.eq_ignore_ascii_case("title") {
+fn ssr_text_context(element: &ElementIr) -> SsrTextContext {
+    if is_unescaped_raw_text(&element.tag_name) {
+        if element.namespace == "svg" {
+            SsrTextContext::ForeignRaw
+        } else {
+            SsrTextContext::Raw
+        }
+    } else if element.tag_name.eq_ignore_ascii_case("textarea")
+        || element.tag_name.eq_ignore_ascii_case("title")
+    {
         SsrTextContext::Rcdata
     } else {
         SsrTextContext::Normal

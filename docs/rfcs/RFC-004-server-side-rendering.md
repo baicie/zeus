@@ -157,12 +157,13 @@ cleanup、SSR 编译产物不含 DOM 引用，以及 Vite SSR transform 的 runt
 ## 非目标
 
 - 自动组件 hydration 与自动 Web Component 内部接管；
-- streaming / async SSR；
+- streaming / async SSR（见 [RFC-018](./RFC-018-streaming-ssr.md) 的实验性独立入口）；
 - Suspense、资源预取与服务端调度；
 - SSR 专用 IR 或独立编译器分支。
 
 这些能力需要单独设计与验收；当前同步输出、WC 内部 SSR 与显式绑定重连均使用
-同一 Rust 编译链和现有 runtime 协议。
+同一 Rust 编译链和现有 runtime 协议。streaming 的唯一例外是 RFC-018 定义的
+`renderToStream()`：它是版本化的实验性入口，不改变本 RFC 的同步契约。
 
 ## 验收标准
 

@@ -31,6 +31,7 @@ export {
 export { ssrStatic, ssrText } from './text'
 export { ssrElement, ssrAttr, ssrProp } from './element'
 export { ssrComponent } from './component'
+export { serializeSSRNodeChunks } from './serialize'
 export {
   ssrShow,
   ssrFor,
@@ -50,3 +51,42 @@ export {
   ssrComponentFromManifest,
   type SSRDefineElementContext,
 } from './webComponent'
+export {
+  createContext,
+  useContext,
+  provide,
+  inject,
+  getSSRCurrentOwner,
+  createSSROwner,
+  runWithSSROwner,
+  disposeSSROwner,
+  type ContextId,
+  type SSRContext,
+  type SSRContextProviderProps,
+  type SSRContextBridgeProps,
+  type SSROwner,
+} from './context'
+export {
+  Portal,
+  Transition,
+  type SSRPortalProps,
+  type SSRTransitionProps,
+} from './components'
+export {
+  prop,
+  event,
+  type ElementPropConstructor,
+  type PropDefinitionOptions,
+  type PropDefinition,
+  type ValuePropDefinition,
+  type ConstructorPropDefinition,
+  type EventDefinition,
+  type EventOptions,
+  type EmitsOptions,
+} from './schema'
+export {
+  renderToStream,
+  SSR_STREAMING_API_VERSION,
+  type RenderToStreamOptions,
+  type SSRStreamSource,
+} from './streaming'

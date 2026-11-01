@@ -13,6 +13,7 @@ import {
 } from './customElementContract'
 import { isWithinRuntimeDomMove } from './domMove'
 import { withHostContext } from './hostContext'
+import { takeSSRLightDomChildren } from './lightDomSsr'
 import { renderWithPreservedNodes } from './render'
 import { createLightDomProjection } from './slot'
 
@@ -501,7 +502,11 @@ export function defineElement<
       const mode = shadow ? 'shadow' : 'light'
 
       if (mode === 'light' && !this.capturedLightChildren) {
-        this.lightChildren = Array.from(this.childNodes)
+        // An SSR Light DOM host carries explicit markers that separate its
+        // internal content from consumer children. They are the only accepted
+        // evidence; without them every existing child is a consumer child.
+        const ssrChildren = takeSSRLightDomChildren(this)
+        this.lightChildren = ssrChildren ?? Array.from(this.childNodes)
         this.capturedLightChildren = true
       }
 
@@ -532,6 +537,10 @@ export function defineElement<
         projection,
       }
 
+      // Declared styles mount before component content, matching the order a
+      // server-rendered DSD template uses.
+      const styleNodes = mountStyles(target, options.styles, options.styleNonce)
+
       const dispose = renderWithPreservedNodes(
         () =>
           runWithOwner(owner, () =>
@@ -541,11 +550,15 @@ export function defineElement<
             }),
           ),
         target,
-        { owner, ownsOwner: true },
-        mode === 'light' ? this.lightChildren : undefined,
+        {
+          owner,
+          ownsOwner: true,
+          // Injected styles are framework-owned: they must sit before the
+          // content and be removed on disconnect, unlike consumer children.
+          ownedNodes: styleNodes,
+        },
+        mode === 'light' ? this.lightChildren : [],
       )
-
-      mountStyles(target, options.styles, options.styleNonce)
 
       projection?.connect()
 
@@ -696,7 +709,8 @@ export function mountElementDefinition(
   const mode = shadow ? 'shadow' : 'light'
 
   if (mode === 'light' && !mountState.capturedLightChildren) {
-    mountState.lightChildren = Array.from(host.childNodes)
+    const ssrChildren = takeSSRLightDomChildren(host)
+    mountState.lightChildren = ssrChildren ?? Array.from(host.childNodes)
     mountState.capturedLightChildren = true
   }
 
@@ -743,6 +757,8 @@ export function mountElementDefinition(
 
   mountState.internals = setupContext.internals
 
+  const styleNodes = mountStyles(target, options.styles, options.styleNonce)
+
   const dispose = renderWithPreservedNodes(
     () =>
       runWithOwner(owner, () =>
@@ -752,11 +768,16 @@ export function mountElementDefinition(
         }),
       ),
     target,
-    { owner, ownsOwner: true },
-    mode === 'light' ? lightChildren : undefined,
+    {
+      owner,
+      ownsOwner: true,
+      // Injected styles are framework-owned: they must sit before the content
+      // and be removed on disconnect, unlike consumer children.
+      ownedNodes: styleNodes,
+    },
+    mode === 'light' ? lightChildren : [],
   )
 
-  mountStyles(target, options.styles, options.styleNonce)
   projection?.connect()
 
   return {
@@ -1090,17 +1111,21 @@ function mountStyles(
   target: Element | ShadowRoot,
   styles: string | string[] | undefined,
   nonce?: string,
-): void {
-  if (!styles) return
+): HTMLStyleElement[] {
+  if (!styles) return []
 
   const list = Array.isArray(styles) ? styles : [styles]
+  const mounted: HTMLStyleElement[] = []
 
   for (const css of list) {
     const style = document.createElement('style')
     if (nonce) style.nonce = nonce
     style.textContent = css
     target.appendChild(style)
+    mounted.push(style)
   }
+
+  return mounted
 }
 
 function toKebabCase(value: string): string {
