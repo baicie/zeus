@@ -202,9 +202,6 @@ importers:
       '@zeus-js/query':
         specifier: workspace:*
         version: link:../../packages/core/query
-      '@zeus-js/resource':
-        specifier: workspace:*
-        version: link:../../packages/core/resource
       '@zeus-js/router':
         specifier: workspace:*
         version: link:../../packages/core/router
@@ -822,6 +819,9 @@ importers:
       '@tanstack/query-core':
         specifier: ^5.104.3
         version: 5.104.3
+      '@zeus-js/runtime-dom':
+        specifier: workspace:*
+        version: link:../runtime-dom
       '@zeus-js/signal':
         specifier: workspace:*
         version: link:../signal
@@ -837,6 +837,9 @@ importers:
       '@remix-run/router':
         specifier: ^1.23.4
         version: 1.23.4
+      '@zeus-js/runtime-dom':
+        specifier: workspace:*
+        version: link:../runtime-dom
       '@zeus-js/signal':
         specifier: workspace:*
         version: link:../signal

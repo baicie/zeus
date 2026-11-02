@@ -32,6 +32,7 @@
   ],
   "dependencies": {
     "@remix-run/router": "^1.23.4",
+    "@zeus-js/runtime-dom": "workspace:*",
     "@zeus-js/signal": "workspace:*"
   },
   "buildOptions": {
