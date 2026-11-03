@@ -63,6 +63,10 @@ pub struct TransformModuleOptions {
     pub hmr: bool,
     #[serde(default)]
     pub pure_define_element: PureDefineElementMode,
+    /// Emits a second, marker-driven adoption body per component so
+    /// `render(value, container, { hydrate: true })` can reuse server markup.
+    #[serde(default)]
+    pub auto_hydrate: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -162,6 +166,7 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
             reserved_names: &lowered.reserved_names,
             define_element_calls: &lowered.pure_define_element_calls,
             ssr_runtime_imports: &lowered.ssr_runtime_imports,
+            auto_hydrate: options.auto_hydrate,
         })
     } else {
         codegen::emit_module(&codegen::EmitModuleOptions {
@@ -176,6 +181,7 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
             hmr: &lowered.hmr,
             pure_define_element: options.pure_define_element,
             pure_define_element_calls: &lowered.pure_define_element_calls,
+            auto_hydrate: options.auto_hydrate,
         })
     };
     result.hydration_plan = hydration_plan;

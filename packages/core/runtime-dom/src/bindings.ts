@@ -8,6 +8,7 @@ import {
   untrack,
 } from '@zeus-js/signal/internal'
 
+import { isHydrationFormWrite } from './autoHydration'
 import { emitDevtoolsEvent, getDevtoolsObjectId } from './devtools'
 import { getScopeErrorBoundaryHandler } from './errorBoundaryContext'
 import { assertRenderableJSXValue } from './jsxValue'
@@ -457,6 +458,14 @@ export function bindProp<T extends Element, K extends keyof T>(
     value,
     once,
     next => {
+      if (!hasWritten && isHydrationFormWrite(el, name)) {
+        // Preserve input typed, checked, or selected before the client took
+        // ownership. Remember the server value so a later reactive update is
+        // still authoritative.
+        hasWritten = true
+        previous = next
+        return
+      }
       // A custom element may not be upgraded yet, so reading the property
       // would see a plain own value rather than the element's accessor; a
       // third-party accessor also may have side effects. Remember what this

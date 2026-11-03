@@ -129,9 +129,11 @@ HTML markers。客户端通过 `hydrate(container, setup)` 或
 输入值相等时保留焦点、选区及节点 identity。
 
 `hydrationPlan` 只是 metadata，调用方仍需提供每个 binding 的客户端 handler。
-不会自动执行第二棵组件树或自动接管 WC 内部 DOM；未调用显式 hydration 而重新
-`render` 的应用会创建新节点。Streaming、异步 SSR 和自动组件 hydration 不在当前
-契约中。当前实现与使用方式见 [Server Rendering](../guide/server-rendering.md)。
+实验性的自动组件接管由 [RFC-019](./RFC-019-automatic-hydration.md) 单独定义；
+它要求编译器显式启用 `autoHydrate`，不会改变默认的显式 hydration 行为，也不自动
+进入 Web Component 的 ShadowRoot。未调用任一 hydration 模式而重新 `render` 的应用
+会创建新节点。Streaming 与异步 SSR 仍由 [RFC-018](./RFC-018-streaming-ssr.md)
+单独定义。当前实现与使用方式见 [Server Rendering](../guide/server-rendering.md)。
 
 ## 命令与验证
 
@@ -156,7 +158,7 @@ cleanup、SSR 编译产物不含 DOM 引用，以及 Vite SSR transform 的 runt
 
 ## 非目标
 
-- 自动组件 hydration 与自动 Web Component 内部接管；
+- 增量 hydration、out-of-order hydration 与自动 Web Component 内部接管；
 - streaming / async SSR（见 [RFC-018](./RFC-018-streaming-ssr.md) 的实验性独立入口）；
 - Suspense、资源预取与服务端调度；
 - SSR 专用 IR 或独立编译器分支。
@@ -182,5 +184,5 @@ cleanup、SSR 编译产物不含 DOM 引用，以及 Vite SSR transform 的 runt
   `renderToString`、原始属性序列化、转义、控制流、scope cleanup、thenable 拒绝和公开
   server 入口。
 - 当时 SSR-0 的原始输出没有 hydration marker；这条历史观察不限制当前能力。后续已
-  实现共享稳定 ID、binding 重连计划、显式 DOM hydrator 与 WC 内部 DSD 首屏输出，
-  按上文当前契约验收。自动组件计划执行、自动 WC 内部 hydration 与 streaming 尚未实现。
+  实现共享稳定 ID、binding 重连计划、显式 DOM hydrator、实验性自动组件接管与 WC
+  内部 DSD 首屏输出，按上文当前契约验收。自动 WC 内部 hydration 仍未实现。

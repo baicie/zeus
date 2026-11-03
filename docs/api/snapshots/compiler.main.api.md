@@ -39,6 +39,7 @@ export interface TransformModuleOptions {
   delegateEvents: boolean
   sourceMap: boolean
   hmr?: boolean
+  autoHydrate?: boolean
 }
 export interface TransformModuleResult {
   code: string

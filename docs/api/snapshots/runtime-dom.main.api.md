@@ -152,12 +152,62 @@ export declare function resolveDOMContext<T>(
 
 export interface RenderOptions {
   owner?: ReturnType<typeof createOwner>
+  /**
+   * Adopts compiler-planned server markup already inside `container` instead
+   * of clearing it. Throws `ZEUS_HYDRATION_NO_MARKUP` when the container has
+   * no hydration markers and the render produced client nodes.
+   */
+  hydrate?: boolean
+  /** Receives every scoped `ZEUS_HYDRATION_*` diagnostic of this takeover. */
+  onHydrationError?: (error: Error) => void
 }
 export declare function render(
   value: JSXValue | (() => JSXValue),
   container: Element | DocumentFragment,
   options?: RenderOptions,
 ): () => void
+
+type HydrationElementShape = {
+  readonly tag: string
+  readonly staticAttributes?: readonly (readonly [string, string])[]
+  readonly childTags?: readonly string[]
+}
+type HydrationTextRegion = {
+  readonly parent: Node
+  readonly close: Comment
+}
+type AutoHydrationHandle = {
+  readonly componentId?: number
+  /** Adopts the server element behind `markerId` and validates its shape. */
+  element(markerId: string, shape: HydrationElementShape): Element
+  /** Adopts the server text behind `markerId`, comparing the initial value. */
+  text(markerId: string, expected?: unknown): Text
+  /** Bounds a dynamic children-expression value on the server. */
+  textRegion(markerId: string): HydrationTextRegion
+  /** Clears a children-expression range and mounts the client value. */
+  mountText(region: HydrationTextRegion, render: () => unknown): void
+  /** Clears a control-flow region and returns its end anchor. */
+  region(markerId: string): Comment
+  /** Consumes an invocation marker and adopts the child component. */
+  child(markerId: string, render: () => unknown): void
+  /** Validates the server-rendered `<slot>` element of a shadow custom element. */
+  slot(markerId: string): void
+  /** Runs dynamic-region mounting with component adoption disabled. */
+  mount(run: () => void): void
+  /** A server boundary that cannot be adopted (for example ErrorBoundary). */
+  unsupported(markerId: string): never
+}
+/**
+ * Compiler entry for one component. `adopt` reuses the server tree; `create`
+ * is the ordinary client body. A scoped hydration failure clears the
+ * component's server range, marks the rebuilt root, and runs `create` fresh.
+ */
+export declare function autoHydrateComponent(
+  componentId: number,
+  rootMarkerId: string,
+  adopt: (handle: AutoHydrationHandle) => unknown,
+  create: () => unknown,
+): unknown
 
 export interface HydrationContext {
   node(id: string, expectedTag?: string, occurrence?: number): Node

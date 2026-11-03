@@ -14,6 +14,7 @@ export type {
 export { template } from './template'
 
 export { render, type RenderOptions } from './render'
+export { autoHydrateComponent } from './autoHydration'
 export {
   hydrate,
   hydratePlan,

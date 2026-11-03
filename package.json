@@ -54,6 +54,7 @@
     "check:quick-start": "tsx scripts/check/check-quick-start.ts",
     "check:admin": "tsx scripts/check/check-admin.ts",
     "check:hydration": "tsx scripts/check/check-hydration.ts",
+    "check:auto-hydration": "tsx scripts/check/check-auto-hydration.ts",
     "check:form-associated-browser": "tsx scripts/check/check-form-associated-browser.ts",
     "check:runtime-cleanup-browser": "tsx scripts/check/check-runtime-cleanup-browser.ts",
     "check:a11y-browser": "tsx scripts/check/check-a11y-browser.ts",

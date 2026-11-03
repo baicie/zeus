@@ -1,5 +1,12 @@
 import { scope } from '@zeus-js/signal/internal'
 
+import {
+  beginHydrationSession,
+  endHydrationSession,
+  hasHydrationMarkers,
+  reportHydrationFailure,
+  suspendHydrationSession,
+} from './autoHydration'
 import { createOwner, disposeOwner, runWithOwner } from './context'
 import { emitDevtoolsEvent, getDevtoolsObjectId } from './devtools'
 import { insert } from './insert'
@@ -8,6 +15,14 @@ import type { JSXValue } from './types'
 
 export interface RenderOptions {
   owner?: ReturnType<typeof createOwner>
+  /**
+   * Adopts compiler-planned server markup already inside `container` instead
+   * of clearing it. Throws `ZEUS_HYDRATION_NO_MARKUP` when the container has
+   * no hydration markers and the render produced client nodes.
+   */
+  hydrate?: boolean
+  /** Receives every scoped `ZEUS_HYDRATION_*` diagnostic of this takeover. */
+  onHydrationError?: (error: Error) => void
 }
 
 /**
@@ -22,6 +37,8 @@ interface RenderDisposer {
 
 /** Internal mount options for runtime callers such as custom elements. */
 interface MountOptions extends RenderOptions {
+  /** Internal: keeps the container's existing nodes during the initial mount. */
+  readonly keepMarkup?: boolean
   /**
    * Hands `owner` over to this render, which then releases it on dispose or
    * setup failure. Only the code that created the owner may set this.
@@ -41,7 +58,81 @@ export function render(
   container: Element | DocumentFragment,
   options: RenderOptions = {},
 ): () => void {
+  if (options.hydrate) {
+    return hydrateRender(value, container, options)
+  }
   return renderWithPreservedNodes(value, container, { owner: options.owner })
+}
+
+/**
+ * `render(..., { hydrate: true })`: the container keeps its server markup, a
+ * session lets every compiled component adopt its own nodes, and a failure
+ * that left the server tree unusable falls back to one client render.
+ */
+function hydrateRender(
+  value: JSXValue | (() => JSXValue),
+  container: Element | DocumentFragment,
+  options: RenderOptions,
+): () => void {
+  if (!hasHydrationMarkers(container)) {
+    // Nothing to adopt: behave exactly like a client render. `hydrate` is a
+    // mode request, not a promise that server markup exists.
+    return renderWithPreservedNodes(value, container, { owner: options.owner })
+  }
+
+  let adoptionError: Error | undefined
+  const session = beginHydrationSession(container, {
+    onHydrationError: error => {
+      adoptionError ??= error
+      options.onHydrationError?.(error)
+    },
+    primary: true,
+  })
+
+  let dispose: (() => void) | undefined
+  try {
+    dispose = renderWithPreservedNodes(value, container, {
+      owner: options.owner,
+      keepMarkup: true,
+    })
+  } catch (error) {
+    endHydrationSession(session)
+    throw error
+  }
+
+  if (!session.adopted) {
+    // No compiled component adopted a server root. The client tree (if any)
+    // sits next to the server markup, which is a duplicate: report the failure
+    // and replace the container with one ordinary client render.
+    endHydrationSession(session)
+    try {
+      dispose()
+    } catch {
+      /* The fallback render is the actionable result. */
+    }
+    reportHydrationFailure(
+      container,
+      adoptionError ??
+        new Error(
+          'ZEUS_HYDRATION_NO_ADOPTION: no compiled component adopted the server markup',
+        ),
+      options.onHydrationError,
+    )
+    return renderWithPreservedNodes(value, container, { owner: options.owner })
+  }
+
+  suspendHydrationSession(session)
+
+  let disposed = false
+  return () => {
+    if (disposed) return
+    disposed = true
+    try {
+      dispose()
+    } finally {
+      endHydrationSession(session)
+    }
+  }
 }
 
 export function renderWithPreservedNodes(
@@ -56,10 +147,15 @@ export function renderWithPreservedNodes(
   const owner = options.owner ?? createOwner()
   const ownedOwner = !options.owner || options.ownsOwner ? owner : undefined
   const ownedNodes = options.ownedNodes ?? []
+  const initialPreserveNodes = options.keepMarkup
+    ? Array.from(container.childNodes)
+    : preserveNodes
   // Both lists survive the initial clear: consumer nodes stay for the whole
   // mount, framework-owned nodes are removed on dispose.
   const keptOnMount =
-    ownedNodes.length === 0 ? preserveNodes : [...preserveNodes, ...ownedNodes]
+    ownedNodes.length === 0
+      ? initialPreserveNodes
+      : [...initialPreserveNodes, ...ownedNodes]
   const releaseNodes = (): void => {
     for (const node of ownedNodes) node.parentNode?.removeChild(node)
   }

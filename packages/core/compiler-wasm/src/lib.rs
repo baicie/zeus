@@ -22,6 +22,7 @@ struct HostOptions {
     source_map: bool,
     hmr: Option<bool>,
     pure_define_element: Option<bool>,
+    auto_hydrate: Option<bool>,
 }
 
 #[derive(Serialize)]
@@ -73,6 +74,7 @@ fn transform(request: &[u8]) -> Result<TransformModuleResult, String> {
         pure_define_element: PureDefineElementMode::from(
             options.pure_define_element.unwrap_or(false),
         ),
+        auto_hydrate: options.auto_hydrate.unwrap_or(false),
     }))
 }
 

@@ -44,10 +44,19 @@ the server, while a marker whose target node is malformed remains an error. Diag
 | `delegateEvents` | `boolean`        | Enable delegated event collection for DOM output.      |
 | `sourceMap`      | `boolean`        | Generate a Source Map v3.                              |
 | `hmr`            | `boolean`        | Inject the development render boundary when supported. |
+| `autoHydrate`    | `boolean`        | Opt into marker-driven automatic DOM adoption.         |
 
 `hmr` is only meaningful for DOM development transforms. It is ignored for SSR,
 production, component-only modules, and modules with an explicit
 `import.meta.hot` boundary.
+
+`autoHydrate` is an experimental opt-in shared by DOM and SSR transforms. DOM
+output emits an adoption body for `render(..., { hydrate: true })`; SSR output
+adds component range end markers. It keeps the existing Rust IR and codegen
+path. Dynamic regions are cleared and rebuilt inside their owner, and
+structural mismatches report a scoped `ZEUS_HYDRATION_*` error before fallback.
+The option is disabled by default and does not change the explicit
+`hydrationPlan` contract.
 
 With `delegateEvents: true`, bubbling events are dispatched from one document
 listener per event name. Events that do not bubble to `document` (for example

@@ -31,6 +31,7 @@ pub struct TransformModuleOptions {
     pub source_map: bool,
     pub hmr: Option<bool>,
     pub pure_define_element: Option<bool>,
+    pub auto_hydrate: Option<bool>,
 }
 
 #[napi(object, use_nullable = true)]
@@ -142,6 +143,7 @@ pub fn transform_module(options: TransformModuleOptions) -> Result<TransformModu
         pure_define_element: PureDefineElementMode::from(
             options.pure_define_element.unwrap_or(false),
         ),
+        auto_hydrate: options.auto_hydrate.unwrap_or(false),
     };
 
     if nesting::exceeds_nesting_cost(&core_options.source) {

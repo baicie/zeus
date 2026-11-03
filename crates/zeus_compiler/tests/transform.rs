@@ -21,6 +21,7 @@ fn options(source_map: bool) -> TransformModuleOptions {
         source_map,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     }
 }
 
@@ -117,6 +118,7 @@ export const App = props => (
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -157,6 +159,7 @@ export const App = props => (
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
     assert!(ssr.diagnostics.is_empty(), "{:?}", ssr.diagnostics);
     for expression in [
@@ -191,6 +194,7 @@ export const LocalCall = (define => define('local-call', {}))(callback)
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     };
 
     let ordinary = transform_module(options.clone());
@@ -238,6 +242,7 @@ export const Raw = props => <style>prefix {once(props.label)} {once(props.prefix
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -311,6 +316,7 @@ fn rejects_once_marked_node_bindings_before_codegen() {
             source_map: false,
             hmr: false,
             pure_define_element: PureDefineElementMode::Disabled,
+            auto_hydrate: false,
         });
 
         assert!(transformed.code.is_empty(), "{filename}");
@@ -348,6 +354,7 @@ fn rejects_once_markers_on_ignored_builtin_attributes() {
             source_map: false,
             hmr: false,
             pure_define_element: PureDefineElementMode::Disabled,
+            auto_hydrate: false,
         });
 
         assert!(transformed.code.is_empty(), "{filename}");
@@ -381,6 +388,7 @@ fn rejects_once_intrinsics_on_ignored_builtin_attributes() {
             source_map: false,
             hmr: false,
             pure_define_element: PureDefineElementMode::Disabled,
+            auto_hydrate: false,
         });
 
         assert!(transformed.code.is_empty(), "{filename}");
@@ -404,6 +412,7 @@ export const App = props => <div>{props.name}</div>
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -422,6 +431,7 @@ fn avoids_collisions_with_unresolved_references() {
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -441,6 +451,7 @@ fn preserves_object_literal_expression_semantics() {
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -459,6 +470,7 @@ fn does_not_resolve_text_creation_through_component_scope() {
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -477,6 +489,7 @@ fn returns_diagnostics_without_emitting_partial_code() {
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(transformed.code.is_empty());
@@ -506,6 +519,7 @@ export const App = (inlineHandler, identifierHandler, theme, maybe, props, asser
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -574,6 +588,7 @@ export const App = (inlineHandler, identifierHandler, theme, maybe, props, asser
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(without_delegation.diagnostics.is_empty());
@@ -598,6 +613,7 @@ fn binds_non_bubbling_and_non_delegated_events_directly() {
             source_map: false,
             hmr: false,
             pure_define_element: PureDefineElementMode::Disabled,
+            auto_hydrate: false,
         })
     };
 
@@ -633,6 +649,7 @@ fn binds_non_bubbling_and_non_delegated_events_directly() {
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
     assert!(custom.diagnostics.is_empty(), "{:?}", custom.diagnostics);
     assert!(
@@ -693,6 +710,7 @@ export const App = props => (
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -728,6 +746,7 @@ fn collects_delegated_events_and_locator_names_from_dynamic_regions() {
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -762,6 +781,7 @@ export const App = props => <div><Show when={props.ok} fallback={<button data-ze
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -788,6 +808,7 @@ fn leaves_plain_modules_untouched_and_preserves_directive_prologue() {
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(plain.diagnostics.is_empty());
@@ -805,6 +826,7 @@ fn leaves_plain_modules_untouched_and_preserves_directive_prologue() {
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(directive.diagnostics.is_empty());
@@ -904,6 +926,7 @@ fn emits_attribute_property_and_ref_bindings_with_stable_locators() {
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -958,6 +981,7 @@ export const Static = () => <script>const amp = "a&b";</script>
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -1004,6 +1028,7 @@ fn emits_root_and_nested_fragment_templates_with_stable_markers() {
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1047,6 +1072,7 @@ export const App = props => <section><Child title={props.name}><span>{props.name
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1088,6 +1114,7 @@ export const App = props => <Child><Show when={props.visible}><span>on</span></S
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1126,6 +1153,7 @@ fn emits_dynamic_region_for_nested_conditional_and_array_jsx() {
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1161,6 +1189,7 @@ export const App = props => <div>{render()}</div>
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1185,6 +1214,7 @@ fn emits_dom_and_ssr_dynamic_regions_for_array_literal_children() {
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
     assert!(dom.diagnostics.is_empty(), "{:?}", dom.diagnostics);
     assert!(dom.code.contains("mountDynamic"));
@@ -1205,6 +1235,7 @@ fn emits_dom_and_ssr_dynamic_regions_for_array_literal_children() {
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
     assert!(ssr.diagnostics.is_empty(), "{:?}", ssr.diagnostics);
     let allocator = Allocator::default();
@@ -1230,6 +1261,7 @@ export const Element = d('z-card', { shadow: false }, props => <H><section><S na
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1256,6 +1288,7 @@ export const Element = d('z-card', { shadow: false }, props => <H><Show when={pr
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1280,6 +1313,7 @@ export const App = props => <div><Show when={props.visible} fallback="hidden"><s
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1320,6 +1354,7 @@ export const App = props => <div><For each={props.items} by={item => item.id}>{(
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1349,6 +1384,7 @@ export const App = props => <For each={props.items}>{(it\u0065m, ind\u0065x) => 
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1389,6 +1425,7 @@ export const App = props => <For each={props.items}>{(item, index) => (
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1425,6 +1462,7 @@ export const App = props => <For each={props.groups}>{item => (
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1455,6 +1493,7 @@ export const App = props => <For each={props.components}>{Item => <Item />}</For
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1479,6 +1518,7 @@ export const App = props => <For each={props.items}>{(item, index) => <span titl
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1508,6 +1548,7 @@ export const App = props => <For each={props.items}>{({ label }, index) => <b>{i
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(transformed.code.is_empty());
@@ -1534,6 +1575,7 @@ export const App = props => <><Show when={props.visible} fallback="off"><Child n
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1570,6 +1612,7 @@ export const Card = defineElement('z-card', { shadow: true }, props => <Host tit
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1618,6 +1661,7 @@ export default (defineElement('z-card', { shadow: true }, () => <Host><article>C
             source_map: true,
             hmr: false,
             pure_define_element: PureDefineElementMode::Disabled,
+            auto_hydrate: false,
         });
 
         assert!(
@@ -1653,6 +1697,7 @@ export default defineElement('z-counter', {}, () => <Host>{createSignal(0)[0]()}
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1683,6 +1728,7 @@ export const App = () => <Portal><div>{count()}</div></Portal>
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1732,6 +1778,7 @@ export const App = () => <p>{count()}</p>
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1771,6 +1818,7 @@ export default defineElement('z-card', { props: { open: prop(Boolean) }, emits: 
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1800,6 +1848,7 @@ fn rewrites_ssr_safe_imports_without_jsx_or_components() {
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1823,6 +1872,7 @@ fn rewrites_ssr_safe_imports_with_type_only_specifiers() {
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1852,6 +1902,7 @@ export const App = props => <main title={props.title}>
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
     let ssr = transform_module(TransformModuleOptions {
         source: source.into(),
@@ -1862,6 +1913,7 @@ export const App = props => <main title={props.title}>
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(dom.diagnostics.is_empty(), "{:?}", dom.diagnostics);
@@ -1931,6 +1983,7 @@ fn escapes_ssr_static_text_and_keeps_rcdata_free_of_hydration_markers() {
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
     let dom = transform_module(TransformModuleOptions {
         source: source.into(),
@@ -1941,6 +1994,7 @@ fn escapes_ssr_static_text_and_keeps_rcdata_free_of_hydration_markers() {
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(ssr.diagnostics.is_empty(), "{:?}", ssr.diagnostics);
@@ -2009,6 +2063,7 @@ fn escapes_foreign_raw_text_elements_in_svg() {
             source_map: false,
             hmr: false,
             pure_define_element: PureDefineElementMode::Disabled,
+            auto_hydrate: false,
         })
     };
     let ssr = compile(TransformTarget::Ssr, "@zeus-js/runtime-ssr");
@@ -2083,6 +2138,7 @@ export const App = props => <form>
             source_map: false,
             hmr: false,
             pure_define_element: PureDefineElementMode::Disabled,
+            auto_hydrate: false,
         })
     };
 
@@ -2126,6 +2182,7 @@ fn omits_custom_element_properties_from_ssr() {
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(ssr.diagnostics.is_empty(), "{:?}", ssr.diagnostics);
@@ -2152,6 +2209,7 @@ export const Native = props => <z-card data-value={props.value}><input disabled 
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -2237,6 +2295,7 @@ fn maps_verbatim_source_outside_jsx_for_dom_and_ssr() {
             source_map: true,
             hmr: false,
             pure_define_element: PureDefineElementMode::Disabled,
+            auto_hydrate: false,
         });
         assert!(
             transformed.diagnostics.is_empty(),

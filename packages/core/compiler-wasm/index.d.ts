@@ -67,6 +67,7 @@ export interface TransformModuleOptions {
   sourceMap: boolean
   hmr?: boolean
   pureDefineElement?: boolean
+  autoHydrate?: boolean
 }
 
 export interface TransformModuleResult {

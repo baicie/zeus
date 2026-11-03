@@ -26,6 +26,32 @@ inside `render` is disposed by it. When setup throws before the disposer is
 returned, `render` releases the bindings and owner it created and clears the
 container, then rethrows the setup error.
 
+### Experimental automatic hydration
+
+```ts
+interface RenderOptions {
+  owner?: Owner
+  hydrate?: boolean
+  onHydrationError?: (error: Error) => void
+}
+```
+
+When `hydrate: true` is paired with a module compiled using
+`autoHydrate: true`, `render` keeps the server DOM, adopts component, element,
+text, event, and property markers, and preserves node identity. A live form
+`value`, `checked`, or `selected` state that differs from the server markup is
+preserved on the first binding write. A second live takeover of the same
+container throws `ZEUS_HYDRATION_DUPLICATE_OWNER`.
+
+An adoption mismatch is reported through `onHydrationError` with a scoped
+`ZEUS_HYDRATION_*` code. Zeus clears and rebuilds only the failing component
+range, marks the rebuilt root with `data-zeus-hydration-fallback`, and leaves
+nodes outside that range in place. `Show`, `For`, `Transition`, and dynamic
+regions are experimental rebuild boundaries: their server branch is cleared
+and mounted again under the current owner. This mode is separate from the
+explicit `hydrate`/`hydratePlan` APIs below and is disabled unless the
+compiler option is enabled.
+
 ## hydrate and hydratePlan
 
 ```ts
