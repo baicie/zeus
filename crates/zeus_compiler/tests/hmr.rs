@@ -13,6 +13,7 @@ fn compile(source: &str) -> TransformModuleResult {
         source_map: true,
         hmr: true,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     })
 }
 
@@ -119,6 +120,7 @@ fn manual_component_only_production_and_ssr_do_not_install_patch_state() {
             source_map: true,
             hmr,
             pure_define_element: PureDefineElementMode::Disabled,
+            auto_hydrate: false,
         });
         assert!(result.hmr_plan.is_none());
         assert!(!result.code.contains("createHmrState"));
