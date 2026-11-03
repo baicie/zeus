@@ -38,8 +38,12 @@ export interface ZeusNativeCompilerOptions {
 export interface ZeusVitePluginOptions {
   include?: RegExp | RegExp[]
   exclude?: RegExp | RegExp[]
-  /** Inject dispose-and-remount boundaries for top-level render roots. */
-  hmr?: boolean
+  /** Automatic render-root boundaries. Literal binding patches are opt-in. */
+  hmr?:
+    | boolean
+    | {
+        preserveBindings?: boolean
+      }
   /** Runtime module used by Vite SSR transforms. */
   ssrModuleName?: string
   compiler?: ZeusNativeCompilerOptions

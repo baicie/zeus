@@ -2,7 +2,10 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 
+import type { HmrPlan } from '@zeus-js/compiler-native'
 import type { SourceMapInput } from 'rollup'
+
+export type { HmrPlan }
 
 const require = createRequire(import.meta.url)
 
@@ -20,6 +23,7 @@ export const { transformModule } = require('@zeus-js/compiler-native') as {
   }) => {
     code: string
     map: SourceMapInput | null
+    hmrPlan: HmrPlan | null
     diagnostics: Array<{
       code: string
       message: string

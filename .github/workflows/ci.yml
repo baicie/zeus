@@ -131,6 +131,8 @@ jobs:
         run: pnpm bench:compiler-cache
       - run: pnpm check:runtime-interop
       - run: pnpm build-dts
+      - name: Packed ESLint consumer
+        run: pnpm check:eslint-consumer
       - name: Docs smoke
         run: pnpm check:docs
       - name: Compiler playground snapshots
@@ -171,6 +173,8 @@ jobs:
       - name: Build host native compiler
         run: pnpm --filter @zeus-js/compiler-native build:native
       - run: pnpm test-unit
+      - name: DevTools GC retention
+        run: pnpm check:devtools-gc
 
   packed-consumers:
     runs-on: ubuntu-latest
@@ -211,6 +215,8 @@ jobs:
         run: pnpm check:golden-components
       - name: Admin navigation in Chromium, Firefox and WebKit
         run: pnpm check:admin
+      - name: Candidate packed HMR in Chromium, Firefox and WebKit
+        run: pnpm check:hmr-packed
       - name: Explicit SSR hydration in Chromium, Firefox and WebKit
         run: pnpm check:hydration
       - name: Form-associated custom element behavior in Chromium, Firefox and WebKit
@@ -246,6 +252,7 @@ jobs:
             temp/compiler-wasm
             temp/playground
             temp/devtools-panel
+            temp/hmr-packed
 
   docs-build:
     runs-on: ubuntu-latest

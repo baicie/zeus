@@ -9,6 +9,13 @@ import { collectPluginExternals, mergeExternal } from './external'
 import type { RollupExternalOption, ZeusBundlerPluginOptions } from './types'
 import type { Plugin, ResolvedConfig, UserConfig } from 'vite'
 
+const runtimePackages = [
+  '@zeus-js/signal',
+  '@zeus-js/runtime-dom',
+  '@zeus-js/runtime-ssr',
+  '@zeus-js/zeus',
+] as const
+
 export function createZeusVitePlugin(
   options: ZeusBundlerPluginOptions = {},
 ): Plugin {
@@ -54,12 +61,15 @@ export function createZeusVitePlugin(
               }
             : undefined,
 
-          dedupe: [
-            '@zeus-js/signal',
-            '@zeus-js/runtime-dom',
-            '@zeus-js/zeus',
-            '@zeus-js/component-dts',
-          ],
+          dedupe: [...runtimePackages, '@zeus-js/component-dts'],
+        },
+        optimizeDeps: {
+          // Published component-library consumers may install @zeus-js/zeus
+          // alongside the runtime packages. Pre-bundling one entry while
+          // leaving another direct creates two signal engines and breaks the
+          // owner contract at runtime. Keep the shared runtime graph intact;
+          // resolve.dedupe alone does not control dependency optimization.
+          exclude: [...runtimePackages],
         },
       }
 

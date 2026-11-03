@@ -58,6 +58,31 @@ export declare function template<T extends Node = Node>(
   _isMathML?: boolean,
 ): TemplateFactory<T>
 
+interface HmrBinding {
+  id: number
+  kind: string
+  value: string
+}
+interface HmrPlan {
+  version: number
+  signature: string
+  bindings: HmrBinding[]
+}
+interface HmrHotContext {
+  on(event: string, callback: (data: unknown) => void): void
+  off(event: string, callback: (data: unknown) => void): void
+  invalidate(message: string): void
+}
+/** Compiler helper for literal cells. Never emitted by SSR or production. */
+export declare function createHmrState(
+  hot: HmrHotContext | undefined,
+  filename: string,
+  initial: HmrPlan,
+): {
+  read(id: number): string
+  dispose(): void
+}
+
 export type ContextId = symbol
 export interface Context<T = unknown> {
   readonly id: ContextId

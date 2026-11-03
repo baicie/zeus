@@ -1,0 +1,203 @@
+<DIR>/compiler.esm-bundler.js  chunk │ size: 0.30 kB
+<DIR>/compiler.cjs  chunk │ size: 0.45 kB
+<DIR>/compiler.prod.cjs  chunk │ size: 0.45 kB
+
+✔ rolldown v1.1.2 Finished in 18.81 ms
+<DIR>/compiler-shared.esm-bundler.js  chunk │ size: 7.67 kB
+<DIR>/compiler-shared.cjs  chunk │ size: 6.16 kB
+<DIR>/compiler-shared.prod.cjs  chunk │ size: 6.16 kB
+
+✔ rolldown v1.1.2 Finished in 20.82 ms
+<DIR>/query.esm-bundler.js  chunk │ size: 15.69 kB
+<DIR>/query.cjs  chunk │ size: 15.52 kB
+<DIR>/query.prod.cjs  chunk │ size: 15.52 kB
+
+✔ rolldown v1.1.2 Finished in 18.82 ms
+<DIR>/resource.esm-bundler.js  chunk │ size: 6.88 kB
+<DIR>/resource.cjs  chunk │ size: 4.41 kB
+<DIR>/resource.prod.cjs  chunk │ size: 4.41 kB
+
+✔ rolldown v1.1.2 Finished in 15.03 ms
+<DIR>/router.esm-bundler.js  chunk │ size: 28.39 kB
+<DIR>/router.esm-browser.js  chunk │ size: 222.47 kB
+<DIR>/router.cjs  chunk │ size: 26.36 kB
+<DIR>/router.esm-browser.prod.js  chunk │ size: 90.17 kB
+<DIR>/router.prod.cjs  chunk │ size: 26.36 kB
+
+✔ rolldown v1.1.2 Finished in 78.69 ms
+<DIR>/runtime-dom.esm-bundler.js  chunk │ size: 115.74 kB
+<DIR>/runtime-dom.esm-browser.js  chunk │ size: 164.51 kB
+<DIR>/runtime-dom.cjs  chunk │ size: 116.76 kB
+<DIR>/runtime-dom.global.js  chunk │ size: 171.26 kB
+<DIR>/runtime-dom.esm-browser.prod.js  chunk │ size: 63.98 kB
+<DIR>/runtime-dom.prod.cjs  chunk │ size: 110.41 kB
+<DIR>/runtime-dom.global.prod.js  chunk │ size: 63.95 kB
+
+✔ rolldown v1.1.2 Finished in 163.53 ms
+<DIR>/runtime-ssr.esm-bundler.js  chunk │ size: 38.20 kB
+<DIR>/runtime-ssr.cjs  chunk │ size: 39.19 kB
+<DIR>/runtime-ssr.prod.cjs  chunk │ size: 39.07 kB
+
+✔ rolldown v1.1.2 Finished in 30.75 ms
+<DIR>/shared.esm-bundler.js  chunk │ size: 7.89 kB
+<DIR>/shared.cjs  chunk │ size: 8.97 kB
+<DIR>/shared.prod.cjs  chunk │ size: 8.94 kB
+
+✔ rolldown v1.1.2 Finished in 22.26 ms
+<DIR>/signal.esm-bundler.js  chunk │ size: 0.28 kB
+<DIR>/signal.esm-browser.js  chunk │ size: 50.56 kB
+<DIR>/signal.cjs  chunk │ size: 0.61 kB
+<DIR>/signal.global.js  chunk │ size: 52.45 kB
+<DIR>/signal.esm-browser.prod.js  chunk │ size: 17.34 kB
+<DIR>/signal.prod.cjs  chunk │ size: 0.61 kB
+<DIR>/signal.global.prod.js  chunk │ size: 17.40 kB
+<DIR>/internal.js  chunk │ size: 63.26 kB
+<DIR>/internal.cjs  chunk │ size: 65.38 kB
+<DIR>/internal.prod.js  chunk │ size: 63.26 kB
+<DIR>/internal.prod.cjs  chunk │ size: 62.11 kB
+<DIR>/diagnostics.js  chunk │ size: 0.20 kB
+<DIR>/diagnostics.cjs  chunk │ size: 0.36 kB
+<DIR>/diagnostics.prod.js  chunk │ size: 0.20 kB
+<DIR>/diagnostics.prod.cjs  chunk │ size: 0.36 kB
+
+✔ rolldown v1.1.2 Finished in 144.76 ms
+<DIR>/testing.esm-bundler.js  chunk │ size: 5.22 kB
+<DIR>/testing.cjs  chunk │ size: 5.51 kB
+<DIR>/testing.prod.cjs  chunk │ size: 5.51 kB
+
+✔ rolldown v1.1.2 Finished in 14.28 ms
+<DIR>/zeus.esm-bundler.js  chunk │ size: 0.68 kB
+<DIR>/zeus.esm-browser.js  chunk │ size: 136.15 kB
+<DIR>/zeus.cjs  chunk │ size: 1.54 kB
+<DIR>/zeus.global.js  chunk │ size: 140.90 kB
+<DIR>/zeus.esm-browser.prod.js  chunk │ size: 52.47 kB
+<DIR>/zeus.prod.cjs  chunk │ size: 1.54 kB
+<DIR>/zeus.global.prod.js  chunk │ size: 52.47 kB
+<DIR>/capabilities.js  chunk │ size: 0.78 kB
+<DIR>/capabilities.cjs  chunk │ size: 0.99 kB
+<DIR>/capabilities.prod.js  chunk │ size: 0.78 kB
+<DIR>/capabilities.prod.cjs  chunk │ size: 0.99 kB
+<DIR>/server.js  chunk │ size: 0.83 kB
+<DIR>/server.cjs  chunk │ size: 1.72 kB
+<DIR>/server.prod.js  chunk │ size: 0.83 kB
+<DIR>/server.prod.cjs  chunk │ size: 1.72 kB
+
+✔ rolldown v1.1.2 Finished in 119.95 ms
+<DIR>/vite-plugin.esm-bundler.js  chunk │ size: 16.19 kB
+<DIR>/vite-plugin.cjs  chunk │ size: 17.63 kB
+<DIR>/vite-plugin.prod.cjs  chunk │ size: 17.63 kB
+
+✔ rolldown v1.1.2 Finished in 24.63 ms
+<DIR>/bundler-plugin.esm-bundler.js  chunk │ size: 40.69 kB
+<DIR>/bundler-plugin.cjs  chunk │ size: 36.96 kB
+<DIR>/bundler-plugin.prod.cjs  chunk │ size: 36.96 kB
+<DIR>/vite.js  chunk │ size: 37.02 kB
+<DIR>/vite.cjs  chunk │ size: 34.07 kB
+<DIR>/vite.prod.js  chunk │ size: 37.02 kB
+<DIR>/vite.prod.cjs  chunk │ size: 34.07 kB
+<DIR>/rollup.js  chunk │ size: 35.83 kB
+<DIR>/rollup.cjs  chunk │ size: 32.33 kB
+<DIR>/rollup.prod.js  chunk │ size: 35.83 kB
+<DIR>/rollup.prod.cjs  chunk │ size: 32.33 kB
+<DIR>/rolldown.js  chunk │ size: 35.93 kB
+<DIR>/rolldown.cjs  chunk │ size: 32.40 kB
+<DIR>/rolldown.prod.js  chunk │ size: 35.93 kB
+<DIR>/rolldown.prod.cjs  chunk │ size: 32.40 kB
+<DIR>/manifest.js  chunk │ size: 0.76 kB
+<DIR>/manifest.cjs  chunk │ size: 0.87 kB
+<DIR>/manifest.prod.js  chunk │ size: 0.76 kB
+<DIR>/manifest.prod.cjs  chunk │ size: 0.87 kB
+
+✔ rolldown v1.1.2 Finished in 140.32 ms
+<DIR>/component-analyzer.esm-bundler.js  chunk │ size: 83.19 kB
+<DIR>/component-analyzer.cjs  chunk │ size: 83.66 kB
+<DIR>/component-analyzer.prod.cjs  chunk │ size: 83.66 kB
+
+✔ rolldown v1.1.2 Finished in 35.14 ms
+<DIR>/component-dts.esm-bundler.js  chunk │ size: 27.34 kB
+<DIR>/component-dts.cjs  chunk │ size: 26.71 kB
+<DIR>/component-dts.prod.cjs  chunk │ size: 26.71 kB
+
+✔ rolldown v1.1.2 Finished in 27.75 ms
+<DIR>/output-css.esm-bundler.js  chunk │ size: 9.35 kB
+<DIR>/output-css.cjs  chunk │ size: 7.88 kB
+<DIR>/output-css.prod.cjs  chunk │ size: 7.88 kB
+
+✔ rolldown v1.1.2 Finished in 27.23 ms
+<DIR>/output-icons.esm-bundler.js  chunk │ size: 12.74 kB
+<DIR>/output-icons.cjs  chunk │ size: 14.01 kB
+<DIR>/output-icons.prod.cjs  chunk │ size: 14.01 kB
+
+✔ rolldown v1.1.2 Finished in 21.96 ms
+<DIR>/output-react-wrapper.esm-bundler.js  chunk │ size: 23.15 kB
+<DIR>/output-react-wrapper.cjs  chunk │ size: 23.43 kB
+<DIR>/output-react-wrapper.prod.cjs  chunk │ size: 23.43 kB
+<DIR>/index.js  chunk │ size: 5.44 kB
+<DIR>/index.cjs  chunk │ size: 5.56 kB
+<DIR>/index.prod.js  chunk │ size: 5.44 kB
+<DIR>/index.prod.cjs  chunk │ size: 5.56 kB
+<DIR>/index.js  chunk │ size: 4.54 kB
+<DIR>/index.cjs  chunk │ size: 4.71 kB
+<DIR>/index.prod.js  chunk │ size: 4.54 kB
+<DIR>/index.prod.cjs  chunk │ size: 4.71 kB
+
+✔ rolldown v1.1.2 Finished in 56.49 ms
+<DIR>/output-vue-wrapper.esm-bundler.js  chunk │ size: 21.40 kB
+<DIR>/output-vue-wrapper.cjs  chunk │ size: 21.70 kB
+<DIR>/output-vue-wrapper.prod.cjs  chunk │ size: 21.70 kB
+<DIR>/index.js  chunk │ size: 5.31 kB
+<DIR>/index.cjs  chunk │ size: 5.42 kB
+<DIR>/index.prod.js  chunk │ size: 5.31 kB
+<DIR>/index.prod.cjs  chunk │ size: 5.42 kB
+<DIR>/index.js  chunk │ size: 3.98 kB
+<DIR>/index.cjs  chunk │ size: 4.10 kB
+<DIR>/index.prod.js  chunk │ size: 3.98 kB
+<DIR>/index.prod.cjs  chunk │ size: 4.10 kB
+
+✔ rolldown v1.1.2 Finished in 51.65 ms
+<DIR>/output-wc.esm-bundler.js  chunk │ size: 40.07 kB
+<DIR>/output-wc.cjs  chunk │ size: 39.53 kB
+<DIR>/output-wc.prod.cjs  chunk │ size: 39.53 kB
+<DIR>/capabilities.js  chunk │ size: 0.51 kB
+<DIR>/capabilities.cjs  chunk │ size: 0.74 kB
+<DIR>/capabilities.prod.js  chunk │ size: 0.51 kB
+<DIR>/capabilities.prod.cjs  chunk │ size: 0.74 kB
+
+✔ rolldown v1.1.2 Finished in 46.19 ms
+<DIR>/web-c.esm-bundler.js  chunk │ size: 3.39 kB
+<DIR>/web-c.cjs  chunk │ size: 6.02 kB
+<DIR>/web-c.prod.cjs  chunk │ size: 6.02 kB
+<DIR>/vite.js  chunk │ size: 3.28 kB
+<DIR>/vite.cjs  chunk │ size: 5.43 kB
+<DIR>/vite.prod.js  chunk │ size: 3.28 kB
+<DIR>/vite.prod.cjs  chunk │ size: 5.43 kB
+<DIR>/rollup.js  chunk │ size: 3.31 kB
+<DIR>/rollup.cjs  chunk │ size: 5.45 kB
+<DIR>/rollup.prod.js  chunk │ size: 3.31 kB
+<DIR>/rollup.prod.cjs  chunk │ size: 5.45 kB
+<DIR>/rolldown.js  chunk │ size: 3.33 kB
+<DIR>/rolldown.cjs  chunk │ size: 5.46 kB
+<DIR>/rolldown.prod.js  chunk │ size: 3.33 kB
+<DIR>/rolldown.prod.cjs  chunk │ size: 5.46 kB
+
+✔ rolldown v1.1.2 Finished in 78.92 ms
+<DIR>/web-c-runtime.esm-bundler.js  chunk │ size: 30.21 kB
+
+✔ rolldown v1.1.2 Finished in 11.92 ms
+<DIR>/registry.esm-bundler.js  chunk │ size: 26.19 kB
+<DIR>/registry.cjs  chunk │ size: 26.40 kB
+<DIR>/registry.prod.cjs  chunk │ size: 26.40 kB
+<DIR>/cn.js  chunk │ size: 0.37 kB
+<DIR>/cn.cjs  chunk │ size: 0.49 kB
+<DIR>/cn.prod.js  chunk │ size: 0.37 kB
+<DIR>/cn.prod.cjs  chunk │ size: 0.49 kB
+<DIR>/theme.js  chunk │ size: 1.18 kB
+<DIR>/theme.cjs  chunk │ size: 1.30 kB
+<DIR>/theme.prod.js  chunk │ size: 1.18 kB
+<DIR>/theme.prod.cjs  chunk │ size: 1.30 kB
+
+✔ rolldown v1.1.2 Finished in 45.37 ms
+
+runtime-dom.global.prod.js min:64 kB / gzip:21.2 kB / brotli:19.1 kB
+signal.global.prod.js min:17.4 kB / gzip:6.26 kB / brotli:5.76 kB
+zeus.global.prod.js min:52.5 kB / gzip:17.4 kB / brotli:15.8 kB

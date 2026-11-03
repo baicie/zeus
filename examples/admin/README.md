@@ -27,6 +27,10 @@ pnpm --filter @zeus-js/example-admin build
 pnpm --filter @zeus-js/example-admin preview --host 127.0.0.1
 ```
 
+开发服务器中追加 `?devtools=1`（例如 `/admin/users?devtools=1`）会挂载可关闭的
+Native DevTools 面板，显示 owner 树、binding/effect/signal 图、timeline、Custom
+Element 生命周期和手动刷新。生产构建会移除这条开发分支。
+
 ## 页面与交互
 
 | 地址                                       | 行为                                                            |

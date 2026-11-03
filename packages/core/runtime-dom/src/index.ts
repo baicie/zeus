@@ -12,6 +12,7 @@ export type {
 } from './types'
 
 export { template } from './template'
+export { createHmrState } from './hmr'
 
 export { render, type RenderOptions } from './render'
 export { autoHydrateComponent } from './autoHydration'

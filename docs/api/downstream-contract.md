@@ -13,6 +13,7 @@ Downstream packages may import from:
 - `@zeus-js/zeus/capabilities` — machine-readable capability manifest
 - `@zeus-js/output-wc` — Web Component output plugin
 - `@zeus-js/output-wc/capabilities` — machine-readable WC output capability manifest
+- `@zeus-js/eslint-plugin` — flat-config rules for public imports and compiler built-ins
 - `@zeus-js/web-c`
 - `@zeus-js/bundler-plugin`
 - `@zeus-js/bundler-plugin/vite`

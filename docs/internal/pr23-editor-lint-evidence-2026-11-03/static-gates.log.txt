@@ -1,0 +1,9 @@
+Node: v24.18.0
+
+PASS tsc --incremental --noEmit
+PASS ESLint changed source/test/check files
+PASS Prettier changed docs/code files
+PASS Package exports boundary
+PASS Package version alignment: 0.1.1-beta.20
+PASS Package repository metadata
+PASS Packed ESLint consumer types and rules

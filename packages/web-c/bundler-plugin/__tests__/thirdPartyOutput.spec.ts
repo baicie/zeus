@@ -94,6 +94,18 @@ async function createExternalOutputPackage(): Promise<ZeusComponentPlugin> {
   return module.default()
 }
 
+async function createCommittedOutputPackage(): Promise<ZeusComponentPlugin> {
+  const module = (await import(
+    pathToFileURL(
+      path.resolve(
+        import.meta.dirname,
+        '../../../../examples/fixtures/third-party-output-plugin/index.js',
+      ),
+    ).href
+  )) as { default: () => ZeusComponentPlugin }
+  return module.default()
+}
+
 async function build(root: string, plugins: ZeusComponentPlugin[]) {
   const bundle = await rollup({
     input: path.join(root, 'src/index.ts'),
@@ -118,6 +130,21 @@ function asset(name: string, fileName: string): ZeusComponentPlugin {
 }
 
 describe('third-party output targets', () => {
+  it('loads the committed external author sample through the public contract', async () => {
+    const root = await createComponentProject()
+    const result = await build(root, [await createCommittedOutputPackage()])
+    const emitted = result.output.find(
+      item => item.fileName === 'acme/z-button.json',
+    ) as OutputAsset | undefined
+
+    expect(emitted?.type).toBe('asset')
+    expect(JSON.parse(String(emitted!.source))).toEqual({
+      tag: 'z-button',
+      props: ['label'],
+      events: ['press'],
+    })
+  })
+
   it('builds with an output package written outside the repository', async () => {
     const root = await createComponentProject()
     const result = await build(root, [await createExternalOutputPackage()])

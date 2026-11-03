@@ -11,6 +11,7 @@ import {
   getCustomElementObservedAttributes,
   reflectCustomElementProperty,
 } from './customElementContract'
+import { emitDevtoolsEvent } from './devtools'
 import { isWithinRuntimeDomMove } from './domMove'
 import { withHostContext } from './hostContext'
 import { takeSSRLightDomChildren } from './lightDomSsr'
@@ -476,11 +477,16 @@ export function defineElement<
       // Projection can detach a host before its queued connected reaction runs.
       if (this.isConnected === false) return
       this.mountLifecycle.connect()
+      emitCustomElementDevtoolsEvent('custom-element:connect', this)
     }
 
     disconnectedCallback(): void {
       if (isWithinRuntimeDomMove(this)) return
-      this.mountLifecycle.disconnect()
+      try {
+        this.mountLifecycle.disconnect()
+      } finally {
+        emitCustomElementDevtoolsEvent('custom-element:disconnect', this)
+      }
     }
 
     adoptedCallback(): void {
@@ -779,6 +785,12 @@ export function mountElementDefinition(
   )
 
   projection?.connect()
+  emitCustomElementDevtoolsEvent(
+    'custom-element:connect',
+    host,
+    definition.tagName,
+  )
+  let devtoolsDisconnected = false
 
   return {
     get active() {
@@ -806,9 +818,36 @@ export function mountElementDefinition(
     },
 
     dispose() {
-      disposeMountedElement(projection, dispose)
+      try {
+        disposeMountedElement(projection, dispose)
+      } finally {
+        if (!devtoolsDisconnected) {
+          devtoolsDisconnected = true
+          emitCustomElementDevtoolsEvent(
+            'custom-element:disconnect',
+            host,
+            definition.tagName,
+          )
+        }
+      }
     },
   }
+}
+
+function emitCustomElementDevtoolsEvent(
+  type: 'custom-element:connect' | 'custom-element:disconnect',
+  element: HTMLElement,
+  name = element.localName || element.tagName.toLowerCase(),
+): void {
+  if (!__DEV__) return
+  emitDevtoolsEvent(
+    {
+      type,
+      target: element,
+      name,
+    },
+    { swallowErrors: true },
+  )
 }
 
 /**

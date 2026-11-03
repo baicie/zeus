@@ -1,0 +1,22 @@
+{
+  "name": "@zeus-js/example-playground-editor",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@zeus-js/compiler-wasm": "workspace:*",
+    "@zeus-js/playground-engine": "workspace:*",
+    "@zeus-js/runtime-dom": "workspace:*",
+    "@zeus-js/signal": "workspace:*",
+    "@zeus-js/zeus": "workspace:*"
+  },
+  "devDependencies": {
+    "@zeus-js/vite-plugin": "workspace:*",
+    "typescript": "^6.0.3",
+    "vite": "catalog:"
+  }
+}

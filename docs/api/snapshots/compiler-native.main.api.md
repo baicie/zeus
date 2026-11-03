@@ -16,6 +16,18 @@ export interface CompilerDiagnostic {
   span?: SourceSpan
 }
 
+export interface HmrBinding {
+  id: number
+  kind: string
+  value: string
+}
+
+export interface HmrPlan {
+  version: number
+  signature: string
+  bindings: Array<HmrBinding>
+}
+
 export interface HydrationBindingPlan {
   id: number
   kind: string
@@ -85,5 +97,6 @@ export interface TransformModuleResult {
   map: RawSourceMap | null
   diagnostics: Array<CompilerDiagnostic>
   hydrationPlan: HydrationPlan | null
+  hmrPlan: HmrPlan | null
 }
 ```

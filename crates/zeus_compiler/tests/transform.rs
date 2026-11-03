@@ -1804,11 +1804,11 @@ export const App = () => <p>{count()}</p>
 
 #[test]
 fn rewrites_schema_context_and_component_specifiers_to_the_ssr_facade() {
-    let source = r#"import { createContext, defineElement, event, Host, Portal, prop, Transition, useContext } from '@zeus-js/zeus'
+    let source = r"import { createContext, defineElement, event, Host, Portal, prop, Transition, useContext } from '@zeus-js/zeus'
 const Theme = createContext('light')
 export default defineElement('z-card', { props: { open: prop(Boolean) }, emits: { change: event() } }, () =>
   <Host><Portal><Transition when={useContext(Theme) === 'dark'}><b>dark</b></Transition></Portal></Host>)
-"#;
+";
     let transformed = transform_module(TransformModuleOptions {
         source: source.into(),
         filename: "ssr-schema-import.tsx".into(),
@@ -1827,13 +1827,15 @@ export default defineElement('z-card', { props: { open: prop(Boolean) }, emits: 
         transformed.diagnostics
     );
     assert!(
-        transformed
-            .code
-            .contains(r#"from "@zeus-js/runtime-ssr""#),
+        transformed.code.contains(r#"from "@zeus-js/runtime-ssr""#),
         "{}",
         transformed.code
     );
-    assert!(!transformed.code.contains("@zeus-js/zeus"), "{}", transformed.code);
+    assert!(
+        !transformed.code.contains("@zeus-js/zeus"),
+        "{}",
+        transformed.code
+    );
 }
 
 #[test]
@@ -2047,12 +2049,12 @@ fn escapes_ssr_static_text_and_keeps_rcdata_free_of_hydration_markers() {
 
 #[test]
 fn escapes_foreign_raw_text_elements_in_svg() {
-    let source = r#"export const Icon = props => <svg>
+    let source = r"export const Icon = props => <svg>
   <style>{props.css}</style>
   <script>if (a &lt; b) run()</script>
   <foreignObject><style>{props.css}</style><script>if (a &lt; b) run()</script></foreignObject>
 </svg>
-"#;
+";
     let compile = |target: TransformTarget, runtime_module: &str| {
         transform_module(TransformModuleOptions {
             source: source.into(),
@@ -2073,8 +2075,9 @@ fn escapes_foreign_raw_text_elements_in_svg() {
     // runtime must escape their content instead of rewriting raw text: the
     // fifth argument turns the raw-text path off.
     assert!(
-        ssr.code
-            .contains(r#"$zeusSsrElement("style", [], $zeusSsrText(props.css), undefined, undefined, true)"#),
+        ssr.code.contains(
+            r#"$zeusSsrElement("style", [], $zeusSsrText(props.css), undefined, undefined, true)"#
+        ),
         "{}",
         ssr.code
     );

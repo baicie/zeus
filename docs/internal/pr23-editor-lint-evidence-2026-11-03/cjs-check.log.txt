@@ -1,0 +1,1 @@
+Package CommonJS entry smoke tests passed (22 packages, 31 exports, 62 conditional loads, 48 wrapper fallbacks).

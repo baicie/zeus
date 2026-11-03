@@ -42,6 +42,7 @@
 | `@zeus-js/compiler-native-win32-x64-msvc`   | `packages/core/compiler-native-win32-x64-msvc`   | 0.1.1-beta.20 | core     | Windows x64 MSVC 原生二进制（安装可选依赖）   |
 | `@zeus-js/shared`                           | `packages/core/shared`                           | 0.1.1-beta.20 | core     | 内部工具函数，无外部依赖                      |
 | `@zeus-js/vite-plugin`                      | `packages/devtools/vite-plugin`                  | 0.0.5         | devtools | Vite 集成插件                                 |
+| `@zeus-js/eslint-plugin`                    | `packages/devtools/eslint-plugin`                | 0.1.1-beta.20 | devtools | Zeus 源码与编译器内置节点 ESLint 规则         |
 | `create-zeus`                               | `packages/devtools/create-zeus`                  | 0.1.5         | devtools | 项目脚手架生成器（CLI）                       |
 | `@zeus-js/output-wc`                        | `packages/web-c/output-wc`                       | 0.1.1-beta.20 | web-c    | Web Component 输出插件                        |
 | `@zeus-js/output-react-wrapper`             | `packages/web-c/output-react-wrapper`            | 0.1.1-beta.20 | web-c    | React wrapper 输出插件                        |
@@ -81,6 +82,9 @@
 
 @zeus-js/vite-plugin
 └── @zeus-js/compiler-native
+
+@zeus-js/eslint-plugin
+└── eslint (peer)
 
 @zeus-js/web-c
 ├── @zeus-js/output-css
@@ -817,7 +821,7 @@ pnpm add @zeus-js/web-c
 pnpm add @zeus-js/output-wc @zeus-js/output-react-wrapper @zeus-js/output-vue-wrapper @zeus-js/output-css
 
 # CLI
-pnpm add -D @zeus-js/vite-plugin create-zeus
+pnpm add -D @zeus-js/vite-plugin @zeus-js/eslint-plugin eslint typescript-eslint create-zeus
 pnpm add @zeus-ui/registry
 pnpm add @zeus-ui/cli
 ```
@@ -834,14 +838,15 @@ pnpm add @zeus-ui/cli
 `internal.cjs` 与 `diagnostics.cjs` 按 `NODE_ENV` 选择同一套 signal engine，避免公共
 API、runtime helper 与 diagnostics 各自持有响应式状态。
 
-| 包                     | ESM 入口                          | CJS 开发 / 生产产物                                  | 全局 CDN                     |
-| ---------------------- | --------------------------------- | ---------------------------------------------------- | ---------------------------- |
-| `@zeus-js/zeus`        | `dist/zeus.esm-bundler.js`        | `dist/zeus.cjs` / `dist/zeus.prod.cjs`               | `dist/zeus.global.js`        |
-| `@zeus-js/signal`      | `dist/signal.esm-bundler.js`      | `dist/signal.cjs` / `dist/signal.prod.cjs`           | `dist/signal.global.js`      |
-| `@zeus-js/runtime-dom` | `dist/runtime-dom.esm-bundler.js` | `dist/runtime-dom.cjs` / `dist/runtime-dom.prod.cjs` | `dist/runtime-dom.global.js` |
-| `@zeus-js/compiler`    | `dist/compiler.esm-bundler.js`    | `dist/compiler.cjs` / `dist/compiler.prod.cjs`       | `dist/compiler.global.js`    |
-| `@zeus-js/shared`      | `dist/shared.esm-bundler.js`      | `dist/shared.cjs` / `dist/shared.prod.cjs`           | —                            |
-| `@zeus-js/vite-plugin` | `dist/vite-plugin.esm-bundler.js` | `dist/vite-plugin.cjs` / `dist/vite-plugin.prod.cjs` | —                            |
+| 包                       | ESM 入口                            | CJS 开发 / 生产产物                                      | 全局 CDN                     |
+| ------------------------ | ----------------------------------- | -------------------------------------------------------- | ---------------------------- |
+| `@zeus-js/zeus`          | `dist/zeus.esm-bundler.js`          | `dist/zeus.cjs` / `dist/zeus.prod.cjs`                   | `dist/zeus.global.js`        |
+| `@zeus-js/signal`        | `dist/signal.esm-bundler.js`        | `dist/signal.cjs` / `dist/signal.prod.cjs`               | `dist/signal.global.js`      |
+| `@zeus-js/runtime-dom`   | `dist/runtime-dom.esm-bundler.js`   | `dist/runtime-dom.cjs` / `dist/runtime-dom.prod.cjs`     | `dist/runtime-dom.global.js` |
+| `@zeus-js/compiler`      | `dist/compiler.esm-bundler.js`      | `dist/compiler.cjs` / `dist/compiler.prod.cjs`           | `dist/compiler.global.js`    |
+| `@zeus-js/shared`        | `dist/shared.esm-bundler.js`        | `dist/shared.cjs` / `dist/shared.prod.cjs`               | —                            |
+| `@zeus-js/vite-plugin`   | `dist/vite-plugin.esm-bundler.js`   | `dist/vite-plugin.cjs` / `dist/vite-plugin.prod.cjs`     | —                            |
+| `@zeus-js/eslint-plugin` | `dist/eslint-plugin.esm-bundler.js` | `dist/eslint-plugin.cjs` / `dist/eslint-plugin.prod.cjs` | —                            |
 
 ## 附录 B：pnpm catalog 共享依赖版本
 

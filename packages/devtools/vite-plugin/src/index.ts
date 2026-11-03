@@ -1,6 +1,6 @@
 import { createCompilerCache, type CompilerCacheOptions } from './cache'
 import { classifyHmrUpdate } from './hmr'
-import { compilerVersion, transformModule } from './native'
+import { compilerVersion, transformModule, type HmrPlan } from './native'
 import {
   resolveRuntimeDOMEntry,
   resolveRuntimeSSREntry,
@@ -24,8 +24,8 @@ export interface ZeusNativeCompilerOptions {
 export interface ZeusVitePluginOptions {
   include?: RegExp | RegExp[]
   exclude?: RegExp | RegExp[]
-  /** Inject dispose-and-remount boundaries for top-level render roots. */
-  hmr?: boolean
+  /** Automatic render-root boundaries. Literal binding patches are opt-in. */
+  hmr?: boolean | { preserveBindings?: boolean }
   /** Runtime module used by Vite SSR transforms. */
   ssrModuleName?: string
   compiler?: ZeusNativeCompilerOptions
@@ -75,6 +75,9 @@ function createFilter(options: ZeusVitePluginOptions = {}) {
 export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
   const shouldTransform = createFilter(options)
   const previousSources = new Map<string, string>()
+  const previousPlans = new Map<string, HmrPlan>()
+  const preserveBindings =
+    typeof options.hmr === 'object' && options.hmr.preserveBindings === true
   const compilerCache = createCompilerCache<ReturnType<typeof transformModule>>(
     normalizeCompilerCacheOptions(options.compiler?.cache),
   )
@@ -144,13 +147,90 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
         previousSources.get(filename),
         nextSource,
       )
-      this.debug(
-        `[Zeus HMR] ${classification.kind} -> ${classification.strategy}: ${filename}`,
-      )
+      const description = `[Zeus HMR] ${classification.kind} -> ${classification.strategy}: ${filename}`
 
       // A comment-only edit has no executable update to apply. Returning an
       // empty module list keeps Vite from disposing and remounting the root.
-      if (classification.preserveState) return []
+      if (classification.preserveState) {
+        this.debug(description)
+        return []
+      }
+
+      const previous = previousPlans.get(filename)
+      if (preserveBindings && previous && shouldTransform(filename)) {
+        const next = transformModule({
+          source: nextSource,
+          filename,
+          target: 'dom',
+          runtimeModule: options.compiler?.moduleName ?? '@zeus-js/runtime-dom',
+          delegateEvents: options.compiler?.delegateEvents ?? true,
+          sourceMap: true,
+          hmr: true,
+        })
+        const diagnostic = next.diagnostics.find(
+          entry => entry.severity === 'error',
+        )
+        if (diagnostic) {
+          const start = diagnostic.span?.start
+          // A previous successful transform is already running. Mark this as
+          // a hot update before showing the overlay: Vite otherwise treats
+          // an error on its first update as an initial-load error and reloads
+          // the page on repair, discarding the retained state.
+          context.server.ws.send({ type: 'update', updates: [] })
+          context.server.ws.send({
+            type: 'error',
+            err: {
+              message: `${diagnostic.code}: ${diagnostic.message}`,
+              stack: '',
+              plugin: 'vite-plugin-zeus',
+              id: filename,
+              ...(start
+                ? {
+                    loc: {
+                      file: filename,
+                      line: start.line,
+                      column: start.column,
+                    },
+                  }
+                : {}),
+            },
+          })
+          this.debug(
+            `[Zeus HMR] compile-error -> retain-last-good: ${filename}`,
+          )
+          return []
+        }
+        if (
+          next.hmrPlan &&
+          previous.version === next.hmrPlan.version &&
+          previous.signature === next.hmrPlan.signature
+        ) {
+          // Existing clients keep their module instance; subsequent imports
+          // must still compile the edited source rather than a stale response.
+          for (const module of context.modules) {
+            context.server.moduleGraph.invalidateModule(
+              module,
+              new Set(),
+              context.timestamp,
+              true,
+            )
+          }
+          previousPlans.set(filename, next.hmrPlan)
+          previousSources.set(filename, nextSource)
+          context.server.ws.send({
+            type: 'custom',
+            event: 'zeus:hmr-patch',
+            data: { filename, previous, next: next.hmrPlan },
+          })
+          // Vite's empty update clears an earlier compiler error overlay.
+          context.server.ws.send({ type: 'update', updates: [] })
+          this.debug(
+            `[Zeus HMR] literal-bindings -> preserve-state: ${filename}`,
+          )
+          return []
+        }
+      }
+      this.debug(description)
     },
 
     async transform(code, id, transformOptions) {
@@ -205,7 +285,11 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
         })
       }
 
-      if (enableRootHMR && !isSSR) previousSources.set(filename, code)
+      if (enableRootHMR && !isSSR) {
+        previousSources.set(filename, code)
+        if (result.hmrPlan) previousPlans.set(filename, result.hmrPlan)
+        else previousPlans.delete(filename)
+      }
 
       return { code: result.code, map: copySourceMap(result.map) }
     },

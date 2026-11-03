@@ -3,6 +3,11 @@ import { describe, expect, it } from 'vitest'
 import { mergeExternal } from '../src/external'
 import zeus from '../src/vite'
 
+import type { ConfigEnv, HookHandler, Plugin } from 'vite'
+
+type ConfigHook = NonNullable<HookHandler<Plugin['config']>>
+const configEnv: ConfigEnv = { command: 'serve', mode: 'test' }
+
 describe('vite plugin', () => {
   it('creates vite plugin with expected name', () => {
     const plugin = zeus()
@@ -26,6 +31,38 @@ describe('vite plugin', () => {
     const plugin = zeus()
 
     expect(typeof plugin.config).toBe('function')
+  })
+
+  it('keeps every Zeus runtime entry in one Vite dependency graph', async () => {
+    const plugin = zeus()
+    const configHook = plugin.config
+    if (typeof configHook !== 'function')
+      throw new Error('Expected config hook')
+
+    const config = await configHook.call(
+      {} as ThisParameterType<ConfigHook>,
+      {},
+      configEnv,
+    )
+
+    expect(config).toMatchObject({
+      optimizeDeps: {
+        exclude: expect.arrayContaining([
+          '@zeus-js/signal',
+          '@zeus-js/runtime-dom',
+          '@zeus-js/runtime-ssr',
+          '@zeus-js/zeus',
+        ]),
+      },
+      resolve: {
+        dedupe: expect.arrayContaining([
+          '@zeus-js/signal',
+          '@zeus-js/runtime-dom',
+          '@zeus-js/runtime-ssr',
+          '@zeus-js/zeus',
+        ]),
+      },
+    })
   })
 
   it('has configResolved hook', () => {

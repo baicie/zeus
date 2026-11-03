@@ -1264,9 +1264,9 @@ fn resolves_element_namespace_from_the_surrounding_markup() {
 
 #[test]
 fn keeps_control_flow_children_in_the_enclosing_namespace() {
-    let source = r#"import { Show } from '@zeus-js/zeus'
+    let source = r"import { Show } from '@zeus-js/zeus'
 export const App = props => <svg><Show when={props.open}><style>{props.css}</style></Show></svg>
-"#;
+";
     let lowered = lower_module(source, "namespaces-control-flow.tsx");
     assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
     let module = lowered.ir.expect("control-flow children lower");
@@ -1300,8 +1300,10 @@ fn collect_namespaces<'ir>(root: &'ir RootIr, observed: &mut Vec<(&'ir str, &'ir
                 ChildIr::For(for_binding) => walk(&for_binding.body, observed),
                 ChildIr::ErrorBoundary(boundary) => walk(&boundary.children, observed),
                 ChildIr::Transition(transition) => walk(&transition.children, observed),
-                ChildIr::Text(_) | ChildIr::DynamicText(_) | ChildIr::DynamicRegion(_) => {}
-                ChildIr::Component(_) => {}
+                ChildIr::Text(_)
+                | ChildIr::DynamicText(_)
+                | ChildIr::DynamicRegion(_)
+                | ChildIr::Component(_) => {}
             }
         }
     }

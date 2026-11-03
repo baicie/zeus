@@ -88,6 +88,25 @@ The contract:
   A second registration of a kind, or two plugins emitting the same file name,
   fails with `ZEUS_OUTPUT_CONFLICT`.
 
+## Compatibility and trust
+
+The current contract is `apiVersion: 1`. The built-in host matrix is Vite 8,
+Rollup 4, and Rolldown 1; generated files must be ordinary Rollup-compatible
+chunks or assets. The repository's `thirdPartyOutput.spec.ts` loads an output
+plugin from an external temporary package and verifies namespaced outputs,
+conflicts, file ownership, and manifest access.
+
+Output plugins execute as JavaScript in the build process with the same filesystem
+and network privileges as the application build. Zeus namespaces output kinds
+and detects file conflicts, but this is not a sandbox. Install only plugins whose
+source and release provenance you trust. A plugin can read project files and run
+arbitrary Node.js code, so package reviews and lockfile pinning remain required.
+
+A committed, copyable package lives at
+`examples/fixtures/third-party-output-plugin`. Its Rollup test imports the package
+through its own `package.json#exports`, discovers a component through the public
+analyzer manifest, and verifies the emitted original output kind and asset.
+
 ## Dev mode
 
 In development, the plugin analyzes components on-the-fly and registers custom elements automatically. Output files are generated only on build.

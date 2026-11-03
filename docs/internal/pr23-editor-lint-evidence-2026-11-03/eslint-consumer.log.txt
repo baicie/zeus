@@ -1,0 +1,14 @@
+📦  @zeus-js/eslint-plugin@0.1.1-beta.20
+Tarball Contents
+dist/eslint-plugin.cjs
+dist/eslint-plugin.d.ts
+dist/eslint-plugin.esm-bundler.js
+dist/eslint-plugin.prod.cjs
+index.cjs
+package.json
+README.md
+Tarball Details
+/var/folders/5k/ryhv7yxj2blc55wk9g4jwl5r0000gn/T/zeus-eslint-consumer-KnCvM4/archives/zeus-js-eslint-plugin-0.1.1-beta.20.tgz
+
+added 88 packages in 27s
+Packed ESLint consumer passed (10.5.0, external rule ids, no unsafe autofix).

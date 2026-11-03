@@ -11,6 +11,7 @@ import {
 import { isHydrationFormWrite } from './autoHydration'
 import { emitDevtoolsEvent, getDevtoolsObjectId } from './devtools'
 import { getScopeErrorBoundaryHandler } from './errorBoundaryContext'
+import { isHmrBindingWrite } from './hmr'
 import { assertRenderableJSXValue } from './jsxValue'
 
 import type { AttrValue, ClassValue, JSXValue, StyleValue } from './types'
@@ -107,6 +108,7 @@ export function bindEffect<T>(
       apply(next)
       nextDependencies = collectingDependencies
     } catch (error) {
+      if (__DEV__ && isHmrBindingWrite()) throw error
       if (scopeErrorHandler) {
         scopeErrorHandler(error, 'binding')
         return

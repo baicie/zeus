@@ -1,0 +1,501 @@
+{
+  "scope": "WASM multi-file compile, DOM/SSR output, sandbox interaction, diagnostics, security, loop budget and external export",
+  "host": "http://127.0.0.1",
+  "sandbox": "http://localhost",
+  "runtime": {
+    "node": "v24.18.0",
+    "v8": "13.6.233.17-node.50"
+  },
+  "requests": [
+    {
+      "host": "127.0.0.1:62390",
+      "path": "/"
+    },
+    {
+      "host": "127.0.0.1:62390",
+      "path": "/assets/index-Bux2jhvO.js"
+    },
+    {
+      "host": "127.0.0.1:62390",
+      "path": "/assets/rolldown-runtime-XKyaHtl9.js"
+    },
+    {
+      "host": "127.0.0.1:62390",
+      "path": "/assets/index-Cv70rczc.css"
+    },
+    {
+      "host": "127.0.0.1:62390",
+      "path": "/assets/playground-engine.esm-bundler-DqFHLnHH.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/sandbox.html"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/sandbox-CmmA5zbI.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/rolldown-runtime-XKyaHtl9.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/playground-engine.esm-bundler-DqFHLnHH.js"
+    },
+    {
+      "host": "127.0.0.1:62390",
+      "path": "/favicon.ico"
+    },
+    {
+      "host": "127.0.0.1:62390",
+      "path": "/assets/zeus-compiler-jF2tVous.wasm"
+    },
+    {
+      "host": "127.0.0.1:62390",
+      "path": "/assets/worker-DUUaUFez.js"
+    },
+    {
+      "host": "127.0.0.1:62390",
+      "path": "/assets/babel-BNS_LnEj.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/sandbox.html"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/sandbox-CmmA5zbI.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/rolldown-runtime-XKyaHtl9.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/playground-engine.esm-bundler-DqFHLnHH.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/sandbox.html"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/sandbox-CmmA5zbI.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/rolldown-runtime-XKyaHtl9.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/playground-engine.esm-bundler-DqFHLnHH.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/sandbox.html"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/sandbox-CmmA5zbI.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/rolldown-runtime-XKyaHtl9.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/playground-engine.esm-bundler-DqFHLnHH.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/sandbox.html"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/sandbox-CmmA5zbI.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/rolldown-runtime-XKyaHtl9.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/playground-engine.esm-bundler-DqFHLnHH.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/sandbox.html"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/sandbox-CmmA5zbI.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/rolldown-runtime-XKyaHtl9.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/playground-engine.esm-bundler-DqFHLnHH.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/sandbox.html"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/sandbox-CmmA5zbI.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/rolldown-runtime-XKyaHtl9.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/playground-engine.esm-bundler-DqFHLnHH.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/sandbox.html"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/sandbox-CmmA5zbI.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/rolldown-runtime-XKyaHtl9.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/playground-engine.esm-bundler-DqFHLnHH.js"
+    },
+    {
+      "host": "127.0.0.1:62390",
+      "path": "/"
+    },
+    {
+      "host": "127.0.0.1:62390",
+      "path": "/assets/playground-engine.esm-bundler-DqFHLnHH.js"
+    },
+    {
+      "host": "127.0.0.1:62390",
+      "path": "/assets/rolldown-runtime-XKyaHtl9.js"
+    },
+    {
+      "host": "127.0.0.1:62390",
+      "path": "/assets/index-Cv70rczc.css"
+    },
+    {
+      "host": "127.0.0.1:62390",
+      "path": "/assets/index-Bux2jhvO.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/sandbox.html"
+    },
+    {
+      "host": "127.0.0.1:62390",
+      "path": "/favicon.ico"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/playground-engine.esm-bundler-DqFHLnHH.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/rolldown-runtime-XKyaHtl9.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/sandbox-CmmA5zbI.js"
+    },
+    {
+      "host": "127.0.0.1:62390",
+      "path": "/assets/zeus-compiler-jF2tVous.wasm"
+    },
+    {
+      "host": "127.0.0.1:62390",
+      "path": "/assets/worker-DUUaUFez.js"
+    },
+    {
+      "host": "127.0.0.1:62390",
+      "path": "/assets/babel-BNS_LnEj.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/sandbox.html"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/sandbox-CmmA5zbI.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/rolldown-runtime-XKyaHtl9.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/playground-engine.esm-bundler-DqFHLnHH.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/sandbox.html"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/sandbox-CmmA5zbI.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/rolldown-runtime-XKyaHtl9.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/playground-engine.esm-bundler-DqFHLnHH.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/sandbox.html"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/rolldown-runtime-XKyaHtl9.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/playground-engine.esm-bundler-DqFHLnHH.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/sandbox-CmmA5zbI.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/sandbox.html"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/sandbox-CmmA5zbI.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/rolldown-runtime-XKyaHtl9.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/playground-engine.esm-bundler-DqFHLnHH.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/sandbox.html"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/sandbox-CmmA5zbI.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/rolldown-runtime-XKyaHtl9.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/playground-engine.esm-bundler-DqFHLnHH.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/sandbox.html"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/rolldown-runtime-XKyaHtl9.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/playground-engine.esm-bundler-DqFHLnHH.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/sandbox-CmmA5zbI.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/sandbox.html"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/sandbox-CmmA5zbI.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/playground-engine.esm-bundler-DqFHLnHH.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/rolldown-runtime-XKyaHtl9.js"
+    },
+    {
+      "host": "127.0.0.1:62390",
+      "path": "/"
+    },
+    {
+      "host": "127.0.0.1:62390",
+      "path": "/assets/index-Bux2jhvO.js"
+    },
+    {
+      "host": "127.0.0.1:62390",
+      "path": "/assets/rolldown-runtime-XKyaHtl9.js"
+    },
+    {
+      "host": "127.0.0.1:62390",
+      "path": "/assets/playground-engine.esm-bundler-DqFHLnHH.js"
+    },
+    {
+      "host": "127.0.0.1:62390",
+      "path": "/assets/index-Cv70rczc.css"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/sandbox.html"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/sandbox-CmmA5zbI.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/rolldown-runtime-XKyaHtl9.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/playground-engine.esm-bundler-DqFHLnHH.js"
+    },
+    {
+      "host": "127.0.0.1:62390",
+      "path": "/assets/zeus-compiler-jF2tVous.wasm"
+    },
+    {
+      "host": "127.0.0.1:62390",
+      "path": "/assets/worker-DUUaUFez.js"
+    },
+    {
+      "host": "127.0.0.1:62390",
+      "path": "/assets/babel-BNS_LnEj.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/sandbox.html"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/sandbox-CmmA5zbI.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/sandbox.html"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/sandbox-CmmA5zbI.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/sandbox.html"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/sandbox-CmmA5zbI.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/sandbox.html"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/sandbox-CmmA5zbI.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/sandbox.html"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/sandbox-CmmA5zbI.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/sandbox.html"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/sandbox-CmmA5zbI.js"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/sandbox.html"
+    },
+    {
+      "host": "localhost:62390",
+      "path": "/assets/sandbox-CmmA5zbI.js"
+    },
+    {
+      "host": "127.0.0.1:62583",
+      "path": "/"
+    },
+    {
+      "host": "127.0.0.1:62583",
+      "path": "/assets/index-C-zM4qlH.js"
+    },
+    {
+      "host": "127.0.0.1:62583",
+      "path": "/assets/index-BYpe1VpH.css"
+    },
+    {
+      "host": "127.0.0.1:62583",
+      "path": "/favicon.ico"
+    }
+  ],
+  "results": [
+    {
+      "browser": "chromium",
+      "version": "156.0.8078.4",
+      "status": "passed",
+      "security": {
+        "parentDom": false,
+        "parentStorage": false,
+        "localCookies": false,
+        "localFetch": false
+      }
+    },
+    {
+      "browser": "firefox",
+      "version": "157.0",
+      "status": "passed",
+      "security": {
+        "parentDom": false,
+        "parentStorage": false,
+        "localCookies": false,
+        "localFetch": false
+      }
+    },
+    {
+      "browser": "webkit",
+      "version": "27.2",
+      "status": "passed",
+      "security": {
+        "parentDom": false,
+        "parentStorage": false,
+        "localCookies": false,
+        "localFetch": false
+      }
+    },
+    {
+      "browser": "chromium-export",
+      "status": "passed",
+      "security": {
+        "interaction": true
+      }
+    }
+  ]
+}

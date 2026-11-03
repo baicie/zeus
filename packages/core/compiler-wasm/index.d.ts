@@ -75,6 +75,13 @@ export interface TransformModuleResult {
   map: RawSourceMap | null
   diagnostics: Array<CompilerDiagnostic>
   hydrationPlan: HydrationPlan | null
+  hmrPlan: HmrPlan | null
+}
+
+export interface HmrPlan {
+  version: number
+  signature: string
+  bindings: Array<{ id: number; kind: string; value: string }>
 }
 
 export interface WasmCompiler {

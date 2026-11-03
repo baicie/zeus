@@ -37,6 +37,7 @@ import type {
 const outputWcModulePath = fileURLToPath(import.meta.url)
 
 export type { OutputWCOptions } from './types'
+export { generateVSCodeCustomData } from './generateVSCodeCustomData'
 
 export default function wc(options: OutputWCOptions = {}): ZeusComponentPlugin {
   const registerMode = options.register ?? 'lazy'

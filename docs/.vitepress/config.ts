@@ -59,6 +59,12 @@ export default defineConfig({
               link: '/compiler-host/component-analyzer',
             },
             { text: 'Bundler Plugin', link: '/compiler-host/bundler-plugin' },
+            { text: 'ESLint Plugin', link: '/compiler-host/eslint-plugin' },
+            { text: 'Diagnostics', link: '/compiler-host/diagnostics' },
+            {
+              text: 'Playground Engine',
+              link: '/compiler-host/playground-engine',
+            },
             {
               text: 'Output: Web Components',
               link: '/compiler-host/output-wc',

@@ -33,6 +33,7 @@ pub(crate) struct EmitModuleOptions<'a> {
     pub(crate) auto_hydrate: bool,
 }
 
+#[allow(clippy::too_many_lines)]
 pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleResult {
     let EmitModuleOptions {
         source,
@@ -49,6 +50,8 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
         auto_hydrate,
     } = *options;
     let mut names = NameAllocator::new(reserved_names);
+    let hmr_module = prepare_hmr_module(options, &mut names);
+    let module = hmr_module.as_ref().map_or(module, |hmr| &hmr.module);
     let binding_sets = collect_component_bindings(module);
     let delegated_event_names = collect_delegated_events(module, enable_delegation);
     let mut helper_usage =
@@ -100,7 +103,20 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
     if !module.components.is_empty() {
         emit_runtime_import(&mut writer, &runtime, runtime_module);
     }
-    emit_hmr_boundary(&mut writer, enable_hmr, hmr, &hmr_disposers);
+    emit_hmr_state(
+        &mut writer,
+        hmr_module.as_ref(),
+        runtime_module,
+        filename,
+        &mut names,
+    );
+    emit_hmr_boundary(
+        &mut writer,
+        enable_hmr,
+        hmr,
+        &hmr_disposers,
+        hmr_module.as_ref(),
+    );
 
     emit_templates(&mut writer, &generated, &runtime);
 
@@ -135,7 +151,55 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
         map,
         diagnostics: Vec::new(),
         hydration_plan: None,
+        hmr_plan: hmr_module.map(|hmr| hmr.plan),
     }
+}
+
+struct HmrModule {
+    module: ModuleIr,
+    plan: crate::hmr::HmrPlan,
+    state_name: String,
+}
+
+fn emit_hmr_state(
+    writer: &mut CodeWriter,
+    hmr: Option<&HmrModule>,
+    runtime_module: &str,
+    filename: &str,
+    names: &mut NameAllocator,
+) {
+    let Some(hmr) = hmr else {
+        return;
+    };
+    let helper = names.allocate("_zeusCreateHmrState");
+    let state_name = &hmr.state_name;
+    writer.push(&format!(
+        "import {{ createHmrState as {helper} }} from {};\nconst {state_name} = {helper}(import.meta.hot, {}, {});\n",
+        quote_js(runtime_module), quote_js(filename), serde_json::to_string(&hmr.plan).expect("HMR plan is JSON data"),
+    ));
+}
+
+fn prepare_hmr_module(
+    options: &EmitModuleOptions<'_>,
+    names: &mut NameAllocator,
+) -> Option<HmrModule> {
+    if !options.enable_hmr || options.hmr.manual_boundary || options.hmr.render_calls.is_empty() {
+        return None;
+    }
+    let state_name = names.allocate("_zeusHmrState");
+    let mut module = options.module.clone();
+    let plan = crate::hmr::prepare(
+        &mut module,
+        options.source,
+        options.runtime_module,
+        options.enable_delegation,
+        &state_name,
+    )?;
+    Some(HmrModule {
+        module,
+        plan,
+        state_name,
+    })
 }
 
 fn intern_static_templates(components: &mut [GeneratedComponent]) {
@@ -373,7 +437,13 @@ fn allocate_source_insertions(
     insertions
 }
 
-fn emit_hmr_boundary(writer: &mut CodeWriter, enabled: bool, hmr: &HmrInfo, disposers: &str) {
+fn emit_hmr_boundary(
+    writer: &mut CodeWriter,
+    enabled: bool,
+    hmr: &HmrInfo,
+    disposers: &str,
+    state: Option<&HmrModule>,
+) {
     if !enabled || hmr.manual_boundary || disposers.is_empty() {
         return;
     }
@@ -390,7 +460,11 @@ fn emit_hmr_boundary(writer: &mut CodeWriter, enabled: bool, hmr: &HmrInfo, disp
     writer.push(".splice(0).reverse()) {\n");
     writer.push("      try { dispose() } catch (error) {\n");
     writer.push("        console.error('[Zeus HMR] root disposal failed', error)\n");
-    writer.push("      }\n    }\n  })\n}\n");
+    writer.push("      }\n    }\n");
+    if let Some(state) = state {
+        writer.push(&format!("    {}.dispose()\n", state.state_name));
+    }
+    writer.push("  })\n}\n");
 }
 
 pub(crate) struct SsrModuleOptions<'a> {
@@ -473,6 +547,7 @@ pub(crate) fn emit_ssr_module(options: &SsrModuleOptions<'_>) -> TransformModule
         map,
         diagnostics: Vec::new(),
         hydration_plan: None,
+        hmr_plan: None,
     }
 }
 
@@ -626,15 +701,9 @@ fn emit_ssr_child(
             }
             // Foreign content is escaped like text, even though the tag name is
             // `script` or `style`: the parser reads it as ordinary markup there.
-            SsrTextContext::ForeignRaw => {
-                writer.push(runtime.text());
-                writer.push("(");
-                writer.push_mapped(&text.expression.code, &text.expression);
-                writer.push(")");
-            }
             // RCDATA content is bound through textContent on the client, so it
             // is escaped like normal text but carries no hydration marker.
-            SsrTextContext::Rcdata => {
+            SsrTextContext::ForeignRaw | SsrTextContext::Rcdata => {
                 writer.push(runtime.text());
                 writer.push("(");
                 writer.push_mapped(&text.expression.code, &text.expression);

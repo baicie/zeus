@@ -17,6 +17,7 @@
     "@zeus-web/input": "0.1.0-beta.33"
   },
   "devDependencies": {
+    "@zeus-js/devtools-consumer": "workspace:*",
     "@zeus-js/vite-plugin": "workspace:*",
     "typescript": "^6.0.3",
     "vite": "catalog:"

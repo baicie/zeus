@@ -37,6 +37,13 @@ function collectSources(directory, sources = []) {
 
 const inlineSources = [
   {
+    filename: 'hmr-literal-bindings.tsx',
+    source: `import { render, createSignal, For } from '@zeus-js/zeus'
+const [rows] = createSignal([1, 2])
+render(() => <main class={'muted'} style={'color: blue'}><For each={rows()}>{row => <p>{'😀 Hello'} {row}</p>}</For></main>, document.body)
+`,
+  },
+  {
     filename: 'unicode-crlf.tsx',
     source:
       '// \u{1f600}中\r\nconst helper = (n: number) => n * 2\r\nexport const App = props => <p title={props.t}>{helper(props.n)} &amp; {props.label}</p>\r\n',

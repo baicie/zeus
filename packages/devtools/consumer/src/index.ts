@@ -15,12 +15,17 @@ export type ZeusDevtoolsEventType =
   | 'owner:dispose'
   | 'component:create'
   | 'component:dispose'
+  | 'custom-element:connect'
+  | 'custom-element:disconnect'
   | 'effect:run'
   | 'binding:commit'
   | 'binding:cleanup'
   | 'dependency:track'
   | 'dependency:trigger'
   | 'dependency:untrack'
+  | 'hmr:patch'
+  | 'hmr:invalidate'
+  | 'hmr:dispose'
 
 export interface ZeusDevtoolsEvent {
   readonly id: number
@@ -34,6 +39,7 @@ export interface ZeusDevtoolsEvent {
   readonly bindingId?: number
   readonly effectId?: number
   readonly sourceId?: number
+  readonly name?: string
   readonly payload?: Readonly<Record<string, unknown>>
 }
 
@@ -94,6 +100,29 @@ export interface ZeusDevtoolsSourceSnapshot {
   readonly dependencies: readonly ZeusDevtoolsDependencySnapshot[]
 }
 
+export interface ZeusDevtoolsCustomElementSnapshot {
+  readonly id: number
+  readonly name: string
+  readonly connected: boolean
+  readonly mountCount: number
+  readonly disconnectCount: number
+  readonly lastEventAt?: number
+}
+
+export interface ZeusDevtoolsTimelineEntry {
+  readonly id: number
+  readonly timestamp: number
+  readonly type: ZeusDevtoolsEventType
+  readonly targetId?: number
+  readonly ownerId?: number
+  readonly componentId?: number
+  readonly bindingId?: number
+  readonly effectId?: number
+  readonly sourceId?: number
+  readonly name?: string
+  readonly reason?: string
+}
+
 export interface ZeusDevtoolsSelection {
   readonly node: Node
   readonly targetId?: number
@@ -110,13 +139,15 @@ export interface ZeusDevtoolsSnapshot {
   readonly effects: readonly ZeusDevtoolsEffectSnapshot[]
   readonly bindings: readonly ZeusDevtoolsBindingSnapshot[]
   readonly sources: readonly ZeusDevtoolsSourceSnapshot[]
+  readonly customElements: readonly ZeusDevtoolsCustomElementSnapshot[]
+  readonly timeline: readonly ZeusDevtoolsTimelineEntry[]
   readonly selected?: ZeusDevtoolsSelection
 }
 
 export interface ZeusDevtoolsConsumerOptions {
   /** Capture click events and expose DOM-to-binding selection. */
   readonly captureClicks?: boolean
-  /** Maximum inactive diagnostic entries retained per graph category. */
+  /** Maximum inactive graph entries and timeline entries retained. */
   readonly historyLimit?: number
   readonly onSelect?: (selection: ZeusDevtoolsSelection) => void
 }
@@ -191,13 +222,25 @@ export function createDevtoolsPanel(
   const summary = document.createElement('div')
   summary.setAttribute('data-zeus-devtools-summary', '')
   summary.style.color = '#94a3b8'
-  heading.append(title, summary)
+  const refresh = document.createElement('button')
+  refresh.type = 'button'
+  refresh.textContent = 'Refresh'
+  refresh.setAttribute('data-zeus-devtools-refresh', '')
+  refresh.style.cssText =
+    'margin-top:6px;border:1px solid #475569;border-radius:4px;background:#1e293b;color:#e2e8f0;padding:3px 8px;font:inherit;cursor:pointer'
+  heading.append(title, summary, refresh)
 
   const components = createPanelSection(document, 'components', 'Components')
   const owners = createPanelSection(document, 'owners', 'Owner tree')
   const bindings = createPanelSection(document, 'bindings', 'DOM bindings')
   const effects = createPanelSection(document, 'effects', 'Effects')
   const sources = createPanelSection(document, 'sources', 'Signals')
+  const customElements = createPanelSection(
+    document,
+    'custom-elements',
+    'Custom Elements',
+  )
+  const timeline = createPanelSection(document, 'timeline', 'Timeline')
   const selection = createPanelSection(document, 'selection', 'Selected DOM')
   element.append(
     heading,
@@ -207,11 +250,13 @@ export function createDevtoolsPanel(
     bindings.details,
     effects.details,
     sources.details,
+    customElements.details,
+    timeline.details,
   )
   container.replaceChildren(element)
 
   const render = (snapshot: ZeusDevtoolsSnapshot): void => {
-    summary.textContent = `${snapshot.components.length} components · ${snapshot.owners.length} owners · ${snapshot.bindings.length} bindings · ${snapshot.effects.length} effects · ${snapshot.sources.length} signals`
+    summary.textContent = `${snapshot.components.length} components · ${snapshot.owners.length} owners · ${snapshot.bindings.length} bindings · ${snapshot.effects.length} effects · ${snapshot.sources.length} signals · ${snapshot.customElements.length} custom elements`
     renderSelection(document, selection, snapshot.selected, rowLimit)
 
     const ownerRows = getOwnerTreeRows(snapshot.owners)
@@ -264,12 +309,38 @@ export function createDevtoolsPanel(
       })),
       'No signals observed.',
     )
+    renderRows(
+      document,
+      customElements,
+      snapshot.customElements.slice(0, rowLimit).map(element => ({
+        depth: 0,
+        text: `${element.name} · target ${element.id} · mounts ${element.mountCount} · disconnects ${element.disconnectCount}${element.connected ? '' : ' · disconnected'}`,
+      })),
+      'No custom elements observed.',
+    )
+    renderRows(
+      document,
+      timeline,
+      snapshot.timeline
+        .slice()
+        .reverse()
+        .slice(0, rowLimit)
+        .map(entry => ({
+          depth: 0,
+          text: `t+${formatDuration(entry.timestamp)} · ${entry.id} · ${entry.type}${entry.reason ? ` · ${entry.reason}` : ''}${entry.name ? ` · ${entry.name}` : ''}`,
+        })),
+      'No runtime events observed.',
+    )
   }
 
   const unsubscribe = panel.subscribe(render)
+  const refreshPanel = (): void => render(panel.getSnapshot())
+  refresh.addEventListener('click', refreshPanel)
   return {
     element,
     disconnect() {
+      refresh.removeEventListener('click', refreshPanel)
+      refresh.remove()
       unsubscribe()
       if (element.parentNode === container) element.remove()
     },
@@ -400,6 +471,17 @@ interface ComponentState {
   disposed: boolean
 }
 
+interface CustomElementState {
+  id: number
+  name: string
+  connected: boolean
+  mountCount: number
+  disconnectCount: number
+  lastEventAt?: number
+}
+
+type TimelineEntryState = ZeusDevtoolsTimelineEntry
+
 interface DependencyState {
   sourceId: number
   key: unknown
@@ -475,10 +557,13 @@ export function createDevtoolsConsumer(
   const effects = new Map<number, EffectState>()
   const bindings = new Map<number, BindingState>()
   const sources = new Map<number, SourceState>()
+  const customElements = new Map<number, CustomElementState>()
+  const timeline: TimelineEntryState[] = []
   const inactiveOwners = new Map<number, OwnerState>()
   const inactiveEffects = new Map<number, EffectState>()
   const inactiveBindings = new Map<number, BindingState>()
   const inactiveSources = new Map<number, SourceState>()
+  const inactiveCustomElements = new Map<number, CustomElementState>()
   const listeners = new Set<(snapshot: ZeusDevtoolsSnapshot) => void>()
 
   let revision = 0
@@ -556,6 +641,10 @@ export function createDevtoolsConsumer(
         triggerCount: source.triggerCount,
         dependencies: dependencyValues(source.dependencies),
       })),
+    customElements: [...customElements.values()]
+      .sort((left, right) => left.id - right.id)
+      .map(element => ({ ...element })),
+    timeline: timeline.map(entry => ({ ...entry })),
     ...(selected === undefined ? {} : { selected }),
   })
 
@@ -578,8 +667,9 @@ export function createDevtoolsConsumer(
 
   const consume = (event: ZeusDevtoolsEvent): void => {
     eventCount++
-    const changed = reduceEvent(event)
-    if (!changed) return
+    const timelineChanged = recordTimeline(event)
+    const graphChanged = reduceEvent(event)
+    if (!timelineChanged && !graphChanged) return
     revision++
     notify()
   }
@@ -808,6 +898,40 @@ export function createDevtoolsConsumer(
         component.disposed = true
         return true
       }
+      case 'custom-element:connect': {
+        if (event.targetId === undefined) return false
+        const element = customElements.get(event.targetId) ?? {
+          id: event.targetId,
+          name: event.name ?? 'unknown-element',
+          connected: false,
+          mountCount: 0,
+          disconnectCount: 0,
+        }
+        element.name = event.name ?? element.name
+        element.connected = true
+        element.mountCount++
+        element.lastEventAt = event.timestamp
+        inactiveCustomElements.delete(element.id)
+        customElements.set(element.id, element)
+        return true
+      }
+      case 'custom-element:disconnect': {
+        if (event.targetId === undefined) return false
+        const element = customElements.get(event.targetId) ?? {
+          id: event.targetId,
+          name: event.name ?? 'unknown-element',
+          connected: true,
+          mountCount: 0,
+          disconnectCount: 0,
+        }
+        element.name = event.name ?? element.name
+        element.connected = false
+        element.disconnectCount++
+        element.lastEventAt = event.timestamp
+        customElements.set(element.id, element)
+        retainInactive(customElements, inactiveCustomElements, element)
+        return true
+      }
       case 'effect:run': {
         if (event.effectId === undefined) return false
         const effect = ensureEffect(event.effectId)
@@ -892,6 +1016,10 @@ export function createDevtoolsConsumer(
           ensureEffect(event.effectId).triggerCount++
         return true
       }
+      case 'hmr:patch':
+      case 'hmr:invalidate':
+      case 'hmr:dispose':
+        return true
       default:
         return false
     }
@@ -1025,6 +1153,36 @@ export function createDevtoolsConsumer(
       onEvict?.(oldest)
     }
   }
+
+  function recordTimeline(event: ZeusDevtoolsEvent): boolean {
+    if (historyLimit === 0) return false
+    const payload = event.payload
+    const reason =
+      typeof payload?.reason === 'string'
+        ? payload.reason
+        : typeof payload?.operation === 'string'
+          ? payload.operation
+          : undefined
+    timeline.push({
+      id: event.id,
+      timestamp: event.timestamp,
+      type: event.type,
+      ...(event.targetId === undefined ? {} : { targetId: event.targetId }),
+      ...(event.ownerId === undefined ? {} : { ownerId: event.ownerId }),
+      ...(event.componentId === undefined
+        ? {}
+        : { componentId: event.componentId }),
+      ...(event.bindingId === undefined ? {} : { bindingId: event.bindingId }),
+      ...(event.effectId === undefined ? {} : { effectId: event.effectId }),
+      ...(event.sourceId === undefined ? {} : { sourceId: event.sourceId }),
+      ...(event.name === undefined ? {} : { name: event.name }),
+      ...(reason === undefined ? {} : { reason }),
+    })
+    if (timeline.length > historyLimit) {
+      timeline.splice(0, timeline.length - historyLimit)
+    }
+    return true
+  }
 }
 
 function dependencyValues(
@@ -1053,6 +1211,7 @@ interface ZeusDevtoolsPortEventMessage {
     readonly bindingId?: number
     readonly effectId?: number
     readonly sourceId?: number
+    readonly name?: string
     readonly payload?: Readonly<Record<string, unknown>>
   }
 }
@@ -1080,6 +1239,7 @@ function serializePortEvent(
       ...(event.bindingId === undefined ? {} : { bindingId: event.bindingId }),
       ...(event.effectId === undefined ? {} : { effectId: event.effectId }),
       ...(event.sourceId === undefined ? {} : { sourceId: event.sourceId }),
+      ...(event.name === undefined ? {} : { name: event.name }),
       ...(payload === undefined ? {} : { payload }),
     },
   }
@@ -1122,6 +1282,7 @@ function deserializePortEvent(value: unknown): ZeusDevtoolsEvent | undefined {
       : {}),
     ...(typeof event.effectId === 'number' ? { effectId: event.effectId } : {}),
     ...(typeof event.sourceId === 'number' ? { sourceId: event.sourceId } : {}),
+    ...(typeof event.name === 'string' ? { name: event.name } : {}),
     ...(payload === undefined ? {} : { payload }),
   }
 }
@@ -1136,12 +1297,17 @@ function isDevtoolsEventType(value: unknown): value is ZeusDevtoolsEventType {
     value === 'owner:dispose' ||
     value === 'component:create' ||
     value === 'component:dispose' ||
+    value === 'custom-element:connect' ||
+    value === 'custom-element:disconnect' ||
     value === 'effect:run' ||
     value === 'binding:commit' ||
     value === 'binding:cleanup' ||
     value === 'dependency:track' ||
     value === 'dependency:trigger' ||
-    value === 'dependency:untrack'
+    value === 'dependency:untrack' ||
+    value === 'hmr:patch' ||
+    value === 'hmr:invalidate' ||
+    value === 'hmr:dispose'
   )
 }
 

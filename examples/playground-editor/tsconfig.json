@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "jsx": "preserve",
+    "jsxImportSource": "@zeus-js/zeus",
+    "types": ["@zeus-js/zeus/jsx", "vite/client"],
+    "skipLibCheck": true
+  },
+  "include": ["src", "../../packages/global.d.ts"]
+}

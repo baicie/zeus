@@ -127,10 +127,7 @@ impl ElementNamespace {
 ///
 /// `<svg>` is the only HTML element that enters the SVG namespace, and every
 /// element inside SVG (including `<foreignObject>` itself) stays in it.
-pub(crate) fn element_namespace(
-    parent: ElementNamespace,
-    tag_name: &str,
-) -> ElementNamespace {
+pub(crate) fn element_namespace(parent: ElementNamespace, tag_name: &str) -> ElementNamespace {
     match parent {
         ElementNamespace::Html => {
             if matches_ignore_ascii_case(tag_name, SVG_ROOT_TAGS) {
@@ -145,13 +142,10 @@ pub(crate) fn element_namespace(
 
 /// Resolves the namespace the children of `tag_name` are parsed in.
 ///
-/// Only `<foreignObject>` leaves SVG. MathML is deliberately out of scope: the
+/// Only `<foreignObject>` leaves SVG. `MathML` is deliberately out of scope: the
 /// compiler rejects the elements whose text handling would differ, and
-/// `<style>`/`<script>` cannot appear in the accepted MathML subset.
-pub(crate) fn content_namespace(
-    namespace: ElementNamespace,
-    tag_name: &str,
-) -> ElementNamespace {
+/// `<style>`/`<script>` cannot appear in the accepted `MathML` subset.
+pub(crate) fn content_namespace(namespace: ElementNamespace, tag_name: &str) -> ElementNamespace {
     match namespace {
         ElementNamespace::Html => ElementNamespace::Html,
         ElementNamespace::Svg => {

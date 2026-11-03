@@ -1,0 +1,54 @@
+
+> root@0.1.1-beta.20 api:snapshot /Users/liuzhiwei/Desktop/workspace/git-code/zeus/temp/worktrees/pr21-template-registry
+> tsx scripts/api/write-api-snapshots.ts
+
+updated docs/api/snapshots/compiler.main.api.md
+updated docs/api/snapshots/compiler-native.main.api.md
+updated docs/api/snapshots/compiler-native-darwin-arm64.main.api.md
+updated docs/api/snapshots/compiler-native-darwin-x64.main.api.md
+updated docs/api/snapshots/compiler-native-linux-arm64-gnu.main.api.md
+updated docs/api/snapshots/compiler-native-linux-x64-gnu.main.api.md
+updated docs/api/snapshots/compiler-native-linux-x64-musl.main.api.md
+updated docs/api/snapshots/compiler-native-win32-arm64-msvc.main.api.md
+updated docs/api/snapshots/compiler-native-win32-x64-msvc.main.api.md
+updated docs/api/snapshots/compiler-shared.main.api.md
+updated docs/api/snapshots/query.main.api.md
+updated docs/api/snapshots/resource.main.api.md
+updated docs/api/snapshots/router.main.api.md
+updated docs/api/snapshots/runtime-dom.main.api.md
+updated docs/api/snapshots/runtime-ssr.main.api.md
+updated docs/api/snapshots/shared.main.api.md
+updated docs/api/snapshots/signal.main.api.md
+updated docs/api/snapshots/signal.internal.api.md
+updated docs/api/snapshots/signal.diagnostics.api.md
+updated docs/api/snapshots/testing.main.api.md
+updated docs/api/snapshots/zeus.main.api.md
+updated docs/api/snapshots/zeus.jsx.api.md
+updated docs/api/snapshots/zeus.jsx-runtime.api.md
+updated docs/api/snapshots/zeus.jsx-dev-runtime.api.md
+updated docs/api/snapshots/zeus.capabilities.api.md
+updated docs/api/snapshots/zeus.server.api.md
+updated docs/api/snapshots/vite-plugin.main.api.md
+updated docs/api/snapshots/bundler-plugin.main.api.md
+updated docs/api/snapshots/bundler-plugin.vite.api.md
+updated docs/api/snapshots/bundler-plugin.rollup.api.md
+updated docs/api/snapshots/bundler-plugin.rolldown.api.md
+updated docs/api/snapshots/bundler-plugin.manifest.api.md
+updated docs/api/snapshots/component-analyzer.main.api.md
+updated docs/api/snapshots/component-dts.main.api.md
+updated docs/api/snapshots/output-css.main.api.md
+updated docs/api/snapshots/output-icons.main.api.md
+updated docs/api/snapshots/output-react-wrapper.main.api.md
+updated docs/api/snapshots/output-react-wrapper.runtime.api.md
+updated docs/api/snapshots/output-react-wrapper.renderer.api.md
+updated docs/api/snapshots/output-vue-wrapper.main.api.md
+updated docs/api/snapshots/output-vue-wrapper.runtime.api.md
+updated docs/api/snapshots/output-vue-wrapper.renderer.api.md
+updated docs/api/snapshots/output-wc.main.api.md
+updated docs/api/snapshots/output-wc.capabilities.api.md
+updated docs/api/snapshots/web-c.main.api.md
+updated docs/api/snapshots/web-c.vite.api.md
+updated docs/api/snapshots/web-c.rollup.api.md
+updated docs/api/snapshots/web-c.rolldown.api.md
+updated docs/api/snapshots/web-c-runtime.main.api.md
+API snapshots are up to date.

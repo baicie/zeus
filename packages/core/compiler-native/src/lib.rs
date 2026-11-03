@@ -9,6 +9,7 @@ use zeus_compiler::{
     TransformModuleOptions as CoreTransformModuleOptions,
     TransformModuleResult as CoreTransformModuleResult, TransformTarget,
     diagnostic::{CompilerDiagnostic as CoreCompilerDiagnostic, DiagnosticSeverity},
+    hmr::{HmrBinding as CoreHmrBinding, HmrPlan as CoreHmrPlan},
     hydration::{
         HydrationBindingPlan as CoreHydrationBindingPlan,
         HydrationComponentPlan as CoreHydrationComponentPlan,
@@ -40,6 +41,21 @@ pub struct TransformModuleResult {
     pub map: Option<RawSourceMap>,
     pub diagnostics: Vec<CompilerDiagnostic>,
     pub hydration_plan: Option<HydrationPlan>,
+    pub hmr_plan: Option<HmrPlan>,
+}
+
+#[napi(object)]
+pub struct HmrPlan {
+    pub version: u8,
+    pub signature: String,
+    pub bindings: Vec<HmrBinding>,
+}
+
+#[napi(object)]
+pub struct HmrBinding {
+    pub id: u32,
+    pub kind: String,
+    pub value: String,
 }
 
 #[napi(object)]
@@ -164,6 +180,7 @@ pub fn transform_module(options: TransformModuleOptions) -> Result<TransformModu
                 span: None,
             }],
             hydration_plan: None,
+            hmr_plan: None,
         }
         .into());
     }
@@ -196,6 +213,27 @@ impl From<CoreTransformModuleResult> for TransformModuleResult {
             map: result.map.map(Into::into),
             diagnostics: result.diagnostics.into_iter().map(Into::into).collect(),
             hydration_plan: result.hydration_plan.map(Into::into),
+            hmr_plan: result.hmr_plan.map(Into::into),
+        }
+    }
+}
+
+impl From<CoreHmrPlan> for HmrPlan {
+    fn from(plan: CoreHmrPlan) -> Self {
+        Self {
+            version: plan.version,
+            signature: plan.signature,
+            bindings: plan.bindings.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
+impl From<CoreHmrBinding> for HmrBinding {
+    fn from(binding: CoreHmrBinding) -> Self {
+        Self {
+            id: binding.id,
+            kind: binding.kind,
+            value: binding.value,
         }
     }
 }

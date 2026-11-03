@@ -11,10 +11,16 @@ import {
   firefox,
   webkit,
 } from '@playwright/test'
+import { createServer } from 'vite'
 
 const root = path.resolve(import.meta.dirname, '../..')
 const dist = path.join(root, 'examples/admin/dist')
 const output = path.join(root, 'temp/admin/report.json')
+const selectedBrowsers = Object.entries({ chromium, firefox, webkit }).filter(
+  ([name]) =>
+    !process.env.ADMIN_BROWSERS ||
+    process.env.ADMIN_BROWSERS.split(',').includes(name),
+)
 const results: Array<{
   browser: string
   status: string
@@ -23,6 +29,7 @@ const results: Array<{
   failedResponses?: string[]
   bodyText?: string
   gridHtml?: string
+  devtools?: 'passed' | 'failed'
 }> = []
 
 await fs.mkdir(path.dirname(output), { recursive: true })
@@ -48,7 +55,7 @@ if (!address || typeof address === 'string') throw new Error('No server port')
 const origin = `http://127.0.0.1:${address.port}`
 
 try {
-  for (const [name, engine] of Object.entries({ chromium, firefox, webkit })) {
+  for (const [name, engine] of selectedBrowsers) {
     let browser: Browser | undefined
     let page: Page | undefined
     const errors: string[] = []
@@ -219,23 +226,119 @@ try {
   await new Promise<void>((resolve, reject) =>
     server.close(error => (error ? reject(error) : resolve())),
   )
-  await fs.writeFile(
-    output,
-    JSON.stringify(
-      {
-        createdAt: new Date().toISOString(),
-        commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root })
-          .toString()
-          .trim(),
-        results,
-      },
-      null,
-      2,
-    ) + '\n',
-  )
 }
+
+const devServer = await createServer({
+  root: path.join(root, 'examples/admin'),
+  server: { host: '127.0.0.1', port: 0 },
+})
+try {
+  await devServer.listen()
+  const address = devServer.httpServer?.address()
+  if (!address || typeof address === 'string') throw new Error('No dev port')
+  const devOrigin = `http://127.0.0.1:${address.port}`
+
+  for (const [name, engine] of selectedBrowsers) {
+    let browser: Browser | undefined
+    try {
+      browser = await engine.launch({
+        headless: true,
+        ...(name === 'chromium' ? { channel: 'chromium' } : {}),
+      })
+      const page = await browser.newPage({
+        viewport: { width: 1365, height: 900 },
+      })
+      await page.goto(`${devOrigin}/admin/users?devtools=1`)
+      await expect(page.getByTestId('users-page')).toBeVisible()
+      await expect(page.locator('#admin-devtools')).toBeVisible()
+      const initial = await page.evaluate(() => {
+        const panel = (
+          window as unknown as {
+            adminDevtools: {
+              snapshot(): {
+                owners: unknown[]
+                bindings: unknown[]
+                timeline: Array<{ id: number }>
+              }
+            }
+          }
+        ).adminDevtools
+        return panel.snapshot()
+      })
+      expect(initial.owners.length).toBeGreaterThan(0)
+      expect(initial.bindings.length).toBeGreaterThan(0)
+      expect(initial.timeline).toHaveLength(500)
+      const initialTimelineId =
+        initial.timeline[initial.timeline.length - 1]?.id ?? 0
+
+      await page.getByTestId('page-next').click()
+      await expect(page.getByTestId('page-indicator')).toHaveText('第 2 / 3 页')
+      expect(
+        await page.evaluate(() => {
+          const panel = (
+            window as unknown as {
+              adminDevtools: {
+                snapshot(): { timeline: Array<{ id: number }> }
+              }
+            }
+          ).adminDevtools
+          const timeline = panel.snapshot().timeline
+          return timeline[timeline.length - 1]?.id ?? 0
+        }),
+      ).toBeGreaterThan(initialTimelineId)
+      await page.locator('[data-zeus-devtools-refresh]').click()
+      await expect(
+        page.locator('#admin-devtools [data-zeus-devtools-summary]'),
+      ).toContainText(/bindings/)
+      await page.evaluate(() => {
+        ;(
+          window as unknown as {
+            adminDevtools: { disconnect(): void }
+          }
+        ).adminDevtools.disconnect()
+      })
+      await expect(page.locator('#admin-devtools')).toHaveCount(0)
+      const result = results.find(result => result.browser === name)!
+      result.devtools = 'passed'
+      console.log(
+        `[admin] ${name}: Native DevTools graph, timeline, refresh and cleanup passed`,
+      )
+    } catch (error) {
+      const result = results.find(result => result.browser === name)!
+      result.status = 'failed'
+      result.devtools = 'failed'
+      result.error = `DevTools: ${error instanceof Error ? error.message : String(error)}`
+    } finally {
+      await browser?.close()
+    }
+  }
+} finally {
+  try {
+    await fs.writeFile(
+      output,
+      JSON.stringify(
+        {
+          createdAt: new Date().toISOString(),
+          commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root })
+            .toString()
+            .trim(),
+          results,
+        },
+        null,
+        2,
+      ) + '\n',
+    )
+  } finally {
+    const httpServer = devServer.httpServer
+    if (httpServer && 'closeAllConnections' in httpServer) {
+      httpServer.closeAllConnections()
+    }
+    await devServer.close()
+  }
+}
+
 if (
-  results.length !== 3 ||
+  results.length !== selectedBrowsers.length ||
   results.some(result => result.status !== 'passed')
 ) {
   throw new Error(

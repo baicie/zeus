@@ -1,0 +1,12 @@
+Node: v24.18.0
+
+PASS tsc --incremental --noEmit
+PASS ESLint changed TypeScript files
+PASS Prettier changed docs/code files
+PASS pnpm check:docs
+PASS scripts/bundler/build.ts (exit 0; existing node:crypto external warning)
+PASS TypeScript declaration build + Rollup DTS
+PASS API snapshots
+PASS Runtime ESM/CJS/mixed interop
+PASS Package export boundaries
+PASS CommonJS smoke (21 packages / 30 exports / 60 conditional loads / 46 wrapper fallbacks)

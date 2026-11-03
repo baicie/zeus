@@ -1,0 +1,278 @@
+{
+  "scope": "Vite 8 compiler-certified literal binding HMR",
+  "measuredAt": "2026-11-03T08:46:09.879Z",
+  "platform": "darwin",
+  "arch": "arm64",
+  "node": "v24.18.0",
+  "consumerRoot": "/Users/liuzhiwei/Desktop/workspace/git-code/zeus/temp/worktrees/pr21-template-registry",
+  "checks": [
+    "comment preservation",
+    "literal text/class/style patch",
+    "two root identities",
+    "owner/binding/effect identities",
+    "unchanged allocation and listener counts",
+    "input/selection/focus/dialog/scroll/object state",
+    "list cleanup and future mounts",
+    "consecutive updates",
+    "compile error overlay and recovery",
+    "fresh page imports latest source",
+    "unsafe initialization remount",
+    "patch after remount without stale subscription",
+    "failed binding rollback and Vite reload",
+    "final resource disposal"
+  ],
+  "results": [
+    {
+      "browser": "chromium",
+      "status": "passed",
+      "evidence": {
+        "initial": {
+          "effectsCreated": 17,
+          "effectsDisposed": 5,
+          "proxiesCreated": 0,
+          "scopesCreated": 8,
+          "scopesDisposed": 5,
+          "refsCreated": 6,
+          "memosCreated": 0,
+          "ownersCreated": 0,
+          "ownersDisposed": 0,
+          "bindingsCreated": 16,
+          "bindingsDisposed": 5,
+          "listenersCreated": 1,
+          "listenersDisposed": 0,
+          "allocationsCreated": 48,
+          "allocationsDisposed": 15
+        },
+        "afterListChange": {
+          "effectsCreated": 19,
+          "effectsDisposed": 9,
+          "proxiesCreated": 0,
+          "scopesCreated": 10,
+          "scopesDisposed": 8,
+          "refsCreated": 6,
+          "memosCreated": 0,
+          "ownersCreated": 0,
+          "ownersDisposed": 0,
+          "bindingsCreated": 18,
+          "bindingsDisposed": 9,
+          "listenersCreated": 1,
+          "listenersDisposed": 0,
+          "allocationsCreated": 54,
+          "allocationsDisposed": 26
+        },
+        "disposed": {
+          "effectsCreated": 15,
+          "effectsDisposed": 15,
+          "proxiesCreated": 0,
+          "scopesCreated": 5,
+          "scopesDisposed": 5,
+          "refsCreated": 6,
+          "memosCreated": 0,
+          "ownersCreated": 0,
+          "ownersDisposed": 0,
+          "bindingsCreated": 14,
+          "bindingsDisposed": 14,
+          "listenersCreated": 1,
+          "listenersDisposed": 1,
+          "allocationsCreated": 41,
+          "allocationsDisposed": 35
+        },
+        "hmrReasons": [
+          {
+            "type": "hmr:patch",
+            "reason": "literal-binding"
+          },
+          {
+            "type": "hmr:patch",
+            "reason": "literal-binding"
+          },
+          {
+            "type": "hmr:patch",
+            "reason": "literal-binding"
+          },
+          {
+            "type": "hmr:dispose",
+            "reason": "module-dispose"
+          },
+          {
+            "type": "hmr:patch",
+            "reason": "literal-binding"
+          }
+        ],
+        "identityCounts": {
+          "owners": 2,
+          "bindings": 18,
+          "effects": 18
+        }
+      }
+    },
+    {
+      "browser": "firefox",
+      "status": "passed",
+      "evidence": {
+        "initial": {
+          "effectsCreated": 17,
+          "effectsDisposed": 5,
+          "proxiesCreated": 0,
+          "scopesCreated": 8,
+          "scopesDisposed": 5,
+          "refsCreated": 6,
+          "memosCreated": 0,
+          "ownersCreated": 0,
+          "ownersDisposed": 0,
+          "bindingsCreated": 16,
+          "bindingsDisposed": 5,
+          "listenersCreated": 1,
+          "listenersDisposed": 0,
+          "allocationsCreated": 48,
+          "allocationsDisposed": 15
+        },
+        "afterListChange": {
+          "effectsCreated": 19,
+          "effectsDisposed": 9,
+          "proxiesCreated": 0,
+          "scopesCreated": 10,
+          "scopesDisposed": 8,
+          "refsCreated": 6,
+          "memosCreated": 0,
+          "ownersCreated": 0,
+          "ownersDisposed": 0,
+          "bindingsCreated": 18,
+          "bindingsDisposed": 9,
+          "listenersCreated": 1,
+          "listenersDisposed": 0,
+          "allocationsCreated": 54,
+          "allocationsDisposed": 26
+        },
+        "disposed": {
+          "effectsCreated": 15,
+          "effectsDisposed": 15,
+          "proxiesCreated": 0,
+          "scopesCreated": 5,
+          "scopesDisposed": 5,
+          "refsCreated": 6,
+          "memosCreated": 0,
+          "ownersCreated": 0,
+          "ownersDisposed": 0,
+          "bindingsCreated": 14,
+          "bindingsDisposed": 14,
+          "listenersCreated": 1,
+          "listenersDisposed": 1,
+          "allocationsCreated": 41,
+          "allocationsDisposed": 35
+        },
+        "hmrReasons": [
+          {
+            "type": "hmr:patch",
+            "reason": "literal-binding"
+          },
+          {
+            "type": "hmr:patch",
+            "reason": "literal-binding"
+          },
+          {
+            "type": "hmr:patch",
+            "reason": "literal-binding"
+          },
+          {
+            "type": "hmr:dispose",
+            "reason": "module-dispose"
+          },
+          {
+            "type": "hmr:patch",
+            "reason": "literal-binding"
+          }
+        ],
+        "identityCounts": {
+          "owners": 2,
+          "bindings": 18,
+          "effects": 18
+        }
+      }
+    },
+    {
+      "browser": "webkit",
+      "status": "passed",
+      "evidence": {
+        "initial": {
+          "effectsCreated": 17,
+          "effectsDisposed": 5,
+          "proxiesCreated": 0,
+          "scopesCreated": 8,
+          "scopesDisposed": 5,
+          "refsCreated": 6,
+          "memosCreated": 0,
+          "ownersCreated": 0,
+          "ownersDisposed": 0,
+          "bindingsCreated": 16,
+          "bindingsDisposed": 5,
+          "listenersCreated": 1,
+          "listenersDisposed": 0,
+          "allocationsCreated": 48,
+          "allocationsDisposed": 15
+        },
+        "afterListChange": {
+          "effectsCreated": 19,
+          "effectsDisposed": 9,
+          "proxiesCreated": 0,
+          "scopesCreated": 10,
+          "scopesDisposed": 8,
+          "refsCreated": 6,
+          "memosCreated": 0,
+          "ownersCreated": 0,
+          "ownersDisposed": 0,
+          "bindingsCreated": 18,
+          "bindingsDisposed": 9,
+          "listenersCreated": 1,
+          "listenersDisposed": 0,
+          "allocationsCreated": 54,
+          "allocationsDisposed": 26
+        },
+        "disposed": {
+          "effectsCreated": 15,
+          "effectsDisposed": 15,
+          "proxiesCreated": 0,
+          "scopesCreated": 5,
+          "scopesDisposed": 5,
+          "refsCreated": 6,
+          "memosCreated": 0,
+          "ownersCreated": 0,
+          "ownersDisposed": 0,
+          "bindingsCreated": 14,
+          "bindingsDisposed": 14,
+          "listenersCreated": 1,
+          "listenersDisposed": 1,
+          "allocationsCreated": 41,
+          "allocationsDisposed": 35
+        },
+        "hmrReasons": [
+          {
+            "type": "hmr:patch",
+            "reason": "literal-binding"
+          },
+          {
+            "type": "hmr:patch",
+            "reason": "literal-binding"
+          },
+          {
+            "type": "hmr:patch",
+            "reason": "literal-binding"
+          },
+          {
+            "type": "hmr:dispose",
+            "reason": "module-dispose"
+          },
+          {
+            "type": "hmr:patch",
+            "reason": "literal-binding"
+          }
+        ],
+        "identityCounts": {
+          "owners": 2,
+          "bindings": 18,
+          "effects": 18
+        }
+      }
+    }
+  ]
+}

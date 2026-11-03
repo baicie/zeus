@@ -54,6 +54,8 @@ CI：`rust-compiler` job 增加 wasm target、WASM clippy 与 `pnpm test:compile
 
 ## 未完成与后续
 
-- 包保持 `private`，由 PR-27 Playground 决定消费方式（Vite 资源 URL、CDN、版本化缓存）后再发布。
+- PR-27 已确定由 Vite 直接消费：WASM 使用 `wasmURL`，Worker 使用
+  `@zeus-js/compiler-wasm/worker?worker&url`；编译器资源仍随 Playground 构建产物发布。
+- 包继续保持 `private`，直到 Playground 的独立发布与缓存策略通过后续 release gate。
 - 尚未测量浏览器内的编译延迟分布与内存峰值；PR-27/PR-34 的性能预算需在 Worker 中采样。
 - 嵌套上限低于 native；如 Playground 需要更深输入，可在 Worker 中分块解析前先做深度预检，属于后续优化。

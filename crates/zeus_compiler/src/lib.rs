@@ -1,4 +1,5 @@
 mod codegen;
+pub mod hmr;
 mod html;
 pub mod hydration;
 
@@ -91,6 +92,7 @@ pub struct TransformModuleResult {
     pub map: Option<RawSourceMap>,
     pub diagnostics: Vec<CompilerDiagnostic>,
     pub hydration_plan: Option<HydrationPlan>,
+    pub hmr_plan: Option<hmr::HmrPlan>,
 }
 
 pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResult {
@@ -101,6 +103,7 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
             map: None,
             diagnostics: lowered.diagnostics,
             hydration_plan: None,
+            hmr_plan: None,
         };
     }
 
@@ -110,6 +113,7 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
             map: None,
             diagnostics: Vec::new(),
             hydration_plan: None,
+            hmr_plan: None,
         };
     };
 
@@ -124,6 +128,7 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
             map: None,
             diagnostics: Vec::new(),
             hydration_plan: None,
+            hmr_plan: None,
         };
     }
 
@@ -140,6 +145,7 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
                 )
             }).collect(),
             hydration_plan: None,
+            hmr_plan: None,
         };
     }
 
@@ -151,6 +157,7 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
                 map: None,
                 diagnostics,
                 hydration_plan: None,
+                hmr_plan: None,
             };
         }
     }

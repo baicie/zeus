@@ -19,7 +19,7 @@ const result = transformModule({
 ```
 
 The result contains generated JavaScript, an optional Source Map v3, structured
-diagnostics, and a `hydrationPlan`. Diagnostics are returned for compiler
+diagnostics, a `hydrationPlan` and an optional `hmrPlan`. Diagnostics are returned for compiler
 errors and are not hidden in an exception message.
 
 `hydrationPlan` is shared by DOM and SSR transforms of the same source. It maps
@@ -32,6 +32,12 @@ conditional, list, transition, and dynamic-region branches carry
 `optional: true`; absence of their marker means that branch did not render on
 the server, while a marker whose target node is malformed remains an error. Diagnostics return
 `hydrationPlan: null` because no code is emitted.
+
+For an eligible DOM module with `hmr: true`, `hmrPlan` contains the version,
+exact compiler signature and literal binding IDs/kinds/values. Other transforms
+return `hmrPlan: null`. This is a compiler/runtime contract for the opt-in
+[RFC-019 experiment](../rfcs/RFC-019-hmr-literal-bindings.md), not a JavaScript
+equivalence checker. The Vite plugin handles transport, rollback and fallback.
 
 ## Options
 

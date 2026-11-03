@@ -1,0 +1,57 @@
+{
+  "measuredAt": "2026-11-03T05:26:09.102Z",
+  "platform": "darwin-arm64",
+  "node": "v22.23.3",
+  "source": "candidate pnpm pack tarballs, isolated npm installation, public package entries",
+  "project": "/var/folders/5k/ryhv7yxj2blc55wk9g4jwl5r0000gn/T/zeus-hmr-packed-N7ZE0T/app",
+  "hashes": {
+    "@zeus-js/shared": "e7832af7ec60a55777a4f7d456614e3bf5f12297a0be59bedbbe213f1bec6d0e",
+    "@zeus-js/signal": "f519cb859bef47269f19aff975a9dfb1a2e179c0099507fc4d23188f75c15759",
+    "@zeus-js/runtime-dom": "3254708f364c7bd92727102c7cd49fdee16b7ce77b45e538163dba40a3b90752",
+    "@zeus-js/runtime-ssr": "07698255a02661912680a95bbf3aa08d9538bc3efc75db8a4e638513fefa922a",
+    "@zeus-js/zeus": "f32595140cc78c420d8450224da645ea58a6c231d0d36e0b4f409e54163ff321",
+    "@zeus-js/compiler": "2f223bc5ac756030a235ad29ea4faeb74b9e2102c8563c256b39cd3f21e28951",
+    "@zeus-js/compiler-native": "e396615eb527f04cc8194c3bbbe6014bc5d4de332da52669409f864e67fe6f25",
+    "@zeus-js/compiler-native-darwin-arm64": "1e5852903533e5f6f153dc71e95845fd9fb4849c6734aa4af2c2f722dd0e4f66",
+    "@zeus-js/vite-plugin": "b3beff8d13bb41ab767511e5fc8d46fea4dcd0d6888b09566c15bb1271731f1b"
+  },
+  "installed": {
+    "@zeus-js/shared": {
+      "version": "0.1.1-beta.20",
+      "entry": "/private/var/folders/5k/ryhv7yxj2blc55wk9g4jwl5r0000gn/T/zeus-hmr-packed-N7ZE0T/app/node_modules/@zeus-js/shared/index.cjs"
+    },
+    "@zeus-js/signal": {
+      "version": "0.1.1-beta.20",
+      "entry": "/private/var/folders/5k/ryhv7yxj2blc55wk9g4jwl5r0000gn/T/zeus-hmr-packed-N7ZE0T/app/node_modules/@zeus-js/signal/index.cjs"
+    },
+    "@zeus-js/runtime-dom": {
+      "version": "0.1.1-beta.20",
+      "entry": "/private/var/folders/5k/ryhv7yxj2blc55wk9g4jwl5r0000gn/T/zeus-hmr-packed-N7ZE0T/app/node_modules/@zeus-js/runtime-dom/index.cjs"
+    },
+    "@zeus-js/runtime-ssr": {
+      "version": "0.1.1-beta.20",
+      "entry": "/private/var/folders/5k/ryhv7yxj2blc55wk9g4jwl5r0000gn/T/zeus-hmr-packed-N7ZE0T/app/node_modules/@zeus-js/runtime-ssr/index.cjs"
+    },
+    "@zeus-js/zeus": {
+      "version": "0.1.1-beta.20",
+      "entry": "/private/var/folders/5k/ryhv7yxj2blc55wk9g4jwl5r0000gn/T/zeus-hmr-packed-N7ZE0T/app/node_modules/@zeus-js/zeus/index.cjs"
+    },
+    "@zeus-js/compiler": {
+      "version": "0.1.1-beta.20",
+      "entry": "/private/var/folders/5k/ryhv7yxj2blc55wk9g4jwl5r0000gn/T/zeus-hmr-packed-N7ZE0T/app/node_modules/@zeus-js/compiler/index.cjs"
+    },
+    "@zeus-js/compiler-native": {
+      "version": "0.1.1-beta.20",
+      "entry": "/private/var/folders/5k/ryhv7yxj2blc55wk9g4jwl5r0000gn/T/zeus-hmr-packed-N7ZE0T/app/node_modules/@zeus-js/compiler-native/index.js"
+    },
+    "@zeus-js/compiler-native-darwin-arm64": {
+      "version": "0.1.1-beta.20",
+      "entry": "/private/var/folders/5k/ryhv7yxj2blc55wk9g4jwl5r0000gn/T/zeus-hmr-packed-N7ZE0T/app/node_modules/@zeus-js/compiler-native-darwin-arm64/index.js"
+    },
+    "@zeus-js/vite-plugin": {
+      "version": "0.0.5",
+      "entry": "/private/var/folders/5k/ryhv7yxj2blc55wk9g4jwl5r0000gn/T/zeus-hmr-packed-N7ZE0T/app/node_modules/@zeus-js/vite-plugin/index.cjs"
+    }
+  },
+  "passed": true
+}
