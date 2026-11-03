@@ -1,8 +1,13 @@
 // packages/runtime-dom/src/events.ts
 
-import { onScopeDispose, trackRuntimeResource } from '@zeus-js/signal/internal'
+import {
+  getCurrentScope,
+  onScopeDispose,
+  trackRuntimeResource,
+} from '@zeus-js/signal/internal'
 
 import { emitDevtoolsEvent } from './devtools'
+import { getScopeErrorBoundaryHandler } from './errorBoundaryContext'
 
 type ZeusEventMap = Record<string, EventListener>
 
@@ -20,6 +25,8 @@ const directListenerDiagnostics = new WeakMap<
   Element,
   Map<string, () => void>
 >()
+
+const eventScopes = new WeakMap<Element, Map<string, object | undefined>>()
 
 function releaseDirectListenerDiagnostics(el: Element, name: string): void {
   const releases = directListenerDiagnostics.get(el)
@@ -58,10 +65,20 @@ export function bindEvent(
   }
 
   events[name] = handler
+  let scopes = eventScopes.get(el)
+  if (!scopes) eventScopes.set(el, (scopes = new Map()))
+  scopes.set(name, getCurrentScope())
 
   if (!delegated || isInClosedShadowRoot(el)) {
-    directEvents[name] = handler
-    el.addEventListener(name, handler)
+    const directHandler: EventListener = event => {
+      try {
+        handler.call(el, event)
+      } catch (error) {
+        routeEventError(el, name, error)
+      }
+    }
+    directEvents[name] = directHandler
+    el.addEventListener(name, directHandler)
     const release = trackRuntimeResource('listeners')
     if (release) {
       let releases = directListenerDiagnostics.get(el)
@@ -73,9 +90,10 @@ export function bindEvent(
   onScopeDispose(() => {
     if (target.__zeusEvents?.[name] === handler) {
       delete target.__zeusEvents[name]
+      eventScopes.get(el)?.delete(name)
 
-      if (target.__zeusDirectEvents?.[name] === handler) {
-        el.removeEventListener(name, handler)
+      if (target.__zeusDirectEvents?.[name]) {
+        el.removeEventListener(name, target.__zeusDirectEvents[name])
         delete target.__zeusDirectEvents[name]
         releaseDirectListenerDiagnostics(el, name)
       }
@@ -134,7 +152,7 @@ function getDelegatedHandler(
   eventName: string,
 ): EventListener | undefined {
   const handler = el.__zeusEvents?.[eventName]
-  if (!handler || el.__zeusDirectEvents?.[eventName] === handler) return
+  if (!handler || el.__zeusDirectEvents?.[eventName]) return
   return handler
 }
 
@@ -150,7 +168,7 @@ function dispatchDelegatedEvent(event: Event): void {
         const handler = getDelegatedHandler(el, eventName)
 
         if (handler) {
-          callDelegatedHandler(el, handler, event)
+          callDelegatedHandler(el, eventName, handler, event)
 
           if (event.cancelBubble) return
         }
@@ -167,7 +185,7 @@ function dispatchDelegatedEvent(event: Event): void {
       const handler = getDelegatedHandler(el, eventName)
 
       if (handler) {
-        callDelegatedHandler(el, handler, event)
+        callDelegatedHandler(el, eventName, handler, event)
 
         if (event.cancelBubble) {
           return
@@ -181,6 +199,7 @@ function dispatchDelegatedEvent(event: Event): void {
 
 function callDelegatedHandler(
   el: Element,
+  eventName: string,
   handler: EventListener,
   event: Event,
 ): void {
@@ -206,7 +225,11 @@ function callDelegatedHandler(
   }
 
   try {
-    handler.call(el, event)
+    try {
+      handler.call(el, event)
+    } catch (error) {
+      routeEventError(el, eventName, error)
+    }
   } finally {
     try {
       if (previousCurrentTarget) {
@@ -219,4 +242,11 @@ function callDelegatedHandler(
       // ignore restore failure in non-browser test environments
     }
   }
+}
+
+function routeEventError(el: Element, eventName: string, error: unknown): void {
+  const scope = eventScopes.get(el)?.get(eventName)
+  const handler = getScopeErrorBoundaryHandler(scope)
+  if (!handler) throw error
+  handler(error, 'event')
 }

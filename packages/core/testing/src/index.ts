@@ -1,4 +1,17 @@
-import { render as renderZeus, type JSXValue } from '@zeus-js/zeus'
+import {
+  createRuntimeDiagnosticsSession,
+  type RuntimeDiagnosticsSession,
+  type RuntimeDiagnosticsSnapshot,
+} from '@zeus-js/signal/diagnostics'
+import {
+  hydrate as hydrateZeus,
+  render as renderZeus,
+  type HydrationContext,
+  type JSXValue,
+} from '@zeus-js/zeus'
+import { renderToString as renderToStringZeus } from '@zeus-js/zeus/server'
+
+const activeDisposers = new Set<() => void>()
 
 export interface RenderResult {
   container: HTMLElement
@@ -24,7 +37,10 @@ export function render(
 
   const unmount = (): void => {
     dispose()
+    activeDisposers.delete(unmount)
   }
+
+  activeDisposers.add(unmount)
 
   return {
     container,
@@ -36,6 +52,11 @@ export function render(
       dispose = renderZeus(nextValue, container)
     },
   }
+}
+
+/** Dispose every render created by this test environment. */
+export function cleanup(): void {
+  for (const dispose of Array.from(activeDisposers)) dispose()
 }
 
 function getDocument(): Document {
@@ -152,6 +173,204 @@ type EventConstructor = new (type: string, init?: EventInit) => Event
 export async function flushEffects(): Promise<void> {
   await Promise.resolve()
   await new Promise<void>(resolve => queueMicrotask(resolve))
+}
+
+export interface WaitForOptions {
+  timeout?: number
+  interval?: number
+}
+
+/** Retry an assertion until it succeeds or the timeout expires. */
+export async function waitFor<T>(
+  callback: () => T,
+  options: WaitForOptions = {},
+): Promise<T> {
+  const timeout = options.timeout ?? 1000
+  const interval = options.interval ?? 10
+  const deadline = Date.now() + timeout
+  let lastError: unknown
+
+  while (Date.now() <= deadline) {
+    try {
+      return callback()
+    } catch (error) {
+      lastError = error
+    }
+    await flushEffects()
+    await new Promise<void>(resolve => setTimeout(resolve, interval))
+  }
+
+  throw lastError ?? new Error('waitFor() timed out')
+}
+
+export function waitForElement(
+  container: ParentNode,
+  selector: string,
+  options?: WaitForOptions,
+): Promise<Element> {
+  return waitFor(() => {
+    const element = container.querySelector(selector)
+    if (!element) throw new Error(`Element not found: ${selector}`)
+    return element
+  }, options)
+}
+
+export interface UserTypeOptions {
+  delay?: number
+  skipClick?: boolean
+}
+
+export interface UserCompositionOptions {
+  updates?: readonly string[]
+  end?: string
+}
+
+/** Small, DOM-native interaction helpers for component tests. */
+export const userEvent = {
+  async click(element: HTMLElement): Promise<void> {
+    element.focus?.()
+    fireEvent.click(element)
+    await flushEffects()
+  },
+
+  async clear(element: HTMLInputElement | HTMLTextAreaElement): Promise<void> {
+    element.focus()
+    setControlValue(element, '')
+    fireEvent.input(element, { inputType: 'deleteContentBackward', data: null })
+    await flushEffects()
+  },
+
+  async type(
+    element: HTMLInputElement | HTMLTextAreaElement,
+    text: string,
+    options: UserTypeOptions = {},
+  ): Promise<void> {
+    if (!options.skipClick) await userEvent.click(element)
+    const delay = options.delay ?? 0
+    for (const character of text) {
+      fireEvent(element, 'keydown', {
+        key: character,
+        code: keyCode(character),
+      })
+      fireEvent(element, 'beforeinput', {
+        data: character,
+        inputType: 'insertText',
+      })
+      setControlValue(element, `${element.value}${character}`)
+      fireEvent.input(element, { data: character, inputType: 'insertText' })
+      fireEvent(element, 'keyup', { key: character, code: keyCode(character) })
+      if (delay > 0) {
+        await new Promise<void>(resolve => setTimeout(resolve, delay))
+      }
+    }
+    await flushEffects()
+  },
+
+  async keyboard(text: string): Promise<void> {
+    const target = document.activeElement
+    if (!(target instanceof HTMLElement)) return
+    for (const key of text) {
+      fireEvent(target, 'keydown', { key, code: keyCode(key) })
+      fireEvent(target, 'keyup', { key, code: keyCode(key) })
+    }
+    await flushEffects()
+  },
+
+  async composition(
+    element: HTMLInputElement | HTMLTextAreaElement,
+    options: UserCompositionOptions = {},
+  ): Promise<void> {
+    const updates = options.updates ?? []
+    const finalValue = options.end ?? updates[updates.length - 1] ?? ''
+    fireEvent(element, 'compositionstart', { data: '' })
+    for (const update of updates) {
+      setControlValue(element, update)
+      fireEvent(element, 'compositionupdate', { data: update })
+      fireEvent.input(element, {
+        data: update,
+        inputType: 'insertCompositionText',
+        isComposing: true,
+      })
+    }
+    setControlValue(element, finalValue)
+    fireEvent(element, 'compositionend', { data: finalValue })
+    fireEvent.input(element, {
+      data: finalValue,
+      inputType: 'insertText',
+      isComposing: false,
+    })
+    await flushEffects()
+  },
+}
+
+function setControlValue(
+  element: HTMLInputElement | HTMLTextAreaElement,
+  value: string,
+): void {
+  const prototype = Object.getPrototypeOf(element) as object
+  const setter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set
+  setter?.call(element, value)
+}
+
+function keyCode(key: string): string {
+  if (key.length === 1) return `Key${key.toUpperCase()}`
+  return key
+}
+
+export interface LeakCheck extends RuntimeDiagnosticsSession {
+  assertNoLeaks(): Readonly<RuntimeDiagnosticsSnapshot>
+}
+
+/** Collect runtime resources and fail if render disposal leaves any alive. */
+export function startLeakCheck(): LeakCheck {
+  const diagnostics = createRuntimeDiagnosticsSession()
+  return {
+    run: diagnostics.run,
+    snapshot: diagnostics.snapshot,
+    dispose: diagnostics.dispose,
+    assertNoLeaks(): Readonly<RuntimeDiagnosticsSnapshot> {
+      const snapshot = diagnostics.snapshot()
+      const leaks = {
+        effects: snapshot.effectsCreated - snapshot.effectsDisposed,
+        scopes: snapshot.scopesCreated - snapshot.scopesDisposed,
+        owners: snapshot.ownersCreated - snapshot.ownersDisposed,
+        bindings: snapshot.bindingsCreated - snapshot.bindingsDisposed,
+        listeners: snapshot.listenersCreated - snapshot.listenersDisposed,
+      }
+      const active = Object.entries(leaks).filter(([, count]) => count > 0)
+      if (active.length > 0) {
+        throw new Error(
+          `Zeus runtime leak: ${active.map(([name, count]) => `${name}=${count}`).join(', ')}`,
+        )
+      }
+      return snapshot
+    },
+  }
+}
+
+export interface HydratedResult {
+  container: HTMLElement
+  dispose: () => void
+  unmount: () => void
+}
+
+/** Server helper kept separate from the DOM render helper for SSR regressions. */
+export function renderSSR(
+  input: Parameters<typeof renderToStringZeus>[0],
+): string {
+  return renderToStringZeus(input)
+}
+
+export function hydrateSSR(
+  html: string,
+  setup: (context: HydrationContext) => void,
+  options: { container?: HTMLElement } = {},
+): HydratedResult {
+  const document = getDocument()
+  const container = options.container ?? document.createElement('div')
+  container.innerHTML = html
+  const dispose = hydrateZeus(container, setup)
+  return { container, dispose, unmount: dispose }
 }
 
 export interface RoleQueryOptions {

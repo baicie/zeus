@@ -869,6 +869,9 @@ importers:
 
   packages/core/testing:
     dependencies:
+      '@zeus-js/signal':
+        specifier: workspace:*
+        version: link:../signal
       '@zeus-js/zeus':
         specifier: workspace:*
         version: link:../zeus

@@ -1,6 +1,6 @@
 # `@zeus-js/testing`
 
-`@zeus-js/testing` 是 Zeus 的官方测试工具包。它把常见的渲染、事件派发、异步 effect 等待和可访问性查询组合成稳定的公共入口，测试代码不需要依赖 runtime-dom 或 signal 的 private subpath。
+`@zeus-js/testing` 是 Zeus 的官方测试工具包。它把常见的渲染、用户输入、事件派发、异步 effect 等待、泄漏检查和可访问性查询组合成稳定的公共入口。
 
 ## 安装
 
@@ -22,6 +22,9 @@ view.baseElement // 容器所属 document 的 body
 view.rerender(() => <button>Saved</button>)
 view.unmount() // 与 dispose 等价
 view.dispose()
+
+// 可选：清理当前测试环境创建的所有 view
+cleanup()
 ```
 
 `render` 默认创建隔离的 `div` 容器，也可以传入已有容器：
@@ -31,6 +34,20 @@ const view = render(value, { container: document.querySelector('#test-root')! })
 ```
 
 `dispose` 可以重复调用。调用后，容器内容会清空，绑定和响应式作用域同时释放。
+
+## 用户交互与异步断言
+
+```ts
+import { userEvent, waitFor } from '@zeus-js/testing'
+
+await userEvent.type(input, 'hello')
+await userEvent.composition(input, { updates: ['中'], end: '中' })
+await userEvent.click(save)
+await waitFor(() => expect(status.textContent).toBe('Saved'))
+```
+
+`userEvent` 会发送键盘、输入和 IME composition 事件，并在每次操作后等待
+微任务。`waitFor` 反复执行断言直到成功或超时，`waitForElement` 是其 DOM 查询变体。
 
 ## 事件与 effect
 
@@ -54,6 +71,27 @@ const save = queryByRole(view.container, 'button', { name: 'Save' })
 
 查询支持显式 `role` 和常用原生元素的隐式 role，包括 button、link、heading、checkbox、radio、textbox、img、list、listitem 与 option。`name` 可使用字符串或正则表达式，并按 `aria-labelledby`、`aria-label`、`alt`、`title` 和文本内容计算 accessible name。
 
+## SSR、Hydration 与泄漏检查
+
+```ts
+const html = renderSSR(() => 'server')
+const hydrated = hydrateSSR(html, () => {})
+
+const leaks = startLeakCheck()
+const view = leaks.run(() => render(() => <Widget />))
+view.dispose()
+leaks.assertNoLeaks()
+leaks.dispose()
+hydrated.dispose()
+```
+
+`renderSSR` 使用 `@zeus-js/zeus/server`，`hydrateSSR` 只在测试真正需要 DOM 时创建
+容器；两者都可以用于独立的 SSR import 回归。`startLeakCheck` 通过公开的
+`@zeus-js/signal/diagnostics` 记录 effect、scope、owner、binding 和 listener 的
+创建/释放差额。
+
 ## 公共边界
 
-包的唯一运行时依赖是 `@zeus-js/zeus`。应用测试不应从 `@zeus-js/runtime-dom` 或 `@zeus-js/signal/internal` 导入实现细节；这些模块属于 Zeus 内部实现，可能随框架演进而变化。
+包的运行时依赖是 `@zeus-js/zeus` 和公开的 `@zeus-js/signal/diagnostics`。应用测试不应从
+`@zeus-js/runtime-dom` 或 `@zeus-js/signal/internal` 导入实现细节；这些模块属于 Zeus
+内部实现，可能随框架演进而变化。

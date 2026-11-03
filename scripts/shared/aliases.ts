@@ -11,6 +11,16 @@ const generateEntries = (): Record<string, string> => {
 
   for (const pkg of findWorkspacePackages()) {
     if (pkg.name === '@zeus-js/zeus') {
+      entries['@zeus-js/zeus/server'] = path.resolve(
+        pkg.dir,
+        'src',
+        'server.ts',
+      )
+      entries['@zeus-js/zeus/capabilities'] = path.resolve(
+        pkg.dir,
+        'src',
+        'capabilities.ts',
+      )
       entries['@zeus-js/zeus/jsx'] = path.resolve(pkg.dir, 'src', 'jsx.d.ts')
       entries['@zeus-js/zeus/jsx-runtime'] = path.resolve(
         pkg.dir,

@@ -227,27 +227,62 @@ Binds a DOM element to a reactive ref.
 ```ts
 interface ErrorBoundaryProps {
   children: () => JSXValue
-  fallback: (error: unknown, reset: () => void) => JSXValue
-  onError?: (error: unknown) => void
+  fallback: (
+    error: unknown,
+    reset: () => void,
+    info?: ErrorBoundaryInfo,
+  ) => JSXValue
+  onError?: (error: unknown, info?: ErrorBoundaryInfo) => void
+}
+
+interface ErrorBoundaryInfo {
+  phase: 'render' | 'binding' | 'event' | 'request' | 'runtime'
+  fatal: boolean
 }
 
 function ErrorBoundary(props: ErrorBoundaryProps): DocumentFragment
 ```
 
-`ErrorBoundary` currently requires an explicit child factory and an active
-render scope so it can catch synchronous initialization and first-insertion
-errors and release its subtree with the owner. Binding effects created in that
-factory's subtree are also routed to the boundary after mount; a later binding
-error calls `onError` and switches to the fallback. Its fallback owns a separate
-scope, and `reset()` disposes that branch before retrying the child. Event
-handlers, independent owners, and unobserved Promise rejections remain outside
-the boundary. To integrate `@zeus-js/resource`, read the resource state from a
-binding and explicitly throw `resource.error()` when `resource.status() === 'error'`. The boundary
-then displays its fallback; call `resource.refetch()` and `reset()` after a
-successful request to restore the child branch. Resource errors are not
-automatically promoted to boundary errors. The compiler lowering accepts the
-same explicit child factory contract; ordinary JSX children still do not gain
-implicit initialization-error capture.
+`ErrorBoundary` requires an explicit child factory and an active render scope.
+It catches synchronous initialization, binding and event errors, reports their
+phase, disposes the failed owner, and mounts the fallback in a separate scope.
+`reset()` disposes that branch before retrying the child. Security errors
+(`SecurityError`, `ZEUS_SECURITY_*`, `ZEUS_FATAL_*`, or errors marked
+`fatal: true`) are rethrown after the failed branch is released.
+
+Use `captureErrorBoundary()` in a child to retain the boundary for an async
+request, then call `reportError(error, 'request')` from the request callback.
+Without a boundary, `reportError` rethrows. Resource errors remain explicit:
+read `resource.error()` and throw it from a binding when
+`resource.status() === 'error'`.
+
+## Native Form
+
+```ts
+const form = createForm({
+  initialValues: { email: '' },
+  schema: fromSafeParse(schema),
+  onSubmit: (values, { signal }) => {
+    void signal
+    return mutation.mutateAsync(values)
+  },
+})
+
+const release = form.bind(formElement)
+form.field('email').set('user@zeus.dev')
+await form.submit()
+form.reset()
+release()
+```
+
+`createForm` reads native `FormData`, composes repeated names as arrays, preserves
+form-associated custom-element values supplied through `ElementInternals`, and
+supports controlled overrides through `setValue` or a field controller. Native
+constraint failures and schema errors are exposed through `errors()` and focus
+the first invalid control. `fromSafeParse` adapts a Zod/Valibot-shaped
+`safeParse` result without adding a schema dependency. Submit failures are
+stored in `submitError()` and returned as a structured `FormSubmitResult`; the
+controller does not swallow mutation errors.
 
 ## Transition
 

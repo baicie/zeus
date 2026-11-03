@@ -317,11 +317,35 @@ export interface PortalProps {
  */
 export declare function Portal(props: PortalProps): Comment
 
+export type ErrorBoundaryPhase =
+  | 'render'
+  | 'binding'
+  | 'event'
+  | 'request'
+  | 'runtime'
+export interface ErrorBoundaryInfo {
+  readonly phase: ErrorBoundaryPhase
+  readonly fatal: boolean
+}
+export type ErrorBoundaryHandler = (
+  error: unknown,
+  phase?: ErrorBoundaryPhase,
+) => void
+export declare function captureErrorBoundary(): ErrorBoundaryHandler | undefined
+export declare function reportError(
+  error: unknown,
+  phase?: ErrorBoundaryPhase,
+): void
+
 export interface ErrorBoundaryProps {
   /** The child must be a factory so setup errors stay inside the boundary. */
   children: () => JSXValue
-  fallback: (error: unknown, reset: () => void) => JSXValue
-  onError?: (error: unknown) => void
+  fallback: (
+    error: unknown,
+    reset: () => void,
+    info?: ErrorBoundaryInfo,
+  ) => JSXValue
+  onError?: (error: unknown, info?: ErrorBoundaryInfo) => void
 }
 declare const errorBoundaryIntrinsic: unique symbol
 /** Marks the compiler intrinsic for JSX typing without changing its runtime identity. */
@@ -336,6 +360,125 @@ export declare const ErrorBoundary: typeof renderErrorBoundary & {
 declare function renderErrorBoundary(
   props: ErrorBoundaryProps,
 ): DocumentFragment
+
+/** Values accepted by a native form or a form-associated custom element. */
+export type FormValue = unknown
+export type FormValues = Record<string, FormValue>
+export type FormErrors = Readonly<Record<string, string>>
+export interface FormSchemaContext {
+  readonly form: HTMLFormElement | undefined
+  readonly signal: AbortSignal
+}
+export interface FormSchemaResult<TValues extends FormValues> {
+  values?: TValues
+  errors?: FormErrors
+}
+export type FormSchema<TValues extends FormValues> = (
+  values: Readonly<TValues>,
+  context: FormSchemaContext,
+) => FormSchemaResult<TValues> | Promise<FormSchemaResult<TValues>>
+export interface SafeParseIssue {
+  path?: readonly (string | number)[]
+  message: string
+}
+export interface SafeParseSchema<TValues> {
+  safeParse(input: unknown):
+    | {
+        success: true
+        data: TValues
+      }
+    | {
+        success: false
+        error: {
+          issues?: readonly SafeParseIssue[]
+          message?: string
+        }
+      }
+}
+/** Adapt Zod, Valibot, or another safeParse-compatible schema without a dependency. */
+export declare function fromSafeParse<TValues extends FormValues>(
+  schema: SafeParseSchema<TValues>,
+): FormSchema<TValues>
+export interface FormSubmitContext {
+  readonly form: HTMLFormElement | undefined
+  readonly formData: FormData
+  readonly signal: AbortSignal
+}
+export type FormSubmitResult<TValues extends FormValues> =
+  | {
+      status: 'success'
+      values: TValues
+    }
+  | {
+      status: 'invalid'
+      values: TValues
+      errors: FormErrors
+    }
+  | {
+      status: 'error'
+      values: TValues
+      error: unknown
+    }
+  | {
+      status: 'aborted'
+      values: TValues
+    }
+export interface FormFieldController<TValue = FormValue> {
+  readonly name: string
+  readonly value: Accessor<TValue | undefined>
+  readonly error: Accessor<string | undefined>
+  readonly touched: Accessor<boolean>
+  readonly dirty: Accessor<boolean>
+  readonly invalid: Accessor<boolean>
+  set(value: TValue): void
+  touch(): void
+  input(event: Event): void
+  change(event: Event): void
+  blur(event?: Event): void
+  compositionStart(event?: CompositionEvent): void
+  compositionEnd(event?: CompositionEvent): void
+  reset(): void
+}
+export interface CreateFormOptions<TValues extends FormValues> {
+  initialValues: TValues
+  schema?: FormSchema<TValues>
+  onSubmit?: (
+    values: TValues,
+    context: FormSubmitContext,
+  ) => unknown | Promise<unknown>
+  onError?: (error: unknown, context: FormSubmitContext) => void
+}
+export interface FormController<TValues extends FormValues> {
+  readonly values: Accessor<TValues>
+  readonly errors: Accessor<FormErrors>
+  readonly touched: Accessor<Readonly<Record<string, boolean>>>
+  readonly submitting: Accessor<boolean>
+  readonly submitError: Accessor<unknown>
+  readonly submitCount: Accessor<number>
+  readonly valid: Accessor<boolean>
+  readonly dirty: Accessor<boolean>
+  readonly form: Accessor<HTMLFormElement | undefined>
+  bind(form: HTMLFormElement): () => void
+  field<TName extends keyof TValues & string>(
+    name: TName,
+  ): FormFieldController<TValues[TName]>
+  setValue<TName extends keyof TValues & string>(
+    name: TName,
+    value: TValues[TName],
+  ): void
+  setError(name: string, message: string | undefined): void
+  submit(event?: SubmitEvent | Event): Promise<FormSubmitResult<TValues>>
+  handleSubmit(event: SubmitEvent | Event): void
+  reset(): void
+  handleReset(event?: Event): void
+  formData(): FormData
+  dispose(): void
+}
+/** Convert native FormData entries into a plain object, retaining repeated names. */
+export declare function formDataToValues(formData: FormData): FormValues
+export declare function createForm<TValues extends FormValues>(
+  options: CreateFormOptions<TValues>,
+): FormController<TValues>
 
 export type TransitionPhase = 'enter' | 'leave'
 export type TransitionClassValue = string | readonly string[]

@@ -3,7 +3,7 @@ import { ErrorBoundary, render } from '@zeus-js/zeus'
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { bindText } from '../src'
+import { bindEvent, bindText, captureErrorBoundary, reportError } from '../src'
 
 describe('ErrorBoundary', () => {
   let dom: JSDOM
@@ -199,7 +199,10 @@ describe('ErrorBoundary', () => {
     expect(container.textContent).toBe('ready')
     expect(() => setShouldThrow(true)).not.toThrow()
     expect(container.textContent).toBe('fallback')
-    expect(onError).toHaveBeenCalledWith(error)
+    expect(onError).toHaveBeenCalledWith(
+      error,
+      expect.objectContaining({ phase: 'binding', fatal: false }),
+    )
 
     dispose()
   })
@@ -273,5 +276,78 @@ describe('ErrorBoundary', () => {
     dispose()
     setShouldThrow(true)
     expect(runs).toBe(runsAfterReset)
+  })
+
+  it('routes event errors to the owning boundary and releases the failed branch', () => {
+    const container = document.createElement('main')
+    const onError = vi.fn()
+    let button!: HTMLButtonElement
+
+    const dispose = render(
+      () =>
+        ErrorBoundary({
+          children: () => {
+            button = document.createElement('button')
+            bindEvent(
+              button,
+              'click',
+              () => {
+                throw new Error('event failure')
+              },
+              false,
+            )
+            return button
+          },
+          fallback: () => document.createTextNode('event fallback'),
+          onError,
+        }),
+      container,
+    )
+
+    button.dispatchEvent(new dom.window.Event('click', { bubbles: true }))
+    expect(container.textContent).toBe('event fallback')
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'event failure' }),
+      expect.objectContaining({ phase: 'event', fatal: false }),
+    )
+
+    dispose()
+  })
+
+  it('routes an explicitly reported request error and rethrows fatal security errors', () => {
+    const container = document.createElement('main')
+    const requestError = new Error('request failed')
+    let report!: (error: unknown, phase?: 'request') => void
+
+    const dispose = render(
+      () =>
+        ErrorBoundary({
+          children: () => {
+            report = captureErrorBoundary() as typeof report
+            return document.createTextNode('ready')
+          },
+          fallback: () => document.createTextNode('request fallback'),
+        }),
+      container,
+    )
+
+    report(requestError, 'request')
+    expect(container.textContent).toBe('request fallback')
+    dispose()
+
+    const fatal = new dom.window.DOMException('blocked', 'SecurityError')
+    expect(() =>
+      render(
+        () =>
+          ErrorBoundary({
+            children: () => {
+              reportError(fatal, 'request')
+              return document.createTextNode('unreachable')
+            },
+            fallback: () => document.createTextNode('must not render'),
+          }),
+        document.createElement('main'),
+      ),
+    ).toThrow('blocked')
   })
 })

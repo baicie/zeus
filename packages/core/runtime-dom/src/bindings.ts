@@ -108,7 +108,7 @@ export function bindEffect<T>(
       nextDependencies = collectingDependencies
     } catch (error) {
       if (scopeErrorHandler) {
-        scopeErrorHandler(error)
+        scopeErrorHandler(error, 'binding')
         return
       }
       throw error

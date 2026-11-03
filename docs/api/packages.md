@@ -319,6 +319,15 @@ export {
 // events
 export { bindEvent, delegateEvents }
 
+// forms and errors
+export {
+  createForm,
+  fromSafeParse,
+  formDataToValues,
+  captureErrorBoundary,
+  reportError,
+}
+
 // refs
 export { setRef, bindRef }
 
@@ -528,9 +537,9 @@ export * from './typeUtils' // 类型工具
 
 ### 3.6 `@zeus-js/testing`
 
-**用途**：面向组件和应用测试的官方组合工具。测试代码只需依赖
-`@zeus-js/zeus` 的公共入口，不应导入 `@zeus-js/runtime-dom` 或
-`@zeus-js/signal/internal`。
+**用途**：面向组件和应用测试的官方组合工具。测试代码依赖
+`@zeus-js/zeus` 和公开的 `@zeus-js/signal/diagnostics`，不应导入
+`@zeus-js/runtime-dom` 或 `@zeus-js/signal/internal`。
 
 ```ts
 import {
@@ -538,6 +547,8 @@ import {
   flushEffects,
   queryByRole,
   render,
+  userEvent,
+  waitFor,
 } from '@zeus-js/testing'
 
 const view = render(() => <button onClick={() => {}}>Save</button>)
@@ -552,6 +563,9 @@ view.dispose()
 - `fireEvent(element, eventOrType, init?)`：派发事件，并提供 `click`、`input`、`change`、`submit`、`focus`、`blur` 便利方法。
 - `flushEffects()`：等待当前微任务队列完成后再断言异步 effect 结果。
 - `queryByRole(container, role, options?)`：按显式或常用隐式 ARIA role 查询，并支持 `aria-label`、`aria-labelledby`、`alt`、`title` 与文本 accessible name。
+- `userEvent`：提供 click、type、keyboard、composition 和 clear 的用户输入流程。
+- `waitFor` / `waitForElement`：带超时的异步断言与 DOM 查询。
+- `cleanup`、`startLeakCheck`、`renderSSR`、`hydrateSSR`：测试生命周期、运行时资源、SSR 和 hydration 辅助。
 
 该包提供 DOM 测试组合，不负责启动浏览器、网络请求或快照；浏览器级场景继续使用 Playwright/Puppeteer。
 
