@@ -4,10 +4,10 @@
 
 ## A. 最终 HEAD 与 PR
 
-| 仓库    | 分支                                  | HEAD                                       | PR                                                          | 状态                    |
-| ------- | ------------------------------------- | ------------------------------------------ | ----------------------------------------------------------- | ----------------------- |
-| Zeus    | `feat/release-four-product-readiness` | `6b45d9f56fafa482a197ae41f37cd1844a6af880` | [#190](https://github.com/baicie/zeus/pull/190)（Draft）    | 替代 #189，原 PR 已关闭 |
-| Zeus UI | `feat/release-four-product-readiness` | `2634f1d55c85ceb50309f2f9d615bad571661c32` | [#122](https://github.com/baicie/zeus-ui/pull/122)（Draft） | 替代 #121，原 PR 已关闭 |
+| 仓库    | 分支                                  | HEAD                                                             | PR                                                          | 状态                    |
+| ------- | ------------------------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------- | ----------------------- |
+| Zeus    | `feat/release-four-product-readiness` | `8d65e33f6497b7d4f509d3f2fe432d08d9f33340`（产品证据 `41ef8d0`） | [#190](https://github.com/baicie/zeus/pull/190)（Draft）    | 替代 #189，原 PR 已关闭 |
+| Zeus UI | `feat/release-four-product-readiness` | `a291682f5db8e93f69a08a50500bd8c93d790d86`                       | [#122](https://github.com/baicie/zeus-ui/pull/122)（Draft） | 替代 #121，原 PR 已关闭 |
 
 - 原 PR #189/#121 因 `check:branch` 拒绝 `r2/four-product-readiness` 而无法继续；
   已保留历史并关闭，替代 Draft PR 引用原编号。
@@ -29,20 +29,20 @@
 
 ## C. CI 矩阵（最新 HEAD）
 
-| 检查                                   | 状态                                | 证据                                       |
-| -------------------------------------- | ----------------------------------- | ------------------------------------------ |
-| Core Typecheck / ESLint / Format       | 待最终运行                          | `CI` workflow                              |
-| Rust Compiler / Native Matrix          | 待最终运行                          | `compiler-native.yml`                      |
-| Packed Consumers / Create Zeus Packed  | 待最终运行                          | Canary / CI                                |
-| Canary Dry-run                         | 历史 PASS `ea255e4`；新 HEAD 待运行 | `release-canary.yml`                       |
-| Deployment Acceptance 单测             | PASS（25 tests）                    | 本地                                       |
-| Linux Product Acceptance               | 待最终运行                          | `product-acceptance.yml`                   |
-| Windows Product Acceptance             | 待最终运行                          | 同上                                       |
-| Linux Image Digests（provenance）      | 待最终运行                          | 同上                                       |
-| UI Unit / Typecheck                    | PASS（本地）                        | pre-commit                                 |
-| AI Headless Browser / AI Workbench     | PASS（三引擎，`2634f1d`）           | `temp/ai-workbench/report.json`            |
-| DataGrid Framework Browser             | PASS（三引擎，`2634f1d`）           | `temp/data-grid-framework-e2e/report.json` |
-| UI Build / Pack / Joint Readiness 预检 | PASS / NOT_READY（仅人工与线上项）  | `temp/release/joint-readiness.json`        |
+| 检查                                   | 状态                               | 证据                                         |
+| -------------------------------------- | ---------------------------------- | -------------------------------------------- |
+| Core Typecheck / ESLint / Format       | PASS                               | `CI` run `42054429230`（`lint-and-check`）   |
+| Rust Compiler / Native Matrix          | PASS                               | CI + Compiler Native Matrix（`8d65e33`）     |
+| Packed Consumers / Create Zeus Packed  | PASS                               | CI `packed-consumers`；本地 packed `41ef8d0` |
+| Canary Dry-run                         | BLOCKED                            | main-only workflow；本地重型测试超时         |
+| Deployment Acceptance 单测             | PASS（25 tests）                   | 本地                                         |
+| Linux Product Acceptance               | PASS                               | `42054420685`（`41ef8d0` / UI `a291682`）    |
+| Windows Product Acceptance             | PASS                               | `42054420685`                                |
+| Linux Image Digests（provenance）      | PASS                               | `42054420685`；四个镜像 digest 已记录        |
+| UI Unit / Typecheck                    | PASS（本地）                       | pre-commit                                   |
+| AI Headless Browser / AI Workbench     | PASS（三引擎，`a291682`）          | `temp/ai-workbench/report.json`              |
+| DataGrid Framework Browser             | PASS（三引擎，`a291682`）          | `temp/data-grid-framework-e2e/report.json`   |
+| UI Build / Pack / Joint Readiness 预检 | PASS / NOT_READY（仅人工与线上项） | `temp/release/joint-readiness.json`          |
 
 ## D. 四产品矩阵
 
@@ -53,8 +53,19 @@
 | Zeus Admin   | PASS  | PASS    | PASS   | LOCAL_VALIDATED  | NOT_RUN           | build-info + artifact digest |
 | AI Workbench | PASS  | PASS    | PASS   | LOCAL_VALIDATED  | NOT_RUN           | build-info + artifact digest |
 
-本地验收在 Core `6b45d9f` / UI `2634f1d` 上执行；容器镜像在 R2 阶段构建并
-验证，R2.1 增加 build-info/OCI 标签。
+本地验收在 Core `41ef8d0` / UI `a291682` 上执行；容器镜像由 CI 构建并记录
+不可变 digest：
+
+| 产品         | image digest                                                              | build-info artifact digest                                                |
+| ------------ | ------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| WebC Studio  | `sha256:447e3545b3a89fa4e23086419449531ccd3c2759afb8460308f520a26c868279` | `sha256:cf6f9a22d9a2de369683afb51f05b229ab82af94dbbd3cb2f8f54bb1802cfc4b` |
+| Native Lab   | 同上（同一 playground 镜像）                                              | 同上                                                                      |
+| Zeus Admin   | `sha256:84e088d06276342eff095e1dbc7f09e1ce1e88bcfabce0b7adb392b8f583c1a6` | `sha256:884267ac7a2f8878924ba1756e895d68c6314692729ffb75e9741dc2062b3534` |
+| AI Workbench | `sha256:299ea84aafafeb2cf1f35ebc17d41d4d2de79cfb18912365fc14ccaeb56026c8` | `sha256:022cb11cf48c2d623db4f21ff8fb4ec67fe240bf9cdb34abe957191cf1445328` |
+| AI Host      | `sha256:127259726405e403561c6e6ef3b8d5433a33289fb1b0801e1ed4ea8833f6f8af` | —（服务镜像）                                                             |
+
+Linux/Windows 的 dist 构建 digest 可能不同（平台构建差异）；线上 manifest
+必须使用实际部署平台的 image build-info digest，而不是另一平台的 dist digest。
 
 ## E. 证据链
 
@@ -87,3 +98,20 @@ Provenance 是摘要绑定的 CI 记录，不是加密签名；签名 Attestatio
 > 运行 `check:deployment-acceptance --mode online --write-mode isolated --tenant ...`
 > 取得 `ONLINE_ACCEPTED`；完成 VoiceOver/NVDA 人工验收；生成 RC 证据并取得发布审批。
 > 不得伪造线上结果、人工 A11y 或审批；不得在未授权前发布 npm/Tag。
+
+## H. 最终裁决
+
+`BLOCKED_BY_CI`
+
+除 Canary Dry-run 外，最新代码的所有必要 CI 均通过：`8d65e33` 的 CI
+（lint/build/test/docs/packed/rust）、Compiler Native Matrix、Component Host RC，
+以及 `42054420685` 的 Linux/Windows 产品验收、DataGrid 与四个镜像 provenance。
+唯一缺口是 `release-canary.yml` 的 job 只在 `refs/heads/main` 运行，无法在
+feature 分支 dispatch；本地 `release:canary --dry-run-only` 在
+`packages/web-c/output-wc/__tests__/public-declarations.spec.ts` 的 30 秒
+子进程超时处失败（本机负载下约 66 秒，CI 的 test job 通过）。
+
+处理建议（R3 最小项）：允许 `workflow_dispatch` 在 `feat/release-*` 上运行
+`mode=dry-run`（仍禁止 publish），或在合并后由 main 的 dry-run 作为最终门禁。
+在 Canary Dry-run 于最终 HEAD 通过前，不能给出 `READY_FOR_R2_MERGE_REVIEW`。
+本裁决只表示其余证据已可供审查，不授权合并、部署或发布。
