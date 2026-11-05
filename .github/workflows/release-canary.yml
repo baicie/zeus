@@ -130,6 +130,9 @@ jobs:
           pnpm check:exports
           pnpm check:repository
 
+      - name: Install Playwright browsers for packed consumers
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+
       - name: Verify main publish head
         run: pnpm release:verify:main-head
 
