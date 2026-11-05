@@ -112,3 +112,28 @@ Compiler Native Matrix、Linux/Windows 产品验收（run `42061541143`）与四
 
 本裁决仅授权维护者审查是否合并 PR #190/#122，不授权实际合并、部署、打 Tag
 或 npm 发布。线上 HTTPS、人工 A11y 与发布审批仍为 `NOT_RUN`。
+
+## I. 合并后状态（2026-11-05）
+
+| 项                                  | 结果                                                                                 |
+| ----------------------------------- | ------------------------------------------------------------------------------------ |
+| Core PR #190                        | MERGED，merge commit `458be30c847cee262598b0aecd92d146ffe6587f`                      |
+| UI PR #122                          | MERGED（仓库仅允许 squash），merge commit `294431194a50735b62ba38e674fac1af76ae6cfb` |
+| Core main Canary dry-run            | PASS，run `42072486808`，`READY_FOR_CANARY_PUBLISH` @ `458be30`                      |
+| Core main CI / Native Matrix / Docs | PASS，run `42072486667` / `42072486571` / `42072486499`                              |
+| UI main CI                          | PASS，run `42077318399` @ `2944311`                                                  |
+| UI lint 修复                        | `0768a72`（仅 `scripts/checks/build-info.mjs` 格式/注释），已包含在 squash 合并中    |
+| 产品验收                            | PASS，run `42061541143`，Core `6665ee4` / UI `a291682`                               |
+| 四产品镜像 digest                   | 见 D 节；来自 run `42061541143`                                                      |
+| 线上 HTTPS / 人工 A11y / 发布审批   | NOT_RUN                                                                              |
+
+说明：
+
+- Core 合并后 main 的 canary dry-run 只验证可发布性，真实 `release-canary`、
+  npm smoke 与 downstream dispatch 均 skipped，未执行任何 npm 发布。
+- UI `0768a72` 只修改 build-info 脚本的注释与格式，不改变产物内容；产品验收
+  证据仍绑定 `a291682`，合并后的 UI main CI 已通过。
+- 仍缺：四个公网 HTTPS 地址与部署凭据、在线 `check:deployment-acceptance`
+  隔离租户、VoiceOver/NVDA 人工验收、正式发布审批、npm 认证（本机
+  `npm whoami` 为 `ENEEDAUTH`）。因此没有创建 Tag、没有 npm publish、没有
+  生产部署。
