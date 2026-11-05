@@ -1,7 +1,11 @@
-FROM node:24.18.0-bookworm-slim AS build
+# The Admin build compiles the napi native compiler, which needs a Rust
+# toolchain; the runtime image stays on the small Node base.
+FROM rust:1.95-bookworm AS build
+COPY --from=node:24.18.0-bookworm-slim /usr/local /usr/local
 WORKDIR /app
-RUN corepack enable
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.json tsconfig.build.json ./
+RUN corepack enable pnpm
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.json tsconfig.build.json Cargo.toml Cargo.lock ./
+COPY crates ./crates
 COPY packages ./packages
 COPY scripts ./scripts
 COPY examples/admin ./examples/admin

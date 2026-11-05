@@ -1,0 +1,17 @@
+# Keep the Docker build context to source inputs only. Native and JavaScript
+# build outputs are produced inside the image.
+.git
+.github
+node_modules
+**/node_modules
+**/dist
+**/temp
+temp
+target
+crates/**/target
+coverage
+playwright-report
+test-results
+docs/.vitepress/dist
+*.log
+.DS_Store

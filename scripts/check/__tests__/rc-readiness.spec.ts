@@ -11,12 +11,13 @@ import {
 const pass = (evidence: string) => ({ status: 'pass' as const, evidence })
 
 const validEvidence = {
-  schema: 'zeus.rc-evidence/v1',
+  schema: 'zeus.rc-evidence/v2',
   commit: 'abc123',
+  uiCommit: 'ui456',
   products: REQUIRED_ONLINE_PRODUCTS.map(product => ({
     product,
     url: `https://${product}.example.test`,
-    commit: 'abc123',
+    commit: product === 'ai-workbench' ? 'ui456' : 'abc123',
   })),
   crossPlatform: {
     platforms: ['linux', 'win32'],
@@ -145,6 +146,33 @@ describe('evaluateRcEvidence', () => {
     })
   })
 
+  it('binds the AI Workbench to the UI commit and core products to Core', () => {
+    const statuses = evaluateRcEvidence(
+      {
+        ...validEvidence,
+        products: validEvidence.products.map(product =>
+          product.product === 'ai-workbench'
+            ? { ...product, commit: 'abc123' }
+            : product,
+        ),
+      },
+      'abc123',
+    )
+
+    expect(statuses.onlineProducts.status).toBe('fail')
+    expect(statuses.onlineProducts.evidence).toContain(
+      'products[3].commit does not match the UI commit',
+    )
+
+    const staleUi = evaluateRcEvidence(
+      { ...validEvidence, uiCommit: 'old-ui' },
+      'abc123',
+    )
+    expect(staleUi.onlineProducts.evidence).toContain(
+      'products[3].commit does not match the UI commit',
+    )
+  })
+
   it('rejects a schema or top-level commit mismatch for every evidence group', () => {
     const statuses = evaluateRcEvidence(
       { ...validEvidence, schema: 'zeus.rc-evidence/old' },
@@ -153,7 +181,7 @@ describe('evaluateRcEvidence', () => {
 
     expect(statuses.onlineProducts.status).toBe('fail')
     expect(statuses.onlineProducts.evidence).toContain(
-      'schema must be zeus.rc-evidence/v1',
+      'schema must be zeus.rc-evidence/v2',
     )
     expect(statuses.onlineProducts.evidence).toContain(
       'top-level commit does not match current HEAD',

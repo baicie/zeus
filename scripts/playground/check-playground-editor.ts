@@ -20,6 +20,18 @@ const example = path.join(root, 'examples/playground-editor')
 const dist = path.join(example, 'dist')
 const output = path.join(root, 'temp/playground-editor')
 const engines = { chromium, firefox, webkit }
+const requestedBrowsers = (
+  process.env.PLAYGROUND_BROWSERS ?? 'chromium,firefox,webkit'
+)
+  .split(',')
+  .map(name => name.trim())
+  .filter(Boolean)
+const selectedEngines = Object.entries(engines).filter(([name]) =>
+  requestedBrowsers.includes(name),
+)
+if (!selectedEngines.some(([name]) => name === 'chromium')) {
+  throw new Error('PLAYGROUND_BROWSERS must include chromium for export checks')
+}
 
 interface BrowserResult {
   readonly browser: string
@@ -41,7 +53,7 @@ async function main(): Promise<void> {
   try {
     let nativeLabPassed = false
     let webcStudioPassed = false
-    for (const [name, engine] of Object.entries(engines)) {
+    for (const [name, engine] of selectedEngines) {
       let browser: Browser | undefined
       try {
         browser = await engine.launch({
@@ -152,7 +164,9 @@ async function main(): Promise<void> {
     )
 
     console.log(
-      'Playground editor gate passed in Chromium, Firefox and WebKit.',
+      `Playground editor gate passed in ${selectedEngines
+        .map(([name]) => name)
+        .join(', ')}.`,
     )
   } finally {
     const server = editorServer

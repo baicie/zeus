@@ -18,7 +18,7 @@ export interface ReadinessEvidence {
   readonly evidence: string
 }
 
-export const RC_EVIDENCE_SCHEMA = 'zeus.rc-evidence/v1' as const
+export const RC_EVIDENCE_SCHEMA = 'zeus.rc-evidence/v2' as const
 
 export const REQUIRED_ONLINE_PRODUCTS = [
   'webc-studio',
@@ -38,6 +38,7 @@ export interface RcEvidenceProduct {
 export interface RcEvidenceDocument {
   readonly schema: typeof RC_EVIDENCE_SCHEMA
   readonly commit: string
+  readonly uiCommit: string
   readonly products: readonly RcEvidenceProduct[]
   readonly crossPlatform: {
     readonly platforms: readonly string[]
@@ -143,10 +144,18 @@ export function evaluateRcEvidence(
   if (document.commit !== currentCommit) {
     commonErrors.push('top-level commit does not match current HEAD')
   }
+  const uiCommit =
+    typeof document.uiCommit === 'string' ? document.uiCommit : ''
+  if (!uiCommit) {
+    commonErrors.push('uiCommit must be the deployed Zeus UI commit')
+  }
 
   return {
     onlineProducts: evidenceResult(
-      [...commonErrors, ...validateProducts(document.products, currentCommit)],
+      [
+        ...commonErrors,
+        ...validateProducts(document.products, currentCommit, uiCommit),
+      ],
       'four HTTPS product URLs are bound to the current HEAD',
     ),
     crossPlatform: evidenceResult(
@@ -166,7 +175,11 @@ export function evaluateRcEvidence(
   }
 }
 
-function validateProducts(value: unknown, currentCommit: string): string[] {
+function validateProducts(
+  value: unknown,
+  currentCommit: string,
+  uiCommit: string,
+): string[] {
   if (!Array.isArray(value)) return ['products must be an array']
 
   const errors: string[] = []
@@ -192,8 +205,13 @@ function validateProducts(value: unknown, currentCommit: string): string[] {
     if (typeof entry.url !== 'string' || !isHttpsUrl(entry.url)) {
       errors.push(`products[${index}].url must be an HTTPS URL`)
     }
-    if (entry.commit !== currentCommit) {
-      errors.push(`products[${index}].commit does not match current HEAD`)
+    const expectedCommit = product === 'ai-workbench' ? uiCommit : currentCommit
+    if (entry.commit !== expectedCommit) {
+      errors.push(
+        `products[${index}].commit does not match the ${
+          product === 'ai-workbench' ? 'UI' : 'Core'
+        } commit`,
+      )
     }
   }
 

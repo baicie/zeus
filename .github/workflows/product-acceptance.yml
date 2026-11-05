@@ -1,0 +1,125 @@
+# Real Linux/Windows product acceptance for the four 0.2.0 products. The
+# native compiler matrix only proves the binary builds; this workflow runs the
+# Admin, Playground and AI Workbench applications, their browsers and the
+# local four-product deployment rehearsal.
+name: Product Acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      ui-ref:
+        description: zeus-ui ref paired with this Core commit
+        required: false
+        default: main
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: Linux product acceptance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: baicie/zeus-ui
+          ref: ${{ inputs.ui-ref }}
+          path: zeus-ui
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
+        working-directory: zeus-ui
+      - run: rustup target add wasm32-unknown-unknown
+      - run: pnpm exec playwright install --with-deps chromium firefox webkit
+      - run: pnpm --filter @zeus-js/compiler-wasm build:wasm
+      - run: pnpm build
+      - name: Admin browser acceptance
+        run: pnpm check:admin
+        env:
+          ADMIN_BROWSERS: chromium
+      - name: WebC Studio and Native Lab browser acceptance
+        run: pnpm check:playground-editor
+        env:
+          PLAYGROUND_BROWSERS: chromium
+      - name: AI Workbench browser acceptance
+        run: pnpm check:ai-workbench
+        working-directory: zeus-ui
+        env:
+          ZEUS_AI_WORKBENCH_BROWSERS: chromium
+      - name: Four-product local deployment rehearsal
+        run: pnpm check:deployment-local --ui-root zeus-ui --browsers chromium
+        env:
+          ZEUS_ADMIN_PASSWORD: local-admin-password-123
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: product-acceptance-linux
+          path: |
+            temp/admin/report.json
+            temp/playground-editor/report.json
+            temp/release/deployment.local.json
+            temp/release/deployment-acceptance.local.json
+            zeus-ui/temp/ai-workbench/report.json
+          if-no-files-found: warn
+
+  windows:
+    name: Windows product acceptance
+    runs-on: windows-2025
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: baicie/zeus-ui
+          ref: ${{ inputs.ui-ref }}
+          path: zeus-ui
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
+        working-directory: zeus-ui
+      - run: rustup target add wasm32-unknown-unknown
+      - run: pnpm exec playwright install chromium
+      - run: pnpm --filter @zeus-js/compiler-wasm build:wasm
+      - run: pnpm build
+      - name: Admin browser acceptance
+        run: pnpm check:admin
+        env:
+          ADMIN_BROWSERS: chromium
+      - name: WebC Studio and Native Lab browser acceptance
+        run: pnpm check:playground-editor
+        env:
+          PLAYGROUND_BROWSERS: chromium
+      - name: AI Workbench browser acceptance
+        run: pnpm check:ai-workbench
+        working-directory: zeus-ui
+        env:
+          ZEUS_AI_WORKBENCH_BROWSERS: chromium
+      - name: Four-product local deployment rehearsal
+        run: pnpm check:deployment-local --ui-root zeus-ui --browsers chromium
+        env:
+          ZEUS_ADMIN_PASSWORD: local-admin-password-123
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: product-acceptance-windows
+          path: |
+            temp/admin/report.json
+            temp/playground-editor/report.json
+            temp/release/deployment.local.json
+            temp/release/deployment-acceptance.local.json
+            zeus-ui/temp/ai-workbench/report.json
+          if-no-files-found: warn
