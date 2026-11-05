@@ -7,6 +7,7 @@
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 
 import {
@@ -208,7 +209,10 @@ export function isAllowedDeploymentUrl(
   try {
     const url = new URL(value)
     if (url.username.length > 0 || url.password.length > 0) return false
-    if (url.protocol === 'https:') return url.hostname.length > 0
+    if (url.protocol === 'https:') {
+      if (url.hostname.length === 0) return false
+      return mode === 'online' ? !isPrivateHost(url.hostname) : true
+    }
     if (mode === 'online' || url.protocol !== 'http:') return false
     return isLoopbackHost(url.hostname)
   } catch {
@@ -299,6 +303,12 @@ async function checkProduct(
   const evidence: string[] = []
   try {
     const response = await fetchWithTimeout(entry.url)
+    const finalUrl = new URL(response.url)
+    if (mode === 'online' && finalUrl.protocol !== 'https:') {
+      throw new Error(
+        `deployment redirected to ${finalUrl.protocol}//${finalUrl.host}`,
+      )
+    }
     const body = await response.text()
     const contentType = response.headers.get('content-type') ?? ''
     evidence.push(
@@ -335,58 +345,67 @@ async function checkProduct(
       evidence.push('sandbox CSP default-src none + script-src self/blob')
     }
 
-    const engineName = engines[0] ?? 'chromium'
-    const engine = ENGINE_TYPES[engineName]
-    if (!engine) throw new Error(`unknown browser engine: ${engineName}`)
-    const browser = await launchEngine(engine, engineName)
-    try {
-      const page = await browser.newPage({
-        viewport: { width: 1365, height: 900 },
-      })
-      const pageErrors: string[] = []
-      const failedResponses: string[] = []
-      page.on('pageerror', error => pageErrors.push(error.message))
-      page.on('response', response => {
-        const status = response.status()
-        const url = response.url()
-        // The Admin shell probes /api/auth/session before login; a 401 is the
-        // expected signed-out state, not a broken deployment.
-        const expectedAdminProbe =
-          entry.product === 'admin' &&
-          status === 401 &&
-          url.includes('/api/auth/session')
-        if (
-          status >= 400 &&
-          !url.endsWith('/favicon.ico') &&
-          !expectedAdminProbe
-        ) {
-          failedResponses.push(`${status} ${url}`)
+    const browsers: string[] = []
+    for (const engineName of engines.length > 0 ? engines : ['chromium']) {
+      const engine = ENGINE_TYPES[engineName]
+      if (!engine) throw new Error(`unknown browser engine: ${engineName}`)
+      const browser = await launchEngine(engine, engineName)
+      try {
+        const page = await browser.newPage({
+          viewport: { width: 1365, height: 900 },
+        })
+        const pageErrors: string[] = []
+        const failedResponses: string[] = []
+        page.on('pageerror', error => pageErrors.push(error.message))
+        page.on('response', response => {
+          const status = response.status()
+          const url = response.url()
+          // The Admin shell probes /api/auth/session before login; a 401 is
+          // the expected signed-out state, not a broken deployment.
+          const expectedAdminProbe =
+            entry.product === 'admin' &&
+            status === 401 &&
+            url.includes('/api/auth/session')
+          if (
+            status >= 400 &&
+            !url.endsWith('/favicon.ico') &&
+            !expectedAdminProbe
+          ) {
+            failedResponses.push(`${status} ${url}`)
+          }
+        })
+        await page.goto(entry.url, {
+          waitUntil: 'domcontentloaded',
+          timeout: 45_000,
+        })
+        const landed = new URL(page.url())
+        if (mode === 'online' && landed.protocol !== 'https:') {
+          throw new Error(
+            `browser landed on ${landed.protocol}//${landed.host} instead of HTTPS`,
+          )
         }
-      })
-      await page.goto(entry.url, {
-        waitUntil: 'domcontentloaded',
-        timeout: 45_000,
-      })
-      await runProductSmoke(page, entry.product, mode)
-      if (pageErrors.length > 0) {
-        throw new Error(`page errors: ${pageErrors.join('; ')}`)
+        await runProductSmoke(page, entry.product, mode)
+        if (pageErrors.length > 0) {
+          throw new Error(`page errors: ${pageErrors.join('; ')}`)
+        }
+        if (failedResponses.length > 0) {
+          throw new Error(`failed responses: ${failedResponses.join('; ')}`)
+        }
+        browsers.push(engineName)
+      } finally {
+        await browser.close()
       }
-      if (failedResponses.length > 0) {
-        throw new Error(`failed responses: ${failedResponses.join('; ')}`)
-      }
-      evidence.push(`${engineName} browser smoke passed`)
-      return {
-        product: entry.product,
-        url: entry.url,
-        commit: entry.commit,
-        repository: entry.repository,
-        status: mode === 'online' ? 'ONLINE_PASS' : 'LOCAL_VALIDATED',
-        httpStatus: response.status,
-        browser: engineName,
-        evidence,
-      }
-    } finally {
-      await browser.close()
+    }
+    evidence.push(`${browsers.join(', ')} browser smoke passed`)
+    return {
+      product: entry.product,
+      url: entry.url,
+      commit: entry.commit,
+      repository: entry.repository,
+      status: mode === 'online' ? 'ONLINE_PASS' : 'LOCAL_VALIDATED',
+      httpStatus: response.status,
+      browser: browsers.join(','),
+      evidence,
     }
   } catch (error) {
     return {
@@ -520,6 +539,19 @@ function isLoopbackHost(hostname: string): boolean {
   return ['localhost', '127.0.0.1', '[::1]', '::1'].includes(hostname)
 }
 
+function isPrivateHost(hostname: string): boolean {
+  if (isLoopbackHost(hostname) || hostname.endsWith('.local')) return true
+  const match = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(hostname)
+  if (!match) return false
+  const [first, second] = [Number(match[1]), Number(match[2])]
+  return (
+    first === 10 ||
+    (first === 172 && second >= 16 && second <= 31) ||
+    (first === 192 && second === 168) ||
+    (first === 169 && second === 254)
+  )
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -578,6 +610,6 @@ function main(): void {
   })
 }
 
-if (import.meta.url === `file://${path.resolve(process.argv[1] ?? '')}`) {
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   main()
 }

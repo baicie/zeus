@@ -22,6 +22,7 @@ npm 发布、Tag 或生产变更；线上结果必须来自实际部署后的
 ```bash
 pnpm install --frozen-lockfile
 pnpm --filter @zeus-js/compiler-wasm build:wasm
+pnpm --filter @zeus-js/compiler-native build:native
 pnpm build
 pnpm --filter @zeus-js/example-admin build
 VITE_ZEUS_SANDBOX_ORIGIN=http://localhost:8081 \

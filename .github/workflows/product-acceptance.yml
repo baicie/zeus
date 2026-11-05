@@ -42,7 +42,10 @@ jobs:
         working-directory: zeus-ui
       - run: rustup target add wasm32-unknown-unknown
       - run: pnpm exec playwright install --with-deps chromium firefox webkit
+      - run: pnpm exec playwright install --with-deps chromium
+        working-directory: zeus-ui
       - run: pnpm --filter @zeus-js/compiler-wasm build:wasm
+      - run: pnpm --filter @zeus-js/compiler-native build:native
       - run: pnpm build
       - run: pnpm build-dts
       - name: Admin browser acceptance
@@ -97,7 +100,10 @@ jobs:
         working-directory: zeus-ui
       - run: rustup target add wasm32-unknown-unknown
       - run: pnpm exec playwright install chromium
+      - run: pnpm exec playwright install chromium
+        working-directory: zeus-ui
       - run: pnpm --filter @zeus-js/compiler-wasm build:wasm
+      - run: pnpm --filter @zeus-js/compiler-native build:native
       - run: pnpm build
       - run: pnpm build-dts
       - name: Admin browser acceptance

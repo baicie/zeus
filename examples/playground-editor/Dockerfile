@@ -12,6 +12,8 @@ COPY packages ./packages
 COPY scripts ./scripts
 COPY examples/playground-editor ./examples/playground-editor
 RUN pnpm install --frozen-lockfile
+RUN rustup target add wasm32-unknown-unknown
+RUN pnpm --filter @zeus-js/compiler-wasm build:wasm
 RUN pnpm --filter @zeus-js/compiler-native build:native
 RUN pnpm build
 ARG VITE_ZEUS_SANDBOX_ORIGIN

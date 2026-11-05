@@ -144,6 +144,7 @@ function buildCoreArtifacts(uiRoot: string | undefined): void {
   if (!fs.existsSync(wasm)) {
     run('pnpm', ['--filter', '@zeus-js/compiler-wasm', 'build:wasm'], root)
   }
+  run('pnpm', ['--filter', '@zeus-js/compiler-native', 'build:native'], root)
   run('pnpm', ['build'], root)
   run('pnpm', ['--filter', '@zeus-js/example-admin', 'build'], root, {
     ...process.env,
@@ -337,6 +338,6 @@ function git(cwd: string, args: readonly string[]): string {
   return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
 }
 
-if (import.meta.url === `file://${path.resolve(process.argv[1] ?? '')}`) {
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   main()
 }

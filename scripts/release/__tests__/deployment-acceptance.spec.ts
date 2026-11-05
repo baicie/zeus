@@ -113,6 +113,10 @@ describe('validateDeploymentManifest', () => {
     expect(
       isAllowedDeploymentUrl('https://user:pass@example.com/', 'online'),
     ).toBe(false)
+    expect(isAllowedDeploymentUrl('https://example.com/', 'online')).toBe(true)
+    expect(isAllowedDeploymentUrl('https://127.0.0.1/', 'online')).toBe(false)
+    expect(isAllowedDeploymentUrl('https://192.168.1.4/', 'online')).toBe(false)
+    expect(isAllowedDeploymentUrl('https://127.0.0.1/', 'local')).toBe(true)
   })
 
   it('binds core products to the core commit and the workbench to the UI commit', () => {

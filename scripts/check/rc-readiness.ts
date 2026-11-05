@@ -146,8 +146,8 @@ export function evaluateRcEvidence(
   }
   const uiCommit =
     typeof document.uiCommit === 'string' ? document.uiCommit : ''
-  if (!uiCommit) {
-    commonErrors.push('uiCommit must be the deployed Zeus UI commit')
+  if (!/^[0-9a-f]{40}$/i.test(uiCommit)) {
+    commonErrors.push('uiCommit must be a full 40-character UI commit')
   }
 
   return {

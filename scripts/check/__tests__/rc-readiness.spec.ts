@@ -13,11 +13,11 @@ const pass = (evidence: string) => ({ status: 'pass' as const, evidence })
 const validEvidence = {
   schema: 'zeus.rc-evidence/v2',
   commit: 'abc123',
-  uiCommit: 'ui456',
+  uiCommit: 'b'.repeat(40),
   products: REQUIRED_ONLINE_PRODUCTS.map(product => ({
     product,
     url: `https://${product}.example.test`,
-    commit: product === 'ai-workbench' ? 'ui456' : 'abc123',
+    commit: product === 'ai-workbench' ? 'b'.repeat(40) : 'abc123',
   })),
   crossPlatform: {
     platforms: ['linux', 'win32'],
@@ -165,7 +165,7 @@ describe('evaluateRcEvidence', () => {
     )
 
     const staleUi = evaluateRcEvidence(
-      { ...validEvidence, uiCommit: 'old-ui' },
+      { ...validEvidence, uiCommit: 'c'.repeat(40) },
       'abc123',
     )
     expect(staleUi.onlineProducts.evidence).toContain(
