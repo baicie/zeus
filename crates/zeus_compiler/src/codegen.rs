@@ -1700,7 +1700,14 @@ fn emit_auto_hydration_binding(
             runtime,
         ),
         DynamicBinding::Component { component: child } => {
-            emit_auto_hydration_component_child(writer, handle, component_id, child, runtime, names);
+            emit_auto_hydration_component_child(
+                writer,
+                handle,
+                component_id,
+                child,
+                runtime,
+                names,
+            );
         }
         DynamicBinding::ErrorBoundary { boundary } => {
             let marker_id = node_marker_id(component_id, "region", boundary.id);
