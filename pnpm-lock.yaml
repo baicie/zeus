@@ -20,6 +20,7 @@ catalogs:
       version: 8.3.4
 
 overrides:
+  brace-expansion@>=2.0.0 <2.1.6: 2.1.6
   brace-expansion@>=4.0.0 <5.0.11: 5.0.12
   rollup: ^4.62.2
 
@@ -4754,8 +4755,8 @@ packages:
   birpc@4.0.0:
     resolution: {integrity: sha512-LShSxJP0KTmd101b6DRyGBj57LZxSDYWKitQNW/mi8GRMvZb078Uf9+pveax1DrVL89vm7mWe+TovdI/UDOuPw==}
 
-  brace-expansion@2.1.0:
-    resolution: {integrity: sha512-TN1kCZAgdgweJhWWpgKYrQaMNHcDULHkWwQIspdtjV4Y5aurRdZpjAqn6yX3FPqTA9ngHCc4hJxMAMgGfve85w==}
+  brace-expansion@2.1.6:
+    resolution: {integrity: sha512-pi/WFpBvCBmB/NsURt7hW5sDvuOqvJaDMDai7CrlT9xoehzWRzo/dhQRKqOhpPvlnicVaTzHCbzGnnTgpvMTFw==}
 
   brace-expansion@5.0.12:
     resolution: {integrity: sha512-YovQ3rzhaLMIrDjNDMkNS01tea93qhEhG5xy8f6+R0l+dw3Ki+5sCoIoI942iuLZTHWogWktgwVDhU09iNEimQ==}
@@ -10188,7 +10189,7 @@ snapshots:
 
   birpc@4.0.0: {}
 
-  brace-expansion@2.1.0:
+  brace-expansion@2.1.6:
     dependencies:
       balanced-match: 1.0.0
 
@@ -11355,7 +11356,7 @@ snapshots:
 
   minimatch@9.0.9:
     dependencies:
-      brace-expansion: 2.1.0
+      brace-expansion: 2.1.6
 
   minimist@1.2.8: {}
 
