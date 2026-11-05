@@ -351,6 +351,10 @@ async function checkBindingPatches(
   await fs.writeFile(bindingPath, breakMainClosingTag(bindingSource))
   await expect(page.locator('vite-error-overlay')).toBeAttached()
   await assertRetainedState(page)
+  // The repair write must be a distinct watcher event. Writing it immediately
+  // after the overlay appears can coalesce both edits on slower CI
+  // filesystems, leaving the page on the last good module with no update.
+  await page.waitForTimeout(250)
 
   const patched = bindingSource
     .replace("'before'", "'after'")
