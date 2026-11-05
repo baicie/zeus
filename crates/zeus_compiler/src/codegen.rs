@@ -18,6 +18,9 @@ use crate::{
 };
 
 #[derive(Clone, Copy)]
+// These flags are independent compiler switches rather than mutually exclusive
+// states, so collapsing them into enums would only obscure the public options.
+#[allow(clippy::struct_excessive_bools)]
 pub(crate) struct EmitModuleOptions<'a> {
     pub(crate) source: &'a str,
     pub(crate) filename: &'a str,
@@ -1324,7 +1327,7 @@ fn emit_auto_hydration_root(
                         show,
                         runtime,
                         names,
-                    )
+                    );
                 },
             );
         }
@@ -1345,7 +1348,7 @@ fn emit_auto_hydration_root(
                         for_binding,
                         runtime,
                         names,
-                    )
+                    );
                 },
             );
         }
@@ -1366,7 +1369,7 @@ fn emit_auto_hydration_root(
                         transition,
                         runtime,
                         names,
-                    )
+                    );
                 },
             );
         }
@@ -1562,6 +1565,10 @@ fn emit_auto_hydration_region<F>(
     writer.push("});\n");
 }
 
+// Kept as one exhaustive match so every binding kind stays visible next to the
+// hydration protocol it emits; splitting it would spread one contract over many
+// small functions.
+#[allow(clippy::too_many_lines)]
 fn emit_auto_hydration_binding(
     writer: &mut CodeWriter,
     component_id: NodeId,
@@ -1693,7 +1700,7 @@ fn emit_auto_hydration_binding(
             runtime,
         ),
         DynamicBinding::Component { component: child } => {
-            emit_auto_hydration_component_child(writer, handle, component_id, child, runtime, names)
+            emit_auto_hydration_component_child(writer, handle, component_id, child, runtime, names);
         }
         DynamicBinding::ErrorBoundary { boundary } => {
             let marker_id = node_marker_id(component_id, "region", boundary.id);
@@ -1719,7 +1726,7 @@ fn emit_auto_hydration_binding(
                         show,
                         runtime,
                         names,
-                    )
+                    );
                 },
             );
         }
@@ -1740,7 +1747,7 @@ fn emit_auto_hydration_binding(
                         for_binding,
                         runtime,
                         names,
-                    )
+                    );
                 },
             );
         }
@@ -1761,7 +1768,7 @@ fn emit_auto_hydration_binding(
                         transition,
                         runtime,
                         names,
-                    )
+                    );
                 },
             );
         }

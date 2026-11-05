@@ -51,6 +51,9 @@ impl From<PureDefineElementMode> for bool {
     }
 }
 
+// These flags are independent compiler switches rather than mutually exclusive
+// states, so collapsing them into enums would only obscure the public options.
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TransformModuleOptions {
