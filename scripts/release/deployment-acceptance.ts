@@ -83,6 +83,9 @@ export interface DeploymentProductResult {
   readonly httpStatus?: number
   readonly browser?: string
   readonly artifactDigest?: string
+  readonly imageDigest?: string
+  readonly provenanceRunId?: string
+  readonly provenanceRunUrl?: string
   readonly evidence: readonly string[]
   readonly error?: string
 }
@@ -475,7 +478,7 @@ async function checkProduct(
         throw new Error('provenance imageDigest does not match the manifest')
       }
       evidence.push(
-        `CI provenance run ${provenance.runId}${record.imageDigest ? ` image ${record.imageDigest}` : ''}`,
+        `CI provenance run ${provenance.runId} (${provenance.runUrl})${record.imageDigest ? ` image ${record.imageDigest}` : ''}`,
       )
     }
 
@@ -586,6 +589,13 @@ async function checkProduct(
       httpStatus: response.status,
       browser: browsers.join(','),
       artifactDigest: entry.artifactDigest,
+      ...(entry.imageDigest ? { imageDigest: entry.imageDigest } : {}),
+      ...(provenance
+        ? {
+            provenanceRunId: provenance.runId,
+            provenanceRunUrl: provenance.runUrl,
+          }
+        : {}),
       evidence,
     }
   } catch (error) {
