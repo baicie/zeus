@@ -12,6 +12,7 @@ COPY examples/admin ./examples/admin
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @zeus-js/compiler-native build:native
 RUN pnpm build
+RUN pnpm build-dts
 RUN pnpm --filter @zeus-js/example-admin check
 RUN pnpm --filter @zeus-js/example-admin build
 
