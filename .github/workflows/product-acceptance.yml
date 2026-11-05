@@ -15,6 +15,10 @@ on:
     branches:
       - 'r2/**'
 
+concurrency:
+  group: product-acceptance-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
