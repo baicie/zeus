@@ -44,6 +44,7 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium firefox webkit
       - run: pnpm --filter @zeus-js/compiler-wasm build:wasm
       - run: pnpm build
+      - run: pnpm build-dts
       - name: Admin browser acceptance
         run: pnpm check:admin
         env:
@@ -98,6 +99,7 @@ jobs:
       - run: pnpm exec playwright install chromium
       - run: pnpm --filter @zeus-js/compiler-wasm build:wasm
       - run: pnpm build
+      - run: pnpm build-dts
       - name: Admin browser acceptance
         run: pnpm check:admin
         env:
