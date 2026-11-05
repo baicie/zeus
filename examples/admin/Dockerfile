@@ -28,6 +28,7 @@ COPY --from=build /app/packages ./packages
 RUN mkdir -p /data && chown -R zeus:zeus /data /app
 USER zeus
 ENV ZEUS_ADMIN_DB=/data/admin.sqlite
+ENV ZEUS_ADMIN_HOST=0.0.0.0
 ENV PORT=8080
 EXPOSE 8080
 VOLUME ["/data"]
