@@ -7,7 +7,8 @@
 - Core：`origin/main` = `1fd54b132ff4fbb533ac91093cce0718e2e53082`（PR #187 已合并）。
 - Core 修复分支：`fix/020-canary-rc-gate-separation`，从上述 `origin/main` 的独立
   worktree `temp/worktrees/020-canary-rc-gate-separation` 创建。
-- 本轮代码提交：`68e638f`（门禁分离）、`a7175b1`（release workflow 浏览器安装）。
+- 本轮代码提交：`68e638f`（门禁分离）、`a7175b1`（release workflow 浏览器安装）、
+  `607a582`（审查发现修复）。
 - UI：`origin/main` = `526512b5329b8da3910ecb0ae133a3c95a3887b8`；本轮只读审查，未修改。
 - 运行环境：Node `24.16.0`（与 `.node-version` 一致）。
 - 用户主 checkout 的 `Cargo.toml` 调试改动未被读取、覆盖、暂存或提交。
@@ -82,6 +83,24 @@
 - `scripts/release/__tests__/release-config.spec.ts`（RC 命令表新增 packed consumers）
 - `docs/release-process.md` 增加 Canary 通道说明。
 
+### Review follow-up（#188 审查修复）
+
+审查后补充的修复：
+
+- Canary 版本必须由 `ZEUS_CANARY_VERSION` 提供且包含 `-canary.`；未设置时不再回退到
+  当前 beta 版本。此前在 beta 版本上出现的 `READY_FOR_CANARY_PUBLISH` 是无效证据，已不再可能。
+- 报告显式 `passed: false` 优先于全通过的 `results`，避免流水线级失败被忽略。
+- `release:precheck` 与 `check:canary-readiness` 在 Windows 使用 `shell` 启动 `pnpm.cmd`。
+- readiness 优先使用 `GITHUB_SHA`，dry-run job 增加 `release:verify:main-head`。
+- 版本改写恢复失败在无原始错误时向上抛出，不再静默让 dry-run 成功。
+- 版本改写清理使用 `git status --no-renames`，rename 的两侧路径都会被恢复/删除。
+- package.json 不仅校验路径，还校验内容：除 `version` / `repository` / `publishConfig`
+  外不得变化，防止依赖或脚本改动伪装成发布改写。
+- 更新 `docs/internal/release.md` 中已移除的 `--strict` / `--allow-zero` 指引。
+- 删除真实 Canary job 中重复的 `Precheck` 步骤与未使用的 `RC_ONLY_CHECKS`。
+- `config.cwd` 已恢复；`verifyCommand` / `--allow-zero` 不再保留（当前配置未使用，
+  文档已改为显式 `--channel`）。
+
 ### 行为变化与兼容风险
 
 1. **合并本 PR 不再触发真实 npm Canary**：push 只跑 dry-run；真实发布需要维护者手动
@@ -97,13 +116,13 @@
 
 | 命令                                                                                                                                           | 结果              | 证据                                                                                                                                                                                                                                                              |
 | ---------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm exec vitest run scripts/release/__tests__ scripts/check/__tests__/canary-readiness.spec.ts scripts/check/__tests__/rc-readiness.spec.ts` | PASS              | 18 files / 140 tests                                                                                                                                                                                                                                              |
+| `pnpm exec vitest run scripts/release/__tests__ scripts/check/__tests__/canary-readiness.spec.ts scripts/check/__tests__/rc-readiness.spec.ts` | PASS              | 18 files / 144 tests                                                                                                                                                                                                                                              |
 | `pnpm check`                                                                                                                                   | PASS              | Node 24.16                                                                                                                                                                                                                                                        |
 | `pnpm lint`                                                                                                                                    | PASS              | Node 24.16                                                                                                                                                                                                                                                        |
 | `pnpm format-check`                                                                                                                            | PASS              | Node 24.16                                                                                                                                                                                                                                                        |
-| `pnpm check:packed-consumers`                                                                                                                  | PASS              | Native / React 18 / React 19 / Vue 3；Chromium/Firefox/WebKit                                                                                                                                                                                                     |
+| `pnpm check:packed-consumers`                                                                                                                  | PASS              | Native / React 18 / React 19 / Vue 3；Chromium/Firefox/WebKit（首次重跑遇到一次本地 `spawnSync ETIMEDOUT`，重试通过）                                                                                                                                             |
 | `pnpm check:create-zeus`                                                                                                                       | PASS              | 六模板                                                                                                                                                                                                                                                            |
-| `pnpm check:canary-readiness`                                                                                                                  | PASS              | HEAD `a7175b1`，`READY_FOR_CANARY_PUBLISH`，报告 `temp/release/canary-readiness.json`                                                                                                                                                                             |
+| `pnpm check:canary-readiness`                                                                                                                  | PASS              | HEAD `607a582`，真实版本改写后 `READY_FOR_CANARY_PUBLISH`，版本 `0.1.1-canary.20261105.1.1.607a5820`；报告 `temp/release/canary-readiness.json`                                                                                                                   |
 | `pnpm check:package-versions`                                                                                                                  | PASS              | 所有 fixed 包与根包版本一致（`0.1.1-beta.20`）                                                                                                                                                                                                                    |
 | `pnpm check:exports`                                                                                                                           | PASS              | 包导出边界                                                                                                                                                                                                                                                        |
 | `pnpm check:repository`                                                                                                                        | PASS              | 包 repository 元数据                                                                                                                                                                                                                                              |
@@ -158,8 +177,10 @@
 
 ## 最终裁决
 
-`BLOCKED_BY_ENVIRONMENT`
+`READY_FOR_CANARY_FIX_REVIEW`
 
-代码修复与单元/集成验证已完成，Draft PR 可进入人工审查；但完整 Canary dry-run 被本机
-既有 30 秒测试硬超时阻断，`CANARY_DRY_RUN` 不能标记为 PASS。CI/Node 24 环境应作为下一次
-真实 dry-run 的执行环境。
+审查发现已修复，144 项 release/readiness 测试通过；在 `607a582` 上完成真实版本改写后，
+`check:canary-readiness` 返回 `READY_FOR_CANARY_PUBLISH`。完整
+`release:canary --dry-run-only` 仍被本机既有 30 秒测试硬超时阻断，`CANARY_DRY_RUN`
+保持 **BLOCKED**；CI/Node 24 环境应作为下一次完整 dry-run 的执行环境。该裁决只表示修复
+PR 可以进入人工审查，不授权合并、tag、npm 发布或部署。
