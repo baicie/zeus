@@ -14,6 +14,9 @@ on:
   push:
     branches:
       - 'feat/release-*'
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
 
 concurrency:
   group: product-acceptance-${{ github.ref }}
@@ -65,10 +68,31 @@ jobs:
         working-directory: zeus-ui
         env:
           ZEUS_AI_WORKBENCH_BROWSERS: chromium
+      - name: DataGrid framework browser acceptance
+        run: pnpm data-grid:framework-e2e
+        working-directory: zeus-ui
       - name: Four-product local deployment rehearsal
         run: pnpm check:deployment-local --ui-root zeus-ui --browsers chromium
         env:
           ZEUS_ADMIN_PASSWORD: local-admin-password-123
+      - name: Record artifact provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./package.json').version")
+          CORE_SHA=$(git rev-parse HEAD)
+          UI_SHA=$(git -C zeus-ui rev-parse HEAD)
+          RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          write() {
+            node --import tsx scripts/release/write-provenance.ts \
+              --product "$1" --dist "$2" \
+              --core-commit "$CORE_SHA" --ui-commit "$UI_SHA" \
+              --run-id "$GITHUB_RUN_ID" --run-url "$RUN_URL" \
+              --output temp/release/provenance.json
+          }
+          write webc-studio,native-lab examples/playground-editor/dist
+          write admin examples/admin/dist
+          write ai-workbench zeus-ui/examples/ai-workbench/dist
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -78,7 +102,9 @@ jobs:
             temp/playground-editor/report.json
             temp/release/deployment.local.json
             temp/release/deployment-acceptance.local.json
+            temp/release/provenance.json
             zeus-ui/temp/ai-workbench/report.json
+            zeus-ui/temp/data-grid-framework-e2e/report.json
           if-no-files-found: warn
 
   windows:
@@ -127,6 +153,24 @@ jobs:
         run: pnpm check:deployment-local --ui-root zeus-ui --browsers chromium
         env:
           ZEUS_ADMIN_PASSWORD: local-admin-password-123
+      - name: Record artifact provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./package.json').version")
+          CORE_SHA=$(git rev-parse HEAD)
+          UI_SHA=$(git -C zeus-ui rev-parse HEAD)
+          RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          write() {
+            node --import tsx scripts/release/write-provenance.ts \
+              --product "$1" --dist "$2" \
+              --core-commit "$CORE_SHA" --ui-commit "$UI_SHA" \
+              --run-id "$GITHUB_RUN_ID" --run-url "$RUN_URL" \
+              --output temp/release/provenance.json
+          }
+          write webc-studio,native-lab examples/playground-editor/dist
+          write admin examples/admin/dist
+          write ai-workbench zeus-ui/examples/ai-workbench/dist
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -136,5 +180,94 @@ jobs:
             temp/playground-editor/report.json
             temp/release/deployment.local.json
             temp/release/deployment-acceptance.local.json
+            temp/release/provenance.json
             zeus-ui/temp/ai-workbench/report.json
+          if-no-files-found: warn
+
+  images:
+    name: Linux image digests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: baicie/zeus-ui
+          ref: ${{ inputs.ui-ref || github.ref_name }}
+          path: zeus-ui
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+      - name: Build product images
+        shell: bash
+        run: |
+          set -euo pipefail
+          CORE_SHA=$(git rev-parse HEAD)
+          UI_SHA=$(git -C zeus-ui rev-parse HEAD)
+          VERSION=$(node -p "require('./package.json').version")
+          BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          common=(--build-arg "ZEUS_CORE_COMMIT=$CORE_SHA" --build-arg "ZEUS_UI_COMMIT=$UI_SHA" --build-arg "ZEUS_VERSION=$VERSION" --build-arg "ZEUS_BUILD_TIME=$BUILD_TIME")
+          docker build "${common[@]}" -f examples/admin/Dockerfile -t zeus-admin:ci . > /tmp/admin-image.log 2>&1 & p1=$!
+          docker build "${common[@]}" --build-arg VITE_ZEUS_SANDBOX_ORIGIN=http://localhost:8081 -f examples/playground-editor/Dockerfile -t zeus-playground:ci . > /tmp/playground-image.log 2>&1 & p2=$!
+          wait "$p1" || { tail -50 /tmp/admin-image.log; exit 1; }
+          wait "$p2" || { tail -50 /tmp/playground-image.log; exit 1; }
+          docker build -f examples/ai-host/Dockerfile -t zeus-ai-host:ci zeus-ui > /tmp/aihost-image.log 2>&1 & p3=$!
+          docker build "${common[@]}" -f zeus-ui/examples/ai-workbench/Dockerfile -t zeus-ai-workbench:ci zeus-ui > /tmp/aiworkbench-image.log 2>&1 & p4=$!
+          wait "$p3" || { tail -50 /tmp/aihost-image.log; exit 1; }
+          wait "$p4" || { tail -50 /tmp/aiworkbench-image.log; exit 1; }
+      - name: Record image provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          CORE_SHA=$(git rev-parse HEAD)
+          UI_SHA=$(git -C zeus-ui rev-parse HEAD)
+          export CORE_SHA UI_SHA
+          mkdir -p temp/release
+          record() {
+            docker create --name "$1" "$2" >/dev/null
+            docker cp "$1:$3" "temp/release/image-$4.json" >/dev/null
+            docker rm "$1" >/dev/null
+            docker image inspect --format '{{.Id}}' "$2" > "temp/release/image-$4.id"
+          }
+          record zeus-admin-ci zeus-admin:ci /app/dist/build-info.json admin
+          record zeus-playground-ci zeus-playground:ci /usr/share/nginx/html/build-info.json playground
+          record zeus-workbench-ci zeus-ai-workbench:ci /usr/share/nginx/html/build-info.json ai-workbench
+          docker image inspect --format '{{.Id}}' zeus-ai-host:ci > temp/release/image-ai-host.id
+          node <<'NODE'
+          const fs = require('node:fs')
+          const read = file => JSON.parse(fs.readFileSync(`temp/release/image-${file}.json`, 'utf8'))
+          const id = file => fs.readFileSync(`temp/release/image-${file}.id`, 'utf8').trim()
+          const image = (product, file) => ({
+            product,
+            imageDigest: id(file),
+            artifactDigest: read(file).artifactDigest,
+            buildInfo: read(file),
+          })
+          const record = {
+            schema: 'zeus.image-provenance/v1',
+            coreCommit: process.env.CORE_SHA,
+            uiCommit: process.env.UI_SHA,
+            runId: process.env.GITHUB_RUN_ID,
+            runUrl: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
+            createdAt: new Date().toISOString(),
+            images: [
+              image('webc-studio', 'playground'),
+              image('native-lab', 'playground'),
+              image('admin', 'admin'),
+              image('ai-workbench', 'ai-workbench'),
+            ],
+            services: [
+              { name: 'ai-host', imageDigest: fs.readFileSync('temp/release/image-ai-host.id', 'utf8').trim() },
+            ],
+          }
+          fs.writeFileSync('temp/release/image-provenance.json', `${JSON.stringify(record, null, 2)}\n`)
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: product-images-linux
+          path: |
+            temp/release/image-provenance.json
+            temp/release/image-*.json
+            temp/release/image-*.id
           if-no-files-found: warn

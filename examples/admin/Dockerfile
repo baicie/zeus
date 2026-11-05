@@ -9,14 +9,29 @@ COPY crates ./crates
 COPY packages ./packages
 COPY scripts ./scripts
 COPY examples/admin ./examples/admin
+ARG ZEUS_CORE_COMMIT
+ARG ZEUS_UI_COMMIT
+ARG ZEUS_VERSION
+ARG ZEUS_BUILD_TIME
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @zeus-js/compiler-native build:native
 RUN pnpm build
 RUN pnpm build-dts
 RUN pnpm --filter @zeus-js/example-admin check
 RUN pnpm --filter @zeus-js/example-admin build
+RUN node --import tsx scripts/release/build-info.ts \
+  --product admin \
+  --dist examples/admin/dist \
+  --core-commit "$ZEUS_CORE_COMMIT" \
+  --ui-commit "$ZEUS_UI_COMMIT" \
+  --version "$ZEUS_VERSION" \
+  --built-at "$ZEUS_BUILD_TIME"
 
 FROM node:24.18.0-bookworm-slim AS runtime
+ARG ZEUS_CORE_COMMIT
+ARG ZEUS_VERSION
+LABEL org.opencontainers.image.revision=$ZEUS_CORE_COMMIT \
+  org.opencontainers.image.version=$ZEUS_VERSION
 WORKDIR /app
 ENV NODE_ENV=production
 RUN useradd --system --uid 10001 --create-home zeus

@@ -11,6 +11,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 
+import { createBuildInfo, writeBuildInfo } from './build-info'
 import { runDeploymentAcceptance } from './deployment-acceptance'
 
 const root = path.resolve(import.meta.dirname, '../..')
@@ -56,6 +57,26 @@ async function rehearse(
   const closeables: Closeable[] = []
   try {
     if (!options.skipBuild) buildCoreArtifacts(uiRoot)
+    const coreCommit = git(root, ['rev-parse', 'HEAD'])
+    const uiCommit = uiRoot ? git(uiRoot, ['rev-parse', 'HEAD']) : coreCommit
+    const version = String(
+      (
+        JSON.parse(
+          fs.readFileSync(path.join(root, 'package.json'), 'utf8'),
+        ) as {
+          version: string
+        }
+      ).version,
+    )
+    const builtAt = new Date().toISOString()
+    const buildInfo = writeProductBuildInfo(
+      root,
+      uiRoot,
+      coreCommit,
+      uiCommit,
+      version,
+      builtAt,
+    )
     const playground = await servePlayground()
     closeables.push(playground)
     const admin = await startAdmin()
@@ -63,8 +84,6 @@ async function rehearse(
     const ai = uiRoot ? await startAi(uiRoot) : undefined
     if (ai) closeables.push(ai)
 
-    const coreCommit = git(root, ['rev-parse', 'HEAD'])
-    const uiCommit = uiRoot ? git(uiRoot, ['rev-parse', 'HEAD']) : coreCommit
     const manifestFile = path.join(root, 'temp/release/deployment.local.json')
     fs.mkdirSync(path.dirname(manifestFile), { recursive: true })
 
@@ -74,18 +93,21 @@ async function rehearse(
         url: `${playground.hostOrigin}/webc.html`,
         commit: coreCommit,
         repository: 'baicie/zeus',
+        artifactDigest: buildInfo.playground.artifactDigest,
       },
       {
         product: 'native-lab',
         url: `${playground.hostOrigin}/`,
         commit: coreCommit,
         repository: 'baicie/zeus',
+        artifactDigest: buildInfo.playground.artifactDigest,
       },
       {
         product: 'admin',
         url: `${admin.origin}/`,
         commit: coreCommit,
         repository: 'baicie/zeus',
+        artifactDigest: buildInfo.admin.artifactDigest,
       },
       ...(ai
         ? [
@@ -94,6 +116,8 @@ async function rehearse(
               url: `${ai.workbenchOrigin}/`,
               commit: uiCommit,
               repository: 'baicie/zeus-ui',
+              artifactDigest: buildInfo.workbench.artifactDigest,
+              healthUrl: `${ai.hostOrigin}/health`,
             },
           ]
         : []),
@@ -102,9 +126,10 @@ async function rehearse(
       manifestFile,
       `${JSON.stringify(
         {
-          schema: 'zeus.deployment-manifest/v1',
+          schema: 'zeus.deployment-manifest/v2',
           coreCommit,
           uiCommit,
+          allowedHosts: ['127.0.0.1', 'localhost'],
           products,
         },
         null,
@@ -112,13 +137,16 @@ async function rehearse(
       )}\n`,
     )
 
-    process.env.ZEUS_ADMIN_PASSWORD = ADMIN_PASSWORD
+    process.env.ZEUS_ACCEPTANCE_ADMIN_EMAIL = 'ada@example.test'
+    process.env.ZEUS_ACCEPTANCE_ADMIN_PASSWORD = ADMIN_PASSWORD
     const report = await runDeploymentAcceptance({
       manifestFile,
       mode: 'local',
       coreCommit,
       uiCommit,
       engines,
+      writeMode: 'isolated',
+      tenant: 'local-rehearsal',
     })
     const output = path.join(
       root,
@@ -136,6 +164,43 @@ async function rehearse(
     for (const closeable of closeables.reverse()) {
       await closeable.close()
     }
+  }
+}
+
+function writeProductBuildInfo(
+  coreRoot: string,
+  uiRoot: string | undefined,
+  coreCommit: string,
+  uiCommit: string,
+  version: string,
+  builtAt: string,
+): {
+  playground: ReturnType<typeof createBuildInfo>
+  admin: ReturnType<typeof createBuildInfo>
+  workbench: ReturnType<typeof createBuildInfo>
+} {
+  const generate = (dist: string, products: string[]) => {
+    const info = createBuildInfo({
+      distDir: dist,
+      products,
+      coreCommit,
+      uiCommit,
+      version,
+      builtAt,
+    })
+    writeBuildInfo(info, dist)
+    return info
+  }
+  return {
+    playground: generate(
+      path.join(coreRoot, 'examples/playground-editor/dist'),
+      ['webc-studio', 'native-lab'],
+    ),
+    admin: generate(path.join(coreRoot, 'examples/admin/dist'), ['admin']),
+    workbench: generate(
+      path.join(uiRoot ?? coreRoot, 'examples/ai-workbench/dist'),
+      ['ai-workbench'],
+    ),
   }
 }
 
@@ -217,7 +282,7 @@ async function startAdmin(): Promise<Closeable & { origin: string }> {
 
 async function startAi(
   uiRoot: string,
-): Promise<Closeable & { workbenchOrigin: string }> {
+): Promise<Closeable & { workbenchOrigin: string; hostOrigin: string }> {
   const workbenchDist = path.join(uiRoot, 'examples/ai-workbench/dist')
   if (!fs.existsSync(path.join(workbenchDist, 'index.html'))) {
     throw new Error('AI workbench dist is missing; build it first')
@@ -230,6 +295,7 @@ async function startAi(
     startAiHost(options: {
       databaseFile: string
       workspaceRoot: string
+      workspaceId?: string
       port: number
       hostname: string
       allowedOrigins: readonly string[]
@@ -243,12 +309,14 @@ async function startAi(
   const host = await module.startAiHost({
     databaseFile,
     workspaceRoot,
+    workspaceId: 'local-rehearsal',
     port: PORTS.aiHost,
     hostname: '127.0.0.1',
     allowedOrigins: [workbenchOrigin, `http://localhost:${PORTS.workbench}`],
   })
   return {
     workbenchOrigin,
+    hostOrigin: host.origin,
     async close() {
       await host.close()
       await server.close()

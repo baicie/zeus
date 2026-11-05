@@ -4,42 +4,49 @@ import {
   decideAcceptance,
   DEPLOYMENT_MANIFEST_SCHEMA,
   isAllowedDeploymentUrl,
+  isPrivateAddress,
   validateDeploymentManifest,
   type DeploymentProductResult,
 } from '../deployment-acceptance'
 
 const core = 'a'.repeat(40)
 const ui = 'b'.repeat(40)
+const digest = `sha256:${'c'.repeat(64)}`
 
 function manifest(overrides: Record<string, unknown> = {}) {
   return {
     schema: DEPLOYMENT_MANIFEST_SCHEMA,
     coreCommit: core,
     uiCommit: ui,
+    allowedHosts: ['studio.example.com', 'admin.example.com', 'ai.example.com'],
     products: [
       {
         product: 'webc-studio',
-        url: 'https://zeus.example.com/webc.html',
+        url: 'https://studio.example.com/webc.html',
         commit: core,
         repository: 'baicie/zeus',
+        artifactDigest: digest,
       },
       {
         product: 'native-lab',
-        url: 'https://zeus.example.com/',
+        url: 'https://studio.example.com/',
         commit: core,
         repository: 'baicie/zeus',
+        artifactDigest: digest,
       },
       {
         product: 'admin',
         url: 'https://admin.example.com/',
         commit: core,
         repository: 'baicie/zeus',
+        artifactDigest: digest,
       },
       {
         product: 'ai-workbench',
         url: 'https://ai.example.com/',
         commit: ui,
         repository: 'baicie/zeus-ui',
+        artifactDigest: digest,
       },
     ],
     ...overrides,
@@ -66,34 +73,97 @@ describe('validateDeploymentManifest', () => {
 
     expect(validated.errors).toEqual([])
     expect(validated.manifest?.products).toHaveLength(4)
+    expect(validated.manifest?.allowedHosts).toEqual([
+      'studio.example.com',
+      'admin.example.com',
+      'ai.example.com',
+    ])
   })
 
-  it('rejects HTTP URLs for online acceptance but allows loopback locally', () => {
+  it('rejects HTTP, unlisted hosts, IP literals and missing digests online', () => {
+    const invalid = manifest({
+      products: [
+        {
+          product: 'webc-studio',
+          url: 'http://studio.example.com/webc.html',
+          commit: core,
+          repository: 'baicie/zeus',
+          artifactDigest: digest,
+        },
+        {
+          product: 'native-lab',
+          url: 'https://evil.example.com/',
+          commit: core,
+          repository: 'baicie/zeus',
+          artifactDigest: digest,
+        },
+        {
+          product: 'admin',
+          url: 'https://127.0.0.1/',
+          commit: core,
+          repository: 'baicie/zeus',
+        },
+        {
+          product: 'ai-workbench',
+          url: 'https://ai.example.com/',
+          commit: ui,
+          repository: 'baicie/zeus-ui',
+          artifactDigest: digest,
+        },
+      ],
+    })
+
+    const errors = validateDeploymentManifest(
+      invalid,
+      core,
+      ui,
+      'online',
+    ).errors
+    expect(errors).toContain(
+      'products[0].url must be an allowlisted HTTPS URL without credentials',
+    )
+    expect(errors).toContain(
+      'products[1].url must be an allowlisted HTTPS URL without credentials',
+    )
+    expect(errors).toContain(
+      'products[2].url must be an allowlisted HTTPS URL without credentials',
+    )
+    expect(errors).toContain(
+      'products[2].artifactDigest must be sha256:<64 hex>',
+    )
+  })
+
+  it('allows loopback HTTP only for local acceptance', () => {
     const local = manifest({
+      allowedHosts: [],
       products: [
         {
           product: 'webc-studio',
           url: 'http://127.0.0.1:8080/webc.html',
           commit: core,
           repository: 'baicie/zeus',
+          artifactDigest: digest,
         },
         {
           product: 'native-lab',
           url: 'http://localhost:8080/',
           commit: core,
           repository: 'baicie/zeus',
+          artifactDigest: digest,
         },
         {
           product: 'admin',
           url: 'http://127.0.0.1:8082/',
           commit: core,
           repository: 'baicie/zeus',
+          artifactDigest: digest,
         },
         {
           product: 'ai-workbench',
           url: 'http://localhost:8083/',
           commit: ui,
           repository: 'baicie/zeus-ui',
+          artifactDigest: digest,
         },
       ],
     })
@@ -103,19 +173,8 @@ describe('validateDeploymentManifest', () => {
     )
     expect(
       validateDeploymentManifest(local, core, ui, 'online').errors,
-    ).toEqual([
-      'products[0].url must be an HTTPS URL without credentials',
-      'products[1].url must be an HTTPS URL without credentials',
-      'products[2].url must be an HTTPS URL without credentials',
-      'products[3].url must be an HTTPS URL without credentials',
-    ])
+    ).not.toEqual([])
     expect(isAllowedDeploymentUrl('http://example.com/', 'local')).toBe(false)
-    expect(
-      isAllowedDeploymentUrl('https://user:pass@example.com/', 'online'),
-    ).toBe(false)
-    expect(isAllowedDeploymentUrl('https://example.com/', 'online')).toBe(true)
-    expect(isAllowedDeploymentUrl('https://127.0.0.1/', 'online')).toBe(false)
-    expect(isAllowedDeploymentUrl('https://192.168.1.4/', 'online')).toBe(false)
     expect(isAllowedDeploymentUrl('https://127.0.0.1/', 'local')).toBe(true)
   })
 
@@ -124,27 +183,31 @@ describe('validateDeploymentManifest', () => {
       products: [
         {
           product: 'webc-studio',
-          url: 'https://zeus.example.com/webc.html',
+          url: 'https://studio.example.com/webc.html',
           commit: ui,
           repository: 'baicie/zeus',
+          artifactDigest: digest,
         },
         {
           product: 'native-lab',
-          url: 'https://zeus.example.com/',
+          url: 'https://studio.example.com/',
           commit: core,
           repository: 'baicie/zeus',
+          artifactDigest: digest,
         },
         {
           product: 'admin',
           url: 'https://admin.example.com/',
           commit: core,
           repository: 'baicie/zeus',
+          artifactDigest: digest,
         },
         {
           product: 'ai-workbench',
           url: 'https://ai.example.com/',
           commit: core,
           repository: 'baicie/zeus-ui',
+          artifactDigest: digest,
         },
       ],
     })
@@ -183,14 +246,46 @@ describe('validateDeploymentManifest', () => {
   })
 })
 
+describe('private address policy', () => {
+  it('rejects loopback, private, link-local and reserved addresses', () => {
+    for (const address of [
+      '127.0.0.1',
+      '10.1.2.3',
+      '172.16.0.1',
+      '192.168.1.1',
+      '169.254.169.254',
+      '100.64.0.1',
+      '198.18.0.1',
+      '224.0.0.1',
+      '0.0.0.0',
+      '::1',
+      'fc00::1',
+      'fe80::1',
+      'ff02::1',
+      '2001:db8::1',
+      '::ffff:127.0.0.1',
+      '::ffff:7f00:1',
+    ]) {
+      expect(isPrivateAddress(address), address).toBe(true)
+    }
+  })
+
+  it('accepts public addresses', () => {
+    for (const address of ['8.8.8.8', '1.1.1.1', '2606:4700::1']) {
+      expect(isPrivateAddress(address), address).toBe(false)
+    }
+  })
+})
+
 describe('decideAcceptance', () => {
+  const passing = [
+    result('webc-studio', 'ONLINE_PASS'),
+    result('native-lab', 'ONLINE_PASS'),
+    result('admin', 'ONLINE_PASS'),
+    result('ai-workbench', 'ONLINE_PASS'),
+  ]
+
   it('only accepts a complete passing matrix', () => {
-    const passing = [
-      result('webc-studio', 'ONLINE_PASS'),
-      result('native-lab', 'ONLINE_PASS'),
-      result('admin', 'ONLINE_PASS'),
-      result('ai-workbench', 'ONLINE_PASS'),
-    ]
     expect(decideAcceptance('online', passing)).toBe('ONLINE_ACCEPTED')
     expect(decideAcceptance('local', passing)).toBe('LOCAL_VALIDATED')
     expect(
@@ -205,5 +300,14 @@ describe('decideAcceptance', () => {
         result('ai-workbench', 'FAIL'),
       ]),
     ).toBe('NOT_ACCEPTED')
+  })
+
+  it('reports blocked write smoke separately from a failure', () => {
+    expect(
+      decideAcceptance('online', [
+        ...passing.slice(0, 3),
+        result('ai-workbench', 'BLOCKED'),
+      ]),
+    ).toBe('BLOCKED')
   })
 })

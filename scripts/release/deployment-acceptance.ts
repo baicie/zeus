@@ -1,11 +1,16 @@
 /**
  * Independent deployment acceptance. The RC readiness validators only check
  * that an evidence document contains HTTPS URLs; this command performs real
- * HTTP and browser checks against each deployed product and binds the result
- * to the source commits. It never publishes, tags or deploys anything.
+ * HTTP and browser checks against each deployed product, verifies the served
+ * build-info against a CI-generated provenance record and binds the result to
+ * the source commits. It never publishes, tags or deploys anything.
  */
 import { execFileSync } from 'node:child_process'
+import { lookup as dnsLookup } from 'node:dns/promises'
 import fs from 'node:fs'
+import http from 'node:http'
+import https from 'node:https'
+import net from 'node:net'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
@@ -18,7 +23,13 @@ import {
   webkit,
 } from '@playwright/test'
 
-export const DEPLOYMENT_MANIFEST_SCHEMA = 'zeus.deployment-manifest/v1'
+import {
+  verifyDeployedBuildInfo,
+  verifyProvenance,
+  type ProvenanceRecord,
+} from './build-info'
+
+export const DEPLOYMENT_MANIFEST_SCHEMA = 'zeus.deployment-manifest/v2'
 export const DEPLOYMENT_ACCEPTANCE_SCHEMA = 'zeus.deployment-acceptance/v1'
 
 export const DEPLOYMENT_PRODUCTS = [
@@ -30,14 +41,17 @@ export const DEPLOYMENT_PRODUCTS = [
 
 export type DeploymentProduct = (typeof DEPLOYMENT_PRODUCTS)[number]
 export type DeploymentMode = 'online' | 'local'
+export type WriteMode = 'none' | 'isolated'
 export type DeploymentProductStatus =
   | 'ONLINE_PASS'
   | 'LOCAL_VALIDATED'
+  | 'BLOCKED'
   | 'NOT_RUN'
   | 'FAIL'
 export type DeploymentDecision =
   | 'ONLINE_ACCEPTED'
   | 'LOCAL_VALIDATED'
+  | 'BLOCKED'
   | 'NOT_ACCEPTED'
   | 'NOT_RUN'
 
@@ -46,12 +60,17 @@ export interface DeploymentProductEntry {
   readonly url: string
   readonly commit: string
   readonly repository: string
+  readonly artifactDigest: string
+  readonly imageDigest?: string
+  readonly healthUrl?: string
 }
 
 export interface DeploymentManifest {
   readonly schema: typeof DEPLOYMENT_MANIFEST_SCHEMA
   readonly coreCommit: string
   readonly uiCommit: string
+  readonly allowedHosts: readonly string[]
+  readonly provenance?: string
   readonly products: readonly DeploymentProductEntry[]
 }
 
@@ -63,6 +82,7 @@ export interface DeploymentProductResult {
   readonly status: DeploymentProductStatus
   readonly httpStatus?: number
   readonly browser?: string
+  readonly artifactDigest?: string
   readonly evidence: readonly string[]
   readonly error?: string
 }
@@ -84,6 +104,9 @@ export interface DeploymentAcceptanceOptions {
   readonly coreCommit: string
   readonly uiCommit: string
   readonly engines: readonly string[]
+  readonly provenanceFile?: string
+  readonly writeMode?: WriteMode
+  readonly tenant?: string
   readonly checkedAt?: string
 }
 
@@ -92,6 +115,10 @@ const ENGINE_TYPES: Record<string, BrowserType> = {
   firefox,
   webkit,
 }
+
+const MAX_REDIRECTS = 5
+const MAX_BODY_BYTES = 2 * 1024 * 1024
+const HOP_TIMEOUT_MS = 15_000
 
 export function validateDeploymentManifest(
   value: unknown,
@@ -114,6 +141,21 @@ export function validateDeploymentManifest(
     errors.push('uiCommit must be a full 40-character commit')
   } else if (value.uiCommit !== uiCommit) {
     errors.push(`uiCommit ${value.uiCommit} does not match ${uiCommit}`)
+  }
+  const allowedHosts = Array.isArray(value.allowedHosts)
+    ? value.allowedHosts.filter(
+        (item): item is string => typeof item === 'string',
+      )
+    : []
+  if (mode === 'online') {
+    if (allowedHosts.length === 0) {
+      errors.push('allowedHosts must list the deployment domain names')
+    }
+    for (const host of allowedHosts) {
+      if (!/^[a-z0-9.-]+$/i.test(host) || net.isIP(host) !== 0) {
+        errors.push(`allowedHosts entry ${host} must be a DNS name`)
+      }
+    }
   }
   if (!Array.isArray(value.products)) {
     errors.push('products must be an array')
@@ -144,11 +186,11 @@ export function validateDeploymentManifest(
 
     if (
       typeof entry.url !== 'string' ||
-      !isAllowedDeploymentUrl(entry.url, mode)
+      !isAllowedDeploymentUrl(entry.url, mode, allowedHosts)
     ) {
       errors.push(
         `products[${index}].url must be an ${
-          mode === 'online' ? 'HTTPS' : 'HTTPS or loopback HTTP'
+          mode === 'online' ? 'allowlisted HTTPS' : 'loopback'
         } URL without credentials`,
       )
     }
@@ -161,21 +203,46 @@ export function validateDeploymentManifest(
       entry.commit !== expectedCommitFor(productId, coreCommit, uiCommit)
     ) {
       errors.push(
-        `products[${index}].commit ${entry.commit} does not match the ${productId === 'ai-workbench' ? 'UI' : 'Core'} source`,
+        `products[${index}].commit ${entry.commit} does not match the ${
+          productId === 'ai-workbench' ? 'UI' : 'Core'
+        } source`,
+      )
+    }
+    if (!isDigest(entry.artifactDigest)) {
+      errors.push(`products[${index}].artifactDigest must be sha256:<64 hex>`)
+    }
+    if (entry.imageDigest !== undefined && !isDigest(entry.imageDigest)) {
+      errors.push(`products[${index}].imageDigest must be sha256:<64 hex>`)
+    }
+    if (
+      entry.healthUrl !== undefined &&
+      (typeof entry.healthUrl !== 'string' ||
+        !isAllowedDeploymentUrl(entry.healthUrl, mode, allowedHosts))
+    ) {
+      errors.push(
+        `products[${index}].healthUrl must follow the deployment URL policy`,
       )
     }
 
     if (
       typeof entry.url === 'string' &&
-      isAllowedDeploymentUrl(entry.url, mode) &&
+      isAllowedDeploymentUrl(entry.url, mode, allowedHosts) &&
       typeof entry.repository === 'string' &&
-      isCommit(entry.commit)
+      isCommit(entry.commit) &&
+      isDigest(entry.artifactDigest)
     ) {
       products.push({
         product: productId,
         url: entry.url,
         commit: entry.commit,
         repository: entry.repository,
+        artifactDigest: entry.artifactDigest,
+        ...(typeof entry.imageDigest === 'string'
+          ? { imageDigest: entry.imageDigest }
+          : {}),
+        ...(typeof entry.healthUrl === 'string'
+          ? { healthUrl: entry.healthUrl }
+          : {}),
       })
     }
   }
@@ -188,6 +255,8 @@ export function validateDeploymentManifest(
       `products must contain exactly ${DEPLOYMENT_PRODUCTS.length} entries`,
     )
   }
+  const provenance =
+    typeof value.provenance === 'string' ? value.provenance : undefined
 
   return errors.length === 0
     ? {
@@ -195,6 +264,8 @@ export function validateDeploymentManifest(
           schema: DEPLOYMENT_MANIFEST_SCHEMA,
           coreCommit,
           uiCommit,
+          allowedHosts,
+          provenance,
           products,
         },
         errors,
@@ -205,15 +276,19 @@ export function validateDeploymentManifest(
 export function isAllowedDeploymentUrl(
   value: string,
   mode: DeploymentMode,
+  allowedHosts: readonly string[] = [],
 ): boolean {
   try {
     const url = new URL(value)
     if (url.username.length > 0 || url.password.length > 0) return false
-    if (url.protocol === 'https:') {
-      if (url.hostname.length === 0) return false
-      return mode === 'online' ? !isPrivateHost(url.hostname) : true
+    if (mode === 'online') {
+      if (url.protocol !== 'https:') return false
+      if (url.port && url.port !== '443') return false
+      const host = url.hostname.toLowerCase()
+      if (net.isIP(host.replace(/^\[|\]$/g, '')) !== 0) return false
+      return allowedHosts.includes(host)
     }
-    if (mode === 'online' || url.protocol !== 'http:') return false
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return false
     return isLoopbackHost(url.hostname)
   } catch {
     return false
@@ -224,11 +299,13 @@ export function decideAcceptance(
   mode: DeploymentMode,
   results: readonly DeploymentProductResult[],
 ): DeploymentDecision {
+  if (results.some(result => result.status === 'FAIL')) {
+    return 'NOT_ACCEPTED'
+  }
+  if (results.some(result => result.status === 'BLOCKED')) return 'BLOCKED'
   const passed =
     results.length === DEPLOYMENT_PRODUCTS.length &&
-    results.every(
-      result => result.status !== 'FAIL' && result.status !== 'NOT_RUN',
-    )
+    results.every(result => result.status !== 'NOT_RUN')
   if (!passed) return 'NOT_ACCEPTED'
   return mode === 'online' ? 'ONLINE_ACCEPTED' : 'LOCAL_VALIDATED'
 }
@@ -237,8 +314,8 @@ export async function runDeploymentAcceptance(
   options: DeploymentAcceptanceOptions,
 ): Promise<DeploymentAcceptanceReport> {
   const checkedAt = options.checkedAt ?? new Date().toISOString()
-  const raw = readManifest(options.manifestFile)
-  if (!raw) {
+  const raw = readJsonFile(options.manifestFile)
+  if (raw === undefined) {
     return {
       schema: DEPLOYMENT_ACCEPTANCE_SCHEMA,
       mode: options.mode,
@@ -269,17 +346,49 @@ export async function runDeploymentAcceptance(
       blockers: validation.errors,
     }
   }
+  const manifest = validation.manifest
+
+  const provenanceFile =
+    options.provenanceFile ??
+    (manifest.provenance
+      ? path.resolve(path.dirname(options.manifestFile), manifest.provenance)
+      : undefined)
+  const provenance = readProvenance(provenanceFile, manifest, options.mode)
+  if (provenance.errors.length > 0) {
+    return {
+      schema: DEPLOYMENT_ACCEPTANCE_SCHEMA,
+      mode: options.mode,
+      coreCommit: options.coreCommit,
+      uiCommit: options.uiCommit,
+      checkedAt,
+      decision: 'NOT_ACCEPTED',
+      products: [],
+      blockers: provenance.errors,
+    }
+  }
 
   const results: DeploymentProductResult[] = []
-  for (const entry of validation.manifest.products) {
+  for (const entry of manifest.products) {
     results.push(
-      await checkProduct(entry, options.mode, options.engines, checkedAt),
+      await checkProduct(entry, manifest, provenance.record, {
+        mode: options.mode,
+        engines: options.engines,
+        writeMode: options.writeMode ?? 'none',
+        tenant: options.tenant,
+        checkedAt,
+        manifest,
+      }),
     )
   }
 
   const decision = decideAcceptance(options.mode, results)
   const blockers = results
-    .filter(result => result.status === 'FAIL' || result.status === 'NOT_RUN')
+    .filter(
+      result =>
+        result.status === 'FAIL' ||
+        result.status === 'BLOCKED' ||
+        result.status === 'NOT_RUN',
+    )
     .map(result => `${result.product}: ${result.error ?? result.status}`)
 
   return {
@@ -294,59 +403,115 @@ export async function runDeploymentAcceptance(
   }
 }
 
+interface CheckContext {
+  readonly mode: DeploymentMode
+  readonly engines: readonly string[]
+  readonly writeMode: WriteMode
+  readonly tenant?: string
+  readonly checkedAt: string
+  readonly manifest: DeploymentManifest
+}
+
 async function checkProduct(
   entry: DeploymentProductEntry,
-  mode: DeploymentMode,
-  engines: readonly string[],
-  checkedAt: string,
+  manifest: DeploymentManifest,
+  provenance: ProvenanceRecord | undefined,
+  context: CheckContext,
 ): Promise<DeploymentProductResult> {
   const evidence: string[] = []
   try {
-    const response = await fetchWithTimeout(entry.url)
-    const finalUrl = new URL(response.url)
-    if (mode === 'online' && finalUrl.protocol !== 'https:') {
-      throw new Error(
-        `deployment redirected to ${finalUrl.protocol}//${finalUrl.host}`,
-      )
-    }
-    const body = await response.text()
-    const contentType = response.headers.get('content-type') ?? ''
+    const response = await fetchChecked(entry.url, context.mode, manifest)
     evidence.push(
-      `HTTP ${response.status} ${contentType || '<no content-type>'}`,
+      `HTTP ${response.status} ${response.contentType || '<no content-type>'}`,
     )
-    if (!response.ok) {
+    if (response.status !== 200) {
       throw new Error(`HTTP ${response.status} for ${entry.url}`)
     }
-    if (!contentType.includes('text/html')) {
-      throw new Error(`expected text/html, received ${contentType || '<none>'}`)
+    if (!response.contentType.includes('text/html')) {
+      throw new Error(
+        `expected text/html, received ${response.contentType || '<none>'}`,
+      )
     }
-    if (!/id=("|')(app|root)\1/.test(body)) {
+    if (!/id=("|')(app|root)\1/.test(response.body)) {
       throw new Error('response is missing an application mount point')
     }
-    if (mode === 'online') {
-      const hsts = response.headers.get('strict-transport-security')
-      const nosniff = response.headers.get('x-content-type-options')
+    if (context.mode === 'online') {
+      const hsts = response.headers['strict-transport-security']
+      const nosniff = response.headers['x-content-type-options']
       if (!hsts) throw new Error('missing Strict-Transport-Security header')
       if (nosniff !== 'nosniff') throw new Error('missing nosniff header')
       evidence.push('HSTS + nosniff present')
     }
+
+    const buildInfoUrl = new URL('/build-info.json', response.finalUrl).href
+    const buildInfoResponse = await fetchChecked(
+      buildInfoUrl,
+      context.mode,
+      manifest,
+    )
+    const buildInfo = parseJson(buildInfoResponse.body, 'build-info')
+    const buildInfoErrors = verifyDeployedBuildInfo(buildInfo, {
+      products: [entry.product],
+      coreCommit: manifest.coreCommit,
+      uiCommit: manifest.uiCommit,
+      artifactDigest: entry.artifactDigest,
+      ...(entry.imageDigest ? { imageDigest: entry.imageDigest } : {}),
+    })
+    if (buildInfoErrors.length > 0) {
+      throw new Error(
+        `build provenance mismatch: ${buildInfoErrors.join('; ')}`,
+      )
+    }
+    evidence.push(`build-info ${entry.artifactDigest}`)
+    if (provenance) {
+      const record = provenance.products.find(
+        product => product.product === entry.product,
+      )
+      if (!record) throw new Error('provenance record is missing this product')
+      if (record.artifactDigest !== entry.artifactDigest) {
+        throw new Error('provenance artifactDigest does not match the manifest')
+      }
+      if (entry.imageDigest && record.imageDigest !== entry.imageDigest) {
+        throw new Error('provenance imageDigest does not match the manifest')
+      }
+      evidence.push(
+        `CI provenance run ${provenance.runId}${record.imageDigest ? ` image ${record.imageDigest}` : ''}`,
+      )
+    }
+
     if (entry.product === 'webc-studio') {
-      const sandboxUrl = new URL('/sandbox.html', entry.url).href
-      const sandbox = await fetchWithTimeout(sandboxUrl)
-      const sandboxHtml = await sandbox.text()
-      if (!sandbox.ok)
-        throw new Error(`sandbox.html returned ${sandbox.status}`)
-      if (
-        !sandboxHtml.includes("default-src 'none'") ||
-        !sandboxHtml.includes("script-src 'self' blob:")
-      ) {
+      const sandboxUrl = new URL('/sandbox.html', response.finalUrl).href
+      const sandbox = await fetchChecked(sandboxUrl, context.mode, manifest)
+      if (!sandbox.body.includes("default-src 'none'")) {
         throw new Error('sandbox.html is missing its restrictive CSP')
       }
-      evidence.push('sandbox CSP default-src none + script-src self/blob')
+      evidence.push('sandbox CSP default-src none')
+    }
+
+    if (requiresWrite(entry.product) && context.mode === 'online') {
+      if (context.writeMode !== 'isolated' || !context.tenant) {
+        return blocked(
+          entry,
+          'online write smoke requires --write-mode isolated and --tenant',
+          evidence,
+        )
+      }
+      if (
+        entry.product === 'ai-workbench' &&
+        process.env.ZEUS_ACCEPTANCE_AI_REPLAY !== 'true'
+      ) {
+        return blocked(
+          entry,
+          'AI write smoke requires ZEUS_ACCEPTANCE_AI_REPLAY=true',
+          evidence,
+        )
+      }
     }
 
     const browsers: string[] = []
-    for (const engineName of engines.length > 0 ? engines : ['chromium']) {
+    for (const engineName of context.engines.length > 0
+      ? context.engines
+      : ['chromium']) {
       const engine = ENGINE_TYPES[engineName]
       if (!engine) throw new Error(`unknown browser engine: ${engineName}`)
       const browser = await launchEngine(engine, engineName)
@@ -356,12 +521,11 @@ async function checkProduct(
         })
         const pageErrors: string[] = []
         const failedResponses: string[] = []
+        const blockedRequests: string[] = []
         page.on('pageerror', error => pageErrors.push(error.message))
         page.on('response', response => {
           const status = response.status()
           const url = response.url()
-          // The Admin shell probes /api/auth/session before login; a 401 is
-          // the expected signed-out state, not a broken deployment.
           const expectedAdminProbe =
             entry.product === 'admin' &&
             status === 401 &&
@@ -374,22 +538,34 @@ async function checkProduct(
             failedResponses.push(`${status} ${url}`)
           }
         })
+        await page.route('**/*', async route => {
+          try {
+            validateBrowserUrl(
+              new URL(route.request().url()),
+              context.mode,
+              manifest,
+            )
+            await route.continue()
+          } catch {
+            blockedRequests.push(route.request().url())
+            await route.abort('blockedbyclient')
+          }
+        })
         await page.goto(entry.url, {
           waitUntil: 'domcontentloaded',
           timeout: 45_000,
         })
-        const landed = new URL(page.url())
-        if (mode === 'online' && landed.protocol !== 'https:') {
-          throw new Error(
-            `browser landed on ${landed.protocol}//${landed.host} instead of HTTPS`,
-          )
-        }
-        await runProductSmoke(page, entry.product, mode)
+        validateBrowserUrl(new URL(page.url()), context.mode, manifest)
+        await runProductSmoke(page, entry, context)
+        await assertSandboxIsolation(page, entry.product, context.mode)
         if (pageErrors.length > 0) {
           throw new Error(`page errors: ${pageErrors.join('; ')}`)
         }
         if (failedResponses.length > 0) {
           throw new Error(`failed responses: ${failedResponses.join('; ')}`)
+        }
+        if (blockedRequests.length > 0) {
+          throw new Error(`blocked requests: ${blockedRequests.join('; ')}`)
         }
         browsers.push(engineName)
       } finally {
@@ -402,9 +578,10 @@ async function checkProduct(
       url: entry.url,
       commit: entry.commit,
       repository: entry.repository,
-      status: mode === 'online' ? 'ONLINE_PASS' : 'LOCAL_VALIDATED',
+      status: context.mode === 'online' ? 'ONLINE_PASS' : 'LOCAL_VALIDATED',
       httpStatus: response.status,
       browser: browsers.join(','),
+      artifactDigest: entry.artifactDigest,
       evidence,
     }
   } catch (error) {
@@ -420,11 +597,32 @@ async function checkProduct(
   }
 }
 
+function requiresWrite(product: DeploymentProduct): boolean {
+  return product === 'admin' || product === 'ai-workbench'
+}
+
+function blocked(
+  entry: DeploymentProductEntry,
+  reason: string,
+  evidence: readonly string[],
+): DeploymentProductResult {
+  return {
+    product: entry.product,
+    url: entry.url,
+    commit: entry.commit,
+    repository: entry.repository,
+    status: 'BLOCKED',
+    evidence,
+    error: reason,
+  }
+}
+
 async function runProductSmoke(
   page: import('@playwright/test').Page,
-  product: DeploymentProduct,
-  mode: DeploymentMode,
+  entry: DeploymentProductEntry,
+  context: CheckContext,
 ): Promise<void> {
+  const product = entry.product
   if (product === 'webc-studio') {
     const compile = page.getByTestId('compile')
     await compile.waitFor({ state: 'visible', timeout: 60_000 })
@@ -456,15 +654,13 @@ async function runProductSmoke(
   }
 
   if (product === 'admin') {
-    const email = process.env.ZEUS_ADMIN_EMAIL?.trim() || 'ada@example.test'
-    const password = process.env.ZEUS_ADMIN_PASSWORD?.trim()
-    if (!password) {
+    const email = process.env.ZEUS_ACCEPTANCE_ADMIN_EMAIL?.trim()
+    const password = process.env.ZEUS_ACCEPTANCE_ADMIN_PASSWORD?.trim()
+    if (!email || !password) {
       throw new Error(
-        'ZEUS_ADMIN_PASSWORD is required to verify the deployed Admin login',
+        'ZEUS_ACCEPTANCE_ADMIN_EMAIL and ZEUS_ACCEPTANCE_ADMIN_PASSWORD are required',
       )
     }
-    // The Admin shell is mounted on /admin/users; the deep link also proves
-    // the production server serves the SPA entry for protected routes.
     await page.goto(new URL('/admin/users', page.url()).href, {
       waitUntil: 'domcontentloaded',
       timeout: 30_000,
@@ -482,15 +678,80 @@ async function runProductSmoke(
     return
   }
 
+  const healthUrl =
+    entry.healthUrl ?? new URL('/ai-host/health', entry.url).href
+  const health = await fetchChecked(healthUrl, context.mode, context.manifest)
+  const healthData = parseJson(health.body, 'AI host health')
+  if (!isRecord(healthData) || healthData.ok !== true) {
+    throw new Error('AI host health check did not return ok')
+  }
+  if (context.tenant && healthData.workspace !== context.tenant) {
+    throw new Error(
+      `AI workspace ${String(healthData.workspace)} is not the acceptance tenant`,
+    )
+  }
   const composer = page.locator('zw-ai-composer textarea')
   await composer.waitFor({ state: 'visible', timeout: 45_000 })
-  const message = `Deployment acceptance ${mode} ${Date.now()}`
+  const message = `[zeus-acceptance:${context.tenant ?? 'local'}] ${Date.now()}`
   await composer.fill(message)
   await page.locator('zw-ai-composer button[aria-label="Send"]').click()
   await page
     .locator('zw-ai-message-timeline')
     .getByText(message, { exact: false })
-    .waitFor({ state: 'visible', timeout: 45_000 })
+    .waitFor({ state: 'visible', timeout: 20_000 })
+}
+
+async function assertSandboxIsolation(
+  page: import('@playwright/test').Page,
+  product: DeploymentProduct,
+  mode: DeploymentMode,
+): Promise<void> {
+  if (product !== 'webc-studio' && product !== 'native-lab') return
+  const frameElement = page.locator('[data-testid="preview-frame"]')
+  const src = await frameElement.getAttribute('src')
+  if (!src) throw new Error('preview sandbox frame has no origin')
+  const sandboxOrigin = new URL(src, page.url()).origin
+  if (sandboxOrigin === new URL(page.url()).origin) {
+    throw new Error('playground sandbox shares the host origin')
+  }
+  const frame = page
+    .frames()
+    .find(
+      candidate =>
+        candidate !== page.mainFrame() &&
+        candidate.url().startsWith(sandboxOrigin),
+    )
+  if (!frame) throw new Error('playground sandbox frame is missing')
+  const opaque = await frame.evaluate(() => globalThis.origin)
+  if (opaque !== 'null') {
+    throw new Error(
+      `playground sandbox origin is ${String(opaque)}, expected opaque`,
+    )
+  }
+  if (mode === 'online' && new URL(sandboxOrigin).protocol !== 'https:') {
+    throw new Error('playground sandbox must be served over HTTPS online')
+  }
+}
+
+function validateBrowserUrl(
+  url: URL,
+  mode: DeploymentMode,
+  manifest: DeploymentManifest,
+): void {
+  if (url.protocol === 'data:' || url.protocol === 'blob:') return
+  if (mode === 'online') {
+    if (url.protocol !== 'https:') throw new Error(`blocked ${url.protocol}`)
+    if (url.port && url.port !== '443') throw new Error('blocked non-443 port')
+    if (!manifest.allowedHosts.includes(url.hostname.toLowerCase())) {
+      throw new Error(`blocked host ${url.hostname}`)
+    }
+    return
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new Error(`blocked ${url.protocol}`)
+  }
+  if (!isLoopbackHost(url.hostname))
+    throw new Error('blocked non-loopback host')
 }
 
 async function launchEngine(
@@ -507,6 +768,250 @@ async function launchEngine(
   return engine.launch({ headless: true })
 }
 
+interface CheckedResponse {
+  readonly status: number
+  readonly headers: http.IncomingHttpHeaders
+  readonly contentType: string
+  readonly body: string
+  readonly finalUrl: string
+}
+
+async function fetchChecked(
+  value: string,
+  mode: DeploymentMode,
+  manifest: DeploymentManifest,
+): Promise<CheckedResponse> {
+  let current = new URL(value)
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
+    assertUrlPolicy(current, mode, manifest)
+    const addresses = await resolveAllowed(current, mode)
+    const response = await requestHop(current, addresses)
+    if (isRedirect(response.status)) {
+      const location = response.headers.location
+      if (typeof location !== 'string') {
+        throw new Error(`redirect ${response.status} without Location`)
+      }
+      current = new URL(location, current)
+      continue
+    }
+    return {
+      ...response,
+      finalUrl: current.href,
+    }
+  }
+  throw new Error(`too many redirects (> ${MAX_REDIRECTS})`)
+}
+
+function assertUrlPolicy(
+  url: URL,
+  mode: DeploymentMode,
+  manifest: DeploymentManifest,
+): void {
+  if (url.username || url.password)
+    throw new Error('URL credentials are not allowed')
+  if (mode === 'online') {
+    if (url.protocol !== 'https:')
+      throw new Error('online checks require HTTPS')
+    if (url.port && url.port !== '443')
+      throw new Error('online checks require port 443')
+    const host = url.hostname.toLowerCase()
+    if (net.isIP(host.replace(/^\[|\]$/g, '')) !== 0) {
+      throw new Error('online checks require a DNS hostname')
+    }
+    if (!manifest.allowedHosts.includes(host)) {
+      throw new Error(`host ${host} is not in allowedHosts`)
+    }
+    return
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new Error('local checks require HTTP(S)')
+  }
+  if (!isLoopbackHost(url.hostname)) {
+    throw new Error('local checks require a loopback host')
+  }
+}
+
+async function resolveAllowed(
+  url: URL,
+  mode: DeploymentMode,
+): Promise<Array<{ address: string; family: number }>> {
+  const host = url.hostname.replace(/^\[|\]$/g, '')
+  const literal = net.isIP(host)
+  const addresses = literal
+    ? [{ address: host, family: literal }]
+    : await dnsLookup(host, { all: true, verbatim: true })
+  if (addresses.length === 0) throw new Error(`no DNS address for ${host}`)
+  for (const entry of addresses) {
+    if (
+      isPrivateAddress(entry.address) &&
+      !(mode === 'local' && isLoopbackAddress(entry.address))
+    ) {
+      throw new Error(`host ${host} resolves to a private address`)
+    }
+  }
+  if (
+    mode === 'online' &&
+    addresses.some(entry => entry.family !== 4 && entry.family !== 6)
+  ) {
+    throw new Error(`host ${host} resolved to an unsupported family`)
+  }
+  return addresses
+}
+
+function requestHop(
+  url: URL,
+  addresses: readonly { address: string; family: number }[],
+): Promise<Omit<CheckedResponse, 'finalUrl'>> {
+  const transport = url.protocol === 'https:' ? https : http
+  return new Promise((resolve, reject) => {
+    const request = transport.request(
+      {
+        protocol: url.protocol,
+        hostname: url.hostname,
+        port: url.port || undefined,
+        path: `${url.pathname}${url.search}`,
+        method: 'GET',
+        headers: {
+          host: url.host,
+          'user-agent': 'zeus-deployment-acceptance/2',
+          accept: 'text/html,application/json;q=0.9,*/*;q=0.8',
+        },
+        ...(url.protocol === 'https:' ? { servername: url.hostname } : {}),
+        lookup: (_hostname, _options, callback) => {
+          const address = addresses[0]
+          if (!address) {
+            callback(new Error('no allowed address'), '', 0)
+            return
+          }
+          callback(null, address.address, address.family)
+        },
+        timeout: HOP_TIMEOUT_MS,
+      } as https.RequestOptions,
+      response => {
+        const chunks: Buffer[] = []
+        let bytes = 0
+        response.on('data', (chunk: Buffer) => {
+          bytes += chunk.byteLength
+          if (bytes > MAX_BODY_BYTES) {
+            response.destroy(new Error('response body exceeds 2 MiB'))
+            return
+          }
+          chunks.push(chunk)
+        })
+        response.on('error', reject)
+        response.on('end', () => {
+          resolve({
+            status: response.statusCode ?? 0,
+            headers: response.headers,
+            contentType: String(response.headers['content-type'] ?? ''),
+            body: Buffer.concat(chunks).toString('utf8'),
+          })
+        })
+      },
+    )
+    request.on('timeout', () =>
+      request.destroy(
+        new Error(`request timed out after ${HOP_TIMEOUT_MS} ms`),
+      ),
+    )
+    request.on('error', reject)
+    request.end()
+  })
+}
+
+function isRedirect(status: number): boolean {
+  return (
+    status === 301 ||
+    status === 302 ||
+    status === 303 ||
+    status === 307 ||
+    status === 308
+  )
+}
+
+export function isPrivateAddress(address: string): boolean {
+  if (net.isIPv4(address)) {
+    const [a, b, c] = address.split('.').map(Number)
+    return (
+      a === 0 ||
+      a === 10 ||
+      a === 127 ||
+      (a === 100 && b >= 64 && b <= 127) ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 192 && b === 0 && c === 0) ||
+      (a === 192 && b === 0 && c === 2) ||
+      (a === 198 && b === 18) ||
+      (a === 198 && b === 19) ||
+      (a === 198 && b === 51 && c === 100) ||
+      (a === 203 && b === 0 && c === 113) ||
+      a >= 224
+    )
+  }
+  if (net.isIPv6(address)) {
+    const lower = address.toLowerCase()
+    if (lower === '::' || lower === '::1') return true
+    if (lower.startsWith('::ffff:')) {
+      const tail = lower.slice('::ffff:'.length)
+      if (net.isIPv4(tail)) return isPrivateAddress(tail)
+      const parts = tail.split(':')
+      if (parts.length === 2) {
+        const high = Number.parseInt(parts[0] ?? '', 16)
+        const low = Number.parseInt(parts[1] ?? '', 16)
+        if (Number.isFinite(high) && Number.isFinite(low)) {
+          return isPrivateAddress(
+            `${high >> 8}.${high & 0xff}.${low >> 8}.${low & 0xff}`,
+          )
+        }
+      }
+    }
+    return (
+      /^f[cd]/.test(lower) ||
+      /^fe[89ab]/.test(lower) ||
+      /^ff/.test(lower) ||
+      lower.startsWith('2001:db8:') ||
+      lower.startsWith('64:ff9b:')
+    )
+  }
+  return true
+}
+
+function readProvenance(
+  file: string | undefined,
+  manifest: DeploymentManifest,
+  mode: DeploymentMode,
+): { record?: ProvenanceRecord; errors: string[] } {
+  if (!file) {
+    return mode === 'online'
+      ? { errors: ['online acceptance requires a CI provenance record'] }
+      : { errors: [] }
+  }
+  const value = readJsonFile(file)
+  if (value === undefined) {
+    return mode === 'online'
+      ? { errors: [`provenance missing: ${file}`] }
+      : { errors: [] }
+  }
+  return verifyProvenance(value, manifest)
+}
+
+function readJsonFile(file: string): unknown {
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8')) as unknown
+  } catch {
+    return undefined
+  }
+}
+
+function parseJson(value: string, label: string): unknown {
+  try {
+    return JSON.parse(value) as unknown
+  } catch {
+    throw new Error(`${label} is not valid JSON`)
+  }
+}
+
 function expectedCommitFor(
   product: DeploymentProduct,
   coreCommit: string,
@@ -515,41 +1020,21 @@ function expectedCommitFor(
   return product === 'ai-workbench' ? uiCommit : coreCommit
 }
 
-async function fetchWithTimeout(url: string): Promise<Response> {
-  return fetch(url, {
-    redirect: 'follow',
-    headers: { 'user-agent': 'zeus-deployment-acceptance/1' },
-    signal: AbortSignal.timeout(20_000),
-  })
-}
-
-function readManifest(file: string): unknown {
-  try {
-    return JSON.parse(fs.readFileSync(file, 'utf8')) as unknown
-  } catch {
-    return undefined
-  }
-}
-
 function isCommit(value: unknown): value is string {
   return typeof value === 'string' && /^[0-9a-f]{40}$/i.test(value)
+}
+
+function isDigest(value: unknown): value is string {
+  return typeof value === 'string' && /^sha256:[0-9a-f]{64}$/i.test(value)
 }
 
 function isLoopbackHost(hostname: string): boolean {
   return ['localhost', '127.0.0.1', '[::1]', '::1'].includes(hostname)
 }
 
-function isPrivateHost(hostname: string): boolean {
-  if (isLoopbackHost(hostname) || hostname.endsWith('.local')) return true
-  const match = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(hostname)
-  if (!match) return false
-  const [first, second] = [Number(match[1]), Number(match[2])]
-  return (
-    first === 10 ||
-    (first === 172 && second >= 16 && second <= 31) ||
-    (first === 192 && second === 168) ||
-    (first === 169 && second === 254)
-  )
+function isLoopbackAddress(address: string): boolean {
+  if (net.isIPv4(address)) return address.startsWith('127.')
+  return address === '::1' || address === '0:0:0:0:0:0:0:1'
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -568,6 +1053,9 @@ function main(): void {
       browsers: { type: 'string', default: 'chromium' },
       'core-commit': { type: 'string' },
       'ui-commit': { type: 'string' },
+      provenance: { type: 'string' },
+      'write-mode': { type: 'string', default: 'none' },
+      tenant: { type: 'string' },
       output: {
         type: 'string',
         default: 'temp/release/deployment-acceptance.json',
@@ -575,7 +1063,7 @@ function main(): void {
     },
   })
 
-  const mode = values.mode === 'local' ? 'local' : 'online'
+  const mode: DeploymentMode = values.mode === 'local' ? 'local' : 'online'
   const coreCommit =
     values['core-commit'] ?? git(process.cwd(), ['rev-parse', 'HEAD'])
   const uiCommit = values['ui-commit'] ?? process.env.ZEUS_UI_COMMIT ?? ''
@@ -583,6 +1071,8 @@ function main(): void {
     .split(',')
     .map(value => value.trim())
     .filter(Boolean)
+  const writeMode: WriteMode =
+    values['write-mode'] === 'isolated' ? 'isolated' : 'none'
 
   void runDeploymentAcceptance({
     manifestFile: path.resolve(values.manifest ?? ''),
@@ -590,6 +1080,11 @@ function main(): void {
     coreCommit,
     uiCommit,
     engines,
+    ...(values.provenance
+      ? { provenanceFile: path.resolve(values.provenance) }
+      : {}),
+    writeMode,
+    tenant: values.tenant ?? process.env.ZEUS_ACCEPTANCE_TENANT,
   }).then(report => {
     const output = path.resolve(values.output ?? '')
     fs.mkdirSync(path.dirname(output), { recursive: true })
