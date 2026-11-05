@@ -4,9 +4,10 @@
 `codex/zeus-0.2.0-progress`（基于 `main@d853352`，未推送、无 PR）。本表只记录本仓库 `zeus`
 的切片；`zeus-ui` 的 PR-02/24/25/26/32/33/35/37 在该仓库另行跟踪。
 
-当前集成分支 `codex/zeus-0.2.0-progress` 已恢复到本地集成提交 `bbd732d`，并保留
-PR-17/18/20/21/22/23/27 的实现；PR-28/29/30/31/34/36 的收口改动正在当前工作树中
-完成验证与本地提交整理。在线部署、跨平台和发布审批仍需外部条件。
+当前集成分支 `codex/zeus-0.2.0-progress` 已在本地集成提交 `bbd732d` 之上形成
+`30bb1c0`（平台集成）、`9dbea6a`（secret fixture 修复）与 `597df88`（Playground 报告
+HEAD 绑定）。PR-17/18/20/21/22/23/27 的实现及 PR-28/29/30/31/34/36 的收口改动均已提交；
+在线部署、跨平台和发布审批仍需外部条件。
 
 状态：`完成` 有代码与测试证据；`部分` 已交付的范围写在备注；`未开始`；`阻塞` 写明原因。
 
@@ -82,3 +83,15 @@ RC 证据输入、报告 HEAD 绑定、SBOM bom-ref 集合校验和 `check:creat
 `check:admin`、`check:playground-editor`、`check:packed-consumers`、`check:create-zeus`、
 `check:create-zeus-packed` 与 `check:create-zeus-registry`；Node 24 全量单测 187 files /
 1990 tests 通过。
+
+本轮最终本地提交为 `30bb1c0`、`9dbea6a`、`597df88`，工作树只保留用户自有的
+`Cargo.toml` 调试配置改动。本机 Node 22.12 下：`check`、`lint`、`format-check`、
+`check:docs`、`api:check`、`check:cjs`、`check:exports`、`size:ci`、`check:secrets`、
+`check:sbom`、`check:playground-editor`（含 DTS 等价构建）、`check:admin`、
+`check:packed-consumers` 与 `check:create-zeus` 通过；全量单测 185/187 文件、
+1996/1998 测试通过，两个重型类型消费者测试在 30 秒硬超时下失败（单 worker 复验一个通过、
+一个仍约 46 秒完成），属本机 Node 版本与测试硬超时限制。`check:create-zeus-packed` 在
+registry consumer 安装 optional native binding 时被 Node 22.12 引擎约束跳过，
+`--experimental-sqlite` 与 `npm_config_force` 均不能绕过；需在 Node 22.18+/24.11+ 重跑。
+`check:rc-readiness` 最终为 `NOT_READY`，仅剩脏工作树（用户 `Cargo.toml`）、跨平台证据、
+发布审批与四个线上 URL。
