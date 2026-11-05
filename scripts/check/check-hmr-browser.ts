@@ -319,11 +319,25 @@ async function checkBindingPatches(
   watcher: Awaited<ReturnType<typeof createServer>>['watcher'],
 ): Promise<BindingCheckEvidence> {
   const writeBinding = async (content: string): Promise<void> => {
-    await fs.writeFile(bindingPath, content)
-    // Some Linux CI watcher backends miss this second fixture entry even when
-    // it is explicitly added. The gate verifies HMR semantics, so notify
-    // Vite's watcher after every write instead of trusting the OS event.
-    watcher.emit('change', bindingPath)
+    let seen = false
+    const onChange = (changed: string): void => {
+      if (path.resolve(changed) === path.resolve(bindingPath)) seen = true
+    }
+    watcher.on('change', onChange)
+    try {
+      await fs.writeFile(bindingPath, content)
+      // Prefer the real filesystem event. Some Linux CI watcher backends miss
+      // this second fixture entry entirely; only synthesize the event when the
+      // watcher stays silent, otherwise the change would be processed twice
+      // and remount the tree twice.
+      const deadline = Date.now() + 300
+      while (!seen && Date.now() < deadline) {
+        await new Promise(resolve => setTimeout(resolve, 20))
+      }
+      if (!seen) watcher.emit('change', bindingPath)
+    } finally {
+      watcher.off('change', onChange)
+    }
   }
   await page.goto(url)
   await expect(page.locator('h1')).toHaveText('Heading')
