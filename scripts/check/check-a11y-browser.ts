@@ -91,7 +91,10 @@ try {
   for (const [name, engine] of Object.entries({ chromium, firefox, webkit })) {
     let browser
     try {
-      browser = await engine.launch({ headless: true })
+      browser = await engine.launch({
+        headless: true,
+        ...(name === 'chromium' ? { channel: 'chromium' } : {}),
+      })
       const boxes: Result['boxes'] = {}
       let tree = ''
       for (const deviceScaleFactor of [1, 2]) {

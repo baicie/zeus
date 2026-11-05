@@ -163,7 +163,10 @@ try {
   for (const [name, engine] of Object.entries({ chromium, firefox, webkit })) {
     let browser
     try {
-      browser = await engine.launch({ headless: true })
+      browser = await engine.launch({
+        headless: true,
+        ...(name === 'chromium' ? { channel: 'chromium' } : {}),
+      })
       const tab = await browser.newPage()
       const errors: string[] = []
       tab.on('pageerror', error => errors.push(error.message))
