@@ -515,10 +515,7 @@ async function checkBindingPatches(
       original(name, value)
     }
   })
-  await fs.writeFile(
-    bindingPath,
-    afterRemount.replace("'after'", "'forced-failure'"),
-  )
+  await writeBinding(afterRemount.replace("'after'", "'forced-failure'"))
   await page.waitForFunction(
     () =>
       window.__zeusBindingHmr?.mounts === 1 &&
