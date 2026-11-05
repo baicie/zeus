@@ -418,12 +418,16 @@ async function installAndBuildExport(archive: string): Promise<string> {
     PATH: `${path.dirname(process.execPath)}${path.delimiter}${process.env.PATH ?? ''}`,
     CI: 'true',
   }
-  await execFileAsync('pnpm', ['install', '--ignore-scripts'], {
-    cwd: directory,
-    env,
-    shell: process.platform === 'win32',
-    timeout: 120_000,
-  })
+  await execFileAsync(
+    'pnpm',
+    ['install', '--ignore-scripts', '--ignore-workspace'],
+    {
+      cwd: directory,
+      env,
+      shell: process.platform === 'win32',
+      timeout: 120_000,
+    },
+  )
   await execFileAsync('pnpm', ['check'], {
     cwd: directory,
     env,
