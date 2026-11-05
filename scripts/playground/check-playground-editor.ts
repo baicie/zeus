@@ -14,12 +14,26 @@ import {
   type Page,
 } from '@playwright/test'
 
+import { findWorkspacePackages } from '../shared/utils'
+
 const execFileAsync = promisify(execFile)
 const root = path.resolve(import.meta.dirname, '../..')
 const example = path.join(root, 'examples/playground-editor')
 const dist = path.join(example, 'dist')
 const output = path.join(root, 'temp/playground-editor')
 const engines = { chromium, firefox, webkit }
+const requestedBrowsers = (
+  process.env.PLAYGROUND_BROWSERS ?? 'chromium,firefox,webkit'
+)
+  .split(',')
+  .map(name => name.trim())
+  .filter(Boolean)
+const selectedEngines = Object.entries(engines).filter(([name]) =>
+  requestedBrowsers.includes(name),
+)
+if (!selectedEngines.some(([name]) => name === 'chromium')) {
+  throw new Error('PLAYGROUND_BROWSERS must include chromium for export checks')
+}
 
 interface BrowserResult {
   readonly browser: string
@@ -41,7 +55,7 @@ async function main(): Promise<void> {
   try {
     let nativeLabPassed = false
     let webcStudioPassed = false
-    for (const [name, engine] of Object.entries(engines)) {
+    for (const [name, engine] of selectedEngines) {
       let browser: Browser | undefined
       try {
         browser = await engine.launch({
@@ -152,7 +166,9 @@ async function main(): Promise<void> {
     )
 
     console.log(
-      'Playground editor gate passed in Chromium, Firefox and WebKit.',
+      `Playground editor gate passed in ${selectedEngines
+        .map(([name]) => name)
+        .join(', ')}.`,
     )
   } finally {
     const server = editorServer
@@ -388,6 +404,38 @@ async function downloadExport(page: Page): Promise<string> {
   return archive
 }
 
+const LOCAL_EXPORT_PACKAGES = new Set([
+  '@zeus-js/zeus',
+  '@zeus-js/signal',
+  '@zeus-js/shared',
+  '@zeus-js/runtime-dom',
+  '@zeus-js/runtime-ssr',
+  '@zeus-js/query',
+  '@zeus-js/router',
+  '@zeus-js/resource',
+])
+
+async function packLocalPackages(): Promise<Record<string, string>> {
+  const packagesDirectory = path.join(output, 'packages')
+  await fs.rm(packagesDirectory, { recursive: true, force: true })
+  await fs.mkdir(packagesDirectory, { recursive: true })
+  const overrides: Record<string, string> = {}
+  for (const pkg of findWorkspacePackages()) {
+    if (!LOCAL_EXPORT_PACKAGES.has(pkg.name)) continue
+    const { stdout } = await execFileAsync(
+      'pnpm',
+      ['pack', '--pack-destination', packagesDirectory, '--json'],
+      { cwd: pkg.dir, shell: process.platform === 'win32' },
+    )
+    const parsed = JSON.parse(stdout.slice(stdout.indexOf('{'))) as {
+      name: string
+      filename: string
+    }
+    overrides[parsed.name] = `file:${path.resolve(parsed.filename)}`
+  }
+  return overrides
+}
+
 async function installAndBuildExport(archive: string): Promise<string> {
   const extraction = path.join(output, 'exported-project')
   await fs.rm(extraction, { recursive: true, force: true })
@@ -401,22 +449,39 @@ async function installAndBuildExport(archive: string): Promise<string> {
   const directory = path.join(extraction, packageDirectory)
   const env = {
     ...process.env,
-    PATH: `${path.dirname(process.execPath)}:${process.env.PATH ?? ''}`,
+    PATH: `${path.dirname(process.execPath)}${path.delimiter}${process.env.PATH ?? ''}`,
     CI: 'true',
   }
-  await execFileAsync('pnpm', ['install', '--ignore-scripts'], {
-    cwd: directory,
-    env,
-    timeout: 120_000,
-  })
+  const overrides = await packLocalPackages()
+  const manifestFile = path.join(directory, 'package.json')
+  const manifest = JSON.parse(await fs.readFile(manifestFile, 'utf8')) as {
+    pnpm?: Record<string, unknown>
+  }
+  manifest.pnpm = {
+    ...manifest.pnpm,
+    overrides: { ...(manifest.pnpm?.overrides as object), ...overrides },
+  }
+  await fs.writeFile(manifestFile, `${JSON.stringify(manifest, null, 2)}\n`)
+  await execFileAsync(
+    'pnpm',
+    ['install', '--ignore-scripts', '--ignore-workspace'],
+    {
+      cwd: directory,
+      env,
+      shell: process.platform === 'win32',
+      timeout: 120_000,
+    },
+  )
   await execFileAsync('pnpm', ['check'], {
     cwd: directory,
     env,
+    shell: process.platform === 'win32',
     timeout: 60_000,
   })
   await execFileAsync('pnpm', ['build'], {
     cwd: directory,
     env,
+    shell: process.platform === 'win32',
     timeout: 60_000,
   })
   return directory

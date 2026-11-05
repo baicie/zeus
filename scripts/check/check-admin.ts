@@ -49,10 +49,12 @@ for (const name of selectedBrowsers.map(([name]) => name)) {
 execFileSync('pnpm', ['-F', '@zeus-js/example-admin', 'check'], {
   cwd: root,
   stdio: 'inherit',
+  shell: process.platform === 'win32',
 })
 execFileSync('pnpm', ['-F', '@zeus-js/example-admin', 'build'], {
   cwd: root,
   stdio: 'inherit',
+  shell: process.platform === 'win32',
 })
 
 const browserNames = selectedBrowsers.map(([name]) => name)

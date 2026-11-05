@@ -1,0 +1,19 @@
+services:
+  playground:
+    build:
+      context: ../..
+      dockerfile: examples/playground-editor/Dockerfile
+      args:
+        # Must be the public sandbox origin, not the host origin.
+        VITE_ZEUS_SANDBOX_ORIGIN: ${ZEUS_SANDBOX_ORIGIN:-http://localhost:8081}
+    ports:
+      - '8080:80'
+      - '8081:81'
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped

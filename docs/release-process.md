@@ -603,9 +603,12 @@ check:release-worktree --verify
 ```
 
 `check:rc-readiness` 消费 `temp/release/rc-evidence.json`（可用
-`ZEUS_RC_EVIDENCE_FILE` 指定其他路径）。证据文件必须把四个产品 URL、Linux/Windows
-验证和发布审批绑定到当前完整 commit；缺失证据显示为 `not_run`，格式错误或过期证据显示为
-`fail`。发布前仍需满足真实的跨平台、部署和审批条件。
+`ZEUS_RC_EVIDENCE_FILE` 指定其他路径）。证据文件使用 `zeus.rc-evidence/v2`，
+同时记录 `commit`（Core）与 `uiCommit`（Zeus UI）：WebC Studio、Native Lab 与
+Admin 必须绑定 Core commit，AI Workbench 必须绑定 UI commit。Linux/Windows 验证和
+发布审批绑定 Core commit。缺失证据显示为 `not_run`，格式错误或过期证据显示为
+`fail`。发布前仍需满足真实的跨平台、部署和审批条件，并运行
+`check:deployment-acceptance` 做真实 HTTP/浏览器验收。
 
 ### 6.2 Canary 预检（发布通道分离）
 

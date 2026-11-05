@@ -14,8 +14,10 @@ name: Release Canary
 # 3. (Optional) If your downstream repo is not "zeus-ui", update `scripts/release.config.ts`.
 #
 # Publication policy: a push to main runs the no-side-effect canary dry-run gate.
-# Real npm Canary publication is manual (`workflow_dispatch` with mode=publish) and
-# requires the Canary environment. This prevents a routine merge from publishing.
+# A workflow_dispatch with mode=dry-run may run on a release branch; it still only
+# runs `release:canary --dry-run-only`. Real npm Canary publication is manual
+# (`workflow_dispatch` with mode=publish) and requires the Canary environment.
+# This prevents a routine merge from publishing.
 #
 on:
   push:
@@ -41,7 +43,10 @@ env:
 
 jobs:
   release-preflight:
-    if: github.repository == 'baicie/zeus' && github.ref == 'refs/heads/main'
+    if: >-
+      github.repository == 'baicie/zeus' &&
+      (github.ref == 'refs/heads/main' ||
+       (github.event_name == 'workflow_dispatch' && inputs.mode == 'dry-run'))
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -65,7 +70,10 @@ jobs:
       # Canary writes only staging/canary tags. Historical native latest
       # pollution is checked independently and must not block this channel.
   native-prebuild:
-    if: github.repository == 'baicie/zeus' && github.ref == 'refs/heads/main'
+    if: >-
+      github.repository == 'baicie/zeus' &&
+      (github.ref == 'refs/heads/main' ||
+       (github.event_name == 'workflow_dispatch' && inputs.mode == 'dry-run'))
     needs: release-preflight
     uses: ./.github/workflows/compiler-native.yml
     secrets: inherit
@@ -183,8 +191,8 @@ jobs:
   canary-dry-run:
     if: >-
       github.repository == 'baicie/zeus' &&
-      github.ref == 'refs/heads/main' &&
-      (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'dry-run'))
+      ((github.event_name == 'workflow_dispatch' && inputs.mode == 'dry-run') ||
+       (github.event_name == 'push' && github.ref == 'refs/heads/main'))
     needs: native-prebuild
     runs-on: ubuntu-latest
     permissions:
@@ -222,6 +230,7 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium firefox webkit
 
       - name: Verify main source head
+        if: github.ref == 'refs/heads/main'
         run: pnpm release:verify:main-head
 
       - name: Canary dry run

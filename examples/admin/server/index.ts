@@ -56,7 +56,7 @@ export async function startAdminServer(
       viewerPassword,
     })
   }
-  const host = options.host ?? '127.0.0.1'
+  const host = options.host ?? process.env.ZEUS_ADMIN_HOST ?? '127.0.0.1'
   const port = options.port ?? Number(process.env.PORT ?? 8787)
   const origins = options.allowedOrigins ?? allowedOriginsFromEnvironment()
   const staticDir =

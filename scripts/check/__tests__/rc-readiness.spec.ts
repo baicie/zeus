@@ -10,13 +10,16 @@ import {
 
 const pass = (evidence: string) => ({ status: 'pass' as const, evidence })
 
+const pair = { coreCommit: 'abc123', uiCommit: 'b'.repeat(40) }
+
 const validEvidence = {
-  schema: 'zeus.rc-evidence/v1',
+  schema: 'zeus.rc-evidence/v2',
   commit: 'abc123',
+  uiCommit: 'b'.repeat(40),
   products: REQUIRED_ONLINE_PRODUCTS.map(product => ({
     product,
     url: `https://${product}.example.test`,
-    commit: 'abc123',
+    commit: product === 'ai-workbench' ? 'b'.repeat(40) : 'abc123',
   })),
   crossPlatform: {
     platforms: ['linux', 'win32'],
@@ -95,7 +98,7 @@ describe('evaluateRcReadiness', () => {
 
 describe('evaluateRcEvidence', () => {
   it('accepts four HTTPS products, cross-platform evidence and approval', () => {
-    const statuses = evaluateRcEvidence(validEvidence, 'abc123')
+    const statuses = evaluateRcEvidence(validEvidence, 'abc123', pair)
 
     expect(statuses).toEqual({
       onlineProducts: {
@@ -130,6 +133,7 @@ describe('evaluateRcEvidence', () => {
         },
       },
       'abc123',
+      pair,
     )
 
     expect(statuses.onlineProducts.status).toBe('fail')
@@ -145,15 +149,53 @@ describe('evaluateRcEvidence', () => {
     })
   })
 
-  it('rejects a schema or top-level commit mismatch for every evidence group', () => {
+  it('binds the AI Workbench to the UI commit and core products to Core', () => {
     const statuses = evaluateRcEvidence(
-      { ...validEvidence, schema: 'zeus.rc-evidence/old' },
-      'different-commit',
+      {
+        ...validEvidence,
+        products: validEvidence.products.map(product =>
+          product.product === 'ai-workbench'
+            ? { ...product, commit: 'abc123' }
+            : product,
+        ),
+      },
+      'abc123',
+      pair,
     )
 
     expect(statuses.onlineProducts.status).toBe('fail')
     expect(statuses.onlineProducts.evidence).toContain(
-      'schema must be zeus.rc-evidence/v1',
+      'products[3].commit does not match the UI commit',
+    )
+
+    const staleUi = evaluateRcEvidence(
+      { ...validEvidence, uiCommit: 'c'.repeat(40) },
+      'abc123',
+    )
+    expect(staleUi.onlineProducts.evidence).toContain(
+      'products[3].commit does not match the UI commit',
+    )
+  })
+
+  it('requires a CI release pair to bind the UI commit', () => {
+    const statuses = evaluateRcEvidence(validEvidence, 'abc123')
+
+    expect(statuses.onlineProducts.status).toBe('fail')
+    expect(statuses.onlineProducts.evidence).toContain(
+      'release pair provenance missing (temp/release/pair.json)',
+    )
+  })
+
+  it('rejects a schema or top-level commit mismatch for every evidence group', () => {
+    const statuses = evaluateRcEvidence(
+      { ...validEvidence, schema: 'zeus.rc-evidence/old' },
+      'different-commit',
+      pair,
+    )
+
+    expect(statuses.onlineProducts.status).toBe('fail')
+    expect(statuses.onlineProducts.evidence).toContain(
+      'schema must be zeus.rc-evidence/v2',
     )
     expect(statuses.onlineProducts.evidence).toContain(
       'top-level commit does not match current HEAD',
