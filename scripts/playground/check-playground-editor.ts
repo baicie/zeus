@@ -14,6 +14,8 @@ import {
   type Page,
 } from '@playwright/test'
 
+import { findWorkspacePackages } from '../shared/utils'
+
 const execFileAsync = promisify(execFile)
 const root = path.resolve(import.meta.dirname, '../..')
 const example = path.join(root, 'examples/playground-editor')
@@ -402,6 +404,38 @@ async function downloadExport(page: Page): Promise<string> {
   return archive
 }
 
+const LOCAL_EXPORT_PACKAGES = new Set([
+  '@zeus-js/zeus',
+  '@zeus-js/signal',
+  '@zeus-js/shared',
+  '@zeus-js/runtime-dom',
+  '@zeus-js/runtime-ssr',
+  '@zeus-js/query',
+  '@zeus-js/router',
+  '@zeus-js/resource',
+])
+
+async function packLocalPackages(): Promise<Record<string, string>> {
+  const packagesDirectory = path.join(output, 'packages')
+  await fs.rm(packagesDirectory, { recursive: true, force: true })
+  await fs.mkdir(packagesDirectory, { recursive: true })
+  const overrides: Record<string, string> = {}
+  for (const pkg of findWorkspacePackages()) {
+    if (!LOCAL_EXPORT_PACKAGES.has(pkg.name)) continue
+    const { stdout } = await execFileAsync(
+      'pnpm',
+      ['pack', '--pack-destination', packagesDirectory, '--json'],
+      { cwd: pkg.dir, shell: process.platform === 'win32' },
+    )
+    const parsed = JSON.parse(stdout.slice(stdout.indexOf('{'))) as {
+      name: string
+      filename: string
+    }
+    overrides[parsed.name] = `file:${path.resolve(parsed.filename)}`
+  }
+  return overrides
+}
+
 async function installAndBuildExport(archive: string): Promise<string> {
   const extraction = path.join(output, 'exported-project')
   await fs.rm(extraction, { recursive: true, force: true })
@@ -418,6 +452,16 @@ async function installAndBuildExport(archive: string): Promise<string> {
     PATH: `${path.dirname(process.execPath)}${path.delimiter}${process.env.PATH ?? ''}`,
     CI: 'true',
   }
+  const overrides = await packLocalPackages()
+  const manifestFile = path.join(directory, 'package.json')
+  const manifest = JSON.parse(await fs.readFile(manifestFile, 'utf8')) as {
+    pnpm?: Record<string, unknown>
+  }
+  manifest.pnpm = {
+    ...manifest.pnpm,
+    overrides: { ...(manifest.pnpm?.overrides as object), ...overrides },
+  }
+  await fs.writeFile(manifestFile, `${JSON.stringify(manifest, null, 2)}\n`)
   await execFileAsync(
     'pnpm',
     ['install', '--ignore-scripts', '--ignore-workspace'],
