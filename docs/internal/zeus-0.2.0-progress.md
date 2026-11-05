@@ -5,8 +5,9 @@
 的切片；`zeus-ui` 的 PR-02/24/25/26/32/33/35/37 在该仓库另行跟踪。
 
 当前集成分支 `codex/zeus-0.2.0-progress` 已在本地集成提交 `bbd732d` 之上形成
-`30bb1c0`（平台集成）、`9dbea6a`（secret fixture 修复）与 `597df88`（Playground 报告
-HEAD 绑定）。PR-17/18/20/21/22/23/27 的实现及 PR-28/29/30/31/34/36 的收口改动均已提交；
+`30bb1c0`（平台集成）、`9dbea6a`（secret fixture 修复）、`597df88`（Playground 报告
+HEAD 绑定）、`dee6285`（Clippy 门禁）与 `e74f5fc`（brace-expansion 安全覆盖）。
+PR-17/18/20/21/22/23/27 的实现及 PR-28/29/30/31/34/36 的收口改动均已提交；
 在线部署、跨平台和发布审批仍需外部条件。
 
 状态：`完成` 有代码与测试证据；`部分` 已交付的范围写在备注；`未开始`；`阻塞` 写明原因。
@@ -84,8 +85,9 @@ RC 证据输入、报告 HEAD 绑定、SBOM bom-ref 集合校验和 `check:creat
 `check:create-zeus-packed` 与 `check:create-zeus-registry`；Node 24 全量单测 187 files /
 1990 tests 通过。
 
-本轮最终本地提交为 `30bb1c0`、`9dbea6a`、`597df88`，工作树只保留用户自有的
-`Cargo.toml` 调试配置改动。本机 Node 22.12 下：`check`、`lint`、`format-check`、
+本轮最终本地提交为 `30bb1c0`、`9dbea6a`、`597df88`、`dee6285`、`e74f5fc`，工作树只
+保留用户自有的 `Cargo.toml` 调试配置改动。CI 首轮暴露的 `playground:check` 快照过期、
+Clippy pedantic 与 `brace-expansion` 高危审计问题均已在这两个提交中修复。本机 Node 22.12 下：`check`、`lint`、`format-check`、
 `check:docs`、`api:check`、`check:cjs`、`check:exports`、`size:ci`、`check:secrets`、
 `check:sbom`、`check:playground-editor`（含 DTS 等价构建）、`check:admin`、
 `check:packed-consumers` 与 `check:create-zeus` 通过；全量单测 185/187 文件、
