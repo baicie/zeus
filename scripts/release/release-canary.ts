@@ -6,6 +6,11 @@ import pico from 'picocolors'
 import semver from 'semver'
 
 import config, { zeusFixedPackages } from '../release.config'
+import {
+  assertCleanReleaseSource,
+  restoreReleaseRewrite,
+  snapshotReleaseRewrite,
+} from './release-rewrite-guard'
 import { verifyCurrentMainHead } from './verify-main-head'
 import { findWorkspacePackages } from '../shared/utils'
 
@@ -164,59 +169,86 @@ export function getCanaryStagingTag(environment: NodeJS.ProcessEnv): string {
 async function main(): Promise<void> {
   const { dryRunOnly } = parseCanaryOptions(process.argv.slice(2))
   assertCanaryEnvironment(process.env, { dryRunOnly })
+  const source = snapshotReleaseRewrite(process.cwd())
+  assertCleanReleaseSource(source, [])
   const version = getCanaryVersion(process.env)
   const stagingTag = getCanaryStagingTag(process.env)
   const registry = config.publish?.registry ?? defaultRegistry
+
+  process.env.ZEUS_SOURCE_COMMIT = source.sourceCommit
+  process.env[config.canary?.envName ?? 'ZEUS_CANARY_VERSION'] = version
+  process.env.ZEUS_CANARY_STAGING_TAG = stagingTag
 
   if (!dryRunOnly) {
     verifyCurrentMainHead()
     exposeCanaryEnvironment(version, stagingTag)
   }
 
-  run('pnpm', ['release:version-packages', version])
-  run('pnpm', ['install', '--lockfile-only'])
-  run('pnpm', ['release:precheck', '--strict'])
+  try {
+    run('pnpm', ['release:version-packages', version])
+    run('pnpm', ['install', '--lockfile-only'])
+    run('pnpm', ['release:precheck', '--channel', 'canary'])
 
-  const packageDirs = new Map(
-    findWorkspacePackages().map(pkg => [pkg.name, pkg.dir]),
-  )
-  for (const pkg of zeusFixedPackages) {
-    if (!packageDirs.has(pkg))
-      throw new Error(`Missing release package: ${pkg}`)
-  }
+    const packageDirs = new Map(
+      findWorkspacePackages().map(pkg => [pkg.name, pkg.dir]),
+    )
+    for (const pkg of zeusFixedPackages) {
+      if (!packageDirs.has(pkg))
+        throw new Error(`Missing release package: ${pkg}`)
+    }
 
-  const result = await publishCanaryPhases({
-    packages: zeusFixedPackages,
-    version,
-    tag: stagingTag,
-    dryRunOnly,
-    maxAttempts: config.publish?.retry ?? 5,
-    versionExists: async (pkg, expectedVersion) =>
-      npmVersionExists(pkg, expectedVersion, registry),
-    verifyHead: async () => {
-      verifyCurrentMainHead()
-    },
-    publishPackage: async (pkg, expectedVersion, tag, dryRun) => {
-      publishPackage(pkg, expectedVersion, tag, registry, dryRun)
-    },
-    wait,
-  })
+    const result = await publishCanaryPhases({
+      packages: zeusFixedPackages,
+      version,
+      tag: stagingTag,
+      dryRunOnly,
+      maxAttempts: config.publish?.retry ?? 5,
+      versionExists: async (pkg, expectedVersion) =>
+        npmVersionExists(pkg, expectedVersion, registry),
+      verifyHead: async () => {
+        verifyCurrentMainHead()
+      },
+      publishPackage: async (pkg, expectedVersion, tag, dryRun) => {
+        publishPackage(pkg, expectedVersion, tag, registry, dryRun)
+      },
+      wait,
+    })
 
-  if (result === 'dry-run-only') {
+    if (result === 'dry-run-only') {
+      console.log(
+        pico.green(
+          `Canary dry-run-only passed (${zeusFixedPackages.length} packages, ${stagingTag} -> ${version}); no packages were published.`,
+        ),
+      )
+      return
+    }
+
+    verifyCurrentMainHead()
     console.log(
       pico.green(
-        `Canary dry-run-only passed (${zeusFixedPackages.length} packages, ${stagingTag} -> ${version}); no packages were published.`,
+        `Canary staging publication complete (${stagingTag} -> ${version}).`,
       ),
     )
-    return
+  } finally {
+    try {
+      const restored = restoreReleaseRewrite(process.cwd(), source)
+      if (restored.length > 0) {
+        console.log(
+          pico.yellow(
+            `[release] restored ${restored.length} temporary version-rewrite file(s).`,
+          ),
+        )
+      }
+    } catch (error) {
+      console.error(
+        pico.red(
+          `[release] failed to restore temporary version-rewrite files: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        ),
+      )
+    }
   }
-
-  verifyCurrentMainHead()
-  console.log(
-    pico.green(
-      `Canary staging publication complete (${stagingTag} -> ${version}).`,
-    ),
-  )
 }
 
 export function assertCanaryEnvironment(
