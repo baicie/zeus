@@ -30,6 +30,7 @@ export default function vueWrapper(
   }
 
   return {
+    apiVersion: 1,
     name: 'zeus-output-vue-wrapper',
     external: ['vue'],
 

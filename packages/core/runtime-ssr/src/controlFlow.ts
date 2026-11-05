@@ -1,3 +1,5 @@
+import { assertSyncSSRValue } from './serialize'
+
 import type { SSRNode } from './types'
 
 export type SSRResolvable<T> = T | (() => T)
@@ -15,13 +17,21 @@ export function ssrShow(
 ): SSRNode {
   const condition = resolve(when)
   assertControlValue(condition, 'Show `when`')
-  return condition ? resolve(children) : (resolve(fallback) ?? null)
+  // The remaining serialization steps reject thenables, but the branch
+  // decision must not be made from a Promise's truthiness first.
+  assertSyncSSRValue(condition)
+  const value = condition ? resolve(children) : resolve(fallback)
+  assertSyncSSRValue(value)
+  return value ?? null
 }
 
 export function Show(props: ShowProps): SSRNode {
   assertControlValue(props.when, 'Show `when`')
+  assertSyncSSRValue(props.when)
   const value = props.when ? props.children : props.fallback
-  return resolve(value) ?? null
+  const resolved = resolve(value)
+  assertSyncSSRValue(resolved)
+  return resolved ?? null
 }
 
 export interface ForProps<T, K = unknown> {
@@ -35,6 +45,7 @@ export function ssrFor<T>(
   render: (item: T, index: number) => SSRNode,
 ): SSRNode {
   const items = resolve(each)
+  assertSyncSSRValue(items)
   if (items != null && !Array.isArray(items)) {
     throw new TypeError('[Zeus SSR] <For> `each` must resolve to an array.')
   }
@@ -42,6 +53,8 @@ export function ssrFor<T>(
 }
 
 export function For<T, K = unknown>(props: ForProps<T, K>): SSRNode {
+  // The public component takes values, not accessors. Lower-level `ssrFor`
+  // accepts a factory because that is how compiled JSX passes expressions.
   if (typeof props.each === 'function') {
     throw new TypeError('[Zeus SSR] <For> `each` must resolve to an array.')
   }

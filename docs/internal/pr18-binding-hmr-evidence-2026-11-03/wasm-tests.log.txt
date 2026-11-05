@@ -1,0 +1,36 @@
+TAP version 13
+# Subtest: the WASM compiler matches the native compiler on every corpus module
+ok 1 - the WASM compiler matches the native compiler on every corpus module
+  ---
+  duration_ms: 198.848625
+  type: 'test'
+  ...
+# 234 transforms identical; native 55.7 ms, wasm 88.7 ms
+# Subtest: invalid options fail with the native messages
+ok 2 - invalid options fail with the native messages
+  ---
+  duration_ms: 4.388042
+  type: 'test'
+  ...
+# Subtest: a trap rejects the transform and the next transform gets a fresh instance
+ok 3 - a trap rejects the transform and the next transform gets a fresh instance
+  ---
+  duration_ms: 4.202792
+  type: 'test'
+  ...
+# Subtest: the binary is self-contained
+ok 4 - the binary is self-contained
+  ---
+  duration_ms: 2587.090958
+  type: 'test'
+  ...
+# zeus-compiler.wasm: 1530367 B raw, 463668 B gzip, 335739 B brotli
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2995.83225

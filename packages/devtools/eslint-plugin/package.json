@@ -1,0 +1,56 @@
+{
+  "name": "@zeus-js/eslint-plugin",
+  "type": "module",
+  "version": "0.1.1-beta.20",
+  "description": "ESLint rules for Zeus application and component sources",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baicie/zeus.git",
+    "directory": "packages/devtools/eslint-plugin"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/eslint-plugin.d.ts",
+      "module": "./dist/eslint-plugin.esm-bundler.js",
+      "import": "./dist/eslint-plugin.esm-bundler.js",
+      "require": {
+        "production": "./dist/eslint-plugin.prod.cjs",
+        "development": "./dist/eslint-plugin.cjs",
+        "default": "./index.cjs"
+      }
+    }
+  },
+  "files": [
+    "index.cjs",
+    "dist"
+  ],
+  "engines": {
+    "node": "^22.18.0 || >=24.11.0"
+  },
+  "peerDependencies": {
+    "eslint": "^10.0.0"
+  },
+  "author": "Baicie",
+  "buildOptions": {
+    "name": "ZeusEslintPlugin",
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ]
+  },
+  "keywords": [
+    "zeus",
+    "eslint",
+    "lint",
+    "web-components"
+  ],
+  "main": "index.cjs",
+  "module": "dist/eslint-plugin.esm-bundler.js",
+  "types": "dist/eslint-plugin.d.ts"
+}

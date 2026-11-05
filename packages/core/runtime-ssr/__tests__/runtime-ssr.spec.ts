@@ -13,6 +13,7 @@ import {
   ssrFor,
   ssrProp,
   ssrShow,
+  ssrSpread,
   ssrStatic,
   ssrText,
   type SSRNode,
@@ -23,17 +24,31 @@ describe('@zeus-js/runtime-ssr', () => {
     expect(Object.keys(runtimeSSR).sort()).toEqual([
       'For',
       'Host',
+      'Portal',
+      'SSR_STREAMING_API_VERSION',
       'Show',
       'Slot',
+      'Transition',
       'batch',
+      'createContext',
       'createEffect',
       'createMemo',
       'createRoot',
+      'createSSROwner',
       'createSignal',
       'defineElement',
+      'disposeSSROwner',
+      'event',
+      'getSSRCurrentOwner',
+      'inject',
       'mergeProps',
       'onCleanup',
+      'prop',
+      'provide',
+      'renderToStream',
       'renderToString',
+      'runWithSSROwner',
+      'serializeSSRNodeChunks',
       'ssrAttr',
       'ssrComponent',
       'ssrComponentFromManifest',
@@ -46,6 +61,7 @@ describe('@zeus-js/runtime-ssr', () => {
       'ssrSpread',
       'ssrStatic',
       'ssrText',
+      'useContext',
     ])
   })
 
@@ -128,7 +144,9 @@ describe('@zeus-js/runtime-ssr', () => {
         }),
       ),
     ).toBe(
-      '<z-slot-field><span slot="label">projected label</span>second fallback</z-slot-field>',
+      '<z-slot-field><!--zeus:light:root-->' +
+        '<!--zeus:light:child--><span slot="label">projected label</span><!--/zeus:light:child-->' +
+        'second fallback<!--/zeus:light:root--></z-slot-field>',
     )
   })
 
@@ -153,7 +171,10 @@ describe('@zeus-js/runtime-ssr', () => {
         }),
       ),
     ).toBe(
-      '<z-slot-default><span slot="">explicit default</span><span>implicit default</span></z-slot-default>',
+      '<z-slot-default><!--zeus:light:root-->' +
+        '<!--zeus:light:child--><span slot="">explicit default</span><!--/zeus:light:child-->' +
+        '<!--zeus:light:child--><span>implicit default</span><!--/zeus:light:child-->' +
+        '<!--/zeus:light:root--></z-slot-default>',
     )
   })
 
@@ -168,7 +189,9 @@ describe('@zeus-js/runtime-ssr', () => {
       renderToString(() =>
         Field({ children: [' \n\t', runtimeSSR.ssrText(' \n\t')] }),
       ),
-    ).toBe('<z-slot-whitespace>fallback</z-slot-whitespace>')
+    ).toBe(
+      '<z-slot-whitespace><!--zeus:light:root-->fallback<!--/zeus:light:root--></z-slot-whitespace>',
+    )
   })
 
   it('rejects invalid and reserved custom-element names before serialization', () => {
@@ -212,7 +235,9 @@ describe('@zeus-js/runtime-ssr', () => {
       ),
     )
 
-    expect(html).toBe('<z-input value="Ada"><input></z-input>')
+    expect(html).toBe(
+      '<z-input value="Ada"><!--zeus:light:root--><input><!--/zeus:light:root--></z-input>',
+    )
   })
 
   it('applies manifest shadow, defaults, and initial form state metadata', () => {
@@ -281,7 +306,9 @@ describe('@zeus-js/runtime-ssr', () => {
       renderToString(() =>
         Field({ label: 'Prop', count: 0, active: true, model: { id: 1 } }),
       ),
-    ).toBe('<z-field count="0" active label="Host">content</z-field>')
+    ).toBe(
+      '<z-field count="0" active label="Host"><!--zeus:light:root-->content<!--/zeus:light:root--></z-field>',
+    )
   })
 
   it('evaluates compiler-style Host attribute accessors', () => {
@@ -290,7 +317,7 @@ describe('@zeus-js/runtime-ssr', () => {
     )
 
     expect(renderToString(() => Field())).toBe(
-      '<z-accessor data-size="large">content</z-accessor>',
+      '<z-accessor data-size="large"><!--zeus:light:root-->content<!--/zeus:light:root--></z-accessor>',
     )
   })
 
@@ -306,7 +333,7 @@ describe('@zeus-js/runtime-ssr', () => {
     )
 
     expect(renderToString(() => Field())).toBe(
-      '<z-host-channels data-state="ready">content</z-host-channels>',
+      '<z-host-channels data-state="ready"><!--zeus:light:root-->content<!--/zeus:light:root--></z-host-channels>',
     )
   })
 
@@ -338,7 +365,9 @@ describe('@zeus-js/runtime-ssr', () => {
           value: 'now',
         }),
       ),
-    ).toBe('<z-clock value="now"></z-clock>')
+    ).toBe(
+      '<z-clock value="now"><!--zeus:light:root--><!--/zeus:light:root--></z-clock>',
+    )
   })
 
   it('emits validated hydration markers', () => {
@@ -619,12 +648,29 @@ describe('@zeus-js/runtime-ssr', () => {
   })
 
   it('rejects properties without an equivalent HTML representation', () => {
-    expect(() => ssrProp('textContent', 'unsafe')).toThrow(
-      'SSR cannot serialize property "textContent".',
+    expect(() => ssrElement('div', [ssrProp('textContent', 'unsafe')])).toThrow(
+      'SSR cannot serialize property "textContent" on <div>.',
     )
     expect(() => ssrElement('select', [ssrProp('value', 'admin')])).toThrow(
       'SSR cannot serialize property "value" on <select>.',
     )
+  })
+
+  it('omits client-only properties on custom elements', () => {
+    expect(
+      renderToString(() =>
+        ssrElement(
+          'z-card',
+          [
+            ssrAttr('data-id', 'a'),
+            ssrProp('model', { name: 'Ada' }),
+            ssrProp('textContent', 'replaced'),
+            ...ssrSpread([() => ({ 'prop:items': [1, 2], title: 'Card' })]),
+          ],
+          'children',
+        ),
+      ),
+    ).toBe('<z-card data-id="a" title="Card">children</z-card>')
   })
 
   it('normalizes nested class and style values without serializing empty attributes', () => {

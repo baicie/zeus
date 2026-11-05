@@ -27,13 +27,15 @@ bundler adapter + output plugins
 
 ## Public entry points
 
-| Entry point               | Use it for                                  |
-| ------------------------- | ------------------------------------------- |
-| `@zeus-js/web-c`          | Output plugins and component-library preset |
-| `@zeus-js/web-c/vite`     | Vite component-library builds               |
-| `@zeus-js/web-c/rollup`   | Rollup component-library builds             |
-| `@zeus-js/web-c/rolldown` | Rolldown component-library builds           |
-| `@zeus-js/vite-plugin`    | Zeus Native application TSX compilation     |
+| Entry point                  | Use it for                                                  |
+| ---------------------------- | ----------------------------------------------------------- |
+| `@zeus-js/web-c`             | Output plugins and component-library preset                 |
+| `@zeus-js/web-c/vite`        | Vite component-library builds                               |
+| `@zeus-js/web-c/rollup`      | Rollup component-library builds                             |
+| `@zeus-js/web-c/rolldown`    | Rolldown component-library builds                           |
+| `@zeus-js/vite-plugin`       | Zeus Native application TSX compilation                     |
+| `@zeus-js/eslint-plugin`     | Public-import and compiler built-in linting                 |
+| `@zeus-js/playground-engine` | Shared playground compilation, sandbox messages, and export |
 
 ```ts
 import zeus, { componentLibrary } from '@zeus-js/web-c/vite'

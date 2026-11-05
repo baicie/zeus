@@ -12,6 +12,7 @@ export default function manifestOutput(
   const pretty = options.pretty ?? true
 
   return {
+    apiVersion: 1,
     name: 'zeus-output-manifest',
 
     generateBundle(ctx: ZeusBuildContext) {

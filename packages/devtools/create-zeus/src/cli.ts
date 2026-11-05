@@ -23,6 +23,11 @@ const templates = [
     hint: 'Zeus app + Vite + Vitest smoke test',
   },
   {
+    value: 'admin-ts',
+    label: 'Admin TypeScript',
+    hint: 'Signed-in admin shell with users, roles and audit views',
+  },
+  {
     value: 'component-library-ts',
     label: 'Component Library TypeScript',
     hint: 'Web Components + React/Vue outputs',
@@ -32,6 +37,11 @@ const templates = [
     label: 'Web Component TypeScript',
     hint: 'Zeus defineElement + Host + Slot',
   },
+  {
+    value: 'webc-consumer-ts',
+    label: 'WebC Consumer TypeScript',
+    hint: 'Consume an installed Web Components package',
+  },
 ] as const
 
 export async function runCreateZeus(
@@ -39,20 +49,51 @@ export async function runCreateZeus(
 ): Promise<void> {
   const { values } = parseArgs({
     args: [...argv],
-    options: { force: { type: 'boolean', default: false } },
-  })
-  intro(pc.cyan('Create Zeus App'))
-  const projectName = await text({
-    message: 'Project name',
-    placeholder: 'my-zeus-app',
-    defaultValue: 'my-zeus-app',
-    validate(value) {
-      if (!value?.trim()) return 'Project name is required.'
+    options: {
+      force: { type: 'boolean', default: false },
+      name: { type: 'string' },
+      template: { type: 'string' },
+      help: { type: 'boolean', default: false },
     },
   })
-  if (isCancel(projectName)) {
-    cancel('Operation cancelled.')
+  if (values.help) {
+    console.info(
+      [
+        'Usage: create-zeus [--name <project>] [--template <template>] [--force]',
+        '',
+        'Templates:',
+        ...templates.map(template => `  ${template.value}  ${template.hint}`),
+      ].join('\n'),
+    )
     return
+  }
+  const templateValues = new Set<string>(
+    templates.map(template => template.value),
+  )
+  if (values.template && !templateValues.has(values.template)) {
+    throw new Error(
+      `Template "${values.template}" not found. Available: ${[...templateValues].join(', ')}`,
+    )
+  }
+  intro(pc.cyan('Create Zeus App'))
+  let projectName = values.name?.trim()
+  if (values.name !== undefined && !projectName) {
+    throw new Error('Project name must not be empty.')
+  }
+  if (!projectName) {
+    const answer = await text({
+      message: 'Project name',
+      placeholder: 'my-zeus-app',
+      defaultValue: 'my-zeus-app',
+      validate(value) {
+        if (!value?.trim()) return 'Project name is required.'
+      },
+    })
+    if (isCancel(answer)) {
+      cancel('Operation cancelled.')
+      return
+    }
+    projectName = String(answer)
   }
 
   const root = resolve(process.cwd(), projectName)
@@ -63,17 +104,21 @@ export async function runCreateZeus(
     )
   }
 
-  const template = await select({
-    message: 'Select a template',
-    options: [...templates] as {
-      value: string
-      label: string
-      hint?: string
-    }[],
-  })
-  if (isCancel(template)) {
-    cancel('Operation cancelled.')
-    return
+  let template = values.template
+  if (!template) {
+    const answer = await select({
+      message: 'Select a template',
+      options: [...templates] as {
+        value: string
+        label: string
+        hint?: string
+      }[],
+    })
+    if (isCancel(answer)) {
+      cancel('Operation cancelled.')
+      return
+    }
+    template = String(answer)
   }
 
   const preparedTarget = inspectScaffoldTarget(root)
@@ -96,7 +141,7 @@ export async function runCreateZeus(
   await scaffold({
     root,
     projectName,
-    template: String(template),
+    template,
     force: values.force,
   })
   outro(

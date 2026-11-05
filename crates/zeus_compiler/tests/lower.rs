@@ -1227,6 +1227,102 @@ fn rejects_unknown_attributes_on_control_builtins_without_dropping_them() {
 }
 
 #[test]
+fn resolves_element_namespace_from_the_surrounding_markup() {
+    let source = r#"export const App = props => <div>
+  <p>html</p>
+  <svg viewBox="0 0 1 1">
+    <style>{props.css}</style>
+    <circle data-r={props.radius} />
+    <foreignObject>
+      <div><svg><script>{props.source}</script></svg></div>
+    </foreignObject>
+  </svg>
+</div>
+"#;
+    let lowered = lower_module(source, "namespaces.tsx");
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let module = lowered.ir.expect("namespaces lower");
+
+    let mut observed = Vec::new();
+    collect_namespaces(&module.components[0].root, &mut observed);
+    assert_eq!(
+        observed,
+        vec![
+            ("div", "html"),
+            ("p", "html"),
+            ("svg", "svg"),
+            ("style", "svg"),
+            ("circle", "svg"),
+            ("foreignObject", "svg"),
+            // `<foreignObject>` content is parsed as HTML again.
+            ("div", "html"),
+            ("svg", "svg"),
+            ("script", "svg"),
+        ]
+    );
+}
+
+#[test]
+fn keeps_control_flow_children_in_the_enclosing_namespace() {
+    let source = r"import { Show } from '@zeus-js/zeus'
+export const App = props => <svg><Show when={props.open}><style>{props.css}</style></Show></svg>
+";
+    let lowered = lower_module(source, "namespaces-control-flow.tsx");
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let module = lowered.ir.expect("control-flow children lower");
+    let zeus_compiler::ir::RootIr::Element(root) = &module.components[0].root else {
+        panic!("expected element root")
+    };
+    let ChildIr::Show(show) = &root.children[0] else {
+        panic!("expected Show child")
+    };
+    let ChildIr::Element(style) = &show.children[0] else {
+        panic!("expected style child")
+    };
+    assert_eq!(style.namespace, "svg");
+}
+
+fn collect_namespaces<'ir>(root: &'ir RootIr, observed: &mut Vec<(&'ir str, &'ir str)>) {
+    fn walk<'ir>(children: &'ir [ChildIr], observed: &mut Vec<(&'ir str, &'ir str)>) {
+        for child in children {
+            match child {
+                ChildIr::Element(element) => {
+                    observed.push((element.tag_name.as_str(), element.namespace.as_str()));
+                    walk(&element.children, observed);
+                }
+                ChildIr::Fragment(fragment) => walk(&fragment.children, observed),
+                ChildIr::Show(show) => {
+                    walk(&show.children, observed);
+                    if let Some(ComponentPropValueIr::Children(children)) = &show.fallback {
+                        walk(children, observed);
+                    }
+                }
+                ChildIr::For(for_binding) => walk(&for_binding.body, observed),
+                ChildIr::ErrorBoundary(boundary) => walk(&boundary.children, observed),
+                ChildIr::Transition(transition) => walk(&transition.children, observed),
+                ChildIr::Text(_)
+                | ChildIr::DynamicText(_)
+                | ChildIr::DynamicRegion(_)
+                | ChildIr::Component(_) => {}
+            }
+        }
+    }
+
+    match root {
+        RootIr::Element(element) => {
+            observed.push((element.tag_name.as_str(), element.namespace.as_str()));
+            walk(&element.children, observed);
+        }
+        RootIr::Fragment(fragment) => walk(&fragment.children, observed),
+        RootIr::Show(show) => walk(&show.children, observed),
+        RootIr::For(for_binding) => walk(&for_binding.body, observed),
+        RootIr::ErrorBoundary(boundary) => walk(&boundary.children, observed),
+        RootIr::Transition(transition) => walk(&transition.children, observed),
+        RootIr::Component(_) => {}
+    }
+}
+
+#[test]
 fn lowers_transition_intrinsic_with_explicit_runtime_options() {
     let source = r#"import { Transition } from '@zeus-js/zeus';
 export const App = props => <Transition when={props.open} enter="fade-in" leave={props.leave} duration={120} onEnterDone={props.done}><span>{props.label}</span></Transition>"#;
@@ -1269,4 +1365,220 @@ fn diagnoses_transition_unknown_and_jsx_options() {
         assert_eq!(lowered.diagnostics[0].code, code);
         assert!(lowered.diagnostics[0].span.is_some());
     }
+}
+
+fn diagnostic_codes_and_text<'source>(
+    lowered: &zeus_compiler::lower::LowerResult,
+    source: &'source str,
+) -> Vec<(String, &'source str)> {
+    lowered
+        .diagnostics
+        .iter()
+        .map(|diagnostic| {
+            let span = diagnostic.span.as_ref().expect("diagnostic has a span");
+            let start = usize::try_from(span.start.offset).unwrap();
+            let end = usize::try_from(span.end.offset).unwrap();
+            (diagnostic.code.clone(), &source[start..end])
+        })
+        .collect()
+}
+
+#[test]
+fn rejects_await_and_yield_evaluated_by_jsx() {
+    let source = r"export async function load(props) {
+  return <p title={await props.title}>{await props.body}</p>
+}
+export function* items(props) {
+  return <>{yield props.item}</>
+}
+";
+    let lowered = lower_module(source, "async-expression.tsx");
+
+    assert!(lowered.ir.is_none());
+    assert_eq!(
+        diagnostic_codes_and_text(&lowered, source),
+        vec![
+            (
+                "ZEUS_UNSUPPORTED_ASYNC_EXPRESSION".into(),
+                "await props.title"
+            ),
+            (
+                "ZEUS_UNSUPPORTED_ASYNC_EXPRESSION".into(),
+                "await props.body"
+            ),
+            (
+                "ZEUS_UNSUPPORTED_ASYNC_EXPRESSION".into(),
+                "yield props.item"
+            ),
+        ]
+    );
+    assert!(
+        lowered.diagnostics[0]
+            .hint
+            .as_deref()
+            .is_some_and(|hint| hint.contains("createResource"))
+    );
+}
+
+#[test]
+fn rejects_async_and_generator_components() {
+    let source = r"import { defineElement, Host } from '@zeus-js/zeus'
+export const App = async props => <div>{props.a}</div>
+export async function Page() {
+  return <main />
+}
+export function* List() {
+  yield <ul />
+}
+export const Element = defineElement('z-async', {}, async () => <Host />)
+";
+    let lowered = lower_module(source, "async-component.tsx");
+
+    assert!(lowered.ir.is_none());
+    assert_eq!(
+        diagnostic_codes_and_text(&lowered, source),
+        vec![
+            ("ZEUS_ASYNC_COMPONENT".into(), "async props => "),
+            ("ZEUS_ASYNC_COMPONENT".into(), "async function Page() "),
+            ("ZEUS_ASYNC_COMPONENT".into(), "function* List() "),
+            ("ZEUS_ASYNC_COMPONENT".into(), "async () => "),
+        ]
+    );
+    assert!(lowered.diagnostics[0].message.contains("Component `App`"));
+    assert!(
+        lowered.diagnostics[3]
+            .message
+            .starts_with("A defineElement setup")
+    );
+}
+
+#[test]
+fn allows_jsx_created_after_await_in_async_handlers_and_helpers() {
+    let source = r"const appendLoaded = async props => {
+  const value = await props.load()
+  document.body.append(<p>{value}</p>)
+}
+export const App = props => (
+  <button onClick={() => appendLoaded(props)}>load</button>
+)
+export async function renderLater(props) {
+  const value = await props.load()
+  return <p>{value}</p>
+}
+";
+    let lowered = lower_module(source, "async-handler.tsx");
+
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    assert!(lowered.ir.is_some());
+}
+
+#[test]
+fn rejects_hyphenated_component_names() {
+    let source = "const A = () => null\nexport const App = () => <A-b x={1} />\n";
+    let lowered = lower_module(source, "hyphen-component.tsx");
+
+    assert!(lowered.ir.is_none());
+    assert_eq!(
+        diagnostic_codes_and_text(&lowered, source),
+        vec![("ZEUS_UNSUPPORTED_COMPONENT_NAME".into(), "A-b")]
+    );
+}
+
+#[test]
+fn rejects_kebab_case_property_names() {
+    let source = "export const App = props => <div prop:selection-mode={props.mode} prop:columns={props.columns} />\n";
+    let lowered = lower_module(source, "kebab-property.tsx");
+
+    assert!(lowered.ir.is_none());
+    assert_eq!(
+        diagnostic_codes_and_text(&lowered, source),
+        vec![("ZEUS_INVALID_PROP_NAME".into(), "prop:selection-mode")]
+    );
+    assert!(
+        lowered.diagnostics[0]
+            .hint
+            .as_deref()
+            .is_some_and(|hint| hint.contains("prop:selectionMode")),
+        "{:?}",
+        lowered.diagnostics[0].hint
+    );
+}
+
+#[test]
+fn rejects_html_parsing_properties() {
+    let source = "export const App = props => <div prop:innerHTML={props.html}><p prop:outerHTML={props.html} /></div>\n";
+    let lowered = lower_module(source, "unsafe-html.tsx");
+
+    assert!(lowered.ir.is_none());
+    assert_eq!(
+        diagnostic_codes_and_text(&lowered, source),
+        vec![
+            ("ZEUS_UNSAFE_HTML_PROPERTY".into(), "prop:innerHTML"),
+            ("ZEUS_UNSAFE_HTML_PROPERTY".into(), "prop:outerHTML"),
+        ]
+    );
+    assert!(
+        lowered.diagnostics[0]
+            .hint
+            .as_deref()
+            .is_some_and(|hint| hint.contains("ref callback"))
+    );
+}
+
+#[test]
+fn lowers_on_namespace_events_with_exact_names() {
+    let source = "export const App = props => <z-field on:value-change={props.change} on:openChanged={props.open} onvalue-input={props.input} />\n";
+    let lowered = lower_module(source, "custom-events.tsx");
+
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let ir = lowered.ir.expect("custom events lower");
+    let names = root_element(&ir.components[0].root)
+        .attributes
+        .iter()
+        .filter_map(|attribute| match attribute {
+            AttributeIr::Event(event) => Some(event.event_name.as_str()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(names, vec!["value-change", "openChanged", "value-input"]);
+}
+
+#[test]
+fn maps_camel_case_event_handlers_to_kebab_case_events() {
+    // `onValueChange` is the name generated JSX declarations and the React
+    // wrapper both use, and Zeus custom elements dispatch `value-change`.
+    let source = "export const App = props => <z-field onValueChange={props.change} onOpenChanged={props.open} onClick={props.click} />\n";
+    let lowered = lower_module(source, "camel-events.tsx");
+
+    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
+    let ir = lowered.ir.expect("camel case events lower");
+    let names = root_element(&ir.components[0].root)
+        .attributes
+        .iter()
+        .filter_map(|attribute| match attribute {
+            AttributeIr::Event(event) => Some(event.event_name.as_str()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(names, vec!["value-change", "open-changed", "click"]);
+}
+
+#[test]
+fn rejects_event_bindings_without_an_event_name_or_handler() {
+    let source =
+        "export const App = props => <div on-value-change={props.change} on:close=\"x\" />\n";
+    let lowered = lower_module(source, "invalid-events.tsx");
+
+    assert!(lowered.ir.is_none());
+    assert_eq!(
+        diagnostic_codes_and_text(&lowered, source),
+        vec![
+            ("ZEUS_INVALID_EVENT_BINDING".into(), "on-value-change"),
+            ("ZEUS_INVALID_EVENT_BINDING".into(), "on:close=\"x\""),
+        ]
+    );
+    assert_eq!(
+        lowered.diagnostics[0].hint.as_deref(),
+        Some("Use on:value-change to bind an event by its exact name.")
+    );
 }

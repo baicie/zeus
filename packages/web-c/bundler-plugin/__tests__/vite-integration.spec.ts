@@ -59,6 +59,7 @@ describe('vite adapter', () => {
     const plugin = zeus({
       plugins: [
         {
+          apiVersion: 1,
           name: 'test-plugin',
           setup() {},
         },

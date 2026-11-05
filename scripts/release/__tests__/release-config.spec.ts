@@ -65,6 +65,9 @@ describe('zeus release config', () => {
       ['pnpm', 'check:release-worktree', '--capture'],
       ['pnpm', 'check:branch'],
       ['pnpm', 'audit:prod'],
+      ['pnpm', 'check:secrets'],
+      ['pnpm', 'check:sbom:write'],
+      ['pnpm', 'check:sbom'],
       ['pnpm', 'check:native-packages'],
       ['pnpm', 'check:native-binaries'],
       ['pnpm', 'build'],
@@ -80,11 +83,13 @@ describe('zeus release config', () => {
       ['pnpm', 'check:package-versions'],
       ['pnpm', 'examples:check:all'],
       ['pnpm', 'check:create-zeus'],
+      ['pnpm', 'check:create-zeus-packed'],
       ['pnpm', 'bench:component-host:ci'],
       ['pnpm', 'docs:build'],
       ['pnpm', 'size:ci'],
       ['pnpm', 'check:exports'],
       ['pnpm', 'check:repository'],
+      ['pnpm', 'check:rc-readiness'],
       ['pnpm', 'check:release-worktree', '--verify'],
     ])
   })

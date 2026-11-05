@@ -8,6 +8,8 @@
 - `effects` 保存运行次数、触发次数和累计/最近耗时；
 - `bindings` 保存 DOM target、binding kind、cleanup 状态和依赖边；
 - `sources` 保存 `sourceId → bindingId` 关系以及依赖 key；
+- `customElements` 保存 Custom Element 名称、连接状态、mount/disconnect 次数；
+- `timeline` 保存有界、无 DOM 引用的运行时事件摘要与更新原因；
 - `selected` 保存最近一次 DOM 选择关联的 Binding、Effect 和 source signal。
 
 ## 连接 runtime
@@ -33,16 +35,24 @@ const panel = createDevtoolsPanel(
 ```
 
 `createDevtoolsPanel()` 返回可直接挂载的 DOM 面板，包含 Components、Owner tree、
-DOM bindings、Effects、Signals 和 Selected DOM 六个可折叠区域。点击应用 DOM 后，
+DOM bindings、Effects、Signals、Custom Elements、Timeline 和 Selected DOM 八个可折叠区域。点击应用 DOM 后，
 Selected DOM 会显示命中的 Binding、Effect 与 Signal ID；Binding cleanup 和 Effect
 耗时也会随 snapshot 更新。`panel.disconnect()` 只移除面板订阅和面板节点，不会断开
 consumer 或应用 runtime。
+
+`custom-element:connect` / `custom-element:disconnect` 只记录稳定 `targetId`、tag name
+和计数，不在 snapshot 或 timeline 中保留 host/ShadowRoot 对象。light DOM、open Shadow DOM、
+disconnect/reconnect 与多个 render root 都共用同一观察协议。RFC-019 的 HMR 路径发送
+`hmr:patch`、`hmr:invalidate`、`hmr:dispose`，timeline 从 `payload.reason` 展示
+`literal-binding`、`plan-mismatch`、`stale-patch`、`patch-failed` 或
+`module-dispose`。这些事件只用于诊断，不改变 patch、回滚或 cleanup 的结果。
 
 编译器生成的动态文本/节点区域通过 `mountDynamic()` 建立 reactive
 `dynamic-region` binding；该 binding 与直接 text/attr/property binding 一样发出
 Effect、依赖 track/trigger、commit 和 cleanup 事件。`pnpm check:devtools-panel`
 会先构建生产示例，再在开发服务器的真实 instrumented runtime 中运行
-Chromium/Firefox/WebKit，点击 DOM 并确认面板显示 Binding、Effect 和 Signal。
+Chromium/Firefox/WebKit，点击 DOM 并确认面板显示 Binding、Effect、Signal、Native 多个
+root、light/shadow Custom Element、断开重连与 timeline。
 
 `connect()` 会链上已有 runtime hook，避免覆盖同 realm 的其它观察者；多个 consumer 可以
 同时连接，断开其中一个不会恢复或移除其它 consumer。调用 `disconnect()` 会移除 click
@@ -54,8 +64,9 @@ microtask 内合并为一次交付，避免每个 binding/依赖事件都复制�
 不创建通知快照。订阅首次交付中的异常同样被隔离。连接 hook 或安装 click listener 失败
 会回滚本次连接，调用方可在原因消除后再次 `connect()`。
 
-清理后的诊断历史默认在 owners/effects/bindings/sources 各保留最近 500 条。可用
-`historyLimit` 设置每类非活动条目的上限，`0` 表示不保留；活动条目不受此上限影响。
+清理后的诊断历史默认在 owners/effects/bindings/sources/custom elements 各保留最近
+500 条，timeline 也最多保留 500 条。可用 `historyLimit` 设置这些上限，`0` 表示不保留
+graph 历史与 timeline；活动 graph 条目不受此上限影响。
 已释放 owner、已清理 binding、最后一个 binding 被清理后的 effect，以及没有依赖 binding
 的 source 才会进入历史。超限时移除最早的历史项，避免反复挂载/卸载导致图无限增长。
 根 owner 释放时，它的后代 owner 同时进入历史，符合 owner 子树的生命周期。

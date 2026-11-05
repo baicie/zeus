@@ -1,5 +1,12 @@
+import {
+  LIGHT_DOM_CHILD_END_MARKER,
+  LIGHT_DOM_CHILD_MARKER,
+  LIGHT_DOM_ROOT_END_MARKER,
+  LIGHT_DOM_ROOT_MARKER,
+} from '@zeus-js/shared'
+
 import { ssrAttr, ssrElement } from './element'
-import { createSSRFragment } from './serialize'
+import { createSSRFragment, ssrMarkerComment } from './serialize'
 
 import type {
   SSRComponentManifest,
@@ -70,11 +77,14 @@ export function defineElement<P extends Record<string, unknown>>(
     const props = resolveDefineProps(input, options.props)
     const shadowRootOptions = resolveShadowOptions(options.shadow)
     const mode = shadowRootOptions ? 'shadow' : 'light'
+    // Consumer children come from a compiled `get children()` accessor: read
+    // them once so the subtree is built once per render.
+    const children = props.children
+    const lightChildren = flattenLightChildren(children)
     const context: SSRHostContext = {
       mode,
       attributes: [],
-      children: props.children,
-      lightChildren: flattenLightChildren(props.children),
+      lightChildren,
       claimedLightChildren: new Set(),
     }
     return withHostContext(context, () => {
@@ -89,17 +99,35 @@ export function defineElement<P extends Record<string, unknown>>(
         ...context.attributes,
       ])
       const styles = normalizeStyles(options.styles)
-      const shadowContent = styles.length
-        ? [ssrElement('style', [], styles.join('\n')), content]
-        : content
+      const styleNodes: SSRNode = styles.length
+        ? ssrElement('style', [], styles.join('\n'))
+        : null
+      if (mode === 'shadow') {
+        const shadowContent = styleNodes ? [styleNodes, content] : content
+        return ssrCustomElement(tag, {
+          attributes,
+          shadowRoot: shadowContent,
+          shadowRootOptions,
+          children,
+        })
+      }
+
+      // Light DOM: styles and internal content share the root marker so the
+      // client upgrade can tell them apart from projected consumer children.
       return ssrCustomElement(tag, {
         attributes,
-        shadowRoot: shadowRootOptions ? shadowContent : undefined,
-        shadowRootOptions,
-        children: mode === 'shadow' ? props.children : content,
+        children: markLightDomRoot([styleNodes, content]),
       })
     })
   }
+}
+
+function markLightDomRoot(content: SSRNode): SSRNode {
+  return [
+    ssrMarkerComment(LIGHT_DOM_ROOT_MARKER),
+    content,
+    ssrMarkerComment(LIGHT_DOM_ROOT_END_MARKER),
+  ]
 }
 
 export interface SSRDefineElementContext {
@@ -112,7 +140,6 @@ export interface SSRDefineElementContext {
 interface SSRHostContext {
   readonly mode: 'shadow' | 'light'
   readonly attributes: SSRAttributeEntry[]
-  readonly children: SSRNode
   readonly lightChildren: readonly LightChild[]
   readonly claimedLightChildren: Set<string>
 }
@@ -127,9 +154,13 @@ let currentHostContext: SSRHostContext | undefined
 
 /** Compiler intrinsic for a custom-element host boundary. */
 export function Host(props: Record<string, unknown> = {}): SSRNode {
+  // Compiled JSX passes `children` as a getter that builds the subtree. Read
+  // it exactly once: `Object.entries` would invoke it and the return value
+  // would invoke it again, so Light DOM slots saw an already-consumed list.
+  const children = props.children as SSRNode
   const context = currentHostContext
-  if (!context) return props.children as SSRNode
-  for (const [name, value] of Object.entries(props)) {
+  if (!context) return children
+  for (const name of Object.keys(props)) {
     if (name === 'children') continue
     // Host uses the same property/event channels as DOM spreads. These values
     // are client-only and must not become attributes in server HTML.
@@ -140,10 +171,11 @@ export function Host(props: Record<string, unknown> = {}): SSRNode {
     ) {
       continue
     }
+    const value = props[name]
     const resolved = isHostAccessor(name, value) ? value() : value
     context.attributes.push(ssrAttr(name, resolved as never))
   }
-  return props.children as SSRNode
+  return children
 }
 
 function isHostAccessor(key: string, value: unknown): value is () => unknown {
@@ -180,7 +212,15 @@ function projectLightChildren(
       return true
     })
     .map(child => child.node)
-  return projected.length ? projected : null
+  if (!projected.length) return null
+  // Each projected consumer node is wrapped in an explicit comment pair. The
+  // client upgrade uses those markers to tell consumer children apart from
+  // server-rendered internal content; it must never guess from markup.
+  return projected.map(node => [
+    ssrMarkerComment(LIGHT_DOM_CHILD_MARKER),
+    node,
+    ssrMarkerComment(LIGHT_DOM_CHILD_END_MARKER),
+  ])
 }
 
 function flattenLightChildren(value: SSRNode, path = '0'): LightChild[] {

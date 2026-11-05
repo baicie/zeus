@@ -12,6 +12,13 @@ export function createOutputRegistry(): ZeusOutputRegistry {
 
   return {
     register(kind, options) {
+      // One registry serves one build and each output plugin registers once,
+      // so a second registration means two plugins would write one output.
+      if (map.has(kind)) {
+        throw new Error(
+          `[ZEUS_OUTPUT_CONFLICT] output kind "${kind}" is registered by more than one output plugin. Configure a single plugin per output kind.`,
+        )
+      }
       map.set(kind, normalizeRegistration(kind, options))
     },
 
@@ -53,14 +60,28 @@ function normalizeRegistration(
   kind: ZeusOutputKind,
   options: ZeusOutputRegistration,
 ): RequiredZeusOutputRegistration {
+  const builtinDir = defaultDir(kind)
+  if (builtinDir === undefined) {
+    if (!/^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$/.test(kind)) {
+      throw new Error(
+        `[ZEUS_OUTPUT_CONFIG] unknown output kind "${kind}". Third-party outputs register a namespaced kind such as "acme:svelte".`,
+      )
+    }
+    if (options.outDir === undefined) {
+      throw new Error(
+        `[ZEUS_OUTPUT_CONFIG] output kind "${kind}" must set outDir; only built-in kinds have a default directory.`,
+      )
+    }
+  }
+
   return {
-    outDir: options.outDir ?? defaultDir(kind),
+    outDir: options.outDir ?? builtinDir!,
     stripPrefix: options.stripPrefix ?? false,
     fileName: options.fileName,
   }
 }
 
-function defaultDir(kind: ZeusOutputKind): string {
+function defaultDir(kind: ZeusOutputKind): string | undefined {
   switch (kind) {
     case 'wc':
       return 'wc'
@@ -76,6 +97,8 @@ function defaultDir(kind: ZeusOutputKind): string {
       return 'icons/wc'
     case 'asset':
       return ''
+    default:
+      return undefined
   }
 }
 

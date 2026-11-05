@@ -11,6 +11,7 @@ export {
 } from './rolldown'
 
 export { createOutputRegistry } from './outputRegistry'
+export { ZEUS_PLUGIN_API_VERSION } from './pluginApi'
 
 export { resolveComponentInclude, resolveComponentExclude } from './defaults'
 

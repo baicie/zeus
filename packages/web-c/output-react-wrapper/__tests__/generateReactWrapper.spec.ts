@@ -264,6 +264,50 @@ describe('generateReactWrapper', () => {
     expect(code).not.toContain('useImperativeHandle')
   })
 
+  it('uses the manifest attribute name for camelCase primitive props', () => {
+    const code = generateReactWrapper({
+      component: {
+        tag: 'z-input',
+        name: 'ZInput',
+        exportName: 'ZInput',
+        source: 'src/input.tsx',
+        props: {
+          userName: { type: 'string' },
+        },
+        events: {},
+        slots: {},
+        hostAttributes: [],
+        cssParts: [],
+        cssVars: {},
+      },
+      namedSlots: 'props',
+      wcModuleId: 'zeus:wc:z-input',
+      mode: 'event-bridge',
+    })
+
+    expect(code).toContain('rest["user-name"] = propValue0')
+
+    const runtimeCode = generateReactWrapper({
+      component: {
+        tag: 'z-input',
+        name: 'ZInput',
+        exportName: 'ZInput',
+        source: 'src/input.tsx',
+        props: { userName: { type: 'string' } },
+        events: {},
+        slots: {},
+        hostAttributes: [],
+        cssParts: [],
+        cssVars: {},
+      },
+      namedSlots: 'props',
+      wcModuleId: 'zeus:wc:z-input',
+      mode: 'runtime',
+    })
+
+    expect(runtimeCode).toContain('props: {"userName":"user-name"}')
+  })
+
   it('does not overwrite omitted props in event-bridge mode', () => {
     const code = generateReactWrapper({
       component: {

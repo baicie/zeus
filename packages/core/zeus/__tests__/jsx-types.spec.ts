@@ -111,6 +111,11 @@ const signalAttributes = <button disabled={disabled()} title={label()}
   style={{ color: label() }} />
 const signalSVG = <path d={label()} />
 const nativeFunctionProperty = <input prop:formatter={formatter} />
+const exactEventName = <div on:openChanged={(event: CustomEvent<{ open: boolean }>) => event.detail.open} />
+const customEventDetail = <div on:valueChange={event => event.detail} />
+const kebabEventName: PublicJSX.IntrinsicElements['div'] = { 'on:value-change': (event: Event) => event.type }
+// @ts-expect-error on: bindings take an event handler.
+const invalidEventHandler: PublicJSX.IntrinsicElements['div'] = { 'on:value-change': 'handler' }
 // @ts-expect-error Native attributes read values; the compiler rejects function getters.
 const getterAttribute = <button disabled={() => true} />
 // @ts-expect-error Class expressions read values instead of calling function getters.

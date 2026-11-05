@@ -1,4 +1,13 @@
-import type { ComponentRecord } from '@zeus-js/component-analyzer'
+import {
+  getComponentAttributeName,
+  getComponentEventName,
+  isAttributeBackedPropType,
+} from '@zeus-js/component-analyzer'
+
+import type {
+  ComponentProp,
+  ComponentRecord,
+} from '@zeus-js/component-analyzer'
 
 export interface GenerateReactWrapperOptions {
   component: ComponentRecord
@@ -256,7 +265,7 @@ function createEventBindings(
     const sourceEventName = event.key ?? key
 
     return {
-      eventName: event.name ?? toKebabCase(sourceEventName),
+      eventName: getComponentEventName(key, event),
       sourceName: event.reactName ?? toReactEventProp(sourceEventName),
       localName: `eventHandler${index}`,
     }
@@ -289,16 +298,7 @@ function generateSSRAttributeAssignments(
   for (const [index, { sourceName, localName }] of bindings.entries()) {
     const prop = component.props[sourceName]
     if (!prop) continue
-    const attributeName =
-      prop.attr === false
-        ? undefined
-        : (prop.attr ??
-          (prop.type === 'object' ||
-          prop.type === 'array' ||
-          prop.type === 'function' ||
-          prop.type === 'unknown'
-            ? undefined
-            : sourceName))
+    const attributeName = getWrapperAttributeName(sourceName, prop)
     if (attributeName) {
       lines.push(
         `  if (propPresent${index}) rest[${JSON.stringify(attributeName)}] = ${localName};`,
@@ -456,8 +456,15 @@ function generateMinimalEventAssignments(bindings: EventBinding[]): string {
     .join('\n')
 }
 
-function toKebabCase(value: string): string {
-  return value.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
+// The wrapper writes attributes only for primitive values. Structured props
+// stay properties even when the element can also parse them from an attribute.
+function getWrapperAttributeName(
+  name: string,
+  prop: ComponentProp,
+): string | false {
+  return isAttributeBackedPropType(prop.type)
+    ? getComponentAttributeName(name, prop)
+    : false
 }
 
 function toReactEventProp(value: string): string {
@@ -496,20 +503,7 @@ function generateRuntimeReactWrapper(
 function formatRuntimePropertyConfig(component: ComponentRecord): string {
   const config: Record<string, string | false> = {}
   for (const [name, prop] of Object.entries(component.props)) {
-    if (prop.attr === false) {
-      config[name] = false
-    } else if (typeof prop.attr === 'string') {
-      config[name] = prop.attr
-    } else if (
-      prop.type === 'object' ||
-      prop.type === 'array' ||
-      prop.type === 'function' ||
-      prop.type === 'unknown'
-    ) {
-      config[name] = false
-    } else {
-      config[name] = name
-    }
+    config[name] = getWrapperAttributeName(name, prop)
   }
   return JSON.stringify(config)
 }
@@ -521,7 +515,7 @@ function createRuntimeEventMap(
 
   for (const [key, event] of Object.entries(component.events)) {
     const sourceEventName = event.key ?? key
-    const domEventName = event.name ?? toKebabCase(sourceEventName)
+    const domEventName = getComponentEventName(key, event)
     const reactPropName = event.reactName ?? toReactEventProp(sourceEventName)
 
     events[reactPropName] = domEventName

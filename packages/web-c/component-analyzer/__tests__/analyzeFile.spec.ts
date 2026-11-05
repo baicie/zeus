@@ -330,6 +330,7 @@ describe('analyzeFile', () => {
         {
           shadow: false,
           formAssociated: true,
+          form: { value: 'value' },
           styles: ['input { color: red }', '.hint { display: block }'],
           props: {
             value: {
@@ -1474,5 +1475,45 @@ describe('analyzeFile', () => {
 
     expect(result.components[0].props.tree).toMatchObject({ type: 'unknown' })
     expect(result.components[0].props.tree.declaration).toBeUndefined()
+  })
+})
+
+describe('form contract diagnostics', () => {
+  const analyze = (options: string, setup = '() => null') =>
+    analyzeFile({
+      file: 'src/field.tsx',
+      code: `
+        import { defineElement } from '@zeus-js/zeus'
+        export const ZField = defineElement('z-field', ${options}, ${setup})
+      `,
+    }).diagnostics
+
+  it('warns when a form-associated element can never submit a value', () => {
+    expect(
+      analyze(`{ formAssociated: true, props: { value: String } }`),
+    ).toEqual([
+      {
+        level: 'warning',
+        file: 'src/field.tsx',
+        message: expect.stringContaining(
+          '<z-field> [ZEUS_WC_FORM_CONTRACT] is formAssociated but declares no form contract',
+        ),
+      },
+    ])
+  })
+
+  it('accepts a declared form contract or a setup that manages internals', () => {
+    expect(
+      analyze(
+        `{ formAssociated: true, props: { value: String }, form: { value: 'value' } }`,
+      ),
+    ).toEqual([])
+    expect(
+      analyze(
+        `{ formAssociated: true }`,
+        `(_props, { internals }) => { internals?.setFormValue('x'); return null }`,
+      ),
+    ).toEqual([])
+    expect(analyze(`{ props: { value: String } }`)).toEqual([])
   })
 })

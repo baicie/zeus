@@ -1,0 +1,7 @@
+# Copy to .env.local for local development. Never commit real credentials.
+ZEUS_ADMIN_EMAIL=admin@zeus.local
+ZEUS_ADMIN_PASSWORD=replace-with-a-unique-12-plus-character-password
+ZEUS_ADMIN_VIEWER_PASSWORD=replace-with-another-unique-password
+ZEUS_ADMIN_DB=.data/admin.sqlite
+ZEUS_ADMIN_UPLOAD_BYTES=65536
+PORT=8787

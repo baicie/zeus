@@ -32,6 +32,7 @@ describe('output plugin lifecycle', () => {
     const generateBundle = vi.fn()
 
     const outputPlugin: ZeusComponentPlugin = {
+      apiVersion: 1,
       name: 'test-output',
 
       buildStart() {

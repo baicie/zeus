@@ -115,3 +115,64 @@ Both wrappers consume:
 - `component.models`
 
 Slots, css parts, and models should usually be inferred by the analyzer. Wrapper generators should not guess missing protocol details.
+
+## Framework Cell Renderers
+
+Ordinary children and named slots stay on the DOM slot contract above. A
+component that renders framework content into containers it owns, such as a
+virtualized grid cell, uses a renderer adapter instead
+([RFC-011](../rfcs/RFC-011-framework-renderer-adapter.md), status Proposal).
+
+`@zeus-js/web-c-runtime` exports `createRendererHost(adapter)`. The host
+reconciles keyed entries (`{ key, container, data, context }`): an unchanged key
+and container is updated, a changed container remounts, and a missing key is
+disposed. All disposals of a `render` call run before its mounts, so two keys can
+swap containers in one call. Two keys that use the same container in one call
+throw `ZEUS_RENDERER_DUPLICATE_CONTAINER`. Every mount receives a
+`RendererSession` with a strictly increasing `generation` and an `AbortSignal`
+that is aborted before disposal.
+
+The framework adapters live in separate entries so the wrapper main entries do
+not import React DOM or the Vue renderer:
+
+```ts
+import { createRendererHost } from '@zeus-js/web-c-runtime'
+import { createReactRenderer } from '@zeus-js/output-react-wrapper/renderer'
+
+const host = createRendererHost(
+  createReactRenderer((row: Row) => <Cell row={row} />, { strict: true }),
+)
+host.render([{ key: 'row-1', container, data: row, context: undefined }])
+host.dispose()
+```
+
+`createVueRenderer(render, { appContext })` from
+`@zeus-js/output-vue-wrapper/renderer` has the same shape and resolves
+components and provides from `appContext`. Both adapters commit synchronously,
+unmount Portal and Teleport content on dispose, and report failures as
+`ZEUS_RENDERER_ADAPTER_FAILURE`, `ZEUS_RENDERER_DISPOSED` or
+`ZEUS_RENDERER_CONTAINER_MISMATCH`. The React entry needs `react-dom` as a peer
+dependency. Both renderer entries import only types from
+`@zeus-js/web-c-runtime`, which is an optional peer dependency of the wrappers;
+install it when you use `createRendererHost`.
+
+Errors thrown during `mount`, `update` or `dispose` (including effect cleanups
+and unmount hooks) are thrown to the host as `ZEUS_RENDERER_ADAPTER_FAILURE`
+with the original error as `cause`. A failed `dispose` still unmounts the root
+and marks the handle `disposed`, so the host's retry does not unmount it twice.
+Errors raised later, for example by a state update after the call returned, are
+not attributed to the next call:
+
+- React passes them to the `onError(error, session)` option, or to
+  `globalThis.reportError` (`console.error` where it does not exist).
+- Vue lets them propagate to the application's `config.errorHandler`.
+
+Vue `update` always re-renders, even when `data` is the same object that was
+mutated in place.
+
+Call `host.render`, `host.setAdapter` and `host.dispose` with the React adapter
+outside React rendering and commits, for example from an event handler or a
+scheduled task, not from a render function, `useLayoutEffect` or `useEffect`.
+React cannot flush a nested root there, so `mount` and `update` throw
+`ZEUS_RENDERER_ADAPTER_FAILURE` instead of returning before the DOM is
+committed.

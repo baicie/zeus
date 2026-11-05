@@ -25,9 +25,16 @@ export default defineConfig({
 zeus({
   include?: RegExp | RegExp[]
   exclude?: RegExp | RegExp[]
-  hmr?: boolean
+  hmr?: boolean | { preserveBindings?: boolean }
   ssrModuleName?: string
-  compiler?: { moduleName?: string; delegateEvents?: boolean }
+  compiler?: {
+    moduleName?: string
+    delegateEvents?: boolean
+    cache?: boolean | {
+      enabled?: boolean
+      onEvent?: (event: CompilerCacheEvent) => void
+    }
+  }
 })
 ```
 
@@ -52,18 +59,45 @@ builds and SSR transforms do not contain the HMR boundary.
 Set `hmr: false` to disable automatic boundaries. A module that contains its
 own `import.meta.hot` handling is also left unchanged.
 
+To opt into the experimental compiler-certified literal binding patches:
+
+```ts
+zeus({ hmr: { preserveBindings: true } })
+```
+
+In a module with an automatic render-root boundary, edits to pure string
+expressions such as `<p class={'muted'} style={'color: blue'}>{'Hello'}</p>`
+update the existing bindings. The Rust compiler compares the entire module
+signature with only those literal values masked out. Existing DOM nodes,
+Signal state, owners and listeners remain in place; the module does not run
+again. New list/conditional subtrees also use the edited values.
+
+Other attribute/property expressions, `once`, spread, raw-text elements,
+Web Components and component-only modules are outside this patch contract.
+Changes to closures, imports, initialization or structure remount. A compile
+error keeps the last successful tree and displays the Vite overlay; a failed
+runtime patch restores its data and asks Vite to reload. Details and safety
+evidence are in [RFC-019](../rfcs/RFC-019-hmr-literal-bindings.md).
+
+The compiler and runtime must be built from the same version for this internal
+plan/helper contract. Validate candidate packages with `pnpm check:hmr-packed`
+after building the runtime, DTS and host native platform package. It installs
+tarballs outside the workspace and runs the same Chromium/Firefox/WebKit gate
+as `pnpm check:hmr-browser`.
+
 ### HMR update classes
 
 The plugin records a conservative update class for development diagnostics:
 
-| Update                                          | Current strategy                                                                             |
-| ----------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| CSS/stylesheet module                           | Vite CSS HMR (`vite-style`); Zeus roots are not remounted                                    |
-| Ordinary comment text only                      | `preserve-state`; existing roots, owners and DOM nodes remain                                |
-| Template structure                              | `dispose-remount`; direct render roots are disposed and remounted                            |
-| Signal initialization                           | `dispose-remount`; direct render roots are disposed and remounted                            |
-| Component API (`defineElement`, props, exports) | `dispose-remount`; direct roots are disposed, dependency-only updates propagate through Vite |
-| Unknown change                                  | `dispose-remount`; direct render roots are disposed and remounted                            |
+| Update                                              | Current strategy                                                                             |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| CSS/stylesheet module                               | Vite CSS HMR (`vite-style`); Zeus roots are not remounted                                    |
+| Ordinary comment text only                          | `preserve-state`; existing roots, owners and DOM nodes remain                                |
+| Compiler-certified literal text/class/style, opt-in | `preserve-state`; updates only existing binding cells                                        |
+| Template structure                                  | `dispose-remount`; direct render roots are disposed and remounted                            |
+| Signal initialization                               | `dispose-remount`; direct render roots are disposed and remounted                            |
+| Component API (`defineElement`, props, exports)     | `dispose-remount`; direct roots are disposed, dependency-only updates propagate through Vite |
+| Unknown change                                      | `dispose-remount`; direct render roots are disposed and remounted                            |
 
 Ordinary comment edits retain Signal state and DOM identity only when every
 other source byte and each comment line terminator is unchanged. Edits to
@@ -75,16 +109,39 @@ Invalid or unsupported syntax always recompiles.
 The generated root boundary is registered before module initialization, captures each successful `render()`
 disposer immediately, and disposes roots in reverse mount order. Each disposer
 is isolated so one cleanup error cannot leave other owners or listeners alive.
-All executable edits continue to dispose and remount. Any wider state
-retention requires a separate proof of owner, listener, and DOM identity safety.
+With the default configuration, executable edits continue to dispose and
+remount. RFC-019 proves the opt-in string binding subset; widening it requires
+another proof of owner, listener, and DOM identity safety.
 When a changed dependency has no local render root, Vite's unaccepted-update
 propagation may reload the importing page; the plugin does not claim component
 state preservation for that path.
 
 ### compiler
 
-Overrides the native transform options passed to `transformModule`. The only
-compiler options are `moduleName` and `delegateEvents`.
+Overrides the native transform options passed to `transformModule`.
+`moduleName` and `delegateEvents` select the generated runtime contract.
+Compilation caching is enabled by default per plugin instance. Its key includes
+the native compiler version, target, normalized options, module id and source
+content. The compiler transforms one module at a time, so a module's output never
+depends on the modules it imports and editing one module leaves its importers
+cached. Each module and target keeps only its latest result, and a Vite hot
+update invalidates the edited module.
+
+Set `compiler.cache` to `false` to disable caching. To observe cold misses,
+warm hits and invalidations without affecting compilation, pass an observer:
+
+```ts
+zeus({
+  compiler: {
+    cache: {
+      onEvent(event) {
+        // event.type: "hit" | "miss" | "invalidate" | "skip"
+        console.debug('[Zeus compiler cache]', event)
+      },
+    },
+  },
+})
+```
 
 The plugin excludes `@zeus-js/zeus`, `@zeus-js/signal`,
 `@zeus-js/runtime-dom` and `@zeus-js/runtime-ssr` from dependency prebundling.

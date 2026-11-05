@@ -22,18 +22,22 @@ const targets: SizeTarget[] = [
     name: '@zeus-js/runtime-dom',
     file: 'dist/runtime-dom.esm-browser.prod.js',
     // Includes the complete exported runtime: direct bindings, control flow,
-    // Web Component host support, DevTools observation and explicit hydration.
-    // Baseline on 2026-10-20: 56.69 KB raw / 18.70 KB gzip.
-    rawLimit: 60,
-    gzipLimit: 20,
+    // Web Component host support, DevTools observation, explicit hydration,
+    // automatic hydration, Transition and ErrorBoundary.
+    // 2026-10-20 baseline: 56.69 KB raw / 18.70 KB gzip.
+    // 2026-11-04: 77.71 KB raw / 25.33 KB gzip.
+    rawLimit: 81,
+    gzipLimit: 27,
   },
   {
     name: '@zeus-js/zeus',
     file: 'dist/zeus.esm-browser.prod.js',
-    // This browser entry embeds the runtime above.
-    // Baseline on 2026-10-20: 47.38 KB raw / 15.77 KB gzip.
-    rawLimit: 50,
-    gzipLimit: 17,
+    // This browser entry embeds the runtime above, including automatic
+    // hydration, Transition, ErrorBoundary and the Web Component host.
+    // 2026-10-20 baseline: 47.38 KB raw / 15.77 KB gzip.
+    // 2026-11-04: 65.24 KB raw / 21.31 KB gzip with those features exported.
+    rawLimit: 68,
+    gzipLimit: 23,
   },
   {
     name: '@zeus-js/compiler',
@@ -44,8 +48,12 @@ const targets: SizeTarget[] = [
   {
     name: '@zeus-js/vite-plugin',
     file: 'dist/vite-plugin.esm-bundler.js',
-    rawLimit: 10,
-    gzipLimit: 4,
+    // The plugin now classifies executable TSX edits inside JSX text without
+    // a tag marker (RFC-017/RFC-019 diagnostics), using the same parsed AST
+    // for comment preservation. @babel/parser stays external.
+    // 2026-11-04: 17.75 KB raw / 5.35 KB gzip.
+    rawLimit: 19,
+    gzipLimit: 6,
   },
 ]
 

@@ -1,0 +1,12 @@
+{
+  "name": "@zeus-js/example-third-party-output-plugin",
+  "private": true,
+  "type": "module",
+  "exports": "./index.js",
+  "files": [
+    "index.js"
+  ],
+  "peerDependencies": {
+    "@zeus-js/bundler-plugin": "^0.1.1-beta.20"
+  }
+}

@@ -52,6 +52,7 @@ describe('rolldown adapter', () => {
   it('keeps scoped external imports portable and preserves require kind', async () => {
     const resolveKinds: string[] = []
     const scopedOutput: ZeusComponentPlugin = {
+      apiVersion: 1,
       name: 'scoped-output',
       virtualModules() {
         return [

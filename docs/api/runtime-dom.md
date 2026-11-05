@@ -7,10 +7,50 @@ These helpers are stable to use directly, but are not considered the primary fra
 ## render
 
 ```ts
-function render(code: () => JSXValue, element: Element): void
+function render(
+  value: JSXValue | (() => JSXValue),
+  container: Element | DocumentFragment,
+  options?: RenderOptions,
+): () => void
 ```
 
-Mounts the component tree into the element.
+Mounts the component tree into the container and returns a disposer that stops
+the render scope, clears the container and disposes the render's own owner.
+The disposer is idempotent and reports the first cleanup error after it has
+released everything, so a throwing cleanup cannot leave the subtree mounted.
+
+`options.owner` is borrowed, not consumed: the caller keeps owning it, so
+disposing one render that shares an owner does not invalidate sibling renders
+that use the same owner and its provided context values. Only an owner created
+inside `render` is disposed by it. When setup throws before the disposer is
+returned, `render` releases the bindings and owner it created and clears the
+container, then rethrows the setup error.
+
+### Experimental automatic hydration
+
+```ts
+interface RenderOptions {
+  owner?: Owner
+  hydrate?: boolean
+  onHydrationError?: (error: Error) => void
+}
+```
+
+When `hydrate: true` is paired with a module compiled using
+`autoHydrate: true`, `render` keeps the server DOM, adopts component, element,
+text, event, and property markers, and preserves node identity. A live form
+`value`, `checked`, or `selected` state that differs from the server markup is
+preserved on the first binding write. A second live takeover of the same
+container throws `ZEUS_HYDRATION_DUPLICATE_OWNER`.
+
+An adoption mismatch is reported through `onHydrationError` with a scoped
+`ZEUS_HYDRATION_*` code. Zeus clears and rebuilds only the failing component
+range, marks the rebuilt root with `data-zeus-hydration-fallback`, and leaves
+nodes outside that range in place. `Show`, `For`, `Transition`, and dynamic
+regions are experimental rebuild boundaries: their server branch is cleared
+and mounted again under the current owner. This mode is separate from the
+explicit `hydrate`/`hydratePlan` APIs below and is disabled unless the
+compiler option is enabled.
 
 ## hydrate and hydratePlan
 
@@ -28,7 +68,10 @@ function hydratePlan(
 ```
 
 `hydrate()` reuses DOM nodes located by `<!--zeus:hydrate:id-->` markers and
-attaches explicit text, attribute, property and event bindings. `hydratePlan()`
+attaches explicit text, attribute, property and event bindings. A
+`<!--zeus:hydrate:/-->` marker closes a dynamic text value; when it directly
+follows the text's own marker, the server rendered an empty string and
+`hydrate()` inserts an empty text node there to bind. `hydratePlan()`
 iterates the compiler's stable binding plan and invokes one handler for every
 planned binding. Missing handlers throw `ZEUS_HYDRATION_HANDLER_MISSING`; setup
 failures release effects and listeners already attached. The returned disposer
@@ -54,10 +97,20 @@ no reactive effect is created.
 ## bindEvent
 
 ```ts
-function bindEvent(el: Element, name: string, handler: EventListener): void
+function bindEvent(
+  el: Element,
+  name: string,
+  handler: EventListener,
+  delegated?: boolean,
+): void
 ```
 
-Binds an event handler. Handlers are stored on the element for event delegation.
+Binds an event handler. By default the handler is stored on the element and
+dispatched by the document listener registered through `delegateEvents`. With
+`delegated: false` the handler is attached to the element as a native listener;
+the compiler emits this for events that do not bubble (such as `mouseenter`,
+`scroll` or media events) and for every event when `delegateEvents` is disabled.
+A native handler is never dispatched a second time by the document delegate.
 
 ## bindAttr
 
@@ -93,7 +146,10 @@ same trailing `once` flag and preserve their normal initial-value semantics.
 function delegateEvents(events: readonly string[]): void
 ```
 
-Registers event types for delegation at the document level.
+Registers event types for delegation at the document level. Each event type
+gets one shared `document` listener for the lifetime of the page. It is not
+released with any render scope, so runtime diagnostics sessions do not count it
+in `listenersCreated` or `listenersDisposed`.
 
 ## defineElement prop reactivity
 
@@ -171,27 +227,62 @@ Binds a DOM element to a reactive ref.
 ```ts
 interface ErrorBoundaryProps {
   children: () => JSXValue
-  fallback: (error: unknown, reset: () => void) => JSXValue
-  onError?: (error: unknown) => void
+  fallback: (
+    error: unknown,
+    reset: () => void,
+    info?: ErrorBoundaryInfo,
+  ) => JSXValue
+  onError?: (error: unknown, info?: ErrorBoundaryInfo) => void
+}
+
+interface ErrorBoundaryInfo {
+  phase: 'render' | 'binding' | 'event' | 'request' | 'runtime'
+  fatal: boolean
 }
 
 function ErrorBoundary(props: ErrorBoundaryProps): DocumentFragment
 ```
 
-`ErrorBoundary` currently requires an explicit child factory and an active
-render scope so it can catch synchronous initialization and first-insertion
-errors and release its subtree with the owner. Binding effects created in that
-factory's subtree are also routed to the boundary after mount; a later binding
-error calls `onError` and switches to the fallback. Its fallback owns a separate
-scope, and `reset()` disposes that branch before retrying the child. Event
-handlers, independent owners, and unobserved Promise rejections remain outside
-the boundary. To integrate `@zeus-js/resource`, read the resource state from a
-binding and explicitly throw `resource.error()` when `resource.status() === 'error'`. The boundary
-then displays its fallback; call `resource.refetch()` and `reset()` after a
-successful request to restore the child branch. Resource errors are not
-automatically promoted to boundary errors. The compiler lowering accepts the
-same explicit child factory contract; ordinary JSX children still do not gain
-implicit initialization-error capture.
+`ErrorBoundary` requires an explicit child factory and an active render scope.
+It catches synchronous initialization, binding and event errors, reports their
+phase, disposes the failed owner, and mounts the fallback in a separate scope.
+`reset()` disposes that branch before retrying the child. Security errors
+(`SecurityError`, `ZEUS_SECURITY_*`, `ZEUS_FATAL_*`, or errors marked
+`fatal: true`) are rethrown after the failed branch is released.
+
+Use `captureErrorBoundary()` in a child to retain the boundary for an async
+request, then call `reportError(error, 'request')` from the request callback.
+Without a boundary, `reportError` rethrows. Resource errors remain explicit:
+read `resource.error()` and throw it from a binding when
+`resource.status() === 'error'`.
+
+## Native Form
+
+```ts
+const form = createForm({
+  initialValues: { email: '' },
+  schema: fromSafeParse(schema),
+  onSubmit: (values, { signal }) => {
+    void signal
+    return mutation.mutateAsync(values)
+  },
+})
+
+const release = form.bind(formElement)
+form.field('email').set('user@zeus.dev')
+await form.submit()
+form.reset()
+release()
+```
+
+`createForm` reads native `FormData`, composes repeated names as arrays, preserves
+form-associated custom-element values supplied through `ElementInternals`, and
+supports controlled overrides through `setValue` or a field controller. Native
+constraint failures and schema errors are exposed through `errors()` and focus
+the first invalid control. `fromSafeParse` adapts a Zod/Valibot-shaped
+`safeParse` result without adding a schema dependency. Submit failures are
+stored in `submitError()` and returned as a structured `FormSubmitResult`; the
+controller does not swallow mutation errors.
 
 ## Transition
 

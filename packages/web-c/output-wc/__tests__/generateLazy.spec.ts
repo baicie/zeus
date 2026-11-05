@@ -488,7 +488,7 @@ describe('generateLoader', () => {
     const code = generateLoader()
 
     expect(code).toContain(
-      'import { bootstrapLazy } from "@zeus-js/web-c-runtime"',
+      'import { bootstrapLazy, ZEUS_WC_RUNTIME_ABI_1 } from "@zeus-js/web-c-runtime"',
     )
     expect(code).toContain(
       'import { components } from "./components.manifest.js"',

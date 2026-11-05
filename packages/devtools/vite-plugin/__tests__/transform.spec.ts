@@ -2,14 +2,15 @@ import { rollup } from 'rollup'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createZeus } from '../src'
+import { createCompilerCache, createCompilerCacheKey } from '../src/cache'
 
-import type { ZeusVitePluginOptions } from '../src'
+import type { CompilerCacheEvent, ZeusVitePluginOptions } from '../src'
 import type { Plugin as RollupPlugin, TransformResult } from 'rollup'
 import type { HookHandler, Plugin, ResolvedConfig } from 'vite'
 
 type TransformHook = NonNullable<HookHandler<Plugin['transform']>>
 type ConfigResolvedHook = NonNullable<HookHandler<Plugin['configResolved']>>
-type HandleHotUpdateHook = NonNullable<HookHandler<Plugin['handleHotUpdate']>>
+type HotUpdateHook = NonNullable<HookHandler<Plugin['hotUpdate']>>
 type TransformOutput = Awaited<ReturnType<TransformHook>>
 type TransformOptions = Parameters<TransformHook>[2]
 
@@ -42,9 +43,9 @@ function getTransformHook(plugin: Plugin): TransformHook {
   return typeof hook === 'function' ? hook : hook.handler
 }
 
-function getHandleHotUpdateHook(plugin: Plugin): HandleHotUpdateHook {
-  const hook = plugin.handleHotUpdate
-  if (!hook) throw new Error('Expected handleHotUpdate hook')
+function getHotUpdateHook(plugin: Plugin): HotUpdateHook {
+  const hook = plugin.hotUpdate
+  if (!hook) throw new Error('Expected hotUpdate hook')
   return typeof hook === 'function' ? hook : hook.handler
 }
 
@@ -98,6 +99,25 @@ function getCode(result: TransformOutput): string | null {
   return code
 }
 
+interface MutableSourceMap {
+  sources: string[]
+  sourcesContent?: string[]
+  x_google_ignoreList?: number[]
+}
+
+function getSourceMap(result: TransformOutput): MutableSourceMap {
+  if (result == null || typeof result === 'string' || !result.map) {
+    throw new Error('Expected transform source map')
+  }
+
+  const map = result.map as MutableSourceMap
+  if (!Array.isArray(map.sources) || !Array.isArray(map.sourcesContent)) {
+    throw new Error('Expected a decoded source map')
+  }
+
+  return map
+}
+
 describe('vite-plugin-zeus transform', () => {
   it('exposes pre-transform plugin metadata', () => {
     const plugin = createZeus()
@@ -119,18 +139,185 @@ describe('vite-plugin-zeus transform', () => {
     await transform.call(transformContext, previous, '/src/App.tsx', undefined)
 
     const debug = vi.fn()
-    const update: Parameters<HandleHotUpdateHook>[0] = {
+    const update: Parameters<HotUpdateHook>[0] = {
+      type: 'update',
       file: '/src/App.tsx',
       read: async () => 'const App = () => <button>hello</button>',
-    } as Parameters<HandleHotUpdateHook>[0]
-    await getHandleHotUpdateHook(plugin).call(
-      { debug } as unknown as ThisParameterType<HandleHotUpdateHook>,
+    } as Parameters<HotUpdateHook>[0]
+    await getHotUpdateHook(plugin).call(
+      {
+        debug,
+        environment: { name: 'client' },
+      } as unknown as ThisParameterType<HotUpdateHook>,
       update,
     )
 
     expect(debug).toHaveBeenCalledWith(
       '[Zeus HMR] template-structure -> dispose-remount: /src/App.tsx',
     )
+  })
+
+  it('reuses identical compiler output and reports cache events', async () => {
+    const events: CompilerCacheEvent[] = []
+    const transform = createTransformHarness({
+      compiler: {
+        cache: {
+          onEvent: event => events.push(event),
+        },
+      },
+    })
+
+    const first = await transform(source, '/src/App.tsx')
+    const second = await transform(source, '/src/App.tsx')
+
+    expect(second).toEqual(first)
+    expect(events.map(event => event.type)).toEqual(['miss', 'hit'])
+    expect(events[0]?.reason).toBe('cold')
+    expect(events[1]?.reason).toBe('cached')
+  })
+
+  it('does not hand consumers the cached source map a second time', async () => {
+    const transform = createTransformHarness()
+
+    const first = getSourceMap(await transform(source, '/src/App.tsx'))
+    // Vite normalizes the map object it receives in place: it rewrites
+    // `sources`, fills `sourcesContent` and appends `x_google_ignoreList`.
+    first.sources[0] = '/dist/App.tsx'
+    first.sourcesContent![0] = 'tampered'
+    first.x_google_ignoreList = [0]
+
+    const second = getSourceMap(await transform(source, '/src/App.tsx'))
+
+    expect(second).not.toBe(first)
+    expect(second.sources).toEqual(['App.tsx'])
+    expect(second.sourcesContent).toEqual([source])
+    expect(second.x_google_ignoreList).toBeUndefined()
+  })
+
+  it('misses when source changes and supports disabling the cache', async () => {
+    const events: CompilerCacheEvent[] = []
+    const transform = createTransformHarness({
+      compiler: {
+        cache: {
+          onEvent: event => events.push(event),
+        },
+      },
+    })
+
+    await transform(source, '/src/App.tsx')
+    await transform(source.replace('hello', 'changed'), '/src/App.tsx')
+
+    expect(events.map(event => event.reason)).toEqual([
+      'cold',
+      'source-changed',
+    ])
+
+    const disabledEvents: CompilerCacheEvent[] = []
+    const disabled = createTransformHarness({
+      compiler: {
+        cache: {
+          enabled: false,
+          onEvent: event => disabledEvents.push(event),
+        },
+      },
+    })
+
+    await disabled(source, '/src/Disabled.tsx')
+    await disabled(source, '/src/Disabled.tsx')
+
+    expect(disabledEvents).toHaveLength(2)
+    expect(
+      disabledEvents.every(event => event.reason === 'cache-disabled'),
+    ).toBe(true)
+  })
+
+  it('produces identical output with the cache enabled and disabled', async () => {
+    const enabled = createTransformHarness()
+    const disabled = createTransformHarness({
+      compiler: { cache: { enabled: false } },
+    })
+
+    for (const [code, id] of [
+      [source, '/src/App.tsx'],
+      [source.replace('hello', 'changed'), '/src/App.tsx'],
+      ['export const Other = () => <span>other</span>', '/src/Other.tsx'],
+    ] as const) {
+      expect(await disabled(code, id)).toEqual(await enabled(code, id))
+    }
+  })
+
+  it('invalidates only the edited module on hot updates', async () => {
+    const events: CompilerCacheEvent[] = []
+    const plugin = createZeus({
+      hmr: true,
+      compiler: { cache: { onEvent: event => events.push(event) } },
+    })
+    runConfigResolved(plugin, 'serve', false)
+
+    const transform = getTransformHook(plugin)
+    const transformContext = {
+      error(error: string | { message: string }): never {
+        throw new Error(typeof error === 'string' ? error : error.message)
+      },
+    } as ThisParameterType<TransformHook>
+
+    await transform.call(transformContext, source, '/src/App.tsx', undefined)
+    await transform.call(transformContext, source, '/src/main.tsx', undefined)
+
+    const update = getHotUpdateHook(plugin)
+    await update.call(
+      {
+        debug: vi.fn(),
+        environment: { name: 'client' },
+      } as unknown as ThisParameterType<HotUpdateHook>,
+      {
+        type: 'update',
+        file: '/src/App.tsx',
+        read: async () => source,
+        modules: [
+          {
+            id: '/src/App.tsx',
+            importers: new Set([{ id: '/src/main.tsx', importers: new Set() }]),
+          },
+        ],
+      } as Parameters<HotUpdateHook>[0],
+    )
+
+    await transform.call(transformContext, source, '/src/App.tsx', undefined)
+    await transform.call(transformContext, source, '/src/main.tsx', undefined)
+
+    expect(
+      events.map(event => [event.type, event.filename, event.reason]),
+    ).toEqual([
+      ['miss', '/src/App.tsx', 'cold'],
+      ['miss', '/src/main.tsx', 'cold'],
+      ['invalidate', '/src/App.tsx', 'hot-update'],
+      ['miss', '/src/App.tsx', 'cold'],
+      // An importer's output does not depend on the edited module.
+      ['hit', '/src/main.tsx', 'cached'],
+    ])
+  })
+
+  it('hits regardless of the module graph Vite has recorded', async () => {
+    const events: CompilerCacheEvent[] = []
+    const plugin = createZeus({
+      compiler: { cache: { onEvent: event => events.push(event) } },
+    })
+    runConfigResolved(plugin, 'serve', false)
+    const transform = getTransformHook(plugin)
+    let importedIds: string[] = []
+    const transformContext = {
+      error(error: string | { message: string }): never {
+        throw new Error(typeof error === 'string' ? error : error.message)
+      },
+      getModuleInfo: () => ({ importedIds }),
+    } as unknown as ThisParameterType<TransformHook>
+
+    await transform.call(transformContext, source, '/src/App.tsx', undefined)
+    importedIds = ['/src/dependency.ts']
+    await transform.call(transformContext, source, '/src/App.tsx', undefined)
+
+    expect(events.map(event => event.type)).toEqual(['miss', 'hit'])
   })
 
   it('suppresses remounts for comment-only edits', async () => {
@@ -146,12 +333,16 @@ describe('vite-plugin-zeus transform', () => {
     await transform.call(transformContext, previous, '/src/App.tsx', undefined)
 
     const debug = vi.fn()
-    const update: Parameters<HandleHotUpdateHook>[0] = {
+    const update: Parameters<HotUpdateHook>[0] = {
+      type: 'update',
       file: '/src/App.tsx',
       read: async () => 'const App = () => <div>hello</div>\n// after',
-    } as Parameters<HandleHotUpdateHook>[0]
-    const result = await getHandleHotUpdateHook(plugin).call(
-      { debug } as unknown as ThisParameterType<HandleHotUpdateHook>,
+    } as Parameters<HotUpdateHook>[0]
+    const result = await getHotUpdateHook(plugin).call(
+      {
+        debug,
+        environment: { name: 'client' },
+      } as unknown as ThisParameterType<HotUpdateHook>,
       update,
     )
 
@@ -174,12 +365,16 @@ describe('vite-plugin-zeus transform', () => {
     const next = 'const App = () => <div>{/* @once */ count()}</div>'
     await transform.call(transformContext, previous, '/src/App.tsx', undefined)
 
-    const result = await getHandleHotUpdateHook(plugin).call(
-      { debug: vi.fn() } as unknown as ThisParameterType<HandleHotUpdateHook>,
+    const result = await getHotUpdateHook(plugin).call(
       {
+        debug: vi.fn(),
+        environment: { name: 'client' },
+      } as unknown as ThisParameterType<HotUpdateHook>,
+      {
+        type: 'update',
         file: '/src/App.tsx',
         read: async () => next,
-      } as Parameters<HandleHotUpdateHook>[0],
+      } as Parameters<HotUpdateHook>[0],
     )
 
     expect(result).toBeUndefined()
@@ -702,3 +897,53 @@ describe('vite-plugin-zeus transform', () => {
 function toDataURL(code: string): string {
   return `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`
 }
+
+describe('createCompilerCache', () => {
+  const input = (source: string, target: 'dom' | 'ssr' = 'dom') => ({
+    compilerVersion: '1.0.0',
+    filename: '/src/App.tsx?v=1',
+    source,
+    target,
+    runtimeModule: '@zeus-js/runtime-dom',
+    delegateEvents: true,
+    sourceMap: true,
+    hmr: false,
+  })
+
+  it('keeps only the latest entry for each module and target', () => {
+    const cache = createCompilerCache<string>()
+
+    cache.set(input('a'), 'A')
+    cache.set(input('b'), 'B')
+    cache.set(input('a', 'ssr'), 'A ssr')
+
+    expect(cache.snapshot().entries).toBe(2)
+    expect(cache.get(input('a'))).toBeUndefined()
+    expect(cache.get(input('b'))).toBe('B')
+    expect(cache.get(input('a', 'ssr'))).toBe('A ssr')
+  })
+
+  it('keys on every option that changes compiler output', () => {
+    const base = input('a')
+    const key = createCompilerCacheKey(base)
+
+    for (const change of [
+      { compilerVersion: '1.0.1' },
+      { target: 'ssr' as const },
+      { runtimeModule: '@acme/runtime' },
+      { delegateEvents: false },
+      { sourceMap: false },
+      { hmr: true },
+      { source: 'b' },
+      { filename: '/src/Other.tsx' },
+    ]) {
+      expect(
+        createCompilerCacheKey({ ...base, ...change }),
+        JSON.stringify(change),
+      ).not.toBe(key)
+    }
+    expect(
+      createCompilerCacheKey({ ...base, filename: '/src/App.tsx?v=2' }),
+    ).toBe(key)
+  })
+})

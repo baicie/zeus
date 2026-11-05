@@ -1,4 +1,7 @@
-import { scope } from '@zeus-js/signal/internal'
+import {
+  createRuntimeDiagnosticsSession,
+  scope,
+} from '@zeus-js/signal/internal'
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -54,6 +57,21 @@ describe('delegateEvents', () => {
   it('registers event types for delegation', () => {
     delegateEvents(['click', 'input'])
     expect(true).toBe(true)
+  })
+
+  it('keeps the shared document listener out of session listener counts', () => {
+    const diagnostics = createRuntimeDiagnosticsSession()
+
+    diagnostics.run(() => {
+      delegateEvents(['click'])
+      resetDelegatedEvents()
+    })
+
+    expect(diagnostics.snapshot()).toMatchObject({
+      listenersCreated: 0,
+      listenersDisposed: 0,
+    })
+    diagnostics.dispose()
   })
 })
 
@@ -274,5 +292,39 @@ describe('delegated events', () => {
     expect(innerFn).toHaveBeenCalledTimes(1)
     expect(hostFn).toHaveBeenCalledTimes(2)
     host.remove()
+  })
+
+  it('attaches non-delegated handlers to the element for non-bubbling events', () => {
+    const el = document.createElement('div')
+    const fn = vi.fn()
+    const owner = scope()
+    document.body.appendChild(el)
+
+    owner.run(() => bindEvent(el, 'mouseenter', fn, false))
+    el.dispatchEvent(new dom.window.MouseEvent('mouseenter'))
+
+    expect(fn).toHaveBeenCalledTimes(1)
+
+    owner.stop()
+    el.dispatchEvent(new dom.window.MouseEvent('mouseenter'))
+
+    expect(fn).toHaveBeenCalledTimes(1)
+    el.remove()
+  })
+
+  it('does not dispatch a non-delegated handler again through the document delegate', () => {
+    const button = document.createElement('button')
+    const fn = vi.fn()
+    document.body.appendChild(button)
+
+    // Another module compiled with delegation registers the same event name.
+    delegateEvents(['click'])
+    bindEvent(button, 'click', fn, false)
+    button.dispatchEvent(
+      new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }),
+    )
+
+    expect(fn).toHaveBeenCalledTimes(1)
+    button.remove()
   })
 })

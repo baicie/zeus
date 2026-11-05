@@ -12,8 +12,10 @@ export type {
 } from './types'
 
 export { template } from './template'
+export { createHmrState } from './hmr'
 
 export { render, type RenderOptions } from './render'
+export { autoHydrateComponent } from './autoHydration'
 export {
   hydrate,
   hydratePlan,
@@ -29,7 +31,34 @@ export { insert, mountDynamic } from './insert'
 
 export { Portal, type PortalProps } from './portal'
 
-export { ErrorBoundary, type ErrorBoundaryProps } from './errorBoundary'
+export {
+  ErrorBoundary,
+  captureErrorBoundary,
+  reportError,
+  type ErrorBoundaryHandler,
+  type ErrorBoundaryInfo,
+  type ErrorBoundaryPhase,
+  type ErrorBoundaryProps,
+} from './errorBoundary'
+
+export {
+  createForm,
+  formDataToValues,
+  fromSafeParse,
+  type CreateFormOptions,
+  type FormController,
+  type FormErrors,
+  type FormFieldController,
+  type FormSchema,
+  type FormSchemaContext,
+  type FormSchemaResult,
+  type FormSubmitContext,
+  type FormSubmitResult,
+  type FormValue,
+  type FormValues,
+  type SafeParseIssue,
+  type SafeParseSchema,
+} from './form'
 
 export {
   Transition,

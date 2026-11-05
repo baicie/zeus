@@ -11,12 +11,17 @@ export type ZeusDevtoolsEventType =
   | 'owner:dispose'
   | 'component:create'
   | 'component:dispose'
+  | 'custom-element:connect'
+  | 'custom-element:disconnect'
   | 'effect:run'
   | 'binding:commit'
   | 'binding:cleanup'
   | 'dependency:track'
   | 'dependency:trigger'
   | 'dependency:untrack'
+  | 'hmr:patch'
+  | 'hmr:invalidate'
+  | 'hmr:dispose'
 
 export interface ZeusDevtoolsEvent {
   readonly id: number

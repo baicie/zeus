@@ -1,0 +1,79 @@
+{
+  "name": "@zeus-js/playground-engine",
+  "type": "module",
+  "version": "0.1.1-beta.20",
+  "description": "Shared project and compiler bridge contracts for Zeus playgrounds",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baicie/zeus.git",
+    "directory": "packages/devtools/playground-engine"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/playground-engine.d.ts",
+      "module": "./dist/playground-engine.esm-bundler.js",
+      "import": "./dist/playground-engine.esm-bundler.js",
+      "require": {
+        "production": "./dist/playground-engine.prod.cjs",
+        "development": "./dist/playground-engine.cjs",
+        "default": "./index.cjs"
+      }
+    },
+    "./hmr": {
+      "types": "./dist/hmr.d.ts",
+      "module": "./dist/hmr.js",
+      "import": "./dist/hmr.js",
+      "require": {
+        "production": "./dist/hmr.prod.cjs",
+        "development": "./dist/hmr.cjs",
+        "default": "./dist/hmr.cjs"
+      }
+    }
+  },
+  "files": [
+    "index.cjs",
+    "dist"
+  ],
+  "engines": {
+    "node": "^22.18.0 || >=24.11.0"
+  },
+  "author": "Baicie",
+  "buildOptions": {
+    "name": "ZeusPlaygroundEngine",
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ],
+    "additionalEntries": [
+      {
+        "entry": "hmr.ts",
+        "output": "dist/hmr.js"
+      }
+    ]
+  },
+  "keywords": [
+    "zeus",
+    "playground",
+    "compiler",
+    "project"
+  ],
+  "dependencies": {
+    "@babel/parser": "catalog:",
+    "@babel/standalone": "^8.1.1",
+    "@zeus-js/component-analyzer": "workspace:*",
+    "@zeus-js/component-dts": "workspace:*",
+    "@zeus-js/output-wc": "workspace:*"
+  },
+  "main": "index.cjs",
+  "module": "dist/playground-engine.esm-bundler.js",
+  "types": "dist/playground-engine.d.ts",
+  "browser": {
+    "@zeus-js/component-analyzer": "@zeus-js/component-analyzer/browser"
+  }
+}

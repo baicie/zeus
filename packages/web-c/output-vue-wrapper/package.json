@@ -33,6 +33,15 @@
         "development": "./dist/runtime/index.cjs",
         "default": "./dist/runtime/index.cjs"
       }
+    },
+    "./renderer": {
+      "types": "./dist/renderer/index.d.ts",
+      "import": "./dist/renderer/index.js",
+      "require": {
+        "production": "./dist/renderer/index.prod.cjs",
+        "development": "./dist/renderer/index.cjs",
+        "default": "./dist/renderer/index.cjs"
+      }
     }
   },
   "files": [
@@ -40,10 +49,14 @@
     "dist"
   ],
   "peerDependencies": {
-    "vue": ">=3"
+    "vue": ">=3",
+    "@zeus-js/web-c-runtime": "workspace:*"
   },
   "peerDependenciesMeta": {
     "vue": {
+      "optional": true
+    },
+    "@zeus-js/web-c-runtime": {
       "optional": true
     }
   },
@@ -51,6 +64,9 @@
     "@zeus-js/bundler-plugin": "workspace:*",
     "@zeus-js/component-analyzer": "workspace:*",
     "@zeus-js/component-dts": "workspace:*"
+  },
+  "devDependencies": {
+    "@zeus-js/web-c-runtime": "workspace:*"
   },
   "author": "Baicie",
   "buildOptions": {
@@ -63,6 +79,10 @@
       {
         "entry": "runtime/index.ts",
         "output": "dist/runtime/index.js"
+      },
+      {
+        "entry": "renderer/index.ts",
+        "output": "dist/renderer/index.js"
       }
     ]
   },

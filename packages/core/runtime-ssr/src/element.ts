@@ -5,8 +5,10 @@ import {
   createSSRFragment,
   assertSyncSSRValue,
   escapeHTMLAttribute,
+  serializeSSRForeignText,
   serializeSSRNode,
   serializeSSRRawText,
+  type SSRRawTextTag,
 } from './serialize'
 
 import type {
@@ -36,11 +38,20 @@ const VOID_ELEMENTS = new Set([
   'wbr',
 ])
 
+const RAW_TEXT_TAGS = new Set(['script', 'style'])
+
+/**
+ * Serializes one element. `rawText` overrides the default HTML raw-text policy
+ * for `<script>` and `<style>`: the compiler passes `false` when the element
+ * sits in SVG foreign content, where those tags are parsed as normal elements
+ * and CSS escapes are not honored.
+ */
 export function ssrElement(
   tag: string,
   attributes: readonly SSRAttributeEntry[] = [],
   children: SSRNode = null,
   isVoid = VOID_ELEMENTS.has(tag.toLowerCase()),
+  rawText?: boolean,
 ): SSRFragment {
   const resolved = resolveSSRElementProperties(tag, attributes, children)
   const opening = `<${tag}${serializeAttributes(resolved.attributes)}>`
@@ -48,10 +59,19 @@ export function ssrElement(
   if (isVoid) return createSSRFragment(opening, slotName)
   const normalizedTag = tag.toLowerCase()
   const content =
-    normalizedTag === 'script' || normalizedTag === 'style'
-      ? serializeSSRRawText(resolved.children, normalizedTag)
-      : serializeSSRNode(resolved.children)
+    RAW_TEXT_TAGS.has(normalizedTag) && rawText !== false
+      ? serializeSSRRawText(resolved.children, rawTextTagOf(normalizedTag))
+      : RAW_TEXT_TAGS.has(normalizedTag)
+        ? serializeSSRForeignText(
+            resolved.children,
+            rawTextTagOf(normalizedTag),
+          )
+        : serializeSSRNode(resolved.children)
   return createSSRFragment(`${opening}${content}</${tag}>`, slotName)
+}
+
+function rawTextTagOf(tag: string): SSRRawTextTag {
+  return tag === 'script' ? 'script' : 'style'
 }
 
 function getStaticSlotName(

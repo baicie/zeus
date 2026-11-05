@@ -1,0 +1,13 @@
+4:45:50 PM [vite] (client) hmr update /temp/hmr-browser-fixture/src/main.tsx
+4:45:52 PM [vite] (client) hmr update /temp/hmr-browser-fixture/src/bindings.tsx
+4:45:52 PM [vite] (client) hmr invalidate /temp/hmr-browser-fixture/src/bindings.tsx [ZEUS_HMR_PATCH_FAILED] Binding update was rolled back
+4:45:52 PM [vite] (client) page reload temp/hmr-browser-fixture/src/bindings.tsx
+4:45:59 PM [vite] (client) hmr update /temp/hmr-browser-fixture/src/main.tsx
+4:46:02 PM [vite] (client) hmr update /temp/hmr-browser-fixture/src/bindings.tsx
+4:46:02 PM [vite] (client) hmr invalidate /temp/hmr-browser-fixture/src/bindings.tsx [ZEUS_HMR_PATCH_FAILED] Binding update was rolled back
+4:46:02 PM [vite] (client) page reload temp/hmr-browser-fixture/src/bindings.tsx
+4:46:07 PM [vite] (client) hmr update /temp/hmr-browser-fixture/src/main.tsx
+4:46:09 PM [vite] (client) hmr update /temp/hmr-browser-fixture/src/bindings.tsx
+4:46:09 PM [vite] (client) hmr invalidate /temp/hmr-browser-fixture/src/bindings.tsx [ZEUS_HMR_PATCH_FAILED] Binding update was rolled back
+4:46:09 PM [vite] (client) page reload temp/hmr-browser-fixture/src/bindings.tsx
+Vite HMR passed in chromium, firefox, webkit

@@ -29,7 +29,23 @@
       "@zeus-js/zeus/jsx-dev-runtime": [
         "./packages/core/zeus/src/jsx-dev-runtime.ts"
       ],
+      "@zeus-js/zeus/server": ["./packages/core/zeus/src/server.ts"],
+      "@zeus-js/zeus/capabilities": [
+        "./packages/core/zeus/src/capabilities.ts"
+      ],
       "@zeus-js/signal/internal": ["./packages/core/signal/src/internal.ts"],
+      "@zeus-js/signal/diagnostics": [
+        "./packages/core/signal/src/diagnostics.ts"
+      ],
+      "@zeus-js/component-analyzer/browser": [
+        "./packages/web-c/component-analyzer/src/browser.ts"
+      ],
+      "@zeus-js/component-dts/browser": [
+        "./packages/web-c/component-dts/src/browser.ts"
+      ],
+      "@zeus-js/playground-engine/hmr": [
+        "./packages/devtools/playground-engine/src/hmr.ts"
+      ],
       "@zeus-js/*": [
         "./packages/core/*/src",
         "./packages/web-c/*/src",

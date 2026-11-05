@@ -109,11 +109,17 @@ diagnostics.dispose()
 ```
 
 The snapshot counts effects, scopes, refs, memos and Proxy cache misses created
-under the session. Only effects and scopes have deterministic disposal counts.
-Proxy, ref and memo lifetime remains controlled by garbage collection, so the
-API does not report synthetic disposal values for them. `allocationsCreated`
-and `allocationsDisposed` are aggregates of these runtime-owned categories,
-not a measurement of all JavaScript heap allocations.
+under the session. When runtime-dom runs inside the same session it also counts
+owners, DOM bindings, and native element listeners. Effects, scopes, owners,
+bindings, and listeners have deterministic disposal counts, and a disposal is
+always counted on the session that was active when the resource was created,
+even if it is released outside `run()` or inside another session. The shared
+document listener registered by `delegateEvents` is a process-wide resource,
+not a per-tree allocation, so it is not counted. Proxy, ref and memo
+lifetime remains controlled by garbage collection, so the API does not report
+synthetic disposal values for them. `allocationsCreated` and
+`allocationsDisposed` are aggregates of these runtime-owned categories, not a
+measurement of all JavaScript heap allocations.
 
 `run()` is deliberately synchronous: it returns the callback result and rejects
 Promise-returning callbacks at the type boundary. Effects and scopes created

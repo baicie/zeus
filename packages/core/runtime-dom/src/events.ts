@@ -1,8 +1,13 @@
 // packages/runtime-dom/src/events.ts
 
-import { onScopeDispose } from '@zeus-js/signal/internal'
+import {
+  getCurrentScope,
+  onScopeDispose,
+  trackRuntimeResource,
+} from '@zeus-js/signal/internal'
 
 import { emitDevtoolsEvent } from './devtools'
+import { getScopeErrorBoundaryHandler } from './errorBoundaryContext'
 
 type ZeusEventMap = Record<string, EventListener>
 
@@ -14,15 +19,39 @@ type ZeusElementWithEvents = Element & {
 const delegatedEvents = new Set<string>()
 const delegatedListeners: string[] = []
 
+// A native listener reports its removal to the diagnostics session that was
+// active when it was attached, even if it is replaced or released elsewhere.
+const directListenerDiagnostics = new WeakMap<
+  Element,
+  Map<string, () => void>
+>()
+
+const eventScopes = new WeakMap<Element, Map<string, object | undefined>>()
+
+function releaseDirectListenerDiagnostics(el: Element, name: string): void {
+  const releases = directListenerDiagnostics.get(el)
+  const release = releases?.get(name)
+  if (!release) return
+  releases!.delete(name)
+  release()
+}
+
 const nonBubblingEventMap: Record<string, string> = {
   focus: 'focusin',
   blur: 'focusout',
 }
 
+/**
+ * Binds `handler` for `name` on `el`. Delegated handlers are dispatched by the
+ * document listener registered through `delegateEvents`; pass
+ * `delegated = false` for events that do not bubble or for modules compiled
+ * without delegation, which attach a native listener on the element instead.
+ */
 export function bindEvent(
   el: Element,
   name: string,
   handler: EventListener,
+  delegated = true,
 ): void {
   const target = el as ZeusElementWithEvents
   const events = (target.__zeusEvents ||= {})
@@ -32,27 +61,51 @@ export function bindEvent(
   if (previousDirectHandler) {
     el.removeEventListener(name, previousDirectHandler)
     delete directEvents[name]
+    releaseDirectListenerDiagnostics(el, name)
   }
 
   events[name] = handler
+  let scopes = eventScopes.get(el)
+  if (!scopes) eventScopes.set(el, (scopes = new Map()))
+  scopes.set(name, getCurrentScope())
 
-  if (isInClosedShadowRoot(el)) {
-    directEvents[name] = handler
-    el.addEventListener(name, handler)
+  if (!delegated || isInClosedShadowRoot(el)) {
+    const directHandler: EventListener = event => {
+      try {
+        handler.call(el, event)
+      } catch (error) {
+        routeEventError(el, name, error)
+      }
+    }
+    directEvents[name] = directHandler
+    el.addEventListener(name, directHandler)
+    const release = trackRuntimeResource('listeners')
+    if (release) {
+      let releases = directListenerDiagnostics.get(el)
+      if (!releases) directListenerDiagnostics.set(el, (releases = new Map()))
+      releases.set(name, release)
+    }
   }
 
   onScopeDispose(() => {
     if (target.__zeusEvents?.[name] === handler) {
       delete target.__zeusEvents[name]
+      eventScopes.get(el)?.delete(name)
 
-      if (target.__zeusDirectEvents?.[name] === handler) {
-        el.removeEventListener(name, handler)
+      if (target.__zeusDirectEvents?.[name]) {
+        el.removeEventListener(name, target.__zeusDirectEvents[name])
         delete target.__zeusDirectEvents[name]
+        releaseDirectListenerDiagnostics(el, name)
       }
     }
   }, true)
 }
 
+/**
+ * Registers one shared document listener per event type. These listeners are
+ * process-wide and outlive any component, so runtime diagnostics sessions do
+ * not count them; only per-element native listeners are counted.
+ */
 export function delegateEvents(events: readonly string[]): void {
   for (const event of events) {
     const delegatedName = normalizeDelegatedEventName(event)
@@ -91,6 +144,18 @@ function isInClosedShadowRoot(el: Element): boolean {
   return root.nodeType === 11 && root.mode === 'closed'
 }
 
+// A handler attached natively has already run during the event's own
+// propagation; the document delegate must not invoke it a second time when
+// another module delegates the same event name.
+function getDelegatedHandler(
+  el: ZeusElementWithEvents,
+  eventName: string,
+): EventListener | undefined {
+  const handler = el.__zeusEvents?.[eventName]
+  if (!handler || el.__zeusDirectEvents?.[eventName]) return
+  return handler
+}
+
 function dispatchDelegatedEvent(event: Event): void {
   const eventName = normalizeOriginalEventName(event.type)
 
@@ -100,10 +165,10 @@ function dispatchDelegatedEvent(event: Event): void {
       if (target === document || target === document.defaultView) break
       if (target && (target as Node).nodeType === Node.ELEMENT_NODE) {
         const el = target as ZeusElementWithEvents
-        const handler = el.__zeusEvents?.[eventName]
+        const handler = getDelegatedHandler(el, eventName)
 
         if (handler) {
-          callDelegatedHandler(el, handler, event)
+          callDelegatedHandler(el, eventName, handler, event)
 
           if (event.cancelBubble) return
         }
@@ -117,10 +182,10 @@ function dispatchDelegatedEvent(event: Event): void {
   while (node && node !== document) {
     if (node.nodeType === Node.ELEMENT_NODE) {
       const el = node as ZeusElementWithEvents
-      const handler = el.__zeusEvents?.[eventName]
+      const handler = getDelegatedHandler(el, eventName)
 
       if (handler) {
-        callDelegatedHandler(el, handler, event)
+        callDelegatedHandler(el, eventName, handler, event)
 
         if (event.cancelBubble) {
           return
@@ -134,6 +199,7 @@ function dispatchDelegatedEvent(event: Event): void {
 
 function callDelegatedHandler(
   el: Element,
+  eventName: string,
   handler: EventListener,
   event: Event,
 ): void {
@@ -159,7 +225,11 @@ function callDelegatedHandler(
   }
 
   try {
-    handler.call(el, event)
+    try {
+      handler.call(el, event)
+    } catch (error) {
+      routeEventError(el, eventName, error)
+    }
   } finally {
     try {
       if (previousCurrentTarget) {
@@ -172,4 +242,11 @@ function callDelegatedHandler(
       // ignore restore failure in non-browser test environments
     }
   }
+}
+
+function routeEventError(el: Element, eventName: string, error: unknown): void {
+  const scope = eventScopes.get(el)?.get(eventName)
+  const handler = getScopeErrorBoundaryHandler(scope)
+  if (!handler) throw error
+  handler(error, 'event')
 }

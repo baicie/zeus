@@ -1,0 +1,24 @@
+services:
+  admin:
+    build:
+      context: ../..
+      dockerfile: examples/admin/Dockerfile
+    ports:
+      - '8080:8080'
+    environment:
+      ZEUS_ADMIN_EMAIL: ${ZEUS_ADMIN_EMAIL:?Set ZEUS_ADMIN_EMAIL}
+      ZEUS_ADMIN_PASSWORD: ${ZEUS_ADMIN_PASSWORD:?Set ZEUS_ADMIN_PASSWORD}
+      ZEUS_ADMIN_VIEWER_PASSWORD: ${ZEUS_ADMIN_VIEWER_PASSWORD:?Set ZEUS_ADMIN_VIEWER_PASSWORD}
+      ZEUS_ADMIN_DB: /data/admin.sqlite
+      ZEUS_ADMIN_UPLOAD_BYTES: '65536'
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - admin-data:/data
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  admin-data:

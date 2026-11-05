@@ -60,12 +60,12 @@ Custom Element 注册或 DOM runtime。其内部 SSR 行为见下节。
 - `<script>` 与 `<style>` 使用 HTML raw-text 语义：普通 `<` 和 `&` 保持原样；为防止
   内容提前闭合元素，匹配当前元素名的结束标签会在完整 children 拼接后安全改写
   （script 使用 JavaScript `\\u003C` 转义，style 使用 CSS `\\3C ` 转义）。这也覆盖被
-  Fragment、`Show`、`For` 或相邻 child 拆开的结束标签。script 序列化还会跟踪 HTML
+  相邻的静态与动态 child 拆开的结束标签。script 序列化还会跟踪 HTML
   tokenizer 的 escaped state，并改写会进入 double-escaped state 的 `<script` 序列，
   保证框架生成的结束标签仍能闭合元素。
-- raw-text 元素仅允许直接文本、Fragment、`Show` 和 `For`；原生元素或组件子节点在
-  编译期抛出 `ZEUS_UNSUPPORTED_SSR_RAW_TEXT_CHILD`。动态值若已经是序列化后的
-  `SSRFragment`，运行时也会拒绝，因为此时无法恢复其原始文本转义上下文。
+- raw-text 元素仅允许静态文本和标量动态表达式；元素、组件、Fragment、控制流以及产出
+  JSX 的表达式在两个 target 上都于编译期抛出 `ZEUS_UNSUPPORTED_RAW_TEXT_CHILD`。动态值若
+  已经是序列化后的 `SSRFragment`，运行时也会拒绝，因为此时无法恢复其原始文本转义上下文。
 - attribute 值至少转义 `&`、`"`、`<` 和 `>`。
 - `null`、`undefined`、`false` attribute 被省略；`true` 输出无值的布尔 attribute。
 - 文本位置的 `null`、`undefined` 和 boolean 输出为空字符串。
@@ -82,6 +82,11 @@ Custom Element 注册或 DOM runtime。其内部 SSR 行为见下节。
   property 会覆盖同名静态 attribute。
 - 不具备确定 HTML 等价语义的 property 或元素组合（例如 `textContent`、
   `select.value`）在编译期抛出 `ZEUS_UNSUPPORTED_SSR_PROPERTY` 结构化诊断。
+- 自定义元素（标签名含 `-`）上的 property 只属于客户端：SSR 输出宿主标签和 attribute，
+  省略全部 `prop:*`（包括经 spread 传入的），由元素升级或 hydration 后接收。与 Web
+  Component wrapper 的 SSR-0 规则一致。
+- `prop:innerHTML` 与 `prop:outerHTML` 在两个 target 上都于编译期抛出
+  `ZEUS_UNSAFE_HTML_PROPERTY`。
 - 任何序列化位置出现 thenable 都是同步协议错误，不按普通空值处理。
 - 标签名和 attribute 名只来自编译期 IR，不接受运行时拼接的名称。
 
@@ -124,9 +129,11 @@ HTML markers。客户端通过 `hydrate(container, setup)` 或
 输入值相等时保留焦点、选区及节点 identity。
 
 `hydrationPlan` 只是 metadata，调用方仍需提供每个 binding 的客户端 handler。
-不会自动执行第二棵组件树或自动接管 WC 内部 DOM；未调用显式 hydration 而重新
-`render` 的应用会创建新节点。Streaming、异步 SSR 和自动组件 hydration 不在当前
-契约中。当前实现与使用方式见 [Server Rendering](../guide/server-rendering.md)。
+实验性的自动组件接管由 [RFC-019](./RFC-019-automatic-hydration.md) 单独定义；
+它要求编译器显式启用 `autoHydrate`，不会改变默认的显式 hydration 行为，也不自动
+进入 Web Component 的 ShadowRoot。未调用任一 hydration 模式而重新 `render` 的应用
+会创建新节点。Streaming 与异步 SSR 仍由 [RFC-018](./RFC-018-streaming-ssr.md)
+单独定义。当前实现与使用方式见 [Server Rendering](../guide/server-rendering.md)。
 
 ## 命令与验证
 
@@ -151,13 +158,14 @@ cleanup、SSR 编译产物不含 DOM 引用，以及 Vite SSR transform 的 runt
 
 ## 非目标
 
-- 自动组件 hydration 与自动 Web Component 内部接管；
-- streaming / async SSR；
+- 增量 hydration、out-of-order hydration 与自动 Web Component 内部接管；
+- streaming / async SSR（见 [RFC-018](./RFC-018-streaming-ssr.md) 的实验性独立入口）；
 - Suspense、资源预取与服务端调度；
 - SSR 专用 IR 或独立编译器分支。
 
 这些能力需要单独设计与验收；当前同步输出、WC 内部 SSR 与显式绑定重连均使用
-同一 Rust 编译链和现有 runtime 协议。
+同一 Rust 编译链和现有 runtime 协议。streaming 的唯一例外是 RFC-018 定义的
+`renderToStream()`：它是版本化的实验性入口，不改变本 RFC 的同步契约。
 
 ## 验收标准
 
@@ -176,5 +184,5 @@ cleanup、SSR 编译产物不含 DOM 引用，以及 Vite SSR transform 的 runt
   `renderToString`、原始属性序列化、转义、控制流、scope cleanup、thenable 拒绝和公开
   server 入口。
 - 当时 SSR-0 的原始输出没有 hydration marker；这条历史观察不限制当前能力。后续已
-  实现共享稳定 ID、binding 重连计划、显式 DOM hydrator 与 WC 内部 DSD 首屏输出，
-  按上文当前契约验收。自动组件计划执行、自动 WC 内部 hydration 与 streaming 尚未实现。
+  实现共享稳定 ID、binding 重连计划、显式 DOM hydrator、实验性自动组件接管与 WC
+  内部 DSD 首屏输出，按上文当前契约验收。自动 WC 内部 hydration 仍未实现。

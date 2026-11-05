@@ -38,6 +38,7 @@ export default function icons(
   const normalized = normalizeOptions(options)
 
   return {
+    apiVersion: 1,
     name: 'zeus-output-icons',
 
     virtualModules(): ZeusVirtualModule[] {

@@ -1,0 +1,57 @@
+{
+  "options": {
+    "filename": "/src/main.tsx",
+    "target": "dom",
+    "runtimeModule": "@zeus-js/runtime-dom",
+    "delegateEvents": true,
+    "sourceMap": true,
+    "hmr": true
+  },
+  "previousSource": "import { render, createSignal } from '@zeus-js/zeus';\nconst [count, setCount] = createSignal(0);\nrender(() => <p class={'muted'} style={'color: red'} onClick={() => setCount(count() + 1)}>{'Hello'} {count()}</p>, document.body);\n",
+  "nextSource": "import { render, createSignal } from '@zeus-js/zeus';\nconst [count, setCount] = createSignal(0);\nrender(() => <p class={'active'} style={'color: blue'} onClick={() => setCount(count() + 1)}>{'Bonjour'} {count()}</p>, document.body);\n",
+  "previous": {
+    "version": 1,
+    "signature": "[\"@zeus-js/runtime-dom\",true,[[3,\"class\"],[4,\"style\"],[6,\"text\"]],[\"import { render, createSignal } from '@zeus-js/zeus';\\nconst [count, setCount] = createSignal(0);\\nrender(() => <p class={\",\"} style={\",\"} onClick={() => setCount(count() + 1)}>{\",\"} {count()}</p>, document.body);\\n\"]]",
+    "bindings": [
+      {
+        "id": 3,
+        "kind": "class",
+        "value": "muted"
+      },
+      {
+        "id": 4,
+        "kind": "style",
+        "value": "color: red"
+      },
+      {
+        "id": 6,
+        "kind": "text",
+        "value": "Hello"
+      }
+    ]
+  },
+  "next": {
+    "version": 1,
+    "signature": "[\"@zeus-js/runtime-dom\",true,[[3,\"class\"],[4,\"style\"],[6,\"text\"]],[\"import { render, createSignal } from '@zeus-js/zeus';\\nconst [count, setCount] = createSignal(0);\\nrender(() => <p class={\",\"} style={\",\"} onClick={() => setCount(count() + 1)}>{\",\"} {count()}</p>, document.body);\\n\"]]",
+    "bindings": [
+      {
+        "id": 3,
+        "kind": "class",
+        "value": "active"
+      },
+      {
+        "id": 4,
+        "kind": "style",
+        "value": "color: blue"
+      },
+      {
+        "id": 6,
+        "kind": "text",
+        "value": "Bonjour"
+      }
+    ]
+  },
+  "previousCode": "import { template as $zeusTemplate, mountDynamic as $zeusMountDynamic, insert as $zeusInsert, bindText as $zeusBindText, bindClass as $zeusBindClass, bindStyle as $zeusBindStyle, bindEvent as $zeusBindEvent, delegateEvents as $zeusDelegateEvents } from \"@zeus-js/runtime-dom\";\nimport { createHmrState as _zeusCreateHmrState } from \"@zeus-js/runtime-dom\";\nconst _zeusHmrState = _zeusCreateHmrState(import.meta.hot, \"/src/main.tsx\", {\"version\":1,\"signature\":\"[\\\"@zeus-js/runtime-dom\\\",true,[[3,\\\"class\\\"],[4,\\\"style\\\"],[6,\\\"text\\\"]],[\\\"import { render, createSignal } from '@zeus-js/zeus';\\\\nconst [count, setCount] = createSignal(0);\\\\nrender(() => <p class={\\\",\\\"} style={\\\",\\\"} onClick={() => setCount(count() + 1)}>{\\\",\\\"} {count()}</p>, document.body);\\\\n\\\"]]\",\"bindings\":[{\"id\":3,\"kind\":\"class\",\"value\":\"muted\"},{\"id\":4,\"kind\":\"style\",\"value\":\"color: red\"},{\"id\":6,\"kind\":\"text\",\"value\":\"Hello\"}]});\nconst _zeusHmrDisposers = [];\nif (import.meta.hot) {\n  import.meta.hot.accept()\n  import.meta.hot.dispose(() => {\n    for (const dispose of _zeusHmrDisposers.splice(0).reverse()) {\n      try { dispose() } catch (error) {\n        console.error('[Zeus HMR] root disposal failed', error)\n      }\n    }\n    _zeusHmrState.dispose()\n  })\n}\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"<p data-zeus-node=\\\"2\\\"><!> <!></p>\");\nimport { render, createSignal } from '@zeus-js/zeus';\nconst [count, setCount] = createSignal(0);\n(_zeusHmrDisposers.push(render(() => (() => {\nconst $zeusEl = $zeusTmpl().firstChild;\n$zeusEl.removeAttribute(\"data-zeus-node\");\nconst $zeusWalker = $zeusEl.ownerDocument.createTreeWalker($zeusEl, 128);\nconst $zeusMarker = $zeusWalker.nextNode();\nconst $zeusMarker0 = $zeusWalker.nextNode();\n$zeusBindClass($zeusEl, () => (_zeusHmrState.read(3)));\n$zeusBindStyle($zeusEl, () => (_zeusHmrState.read(4)));\n$zeusBindEvent($zeusEl, \"click\", () => setCount(count() + 1));\nconst $zeusText = $zeusMarker.ownerDocument.createTextNode(\"\");\n$zeusInsert($zeusMarker.parentNode, $zeusText, $zeusMarker);\n$zeusMarker.remove();\n$zeusBindText($zeusText, () => (_zeusHmrState.read(6)));\n$zeusMountDynamic($zeusMarker0.parentNode, $zeusMarker0, () => count());\nreturn $zeusEl;\n})(), document.body)), _zeusHmrDisposers[_zeusHmrDisposers.length - 1]);;\n$zeusDelegateEvents([\"click\"]);\n",
+  "nextCode": "import { template as $zeusTemplate, mountDynamic as $zeusMountDynamic, insert as $zeusInsert, bindText as $zeusBindText, bindClass as $zeusBindClass, bindStyle as $zeusBindStyle, bindEvent as $zeusBindEvent, delegateEvents as $zeusDelegateEvents } from \"@zeus-js/runtime-dom\";\nimport { createHmrState as _zeusCreateHmrState } from \"@zeus-js/runtime-dom\";\nconst _zeusHmrState = _zeusCreateHmrState(import.meta.hot, \"/src/main.tsx\", {\"version\":1,\"signature\":\"[\\\"@zeus-js/runtime-dom\\\",true,[[3,\\\"class\\\"],[4,\\\"style\\\"],[6,\\\"text\\\"]],[\\\"import { render, createSignal } from '@zeus-js/zeus';\\\\nconst [count, setCount] = createSignal(0);\\\\nrender(() => <p class={\\\",\\\"} style={\\\",\\\"} onClick={() => setCount(count() + 1)}>{\\\",\\\"} {count()}</p>, document.body);\\\\n\\\"]]\",\"bindings\":[{\"id\":3,\"kind\":\"class\",\"value\":\"active\"},{\"id\":4,\"kind\":\"style\",\"value\":\"color: blue\"},{\"id\":6,\"kind\":\"text\",\"value\":\"Bonjour\"}]});\nconst _zeusHmrDisposers = [];\nif (import.meta.hot) {\n  import.meta.hot.accept()\n  import.meta.hot.dispose(() => {\n    for (const dispose of _zeusHmrDisposers.splice(0).reverse()) {\n      try { dispose() } catch (error) {\n        console.error('[Zeus HMR] root disposal failed', error)\n      }\n    }\n    _zeusHmrState.dispose()\n  })\n}\nconst $zeusTmpl = /* @__PURE__ */ $zeusTemplate(\"<p data-zeus-node=\\\"2\\\"><!> <!></p>\");\nimport { render, createSignal } from '@zeus-js/zeus';\nconst [count, setCount] = createSignal(0);\n(_zeusHmrDisposers.push(render(() => (() => {\nconst $zeusEl = $zeusTmpl().firstChild;\n$zeusEl.removeAttribute(\"data-zeus-node\");\nconst $zeusWalker = $zeusEl.ownerDocument.createTreeWalker($zeusEl, 128);\nconst $zeusMarker = $zeusWalker.nextNode();\nconst $zeusMarker0 = $zeusWalker.nextNode();\n$zeusBindClass($zeusEl, () => (_zeusHmrState.read(3)));\n$zeusBindStyle($zeusEl, () => (_zeusHmrState.read(4)));\n$zeusBindEvent($zeusEl, \"click\", () => setCount(count() + 1));\nconst $zeusText = $zeusMarker.ownerDocument.createTextNode(\"\");\n$zeusInsert($zeusMarker.parentNode, $zeusText, $zeusMarker);\n$zeusMarker.remove();\n$zeusBindText($zeusText, () => (_zeusHmrState.read(6)));\n$zeusMountDynamic($zeusMarker0.parentNode, $zeusMarker0, () => count());\nreturn $zeusEl;\n})(), document.body)), _zeusHmrDisposers[_zeusHmrDisposers.length - 1]);;\n$zeusDelegateEvents([\"click\"]);\n",
+  "diagnostics": [[], []]
+}

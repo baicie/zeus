@@ -18,7 +18,7 @@ interface NativeCompilerOptions {
 
 type MaybePromise<T> = T | Promise<T>
 type RootOption = string | (() => string)
-type ZeusOutputKind =
+type ZeusBuiltinOutputKind =
   | 'wc'
   | 'react'
   | 'vue'
@@ -26,6 +26,11 @@ type ZeusOutputKind =
   | 'icons-vue'
   | 'icons-wc'
   | 'asset'
+/**
+ * Third-party output targets register a namespaced kind such as
+ * `acme:svelte`, which can never collide with a built-in kind.
+ */
+type ZeusOutputKind = ZeusBuiltinOutputKind | `${string}:${string}`
 type DtsMode = boolean | 'auto'
 interface ResolvedDts {
   enabled: boolean
@@ -96,6 +101,14 @@ interface ZeusOutputChunk {
 }
 type ZeusOutputFile = ZeusOutputAsset | ZeusOutputChunk
 interface ZeusComponentPlugin {
+  /**
+   * The output plugin contract this plugin implements. The build fails with
+   * `ZEUS_PLUGIN_API_VERSION` unless it equals `ZEUS_PLUGIN_API_VERSION`.
+   *
+   * Hooks run in phases, each over all plugins in array order: `setup`,
+   * `buildStart`, `virtualModules`, then `generateBundle`.
+   */
+  apiVersion: 1
   name: string
   /**
    * Register output dirs / externals / plugin metadata.

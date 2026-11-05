@@ -46,7 +46,19 @@ export class ScopedSubtree {
         ? (getCurrentErrorBoundaryHandler() ??
           getScopeErrorBoundaryHandler(getCurrentScope()))
         : errorHandler
-    this.dispose()
+
+    // dispose() always relinquishes the previous scope and nodes, even when a
+    // cleanup throws. Keep rendering the next branch so the region stays
+    // mounted and its owner effect keeps the dependencies read by `render`,
+    // then report the cleanup failure.
+    let disposeFailed = false
+    let disposeError: unknown
+    try {
+      this.dispose()
+    } catch (error) {
+      disposeFailed = true
+      disposeError = error
+    }
 
     const scope = effectScope(true)
     const parent = this.resolveParent(this.marker)
@@ -63,6 +75,7 @@ export class ScopedSubtree {
     } catch (error) {
       // The render failure is the actionable boundary error. Cleanup still
       // runs, but must not replace it when a cleanup callback also throws.
+      // This includes a cleanup failure of the previous branch.
       try {
         scope.stop()
       } catch {
@@ -79,6 +92,8 @@ export class ScopedSubtree {
     this.scope = scope
     setScopeErrorBoundaryHandler(scope, resolvedErrorHandler ?? undefined)
     this.nodes = nodes
+
+    if (disposeFailed) throw disposeError
   }
 
   setErrorHandler(handler: ((error: unknown) => void) | undefined): void {
@@ -86,13 +101,35 @@ export class ScopedSubtree {
   }
 
   dispose(): void {
+    let failed = false
+    let firstError: unknown
+
     if (this.scope) {
       setScopeErrorBoundaryHandler(this.scope, undefined)
-      this.scope.stop()
+      try {
+        this.scope.stop()
+      } catch (error) {
+        failed = true
+        firstError = error
+      } finally {
+        this.scope = undefined
+      }
     }
-    this.scope = undefined
-    removeNodes(this.nodes)
-    this.nodes = []
+
+    try {
+      // A cleanup callback may throw after the signal scope has already
+      // released its effects. DOM ownership still has to be relinquished.
+      removeNodes(this.nodes)
+    } catch (error) {
+      if (!failed) {
+        failed = true
+        firstError = error
+      }
+    } finally {
+      this.nodes = []
+    }
+
+    if (failed) throw firstError
   }
 
   moveBefore(marker: Node | null): void {

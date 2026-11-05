@@ -4,6 +4,9 @@
 
 ## 范围
 
+本 RFC 定义默认 HMR 行为。显式启用的纯字符串绑定实验见
+[RFC-019](./RFC-019-hmr-literal-bindings.md)，不改变本 RFC 的默认分类。
+
 Zeus 的 Vite 插件只为已经证明不会改变可执行模块的编辑保留现有 root、owner 和 DOM
 identity。当前唯一启用的类别是 `comment-only`：只归一化普通注释正文，新旧模块的其它源码、
 注释内的行终止符和编译指令逐字相同。块注释里的换行参与 JavaScript 自动插入分号，不能删除。
@@ -22,16 +25,17 @@ identity。当前唯一启用的类别是 `comment-only`：只归一化普通注
 ## 不变量
 
 保留路径不得执行新模块代码，不得创建第二个 root，不得替换现有 DOM，不得改变 listener 或
-binding identity。分类器返回 `preserveState: true` 时，Vite `handleHotUpdate` 返回空模块列表；
+binding identity。分类器返回 `preserveState: true` 时，Vite 8 `hotUpdate` 返回空模块列表；
 否则必须先完成 runtime disposer，再让 Vite 重新加载模块。异常分类和异常编译都走完整销毁，避免
 遗留 owner、effect 或 listener。
 
 ## 证据
 
 `packages/devtools/vite-plugin/__tests__/hmr.spec.ts` 和 `transform.spec.ts` 覆盖注释保留、
-JSX/字符串/正则/Signal/API 变化的 remount、异常 disposer 和 SSR/production 边界。后续若要
-保留绑定更新，必须另提 RFC，证明 owner、事件监听、binding identity 和源映射兼容后才能扩大
-分类器范围。
+JSX/字符串/正则/Signal/API 变化的 remount、异常 disposer 和 SSR/production 边界。
+`pnpm check:hmr-browser` 通过真实 Vite dev server 和 Chromium、Firefox、WebKit，验证注释
+保留路径的 DOM/state/listener identity 与可执行更新路径的 cleanup/remount。后续若要保留绑定
+更新，必须另提 RFC，证明 owner、事件监听、binding identity 和源映射兼容后才能扩大分类器范围。
 
 块注释 ASI 回归直接执行新旧 JavaScript，证明 `return /* ... */ value` 增加注释内换行后返回值
 改变；另有 Unicode 单行注释终止、编译指令双向修改，以及 Vite 重新编译 `@once` 后报告迁移

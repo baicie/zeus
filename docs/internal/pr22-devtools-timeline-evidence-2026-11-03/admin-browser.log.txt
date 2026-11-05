@@ -1,0 +1,45 @@
+packages/core/compiler-native-darwin-x64 |  WARN  Unsupported platform: wanted: {"cpu":["x64"],"os":["darwin"],"libc":["any"]} (current: {"os":"darwin","cpu":"arm64","libc":"unknown"})
+.../core/compiler-native-linux-arm64-gnu |  WARN  Unsupported platform: wanted: {"cpu":["arm64"],"os":["linux"],"libc":["glibc"]} (current: {"os":"darwin","cpu":"arm64","libc":"unknown"})
+.../core/compiler-native-linux-x64-gnu   |  WARN  Unsupported platform: wanted: {"cpu":["x64"],"os":["linux"],"libc":["glibc"]} (current: {"os":"darwin","cpu":"arm64","libc":"unknown"})
+.../core/compiler-native-linux-x64-musl  |  WARN  Unsupported platform: wanted: {"cpu":["x64"],"os":["linux"],"libc":["musl"]} (current: {"os":"darwin","cpu":"arm64","libc":"unknown"})
+.../compiler-native-win32-arm64-msvc     |  WARN  Unsupported platform: wanted: {"cpu":["arm64"],"os":["win32"],"libc":["any"]} (current: {"os":"darwin","cpu":"arm64","libc":"unknown"})
+.../core/compiler-native-win32-x64-msvc  |  WARN  Unsupported platform: wanted: {"cpu":["x64"],"os":["win32"],"libc":["any"]} (current: {"os":"darwin","cpu":"arm64","libc":"unknown"})
+
+> @zeus-js/example-admin@ check /Users/liuzhiwei/Desktop/workspace/git-code/zeus/temp/worktrees/pr21-template-registry/examples/admin
+> tsc --noEmit
+
+packages/core/compiler-native-darwin-x64 |  WARN  Unsupported platform: wanted: {"cpu":["x64"],"os":["darwin"],"libc":["any"]} (current: {"os":"darwin","cpu":"arm64","libc":"unknown"})
+.../core/compiler-native-linux-arm64-gnu |  WARN  Unsupported platform: wanted: {"cpu":["arm64"],"os":["linux"],"libc":["glibc"]} (current: {"os":"darwin","cpu":"arm64","libc":"unknown"})
+.../core/compiler-native-linux-x64-gnu   |  WARN  Unsupported platform: wanted: {"cpu":["x64"],"os":["linux"],"libc":["glibc"]} (current: {"os":"darwin","cpu":"arm64","libc":"unknown"})
+.../core/compiler-native-linux-x64-musl  |  WARN  Unsupported platform: wanted: {"cpu":["x64"],"os":["linux"],"libc":["musl"]} (current: {"os":"darwin","cpu":"arm64","libc":"unknown"})
+.../compiler-native-win32-arm64-msvc     |  WARN  Unsupported platform: wanted: {"cpu":["arm64"],"os":["win32"],"libc":["any"]} (current: {"os":"darwin","cpu":"arm64","libc":"unknown"})
+.../core/compiler-native-win32-x64-msvc  |  WARN  Unsupported platform: wanted: {"cpu":["x64"],"os":["win32"],"libc":["any"]} (current: {"os":"darwin","cpu":"arm64","libc":"unknown"})
+
+> @zeus-js/example-admin@ build /Users/liuzhiwei/Desktop/workspace/git-code/zeus/temp/worktrees/pr21-template-registry/examples/admin
+> vite build
+
+vite v8.3.4 building client environment for production...
+transforming...
+✓ 73 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                        0.44 kB │ gzip:  0.29 kB
+dist/assets/index-CRsA8Lz2.css                         6.33 kB │ gzip:  1.91 kB
+dist/assets/zw-dialog-title.entry-CY-aZacP.js          1.50 kB │ gzip:  0.72 kB
+dist/assets/zw-dialog-description.entry-0TApME4Y.js    1.53 kB │ gzip:  0.72 kB
+dist/assets/zw-dialog-overlay.entry-u_IcE9cn.js        1.60 kB │ gzip:  0.77 kB
+dist/assets/zw-dialog-close.entry-CW4QkQCB.js          1.96 kB │ gzip:  0.95 kB
+dist/assets/zw-dialog-trigger.entry-BX1aRfEf.js        2.11 kB │ gzip:  1.02 kB
+dist/assets/zw-dialog-content.entry-Da9qaMVQ.js        2.67 kB │ gzip:  1.28 kB
+dist/assets/zw-dialog.entry-DuQhil66.js                2.73 kB │ gzip:  1.27 kB
+dist/assets/zw-input.entry-D-h2put_.js                 3.55 kB │ gzip:  1.41 kB
+dist/assets/zw-data-grid.entry-BLi0yH-N.js            41.91 kB │ gzip: 13.33 kB
+dist/assets/index-Dg7SFN_U.js                        184.08 kB │ gzip: 58.33 kB
+
+✓ built in 150ms
+[admin] chromium: query, filtering, pagination, selection, UI components, navigation and permissions passed
+[admin] firefox: query, filtering, pagination, selection, UI components, navigation and permissions passed
+[admin] webkit: query, filtering, pagination, selection, UI components, navigation and permissions passed
+[admin] chromium: Native DevTools graph, timeline, refresh and cleanup passed
+[admin] firefox: Native DevTools graph, timeline, refresh and cleanup passed
+[admin] webkit: Native DevTools graph, timeline, refresh and cleanup passed

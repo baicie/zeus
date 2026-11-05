@@ -1,19 +1,19 @@
-import {
-  createMemoryHistory,
-  type AgnosticDataRouteObject,
-  type LoaderFunctionArgs,
-} from '@remix-run/router'
-import { createRoot, createEffect } from '@zeus-js/signal'
+import { createEffect, createRoot } from '@zeus-js/signal'
 import { JSDOM } from 'jsdom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { createRouter } from '../src'
+import {
+  createMemoryHistory,
+  createRouter,
+  type ZeusLoaderFunctionArgs,
+  type ZeusRouteObject,
+} from '../src'
 
-const userLoader = vi.fn(async ({ params }: LoaderFunctionArgs) => ({
+const userLoader = vi.fn(async ({ params }: ZeusLoaderFunctionArgs) => ({
   id: params.id,
 }))
 
-function routes(): AgnosticDataRouteObject[] {
+function routes(): ZeusRouteObject[] {
   return [
     {
       id: 'root',
@@ -155,7 +155,7 @@ describe('@zeus-js/router', () => {
   it('settles an active preload when its router is disposed', async () => {
     const dom = new JSDOM('<!doctype html><html><body></body></html>')
     userLoader.mockImplementation(
-      ({ request }: LoaderFunctionArgs) =>
+      ({ request }: ZeusLoaderFunctionArgs) =>
         new Promise<{ id: string }>((_resolve, reject) => {
           request.signal.addEventListener('abort', () =>
             reject(new Error('aborted')),
@@ -190,6 +190,27 @@ describe('@zeus-js/router', () => {
     await router.navigate(-1)
     await waitFor(() => router.pathname() === '/users/1')
     expect(router.pathname()).toBe('/users/1')
+
+    router.dispose()
+  })
+
+  it('resolves navigation and hrefs against a basename', async () => {
+    userLoader.mockResolvedValue({ id: '3' })
+    const router = createRouter({
+      routes: routes(),
+      history: createMemoryHistory({ initialEntries: ['/app/users/3'] }),
+      basename: '/app',
+    })
+
+    await waitFor(() => router.initialized())
+    expect(router.pathname()).toBe('/users/3')
+    expect(router.createHref('/users/4')).toBe('/app/users/4')
+
+    await router.navigate('/users/4')
+    await waitFor(() => router.pathname() === '/users/4')
+    // Relative targets resolve against the app-relative current pathname.
+    expect(router.createHref('5')).toBe('/app/users/4/5')
+    expect(router.createHref('/users/6')).toBe('/app/users/6')
 
     router.dispose()
   })

@@ -1,3 +1,4 @@
+import { onCleanup } from '@zeus-js/signal'
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -916,6 +917,46 @@ describe('defineElement', () => {
     expect(el.querySelector('style')?.nonce).toBe('nonce-value')
   })
 
+  it('releases the render and styles when projection disconnect and cleanup throw', () => {
+    const tag = createTag('cleanup-error')
+    const disconnectFailure = new Error('projection disconnect failed')
+    const cleanup = vi.fn(() => {
+      throw new Error('element cleanup failed')
+    })
+
+    const ctor = defineElement(
+      tag,
+      {
+        shadow: false,
+        styles: ['z-cleanup-error { color: red; }'],
+      },
+      () => {
+        onCleanup(cleanup)
+        return document.createElement('span')
+      },
+    )
+
+    const host = document.createElement(tag)
+    const light = document.createElement('p')
+    host.append(light)
+    const mount = mountElementDefinition(ctor, host)
+    const disconnect = vi
+      .spyOn(dom.window.MutationObserver.prototype, 'disconnect')
+      .mockImplementationOnce(() => {
+        throw disconnectFailure
+      })
+
+    expect(host.querySelector('style')).toBeTruthy()
+    expect(() => mount.dispose()).toThrow(disconnectFailure)
+    expect(disconnect).toHaveBeenCalledTimes(1)
+    expect(cleanup).toHaveBeenCalledTimes(1)
+    expect(host.childNodes.length).toBe(1)
+    expect(host.firstChild === light).toBe(true)
+    expect(() => mount.dispose()).not.toThrow()
+    expect(cleanup).toHaveBeenCalledTimes(1)
+    disconnect.mockRestore()
+  })
+
   it('does not throw when defineElement is called twice with same tag', () => {
     const tag = createTag('duplicate')
 
@@ -980,6 +1021,36 @@ describe('defineElement', () => {
     await nextFrame()
     document.body.appendChild(el)
     await nextFrame()
+    expect(renderCount).toBe(2)
+    expect(el.textContent).toBe('rendered-2')
+  })
+
+  it('rebuilds an active mount when the host is adopted', async () => {
+    const tag = createTag('adopted')
+    let renderCount = 0
+    let cleanupCount = 0
+
+    defineElement(tag, { shadow: false }, () => {
+      renderCount++
+      onCleanup(() => cleanupCount++)
+      const span = document.createElement('span')
+      span.textContent = `rendered-${renderCount}`
+      return span
+    })
+
+    const el = document.createElement(tag)
+    document.body.appendChild(el)
+    await nextFrame()
+
+    expect(renderCount).toBe(1)
+    expect(cleanupCount).toBe(0)
+    ;(
+      el as HTMLElement & {
+        adoptedCallback(oldDocument: Document, newDocument: Document): void
+      }
+    ).adoptedCallback(document, document)
+
+    expect(cleanupCount).toBe(1)
     expect(renderCount).toBe(2)
     expect(el.textContent).toBe('rendered-2')
   })

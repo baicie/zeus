@@ -1,6 +1,6 @@
 # RFC-011：Framework Renderer Adapter 与跨框架交互插槽边界
 
-- 状态：Proposal
+- 状态：Accepted（2026-11-04）
 - 日期：2026-10-17
 - 对应设计任务：F-009
 - 依赖：RFC-003、RFC-004、RFC-010
@@ -19,10 +19,11 @@ VNode，不执行框架 Hook/Context，也不负责框架的 reconcile。该边�
 等组件同时提供 native renderer 和可选的 React/Vue cell renderer，而不把
 Zeus DOM Runtime 变成多框架 VDOM Runtime。
 
-本 RFC 冻结边界和最小接口。框架无关的 keyed renderer host PoC 已验证生命周期、
-renderer swap、容器复用和回收；React/Vue wrapper 的 SSR 与浏览器 consumer 回归
-继续验证普通 Slot 的实际边界。具体 React/Vue cell adapter 和公开 DataGrid API
-仍由 U-003/U-006 另行实现，不改变本 RFC 的 WC ABI 契约。
+本 RFC 冻结边界和最小接口。框架无关的 keyed renderer host 由
+`@zeus-js/web-c-runtime` 导出，React 与 Vue adapter 分别由
+`@zeus-js/output-react-wrapper/renderer` 和 `@zeus-js/output-vue-wrapper/renderer`
+导出（第 12 节）。公开 DataGrid API 仍由 U-003/U-006 另行实现，不改变本 RFC 的
+WC ABI 契约。
 
 ## 1. 背景与问题
 
@@ -142,14 +143,27 @@ WC Runtime 不反向调用 React/Vue renderer，也不保存 VNode 或框架组�
 
 ## 6. Renderer Adapter 接口
 
-这是框架无关的最小契约提案。它不是 WC Manifest 字段，也不是 `runtime-dom`
-公共入口。当前仓库的 PoC 使用泛化的 `Container` 和 opaque `Handle`，放在
-`@zeus-js/shared` 的未导出内部模块中仅供契约测试；真正的 Zeus UI 或框架专用
-adapter 可以把它收窄为 `Element` 与带 `container/state` 的 `RendererHandle`。
+这是框架无关的最小契约。它不是 WC Manifest 字段，也不是 `runtime-dom` 公共入口。
+契约类型与 keyed host `createRendererHost` 由 `@zeus-js/web-c-runtime` 导出，使用
+泛化的 `Container` 和 opaque `Handle`；React/Vue adapter 把它收窄为 `Element` 与带
+`container/state` 的 handle。
 
 ```ts
+interface RendererSession {
+  readonly key: PropertyKey
+  /** 每个 host 严格递增、不复用，用于识别过期的异步工作。 */
+  readonly generation: number
+  /** 在 adapter dispose 本次 mount 之前 abort。 */
+  readonly signal: AbortSignal
+}
+
 interface RendererAdapter<Container, Data, Context, Handle> {
-  mount(container: Container, data: Data, context: Context): Handle
+  mount(
+    container: Container,
+    data: Data,
+    context: Context,
+    session: RendererSession,
+  ): Handle
   update(handle: Handle, data: Data, context: Context): void
   dispose(handle: Handle): void
 }
@@ -159,6 +173,10 @@ interface RendererHandle {
   readonly state: 'mounted' | 'disposed'
 }
 ```
+
+`session` 由 host 为每次 mount 创建：同一 key 重新 mount 会得到新的 generation 与
+新的 signal。adapter 的异步工作在写入 DOM 前检查 `session.signal.aborted`，避免向
+已 dispose 的容器提交内容。
 
 ### 6.1 mount
 
@@ -205,13 +223,12 @@ interface GridRenderContext<Row> {
   getRow(key: string | number): Row | undefined
   getColumn(id: string): unknown
   onCellAction(action: unknown): void
-  signal?: AbortSignal
 }
 ```
 
 Context 不得要求 WC Runtime 理解 ReactNode、VNode、Hook、Context provider、
-框架 ref 或框架 scheduler。`signal` 只用于 adapter 自己的取消和资源清理；
-本 RFC 不定义异步 mount 的等待语义。
+框架 ref 或框架 scheduler。取消信号由 `RendererSession.signal` 提供，不放进
+Context；本 RFC 不定义异步 mount 的等待语义。
 
 ## 7. React Adapter
 
@@ -223,7 +240,13 @@ React 18 和 React 19 都应由同一逻辑契约驱动，差异留在 adapter �
 - adapter 不把 framework renderer 的 root 交给 `runtime-dom` 或 WC Host；
 - React wrapper 的普通 `children` 和 named slot 仍走第 5 节的 DOM Slot 契约，
   不自动转换为 renderer adapter；
-- `ref` 指向 WC host 或 adapter 明确暴露的框架容器，不得混淆两者。
+- `ref` 指向 WC host 或 adapter 明确暴露的框架容器，不得混淆两者；
+- host 的 render/setAdapter/dispose 必须在 React render 与 commit（含
+  `useLayoutEffect`/`useEffect`）之外调用。React 在这些位置无法 `flushSync` 嵌套
+  root，adapter 检测到本次提交未同步完成时抛 `ZEUS_RENDERER_ADAPTER_FAILURE`；
+- 只有同步 mount/update/dispose 期间的错误抛给 host；之后（状态更新、effect）的
+  错误交给 `onError(error, session)`，未提供时调用 `globalThis.reportError`，
+  不存在则 `console.error`。
 
 React Portal 的 target 由 React adapter 创建或接管。target 可以在 host 内部，
 也可以由使用方提供；无论位置如何，target 的 owner、root 和清理都由 adapter
@@ -240,16 +263,20 @@ Vue 3 的 VNode、component instance、provide/inject 和 Teleport 只在 Vue ad
   节点；
 - VNode 不得作为 WC property 或 `CustomEvent.detail` 传给 Zeus Runtime；
 - Teleport target 的创建、更新、卸载和 owner cleanup 由 Vue adapter 负责；
-- host disconnect 后不得继续提交旧 VNode。重连时重新 mount，并重新建立 Vue root。
+- host disconnect 后不得继续提交旧 VNode。重连时重新 mount，并重新建立 Vue root；
+- 每次 update 都重新渲染，即使 `data` 引用不变；
+- 只有同步 patch（mount/update/dispose）期间的错误抛给 host；之后的错误继续向上
+  传播到 `appContext.config.errorHandler`。
 
 Vue adapter 不得要求 `runtime-dom` 依赖 Vue，也不得让 WC host 直接调用 Vue
 renderer。
 
 ## 9. DataGrid Custom Renderer PoC
 
-F-009 的实现验收以 DataGrid custom renderer PoC 为入口。当前 DataGrid Manifest
-和 `DataGridColumn` 尚未公开 `cellRenderer` 字段；PoC 不得把未验证的字段直接标记
-为稳定 ABI，也不得把 React/Vue 节点塞进 `rows` 或 `columns` property。
+F-009 的实现验收以 DataGrid custom renderer PoC 为入口。`zeus-ui` 的
+`DataGridColumn.cellRenderer` 已提供框架中立的 `mount/update/dispose` 字段；
+React/Vue 节点仍由显式 adapter 管理，不写入 `rows` 或 `columns` property。
+字段的焦点/Selection 矩阵与最终 ABI 冻结仍待完成。
 
 ### 9.1 分层
 
@@ -327,42 +354,58 @@ Framework Renderer Adapter，并满足：
 
 - `runtime-dom`、`web-c-runtime`、`compiler-shared` 和 WC ABI 不新增 React/Vue
   peer dependency；
-- 现有 React/Vue wrapper 继续只负责普通 props/events/ref/Slot 映射；
-- F-009 PoC 优先放在 Zeus UI 或框架专用 adapter 包中，不为尚未稳定的通用协议
-  新建空壳公共包；
-- 若后续协议稳定，需要公共包，应分别声明 React/Vue peer dependency，并从同一
-  版本化的 adapter contract 生成类型；不得让 runtime-dom 反向依赖它们；
+- 契约类型、`createRendererHost` 与 `createRendererError` 由 `@zeus-js/web-c-runtime`
+  导出，不依赖任何框架；
+- React adapter `createReactRenderer` 由 `@zeus-js/output-react-wrapper/renderer`
+  导出，Vue adapter `createVueRenderer` 由 `@zeus-js/output-vue-wrapper/renderer`
+  导出。这两个包本来就以可选 peer 声明 React（含 `react-dom`）和 Vue，是框架边界
+  所在；不为 adapter 新建空壳公共包。wrapper 主入口与 `./runtime` 仍只负责普通
+  props/events/ref/Slot 映射，不自动使用 adapter；
+- adapter 入口只从 `@zeus-js/web-c-runtime` 导入类型，不在运行时加载 Zeus DOM
+  runtime；不得让 runtime-dom 反向依赖它们；
 - Manifest 只描述可序列化的组件 ABI，不写入 adapter 实例、VNode、ReactNode、
   root、Portal target 或函数闭包。
 
 ## 13. 诊断与错误
 
-Proposal 阶段建议使用以下稳定错误码，最终名称需随 PoC 测试冻结：
+已实现的错误码由 `RendererErrorCode` 导出，错误消息以 `[CODE]` 开头，原始异常放在
+`cause`：
 
-| 错误码                             | 触发条件                                                  |
-| ---------------------------------- | --------------------------------------------------------- |
-| `ZEUS_RENDERER_DISPOSED`           | 对 disposed handle 调用 update，或尝试重新激活旧 handle。 |
-| `ZEUS_RENDERER_CONTAINER_MISMATCH` | handle、adapter 与宿主记录的 container 不一致。           |
-| `ZEUS_RENDERER_ADAPTER_FAILURE`    | mount/update/dispose 内部异常未能完成契约操作。           |
-| `ZEUS_RENDERER_TARGET_UNAVAILABLE` | Portal/Teleport target 不存在或已被释放。                 |
-| `ZEUS_RENDERER_UNSUPPORTED_VALUE`  | VNode、ReactNode 或框架函数被错误传入 WC ABI。            |
+| 错误码                              | 触发条件                                                      |
+| ----------------------------------- | ------------------------------------------------------------- |
+| `ZEUS_RENDERER_DISPOSED`            | 对 disposed handle 调用 update，或在 host dispose 后 render。 |
+| `ZEUS_RENDERER_CONTAINER_MISMATCH`  | handle 不是本 adapter mount 的，或 container 与记录不一致。   |
+| `ZEUS_RENDERER_ADAPTER_FAILURE`     | mount/update/dispose 内部异常未能完成契约操作。               |
+| `ZEUS_RENDERER_DUPLICATE_KEY`       | 同一次 render 中出现重复 key。                                |
+| `ZEUS_RENDERER_DUPLICATE_CONTAINER` | 同一次 render 中两个 key 使用同一个 container。               |
 
-错误必须带组件 tag、renderer identity、rowKey/columnId（若可用）和生命周期阶段；
-不得把 VNode 静默字符串化，也不得把错误降级成普通 Slot。
+host 在一次 render 中先 dispose 所有被移除、换了 container 或 adapter 已变化的
+entry，再统一 update/mount，所以两个 key 可以在同一次 render 中交换 container。
+
+以下错误码保留给尚未实现的诊断，名称不变：
+
+| 错误码                             | 触发条件                                       |
+| ---------------------------------- | ---------------------------------------------- |
+| `ZEUS_RENDERER_TARGET_UNAVAILABLE` | Portal/Teleport target 不存在或已被释放。      |
+| `ZEUS_RENDERER_UNSUPPORTED_VALUE`  | VNode、ReactNode 或框架函数被错误传入 WC ABI。 |
+
+当前错误消息带 key 与生命周期阶段。组件 tag、renderer identity 和
+rowKey/columnId 需要由使用 host 的组件（如 DataGrid）在包装错误时补充。不得把
+VNode 静默字符串化，也不得把错误降级成普通 Slot。
 
 ## 14. 验收矩阵
 
 RFC 只有在以下证据齐全后才能从 Proposal 改为 Accepted：
 
-| 层级     | 必测场景                                                                        | 通过要求                                                                       |
-| -------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| Contract | common adapter 类型、mount/update/dispose、重复 dispose、disposed update        | 类型和测试不导入 React/Vue；错误码稳定。                                       |
-| Slot     | default、named、fallback、动态增加/删除/改名、Shadow/Light projection           | React 18/19、Vue 3 的普通 Slot 行为与现有 WC 契约一致。                        |
-| React    | React 18/19 custom cell、root cleanup、Portal target、host disconnect/reconnect | 无孤立 root/listener；不改变 WC host 注册和事件语义。                          |
-| Vue      | Vue 3 VNode、Teleport target、root cleanup、host disconnect/reconnect           | 无孤立 VNode/instance；重连不复用 disposed root。                              |
-| DataGrid | stable key update、renderer swap、range recycling、focus/Selection              | DOM identity 和 cleanup 顺序可观察，virtualizer 不依赖框架。                   |
-| SSR      | Node import、host tag、primitive attributes、复杂 renderer/Portal               | 零 DOM 注册；不输出 VNode、函数源码或 `[object Object]`；无 hydration 承诺。   |
-| Browser  | Chromium、Firefox、WebKit 的 React18/19、Vue3 消费者                            | 后续完整矩阵验收；本阶段仅报告现有 wrapper 的 Node SSR/browser consumer 回归。 |
+| 层级     | 必测场景                                                                        | 通过要求                                                                                                                        |
+| -------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Contract | common adapter 类型、mount/update/dispose、重复 dispose、disposed update        | 类型和测试不导入 React/Vue；错误码稳定。                                                                                        |
+| Slot     | default、named、fallback、动态增加/删除/改名、Shadow/Light projection           | React 18/19、Vue 3 的普通 Slot 行为与现有 WC 契约一致。                                                                         |
+| React    | React 18/19 custom cell、root cleanup、Portal target、host disconnect/reconnect | 无孤立 root/listener；不改变 WC host 注册和事件语义。                                                                           |
+| Vue      | Vue 3 VNode、Teleport target、root cleanup、host disconnect/reconnect           | 无孤立 VNode/instance；重连不复用 disposed root。                                                                               |
+| DataGrid | stable key update、renderer swap、range recycling、focus/Selection              | DOM identity 和 cleanup 顺序可观察，virtualizer 不依赖框架。                                                                    |
+| SSR      | Node import、host tag、primitive attributes、复杂 renderer/Portal               | 零 DOM 注册；不输出 VNode、函数源码或 `[object Object]`；无 hydration 承诺。                                                    |
+| Browser  | Chromium、Firefox、WebKit 的 React18/19、Vue3 消费者                            | 已用 packed consumer 验证 host 挂载/更新/重连、Portal/Teleport 清理与异常诊断；见 `pr15-renderer-host-evidence-2026-11-04.md`。 |
 
 ## 15. 迁移与开放问题
 
@@ -380,14 +423,30 @@ property 的历史行为。Beta 阶段不保留旧/new 双协议或转发 alias�
 
 ## 16. 当前实现状态
 
-截至本 RFC 日期：
+截至 2026-11-01：
 
 - React/Vue 普通 default/named Slot wrapper 已实现并有生成器与消费者回归；
 - WC Runtime 已实现 Shadow native Slot 和 Light DOM Projection 的独立语义；
-- DataGrid 尚未公开 `cellRenderer`/Framework Renderer Adapter API；
-- 框架无关的 keyed renderer host PoC 已实现并覆盖 mount/update/dispose、renderer
-  swap、容器变化、回收和重复 dispose；React/Vue wrapper 的 Node SSR 与 browser
-  consumer 回归已通过；
-- React/Vue 专用 cell adapter、Portal/Teleport 和 focus/Selection 完整矩阵与公开
-  DataGrid `cellRenderer` API 不在本次改动中，
-  由 U-003/U-006 继续实现，不能把它们写入 WC ABI。
+- keyed renderer host 由 `@zeus-js/web-c-runtime` 导出，jsdom 测试覆盖
+  mount/update/dispose、renderer swap、容器变化、同一次 render 中交换 container、
+  重复 container 诊断、回收、重复 dispose、失败后的重试，以及每次 mount 的
+  generation 与 abort；
+- `createReactRenderer` 覆盖同步提交、跨 update 保留状态、StrictMode 下 effect 平衡、
+  Portal 卸载、渲染错误清理、mount 之后的错误路由（`onError`/`reportError`）、
+  effect cleanup 错误经 dispose 抛给 host、在外层 React commit 内调用 mount 的诊断、
+  disposed/foreign handle 诊断，以及 60 次 host mount/unmount 后计数回到基线；
+- `createVueRenderer` 覆盖同步 patch、组件状态保留、data 引用不变时的重新渲染、
+  Teleport 卸载、`appContext` provide 解析、render 与后代错误上报、patch 之后的错误
+  传到 `config.errorHandler`、`onUnmounted` 错误经 dispose 抛给 host、
+  disposed/foreign handle 诊断，以及 60 次 mount/unmount 后计数回到基线；
+- host 挂载/更新/重连、Portal/Teleport 清理、异常诊断与 60 次回收已在
+  Chromium/Firefox/WebKit 的 packed React 18/19、Vue 3 消费者中验证，证据见
+  `docs/internal/pr15-renderer-host-evidence-2026-11-04.md`。
+- `zeus-ui` 的 DataGrid framework-cell fixture 也在三引擎通过 React cell +
+  Vue cell、同 key 更新、disconnect 清理、外部 Portal/Teleport target 保留与
+  reconnect。
+- `DataGridColumn.cellRenderer` 已在 `zeus-ui` 实现，普通 DOM/React 19/Vue 3
+  在 `data-grid-runtime.spec.ts` 覆盖 stable-key update、focus/selection
+  保留、移除/断连 dispose、重连 mount 与虚拟滚动回收。
+- 字段保持 optional、框架中立，不进入 WC Manifest；React/Vue root 仍由显式
+  adapter 管理。

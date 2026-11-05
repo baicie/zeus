@@ -58,6 +58,31 @@ export declare function template<T extends Node = Node>(
   _isMathML?: boolean,
 ): TemplateFactory<T>
 
+interface HmrBinding {
+  id: number
+  kind: string
+  value: string
+}
+interface HmrPlan {
+  version: number
+  signature: string
+  bindings: HmrBinding[]
+}
+interface HmrHotContext {
+  on(event: string, callback: (data: unknown) => void): void
+  off(event: string, callback: (data: unknown) => void): void
+  invalidate(message: string): void
+}
+/** Compiler helper for literal cells. Never emitted by SSR or production. */
+export declare function createHmrState(
+  hot: HmrHotContext | undefined,
+  filename: string,
+  initial: HmrPlan,
+): {
+  read(id: number): string
+  dispose(): void
+}
+
 export type ContextId = symbol
 export interface Context<T = unknown> {
   readonly id: ContextId
@@ -152,12 +177,62 @@ export declare function resolveDOMContext<T>(
 
 export interface RenderOptions {
   owner?: ReturnType<typeof createOwner>
+  /**
+   * Adopts compiler-planned server markup already inside `container` instead
+   * of clearing it. Throws `ZEUS_HYDRATION_NO_MARKUP` when the container has
+   * no hydration markers and the render produced client nodes.
+   */
+  hydrate?: boolean
+  /** Receives every scoped `ZEUS_HYDRATION_*` diagnostic of this takeover. */
+  onHydrationError?: (error: Error) => void
 }
 export declare function render(
   value: JSXValue | (() => JSXValue),
   container: Element | DocumentFragment,
   options?: RenderOptions,
 ): () => void
+
+type HydrationElementShape = {
+  readonly tag: string
+  readonly staticAttributes?: readonly (readonly [string, string])[]
+  readonly childTags?: readonly string[]
+}
+type HydrationTextRegion = {
+  readonly parent: Node
+  readonly close: Comment
+}
+type AutoHydrationHandle = {
+  readonly componentId?: number
+  /** Adopts the server element behind `markerId` and validates its shape. */
+  element(markerId: string, shape: HydrationElementShape): Element
+  /** Adopts the server text behind `markerId`, comparing the initial value. */
+  text(markerId: string, expected?: unknown): Text
+  /** Bounds a dynamic children-expression value on the server. */
+  textRegion(markerId: string): HydrationTextRegion
+  /** Clears a children-expression range and mounts the client value. */
+  mountText(region: HydrationTextRegion, render: () => unknown): void
+  /** Clears a control-flow region and returns its end anchor. */
+  region(markerId: string): Comment
+  /** Consumes an invocation marker and adopts the child component. */
+  child(markerId: string, render: () => unknown): void
+  /** Validates the server-rendered `<slot>` element of a shadow custom element. */
+  slot(markerId: string): void
+  /** Runs dynamic-region mounting with component adoption disabled. */
+  mount(run: () => void): void
+  /** A server boundary that cannot be adopted (for example ErrorBoundary). */
+  unsupported(markerId: string): never
+}
+/**
+ * Compiler entry for one component. `adopt` reuses the server tree; `create`
+ * is the ordinary client body. A scoped hydration failure clears the
+ * component's server range, marks the rebuilt root, and runs `create` fresh.
+ */
+export declare function autoHydrateComponent(
+  componentId: number,
+  rootMarkerId: string,
+  adopt: (handle: AutoHydrationHandle) => unknown,
+  create: () => unknown,
+): unknown
 
 export interface HydrationContext {
   node(id: string, expectedTag?: string, occurrence?: number): Node
@@ -267,11 +342,35 @@ export interface PortalProps {
  */
 export declare function Portal(props: PortalProps): Comment
 
+export type ErrorBoundaryPhase =
+  | 'render'
+  | 'binding'
+  | 'event'
+  | 'request'
+  | 'runtime'
+export interface ErrorBoundaryInfo {
+  readonly phase: ErrorBoundaryPhase
+  readonly fatal: boolean
+}
+export type ErrorBoundaryHandler = (
+  error: unknown,
+  phase?: ErrorBoundaryPhase,
+) => void
+export declare function captureErrorBoundary(): ErrorBoundaryHandler | undefined
+export declare function reportError(
+  error: unknown,
+  phase?: ErrorBoundaryPhase,
+): void
+
 export interface ErrorBoundaryProps {
   /** The child must be a factory so setup errors stay inside the boundary. */
   children: () => JSXValue
-  fallback: (error: unknown, reset: () => void) => JSXValue
-  onError?: (error: unknown) => void
+  fallback: (
+    error: unknown,
+    reset: () => void,
+    info?: ErrorBoundaryInfo,
+  ) => JSXValue
+  onError?: (error: unknown, info?: ErrorBoundaryInfo) => void
 }
 declare const errorBoundaryIntrinsic: unique symbol
 /** Marks the compiler intrinsic for JSX typing without changing its runtime identity. */
@@ -286,6 +385,125 @@ export declare const ErrorBoundary: typeof renderErrorBoundary & {
 declare function renderErrorBoundary(
   props: ErrorBoundaryProps,
 ): DocumentFragment
+
+/** Values accepted by a native form or a form-associated custom element. */
+export type FormValue = unknown
+export type FormValues = Record<string, FormValue>
+export type FormErrors = Readonly<Record<string, string>>
+export interface FormSchemaContext {
+  readonly form: HTMLFormElement | undefined
+  readonly signal: AbortSignal
+}
+export interface FormSchemaResult<TValues extends FormValues> {
+  values?: TValues
+  errors?: FormErrors
+}
+export type FormSchema<TValues extends FormValues> = (
+  values: Readonly<TValues>,
+  context: FormSchemaContext,
+) => FormSchemaResult<TValues> | Promise<FormSchemaResult<TValues>>
+export interface SafeParseIssue {
+  path?: readonly (string | number)[]
+  message: string
+}
+export interface SafeParseSchema<TValues> {
+  safeParse(input: unknown):
+    | {
+        success: true
+        data: TValues
+      }
+    | {
+        success: false
+        error: {
+          issues?: readonly SafeParseIssue[]
+          message?: string
+        }
+      }
+}
+/** Adapt Zod, Valibot, or another safeParse-compatible schema without a dependency. */
+export declare function fromSafeParse<TValues extends FormValues>(
+  schema: SafeParseSchema<TValues>,
+): FormSchema<TValues>
+export interface FormSubmitContext {
+  readonly form: HTMLFormElement | undefined
+  readonly formData: FormData
+  readonly signal: AbortSignal
+}
+export type FormSubmitResult<TValues extends FormValues> =
+  | {
+      status: 'success'
+      values: TValues
+    }
+  | {
+      status: 'invalid'
+      values: TValues
+      errors: FormErrors
+    }
+  | {
+      status: 'error'
+      values: TValues
+      error: unknown
+    }
+  | {
+      status: 'aborted'
+      values: TValues
+    }
+export interface FormFieldController<TValue = FormValue> {
+  readonly name: string
+  readonly value: Accessor<TValue | undefined>
+  readonly error: Accessor<string | undefined>
+  readonly touched: Accessor<boolean>
+  readonly dirty: Accessor<boolean>
+  readonly invalid: Accessor<boolean>
+  set(value: TValue): void
+  touch(): void
+  input(event: Event): void
+  change(event: Event): void
+  blur(event?: Event): void
+  compositionStart(event?: CompositionEvent): void
+  compositionEnd(event?: CompositionEvent): void
+  reset(): void
+}
+export interface CreateFormOptions<TValues extends FormValues> {
+  initialValues: TValues
+  schema?: FormSchema<TValues>
+  onSubmit?: (
+    values: TValues,
+    context: FormSubmitContext,
+  ) => unknown | Promise<unknown>
+  onError?: (error: unknown, context: FormSubmitContext) => void
+}
+export interface FormController<TValues extends FormValues> {
+  readonly values: Accessor<TValues>
+  readonly errors: Accessor<FormErrors>
+  readonly touched: Accessor<Readonly<Record<string, boolean>>>
+  readonly submitting: Accessor<boolean>
+  readonly submitError: Accessor<unknown>
+  readonly submitCount: Accessor<number>
+  readonly valid: Accessor<boolean>
+  readonly dirty: Accessor<boolean>
+  readonly form: Accessor<HTMLFormElement | undefined>
+  bind(form: HTMLFormElement): () => void
+  field<TName extends keyof TValues & string>(
+    name: TName,
+  ): FormFieldController<TValues[TName]>
+  setValue<TName extends keyof TValues & string>(
+    name: TName,
+    value: TValues[TName],
+  ): void
+  setError(name: string, message: string | undefined): void
+  submit(event?: SubmitEvent | Event): Promise<FormSubmitResult<TValues>>
+  handleSubmit(event: SubmitEvent | Event): void
+  reset(): void
+  handleReset(event?: Event): void
+  formData(): FormData
+  dispose(): void
+}
+/** Convert native FormData entries into a plain object, retaining repeated names. */
+export declare function formDataToValues(formData: FormData): FormValues
+export declare function createForm<TValues extends FormValues>(
+  options: CreateFormOptions<TValues>,
+): FormController<TValues>
 
 export type TransitionPhase = 'enter' | 'leave'
 export type TransitionClassValue = string | readonly string[]
@@ -426,11 +644,23 @@ export declare function bindStyle(
   once?: boolean,
 ): void
 
+/**
+ * Binds `handler` for `name` on `el`. Delegated handlers are dispatched by the
+ * document listener registered through `delegateEvents`; pass
+ * `delegated = false` for events that do not bubble or for modules compiled
+ * without delegation, which attach a native listener on the element instead.
+ */
 export declare function bindEvent(
   el: Element,
   name: string,
   handler: EventListener,
+  delegated?: boolean,
 ): void
+/**
+ * Registers one shared document listener per event type. These listeners are
+ * process-wide and outlive any component, so runtime diagnostics sessions do
+ * not count them; only per-element native listeners are counted.
+ */
 export declare function delegateEvents(events: readonly string[]): void
 
 export declare function setRef<T>(

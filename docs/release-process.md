@@ -567,49 +567,44 @@ URL 凭据、敏感 query/JSON 字段、Bearer/Basic Authorization 和常见 npm
 完整检查按固定顺序执行，任一失败则阻止发布。除源码质量外，还包括 Rust/native
 包元数据、平台 binary、npm tarball 内容和 release worktree 不变性检查。
 
-`scripts/release/release-precheck.ts`：
+`release.config.ts` 的 `precheck.commands` 是正式发布门禁的唯一来源，按固定顺序执行：
 
-```typescript
-/**
- * Release precheck script
- *
- * Note: create-zeus is excluded from this precheck because it is marked as
- * "ignore" in changeset (experimental DX tool, not part of MVP scope).
- */
-
-const steps: Array<[string, string[]]> = [
-  ['pnpm', ['check:release-worktree', '--capture']],
-  ['pnpm', ['check:branch']],
-  ['pnpm', ['check:native-packages']],
-  ['pnpm', ['check:native-binaries']],
-  ['pnpm', ['build']],
-  ['pnpm', ['check:cjs']],
-  ['pnpm', ['build-dts']],
-  ['pnpm', ['check:release-artifacts', '--require-binaries']],
-  ['pnpm', ['api:check']],
-  ['pnpm', ['check']],
-  ['pnpm', ['lint']],
-  ['pnpm', ['test-unit']],
-  ['pnpm', ['bench:compiler-native']],
-  ['pnpm', ['check:package-versions']],
-  ['pnpm', ['examples:check:all']],
-  ['pnpm', ['check:create-zeus']],
-  ['pnpm', ['bench:component-host:ci']],
-  ['pnpm', ['docs:build']],
-  ['pnpm', ['size:ci']],
-  ['pnpm', ['check:exports']],
-  ['pnpm', ['check:repository']],
-  ['pnpm', ['check:release-worktree', '--verify']],
-]
-
-async function run() {
-  for (const [command, args] of steps) {
-    console.log(`\n> ${command} ${args.join(' ')}\n`)
-    await exec(command, args, { stdio: 'inherit' })
-  }
-  console.log('\nRelease precheck passed.\n')
-}
+```text
+check:release-worktree --capture
+check:branch
+audit:prod
+check:secrets
+check:sbom:write
+check:sbom
+check:native-packages
+check:native-binaries
+build
+check:runtime-interop
+check:cjs
+build-dts
+check:release-artifacts --require-binaries
+api:check
+check
+lint
+test-unit
+bench:compiler-native
+check:package-versions
+examples:check:all
+check:create-zeus
+check:create-zeus-packed
+bench:component-host:ci
+docs:build
+size:ci
+check:exports
+check:repository
+check:rc-readiness
+check:release-worktree --verify
 ```
+
+`check:rc-readiness` 消费 `temp/release/rc-evidence.json`（可用
+`ZEUS_RC_EVIDENCE_FILE` 指定其他路径）。证据文件必须把四个产品 URL、Linux/Windows
+验证和发布审批绑定到当前完整 commit；缺失证据显示为 `not_run`，格式错误或过期证据显示为
+`fail`。发布前仍需满足真实的跨平台、部署和审批条件。
 
 ### 6.2 CI 门禁（PR 合并前）
 

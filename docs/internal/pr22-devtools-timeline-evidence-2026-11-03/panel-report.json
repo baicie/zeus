@@ -1,0 +1,24 @@
+{
+  "scope": "real runtime events, bounded timeline, Custom Element lifecycle, shadow-root selection and panel graph",
+  "productionRuntimeInstrumentation": false,
+  "results": [
+    {
+      "browser": "chromium",
+      "status": "passed",
+      "pageErrors": [],
+      "failedResponses": []
+    },
+    {
+      "browser": "firefox",
+      "status": "passed",
+      "pageErrors": [],
+      "failedResponses": []
+    },
+    {
+      "browser": "webkit",
+      "status": "passed",
+      "pageErrors": [],
+      "failedResponses": []
+    }
+  ]
+}

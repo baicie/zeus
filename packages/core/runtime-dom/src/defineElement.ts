@@ -6,11 +6,15 @@ import { createOwner, resolveDOMContext, runWithOwner } from './context'
 import {
   coerceCustomElementAttribute,
   createCustomElementMountLifecycle,
+  findCustomElementPropByAttribute,
+  getCustomElementAttributeName,
   getCustomElementObservedAttributes,
   reflectCustomElementProperty,
 } from './customElementContract'
+import { emitDevtoolsEvent } from './devtools'
 import { isWithinRuntimeDomMove } from './domMove'
 import { withHostContext } from './hostContext'
+import { takeSSRLightDomChildren } from './lightDomSsr'
 import { renderWithPreservedNodes } from './render'
 import { createLightDomProjection } from './slot'
 
@@ -473,11 +477,30 @@ export function defineElement<
       // Projection can detach a host before its queued connected reaction runs.
       if (this.isConnected === false) return
       this.mountLifecycle.connect()
+      emitCustomElementDevtoolsEvent('custom-element:connect', this)
     }
 
     disconnectedCallback(): void {
       if (isWithinRuntimeDomMove(this)) return
+      try {
+        this.mountLifecycle.disconnect()
+      } finally {
+        emitCustomElementDevtoolsEvent('custom-element:disconnect', this)
+      }
+    }
+
+    adoptedCallback(): void {
+      // Adoption can move an already-mounted element to another document.
+      // Recreate the mount so document-bound observers and DOM ownership do
+      // not survive across realms. A normal disconnected adoption is already
+      // inactive and will mount again from connectedCallback.
+      if (this.isConnected === false) {
+        this.mountLifecycle.disconnect()
+        return
+      }
+
       this.mountLifecycle.disconnect()
+      this.mountLifecycle.connect()
     }
 
     private mountElement(): CustomElementMount {
@@ -485,7 +508,11 @@ export function defineElement<
       const mode = shadow ? 'shadow' : 'light'
 
       if (mode === 'light' && !this.capturedLightChildren) {
-        this.lightChildren = Array.from(this.childNodes)
+        // An SSR Light DOM host carries explicit markers that separate its
+        // internal content from consumer children. They are the only accepted
+        // evidence; without them every existing child is a consumer child.
+        const ssrChildren = takeSSRLightDomChildren(this)
+        this.lightChildren = ssrChildren ?? Array.from(this.childNodes)
         this.capturedLightChildren = true
       }
 
@@ -516,6 +543,10 @@ export function defineElement<
         projection,
       }
 
+      // Declared styles mount before component content, matching the order a
+      // server-rendered DSD template uses.
+      const styleNodes = mountStyles(target, options.styles, options.styleNonce)
+
       const dispose = renderWithPreservedNodes(
         () =>
           runWithOwner(owner, () =>
@@ -525,11 +556,15 @@ export function defineElement<
             }),
           ),
         target,
-        { owner },
-        mode === 'light' ? this.lightChildren : undefined,
+        {
+          owner,
+          ownsOwner: true,
+          // Injected styles are framework-owned: they must sit before the
+          // content and be removed on disconnect, unlike consumer children.
+          ownedNodes: styleNodes,
+        },
+        mode === 'light' ? this.lightChildren : [],
       )
-
-      const styleNodes = mountStyles(target, options.styles, options.styleNonce)
 
       projection?.connect()
 
@@ -538,9 +573,7 @@ export function defineElement<
           return dispose.active
         },
         dispose() {
-          projection?.disconnect()
-          dispose()
-          for (const style of styleNodes) style.remove()
+          disposeMountedElement(projection, dispose)
         },
       }
     }
@@ -575,7 +608,9 @@ export function defineElement<
       this.preUpgradeAttributes.delete(name)
       if (oldValue === null && newValue === initialValue) return
 
-      const def = propDefs.find(item => item.attrName === name)
+      const def = findCustomElementPropByAttribute(propDefs, name) as
+        | NormalizedPropDefinition
+        | undefined
 
       if (!def) return
       this.attributeProps.add(def.name)
@@ -680,7 +715,8 @@ export function mountElementDefinition(
   const mode = shadow ? 'shadow' : 'light'
 
   if (mode === 'light' && !mountState.capturedLightChildren) {
-    mountState.lightChildren = Array.from(host.childNodes)
+    const ssrChildren = takeSSRLightDomChildren(host)
+    mountState.lightChildren = ssrChildren ?? Array.from(host.childNodes)
     mountState.capturedLightChildren = true
   }
 
@@ -727,6 +763,8 @@ export function mountElementDefinition(
 
   mountState.internals = setupContext.internals
 
+  const styleNodes = mountStyles(target, options.styles, options.styleNonce)
+
   const dispose = renderWithPreservedNodes(
     () =>
       runWithOwner(owner, () =>
@@ -736,12 +774,23 @@ export function mountElementDefinition(
         }),
       ),
     target,
-    { owner },
-    mode === 'light' ? lightChildren : undefined,
+    {
+      owner,
+      ownsOwner: true,
+      // Injected styles are framework-owned: they must sit before the content
+      // and be removed on disconnect, unlike consumer children.
+      ownedNodes: styleNodes,
+    },
+    mode === 'light' ? lightChildren : [],
   )
 
-  const styleNodes = mountStyles(target, options.styles, options.styleNonce)
   projection?.connect()
+  emitCustomElementDevtoolsEvent(
+    'custom-element:connect',
+    host,
+    definition.tagName,
+  )
+  let devtoolsDisconnected = false
 
   return {
     get active() {
@@ -769,11 +818,66 @@ export function mountElementDefinition(
     },
 
     dispose() {
-      projection?.disconnect()
-      dispose()
-      for (const style of styleNodes) style.remove()
+      try {
+        disposeMountedElement(projection, dispose)
+      } finally {
+        if (!devtoolsDisconnected) {
+          devtoolsDisconnected = true
+          emitCustomElementDevtoolsEvent(
+            'custom-element:disconnect',
+            host,
+            definition.tagName,
+          )
+        }
+      }
     },
   }
+}
+
+function emitCustomElementDevtoolsEvent(
+  type: 'custom-element:connect' | 'custom-element:disconnect',
+  element: HTMLElement,
+  name = element.localName || element.tagName.toLowerCase(),
+): void {
+  if (!__DEV__) return
+  emitDevtoolsEvent(
+    {
+      type,
+      target: element,
+      name,
+    },
+    { swallowErrors: true },
+  )
+}
+
+/**
+ * Releases the render even when the projection observer fails to disconnect.
+ * The render disposer clears the target, which also removes injected styles.
+ */
+function disposeMountedElement(
+  projection: { disconnect(): void } | undefined,
+  dispose: () => void,
+): void {
+  let failed = false
+  let firstError: unknown
+
+  try {
+    projection?.disconnect()
+  } catch (error) {
+    failed = true
+    firstError = error
+  }
+
+  try {
+    dispose()
+  } catch (error) {
+    if (!failed) {
+      failed = true
+      firstError = error
+    }
+  }
+
+  if (failed) throw firstError
 }
 
 function normalizePropDefinitions<P extends object>(
@@ -786,28 +890,32 @@ function normalizePropDefinitions<P extends object>(
     const input = props[key]
 
     if (typeof input === 'function') {
-      const type = input as ElementPropConstructor
+      const type = normalizePropType(input as ElementPropConstructor)
 
       return {
         name: propKey,
-        attrName: isAttributeBackedConstructor(type)
-          ? toKebabCase(propKey)
-          : false,
-        type: normalizePropType(type),
+        attrName:
+          getCustomElementAttributeName({ name: propKey, type }) ?? false,
+        type,
         reflect: false,
         reactivity: 'shallow',
       }
     }
 
-    const type = input?.type
-    const defaultAttr = isAttributeBackedConstructor(type)
-      ? toKebabCase(propKey)
-      : false
+    const type = normalizePropType(input?.type)
 
     return {
       name: propKey,
-      attrName: input?.attr === undefined ? defaultAttr : input.attr,
-      type: normalizePropType(type),
+      // RFC-010: the attribute name is derived once, by the same rule the lazy
+      // loader and generated manifests use (lowercase alias or kebab-case).
+      attrName:
+        getCustomElementAttributeName({
+          name: propKey,
+          attrName: input?.attr,
+          type,
+          deserialize: input?.deserialize ? true : undefined,
+        }) ?? false,
+      type,
       reflect: Boolean(input?.reflect),
       reactivity: input?.reactivity === 'deep' ? 'deep' : 'shallow',
       default: input?.default,
@@ -1010,12 +1118,6 @@ function createExpose(
       }
     }
   }
-}
-
-function isAttributeBackedConstructor(
-  type: ElementPropConstructor | undefined,
-): boolean {
-  return type === String || type === Number || type === Boolean
 }
 
 function normalizePropType(

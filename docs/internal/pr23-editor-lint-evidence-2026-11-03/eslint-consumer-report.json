@@ -1,0 +1,20 @@
+{
+  "measuredAt": "2026-11-03T10:05:19.103Z",
+  "node": "v24.18.0",
+  "versions": {
+    "eslint": "10.5.0",
+    "typescript": "6.0.3",
+    "typescriptEslint": "8.61.1"
+  },
+  "sha256": "c08eef0be623f7f008fa7efcbe01b40a92cdc73dee6b69cf15d7eecacc720e35",
+  "entry": "/private/var/folders/5k/ryhv7yxj2blc55wk9g4jwl5r0000gn/T/zeus-eslint-consumer-KnCvM4/app/node_modules/@zeus-js/eslint-plugin/index.cjs",
+  "cjsRules": ["no-internal-imports", "valid-builtin-usage"],
+  "ruleIds": [
+    "zeus/no-internal-imports",
+    "zeus/valid-builtin-usage",
+    "zeus/valid-builtin-usage"
+  ],
+  "types": "passed",
+  "fixableRules": [],
+  "passed": true
+}

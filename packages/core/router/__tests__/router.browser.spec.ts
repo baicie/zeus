@@ -1,8 +1,7 @@
-import { createBrowserHistory } from '@remix-run/router'
 import { JSDOM } from 'jsdom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { createRouter } from '../src'
+import { createBrowserHistory, createRouter } from '../src'
 
 describe('@zeus-js/router browser history', () => {
   let dom: JSDOM

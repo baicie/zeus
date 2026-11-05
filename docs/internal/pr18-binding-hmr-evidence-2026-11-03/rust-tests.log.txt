@@ -1,0 +1,191 @@
+
+running 1 test
+test span::tests::converts_utf8_offsets_to_utf16_columns_across_crlf ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 4 tests
+test literal_binding_edits_keep_the_compiler_signature ... ok
+test unsupported_targets_are_not_patch_slots ... ok
+test manual_component_only_production_and_ssr_do_not_install_patch_state ... ok
+test module_semantics_and_binding_schema_are_part_of_the_signature ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 7 tests
+test compiler_diagnostic_is_owned_and_structured ... ok
+test for_accessor_dependencies_round_trip_through_json ... ok
+test once_binding_ir_round_trips_as_explicit_true ... ok
+test fragment_ir_round_trips_without_ast_types ... ok
+test ir_owned_schema_round_trips_through_json ... ok
+test attribute_ir_matches_compiler_shared_canonical_json ... ok
+test spread_ir_round_trips_without_duplicate_kind_fields ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 54 tests
+test allows_jsx_created_after_await_in_async_handlers_and_helpers ... ok
+test keeps_control_flow_children_in_the_enclosing_namespace ... ok
+test excludes_type_only_for_parameter_references_from_runtime_dependencies ... ok
+test builtin_aliases_respect_lexical_shadowing ... ok
+test lowers_array_literal_nested_jsx_region ... ok
+test diagnoses_jsx_nested_in_unsupported_calls_and_array_spreads ... ok
+test diagnoses_transition_unknown_and_jsx_options ... ok
+test lowering_is_deterministic_across_threads ... ok
+test lowers_component_elements_with_lazy_props_and_children ... ok
+test lowers_array_map_nested_jsx_region ... ok
+test lowers_conditional_and_logical_nested_jsx_regions ... ok
+test diagnoses_unsupported_nested_jsx_conditions_and_array_map_parameters ... ok
+test lowers_direct_show_fallback_jsx_attributes ... ok
+test lowers_on_namespace_events_with_exact_names ... ok
+test lowers_native_element_to_owned_deterministic_ir ... ok
+test lowers_for_accessor_dependencies_from_semantic_symbols ... ok
+test lowers_dom_attribute_binding_variants ... ok
+test lowers_parenthesized_for_callbacks ... ok
+test lowers_once_intrinsics_after_all_ecmascript_line_terminators ... ok
+test lowers_imported_show_and_for_as_control_flow_bindings ... ok
+test lowers_root_and_nested_fragments_without_extra_components ... ok
+test lowers_once_intrinsics_only_on_supported_dom_bindings ... ok
+test lowers_spread_attributes_with_owned_source_spans ... ok
+test lowers_supported_raw_text_elements_and_rejects_nested_elements ... ok
+test lowers_scalar_calls_and_rejects_dynamic_regions_in_raw_text_elements ... ok
+test maps_camel_case_event_handlers_to_kebab_case_events ... ok
+test preserves_component_prop_names_without_dom_alias_normalization ... ok
+test lowers_transition_intrinsic_with_explicit_runtime_options ... ok
+test preserves_wrapped_function_and_member_expression_forms ... ok
+test permits_once_on_namespaced_properties_even_when_names_resemble_events_or_refs ... ok
+test rejects_await_and_yield_evaluated_by_jsx ... ok
+test rejects_html_parsing_properties ... ok
+test rejects_hyphenated_component_names ... ok
+test rejects_event_bindings_without_an_event_name_or_handler ... ok
+test rejects_function_values_for_control_builtins_and_dynamic_slot_names ... ok
+test rejects_async_and_generator_components ... ok
+test recognizes_parenthesized_host_in_generic_define_element_setup ... ok
+test rejects_kebab_case_property_names ... ok
+test rejects_elements_whose_children_need_dedicated_anchor_codegen ... ok
+test rejects_mixed_once_and_reactive_raw_text_bindings ... ok
+test rejects_invalid_once_intrinsic_shapes_and_non_dom_targets ... ok
+test rejects_non_identifier_for_callback_parameters ... ok
+test rejects_nested_jsx_in_spreads_and_spreads_on_compiler_builtins ... ok
+test rejects_once_intrinsics_on_ignored_builtin_attributes ... ok
+test reports_stable_attribute_binding_diagnostics ... ok
+test rejects_once_markers_on_every_builtin_attribute_form ... ok
+test rejects_unknown_attributes_on_control_builtins_without_dropping_them ... ok
+test reports_utf8_offsets_and_utf16_columns_across_crlf ... ok
+test treats_shadowed_once_as_a_regular_function_call ... ok
+test returns_structured_parser_diagnostics ... ok
+test resolves_element_namespace_from_the_surrounding_markup ... ok
+test resolves_named_define_element_setup_functions ... ok
+test validates_host_and_slot_builtin_boundaries ... ok
+test rejects_once_markers_on_non_binding_targets ... ok
+
+test result: ok. 54 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 1 test
+test playground_ir_snapshot_matches_rust_lowering ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 61 tests
+test avoids_collisions_with_user_bindings ... ok
+test collects_locator_names_from_show_fallback_subtrees ... ok
+test avoids_collisions_with_unresolved_references ... ok
+test collects_delegated_events_from_nested_for_show_and_fragments ... ok
+test collects_delegated_events_and_locator_names_from_dynamic_regions ... ok
+test does_not_resolve_text_creation_through_component_scope ... ok
+test binds_non_bubbling_and_non_delegated_events_directly ... ok
+test collects_create_slot_for_slots_in_show_fallbacks ... ok
+test emits_dynamic_region_for_explicit_function_call_children ... ok
+test emits_dynamic_region_for_nested_conditional_and_array_jsx ... ok
+test emits_create_slot_for_web_component_slot_ir ... ok
+test does_not_subscribe_to_type_only_for_parameter_references ... ok
+test emits_dom_and_ssr_dynamic_regions_for_array_literal_children ... ok
+test emits_once_intrinsic_as_an_initialization_binding_without_runtime_wrapper ... ok
+test emits_nested_control_flow_inside_component_children ... ok
+test emits_attribute_property_and_ref_bindings_with_stable_locators ... ok
+test emits_rust_hmr_boundary_for_top_level_render_roots ... ok
+test emits_component_calls_with_lazy_props_and_initialized_children ... ok
+test emits_server_web_component_runtime_calls_for_define_element_host_and_slot ... ok
+test emits_once_intrinsics_without_changing_default_bindings ... ok
+test emits_root_and_nested_fragment_templates_with_stable_markers ... ok
+test emits_raw_text_bindings_and_preserves_raw_template_text ... ok
+test emits_stable_hydration_plan_and_ssr_markers_for_dom_and_ssr_targets ... ok
+test emits_show_and_for_mounts_with_stable_region_markers ... ok
+test emits_static_template_and_precise_dynamic_text_binding ... ok
+test emits_svg_namespace_flag_and_valid_void_custom_templates ... ok
+test emits_transition_mount_for_dom_and_static_branch_for_ssr ... ok
+test emits_event_bindings_and_sorted_deduplicated_delegation ... ok
+test escapes_foreign_raw_text_elements_in_svg ... ok
+test leaves_plain_modules_untouched_and_preserves_directive_prologue ... ok
+test keeps_type_only_specifiers_with_the_ssr_facade ... ok
+test emits_ssr_native_component_and_control_flow_calls ... ok
+test lowers_ordered_native_and_component_spreads_for_both_targets ... ok
+test nested_for_key_callback_does_not_capture_the_outer_item_accessor ... ok
+test ignores_non_references_and_shadowed_names_in_for_expressions ... ok
+test escapes_ssr_static_text_and_keeps_rcdata_free_of_hydration_markers ... ok
+test pure_define_element_mode_keeps_boolean_json_shape ... ok
+test omits_custom_element_properties_from_ssr ... ok
+test preserves_object_literal_expression_semantics ... ok
+test rejects_non_identifier_for_callback_parameters_before_codegen ... ok
+test preserves_function_property_values_without_invoking_them ... ok
+test marks_only_top_level_define_element_initializers_pure_when_requested ... ok
+test maps_verbatim_source_outside_jsx_for_dom_and_ssr ... ok
+test rejects_once_intrinsics_on_ignored_builtin_attributes ... ok
+test returns_diagnostics_without_emitting_partial_code ... ok
+test reuses_identical_static_templates_across_components ... ok
+test rejects_once_markers_on_ignored_builtin_attributes ... ok
+test rewrites_default_define_element_exports_for_ssr ... ok
+test rewrites_mixed_ssr_safe_imports_to_the_ssr_facade ... ok
+test rewrites_ssr_safe_imports_with_type_only_specifiers ... ok
+test rewrites_ssr_safe_imports_without_jsx_or_components ... ok
+test rejects_once_marked_node_bindings_before_codegen ... ok
+test rewrites_schema_context_and_component_specifiers_to_the_ssr_facade ... ok
+test skips_rust_hmr_when_module_has_an_explicit_boundary ... ok
+test rewrites_ssr_safe_specifiers_inside_mixed_imports ... ok
+test rejects_ssr_properties_without_an_html_equivalent ... ok
+test subscribes_only_to_referenced_for_accessors ... ok
+test subscribes_when_a_for_item_is_used_as_a_component_callee ... ok
+test wraps_destructured_render_results_without_synthetic_declarations ... ok
+test maps_spread_nested_jsx_dynamic_attributes_and_higher_order_callbacks ... ok
+test subscribes_to_unicode_escaped_for_parameters_and_references ... ok
+
+test result: ok. 61 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 11 tests
+test nesting::tests::generic_arrows_do_not_switch_the_rest_of_the_file_to_jsx_text ... ok
+test nesting::tests::jsx_text_apostrophes_do_not_hide_later_code ... ok
+test nesting::tests::realistic_components_stay_cheap ... ok
+test nesting::tests::budget_boundaries_match_the_documented_limit ... ok
+test nesting::tests::flat_modules_are_free ... ok
+test nesting::tests::long_argument_lists_objects_and_arrays_do_not_accumulate ... ok
+test nesting::tests::scan_time_is_linear_in_source_size ... ok
+test nesting::tests::many_sibling_if_statements_stay_cheap ... ok
+test nesting::tests::semicolon_free_statements_do_not_accumulate ... ok
+test nesting::tests::every_deep_construct_is_rejected ... ok
+test nesting::tests::line_breaks_never_hide_a_deep_construct ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.16s
+
+
+running 3 tests
+test tests::rejects_invalid_options_with_the_native_messages ... ok
+test tests::reports_malformed_requests_without_panicking ... ok
+test tests::returns_the_compiler_result_for_valid_options ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

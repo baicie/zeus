@@ -1,0 +1,8 @@
+
+ RUN  v4.1.9 /Users/liuzhiwei/Desktop/workspace/git-code/zeus/temp/worktrees/pr21-template-registry
+
+
+ Test Files  3 passed (3)
+      Tests  41 passed (41)
+   Start at  16:58:45
+   Duration  8.87s (transform 5.08s, setup 1.33s, import 17.20s, tests 892ms, environment 0ms)

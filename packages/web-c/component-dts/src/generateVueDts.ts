@@ -1,3 +1,5 @@
+import { getComponentEventName } from '@zeus-js/component-analyzer'
+
 import {
   formatDetailType,
   formatPropType,
@@ -139,12 +141,8 @@ function generateVueEmitsType(component: ComponentRecord): string {
     const detailType = event.detail
       ? formatDetailType(event.detail, event.detailOptional)
       : 'unknown'
-    return `${JSON.stringify(event.name ?? toKebabCase(event.key ?? key))}: (event: CustomEvent<${detailType}>) => void`
+    return `${JSON.stringify(getComponentEventName(key, event))}: (event: CustomEvent<${detailType}>) => void`
   })
 
   return `{ ${[...fields, ...modelEntries].join('; ')} }`
-}
-
-function toKebabCase(value: string): string {
-  return value.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
 }

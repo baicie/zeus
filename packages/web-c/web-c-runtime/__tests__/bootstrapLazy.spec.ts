@@ -8,6 +8,8 @@ import type { HostRef, ZeusComponentInstance } from '../src/types'
 
 interface ZeusLazyElement extends HTMLElement {
   componentOnReady(): Promise<HTMLElement>
+  connectedCallback(): void
+  adoptedCallback(): void
 }
 
 function clearCustomElements(): void {
@@ -192,6 +194,28 @@ describe('bootstrapLazy', () => {
     bootstrapLazy([meta])
     expect(customElements.get(meta.tagName)).toBe(ctor)
     expect(meta.load).not.toHaveBeenCalled()
+  })
+
+  it('does not reconnect a still-connected lazy host during adoption', async () => {
+    const connected = vi.fn()
+    const meta = {
+      tagName: 'zw-adopted',
+      load: vi.fn().mockResolvedValue({
+        createComponent() {
+          return { connected }
+        },
+      }),
+      props: [],
+    }
+    bootstrapLazy([meta])
+
+    const el = document.createElement(meta.tagName) as ZeusLazyElement
+    document.body.appendChild(el)
+    await el.componentOnReady()
+
+    el.adoptedCallback()
+
+    expect(connected).toHaveBeenCalledTimes(1)
   })
 
   it('diagnoses a different definition registered under the same tag', () => {
@@ -803,6 +827,7 @@ describe('lazy element lifecycle', () => {
     const reservedMethods = [
       'connectedCallback',
       'disconnectedCallback',
+      'adoptedCallback',
       'attributeChangedCallback',
       'componentOnReady',
     ]
@@ -1009,6 +1034,37 @@ describe('componentOnReady', () => {
       expect.any(Error),
     )
 
+    consoleError.mockRestore()
+  })
+
+  it('retries a failed chunk request when the element reconnects', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const connected = vi.fn()
+    const load = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('network down'))
+      .mockResolvedValue({
+        createComponent() {
+          return { connected }
+        },
+      })
+
+    bootstrapLazy([
+      { tagName: 'zw-retry-load', shadow: false, load, props: [] },
+    ])
+
+    const el = document.createElement('zw-retry-load') as ZeusLazyElement
+    document.body.appendChild(el)
+    await expect(el.componentOnReady()).rejects.toThrow('network down')
+
+    document.body.removeChild(el)
+    document.body.appendChild(el)
+
+    await expect(el.componentOnReady()).resolves.toBe(el)
+    expect(load).toHaveBeenCalledTimes(2)
+    expect(connected).toHaveBeenCalledTimes(1)
+
+    document.body.removeChild(el)
     consoleError.mockRestore()
   })
 })

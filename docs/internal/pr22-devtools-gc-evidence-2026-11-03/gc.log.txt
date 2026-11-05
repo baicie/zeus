@@ -1,0 +1,1 @@
+DevTools GC retained only primitive graph data (1 forced cycles).

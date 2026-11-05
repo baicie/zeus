@@ -6,7 +6,12 @@
     "strict": true,
     "jsx": "preserve",
     "jsxImportSource": "@zeus-js/zeus",
-    "types": ["@zeus-js/zeus/jsx"],
+    "types": ["@zeus-js/zeus/jsx", "vite/client"],
+    "paths": {
+      "@zeus-js/devtools-consumer": [
+        "../../packages/devtools/consumer/src/index.ts"
+      ]
+    },
     "skipLibCheck": true
   },
   "include": ["src", "../../packages/global.d.ts"]

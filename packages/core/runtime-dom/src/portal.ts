@@ -49,19 +49,42 @@ export function Portal(props: PortalProps): Comment {
       subtree.replace(() => resolveChildren(props.children))
     })
   } catch (error) {
-    subtree.dispose()
-    start.remove()
-    end.remove()
+    try {
+      subtree.dispose()
+    } catch {
+      // Preserve the initial render failure.
+    } finally {
+      start.remove()
+      end.remove()
+    }
     throw error
   }
 
   onScopeDispose(() => {
     if (disposed) return
     disposed = true
-    stop(runner)
-    subtree.dispose()
-    start.remove()
-    end.remove()
+
+    let failed = false
+    let firstError: unknown
+    const release = (callback: () => void): void => {
+      try {
+        callback()
+      } catch (error) {
+        if (!failed) {
+          failed = true
+          firstError = error
+        }
+      }
+    }
+
+    // Portal owns the target anchors. A child cleanup error must not leave
+    // them behind in a target the caller still uses.
+    release(() => stop(runner))
+    release(() => subtree.dispose())
+    release(() => start.remove())
+    release(() => end.remove())
+
+    if (failed) throw firstError
   }, true)
 
   return source

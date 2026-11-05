@@ -121,4 +121,90 @@ export declare function resolveHostProperties(
   hostRef: HostRef,
   definitions: ZeusPropMeta[],
 ): void
+
+/**
+ * Framework renderer boundary (RFC-011). A host such as a virtualized grid owns
+ * keys and containers; an adapter owns everything a framework renders inside a
+ * container. Neither this module nor the Web Component runtime interprets
+ * ReactNode, VNode or framework instances.
+ */
+/** Identifies one mount of one key. A remount starts a new session. */
+export interface RendererSession {
+  /** The stable logical key the host rendered. */
+  readonly key: PropertyKey
+  /** Strictly increasing per host and never reused, so stale work is detectable. */
+  readonly generation: number
+  /** Aborted before the adapter disposes this mount. */
+  readonly signal: AbortSignal
+}
+export interface RendererAdapter<
+  Container,
+  Data,
+  Context = unknown,
+  Handle = unknown,
+> {
+  mount(
+    container: Container,
+    data: Data,
+    context: Context,
+    session: RendererSession,
+  ): Handle
+  update(handle: Handle, data: Data, context: Context): void
+  dispose(handle: Handle): void
+}
+export interface RendererEntry<Container, Data, Context = unknown> {
+  key: PropertyKey
+  container: Container
+  data: Data
+  context: Context
+}
+export interface RendererHost<
+  Container,
+  Data,
+  Context = unknown,
+  Handle = unknown,
+> {
+  /**
+   * Reconciles the visible entries: a key whose adapter and container are
+   * unchanged is updated, a changed container remounts, and missing keys are
+   * disposed. All disposals run before any mount, so keys can swap
+   * containers in one call. Keys and containers must each be unique.
+   */
+  render(entries: readonly RendererEntry<Container, Data, Context>[]): void
+  /** Disposes every handle and remounts the current entries with `adapter`. */
+  setAdapter(adapter: RendererAdapter<Container, Data, Context, Handle>): void
+  dispose(): void
+}
+export type RendererErrorCode =
+  | 'ZEUS_RENDERER_DISPOSED'
+  | 'ZEUS_RENDERER_DUPLICATE_KEY'
+  | 'ZEUS_RENDERER_DUPLICATE_CONTAINER'
+  | 'ZEUS_RENDERER_ADAPTER_FAILURE'
+  | 'ZEUS_RENDERER_CONTAINER_MISMATCH'
+/** Creates an error carrying a stable `[code]` prefix and the original cause. */
+export declare function createRendererError(
+  code: RendererErrorCode,
+  message: string,
+  cause?: unknown,
+): Error
+/**
+ * Reconciles keyed renderer entries without knowing how a framework renders.
+ * A key keeps its adapter handle across reorder/update operations. Changing a
+ * container for an existing key remounts that entry because the adapter mount
+ * contract owns the container binding.
+ */
+export declare function createRendererHost<
+  Container,
+  Data,
+  Context = unknown,
+  Handle = unknown,
+>(
+  adapter: RendererAdapter<Container, Data, Context, Handle>,
+): RendererHost<Container, Data, Context, Handle>
+
+/**
+ * Marker for the loader contract that generated `@zeus-js/output-wc` code
+ * imports. Renamed, never redefined, when the contract changes incompatibly.
+ */
+export declare const ZEUS_WC_RUNTIME_ABI_1 = 1
 ```

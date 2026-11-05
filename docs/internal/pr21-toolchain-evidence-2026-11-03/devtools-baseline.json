@@ -1,0 +1,23 @@
+{
+  "scope": "real runtime events, click DOM selection, panel graph",
+  "results": [
+    {
+      "browser": "chromium",
+      "status": "passed",
+      "pageErrors": [],
+      "failedResponses": []
+    },
+    {
+      "browser": "firefox",
+      "status": "passed",
+      "pageErrors": [],
+      "failedResponses": []
+    },
+    {
+      "browser": "webkit",
+      "status": "passed",
+      "pageErrors": [],
+      "failedResponses": []
+    }
+  ]
+}

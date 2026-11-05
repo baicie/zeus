@@ -2,7 +2,14 @@ import { createSignal } from '@zeus-js/signal'
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { bindAttr, bindText, mountDynamic, render } from '../src'
+import {
+  bindAttr,
+  bindText,
+  defineElement,
+  mountDynamic,
+  mountElementDefinition,
+  render,
+} from '../src'
 
 describe('runtime DevTools event bridge', () => {
   let dom: JSDOM
@@ -15,6 +22,7 @@ describe('runtime DevTools event bridge', () => {
     bindingId?: number
     effectId?: number
     sourceId?: number
+    name?: string
     payload?: {
       key?: unknown
       kind?: string
@@ -32,6 +40,7 @@ describe('runtime DevTools event bridge', () => {
     vi.stubGlobal('document', dom.window.document)
     vi.stubGlobal('HTMLElement', dom.window.HTMLElement)
     vi.stubGlobal('Node', dom.window.Node)
+    vi.stubGlobal('customElements', dom.window.customElements)
     Object.defineProperty(dom.window, '__ZEUS_DEVTOOLS_HOOK__', {
       configurable: true,
       value: { emit: (event: TestEvent) => events.push(event) },
@@ -101,6 +110,49 @@ describe('runtime DevTools event bridge', () => {
         .filter(event => event.type === 'effect:run')
         .every(event => event.effectId === textCommit?.effectId),
     ).toBe(true)
+  })
+
+  it('reports custom-element connect and disconnect while exposing only a stable target id', () => {
+    const tag = `z-devtools-card-${Math.random().toString(36).slice(2)}`
+    defineElement(tag, { shadow: false }, () => document.createElement('span'))
+
+    const element = document.createElement(tag)
+    document.body.appendChild(element)
+    element.remove()
+    document.body.appendChild(element)
+
+    const lifecycle = events.filter(event =>
+      event.type.startsWith('custom-element:'),
+    )
+    expect(lifecycle.map(event => event.type)).toEqual([
+      'custom-element:connect',
+      'custom-element:disconnect',
+      'custom-element:connect',
+    ])
+    expect(lifecycle.map(event => event.name)).toEqual([tag, tag, tag])
+    expect(new Set(lifecycle.map(event => event.targetId)).size).toBe(1)
+    expect(lifecycle.every(event => event.target === element)).toBe(true)
+  })
+
+  it('tracks lazy element mounts with idempotent disconnect events', () => {
+    const tag = `z-devtools-lazy-${Math.random().toString(36).slice(2)}`
+    const ctor = defineElement(tag, { shadow: false }, () =>
+      document.createElement('span'),
+    )
+    const host = document.createElement('div')
+    const mount = mountElementDefinition(ctor, host)
+
+    mount.dispose()
+    mount.dispose()
+
+    const lifecycle = events.filter(event =>
+      event.type.startsWith('custom-element:'),
+    )
+    expect(lifecycle.map(event => event.type)).toEqual([
+      'custom-element:connect',
+      'custom-element:disconnect',
+    ])
+    expect(lifecycle.every(event => event.name === tag)).toBe(true)
   })
 
   it('traces compiled dynamic regions to their signal dependency', () => {

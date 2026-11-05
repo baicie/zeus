@@ -21,6 +21,8 @@
     "packages/core/testing/src",
     "packages/devtools/vite-plugin/src",
     "packages/devtools/consumer/src",
+    "packages/devtools/eslint-plugin/src",
+    "packages/devtools/playground-engine/src",
     "packages/web-c/bundler-plugin/src",
     "packages/web-c/web-c/src",
     "packages/web-c/component-analyzer/src",

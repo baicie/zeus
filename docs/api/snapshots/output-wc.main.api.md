@@ -89,6 +89,10 @@ export interface OutputWCOptions {
   entryFileName?: (tag: string) => string
 }
 
+export declare function generateVSCodeCustomData(
+  customElementsJson: string,
+): string
+
 export declare function wc(options?: OutputWCOptions): ZeusComponentPlugin
 
 export { wc as default }

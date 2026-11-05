@@ -1,0 +1,14 @@
+{
+  "measuredAt": "2026-11-03T10:48:52.535Z",
+  "node": "v24.18.0",
+  "gcCycles": 1,
+  "customElementReleased": true,
+  "bindingReleased": true,
+  "finalizersObserved": ["binding", "custom-element"],
+  "retainedGraph": {
+    "bindings": 1,
+    "customElements": 1,
+    "timeline": 4
+  },
+  "passed": true
+}

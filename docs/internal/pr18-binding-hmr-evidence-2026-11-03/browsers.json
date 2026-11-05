@@ -1,0 +1,212 @@
+{
+  "scope": "Vite 8 compiler-certified literal binding HMR",
+  "measuredAt": "2026-11-03T05:26:09.080Z",
+  "platform": "darwin",
+  "arch": "arm64",
+  "node": "v22.23.3",
+  "consumerRoot": "/var/folders/5k/ryhv7yxj2blc55wk9g4jwl5r0000gn/T/zeus-hmr-packed-N7ZE0T/app",
+  "checks": [
+    "comment preservation",
+    "literal text/class/style patch",
+    "two root identities",
+    "owner/binding/effect identities",
+    "unchanged allocation and listener counts",
+    "input/selection/focus/dialog/scroll/object state",
+    "list cleanup and future mounts",
+    "consecutive updates",
+    "compile error overlay and recovery",
+    "fresh page imports latest source",
+    "unsafe initialization remount",
+    "patch after remount without stale subscription",
+    "failed binding rollback and Vite reload",
+    "final resource disposal"
+  ],
+  "results": [
+    {
+      "browser": "chromium",
+      "status": "passed",
+      "evidence": {
+        "initial": {
+          "effectsCreated": 17,
+          "effectsDisposed": 5,
+          "proxiesCreated": 0,
+          "scopesCreated": 8,
+          "scopesDisposed": 5,
+          "refsCreated": 6,
+          "memosCreated": 0,
+          "ownersCreated": 0,
+          "ownersDisposed": 0,
+          "bindingsCreated": 16,
+          "bindingsDisposed": 5,
+          "listenersCreated": 1,
+          "listenersDisposed": 0,
+          "allocationsCreated": 48,
+          "allocationsDisposed": 15
+        },
+        "afterListChange": {
+          "effectsCreated": 19,
+          "effectsDisposed": 9,
+          "proxiesCreated": 0,
+          "scopesCreated": 10,
+          "scopesDisposed": 8,
+          "refsCreated": 6,
+          "memosCreated": 0,
+          "ownersCreated": 0,
+          "ownersDisposed": 0,
+          "bindingsCreated": 18,
+          "bindingsDisposed": 9,
+          "listenersCreated": 1,
+          "listenersDisposed": 0,
+          "allocationsCreated": 54,
+          "allocationsDisposed": 26
+        },
+        "disposed": {
+          "effectsCreated": 15,
+          "effectsDisposed": 15,
+          "proxiesCreated": 0,
+          "scopesCreated": 5,
+          "scopesDisposed": 5,
+          "refsCreated": 6,
+          "memosCreated": 0,
+          "ownersCreated": 0,
+          "ownersDisposed": 0,
+          "bindingsCreated": 14,
+          "bindingsDisposed": 14,
+          "listenersCreated": 1,
+          "listenersDisposed": 1,
+          "allocationsCreated": 41,
+          "allocationsDisposed": 35
+        },
+        "identityCounts": {
+          "owners": 2,
+          "bindings": 18,
+          "effects": 18
+        }
+      }
+    },
+    {
+      "browser": "firefox",
+      "status": "passed",
+      "evidence": {
+        "initial": {
+          "effectsCreated": 17,
+          "effectsDisposed": 5,
+          "proxiesCreated": 0,
+          "scopesCreated": 8,
+          "scopesDisposed": 5,
+          "refsCreated": 6,
+          "memosCreated": 0,
+          "ownersCreated": 0,
+          "ownersDisposed": 0,
+          "bindingsCreated": 16,
+          "bindingsDisposed": 5,
+          "listenersCreated": 1,
+          "listenersDisposed": 0,
+          "allocationsCreated": 48,
+          "allocationsDisposed": 15
+        },
+        "afterListChange": {
+          "effectsCreated": 19,
+          "effectsDisposed": 9,
+          "proxiesCreated": 0,
+          "scopesCreated": 10,
+          "scopesDisposed": 8,
+          "refsCreated": 6,
+          "memosCreated": 0,
+          "ownersCreated": 0,
+          "ownersDisposed": 0,
+          "bindingsCreated": 18,
+          "bindingsDisposed": 9,
+          "listenersCreated": 1,
+          "listenersDisposed": 0,
+          "allocationsCreated": 54,
+          "allocationsDisposed": 26
+        },
+        "disposed": {
+          "effectsCreated": 15,
+          "effectsDisposed": 15,
+          "proxiesCreated": 0,
+          "scopesCreated": 5,
+          "scopesDisposed": 5,
+          "refsCreated": 6,
+          "memosCreated": 0,
+          "ownersCreated": 0,
+          "ownersDisposed": 0,
+          "bindingsCreated": 14,
+          "bindingsDisposed": 14,
+          "listenersCreated": 1,
+          "listenersDisposed": 1,
+          "allocationsCreated": 41,
+          "allocationsDisposed": 35
+        },
+        "identityCounts": {
+          "owners": 2,
+          "bindings": 18,
+          "effects": 18
+        }
+      }
+    },
+    {
+      "browser": "webkit",
+      "status": "passed",
+      "evidence": {
+        "initial": {
+          "effectsCreated": 17,
+          "effectsDisposed": 5,
+          "proxiesCreated": 0,
+          "scopesCreated": 8,
+          "scopesDisposed": 5,
+          "refsCreated": 6,
+          "memosCreated": 0,
+          "ownersCreated": 0,
+          "ownersDisposed": 0,
+          "bindingsCreated": 16,
+          "bindingsDisposed": 5,
+          "listenersCreated": 1,
+          "listenersDisposed": 0,
+          "allocationsCreated": 48,
+          "allocationsDisposed": 15
+        },
+        "afterListChange": {
+          "effectsCreated": 19,
+          "effectsDisposed": 9,
+          "proxiesCreated": 0,
+          "scopesCreated": 10,
+          "scopesDisposed": 8,
+          "refsCreated": 6,
+          "memosCreated": 0,
+          "ownersCreated": 0,
+          "ownersDisposed": 0,
+          "bindingsCreated": 18,
+          "bindingsDisposed": 9,
+          "listenersCreated": 1,
+          "listenersDisposed": 0,
+          "allocationsCreated": 54,
+          "allocationsDisposed": 26
+        },
+        "disposed": {
+          "effectsCreated": 15,
+          "effectsDisposed": 15,
+          "proxiesCreated": 0,
+          "scopesCreated": 5,
+          "scopesDisposed": 5,
+          "refsCreated": 6,
+          "memosCreated": 0,
+          "ownersCreated": 0,
+          "ownersDisposed": 0,
+          "bindingsCreated": 14,
+          "bindingsDisposed": 14,
+          "listenersCreated": 1,
+          "listenersDisposed": 1,
+          "allocationsCreated": 41,
+          "allocationsDisposed": 35
+        },
+        "identityCounts": {
+          "owners": 2,
+          "bindings": 18,
+          "effects": 18
+        }
+      }
+    }
+  ]
+}

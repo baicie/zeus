@@ -21,6 +21,7 @@ fn options(source_map: bool) -> TransformModuleOptions {
         source_map,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     }
 }
 
@@ -117,6 +118,7 @@ export const App = props => (
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -157,6 +159,7 @@ export const App = props => (
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
     assert!(ssr.diagnostics.is_empty(), "{:?}", ssr.diagnostics);
     for expression in [
@@ -191,6 +194,7 @@ export const LocalCall = (define => define('local-call', {}))(callback)
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     };
 
     let ordinary = transform_module(options.clone());
@@ -238,6 +242,7 @@ export const Raw = props => <style>prefix {once(props.label)} {once(props.prefix
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -311,6 +316,7 @@ fn rejects_once_marked_node_bindings_before_codegen() {
             source_map: false,
             hmr: false,
             pure_define_element: PureDefineElementMode::Disabled,
+            auto_hydrate: false,
         });
 
         assert!(transformed.code.is_empty(), "{filename}");
@@ -348,6 +354,7 @@ fn rejects_once_markers_on_ignored_builtin_attributes() {
             source_map: false,
             hmr: false,
             pure_define_element: PureDefineElementMode::Disabled,
+            auto_hydrate: false,
         });
 
         assert!(transformed.code.is_empty(), "{filename}");
@@ -381,6 +388,7 @@ fn rejects_once_intrinsics_on_ignored_builtin_attributes() {
             source_map: false,
             hmr: false,
             pure_define_element: PureDefineElementMode::Disabled,
+            auto_hydrate: false,
         });
 
         assert!(transformed.code.is_empty(), "{filename}");
@@ -404,6 +412,7 @@ export const App = props => <div>{props.name}</div>
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -422,6 +431,7 @@ fn avoids_collisions_with_unresolved_references() {
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -441,6 +451,7 @@ fn preserves_object_literal_expression_semantics() {
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -459,6 +470,7 @@ fn does_not_resolve_text_creation_through_component_scope() {
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -477,6 +489,7 @@ fn returns_diagnostics_without_emitting_partial_code() {
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(transformed.code.is_empty());
@@ -506,6 +519,7 @@ export const App = (inlineHandler, identifierHandler, theme, maybe, props, asser
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -574,12 +588,98 @@ export const App = (inlineHandler, identifierHandler, theme, maybe, props, asser
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(without_delegation.diagnostics.is_empty());
     assert!(without_delegation.code.contains("bindEvent as"));
     assert!(!without_delegation.code.contains("delegateEvents as"));
     assert!(!without_delegation.code.contains("$zeusDelegateEvents(["));
+}
+
+#[test]
+fn binds_non_bubbling_and_non_delegated_events_directly() {
+    let source = r"export const App = props => (
+  <div onMouseEnter={props.enter} onScroll={props.scroll} onClick={props.click} />
+)
+";
+    let compile = |delegate_events| {
+        transform_module(TransformModuleOptions {
+            source: source.into(),
+            filename: "direct-events.tsx".into(),
+            target: TransformTarget::Dom,
+            runtime_module: "@zeus-js/runtime-dom".into(),
+            delegate_events,
+            source_map: false,
+            hmr: false,
+            pure_define_element: PureDefineElementMode::Disabled,
+            auto_hydrate: false,
+        })
+    };
+
+    let delegated = compile(true);
+    assert!(
+        delegated.diagnostics.is_empty(),
+        "{:?}",
+        delegated.diagnostics
+    );
+    assert!(delegated.code.contains("$zeusDelegateEvents([\"click\"]);"));
+    assert!(
+        delegated
+            .code
+            .contains("\"mouseenter\", $zeusEvent => (props.enter)?.($zeusEvent), false);")
+    );
+    assert!(
+        delegated
+            .code
+            .contains("\"scroll\", $zeusEvent0 => (props.scroll)?.($zeusEvent0), false);")
+    );
+    assert!(
+        delegated
+            .code
+            .contains("\"click\", $zeusEvent1 => (props.click)?.($zeusEvent1));")
+    );
+
+    let custom = transform_module(TransformModuleOptions {
+        source: "export const App = props => <z-field on:value-change={props.change} onvalue-input={props.input} onClick={props.click} />\n".into(),
+        filename: "custom-events.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: true,
+        source_map: false,
+        hmr: false,
+        pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
+    });
+    assert!(custom.diagnostics.is_empty(), "{:?}", custom.diagnostics);
+    assert!(
+        custom.code.contains("$zeusDelegateEvents([\"click\"]);"),
+        "{}",
+        custom.code
+    );
+    assert!(
+        custom
+            .code
+            .contains("\"value-change\", $zeusEvent => (props.change)?.($zeusEvent), false);"),
+        "{}",
+        custom.code
+    );
+    assert!(
+        custom
+            .code
+            .contains("\"value-input\", $zeusEvent0 => (props.input)?.($zeusEvent0), false);"),
+        "{}",
+        custom.code
+    );
+
+    let direct = compile(false);
+    assert!(direct.diagnostics.is_empty(), "{:?}", direct.diagnostics);
+    assert!(!direct.code.contains("$zeusDelegateEvents(["));
+    assert!(
+        direct
+            .code
+            .contains("\"click\", $zeusEvent1 => (props.click)?.($zeusEvent1), false);")
+    );
 }
 
 #[test]
@@ -610,6 +710,7 @@ export const App = props => (
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -645,6 +746,7 @@ fn collects_delegated_events_and_locator_names_from_dynamic_regions() {
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -679,6 +781,7 @@ export const App = props => <div><Show when={props.ok} fallback={<button data-ze
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -705,6 +808,7 @@ fn leaves_plain_modules_untouched_and_preserves_directive_prologue() {
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(plain.diagnostics.is_empty());
@@ -722,6 +826,7 @@ fn leaves_plain_modules_untouched_and_preserves_directive_prologue() {
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(directive.diagnostics.is_empty());
@@ -821,6 +926,7 @@ fn emits_attribute_property_and_ref_bindings_with_stable_locators() {
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -875,6 +981,7 @@ export const Static = () => <script>const amp = "a&b";</script>
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -921,6 +1028,7 @@ fn emits_root_and_nested_fragment_templates_with_stable_markers() {
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -964,6 +1072,7 @@ export const App = props => <section><Child title={props.name}><span>{props.name
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1005,6 +1114,7 @@ export const App = props => <Child><Show when={props.visible}><span>on</span></S
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1043,6 +1153,7 @@ fn emits_dynamic_region_for_nested_conditional_and_array_jsx() {
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1078,6 +1189,7 @@ export const App = props => <div>{render()}</div>
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1102,6 +1214,7 @@ fn emits_dom_and_ssr_dynamic_regions_for_array_literal_children() {
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
     assert!(dom.diagnostics.is_empty(), "{:?}", dom.diagnostics);
     assert!(dom.code.contains("mountDynamic"));
@@ -1122,6 +1235,7 @@ fn emits_dom_and_ssr_dynamic_regions_for_array_literal_children() {
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
     assert!(ssr.diagnostics.is_empty(), "{:?}", ssr.diagnostics);
     let allocator = Allocator::default();
@@ -1147,6 +1261,7 @@ export const Element = d('z-card', { shadow: false }, props => <H><section><S na
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1173,6 +1288,7 @@ export const Element = d('z-card', { shadow: false }, props => <H><Show when={pr
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1197,6 +1313,7 @@ export const App = props => <div><Show when={props.visible} fallback="hidden"><s
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1237,6 +1354,7 @@ export const App = props => <div><For each={props.items} by={item => item.id}>{(
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1266,6 +1384,7 @@ export const App = props => <For each={props.items}>{(it\u0065m, ind\u0065x) => 
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1306,6 +1425,7 @@ export const App = props => <For each={props.items}>{(item, index) => (
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1342,6 +1462,7 @@ export const App = props => <For each={props.groups}>{item => (
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1372,6 +1493,7 @@ export const App = props => <For each={props.components}>{Item => <Item />}</For
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1396,6 +1518,7 @@ export const App = props => <For each={props.items}>{(item, index) => <span titl
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1425,6 +1548,7 @@ export const App = props => <For each={props.items}>{({ label }, index) => <b>{i
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(transformed.code.is_empty());
@@ -1451,6 +1575,7 @@ export const App = props => <><Show when={props.visible} fallback="off"><Child n
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1487,6 +1612,7 @@ export const Card = defineElement('z-card', { shadow: true }, props => <Host tit
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1535,6 +1661,7 @@ export default (defineElement('z-card', { shadow: true }, () => <Host><article>C
             source_map: true,
             hmr: false,
             pure_define_element: PureDefineElementMode::Disabled,
+            auto_hydrate: false,
         });
 
         assert!(
@@ -1570,6 +1697,7 @@ export default defineElement('z-counter', {}, () => <Host>{createSignal(0)[0]()}
         source_map: true,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1586,6 +1714,131 @@ export default defineElement('z-counter', {}, () => <Host>{createSignal(0)[0]()}
 }
 
 #[test]
+fn rewrites_ssr_safe_specifiers_inside_mixed_imports() {
+    let source = r"import { createSignal, Portal, render } from '@zeus-js/zeus'
+const [count] = createSignal(0)
+export const App = () => <Portal><div>{count()}</div></Portal>
+";
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "ssr-mixed-import-partial.tsx".into(),
+        target: TransformTarget::Ssr,
+        runtime_module: "@zeus-js/runtime-ssr".into(),
+        delegate_events: false,
+        source_map: false,
+        hmr: false,
+        pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    // Only the SSR facade can serve `createSignal`/`Portal`; `render` is
+    // client-only and must keep importing from the public entry.
+    assert!(
+        transformed
+            .code
+            .contains(r#"import { createSignal, Portal } from "@zeus-js/runtime-ssr";"#),
+        "{}",
+        transformed.code
+    );
+    assert!(
+        transformed
+            .code
+            .contains(r#"import { render } from "@zeus-js/zeus";"#),
+        "{}",
+        transformed.code
+    );
+
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, &transformed.code, SourceType::ts()).parse();
+    assert!(
+        parsed.diagnostics.is_empty(),
+        "{:?}\n{}",
+        parsed.diagnostics,
+        transformed.code
+    );
+}
+
+#[test]
+fn keeps_type_only_specifiers_with_the_ssr_facade() {
+    let source = r"import { createSignal, type Accessor, render } from '@zeus-js/zeus'
+const count: Accessor<number> = createSignal(0)[0]
+export const App = () => <p>{count()}</p>
+";
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "ssr-mixed-import-type.tsx".into(),
+        target: TransformTarget::Ssr,
+        runtime_module: "@zeus-js/runtime-ssr".into(),
+        delegate_events: false,
+        source_map: false,
+        hmr: false,
+        pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    assert!(
+        transformed
+            .code
+            .contains(r#"import { createSignal, type Accessor } from "@zeus-js/runtime-ssr";"#),
+        "{}",
+        transformed.code
+    );
+    assert!(
+        transformed
+            .code
+            .contains(r#"import { render } from "@zeus-js/zeus";"#),
+        "{}",
+        transformed.code
+    );
+}
+
+#[test]
+fn rewrites_schema_context_and_component_specifiers_to_the_ssr_facade() {
+    let source = r"import { createContext, defineElement, event, Host, Portal, prop, Transition, useContext } from '@zeus-js/zeus'
+const Theme = createContext('light')
+export default defineElement('z-card', { props: { open: prop(Boolean) }, emits: { change: event() } }, () =>
+  <Host><Portal><Transition when={useContext(Theme) === 'dark'}><b>dark</b></Transition></Portal></Host>)
+";
+    let transformed = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "ssr-schema-import.tsx".into(),
+        target: TransformTarget::Ssr,
+        runtime_module: "@zeus-js/runtime-ssr".into(),
+        delegate_events: false,
+        source_map: false,
+        hmr: false,
+        pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
+    });
+
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
+    assert!(
+        transformed.code.contains(r#"from "@zeus-js/runtime-ssr""#),
+        "{}",
+        transformed.code
+    );
+    assert!(
+        !transformed.code.contains("@zeus-js/zeus"),
+        "{}",
+        transformed.code
+    );
+}
+
+#[test]
 fn rewrites_ssr_safe_imports_without_jsx_or_components() {
     let source = "import { createSignal } from '@zeus-js/zeus'\nconst count = createSignal(0)\n";
     let transformed = transform_module(TransformModuleOptions {
@@ -1597,6 +1850,7 @@ fn rewrites_ssr_safe_imports_without_jsx_or_components() {
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1620,6 +1874,7 @@ fn rewrites_ssr_safe_imports_with_type_only_specifiers() {
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(
@@ -1649,6 +1904,7 @@ export const App = props => <main title={props.title}>
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
     let ssr = transform_module(TransformModuleOptions {
         source: source.into(),
@@ -1659,6 +1915,7 @@ export const App = props => <main title={props.title}>
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(dom.diagnostics.is_empty(), "{:?}", dom.diagnostics);
@@ -1702,6 +1959,243 @@ export const App = props => <main title={props.title}>
             ssr.code
         );
     }
+    assert!(
+        ssr.code
+            .contains(r#"$zeusSsrText(props.label), $zeusSsrStatic("<!--zeus:hydrate:/-->")]"#),
+        "dynamic text must be closed by an end marker: {}",
+        ssr.code
+    );
+}
+
+#[test]
+fn escapes_ssr_static_text_and_keeps_rcdata_free_of_hydration_markers() {
+    let source = r"export const App = props => <main>
+  <p>&lt;script&gt;1&lt;/script&gt; a &amp; b</p>
+  <textarea>prefix {props.value}</textarea>
+  <title>{props.title} &lt;</title>
+  <style>{props.css}</style>
+</main>
+";
+    let ssr = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "rcdata.tsx".into(),
+        target: TransformTarget::Ssr,
+        runtime_module: "@zeus-js/runtime-ssr".into(),
+        delegate_events: false,
+        source_map: false,
+        hmr: false,
+        pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
+    });
+    let dom = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "rcdata.tsx".into(),
+        target: TransformTarget::Dom,
+        runtime_module: "@zeus-js/runtime-dom".into(),
+        delegate_events: false,
+        source_map: false,
+        hmr: false,
+        pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
+    });
+
+    assert!(ssr.diagnostics.is_empty(), "{:?}", ssr.diagnostics);
+    assert!(dom.diagnostics.is_empty(), "{:?}", dom.diagnostics);
+    assert!(
+        ssr.code
+            .contains(r#"$zeusSsrStatic("&lt;script&gt;1&lt;/script&gt; a &amp; b")"#),
+        "{}",
+        ssr.code
+    );
+    assert!(!ssr.code.contains("<script>"), "{}", ssr.code);
+    assert!(
+        ssr.code
+            .contains(r#"$zeusSsrElement("textarea", [], [$zeusSsrStatic("prefix "), $zeusSsrText(props.value)])"#),
+        "{}",
+        ssr.code
+    );
+    assert!(
+        ssr.code.contains(
+            r#"$zeusSsrElement("title", [], [$zeusSsrText(props.title), $zeusSsrStatic(" &lt;")])"#
+        ),
+        "{}",
+        ssr.code
+    );
+    assert!(
+        ssr.code
+            .contains(r#"$zeusSsrElement("style", [], props.css)"#),
+        "{}",
+        ssr.code
+    );
+
+    // Text inside RCDATA and raw-text elements is bound through textContent,
+    // so neither target may emit a hydration node for it.
+    assert_eq!(dom.hydration_plan, ssr.hydration_plan);
+    let plan = ssr
+        .hydration_plan
+        .expect("JSX modules require a hydration plan");
+    assert!(
+        plan.components[0]
+            .nodes
+            .iter()
+            .all(|node| node.kind != "text"),
+        "{:?}",
+        plan.components[0].nodes
+    );
+    for node in &plan.components[0].nodes {
+        assert!(ssr.code.contains(&node.id), "missing marker {}", node.id);
+    }
+}
+
+#[test]
+fn escapes_foreign_raw_text_elements_in_svg() {
+    let source = r"export const Icon = props => <svg>
+  <style>{props.css}</style>
+  <script>if (a &lt; b) run()</script>
+  <foreignObject><style>{props.css}</style><script>if (a &lt; b) run()</script></foreignObject>
+</svg>
+";
+    let compile = |target: TransformTarget, runtime_module: &str| {
+        transform_module(TransformModuleOptions {
+            source: source.into(),
+            filename: "svg-raw-text.tsx".into(),
+            target,
+            runtime_module: runtime_module.into(),
+            delegate_events: false,
+            source_map: false,
+            hmr: false,
+            pure_define_element: PureDefineElementMode::Disabled,
+            auto_hydrate: false,
+        })
+    };
+    let ssr = compile(TransformTarget::Ssr, "@zeus-js/runtime-ssr");
+
+    assert!(ssr.diagnostics.is_empty(), "{:?}", ssr.diagnostics);
+    // SVG `<style>`/`<script>` are ordinary elements to the parser, so the
+    // runtime must escape their content instead of rewriting raw text: the
+    // fifth argument turns the raw-text path off.
+    assert!(
+        ssr.code.contains(
+            r#"$zeusSsrElement("style", [], $zeusSsrText(props.css), undefined, undefined, true)"#
+        ),
+        "{}",
+        ssr.code
+    );
+    assert!(
+        ssr.code.contains(
+            r#"$zeusSsrElement("script", [], $zeusSsrStatic("if (a &lt; b) run()"), undefined, undefined, true)"#
+        ),
+        "{}",
+        ssr.code
+    );
+    // HTML `<style>` inside `<foreignObject>` keeps the raw-text path, which
+    // emits the expression unescaped and does not pass the foreign flag.
+    assert!(
+        ssr.code
+            .contains(r#"$zeusSsrElement("style", [], props.css)"#),
+        "{}",
+        ssr.code
+    );
+    assert!(
+        ssr.code
+            .contains(r#"$zeusSsrElement("script", [], "if (a < b) run()")"#),
+        "{}",
+        ssr.code
+    );
+
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, &ssr.code, SourceType::ts()).parse();
+    assert!(
+        parsed.diagnostics.is_empty(),
+        "{:?}\n{}",
+        parsed.diagnostics,
+        ssr.code
+    );
+}
+
+#[test]
+fn rejects_ssr_properties_without_an_html_equivalent() {
+    let source = r"import { Show } from '@zeus-js/zeus'
+export const App = props => <form>
+  <input prop:value={props.value} prop:checked={props.checked} prop:readOnly={props.locked} />
+  <textarea prop:value={props.text} />
+  <label prop:htmlFor={props.id} prop:tabIndex={0}>label</label>
+  <div prop:textContent={props.text} />
+  <Show when={props.open}>
+    <select prop:value={props.choice} />
+  </Show>
+  <z-card prop:model={props.model} />
+</form>
+";
+    let compile = |target| {
+        transform_module(TransformModuleOptions {
+            source: source.into(),
+            filename: "ssr-property.tsx".into(),
+            target,
+            runtime_module: if target == TransformTarget::Ssr {
+                "@zeus-js/runtime-ssr".into()
+            } else {
+                "@zeus-js/runtime-dom".into()
+            },
+            delegate_events: false,
+            source_map: false,
+            hmr: false,
+            pure_define_element: PureDefineElementMode::Disabled,
+            auto_hydrate: false,
+        })
+    };
+
+    let dom = compile(TransformTarget::Dom);
+    assert!(dom.diagnostics.is_empty(), "{:?}", dom.diagnostics);
+
+    let ssr = compile(TransformTarget::Ssr);
+    assert!(ssr.code.is_empty());
+    let rejected = ssr
+        .diagnostics
+        .iter()
+        .map(|diagnostic| {
+            assert_eq!(diagnostic.code, "ZEUS_UNSUPPORTED_SSR_PROPERTY");
+            let span = diagnostic.span.as_ref().expect("property span");
+            let start = usize::try_from(span.start.offset).unwrap();
+            let end = usize::try_from(span.end.offset).unwrap();
+            &source[start..end]
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        rejected,
+        vec!["prop:textContent={props.text}", "prop:value={props.choice}"]
+    );
+    assert!(
+        ssr.diagnostics[1]
+            .message
+            .contains("property \"value\" on <select>")
+    );
+}
+
+#[test]
+fn omits_custom_element_properties_from_ssr() {
+    let source =
+        "export const App = props => <z-card data-id={props.id} prop:model={props.model} />\n";
+    let ssr = transform_module(TransformModuleOptions {
+        source: source.into(),
+        filename: "ssr-custom-element-property.tsx".into(),
+        target: TransformTarget::Ssr,
+        runtime_module: "@zeus-js/runtime-ssr".into(),
+        delegate_events: false,
+        source_map: false,
+        hmr: false,
+        pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
+    });
+
+    assert!(ssr.diagnostics.is_empty(), "{:?}", ssr.diagnostics);
+    assert!(
+        ssr.code
+            .contains(r#"$zeusSsrElement("z-card", [$zeusSsrAttr("data-id", props.id)])"#),
+        "{}",
+        ssr.code
+    );
+    assert!(!ssr.code.contains("props.model"), "{}", ssr.code);
 }
 
 #[test]
@@ -1718,6 +2212,7 @@ export const Native = props => <z-card data-value={props.value}><input disabled 
         source_map: false,
         hmr: false,
         pure_define_element: PureDefineElementMode::Disabled,
+        auto_hydrate: false,
     });
 
     assert!(transformed.diagnostics.is_empty());
@@ -1785,6 +2280,43 @@ fn assert_expression_mapping(
         .unwrap(),
         "column mapping for {expression}"
     );
+}
+
+#[test]
+fn maps_verbatim_source_outside_jsx_for_dom_and_ssr() {
+    let source = "const label = '\u{1f600}\u{4e2d}'; const helper = (n: number) => n * 2\r\nexport const App = props => <p>{helper(props.n)}</p>\r\nexport const tail = label\r\n";
+    for (target, runtime_module) in [
+        (TransformTarget::Dom, "@zeus-js/runtime-dom"),
+        (TransformTarget::Ssr, "@zeus-js/runtime-ssr"),
+    ] {
+        let transformed = transform_module(TransformModuleOptions {
+            source: source.into(),
+            filename: "verbatim-map.tsx".into(),
+            target,
+            runtime_module: runtime_module.into(),
+            delegate_events: false,
+            source_map: true,
+            hmr: false,
+            pure_define_element: PureDefineElementMode::Disabled,
+            auto_hydrate: false,
+        });
+        assert!(
+            transformed.diagnostics.is_empty(),
+            "{:?}",
+            transformed.diagnostics
+        );
+
+        for expression in [
+            "const label",
+            "const helper",
+            "n * 2",
+            "helper(props.n)",
+            "export const tail",
+            "tail = label",
+        ] {
+            assert_expression_mapping(source, &transformed, expression);
+        }
+    }
 }
 
 #[test]

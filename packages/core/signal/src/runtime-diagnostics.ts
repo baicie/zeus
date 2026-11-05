@@ -8,6 +8,12 @@ export interface RuntimeDiagnosticsSnapshot {
   scopesDisposed: number
   refsCreated: number
   memosCreated: number
+  ownersCreated: number
+  ownersDisposed: number
+  bindingsCreated: number
+  bindingsDisposed: number
+  listenersCreated: number
+  listenersDisposed: number
   allocationsCreated: number
   allocationsDisposed: number
 }
@@ -34,11 +40,60 @@ export type RuntimeDiagnosticsCollector = [
   scopesDisposed: number,
   refsCreated: number,
   memosCreated: number,
+  ownersCreated: number,
+  ownersDisposed: number,
+  bindingsCreated: number,
+  bindingsDisposed: number,
+  listenersCreated: number,
+  listenersDisposed: number,
   wrapEffect: <T>(run: () => T) => () => T,
   wrapScope: (run: RuntimeDiagnosticsScopeRun) => RuntimeDiagnosticsScopeRun,
 ]
 
 export let activeRuntimeDiagnostics: RuntimeDiagnosticsCollector | undefined
+
+export type RuntimeDiagnosticsResource = 'owners' | 'bindings' | 'listeners'
+
+const resourceFields: Record<
+  RuntimeDiagnosticsResource,
+  readonly [created: RuntimeDiagnosticsField, disposed: RuntimeDiagnosticsField]
+> = {
+  owners: [
+    RuntimeDiagnosticsField.OWNERS_CREATED,
+    RuntimeDiagnosticsField.OWNERS_DISPOSED,
+  ],
+  bindings: [
+    RuntimeDiagnosticsField.BINDINGS_CREATED,
+    RuntimeDiagnosticsField.BINDINGS_DISPOSED,
+  ],
+  listeners: [
+    RuntimeDiagnosticsField.LISTENERS_CREATED,
+    RuntimeDiagnosticsField.LISTENERS_DISPOSED,
+  ],
+}
+
+/**
+ * Counts a runtime-owned resource as created on the active session and
+ * returns a callback that counts its disposal on that same session, like
+ * effects and scopes do. The callback is idempotent. Returns `undefined`
+ * when no session is collecting, so the inactive path allocates nothing.
+ */
+export function trackRuntimeResource(
+  resource: RuntimeDiagnosticsResource,
+): (() => void) | undefined {
+  const diagnostics = activeRuntimeDiagnostics
+  if (!diagnostics?.[RuntimeDiagnosticsField.ACTIVE]) return
+
+  const [created, disposed] = resourceFields[resource]
+  diagnostics[created]++
+  let released = false
+
+  return () => {
+    if (released) return
+    released = true
+    if (diagnostics[RuntimeDiagnosticsField.ACTIVE]) diagnostics[disposed]++
+  }
+}
 
 function runWithRuntimeDiagnostics<T>(
   diagnostics: RuntimeDiagnosticsCollector | undefined,
@@ -67,6 +122,12 @@ export function createRuntimeDiagnosticsSession(): RuntimeDiagnosticsSession {
     0,
     0,
     0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
     run => () => runWithRuntimeDiagnostics(diagnostics, run),
     run => fn => runWithRuntimeDiagnostics(diagnostics, () => run(fn)),
   ]
@@ -81,10 +142,16 @@ export function createRuntimeDiagnosticsSession(): RuntimeDiagnosticsSession {
         diagnostics[RuntimeDiagnosticsField.PROXIES_CREATED] +
         diagnostics[RuntimeDiagnosticsField.SCOPES_CREATED] +
         diagnostics[RuntimeDiagnosticsField.REFS_CREATED] +
-        diagnostics[RuntimeDiagnosticsField.MEMOS_CREATED]
+        diagnostics[RuntimeDiagnosticsField.MEMOS_CREATED] +
+        diagnostics[RuntimeDiagnosticsField.OWNERS_CREATED] +
+        diagnostics[RuntimeDiagnosticsField.BINDINGS_CREATED] +
+        diagnostics[RuntimeDiagnosticsField.LISTENERS_CREATED]
       const allocationsDisposed =
         diagnostics[RuntimeDiagnosticsField.EFFECTS_DISPOSED] +
-        diagnostics[RuntimeDiagnosticsField.SCOPES_DISPOSED]
+        diagnostics[RuntimeDiagnosticsField.SCOPES_DISPOSED] +
+        diagnostics[RuntimeDiagnosticsField.OWNERS_DISPOSED] +
+        diagnostics[RuntimeDiagnosticsField.BINDINGS_DISPOSED] +
+        diagnostics[RuntimeDiagnosticsField.LISTENERS_DISPOSED]
 
       return {
         effectsCreated: diagnostics[RuntimeDiagnosticsField.EFFECTS_CREATED],
@@ -94,6 +161,15 @@ export function createRuntimeDiagnosticsSession(): RuntimeDiagnosticsSession {
         scopesDisposed: diagnostics[RuntimeDiagnosticsField.SCOPES_DISPOSED],
         refsCreated: diagnostics[RuntimeDiagnosticsField.REFS_CREATED],
         memosCreated: diagnostics[RuntimeDiagnosticsField.MEMOS_CREATED],
+        ownersCreated: diagnostics[RuntimeDiagnosticsField.OWNERS_CREATED],
+        ownersDisposed: diagnostics[RuntimeDiagnosticsField.OWNERS_DISPOSED],
+        bindingsCreated: diagnostics[RuntimeDiagnosticsField.BINDINGS_CREATED],
+        bindingsDisposed:
+          diagnostics[RuntimeDiagnosticsField.BINDINGS_DISPOSED],
+        listenersCreated:
+          diagnostics[RuntimeDiagnosticsField.LISTENERS_CREATED],
+        listenersDisposed:
+          diagnostics[RuntimeDiagnosticsField.LISTENERS_DISPOSED],
         allocationsCreated,
         allocationsDisposed,
       }

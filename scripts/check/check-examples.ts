@@ -10,7 +10,7 @@
  * to let this script run the build itself.
  */
 
-import { readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { exec } from '../shared/utils'
@@ -25,28 +25,35 @@ const buildFirst = ['@zeus-ui/headless']
 function readExamples() {
   const examplesDir = join(process.cwd(), 'examples')
 
-  return readdirSync(examplesDir, { withFileTypes: true })
-    .filter(entry => entry.isDirectory())
-    .map(entry => {
-      const packageJsonPath = join(examplesDir, entry.name, 'package.json')
-      const packageJson = JSON.parse(
-        readFileSync(packageJsonPath, 'utf8'),
-      ) as ExamplePackageJson
+  return (
+    readdirSync(examplesDir, { withFileTypes: true })
+      .filter(entry => entry.isDirectory())
+      // `examples/fixtures` is a container for nested fixture packages, not an
+      // example package itself.
+      .filter(entry =>
+        existsSync(join(examplesDir, entry.name, 'package.json')),
+      )
+      .map(entry => {
+        const packageJsonPath = join(examplesDir, entry.name, 'package.json')
+        const packageJson = JSON.parse(
+          readFileSync(packageJsonPath, 'utf8'),
+        ) as ExamplePackageJson
 
-      if (!packageJson.name) {
-        throw new Error(
-          `Missing package name: examples/${entry.name}/package.json`,
-        )
-      }
+        if (!packageJson.name) {
+          throw new Error(
+            `Missing package name: examples/${entry.name}/package.json`,
+          )
+        }
 
-      if (!packageJson.scripts?.check || !packageJson.scripts?.build) {
-        throw new Error(`Missing check/build scripts: ${packageJson.name}`)
-      }
+        if (!packageJson.scripts?.check || !packageJson.scripts?.build) {
+          throw new Error(`Missing check/build scripts: ${packageJson.name}`)
+        }
 
-      return packageJson.name
-    })
-    .filter(name => !buildFirst.includes(name))
-    .sort()
+        return packageJson.name
+      })
+      .filter(name => !buildFirst.includes(name))
+      .sort()
+  )
 }
 
 const examples = readExamples()

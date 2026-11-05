@@ -1,3 +1,10 @@
+import {
+  getComponentAttributeName,
+  getComponentEventName,
+  isAttributeBackedPropType,
+  isValidComponentEventName,
+} from '@zeus-js/component-analyzer'
+
 import type { ComponentManifest } from '@zeus-js/component-analyzer'
 
 export function generateZeusComponentsManifest(
@@ -49,14 +56,7 @@ export function validateComponentManifest(manifest: ComponentManifest): void {
 
     const attributes = new Map<string, string>()
     for (const [propName, prop] of Object.entries(component.props ?? {})) {
-      const attrName =
-        prop.attr === false
-          ? false
-          : typeof prop.attr === 'string'
-            ? prop.attr
-            : ['string', 'number', 'boolean'].includes(prop.type)
-              ? propName.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
-              : false
+      const attrName = getComponentAttributeName(propName, prop)
       if (attrName !== false) {
         const previous = attributes.get(attrName)
         if (previous && previous !== propName) {
@@ -68,6 +68,7 @@ export function validateComponentManifest(manifest: ComponentManifest): void {
       }
     }
 
+    const eventNames = new Map<string, string>()
     for (const [eventKey, event] of Object.entries(component.events ?? {})) {
       if (
         (event.name !== undefined && typeof event.name !== 'string') ||
@@ -83,6 +84,19 @@ export function validateComponentManifest(manifest: ComponentManifest): void {
         )
       }
       const eventPath = `${componentPath}.events.${eventKey}`
+      const eventName = getComponentEventName(eventKey, event)
+      if (!isValidComponentEventName(eventName)) {
+        throw new Error(
+          `[ZEUS_WC_EVENT_NAME] ${eventPath} dispatches "${eventName}", which is not a kebab-case DOM event name. Declare one explicitly, for example event('value-change').`,
+        )
+      }
+      const previousEvent = eventNames.get(eventName)
+      if (previousEvent !== undefined) {
+        throw new Error(
+          `[ZEUS_WC_EVENT_NAME] ${eventPath} and ${componentPath}.events.${previousEvent} both dispatch "${eventName}".`,
+        )
+      }
+      eventNames.set(eventName, eventKey)
       if (event.detail !== undefined)
         assertJsonSafe(event.detail, `${eventPath}.detail`)
       if (event.detailOptional !== undefined) {
@@ -116,7 +130,45 @@ export function validateComponentManifest(manifest: ComponentManifest): void {
       }
     }
 
+    for (const [modelIndex, model] of (component.models ?? []).entries()) {
+      const modelPath = `${componentPath}.models[${modelIndex}]`
+      const event = Object.entries(component.events ?? {}).find(
+        ([key, entry]) => getComponentEventName(key, entry) === model.event,
+      )?.[1]
+      const field = /^detail(?:\.([A-Za-z_$][\w$]*))*$/.exec(
+        model.eventPath ?? 'detail',
+      )
+      const detailField = model.eventPath?.split('.')[1]
+      if (
+        !Object.prototype.hasOwnProperty.call(
+          component.props ?? {},
+          model.prop,
+        ) ||
+        !event ||
+        !field ||
+        (detailField !== undefined &&
+          event.detail !== undefined &&
+          !Object.prototype.hasOwnProperty.call(event.detail, detailField))
+      ) {
+        throw new Error(
+          `[ZEUS_WC_MODEL] ${modelPath} must bind an existing prop to an event the component dispatches, reading its value from "detail" or a declared detail field (prop "${model.prop}", event "${model.event}", eventPath "${model.eventPath ?? 'detail'}").`,
+        )
+      }
+    }
+
     for (const [propName, prop] of Object.entries(component.props ?? {})) {
+      const propPath = `${componentPath}.props.${propName}`
+      const structured = !isAttributeBackedPropType(prop.type)
+      if (structured && typeof prop.attr === 'string' && !prop.deserialize) {
+        throw new Error(
+          `[ZEUS_WC_OBJECT_ATTRIBUTE] ${propPath} declares attribute "${prop.attr}", but a ${prop.type} prop can only be read from an attribute through a deserialize codec. Set attr: false or declare deserialize.`,
+        )
+      }
+      if (prop.reflect && structured && !(prop.serialize && prop.deserialize)) {
+        throw new Error(
+          `[ZEUS_WC_REFLECT_CODEC] ${propPath} reflects a ${prop.type} value without a reversible codec. Set reflect: false or declare both serialize and deserialize.`,
+        )
+      }
       if (
         prop.hasDefault !== undefined &&
         typeof prop.hasDefault !== 'boolean'

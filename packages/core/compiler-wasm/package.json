@@ -1,0 +1,36 @@
+{
+  "name": "@zeus-js/compiler-wasm",
+  "type": "module",
+  "version": "0.1.1-beta.20",
+  "private": true,
+  "description": "WebAssembly build of the Zeus Rust compiler for browsers and Workers",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baicie/zeus.git",
+    "directory": "packages/core/compiler-wasm"
+  },
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
+    "./worker": {
+      "types": "./worker.d.ts",
+      "default": "./worker.js"
+    },
+    "./zeus-compiler.wasm": "./zeus-compiler.wasm"
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "worker.js",
+    "worker.d.ts",
+    "zeus-compiler.wasm",
+    "README.md"
+  ],
+  "scripts": {
+    "build:wasm": "node scripts/build.mjs",
+    "test:wasm": "node --test __tests__/*.test.mjs"
+  }
+}

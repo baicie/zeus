@@ -81,3 +81,27 @@ registration bridges; importing them alone does not register the element.
 ## Custom elements.json
 
 The output includes a `custom-elements.json` manifest at `dist/custom-elements.json`, compatible with tooling like Web Component devtools and IDE extensions.
+
+The output also contains `vscode.html-custom-data.json`. Register it in the
+consumer workspace to complete custom-element tags, attribute names, and string
+literal choices in HTML:
+
+```json
+{
+  "html.customData": [
+    "./node_modules/your-package/dist/vscode.html-custom-data.json"
+  ]
+}
+```
+
+HTML Custom Data represents tags, attributes, and literal values. The CEM keeps
+the full machine-readable record for events, methods, slots, CSS parts, and CSS
+variables; generated TSX/React/Vue declarations provide typed props and event
+detail completion. Zeus does not claim that VS Code HTML Custom Data exposes a
+separate event, method, or slot completion protocol, and this output does not
+include an LSP.
+
+Regenerate both files from the same build after changing `defineElement` props,
+events, slots, methods, or documentation metadata. Public declaration tests cover
+the generated entry shape, while the release artifact gate verifies the packed
+paths that consumers install.

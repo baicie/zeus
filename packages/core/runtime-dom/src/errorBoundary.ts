@@ -1,15 +1,32 @@
 import { getCurrentScope, onScopeDispose } from '@zeus-js/signal/internal'
 
-import { withErrorBoundaryHandler } from './errorBoundaryContext'
+import {
+  isFatalError,
+  withErrorBoundaryHandler,
+  type ErrorBoundaryInfo,
+  type ErrorBoundaryPhase,
+} from './errorBoundaryContext'
 import { captureScopedSubtreeContext, ScopedSubtree } from './scopedSubtree'
 
 import type { JSXValue } from './types'
 
+export {
+  captureErrorBoundary,
+  reportError,
+  type ErrorBoundaryHandler,
+  type ErrorBoundaryInfo,
+  type ErrorBoundaryPhase,
+} from './errorBoundaryContext'
+
 export interface ErrorBoundaryProps {
   /** The child must be a factory so setup errors stay inside the boundary. */
   children: () => JSXValue
-  fallback: (error: unknown, reset: () => void) => JSXValue
-  onError?: (error: unknown) => void
+  fallback: (
+    error: unknown,
+    reset: () => void,
+    info?: ErrorBoundaryInfo,
+  ) => JSXValue
+  onError?: (error: unknown, info?: ErrorBoundaryInfo) => void
 }
 
 declare const errorBoundaryIntrinsic: unique symbol
@@ -50,18 +67,29 @@ function renderErrorBoundary(props: ErrorBoundaryProps): DocumentFragment {
     renderChild()
   }
 
-  const handleError = (error: unknown): void => {
+  const handleError = (
+    error: unknown,
+    phase: ErrorBoundaryPhase = 'render',
+  ): void => {
     if (disposed) return
     if (handlingError) throw error
-    if (failed) return
+    if (failed) {
+      if (isFatalError(error)) throw error
+      return
+    }
     handlingError = true
     failed = true
+    const info: ErrorBoundaryInfo = { phase, fatal: isFatalError(error) }
     try {
-      props.onError?.(error)
+      if (info.fatal) {
+        subtree.dispose()
+        throw error
+      }
+      props.onError?.(error, info)
       // A fallback error is intentionally allowed to escape to the caller.
       // The fallback is outside this boundary. A later fallback binding error
       // must escape instead of being routed back into the failed branch.
-      subtree.replace(() => props.fallback(error, reset), null)
+      subtree.replace(() => props.fallback(error, reset, info), null)
     } finally {
       handlingError = false
     }
@@ -75,7 +103,7 @@ function renderErrorBoundary(props: ErrorBoundaryProps): DocumentFragment {
       )
       if (!failed) subtree.setErrorHandler(handleError)
     } catch (error) {
-      handleError(error)
+      handleError(error, 'render')
     }
   }
 

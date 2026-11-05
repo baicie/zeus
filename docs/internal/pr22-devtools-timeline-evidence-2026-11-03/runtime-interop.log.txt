@@ -1,0 +1,1 @@
+Runtime signal interoperability passed for ESM, CJS, and mixed ESM/CJS development/production builds.

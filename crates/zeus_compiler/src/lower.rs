@@ -2,21 +2,25 @@ use std::collections::{HashMap, HashSet};
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{
-    BindingPattern, CallExpression, Declaration, Expression, FunctionType, IdentifierReference,
-    ImportDeclarationSpecifier, JSXAttribute, JSXAttributeItem, JSXAttributeName,
-    JSXAttributeValue, JSXChild, JSXElement, JSXElementName, JSXExpression, JSXExpressionContainer,
-    JSXFragment, JSXSpreadAttribute, MemberExpression, ModuleDeclaration, Statement,
-    VariableDeclarator,
+    ArrowFunctionExpression, AwaitExpression, BindingPattern, CallExpression, Class, Declaration,
+    Expression, Function, FunctionType, IdentifierReference, ImportDeclarationSpecifier,
+    JSXAttribute, JSXAttributeItem, JSXAttributeName, JSXAttributeValue, JSXChild, JSXElement,
+    JSXElementName, JSXExpression, JSXExpressionContainer, JSXFragment, JSXSpreadAttribute,
+    MemberExpression, ModuleDeclaration, Statement, VariableDeclarator, YieldExpression,
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_diagnostics::{OxcDiagnostic, Severity};
 use oxc_parser::Parser;
 use oxc_semantic::{Scoping, SemanticBuilder};
 use oxc_span::{GetSpan, SourceType, Span};
+use oxc_syntax::scope::ScopeFlags;
 use oxc_syntax::symbol::SymbolId;
 use oxc_syntax::xml_entities::decode_entities;
 
-use crate::html::{is_raw_text_element, is_unsupported_raw_text_element, is_void_element};
+use crate::html::{
+    ElementNamespace, content_namespace, element_namespace, is_raw_text_element,
+    is_unsupported_raw_text_element, is_void_element,
+};
 use crate::{
     diagnostic::{CompilerDiagnostic, DiagnosticSeverity},
     ir::{
@@ -40,7 +44,7 @@ pub struct LowerResult {
     pub(crate) error_boundary_spans: Vec<SourceSpan>,
     pub(crate) hmr: HmrInfo,
     pub(crate) pure_define_element_calls: Vec<Span>,
-    pub(crate) ssr_runtime_imports: Vec<Span>,
+    pub(crate) ssr_runtime_imports: Vec<SsrImportRewrite>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -105,6 +109,7 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
     let builtin_names = collect_builtin_names(&parsed.program);
     let (define_element_setup_spans, host_root_spans) =
         collect_define_element_spans(&parsed.program, &builtin_names);
+    let async_components = collect_async_components(&parsed.program, &define_element_setup_spans);
     let mut lowerer = Lowerer::new(
         source,
         filename,
@@ -114,6 +119,7 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
         host_root_spans,
         scoping,
     );
+    lowerer.report_async_components(async_components);
     lowerer.visit_program(&parsed.program);
     let preamble_end = parsed
         .program
@@ -147,55 +153,153 @@ pub fn lower_module(source: &str, filename: &str) -> LowerResult {
         reserved_names,
         hmr,
         pure_define_element_calls: collect_top_level_define_element_calls(&parsed.program),
-        ssr_runtime_imports: collect_ssr_runtime_imports(&parsed.program),
+        ssr_runtime_imports: collect_ssr_runtime_imports(source, &parsed.program),
     }
 }
 
-/// Collect imports whose bindings are all available from the SSR facade.
-fn collect_ssr_runtime_imports(program: &oxc_ast::ast::Program<'_>) -> Vec<Span> {
+/// A source replacement the SSR emitter applies to one import statement.
+///
+/// A statement whose bindings are all served by the SSR facade only needs its
+/// module source rewritten. A mixed statement is split instead: the facade
+/// names move to a new import statement and the remaining client-only names
+/// keep importing from the original module.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct SsrImportRewrite {
+    /// Span of the whole statement, replaced verbatim.
+    pub(crate) span: Span,
+    pub(crate) replacement: SsrImportReplacement,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum SsrImportReplacement {
+    /// Replace only the module specifier string of an all-facade import.
+    ModuleSource,
+    /// Split the statement into a facade import and a client import.
+    Split {
+        /// Verbatim specifier source text, in original order.
+        facade: Vec<String>,
+        client: Vec<String>,
+        /// Original module, which keeps serving the client-only names.
+        module: String,
+    },
+}
+
+/// SSR facade names: every binding the server entry can serve, plus the
+/// server-only helpers the SSR target needs directly.
+const SSR_FACADE_EXPORTS: &[&str] = &[
+    "batch",
+    "createContext",
+    "createEffect",
+    "createMemo",
+    "createRoot",
+    "createSignal",
+    "defineElement",
+    "event",
+    "For",
+    "Host",
+    "inject",
+    "onCleanup",
+    "Portal",
+    "prop",
+    "provide",
+    "Show",
+    "Slot",
+    "Transition",
+    "useContext",
+];
+
+/// Collect imports whose bindings are served by the SSR facade.
+fn collect_ssr_runtime_imports(
+    source: &str,
+    program: &oxc_ast::ast::Program<'_>,
+) -> Vec<SsrImportRewrite> {
     let mut imports = Vec::new();
     for statement in &program.body {
         let Some(ModuleDeclaration::ImportDeclaration(import)) = statement.as_module_declaration()
         else {
             continue;
         };
-        let source = import.source.value.as_str();
+        let module = import.source.value.as_str();
+        if module != "@zeus-js/runtime-dom" && module != "@zeus-js/zeus" {
+            continue;
+        }
+        // `import type`, source-phase imports and import attributes keep their
+        // original statement: none of them can be split safely by name.
+        if import.import_kind == oxc_ast::ast::ImportOrExportKind::Type
+            || import.phase.is_some()
+            || import.with_clause.is_some()
+        {
+            continue;
+        }
         let Some(specifiers) = &import.specifiers else {
             continue;
         };
-        let rewrite = (source == "@zeus-js/runtime-dom" || source == "@zeus-js/zeus")
-            && import.import_kind != oxc_ast::ast::ImportOrExportKind::Type
-            && !specifiers.is_empty()
-            && specifiers.iter().all(|specifier| {
-                let ImportDeclarationSpecifier::ImportSpecifier(specifier) = specifier else {
-                    return false;
-                };
-                if specifier.import_kind == oxc_ast::ast::ImportOrExportKind::Type {
-                    return true;
-                }
-                let imported = match &specifier.imported {
-                    oxc_ast::ast::ModuleExportName::IdentifierName(name) => name.name.as_str(),
-                    oxc_ast::ast::ModuleExportName::IdentifierReference(name) => name.name.as_str(),
-                    oxc_ast::ast::ModuleExportName::StringLiteral(name) => name.value.as_str(),
-                };
-                matches!(
-                    imported,
-                    "batch"
-                        | "createEffect"
-                        | "createMemo"
-                        | "createRoot"
-                        | "createSignal"
-                        | "defineElement"
-                        | "For"
-                        | "Host"
-                        | "onCleanup"
-                        | "Show"
-                        | "Slot"
-                )
-            });
-        if rewrite {
-            imports.push(import.source.span);
+        if specifiers.is_empty() {
+            continue;
         }
+
+        let mut facade = Vec::new();
+        let mut client = Vec::new();
+        let mut rewritable = true;
+        for specifier in specifiers {
+            // Default and namespace imports have no per-name semantics the
+            // facade can split, so the statement stays untouched.
+            let ImportDeclarationSpecifier::ImportSpecifier(specifier) = specifier else {
+                rewritable = false;
+                break;
+            };
+            let imported = match &specifier.imported {
+                oxc_ast::ast::ModuleExportName::IdentifierName(name) => name.name.as_str(),
+                oxc_ast::ast::ModuleExportName::IdentifierReference(name) => name.name.as_str(),
+                oxc_ast::ast::ModuleExportName::StringLiteral(name) => name.value.as_str(),
+            };
+            // A string import name (`import { "a-b" as c }`) is legal but never
+            // a facade export, so it stays on the original module.
+            let text = source
+                .get(
+                    usize::try_from(specifier.span.start).unwrap_or(usize::MAX)
+                        ..usize::try_from(specifier.span.end).unwrap_or(0),
+                )
+                .map(str::trim)
+                .filter(|text| !text.is_empty());
+            let Some(text) = text else {
+                rewritable = false;
+                break;
+            };
+            let is_type = specifier.import_kind == oxc_ast::ast::ImportOrExportKind::Type;
+            let is_facade = matches!(
+                &specifier.imported,
+                oxc_ast::ast::ModuleExportName::IdentifierName(_)
+                    | oxc_ast::ast::ModuleExportName::IdentifierReference(_)
+            ) && SSR_FACADE_EXPORTS.contains(&imported);
+            if is_type || is_facade {
+                facade.push(text.to_owned());
+            } else {
+                client.push(text.to_owned());
+            }
+        }
+        if !rewritable {
+            continue;
+        }
+
+        if client.is_empty() {
+            imports.push(SsrImportRewrite {
+                span: import.source.span,
+                replacement: SsrImportReplacement::ModuleSource,
+            });
+            continue;
+        }
+        if facade.is_empty() {
+            continue;
+        }
+        imports.push(SsrImportRewrite {
+            span: import.span,
+            replacement: SsrImportReplacement::Split {
+                facade,
+                client,
+                module: module.to_owned(),
+            },
+        });
     }
     imports
 }
@@ -319,6 +423,9 @@ struct Lowerer<'source, 'allocator> {
     host_depth: usize,
     scoping: Scoping,
     for_accessor_scopes: Vec<LowerForAccessorScope>,
+    /// Namespace the markup being lowered is parsed in. Only elements change
+    /// it; fragments, components and control-flow builtins are transparent.
+    namespace: ElementNamespace,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -369,6 +476,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             host_depth: 0,
             scoping,
             for_accessor_scopes: Vec::new(),
+            namespace: ElementNamespace::default(),
         }
     }
 
@@ -379,6 +487,10 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
     }
 
     fn lower_root(&mut self, element: &JSXElement<'_>) {
+        let mut finder = AsyncExpressionFinder::default();
+        finder.visit_jsx_element(element);
+        self.report_async_expressions(finder.expressions);
+
         let id = self.allocate_id();
         let root = if let Some(kind) = self.builtin_kind(element) {
             match kind {
@@ -424,6 +536,10 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
     }
 
     fn lower_root_fragment(&mut self, fragment: &JSXFragment<'_>) {
+        let mut finder = AsyncExpressionFinder::default();
+        finder.visit_jsx_fragment(fragment);
+        self.report_async_expressions(finder.expressions);
+
         let id = self.allocate_id();
         let root = self.lower_fragment(fragment);
         self.components.push(ComponentIr {
@@ -436,20 +552,27 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
 
     fn lower_element(&mut self, element: &JSXElement<'_>) -> Option<ElementIr> {
         let JSXElementName::Identifier(identifier) = &element.opening_element.name else {
-            self.unsupported(
-                "ZEUS_UNSUPPORTED_COMPONENT",
-                "The first Rust compiler slice only supports native DOM elements.",
-                element.opening_element.name.span(),
-            );
-            return None;
+            unreachable!("non-identifier JSX names are lowered as components");
         };
         let tag_name = identifier.name.as_str();
         self.validate_element(tag_name, element, identifier.span)?;
 
         let id = self.allocate_id();
 
-        let attributes = self.lower_attributes(&element.opening_element.attributes);
+        // A custom element may dispatch any name it declares, most often
+        // kebab-case (`value-change`), so `onValueChange` keeps its words:
+        // lowercasing it whole would listen for `valuechange` and never fire.
+        let attributes =
+            self.lower_attributes(&element.opening_element.attributes, tag_name.contains('-'));
+        // Children inherit the parser context established by the surrounding
+        // markup: `<svg>` enters the SVG namespace and `<foreignObject>` leaves
+        // it again. The same rule applies inside component and control-flow
+        // children, which are transparent to the HTML parser's context.
+        let namespace = element_namespace(self.namespace, tag_name);
+        let previous =
+            std::mem::replace(&mut self.namespace, content_namespace(namespace, tag_name));
         let mut children = self.lower_children(&element.children);
+        self.namespace = previous;
         self.lower_raw_text_children(tag_name, element, &mut children)?;
 
         Some(ElementIr {
@@ -457,6 +580,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             kind: "Element".into(),
             reference: IrRef { node_id: id },
             tag_name: identifier.name.to_string(),
+            namespace: namespace.as_str().into(),
             span: self.source_index.span(element.span),
             attributes,
             children,
@@ -1567,7 +1691,25 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
     fn lower_component_callee(&mut self, name: &JSXElementName<'_>) -> ExpressionIr {
         let span = self.source_index.span(name.span());
         let code = match name {
-            JSXElementName::Identifier(identifier) => identifier.name.to_string(),
+            JSXElementName::Identifier(identifier) => {
+                if identifier.name.contains('-') {
+                    self.diagnostics.push(
+                        CompilerDiagnostic::error(
+                            "ZEUS_UNSUPPORTED_COMPONENT_NAME",
+                            format!(
+                                "<{}> is not a valid component name: a component tag must be a JavaScript identifier.",
+                                identifier.name
+                            ),
+                            self.filename,
+                            Some(self.source_index.span(identifier.span)),
+                        )
+                        .with_hint(
+                            "Rename the component to an identifier such as `AB`, or use a lowercase tag for a custom element.",
+                        ),
+                    );
+                }
+                identifier.name.to_string()
+            }
             JSXElementName::IdentifierReference(identifier) => identifier.name.to_string(),
             JSXElementName::MemberExpression(_) | JSXElementName::ThisExpression(_) => {
                 name.span().source_text(self.source).to_owned()
@@ -1673,13 +1815,17 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         }
     }
 
-    fn lower_attributes(&mut self, attributes: &[JSXAttributeItem<'_>]) -> Vec<AttributeIr> {
+    fn lower_attributes(
+        &mut self,
+        attributes: &[JSXAttributeItem<'_>],
+        custom_element: bool,
+    ) -> Vec<AttributeIr> {
         let mut lowered = Vec::with_capacity(attributes.len());
 
         for attribute in attributes {
             match attribute {
                 JSXAttributeItem::Attribute(attribute) => {
-                    if let Some(attribute) = self.lower_attribute(attribute) {
+                    if let Some(attribute) = self.lower_attribute(attribute, custom_element) {
                         lowered.push(attribute);
                     }
                 }
@@ -1712,8 +1858,30 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         }
     }
 
-    fn lower_attribute(&mut self, attribute: &JSXAttribute<'_>) -> Option<AttributeIr> {
+    fn lower_attribute(
+        &mut self,
+        attribute: &JSXAttribute<'_>,
+        custom_element: bool,
+    ) -> Option<AttributeIr> {
         let (name, is_property) = self.lower_attribute_name(&attribute.name)?;
+
+        if name.starts_with("on:")
+            && !matches!(
+                attribute.value,
+                Some(JSXAttributeValue::ExpressionContainer(_))
+            )
+        {
+            self.diagnostics.push(
+                CompilerDiagnostic::error(
+                    "ZEUS_INVALID_EVENT_BINDING",
+                    format!("{name} requires a handler expression."),
+                    self.filename,
+                    Some(self.source_index.span(attribute.span)),
+                )
+                .with_hint("Pass a function, for example `on:value-change={event => ...}`."),
+            );
+            return None;
+        }
 
         match &attribute.value {
             None => {
@@ -1769,9 +1937,14 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                     span: self.source_index.span(attribute.span),
                 }))
             }
-            Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                self.lower_expression_attribute(attribute, container, name, is_property)
-            }
+            Some(JSXAttributeValue::ExpressionContainer(container)) => self
+                .lower_expression_attribute(
+                    attribute,
+                    container,
+                    name,
+                    is_property,
+                    custom_element,
+                ),
             Some(JSXAttributeValue::Element(_) | JSXAttributeValue::Fragment(_)) => {
                 self.unsupported(
                     "ZEUS_UNSUPPORTED_JSX_ATTRIBUTE_VALUE",
@@ -1789,12 +1962,55 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
                 Some((normalize_attribute_name(identifier.name.as_str()), false))
             }
             JSXAttributeName::NamespacedName(namespaced) if namespaced.namespace.name == "prop" => {
-                Some((namespaced.name.name.to_string(), true))
+                let property = namespaced.name.name.as_str();
+                if matches!(property, "innerHTML" | "outerHTML") {
+                    self.diagnostics.push(
+                        CompilerDiagnostic::error(
+                            "ZEUS_UNSAFE_HTML_PROPERTY",
+                            format!(
+                                "prop:{property} parses a string as HTML and bypasses escaping; Zeus does not bind it."
+                            ),
+                            self.filename,
+                            Some(self.source_index.span(name.span())),
+                        )
+                        .with_hint(
+                            "Render the markup as JSX. For trusted, sanitized HTML, assign it to the element in a ref callback.",
+                        ),
+                    );
+                    return None;
+                }
+                // A DOM property is assigned by name, so `prop:selection-mode`
+                // would write a property no element has. Attribute spelling is
+                // kebab-case, property spelling is not, and silently dropping
+                // the value is the worst outcome: name the fix instead.
+                if property.contains('-') {
+                    self.diagnostics.push(
+                        CompilerDiagnostic::error(
+                            "ZEUS_INVALID_PROP_NAME",
+                            format!(
+                                "prop:{property} names a DOM property, and property names are not kebab-case; no element has a `{property}` property."
+                            ),
+                            self.filename,
+                            Some(self.source_index.span(name.span())),
+                        )
+                        .with_hint(format!(
+                            "Write the property name in camelCase, for example `prop:{}`.",
+                            kebab_to_camel(property)
+                        )),
+                    );
+                    return None;
+                }
+                Some((property.to_owned(), true))
+            }
+            // `on:name` binds the event named exactly `name`, such as the
+            // kebab-case events dispatched by Zeus custom elements.
+            JSXAttributeName::NamespacedName(namespaced) if namespaced.namespace.name == "on" => {
+                Some((format!("on:{}", namespaced.name.name), false))
             }
             JSXAttributeName::NamespacedName(_) => {
                 self.unsupported(
                     "ZEUS_UNSUPPORTED_NAMESPACED_ATTRIBUTE",
-                    "Only the prop:name namespace is supported in DOM attributes.",
+                    "Only the prop:name and on:name namespaces are supported in DOM attributes.",
                     name.span(),
                 );
                 None
@@ -1808,6 +2024,7 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
         container: &JSXExpressionContainer<'_>,
         name: String,
         is_property: bool,
+        custom_element: bool,
     ) -> Option<AttributeIr> {
         if matches!(&container.expression, JSXExpression::EmptyExpression(_)) {
             self.unsupported(
@@ -1877,9 +2094,35 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
             }));
         }
         if is_event_attribute_name(&name) {
+            let event_name = match name.strip_prefix("on:") {
+                Some(verbatim) => verbatim.to_owned(),
+                // Native DOM events are lowercase (`onClick` is `click`).
+                // A custom element declares its own names, which Zeus and the
+                // generated declarations both spell kebab-case, so the camel
+                // case words are preserved there: `onValueChange` listens for
+                // `value-change` rather than the dead `valuechange`.
+                None if custom_element => camel_to_kebab(&name[2..]),
+                None => name[2..].to_ascii_lowercase(),
+            };
+            if let Some(intended) = event_name.strip_prefix('-') {
+                self.diagnostics.push(
+                    CompilerDiagnostic::error(
+                        "ZEUS_INVALID_EVENT_BINDING",
+                        format!(
+                            "{name} does not name an event: the event name would start with \"-\"."
+                        ),
+                        self.filename,
+                        Some(self.source_index.span(attribute.name.span())),
+                    )
+                    .with_hint(format!(
+                        "Use on:{intended} to bind an event by its exact name."
+                    )),
+                );
+                return None;
+            }
             return Some(AttributeIr::Event(EventBindingIr {
                 id,
-                event_name: name[2..].to_ascii_lowercase(),
+                event_name,
                 handler: expression,
                 span,
             }));
@@ -2015,15 +2258,60 @@ impl<'source, 'allocator> Lowerer<'source, 'allocator> {
     }
 
     fn unsupported(&mut self, code: &str, message: &str, span: Span) {
-        self.diagnostics.push(
-            CompilerDiagnostic::error(
-                code,
-                message,
-                self.filename,
-                Some(self.source_index.span(span)),
-            )
-            .with_hint("Use a native element with static attributes and dynamic text."),
+        let diagnostic = CompilerDiagnostic::error(
+            code,
+            message,
+            self.filename,
+            Some(self.source_index.span(span)),
         );
+        self.diagnostics.push(match unsupported_hint(code) {
+            Some(hint) => diagnostic.with_hint(hint),
+            None => diagnostic,
+        });
+    }
+
+    fn report_async_components(&mut self, components: Vec<AsyncComponent>) {
+        for component in components {
+            let subject = component.name.map_or_else(
+                || "A defineElement setup".to_owned(),
+                |name| format!("Component `{name}`"),
+            );
+            self.diagnostics.push(
+                CompilerDiagnostic::error(
+                    "ZEUS_ASYNC_COMPONENT",
+                    format!(
+                        "{subject} is an async function or generator. Components run once synchronously and must return DOM, not a Promise or iterator."
+                    ),
+                    self.filename,
+                    Some(self.source_index.span(component.span)),
+                )
+                .with_hint(
+                    "Make the component synchronous and load data with createResource, rendering the pending state with <Show>.",
+                ),
+            );
+        }
+    }
+
+    fn report_async_expressions(&mut self, expressions: Vec<(Span, AsyncExpressionKind)>) {
+        for (span, kind) in expressions {
+            let keyword = match kind {
+                AsyncExpressionKind::Await => "await",
+                AsyncExpressionKind::Yield => "yield",
+            };
+            self.diagnostics.push(
+                CompilerDiagnostic::error(
+                    "ZEUS_UNSUPPORTED_ASYNC_EXPRESSION",
+                    format!(
+                        "`{keyword}` is not supported in JSX expressions; bindings are evaluated synchronously inside reactive getters."
+                    ),
+                    self.filename,
+                    Some(self.source_index.span(span)),
+                )
+                .with_hint(
+                    "Load the value with createResource and read it in the expression, or await it inside an event handler.",
+                ),
+            );
+        }
     }
 
     fn unsupported_for_callback_parameter(&mut self, span: Span) {
@@ -2295,6 +2583,261 @@ impl<'ast> Visit<'ast> for Lowerer<'_, '_> {
     }
 }
 
+/// The next step for each diagnostic reported through `Lowerer::unsupported`.
+fn unsupported_hint(code: &str) -> Option<&'static str> {
+    Some(match code {
+        "ZEUS_EMPTY_EXPRESSION" => "Put an expression inside the braces, or remove the attribute.",
+        "ZEUS_FUNCTION_ATTRIBUTE" => {
+            "Call the function, for example `title={title()}`, or use `prop:name` to pass a function."
+        }
+        "ZEUS_FUNCTION_BUILTIN_VALUE" => {
+            "Read the signal by calling it, for example `when={visible()}`."
+        }
+        "ZEUS_FUNCTION_CHILD" => "Call the function, for example `{count()}`.",
+        "ZEUS_INVALID_BUILTIN_USAGE" => {
+            "Pass only the attributes the message lists, each once and as an expression."
+        }
+        "ZEUS_INVALID_ERROR_BOUNDARY_FALLBACK" => {
+            "Pass a render function, for example `fallback={(error, reset) => <p>{String(error)}</p>}`."
+        }
+        "ZEUS_INVALID_FOR_CHILD" => {
+            "Write one callback child, for example `<For each={items()}>{item => <li>{item.name}</li>}</For>`."
+        }
+        "ZEUS_INVALID_HOST_USAGE" => {
+            "Return a single <Host> as the root JSX of a defineElement setup."
+        }
+        "ZEUS_INVALID_ONCE_INTRINSIC" => {
+            "Call once with exactly one expression, for example `{once(props.title)}`."
+        }
+        "ZEUS_INVALID_ONCE_TARGET" => {
+            "Use once only for native text, attribute and property bindings."
+        }
+        "ZEUS_INVALID_PROP_NAME" => {
+            "Write the DOM property in camelCase, for example `prop:selectionMode`."
+        }
+        "ZEUS_INVALID_PROPERTY_BINDING" => {
+            "Pass an expression, for example `prop:value={value()}`."
+        }
+        "ZEUS_INVALID_REF_USAGE" => {
+            "Pass a ref object or callback, for example `ref={element => (input = element)}`."
+        }
+        "ZEUS_INVALID_SHOW_FALLBACK" => {
+            "Pass JSX or a value, for example `fallback={<p>Loading</p>}`."
+        }
+        "ZEUS_INVALID_SLOT_NAME" => {
+            "Write the name as a string literal, such as `name=\"title\"`, or omit it for the default slot."
+        }
+        "ZEUS_INVALID_SLOT_USAGE" => {
+            "Place <Slot> inside the <Host> returned by a defineElement setup."
+        }
+        "ZEUS_MIXED_RAW_TEXT_BINDING_MODE" => {
+            "Wrap every dynamic expression in this element in once(...), or none of them."
+        }
+        "ZEUS_UNSUPPORTED_ARRAY_MAP_CALLBACK_PARAMETER" => {
+            "Destructure inside the body of a callback shaped like `items.map((item, index) => ...)`."
+        }
+        "ZEUS_UNSUPPORTED_ARRAY_SPREAD" => {
+            "Map the array instead, for example `{items().map(item => <li>{item}</li>)}`."
+        }
+        "ZEUS_UNSUPPORTED_BUILTIN_SPREAD" => {
+            "Pass each attribute explicitly instead of spreading an object."
+        }
+        "ZEUS_UNSUPPORTED_COMPONENT_NAME" => {
+            "Import the component under a plain identifier and render it as `<Name />`."
+        }
+        "ZEUS_UNSUPPORTED_COMPONENT_PROP_NAMESPACE" => {
+            "Pass the value as a plain prop, for example `value={value()}`."
+        }
+        "ZEUS_UNSUPPORTED_DOCUMENT_ELEMENT" => {
+            "Render into an element inside <body>; Zeus does not create <html>, <head> or <body>."
+        }
+        "ZEUS_UNSUPPORTED_JSX_ATTRIBUTE_VALUE" => {
+            "Pass the JSX as children, or wrap it in a component and pass that component."
+        }
+        "ZEUS_UNSUPPORTED_NAMESPACED_ATTRIBUTE" => {
+            "Use `prop:name` for a DOM property, `on:name` for an exact event name, or a plain attribute name."
+        }
+        "ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION" => {
+            "Move the JSX into a component or a variable, or use <Show> and <For> for conditions and lists."
+        }
+        "ZEUS_UNSUPPORTED_RAW_TEXT_CHILD" => {
+            "Build the content as one string, for example a template literal."
+        }
+        "ZEUS_UNSUPPORTED_RAW_TEXT_ELEMENT" => {
+            "Render the content outside this element, or fill it in a ref callback."
+        }
+        "ZEUS_UNSUPPORTED_SPREAD_CHILD" => "Render the array directly, for example `{items()}`.",
+        "ZEUS_UNSUPPORTED_TEMPLATE_ELEMENT" => {
+            "Use <Show> or a component for deferred content instead of <template>."
+        }
+        "ZEUS_UNSUPPORTED_VOID_ELEMENT_CHILDREN" => {
+            "Remove the children; void elements take their content from attributes."
+        }
+        _ => return None,
+    })
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AsyncExpressionKind {
+    Await,
+    Yield,
+}
+
+/// Finds `await` and `yield` evaluated by a JSX tree itself. Nested functions
+/// are skipped: an async event handler may await freely.
+#[derive(Default)]
+struct AsyncExpressionFinder {
+    expressions: Vec<(Span, AsyncExpressionKind)>,
+}
+
+impl<'ast> Visit<'ast> for AsyncExpressionFinder {
+    fn visit_await_expression(&mut self, expression: &AwaitExpression<'ast>) {
+        self.expressions
+            .push((expression.span, AsyncExpressionKind::Await));
+        walk::walk_await_expression(self, expression);
+    }
+
+    fn visit_yield_expression(&mut self, expression: &YieldExpression<'ast>) {
+        self.expressions
+            .push((expression.span, AsyncExpressionKind::Yield));
+        walk::walk_yield_expression(self, expression);
+    }
+
+    fn visit_function(&mut self, _function: &Function<'ast>, _flags: ScopeFlags) {}
+
+    fn visit_arrow_function_expression(&mut self, _arrow: &ArrowFunctionExpression<'ast>) {}
+
+    fn visit_class(&mut self, _class: &Class<'ast>) {}
+}
+
+struct AsyncComponent {
+    /// The component binding name; `None` for a `defineElement` setup.
+    name: Option<String>,
+    /// From the start of the function to the start of its body.
+    span: Span,
+}
+
+/// Collects async or generator functions that render JSX directly and are
+/// components: bound to a `PascalCase` name, or passed as a `defineElement`
+/// setup. Other async functions may legitimately create DOM after an await.
+fn collect_async_components(
+    program: &oxc_ast::ast::Program<'_>,
+    define_element_setup_spans: &[Span],
+) -> Vec<AsyncComponent> {
+    let mut collector = AsyncComponentCollector {
+        define_element_setup_spans,
+        declarator_name: None,
+        components: Vec::new(),
+    };
+    collector.visit_program(program);
+    collector.components
+}
+
+struct AsyncComponentCollector<'a> {
+    define_element_setup_spans: &'a [Span],
+    /// The `PascalCase` binding and the function expression span it initializes.
+    declarator_name: Option<(String, Span)>,
+    components: Vec<AsyncComponent>,
+}
+
+impl AsyncComponentCollector<'_> {
+    fn component_name(&self, function_span: Span, own_name: Option<&str>) -> Option<String> {
+        own_name
+            .filter(|name| is_component_name(name))
+            .map(str::to_owned)
+            .or_else(|| {
+                self.declarator_name
+                    .as_ref()
+                    .filter(|(_, span)| *span == function_span)
+                    .map(|(name, _)| name.clone())
+            })
+    }
+
+    fn check(
+        &mut self,
+        function_span: Span,
+        body_start: u32,
+        own_name: Option<&str>,
+        detect_jsx: impl FnOnce(&mut ShallowJsxDetector),
+    ) {
+        let name = self.component_name(function_span, own_name);
+        let is_setup = self.define_element_setup_spans.contains(&function_span);
+        if name.is_none() && !is_setup {
+            return;
+        }
+        let mut detector = ShallowJsxDetector(false);
+        detect_jsx(&mut detector);
+        if detector.0 {
+            self.components.push(AsyncComponent {
+                name,
+                span: Span::new(function_span.start, body_start),
+            });
+        }
+    }
+}
+
+impl<'ast> Visit<'ast> for AsyncComponentCollector<'_> {
+    fn visit_variable_declarator(&mut self, declarator: &VariableDeclarator<'ast>) {
+        let previous = self.declarator_name.take();
+        if let Some(name) = binding_name(&declarator.id)
+            && is_component_name(&name)
+            && let Some(init) = &declarator.init
+        {
+            self.declarator_name = Some((name, unwrap_expression(init).span()));
+        }
+        walk::walk_variable_declarator(self, declarator);
+        self.declarator_name = previous;
+    }
+
+    fn visit_function(&mut self, function: &Function<'ast>, flags: ScopeFlags) {
+        if (function.r#async || function.generator)
+            && let Some(body) = &function.body
+        {
+            self.check(
+                function.span,
+                body.span.start,
+                function.id.as_ref().map(|id| id.name.as_str()),
+                |detector| detector.visit_function_body(body),
+            );
+        }
+        walk::walk_function(self, function, flags);
+    }
+
+    fn visit_arrow_function_expression(&mut self, arrow: &ArrowFunctionExpression<'ast>) {
+        if arrow.r#async {
+            self.check(arrow.span, arrow.body.span().start, None, |detector| {
+                detector.visit_arrow_function_body(&arrow.body);
+            });
+        }
+        walk::walk_arrow_function_expression(self, arrow);
+    }
+}
+
+fn is_component_name(name: &str) -> bool {
+    name.chars()
+        .next()
+        .is_some_and(|character| character.is_ascii_uppercase())
+}
+
+/// Detects JSX evaluated by a function body itself, not by nested functions.
+struct ShallowJsxDetector(bool);
+
+impl<'ast> Visit<'ast> for ShallowJsxDetector {
+    fn visit_jsx_element(&mut self, _element: &JSXElement<'ast>) {
+        self.0 = true;
+    }
+
+    fn visit_jsx_fragment(&mut self, _fragment: &JSXFragment<'ast>) {
+        self.0 = true;
+    }
+
+    fn visit_function(&mut self, _function: &Function<'ast>, _flags: ScopeFlags) {}
+
+    fn visit_arrow_function_expression(&mut self, _arrow: &ArrowFunctionExpression<'ast>) {}
+
+    fn visit_class(&mut self, _class: &Class<'ast>) {}
+}
+
 struct JsxDetector(bool);
 
 impl<'ast> Visit<'ast> for JsxDetector {
@@ -2337,6 +2880,45 @@ fn normalize_attribute_name(name: &str) -> String {
         _ => name,
     }
     .into()
+}
+
+/// Turns an attribute spelling into the property name it most likely meant, so
+/// a `prop:selection-mode` diagnostic can name the exact fix.
+fn kebab_to_camel(name: &str) -> String {
+    let mut camel = String::with_capacity(name.len());
+    let mut upper = false;
+    for character in name.chars() {
+        if character == '-' {
+            upper = true;
+        } else if upper {
+            camel.extend(character.to_uppercase());
+            upper = false;
+        } else {
+            camel.push(character);
+        }
+    }
+    camel
+}
+
+/// `onValueChange` names the custom element event `value-change`. Runs that are
+/// already kebab-case or lowercase pass through unchanged, and a leading case
+/// change does not create an empty segment.
+fn camel_to_kebab(name: &str) -> String {
+    let mut kebab = String::with_capacity(name.len() + 4);
+    let mut previous_lower = false;
+    for character in name.chars() {
+        if character.is_ascii_uppercase() {
+            if previous_lower {
+                kebab.push('-');
+            }
+            kebab.push(character.to_ascii_lowercase());
+            previous_lower = false;
+            continue;
+        }
+        previous_lower = character.is_ascii_lowercase() || character.is_ascii_digit();
+        kebab.push(character);
+    }
+    kebab
 }
 
 fn collect_builtin_names(program: &oxc_ast::ast::Program<'_>) -> HashMap<String, BuiltinBinding> {

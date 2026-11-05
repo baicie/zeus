@@ -47,8 +47,13 @@ export function mountDynamic(
 
   bindEffect(
     () => {
-      subtree.replace(value)
-      metadata.target = dynamicBindingTarget(subtree.current(), parent)
+      try {
+        subtree.replace(value)
+      } finally {
+        // replace() can mount the next branch and still report a cleanup
+        // failure of the previous one.
+        metadata.target = dynamicBindingTarget(subtree.current(), parent)
+      }
     },
     false,
     () => {},

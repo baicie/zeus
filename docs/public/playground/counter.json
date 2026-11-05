@@ -10,7 +10,7 @@
       "message": "Builtin `Show` does not accept the `extra` attribute; allowed attributes: when, fallback.",
       "severity": "error",
       "filename": "invalid.tsx",
-      "hint": "Use a native element with static attributes and dynamic text.",
+      "hint": "Pass only the attributes the message lists, each once and as an expression.",
       "span": {
         "start": { "offset": 88, "line": 4, "column": 20 },
         "end": { "offset": 107, "line": 4, "column": 39 }
@@ -34,6 +34,7 @@
           "kind": "Element",
           "ref": { "nodeId": 2 },
           "tagName": "button",
+          "namespace": "html",
           "span": {
             "start": { "offset": 139, "line": 7, "column": 4 },
             "end": { "offset": 236, "line": 9, "column": 13 }
@@ -109,8 +110,8 @@
   "irNotice": "由 Rust lower_module 生成的内部 IR 调试快照；不是 transformModule 返回值或稳定公共 API。",
   "outputSize": {
     "label": "生成的 JS 模块；不含依赖与应用打包",
-    "dom": { "raw": 828, "gzip": 429, "brotli": 349 },
-    "ssr": { "raw": 789, "gzip": 352, "brotli": 322 }
+    "dom": { "raw": 828, "gzip": 432, "brotli": 349 },
+    "ssr": { "raw": 789, "gzip": 353, "brotli": 322 }
   },
   "bundleSize": {
     "label": "导出的 Counter 及全部传递 runtime 包依赖；生产模式、tree-shaking、压缩后的单个 ESM bundle。不含页面 HTML/CSS、挂载入口或 hydration；Node 内置模块由宿主提供。",
@@ -122,9 +123,9 @@
     "compression": "Node zlib gzip/Brotli 默认参数；数值为字节数",
     "dom": {
       "platform": "browser",
-      "raw": 26312,
-      "gzip": 9496,
-      "brotli": 8622,
+      "raw": 27013,
+      "gzip": 9736,
+      "brotli": 8865,
       "modules": [
         "packages/core/runtime-dom/dist/runtime-dom.esm-bundler.js",
         "packages/core/shared/dist/shared.esm-bundler.js",
@@ -134,9 +135,9 @@
     },
     "ssr": {
       "platform": "node",
-      "raw": 32989,
-      "gzip": 12136,
-      "brotli": 11121,
+      "raw": 34740,
+      "gzip": 12565,
+      "brotli": 11564,
       "modules": [
         "packages/core/runtime-ssr/dist/runtime-ssr.esm-bundler.js",
         "packages/core/shared/dist/shared.esm-bundler.js",

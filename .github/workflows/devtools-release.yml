@@ -38,13 +38,13 @@ jobs:
       - name: Build host native compiler
         run: pnpm --filter @zeus-js/compiler-native build:native
 
-      - name: Install template smoke browser
+      - name: Install template smoke browsers
         if: startsWith(github.ref_name, 'create-zeus@')
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
 
       - name: Verify published templates and browser interactions
         if: startsWith(github.ref_name, 'create-zeus@')
-        run: pnpm check:create-zeus-registry
+        run: pnpm check:create-zeus-registry --browsers chromium,firefox,webkit
 
       - name: Build framework and declarations
         run: pnpm build --withTypes

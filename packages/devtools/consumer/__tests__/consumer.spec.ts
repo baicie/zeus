@@ -66,6 +66,96 @@ describe('DevTools consumer/panel', () => {
     dom = undefined
   })
 
+  it('keeps a bounded timeline and reconnectable custom-element state', () => {
+    const consumer = createDevtoolsConsumer(undefined, { historyLimit: 3 })
+    consumer.consume(
+      event('custom-element:connect', {
+        id: 1,
+        timestamp: 1,
+        targetId: 20,
+        name: 'z-card',
+      }),
+    )
+    consumer.consume(
+      event('hmr:patch', {
+        id: 2,
+        timestamp: 2,
+        payload: { reason: 'literal-binding' },
+      }),
+    )
+    consumer.consume(
+      event('custom-element:disconnect', {
+        id: 3,
+        timestamp: 3,
+        targetId: 20,
+        name: 'z-card',
+      }),
+    )
+    consumer.consume(
+      event('custom-element:connect', {
+        id: 4,
+        timestamp: 4,
+        targetId: 20,
+        name: 'z-card',
+      }),
+    )
+
+    expect(consumer.getSnapshot().customElements).toEqual([
+      {
+        id: 20,
+        name: 'z-card',
+        connected: true,
+        mountCount: 2,
+        disconnectCount: 1,
+        lastEventAt: 4,
+      },
+    ])
+    expect(consumer.getSnapshot().timeline).toEqual([
+      expect.objectContaining({
+        id: 2,
+        type: 'hmr:patch',
+        reason: 'literal-binding',
+      }),
+      expect.objectContaining({ id: 3, type: 'custom-element:disconnect' }),
+      expect.objectContaining({ id: 4, type: 'custom-element:connect' }),
+    ])
+    expect(consumer.getSnapshot().timeline[0]).not.toHaveProperty('target')
+  })
+
+  it('evicts disconnected custom-element diagnostics with the history limit', () => {
+    const consumer = createDevtoolsConsumer(undefined, { historyLimit: 1 })
+    for (const targetId of [20, 21]) {
+      consumer.consume(
+        event('custom-element:connect', {
+          targetId,
+          name: `z-card-${targetId}`,
+        }),
+      )
+      consumer.consume(
+        event('custom-element:disconnect', {
+          targetId,
+          name: `z-card-${targetId}`,
+        }),
+      )
+    }
+
+    expect(consumer.getSnapshot().customElements).toEqual([
+      expect.objectContaining({
+        id: 21,
+        name: 'z-card-21',
+        connected: false,
+      }),
+    ])
+  })
+
+  it('disables timeline retention when historyLimit is zero', () => {
+    const consumer = createDevtoolsConsumer(undefined, { historyLimit: 0 })
+    consumer.consume(event('owner:create', { ownerId: 1 }))
+
+    expect(consumer.getSnapshot().owners).toMatchObject([{ id: 1 }])
+    expect(consumer.getSnapshot().timeline).toEqual([])
+  })
+
   it('reduces owner, effect, binding and dependency events into a panel graph', () => {
     dom = new JSDOM('<!doctype html><html><body /></html>')
     const consumer = createDevtoolsConsumer()
@@ -257,6 +347,15 @@ describe('DevTools consumer/panel', () => {
         payload: { key: 'count', operation: 'get' },
       }),
     )
+    consumer.consume(
+      event('custom-element:connect', {
+        targetId: 8,
+        name: 'z-counter',
+      }),
+    )
+    consumer.consume(
+      event('hmr:patch', { payload: { reason: 'literal-binding' } }),
+    )
 
     await Promise.resolve()
     const text = (section: string) =>
@@ -268,6 +367,13 @@ describe('DevTools consumer/panel', () => {
     expect(text('bindings')).toContain('signals 5')
     expect(text('effects')).toContain('12.5 ms')
     expect(text('sources')).toContain('signal 5')
+    expect(text('custom-elements')).toContain('z-counter')
+    expect(text('timeline')).toContain('t+')
+    expect(text('timeline')).toContain('literal-binding')
+    const refresh = panel.element.querySelector<HTMLButtonElement>(
+      '[data-zeus-devtools-refresh]',
+    )!
+    expect(() => refresh.click()).not.toThrow()
 
     button.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }))
     await Promise.resolve()
@@ -658,6 +764,15 @@ describe('DevTools consumer/panel', () => {
         },
       }),
     )
+    dom.window.__ZEUS_DEVTOOLS_HOOK__!.emit(
+      event('custom-element:connect', {
+        targetId: 7,
+        name: 'z-card',
+      }),
+    )
+    dom.window.__ZEUS_DEVTOOLS_HOOK__!.emit(
+      event('hmr:patch', { payload: { reason: 'literal-binding' } }),
+    )
 
     expect(panel.getSnapshot().bindings).toMatchObject([
       {
@@ -667,6 +782,14 @@ describe('DevTools consumer/panel', () => {
         kind: 'text',
       },
     ])
+    expect(panel.getSnapshot().customElements).toMatchObject([
+      { id: 7, name: 'z-card', connected: true, mountCount: 1 },
+    ])
+    const timeline = panel.getSnapshot().timeline
+    expect(timeline[timeline.length - 1]).toMatchObject({
+      type: 'hmr:patch',
+      reason: 'literal-binding',
+    })
     expect(runtimePort.messages[0]).toMatchObject({
       channel: 'zeus-devtools',
       version: 1,
@@ -677,11 +800,24 @@ describe('DevTools consumer/panel', () => {
         payload: { kind: 'text', once: false, nested: { key: 'value' } },
       },
     })
+    expect(runtimePort.messages[1]).toMatchObject({
+      event: {
+        type: 'custom-element:connect',
+        targetId: 7,
+        name: 'z-card',
+      },
+    })
+    expect(runtimePort.messages[2]).toMatchObject({
+      event: {
+        type: 'hmr:patch',
+        payload: { reason: 'literal-binding' },
+      },
+    })
 
     emitter.disconnect()
     panel.disconnect()
     expect(dom.window.__ZEUS_DEVTOOLS_HOOK__).toBeUndefined()
-    expect(runtimePort.messages).toHaveLength(1)
+    expect(runtimePort.messages).toHaveLength(3)
   })
 
   it('chains a port emitter with an existing runtime hook', () => {

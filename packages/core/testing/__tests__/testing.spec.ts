@@ -2,7 +2,18 @@ import { JSDOM } from 'jsdom'
 import { afterEach, describe, expect, it } from 'vitest'
 import { beforeEach, vi } from 'vitest'
 
-import { fireEvent, flushEffects, queryByRole, render } from '../src'
+import {
+  cleanup,
+  fireEvent,
+  flushEffects,
+  hydrateSSR,
+  queryByRole,
+  render,
+  renderSSR,
+  startLeakCheck,
+  userEvent,
+  waitFor,
+} from '../src'
 
 let dom: JSDOM
 const disposers: Array<() => void> = []
@@ -18,6 +29,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  cleanup()
   while (disposers.length) disposers.pop()?.()
   vi.unstubAllGlobals()
   dom.window.close()
@@ -96,5 +108,53 @@ describe('@zeus-js/testing', () => {
     await flushEffects()
 
     expect(order).toEqual(['effect'])
+  })
+
+  it('drives text input, keyboard and IME composition as user actions', async () => {
+    const input = document.createElement('input')
+    document.body.append(input)
+    const events: string[] = []
+    input.addEventListener('input', () => events.push('input'))
+    input.addEventListener('compositionend', () =>
+      events.push('compositionend'),
+    )
+
+    await userEvent.type(input, 'ab')
+    await userEvent.composition(input, { updates: ['中'], end: '中' })
+
+    expect(input.value).toBe('中')
+    expect(events).toContain('compositionend')
+    expect(events.filter(event => event === 'input').length).toBeGreaterThan(2)
+  })
+
+  it('waits for async DOM changes and exposes explicit cleanup leak checks', async () => {
+    const leakCheck = startLeakCheck()
+    const result = leakCheck.run(() =>
+      render(() => {
+        const node = document.createElement('span')
+        node.textContent = 'pending'
+        setTimeout(() => {
+          node.textContent = 'ready'
+        }, 1)
+        return node
+      }),
+    )
+
+    await waitFor(() => {
+      expect(result.container.textContent).toBe('ready')
+    })
+    result.dispose()
+    expect(leakCheck.assertNoLeaks().listenersCreated).toBe(
+      leakCheck.snapshot().listenersDisposed,
+    )
+    leakCheck.dispose()
+  })
+
+  it('provides SSR and hydration helpers without requiring a browser at import time', () => {
+    expect(renderSSR(() => 'server')).toBe('server')
+
+    const hydrated = hydrateSSR('<p>server</p>', () => {})
+    expect(hydrated.container.textContent).toBe('server')
+    hydrated.dispose()
   })
 })

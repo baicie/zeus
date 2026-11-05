@@ -1,5 +1,7 @@
 //! Thin Node-API adapter for the Zeus Rust compiler.
 
+mod nesting;
+
 use napi::{Error, Result, Status};
 use napi_derive::napi;
 use zeus_compiler::{
@@ -7,6 +9,7 @@ use zeus_compiler::{
     TransformModuleOptions as CoreTransformModuleOptions,
     TransformModuleResult as CoreTransformModuleResult, TransformTarget,
     diagnostic::{CompilerDiagnostic as CoreCompilerDiagnostic, DiagnosticSeverity},
+    hmr::{HmrBinding as CoreHmrBinding, HmrPlan as CoreHmrPlan},
     hydration::{
         HydrationBindingPlan as CoreHydrationBindingPlan,
         HydrationComponentPlan as CoreHydrationComponentPlan,
@@ -14,6 +17,9 @@ use zeus_compiler::{
     },
     span::{SourcePosition as CoreSourcePosition, SourceSpan as CoreSourceSpan},
 };
+
+/// Documented nesting limit, expressed in JSX element levels by `nesting.rs`.
+const MAX_INPUT_NESTING_DEPTH: usize = 8_192;
 
 #[napi(object)]
 pub struct TransformModuleOptions {
@@ -26,6 +32,7 @@ pub struct TransformModuleOptions {
     pub source_map: bool,
     pub hmr: Option<bool>,
     pub pure_define_element: Option<bool>,
+    pub auto_hydrate: Option<bool>,
 }
 
 #[napi(object, use_nullable = true)]
@@ -34,6 +41,21 @@ pub struct TransformModuleResult {
     pub map: Option<RawSourceMap>,
     pub diagnostics: Vec<CompilerDiagnostic>,
     pub hydration_plan: Option<HydrationPlan>,
+    pub hmr_plan: Option<HmrPlan>,
+}
+
+#[napi(object)]
+pub struct HmrPlan {
+    pub version: u8,
+    pub signature: String,
+    pub bindings: Vec<HmrBinding>,
+}
+
+#[napi(object)]
+pub struct HmrBinding {
+    pub id: u32,
+    pub kind: String,
+    pub value: String,
 }
 
 #[napi(object)]
@@ -126,7 +148,7 @@ pub fn transform_module(options: TransformModuleOptions) -> Result<TransformModu
         ));
     }
 
-    Ok(zeus_compiler::transform_module(CoreTransformModuleOptions {
+    let core_options = CoreTransformModuleOptions {
         source: options.source,
         filename: options.filename,
         target,
@@ -137,8 +159,51 @@ pub fn transform_module(options: TransformModuleOptions) -> Result<TransformModu
         pure_define_element: PureDefineElementMode::from(
             options.pure_define_element.unwrap_or(false),
         ),
-    })
-    .into())
+        auto_hydrate: options.auto_hydrate.unwrap_or(false),
+    };
+
+    if nesting::exceeds_nesting_cost(&core_options.source) {
+        return Ok(CoreTransformModuleResult {
+            code: String::new(),
+            map: None,
+            diagnostics: vec![CoreCompilerDiagnostic {
+                code: "ZEUS_INPUT_TOO_DEEP".into(),
+                message: format!(
+                    "Input nesting exceeds the supported limit of {MAX_INPUT_NESTING_DEPTH} levels."
+                ),
+                severity: DiagnosticSeverity::Error,
+                filename: core_options.filename.clone(),
+                hint: Some(
+                    "Split deeply nested JSX or JavaScript expressions into smaller components or helpers."
+                        .into(),
+                ),
+                span: None,
+            }],
+            hydration_plan: None,
+            hmr_plan: None,
+        }
+        .into());
+    }
+
+    // Oxc's recursive parser, the semantic builder and lowering all recurse per
+    // JSX nesting level. A Node.js main thread overflows at a few thousand
+    // levels, and a Rust stack overflow aborts the whole host process, so run
+    // the transform on a dedicated thread whose stack is sized for input tens
+    // of thousands of levels deep. This raises the limit; it does not turn an
+    // overflow into a diagnostic.
+    let worker = std::thread::Builder::new()
+        .name("zeus-compiler".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || zeus_compiler::transform_module(core_options))
+        .map_err(|error| Error::new(Status::GenericFailure, error.to_string()))?;
+    let result = worker.join().map_err(|_| {
+        Error::new(
+            Status::GenericFailure,
+            "Zeus compiler worker panicked while transforming the module.",
+        )
+    })?;
+
+    Ok(result.into())
 }
 
 impl From<CoreTransformModuleResult> for TransformModuleResult {
@@ -148,6 +213,27 @@ impl From<CoreTransformModuleResult> for TransformModuleResult {
             map: result.map.map(Into::into),
             diagnostics: result.diagnostics.into_iter().map(Into::into).collect(),
             hydration_plan: result.hydration_plan.map(Into::into),
+            hmr_plan: result.hmr_plan.map(Into::into),
+        }
+    }
+}
+
+impl From<CoreHmrPlan> for HmrPlan {
+    fn from(plan: CoreHmrPlan) -> Self {
+        Self {
+            version: plan.version,
+            signature: plan.signature,
+            bindings: plan.bindings.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
+impl From<CoreHmrBinding> for HmrBinding {
+    fn from(binding: CoreHmrBinding) -> Self {
+        Self {
+            id: binding.id,
+            kind: binding.kind,
+            value: binding.value,
         }
     }
 }

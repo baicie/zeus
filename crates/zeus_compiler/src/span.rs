@@ -38,6 +38,10 @@ impl<'source> SourceIndex<'source> {
         }
     }
 
+    pub(crate) fn source(&self) -> &'source str {
+        self.source
+    }
+
     pub(crate) fn span(&self, span: Span) -> SourceSpan {
         SourceSpan {
             start: self.position(span.start),

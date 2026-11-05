@@ -24,7 +24,7 @@ type SSRPropertyValue = string | number | boolean
 
 interface SSRPropertyAttribute extends SSRAttribute {
   readonly [SSR_PROPERTY]: true
-  readonly propertyValue: SSRPropertyValue
+  readonly propertyValue: SSRPropertyValue | null
 }
 
 interface ResolvedSSRElementEntries {
@@ -54,20 +54,28 @@ const BOOLEAN_PROPERTY_ELEMENTS = {
 } satisfies Record<string, ReadonlySet<string>>
 
 const VALUE_PROPERTY_ELEMENTS = new Set(['button', 'input', 'option'])
-const SUPPORTED_PROPERTY_NAMES = new Set([
-  ...Object.keys(BOOLEAN_PROPERTY_ELEMENTS),
-  'htmlFor',
-  'tabIndex',
-  'value',
-])
 
+/**
+ * Whether the property can be serialized is decided per element in
+ * `resolveSSRElementProperties`, because a spread reaches here before the tag
+ * is known.
+ *
+ * `null` and `undefined` are accepted: like the client `bindProp` channel,
+ * writing them clears the state the property controls, so the server must not
+ * keep an equivalent static attribute or the textarea's JSX children.
+ */
 export function createSSRProperty(
   name: string,
   value: unknown,
 ): SSRAttributeEntry {
   assertSyncSSRValue(value)
-  if (!SUPPORTED_PROPERTY_NAMES.has(name)) {
-    throw new TypeError(`SSR cannot serialize property "${name}".`)
+  if (value === null || value === undefined) {
+    return {
+      [SSR_PROPERTY]: true,
+      name,
+      propertyValue: null,
+      value: '',
+    } as unknown as SSRPropertyAttribute
   }
   if (
     typeof value !== 'string' &&
@@ -91,6 +99,9 @@ export function resolveSSRElementProperties(
   children: SSRNode,
 ): ResolvedSSRElementEntries {
   const attributes: SSRAttribute[] = []
+  // Custom element properties are client-only: the server renders the host
+  // tag and the element receives its properties after upgrade or hydration.
+  const customElement = tag.includes('-')
   let resolvedChildren = children
   for (const entry of entries) {
     assertSyncSSRValue(entry)
@@ -101,6 +112,7 @@ export function resolveSSRElementProperties(
         removeAttribute(attributes, entry.name)
         continue
       }
+      if (customElement) continue
       const serialization = getSSRPropertySerialization(tag, entry.name)
       if (!serialization)
         throw new TypeError(
@@ -115,6 +127,7 @@ export function resolveSSRElementProperties(
       attributes.push(entry)
       continue
     }
+    if (customElement) continue
     const property = entry
     const serialization = getSSRPropertySerialization(tag, property.name)
     if (!serialization) {
@@ -125,13 +138,16 @@ export function resolveSSRElementProperties(
 
     if (serialization.kind === 'text-content') {
       removeAttribute(attributes, 'value')
-      resolvedChildren = normalizeTextareaValue(property.propertyValue)
+      resolvedChildren =
+        property.propertyValue === null
+          ? null
+          : normalizeTextareaValue(property.propertyValue)
       continue
     }
 
     removeAttribute(attributes, serialization.name)
     if (serialization.kind === 'boolean-attribute') {
-      if (Boolean(property.propertyValue)) {
+      if (property.propertyValue === true) {
         attributes.push({ name: serialization.name, value: true })
       }
       continue
@@ -140,9 +156,11 @@ export function resolveSSRElementProperties(
     attributes.push({
       name: serialization.name,
       value:
-        property.name === 'tabIndex'
-          ? normalizeTabIndex(property.propertyValue)
-          : String(property.propertyValue),
+        property.propertyValue === null
+          ? ''
+          : property.name === 'tabIndex'
+            ? normalizeTabIndex(property.propertyValue)
+            : String(property.propertyValue),
     })
   }
 
@@ -155,6 +173,20 @@ function getSSRPropertySerialization(
 ): SSRPropertySerialization | undefined {
   const normalizedTag = tag.toLowerCase()
 
+  // `defaultValue`/`defaultChecked` are the initial state the HTML attribute
+  // defines, so they serialize exactly like the equivalent attribute. The
+  // live `value`/`checked` properties are the ones with reflection semantics.
+  if (name === 'defaultValue') {
+    if (normalizedTag === 'textarea') return { kind: 'text-content' }
+    return VALUE_PROPERTY_ELEMENTS.has(normalizedTag)
+      ? { kind: 'string-attribute', name: 'value' }
+      : undefined
+  }
+  if (name === 'defaultChecked') {
+    return normalizedTag === 'input'
+      ? { kind: 'boolean-attribute', name: 'checked' }
+      : undefined
+  }
   if (name === 'tabIndex') {
     return { kind: 'string-attribute', name: 'tabindex' }
   }

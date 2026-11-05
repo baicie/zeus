@@ -39,12 +39,23 @@ export interface TransformModuleOptions {
   delegateEvents: boolean
   sourceMap: boolean
   hmr?: boolean
+  autoHydrate?: boolean
 }
 export interface TransformModuleResult {
   code: string
   map: RawSourceMap | null
   diagnostics: CompilerDiagnostic[]
   hydrationPlan: HydrationPlan | null
+  hmrPlan: HmrPlan | null
+}
+export interface HmrPlan {
+  version: number
+  signature: string
+  bindings: Array<{
+    id: number
+    kind: string
+    value: string
+  }>
 }
 export interface HydrationPlan {
   version: number

@@ -4,11 +4,14 @@ import {
   getCurrentEffect,
   getCurrentScope,
   onScopeDispose,
+  trackRuntimeResource,
   untrack,
 } from '@zeus-js/signal/internal'
 
+import { isHydrationFormWrite } from './autoHydration'
 import { emitDevtoolsEvent, getDevtoolsObjectId } from './devtools'
 import { getScopeErrorBoundaryHandler } from './errorBoundaryContext'
+import { isHmrBindingWrite } from './hmr'
 import { assertRenderableJSXValue } from './jsxValue'
 
 import type { AttrValue, ClassValue, JSXValue, StyleValue } from './types'
@@ -66,6 +69,8 @@ export function bindEffect<T>(
   apply: (next: T) => void,
   metadata: BindingMetadata,
 ): void {
+  const releaseDiagnostics = trackRuntimeResource('bindings')
+
   const devtoolsInstrumentation = __DEV__
   let bindingIdentity: object | undefined
   let trackedDependencies: DependencyMap | undefined
@@ -103,8 +108,9 @@ export function bindEffect<T>(
       apply(next)
       nextDependencies = collectingDependencies
     } catch (error) {
+      if (__DEV__ && isHmrBindingWrite()) throw error
       if (scopeErrorHandler) {
-        scopeErrorHandler(error)
+        scopeErrorHandler(error, 'binding')
         return
       }
       throw error
@@ -154,23 +160,11 @@ export function bindEffect<T>(
     }
   }
 
-  if (once) {
-    untrack(run)
-  } else {
-    effect(
-      run,
-      devtoolsInstrumentation
-        ? {
-            onTrack: event => trackDependency(collectingDependencies, event),
-            onTrigger: event => {
-              if (!hasDevtoolsHook()) return
-              triggerDependency(event, ensureBindingId())
-            },
-          }
-        : undefined,
-    )
-  }
-  onScopeDispose(() => {
+  let bindingDisposed = false
+  const disposeBinding = (): void => {
+    if (bindingDisposed) return
+    bindingDisposed = true
+    releaseDiagnostics?.()
     if (bindingId === undefined) return
     if (effectId !== undefined && trackedDependencies) {
       reconcileDependencies(trackedDependencies, new Map(), bindingId, effectId)
@@ -185,7 +179,31 @@ export function bindEffect<T>(
       },
       { swallowErrors: true },
     )
-  }, true)
+  }
+
+  try {
+    if (once) {
+      untrack(run)
+    } else {
+      effect(
+        run,
+        devtoolsInstrumentation
+          ? {
+              onTrack: event => trackDependency(collectingDependencies, event),
+              onTrigger: event => {
+                if (!hasDevtoolsHook()) return
+                triggerDependency(event, ensureBindingId())
+              },
+            }
+          : undefined,
+      )
+    }
+  } catch (error) {
+    disposeBinding()
+    throw error
+  }
+
+  onScopeDispose(disposeBinding, true)
 }
 
 interface DependencyEdge {
@@ -434,16 +452,42 @@ export function bindProp<T extends Element, K extends keyof T>(
   value: () => T[K],
   once = false,
 ): void {
+  const customElement = el.localName.includes('-')
+  let hasWritten = false
+  let previous: T[K]
+
   bindEffect(
     value,
     once,
     next => {
-      if (!el.localName.includes('-') && Object.is(el[name], next)) {
-        if (name === 'tabIndex' && el.getAttribute('tabindex') === null) {
+      if (!hasWritten && isHydrationFormWrite(el, name)) {
+        // Preserve input typed, checked, or selected before the client took
+        // ownership. Remember the server value so a later reactive update is
+        // still authoritative.
+        hasWritten = true
+        previous = next
+        return
+      }
+      // A custom element may not be upgraded yet, so reading the property
+      // would see a plain own value rather than the element's accessor; a
+      // third-party accessor also may have side effects. Remember what this
+      // binding wrote instead, and write only when it changes.
+      if (
+        customElement
+          ? hasWritten && Object.is(previous, next)
+          : Object.is(el[name], next)
+      ) {
+        if (
+          !customElement &&
+          name === 'tabIndex' &&
+          el.getAttribute('tabindex') === null
+        ) {
           el[name] = next
         }
         return
       }
+      hasWritten = true
+      previous = next
       el[name] = next
     },
     { kind: `prop:${String(name)}`, target: el },

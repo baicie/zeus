@@ -55,3 +55,11 @@ render(() => {
 
 资源应由边界的外层 owner 持有，才能在失败分支销毁后继续 `refetch()`；owner 释放时
 资源请求会通过 `AbortSignal` 取消，晚到结果也不会再次提交到已销毁的资源状态。
+
+## 与 Query 的分工
+
+`createResource` 是单 owner、窄作用的资源：缓存随 owner 释放，不做跨组件共享。需要
+多个组件共享同一份数据、与 route loader 共用缓存，或需要 mutation 与乐观更新时，使用
+`@zeus-js/query` 的 `QueryClientProvider` / `useQuery` / `useMutation`（见
+[Query](./query.md)）。两者都只暴露 Zeus accessor，不把响应式引擎或第三方 observer
+变成公共契约；同一数据不要同时建立 resource 与 query 两套缓存。

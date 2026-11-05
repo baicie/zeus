@@ -1,4 +1,5 @@
 mod codegen;
+pub mod hmr;
 mod html;
 pub mod hydration;
 
@@ -6,6 +7,7 @@ pub mod diagnostic;
 pub mod ir;
 pub mod lower;
 pub mod span;
+mod ssr;
 
 use serde::{Deserialize, Serialize};
 
@@ -49,6 +51,9 @@ impl From<PureDefineElementMode> for bool {
     }
 }
 
+// These flags are independent compiler switches rather than mutually exclusive
+// states, so collapsing them into enums would only obscure the public options.
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TransformModuleOptions {
@@ -62,6 +67,10 @@ pub struct TransformModuleOptions {
     pub hmr: bool,
     #[serde(default)]
     pub pure_define_element: PureDefineElementMode,
+    /// Emits a second, marker-driven adoption body per component so
+    /// `render(value, container, { hydrate: true })` can reuse server markup.
+    #[serde(default)]
+    pub auto_hydrate: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -86,6 +95,7 @@ pub struct TransformModuleResult {
     pub map: Option<RawSourceMap>,
     pub diagnostics: Vec<CompilerDiagnostic>,
     pub hydration_plan: Option<HydrationPlan>,
+    pub hmr_plan: Option<hmr::HmrPlan>,
 }
 
 pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResult {
@@ -96,6 +106,7 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
             map: None,
             diagnostics: lowered.diagnostics,
             hydration_plan: None,
+            hmr_plan: None,
         };
     }
 
@@ -105,6 +116,7 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
             map: None,
             diagnostics: Vec::new(),
             hydration_plan: None,
+            hmr_plan: None,
         };
     };
 
@@ -119,6 +131,7 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
             map: None,
             diagnostics: Vec::new(),
             hydration_plan: None,
+            hmr_plan: None,
         };
     }
 
@@ -135,7 +148,21 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
                 )
             }).collect(),
             hydration_plan: None,
+            hmr_plan: None,
         };
+    }
+
+    if options.target == TransformTarget::Ssr {
+        let diagnostics = ssr::validate_ssr_properties(&ir, &options.filename);
+        if !diagnostics.is_empty() {
+            return TransformModuleResult {
+                code: String::new(),
+                map: None,
+                diagnostics,
+                hydration_plan: None,
+                hmr_plan: None,
+            };
+        }
     }
 
     let hydration_plan = hydration::build_hydration_plan(&ir);
@@ -149,6 +176,7 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
             reserved_names: &lowered.reserved_names,
             define_element_calls: &lowered.pure_define_element_calls,
             ssr_runtime_imports: &lowered.ssr_runtime_imports,
+            auto_hydrate: options.auto_hydrate,
         })
     } else {
         codegen::emit_module(&codegen::EmitModuleOptions {
@@ -163,6 +191,7 @@ pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResul
             hmr: &lowered.hmr,
             pure_define_element: options.pure_define_element,
             pure_define_element_calls: &lowered.pure_define_element_calls,
+            auto_hydrate: options.auto_hydrate,
         })
     };
     result.hydration_plan = hydration_plan;

@@ -42,6 +42,7 @@
 | `@zeus-js/compiler-native-win32-x64-msvc`   | `packages/core/compiler-native-win32-x64-msvc`   | 0.1.1-beta.20 | core     | Windows x64 MSVC 原生二进制（安装可选依赖）   |
 | `@zeus-js/shared`                           | `packages/core/shared`                           | 0.1.1-beta.20 | core     | 内部工具函数，无外部依赖                      |
 | `@zeus-js/vite-plugin`                      | `packages/devtools/vite-plugin`                  | 0.0.5         | devtools | Vite 集成插件                                 |
+| `@zeus-js/eslint-plugin`                    | `packages/devtools/eslint-plugin`                | 0.1.1-beta.20 | devtools | Zeus 源码与编译器内置节点 ESLint 规则         |
 | `create-zeus`                               | `packages/devtools/create-zeus`                  | 0.1.5         | devtools | 项目脚手架生成器（CLI）                       |
 | `@zeus-js/output-wc`                        | `packages/web-c/output-wc`                       | 0.1.1-beta.20 | web-c    | Web Component 输出插件                        |
 | `@zeus-js/output-react-wrapper`             | `packages/web-c/output-react-wrapper`            | 0.1.1-beta.20 | web-c    | React wrapper 输出插件                        |
@@ -81,6 +82,9 @@
 
 @zeus-js/vite-plugin
 └── @zeus-js/compiler-native
+
+@zeus-js/eslint-plugin
+└── eslint (peer)
 
 @zeus-js/web-c
 ├── @zeus-js/output-css
@@ -263,10 +267,13 @@ downstream package code must not import it.
 import { createRuntimeDiagnosticsSession } from '@zeus-js/signal/diagnostics'
 ```
 
-该入口统计 effect、scope、ref、memo 和 Proxy cache miss 的创建，以及 effect
-与 scope 的确定性释放。它不提供由 GC 管理对象的伪释放计数，也不代表完整的 JS
-heap allocation profile。`run()` 只接受同步 callback；callback 内创建的 effect/scope
-会保留后续同步运行的归因，但 Promise continuation 不会被隐式纳入 session。
+该入口统计 effect、scope、ref、memo、Proxy cache miss，以及 runtime-dom 的
+owner、DOM binding 和元素上原生 listener 的创建；这些确定性资源也会记录释放计数，
+且释放始终计入创建时所在的 session。`delegateEvents` 注册的 document 共享 listener
+属于进程级资源，不计入 session。
+它不提供由 GC 管理对象的伪释放计数，也不代表完整的 JS heap allocation
+profile。`run()` 只接受同步 callback；callback 内创建的 effect/scope 会保留后续
+同步运行的归因，但 Promise continuation 不会被隐式纳入 session。
 
 ---
 
@@ -315,6 +322,15 @@ export {
 
 // events
 export { bindEvent, delegateEvents }
+
+// forms and errors
+export {
+  createForm,
+  fromSafeParse,
+  formDataToValues,
+  captureErrorBoundary,
+  reportError,
+}
 
 // refs
 export { setRef, bindRef }
@@ -525,9 +541,9 @@ export * from './typeUtils' // 类型工具
 
 ### 3.6 `@zeus-js/testing`
 
-**用途**：面向组件和应用测试的官方组合工具。测试代码只需依赖
-`@zeus-js/zeus` 的公共入口，不应导入 `@zeus-js/runtime-dom` 或
-`@zeus-js/signal/internal`。
+**用途**：面向组件和应用测试的官方组合工具。测试代码依赖
+`@zeus-js/zeus` 和公开的 `@zeus-js/signal/diagnostics`，不应导入
+`@zeus-js/runtime-dom` 或 `@zeus-js/signal/internal`。
 
 ```ts
 import {
@@ -535,6 +551,8 @@ import {
   flushEffects,
   queryByRole,
   render,
+  userEvent,
+  waitFor,
 } from '@zeus-js/testing'
 
 const view = render(() => <button onClick={() => {}}>Save</button>)
@@ -549,6 +567,9 @@ view.dispose()
 - `fireEvent(element, eventOrType, init?)`：派发事件，并提供 `click`、`input`、`change`、`submit`、`focus`、`blur` 便利方法。
 - `flushEffects()`：等待当前微任务队列完成后再断言异步 effect 结果。
 - `queryByRole(container, role, options?)`：按显式或常用隐式 ARIA role 查询，并支持 `aria-label`、`aria-labelledby`、`alt`、`title` 与文本 accessible name。
+- `userEvent`：提供 click、type、keyboard、composition 和 clear 的用户输入流程。
+- `waitFor` / `waitForElement`：带超时的异步断言与 DOM 查询。
+- `cleanup`、`startLeakCheck`、`renderSSR`、`hydrateSSR`：测试生命周期、运行时资源、SSR 和 hydration 辅助。
 
 该包提供 DOM 测试组合，不负责启动浏览器、网络请求或快照；浏览器级场景继续使用 Playwright/Puppeteer。
 
@@ -571,7 +592,16 @@ export interface ZeusVitePluginOptions {
   exclude?: RegExp | RegExp[] // 排除的文件，默认 node_modules
   hmr?: boolean // dev server 顶层 render root 自动 dispose/remount，默认 true
   ssrModuleName?: string // SSR runtime 模块，默认 @zeus-js/runtime-ssr
-  compiler?: { moduleName?: string; delegateEvents?: boolean } // native transform 选项
+  compiler?: {
+    moduleName?: string
+    delegateEvents?: boolean
+    cache?:
+      | boolean
+      | {
+          enabled?: boolean
+          onEvent?: (event: CompilerCacheEvent) => void
+        }
+  } // native transform 选项
 }
 ```
 
@@ -791,7 +821,7 @@ pnpm add @zeus-js/web-c
 pnpm add @zeus-js/output-wc @zeus-js/output-react-wrapper @zeus-js/output-vue-wrapper @zeus-js/output-css
 
 # CLI
-pnpm add -D @zeus-js/vite-plugin create-zeus
+pnpm add -D @zeus-js/vite-plugin @zeus-js/eslint-plugin eslint typescript-eslint create-zeus
 pnpm add @zeus-ui/registry
 pnpm add @zeus-ui/cli
 ```
@@ -808,14 +838,15 @@ pnpm add @zeus-ui/cli
 `internal.cjs` 与 `diagnostics.cjs` 按 `NODE_ENV` 选择同一套 signal engine，避免公共
 API、runtime helper 与 diagnostics 各自持有响应式状态。
 
-| 包                     | ESM 入口                          | CJS 开发 / 生产产物                                  | 全局 CDN                     |
-| ---------------------- | --------------------------------- | ---------------------------------------------------- | ---------------------------- |
-| `@zeus-js/zeus`        | `dist/zeus.esm-bundler.js`        | `dist/zeus.cjs` / `dist/zeus.prod.cjs`               | `dist/zeus.global.js`        |
-| `@zeus-js/signal`      | `dist/signal.esm-bundler.js`      | `dist/signal.cjs` / `dist/signal.prod.cjs`           | `dist/signal.global.js`      |
-| `@zeus-js/runtime-dom` | `dist/runtime-dom.esm-bundler.js` | `dist/runtime-dom.cjs` / `dist/runtime-dom.prod.cjs` | `dist/runtime-dom.global.js` |
-| `@zeus-js/compiler`    | `dist/compiler.esm-bundler.js`    | `dist/compiler.cjs` / `dist/compiler.prod.cjs`       | `dist/compiler.global.js`    |
-| `@zeus-js/shared`      | `dist/shared.esm-bundler.js`      | `dist/shared.cjs` / `dist/shared.prod.cjs`           | —                            |
-| `@zeus-js/vite-plugin` | `dist/vite-plugin.esm-bundler.js` | `dist/vite-plugin.cjs` / `dist/vite-plugin.prod.cjs` | —                            |
+| 包                       | ESM 入口                            | CJS 开发 / 生产产物                                      | 全局 CDN                     |
+| ------------------------ | ----------------------------------- | -------------------------------------------------------- | ---------------------------- |
+| `@zeus-js/zeus`          | `dist/zeus.esm-bundler.js`          | `dist/zeus.cjs` / `dist/zeus.prod.cjs`                   | `dist/zeus.global.js`        |
+| `@zeus-js/signal`        | `dist/signal.esm-bundler.js`        | `dist/signal.cjs` / `dist/signal.prod.cjs`               | `dist/signal.global.js`      |
+| `@zeus-js/runtime-dom`   | `dist/runtime-dom.esm-bundler.js`   | `dist/runtime-dom.cjs` / `dist/runtime-dom.prod.cjs`     | `dist/runtime-dom.global.js` |
+| `@zeus-js/compiler`      | `dist/compiler.esm-bundler.js`      | `dist/compiler.cjs` / `dist/compiler.prod.cjs`           | `dist/compiler.global.js`    |
+| `@zeus-js/shared`        | `dist/shared.esm-bundler.js`        | `dist/shared.cjs` / `dist/shared.prod.cjs`               | —                            |
+| `@zeus-js/vite-plugin`   | `dist/vite-plugin.esm-bundler.js`   | `dist/vite-plugin.cjs` / `dist/vite-plugin.prod.cjs`     | —                            |
+| `@zeus-js/eslint-plugin` | `dist/eslint-plugin.esm-bundler.js` | `dist/eslint-plugin.cjs` / `dist/eslint-plugin.prod.cjs` | —                            |
 
 ## 附录 B：pnpm catalog 共享依赖版本
 

@@ -4,7 +4,7 @@ use oxc_sourcemap::SourceMapBuilder;
 
 use crate::{
     PureDefineElementMode, RawSourceMap, TransformModuleResult,
-    html::{is_raw_text_element, is_svg_element, is_void_element},
+    html::{is_custom_element, is_raw_text_element, is_svg_element, is_void_element},
     hydration::{component_root_marker_id, element_marker_id, node_marker_id, text_marker_id},
     ir::{
         AttributeIr, ChildIr, ComponentBindingIr, ComponentIr, ComponentPropIr,
@@ -13,10 +13,14 @@ use crate::{
         ForBindingIr, FragmentIr, ModuleIr, NodeId, RootIr, ShowBindingIr, StaticAttributeValue,
         TransitionBindingIr, TransitionOptionIr, is_children_expression,
     },
-    lower::HmrInfo,
+    lower::{HmrInfo, SsrImportReplacement, SsrImportRewrite},
+    span::SourceIndex,
 };
 
 #[derive(Clone, Copy)]
+// These flags are independent compiler switches rather than mutually exclusive
+// states, so collapsing them into enums would only obscure the public options.
+#[allow(clippy::struct_excessive_bools)]
 pub(crate) struct EmitModuleOptions<'a> {
     pub(crate) source: &'a str,
     pub(crate) filename: &'a str,
@@ -29,8 +33,10 @@ pub(crate) struct EmitModuleOptions<'a> {
     pub(crate) hmr: &'a HmrInfo,
     pub(crate) pure_define_element: PureDefineElementMode,
     pub(crate) pure_define_element_calls: &'a [oxc_span::Span],
+    pub(crate) auto_hydrate: bool,
 }
 
+#[allow(clippy::too_many_lines)]
 pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleResult {
     let EmitModuleOptions {
         source,
@@ -44,14 +50,25 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
         hmr,
         pure_define_element,
         pure_define_element_calls,
+        auto_hydrate,
     } = *options;
     let mut names = NameAllocator::new(reserved_names);
+    let hmr_module = prepare_hmr_module(options, &mut names);
+    let module = hmr_module.as_ref().map_or(module, |hmr| &hmr.module);
     let binding_sets = collect_component_bindings(module);
     let delegated_event_names = collect_delegated_events(module, enable_delegation);
-    let helper_usage =
+    let mut helper_usage =
         collect_module_helper_usage(module, &binding_sets, !delegated_event_names.is_empty());
+    if auto_hydrate {
+        helper_usage.0.insert(RuntimeHelper::AutoHydrateComponent);
+    }
     let locator_attribute = allocate_locator_attribute(module);
-    let runtime = RuntimeNames::allocate(&helper_usage, &locator_attribute, &mut names);
+    let runtime = RuntimeNames::allocate(
+        &helper_usage,
+        &locator_attribute,
+        enable_delegation,
+        &mut names,
+    );
 
     let mut generated = module
         .components
@@ -63,6 +80,7 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
         .collect::<Vec<_>>();
     intern_static_templates(&mut generated);
 
+    let source_index = SourceIndex::new(source);
     let mut writer = CodeWriter::default();
     let mut cursor = usize::try_from(module.preamble_end)
         .unwrap_or(usize::MAX)
@@ -74,14 +92,34 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
         pure_define_element.is_enabled(),
         pure_define_element_calls,
     );
-    push_source_range(&mut writer, source, 0, cursor, &source_insertions, false);
+    push_source_range(
+        &mut writer,
+        &source_index,
+        0,
+        cursor,
+        &source_insertions,
+        false,
+    );
     if cursor > 0 && !writer.code.ends_with('\n') {
         writer.push("\n");
     }
     if !module.components.is_empty() {
         emit_runtime_import(&mut writer, &runtime, runtime_module);
     }
-    emit_hmr_boundary(&mut writer, enable_hmr, hmr, &hmr_disposers);
+    emit_hmr_state(
+        &mut writer,
+        hmr_module.as_ref(),
+        runtime_module,
+        filename,
+        &mut names,
+    );
+    emit_hmr_boundary(
+        &mut writer,
+        enable_hmr,
+        hmr,
+        &hmr_disposers,
+        hmr_module.as_ref(),
+    );
 
     emit_templates(&mut writer, &generated, &runtime);
 
@@ -89,10 +127,11 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
         runtime: &runtime,
         locator_attribute: &locator_attribute,
         names: &mut names,
+        auto_hydrate,
     };
     cursor = emit_components(
         &mut writer,
-        source,
+        &source_index,
         cursor,
         &generated,
         &source_insertions,
@@ -100,7 +139,7 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
     );
     push_source_range(
         &mut writer,
-        source,
+        &source_index,
         cursor,
         source.len(),
         &source_insertions,
@@ -115,7 +154,55 @@ pub(crate) fn emit_module(options: &EmitModuleOptions<'_>) -> TransformModuleRes
         map,
         diagnostics: Vec::new(),
         hydration_plan: None,
+        hmr_plan: hmr_module.map(|hmr| hmr.plan),
     }
+}
+
+struct HmrModule {
+    module: ModuleIr,
+    plan: crate::hmr::HmrPlan,
+    state_name: String,
+}
+
+fn emit_hmr_state(
+    writer: &mut CodeWriter,
+    hmr: Option<&HmrModule>,
+    runtime_module: &str,
+    filename: &str,
+    names: &mut NameAllocator,
+) {
+    let Some(hmr) = hmr else {
+        return;
+    };
+    let helper = names.allocate("_zeusCreateHmrState");
+    let state_name = &hmr.state_name;
+    writer.push(&format!(
+        "import {{ createHmrState as {helper} }} from {};\nconst {state_name} = {helper}(import.meta.hot, {}, {});\n",
+        quote_js(runtime_module), quote_js(filename), serde_json::to_string(&hmr.plan).expect("HMR plan is JSON data"),
+    ));
+}
+
+fn prepare_hmr_module(
+    options: &EmitModuleOptions<'_>,
+    names: &mut NameAllocator,
+) -> Option<HmrModule> {
+    if !options.enable_hmr || options.hmr.manual_boundary || options.hmr.render_calls.is_empty() {
+        return None;
+    }
+    let state_name = names.allocate("_zeusHmrState");
+    let mut module = options.module.clone();
+    let plan = crate::hmr::prepare(
+        &mut module,
+        options.source,
+        options.runtime_module,
+        options.enable_delegation,
+        &state_name,
+    )?;
+    Some(HmrModule {
+        module,
+        plan,
+        state_name,
+    })
 }
 
 fn intern_static_templates(components: &mut [GeneratedComponent]) {
@@ -203,11 +290,26 @@ struct ComponentEmitter<'a> {
     runtime: &'a RuntimeNames,
     locator_attribute: &'a str,
     names: &'a mut NameAllocator,
+    auto_hydrate: bool,
+}
+
+/// Closes an SSR dynamic text node; `hydrate` in `@zeus-js/runtime-dom` reads
+/// it as `zeus:hydrate:/`.
+const SSR_TEXT_END_MARKER: &str = "<!--zeus:hydrate:/-->";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SsrTextContext {
+    Normal,
+    Raw,
+    Rcdata,
+    /// `<script>`/`<style>` inside SVG. The HTML parser does not treat those
+    /// as raw text in foreign content, so the content uses ordinary escaping.
+    ForeignRaw,
 }
 
 fn emit_components(
     writer: &mut CodeWriter,
-    source: &str,
+    source_index: &SourceIndex<'_>,
     mut cursor: usize,
     components: &[GeneratedComponent],
     source_insertions: &[SourceInsertion],
@@ -216,16 +318,24 @@ fn emit_components(
     for component in components {
         let start = usize::try_from(component.start).unwrap_or(usize::MAX);
         let end = usize::try_from(component.end).unwrap_or(usize::MAX);
-        if start < cursor || end > source.len() {
+        if start < cursor || end > source_index.source().len() {
             continue;
         }
-        push_source_range(writer, source, cursor, start, source_insertions, false);
+        push_source_range(
+            writer,
+            source_index,
+            cursor,
+            start,
+            source_insertions,
+            false,
+        );
         emit_component(
             writer,
             component,
             emitter.runtime,
             emitter.locator_attribute,
             emitter.names,
+            emitter.auto_hydrate,
         );
         cursor = end;
     }
@@ -265,7 +375,7 @@ fn allocate_hmr_insertions(
 
 fn push_source_range(
     writer: &mut CodeWriter,
-    source: &str,
+    source_index: &SourceIndex<'_>,
     start: usize,
     end: usize,
     insertions: &[SourceInsertion],
@@ -279,11 +389,11 @@ fn push_source_range(
         {
             continue;
         }
-        writer.push(&source[cursor..insertion.offset]);
+        writer.push_original(source_index, cursor, insertion.offset);
         writer.push(&insertion.text);
         cursor = insertion.offset;
     }
-    writer.push(&source[cursor..end]);
+    writer.push_original(source_index, cursor, end);
 }
 
 #[derive(Debug, Clone)]
@@ -302,7 +412,14 @@ fn allocate_source_insertions(
     for insertion in hmr_insertions {
         insertions.push(SourceInsertion {
             offset: insertion.start,
-            text: format!("({hmr_disposers}.push("),
+            // A statement-level wrapper starts with "("; without a leading
+            // semicolon, a preceding declaration without an explicit
+            // semicolon is parsed as a call on that declaration's value.
+            text: if insertion.terminate_statement {
+                format!(";({hmr_disposers}.push(")
+            } else {
+                format!("({hmr_disposers}.push(")
+            },
         });
         insertions.push(SourceInsertion {
             offset: insertion.end,
@@ -330,7 +447,13 @@ fn allocate_source_insertions(
     insertions
 }
 
-fn emit_hmr_boundary(writer: &mut CodeWriter, enabled: bool, hmr: &HmrInfo, disposers: &str) {
+fn emit_hmr_boundary(
+    writer: &mut CodeWriter,
+    enabled: bool,
+    hmr: &HmrInfo,
+    disposers: &str,
+    state: Option<&HmrModule>,
+) {
     if !enabled || hmr.manual_boundary || disposers.is_empty() {
         return;
     }
@@ -347,7 +470,11 @@ fn emit_hmr_boundary(writer: &mut CodeWriter, enabled: bool, hmr: &HmrInfo, disp
     writer.push(".splice(0).reverse()) {\n");
     writer.push("      try { dispose() } catch (error) {\n");
     writer.push("        console.error('[Zeus HMR] root disposal failed', error)\n");
-    writer.push("      }\n    }\n  })\n}\n");
+    writer.push("      }\n    }\n");
+    if let Some(state) = state {
+        writer.push(&format!("    {}.dispose()\n", state.state_name));
+    }
+    writer.push("  })\n}\n");
 }
 
 pub(crate) struct SsrModuleOptions<'a> {
@@ -358,7 +485,8 @@ pub(crate) struct SsrModuleOptions<'a> {
     pub(crate) module: &'a ModuleIr,
     pub(crate) reserved_names: &'a [String],
     pub(crate) define_element_calls: &'a [oxc_span::Span],
-    pub(crate) ssr_runtime_imports: &'a [oxc_span::Span],
+    pub(crate) ssr_runtime_imports: &'a [SsrImportRewrite],
+    pub(crate) auto_hydrate: bool,
 }
 
 pub(crate) fn emit_ssr_module(options: &SsrModuleOptions<'_>) -> TransformModuleResult {
@@ -371,11 +499,14 @@ pub(crate) fn emit_ssr_module(options: &SsrModuleOptions<'_>) -> TransformModule
         reserved_names,
         define_element_calls,
         ssr_runtime_imports,
+        auto_hydrate,
     } = *options;
     let mut names = NameAllocator::new(reserved_names);
-    let runtime = SsrRuntimeNames::allocate(&mut names);
+    let runtime = SsrRuntimeNames::allocate(&mut names, auto_hydrate);
+    let source_index = SourceIndex::new(source);
     let source_emitter = SsrSourceEmitter {
         source,
+        source_index: &source_index,
         runtime_module,
         define_element_calls,
         ssr_runtime_imports,
@@ -409,7 +540,13 @@ pub(crate) fn emit_ssr_module(options: &SsrModuleOptions<'_>) -> TransformModule
             continue;
         }
         source_emitter.emit(&mut writer, cursor, start);
-        emit_ssr_root(&mut writer, &component.root, &runtime, component.id);
+        emit_ssr_root(
+            &mut writer,
+            &component.root,
+            &runtime,
+            component.id,
+            auto_hydrate,
+        );
         cursor = end;
     }
     source_emitter.emit(&mut writer, cursor, source.len());
@@ -420,14 +557,16 @@ pub(crate) fn emit_ssr_module(options: &SsrModuleOptions<'_>) -> TransformModule
         map,
         diagnostics: Vec::new(),
         hydration_plan: None,
+        hmr_plan: None,
     }
 }
 
 struct SsrSourceEmitter<'a> {
     source: &'a str,
+    source_index: &'a SourceIndex<'a>,
     runtime_module: &'a str,
     define_element_calls: &'a [oxc_span::Span],
-    ssr_runtime_imports: &'a [oxc_span::Span],
+    ssr_runtime_imports: &'a [SsrImportRewrite],
     runtime: &'a SsrRuntimeNames,
 }
 
@@ -441,10 +580,24 @@ impl SsrSourceEmitter<'_> {
                 let name_end = identifier_end(self.source, start, self.source.len())?;
                 Some((start, name_end, self.runtime.define_element().to_string()))
             })
-            .chain(self.ssr_runtime_imports.iter().filter_map(|span| {
-                let start = usize::try_from(span.start).ok()?;
-                let end = usize::try_from(span.end).ok()?;
-                Some((start, end, quote_js(self.runtime_module)))
+            .chain(self.ssr_runtime_imports.iter().filter_map(|rewrite| {
+                let start = usize::try_from(rewrite.span.start).ok()?;
+                let end = usize::try_from(rewrite.span.end).ok()?;
+                let replacement = match &rewrite.replacement {
+                    SsrImportReplacement::ModuleSource => quote_js(self.runtime_module),
+                    SsrImportReplacement::Split {
+                        facade,
+                        client,
+                        module,
+                    } => format!(
+                        "import {{ {} }} from {}; import {{ {} }} from {};",
+                        facade.join(", "),
+                        quote_js(self.runtime_module),
+                        client.join(", "),
+                        quote_js(module),
+                    ),
+                };
+                Some((start, end, replacement))
             }))
             .filter(|(replacement_start, replacement_end, _)| {
                 *replacement_start >= start
@@ -460,11 +613,11 @@ impl SsrSourceEmitter<'_> {
             if replacement_start < cursor {
                 continue;
             }
-            writer.push(&self.source[cursor..replacement_start]);
+            writer.push_original(self.source_index, cursor, replacement_start);
             writer.push(&replacement);
             cursor = replacement_end;
         }
-        writer.push(&self.source[cursor..end]);
+        writer.push_original(self.source_index, cursor, end);
     }
 }
 
@@ -489,6 +642,7 @@ fn emit_ssr_root(
     root: &RootIr,
     runtime: &SsrRuntimeNames,
     component_id: NodeId,
+    auto_hydrate: bool,
 ) {
     writer.push("[");
     emit_ssr_marker(writer, runtime, &component_root_marker_id(component_id));
@@ -496,7 +650,13 @@ fn emit_ssr_root(
     match root {
         RootIr::Element(element) => emit_ssr_element(writer, element, runtime, component_id),
         RootIr::Fragment(fragment) => {
-            emit_ssr_children(writer, &fragment.children, runtime, false, component_id);
+            emit_ssr_children(
+                writer,
+                &fragment.children,
+                runtime,
+                SsrTextContext::Normal,
+                component_id,
+            );
         }
         RootIr::Component(component) => {
             emit_ssr_component(writer, component, runtime, component_id);
@@ -508,6 +668,10 @@ fn emit_ssr_root(
         }
         RootIr::ErrorBoundary(_) => unreachable!("ErrorBoundary SSR is rejected before codegen"),
     }
+    if auto_hydrate {
+        writer.push(", ");
+        emit_ssr_close_marker(writer, runtime, &component_root_marker_id(component_id));
+    }
     writer.push("]");
 }
 
@@ -515,30 +679,49 @@ fn emit_ssr_child(
     writer: &mut CodeWriter,
     child: &ChildIr,
     runtime: &SsrRuntimeNames,
-    raw_text: bool,
+    text_context: SsrTextContext,
     component_id: NodeId,
 ) {
     match child {
         ChildIr::Element(element) => {
-            emit_ssr_element_with_context(writer, element, runtime, raw_text, component_id);
+            emit_ssr_element(writer, element, runtime, component_id);
         }
         ChildIr::Fragment(fragment) => {
-            emit_ssr_children(writer, &fragment.children, runtime, raw_text, component_id);
+            emit_ssr_children(
+                writer,
+                &fragment.children,
+                runtime,
+                text_context,
+                component_id,
+            );
         }
         ChildIr::Text(text) => {
-            if raw_text {
+            if text_context == SsrTextContext::Raw {
                 writer.push(&quote_js(&text.value));
             } else {
                 writer.push(runtime.static_text());
                 writer.push("(");
-                writer.push(&quote_js(&text.value));
+                writer.push(&quote_js(&escape_html_text(&text.value)));
                 writer.push(")");
             }
         }
-        ChildIr::DynamicText(text) => {
-            if raw_text {
+        ChildIr::DynamicText(text) => match text_context {
+            SsrTextContext::Raw => {
                 writer.push_mapped(&text.expression.code, &text.expression);
-            } else {
+            }
+            // Foreign content is escaped like text, even though the tag name is
+            // `script` or `style`: the parser reads it as ordinary markup there.
+            // RCDATA content is bound through textContent on the client, so it
+            // is escaped like normal text but carries no hydration marker.
+            SsrTextContext::ForeignRaw | SsrTextContext::Rcdata => {
+                writer.push(runtime.text());
+                writer.push("(");
+                writer.push_mapped(&text.expression.code, &text.expression);
+                writer.push(")");
+            }
+            // The end boundary keeps the HTML parser from merging the value
+            // with adjacent static text and gives an empty value a position.
+            SsrTextContext::Normal => {
                 writer.push("[");
                 emit_ssr_marker(
                     writer,
@@ -549,10 +732,13 @@ fn emit_ssr_child(
                 writer.push(runtime.text());
                 writer.push("(");
                 writer.push_mapped(&text.expression.code, &text.expression);
-                writer.push(")");
-                writer.push("]");
+                writer.push("), ");
+                writer.push(runtime.static_text());
+                writer.push("(");
+                writer.push(&quote_js(SSR_TEXT_END_MARKER));
+                writer.push(")]");
             }
-        }
+        },
         ChildIr::Component(component) => {
             emit_ssr_component(writer, component, runtime, component_id);
         }
@@ -574,11 +760,11 @@ fn emit_ssr_children(
     writer: &mut CodeWriter,
     children: &[ChildIr],
     runtime: &SsrRuntimeNames,
-    raw_text: bool,
+    text_context: SsrTextContext,
     component_id: NodeId,
 ) {
     if children.len() == 1 {
-        emit_ssr_child(writer, &children[0], runtime, raw_text, component_id);
+        emit_ssr_child(writer, &children[0], runtime, text_context, component_id);
         return;
     }
     writer.push("[");
@@ -586,7 +772,7 @@ fn emit_ssr_children(
         if index > 0 {
             writer.push(", ");
         }
-        emit_ssr_child(writer, child, runtime, raw_text, component_id);
+        emit_ssr_child(writer, child, runtime, text_context, component_id);
     }
     writer.push("]");
 }
@@ -649,7 +835,7 @@ fn emit_ssr_dynamic_region(
                 writer.push(index);
             }
             writer.push(") => ");
-            emit_ssr_children(writer, body, runtime, false, component_id);
+            emit_ssr_children(writer, body, runtime, SsrTextContext::Normal, component_id);
             writer.push(")");
         }
         DynamicRegionExpressionIr::ArrayLiteral { items } => {
@@ -662,6 +848,14 @@ fn emit_ssr_dynamic_region(
             }
             writer.push("]");
         }
+    }
+    if runtime.auto_hydrate {
+        writer.push(", ");
+        emit_ssr_close_marker(
+            writer,
+            runtime,
+            &node_marker_id(component_id, "region", region.id),
+        );
     }
     writer.push("]");
 }
@@ -677,7 +871,13 @@ fn emit_ssr_dynamic_region_value(
             writer.push_mapped(&expression.code, expression);
         }
         DynamicRegionValueIr::Children(children) => {
-            emit_ssr_children(writer, children, runtime, false, component_id);
+            emit_ssr_children(
+                writer,
+                children,
+                runtime,
+                SsrTextContext::Normal,
+                component_id,
+            );
         }
     }
 }
@@ -686,16 +886,6 @@ fn emit_ssr_element(
     writer: &mut CodeWriter,
     element: &ElementIr,
     runtime: &SsrRuntimeNames,
-    component_id: NodeId,
-) {
-    emit_ssr_element_with_context(writer, element, runtime, false, component_id);
-}
-
-fn emit_ssr_element_with_context(
-    writer: &mut CodeWriter,
-    element: &ElementIr,
-    runtime: &SsrRuntimeNames,
-    _raw_text: bool,
     component_id: NodeId,
 ) {
     writer.push("[");
@@ -746,6 +936,8 @@ fn emit_ssr_element_with_context(
                     emit_ssr_expression_value(writer, &attribute.expression);
                     writer.push(")");
                 }
+                // Custom element properties are client-only on the server.
+                AttributeIr::Property(_) if is_custom_element(&element.tag_name) => {}
                 AttributeIr::Property(attribute) => {
                     if !first {
                         writer.push(", ");
@@ -769,11 +961,16 @@ fn emit_ssr_element_with_context(
             writer,
             &element.children,
             runtime,
-            is_unescaped_raw_text(&element.tag_name),
+            ssr_text_context(element),
             component_id,
         );
     } else if is_void_element(&element.tag_name) {
         writer.push(", undefined, true");
+    }
+    if element.namespace == "svg" && is_unescaped_raw_text(&element.tag_name) {
+        // Foreign `<script>`/`<style>` are ordinary elements to the parser, so
+        // the runtime must use text escaping instead of raw-text rewriting.
+        writer.push(", undefined, undefined, true");
     }
     writer.push(")");
     writer.push("]");
@@ -787,6 +984,13 @@ fn emit_ssr_marker(writer: &mut CodeWriter, runtime: &SsrRuntimeNames, id: &str)
     writer.push(runtime.hydration_marker());
     writer.push("(");
     writer.push(&quote_js(id));
+    writer.push(")");
+}
+
+fn emit_ssr_close_marker(writer: &mut CodeWriter, runtime: &SsrRuntimeNames, id: &str) {
+    writer.push(runtime.static_text());
+    writer.push("(");
+    writer.push(&quote_js(&format!("<!--zeus:hydrate:/{id}-->")));
     writer.push(")");
 }
 
@@ -857,7 +1061,13 @@ fn emit_ssr_component(
                         writer.push("get ");
                         writer.push(&object_key(&prop.name));
                         writer.push("() { return ");
-                        emit_ssr_children(writer, children, runtime, false, component_id);
+                        emit_ssr_children(
+                            writer,
+                            children,
+                            runtime,
+                            SsrTextContext::Normal,
+                            component_id,
+                        );
                         writer.push(" }");
                     }
                 }
@@ -893,7 +1103,13 @@ fn emit_ssr_show(
     writer.push("(() => ");
     writer.push_mapped(&show.when.code, &show.when);
     writer.push(", () => ");
-    emit_ssr_children(writer, &show.children, runtime, false, component_id);
+    emit_ssr_children(
+        writer,
+        &show.children,
+        runtime,
+        SsrTextContext::Normal,
+        component_id,
+    );
     if let Some(fallback) = &show.fallback {
         writer.push(", () => ");
         match fallback {
@@ -901,11 +1117,25 @@ fn emit_ssr_show(
                 emit_ssr_expression_value(writer, expression);
             }
             ComponentPropValueIr::Children(children) => {
-                emit_ssr_children(writer, children, runtime, false, component_id);
+                emit_ssr_children(
+                    writer,
+                    children,
+                    runtime,
+                    SsrTextContext::Normal,
+                    component_id,
+                );
             }
         }
     }
     writer.push(")");
+    if runtime.auto_hydrate {
+        writer.push(", ");
+        emit_ssr_close_marker(
+            writer,
+            runtime,
+            &node_marker_id(component_id, "show", show.id),
+        );
+    }
     writer.push("]");
 }
 
@@ -932,8 +1162,22 @@ fn emit_ssr_for(
         writer.push(index);
     }
     writer.push(") => ");
-    emit_ssr_children(writer, &for_binding.body, runtime, false, component_id);
+    emit_ssr_children(
+        writer,
+        &for_binding.body,
+        runtime,
+        SsrTextContext::Normal,
+        component_id,
+    );
     writer.push(")");
+    if runtime.auto_hydrate {
+        writer.push(", ");
+        emit_ssr_close_marker(
+            writer,
+            runtime,
+            &node_marker_id(component_id, "for", for_binding.id),
+        );
+    }
     writer.push("]");
 }
 
@@ -954,8 +1198,23 @@ fn emit_ssr_transition(
     writer.push(", (");
     writer.push_mapped(&transition.when.code, &transition.when);
     writer.push(" ? ");
-    emit_ssr_children(writer, &transition.children, runtime, false, component_id);
-    writer.push(" : null)]");
+    emit_ssr_children(
+        writer,
+        &transition.children,
+        runtime,
+        SsrTextContext::Normal,
+        component_id,
+    );
+    writer.push(" : null)");
+    if runtime.auto_hydrate {
+        writer.push(", ");
+        emit_ssr_close_marker(
+            writer,
+            runtime,
+            &node_marker_id(component_id, "transition", transition.id),
+        );
+    }
+    writer.push("]");
 }
 
 fn emit_delegated_events(
@@ -1002,6 +1261,592 @@ fn emit_component(
     runtime: &RuntimeNames,
     locator_attribute: &str,
     names: &mut NameAllocator,
+    auto_hydrate: bool,
+) {
+    if auto_hydrate {
+        emit_auto_hydrated_component(writer, component, runtime, locator_attribute, names);
+    } else {
+        emit_component_create_body(writer, component, runtime, locator_attribute, names);
+    }
+}
+
+fn emit_auto_hydrated_component(
+    writer: &mut CodeWriter,
+    component: &GeneratedComponent,
+    runtime: &RuntimeNames,
+    locator_attribute: &str,
+    names: &mut NameAllocator,
+) {
+    let handle = names.allocate("$zeusHydration");
+    writer.push(runtime.auto_hydrate_component());
+    writer.push("(");
+    writer.push(&component.id().to_string());
+    writer.push(", ");
+    writer.push(&quote_js(&component_root_marker_id(component.id())));
+    writer.push(", (");
+    writer.push(&handle);
+    writer.push(") => {\n");
+    emit_auto_hydration_root(writer, component, &handle, runtime, names);
+    writer.push("}, () => ");
+    emit_component_create_body(writer, component, runtime, locator_attribute, names);
+    writer.push(")");
+}
+
+fn emit_auto_hydration_root(
+    writer: &mut CodeWriter,
+    component: &GeneratedComponent,
+    handle: &str,
+    runtime: &RuntimeNames,
+    names: &mut NameAllocator,
+) {
+    emit_hydration_element_targets(writer, component, handle);
+
+    match &component.root {
+        RootIr::Component(child) => emit_auto_hydration_component_child(
+            writer,
+            handle,
+            component.id(),
+            child,
+            runtime,
+            names,
+        ),
+        RootIr::Show(show) => {
+            let marker = names.allocate("$zeusHydrationRegion");
+            emit_auto_hydration_region(
+                writer,
+                handle,
+                component.id(),
+                "show",
+                show.id,
+                &marker,
+                |writer, marker| {
+                    emit_show_mount_call(
+                        writer,
+                        &format!("{marker}.parentNode"),
+                        marker,
+                        show,
+                        runtime,
+                        names,
+                    );
+                },
+            );
+        }
+        RootIr::For(for_binding) => {
+            let marker = names.allocate("$zeusHydrationRegion");
+            emit_auto_hydration_region(
+                writer,
+                handle,
+                component.id(),
+                "for",
+                for_binding.id,
+                &marker,
+                |writer, marker| {
+                    emit_for_mount_call(
+                        writer,
+                        &format!("{marker}.parentNode"),
+                        marker,
+                        for_binding,
+                        runtime,
+                        names,
+                    );
+                },
+            );
+        }
+        RootIr::Transition(transition) => {
+            let marker = names.allocate("$zeusHydrationRegion");
+            emit_auto_hydration_region(
+                writer,
+                handle,
+                component.id(),
+                "transition",
+                transition.id,
+                &marker,
+                |writer, marker| {
+                    emit_transition_mount_call(
+                        writer,
+                        &format!("{marker}.parentNode"),
+                        marker,
+                        transition,
+                        runtime,
+                        names,
+                    );
+                },
+            );
+        }
+        RootIr::ErrorBoundary(_) | RootIr::Element(_) | RootIr::Fragment(_) => {}
+    }
+
+    for binding in &component.bindings {
+        emit_auto_hydration_binding(
+            writer,
+            component.id(),
+            binding,
+            component,
+            handle,
+            runtime,
+            names,
+        );
+    }
+}
+
+fn emit_hydration_element_targets(
+    writer: &mut CodeWriter,
+    component: &GeneratedComponent,
+    handle: &str,
+) {
+    for target in &component.targets {
+        let Some(element) = find_element_in_root(&component.root, target.id) else {
+            continue;
+        };
+        writer.push("const ");
+        writer.push(&target.name);
+        writer.push(" = ");
+        writer.push(handle);
+        writer.push(".element(");
+        writer.push(&quote_js(&element_marker_id(component.id(), target.id)));
+        writer.push(", ");
+        emit_hydration_element_shape(writer, element);
+        writer.push(");\n");
+    }
+}
+
+fn emit_hydration_element_shape(writer: &mut CodeWriter, element: &ElementIr) {
+    writer.push("{ tag: ");
+    writer.push(&quote_js(&element.tag_name));
+
+    if !element_has_spread(element) {
+        let static_attributes = element
+            .attributes
+            .iter()
+            .filter_map(|attribute| match attribute {
+                AttributeIr::Static(attribute) => Some(attribute),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        if !static_attributes.is_empty() {
+            writer.push(", staticAttributes: [");
+            for (index, attribute) in static_attributes.iter().enumerate() {
+                if index > 0 {
+                    writer.push(", ");
+                }
+                writer.push("[");
+                writer.push(&quote_js(&attribute.name));
+                writer.push(", ");
+                match &attribute.value {
+                    StaticAttributeValue::String(value) => writer.push(&quote_js(value)),
+                    StaticAttributeValue::Boolean => writer.push("\"\""),
+                }
+                writer.push("]");
+            }
+            writer.push("]");
+        }
+    }
+
+    if !element.children.is_empty()
+        && element
+            .children
+            .iter()
+            .all(|child| matches!(child, ChildIr::Element(_)))
+    {
+        writer.push(", childTags: [");
+        for (index, child) in element.children.iter().enumerate() {
+            if index > 0 {
+                writer.push(", ");
+            }
+            let ChildIr::Element(child) = child else {
+                unreachable!("childTags only contains element children")
+            };
+            writer.push(&quote_js(&child.tag_name));
+        }
+        writer.push("]");
+    }
+
+    writer.push(" }");
+}
+
+fn find_element_in_root(root: &RootIr, id: NodeId) -> Option<&ElementIr> {
+    match root {
+        RootIr::Element(element) => find_element_in_element(element, id),
+        RootIr::Fragment(fragment) => find_element_in_children(&fragment.children, id),
+        RootIr::Component(component) => find_element_in_component(component, id),
+        RootIr::Show(show) => find_element_in_children(&show.children, id).or_else(|| {
+            show.fallback.as_ref().and_then(|fallback| match fallback {
+                ComponentPropValueIr::Children(children) => find_element_in_children(children, id),
+                ComponentPropValueIr::Expression(_) => None,
+            })
+        }),
+        RootIr::For(for_binding) => find_element_in_children(&for_binding.body, id),
+        RootIr::Transition(transition) => find_element_in_children(&transition.children, id),
+        RootIr::ErrorBoundary(boundary) => find_element_in_children(&boundary.children, id),
+    }
+}
+
+fn find_element_in_component(component: &ComponentBindingIr, id: NodeId) -> Option<&ElementIr> {
+    component
+        .props
+        .iter()
+        .filter_map(ComponentPropIr::named)
+        .find_map(|prop| match &prop.value {
+            ComponentPropValueIr::Children(children) => find_element_in_children(children, id),
+            ComponentPropValueIr::Expression(_) => None,
+        })
+}
+
+fn find_element_in_children(children: &[ChildIr], id: NodeId) -> Option<&ElementIr> {
+    children.iter().find_map(|child| match child {
+        ChildIr::Element(element) => find_element_in_element(element, id),
+        ChildIr::Fragment(fragment) => find_element_in_children(&fragment.children, id),
+        ChildIr::Component(component) => find_element_in_component(component, id),
+        ChildIr::Show(show) => find_element_in_children(&show.children, id).or_else(|| {
+            show.fallback.as_ref().and_then(|fallback| match fallback {
+                ComponentPropValueIr::Children(children) => find_element_in_children(children, id),
+                ComponentPropValueIr::Expression(_) => None,
+            })
+        }),
+        ChildIr::For(for_binding) => find_element_in_children(&for_binding.body, id),
+        ChildIr::Transition(transition) => find_element_in_children(&transition.children, id),
+        ChildIr::ErrorBoundary(boundary) => find_element_in_children(&boundary.children, id),
+        ChildIr::DynamicRegion(_) | ChildIr::Text(_) | ChildIr::DynamicText(_) => None,
+    })
+}
+
+fn find_element_in_element(element: &ElementIr, id: NodeId) -> Option<&ElementIr> {
+    if element.id == id {
+        return Some(element);
+    }
+    find_element_in_children(&element.children, id)
+}
+
+fn emit_auto_hydration_component_child(
+    writer: &mut CodeWriter,
+    handle: &str,
+    component_id: NodeId,
+    child: &ComponentBindingIr,
+    runtime: &RuntimeNames,
+    names: &mut NameAllocator,
+) {
+    let marker_id = node_marker_id(component_id, "component", child.id);
+    if child.kind == "Slot" {
+        writer.push(handle);
+        writer.push(".slot(");
+        writer.push(&quote_js(&marker_id));
+        writer.push(");\n");
+        return;
+    }
+    writer.push(handle);
+    writer.push(".child(");
+    writer.push(&quote_js(&marker_id));
+    writer.push(", () => ");
+    emit_component_call(writer, child, runtime, names);
+    writer.push(");\n");
+}
+
+fn emit_auto_hydration_region<F>(
+    writer: &mut CodeWriter,
+    handle: &str,
+    component_id: NodeId,
+    kind: &str,
+    node_id: NodeId,
+    marker: &str,
+    mount: F,
+) where
+    F: FnOnce(&mut CodeWriter, &str),
+{
+    writer.push("const ");
+    writer.push(marker);
+    writer.push(" = ");
+    writer.push(handle);
+    writer.push(".region(");
+    writer.push(&quote_js(&node_marker_id(component_id, kind, node_id)));
+    writer.push(");\n");
+    writer.push(handle);
+    writer.push(".mount(() => {\n");
+    mount(writer, marker);
+    writer.push("});\n");
+}
+
+// Kept as one exhaustive match so every binding kind stays visible next to the
+// hydration protocol it emits; splitting it would spread one contract over many
+// small functions.
+#[allow(clippy::too_many_lines)]
+fn emit_auto_hydration_binding(
+    writer: &mut CodeWriter,
+    component_id: NodeId,
+    binding: &DynamicBinding,
+    component: &GeneratedComponent,
+    handle: &str,
+    runtime: &RuntimeNames,
+    names: &mut NameAllocator,
+) {
+    match binding {
+        DynamicBinding::Text {
+            node_id,
+            expression,
+            once,
+        } => {
+            let expected = names.allocate("$zeusHydrationExpected");
+            let text = names.allocate("$zeusHydrationText");
+            writer.push("const ");
+            writer.push(&expected);
+            writer.push(" = ");
+            writer.push_dom_expression(expression);
+            writer.push(";\nconst ");
+            writer.push(&text);
+            writer.push(" = ");
+            writer.push(handle);
+            writer.push(".text(");
+            writer.push(&quote_js(&text_marker_id(component_id, *node_id)));
+            writer.push(", ");
+            writer.push(&expected);
+            writer.push(");\n");
+            writer.push(runtime.bind_text());
+            writer.push("(");
+            writer.push(&text);
+            writer.push(", () => (");
+            writer.push_dom_expression(expression);
+            writer.push(")");
+            if *once {
+                writer.push(", true");
+            }
+            writer.push(");\n");
+        }
+        DynamicBinding::Node {
+            node_id,
+            expression,
+        } => {
+            let region = names.allocate("$zeusHydrationTextRegion");
+            writer.push("const ");
+            writer.push(&region);
+            writer.push(" = ");
+            writer.push(handle);
+            writer.push(".textRegion(");
+            writer.push(&quote_js(&text_marker_id(component_id, *node_id)));
+            writer.push(");\n");
+            writer.push(handle);
+            writer.push(".mountText(");
+            writer.push(&region);
+            writer.push(", () => (");
+            writer.push_dom_expression(expression);
+            writer.push("));\n");
+        }
+        DynamicBinding::TextContent {
+            target_id,
+            parts,
+            once,
+        } => emit_text_content_binding(
+            writer,
+            component.target_name(*target_id),
+            parts,
+            *once,
+            runtime,
+        ),
+        DynamicBinding::Attribute {
+            target_id,
+            name,
+            expression,
+            kind,
+            once,
+        } => emit_attribute_binding(
+            writer,
+            component.target_name(*target_id),
+            name,
+            expression,
+            *kind,
+            *once,
+            runtime,
+        ),
+        DynamicBinding::Spread {
+            target_id,
+            attributes,
+        } => emit_spread_binding(
+            writer,
+            component.target_name(*target_id),
+            attributes,
+            runtime,
+            names,
+        ),
+        DynamicBinding::Property {
+            target_id,
+            name,
+            expression,
+            once,
+        } => emit_property_binding(
+            writer,
+            component.target_name(*target_id),
+            name,
+            expression,
+            *once,
+            runtime,
+        ),
+        DynamicBinding::Event {
+            target_id,
+            event_name,
+            handler,
+        } => emit_event_binding(
+            writer,
+            component.target_name(*target_id),
+            event_name,
+            handler,
+            runtime,
+            names,
+        ),
+        DynamicBinding::Ref {
+            target_id,
+            expression,
+        } => emit_ref_binding(
+            writer,
+            component.target_name(*target_id),
+            expression,
+            runtime,
+        ),
+        DynamicBinding::Component { component: child } => {
+            emit_auto_hydration_component_child(
+                writer,
+                handle,
+                component_id,
+                child,
+                runtime,
+                names,
+            );
+        }
+        DynamicBinding::ErrorBoundary { boundary } => {
+            let marker_id = node_marker_id(component_id, "region", boundary.id);
+            writer.push(handle);
+            writer.push(".unsupported(");
+            writer.push(&quote_js(&marker_id));
+            writer.push(");\n");
+        }
+        DynamicBinding::Show { show } => {
+            let marker = names.allocate("$zeusHydrationRegion");
+            emit_auto_hydration_region(
+                writer,
+                handle,
+                component_id,
+                "show",
+                show.id,
+                &marker,
+                |writer, marker| {
+                    emit_show_mount_call(
+                        writer,
+                        &format!("{marker}.parentNode"),
+                        marker,
+                        show,
+                        runtime,
+                        names,
+                    );
+                },
+            );
+        }
+        DynamicBinding::For { for_binding } => {
+            let marker = names.allocate("$zeusHydrationRegion");
+            emit_auto_hydration_region(
+                writer,
+                handle,
+                component_id,
+                "for",
+                for_binding.id,
+                &marker,
+                |writer, marker| {
+                    emit_for_mount_call(
+                        writer,
+                        &format!("{marker}.parentNode"),
+                        marker,
+                        for_binding,
+                        runtime,
+                        names,
+                    );
+                },
+            );
+        }
+        DynamicBinding::Transition { transition } => {
+            let marker = names.allocate("$zeusHydrationRegion");
+            emit_auto_hydration_region(
+                writer,
+                handle,
+                component_id,
+                "transition",
+                transition.id,
+                &marker,
+                |writer, marker| {
+                    emit_transition_mount_call(
+                        writer,
+                        &format!("{marker}.parentNode"),
+                        marker,
+                        transition,
+                        runtime,
+                        names,
+                    );
+                },
+            );
+        }
+        DynamicBinding::DynamicRegion { region } => {
+            let marker = names.allocate("$zeusHydrationRegion");
+            writer.push("const ");
+            writer.push(&marker);
+            writer.push(" = ");
+            writer.push(handle);
+            writer.push(".region(");
+            writer.push(&quote_js(&node_marker_id(
+                component_id,
+                "region",
+                region.id,
+            )));
+            writer.push(");\n");
+            writer.push(handle);
+            writer.push(".mount(() => {\n");
+            writer.push(runtime.mount_dynamic());
+            writer.push("(");
+            writer.push(&marker);
+            writer.push(".parentNode, ");
+            writer.push(&marker);
+            writer.push(", () => ");
+            emit_dynamic_region_value(writer, &region.expression, runtime, names);
+            writer.push(");\n});\n");
+        }
+    }
+}
+
+fn emit_spread_binding(
+    writer: &mut CodeWriter,
+    target: &str,
+    attributes: &[AttributeIr],
+    runtime: &RuntimeNames,
+    names: &mut NameAllocator,
+) {
+    writer.push(runtime.bind_spread());
+    writer.push("(");
+    writer.push(target);
+    writer.push(", ");
+    emit_attribute_sources(writer, attributes, Some(names));
+    let once = attributes
+        .iter()
+        .enumerate()
+        .filter_map(|(index, attr)| match attr {
+            AttributeIr::Dynamic(attr) if attr.once => Some(index),
+            AttributeIr::Property(attr) if attr.once => Some(index),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    if !once.is_empty() {
+        writer.push(", [");
+        for (index, value) in once.iter().enumerate() {
+            if index > 0 {
+                writer.push(", ");
+            }
+            writer.push(&value.to_string());
+        }
+        writer.push("]");
+    }
+    writer.push(");\n");
+}
+
+#[allow(clippy::too_many_lines)]
+fn emit_component_create_body(
+    writer: &mut CodeWriter,
+    component: &GeneratedComponent,
+    runtime: &RuntimeNames,
+    locator_attribute: &str,
+    names: &mut NameAllocator,
 ) {
     if component.bindings.is_empty() {
         if let Some(root_component) = &component.root_component {
@@ -1037,11 +1882,13 @@ fn emit_component(
 
     for binding in &component.bindings {
         match binding {
-            DynamicBinding::Text { expression, once } => {
+            DynamicBinding::Text {
+                expression, once, ..
+            } => {
                 emit_text_binding(writer, expression, *once, &markers[marker_index], runtime);
                 marker_index += 1;
             }
-            DynamicBinding::Node { expression } => {
+            DynamicBinding::Node { expression, .. } => {
                 emit_node_binding(writer, expression, &markers[marker_index], runtime);
                 marker_index += 1;
             }
@@ -1194,6 +2041,9 @@ fn emit_event_binding(
     writer.push(&quote_js(event_name));
     writer.push(", ");
     emit_event_handler(writer, handler, names);
+    if !runtime.should_delegate_event(event_name) {
+        writer.push(", false");
+    }
     writer.push(");\n");
 }
 
@@ -1928,7 +2778,7 @@ fn emit_inline_root(
         writer.push(", false, true");
     }
     writer.push(");\nreturn ");
-    emit_component(writer, &generated, runtime, locator_attribute, names);
+    emit_component(writer, &generated, runtime, locator_attribute, names, false);
     writer.push(";\n})()");
 }
 
@@ -2222,6 +3072,8 @@ fn render_child_template(child: &ChildIr, locator_attribute: &str, html: &mut St
 
 fn render_element(element: &ElementIr, locator_attribute: &str, html: &mut String) {
     let is_raw_text = is_raw_text_element(&element.tag_name);
+    let is_foreign_raw_text =
+        element.namespace == "svg" && is_unescaped_raw_text(&element.tag_name);
     html.push('<');
     html.push_str(&element.tag_name);
     for attribute in &element.attributes {
@@ -2262,7 +3114,9 @@ fn render_element(element: &ElementIr, locator_attribute: &str, html: &mut Strin
         match child {
             ChildIr::Element(element) => render_element(element, locator_attribute, html),
             ChildIr::Fragment(fragment) => render_fragment(fragment, locator_attribute, html),
-            ChildIr::Text(text) if is_unescaped_raw_text(&element.tag_name) => {
+            ChildIr::Text(text)
+                if is_unescaped_raw_text(&element.tag_name) && !is_foreign_raw_text =>
+            {
                 html.push_str(&text.value);
             }
             ChildIr::Text(text) => html.push_str(&escape_html_text(&text.value)),
@@ -2423,10 +3277,12 @@ fn collect_fragment_bindings(fragment: &FragmentIr, bindings: &mut Vec<DynamicBi
 fn dynamic_binding(dynamic: &crate::ir::DynamicTextIr) -> DynamicBinding {
     if is_children_expression(&dynamic.expression.code) {
         DynamicBinding::Node {
+            node_id: dynamic.reference.node_id,
             expression: dynamic.expression.clone(),
         }
     } else {
         DynamicBinding::Text {
+            node_id: dynamic.reference.node_id,
             expression: dynamic.expression.clone(),
             once: dynamic.once,
         }
@@ -2455,6 +3311,22 @@ fn has_dynamic_raw_text(element: &ElementIr) -> bool {
 
 fn is_unescaped_raw_text(tag_name: &str) -> bool {
     tag_name.eq_ignore_ascii_case("script") || tag_name.eq_ignore_ascii_case("style")
+}
+
+fn ssr_text_context(element: &ElementIr) -> SsrTextContext {
+    if is_unescaped_raw_text(&element.tag_name) {
+        if element.namespace == "svg" {
+            SsrTextContext::ForeignRaw
+        } else {
+            SsrTextContext::Raw
+        }
+    } else if element.tag_name.eq_ignore_ascii_case("textarea")
+        || element.tag_name.eq_ignore_ascii_case("title")
+    {
+        SsrTextContext::Rcdata
+    } else {
+        SsrTextContext::Normal
+    }
 }
 
 fn collect_text_content_parts(element: &ElementIr) -> Vec<TextContentPart> {
@@ -2507,11 +3379,70 @@ fn collect_root_delegated_events(root: &RootIr, names: &mut BTreeSet<String>) {
 
 fn collect_element_delegated_events(element: &ElementIr, names: &mut BTreeSet<String>) {
     for attribute in &element.attributes {
-        if let AttributeIr::Event(event) = attribute {
+        if let AttributeIr::Event(event) = attribute
+            && is_delegatable_event(&event.event_name)
+        {
             names.insert(event.event_name.clone());
         }
     }
     collect_child_delegated_events(&element.children, names);
+}
+
+/// Events that do not bubble to `document` (or only fire on `window`) cannot be
+/// observed by the delegated document listener and are bound on the element.
+/// Hyphenated or case-sensitive names are custom events, which the dispatcher
+/// may send without bubbling, so they are bound on the element too.
+fn is_delegatable_event(event_name: &str) -> bool {
+    if event_name
+        .bytes()
+        .any(|byte| byte == b'-' || byte.is_ascii_uppercase())
+    {
+        return false;
+    }
+    !matches!(
+        event_name,
+        "abort"
+            | "beforeprint"
+            | "beforetoggle"
+            | "beforeunload"
+            | "cancel"
+            | "canplay"
+            | "canplaythrough"
+            | "close"
+            | "cuechange"
+            | "durationchange"
+            | "emptied"
+            | "ended"
+            | "error"
+            | "invalid"
+            | "load"
+            | "loadeddata"
+            | "loadedmetadata"
+            | "loadend"
+            | "loadstart"
+            | "mouseenter"
+            | "mouseleave"
+            | "pause"
+            | "play"
+            | "playing"
+            | "pointerenter"
+            | "pointerleave"
+            | "progress"
+            | "ratechange"
+            | "resize"
+            | "scroll"
+            | "scrollend"
+            | "seeked"
+            | "seeking"
+            | "slotchange"
+            | "stalled"
+            | "suspend"
+            | "timeupdate"
+            | "toggle"
+            | "unload"
+            | "volumechange"
+            | "waiting"
+    )
 }
 
 fn collect_component_delegated_events(
@@ -2812,12 +3743,13 @@ fn build_source_map(filename: &str, source: &str, mappings: &[Mapping]) -> RawSo
     let source_id = builder.add_source_and_content(source_name, source);
 
     for mapping in mappings {
+        let (original_line, original_column) = mapping.original.unwrap_or_default();
         builder.add_token(
             mapping.generated_line,
             mapping.generated_column,
-            mapping.original_line,
-            mapping.original_column,
-            Some(source_id),
+            original_line,
+            original_column,
+            mapping.original.map(|_| source_id),
             None,
         );
     }
@@ -2849,8 +3781,10 @@ enum RootBuiltin {
 }
 
 struct GeneratedComponent {
+    id: NodeId,
     start: u32,
     end: u32,
+    root: RootIr,
     root_id: Option<NodeId>,
     template_name: String,
     element_name: String,
@@ -2908,8 +3842,10 @@ impl GeneratedComponent {
             .collect();
 
         Self {
+            id: component.id,
             start: root_span(&component.root).start.offset,
             end: root_span(&component.root).end.offset,
+            root: component.root.clone(),
             root_id,
             template_name,
             element_name,
@@ -2988,8 +3924,10 @@ impl GeneratedComponent {
         let template_html = render_template(root, locator_attribute);
         let is_svg = matches!(root, RootIr::Element(element) if is_svg_element(&element.tag_name));
         Self {
+            id: 0,
             start: root_span(root).start.offset,
             end: root_span(root).end.offset,
+            root: root.clone(),
             root_id,
             template_name,
             element_name,
@@ -3009,6 +3947,10 @@ impl GeneratedComponent {
             .map(|target| target.name.as_str())
             .expect("every element binding has a generated target")
     }
+
+    fn id(&self) -> NodeId {
+        self.id
+    }
 }
 
 struct ElementTarget {
@@ -3018,10 +3960,12 @@ struct ElementTarget {
 
 enum DynamicBinding {
     Text {
+        node_id: NodeId,
         expression: ExpressionIr,
         once: bool,
     },
     Node {
+        node_id: NodeId,
         expression: ExpressionIr,
     },
     TextContent {
@@ -3435,6 +4379,7 @@ fn collect_dynamic_region_value_helper_usage(
 struct RuntimeNames {
     locals: HashMap<RuntimeHelper, String>,
     locator_attribute: String,
+    enable_delegation: bool,
 }
 
 struct SsrRuntimeNames {
@@ -3452,10 +4397,11 @@ struct SsrRuntimeNames {
     define_element: String,
     host: String,
     slot: String,
+    auto_hydrate: bool,
 }
 
 impl SsrRuntimeNames {
-    fn allocate(names: &mut NameAllocator) -> Self {
+    fn allocate(names: &mut NameAllocator, auto_hydrate: bool) -> Self {
         Self {
             static_text: names.allocate("$zeusSsrStatic"),
             text: names.allocate("$zeusSsrText"),
@@ -3471,6 +4417,7 @@ impl SsrRuntimeNames {
             define_element: names.allocate("$zeusSsrDefineElement"),
             host: names.allocate("$zeusSsrHost"),
             slot: names.allocate("$zeusSsrSlot"),
+            auto_hydrate,
         }
     }
 
@@ -3532,7 +4479,12 @@ impl SsrRuntimeNames {
 }
 
 impl RuntimeNames {
-    fn allocate(usage: &HelperUsage, locator_attribute: &str, names: &mut NameAllocator) -> Self {
+    fn allocate(
+        usage: &HelperUsage,
+        locator_attribute: &str,
+        enable_delegation: bool,
+        names: &mut NameAllocator,
+    ) -> Self {
         let locals = RuntimeHelper::ORDERED
             .iter()
             .filter(|helper| **helper == RuntimeHelper::Template || usage.0.contains(helper))
@@ -3541,6 +4493,7 @@ impl RuntimeNames {
         Self {
             locals,
             locator_attribute: locator_attribute.into(),
+            enable_delegation,
         }
     }
 
@@ -3568,6 +4521,10 @@ impl RuntimeNames {
 
     fn template(&self) -> &str {
         self.get(RuntimeHelper::Template)
+    }
+
+    fn auto_hydrate_component(&self) -> &str {
+        self.get(RuntimeHelper::AutoHydrateComponent)
     }
 
     fn create_component(&self) -> &str {
@@ -3644,11 +4601,16 @@ impl RuntimeNames {
     fn delegate_events(&self) -> &str {
         self.get(RuntimeHelper::DelegateEvents)
     }
+
+    fn should_delegate_event(&self, event_name: &str) -> bool {
+        self.enable_delegation && is_delegatable_event(event_name)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum RuntimeHelper {
     Template,
+    AutoHydrateComponent,
     CreateComponent,
     CreateSlot,
     ErrorBoundary,
@@ -3671,8 +4633,9 @@ enum RuntimeHelper {
 }
 
 impl RuntimeHelper {
-    const ORDERED: [Self; 20] = [
+    const ORDERED: [Self; 21] = [
         Self::Template,
+        Self::AutoHydrateComponent,
         Self::CreateComponent,
         Self::CreateSlot,
         Self::ErrorBoundary,
@@ -3697,6 +4660,7 @@ impl RuntimeHelper {
     const fn exported(self) -> &'static str {
         match self {
             Self::Template => "template",
+            Self::AutoHydrateComponent => "autoHydrateComponent",
             Self::CreateComponent => "createComponent",
             Self::CreateSlot => "createSlot",
             Self::ErrorBoundary => "ErrorBoundary",
@@ -3722,6 +4686,7 @@ impl RuntimeHelper {
     const fn local_base(self) -> &'static str {
         match self {
             Self::Template => "$zeusTemplate",
+            Self::AutoHydrateComponent => "$zeusAutoHydrateComponent",
             Self::CreateComponent => "$zeusCreateComponent",
             Self::CreateSlot => "$zeusCreateSlot",
             Self::ErrorBoundary => "$zeusErrorBoundary",
@@ -3784,12 +4749,71 @@ impl CodeWriter {
         }
     }
 
+    /// Copies `start..end` of the original source verbatim, mapping the first
+    /// token of every line and every identifier back to its original position.
+    fn push_original(&mut self, source_index: &SourceIndex<'_>, start: usize, end: usize) {
+        if start >= end {
+            return;
+        }
+        let origin = source_index.position(u32::try_from(start).unwrap_or(u32::MAX));
+        let mut original_line = origin.line.saturating_sub(1);
+        let mut original_column = origin.column;
+        let mut at_line_start = true;
+        let mut in_identifier = false;
+        for character in source_index.source()[start..end].chars() {
+            let identifier = character == '_' || character == '$' || character.is_alphanumeric();
+            if (at_line_start && !character.is_whitespace()) || (identifier && !in_identifier) {
+                self.mappings.push(Mapping {
+                    generated_line: self.line,
+                    generated_column: self.column,
+                    original: Some((original_line, original_column)),
+                });
+                at_line_start = false;
+            }
+            in_identifier = identifier;
+            self.code.push(character);
+            if character == '\n' {
+                self.line = self.line.saturating_add(1);
+                self.column = 0;
+                original_line = original_line.saturating_add(1);
+                original_column = 0;
+                at_line_start = true;
+            } else {
+                let width = u32::try_from(character.len_utf16()).unwrap_or(u32::MAX);
+                self.column = self.column.saturating_add(width);
+                original_column = original_column.saturating_add(width);
+            }
+        }
+        self.end_mapping();
+    }
+
+    /// Stops attributing the generated code that follows on this line to the
+    /// last original token.
+    fn end_mapping(&mut self) {
+        let Some(last) = self.mappings.last() else {
+            return;
+        };
+        if last.original.is_none() || last.generated_line != self.line {
+            return;
+        }
+        if last.generated_column == self.column {
+            self.mappings.pop();
+        }
+        self.mappings.push(Mapping {
+            generated_line: self.line,
+            generated_column: self.column,
+            original: None,
+        });
+    }
+
     fn push_mapped(&mut self, value: &str, expression: &ExpressionIr) {
         self.mappings.push(Mapping {
             generated_line: self.line,
             generated_column: self.column,
-            original_line: expression.span.start.line.saturating_sub(1),
-            original_column: expression.span.start.column,
+            original: Some((
+                expression.span.start.line.saturating_sub(1),
+                expression.span.start.column,
+            )),
         });
         if value == expression.code {
             for offset in identifier_offsets(value) {
@@ -3806,12 +4830,12 @@ impl CodeWriter {
                 self.mappings.push(Mapping {
                     generated_line,
                     generated_column,
-                    original_line,
-                    original_column,
+                    original: Some((original_line, original_column)),
                 });
             }
         }
         self.push(value);
+        self.end_mapping();
     }
 
     fn push_for_accessor_scope(&mut self, scope: ForAccessorScope) {
@@ -3979,8 +5003,8 @@ fn advance_position(line: u32, column: u32, value: &str) -> (u32, u32) {
 struct Mapping {
     generated_line: u32,
     generated_column: u32,
-    original_line: u32,
-    original_column: u32,
+    /// `None` marks the start of generated code that has no original source.
+    original: Option<(u32, u32)>,
 }
 
 struct NameAllocator {

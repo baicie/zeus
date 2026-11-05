@@ -33,6 +33,15 @@
         "development": "./dist/runtime/index.cjs",
         "default": "./dist/runtime/index.cjs"
       }
+    },
+    "./renderer": {
+      "types": "./dist/renderer/index.d.ts",
+      "import": "./dist/renderer/index.js",
+      "require": {
+        "production": "./dist/renderer/index.prod.cjs",
+        "development": "./dist/renderer/index.cjs",
+        "default": "./dist/renderer/index.cjs"
+      }
     }
   },
   "files": [
@@ -41,13 +50,21 @@
   ],
   "peerDependencies": {
     "@types/react": "17 || 18 || 19",
-    "react": ">=18"
+    "react": ">=18",
+    "react-dom": ">=18",
+    "@zeus-js/web-c-runtime": "workspace:*"
   },
   "peerDependenciesMeta": {
     "@types/react": {
       "optional": true
     },
     "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
+    "@zeus-js/web-c-runtime": {
       "optional": true
     }
   },
@@ -67,6 +84,10 @@
       {
         "entry": "runtime/index.ts",
         "output": "dist/runtime/index.js"
+      },
+      {
+        "entry": "renderer/index.ts",
+        "output": "dist/renderer/index.js"
       }
     ]
   },
@@ -77,5 +98,10 @@
   ],
   "main": "index.cjs",
   "module": "dist/output-react-wrapper.esm-bundler.js",
-  "types": "dist/output-react-wrapper.d.ts"
+  "types": "dist/output-react-wrapper.d.ts",
+  "devDependencies": {
+    "react-dom": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@zeus-js/web-c-runtime": "workspace:*"
+  }
 }

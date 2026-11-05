@@ -1,6 +1,11 @@
 import { onScopeDispose, untrack } from '@zeus-js/signal/internal'
 
-import { createOwner, getCurrentOwner, runWithOwner } from './context'
+import {
+  createOwner,
+  disposeOwner,
+  getCurrentOwner,
+  runWithOwner,
+} from './context'
 import { emitDevtoolsEvent, getDevtoolsObjectId } from './devtools'
 
 import type { JSXValue } from './types'
@@ -21,7 +26,11 @@ export function createComponent<
       : undefined,
   })
   onScopeDispose(() => {
-    emitDevtoolsEvent({ type: 'component:dispose', componentId })
+    try {
+      emitDevtoolsEvent({ type: 'component:dispose', componentId })
+    } finally {
+      disposeOwner(owner)
+    }
   }, true)
 
   // Component setup is initialization, not a dependency of the parent

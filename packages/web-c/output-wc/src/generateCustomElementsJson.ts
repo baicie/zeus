@@ -1,3 +1,7 @@
+import {
+  getComponentAttributeName,
+  getComponentEventName,
+} from '@zeus-js/component-analyzer'
 import { formatDetailType } from '@zeus-js/component-dts'
 
 import { validateComponentManifest } from './generateManifest'
@@ -162,7 +166,7 @@ function generateAttributes(
   const result: CustomElementAttribute[] = []
 
   for (const [name, prop] of Object.entries(component.props)) {
-    const attrName = getAttributeName(name, prop)
+    const attrName = getComponentAttributeName(name, prop)
 
     if (attrName === false) continue
 
@@ -232,7 +236,7 @@ function generateMethodMember(
 function generateEvents(component: ComponentRecord): CustomElementEvent[] {
   return Object.entries(component.events).map(([key, event]) => {
     return {
-      name: event.name ?? toKebabCase(event.key ?? key),
+      name: getComponentEventName(key, event),
       description: event.description,
       type: {
         text: event.detail
@@ -252,17 +256,6 @@ function generateSlots(component: ComponentRecord): CustomElementSlot[] {
       description: slot.description,
     }
   })
-}
-
-function getAttributeName(
-  propName: string,
-  prop: ComponentProp,
-): string | false {
-  if (prop.attr === false) return false
-  if (typeof prop.attr === 'string') return prop.attr
-  if (!isAttributeBackedType(prop.type)) return false
-
-  return propName.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
 }
 
 function formatPropType(prop: ComponentProp): string {
@@ -288,10 +281,6 @@ function formatPropType(prop: ComponentProp): string {
   }
 }
 
-function isAttributeBackedType(type: ComponentProp['type']): boolean {
-  return type === 'string' || type === 'number' || type === 'boolean'
-}
-
 function normalizeModulePath(value: string): string {
   return value.replace(/\\/g, '/')
 }
@@ -300,8 +289,4 @@ function getCssVars(
   component: ComponentRecord,
 ): Array<{ name: string; description?: string }> {
   return Object.values(component.cssVars)
-}
-
-function toKebabCase(value: string): string {
-  return value.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)
 }
