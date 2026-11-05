@@ -65,8 +65,8 @@ docker compose up -d --build
 ```
 
 生产环境不得使用可覆盖的 `:r2` 标签。构建后用
-`docker image inspect --format '{{.Id}}'`（本地内容 digest）或 registry 的
-`RepoDigest` 固定为 `image@sha256:...`。CI 的 `images` job 会上传每个产品的
+`docker image inspect` 读取 `.Id`（本地内容 digest），或使用 registry 的
+`RepoDigest`，固定为 `image@sha256:...`。CI 的 `images` job 会上传每个产品的
 `imageDigest` 与 build-info；Host Validation 只使用这些 digest。
 
 ## 4. CI Provenance
@@ -90,7 +90,12 @@ Provenance 是**摘要绑定**的构建记录：它证明 CI 在某个 commit �
   "schema": "zeus.deployment-manifest/v2",
   "coreCommit": "<40 位 Core commit>",
   "uiCommit": "<40 位 UI commit>",
-  "allowedHosts": ["studio.example.com", "admin.example.com", "ai.example.com"],
+  "allowedHosts": [
+    "studio.example.com",
+    "sandbox.studio.example.com",
+    "admin.example.com",
+    "ai.example.com"
+  ],
   "provenance": "provenance.json",
   "products": [
     {
@@ -144,7 +149,7 @@ ZEUS_ACCEPTANCE_TENANT=acceptance-2026-11-05 \
 
 验收会：
 
-- 只接受 `allowedHosts` 中的 HTTPS 域名（443），拒绝 IP、私网、loopback；
+- 只接受 `allowedHosts` 中的 HTTPS 域名（443；Playground 还必须包含 sandbox 域名），拒绝 IP、私网、loopback；
 - 手动跟随最多 5 次重定向，每一跳都重新校验协议/主机/DNS，并用自定义
   `lookup` 固定连接目标；
 - 限制单跳 15 秒、响应体 2 MiB；

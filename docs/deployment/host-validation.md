@@ -22,10 +22,10 @@
 固定 digest：
 
 ```bash
-docker image inspect --format '{{.Id}}' zeus-admin:ci
-docker image inspect --format '{{.Id}}' zeus-playground:ci
-docker image inspect --format '{{.Id}}' zeus-ai-host:ci
-docker image inspect --format '{{.Id}}' zeus-ai-workbench:ci
+docker image inspect zeus-admin:ci | jq -r '.[0].Id'
+docker image inspect zeus-playground:ci | jq -r '.[0].Id'
+docker image inspect zeus-ai-host:ci | jq -r '.[0].Id'
+docker image inspect zeus-ai-workbench:ci | jq -r '.[0].Id'
 ```
 
 生产 compose 必须使用 `image@sha256:...`，不得使用可变标签。
