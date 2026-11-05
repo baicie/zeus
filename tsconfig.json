@@ -37,6 +37,15 @@
       "@zeus-js/signal/diagnostics": [
         "./packages/core/signal/src/diagnostics.ts"
       ],
+      "@zeus-js/component-analyzer/browser": [
+        "./packages/web-c/component-analyzer/src/browser.ts"
+      ],
+      "@zeus-js/component-dts/browser": [
+        "./packages/web-c/component-dts/src/browser.ts"
+      ],
+      "@zeus-js/playground-engine/hmr": [
+        "./packages/devtools/playground-engine/src/hmr.ts"
+      ],
       "@zeus-js/*": [
         "./packages/core/*/src",
         "./packages/web-c/*/src",

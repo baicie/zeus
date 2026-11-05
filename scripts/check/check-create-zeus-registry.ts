@@ -14,7 +14,15 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 
-import { chromium, expect, type Browser, type Page } from '@playwright/test'
+import {
+  chromium,
+  expect,
+  firefox,
+  webkit,
+  type Browser,
+  type BrowserType,
+  type Page,
+} from '@playwright/test'
 
 import {
   assertComponentLibraryOutputs,
@@ -33,9 +41,29 @@ const { values } = parseArgs({
     'framework-version': { type: 'string' },
     'vite-plugin-version': { type: 'string' },
     registry: { type: 'string' },
+    template: { type: 'string', multiple: true },
+    browsers: { type: 'string' },
   },
 })
 const registry = values.registry ?? 'https://registry.npmjs.org'
+const browserTypes: Record<string, BrowserType> = {
+  chromium,
+  firefox,
+  webkit,
+}
+const browsers = (values.browsers ?? 'chromium').split(',')
+for (const name of browsers) {
+  assert(browserTypes[name], `Unknown browser: ${name}`)
+}
+const selectedTemplates = values.template?.length
+  ? values.template.map(template => {
+      assert(
+        (createZeusTemplates as readonly string[]).includes(template),
+        `Unknown template: ${template}`,
+      )
+      return template
+    })
+  : createZeusTemplates
 const smokeRoot = mkdtempSync(path.join(os.tmpdir(), 'zeus-create-registry-'))
 const packageFiles: string[] = []
 const report: Array<{
@@ -43,12 +71,12 @@ const report: Array<{
   checks: string[]
   installed?: Record<string, { version: string; entry: string }>
 }> = []
-let browser: Browser | undefined
+const runningBrowsers: Browser[] = []
 let succeeded = false
 let failure: string | undefined
 
 try {
-  for (const template of createZeusTemplates) {
+  for (const template of selectedTemplates) {
     const project = path.join(smokeRoot, template)
     await scaffold({
       root: project,
@@ -80,12 +108,18 @@ try {
   )
   assert.equal(errors.length, 0, errors.join('\n'))
   await checkTemplateDependencies(packageFiles, registry)
-  browser = await chromium.launch({
-    headless: true,
-    channel: process.env.ZEUS_CREATE_BROWSER_CHANNEL ?? 'chromium',
-  })
+  for (const name of browsers) {
+    runningBrowsers.push(
+      await browserTypes[name].launch({
+        headless: true,
+        ...(name === 'chromium' && !process.env.ZEUS_CREATE_BROWSER_CHANNEL
+          ? { channel: 'chromium' }
+          : {}),
+      }),
+    )
+  }
 
-  for (const template of createZeusTemplates) {
+  for (const template of selectedTemplates) {
     const project = path.join(smokeRoot, template)
     const result: (typeof report)[number] = { template, checks: [] }
     report.push(result)
@@ -110,8 +144,10 @@ try {
       )
     }
     for (const mode of ['dev', 'preview'] as const) {
-      await checkBrowser(project, template, mode, browser)
-      result.checks.push(`${mode} browser interaction`)
+      for (const [index, name] of browsers.entries()) {
+        await checkBrowser(project, template, mode, runningBrowsers[index])
+        result.checks.push(`${mode} browser interaction (${name})`)
+      }
     }
     console.log(`[create-zeus registry] ${template}: all checks passed`)
   }
@@ -121,7 +157,7 @@ try {
   throw error
 } finally {
   try {
-    await browser?.close()
+    for (const running of runningBrowsers) await running.close()
   } catch (error) {
     const cleanupFailure = `Browser cleanup failed: ${error instanceof Error ? error.message : String(error)}`
     failure = failure ? `${failure}\n${cleanupFailure}` : cleanupFailure
@@ -136,6 +172,7 @@ try {
       {
         measuredAt: new Date().toISOString(),
         registry,
+        browsers,
         fixtureRoot: smokeRoot,
         scaffoldSource:
           'workspace candidate source; dependencies from registry',
@@ -311,6 +348,30 @@ async function checkBrowser(
       )
       if (mode === 'preview')
         await expect(greeting).toContainText('Registry slot')
+    } else if (template === 'admin-ts') {
+      await expect(page.getByTestId('login-card')).toBeVisible()
+      await page.getByRole('button', { name: 'Sign in' }).click()
+      await expect(page.getByTestId('admin-layout')).toBeVisible()
+      await expect(page.getByTestId('user-ada')).toContainText('Ada Lovelace')
+      await page.getByLabel('Search users').fill('grace')
+      await expect(page.getByTestId('user-ada')).toHaveCount(0)
+      await expect(page.getByTestId('user-grace')).toBeVisible()
+      await page.getByRole('button', { name: 'Roles' }).click()
+      await expect(page.getByRole('heading', { name: 'Roles' })).toBeVisible()
+      await page.getByRole('button', { name: 'Audit' }).click()
+      await expect(
+        page.getByRole('heading', { name: 'Audit log' }),
+      ).toBeVisible()
+      await page.getByRole('button', { name: 'Sign out' }).click()
+      await expect(page.getByTestId('login-card')).toBeVisible()
+    } else if (template === 'webc-consumer-ts') {
+      const host = page.locator('zw-button')
+      await expect(host.locator('button')).toHaveText('Consume published WebC')
+      await expect(page.locator('#status')).toHaveText('pressed: 0')
+      await host.locator('button').click()
+      await expect(page.locator('#status')).toHaveText('pressed: 1')
+      await host.locator('button').click()
+      await expect(page.locator('#status')).toHaveText('pressed: 2')
     } else {
       const button = page.getByRole('button')
       const prefix = template === 'application-ts' ? 'interactions' : 'count'
@@ -328,6 +389,13 @@ async function checkBrowser(
     if (template === 'component-library-ts') {
       await expect(page.locator('z-greeting [part="label"]')).toHaveText(
         'Hello, Registry!',
+      )
+    } else if (template === 'admin-ts') {
+      await expect(page.getByTestId('login-card')).toBeVisible()
+    } else if (template === 'webc-consumer-ts') {
+      await expect(page.locator('#status')).toHaveText('pressed: 2')
+      await expect(page.locator('zw-button button')).toHaveText(
+        'Consume published WebC',
       )
     } else {
       const prefix = template === 'application-ts' ? 'interactions' : 'count'

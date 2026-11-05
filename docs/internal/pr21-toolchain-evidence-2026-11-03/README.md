@@ -41,8 +41,25 @@ base `cb52cb0`。设计来源：用户提供的
 
 ## 未完成与下一步
 
-PR-21 尚缺 Admin/WebC consumer/AI reference starter、候选 CLI tarball 的仓库外使用、
-Windows/Linux/其它 Node 支持版本的实际执行证据；当前四模板 registry 仅测 Chromium。
+PR-21 的推荐模板补齐进度：
+
+- `admin-ts`：已加入 CLI 与 `check:create-zeus`；并在仓库外以官方发布依赖安装，
+  通过 typecheck/build/Vitest 以及 dev/preview 三引擎浏览器登录、搜索、视图切换
+  与登出验收（`--template admin-ts --browsers chromium,firefox,webkit`）。
+- `webc-consumer-ts`：已加入 CLI 与 `check:create-zeus`，并在仓库外以
+  `@zeus-web/button@0.1.0-beta.34` 真实安装，通过 dev/preview 三引擎点击验收。
+  该模板只消费已发布 WebC 包，不依赖 workspace 路径。
+- create-zeus CLI 新增 `--name` / `--template` / `--help` 非交互入口。
+  `check:create-zeus-packed` 打包当前候选 tarball，在仓库外安装并生成
+  `basic-ts`，随后从 registry 安装模板依赖，完成 typecheck 与 production build。
+- 组件库模板的 registry dev 在当前已发布 `@zeus-js/web-c@0.1.1-beta.20` 上仍会报
+  signal engine 分裂；本仓源码已包含 runtime graph 去重修复，但未随该版本发布。
+  这不是模板源码可单独绕过的旧包缺陷，需重新发布后复验。
+
+PR-21 尚缺 AI reference starter（`@zeus-web/ai-*` 尚未发布）、候选 CLI tarball
+的仓库外使用、Windows/Linux/其它 Node 支持版本的实际执行证据。`create-zeus`
+registry 门禁现支持 `--browsers chromium,firefox,webkit`，本机两新模板三引擎通过；
+其余旧模板与正式 devtools release 使用同一参数后仍待实跑。
 PR-22 尚缺 Timeline、WebC/多 root/GC 和 instrumentation 开销测量。
 PR-23 的 external 编辑器/Lint、可运行扩展插件样例仍未开始。
 

@@ -6,6 +6,10 @@ import { performance } from 'node:perf_hooks'
 import { gzipSync } from 'node:zlib'
 
 const root = path.resolve(import.meta.dirname, '../..')
+const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], {
+  cwd: root,
+  encoding: 'utf8',
+}).trim()
 const destination = path.resolve(
   readOption('--output') ?? 'temp/packed-consumers',
 )
@@ -248,6 +252,7 @@ window.packedResult = (async () => {
 } finally {
   const report = {
     createdAt: new Date().toISOString(),
+    sourceCommit,
     work,
     node: process.version,
     platform: `${process.platform}-${process.arch}`,
@@ -368,7 +373,13 @@ function prepareProject(name: string, reactVersion: string): string {
             '@zeus-js/vite-plugin',
             `@zeus-js/compiler-native-${platformPackage()}`,
           ]
-        : ['@zeus-test/components']
+        : [
+            '@zeus-test/components',
+            '@zeus-js/web-c-runtime',
+            ...(name.startsWith('react')
+              ? ['@zeus-js/output-react-wrapper']
+              : ['@zeus-js/output-vue-wrapper']),
+          ]
   fs.mkdirSync(directory)
   fs.writeFileSync(
     path.join(directory, 'package.json'),

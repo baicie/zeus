@@ -9,18 +9,17 @@ const [count, setCount] = createSignal(0);
 render(() => <button class={'before'} onClick={() => setCount(count() + 1)}>{'Hello'} {count()}</button>, document.body);
 `
 
-function harness(preserveBindings = true) {
+function harness(preserveBindings = true, environmentName = 'client') {
   const plugin = createZeus({ hmr: { preserveBindings } })
   const config = plugin.configResolved as HookHandler<Plugin['configResolved']>
   const transform = plugin.transform as HookHandler<Plugin['transform']>
-  const update = plugin.handleHotUpdate as HookHandler<
-    Plugin['handleHotUpdate']
-  >
+  const update = plugin.hotUpdate as HookHandler<Plugin['hotUpdate']>
   config?.call(
     {} as ThisParameterType<NonNullable<typeof config>>,
     { command: 'serve' } as ResolvedConfig,
   )
   const send = vi.fn()
+  const invalidateModule = vi.fn()
   const debug = vi.fn()
   const transformSource = (text: string) =>
     transform!.call(
@@ -35,15 +34,23 @@ function harness(preserveBindings = true) {
     )
   const updateSource = (text: string) =>
     update!.call(
-      { debug } as unknown as ThisParameterType<NonNullable<typeof update>>,
       {
+        debug,
+        environment: {
+          name: environmentName,
+          hot: { send },
+          moduleGraph: { invalidateModule },
+        },
+      } as unknown as ThisParameterType<NonNullable<typeof update>>,
+      {
+        type: 'update',
         file: '/src/main.tsx',
         modules: [],
         read: async () => text,
-        server: { ws: { send } },
+        server: {},
       } as unknown as Parameters<NonNullable<typeof update>>[0],
     )
-  return { transformSource, updateSource, send, debug }
+  return { transformSource, updateSource, send, invalidateModule, debug }
 }
 
 describe('compiler-driven Vite binding preservation', () => {
@@ -103,5 +110,14 @@ describe('compiler-driven Vite binding preservation', () => {
         (binding: { value: string }) => binding.value === 'Hello',
       ),
     ).toBe(true)
+  })
+
+  it('only handles the client environment', async () => {
+    const { transformSource, updateSource, send } = harness(true, 'ssr')
+    await transformSource(source)
+    expect(
+      await updateSource(source.replace("'before'", "'after'")),
+    ).toBeUndefined()
+    expect(send).not.toHaveBeenCalled()
   })
 })

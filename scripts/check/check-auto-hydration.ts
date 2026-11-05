@@ -49,7 +49,11 @@ const runtime = await fs
     'utf8',
   )
   .then(sourceText =>
-    sourceText.split('"@zeus-js/signal/internal"').join('"/internal.js"'),
+    sourceText
+      .split('"@zeus-js/signal/internal"')
+      .join('"/internal.js"')
+      .split('"@zeus-js/signal"')
+      .join('"/signal.js"'),
   )
 const internal = await fs
   .readFile(path.join(root, 'packages/core/signal/dist/internal.js'), 'utf8')

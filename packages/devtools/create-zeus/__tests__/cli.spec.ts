@@ -85,7 +85,7 @@ describe('create-zeus CLI overwrite flow', () => {
     expect(prompts.outro).toHaveBeenCalled()
   })
 
-  it('offers application and component library templates', async () => {
+  it('offers application, admin and component library templates', async () => {
     rmSync(root, { recursive: true, force: true })
     prompts.select.mockResolvedValue('application-ts')
 
@@ -95,11 +95,46 @@ describe('create-zeus CLI overwrite flow', () => {
       expect.objectContaining({
         options: expect.arrayContaining([
           expect.objectContaining({ value: 'application-ts' }),
+          expect.objectContaining({ value: 'admin-ts' }),
           expect.objectContaining({ value: 'component-library-ts' }),
+          expect.objectContaining({ value: 'webc-consumer-ts' }),
         ]),
       }),
     )
     expect(existsSync(join(root, 'src/app.tsx'))).toBe(true)
+  })
+
+  it('scaffolds non-interactively from --name and --template', async () => {
+    rmSync(root, { recursive: true, force: true })
+
+    await runCreateZeus(['--name', 'project', '--template', 'basic-ts'])
+
+    expect(prompts.text).not.toHaveBeenCalled()
+    expect(prompts.select).not.toHaveBeenCalled()
+    expect(prompts.confirm).not.toHaveBeenCalled()
+    expect(
+      JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).name,
+    ).toBe('project')
+    expect(existsSync(join(root, 'src/main.tsx'))).toBe(true)
+  })
+
+  it('rejects an unknown --template before prompting', async () => {
+    await expect(
+      runCreateZeus(['--name', 'project', '--template', 'missing-ts']),
+    ).rejects.toThrow('Template "missing-ts" not found')
+    expect(prompts.intro).not.toHaveBeenCalled()
+  })
+
+  it('prints help without prompting or touching files', async () => {
+    const log = vi.spyOn(console, 'info').mockImplementation(() => {})
+
+    await runCreateZeus(['--help'])
+
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining('Usage: create-zeus'),
+    )
+    expect(prompts.text).not.toHaveBeenCalled()
+    expect(readFileSync(join(root, 'keep.txt'), 'utf8')).toBe('original')
   })
 
   it('rejects protected paths before even prompting for deletion', async () => {

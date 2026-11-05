@@ -51,6 +51,7 @@
     "examples:check:all": "tsx scripts/check/check-examples.ts",
     "check:registry-cli": "tsx scripts/release/check-registry-cli.ts",
     "check:create-zeus": "tsx scripts/check/check-create-zeus.ts",
+    "check:create-zeus-packed": "tsx scripts/check/check-create-zeus-packed.ts",
     "check:eslint-consumer": "tsx scripts/check/check-eslint-consumer.ts",
     "check:quick-start": "tsx scripts/check/check-quick-start.ts",
     "check:admin": "tsx scripts/check/check-admin.ts",
@@ -126,7 +127,11 @@
     "check:packed-consumers": "tsx scripts/check/check-packed-consumers.ts",
     "check:golden-components": "tsx scripts/check/check-golden-components.ts",
     "check:web-ui-reference": "pnpm check:packed-consumers",
-    "check:golden": "pnpm check:golden-components"
+    "check:golden": "pnpm check:golden-components",
+    "check:secrets": "tsx scripts/check/check-secrets.ts",
+    "check:rc-readiness": "tsx scripts/check/rc-readiness.ts",
+    "check:sbom:write": "tsx scripts/check/check-sbom.ts",
+    "check:sbom": "tsx scripts/check/check-sbom.ts --check"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged && pnpm check",

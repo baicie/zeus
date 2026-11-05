@@ -6,6 +6,7 @@ import {
   readdirSync,
   rmSync,
   symlinkSync,
+  writeFileSync,
 } from 'node:fs'
 import { createRequire } from 'node:module'
 import os from 'node:os'
@@ -22,12 +23,15 @@ const require = createRequire(import.meta.url)
 export const createZeusTemplates = [
   'basic-ts',
   'application-ts',
+  'admin-ts',
   'component-library-ts',
   'web-component-ts',
+  'webc-consumer-ts',
 ] as const
 
 export async function checkCreateZeus(): Promise<void> {
   const smokeRoot = mkdtempSync(path.join(os.tmpdir(), 'zeus-create-smoke-'))
+  const report: Array<{ template: string; status: string }> = []
 
   try {
     for (const template of createZeusTemplates) {
@@ -39,11 +43,21 @@ export async function checkCreateZeus(): Promise<void> {
         template,
       })
 
-      linkWorkspacePackages(projectRoot)
+      if (template === 'webc-consumer-ts') {
+        run(projectRoot, 'npm', [
+          'install',
+          '--ignore-scripts',
+          '--no-audit',
+          '--no-fund',
+        ])
+      } else {
+        linkWorkspacePackages(projectRoot)
+      }
       run(projectRoot, 'tsc', ['--noEmit', '--project', 'tsconfig.json'])
       run(projectRoot, 'vite', ['build'])
       if (
         template === 'application-ts' ||
+        template === 'admin-ts' ||
         template === 'component-library-ts'
       ) {
         run(projectRoot, 'vitest', ['run'])
@@ -53,7 +67,27 @@ export async function checkCreateZeus(): Promise<void> {
       }
 
       console.log(`[create-zeus] ${template} template passed typecheck + build`)
+      report.push({ template, status: 'passed' })
     }
+    const output = path.join(rootDir, 'temp/create-zeus')
+    mkdirSync(output, { recursive: true })
+    writeFileSync(
+      path.join(output, 'report.json'),
+      `${JSON.stringify(
+        {
+          measuredAt: new Date().toISOString(),
+          sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], {
+            cwd: rootDir,
+            encoding: 'utf8',
+          }).trim(),
+          registry: process.env.ZEUS_CREATE_REGISTRY ?? 'local',
+          templates: report,
+          passed: report.length === createZeusTemplates.length,
+        },
+        null,
+        2,
+      )}\n`,
+    )
   } finally {
     rmSync(smokeRoot, { recursive: true, force: true })
   }
@@ -157,6 +191,7 @@ function resolveExecutable(command: string): string {
   }
 
   const packageName = command === 'vite' ? 'vite' : 'vitest'
+  if (command === 'npm') return 'npm'
   const packageDir = path.dirname(
     require.resolve(`${packageName}/package.json`, {
       paths: [

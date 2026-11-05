@@ -47,6 +47,9 @@ jobs:
       - name: Production dependency audit
         run: pnpm audit:prod
 
+      - name: Secret scan
+        run: pnpm check:secrets
+
       - name: Branch name
         run: pnpm check:branch
 
@@ -213,6 +216,16 @@ jobs:
         # Run after the frozen registry contract is updated to published artifacts.
         if: github.event_name == 'workflow_dispatch'
         run: pnpm check:golden-components
+      - name: RC readiness report
+        if: always()
+        run: pnpm check:create-zeus && pnpm check:create-zeus-packed && pnpm check:rc-readiness
+        continue-on-error: true
+      - name: Preserve RC readiness report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc-readiness
+          path: temp/release/rc-readiness.json
       - name: Admin navigation in Chromium, Firefox and WebKit
         run: pnpm check:admin
       - name: Candidate packed HMR in Chromium, Firefox and WebKit

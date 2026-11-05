@@ -109,6 +109,12 @@ const results: Array<{
 }> = []
 
 await fs.mkdir(path.join(fixture, 'src'), { recursive: true })
+const fixtureRoots = [
+  ...new Set([path.resolve(fixture), await fs.realpath(fixture)]),
+]
+const consumerRoots = [
+  ...new Set([path.resolve(consumerRoot), await fs.realpath(consumerRoot)]),
+]
 await fs.writeFile(
   path.join(fixture, 'index.html'),
   '<!doctype html><html><body><script type="module" src="/temp/hmr-browser-fixture/src/main.tsx"></script></body></html>',
@@ -170,8 +176,12 @@ try {
     let server: Awaited<ReturnType<typeof createServer>> | undefined
     const pageErrors: string[] = []
     try {
-      await fs.writeFile(sourcePath, initialSource)
-      await fs.writeFile(bindingPath, bindingSource)
+      await fs.rm(sourcePath, { force: true })
+      await fs.rm(bindingPath, { force: true })
+      await Promise.all([
+        fs.writeFile(sourcePath, initialSource),
+        fs.writeFile(bindingPath, bindingSource),
+      ])
       server = await createViteServer({
         root: consumerRoot,
         configFile: false,
@@ -182,9 +192,27 @@ try {
           host: '127.0.0.1',
           port: 0,
           strictPort: false,
+          watch: {
+            ignored: (file: string) => {
+              const resolved = path.resolve(file)
+              if (consumerRoots.includes(resolved)) return false
+              for (const root of fixtureRoots) {
+                if (resolved === root) return false
+                if (resolved.startsWith(`${root}${path.sep}`)) return false
+                if (`${root}${path.sep}`.startsWith(`${resolved}${path.sep}`)) {
+                  return false
+                }
+              }
+              return true
+            },
+          },
         },
       })
       await server.listen()
+      await waitForWatcherReady(server.watcher)
+      // The fixture is written before the server starts. Restricting the
+      // watcher to its subtree avoids delayed events from the rest of the
+      // workspace being delivered after the page loads.
       const address = server.httpServer?.address()
       if (!address || typeof address === 'string') {
         throw new Error('Vite dev server did not expose a TCP address')
@@ -320,7 +348,7 @@ async function checkBindingPatches(
 
   // The very first hot edit may fail too. A syntax overlay must not dispose
   // the old tree, and repair must not be mistaken for an initial-load error.
-  await fs.writeFile(bindingPath, bindingSource.replace('</main>', '</broken>'))
+  await fs.writeFile(bindingPath, breakMainClosingTag(bindingSource))
   await expect(page.locator('vite-error-overlay')).toBeAttached()
   await assertRetainedState(page)
 
@@ -379,7 +407,7 @@ async function checkBindingPatches(
     await page.evaluate(() => window.__zeusBindingHmr.diagnostics.snapshot()),
   ).toEqual(afterListChange)
 
-  await fs.writeFile(bindingPath, again.replace('</main>', '</broken>'))
+  await fs.writeFile(bindingPath, breakMainClosingTag(again))
   await expect(page.locator('vite-error-overlay')).toBeAttached()
   await expect(page.locator('h1')).toHaveText('Consecutive')
   await assertRetainedState(page)
@@ -485,6 +513,40 @@ async function checkBindingPatches(
       effects: identities.effects.length,
     },
   }
+}
+
+async function waitForWatcherReady(
+  watcher: Awaited<ReturnType<typeof createServer>>['watcher'],
+): Promise<void> {
+  // Chokidar emits `ready` only once. `server.listen()` can resume after that
+  // event has already fired, so a late `once('ready')` listener never runs.
+  const emitted = (watcher as unknown as { _readyEmitted?: boolean })
+    ._readyEmitted
+  if (emitted === true) return
+
+  await withTimeout(
+    new Promise<void>(resolve => watcher.once('ready', resolve)),
+    30000,
+    'Vite watcher did not become ready',
+  )
+}
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  message: string,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms)
+  })
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer))
+}
+
+function breakMainClosingTag(source: string): string {
+  const index = source.lastIndexOf('</main>')
+  if (index === -1) throw new Error('HMR fixture is missing its </main> tag')
+  return `${source.slice(0, index)}</broken>${source.slice(index + 7)}`
 }
 
 function bindingIdentities() {

@@ -211,6 +211,9 @@ importers:
       '@zeus-js/query':
         specifier: workspace:*
         version: link:../../packages/core/query
+      '@zeus-js/resource':
+        specifier: workspace:*
+        version: link:../../packages/core/resource
       '@zeus-js/router':
         specifier: workspace:*
         version: link:../../packages/core/router
@@ -450,6 +453,12 @@ importers:
       '@zeus-js/playground-engine':
         specifier: workspace:*
         version: link:../../packages/devtools/playground-engine
+      '@zeus-js/query':
+        specifier: workspace:*
+        version: link:../../packages/core/query
+      '@zeus-js/router':
+        specifier: workspace:*
+        version: link:../../packages/core/router
       '@zeus-js/runtime-dom':
         specifier: workspace:*
         version: link:../../packages/core/runtime-dom
@@ -459,7 +468,22 @@ importers:
       '@zeus-js/zeus':
         specifier: workspace:*
         version: link:../../packages/core/zeus
+      react:
+        specifier: ^19.2.7
+        version: 19.2.7
+      react-dom:
+        specifier: ^19.2.7
+        version: 19.2.7(react@19.2.7)
+      vue:
+        specifier: ^3.5.44
+        version: 3.5.44(typescript@6.0.3)
     devDependencies:
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.17)
       '@zeus-js/vite-plugin':
         specifier: workspace:*
         version: link:../../packages/devtools/vite-plugin
@@ -987,6 +1011,15 @@ importers:
       '@babel/standalone':
         specifier: ^8.1.1
         version: 8.1.1
+      '@zeus-js/component-analyzer':
+        specifier: workspace:*
+        version: link:../../web-c/component-analyzer
+      '@zeus-js/component-dts':
+        specifier: workspace:*
+        version: link:../../web-c/component-dts
+      '@zeus-js/output-wc':
+        specifier: workspace:*
+        version: link:../../web-c/output-wc
 
   packages/devtools/vite-plugin:
     dependencies:

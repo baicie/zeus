@@ -47,6 +47,22 @@ const generateEntries = (): Record<string, string> => {
       )
     }
 
+    if (pkg.name === '@zeus-js/component-analyzer') {
+      entries['@zeus-js/component-analyzer/browser'] = path.resolve(
+        pkg.dir,
+        'src',
+        'browser.ts',
+      )
+    }
+
+    if (pkg.name === '@zeus-js/component-dts') {
+      entries['@zeus-js/component-dts/browser'] = path.resolve(
+        pkg.dir,
+        'src',
+        'browser.ts',
+      )
+    }
+
     if (pkg.name in entries) continue
     entries[pkg.name] = path.resolve(pkg.dir, 'src', 'index.ts')
   }

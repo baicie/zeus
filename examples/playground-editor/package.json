@@ -10,11 +10,18 @@
   "dependencies": {
     "@zeus-js/compiler-wasm": "workspace:*",
     "@zeus-js/playground-engine": "workspace:*",
+    "@zeus-js/query": "workspace:*",
+    "@zeus-js/router": "workspace:*",
     "@zeus-js/runtime-dom": "workspace:*",
     "@zeus-js/signal": "workspace:*",
-    "@zeus-js/zeus": "workspace:*"
+    "@zeus-js/zeus": "workspace:*",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "vue": "^3.5.44"
   },
   "devDependencies": {
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
     "@zeus-js/vite-plugin": "workspace:*",
     "typescript": "^6.0.3",
     "vite": "catalog:"

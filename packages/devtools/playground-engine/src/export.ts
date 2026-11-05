@@ -1,3 +1,5 @@
+import { buildWebCArtifacts } from './webc'
+
 import type { ProjectSnapshot } from './project'
 
 export interface PlaygroundExportFile {
@@ -57,7 +59,10 @@ export async function exportProject(
   files.push(
     {
       path: ENTRY_PATH,
-      content: createExportEntry(snapshot),
+      content:
+        snapshot.frameworkTarget === 'webc'
+          ? createWebCExportEntry(snapshot)
+          : createExportEntry(snapshot),
     },
     {
       path: 'index.html',
@@ -144,6 +149,17 @@ export default defineConfig({
       content: createReadme(packageName, snapshot),
     },
   )
+  if (snapshot.frameworkTarget === 'webc') {
+    const artifacts = buildWebCArtifacts(snapshot)
+    for (const artifact of artifacts.files) {
+      if (artifact.path.startsWith('webc/')) {
+        files.push({
+          path: artifact.path.replace(/^webc\//, ''),
+          content: artifact.content,
+        })
+      }
+    }
+  }
   files.sort((left, right) => left.path.localeCompare(right.path))
 
   const archive = createTar(files, packageName)
@@ -156,6 +172,37 @@ export default defineConfig({
     mediaType: compress ? 'application/gzip' : 'application/x-tar',
     data,
   })
+}
+
+function createWebCExportEntry(snapshot: ProjectSnapshot): string {
+  const relativeEntry = relativeModulePath(ENTRY_PATH, snapshot.entryPath)
+  return `import * as ComponentModule from '${relativeEntry}'
+
+const root = document.querySelector('#root')
+if (!(root instanceof Element)) {
+  throw new Error('Zeus WebC export requires a #root element.')
+}
+
+// The authored module is the single Custom Element implementation. This
+// mount only instantiates it; React and Vue exports consume the same class.
+const definitions = Object.entries(ComponentModule).filter(
+  (entry): entry is [string, CustomElementConstructor] =>
+    typeof entry[1] === 'function' && 'observedAttributes' in entry[1],
+)
+if (definitions.length === 0) {
+  throw new Error('The WebC entry must defineElement().')
+}
+for (const [, ElementClass] of definitions) {
+  const tag = customElements.getName(ElementClass)
+  if (!tag) {
+    throw new Error('The WebC entry must define its Custom Element tag.')
+  }
+  if (!customElements.get(tag)) customElements.define(tag, ElementClass)
+  const element = document.createElement(tag)
+  element.textContent = 'Exported Zeus Web Component'
+  root.append(element)
+}
+`
 }
 
 function createExportEntry(snapshot: ProjectSnapshot): string {

@@ -124,8 +124,14 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
       enableRootHMR = options.hmr !== false && config.command === 'serve'
     },
 
-    async handleHotUpdate(context) {
-      if (!enableRootHMR) return
+    async hotUpdate(context) {
+      if (
+        !enableRootHMR ||
+        context.type !== 'update' ||
+        this.environment.name !== 'client'
+      ) {
+        return
+      }
 
       const filename = cleanModuleId(context.file)
       if (
@@ -176,8 +182,8 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
           // a hot update before showing the overlay: Vite otherwise treats
           // an error on its first update as an initial-load error and reloads
           // the page on repair, discarding the retained state.
-          context.server.ws.send({ type: 'update', updates: [] })
-          context.server.ws.send({
+          this.environment.hot.send({ type: 'update', updates: [] })
+          this.environment.hot.send({
             type: 'error',
             err: {
               message: `${diagnostic.code}: ${diagnostic.message}`,
@@ -208,7 +214,7 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
           // Existing clients keep their module instance; subsequent imports
           // must still compile the edited source rather than a stale response.
           for (const module of context.modules) {
-            context.server.moduleGraph.invalidateModule(
+            this.environment.moduleGraph.invalidateModule(
               module,
               new Set(),
               context.timestamp,
@@ -217,13 +223,13 @@ export function createZeus(options: ZeusVitePluginOptions = {}): Plugin {
           }
           previousPlans.set(filename, next.hmrPlan)
           previousSources.set(filename, nextSource)
-          context.server.ws.send({
+          this.environment.hot.send({
             type: 'custom',
             event: 'zeus:hmr-patch',
             data: { filename, previous, next: next.hmrPlan },
           })
           // Vite's empty update clears an earlier compiler error overlay.
-          context.server.ws.send({ type: 'update', updates: [] })
+          this.environment.hot.send({ type: 'update', updates: [] })
           this.debug(
             `[Zeus HMR] literal-bindings -> preserve-state: ${filename}`,
           )

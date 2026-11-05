@@ -20,6 +20,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         index: fileURLToPath(new URL('./index.html', import.meta.url)),
+        webc: fileURLToPath(new URL('./webc.html', import.meta.url)),
+        host: fileURLToPath(new URL('./host.html', import.meta.url)),
         sandbox: fileURLToPath(new URL('./sandbox.html', import.meta.url)),
       },
     },

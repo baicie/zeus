@@ -24,6 +24,16 @@
         "development": "./dist/playground-engine.cjs",
         "default": "./index.cjs"
       }
+    },
+    "./hmr": {
+      "types": "./dist/hmr.d.ts",
+      "module": "./dist/hmr.js",
+      "import": "./dist/hmr.js",
+      "require": {
+        "production": "./dist/hmr.prod.cjs",
+        "development": "./dist/hmr.cjs",
+        "default": "./dist/hmr.cjs"
+      }
     }
   },
   "files": [
@@ -39,6 +49,12 @@
     "formats": [
       "esm-bundler",
       "cjs"
+    ],
+    "additionalEntries": [
+      {
+        "entry": "hmr.ts",
+        "output": "dist/hmr.js"
+      }
     ]
   },
   "keywords": [
@@ -49,9 +65,15 @@
   ],
   "dependencies": {
     "@babel/parser": "catalog:",
-    "@babel/standalone": "^8.1.1"
+    "@babel/standalone": "^8.1.1",
+    "@zeus-js/component-analyzer": "workspace:*",
+    "@zeus-js/component-dts": "workspace:*",
+    "@zeus-js/output-wc": "workspace:*"
   },
   "main": "index.cjs",
   "module": "dist/playground-engine.esm-bundler.js",
-  "types": "dist/playground-engine.d.ts"
+  "types": "dist/playground-engine.d.ts",
+  "browser": {
+    "@zeus-js/component-analyzer": "@zeus-js/component-analyzer/browser"
+  }
 }

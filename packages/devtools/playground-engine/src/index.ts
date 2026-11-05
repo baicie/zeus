@@ -23,9 +23,17 @@ export {
   type PlaygroundCompiler,
   type PlaygroundCompilerDiagnostic,
   type PlaygroundCompilerResult,
+  type PlaygroundHmrBinding,
+  type PlaygroundHmrPlan,
   type PlaygroundImportEdge,
+  type PlaygroundModuleHmr,
   type PlaygroundStyle,
 } from './compiler'
+export {
+  classifyPlaygroundHmrUpdate,
+  type PlaygroundHmrClassification,
+  type PlaygroundHmrUpdateKind,
+} from './hmr'
 export {
   PlaygroundPreviewError,
   createPlaygroundPreview,
@@ -51,4 +59,12 @@ export {
   parseSandboxMessage,
   type PlaygroundMessage,
   type PlaygroundSandboxMessage,
+  type PlaygroundSandboxDevtools,
 } from './messages'
+export {
+  analyzeWebCProject,
+  buildWebCArtifacts,
+  type PlaygroundComponentInspector,
+  type PlaygroundWebCBuild,
+  type PlaygroundWebCMetadata,
+} from './webc'

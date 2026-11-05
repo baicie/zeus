@@ -5,11 +5,15 @@ import {
   parseSandboxMessage,
 } from '@zeus-js/playground-engine'
 
-import type { PlaygroundPreviewPayload } from '@zeus-js/playground-engine'
+import type {
+  PlaygroundPreviewPayload,
+  PlaygroundSandboxDevtools,
+} from '@zeus-js/playground-engine'
 
 export interface PreviewRunResult {
   readonly durationMs: number
   readonly exportedNames: readonly string[]
+  readonly devtools?: PlaygroundSandboxDevtools
 }
 
 export class PreviewSandboxError extends Error {
@@ -43,6 +47,14 @@ export class PreviewController {
       }
     | undefined
   private pending: PendingRequest | undefined
+  private hostPending:
+    | {
+        readonly requestId: string
+        readonly timer: number
+        readonly resolve: () => void
+        readonly reject: (error: Error) => void
+      }
+    | undefined
   private nextRequest = 0
   private messageWindowStarted = performance.now()
   private messageCount = 0
@@ -97,6 +109,41 @@ export class PreviewController {
           requestId,
           timeoutMs,
           payload,
+        },
+        '*',
+      )
+    })
+  }
+
+  async runHostPreview(tag: string): Promise<void> {
+    const frame = this.frame
+    const target = frame?.contentWindow
+    if (!frame || !target) {
+      throw new PreviewSandboxError(
+        'ZEUS_PLAYGROUND_SANDBOX_UNAVAILABLE',
+        'Preview sandbox is not mounted.',
+      )
+    }
+    const requestId = `host-${Date.now()}-${++this.nextRequest}`
+    return new Promise<void>((resolve, reject) => {
+      const timer = window.setTimeout(() => {
+        this.hostPending = undefined
+        reject(
+          new PreviewSandboxError(
+            'ZEUS_PLAYGROUND_HOST_TIMEOUT',
+            'React and Vue hosts did not mount.',
+          ),
+        )
+      }, 5_000)
+      this.hostPending = { requestId, timer, resolve, reject }
+      target.postMessage(
+        {
+          channel: PLAYGROUND_SANDBOX_CHANNEL,
+          version: PLAYGROUND_SANDBOX_MESSAGE_VERSION,
+          kind: 'sandbox-host-preview',
+          sessionId: this.sessionId,
+          requestId,
+          tag,
         },
         '*',
       )
@@ -161,6 +208,17 @@ export class PreviewController {
       this.resolveReady()
       return
     }
+    if (this.hostPending && message.requestId === this.hostPending.requestId) {
+      const host = this.hostPending
+      window.clearTimeout(host.timer)
+      this.hostPending = undefined
+      if (message.kind === 'sandbox-host-result') {
+        host.resolve()
+      } else if (message.kind === 'sandbox-error') {
+        host.reject(new PreviewSandboxError(message.code, message.message))
+      }
+      return
+    }
     if (!this.pending || message.requestId !== this.pending.requestId) return
     if (message.kind === 'sandbox-result') {
       const pending = this.pending
@@ -169,6 +227,9 @@ export class PreviewController {
       pending.resolve({
         durationMs: message.durationMs,
         exportedNames: message.exportedNames,
+        ...(message.devtools === undefined
+          ? {}
+          : { devtools: message.devtools }),
       })
     } else if (message.kind === 'sandbox-error') {
       this.cancelPending(new PreviewSandboxError(message.code, message.message))

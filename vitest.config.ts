@@ -10,6 +10,7 @@ const testProjects = [
     include: [
       'packages/**/*.{test,spec}.{ts,tsx}',
       'examples/headless/**/*.{test,spec}.{ts,tsx}',
+      'examples/admin/server/**/*.{test,spec}.{ts,tsx}',
       'scripts/**/*.{test,spec}.{ts,tsx}',
     ],
   },
@@ -53,7 +54,11 @@ export default defineConfig({
       extends: true,
       test: {
         ...project,
-        exclude: [...configDefaults.exclude, 'packages/create/**'],
+        exclude: [
+          ...configDefaults.exclude,
+          'packages/create/**',
+          'packages/devtools/create-zeus/templates/**',
+        ],
         ...(project.name === 'bench' ? { mode: 'benchmark' } : {}),
       },
     })),

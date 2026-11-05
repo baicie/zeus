@@ -1,17 +1,28 @@
 # create-zeus
 
-交互式生成 Zeus + Vite + TypeScript 项目，提供四类模板：
+交互式生成 Zeus + Vite + TypeScript 项目，提供六类模板：
 
 - `basic-ts`：最小 Zeus Native 应用。
 - `application-ts`：Zeus Native 应用，包含 Vitest 测试命令。
+- `admin-ts`：带登录态、用户/角色/审计视图的 Admin 起步应用，包含 Vitest 测试命令。
 - `web-component-ts`：最小 Zeus Web Component。
 - `component-library-ts`：Web Component、React/Vue wrapper、DTS 和组件 manifest 输出。
+- `webc-consumer-ts`：消费已发布 Web Components 包的独立应用。
 
 ```bash
 pnpm create zeus
 ```
 
 运行后输入项目目录名并选择模板。目标不存在时创建；目标为空目录时直接写入。目标是非空目录时，默认报错并保留全部现有文件，不提供默认覆盖选项。
+
+CI 或脚本可使用非交互参数：
+
+```bash
+pnpm create zeus --name my-app --template basic-ts
+pnpm create zeus --help
+```
+
+`--template` 只接受下方六类内置名称；未知模板在提示前直接报错。
 
 如需替换普通项目目录，必须显式传入 `--force`：
 
@@ -38,12 +49,15 @@ macOS 固定的 `/var`、`/tmp`、`/etc` 到 `/private/...` 系统目录别名�
 pnpm exec vitest run --project unit packages/devtools/create-zeus
 pnpm --filter create-zeus build
 pnpm check:create-zeus
+pnpm check:create-zeus-packed
 pnpm check:create-zeus-registry
 ```
 
-`check:create-zeus` 会为四种模板生成临时项目，运行 TypeScript 检查和 Vite
-生产构建。`check:create-zeus-registry` 要求模板精确固定同一组已发布的 Zeus
-版本，并在仓库外逐个生成四种模板，从 registry 独立安装依赖，运行类型检查、构建、
+`check:create-zeus` 会为六种模板生成临时项目，运行 TypeScript 检查和 Vite
+生产构建。`check:create-zeus-packed` 会打包当前 `create-zeus` 候选 tarball，在仓库外
+安装并执行 `--name/--template`，随后从 registry 安装模板依赖并完成类型检查与生产构建。
+`check:create-zeus-registry` 要求模板精确固定同一组已发布的 Zeus
+版本，并在仓库外逐个生成五种模板，从 registry 独立安装依赖，运行类型检查、构建、
 模板测试和 dev / production 浏览器交互。计数按钮必须从 0 更新到 1、2；组件库必须
 响应 attribute 更新并保留 slot 内容。仅安装成功或包版本存在不能代替交互验收。
 

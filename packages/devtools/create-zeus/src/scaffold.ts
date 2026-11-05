@@ -26,8 +26,10 @@ export async function scaffold(options: ScaffoldOptions): Promise<void> {
     ![
       'basic-ts',
       'application-ts',
+      'admin-ts',
       'component-library-ts',
       'web-component-ts',
+      'webc-consumer-ts',
     ].includes(options.template)
   ) {
     throw new Error(`Template "${options.template}" not found.`)

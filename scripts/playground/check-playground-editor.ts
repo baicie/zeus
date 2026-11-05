@@ -31,6 +31,7 @@ interface BrowserResult {
 
 const results: BrowserResult[] = []
 let downloadedArchive: string | undefined
+let downloadedWebCArchive: string | undefined
 const requests: Array<{ host: string; path: string }> = []
 
 async function main(): Promise<void> {
@@ -38,6 +39,8 @@ async function main(): Promise<void> {
   editorServer = await createStaticServer(dist)
 
   try {
+    let nativeLabPassed = false
+    let webcStudioPassed = false
     for (const [name, engine] of Object.entries(engines)) {
       let browser: Browser | undefined
       try {
@@ -50,9 +53,15 @@ async function main(): Promise<void> {
         page.setDefaultTimeout(12_000)
         page.on('pageerror', error => pageErrors.push(error.message))
         const security = await runEditorChecks(page)
+        nativeLabPassed = true
         if (name === 'chromium') {
           downloadedArchive = await downloadExport(page)
+          const studio = await runWebCStudioChecks(page)
+          assert.deepEqual(studio.manifest.components[0]?.tag, 'z-counter')
+          webcStudioPassed = true
+          downloadedWebCArchive = await downloadExport(page)
         }
+        await runFrameworkHostChecks(page)
         assert.deepEqual(pageErrors, [], `${name} page errors`)
         results.push({
           browser: name,
@@ -80,6 +89,10 @@ async function main(): Promise<void> {
 
     assert(downloadedArchive, 'Chromium did not download the exported project.')
     assert(
+      downloadedWebCArchive,
+      'Chromium did not download the WebC Studio export.',
+    )
+    assert(
       results.every(result => result.status === 'passed'),
       'Every browser must pass the playground editor gate.',
     )
@@ -94,6 +107,14 @@ async function main(): Promise<void> {
       browser: 'chromium-export',
       status: 'passed',
       security: exportedSecurity,
+    })
+    const webcProject = await installAndBuildExport(downloadedWebCArchive!)
+    const webcFiles = await fs.readdir(webcProject)
+    assert(webcFiles.includes('custom-elements.json'))
+    assert(webcFiles.includes('zeus.components.json'))
+    results.push({
+      browser: 'chromium-webc-export',
+      status: 'passed',
     })
 
     await fs.writeFile(
@@ -110,6 +131,16 @@ async function main(): Promise<void> {
           },
           requests,
           results,
+          products: [
+            {
+              id: 'native-lab',
+              status: nativeLabPassed ? 'passed' : 'failed',
+            },
+            {
+              id: 'webc-studio',
+              status: webcStudioPassed ? 'passed' : 'failed',
+            },
+          ],
         },
         null,
         2,
@@ -144,7 +175,20 @@ async function runEditorChecks(page: Page): Promise<Record<string, boolean>> {
   await expect(page.getByTestId('preview-status')).toContainText('预览就绪')
 
   const firstFrame = page.frameLocator('[data-testid="preview-frame"]')
+  await expect(firstFrame.getByTestId('query-status')).toHaveText(
+    'Router + Query ready',
+  )
   await expect(firstFrame.locator('button')).toHaveText('Count: 0')
+  await expect(page.getByTestId('hmr-kind-src/counter.tsx')).toContainText(
+    'first-build',
+  )
+  await expect(page.getByTestId('devtools-mode')).toHaveText('runtime')
+  await expect(page.getByTestId('devtools-owners')).not.toHaveText('0')
+  await expect(page.getByTestId('devtools-bindings')).not.toHaveText('0')
+  await expect(page.getByTestId('devtools-effects')).not.toHaveText('0')
+  await expect(page.getByTestId('devtools-sources')).not.toHaveText('0')
+  await expect(page.getByTestId('devtools-dom-nodes')).not.toHaveText('0')
+  await expect(page.getByTestId('build-metrics')).toContainText('WASM compile')
   const firstSandboxUrl = sandboxFrame(page).url()
   await firstFrame.locator('button').click()
   await expect(firstFrame.locator('button')).toHaveText('Count: 1')
@@ -157,6 +201,9 @@ async function runEditorChecks(page: Page): Promise<Record<string, boolean>> {
   await compile(page)
   await expect(page.getByTestId('dom-output')).toContainText('Live:')
   await expect(page.getByTestId('ssr-output')).toContainText('Live:')
+  await expect(page.getByTestId('hmr-kind-src/counter.tsx')).toContainText(
+    'template-structure',
+  )
   await expect(firstFrame.locator('button')).toHaveText('Live: 0')
   assert.notEqual(
     new URL(sandboxFrame(page).url()).hash,
@@ -235,14 +282,78 @@ async function runEditorChecks(page: Page): Promise<Record<string, boolean>> {
   await expect(firstFrame.locator('button')).toHaveText('Recovered')
 
   await page.getByTestId('source').fill(`import { render } from '@zeus-js/zeus'
+import { QueryClientProvider, createQueryClient } from '@zeus-js/query'
+import { RouterProvider, createMemoryHistory, createRouter } from '@zeus-js/router'
 import { Counter } from './counter'
 import './counter.css'
 
-render(() => <Counter />, document.querySelector('#root')!)
+const queryClient = createQueryClient()
+const router = createRouter({
+  history: createMemoryHistory({ initialEntries: ['/lab'] }),
+  routes: [{ id: 'lab', path: '/lab', element: () => <Counter /> }],
+})
+
+render(
+  () => (
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
+  ),
+  document.querySelector('#root')!,
+)
 `)
   await compile(page)
   await expect(firstFrame.locator('button')).toHaveText('Live: 0')
   return security
+}
+
+async function runWebCStudioChecks(
+  page: Page,
+): Promise<{ manifest: { components: Array<{ tag: string }> } }> {
+  const host = `http://127.0.0.1:${serverPort()}`
+  await page.goto(`${host}/webc.html`)
+  await expect(page.getByTestId('compile')).toBeEnabled()
+  await compile(page)
+  await expect(page.getByTestId('webc-manifest')).toContainText('z-counter')
+  await expect(page.getByTestId('webc-declarations')).toContainText(
+    'defineCustomElement',
+  )
+  await expect(page.getByTestId('preview-status')).toContainText('预览就绪')
+  const frame = page.frameLocator('[data-testid="preview-frame"]')
+  await expect(frame.locator('z-counter')).toHaveCount(1)
+  await page.getByTestId('preview-frameworks').click()
+  await expect(frame.getByTestId('sandbox-react-host')).toContainText(
+    'React: 3',
+  )
+  await expect(frame.getByTestId('sandbox-vue-host')).toContainText('Vue: 7')
+  await sandboxFrame(page).evaluate(() => {
+    const button = document.querySelector(
+      '[data-testid="sandbox-react-host"] z-counter button',
+    )
+    if (!(button instanceof HTMLElement)) {
+      throw new Error('React-hosted Custom Element button is missing.')
+    }
+    button.click()
+  })
+  await expect(frame.getByTestId('sandbox-react-host')).toContainText(
+    'React: 4',
+  )
+  const manifest = JSON.parse(
+    (await page.getByTestId('webc-manifest').textContent()) ?? '{}',
+  ) as { manifest: { components: Array<{ tag: string }> } }
+  return { manifest: manifest.manifest }
+}
+
+async function runFrameworkHostChecks(page: Page): Promise<void> {
+  const host = `http://127.0.0.1:${serverPort()}`
+  await page.goto(`${host}/host.html`)
+  const react = page.getByTestId('react-host')
+  const vue = page.getByTestId('vue-host')
+  await expect(react).toContainText('React: 3')
+  await expect(vue).toContainText('Vue: 7')
+  await expect(page.locator('z-host-counter')).toHaveCount(2)
+  await react.getByRole('button').click()
+  await expect(react).toContainText('React: 4')
 }
 
 async function compile(page: Page, expectSuccess = true): Promise<void> {
@@ -278,7 +389,12 @@ async function installAndBuildExport(archive: string): Promise<string> {
   await fs.rm(extraction, { recursive: true, force: true })
   await fs.mkdir(extraction, { recursive: true })
   await execFileAsync('tar', ['-xzf', archive, '-C', extraction])
-  const directory = path.join(extraction, 'zeus-playground-export')
+  const entries = await fs.readdir(extraction)
+  const packageDirectory = entries.find(
+    entry => entry.startsWith('zeus-') && entry.endsWith('-export'),
+  )
+  assert(packageDirectory, 'The export archive must contain one project root.')
+  const directory = path.join(extraction, packageDirectory)
   const env = {
     ...process.env,
     PATH: `${path.dirname(process.execPath)}:${process.env.PATH ?? ''}`,

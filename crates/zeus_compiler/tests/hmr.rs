@@ -127,3 +127,23 @@ fn manual_component_only_production_and_ssr_do_not_install_patch_state() {
     }
     assert!(compile(SOURCE).code.contains("createHmrState"));
 }
+
+#[test]
+fn statement_wrapper_does_not_continue_a_previous_expression() {
+    let result = compile(
+        r#"import { render } from '@zeus-js/zeus'
+import { createRouter } from '@zeus-js/router'
+const router = createRouter({
+  routes: [],
+})
+render(() => <p>{router.state}</p>, document.body)
+"#,
+    );
+
+    assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+    assert!(
+        result.code.contains("})\n;(_zeusHmrDisposers.push(render("),
+        "HMR wrapper must start a new statement after an ASI-terminated declaration:\n{}",
+        result.code
+    );
+}

@@ -409,7 +409,14 @@ fn allocate_source_insertions(
     for insertion in hmr_insertions {
         insertions.push(SourceInsertion {
             offset: insertion.start,
-            text: format!("({hmr_disposers}.push("),
+            // A statement-level wrapper starts with "("; without a leading
+            // semicolon, a preceding declaration without an explicit
+            // semicolon is parsed as a call on that declaration's value.
+            text: if insertion.terminate_statement {
+                format!(";({hmr_disposers}.push(")
+            } else {
+                format!("({hmr_disposers}.push(")
+            },
         });
         insertions.push(SourceInsertion {
             offset: insertion.end,

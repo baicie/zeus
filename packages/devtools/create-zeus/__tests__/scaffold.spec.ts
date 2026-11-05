@@ -64,7 +64,9 @@ describe('create-zeus scaffold', () => {
 
   it.each([
     ['application-ts', 'vitest', 'src/app.tsx'],
+    ['admin-ts', 'vitest', 'src/app.tsx'],
     ['component-library-ts', '@zeus-js/web-c', 'src/components/greeting.tsx'],
+    ['webc-consumer-ts', '@zeus-web/button', 'src/main.ts'],
   ] as const)('creates %s project', async (template, dependency, entry) => {
     const root = mkdtempSync(join(tmpdir(), 'zeus-'))
 
@@ -103,7 +105,11 @@ describe('create-zeus scaffold', () => {
     }
     expect(packageJson.scripts.build).toBe('vite build')
     expect(packageJson.scripts.check).toBe('tsc --noEmit')
-    expect(packageJson.scripts.test).toBe('vitest run')
+    if (template === 'webc-consumer-ts') {
+      expect(packageJson.scripts.test).toBeUndefined()
+    } else {
+      expect(packageJson.scripts.test).toBe('vitest run')
+    }
 
     rmSync(root, {
       recursive: true,

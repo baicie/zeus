@@ -21,6 +21,42 @@ const snapshot = parseProjectSnapshot({
 })
 
 describe('playground project export', () => {
+  it('exports WebC projects with manifest, CEM and declarations', async () => {
+    const webc = parseProjectSnapshot({
+      schemaVersion: 2,
+      entryPath: 'src/counter.tsx',
+      frameworkTarget: 'webc',
+      compilerVersion: 'wasm:test',
+      dependencies: [],
+      options: {
+        delegateEvents: true,
+        sourceMap: true,
+        sandboxTimeoutMs: 2_000,
+      },
+      files: [
+        {
+          path: 'src/counter.tsx',
+          content: `import { defineElement, Host } from '@zeus-js/zeus'
+export const ZeCounter = defineElement('z-counter', {
+  shadow: false,
+  props: { count: Number },
+}, () => <Host><button>{'x'}</button></Host>)
+`,
+        },
+      ],
+    })
+    const exported = await exportProject(webc, { compress: false })
+    const paths = exported.files.map(file => file.path)
+    expect(paths).toEqual(
+      expect.arrayContaining([
+        'zeus.components.json',
+        'custom-elements.json',
+        'z-counter.d.ts',
+        'src/__zeus_playground_entry.ts',
+      ]),
+    )
+  })
+
   it('creates a deterministic installable project tar archive', async () => {
     const exported = await exportProject(snapshot, { compress: false })
     const paths = exported.files.map(file => file.path)

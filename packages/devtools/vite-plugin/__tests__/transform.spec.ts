@@ -10,7 +10,7 @@ import type { HookHandler, Plugin, ResolvedConfig } from 'vite'
 
 type TransformHook = NonNullable<HookHandler<Plugin['transform']>>
 type ConfigResolvedHook = NonNullable<HookHandler<Plugin['configResolved']>>
-type HandleHotUpdateHook = NonNullable<HookHandler<Plugin['handleHotUpdate']>>
+type HotUpdateHook = NonNullable<HookHandler<Plugin['hotUpdate']>>
 type TransformOutput = Awaited<ReturnType<TransformHook>>
 type TransformOptions = Parameters<TransformHook>[2]
 
@@ -43,9 +43,9 @@ function getTransformHook(plugin: Plugin): TransformHook {
   return typeof hook === 'function' ? hook : hook.handler
 }
 
-function getHandleHotUpdateHook(plugin: Plugin): HandleHotUpdateHook {
-  const hook = plugin.handleHotUpdate
-  if (!hook) throw new Error('Expected handleHotUpdate hook')
+function getHotUpdateHook(plugin: Plugin): HotUpdateHook {
+  const hook = plugin.hotUpdate
+  if (!hook) throw new Error('Expected hotUpdate hook')
   return typeof hook === 'function' ? hook : hook.handler
 }
 
@@ -139,12 +139,16 @@ describe('vite-plugin-zeus transform', () => {
     await transform.call(transformContext, previous, '/src/App.tsx', undefined)
 
     const debug = vi.fn()
-    const update: Parameters<HandleHotUpdateHook>[0] = {
+    const update: Parameters<HotUpdateHook>[0] = {
+      type: 'update',
       file: '/src/App.tsx',
       read: async () => 'const App = () => <button>hello</button>',
-    } as Parameters<HandleHotUpdateHook>[0]
-    await getHandleHotUpdateHook(plugin).call(
-      { debug } as unknown as ThisParameterType<HandleHotUpdateHook>,
+    } as Parameters<HotUpdateHook>[0]
+    await getHotUpdateHook(plugin).call(
+      {
+        debug,
+        environment: { name: 'client' },
+      } as unknown as ThisParameterType<HotUpdateHook>,
       update,
     )
 
@@ -227,6 +231,21 @@ describe('vite-plugin-zeus transform', () => {
     ).toBe(true)
   })
 
+  it('produces identical output with the cache enabled and disabled', async () => {
+    const enabled = createTransformHarness()
+    const disabled = createTransformHarness({
+      compiler: { cache: { enabled: false } },
+    })
+
+    for (const [code, id] of [
+      [source, '/src/App.tsx'],
+      [source.replace('hello', 'changed'), '/src/App.tsx'],
+      ['export const Other = () => <span>other</span>', '/src/Other.tsx'],
+    ] as const) {
+      expect(await disabled(code, id)).toEqual(await enabled(code, id))
+    }
+  })
+
   it('invalidates only the edited module on hot updates', async () => {
     const events: CompilerCacheEvent[] = []
     const plugin = createZeus({
@@ -245,10 +264,14 @@ describe('vite-plugin-zeus transform', () => {
     await transform.call(transformContext, source, '/src/App.tsx', undefined)
     await transform.call(transformContext, source, '/src/main.tsx', undefined)
 
-    const update = getHandleHotUpdateHook(plugin)
+    const update = getHotUpdateHook(plugin)
     await update.call(
-      { debug: vi.fn() } as unknown as ThisParameterType<HandleHotUpdateHook>,
       {
+        debug: vi.fn(),
+        environment: { name: 'client' },
+      } as unknown as ThisParameterType<HotUpdateHook>,
+      {
+        type: 'update',
         file: '/src/App.tsx',
         read: async () => source,
         modules: [
@@ -257,7 +280,7 @@ describe('vite-plugin-zeus transform', () => {
             importers: new Set([{ id: '/src/main.tsx', importers: new Set() }]),
           },
         ],
-      } as Parameters<HandleHotUpdateHook>[0],
+      } as Parameters<HotUpdateHook>[0],
     )
 
     await transform.call(transformContext, source, '/src/App.tsx', undefined)
@@ -310,12 +333,16 @@ describe('vite-plugin-zeus transform', () => {
     await transform.call(transformContext, previous, '/src/App.tsx', undefined)
 
     const debug = vi.fn()
-    const update: Parameters<HandleHotUpdateHook>[0] = {
+    const update: Parameters<HotUpdateHook>[0] = {
+      type: 'update',
       file: '/src/App.tsx',
       read: async () => 'const App = () => <div>hello</div>\n// after',
-    } as Parameters<HandleHotUpdateHook>[0]
-    const result = await getHandleHotUpdateHook(plugin).call(
-      { debug } as unknown as ThisParameterType<HandleHotUpdateHook>,
+    } as Parameters<HotUpdateHook>[0]
+    const result = await getHotUpdateHook(plugin).call(
+      {
+        debug,
+        environment: { name: 'client' },
+      } as unknown as ThisParameterType<HotUpdateHook>,
       update,
     )
 
@@ -338,12 +365,16 @@ describe('vite-plugin-zeus transform', () => {
     const next = 'const App = () => <div>{/* @once */ count()}</div>'
     await transform.call(transformContext, previous, '/src/App.tsx', undefined)
 
-    const result = await getHandleHotUpdateHook(plugin).call(
-      { debug: vi.fn() } as unknown as ThisParameterType<HandleHotUpdateHook>,
+    const result = await getHotUpdateHook(plugin).call(
       {
+        debug: vi.fn(),
+        environment: { name: 'client' },
+      } as unknown as ThisParameterType<HotUpdateHook>,
+      {
+        type: 'update',
         file: '/src/App.tsx',
         read: async () => next,
-      } as Parameters<HandleHotUpdateHook>[0],
+      } as Parameters<HotUpdateHook>[0],
     )
 
     expect(result).toBeUndefined()

@@ -5,17 +5,21 @@ import {
 } from '@zeus-js/router'
 import type { ZeusQueryClient } from '@zeus-js/query'
 import type { Accessor } from '@zeus-js/zeus'
+import type { SessionUser } from './routes'
 
 import {
   AdminShell,
+  AuditPage,
   ErrorPage,
   OverviewPage,
   ReportsPage,
+  RolesPage,
+  SettingsPage,
+  UploadPage,
   UserPage,
   UsersPage,
 } from './pages'
 import {
-  adminApi,
   adminSummaryQueryKey,
   adminUserQueryKey,
   USER_LIST_STALE_TIME,
@@ -27,6 +31,7 @@ import {
   type User,
   type UserListResult,
 } from './routes'
+import { adminApi } from './pages'
 
 export interface AdminRouterOptions {
   /** Shared cache: route loaders and components use the same client. */
@@ -35,6 +40,9 @@ export interface AdminRouterOptions {
   role: Accessor<Role>
   /** Updates the session role; the shell re-navigates to apply it. */
   onRoleChange: (role: Role) => void
+  session?: Accessor<SessionUser | undefined>
+  onLogin?: (user: SessionUser) => void
+  onLogout?: () => Promise<void>
   api?: AdminApi
 }
 
@@ -53,7 +61,12 @@ export function createAdminRouter(options: AdminRouterOptions): ZeusRouter {
       id: 'root',
       path: '/',
       element: () => (
-        <AdminShell role={options.role} onRoleChange={options.onRoleChange} />
+        <AdminShell
+          role={options.role}
+          onRoleChange={options.onRoleChange}
+          session={options.session}
+          onLogout={options.onLogout}
+        />
       ),
       children: [
         {
@@ -66,6 +79,48 @@ export function createAdminRouter(options: AdminRouterOptions): ZeusRouter {
           path: 'admin',
           errorElement: () => <ErrorPage />,
           children: [
+            {
+              id: 'upload',
+              path: 'upload',
+              loader: () => {
+                if (options.role() !== 'admin') {
+                  throw new Response('此页面需要管理员权限。', { status: 403 })
+                }
+                return null
+              },
+              element: () => <UploadPage />,
+              errorElement: () => <ErrorPage />,
+            },
+            {
+              id: 'roles',
+              path: 'roles',
+              loader: () => {
+                if (options.role() !== 'admin') {
+                  throw new Response('此页面需要管理员权限。', { status: 403 })
+                }
+                return null
+              },
+              element: () => <RolesPage />,
+              errorElement: () => <ErrorPage />,
+            },
+            {
+              id: 'settings',
+              path: 'settings',
+              element: () => <SettingsPage />,
+              errorElement: () => <ErrorPage />,
+            },
+            {
+              id: 'audit',
+              path: 'audit',
+              loader: () => {
+                if (options.role() !== 'admin') {
+                  throw new Response('此页面需要管理员权限。', { status: 403 })
+                }
+                return null
+              },
+              element: () => <AuditPage />,
+              errorElement: () => <ErrorPage />,
+            },
             {
               id: 'overview',
               index: true,

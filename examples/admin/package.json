@@ -4,12 +4,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:api": "tsx server/index.ts",
     "build": "vite build",
+    "start": "tsx server/index.ts",
     "preview": "vite preview",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "test:server": "vitest --run --project unit server/__tests__"
   },
   "dependencies": {
     "@zeus-js/query": "workspace:*",
+    "@zeus-js/resource": "workspace:*",
     "@zeus-js/router": "workspace:*",
     "@zeus-js/zeus": "workspace:*",
     "@zeus-web/data-grid": "0.1.0-beta.33",

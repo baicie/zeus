@@ -16,6 +16,12 @@ declare global {
       labelled: boolean
       labelClicks: number
     }>
+    runImeFixture(): Promise<{
+      during: string
+      after: string
+      formData: string | null
+      reset: string
+    }>
   }
 }
 
@@ -29,7 +35,7 @@ const tag = `z-form-check-${Date.now().toString(36)}`
 const page = `<!doctype html>
 <meta charset="utf-8">
 <script type="module">
-import { defineElement } from '/runtime.js'
+import { createForm, defineElement } from '/runtime.js'
 
 const events = { associated: 0, disabled: [], reset: 0 }
 let internals
@@ -98,6 +104,44 @@ window.runFormFixture = async () => {
     labelClicks,
   }
 }
+
+window.runImeFixture = async () => {
+  const frame = () =>
+    new Promise(resolve =>
+      requestAnimationFrame(() => requestAnimationFrame(resolve)),
+    )
+  const formElement = document.createElement('form')
+  const input = document.createElement('input')
+  input.name = 'name'
+  formElement.append(input)
+  document.body.append(formElement)
+
+  const form = createForm({ initialValues: { name: 'initial' } })
+  form.bind(formElement)
+
+  input.value = '中'
+  input.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }))
+  input.dispatchEvent(
+    new InputEvent('input', { bubbles: true, isComposing: true, data: '中' }),
+  )
+  await frame()
+  const during = String(form.values().name)
+
+  input.dispatchEvent(
+    new CompositionEvent('compositionend', { bubbles: true, data: '中' }),
+  )
+  await frame()
+  const after = String(form.values().name)
+  const formData = new FormData(formElement).get('name')
+
+  form.reset()
+  await frame()
+  const reset = input.value
+  form.dispose()
+  formElement.remove()
+
+  return { during, after, formData, reset }
+}
 </script>`
 
 const server = http.createServer((request, response) => {
@@ -141,6 +185,12 @@ try {
         reset: 1,
         labelled: true,
         labelClicks: 1,
+      })
+      assert.deepEqual(await tab.evaluate(() => window.runImeFixture()), {
+        during: 'initial',
+        after: '中',
+        formData: '中',
+        reset: 'initial',
       })
       assert.deepEqual(errors, [])
       results.push({ browser: name, status: 'passed' })

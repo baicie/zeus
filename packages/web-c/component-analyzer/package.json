@@ -24,6 +24,15 @@
         "development": "./dist/component-analyzer.cjs",
         "default": "./index.cjs"
       }
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js",
+      "require": {
+        "production": "./dist/browser.prod.cjs",
+        "development": "./dist/browser.cjs",
+        "default": "./dist/browser.cjs"
+      }
     }
   },
   "files": [
@@ -41,6 +50,12 @@
     "formats": [
       "esm-bundler",
       "cjs"
+    ],
+    "additionalEntries": [
+      {
+        "entry": "browser.ts",
+        "output": "dist/browser.js"
+      }
     ]
   },
   "engines": {

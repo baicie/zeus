@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 
@@ -7,6 +8,7 @@ import { createCompilerCache } from '../../packages/devtools/vite-plugin/src/cac
 const root = path.resolve(import.meta.dirname, '../..')
 const moduleCount = 5_000
 const warmCalls = 10_000
+const sampleCount = 7
 
 const input = (filename: string, source: string) => ({
   compilerVersion: 'benchmark',
@@ -25,24 +27,40 @@ const events: string[] = []
 const cache = createCompilerCache({
   onEvent: event => events.push(event.type),
 })
-const coldInput = input('/src/cold.tsx', source)
 
-const coldStart = performance.now()
-if (cache.get(coldInput) !== undefined) throw new Error('cold lookup hit')
-cache.set(coldInput, value)
-const coldMs = performance.now() - coldStart
+const coldSamples: number[] = []
+const warmSamples: number[] = []
+const changedSamples: number[] = []
+for (let sample = 0; sample < sampleCount; sample++) {
+  const filename = `/src/cold-${sample}.tsx`
+  const sampleInput = input(filename, source)
+  const changedInput = input(
+    filename,
+    source.replace('label', `changed-${sample}`),
+  )
 
-const warmStart = performance.now()
-for (let index = 0; index < warmCalls; index++) {
-  if (cache.get(coldInput) !== value) throw new Error('warm lookup missed')
+  const coldStart = performance.now()
+  if (cache.get(sampleInput) !== undefined) throw new Error('cold lookup hit')
+  cache.set(sampleInput, value)
+  coldSamples.push(performance.now() - coldStart)
+
+  const warmStart = performance.now()
+  for (let index = 0; index < warmCalls; index++) {
+    if (cache.get(sampleInput) !== value) throw new Error('warm lookup missed')
+  }
+  warmSamples.push((performance.now() - warmStart) / warmCalls)
+
+  const changedStart = performance.now()
+  if (cache.get(changedInput) !== undefined) {
+    throw new Error('changed lookup hit')
+  }
+  cache.set(changedInput, value)
+  changedSamples.push(performance.now() - changedStart)
 }
-const warmMsPerCall = (performance.now() - warmStart) / warmCalls
 
-const changedInput = input('/src/cold.tsx', source.replace('label', 'changed'))
-const changedStart = performance.now()
-if (cache.get(changedInput) !== undefined) throw new Error('changed lookup hit')
-cache.set(changedInput, value)
-const changedMs = performance.now() - changedStart
+const coldLookupAndSetMs = median(coldSamples)
+const warmLookupMsPerCall = median(warmSamples)
+const changedLookupAndSetMs = median(changedSamples)
 
 const beforeFill = heapUsedAfterGc()
 for (let index = 0; index < moduleCount; index++) {
@@ -53,20 +71,29 @@ for (let index = 0; index < moduleCount; index++) {
 }
 const afterFill = heapUsedAfterGc()
 const snapshot = cache.snapshot()
-if (snapshot.entries !== moduleCount + 1) {
+if (snapshot.entries !== moduleCount + sampleCount) {
   throw new Error(
-    `expected ${moduleCount + 1} cache entries, got ${snapshot.entries}`,
+    `expected ${moduleCount + sampleCount} cache entries, got ${snapshot.entries}`,
   )
 }
 
 const report = {
   generatedAt: new Date().toISOString(),
   node: process.version,
+  platform: process.platform,
+  arch: process.arch,
+  cpu: os.cpus()[0]?.model ?? 'unknown',
   moduleCount,
   warmCalls,
-  coldLookupAndSetMs: round(coldMs),
-  warmLookupMsPerCall: round(warmMsPerCall),
-  changedLookupAndSetMs: round(changedMs),
+  sampleCount,
+  coldLookupAndSetMs: round(coldLookupAndSetMs),
+  warmLookupMsPerCall: round(warmLookupMsPerCall),
+  changedLookupAndSetMs: round(changedLookupAndSetMs),
+  distribution: {
+    coldLookupAndSetMs: summarize(coldSamples),
+    warmLookupMsPerCall: summarize(warmSamples),
+    changedLookupAndSetMs: summarize(changedSamples),
+  },
   entries: snapshot.entries,
   heapDeltaBytes: afterFill - beforeFill,
   heapBytesPerEntry: round((afterFill - beforeFill) / moduleCount),
@@ -122,4 +149,21 @@ function countEvents(values: readonly string[]): Record<string, number> {
 
 function round(value: number): number {
   return Math.round(value * 1000) / 1000
+}
+
+function median(values: readonly number[]): number {
+  const sorted = [...values].sort((left, right) => left - right)
+  return sorted[Math.floor(sorted.length / 2)]!
+}
+
+function summarize(values: readonly number[]): {
+  min: number
+  median: number
+  max: number
+} {
+  return {
+    min: round(Math.min(...values)),
+    median: round(median(values)),
+    max: round(Math.max(...values)),
+  }
 }

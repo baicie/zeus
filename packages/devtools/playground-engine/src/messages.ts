@@ -65,6 +65,7 @@ export type PlaygroundSandboxMessage =
       readonly status: 'ready'
       readonly durationMs: number
       readonly exportedNames: readonly string[]
+      readonly devtools?: PlaygroundSandboxDevtools
     })
   | (SandboxMessageBase & {
       readonly kind: 'sandbox-error'
@@ -76,6 +77,38 @@ export type PlaygroundSandboxMessage =
       readonly kind: 'sandbox-stop'
       readonly requestId: string
     })
+  | (SandboxMessageBase & {
+      readonly kind: 'sandbox-host-preview'
+      readonly requestId: string
+      readonly tag: string
+    })
+  | (SandboxMessageBase & {
+      readonly kind: 'sandbox-host-result'
+      readonly requestId: string
+      readonly react: boolean
+      readonly vue: boolean
+    })
+
+export interface PlaygroundSandboxDevtools {
+  readonly mode: 'runtime' | 'structural'
+  readonly eventCount: number
+  readonly ownerCount: number
+  readonly componentCount: number
+  readonly bindingCount: number
+  readonly effectCount: number
+  readonly sourceCount: number
+  readonly customElementCount: number
+  readonly domNodeCount: number
+  readonly textNodeCount: number
+  readonly elementCount: number
+  readonly timeline: readonly {
+    readonly id: number
+    readonly timestamp: number
+    readonly type: string
+    readonly reason?: string
+    readonly name?: string
+  }[]
+}
 
 export function parsePlaygroundMessage(
   value: unknown,
@@ -204,7 +237,8 @@ export function parseSandboxMessage(
       !Array.isArray(value.exportedNames) ||
       !value.exportedNames.every(
         name => typeof name === 'string' && name.length <= 128,
-      )
+      ) ||
+      (value.devtools !== undefined && !isDevtools(value.devtools))
     ) {
       return undefined
     }
@@ -215,6 +249,9 @@ export function parseSandboxMessage(
       status: 'ready',
       durationMs: value.durationMs,
       exportedNames: Object.freeze([...value.exportedNames]),
+      ...(value.devtools === undefined
+        ? {}
+        : { devtools: value.devtools as PlaygroundSandboxDevtools }),
     }
   }
   if (value.kind === 'sandbox-error') {
@@ -240,6 +277,32 @@ export function parseSandboxMessage(
       ...base,
       kind: 'sandbox-stop',
       requestId: value.requestId,
+    }
+  }
+  if (value.kind === 'sandbox-host-preview') {
+    if (
+      typeof value.tag !== 'string' ||
+      !/^[a-z][a-z0-9]*-[a-z0-9-]+$/.test(value.tag)
+    ) {
+      return undefined
+    }
+    return {
+      ...base,
+      kind: 'sandbox-host-preview',
+      requestId: value.requestId,
+      tag: value.tag,
+    }
+  }
+  if (value.kind === 'sandbox-host-result') {
+    if (typeof value.react !== 'boolean' || typeof value.vue !== 'boolean') {
+      return undefined
+    }
+    return {
+      ...base,
+      kind: 'sandbox-host-result',
+      requestId: value.requestId,
+      react: value.react,
+      vue: value.vue,
     }
   }
   return undefined
@@ -288,6 +351,48 @@ function isPreviewPayload(value: unknown): value is PlaygroundPreviewPayload {
       dependency => typeof dependency === 'string' && paths.has(dependency),
     )
   })
+}
+
+function isDevtools(value: unknown): value is PlaygroundSandboxDevtools {
+  if (
+    !isRecord(value) ||
+    !isFiniteNonNegative(value.eventCount) ||
+    (value.mode !== 'runtime' && value.mode !== 'structural') ||
+    !isCount(value.ownerCount) ||
+    !isCount(value.componentCount) ||
+    !isCount(value.bindingCount) ||
+    !isCount(value.effectCount) ||
+    !isCount(value.sourceCount) ||
+    !isCount(value.customElementCount) ||
+    !isCount(value.domNodeCount) ||
+    !isCount(value.textNodeCount) ||
+    !isCount(value.elementCount) ||
+    !Array.isArray(value.timeline) ||
+    value.timeline.length > 64
+  ) {
+    return false
+  }
+  return value.timeline.every(
+    entry =>
+      isRecord(entry) &&
+      isSafeNonNegativeInteger(entry.id) &&
+      isFiniteNonNegative(entry.timestamp) &&
+      typeof entry.type === 'string' &&
+      entry.type.length > 0 &&
+      entry.type.length <= 64 &&
+      (entry.reason === undefined ||
+        (typeof entry.reason === 'string' && entry.reason.length <= 128)) &&
+      (entry.name === undefined ||
+        (typeof entry.name === 'string' && entry.name.length <= 128)),
+  )
+}
+
+function isCount(value: unknown): value is number {
+  return isSafeNonNegativeInteger(value)
+}
+
+function isSafeNonNegativeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
 }
 
 function isCompileResult(value: unknown): value is PlaygroundCompileResult {

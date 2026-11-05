@@ -27,7 +27,9 @@ bundle 检查从 Vite manifest 定位组件实现模块：已渲染的 `z-packed
 `pnpm check:form-associated-browser`：三引擎中 FormData 初始值与更新值、`formAssociated`、
 fieldset disabled、reset 回调，以及 `ElementInternals.labels` 报告 `<label for>`、点击 label 会点击元素，
 全部通过。validity 与 stateRestore 由打包消费者用例覆盖。IME 组合输入无法在三引擎中用 Playwright 统一驱动，
-没有浏览器证据。
+`check:form-associated-browser` 现补充 compositionstart / `InputEvent.isComposing` / compositionend
+序列：三引擎均验证组合期间不提交、结束后提交、FormData 读取组合结果、reset 恢复初值。真实 OS IME UI
+仍无法用 Playwright 统一驱动；这里验证的是标准的浏览器组合事件契约。
 
 ## 无障碍与缩放（PR-11）
 
@@ -50,4 +52,5 @@ Light DOM 带 label 输入框，在三引擎得到同一棵 ARIA 树：
 | Firefox  | 98 × 22       | 184 × 44  | 98 × 22  |
 | WebKit   | 89 × 18       | 165 × 36  | 89 × 18  |
 
-嵌套 overlay（Dialog/Popover）焦点属于 `zeus-ui` 组件，本仓库未覆盖。
+嵌套 overlay 由 `zeus-ui` 的 Dialog runtime 测试覆盖：内层 Dialog 的 Tab 焦点陷阱独立生效，
+Escape 只关闭最内层 Dialog，外层保持打开；实现通过最近 `dialog-content` 边界过滤冒泡事件。

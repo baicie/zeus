@@ -1,5 +1,9 @@
 import { analyzeModuleImports } from './analysis'
 import {
+  classifyPlaygroundHmrUpdate,
+  type PlaygroundHmrClassification,
+} from './hmr'
+import {
   projectEntry,
   type ProjectFile,
   type ProjectLanguage,
@@ -30,6 +34,25 @@ export interface PlaygroundCompiledModule {
   readonly map: unknown | null
   readonly diagnostics: readonly PlaygroundCompilerDiagnostic[]
   readonly imports: readonly PlaygroundImportEdge[]
+  readonly hmr?: PlaygroundModuleHmr
+}
+
+export interface PlaygroundHmrBinding {
+  readonly id: number
+  readonly kind: string
+  readonly value: string
+}
+
+export interface PlaygroundHmrPlan {
+  readonly version: number
+  readonly signature: string
+  readonly bindings: readonly PlaygroundHmrBinding[]
+}
+
+export interface PlaygroundModuleHmr {
+  readonly plan: PlaygroundHmrPlan | null
+  readonly initial: boolean
+  readonly classification?: PlaygroundHmrClassification
 }
 
 export interface PlaygroundStyle {
@@ -55,6 +78,7 @@ export interface PlaygroundCompilerResult {
   readonly code: string
   readonly map: unknown | null
   readonly diagnostics: readonly PlaygroundCompilerDiagnostic[]
+  readonly hmrPlan?: PlaygroundHmrPlan | null
 }
 
 export interface PlaygroundCompiler {
@@ -75,6 +99,8 @@ export interface CompileProjectOptions {
   readonly delegateEvents?: boolean
   readonly sourceMap?: boolean
   readonly hmr?: boolean
+  /** Enables HMR diagnostics against an earlier snapshot. */
+  readonly previousSnapshot?: ProjectSnapshot
   readonly allowedRuntimeModules?: readonly string[]
 }
 
@@ -84,6 +110,8 @@ export const DEFAULT_PLAYGROUND_RUNTIME_MODULES = Object.freeze([
   '@zeus-js/zeus/jsx-runtime',
   '@zeus-js/runtime-dom',
   '@zeus-js/runtime-ssr',
+  '@zeus-js/router',
+  '@zeus-js/query',
   '@zeus-js/signal',
 ])
 
@@ -101,6 +129,9 @@ export async function compileProject(
   }
 
   const files = new Map(snapshot.files.map(file => [file.path, file]))
+  const previousFiles = new Map(
+    (options.previousSnapshot?.files ?? []).map(file => [file.path, file]),
+  )
   const allowedRuntimeModules = new Set(
     options.allowedRuntimeModules ?? DEFAULT_PLAYGROUND_RUNTIME_MODULES,
   )
@@ -151,6 +182,19 @@ export async function compileProject(
         imports: Object.freeze(
           graph.edges.get(file.path)?.map(edge => Object.freeze(edge)) ?? [],
         ),
+        ...(options.hmr
+          ? {
+              hmr: Object.freeze({
+                plan: result.hmrPlan ? freezeHmrPlan(result.hmrPlan) : null,
+                initial: !previousFiles.has(file.path),
+                classification: classifyPlaygroundHmrUpdate(
+                  file.path,
+                  previousFiles.get(file.path)?.content,
+                  file.content,
+                ),
+              }),
+            }
+          : {}),
       }),
     )
   }
@@ -491,7 +535,24 @@ function normalizeCompilerResult(
         source: diagnostic.source ?? ('compiler' as const),
       })),
     ),
+    hmrPlan: result.hmrPlan ? freezeHmrPlan(result.hmrPlan) : null,
   }
+}
+
+function freezeHmrPlan(plan: PlaygroundHmrPlan): PlaygroundHmrPlan {
+  return Object.freeze({
+    version: plan.version,
+    signature: plan.signature,
+    bindings: Object.freeze(
+      plan.bindings.map(binding =>
+        Object.freeze({
+          id: binding.id,
+          kind: binding.kind,
+          value: binding.value,
+        }),
+      ),
+    ),
+  })
 }
 
 function diagnostic(options: {
