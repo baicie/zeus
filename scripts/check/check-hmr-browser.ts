@@ -280,7 +280,11 @@ try {
       await page.locator('button').click()
       await expect(page.locator('button')).toHaveText('updated: 1')
       expect(pageErrors).toEqual([])
-      const evidence = await checkBindingPatches(page, `${url}bindings.html`)
+      const evidence = await checkBindingPatches(
+        page,
+        `${url}bindings.html`,
+        server.watcher,
+      )
       expect(pageErrors).toEqual([])
       await page.screenshot({ path: path.join(output, `${name}.png`) })
       results.push({ browser: name, status: 'passed', evidence })
@@ -312,7 +316,15 @@ console.log(`Vite HMR passed in ${browserNames.join(', ')}`)
 async function checkBindingPatches(
   page: Page,
   url: string,
+  watcher: Awaited<ReturnType<typeof createServer>>['watcher'],
 ): Promise<BindingCheckEvidence> {
+  const writeBinding = async (content: string): Promise<void> => {
+    await fs.writeFile(bindingPath, content)
+    // Some Linux CI watcher backends miss this second fixture entry even when
+    // it is explicitly added. The gate verifies HMR semantics, so notify
+    // Vite's watcher after every write instead of trusting the OS event.
+    watcher.emit('change', bindingPath)
+  }
   await page.goto(url)
   await expect(page.locator('h1')).toHaveText('Heading')
   await page.locator('#count').click()
@@ -352,7 +364,7 @@ async function checkBindingPatches(
   // The very first hot edit may fail too. A syntax overlay must not dispose
   // the old tree, and repair must not be mistaken for an initial-load error.
   await page.waitForTimeout(100)
-  await fs.writeFile(bindingPath, breakMainClosingTag(bindingSource))
+  await writeBinding(breakMainClosingTag(bindingSource))
   await expect(page.locator('vite-error-overlay')).toBeAttached()
   await assertRetainedState(page)
   // The repair write must be a distinct watcher event. Writing it immediately
@@ -367,7 +379,7 @@ async function checkBindingPatches(
     .replace("'Row'", "'Entry'")
     .replace("'Visible'", "'Still visible'")
     .replace("'Secondary'", "'Second root'")
-  await fs.writeFile(bindingPath, patched)
+  await writeBinding(patched)
   await expect(page.locator('h1')).toHaveText('Patched')
   await expect(page.locator('main')).toHaveClass('after')
   await expect(page.locator('main')).toHaveCSS('color', 'rgb(0, 0, 255)')
@@ -408,19 +420,19 @@ async function checkBindingPatches(
     .locator('#editor')
     .evaluate((element: HTMLInputElement) => element.setSelectionRange(2, 8))
   const again = patched.replace("'Patched'", "'Consecutive'")
-  await fs.writeFile(bindingPath, again)
+  await writeBinding(again)
   await expect(page.locator('h1')).toHaveText('Consecutive')
   await assertRetainedState(page)
   expect(
     await page.evaluate(() => window.__zeusBindingHmr.diagnostics.snapshot()),
   ).toEqual(afterListChange)
 
-  await fs.writeFile(bindingPath, breakMainClosingTag(again))
+  await writeBinding(breakMainClosingTag(again))
   await expect(page.locator('vite-error-overlay')).toBeAttached()
   await expect(page.locator('h1')).toHaveText('Consecutive')
   await assertRetainedState(page)
   const recovered = again.replace("'Consecutive'", "'Recovered'")
-  await fs.writeFile(bindingPath, recovered)
+  await writeBinding(recovered)
   await expect(page.locator('h1')).toHaveText('Recovered')
   await expect(page.locator('vite-error-overlay')).toHaveCount(0)
   await assertRetainedState(page)
@@ -445,7 +457,7 @@ async function checkBindingPatches(
 
   // Changed initialization is not a data patch. Both original roots dispose
   // exactly once; the next click has one live listener and one fresh state.
-  await fs.writeFile(bindingPath, recovered.replace('count: 0', 'count: 10'))
+  await writeBinding(recovered.replace('count: 0', 'count: 10'))
   await expect(page.locator('#count')).toHaveText('count: 10')
   expect(
     await page.evaluate(() => ({
@@ -459,7 +471,7 @@ async function checkBindingPatches(
   await expect(page.locator('#count')).toHaveText('count: 11')
   const remounted = recovered.replace('count: 0', 'count: 10')
   const afterRemount = remounted.replace("'Recovered'", "'After remount'")
-  await fs.writeFile(bindingPath, afterRemount)
+  await writeBinding(afterRemount)
   await expect(page.locator('h1')).toHaveText('After remount')
   await expect(page.locator('#count')).toHaveText('count: 11')
   expect(await page.evaluate(() => window.__zeusBindingHmr.mounts)).toBe(2)
