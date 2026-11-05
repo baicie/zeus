@@ -451,7 +451,7 @@ package is not in zeus fixed release group
 完整跑：
 
 ```bash
-pnpm release:precheck --allow-zero
+pnpm release:precheck --channel rc
 ```
 
 如果只是先确认脚本链路，可以临时在本地用一个简化配置验证，但不要提交简化版。
@@ -459,8 +459,11 @@ pnpm release:precheck --allow-zero
 正式提交前必须跑：
 
 ```bash
-pnpm release:precheck --strict
+pnpm release:precheck --channel rc
 ```
+
+Canary 通道使用 `pnpm release:precheck --channel canary`；`--strict` 与 `--allow-zero`
+已由显式通道取代。
 
 ---
 
@@ -687,7 +690,7 @@ git clean -fd
 pnpm install --frozen-lockfile
 
 # 9. 完整 precheck
-pnpm release:precheck --strict
+pnpm release:precheck --channel rc
 ```
 
 真正发 beta：

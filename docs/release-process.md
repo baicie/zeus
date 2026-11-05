@@ -597,6 +597,7 @@ docs:build
 size:ci
 check:exports
 check:repository
+check:packed-consumers
 check:rc-readiness
 check:release-worktree --verify
 ```
@@ -606,7 +607,52 @@ check:release-worktree --verify
 验证和发布审批绑定到当前完整 commit；缺失证据显示为 `not_run`，格式错误或过期证据显示为
 `fail`。发布前仍需满足真实的跨平台、部署和审批条件。
 
-### 6.2 CI 门禁（PR 合并前）
+### 6.2 Canary 预检（发布通道分离）
+
+Canary 使用显式的 `release:precheck --channel canary`，不再复用 RC 的完整检查表：
+
+```text
+check:release-worktree --capture
+check:branch
+audit:prod
+check:secrets
+check:sbom:write
+check:sbom
+check:native-packages
+check:native-binaries
+build
+check:runtime-interop
+check:cjs
+build-dts
+check:release-artifacts --require-binaries
+api:check
+check
+lint
+test-unit
+check:package-versions
+check:create-zeus
+check:create-zeus-packed
+check:packed-consumers
+check:exports
+check:repository
+check:canary-readiness
+check:release-worktree --verify
+```
+
+Canary 仍要求正确的源代码 HEAD、原生二进制、包版本/lockfile 一致性、npm tarball
+与独立消费者、Secrets/SBOM、API 和浏览器兼容性；不要求四个线上产品、人工 A11y、
+Windows/Linux 产品验收或正式发布审批。
+
+`release:canary` 在版本改写前记录 `ZEUS_SOURCE_COMMIT`；`check:canary-readiness` 要求
+报告与这个完整 SHA 绑定，并只允许 release 改写路径（固定包 `package.json`、
+`pnpm-lock.yaml`、native loader、changeset/changelog）出现在工作树。源码路径的任何改动
+都会使 canary 失败。版本改写由 guard 在 dry-run 或失败后恢复，不污染本地工作区。
+
+`Release Canary` workflow 的 `push` 只运行 `--dry-run-only`，不会调用 npm publish、
+dist-tag、promotion 或下游 dispatch。真实 Canary 发布改为手动
+`workflow_dispatch` 且 `mode=publish`，仍需 `Canary` environment 审批。
+
+### 6.3 CI 门禁（PR 合并前）
 
 `.github/workflows/ci.yml`：
 

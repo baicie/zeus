@@ -129,6 +129,7 @@
     "check:web-ui-reference": "pnpm check:packed-consumers",
     "check:golden": "pnpm check:golden-components",
     "check:secrets": "tsx scripts/check/check-secrets.ts",
+    "check:canary-readiness": "tsx scripts/check/canary-readiness.ts",
     "check:rc-readiness": "tsx scripts/check/rc-readiness.ts",
     "check:sbom:write": "tsx scripts/check/check-sbom.ts",
     "check:sbom": "tsx scripts/check/check-sbom.ts --check"

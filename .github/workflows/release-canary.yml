@@ -13,11 +13,23 @@ name: Release Canary
 #
 # 3. (Optional) If your downstream repo is not "zeus-ui", update `scripts/release.config.ts`.
 #
+# Publication policy: a push to main runs the no-side-effect canary dry-run gate.
+# Real npm Canary publication is manual (`workflow_dispatch` with mode=publish) and
+# requires the Canary environment. This prevents a routine merge from publishing.
+#
 on:
   push:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Canary gate mode'
+        type: choice
+        options:
+          - dry-run
+          - publish
+        default: dry-run
 
 concurrency:
   group: npm-release
@@ -59,7 +71,7 @@ jobs:
     secrets: inherit
 
   release-canary:
-    if: github.repository == 'baicie/zeus' && github.ref == 'refs/heads/main'
+    if: github.repository == 'baicie/zeus' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.mode == 'publish'
     needs: native-prebuild
     runs-on: ubuntu-latest
 
@@ -106,17 +118,8 @@ jobs:
       - name: Restore native platform binaries
         run: pnpm native:restore:artifacts
 
-      - name: Precheck
-        run: |
-          pnpm check:native-binaries
-          pnpm build
-          pnpm build-dts
-          pnpm check:cjs
-          pnpm api:check
-          pnpm check
-          pnpm test-unit
-          pnpm check:exports
-          pnpm check:repository
+      - name: Install Playwright browsers for packed consumers
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
 
       - name: Verify main publish head
         run: pnpm release:verify:main-head
@@ -169,6 +172,74 @@ jobs:
           --source-tag "$ZEUS_CANARY_STAGING_TAG"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Preserve canary readiness report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: canary-readiness
+          path: temp/release/canary-readiness.json
+
+  canary-dry-run:
+    if: >-
+      github.repository == 'baicie/zeus' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'dry-run'))
+    needs: native-prebuild
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.node-version'
+          cache: 'pnpm'
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Download native platform artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: compiler-native-*
+          path: temp/native-artifacts
+          merge-multiple: false
+
+      - name: Restore native platform binaries
+        run: pnpm native:restore:artifacts
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+
+      - name: Verify main source head
+        run: pnpm release:verify:main-head
+
+      - name: Canary dry run
+        run: pnpm release:canary --dry-run-only
+
+      - name: Preserve canary readiness report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: canary-readiness-dry-run
+          path: temp/release/canary-readiness.json
+
+      - name: Preserve packed consumer report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: canary-packed-consumers
+          path: temp/packed-consumers/report.json
 
   compiler-registry-smoke:
     if: github.repository == 'baicie/zeus' && github.ref == 'refs/heads/main'

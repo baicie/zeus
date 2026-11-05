@@ -106,6 +106,9 @@ export default defineReleaseConfig({
       ['pnpm', 'size:ci'],
       ['pnpm', 'check:exports'],
       ['pnpm', 'check:repository'],
+      // RC readiness validates the packed consumer report; generate it in the
+      // same precheck so a stale or missing report cannot pass the gate.
+      ['pnpm', 'check:packed-consumers'],
       ['pnpm', 'check:rc-readiness'],
       ['pnpm', 'check:release-worktree', '--verify'],
     ],
