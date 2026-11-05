@@ -212,7 +212,10 @@ try {
       await waitForWatcherReady(server.watcher)
       // The fixture is written before the server starts. Restricting the
       // watcher to its subtree avoids delayed events from the rest of the
-      // workspace being delivered after the page loads.
+      // workspace being delivered after the page loads. Explicitly add both
+      // fixture modules: some watcher backends only start watching a file once
+      // it is requested, which made the second page's updates racy on CI.
+      server.watcher.add([sourcePath, bindingPath])
       const address = server.httpServer?.address()
       if (!address || typeof address === 'string') {
         throw new Error('Vite dev server did not expose a TCP address')
@@ -348,6 +351,7 @@ async function checkBindingPatches(
 
   // The very first hot edit may fail too. A syntax overlay must not dispose
   // the old tree, and repair must not be mistaken for an initial-load error.
+  await page.waitForTimeout(100)
   await fs.writeFile(bindingPath, breakMainClosingTag(bindingSource))
   await expect(page.locator('vite-error-overlay')).toBeAttached()
   await assertRetainedState(page)
