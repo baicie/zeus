@@ -120,7 +120,13 @@ function projectSnapshot() {
     entryPath: templateEntry(),
     frameworkTarget: activeProduct() === 'webc-studio' ? 'webc' : 'native',
     compilerVersion: 'wasm:0.1.1-beta.20',
-    dependencies: [],
+    dependencies:
+      activeProduct() === 'native-lab'
+        ? [
+            { name: '@zeus-js/query', version: '0.1.1-beta.20' },
+            { name: '@zeus-js/router', version: '0.1.1-beta.20' },
+          ]
+        : [],
     files: files(),
     options: {
       delegateEvents: true,
