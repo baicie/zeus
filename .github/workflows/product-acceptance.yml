@@ -37,6 +37,30 @@ jobs:
           repository: baicie/zeus-ui
           ref: ${{ inputs.ui-ref || github.ref_name }}
           path: zeus-ui
+      - name: Record release pair
+        shell: bash
+        run: |
+          set -euo pipefail
+          CORE_SHA=$(git rev-parse HEAD)
+          UI_SHA=$(git -C zeus-ui rev-parse HEAD)
+          export CORE_SHA UI_SHA
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$CORE_SHA" != "$GITHUB_SHA" ]; then
+            echo "checked-out Core HEAD $CORE_SHA does not match GITHUB_SHA $GITHUB_SHA" >&2
+            exit 1
+          fi
+          mkdir -p temp/release
+          node <<'NODE'
+          const fs = require('node:fs')
+          const pair = {
+            schema: 'zeus.release-pair/v1',
+            coreCommit: process.env.CORE_SHA,
+            uiCommit: process.env.UI_SHA,
+            runId: process.env.GITHUB_RUN_ID,
+            runUrl: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
+            createdAt: new Date().toISOString(),
+          }
+          fs.writeFileSync('temp/release/pair.json', `${JSON.stringify(pair, null, 2)}\n`)
+          NODE
       - uses: pnpm/action-setup@v4
         with:
           version: 10.33.4
@@ -103,6 +127,7 @@ jobs:
             temp/release/deployment.local.json
             temp/release/deployment-acceptance.local.json
             temp/release/provenance.json
+            temp/release/pair.json
             zeus-ui/temp/ai-workbench/report.json
             zeus-ui/temp/data-grid-framework-e2e/report.json
           if-no-files-found: warn
@@ -118,6 +143,30 @@ jobs:
           repository: baicie/zeus-ui
           ref: ${{ inputs.ui-ref || github.ref_name }}
           path: zeus-ui
+      - name: Record release pair
+        shell: bash
+        run: |
+          set -euo pipefail
+          CORE_SHA=$(git rev-parse HEAD)
+          UI_SHA=$(git -C zeus-ui rev-parse HEAD)
+          export CORE_SHA UI_SHA
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$CORE_SHA" != "$GITHUB_SHA" ]; then
+            echo "checked-out Core HEAD $CORE_SHA does not match GITHUB_SHA $GITHUB_SHA" >&2
+            exit 1
+          fi
+          mkdir -p temp/release
+          node <<'NODE'
+          const fs = require('node:fs')
+          const pair = {
+            schema: 'zeus.release-pair/v1',
+            coreCommit: process.env.CORE_SHA,
+            uiCommit: process.env.UI_SHA,
+            runId: process.env.GITHUB_RUN_ID,
+            runUrl: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
+            createdAt: new Date().toISOString(),
+          }
+          fs.writeFileSync('temp/release/pair.json', `${JSON.stringify(pair, null, 2)}\n`)
+          NODE
       - uses: pnpm/action-setup@v4
         with:
           version: 10.33.4
@@ -181,6 +230,7 @@ jobs:
             temp/release/deployment.local.json
             temp/release/deployment-acceptance.local.json
             temp/release/provenance.json
+            temp/release/pair.json
             zeus-ui/temp/ai-workbench/report.json
           if-no-files-found: warn
 
@@ -195,6 +245,30 @@ jobs:
           repository: baicie/zeus-ui
           ref: ${{ inputs.ui-ref || github.ref_name }}
           path: zeus-ui
+      - name: Record release pair
+        shell: bash
+        run: |
+          set -euo pipefail
+          CORE_SHA=$(git rev-parse HEAD)
+          UI_SHA=$(git -C zeus-ui rev-parse HEAD)
+          export CORE_SHA UI_SHA
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$CORE_SHA" != "$GITHUB_SHA" ]; then
+            echo "checked-out Core HEAD $CORE_SHA does not match GITHUB_SHA $GITHUB_SHA" >&2
+            exit 1
+          fi
+          mkdir -p temp/release
+          node <<'NODE'
+          const fs = require('node:fs')
+          const pair = {
+            schema: 'zeus.release-pair/v1',
+            coreCommit: process.env.CORE_SHA,
+            uiCommit: process.env.UI_SHA,
+            runId: process.env.GITHUB_RUN_ID,
+            runUrl: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
+            createdAt: new Date().toISOString(),
+          }
+          fs.writeFileSync('temp/release/pair.json', `${JSON.stringify(pair, null, 2)}\n`)
+          NODE
       - uses: actions/setup-node@v4
         with:
           node-version: 24.18.0
@@ -211,7 +285,7 @@ jobs:
           docker build "${common[@]}" --build-arg VITE_ZEUS_SANDBOX_ORIGIN=http://localhost:8081 -f examples/playground-editor/Dockerfile -t zeus-playground:ci . > /tmp/playground-image.log 2>&1 & p2=$!
           wait "$p1" || { tail -50 /tmp/admin-image.log; exit 1; }
           wait "$p2" || { tail -50 /tmp/playground-image.log; exit 1; }
-          docker build -f examples/ai-host/Dockerfile -t zeus-ai-host:ci zeus-ui > /tmp/aihost-image.log 2>&1 & p3=$!
+          docker build -f zeus-ui/examples/ai-host/Dockerfile -t zeus-ai-host:ci zeus-ui > /tmp/aihost-image.log 2>&1 & p3=$!
           docker build "${common[@]}" -f zeus-ui/examples/ai-workbench/Dockerfile -t zeus-ai-workbench:ci zeus-ui > /tmp/aiworkbench-image.log 2>&1 & p4=$!
           wait "$p3" || { tail -50 /tmp/aihost-image.log; exit 1; }
           wait "$p4" || { tail -50 /tmp/aiworkbench-image.log; exit 1; }
@@ -268,6 +342,7 @@ jobs:
           name: product-images-linux
           path: |
             temp/release/image-provenance.json
+            temp/release/pair.json
             temp/release/image-*.json
             temp/release/image-*.id
           if-no-files-found: warn

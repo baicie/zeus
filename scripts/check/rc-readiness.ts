@@ -51,6 +51,13 @@ export interface RcEvidenceDocument {
   }
 }
 
+export interface ReleasePair {
+  readonly coreCommit: string
+  readonly uiCommit: string
+  readonly runId?: string
+  readonly runUrl?: string
+}
+
 export interface RcEvidenceStatuses {
   readonly onlineProducts: ReadinessEvidence
   readonly crossPlatform: ReadinessEvidence
@@ -132,6 +139,7 @@ export function evaluateRcReadiness(
 export function evaluateRcEvidence(
   document: unknown,
   currentCommit: string,
+  pair?: ReleasePair,
 ): RcEvidenceStatuses {
   if (!isRecord(document)) {
     return invalidEvidenceStatuses('evidence must be a JSON object')
@@ -148,6 +156,18 @@ export function evaluateRcEvidence(
     typeof document.uiCommit === 'string' ? document.uiCommit : ''
   if (!/^[0-9a-f]{40}$/i.test(uiCommit)) {
     commonErrors.push('uiCommit must be a full 40-character UI commit')
+  }
+  if (!pair) {
+    commonErrors.push(
+      'release pair provenance missing (temp/release/pair.json)',
+    )
+  } else {
+    if (pair.coreCommit !== currentCommit) {
+      commonErrors.push('release pair coreCommit does not match current HEAD')
+    }
+    if (pair.uiCommit !== uiCommit) {
+      commonErrors.push('release pair uiCommit does not match the evidence')
+    }
   }
 
   return {
@@ -447,6 +467,18 @@ export function readRcReadinessInput(
     commit,
   )
   const evidencePath = evidenceFile(root, env)
+  const pairPath = env.ZEUS_RELEASE_PAIR_FILE?.trim()
+    ? path.resolve(root, env.ZEUS_RELEASE_PAIR_FILE)
+    : path.join(root, 'temp/release/pair.json')
+  const pairResult = readJson(pairPath)
+  const pair =
+    !pairResult.missing &&
+    !pairResult.error &&
+    isRecord(pairResult.value) &&
+    typeof pairResult.value.coreCommit === 'string' &&
+    typeof pairResult.value.uiCommit === 'string'
+      ? (pairResult.value as unknown as ReleasePair)
+      : undefined
   const evidence = readJson(evidencePath)
   const evidenceStatuses = evidence.missing
     ? missingEvidenceStatuses(evidencePath)
@@ -454,7 +486,7 @@ export function readRcReadinessInput(
       ? invalidEvidenceStatuses(
           `evidence file is invalid JSON: ${evidencePath}`,
         )
-      : evaluateRcEvidence(evidence.value, commit)
+      : evaluateRcEvidence(evidence.value, commit, pair)
 
   return {
     commit,

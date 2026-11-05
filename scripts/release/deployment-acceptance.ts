@@ -509,12 +509,16 @@ async function checkProduct(
     }
 
     const browsers: string[] = []
+    const hostRules =
+      context.mode === 'online'
+        ? await buildHostResolverRules(manifest.allowedHosts)
+        : undefined
     for (const engineName of context.engines.length > 0
       ? context.engines
       : ['chromium']) {
       const engine = ENGINE_TYPES[engineName]
       if (!engine) throw new Error(`unknown browser engine: ${engineName}`)
-      const browser = await launchEngine(engine, engineName)
+      const browser = await launchEngine(engine, engineName, hostRules)
       try {
         const page = await browser.newPage({
           viewport: { width: 1365, height: 900 },
@@ -757,15 +761,36 @@ function validateBrowserUrl(
 async function launchEngine(
   engine: BrowserType,
   name: string,
+  hostRules: string | undefined,
 ): Promise<Browser> {
+  const args = hostRules ? [`--host-resolver-rules=${hostRules}`] : []
   if (name === 'chromium') {
     try {
-      return await engine.launch({ headless: true, channel: 'chromium' })
+      return await engine.launch({ headless: true, channel: 'chromium', args })
     } catch {
-      return engine.launch({ headless: true })
+      return engine.launch({ headless: true, args })
     }
   }
   return engine.launch({ headless: true })
+}
+
+async function buildHostResolverRules(
+  hosts: readonly string[],
+): Promise<string> {
+  const rules: string[] = []
+  for (const host of hosts) {
+    const addresses = await dnsLookup(host, { all: true, verbatim: true })
+    if (addresses.length === 0) throw new Error(`no DNS address for ${host}`)
+    for (const entry of addresses) {
+      if (isPrivateAddress(entry.address)) {
+        throw new Error(`host ${host} resolves to a private address`)
+      }
+    }
+    const preferred =
+      addresses.find(entry => entry.family === 4) ?? addresses[0]
+    rules.push(`MAP ${host} ${preferred.address}`)
+  }
+  return rules.join(', ')
 }
 
 interface CheckedResponse {

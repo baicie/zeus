@@ -10,6 +10,8 @@ import {
 
 const pass = (evidence: string) => ({ status: 'pass' as const, evidence })
 
+const pair = { coreCommit: 'abc123', uiCommit: 'b'.repeat(40) }
+
 const validEvidence = {
   schema: 'zeus.rc-evidence/v2',
   commit: 'abc123',
@@ -96,7 +98,7 @@ describe('evaluateRcReadiness', () => {
 
 describe('evaluateRcEvidence', () => {
   it('accepts four HTTPS products, cross-platform evidence and approval', () => {
-    const statuses = evaluateRcEvidence(validEvidence, 'abc123')
+    const statuses = evaluateRcEvidence(validEvidence, 'abc123', pair)
 
     expect(statuses).toEqual({
       onlineProducts: {
@@ -131,6 +133,7 @@ describe('evaluateRcEvidence', () => {
         },
       },
       'abc123',
+      pair,
     )
 
     expect(statuses.onlineProducts.status).toBe('fail')
@@ -157,6 +160,7 @@ describe('evaluateRcEvidence', () => {
         ),
       },
       'abc123',
+      pair,
     )
 
     expect(statuses.onlineProducts.status).toBe('fail')
@@ -173,10 +177,20 @@ describe('evaluateRcEvidence', () => {
     )
   })
 
+  it('requires a CI release pair to bind the UI commit', () => {
+    const statuses = evaluateRcEvidence(validEvidence, 'abc123')
+
+    expect(statuses.onlineProducts.status).toBe('fail')
+    expect(statuses.onlineProducts.evidence).toContain(
+      'release pair provenance missing (temp/release/pair.json)',
+    )
+  })
+
   it('rejects a schema or top-level commit mismatch for every evidence group', () => {
     const statuses = evaluateRcEvidence(
       { ...validEvidence, schema: 'zeus.rc-evidence/old' },
       'different-commit',
+      pair,
     )
 
     expect(statuses.onlineProducts.status).toBe('fail')
