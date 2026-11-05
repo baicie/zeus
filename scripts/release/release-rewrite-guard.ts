@@ -41,21 +41,21 @@ export function restoreReleaseRewrite(
 export function listReleaseChanges(cwd: string): string[] {
   const output = execFileSync(
     'git',
-    ['status', '--porcelain', '-z', '--untracked-files=all'],
+    [
+      'status',
+      '--porcelain',
+      '-z',
+      '--untracked-files=all',
+      // Report a rename as delete+add so both the original and destination
+      // paths are restored or removed independently.
+      '--no-renames',
+    ],
     { cwd, encoding: 'utf8' },
   )
-  const entries = output.split('\0').filter(Boolean)
-  const paths: string[] = []
-
-  for (let index = 0; index < entries.length; index += 1) {
-    const entry = entries[index]
-    if (!entry || entry.length < 4) continue
-    const status = entry.slice(0, 2)
-    const file = entry.slice(3)
-    paths.push(file)
-    // Rename and copy entries carry the original path as the next NUL field.
-    if (status.includes('R') || status.includes('C')) index += 1
-  }
+  const paths = output
+    .split('\0')
+    .filter(entry => entry.length >= 4)
+    .map(entry => entry.slice(3))
 
   return [...new Set(paths)].sort()
 }

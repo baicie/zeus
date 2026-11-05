@@ -28,6 +28,7 @@ const ready: CanaryReadinessInput = {
   actualVersion: '0.1.1-canary.20261105.1.1.aaaaaaaa',
   changedPaths: ['package.json', 'pnpm-lock.yaml'],
   rewritePolicy: policy,
+  packageJsonRewriteErrors: [],
   nativeBinaryPresent: true,
   packedConsumers: pass('packed consumer report passed for source HEAD'),
   createZeus: pass('create-zeus report passed for source HEAD'),
@@ -86,6 +87,35 @@ describe('evaluateCanaryReadiness', () => {
     ])
   })
 
+  it('fails when the expected canary version is missing or not a canary', () => {
+    expect(
+      evaluateCanaryReadiness({ ...ready, expectedVersion: '' }).blockers,
+    ).toEqual([
+      'version: package version 0.1.1-canary.20261105.1.1.aaaaaaaa does not match a canary version <missing>',
+    ])
+
+    expect(
+      evaluateCanaryReadiness({
+        ...ready,
+        expectedVersion: '0.1.1-beta.20',
+        actualVersion: '0.1.1-beta.20',
+      }).blockers,
+    ).toEqual([
+      'version: package version 0.1.1-beta.20 does not match a canary version 0.1.1-beta.20',
+    ])
+  })
+
+  it('fails package.json changes beyond release metadata', () => {
+    const report = evaluateCanaryReadiness({
+      ...ready,
+      packageJsonRewriteErrors: ['packages/core/zeus/package.json'],
+    })
+
+    expect(report.blockers).toEqual([
+      'package-json-rewrite: unexpected package.json changes: packages/core/zeus/package.json',
+    ])
+  })
+
   it('fails a source edit disguised as a release rewrite', () => {
     const report = evaluateCanaryReadiness({
       ...ready,
@@ -108,7 +138,7 @@ describe('evaluateCanaryReadiness', () => {
     })
 
     expect(report.blockers).toEqual([
-      'version: package version 0.1.1-beta.20 does not match canary version 0.1.1-canary.20261105.1.1.aaaaaaaa',
+      'version: package version 0.1.1-beta.20 does not match a canary version 0.1.1-canary.20261105.1.1.aaaaaaaa',
       'secret-scan: 2 high-confidence secret findings',
       'sbom: 0 SBOM components',
       'lockfile: pnpm lockfile is not consistent with the rewritten packages',
@@ -172,6 +202,23 @@ describe('evaluateCanaryReport', () => {
     ).toEqual({
       status: 'pass',
       evidence: 'packed consumer report passed for source HEAD',
+    })
+  })
+
+  it('honors an explicit failed result over all-passing item results', () => {
+    expect(
+      evaluateCanaryReport(
+        {
+          sourceCommit: commit,
+          passed: false,
+          results: [{ status: 'passed' }],
+        },
+        'packed consumer',
+        commit,
+      ),
+    ).toEqual({
+      status: 'fail',
+      evidence: 'packed consumer report failed',
     })
   })
 })

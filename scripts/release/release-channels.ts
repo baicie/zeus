@@ -40,8 +40,6 @@ export const CANARY_PRECHECK_COMMANDS: readonly ReleaseCommand[] = [
   ['pnpm', 'check:release-worktree', '--verify'],
 ]
 
-export const RC_ONLY_CHECKS = ['check:rc-readiness'] as const
-
 export function parseReleaseChannel(args: readonly string[]): ReleaseChannel {
   let channel: ReleaseChannel = 'rc'
 

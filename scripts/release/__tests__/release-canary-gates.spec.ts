@@ -24,6 +24,10 @@ describe('canary publication gates', () => {
     const dryRun = job('canary-dry-run')
 
     expect(dryRun).toContain("github.event_name == 'push'")
+    expect(dryRun).toContain('pnpm release:verify:main-head')
+    expect(dryRun.indexOf('pnpm release:verify:main-head')).toBeLessThan(
+      dryRun.indexOf('pnpm release:canary --dry-run-only'),
+    )
     expect(dryRun).toContain('pnpm release:canary --dry-run-only')
     expect(dryRun).not.toContain('release:promote:canary')
     expect(dryRun).not.toContain('release:verify:published')

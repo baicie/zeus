@@ -18,9 +18,10 @@ for (const command of commands) {
   if (!bin) throw new Error('Release precheck command is empty')
   console.log(`\n> ${bin} ${args.join(' ')}\n`)
   execFileSync(bin, args, {
-    cwd: process.cwd(),
+    cwd: (config as { cwd?: string }).cwd ?? process.cwd(),
     env: { ...process.env, ZEUS_RELEASE_CHANNEL: channel },
     stdio: 'inherit',
+    shell: process.platform === 'win32',
   })
 }
 console.log(`\nRelease precheck (${channel}) passed.`)

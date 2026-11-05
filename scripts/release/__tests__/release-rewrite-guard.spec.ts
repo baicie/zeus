@@ -4,6 +4,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from 'node:fs'
@@ -74,6 +75,24 @@ describe('release rewrite guard', () => {
       '{"version":"1.0.0"}\n',
     )
     expect(existsSync(path.join(root, 'temporary.txt'))).toBe(false)
+  })
+
+  it('restores both sides of a rename', () => {
+    const root = createRepository()
+    const snapshot = snapshotReleaseRewrite(root)
+    renameSync(
+      path.join(root, 'packages/core/zeus/index.ts'),
+      path.join(root, 'packages/core/zeus/renamed.ts'),
+    )
+
+    restoreReleaseRewrite(root, snapshot)
+
+    expect(
+      readFileSync(path.join(root, 'packages/core/zeus/index.ts'), 'utf8'),
+    ).toBe('export {}\n')
+    expect(existsSync(path.join(root, 'packages/core/zeus/renamed.ts'))).toBe(
+      false,
+    )
   })
 
   it('never overwrites files that were dirty before the snapshot', () => {

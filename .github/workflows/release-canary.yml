@@ -118,18 +118,6 @@ jobs:
       - name: Restore native platform binaries
         run: pnpm native:restore:artifacts
 
-      - name: Precheck
-        run: |
-          pnpm check:native-binaries
-          pnpm build
-          pnpm build-dts
-          pnpm check:cjs
-          pnpm api:check
-          pnpm check
-          pnpm test-unit
-          pnpm check:exports
-          pnpm check:repository
-
       - name: Install Playwright browsers for packed consumers
         run: pnpm exec playwright install --with-deps chromium firefox webkit
 
@@ -232,6 +220,9 @@ jobs:
 
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium firefox webkit
+
+      - name: Verify main source head
+        run: pnpm release:verify:main-head
 
       - name: Canary dry run
         run: pnpm release:canary --dry-run-only

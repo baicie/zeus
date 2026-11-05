@@ -184,6 +184,7 @@ async function main(): Promise<void> {
     exposeCanaryEnvironment(version, stagingTag)
   }
 
+  let failure: unknown
   try {
     run('pnpm', ['release:version-packages', version])
     run('pnpm', ['install', '--lockfile-only'])
@@ -229,6 +230,9 @@ async function main(): Promise<void> {
         `Canary staging publication complete (${stagingTag} -> ${version}).`,
       ),
     )
+  } catch (error) {
+    failure = error
+    throw error
   } finally {
     try {
       const restored = restoreReleaseRewrite(process.cwd(), source)
@@ -247,6 +251,7 @@ async function main(): Promise<void> {
           }`,
         ),
       )
+      if (failure === undefined) throw error
     }
   }
 }

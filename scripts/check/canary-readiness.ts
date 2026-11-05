@@ -6,6 +6,7 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
+import { isDeepStrictEqual } from 'node:util'
 
 import { scanSecrets } from './check-secrets'
 import { listReleaseChanges } from '../release/release-rewrite-guard'
@@ -38,6 +39,7 @@ export interface CanaryReadinessInput {
   readonly actualVersion: string
   readonly changedPaths: readonly string[]
   readonly rewritePolicy: CanaryRewritePolicy
+  readonly packageJsonRewriteErrors: readonly string[]
   readonly nativeBinaryPresent: boolean
   readonly packedConsumers: CanaryReportEvidence
   readonly createZeus: CanaryReportEvidence
@@ -62,6 +64,10 @@ export function evaluateCanaryReadiness(
     file => !isAllowedCanaryRewritePath(file, input.rewritePolicy),
   )
   const sourceCommitValid = /^[0-9a-f]{40}$/i.test(input.sourceCommit)
+  const versionValid =
+    input.expectedVersion.length > 0 &&
+    /-canary\./.test(input.expectedVersion) &&
+    input.expectedVersion === input.actualVersion
 
   const checks: CanaryCheck[] = [
     check(
@@ -75,11 +81,10 @@ export function evaluateCanaryReadiness(
     ),
     check(
       'version',
-      input.expectedVersion.length > 0 &&
-        input.expectedVersion === input.actualVersion,
-      input.expectedVersion === input.actualVersion
+      versionValid,
+      versionValid
         ? `canary version ${input.expectedVersion}`
-        : `package version ${input.actualVersion || '<missing>'} does not match canary version ${input.expectedVersion || '<missing>'}`,
+        : `package version ${input.actualVersion || '<missing>'} does not match a canary version ${input.expectedVersion || '<missing>'}`,
     ),
     check(
       'worktree',
@@ -87,6 +92,13 @@ export function evaluateCanaryReadiness(
       unexpected.length === 0
         ? `only release rewrite paths changed (${input.changedPaths.length})`
         : `unexpected changed paths: ${unexpected.join(', ')}`,
+    ),
+    check(
+      'package-json-rewrite',
+      input.packageJsonRewriteErrors.length === 0,
+      input.packageJsonRewriteErrors.length === 0
+        ? 'package.json changes are limited to release metadata'
+        : `unexpected package.json changes: ${input.packageJsonRewriteErrors.join(', ')}`,
     ),
     check(
       'native-binaries',
@@ -154,18 +166,52 @@ export function evaluateCanaryReport(
   }
 
   const passed =
-    value.passed === true ||
-    (Array.isArray(value.results) &&
-      value.results.length > 0 &&
-      value.results.every(
-        entry => isRecord(entry) && entry.status === 'passed',
-      ))
+    typeof value.passed === 'boolean'
+      ? value.passed
+      : Array.isArray(value.results) &&
+        value.results.length > 0 &&
+        value.results.every(
+          entry => isRecord(entry) && entry.status === 'passed',
+        )
   return passed
     ? {
         status: 'pass',
         evidence: `${label} report passed for source HEAD`,
       }
     : { status: 'fail', evidence: `${label} report failed` }
+}
+
+export function findUnexpectedPackageJsonRewrites(
+  root: string,
+  changedPaths: readonly string[],
+  policy: CanaryRewritePolicy,
+): string[] {
+  const errors: string[] = []
+
+  for (const file of changedPaths) {
+    if (!file.endsWith('package.json')) continue
+    if (!isAllowedCanaryRewritePath(file, policy)) continue
+
+    try {
+      const before = JSON.parse(git(root, ['show', `HEAD:${file}`])) as Record<
+        string,
+        unknown
+      >
+      const after = JSON.parse(
+        fs.readFileSync(path.join(root, file), 'utf8'),
+      ) as Record<string, unknown>
+      for (const manifest of [before, after]) {
+        delete manifest.version
+        delete manifest.repository
+        delete manifest.publishConfig
+      }
+      if (!isDeepStrictEqual(before, after)) errors.push(file)
+    } catch {
+      errors.push(file)
+    }
+  }
+
+  return errors.sort()
 }
 
 export function isAllowedCanaryRewritePath(
@@ -262,19 +308,26 @@ export function readCanaryReadinessInput(
 ): CanaryReadinessInput {
   const headCommit = git(root, ['rev-parse', 'HEAD'])
   const sourceCommit =
-    env.ZEUS_SOURCE_COMMIT?.trim() || env.GITHUB_SHA?.trim() || headCommit
+    env.GITHUB_SHA?.trim() || env.ZEUS_SOURCE_COMMIT?.trim() || headCommit
   const actualVersion = readPackageVersion(root)
-  const expectedVersion = env.ZEUS_CANARY_VERSION?.trim() || actualVersion
+  const expectedVersion = env.ZEUS_CANARY_VERSION?.trim() ?? ''
   const trackedFiles = git(root, ['ls-files']).split('\n').filter(Boolean)
   const sbom = readJson(path.join(root, 'temp/sbom/zeus.cdx.json'))
+  const changedPaths = listReleaseChanges(root)
+  const rewritePolicy = takeCanaryRewritePolicy(root)
 
   return {
     sourceCommit,
     headCommit,
     expectedVersion,
     actualVersion,
-    changedPaths: listReleaseChanges(root),
-    rewritePolicy: takeCanaryRewritePolicy(root),
+    changedPaths,
+    rewritePolicy,
+    packageJsonRewriteErrors: findUnexpectedPackageJsonRewrites(
+      root,
+      changedPaths,
+      rewritePolicy,
+    ),
     nativeBinaryPresent: hasHostNativeBinary(root),
     packedConsumers: reportEvidence(
       root,
@@ -303,7 +356,12 @@ function checkLockfileConsistency(root: string): boolean {
   const result = spawnSync(
     'pnpm',
     ['install', '--frozen-lockfile', '--lockfile-only', '--ignore-scripts'],
-    { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+    {
+      cwd: root,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: process.platform === 'win32',
+    },
   )
   return result.status === 0
 }
