@@ -8,7 +8,9 @@ const branch =
   process.env.GITHUB_REF_NAME ||
   getCurrentBranch()
 
-const topic = '[a-z0-9]+(?:-[a-z0-9]+)*'
+// Versioned topics such as `zeus-0.2.0-progress` are valid Codex branch names,
+// so dots are allowed as topic separators in addition to hyphens.
+const topic = '[a-z0-9]+(?:[.-][a-z0-9]+)*'
 const version = '\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?'
 const allowed = [
   /^main$/,

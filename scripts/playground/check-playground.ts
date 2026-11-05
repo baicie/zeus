@@ -192,8 +192,17 @@ if (update) {
   writeFileSync(outputPath, output)
   console.log(`Updated ${path.relative(root, outputPath)}`)
 } else {
-  const expected = readFileSync(outputPath, 'utf8')
-  if (output !== expected) {
+  const expected = JSON.parse(readFileSync(outputPath, 'utf8')) as Record<
+    string,
+    unknown
+  >
+  const actual = JSON.parse(output) as Record<string, unknown>
+  // Bundle byte counts depend on the host platform and the native Rolldown
+  // build, so they are informational and must not make the semantic snapshot
+  // stale on a different CI runner.
+  delete expected.bundleSize
+  delete actual.bundleSize
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     throw new Error(
       'Playground snapshots are stale. Run `pnpm playground:update`.',
     )
