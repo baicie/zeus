@@ -13,7 +13,7 @@ on:
         default: main
   push:
     branches:
-      - 'r2/**'
+      - 'feat/release-*'
 
 concurrency:
   group: product-acceptance-${{ github.ref }}
