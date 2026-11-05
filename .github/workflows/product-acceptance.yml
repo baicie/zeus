@@ -11,6 +11,9 @@ on:
         description: zeus-ui ref paired with this Core commit
         required: false
         default: main
+  push:
+    branches:
+      - 'r2/**'
 
 permissions:
   contents: read
