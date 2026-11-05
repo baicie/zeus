@@ -197,11 +197,13 @@ if (update) {
     unknown
   >
   const actual = JSON.parse(output) as Record<string, unknown>
-  // Bundle byte counts depend on the host platform and the native Rolldown
-  // build, so they are informational and must not make the semantic snapshot
-  // stale on a different CI runner.
+  // Compression byte counts depend on the host platform, the native Rolldown
+  // build and the Node zlib version, so they are informational and must not
+  // make the semantic snapshot stale on a different CI runner.
   delete expected.bundleSize
   delete actual.bundleSize
+  delete expected.outputSize
+  delete actual.outputSize
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     throw new Error(
       'Playground snapshots are stale. Run `pnpm playground:update`.',
