@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { execFile } from 'node:child_process'
+import { execFile, execFileSync } from 'node:child_process'
 import fs from 'node:fs/promises'
 import http from 'node:http'
 import path from 'node:path'
@@ -123,6 +123,10 @@ async function main(): Promise<void> {
         {
           scope:
             'WASM multi-file compile, DOM/SSR output, sandbox interaction, diagnostics, security, loop budget and external export',
+          sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], {
+            cwd: root,
+            encoding: 'utf8',
+          }).trim(),
           host: 'http://127.0.0.1',
           sandbox: 'http://localhost',
           runtime: {
