@@ -338,7 +338,16 @@ interface SandboxMessageBase {
   readonly version: typeof PLAYGROUND_SANDBOX_MESSAGE_VERSION
   readonly sessionId: string
 }
+export interface PlaygroundSandboxConsoleEntry {
+  readonly level: 'log' | 'info' | 'warn' | 'error'
+  readonly message: string
+  readonly timestamp: number
+}
 export type PlaygroundSandboxMessage =
+  | (SandboxMessageBase & {
+      readonly kind: 'sandbox-console'
+      readonly entries: readonly PlaygroundSandboxConsoleEntry[]
+    })
   | (SandboxMessageBase & {
       readonly kind: 'sandbox-ready'
       readonly capabilities: {

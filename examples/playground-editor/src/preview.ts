@@ -8,6 +8,7 @@ import {
 
 import type {
   PlaygroundPreviewPayload,
+  PlaygroundSandboxConsoleEntry,
   PlaygroundSandboxDevtools,
 } from '@zeus-js/playground-engine'
 
@@ -59,9 +60,18 @@ export class PreviewController {
   private nextRequest = 0
   private messageWindowStarted = performance.now()
   private messageCount = 0
+  private consoleHandler:
+    | ((entries: readonly PlaygroundSandboxConsoleEntry[]) => void)
+    | undefined
 
   constructor(private readonly sandboxUrl: string) {
     window.addEventListener('message', this.handleMessage)
+  }
+
+  setConsoleHandler(
+    handler: (entries: readonly PlaygroundSandboxConsoleEntry[]) => void,
+  ): void {
+    this.consoleHandler = handler
   }
 
   attach(frame: HTMLIFrameElement): void {
@@ -194,6 +204,10 @@ export class PreviewController {
     if (this.messageCount > 64) return
     const message = parseSandboxMessage(event.data)
     if (!message || message.sessionId !== this.sessionId) return
+    if (message.kind === 'sandbox-console') {
+      this.consoleHandler?.(message.entries)
+      return
+    }
     if (message.kind === 'sandbox-ready') {
       if (!message.capabilities.opaqueOrigin) {
         this.failReady(

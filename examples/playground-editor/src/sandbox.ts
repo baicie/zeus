@@ -91,6 +91,94 @@ let activeStyles: HTMLStyleElement[] = []
 let devtools: SandboxDevtools | undefined
 let disposeHostPreview: (() => void) | undefined
 
+// Console output is serialized inside the sandbox and sent over the verified
+// message channel. DOM nodes, window objects and unbounded structures never
+// cross the boundary.
+interface SandboxConsoleEntry {
+  readonly level: 'log' | 'info' | 'warn' | 'error'
+  readonly message: string
+  readonly timestamp: number
+}
+const consoleQueue: SandboxConsoleEntry[] = []
+let consoleFlushTimer: number | undefined
+let consoleWindowStart = performance.now()
+let consoleWindowCount = 0
+const nativeConsole = {
+  log: console.log.bind(console),
+  info: console.info.bind(console),
+  warn: console.warn.bind(console),
+  error: console.error.bind(console),
+}
+for (const level of ['log', 'info', 'warn', 'error'] as const) {
+  console[level] = (...args: unknown[]) => {
+    nativeConsole[level](...args)
+    queueConsole(level, args)
+  }
+}
+function queueConsole(
+  level: SandboxConsoleEntry['level'],
+  args: unknown[],
+): void {
+  if (!trustedParentOrigin) return
+  const now = performance.now()
+  if (now - consoleWindowStart > 1_000) {
+    consoleWindowStart = now
+    consoleWindowCount = 0
+  }
+  consoleWindowCount += 1
+  if (consoleWindowCount > 100) return
+  consoleQueue.push({
+    level,
+    message: args.map(formatConsoleValue).join(' ').slice(0, 2_048),
+    timestamp: Date.now(),
+  })
+  if (consoleQueue.length > 50) consoleQueue.splice(0, consoleQueue.length - 50)
+  if (consoleFlushTimer === undefined) {
+    consoleFlushTimer = window.setTimeout(flushConsole, 120)
+  }
+}
+function flushConsole(): void {
+  consoleFlushTimer = undefined
+  if (consoleQueue.length === 0 || !trustedParentOrigin) return
+  const entries = consoleQueue.splice(0, 50)
+  window.parent.postMessage(
+    {
+      channel: PLAYGROUND_SANDBOX_CHANNEL,
+      version: PLAYGROUND_SANDBOX_MESSAGE_VERSION,
+      kind: 'sandbox-console',
+      sessionId,
+      entries,
+    },
+    trustedParentOrigin,
+  )
+}
+function formatConsoleValue(value: unknown, depth = 0): string {
+  if (typeof value === 'string') return value
+  if (
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    value == null
+  ) {
+    return String(value)
+  }
+  if (typeof value === 'bigint') return `${value.toString()}n`
+  if (typeof value === 'function')
+    return `[Function ${value.name || 'anonymous'}]`
+  if (value instanceof Error) return `${value.name}: ${value.message}`
+  if (depth > 2) return '[Object]'
+  try {
+    const json = JSON.stringify(value, (_key, nested) => {
+      if (typeof nested === 'bigint') return nested.toString()
+      if (typeof nested === 'function') return '[Function]'
+      if (nested instanceof Error) return `${nested.name}: ${nested.message}`
+      return nested
+    })
+    return (json ?? String(value)).slice(0, 2_048)
+  } catch {
+    return '[Unserializable]'
+  }
+}
+
 window.addEventListener('message', event => {
   if (event.source !== window.parent) return
   if (

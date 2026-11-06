@@ -246,6 +246,10 @@ jobs:
         run: |
           pnpm --filter @zeus-js/compiler-wasm build:wasm
           pnpm check:compiler-wasm-browser
+      - name: Playground UX in Chromium, Firefox and WebKit
+        run: |
+          pnpm --filter @zeus-js/example-playground-editor build
+          pnpm exec tsx scripts/playground/check-playground-ux.ts
       - name: DevTools click-to-binding panel in Chromium, Firefox and WebKit
         run: pnpm check:devtools-panel
       - name: Preserve consumer reports
@@ -264,6 +268,7 @@ jobs:
             temp/next-boundary
             temp/compiler-wasm
             temp/playground
+            temp/playground-ux
             temp/devtools-panel
             temp/hmr-packed
 

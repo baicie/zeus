@@ -70,6 +70,7 @@ export {
   parseSandboxMessage,
   type PlaygroundMessage,
   type PlaygroundSandboxMessage,
+  type PlaygroundSandboxConsoleEntry,
   type PlaygroundSandboxDevtools,
 } from './messages'
 export {

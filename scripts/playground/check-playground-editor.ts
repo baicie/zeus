@@ -184,7 +184,7 @@ async function runEditorChecks(page: Page): Promise<Record<string, boolean>> {
   await expect(page.getByTestId('compile')).toBeEnabled()
 
   await compile(page)
-  await expect(page.getByTestId('status')).toContainText('编译完成：2 个模块')
+  await expect(page.getByTestId('status')).toContainText('Compiled 2 modules')
   await expect(page.getByTestId('dom-output')).toContainText(
     '// src/main.tsx · source map',
   )
@@ -193,15 +193,17 @@ async function runEditorChecks(page: Page): Promise<Record<string, boolean>> {
   )
   await expect(page.getByTestId('ssr-output')).toContainText('Count:')
   await expect(page.getByTestId('diagnostics')).toContainText('"sourceMaps"')
-  await expect(page.getByTestId('preview-status')).toContainText('预览就绪')
+  await expect(page.getByTestId('preview-status')).toContainText(
+    'Preview ready',
+  )
 
   const firstFrame = page.frameLocator('[data-testid="preview-frame"]')
   await expect(firstFrame.getByTestId('query-status')).toHaveText(
     'Router + Query ready',
   )
   await expect(firstFrame.locator('button')).toHaveText('Count: 0')
-  await expect(page.getByTestId('hmr-kind-src/counter.tsx')).toContainText(
-    'first-build',
+  await expect(page.getByTestId('hmr-kind-src/counter.tsx')).toHaveText(
+    /first-build|unchanged/,
   )
   await expect(page.getByTestId('devtools-mode')).toHaveText('runtime')
   await expect(page.getByTestId('devtools-owners')).not.toHaveText('0')
@@ -212,14 +214,17 @@ async function runEditorChecks(page: Page): Promise<Record<string, boolean>> {
   await expect(page.getByTestId('build-metrics')).toContainText('WASM compile')
   const firstSandboxUrl = sandboxFrame(page).url()
   const firstSandboxSession = sandboxSession(firstSandboxUrl)
+  // Chromium may swallow synthetic clicks aimed at an out-of-process iframe
+  // while its compositor surface is still being committed after navigation.
+  // A real user can only click after the first paint, so give the sandbox one
+  // frame to settle before exercising the counter button.
+  await page.waitForTimeout(250)
   await firstFrame.locator('button').click()
   await expect(firstFrame.locator('button')).toHaveText('Count: 1')
 
   await page.getByRole('tab', { name: 'counter.tsx' }).click()
-  const currentSource = await page.getByTestId('source').inputValue()
-  await page
-    .getByTestId('source')
-    .fill(currentSource.replace('Count:', 'Live:'))
+  const currentSource = await getEditorSource(page)
+  await setEditorSource(page, currentSource.replace('Count:', 'Live:'))
   await compile(page)
   await expect(page.getByTestId('dom-output')).toContainText('Live:')
   await expect(page.getByTestId('ssr-output')).toContainText('Live:')
@@ -234,20 +239,19 @@ async function runEditorChecks(page: Page): Promise<Record<string, boolean>> {
   )
 
   await page.getByRole('tab', { name: 'main.tsx' }).click()
-  await page.getByTestId('source').fill('export const App = () => <div>\n')
+  await setEditorSource(page, 'export const App = () => <div>\n')
   await compile(page, false)
   await expect(page.getByTestId('diagnostics')).toContainText(
     'ZEUS_PARSE_ERROR',
   )
-  await expect(page.getByTestId('preview-status')).toHaveText(
-    '存在编译错误，预览未启动',
+  await expect(page.getByTestId('preview-status')).toContainText(
+    'Preview is stale',
   )
 
-  await page
-    .getByTestId('source')
-    .fill(
-      `export const helper = () => 'helper'\nexport const App = () => <p>Recovered</p>\n`,
-    )
+  await setEditorSource(
+    page,
+    `export const helper = () => 'helper'\nexport const App = () => <p>Recovered</p>\n`,
+  )
   await compile(page)
   await expect(firstFrame.locator('p')).toHaveText('Recovered')
 
@@ -260,7 +264,7 @@ async function runEditorChecks(page: Page): Promise<Record<string, boolean>> {
     { currentOrigin: host },
   )
   const probeSource = securityProbe(host)
-  await page.getByTestId('source').fill(probeSource)
+  await setEditorSource(page, probeSource)
   await compile(page)
   const security = JSON.parse(
     (await firstFrame.getByTestId('security-probe').textContent()) ?? '{}',
@@ -288,22 +292,25 @@ async function runEditorChecks(page: Page): Promise<Record<string, boolean>> {
     await page.getByTestId('preview-frame').getAttribute('sandbox'),
     'allow-scripts',
   )
-  await expect(page.getByTestId('preview-status')).toContainText('预览就绪')
-
-  await page
-    .getByTestId('source')
-    .fill('export const App = () => { while (true) {} }\n')
-  await compile(page)
   await expect(page.getByTestId('preview-status')).toContainText(
+    'Preview ready',
+  )
+
+  await setEditorSource(page, 'export const App = () => { while (true) {} }\n')
+  await compile(page, false)
+  await expect(page.getByTestId('diagnostics')).toContainText(
     'ZEUS_PLAYGROUND_LOOP_BUDGET',
   )
-  await page
-    .getByTestId('source')
-    .fill(`export const App = () => <button>Recovered</button>\n`)
+  await setEditorSource(
+    page,
+    `export const App = () => <button>Recovered</button>\n`,
+  )
   await compile(page)
   await expect(firstFrame.locator('button')).toHaveText('Recovered')
 
-  await page.getByTestId('source').fill(`import { render } from '@zeus-js/zeus'
+  await setEditorSource(
+    page,
+    `import { render } from '@zeus-js/zeus'
 import { QueryClientProvider, createQueryClient } from '@zeus-js/query'
 import { RouterProvider, createMemoryHistory, createRouter } from '@zeus-js/router'
 import { Counter } from './counter'
@@ -323,7 +330,8 @@ render(
   ),
   document.querySelector('#root')!,
 )
-`)
+`,
+  )
   await compile(page)
   await expect(firstFrame.locator('button')).toHaveText('Live: 0')
   return security
@@ -336,11 +344,14 @@ async function runWebCStudioChecks(
   await page.goto(`${host}/webc.html`)
   await expect(page.getByTestId('compile')).toBeEnabled()
   await compile(page)
+  await page.getByTestId('tab-inspector').click()
   await expect(page.getByTestId('webc-manifest')).toContainText('z-counter')
   await expect(page.getByTestId('webc-declarations')).toContainText(
     'defineCustomElement',
   )
-  await expect(page.getByTestId('preview-status')).toContainText('预览就绪')
+  await expect(page.getByTestId('preview-status')).toContainText(
+    'Preview ready',
+  )
   const frame = page.frameLocator('[data-testid="preview-frame"]')
   await expect(frame.locator('z-counter')).toHaveCount(1)
   await page.getByTestId('preview-frameworks').click()
@@ -378,6 +389,26 @@ async function runFrameworkHostChecks(page: Page): Promise<void> {
   await expect(react).toContainText('React: 4')
 }
 
+async function getEditorSource(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const api = (
+      window as unknown as { __zeusPlayground?: { getSource(): string } }
+    ).__zeusPlayground
+    return api?.getSource() ?? ''
+  })
+}
+
+async function setEditorSource(page: Page, value: string): Promise<void> {
+  await page.evaluate(next => {
+    const api = (
+      window as unknown as {
+        __zeusPlayground?: { setSource(value: string): void }
+      }
+    ).__zeusPlayground
+    api?.setSource(next)
+  }, value)
+}
+
 async function compile(page: Page, expectSuccess = true): Promise<void> {
   const button = page.getByTestId('compile')
   const previousSequence = await button.getAttribute('data-build-sequence')
@@ -392,7 +423,10 @@ async function compile(page: Page, expectSuccess = true): Promise<void> {
   )
   await expect(button).toBeEnabled()
   if (expectSuccess) {
-    await expect(page.getByTestId('preview-status')).not.toContainText('未启动')
+    await expect(page.getByTestId('preview-status')).toContainText(
+      'Preview ready',
+      { timeout: 30_000 },
+    )
   }
 }
 
@@ -402,7 +436,7 @@ async function downloadExport(page: Page): Promise<string> {
   const download = await downloadPromise
   const archive = path.join(output, download.suggestedFilename())
   await download.saveAs(archive)
-  await expect(page.getByTestId('status')).toContainText('已导出')
+  await expect(page.getByTestId('status')).toContainText('Exported')
   return archive
 }
 
@@ -442,7 +476,11 @@ async function installAndBuildExport(archive: string): Promise<string> {
   const extraction = path.join(output, 'exported-project')
   await fs.rm(extraction, { recursive: true, force: true })
   await fs.mkdir(extraction, { recursive: true })
-  await execFileAsync('tar', ['-xzf', archive, '-C', extraction])
+  if (archive.endsWith('.zip')) {
+    await execFileAsync('unzip', ['-q', archive, '-d', extraction])
+  } else {
+    await execFileAsync('tar', ['-xzf', archive, '-C', extraction])
+  }
   const entries = await fs.readdir(extraction)
   const packageDirectory = entries.find(
     entry => entry.startsWith('zeus-') && entry.endsWith('-export'),

@@ -76,3 +76,38 @@ describe('playground sandbox message schema', () => {
     expect(isOpaqueSandboxOrigin('')).toBe(false)
   })
 })
+
+describe('playground sandbox console bridge', () => {
+  it('accepts bounded, structured console entries without a request id', () => {
+    const message = {
+      channel: PLAYGROUND_SANDBOX_CHANNEL,
+      version: PLAYGROUND_SANDBOX_MESSAGE_VERSION,
+      kind: 'sandbox-console',
+      sessionId: 'session:1',
+      entries: [
+        { level: 'log', message: 'hello', timestamp: 10 },
+        { level: 'error', message: 'boom', timestamp: 11 },
+      ],
+    }
+    expect(parseSandboxMessage(message)).toMatchObject({
+      kind: 'sandbox-console',
+      sessionId: 'session:1',
+    })
+    expect(
+      parseSandboxMessage({
+        ...message,
+        entries: [{ level: 'debug', message: 'nope', timestamp: 1 }],
+      }),
+    ).toBeUndefined()
+    expect(
+      parseSandboxMessage({
+        ...message,
+        entries: Array.from({ length: 51 }, (_, index) => ({
+          level: 'log',
+          message: String(index),
+          timestamp: index,
+        })),
+      }),
+    ).toBeUndefined()
+  })
+})

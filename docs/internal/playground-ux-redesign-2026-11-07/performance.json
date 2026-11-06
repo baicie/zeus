@@ -1,0 +1,90 @@
+{
+  "engine": "chromium",
+  "initial": {
+    "shellJavascriptBytes": 605269,
+    "cssBytes": 17237,
+    "editorChunkBytes": 529595,
+    "compilerBytes": 3754555,
+    "totalTransferBytes": 4906956,
+    "resources": [
+      {
+        "name": "/assets/rolldown-runtime-XKyaHtl9.js",
+        "bytes": 726,
+        "lazy": false
+      },
+      {
+        "name": "/assets/runtime-dom.esm-bundler-DHdzrsRJ.js",
+        "bytes": 83416,
+        "lazy": false
+      },
+      {
+        "name": "/assets/main-DjfOr_rT.js",
+        "bytes": 66983,
+        "lazy": false
+      },
+      {
+        "name": "/assets/playground-engine.esm-bundler-D2UYPSNO.js",
+        "bytes": 454144,
+        "lazy": false
+      },
+      {
+        "name": "/assets/main-K2gOVz4b.css",
+        "bytes": 17237,
+        "lazy": false
+      },
+      {
+        "name": "/assets/code-editor-impl-BdL181-_.js",
+        "bytes": 529595,
+        "lazy": true
+      },
+      {
+        "name": "/favicon.ico",
+        "bytes": 300,
+        "lazy": false
+      },
+      {
+        "name": "/assets/zeus-compiler-CW8m08CV.wasm",
+        "bytes": 1545997,
+        "lazy": false
+      },
+      {
+        "name": "/assets/worker-C39EreCg.js",
+        "bytes": 1353,
+        "lazy": false
+      },
+      {
+        "name": "/assets/babel-BNS_LnEj.js",
+        "bytes": 2207205,
+        "lazy": false
+      }
+    ]
+  },
+  "timing": {
+    "firstEditableMs": 181,
+    "firstPreviewMs": 445,
+    "domContentLoadedMs": 59,
+    "loadMs": 163
+  },
+  "compile": {
+    "compileMs": 7.1,
+    "previewMs": 2.8,
+    "domBytes": 634,
+    "ssrBytes": 660
+  },
+  "autoRun": {
+    "edits": 30,
+    "compiles": 1,
+    "elapsedMs": 1985,
+    "finalSourceVisible": true
+  },
+  "cleanup": {
+    "builds": 10,
+    "heapBeforeBytes": 12408404,
+    "heapAfterBytes": 13043312,
+    "heapGrowthBytes": 634908,
+    "iframesAfterBuilds": 1,
+    "iframesAfterStop": 1,
+    "workers": 1,
+    "stopped": true
+  }
+}

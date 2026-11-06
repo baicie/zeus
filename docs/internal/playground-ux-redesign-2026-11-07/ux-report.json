@@ -1,0 +1,16 @@
+{
+  "results": [
+    {
+      "browser": "chromium",
+      "passed": true
+    },
+    {
+      "browser": "firefox",
+      "passed": true
+    },
+    {
+      "browser": "webkit",
+      "passed": true
+    }
+  ]
+}
