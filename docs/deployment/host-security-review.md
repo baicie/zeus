@@ -37,3 +37,16 @@
 - AI Host 的参考实现不是多租户身份系统；必须在生产 ingress 做认证、限流与隔离。
 - Build provenance 不是加密签名；不能宣称“密码学证明”。
 - 线上 TLS、WAF、DDoS、日志脱敏与密钥轮换需在 Host Validation 环境验证。
+
+## Ingress 与 AI Host 公开边界
+
+- `INGRESS_TEMPLATE_READY`：`deploy/host-validation/nginx.conf` 提供 TLS、HSTS、
+  CSP、Sandbox Origin 与 SSE 配置模板，Stage 1 已本地验证。
+- `INGRESS_DEPLOYED_AND_VERIFIED`：`NOT_RUN`。Stage 2 必须在真实 ingress 上
+  验证 Hostname、证书、HTTP→HTTPS、HSTS、CSP、sandbox origin 和 SSE 后才可
+  标记。
+- AI Workbench 公开部署当前为 **BLOCKED_BY_SECURITY**，直到 ingress 具备
+  用户鉴权、请求限流和并发上限；AI Host 不直接发布公网端口。
+- Stage 2 只接受祖先于 main 的提交、已验证的 artifact SHA256、隔离 tenant、
+  GitHub Environment 审批与 `ZEUS_HOST_DEPLOY_ENABLED=true`；输入只通过 env
+  传给 CLI，不进入 shell 文本。

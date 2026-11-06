@@ -52,6 +52,8 @@ jobs:
           path: |
             temp/deploy/stage1/deployment-candidate.json
             temp/deploy/stage1/deployment.local.json
+            temp/deploy/stage1/provenance.json
             temp/deploy/stage1/deployment-acceptance.local.json
-            temp/deploy/stage1/stage1.env
+            temp/deploy/stage1/oci/*.tar
           if-no-files-found: warn
+          retention-days: 7

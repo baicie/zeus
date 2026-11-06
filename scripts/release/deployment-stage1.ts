@@ -5,6 +5,7 @@
  * never reads production secrets.
  */
 import { execFileSync, spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -92,8 +93,10 @@ async function runStage1(options: Stage1Options): Promise<void> {
         uiRoot: options.uiRoot,
         reuseImages: options.reuseImages,
       })
+  const oci = exportImages(options.output, images)
   const envFile = path.join(options.output, 'stage1.env')
   writeEnvFile(envFile, images, uiCommit)
+  fs.chmodSync(envFile, 0o600)
   const composeFile = options.composeFile
   dockerCompose(['config', '--quiet'], composeFile, envFile)
   let report
@@ -158,6 +161,7 @@ async function runStage1(options: Stage1Options): Promise<void> {
         false,
       )
     }
+    fs.rmSync(envFile, { force: true })
   }
   const candidate = {
     schema: 'zeus.deployment-candidate/v1',
@@ -165,10 +169,36 @@ async function runStage1(options: Stage1Options): Promise<void> {
     uiCommit,
     version,
     builtAt,
-    images,
+    images: Object.fromEntries(
+      Object.entries(images).map(([key, image]) => [
+        key,
+        { ...image, ...oci[key as keyof typeof oci] },
+      ]),
+    ),
     compose: 'deploy/host-validation/compose.yml',
     report: report.decision,
   }
+  const provenance = {
+    schema: 'zeus.provenance/v1',
+    coreCommit,
+    uiCommit,
+    runId: process.env.GITHUB_RUN_ID ?? 'stage1-local',
+    runUrl:
+      process.env.GITHUB_RUN_ID && process.env.GITHUB_REPOSITORY
+        ? `${process.env.GITHUB_SERVER_URL ?? 'https://github.com'}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
+        : 'local://stage1',
+    createdAt: builtAt,
+    products: [
+      provenanceProduct('webc-studio', images.playground),
+      provenanceProduct('native-lab', images.playground),
+      provenanceProduct('admin', images.admin),
+      provenanceProduct('ai-workbench', images.workbench),
+    ],
+  }
+  fs.writeFileSync(
+    path.join(options.output, 'provenance.json'),
+    `${JSON.stringify(provenance, null, 2)}\n`,
+  )
   fs.writeFileSync(
     path.join(options.output, 'deployment-candidate.json'),
     `${JSON.stringify(candidate, null, 2)}\n`,
@@ -190,6 +220,8 @@ interface ImageRecord {
   readonly imageDigest: string
   readonly artifactDigest: string
   readonly buildInfo: unknown
+  readonly ociArchive: string
+  readonly ociSha256: string
 }
 
 function buildImages(input: {
@@ -273,6 +305,37 @@ function buildImages(input: {
   return result
 }
 
+function provenanceProduct(product: string, image: ImageRecord) {
+  return {
+    product,
+    artifactDigest: image.artifactDigest,
+    imageDigest: image.imageDigest,
+    buildInfo: image.buildInfo,
+  }
+}
+
+function exportImages(
+  output: string,
+  images: Record<string, ImageRecord>,
+): Record<string, { ociArchive: string; ociSha256: string }> {
+  const directory = path.join(output, 'oci')
+  fs.mkdirSync(directory, { recursive: true })
+  const result: Record<string, { ociArchive: string; ociSha256: string }> = {}
+  for (const [key, record] of Object.entries(images)) {
+    const archive = path.join(directory, `${key}.tar`)
+    run('docker', ['save', '--output', archive, record.image])
+    result[key] = {
+      ociArchive: path.relative(output, archive),
+      ociSha256: sha256File(archive),
+    }
+  }
+  return result
+}
+
+function sha256File(file: string): string {
+  return `sha256:${createHash('sha256').update(fs.readFileSync(file)).digest('hex')}`
+}
+
 function imageExists(image: string): boolean {
   return (
     spawnSync('docker', ['image', 'inspect', image], { stdio: 'ignore' })
@@ -292,7 +355,14 @@ function inspectImage(
     image,
   ]).trim()
   if (!buildInfoPath) {
-    return { image, imageDigest, artifactDigest: '', buildInfo: undefined }
+    return {
+      image,
+      imageDigest,
+      artifactDigest: '',
+      buildInfo: undefined,
+      ociArchive: '',
+      ociSha256: '',
+    }
   }
   const container = `stage1-inspect-${image.replace(/[^a-z0-9]/gi, '-')}`
   const tmp = path.join(repoRoot, 'temp/deploy/stage1', `${container}.json`)
@@ -312,6 +382,8 @@ function inspectImage(
     imageDigest,
     artifactDigest: buildInfo.artifactDigest,
     buildInfo,
+    ociArchive: '',
+    ociSha256: '',
   }
 }
 

@@ -1,30 +1,53 @@
-# Stage 2 controlled deployment entry. It only runs on an approved host runner
-# with the selected GitHub Environment, and refuses to run unless the
-# environment variable ZEUS_HOST_DEPLOY_ENABLED is explicitly set to "true".
-# This workflow is not executed by R3; it is the gate for a later authorized
-# deployment.
+# Stage 2 controlled deployment entry. Inputs are passed only through env
+# variables to a validated TypeScript CLI; no workflow expression is
+# interpolated into shell command text. It requires an approved GitHub
+# Environment, the deployment gate variable, a self-hosted zeus-host runner,
+# a verified artifact bundle and an ancestor-of-main source commit.
 name: Host Deployment Stage 2
 
 on:
   workflow_dispatch:
     inputs:
       environment:
-        description: Approved deployment environment
+        description: Approved deployment environment (must have protection rules)
         type: choice
         options: [staging, production]
         default: staging
-      manifest:
-        description: Absolute path to the approved online deployment manifest
-        required: true
-      provenance:
-        description: Absolute path to the CI provenance record
+      prepare-run-id:
+        description: Host Deployment Prepare run id containing the verified artifact bundle
         required: true
       tenant:
-        description: Isolated acceptance tenant id
+        description: Isolated acceptance tenant (lowercase, 3-32 chars)
         required: true
+      expected-core-sha:
+        description: Approved Core commit (must be an ancestor of main)
+        required: true
+      expected-ui-sha:
+        description: Approved UI commit
+        required: true
+      manifest-name:
+        description: Manifest file name inside the artifact bundle
+        default: deployment.local.json
+      provenance-name:
+        description: Provenance file name inside the artifact bundle
+        default: provenance.json
+      manifest-sha256:
+        description: SHA256 of the manifest file (sha256:<64 hex>)
+        required: true
+      provenance-sha256:
+        description: SHA256 of the provenance file
+        required: true
+      candidate-sha256:
+        description: SHA256 of deployment-candidate.json
+        required: true
+      simulate:
+        description: Validate and load artifacts without deploying
+        type: boolean
+        default: true
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: host-deployment-stage2-${{ inputs.environment }}
@@ -32,47 +55,55 @@ concurrency:
 
 jobs:
   deploy:
-    if: vars.ZEUS_HOST_DEPLOY_ENABLED == 'true'
     environment: ${{ inputs.environment }}
     runs-on: [self-hosted, zeus-host]
     timeout-minutes: 60
     steps:
+      - name: Verify deployment gate
+        env:
+          ZEUS_HOST_DEPLOY_ENABLED: ${{ vars.ZEUS_HOST_DEPLOY_ENABLED }}
+        run: |
+          test "$ZEUS_HOST_DEPLOY_ENABLED" = "true"
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.expected-core-sha }}
+          fetch-depth: 0
+      - name: Verify approved source ancestry
+        env:
+          EXPECTED_CORE: ${{ inputs.expected-core-sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_CORE"
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor HEAD origin/main
+      - uses: actions/download-artifact@v4
+        with:
+          name: host-deployment-stage1
+          run-id: ${{ inputs.prepare-run-id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/zeus-deploy
       - uses: pnpm/action-setup@v4
         with:
           version: 10.33.4
       - uses: actions/setup-node@v4
         with:
           node-version: 24.18.0
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Verify approved env file and images
-        run: |
-          test -f /etc/zeus/host-validation.env
-          docker compose --env-file /etc/zeus/host-validation.env \
-            -f deploy/host-validation/compose.yml config --quiet
-      - name: Deploy immutable digests
-        run: |
-          docker compose --env-file /etc/zeus/host-validation.env \
-            -f deploy/host-validation/compose.yml pull
-          docker compose --env-file /etc/zeus/host-validation.env \
-            -f deploy/host-validation/compose.yml up -d --wait --wait-timeout 180
-      - name: Online acceptance
+      - name: Install script dependencies without lifecycle scripts
+        run: pnpm install --ignore-scripts --frozen-lockfile
+      - name: Validate Stage 2 artifacts and (optionally) load images
         env:
+          ZEUS_HOST_DEPLOY_ENABLED: ${{ vars.ZEUS_HOST_DEPLOY_ENABLED }}
+          ZEUS_DEPLOY_INGRESS_VERIFIED: ${{ vars.ZEUS_DEPLOY_INGRESS_VERIFIED }}
+          ZEUS_DEPLOY_SIMULATE: ${{ inputs.simulate }}
+          ZEUS_DEPLOY_ARTIFACT_DIR: ${{ runner.temp }}/zeus-deploy
+          ZEUS_DEPLOY_MANIFEST: ${{ inputs.manifest-name }}
+          ZEUS_DEPLOY_PROVENANCE: ${{ inputs.provenance-name }}
+          ZEUS_DEPLOY_CANDIDATE: deployment-candidate.json
+          ZEUS_DEPLOY_TENANT: ${{ inputs.tenant }}
+          ZEUS_DEPLOY_EXPECTED_CORE: ${{ inputs.expected-core-sha }}
+          ZEUS_DEPLOY_EXPECTED_UI: ${{ inputs.expected-ui-sha }}
+          ZEUS_DEPLOY_MANIFEST_SHA256: ${{ inputs.manifest-sha256 }}
+          ZEUS_DEPLOY_PROVENANCE_SHA256: ${{ inputs.provenance-sha256 }}
+          ZEUS_DEPLOY_CANDIDATE_SHA256: ${{ inputs.candidate-sha256 }}
           ZEUS_ACCEPTANCE_ADMIN_EMAIL: ${{ secrets.ZEUS_ACCEPTANCE_ADMIN_EMAIL }}
           ZEUS_ACCEPTANCE_ADMIN_PASSWORD: ${{ secrets.ZEUS_ACCEPTANCE_ADMIN_PASSWORD }}
-          ZEUS_ACCEPTANCE_AI_REPLAY: 'true'
-          ZEUS_ACCEPTANCE_TENANT: ${{ inputs.tenant }}
-        run: |
-          pnpm check:deployment-acceptance \
-            --manifest "${{ inputs.manifest }}" \
-            --provenance "${{ inputs.provenance }}" \
-            --write-mode isolated \
-            --tenant "${{ inputs.tenant }}"
-      - name: Preserve deployment evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: host-deployment-stage2-${{ inputs.environment }}
-          path: temp/release/deployment-acceptance.json
-          if-no-files-found: warn
+        run: pnpm exec tsx scripts/release/deployment-stage2.ts
