@@ -123,10 +123,10 @@ viewer token：chat/SSE 可用，propose/approval 403，workspace 保持为空�
 
 ## 8.1 独立域名公网验证
 
-| 域名 | 结果 |
-| --- | --- |
-| `https://admin.moonbyte.top:8443` | HTTP 200；登录、Secure/HttpOnly/SameSite Cookie、HSTS 通过；仅引导管理员 |
-| `https://ai.moonbyte.top:8443` | Workbench 200；viewer token 服务端注入；workspace 200、message 200、propose 403、无 workspace 写入 |
+| 域名                              | 结果                                                                                               |
+| --------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `https://admin.moonbyte.top:8443` | HTTP 200；登录、Secure/HttpOnly/SameSite Cookie、HSTS 通过；仅引导管理员                           |
+| `https://ai.moonbyte.top:8443`    | Workbench 200；viewer token 服务端注入；workspace 200、message 200、propose 403、无 workspace 写入 |
 
 Cloudflare DNS-only A 记录已创建；Let's Encrypt 证书 SAN 覆盖两个域名，有效期
 至 2027-02-04；acme.sh cron 与 Caddy reload hook 已配置。

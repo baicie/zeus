@@ -45,10 +45,10 @@ React/Vue WebC 消费全部正常。即使未来 ingress 漏掉响应头，代�
 | Build time              | `2026-11-06T16:15:27Z`                                                                |
 | Host artifact digest    | `sha256:4271b0b65cecabbe5eeac41bbcf1a5e638a30a2049535d9e0b025715efc1c4f0`（15 files） |
 | Sandbox artifact digest | `sha256:91e9eaa0edbbeea92be323fbb40e7813b91ff783c069c6ce643802387077c53f`（15 files） |
-| 镜像                    | `zeus-playground:deploy-main-playground`                                                     |
+| 镜像                    | `zeus-playground:deploy-main-playground`                                              |
 | 镜像 ID                 | `sha256:a7516f02a012f63a2767e8e10f22edf89e5ce5f444d073a923348ee66052a8ee`             |
-| 镜像归档 SHA256         | `n/a（本镜像由服务器构建，本地 Docker 未保留归档）`                    |
-| Host build-info         | `https://playground.moonbyte.top:8443/build-info.json`                                      |
+| 镜像归档 SHA256         | `n/a（本镜像由服务器构建，本地 Docker 未保留归档）`                                   |
+| Host build-info         | `https://playground.moonbyte.top:8443/build-info.json`                                |
 | Sandbox build-info      | `https://panel.moonbyte.top:8443/zeus-sandbox/build-info.json`                        |
 
 ### Provenance 历史与最终纠正（R4.1 Final Closure）
@@ -141,7 +141,7 @@ iframe/CSP 使文档运行在 opaque origin，不能读取 Panel 的存储、Coo
 | 路径                                                    | CSP                                                                                          |
 | ------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | Host `/`                                                | `default-src 'self'; ...; frame-src https://panel.moonbyte.top:8443; frame-ancestors 'none'` |
-| Sandbox `/zeus-sandbox/sandbox.html`                    | `sandbox allow-scripts; frame-ancestors https://playground.moonbyte.top:8443`                      |
+| Sandbox `/zeus-sandbox/sandbox.html`                    | `sandbox allow-scripts; frame-ancestors https://playground.moonbyte.top:8443`                |
 | Sandbox aliases `/zeus-sandbox/index.html`、`host.html` | 同上（header 作用于整个 Sandbox server）                                                     |
 | Panel `/panel/`                                         | Panel 自身的 `default-src 'none'; ...; frame-ancestors 'none'`，未受影响                     |
 
