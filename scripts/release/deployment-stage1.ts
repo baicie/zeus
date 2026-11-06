@@ -27,6 +27,7 @@ function main(): void {
       output: { type: 'string', default: 'temp/deploy/stage1' },
       browsers: { type: 'string', default: 'chromium' },
       'skip-build': { type: 'boolean', default: false },
+      'reuse-images': { type: 'boolean', default: false },
       'keep-containers': { type: 'boolean', default: false },
     },
   })
@@ -48,6 +49,7 @@ function main(): void {
     composeFile,
     engines: (values.browsers ?? 'chromium').split(','),
     skipBuild: values['skip-build'] === true,
+    reuseImages: values['reuse-images'] === true,
     keepContainers: values['keep-containers'] === true,
   })
 }
@@ -59,6 +61,7 @@ interface Stage1Options {
   readonly composeFile: string
   readonly engines: readonly string[]
   readonly skipBuild: boolean
+  readonly reuseImages: boolean
   readonly keepContainers: boolean
 }
 
@@ -87,13 +90,11 @@ async function runStage1(options: Stage1Options): Promise<void> {
         version,
         builtAt,
         uiRoot: options.uiRoot,
+        reuseImages: options.reuseImages,
       })
   const envFile = path.join(options.output, 'stage1.env')
   writeEnvFile(envFile, images, uiCommit)
-  const composeFile = path.join(
-    options.coreRoot,
-    'deploy/host-validation/compose.yml',
-  )
+  const composeFile = options.composeFile
   dockerCompose(['config', '--quiet'], composeFile, envFile)
   let report
   try {
@@ -198,6 +199,7 @@ function buildImages(input: {
   readonly version: string
   readonly builtAt: string
   readonly uiRoot: string
+  readonly reuseImages: boolean
 }): Record<'playground' | 'admin' | 'aiHost' | 'workbench', ImageRecord> {
   const common = [
     '--build-arg',
@@ -241,12 +243,21 @@ function buildImages(input: {
   } as const
   const result = {} as Record<keyof typeof specs, ImageRecord>
   for (const [key, spec] of Object.entries(specs)) {
+    if (input.reuseImages && imageExists(spec.image)) {
+      console.log(`[stage1] reusing ${spec.image}`)
+      result[key as keyof typeof specs] = inspectImage(
+        spec.image,
+        spec.buildInfoPath,
+      )
+      continue
+    }
+    const dockerfile = path.join(spec.context, spec.dockerfile)
     const args = [
       'build',
       ...common,
       ...spec.extra,
       '-f',
-      spec.dockerfile,
+      dockerfile,
       '-t',
       spec.image,
       spec.context,
@@ -260,6 +271,13 @@ function buildImages(input: {
     )
   }
   return result
+}
+
+function imageExists(image: string): boolean {
+  return (
+    spawnSync('docker', ['image', 'inspect', image], { stdio: 'ignore' })
+      .status === 0
+  )
 }
 
 function inspectImage(

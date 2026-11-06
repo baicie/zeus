@@ -42,9 +42,17 @@
 - AI Workbench：静态 nginx；依赖 AI Host。
 - Stage 1 入口：`pnpm deploy:stage1 --core-root ... --ui-root ...`。
 
-Stage 1 在干净的 Core `a1036a0` / UI `2944311` worktree 上构建镜像、提取
-build-info、生成 candidate、启动 Compose、运行本地四产品验收，然后清理容器。
-结果见本文件后续与 `temp/deploy/stage1/`。
+Stage 1 已从干净的 Core `a1036a0` / UI `2944311` worktree 构建镜像并运行完成：
+
+| 产品                        | image                      | imageDigest                                                               | build-info artifactDigest                                                 |
+| --------------------------- | -------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Playground（WebC + Native） | `zeus-playground:stage1`   | `sha256:25b5bb6b9c2d4e2eafeecf679a013608f851995105ddfbe7c4ad716056f4a4f0` | `sha256:89a04c0e87984350dabe6a6bf1675f1caf7f4edd436a318498afa174c068f303` |
+| Admin                       | `zeus-admin:stage1`        | `sha256:fa9f7976e3936ac7c573d30943c83f50fec5280f3ed9c7dd03d8a78ed3c8490a` | `sha256:884267ac7a2f8878924ba1756e895d68c6314692729ffb75e9741dc2062b3534` |
+| AI Host                     | `zeus-ai-host:stage1`      | `sha256:c29d3c7b217356c08bb88814d2750935e9bc0247991e99deff5ff8681ff1e595` | —（服务镜像）                                                             |
+| AI Workbench                | `zeus-ai-workbench:stage1` | `sha256:a816712a89455a704de0e26040b2ef71f0b38421b3479cf3bd9eb6d660edf2ad` | `sha256:022cb11cf48c2d623db4f21ff8fb4ec67fe240bf9cdb34abe957191cf1445328` |
+
+结果：`LOCAL_VALIDATED`，四产品均通过；Compose 四服务健康检查通过后执行
+浏览器验收并清理容器。证据目录：`temp/deploy/stage1/`。
 
 ## D. Evidence Chain
 
@@ -53,7 +61,10 @@ build-info、生成 candidate、启动 Compose、运行本地四产品验收，�
 - Stage 1 的 `deployment-candidate.json` 记录 Core/UI SHA、每个 image 的本地
   content digest、build-info `artifactDigest`。
 - 不使用 PR Head SHA 冒充 main Merge SHA；本轮的 Core 证据从 `a1036a0` 的干净
-  worktree 构建，UI 从 `2944311` 构建。
+  worktree 构建，UI 从 `2944311` 构建。旧报告中的 `6665ee4` / `a291682` 是历史
+  PR Head 证据：`6665ee4` 的代码经 merge commit `458be30` 进入 main，之后
+  `a1036a0` 只增加文档；UI `a291682` 之后 `0768a72` 只修改 build-info 脚本注释，
+  再 squash 为 `2944311`。Stage 1 已重新构建 main 产物，没有替换 SHA。
 - 线上部署时复用 `provenance.json` / `image-provenance.json`，并用
   `check:deployment-acceptance --mode online` 比对实际 `/build-info.json`。
 - Provenance 是 digest 绑定，不是签名 attestation；签名升级仍是后续项。
@@ -83,7 +94,17 @@ AI 流式消息、200% Zoom、移动端、高对比度与 Reduce Motion。
 
 ## H. 最终状态
 
-（Stage 1 完成后更新。）
+`READY_FOR_HOST_DEPLOYMENT_AUTHORIZATION`
+
+- Main `a1036a0`：CI、Native Matrix 7/7、Docs、Release Canary dry-run 全部 PASS；
+  `CANARY_PUBLISH` 仍为 `NOT_RUN`。
+- 四产品在 main SHA 上完成镜像构建、Compose 启动、健康检查与浏览器验收，
+  全部 `LOCAL_VALIDATED`。
+- 安全审查无 P0；P1 残余风险已记录（AI Host 需 ingress 鉴权、provenance 非签名、
+  Chromium 之外的 DNS pinning、Admin Secret 注入）。
+- 人工 A11y、公网 HTTPS、部署审批、npm 发布仍 `NOT_RUN`。
+
+该状态不等于 `ONLINE_ACCEPTED`，也不等于 `READY_FOR_RELEASE`。
 
 ## I. 可重复证据命令
 
