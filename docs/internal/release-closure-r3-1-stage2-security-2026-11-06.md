@@ -63,7 +63,7 @@ Registry 模式保留扩展字段，但本轮未推送任何 Registry。
   （Linux/Windows/四镜像）；Stage 2 安全修复在此提交。
 - PR #192 `319f3a2`（仅把 arm64 macOS runner 从 `macos-14` 改为 `macos-15`）：
   Compiler Native Matrix `42173640297` **7/7 PASS**（含 macOS arm64）；
-  Linux/Windows Product Acceptance `42173634683` 与 CI 正在完成。
+  Linux/Windows Product Acceptance `42173634683` PASS，CI PASS。
 - macOS arm64 在 `macos-14` 上多次被 Runner 在启动阶段 cancelled；切换
   `macos-15` 后通过，属于 Runner 环境问题，不是源码失败。
 
