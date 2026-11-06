@@ -59,9 +59,22 @@ Registry 模式保留扩展字段，但本轮未推送任何 Registry。
 ## F. CI 状态
 
 - Core main `a1036a0`：CI、Native Matrix 7/7、Docs、Canary dry-run PASS。
-- PR #192 最新 HEAD 的 CI 需在本文件提交后重新运行；macOS ARM64 runner
-  先前多次在启动阶段 cancelled/failed（非源码编译失败），需重跑确认。
+- PR #192 `085ff2e`：CI PASS；Product Acceptance `42172477019` PASS
+  （Linux/Windows/四镜像）；Stage 2 安全修复在此提交。
+- PR #192 `319f3a2`（仅把 arm64 macOS runner 从 `macos-14` 改为 `macos-15`）：
+  Compiler Native Matrix `42173640297` **7/7 PASS**（含 macOS arm64）；
+  Linux/Windows Product Acceptance `42173634683` 与 CI 正在完成。
+- macOS arm64 在 `macos-14` 上多次被 Runner 在启动阶段 cancelled；切换
+  `macos-15` 后通过，属于 Runner 环境问题，不是源码失败。
 
 ## G. 最终裁决
 
-（CI 完成后更新。）
+`READY_FOR_R3_MERGE_REVIEW`
+
+P0 命令注入已关闭；Stage 2 只通过 env 接收输入并由 CLI 校验 tenant、路径、
+SHA256、main ancestry 与 gate。Stage 2 模拟在真实 main 证据上返回
+`STAGE2_SIMULATED_OK`；恶意 tenant 被拒绝且无副作用。Stage 1 已导出 OCI
+归档与 SHA256，凭据 env 文件不再上传并在 finally 删除。Native Matrix 在最新
+PR 代码上 7/7 通过。
+
+该裁决只授权人工审查是否合并 #192，不授权合并、部署、Tag 或 npm 发布。
