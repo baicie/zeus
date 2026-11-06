@@ -25,6 +25,7 @@ export interface BuildInfo {
   readonly products: readonly string[]
   readonly coreCommit: string
   readonly uiCommit: string
+  readonly sourceTree?: string
   readonly version: string
   readonly builtAt: string
   readonly artifactDigest: string
@@ -85,6 +86,7 @@ export function createBuildInfo(options: {
   readonly products: readonly string[]
   readonly coreCommit: string
   readonly uiCommit: string
+  readonly sourceTree?: string
   readonly version: string
   readonly builtAt: string
 }): BuildInfo {
@@ -94,6 +96,12 @@ export function createBuildInfo(options: {
   if (!/^[0-9a-f]{40}$/i.test(options.uiCommit)) {
     throw new Error('uiCommit must be a full 40-character commit')
   }
+  if (
+    options.sourceTree !== undefined &&
+    !/^[0-9a-f]{40}$/i.test(options.sourceTree)
+  ) {
+    throw new Error('sourceTree must be a full 40-character tree id')
+  }
   const files = collectArtifactFiles(options.distDir)
   if (files.length === 0)
     throw new Error('artifact contains no deployable files')
@@ -102,6 +110,7 @@ export function createBuildInfo(options: {
     products: [...new Set(options.products)].sort(),
     coreCommit: options.coreCommit,
     uiCommit: options.uiCommit,
+    ...(options.sourceTree ? { sourceTree: options.sourceTree } : {}),
     version: options.version,
     builtAt: options.builtAt,
     artifactDigest: computeArtifactDigest(files),
@@ -121,6 +130,7 @@ export function verifyDeployedBuildInfo(
     readonly products: readonly string[]
     readonly coreCommit: string
     readonly uiCommit: string
+    readonly sourceTree?: string
     readonly artifactDigest: string
     readonly imageDigest?: string
   },
@@ -147,6 +157,15 @@ export function verifyDeployedBuildInfo(
     errors.push(
       `build-info uiCommit ${String(value.uiCommit)} does not match ${expected.uiCommit}`,
     )
+  }
+  if (expected.sourceTree !== undefined) {
+    if (value.sourceTree === undefined) {
+      errors.push('build-info is missing sourceTree')
+    } else if (value.sourceTree !== expected.sourceTree) {
+      errors.push(
+        `build-info sourceTree ${String(value.sourceTree)} does not match ${expected.sourceTree}`,
+      )
+    }
   }
   if (value.artifactDigest !== expected.artifactDigest) {
     errors.push(
@@ -233,6 +252,7 @@ function main(): void {
       dist: { type: 'string' },
       'core-commit': { type: 'string' },
       'ui-commit': { type: 'string' },
+      'source-tree': { type: 'string' },
       version: { type: 'string' },
       'built-at': { type: 'string' },
       output: { type: 'string' },
@@ -252,6 +272,7 @@ function main(): void {
     products,
     coreCommit: values['core-commit'],
     uiCommit: values['ui-commit'],
+    ...(values['source-tree'] ? { sourceTree: values['source-tree'] } : {}),
     version: values.version,
     builtAt: values['built-at'] ?? new Date().toISOString(),
   })

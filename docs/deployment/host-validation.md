@@ -51,10 +51,16 @@ docker image inspect zeus-ai-workbench:ci | jq -r '.[0].Id'
 - Host：`https://studio.example.com`
 - Sandbox：`https://sandbox.studio.example.com`
 - 两个 origin 指向同一镜像/静态目录；sandbox 必须独立证书与 CORS。
-- 构建时 `VITE_ZEUS_SANDBOX_ORIGIN` 必须等于 sandbox 公网 origin；构建后
-  不可更改。
-- sandbox 页面自带 `default-src 'none'; script-src 'self' blob:` CSP；
-  host 不得把 sandbox 与 host 放在同一 origin。
+- 构建时优先设置完整 `VITE_ZEUS_SANDBOX_URL`（保留 path/query/hash）；
+  `VITE_ZEUS_SANDBOX_ORIGIN` 仅保留旧 origin-only 兼容。构建后不可更改。
+- 同时设置 `VITE_ZEUS_PLAYGROUND_HOST_ORIGINS`，sandbox 只接受该白名单
+  父 Origin 的 `postMessage`；非 loopback 环境不得留空，否则 fail closed。
+- sandbox 页面自带 `default-src 'none'; script-src 'self' blob:` meta CSP；
+  **还必须**有 HTTP 响应头
+  `Content-Security-Policy: sandbox allow-scripts; frame-ancestors <host origin>`。
+  meta 无法表达 `sandbox` 或 `frame-ancestors`，直接访问/第三方嵌入会绕过。
+- host 不得把 sandbox 与 host 放在同一 origin。R4.1 的 8443 路径部署见
+  [Playground R4.1 在线验收](playground-r4-1-online-acceptance-2026-11-06.md)。
 
 ## 5. Compose 模板
 

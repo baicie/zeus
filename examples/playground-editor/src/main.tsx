@@ -9,6 +9,7 @@ import {
   createPlaygroundPreview,
   exportProject,
   parseProjectSnapshot,
+  resolveSandboxUrl,
 } from '@zeus-js/playground-engine'
 import { For, Show, createSignal, onCleanup, render } from '@zeus-js/zeus'
 
@@ -63,35 +64,17 @@ const [buildMetrics, setBuildMetrics] = createSignal({
   domBytes: 0,
   ssrBytes: 0,
 })
-const preview = new PreviewController(resolveSandboxUrl())
+const preview = new PreviewController(resolveSandboxDocumentUrl())
 let compilerPromise: Promise<WorkerCompiler> | undefined
 let previousSnapshot: ReturnType<typeof projectSnapshot> | undefined
 let webcHostTag: string | undefined
 
-function resolveSandboxUrl(): string {
-  const configured = import.meta.env.VITE_ZEUS_SANDBOX_ORIGIN
-  const sandboxOrigin = configured
-    ? new URL(configured).origin
-    : alternateLoopbackOrigin()
-  if (sandboxOrigin === location.origin) {
-    throw new Error(
-      'VITE_ZEUS_SANDBOX_ORIGIN must be a different origin from the playground host.',
-    )
-  }
-  return `${sandboxOrigin}/sandbox.html`
-}
-
-function alternateLoopbackOrigin(): string {
-  const port = location.port ? `:${location.port}` : ''
-  if (location.hostname === '127.0.0.1') {
-    return `${location.protocol}//localhost${port}`
-  }
-  if (location.hostname === 'localhost') {
-    return `${location.protocol}//127.0.0.1${port}`
-  }
-  throw new Error(
-    'Set VITE_ZEUS_SANDBOX_ORIGIN to a distinct sandbox origin before building this example.',
-  )
+function resolveSandboxDocumentUrl(): string {
+  return resolveSandboxUrl({
+    hostUrl: location.href,
+    sandboxUrl: import.meta.env.VITE_ZEUS_SANDBOX_URL,
+    sandboxOrigin: import.meta.env.VITE_ZEUS_SANDBOX_ORIGIN,
+  })
 }
 
 function getCompiler(): Promise<WorkerCompiler> {

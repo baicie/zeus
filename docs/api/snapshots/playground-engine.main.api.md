@@ -242,6 +242,63 @@ export declare function exportProject(
   options?: ProjectExportOptions,
 ): Promise<PlaygroundExport>
 
+/**
+ * Sandbox URL and parent-origin policy shared by the playground host and the
+ * opaque sandbox document.
+ *
+ * The host build may use either a complete sandbox URL (preferred) or the
+ * legacy origin-only variable. A complete URL keeps path prefixes, ports,
+ * queries and fragments; the session id is carried in a query parameter so it
+ * never overwrites a configured fragment.
+ */
+export interface SandboxUrlOptions {
+  /** The document URL of the playground host. */
+  readonly hostUrl: string
+  /** Complete sandbox document URL, including optional path/query/hash. */
+  readonly sandboxUrl?: string | undefined
+  /** Legacy origin-only configuration. Its path, query and hash are discarded. */
+  readonly sandboxOrigin?: string | undefined
+}
+export interface SandboxParentPolicyOptions {
+  /** Local development may use loopback hosts without an explicit allowlist. */
+  readonly allowLoopback?: boolean
+}
+export interface SandboxLocationLike {
+  readonly search: string
+  readonly hash: string
+}
+/**
+ * Resolves and validates the iframe URL used by the playground host.
+ *
+ * - A complete `sandboxUrl` is preferred and preserves path/query/hash.
+ * - A legacy `sandboxOrigin` keeps the existing `/sandbox.html` behaviour.
+ * - Without either value, loopback hosts use the alternate loopback origin.
+ */
+export declare function resolveSandboxUrl(options: SandboxUrlOptions): string
+/** Adds the per-frame session id without dropping configured query or hash. */
+export declare function withSandboxSession(
+  url: string,
+  sessionId: string,
+): string
+/** Reads the session id from the sandbox document URL. */
+export declare function sandboxSessionFromLocation(
+  location: SandboxLocationLike,
+): string
+/**
+ * Parses a comma/whitespace separated list of trusted parent origins.
+ * Invalid entries fail closed instead of silently widening the allowlist.
+ */
+export declare function parseSandboxParentOrigins(
+  value: string | undefined | null,
+): string[]
+/** Exact-origin trust check; loopback is only admitted when explicitly allowed. */
+export declare function isTrustedSandboxParentOrigin(
+  origin: string,
+  allowedOrigins: readonly string[],
+  options?: SandboxParentPolicyOptions,
+): boolean
+export declare function isLoopbackSandboxHostname(hostname: string): boolean
+
 export declare const PLAYGROUND_CHANNEL: 'zeus-playground'
 export declare const PLAYGROUND_MESSAGE_VERSION: 1
 export declare const PLAYGROUND_SANDBOX_CHANNEL: 'zeus-playground-sandbox'

@@ -13,6 +13,7 @@ COPY scripts ./scripts
 COPY examples/playground-editor ./examples/playground-editor
 ARG ZEUS_CORE_COMMIT
 ARG ZEUS_UI_COMMIT
+ARG ZEUS_SOURCE_TREE
 ARG ZEUS_VERSION
 ARG ZEUS_BUILD_TIME
 RUN pnpm install --frozen-lockfile
@@ -20,14 +21,19 @@ RUN rustup target add wasm32-unknown-unknown
 RUN pnpm --filter @zeus-js/compiler-wasm build:wasm
 RUN pnpm --filter @zeus-js/compiler-native build:native
 RUN pnpm build
+ARG VITE_ZEUS_SANDBOX_URL
 ARG VITE_ZEUS_SANDBOX_ORIGIN
-ENV VITE_ZEUS_SANDBOX_ORIGIN=$VITE_ZEUS_SANDBOX_ORIGIN
+ARG VITE_ZEUS_PLAYGROUND_HOST_ORIGINS
+ENV VITE_ZEUS_SANDBOX_URL=$VITE_ZEUS_SANDBOX_URL \
+  VITE_ZEUS_SANDBOX_ORIGIN=$VITE_ZEUS_SANDBOX_ORIGIN \
+  VITE_ZEUS_PLAYGROUND_HOST_ORIGINS=$VITE_ZEUS_PLAYGROUND_HOST_ORIGINS
 RUN pnpm --filter @zeus-js/example-playground-editor build
 RUN node --import tsx scripts/release/build-info.ts \
   --product webc-studio,native-lab \
   --dist examples/playground-editor/dist \
   --core-commit "$ZEUS_CORE_COMMIT" \
   --ui-commit "$ZEUS_UI_COMMIT" \
+  ${ZEUS_SOURCE_TREE:+--source-tree "$ZEUS_SOURCE_TREE"} \
   --version "$ZEUS_VERSION" \
   --built-at "$ZEUS_BUILD_TIME"
 

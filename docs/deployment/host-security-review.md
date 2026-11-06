@@ -1,6 +1,9 @@
 # Zeus 0.2.0 Host Security Review
 
-状态：本地代码与部署模板审查完成；线上环境未部署，所有公网结论为 `NOT_RUN`。
+状态：本地代码与部署模板审查完成。R4.1 已部署并验证 Playground
+（WebC Studio / Native Lab）的 8443 公网入口；Admin 与 AI 仍未部署，四产品
+公网结论保持 `NOT_RUN`，两者均为 `BLOCKED_BY_SECURITY`。详见
+[Playground R4.1 在线验收](playground-r4-1-online-acceptance-2026-11-06.md)。
 
 ## 审查范围
 
@@ -50,3 +53,17 @@
 - Stage 2 只接受祖先于 main 的提交、已验证的 artifact SHA256、隔离 tenant、
   GitHub Environment 审批与 `ZEUS_HOST_DEPLOY_ENABLED=true`；输入只通过 env
   传给 CLI，不进入 shell 文本。
+
+## R4.1 更新（2026-11-06）
+
+- 复核发现并真实复现了此前未覆盖的 P0：第三方页面用不带 `sandbox` 属性的
+  iframe 嵌入 Sandbox 并发送 `sandbox-load`，预览代码会在面板 Origin 下执行。
+  已通过 Sandbox HTTP CSP `sandbox allow-scripts` + `frame-ancestors` +
+  `sandbox.ts` 模块初始化 opaque 硬门 + 父 Origin 白名单关闭。
+- 公网 Playground 已部署到 `https://mail.moonbyte.top:8443/`，Sandbox 为
+  `https://panel.moonbyte.top:8443/zeus-sandbox/sandbox.html`；三浏览器
+  正向与负向验收均通过，状态为 `PLAYGROUND_ONLINE_VALIDATED`。
+- 四产品 `ONLINE_ACCEPTED` 仍为 `NOT_READY`；Admin 与 AI 的 P0/P1 差距见
+  R4.1 报告第 6 节。不要因为 Playground 通过而放行 Admin/AI。
+- 8443 的 HSTS 与证书自动续期仍是未关闭项；证书当前有效期至
+  2027-02-03，续期为人工流程。
