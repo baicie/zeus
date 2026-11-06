@@ -24,10 +24,10 @@
   `https://admin.moonbyte.top:8443`（登录、Secure Cookie、HSTS 实测）。
 - AI Host/Workbench：**AI_HOST_SECURITY_READY**，已部署到
   `https://ai.moonbyte.top:8443`，公网为 viewer-only 只读演示；Host 无公网端口。
-- 四产品：**NOT_READY**（没有 Admin/AI 公网在线验收）。
+- 四产品：**NOT_READY**（没有完整的四产品在线验收 manifest；Admin/AI 公网仅完成独立域名 Host Validation）。
 - 总体：**READY_FOR_R4_HOST_VALIDATION_REVIEW**。Playground provenance 已
-  从正式 main 重建关闭；Admin/AI 本地安全验收完成但未部署，四产品门禁
-  没有伪造 ONLINE_ACCEPTED。
+  从正式 main 重建关闭；Admin/AI 已部署独立域名并通过 Host Validation，
+  但镜像来自 Draft PR 分支，四产品门禁没有伪造 ONLINE_ACCEPTED。
 
 ## 3. #193 CI / API Snapshot
 
@@ -85,8 +85,9 @@
 测试：Admin server 3 files / **16 tests passed**；Chromium/Firefox/WebKit
 浏览器门禁全部通过。Docker 镜像 `zeus-admin:r42` 构建成功，容器
 `127.0.0.1:18087` healthy；容器内 Secure/HttpOnly/SameSite Cookie、viewer
-403 和 Admin UI 登录通过。未公网部署；真实 8443/TLS ingress 在线验收仍为
-**NOT_RUN**。
+403 和 Admin UI 登录通过。公网 `https://admin.moonbyte.top:8443` 已部署并
+实测登录、Secure/HttpOnly/SameSite Cookie、HSTS；viewer 公网登录未建测试
+账号，viewer 403 由本地 HTTP/三浏览器覆盖。
 
 ## 7. AI Security Matrix
 
@@ -106,7 +107,9 @@
 全部通过（chat、SSE、approval、workspace write）。Docker 镜像
 `zeus-ai-host:r42` / `zeus-ai-workbench:r42` 构建成功；容器栈用 nginx 服务端
 注入 Bearer Token，浏览器不带 Token 完成 SSE/审批/workspace 写入，Host
-无公网端口。未部署；真实公网 8443/TLS、长时间 SSE 资源耗尽仍为 **NOT_RUN**。
+无公网端口。公网 `https://ai.moonbyte.top:8443` 已部署，但只注入
+viewer token：chat/SSE 可用，propose/approval 403，workspace 保持为空；
+完整审批/写入演示仅限本地 admin-token 栈。长时间 SSE 资源耗尽仍为 **NOT_RUN**。
 
 ## 8. 未完成 / 阻塞
 
