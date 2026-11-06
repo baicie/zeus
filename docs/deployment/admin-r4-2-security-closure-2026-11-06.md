@@ -72,3 +72,26 @@ container: 127.0.0.1:18087 -> 8080, healthy
 - Chromium 通过容器登录 Admin UI；viewer 访问 `/admin/reports` 显示 403。
 
 未将容器端口发布到公网；没有执行真实 8443/TLS ingress 验收。
+
+
+## 独立域名 Host Validation（公网）
+
+- 域名：`https://admin.moonbyte.top:8443`，Cloudflare DNS-only A 记录指向
+  `82.156.234.84`；Let's Encrypt 证书 SAN 为 `admin.moonbyte.top` /
+  `ai.moonbyte.top`，有效期至 2027-02-04。
+- Caddy 在 8443 终止 TLS，转 `127.0.0.1:18090`；Admin 容器没有其他公网
+  端口。HSTS 已在 dedicated hostname 上启用。
+- 公网 `GET /api/health` 200；浏览器登录成功；Cookie 实测为
+  `Secure; HttpOnly; SameSite=Lax`（CSRF Cookie `Secure; SameSite=Lax`）。
+- 生产容器使用 `ZEUS_ADMIN_SEED_DEMO=false`，只引导管理员账号，不创建
+  viewer 演示账号；公网部署未测试 viewer 登录，viewer 403 由本地 HTTP 和
+  三浏览器测试覆盖。
+- 当前公网镜像是从 Admin PR 分支构建的 `zeus-admin:r42-deploy`（分支
+  commit `382d33d`），不是 main merge commit；合并 #194 后应从 main 重建
+  再更新该镜像，避免长期运行未合并产物。
+
+### 证书续期
+
+acme.sh 已配置 cron（`5,11,17,23` 小时），并已设置 install-cert 的
+`--reloadcmd` 调用 Caddy reload；证书 SAN 与私钥只在服务器
+`/home/ubuntu/caddy/certs/admin-ai-*`，权限 600。
