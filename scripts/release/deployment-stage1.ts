@@ -200,6 +200,20 @@ async function runStage1(options: Stage1Options): Promise<void> {
     `${JSON.stringify(provenance, null, 2)}\n`,
   )
   fs.writeFileSync(
+    path.join(options.output, 'pair.json'),
+    `${JSON.stringify(
+      {
+        schema: 'zeus.release-pair/v1',
+        coreCommit,
+        uiCommit,
+        runId: process.env.GITHUB_RUN_ID ?? 'stage1-local',
+        createdAt: builtAt,
+      },
+      null,
+      2,
+    )}\n`,
+  )
+  fs.writeFileSync(
     path.join(options.output, 'deployment-candidate.json'),
     `${JSON.stringify(candidate, null, 2)}\n`,
   )
