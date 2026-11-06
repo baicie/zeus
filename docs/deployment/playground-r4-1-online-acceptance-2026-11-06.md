@@ -1,7 +1,7 @@
 # Zeus 0.2.0 R4.1 — Playground 公网安全加固与在线验收
 
-状态：安全验收 **PLAYGROUND_ONLINE_VALIDATED**；部署 Provenance
-**BLOCKED_BY_PROVENANCE**，等待 #193 合并后从正式 main 重建。
+状态：**PLAYGROUND_ONLINE_VALIDATED**；Provenance 已从正式 main
+merge commit `31089116` 重建并重新验收通过。
 
 范围：仅 `WebC Studio` / `Native Lab`。Core RC 的四产品门禁仍为
 **NOT_READY**；Admin 与 AI Workbench 仍为 **BLOCKED_BY_SECURITY**，未部署。
@@ -36,41 +36,39 @@ React/Vue WebC 消费全部正常。即使未来 ingress 漏掉响应头，代�
 
 | 项                      | 值                                                                                    |
 | ----------------------- | ------------------------------------------------------------------------------------- |
+| 项                      | 值                                                                                    |
+| ----------------------- | ------------------------------------------------------------------------------------- |
 | Core 仓库               | `https://github.com/baicie/zeus`                                                      |
-| Core main / 部署源      | `7a14a9c5d801ebb6453ad057f7b95848675ccdb3`                                            |
-| Core source tree        | `10659b3ecf5b70193d4c5fe8e429deebcbccf73d`                                            |
+| Core main / 部署源      | `310891161d28bf2fed57f20fc457000338c6a206`（merge PR #193）                           |
+| Core source tree        | `962ed3efecc288522caf94fe065fc0eb905cfcb5`                                            |
 | UI main                 | `294431194a50735b62ba38e674fac1af76ae6cfb`                                            |
 | 版本                    | `0.1.1-beta.20`                                                                       |
-| Build time              | `2026-11-06T12:34:10Z`                                                                |
-| Host artifact digest    | `sha256:8dbf32d536d74601bd0322268cdaf9f9c5cf0255544a9af07d05967362b99456`（15 files） |
-| Sandbox artifact digest | `sha256:f529bc361f24672f5e428fb8976462876fa23dcaaf623be70943f1b749806679`（15 files） |
-| 镜像                    | `zeus-playground:deploy-r41b`                                                         |
-| 镜像 ID                 | `sha256:3c2deb10ceb4a7cb90d271ec9a7e643dfec2ef3430c316df1a5c754b61f06b25`             |
-| 镜像归档 SHA256         | `ec92ebf432444cd972f77d036b85e3d60b95dcee77a46e94923736e81c5fab0c`                    |
+| Build time              | `2026-11-06T14:12:25Z`                                                                |
+| Host artifact digest    | `sha256:218e2eebca0872d4c9a5090cdf418fdc9dba2ecdc2cedb3afb1ad164939b7de4`（15 files） |
+| Sandbox artifact digest | `sha256:51232ef416f9c699da0ae171352d555993367a876c727486725c7865ab659a54`（15 files） |
+| 镜像                    | `zeus-playground:deploy-main-r41`                                                     |
+| 镜像 ID                 | `sha256:596d347cc252413c99c99e68281486713a1acc772ab32d5eeae7ed4c6a77e861`             |
+| 镜像归档 SHA256         | `4445eb0271fd096cb8a69fa5e1cf385617e202431a90bfd1c0f201daeb08e21c`                    |
 | Host build-info         | `https://mail.moonbyte.top:8443/build-info.json`                                      |
 | Sandbox build-info      | `https://panel.moonbyte.top:8443/zeus-sandbox/build-info.json`                        |
 
-### Provenance 纠正（R4.1 Final Closure）
+### Provenance 历史与最终纠正（R4.1 Final Closure）
 
-部署镜像 `zeus-playground:deploy-r41b` 是在 #193 尚未提交时从工作树构建的：
-工作树 HEAD 为 main `7a14a9c`，但包含后来提交为 `11021a4` 的 R4.1 修改。
-Docker build args 和镜像 label/build-info 却写入了旧 main `7a14a9c`，因此
-**原报告把部署源码身份写错了**。
+部署镜像 `zeus-playground:deploy-r41b` 曾是在 #193 尚未提交时从工作树构建：
+工作树 HEAD 为 main `7a14a9c`，但包含后来提交为 `11021a4` 的 R4.1 修改；
+Docker build args 和镜像 label/build-info 错误地写入了旧 main。用干净源码
+重建验证了旧镜像实际对应 `11021a4`/tree `344ee5`，并把这段历史记录保留在
+本报告中，避免把旧标签当成最终证据。
 
-已用干净源码重建验证：从 commit `11021a4`（tree `344ee5...`）以相同环境
-重新构建 Host/Sandbox，得到与线上完全相同的
-`sha256:8dbf32d5...b99456` / `sha256:f529bc36...806679`，证明线上静态
-产物对应 R4.1 PR 源码，而不是 main `7a14a9c`。当前镜像的
-`build-info.json`/label 仍写旧 commit，不能作为最终 main 的 provenance
-证据；不得据此宣称密码学 Attestation。
+维护者授权后，#193 已合并为 main `310891161d28bf2fed57f20fc457000338c6a206`
+（tree `962ed3ef...`）。本轮从该 **干净 main merge commit** 重新构建
+Host/Sandbox，build-info 与镜像 label 均写入 main commit、`sourceTree`、
+UI commit 和新的 build time；旧 `deploy-r41b` 镜像仍保留作为回滚候选，但
+不再作为最终 provenance 声明。三浏览器在线验收已重新执行并校验
+`sourceTree` 与 build-info 文件级 SHA256。
 
-已在 R4.1 工具链增加 `sourceTree`（build-info、Stage 1 build args、镜像
-构建参数），并要求 Stage 1 工作树干净。正确流程是：#193 修复并合并后，从
-干净的正式 main merge commit 重新构建、重新生成 Build-info 和镜像 label，
-再在已有部署授权内上线；在此之前线上安全缓解保留，不直接回滚到无 CSP 的
-旧镜像。
-
-`build-info` 的 `artifactDigest` 由验收器重新下载每个文件、逐文件校验
+这仍是摘要绑定，不是密码学签名 Attestation；不能宣称 Sigstore/GitHub
+Artifact Attestation 已存在。`build-info` 的 `artifactDigest` 由验收器重新下载每个文件、逐文件校验
 SHA256/字节数并重新计算，而不是只信 JSON 自报值。
 
 原始验收结果：
@@ -186,16 +184,17 @@ cd /home/ubuntu/zeus-playground && sudo docker compose up -d --wait
 pnpm accept:playground-online \
   --host-url https://mail.moonbyte.top:8443/ \
   --sandbox-url https://panel.moonbyte.top:8443/zeus-sandbox/sandbox.html \
-  --core-commit 7a14a9c5d801ebb6453ad057f7b95848675ccdb3 \
+  --core-commit 310891161d28bf2fed57f20fc457000338c6a206 \
   --ui-commit 294431194a50735b62ba38e674fac1af76ae6cfb \
+  --source-tree 962ed3efecc288522caf94fe065fc0eb905cfcb5 \
   --allow-port 8443 \
-  --image-ref zeus-playground:deploy-r41b \
-  --image-id sha256:3c2deb10ceb4a7cb90d271ec9a7e643dfec2ef3430c316df1a5c754b61f06b25 \
-  --host-digest sha256:8dbf32d536d74601bd0322268cdaf9f9c5cf0255544a9af07d05967362b99456 \
-  --sandbox-digest sha256:f529bc361f24672f5e428fb8976462876fa23dcaaf623be70943f1b749806679
+  --image-ref zeus-playground:deploy-main-r41 \
+  --image-id sha256:596d347cc252413c99c99e68281486713a1acc772ab32d5eeae7ed4c6a77e861 \
+  --host-digest sha256:218e2eebca0872d4c9a5090cdf418fdc9dba2ecdc2cedb3afb1ad164939b7de4 \
+  --sandbox-digest sha256:51232ef416f9c699da0ae171352d555993367a876c727486725c7865ab659a54
 ```
 
-结果：`PLAYGROUND_ONLINE_VALIDATED`。
+结果：`PLAYGROUND_ONLINE_VALIDATED`（`checkedAt` `2026-11-06T14:14:19Z`）。
 
 | 浏览器   | 版本         | Native Lab | WebC Studio       | 直接访问 opaque | 第三方嵌入阻断 |
 | -------- | ------------ | ---------- | ----------------- | --------------- | -------------- |
