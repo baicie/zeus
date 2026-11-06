@@ -20,8 +20,10 @@
 - Playground：**PLAYGROUND_ONLINE_VALIDATED**。#193 已合并为 main
   `31089116`；已从干净 main 重建并上线 `zeus-playground:deploy-main-r41`，
   build-info/label/sourceTree 与三浏览器在线验收全部通过。
-- Admin：**ADMIN_SECURITY_READY**（本地真实 HTTP + 三浏览器；未部署）。
-- AI Host/Workbench：**AI_HOST_SECURITY_READY**（本地真实 HTTP + 三浏览器；未部署）。
+- Admin：**ADMIN_SECURITY_READY**，已部署到独立域名
+  `https://admin.moonbyte.top:8443`（登录、Secure Cookie、HSTS 实测）。
+- AI Host/Workbench：**AI_HOST_SECURITY_READY**，已部署到
+  `https://ai.moonbyte.top:8443`，公网为 viewer-only 只读演示；Host 无公网端口。
 - 四产品：**NOT_READY**（没有 Admin/AI 公网在线验收）。
 - 总体：**READY_FOR_R4_HOST_VALIDATION_REVIEW**。Playground provenance 已
   从正式 main 重建关闭；Admin/AI 本地安全验收完成但未部署，四产品门禁
@@ -109,11 +111,22 @@
 ## 8. 未完成 / 阻塞
 
 - #193 已合并；最终证据 PR（branch `codex/r4-1-main-provenance`）待 review/merge。
-- Admin #194 与 AI #123 仍是 Draft；需要 review/merge 授权；本轮不公网部署。
+- Admin #194 与 AI #123 仍是 Draft；当前公网镜像是从 PR 分支构建，合并后
+  应从 main 重建。AI 公网只注入 viewer token，不能匿名写 workspace/审批。
 - 四产品 `FOUR_PRODUCTS_ONLINE_ACCEPTED` 未达成，不得因本地测试通过而标记。
 - 8443 无 HSTS；证书 2027-02-03 到期，自动续期仍未配置；属于 Host
   Validation 前必须处理的运维项。
 - 容器内持久卷恢复演练未执行；Admin/AI 真实 8443/TLS ingress 未执行。
+
+## 8.1 独立域名公网验证
+
+| 域名 | 结果 |
+| --- | --- |
+| `https://admin.moonbyte.top:8443` | HTTP 200；登录、Secure/HttpOnly/SameSite Cookie、HSTS 通过；仅引导管理员 |
+| `https://ai.moonbyte.top:8443` | Workbench 200；viewer token 服务端注入；workspace 200、message 200、propose 403、无 workspace 写入 |
+
+Cloudflare DNS-only A 记录已创建；Let's Encrypt 证书 SAN 覆盖两个域名，有效期
+至 2027-02-04；acme.sh cron 与 Caddy reload hook 已配置。
 
 ## 9. R4 正式 Host Validation 提示词草案
 
