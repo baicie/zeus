@@ -97,6 +97,41 @@ describe('build info', () => {
     ])
   })
 
+  it('binds an optional source tree and rejects a stale tree', () => {
+    const root = artifact()
+    const tree = 'd'.repeat(40)
+    const current = createBuildInfo({
+      distDir: root,
+      products: ['native-lab', 'webc-studio'],
+      coreCommit: core,
+      uiCommit: ui,
+      sourceTree: tree,
+      version: '0.2.0-rc.1',
+      builtAt: '2026-11-05T00:00:00.000Z',
+    })
+    expect(current.sourceTree).toBe(tree)
+    expect(
+      verifyDeployedBuildInfo(current, {
+        products: current.products,
+        coreCommit: core,
+        uiCommit: ui,
+        sourceTree: tree,
+        artifactDigest: current.artifactDigest,
+      }),
+    ).toEqual([])
+    expect(
+      verifyDeployedBuildInfo(current, {
+        products: current.products,
+        coreCommit: core,
+        uiCommit: ui,
+        sourceTree: 'e'.repeat(40),
+        artifactDigest: current.artifactDigest,
+      }),
+    ).toContain(
+      `build-info sourceTree ${tree} does not match ${'e'.repeat(40)}`,
+    )
+  })
+
   it('verifies a CI provenance record against the manifest', () => {
     const root = artifact()
     const buildInfo = info(root)

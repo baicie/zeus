@@ -1,6 +1,7 @@
 # Zeus 0.2.0 R4.1 — Playground 公网安全加固与在线验收
 
-状态：**PLAYGROUND_ONLINE_VALIDATED**
+状态：安全验收 **PLAYGROUND_ONLINE_VALIDATED**；部署 Provenance
+**BLOCKED_BY_PROVENANCE**，等待 #193 合并后从正式 main 重建。
 
 范围：仅 `WebC Studio` / `Native Lab`。Core RC 的四产品门禁仍为
 **NOT_READY**；Admin 与 AI Workbench 仍为 **BLOCKED_BY_SECURITY**，未部署。
@@ -49,9 +50,26 @@ React/Vue WebC 消费全部正常。即使未来 ingress 漏掉响应头，代�
 | Host build-info         | `https://mail.moonbyte.top:8443/build-info.json`                                      |
 | Sandbox build-info      | `https://panel.moonbyte.top:8443/zeus-sandbox/build-info.json`                        |
 
-镜像标签 `org.opencontainers.image.revision=7a14a9c...`、
-`zeus.ui.commit=2944311...`、`zeus.build.time=2026-11-06T12:34:10Z` 已由
-验收器与本地 `docker image inspect` 交叉核对。部署源树与 main 相同；
+### Provenance 纠正（R4.1 Final Closure）
+
+部署镜像 `zeus-playground:deploy-r41b` 是在 #193 尚未提交时从工作树构建的：
+工作树 HEAD 为 main `7a14a9c`，但包含后来提交为 `11021a4` 的 R4.1 修改。
+Docker build args 和镜像 label/build-info 却写入了旧 main `7a14a9c`，因此
+**原报告把部署源码身份写错了**。
+
+已用干净源码重建验证：从 commit `11021a4`（tree `344ee5...`）以相同环境
+重新构建 Host/Sandbox，得到与线上完全相同的
+`sha256:8dbf32d5...b99456` / `sha256:f529bc36...806679`，证明线上静态
+产物对应 R4.1 PR 源码，而不是 main `7a14a9c`。当前镜像的
+`build-info.json`/label 仍写旧 commit，不能作为最终 main 的 provenance
+证据；不得据此宣称密码学 Attestation。
+
+已在 R4.1 工具链增加 `sourceTree`（build-info、Stage 1 build args、镜像
+构建参数），并要求 Stage 1 工作树干净。正确流程是：#193 修复并合并后，从
+干净的正式 main merge commit 重新构建、重新生成 Build-info 和镜像 label，
+再在已有部署授权内上线；在此之前线上安全缓解保留，不直接回滚到无 CSP 的
+旧镜像。
+
 `build-info` 的 `artifactDigest` 由验收器重新下载每个文件、逐文件校验
 SHA256/字节数并重新计算，而不是只信 JSON 自报值。
 
@@ -85,6 +103,26 @@ SHA256/字节数并重新计算，而不是只信 JSON 自报值。
 Sandbox 与 Panel 共享 `panel.moonbyte.top:8443` 主机名是部署现状，但
 iframe/CSP 使文档运行在 opaque origin，不能读取 Panel 的存储、Cookie 或
 业务接口。长期仍建议使用独立 Sandbox Hostname；这不是本轮上线阻塞项。
+
+## 3.1 P0 事故影响评估
+
+- 暴露窗口：首个 Sandbox 公网请求 `2026-11-06T09:13:49Z`，HTTP CSP
+  `sandbox allow-scripts` 于 `2026-11-06T12:18:24Z` 上线，窗口约 3 小时
+  5 分钟；代码级 opaque 硬门于 `12:34` 上线。
+- 日志核对：Caddy `/data/access-panel-8443.log` 与
+  `/data/access-panel.log` 中窗口内 Sandbox 请求 542 条、516 个 200、
+  17 个 302、9 个 404；记录的来源地址只有 1 个，User-Agent 为本地测试的
+  HeadlessChrome/Firefox/WebKit/curl 和验收器，Referer 为空或本地攻击
+  复现页面。没有发现外部第三方 Origin 的嵌入痕迹，但这只能说明“未观察到
+  利用”，不能证明没有发生。
+- 影响面：漏洞允许在 Panel Origin 读取该 Origin 的 Cookie/LocalStorage
+  并发起同源请求；是否造成实际数据泄露取决于是否存在同时携带 Panel 会话
+  的受害者。没有证据支持“已发生数据泄露”的结论。
+- 处置建议：保留当前 CSP + opaque 硬门；若 Panel 有非 HttpOnly 的会话
+  Token 或长期 LocalStorage 凭据，建议在维护者授权后轮换/撤销；不要在没有
+  证据时宣称已被利用。
+- 安全回滚：禁止回滚到无 CSP 的旧镜像。任何回滚后必须复验直接访问为
+  opaque、第三方无 sandbox 嵌入失败，并确认 Panel 业务正常。
 
 ## 4. Caddy / TLS / 回滚核查
 

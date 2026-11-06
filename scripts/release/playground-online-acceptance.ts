@@ -117,6 +117,7 @@ interface BuildInfoDocument {
   readonly products: readonly string[]
   readonly coreCommit: string
   readonly uiCommit: string
+  readonly sourceTree?: string
   readonly builtAt: string
   readonly artifactDigest: string
   readonly files: readonly BuildInfoFile[]
@@ -190,6 +191,7 @@ export async function runPlaygroundOnlineAcceptance(
       options.coreCommit,
       options.uiCommit,
       options.expectedHostDigest,
+      options.sourceTree,
       evidence,
     )
     sandboxBuildInfo = await verifyBuildInfo(
@@ -199,6 +201,7 @@ export async function runPlaygroundOnlineAcceptance(
       options.coreCommit,
       options.uiCommit,
       options.expectedSandboxDigest,
+      options.sourceTree,
       evidence,
     )
   } catch (error) {
@@ -502,6 +505,7 @@ async function verifyBuildInfo(
   coreCommit: string,
   uiCommit: string,
   expectedDigest: string | undefined,
+  expectedSourceTree: string | undefined,
   evidence: string[],
 ): Promise<BuildInfoEvidence> {
   const response = await fetchApproved(url, policy)
@@ -528,6 +532,15 @@ async function verifyBuildInfo(
   if (!document.files.length) throw new Error('build-info has no files')
   if (!Number.isFinite(Date.parse(document.builtAt))) {
     throw new Error(`build-info ${url} has an invalid builtAt`)
+  }
+  if (
+    expectedSourceTree !== undefined &&
+    document.sourceTree !== undefined &&
+    document.sourceTree !== expectedSourceTree
+  ) {
+    throw new Error(
+      `build-info ${url} sourceTree ${document.sourceTree} does not match ${expectedSourceTree}`,
+    )
   }
   const files: BuildInfoFile[] = []
   for (const file of document.files) {

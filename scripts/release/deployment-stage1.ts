@@ -71,6 +71,7 @@ async function runStage1(options: Stage1Options): Promise<void> {
   assertClean(options.coreRoot, 'Core')
   assertClean(options.uiRoot, 'Zeus UI')
   const coreCommit = git(options.coreRoot, ['rev-parse', 'HEAD'])
+  const coreTree = git(options.coreRoot, ['rev-parse', 'HEAD^{tree}'])
   const uiCommit = git(options.uiRoot, ['rev-parse', 'HEAD'])
   const version = String(
     (
@@ -87,6 +88,7 @@ async function runStage1(options: Stage1Options): Promise<void> {
     : buildImages({
         coreRoot: options.coreRoot,
         coreCommit,
+        coreTree,
         uiCommit,
         version,
         builtAt,
@@ -241,6 +243,7 @@ interface ImageRecord {
 function buildImages(input: {
   readonly coreRoot: string
   readonly coreCommit: string
+  readonly coreTree: string
   readonly uiCommit: string
   readonly version: string
   readonly builtAt: string
@@ -250,6 +253,8 @@ function buildImages(input: {
   const common = [
     '--build-arg',
     `ZEUS_CORE_COMMIT=${input.coreCommit}`,
+    '--build-arg',
+    `ZEUS_SOURCE_TREE=${input.coreTree}`,
     '--build-arg',
     `ZEUS_UI_COMMIT=${input.uiCommit}`,
     '--build-arg',

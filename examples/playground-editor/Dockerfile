@@ -13,6 +13,7 @@ COPY scripts ./scripts
 COPY examples/playground-editor ./examples/playground-editor
 ARG ZEUS_CORE_COMMIT
 ARG ZEUS_UI_COMMIT
+ARG ZEUS_SOURCE_TREE
 ARG ZEUS_VERSION
 ARG ZEUS_BUILD_TIME
 RUN pnpm install --frozen-lockfile
@@ -32,6 +33,7 @@ RUN node --import tsx scripts/release/build-info.ts \
   --dist examples/playground-editor/dist \
   --core-commit "$ZEUS_CORE_COMMIT" \
   --ui-commit "$ZEUS_UI_COMMIT" \
+  ${ZEUS_SOURCE_TREE:+--source-tree "$ZEUS_SOURCE_TREE"} \
   --version "$ZEUS_VERSION" \
   --built-at "$ZEUS_BUILD_TIME"
 
