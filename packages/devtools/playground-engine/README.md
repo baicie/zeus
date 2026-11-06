@@ -92,5 +92,22 @@ CSP must deny `connect-src`, workers, nested frames, forms, objects, and base UR
 changes while allowing the sandbox module script and blob modules.
 
 The reference example uses `127.0.0.1` for the host and `localhost` for the
-sandbox locally. Production deployments must set
-`VITE_ZEUS_SANDBOX_ORIGIN` to a distinct execution origin.
+sandbox locally. Production deployments should set a complete
+`VITE_ZEUS_SANDBOX_URL` (the legacy `VITE_ZEUS_SANDBOX_ORIGIN` remains
+supported for origin-only hosts). Use `resolveSandboxUrl` to preserve path,
+query and fragment components, and `withSandboxSession` to add the per-frame
+session query parameter without replacing a configured fragment.
+
+The sandbox document must also be served with an HTTP response header:
+
+```text
+Content-Security-Policy: sandbox allow-scripts; frame-ancestors https://host.example.com
+```
+
+A `<meta>` CSP cannot express `sandbox` or `frame-ancestors`. The sandbox
+module refuses to initialize when `globalThis.origin !== 'null'`, and only
+accepts parent messages from the origins configured with
+`VITE_ZEUS_PLAYGROUND_HOST_ORIGINS` (loopback is allowed for local
+development). `parseSandboxParentOrigins` and
+`isTrustedSandboxParentOrigin` expose the same fail-closed policy to custom
+hosts.
