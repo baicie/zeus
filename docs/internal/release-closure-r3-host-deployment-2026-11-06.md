@@ -84,3 +84,34 @@ AI 流式消息、200% Zoom、移动端、高对比度与 Reduce Motion。
 ## H. 最终状态
 
 （Stage 1 完成后更新。）
+
+## I. 可重复证据命令
+
+```bash
+# Core main
+pnpm install --frozen-lockfile
+pnpm check
+pnpm lint
+pnpm test-unit
+pnpm check:packed-consumers
+pnpm check:create-zeus
+pnpm check:create-zeus-packed
+pnpm check:rc-readiness
+pnpm release:canary --dry-run-only
+
+# UI main
+pnpm check
+pnpm test-e2e:ai
+pnpm check:ai-workbench
+pnpm data-grid:framework-e2e
+pnpm release:joint-readiness
+
+# Deployment Stage 1 / online gate
+pnpm deploy:stage1 --core-root <clean-core-main> --ui-root <clean-ui-main>
+ZEUS_ACCEPTANCE_ADMIN_EMAIL=... ZEUS_ACCEPTANCE_ADMIN_PASSWORD=... \
+ZEUS_ACCEPTANCE_AI_REPLAY=true ZEUS_ACCEPTANCE_TENANT=... \
+  pnpm check:deployment-acceptance --mode online \
+    --manifest temp/release/deployment.json \
+    --provenance temp/release/provenance.json \
+    --write-mode isolated --tenant ...
+```
