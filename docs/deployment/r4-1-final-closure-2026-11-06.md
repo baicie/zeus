@@ -18,7 +18,7 @@
 ## 2. 阶段裁决
 
 - Playground：**PLAYGROUND_ONLINE_VALIDATED**。#193 已合并为 main
-  `31089116`；已从干净 main 重建并上线 `zeus-playground:deploy-main-r41`，
+  `31089116`；已从干净 main 重建并上线 `zeus-playground:deploy-main-playground`（`https://playground.moonbyte.top:8443`），
   build-info/label/sourceTree 与三浏览器在线验收全部通过。
 - Admin：**ADMIN_SECURITY_READY**，已部署到独立域名
   `https://admin.moonbyte.top:8443`（登录、Secure Cookie、HSTS 实测）。
@@ -50,8 +50,8 @@
 - 已给 build-info 增加 `sourceTree`，Stage 1 从干净工作树传递
   `ZEUS_SOURCE_TREE`，并让在线验收在 build-info 带 sourceTree 时校验。
 - 维护者授权后 #193 已合并为 main `31089116`，并从干净 tree `962ed3e`
-  重建上线：镜像 `zeus-playground:deploy-main-r41`，Host digest
-  `sha256:218e2eeb...7de4`，Sandbox digest `sha256:51232ef4...9a54`；
+  重建上线：镜像 `zeus-playground:deploy-main-playground`，Host digest
+  `sha256:4271b0b6...c4f0`，Sandbox digest `sha256:91e9eaa0...c53f`；
   build-info 与 label 已写入 main commit/sourceTree。在线验收重新通过。
 
 ## 5. Playground P0 事故影响评估
