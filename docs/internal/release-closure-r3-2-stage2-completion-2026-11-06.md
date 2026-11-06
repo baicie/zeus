@@ -62,10 +62,10 @@ STAGE2_LOCAL_INTEGRATION_PASS
 
 ## 6. CI
 
-- PR `319f3a2` Native Matrix `42173640297`：7/7 PASS（macOS arm64 使用 `macos-15`）。
-- PR `319f3a2` Product Acceptance `42173634683`：PASS。
-- PR `319f3a2` CI：PASS。
-- 本轮新提交的 CI 将在推送后重新运行；不得用旧提交结果替代。
+- PR 最新代码 `d0b1da6` Compiler Native Matrix `42179129494`：**7/7 PASS**（macOS arm64 使用 `macos-15`）。
+- PR `d0b1da6` Product Acceptance `42179123627`：**PASS**（Linux/Windows/四镜像）。
+- PR `d0b1da6` CI `42179123626`：**PASS**。
+- 其余重复触发的 CI/Native 运行不用于最终证据。
 
 ## 7. 安全边界
 
