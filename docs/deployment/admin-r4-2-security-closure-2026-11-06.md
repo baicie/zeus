@@ -73,7 +73,6 @@ container: 127.0.0.1:18087 -> 8080, healthy
 
 未将容器端口发布到公网；没有执行真实 8443/TLS ingress 验收。
 
-
 ## 独立域名 Host Validation（公网）
 
 - 域名：`https://admin.moonbyte.top:8443`，Cloudflare DNS-only A 记录指向
