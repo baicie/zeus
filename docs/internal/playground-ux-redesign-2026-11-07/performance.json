@@ -1,4 +1,5 @@
 {
+  "sourceCommit": "feed3ce8ca306339b1199a3f1f96228a41191d8d",
   "engine": "chromium",
   "initial": {
     "shellJavascriptBytes": 605269,
@@ -18,13 +19,13 @@
         "lazy": false
       },
       {
-        "name": "/assets/main-DjfOr_rT.js",
-        "bytes": 66983,
+        "name": "/assets/playground-engine.esm-bundler-D2UYPSNO.js",
+        "bytes": 454144,
         "lazy": false
       },
       {
-        "name": "/assets/playground-engine.esm-bundler-D2UYPSNO.js",
-        "bytes": 454144,
+        "name": "/assets/main-DjfOr_rT.js",
+        "bytes": 66983,
         "lazy": false
       },
       {
@@ -38,13 +39,13 @@
         "lazy": true
       },
       {
-        "name": "/favicon.ico",
-        "bytes": 300,
+        "name": "/assets/zeus-compiler-CW8m08CV.wasm",
+        "bytes": 1545997,
         "lazy": false
       },
       {
-        "name": "/assets/zeus-compiler-CW8m08CV.wasm",
-        "bytes": 1545997,
+        "name": "/favicon.ico",
+        "bytes": 300,
         "lazy": false
       },
       {
@@ -60,28 +61,28 @@
     ]
   },
   "timing": {
-    "firstEditableMs": 181,
-    "firstPreviewMs": 445,
-    "domContentLoadedMs": 59,
-    "loadMs": 163
+    "firstEditableMs": 189,
+    "firstPreviewMs": 402,
+    "domContentLoadedMs": 60,
+    "loadMs": 154
   },
   "compile": {
-    "compileMs": 7.1,
-    "previewMs": 2.8,
+    "compileMs": 4.5,
+    "previewMs": 3,
     "domBytes": 634,
     "ssrBytes": 660
   },
   "autoRun": {
     "edits": 30,
     "compiles": 1,
-    "elapsedMs": 1985,
+    "elapsedMs": 1975,
     "finalSourceVisible": true
   },
   "cleanup": {
     "builds": 10,
-    "heapBeforeBytes": 12408404,
-    "heapAfterBytes": 13043312,
-    "heapGrowthBytes": 634908,
+    "heapBeforeBytes": 12414432,
+    "heapAfterBytes": 13043772,
+    "heapGrowthBytes": 629340,
     "iframesAfterBuilds": 1,
     "iframesAfterStop": 1,
     "workers": 1,

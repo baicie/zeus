@@ -122,11 +122,11 @@ Full data: [performance.json](./playground-ux-redesign-2026-11-07/performance.js
 | Compiler assets (Babel + WASM + Worker) | 3,754,555 B raw / ~1.0 MiB gzip             |
 | CSS raw / gzip                          | 17,237 B / 4,049 B                          |
 | All resources raw                       | 4,906,956 B                                 |
-| First editable source                   | 181 ms                                      |
-| First preview ready                     | 445 ms                                      |
-| WASM compile / sandbox run              | 7.1 ms / 2.8 ms (warm, small project)       |
-| 30 edits                                | 1 compile in 1,985 ms, final source visible |
-| 10 consecutive builds                   | 1 iframe, +634,908 B heap after GC          |
+| First editable source                   | 189 ms                                      |
+| First preview ready                     | 402 ms                                      |
+| WASM compile / sandbox run              | 4.5 ms / 3.0 ms (warm, small project)       |
+| 30 edits                                | 1 compile in 1,975 ms, final source visible |
+| 10 consecutive builds                   | 1 iframe, +629,340 B heap after GC          |
 
 The compiler assets dominate first preview; the shell and editor chunks are
 independent of them. The compiler Worker is reused. Repeated builds replace the
