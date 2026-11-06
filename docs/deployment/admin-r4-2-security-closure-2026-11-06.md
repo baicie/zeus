@@ -45,8 +45,30 @@ ADMIN_BROWSERS=chromium,firefox,webkit NODE_OPTIONS=--experimental-sqlite \
 ## 未完成 / 边界
 
 - 未部署 Admin，未做真实公网 8443/TLS ingress 在线验收；该状态为 `NOT_RUN`。
-- Docker image 构建与容器内持久卷恢复演练未在本轮执行；Compose 配置已校验。
+- 容器内持久卷恢复演练未在本轮执行；镜像构建与容器 E2E 已执行。
 - 演示 seed 数据只在开发/测试启用；生产 Compose 设置
   `ZEUS_ADMIN_SEED_DEMO=false`，只创建引导管理员。
 - `ZEUS_ADMIN_TRUST_PROXY=true` 只应在受信 ingress 已剥离客户端
   `X-Forwarded-For` 时启用；默认 false。
+
+## Docker / 容器验证（本地）
+
+```text
+image: zeus-admin:r42
+image id: sha256:2b7fb5bb...6ed7
+build: Core 31089116 / UI 2944311 / version 0.1.1-beta.20
+container: 127.0.0.1:18087 -> 8080, healthy
+```
+
+真实容器 HTTP 结果：
+
+- `/api/health` 200。
+- 登录返回两个 Cookie；会话 Cookie 属性为
+  `Path=/; HttpOnly; SameSite=Lax; Secure`，CSRF Cookie 为
+  `Path=/; SameSite=Lax; Secure`（容器 `NODE_ENV=production`，Secure 保持开启）。
+- 未认证 `PATCH /api/users/ada` 401。CSRF 缺失/错误 403 由 in-memory HTTP
+  测试覆盖；容器内 Secure Cookie 在本地 HTTP curl 中不会发送，浏览器因
+  localhost secure-context 例外仍可登录。
+- Chromium 通过容器登录 Admin UI；viewer 访问 `/admin/reports` 显示 403。
+
+未将容器端口发布到公网；没有执行真实 8443/TLS ingress 验收。
