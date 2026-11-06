@@ -35,7 +35,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: baicie/zeus-ui
-          ref: ${{ inputs.ui-ref || github.ref_name }}
+          ref: ${{ inputs.ui-ref || 'main' }}
           path: zeus-ui
       - name: Record release pair
         shell: bash
@@ -141,7 +141,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: baicie/zeus-ui
-          ref: ${{ inputs.ui-ref || github.ref_name }}
+          ref: ${{ inputs.ui-ref || 'main' }}
           path: zeus-ui
       - name: Record release pair
         shell: bash
@@ -243,7 +243,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: baicie/zeus-ui
-          ref: ${{ inputs.ui-ref || github.ref_name }}
+          ref: ${{ inputs.ui-ref || 'main' }}
           path: zeus-ui
       - name: Record release pair
         shell: bash
