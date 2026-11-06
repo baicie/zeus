@@ -135,6 +135,7 @@
     "build:info": "tsx scripts/release/build-info.ts",
     "release:provenance": "tsx scripts/release/write-provenance.ts",
     "check:deployment-local": "tsx scripts/release/local-deployment-rehearsal.ts",
+    "deploy:stage1": "tsx scripts/release/deployment-stage1.ts",
     "check:sbom:write": "tsx scripts/check/check-sbom.ts",
     "check:sbom": "tsx scripts/check/check-sbom.ts --check"
   },

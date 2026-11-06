@@ -1,0 +1,57 @@
+# Stage 1 host deployment preparation. It builds and verifies the four product
+# images, validates the Compose template and runs local browser acceptance.
+# It never deploys publicly and never reads production secrets.
+name: Host Deployment Prepare
+
+on:
+  workflow_dispatch:
+    inputs:
+      ui-ref:
+        description: zeus-ui ref paired with this Core commit
+        required: true
+        default: main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: host-deployment-prepare-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    name: Build and verify deployment candidate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: baicie/zeus-ui
+          ref: ${{ inputs.ui-ref }}
+          path: zeus-ui
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
+        working-directory: zeus-ui
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec playwright install --with-deps chromium
+        working-directory: zeus-ui
+      - name: Build images and run local deployment acceptance
+        run: pnpm deploy:stage1 --ui-root zeus-ui --browsers chromium
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: host-deployment-stage1
+          path: |
+            temp/deploy/stage1/deployment-candidate.json
+            temp/deploy/stage1/deployment.local.json
+            temp/deploy/stage1/deployment-acceptance.local.json
+            temp/deploy/stage1/stage1.env
+          if-no-files-found: warn

@@ -1,0 +1,97 @@
+# Host-validation deployment template. Images must be pinned by immutable
+# digest; every value can be overridden from an env file. This file is a
+# deployment candidate, not evidence of a public deployment.
+name: zeus-host-validation
+
+services:
+  playground:
+    image: ${ZEUS_PLAYGROUND_IMAGE:?set ZEUS_PLAYGROUND_IMAGE to image@sha256:...}
+    ports:
+      - '${ZEUS_PLAYGROUND_BIND:-127.0.0.1}:${ZEUS_PLAYGROUND_HOST_PORT:-8080}:80'
+      - '${ZEUS_PLAYGROUND_BIND:-127.0.0.1}:${ZEUS_PLAYGROUND_SANDBOX_PORT:-8081}:81'
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: ${ZEUS_PLAYGROUND_MEM:-256m}
+    cpus: ${ZEUS_PLAYGROUND_CPUS:-0.50}
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+    restart: unless-stopped
+
+  admin:
+    image: ${ZEUS_ADMIN_IMAGE:?set ZEUS_ADMIN_IMAGE to image@sha256:...}
+    ports:
+      - '${ZEUS_ADMIN_BIND:-127.0.0.1}:${ZEUS_ADMIN_PORT:-8082}:8080'
+    environment:
+      ZEUS_ADMIN_EMAIL: ${ZEUS_ADMIN_EMAIL:?}
+      ZEUS_ADMIN_PASSWORD: ${ZEUS_ADMIN_PASSWORD:?}
+      ZEUS_ADMIN_VIEWER_PASSWORD: ${ZEUS_ADMIN_VIEWER_PASSWORD:?}
+      ZEUS_ADMIN_HOST: 0.0.0.0
+      ZEUS_ADMIN_DB: /data/admin.sqlite
+      ZEUS_ADMIN_UPLOAD_BYTES: '65536'
+    volumes:
+      - admin-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: ${ZEUS_ADMIN_MEM:-256m}
+    cpus: ${ZEUS_ADMIN_CPUS:-0.50}
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+    restart: unless-stopped
+
+  ai-host:
+    image: ${ZEUS_AI_HOST_IMAGE:?set ZEUS_AI_HOST_IMAGE to image@sha256:...}
+    expose:
+      - '8788'
+    environment:
+      ZEUS_AI_HOST: 0.0.0.0
+      ZEUS_AI_DB: /data/ai.sqlite
+      ZEUS_AI_WORKSPACE: /data/workspace
+      ZEUS_AI_WORKSPACE_ID: ${ZEUS_AI_WORKSPACE_ID:-acceptance}
+      ZEUS_AI_ORIGINS: ${ZEUS_AI_ORIGINS:-http://127.0.0.1:8083}
+    volumes:
+      - ai-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: ${ZEUS_AI_HOST_MEM:-384m}
+    cpus: ${ZEUS_AI_HOST_CPUS:-0.50}
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+    restart: unless-stopped
+
+  ai-workbench:
+    image: ${ZEUS_AI_WORKBENCH_IMAGE:?set ZEUS_AI_WORKBENCH_IMAGE to image@sha256:...}
+    ports:
+      - '${ZEUS_AI_WORKBENCH_BIND:-127.0.0.1}:${ZEUS_AI_WORKBENCH_PORT:-8083}:80'
+    depends_on:
+      - ai-host
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: ${ZEUS_AI_WORKBENCH_MEM:-128m}
+    cpus: ${ZEUS_AI_WORKBENCH_CPUS:-0.25}
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+    restart: unless-stopped
+
+volumes:
+  admin-data:
+  ai-data:
