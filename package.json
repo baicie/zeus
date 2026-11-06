@@ -121,6 +121,7 @@
     "standalone:publish": "tsx scripts/release/standalone-publish.ts",
     "api:snapshot": "tsx scripts/api/write-api-snapshots.ts",
     "api:check": "tsx scripts/api/check-api-snapshots.ts",
+    "admin:db": "node --experimental-sqlite --import tsx scripts/release/admin-db.ts",
     "create-zeus:build": "pnpm -F create-zeus build",
     "build-and-link": "tsx scripts/build-and-link.ts",
     "preinstall": "npx only-allow pnpm",

@@ -1,4 +1,4 @@
-import { mkdirSync } from 'node:fs'
+import { copyFileSync, mkdirSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 
@@ -57,6 +57,7 @@ const MIGRATIONS: readonly string[] = [
     updated_at TEXT NOT NULL
   );
   `,
+  `ALTER TABLE sessions ADD COLUMN csrf_hash TEXT;`,
 ]
 
 export function openAdminDatabase(file: string): AdminDatabase {
@@ -64,10 +65,97 @@ export function openAdminDatabase(file: string): AdminDatabase {
   const raw = new DatabaseSync(file)
   raw.exec('PRAGMA foreign_keys = ON')
   if (file !== ':memory:') raw.exec('PRAGMA journal_mode = WAL')
-  migrate(raw)
+  raw.exec('PRAGMA busy_timeout = 5000')
+  try {
+    migrate(raw)
+    assertDatabaseIntegrity(raw)
+  } catch (error) {
+    raw.close()
+    throw error
+  }
   return {
     raw,
     close: () => raw.close(),
+  }
+}
+
+export interface DatabaseIntegrity {
+  readonly ok: boolean
+  readonly messages: readonly string[]
+}
+
+/** Runs SQLite's quick check without modifying the database. */
+export function checkAdminDatabase(db: DatabaseSync): DatabaseIntegrity {
+  const rows = db.prepare('PRAGMA quick_check').all() as Array<
+    Record<string, unknown>
+  >
+  const messages = rows
+    .flatMap(row => Object.values(row))
+    .filter((value): value is string => typeof value === 'string')
+  return {
+    ok: messages.length === 1 && messages[0] === 'ok',
+    messages,
+  }
+}
+
+export function assertDatabaseIntegrity(db: DatabaseSync): void {
+  const result = checkAdminDatabase(db)
+  if (!result.ok) {
+    throw new Error(
+      `Admin database integrity check failed: ${result.messages.join('; ') || 'unknown error'}`,
+    )
+  }
+}
+
+/**
+ * Produces a consistent snapshot with SQLite's VACUUM INTO. The destination
+ * must not already exist; callers choose a timestamped path.
+ */
+export function backupAdminDatabase(
+  db: DatabaseSync,
+  destination: string,
+): void {
+  mkdirSync(path.dirname(destination), { recursive: true })
+  const escaped = destination.replace(/'/g, "''")
+  db.exec(`VACUUM INTO '${escaped}'`)
+  const backup = new DatabaseSync(destination)
+  try {
+    assertDatabaseIntegrity(backup)
+  } finally {
+    backup.close()
+  }
+}
+
+/** Verifies a database file can be opened and passes quick_check. */
+export function verifyAdminDatabase(file: string): DatabaseIntegrity {
+  const db = new DatabaseSync(file)
+  try {
+    return checkAdminDatabase(db)
+  } finally {
+    db.close()
+  }
+}
+
+/**
+ * Restores a verified backup to a target path. The target is never copied
+ * over an open database; callers must close their AdminDatabase first.
+ */
+export function restoreAdminDatabase(source: string, target: string): void {
+  const result = verifyAdminDatabase(source)
+  if (!result.ok) {
+    throw new Error(
+      `Backup integrity check failed: ${result.messages.join('; ') || 'unknown error'}`,
+    )
+  }
+  mkdirSync(path.dirname(target), { recursive: true })
+  rmSync(`${target}-wal`, { force: true })
+  rmSync(`${target}-shm`, { force: true })
+  copyFileSync(source, target)
+  const restored = verifyAdminDatabase(target)
+  if (!restored.ok) {
+    throw new Error(
+      `Restored database integrity check failed: ${restored.messages.join('; ')}`,
+    )
   }
 }
 
@@ -103,6 +191,8 @@ export interface SeedOptions {
   readonly adminEmail: string
   readonly adminPassword: string
   readonly viewerPassword: string
+  /** Set false in acceptance/production bootstrap: create only the admin. */
+  readonly demoUsers?: boolean
 }
 
 const SEED_USERS = [
@@ -173,30 +263,47 @@ export function seedAdminDatabase(
   )
   db.exec('BEGIN')
   try {
-    for (const [id, name, email, team, status, role] of SEED_USERS) {
-      insert.run(
-        id,
-        name,
-        normalizeEmail(email),
-        team,
-        status,
-        role,
-        hashPassword(options.viewerPassword),
+    if (options.demoUsers !== false) {
+      for (const [id, name, email, team, status, role] of SEED_USERS) {
+        insert.run(
+          id,
+          name,
+          normalizeEmail(email),
+          team,
+          status,
+          role,
+          hashPassword(options.viewerPassword),
+          now,
+          now,
+        )
+      }
+      db.prepare(
+        'UPDATE users SET email = ?, password_hash = ?, role = ? WHERE id = ?',
+      ).run(
+        normalizeEmail(options.adminEmail),
+        hashPassword(options.adminPassword),
+        'admin',
+        'ada',
+      )
+    } else {
+      db.prepare(
+        `INSERT INTO users (id, name, email, team, status, role, password_hash, created_at, updated_at)
+         VALUES ('ada', 'Administrator', ?, 'platform', 'active', 'admin', ?, ?, ?)`,
+      ).run(
+        normalizeEmail(options.adminEmail),
+        hashPassword(options.adminPassword),
         now,
         now,
       )
     }
     db.prepare(
-      'UPDATE users SET email = ?, password_hash = ?, role = ? WHERE id = ?',
+      "INSERT INTO audit_logs (actor_id, action, target, outcome, detail, created_at) VALUES (NULL, 'seed', 'database', 'success', ?, ?)",
     ).run(
-      normalizeEmail(options.adminEmail),
-      hashPassword(options.adminPassword),
-      'admin',
-      'ada',
+      options.demoUsers === false
+        ? 'bootstrap admin only'
+        : 'initial demo data',
+      now,
     )
-    db.prepare(
-      "INSERT INTO audit_logs (actor_id, action, target, outcome, detail, created_at) VALUES (NULL, 'seed', 'database', 'success', 'initial demo data', ?)",
-    ).run(now)
     db.exec('COMMIT')
   } catch (error) {
     db.exec('ROLLBACK')

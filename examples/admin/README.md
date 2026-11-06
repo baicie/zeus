@@ -78,9 +78,12 @@ Element 生命周期和手动刷新。生产构建会移除这条开发分支。
 “预加载 Ada 详情”执行目标 loader 并显示完成状态，不改变当前地址。
 
 客户端通过同源 Cookie 会话调用真实 HTTP API；服务端对每次读写重新校验 session 与
-角色，浏览器 Signal 只承载 UX 状态。登录写入 `HttpOnly; SameSite=Lax` Cookie，密码以
-scrypt 哈希保存。SQLite 启用 WAL、外键与迁移；用户变更、设置、上传和审计在进程重启后
-仍存在。route loader 与组件用同一个 `ZeusQueryClient` 和相同 query key 读取缓存：
+角色，浏览器 Signal 只承载 UX 状态。登录写入 `HttpOnly; SameSite=Lax` 会话 Cookie；生产
+环境 (`NODE_ENV=production` 或 `ZEUS_ADMIN_SECURE_COOKIES=true`) 追加 `Secure`。登录还会
+写入可被同源 JS 读取的 `zeus_admin_csrf` Cookie，所有 `POST/PATCH/DELETE` 必须带
+`X-CSRF-Token` 请求头，缺失或不匹配返回 403。密码以 scrypt 哈希保存；登录有 per-IP 与
+per-account 失败限流/锁定，未知邮箱也执行等价的 scrypt 校验，避免账号枚举。SQLite 启用
+WAL、外键、启动完整性检查和迁移；用户变更、设置、上传和审计在进程重启后仍存在。route loader 与组件用同一个 `ZeusQueryClient` 和相同 query key 读取缓存：
 loader 预取后组件不会重复请求，导航取消会通过 `request.signal` 中止查询。保存走
 `useMutation`：`onMutate` 先取消目标查询并写入乐观值，`onError` 回滚，`onSettled`
 写回结果并失效列表。DataGrid 使用
@@ -104,7 +107,11 @@ docker compose -f examples/admin/docker-compose.yml up --build
 ```
 
 容器以非 root 用户运行、根文件系统只读、仅 `/data` 持久卷可写，并通过
-`/api/health` 健康检查。演示环境应使用只读或定期重置的数据卷，不要开放公开写权限。
+`/api/health` 健康检查。Compose 只绑定 `127.0.0.1:8080`，TLS 与访问控制在受信 ingress
+终止；`ZEUS_ADMIN_SEED_DEMO=false` 时只引导一个管理员，不创建演示 viewer。不要把原始
+Compose 端口发布到公网。受信 ingress 若要传递客户端 IP，必须显式设置
+`ZEUS_ADMIN_TRUST_PROXY=true` 并剥离客户端自带的 `X-Forwarded-For`；服务端从不信任
+`X-Forwarded-Proto` 来决定 Secure Cookie。
 
 ### 单进程 / 静态 + API
 
@@ -132,6 +139,18 @@ server {
   }
 }
 ```
+
+备份与恢复（先停止写入，或对一致性快照执行）：
+
+```sh
+pnpm admin:db --database /path/to/admin.sqlite --backup /path/to/admin.backup.sqlite
+pnpm admin:db --verify /path/to/admin.backup.sqlite
+# 目标必须先关闭；默认拒绝覆盖，确认已有回滚点后再加 --force
+pnpm admin:db --database /path/to/admin.sqlite --restore-from /path/to/admin.backup.sqlite --force
+```
+
+备份使用 SQLite `VACUUM INTO` 并执行 `quick_check`；恢复前再次校验，恢复后重新检查。
+`openAdminDatabase` 启动时也执行完整性检查，损坏数据库不会以部分数据启动。
 
 本示例没有 SSR 或 hydration。静态服务器对 SPA 路由返回 `index.html` 的 HTTP 200；
 界面中的 403/404 是客户端 loader 的错误状态，不会改变已经返回的文档 HTTP 状态码；

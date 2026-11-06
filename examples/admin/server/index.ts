@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import path from 'node:path'
 
 import { createAdminServer } from './api'
+import type { AttemptLimiterOptions } from './rate-limit'
 import { openAdminDatabase, seedAdminDatabase } from './database'
 import { listen } from './http'
 
@@ -13,8 +14,12 @@ export interface StartAdminServerOptions {
   readonly adminPassword?: string
   readonly viewerPassword?: string
   readonly seed?: boolean
+  readonly seedDemoUsers?: boolean
   readonly allowedOrigins?: readonly string[]
   readonly staticDir?: string
+  readonly secureCookies?: boolean
+  readonly trustProxy?: boolean
+  readonly loginRateLimit?: AttemptLimiterOptions
 }
 
 export interface StartedAdminServer {
@@ -35,12 +40,22 @@ export async function startAdminServer(
   const adminPassword = options.adminPassword ?? process.env.ZEUS_ADMIN_PASSWORD
   const viewerPassword =
     options.viewerPassword ?? process.env.ZEUS_ADMIN_VIEWER_PASSWORD
-  if (!adminPassword || !viewerPassword) {
+  const seedDemoUsers =
+    options.seedDemoUsers ?? process.env.ZEUS_ADMIN_SEED_DEMO !== 'false'
+  if (!adminPassword) {
     throw new Error(
-      'ZEUS_ADMIN_PASSWORD and ZEUS_ADMIN_VIEWER_PASSWORD are required. Use server/demo-env.example for local runs.',
+      'ZEUS_ADMIN_PASSWORD is required. Use server/demo-env.example for local runs.',
     )
   }
-  if (adminPassword.length < 12 || viewerPassword.length < 12) {
+  if (seedDemoUsers && !viewerPassword) {
+    throw new Error(
+      'ZEUS_ADMIN_VIEWER_PASSWORD is required when demo users are seeded.',
+    )
+  }
+  if (
+    adminPassword.length < 12 ||
+    (seedDemoUsers && (viewerPassword?.length ?? 0) < 12)
+  ) {
     throw new Error(
       'Admin and viewer demo passwords must be at least 12 characters.',
     )
@@ -53,7 +68,8 @@ export async function startAdminServer(
         process.env.ZEUS_ADMIN_EMAIL ??
         DEFAULT_ADMIN_EMAIL,
       adminPassword,
-      viewerPassword,
+      viewerPassword: viewerPassword ?? '',
+      demoUsers: seedDemoUsers,
     })
   }
   const host = options.host ?? process.env.ZEUS_ADMIN_HOST ?? '127.0.0.1'
@@ -69,6 +85,15 @@ export async function startAdminServer(
     allowedOrigins: origins,
     maxUploadBytes: Number(process.env.ZEUS_ADMIN_UPLOAD_BYTES ?? 64 * 1024),
     staticDir,
+    secureCookies:
+      options.secureCookies ??
+      (process.env.ZEUS_ADMIN_SECURE_COOKIES === 'true' ||
+        process.env.NODE_ENV === 'production'),
+    trustProxy:
+      options.trustProxy ?? process.env.ZEUS_ADMIN_TRUST_PROXY === 'true',
+    ...(options.loginRateLimit
+      ? { loginRateLimit: options.loginRateLimit }
+      : {}),
   })
   await listen(admin.server, port, host)
   const address = admin.server.address()
