@@ -81,8 +81,10 @@
 | 网络                                  | Compose 仅 127.0.0.1:8080；TLS 在受信 ingress                      |
 
 测试：Admin server 3 files / **16 tests passed**；Chromium/Firefox/WebKit
-浏览器门禁全部通过。未部署；Docker image build、真实公网 ingress 在线验收
-为 **NOT_RUN**。
+浏览器门禁全部通过。Docker 镜像 `zeus-admin:r42` 构建成功，容器
+`127.0.0.1:18087` healthy；容器内 Secure/HttpOnly/SameSite Cookie、viewer
+403 和 Admin UI 登录通过。未公网部署；真实 8443/TLS ingress 在线验收仍为
+**NOT_RUN**。
 
 ## 7. AI Security Matrix
 
@@ -99,8 +101,10 @@
 | Ingress                         | Workbench nginx 服务端注入 Bearer token；Host 无公网端口；Workbench loopback |
 
 测试：AI Host **13 tests passed**；Chromium/Firefox/WebKit Workbench E2E
-全部通过（chat、SSE、approval、workspace write）。未部署；真实公网 8443/
-TLS、长时间 SSE 资源耗尽为 **NOT_RUN**；Docker image build 为 **NOT_RUN**。
+全部通过（chat、SSE、approval、workspace write）。Docker 镜像
+`zeus-ai-host:r42` / `zeus-ai-workbench:r42` 构建成功；容器栈用 nginx 服务端
+注入 Bearer Token，浏览器不带 Token 完成 SSE/审批/workspace 写入，Host
+无公网端口。未部署；真实公网 8443/TLS、长时间 SSE 资源耗尽仍为 **NOT_RUN**。
 
 ## 8. 未完成 / 阻塞
 
@@ -109,7 +113,7 @@ TLS、长时间 SSE 资源耗尽为 **NOT_RUN**；Docker image build 为 **NOT_R
 - 四产品 `FOUR_PRODUCTS_ONLINE_ACCEPTED` 未达成，不得因本地测试通过而标记。
 - 8443 无 HSTS；证书 2027-02-03 到期，自动续期仍未配置；属于 Host
   Validation 前必须处理的运维项。
-- Docker image build 未执行；容器内持久卷恢复演练未执行。
+- 容器内持久卷恢复演练未执行；Admin/AI 真实 8443/TLS ingress 未执行。
 
 ## 9. R4 正式 Host Validation 提示词草案
 
