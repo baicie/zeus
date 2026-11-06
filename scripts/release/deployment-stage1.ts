@@ -13,6 +13,7 @@ import { parseArgs } from 'node:util'
 import { runDeploymentAcceptance } from './deployment-acceptance'
 
 const root = path.resolve(import.meta.dirname, '../..')
+let repoRoot = root
 const TENANT = 'stage1-local-acceptance'
 const ADMIN_PASSWORD = 'stage1-admin-password-123'
 const VIEWER_PASSWORD = 'stage1-viewer-password-123'
@@ -20,20 +21,31 @@ const VIEWER_PASSWORD = 'stage1-viewer-password-123'
 function main(): void {
   const { values } = parseArgs({
     options: {
+      'core-root': { type: 'string' },
       'ui-root': { type: 'string' },
+      compose: { type: 'string' },
       output: { type: 'string', default: 'temp/deploy/stage1' },
       browsers: { type: 'string', default: 'chromium' },
       'skip-build': { type: 'boolean', default: false },
       'keep-containers': { type: 'boolean', default: false },
     },
   })
+  const coreRoot = values['core-root']
+    ? path.resolve(values['core-root'])
+    : root
+  repoRoot = coreRoot
   const uiRoot = values['ui-root']
     ? path.resolve(values['ui-root'])
-    : path.resolve(root, '../../zeus-ui')
+    : path.resolve(coreRoot, '../../zeus-ui')
   const output = path.resolve(values.output ?? 'temp/deploy/stage1')
+  const composeFile = values.compose
+    ? path.resolve(values.compose)
+    : path.join(coreRoot, 'deploy/host-validation/compose.yml')
   void runStage1({
+    coreRoot,
     uiRoot,
     output,
+    composeFile,
     engines: (values.browsers ?? 'chromium').split(','),
     skipBuild: values['skip-build'] === true,
     keepContainers: values['keep-containers'] === true,
@@ -41,8 +53,10 @@ function main(): void {
 }
 
 interface Stage1Options {
+  readonly coreRoot: string
   readonly uiRoot: string
   readonly output: string
+  readonly composeFile: string
   readonly engines: readonly string[]
   readonly skipBuild: boolean
   readonly keepContainers: boolean
@@ -50,13 +64,15 @@ interface Stage1Options {
 
 async function runStage1(options: Stage1Options): Promise<void> {
   fs.mkdirSync(options.output, { recursive: true })
-  assertClean(root, 'Core')
+  assertClean(options.coreRoot, 'Core')
   assertClean(options.uiRoot, 'Zeus UI')
-  const coreCommit = git(root, ['rev-parse', 'HEAD'])
+  const coreCommit = git(options.coreRoot, ['rev-parse', 'HEAD'])
   const uiCommit = git(options.uiRoot, ['rev-parse', 'HEAD'])
   const version = String(
     (
-      JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')) as {
+      JSON.parse(
+        fs.readFileSync(path.join(options.coreRoot, 'package.json'), 'utf8'),
+      ) as {
         version: string
       }
     ).version,
@@ -65,6 +81,7 @@ async function runStage1(options: Stage1Options): Promise<void> {
   const images = options.skipBuild
     ? readExistingImages(options.output)
     : buildImages({
+        coreRoot: options.coreRoot,
         coreCommit,
         uiCommit,
         version,
@@ -73,7 +90,10 @@ async function runStage1(options: Stage1Options): Promise<void> {
       })
   const envFile = path.join(options.output, 'stage1.env')
   writeEnvFile(envFile, images, uiCommit)
-  const composeFile = path.join(root, 'deploy/host-validation/compose.yml')
+  const composeFile = path.join(
+    options.coreRoot,
+    'deploy/host-validation/compose.yml',
+  )
   dockerCompose(['config', '--quiet'], composeFile, envFile)
   let report
   try {
@@ -172,6 +192,7 @@ interface ImageRecord {
 }
 
 function buildImages(input: {
+  readonly coreRoot: string
   readonly coreCommit: string
   readonly uiCommit: string
   readonly version: string
@@ -191,14 +212,14 @@ function buildImages(input: {
   const specs = {
     playground: {
       image: 'zeus-playground:stage1',
-      context: root,
+      context: input.coreRoot,
       dockerfile: 'examples/playground-editor/Dockerfile',
       extra: ['--build-arg', 'VITE_ZEUS_SANDBOX_ORIGIN=http://localhost:8081'],
       buildInfoPath: '/usr/share/nginx/html/build-info.json',
     },
     admin: {
       image: 'zeus-admin:stage1',
-      context: root,
+      context: input.coreRoot,
       dockerfile: 'examples/admin/Dockerfile',
       extra: [],
       buildInfoPath: '/app/dist/build-info.json',
@@ -256,7 +277,7 @@ function inspectImage(
     return { image, imageDigest, artifactDigest: '', buildInfo: undefined }
   }
   const container = `stage1-inspect-${image.replace(/[^a-z0-9]/gi, '-')}`
-  const tmp = path.join(root, 'temp/deploy/stage1', `${container}.json`)
+  const tmp = path.join(repoRoot, 'temp/deploy/stage1', `${container}.json`)
   fs.mkdirSync(path.dirname(tmp), { recursive: true })
   run('docker', ['rm', '-f', container], true)
   run('docker', ['create', '--name', container, image])
@@ -329,7 +350,7 @@ function dockerCompose(
   const result = spawnSync(
     'docker',
     ['compose', '--env-file', envFile, '-f', composeFile, ...args],
-    { cwd: root, stdio: 'inherit' },
+    { cwd: repoRoot, stdio: 'inherit' },
   )
   if (required && result.status !== 0) {
     throw new Error(`docker compose ${args.join(' ')} failed`)
@@ -382,7 +403,7 @@ function run(
   args: readonly string[],
   allowFailure = false,
 ): string {
-  const result = spawnSync(command, args, { cwd: root, encoding: 'utf8' })
+  const result = spawnSync(command, args, { cwd: repoRoot, encoding: 'utf8' })
   if (result.status !== 0 && !allowFailure) {
     throw new Error(`${command} ${args.join(' ')} failed: ${result.stderr}`)
   }
