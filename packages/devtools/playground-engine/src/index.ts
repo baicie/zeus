@@ -49,6 +49,17 @@ export {
   type ProjectExportOptions,
 } from './export'
 export {
+  isLoopbackSandboxHostname,
+  isTrustedSandboxParentOrigin,
+  parseSandboxParentOrigins,
+  resolveSandboxUrl,
+  sandboxSessionFromLocation,
+  withSandboxSession,
+  type SandboxLocationLike,
+  type SandboxParentPolicyOptions,
+  type SandboxUrlOptions,
+} from './sandbox-url'
+export {
   MAX_PLAYGROUND_SANDBOX_MESSAGE_BYTES,
   PLAYGROUND_CHANNEL,
   PLAYGROUND_MESSAGE_VERSION,

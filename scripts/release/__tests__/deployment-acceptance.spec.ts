@@ -311,3 +311,61 @@ describe('decideAcceptance', () => {
     ).toBe('BLOCKED')
   })
 })
+
+describe('approved 8443 deployment origins', () => {
+  const sandbox = 'https://panel.example.com:8443/zeus-sandbox/sandbox.html'
+  const host = 'https://studio.example.com:8443/'
+
+  it('accepts explicitly approved 8443 origins and a distinct sandbox URL', () => {
+    const value = manifest({
+      allowedHosts: [
+        'studio.example.com',
+        'panel.example.com',
+        'admin.example.com',
+        'ai.example.com',
+      ],
+      allowedPorts: ['443', '8443'],
+      sandboxUrl: sandbox,
+      products: manifest().products.map(entry =>
+        entry.product === 'webc-studio' || entry.product === 'native-lab'
+          ? { ...entry, url: host }
+          : entry,
+      ),
+    })
+    const validated = validateDeploymentManifest(value, core, ui, 'online')
+    expect(validated.errors).toEqual([])
+    expect(validated.manifest?.allowedPorts).toEqual(['443', '8443'])
+    expect(validated.manifest?.sandboxUrl).toBe(sandbox)
+  })
+
+  it('keeps 8443 rejected unless it is explicitly listed', () => {
+    const value = manifest({
+      allowedHosts: ['studio.example.com', 'panel.example.com'],
+      sandboxUrl: sandbox,
+      products: manifest().products.map(entry =>
+        entry.product === 'webc-studio' || entry.product === 'native-lab'
+          ? { ...entry, url: host }
+          : entry,
+      ),
+    })
+    const validated = validateDeploymentManifest(value, core, ui, 'online')
+    expect(validated.errors.some(error => error.includes('URL'))).toBe(true)
+  })
+
+  it('rejects unapproved ports and a sandbox sharing the host origin', () => {
+    const value = manifest({
+      allowedHosts: ['studio.example.com', 'panel.example.com'],
+      allowedPorts: ['9443'],
+      sandboxUrl: 'https://studio.example.com:8443/sandbox.html',
+      products: manifest().products.map(entry =>
+        entry.product === 'webc-studio' || entry.product === 'native-lab'
+          ? { ...entry, url: host }
+          : entry,
+      ),
+    })
+    const validated = validateDeploymentManifest(value, core, ui, 'online')
+    expect(validated.errors.some(error => error.includes('approved'))).toBe(
+      true,
+    )
+  })
+})

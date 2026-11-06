@@ -4,8 +4,11 @@ services:
       context: ../..
       dockerfile: examples/playground-editor/Dockerfile
       args:
-        # Must be the public sandbox origin, not the host origin.
+        # Prefer the complete public sandbox URL; the legacy origin remains
+        # supported. The sandbox only accepts messages from the host origins.
+        VITE_ZEUS_SANDBOX_URL: ${ZEUS_SANDBOX_URL:-http://localhost:8081/sandbox.html}
         VITE_ZEUS_SANDBOX_ORIGIN: ${ZEUS_SANDBOX_ORIGIN:-http://localhost:8081}
+        VITE_ZEUS_PLAYGROUND_HOST_ORIGINS: ${ZEUS_PLAYGROUND_HOST_ORIGINS:-http://localhost:8080}
     ports:
       - '8080:80'
       - '8081:81'

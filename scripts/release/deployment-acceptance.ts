@@ -28,9 +28,17 @@ import {
   verifyProvenance,
   type ProvenanceRecord,
 } from './build-info'
+import {
+  isLoopbackAddress,
+  isLoopbackHostname as isLoopbackHost,
+  isPrivateAddress,
+} from './network-policy'
+
+export { isPrivateAddress } from './network-policy'
 
 export const DEPLOYMENT_MANIFEST_SCHEMA = 'zeus.deployment-manifest/v2'
 export const DEPLOYMENT_ACCEPTANCE_SCHEMA = 'zeus.deployment-acceptance/v1'
+export const APPROVED_DEPLOYMENT_PORTS = ['443', '8443'] as const
 
 export const DEPLOYMENT_PRODUCTS = [
   'webc-studio',
@@ -70,6 +78,8 @@ export interface DeploymentManifest {
   readonly coreCommit: string
   readonly uiCommit: string
   readonly allowedHosts: readonly string[]
+  readonly allowedPorts?: readonly string[]
+  readonly sandboxUrl?: string
   readonly provenance?: string
   readonly products: readonly DeploymentProductEntry[]
 }
@@ -160,6 +170,27 @@ export function validateDeploymentManifest(
       }
     }
   }
+  const configuredPorts = Array.isArray(value.allowedPorts)
+    ? value.allowedPorts.filter(
+        (item): item is string => typeof item === 'string',
+      )
+    : []
+  const allowedPorts = configuredPorts.length > 0 ? configuredPorts : ['443']
+  if (mode === 'online') {
+    for (const port of allowedPorts) {
+      if (!(APPROVED_DEPLOYMENT_PORTS as readonly string[]).includes(port)) {
+        errors.push(`allowedPorts entry ${port} is not an approved HTTPS port`)
+      }
+    }
+  }
+  const sandboxUrl =
+    typeof value.sandboxUrl === 'string' ? value.sandboxUrl : undefined
+  if (
+    sandboxUrl !== undefined &&
+    !isAllowedDeploymentUrl(sandboxUrl, mode, allowedHosts, allowedPorts)
+  ) {
+    errors.push('sandboxUrl must follow the deployment URL policy')
+  }
   if (!Array.isArray(value.products)) {
     errors.push('products must be an array')
     return { errors }
@@ -189,13 +220,22 @@ export function validateDeploymentManifest(
 
     if (
       typeof entry.url !== 'string' ||
-      !isAllowedDeploymentUrl(entry.url, mode, allowedHosts)
+      !isAllowedDeploymentUrl(entry.url, mode, allowedHosts, allowedPorts)
     ) {
       errors.push(
         `products[${index}].url must be an ${
           mode === 'online' ? 'allowlisted HTTPS' : 'loopback'
         } URL without credentials`,
       )
+    }
+    if (
+      sandboxUrl !== undefined &&
+      (productId === 'webc-studio' || productId === 'native-lab') &&
+      typeof entry.url === 'string' &&
+      isAllowedDeploymentUrl(entry.url, mode, allowedHosts, allowedPorts) &&
+      new URL(entry.url).origin === new URL(sandboxUrl).origin
+    ) {
+      errors.push(`${productId} must not share the sandbox origin`)
     }
     if (typeof entry.repository !== 'string' || !entry.repository.trim()) {
       errors.push(`products[${index}].repository must be a non-empty string`)
@@ -220,7 +260,12 @@ export function validateDeploymentManifest(
     if (
       entry.healthUrl !== undefined &&
       (typeof entry.healthUrl !== 'string' ||
-        !isAllowedDeploymentUrl(entry.healthUrl, mode, allowedHosts))
+        !isAllowedDeploymentUrl(
+          entry.healthUrl,
+          mode,
+          allowedHosts,
+          allowedPorts,
+        ))
     ) {
       errors.push(
         `products[${index}].healthUrl must follow the deployment URL policy`,
@@ -229,7 +274,7 @@ export function validateDeploymentManifest(
 
     if (
       typeof entry.url === 'string' &&
-      isAllowedDeploymentUrl(entry.url, mode, allowedHosts) &&
+      isAllowedDeploymentUrl(entry.url, mode, allowedHosts, allowedPorts) &&
       typeof entry.repository === 'string' &&
       isCommit(entry.commit) &&
       isDigest(entry.artifactDigest)
@@ -268,6 +313,8 @@ export function validateDeploymentManifest(
           coreCommit,
           uiCommit,
           allowedHosts,
+          allowedPorts,
+          ...(sandboxUrl === undefined ? {} : { sandboxUrl }),
           provenance,
           products,
         },
@@ -280,13 +327,14 @@ export function isAllowedDeploymentUrl(
   value: string,
   mode: DeploymentMode,
   allowedHosts: readonly string[] = [],
+  allowedPorts: readonly string[] = ['443'],
 ): boolean {
   try {
     const url = new URL(value)
     if (url.username.length > 0 || url.password.length > 0) return false
     if (mode === 'online') {
       if (url.protocol !== 'https:') return false
-      if (url.port && url.port !== '443') return false
+      if (!allowedPorts.includes(url.port || '443')) return false
       const host = url.hostname.toLowerCase()
       if (net.isIP(host.replace(/^\[|\]$/g, '')) !== 0) return false
       return allowedHosts.includes(host)
@@ -482,11 +530,25 @@ async function checkProduct(
       )
     }
 
-    if (entry.product === 'webc-studio') {
-      const sandboxUrl = new URL('/sandbox.html', response.finalUrl).href
+    if (entry.product === 'webc-studio' || entry.product === 'native-lab') {
+      const sandboxUrl =
+        manifest.sandboxUrl ?? new URL('/sandbox.html', response.finalUrl).href
       const sandbox = await fetchChecked(sandboxUrl, context.mode, manifest)
       if (!sandbox.body.includes("default-src 'none'")) {
         throw new Error('sandbox.html is missing its restrictive CSP')
+      }
+      const sandboxHeaders = sandbox.headers
+      const sandboxCsp = String(sandboxHeaders['content-security-policy'] ?? '')
+      if (manifest.sandboxUrl !== undefined) {
+        if (!/\bsandbox\b/.test(sandboxCsp)) {
+          throw new Error('sandbox response is missing a CSP sandbox directive')
+        }
+        const hostOrigin = new URL(response.finalUrl).origin
+        if (!sandboxCsp.includes(`frame-ancestors ${hostOrigin}`)) {
+          throw new Error(
+            'sandbox CSP frame-ancestors does not allow the playground host',
+          )
+        }
       }
       evidence.push('sandbox CSP default-src none')
     }
@@ -755,7 +817,8 @@ function validateBrowserUrl(
   if (url.protocol === 'data:' || url.protocol === 'blob:') return
   if (mode === 'online') {
     if (url.protocol !== 'https:') throw new Error(`blocked ${url.protocol}`)
-    if (url.port && url.port !== '443') throw new Error('blocked non-443 port')
+    if (!(manifest.allowedPorts ?? ['443']).includes(url.port || '443'))
+      throw new Error('blocked unapproved port')
     if (!manifest.allowedHosts.includes(url.hostname.toLowerCase())) {
       throw new Error(`blocked host ${url.hostname}`)
     }
@@ -847,8 +910,8 @@ function assertUrlPolicy(
   if (mode === 'online') {
     if (url.protocol !== 'https:')
       throw new Error('online checks require HTTPS')
-    if (url.port && url.port !== '443')
-      throw new Error('online checks require port 443')
+    if (!(manifest.allowedPorts ?? ['443']).includes(url.port || '443'))
+      throw new Error('online checks require an approved HTTPS port')
     const host = url.hostname.toLowerCase()
     if (net.isIP(host.replace(/^\[|\]$/g, '')) !== 0) {
       throw new Error('online checks require a DNS hostname')
@@ -964,54 +1027,6 @@ function isRedirect(status: number): boolean {
   )
 }
 
-export function isPrivateAddress(address: string): boolean {
-  if (net.isIPv4(address)) {
-    const [a, b, c] = address.split('.').map(Number)
-    return (
-      a === 0 ||
-      a === 10 ||
-      a === 127 ||
-      (a === 100 && b >= 64 && b <= 127) ||
-      (a === 169 && b === 254) ||
-      (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && b === 168) ||
-      (a === 192 && b === 0 && c === 0) ||
-      (a === 192 && b === 0 && c === 2) ||
-      (a === 198 && b === 18) ||
-      (a === 198 && b === 19) ||
-      (a === 198 && b === 51 && c === 100) ||
-      (a === 203 && b === 0 && c === 113) ||
-      a >= 224
-    )
-  }
-  if (net.isIPv6(address)) {
-    const lower = address.toLowerCase()
-    if (lower === '::' || lower === '::1') return true
-    if (lower.startsWith('::ffff:')) {
-      const tail = lower.slice('::ffff:'.length)
-      if (net.isIPv4(tail)) return isPrivateAddress(tail)
-      const parts = tail.split(':')
-      if (parts.length === 2) {
-        const high = Number.parseInt(parts[0] ?? '', 16)
-        const low = Number.parseInt(parts[1] ?? '', 16)
-        if (Number.isFinite(high) && Number.isFinite(low)) {
-          return isPrivateAddress(
-            `${high >> 8}.${high & 0xff}.${low >> 8}.${low & 0xff}`,
-          )
-        }
-      }
-    }
-    return (
-      /^f[cd]/.test(lower) ||
-      /^fe[89ab]/.test(lower) ||
-      /^ff/.test(lower) ||
-      lower.startsWith('2001:db8:') ||
-      lower.startsWith('64:ff9b:')
-    )
-  }
-  return true
-}
-
 function readProvenance(
   file: string | undefined,
   manifest: DeploymentManifest,
@@ -1061,15 +1076,6 @@ function isCommit(value: unknown): value is string {
 
 function isDigest(value: unknown): value is string {
   return typeof value === 'string' && /^sha256:[0-9a-f]{64}$/i.test(value)
-}
-
-function isLoopbackHost(hostname: string): boolean {
-  return ['localhost', '127.0.0.1', '[::1]', '::1'].includes(hostname)
-}
-
-function isLoopbackAddress(address: string): boolean {
-  if (net.isIPv4(address)) return address.startsWith('127.')
-  return address === '::1' || address === '0:0:0:0:0:0:0:1'
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

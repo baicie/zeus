@@ -20,8 +20,12 @@ RUN rustup target add wasm32-unknown-unknown
 RUN pnpm --filter @zeus-js/compiler-wasm build:wasm
 RUN pnpm --filter @zeus-js/compiler-native build:native
 RUN pnpm build
+ARG VITE_ZEUS_SANDBOX_URL
 ARG VITE_ZEUS_SANDBOX_ORIGIN
-ENV VITE_ZEUS_SANDBOX_ORIGIN=$VITE_ZEUS_SANDBOX_ORIGIN
+ARG VITE_ZEUS_PLAYGROUND_HOST_ORIGINS
+ENV VITE_ZEUS_SANDBOX_URL=$VITE_ZEUS_SANDBOX_URL \
+  VITE_ZEUS_SANDBOX_ORIGIN=$VITE_ZEUS_SANDBOX_ORIGIN \
+  VITE_ZEUS_PLAYGROUND_HOST_ORIGINS=$VITE_ZEUS_PLAYGROUND_HOST_ORIGINS
 RUN pnpm --filter @zeus-js/example-playground-editor build
 RUN node --import tsx scripts/release/build-info.ts \
   --product webc-studio,native-lab \

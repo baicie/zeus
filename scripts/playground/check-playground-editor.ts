@@ -67,6 +67,7 @@ async function main(): Promise<void> {
         page.setDefaultTimeout(12_000)
         page.on('pageerror', error => pageErrors.push(error.message))
         const security = await runEditorChecks(page)
+        Object.assign(security, await runSandboxOriginChecks(browser))
         nativeLabPassed = true
         if (name === 'chromium') {
           downloadedArchive = await downloadExport(page)
@@ -210,6 +211,7 @@ async function runEditorChecks(page: Page): Promise<Record<string, boolean>> {
   await expect(page.getByTestId('devtools-dom-nodes')).not.toHaveText('0')
   await expect(page.getByTestId('build-metrics')).toContainText('WASM compile')
   const firstSandboxUrl = sandboxFrame(page).url()
+  const firstSandboxSession = sandboxSession(firstSandboxUrl)
   await firstFrame.locator('button').click()
   await expect(firstFrame.locator('button')).toHaveText('Count: 1')
 
@@ -226,8 +228,8 @@ async function runEditorChecks(page: Page): Promise<Record<string, boolean>> {
   )
   await expect(firstFrame.locator('button')).toHaveText('Live: 0')
   assert.notEqual(
-    new URL(sandboxFrame(page).url()).hash,
-    new URL(firstSandboxUrl).hash,
+    sandboxSession(sandboxFrame(page).url()),
+    firstSandboxSession,
     'Each preview build must receive a fresh sandbox realm.',
   )
 
@@ -511,6 +513,94 @@ async function checkExportedBrowser(
   }
 }
 
+async function runSandboxOriginChecks(
+  browser: Browser,
+): Promise<Record<string, boolean>> {
+  const sandboxUrl = `http://localhost:${serverPort()}/sandbox.html`
+  const directContext = await browser.newContext()
+  const direct = await directContext.newPage()
+  const directErrors: string[] = []
+  direct.on('pageerror', error => directErrors.push(error.message))
+  try {
+    await direct.goto(`${sandboxUrl}#direct-security`, {
+      waitUntil: 'load',
+      timeout: 30_000,
+    })
+    await direct.waitForTimeout(300)
+    const directOrigin = await direct.evaluate(() => globalThis.origin)
+    assert.notEqual(
+      directOrigin,
+      'null',
+      'This check must run without an HTTP sandbox CSP header so the code-level gate is exercised.',
+    )
+    assert(
+      directErrors.some(message =>
+        message.includes('requires an opaque origin'),
+      ),
+      'A non-opaque direct sandbox must fail closed before accepting messages.',
+    )
+  } finally {
+    await directContext.close()
+  }
+
+  const attackerContext = await browser.newContext()
+  const attacker = await attackerContext.newPage()
+  try {
+    await attacker.goto('about:blank')
+    await attacker.setContent(`<!doctype html><html><body><script>
+      window.__sandboxMessages = []
+      window.__sandboxPwned = null
+      window.addEventListener('message', event => {
+        window.__sandboxMessages.push(event.data)
+        if (event.data && event.data.zeusPwn) window.__sandboxPwned = event.data
+      })
+      const frame = document.createElement('iframe')
+      frame.src = ${JSON.stringify(sandboxUrl)} + '#third-party'
+      document.body.append(frame)
+      frame.addEventListener('load', () => setTimeout(() => {
+        frame.contentWindow.postMessage({
+          channel: 'zeus-playground-sandbox',
+          version: 1,
+          kind: 'sandbox-load',
+          sessionId: 'third-party',
+          requestId: 'third-party-1',
+          timeoutMs: 5000,
+          payload: {
+            entryPath: 'main.js',
+            modules: [{
+              path: 'main.js',
+              imports: [],
+              code: 'parent.postMessage({ zeusPwn: true }, "*")\\nexport default () => document.createElement("div")',
+            }],
+            styles: [],
+            runtimeModules: [],
+          },
+        }, '*')
+      }, 500))
+    </script></body></html>`)
+    await attacker.waitForTimeout(1_500)
+    const result = await attacker.evaluate(() => {
+      const state = window as unknown as {
+        __sandboxMessages?: unknown[]
+        __sandboxPwned?: unknown
+      }
+      return {
+        messages: state.__sandboxMessages ?? [],
+        pwned: state.__sandboxPwned ?? null,
+      }
+    })
+    assert.deepEqual(
+      result.messages,
+      [],
+      'A third-party embed without a sandbox attribute must not receive sandbox readiness or results.',
+    )
+    assert.equal(result.pwned, null, 'Third-party code must not execute.')
+    return { directOpaqueGate: true, thirdPartyEmbedBlocked: true }
+  } finally {
+    await attackerContext.close()
+  }
+}
+
 function securityProbe(host: string): string {
   return `const checks = {
   parentDom: false,
@@ -533,6 +623,14 @@ export const App = () => (
   <pre data-testid="security-probe">{JSON.stringify(checks)}</pre>
 )
 `
+}
+
+function sandboxSession(url: string): string {
+  const parsed = new URL(url)
+  return (
+    parsed.searchParams.get('zeus-sandbox-session') ??
+    decodeURIComponent(parsed.hash.slice(1))
+  )
 }
 
 function sandboxFrame(page: Page) {

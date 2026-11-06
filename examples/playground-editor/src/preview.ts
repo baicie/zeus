@@ -3,6 +3,7 @@ import {
   PLAYGROUND_SANDBOX_MESSAGE_VERSION,
   isOpaqueSandboxOrigin,
   parseSandboxMessage,
+  withSandboxSession,
 } from '@zeus-js/playground-engine'
 
 import type {
@@ -320,7 +321,7 @@ export class PreviewController {
     this.readyState = 'loading'
     this.readyError = undefined
     if (!this.frame) return
-    this.frame.src = `${this.sandboxUrl}#${encodeURIComponent(this.sessionId)}`
+    this.frame.src = withSandboxSession(this.sandboxUrl, this.sessionId)
   }
 }
 

@@ -10,8 +10,12 @@ import { createApp, defineComponent, h } from 'vue'
 import {
   PLAYGROUND_SANDBOX_CHANNEL,
   PLAYGROUND_SANDBOX_MESSAGE_VERSION,
+  isLoopbackSandboxHostname,
+  isTrustedSandboxParentOrigin,
   parseSandboxMessage,
+  parseSandboxParentOrigins,
   previewModulePlaceholder,
+  sandboxSessionFromLocation,
 } from '@zeus-js/playground-engine'
 
 import type {
@@ -21,6 +25,16 @@ import type {
 } from '@zeus-js/playground-engine'
 
 import sandboxStyles from './sandbox.css?inline'
+
+// Capture the opaque-origin decision before any preview code can run.
+// `Window.origin` is writable and `location.origin` remains the URL origin in
+// a sandboxed document, so neither can be re-read as a trust signal later.
+const opaqueOrigin = globalThis.origin === 'null'
+if (!opaqueOrigin) {
+  throw new Error(
+    'Zeus playground sandbox requires an opaque origin. Serve sandbox.html with Content-Security-Policy: sandbox allow-scripts and embed it in an iframe with sandbox="allow-scripts".',
+  )
+}
 
 declare global {
   var __ZEUS_PLAYGROUND_RUNTIME__: Record<string, object>
@@ -53,7 +67,16 @@ globalThis.__ZEUS_PLAYGROUND_RUNTIME__ = {
   '@zeus-js/zeus/jsx-runtime': zeus,
 }
 
-const sessionId = decodeURIComponent(location.hash.slice(1))
+const sessionId = sandboxSessionFromLocation(location)
+const configuredParentOrigins = parseSandboxParentOrigins(
+  import.meta.env.VITE_ZEUS_PLAYGROUND_HOST_ORIGINS,
+)
+const allowLoopbackParent = isLoopbackSandboxHostname(location.hostname)
+if (!allowLoopbackParent && configuredParentOrigins.length === 0) {
+  console.error(
+    '[Zeus playground sandbox] VITE_ZEUS_PLAYGROUND_HOST_ORIGINS must list the trusted host origin; all parent messages are rejected.',
+  )
+}
 const root = document.querySelector<HTMLElement>('#root')
 if (!root) throw new Error('Playground sandbox root is missing.')
 const baseStyle = document.createElement('style')
@@ -70,7 +93,13 @@ let disposeHostPreview: (() => void) | undefined
 
 window.addEventListener('message', event => {
   if (event.source !== window.parent) return
-  if (!/^https?:\/\//.test(event.origin)) return
+  if (
+    !isTrustedSandboxParentOrigin(event.origin, configuredParentOrigins, {
+      allowLoopback: allowLoopbackParent,
+    })
+  ) {
+    return
+  }
   if (trustedParentOrigin && event.origin !== trustedParentOrigin) return
   const message = parseSandboxMessage(event.data)
   if (!message || message.sessionId !== sessionId) return
@@ -91,8 +120,7 @@ window.parent.postMessage(
     kind: 'sandbox-ready',
     sessionId,
     capabilities: {
-      opaqueOrigin:
-        globalThis.origin === 'null' || document.location.origin === 'null',
+      opaqueOrigin,
       modules: true,
     },
   },
