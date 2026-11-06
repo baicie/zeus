@@ -10,7 +10,23 @@
 - 四个产品分别准备隔离的测试账号、数据库卷和对象存储前缀。
 - 记录授权人、时间、目标域名和部署工具版本。
 
-## 2. 候选产物
+## 2. 部署模板与 Stage 1
+
+统一模板位于 `deploy/host-validation/`：`compose.yml`（四服务、健康检查、
+只读根文件系统、资源上限、日志轮转）、`.env.example`、`nginx.conf`（TLS、
+HSTS、CSP、SSE）与 `README.md`。
+
+无副作用的 Stage 1：
+
+```bash
+pnpm deploy:stage1 --core-root <clean-core-main> --ui-root <clean-ui-main>
+```
+
+Stage 2 仅保留受控入口：`.github/workflows/host-deployment-stage2.yml`，需要
+GitHub Environment 审批、`ZEUS_HOST_DEPLOY_ENABLED=true`、self-hosted
+`zeus-host` runner 与 `/etc/zeus/host-validation.env`；本轮未执行。
+
+## 3. 候选产物
 
 从最新 `product-acceptance.yml` 运行下载：
 
@@ -30,7 +46,7 @@ docker image inspect zeus-ai-workbench:ci | jq -r '.[0].Id'
 
 生产 compose 必须使用 `image@sha256:...`，不得使用可变标签。
 
-## 3. Sandbox Origin 规划
+## 4. Sandbox Origin 规划
 
 - Host：`https://studio.example.com`
 - Sandbox：`https://sandbox.studio.example.com`
@@ -40,7 +56,7 @@ docker image inspect zeus-ai-workbench:ci | jq -r '.[0].Id'
 - sandbox 页面自带 `default-src 'none'; script-src 'self' blob:` CSP；
   host 不得把 sandbox 与 host 放在同一 origin。
 
-## 4. Compose 模板
+## 5. Compose 模板
 
 ```yaml
 services:
@@ -106,7 +122,7 @@ ZEUS_SANDBOX_ORIGIN=https://sandbox.studio.example.com
 测试账号使用独立租户，邮箱/消息前缀可识别；禁止使用真实用户账号。
 Admin 只授予验收所需的最小角色；AI 只使用 Replay Host，不配置 Live 密钥。
 
-## 5. 反向代理与 HTTPS
+## 6. 反向代理与 HTTPS
 
 ```nginx
 server {
@@ -134,7 +150,7 @@ server {
 - SSE 关闭 buffering，验收最多等待 20 秒并主动关闭页面。
 - DNS 只解析到公网地址；验收器会拒绝私网/保留地址。
 
-## 6. 备份、回滚与失败恢复
+## 7. 备份、回滚与失败恢复
 
 1. 部署前备份 Admin/AI 的 `/data` 卷，记录 image digest 与 manifest。
 2. 以新 digest 启动新容器，保留旧容器/镜像；健康检查通过后再切流量。
@@ -143,7 +159,7 @@ server {
 5. 清理验收测试数据：Admin 测试账号、AI 测试会话/工作区、上传附件；
    保留清理记录。
 
-## 7. 验收清单
+## 8. 验收清单
 
 - [ ] DNS 四个域名解析到公网地址。
 - [ ] TLS 证书有效，HTTP 自动跳转 HTTPS，HSTS 存在。
@@ -157,7 +173,7 @@ server {
 - [ ] VoiceOver/NVDA 人工验收完成并记录。
 - [ ] 发布审批人、时间、commit、digest 记录在案。
 
-## 8. 在线验收命令
+## 9. 在线验收命令
 
 ```bash
 ZEUS_ACCEPTANCE_ADMIN_EMAIL=acceptance@example.test \
