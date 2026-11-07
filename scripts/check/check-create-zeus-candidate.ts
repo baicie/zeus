@@ -5,10 +5,10 @@
  */
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
-
-import { zeusFixedPackages } from '../release.config'
 import os from 'node:os'
 import path from 'node:path'
+
+import { zeusFixedPackages } from '../release.config'
 
 const root = path.resolve(import.meta.dirname, '../..')
 const packageRoot = path.join(root, 'packages/devtools/create-zeus')
