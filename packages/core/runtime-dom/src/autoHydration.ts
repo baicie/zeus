@@ -34,8 +34,6 @@ const SHOW_COMMENT = 0x80
 
 export const HYDRATION_FALLBACK_ATTRIBUTE = 'data-zeus-hydration-fallback'
 
-const FORM_STATE_PROPERTIES = new Set(['value', 'checked', 'selected'])
-
 export interface AutomaticHydrationOptions {
   onHydrationError?: (error: Error) => void
 }
@@ -133,7 +131,12 @@ export function isHydrationFormWrite(el: Element, name: PropertyKey): boolean {
 export function isNativeFormStateElement(el: Element, name: string): boolean {
   const tag = el.localName
   if (name === 'value') {
-    return tag === 'input' || tag === 'textarea' || tag === 'select' || tag === 'option'
+    return (
+      tag === 'input' ||
+      tag === 'textarea' ||
+      tag === 'select' ||
+      tag === 'option'
+    )
   }
   if (name === 'checked') return tag === 'input'
   if (name === 'selected') return tag === 'option'

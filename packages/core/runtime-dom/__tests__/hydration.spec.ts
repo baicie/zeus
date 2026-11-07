@@ -1,10 +1,10 @@
-import { isNativeFormStateElement } from '../src/autoHydration'
 import { createSignal, onCleanup } from '@zeus-js/signal'
 import { scope } from '@zeus-js/signal/internal'
 import { JSDOM } from 'jsdom'
 import { describe, expect, it, vi } from 'vitest'
 
 import { hydrate, hydratePlan } from '../src'
+import { isNativeFormStateElement } from '../src/autoHydration'
 import { delegateEvents, resetDelegatedEvents } from '../src/events'
 
 describe('hydrate', () => {
@@ -533,7 +533,6 @@ describe('hydrate', () => {
     },
   )
 })
-
 
 describe('hydration form state ownership', () => {
   it('only treats native form controls as form-state writers', () => {
