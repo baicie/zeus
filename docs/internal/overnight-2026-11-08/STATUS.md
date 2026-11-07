@@ -1,6 +1,6 @@
 # Overnight Mission Status — 2026-11-08
 
-Last checkpoint: 2026-11-08 03:15 Asia/Shanghai
+Last checkpoint: 2026-11-08 03:30 Asia/Shanghai
 Deadline: 2026-11-08 12:00 Asia/Shanghai
 
 ## Baseline
@@ -42,8 +42,14 @@ No merge, npm publish, Tag, dist-tag or production deployment in this mission.
 
 - Admin WebKit failure log: `packed-consumers`, `check-admin.ts:154`; rerun
   green. UI #128 fixes the scheduled focus restore that raced the fill.
-- RC gate tests: 6 files / 41 tests PASS; 31-package version group;
-  `check:ui-pairing`; `check:create-zeus-versions`; `check:create-zeus-packed`.
+- RC gate tests: 6 files / 41 tests PASS before the new negative cases;
+  31-package version group; `check:ui-pairing`; `check:create-zeus-versions`;
+  `check:create-zeus-packed`. New cases fail closed on source commits,
+  environment, transaction commits, product commit/URL, missing product and
+  provenance drops.
+- RC-07 is blocked by environment: `npm whoami` → `ENEEDAUTH`, configured
+  registry is `https://registry.npmmirror.com`. No dist-tag repair, publish or
+  promotion was attempted.
 - Storage safety: `STORAGE_SAFETY_PASS`; generation directories and
   broad-root/symlink rejection in UI #126.
 - R5 workspace drill Run
