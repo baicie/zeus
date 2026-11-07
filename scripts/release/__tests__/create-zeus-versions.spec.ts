@@ -57,11 +57,12 @@ describe('create-zeus template version sync', () => {
       check: true,
     })
 
+    const relative = (...parts: string[]) => path.join(...parts)
     expect(mismatches).toEqual(
       expect.arrayContaining([
-        'packages/devtools/create-zeus/templates/basic-ts/package.json: @zeus-js/zeus 0.1.1-beta.20 != 0.2.0-rc.0',
-        'packages/devtools/create-zeus/templates/basic-ts/package.json: @zeus-js/vite-plugin 0.0.5 != 0.0.6',
-        'packages/devtools/create-zeus/templates/webc-consumer-ts/package.json: @zeus-web/button 0.1.0-beta.34 != 0.1.0-rc.0',
+        `${relative('packages', 'devtools', 'create-zeus', 'templates', 'basic-ts', 'package.json')}: @zeus-js/zeus 0.1.1-beta.20 != 0.2.0-rc.0`,
+        `${relative('packages', 'devtools', 'create-zeus', 'templates', 'basic-ts', 'package.json')}: @zeus-js/vite-plugin 0.0.5 != 0.0.6`,
+        `${relative('packages', 'devtools', 'create-zeus', 'templates', 'webc-consumer-ts', 'package.json')}: @zeus-web/button 0.1.0-beta.34 != 0.1.0-rc.0`,
       ]),
     )
     expect(fs.readFileSync(basic, 'utf8')).toBe(before)
