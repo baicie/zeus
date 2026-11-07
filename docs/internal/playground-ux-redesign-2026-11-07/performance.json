@@ -1,12 +1,12 @@
 {
-  "sourceCommit": "feed3ce8ca306339b1199a3f1f96228a41191d8d",
+  "sourceCommit": "3054cec51897a34b0403c80a0c0999332b18f1e2",
   "engine": "chromium",
   "initial": {
     "shellJavascriptBytes": 605269,
-    "cssBytes": 17237,
+    "cssBytes": 17299,
     "editorChunkBytes": 529595,
     "compilerBytes": 3754555,
-    "totalTransferBytes": 4906956,
+    "totalTransferBytes": 4907018,
     "resources": [
       {
         "name": "/assets/rolldown-runtime-XKyaHtl9.js",
@@ -19,18 +19,18 @@
         "lazy": false
       },
       {
+        "name": "/assets/main-D3ZXLgxK.js",
+        "bytes": 66983,
+        "lazy": false
+      },
+      {
         "name": "/assets/playground-engine.esm-bundler-D2UYPSNO.js",
         "bytes": 454144,
         "lazy": false
       },
       {
-        "name": "/assets/main-DjfOr_rT.js",
-        "bytes": 66983,
-        "lazy": false
-      },
-      {
-        "name": "/assets/main-K2gOVz4b.css",
-        "bytes": 17237,
+        "name": "/assets/main-Bf8gDuZa.css",
+        "bytes": 17299,
         "lazy": false
       },
       {
@@ -39,13 +39,13 @@
         "lazy": true
       },
       {
-        "name": "/assets/zeus-compiler-CW8m08CV.wasm",
-        "bytes": 1545997,
+        "name": "/favicon.ico",
+        "bytes": 300,
         "lazy": false
       },
       {
-        "name": "/favicon.ico",
-        "bytes": 300,
+        "name": "/assets/zeus-compiler-CW8m08CV.wasm",
+        "bytes": 1545997,
         "lazy": false
       },
       {
@@ -61,28 +61,28 @@
     ]
   },
   "timing": {
-    "firstEditableMs": 189,
-    "firstPreviewMs": 402,
-    "domContentLoadedMs": 60,
-    "loadMs": 154
+    "firstEditableMs": 265,
+    "firstPreviewMs": 495,
+    "domContentLoadedMs": 117,
+    "loadMs": 190
   },
   "compile": {
-    "compileMs": 4.5,
-    "previewMs": 3,
+    "compileMs": 6.5,
+    "previewMs": 1.6,
     "domBytes": 634,
     "ssrBytes": 660
   },
   "autoRun": {
     "edits": 30,
     "compiles": 1,
-    "elapsedMs": 1975,
+    "elapsedMs": 1892,
     "finalSourceVisible": true
   },
   "cleanup": {
     "builds": 10,
-    "heapBeforeBytes": 12414432,
-    "heapAfterBytes": 13043772,
-    "heapGrowthBytes": 629340,
+    "heapBeforeBytes": 12411128,
+    "heapAfterBytes": 13042532,
+    "heapGrowthBytes": 631404,
     "iframesAfterBuilds": 1,
     "iframesAfterStop": 1,
     "workers": 1,
