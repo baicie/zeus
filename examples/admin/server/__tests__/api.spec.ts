@@ -36,6 +36,8 @@ async function start(
     adminEmail: 'ada@example.test',
     adminPassword: ADMIN_PASSWORD,
     viewerPassword: VIEWER_PASSWORD,
+    demoUsers: true,
+    bootstrap: true,
   })
   const admin = createAdminServer({ database, ...options })
   await listen(admin.server, 0, '127.0.0.1')
@@ -285,6 +287,65 @@ describe('Zeus Admin HTTP API', () => {
       body: JSON.stringify({ theme: 'light' }),
     })
     expect(denied.status).toBe(403)
+  })
+
+  it('confines the acceptance viewer and expires its credential', async () => {
+    const database = openAdminDatabase(':memory:')
+    seedAdminDatabase(database.raw, {
+      adminEmail: 'ops@example.test',
+      adminPassword: ADMIN_PASSWORD,
+      viewerPassword: '',
+      demoUsers: false,
+      bootstrap: true,
+      acceptance: {
+        email: 'acceptance@example.test',
+        password: 'acceptance-password-123',
+        userId: 'acceptance',
+      },
+    })
+    let clock = new Date()
+    const admin = createAdminServer({
+      database,
+      acceptanceUserId: 'acceptance',
+      acceptanceTtlMinutes: 30,
+      now: () => clock,
+    })
+    await listen(admin.server, 0, '127.0.0.1')
+    const address = admin.server.address()
+    if (!address || typeof address === 'string') throw new Error('No port')
+    const origin = `http://127.0.0.1:${address.port}`
+    try {
+      const session = await login(
+        origin,
+        'acceptance@example.test',
+        'acceptance-password-123',
+      )
+      expect(session.response.status).toBe(200)
+      expect(
+        (
+          await fetch(`${origin}/api/users`, {
+            headers: { Cookie: session.cookie! },
+          })
+        ).status,
+      ).toBe(200)
+      const denied = await fetch(`${origin}/api/settings`, {
+        method: 'PATCH',
+        headers: mutationHeaders(session.cookie, session.csrf),
+        body: JSON.stringify({ theme: 'dark' }),
+      })
+      expect(denied.status).toBe(403)
+
+      clock = new Date(clock.getTime() + 31 * 60_000)
+      const expired = await login(
+        origin,
+        'acceptance@example.test',
+        'acceptance-password-123',
+      )
+      expect(expired.response.status).toBe(403)
+    } finally {
+      await admin.close()
+      database.close()
+    }
   })
 
   it('rejects invalid credentials and suspended accounts', async () => {

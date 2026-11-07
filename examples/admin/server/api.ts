@@ -40,6 +40,9 @@ export interface AdminServerOptions {
   readonly now?: () => Date
   readonly secureCookies?: boolean
   readonly trustProxy?: boolean
+  /** Dedicated deployment-acceptance account; expires after the TTL. */
+  readonly acceptanceUserId?: string
+  readonly acceptanceTtlMinutes?: number
   readonly loginRateLimit?: AttemptLimiterOptions
 }
 
@@ -75,6 +78,9 @@ export function createAdminServer(options: AdminServerOptions): AdminServer {
   const allowedOrigins = new Set(options.allowedOrigins ?? [])
   const secureCookies = options.secureCookies ?? false
   const trustProxy = options.trustProxy ?? false
+  const acceptanceUserId = options.acceptanceUserId
+  const acceptanceTtlMs =
+    Math.max(1, options.acceptanceTtlMinutes ?? 120) * 60_000
   const limiter = new AttemptLimiter({
     ...options.loginRateLimit,
     now: () => (options.now?.() ?? new Date()).getTime(),
@@ -172,13 +178,26 @@ export function createAdminServer(options: AdminServerOptions): AdminServer {
           'Email or password is incorrect.',
         )
       }
-      if (row.status === 'suspended') {
+      if (row.status !== 'active') {
         limiter.recordFailure(keys)
-        audit(row.id, 'login', row.id, 'denied', 'suspended account')
+        audit(row.id, 'login', row.id, 'denied', `${row.status} account`)
         throw new ApiError(
           403,
           'ZEUS_ADMIN_SIGN_IN_UNAVAILABLE',
           'Sign-in is not available for this account.',
+        )
+      }
+      if (
+        acceptanceUserId &&
+        row.id === acceptanceUserId &&
+        now().getTime() - Date.parse(row.updated_at) > acceptanceTtlMs
+      ) {
+        limiter.recordFailure(keys)
+        audit(row.id, 'login', row.id, 'denied', 'acceptance account expired')
+        throw new ApiError(
+          403,
+          'ZEUS_ADMIN_SIGN_IN_UNAVAILABLE',
+          'The acceptance account has expired.',
         )
       }
       limiter.reset(keys)
