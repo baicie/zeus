@@ -18,7 +18,7 @@
 | UI   | `fix/r4-4-ai-public-isolation` | `4827f38`          | Draft PR #125         |
 
 Core main `e193cf50ad3cbe1d4c14e48584339352c2b75edf`；UI main
-`6806700585b1ae33c6e76ba22aae493f91124014`。两个 main 在本轮开始与结束均未漂移。
+`6806700585b1ae33c6e76ba22aae493f91124014`。两个 main 在本轮开始与结束均未漂移。Stage 1 候选由 Core `16f8369` + UI `4827f38` 构建；其后 Core 分支上的提交只修改部署脚本/测试工作流，不修改已构建的产品源码（Admin/Playground/AI Host/Workbench），因此镜像内容对应当前 PR 的产品代码。
 
 ## B. Findings 与修复
 
