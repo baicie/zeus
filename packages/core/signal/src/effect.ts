@@ -185,7 +185,7 @@ export class ReactiveEffect<T = any>
   }
 
   resume(): void {
-    if (this.flags & EffectFlags.PAUSED) {
+    if (this.flags & EffectFlags.ACTIVE && this.flags & EffectFlags.PAUSED) {
       this.flags &= ~EffectFlags.PAUSED
       if (pausedQueueEffects.has(this)) {
         pausedQueueEffects.delete(this)
@@ -501,6 +501,10 @@ export function refreshComputed(computed: ComputedRefImpl): undefined {
       dep.version++
     }
   } catch (err) {
+    // A failed evaluation must never be cached as a valid computed value.
+    computed.flags |= EffectFlags.DIRTY
+    computed.flags &= ~EffectFlags.EVALUATED
+    computed.globalVersion = -1
     dep.version++
     throw err
   } finally {
