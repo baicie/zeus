@@ -85,6 +85,9 @@ services:
       - /var/cache/nginx
       - /var/run
       - /tmp
+      # The nginx entrypoint renders the upstream token template into
+      # /etc/nginx/conf.d, which is read-only in the runtime image.
+      - /etc/nginx/conf.d
     security_opt:
       - no-new-privileges:true
     mem_limit: ${ZEUS_AI_WORKBENCH_MEM:-128m}
