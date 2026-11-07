@@ -26,6 +26,7 @@ function main(): void {
       'restore-from': { type: 'string' },
       verify: { type: 'string' },
       force: { type: 'boolean', default: false },
+      isolated: { type: 'boolean', default: false },
     },
   })
   if (values.verify) {
@@ -39,7 +40,24 @@ function main(): void {
   if (values['restore-from']) {
     if (!values.database)
       throw new Error('--database is required with --restore-from')
+    if (!values.isolated) {
+      throw new Error(
+        'restore is only allowed into an isolated target; pass --isolated for a temporary or drill database',
+      )
+    }
     const target = path.resolve(values.database)
+    const liveDatabase = process.env.ZEUS_ADMIN_DB
+      ? path.resolve(process.env.ZEUS_ADMIN_DB)
+      : undefined
+    if (
+      liveDatabase === target ||
+      target === '/data/admin.sqlite' ||
+      target.startsWith('/data/')
+    ) {
+      throw new Error(
+        'refusing to restore into the live production Admin database',
+      )
+    }
     if (fs.existsSync(target) && !values.force) {
       throw new Error(
         `refusing to overwrite ${target}; pass --force after taking a pre-restore backup`,

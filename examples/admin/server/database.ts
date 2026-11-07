@@ -1,4 +1,14 @@
-import { copyFileSync, mkdirSync, rmSync } from 'node:fs'
+import {
+  closeSync,
+  copyFileSync,
+  existsSync,
+  fsyncSync,
+  lstatSync,
+  mkdirSync,
+  openSync,
+  renameSync,
+  rmSync,
+} from 'node:fs'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 
@@ -126,11 +136,56 @@ export function backupAdminDatabase(
   }
 }
 
-/** Verifies a database file can be opened and passes quick_check. */
+/**
+ * Verifies a database file can be opened, passes quick_check and contains the
+ * complete Admin schema. A missing path must never verify: SQLite would create
+ * an empty database and quick_check would call it healthy, which previously
+ * allowed an empty file to be restored over production.
+ */
 export function verifyAdminDatabase(file: string): DatabaseIntegrity {
-  const db = new DatabaseSync(file)
+  if (!existsSync(file)) {
+    return { ok: false, messages: ['database file does not exist'] }
+  }
+  const stat = lstatSync(file)
+  if (stat.isSymbolicLink() || !stat.isFile()) {
+    return { ok: false, messages: ['database path is not a regular file'] }
+  }
+  const db = new DatabaseSync(file, { readOnly: true })
   try {
-    return checkAdminDatabase(db)
+    const integrity = checkAdminDatabase(db)
+    if (!integrity.ok) return integrity
+    const tables = new Set(
+      (
+        db
+          .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
+          .all() as Array<{ name: string }>
+      ).map(row => row.name),
+    )
+    const required = [
+      'schema_migrations',
+      'users',
+      'sessions',
+      'audit_logs',
+      'uploads',
+      'settings',
+    ]
+    const missing = required.filter(table => !tables.has(table))
+    if (missing.length > 0) {
+      return {
+        ok: false,
+        messages: [`database is missing tables: ${missing.join(', ')}`],
+      }
+    }
+    const migrations = db
+      .prepare('SELECT COUNT(*) AS count FROM schema_migrations')
+      .get() as { count: number }
+    if (migrations.count < 2) {
+      return {
+        ok: false,
+        messages: [`database has only ${migrations.count} schema migrations`],
+      }
+    }
+    return integrity
   } finally {
     db.close()
   }
@@ -138,7 +193,10 @@ export function verifyAdminDatabase(file: string): DatabaseIntegrity {
 
 /**
  * Restores a verified backup to a target path. The target is never copied
- * over an open database; callers must close their AdminDatabase first.
+ * over an open database; callers must close their AdminDatabase first. A
+ * timestamped pre-restore copy is always taken, and the replacement is staged
+ * and fsynced before an atomic rename so a failed copy cannot destroy the
+ * existing database.
  */
 export function restoreAdminDatabase(source: string, target: string): void {
   const result = verifyAdminDatabase(source)
@@ -148,9 +206,27 @@ export function restoreAdminDatabase(source: string, target: string): void {
     )
   }
   mkdirSync(path.dirname(target), { recursive: true })
+  if (existsSync(target)) {
+    const current = verifyAdminDatabase(target)
+    if (!current.ok) {
+      throw new Error(
+        `Refusing to replace an invalid database without an explicit recovery: ${current.messages.join('; ')}`,
+      )
+    }
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    copyFileSync(target, `${target}.pre-restore-${timestamp}`)
+  }
+  const temporary = `${target}.restore-${process.pid}-${Date.now()}`
+  copyFileSync(source, temporary)
+  const fd = openSync(temporary, 'r+')
+  try {
+    fsyncSync(fd)
+  } finally {
+    closeSync(fd)
+  }
+  renameSync(temporary, target)
   rmSync(`${target}-wal`, { force: true })
   rmSync(`${target}-shm`, { force: true })
-  copyFileSync(source, target)
   const restored = verifyAdminDatabase(target)
   if (!restored.ok) {
     throw new Error(
@@ -193,6 +269,22 @@ export interface SeedOptions {
   readonly viewerPassword: string
   /** Set false in acceptance/production bootstrap: create only the admin. */
   readonly demoUsers?: boolean
+  /**
+   * A first boot must opt in explicitly. An existing database with zero users
+   * is never treated as fresh, so a lost volume or a typo path cannot be
+   * silently re-seeded with deployment credentials.
+   */
+  readonly bootstrap?: boolean
+  /**
+   * Dedicated least-privilege acceptance account. It is created or refreshed
+   * only for the configured id, never replaces an administrator, and is
+   * deleted by the deployment transaction after acceptance.
+   */
+  readonly acceptance?: {
+    readonly email: string
+    readonly password: string
+    readonly userId: string
+  }
 }
 
 const SEED_USERS = [
@@ -255,7 +347,16 @@ export function seedAdminDatabase(
   const existing = db.prepare('SELECT COUNT(*) AS count FROM users').get() as {
     count: number
   }
-  if (existing.count > 0) return
+  if (existing.count > 0) {
+    assertConfiguredAdministrator(db, options.adminEmail)
+    seedAcceptanceUser(db, options)
+    return
+  }
+  if (options.bootstrap !== true) {
+    throw new Error(
+      'Admin database has no users; set ZEUS_ADMIN_BOOTSTRAP=true for an explicit first bootstrap',
+    )
+  }
   const now = new Date().toISOString()
   const insert = db.prepare(
     `INSERT INTO users (id, name, email, team, status, role, password_hash, created_at, updated_at)
@@ -304,9 +405,73 @@ export function seedAdminDatabase(
         : 'initial demo data',
       now,
     )
+    seedAcceptanceUser(db, options)
     db.exec('COMMIT')
   } catch (error) {
     db.exec('ROLLBACK')
     throw error
   }
+}
+
+/**
+ * An existing database is authoritative. A deployment whose configured admin
+ * email no longer maps to an active administrator is blocked instead of
+ * silently seeding or resetting anything.
+ */
+function assertConfiguredAdministrator(
+  db: DatabaseSync,
+  adminEmail: string,
+): void {
+  const row = db
+    .prepare('SELECT role, status FROM users WHERE email = ?')
+    .get(normalizeEmail(adminEmail)) as
+    | { role: string; status: string }
+    | undefined
+  if (!row || row.role !== 'admin' || row.status !== 'active') {
+    throw new Error(
+      'Admin database has users but the configured administrator is not an active admin; refusing to seed or reset it',
+    )
+  }
+}
+
+function seedAcceptanceUser(db: DatabaseSync, options: SeedOptions): void {
+  const acceptance = options.acceptance
+  if (!acceptance) return
+  const email = normalizeEmail(acceptance.email)
+  if (acceptance.password.length < 12) {
+    throw new Error('The acceptance password must be at least 12 characters.')
+  }
+  const byId = db
+    .prepare('SELECT id, email, role FROM users WHERE id = ?')
+    .get(acceptance.userId) as
+    | { id: string; email: string; role: string }
+    | undefined
+  if (byId) {
+    if (byId.role !== 'viewer' || normalizeEmail(byId.email) !== email) {
+      throw new Error(
+        'The acceptance user id is already used by a different or privileged account',
+      )
+    }
+    db.prepare(
+      "UPDATE users SET password_hash = ?, status = 'active', updated_at = ? WHERE id = ?",
+    ).run(
+      hashPassword(acceptance.password),
+      new Date().toISOString(),
+      acceptance.userId,
+    )
+    return
+  }
+  const byEmail = db
+    .prepare('SELECT id FROM users WHERE email = ?')
+    .get(email) as { id: string } | undefined
+  if (byEmail) {
+    throw new Error(
+      'The acceptance email is already used by another account; refusing to take it over',
+    )
+  }
+  const now = new Date().toISOString()
+  db.prepare(
+    `INSERT INTO users (id, name, email, team, status, role, password_hash, created_at, updated_at)
+     VALUES (?, 'Acceptance', ?, 'acceptance', 'active', 'viewer', ?, ?, ?)`,
+  ).run(acceptance.userId, email, hashPassword(acceptance.password), now, now)
 }
