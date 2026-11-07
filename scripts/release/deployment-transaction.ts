@@ -837,6 +837,7 @@ function backupDatabases(
     const file = backupDatabase({
       container: admin.name,
       source: admin.env.ZEUS_ADMIN_DB ?? '/data/admin.sqlite',
+      dataDir: layout.dataDirs.admin,
       directory,
       name: 'admin.sqlite',
       verifierImage: previous.containers.admin.image,
@@ -849,6 +850,7 @@ function backupDatabases(
     const file = backupDatabase({
       container: aiHost.name,
       source: aiDatabaseFile(aiHost.env),
+      dataDir: layout.dataDirs.ai,
       directory,
       name: 'ai.sqlite',
       verifierImage: aiHost.image,
@@ -873,12 +875,15 @@ function backupDatabases(
 function backupDatabase(input: {
   container: string
   source: string
+  dataDir: string
   directory: string
   name: string
   verifierImage: string
   admin: boolean
 }): { file: string; sha256: string; sqliteCheck: string } | undefined {
-  const target = `/tmp/zeus-deploy-backup-${input.name}`
+  const targetName = `.zeus-deploy-backup-${input.name}`
+  const target = `/data/${targetName}`
+  const hostTarget = path.join(input.dataDir, targetName)
   const script = `
 import { DatabaseSync } from 'node:sqlite'
 import fs from 'node:fs'
@@ -915,16 +920,16 @@ console.log(JSON.stringify(rows))
     return undefined
   }
   const file = path.join(input.directory, input.name)
-  const copied = spawnSync(
-    'docker',
-    ['cp', `${input.container}:${target}`, file],
-    { encoding: 'utf8' },
-  )
-  dockerCapture(['exec'], input.container, ['rm', '-f', target], true)
-  if (copied.status !== 0) {
+  try {
+    fs.copyFileSync(hostTarget, file)
+  } catch (error) {
     throw new Error(
-      `failed to copy the database backup out of ${input.container}`,
+      `failed to copy the database backup out of ${input.container}: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
     )
+  } finally {
+    dockerCapture(['exec'], input.container, ['rm', '-f', target], true)
   }
   const check = verifyBackupFile(
     input.verifierImage,
