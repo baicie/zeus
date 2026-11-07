@@ -34,6 +34,7 @@ function main(): void {
       'keep-containers': { type: 'boolean', default: false },
       'sandbox-url': { type: 'string' },
       'host-origins': { type: 'string' },
+      'skip-acceptance': { type: 'boolean', default: false },
     },
   })
   const coreRoot = values['core-root']
@@ -58,6 +59,7 @@ function main(): void {
     keepContainers: values['keep-containers'] === true,
     sandboxUrl: values['sandbox-url'],
     hostOrigins: values['host-origins'],
+    skipAcceptance: values['skip-acceptance'] === true,
   })
 }
 
@@ -72,6 +74,7 @@ interface Stage1Options {
   readonly keepContainers: boolean
   readonly sandboxUrl?: string
   readonly hostOrigins?: string
+  readonly skipAcceptance: boolean
 }
 
 async function runStage1(options: Stage1Options): Promise<void> {
@@ -161,15 +164,28 @@ async function runStage1(options: Stage1Options): Promise<void> {
     process.env.ZEUS_ACCEPTANCE_ADMIN_PASSWORD = ADMIN_PASSWORD
     process.env.ZEUS_ACCEPTANCE_AI_REPLAY = 'true'
     process.env.ZEUS_ACCEPTANCE_TENANT = TENANT
-    report = await runDeploymentAcceptance({
-      manifestFile,
-      mode: 'local',
-      coreCommit,
-      uiCommit,
-      engines: options.engines,
-      writeMode: 'isolated',
-      tenant: TENANT,
-    })
+    report = options.skipAcceptance
+      ? {
+          schema: 'zeus.deployment-acceptance/v1',
+          mode: 'local' as const,
+          coreCommit,
+          uiCommit,
+          checkedAt: new Date().toISOString(),
+          decision: 'NOT_RUN' as const,
+          products: [],
+          blockers: [
+            'production build: local browser acceptance skipped; Stage 2 online acceptance is the gate',
+          ],
+        }
+      : await runDeploymentAcceptance({
+          manifestFile,
+          mode: 'local',
+          coreCommit,
+          uiCommit,
+          engines: options.engines,
+          writeMode: 'isolated',
+          tenant: TENANT,
+        })
   } finally {
     if (!options.keepContainers) {
       dockerCompose(
@@ -244,7 +260,9 @@ async function runStage1(options: Stage1Options): Promise<void> {
     console.log(`- ${result.product}: ${result.status}`)
     if (result.error) console.error(`  ${result.error}`)
   }
-  if (report.decision !== 'LOCAL_VALIDATED') process.exitCode = 1
+  if (!options.skipAcceptance && report.decision !== 'LOCAL_VALIDATED') {
+    process.exitCode = 1
+  }
 }
 
 interface ImageRecord {

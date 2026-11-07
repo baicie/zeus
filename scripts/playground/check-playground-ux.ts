@@ -14,6 +14,7 @@ const root = path.resolve(import.meta.dirname, '../..')
 const dist = path.join(root, 'examples/playground-editor/dist')
 const output = path.join(root, 'temp/playground-ux')
 const PORT = 8098
+const BASE_URL = process.env.PLAYGROUND_UX_URL ?? `http://127.0.0.1:${PORT}`
 const engines = { chromium, firefox, webkit }
 const requested = (
   process.env.PLAYGROUND_UX_BROWSERS ?? 'chromium,firefox,webkit'
@@ -30,7 +31,9 @@ interface BrowserReport {
 
 async function main(): Promise<void> {
   await fs.mkdir(output, { recursive: true })
-  const server = await createStaticServer(dist)
+  const server = process.env.PLAYGROUND_UX_URL
+    ? undefined
+    : await createStaticServer(dist)
   const report: BrowserReport[] = []
   try {
     for (const [name, engine] of Object.entries(engines)) {
@@ -64,7 +67,7 @@ async function main(): Promise<void> {
       }
     }
   } finally {
-    await closeServer(server)
+    if (server) await closeServer(server)
   }
   await fs.writeFile(
     path.join(output, 'report.json'),
@@ -74,7 +77,7 @@ async function main(): Promise<void> {
 }
 
 async function runChecks(page: Page, browserName: string): Promise<void> {
-  const base = `http://127.0.0.1:${PORT}`
+  const base = BASE_URL
   await page.goto(`${base}/`, { waitUntil: 'domcontentloaded' })
   await waitReady(page)
   if (browserName === 'chromium') {

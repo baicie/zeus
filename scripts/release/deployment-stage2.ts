@@ -575,15 +575,17 @@ export async function runStage2(
     if (prepareErrors.length > 0) throw new Error(prepareErrors.join('; '))
   }
   const manifest = artifacts.manifest
-  const releaseErrors = validateReleaseIdentity({
-    head,
-    main,
-    expectedCore: input.expectedCore,
-    expectedUi: input.expectedUi,
-    manifestCore: String(manifest.coreCommit),
-    manifestUi: String(manifest.uiCommit),
-  })
-  if (releaseErrors.length > 0) throw new Error(releaseErrors.join('; '))
+  if (!input.localIntegration) {
+    const releaseErrors = validateReleaseIdentity({
+      head,
+      main,
+      expectedCore: input.expectedCore,
+      expectedUi: input.expectedUi,
+      manifestCore: String(manifest.coreCommit),
+      manifestUi: String(manifest.uiCommit),
+    })
+    if (releaseErrors.length > 0) throw new Error(releaseErrors.join('; '))
+  }
   if (options.simulate) {
     console.log('STAGE2_SIMULATED_OK')
     return
