@@ -71,7 +71,7 @@ the earlier, separately authorized R4.4 merges (#199/#200/#201/#125).
    generation directories with broad-root and symlink rejection (UI #126).
 3. **AI workspace rollback** — `ai-workspace.tgz` + SHA-256; restore keeps the
    previous tree until the new move and chown commit, then deletes it (Core #203);
-   real `ROLLED_BACK` drill passed; later failure-path hardening keeps the old tree until the new move/chown commits.
+   real `ROLLED_BACK` drill passed; the later failure-path ordering keeps the old tree until the new move/chown commits (local shell simulation covers the refined failure path).
 4. **RC evidence** — only trusted Stage 2 artifacts, bound to repo/workflow/run/
    commits/environment/digests/staleness; negative cases fail closed (#202).
 5. **Native/WASM preflight** — scanner shared in `zeus_compiler`, per-target
