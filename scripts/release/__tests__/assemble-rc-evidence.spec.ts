@@ -240,6 +240,95 @@ describe('RC evidence assembly', () => {
     ).toContain('deployment evidence source workflow is not Stage 2')
   })
 
+  it('rejects commits, environment, URLs and provenance that do not match', () => {
+    const run = (
+      select: (input: ReturnType<typeof fixture>) => string,
+      change: (value: Record<string, unknown>) => void,
+    ) => {
+      const input = fixture()
+      const file = select(input)
+      const value = JSON.parse(fs.readFileSync(file, 'utf8')) as Record<
+        string,
+        unknown
+      >
+      change(value)
+      fs.writeFileSync(file, JSON.stringify(value))
+      return assembleRcEvidence({
+        ...input,
+        sourceFile: input.sourceFile,
+        expectedRunId: '12345',
+        outDir: input.root,
+      }).errors
+    }
+
+    expect(
+      run(
+        input => input.sourceFile,
+        source => {
+          source.coreCommit = 'c'.repeat(40)
+        },
+      ),
+    ).toContain('deployment evidence source commits do not match')
+    expect(
+      run(
+        input => input.sourceFile,
+        source => {
+          source.environment = 'staging'
+        },
+      ),
+    ).toContain('deployment evidence source is not the production environment')
+    expect(
+      run(
+        input => input.transactionFile,
+        transaction => {
+          transaction.uiCommit = 'd'.repeat(40)
+        },
+      ),
+    ).toContain('transaction commits do not match the acceptance')
+    expect(
+      run(
+        input => input.acceptanceFile,
+        acceptance => {
+          const admin = (
+            acceptance.products as Array<Record<string, unknown>>
+          ).find(product => product.product === 'admin')!
+          admin.commit = 'd'.repeat(40)
+        },
+      ),
+    ).toContain('admin commit does not match the source')
+    expect(
+      run(
+        input => input.acceptanceFile,
+        acceptance => {
+          const admin = (
+            acceptance.products as Array<Record<string, unknown>>
+          ).find(product => product.product === 'admin')!
+          admin.url = 'http://admin.example.test/'
+        },
+      ),
+    ).toContain('admin URL is not HTTPS')
+    expect(
+      run(
+        input => input.provenanceFile,
+        provenance => {
+          provenance.products = (
+            provenance.products as Array<Record<string, unknown>>
+          ).filter(product => product.product !== 'admin')
+        },
+      ),
+    ).toContain('admin is not bound to the provenance')
+    expect(
+      run(
+        input => input.acceptanceFile,
+        acceptance => {
+          acceptance.products = (
+            acceptance.products as Array<Record<string, unknown>>
+          ).filter(product => product.product !== 'admin')
+        },
+      ),
+    ).toContain('acceptance is missing admin')
+  })
+
   it('merges a signed base approval and rejects stale approval commits', () => {
     const input = fixture()
     const base = {
