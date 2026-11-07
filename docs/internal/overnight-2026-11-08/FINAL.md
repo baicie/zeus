@@ -3,7 +3,7 @@
 Report time: 2026-11-08 03:45 Asia/Shanghai
 Mission start: 2026-11-08 00:08 Asia/Shanghai (prompt received)
 Active runtime: ~3 h 37 min
-Last checkpoint: `0668527` on `docs/overnight-2026-11-08`
+Last checkpoint: `18b40f4` on `docs/overnight-2026-11-08`
 
 ## Final verdict
 
@@ -19,7 +19,7 @@ blocked, not code failures.
 
 | Repo | Start / final main                                     | Mission branches                                                                                                               |
 | ---- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| Core | `39f90c7f1e73721e805914d19e53c456d0913a55` (unchanged) | #202 `8d19d31`, #203 `64f6675`, #204 `8fa5774`, #205 `872be70`, #206 `ce594f7`, #207 `08a872e`, #208 `739cfad`, #209 `658181a` |
+| Core | `39f90c7f1e73721e805914d19e53c456d0913a55` (unchanged) | #202 `abbfd35`, #203 `64f6675`, #204 `8fa5774`, #205 `872be70`, #206 `ce594f7`, #207 `08a872e`, #208 `739cfad`, #209 `658181a` |
 | UI   | `7a38f18abe79b9c969bbe04d23b9e80c0ab1d937` (unchanged) | #126 `ffe7801`, #127 `3c858cf`, #128 `c13d0d3`                                                                                 |
 
 No branch was merged into either main branch. The only main-branch changes are
@@ -138,7 +138,7 @@ and no trap for 24 constructs in Chromium/Firefox/WebKit.
 Round 1 — local:
 
 - signal 312/312; runtime-dom 412/412; compiler 62/62 + 5 lib; SSR 22/22;
-  RC release/check 190/190; wasm parity 4/4; clippy/fmt/tsc/ESLint clean.
+  RC release/check 192/192; wasm parity 4/4; clippy/fmt/tsc/ESLint clean.
 
 Round 2 — real integration / CI:
 
@@ -171,7 +171,7 @@ Round 3 — source self-review:
 ## 12. Runtime and checkpoint
 
 - Prompt received: 2026-11-08 00:08 CST; report: 03:45 CST.
-- Checkpoint branch `docs/overnight-2026-11-08`; latest checkpoint `0668527`.
+- Checkpoint branch `docs/overnight-2026-11-08`; latest checkpoint `18b40f4`.
 - Worktrees are clean; user's `Cargo.toml` modification was not touched.
 
 ## 13. Suggested R5.1 prompt

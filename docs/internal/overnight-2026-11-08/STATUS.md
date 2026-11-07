@@ -16,7 +16,7 @@ No merge, npm publish, Tag, dist-tag or production deployment in this mission.
 
 | PR        | Branch                                | Head      | CI                  |
 | --------- | ------------------------------------- | --------- | ------------------- |
-| Core #202 | `fix/r5-rc-gates`                     | `8d19d31` | 30/30 SUCCESS       |
+| Core #202 | `fix/r5-rc-gates`                     | `abbfd35` | 30/30 SUCCESS       |
 | Core #203 | `fix/r5-ai-workspace-backup`          | `64f6675` | 22/22 SUCCESS       |
 | Core #204 | `fix/r5-signal-error-isolation`       | `8fa5774` | 23/23 SUCCESS       |
 | Core #205 | `fix/r5-admin-input-stability`        | `872be70` | 22/22 SUCCESS       |
@@ -42,7 +42,7 @@ Every PR remains Draft; no Ready conversion, merge or auto-merge was performed.
   containers healthy.
 - RC gates: v3 evidence from acceptance/transaction/provenance/pair; negative
   tests for commit/environment/URL/digest/missing-product/provenance; 31-package
-  fixed group; Core/UI pairing; latest-tag audit. Local 25 files / 190 tests PASS.
+  fixed group; Core/UI pairing; latest-tag audit. Local 26 files / 192 tests PASS.
 - Native + WASM preflight: shared scanner; native 8,192 / wasm 506 JSX levels;
   20k JSX and 50k parens return `ZEUS_INPUT_TOO_DEEP`; 24 constructs ×
   Chromium/Firefox/WebKit no trap; wasm parity 4/4.
