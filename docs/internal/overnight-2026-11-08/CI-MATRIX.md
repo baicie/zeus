@@ -37,6 +37,11 @@
 | Firefox     | 506 JSX / per-construct | 24 constructs at limits           | none |
 | WebKit      | 506 JSX / per-construct | 24 constructs at limits           | none |
 
+## Additional audit evidence
+
+- Deterministic 200-case JSX fuzz parity: native and wasm outputs identical
+  (dom/ssr, CRLF, Unicode, dynamic attrs, Show/For, `.map`).
+
 ## Not run
 
 - Full non-basic create-zeus candidate template builds (including UI

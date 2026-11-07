@@ -105,7 +105,8 @@ All remain Draft; none is Ready or merged.
 
 Core Compiler Native Matrix on main `39f90c7`: **7/7 PASS** (run 42386212154).
 PR #206 additionally proves native 14/14 Rust tests, wasm/native parity 4/4,
-and no trap for 24 constructs in Chromium/Firefox/WebKit.
+a deterministic 200-case JSX fuzz parity run, and no trap for 24 constructs in
+Chromium/Firefox/WebKit.
 
 ## 7. Admin / AI / Playground matrix
 
