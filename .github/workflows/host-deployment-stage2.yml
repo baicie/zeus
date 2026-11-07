@@ -75,7 +75,15 @@ on:
       failure-injection:
         description: Deterministic fault injection for rollback drills
         type: choice
-        options: [none, before-up, after-backup, after-up, after-health, after-acceptance]
+        options:
+          [
+            none,
+            before-up,
+            after-backup,
+            after-up,
+            after-health,
+            after-acceptance,
+          ]
         default: none
       browsers:
         description: Acceptance browser engines (empty means three online, one local)
