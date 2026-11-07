@@ -1,0 +1,58 @@
+# CI / Test Matrix — 2026-11-08
+
+## Main
+
+| Check | Status | Evidence |
+| --- | --- | --- |
+| Core CI `39f90c7` | PASS (rerun) | Run 42386212157 first attempt FAIL, rerun SUCCESS |
+| Core Compiler Native Matrix | PASS | Run 42386212154 |
+| Core Release Canary | PASS | Run 42386212249 |
+| Core Docs | PASS | Run 42386212325 |
+| UI CI `7a38f18` | PASS | Run 42386246924 |
+| UI Canary Compatibility | PASS | Run 42356761415 |
+
+## PR #202 `fix/r5-rc-gates`
+
+| Check | Status |
+| --- | --- |
+| `pnpm check` | PASS (local) |
+| RC evidence/readiness/workflow/latest/pairing tests | PASS 6 files / 41 tests |
+| `check:package-versions` (31 packages) | PASS |
+| `check:create-zeus-versions` | PASS |
+| `check:ui-pairing` against local UI | PASS (beta) |
+| `check:create-zeus-packed` | PASS |
+| `check:release-worktree --capture/--verify` | PASS |
+| GitHub CI | IN_PROGRESS at checkpoint |
+
+## PR #203 `fix/r5-ai-workspace-backup`
+
+| Check | Status |
+| --- | --- |
+| `pnpm check` | PASS (local) |
+| Real Stage 2 workspace backup/restore drill | NOT_RUN (needs integration run) |
+| GitHub CI | QUEUED at checkpoint |
+
+## UI PR #126 `fix/r5-public-replay-storage-safety`
+
+| Check | Status |
+| --- | --- |
+| `pnpm check` | PASS (local) |
+| Storage helper direct check | PASS `STORAGE_SAFETY_PASS` |
+| Full `public-replay.spec.ts` | NOT_RUN locally (vitest/rolldown native config startup issue); GitHub CI will run |
+| GitHub CI | QUEUED at checkpoint |
+
+## Admin browser matrix
+
+| Engine | Local `ADMIN_BROWSERS=webkit` | Notes |
+| --- | --- | --- |
+| Chromium | PASS (CI rerun) | first attempt passed |
+| Firefox | PASS (CI rerun) | first attempt passed |
+| WebKit | PASS (CI rerun); 20/20 local stress | first attempt failed search fill once |
+
+## Not run
+
+- Native Matrix rerun for PR branches: pending CI.
+- Playground three-engine on PR branches: pending CI.
+- AI HTTP/SSE full suite on UI PR #126: pending CI.
+- Real online four-product acceptance for RC evidence: BLOCKED (no deployment authorization).
+- VoiceOver/NVDA/manual A11y: NOT_RUN.
