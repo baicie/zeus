@@ -157,6 +157,24 @@ mod tests {
     }
 
     #[test]
+    fn checkpointed_columns_match_direct_count_at_every_boundary() {
+        let line = format!("{}😀中{}", "a".repeat(300), "b".repeat(400));
+        let source = format!("{line}\r\n{line}\r\n{line}");
+        let index = SourceIndex::new(&source);
+        let mut line_start = 0;
+
+        for (offset, character) in source.char_indices() {
+            if character == '\n' {
+                line_start = offset + 1;
+                continue;
+            }
+            let column = index.position(u32::try_from(offset).unwrap()).column;
+            let expected = source[line_start..offset].encode_utf16().count();
+            assert_eq!(column as usize, expected, "offset {offset}");
+        }
+    }
+
+    #[test]
     fn counts_columns_after_a_checkpoint_on_a_second_line() {
         let first = "x".repeat(1_000);
         let mut second = "y".repeat(700);
