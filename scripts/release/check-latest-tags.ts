@@ -5,6 +5,7 @@
  */
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
+import { parseArgs } from 'node:util'
 
 import { zeusFixedPackages } from '../release.config'
 
@@ -40,10 +41,13 @@ function readLatest(name: string): string | undefined {
 }
 
 function main(): void {
+  const { values } = parseArgs({
+    options: { force: { type: 'boolean', default: false } },
+  })
   const version = (
     JSON.parse(fs.readFileSync('package.json', 'utf8')) as { version: string }
   ).version
-  if (!version.includes('-rc.')) {
+  if (!version.includes('-rc.') && values.force !== true) {
     console.log(`latest-tag policy skipped for non-RC version ${version}`)
     return
   }
