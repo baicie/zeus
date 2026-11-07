@@ -1,0 +1,80 @@
+{
+  "schema": "zeus.deployment-transaction/v1",
+  "mode": "local",
+  "deployId": "16f836915255-4827f38f6e49-1794060711434",
+  "coreCommit": "16f836915255083268bdfa0fb58a7048bdd3c831",
+  "uiCommit": "4827f38f6e491ede8e4a8bf440e36d6c5fd74724",
+  "startedAt": "2026-11-07T14:11:51.433Z",
+  "composeDigest": "sha256:b14c22d38d068efa00e24d2a896f77a769215379680a7609c759d555e0a796a8",
+  "projectName": "zeus-stage2-ci-mw6hfci1",
+  "images": {
+    "playground": "sha256:f7eba5784814f71775f6a9533ea8a9cfcecf4aadb9857602b5b5e6f4d076d199",
+    "admin": "sha256:8d2c381895ee8668b9362263f374dff38ff8951ad9ecd9e6660b740e2e926728",
+    "aiHost": "sha256:ef2894985155539be229dd56c832c33f2cdfe2175c96e681331cf91757e9f3a6",
+    "workbench": "sha256:7324e71e634adc9b68aeaa6b4bc9999b76d14cf9a61dc25539832a161904aaee"
+  },
+  "finishedAt": "2026-11-07T14:13:18.992Z",
+  "status": "ROLLED_BACK",
+  "previous": {
+    "containers": {
+      "playground": {
+        "name": "zeus-stage2-stage2-local-acceptance-playground",
+        "imageId": "sha256:f7eba5784814f71775f6a9533ea8a9cfcecf4aadb9857602b5b5e6f4d076d199",
+        "running": true
+      },
+      "admin": {
+        "name": "zeus-stage2-stage2-local-acceptance-admin",
+        "imageId": "sha256:8d2c381895ee8668b9362263f374dff38ff8951ad9ecd9e6660b740e2e926728",
+        "running": true,
+        "health": "starting"
+      },
+      "aiHost": {
+        "name": "zeus-stage2-stage2-local-acceptance-ai-host",
+        "imageId": "sha256:ef2894985155539be229dd56c832c33f2cdfe2175c96e681331cf91757e9f3a6",
+        "running": true,
+        "health": "healthy"
+      },
+      "workbench": {
+        "name": "zeus-stage2-stage2-local-acceptance-ai-workbench",
+        "imageId": "sha256:7324e71e634adc9b68aeaa6b4bc9999b76d14cf9a61dc25539832a161904aaee",
+        "running": true
+      }
+    },
+    "buildInfoDigests": {
+      "webc-studio": "sha256:85703a237740fbd1c2d628b51e4144c701ac29538417fc9e72ef074d0334a3a9",
+      "native-lab": "sha256:85703a237740fbd1c2d628b51e4144c701ac29538417fc9e72ef074d0334a3a9",
+      "admin": "sha256:fa1f3949cff1555cac1a38ad0f2c22a0a3b3d81392fb2c3dc98ac4c4cf9adb1b",
+      "ai-workbench": "sha256:824fe6d747f71f5d95ec5e7b8221e6c604419d32aadb4328a8adee9ee407299d"
+    }
+  },
+  "backups": {
+    "directory": "/home/runner/work/zeus/zeus/temp/deploy/stage2-state-drill/backups/2026-11-07T14-11-55-283Z",
+    "admin": {
+      "file": "/home/runner/work/zeus/zeus/temp/deploy/stage2-state-drill/backups/2026-11-07T14-11-55-283Z/admin.sqlite",
+      "sha256": "sha256:a57e35c5f04cd9709e7d529248a87cada1290c3865a53ded22b2c542e589142c",
+      "sqliteCheck": "ok"
+    },
+    "ai": {
+      "file": "/home/runner/work/zeus/zeus/temp/deploy/stage2-state-drill/backups/2026-11-07T14-11-55-283Z/ai.sqlite",
+      "sha256": "sha256:79395320dc1f9d8297a2f3dcae97fef0b7c154aee657be7e9751a38962f844e8",
+      "sqliteCheck": "ok"
+    }
+  },
+  "rollback": {
+    "startedAt": "2026-11-07T14:13:04.052Z",
+    "finishedAt": "2026-11-07T14:13:18.992Z",
+    "restoredContainers": [
+      "zeus-stage2-stage2-local-acceptance-ai-workbench",
+      "zeus-stage2-stage2-local-acceptance-ai-host",
+      "zeus-stage2-stage2-local-acceptance-admin",
+      "zeus-stage2-stage2-local-acceptance-playground"
+    ],
+    "restoredDatabases": [
+      "/home/runner/work/zeus/zeus/temp/deploy/stage2-state-drill/backups/2026-11-07T14-11-55-283Z/admin.sqlite",
+      "/home/runner/work/zeus/zeus/temp/deploy/stage2-state-drill/backups/2026-11-07T14-11-55-283Z/ai.sqlite"
+    ],
+    "health": "PASS",
+    "buildInfoVerified": true
+  },
+  "failure": "injected deployment failure at after-acceptance"
+}

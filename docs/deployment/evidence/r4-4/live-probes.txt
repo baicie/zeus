@@ -1,0 +1,40 @@
+checked_at=2026-11-07T14:09:40Z
+--- AI health (live r43 image) ---
+HTTP/1.1 200 Connection established
+
+HTTP/2 200 
+access-control-allow-origin: https://ai.moonbyte.top:8443
+alt-svc: h3=":8443"; ma=2592000
+cache-control: no-store
+content-security-policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'
+content-type: application/json; charset=utf-8
+date: Sat, 07 Nov 2026 14:09:40 GMT
+permissions-policy: camera=(), microphone=(), geolocation=()
+referrer-policy: no-referrer
+referrer-policy: no-referrer
+strict-transport-security: max-age=31536000
+vary: Origin
+via: 1.1 Caddy
+x-content-type-options: nosniff
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-frame-options: DENY
+
+
+--- Admin session (live) ---
+HTTP/1.1 200 Connection established
+
+HTTP/2 401 
+alt-svc: h3=":8443"; ma=2592000
+cache-control: no-store
+content-security-policy: default-src 'none'; frame-ancestors 'none'
+content-type: application/json; charset=utf-8
+date: Sat, 07 Nov 2026 14:09:41 GMT
+permissions-policy: camera=(), microphone=(), geolocation=()
+referrer-policy: no-referrer
+strict-transport-security: max-age=31536000
+via: 1.1 Caddy
+x-content-type-options: nosniff
+x-frame-options: DENY
+
+{"error":{"code":"ZEUS_ADMIN_AUTH_REQUIRED","message":"Sign in to continue."}}

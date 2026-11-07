@@ -1,0 +1,11 @@
+R4.4 Admin credential rotation
+checked_at=2026-11-07T15:10Z
+
+- Admin DB users: 1 active admin, 0 viewer accounts.
+- Admin password hash updated in the production SQLite database.
+- Production .env ZEUS_ADMIN_PASSWORD and ZEUS_ADMIN_VIEWER_PASSWORD replaced with
+  distinct random values; admin_viewer_distinct=true.
+- Online verification: admin login HTTP 200 (role=admin), session HTTP 200,
+  CSRF logout HTTP 204, session after logout HTTP 401.
+- Backup: /home/ubuntu/backups/r44-2026-11-07/admin.sqlite, quick_check=ok, sha256 verified.
+- Managed local file: /Users/liuzhiwei/Downloads/docs/zeus-admin-credentials.txt (0600).
