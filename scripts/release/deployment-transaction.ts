@@ -356,6 +356,17 @@ export async function runDeploymentTransaction(
         : 'STAGE2_ONLINE_TRANSACTION_PASS',
     )
     return report
+  } catch (error) {
+    if (!report) {
+      report = {
+        ...reportBase,
+        finishedAt: new Date().toISOString(),
+        status: 'FAILED',
+        failure: error instanceof Error ? error.message : String(error),
+      }
+      writeTransactionReport(options, report)
+    }
+    throw error
   } finally {
     lock.release()
   }
