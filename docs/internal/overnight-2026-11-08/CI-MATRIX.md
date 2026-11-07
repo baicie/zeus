@@ -2,68 +2,46 @@
 
 ## Main
 
-| Check | Status | Evidence |
-| --- | --- | --- |
-| Core CI `39f90c7` | PASS (rerun) | Run 42386212157 first attempt FAIL, rerun SUCCESS |
-| Core Compiler Native Matrix | PASS | Run 42386212154 |
-| Core Release Canary | PASS | Run 42386212249 |
-| Core Docs | PASS | Run 42386212325 |
-| UI CI `7a38f18` | PASS | Run 42386246924 |
-| UI Canary Compatibility | PASS | Run 42356761415 |
+| Check                       | Status       | Evidence                                          |
+| --------------------------- | ------------ | ------------------------------------------------- |
+| Core CI `39f90c7`           | PASS (rerun) | Run 42386212157 first attempt FAIL, rerun SUCCESS |
+| Core Compiler Native Matrix | PASS         | Run 42386212154                                   |
+| Core Release Canary         | PASS         | Run 42386212249                                   |
+| Core Docs                   | PASS         | Run 42386212325                                   |
+| UI CI `7a38f18`             | PASS         | Run 42386246924                                   |
+| UI Canary Compatibility     | PASS         | Run 42356761415                                   |
 
-## PR #202 `fix/r5-rc-gates`
+## PRs
 
-| Check | Status |
-| --- | --- |
-| `pnpm check` | PASS (local) |
-| RC evidence/readiness/workflow/latest/pairing tests | PASS 6 files / 41 tests |
-| `check:package-versions` (31 packages) | PASS |
-| `check:create-zeus-versions` | PASS |
-| `check:ui-pairing` against local UI | PASS (beta) |
-| `check:create-zeus-packed` | PASS |
-| `check:release-worktree --capture/--verify` | PASS |
-| GitHub CI | IN_PROGRESS at checkpoint (new commits rerun) |
+| PR        | Local evidence                                                                  | GitHub                       |
+| --------- | ------------------------------------------------------------------------------- | ---------------------------- |
+| Core #202 | RC evidence/readiness/workflow tests 6 files / 41 tests; 31-package group PASS  | 30/30 SUCCESS                |
+| Core #203 | Real Stage 2 workspace backup/restore drill PASS `ROLLED_BACK`                  | 22/22 SUCCESS                |
+| Core #204 | Signal suite 312/312; 3 P1 regressions fail pre-fix                             | running                      |
+| Core #205 | Admin WebKit 3/3                                                                | 22/22 SUCCESS                |
+| Core #206 | Rust 14/14; wasm parity 4/4; 24 constructs × 3 engines no trap; clippy clean    | running after `064b768`      |
+| Core #207 | Compiler 62/62                                                                  | 26/26 SUCCESS                |
+| Core #208 | SSR streaming 22/22                                                             | running                      |
+| Core #209 | Runtime-dom suite passed before lint-only follow-up; lint/tsc fixed in `9fa58c6` | running                      |
+| UI #126   | `STORAGE_SAFETY_PASS`; generation dirs; 20s Windows timeouts                     | 26 SUCCESS / 1 running       |
+| UI #127   | Input regression 8/8 jsdom                                                      | running                      |
+| UI #128   | Typecheck PASS; DOM-pooling E2E regression                                      | 27 SUCCESS                   |
 
-## PR #203 `fix/r5-ai-workspace-backup`
+## Compiler preflight matrix (Core #206)
 
-| Check | Status |
-| --- | --- |
-| `pnpm check` | PASS (local) |
-| Real Stage 2 workspace backup/restore drill | PASS Run 42393622902 `ROLLED_BACK` |
-| GitHub CI | PASS 22/22 |
-
-## UI PR #126 `fix/r5-public-replay-storage-safety`
-
-| Check | Status |
-| --- | --- |
-| `pnpm check` | PASS (local) |
-| Storage helper direct check | PASS `STORAGE_SAFETY_PASS` |
-| Full `public-replay.spec.ts` | GitHub CI PASS |
-| GitHub CI | PASS 27 / SKIP 1 (Windows portability fix `585cb57`) |
-
-## Admin browser matrix
-
-| Engine | Local `ADMIN_BROWSERS=webkit` | Notes |
-| --- | --- | --- |
-| Chromium | PASS (CI rerun) | first attempt passed |
-| Firefox | PASS (CI rerun) | first attempt passed |
-| WebKit | PASS (CI rerun); 20/20 local stress | first attempt failed search fill once |
+| Host        | Limit                   | Deep input                        | Trap |
+| ----------- | ----------------------- | --------------------------------- | ---- |
+| Native      | 8,192 JSX levels        | `.ts <T>`, `.tsx extends`, parens | none |
+| WASM (Node) | 506 JSX levels          | 20k JSX, 50k parens               | none |
+| Chromium    | 506 JSX / per-construct | 24 constructs at limits           | none |
+| Firefox     | 506 JSX / per-construct | 24 constructs at limits           | none |
+| WebKit      | 506 JSX / per-construct | 24 constructs at limits           | none |
 
 ## Not run
 
-- Native Matrix rerun for PR branches: pending CI.
-- Playground three-engine on PR branches: pending CI.
-- AI HTTP/SSE full suite on UI PR #126: pending CI.
-- Real online four-product acceptance for RC evidence: BLOCKED (no deployment authorization).
-- VoiceOver/NVDA/manual A11y: NOT_RUN.
-
-## Audit PRs (02:05)
-
-| PR | Local | GitHub |
-| --- | --- | --- |
-| Core #204 signal error isolation | signal 309/309 PASS | PASS 23/23 |
-| Core #205 Admin rAF drain | WebKit 3/3 PASS | PASS 22/22 |
-| Core #206 compiler preflight | Rust 14/14 + native probe PASS | rerunning after rustfmt |
-| Core #207 empty Fragment | compiler 62/62 PASS | rerunning after rustfmt |
-| UI #128 data-grid focus | typecheck PASS | IN_PROGRESS |
-| UI #127 input regression | 8/8 jsdom PASS | Windows public-replay timeout (unrelated, #126 adds timeout) |
+- Full three-engine Playground/Admin/AI acceptance on every PR branch: runner
+  backlog; individual PR checks cover the touched surfaces.
+- Real online four-product acceptance for RC evidence: BLOCKED (no deployment
+  authorization).
+- VoiceOver/NVDA/manual A11y, 200% zoom, physical mobile: NOT_RUN (human).
+- RC-07 actual npm dist-tag repair: BLOCKED (no npm authorization).
