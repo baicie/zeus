@@ -17,7 +17,7 @@
 Core (`zeus/temp/worktrees/`):
 
 - `r5-rc-gates` — `fix/r5-rc-gates` (`abbfd35`)
-- `r5-ai-workspace-backup` — `fix/r5-ai-workspace-backup` (`fa0c55c`)
+- `r5-ai-workspace-backup` — `fix/r5-ai-workspace-backup` (`50810e2`)
 - `r5-signal-error-isolation` — `fix/r5-signal-error-isolation` (`8fa5774`)
 - `r5-admin-input` — `fix/r5-admin-input-stability` (`872be70`)
 - `r5-compiler-preflight` — `fix/r5-compiler-preflight` (`ce594f7`)

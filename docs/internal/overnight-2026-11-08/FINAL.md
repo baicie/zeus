@@ -71,7 +71,7 @@ the earlier, separately authorized R4.4 merges (#199/#200/#201/#125).
    generation directories with broad-root and symlink rejection (UI #126).
 3. **AI workspace rollback** — `ai-workspace.tgz` + SHA-256; restore keeps the
    previous tree until the new move and chown commit, then deletes it (Core #203);
-   real `ROLLED_BACK` drill passed.
+   real `ROLLED_BACK` drill passed; later failure-path hardening keeps the old tree until the new move/chown commits.
 4. **RC evidence** — only trusted Stage 2 artifacts, bound to repo/workflow/run/
    commits/environment/digests/staleness; negative cases fail closed (#202).
 5. **Native/WASM preflight** — scanner shared in `zeus_compiler`, per-target
@@ -87,19 +87,19 @@ the earlier, separately authorized R4.4 merges (#199/#200/#201/#125).
 
 ## 5. Draft PRs and latest CI
 
-| PR        | Title / scope                                     | Latest CI                                             |
-| --------- | ------------------------------------------------- | ----------------------------------------------------- |
-| Core #202 | RC evidence, release gates, candidate create-zeus | rerun after pin-test portability fix (previous 30/30) |
-| Core #203 | AI workspace backup/restore                       | 22/22 SUCCESS                                         |
-| Core #204 | Signal error isolation and recovery               | 23/23 SUCCESS                                         |
-| Core #205 | Admin focus drain (test-only)                     | 22/22 SUCCESS                                         |
-| Core #206 | Native + WASM compiler preflight                  | 30/30 SUCCESS                                         |
-| Core #207 | Empty Fragment + linear span/name lookup          | 26/26 SUCCESS                                         |
-| Core #208 | SSR streaming safety                              | 23/23 SUCCESS                                         |
-| Core #209 | Hydration form-state ownership                    | 23/23 SUCCESS                                         |
-| UI #126   | Public replay generation isolation                | 27 SUCCESS / 1 SKIP                                   |
-| UI #127   | Controlled input regression tests                 | 27 SUCCESS / 1 SKIP                                   |
-| UI #128   | data-grid focus-restore fix                       | 27 SUCCESS / 1 SKIP                                   |
+| PR        | Title / scope                                     | Latest CI           |
+| --------- | ------------------------------------------------- | ------------------- |
+| Core #202 | RC evidence, release gates, candidate create-zeus | 30/30 SUCCESS       |
+| Core #203 | AI workspace backup/restore                       | 22/22 SUCCESS       |
+| Core #204 | Signal error isolation and recovery               | 23/23 SUCCESS       |
+| Core #205 | Admin focus drain (test-only)                     | 22/22 SUCCESS       |
+| Core #206 | Native + WASM compiler preflight                  | 30/30 SUCCESS       |
+| Core #207 | Empty Fragment + linear span/name lookup          | 26/26 SUCCESS       |
+| Core #208 | SSR streaming safety                              | 23/23 SUCCESS       |
+| Core #209 | Hydration form-state ownership                    | 23/23 SUCCESS       |
+| UI #126   | Public replay generation isolation                | 27 SUCCESS / 1 SKIP |
+| UI #127   | Controlled input regression tests                 | 27 SUCCESS / 1 SKIP |
+| UI #128   | data-grid focus-restore fix                       | 27 SUCCESS / 1 SKIP |
 
 All remain Draft; none is Ready or merged.
 
