@@ -13,6 +13,7 @@ import {
 } from '@playwright/test'
 import { createServer } from 'vite'
 
+import { SESSION_COOKIE } from '../../examples/admin/server/auth'
 import { startAdminServer } from '../../examples/admin/server/index'
 
 const root = path.resolve(import.meta.dirname, '../..')
@@ -102,6 +103,30 @@ for (const [name, engine] of selectedBrowsers) {
     await expect(page.getByTestId('login-card')).toHaveCount(0)
     await expect(page.getByTestId('users-page')).toBeVisible()
     await expect(page.getByTestId('admin-layout')).toBeVisible()
+    // Wait for the browser to expose the HttpOnly session cookie. `cookies()`
+    // without a URL filter is intentional: WebKit on Linux can fail to match a
+    // host-only cookie through the URL filter even though the cookie is
+    // present and authenticated.
+    await expect
+      .poll(
+        async () =>
+          (await page!.context().cookies()).some(
+            cookie => cookie.name === SESSION_COOKIE,
+          ),
+        { message: `${name} login session cookie`, timeout: 5_000 },
+      )
+      .toBe(true)
+    const loginCookies = await page.context().cookies()
+    const loginSession = loginCookies.find(
+      cookie => cookie.name === SESSION_COOKIE,
+    )
+    expect(
+      loginSession,
+      `${name} login session cookie must be readable`,
+    ).toBeDefined()
+    sessions.set(name, {
+      cookie: `${loginSession!.name}=${loginSession!.value}`,
+    })
     const grid = page.getByTestId('user-grid')
     const row = (key: string) =>
       grid.locator(`[data-slot="data-grid-row"][data-row-key="${key}"]`)
@@ -279,10 +304,19 @@ for (const [name, engine] of selectedBrowsers) {
       body: JSON.stringify({ email: 'unauthorized@example.test' }),
     })
     expect(apiResponse.status).toBe(401)
-    const cookies = await page.context().cookies(origin)
-    const session = cookies.find(cookie => cookie.name === 'zeus_admin_session')
+    const cookies = await page.context().cookies()
+    const session = cookies.find(cookie => cookie.name === SESSION_COOKIE)
     if (session)
       sessions.set(name, { cookie: `${session.name}=${session.value}` })
+    const captured = sessions.get(name)
+    expect(
+      captured,
+      `${name} production session must be captured`,
+    ).toBeDefined()
+    const sessionProbe = await fetch(`${origin}/api/auth/session`, {
+      headers: { cookie: captured!.cookie },
+    })
+    expect(sessionProbe.status).toBe(200)
 
     expect(errors).toEqual([])
     results.push({ browser: name, status: 'passed' })
