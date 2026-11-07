@@ -1,8 +1,8 @@
 # Zeus 0.2.0 — Overnight Mission Final Report
 
-Report time: 2026-11-08 03:45 Asia/Shanghai
+Report time: 2026-11-08 03:55 Asia/Shanghai
 Mission start: 2026-11-08 00:08 Asia/Shanghai (prompt received)
-Active runtime: ~3 h 37 min
+Active runtime: ~3 h 47 min
 Last checkpoint: `18b40f4` on `docs/overnight-2026-11-08`
 
 ## Final verdict
@@ -19,7 +19,7 @@ blocked, not code failures.
 
 | Repo | Start / final main                                     | Mission branches                                                                                                               |
 | ---- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| Core | `39f90c7f1e73721e805914d19e53c456d0913a55` (unchanged) | #202 `abbfd35`, #203 `64f6675`, #204 `8fa5774`, #205 `872be70`, #206 `ce594f7`, #207 `08a872e`, #208 `739cfad`, #209 `658181a` |
+| Core | `39f90c7f1e73721e805914d19e53c456d0913a55` (unchanged) | #202 `dfa6794`, #203 `64f6675`, #204 `8fa5774`, #205 `872be70`, #206 `ce594f7`, #207 `08a872e`, #208 `739cfad`, #209 `658181a` |
 | UI   | `7a38f18abe79b9c969bbe04d23b9e80c0ab1d937` (unchanged) | #126 `ffe7801`, #127 `3c858cf`, #128 `c13d0d3`                                                                                 |
 
 No branch was merged into either main branch. The only main-branch changes are
@@ -85,19 +85,19 @@ the earlier, separately authorized R4.4 merges (#199/#200/#201/#125).
 
 ## 5. Draft PRs and latest CI
 
-| PR        | Title / scope                                     | Latest CI           |
-| --------- | ------------------------------------------------- | ------------------- |
-| Core #202 | RC evidence, release gates, candidate create-zeus | 30/30 SUCCESS       |
-| Core #203 | AI workspace backup/restore                       | 22/22 SUCCESS       |
-| Core #204 | Signal error isolation and recovery               | 23/23 SUCCESS       |
-| Core #205 | Admin focus drain (test-only)                     | 22/22 SUCCESS       |
-| Core #206 | Native + WASM compiler preflight                  | 30/30 SUCCESS       |
-| Core #207 | Empty Fragment + linear span/name lookup          | 26/26 SUCCESS       |
-| Core #208 | SSR streaming safety                              | 23/23 SUCCESS       |
-| Core #209 | Hydration form-state ownership                    | 23/23 SUCCESS       |
-| UI #126   | Public replay generation isolation                | 27 SUCCESS / 1 SKIP |
-| UI #127   | Controlled input regression tests                 | 27 SUCCESS / 1 SKIP |
-| UI #128   | data-grid focus-restore fix                       | 27 SUCCESS / 1 SKIP |
+| PR        | Title / scope                                     | Latest CI                                             |
+| --------- | ------------------------------------------------- | ----------------------------------------------------- |
+| Core #202 | RC evidence, release gates, candidate create-zeus | rerun after pin-test portability fix (previous 30/30) |
+| Core #203 | AI workspace backup/restore                       | 22/22 SUCCESS                                         |
+| Core #204 | Signal error isolation and recovery               | 23/23 SUCCESS                                         |
+| Core #205 | Admin focus drain (test-only)                     | 22/22 SUCCESS                                         |
+| Core #206 | Native + WASM compiler preflight                  | 30/30 SUCCESS                                         |
+| Core #207 | Empty Fragment + linear span/name lookup          | 26/26 SUCCESS                                         |
+| Core #208 | SSR streaming safety                              | 23/23 SUCCESS                                         |
+| Core #209 | Hydration form-state ownership                    | 23/23 SUCCESS                                         |
+| UI #126   | Public replay generation isolation                | 27 SUCCESS / 1 SKIP                                   |
+| UI #127   | Controlled input regression tests                 | 27 SUCCESS / 1 SKIP                                   |
+| UI #128   | data-grid focus-restore fix                       | 27 SUCCESS / 1 SKIP                                   |
 
 All remain Draft; none is Ready or merged.
 
@@ -109,17 +109,17 @@ and no trap for 24 constructs in Chromium/Firefox/WebKit.
 
 ## 7. Admin / AI / Playground matrix
 
-| Surface                       | Result | Evidence                                    |
-| ----------------------------- | ------ | ------------------------------------------- |
-| Admin Chromium                | PASS   | PR #205/#209 packed-consumers               |
-| Admin Firefox                 | PASS   | same                                        |
-| Admin WebKit                  | PASS   | same (after focus fix)                      |
-| Admin login/session/CSRF/RBAC | PASS   | earlier R4.4 evidence; CI checks            |
-| AI public replay three-engine | PASS   | UI #126/#127 CI; read-only probes from R4.4 |
-| AI HTTP/SSE read-only suite   | PASS   | UI CI                                       |
-| Playground three-engine       | PASS   | Core CI/docs checks; UI CI                  |
-| DataGrid framework browser    | PASS   | UI CI                                       |
-| Windows/Linux CI              | PASS   | PR matrices                                 |
+| Surface                       | Result  | Evidence                                      |
+| ----------------------------- | ------- | --------------------------------------------- |
+| Admin Chromium                | PASS    | PR #205/#209 packed-consumers                 |
+| Admin Firefox                 | PASS    | same                                          |
+| Admin WebKit                  | PASS    | same (after focus fix)                        |
+| Admin login/session/CSRF/RBAC | PASS    | earlier R4.4 evidence; CI checks              |
+| AI public replay three-engine | PASS    | UI #126/#127 CI; read-only probes from R4.4   |
+| AI HTTP/SSE read-only suite   | PASS    | UI CI                                         |
+| Playground three-engine       | PARTIAL | R4.4 online evidence; not re-run this mission |
+| DataGrid framework browser    | PASS    | UI CI                                         |
+| Windows/Linux CI              | PASS    | PR matrices                                   |
 
 ## 8. RC-01 … RC-07 closure
 
@@ -138,7 +138,7 @@ and no trap for 24 constructs in Chromium/Firefox/WebKit.
 Round 1 — local:
 
 - signal 312/312; runtime-dom 412/412; compiler 62/62 + 5 lib; SSR 22/22;
-  RC release/check 192/192; wasm parity 4/4; clippy/fmt/tsc/ESLint clean.
+  RC release/check 192/192 plus create-zeus pin tests; wasm parity 4/4; clippy/fmt/tsc/ESLint clean.
 
 Round 2 — real integration / CI:
 
