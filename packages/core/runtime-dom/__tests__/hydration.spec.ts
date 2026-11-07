@@ -1,3 +1,4 @@
+import { isNativeFormStateElement } from '../src/autoHydration'
 import { createSignal, onCleanup } from '@zeus-js/signal'
 import { scope } from '@zeus-js/signal/internal'
 import { JSDOM } from 'jsdom'
@@ -531,4 +532,22 @@ describe('hydrate', () => {
       }
     },
   )
+})
+
+
+describe('hydration form state ownership', () => {
+  it('only treats native form controls as form-state writers', () => {
+    const dom = new JSDOM('<div></div>')
+    const native = (tag: string) => dom.window.document.createElement(tag)
+    expect(isNativeFormStateElement(native('input'), 'value')).toBe(true)
+    expect(isNativeFormStateElement(native('input'), 'checked')).toBe(true)
+    expect(isNativeFormStateElement(native('textarea'), 'value')).toBe(true)
+    expect(isNativeFormStateElement(native('select'), 'value')).toBe(true)
+    expect(isNativeFormStateElement(native('option'), 'value')).toBe(true)
+    expect(isNativeFormStateElement(native('option'), 'selected')).toBe(true)
+    expect(isNativeFormStateElement(native('div'), 'value')).toBe(false)
+    expect(isNativeFormStateElement(native('zw-input'), 'value')).toBe(false)
+    expect(isNativeFormStateElement(native('input'), 'selected')).toBe(false)
+    dom.window.close()
+  })
 })
