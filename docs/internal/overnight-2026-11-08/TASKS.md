@@ -16,13 +16,16 @@
       table, and prove no trap in Chromium/Firefox/WebKit.
 - [x] Keep the workspace/RC/checkpoint docs current.
 
+- [x] Verify all mission PRs green: Core #202/#203/#204/#205/#206/#207/#208/#209,
+      UI #126/#127/#128; none merged or converted to Ready.
+- [x] Publish `FINAL.md` with verdict `BLOCKED_BY_CODE` (RC-04 remainder).
+
 ## Next (highest priority)
 
-1. Watch CI for #204 / #206 / #208 / #209 / UI #126 / UI #127; fix real
-   failures with code, not reruns.
-2. Add malicious/expired RC evidence negative tests to #202 (wrong repo/run/SHA/
-   expired artifact; local/online distinction).
-3. Implement candidate-tarball packed create-zeus install (RC-04 remainder).
-4. Phase D remainder: Z-07 nested-Show codegen complexity, DOM/WebC P2 findings.
-5. Produce `FINAL.md` at ~11:45 with the verdict.
-6. Update this checkpoint every 30–60 minutes or at each key commit.
+1. RC-04: extend candidate tarball coverage to non-basic templates and UI
+   `@zeus-web` packages; verify Linux/Windows.
+2. RC-07: actual dist-tag repair requires npm authorization.
+3. Merge green PRs only with human authorization; then collect online
+   acceptance and manual A11y/zoom/mobile evidence.
+4. Optional DOM/WebC P2 audit (keyed reorder, reconnect, async dispose,
+   custom-element string render semantics).
