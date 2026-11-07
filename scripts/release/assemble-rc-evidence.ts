@@ -107,7 +107,9 @@ export function assembleRcEvidence(
       errors.push('deployment evidence source commits do not match')
     }
     if (source?.environment !== 'production') {
-      errors.push('deployment evidence source is not the production environment')
+      errors.push(
+        'deployment evidence source is not the production environment',
+      )
     }
     if (source?.mode !== 'production') {
       errors.push('deployment evidence source is not a production deployment')
