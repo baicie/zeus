@@ -26,6 +26,9 @@ export interface AssembleRcEvidenceInput {
   readonly provenanceFile: string
   readonly pairFile: string
   readonly baseFile?: string
+  readonly sourceFile?: string
+  readonly expectedRunId?: string
+  readonly maxAgeHours?: number
   readonly outDir: string
   readonly checkedAt?: string
 }
@@ -53,6 +56,9 @@ export function assembleRcEvidence(
   )
   const provenance = readJson(input.provenanceFile, 'provenance', errors)
   const pair = readJson(input.pairFile, 'release pair', errors)
+  const source = input.sourceFile
+    ? readJson(input.sourceFile, 'deployment evidence source', errors)
+    : undefined
   if (errors.length > 0) return { errors }
 
   const core = stringValue(acceptance.coreCommit)
@@ -86,6 +92,35 @@ export function assembleRcEvidence(
   }
   if (pair.coreCommit !== core || pair.uiCommit !== ui) {
     errors.push('release pair does not match the acceptance commits')
+  }
+  if (input.sourceFile) {
+    if (source?.schema !== 'zeus.deployment-evidence-source/v1') {
+      errors.push('deployment evidence source schema is invalid')
+    }
+    if (source?.repository !== 'baicie/zeus') {
+      errors.push('deployment evidence source repository is not baicie/zeus')
+    }
+    if (source?.workflow !== 'Host Deployment Stage 2') {
+      errors.push('deployment evidence source workflow is not Stage 2')
+    }
+    if (source?.coreCommit !== core || source?.uiCommit !== ui) {
+      errors.push('deployment evidence source commits do not match')
+    }
+    if (
+      input.expectedRunId &&
+      String(source?.runId ?? '') !== input.expectedRunId
+    ) {
+      errors.push('deployment evidence source run id does not match')
+    }
+  } else if (input.expectedRunId) {
+    errors.push('deployment evidence source is required for a run id')
+  }
+  const checkedAt = Date.parse(stringValue(acceptance.checkedAt))
+  const maxAgeHours = input.maxAgeHours ?? 168
+  if (!Number.isFinite(checkedAt)) {
+    errors.push('acceptance checkedAt is missing or invalid')
+  } else if (Date.now() - checkedAt > maxAgeHours * 60 * 60 * 1000) {
+    errors.push('deployment acceptance evidence is stale')
   }
 
   const products = Array.isArray(acceptance.products) ? acceptance.products : []
@@ -268,6 +303,9 @@ function main(): void {
       provenance: { type: 'string' },
       pair: { type: 'string' },
       base: { type: 'string' },
+      source: { type: 'string' },
+      'run-id': { type: 'string' },
+      'max-age-hours': { type: 'string' },
       out: { type: 'string', default: 'temp/release' },
     },
   })
@@ -285,6 +323,11 @@ function main(): void {
     provenanceFile: path.resolve(values.provenance!),
     pairFile: path.resolve(values.pair!),
     ...(values.base ? { baseFile: path.resolve(values.base) } : {}),
+    ...(values.source ? { sourceFile: path.resolve(values.source) } : {}),
+    ...(values['run-id'] ? { expectedRunId: values['run-id'] } : {}),
+    ...(values['max-age-hours']
+      ? { maxAgeHours: Number(values['max-age-hours']) }
+      : {}),
     outDir: path.resolve(values.out ?? 'temp/release'),
   })
   if (result.errors.length > 0) {

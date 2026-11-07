@@ -168,6 +168,8 @@ describe('release workflows', () => {
     expect(workflow).toContain('ZEUS_RC_APPROVAL_RUN_ID')
     expect(workflow).toContain('rc-approval')
     expect(workflow).toContain('assemble-rc-evidence.ts')
+    expect(workflow).toContain('evidence-source.json')
+    expect(workflow).toContain('--run-id')
     expect(workflow.indexOf('assemble-rc-evidence.ts')).toBeLessThan(
       workflow.indexOf('pnpm release:precheck'),
     )

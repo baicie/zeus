@@ -136,6 +136,8 @@ jobs:
           --provenance temp/deployment-evidence/deployment.online.provenance.json
           --pair temp/deployment-evidence/pair.json
           --base temp/rc-approval/rc-evidence.base.json
+          --source temp/deployment-evidence/evidence-source.json
+          --run-id "${{ vars.ZEUS_DEPLOYMENT_EVIDENCE_RUN_ID }}"
           --out temp/release
 
       - name: Release precheck

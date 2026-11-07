@@ -45,6 +45,7 @@ function fixture(
     mode: overrides.mode ?? 'online',
     coreCommit: core,
     uiCommit: ui,
+    checkedAt: new Date().toISOString(),
     decision: overrides.decision ?? 'ONLINE_ACCEPTED',
     products: products.map(([product, image]) => ({
       product,
@@ -82,6 +83,14 @@ function fixture(
     'transaction.json': JSON.stringify(transaction),
     'provenance.json': JSON.stringify(provenance),
     'pair.json': JSON.stringify(pair),
+    'source.json': JSON.stringify({
+      schema: 'zeus.deployment-evidence-source/v1',
+      repository: 'baicie/zeus',
+      workflow: 'Host Deployment Stage 2',
+      runId: '12345',
+      coreCommit: core,
+      uiCommit: ui,
+    }),
   }
   for (const [name, content] of Object.entries(files)) {
     fs.writeFileSync(path.join(root, name), content)
@@ -92,6 +101,7 @@ function fixture(
     transactionFile: path.join(root, 'transaction.json'),
     provenanceFile: path.join(root, 'provenance.json'),
     pairFile: path.join(root, 'pair.json'),
+    sourceFile: path.join(root, 'source.json'),
   }
 }
 
@@ -159,6 +169,42 @@ describe('RC evidence assembly', () => {
     expect(
       assembleRcEvidence({ ...input, outDir: input.root }).errors,
     ).toContain('admin image digest does not match the transaction')
+  })
+
+  it('binds the evidence to the trusted Stage 2 run and rejects stale data', () => {
+    const input = fixture()
+    const valid = assembleRcEvidence({
+      ...input,
+      sourceFile: input.sourceFile,
+      expectedRunId: '12345',
+      outDir: input.root,
+    })
+    expect(valid.errors).toEqual([])
+
+    const wrongRun = assembleRcEvidence({
+      ...input,
+      sourceFile: input.sourceFile,
+      expectedRunId: '99999',
+      outDir: input.root,
+    })
+    expect(wrongRun.errors).toContain(
+      'deployment evidence source run id does not match',
+    )
+
+    const stale = fixture()
+    const staleAcceptance = JSON.parse(
+      fs.readFileSync(stale.acceptanceFile, 'utf8'),
+    ) as Record<string, unknown>
+    staleAcceptance.checkedAt = '2020-01-01T00:00:00.000Z'
+    fs.writeFileSync(stale.acceptanceFile, JSON.stringify(staleAcceptance))
+    expect(
+      assembleRcEvidence({
+        ...stale,
+        sourceFile: stale.sourceFile,
+        expectedRunId: '12345',
+        outDir: stale.root,
+      }).errors,
+    ).toContain('deployment acceptance evidence is stale')
   })
 
   it('merges a signed base approval and rejects stale approval commits', () => {
