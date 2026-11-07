@@ -45,7 +45,17 @@ interface SandboxMessageBase {
   readonly sessionId: string
 }
 
+export interface PlaygroundSandboxConsoleEntry {
+  readonly level: 'log' | 'info' | 'warn' | 'error'
+  readonly message: string
+  readonly timestamp: number
+}
+
 export type PlaygroundSandboxMessage =
+  | (SandboxMessageBase & {
+      readonly kind: 'sandbox-console'
+      readonly entries: readonly PlaygroundSandboxConsoleEntry[]
+    })
   | (SandboxMessageBase & {
       readonly kind: 'sandbox-ready'
       readonly capabilities: {
@@ -214,6 +224,36 @@ export function parseSandboxMessage(
     }
   }
 
+  if (value.kind === 'sandbox-console') {
+    if (
+      !Array.isArray(value.entries) ||
+      value.entries.length === 0 ||
+      value.entries.length > 50
+    ) {
+      return undefined
+    }
+    const entries: PlaygroundSandboxConsoleEntry[] = []
+    for (const entry of value.entries) {
+      if (
+        !isRecord(entry) ||
+        (entry.level !== 'log' &&
+          entry.level !== 'info' &&
+          entry.level !== 'warn' &&
+          entry.level !== 'error') ||
+        typeof entry.message !== 'string' ||
+        entry.message.length > 2_048 ||
+        !isFiniteNonNegative(entry.timestamp)
+      ) {
+        return undefined
+      }
+      entries.push({
+        level: entry.level,
+        message: entry.message,
+        timestamp: entry.timestamp,
+      })
+    }
+    return { ...base, kind: 'sandbox-console', entries }
+  }
   if (!isToken(value.requestId)) return undefined
   if (value.kind === 'sandbox-load') {
     if (

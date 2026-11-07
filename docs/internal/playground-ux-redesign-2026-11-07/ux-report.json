@@ -1,0 +1,17 @@
+{
+  "sourceCommit": "3054cec51897a34b0403c80a0c0999332b18f1e2",
+  "results": [
+    {
+      "browser": "chromium",
+      "passed": true
+    },
+    {
+      "browser": "firefox",
+      "passed": true
+    },
+    {
+      "browser": "webkit",
+      "passed": true
+    }
+  ]
+}

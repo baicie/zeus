@@ -1,0 +1,549 @@
+import fs from 'node:fs/promises'
+import http from 'node:http'
+import path from 'node:path'
+
+import {
+  chromium,
+  firefox,
+  webkit,
+  type Browser,
+  type Page,
+} from '@playwright/test'
+
+const root = path.resolve(import.meta.dirname, '../..')
+const dist = path.join(root, 'examples/playground-editor/dist')
+const output = path.join(root, 'temp/playground-ux')
+const PORT = 8098
+const engines = { chromium, firefox, webkit }
+const requested = (
+  process.env.PLAYGROUND_UX_BROWSERS ?? 'chromium,firefox,webkit'
+)
+  .split(',')
+  .map(value => value.trim())
+  .filter(Boolean)
+
+interface BrowserReport {
+  browser: string
+  passed: boolean
+  error?: string
+}
+
+async function main(): Promise<void> {
+  await fs.mkdir(output, { recursive: true })
+  const server = await createStaticServer(dist)
+  const report: BrowserReport[] = []
+  try {
+    for (const [name, engine] of Object.entries(engines)) {
+      if (!requested.includes(name)) continue
+      let browser: Browser | undefined
+      try {
+        browser = await engine.launch({
+          headless: true,
+          ...(name === 'chromium' ? { channel: 'chromium' } : {}),
+        })
+        const context = await browser.newContext({
+          viewport: { width: 1440, height: 900 },
+        })
+        const page = await context.newPage()
+        const pageErrors: string[] = []
+        page.on('pageerror', error => pageErrors.push(error.message))
+        await runChecks(page, name)
+        if (pageErrors.length > 0)
+          throw new Error(`page errors: ${pageErrors.join('; ')}`)
+        report.push({ browser: name, passed: true })
+        console.log(`[playground-ux] ${name}: PASS`)
+      } catch (error) {
+        report.push({
+          browser: name,
+          passed: false,
+          error: error instanceof Error ? error.message : String(error),
+        })
+        console.error(`[playground-ux] ${name}: FAIL`, error)
+      } finally {
+        await browser?.close()
+      }
+    }
+  } finally {
+    await closeServer(server)
+  }
+  await fs.writeFile(
+    path.join(output, 'report.json'),
+    `${JSON.stringify({ sourceCommit: process.env.GITHUB_SHA, results: report }, null, 2)}\n`,
+  )
+  if (report.some(result => !result.passed)) process.exitCode = 1
+}
+
+async function runChecks(page: Page, browserName: string): Promise<void> {
+  const base = `http://127.0.0.1:${PORT}`
+  await page.goto(`${base}/`, { waitUntil: 'domcontentloaded' })
+  await waitReady(page)
+  if (browserName === 'chromium') {
+    await page.screenshot({
+      path: path.join(output, '1440-native.png'),
+    })
+  }
+
+  // Preview maximize and restore.
+  await page.getByTestId('preview-max').click()
+  if (await page.locator('.pg-editor-pane').isVisible()) {
+    throw new Error('maximize did not hide the editor pane')
+  }
+  await page.getByTestId('preview-max').click()
+  if (!(await page.locator('.pg-editor-pane').isVisible())) {
+    throw new Error('restore did not show the editor pane')
+  }
+
+  // Draggable split with a persisted width.
+  const splitBefore = await splitValue(page)
+  await dragSplit(page, 100)
+  const splitAfter = await splitValue(page)
+  if (splitAfter <= splitBefore + 2) {
+    throw new Error(`split did not move: ${splitBefore} -> ${splitAfter}`)
+  }
+  const storedSplit = await page.evaluate(() => {
+    const raw = localStorage.getItem('zeus-playground.settings.v1')
+    return raw ? (JSON.parse(raw) as { splitPercent?: number }).splitPercent : 0
+  })
+  if (Math.abs((storedSplit ?? 0) - splitAfter) > 1) {
+    throw new Error(
+      `split width was not persisted: ${splitAfter} vs ${storedSplit}`,
+    )
+  }
+
+  // Theme and font size from Settings.
+  await page.getByTestId('settings').click()
+  await page.locator('.pg-popover select').selectOption('light')
+  if (
+    (await page.evaluate(() => document.documentElement.dataset.theme)) !==
+    'light'
+  ) {
+    throw new Error('light theme was not applied')
+  }
+  await page.locator('.pg-popover input[type="range"]').fill('16')
+  const fontPixels = await page
+    .locator('.cm-content')
+    .evaluate(element => getComputedStyle(element).fontSize)
+  if (fontPixels !== '16px') {
+    throw new Error(`font size was not applied: ${fontPixels}`)
+  }
+  await page.locator('.pg-popover input[type="range"]').fill('14')
+  await page.locator('.pg-popover select').selectOption('dark')
+  await page.getByTestId('settings').click()
+
+  // Keep deterministic manual runs; auto-run is tested separately below.
+  await page.getByTestId('auto-run').click()
+
+  // Console bridge.
+  await setSource(
+    page,
+    `import { render } from '@zeus-js/zeus'\nconsole.log('ux-console-marker', 42)\nrender(() => <p>Console ready</p>, document.querySelector('#root')!)\n`,
+  )
+  await run(page)
+  await page.getByTestId('tab-console').click()
+  await page
+    .getByTestId('console')
+    .getByText('ux-console-marker 42')
+    .waitFor({ timeout: 10_000 })
+
+  // Diagnostics, stale preview and recovery.
+  await setSource(page, 'export const App = () => <div>\n')
+  await run(page, false)
+  await page.getByTestId('tab-problems').click()
+  await page.getByTestId('problems').waitFor({ timeout: 10_000 })
+  if (!(await state(page)).stale) {
+    throw new Error('preview was not marked stale')
+  }
+  await page.locator('.pg-problem').first().click()
+  await page.waitForTimeout(200)
+  const editorFocused = await page.evaluate(
+    () => document.activeElement?.closest('.cm-content') != null,
+  )
+  if (!editorFocused) throw new Error('problem did not focus the editor')
+  if ((await page.locator('.cm-error-line').count()) === 0) {
+    throw new Error('compiler error marker is missing from the editor')
+  }
+  await setSource(
+    page,
+    `import { render } from '@zeus-js/zeus'\nrender(() => <p>Recovered</p>, document.querySelector('#root')!)\n`,
+  )
+  await run(page)
+  await page
+    .frameLocator('[data-testid="preview-frame"]')
+    .getByText('Recovered')
+    .waitFor()
+
+  // File creation, switching and removal.
+  await page.getByTestId('add-file').click()
+  await page.getByRole('tab', { name: 'component-4.tsx' }).waitFor()
+  await page.getByRole('tab', { name: 'main.tsx' }).click()
+  await page.getByRole('tab', { name: 'component-4.tsx' }).click()
+  await page.getByTestId('remove-file').click()
+
+  // Auto-run toggle and manual run.
+  const before = await state(page)
+  await setSource(
+    page,
+    `import { render } from '@zeus-js/zeus'\nrender(() => <p>Auto off</p>, document.querySelector('#root')!)\n`,
+  )
+  await page.waitForTimeout(1_200)
+  const after = await state(page)
+  if (after.buildSequence !== before.buildSequence) {
+    throw new Error(
+      `auto-run compiled while disabled: ${JSON.stringify(await state(page))}`,
+    )
+  }
+  await run(page)
+  await page.getByTestId('auto-run').click()
+
+  // Keyboard run and save shortcuts inside CodeMirror.
+  await page.locator('.cm-content').click()
+  const beforeKey = (await state(page)).buildSequence
+  await page.keyboard.press('ControlOrMeta+Enter')
+  await page.waitForFunction(
+    sequence =>
+      window.__zeusPlayground!.getState().buildSequence > sequence &&
+      !window.__zeusPlayground!.getState().busy,
+    beforeKey,
+    { timeout: 20_000 },
+  )
+  await page.keyboard.press('ControlOrMeta+s')
+  await page.getByTestId('save-state').getByText('Saved locally').waitFor()
+
+  // Example gallery.
+  await page.getByTestId('examples').click()
+  await page
+    .getByTestId('example-native-show-for')
+    .evaluate(element => (element as HTMLElement).click())
+  await run(page)
+  await page
+    .frameLocator('[data-testid="preview-frame"]')
+    .locator('li')
+    .first()
+    .waitFor()
+
+  // Stop and rerun.
+  await run(page)
+  await page.getByTestId('stop').click()
+  await page.getByTestId('status').getByText('Stopped').waitFor()
+  await run(page)
+
+  // Persistence across reload.
+  await setSource(
+    page,
+    `import { render } from '@zeus-js/zeus'\nrender(() => <p>Persisted UX marker</p>, document.querySelector('#root')!)\n`,
+  )
+  await page.evaluate(() => window.__zeusPlayground?.save())
+  await page.getByTestId('tab-output').click()
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await waitReady(page)
+  if (!(await source(page)).includes('Persisted UX marker')) {
+    throw new Error('draft did not survive reload')
+  }
+  if ((await state(page)).activeTab !== 'output') {
+    throw new Error('active result tab did not survive reload')
+  }
+  if (Math.abs((await splitValue(page)) - splitAfter) > 1) {
+    throw new Error('split width did not survive reload')
+  }
+  await dragSplit(page, -100)
+
+  // Share URL round-trip.
+  const shared = await page.evaluate(() => window.__zeusPlayground?.shareUrl())
+  if (!shared) throw new Error('share URL was not created')
+  const sharedPage = await page.context().newPage()
+  await sharedPage.goto(shared, { waitUntil: 'domcontentloaded' })
+  await sharedPage.waitForTimeout(1_500)
+  const sharedSource = await sharedPage.evaluate(
+    () => window.__zeusPlayground?.getSource() ?? '',
+  )
+  if (!sharedSource.includes('Persisted UX marker')) {
+    throw new Error('share URL did not restore the project')
+  }
+  await sharedPage.close()
+
+  // WebC inspector and React/Vue consumption.
+  await page.evaluate(() =>
+    window.__zeusPlayground?.loadExample('webc-counter-slots'),
+  )
+  await run(page)
+  await page.getByTestId('tab-inspector').click()
+  await page.getByTestId('webc-manifest').getByText('z-counter').waitFor()
+  await page.getByTestId('preview-frameworks').click()
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('[data-testid="framework-preview-status"]')
+        ?.textContent?.includes('mounted'),
+    null,
+    { timeout: 20_000 },
+  )
+
+  // Every shipped example must compile and run.
+  if (browserName === 'chromium') {
+    await page.getByTestId('auto-run').click()
+    const ids = [
+      'native-hello',
+      'native-counter',
+      'native-show-for',
+      'native-props',
+      'native-todo',
+      'native-lifecycle',
+      'native-router-query',
+      'webc-basic',
+      'webc-counter-slots',
+      'webc-props-events',
+      'webc-shadow',
+      'webc-slots',
+    ]
+    for (const id of ids) {
+      const loaded = await page.evaluate(
+        exampleId => window.__zeusPlayground!.loadExample(exampleId),
+        id,
+      )
+      if (!loaded) throw new Error(`example ${id} was not found`)
+      try {
+        await run(page)
+      } catch (error) {
+        const failed = await state(page)
+        throw new Error(
+          `example ${id} did not run: ${JSON.stringify(failed.diagnostics)} (${failed.previewStatus}); ${String(error)}`,
+        )
+      }
+      const exampleState = await state(page)
+      if (exampleState.diagnostics.some(item => item.severity === 'error')) {
+        throw new Error(
+          `example ${id} failed: ${JSON.stringify(exampleState.diagnostics)}`,
+        )
+      }
+      if (id.startsWith('webc-')) {
+        await page.getByTestId('tab-inspector').click()
+        const manifest =
+          (await page.getByTestId('webc-manifest').textContent()) ?? ''
+        if (manifest.includes('"components": []')) {
+          throw new Error(`example ${id} produced an empty manifest`)
+        }
+        const declarations =
+          (await page.getByTestId('webc-declarations').textContent()) ?? ''
+        if (!declarations.includes('interface')) {
+          throw new Error(`example ${id} produced no DTS declaration`)
+        }
+      }
+    }
+    await page.getByTestId('auto-run').click()
+    await page.evaluate(() =>
+      window.__zeusPlayground!.loadExample('webc-counter-slots'),
+    )
+    await run(page)
+    await page.getByTestId('tab-inspector').click()
+    await page.getByTestId('webc-manifest').getByText('z-counter').waitFor()
+  }
+
+  // Responsive layouts.
+  await page.setViewportSize({ width: 1024, height: 800 })
+  await page.waitForTimeout(300)
+  if (browserName === 'chromium') {
+    await page.screenshot({
+      path: path.join(output, '1024-webc.png'),
+    })
+  }
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.waitForTimeout(300)
+  if (browserName === 'chromium') {
+    await page.screenshot({
+      path: path.join(output, '390-webc.png'),
+    })
+  }
+  if (
+    await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth >
+        document.documentElement.clientWidth,
+    )
+  ) {
+    throw new Error('mobile layout overflows horizontally')
+  }
+  await page.locator('.pg-mobile-switch button').first().click()
+  await page.waitForTimeout(150)
+  await page.locator('.pg-mobile-switch button').last().click()
+  await page.waitForTimeout(300)
+  const overflowingTabs = await page
+    .locator('.pg-result-tabs')
+    .evaluate(element => element.scrollWidth > element.clientWidth + 1)
+  if (overflowingTabs) throw new Error('mobile result tabs overflow')
+  if (
+    await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth >
+        document.documentElement.clientWidth,
+    )
+  ) {
+    throw new Error('mobile preview overflows horizontally')
+  }
+  if (browserName === 'chromium') {
+    await page.screenshot({
+      path: path.join(output, '390-webc-preview.png'),
+    })
+  }
+  const namedButtons = await page
+    .locator('button')
+    .evaluateAll(buttons =>
+      buttons.every(
+        button =>
+          (button.textContent ?? '').trim().length > 0 ||
+          button.getAttribute('aria-label'),
+      ),
+    )
+  if (!namedButtons) throw new Error('a button has no accessible name')
+}
+
+async function splitValue(page: Page): Promise<number> {
+  return page
+    .locator('.pg-workspace')
+    .evaluate(
+      element =>
+        Number.parseFloat(
+          (element as HTMLElement).style.getPropertyValue('--pg-editor-width'),
+        ) || 0,
+    )
+}
+
+async function dragSplit(page: Page, deltaX: number): Promise<void> {
+  const split = page.locator('.pg-split')
+  const box = await split.boundingBox()
+  if (!box) throw new Error('split divider is not visible')
+  const x = box.x + box.width / 2
+  const y = box.y + box.height / 2
+  await page.mouse.move(x, y)
+  await page.mouse.down()
+  await page.mouse.move(x + deltaX, y, { steps: 8 })
+  await page.mouse.up()
+  await page.waitForTimeout(100)
+}
+
+async function state(page: Page) {
+  return page.evaluate(() => window.__zeusPlayground!.getState())
+}
+
+async function source(page: Page): Promise<string> {
+  return page.evaluate(() => window.__zeusPlayground!.getSource())
+}
+
+async function setSource(page: Page, value: string): Promise<void> {
+  await page.evaluate(value => window.__zeusPlayground!.setSource(value), value)
+}
+
+async function run(page: Page, expectSuccess = true): Promise<void> {
+  const before = await state(page)
+  await page.evaluate(() => window.__zeusPlayground!.run())
+  if (expectSuccess) await waitReady(page)
+  await page.waitForFunction(
+    sequence => window.__zeusPlayground!.getState().buildSequence > sequence,
+    before.buildSequence,
+    { timeout: 30_000 },
+  )
+}
+
+async function waitReady(page: Page): Promise<void> {
+  await page.waitForFunction(
+    () =>
+      window.__zeusPlayground
+        ?.getState()
+        .previewStatus.includes('Preview ready'),
+    null,
+    { timeout: 45_000 },
+  )
+}
+
+async function createStaticServer(directory: string): Promise<http.Server> {
+  const server = http.createServer(async (request, response) => {
+    const requestUrl = new URL(request.url ?? '/', 'http://localhost')
+    const pathname =
+      requestUrl.pathname === '/' ? '/index.html' : requestUrl.pathname
+    const file = path.resolve(directory, `.${pathname}`)
+    if (!file.startsWith(`${directory}${path.sep}`)) {
+      response.writeHead(403).end()
+      return
+    }
+    try {
+      const body = await fs.readFile(file)
+      response.setHeader('Access-Control-Allow-Origin', '*')
+      response.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
+      response.setHeader('Content-Type', contentType(path.extname(file)))
+      response.end(body)
+    } catch {
+      response.writeHead(404).end()
+    }
+  })
+  await new Promise<void>(resolve => server.listen(PORT, '0.0.0.0', resolve))
+  return server
+}
+
+function contentType(extension: string): string {
+  if (extension === '.html') return 'text/html; charset=utf-8'
+  if (extension === '.js') return 'text/javascript; charset=utf-8'
+  if (extension === '.css') return 'text/css; charset=utf-8'
+  if (extension === '.wasm') return 'application/wasm'
+  return 'application/octet-stream'
+}
+
+async function closeServer(server: http.Server): Promise<void> {
+  await new Promise<void>((resolve, reject) =>
+    server.close(error => (error ? reject(error) : resolve())),
+  )
+}
+
+declare global {
+  interface Window {
+    __zeusPlayground?: {
+      getSource(): string
+      setSource(value: string): void
+      getActivePath(): string
+      getFiles(): readonly { path: string; content: string }[]
+      selectFile(path: string): void
+      selectProduct(product: 'native-lab' | 'webc-studio'): void
+      loadExample(id: string): boolean
+      run(): Promise<void>
+      stop(): Promise<void>
+      save(): void
+      shareUrl(): Promise<string | undefined>
+      getState(): {
+        product: 'native-lab' | 'webc-studio'
+        files: readonly { path: string; content: string }[]
+        activePath: string
+        source: string
+        status: string
+        previewStatus: string
+        busy: boolean
+        stale: boolean
+        diagnostics: readonly {
+          id: string
+          file: string
+          severity: 'error' | 'warning' | 'info'
+          code: string
+          message: string
+          line?: number
+          column?: number
+        }[]
+        console: readonly {
+          level: string
+          message: string
+          timestamp: number
+        }[]
+        devtools: unknown
+        buildSequence: number
+        autoRun: boolean
+        lastCompileKind: 'auto' | 'manual' | 'none'
+        buildMetrics: {
+          compileMs: number
+          previewMs: number
+          domBytes: number
+          ssrBytes: number
+          runs: number
+        }
+        activeTab: string
+      }
+    }
+  }
+}
+
+void main()

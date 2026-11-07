@@ -8,6 +8,12 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/lang-css": "^6.3.1",
+    "@codemirror/lang-javascript": "^6.2.5",
+    "@codemirror/language": "^6.13.1",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15",
     "@zeus-js/compiler-wasm": "workspace:*",
     "@zeus-js/playground-engine": "workspace:*",
     "@zeus-js/query": "workspace:*",
@@ -15,6 +21,8 @@
     "@zeus-js/runtime-dom": "workspace:*",
     "@zeus-js/signal": "workspace:*",
     "@zeus-js/zeus": "workspace:*",
+    "codemirror": "^6.0.2",
+    "fflate": "^0.8.3",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "vue": "^3.5.44"
