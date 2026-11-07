@@ -75,6 +75,10 @@ export function renderToStream(
   }
 
   const { signal, flushAt = DEFAULT_FLUSH_AT } = options
+  if (!Number.isFinite(flushAt) || flushAt <= 0) {
+    throw new TypeError('renderToStream() flushAt must be a positive number.')
+  }
+  const chunkSize = Math.max(1, Math.floor(flushAt))
 
   if (signal?.aborted) throw createAbortError()
 
@@ -97,7 +101,15 @@ export function renderToStream(
     chunks = undefined
 
     try {
-      void current?.return?.()
+      const returned = current?.return?.()
+      if (
+        returned &&
+        typeof (returned as PromiseLike<unknown>).then === 'function'
+      ) {
+        void Promise.resolve(returned).catch(() => {
+          /* Cancellation must still dispose the request scope. */
+        })
+      }
     } catch {
       /* Cancellation must still dispose the request scope. */
     }
@@ -154,7 +166,7 @@ export function renderToStream(
         if (isAsyncIterable(value)) {
           iterator = value[Symbol.asyncIterator]()
         } else {
-          chunks = serializeSSRNodeChunks(value as SSRNode, flushAt)
+          chunks = serializeSSRNodeChunks(value as SSRNode, chunkSize)
         }
       } catch (error) {
         fail(error)

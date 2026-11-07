@@ -127,13 +127,21 @@ function* chunkFragment(
   html: string,
   flushAt: number,
 ): Generator<string, void, undefined> {
-  if (!Number.isFinite(flushAt) || html.length <= flushAt) {
+  if (!Number.isFinite(flushAt) || flushAt <= 0 || html.length <= flushAt) {
     yield html
     return
   }
 
-  for (let start = 0; start < html.length; start += flushAt) {
-    yield html.slice(start, start + flushAt)
+  const size = Math.max(1, Math.floor(flushAt))
+  for (let start = 0; start < html.length; ) {
+    let end = Math.min(start + size, html.length)
+    if (end < html.length) {
+      const code = html.charCodeAt(end - 1)
+      // Do not split a UTF-16 surrogate pair across transport chunks.
+      if (code >= 0xd800 && code <= 0xdbff) end += 1
+    }
+    yield html.slice(start, end)
+    start = end
   }
 }
 
