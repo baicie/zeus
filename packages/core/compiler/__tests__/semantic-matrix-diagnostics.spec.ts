@@ -58,6 +58,12 @@ const cases: DiagnosticCase[] = [
     text: '{() => props.t}',
   },
   {
+    code: 'ZEUS_INPUT_TOO_DEEP',
+    source: `export const App = () => ${'<div>'.repeat(9_000)}x${'</div>'.repeat(9_000)}`,
+    text: '',
+    noSpan: true,
+  },
+  {
     code: 'ZEUS_INVALID_BUILTIN_USAGE',
     source:
       BUILTINS +
