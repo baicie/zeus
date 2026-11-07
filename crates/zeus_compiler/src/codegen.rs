@@ -270,7 +270,7 @@ fn emit_templates(
 ) {
     let mut emitted = HashSet::new();
     for component in components {
-        if component.template_html.is_empty() || !emitted.insert(component.template_name.as_str()) {
+        if !emitted.insert(component.template_name.as_str()) {
             continue;
         }
         writer.push("const ");
