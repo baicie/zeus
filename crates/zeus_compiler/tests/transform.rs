@@ -30,7 +30,11 @@ fn empty_fragment_root_declares_its_template() {
     let mut options = options(false);
     options.source = "export const App = () => <></>".into();
     let transformed = transform_module(options);
-    assert!(transformed.diagnostics.is_empty(), "{:?}", transformed.diagnostics);
+    assert!(
+        transformed.diagnostics.is_empty(),
+        "{:?}",
+        transformed.diagnostics
+    );
     assert!(
         transformed.code.contains("const $zeusTmpl"),
         "empty fragment template was not declared: {}",
