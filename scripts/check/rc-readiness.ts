@@ -3,6 +3,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { scanSecrets } from './check-secrets'
+import {
+  findUnexpectedReleaseWorktreeChanges,
+  loadReleaseWorktreeSnapshot,
+} from '../release/release-worktree'
 import { findWorkspacePackages } from '../shared/utils'
 
 export type ReadinessStatus = 'pass' | 'fail' | 'not_run'
@@ -18,7 +22,7 @@ export interface ReadinessEvidence {
   readonly evidence: string
 }
 
-export const RC_EVIDENCE_SCHEMA = 'zeus.rc-evidence/v2' as const
+export const RC_EVIDENCE_SCHEMA = 'zeus.rc-evidence/v3' as const
 
 export const REQUIRED_ONLINE_PRODUCTS = [
   'webc-studio',
@@ -33,6 +37,26 @@ export interface RcEvidenceProduct {
   readonly product: OnlineProduct
   readonly url: string
   readonly commit: string
+  readonly artifactDigest: string
+  readonly imageDigest: string
+}
+
+export interface RcDeploymentProduct {
+  readonly product: OnlineProduct
+  readonly status: 'ONLINE_PASS'
+  readonly artifactDigest: string
+  readonly imageDigest: string
+}
+
+export interface RcDeploymentEvidence {
+  readonly decision: 'ONLINE_ACCEPTED'
+  readonly transactionStatus: 'PASS'
+  readonly coreCommit: string
+  readonly uiCommit: string
+  readonly acceptanceSha256: string
+  readonly transactionSha256: string
+  readonly provenanceSha256: string
+  readonly products: readonly RcDeploymentProduct[]
 }
 
 export interface RcEvidenceDocument {
@@ -40,6 +64,7 @@ export interface RcEvidenceDocument {
   readonly commit: string
   readonly uiCommit: string
   readonly products: readonly RcEvidenceProduct[]
+  readonly deployment: RcDeploymentEvidence
   readonly crossPlatform: {
     readonly platforms: readonly string[]
     readonly report: string
@@ -175,8 +200,14 @@ export function evaluateRcEvidence(
       [
         ...commonErrors,
         ...validateProducts(document.products, currentCommit, uiCommit),
+        ...validateDeployment(
+          document.deployment,
+          currentCommit,
+          uiCommit,
+          document.products,
+        ),
       ],
-      'four HTTPS product URLs are bound to the current HEAD',
+      'four HTTPS product URLs and the deployment acceptance are bound to the current HEAD',
     ),
     crossPlatform: evidenceResult(
       [
@@ -225,6 +256,12 @@ function validateProducts(
     if (typeof entry.url !== 'string' || !isHttpsUrl(entry.url)) {
       errors.push(`products[${index}].url must be an HTTPS URL`)
     }
+    if (!isSha256(entry.artifactDigest)) {
+      errors.push(`products[${index}].artifactDigest must be sha256:<64 hex>`)
+    }
+    if (!isSha256(entry.imageDigest)) {
+      errors.push(`products[${index}].imageDigest must be sha256:<64 hex>`)
+    }
     const expectedCommit = product === 'ai-workbench' ? uiCommit : currentCommit
     if (entry.commit !== expectedCommit) {
       errors.push(
@@ -245,6 +282,86 @@ function validateProducts(
   }
 
   return errors
+}
+
+function validateDeployment(
+  value: unknown,
+  currentCommit: string,
+  uiCommit: string,
+  products: unknown,
+): string[] {
+  if (!isRecord(value)) return ['deployment evidence must be an object']
+  const errors: string[] = []
+  if (value.decision !== 'ONLINE_ACCEPTED') {
+    errors.push('deployment.decision must be ONLINE_ACCEPTED')
+  }
+  if (value.transactionStatus !== 'PASS') {
+    errors.push('deployment.transactionStatus must be PASS')
+  }
+  if (value.coreCommit !== currentCommit) {
+    errors.push('deployment.coreCommit does not match current HEAD')
+  }
+  if (value.uiCommit !== uiCommit) {
+    errors.push('deployment.uiCommit does not match the evidence UI commit')
+  }
+  for (const key of [
+    'acceptanceSha256',
+    'transactionSha256',
+    'provenanceSha256',
+  ] as const) {
+    if (!isSha256(value[key])) {
+      errors.push(`deployment.${key} must be sha256:<64 hex>`)
+    }
+  }
+  const deploymentProducts = Array.isArray(value.products) ? value.products : []
+  if (deploymentProducts.length !== REQUIRED_ONLINE_PRODUCTS.length) {
+    errors.push('deployment.products must contain exactly four entries')
+  }
+  const byProduct = new Map<string, Record<string, unknown>>()
+  for (const entry of deploymentProducts) {
+    if (!isRecord(entry)) {
+      errors.push('deployment product must be an object')
+      continue
+    }
+    const product = String(entry.product)
+    if (!REQUIRED_ONLINE_PRODUCTS.includes(product as OnlineProduct)) {
+      errors.push(`deployment product ${product} is not required`)
+      continue
+    }
+    if (byProduct.has(product)) {
+      errors.push(`deployment products contains duplicate ${product}`)
+      continue
+    }
+    if (entry.status !== 'ONLINE_PASS') {
+      errors.push(`deployment product ${product} is not ONLINE_PASS`)
+    }
+    if (!isSha256(entry.artifactDigest)) {
+      errors.push(`deployment product ${product} artifactDigest is invalid`)
+    }
+    if (!isSha256(entry.imageDigest)) {
+      errors.push(`deployment product ${product} imageDigest is invalid`)
+    }
+    byProduct.set(product, entry)
+  }
+  if (Array.isArray(products)) {
+    for (const entry of products) {
+      if (!isRecord(entry)) continue
+      const product = String(entry.product)
+      const deployed = byProduct.get(product)
+      if (!deployed) continue
+      if (entry.artifactDigest !== deployed.artifactDigest) {
+        errors.push(`deployment product ${product} artifactDigest mismatch`)
+      }
+      if (entry.imageDigest !== deployed.imageDigest) {
+        errors.push(`deployment product ${product} imageDigest mismatch`)
+      }
+    }
+  }
+  return errors
+}
+
+function isSha256(value: unknown): value is string {
+  return typeof value === 'string' && /^sha256:[0-9a-f]{64}$/i.test(value)
 }
 
 function validateCrossPlatform(
@@ -442,6 +559,7 @@ function evidenceFile(root: string, env: NodeJS.ProcessEnv): string {
 export function readRcReadinessInput(
   root = process.cwd(),
   env: NodeJS.ProcessEnv = process.env,
+  options: { readonly releaseSnapshot?: boolean } = {},
 ): RcReadinessInput {
   const packages = findWorkspacePackages()
   const zeus = packages.find(pkg => pkg.name === '@zeus-js/zeus')
@@ -494,11 +612,7 @@ export function readRcReadinessInput(
       cwd: root,
       encoding: 'utf8',
     }).trim(),
-    dirty:
-      execFileSync('git', ['status', '--porcelain'], {
-        cwd: root,
-        encoding: 'utf8',
-      }).trim().length > 0,
+    dirty: isDirtyForRelease(root, options.releaseSnapshot === true),
     frameworkVersion: String(zeus?.packageJson.version ?? '0.0.0'),
     sbomComponents:
       isRecord(sbomResult.value) && Array.isArray(sbomResult.value.components)
@@ -516,8 +630,32 @@ export function readRcReadinessInput(
   }
 }
 
+function isDirtyForRelease(root: string, useSnapshot: boolean): boolean {
+  if (useSnapshot) {
+    try {
+      // `check:release-worktree --capture` runs immediately before this gate in
+      // the release precheck. It captures the versioning rewrite, so only
+      // changes made after that capture count as unexpected dirt.
+      const snapshot = loadReleaseWorktreeSnapshot(root)
+      return findUnexpectedReleaseWorktreeChanges(root, snapshot).length > 0
+    } catch {
+      // A missing snapshot is not permission to ignore dirt.
+    }
+  }
+  return (
+    execFileSync('git', ['status', '--porcelain'], {
+      cwd: root,
+      encoding: 'utf8',
+    }).trim().length > 0
+  )
+}
+
 function main(): void {
-  const report = evaluateRcReadiness(readRcReadinessInput())
+  const report = evaluateRcReadiness(
+    readRcReadinessInput(process.cwd(), process.env, {
+      releaseSnapshot: process.argv.includes('--release-snapshot'),
+    }),
+  )
   const output = path.resolve('temp/release/rc-readiness.json')
   fs.mkdirSync(path.dirname(output), { recursive: true })
   fs.writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`)

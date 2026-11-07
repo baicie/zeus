@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -11,16 +13,35 @@ import {
 const pass = (evidence: string) => ({ status: 'pass' as const, evidence })
 
 const pair = { coreCommit: 'abc123', uiCommit: 'b'.repeat(40) }
+const sha = (value: string) =>
+  `sha256:${createHash('sha256').update(value).digest('hex')}`
 
 const validEvidence = {
-  schema: 'zeus.rc-evidence/v2',
+  schema: 'zeus.rc-evidence/v3',
   commit: 'abc123',
   uiCommit: 'b'.repeat(40),
   products: REQUIRED_ONLINE_PRODUCTS.map(product => ({
     product,
     url: `https://${product}.example.test`,
     commit: product === 'ai-workbench' ? 'b'.repeat(40) : 'abc123',
+    artifactDigest: sha(product.slice(0, 1)),
+    imageDigest: sha(product.slice(-1)),
   })),
+  deployment: {
+    decision: 'ONLINE_ACCEPTED',
+    transactionStatus: 'PASS',
+    coreCommit: 'abc123',
+    uiCommit: 'b'.repeat(40),
+    acceptanceSha256: sha('a'),
+    transactionSha256: sha('b'),
+    provenanceSha256: sha('c'),
+    products: REQUIRED_ONLINE_PRODUCTS.map(product => ({
+      product,
+      status: 'ONLINE_PASS',
+      artifactDigest: sha(product.slice(0, 1)),
+      imageDigest: sha(product.slice(-1)),
+    })),
+  },
   crossPlatform: {
     platforms: ['linux', 'win32'],
     report: 'ci://zeus/rc/123',
@@ -42,7 +63,9 @@ const ready: RcReadinessInput = {
   secretFindings: 0,
   packedConsumers: pass('packed consumer report passed for current HEAD'),
   createZeus: pass('create-zeus report passed for current HEAD'),
-  onlineProducts: pass('four HTTPS product URLs are bound to the current HEAD'),
+  onlineProducts: pass(
+    'four HTTPS product URLs and the deployment acceptance are bound to the current HEAD',
+  ),
   crossPlatform: pass(
     'Linux and Windows evidence is bound to the current HEAD',
   ),
@@ -103,7 +126,8 @@ describe('evaluateRcEvidence', () => {
     expect(statuses).toEqual({
       onlineProducts: {
         status: 'pass',
-        evidence: 'four HTTPS product URLs are bound to the current HEAD',
+        evidence:
+          'four HTTPS product URLs and the deployment acceptance are bound to the current HEAD',
       },
       crossPlatform: {
         status: 'pass',
@@ -114,6 +138,37 @@ describe('evaluateRcEvidence', () => {
         evidence: 'release approval is bound to the current HEAD',
       },
     })
+  })
+
+  it('rejects a deployment that is not accepted or whose digests drift', () => {
+    const notAccepted = evaluateRcEvidence(
+      {
+        ...validEvidence,
+        deployment: { ...validEvidence.deployment, decision: 'NOT_ACCEPTED' },
+      },
+      'abc123',
+      pair,
+    )
+    expect(notAccepted.onlineProducts.status).toBe('fail')
+    expect(notAccepted.onlineProducts.evidence).toContain(
+      'deployment.decision must be ONLINE_ACCEPTED',
+    )
+    const drifted = evaluateRcEvidence(
+      {
+        ...validEvidence,
+        deployment: {
+          ...validEvidence.deployment,
+          products: validEvidence.deployment.products.map((entry, index) =>
+            index === 0 ? { ...entry, imageDigest: sha('z') } : entry,
+          ),
+        },
+      },
+      'abc123',
+      pair,
+    )
+    expect(drifted.onlineProducts.evidence).toContain(
+      'deployment product webc-studio imageDigest mismatch',
+    )
   })
 
   it('rejects HTTP URLs, missing products and stale commits', () => {
@@ -195,7 +250,7 @@ describe('evaluateRcEvidence', () => {
 
     expect(statuses.onlineProducts.status).toBe('fail')
     expect(statuses.onlineProducts.evidence).toContain(
-      'schema must be zeus.rc-evidence/v2',
+      'schema must be zeus.rc-evidence/v3',
     )
     expect(statuses.onlineProducts.evidence).toContain(
       'top-level commit does not match current HEAD',

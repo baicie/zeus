@@ -189,6 +189,11 @@ jobs:
             *) echo "unknown deployment mode"; exit 2 ;;
           esac
           pnpm exec tsx scripts/release/deployment-stage2.ts $ARGS
+      - name: Stage RC evidence files
+        if: success()
+        run: |
+          mkdir -p "${{ inputs.state-dir }}/acceptance"
+          cp "${{ runner.temp }}/zeus-deploy/pair.json" "${{ inputs.state-dir }}/acceptance/pair.json"
       - name: Upload deployment evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -199,5 +204,8 @@ jobs:
             ${{ runner.temp }}/zeus-deploy/deployment-acceptance.json
             ${{ runner.temp }}/zeus-deploy/stage2-local-acceptance.json
             ${{ runner.temp }}/zeus-deploy/deployment-acceptance.repeat.json
+            ${{ inputs.state-dir }}/acceptance/deployment.json
+            ${{ inputs.state-dir }}/acceptance/provenance.json
+            ${{ inputs.state-dir }}/acceptance/pair.json
           if-no-files-found: warn
           retention-days: 30

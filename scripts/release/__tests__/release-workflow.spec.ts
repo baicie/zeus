@@ -154,6 +154,25 @@ describe('release workflows', () => {
     expect(workflow).toContain('--require-provenance')
   })
 
+  it('binds RC evidence to approved deployment and approval artifacts', () => {
+    const workflow = readFileSync(
+      resolve(root, '.github/workflows/release.yml'),
+      'utf8',
+    )
+
+    expect(workflow).toContain('ZEUS_UI_REF')
+    expect(workflow).toContain('check:ui-pairing')
+    expect(workflow).toContain('ZEUS_UI_VERSION')
+    expect(workflow).toContain('ZEUS_DEPLOYMENT_EVIDENCE_RUN_ID')
+    expect(workflow).toContain('host-deployment-stage2-evidence')
+    expect(workflow).toContain('ZEUS_RC_APPROVAL_RUN_ID')
+    expect(workflow).toContain('rc-approval')
+    expect(workflow).toContain('assemble-rc-evidence.ts')
+    expect(workflow.indexOf('assemble-rc-evidence.ts')).toBeLessThan(
+      workflow.indexOf('pnpm release:precheck'),
+    )
+  })
+
   it('dispatches canary only after both registry smoke jobs pass', () => {
     const workflow = readFileSync(
       resolve(root, '.github/workflows/release-canary.yml'),
