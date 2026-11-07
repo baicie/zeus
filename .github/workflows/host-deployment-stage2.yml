@@ -106,6 +106,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: inputs.mode != 'local-integration'
     environment: ${{ inputs.environment }}
     runs-on: [self-hosted, zeus-host]
     timeout-minutes: 90
