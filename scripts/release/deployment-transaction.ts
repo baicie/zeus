@@ -255,6 +255,15 @@ export async function runDeploymentTransaction(
         runtime,
       )
       removeAcceptanceUser(layout)
+      stripAcceptanceEnvironment(runtime.envFile)
+      compose(options, runtime.envFile, [
+        'up',
+        '-d',
+        '--no-deps',
+        '--force-recreate',
+        'admin',
+      ])
+      await waitForAdminHealth(layout)
       injectFailure(options.failureInjection, 'after-acceptance')
       writeDeploymentState(options, layout, deployId)
       report = {
@@ -1132,6 +1141,34 @@ db.close()
       '[stage2] could not remove the acceptance account; the Admin TTL will expire it',
     )
   }
+}
+
+/**
+ * Removes the acceptance credential from the persisted runtime env and
+ * recreates only the Admin container. A container restart must never be able
+ * to re-seed a deployment-acceptance account.
+ */
+function stripAcceptanceEnvironment(envFile: string): void {
+  const lines = fs
+    .readFileSync(envFile, 'utf8')
+    .split('\n')
+    .filter(line => !line.startsWith('ZEUS_ADMIN_ACCEPTANCE_'))
+  fs.writeFileSync(envFile, `${lines.join('\n')}\n`, { mode: 0o600 })
+  fs.chmodSync(envFile, 0o600)
+}
+
+async function waitForAdminHealth(layout: DeploymentLayout): Promise<void> {
+  const url = `http://127.0.0.1:${layout.ports.admin}/api/health`
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    try {
+      const response = await fetch(url)
+      if (response.ok) return
+    } catch {
+      // wait for the recreated container
+    }
+    await new Promise(resolve => setTimeout(resolve, 2_000))
+  }
+  throw new Error('recreated Admin container did not become healthy')
 }
 
 function cleanupLocalDeployment(
