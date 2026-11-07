@@ -294,6 +294,10 @@ jobs:
           jq -e '.status == "ROLLED_BACK"' "$ARTIFACT_DIR/deployment-transaction.rollback.json"
           jq -e '.rollback.health == "PASS" and .rollback.buildInfoVerified == true' \
             "$ARTIFACT_DIR/deployment-transaction.rollback.json"
+          jq -e '.backups.aiWorkspace.sha256 | startswith("sha256:")' \
+            "$ARTIFACT_DIR/deployment-transaction.rollback.json"
+          jq -e '.rollback.restoredWorkspaces | length >= 1' \
+            "$ARTIFACT_DIR/deployment-transaction.rollback.json"
           for url in \
             http://127.0.0.1:8080/ \
             http://127.0.0.1:8081/sandbox.html \
