@@ -54,9 +54,9 @@ services:
       - '8788'
     environment:
       ZEUS_AI_HOST: 0.0.0.0
-      ZEUS_AI_DB: /data/ai.sqlite
-      ZEUS_AI_WORKSPACE: /data/workspace
-      ZEUS_AI_WORKSPACE_ID: ${ZEUS_AI_WORKSPACE_ID:-acceptance}
+      ZEUS_AI_MODE: ${ZEUS_AI_MODE:-replay}
+      ZEUS_AI_TOKENS: ${ZEUS_AI_TOKENS:?set ZEUS_AI_TOKENS to tenant-scoped token JSON}
+      ZEUS_AI_TENANTS: ${ZEUS_AI_TENANTS:?set ZEUS_AI_TENANTS to tenant JSON}
       ZEUS_AI_ORIGINS: ${ZEUS_AI_ORIGINS:-http://127.0.0.1:8083}
     volumes:
       - ai-data:/data
@@ -78,6 +78,8 @@ services:
       - '${ZEUS_AI_WORKBENCH_BIND:-127.0.0.1}:${ZEUS_AI_WORKBENCH_PORT:-8083}:80'
     depends_on:
       - ai-host
+    environment:
+      ZEUS_AI_UPSTREAM_TOKEN: ${ZEUS_AI_UPSTREAM_TOKEN:?set ZEUS_AI_UPSTREAM_TOKEN to the workbench viewer token}
     read_only: true
     tmpfs:
       - /var/cache/nginx

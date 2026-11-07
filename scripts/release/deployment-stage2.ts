@@ -13,6 +13,7 @@ import { parseArgs } from 'node:util'
 
 import { verifyProvenance } from './build-info'
 import { runDeploymentAcceptance } from './deployment-acceptance'
+import { createAiDeploymentEnvironment } from './deployment-ai'
 
 export const TENANT_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])$/
 const SHA_PATTERN = /^[0-9a-f]{40}$/i
@@ -466,6 +467,7 @@ async function runDeploymentTransaction(
   }
   const images = candidate.images as Record<string, Record<string, unknown>>
   const envFile = path.join(input.artifactDir, 'runtime.env')
+  const ai = createAiDeploymentEnvironment(input.tenant)
   const lines = [
     `ZEUS_PLAYGROUND_IMAGE=${images.playground!.image}`,
     `ZEUS_ADMIN_IMAGE=${images.admin!.image}`,
@@ -481,8 +483,8 @@ async function runDeploymentTransaction(
     `ZEUS_ADMIN_EMAIL=${input.adminEmail}`,
     `ZEUS_ADMIN_PASSWORD=${input.adminPassword}`,
     `ZEUS_ADMIN_VIEWER_PASSWORD=${input.adminPassword}`,
-    `ZEUS_AI_WORKSPACE_ID=${input.tenant}`,
     'ZEUS_AI_ORIGINS=http://127.0.0.1:8083',
+    ...ai.lines,
   ]
   fs.writeFileSync(envFile, `${lines.join('\n')}\n`, { mode: 0o600 })
   const compose = (args: string[]) =>

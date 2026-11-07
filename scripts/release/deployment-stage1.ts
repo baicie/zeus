@@ -12,6 +12,7 @@ import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 
 import { runDeploymentAcceptance } from './deployment-acceptance'
+import { createAiDeploymentEnvironment } from './deployment-ai'
 
 const root = path.resolve(import.meta.dirname, '../..')
 let repoRoot = root
@@ -427,6 +428,7 @@ function writeEnvFile(
   images: Record<string, ImageRecord>,
   uiCommit: string,
 ): void {
+  const ai = createAiDeploymentEnvironment(TENANT)
   const lines = [
     `ZEUS_PLAYGROUND_IMAGE=${images.playground.image}`,
     `ZEUS_ADMIN_IMAGE=${images.admin.image}`,
@@ -442,8 +444,8 @@ function writeEnvFile(
     'ZEUS_ADMIN_EMAIL=acceptance@example.test',
     `ZEUS_ADMIN_PASSWORD=${ADMIN_PASSWORD}`,
     `ZEUS_ADMIN_VIEWER_PASSWORD=${VIEWER_PASSWORD}`,
-    `ZEUS_AI_WORKSPACE_ID=${TENANT}`,
     'ZEUS_AI_ORIGINS=http://127.0.0.1:8083',
+    ...ai.lines,
     `# ui commit ${uiCommit}`,
     '',
   ]
