@@ -1,8 +1,8 @@
 # Zeus 0.2.0 R4.4 Release Closure Report
 
 日期：2026-11-07  
-产品在线验收：**PLAYGROUND_ONLINE_VALIDATED；四产品 LOCAL_VALIDATED**  
-最终状态：**BLOCKED_BY_SECURITY**（代码修复完成，但公网 AI/Admin 凭据仍为旧状态；RC Cut 另有 `BLOCKED_BY_CODE` 门禁）
+产品在线验收：**PLAYGROUND_ONLINE_VALIDATED；AI_WORKBENCH_ONLINE_READONLY_VALIDATED；四产品 LOCAL_VALIDATED**  
+最终状态：**BLOCKED_BY_CODE**（部署与凭据安全已修复；RC-01..RC-07 发布流水线门禁仍未关闭）
 
 本轮完成了 Stage 2 事务、Admin 凭据/恢复、AI public replay 隔离的源码修复与真实 Docker
 集成；没有部署公网、没有发布 npm、没有创建 Tag、没有修改生产 Caddy/Secrets。
@@ -105,18 +105,22 @@ Core main `e193cf50ad3cbe1d4c14e48584339352c2b75edf`；UI main
 | 非法 cursor                       | 400                                               |
 | 未知命令 type（可写模式）         | 400，不再 fail-open                               |
 
-**线上仍为旧镜像**：`https://ai.moonbyte.top:8443/ai-host/health` 返回
-`{"ok":true,"workspace":"reference"}`，没有 `publicReplay/readOnly` 字段；R4.3 已实测
-viewer `message.send` 200。该修复只在 Draft PR #125，未部署；因此公网 AI 仍为
-**BLOCKED_BY_SECURITY**。
+**线上已切换到 R4.4 只读镜像（2026-11-07，用户授权）**：
+`https://ai.moonbyte.top:8443/ai-host/health` 返回
+`{"mode":"replay","publicReplay":true,"readOnly":true,"interactive":false}`；
+三引擎（Chromium/Firefox/WebKit）均 `disabled=true`、写入 403
+`AI_HOST_PUBLIC_REPLAY_READ_ONLY`、事件数 3→3、无页面错误。线上 snapshot 仅含 preset
+3 个事件；任意 stream 404。旧 r43 容器已改名停止保留为回滚。
 
 ## E. Admin
 
 - `pnpm exec vitest run examples/admin/server/__tests__`：22 tests PASS（Session/CSRF/
   Cookie/角色/限流/备份恢复/损坏拒绝/acceptance TTL）。
 - 生产 Admin 当前仍运行 R4.3 镜像；`/api/auth/session` 401、HSTS/CSP 正常。
-- 生产 `.env` 由 R4.3 生成，Admin 与 viewer 密码相同；新 Stage 2 会在部署前
-  `assertCredentialSeparation` 直接 BLOCKED，不会自动重置。轮换需单独授权。
+- 2026-11-07 已按授权轮换生产 `.env` 的 viewer 密码；Admin DB 只有 1 个 active admin、
+  0 个 viewer 账号，因此没有 viewer 哈希需要更新，admin 行未修改。
+  `admin_viewer_distinct=true`；本地 managed 文件为
+  `/Users/liuzhiwei/Downloads/docs/zeus-admin-viewer-password.txt`（0600）。
 - 生产数据库未做破坏性恢复；恢复演练只在隔离数据目录/容器中进行。
 
 ## F. Playground UX / P0
@@ -149,10 +153,10 @@ viewer `message.send` 200。该修复只在 Draft PR #125，未部署；因此�
 
 ## I. 剩余阻塞
 
-1. **BLOCKED_BY_SECURITY**：公网 AI 旧镜像仍允许 viewer 写；Admin 生产 admin/viewer 密码复用；SSH 密码暴露未轮换（用户此前明确“暂不轮换”）。
-2. **BLOCKED_BY_CODE**：RC-01..RC-07。
-3. 人工 A11y（VoiceOver/NVDA）、200% Zoom、DataGrid、Shadow DOM、AI SSE 播报、移动端：全部 `NOT_RUN`。
-4. 联合发布审批、npm publish、dist-tag、正式 Tag：未授权、未执行。
+1. **BLOCKED_BY_CODE**：RC-01..RC-07 仍未关闭（release workflow 无 HEAD 绑定 evidence 为 P0）。
+2. 人工 A11y（VoiceOver/NVDA）、200% Zoom、DataGrid、Shadow DOM、AI SSE 播报、移动端：全部 `NOT_RUN`。
+3. 联合发布审批、npm publish、dist-tag、正式 Tag：未授权、未执行。
+4. 四个 Draft PR 尚未合并；线上 AI 从 `4827f38` 构建部署，合并/正式候选仍需评审。
 
 ## J. 下一轮提示词（R5 Release Candidate）
 
@@ -173,5 +177,49 @@ Zeus 0.2.0 R5 — Release Candidate Cut。目标：在 R4.4 已修复的部署�
 
 ## K. 最终状态
 
-**BLOCKED_BY_SECURITY**。代码侧 P0/P1 已修复并有真实 Docker 集成/回滚证据，但公网旧
-AI 仍可写、生产 Admin 凭据仍复用、SSH 凭据未轮换；RC Cut 另有 P0 流水线门禁。
+**BLOCKED_BY_CODE**。部署正确性、AI 公网只读、Admin viewer 凭据与 SSH 凭据均已修复并
+有真实证据；剩余阻塞是 RC 发布流水线 RC-01..RC-07、人工 A11y/联合审批，以及 Draft PR
+尚未合并。
+
+## L. 授权修复执行记录（2026-11-07）
+
+用户明确授权“修复公网 AI 只读并轮换生产 Admin/SSH 凭据”后执行：
+
+### L.1 备份
+
+- `/home/ubuntu/backups/r44-2026-11-07/`：Admin/AI SQLite（`VACUUM INTO`）、AI workspace
+  tar、三个 env 文件、Caddyfile、容器/image 清单；`sha256sum -c` 全部 OK，
+  `PRAGMA quick_check` 均为 `ok`。
+
+### L.2 Admin viewer 凭据
+
+- Admin DB 实际只有 1 个 active admin、0 个 viewer；没有可更新的 viewer 哈希，admin 行未修改。
+- `.env` 的 `ZEUS_ADMIN_VIEWER_PASSWORD` 已替换为新随机值，`admin_viewer_distinct=true`。
+- 本地 managed 文件 `/Users/liuzhiwei/Downloads/docs/zeus-admin-viewer-password.txt`（0600）。
+
+### L.3 AI 公网只读切换
+
+- 从 UI `4827f38` 构建 `zeus-ai-host:r44-readonly`（image ID
+  `sha256:f17df1d533b0407c38bba4f37d1e257ca0345d868ce75dabc0e75fcc5d9254a7`）与
+  `zeus-ai-workbench:r44-readonly`（`sha256:0685de680a68d5158dd74722bc6972560cd5ebbb9268070c46e09b081a346127`）。
+- 先以复制数据目录的 canary 验证：health `publicReplay/readOnly`、preset 3 events、
+  private stream 404、写入 403、workspace/approvals 清空。
+- 生产切换：旧 `zeus-ai-host-r43` / `zeus-ai-workbench-r43` 改名为
+  `*-rollback-20261107T145907Z` 并停止；新 `zeus-ai-host-r44` / `zeus-ai-workbench-r44`
+  启动，健康检查通过；Caddy 未修改。
+- 线上 HTTPS：health readOnly、snapshot 3 events、private 404、写入 403
+  `AI_HOST_PUBLIC_REPLAY_READ_ONLY`。
+- 三引擎浏览器：`AI_ONLINE_READONLY_PASS`；证据
+  `docs/deployment/evidence/r4-4/ai-online.json`。
+
+### L.4 SSH
+
+- `ubuntu` 密码已通过 `chpasswd` 轮换；新密码 SSH 验证 `NEW_AUTH_OK`。
+- 本地 CSV `/Users/liuzhiwei/Downloads/docs/docker_targets_82.156.234.84.csv` 已更新，
+  权限 0600，使用 CSV 值再次验证 `CSV_AUTH_OK`；旧密码已失效。
+- 未轮换 Cloudflare API Token（本轮未使用）。
+
+### L.5 未做
+
+- 未部署 Admin/Playground 新镜像（授权范围是 AI 只读与凭据）。
+- 未合并任何 PR、未修改 Caddy、未执行 npm publish/Tag/Release。

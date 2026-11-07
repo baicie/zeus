@@ -1,0 +1,9 @@
+R4.4 Admin viewer credential rotation
+checked_at=2026-11-07T15:00Z
+
+- Admin DB users: 1 active admin, 0 viewer accounts.
+- Production .env ZEUS_ADMIN_VIEWER_PASSWORD replaced with a new random value.
+- admin_viewer_distinct=true; viewer_key_present=true.
+- No viewer password hash existed to update; the admin row and hash were not modified.
+- Backup: /home/ubuntu/backups/r44-2026-11-07/admin.sqlite, quick_check=ok, sha256 verified.
+- Managed local file: /Users/liuzhiwei/Downloads/docs/zeus-admin-viewer-password.txt (0600).

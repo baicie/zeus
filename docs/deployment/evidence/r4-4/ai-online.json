@@ -1,0 +1,65 @@
+{
+  "url": "https://ai.moonbyte.top:8443/",
+  "results": [
+    {
+      "browser": "chromium",
+      "disabled": true,
+      "probe": {
+        "status": 403,
+        "code": "AI_HOST_PUBLIC_REPLAY_READ_ONLY",
+        "before": 3,
+        "after": 3
+      },
+      "health": {
+        "ok": true,
+        "workspace": "reference",
+        "mode": "replay",
+        "publicReplay": true,
+        "readOnly": true,
+        "interactive": false,
+        "streamId": "reference"
+      },
+      "errors": []
+    },
+    {
+      "browser": "firefox",
+      "disabled": true,
+      "probe": {
+        "status": 403,
+        "code": "AI_HOST_PUBLIC_REPLAY_READ_ONLY",
+        "before": 3,
+        "after": 3
+      },
+      "health": {
+        "ok": true,
+        "workspace": "reference",
+        "mode": "replay",
+        "publicReplay": true,
+        "readOnly": true,
+        "interactive": false,
+        "streamId": "reference"
+      },
+      "errors": []
+    },
+    {
+      "browser": "webkit",
+      "disabled": true,
+      "probe": {
+        "status": 403,
+        "code": "AI_HOST_PUBLIC_REPLAY_READ_ONLY",
+        "before": 3,
+        "after": 3
+      },
+      "health": {
+        "ok": true,
+        "workspace": "reference",
+        "mode": "replay",
+        "publicReplay": true,
+        "readOnly": true,
+        "interactive": false,
+        "streamId": "reference"
+      },
+      "errors": []
+    }
+  ]
+}
