@@ -6,6 +6,7 @@ name: zeus-host-validation
 services:
   playground:
     image: ${ZEUS_PLAYGROUND_IMAGE:?set ZEUS_PLAYGROUND_IMAGE to image@sha256:...}
+    container_name: ${ZEUS_PLAYGROUND_CONTAINER:-zeus-host-validation-playground}
     ports:
       - '${ZEUS_PLAYGROUND_BIND:-127.0.0.1}:${ZEUS_PLAYGROUND_HOST_PORT:-8080}:80'
       - '${ZEUS_PLAYGROUND_BIND:-127.0.0.1}:${ZEUS_PLAYGROUND_SANDBOX_PORT:-8081}:81'
@@ -25,17 +26,26 @@ services:
 
   admin:
     image: ${ZEUS_ADMIN_IMAGE:?set ZEUS_ADMIN_IMAGE to image@sha256:...}
+    container_name: ${ZEUS_ADMIN_CONTAINER:-zeus-host-validation-admin}
     ports:
       - '${ZEUS_ADMIN_BIND:-127.0.0.1}:${ZEUS_ADMIN_PORT:-8082}:8080'
     environment:
       ZEUS_ADMIN_EMAIL: ${ZEUS_ADMIN_EMAIL:?}
       ZEUS_ADMIN_PASSWORD: ${ZEUS_ADMIN_PASSWORD:?}
       ZEUS_ADMIN_VIEWER_PASSWORD: ${ZEUS_ADMIN_VIEWER_PASSWORD:?}
+      ZEUS_ADMIN_SEED_DEMO: ${ZEUS_ADMIN_SEED_DEMO:-false}
+      ZEUS_ADMIN_BOOTSTRAP: ${ZEUS_ADMIN_BOOTSTRAP:-false}
+      ZEUS_ADMIN_ACCEPTANCE_EMAIL: ${ZEUS_ADMIN_ACCEPTANCE_EMAIL:-}
+      ZEUS_ADMIN_ACCEPTANCE_PASSWORD: ${ZEUS_ADMIN_ACCEPTANCE_PASSWORD:-}
+      ZEUS_ADMIN_ACCEPTANCE_USER_ID: ${ZEUS_ADMIN_ACCEPTANCE_USER_ID:-acceptance}
+      ZEUS_ADMIN_ACCEPTANCE_TTL_MINUTES: ${ZEUS_ADMIN_ACCEPTANCE_TTL_MINUTES:-120}
+      ZEUS_ADMIN_TRUST_PROXY: ${ZEUS_ADMIN_TRUST_PROXY:-false}
+      ZEUS_ADMIN_ORIGINS: ${ZEUS_ADMIN_ORIGINS:-}
       ZEUS_ADMIN_HOST: 0.0.0.0
       ZEUS_ADMIN_DB: /data/admin.sqlite
       ZEUS_ADMIN_UPLOAD_BYTES: '65536'
     volumes:
-      - admin-data:/data
+      - ${ZEUS_ADMIN_DATA_DIR:-./.data/admin}:/data
     read_only: true
     tmpfs:
       - /tmp
@@ -50,16 +60,19 @@ services:
 
   ai-host:
     image: ${ZEUS_AI_HOST_IMAGE:?set ZEUS_AI_HOST_IMAGE to image@sha256:...}
+    container_name: ${ZEUS_AI_HOST_CONTAINER:-zeus-host-validation-ai-host}
     expose:
       - '8788'
     environment:
       ZEUS_AI_HOST: 0.0.0.0
       ZEUS_AI_MODE: ${ZEUS_AI_MODE:-replay}
+      ZEUS_AI_PUBLIC_REPLAY: ${ZEUS_AI_PUBLIC_REPLAY:-true}
+      ZEUS_AI_TRUST_PROXY: ${ZEUS_AI_TRUST_PROXY:-true}
       ZEUS_AI_TOKENS: ${ZEUS_AI_TOKENS:?set ZEUS_AI_TOKENS to tenant-scoped token JSON}
       ZEUS_AI_TENANTS: ${ZEUS_AI_TENANTS:?set ZEUS_AI_TENANTS to tenant JSON}
       ZEUS_AI_ORIGINS: ${ZEUS_AI_ORIGINS:-http://127.0.0.1:8083}
     volumes:
-      - ai-data:/data
+      - ${ZEUS_AI_DATA_DIR:-./.data/ai}:/data
     read_only: true
     tmpfs:
       - /tmp
@@ -74,6 +87,7 @@ services:
 
   ai-workbench:
     image: ${ZEUS_AI_WORKBENCH_IMAGE:?set ZEUS_AI_WORKBENCH_IMAGE to image@sha256:...}
+    container_name: ${ZEUS_AI_WORKBENCH_CONTAINER:-zeus-host-validation-ai-workbench}
     ports:
       - '${ZEUS_AI_WORKBENCH_BIND:-127.0.0.1}:${ZEUS_AI_WORKBENCH_PORT:-8083}:80'
     depends_on:
@@ -96,7 +110,3 @@ services:
       driver: json-file
       options: { max-size: '10m', max-file: '3' }
     restart: unless-stopped
-
-volumes:
-  admin-data:
-  ai-data:

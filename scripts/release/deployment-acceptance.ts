@@ -6,6 +6,7 @@
  * the source commits. It never publishes, tags or deploys anything.
  */
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { lookup as dnsLookup } from 'node:dns/promises'
 import fs from 'node:fs'
 import http from 'node:http'
@@ -24,8 +25,10 @@ import {
 } from '@playwright/test'
 
 import {
+  computeArtifactDigest,
   verifyDeployedBuildInfo,
   verifyProvenance,
+  type BuildInfoFile,
   type ProvenanceRecord,
 } from './build-info'
 import {
@@ -33,6 +36,7 @@ import {
   isLoopbackHostname as isLoopbackHost,
   isPrivateAddress,
 } from './network-policy'
+import { CSRF_COOKIE, SESSION_COOKIE } from '../../examples/admin/server/auth'
 
 export { isPrivateAddress } from './network-policy'
 
@@ -513,7 +517,10 @@ async function checkProduct(
         `build provenance mismatch: ${buildInfoErrors.join('; ')}`,
       )
     }
-    evidence.push(`build-info ${entry.artifactDigest}`)
+    await verifyServedArtifact(buildInfo, buildInfoUrl, context.mode, manifest)
+    evidence.push(
+      `build-info ${entry.artifactDigest} and served files verified`,
+    )
     if (provenance) {
       const record = provenance.products.find(
         product => product.product === entry.product,
@@ -599,10 +606,20 @@ async function checkProduct(
             entry.product === 'admin' &&
             status === 401 &&
             url.includes('/api/auth/session')
+          const expectedAdminCsrfProbe =
+            entry.product === 'admin' &&
+            status === 403 &&
+            url.includes('/api/settings')
+          const expectedReadOnlyProbe =
+            entry.product === 'ai-workbench' &&
+            status === 403 &&
+            url.includes('/ai-host/commands')
           if (
             status >= 400 &&
             !url.endsWith('/favicon.ico') &&
-            !expectedAdminProbe
+            !expectedAdminProbe &&
+            !expectedAdminCsrfProbe &&
+            !expectedReadOnlyProbe
           ) {
             failedResponses.push(`${status} ${url}`)
           }
@@ -670,6 +687,81 @@ async function checkProduct(
       evidence,
       error: error instanceof Error ? error.message : String(error),
     }
+  }
+}
+
+/**
+ * Re-hashes the deployed files listed in build-info and recomputes the
+ * artifact digest. A copied build-info.json over modified assets therefore
+ * cannot pass acceptance.
+ */
+async function verifyServedArtifact(
+  buildInfo: unknown,
+  buildInfoUrl: string,
+  mode: DeploymentMode,
+  manifest: DeploymentManifest,
+): Promise<void> {
+  if (!isRecord(buildInfo) || !Array.isArray(buildInfo.files)) {
+    throw new Error('build-info is missing its file manifest')
+  }
+  if (buildInfo.files.length === 0 || buildInfo.files.length > 500) {
+    throw new Error('build-info file manifest is empty or too large')
+  }
+  const files: BuildInfoFile[] = []
+  let totalBytes = 0
+  for (const [index, entry] of buildInfo.files.entries()) {
+    if (!isRecord(entry)) {
+      throw new Error(`build-info files[${index}] is not an object`)
+    }
+    const filePath = entry.path
+    const sha256 = entry.sha256
+    const bytes = entry.bytes
+    if (
+      typeof filePath !== 'string' ||
+      filePath.length === 0 ||
+      filePath.startsWith('/') ||
+      filePath.split('/').includes('..') ||
+      filePath.includes('\\') ||
+      filePath === 'build-info.json'
+    ) {
+      throw new Error(`build-info files[${index}] has an unsafe path`)
+    }
+    if (typeof sha256 !== 'string' || !/^[0-9a-f]{64}$/i.test(sha256)) {
+      throw new Error(`build-info files[${index}] has an invalid sha256`)
+    }
+    if (
+      typeof bytes !== 'number' ||
+      !Number.isInteger(bytes) ||
+      bytes < 0 ||
+      bytes > 2 * 1024 * 1024
+    ) {
+      throw new Error(`build-info files[${index}] has an invalid size`)
+    }
+    totalBytes += bytes
+    if (totalBytes > 20 * 1024 * 1024) {
+      throw new Error('build-info file manifest exceeds the size limit')
+    }
+    const fileUrl = new URL(
+      filePath.split('/').map(encodeURIComponent).join('/'),
+      buildInfoUrl,
+    ).href
+    const response = await fetchChecked(fileUrl, mode, manifest)
+    if (response.status !== 200) {
+      throw new Error(`served file ${filePath} returned ${response.status}`)
+    }
+    if (response.bytes.byteLength !== bytes) {
+      throw new Error(`served file ${filePath} has the wrong byte length`)
+    }
+    const actual = createHash('sha256').update(response.bytes).digest('hex')
+    if (actual !== sha256) {
+      throw new Error(`served file ${filePath} does not match its sha256`)
+    }
+    files.push({ path: filePath, sha256, bytes })
+  }
+  files.sort((left, right) => left.path.localeCompare(right.path))
+  const digest = computeArtifactDigest(files)
+  if (digest !== buildInfo.artifactDigest) {
+    throw new Error('served files do not reproduce the build-info digest')
   }
 }
 
@@ -748,8 +840,63 @@ async function runProductSmoke(
       .getByTestId('users-page')
       .waitFor({ state: 'visible', timeout: 30_000 })
     const visibleCookies = await page.evaluate(() => document.cookie)
-    if (visibleCookies.includes('session')) {
+    if (visibleCookies.includes(SESSION_COOKIE)) {
       throw new Error('the session cookie must be HttpOnly')
+    }
+    const cookies = await page.context().cookies()
+    const sessionCookie = cookies.find(cookie => cookie.name === SESSION_COOKIE)
+    const csrfCookie = cookies.find(cookie => cookie.name === CSRF_COOKIE)
+    if (!sessionCookie || !csrfCookie) {
+      throw new Error('login did not issue both Admin cookies')
+    }
+    if (!sessionCookie.httpOnly) {
+      throw new Error('the session cookie must be HttpOnly')
+    }
+    if (sessionCookie.sameSite !== 'Lax' || csrfCookie.sameSite !== 'Lax') {
+      throw new Error('Admin cookies must use SameSite=Lax')
+    }
+    if (context.mode === 'online' && !sessionCookie.secure) {
+      throw new Error('the session cookie must be Secure online')
+    }
+    if (context.mode === 'local' && sessionCookie.secure) {
+      throw new Error('the local session cookie must not require HTTPS')
+    }
+
+    const origin = new URL(page.url()).origin
+    const session = await page.request.get(`${origin}/api/auth/session`)
+    if (session.status() !== 200) {
+      throw new Error(`session probe returned ${session.status()}`)
+    }
+    const sessionBody = (await session.json()) as {
+      user?: { role?: string }
+    }
+    const csrf = decodeURIComponent(csrfCookie.value)
+    const withoutCsrf = await page.request.patch(`${origin}/api/settings`, {
+      data: { theme: 'dark' },
+    })
+    if (withoutCsrf.status() !== 403) {
+      throw new Error('Admin mutation without CSRF must return 403')
+    }
+    const withCsrf = await page.request.patch(`${origin}/api/settings`, {
+      headers: { 'X-CSRF-Token': csrf },
+      data: { theme: 'dark' },
+    })
+    if (sessionBody.user?.role === 'viewer') {
+      if (withCsrf.status() !== 403) {
+        throw new Error('viewer Admin writes must return 403')
+      }
+    } else if (withCsrf.status() !== 200) {
+      throw new Error(`Admin settings update returned ${withCsrf.status()}`)
+    }
+    const logout = await page.request.post(`${origin}/api/auth/logout`, {
+      headers: { 'X-CSRF-Token': csrf },
+    })
+    if (logout.status() !== 204) {
+      throw new Error(`Admin logout returned ${logout.status()}`)
+    }
+    const afterLogout = await page.request.get(`${origin}/api/auth/session`)
+    if (afterLogout.status() !== 401) {
+      throw new Error('the Admin session survived logout')
     }
     return
   }
@@ -768,6 +915,67 @@ async function runProductSmoke(
   }
   const composer = page.locator('zw-ai-composer textarea')
   await composer.waitFor({ state: 'visible', timeout: 45_000 })
+  if (isRecord(healthData) && healthData.publicReplay === true) {
+    if (healthData.readOnly !== true || healthData.interactive !== false) {
+      throw new Error('public replay health does not report a read-only host')
+    }
+    await page
+      .locator('[data-testid="public-replay"]')
+      .waitFor({ state: 'visible', timeout: 20_000 })
+    if (!(await composer.isDisabled())) {
+      throw new Error('public replay composer must be disabled')
+    }
+    const probe = (await page.evaluate(async () => {
+      const readCount = async (): Promise<number> => {
+        const response = await fetch('/ai-host/snapshots?streamId=reference')
+        const body = (await response.json()) as { events?: unknown[] }
+        return Array.isArray(body.events) ? body.events.length : -1
+      }
+      const before = await readCount()
+      const response = await fetch('/ai-host/commands', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          schemaVersion: 2,
+          commandId: 'acceptance-write-probe',
+          idempotencyKey: 'acceptance-write-probe',
+          type: 'message.send',
+          target: { kind: 'conversation', id: 'workbench' },
+          payload: { text: 'acceptance must not persist this' },
+        }),
+      })
+      const body = (await response.json()) as {
+        error?: { code?: string }
+      }
+      const after = await readCount()
+      return {
+        status: response.status,
+        code: body.error?.code,
+        before,
+        after,
+      }
+    })) as {
+      status: number
+      code?: string
+      before: number
+      after: number
+    }
+    if (probe.status !== 403) {
+      throw new Error(
+        `public replay write probe returned ${probe.status}, expected 403`,
+      )
+    }
+    if (probe.code !== 'AI_HOST_PUBLIC_REPLAY_READ_ONLY') {
+      throw new Error(
+        `public replay write probe returned ${String(probe.code)}, expected AI_HOST_PUBLIC_REPLAY_READ_ONLY`,
+      )
+    }
+    if (probe.before !== probe.after || probe.before < 1) {
+      throw new Error('public replay write probe changed the event stream')
+    }
+    return
+  }
+
   const message = `[zeus-acceptance:${context.tenant ?? 'local'}] ${Date.now()}`
   await composer.fill(message)
   await page.locator('zw-ai-composer button[aria-label="Send"]').click()
@@ -871,6 +1079,7 @@ interface CheckedResponse {
   readonly headers: http.IncomingHttpHeaders
   readonly contentType: string
   readonly body: string
+  readonly bytes: Buffer
   readonly finalUrl: string
 }
 
@@ -998,11 +1207,13 @@ function requestHop(
         })
         response.on('error', reject)
         response.on('end', () => {
+          const bytes = Buffer.concat(chunks)
           resolve({
             status: response.statusCode ?? 0,
             headers: response.headers,
             contentType: String(response.headers['content-type'] ?? ''),
-            body: Buffer.concat(chunks).toString('utf8'),
+            body: bytes.toString('utf8'),
+            bytes,
           })
         })
       },

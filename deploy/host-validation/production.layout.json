@@ -1,0 +1,46 @@
+{
+  "schema": "zeus.deployment-layout/v1",
+  "environment": "production",
+  "allowedHosts": [
+    "playground.moonbyte.top",
+    "panel.moonbyte.top",
+    "admin.moonbyte.top",
+    "ai.moonbyte.top"
+  ],
+  "allowedPorts": ["8443"],
+  "sandboxUrl": "https://panel.moonbyte.top:8443/zeus-sandbox/sandbox.html",
+  "products": {
+    "webc-studio": "https://playground.moonbyte.top:8443/webc.html",
+    "native-lab": "https://playground.moonbyte.top:8443/",
+    "admin": "https://admin.moonbyte.top:8443/",
+    "ai-workbench": "https://ai.moonbyte.top:8443/"
+  },
+  "containers": {
+    "playground": "zeus-playground",
+    "admin": "zeus-admin",
+    "aiHost": "zeus-ai-host",
+    "workbench": "zeus-ai-workbench"
+  },
+  "legacyContainers": {
+    "admin": "zeus-admin-r43",
+    "aiHost": "zeus-ai-host-r43",
+    "workbench": "zeus-ai-workbench-r43"
+  },
+  "ports": {
+    "playgroundHost": 18080,
+    "playgroundSandbox": 18081,
+    "admin": 18090,
+    "workbench": 18091
+  },
+  "dataDirs": {
+    "admin": "/home/ubuntu/zeus-admin/data",
+    "ai": "/home/ubuntu/zeus-ai/data"
+  },
+  "caddyFile": "/home/ubuntu/caddy/Caddyfile",
+  "caddyUpstreams": {
+    "playground.moonbyte.top": "127.0.0.1:18080",
+    "panel.moonbyte.top": "127.0.0.1:18081",
+    "admin.moonbyte.top": "127.0.0.1:18090",
+    "ai.moonbyte.top": "127.0.0.1:18091"
+  }
+}

@@ -3,6 +3,15 @@
 # interpolated into shell command text. It requires an approved GitHub
 # Environment, the deployment gate variable, a self-hosted zeus-host runner,
 # a verified artifact bundle and an ancestor-of-main source commit.
+#
+# Modes:
+# - simulate: validate artifacts, digests, provenance and the approved layout
+#   without loading images or touching Docker services.
+# - local-integration: start an isolated Compose project on non-production
+#   ports, run the browser acceptance and remove it afterwards.
+# - production: replace the four production containers transactionally, keep
+#   them running on success, and roll back the previous containers and the
+#   verified database backup on failure.
 name: Host Deployment Stage 2
 
 on:
@@ -13,6 +22,11 @@ on:
         type: choice
         options: [staging, production]
         default: staging
+      mode:
+        description: Simulation, isolated local integration, or production transaction
+        type: choice
+        options: [simulate, local-integration, production]
+        default: simulate
       prepare-run-id:
         description: Host Deployment Prepare run id containing the verified artifact bundle
         required: true
@@ -43,10 +57,36 @@ on:
       prepare-artifact-sha256:
         description: GitHub Artifact digest of the prepare bundle (sha256:<64 hex>)
         required: true
-      simulate:
-        description: Validate and load artifacts without deploying
+      layout-name:
+        description: Approved deployment layout inside the repository deploy/ directory
+        default: deploy/host-validation/production.layout.json
+      layout-sha256:
+        description: SHA256 of the approved layout file (required for production)
+        default: ''
+      production-env-file:
+        description: Host path to the 0600 production secrets env file
+        default: /home/ubuntu/zeus-admin/.env
+      state-dir:
+        description: Host deployment state directory (locks, backups, reports)
+        default: /var/lib/zeus-deploy
+      project-name:
+        description: Compose project name used for the four deployment containers
+        default: zeus-host-validation
+      failure-injection:
+        description: Deterministic fault injection for rollback drills
+        type: choice
+        options: [none, before-up, after-backup, after-up, after-health, after-acceptance]
+        default: none
+      browsers:
+        description: Acceptance browser engines (empty means three online, one local)
+        default: ''
+      keep-local:
+        description: Keep the isolated local integration containers after success
         type: boolean
-        default: true
+        default: false
+      local-ports:
+        description: Four loopback ports for local integration
+        default: 8080,8081,8082,8083
 
 permissions:
   contents: read
@@ -60,7 +100,7 @@ jobs:
   deploy:
     environment: ${{ inputs.environment }}
     runs-on: [self-hosted, zeus-host]
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - name: Verify deployment gate
         env:
@@ -100,11 +140,11 @@ jobs:
           node-version: 24.18.0
       - name: Install script dependencies without lifecycle scripts
         run: pnpm install --ignore-scripts --frozen-lockfile
-      - name: Validate Stage 2 artifacts and (optionally) load images
+      - name: Run the Stage 2 transaction
         env:
           ZEUS_HOST_DEPLOY_ENABLED: ${{ vars.ZEUS_HOST_DEPLOY_ENABLED }}
           ZEUS_DEPLOY_INGRESS_VERIFIED: ${{ vars.ZEUS_DEPLOY_INGRESS_VERIFIED }}
-          ZEUS_DEPLOY_SIMULATE: ${{ inputs.simulate }}
+          ZEUS_DEPLOY_MODE: ${{ inputs.mode }}
           ZEUS_DEPLOY_ARTIFACT_DIR: ${{ runner.temp }}/zeus-deploy
           ZEUS_DEPLOY_MANIFEST: ${{ inputs.manifest-name }}
           ZEUS_DEPLOY_PROVENANCE: ${{ inputs.provenance-name }}
@@ -119,6 +159,36 @@ jobs:
           ZEUS_DEPLOY_PREPARE_ARTIFACTS_JSON: prepare-artifacts.json
           ZEUS_DEPLOY_PREPARE_ARTIFACT_SHA256: ${{ inputs.prepare-artifact-sha256 }}
           ZEUS_DEPLOY_PAIR: pair.json
+          ZEUS_DEPLOY_COMPOSE_FILE: ${{ github.workspace }}/deploy/host-validation/compose.yml
+          ZEUS_DEPLOY_LAYOUT: ${{ github.workspace }}/${{ inputs.layout-name }}
+          ZEUS_DEPLOY_LAYOUT_SHA256: ${{ inputs.layout-sha256 }}
+          ZEUS_DEPLOY_PRODUCTION_ENV_FILE: ${{ inputs.production-env-file }}
+          ZEUS_DEPLOY_STATE_DIR: ${{ inputs.state-dir }}
+          ZEUS_DEPLOY_PROJECT: ${{ inputs.project-name }}
+          ZEUS_DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
+          ZEUS_DEPLOY_FAILURE_INJECTION: ${{ inputs.failure-injection }}
+          ZEUS_DEPLOY_BROWSERS: ${{ inputs.browsers }}
+          ZEUS_DEPLOY_KEEP_LOCAL: ${{ inputs.keep-local }}
+          ZEUS_DEPLOY_LOCAL_PORTS: ${{ inputs.local-ports }}
           ZEUS_ACCEPTANCE_ADMIN_EMAIL: ${{ secrets.ZEUS_ACCEPTANCE_ADMIN_EMAIL }}
           ZEUS_ACCEPTANCE_ADMIN_PASSWORD: ${{ secrets.ZEUS_ACCEPTANCE_ADMIN_PASSWORD }}
-        run: pnpm exec tsx scripts/release/deployment-stage2.ts
+        run: |
+          case "$ZEUS_DEPLOY_MODE" in
+            simulate) ARGS="--simulate" ;;
+            local-integration) ARGS="--local-integration" ;;
+            production) ARGS="" ;;
+            *) echo "unknown deployment mode"; exit 2 ;;
+          esac
+          pnpm exec tsx scripts/release/deployment-stage2.ts $ARGS
+      - name: Upload deployment evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: host-deployment-stage2-evidence
+          path: |
+            ${{ runner.temp }}/zeus-deploy/deployment-transaction.json
+            ${{ runner.temp }}/zeus-deploy/deployment-acceptance.json
+            ${{ runner.temp }}/zeus-deploy/stage2-local-acceptance.json
+            ${{ runner.temp }}/zeus-deploy/deployment-acceptance.repeat.json
+          if-no-files-found: warn
+          retention-days: 30

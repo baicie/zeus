@@ -23,6 +23,7 @@ describe('AI deployment environment', () => {
     const environment = createAiDeploymentEnvironment('stage1-local')
     const env = parseEnv(environment.lines)
     expect(env.ZEUS_AI_MODE).toBe('replay')
+    expect(env.ZEUS_AI_PUBLIC_REPLAY).toBe('true')
     expect(env.ZEUS_AI_UPSTREAM_TOKEN).toBe(environment.token)
     expect(environment.token).toMatch(/^[0-9a-f]{64}$/)
     const tokens = JSON.parse(env.ZEUS_AI_TOKENS!) as Array<{
