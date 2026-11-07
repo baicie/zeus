@@ -133,8 +133,8 @@ jobs:
           pnpm exec tsx scripts/release/assemble-rc-evidence.ts
           --acceptance temp/deployment-evidence/deployment-acceptance.json
           --transaction temp/deployment-evidence/deployment-transaction.json
-          --provenance temp/deployment-evidence/acceptance/provenance.json
-          --pair temp/deployment-evidence/acceptance/pair.json
+          --provenance temp/deployment-evidence/deployment.online.provenance.json
+          --pair temp/deployment-evidence/pair.json
           --base temp/rc-approval/rc-evidence.base.json
           --out temp/release
 
