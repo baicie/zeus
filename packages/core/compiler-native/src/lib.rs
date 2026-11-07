@@ -2,6 +2,8 @@
 
 mod nesting;
 
+use std::path::Path;
+
 use napi::{Error, Result, Status};
 use napi_derive::napi;
 use zeus_compiler::{
@@ -162,7 +164,13 @@ pub fn transform_module(options: TransformModuleOptions) -> Result<TransformModu
         auto_hydrate: options.auto_hydrate.unwrap_or(false),
     };
 
-    if nesting::exceeds_nesting_cost(&core_options.source) {
+    let jsx_enabled = Path::new(&core_options.filename)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| {
+            extension.eq_ignore_ascii_case("tsx") || extension.eq_ignore_ascii_case("jsx")
+        });
+    if nesting::exceeds_nesting_cost_with_jsx(&core_options.source, jsx_enabled) {
         return Ok(CoreTransformModuleResult {
             code: String::new(),
             map: None,

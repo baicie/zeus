@@ -110,13 +110,21 @@ const MAX_NESTING_COST: u64 = 8_192 * W_JSX_ELEMENT;
 const TYPE_PARAMETER_LOOKAHEAD: usize = 4_096;
 
 /// Returns true when `source` is projected to exhaust the worker stack.
+#[cfg(test)]
 pub fn exceeds_nesting_cost(source: &str) -> bool {
+    exceeds_nesting_cost_with_jsx(source, true)
+}
+
+/// Scans with the JSX capability of the source type. A `.ts` file must never
+/// enter JSX-children mode, where brackets are text and recursion is invisible.
+pub fn exceeds_nesting_cost_with_jsx(source: &str, jsx_enabled: bool) -> bool {
     let mut scanner = Scanner {
         bytes: source.as_bytes(),
         index: 0,
         frames: Vec::new(),
         cost: 0,
         mode: Mode::Code,
+        jsx_enabled,
         // An expression may start at the beginning of a module.
         expression_expected: true,
         boundary: Boundary::None,
@@ -170,6 +178,8 @@ struct Scanner<'a> {
     frames: Vec<Frame>,
     cost: u64,
     mode: Mode,
+    /// TSX/JSX files may contain JSX elements; `.ts` files cannot.
+    jsx_enabled: bool,
     /// Whether an expression may start here. This separates `<div>` from the
     /// comparison `a < b`, and a regular expression from a division.
     expression_expected: bool,
@@ -481,17 +491,17 @@ impl Scanner<'_> {
         let jsx = self.expression_expected;
 
         match next {
-            Some(b'>') if jsx => {
+            Some(b'>') if jsx && self.jsx_enabled => {
                 self.push(FrameKind::JsxElement, W_JSX_ELEMENT, Mode::Code);
                 self.mode = Mode::JsxChildren;
                 self.index += 2;
             }
-            Some(b'/') if jsx => {
+            Some(b'/') if jsx && self.jsx_enabled => {
                 self.skip_to_tag_end();
                 self.pop_jsx_element();
             }
             Some(next) if is_identifier_start(next) || next == b'$' => {
-                if jsx && !self.starts_type_parameters() {
+                if jsx && self.jsx_enabled && !self.starts_type_parameters() {
                     self.push(FrameKind::JsxElement, W_JSX_ELEMENT, Mode::Code);
                     self.mode = Mode::JsxTag;
                     self.index += 1;
@@ -525,6 +535,13 @@ impl Scanner<'_> {
                 b'>' if depth > 0 => depth -= 1,
                 b'>' => return false,
                 b',' | b'=' if depth == 0 => return true,
+                // `<T extends U>` and `<T extends { a: string }>` are type
+                // parameters, not JSX tags.
+                b'e' if depth == 0
+                    && self.word_at(index) == Some(b"extends") =>
+                {
+                    return true
+                }
                 // A JSX tag has no braces; `{` before `>` means an attribute
                 // expression, so this is a tag after all.
                 b'{' if depth == 0 => return false,
@@ -539,7 +556,9 @@ impl Scanner<'_> {
             index += 1;
         }
 
-        false
+        // Reaching the lookahead cap without evidence must fail safe toward
+        // the tighter type-argument weight, never toward JSX text mode.
+        true
     }
 
     fn scan_jsx_tag(&mut self) {
@@ -1014,7 +1033,7 @@ fn is_identifier_continue(byte: u8) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::exceeds_nesting_cost;
+    use super::{exceeds_nesting_cost, exceeds_nesting_cost_with_jsx};
 
     fn repeat(unit: &str, times: usize) -> String {
         unit.repeat(times)
@@ -1065,6 +1084,50 @@ mod tests {
             repeat(")", depth)
         );
         assert!(exceeds_nesting_cost(&source));
+    }
+
+    #[test]
+    fn ts_generic_arrows_without_jsx_are_bounded() {
+        let depth = 50_000;
+        let source = format!(
+            "export const id = <T>(x: T) => x\nconst v = {}1{}\n",
+            repeat("(", depth),
+            repeat(")", depth)
+        );
+        assert!(exceeds_nesting_cost_with_jsx(&source, false));
+    }
+
+    #[test]
+    fn tsx_constrained_generics_are_bounded() {
+        let depth = 50_000;
+        for prefix in [
+            "export const id = <T extends unknown>(x: T) => x\n",
+            "export const id = <T extends { a: string }>(x: T) => x\n",
+            "export const id = <T extends Array<U>>(x: T) => x\n",
+        ] {
+            let source = format!(
+                "{}const v = {}1{}\n",
+                prefix,
+                repeat("(", depth),
+                repeat(")", depth)
+            );
+            assert!(
+                exceeds_nesting_cost_with_jsx(&source, true),
+                "prefix was not bounded: {prefix}"
+            );
+        }
+    }
+
+    #[test]
+    fn long_type_parameter_names_are_bounded() {
+        let depth = 50_000;
+        let source = format!(
+            "const id = <{},>(x: T) => x\nconst v = {}1{}\n",
+            "A".repeat(5_000),
+            repeat("(", depth),
+            repeat(")", depth)
+        );
+        assert!(exceeds_nesting_cost_with_jsx(&source, true));
     }
 
     #[test]
