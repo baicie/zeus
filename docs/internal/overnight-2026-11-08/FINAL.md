@@ -61,6 +61,7 @@ the earlier, separately authorized R4.4 merges (#199/#200/#201/#125).
 | F-16 | P1       | FIXED_IN_PR                     | wasm browser gate asserted the trap as expected behavior                                                       |
 | F-17 | P1       | OPEN / BLOCKED_BY_CODE          | RC-04 non-basic/UI candidate tarball coverage                                                                  |
 | F-18 | P1       | BLOCKED                         | RC-07 actual dist-tag repair (ENEEDAUTH; npmmirror registry)                                                   |
+| F-19 | P2       | OPEN / NEEDS_DECISION           | WebC `render()` string output is assigned to `innerHTML`; authors must not interpolate untrusted data          |
 
 ## 4. Root causes fixed
 
@@ -159,7 +160,8 @@ Round 3 — source self-review:
    Linux/Windows install/build.
 2. Residual DOM/WebC P2 audit list (keyed reorder, disconnect/reconnect, async
    renderer dispose, custom-element string rendering) — not reproduced as P1 in
-   this pass.
+   this pass. String render uses `innerHTML` (F-19); decide whether to document
+   it as trusted-component HTML or change the contract.
 
 ## 11. Deployment / release blockers
 
