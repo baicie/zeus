@@ -13,19 +13,19 @@
 
 ## PRs
 
-| PR        | Local evidence                                                                  | GitHub                       |
-| --------- | ------------------------------------------------------------------------------- | ---------------------------- |
-| Core #202 | RC evidence/readiness/workflow tests 6 files / 41 tests; 31-package group PASS  | 30/30 SUCCESS                |
-| Core #203 | Real Stage 2 workspace backup/restore drill PASS `ROLLED_BACK`                  | 22/22 SUCCESS                |
-| Core #204 | Signal suite 312/312; 3 P1 regressions fail pre-fix                             | running                      |
-| Core #205 | Admin WebKit 3/3                                                                | 22/22 SUCCESS                |
-| Core #206 | Rust 14/14; wasm parity 4/4; 24 constructs × 3 engines no trap; clippy clean    | running after `064b768`      |
-| Core #207 | Compiler 62/62                                                                  | 26/26 SUCCESS                |
-| Core #208 | SSR streaming 22/22                                                             | running                      |
-| Core #209 | Runtime-dom suite passed before lint-only follow-up; lint/tsc fixed in `9fa58c6` | running                      |
-| UI #126   | `STORAGE_SAFETY_PASS`; generation dirs; 20s Windows timeouts                     | 26 SUCCESS / 1 running       |
-| UI #127   | Input regression 8/8 jsdom                                                      | running                      |
-| UI #128   | Typecheck PASS; DOM-pooling E2E regression                                      | 27 SUCCESS                   |
+| PR        | Local evidence                                                                 | GitHub                  |
+| --------- | ------------------------------------------------------------------------------ | ----------------------- |
+| Core #202 | RC evidence/readiness/workflow tests 6 files / 41 tests; 31-package group PASS | 30/30 SUCCESS           |
+| Core #203 | Real Stage 2 workspace backup/restore drill PASS `ROLLED_BACK`                 | 22/22 SUCCESS           |
+| Core #204 | Signal suite 312/312; 3 P1 regressions fail pre-fix                            | running                 |
+| Core #205 | Admin WebKit 3/3                                                               | 22/22 SUCCESS           |
+| Core #206 | Rust 14/14; wasm parity 4/4; 24 constructs × 3 engines no trap; clippy clean   | running after `ce594f7` |
+| Core #207 | Compiler 62/62; span 3/3; allocator test; 3,200 Show 545→27ms                  | running after `608123e` |
+| Core #208 | SSR streaming 22/22                                                            | 23/23 SUCCESS           |
+| Core #209 | Runtime-dom suite passed before lint follow-up; Admin drain cherry-picked      | running after `658181a` |
+| UI #126   | `STORAGE_SAFETY_PASS`; generation dirs; 20s Windows timeouts                   | 27 SUCCESS / 1 SKIP     |
+| UI #127   | Input regression 8/8 jsdom                                                     | 27 SUCCESS / 1 SKIP     |
+| UI #128   | Typecheck PASS; DOM-pooling E2E regression                                     | 27 SUCCESS              |
 
 ## Compiler preflight matrix (Core #206)
 

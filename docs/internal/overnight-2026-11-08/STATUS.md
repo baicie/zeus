@@ -1,6 +1,6 @@
 # Overnight Mission Status — 2026-11-08
 
-Last checkpoint: 2026-11-08 02:55 Asia/Shanghai
+Last checkpoint: 2026-11-08 03:15 Asia/Shanghai
 Deadline: 2026-11-08 12:00 Asia/Shanghai
 
 ## Baseline
@@ -24,19 +24,19 @@ No merge, npm publish, Tag, dist-tag or production deployment in this mission.
 
 ## Open Draft PRs
 
-| PR        | Branch                                | Head      | Status                                                         |
-| --------- | ------------------------------------- | --------- | -------------------------------------------------------------- |
-| Core #202 | `fix/r5-rc-gates`                     | `41bec81` | CI 30/30 SUCCESS; RC-01/02/03/05/06 gates                      |
-| Core #203 | `fix/r5-ai-workspace-backup`          | `64f6675` | CI 22/22 SUCCESS; real Stage 2 drill PASS                      |
-| Core #204 | `fix/r5-signal-error-isolation`       | `020dcbf` | signal 312/312; CI running                                     |
-| Core #205 | `fix/r5-admin-input-stability`        | `872be70` | CI 22/22 SUCCESS; WebKit 3/3                                   |
-| Core #206 | `fix/r5-compiler-preflight`           | `064b768` | native wasm preflight; Rust 14/14; wasm parity 4/4; CI running |
-| Core #207 | `fix/r5-empty-fragment-codegen`       | `cb7436a` | CI 26/26 SUCCESS; compiler 62/62                               |
-| Core #208 | `fix/r5-ssr-streaming-safety`         | `739cfad` | streaming 22/22; CI running                                    |
-| Core #209 | `fix/r5-hydration-form-state`         | `9fa58c6` | lint/tsc fixes pushed; CI running                              |
-| UI #126   | `fix/r5-public-replay-storage-safety` | `ffe7801` | CI 26 SUCCESS / 1 running                                      |
-| UI #127   | `test/r5-input-controlled-writeback`  | `3c858cf` | CI running                                                     |
-| UI #128   | `fix/r5-datagrid-focus-restore`       | `c13d0d3` | CI 27 SUCCESS; E2E regression                                  |
+| PR        | Branch                                | Head      | Status                                                               |
+| --------- | ------------------------------------- | --------- | -------------------------------------------------------------------- |
+| Core #202 | `fix/r5-rc-gates`                     | `41bec81` | CI 30/30 SUCCESS; RC-01/02/03/05/06 gates                            |
+| Core #203 | `fix/r5-ai-workspace-backup`          | `64f6675` | CI 22/22 SUCCESS; real Stage 2 drill PASS                            |
+| Core #204 | `fix/r5-signal-error-isolation`       | `8fa5774` | signal 312/312; import-order fix; CI running                         |
+| Core #205 | `fix/r5-admin-input-stability`        | `872be70` | CI 22/22 SUCCESS; WebKit 3/3                                         |
+| Core #206 | `fix/r5-compiler-preflight`           | `ce594f7` | shared native/wasm preflight; diagnostic matrix coverage; CI running |
+| Core #207 | `fix/r5-empty-fragment-codegen`       | `608123e` | empty Fragment + O(N²) span/name fix; compiler 62/62; CI running     |
+| Core #208 | `fix/r5-ssr-streaming-safety`         | `739cfad` | streaming 22/22; CI 23/23 SUCCESS                                    |
+| Core #209 | `fix/r5-hydration-form-state`         | `658181a` | lint/tsc fixed; #205 drain cherry-picked; CI running                 |
+| UI #126   | `fix/r5-public-replay-storage-safety` | `ffe7801` | CI 27 SUCCESS / 1 SKIP                                               |
+| UI #127   | `test/r5-input-controlled-writeback`  | `3c858cf` | CI 27 SUCCESS / 1 SKIP                                               |
+| UI #128   | `fix/r5-datagrid-focus-restore`       | `c13d0d3` | CI 27 SUCCESS; E2E regression                                        |
 
 ## Key evidence
 
@@ -59,6 +59,10 @@ No merge, npm publish, Tag, dist-tag or production deployment in this mission.
   trap and the same instance stays usable. 24 constructs probed at their
   calibrated limits in Chromium, Firefox and WebKit: no trap.
 - Empty Fragment root declares `$zeusTmpl`; compiler 62/62.
+- O(N²) lowering: `SourceIndex::position` counted UTF-16 columns from the line
+  start, so one-line generated components were quadratic. Checkpoints every
+  256 bytes: 3,200 nested Show 545ms → 27ms, 6,400 at 41ms, linear. Identifier
+  suffix allocation now advances per base instead of rescanning.
 - SSR streaming: surrogate pairs, `flushAt` validation and async iterator
   cleanup covered; 22/22.
 - Hydration form state: only native form controls skip the first adopted write;
