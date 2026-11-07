@@ -11,21 +11,21 @@
 | UI CI `7a38f18`             | PASS         | Run 42386246924                                   |
 | UI Canary Compatibility     | PASS         | Run 42356761415                                   |
 
-## PRs
+## PRs — final
 
-| PR        | Local evidence                                                                 | GitHub                  |
-| --------- | ------------------------------------------------------------------------------ | ----------------------- |
-| Core #202 | RC evidence/readiness/workflow tests 6 files / 41 tests; 31-package group PASS | 30/30 SUCCESS           |
-| Core #203 | Real Stage 2 workspace backup/restore drill PASS `ROLLED_BACK`                 | 22/22 SUCCESS           |
-| Core #204 | Signal suite 312/312; 3 P1 regressions fail pre-fix                            | running                 |
-| Core #205 | Admin WebKit 3/3                                                               | 22/22 SUCCESS           |
-| Core #206 | Rust 14/14; wasm parity 4/4; 24 constructs × 3 engines no trap; clippy clean   | running after `ce594f7` |
-| Core #207 | Compiler 62/62; span 3/3; allocator test; 3,200 Show 545→27ms                  | running after `608123e` |
-| Core #208 | SSR streaming 22/22                                                            | 23/23 SUCCESS           |
-| Core #209 | Runtime-dom suite passed before lint follow-up; Admin drain cherry-picked      | running after `658181a` |
-| UI #126   | `STORAGE_SAFETY_PASS`; generation dirs; 20s Windows timeouts                   | 27 SUCCESS / 1 SKIP     |
-| UI #127   | Input regression 8/8 jsdom                                                     | 27 SUCCESS / 1 SKIP     |
-| UI #128   | Typecheck PASS; DOM-pooling E2E regression                                     | 27 SUCCESS              |
+| PR        | Local evidence                                                               | GitHub              |
+| --------- | ---------------------------------------------------------------------------- | ------------------- |
+| Core #202 | 25 files / 190 tests; `tsc`, ESLint, Prettier PASS                           | 30/30 SUCCESS       |
+| Core #203 | real Stage 2 workspace backup/restore drill PASS `ROLLED_BACK`               | 22/22 SUCCESS       |
+| Core #204 | signal 20 files / 312 tests PASS                                             | 23/23 SUCCESS       |
+| Core #205 | Admin WebKit 3/3                                                             | 22/22 SUCCESS       |
+| Core #206 | Rust 14/14; wasm parity 4/4; 24 constructs × 3 engines no trap; clippy clean | 30/30 SUCCESS       |
+| Core #207 | compiler 62/62 + lib 5/5; 3,200 Show 545→27 ms; clippy/fmt clean             | 26/26 SUCCESS       |
+| Core #208 | SSR streaming 22/22                                                          | 23/23 SUCCESS       |
+| Core #209 | runtime-dom 412/412; `tsc`/ESLint PASS; Admin three-engine PASS              | 23/23 SUCCESS       |
+| UI #126   | `STORAGE_SAFETY_PASS`; generation dirs; Windows test skip documented         | 27 SUCCESS / 1 SKIP |
+| UI #127   | input regression 8/8 jsdom                                                   | 27 SUCCESS / 1 SKIP |
+| UI #128   | typecheck PASS; DOM-pooling E2E regression                                   | 27 SUCCESS / 1 SKIP |
 
 ## Compiler preflight matrix (Core #206)
 
@@ -39,8 +39,8 @@
 
 ## Not run
 
-- Full three-engine Playground/Admin/AI acceptance on every PR branch: runner
-  backlog; individual PR checks cover the touched surfaces.
+- Full non-basic create-zeus candidate template builds (including UI
+  `@zeus-web` tarballs): RC-04 remainder.
 - Real online four-product acceptance for RC evidence: BLOCKED (no deployment
   authorization).
 - VoiceOver/NVDA/manual A11y, 200% zoom, physical mobile: NOT_RUN (human).
