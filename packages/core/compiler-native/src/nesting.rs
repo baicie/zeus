@@ -537,11 +537,7 @@ impl Scanner<'_> {
                 b',' | b'=' if depth == 0 => return true,
                 // `<T extends U>` and `<T extends { a: string }>` are type
                 // parameters, not JSX tags.
-                b'e' if depth == 0
-                    && self.word_at(index) == Some(b"extends") =>
-                {
-                    return true
-                }
+                b'e' if depth == 0 && self.word_at(index) == Some(b"extends") => return true,
                 // A JSX tag has no braces; `{` before `>` means an attribute
                 // expression, so this is a tag after all.
                 b'{' if depth == 0 => return false,
