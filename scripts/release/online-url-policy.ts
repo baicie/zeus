@@ -20,6 +20,41 @@ const HOP_TIMEOUT_MS = 15_000
 export interface ApprovedUrlPolicy {
   readonly allowedHosts: readonly string[]
   readonly allowedPorts: readonly string[]
+  /**
+   * Optional operator-supplied address pins. Used when local DNS is intercepted
+   * (for example by a development VPN) but the real public addresses are known.
+   * Every address is still validated as public and TLS still uses the hostname.
+   */
+  readonly hostAddresses?: Readonly<
+    Record<string, readonly { address: string; family: number }[]>
+  >
+}
+
+export function createHostAddressMap(
+  values: readonly string[],
+): Record<string, readonly { address: string; family: number }[]> {
+  const map: Record<string, readonly { address: string; family: number }[]> = {}
+  for (const value of values) {
+    for (const item of value.split(',')) {
+      const entry = item.trim()
+      if (!entry) continue
+      const separator = entry.indexOf('=')
+      if (separator <= 0) {
+        throw new Error('host map entries must be host=address')
+      }
+      const host = entry.slice(0, separator).trim().toLowerCase()
+      const address = entry.slice(separator + 1).trim()
+      const family = net.isIP(address)
+      if (!host || family === 0) {
+        throw new Error(`host map entry ${entry} is not host=IP`)
+      }
+      if (isPrivateAddress(address)) {
+        throw new Error(`host map address for ${host} is not public`)
+      }
+      map[host] = [{ address, family }]
+    }
+  }
+  return map
 }
 
 export interface ApprovedResponse {
@@ -100,8 +135,20 @@ export function assertApprovedHttpsUrl(
 
 export async function resolvePublicAddresses(
   hostname: string,
+  mapped?: Readonly<
+    Record<string, readonly { address: string; family: number }[]>
+  >,
 ): Promise<Array<{ address: string; family: number }>> {
   const host = hostname.replace(/^\[|\]$/g, '')
+  const pinned = mapped?.[host]
+  if (pinned && pinned.length > 0) {
+    for (const entry of pinned) {
+      if (isPrivateAddress(entry.address)) {
+        throw new Error(`host ${host} is mapped to a private address`)
+      }
+    }
+    return [...pinned]
+  }
   const addresses = await dnsLookup(host, { all: true, verbatim: true })
   if (addresses.length === 0) throw new Error(`no DNS address for ${host}`)
   for (const entry of addresses) {
@@ -145,7 +192,10 @@ export async function fetchApproved(
   let current = assertApprovedHttpsUrl(value, policy)
   const redirects: string[] = []
   for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
-    const addresses = await resolvePublicAddresses(current.hostname)
+    const addresses = await resolvePublicAddresses(
+      current.hostname,
+      policy.hostAddresses,
+    )
     const response = await requestApproved(current, addresses)
     if (isRedirect(response.status)) {
       const location = response.headers.location
@@ -204,7 +254,10 @@ async function handleConnect(
     if (!policy.allowedPorts.includes(parsed.port)) {
       throw new Error('port is not approved')
     }
-    const addresses = await resolvePublicAddresses(parsed.hostname)
+    const addresses = await resolvePublicAddresses(
+      parsed.hostname,
+      policy.hostAddresses,
+    )
     const address = addresses[0]
     if (!address) throw new Error('no address')
     const upstream = net.connect({
