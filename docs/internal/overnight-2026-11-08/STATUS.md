@@ -17,7 +17,7 @@ No merge, npm publish, Tag, dist-tag or production deployment in this mission.
 | PR        | Branch                                | Head      | CI                  |
 | --------- | ------------------------------------- | --------- | ------------------- |
 | Core #202 | `fix/r5-rc-gates`                     | `abbfd35` | 30/30 SUCCESS       |
-| Core #203 | `fix/r5-ai-workspace-backup`          | `64f6675` | 22/22 SUCCESS       |
+| Core #203 | `fix/r5-ai-workspace-backup`          | `fa0c55c` | 22/22 SUCCESS       |
 | Core #204 | `fix/r5-signal-error-isolation`       | `8fa5774` | 23/23 SUCCESS       |
 | Core #205 | `fix/r5-admin-input-stability`        | `872be70` | 22/22 SUCCESS       |
 | Core #206 | `fix/r5-compiler-preflight`           | `ce594f7` | 30/30 SUCCESS       |

@@ -19,7 +19,7 @@ blocked, not code failures.
 
 | Repo | Start / final main                                     | Mission branches                                                                                                               |
 | ---- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| Core | `39f90c7f1e73721e805914d19e53c456d0913a55` (unchanged) | #202 `dfa6794`, #203 `64f6675`, #204 `8fa5774`, #205 `872be70`, #206 `ce594f7`, #207 `08a872e`, #208 `739cfad`, #209 `658181a` |
+| Core | `39f90c7f1e73721e805914d19e53c456d0913a55` (unchanged) | #202 `dfa6794`, #203 `fa0c55c`, #204 `8fa5774`, #205 `872be70`, #206 `ce594f7`, #207 `08a872e`, #208 `739cfad`, #209 `658181a` |
 | UI   | `7a38f18abe79b9c969bbe04d23b9e80c0ab1d937` (unchanged) | #126 `ffe7801`, #127 `3c858cf`, #128 `c13d0d3`                                                                                 |
 
 No branch was merged into either main branch. The only main-branch changes are
@@ -69,8 +69,9 @@ the earlier, separately authorized R4.4 merges (#199/#200/#201/#125).
    `insertText`; fixed in UI #128 and drained deterministically in Core #205.
 2. **AI storage** — destructive `rmSync(workspaceRoot)` replaced by versioned
    generation directories with broad-root and symlink rejection (UI #126).
-3. **AI workspace rollback** — `ai-workspace.tgz` + SHA-256 + atomic restore in
-   the Stage 2 transaction (Core #203); real `ROLLED_BACK` drill passed.
+3. **AI workspace rollback** — `ai-workspace.tgz` + SHA-256; restore keeps the
+   previous tree until the new move and chown commit, then deletes it (Core #203);
+   real `ROLLED_BACK` drill passed.
 4. **RC evidence** — only trusted Stage 2 artifacts, bound to repo/workflow/run/
    commits/environment/digests/staleness; negative cases fail closed (#202).
 5. **Native/WASM preflight** — scanner shared in `zeus_compiler`, per-target
