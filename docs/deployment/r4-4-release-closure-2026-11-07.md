@@ -117,10 +117,13 @@ Core main `e193cf50ad3cbe1d4c14e48584339352c2b75edf`；UI main
 - `pnpm exec vitest run examples/admin/server/__tests__`：22 tests PASS（Session/CSRF/
   Cookie/角色/限流/备份恢复/损坏拒绝/acceptance TTL）。
 - 生产 Admin 当前仍运行 R4.3 镜像；`/api/auth/session` 401、HSTS/CSP 正常。
-- 2026-11-07 已按授权轮换生产 `.env` 的 viewer 密码；Admin DB 只有 1 个 active admin、
-  0 个 viewer 账号，因此没有 viewer 哈希需要更新，admin 行未修改。
-  `admin_viewer_distinct=true`；本地 managed 文件为
-  `/Users/liuzhiwei/Downloads/docs/zeus-admin-viewer-password.txt`（0600）。
+- 2026-11-07 已按授权轮换生产 Admin 凭据：Admin DB 只有 1 个 active admin、0 个 viewer
+  账号；admin 哈希已更新，`.env` 的 `ZEUS_ADMIN_PASSWORD` 与
+  `ZEUS_ADMIN_VIEWER_PASSWORD` 均替换为新随机值，`admin_viewer_distinct=true`。
+- 线上验证：admin 登录 200（role=admin）、session 200、CSRF logout 204、logout 后
+  session 401。本地 managed 文件
+  `/Users/liuzhiwei/Downloads/docs/zeus-admin-credentials.txt`（0600，含 admin email/
+  admin password/viewer password；viewer 当前无持久账号）。
 - 生产数据库未做破坏性恢复；恢复演练只在隔离数据目录/容器中进行。
 
 ## F. Playground UX / P0
