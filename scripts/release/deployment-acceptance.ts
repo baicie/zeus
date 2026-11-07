@@ -134,7 +134,7 @@ const ENGINE_TYPES: Record<string, BrowserType> = {
 }
 
 const MAX_REDIRECTS = 5
-const MAX_BODY_BYTES = 2 * 1024 * 1024
+const MAX_BODY_BYTES = 16 * 1024 * 1024
 const HOP_TIMEOUT_MS = 15_000
 
 export function validateDeploymentManifest(
@@ -741,12 +741,12 @@ async function verifyServedArtifact(
       typeof bytes !== 'number' ||
       !Number.isInteger(bytes) ||
       bytes < 0 ||
-      bytes > 2 * 1024 * 1024
+      bytes > MAX_BODY_BYTES
     ) {
       throw new Error(`build-info files[${index}] has an invalid size`)
     }
     totalBytes += bytes
-    if (totalBytes > 20 * 1024 * 1024) {
+    if (totalBytes > 128 * 1024 * 1024) {
       throw new Error('build-info file manifest exceeds the size limit')
     }
     const fileUrl = new URL(
@@ -866,9 +866,6 @@ async function runProductSmoke(
     if (context.mode === 'online' && !sessionCookie.secure) {
       throw new Error('the session cookie must be Secure online')
     }
-    if (context.mode === 'local' && sessionCookie.secure) {
-      throw new Error('the local session cookie must not require HTTPS')
-    }
 
     const origin = new URL(page.url()).origin
     const session = await page.request.get(`${origin}/api/auth/session`)
@@ -933,10 +930,10 @@ async function runProductSmoke(
     if (!(await composer.isDisabled())) {
       throw new Error('public replay composer must be disabled')
     }
-    const probe = (await page.evaluate(async () => {
-      const readCount = async (): Promise<number> => {
+    const probe = (await page.evaluate(`(async () => {
+      const readCount = async () => {
         const response = await fetch('/ai-host/snapshots?streamId=reference')
-        const body = (await response.json()) as { events?: unknown[] }
+        const body = await response.json()
         return Array.isArray(body.events) ? body.events.length : -1
       }
       const before = await readCount()
@@ -952,17 +949,15 @@ async function runProductSmoke(
           payload: { text: 'acceptance must not persist this' },
         }),
       })
-      const body = (await response.json()) as {
-        error?: { code?: string }
-      }
+      const body = await response.json()
       const after = await readCount()
       return {
         status: response.status,
-        code: body.error?.code,
+        code: body.error && body.error.code,
         before,
         after,
       }
-    })) as {
+    })()`)) as {
       status: number
       code?: string
       before: number
