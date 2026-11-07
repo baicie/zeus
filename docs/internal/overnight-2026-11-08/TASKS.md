@@ -20,6 +20,8 @@
       UI #126/#127/#128; none merged or converted to Ready.
 - [x] Publish `FINAL.md` with verdict `BLOCKED_BY_CODE` (RC-04 remainder).
 
+- [x] All mission PRs green (#202–#209, UI #126–#128); final report `FINAL.md`.
+
 ## Next (highest priority)
 
 1. RC-04: extend candidate tarball coverage to non-basic templates and UI

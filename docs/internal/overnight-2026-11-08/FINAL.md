@@ -1,9 +1,9 @@
 # Zeus 0.2.0 — Overnight Mission Final Report
 
-Report time: 2026-11-08 03:55 Asia/Shanghai
+Report time: 2026-11-08 04:05 Asia/Shanghai
 Mission start: 2026-11-08 00:08 Asia/Shanghai (prompt received)
-Active runtime: ~3 h 47 min
-Last checkpoint: `18b40f4` on `docs/overnight-2026-11-08`
+Active runtime: ~3 h 57 min
+Final checkpoint: `05fa711` plus this report commit on `docs/overnight-2026-11-08`
 
 ## Final verdict
 
@@ -19,7 +19,7 @@ blocked, not code failures.
 
 | Repo | Start / final main                                     | Mission branches                                                                                                               |
 | ---- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| Core | `39f90c7f1e73721e805914d19e53c456d0913a55` (unchanged) | #202 `dfa6794`, #203 `fa0c55c`, #204 `8fa5774`, #205 `872be70`, #206 `ce594f7`, #207 `08a872e`, #208 `739cfad`, #209 `658181a` |
+| Core | `39f90c7f1e73721e805914d19e53c456d0913a55` (unchanged) | #202 `dfa6794`, #203 `50810e2`, #204 `8fa5774`, #205 `872be70`, #206 `ce594f7`, #207 `08a872e`, #208 `739cfad`, #209 `658181a` |
 | UI   | `7a38f18abe79b9c969bbe04d23b9e80c0ab1d937` (unchanged) | #126 `ffe7801`, #127 `3c858cf`, #128 `c13d0d3`                                                                                 |
 
 No branch was merged into either main branch. The only main-branch changes are

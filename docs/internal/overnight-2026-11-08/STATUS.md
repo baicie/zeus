@@ -1,6 +1,6 @@
 # Overnight Mission Status — 2026-11-08
 
-Last checkpoint: 2026-11-08 03:40 Asia/Shanghai
+Last checkpoint: 2026-11-08 04:05 Asia/Shanghai
 Deadline: 2026-11-08 12:00 Asia/Shanghai
 
 ## Baseline
