@@ -28,6 +28,7 @@ import {
 import {
   assertApprovedHttpsUrl,
   createApprovedPorts,
+  createHostAddressMap,
   fetchApproved,
   startPinnedProxy,
   type ApprovedResponse,
@@ -54,6 +55,9 @@ export interface PlaygroundAcceptanceOptions {
   readonly uiCommit: string
   readonly engines: readonly string[]
   readonly allowedPorts: readonly string[]
+  readonly hostAddresses?: Readonly<
+    Record<string, readonly { address: string; family: number }[]>
+  >
   readonly sourceTree?: string
   readonly imageRef?: string
   readonly imageId?: string
@@ -144,6 +148,9 @@ export async function runPlaygroundOnlineAcceptance(
     policy = {
       allowedHosts: uniqueHosts(options.hostUrl, options.sandboxUrl),
       allowedPorts: options.allowedPorts,
+      ...(options.hostAddresses
+        ? { hostAddresses: options.hostAddresses }
+        : {}),
     }
     host = assertApprovedHttpsUrl(options.hostUrl, policy)
     sandbox = assertApprovedHttpsUrl(options.sandboxUrl, policy)
@@ -153,6 +160,13 @@ export async function runPlaygroundOnlineAcceptance(
     evidence.push(`host ${host.href}`)
     evidence.push(`sandbox ${sandbox.href}`)
     evidence.push(`approved ports ${policy.allowedPorts.join(', ')}`)
+    if (options.hostAddresses) {
+      evidence.push(
+        `operator host pins ${Object.entries(options.hostAddresses)
+          .map(([name, values]) => `${name}=${values[0]?.address ?? ''}`)
+          .join(', ')}`,
+      )
+    }
   } catch (error) {
     return blocked(
       options,
@@ -747,9 +761,13 @@ async function runWebCStudio(
   if (!(await vue.innerText()).includes('Vue: 7')) {
     throw new Error('Vue host did not receive the Custom Element')
   }
-  await frame
-    .locator('[data-testid="sandbox-react-host"] z-counter button')
-    .click()
+  await frame.evaluate(`(() => {
+    const button = document.querySelector(
+      '[data-testid="sandbox-react-host"] z-counter button',
+    )
+    if (!button) throw new Error('React-hosted counter button is missing')
+    button.click()
+  })()`)
   await page.waitForTimeout(400)
   if (!(await react.innerText()).includes('React: 4')) {
     throw new Error('React-hosted Custom Element did not update')
@@ -922,6 +940,7 @@ function main(): void {
       'ui-commit': { type: 'string' },
       browsers: { type: 'string', default: 'chromium,firefox,webkit' },
       'allow-port': { type: 'string', multiple: true },
+      'host-map': { type: 'string', multiple: true },
       'source-tree': { type: 'string' },
       'image-ref': { type: 'string' },
       'image-id': { type: 'string' },
@@ -948,6 +967,11 @@ function main(): void {
         .split(',')
         .filter(Boolean),
   )
+  const hostAddresses = values['host-map']
+    ? createHostAddressMap(values['host-map'])
+    : process.env.ZEUS_ACCEPTANCE_HOST_MAP
+      ? createHostAddressMap([process.env.ZEUS_ACCEPTANCE_HOST_MAP])
+      : undefined
   const engines = (values.browsers ?? '')
     .split(',')
     .map(value => value.trim())
@@ -959,6 +983,7 @@ function main(): void {
     uiCommit,
     engines,
     allowedPorts,
+    ...(hostAddresses ? { hostAddresses } : {}),
     ...(values['source-tree']
       ? { sourceTree: values['source-tree'] }
       : { sourceTree: gitTree() }),

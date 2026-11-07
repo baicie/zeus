@@ -50,6 +50,17 @@ function input(overrides: Partial<Stage2Input> = {}): Stage2Input {
     adminEmail: 'acceptance@example.test',
     adminPassword: 'password-123456',
     simulate: true,
+    composeFile: '/repo/deploy/host-validation/compose.yml',
+    layoutFile: '',
+    layoutSha256: '',
+    productionEnvFile: '',
+    stateDir: '/tmp/zeus-stage2-state',
+    projectName: 'zeus-host-validation',
+    environment: 'production',
+    failureInjection: 'none',
+    browsers: '',
+    keepLocal: false,
+    localPorts: '9080,9081,9082,9083',
     ...overrides,
   }
 }
@@ -96,6 +107,7 @@ function fixture(
   const workbench =
     (images.workbench as ReturnType<typeof image> | undefined) ?? fallback
   const candidate = {
+    schema: 'zeus.deployment-candidate/v1',
     coreCommit: overrides.core ?? core,
     uiCommit: overrides.ui ?? ui,
     images,

@@ -18,7 +18,13 @@ function manifest(overrides: Record<string, unknown> = {}) {
     schema: DEPLOYMENT_MANIFEST_SCHEMA,
     coreCommit: core,
     uiCommit: ui,
-    allowedHosts: ['studio.example.com', 'admin.example.com', 'ai.example.com'],
+    allowedHosts: [
+      'studio.example.com',
+      'sandbox.example.com',
+      'admin.example.com',
+      'ai.example.com',
+    ],
+    sandboxUrl: 'https://sandbox.example.com/sandbox.html',
     products: [
       {
         product: 'webc-studio',
@@ -75,6 +81,7 @@ describe('validateDeploymentManifest', () => {
     expect(validated.manifest?.products).toHaveLength(4)
     expect(validated.manifest?.allowedHosts).toEqual([
       'studio.example.com',
+      'sandbox.example.com',
       'admin.example.com',
       'ai.example.com',
     ])
@@ -136,6 +143,7 @@ describe('validateDeploymentManifest', () => {
   it('allows loopback HTTP only for local acceptance', () => {
     const local = manifest({
       allowedHosts: [],
+      sandboxUrl: 'http://localhost:8081/sandbox.html',
       products: [
         {
           product: 'webc-studio',

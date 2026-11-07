@@ -12,25 +12,37 @@ import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 
 import { verifyProvenance } from './build-info'
-import { runDeploymentAcceptance } from './deployment-acceptance'
-import { createAiDeploymentEnvironment } from './deployment-ai'
+import {
+  PRODUCT_IMAGES,
+  REQUIRED_IMAGES,
+  readLayout,
+  resolveTrustedDeploymentFile,
+  validateLayout,
+  verifyLayoutDigest,
+} from './deployment-layout'
+import {
+  assertCredentialSeparation,
+  readProductionSecrets,
+  runDeploymentTransaction,
+  type FailureInjection,
+  type TransactionImage,
+} from './deployment-transaction'
+
+export { REQUIRED_IMAGES } from './deployment-layout'
 
 export const TENANT_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])$/
 const SHA_PATTERN = /^[0-9a-f]{40}$/i
 const DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/i
 const SAFE_FILE = /^[A-Za-z0-9._-]+$/
-export const REQUIRED_IMAGES = [
-  'playground',
-  'admin',
-  'aiHost',
-  'workbench',
-] as const
-const PRODUCT_IMAGES: Record<string, string> = {
-  'webc-studio': 'playground',
-  'native-lab': 'playground',
-  admin: 'admin',
-  'ai-workbench': 'workbench',
-}
+const SAFE_PROJECT = /^[a-z0-9][a-z0-9_.-]{1,62}$/
+const FAILURE_INJECTIONS: readonly FailureInjection[] = [
+  'none',
+  'before-up',
+  'after-up',
+  'after-health',
+  'after-acceptance',
+  'after-backup',
+]
 
 export interface Stage2Input {
   readonly artifactDir: string
@@ -49,10 +61,22 @@ export interface Stage2Input {
   readonly pairName: string
   readonly enabled: string
   readonly ingressVerified: string
+  /** Dedicated acceptance account; never the production administrator. */
   readonly adminEmail: string
   readonly adminPassword: string
   readonly simulate: boolean
   readonly localIntegration?: boolean
+  readonly composeFile: string
+  readonly layoutFile: string
+  readonly layoutSha256: string
+  readonly productionEnvFile: string
+  readonly stateDir: string
+  readonly projectName: string
+  readonly environment: string
+  readonly failureInjection: string
+  readonly browsers: string
+  readonly keepLocal: boolean
+  readonly localPorts: string
 }
 
 export function validateTenant(value: string): string {
@@ -161,8 +185,54 @@ export function validateStage2Input(input: Stage2Input): string[] {
       errors.push(`${label} has an invalid format`)
     }
   }
-  if (!input.adminEmail || !input.adminPassword) {
+  if (!input.localIntegration && (!input.adminEmail || !input.adminPassword)) {
     errors.push('acceptance credentials are missing')
+  }
+  if (input.simulate) return errors
+  if (!input.composeFile) {
+    errors.push('a trusted Compose file is required')
+  }
+  if (!input.stateDir || !path.isAbsolute(input.stateDir)) {
+    errors.push('deployment state directory must be absolute')
+  }
+  if (!SAFE_PROJECT.test(input.projectName)) {
+    errors.push('deployment project name is invalid')
+  }
+  if (
+    !FAILURE_INJECTIONS.includes(input.failureInjection as FailureInjection)
+  ) {
+    errors.push('failure injection mode is invalid')
+  }
+  if (!input.localIntegration && input.failureInjection !== 'none') {
+    errors.push(
+      'failure injection is only allowed for local integration drills',
+    )
+  }
+  if (input.localIntegration) {
+    const ports = input.localPorts
+      .split(',')
+      .map(value => Number(value.trim()))
+      .filter(value => Number.isInteger(value) && value > 0 && value < 65536)
+    if (ports.length !== 4) {
+      errors.push('local integration requires four distinct TCP ports')
+    }
+    if (new Set(ports).size !== ports.length) {
+      errors.push('local integration ports must be distinct')
+    }
+    return errors
+  }
+  if (!input.layoutFile)
+    errors.push('an approved deployment layout is required')
+  if (!input.layoutSha256) {
+    errors.push('the deployment layout digest is required')
+  } else if (!DIGEST_PATTERN.test(input.layoutSha256)) {
+    errors.push('the deployment layout digest is invalid')
+  }
+  if (!input.productionEnvFile) {
+    errors.push('the production secrets file is required')
+  }
+  if (!input.environment) {
+    errors.push('the deployment environment is required')
   }
   return errors
 }
@@ -267,9 +337,43 @@ export function validateCandidateIdentity(
     if (!DIGEST_PATTERN.test(String(candidateImage.ociSha256))) {
       errors.push(`candidate image ${imageKey} has an invalid archive digest`)
     }
+    if (
+      typeof candidateImage.image !== 'string' ||
+      !/^[A-Za-z0-9][A-Za-z0-9_./:@-]{0,200}$/.test(candidateImage.image)
+    ) {
+      errors.push(`candidate image ${imageKey} has an unsafe image reference`)
+    }
+    if (
+      typeof candidateImage.ociArchive !== 'string' ||
+      candidateImage.ociArchive.length === 0 ||
+      candidateImage.ociArchive.includes('\n')
+    ) {
+      errors.push(`candidate image ${imageKey} has an unsafe archive path`)
+    }
   }
   for (const name of Object.keys(PRODUCT_IMAGES)) {
     if (!seen.has(name)) errors.push(`manifest is missing product ${name}`)
+  }
+  // The AI Host is not a user-facing manifest product, but it is deployed and
+  // must still be bound to the same Core/UI sources.
+  const aiHost = images.aiHost as Record<string, unknown> | undefined
+  if (
+    !aiHost ||
+    typeof aiHost.buildInfo !== 'object' ||
+    aiHost.buildInfo === null
+  ) {
+    errors.push('candidate image aiHost is missing buildInfo')
+  } else {
+    const info = aiHost.buildInfo as Record<string, unknown>
+    if (info.artifactDigest !== aiHost.artifactDigest) {
+      errors.push('candidate image aiHost buildInfo digest mismatch')
+    }
+    if (info.coreCommit !== input.expectedCore) {
+      errors.push('candidate image aiHost buildInfo Core mismatch')
+    }
+    if (info.uiCommit !== input.expectedUi) {
+      errors.push('candidate image aiHost buildInfo UI mismatch')
+    }
   }
   return errors
 }
@@ -315,6 +419,9 @@ export function verifyStage2Artifacts(input: {
   }
   if (provenance.schema !== 'zeus.provenance/v1') {
     throw new Error('provenance schema is not zeus.provenance/v1')
+  }
+  if (candidate.schema !== 'zeus.deployment-candidate/v1') {
+    throw new Error('candidate schema is not zeus.deployment-candidate/v1')
   }
   const products = Array.isArray(manifest.products) ? manifest.products : []
   const provenanceResult = verifyProvenance(provenance, {
@@ -409,11 +516,47 @@ export async function runStage2(
   const errors = validateStage2Input(input)
   if (errors.length > 0) throw new Error(errors.join('; '))
   const head = git(['rev-parse', 'HEAD'])
-  const main = git(['rev-parse', 'origin/main'])
+  const main = input.localIntegration ? head : git(['rev-parse', 'origin/main'])
   const artifacts = verifyStage2Artifacts({
     artifactDir: input.artifactDir,
     input,
   })
+  const composeFile = resolveTrustedDeploymentFile({
+    root: process.cwd(),
+    value: input.composeFile,
+    artifactDir: input.artifactDir,
+  })
+  if (!input.localIntegration) {
+    if (!input.layoutFile) {
+      throw new Error('an approved deployment layout is required')
+    }
+    const layoutFile = resolveTrustedDeploymentFile({
+      root: process.cwd(),
+      value: input.layoutFile,
+      artifactDir: input.artifactDir,
+    })
+    if (input.layoutSha256) verifyLayoutDigest(layoutFile, input.layoutSha256)
+    const validated = validateLayout(readLayout(layoutFile), {
+      mode: 'online',
+      environment: input.environment,
+      coreCommit: input.expectedCore,
+      uiCommit: input.expectedUi,
+    })
+    if (!validated.layout) throw new Error(validated.errors.join('; '))
+  }
+  if (input.productionEnvFile) {
+    fs.accessSync(input.productionEnvFile, fs.constants.R_OK)
+    if (!input.localIntegration) {
+      const secrets = readProductionSecrets(input.productionEnvFile)
+      assertCredentialSeparation({
+        adminEmail: secrets.ZEUS_ADMIN_EMAIL!,
+        adminPassword: secrets.ZEUS_ADMIN_PASSWORD!,
+        viewerPassword: secrets.ZEUS_ADMIN_VIEWER_PASSWORD!,
+        acceptanceEmail: input.adminEmail,
+        acceptancePassword: input.adminPassword,
+      })
+    }
+  }
   if (!input.simulate && !input.localIntegration) {
     if (!input.prepareRunJson || !input.prepareArtifactsJson) {
       throw new Error('trusted prepare run metadata is required')
@@ -432,156 +575,69 @@ export async function runStage2(
     if (prepareErrors.length > 0) throw new Error(prepareErrors.join('; '))
   }
   const manifest = artifacts.manifest
-  const releaseErrors = validateReleaseIdentity({
-    head,
-    main,
-    expectedCore: input.expectedCore,
-    expectedUi: input.expectedUi,
-    manifestCore: String(manifest.coreCommit),
-    manifestUi: String(manifest.uiCommit),
-  })
-  if (releaseErrors.length > 0) throw new Error(releaseErrors.join('; '))
+  if (!input.localIntegration) {
+    const releaseErrors = validateReleaseIdentity({
+      head,
+      main,
+      expectedCore: input.expectedCore,
+      expectedUi: input.expectedUi,
+      manifestCore: String(manifest.coreCommit),
+      manifestUi: String(manifest.uiCommit),
+    })
+    if (releaseErrors.length > 0) throw new Error(releaseErrors.join('; '))
+  }
   if (options.simulate) {
     console.log('STAGE2_SIMULATED_OK')
     return
   }
-  for (const archive of Object.values(artifacts.files)) {
-    run('docker', ['load', '--input', archive])
-  }
-  verifyLoadedImageIds(artifacts.candidate)
-  await runDeploymentTransaction(
-    input,
-    artifacts.candidate,
-    input.localIntegration ? 'local' : 'online',
-  )
-}
-
-async function runDeploymentTransaction(
-  input: Stage2Input,
-  candidate: Record<string, unknown>,
-  mode: 'local' | 'online',
-): Promise<void> {
-  const composeFile = process.env.ZEUS_DEPLOY_COMPOSE_FILE
-  if (!composeFile || !fs.existsSync(composeFile)) {
-    throw new Error('local integration requires ZEUS_DEPLOY_COMPOSE_FILE')
-  }
-  const images = candidate.images as Record<string, Record<string, unknown>>
-  const envFile = path.join(input.artifactDir, 'runtime.env')
-  const ai = createAiDeploymentEnvironment(input.tenant)
-  const lines = [
-    `ZEUS_PLAYGROUND_IMAGE=${images.playground!.image}`,
-    `ZEUS_ADMIN_IMAGE=${images.admin!.image}`,
-    `ZEUS_AI_HOST_IMAGE=${images.aiHost!.image}`,
-    `ZEUS_AI_WORKBENCH_IMAGE=${images.workbench!.image}`,
-    'ZEUS_PLAYGROUND_BIND=127.0.0.1',
-    'ZEUS_PLAYGROUND_HOST_PORT=8080',
-    'ZEUS_PLAYGROUND_SANDBOX_PORT=8081',
-    'ZEUS_ADMIN_BIND=127.0.0.1',
-    'ZEUS_ADMIN_PORT=8082',
-    'ZEUS_AI_WORKBENCH_BIND=127.0.0.1',
-    'ZEUS_AI_WORKBENCH_PORT=8083',
-    `ZEUS_ADMIN_EMAIL=${input.adminEmail}`,
-    `ZEUS_ADMIN_PASSWORD=${input.adminPassword}`,
-    `ZEUS_ADMIN_VIEWER_PASSWORD=${input.adminPassword}`,
-    'ZEUS_AI_ORIGINS=http://127.0.0.1:8083',
-    ...ai.lines,
-  ]
-  fs.writeFileSync(envFile, `${lines.join('\n')}\n`, { mode: 0o600 })
-  const compose = (args: string[]) =>
-    run('docker', [
-      'compose',
-      '--env-file',
-      envFile,
-      '-f',
-      composeFile,
-      ...args,
-    ])
-  try {
-    compose(['up', '-d', '--wait', '--wait-timeout', '180'])
-    if (process.env.ZEUS_DEPLOY_FAIL_AFTER_UP === 'true') {
-      throw new Error('injected deployment failure')
-    }
-    for (const url of [
-      'http://127.0.0.1:8080/',
-      'http://127.0.0.1:8081/sandbox.html',
-      'http://127.0.0.1:8082/api/health',
-      'http://127.0.0.1:8083/ai-host/health',
-    ]) {
-      let ok = false
-      for (let attempt = 0; attempt < 60; attempt += 1) {
-        try {
-          const response = await fetch(url)
-          if (response.ok) {
-            ok = true
-            break
-          }
-        } catch {
-          // wait
-        }
-        await new Promise(resolve => setTimeout(resolve, 2_000))
-      }
-      if (!ok) throw new Error(`health check failed: ${url}`)
-    }
-    const manifestFile = resolveArtifactFile(
+  const candidateImages = (artifacts.candidate.images ?? {}) as Record<
+    string,
+    TransactionImage
+  >
+  const images = Object.fromEntries(
+    Object.entries(candidateImages).map(([key, image]) => [
+      key,
+      {
+        ...image,
+        ociArchive: artifacts.files[key] ?? image.ociArchive,
+      },
+    ]),
+  ) as Record<string, TransactionImage>
+  await runDeploymentTransaction({
+    mode: input.localIntegration ? 'local' : 'online',
+    composeFile,
+    ...(input.layoutFile ? { layoutFile: path.resolve(input.layoutFile) } : {}),
+    layoutSha256: input.layoutSha256,
+    expectedEnvironment: input.environment,
+    ...(input.productionEnvFile
+      ? { productionEnvFile: path.resolve(input.productionEnvFile) }
+      : {}),
+    acceptanceEmail: input.adminEmail,
+    acceptancePassword: input.adminPassword,
+    stateDir: path.resolve(input.stateDir),
+    // A unique Compose project per transaction keeps `compose down` from
+    // touching containers that were renamed for rollback in an earlier run.
+    projectName: `${input.projectName}-${Date.now().toString(36)}`,
+    tenant: input.tenant,
+    coreCommit: input.expectedCore,
+    uiCommit: input.expectedUi,
+    artifactDir: fs.realpathSync(input.artifactDir),
+    provenanceFile: resolveArtifactFile(
       input.artifactDir,
-      input.manifestName,
-    )
-    process.env.ZEUS_ACCEPTANCE_ADMIN_EMAIL = input.adminEmail
-    process.env.ZEUS_ACCEPTANCE_ADMIN_PASSWORD = input.adminPassword
-    process.env.ZEUS_ACCEPTANCE_AI_REPLAY = 'true'
-    process.env.ZEUS_ACCEPTANCE_TENANT = input.tenant
-    const report = await runDeploymentAcceptance({
-      manifestFile,
-      mode,
-      coreCommit: input.expectedCore,
-      uiCommit: input.expectedUi,
-      engines: ['chromium'],
-      writeMode: 'isolated',
-      tenant: input.tenant,
-    })
-    const reportName =
-      mode === 'local'
-        ? 'stage2-local-acceptance.json'
-        : 'deployment-acceptance.json'
-    fs.writeFileSync(
-      path.join(input.artifactDir, reportName),
-      `${JSON.stringify(report, null, 2)}\n`,
-    )
-    const expectedDecision =
-      mode === 'local' ? 'LOCAL_VALIDATED' : 'ONLINE_ACCEPTED'
-    if (report.decision !== expectedDecision) {
-      throw new Error(`deployment acceptance failed: ${report.decision}`)
-    }
-    console.log(
-      mode === 'local'
-        ? 'STAGE2_LOCAL_INTEGRATION_PASS'
-        : 'STAGE2_ONLINE_TRANSACTION_PASS',
-    )
-  } finally {
-    compose(['down', '--remove-orphans'])
-    fs.rmSync(envFile, { force: true })
-  }
-}
-
-function verifyLoadedImageIds(candidate: Record<string, unknown>): void {
-  const images =
-    typeof candidate.images === 'object' && candidate.images !== null
-      ? (candidate.images as Record<string, Record<string, unknown>>)
-      : {}
-  for (const key of REQUIRED_IMAGES) {
-    const image = images[key]
-    if (!image) throw new Error(`loaded image ${key} is missing`)
-    const actual = runCapture('docker', [
-      'image',
-      'inspect',
-      '--format',
-      '{{.Id}}',
-      String(image.imageDigest),
-    ])
-    if (actual !== image.imageDigest) {
-      throw new Error(`loaded image ${key} identity does not match candidate`)
-    }
-  }
+      input.provenanceName,
+    ),
+    images,
+    browsers: input.browsers
+      .split(',')
+      .map(value => value.trim())
+      .filter(Boolean),
+    keepLocal: input.keepLocal,
+    failureInjection: input.failureInjection as FailureInjection,
+    localPorts: input.localPorts
+      .split(',')
+      .map(value => Number(value.trim()))
+      .filter(value => Number.isInteger(value)),
+  })
 }
 
 function isAncestor(commit: string, main: string): boolean {
@@ -595,17 +651,6 @@ function isAncestor(commit: string, main: string): boolean {
 
 function git(args: readonly string[]): string {
   return execFileSync('git', args, { encoding: 'utf8' }).trim()
-}
-
-function runCapture(command: string, args: readonly string[]): string {
-  const result = spawnSync(command, args, { encoding: 'utf8' })
-  if (result.status !== 0) throw new Error(`${command} failed`)
-  return result.stdout.trim()
-}
-
-function run(command: string, args: readonly string[]): void {
-  const result = spawnSync(command, args, { stdio: 'inherit' })
-  if (result.status !== 0) throw new Error(`${command} failed`)
 }
 
 function main(): void {
@@ -640,6 +685,19 @@ function main(): void {
     adminPassword: process.env.ZEUS_ACCEPTANCE_ADMIN_PASSWORD ?? '',
     simulate,
     localIntegration: values['local-integration'] === true,
+    composeFile: process.env.ZEUS_DEPLOY_COMPOSE_FILE ?? '',
+    layoutFile: process.env.ZEUS_DEPLOY_LAYOUT ?? '',
+    layoutSha256: process.env.ZEUS_DEPLOY_LAYOUT_SHA256 ?? '',
+    productionEnvFile: process.env.ZEUS_DEPLOY_PRODUCTION_ENV_FILE ?? '',
+    stateDir:
+      process.env.ZEUS_DEPLOY_STATE_DIR ??
+      path.join(process.cwd(), 'temp/deploy/stage2-state'),
+    projectName: process.env.ZEUS_DEPLOY_PROJECT ?? 'zeus-host-validation',
+    environment: process.env.ZEUS_DEPLOY_ENVIRONMENT ?? 'production',
+    failureInjection: process.env.ZEUS_DEPLOY_FAILURE_INJECTION ?? 'none',
+    browsers: process.env.ZEUS_DEPLOY_BROWSERS ?? '',
+    keepLocal: process.env.ZEUS_DEPLOY_KEEP_LOCAL === 'true',
+    localPorts: process.env.ZEUS_DEPLOY_LOCAL_PORTS ?? '8080,8081,8082,8083',
   }
   void runStage2(input, { simulate: input.simulate })
 }

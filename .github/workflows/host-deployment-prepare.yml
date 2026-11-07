@@ -10,6 +10,17 @@ on:
         description: zeus-ui ref paired with this Core commit
         required: true
         default: main
+      target:
+        description: local rehearsal, or a production build for the online manifest
+        type: choice
+        options: [local, production]
+        default: local
+      sandbox-url:
+        description: Sandbox document URL baked into the Playground image
+        default: http://localhost:8081/sandbox.html
+      host-origins:
+        description: Comma-separated parent origins allowed to embed the sandbox
+        default: http://127.0.0.1:8080
 
 permissions:
   contents: read
@@ -44,7 +55,19 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
         working-directory: zeus-ui
       - name: Build images and run local deployment acceptance
-        run: pnpm deploy:stage1 --ui-root zeus-ui --browsers chromium
+        env:
+          TARGET: ${{ inputs.target }}
+          SANDBOX_URL: ${{ inputs.sandbox-url }}
+          HOST_ORIGINS: ${{ inputs.host-origins }}
+        run: |
+          if [ "$TARGET" = "production" ]; then
+            pnpm deploy:stage1 --ui-root zeus-ui --browsers chromium \
+              --sandbox-url "$SANDBOX_URL" --host-origins "$HOST_ORIGINS" \
+              --skip-acceptance
+          else
+            pnpm deploy:stage1 --ui-root zeus-ui --browsers chromium \
+              --sandbox-url "$SANDBOX_URL" --host-origins "$HOST_ORIGINS"
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:

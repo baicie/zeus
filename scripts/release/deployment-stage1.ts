@@ -19,6 +19,7 @@ let repoRoot = root
 const TENANT = 'stage1-local-acceptance'
 const ADMIN_PASSWORD = 'stage1-admin-password-123'
 const VIEWER_PASSWORD = 'stage1-viewer-password-123'
+const PROJECT = 'zeus-stage1-local'
 
 function main(): void {
   const { values } = parseArgs({
@@ -31,6 +32,9 @@ function main(): void {
       'skip-build': { type: 'boolean', default: false },
       'reuse-images': { type: 'boolean', default: false },
       'keep-containers': { type: 'boolean', default: false },
+      'sandbox-url': { type: 'string' },
+      'host-origins': { type: 'string' },
+      'skip-acceptance': { type: 'boolean', default: false },
     },
   })
   const coreRoot = values['core-root']
@@ -53,6 +57,9 @@ function main(): void {
     skipBuild: values['skip-build'] === true,
     reuseImages: values['reuse-images'] === true,
     keepContainers: values['keep-containers'] === true,
+    sandboxUrl: values['sandbox-url'],
+    hostOrigins: values['host-origins'],
+    skipAcceptance: values['skip-acceptance'] === true,
   })
 }
 
@@ -65,6 +72,9 @@ interface Stage1Options {
   readonly skipBuild: boolean
   readonly reuseImages: boolean
   readonly keepContainers: boolean
+  readonly sandboxUrl?: string
+  readonly hostOrigins?: string
+  readonly skipAcceptance: boolean
 }
 
 async function runStage1(options: Stage1Options): Promise<void> {
@@ -95,10 +105,18 @@ async function runStage1(options: Stage1Options): Promise<void> {
         builtAt,
         uiRoot: options.uiRoot,
         reuseImages: options.reuseImages,
+        sandboxUrl:
+          options.sandboxUrl ??
+          process.env.ZEUS_PLAYGROUND_SANDBOX_URL ??
+          'http://localhost:8081',
+        hostOrigins:
+          options.hostOrigins ??
+          process.env.ZEUS_PLAYGROUND_HOST_ORIGINS ??
+          'http://127.0.0.1:8080',
       })
   const oci = exportImages(options.output, images)
   const envFile = path.join(options.output, 'stage1.env')
-  writeEnvFile(envFile, images, uiCommit)
+  writeEnvFile(envFile, images, uiCommit, options.output)
   fs.chmodSync(envFile, 0o600)
   const composeFile = options.composeFile
   dockerCompose(['config', '--quiet'], composeFile, envFile)
@@ -146,15 +164,28 @@ async function runStage1(options: Stage1Options): Promise<void> {
     process.env.ZEUS_ACCEPTANCE_ADMIN_PASSWORD = ADMIN_PASSWORD
     process.env.ZEUS_ACCEPTANCE_AI_REPLAY = 'true'
     process.env.ZEUS_ACCEPTANCE_TENANT = TENANT
-    report = await runDeploymentAcceptance({
-      manifestFile,
-      mode: 'local',
-      coreCommit,
-      uiCommit,
-      engines: options.engines,
-      writeMode: 'isolated',
-      tenant: TENANT,
-    })
+    report = options.skipAcceptance
+      ? {
+          schema: 'zeus.deployment-acceptance/v1',
+          mode: 'local' as const,
+          coreCommit,
+          uiCommit,
+          checkedAt: new Date().toISOString(),
+          decision: 'NOT_RUN' as const,
+          products: [],
+          blockers: [
+            'production build: local browser acceptance skipped; Stage 2 online acceptance is the gate',
+          ],
+        }
+      : await runDeploymentAcceptance({
+          manifestFile,
+          mode: 'local',
+          coreCommit,
+          uiCommit,
+          engines: options.engines,
+          writeMode: 'isolated',
+          tenant: TENANT,
+        })
   } finally {
     if (!options.keepContainers) {
       dockerCompose(
@@ -229,7 +260,9 @@ async function runStage1(options: Stage1Options): Promise<void> {
     console.log(`- ${result.product}: ${result.status}`)
     if (result.error) console.error(`  ${result.error}`)
   }
-  if (report.decision !== 'LOCAL_VALIDATED') process.exitCode = 1
+  if (!options.skipAcceptance && report.decision !== 'LOCAL_VALIDATED') {
+    process.exitCode = 1
+  }
 }
 
 interface ImageRecord {
@@ -250,6 +283,8 @@ function buildImages(input: {
   readonly builtAt: string
   readonly uiRoot: string
   readonly reuseImages: boolean
+  readonly sandboxUrl: string
+  readonly hostOrigins: string
 }): Record<'playground' | 'admin' | 'aiHost' | 'workbench', ImageRecord> {
   const common = [
     '--build-arg',
@@ -268,7 +303,12 @@ function buildImages(input: {
       image: 'zeus-playground:stage1',
       context: input.coreRoot,
       dockerfile: 'examples/playground-editor/Dockerfile',
-      extra: ['--build-arg', 'VITE_ZEUS_SANDBOX_ORIGIN=http://localhost:8081'],
+      extra: [
+        '--build-arg',
+        `VITE_ZEUS_SANDBOX_URL=${input.sandboxUrl}`,
+        '--build-arg',
+        `VITE_ZEUS_PLAYGROUND_HOST_ORIGINS=${input.hostOrigins}`,
+      ],
       buildInfoPath: '/usr/share/nginx/html/build-info.json',
     },
     admin: {
@@ -375,11 +415,38 @@ function inspectImage(
     image,
   ]).trim()
   if (!buildInfoPath) {
+    // The AI Host image ships OCI labels instead of a build-info file. Bind
+    // its Core/UI provenance through those labels and a canonical digest.
+    let labels: Record<string, string> = {}
+    try {
+      labels = JSON.parse(
+        run('docker', [
+          'image',
+          'inspect',
+          '--format',
+          '{{json .Config.Labels}}',
+          image,
+        ]).trim() || '{}',
+      ) as Record<string, string>
+    } catch {
+      labels = {}
+    }
+    const buildInfo = {
+      schema: 'zeus.build-info/v1',
+      product: 'ai-host',
+      coreCommit: labels['top.moonbyte.zeus.core-commit'] ?? '',
+      uiCommit: labels['top.moonbyte.zeus.ui-commit'] ?? '',
+      version: labels['org.opencontainers.image.version'] ?? '',
+      builtAt: labels['top.moonbyte.zeus.build-time'] ?? '',
+    }
+    const artifactDigest = `sha256:${createHash('sha256')
+      .update(JSON.stringify(buildInfo))
+      .digest('hex')}`
     return {
       image,
       imageDigest,
-      artifactDigest: '',
-      buildInfo: undefined,
+      artifactDigest,
+      buildInfo: { ...buildInfo, artifactDigest },
       ociArchive: '',
       ociSha256: '',
     }
@@ -427,13 +494,26 @@ function writeEnvFile(
   file: string,
   images: Record<string, ImageRecord>,
   uiCommit: string,
+  output: string,
 ): void {
-  const ai = createAiDeploymentEnvironment(TENANT)
+  const ai = createAiDeploymentEnvironment(TENANT, { publicReplay: true })
+  const dataRoot = path.join(output, 'data')
+  for (const directory of [
+    path.join(dataRoot, 'admin'),
+    path.join(dataRoot, 'ai'),
+  ]) {
+    fs.mkdirSync(directory, { recursive: true, mode: 0o777 })
+    fs.chmodSync(directory, 0o777)
+  }
   const lines = [
     `ZEUS_PLAYGROUND_IMAGE=${images.playground.image}`,
     `ZEUS_ADMIN_IMAGE=${images.admin.image}`,
     `ZEUS_AI_HOST_IMAGE=${images.aiHost.image}`,
     `ZEUS_AI_WORKBENCH_IMAGE=${images.workbench.image}`,
+    `ZEUS_PLAYGROUND_CONTAINER=zeus-stage1-playground`,
+    `ZEUS_ADMIN_CONTAINER=zeus-stage1-admin`,
+    `ZEUS_AI_HOST_CONTAINER=zeus-stage1-ai-host`,
+    `ZEUS_AI_WORKBENCH_CONTAINER=zeus-stage1-ai-workbench`,
     'ZEUS_PLAYGROUND_BIND=127.0.0.1',
     'ZEUS_PLAYGROUND_HOST_PORT=8080',
     'ZEUS_PLAYGROUND_SANDBOX_PORT=8081',
@@ -441,9 +521,13 @@ function writeEnvFile(
     'ZEUS_ADMIN_PORT=8082',
     'ZEUS_AI_WORKBENCH_BIND=127.0.0.1',
     'ZEUS_AI_WORKBENCH_PORT=8083',
+    `ZEUS_ADMIN_DATA_DIR=${path.join(dataRoot, 'admin')}`,
+    `ZEUS_AI_DATA_DIR=${path.join(dataRoot, 'ai')}`,
     'ZEUS_ADMIN_EMAIL=acceptance@example.test',
     `ZEUS_ADMIN_PASSWORD=${ADMIN_PASSWORD}`,
     `ZEUS_ADMIN_VIEWER_PASSWORD=${VIEWER_PASSWORD}`,
+    'ZEUS_ADMIN_SEED_DEMO=true',
+    'ZEUS_ADMIN_BOOTSTRAP=true',
     'ZEUS_AI_ORIGINS=http://127.0.0.1:8083',
     ...ai.lines,
     `# ui commit ${uiCommit}`,
@@ -460,7 +544,16 @@ function dockerCompose(
 ): void {
   const result = spawnSync(
     'docker',
-    ['compose', '--env-file', envFile, '-f', composeFile, ...args],
+    [
+      'compose',
+      '--project-name',
+      PROJECT,
+      '--env-file',
+      envFile,
+      '-f',
+      composeFile,
+      ...args,
+    ],
     { cwd: repoRoot, stdio: 'inherit' },
   )
   if (required && result.status !== 0) {
@@ -499,6 +592,8 @@ async function waitForHealth(
         'docker',
         [
           'compose',
+          '--project-name',
+          PROJECT,
           '--env-file',
           envFile,
           '-f',
