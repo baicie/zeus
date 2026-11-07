@@ -15,6 +15,7 @@ export interface StartAdminServerOptions {
   readonly viewerPassword?: string
   readonly seed?: boolean
   readonly seedDemoUsers?: boolean
+  readonly bootstrap?: boolean
   readonly allowedOrigins?: readonly string[]
   readonly staticDir?: string
   readonly secureCookies?: boolean
@@ -40,8 +41,24 @@ export async function startAdminServer(
   const adminPassword = options.adminPassword ?? process.env.ZEUS_ADMIN_PASSWORD
   const viewerPassword =
     options.viewerPassword ?? process.env.ZEUS_ADMIN_VIEWER_PASSWORD
+  // Demo seeding is opt-in. A production container that forgets the flag
+  // must not create predictable viewer accounts.
   const seedDemoUsers =
-    options.seedDemoUsers ?? process.env.ZEUS_ADMIN_SEED_DEMO !== 'false'
+    options.seedDemoUsers ?? process.env.ZEUS_ADMIN_SEED_DEMO === 'true'
+  const bootstrap =
+    options.bootstrap ?? process.env.ZEUS_ADMIN_BOOTSTRAP === 'true'
+  const acceptanceEmail = process.env.ZEUS_ADMIN_ACCEPTANCE_EMAIL?.trim()
+  const acceptancePassword = process.env.ZEUS_ADMIN_ACCEPTANCE_PASSWORD
+  const acceptanceUserId =
+    process.env.ZEUS_ADMIN_ACCEPTANCE_USER_ID?.trim() || 'acceptance'
+  if (
+    acceptanceEmail &&
+    (!acceptancePassword || acceptancePassword.length < 12)
+  ) {
+    throw new Error(
+      'ZEUS_ADMIN_ACCEPTANCE_PASSWORD must be at least 12 characters when an acceptance user is configured.',
+    )
+  }
   if (!adminPassword) {
     throw new Error(
       'ZEUS_ADMIN_PASSWORD is required. Use server/demo-env.example for local runs.',
@@ -70,6 +87,16 @@ export async function startAdminServer(
       adminPassword,
       viewerPassword: viewerPassword ?? '',
       demoUsers: seedDemoUsers,
+      bootstrap,
+      ...(acceptanceEmail && acceptancePassword
+        ? {
+            acceptance: {
+              email: acceptanceEmail,
+              password: acceptancePassword,
+              userId: acceptanceUserId,
+            },
+          }
+        : {}),
     })
   }
   const host = options.host ?? process.env.ZEUS_ADMIN_HOST ?? '127.0.0.1'
@@ -91,6 +118,14 @@ export async function startAdminServer(
         process.env.NODE_ENV === 'production'),
     trustProxy:
       options.trustProxy ?? process.env.ZEUS_ADMIN_TRUST_PROXY === 'true',
+    ...(acceptanceEmail
+      ? {
+          acceptanceUserId,
+          acceptanceTtlMinutes: Number(
+            process.env.ZEUS_ADMIN_ACCEPTANCE_TTL_MINUTES ?? 120,
+          ),
+        }
+      : {}),
     ...(options.loginRateLimit
       ? { loginRateLimit: options.loginRateLimit }
       : {}),
