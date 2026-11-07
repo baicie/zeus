@@ -1136,13 +1136,17 @@ textarea:focus-visible {
   }
 
   .pg-result-tabs {
+    flex-wrap: wrap;
     gap: 0;
-    padding: 0 4px;
+    min-height: 36px;
+    padding: 2px 4px;
+    overflow-x: visible;
   }
 
   .pg-result-tab {
-    padding: 0 6px;
-    font-size: 11.5px;
+    height: 32px;
+    padding: 0 5px;
+    font-size: 11px;
   }
 
   .pg-result-tabs [data-testid='preview-max'] {
