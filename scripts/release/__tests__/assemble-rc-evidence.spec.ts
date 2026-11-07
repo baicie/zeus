@@ -90,6 +90,8 @@ function fixture(
       runId: '12345',
       coreCommit: core,
       uiCommit: ui,
+      environment: 'production',
+      mode: 'production',
     }),
   }
   for (const [name, content] of Object.entries(files)) {

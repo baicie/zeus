@@ -106,6 +106,12 @@ export function assembleRcEvidence(
     if (source?.coreCommit !== core || source?.uiCommit !== ui) {
       errors.push('deployment evidence source commits do not match')
     }
+    if (source?.environment !== 'production') {
+      errors.push('deployment evidence source is not the production environment')
+    }
+    if (source?.mode !== 'production') {
+      errors.push('deployment evidence source is not a production deployment')
+    }
     if (
       input.expectedRunId &&
       String(source?.runId ?? '') !== input.expectedRunId
