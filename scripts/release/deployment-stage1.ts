@@ -69,7 +69,7 @@ interface Stage1Options {
 
 async function runStage1(options: Stage1Options): Promise<void> {
   fs.mkdirSync(options.output, { recursive: true })
-  assertClean(options.coreRoot, 'Core')
+  assertClean(options.coreRoot, 'Core', options.uiRoot)
   assertClean(options.uiRoot, 'Zeus UI')
   const coreCommit = git(options.coreRoot, ['rev-parse', 'HEAD'])
   const coreTree = git(options.coreRoot, ['rev-parse', 'HEAD^{tree}'])
@@ -500,11 +500,27 @@ function readExistingImages(output: string): Record<string, ImageRecord> {
   return candidate.images
 }
 
-function assertClean(directory: string, label: string): void {
+function assertClean(
+  directory: string,
+  label: string,
+  nestedWorktree?: string,
+): void {
+  const relativeNested = nestedWorktree
+    ? path.relative(directory, nestedWorktree).split(path.sep).join('/')
+    : undefined
   const status = git(directory, ['status', '--porcelain'])
+    .split('\n')
+    .filter(Boolean)
+    .filter(line => {
+      if (!relativeNested || relativeNested.startsWith('..')) return true
+      const changed = line.slice(3).replace(/\/$/, '')
+      return (
+        changed !== relativeNested && !changed.startsWith(`${relativeNested}/`)
+      )
+    })
   if (status.length > 0) {
     throw new Error(
-      `${label} worktree must be clean before Stage 1: ${status.split('\n')[0]}`,
+      `${label} worktree must be clean before Stage 1: ${status[0]}`,
     )
   }
 }
