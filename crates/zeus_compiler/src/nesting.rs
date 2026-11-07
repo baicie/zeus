@@ -44,66 +44,103 @@
 //! sequences never accumulate. Body-taking keywords never start a sibling at a
 //! line break, so braceless `if`/`while`/`for` chains still accumulate.
 //!
-//! The budget is 8,192 JSX levels' worth of weight, which is the limit the
-//! compiler documents. For every other construct the same budget maps to a
-//! depth at most 0.35x of its measured crash depth, so the guard rejects
-//! pathological input long before the worker stack is at risk, and realistic
-//! source stays far below it.
+//! The scanner is shared by the native and WebAssembly compilers, whose stacks
+//! fail at very different depths. Each target therefore selects its own weight
+//! table (the `nesting_weight!` macro) from crash depths measured on that host:
+//! the 64 MiB native worker, or the engine call stack of `wasm32-unknown-unknown`.
+//! The native budget is 8,192 JSX levels' worth of weight, which is the limit
+//! the compiler documents. The WebAssembly budget is 506 JSX levels, because
+//! browser engines have much smaller call stacks and a trap discards the whole
+//! compiler instance. For every construct the budget maps to a depth at most
+//! 0.35x of its measured crash depth, so the guard rejects pathological input
+//! long before the host stack is at risk, and realistic source stays far below
+//! it.
 
 /// Scale used to express weights as integer parts per billion. It is large
 /// enough that the cheapest weight (an `if` at 1/164,000) stays above zero.
 const WEIGHT_SCALE: u64 = 1_000_000_000;
 
-/// JSX element or fragment: 23,000 levels abort the worker.
-const W_JSX_ELEMENT: u64 = WEIGHT_SCALE / 23_000;
-/// Object literal or block brace: 28,500 levels.
-const W_BRACE: u64 = WEIGHT_SCALE / 28_500;
-/// Template substitution `${`: 29,000 levels.
-const W_TEMPLATE_EXPR: u64 = WEIGHT_SCALE / 29_000;
-/// `[`: 32,500 levels.
-const W_BRACKET: u64 = WEIGHT_SCALE / 32_500;
-/// `(`: 32,500 levels.
-const W_PAREN: u64 = WEIGHT_SCALE / 32_500;
-/// `{…}` in JSX children or a JSX attribute: 36,000 levels.
-const W_JSX_EXPR: u64 = WEIGHT_SCALE / 36_000;
-/// `<T>` type arguments: 40,000 levels.
-const W_TYPE_ARGS: u64 = WEIGHT_SCALE / 40_000;
-/// `=>`: 49,000 levels.
-const W_ARROW: u64 = WEIGHT_SCALE / 49_000;
-/// `?` and `=`: 70,000 levels each.
-const W_CONTROL: u64 = WEIGHT_SCALE / 70_000;
-/// `new`: 144,000 levels.
-const W_NEW: u64 = WEIGHT_SCALE / 144_000;
-/// `if` without braces recurses once per `if`: 164,000 levels.
-const W_IF: u64 = WEIGHT_SCALE / 164_000;
-/// `while` without braces: 167,000 levels.
-const W_WHILE: u64 = WEIGHT_SCALE / 167_000;
-/// `for` with a block body: 113,000 levels.
-const W_FOR: u64 = WEIGHT_SCALE / 113_000;
-/// `else`, `do` and `else if` add a frame per link.
-const W_ELSE: u64 = WEIGHT_SCALE / 164_000;
-/// A label `a:` on a nested statement: 47,000 levels.
-const W_LABEL: u64 = WEIGHT_SCALE / 47_000;
-/// `extends` in a class heritage clause: 55,000 levels.
-const W_HERITAGE: u64 = WEIGHT_SCALE / 55_000;
-/// `keyof`: 123,000 levels. It is a type-level prefix operator.
-const W_KEYOF: u64 = WEIGHT_SCALE / 123_000;
-/// `as` / `satisfies`: 838,000 levels.
-const W_AS: u64 = WEIGHT_SCALE / 838_000;
-/// A decorator: 16,000,000 levels.
-const W_DECORATOR: u64 = WEIGHT_SCALE / 16_000_000;
-/// Prefix operators such as `!`, `typeof` and `delete`: 592,000 levels.
-const W_PREFIX: u64 = WEIGHT_SCALE / 592_000;
-/// Member access `.` and `?.`: 592,000 levels.
-const W_MEMBER: u64 = WEIGHT_SCALE / 592_000;
-/// One binary operator: 832,000 levels.
-const W_BINARY: u64 = WEIGHT_SCALE / 832_000;
-/// A closed call or index keeps its receiver on the same spine, which is what
-/// makes `f()()()…` accumulate; that chain aborts at 832,000 calls.
-const W_CALL_CLOSE: u64 = W_BINARY;
+// Selecting a weight table per target: crash depths below were measured on the
+// 64 MiB native worker and on the WebAssembly engine call stack.
+#[cfg(not(target_arch = "wasm32"))]
+macro_rules! nesting_weight {
+    ($name:ident, $native_depth:expr, $wasm_depth:expr) => {
+        const $name: u64 = WEIGHT_SCALE / $native_depth;
+    };
+}
 
-/// Budget for one module: exactly 8,192 JSX elements, the documented limit.
-const MAX_NESTING_COST: u64 = 8_192 * W_JSX_ELEMENT;
+#[cfg(target_arch = "wasm32")]
+macro_rules! nesting_weight {
+    ($name:ident, $native_depth:expr, $wasm_depth:expr) => {
+        const $name: u64 = WEIGHT_SCALE / $wasm_depth;
+    };
+}
+
+// JSX element or fragment: 23,000 native levels abort the worker, 1,447 in
+// the WebAssembly engine.
+nesting_weight!(W_JSX_ELEMENT, 23_000, 1_447);
+// Object literal or block brace.
+nesting_weight!(W_BRACE, 28_500, 512);
+// Template substitution `${`.
+nesting_weight!(W_TEMPLATE_EXPR, 29_000, 559);
+// `[`.
+nesting_weight!(W_BRACKET, 32_500, 767);
+// `(`.
+nesting_weight!(W_PAREN, 32_500, 730);
+// `{…}` in JSX children or a JSX attribute.
+nesting_weight!(W_JSX_EXPR, 36_000, 629);
+// `<T>` type arguments.
+nesting_weight!(W_TYPE_ARGS, 40_000, 695);
+// `=>`.
+nesting_weight!(W_ARROW, 49_000, 2_490);
+// `?` and `=`.
+nesting_weight!(W_CONTROL, 70_000, 4_570);
+// `new`.
+nesting_weight!(W_NEW, 144_000, 4_570);
+// `if` without braces.
+nesting_weight!(W_IF, 164_000, 2_381);
+// `while` without braces.
+nesting_weight!(W_WHILE, 167_000, 2_490);
+// `for` with a block body.
+nesting_weight!(W_FOR, 113_000, 1_599);
+// `else`, `do` and `else if`.
+nesting_weight!(W_ELSE, 164_000, 2_431);
+// A label `a:` on a nested statement.
+nesting_weight!(W_LABEL, 47_000, 1_791);
+// `extends` in a class heritage clause.
+nesting_weight!(W_HERITAGE, 55_000, 460);
+// `keyof`.
+nesting_weight!(W_KEYOF, 123_000, 3_655);
+// `as` / `satisfies`.
+nesting_weight!(W_AS, 838_000, 6_869);
+// A decorator.
+nesting_weight!(W_DECORATOR, 16_000_000, 1_000_000);
+// Prefix operators such as `!`, `typeof` and `delete`.
+nesting_weight!(W_PREFIX, 592_000, 4_223);
+// Member access `.` and `?.`.
+nesting_weight!(W_MEMBER, 592_000, 4_607);
+// One binary operator.
+nesting_weight!(W_BINARY, 832_000, 6_869);
+// A closed call or index keeps its receiver on the same spine, which is what
+// makes `f()()()…` accumulate.
+nesting_weight!(W_CALL_CLOSE, 832_000, 3_967);
+
+/// Documented nesting limit in equivalent JSX levels. Native hosts use the
+/// documented 8,192; WebAssembly hosts cannot grow the engine call stack, so
+/// their budget is deliberately smaller.
+#[cfg(not(target_arch = "wasm32"))]
+pub const MAX_INPUT_NESTING_DEPTH: usize = 8_192;
+#[cfg(target_arch = "wasm32")]
+pub const MAX_INPUT_NESTING_DEPTH: usize =
+    (WEIGHT_SCALE * 35 / 100) as usize / (WEIGHT_SCALE / 1_447) as usize;
+
+/// Budget for one module: the platform's JSX level limit at its calibrated
+/// weight. WebAssembly uses the same 0.35 safety factor as the native worker,
+/// i.e. 506 JSX levels, against an engine stack that traps at about 1,447.
+#[cfg(not(target_arch = "wasm32"))]
+const MAX_NESTING_COST: u64 = MAX_INPUT_NESTING_DEPTH as u64 * W_JSX_ELEMENT;
+#[cfg(target_arch = "wasm32")]
+const MAX_NESTING_COST: u64 = WEIGHT_SCALE * 35 / 100;
 
 /// Upper bound on the lookahead that tells `<T,>` type parameters apart from a
 /// JSX tag, so a source full of `<` cannot make the scan quadratic.

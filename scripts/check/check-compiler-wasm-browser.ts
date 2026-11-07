@@ -113,15 +113,16 @@ window.runCompilerFixture = async (requests, canonicalSource) => {
   const inWorker = []
   for (const request of requests) inWorker.push(canonical(await worker.transformModule(request)))
 
-  const deep = { ...requests[0], source: 'export const App = () => ' + '<div>'.repeat(20000) + 'x' + '</div>'.repeat(20000) }
-  let trap = ''
-  try { await worker.transformModule(deep) } catch (error) { trap = error.message }
+  const deep = { ...requests[0], filename: 'deep.tsx', source: 'export const App = () => ' + '<div>'.repeat(20000) + 'x' + '</div>'.repeat(20000) }
+  const deepResult = await worker.transformModule(deep)
+  const deepTs = { ...requests[0], filename: 'deep.ts', source: 'export const v = ' + '('.repeat(50000) + '0' + ')'.repeat(50000) }
+  const deepTsResult = await worker.transformModule(deepTs)
   const recovered = canonical(await worker.transformModule(requests[0]))
   worker.terminate()
 
   const mainThread = await loadCompiler(module)
   const onMainThread = canonical(await mainThread.transformModule(requests[0]))
-  return { inWorker, trap, recovered, onMainThread }
+  return { inWorker, deepResult, deepTsResult, recovered, onMainThread }
 }
 </script>`
 
@@ -145,7 +146,8 @@ const origin = `http://127.0.0.1:${address.port}`
 
 interface FixtureResult {
   inWorker: string[]
-  trap: string
+  deepResult: { diagnostics: Array<{ code: string }> }
+  deepTsResult: { diagnostics: Array<{ code: string }> }
   recovered: string
   onMainThread: string
 }
@@ -187,7 +189,14 @@ try {
           `${requests[index].filename} (${requests[index].target})`,
         ),
       )
-      assert.match(result.trap, /^\[ZEUS_COMPILER_WASM_TRAP\]/)
+      assert.deepEqual(
+        result.deepResult.diagnostics.map(diagnostic => diagnostic.code),
+        ['ZEUS_INPUT_TOO_DEEP'],
+      )
+      assert.deepEqual(
+        result.deepTsResult.diagnostics.map(diagnostic => diagnostic.code),
+        ['ZEUS_INPUT_TOO_DEEP'],
+      )
       assert.equal(result.recovered, expected[0])
       assert.equal(result.onMainThread, expected[0])
       assert.deepEqual(errors, [])

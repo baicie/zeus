@@ -1,9 +1,5 @@
 //! Thin Node-API adapter for the Zeus Rust compiler.
 
-mod nesting;
-
-use std::path::Path;
-
 use napi::{Error, Result, Status};
 use napi_derive::napi;
 use zeus_compiler::{
@@ -19,9 +15,6 @@ use zeus_compiler::{
     },
     span::{SourcePosition as CoreSourcePosition, SourceSpan as CoreSourceSpan},
 };
-
-/// Documented nesting limit, expressed in JSX element levels by `nesting.rs`.
-const MAX_INPUT_NESTING_DEPTH: usize = 8_192;
 
 #[napi(object)]
 pub struct TransformModuleOptions {
@@ -163,35 +156,6 @@ pub fn transform_module(options: TransformModuleOptions) -> Result<TransformModu
         ),
         auto_hydrate: options.auto_hydrate.unwrap_or(false),
     };
-
-    let jsx_enabled = Path::new(&core_options.filename)
-        .extension()
-        .and_then(|extension| extension.to_str())
-        .is_some_and(|extension| {
-            extension.eq_ignore_ascii_case("tsx") || extension.eq_ignore_ascii_case("jsx")
-        });
-    if nesting::exceeds_nesting_cost_with_jsx(&core_options.source, jsx_enabled) {
-        return Ok(CoreTransformModuleResult {
-            code: String::new(),
-            map: None,
-            diagnostics: vec![CoreCompilerDiagnostic {
-                code: "ZEUS_INPUT_TOO_DEEP".into(),
-                message: format!(
-                    "Input nesting exceeds the supported limit of {MAX_INPUT_NESTING_DEPTH} levels."
-                ),
-                severity: DiagnosticSeverity::Error,
-                filename: core_options.filename.clone(),
-                hint: Some(
-                    "Split deeply nested JSX or JavaScript expressions into smaller components or helpers."
-                        .into(),
-                ),
-                span: None,
-            }],
-            hydration_plan: None,
-            hmr_plan: None,
-        }
-        .into());
-    }
 
     // Oxc's recursive parser, the semantic builder and lowering all recurse per
     // JSX nesting level. A Node.js main thread overflows at a few thousand
