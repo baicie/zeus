@@ -209,6 +209,37 @@ describe('RC evidence assembly', () => {
     ).toContain('deployment acceptance evidence is stale')
   })
 
+  it('rejects a source from another repository or workflow', () => {
+    const input = fixture()
+    const source = JSON.parse(
+      fs.readFileSync(input.sourceFile, 'utf8'),
+    ) as Record<string, unknown>
+    fs.writeFileSync(
+      input.sourceFile,
+      JSON.stringify({ ...source, repository: 'evil/zeus' }),
+    )
+    expect(
+      assembleRcEvidence({
+        ...input,
+        sourceFile: input.sourceFile,
+        expectedRunId: '12345',
+        outDir: input.root,
+      }).errors,
+    ).toContain('deployment evidence source repository is not baicie/zeus')
+    fs.writeFileSync(
+      input.sourceFile,
+      JSON.stringify({ ...source, workflow: 'Other Workflow' }),
+    )
+    expect(
+      assembleRcEvidence({
+        ...input,
+        sourceFile: input.sourceFile,
+        expectedRunId: '12345',
+        outDir: input.root,
+      }).errors,
+    ).toContain('deployment evidence source workflow is not Stage 2')
+  })
+
   it('merges a signed base approval and rejects stale approval commits', () => {
     const input = fixture()
     const base = {
