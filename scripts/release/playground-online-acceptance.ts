@@ -653,7 +653,7 @@ async function runNativeLab(
     () =>
       document
         .querySelector('[data-testid="preview-status"]')
-        ?.textContent?.includes('预览就绪'),
+        ?.textContent?.includes('Preview ready'),
     null,
     { timeout: 90_000 },
   )
@@ -709,7 +709,7 @@ async function runWebCStudio(
     () =>
       document
         .querySelector('[data-testid="preview-status"]')
-        ?.textContent?.includes('预览就绪'),
+        ?.textContent?.includes('Preview ready'),
     null,
     { timeout: 90_000 },
   )
