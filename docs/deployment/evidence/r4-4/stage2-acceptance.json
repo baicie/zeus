@@ -1,0 +1,89 @@
+{
+  "schema": "zeus.deployment-acceptance/v1",
+  "mode": "local",
+  "coreCommit": "16f836915255083268bdfa0fb58a7048bdd3c831",
+  "uiCommit": "4827f38f6e491ede8e4a8bf440e36d6c5fd74724",
+  "checkedAt": "2026-11-07T14:12:47.595Z",
+  "decision": "LOCAL_VALIDATED",
+  "products": [
+    {
+      "product": "webc-studio",
+      "url": "http://127.0.0.1:8080/webc.html",
+      "commit": "16f836915255083268bdfa0fb58a7048bdd3c831",
+      "repository": "baicie/zeus",
+      "status": "LOCAL_VALIDATED",
+      "httpStatus": 200,
+      "browser": "chromium",
+      "artifactDigest": "sha256:85703a237740fbd1c2d628b51e4144c701ac29538417fc9e72ef074d0334a3a9",
+      "imageDigest": "sha256:f7eba5784814f71775f6a9533ea8a9cfcecf4aadb9857602b5b5e6f4d076d199",
+      "provenanceRunId": "42377031815",
+      "provenanceRunUrl": "https://github.com/baicie/zeus/actions/runs/42377031815",
+      "evidence": [
+        "HTTP 200 text/html",
+        "build-info sha256:85703a237740fbd1c2d628b51e4144c701ac29538417fc9e72ef074d0334a3a9 and served files verified",
+        "CI provenance run 42377031815 (https://github.com/baicie/zeus/actions/runs/42377031815) image sha256:f7eba5784814f71775f6a9533ea8a9cfcecf4aadb9857602b5b5e6f4d076d199",
+        "sandbox CSP default-src none",
+        "chromium browser smoke passed"
+      ]
+    },
+    {
+      "product": "native-lab",
+      "url": "http://127.0.0.1:8080/",
+      "commit": "16f836915255083268bdfa0fb58a7048bdd3c831",
+      "repository": "baicie/zeus",
+      "status": "LOCAL_VALIDATED",
+      "httpStatus": 200,
+      "browser": "chromium",
+      "artifactDigest": "sha256:85703a237740fbd1c2d628b51e4144c701ac29538417fc9e72ef074d0334a3a9",
+      "imageDigest": "sha256:f7eba5784814f71775f6a9533ea8a9cfcecf4aadb9857602b5b5e6f4d076d199",
+      "provenanceRunId": "42377031815",
+      "provenanceRunUrl": "https://github.com/baicie/zeus/actions/runs/42377031815",
+      "evidence": [
+        "HTTP 200 text/html",
+        "build-info sha256:85703a237740fbd1c2d628b51e4144c701ac29538417fc9e72ef074d0334a3a9 and served files verified",
+        "CI provenance run 42377031815 (https://github.com/baicie/zeus/actions/runs/42377031815) image sha256:f7eba5784814f71775f6a9533ea8a9cfcecf4aadb9857602b5b5e6f4d076d199",
+        "sandbox CSP default-src none",
+        "chromium browser smoke passed"
+      ]
+    },
+    {
+      "product": "admin",
+      "url": "http://127.0.0.1:8082/",
+      "commit": "16f836915255083268bdfa0fb58a7048bdd3c831",
+      "repository": "baicie/zeus",
+      "status": "LOCAL_VALIDATED",
+      "httpStatus": 200,
+      "browser": "chromium",
+      "artifactDigest": "sha256:fa1f3949cff1555cac1a38ad0f2c22a0a3b3d81392fb2c3dc98ac4c4cf9adb1b",
+      "imageDigest": "sha256:8d2c381895ee8668b9362263f374dff38ff8951ad9ecd9e6660b740e2e926728",
+      "provenanceRunId": "42377031815",
+      "provenanceRunUrl": "https://github.com/baicie/zeus/actions/runs/42377031815",
+      "evidence": [
+        "HTTP 200 text/html; charset=utf-8",
+        "build-info sha256:fa1f3949cff1555cac1a38ad0f2c22a0a3b3d81392fb2c3dc98ac4c4cf9adb1b and served files verified",
+        "CI provenance run 42377031815 (https://github.com/baicie/zeus/actions/runs/42377031815) image sha256:8d2c381895ee8668b9362263f374dff38ff8951ad9ecd9e6660b740e2e926728",
+        "chromium browser smoke passed"
+      ]
+    },
+    {
+      "product": "ai-workbench",
+      "url": "http://127.0.0.1:8083/",
+      "commit": "4827f38f6e491ede8e4a8bf440e36d6c5fd74724",
+      "repository": "baicie/zeus-ui",
+      "status": "LOCAL_VALIDATED",
+      "httpStatus": 200,
+      "browser": "chromium",
+      "artifactDigest": "sha256:824fe6d747f71f5d95ec5e7b8221e6c604419d32aadb4328a8adee9ee407299d",
+      "imageDigest": "sha256:7324e71e634adc9b68aeaa6b4bc9999b76d14cf9a61dc25539832a161904aaee",
+      "provenanceRunId": "42377031815",
+      "provenanceRunUrl": "https://github.com/baicie/zeus/actions/runs/42377031815",
+      "evidence": [
+        "HTTP 200 text/html",
+        "build-info sha256:824fe6d747f71f5d95ec5e7b8221e6c604419d32aadb4328a8adee9ee407299d and served files verified",
+        "CI provenance run 42377031815 (https://github.com/baicie/zeus/actions/runs/42377031815) image sha256:7324e71e634adc9b68aeaa6b4bc9999b76d14cf9a61dc25539832a161904aaee",
+        "chromium browser smoke passed"
+      ]
+    }
+  ],
+  "blockers": []
+}

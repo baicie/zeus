@@ -1,0 +1,29 @@
+{
+  "schema": "zeus.deployment-transaction/v1",
+  "mode": "local",
+  "deployId": "16f836915255-4827f38f6e49-1794060604488",
+  "coreCommit": "16f836915255083268bdfa0fb58a7048bdd3c831",
+  "uiCommit": "4827f38f6e491ede8e4a8bf440e36d6c5fd74724",
+  "startedAt": "2026-11-07T14:10:04.487Z",
+  "composeDigest": "sha256:b14c22d38d068efa00e24d2a896f77a769215379680a7609c759d555e0a796a8",
+  "projectName": "zeus-stage2-ci-mw6hd1zb",
+  "images": {
+    "playground": "sha256:f7eba5784814f71775f6a9533ea8a9cfcecf4aadb9857602b5b5e6f4d076d199",
+    "admin": "sha256:8d2c381895ee8668b9362263f374dff38ff8951ad9ecd9e6660b740e2e926728",
+    "aiHost": "sha256:ef2894985155539be229dd56c832c33f2cdfe2175c96e681331cf91757e9f3a6",
+    "workbench": "sha256:7324e71e634adc9b68aeaa6b4bc9999b76d14cf9a61dc25539832a161904aaee"
+  },
+  "finishedAt": "2026-11-07T14:11:47.029Z",
+  "status": "PASS",
+  "previous": {
+    "containers": {},
+    "buildInfoDigests": {}
+  },
+  "backups": {
+    "directory": "/home/runner/work/zeus/zeus/temp/deploy/stage2-state/backups/2026-11-07T14-10-59-198Z"
+  },
+  "acceptance": {
+    "decision": "LOCAL_VALIDATED",
+    "file": "/home/runner/work/zeus/zeus/temp/deploy/stage1/stage2-local-acceptance.json"
+  }
+}
