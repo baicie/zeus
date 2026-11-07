@@ -1,10 +1,11 @@
 # Zeus 0.2.0 R4.1 — Playground 公网安全加固与在线验收
 
-状态：安全验收 **PLAYGROUND_ONLINE_VALIDATED**；部署 Provenance
-**BLOCKED_BY_PROVENANCE**，等待 #193 合并后从正式 main 重建。
+状态：**PLAYGROUND_ONLINE_VALIDATED**；Provenance 已从正式 main
+merge commit `31089116` 重建并重新验收通过。
 
-范围：仅 `WebC Studio` / `Native Lab`。Core RC 的四产品门禁仍为
-**NOT_READY**；Admin 与 AI Workbench 仍为 **BLOCKED_BY_SECURITY**，未部署。
+范围：`WebC Studio` / `Native Lab` 已上线 `playground.moonbyte.top:8443`；
+Admin 与 AI Workbench 已部署独立域名（AI 为 viewer-only 只读演示），但
+Core RC 的四产品门禁仍为 **NOT_READY**。
 本文所有线上结论均来自 2026-11-06 的真实 HTTPS 请求与
 Chromium/Firefox/WebKit 实测，不把 Git Tree 相等冒充密码学 Attestation。
 
@@ -21,11 +22,11 @@ R4.1 开始前，Sandbox 存在一个可复现的 P0：
 R4.1 已上线两层独立缓解：
 
 1. Sandbox 响应头强制
-   `Content-Security-Policy: sandbox allow-scripts; frame-ancestors https://mail.moonbyte.top:8443`；
+   `Content-Security-Policy: sandbox allow-scripts; frame-ancestors https://playground.moonbyte.top:8443`；
 2. `sandbox.ts` 在模块初始化时捕获 `globalThis.origin === 'null'`，非 opaque
    直接抛错，不安装消息监听器；
 3. 父 Origin 白名单只接受 `VITE_ZEUS_PLAYGROUND_HOST_ORIGINS`
-   （生产为 `https://mail.moonbyte.top:8443`），loopback 仅用于本地开发。
+   （生产为 `https://playground.moonbyte.top:8443`），loopback 仅用于本地开发。
 
 复测结果：第三方嵌入被 `frame-ancestors` 拦截；直接打开 Sandbox 为
 opaque origin 且访问存储抛 `SecurityError`；正常 Host iframe、Native Lab、
@@ -37,40 +38,36 @@ React/Vue WebC 消费全部正常。即使未来 ingress 漏掉响应头，代�
 | 项                      | 值                                                                                    |
 | ----------------------- | ------------------------------------------------------------------------------------- |
 | Core 仓库               | `https://github.com/baicie/zeus`                                                      |
-| Core main / 部署源      | `7a14a9c5d801ebb6453ad057f7b95848675ccdb3`                                            |
-| Core source tree        | `10659b3ecf5b70193d4c5fe8e429deebcbccf73d`                                            |
+| Core main / 部署源      | `310891161d28bf2fed57f20fc457000338c6a206`（merge PR #193）                           |
+| Core source tree        | `962ed3efecc288522caf94fe065fc0eb905cfcb5`                                            |
 | UI main                 | `294431194a50735b62ba38e674fac1af76ae6cfb`                                            |
 | 版本                    | `0.1.1-beta.20`                                                                       |
-| Build time              | `2026-11-06T12:34:10Z`                                                                |
-| Host artifact digest    | `sha256:8dbf32d536d74601bd0322268cdaf9f9c5cf0255544a9af07d05967362b99456`（15 files） |
-| Sandbox artifact digest | `sha256:f529bc361f24672f5e428fb8976462876fa23dcaaf623be70943f1b749806679`（15 files） |
-| 镜像                    | `zeus-playground:deploy-r41b`                                                         |
-| 镜像 ID                 | `sha256:3c2deb10ceb4a7cb90d271ec9a7e643dfec2ef3430c316df1a5c754b61f06b25`             |
-| 镜像归档 SHA256         | `ec92ebf432444cd972f77d036b85e3d60b95dcee77a46e94923736e81c5fab0c`                    |
-| Host build-info         | `https://mail.moonbyte.top:8443/build-info.json`                                      |
+| Build time              | `2026-11-06T16:15:27Z`                                                                |
+| Host artifact digest    | `sha256:4271b0b65cecabbe5eeac41bbcf1a5e638a30a2049535d9e0b025715efc1c4f0`（15 files） |
+| Sandbox artifact digest | `sha256:91e9eaa0edbbeea92be323fbb40e7813b91ff783c069c6ce643802387077c53f`（15 files） |
+| 镜像                    | `zeus-playground:deploy-main-playground`                                              |
+| 镜像 ID                 | `sha256:a7516f02a012f63a2767e8e10f22edf89e5ce5f444d073a923348ee66052a8ee`             |
+| 镜像归档 SHA256         | `n/a（本镜像由服务器构建，本地 Docker 未保留归档）`                                   |
+| Host build-info         | `https://playground.moonbyte.top:8443/build-info.json`                                |
 | Sandbox build-info      | `https://panel.moonbyte.top:8443/zeus-sandbox/build-info.json`                        |
 
-### Provenance 纠正（R4.1 Final Closure）
+### Provenance 历史与最终纠正（R4.1 Final Closure）
 
-部署镜像 `zeus-playground:deploy-r41b` 是在 #193 尚未提交时从工作树构建的：
-工作树 HEAD 为 main `7a14a9c`，但包含后来提交为 `11021a4` 的 R4.1 修改。
-Docker build args 和镜像 label/build-info 却写入了旧 main `7a14a9c`，因此
-**原报告把部署源码身份写错了**。
+部署镜像 `zeus-playground:deploy-r41b` 曾是在 #193 尚未提交时从工作树构建：
+工作树 HEAD 为 main `7a14a9c`，但包含后来提交为 `11021a4` 的 R4.1 修改；
+Docker build args 和镜像 label/build-info 错误地写入了旧 main。用干净源码
+重建验证了旧镜像实际对应 `11021a4`/tree `344ee5`，并把这段历史记录保留在
+本报告中，避免把旧标签当成最终证据。
 
-已用干净源码重建验证：从 commit `11021a4`（tree `344ee5...`）以相同环境
-重新构建 Host/Sandbox，得到与线上完全相同的
-`sha256:8dbf32d5...b99456` / `sha256:f529bc36...806679`，证明线上静态
-产物对应 R4.1 PR 源码，而不是 main `7a14a9c`。当前镜像的
-`build-info.json`/label 仍写旧 commit，不能作为最终 main 的 provenance
-证据；不得据此宣称密码学 Attestation。
+维护者授权后，#193 已合并为 main `310891161d28bf2fed57f20fc457000338c6a206`
+（tree `962ed3ef...`）。本轮从该 **干净 main merge commit** 重新构建
+Host/Sandbox，build-info 与镜像 label 均写入 main commit、`sourceTree`、
+UI commit 和新的 build time；旧 `deploy-r41b` 镜像仍保留作为回滚候选，但
+不再作为最终 provenance 声明。三浏览器在线验收已重新执行并校验
+`sourceTree` 与 build-info 文件级 SHA256。
 
-已在 R4.1 工具链增加 `sourceTree`（build-info、Stage 1 build args、镜像
-构建参数），并要求 Stage 1 工作树干净。正确流程是：#193 修复并合并后，从
-干净的正式 main merge commit 重新构建、重新生成 Build-info 和镜像 label，
-再在已有部署授权内上线；在此之前线上安全缓解保留，不直接回滚到无 CSP 的
-旧镜像。
-
-`build-info` 的 `artifactDigest` 由验收器重新下载每个文件、逐文件校验
+这仍是摘要绑定，不是密码学签名 Attestation；不能宣称 Sigstore/GitHub
+Artifact Attestation 已存在。`build-info` 的 `artifactDigest` 由验收器重新下载每个文件、逐文件校验
 SHA256/字节数并重新计算，而不是只信 JSON 自报值。
 
 原始验收结果：
@@ -97,7 +94,7 @@ SHA256/字节数并重新计算，而不是只信 JSON 自报值。
 - `examples/playground-editor/src/preview.ts`：iframe URL 使用
   `withSandboxSession`，不再覆盖配置的 hash。
 - 响应头：Sandbox 的 HTTP CSP 为
-  `sandbox allow-scripts; frame-ancestors https://mail.moonbyte.top:8443`。
+  `sandbox allow-scripts; frame-ancestors https://playground.moonbyte.top:8443`。
   `<meta>` CSP 仍保留资源限制；`frame-ancestors` 和 `sandbox` 不再依赖 meta。
 
 Sandbox 与 Panel 共享 `panel.moonbyte.top:8443` 主机名是部署现状，但
@@ -128,7 +125,7 @@ iframe/CSP 使文档运行在 opaque origin，不能读取 Panel 的存储、Coo
 
 实际路由（`/home/ubuntu/caddy/Caddyfile`）：
 
-- `https://mail.moonbyte.top:8443` → `127.0.0.1:18080`（Playground Host）。
+- `https://playground.moonbyte.top:8443` → `127.0.0.1:18080`（Playground Host）。
 - `https://panel.moonbyte.top:8443`：
   - `/` → `302 /panel/`；
   - `/sandbox.html` → `302 /zeus-sandbox/sandbox.html`（兼容入口）；
@@ -144,21 +141,18 @@ iframe/CSP 使文档运行在 opaque origin，不能读取 Panel 的存储、Coo
 | 路径                                                    | CSP                                                                                          |
 | ------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | Host `/`                                                | `default-src 'self'; ...; frame-src https://panel.moonbyte.top:8443; frame-ancestors 'none'` |
-| Sandbox `/zeus-sandbox/sandbox.html`                    | `sandbox allow-scripts; frame-ancestors https://mail.moonbyte.top:8443`                      |
+| Sandbox `/zeus-sandbox/sandbox.html`                    | `sandbox allow-scripts; frame-ancestors https://playground.moonbyte.top:8443`                |
 | Sandbox aliases `/zeus-sandbox/index.html`、`host.html` | 同上（header 作用于整个 Sandbox server）                                                     |
 | Panel `/panel/`                                         | Panel 自身的 `default-src 'none'; ...; frame-ancestors 'none'`，未受影响                     |
 
-TLS：证书 SAN 覆盖 `mail.moonbyte.top`、`panel.moonbyte.top` 等 7 个域名，
-有效期至 `2027-02-03T06:31:33Z`。**未发现 certbot/acme timer 或 cron**，
-续期是人工流程；必须在 2027-02-03 前更新
-`/home/ubuntu/caddy/certs/{fullchain,key}.pem` 并 `caddy reload`。本轮未改
-证书、未重启 Caddy（容器 `StartedAt` 仍为 2026-11-04，配置通过 graceful
-reload 生效）。
+TLS：`playground.moonbyte.top` 使用独立 Let's Encrypt 证书，有效期至
+`2027-02-04T15:12:34Z`；原 `mail.moonbyte.top` 证书仍用于 301 跳转。acme.sh
+cron 每 6 小时运行，`--install-cert` 已配置 `caddy reload` hook；Admin/AI
+独立证书 SAN 覆盖 `admin.moonbyte.top` / `ai.moonbyte.top`。
 
-HSTS：8443 未设置 `Strict-Transport-Security`，因为该 header 会按主机名
-影响整个 `mail.moonbyte.top`，而当前是非标准端口布局。它被记录为
-`hstsPresent=false`，不作为 Playground 上线失败项；迁移到独立域名/443 后
-应补 HSTS。
+HSTS：`playground.moonbyte.top:8443`、`admin.moonbyte.top:8443`、
+`ai.moonbyte.top:8443` 均返回 `Strict-Transport-Security: max-age=31536000`；
+旧 mail 入口只做 301，不再承载应用。
 
 回滚：
 
@@ -184,18 +178,19 @@ cd /home/ubuntu/zeus-playground && sudo docker compose up -d --wait
 
 ```sh
 pnpm accept:playground-online \
-  --host-url https://mail.moonbyte.top:8443/ \
+  --host-url https://playground.moonbyte.top:8443/ \
   --sandbox-url https://panel.moonbyte.top:8443/zeus-sandbox/sandbox.html \
-  --core-commit 7a14a9c5d801ebb6453ad057f7b95848675ccdb3 \
+  --core-commit 310891161d28bf2fed57f20fc457000338c6a206 \
   --ui-commit 294431194a50735b62ba38e674fac1af76ae6cfb \
+  --source-tree 962ed3efecc288522caf94fe065fc0eb905cfcb5 \
   --allow-port 8443 \
-  --image-ref zeus-playground:deploy-r41b \
-  --image-id sha256:3c2deb10ceb4a7cb90d271ec9a7e643dfec2ef3430c316df1a5c754b61f06b25 \
-  --host-digest sha256:8dbf32d536d74601bd0322268cdaf9f9c5cf0255544a9af07d05967362b99456 \
-  --sandbox-digest sha256:f529bc361f24672f5e428fb8976462876fa23dcaaf623be70943f1b749806679
+  --image-ref zeus-playground:deploy-main-playground \
+  --image-id sha256:a7516f02a012f63a2767e8e10f22edf89e5ce5f444d073a923348ee66052a8ee \
+  --host-digest sha256:4271b0b65cecabbe5eeac41bbcf1a5e638a30a2049535d9e0b025715efc1c4f0 \
+  --sandbox-digest sha256:91e9eaa0edbbeea92be323fbb40e7813b91ff783c069c6ce643802387077c53f
 ```
 
-结果：`PLAYGROUND_ONLINE_VALIDATED`。
+结果：`PLAYGROUND_ONLINE_VALIDATED`（`checkedAt` `2026-11-06T16:30:55Z`）。
 
 | 浏览器   | 版本         | Native Lab | WebC Studio       | 直接访问 opaque | 第三方嵌入阻断 |
 | -------- | ------------ | ---------- | ----------------- | --------------- | -------------- |
@@ -222,6 +217,9 @@ pnpm accept:playground-online \
 
 ### Admin
 
+> 以下是 R4.1 时点的差距记录；R4.2 已修复并部署到独立域名，详见
+> `admin-r4-2-security-closure-2026-11-06.md`。
+
 - RBAC 的服务端校验本身正确；viewer 写操作返回 403，但验收器未断言
   viewer 403、Cookie `Secure`、登录限流。
 - 会话 Cookie 只有 `HttpOnly; SameSite=Lax`，缺少 `Secure`
@@ -236,6 +234,9 @@ pnpm accept:playground-online \
 - 结论：**BLOCKED_BY_SECURITY**，本轮不开放。
 
 ### AI Workbench / AI Host
+
+> 以下是 R4.1 时点的差距记录；R4.2 已修复并部署，公网为 viewer-only
+> 只读演示，详见 `ai-host-r4-2-security-closure-2026-11-06.md`。
 
 - AI Host 全端点没有身份认证/授权；Origin allowlist 不是认证，非浏览器
   客户端或无 Origin 请求可绕过（`examples/ai-host/src/protocol-server.ts:95`）。
@@ -252,19 +253,22 @@ pnpm accept:playground-online \
 
 四产品总门禁仍未满足；不能因为 Playground 通过就写
 `ONLINE_ACCEPTED`。原始四产品验收器现在支持显式 `allowedPorts` 与
-`sandboxUrl`，但 Admin/AI 没有上线证据，门禁保持 NOT_READY。
+`sandboxUrl`；Admin/AI 已完成独立域名 Host Validation，但没有完整四产品
+在线验收 manifest，门禁保持 NOT_READY。
 
 ## 7. 残余风险与边界
 
 - Sandbox 与 Panel 共享主机名，虽然 iframe/CSP 为 opaque；独立
   `sandbox.moonbyte.top` 域名仍是长期建议。
-- 8443 无 HSTS；证书续期没有自动 timer，属于人工运维风险。
+- 独立域名已启用 HSTS；旧 `mail.moonbyte.top:8443` 仅保留 301。证书由
+  acme.sh cron 管理并 reload Caddy。
 - `build-info`/镜像标签是摘要绑定，不是签名 Attestation；没有 Sigstore
   或 GitHub Artifact Attestation。
 - Sandbox 的 `sandbox-ready` 在允许嵌入但父 Origin 不在白名单时仍可能被
   对方收到（不含敏感数据）；真正的代码执行入口已由 opaque 硬门与
   allowlist 双重阻断。
-- 本轮未执行 npm publish、正式 Tag、Release、未部署 Admin/AI。
+- 本轮未执行 npm publish、正式 Tag、Release；Admin/AI 已部署独立域名，
+  但镜像来自 Draft PR 分支，合并后需从 main 重建。
 
 ## 8. R4.2 提示词草案
 

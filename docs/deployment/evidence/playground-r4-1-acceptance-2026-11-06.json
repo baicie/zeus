@@ -1,27 +1,25 @@
 {
   "schema": "zeus.playground-online-acceptance/v1",
   "status": "PLAYGROUND_ONLINE_VALIDATED",
-  "checkedAt": "2026-11-06T12:56:08.968Z",
-  "hostUrl": "https://mail.moonbyte.top:8443/",
+  "checkedAt": "2026-11-06T16:30:55.723Z",
+  "hostUrl": "https://playground.moonbyte.top:8443/",
   "sandboxUrl": "https://panel.moonbyte.top:8443/zeus-sandbox/sandbox.html",
-  "coreCommit": "7a14a9c5d801ebb6453ad057f7b95848675ccdb3",
+  "coreCommit": "310891161d28bf2fed57f20fc457000338c6a206",
   "uiCommit": "294431194a50735b62ba38e674fac1af76ae6cfb",
-  "sourceTree": "10659b3ecf5b70193d4c5fe8e429deebcbccf73d",
-  "imageRef": "zeus-playground:deploy-r41b",
-  "imageId": "sha256:3c2deb10ceb4a7cb90d271ec9a7e643dfec2ef3430c316df1a5c754b61f06b25",
+  "sourceTree": "962ed3efecc288522caf94fe065fc0eb905cfcb5",
   "buildInfo": {
     "host": {
-      "url": "https://mail.moonbyte.top:8443/build-info.json",
-      "artifactDigest": "sha256:8dbf32d536d74601bd0322268cdaf9f9c5cf0255544a9af07d05967362b99456",
+      "url": "https://playground.moonbyte.top:8443/build-info.json",
+      "artifactDigest": "sha256:4271b0b65cecabbe5eeac41bbcf1a5e638a30a2049535d9e0b025715efc1c4f0",
       "fileCount": 15,
-      "builtAt": "2026-11-06T12:34:10Z",
+      "builtAt": "2026-11-06T16:15:27Z",
       "redirects": []
     },
     "sandbox": {
       "url": "https://panel.moonbyte.top:8443/zeus-sandbox/build-info.json",
-      "artifactDigest": "sha256:f529bc361f24672f5e428fb8976462876fa23dcaaf623be70943f1b749806679",
+      "artifactDigest": "sha256:91e9eaa0edbbeea92be323fbb40e7813b91ff783c069c6ce643802387077c53f",
       "fileCount": 15,
-      "builtAt": "2026-11-06T12:34:10Z",
+      "builtAt": "2026-11-06T16:15:27Z",
       "redirects": []
     }
   },
@@ -31,7 +29,7 @@
     "sandboxFrameAncestors": true,
     "sandboxAcao": true,
     "sandboxNosniff": true,
-    "hstsPresent": false
+    "hstsPresent": true
   },
   "browsers": [
     {
@@ -63,17 +61,16 @@
     }
   ],
   "evidence": [
-    "host https://mail.moonbyte.top:8443/",
+    "host https://playground.moonbyte.top:8443/",
     "sandbox https://panel.moonbyte.top:8443/zeus-sandbox/sandbox.html",
     "approved ports 8443",
     "host HTTP 200",
     "sandbox HTTP 200",
     "host CSP frame-src + sandbox headers verified",
-    "HSTS absent (non-standard port deployment)",
-    "build-info https://mail.moonbyte.top:8443/build-info.json sha256:8dbf32d536d74601bd0322268cdaf9f9c5cf0255544a9af07d05967362b99456 (15 files)",
-    "build-info https://panel.moonbyte.top:8443/zeus-sandbox/build-info.json sha256:f529bc361f24672f5e428fb8976462876fa23dcaaf623be70943f1b749806679 (15 files)",
-    "image zeus-playground:deploy-r41b sha256:3c2deb10ceb4a7cb90d271ec9a7e643dfec2ef3430c316df1a5c754b61f06b25",
-    "pinned proxy 127.0.0.1:59411",
+    "HSTS present",
+    "build-info https://playground.moonbyte.top:8443/build-info.json sha256:4271b0b65cecabbe5eeac41bbcf1a5e638a30a2049535d9e0b025715efc1c4f0 (15 files)",
+    "build-info https://panel.moonbyte.top:8443/zeus-sandbox/build-info.json sha256:91e9eaa0edbbeea92be323fbb40e7813b91ff783c069c6ce643802387077c53f (15 files)",
+    "pinned proxy 127.0.0.1:54748",
     "chromium 156.0.8078.4 native=true webc=true direct=true thirdParty=true",
     "firefox 157.0 native=true webc=true direct=true thirdParty=true",
     "webkit 27.2 native=true webc=true direct=true thirdParty=true"
