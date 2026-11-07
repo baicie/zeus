@@ -3,7 +3,7 @@
 Report time: 2026-11-08 04:05 Asia/Shanghai
 Mission start: 2026-11-08 00:08 Asia/Shanghai (prompt received)
 Active runtime: ~3 h 57 min
-Final checkpoint: `05fa711` plus this report commit on `docs/overnight-2026-11-08`
+Final checkpoint: `d749d94` on `docs/overnight-2026-11-08`
 
 ## Final verdict
 
