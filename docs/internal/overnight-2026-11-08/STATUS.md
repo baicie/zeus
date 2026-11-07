@@ -1,6 +1,6 @@
 # Overnight Mission Status — 2026-11-08
 
-Last checkpoint: 2026-11-08 03:30 Asia/Shanghai
+Last checkpoint: 2026-11-08 03:40 Asia/Shanghai
 Deadline: 2026-11-08 12:00 Asia/Shanghai
 
 ## Baseline
@@ -50,6 +50,10 @@ No merge, npm publish, Tag, dist-tag or production deployment in this mission.
 - RC-07 is blocked by environment: `npm whoami` → `ENEEDAUTH`, configured
   registry is `https://registry.npmmirror.com`. No dist-tag repair, publish or
   promotion was attempted.
+- RC-04 remainder: the candidate check builds `basic-ts`; the other
+  create-zeus templates (and the UI `@zeus-web` tarballs used by
+  `webc-consumer-ts`) are not yet exercised. No cross-repo candidate gate was
+  added, so this remains a code/release-gate gap.
 - Storage safety: `STORAGE_SAFETY_PASS`; generation directories and
   broad-root/symlink rejection in UI #126.
 - R5 workspace drill Run
