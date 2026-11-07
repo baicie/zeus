@@ -9,13 +9,13 @@
 
 ## A. Git Baseline
 
-| 仓库 | 分支                           | Commit             | 状态                  |
-| ---- | ------------------------------ | ------------------ | --------------------- |
-| Core | `fix/r4-4-stage2-transaction`  | `6773f56`          | Draft PR #199         |
-| Core | `fix/r4-4-admin-credentials`   | `4c842fc`          | Draft PR #200         |
-| Core | `docs/r4-4-rc-readiness`       | `d1a4e87` + 本报告 | Draft PR #201         |
-| Core | `test/r4-4-integration`        | `be1ff75`          | 集成/演练分支，不合并 |
-| UI   | `fix/r4-4-ai-public-isolation` | `4827f38`          | Draft PR #125         |
+| 仓库 | 分支                           | Commit    | 状态                  |
+| ---- | ------------------------------ | --------- | --------------------- |
+| Core | `fix/r4-4-stage2-transaction`  | `6773f56` | Draft PR #199         |
+| Core | `fix/r4-4-admin-credentials`   | `4c842fc` | Draft PR #200         |
+| Core | `docs/r4-4-rc-readiness`       | `d39398d` | Draft PR #201         |
+| Core | `test/r4-4-integration`        | `be1ff75` | 集成/演练分支，不合并 |
+| UI   | `fix/r4-4-ai-public-isolation` | `4827f38` | Draft PR #125         |
 
 Core main `e193cf50ad3cbe1d4c14e48584339352c2b75edf`；UI main
 `6806700585b1ae33c6e76ba22aae493f91124014`。两个 main 在本轮开始与结束均未漂移。Stage 1 候选由 Core `16f8369` + UI `4827f38` 构建；其后 Core 分支上的提交只修改部署脚本/测试工作流，不修改已构建的产品源码（Admin/Playground/AI Host/Workbench），因此镜像内容对应当前 PR 的产品代码。
