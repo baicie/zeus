@@ -189,6 +189,9 @@ export function validateDeploymentManifest(
   }
   const sandboxUrl =
     typeof value.sandboxUrl === 'string' ? value.sandboxUrl : undefined
+  if (mode === 'online' && sandboxUrl === undefined) {
+    errors.push('online manifest must include sandboxUrl')
+  }
   if (
     sandboxUrl !== undefined &&
     !isAllowedDeploymentUrl(sandboxUrl, mode, allowedHosts, allowedPorts)
@@ -550,11 +553,16 @@ async function checkProduct(
         if (!/\bsandbox\b/.test(sandboxCsp)) {
           throw new Error('sandbox response is missing a CSP sandbox directive')
         }
-        const hostOrigin = new URL(response.finalUrl).origin
-        if (!sandboxCsp.includes(`frame-ancestors ${hostOrigin}`)) {
-          throw new Error(
-            'sandbox CSP frame-ancestors does not allow the playground host',
-          )
+        // The image emits `sandbox allow-scripts`; production ingress adds the
+        // host-specific frame-ancestors directive. Local integration has no
+        // ingress, so only the online check can require it.
+        if (context.mode === 'online') {
+          const hostOrigin = new URL(response.finalUrl).origin
+          if (!sandboxCsp.includes(`frame-ancestors ${hostOrigin}`)) {
+            throw new Error(
+              'sandbox CSP frame-ancestors does not allow the playground host',
+            )
+          }
         }
       }
       evidence.push('sandbox CSP default-src none')

@@ -221,6 +221,7 @@ export async function runDeploymentTransaction(
         layout,
         acceptanceManifestFile,
         'already-deployed',
+        runtime,
       )
       report = {
         ...reportBase,
@@ -251,6 +252,7 @@ export async function runDeploymentTransaction(
         layout,
         acceptanceManifestFile,
         'candidate',
+        runtime,
       )
       removeAcceptanceUser(layout)
       injectFailure(options.failureInjection, 'after-acceptance')
@@ -1297,6 +1299,7 @@ function writeAcceptanceManifest(
       schema: 'zeus.deployment-manifest/v2',
       coreCommit: options.coreCommit,
       uiCommit: options.uiCommit,
+      sandboxUrl: layout.sandboxUrl,
       products: [
         localProduct(
           'webc-studio',
@@ -1355,7 +1358,12 @@ async function runAcceptance(
   layout: DeploymentLayout,
   manifestFile: string,
   phase: 'candidate' | 'already-deployed',
+  runtime: RuntimeConfiguration,
 ): Promise<{ decision: string; file: string }> {
+  process.env.ZEUS_ACCEPTANCE_ADMIN_EMAIL = runtime.acceptanceEmail
+  process.env.ZEUS_ACCEPTANCE_ADMIN_PASSWORD = runtime.acceptancePassword
+  process.env.ZEUS_ACCEPTANCE_AI_REPLAY = 'true'
+  process.env.ZEUS_ACCEPTANCE_TENANT = options.tenant
   const report = await runDeploymentAcceptance({
     manifestFile,
     mode: options.mode,
@@ -1661,7 +1669,9 @@ function publishedPortOwners(): Map<number, string> {
   for (const line of stdoutText(result).split('\n')) {
     const [name, ports = ''] = line.split('\t')
     if (!name) continue
-    for (const match of ports.matchAll(/127\.0\.0\.1:(\d+)->/g)) {
+    for (const match of ports.matchAll(
+      /(?:127\.0\.0\.1|0\.0\.0\.0|\[::\]):(\d+)->/g,
+    )) {
       owners.set(Number(match[1]), name)
     }
   }
