@@ -1,9 +1,9 @@
 import { computed } from '../src/computed'
 import { effect, stop } from '../src/effect'
 import { createEffect, createRoot } from '../src/primitives'
-import { watch } from '../src/watch'
 import { reactive } from '../src/reactive'
 import { ref } from '../src/ref'
+import { watch } from '../src/watch'
 
 describe('signal error isolation', () => {
   test('a failing reactive write does not poison later notifications', () => {
@@ -69,7 +69,6 @@ describe('signal error isolation', () => {
     dispose()
   })
 })
-
 
 describe('signal failure recovery', () => {
   test('a computed that throws is re-evaluated on the next read', () => {
