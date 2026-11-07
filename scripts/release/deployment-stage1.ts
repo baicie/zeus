@@ -109,7 +109,7 @@ async function runStage1(options: Stage1Options): Promise<void> {
       composeFile,
       envFile,
     )
-    await waitForHealth()
+    await waitForHealth(composeFile, envFile)
     const manifestFile = path.join(options.output, 'deployment.local.json')
     const manifest = {
       schema: 'zeus.deployment-manifest/v2',
@@ -468,7 +468,10 @@ function dockerCompose(
   }
 }
 
-async function waitForHealth(): Promise<void> {
+async function waitForHealth(
+  composeFile: string,
+  envFile: string,
+): Promise<void> {
   const targets = [
     'http://127.0.0.1:8080/',
     'http://127.0.0.1:8081/sandbox.html',
@@ -477,19 +480,42 @@ async function waitForHealth(): Promise<void> {
   ]
   for (const target of targets) {
     let ok = false
+    let detail = 'no response'
     for (let attempt = 0; attempt < 60; attempt += 1) {
       try {
         const response = await fetch(target)
+        detail = `${response.status} ${(await response.text()).slice(0, 200)}`
         if (response.ok) {
           ok = true
           break
         }
-      } catch {
-        // keep waiting
+      } catch (error) {
+        detail = error instanceof Error ? error.message : String(error)
       }
       await new Promise(resolve => setTimeout(resolve, 2_000))
     }
-    if (!ok) throw new Error(`health check failed: ${target}`)
+    if (!ok) {
+      const logs = spawnSync(
+        'docker',
+        [
+          'compose',
+          '--env-file',
+          envFile,
+          '-f',
+          composeFile,
+          'logs',
+          '--no-color',
+          '--tail',
+          '80',
+          'ai-host',
+          'ai-workbench',
+        ],
+        { cwd: repoRoot, encoding: 'utf8' },
+      )
+      throw new Error(
+        `health check failed: ${target}: ${detail}${logs.stdout ? `\n${logs.stdout}` : ''}`,
+      )
+    }
   }
 }
 
