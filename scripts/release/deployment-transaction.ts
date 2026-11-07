@@ -585,7 +585,9 @@ export function createLocalLayout(
   if (ports.length !== 4) throw new Error('local layout needs four ports')
   const [playgroundHost, playgroundSandbox, admin, workbench] = ports
   const suffix = options.tenant.replace(/[^a-z0-9-]/g, '-').slice(0, 24)
-  const dataRoot = path.join(options.stateDir, 'data')
+  // Stable across local runs: a drill must back up and restore the same
+  // bind-mounted data directory that the previous containers use.
+  const dataRoot = path.join(os.tmpdir(), 'zeus-stage2-data', suffix)
   const layout = {
     schema: 'zeus.deployment-layout/v1',
     environment: 'local',
