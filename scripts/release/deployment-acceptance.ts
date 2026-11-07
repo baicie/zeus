@@ -722,7 +722,7 @@ async function runProductSmoke(
       () =>
         document
           .querySelector('[data-testid="preview-status"]')
-          ?.textContent?.includes('预览就绪') === true,
+          ?.textContent?.includes('Preview ready') === true,
       undefined,
       { timeout: 60_000 },
     )

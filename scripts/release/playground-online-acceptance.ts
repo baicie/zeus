@@ -653,7 +653,7 @@ async function runNativeLab(
     () =>
       document
         .querySelector('[data-testid="preview-status"]')
-        ?.textContent?.includes('预览就绪'),
+        ?.textContent?.includes('Preview ready'),
     null,
     { timeout: 90_000 },
   )
@@ -687,6 +687,9 @@ async function runNativeLab(
   const opaque = await frame.evaluate(() => globalThis.origin)
   if (opaque !== 'null') throw new Error(`sandbox origin is ${String(opaque)}`)
   const before = (await frame.locator('button').textContent())?.trim()
+  // Chromium may swallow synthetic clicks aimed at an out-of-process iframe
+  // while its compositor surface is still being committed after navigation.
+  await page.waitForTimeout(250)
   await frame.locator('button').click()
   await page.waitForTimeout(500)
   const after = (await frame.locator('button').textContent())?.trim()
@@ -709,10 +712,11 @@ async function runWebCStudio(
     () =>
       document
         .querySelector('[data-testid="preview-status"]')
-        ?.textContent?.includes('预览就绪'),
+        ?.textContent?.includes('Preview ready'),
     null,
     { timeout: 90_000 },
   )
+  await page.getByTestId('tab-inspector').click()
   await page.waitForFunction(
     () =>
       document

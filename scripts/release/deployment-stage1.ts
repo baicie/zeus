@@ -12,6 +12,7 @@ import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 
 import { runDeploymentAcceptance } from './deployment-acceptance'
+import { createAiDeploymentEnvironment } from './deployment-ai'
 
 const root = path.resolve(import.meta.dirname, '../..')
 let repoRoot = root
@@ -68,7 +69,7 @@ interface Stage1Options {
 
 async function runStage1(options: Stage1Options): Promise<void> {
   fs.mkdirSync(options.output, { recursive: true })
-  assertClean(options.coreRoot, 'Core')
+  assertClean(options.coreRoot, 'Core', options.uiRoot)
   assertClean(options.uiRoot, 'Zeus UI')
   const coreCommit = git(options.coreRoot, ['rev-parse', 'HEAD'])
   const coreTree = git(options.coreRoot, ['rev-parse', 'HEAD^{tree}'])
@@ -108,7 +109,7 @@ async function runStage1(options: Stage1Options): Promise<void> {
       composeFile,
       envFile,
     )
-    await waitForHealth()
+    await waitForHealth(composeFile, envFile)
     const manifestFile = path.join(options.output, 'deployment.local.json')
     const manifest = {
       schema: 'zeus.deployment-manifest/v2',
@@ -427,6 +428,7 @@ function writeEnvFile(
   images: Record<string, ImageRecord>,
   uiCommit: string,
 ): void {
+  const ai = createAiDeploymentEnvironment(TENANT)
   const lines = [
     `ZEUS_PLAYGROUND_IMAGE=${images.playground.image}`,
     `ZEUS_ADMIN_IMAGE=${images.admin.image}`,
@@ -442,8 +444,8 @@ function writeEnvFile(
     'ZEUS_ADMIN_EMAIL=acceptance@example.test',
     `ZEUS_ADMIN_PASSWORD=${ADMIN_PASSWORD}`,
     `ZEUS_ADMIN_VIEWER_PASSWORD=${VIEWER_PASSWORD}`,
-    `ZEUS_AI_WORKSPACE_ID=${TENANT}`,
     'ZEUS_AI_ORIGINS=http://127.0.0.1:8083',
+    ...ai.lines,
     `# ui commit ${uiCommit}`,
     '',
   ]
@@ -466,7 +468,10 @@ function dockerCompose(
   }
 }
 
-async function waitForHealth(): Promise<void> {
+async function waitForHealth(
+  composeFile: string,
+  envFile: string,
+): Promise<void> {
   const targets = [
     'http://127.0.0.1:8080/',
     'http://127.0.0.1:8081/sandbox.html',
@@ -475,19 +480,42 @@ async function waitForHealth(): Promise<void> {
   ]
   for (const target of targets) {
     let ok = false
+    let detail = 'no response'
     for (let attempt = 0; attempt < 60; attempt += 1) {
       try {
         const response = await fetch(target)
+        detail = `${response.status} ${(await response.text()).slice(0, 200)}`
         if (response.ok) {
           ok = true
           break
         }
-      } catch {
-        // keep waiting
+      } catch (error) {
+        detail = error instanceof Error ? error.message : String(error)
       }
       await new Promise(resolve => setTimeout(resolve, 2_000))
     }
-    if (!ok) throw new Error(`health check failed: ${target}`)
+    if (!ok) {
+      const logs = spawnSync(
+        'docker',
+        [
+          'compose',
+          '--env-file',
+          envFile,
+          '-f',
+          composeFile,
+          'logs',
+          '--no-color',
+          '--tail',
+          '80',
+          'ai-host',
+          'ai-workbench',
+        ],
+        { cwd: repoRoot, encoding: 'utf8' },
+      )
+      throw new Error(
+        `health check failed: ${target}: ${detail}${logs.stdout ? `\n${logs.stdout}` : ''}`,
+      )
+    }
   }
 }
 
@@ -498,11 +526,27 @@ function readExistingImages(output: string): Record<string, ImageRecord> {
   return candidate.images
 }
 
-function assertClean(directory: string, label: string): void {
+function assertClean(
+  directory: string,
+  label: string,
+  nestedWorktree?: string,
+): void {
+  const relativeNested = nestedWorktree
+    ? path.relative(directory, nestedWorktree).split(path.sep).join('/')
+    : undefined
   const status = git(directory, ['status', '--porcelain'])
+    .split('\n')
+    .filter(Boolean)
+    .filter(line => {
+      if (!relativeNested || relativeNested.startsWith('..')) return true
+      const changed = line.slice(3).replace(/\/$/, '')
+      return (
+        changed !== relativeNested && !changed.startsWith(`${relativeNested}/`)
+      )
+    })
   if (status.length > 0) {
     throw new Error(
-      `${label} worktree must be clean before Stage 1: ${status.split('\n')[0]}`,
+      `${label} worktree must be clean before Stage 1: ${status[0]}`,
     )
   }
 }
