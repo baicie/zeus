@@ -4,11 +4,14 @@ services:
       context: ../..
       dockerfile: examples/admin/Dockerfile
     ports:
-      - '8080:8080'
+      # Loopback-only; TLS and authentication terminate at the trusted ingress.
+      - '127.0.0.1:8080:8080'
     environment:
       ZEUS_ADMIN_EMAIL: ${ZEUS_ADMIN_EMAIL:?Set ZEUS_ADMIN_EMAIL}
       ZEUS_ADMIN_PASSWORD: ${ZEUS_ADMIN_PASSWORD:?Set ZEUS_ADMIN_PASSWORD}
-      ZEUS_ADMIN_VIEWER_PASSWORD: ${ZEUS_ADMIN_VIEWER_PASSWORD:?Set ZEUS_ADMIN_VIEWER_PASSWORD}
+      ZEUS_ADMIN_SEED_DEMO: 'false'
+      ZEUS_ADMIN_SECURE_COOKIES: 'true'
+      ZEUS_ADMIN_TRUST_PROXY: 'false'
       ZEUS_ADMIN_DB: /data/admin.sqlite
       ZEUS_ADMIN_HOST: 0.0.0.0
       ZEUS_ADMIN_UPLOAD_BYTES: '65536'

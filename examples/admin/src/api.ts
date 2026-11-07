@@ -55,6 +55,9 @@ export function createHttpAdminApi(baseUrl = ''): AdminHttpApi {
       headers: {
         Accept: 'application/json',
         ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(init.method && !['GET', 'HEAD'].includes(init.method)
+          ? { 'X-CSRF-Token': readCsrfToken() }
+          : {}),
         ...init.headers,
       },
       signal,
@@ -165,6 +168,14 @@ export function createHttpAdminApi(baseUrl = ''): AdminHttpApi {
       return body.upload
     },
   }
+}
+
+function readCsrfToken(): string {
+  for (const pair of document.cookie.split(';')) {
+    const [key, ...rest] = pair.trim().split('=')
+    if (key === 'zeus_admin_csrf') return decodeURIComponent(rest.join('='))
+  }
+  return ''
 }
 
 function readBase64(file: File): Promise<string> {

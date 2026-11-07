@@ -10,7 +10,7 @@ export interface ApiRequest {
 export interface ApiResponse {
   readonly status: number
   readonly body?: unknown
-  readonly headers?: Record<string, string>
+  readonly headers?: Record<string, string | string[]>
 }
 
 export class ApiError extends Error {
@@ -75,6 +75,10 @@ export function sendJson(response: ServerResponse, result: ApiResponse): void {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
     'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'no-referrer',
+    'X-Frame-Options': 'DENY',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+    'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'",
     ...result.headers,
   })
   response.end(body)

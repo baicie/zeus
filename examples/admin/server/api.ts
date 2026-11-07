@@ -1,5 +1,6 @@
-import { createHash, randomUUID } from 'node:crypto'
+import { createHash, randomUUID, timingSafeEqual } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
+import net from 'node:net'
 import http, {
   type IncomingMessage,
   type Server,
@@ -8,12 +9,15 @@ import http, {
 import path from 'node:path'
 
 import {
+  CSRF_COOKIE,
+  SESSION_COOKIE,
   createSession,
   deleteSession,
+  deleteUserSessions,
   purgeExpiredSessions,
-  readSession,
-  SESSION_COOKIE,
+  readSessionAuth,
   type AdminRole,
+  type SessionAuth,
   type SessionUser,
 } from './auth'
 import type { AdminDatabase } from './database'
@@ -23,8 +27,10 @@ import {
   hashPassword,
   normalizeEmail,
   randomToken,
+  tokenHash,
   verifyPassword,
 } from './security'
+import { AttemptLimiter, type AttemptLimiterOptions } from './rate-limit'
 
 export interface AdminServerOptions {
   readonly database: AdminDatabase
@@ -32,6 +38,9 @@ export interface AdminServerOptions {
   readonly maxUploadBytes?: number
   readonly staticDir?: string
   readonly now?: () => Date
+  readonly secureCookies?: boolean
+  readonly trustProxy?: boolean
+  readonly loginRateLimit?: AttemptLimiterOptions
 }
 
 export interface AdminServer {
@@ -51,6 +60,7 @@ interface UserRow {
 }
 
 const DEFAULT_UPLOAD_BYTES = 64 * 1024
+const DUMMY_PASSWORD_HASH = hashPassword(randomToken())
 const UPLOAD_TYPES = new Set([
   'text/plain',
   'text/markdown',
@@ -63,6 +73,13 @@ export function createAdminServer(options: AdminServerOptions): AdminServer {
   const db = database.raw
   const maxUploadBytes = options.maxUploadBytes ?? DEFAULT_UPLOAD_BYTES
   const allowedOrigins = new Set(options.allowedOrigins ?? [])
+  const secureCookies = options.secureCookies ?? false
+  const trustProxy = options.trustProxy ?? false
+  const limiter = new AttemptLimiter({
+    ...options.loginRateLimit,
+    now: () => (options.now?.() ?? new Date()).getTime(),
+  })
+  const now = (): Date => options.now?.() ?? new Date()
 
   const server = http.createServer((request, response) => {
     void handle(request, response).catch(error => {
@@ -115,7 +132,8 @@ export function createAdminServer(options: AdminServerOptions): AdminServer {
 
     purgeExpiredSessions(db)
     const token = cookieValue(request.headers.cookie, SESSION_COOKIE)
-    const user = readSession(db, token)
+    const sessionAuth = readSessionAuth(db, token)
+    const user = sessionAuth?.user
 
     if (url.pathname === '/api/health' && method === 'GET') {
       sendJson(response, { status: 200, body: { ok: true }, headers })
@@ -126,10 +144,27 @@ export function createAdminServer(options: AdminServerOptions): AdminServer {
       const body = await readJsonBody(request)
       const email = normalizeEmail(readString(body, 'email'))
       const password = readString(body, 'password')
+      const ip = clientAddress(request, trustProxy)
+      const keys = [`ip:${ip}`, `account:${email}`]
+      const decision = limiter.check(keys)
+      if (!decision.allowed) {
+        audit(undefined, 'login', email, 'denied', 'rate limited')
+        sendRateLimited(response, headers, decision.retryAfterMs)
+        return
+      }
       const row = db
         .prepare('SELECT * FROM users WHERE email = ?')
         .get(email) as (UserRow & { password_hash: string }) | undefined
-      if (!row || !verifyPassword(password, row.password_hash)) {
+      const passwordValid =
+        password.length > 0 &&
+        password.length <= 1024 &&
+        row !== undefined &&
+        verifyPassword(password, row.password_hash)
+      if (!passwordValid) {
+        // Always run a scrypt verification so unknown-email and wrong-password
+        // responses have comparable cost and do not enumerate accounts.
+        if (!row) verifyPassword(password, DUMMY_PASSWORD_HASH)
+        limiter.recordFailure(keys)
         audit(undefined, 'login', email, 'denied', 'invalid credentials')
         throw new ApiError(
           401,
@@ -138,22 +173,36 @@ export function createAdminServer(options: AdminServerOptions): AdminServer {
         )
       }
       if (row.status === 'suspended') {
+        limiter.recordFailure(keys)
         audit(row.id, 'login', row.id, 'denied', 'suspended account')
         throw new ApiError(
           403,
-          'ZEUS_ADMIN_SUSPENDED',
-          'This account is suspended.',
+          'ZEUS_ADMIN_SIGN_IN_UNAVAILABLE',
+          'Sign-in is not available for this account.',
         )
       }
-      db.prepare('DELETE FROM sessions WHERE user_id = ?').run(row.id)
-      const session = createSession(db, row.id)
+      limiter.reset(keys)
+      // Rotate on every successful sign-in: all older sessions are invalid.
+      deleteUserSessions(db, row.id)
+      const session = createSession(db, row.id, now())
       audit(row.id, 'login', row.id, 'success', undefined)
       sendJson(response, {
         status: 200,
         body: { user: publicUser(row), expiresAt: session.expiresAt },
         headers: {
           ...headers,
-          'Set-Cookie': createSessionCookie(session.token, session.expiresAt),
+          'Set-Cookie': [
+            createSessionCookie(
+              session.token,
+              session.expiresAt,
+              secureCookies,
+            ),
+            createCsrfCookie(
+              session.csrfToken,
+              session.expiresAt,
+              secureCookies,
+            ),
+          ],
         },
       })
       return
@@ -169,11 +218,15 @@ export function createAdminServer(options: AdminServerOptions): AdminServer {
       return
     }
     if (url.pathname === '/api/auth/logout' && method === 'POST') {
+      if (user) requireCsrf(request, sessionAuth)
       deleteSession(db, token)
       if (user) audit(user.id, 'logout', user.id, 'success', undefined)
       sendJson(response, {
         status: 204,
-        headers: { ...headers, 'Set-Cookie': clearSessionCookie() },
+        headers: {
+          ...headers,
+          'Set-Cookie': clearAuthCookies(secureCookies),
+        },
       })
       return
     }
@@ -184,6 +237,9 @@ export function createAdminServer(options: AdminServerOptions): AdminServer {
         'ZEUS_ADMIN_AUTH_REQUIRED',
         'Sign in to continue.',
       )
+    if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
+      requireCsrf(request, sessionAuth)
+    }
 
     if (url.pathname === '/api/summary' && method === 'GET') {
       requireRole(user, 'viewer')
@@ -402,8 +458,8 @@ export function createAdminServer(options: AdminServerOptions): AdminServer {
           }
           throw error
         }
-        if (status === 'suspended')
-          db.prepare('DELETE FROM sessions WHERE user_id = ?').run(id)
+        if (status !== 'active' || role !== existing.role)
+          deleteUserSessions(db, id)
         audit(
           user.id,
           'user.update',
@@ -599,6 +655,7 @@ async function serveStatic(
     'Referrer-Policy': 'no-referrer',
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
   }
   try {
     const body = await readFile(file)
@@ -682,12 +739,82 @@ function cookieValue(
   return undefined
 }
 
-function createSessionCookie(token: string, expiresAt: string): string {
-  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Expires=${new Date(expiresAt).toUTCString()}`
+function createSessionCookie(
+  token: string,
+  expiresAt: string,
+  secure: boolean,
+): string {
+  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Expires=${new Date(expiresAt).toUTCString()}${secure ? '; Secure' : ''}`
 }
 
-function clearSessionCookie(): string {
-  return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`
+function createCsrfCookie(
+  token: string,
+  expiresAt: string,
+  secure: boolean,
+): string {
+  return `${CSRF_COOKIE}=${encodeURIComponent(token)}; Path=/; SameSite=Lax; Expires=${new Date(expiresAt).toUTCString()}${secure ? '; Secure' : ''}`
+}
+
+function clearAuthCookies(secure: boolean): string[] {
+  const suffix = secure ? '; Secure' : ''
+  return [
+    `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${suffix}`,
+    `${CSRF_COOKIE}=; Path=/; SameSite=Lax; Max-Age=0${suffix}`,
+  ]
+}
+
+function requireCsrf(
+  request: IncomingMessage,
+  session: SessionAuth | undefined,
+): void {
+  const header = request.headers['x-csrf-token']
+  const value = Array.isArray(header) ? header[0] : header
+  if (!session || typeof value !== 'string' || value.length === 0) {
+    throw new ApiError(
+      403,
+      'ZEUS_ADMIN_CSRF',
+      'A valid CSRF token is required.',
+    )
+  }
+  const expected = Buffer.from(session.csrfHash, 'hex')
+  const actual = Buffer.from(tokenHash(value), 'hex')
+  if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
+    throw new ApiError(
+      403,
+      'ZEUS_ADMIN_CSRF',
+      'A valid CSRF token is required.',
+    )
+  }
+}
+
+function clientAddress(request: IncomingMessage, trustProxy: boolean): string {
+  if (trustProxy) {
+    const forwarded = request.headers['x-forwarded-for']
+    const value = Array.isArray(forwarded) ? forwarded[0] : forwarded
+    const first = value?.split(',')[0]?.trim()
+    if (first && net.isIP(first) !== 0) return first
+  }
+  return request.socket.remoteAddress ?? 'unknown'
+}
+
+function sendRateLimited(
+  response: ServerResponse,
+  headers: Record<string, string>,
+  retryAfterMs: number,
+): void {
+  sendJson(response, {
+    status: 429,
+    body: {
+      error: {
+        code: 'ZEUS_ADMIN_RATE_LIMITED',
+        message: 'Too many sign-in attempts. Try again later.',
+      },
+    },
+    headers: {
+      ...headers,
+      'Retry-After': String(Math.max(1, Math.ceil(retryAfterMs / 1_000))),
+    },
+  })
 }
 
 function readString(body: unknown, key: string): string {
