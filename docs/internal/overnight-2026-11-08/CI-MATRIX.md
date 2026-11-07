@@ -22,15 +22,15 @@
 | `check:ui-pairing` against local UI | PASS (beta) |
 | `check:create-zeus-packed` | PASS |
 | `check:release-worktree --capture/--verify` | PASS |
-| GitHub CI | IN_PROGRESS at checkpoint |
+| GitHub CI | IN_PROGRESS at checkpoint (new commits rerun) |
 
 ## PR #203 `fix/r5-ai-workspace-backup`
 
 | Check | Status |
 | --- | --- |
 | `pnpm check` | PASS (local) |
-| Real Stage 2 workspace backup/restore drill | NOT_RUN (needs integration run) |
-| GitHub CI | QUEUED at checkpoint |
+| Real Stage 2 workspace backup/restore drill | PASS Run 42393622902 `ROLLED_BACK` |
+| GitHub CI | PASS 22/22 |
 
 ## UI PR #126 `fix/r5-public-replay-storage-safety`
 
@@ -38,8 +38,8 @@
 | --- | --- |
 | `pnpm check` | PASS (local) |
 | Storage helper direct check | PASS `STORAGE_SAFETY_PASS` |
-| Full `public-replay.spec.ts` | NOT_RUN locally (vitest/rolldown native config startup issue); GitHub CI will run |
-| GitHub CI | QUEUED at checkpoint |
+| Full `public-replay.spec.ts` | GitHub CI PASS |
+| GitHub CI | PASS 27 / SKIP 1 (Windows portability fix `585cb57`) |
 
 ## Admin browser matrix
 

@@ -1,6 +1,6 @@
 # Overnight Mission Status — 2026-11-08
 
-Last checkpoint: 2026-11-08 00:35 Asia/Shanghai
+Last checkpoint: 2026-11-08 01:05 Asia/Shanghai
 Deadline: 2026-11-08 12:00 Asia/Shanghai
 
 ## Baseline
@@ -25,9 +25,9 @@ Deadline: 2026-11-08 12:00 Asia/Shanghai
 
 | PR | Branch | Head | Status |
 | --- | --- | --- | --- |
-| Core #202 | `fix/r5-rc-gates` | `2f4a994` | RC-01/02/03/05/06 code gates; CI running |
-| UI #126 | `fix/r5-public-replay-storage-safety` | `3fcac41` | AI workspace generation isolation; CI running |
-| Core #203 | `fix/r5-ai-workspace-backup` | `64f6675` | AI workspace backup/restore; CI running |
+| Core #202 | `fix/r5-rc-gates` | `9ed9007` | RC-01/02/03/05/06 code gates + candidate packed check; CI running |
+| UI #126 | `fix/r5-public-replay-storage-safety` | `585cb57` | AI workspace generation isolation; CI 27 PASS / 1 SKIP |
+| Core #203 | `fix/r5-ai-workspace-backup` | `64f6675` | AI workspace backup/restore; CI 22/22 PASS; real drill PASS |
 
 No merge, no npm publish, no Tag, no production deployment in this mission.
 
@@ -40,6 +40,11 @@ No merge, no npm publish, no Tag, no production deployment in this mission.
 - Storage safety direct check: `STORAGE_SAFETY_PASS`.
 - R4.4 Stage 2 evidence (previous mission): success + `ROLLED_BACK`, containers and
   Admin/AI SQLite restored; live AI r44-readonly three-engine PASS.
+- R5 workspace drill Run [42393622902](https://github.com/baicie/zeus/actions/runs/42393622902):
+  success + `ROLLED_BACK`; `backups.aiWorkspace` `sha256:16acf1a5...` entries=1;
+  `rollback.restoredWorkspaces` length 1; health PASS; four containers restored.
+- `check:create-zeus-candidate`: 31 Core packages + vite-plugin packed and installed
+  via pnpm overrides; tsc + vite build PASS (`temp/create-zeus-candidate/report.json`).
 
 ## Status vocabulary
 

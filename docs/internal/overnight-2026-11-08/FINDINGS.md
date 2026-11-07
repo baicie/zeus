@@ -4,11 +4,11 @@
 | --- | --- | --- | --- | --- |
 | F-01 | P0 | FLAKE / PARTIAL | Core main `packed-consumers` Admin WebKit search input lost `fill('Radia')` once; same commit rerun passed; 20/20 local WebKit stress passed | CI 42386212157 first attempt failed, rerun SUCCESS; `/tmp/admin-webkit-stress-*.log`; no product code change yet |
 | F-02 | P0 | FIXED_IN_PR | Public replay `rmSync(workspaceRoot, recursive)` could delete `/`, `/data`, another tenant or symlink target on seed change | UI #126 `3fcac41`; generation dirs + broad-root/symlink checks; `STORAGE_SAFETY_PASS` |
-| F-03 | P1 | FIXED_IN_PR | Stage 2 backed up Admin/AI SQLite but not the AI workspace bind mount; rollback could lose files | Core #203 `64f6675`; `ai-workspace.tgz` + SHA256 + atomic restore; real drill pending |
+| F-03 | P1 | FIXED_AND_DRILLED | Stage 2 backed up Admin/AI SQLite but not the AI workspace bind mount; rollback could lose files | Core #203 `64f6675`; `ai-workspace.tgz` + SHA256 + atomic restore; Run 42393622902 ROLLED_BACK with workspace restore PASS |
 | F-04 | P0 | PARTIAL | Release workflow had no trusted HEAD-bound RC evidence; hand-written URLs could pass | Core #202 `2f4a994`; v3 evidence from online acceptance/transaction/provenance/pair; workflow fail-closed; malicious/expired artifact negative test still missing |
 | F-05 | P1 | FIXED_IN_PR | Versioning dirtied the worktree before `check:rc-readiness` | Core #202; `--release-snapshot` uses captured release rewrite; standalone dirt still fails |
 | F-06 | P1 | FIXED_IN_PR | `eslint-plugin` / `playground-engine` were public but outside the release group | Core #202; fixed group 31 packages; release plan confirmed |
-| F-07 | P1 | PARTIAL | create-zeus template pins were stale; packed test installs registry versions | Core #202; template sync + `check:create-zeus-versions`; candidate tarball packed install not implemented |
+| F-07 | P1 | FIXED_FOR_BASIC_TEMPLATE | create-zeus template pins were stale; packed test installs registry versions | Core #202; template sync + `check:create-zeus-versions`; `check:create-zeus-candidate` packs 31 Core packages + vite-plugin and builds basic-ts; UI templates still pending |
 | F-08 | P1 | FIXED_IN_PR | Core/UI exact pins had no joint gate | Core #202; release workflow checkout `ZEUS_UI_REF` + `check:ui-pairing`; UI candidate branch must pin Core RC |
 | F-09 | P1 | FIXED_CHECK / BLOCKED_OPERATION | 13 packages had prerelease `latest` dist-tags | Core #202 `check:latest-tags`; actual npm dist-tag repair requires npm authorization and is not performed |
 | F-10 | P0 | NOT_RUN | Rust compiler / Signal / DOM-Hydration deep audits from Phase D | not started yet |
