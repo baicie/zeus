@@ -5009,27 +5009,49 @@ struct Mapping {
 
 struct NameAllocator {
     used: HashSet<String>,
+    /// Next suffix to try for a base name. Without it, allocating the same
+    /// base N times rescans suffixes 0..N and makes deep regions quadratic.
+    next_suffix: HashMap<String, u32>,
 }
 
 impl NameAllocator {
     fn new(reserved_names: &[String]) -> Self {
         Self {
             used: reserved_names.iter().cloned().collect(),
+            next_suffix: HashMap::new(),
         }
     }
 
     fn allocate(&mut self, base: &str) -> String {
         if self.used.insert(base.to_owned()) {
+            self.next_suffix.entry(base.to_owned()).or_insert(0);
             return base.to_owned();
         }
 
-        for suffix in 0_u32.. {
+        let suffix = self.next_suffix.entry(base.to_owned()).or_insert(0);
+        loop {
             let candidate = format!("{base}{suffix}");
+            *suffix = suffix
+                .checked_add(1)
+                .expect("u32 identifier suffixes cannot be exhausted in one module");
             if self.used.insert(candidate.clone()) {
                 return candidate;
             }
         }
+    }
+}
 
-        unreachable!("u32 identifier suffixes cannot be exhausted in one module")
+#[cfg(test)]
+mod tests {
+    use super::NameAllocator;
+
+    #[test]
+    fn allocator_advances_suffixes_without_rescanning_or_skipping_reserved_names() {
+        let mut names = NameAllocator::new(&["$x".into(), "$x0".into()]);
+
+        assert_eq!(names.allocate("$x"), "$x1");
+        assert_eq!(names.allocate("$x"), "$x2");
+        assert_eq!(names.allocate("$y"), "$y");
+        assert_eq!(names.allocate("$y"), "$y0");
     }
 }
