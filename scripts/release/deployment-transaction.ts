@@ -960,6 +960,8 @@ db.close()
       '--rm',
       '--network',
       'none',
+      '--user',
+      '0',
       '-v',
       `${directory}:/backup:ro`,
       '-e',

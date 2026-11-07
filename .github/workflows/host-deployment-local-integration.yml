@@ -1,0 +1,141 @@
+# Stage 2 local integration and rollback drill on a disposable GitHub runner.
+# It consumes the real Stage 1 artifact, starts the four products with Docker,
+# runs the browser acceptance, then injects an after-acceptance failure and
+# asserts that the previous containers and database backup were restored.
+# This workflow never touches production and never needs production secrets.
+name: Host Deployment Local Integration
+
+on:
+  workflow_dispatch:
+    inputs:
+      prepare-run-id:
+        description: Host Deployment Prepare run containing the Stage 1 artifact
+        required: true
+      tenant:
+        description: Isolated acceptance tenant
+        default: stage2-local-acceptance
+      browsers:
+        description: Acceptance browser engines
+        default: chromium
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  local-integration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: host-deployment-stage1
+          run-id: ${{ inputs.prepare-run-id }}
+          github-token: ${{ github.token }}
+          path: ${{ github.workspace }}/temp/deploy/stage1
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+      - name: Install dependencies
+        run: |
+          pnpm install --ignore-scripts --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+      - name: Run the successful local transaction
+        env:
+          ARTIFACT_DIR: ${{ github.workspace }}/temp/deploy/stage1
+          STATE_DIR: ${{ github.workspace }}/temp/deploy/stage2-state
+          PROJECT: zeus-stage2-ci
+          TENANT: ${{ inputs.tenant }}
+          BROWSERS: ${{ inputs.browsers }}
+        run: |
+          CORE=$(jq -r .coreCommit "$ARTIFACT_DIR/pair.json")
+          UI=$(jq -r .uiCommit "$ARTIFACT_DIR/pair.json")
+          ZEUS_HOST_DEPLOY_ENABLED=true \
+          ZEUS_DEPLOY_COMPOSE_FILE="$GITHUB_WORKSPACE/deploy/host-validation/compose.yml" \
+          ZEUS_DEPLOY_ARTIFACT_DIR="$ARTIFACT_DIR" \
+          ZEUS_DEPLOY_MANIFEST=deployment.local.json \
+          ZEUS_DEPLOY_PROVENANCE=provenance.json \
+          ZEUS_DEPLOY_CANDIDATE=deployment-candidate.json \
+          ZEUS_DEPLOY_MANIFEST_SHA256="sha256:$(sha256sum "$ARTIFACT_DIR/deployment.local.json" | cut -d' ' -f1)" \
+          ZEUS_DEPLOY_PROVENANCE_SHA256="sha256:$(sha256sum "$ARTIFACT_DIR/provenance.json" | cut -d' ' -f1)" \
+          ZEUS_DEPLOY_CANDIDATE_SHA256="sha256:$(sha256sum "$ARTIFACT_DIR/deployment-candidate.json" | cut -d' ' -f1)" \
+          ZEUS_DEPLOY_EXPECTED_CORE="$CORE" \
+          ZEUS_DEPLOY_EXPECTED_UI="$UI" \
+          ZEUS_DEPLOY_TENANT="$TENANT" \
+          ZEUS_DEPLOY_STATE_DIR="$STATE_DIR" \
+          ZEUS_DEPLOY_PROJECT="$PROJECT" \
+          ZEUS_DEPLOY_ENVIRONMENT=local \
+          ZEUS_DEPLOY_FAILURE_INJECTION=none \
+          ZEUS_DEPLOY_KEEP_LOCAL=true \
+          ZEUS_DEPLOY_LOCAL_PORTS=8080,8081,8082,8083 \
+          ZEUS_DEPLOY_BROWSERS="$BROWSERS" \
+          pnpm exec tsx scripts/release/deployment-stage2.ts --local-integration
+          cp "$ARTIFACT_DIR/deployment-transaction.json" "$ARTIFACT_DIR/deployment-transaction.success.json"
+          jq -e '.status == "PASS"' "$ARTIFACT_DIR/deployment-transaction.success.json"
+      - name: Inject an after-acceptance failure and assert rollback
+        env:
+          ARTIFACT_DIR: ${{ github.workspace }}/temp/deploy/stage1
+          STATE_DIR: ${{ github.workspace }}/temp/deploy/stage2-state-drill
+          PROJECT: zeus-stage2-ci
+          TENANT: ${{ inputs.tenant }}
+          BROWSERS: ${{ inputs.browsers }}
+        run: |
+          CORE=$(jq -r .coreCommit "$ARTIFACT_DIR/pair.json")
+          UI=$(jq -r .uiCommit "$ARTIFACT_DIR/pair.json")
+          set +e
+          ZEUS_HOST_DEPLOY_ENABLED=true \
+          ZEUS_DEPLOY_COMPOSE_FILE="$GITHUB_WORKSPACE/deploy/host-validation/compose.yml" \
+          ZEUS_DEPLOY_ARTIFACT_DIR="$ARTIFACT_DIR" \
+          ZEUS_DEPLOY_MANIFEST=deployment.local.json \
+          ZEUS_DEPLOY_PROVENANCE=provenance.json \
+          ZEUS_DEPLOY_CANDIDATE=deployment-candidate.json \
+          ZEUS_DEPLOY_MANIFEST_SHA256="sha256:$(sha256sum "$ARTIFACT_DIR/deployment.local.json" | cut -d' ' -f1)" \
+          ZEUS_DEPLOY_PROVENANCE_SHA256="sha256:$(sha256sum "$ARTIFACT_DIR/provenance.json" | cut -d' ' -f1)" \
+          ZEUS_DEPLOY_CANDIDATE_SHA256="sha256:$(sha256sum "$ARTIFACT_DIR/deployment-candidate.json" | cut -d' ' -f1)" \
+          ZEUS_DEPLOY_EXPECTED_CORE="$CORE" \
+          ZEUS_DEPLOY_EXPECTED_UI="$UI" \
+          ZEUS_DEPLOY_TENANT="$TENANT" \
+          ZEUS_DEPLOY_STATE_DIR="$STATE_DIR" \
+          ZEUS_DEPLOY_PROJECT="$PROJECT" \
+          ZEUS_DEPLOY_ENVIRONMENT=local \
+          ZEUS_DEPLOY_FAILURE_INJECTION=after-acceptance \
+          ZEUS_DEPLOY_KEEP_LOCAL=false \
+          ZEUS_DEPLOY_LOCAL_PORTS=8080,8081,8082,8083 \
+          ZEUS_DEPLOY_BROWSERS="$BROWSERS" \
+          pnpm exec tsx scripts/release/deployment-stage2.ts --local-integration
+          STATUS=$?
+          set -e
+          test "$STATUS" -ne 0
+          cp "$ARTIFACT_DIR/deployment-transaction.json" "$ARTIFACT_DIR/deployment-transaction.rollback.json"
+          jq -e '.status == "ROLLED_BACK"' "$ARTIFACT_DIR/deployment-transaction.rollback.json"
+          jq -e '.rollback.health == "PASS" and .rollback.buildInfoVerified == true' \
+            "$ARTIFACT_DIR/deployment-transaction.rollback.json"
+          for url in \
+            http://127.0.0.1:8080/ \
+            http://127.0.0.1:8081/sandbox.html \
+            http://127.0.0.1:8082/api/health \
+            http://127.0.0.1:8083/ai-host/health; do
+            curl -fsS --retry 10 --retry-delay 2 "$url" >/dev/null
+          done
+          docker ps --format '{{.Names}} {{.Status}}'
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: host-deployment-stage2-local-evidence
+          path: |
+            temp/deploy/stage1/deployment-transaction.success.json
+            temp/deploy/stage1/deployment-transaction.rollback.json
+            temp/deploy/stage1/deployment-transaction.json
+            temp/deploy/stage1/stage2-local-acceptance.json
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Stop local containers
+        if: always()
+        run: |
+          docker ps --format '{{.Names}}' | grep '^zeus-stage2-' | xargs -r docker rm -f || true
+          docker network prune -f || true

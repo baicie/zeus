@@ -615,7 +615,9 @@ export async function runStage2(
     acceptanceEmail: input.adminEmail,
     acceptancePassword: input.adminPassword,
     stateDir: path.resolve(input.stateDir),
-    projectName: input.projectName,
+    // A unique Compose project per transaction keeps `compose down` from
+    // touching containers that were renamed for rollback in an earlier run.
+    projectName: `${input.projectName}-${Date.now().toString(36)}`,
     tenant: input.tenant,
     coreCommit: input.expectedCore,
     uiCommit: input.expectedUi,
