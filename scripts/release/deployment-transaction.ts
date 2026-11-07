@@ -886,7 +886,7 @@ const source = process.env.ZEUS_BACKUP_SOURCE
 const target = process.env.ZEUS_BACKUP_TARGET
 if (!fs.existsSync(source)) { console.log('MISSING'); process.exit(0) }
 fs.rmSync(target, { force: true })
-const db = new DatabaseSync(source, { readOnly: true })
+const db = new DatabaseSync(source)
 db.exec("VACUUM INTO '" + target.replace(/'/g, "''") + "'")
 db.close()
 const backup = new DatabaseSync(target, { readOnly: true })

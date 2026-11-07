@@ -516,7 +516,7 @@ export async function runStage2(
   const errors = validateStage2Input(input)
   if (errors.length > 0) throw new Error(errors.join('; '))
   const head = git(['rev-parse', 'HEAD'])
-  const main = git(['rev-parse', 'origin/main'])
+  const main = input.localIntegration ? head : git(['rev-parse', 'origin/main'])
   const artifacts = verifyStage2Artifacts({
     artifactDir: input.artifactDir,
     input,
