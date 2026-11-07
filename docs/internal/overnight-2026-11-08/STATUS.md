@@ -1,6 +1,6 @@
 # Overnight Mission Status — 2026-11-08
 
-Last checkpoint: 2026-11-08 01:05 Asia/Shanghai
+Last checkpoint: 2026-11-08 02:05 Asia/Shanghai
 Deadline: 2026-11-08 12:00 Asia/Shanghai
 
 ## Baseline
@@ -26,8 +26,14 @@ Deadline: 2026-11-08 12:00 Asia/Shanghai
 | PR | Branch | Head | Status |
 | --- | --- | --- | --- |
 | Core #202 | `fix/r5-rc-gates` | `9ed9007` | RC-01/02/03/05/06 code gates + candidate packed check; CI running |
-| UI #126 | `fix/r5-public-replay-storage-safety` | `585cb57` | AI workspace generation isolation; CI 27 PASS / 1 SKIP |
+| UI #126 | `fix/r5-public-replay-storage-safety` | `ffe7801` | AI workspace generation isolation; CI 27 PASS / 1 SKIP |
+| UI #127 | `test/r5-input-controlled-writeback` | `769b23d` | Controlled input regression tests; CI Windows public-replay timeout (unrelated) |
+| UI #128 | `fix/r5-datagrid-focus-restore` | `c13d0d3` | Data-grid focus steal root-cause fix; CI running |
 | Core #203 | `fix/r5-ai-workspace-backup` | `64f6675` | AI workspace backup/restore; CI 22/22 PASS; real drill PASS |
+| Core #204 | `fix/r5-signal-error-isolation` | `872be70`? see PR | Signal P1 error isolation; 309/309 signal tests |
+| Core #205 | `fix/r5-admin-input-stability` | `872be70` | Admin WebKit rAF focus drain; WebKit 3/3 |
+| Core #206 | `fix/r5-compiler-preflight` | `c6cf75e` | TS generic preflight SIGILL fix; Rust 14/14 + native probe |
+| Core #207 | `fix/r5-empty-fragment-codegen` | `cb7436a` | Empty Fragment template declaration; compiler 62/62 |
 
 No merge, no npm publish, no Tag, no production deployment in this mission.
 
@@ -45,6 +51,12 @@ No merge, no npm publish, no Tag, no production deployment in this mission.
   `rollback.restoredWorkspaces` length 1; health PASS; four containers restored.
 - `check:create-zeus-candidate`: 31 Core packages + vite-plugin packed and installed
   via pnpm overrides; tsc + vite build PASS (`temp/create-zeus-candidate/report.json`).
+- Signal P1 audit: 3 regression tests fail on pre-fix code and pass after #204; full signal suite 309/309.
+- Rust compiler P0 audit: `.ts <T>`, `.tsx <T extends ...>`, 5k type-param names + 35k parens now return
+  `ZEUS_INPUT_TOO_DEEP`; native probe no SIGILL (#206).
+- Empty Fragment root now declares `$zeusTmpl`; compiler 62/62 (#207).
+- Admin WebKit root cause: data-grid beta.33 rAF active-cell focus restore steals focus from Playwright
+  fill's insertText; UI fix #128 + Core test drain #205; WebKit 3/3.
 
 ## Status vocabulary
 

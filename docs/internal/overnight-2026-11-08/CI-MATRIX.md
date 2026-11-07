@@ -56,3 +56,14 @@
 - AI HTTP/SSE full suite on UI PR #126: pending CI.
 - Real online four-product acceptance for RC evidence: BLOCKED (no deployment authorization).
 - VoiceOver/NVDA/manual A11y: NOT_RUN.
+
+## Audit PRs (02:05)
+
+| PR | Local | GitHub |
+| --- | --- | --- |
+| Core #204 signal error isolation | signal 309/309 PASS | PASS 23/23 |
+| Core #205 Admin rAF drain | WebKit 3/3 PASS | PASS 22/22 |
+| Core #206 compiler preflight | Rust 14/14 + native probe PASS | rerunning after rustfmt |
+| Core #207 empty Fragment | compiler 62/62 PASS | rerunning after rustfmt |
+| UI #128 data-grid focus | typecheck PASS | IN_PROGRESS |
+| UI #127 input regression | 8/8 jsdom PASS | Windows public-replay timeout (unrelated, #126 adds timeout) |

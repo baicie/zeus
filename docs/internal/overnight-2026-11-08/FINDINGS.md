@@ -11,7 +11,9 @@
 | F-07 | P1 | FIXED_FOR_BASIC_TEMPLATE | create-zeus template pins were stale; packed test installs registry versions | Core #202; template sync + `check:create-zeus-versions`; `check:create-zeus-candidate` packs 31 Core packages + vite-plugin and builds basic-ts; UI templates still pending |
 | F-08 | P1 | FIXED_IN_PR | Core/UI exact pins had no joint gate | Core #202; release workflow checkout `ZEUS_UI_REF` + `check:ui-pairing`; UI candidate branch must pin Core RC |
 | F-09 | P1 | FIXED_CHECK / BLOCKED_OPERATION | 13 packages had prerelease `latest` dist-tags | Core #202 `check:latest-tags`; actual npm dist-tag repair requires npm authorization and is not performed |
-| F-10 | P0 | NOT_RUN | Rust compiler / Signal / DOM-Hydration deep audits from Phase D | not started yet |
+| F-10 | P0/P1 | PARTIAL | Rust compiler / Signal / DOM-Hydration deep audits from Phase D | Signal P1 fixed #204; Rust P0/P1 preflight + empty Fragment fixed #206/#207; wasm preflight Z-05, O(N^2) Z-07, DOM audit pending |
+| F-13 | P0 | FIXED_IN_PR | Native preflight misclassifies `.ts` generics / `.tsx extends` and can SIGILL the Node host at 35k nesting | Core #206 `c6cf75e`; Rust 14/14; native probe returns ZEUS_INPUT_TOO_DEEP |
+| F-14 | P1 | FIXED_IN_PR | Empty Fragment component root references an undeclared `$zeusTmpl` | Core #207 `cb7436a`; compiler 62/62 |
 | F-11 | P0 | BLOCKED | Manual VoiceOver/NVDA, 200% Zoom, DataGrid, Shadow DOM, AI SSE, mobile acceptance | requires human execution; `NOT_RUN` |
 | F-12 | P0 | BLOCKED | Real RC online deployment evidence / signed release approval | requires production deployment + human approval authorization; not performed |
 
