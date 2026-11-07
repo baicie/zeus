@@ -265,6 +265,8 @@ async function startAdmin(): Promise<Closeable & { origin: string }> {
       staticDir: string
       adminPassword: string
       viewerPassword: string
+      seedDemoUsers?: boolean
+      bootstrap?: boolean
     }): Promise<{ origin: string; close(): Promise<void> }>
   }
   const databaseFile = path.join(root, 'temp/release/local-admin.sqlite')
@@ -277,6 +279,8 @@ async function startAdmin(): Promise<Closeable & { origin: string }> {
     staticDir: path.join(root, 'examples/admin/dist'),
     adminPassword: ADMIN_PASSWORD,
     viewerPassword: VIEWER_PASSWORD,
+    seedDemoUsers: true,
+    bootstrap: true,
   })
 }
 

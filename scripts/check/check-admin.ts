@@ -69,6 +69,8 @@ for (const name of browserNames) {
       staticDir: dist,
       adminPassword: ADMIN_PASSWORD,
       viewerPassword: VIEWER_PASSWORD,
+      seedDemoUsers: true,
+      bootstrap: true,
     }),
   )
 }

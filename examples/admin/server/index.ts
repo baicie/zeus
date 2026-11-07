@@ -15,6 +15,7 @@ export interface StartAdminServerOptions {
   readonly viewerPassword?: string
   readonly seed?: boolean
   readonly seedDemoUsers?: boolean
+  readonly bootstrap?: boolean
   readonly allowedOrigins?: readonly string[]
   readonly staticDir?: string
   readonly secureCookies?: boolean
@@ -44,7 +45,8 @@ export async function startAdminServer(
   // must not create predictable viewer accounts.
   const seedDemoUsers =
     options.seedDemoUsers ?? process.env.ZEUS_ADMIN_SEED_DEMO === 'true'
-  const bootstrap = process.env.ZEUS_ADMIN_BOOTSTRAP === 'true'
+  const bootstrap =
+    options.bootstrap ?? process.env.ZEUS_ADMIN_BOOTSTRAP === 'true'
   const acceptanceEmail = process.env.ZEUS_ADMIN_ACCEPTANCE_EMAIL?.trim()
   const acceptancePassword = process.env.ZEUS_ADMIN_ACCEPTANCE_PASSWORD
   const acceptanceUserId =
