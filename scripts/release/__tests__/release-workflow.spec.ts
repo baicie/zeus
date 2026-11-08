@@ -240,6 +240,7 @@ describe('release workflows', () => {
     expect(workflow).toContain('attestations: write')
     expect(workflow).toContain('id-token: write')
     expect(workflow).toContain('actions/attest-build-provenance@v2')
+    expect(workflow).toContain('Require dispatch at the approved Core commit')
     expect(workflow).toContain('--mode payload')
     expect(workflow).toContain('--mode envelope')
     expect(workflow).toContain('steps.upload-payload.outputs.artifact-digest')

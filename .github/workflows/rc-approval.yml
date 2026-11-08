@@ -62,6 +62,15 @@ jobs:
             exit 1
           fi
 
+      # The approval is bound to the run's head SHA, so the run must be
+      # dispatched at the exact approved commit rather than an arbitrary ref.
+      - name: Require dispatch at the approved Core commit
+        run: |
+          if [ "$GITHUB_SHA" != "${{ inputs.core_commit }}" ]; then
+            echo "::error::dispatch RC Approval at the approved Core commit (${{ inputs.core_commit }})"
+            exit 1
+          fi
+
       - name: Checkout the approved Core commit
         uses: actions/checkout@v5
         with:
