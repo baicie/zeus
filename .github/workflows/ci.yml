@@ -322,9 +322,12 @@ jobs:
       - run: pnpm build
       - run: pnpm build-dts
 
-      - name: Install UI dependencies
+      - name: Prepare Core candidate tarballs and UI overrides
+        run: pnpm check:create-zeus-candidate:prepare --ui-root temp/zeus-ui
+
+      - name: Install UI dependencies with Core candidates
         working-directory: temp/zeus-ui
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --ignore-scripts --no-frozen-lockfile --config.confirmModulesPurge=false
 
       - name: Build UI candidate packages
         working-directory: temp/zeus-ui
@@ -334,7 +337,7 @@ jobs:
         run: pnpm check:create-zeus-versions
 
       - name: Install every template from candidate tarballs
-        run: pnpm check:create-zeus-candidate --ui-root temp/zeus-ui
+        run: pnpm check:create-zeus-candidate --ui-root temp/zeus-ui --candidates temp/create-zeus-candidate/candidates.json
 
       - name: Preserve candidate report
         if: always()

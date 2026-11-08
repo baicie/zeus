@@ -49,6 +49,8 @@ describe('release channels', () => {
       names.lastIndexOf('check:release-worktree'),
     )
     expect(names).not.toContain('check:rc-readiness')
+    // Registry installs run after publication, not in the pre-publish gate.
+    expect(names).not.toContain('check:create-zeus-packed')
     expect(names).not.toContain('bench:component-host:ci')
   })
 

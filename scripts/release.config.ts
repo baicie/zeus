@@ -111,7 +111,6 @@ export default defineReleaseConfig({
       ['pnpm', 'check:latest-tags'],
       ['pnpm', 'examples:check:all'],
       ['pnpm', 'check:create-zeus'],
-      ['pnpm', 'check:create-zeus-packed'],
       ['pnpm', 'check:create-zeus-candidate'],
       ['pnpm', 'check:create-zeus-versions'],
       ['pnpm', 'bench:component-host:ci'],

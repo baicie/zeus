@@ -215,6 +215,25 @@ export function assertCandidateInputsBuilt(
   }
 }
 
+/** Fails unless the host platform package contains a native binary. */
+export function assertCurrentNativeBinary(coreRoot: string): void {
+  const platformPackage =
+    process.platform === 'darwin'
+      ? `compiler-native-darwin-${process.arch === 'arm64' ? 'arm64' : 'x64'}`
+      : process.platform === 'win32'
+        ? `compiler-native-win32-${process.arch === 'arm64' ? 'arm64' : 'x64'}-msvc`
+        : `compiler-native-linux-${process.arch === 'arm64' ? 'arm64' : 'x64'}-gnu`
+  const directory = path.join(coreRoot, 'packages/core', platformPackage)
+  const binaries = fs
+    .readdirSync(directory)
+    .filter(file => file.endsWith('.node'))
+  if (binaries.length === 0) {
+    throw new Error(
+      `native binary for ${process.platform}/${process.arch} is missing from ${directory}; build it with native:build:platform`,
+    )
+  }
+}
+
 /** Returns the expected build output for a template. */
 export function templateOutput(
   template: string,

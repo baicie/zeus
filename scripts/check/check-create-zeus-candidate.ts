@@ -9,6 +9,7 @@
  *   pnpm check:create-zeus-candidate --ui-root temp/zeus-ui --template basic-ts
  */
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -18,6 +19,7 @@ import {
   CANDIDATE_TEMPLATES,
   applyCandidateManifest,
   assertCandidateInputsBuilt,
+  assertCurrentNativeBinary,
   collectWorkspaceClosure,
   discoverWorkspacePackages,
   templateOutput,
@@ -119,11 +121,53 @@ try {
   assertTemplatePins(corePackages, manifests)
 
   const coreCandidates = new Map<string, string>()
-  for (const name of coreCandidateNames) {
-    coreCandidates.set(
-      name,
-      toFileSpec(pack(corePackages.get(name)!.directory, archives)),
+  if (options.candidates) {
+    const candidateFile = path.resolve(root, options.candidates)
+    const document = JSON.parse(fs.readFileSync(candidateFile, 'utf8')) as {
+      schema?: string
+      sourceCommit?: string
+      coreVersion?: string
+      packages?: Array<{
+        name?: string
+        version?: string
+        file?: string
+        sha256?: string
+      }>
+    }
+    if (
+      document.schema !== 'zeus.create-zeus-candidate-archives/v1' ||
+      document.sourceCommit !== sourceCommit ||
+      document.coreVersion !== corePackages.get('@zeus-js/zeus')!.version ||
+      !Array.isArray(document.packages)
+    ) {
+      throw new Error(`invalid or stale candidate manifest: ${candidateFile}`)
+    }
+    const entries = new Map(
+      document.packages.map(entry => [entry.name ?? '', entry]),
     )
+    for (const name of coreCandidateNames) {
+      const entry = entries.get(name)
+      if (!entry?.file || !entry.sha256 || !fs.existsSync(entry.file)) {
+        throw new Error(`candidate archive is missing for ${name}`)
+      }
+      const digest = createHash('sha256')
+        .update(fs.readFileSync(entry.file))
+        .digest('hex')
+      if (digest !== entry.sha256) {
+        throw new Error(`candidate archive digest mismatch for ${name}`)
+      }
+      if (entry.version !== corePackages.get(name)!.version) {
+        throw new Error(`candidate archive version mismatch for ${name}`)
+      }
+      coreCandidates.set(name, toFileSpec(entry.file))
+    }
+  } else {
+    for (const name of coreCandidateNames) {
+      coreCandidates.set(
+        name,
+        toFileSpec(pack(corePackages.get(name)!.directory, archives)),
+      )
+    }
   }
 
   let uiCandidates: Map<string, string> | undefined
@@ -276,6 +320,7 @@ function parseOptions(args: string[]): {
   uiRoot?: string
   registry?: string
   templates?: string[]
+  candidates?: string
   keepWork?: boolean
 } {
   const { values } = parseArgs({
@@ -284,6 +329,7 @@ function parseOptions(args: string[]): {
       'ui-root': { type: 'string' },
       registry: { type: 'string' },
       template: { type: 'string', multiple: true },
+      candidates: { type: 'string' },
       'keep-work': { type: 'boolean', default: false },
     },
   })
@@ -291,6 +337,7 @@ function parseOptions(args: string[]): {
     ...(values['ui-root'] ? { uiRoot: values['ui-root'] } : {}),
     ...(values.registry ? { registry: values.registry } : {}),
     ...(values.template ? { templates: values.template } : {}),
+    ...(values.candidates ? { candidates: values.candidates } : {}),
     keepWork: values['keep-work'] === true,
   }
 }
@@ -380,24 +427,6 @@ function assertTemplatePins(
         }
       }
     }
-  }
-}
-
-function assertCurrentNativeBinary(coreRoot: string): void {
-  const platformPackage =
-    process.platform === 'darwin'
-      ? `compiler-native-darwin-${process.arch === 'arm64' ? 'arm64' : 'x64'}`
-      : process.platform === 'win32'
-        ? `compiler-native-win32-${process.arch === 'arm64' ? 'arm64' : 'x64'}-msvc`
-        : `compiler-native-linux-${process.arch === 'arm64' ? 'arm64' : 'x64'}-gnu`
-  const directory = path.join(coreRoot, 'packages/core', platformPackage)
-  const binaries = fs
-    .readdirSync(directory)
-    .filter(file => file.endsWith('.node'))
-  if (binaries.length === 0) {
-    throw new Error(
-      `native binary for ${process.platform}/${process.arch} is missing from ${directory}; build it with native:build:platform`,
-    )
   }
 }
 

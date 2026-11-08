@@ -143,16 +143,19 @@ jobs:
       - name: Release precheck
         run: pnpm release:precheck
 
-      - name: Install paired UI dependencies
+      - name: Prepare Core candidate tarballs and UI overrides
+        run: pnpm check:create-zeus-candidate:prepare --ui-root temp/zeus-ui
+
+      - name: Install paired UI dependencies with Core candidates
         working-directory: temp/zeus-ui
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --ignore-scripts --no-frozen-lockfile --config.confirmModulesPurge=false
 
       - name: Build paired UI candidate packages
         working-directory: temp/zeus-ui
         run: pnpm exec tsx scripts/commands/build.ts button
 
       - name: Verify create-zeus candidate templates
-        run: pnpm check:create-zeus-candidate --ui-root temp/zeus-ui
+        run: pnpm check:create-zeus-candidate --ui-root temp/zeus-ui --candidates temp/create-zeus-candidate/candidates.json
 
       - name: Preserve create-zeus candidate report
         if: always()
@@ -170,6 +173,9 @@ jobs:
 
       - name: Verify npm publication
         run: pnpm release:verify:published --version "${{ steps.release-version.outputs.version }}"
+
+      - name: Verify published create-zeus scaffold
+        run: pnpm check:create-zeus-packed
 
       - name: Verify npm dist-tags and provenance
         run: >-
