@@ -4,6 +4,7 @@ import {
   evaluateCanaryReadiness,
   evaluateCanaryReport,
   isAllowedCanaryRewritePath,
+  isCreateZeusTemplatePackage,
   type CanaryReadinessInput,
   type CanaryRewritePolicy,
 } from '../canary-readiness'
@@ -16,6 +17,7 @@ const policy: CanaryRewritePolicy = {
     'pnpm-lock.yaml',
     'packages/core/compiler-native/index.js',
     'packages/core/zeus/package.json',
+    'packages/devtools/create-zeus/templates/basic-ts/package.json',
   ],
   prefixes: ['.changeset/'],
   suffixes: ['CHANGELOG.md'],
@@ -169,6 +171,22 @@ describe('evaluateCanaryReadiness', () => {
     ).toBe(true)
     expect(
       isAllowedCanaryRewritePath('packages/core/zeus/src/index.ts', policy),
+    ).toBe(false)
+    expect(
+      isAllowedCanaryRewritePath(
+        'packages/devtools/create-zeus/templates/basic-ts/package.json',
+        policy,
+      ),
+    ).toBe(true)
+    expect(
+      isCreateZeusTemplatePackage(
+        'packages/devtools/create-zeus/templates/basic-ts/package.json',
+      ),
+    ).toBe(true)
+    expect(
+      isCreateZeusTemplatePackage(
+        'packages/devtools/create-zeus/templates/basic-ts/src/main.tsx',
+      ),
     ).toBe(false)
   })
 })
