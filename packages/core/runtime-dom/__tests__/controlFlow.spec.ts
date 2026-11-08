@@ -850,6 +850,54 @@ describe('mountFor', () => {
     expect(root.textContent).toBe('a-nextb-next')
   })
 
+  it('keeps keyed record scopes alive across a reorder', () => {
+    const [items, setItems] = createSignal([{ id: 1 }, { id: 2 }, { id: 3 }])
+    const root = document.createElement('div')
+    const anchor = document.createComment('')
+    root.append(anchor)
+    const mounted: number[] = []
+    const disposed: number[] = []
+
+    mountFor(
+      root,
+      anchor,
+      items,
+      item => item.id,
+      item => {
+        const value = item()
+        mounted.push(value.id)
+        onCleanup(() => disposed.push(value.id))
+
+        const li = document.createElement('li')
+        effect(() => {
+          li.dataset.id = String(item().id)
+        })
+        return li
+      },
+    )
+
+    const [first, second, third] = items()
+    setItems([third, first, second])
+
+    expect(
+      Array.from(root.querySelectorAll('li')).map(node =>
+        Number(node.dataset.id),
+      ),
+    ).toEqual([3, 1, 2])
+    expect(mounted).toEqual([1, 2, 3])
+    expect(disposed).toEqual([])
+
+    setItems([third, first])
+
+    expect(
+      Array.from(root.querySelectorAll('li')).map(node =>
+        Number(node.dataset.id),
+      ),
+    ).toEqual([3, 1])
+    expect(mounted).toEqual([1, 2, 3])
+    expect(disposed).toEqual([2])
+  })
+
   it('keeps the fixed-slot fast path within the committed record list', () => {
     const [items, setItems] = createSignal([
       { id: 1, title: 'a' },
