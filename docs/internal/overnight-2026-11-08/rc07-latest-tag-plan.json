@@ -96,8 +96,5 @@
       "reason": "no stable version exists; remove prerelease latest"
     }
   ],
-  "unpublished": [
-    "@zeus-js/eslint-plugin",
-    "@zeus-js/playground-engine"
-  ]
+  "unpublished": ["@zeus-js/eslint-plugin", "@zeus-js/playground-engine"]
 }
