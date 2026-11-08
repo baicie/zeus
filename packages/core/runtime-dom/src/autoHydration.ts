@@ -34,8 +34,6 @@ const SHOW_COMMENT = 0x80
 
 export const HYDRATION_FALLBACK_ATTRIBUTE = 'data-zeus-hydration-fallback'
 
-const FORM_STATE_PROPERTIES = new Set(['value', 'checked', 'selected'])
-
 export interface AutomaticHydrationOptions {
   onHydrationError?: (error: Error) => void
 }
@@ -120,9 +118,29 @@ export function isHydrationFormWrite(el: Element, name: PropertyKey): boolean {
     session.active &&
     createFrameDepth === 0 &&
     session.adoptedElements.has(el) &&
-    FORM_STATE_PROPERTIES.has(String(name)) &&
+    isNativeFormStateElement(el, String(name)) &&
     formStateDiffersFromMarkup(el, String(name))
   )
+}
+
+/**
+ * Custom elements can expose `value` / `checked` / `selected` props without
+ * being native form controls. Their first adopted write must not be skipped
+ * just because the prop name matches a form-state property.
+ */
+export function isNativeFormStateElement(el: Element, name: string): boolean {
+  const tag = el.localName
+  if (name === 'value') {
+    return (
+      tag === 'input' ||
+      tag === 'textarea' ||
+      tag === 'select' ||
+      tag === 'option'
+    )
+  }
+  if (name === 'checked') return tag === 'input'
+  if (name === 'selected') return tag === 'option'
+  return false
 }
 
 /**
