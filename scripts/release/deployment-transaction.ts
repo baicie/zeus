@@ -32,6 +32,10 @@ import {
   type CandidateImage,
   type DeploymentLayout,
 } from './deployment-layout'
+import {
+  restoreWorkspaceArchive,
+  type WorkspaceArchiveDescriptor,
+} from './deployment-workspace-restore'
 
 export const TRANSACTION_REPORT_SCHEMA = 'zeus.deployment-transaction/v1'
 const SHA_PATTERN = /^sha256:[0-9a-f]{64}$/i
@@ -127,19 +131,22 @@ interface PreviousStateSummary {
   readonly buildInfoDigests: Record<string, string>
 }
 
-interface BackupSummary {
+export interface BackupSummary {
   readonly directory: string
   admin?: { file: string; sha256: string; sqliteCheck: string }
   ai?: { file: string; sha256: string; sqliteCheck: string }
-  aiWorkspace?: { file: string; sha256: string; entries: number }
+  aiWorkspace?: WorkspaceArchiveDescriptor
 }
 
-interface RollbackSummary {
+export interface RollbackSummary {
   readonly startedAt: string
   readonly finishedAt: string
   readonly restoredContainers: readonly string[]
   readonly restoredDatabases: readonly string[]
   readonly restoredWorkspaces: readonly string[]
+  readonly workspaceRestored: boolean
+  readonly requiresManualIntervention: boolean
+  readonly errors: readonly string[]
   readonly health: string
   readonly buildInfoVerified: boolean
   readonly error?: string
@@ -320,6 +327,12 @@ export async function runDeploymentTransaction(
           failure,
         }
       } catch (rollbackError) {
+        const partial = (rollbackError as { rollback?: RollbackSummary })
+          .rollback
+        const message =
+          rollbackError instanceof Error
+            ? rollbackError.message
+            : String(rollbackError)
         report = {
           ...reportBase,
           finishedAt: new Date().toISOString(),
@@ -328,18 +341,18 @@ export async function runDeploymentTransaction(
           previous: summarizePrevious(previous),
           backups,
           failure,
-          rollback: {
+          rollback: partial ?? {
             startedAt: new Date().toISOString(),
             finishedAt: new Date().toISOString(),
             restoredContainers: [],
             restoredDatabases: [],
             restoredWorkspaces: [],
+            workspaceRestored: false,
+            requiresManualIntervention: true,
+            errors: [message],
             health: 'FAIL',
             buildInfoVerified: false,
-            error:
-              rollbackError instanceof Error
-                ? rollbackError.message
-                : String(rollbackError),
+            error: message,
           },
         }
       }
@@ -1024,72 +1037,6 @@ function backupWorkspace(
   return { file, sha256: sha256File(file), entries }
 }
 
-function restoreWorkspaceArchive(
-  file: string,
-  dataDir: string,
-  image: string,
-): void {
-  const verify = spawnSync(
-    'docker',
-    [
-      'run',
-      '--rm',
-      '--user',
-      '0',
-      '-v',
-      `${path.dirname(file)}:/backup:ro`,
-      '--entrypoint',
-      'sh',
-      image,
-      '-c',
-      'tar -tzf /backup/ai-workspace.tgz >/dev/null',
-    ],
-    { encoding: 'utf8' },
-  )
-  if (verify.status !== 0) {
-    throw new Error('refusing to restore an unverified AI workspace archive')
-  }
-  const restore = spawnSync(
-    'docker',
-    [
-      'run',
-      '--rm',
-      '--user',
-      '0',
-      '-v',
-      `${dataDir}:/data`,
-      '-v',
-      `${path.dirname(file)}:/backup:ro`,
-      '--entrypoint',
-      'sh',
-      image,
-      '-c',
-      [
-        'set -e',
-        'previous=/data/.zeus-workspace-previous',
-        'restore=/data/.zeus-workspace-restore',
-        'rm -rf "$restore"',
-        'mkdir -p "$restore"',
-        'tar -xzf /backup/ai-workspace.tgz -C "$restore" --strip-components=1',
-        'if [ -e /data/workspace ]; then',
-        '  rm -rf "$previous"',
-        '  mv /data/workspace "$previous"',
-        'fi',
-        'if ! mv "$restore" /data/workspace; then',
-        '  if [ -e "$previous" ]; then mv "$previous" /data/workspace; fi',
-        '  exit 1',
-        'fi',
-        'if ! chown -R 10001:10001 /data/workspace; then exit 1; fi',
-        'rm -rf "$previous"',
-      ].join('\n'),
-    ],
-    { encoding: 'utf8' },
-  )
-  if (restore.status !== 0) {
-    throw new Error('failed to restore the AI workspace')
-  }
-}
-
 function verifyBackupFile(
   image: string,
   directory: string,
@@ -1150,79 +1097,142 @@ function stopPreviousContainers(previous: PreviousState): void {
   }
 }
 
+export interface RollbackDependencies {
+  readonly composeDown?: typeof composeDown
+  readonly restoreDatabase?: typeof restoreDatabaseFile
+  readonly restoreWorkspace?: typeof restoreWorkspaceArchive
+  readonly renameContainer?: (from: string, to: string) => boolean
+  readonly startContainer?: (name: string) => boolean
+  readonly waitForHealth?: (layout: DeploymentLayout) => boolean
+  readonly fetchBuildInfo?: (url: string) => string | undefined
+}
+
 export function rollbackDeployment(
   previous: PreviousState,
   layout: DeploymentLayout,
   backups: BackupSummary | undefined,
   options: TransactionOptions,
   envFile: string,
+  dependencies: RollbackDependencies = {},
 ): RollbackSummary {
   const startedAt = new Date().toISOString()
   const restoredDatabases: string[] = []
   const restoredWorkspaces: string[] = []
-  composeDown(options, envFile)
+  const restoredContainers: string[] = []
+  const errors: string[] = []
+  let workspaceRestored = backups?.aiWorkspace === undefined
+  const stop = dependencies.composeDown ?? composeDown
+  const restoreDatabase = dependencies.restoreDatabase ?? restoreDatabaseFile
+  const restoreWorkspace =
+    dependencies.restoreWorkspace ?? restoreWorkspaceArchive
+  const renameContainer =
+    dependencies.renameContainer ??
+    ((from: string, to: string) =>
+      spawnSync('docker', ['rename', from, to], { encoding: 'utf8' }).status ===
+      0)
+  const startContainer =
+    dependencies.startContainer ??
+    ((name: string) =>
+      spawnSync('docker', ['start', name], { encoding: 'utf8' }).status === 0)
+  const waitForHealth = dependencies.waitForHealth ?? waitForHealthSync
+  const fetchBuildInfo = dependencies.fetchBuildInfo ?? fetchJsonDigest
+
+  try {
+    stop(options, envFile)
+  } catch (error) {
+    errors.push(
+      `failed to stop the candidate containers: ${errorMessage(error)}`,
+    )
+  }
   if (backups) {
     if (backups.admin) {
-      restoreDatabaseFile(
-        backups.admin.file,
-        layout.dataDirs.admin,
-        'admin.sqlite',
-        previous.containers.admin?.image ?? options.images.admin!.image,
-      )
-      restoredDatabases.push(backups.admin.file)
+      try {
+        restoreDatabase(
+          backups.admin.file,
+          layout.dataDirs.admin,
+          'admin.sqlite',
+          previous.containers.admin?.image ?? options.images.admin!.image,
+        )
+        restoredDatabases.push(backups.admin.file)
+      } catch (error) {
+        errors.push(
+          `failed to restore the Admin database: ${errorMessage(error)}`,
+        )
+      }
     }
     if (backups.ai) {
-      restoreDatabaseFile(
-        backups.ai.file,
-        layout.dataDirs.ai,
-        'ai.sqlite',
-        previous.containers.aiHost?.image ?? options.images.aiHost!.image,
-      )
-      restoredDatabases.push(backups.ai.file)
+      try {
+        restoreDatabase(
+          backups.ai.file,
+          layout.dataDirs.ai,
+          'ai.sqlite',
+          previous.containers.aiHost?.image ?? options.images.aiHost!.image,
+        )
+        restoredDatabases.push(backups.ai.file)
+      } catch (error) {
+        errors.push(`failed to restore the AI database: ${errorMessage(error)}`)
+      }
     }
     if (backups.aiWorkspace) {
-      restoreWorkspaceArchive(
-        backups.aiWorkspace.file,
-        layout.dataDirs.ai,
-        previous.containers.aiHost?.image ?? options.images.aiHost!.image,
-      )
-      restoredWorkspaces.push(backups.aiWorkspace.file)
+      try {
+        const result = restoreWorkspace({
+          archive: backups.aiWorkspace,
+          dataDir: layout.dataDirs.ai,
+          image:
+            previous.containers.aiHost?.image ?? options.images.aiHost!.image,
+        })
+        for (const warning of result.warnings) {
+          console.warn(`[stage2] ${warning}`)
+        }
+        restoredWorkspaces.push(backups.aiWorkspace.file)
+        workspaceRestored = true
+      } catch (error) {
+        workspaceRestored = false
+        errors.push(
+          `failed to restore the AI workspace: ${errorMessage(error)}`,
+        )
+      }
     }
   }
-  const restoredContainers: string[] = []
   for (const entry of [...previous.renamed].reverse()) {
-    const renamed = spawnSync('docker', ['rename', entry.from, entry.to], {
-      encoding: 'utf8',
-    })
-    if (renamed.status !== 0) {
-      throw new Error(`failed to rename ${entry.from} back to ${entry.to}`)
+    if (!renameContainer(entry.from, entry.to)) {
+      errors.push(`failed to rename ${entry.from} back to ${entry.to}`)
+      continue
     }
-    const started = spawnSync('docker', ['start', entry.to], {
-      encoding: 'utf8',
-    })
-    if (started.status !== 0) {
-      throw new Error(`failed to restart the previous container ${entry.to}`)
+    if (!startContainer(entry.to)) {
+      errors.push(`failed to restart the previous container ${entry.to}`)
+      continue
     }
     restoredContainers.push(entry.to)
   }
-  const health = waitForHealthSync(layout)
+  const health = waitForHealth(layout)
   let buildInfoVerified = true
   for (const [product, expected] of Object.entries(previous.buildInfos)) {
-    const actual = fetchJsonDigest(productBuildInfoUrls(layout)[product] ?? '')
+    const actual = fetchBuildInfo(productBuildInfoUrls(layout)[product] ?? '')
     if (!actual || actual !== expected) buildInfoVerified = false
   }
+  const requiresManualIntervention =
+    errors.length > 0 || !health || !buildInfoVerified
   const summary: RollbackSummary = {
     startedAt,
     finishedAt: new Date().toISOString(),
     restoredContainers,
     restoredDatabases,
     restoredWorkspaces,
+    workspaceRestored,
+    requiresManualIntervention,
+    errors,
     health: health ? 'PASS' : 'FAIL',
     buildInfoVerified,
+    ...(errors.length > 0 ? { error: errors.join('; ') } : {}),
   }
-  if (!health || !buildInfoVerified) {
+  if (requiresManualIntervention) {
     throw Object.assign(
-      new Error('rollback did not restore healthy previous services'),
+      new Error(
+        `rollback did not fully restore the previous deployment${
+          errors.length > 0 ? `: ${errors.join('; ')}` : ''
+        }`,
+      ),
       { rollback: summary },
     )
   }
@@ -1939,6 +1949,10 @@ function injectFailure(
 function lastLine(value: string): string {
   const lines = value.trim().split('\n')
   return lines[lines.length - 1] ?? ''
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 function stdoutText(result: ReturnType<typeof spawnSync>): string {
