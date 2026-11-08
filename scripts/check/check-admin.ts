@@ -179,6 +179,17 @@ for (const [name, engine] of selectedBrowsers) {
     await row('margaret').click()
     await expect(row('margaret')).toHaveAttribute('aria-selected', 'true')
     const searchInput = page.locator('#user-search input')
+    // The published data-grid beta.33 schedules a requestAnimationFrame
+    // active-cell focus restore. Drain already queued frames before Playwright
+    // fill selects the input and inserts text; otherwise WebKit can deliver
+    // insertText to the grid cell that regained focus. The data-grid source
+    // fix is tracked separately; this drain is deterministic, not a sleep.
+    await page.evaluate(
+      () =>
+        new Promise<void>(resolve =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    )
     await searchInput.fill('Radia')
     await expect(searchInput).toHaveValue('Radia')
     await expect(row('radia')).toBeVisible()
