@@ -170,7 +170,10 @@ jobs:
       # Build output is produced by release:precheck step above.
       # --skipBuild is safe here as long as precheck always runs first.
       - name: Build and publish
-        run: pnpm release --publishOnly "${{ steps.release-version.outputs.version }}" --skipBuild
+        run: >-
+          pnpm release --publishOnly "${{ steps.release-version.outputs.version }}"
+          --tag "${{ steps.release-version.outputs.dist-tag }}"
+          --skipBuild
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 

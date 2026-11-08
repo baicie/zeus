@@ -20,7 +20,9 @@ export function evaluateLatestTags(
   const errors: string[] = []
   for (const pkg of packages) {
     if (pkg.latest && pkg.latest.includes('-')) {
-      errors.push(`${pkg.name}: latest points at prerelease ${pkg.latest}`)
+      errors.push(
+        `${pkg.name}: latest points at prerelease ${pkg.latest}; run pnpm repair:latest-tags`,
+      )
     }
   }
   return errors

@@ -10,7 +10,9 @@ describe('RC latest dist-tag policy', () => {
         { name: '@zeus-js/query', latest: '0.1.1-beta.20' },
         { name: '@zeus-js/shared' },
       ]),
-    ).toEqual(['@zeus-js/query: latest points at prerelease 0.1.1-beta.20'])
+    ).toEqual([
+      '@zeus-js/query: latest points at prerelease 0.1.1-beta.20; run pnpm repair:latest-tags',
+    ])
   })
 
   it('accepts stable and absent latest tags', () => {

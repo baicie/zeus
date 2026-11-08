@@ -121,6 +121,7 @@
     "release:verify:published": "tsx scripts/release/verify-published.ts",
     "release:verify:main-head": "tsx scripts/release/verify-main-head.ts",
     "release:verify:tag-source": "tsx scripts/release/verify-tag-source.ts",
+    "repair:latest-tags": "tsx scripts/release/repair-latest-tags.ts",
     "release:verify:dist-tags": "tsx scripts/release/verify-dist-tags.ts",
     "release:smoke:compiler": "tsx scripts/release/smoke-compiler-install.ts",
     "ci-publish": "tsx scripts/release/publish.ts",

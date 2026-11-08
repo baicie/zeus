@@ -1,0 +1,68 @@
+name: Repair npm dist-tags
+
+# Manual, protected operation. Dry-run is the default and never writes.
+# Apply requires the Release environment and NPM_TOKEN with dist-tag permission.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Dist-tag repair mode'
+        type: choice
+        options:
+          - dry-run
+          - apply
+        default: dry-run
+
+concurrency:
+  group: npm-release
+  cancel-in-progress: false
+  queue: max
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: Release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.node-version'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify npm authentication
+        if: inputs.mode == 'apply'
+        run: pnpm release:verify:npm-auth
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Plan latest dist-tag repair
+        if: inputs.mode == 'dry-run'
+        run: pnpm exec tsx scripts/release/repair-latest-tags.ts
+
+      - name: Apply latest dist-tag repair
+        if: inputs.mode == 'apply'
+        run: pnpm exec tsx scripts/release/repair-latest-tags.ts --apply
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Preserve dist-tag repair report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: latest-tag-repair
+          path: temp/release/latest-tag-repair.json

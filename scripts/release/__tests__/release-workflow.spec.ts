@@ -51,6 +51,35 @@ describe('release workflows', () => {
     )
   })
 
+  it('publishes tagged releases to the computed dist-tag', () => {
+    const workflow = readFileSync(
+      resolve(root, '.github/workflows/release.yml'),
+      'utf8',
+    )
+
+    expect(workflow).toContain(
+      '--tag "${{ steps.release-version.outputs.dist-tag }}"',
+    )
+    expect(workflow.indexOf('pnpm release --publishOnly')).toBeLessThan(
+      workflow.indexOf('--tag "${{ steps.release-version.outputs.dist-tag }}"'),
+    )
+  })
+
+  it('keeps dist-tag repair manual, protected and serialized with publishing', () => {
+    const workflow = readFileSync(
+      resolve(root, '.github/workflows/repair-dist-tags.yml'),
+      'utf8',
+    )
+
+    expect(workflow).toContain('workflow_dispatch:')
+    expect(workflow).toContain('default: dry-run')
+    expect(workflow).toContain('environment: Release')
+    expect(workflow).toContain('group: npm-release')
+    expect(workflow).not.toContain('\n  push:')
+    expect(workflow).not.toContain('\n  pull_request:')
+    expect(workflow).toContain('repair-latest-tags.ts --apply')
+  })
+
   it('checks dist-tags and registry installation after publication', () => {
     for (const file of ['release-canary.yml', 'release.yml']) {
       const workflow = readFileSync(
