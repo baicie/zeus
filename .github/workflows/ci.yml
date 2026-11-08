@@ -272,6 +272,83 @@ jobs:
             temp/devtools-panel
             temp/hmr-packed
 
+  create-zeus-candidates:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            native_target: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            native_target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Checkout paired UI candidate
+        uses: actions/checkout@v5
+        with:
+          repository: baicie/zeus-ui
+          ref: ${{ vars.ZEUS_UI_REF || 'main' }}
+          path: temp/zeus-ui
+          fetch-depth: 1
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.node-version'
+          cache: 'pnpm'
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            temp/zeus-ui/pnpm-lock.yaml
+
+      - name: Install Rust 1.95
+        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c
+        with:
+          toolchain: 1.95.0
+
+      - name: Cache Cargo artifacts
+        uses: Swatinem/rust-cache@401aff9a7a08acb9d27b64936a90db81024cff97
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build host native compiler
+        run: pnpm native:build:platform --target ${{ matrix.native_target }}
+
+      - run: pnpm build
+      - run: pnpm build-dts
+
+      - name: Prepare Core candidate tarballs and UI overrides
+        run: pnpm check:create-zeus-candidate:prepare --ui-root temp/zeus-ui
+
+      - name: Install UI dependencies with Core candidates
+        working-directory: temp/zeus-ui
+        run: pnpm install --ignore-scripts --no-frozen-lockfile --config.confirmModulesPurge=false
+
+      - name: Build UI candidate packages
+        working-directory: temp/zeus-ui
+        run: pnpm exec tsx scripts/commands/build.ts button
+
+      - name: Verify create-zeus pins
+        run: pnpm check:create-zeus-versions
+
+      - name: Install every template from candidate tarballs
+        run: pnpm check:create-zeus-candidate --ui-root temp/zeus-ui --candidates temp/create-zeus-candidate/candidates.json
+
+      - name: Preserve candidate report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: create-zeus-candidate-${{ matrix.os }}
+          path: |
+            temp/create-zeus-candidate/report.json
+            temp/create-zeus-candidate/candidates.json
+            temp/create-zeus-candidate/prepare.json
+
   docs-build:
     runs-on: ubuntu-latest
     steps:

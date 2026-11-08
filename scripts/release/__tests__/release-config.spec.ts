@@ -44,6 +44,8 @@ describe('zeus release config', () => {
       '@zeus-js/output-vue-wrapper',
       '@zeus-js/output-css',
       '@zeus-js/output-icons',
+      '@zeus-js/eslint-plugin',
+      '@zeus-js/playground-engine',
     ])
   })
 
@@ -81,16 +83,18 @@ describe('zeus release config', () => {
       ['pnpm', 'test-unit'],
       ['pnpm', 'bench:compiler-native'],
       ['pnpm', 'check:package-versions'],
+      ['pnpm', 'check:latest-tags'],
       ['pnpm', 'examples:check:all'],
       ['pnpm', 'check:create-zeus'],
-      ['pnpm', 'check:create-zeus-packed'],
+      ['pnpm', 'check:create-zeus-candidate'],
+      ['pnpm', 'check:create-zeus-versions'],
       ['pnpm', 'bench:component-host:ci'],
       ['pnpm', 'docs:build'],
       ['pnpm', 'size:ci'],
       ['pnpm', 'check:exports'],
       ['pnpm', 'check:repository'],
       ['pnpm', 'check:packed-consumers'],
-      ['pnpm', 'check:rc-readiness'],
+      ['pnpm', 'check:rc-readiness', '--release-snapshot'],
       ['pnpm', 'check:release-worktree', '--verify'],
     ])
   })

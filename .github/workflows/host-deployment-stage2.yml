@@ -189,6 +189,24 @@ jobs:
             *) echo "unknown deployment mode"; exit 2 ;;
           esac
           pnpm exec tsx scripts/release/deployment-stage2.ts $ARGS
+      - name: Stage RC evidence files
+        if: success()
+        run: |
+          cp "${{ inputs.state-dir }}/acceptance/deployment.json" "${{ runner.temp }}/zeus-deploy/deployment.online.json"
+          cp "${{ inputs.state-dir }}/acceptance/provenance.json" "${{ runner.temp }}/zeus-deploy/deployment.online.provenance.json"
+          cat > "${{ runner.temp }}/zeus-deploy/evidence-source.json" <<EOF
+          {
+            "schema": "zeus.deployment-evidence-source/v1",
+            "repository": "$GITHUB_REPOSITORY",
+            "workflow": "Host Deployment Stage 2",
+            "runId": "$GITHUB_RUN_ID",
+            "runAttempt": "$GITHUB_RUN_ATTEMPT",
+            "coreCommit": "${{ inputs.expected-core-sha }}",
+            "uiCommit": "${{ inputs.expected-ui-sha }}",
+            "environment": "${{ inputs.environment }}",
+            "mode": "production"
+          }
+          EOF
       - name: Upload deployment evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -199,5 +217,9 @@ jobs:
             ${{ runner.temp }}/zeus-deploy/deployment-acceptance.json
             ${{ runner.temp }}/zeus-deploy/stage2-local-acceptance.json
             ${{ runner.temp }}/zeus-deploy/deployment-acceptance.repeat.json
+            ${{ runner.temp }}/zeus-deploy/deployment.online.json
+            ${{ runner.temp }}/zeus-deploy/deployment.online.provenance.json
+            ${{ runner.temp }}/zeus-deploy/pair.json
+            ${{ runner.temp }}/zeus-deploy/evidence-source.json
           if-no-files-found: warn
           retention-days: 30

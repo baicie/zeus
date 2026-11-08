@@ -24,6 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: read
       id-token: write
     environment: Release
     outputs:
@@ -83,18 +84,104 @@ jobs:
       - name: Verify release tag source
         run: pnpm release:verify:tag-source --version "${{ steps.release-version.outputs.version }}"
 
+      - name: Checkout paired UI candidate
+        uses: actions/checkout@v5
+        with:
+          repository: baicie/zeus-ui
+          ref: ${{ vars.ZEUS_UI_REF }}
+          path: temp/zeus-ui
+          fetch-depth: 1
+
+      - name: Verify Core/UI exact pairing
+        env:
+          UI_REF: ${{ vars.ZEUS_UI_REF }}
+        run: |
+          test -n "$UI_REF"
+          pnpm check:ui-pairing --ui-root temp/zeus-ui
+
+      - name: Read paired UI version
+        run: |
+          UI_VERSION=$(node -p "require('./temp/zeus-ui/package.json').version")
+          echo "ZEUS_UI_VERSION=$UI_VERSION" >> "$GITHUB_ENV"
+
+      - name: Require approved deployment and approval evidence
+        env:
+          DEPLOYMENT_RUN_ID: ${{ vars.ZEUS_DEPLOYMENT_EVIDENCE_RUN_ID }}
+          APPROVAL_RUN_ID: ${{ vars.ZEUS_RC_APPROVAL_RUN_ID }}
+        run: |
+          test -n "$DEPLOYMENT_RUN_ID"
+          test -n "$APPROVAL_RUN_ID"
+
+      - name: Download approved deployment evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: host-deployment-stage2-evidence
+          run-id: ${{ vars.ZEUS_DEPLOYMENT_EVIDENCE_RUN_ID }}
+          github-token: ${{ github.token }}
+          path: temp/deployment-evidence
+
+      - name: Download signed RC approval evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: rc-approval
+          run-id: ${{ vars.ZEUS_RC_APPROVAL_RUN_ID }}
+          github-token: ${{ github.token }}
+          path: temp/rc-approval
+
+      - name: Assemble deployment-bound RC evidence
+        run: >-
+          pnpm exec tsx scripts/release/assemble-rc-evidence.ts
+          --acceptance temp/deployment-evidence/deployment-acceptance.json
+          --transaction temp/deployment-evidence/deployment-transaction.json
+          --provenance temp/deployment-evidence/deployment.online.provenance.json
+          --pair temp/deployment-evidence/pair.json
+          --base temp/rc-approval/rc-evidence.base.json
+          --source temp/deployment-evidence/evidence-source.json
+          --run-id "${{ vars.ZEUS_DEPLOYMENT_EVIDENCE_RUN_ID }}"
+          --out temp/release
+
       - name: Release precheck
         run: pnpm release:precheck
+
+      - name: Prepare Core candidate tarballs and UI overrides
+        run: pnpm check:create-zeus-candidate:prepare --ui-root temp/zeus-ui
+
+      - name: Install paired UI dependencies with Core candidates
+        working-directory: temp/zeus-ui
+        run: pnpm install --ignore-scripts --no-frozen-lockfile --config.confirmModulesPurge=false
+
+      - name: Build paired UI candidate packages
+        working-directory: temp/zeus-ui
+        run: pnpm exec tsx scripts/commands/build.ts button
+
+      - name: Verify create-zeus candidate templates
+        run: pnpm check:create-zeus-candidate --ui-root temp/zeus-ui --candidates temp/create-zeus-candidate/candidates.json --require-pin-match
+
+      - name: Preserve create-zeus candidate report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: create-zeus-candidate-release
+          path: |
+            temp/create-zeus-candidate/report.json
+            temp/create-zeus-candidate/candidates.json
+            temp/create-zeus-candidate/prepare.json
 
       # Build output is produced by release:precheck step above.
       # --skipBuild is safe here as long as precheck always runs first.
       - name: Build and publish
-        run: pnpm release --publishOnly "${{ steps.release-version.outputs.version }}" --skipBuild
+        run: >-
+          pnpm release --publishOnly "${{ steps.release-version.outputs.version }}"
+          --tag "${{ steps.release-version.outputs.dist-tag }}"
+          --skipBuild
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Verify npm publication
         run: pnpm release:verify:published --version "${{ steps.release-version.outputs.version }}"
+
+      - name: Verify published create-zeus scaffold
+        run: pnpm check:create-zeus-packed
 
       - name: Verify npm dist-tags and provenance
         run: >-

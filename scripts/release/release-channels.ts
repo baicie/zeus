@@ -32,7 +32,6 @@ export const CANARY_PRECHECK_COMMANDS: readonly ReleaseCommand[] = [
   ['pnpm', 'test-unit'],
   ['pnpm', 'check:package-versions'],
   ['pnpm', 'check:create-zeus'],
-  ['pnpm', 'check:create-zeus-packed'],
   ['pnpm', 'check:packed-consumers'],
   ['pnpm', 'check:exports'],
   ['pnpm', 'check:repository'],

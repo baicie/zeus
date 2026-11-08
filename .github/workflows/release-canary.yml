@@ -144,6 +144,9 @@ jobs:
       - name: Verify npm canary publication
         run: pnpm release:verify:published --version "$ZEUS_CANARY_VERSION"
 
+      - name: Verify published create-zeus scaffold
+        run: pnpm check:create-zeus-packed
+
       - name: Verify staged Canary packages and provenance
         run: >-
           pnpm release:verify:dist-tags

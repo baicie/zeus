@@ -50,12 +50,20 @@ pnpm exec vitest run --project unit packages/devtools/create-zeus
 pnpm --filter create-zeus build
 pnpm check:create-zeus
 pnpm check:create-zeus-packed
+pnpm check:create-zeus-candidate --ui-root /path/to/zeus-ui
 pnpm check:create-zeus-registry
 ```
 
 `check:create-zeus` 会为六种模板生成临时项目，运行 TypeScript 检查和 Vite
 生产构建。`check:create-zeus-packed` 会打包当前 `create-zeus` 候选 tarball，在仓库外
 安装并执行 `--name/--template`，随后从 registry 安装模板依赖并完成类型检查与生产构建。
+`check:create-zeus-candidate` 打包当前工作区的 32 个 Core 包、vite-plugin 和
+配对的 UI `@zeus-web` 闭包，在仓库外逐个安装六种模板并运行类型检查、生产构建；
+报告写入 `temp/create-zeus-candidate/report.json`。CI 在 Linux 和 Windows 上执行。
+UI RC 的 Core pin 在发布前可能尚不存在，先用 `check:create-zeus-candidate:prepare
+--ui-root /path/to/zeus-ui` 打包/校验 Core tarball 并注入临时 UI checkout，再用
+`--candidates temp/create-zeus-candidate/candidates.json` 运行矩阵；release 使用
+`--require-pin-match` 拒绝陈旧的 Core/vite-plugin/UI pin。
 `check:create-zeus-registry` 要求模板精确固定同一组已发布的 Zeus
 版本，并在仓库外逐个生成五种模板，从 registry 独立安装依赖，运行类型检查、构建、
 模板测试和 dev / production 浏览器交互。计数按钮必须从 0 更新到 1、2；组件库必须

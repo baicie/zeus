@@ -51,6 +51,35 @@ describe('release workflows', () => {
     )
   })
 
+  it('publishes tagged releases to the computed dist-tag', () => {
+    const workflow = readFileSync(
+      resolve(root, '.github/workflows/release.yml'),
+      'utf8',
+    )
+
+    expect(workflow).toContain(
+      '--tag "${{ steps.release-version.outputs.dist-tag }}"',
+    )
+    expect(workflow.indexOf('pnpm release --publishOnly')).toBeLessThan(
+      workflow.indexOf('--tag "${{ steps.release-version.outputs.dist-tag }}"'),
+    )
+  })
+
+  it('keeps dist-tag repair manual, protected and serialized with publishing', () => {
+    const workflow = readFileSync(
+      resolve(root, '.github/workflows/repair-dist-tags.yml'),
+      'utf8',
+    )
+
+    expect(workflow).toContain('workflow_dispatch:')
+    expect(workflow).toContain('default: dry-run')
+    expect(workflow).toContain('environment: Release')
+    expect(workflow).toContain('group: npm-release')
+    expect(workflow).not.toContain('\n  push:')
+    expect(workflow).not.toContain('\n  pull_request:')
+    expect(workflow).toContain('repair-latest-tags.ts --apply')
+  })
+
   it('checks dist-tags and registry installation after publication', () => {
     for (const file of ['release-canary.yml', 'release.yml']) {
       const workflow = readFileSync(
@@ -152,6 +181,27 @@ describe('release workflows', () => {
     expect(workflow).toContain('pnpm release:precheck')
     expect(workflow).toContain('pnpm release:verify:dist-tags')
     expect(workflow).toContain('--require-provenance')
+  })
+
+  it('binds RC evidence to approved deployment and approval artifacts', () => {
+    const workflow = readFileSync(
+      resolve(root, '.github/workflows/release.yml'),
+      'utf8',
+    )
+
+    expect(workflow).toContain('ZEUS_UI_REF')
+    expect(workflow).toContain('check:ui-pairing')
+    expect(workflow).toContain('ZEUS_UI_VERSION')
+    expect(workflow).toContain('ZEUS_DEPLOYMENT_EVIDENCE_RUN_ID')
+    expect(workflow).toContain('host-deployment-stage2-evidence')
+    expect(workflow).toContain('ZEUS_RC_APPROVAL_RUN_ID')
+    expect(workflow).toContain('rc-approval')
+    expect(workflow).toContain('assemble-rc-evidence.ts')
+    expect(workflow).toContain('evidence-source.json')
+    expect(workflow).toContain('--run-id')
+    expect(workflow.indexOf('assemble-rc-evidence.ts')).toBeLessThan(
+      workflow.indexOf('pnpm release:precheck'),
+    )
   })
 
   it('dispatches canary only after both registry smoke jobs pass', () => {

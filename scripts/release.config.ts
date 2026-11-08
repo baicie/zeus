@@ -1,5 +1,6 @@
 import { defineReleaseConfig } from '@baicie/release'
 
+import { syncCreateZeusVersions } from './release/create-zeus-versions'
 import { syncNativeLoader } from './release/sync-native-loader'
 
 export const zeusFixedPackages = [
@@ -32,6 +33,8 @@ export const zeusFixedPackages = [
   '@zeus-js/output-vue-wrapper',
   '@zeus-js/output-css',
   '@zeus-js/output-icons',
+  '@zeus-js/eslint-plugin',
+  '@zeus-js/playground-engine',
 ]
 
 export const zeusNativePackages = [
@@ -68,6 +71,13 @@ export default defineReleaseConfig({
 
   async afterVersion({ version }) {
     await syncNativeLoader(version)
+    syncCreateZeusVersions({
+      root: process.cwd(),
+      coreVersion: version,
+      ...(process.env.ZEUS_UI_VERSION
+        ? { uiVersion: process.env.ZEUS_UI_VERSION }
+        : {}),
+    })
   },
 
   publish: {
@@ -98,9 +108,11 @@ export default defineReleaseConfig({
       ['pnpm', 'test-unit'],
       ['pnpm', 'bench:compiler-native'],
       ['pnpm', 'check:package-versions'],
+      ['pnpm', 'check:latest-tags'],
       ['pnpm', 'examples:check:all'],
       ['pnpm', 'check:create-zeus'],
-      ['pnpm', 'check:create-zeus-packed'],
+      ['pnpm', 'check:create-zeus-candidate'],
+      ['pnpm', 'check:create-zeus-versions'],
       ['pnpm', 'bench:component-host:ci'],
       ['pnpm', 'docs:build'],
       ['pnpm', 'size:ci'],
@@ -109,7 +121,7 @@ export default defineReleaseConfig({
       // RC readiness validates the packed consumer report; generate it in the
       // same precheck so a stale or missing report cannot pass the gate.
       ['pnpm', 'check:packed-consumers'],
-      ['pnpm', 'check:rc-readiness'],
+      ['pnpm', 'check:rc-readiness', '--release-snapshot'],
       ['pnpm', 'check:release-worktree', '--verify'],
     ],
   },

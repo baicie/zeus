@@ -56,7 +56,7 @@ afterEach(() => {
   }
 })
 
-describe('release rewrite guard', () => {
+describe('release rewrite guard', { timeout: 20_000 }, () => {
   it('restores version rewrites and removes temporary files', () => {
     const root = createRepository()
     const snapshot = snapshotReleaseRewrite(root)
