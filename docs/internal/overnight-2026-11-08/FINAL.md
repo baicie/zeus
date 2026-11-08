@@ -1,8 +1,8 @@
 # Zeus 0.2.0 — Overnight Mission Final Report
 
-Report time: 2026-11-08 11:25 Asia/Shanghai
+Report time: 2026-11-08 12:12 Asia/Shanghai
 Mission start: 2026-11-08 00:08 Asia/Shanghai (prompt received)
-Active runtime: ~11 h 17 min
+Active runtime: ~12 h 4 min
 Final checkpoint: this report commit on `docs/overnight-2026-11-08`
 
 ## Final verdict
@@ -19,7 +19,7 @@ external/authorization blockers, not code failures.
 
 | Repo | Start / final main                                     | Mission branches                                                                                                               |
 | ---- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| Core | `39f90c7f1e73721e805914d19e53c456d0913a55` (unchanged) | #202 `0cd29b9`, #203 `50810e2`, #204 `8fa5774`, #205 `872be70`, #206 `ce594f7`, #207 `08a872e`, #208 `739cfad`, #209 `658181a` |
+| Core | `39f90c7f1e73721e805914d19e53c456d0913a55` (unchanged) | #202 `f937744`, #203 `50810e2`, #204 `8fa5774`, #205 `872be70`, #206 `ce594f7`, #207 `08a872e`, #208 `739cfad`, #209 `658181a` |
 | UI   | `7a38f18abe79b9c969bbe04d23b9e80c0ab1d937` (unchanged) | #126 `ffe7801`, #127 `3c858cf`, #128 `c13d0d3`                                                                                 |
 
 No branch was merged into either main branch. The only main-branch changes are
@@ -60,7 +60,7 @@ the earlier, separately authorized R4.4 merges (#199/#200/#201/#125).
 | F-15 | P1       | FIXED_IN_PR                     | wasm host had no preflight and trapped on deep input                                                  |
 | F-16 | P1       | FIXED_IN_PR                     | wasm browser gate asserted the trap as expected behavior                                              |
 | F-17 | P1       | FIXED_IN_PR                     | RC-04 candidate matrix covers six templates, Core + UI tarballs, Linux + Windows                      |
-| F-18 | P1       | BLOCKED                         | RC-07 actual dist-tag repair (ENEEDAUTH; npmmirror registry)                                          |
+| F-18 | P1       | BLOCKED                         | RC-07 actual dist-tag write (ENEEDAUTH; protected Release-environment workflow ready)                 |
 | F-19 | P2       | OPEN / NEEDS_DECISION           | WebC `render()` string output is assigned to `innerHTML`; authors must not interpolate untrusted data |
 
 ## 4. Root causes fixed
@@ -89,6 +89,9 @@ the earlier, separately authorized R4.4 merges (#199/#200/#201/#125).
     manifests; the paired UI builds against the same tarballs; six templates
     pass typecheck/tests/build on Linux and Windows; release requires pin match
     (#202).
+11. **RC-07 dist-tags** — tagged publish now passes the computed tag; a
+    dry-run-first repair command plans 13 removals for packages without stable
+    versions; writes require the protected manual workflow and npm auth (#202).
 
 ## 5. Draft PRs and latest CI
 
@@ -139,14 +142,14 @@ Chromium/Firefox/WebKit.
 | RC-04 Create Zeus pins / candidate tarballs | PASS (PR #202)                 | `prepare` validates 32 packed Core manifests; UI builds against the same tarballs; six templates pass typecheck/tests/build on Linux and Windows; release requires pin match |
 | RC-05 Core/UI pairing and order             | PASS (PR #202)                 | exact pins, UI checkout, pairing gate                                                                                                                                        |
 | RC-06 Real online evidence in readiness     | PASS (PR #202)                 | accepts only ONLINE_ACCEPTED/ONLINE_PASS bound data                                                                                                                          |
-| RC-07 npm dist-tag policy                   | CHECK PASS / OPERATION BLOCKED | latest-tag audit; `npm whoami` ENEEDAUTH                                                                                                                                     |
+| RC-07 npm dist-tag policy                   | TOOL READY / OPERATION BLOCKED | tagged publish passes computed tag; `repair:latest-tags` dry-run plans 13 removals; protected apply workflow awaits npm auth                                                 |
 
 ## 9. Test matrix (three rounds)
 
 Round 1 — local:
 
 - signal 312/312; runtime-dom 412/412; compiler 62/62 + 5 lib; SSR 22/22;
-  RC release/check 198/198 plus create-zeus pin tests; candidate matrix 6/6 on Linux and Windows; wasm parity 4/4; clippy/fmt/tsc/ESLint clean.
+  RC release/check 204/204 plus create-zeus pin tests; candidate matrix 6/6 on Linux and Windows; wasm parity 4/4; clippy/fmt/tsc/ESLint clean.
 
 Round 2 — real integration / CI:
 

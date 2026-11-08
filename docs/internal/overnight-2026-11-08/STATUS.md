@@ -1,6 +1,6 @@
 # Overnight Mission Status — 2026-11-08
 
-Last checkpoint: 2026-11-08 11:58 Asia/Shanghai
+Last checkpoint: 2026-11-08 12:12 Asia/Shanghai
 Deadline: 2026-11-08 12:00 Asia/Shanghai
 
 ## Baseline
@@ -16,7 +16,7 @@ No merge, npm publish, Tag, dist-tag or production deployment in this mission.
 
 | PR        | Branch                                | Head      | CI                  |
 | --------- | ------------------------------------- | --------- | ------------------- |
-| Core #202 | `fix/r5-rc-gates`                     | `f937744` | CI running          |
+| Core #202 | `fix/r5-rc-gates`                     | `f937744` | 34/34 SUCCESS       |
 | Core #203 | `fix/r5-ai-workspace-backup`          | `50810e2` | 22/22 SUCCESS       |
 | Core #204 | `fix/r5-signal-error-isolation`       | `8fa5774` | 23/23 SUCCESS       |
 | Core #205 | `fix/r5-admin-input-stability`        | `872be70` | 22/22 SUCCESS       |

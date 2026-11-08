@@ -15,7 +15,7 @@
 
 | PR        | Local evidence                                                                         | GitHub              |
 | --------- | -------------------------------------------------------------------------------------- | ------------------- |
-| Core #202 | 27 files / 198 tests; `tsc`, ESLint, Prettier PASS; six-template candidate matrix PASS | 34/34 SUCCESS       |
+| Core #202 | 28 files / 204 tests; `tsc`, ESLint, Prettier PASS; six-template candidate matrix PASS | 34/34 SUCCESS       |
 | Core #203 | real Stage 2 workspace backup/restore drill PASS `ROLLED_BACK`                         | 22/22 SUCCESS       |
 | Core #204 | signal 20 files / 312 tests PASS                                                       | 23/23 SUCCESS       |
 | Core #205 | Admin WebKit 3/3                                                                       | 22/22 SUCCESS       |
