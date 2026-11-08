@@ -108,9 +108,11 @@ jobs:
         env:
           DEPLOYMENT_RUN_ID: ${{ vars.ZEUS_DEPLOYMENT_EVIDENCE_RUN_ID }}
           APPROVAL_RUN_ID: ${{ vars.ZEUS_RC_APPROVAL_RUN_ID }}
+          APPROVERS: ${{ vars.ZEUS_RC_APPROVERS }}
         run: |
           test -n "$DEPLOYMENT_RUN_ID"
           test -n "$APPROVAL_RUN_ID"
+          test -n "$APPROVERS"
 
       - name: Download approved deployment evidence
         uses: actions/download-artifact@v4
@@ -120,13 +122,30 @@ jobs:
           github-token: ${{ github.token }}
           path: temp/deployment-evidence
 
-      - name: Download signed RC approval evidence
+      - name: Download attested RC approval evidence
         uses: actions/download-artifact@v4
         with:
           name: rc-approval
           run-id: ${{ vars.ZEUS_RC_APPROVAL_RUN_ID }}
           github-token: ${{ github.token }}
           path: temp/rc-approval
+
+      - name: Verify approval identity, run metadata and attestation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APPROVERS: ${{ vars.ZEUS_RC_APPROVERS }}
+        run: >-
+          pnpm exec tsx scripts/release/verify-rc-approval.ts
+          --approval temp/rc-approval/rc-approval.json
+          --payload temp/rc-approval/rc-approval-payload.json
+          --cross-platform temp/rc-approval/cross-platform.json
+          --core-commit "$GITHUB_SHA"
+          --ui-commit "$(git -C temp/zeus-ui rev-parse HEAD)"
+          --version "${{ steps.release-version.outputs.version }}"
+          --repo "${{ github.repository }}"
+          --run-id "${{ vars.ZEUS_RC_APPROVAL_RUN_ID }}"
+          --approvers "$APPROVERS"
+          --out temp/release/approval-trust.json
 
       - name: Assemble deployment-bound RC evidence
         run: >-
@@ -135,7 +154,11 @@ jobs:
           --transaction temp/deployment-evidence/deployment-transaction.json
           --provenance temp/deployment-evidence/deployment.online.provenance.json
           --pair temp/deployment-evidence/pair.json
-          --base temp/rc-approval/rc-evidence.base.json
+          --approval temp/rc-approval/rc-approval.json
+          --cross-platform temp/rc-approval/cross-platform.json
+          --trust temp/release/approval-trust.json
+          --version "${{ steps.release-version.outputs.version }}"
+          --approvers "${{ vars.ZEUS_RC_APPROVERS }}"
           --source temp/deployment-evidence/evidence-source.json
           --run-id "${{ vars.ZEUS_DEPLOYMENT_EVIDENCE_RUN_ID }}"
           --out temp/release

@@ -1,0 +1,164 @@
+name: RC Approval
+
+# This is the only workflow allowed to produce the `rc-approval` artifact.
+# It must be dispatched manually, runs behind the protected `Release`
+# environment (required reviewers), checks the actor's repository permission,
+# binds the approval to the Core/UI commits, the RC version and the exact
+# cross-platform evidence digest, and attests the result with Sigstore.
+on:
+  workflow_dispatch:
+    inputs:
+      core_commit:
+        description: 'Core commit (40-character SHA) that is being approved'
+        required: true
+        type: string
+      ui_commit:
+        description: 'Paired UI commit (40-character SHA)'
+        required: true
+        type: string
+      version:
+        description: 'RC version, for example 0.2.0-rc.0'
+        required: true
+        type: string
+      evidence_run_id:
+        description: 'CI run id that produced the cross-platform evidence'
+        required: true
+        type: string
+      evidence_run_attempt:
+        description: 'CI run attempt'
+        required: false
+        default: '1'
+        type: string
+      confirm:
+        description: 'Type APPROVE to record a release approval'
+        required: true
+        type: string
+      ttl_hours:
+        description: 'Approval validity in hours (maximum 72)'
+        required: false
+        default: '48'
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+  attestations: write
+  id-token: write
+
+concurrency:
+  group: rc-approval
+  cancel-in-progress: false
+
+jobs:
+  approve:
+    if: github.repository == 'baicie/zeus'
+    runs-on: ubuntu-latest
+    environment: Release
+    steps:
+      - name: Require explicit confirmation
+        run: |
+          if [ "${{ inputs.confirm }}" != "APPROVE" ]; then
+            echo "::error::confirm must be exactly APPROVE"
+            exit 1
+          fi
+
+      # The approval is bound to the run's head SHA, so the run must be
+      # dispatched at the exact approved commit rather than an arbitrary ref.
+      - name: Require dispatch at the approved Core commit
+        run: |
+          if [ "$GITHUB_SHA" != "${{ inputs.core_commit }}" ]; then
+            echo "::error::dispatch RC Approval at the approved Core commit (${{ inputs.core_commit }})"
+            exit 1
+          fi
+
+      - name: Checkout the approved Core commit
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.core_commit }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify checked out commit
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ inputs.core_commit }}"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.node-version'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Download cross-platform evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: cross-platform-evidence
+          run-id: ${{ inputs.evidence_run_id }}
+          github-token: ${{ github.token }}
+          path: temp/cross-platform
+
+      - name: Build approval payload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+          ACTOR_ID: ${{ github.actor_id }}
+        run: >-
+          pnpm exec tsx scripts/release/create-rc-approval.ts
+          --mode payload
+          --core-commit "${{ inputs.core_commit }}"
+          --ui-commit "${{ inputs.ui_commit }}"
+          --version "${{ inputs.version }}"
+          --cross-platform temp/cross-platform/evidence.json
+          --evidence-run-id "${{ inputs.evidence_run_id }}"
+          --repo "${{ github.repository }}"
+          --actor "$ACTOR"
+          --actor-id "$ACTOR_ID"
+          --ttl-hours "${{ inputs.ttl_hours }}"
+          --out temp/rc-approval/rc-approval-payload.json
+
+      # The payload is uploaded first so GitHub computes its artifact digest.
+      # The envelope records that digest, which makes the two artifacts
+      # verifiable as one unit.
+      - name: Upload approval payload
+        id: upload-payload
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc-approval-payload
+          path: temp/rc-approval/rc-approval-payload.json
+          if-no-files-found: error
+
+      - name: Build approval envelope
+        run: >-
+          pnpm exec tsx scripts/release/create-rc-approval.ts
+          --mode envelope
+          --payload temp/rc-approval/rc-approval-payload.json
+          --payload-artifact-digest "${{ steps.upload-payload.outputs.artifact-digest }}"
+          --run-id "${{ github.run_id }}"
+          --run-attempt "${{ github.run_attempt }}"
+          --repo "${{ github.repository }}"
+          --out temp/rc-approval/rc-approval.json
+
+      - name: Copy the reviewed evidence into the approval artifact
+        run: cp temp/cross-platform/evidence.json temp/rc-approval/cross-platform.json
+
+      - name: Attest the approval artifact
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            temp/rc-approval/rc-approval.json
+            temp/rc-approval/rc-approval-payload.json
+            temp/rc-approval/cross-platform.json
+
+      - name: Upload approval artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc-approval
+          path: |
+            temp/rc-approval/rc-approval.json
+            temp/rc-approval/rc-approval-payload.json
+            temp/rc-approval/cross-platform.json
+          if-no-files-found: error

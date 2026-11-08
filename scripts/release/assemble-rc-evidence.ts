@@ -1,8 +1,12 @@
 /**
- * Assembles the RC evidence document from a real Stage 2 online deployment
- * and a signed approval artifact. The four product URLs are copied from the
- * deployment-acceptance report (which checked TLS, DNS, build-info, browser
- * behavior and cryptographic file hashes); they are never hand-written here.
+ * Assembles the RC evidence document from a real Stage 2 online deployment,
+ * a cross-platform test evidence artifact and a structured, attestation-backed
+ * release approval.
+ *
+ * Nothing in this document is hand-written: the four product URLs are copied
+ * from the deployment-acceptance report, the cross-platform section is the
+ * verified CI artifact, and the approval section is the protected RC Approval
+ * workflow document re-validated against GitHub run metadata.
  */
 import { createHash } from 'node:crypto'
 import fs from 'node:fs'
@@ -10,7 +14,21 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 
-export const RC_EVIDENCE_SCHEMA = 'zeus.rc-evidence/v3'
+import {
+  RC_APPROVAL_SCHEMA,
+  CROSS_PLATFORM_SCHEMA,
+  crossPlatformDigest,
+  isRecord,
+  validateCrossPlatformEvidence,
+  validateRcApproval,
+  type AttestationVerification,
+  type RcApprovalDocument,
+  type TrustedApprovalArtifact,
+  type TrustedApprovalRun,
+} from './rc-approval'
+
+export const RC_EVIDENCE_SCHEMA = 'zeus.rc-evidence/v4'
+
 const PRODUCTS = ['webc-studio', 'native-lab', 'admin', 'ai-workbench'] as const
 const PRODUCT_IMAGE: Record<string, string> = {
   'webc-studio': 'playground',
@@ -25,12 +43,17 @@ export interface AssembleRcEvidenceInput {
   readonly transactionFile: string
   readonly provenanceFile: string
   readonly pairFile: string
-  readonly baseFile?: string
+  readonly approvalFile: string
+  readonly crossPlatformFile: string
+  readonly trustFile: string
+  readonly version: string
+  readonly authorizedApprovers: readonly string[]
   readonly sourceFile?: string
   readonly expectedRunId?: string
   readonly maxAgeHours?: number
   readonly outDir: string
   readonly checkedAt?: string
+  readonly now?: number
 }
 
 export interface AssembleRcEvidenceResult {
@@ -56,6 +79,13 @@ export function assembleRcEvidence(
   )
   const provenance = readJson(input.provenanceFile, 'provenance', errors)
   const pair = readJson(input.pairFile, 'release pair', errors)
+  const approval = readJson(input.approvalFile, 'release approval', errors)
+  const crossPlatform = readJson(
+    input.crossPlatformFile,
+    'cross-platform evidence',
+    errors,
+  )
+  const trust = readJson(input.trustFile, 'approval trust metadata', errors)
   const source = input.sourceFile
     ? readJson(input.sourceFile, 'deployment evidence source', errors)
     : undefined
@@ -93,6 +123,9 @@ export function assembleRcEvidence(
   if (pair.coreCommit !== core || pair.uiCommit !== ui) {
     errors.push('release pair does not match the acceptance commits')
   }
+  if (approval.version !== input.version) {
+    errors.push('release approval version does not match the release version')
+  }
   if (input.sourceFile) {
     if (source?.schema !== 'zeus.deployment-evidence-source/v1') {
       errors.push('deployment evidence source schema is invalid')
@@ -127,7 +160,10 @@ export function assembleRcEvidence(
   const maxAgeHours = input.maxAgeHours ?? 168
   if (!Number.isFinite(checkedAt)) {
     errors.push('acceptance checkedAt is missing or invalid')
-  } else if (Date.now() - checkedAt > maxAgeHours * 60 * 60 * 1000) {
+  } else if (
+    (input.now ?? Date.now()) - checkedAt >
+    maxAgeHours * 60 * 60 * 1000
+  ) {
     errors.push('deployment acceptance evidence is stale')
   }
 
@@ -204,24 +240,37 @@ export function assembleRcEvidence(
     })
   }
 
-  const base = input.baseFile
-    ? readJson(input.baseFile, 'approval base evidence', errors)
-    : undefined
-  const crossPlatform = isRecord(base?.crossPlatform)
-    ? base.crossPlatform
-    : {
-        platforms: [],
-        report: 'NOT_RUN',
-        commit: core,
-      }
-  const releaseApproval = isRecord(base?.releaseApproval)
-    ? base.releaseApproval
-    : { approver: 'NOT_RUN', commit: core }
-  if (crossPlatform.commit !== core) {
-    errors.push('crossPlatform.commit does not match the source')
+  const crossPlatformResult = validateCrossPlatformEvidence(crossPlatform, {
+    commit: core,
+    ...(input.now !== undefined ? { now: input.now } : {}),
+  })
+  errors.push(...crossPlatformResult.errors)
+  const crossPlatformDigestValue =
+    crossPlatformResult.digest ?? crossPlatformDigest(crossPlatform)
+
+  if (crossPlatform.schema !== CROSS_PLATFORM_SCHEMA) {
+    errors.push(`cross-platform schema must be ${CROSS_PLATFORM_SCHEMA}`)
   }
-  if (releaseApproval.commit !== core) {
-    errors.push('releaseApproval.commit does not match the source')
+
+  const run = readApprovalRun(trust, errors)
+  const attestationValue = readAttestation(trust, errors)
+  const payloadDigest =
+    typeof trust.payloadDigest === 'string' ? trust.payloadDigest : undefined
+
+  const approvalResult = validateRcApproval(approval, {
+    coreCommit: core,
+    uiCommit: ui,
+    version: input.version,
+    evidenceDigest: crossPlatformDigestValue,
+    payloadDigest,
+    run,
+    attestation: attestationValue,
+    authorizedApprovers: input.authorizedApprovers,
+    ...(input.now !== undefined ? { now: input.now } : {}),
+  })
+  errors.push(...approvalResult.errors)
+  if (approval.schema !== RC_APPROVAL_SCHEMA) {
+    errors.push(`release approval schema must be ${RC_APPROVAL_SCHEMA}`)
   }
 
   if (errors.length > 0) return { errors }
@@ -230,6 +279,7 @@ export function assembleRcEvidence(
     schema: RC_EVIDENCE_SCHEMA,
     commit: core,
     uiCommit: ui,
+    version: input.version,
     products: evidenceProducts,
     deployment: {
       decision: 'ONLINE_ACCEPTED',
@@ -242,7 +292,12 @@ export function assembleRcEvidence(
       products: deploymentProducts,
     },
     crossPlatform,
-    releaseApproval,
+    releaseApproval: approval,
+    approvalRun: run,
+    approvalAttestation: attestationValue,
+    approvalPolicy: {
+      authorizedApprovers: [...input.authorizedApprovers],
+    },
   }
   fs.mkdirSync(input.outDir, { recursive: true })
   const evidenceFile = path.join(input.outDir, 'rc-evidence.json')
@@ -256,6 +311,71 @@ export function assembleRcEvidence(
     { mode: 0o644 },
   )
   return { document, errors: [], evidenceFile, pairFile }
+}
+
+function readApprovalRun(
+  value: Record<string, unknown>,
+  errors: string[],
+): TrustedApprovalRun | undefined {
+  if (!isRecord(value.run)) {
+    errors.push('approval trust metadata must contain a run object')
+    return undefined
+  }
+  const run = value.run
+  const artifact = readArtifact(run.artifact)
+  const payloadArtifact = readArtifact(run.payloadArtifact)
+  return {
+    repository: stringValue(run.repository),
+    runId: stringValue(run.runId),
+    runAttempt: stringValue(run.runAttempt),
+    workflowId: stringValue(run.workflowId),
+    workflowPath: stringValue(run.workflowPath),
+    workflowName: stringValue(run.workflowName),
+    event: stringValue(run.event),
+    status: stringValue(run.status),
+    conclusion: stringValue(run.conclusion),
+    headSha: stringValue(run.headSha),
+    actor: stringValue(run.actor),
+    environment: stringValue(run.environment),
+    artifact,
+    payloadArtifact,
+  }
+}
+
+function readArtifact(value: unknown): TrustedApprovalArtifact | undefined {
+  if (!isRecord(value)) return undefined
+  return {
+    id: stringValue(value.id),
+    name: stringValue(value.name),
+    digest: stringValue(value.digest),
+    expired: value.expired === true,
+  }
+}
+
+function readAttestation(
+  value: Record<string, unknown>,
+  errors: string[],
+): AttestationVerification | undefined {
+  if (!isRecord(value.attestation)) {
+    errors.push('approval trust metadata must contain an attestation object')
+    return undefined
+  }
+  const attestation = value.attestation
+  const errorList = Array.isArray(attestation.errors)
+    ? attestation.errors.filter(
+        (entry): entry is string => typeof entry === 'string',
+      )
+    : []
+  return {
+    verified: attestation.verified === true,
+    ...(typeof attestation.signerWorkflow === 'string'
+      ? { signerWorkflow: attestation.signerWorkflow }
+      : {}),
+    ...(typeof attestation.sourceDigest === 'string'
+      ? { sourceDigest: attestation.sourceDigest }
+      : {}),
+    errors: errorList,
+  }
 }
 
 function readJson(
@@ -299,10 +419,6 @@ function stringValue(value: unknown): string {
   return typeof value === 'string' ? value : ''
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
 function main(): void {
   const { values } = parseArgs({
     options: {
@@ -310,7 +426,11 @@ function main(): void {
       transaction: { type: 'string' },
       provenance: { type: 'string' },
       pair: { type: 'string' },
-      base: { type: 'string' },
+      approval: { type: 'string' },
+      'cross-platform': { type: 'string' },
+      trust: { type: 'string' },
+      version: { type: 'string' },
+      approvers: { type: 'string' },
       source: { type: 'string' },
       'run-id': { type: 'string' },
       'max-age-hours': { type: 'string' },
@@ -322,15 +442,28 @@ function main(): void {
     'transaction',
     'provenance',
     'pair',
+    'approval',
+    'cross-platform',
+    'trust',
+    'version',
+    'approvers',
   ] as const) {
     if (!values[key]) throw new Error(`--${key} is required`)
   }
+  const approvers = values
+    .approvers!.split(',')
+    .map(entry => entry.trim())
+    .filter(Boolean)
   const result = assembleRcEvidence({
     acceptanceFile: path.resolve(values.acceptance!),
     transactionFile: path.resolve(values.transaction!),
     provenanceFile: path.resolve(values.provenance!),
     pairFile: path.resolve(values.pair!),
-    ...(values.base ? { baseFile: path.resolve(values.base) } : {}),
+    approvalFile: path.resolve(values.approval!),
+    crossPlatformFile: path.resolve(values['cross-platform']!),
+    trustFile: path.resolve(values.trust!),
+    version: values.version!,
+    authorizedApprovers: approvers,
     ...(values.source ? { sourceFile: path.resolve(values.source) } : {}),
     ...(values['run-id'] ? { expectedRunId: values['run-id'] } : {}),
     ...(values['max-age-hours']
@@ -350,3 +483,5 @@ function main(): void {
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   main()
 }
+
+export type { RcApprovalDocument }
