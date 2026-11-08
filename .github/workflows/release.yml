@@ -84,26 +84,6 @@ jobs:
       - name: Verify release tag source
         run: pnpm release:verify:tag-source --version "${{ steps.release-version.outputs.version }}"
 
-      - name: Checkout paired UI candidate
-        uses: actions/checkout@v5
-        with:
-          repository: baicie/zeus-ui
-          ref: ${{ vars.ZEUS_UI_REF }}
-          path: temp/zeus-ui
-          fetch-depth: 1
-
-      - name: Verify Core/UI exact pairing
-        env:
-          UI_REF: ${{ vars.ZEUS_UI_REF }}
-        run: |
-          test -n "$UI_REF"
-          pnpm check:ui-pairing --ui-root temp/zeus-ui
-
-      - name: Read paired UI version
-        run: |
-          UI_VERSION=$(node -p "require('./temp/zeus-ui/package.json').version")
-          echo "ZEUS_UI_VERSION=$UI_VERSION" >> "$GITHUB_ENV"
-
       - name: Require approved deployment and approval evidence
         env:
           DEPLOYMENT_RUN_ID: ${{ vars.ZEUS_DEPLOYMENT_EVIDENCE_RUN_ID }}
@@ -114,14 +94,6 @@ jobs:
           test -n "$APPROVAL_RUN_ID"
           test -n "$APPROVERS"
 
-      - name: Download approved deployment evidence
-        uses: actions/download-artifact@v4
-        with:
-          name: host-deployment-stage2-evidence
-          run-id: ${{ vars.ZEUS_DEPLOYMENT_EVIDENCE_RUN_ID }}
-          github-token: ${{ github.token }}
-          path: temp/deployment-evidence
-
       - name: Download attested RC approval evidence
         uses: actions/download-artifact@v4
         with:
@@ -129,6 +101,57 @@ jobs:
           run-id: ${{ vars.ZEUS_RC_APPROVAL_RUN_ID }}
           github-token: ${{ github.token }}
           path: temp/rc-approval
+
+      # The UI commit is an immutable, approved SHA from the approval
+      # document. A moving branch name is never a valid release identity.
+      - name: Read the approved UI commit
+        run: |
+          UI_COMMIT=$(node -p "require('./temp/rc-approval/rc-approval.json').uiCommit")
+          UI_VERSION=$(node -p "require('./temp/rc-approval/rc-approval.json').version")
+          if ! [[ "$UI_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::approved uiCommit is not a full SHA"
+            exit 1
+          fi
+          if [ "$UI_VERSION" != "${{ steps.release-version.outputs.version }}" ]; then
+            echo "::error::approval version does not match the release tag"
+            exit 1
+          fi
+          echo "ZEUS_UI_COMMIT=$UI_COMMIT" >> "$GITHUB_ENV"
+          echo "ZEUS_UI_VERSION=$UI_VERSION" >> "$GITHUB_ENV"
+
+      - name: Checkout the approved UI commit
+        uses: actions/checkout@v5
+        with:
+          repository: baicie/zeus-ui
+          ref: ${{ env.ZEUS_UI_COMMIT }}
+          path: temp/zeus-ui
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify Core/UI exact pairing
+        run: |
+          test "$(git -C temp/zeus-ui rev-parse HEAD)" = "$ZEUS_UI_COMMIT"
+          pnpm check:ui-pairing \
+            --ui-root temp/zeus-ui \
+            --core-version "${{ steps.release-version.outputs.version }}" \
+            --ui-commit "$ZEUS_UI_COMMIT" \
+            --ui-version "$ZEUS_UI_VERSION" \
+            --require-commit \
+            --out temp/release/ui-pairing.json
+
+      - name: Preserve UI pairing evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-pairing
+          path: temp/release/ui-pairing.json
+
+      - name: Download approved deployment evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: host-deployment-stage2-evidence
+          run-id: ${{ vars.ZEUS_DEPLOYMENT_EVIDENCE_RUN_ID }}
+          github-token: ${{ github.token }}
+          path: temp/deployment-evidence
 
       - name: Verify approval identity, run metadata and attestation
         env:
@@ -140,7 +163,7 @@ jobs:
           --payload temp/rc-approval/rc-approval-payload.json
           --cross-platform temp/rc-approval/cross-platform.json
           --core-commit "$GITHUB_SHA"
-          --ui-commit "$(git -C temp/zeus-ui rev-parse HEAD)"
+          --ui-commit "$ZEUS_UI_COMMIT"
           --version "${{ steps.release-version.outputs.version }}"
           --repo "${{ github.repository }}"
           --run-id "${{ vars.ZEUS_RC_APPROVAL_RUN_ID }}"

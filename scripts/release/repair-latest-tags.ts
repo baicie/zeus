@@ -14,6 +14,7 @@ import { parseArgs } from 'node:util'
 import semver from 'semver'
 
 import { zeusFixedPackages } from '../release.config'
+import { queryNpmJson } from './npm-registry'
 
 export const REPAIR_PACKAGES = [
   ...zeusFixedPackages,
@@ -133,51 +134,36 @@ export function applyLatestTagRepair(
   return results
 }
 
-function readState(name: string, registry: string): LatestTagState {
-  try {
-    const tags = readNpmJson<Record<string, string>>(name, [
-      'view',
-      name,
-      'dist-tags',
-      '--json',
-      '--registry',
-      registry,
-    ])
-    const versions = readNpmJson<string[]>(name, [
-      'view',
-      name,
-      'versions',
-      '--json',
-      '--registry',
-      registry,
-    ])
-    return {
-      name,
-      latest: tags.latest,
-      versions: Array.isArray(versions) ? versions : [versions],
-      published: true,
-    }
-  } catch (error) {
-    if (isNotFound(error)) {
-      return { name, versions: [], published: false }
-    }
-    throw error
+async function readState(
+  name: string,
+  registry: string,
+): Promise<LatestTagState> {
+  const tags = await queryNpmJson<Record<string, string>>(
+    ['view', name, 'dist-tags', '--json', '--registry', registry],
+    { attempts: 4 },
+  )
+  if (tags.status === 'not-found') {
+    return { name, versions: [], published: false }
   }
-}
-
-function isNotFound(error: unknown): boolean {
-  const value = error as { stderr?: string; stdout?: string; message?: string }
-  const text = `${value.stderr ?? ''}${value.stdout ?? ''}${value.message ?? ''}`
-  return text.includes('E404') || text.includes('404 Not Found')
-}
-
-function readNpmJson<T>(name: string, args: string[]): T {
-  const output = execFileSync('npm', args, {
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-  }).trim()
-  if (!output) throw new Error(`${name}: npm view returned no data`)
-  return JSON.parse(output) as T
+  if (tags.status === 'failed') {
+    throw new Error(`${name}: registry query failed: ${tags.message}`)
+  }
+  const versions = await queryNpmJson<string[] | string>(
+    ['view', name, 'versions', '--json', '--registry', registry],
+    { attempts: 4 },
+  )
+  if (versions.status === 'failed') {
+    throw new Error(
+      `${name}: registry version query failed: ${versions.message}`,
+    )
+  }
+  const value = versions.status === 'ok' ? versions.value : []
+  return {
+    name,
+    ...(tags.value.latest ? { latest: tags.value.latest } : {}),
+    versions: Array.isArray(value) ? value : [value],
+    published: true,
+  }
 }
 
 function createNpmClient(registry: string): RegistryClient {
@@ -211,7 +197,7 @@ function createNpmClient(registry: string): RegistryClient {
   }
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const { values } = parseArgs({
     options: {
       apply: { type: 'boolean', default: false },
@@ -231,7 +217,8 @@ function main(): void {
     throw new Error(`unknown package(s): ${unknown.join(', ')}`)
   }
 
-  const states = requested.map(name => readState(name, registry))
+  const states: LatestTagState[] = []
+  for (const name of requested) states.push(await readState(name, registry))
   const actions = planLatestTagRepair(states)
   const planned = actions.filter(action => action.kind !== 'none')
 
@@ -294,4 +281,6 @@ function main(): void {
   if (values.check === true && planned.length > 0) process.exitCode = 1
 }
 
-if (process.argv[1]?.endsWith('repair-latest-tags.ts')) main()
+if (process.argv[1]?.endsWith('repair-latest-tags.ts')) {
+  void main()
+}
