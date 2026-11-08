@@ -1,10 +1,26 @@
 import { mkdtempSync, rmSync, existsSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
 import { scaffold } from '../src/scaffold'
+
+const repositoryRoot = fileURLToPath(new URL('../../../../', import.meta.url))
+const coreVersion = (
+  JSON.parse(readFileSync(join(repositoryRoot, 'package.json'), 'utf8')) as {
+    version: string
+  }
+).version
+const vitePluginVersion = (
+  JSON.parse(
+    readFileSync(
+      join(repositoryRoot, 'packages/devtools/vite-plugin/package.json'),
+      'utf8',
+    ),
+  ) as { version: string }
+).version
 
 describe('create-zeus scaffold', () => {
   it('creates basic-ts project', async () => {
@@ -25,8 +41,8 @@ describe('create-zeus scaffold', () => {
     const packageJson = JSON.parse(
       readFileSync(join(root, 'package.json'), 'utf-8'),
     )
-    expect(packageJson.dependencies['@zeus-js/zeus']).toBe('0.1.1-beta.20')
-    expect(packageJson.devDependencies['@zeus-js/vite-plugin']).toBe('0.0.5')
+    expect(packageJson.dependencies['@zeus-js/zeus']).toBe(coreVersion)
+    expect(packageJson.devDependencies['@zeus-js/vite-plugin']).toBe(vitePluginVersion)
 
     rmSync(root, {
       recursive: true,
@@ -52,8 +68,8 @@ describe('create-zeus scaffold', () => {
       readFileSync(join(root, 'package.json'), 'utf-8'),
     )
     const viteConfig = readFileSync(join(root, 'vite.config.ts'), 'utf-8')
-    expect(packageJson.dependencies['@zeus-js/zeus']).toBe('0.1.1-beta.20')
-    expect(packageJson.devDependencies['@zeus-js/vite-plugin']).toBe('0.0.5')
+    expect(packageJson.dependencies['@zeus-js/zeus']).toBe(coreVersion)
+    expect(packageJson.devDependencies['@zeus-js/vite-plugin']).toBe(vitePluginVersion)
     expect(viteConfig).not.toContain("target: 'web-components'")
 
     rmSync(root, {
@@ -88,16 +104,16 @@ describe('create-zeus scaffold', () => {
     expect(dependencies[dependency]).toBeTruthy()
     if (template === 'component-library-ts') {
       expect(packageJson.dependencies['@zeus-js/output-react-wrapper']).toBe(
-        '0.1.1-beta.20',
+        coreVersion,
       )
       expect(packageJson.dependencies['@zeus-js/output-vue-wrapper']).toBe(
-        '0.1.1-beta.20',
+        coreVersion,
       )
       expect(packageJson.dependencies['@zeus-js/runtime-dom']).toBe(
-        '0.1.1-beta.20',
+        coreVersion,
       )
       expect(packageJson.dependencies['@zeus-js/web-c-runtime']).toBe(
-        '0.1.1-beta.20',
+        coreVersion,
       )
       expect(packageJson.dependencies.react).toBe('^19.2.7')
       expect(packageJson.dependencies.vue).toBe('^3.5.41')
