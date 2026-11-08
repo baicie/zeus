@@ -7,23 +7,22 @@ Final checkpoint: this report commit on `docs/overnight-2026-11-08`
 
 ## Final verdict
 
-**READY_FOR_RC_CODE_REVIEW**
+**BLOCKED_BY_ENVIRONMENT**
 
-All code changes produced by this mission are committed, pushed and Draft-PR
-green. RC-01..RC-07 code gates are closed; the create-zeus candidate matrix now
-covers all six templates with Core and UI tarballs on Linux and Windows. RC-07's
-actual dist-tag repair, manual A11y and real online acceptance remain
-external/authorization blockers, not code failures.
+All code changes produced by this mission are merged into main. RC-01..RC-07
+code gates are closed; the create-zeus candidate matrix covers all six templates
+with Core and UI tarballs on Linux and Windows. RC-07's actual dist-tag repair,
+manual A11y and real online acceptance remain external/authorization blockers,
+not code failures.
 
 ## 1. Repositories and SHAs
 
-| Repo | Start / final main                                     | Mission branches                                                                                                               |
-| ---- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| Core | `39f90c7f1e73721e805914d19e53c456d0913a55` (unchanged) | #202 `f937744`, #203 `50810e2`, #204 `8fa5774`, #205 `872be70`, #206 `ce594f7`, #207 `08a872e`, #208 `739cfad`, #209 `658181a` |
-| UI   | `7a38f18abe79b9c969bbe04d23b9e80c0ab1d937` (unchanged) | #126 `ffe7801`, #127 `3c858cf`, #128 `c13d0d3`                                                                                 |
+| Repo | Start / final main                                     | Mission branches                                                                                                                       |
+| ---- | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Core | `39f90c7f1e73721e805914d19e53c456d0913a55` (unchanged) | merged: #202 `e7cf676`, #203 `39b5f71`, #204 `7812515`, #205 `d7a242a`, #206 `a5fb97d`, #207 `55c37e2`, #208 `d279661`, #209 `a7c7dc6` |
+| UI   | `7a38f18abe79b9c969bbe04d23b9e80c0ab1d937` (unchanged) | #126 `c3714ed`, #127 `e17297a`, #128 `eeab7f8`                                                                                         |
 
-No branch was merged into either main branch. The only main-branch changes are
-the earlier, separately authorized R4.4 merges (#199/#200/#201/#125).
+All 11 mission PRs were squash-merged on 2026-11-08 after explicit user authorization. Core main is `a7c7dc66ad14e373f49cce1fab654ebc497d69a0`; UI main is `c3714eda374c10dea2c7b6c6968d7a863b374e21`.
 
 ## 2. Core source reviewed
 
@@ -95,19 +94,19 @@ the earlier, separately authorized R4.4 merges (#199/#200/#201/#125).
 
 ## 5. Draft PRs and latest CI
 
-| PR        | Title / scope                                     | Latest CI           |
-| --------- | ------------------------------------------------- | ------------------- |
-| Core #202 | RC evidence, release gates, candidate create-zeus | 34/34 SUCCESS       |
-| Core #203 | AI workspace backup/restore                       | 22/22 SUCCESS       |
-| Core #204 | Signal error isolation and recovery               | 23/23 SUCCESS       |
-| Core #205 | Admin focus drain (test-only)                     | 22/22 SUCCESS       |
-| Core #206 | Native + WASM compiler preflight                  | 30/30 SUCCESS       |
-| Core #207 | Empty Fragment + linear span/name lookup          | 26/26 SUCCESS       |
-| Core #208 | SSR streaming safety                              | 23/23 SUCCESS       |
-| Core #209 | Hydration form-state ownership                    | 23/23 SUCCESS       |
-| UI #126   | Public replay generation isolation                | 27 SUCCESS / 1 SKIP |
-| UI #127   | Controlled input regression tests                 | 27 SUCCESS / 1 SKIP |
-| UI #128   | data-grid focus-restore fix                       | 27 SUCCESS / 1 SKIP |
+| PR        | Title / scope                                     | Latest CI               |
+| --------- | ------------------------------------------------- | ----------------------- |
+| Core #202 | RC evidence, release gates, candidate create-zeus | MERGED (34/34 at merge) |
+| Core #203 | AI workspace backup/restore                       | 22/22 SUCCESS           |
+| Core #204 | Signal error isolation and recovery               | 23/23 SUCCESS           |
+| Core #205 | Admin focus drain (test-only)                     | 22/22 SUCCESS           |
+| Core #206 | Native + WASM compiler preflight                  | 30/30 SUCCESS           |
+| Core #207 | Empty Fragment + linear span/name lookup          | 26/26 SUCCESS           |
+| Core #208 | SSR streaming safety                              | 23/23 SUCCESS           |
+| Core #209 | Hydration form-state ownership                    | 23/23 SUCCESS           |
+| UI #126   | Public replay generation isolation                | 27 SUCCESS / 1 SKIP     |
+| UI #127   | Controlled input regression tests                 | 27 SUCCESS / 1 SKIP     |
+| UI #128   | data-grid focus-restore fix                       | 27 SUCCESS / 1 SKIP     |
 
 All remain Draft; none is Ready or merged.
 
@@ -182,6 +181,20 @@ Round 3 — source self-review:
 - Prompt received: 2026-11-08 00:08 CST; report: 11:25 CST.
 - Checkpoint branch `docs/overnight-2026-11-08`; latest checkpoint follows this report commit.
 - Worktrees are clean; user's `Cargo.toml` modification was not touched.
+
+## 12.1 Post-merge status (2026-11-08)
+
+All 11 PRs were squash-merged with user authorization:
+
+- Core main `a7c7dc6`: #202 `e7cf676`, #203 `39b5f71`, #204 `7812515`,
+  #205 `d7a242a`, #206 `a5fb97d`, #207 `55c37e2`, #208 `d279661`,
+  #209 `a7c7dc6`.
+- UI main `c3714ed`: #128 `eeab7f8`, #127 `e17297a`, #126 `c3714ed`.
+- Core main CI, Compiler Native Matrix and Component Host Bench passed on
+  `a7c7dc6`; UI main CI was running on `c3714ed` at report time.
+- Post-merge verdict: `BLOCKED_BY_ENVIRONMENT` — only RC-07 npm write, manual
+  A11y/zoom/mobile and real online four-product acceptance remain.
+- This checkpoint/report branch is documentation only; the code PRs are on main.
 
 ## 13. Suggested R5.1 prompt
 

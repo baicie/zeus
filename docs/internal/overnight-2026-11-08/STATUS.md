@@ -1,6 +1,6 @@
 # Overnight Mission Status — 2026-11-08
 
-Last checkpoint: 2026-11-08 12:12 Asia/Shanghai
+Last checkpoint: 2026-11-08 14:35 Asia/Shanghai
 Deadline: 2026-11-08 12:00 Asia/Shanghai
 
 ## Baseline
@@ -10,23 +10,23 @@ Deadline: 2026-11-08 12:00 Asia/Shanghai
 | Core | `39f90c7f1e73721e805914d19e53c456d0913a55` | unchanged (no mission merge) |
 | UI   | `7a38f18abe79b9c969bbe04d23b9e80c0ab1d937` | unchanged (no mission merge) |
 
-No merge, npm publish, Tag, dist-tag or production deployment in this mission.
+All 11 mission PRs were squash-merged with explicit user authorization. No npm publish, Tag, dist-tag or production deployment was performed.
 
 ## CI — all open PRs green
 
-| PR        | Branch                                | Head      | CI                  |
-| --------- | ------------------------------------- | --------- | ------------------- |
-| Core #202 | `fix/r5-rc-gates`                     | `f937744` | 34/34 SUCCESS       |
-| Core #203 | `fix/r5-ai-workspace-backup`          | `50810e2` | 22/22 SUCCESS       |
-| Core #204 | `fix/r5-signal-error-isolation`       | `8fa5774` | 23/23 SUCCESS       |
-| Core #205 | `fix/r5-admin-input-stability`        | `872be70` | 22/22 SUCCESS       |
-| Core #206 | `fix/r5-compiler-preflight`           | `ce594f7` | 30/30 SUCCESS       |
-| Core #207 | `fix/r5-empty-fragment-codegen`       | `08a872e` | 26/26 SUCCESS       |
-| Core #208 | `fix/r5-ssr-streaming-safety`         | `739cfad` | 23/23 SUCCESS       |
-| Core #209 | `fix/r5-hydration-form-state`         | `658181a` | 23/23 SUCCESS       |
-| UI #126   | `fix/r5-public-replay-storage-safety` | `ffe7801` | 27 SUCCESS / 1 SKIP |
-| UI #127   | `test/r5-input-controlled-writeback`  | `3c858cf` | 27 SUCCESS / 1 SKIP |
-| UI #128   | `fix/r5-datagrid-focus-restore`       | `c13d0d3` | 27 SUCCESS / 1 SKIP |
+| PR        | Branch                                | Head      | CI     |
+| --------- | ------------------------------------- | --------- | ------ |
+| Core #202 | `fix/r5-rc-gates`                     | `e7cf676` | MERGED |
+| Core #203 | `fix/r5-ai-workspace-backup`          | `39b5f71` | MERGED |
+| Core #204 | `fix/r5-signal-error-isolation`       | `7812515` | MERGED |
+| Core #205 | `fix/r5-admin-input-stability`        | `d7a242a` | MERGED |
+| Core #206 | `fix/r5-compiler-preflight`           | `a5fb97d` | MERGED |
+| Core #207 | `fix/r5-empty-fragment-codegen`       | `55c37e2` | MERGED |
+| Core #208 | `fix/r5-ssr-streaming-safety`         | `d279661` | MERGED |
+| Core #209 | `fix/r5-hydration-form-state`         | `a7c7dc6` | MERGED |
+| UI #126   | `fix/r5-public-replay-storage-safety` | `c3714ed` | MERGED |
+| UI #127   | `test/r5-input-controlled-writeback`  | `e17297a` | MERGED |
+| UI #128   | `fix/r5-datagrid-focus-restore`       | `eeab7f8` | MERGED |
 
 Every PR remains Draft; no Ready conversion, merge or auto-merge was performed.
 
