@@ -75,19 +75,21 @@ In SSR output, static JSX text is HTML-escaped at compile time. Text inside
 the client binds it through `textContent`; `<script>` and `<style>` content is
 emitted raw.
 
-The Node adapter runs each transform on a dedicated thread with a large stack.
-Because a parser stack overflow aborts the whole process, a lexical preflight
-runs before Oxc and returns the structured `ZEUS_INPUT_TOO_DEEP` diagnostic for
-pathological input. The preflight measures what actually consumes the worker
-stack rather than bracket depth alone, so an arrow chain `(a) => (b) => …`, a
-member chain `a.a.a…`, a template substitution chain or a JSX text apostrophe
-cannot slip past it. The budget is equivalent to 8,192 nested JSX elements,
-which is the documented limit; every other construct is rejected at roughly a
-third of the depth that would abort the worker. Ordinary modules stay far below
-the budget: `,` and `;` end a statement, and so does a line break after a
-completed value, which is what semicolon-free source relies on. Long sibling
-sequences, flat argument lists, large object literals and multi-line modules
-therefore never accumulate.
+The Node and WebAssembly adapters share one compiler entry point and one lexical
+preflight, which runs before Oxc and returns the structured
+`ZEUS_INPUT_TOO_DEEP` diagnostic for pathological input. The preflight measures
+what actually consumes the parser stack rather than bracket depth alone, so an
+arrow chain `(a) => (b) => …`, a member chain `a.a.a…`, a template substitution
+chain or a JSX text apostrophe cannot slip past it. Each host selects weights
+calibrated on its own stack: the Node adapter runs each transform on a dedicated
+thread with a large stack and documents 8,192 nested JSX elements; the
+WebAssembly adapter cannot grow the engine call stack, so its limit is 506
+equivalent JSX levels. Every other construct is rejected at roughly a third of
+the depth that would abort that host. Ordinary modules stay far below the
+budget: `,` and `;` end a statement, and so does a line break after a completed
+value, which is what semicolon-free source relies on. Long sibling sequences,
+flat argument lists, large object literals and multi-line modules therefore
+never accumulate.
 
 ## Targets
 

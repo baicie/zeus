@@ -194,23 +194,50 @@ test('invalid options fail with the native messages', async () => {
   }
 })
 
-test('a trap rejects the transform and the next transform gets a fresh instance', async () => {
+test('deep input is diagnosed without trapping or discarding the instance', async () => {
   const compiler = await loadCompiler(wasmBytes)
-  const deep = depth => ({
-    source: `export const App = () => ${'<div>'.repeat(depth)}x${'</div>'.repeat(depth)}\n`,
-    filename: 'deep.tsx',
+  const deep = (source, filename) => ({
+    source,
+    filename,
     target: 'dom',
     runtimeModule: '@zeus-js/runtime-dom',
     delegateEvents: true,
     sourceMap: false,
   })
+  const cases = [
+    [
+      `export const App = () => ${'<div>'.repeat(20_000)}x${'</div>'.repeat(20_000)}\n`,
+      'deep.tsx',
+    ],
+    [
+      `export const id = <T>(x: T) => x\nconst v = ${'('.repeat(50_000)}1${')'.repeat(50_000)}\n`,
+      'deep.ts',
+    ],
+  ]
 
-  await assert.rejects(compiler.transformModule(deep(20_000)), error => {
-    assert.match(error.message, /^\[ZEUS_COMPILER_WASM_TRAP\]/)
-    assert.ok(error.cause instanceof Error)
-    return true
-  })
-  const recovered = await compiler.transformModule(deep(10))
+  for (const [source, filename] of cases) {
+    const options = deep(source, filename)
+    const expected = native.transformModule(options)
+    assert.deepEqual(
+      expected.diagnostics.map(diagnostic => diagnostic.code),
+      ['ZEUS_INPUT_TOO_DEEP'],
+    )
+    const actual = await compiler.transformModule(options)
+    assert.deepEqual(
+      actual.diagnostics.map(diagnostic => diagnostic.code),
+      expected.diagnostics.map(diagnostic => diagnostic.code),
+      `${filename} preflight parity`,
+    )
+    assert.equal(actual.code, expected.code)
+    assert.deepEqual(actual.hydrationPlan, expected.hydrationPlan)
+    assert.deepEqual(actual.hmrPlan, expected.hmrPlan)
+  }
+
+  // The same WebAssembly instance must remain usable: preflight runs before
+  // the parser, so no trap can poison it.
+  const recovered = await compiler.transformModule(
+    deep('export const App = () => <div>ok</div>\n', 'recovered.tsx'),
+  )
   assert.deepEqual(recovered.diagnostics, [])
   assert.match(recovered.code, /template/)
 })

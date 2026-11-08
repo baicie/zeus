@@ -50,9 +50,14 @@ native adapter. Compiler errors are returned in `result.diagnostics`.
 - The binary has no imports and needs no WASI, threads or cross-origin
   isolation. It is about 1.5 MB raw, 450 KB gzip and 325 KB brotli; each
   instance starts with 2.2 MiB of memory.
-- JSX nested more than about 1,400 levels exceeds the engine's call stack (the
-  native adapter handles tens of thousands). The transform rejects with
-  `[ZEUS_COMPILER_WASM_TRAP]` and the next call uses a fresh instance.
+- The shared lexical preflight rejects pathological input before the parser
+  sees it. WebAssembly uses a smaller budget than native because the engine call
+  stack is not growable: the limit is 506 equivalent JSX levels (native: 8,192),
+  and deeper input returns the `ZEUS_INPUT_TOO_DEEP` diagnostic without trapping.
+  The budget is calibrated per construct at 35% of the measured engine crash
+  depth, so arrow, member, template, type-argument and JSX chains are covered.
+- If the engine still traps, the loader reports `[ZEUS_COMPILER_WASM_TRAP]` and
+  the next call uses a fresh instance.
 
 ## Build and verify
 

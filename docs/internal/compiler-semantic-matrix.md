@@ -89,50 +89,50 @@ WASM parity（PR-08）不在本矩阵内。
 `"ZEUS_*"` 字面量，与测试表逐一比对；`MD › documents every Rust diagnostic code in the semantic matrix` 要求本节列出每个码。
 新增码而不更新测试或本文会导致测试失败。
 
-| 诊断码                                          | Rust 触发位置                                                    | 测试（MD 之外）                | 其他文档            |
-| ----------------------------------------------- | ---------------------------------------------------------------- | ------------------------------ | ------------------- |
-| `ZEUS_ASYNC_COMPONENT`                          | `lower.rs` `report_async_components`（C6）                       | RL                             | —                   |
-| `ZEUS_EMPTY_EXPRESSION`                         | `lower.rs:1042`、`1280`、`1628`、`1722`、`1814`                  | RL                             | —                   |
-| `ZEUS_FUNCTION_ATTRIBUTE`                       | `lower.rs:1852`                                                  | —                              | RFC-008（未写码名） |
-| `ZEUS_FUNCTION_BUILTIN_VALUE`                   | `lower.rs:1220`、`1305`                                          | RL                             | RFC-008             |
-| `ZEUS_FUNCTION_CHILD`                           | `lower.rs:1984`                                                  | RT、NC                         | RFC-008（未写码名） |
-| `ZEUS_INVALID_BUILTIN_USAGE`                    | `lower.rs:1087`、`1102`、`1109`、`1263`、`1272`                  | RL                             | RFC-008             |
-| `ZEUS_INVALID_EVENT_BINDING`                    | `lower.rs` `lower_attribute`、`lower_expression_attribute`（Q2） | RL                             | guide/jsx           |
-| `ZEUS_INVALID_ERROR_BOUNDARY_FALLBACK`          | `lower.rs:733`、`823`                                            | —                              | —                   |
-| `ZEUS_INVALID_FOR_CHILD`                        | `lower.rs:949`                                                   | —                              | —                   |
-| `ZEUS_INVALID_HOST_USAGE`                       | `lower.rs:394`、`1518`                                           | RL、VT                         | —                   |
-| `ZEUS_INVALID_ONCE_INTRINSIC`                   | `lower.rs:1829`、`1953`、`2173`                                  | RL                             | RFC-013             |
-| `ZEUS_INVALID_ONCE_TARGET`                      | `lower.rs:2165`、`2182`                                          | RL、RT、NC                     | RFC-013             |
-| `ZEUS_INVALID_PROPERTY_BINDING`                 | `lower.rs:1730`、`1755`                                          | RL                             | —                   |
-| `ZEUS_INVALID_PROP_NAME`                        | `lower.rs` `lower_attribute_name`（Z-1）                         | RL                             | guide/jsx           |
-| `ZEUS_INVALID_REF_USAGE`                        | `lower.rs:1747`                                                  | RL                             | —                   |
-| `ZEUS_INVALID_SHOW_FALLBACK`                    | `lower.rs:1211`                                                  | —                              | —                   |
-| `ZEUS_INVALID_SLOT_NAME`                        | `lower.rs:638`                                                   | RL                             | RFC-008             |
-| `ZEUS_INVALID_SLOT_USAGE`                       | `lower.rs:403`、`1527`                                           | RL                             | —                   |
-| `ZEUS_INPUT_TOO_DEEP`                           | `compiler-native/src/lib.rs`（N-API 输入预检，C3）               | NC                             | compiler API        |
-| `ZEUS_MIXED_RAW_TEXT_BINDING_MODE`              | `lower.rs:563`                                                   | RL                             | —                   |
-| `ZEUS_PARSE_ERROR`                              | `lower.rs:82`（Oxc 解析诊断）                                    | RL                             | —                   |
-| `ZEUS_SEMANTIC_ERROR`                           | `lower.rs:95`（Oxc 语义诊断）                                    | —                              | —                   |
-| `ZEUS_SSR_ERROR_BOUNDARY_UNSUPPORTED`           | `lib.rs:131`（仅 SSR target）                                    | —                              | —                   |
-| `ZEUS_UNSAFE_HTML_PROPERTY`                     | `lower.rs` `lower_attribute_name`（Q1）                          | RL                             | guide/SSR、RFC-004  |
-| `ZEUS_UNSUPPORTED_ARRAY_MAP_CALLBACK_PARAMETER` | `lower.rs:1470`、`1478`                                          | RL                             | —                   |
-| `ZEUS_UNSUPPORTED_ARRAY_SPREAD`                 | `lower.rs:1406`                                                  | RL                             | —                   |
-| `ZEUS_UNSUPPORTED_ASYNC_EXPRESSION`             | `lower.rs` `report_async_expressions`（C6）                      | RL                             | —                   |
-| `ZEUS_UNSUPPORTED_BUILTIN_SPREAD`               | `lower.rs:598`、`717`、`1013`、`2150`                            | —（RL 只断言有诊断，不断言码） | —                   |
-| `ZEUS_UNSUPPORTED_COMPONENT_NAME`               | `lower.rs:1577`                                                  | —                              | —                   |
-| `ZEUS_UNSUPPORTED_COMPONENT_PROP_NAMESPACE`     | `lower.rs:613`                                                   | RL                             | —                   |
-| `ZEUS_UNSUPPORTED_DOCUMENT_ELEMENT`             | `lower.rs:497`                                                   | RL                             | —                   |
-| `ZEUS_UNSUPPORTED_FOR_CALLBACK_PARAMETER`       | `lower.rs:2032`                                                  | RL、RT                         | —                   |
-| `ZEUS_UNSUPPORTED_JSX_ATTRIBUTE_VALUE`          | `lower.rs:1033`、`1054`、`1296`、`1640`、`1650`、`1777`、`1839`  | RL                             | —                   |
-| `ZEUS_UNSUPPORTED_NAMESPACED_ATTRIBUTE`         | `lower.rs:1796`                                                  | RL                             | —                   |
-| `ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION`        | `lower.rs:1336`、`1354`、`1426`、`1461`、`1486`、`1702`、`1972`  | RL                             | baseline-2026-10    |
-| `ZEUS_UNSUPPORTED_RAW_TEXT_CHILD`               | `lower.rs:489`、`537`                                            | RL                             | guide/SSR、RFC-004  |
-| `ZEUS_UNSUPPORTED_RAW_TEXT_ELEMENT`             | `lower.rs:474`                                                   | —                              | —                   |
-| `ZEUS_UNSUPPORTED_SOURCE_TYPE`                  | `lower.rs:64`（无 span）                                         | —                              | —                   |
-| `ZEUS_UNSUPPORTED_SPREAD_CHILD`                 | `lower.rs:2010`                                                  | —                              | —                   |
-| `ZEUS_UNSUPPORTED_SSR_PROPERTY`                 | `ssr.rs` `validate_ssr_properties`（仅 SSR target，C5）          | RT                             | guide/SSR、RFC-004  |
-| `ZEUS_UNSUPPORTED_TEMPLATE_ELEMENT`             | `lower.rs:505`                                                   | RL                             | —                   |
-| `ZEUS_UNSUPPORTED_VOID_ELEMENT_CHILDREN`        | `lower.rs:513`                                                   | RL                             | —                   |
+| 诊断码                                          | Rust 触发位置                                                         | 测试（MD 之外）                | 其他文档            |
+| ----------------------------------------------- | --------------------------------------------------------------------- | ------------------------------ | ------------------- |
+| `ZEUS_ASYNC_COMPONENT`                          | `lower.rs` `report_async_components`（C6）                            | RL                             | —                   |
+| `ZEUS_EMPTY_EXPRESSION`                         | `lower.rs:1042`、`1280`、`1628`、`1722`、`1814`                       | RL                             | —                   |
+| `ZEUS_FUNCTION_ATTRIBUTE`                       | `lower.rs:1852`                                                       | —                              | RFC-008（未写码名） |
+| `ZEUS_FUNCTION_BUILTIN_VALUE`                   | `lower.rs:1220`、`1305`                                               | RL                             | RFC-008             |
+| `ZEUS_FUNCTION_CHILD`                           | `lower.rs:1984`                                                       | RT、NC                         | RFC-008（未写码名） |
+| `ZEUS_INVALID_BUILTIN_USAGE`                    | `lower.rs:1087`、`1102`、`1109`、`1263`、`1272`                       | RL                             | RFC-008             |
+| `ZEUS_INVALID_EVENT_BINDING`                    | `lower.rs` `lower_attribute`、`lower_expression_attribute`（Q2）      | RL                             | guide/jsx           |
+| `ZEUS_INVALID_ERROR_BOUNDARY_FALLBACK`          | `lower.rs:733`、`823`                                                 | —                              | —                   |
+| `ZEUS_INVALID_FOR_CHILD`                        | `lower.rs:949`                                                        | —                              | —                   |
+| `ZEUS_INVALID_HOST_USAGE`                       | `lower.rs:394`、`1518`                                                | RL、VT                         | —                   |
+| `ZEUS_INVALID_ONCE_INTRINSIC`                   | `lower.rs:1829`、`1953`、`2173`                                       | RL                             | RFC-013             |
+| `ZEUS_INVALID_ONCE_TARGET`                      | `lower.rs:2165`、`2182`                                               | RL、RT、NC                     | RFC-013             |
+| `ZEUS_INVALID_PROPERTY_BINDING`                 | `lower.rs:1730`、`1755`                                               | RL                             | —                   |
+| `ZEUS_INVALID_PROP_NAME`                        | `lower.rs` `lower_attribute_name`（Z-1）                              | RL                             | guide/jsx           |
+| `ZEUS_INVALID_REF_USAGE`                        | `lower.rs:1747`                                                       | RL                             | —                   |
+| `ZEUS_INVALID_SHOW_FALLBACK`                    | `lower.rs:1211`                                                       | —                              | —                   |
+| `ZEUS_INVALID_SLOT_NAME`                        | `lower.rs:638`                                                        | RL                             | RFC-008             |
+| `ZEUS_INVALID_SLOT_USAGE`                       | `lower.rs:403`、`1527`                                                | RL                             | —                   |
+| `ZEUS_INPUT_TOO_DEEP`                           | `crates/zeus_compiler/src/nesting.rs`（native/wasm 共享输入预检，C3） | NC                             | compiler API        |
+| `ZEUS_MIXED_RAW_TEXT_BINDING_MODE`              | `lower.rs:563`                                                        | RL                             | —                   |
+| `ZEUS_PARSE_ERROR`                              | `lower.rs:82`（Oxc 解析诊断）                                         | RL                             | —                   |
+| `ZEUS_SEMANTIC_ERROR`                           | `lower.rs:95`（Oxc 语义诊断）                                         | —                              | —                   |
+| `ZEUS_SSR_ERROR_BOUNDARY_UNSUPPORTED`           | `lib.rs:131`（仅 SSR target）                                         | —                              | —                   |
+| `ZEUS_UNSAFE_HTML_PROPERTY`                     | `lower.rs` `lower_attribute_name`（Q1）                               | RL                             | guide/SSR、RFC-004  |
+| `ZEUS_UNSUPPORTED_ARRAY_MAP_CALLBACK_PARAMETER` | `lower.rs:1470`、`1478`                                               | RL                             | —                   |
+| `ZEUS_UNSUPPORTED_ARRAY_SPREAD`                 | `lower.rs:1406`                                                       | RL                             | —                   |
+| `ZEUS_UNSUPPORTED_ASYNC_EXPRESSION`             | `lower.rs` `report_async_expressions`（C6）                           | RL                             | —                   |
+| `ZEUS_UNSUPPORTED_BUILTIN_SPREAD`               | `lower.rs:598`、`717`、`1013`、`2150`                                 | —（RL 只断言有诊断，不断言码） | —                   |
+| `ZEUS_UNSUPPORTED_COMPONENT_NAME`               | `lower.rs:1577`                                                       | —                              | —                   |
+| `ZEUS_UNSUPPORTED_COMPONENT_PROP_NAMESPACE`     | `lower.rs:613`                                                        | RL                             | —                   |
+| `ZEUS_UNSUPPORTED_DOCUMENT_ELEMENT`             | `lower.rs:497`                                                        | RL                             | —                   |
+| `ZEUS_UNSUPPORTED_FOR_CALLBACK_PARAMETER`       | `lower.rs:2032`                                                       | RL、RT                         | —                   |
+| `ZEUS_UNSUPPORTED_JSX_ATTRIBUTE_VALUE`          | `lower.rs:1033`、`1054`、`1296`、`1640`、`1650`、`1777`、`1839`       | RL                             | —                   |
+| `ZEUS_UNSUPPORTED_NAMESPACED_ATTRIBUTE`         | `lower.rs:1796`                                                       | RL                             | —                   |
+| `ZEUS_UNSUPPORTED_NESTED_JSX_EXPRESSION`        | `lower.rs:1336`、`1354`、`1426`、`1461`、`1486`、`1702`、`1972`       | RL                             | baseline-2026-10    |
+| `ZEUS_UNSUPPORTED_RAW_TEXT_CHILD`               | `lower.rs:489`、`537`                                                 | RL                             | guide/SSR、RFC-004  |
+| `ZEUS_UNSUPPORTED_RAW_TEXT_ELEMENT`             | `lower.rs:474`                                                        | —                              | —                   |
+| `ZEUS_UNSUPPORTED_SOURCE_TYPE`                  | `lower.rs:64`（无 span）                                              | —                              | —                   |
+| `ZEUS_UNSUPPORTED_SPREAD_CHILD`                 | `lower.rs:2010`                                                       | —                              | —                   |
+| `ZEUS_UNSUPPORTED_SSR_PROPERTY`                 | `ssr.rs` `validate_ssr_properties`（仅 SSR target，C5）               | RT                             | guide/SSR、RFC-004  |
+| `ZEUS_UNSUPPORTED_TEMPLATE_ELEMENT`             | `lower.rs:505`                                                        | RL                             | —                   |
+| `ZEUS_UNSUPPORTED_VOID_ELEMENT_CHILDREN`        | `lower.rs:513`                                                        | RL                             | —                   |
 
 行号基于 `d853352`；2026-10-31 新增的码以函数名定位。`lower.rs` 中经 `unsupported()` 报告的码各自带有
 专属 hint（C10），`MD › gives each diagnostic code its own actionable hint` 防止多个码共用同一 hint。

@@ -2,6 +2,7 @@ mod codegen;
 pub mod hmr;
 mod html;
 pub mod hydration;
+pub mod nesting;
 
 pub mod diagnostic;
 pub mod ir;
@@ -98,7 +99,40 @@ pub struct TransformModuleResult {
     pub hmr_plan: Option<hmr::HmrPlan>,
 }
 
+/// Both hosts run this same entry point. Reject input that would exhaust the
+/// parser's stack before Oxc sees it, so a Node worker abort or a WebAssembly
+/// trap becomes an ordinary diagnostic instead. An unrecognized extension is
+/// left to `lower_module`, which reports `ZEUS_UNSUPPORTED_SOURCE_TYPE`.
+fn nesting_diagnostic(options: &TransformModuleOptions) -> Option<TransformModuleResult> {
+    let source_type = oxc_span::SourceType::from_path(&options.filename).ok()?;
+    if !nesting::exceeds_nesting_cost_with_jsx(&options.source, source_type.is_jsx()) {
+        return None;
+    }
+    Some(TransformModuleResult {
+        code: String::new(),
+        map: None,
+        diagnostics: vec![CompilerDiagnostic::error(
+            "ZEUS_INPUT_TOO_DEEP",
+            format!(
+                "Input nesting exceeds the supported limit of {} levels.",
+                nesting::MAX_INPUT_NESTING_DEPTH
+            ),
+            options.filename.as_str(),
+            None,
+        )
+        .with_hint(
+            "Split deeply nested JSX or JavaScript expressions into smaller components or helpers.",
+        )],
+        hydration_plan: None,
+        hmr_plan: None,
+    })
+}
+
 pub fn transform_module(options: TransformModuleOptions) -> TransformModuleResult {
+    if let Some(diagnostic) = nesting_diagnostic(&options) {
+        return diagnostic;
+    }
+
     let lowered = lower::lower_module(&options.source, &options.filename);
     if !lowered.diagnostics.is_empty() {
         return TransformModuleResult {
