@@ -42,7 +42,9 @@ describe('create-zeus scaffold', () => {
       readFileSync(join(root, 'package.json'), 'utf-8'),
     )
     expect(packageJson.dependencies['@zeus-js/zeus']).toBe(coreVersion)
-    expect(packageJson.devDependencies['@zeus-js/vite-plugin']).toBe(vitePluginVersion)
+    expect(packageJson.devDependencies['@zeus-js/vite-plugin']).toBe(
+      vitePluginVersion,
+    )
 
     rmSync(root, {
       recursive: true,
@@ -69,7 +71,9 @@ describe('create-zeus scaffold', () => {
     )
     const viteConfig = readFileSync(join(root, 'vite.config.ts'), 'utf-8')
     expect(packageJson.dependencies['@zeus-js/zeus']).toBe(coreVersion)
-    expect(packageJson.devDependencies['@zeus-js/vite-plugin']).toBe(vitePluginVersion)
+    expect(packageJson.devDependencies['@zeus-js/vite-plugin']).toBe(
+      vitePluginVersion,
+    )
     expect(viteConfig).not.toContain("target: 'web-components'")
 
     rmSync(root, {
@@ -109,9 +113,7 @@ describe('create-zeus scaffold', () => {
       expect(packageJson.dependencies['@zeus-js/output-vue-wrapper']).toBe(
         coreVersion,
       )
-      expect(packageJson.dependencies['@zeus-js/runtime-dom']).toBe(
-        coreVersion,
-      )
+      expect(packageJson.dependencies['@zeus-js/runtime-dom']).toBe(coreVersion)
       expect(packageJson.dependencies['@zeus-js/web-c-runtime']).toBe(
         coreVersion,
       )
