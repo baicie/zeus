@@ -25,7 +25,7 @@
 
 ## Next (highest priority)
 
-1. RC-07: actual dist-tag repair requires npm authorization.
+1. RC-07: run the protected `Repair npm dist-tags` workflow in apply mode with npm authorization; the dry-run plan is 13 removals.
 2. Merge/review the green Draft PRs only with human authorization; then collect
    online acceptance and manual A11y/zoom/mobile evidence.
 3. Optional DOM/WebC P2 audit (keyed reorder, reconnect, async dispose,

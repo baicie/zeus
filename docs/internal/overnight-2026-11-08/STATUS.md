@@ -1,6 +1,6 @@
 # Overnight Mission Status — 2026-11-08
 
-Last checkpoint: 2026-11-08 11:28 Asia/Shanghai
+Last checkpoint: 2026-11-08 11:58 Asia/Shanghai
 Deadline: 2026-11-08 12:00 Asia/Shanghai
 
 ## Baseline
@@ -16,7 +16,7 @@ No merge, npm publish, Tag, dist-tag or production deployment in this mission.
 
 | PR        | Branch                                | Head      | CI                  |
 | --------- | ------------------------------------- | --------- | ------------------- |
-| Core #202 | `fix/r5-rc-gates`                     | `0cd29b9` | 34/34 SUCCESS       |
+| Core #202 | `fix/r5-rc-gates`                     | `f937744` | CI running          |
 | Core #203 | `fix/r5-ai-workspace-backup`          | `50810e2` | 22/22 SUCCESS       |
 | Core #204 | `fix/r5-signal-error-isolation`       | `8fa5774` | 23/23 SUCCESS       |
 | Core #205 | `fix/r5-admin-input-stability`        | `872be70` | 22/22 SUCCESS       |
@@ -54,6 +54,11 @@ Every PR remains Draft; no Ready conversion, merge or auto-merge was performed.
   the same tarballs; six templates pass typecheck/tests/build on Linux and
   Windows; release requires pin match. PR CI reports the expected
   `webc-consumer` pin drift against UI main (beta.34 vs beta.35).
+- RC-07 repair tool ready: dry-run against registry.npmjs.org plans 13 removals
+  (all affected packages have no stable version); `repair-dist-tags.yml` is a
+  protected manual workflow sharing the `npm-release` lock. Tagged releases now
+  pass the computed dist-tag to publish. Actual npm writes are blocked by
+  missing authorization (`ENEEDAUTH`) and were not attempted.
 
 ## Remaining blockers
 
