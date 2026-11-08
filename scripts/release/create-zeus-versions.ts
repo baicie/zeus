@@ -92,10 +92,17 @@ function main(): void {
     },
   })
   const root = process.cwd()
+  // The release version source is @zeus-js/zeus, not the private root
+  // package. RC rehearsals rewrite the release group without bumping root.
   const coreVersion =
     values['core-version'] ??
     (
-      JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')) as {
+      JSON.parse(
+        fs.readFileSync(
+          path.join(root, 'packages/core/zeus/package.json'),
+          'utf8',
+        ),
+      ) as {
         version: string
       }
     ).version

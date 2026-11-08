@@ -45,7 +45,9 @@ const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], {
   encoding: 'utf8',
 }).trim()
 const coreVersion = (
-  JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')) as {
+  JSON.parse(
+    fs.readFileSync(path.join(root, 'packages/core/zeus/package.json'), 'utf8'),
+  ) as {
     version: string
   }
 ).version
