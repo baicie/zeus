@@ -349,6 +349,46 @@ jobs:
             temp/create-zeus-candidate/candidates.json
             temp/create-zeus-candidate/prepare.json
 
+  cross-platform-evidence:
+    if: github.repository == 'baicie/zeus'
+    needs: [lint-and-check, packed-consumers, create-zeus-candidates]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.node-version'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Collect cross-platform evidence from this run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          pnpm exec tsx scripts/release/collect-cross-platform-evidence.ts
+          --repo "$GITHUB_REPOSITORY"
+          --run-id "$GITHUB_RUN_ID"
+          --run-attempt "$GITHUB_RUN_ATTEMPT"
+          --commit "$GITHUB_SHA"
+          --workflow "$GITHUB_WORKFLOW"
+          --workflow-path ".github/workflows/ci.yml"
+          --event "$GITHUB_EVENT_NAME"
+
+      - name: Preserve cross-platform evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-platform-evidence
+          path: temp/cross-platform/evidence.json
+
   docs-build:
     runs-on: ubuntu-latest
     steps:

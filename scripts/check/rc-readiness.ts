@@ -4,6 +4,12 @@ import path from 'node:path'
 
 import { scanSecrets } from './check-secrets'
 import {
+  validateCrossPlatformEvidence,
+  validateRcApproval,
+  type AttestationVerification,
+  type TrustedApprovalRun,
+} from '../release/rc-approval'
+import {
   findUnexpectedReleaseWorktreeChanges,
   loadReleaseWorktreeSnapshot,
 } from '../release/release-worktree'
@@ -22,7 +28,7 @@ export interface ReadinessEvidence {
   readonly evidence: string
 }
 
-export const RC_EVIDENCE_SCHEMA = 'zeus.rc-evidence/v3' as const
+export const RC_EVIDENCE_SCHEMA = 'zeus.rc-evidence/v4' as const
 
 export const REQUIRED_ONLINE_PRODUCTS = [
   'webc-studio',
@@ -63,16 +69,15 @@ export interface RcEvidenceDocument {
   readonly schema: typeof RC_EVIDENCE_SCHEMA
   readonly commit: string
   readonly uiCommit: string
+  readonly version: string
   readonly products: readonly RcEvidenceProduct[]
   readonly deployment: RcDeploymentEvidence
-  readonly crossPlatform: {
-    readonly platforms: readonly string[]
-    readonly report: string
-    readonly commit: string
-  }
-  readonly releaseApproval: {
-    readonly approver: string
-    readonly commit: string
+  readonly crossPlatform: Record<string, unknown>
+  readonly releaseApproval: Record<string, unknown>
+  readonly approvalRun: TrustedApprovalRun
+  readonly approvalAttestation: AttestationVerification
+  readonly approvalPolicy: {
+    readonly authorizedApprovers: readonly string[]
   }
 }
 
@@ -165,6 +170,7 @@ export function evaluateRcEvidence(
   document: unknown,
   currentCommit: string,
   pair?: ReleasePair,
+  expectedVersion?: string,
 ): RcEvidenceStatuses {
   if (!isRecord(document)) {
     return invalidEvidenceStatuses('evidence must be a JSON object')
@@ -176,6 +182,13 @@ export function evaluateRcEvidence(
   }
   if (document.commit !== currentCommit) {
     commonErrors.push('top-level commit does not match current HEAD')
+  }
+  if (typeof document.version !== 'string' || document.version.length === 0) {
+    commonErrors.push('top-level version must be a non-empty string')
+  } else if (expectedVersion && document.version !== expectedVersion) {
+    commonErrors.push(
+      `evidence version ${document.version} does not match ${expectedVersion}`,
+    )
   }
   const uiCommit =
     typeof document.uiCommit === 'string' ? document.uiCommit : ''
@@ -195,6 +208,38 @@ export function evaluateRcEvidence(
     }
   }
 
+  const crossPlatform = validateCrossPlatformEvidence(document.crossPlatform, {
+    commit: currentCommit,
+  })
+  const policy = isRecord(document.approvalPolicy)
+    ? document.approvalPolicy
+    : undefined
+  const approvers = Array.isArray(policy?.authorizedApprovers)
+    ? policy.authorizedApprovers.filter(
+        (entry): entry is string => typeof entry === 'string',
+      )
+    : []
+  const run = isRecord(document.approvalRun)
+    ? (document.approvalRun as unknown as TrustedApprovalRun)
+    : undefined
+  const attestation = isRecord(document.approvalAttestation)
+    ? (document.approvalAttestation as unknown as AttestationVerification)
+    : undefined
+  const approval = validateRcApproval(document.releaseApproval, {
+    coreCommit: currentCommit,
+    uiCommit,
+    version: typeof document.version === 'string' ? document.version : '',
+    evidenceDigest: crossPlatform.digest ?? '',
+    payloadDigest:
+      isRecord(document.releaseApproval) &&
+      typeof document.releaseApproval.payloadDigest === 'string'
+        ? document.releaseApproval.payloadDigest
+        : undefined,
+    run,
+    attestation,
+    authorizedApprovers: approvers,
+  })
+
   return {
     onlineProducts: evidenceResult(
       [
@@ -210,18 +255,18 @@ export function evaluateRcEvidence(
       'four HTTPS product URLs and the deployment acceptance are bound to the current HEAD',
     ),
     crossPlatform: evidenceResult(
-      [
-        ...commonErrors,
-        ...validateCrossPlatform(document.crossPlatform, currentCommit),
-      ],
+      [...commonErrors, ...crossPlatform.errors],
       'Linux and Windows evidence is bound to the current HEAD',
     ),
     releaseApproval: evidenceResult(
       [
         ...commonErrors,
-        ...validateReleaseApproval(document.releaseApproval, currentCommit),
+        ...approval.errors,
+        ...(Array.isArray(policy?.authorizedApprovers)
+          ? []
+          : ['approvalPolicy.authorizedApprovers must be an array']),
       ],
-      'release approval is bound to the current HEAD',
+      'release approval is bound to the current HEAD, the evidence digest and a verified artifact attestation',
     ),
   }
 }
@@ -362,50 +407,6 @@ function validateDeployment(
 
 function isSha256(value: unknown): value is string {
   return typeof value === 'string' && /^sha256:[0-9a-f]{64}$/i.test(value)
-}
-
-function validateCrossPlatform(
-  value: unknown,
-  currentCommit: string,
-): string[] {
-  if (!isRecord(value)) return ['crossPlatform must be an object']
-
-  const errors: string[] = []
-  if (!Array.isArray(value.platforms)) {
-    errors.push('crossPlatform.platforms must be an array')
-  } else {
-    for (const platform of ['linux', 'win32']) {
-      if (!value.platforms.includes(platform)) {
-        errors.push(`crossPlatform.platforms is missing ${platform}`)
-      }
-    }
-  }
-  if (typeof value.report !== 'string' || value.report.trim().length === 0) {
-    errors.push('crossPlatform.report must be a non-empty string')
-  }
-  if (value.commit !== currentCommit) {
-    errors.push('crossPlatform.commit does not match current HEAD')
-  }
-  return errors
-}
-
-function validateReleaseApproval(
-  value: unknown,
-  currentCommit: string,
-): string[] {
-  if (!isRecord(value)) return ['releaseApproval must be an object']
-
-  const errors: string[] = []
-  if (
-    typeof value.approver !== 'string' ||
-    value.approver.trim().length === 0
-  ) {
-    errors.push('releaseApproval.approver must be a non-empty string')
-  }
-  if (value.commit !== currentCommit) {
-    errors.push('releaseApproval.commit does not match current HEAD')
-  }
-  return errors
 }
 
 function isHttpsUrl(value: string): boolean {
@@ -598,13 +599,14 @@ export function readRcReadinessInput(
       ? (pairResult.value as unknown as ReleasePair)
       : undefined
   const evidence = readJson(evidencePath)
+  const frameworkVersion = String(zeus?.packageJson.version ?? '0.0.0')
   const evidenceStatuses = evidence.missing
     ? missingEvidenceStatuses(evidencePath)
     : evidence.error
       ? invalidEvidenceStatuses(
           `evidence file is invalid JSON: ${evidencePath}`,
         )
-      : evaluateRcEvidence(evidence.value, commit, pair)
+      : evaluateRcEvidence(evidence.value, commit, pair, frameworkVersion)
 
   return {
     commit,
@@ -613,7 +615,7 @@ export function readRcReadinessInput(
       encoding: 'utf8',
     }).trim(),
     dirty: isDirtyForRelease(root, options.releaseSnapshot === true),
-    frameworkVersion: String(zeus?.packageJson.version ?? '0.0.0'),
+    frameworkVersion,
     sbomComponents:
       isRecord(sbomResult.value) && Array.isArray(sbomResult.value.components)
         ? sbomResult.value.components.length

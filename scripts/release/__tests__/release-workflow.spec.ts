@@ -204,6 +204,62 @@ describe('release workflows', () => {
     )
   })
 
+  it('verifies the RC approval against GitHub run metadata and attestation', () => {
+    const workflow = readFileSync(
+      resolve(root, '.github/workflows/release.yml'),
+      'utf8',
+    )
+
+    expect(workflow).toContain('verify-rc-approval.ts')
+    expect(workflow).toContain('ZEUS_RC_APPROVERS')
+    expect(workflow).toContain('--approval temp/rc-approval/rc-approval.json')
+    expect(workflow).toContain(
+      '--payload temp/rc-approval/rc-approval-payload.json',
+    )
+    expect(workflow).toContain(
+      '--cross-platform temp/rc-approval/cross-platform.json',
+    )
+    expect(workflow).toContain('--trust temp/release/approval-trust.json')
+    expect(workflow).not.toContain('rc-evidence.base.json')
+    expect(workflow.indexOf('verify-rc-approval.ts')).toBeLessThan(
+      workflow.indexOf('assemble-rc-evidence.ts'),
+    )
+  })
+
+  it('produces approvals only from a protected manual RC Approval workflow', () => {
+    const workflow = readFileSync(
+      resolve(root, '.github/workflows/rc-approval.yml'),
+      'utf8',
+    )
+
+    expect(workflow).toContain('name: RC Approval')
+    expect(workflow).toContain('workflow_dispatch:')
+    expect(workflow).not.toContain('push:')
+    expect(workflow).not.toContain('pull_request:')
+    expect(workflow).toContain('environment: Release')
+    expect(workflow).toContain('attestations: write')
+    expect(workflow).toContain('id-token: write')
+    expect(workflow).toContain('actions/attest-build-provenance@v2')
+    expect(workflow).toContain('--mode payload')
+    expect(workflow).toContain('--mode envelope')
+    expect(workflow).toContain('steps.upload-payload.outputs.artifact-digest')
+    expect(workflow).toContain('!= "APPROVE"')
+  })
+
+  it('collects cross-platform evidence from real CI job metadata', () => {
+    const workflow = readFileSync(
+      resolve(root, '.github/workflows/ci.yml'),
+      'utf8',
+    )
+
+    expect(workflow).toContain('cross-platform-evidence:')
+    expect(workflow).toContain(
+      'needs: [lint-and-check, packed-consumers, create-zeus-candidates]',
+    )
+    expect(workflow).toContain('collect-cross-platform-evidence.ts')
+    expect(workflow).toContain('name: cross-platform-evidence')
+  })
+
   it('dispatches canary only after both registry smoke jobs pass', () => {
     const workflow = readFileSync(
       resolve(root, '.github/workflows/release-canary.yml'),
