@@ -507,13 +507,20 @@ export function defineElement<
       const shadow = options.shadow ?? false
       const mode = shadow ? 'shadow' : 'light'
 
-      if (mode === 'light' && !this.capturedLightChildren) {
-        // An SSR Light DOM host carries explicit markers that separate its
-        // internal content from consumer children. They are the only accepted
-        // evidence; without them every existing child is a consumer child.
-        const ssrChildren = takeSSRLightDomChildren(this)
-        this.lightChildren = ssrChildren ?? Array.from(this.childNodes)
-        this.capturedLightChildren = true
+      if (mode === 'light') {
+        if (!this.capturedLightChildren) {
+          // An SSR Light DOM host carries explicit markers that separate its
+          // internal content from consumer children. They are the only accepted
+          // evidence; without them every existing child is a consumer child.
+          const ssrChildren = takeSSRLightDomChildren(this)
+          this.lightChildren = ssrChildren ?? Array.from(this.childNodes)
+          this.capturedLightChildren = true
+        } else {
+          // Disconnect returns the live consumer nodes to the host. Recapture
+          // them so children added or removed while disconnected are honored
+          // by the new projection instead of a stale capture.
+          this.lightChildren = Array.from(this.childNodes)
+        }
       }
 
       const projection =
@@ -714,10 +721,17 @@ export function mountElementDefinition(
   const shadow = options.shadow ?? false
   const mode = shadow ? 'shadow' : 'light'
 
-  if (mode === 'light' && !mountState.capturedLightChildren) {
-    const ssrChildren = takeSSRLightDomChildren(host)
-    mountState.lightChildren = ssrChildren ?? Array.from(host.childNodes)
-    mountState.capturedLightChildren = true
+  if (mode === 'light') {
+    if (!mountState.capturedLightChildren) {
+      const ssrChildren = takeSSRLightDomChildren(host)
+      mountState.lightChildren = ssrChildren ?? Array.from(host.childNodes)
+      mountState.capturedLightChildren = true
+    } else {
+      // Disconnect returns the live consumer nodes to the host. Recapture them
+      // so children added or removed while disconnected are honored by the new
+      // projection instead of a stale capture.
+      mountState.lightChildren = Array.from(host.childNodes)
+    }
   }
 
   const lightChildren = mountState.lightChildren ?? []
