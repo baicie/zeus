@@ -184,6 +184,14 @@ export class Dep {
 
   notify(debugInfo?: DebuggerEventExtraInfo): void {
     startBatch()
+    let error: unknown
+    let hasError = false
+    const capture = (err: unknown): void => {
+      if (!hasError) {
+        hasError = true
+        error = err
+      }
+    }
     try {
       if (__DEV__) {
         // subs are notified and batched in reverse-order and then invoked in
@@ -191,28 +199,43 @@ export class Dep {
         // be invoked in original order here.
         for (let head = this.subsHead; head; head = head.nextSub) {
           if (head.sub.onTrigger && !(head.sub.flags & EffectFlags.NOTIFIED)) {
-            head.sub.onTrigger(
-              extend(
-                {
-                  effect: head.sub,
-                },
-                debugInfo,
-              ),
-            )
+            try {
+              head.sub.onTrigger(
+                extend(
+                  {
+                    effect: head.sub,
+                  },
+                  debugInfo,
+                ),
+              )
+            } catch (err) {
+              capture(err)
+            }
           }
         }
       }
       for (let link = this.subs; link; link = link.prevSub) {
-        if (link.sub.notify()) {
-          // if notify() returns `true`, this is a computed. Also call notify
-          // on its dep - it's called here instead of inside computed's notify
-          // in order to reduce call stack depth.
-          ;(link.sub as ComputedRefImpl).dep.notify()
+        try {
+          if (link.sub.notify()) {
+            // if notify() returns `true`, this is a computed. Also call notify
+            // on its dep - it's called here instead of inside computed's notify
+            // in order to reduce call stack depth.
+            ;(link.sub as ComputedRefImpl).dep.notify()
+          }
+        } catch (err) {
+          // One failing subscriber must not starve the remaining subscribers;
+          // rethrow the first error after the whole batch has been notified.
+          capture(err)
         }
       }
     } finally {
-      endBatch()
+      try {
+        endBatch()
+      } catch (err) {
+        capture(err)
+      }
     }
+    if (hasError) throw error
   }
 }
 
@@ -319,19 +342,31 @@ export function trigger(
     return
   }
 
+  let error: unknown
+  let hasError = false
+  const capture = (err: unknown): void => {
+    if (!hasError) {
+      hasError = true
+      error = err
+    }
+  }
   const run = (dep: Dep | undefined) => {
     if (dep) {
-      if (__DEV__) {
-        dep.trigger({
-          target,
-          type,
-          key,
-          newValue,
-          oldValue,
-          oldTarget,
-        })
-      } else {
-        dep.trigger()
+      try {
+        if (__DEV__) {
+          dep.trigger({
+            target,
+            type,
+            key,
+            newValue,
+            oldValue,
+            oldTarget,
+          })
+        } else {
+          dep.trigger()
+        }
+      } catch (err) {
+        capture(err)
       }
     }
   }
@@ -398,7 +433,12 @@ export function trigger(
     }
   }
 
-  endBatch()
+  try {
+    endBatch()
+  } catch (err) {
+    capture(err)
+  }
+  if (hasError) throw error
 }
 
 export function getDepFromReactive(

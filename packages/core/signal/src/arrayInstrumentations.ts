@@ -365,9 +365,28 @@ function noTracking(
   args: unknown[] = [],
 ) {
   pauseTracking()
-  startBatch()
-  const res = (toRaw(self) as any)[method].apply(self, args)
-  endBatch()
-  resetTracking()
-  return res
+  let result: unknown
+  let error: unknown
+  let hasError = false
+  try {
+    startBatch()
+    try {
+      result = (toRaw(self) as any)[method].apply(self, args)
+    } catch (err) {
+      hasError = true
+      error = err
+    }
+    try {
+      endBatch()
+    } catch (err) {
+      if (!hasError) {
+        hasError = true
+        error = err
+      }
+    }
+  } finally {
+    resetTracking()
+  }
+  if (hasError) throw error
+  return result
 }

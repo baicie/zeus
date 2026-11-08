@@ -318,16 +318,26 @@ export function watch(
   }
 
   // initial run
-  if (cb) {
-    if (immediate) {
-      job(true)
+  try {
+    if (cb) {
+      if (immediate) {
+        job(true)
+      } else {
+        oldValue = effect.run()
+      }
+    } else if (scheduler) {
+      scheduler(job.bind(null, true), true)
     } else {
-      oldValue = effect.run()
+      effect.run()
     }
-  } else if (scheduler) {
-    scheduler(job.bind(null, true), true)
-  } else {
-    effect.run()
+  } catch (error) {
+    // A failed first run must not leave an active, unstoppable watcher.
+    try {
+      effect.stop()
+    } catch {
+      /* Preserve the original first-run error. */
+    }
+    throw error
   }
 
   watchHandle.pause = effect.pause.bind(effect)
