@@ -189,8 +189,11 @@ describe('release workflows', () => {
       'utf8',
     )
 
-    expect(workflow).toContain('ZEUS_UI_REF')
+    expect(workflow).not.toContain('vars.ZEUS_UI_REF')
+    expect(workflow).toContain('ZEUS_UI_COMMIT')
     expect(workflow).toContain('check:ui-pairing')
+    expect(workflow).toContain('--require-commit')
+    expect(workflow).toContain('ui-pairing.json')
     expect(workflow).toContain('ZEUS_UI_VERSION')
     expect(workflow).toContain('ZEUS_DEPLOYMENT_EVIDENCE_RUN_ID')
     expect(workflow).toContain('host-deployment-stage2-evidence')
