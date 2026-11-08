@@ -1,6 +1,6 @@
 # Overnight Mission Status — 2026-11-08
 
-Last checkpoint: 2026-11-08 04:05 Asia/Shanghai
+Last checkpoint: 2026-11-08 11:28 Asia/Shanghai
 Deadline: 2026-11-08 12:00 Asia/Shanghai
 
 ## Baseline
@@ -16,8 +16,8 @@ No merge, npm publish, Tag, dist-tag or production deployment in this mission.
 
 | PR        | Branch                                | Head      | CI                  |
 | --------- | ------------------------------------- | --------- | ------------------- |
-| Core #202 | `fix/r5-rc-gates`                     | `abbfd35` | 30/30 SUCCESS       |
-| Core #203 | `fix/r5-ai-workspace-backup`          | `fa0c55c` | 22/22 SUCCESS       |
+| Core #202 | `fix/r5-rc-gates`                     | `0cd29b9` | 34/34 SUCCESS       |
+| Core #203 | `fix/r5-ai-workspace-backup`          | `50810e2` | 22/22 SUCCESS       |
 | Core #204 | `fix/r5-signal-error-isolation`       | `8fa5774` | 23/23 SUCCESS       |
 | Core #205 | `fix/r5-admin-input-stability`        | `872be70` | 22/22 SUCCESS       |
 | Core #206 | `fix/r5-compiler-preflight`           | `ce594f7` | 30/30 SUCCESS       |
@@ -50,11 +50,13 @@ Every PR remains Draft; no Ready conversion, merge or auto-merge was performed.
   counter. 3,200 nested Show 545 ms → 27 ms; 6,400 levels 41 ms.
 - Signal: 312/312 after error isolation and computed/watch recovery.
 - SSR streaming: 22/22; hydration/runtime-dom: 412/412.
+- RC-04 closed: `prepare` validates 32 packed Core manifests; UI builds against
+  the same tarballs; six templates pass typecheck/tests/build on Linux and
+  Windows; release requires pin match. PR CI reports the expected
+  `webc-consumer` pin drift against UI main (beta.34 vs beta.35).
 
 ## Remaining blockers
 
-- RC-04: candidate tarball build covers `basic-ts`; UI `@zeus-web` tarballs for
-  `webc-consumer-ts` and the other template builds remain.
 - RC-07: `npm whoami` → ENEEDAUTH; registry is `https://registry.npmmirror.com`;
   no dist-tag repair/publish/promotion attempted.
 - Manual VoiceOver/NVDA, 200% zoom, physical mobile: NOT_RUN.
@@ -63,4 +65,4 @@ Every PR remains Draft; no Ready conversion, merge or auto-merge was performed.
 ## Status vocabulary
 
 - PASS / FAIL / NOT_RUN / BLOCKED / PARTIAL — see `CI-MATRIX.md`, `FINDINGS.md`,
-  and the final verdict in `FINAL.md`.
+  and the final verdict `READY_FOR_RC_CODE_REVIEW` in `FINAL.md`.

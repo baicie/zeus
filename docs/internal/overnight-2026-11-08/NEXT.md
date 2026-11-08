@@ -34,15 +34,15 @@ UI (`zeus-ui/temp/worktrees/`):
 
 ## Highest-priority next work
 
-1. RC-04: extend the isolated candidate tarball gate to all create-zeus
-   templates; pack the paired UI `@zeus-web` packages for `webc-consumer-ts`;
-   verify Linux/Windows install and build.
-2. RC-07: only with explicit npm authorization, repair the 13 prerelease
+1. RC-07: only with explicit npm authorization, repair the 13 prerelease
    `latest` dist-tags; no auth exists in this environment.
-3. With human authorization: merge the green PRs in dependency order, then run
-   the real online four-product acceptance and manual A11y/zoom/mobile matrix.
-4. Optional read-only DOM/WebC P2 audit: keyed reorder, disconnect/reconnect,
+2. With human authorization: review/merge the green PRs in dependency order,
+   then run the real online four-product acceptance and manual A11y/zoom/mobile
+   matrix.
+3. Optional read-only DOM/WebC P2 audit: keyed reorder, disconnect/reconnect,
    async renderer dispose, custom-element string render HTML semantics.
+4. RC-04 is closed; rerun the Linux/Windows candidate matrix if CI or the UI
+   candidate ref changes.
 
 ## Do not do
 

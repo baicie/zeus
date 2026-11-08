@@ -18,16 +18,15 @@
 
 - [x] Verify all mission PRs green: Core #202/#203/#204/#205/#206/#207/#208/#209,
       UI #126/#127/#128; none merged or converted to Ready.
-- [x] Publish `FINAL.md` with verdict `BLOCKED_BY_CODE` (RC-04 remainder).
+- [x] Publish `FINAL.md` with verdict `READY_FOR_RC_CODE_REVIEW`.
+- [x] Close RC-04: prepare/validate 32 Core tarballs, build paired UI from the same candidates, run six templates with typecheck/tests/build on Linux and Windows; release requires pin match.
 
 - [x] All mission PRs green (#202–#209, UI #126–#128); final report `FINAL.md`.
 
 ## Next (highest priority)
 
-1. RC-04: extend candidate tarball coverage to non-basic templates and UI
-   `@zeus-web` packages; verify Linux/Windows.
-2. RC-07: actual dist-tag repair requires npm authorization.
-3. Merge green PRs only with human authorization; then collect online
-   acceptance and manual A11y/zoom/mobile evidence.
-4. Optional DOM/WebC P2 audit (keyed reorder, reconnect, async dispose,
+1. RC-07: actual dist-tag repair requires npm authorization.
+2. Merge/review the green Draft PRs only with human authorization; then collect
+   online acceptance and manual A11y/zoom/mobile evidence.
+3. Optional DOM/WebC P2 audit (keyed reorder, reconnect, async dispose,
    custom-element string render semantics).
