@@ -131,6 +131,7 @@ interface BackupSummary {
   readonly directory: string
   admin?: { file: string; sha256: string; sqliteCheck: string }
   ai?: { file: string; sha256: string; sqliteCheck: string }
+  aiWorkspace?: { file: string; sha256: string; entries: number }
 }
 
 interface RollbackSummary {
@@ -138,6 +139,7 @@ interface RollbackSummary {
   readonly finishedAt: string
   readonly restoredContainers: readonly string[]
   readonly restoredDatabases: readonly string[]
+  readonly restoredWorkspaces: readonly string[]
   readonly health: string
   readonly buildInfoVerified: boolean
   readonly error?: string
@@ -331,6 +333,7 @@ export async function runDeploymentTransaction(
             finishedAt: new Date().toISOString(),
             restoredContainers: [],
             restoredDatabases: [],
+            restoredWorkspaces: [],
             health: 'FAIL',
             buildInfoVerified: false,
             error:
@@ -870,9 +873,15 @@ function backupDatabases(
       admin: false,
     })
     if (file) summary.ai = file
+    const workspace = backupWorkspace(
+      layout.dataDirs.ai,
+      directory,
+      aiHost.image,
+    )
+    if (workspace) summary.aiWorkspace = workspace
   }
   const lines: string[] = []
-  for (const entry of [summary.admin, summary.ai]) {
+  for (const entry of [summary.admin, summary.ai, summary.aiWorkspace]) {
     if (entry)
       lines.push(`${entry.sha256.slice(7)}  ${path.basename(entry.file)}`)
   }
@@ -959,6 +968,128 @@ console.log(JSON.stringify(rows))
   }
 }
 
+function backupWorkspace(
+  dataDir: string,
+  directory: string,
+  image: string,
+): { file: string; sha256: string; entries: number } | undefined {
+  if (!fs.existsSync(path.join(dataDir, 'workspace'))) return undefined
+  const file = path.join(directory, 'ai-workspace.tgz')
+  const archive = spawnSync(
+    'docker',
+    [
+      'run',
+      '--rm',
+      '--user',
+      '0',
+      '-v',
+      `${dataDir}:/data:ro`,
+      '-v',
+      `${directory}:/backup`,
+      '--entrypoint',
+      'sh',
+      image,
+      '-c',
+      'tar -czf /backup/ai-workspace.tgz -C /data workspace',
+    ],
+    { encoding: 'utf8' },
+  )
+  if (archive.status !== 0) {
+    throw new Error('failed to archive the AI workspace')
+  }
+  const listing = spawnSync(
+    'docker',
+    [
+      'run',
+      '--rm',
+      '--user',
+      '0',
+      '-v',
+      `${directory}:/backup:ro`,
+      '--entrypoint',
+      'sh',
+      image,
+      '-c',
+      'tar -tzf /backup/ai-workspace.tgz | wc -l',
+    ],
+    { encoding: 'utf8' },
+  )
+  if (listing.status !== 0) {
+    throw new Error('failed to verify the AI workspace archive')
+  }
+  const entries = Number(stdoutText(listing).trim())
+  if (!Number.isInteger(entries) || entries < 1) {
+    throw new Error('AI workspace archive is empty')
+  }
+  return { file, sha256: sha256File(file), entries }
+}
+
+function restoreWorkspaceArchive(
+  file: string,
+  dataDir: string,
+  image: string,
+): void {
+  const verify = spawnSync(
+    'docker',
+    [
+      'run',
+      '--rm',
+      '--user',
+      '0',
+      '-v',
+      `${path.dirname(file)}:/backup:ro`,
+      '--entrypoint',
+      'sh',
+      image,
+      '-c',
+      'tar -tzf /backup/ai-workspace.tgz >/dev/null',
+    ],
+    { encoding: 'utf8' },
+  )
+  if (verify.status !== 0) {
+    throw new Error('refusing to restore an unverified AI workspace archive')
+  }
+  const restore = spawnSync(
+    'docker',
+    [
+      'run',
+      '--rm',
+      '--user',
+      '0',
+      '-v',
+      `${dataDir}:/data`,
+      '-v',
+      `${path.dirname(file)}:/backup:ro`,
+      '--entrypoint',
+      'sh',
+      image,
+      '-c',
+      [
+        'set -e',
+        'previous=/data/.zeus-workspace-previous',
+        'restore=/data/.zeus-workspace-restore',
+        'rm -rf "$restore"',
+        'mkdir -p "$restore"',
+        'tar -xzf /backup/ai-workspace.tgz -C "$restore" --strip-components=1',
+        'if [ -e /data/workspace ]; then',
+        '  rm -rf "$previous"',
+        '  mv /data/workspace "$previous"',
+        'fi',
+        'if ! mv "$restore" /data/workspace; then',
+        '  if [ -e "$previous" ]; then mv "$previous" /data/workspace; fi',
+        '  exit 1',
+        'fi',
+        'if ! chown -R 10001:10001 /data/workspace; then exit 1; fi',
+        'rm -rf "$previous"',
+      ].join('\n'),
+    ],
+    { encoding: 'utf8' },
+  )
+  if (restore.status !== 0) {
+    throw new Error('failed to restore the AI workspace')
+  }
+}
+
 function verifyBackupFile(
   image: string,
   directory: string,
@@ -1028,6 +1159,7 @@ export function rollbackDeployment(
 ): RollbackSummary {
   const startedAt = new Date().toISOString()
   const restoredDatabases: string[] = []
+  const restoredWorkspaces: string[] = []
   composeDown(options, envFile)
   if (backups) {
     if (backups.admin) {
@@ -1047,6 +1179,14 @@ export function rollbackDeployment(
         previous.containers.aiHost?.image ?? options.images.aiHost!.image,
       )
       restoredDatabases.push(backups.ai.file)
+    }
+    if (backups.aiWorkspace) {
+      restoreWorkspaceArchive(
+        backups.aiWorkspace.file,
+        layout.dataDirs.ai,
+        previous.containers.aiHost?.image ?? options.images.aiHost!.image,
+      )
+      restoredWorkspaces.push(backups.aiWorkspace.file)
     }
   }
   const restoredContainers: string[] = []
@@ -1076,6 +1216,7 @@ export function rollbackDeployment(
     finishedAt: new Date().toISOString(),
     restoredContainers,
     restoredDatabases,
+    restoredWorkspaces,
     health: health ? 'PASS' : 'FAIL',
     buildInfoVerified,
   }
