@@ -271,6 +271,24 @@ function clearContainer(
   for (const child of Array.from(container.childNodes)) {
     if (!preserved.has(child)) container.removeChild(child)
   }
+
+  // Light-DOM projection moves consumer nodes into framework-owned subtrees.
+  // Removing those subtrees must not take the preserved consumer nodes with
+  // them: reattach them next to the surviving preserved siblings, in capture
+  // order, so a reconnect can capture the live light-DOM children again.
+  let anchor: Node | null = null
+
+  for (let i = preserveNodes.length - 1; i >= 0; i--) {
+    const node = preserveNodes[i]
+
+    if (node.parentNode === container) {
+      anchor = node
+      continue
+    }
+
+    container.insertBefore(node, anchor)
+    anchor = node
+  }
 }
 
 function resolveValue(value: JSXValue | (() => JSXValue)): JSXValue {

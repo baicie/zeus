@@ -598,6 +598,67 @@ describe('Slot', () => {
     ])
   })
 
+  it('projects a child appended while disconnected', async () => {
+    const tag = createTag('light-append-disconnected')
+
+    defineElement(tag, { shadow: false }, () => {
+      const main = document.createElement('main')
+      insertTracked(main, Slot({}))
+      return main
+    })
+
+    const el = document.createElement(tag)
+    const first = document.createElement('span')
+    first.textContent = 'first'
+    el.appendChild(first)
+    document.body.appendChild(el)
+    await nextFrame()
+
+    expect(el.querySelector('main span')).toBe(first)
+
+    el.remove()
+    await nextFrame()
+
+    const second = document.createElement('span')
+    second.textContent = 'second'
+    el.appendChild(second)
+
+    document.body.appendChild(el)
+    await nextFrame()
+
+    expect(Array.from(el.querySelectorAll('main span'))).toEqual([
+      first,
+      second,
+    ])
+  })
+
+  it('stops projecting a child removed while disconnected', async () => {
+    const tag = createTag('light-remove-disconnected')
+
+    defineElement(tag, { shadow: false }, () => {
+      const main = document.createElement('main')
+      insertTracked(main, Slot({}))
+      return main
+    })
+
+    const el = document.createElement(tag)
+    const first = document.createElement('span')
+    first.textContent = 'first'
+    el.appendChild(first)
+    document.body.appendChild(el)
+    await nextFrame()
+
+    el.remove()
+    await nextFrame()
+
+    first.remove()
+
+    document.body.appendChild(el)
+    await nextFrame()
+
+    expect(el.querySelector('main span')).toBeNull()
+  })
+
   it('preserves nested projection identity and selection through reorder', async () => {
     const childTag = createTag('nested-child')
     const parentTag = createTag('nested-parent')

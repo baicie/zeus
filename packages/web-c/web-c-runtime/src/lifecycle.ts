@@ -257,7 +257,10 @@ function mountRenderedOutput(
   const root = getRenderRoot(hostRef)
 
   if (typeof rendered === 'string') {
-    root.innerHTML = rendered
+    // String output is the untrusted channel: insert it as a text node so the
+    // platform never parses it as HTML. Components that own markup return
+    // Node / Node[] instead.
+    root.replaceChildren(document.createTextNode(rendered))
     return
   }
 

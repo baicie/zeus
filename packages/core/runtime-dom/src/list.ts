@@ -244,6 +244,11 @@ function mountKeyedFor<T, K>(
   // ListEntry objects and a duplicate-key Set on every reconciliation.
   const latestKeys: Key[] = []
   let latestItemsUseFixedSlots = false
+  // The fixed-slot decision is made against the records that were committed
+  // when the effect ran. A reentrant source update (for example from a removed
+  // record's cleanup) can replace `records` before that decision is consumed,
+  // so the snapshot must match the committed array exactly.
+  let fixedSlotRecords: readonly ListRecord<T>[] | undefined
   let reconcileRequested = false
   let reconciling = false
   let disposed = false
@@ -394,7 +399,7 @@ function mountKeyedFor<T, K>(
 
     // Fixed viewport slots only change their item values. Keep their records
     // and scopes instead of allocating a reorder map or inspecting focus.
-    if (latestItemsUseFixedSlots) {
+    if (latestItemsUseFixedSlots && fixedSlotRecords === records) {
       const items = latestItems
 
       batch(() => {
@@ -475,6 +480,7 @@ function mountKeyedFor<T, K>(
         latestKeys.length = nextItems.length
         latestItems = nextItems
         latestItemsUseFixedSlots = useFixedSlots
+        fixedSlotRecords = useFixedSlots ? records : undefined
       },
       { scheduler: scheduleReconciliation },
     )

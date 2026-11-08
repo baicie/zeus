@@ -78,6 +78,8 @@ export interface ZeusComponentInstance {
   ): void
   /**
    * Can return Node / Node[] / string.
+   * A string is untrusted text: it is inserted as a text node and never parsed
+   * as HTML. Return Node / Node[] for framework markup.
    * If the component completes rendering itself, it can also return void.
    */
   render?(): void | string | Node | Node[]

@@ -1,9 +1,11 @@
-import { onCleanup } from '@zeus-js/signal'
+import { createEffect, createSignal, onCleanup } from '@zeus-js/signal'
 import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   Slot,
+  bindEvent,
+  createCustomElementMountLifecycle,
   defineElement,
   event,
   mountElementDefinition,
@@ -793,6 +795,42 @@ describe('defineElement', () => {
     expect(Object.prototype.hasOwnProperty.call(host, 'refresh')).toBe(false)
   })
 
+  it('recaptures light DOM children when a lazy mount reconnects', () => {
+    const tag = createTag('lazy-reconnect')
+    const ctor = defineElement(tag, { shadow: false }, () => {
+      const main = document.createElement('main')
+      insertTracked(main, Slot({}))
+      return main
+    })
+    const host = document.createElement('section')
+    const first = document.createElement('span')
+    first.textContent = 'first'
+    host.appendChild(first)
+    document.body.appendChild(host)
+
+    const mountState = {}
+    const lifecycle = createCustomElementMountLifecycle(() =>
+      mountElementDefinition(ctor, host, new Map(), mountState),
+    )
+
+    lifecycle.connect()
+    expect(host.querySelector('main span')).toBe(first)
+
+    lifecycle.disconnect()
+
+    const second = document.createElement('span')
+    second.textContent = 'second'
+    host.appendChild(second)
+
+    lifecycle.connect()
+    expect(Array.from(host.querySelectorAll('main span'))).toEqual([
+      first,
+      second,
+    ])
+
+    lifecycle.disconnect()
+  })
+
   it('supports reflected boolean prop shorthand', async () => {
     const tag = createTag('boolean-prop-shorthand')
 
@@ -1023,6 +1061,81 @@ describe('defineElement', () => {
     await nextFrame()
     expect(renderCount).toBe(2)
     expect(el.textContent).toBe('rendered-2')
+  })
+
+  it('binds a direct event listener once after reconnect', async () => {
+    const tag = createTag('reconnect-listener')
+    let calls = 0
+
+    defineElement(tag, { shadow: false }, () => {
+      const button = document.createElement('button')
+      button.textContent = 'click'
+      bindEvent(
+        button,
+        'click',
+        () => {
+          calls += 1
+        },
+        false,
+      )
+      return button
+    })
+
+    const el = document.createElement(tag)
+    document.body.appendChild(el)
+    await nextFrame()
+
+    el.remove()
+    await nextFrame()
+    document.body.appendChild(el)
+    await nextFrame()
+
+    el.querySelector('button')!.dispatchEvent(
+      new MouseEvent('click', { bubbles: true }),
+    )
+
+    expect(calls).toBe(1)
+  })
+
+  it('recreates a single live reactive scope after reconnect', async () => {
+    const tag = createTag('reconnect-scope')
+    const [count, setCount] = createSignal(0)
+    let effectRuns = 0
+    let cleanups = 0
+
+    defineElement(tag, { shadow: false }, () => {
+      const span = document.createElement('span')
+      createEffect(() => {
+        effectRuns += 1
+        span.textContent = String(count())
+      })
+      onCleanup(() => {
+        cleanups += 1
+      })
+      return span
+    })
+
+    const el = document.createElement(tag)
+    document.body.appendChild(el)
+    await nextFrame()
+
+    expect(effectRuns).toBe(1)
+
+    el.remove()
+    await nextFrame()
+
+    expect(cleanups).toBe(1)
+
+    document.body.appendChild(el)
+    await nextFrame()
+
+    expect(effectRuns).toBe(2)
+
+    setCount(1)
+
+    expect(effectRuns).toBe(3)
+    expect(el.textContent).toBe('1')
+    expect(cleanups).toBe(1)
   })
 
   it('rebuilds an active mount when the host is adopted', async () => {
