@@ -1,0 +1,100 @@
+{
+  "schema": "zeus.rc07-latest-tag-plan/v1",
+  "registry": "https://registry.npmjs.org",
+  "apply": false,
+  "planned": 13,
+  "actions": [
+    {
+      "name": "@zeus-js/compiler-native",
+      "kind": "remove",
+      "from": "0.1.1-canary.20260812.106.1.658fe407",
+      "target": null,
+      "reason": "no stable version exists; remove prerelease latest"
+    },
+    {
+      "name": "@zeus-js/compiler-native-darwin-arm64",
+      "kind": "remove",
+      "from": "0.1.1-canary.20260812.106.1.658fe407",
+      "target": null,
+      "reason": "no stable version exists; remove prerelease latest"
+    },
+    {
+      "name": "@zeus-js/compiler-native-darwin-x64",
+      "kind": "remove",
+      "from": "0.1.1-canary.20260812.106.1.658fe407",
+      "target": null,
+      "reason": "no stable version exists; remove prerelease latest"
+    },
+    {
+      "name": "@zeus-js/compiler-native-linux-arm64-gnu",
+      "kind": "remove",
+      "from": "0.1.1-canary.20260812.106.1.658fe407",
+      "target": null,
+      "reason": "no stable version exists; remove prerelease latest"
+    },
+    {
+      "name": "@zeus-js/compiler-native-linux-x64-gnu",
+      "kind": "remove",
+      "from": "0.1.1-canary.20260812.106.1.658fe407",
+      "target": null,
+      "reason": "no stable version exists; remove prerelease latest"
+    },
+    {
+      "name": "@zeus-js/compiler-native-linux-x64-musl",
+      "kind": "remove",
+      "from": "0.1.1-canary.20260812.106.1.658fe407",
+      "target": null,
+      "reason": "no stable version exists; remove prerelease latest"
+    },
+    {
+      "name": "@zeus-js/compiler-native-win32-arm64-msvc",
+      "kind": "remove",
+      "from": "0.1.1-canary.20260812.106.1.658fe407",
+      "target": null,
+      "reason": "no stable version exists; remove prerelease latest"
+    },
+    {
+      "name": "@zeus-js/compiler-native-win32-x64-msvc",
+      "kind": "remove",
+      "from": "0.1.1-canary.20260812.106.1.658fe407",
+      "target": null,
+      "reason": "no stable version exists; remove prerelease latest"
+    },
+    {
+      "name": "@zeus-js/runtime-ssr",
+      "kind": "remove",
+      "from": "0.1.0-canary.20260805.97.1.fa5d9cef",
+      "target": null,
+      "reason": "no stable version exists; remove prerelease latest"
+    },
+    {
+      "name": "@zeus-js/router",
+      "kind": "remove",
+      "from": "0.1.1-canary.20261020.188.1.02f2975b",
+      "target": null,
+      "reason": "no stable version exists; remove prerelease latest"
+    },
+    {
+      "name": "@zeus-js/resource",
+      "kind": "remove",
+      "from": "0.1.1-canary.20261020.188.1.02f2975b",
+      "target": null,
+      "reason": "no stable version exists; remove prerelease latest"
+    },
+    {
+      "name": "@zeus-js/query",
+      "kind": "remove",
+      "from": "0.1.1-canary.20261020.188.1.02f2975b",
+      "target": null,
+      "reason": "no stable version exists; remove prerelease latest"
+    },
+    {
+      "name": "@zeus-js/testing",
+      "kind": "remove",
+      "from": "0.1.1-canary.20261020.188.1.02f2975b",
+      "target": null,
+      "reason": "no stable version exists; remove prerelease latest"
+    }
+  ],
+  "unpublished": ["@zeus-js/eslint-plugin", "@zeus-js/playground-engine"]
+}
