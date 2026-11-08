@@ -12,17 +12,35 @@ import path from 'node:path'
 
 export interface CandidateTemplate {
   readonly name: string
-  /** Build output that must exist after `vite build`. */
-  readonly output: string
+  /** Build outputs that must exist after `vite build`; `*` is a wildcard. */
+  readonly outputs: readonly string[]
 }
 
+export const COMPONENT_LIBRARY_OUTPUTS = [
+  'dist/custom-elements.json',
+  'dist/zeus.components.json',
+  'dist/wc/auto.js',
+  'dist/wc/index.js',
+  'dist/wc/z-greeting.entry.js',
+  'dist/react/index.js',
+  'dist/vue/index.js',
+] as const
+
+const APPLICATION_OUTPUTS = [
+  'dist/index.html',
+  'dist/assets/index-*.js',
+] as const
+
 export const CANDIDATE_TEMPLATES: readonly CandidateTemplate[] = [
-  { name: 'basic-ts', output: 'dist/index.html' },
-  { name: 'application-ts', output: 'dist/index.html' },
-  { name: 'admin-ts', output: 'dist/index.html' },
-  { name: 'web-component-ts', output: 'dist/index.html' },
-  { name: 'component-library-ts', output: 'dist/assets/index-*.js' },
-  { name: 'webc-consumer-ts', output: 'dist/index.html' },
+  { name: 'basic-ts', outputs: APPLICATION_OUTPUTS },
+  { name: 'application-ts', outputs: APPLICATION_OUTPUTS },
+  { name: 'admin-ts', outputs: APPLICATION_OUTPUTS },
+  { name: 'web-component-ts', outputs: APPLICATION_OUTPUTS },
+  {
+    name: 'component-library-ts',
+    outputs: [...COMPONENT_LIBRARY_OUTPUTS, 'dist/assets/index-*.js'],
+  },
+  { name: 'webc-consumer-ts', outputs: APPLICATION_OUTPUTS },
 ]
 
 export interface WorkspacePackage {
@@ -40,6 +58,7 @@ export interface PackageManifest {
   optionalDependencies?: Record<string, string>
   peerDependencies?: Record<string, string>
   overrides?: Record<string, string>
+  scripts?: Record<string, string>
   [key: string]: unknown
 }
 
@@ -126,6 +145,33 @@ export function collectWorkspaceClosure(
   }
   for (const root of roots) visit(root)
   return [...selected.values()].sort((a, b) => a.name.localeCompare(b.name))
+}
+
+export interface PinMismatch {
+  readonly name: string
+  readonly actual: string
+  readonly expected: string
+}
+
+/**
+ * Compares every direct template dependency against the candidate version map.
+ * Dependencies not present in the map are ignored; the caller decides whether
+ * an unknown Core package is an error.
+ */
+export function templatePinMismatches(
+  manifest: PackageManifest,
+  expected: ReadonlyMap<string, string>,
+): PinMismatch[] {
+  const mismatches: PinMismatch[] = []
+  for (const field of ['dependencies', 'devDependencies'] as const) {
+    for (const [name, actual] of Object.entries(manifest[field] ?? {})) {
+      const candidate = expected.get(name)
+      if (candidate && actual !== candidate) {
+        mismatches.push({ name, actual, expected: candidate })
+      }
+    }
+  }
+  return mismatches
 }
 
 /**
@@ -234,12 +280,12 @@ export function assertCurrentNativeBinary(coreRoot: string): void {
   }
 }
 
-/** Returns the expected build output for a template. */
-export function templateOutput(
+/** Returns the expected build outputs for a template. */
+export function templateOutputs(
   template: string,
   templates: readonly CandidateTemplate[] = CANDIDATE_TEMPLATES,
-): string {
+): readonly string[] {
   const entry = templates.find(item => item.name === template)
   if (!entry) throw new Error(`unknown create-zeus template: ${template}`)
-  return entry.output
+  return entry.outputs
 }

@@ -9,7 +9,8 @@ import {
   applyCandidateManifest,
   collectWorkspaceClosure,
   discoverWorkspacePackages,
-  templateOutput,
+  templateOutputs,
+  templatePinMismatches,
   templateOutputExists,
   toFileSpec,
 } from '../create-zeus-candidate-matrix'
@@ -51,11 +52,23 @@ describe('create-zeus candidate matrix', () => {
       'web-component-ts',
       'webc-consumer-ts',
     ])
-    expect(templateOutput('basic-ts')).toBe('dist/index.html')
-    expect(templateOutput('component-library-ts')).toBe(
+    expect(templateOutputs('basic-ts')).toEqual([
+      'dist/index.html',
       'dist/assets/index-*.js',
+    ])
+    expect(templateOutputs('component-library-ts')).toEqual(
+      expect.arrayContaining([
+        'dist/custom-elements.json',
+        'dist/zeus.components.json',
+        'dist/wc/auto.js',
+        'dist/wc/index.js',
+        'dist/wc/z-greeting.entry.js',
+        'dist/react/index.js',
+        'dist/vue/index.js',
+        'dist/assets/index-*.js',
+      ]),
     )
-    expect(() => templateOutput('missing-ts')).toThrow(
+    expect(() => templateOutputs('missing-ts')).toThrow(
       'unknown create-zeus template',
     )
   })
@@ -127,6 +140,29 @@ describe('create-zeus candidate matrix', () => {
         '@zeus-js/signal': 'file:/tmp/signal.tgz',
       },
     })
+  })
+
+  it('reports every direct pin that differs from the candidate map', () => {
+    const mismatches = templatePinMismatches(
+      {
+        dependencies: {
+          '@zeus-js/zeus': '0.1.1-beta.20',
+          '@zeus-web/button': '0.1.0-beta.34',
+          react: '^19.2.7',
+        },
+      },
+      new Map([
+        ['@zeus-js/zeus', '0.1.1-beta.20'],
+        ['@zeus-web/button', '0.1.0-beta.35'],
+      ]),
+    )
+    expect(mismatches).toEqual([
+      {
+        name: '@zeus-web/button',
+        actual: '0.1.0-beta.34',
+        expected: '0.1.0-beta.35',
+      },
+    ])
   })
 
   it('normalizes archive paths and matches wildcard build outputs', () => {

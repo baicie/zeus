@@ -7,6 +7,7 @@
  * Usage:
  *   pnpm check:create-zeus-candidate --ui-root temp/zeus-ui
  *   pnpm check:create-zeus-candidate --ui-root temp/zeus-ui --template basic-ts
+ *   pnpm check:create-zeus-candidate --ui-root temp/zeus-ui --candidates temp/create-zeus-candidate/candidates.json --require-pin-match
  */
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -22,8 +23,9 @@ import {
   assertCurrentNativeBinary,
   collectWorkspaceClosure,
   discoverWorkspacePackages,
-  templateOutput,
+  templateOutputs,
   templateOutputExists,
+  templatePinMismatches,
   toFileSpec,
 } from '../release/create-zeus-candidate-matrix'
 import { zeusFixedPackages } from '../release.config'
@@ -62,10 +64,13 @@ let candidateUiVersion: string | undefined
 const candidateCounts = { core: 0, ui: 0 }
 const templateResults: Array<{
   template: string
-  output: string
+  outputs: string[]
   direct: string[]
   overrides: number
   installed?: Record<string, string>
+  pinMatch?: boolean
+  pinMismatches?: Array<{ name: string; actual: string; expected: string }>
+  tested?: boolean
   passed: boolean
   error?: string
 }> = []
@@ -118,7 +123,17 @@ try {
       `candidate Core packages are missing: ${missingCore.join(', ')}`,
     )
   }
-  assertTemplatePins(corePackages, manifests)
+  const expectedVersions = new Map<string, string>()
+  for (const name of coreCandidateNames) {
+    expectedVersions.set(name, corePackages.get(name)!.version)
+  }
+  for (const manifest of manifests.values()) {
+    for (const name of candidateDependencyNames(manifest)) {
+      if (name.startsWith('@zeus-web/') && uiVersion) {
+        expectedVersions.set(name, uiVersion)
+      }
+    }
+  }
 
   const coreCandidates = new Map<string, string>()
   if (options.candidates) {
@@ -183,6 +198,12 @@ try {
       ),
     ]
     if (uiRoots.length > 0) {
+      const missingUi = uiRoots.filter(name => !uiPackages.has(name))
+      if (missingUi.length > 0) {
+        throw new Error(
+          `UI candidate packages are missing from ${uiRoot}: ${missingUi.join(', ')}`,
+        )
+      }
       const closures = collectWorkspaceClosure(uiPackages, uiRoots)
       if (closures.length === 0) {
         throw new Error(
@@ -220,6 +241,30 @@ try {
         `${template.name} contains @zeus-web dependencies; pass --ui-root with the paired UI checkout`,
       )
     }
+    const pinMismatches = templatePinMismatches(manifest, expectedVersions)
+    const coreMismatches = pinMismatches.filter(mismatch =>
+      mismatch.name.startsWith('@zeus-js/'),
+    )
+    if (coreMismatches.length > 0) {
+      throw new Error(
+        `${template.name} has stale Core pins: ${coreMismatches
+          .map(
+            mismatch =>
+              `${mismatch.name} ${mismatch.actual} != ${mismatch.expected}`,
+          )
+          .join(', ')}`,
+      )
+    }
+    if (options.requirePinMatch && pinMismatches.length > 0) {
+      throw new Error(
+        `${template.name} has stale pins: ${pinMismatches
+          .map(
+            mismatch =>
+              `${mismatch.name} ${mismatch.actual} != ${mismatch.expected}`,
+          )
+          .join(', ')}`,
+      )
+    }
     const applied = applyCandidateManifest(manifest, candidates)
     fs.writeFileSync(
       manifestPath,
@@ -252,9 +297,17 @@ try {
         [path.join(target, 'node_modules/vite/bin/vite.js'), 'build'],
         target,
       )
-      const expectedOutput = templateOutput(template.name)
-      if (!templateOutputExists(target, expectedOutput)) {
-        throw new Error(`${template.name} build is missing ${expectedOutput}`)
+      if (manifest.scripts?.test) {
+        run('pnpm', ['test'], target)
+      }
+      const expectedOutputs = templateOutputs(template.name)
+      const missingOutputs = expectedOutputs.filter(
+        output => !templateOutputExists(target, output),
+      )
+      if (missingOutputs.length > 0) {
+        throw new Error(
+          `${template.name} build is missing ${missingOutputs.join(', ')}`,
+        )
       }
       const installed = readInstalledVersions(target)
       const directNames = candidateDependencyNames(manifest)
@@ -268,19 +321,25 @@ try {
       )
       templateResults.push({
         template: template.name,
-        output: expectedOutput,
+        outputs: [...expectedOutputs],
         direct: applied.direct,
         overrides: Object.keys(applied.overrides).length,
         installed,
+        pinMatch: pinMismatches.length === 0,
+        pinMismatches,
+        tested: Boolean(manifest.scripts?.test),
         passed: true,
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       templateResults.push({
         template: template.name,
-        output: templateOutput(template.name),
+        outputs: [...templateOutputs(template.name)],
         direct: applied.direct,
         overrides: Object.keys(applied.overrides).length,
+        pinMatch: pinMismatches.length === 0,
+        pinMismatches,
+        tested: Boolean(manifest.scripts?.test),
         passed: false,
         error: message,
       })
@@ -321,6 +380,7 @@ function parseOptions(args: string[]): {
   registry?: string
   templates?: string[]
   candidates?: string
+  requirePinMatch?: boolean
   keepWork?: boolean
 } {
   const { values } = parseArgs({
@@ -330,6 +390,7 @@ function parseOptions(args: string[]): {
       registry: { type: 'string' },
       template: { type: 'string', multiple: true },
       candidates: { type: 'string' },
+      'require-pin-match': { type: 'boolean', default: false },
       'keep-work': { type: 'boolean', default: false },
     },
   })
@@ -338,6 +399,7 @@ function parseOptions(args: string[]): {
     ...(values.registry ? { registry: values.registry } : {}),
     ...(values.template ? { templates: values.template } : {}),
     ...(values.candidates ? { candidates: values.candidates } : {}),
+    requirePinMatch: values['require-pin-match'] === true,
     keepWork: values['keep-work'] === true,
   }
 }
@@ -397,37 +459,6 @@ function candidateDependencyNames(manifest: PackageManifest): string[] {
     ...Object.keys(manifest.dependencies ?? {}),
     ...Object.keys(manifest.devDependencies ?? {}),
   ]
-}
-
-function assertTemplatePins(
-  corePackages: Map<string, { version: string; directory: string }>,
-  manifests: Map<string, PackageManifest>,
-): void {
-  const expectedVitePlugin = corePackages.get('@zeus-js/vite-plugin')!.version
-  for (const [template, manifest] of manifests) {
-    for (const field of ['dependencies', 'devDependencies'] as const) {
-      for (const [name, version] of Object.entries(manifest[field] ?? {})) {
-        if (name === '@zeus-js/vite-plugin') {
-          if (version !== expectedVitePlugin) {
-            throw new Error(
-              `${template} ${name} ${version} != ${expectedVitePlugin}`,
-            )
-          }
-          continue
-        }
-        if (!name.startsWith('@zeus-js/')) continue
-        const workspacePackage = corePackages.get(name)
-        if (!workspacePackage) {
-          throw new Error(`${template} uses unknown Core package ${name}`)
-        }
-        if (version !== workspacePackage.version) {
-          throw new Error(
-            `${template} ${name} ${version} != ${workspacePackage.version}`,
-          )
-        }
-      }
-    }
-  }
 }
 
 function pack(directory: string, destination: string): string {
