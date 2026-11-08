@@ -15,15 +15,18 @@
 
 ## 2. PR 清单
 
-| PR                                              | 分支                               | 范围                                              | 状态                   |
-| ----------------------------------------------- | ---------------------------------- | ------------------------------------------------- | ---------------------- |
-| [#213](https://github.com/baicie/zeus/pull/213) | `fix/r51-rc-evidence-authenticity` | Phase A：审批与跨平台证据真实性                   | Draft                  |
-| [#215](https://github.com/baicie/zeus/pull/215) | `fix/r51-release-tag-pairing`      | Phase B/C：dist-tag fail-closed、Core/UI SHA 绑定 | Draft，stacked on #213 |
-| [#214](https://github.com/baicie/zeus/pull/214) | `fix/r51-deployment-recovery`      | Phase E：Stage 2 Workspace 回滚事务               | Draft                  |
-| [#217](https://github.com/baicie/zeus/pull/217) | `feat/r51-rc-rehearsal`            | Phase D：离线 0.2.0-rc.0 预演                     | Draft                  |
-| [#216](https://github.com/baicie/zeus/pull/216) | `fix/r51-framework-p2`             | Phase F：keyed reorder / Trusted HTML / 断连重连  | Draft                  |
+| PR                                              | 分支                               | 范围                                              | 状态   |
+| ----------------------------------------------- | ---------------------------------- | ------------------------------------------------- | ------ |
+| [#213](https://github.com/baicie/zeus/pull/213) | `fix/r51-rc-evidence-authenticity` | Phase A：审批与跨平台证据真实性                   | 已合并 |
+| [#214](https://github.com/baicie/zeus/pull/214) | `fix/r51-deployment-recovery`      | Phase E：Stage 2 Workspace 回滚事务               | 已合并 |
+| [#216](https://github.com/baicie/zeus/pull/216) | `fix/r51-framework-p2`             | Phase F：keyed reorder / Trusted HTML / 断连重连  | 已合并 |
+| [#217](https://github.com/baicie/zeus/pull/217) | `feat/r51-rc-rehearsal`            | Phase D：离线 0.2.0-rc.0 预演                     | 已合并 |
+| [#219](https://github.com/baicie/zeus/pull/219) | `fix/r51-release-tag-pairing`      | Phase B/C：dist-tag fail-closed、Core/UI SHA 绑定 | 已合并 |
+| [#218](https://github.com/baicie/zeus/pull/218) | `docs/r51-rc-integrity-report`     | 本报告                                            | 本 PR  |
 
-未合并任何分支，未创建 Git Tag。
+原 #215 在 #213 合并、base 分支被删除后自动关闭且无法重新打开，B/C 改动 rebase 到 `main` 后以 #219 重新提交并合并。
+
+合并顺序：`#213` → `#214` → `#216` → `#217` → `#219` → `#218`。全部使用 squash merge，未启用 Auto Merge，未创建 Git Tag。
 
 ## 3. 本轮实际审查的源码
 
@@ -214,9 +217,11 @@ Zeus 0.2.0 — R5.2 Workflow Integration & RC Evidence Execution
 代码侧 A/B/C/D/E/F 均已实现并有真实测试：
 
 - A：审批与跨平台证据结构化、attestation 校验，306 tests 通过。
-- B/C：dist-tag fail-closed、隔离 registry 演练、UI SHA/版本绑定，332 tests 通过。
+- B/C：dist-tag fail-closed、隔离 registry 演练、UI SHA/版本绑定，rebase 到 main 后 361 tests 通过。
 - D：0.2.0-rc.0 离线预演 17/17 步，32/32 tarball，六模板通过。
 - E：Stage 2 回滚真实 Docker 故障注入 22/22 通过。
 - F：三项框架缺陷修复，499 tests 通过。
 
-但 RC 放行仍需要线上验收、人工 A11y、Release environment 审批与 npm 授权；真实 GitHub Actions 端到端预演与 npm 写操作未执行。本轮不宣布 `RC_READY`。
+这些改动已全部 squash merge 到 `main`，`main` CI 通过后构成本轮代码基线。
+
+但 RC 放行仍需要线上验收、人工 A11y、Release environment 审批与 npm 授权；真实 GitHub Actions 端到端预演与 npm 写操作未执行。合并代码不等于 `RC_READY`，本轮不宣布 `RC_READY`。
