@@ -107,12 +107,17 @@ jobs:
       - name: Read the approved UI commit
         run: |
           UI_COMMIT=$(node -p "require('./temp/rc-approval/rc-approval.json').uiCommit")
-          UI_VERSION=$(node -p "require('./temp/rc-approval/rc-approval.json').version")
+          UI_VERSION=$(node -p "require('./temp/rc-approval/rc-approval.json').uiVersion")
+          APPROVAL_VERSION=$(node -p "require('./temp/rc-approval/rc-approval.json').version")
           if ! [[ "$UI_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
             echo "::error::approved uiCommit is not a full SHA"
             exit 1
           fi
-          if [ "$UI_VERSION" != "${{ steps.release-version.outputs.version }}" ]; then
+          if [ -z "$UI_VERSION" ]; then
+            echo "::error::approval does not record a paired UI version"
+            exit 1
+          fi
+          if [ "$APPROVAL_VERSION" != "${{ steps.release-version.outputs.version }}" ]; then
             echo "::error::approval version does not match the release tag"
             exit 1
           fi
