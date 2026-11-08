@@ -6,22 +6,22 @@
 
 ## 1. 基线
 
-| 仓库 | 分支 | HEAD |
-| --- | --- | --- |
+| 仓库 | 分支   | HEAD                                       |
+| ---- | ------ | ------------------------------------------ |
 | Core | `main` | `fdeb87be04c4f9d777c790a74821922892d7b5cf` |
-| UI | `main` | `c3714eda374c10dea2c7b6c6968d7a863b374e21` |
+| UI   | `main` | `c3714eda374c10dea2c7b6c6968d7a863b374e21` |
 
 本轮从上述基线创建独立 worktree，未修改用户主工作区（`Cargo.toml` 改动保留）。
 
 ## 2. PR 清单
 
-| PR | 分支 | 范围 | 状态 |
-| --- | --- | --- | --- |
-| [#213](https://github.com/baicie/zeus/pull/213) | `fix/r51-rc-evidence-authenticity` | Phase A：审批与跨平台证据真实性 | Draft |
-| [#215](https://github.com/baicie/zeus/pull/215) | `fix/r51-release-tag-pairing` | Phase B/C：dist-tag fail-closed、Core/UI SHA 绑定 | Draft，stacked on #213 |
-| [#214](https://github.com/baicie/zeus/pull/214) | `fix/r51-deployment-recovery` | Phase E：Stage 2 Workspace 回滚事务 | Draft |
-| [#217](https://github.com/baicie/zeus/pull/217) | `feat/r51-rc-rehearsal` | Phase D：离线 0.2.0-rc.0 预演 | Draft |
-| [#216](https://github.com/baicie/zeus/pull/216) | `fix/r51-framework-p2` | Phase F：keyed reorder / Trusted HTML / 断连重连 | Draft |
+| PR                                              | 分支                               | 范围                                              | 状态                   |
+| ----------------------------------------------- | ---------------------------------- | ------------------------------------------------- | ---------------------- |
+| [#213](https://github.com/baicie/zeus/pull/213) | `fix/r51-rc-evidence-authenticity` | Phase A：审批与跨平台证据真实性                   | Draft                  |
+| [#215](https://github.com/baicie/zeus/pull/215) | `fix/r51-release-tag-pairing`      | Phase B/C：dist-tag fail-closed、Core/UI SHA 绑定 | Draft，stacked on #213 |
+| [#214](https://github.com/baicie/zeus/pull/214) | `fix/r51-deployment-recovery`      | Phase E：Stage 2 Workspace 回滚事务               | Draft                  |
+| [#217](https://github.com/baicie/zeus/pull/217) | `feat/r51-rc-rehearsal`            | Phase D：离线 0.2.0-rc.0 预演                     | Draft                  |
+| [#216](https://github.com/baicie/zeus/pull/216) | `fix/r51-framework-p2`             | Phase F：keyed reorder / Trusted HTML / 断连重连  | Draft                  |
 
 未合并任何分支，未创建 Git Tag。
 
@@ -43,23 +43,23 @@
 
 ### P0 / P1
 
-| ID | 级别 | 问题 | 关闭情况 |
-| --- | --- | --- | --- |
-| A1 | P1 | `validateReleaseApproval()` 接受 `approver: "NOT_RUN"` | 已修复：`zeus.rc-approval/v2` 结构化契约，approver 必须是授权对象 |
-| A2 | P1 | `crossPlatform.report` 非空即 PASS | 已修复：`zeus.cross-platform-evidence/v1` 校验真实 job/artifact/测试类型 |
-| A3 | P1 | Release 信任任意 `rc-approval` artifact，无来源校验 | 已修复：新增受保护审批 workflow + run 元数据校验 + Sigstore attestation |
-| B1 | P1 | Registry 查询错误被当作 latest absent | 已修复：显式状态 + 有界重试 + fail closed |
-| B2 | P1 | 从根 `package.json` 判断是否 RC | 已修复：`--version` / tag / `@zeus-js/zeus` 一致性校验 |
-| C1 | P1 | UI 只校验版本，不校验 commit | 已修复：批准 SHA checkout + `--require-commit` + source tree SHA 证据 |
-| E1 | P1 | `chown` 失败后旧 Workspace 不再活动 | 已修复：prepare → chown/验证 → 受检切换 → 验证 → 清理 |
+| ID  | 级别 | 问题                                                   | 关闭情况                                                                 |
+| --- | ---- | ------------------------------------------------------ | ------------------------------------------------------------------------ |
+| A1  | P1   | `validateReleaseApproval()` 接受 `approver: "NOT_RUN"` | 已修复：`zeus.rc-approval/v2` 结构化契约，approver 必须是授权对象        |
+| A2  | P1   | `crossPlatform.report` 非空即 PASS                     | 已修复：`zeus.cross-platform-evidence/v1` 校验真实 job/artifact/测试类型 |
+| A3  | P1   | Release 信任任意 `rc-approval` artifact，无来源校验    | 已修复：新增受保护审批 workflow + run 元数据校验 + Sigstore attestation  |
+| B1  | P1   | Registry 查询错误被当作 latest absent                  | 已修复：显式状态 + 有界重试 + fail closed                                |
+| B2  | P1   | 从根 `package.json` 判断是否 RC                        | 已修复：`--version` / tag / `@zeus-js/zeus` 一致性校验                   |
+| C1  | P1   | UI 只校验版本，不校验 commit                           | 已修复：批准 SHA checkout + `--require-commit` + source tree SHA 证据    |
+| E1  | P1   | `chown` 失败后旧 Workspace 不再活动                    | 已修复：prepare → chown/验证 → 受检切换 → 验证 → 清理                    |
 
 ### P2
 
-| ID | 问题 | 结论 |
-| --- | --- | --- |
-| F1 | keyed 列表 fixed-slot 快路径使用陈旧 `records`，重入更新后节点/键串位，缩短列表时越界读取 | 已修复（`list.ts` 快照 `fixedSlotRecords`），失败用例 + 守护测试 |
-| F2 | `web-c-runtime` 的 `render()` 把字符串直接写入 `innerHTML` | 已修复：字符串按 text node 插入，Node/Node[] 是唯一可信通道；XSS 失败用例转绿 |
-| F3 | 断连期间新增/删除的 light DOM 子节点在重连后被丢弃/复活 | 已修复：重连重新捕获 `childNodes`，`clearContainer` 重新挂回被埋节点 |
+| ID  | 问题                                                                                      | 结论                                                                          |
+| --- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| F1  | keyed 列表 fixed-slot 快路径使用陈旧 `records`，重入更新后节点/键串位，缩短列表时越界读取 | 已修复（`list.ts` 快照 `fixedSlotRecords`），失败用例 + 守护测试              |
+| F2  | `web-c-runtime` 的 `render()` 把字符串直接写入 `innerHTML`                                | 已修复：字符串按 text node 插入，Node/Node[] 是唯一可信通道；XSS 失败用例转绿 |
+| F3  | 断连期间新增/删除的 light DOM 子节点在重连后被丢弃/复活                                   | 已修复：重连重新捕获 `childNodes`，`clearContainer` 重新挂回被埋节点          |
 
 F1 的纯 reorder、index accessor、节点身份与 reorder 后 scope 清理经 fuzz 与守护测试确认无缺陷；F3 的响应式 root 重建与事件监听重复绑定经守护测试确认无缺陷。
 
@@ -129,17 +129,17 @@ Release workflow 只按审批文档中的 40 位 SHA checkout，不再使用 `ZE
 
 预演 HEAD `b8322e7`，目标版本 `0.2.0-rc.0`，17/17 步 PASS，无 FAIL/SKIPPED：
 
-| 步骤 | 真实结果 |
-| --- | --- |
-| version-rewrite | 37 文件 / 46 处编辑 |
-| ui-pin-sync | 1 文件（`@zeus-web/button` beta.34 → beta.35） |
-| install / build / build-dts | 14.8s / 31.2s / 6.5s |
-| check-package-versions / check-create-zeus-versions | PASS |
-| candidate-prepare | 50.1s |
-| ui-install / ui-build-button | 82.7s / 7.4s |
-| candidate-matrix | 42.3s |
-| tarball-validation | **32/32**，版本全部 `0.2.0-rc.0`，sha256 复算匹配 |
-| restore / verify-clean | PASS，工作区干净 |
+| 步骤                                                | 真实结果                                          |
+| --------------------------------------------------- | ------------------------------------------------- |
+| version-rewrite                                     | 37 文件 / 46 处编辑                               |
+| ui-pin-sync                                         | 1 文件（`@zeus-web/button` beta.34 → beta.35）    |
+| install / build / build-dts                         | 14.8s / 31.2s / 6.5s                              |
+| check-package-versions / check-create-zeus-versions | PASS                                              |
+| candidate-prepare                                   | 50.1s                                             |
+| ui-install / ui-build-button                        | 82.7s / 7.4s                                      |
+| candidate-matrix                                    | 42.3s                                             |
+| tarball-validation                                  | **32/32**，版本全部 `0.2.0-rc.0`，sha256 复算匹配 |
+| restore / verify-clean                              | PASS，工作区干净                                  |
 
 32 包 = 31 个 `zeusFixedPackages` + `@zeus-js/vite-plugin`。版本统一性由 `check-package-versions` 与模板安装版本断言共同验证。
 
