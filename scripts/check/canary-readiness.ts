@@ -204,6 +204,10 @@ export function findUnexpectedPackageJsonRewrites(
         delete manifest.version
         delete manifest.repository
         delete manifest.publishConfig
+        if (isCreateZeusTemplatePackage(file)) {
+          delete manifest.dependencies
+          delete manifest.devDependencies
+        }
       }
       if (!isDeepStrictEqual(before, after)) errors.push(file)
     } catch {
@@ -212,6 +216,12 @@ export function findUnexpectedPackageJsonRewrites(
   }
 
   return errors.sort()
+}
+
+export function isCreateZeusTemplatePackage(file: string): boolean {
+  return /^packages\/devtools\/create-zeus\/templates\/[^/]+\/package\.json$/.test(
+    file.replace(/\\/g, '/'),
+  )
 }
 
 export function isAllowedCanaryRewritePath(
@@ -293,6 +303,18 @@ export function takeCanaryRewritePolicy(
         .relative(root, path.join(pkg.dir, 'package.json'))
         .replace(/\\/g, '/'),
     )
+  }
+  const templateRoot = path.join(
+    root,
+    'packages/devtools/create-zeus/templates',
+  )
+  if (fs.existsSync(templateRoot)) {
+    for (const entry of fs.readdirSync(templateRoot, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue
+      exact.add(
+        `packages/devtools/create-zeus/templates/${entry.name}/package.json`,
+      )
+    }
   }
 
   return {
