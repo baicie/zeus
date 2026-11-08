@@ -143,6 +143,24 @@ jobs:
       - name: Release precheck
         run: pnpm release:precheck
 
+      - name: Install paired UI dependencies
+        working-directory: temp/zeus-ui
+        run: pnpm install --frozen-lockfile
+
+      - name: Build paired UI candidate packages
+        working-directory: temp/zeus-ui
+        run: pnpm exec tsx scripts/commands/build.ts button
+
+      - name: Verify create-zeus candidate templates
+        run: pnpm check:create-zeus-candidate --ui-root temp/zeus-ui
+
+      - name: Preserve create-zeus candidate report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: create-zeus-candidate-release
+          path: temp/create-zeus-candidate
+
       # Build output is produced by release:precheck step above.
       # --skipBuild is safe here as long as precheck always runs first.
       - name: Build and publish
