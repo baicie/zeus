@@ -2,6 +2,7 @@ import {
   createRoot,
   createSignal,
   effect,
+  onCleanup,
   onScopeDispose,
   state,
 } from '@zeus-js/signal/internal'
@@ -774,6 +775,124 @@ describe('mountFor', () => {
     setItems([{ id: 1, title: 'changed' }])
     expect(itemRuns).toBe(2)
     expect(root.textContent).toBe('changed')
+  })
+
+  it('keeps key identity when a removed record restores the previous keys', () => {
+    const [items, setItems] = createSignal([
+      { id: 1, title: 'a' },
+      { id: 2, title: 'b' },
+    ])
+    const root = document.createElement('div')
+    const anchor = document.createComment('')
+    root.append(anchor)
+    const mounted: number[] = []
+    const disposed: number[] = []
+    let restore = true
+
+    mountFor(
+      root,
+      anchor,
+      items,
+      item => item.id,
+      item => {
+        const value = item()
+        mounted.push(value.id)
+        onCleanup(() => {
+          disposed.push(value.id)
+          if (!restore) return
+
+          // A cleanup may synchronously restore the previous key set while
+          // the outer reconciliation is still committing.
+          restore = false
+          setItems([
+            { id: 1, title: 'a-restored' },
+            { id: 2, title: 'b-restored' },
+          ])
+        })
+
+        const li = document.createElement('li')
+        effect(() => {
+          li.dataset.id = String(item().id)
+          li.textContent = item().title
+        })
+        return li
+      },
+    )
+
+    const first = root.querySelector('[data-id="1"]')
+    const second = root.querySelector('[data-id="2"]')
+
+    setItems([
+      { id: 3, title: 'c' },
+      { id: 4, title: 'd' },
+    ])
+
+    // The intermediate commit disposed records 1 and 2, so the restored keys
+    // must mount fresh records rather than be written into records 3 and 4.
+    expect(root.textContent).toBe('a-restoredb-restored')
+    expect(
+      Array.from(root.querySelectorAll('li')).map(node =>
+        Number(node.dataset.id),
+      ),
+    ).toEqual([1, 2])
+    expect(root.querySelector('[data-id="1"]')).not.toBe(first)
+    expect(root.querySelector('[data-id="2"]')).not.toBe(second)
+    expect(mounted).toEqual([1, 2, 3, 4, 1, 2])
+    expect(disposed).toEqual([1, 2, 3, 4])
+
+    const restoredFirst = root.querySelector('[data-id="1"]')
+    setItems([
+      { id: 1, title: 'a-next' },
+      { id: 2, title: 'b-next' },
+    ])
+
+    expect(root.querySelector('[data-id="1"]')).toBe(restoredFirst)
+    expect(root.textContent).toBe('a-nextb-next')
+  })
+
+  it('keeps the fixed-slot fast path within the committed record list', () => {
+    const [items, setItems] = createSignal([
+      { id: 1, title: 'a' },
+      { id: 2, title: 'b' },
+    ])
+    const root = document.createElement('div')
+    const anchor = document.createComment('')
+    root.append(anchor)
+    let restore = true
+
+    mountFor(
+      root,
+      anchor,
+      items,
+      item => item.id,
+      item => {
+        onCleanup(() => {
+          if (!restore) return
+
+          restore = false
+          setItems([
+            { id: 1, title: 'a-restored' },
+            { id: 2, title: 'b-restored' },
+          ])
+        })
+
+        const li = document.createElement('li')
+        effect(() => {
+          li.dataset.id = String(item().id)
+          li.textContent = item().title
+        })
+        return li
+      },
+    )
+
+    expect(() => setItems([{ id: 3, title: 'c' }])).not.toThrow()
+
+    expect(root.textContent).toBe('a-restoredb-restored')
+    expect(
+      Array.from(root.querySelectorAll('li')).map(node =>
+        Number(node.dataset.id),
+      ),
+    ).toEqual([1, 2])
   })
 
   it('rejects duplicate keys before mutating rendered records', () => {
