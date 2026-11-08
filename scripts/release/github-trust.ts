@@ -239,6 +239,44 @@ export function verifyAttestation(input: AttestationInput): AttestationResult {
   }
 }
 
+export interface FetchFileInput {
+  readonly repository: string
+  readonly path: string
+  readonly commit: string
+  readonly run?: CommandRunner
+}
+
+/**
+ * Reads a repository file at an immutable commit through the GitHub API.
+ * Used to derive the paired UI version from the approved UI SHA instead of
+ * trusting a value typed into the approval document.
+ */
+export function fetchFileAtCommit(input: FetchFileInput): {
+  readonly content?: string
+  readonly errors: readonly string[]
+} {
+  const exec = input.run ?? defaultCommandRunner
+  const result = exec('gh', [
+    'api',
+    `repos/${input.repository}/contents/${input.path}?ref=${input.commit}`,
+    '-H',
+    'Accept: application/vnd.github.raw',
+  ])
+  if (result.status !== 0) {
+    return {
+      errors: [
+        `file ${input.path} at ${input.commit} cannot be fetched: ${
+          result.stderr.trim() || `exit ${result.status}`
+        }`,
+      ],
+    }
+  }
+  if (result.stdout.trim().length === 0) {
+    return { errors: [`file ${input.path} at ${input.commit} is empty`] }
+  }
+  return { content: result.stdout, errors: [] }
+}
+
 export interface ActorPermissionInput {
   readonly repository: string
   readonly login: string

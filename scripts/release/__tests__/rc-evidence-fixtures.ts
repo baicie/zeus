@@ -151,6 +151,7 @@ export function approvalDocument(
     version: VERSION,
     coreCommit: CORE,
     uiCommit: UI,
+    uiVersion: '0.1.0-beta.35',
     approver: { login: APPROVER, id: 42, permission: 'admin' },
     approvedAt: iso(-60 * 60 * 1000),
     expiresAt: iso(24 * 60 * 60 * 1000),

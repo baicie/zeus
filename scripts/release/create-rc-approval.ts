@@ -15,7 +15,11 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 
-import { fetchActorPermission, fetchRunSnapshot } from './github-trust'
+import {
+  fetchActorPermission,
+  fetchFileAtCommit,
+  fetchRunSnapshot,
+} from './github-trust'
 import {
   APPROVAL_ARTIFACT_NAME,
   APPROVAL_PAYLOAD_ARTIFACT_NAME,
@@ -40,6 +44,8 @@ export interface BuildApprovalPayloadInput {
   readonly coreCommit: string
   readonly uiCommit: string
   readonly version: string
+  readonly uiRepo?: string
+  readonly fetchUiManifest?: typeof fetchFileAtCommit
   readonly crossPlatformFile: string
   readonly evidenceRunId: string
   readonly repository: string
@@ -132,6 +138,26 @@ export function buildApprovalPayload(
     }
   }
 
+  const uiRepo = input.uiRepo ?? 'baicie/zeus-ui'
+  const uiManifest = (input.fetchUiManifest ?? fetchFileAtCommit)({
+    repository: uiRepo,
+    path: 'package.json',
+    commit: input.uiCommit,
+  })
+  errors.push(...uiManifest.errors)
+  let uiVersion = ''
+  if (uiManifest.content) {
+    try {
+      const manifest = JSON.parse(uiManifest.content) as { version?: unknown }
+      if (typeof manifest.version === 'string') uiVersion = manifest.version
+    } catch {
+      errors.push('UI package.json at the approved commit is not valid JSON')
+    }
+  }
+  if (uiVersion.length === 0) {
+    errors.push('UI version at the approved commit cannot be determined')
+  }
+
   if (errors.length > 0) return { errors }
 
   const now = input.now ?? Date.now()
@@ -141,6 +167,7 @@ export function buildApprovalPayload(
     version: input.version,
     coreCommit: input.coreCommit,
     uiCommit: input.uiCommit,
+    uiVersion,
     approver: {
       login: input.actor,
       id: input.actorId,
@@ -215,6 +242,7 @@ export function buildApprovalEnvelope(
     version: payload.version,
     coreCommit: payload.coreCommit,
     uiCommit: payload.uiCommit,
+    uiVersion: payload.uiVersion,
     approver: payload.approver,
     approvedAt: payload.approvedAt,
     expiresAt: payload.expiresAt,
@@ -253,6 +281,7 @@ function main(): void {
       version: { type: 'string' },
       'cross-platform': { type: 'string' },
       'evidence-run-id': { type: 'string' },
+      'ui-repo': { type: 'string', default: 'baicie/zeus-ui' },
       repo: { type: 'string', default: RC_REPOSITORY },
       actor: { type: 'string' },
       'actor-id': { type: 'string' },
@@ -271,6 +300,7 @@ function main(): void {
       'version',
       'cross-platform',
       'evidence-run-id',
+      'ui-repo',
       'actor',
       'actor-id',
       'out',
@@ -283,6 +313,7 @@ function main(): void {
       version: values.version!,
       crossPlatformFile: path.resolve(values['cross-platform']!),
       evidenceRunId: values['evidence-run-id']!,
+      ...(values['ui-repo'] ? { uiRepo: values['ui-repo'] } : {}),
       repository: values.repo!,
       actor: values.actor!,
       actorId: Number(values['actor-id']),

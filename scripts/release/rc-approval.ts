@@ -129,6 +129,8 @@ export interface RcApprovalDocument {
   readonly version: string
   readonly coreCommit: string
   readonly uiCommit: string
+  /** Root version of the paired UI repository at `uiCommit`. */
+  readonly uiVersion: string
   readonly approver: {
     readonly login: string
     readonly id: number
@@ -406,6 +408,12 @@ export function validateRcApproval(
   }
   if (approval.uiCommit !== context.uiCommit) {
     errors.push('release approval uiCommit does not match the UI commit')
+  }
+  if (
+    typeof approval.uiVersion !== 'string' ||
+    approval.uiVersion.length === 0
+  ) {
+    errors.push('release approval uiVersion must be a non-empty string')
   }
 
   const approver = isRecord(approval.approver) ? approval.approver : undefined
