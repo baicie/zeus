@@ -164,6 +164,47 @@ describe('renderToStream (experimental)', () => {
     expect(stopped).toBe(true)
   })
 
+  it('keeps surrogate pairs intact across transport chunks', async () => {
+    const html = await readAll(
+      renderToStream(() => ssrText('😀x'), { flushAt: 1 }),
+    )
+    expect(html).toBe('😀x')
+  })
+
+  it('rejects a non-positive flushAt instead of looping forever', () => {
+    expect(() =>
+      renderToStream(() => ssrText('x'), { flushAt: 0 }),
+    ).toThrowError(/flushAt/)
+    expect(() =>
+      renderToStream(() => ssrText('x'), { flushAt: -1 }),
+    ).toThrowError(/flushAt/)
+  })
+
+  it('swallows an async iterator return rejection during cancellation', async () => {
+    const unhandled: unknown[] = []
+    const listener = (reason: unknown): void => {
+      unhandled.push(reason)
+    }
+    process.on('unhandledRejection', listener)
+    const source = {
+      [Symbol.asyncIterator]() {
+        return {
+          next: async () => ({ value: ssrText('a'), done: false }),
+          return: () => Promise.reject(new Error('return failed')),
+        }
+      },
+    }
+    try {
+      const reader = renderToStream(() => source as never).getReader()
+      await reader.read()
+      await reader.cancel()
+      await new Promise(resolve => setTimeout(resolve, 20))
+      expect(unhandled).toEqual([])
+    } finally {
+      process.off('unhandledRejection', listener)
+    }
+  })
+
   it('rejects an already-aborted signal without running the source', () => {
     const controller = new AbortController()
     controller.abort()
