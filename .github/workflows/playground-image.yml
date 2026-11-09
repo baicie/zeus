@@ -96,6 +96,29 @@ jobs:
             echo "should_deploy=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Resolve the paired UI commit
+        id: ui
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CONFIGURED: ${{ vars.ZEUS_UI_COMMIT }}
+        run: |
+          set -euo pipefail
+          # build-info.ts rejects anything that is not a full 40-character
+          # commit, so a branch name like `main` is not accepted. Resolve the
+          # branch to its current SHA when a pin is not configured.
+          sha="${CONFIGURED:-}"
+          case "$sha" in
+            *[!0-9a-f]* | '')
+              sha="$(gh api "repos/${{ github.repository_owner }}/zeus-ui/commits/${sha:-main}" --jq '.sha')"
+              ;;
+          esac
+          if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Could not resolve a 40-character zeus-ui commit (got '$sha')"
+            exit 1
+          fi
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          echo "zeus-ui commit: ${sha}"
+
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -123,7 +146,7 @@ jobs:
             ${{ env.IMAGE }}:${{ steps.vars.outputs.date_tag }}
           build-args: |
             ZEUS_CORE_COMMIT=${{ github.sha }}
-            ZEUS_UI_COMMIT=${{ vars.ZEUS_UI_COMMIT || 'main' }}
+            ZEUS_UI_COMMIT=${{ steps.ui.outputs.sha }}
             ZEUS_VERSION=${{ steps.vars.outputs.version }}
             ZEUS_BUILD_TIME=${{ steps.vars.outputs.build_time }}
             VITE_ZEUS_SANDBOX_URL=${{ vars.ZEUS_PLAYGROUND_SANDBOX_URL }}
