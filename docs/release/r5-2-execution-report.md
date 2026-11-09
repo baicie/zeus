@@ -7,14 +7,14 @@
 
 ## 1. 基线
 
-| 项目                               | 值                                                                               |
-| ---------------------------------- | -------------------------------------------------------------------------------- |
-| Core main HEAD（审查基线，未移动） | `d93b4a0c3a346d51ae515286dea28158bfe0b643`                                       |
-| Core PR-C 分支                     | `test/r52-cross-repo-workflow-integration`                                       |
-| 分支基点                           | `d93b4a0c`（`origin/main`）                                                      |
-| UI main HEAD（配对对象）           | `77f52c8be2310f6f88057c416011db75c0a70758`                                       |
-| 本机 Node                          | 24.16.0                                                                          |
-| Core 本地工作区                    | `git worktree` 于 `origin/main`，未污染用户现有 `codex/zeus-0.2.0-progress` 分支 |
+| 项目                               | 值                                                                                               |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Core main HEAD（审查基线，未移动） | `d93b4a0c3a346d51ae515286dea28158bfe0b643`                                                       |
+| Core PR-C 分支                     | `test/r52-cross-repo-workflow-integration`（PR [#220](https://github.com/baicie/zeus/pull/220)） |
+| 分支基点                           | `d93b4a0c`（`origin/main`）                                                                      |
+| UI main HEAD（配对对象）           | `77f52c8be2310f6f88057c416011db75c0a70758`                                                       |
+| 本机 Node                          | 24.16.0                                                                                          |
+| Core 本地工作区                    | `git worktree` 于 `origin/main`，未污染用户现有 `codex/zeus-0.2.0-progress` 分支                 |
 
 用户仓库根目录的 `Cargo.toml` 存在一处**未提交的本地修改**（`
 [profile.dev.package."*"] debug = false`）。该修改不属于本轮任务，未提交、未回退。
@@ -204,7 +204,7 @@ UI 侧 `@zeus-js/vite-plugin` 固定 `0.0.5` 属于独立版本例外，不在�
 
 ## 8. 环境/授权阻塞
 
-- 推送 PR-C 分支并创建 Draft PR：允许。
+- 推送 PR-C 分支并创建 Draft PR：已执行（[#220](https://github.com/baicie/zeus/pull/220)）。
 - 触发 Core release workflow、创建 `v0.2.0-rc.0` tag：禁止，需维护者授权。
 - 执行 `repair:latest-tags --apply`：禁止，需 npm 授权。
 - 生产部署与在线验收：禁止，需维护者授权。
