@@ -250,6 +250,8 @@ jobs:
         run: |
           pnpm --filter @zeus-js/example-playground-editor build
           pnpm exec tsx scripts/playground/check-playground-ux.ts
+      - name: Playground theme and language switching in Chromium, Firefox and WebKit
+        run: pnpm check:playground-theme-i18n
       - name: DevTools click-to-binding panel in Chromium, Firefox and WebKit
         run: pnpm check:devtools-panel
       - name: Preserve consumer reports
@@ -269,6 +271,7 @@ jobs:
             temp/compiler-wasm
             temp/playground
             temp/playground-ux
+            temp/playground-theme-i18n
             temp/devtools-panel
             temp/hmr-packed
 

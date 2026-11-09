@@ -42,8 +42,9 @@ navigation predictable across product switches instead of changing the tab set.
 | 1024 × 800 | Two panes, compact toolbar, all six result tabs visible.                      |
 | 390 × 844  | One pane; Editor/Preview switch; result tabs compress to fit; Settings wraps. |
 
-Persisted settings: theme, font size, auto-run, split percentage and active
-result tab. They live in `localStorage` under `zeus-playground.settings.v1`.
+Persisted settings: theme, language, font size, auto-run, split percentage and
+active result tab. They live in `localStorage` under
+`zeus-playground.settings.v1`.
 Projects live in IndexedDB (`zeus-playground`, schema version 1) with a 1.5 MB
 budget, 32-file limit, safe-path validation and a memory fallback. Corrupt or
 version-mismatched records are ignored rather than crashing the shell.
@@ -108,6 +109,29 @@ Twelve runnable projects are shipped:
 Every example is loaded and compiled by the Chromium UX gate; the Native/WebC
 gates then verify their product-specific output.
 
+## Themes and languages
+
+Added in a follow-up change:
+
+- Light is the default theme and English is the default language; both are
+  persisted under the same settings key and applied by an inline bootstrap
+  script before first paint, so a returning dark/Chinese session never flashes
+  the light English shell.
+- The palette follows VS Code Light Modern / Dark Modern, including the
+  CodeMirror gutters, selection, active line and syntax colours. Syntax
+  highlighting lives in CodeMirror's appearance compartment, so switching the
+  theme keeps the document, the cursor and the undo history.
+- Runtime state stores message descriptors rather than rendered strings, so a
+  language switch re-renders status lines, preview states, toasts and panels
+  live. Titles, descriptions and product copy are message keys, never literals.
+- `pnpm check:playground-theme-i18n` first asserts en/zh key parity and that
+  every key used by the UI exists, then runs Chromium, Firefox and WebKit over
+  defaults, live switching, pre-paint application, reload persistence, example
+  drawer copy, the WebC product page, and the 390 px Chinese layout.
+  All three engines passed 103/103 checks; `pnpm check:playground-ux` and
+  `pnpm check:playground-editor` also pass in all three engines with the
+  language-independent readiness signal.
+
 ## Performance
 
 Measured locally on macOS arm64, Chromium (Playwright `channel: chromium`),
@@ -145,7 +169,7 @@ preview controller.
 5. auto-run off, manual Run, auto-run on;
 6. keyboard Run/Save;
 7. preview maximize and split drag, including pointer capture over the iframe;
-8. Settings theme and font size;
+8. Settings theme, language and font size;
 9. example gallery plus all twelve examples (Chromium);
 10. Stop and rerun;
 11. persistence across reload (source, split width and active tab);

@@ -38,6 +38,7 @@ import {
   mobilePane,
   previewFrameworks,
   previewMaximized,
+  previewReady,
   previewStatus,
   product,
   removeActiveFile,
@@ -51,6 +52,7 @@ import {
   setActiveFilePath,
   setFontSize,
   setMobilePane,
+  setPlaygroundLocale,
   setSplit,
   setTheme,
   share,
@@ -71,6 +73,7 @@ import {
 import type { ConsoleEntry, DiagnosticItem } from './model'
 import { examples as allExamples } from './examples'
 import { productHref } from '../products'
+import { formatMessage, locale, t, type MessageKey } from './i18n'
 
 export function PlaygroundShell() {
   let initialized = false
@@ -102,10 +105,10 @@ function TopBar() {
         </span>
         <div>
           <strong>Zeus Playground</strong>
-          <span>Native TSX · Web Components</span>
+          <span>{t('brand.tagline')}</span>
         </div>
       </div>
-      <nav class="pg-products" aria-label="Playground products">
+      <nav class="pg-products" aria-label={t('products.label')}>
         <a
           href={productHref('native-lab')}
           class="pg-product"
@@ -116,7 +119,7 @@ function TopBar() {
             selectProduct('native-lab')
           }}
         >
-          Native
+          {t('product.native')}
         </a>
         <a
           href={productHref('webc-studio')}
@@ -128,7 +131,7 @@ function TopBar() {
             selectProduct('webc-studio')
           }}
         >
-          WebC
+          {t('product.webc')}
         </a>
       </nav>
       <div class="pg-toolbar-actions">
@@ -138,7 +141,7 @@ function TopBar() {
           data-testid="examples"
           onClick={() => examplesOpen.set(true)}
         >
-          Examples
+          {t('toolbar.examples')}
         </button>
         <button
           type="button"
@@ -147,10 +150,10 @@ function TopBar() {
           data-active={autoRun()}
           aria-pressed={autoRun()}
           onClick={toggleAutoRun}
-          title="Compile after a short typing pause"
+          title={t('toolbar.autoRunTitle')}
         >
           <span class="pg-dot" />
-          Auto
+          {t('toolbar.autoRun')}
         </button>
         <button
           type="button"
@@ -159,16 +162,16 @@ function TopBar() {
           data-build-sequence={buildSequence()}
           onClick={() => void compile(true)}
         >
-          Run
+          {t('toolbar.run')}
         </button>
         <button
           type="button"
           class="pg-button"
           data-testid="stop"
           onClick={() => void stop()}
-          disabled={!busy() && !previewStatus().includes('ready')}
+          disabled={!busy() && !previewReady()}
         >
-          Stop
+          {t('toolbar.stop')}
         </button>
         <button
           type="button"
@@ -176,7 +179,7 @@ function TopBar() {
           data-testid="share"
           onClick={() => void share()}
         >
-          Share
+          {t('toolbar.share')}
         </button>
         <button
           type="button"
@@ -184,29 +187,44 @@ function TopBar() {
           data-testid="export"
           onClick={() => void exportZip()}
         >
-          Export
+          {t('toolbar.export')}
         </button>
         <details class="pg-settings">
           <summary class="pg-button quiet" data-testid="settings">
-            Settings
+            {t('toolbar.settings')}
           </summary>
           <div class="pg-popover">
             <label class="pg-field">
-              <span>Theme</span>
+              <span>{t('settings.theme')}</span>
               <select
+                data-testid="theme-select"
                 prop:value={theme()}
                 onChange={event => {
                   const select = event.currentTarget as HTMLSelectElement
-                  setTheme(select.value === 'light' ? 'light' : 'dark')
+                  setTheme(select.value === 'dark' ? 'dark' : 'light')
                 }}
               >
-                <option value="dark">Dark</option>
-                <option value="light">Light</option>
+                <option value="light">{t('settings.themeLight')}</option>
+                <option value="dark">{t('settings.themeDark')}</option>
+              </select>
+            </label>
+            <label class="pg-field">
+              <span>{t('settings.language')}</span>
+              <select
+                data-testid="locale-select"
+                prop:value={locale()}
+                onChange={event => {
+                  const select = event.currentTarget as HTMLSelectElement
+                  setPlaygroundLocale(select.value === 'zh' ? 'zh' : 'en')
+                }}
+              >
+                <option value="en">English</option>
+                <option value="zh">中文</option>
               </select>
             </label>
             <label class="pg-field">
               <span>
-                Font size <b>{fontSize()}px</b>
+                {t('settings.fontSize')} <b>{fontSize()}px</b>
               </span>
               <input
                 type="range"
@@ -226,13 +244,13 @@ function TopBar() {
                 checked={autoRun()}
                 onChange={toggleAutoRun}
               />
-              Auto Run
+              {t('settings.autoRun')}
             </label>
             <button type="button" class="pg-button" onClick={resetProject}>
-              Reset workspace
+              {t('settings.reset')}
             </button>
             <label class="pg-button file-import">
-              Import JSON
+              {t('settings.import')}
               <input
                 type="file"
                 accept="application/json,.json"
@@ -293,17 +311,17 @@ function Workspace() {
         workspaceElement = element ?? undefined
       }}
     >
-      <section class="pg-pane pg-editor-pane" aria-label="Editor">
+      <section class="pg-pane pg-editor-pane" aria-label={t('editor.aria')}>
         <FileBar />
         <CodeEditor />
       </section>
       <button
         type="button"
         class="pg-split"
-        aria-label="Resize editor and preview"
+        aria-label={t('workspace.resize')}
         onPointerDown={startResize}
       />
-      <section class="pg-pane pg-results-pane" aria-label="Results">
+      <section class="pg-pane pg-results-pane" aria-label={t('results.aria')}>
         <ResultsTabs />
         <div class="pg-results-body">
           <PreviewPanel />
@@ -323,7 +341,7 @@ function FileBar() {
   let renameValue = ''
   return (
     <div class="pg-filebar">
-      <div class="pg-file-tabs" role="tablist" aria-label="Project files">
+      <div class="pg-file-tabs" role="tablist" aria-label={t('results.files')}>
         <For each={files()}>
           {file => (
             <button
@@ -346,7 +364,7 @@ function FileBar() {
           type="button"
           class="pg-icon-button"
           data-testid="add-file"
-          aria-label="Add file"
+          aria-label={t('editor.addFile')}
           onClick={() => addFile()}
         >
           +
@@ -355,7 +373,7 @@ function FileBar() {
           type="button"
           class="pg-icon-button"
           data-testid="remove-file"
-          aria-label="Remove file"
+          aria-label={t('editor.removeFile')}
           disabled={activePath() === files()[0]?.path || files().length === 1}
           onClick={removeActiveFile}
         >
@@ -364,7 +382,7 @@ function FileBar() {
       </div>
       <div class="pg-file-meta">
         <input
-          aria-label="Active file path; edit to rename"
+          aria-label={t('editor.activePath')}
           data-testid="active-file"
           data-path-input="true"
           value={activePath()}
@@ -382,8 +400,8 @@ function FileBar() {
           }}
         />
         <Show when={dirty()}>
-          <span class="pg-unsaved" title="Draft is being saved locally">
-            unsaved
+          <span class="pg-unsaved" title={t('editor.unsavedTitle')}>
+            {t('editor.unsaved')}
           </span>
         </Show>
       </div>
@@ -412,6 +430,7 @@ function CodeEditor() {
       currentErrors(),
     )
     handle.setAppearance(theme(), fontSize())
+    handle.setAriaLabel(t('editor.codeAria'))
   }
 
   function mount(): void {
@@ -426,6 +445,7 @@ function CodeEditor() {
         language: activeFile().path.endsWith('.css') ? 'css' : 'ts',
         theme: theme(),
         fontSize: fontSize(),
+        ariaLabel: t('editor.codeAria'),
         onChange: updateSource,
         onRun: () => void compile(true),
         onSave: saveNow,
@@ -441,6 +461,7 @@ function CodeEditor() {
     theme()
     fontSize()
     diagnosticItems()
+    locale()
     if (handle) sync()
     else mount()
   })
@@ -485,23 +506,23 @@ function CodeEditor() {
 
 function ResultsTabs() {
   const tabs = () => [
-    { id: 'preview' as const, label: 'Preview' },
-    { id: 'output' as const, label: 'Output' },
+    { id: 'preview' as const, label: t('tab.preview') },
+    { id: 'output' as const, label: t('tab.output') },
     {
       id: 'console' as const,
-      label: 'Console',
+      label: t('tab.console'),
       count: consoleEntries().length,
     },
     {
       id: 'problems' as const,
-      label: 'Problems',
+      label: t('tab.problems'),
       count: diagnosticItems().filter(item => item.severity === 'error').length,
     },
-    { id: 'inspector' as const, label: 'Inspector' },
-    { id: 'devtools' as const, label: 'DevTools' },
+    { id: 'inspector' as const, label: t('tab.inspector') },
+    { id: 'devtools' as const, label: t('tab.devtools') },
   ]
   return (
-    <div class="pg-result-tabs" role="tablist" aria-label="Results">
+    <div class="pg-result-tabs" role="tablist" aria-label={t('results.aria')}>
       <For each={tabs()}>
         {tab => (
           <button
@@ -526,7 +547,9 @@ function ResultsTabs() {
       <button
         type="button"
         class="pg-icon-button"
-        aria-label={previewMaximized() ? 'Restore editor' : 'Maximize preview'}
+        aria-label={t(
+          previewMaximized() ? 'preview.restore' : 'preview.maximize',
+        )}
         data-testid="preview-max"
         onClick={togglePreviewMax}
       >
@@ -545,17 +568,17 @@ function PreviewPanel() {
     >
       <div class="pg-preview-toolbar">
         <div>
-          <strong>Preview</strong>
-          <span class="pg-opaque-badge">opaque origin</span>
+          <strong>{t('preview.title')}</strong>
+          <span class="pg-opaque-badge">{t('preview.opaque')}</span>
         </div>
         <Show when={stale()}>
           <span class="pg-stale" data-testid="stale-preview">
-            Preview is stale
+            {t('preview.stale')}
           </span>
         </Show>
       </div>
       <p class="pg-preview-status" data-testid="preview-status">
-        {previewStatus()}
+        {formatMessage(previewStatus())}
       </p>
       <div
         class="pg-preview-host"
@@ -575,25 +598,25 @@ function OutputPanel() {
     <section class="pg-result-panel" data-active={activeTab() === 'output'}>
       <div class="pg-panel-heading">
         <div>
-          <strong>Compiler output</strong>
-          <span>{status()}</span>
+          <strong>{t('output.title')}</strong>
+          <span>{formatMessage(status())}</span>
         </div>
-        <span class="pg-pill">DOM + SSR</span>
+        <span class="pg-pill">{t('output.pill')}</span>
       </div>
-      <h3>DOM module</h3>
+      <h3>{t('output.dom')}</h3>
       <pre class="pg-code-output">
         <code data-testid="dom-output">
-          {domOutput() || 'Run the project to inspect DOM output.'}
+          {domOutput() || t('output.domEmpty')}
         </code>
       </pre>
-      <h3>SSR module</h3>
+      <h3>{t('output.ssr')}</h3>
       <pre class="pg-code-output">
         <code data-testid="ssr-output">
-          {ssrOutput() || 'Run the project to inspect SSR output.'}
+          {ssrOutput() || t('output.ssrEmpty')}
         </code>
       </pre>
       <details class="pg-raw-diagnostics">
-        <summary>Source maps and raw diagnostics</summary>
+        <summary>{t('output.raw')}</summary>
         <pre data-testid="diagnostics">{diagnosticsRaw()}</pre>
       </details>
     </section>
@@ -609,26 +632,28 @@ function ConsolePanel() {
     <section class="pg-result-panel" data-active={activeTab() === 'console'}>
       <div class="pg-panel-heading">
         <div>
-          <strong>Console</strong>
-          <span>Isolated sandbox output</span>
+          <strong>{t('console.title')}</strong>
+          <span>{t('console.subtitle')}</span>
         </div>
         <div class="pg-panel-actions">
           <button type="button" class="pg-button small" onClick={filterConsole}>
-            {consoleFilter() === 'all' ? 'Errors only' : 'Show all'}
+            {t(
+              consoleFilter() === 'all'
+                ? 'console.errorsOnly'
+                : 'console.showAll',
+            )}
           </button>
           <button type="button" class="pg-button small" onClick={copyConsole}>
-            Copy
+            {t('console.copy')}
           </button>
           <button type="button" class="pg-button small" onClick={clearConsole}>
-            Clear
+            {t('console.clear')}
           </button>
         </div>
       </div>
       <Show
         when={entries().length > 0}
-        fallback={
-          <p class="pg-empty">Console output from the preview appears here.</p>
-        }
+        fallback={<p class="pg-empty">{t('console.empty')}</p>}
       >
         <ol class="pg-console" data-testid="console">
           <For each={entries()}>{entry => <ConsoleRow entry={entry} />}</For>
@@ -653,18 +678,16 @@ function ProblemsPanel() {
     <section class="pg-result-panel" data-active={activeTab() === 'problems'}>
       <div class="pg-panel-heading">
         <div>
-          <strong>Problems</strong>
+          <strong>{t('problems.title')}</strong>
           <span>
-            {diagnosticItems().length} diagnostics from the current build
+            {t('problems.summary', { count: diagnosticItems().length })}
           </span>
         </div>
-        <span class="pg-pill">{status()}</span>
+        <span class="pg-pill">{formatMessage(status())}</span>
       </div>
       <Show
         when={diagnosticItems().length > 0}
-        fallback={
-          <p class="pg-empty">No problems. Your preview is up to date.</p>
-        }
+        fallback={<p class="pg-empty">{t('problems.empty')}</p>}
       >
         <ul class="pg-problems" data-testid="problems">
           <For each={diagnosticItems()}>
@@ -704,14 +727,12 @@ function InspectorPanel() {
     <section class="pg-result-panel" data-active={activeTab() === 'inspector'}>
       <Show
         when={product() === 'webc-studio'}
-        fallback={
-          <p class="pg-empty">Inspector is available in WebC Studio.</p>
-        }
+        fallback={<p class="pg-empty">{t('inspector.onlyWebc')}</p>}
       >
         <div class="pg-panel-heading">
           <div>
-            <strong>Component inspector</strong>
-            <span>Manifest, declarations and framework consumption</span>
+            <strong>{t('inspector.title')}</strong>
+            <span>{t('inspector.subtitle')}</span>
           </div>
           <button
             type="button"
@@ -719,23 +740,22 @@ function InspectorPanel() {
             data-testid="preview-frameworks"
             onClick={() => void previewFrameworks()}
           >
-            Preview React + Vue
+            {t('inspector.previewFrameworks')}
           </button>
         </div>
         <p class="pg-note" data-testid="framework-preview-status">
-          {frameworkPreviewStatus()}
+          {formatMessage(frameworkPreviewStatus())}
         </p>
-        <h3>Manifest</h3>
+        <h3>{t('inspector.manifest')}</h3>
         <pre class="pg-code-output">
           <code data-testid="webc-manifest">
-            {webcManifest() || 'Run a WebC project to generate the manifest.'}
+            {webcManifest() || t('inspector.manifestEmpty')}
           </code>
         </pre>
-        <h3>Declarations</h3>
+        <h3>{t('inspector.declarations')}</h3>
         <pre class="pg-code-output">
           <code data-testid="webc-declarations">
-            {webcDeclarations() ||
-              'Per-tag DTS appears after a successful compile.'}
+            {webcDeclarations() || t('inspector.declarationsEmpty')}
           </code>
         </pre>
         <div data-testid="webc-inspector" class="pg-inspector">
@@ -744,10 +764,12 @@ function InspectorPanel() {
               <article class="pg-inspector-card">
                 <h3>&lt;{component.tag}&gt;</h3>
                 <p>
-                  {component.shadow ? 'Shadow DOM' : 'Light DOM'}
-                  {component.formAssociated ? ' · form-associated' : ''}
+                  {t(component.shadow ? 'inspector.shadow' : 'inspector.light')}
+                  {component.formAssociated
+                    ? ` · ${t('inspector.formAssociated')}`
+                    : ''}
                 </p>
-                <h4>Props</h4>
+                <h4>{t('inspector.props')}</h4>
                 <ul>
                   <For each={component.props}>
                     {prop => (
@@ -757,16 +779,16 @@ function InspectorPanel() {
                     )}
                   </For>
                 </ul>
-                <h4>Events</h4>
+                <h4>{t('inspector.events')}</h4>
                 <ul>
                   <For each={component.events}>
                     {event => <li>{event.name}</li>}
                   </For>
                 </ul>
-                <h4>Slots</h4>
+                <h4>{t('inspector.slots')}</h4>
                 <ul>
                   <For each={component.slots}>
-                    {slot => <li>{slot || 'default'}</li>}
+                    {slot => <li>{slot || t('inspector.defaultSlot')}</li>}
                   </For>
                 </ul>
               </article>
@@ -774,10 +796,9 @@ function InspectorPanel() {
           </For>
         </div>
         <p class="pg-note">
-          The same Custom Element implementation is mounted in real React 19 and
-          Vue 3 hosts.
+          {t('inspector.hostNote')}
           <a href="/host.html" target="_blank" rel="noreferrer">
-            Open reference host
+            {t('inspector.openHost')}
           </a>
         </p>
       </Show>
@@ -790,27 +811,25 @@ function DevtoolsPanel() {
     <section class="pg-result-panel" data-active={activeTab() === 'devtools'}>
       <Show
         when={product() === 'native-lab'}
-        fallback={<p class="pg-empty">DevTools are available in Native Lab.</p>}
+        fallback={<p class="pg-empty">{t('devtools.onlyNative')}</p>}
       >
         <div class="pg-panel-heading">
           <div>
-            <strong>Runtime DevTools</strong>
-            <span>Signals, bindings and sandbox inspection</span>
+            <strong>{t('devtools.title')}</strong>
+            <span>{t('devtools.subtitle')}</span>
           </div>
           <span class="pg-pill" data-testid="devtools-hmr-count">
-            {hmrModules().length} HMR modules
+            {t('devtools.hmrCount', { count: hmrModules().length })}
           </span>
         </div>
         <div data-testid="runtime-devtools">
           <DevtoolsSnapshot />
         </div>
-        <h3>HMR classification</h3>
+        <h3>{t('devtools.hmr')}</h3>
         <div class="pg-hmr" data-testid="hmr-list">
           <Show
             when={hmrModules().length > 0}
-            fallback={
-              <p class="pg-empty">Run the project to inspect HMR plans.</p>
-            }
+            fallback={<p class="pg-empty">{t('devtools.hmrEmpty')}</p>}
           >
             <For each={hmrModules()}>
               {module => (
@@ -818,32 +837,38 @@ function DevtoolsPanel() {
                   <strong>{module.path}</strong>
                   <span class="pg-pill" data-testid={`hmr-kind-${module.path}`}>
                     {module.hmr.initial
-                      ? 'first-build'
+                      ? t('hmr.firstBuild')
                       : module.hmr.classification?.kind === 'unknown'
-                        ? 'unchanged'
-                        : (module.hmr.classification?.kind ?? 'unchanged')}
+                        ? t('hmr.unchanged')
+                        : t(
+                            hmrKindKey(
+                              module.hmr.classification?.kind ?? 'unknown',
+                            ),
+                          )}
                   </span>
                   <span>
                     {module.hmr.plan
-                      ? `${module.hmr.plan.bindings.length} bindings`
-                      : 'no literal plan'}
+                      ? t('devtools.bindings', {
+                          count: module.hmr.plan.bindings.length,
+                        })
+                      : t('devtools.noLiteralPlan')}
                   </span>
                 </article>
               )}
             </For>
           </Show>
         </div>
-        <h3>Build performance</h3>
+        <h3>{t('devtools.performance')}</h3>
         <dl class="pg-metrics" data-testid="build-metrics">
-          <dt>WASM compile</dt>
+          <dt>{t('devtools.metricCompile')}</dt>
           <dd>{buildMetrics().compileMs.toFixed(1)} ms</dd>
-          <dt>Sandbox run</dt>
+          <dt>{t('devtools.metricRun')}</dt>
           <dd>{buildMetrics().previewMs.toFixed(1)} ms</dd>
-          <dt>Runs</dt>
+          <dt>{t('devtools.metricRuns')}</dt>
           <dd>{buildMetrics().runs}</dd>
-          <dt>DOM bytes</dt>
+          <dt>{t('devtools.metricDomBytes')}</dt>
           <dd>{buildMetrics().domBytes}</dd>
-          <dt>SSR bytes</dt>
+          <dt>{t('devtools.metricSsrBytes')}</dt>
           <dd>{buildMetrics().ssrBytes}</dd>
         </dl>
       </Show>
@@ -856,23 +881,23 @@ function DevtoolsSnapshot() {
   return (
     <div data-testid="runtime-devtools-content">
       <dl class="pg-metrics">
-        <dt>Mode</dt>
+        <dt>{t('devtools.mode')}</dt>
         <dd data-testid="devtools-mode">{snapshot()?.mode ?? 'unknown'}</dd>
-        <dt>Events</dt>
+        <dt>{t('devtools.events')}</dt>
         <dd>{snapshot()?.eventCount ?? 0}</dd>
-        <dt>Owners</dt>
+        <dt>{t('devtools.owners')}</dt>
         <dd data-testid="devtools-owners">{snapshot()?.ownerCount ?? 0}</dd>
-        <dt>Bindings</dt>
+        <dt>{t('devtools.bindingsLabel')}</dt>
         <dd data-testid="devtools-bindings">{snapshot()?.bindingCount ?? 0}</dd>
-        <dt>Effects</dt>
+        <dt>{t('devtools.effects')}</dt>
         <dd data-testid="devtools-effects">{snapshot()?.effectCount ?? 0}</dd>
-        <dt>Signals</dt>
+        <dt>{t('devtools.signals')}</dt>
         <dd data-testid="devtools-sources">{snapshot()?.sourceCount ?? 0}</dd>
-        <dt>DOM nodes</dt>
+        <dt>{t('devtools.domNodes')}</dt>
         <dd data-testid="devtools-dom-nodes">
           {snapshot()?.domNodeCount ?? 0}
         </dd>
-        <dt>Text nodes</dt>
+        <dt>{t('devtools.textNodes')}</dt>
         <dd data-testid="devtools-text-nodes">
           {snapshot()?.textNodeCount ?? 0}
         </dd>
@@ -883,14 +908,14 @@ function DevtoolsSnapshot() {
 
 function MobileSwitch() {
   return (
-    <div class="pg-mobile-switch" role="tablist" aria-label="Mobile view">
+    <div class="pg-mobile-switch" role="tablist" aria-label={t('mobile.label')}>
       <button
         type="button"
         role="tab"
         data-active={mobilePane() === 'editor'}
         onClick={() => setMobilePane('editor')}
       >
-        Editor
+        {t('mobile.editor')}
       </button>
       <button
         type="button"
@@ -898,10 +923,21 @@ function MobileSwitch() {
         data-active={mobilePane() === 'preview'}
         onClick={() => setMobilePane('preview')}
       >
-        Preview
+        {t('mobile.preview')}
       </button>
     </div>
   )
+}
+
+function hmrKindKey(kind: string): MessageKey {
+  if (
+    kind === 'template-structure' ||
+    kind === 'script-body' ||
+    kind === 'style-only'
+  ) {
+    return `hmr.classification.${kind}` as MessageKey
+  }
+  return 'hmr.classification.unknown'
 }
 
 function StatusBar() {
@@ -909,20 +945,28 @@ function StatusBar() {
     diagnosticItems().filter(item => item.severity === 'error').length
   return (
     <footer class="pg-statusbar">
-      <p data-testid="status">{status()}</p>
+      <p data-testid="status">{formatMessage(status())}</p>
       <span
         class="pg-status-dot"
         data-state={errors() > 0 ? 'error' : busy() ? 'busy' : 'ready'}
       />
-      <span>{errors()} problems</span>
-      <span>{buildMetrics().compileMs.toFixed(1)} ms compile</span>
-      <span>{buildMetrics().previewMs.toFixed(1)} ms sandbox</span>
+      <span>{t('status.problems', { count: errors() })}</span>
+      <span>
+        {t('status.compile', { ms: buildMetrics().compileMs.toFixed(1) })}
+      </span>
+      <span>
+        {t('status.sandbox', { ms: buildMetrics().previewMs.toFixed(1) })}
+      </span>
       <span>compiler wasm:0.1.1-beta.20</span>
       <span class="pg-status-spacer" />
       <span data-testid="save-state">
-        {dirty() ? 'Saving…' : savedAt() ? 'Saved locally' : 'Not saved yet'}
+        {dirty()
+          ? t('status.saving')
+          : savedAt()
+            ? t('status.saved')
+            : t('status.notSaved')}
       </span>
-      <span class="pg-status-opaque">opaque sandbox</span>
+      <span class="pg-status-opaque">{t('status.opaque')}</span>
     </footer>
   )
 }
@@ -933,18 +977,18 @@ function ExampleDrawer() {
     <div class="pg-drawer-backdrop" onClick={() => examplesOpen.set(false)}>
       <aside
         class="pg-drawer"
-        aria-label="Examples"
+        aria-label={t('drawer.aria')}
         onClick={event => event.stopPropagation()}
       >
         <div class="pg-drawer-heading">
           <div>
-            <strong>Examples</strong>
-            <span>Start from a working project.</span>
+            <strong>{t('drawer.title')}</strong>
+            <span>{t('drawer.subtitle')}</span>
           </div>
           <button
             type="button"
             class="pg-icon-button"
-            aria-label="Close examples"
+            aria-label={t('drawer.close')}
             onClick={() => examplesOpen.set(false)}
           >
             ×
@@ -961,24 +1005,28 @@ function ExampleDrawer() {
                 onClick={() => loadExample(example)}
               >
                 <span class="pg-example-product">
-                  {example.product === 'native-lab' ? 'Native' : 'WebC'}
+                  {t(
+                    example.product === 'native-lab'
+                      ? 'example.native'
+                      : 'example.webc',
+                  )}
                 </span>
-                <strong>{example.title}</strong>
-                <span>{example.description}</span>
+                <strong>{t(example.titleKey)}</strong>
+                <span>{t(example.descriptionKey)}</span>
               </button>
             )}
           </For>
         </div>
         <div class="pg-drawer-footer">
           <button type="button" class="pg-button" onClick={resetCurrentExample}>
-            Reset example
+            {t('drawer.reset')}
           </button>
           <button
             type="button"
             class="pg-button"
             onClick={() => examplesOpen.set(false)}
           >
-            Close
+            {t('drawer.close')}
           </button>
         </div>
       </aside>
@@ -996,7 +1044,7 @@ function Toast() {
       data-testid="toast"
       onClick={dismissToast}
     >
-      {value()?.message}
+      {value() ? formatMessage(value()!.message) : ''}
     </button>
   )
 }

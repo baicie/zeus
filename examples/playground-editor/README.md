@@ -17,7 +17,12 @@ export use the same `@zeus-js/playground-engine` build contract.
   numbers, undo/redo, `Cmd/Ctrl+Enter` to run and `Cmd/Ctrl+S` to save. The
   editor is a lazy chunk so the shell stays small.
 - Adjustable editor/preview split, persisted result tab, persisted split width,
-  theme and font size, and preview maximize.
+  theme, language and font size, and preview maximize.
+- Light and dark themes follow VS Code's Light Modern / Dark Modern palettes,
+  including the CodeMirror syntax colours. Light is the default.
+- English and Chinese UI. English is the default; the choice is persisted and
+  applied before first paint, and switching re-renders live status, toasts and
+  preview messages without a rebuild or reload.
 - Native and WebC products share one shell. WebC adds the manifest/DTS
   inspector and a real React 19 + Vue 3 consumption preview.
 - Reliable auto-run: 700 ms debounce, manual run cancels a pending run, a

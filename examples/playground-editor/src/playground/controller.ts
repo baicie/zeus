@@ -28,6 +28,16 @@ import { activeProduct, productHref, setActiveProduct } from '../products'
 import { templates } from '../webc-project'
 import type { PlaygroundProduct } from '../products'
 import { examples, examplesFor } from './examples'
+import {
+  formatMessage,
+  isPlaygroundLocale,
+  locale,
+  msg,
+  raw,
+  setLocale,
+  t,
+  type UiMessage,
+} from './i18n'
 import type {
   ConsoleEntry,
   DiagnosticItem,
@@ -91,10 +101,9 @@ export const previewMaximized = createUiSignal(false)
 export const examplesOpen = createUiSignal(false)
 export const busy = createUiSignal(false)
 export const stale = createUiSignal(false)
-export const status = createUiSignal('Ready')
-export const previewStatus = createUiSignal(
-  'Preview will appear after the first run.',
-)
+export const previewReady = createUiSignal(false)
+export const status = createUiSignal<UiMessage>(msg('status.ready'))
+export const previewStatus = createUiSignal<UiMessage>(msg('preview.idle'))
 export const buildSequence = createUiSignal(0)
 export const dirty = createUiSignal(false)
 export const savedAt = createUiSignal<string | undefined>(undefined)
@@ -122,11 +131,11 @@ export const buildMetrics = createUiSignal({
   ssrBytes: 0,
   runs: 0,
 })
-export const frameworkPreviewStatus = createUiSignal(
-  'Compile a WebC project, then preview it in isolated React and Vue hosts.',
+export const frameworkPreviewStatus = createUiSignal<UiMessage>(
+  msg('frameworks.idle'),
 )
 export const toast = createUiSignal<
-  { readonly message: string; readonly kind: 'info' | 'error' } | undefined
+  { readonly message: UiMessage; readonly kind: 'info' | 'error' } | undefined
 >(undefined)
 export const focusRequest = createUiSignal<
   | { readonly file: string; readonly line?: number; readonly nonce: number }
@@ -169,7 +178,7 @@ export function attachPreview(container: HTMLElement): void {
   previewFrame?.remove()
   const frame = document.createElement('iframe')
   frame.dataset.testid = 'preview-frame'
-  frame.title = 'Zeus playground sandbox'
+  frame.title = t('preview.frameTitle')
   frame.referrerPolicy = 'no-referrer'
   frame.setAttribute('sandbox', 'allow-scripts')
   container.append(frame)
@@ -224,12 +233,15 @@ export function projectSnapshot() {
 export async function initialize(): Promise<void> {
   if (initialized) return
   initialized = true
+  setLocale(initialSettings.locale)
   applyTheme()
+  applyLocale()
   const shared = readShareHash()
   if (shared) {
     const payload = await decodeShare(shared)
     if (payload) {
       setActiveProduct(payload.product)
+      applyLocale()
       files.set(payload.files)
       activePath.set(payload.activePath)
       currentExampleId.set(payload.exampleId)
@@ -297,7 +309,7 @@ export function removeActiveFile(): void {
 export function renameActiveFile(nextPath: string): boolean {
   const path = nextPath.trim().replaceAll('\\', '/')
   if (!isSafeProjectPath(path) || files().some(file => file.path === path)) {
-    showToast('Use a unique relative path such as src/panel.tsx.', 'error')
+    showToast(msg('file.invalidPath'), 'error')
     return false
   }
   const current = activePath()
@@ -314,6 +326,7 @@ export function selectProduct(next: PlaygroundProduct): void {
   if (next === product()) return
   saveNow()
   setActiveProduct(next)
+  applyLocale()
   history.pushState(null, '', productHref(next))
   const template = templates[next]
   files.set(template.files)
@@ -338,6 +351,7 @@ export function loadExample(example: PlaygroundExample): void {
   if (dirty()) saveNow()
   if (example.product !== product()) {
     setActiveProduct(example.product)
+    applyLocale()
     history.pushState(null, '', productHref(example.product))
   }
   files.set(example.files)
@@ -387,6 +401,13 @@ export function setTheme(value: 'light' | 'dark'): void {
   persistSettings()
 }
 
+export function setPlaygroundLocale(value: 'en' | 'zh'): void {
+  if (!isPlaygroundLocale(value)) return
+  setLocale(value)
+  applyLocale()
+  persistSettings()
+}
+
 export function setFontSize(value: number): void {
   fontSize.set(Math.max(12, Math.min(20, Math.round(value))))
   persistSettings()
@@ -428,13 +449,13 @@ export function copyConsole(): void {
     )
     .join('\n')
   void navigator.clipboard?.writeText(text).then(
-    () => showToast('Console copied.', 'info'),
-    () => showToast('Clipboard is unavailable.', 'error'),
+    () => showToast(msg('toast.consoleCopied'), 'info'),
+    () => showToast(msg('toast.clipboardUnavailable'), 'error'),
   )
 }
 
 export function showToast(
-  message: string,
+  message: UiMessage,
   kind: 'info' | 'error' = 'info',
 ): void {
   toast.set({ message, kind })
@@ -469,7 +490,7 @@ export function saveNow(): void {
     if (ok) markSaved(true)
     else {
       dirty.set(true)
-      showToast('Draft could not be saved in this browser mode.', 'error')
+      showToast(msg('toast.saveFailed'), 'error')
     }
   })
 }
@@ -482,14 +503,15 @@ export function markDirty(): void {
 
 export async function importProject(file: File): Promise<void> {
   if (file.size > 1_500_000) {
-    showToast('Project JSON is larger than 1.5 MB.', 'error')
+    showToast(msg('toast.importTooLarge'), 'error')
     return
   }
   try {
     const value = JSON.parse(await file.text()) as unknown
     const payload = await decodeShareFromJson(value)
-    if (!payload) throw new Error('Invalid project file.')
+    if (!payload) throw new Error(t('toast.importInvalid'))
     setActiveProduct(payload.product)
+    applyLocale()
     history.pushState(null, '', productHref(payload.product))
     files.set(payload.files)
     activePath.set(payload.activePath)
@@ -499,10 +521,10 @@ export async function importProject(file: File): Promise<void> {
     markDirty()
     saveNow()
     if (autoRun()) scheduleAutoRun(0)
-    showToast('Project imported.', 'info')
+    showToast(msg('toast.projectImported'), 'info')
   } catch (error) {
     showToast(
-      error instanceof Error ? error.message : 'Import failed.',
+      raw(error instanceof Error ? error.message : t('toast.importFailed')),
       'error',
     )
   }
@@ -531,20 +553,20 @@ export async function share(): Promise<void> {
       activePath: activePath(),
       ...(currentExampleId() ? { exampleId: currentExampleId() } : {}),
     })
-    showToast('Project too large for a URL — JSON downloaded instead.', 'info')
+    showToast(msg('toast.shareDownloaded'), 'info')
     return
   }
   try {
     await navigator.clipboard.writeText(url)
-    showToast('Share link copied to clipboard.', 'info')
+    showToast(msg('toast.shareCopied'), 'info')
   } catch {
-    window.prompt('Copy this share link:', url)
+    window.prompt(t('share.prompt'), url)
   }
 }
 
 export async function exportZip(): Promise<void> {
   busy.set(true)
-  status.set('Preparing project archive…')
+  status.set(msg('status.exporting'))
   try {
     const result = await exportProject(projectSnapshot(), {
       packageName:
@@ -567,11 +589,11 @@ export async function exportZip(): Promise<void> {
     anchor.download = `${rootName}.zip`
     anchor.click()
     setTimeout(() => URL.revokeObjectURL(url), 0)
-    status.set(`Exported ${result.files.length} files as ZIP.`)
-    showToast('Project ZIP downloaded.', 'info')
+    status.set(msg('status.exported', { count: result.files.length }))
+    showToast(msg('toast.exportDownloaded'), 'info')
   } catch (error) {
-    status.set('Export failed.')
-    showToast(formatCompileError(error), 'error')
+    status.set(msg('status.exportFailed'))
+    showToast(raw(formatCompileError(error)), 'error')
   } finally {
     busy.set(false)
   }
@@ -583,12 +605,11 @@ export async function compile(manual = false): Promise<void> {
   if (autoRunTimer !== undefined) window.clearTimeout(autoRunTimer)
   autoRunTimer = undefined
   busy.set(true)
-  if (!manual) status.set('Auto-running…')
-  else status.set('Compiling…')
-  previewStatus.update(value =>
-    value.includes('Preview ready')
-      ? 'Rebuilding preview…'
-      : 'Compiling project…',
+  status.set(msg(manual ? 'status.compiling' : 'status.autoRunning'))
+  // A language switch invalidates rendered text but not the fact that a
+  // preview is live, so track readiness separately from the message.
+  previewStatus.set(
+    msg(previewReady() ? 'preview.rebuilding' : 'preview.compiling'),
   )
   let snapshot: ReturnType<typeof projectSnapshot> | undefined
   let dom: PlaygroundCompileResult | undefined
@@ -625,21 +646,22 @@ export async function compile(manual = false): Promise<void> {
     const errors = allDiagnostics.filter(item => item.severity === 'error')
     if (errors.length > 0) {
       stale.set(true)
-      status.set(
-        `Compile failed · ${errors.length} problem${errors.length === 1 ? '' : 's'}`,
-      )
-      previewStatus.set('Preview is stale — fix the reported problems.')
+      status.set(msg('status.compileFailedCount', { count: errors.length }))
+      previewStatus.set(msg('preview.staleFix'))
       selectTab('problems')
       return
     }
     previousSnapshot = snapshot
     stale.set(false)
     status.set(
-      `Compiled ${dom.meta.moduleCount} modules · ${compileMs.toFixed(1)} ms`,
+      msg('status.compiled', {
+        count: dom.meta.moduleCount,
+        ms: compileMs.toFixed(1),
+      }),
     )
     const build = await createPlaygroundPreview(dom)
     if (revision !== runRevision) return
-    previewStatus.set('Running in the opaque sandbox…')
+    previewStatus.set(msg('preview.running'))
     const result = await preview.run(build, snapshot.options.sandboxTimeoutMs)
     if (revision !== runRevision) return
     devtoolsSnapshot.set(result.devtools)
@@ -651,12 +673,14 @@ export async function compile(manual = false): Promise<void> {
       ssrBytes: ssr!.meta.byteCount,
       runs: current.runs + 1,
     }))
+    previewReady.set(true)
     previewStatus.set(
-      `Preview ready · ${result.durationMs.toFixed(1)} ms${
-        result.exportedNames.length > 0
-          ? ` · ${result.exportedNames.join(', ')}`
-          : ''
-      }`,
+      result.exportedNames.length > 0
+        ? msg('preview.readyWithExports', {
+            ms: result.durationMs.toFixed(1),
+            names: result.exportedNames.join(', '),
+          })
+        : msg('preview.ready', { ms: result.durationMs.toFixed(1) }),
     )
     if (errors.length === 0 && activeTab() === 'problems') {
       selectTab('preview')
@@ -665,8 +689,8 @@ export async function compile(manual = false): Promise<void> {
     if (revision !== runRevision) return
     resetCompiler()
     stale.set(true)
-    status.set('Compile failed.')
-    previewStatus.set('Preview is stale — the compiler rejected this project.')
+    status.set(msg('status.compileFailed'))
+    previewStatus.set(msg('preview.staleRejected'))
     const message = formatCompileError(error)
     diagnosticsRaw.set(message)
     diagnosticItems.set(parseProjectError(message))
@@ -686,25 +710,24 @@ export async function stop(): Promise<void> {
   preview.stop()
   busy.set(false)
   stale.set(true)
-  status.set('Stopped')
-  previewStatus.set('Preview stopped. Run again when ready.')
+  previewReady.set(false)
+  status.set(msg('status.stopped'))
+  previewStatus.set(msg('preview.stopped'))
   buildSequence.update(value => value + 1)
 }
 
 export async function previewFrameworks(): Promise<void> {
   const tag = webcHostTag
   if (!tag) {
-    frameworkPreviewStatus.set('Compile a WebC project first.')
+    frameworkPreviewStatus.set(msg('frameworks.needCompile'))
     return
   }
-  frameworkPreviewStatus.set('Mounting React and Vue in the opaque sandbox…')
+  frameworkPreviewStatus.set(msg('frameworks.mounting'))
   try {
     await preview.runHostPreview(tag)
-    frameworkPreviewStatus.set(
-      'React and Vue hosts mounted in the opaque sandbox.',
-    )
+    frameworkPreviewStatus.set(msg('frameworks.mounted'))
   } catch (error) {
-    frameworkPreviewStatus.set(formatCompileError(error))
+    frameworkPreviewStatus.set(raw(formatCompileError(error)))
   }
 }
 
@@ -714,8 +737,16 @@ export function testState() {
     files: files(),
     activePath: activePath(),
     source: activeFile().content,
-    status: status(),
-    previewStatus: previewStatus(),
+    // Rendered strings keep browser gates readable; the structured message is
+    // exposed alongside so a gate can assert on the key after a language switch.
+    status: formatMessage(status()),
+    previewStatus: formatMessage(previewStatus()),
+    statusMessage: status(),
+    previewStatusMessage: previewStatus(),
+    frameworkPreviewStatusMessage: frameworkPreviewStatus(),
+    locale: locale(),
+    theme: theme(),
+    previewReady: previewReady(),
     busy: busy(),
     stale: stale(),
     diagnostics: diagnosticItems(),
@@ -736,7 +767,7 @@ export function setSourceForTest(content: string): void {
 export function resetProject(): void {
   void clearWorkspace(product()).then(() => {
     resetCurrentExample()
-    showToast('Workspace reset.', 'info')
+    showToast(msg('toast.workspaceReset'), 'info')
   })
 }
 
@@ -942,6 +973,7 @@ function resetBuildPanels(): void {
 function persistSettings(): void {
   writeSettings({
     theme: theme(),
+    locale: locale(),
     fontSize: fontSize(),
     autoRun: autoRun(),
     splitPercent: splitPercent(),
@@ -951,6 +983,18 @@ function persistSettings(): void {
 
 function applyTheme(): void {
   document.documentElement.dataset.theme = theme()
+  // Keep the browser chrome in step with the in-app surface.
+  const meta = document.querySelector<HTMLMetaElement>(
+    'meta[name="theme-color"]',
+  )
+  if (meta) meta.content = theme() === 'dark' ? '#1f1f1f' : '#f3f3f3'
+}
+
+function applyLocale(): void {
+  document.documentElement.lang = locale() === 'zh' ? 'zh-CN' : 'en'
+  document.title = t(
+    product() === 'webc-studio' ? 'html.titleWebc' : 'html.titleNative',
+  )
 }
 
 function markSaved(_fromSave: boolean): void {

@@ -93,10 +93,7 @@ async function measure(page: Page): Promise<PerformanceReport> {
   })
   const firstEditableMs = Date.now() - started
   await page.waitForFunction(
-    () =>
-      document
-        .querySelector('[data-testid="preview-status"]')
-        ?.textContent?.includes('Preview ready'),
+    () => window.__zeusPlayground?.getState().previewReady === true,
     null,
     { timeout: 30_000 },
   )

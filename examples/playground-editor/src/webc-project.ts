@@ -1,4 +1,5 @@
 import type { PlaygroundProduct } from './products'
+import type { MessageKey } from './playground/i18n'
 
 export interface StudioFile {
   readonly path: string
@@ -7,8 +8,8 @@ export interface StudioFile {
 
 export interface StudioTemplate {
   readonly product: PlaygroundProduct
-  readonly title: string
-  readonly description: string
+  readonly titleKey: MessageKey
+  readonly descriptionKey: MessageKey
   readonly files: readonly StudioFile[]
 }
 
@@ -65,9 +66,8 @@ render(
 export const templates: Readonly<Record<PlaygroundProduct, StudioTemplate>> = {
   'native-lab': {
     product: 'native-lab',
-    title: 'Native Lab',
-    description:
-      '编辑 Zeus Native TSX，运行 Signal / Show / For 与 Router / Query，再导出可安装 SPA。',
+    titleKey: 'title.nativeLab',
+    descriptionKey: 'product.nativeLab.description',
     files: [
       {
         path: 'src/main.tsx',
@@ -137,9 +137,8 @@ export const Counter = () => {
   },
   'webc-studio': {
     product: 'webc-studio',
-    title: 'WebC Studio',
-    description:
-      '编辑组件 TSX，实时生成 CE/Manifest/CEM/DTS，并由 React 与 Vue 消费同一个 Custom Element。',
+    titleKey: 'title.webcStudio',
+    descriptionKey: 'product.webcStudio.description',
     files: [
       {
         path: 'src/counter.tsx',

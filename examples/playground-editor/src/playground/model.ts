@@ -1,4 +1,5 @@
 import type { PlaygroundProduct } from '../products'
+import type { MessageKey } from './i18n'
 
 export type { PlaygroundProduct }
 
@@ -14,11 +15,15 @@ export interface PlaygroundWorkspace {
   readonly exampleId?: string
 }
 
+/**
+ * Titles and descriptions are message keys, never literal copy, so the whole
+ * shell can switch language without reloading persisted state.
+ */
 export interface PlaygroundExample {
   readonly id: string
   readonly product: PlaygroundProduct
-  readonly title: string
-  readonly description: string
+  readonly titleKey: MessageKey
+  readonly descriptionKey: MessageKey
   readonly files: readonly PlaygroundFile[]
 }
 

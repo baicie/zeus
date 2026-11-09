@@ -1,47 +1,71 @@
+/*
+ * Palette mirrors VS Code's Light Modern / Dark Modern defaults so the
+ * playground reads like the editor developers already use. Light is the
+ * default surface; dark is opt-in from Settings.
+ */
 :root {
-  --pg-bg: #0e1318;
-  --pg-surface: #151c23;
-  --pg-surface-raised: #1b242c;
-  --pg-surface-muted: #11181e;
-  --pg-border: #26333d;
-  --pg-border-strong: #354553;
-  --pg-text: #d9e4ec;
-  --pg-text-muted: #8b9ba7;
-  --pg-text-subtle: #657582;
-  --pg-accent: #38bdf8;
-  --pg-accent-strong: #7dd3fc;
-  --pg-accent-soft: rgba(56, 189, 248, 0.12);
-  --pg-success: #34d399;
-  --pg-warning: #fbbf24;
-  --pg-error: #f87171;
-  --pg-code-bg: #10161b;
-  --pg-shadow: 0 18px 48px rgb(0 0 0 / 28%);
-  --pg-radius: 8px;
+  --pg-bg: #f3f3f3;
+  --pg-surface: #f8f8f8;
+  --pg-surface-raised: #ffffff;
+  --pg-surface-muted: #f3f3f3;
+  --pg-border: #e5e5e5;
+  --pg-border-strong: #cecece;
+  --pg-text: #3b3b3b;
+  --pg-text-muted: #616161;
+  --pg-text-subtle: #8b8b8b;
+  --pg-accent: #005fb8;
+  --pg-accent-strong: #0258a8;
+  --pg-accent-soft: rgba(0, 95, 184, 0.09);
+  --pg-success: #388a34;
+  --pg-warning: #bf8803;
+  --pg-warning-soft: rgba(191, 136, 3, 0.1);
+  --pg-warning-border: rgba(191, 136, 3, 0.35);
+  --pg-error: #cd3131;
+  --pg-error-soft: rgba(205, 49, 49, 0.09);
+  --pg-error-border: rgba(205, 49, 49, 0.38);
+  --pg-logo-from: #005fb8;
+  --pg-logo-to: #17a2a2;
+  --pg-css-file: #a371f7;
+  --pg-code-bg: #ffffff;
+  --pg-preview-bg: #ffffff;
+  --pg-shadow: 0 8px 26px rgb(0 0 0 / 16%);
+  --pg-radius: 4px;
   --pg-font:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    'Segoe UI', sans-serif;
+    'Segoe WPC', 'Segoe UI', Inter, ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, sans-serif;
   --pg-mono:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
-    monospace;
-  color-scheme: dark;
+    'SF Mono', Monaco, Menlo, Consolas, 'Ubuntu Mono', 'Liberation Mono',
+    ui-monospace, monospace;
+  color-scheme: light;
 }
 
-[data-theme='light'] {
-  --pg-bg: #f4f7f9;
-  --pg-surface: #ffffff;
-  --pg-surface-raised: #ffffff;
-  --pg-surface-muted: #f1f5f8;
-  --pg-border: #dbe4ea;
-  --pg-border-strong: #c4d1da;
-  --pg-text: #17232d;
-  --pg-text-muted: #5d707d;
-  --pg-text-subtle: #81929d;
-  --pg-accent: #0e7490;
-  --pg-accent-strong: #0f766e;
-  --pg-accent-soft: rgba(14, 116, 144, 0.09);
-  --pg-code-bg: #fbfcfe;
-  --pg-shadow: 0 18px 48px rgb(20 42 58 / 13%);
-  color-scheme: light;
+[data-theme='dark'] {
+  --pg-bg: #1f1f1f;
+  --pg-surface: #181818;
+  --pg-surface-raised: #202020;
+  --pg-surface-muted: #1f1f1f;
+  --pg-border: #2b2b2b;
+  --pg-border-strong: #3c3c3c;
+  --pg-text: #cccccc;
+  --pg-text-muted: #9d9d9d;
+  --pg-text-subtle: #6e7681;
+  --pg-accent: #0078d4;
+  --pg-accent-strong: #026ec1;
+  --pg-accent-soft: rgba(0, 120, 212, 0.16);
+  --pg-success: #2ea043;
+  --pg-warning: #cca700;
+  --pg-warning-soft: rgba(204, 167, 0, 0.16);
+  --pg-warning-border: rgba(204, 167, 0, 0.42);
+  --pg-error: #f85149;
+  --pg-error-soft: rgba(248, 81, 73, 0.15);
+  --pg-error-border: rgba(248, 81, 73, 0.45);
+  --pg-logo-from: #0078d4;
+  --pg-logo-to: #17a2a2;
+  --pg-css-file: #a371f7;
+  --pg-code-bg: #1f1f1f;
+  --pg-preview-bg: #ffffff;
+  --pg-shadow: 0 8px 26px rgb(0 0 0 / 36%);
+  color-scheme: dark;
 }
 
 * {
@@ -123,11 +147,11 @@ textarea:focus-visible {
   width: 30px;
   height: 30px;
   border-radius: 7px;
-  background: linear-gradient(140deg, #0ea5e9, #14b8a6);
+  background: linear-gradient(140deg, var(--pg-logo-from), var(--pg-logo-to));
   color: #fff;
   font-weight: 800;
   letter-spacing: -0.04em;
-  box-shadow: 0 8px 18px rgb(14 165 233 / 24%);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 18%);
 }
 
 .pg-brand strong {
@@ -173,7 +197,7 @@ textarea:focus-visible {
 .pg-product[data-active] {
   background: var(--pg-surface);
   color: var(--pg-text);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 12%);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 10%);
 }
 
 .pg-toolbar-actions {
@@ -223,7 +247,7 @@ textarea:focus-visible {
 .pg-button.primary {
   background: var(--pg-accent);
   border-color: var(--pg-accent);
-  color: #061018;
+  color: #ffffff;
 }
 
 .pg-button.primary:hover {
@@ -448,7 +472,7 @@ textarea:focus-visible {
 }
 
 .pg-file-kind[data-kind='css'] {
-  background: #c084fc;
+  background: var(--pg-css-file);
 }
 
 .pg-file-tabs .pg-icon-button {
@@ -652,8 +676,8 @@ textarea:focus-visible {
 
 .pg-stale {
   color: var(--pg-warning);
-  border-color: rgb(251 191 36 / 40%);
-  background: rgb(251 191 36 / 8%);
+  border-color: var(--pg-warning-border);
+  background: var(--pg-warning-soft);
 }
 
 .pg-preview-status {
@@ -669,7 +693,7 @@ textarea:focus-visible {
 .pg-preview-host {
   flex: 1;
   min-height: 0;
-  background: #fff;
+  background: var(--pg-preview-bg);
 }
 
 .pg-preview-host iframe {
@@ -677,7 +701,7 @@ textarea:focus-visible {
   width: 100%;
   height: 100%;
   border: 0;
-  background: #fff;
+  background: var(--pg-preview-bg);
 }
 
 .pg-panel-heading {
@@ -840,14 +864,14 @@ textarea:focus-visible {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: rgb(248 113 113 / 12%);
+  background: var(--pg-error-soft);
   color: var(--pg-error);
   font-size: 12px;
   font-weight: 800;
 }
 
 .pg-problem[data-severity='warning'] .pg-problem-icon {
-  background: rgb(251 191 36 / 12%);
+  background: var(--pg-warning-soft);
   color: var(--pg-warning);
 }
 
@@ -1105,7 +1129,7 @@ textarea:focus-visible {
 }
 
 .pg-toast[data-kind='error'] {
-  border-color: rgb(248 113 113 / 45%);
+  border-color: var(--pg-error-border);
   color: var(--pg-error);
 }
 

@@ -110,14 +110,30 @@ async function runChecks(page: Page, browserName: string): Promise<void> {
     )
   }
 
-  // Theme and font size from Settings.
+  // Theme, language and font size from Settings. Light + English are the
+  // shipped defaults, so the round trip starts by switching away from them.
   await page.getByTestId('settings').click()
-  await page.locator('.pg-popover select').selectOption('light')
+  await page.locator('[data-testid="theme-select"]').selectOption('dark')
+  if (
+    (await page.evaluate(() => document.documentElement.dataset.theme)) !==
+    'dark'
+  ) {
+    throw new Error('dark theme was not applied')
+  }
+  await page.locator('[data-testid="theme-select"]').selectOption('light')
   if (
     (await page.evaluate(() => document.documentElement.dataset.theme)) !==
     'light'
   ) {
     throw new Error('light theme was not applied')
+  }
+  await page.locator('[data-testid="locale-select"]').selectOption('zh')
+  if ((await page.evaluate(() => document.documentElement.lang)) !== 'zh-CN') {
+    throw new Error('Chinese locale was not applied')
+  }
+  await page.locator('[data-testid="locale-select"]').selectOption('en')
+  if ((await page.evaluate(() => document.documentElement.lang)) !== 'en') {
+    throw new Error('English locale was not restored')
   }
   await page.locator('.pg-popover input[type="range"]').fill('16')
   const fontPixels = await page
@@ -127,7 +143,6 @@ async function runChecks(page: Page, browserName: string): Promise<void> {
     throw new Error(`font size was not applied: ${fontPixels}`)
   }
   await page.locator('.pg-popover input[type="range"]').fill('14')
-  await page.locator('.pg-popover select').selectOption('dark')
   await page.getByTestId('settings').click()
 
   // Keep deterministic manual runs; auto-run is tested separately below.
@@ -445,10 +460,7 @@ async function run(page: Page, expectSuccess = true): Promise<void> {
 
 async function waitReady(page: Page): Promise<void> {
   await page.waitForFunction(
-    () =>
-      window.__zeusPlayground
-        ?.getState()
-        .previewStatus.includes('Preview ready'),
+    () => window.__zeusPlayground?.getState().previewReady === true,
     null,
     { timeout: 45_000 },
   )
@@ -507,6 +519,9 @@ declare global {
       save(): void
       shareUrl(): Promise<string | undefined>
       getState(): {
+        previewReady: boolean
+        locale: 'en' | 'zh'
+        theme: 'light' | 'dark'
         product: 'native-lab' | 'webc-studio'
         files: readonly { path: string; content: string }[]
         activePath: string

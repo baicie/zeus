@@ -22,8 +22,11 @@ export type PersistedTab = (typeof TABS)[number]
 
 const memoryFallback = new Map<string, PersistedWorkspace>()
 
+export type ThemeName = 'light' | 'dark'
+
 export interface PlaygroundSettings {
-  readonly theme: 'light' | 'dark'
+  readonly theme: ThemeName
+  readonly locale: 'en' | 'zh'
   readonly fontSize: number
   readonly autoRun: boolean
   readonly splitPercent: number
@@ -31,7 +34,8 @@ export interface PlaygroundSettings {
 }
 
 export const DEFAULT_SETTINGS: PlaygroundSettings = {
-  theme: 'dark',
+  theme: 'light',
+  locale: 'en',
   fontSize: 14,
   autoRun: true,
   splitPercent: 50,
@@ -90,7 +94,8 @@ export function readSettings(): PlaygroundSettings {
     if (!raw) return DEFAULT_SETTINGS
     const value = JSON.parse(raw) as Partial<PlaygroundSettings>
     return {
-      theme: value.theme === 'light' ? 'light' : 'dark',
+      theme: value.theme === 'dark' ? 'dark' : 'light',
+      locale: value.locale === 'zh' ? 'zh' : 'en',
       fontSize:
         typeof value.fontSize === 'number' &&
         value.fontSize >= 12 &&

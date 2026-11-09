@@ -664,10 +664,7 @@ async function runNativeLab(
 ): Promise<void> {
   await page.getByTestId('compile').click()
   await page.waitForFunction(
-    () =>
-      document
-        .querySelector('[data-testid="preview-status"]')
-        ?.textContent?.includes('Preview ready'),
+    () => window.__zeusPlayground?.getState().previewReady === true,
     null,
     { timeout: 90_000 },
   )
@@ -723,10 +720,7 @@ async function runWebCStudio(
 ): Promise<void> {
   await page.getByTestId('compile').click()
   await page.waitForFunction(
-    () =>
-      document
-        .querySelector('[data-testid="preview-status"]')
-        ?.textContent?.includes('Preview ready'),
+    () => window.__zeusPlayground?.getState().previewReady === true,
     null,
     { timeout: 90_000 },
   )
@@ -740,11 +734,24 @@ async function runWebCStudio(
     { timeout: 90_000 },
   )
   await page.getByTestId('preview-frameworks').click()
+  // Status copy is localized; assert the message key, which is stable.
   await page.waitForFunction(
-    () =>
-      document
-        .querySelector('[data-testid="framework-preview-status"]')
-        ?.textContent?.includes('mounted in the opaque sandbox'),
+    () => {
+      const state = (
+        window as unknown as {
+          __zeusPlayground?: {
+            getState(): {
+              frameworkPreviewStatusMessage?: {
+                key?: string
+                text?: string
+              }
+            }
+          }
+        }
+      ).__zeusPlayground?.getState()
+      const message = state?.frameworkPreviewStatusMessage
+      return message?.key === 'frameworks.mounted'
+    },
     null,
     { timeout: 30_000 },
   )

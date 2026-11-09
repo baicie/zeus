@@ -1,8 +1,25 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f3f3f3" />
+    <script>
+      // Apply the persisted theme/language before first paint so the shell
+      // never flashes the wrong surface.
+      try {
+        var saved = JSON.parse(
+          localStorage.getItem('zeus-playground.settings.v1') || '{}',
+        )
+        var dark = saved.theme === 'dark'
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+        document.documentElement.lang = saved.locale === 'zh' ? 'zh-CN' : 'en'
+        var meta = document.querySelector('meta[name="theme-color"]')
+        if (meta) meta.content = dark ? '#1f1f1f' : '#f3f3f3'
+      } catch (error) {
+        document.documentElement.dataset.theme = 'light'
+      }
+    </script>
     <title>Zeus WebC Studio</title>
   </head>
   <body>

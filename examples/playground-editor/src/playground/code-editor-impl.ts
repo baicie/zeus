@@ -1,7 +1,7 @@
 import { basicSetup } from 'codemirror'
 import { css } from '@codemirror/lang-css'
 import { javascript } from '@codemirror/lang-javascript'
-import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language'
+import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { indentWithTab } from '@codemirror/commands'
 import {
   Compartment,
@@ -16,13 +16,18 @@ import {
   keymap,
   type DecorationSet,
 } from '@codemirror/view'
+import type { Extension } from '@codemirror/state'
+import { tags } from '@lezer/highlight'
+
+import type { ThemeName } from './persistence'
 
 export interface CodeEditorOptions {
   readonly parent: HTMLElement
   readonly doc: string
   readonly language: 'ts' | 'css'
-  readonly theme: 'light' | 'dark'
+  readonly theme: ThemeName
   readonly fontSize: number
+  readonly ariaLabel: string
   readonly onChange: (value: string) => void
   readonly onRun: () => void
   readonly onSave: () => void
@@ -30,7 +35,8 @@ export interface CodeEditorOptions {
 
 export interface CodeEditorHandle {
   setDoc(doc: string, language: 'ts' | 'css', errors: readonly number[]): void
-  setAppearance(theme: 'light' | 'dark', fontSize: number): void
+  setAppearance(theme: ThemeName, fontSize: number): void
+  setAriaLabel(label: string): void
   setErrors(errors: readonly number[]): void
   focusLine(line: number): void
   getValue(): string
@@ -68,9 +74,18 @@ export function mountCodeEditor(options: CodeEditorOptions): CodeEditorHandle {
   let currentDoc = options.doc
   let currentLanguage = options.language
   let currentErrors: readonly number[] = []
+  let currentTheme = options.theme
+  let currentFontSize = options.fontSize
   let suppressChange = false
 
-  const extensions = () => [
+  // The syntax highlighter is theme-dependent, so it lives inside the
+  // appearance compartment and can be swapped without recreating the document
+  // (which would drop undo history and the cursor).
+  // The syntax palette is theme-specific, so it ships inside the appearance
+  // compartment. `basicSetup` registers a stock light-only fallback style, and
+  // the first fallback per tag wins, so ours must come before `basicSetup`.
+  const extensions = (language: 'ts' | 'css') => [
+    appearanceCompartment.of(appearance(currentTheme, currentFontSize)),
     basicSetup,
     keymap.of([
       indentWithTab,
@@ -90,14 +105,12 @@ export function mountCodeEditor(options: CodeEditorOptions): CodeEditorHandle {
         },
       },
     ]),
-    languageCompartment.of(languageExtension(options.language)),
-    appearanceCompartment.of(appearance(options.theme, options.fontSize)),
+    languageCompartment.of(languageExtension(language)),
     errorLineField,
-    syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
     EditorView.lineWrapping,
     EditorView.contentAttributes.of({
       'data-testid': 'source',
-      'aria-label': 'Code editor',
+      'aria-label': options.ariaLabel,
       spellcheck: 'false',
       autocapitalize: 'off',
       autocomplete: 'off',
@@ -111,7 +124,7 @@ export function mountCodeEditor(options: CodeEditorOptions): CodeEditorHandle {
 
   let state = EditorState.create({
     doc: currentDoc,
-    extensions: extensions(),
+    extensions: extensions(currentLanguage),
   })
   let view = new EditorView({ state, parent: options.parent })
   if (currentErrors.length > 0)
@@ -126,7 +139,7 @@ export function mountCodeEditor(options: CodeEditorOptions): CodeEditorHandle {
     currentLanguage = language
     currentErrors = errors
     suppressChange = true
-    state = EditorState.create({ doc, extensions: extensions() })
+    state = EditorState.create({ doc, extensions: extensions(language) })
     view.setState(state)
     if (errors.length > 0) view.dispatch({ effects: setErrorLines.of(errors) })
     suppressChange = false
@@ -144,9 +157,15 @@ export function mountCodeEditor(options: CodeEditorOptions): CodeEditorHandle {
       recreate(doc, language, errors)
     },
     setAppearance(theme, fontSize) {
+      if (theme === currentTheme && fontSize === currentFontSize) return
+      currentTheme = theme
+      currentFontSize = fontSize
       view.dispatch({
         effects: appearanceCompartment.reconfigure(appearance(theme, fontSize)),
       })
+    },
+    setAriaLabel(label) {
+      view.contentDOM.setAttribute('aria-label', label)
     },
     setErrors(errors) {
       if (arraysEqual(errors, currentErrors)) return
@@ -188,51 +207,222 @@ function languageExtension(language: 'ts' | 'css') {
     : javascript({ jsx: true, typescript: true })
 }
 
-function appearance(theme: 'light' | 'dark', fontSize: number) {
+interface EditorPalette {
+  readonly background: string
+  readonly foreground: string
+  readonly caret: string
+  readonly gutter: string
+  readonly gutterText: string
+  readonly activeLine: string
+  readonly activeGutter: string
+  readonly selection: string
+  readonly tooltip: string
+  readonly tooltipBorder: string
+  readonly errorLine: string
+  readonly errorEdge: string
+  readonly syntax: {
+    readonly comment: string
+    readonly keyword: string
+    readonly string: string
+    readonly number: string
+    readonly function: string
+    readonly type: string
+    readonly variable: string
+    readonly property: string
+    readonly operator: string
+    readonly tag: string
+    readonly attribute: string
+    readonly invalid: string
+  }
+}
+
+/** VS Code Light Modern / Dark Modern syntax palettes. */
+const palettes: Record<ThemeName, EditorPalette> = {
+  light: {
+    background: '#ffffff',
+    foreground: '#1f1f1f',
+    caret: '#000000',
+    gutter: '#ffffff',
+    gutterText: '#6e7681',
+    activeLine: 'rgba(0, 0, 0, 0.035)',
+    activeGutter: 'rgba(0, 0, 0, 0.05)',
+    selection: 'rgba(0, 95, 184, 0.18)',
+    tooltip: '#ffffff',
+    tooltipBorder: '#c8c8c8',
+    errorLine: 'rgba(205, 49, 49, 0.09)',
+    errorEdge: '#cd3131',
+    syntax: {
+      comment: '#008000',
+      keyword: '#0000ff',
+      string: '#a31515',
+      number: '#098658',
+      function: '#795e26',
+      type: '#267f99',
+      variable: '#001080',
+      property: '#001080',
+      operator: '#000000',
+      tag: '#800000',
+      attribute: '#e50000',
+      invalid: '#cd3131',
+    },
+  },
+  dark: {
+    background: '#1f1f1f',
+    foreground: '#cccccc',
+    caret: '#aeafad',
+    gutter: '#1f1f1f',
+    gutterText: '#858585',
+    activeLine: 'rgba(255, 255, 255, 0.045)',
+    activeGutter: 'rgba(255, 255, 255, 0.06)',
+    selection: 'rgba(38, 79, 120, 0.75)',
+    tooltip: '#202020',
+    tooltipBorder: '#454545',
+    errorLine: 'rgba(248, 81, 73, 0.14)',
+    errorEdge: '#f85149',
+    syntax: {
+      comment: '#6a9955',
+      keyword: '#569cd6',
+      string: '#ce9178',
+      number: '#b5cea8',
+      function: '#dcdcaa',
+      type: '#4ec9b0',
+      variable: '#9cdcfe',
+      property: '#9cdcfe',
+      operator: '#d4d4d4',
+      tag: '#569cd6',
+      attribute: '#9cdcfe',
+      invalid: '#f85149',
+    },
+  },
+}
+
+function highlightStyle(theme: ThemeName): HighlightStyle {
+  const { syntax } = palettes[theme]
+  return HighlightStyle.define([
+    {
+      tag: [tags.comment, tags.lineComment, tags.blockComment],
+      color: syntax.comment,
+      fontStyle: 'italic',
+    },
+    { tag: tags.docComment, color: syntax.comment, fontStyle: 'italic' },
+    {
+      tag: [
+        tags.keyword,
+        tags.controlKeyword,
+        tags.moduleKeyword,
+        tags.definitionKeyword,
+        tags.operatorKeyword,
+        tags.modifier,
+        tags.self,
+        tags.null,
+        tags.atom,
+        tags.bool,
+      ],
+      color: syntax.keyword,
+    },
+    {
+      tag: [tags.string, tags.docString, tags.character, tags.attributeValue],
+      color: syntax.string,
+    },
+    { tag: [tags.regexp, tags.escape], color: syntax.string },
+    {
+      tag: [tags.number, tags.integer, tags.float, tags.color, tags.unit],
+      color: syntax.number,
+    },
+    {
+      tag: [
+        tags.function(tags.variableName),
+        tags.function(tags.propertyName),
+        tags.macroName,
+      ],
+      color: syntax.function,
+    },
+    {
+      tag: [tags.typeName, tags.className, tags.namespace],
+      color: syntax.type,
+    },
+    {
+      tag: [tags.tagName, tags.angleBracket],
+      color: syntax.tag,
+    },
+    { tag: [tags.attributeName], color: syntax.attribute },
+    {
+      tag: [
+        tags.variableName,
+        tags.labelName,
+        tags.constant(tags.variableName),
+      ],
+      color: syntax.variable,
+    },
+    {
+      tag: [tags.propertyName, tags.definition(tags.propertyName)],
+      color: syntax.property,
+    },
+    {
+      tag: [tags.operator, tags.punctuation, tags.bracket, tags.separator],
+      color: syntax.operator,
+    },
+    { tag: tags.definition(tags.variableName), color: syntax.variable },
+    { tag: tags.local(tags.variableName), color: syntax.variable },
+    { tag: tags.special(tags.variableName), color: syntax.function },
+    { tag: tags.invalid, color: syntax.invalid },
+  ])
+}
+
+function appearance(theme: ThemeName, fontSize: number): Extension[] {
+  const palette = palettes[theme]
   const dark = theme === 'dark'
   return [
+    syntaxHighlighting(highlightStyle(theme), { fallback: true }),
     EditorView.theme(
       {
         '&': {
           height: '100%',
-          backgroundColor: dark ? '#141a20' : '#fbfcfe',
-          color: dark ? '#d6e2ea' : '#1f2937',
+          backgroundColor: palette.background,
+          color: palette.foreground,
           fontSize: `${fontSize}px`,
         },
         '.cm-scroller': {
           fontFamily:
-            'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
-          lineHeight: '1.65',
+            '"SF Mono", Monaco, Menlo, Consolas, "Ubuntu Mono", "Liberation Mono", ui-monospace, monospace',
+          lineHeight: '1.6',
         },
-        '.cm-content': { caretColor: dark ? '#7dd3fc' : '#0f766e' },
+        '.cm-content': { caretColor: palette.caret },
+        '.cm-cursor, .cm-dropCursor': { borderLeftColor: palette.caret },
         '.cm-gutters': {
-          backgroundColor: dark ? '#10161b' : '#f3f6f8',
-          color: dark ? '#657582' : '#94a3b8',
+          backgroundColor: palette.gutter,
+          color: palette.gutterText,
           border: 'none',
         },
-        '.cm-activeLine': {
-          backgroundColor: dark
-            ? 'rgba(125, 211, 252, 0.06)'
-            : 'rgba(15, 118, 110, 0.06)',
-        },
+        '.cm-activeLine': { backgroundColor: palette.activeLine },
         '.cm-activeLineGutter': {
-          backgroundColor: dark
-            ? 'rgba(125, 211, 252, 0.08)'
-            : 'rgba(15, 118, 110, 0.08)',
-          color: dark ? '#bae6fd' : '#0f766e',
+          backgroundColor: palette.activeGutter,
+          color: dark ? '#cccccc' : '#1f1f1f',
         },
-        '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': {
-          backgroundColor: dark
-            ? 'rgba(56, 189, 248, 0.22)'
-            : 'rgba(13, 148, 136, 0.16)',
-        },
+        '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection':
+          { backgroundColor: palette.selection },
         '.cm-error-line': {
-          backgroundColor: 'rgba(248, 113, 113, 0.16)',
-          boxShadow: 'inset 2px 0 0 #f87171',
+          backgroundColor: palette.errorLine,
+          boxShadow: `inset 2px 0 0 ${palette.errorEdge}`,
         },
         '.cm-tooltip': {
-          backgroundColor: dark ? '#1b242c' : '#ffffff',
-          border: `1px solid ${dark ? '#2b3944' : '#d8e1e8'}`,
+          backgroundColor: palette.tooltip,
+          border: `1px solid ${palette.tooltipBorder}`,
+        },
+        '.cm-panels': {
+          backgroundColor: dark ? '#181818' : '#f3f3f3',
+          color: palette.foreground,
+        },
+        '.cm-searchMatch': {
+          backgroundColor: dark
+            ? 'rgba(234, 92, 0, 0.33)'
+            : 'rgba(234, 92, 0, 0.25)',
+        },
+        '.cm-matchingBracket': {
+          backgroundColor: dark
+            ? 'rgba(0, 120, 212, 0.28)'
+            : 'rgba(0, 95, 184, 0.16)',
+          outline: 'none',
         },
       },
       { dark },
