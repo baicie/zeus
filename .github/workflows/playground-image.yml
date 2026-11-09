@@ -190,6 +190,8 @@ jobs:
       HEALTH_URL: http://127.0.0.1:18080/build-info.json
       GHCR_MIRRORS: ${{ vars.GHCR_MIRRORS || 'ghcr.nju.edu.cn' }}
       SSH_KEY: ${{ secrets.ZEUS_PLAYGROUND_DEPLOY_SSH_KEY }}
+      REGISTRY_TOKEN: ${{ github.token }}
+      REGISTRY_USER: ${{ github.actor }}
       SSH_PASSWORD: ${{ secrets.ZEUS_PLAYGROUND_DEPLOY_SSH_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
@@ -210,6 +212,18 @@ jobs:
             echo "::error::Set ZEUS_PLAYGROUND_DEPLOY_SSH_KEY (preferred) or ZEUS_PLAYGROUND_DEPLOY_SSH_PASSWORD"
             exit 1
           fi
+
+      - name: Read the registry credential for the host pull
+        id: registry
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # The package inherits the repository's visibility, but GHCR can still
+          # require auth. Hand the host a short-lived token instead of a PAT so
+          # nothing long-lived leaves the runner.
+          echo "token=${GH_TOKEN}" >> "$GITHUB_OUTPUT"
+          echo "user=${GITHUB_ACTOR}" >> "$GITHUB_OUTPUT"
 
       - name: Install SSH client
         run: |
@@ -254,10 +268,11 @@ jobs:
             SSH=(sshpass -f ~/.ssh/pass ssh)
           fi
           SSH+=(-o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 -p "${DEPLOY_PORT}")
-          "${SSH[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" 'bash -s' -- \
-            "${IMAGE_REF}" "${DEPLOY_TAG}" "${IMAGE_DIGEST}" "${CONTAINER}" \
-            "${DEPLOY_DIR}" "${HEALTH_URL}" "${GHCR_MIRRORS}" <<'REMOTE'
+          # The registry token travels on stdin (first line) so it never shows up
+          # in the host process table; everything else goes through argv.
+          { printf '%s\n' "${REGISTRY_TOKEN}"; cat <<'REMOTE'
           set -euo pipefail
+          IFS= read -r REG_TOKEN
           IMAGE="$1"; TAG="$2"; DIGEST="$3"; CONTAINER="$4"
           DIR="$5"; HEALTH="$6"; MIRRORS="$7"
           CANONICAL="${IMAGE}:${TAG}"
@@ -277,6 +292,13 @@ jobs:
             RUN=(sudo -n env "IMAGE_REPO=${IMAGE}" "IMAGE_TAG=${TAG}" "CONTAINER_NAME=${CONTAINER}" "COMPOSE_PROJECT_NAME=${CONTAINER}" docker)
           else
             RUN=(env "IMAGE_REPO=${IMAGE}" "IMAGE_TAG=${TAG}" "CONTAINER_NAME=${CONTAINER}" "COMPOSE_PROJECT_NAME=${CONTAINER}" docker)
+          fi
+
+          # Authenticate only for the canonical registry. Mirrors stay anonymous
+          # because they must serve public content to be useful as accelerators.
+          if [[ -n "${REG_TOKEN}" ]]; then
+            printf '%s' "${REG_TOKEN}" | "${RUN[@]}" login ghcr.io -u "${REGISTRY_USER}" --password-stdin >/dev/null 2>&1 \
+              && echo "==> ghcr login ok" || echo "==> ghcr login skipped (anonymous)"
           fi
 
           # Pull by digest: content-addressed, so a mirror cannot substitute the
@@ -331,6 +353,9 @@ jobs:
           "${RUN[@]}" image prune -f >/dev/null 2>&1 || true
           echo "deployed ${CANONICAL}"
           REMOTE
+          } | "${SSH[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" 'bash -s' -- \
+            "${IMAGE_REF}" "${DEPLOY_TAG}" "${IMAGE_DIGEST}" "${CONTAINER}" \
+            "${DEPLOY_DIR}" "${HEALTH_URL}" "${GHCR_MIRRORS}"
 
       - name: Cleanup credentials
         if: always()

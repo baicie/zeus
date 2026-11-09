@@ -45,6 +45,7 @@ function check(name: string, ok: boolean, detail?: string): void {
 
 async function main(): Promise<void> {
   await fs.mkdir(output, { recursive: true })
+  await checkBootstrapHash()
   const server = await createStaticServer(dist)
   try {
     for (const [name, engine] of Object.entries(engines)) {
@@ -442,6 +443,39 @@ async function runChecks(browser: Browser, name: string): Promise<void> {
   } finally {
     await page.close()
     await context.close()
+  }
+}
+
+/**
+ * The inline bootstrap is allowed by a CSP hash. Recompute it from the built
+ * HTML so a whitespace edit or a new statement cannot silently disable the
+ * pre-paint theme and reintroduce the flash.
+ */
+async function checkBootstrapHash(): Promise<void> {
+  const { createHash } = await import('node:crypto')
+  const nginx = await fs.readFile(
+    path.join(root, 'examples/playground-editor/deploy/nginx.conf'),
+    'utf8',
+  )
+  const declared = /sha256-([A-Za-z0-9+/=]+)/.exec(nginx)?.[1]
+  for (const file of ['index.html', 'webc.html']) {
+    const html = await fs.readFile(
+      path.join(root, 'examples/playground-editor/dist', file),
+      'utf8',
+    )
+    const body = /<script>\n([\s\S]*?)\n\s*<\/script>/.exec(html)?.[1]
+    check(
+      `${file} has an inline bootstrap`,
+      body !== undefined,
+      'no <script> block',
+    )
+    if (body === undefined) continue
+    const actual = createHash('sha256').update(body).digest('base64')
+    check(
+      `${file} bootstrap hash matches nginx.conf`,
+      actual === declared,
+      `declared sha256-${declared ?? 'none'}, actual sha256-${actual}`,
+    )
   }
 }
 

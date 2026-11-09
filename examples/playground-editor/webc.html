@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#f3f3f3" />
     <script>
-      // Apply the persisted theme/language before first paint so the shell
-      // never flashes the wrong surface.
+      // Apply the persisted theme and language before first paint so a
+      // returning dark/Chinese session never flashes the light shell.
       try {
         var saved = JSON.parse(
           localStorage.getItem('zeus-playground.settings.v2') || '{}',
