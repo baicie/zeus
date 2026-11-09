@@ -413,8 +413,17 @@ export function setFontSize(value: number): void {
   persistSettings()
 }
 
+/**
+ * Clamps and applies the split while dragging. Persisting on every pointermove
+ * ran a synchronous localStorage write per frame (39 writes for one drag),
+ * which stuttered the reflow and read as flicker. Callers persist once on
+ * pointerup via `commitSplit`.
+ */
 export function setSplit(value: number): void {
-  splitPercent.set(Math.max(30, Math.min(70, Math.round(value))))
+  splitPercent.set(Math.max(30, Math.min(70), Math.round(value)))
+}
+
+export function commitSplit(): void {
   persistSettings()
 }
 

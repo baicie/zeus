@@ -388,6 +388,10 @@ textarea:focus-visible {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* Each pane sizes and paints independently: dragging the splitter then only
+     re-lays-out the two columns instead of the whole page, which removes the
+     visible repaint stutter. */
+  contain: layout paint style;
 }
 
 .pg-editor-pane {
@@ -745,6 +749,97 @@ textarea:focus-visible {
   max-height: 38vh;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.pg-code-output .tok-comment {
+  color: #008000;
+  font-style: italic;
+}
+
+.pg-code-output .tok-keyword {
+  color: #0000ff;
+}
+
+.pg-code-output .tok-string {
+  color: #a31515;
+}
+
+.pg-code-output .tok-number {
+  color: #098658;
+}
+
+.pg-code-output .tok-function {
+  color: #795e26;
+}
+
+.pg-code-output .tok-type {
+  color: #267f99;
+}
+
+.pg-code-output .tok-tag {
+  color: #800000;
+}
+
+.pg-code-output .tok-attribute {
+  color: #e50000;
+}
+
+.pg-code-output .tok-variable,
+.pg-code-output .tok-property {
+  color: #001080;
+}
+
+.pg-code-output .tok-operator {
+  color: #000000;
+}
+
+.pg-code-output .tok-invalid {
+  color: #cd3131;
+}
+
+[data-theme='dark'] .pg-code-output .tok-comment {
+  color: #6a9955;
+}
+
+[data-theme='dark'] .pg-code-output .tok-keyword {
+  color: #569cd6;
+}
+
+[data-theme='dark'] .pg-code-output .tok-string {
+  color: #ce9178;
+}
+
+[data-theme='dark'] .pg-code-output .tok-number {
+  color: #b5cea8;
+}
+
+[data-theme='dark'] .pg-code-output .tok-function {
+  color: #dcdcaa;
+}
+
+[data-theme='dark'] .pg-code-output .tok-type {
+  color: #4ec9b0;
+}
+
+[data-theme='dark'] .pg-code-output .tok-tag {
+  color: #569cd6;
+}
+
+[data-theme='dark'] .pg-code-output .tok-attribute {
+  color: #9cdcfe;
+}
+
+[data-theme='dark'] .pg-code-output .tok-variable,
+[data-theme='dark'] .pg-code-output .tok-property {
+  color: #9cdcfe;
+}
+
+[data-theme='dark'] .pg-code-output .tok-operator {
+  color: #d4d4d4;
+}
+
+[data-theme='dark'] .pg-code-output .tok-invalid {
+  color: #f85149;
 }
 
 .pg-raw-diagnostics {

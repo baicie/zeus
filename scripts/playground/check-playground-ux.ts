@@ -95,7 +95,25 @@ async function runChecks(page: Page, browserName: string): Promise<void> {
 
   // Draggable split with a persisted width.
   const splitBefore = await splitValue(page)
+  // Count storage writes during the drag: persisting per pointermove used to
+  // write ~40 times and stutter the reflow. Only the release should persist.
+  await page.evaluate(() => {
+    ;(window as unknown as { __writes: number }).__writes = 0
+    const original = Storage.prototype.setItem
+    Storage.prototype.setItem = function (this: Storage, ...args) {
+      ;(window as unknown as { __writes: number }).__writes += 1
+      return original.apply(this, args as [string, string])
+    }
+  })
   await dragSplit(page, 100)
+  const writesDuringDrag = await page.evaluate(
+    () => (window as unknown as { __writes: number }).__writes,
+  )
+  if (writesDuringDrag > 2) {
+    throw new Error(
+      `split wrote storage ${writesDuringDrag} times during one drag; persist on release instead`,
+    )
+  }
   const splitAfter = await splitValue(page)
   if (splitAfter <= splitBefore + 2) {
     throw new Error(`split did not move: ${splitBefore} -> ${splitAfter}`)

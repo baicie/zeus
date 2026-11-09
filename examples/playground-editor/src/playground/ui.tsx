@@ -12,6 +12,7 @@ import {
   buildSequence,
   busy,
   clearConsole,
+  commitSplit,
   compile,
   consoleEntries,
   consoleFilter,
@@ -73,6 +74,7 @@ import {
 import type { ConsoleEntry, DiagnosticItem } from './model'
 import { examples as allExamples } from './examples'
 import { productHref } from '../products'
+import { highlightCode } from './highlight'
 import { formatMessage, locale, t, type MessageKey } from './i18n'
 
 export function PlaygroundShell() {
@@ -286,11 +288,14 @@ function Workspace() {
       setSplit(percent)
     }
     const end = () => {
+      if (!resizing) return
       resizing = false
       setDragging(false)
       target.releasePointerCapture?.(event.pointerId)
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', end)
+      // One write on release instead of one per animation frame.
+      commitSplit()
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', end)
@@ -593,6 +598,43 @@ function PreviewPanel() {
   )
 }
 
+/**
+ * Compiler output is plain text; render it through the shared token palette so
+ * the Output tab reads like the editor. `innerHTML` is safe here because the
+ * only source is the compiler's own module code, and every token is escaped by
+ * `highlightCode`.
+ */
+function HighlightedCode(props: {
+  testId: string
+  code: string
+  empty: string
+}) {
+  let element: HTMLElement | undefined
+  createEffect(() => {
+    const code = props.code
+    const target = element
+    if (!target) return
+    if (!code) {
+      target.textContent = props.empty
+      delete target.dataset.highlighted
+      return
+    }
+    // Highlighting is a pure function of the code string, so only recompute
+    // when it actually changes; tab switches re-read the same string.
+    const html = highlightCode(code)
+    if (target.innerHTML !== html) target.innerHTML = html
+    target.dataset.highlighted = 'true'
+  })
+  return (
+    <code
+      data-testid={props.testId}
+      ref={next => {
+        element = next ?? undefined
+      }}
+    />
+  )
+}
+
 function OutputPanel() {
   return (
     <section class="pg-result-panel" data-active={activeTab() === 'output'}>
@@ -605,15 +647,19 @@ function OutputPanel() {
       </div>
       <h3>{t('output.dom')}</h3>
       <pre class="pg-code-output">
-        <code data-testid="dom-output">
-          {domOutput() || t('output.domEmpty')}
-        </code>
+        <HighlightedCode
+          testId="dom-output"
+          code={domOutput()}
+          empty={t('output.domEmpty')}
+        />
       </pre>
       <h3>{t('output.ssr')}</h3>
       <pre class="pg-code-output">
-        <code data-testid="ssr-output">
-          {ssrOutput() || t('output.ssrEmpty')}
-        </code>
+        <HighlightedCode
+          testId="ssr-output"
+          code={ssrOutput()}
+          empty={t('output.ssrEmpty')}
+        />
       </pre>
       <details class="pg-raw-diagnostics">
         <summary>{t('output.raw')}</summary>

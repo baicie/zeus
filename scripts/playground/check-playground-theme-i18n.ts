@@ -377,6 +377,54 @@ async function runChecks(browser: Browser, name: string): Promise<void> {
     )
     await legacyContext.close()
 
+    // 9. Compiler output is tokenized and uses the theme palette, so the
+    //    Output tab matches the editor in both themes.
+    await page.getByTestId('tab-output').click()
+    await page.waitForTimeout(300)
+    const lightTokens = await page.evaluate(() => {
+      const spans = document.querySelectorAll(
+        '[data-testid="dom-output"] span[class^="tok-"]',
+      )
+      return {
+        count: spans.length,
+        colours: [
+          ...new Set([...spans].map(node => getComputedStyle(node).color)),
+        ],
+      }
+    })
+    check(
+      `${name} compiler output is highlighted`,
+      lightTokens.count > 20,
+      String(lightTokens.count),
+    )
+    check(
+      `${name} output uses the light syntax palette`,
+      lightTokens.colours.includes('rgb(0, 0, 255)'),
+      lightTokens.colours.slice(0, 6).join('|'),
+    )
+
+    await page.getByTestId('settings').click()
+    await page.locator('[data-testid="theme-select"]').selectOption('dark')
+    await page.getByTestId('settings').click()
+    await page.waitForTimeout(300)
+    const darkTokens = await page.evaluate(() => [
+      ...new Set(
+        [
+          ...document.querySelectorAll(
+            '[data-testid="dom-output"] span[class^="tok-"]',
+          ),
+        ].map(node => getComputedStyle(node).color),
+      ),
+    ])
+    check(
+      `${name} output uses the dark syntax palette`,
+      darkTokens.includes('rgb(86, 156, 214)'),
+      darkTokens.slice(0, 6).join('|'),
+    )
+    await page.getByTestId('settings').click()
+    await page.locator('[data-testid="theme-select"]').selectOption('light')
+    await page.getByTestId('settings').click()
+
     check(
       `${name} no page errors`,
       pageErrors.length === 0,
