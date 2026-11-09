@@ -331,6 +331,51 @@ async function runChecks(browser: Browser, name: string): Promise<void> {
       webc.inspectorTab.join('|'),
     )
 
+    // 8. A visitor from the previous deployment must not inherit its implicit
+    //    dark default: v1 settings are ignored in favour of light/English.
+    //    A fresh context keeps this isolated from the switches asserted above.
+    const legacyContext = await browser.newContext({
+      viewport: { width: 1440, height: 900 },
+    })
+    const legacy = await legacyContext.newPage()
+    await legacy.addInitScript(() => {
+      localStorage.setItem(
+        'zeus-playground.settings.v1',
+        JSON.stringify({
+          theme: 'dark',
+          fontSize: 14,
+          autoRun: true,
+          splitPercent: 50,
+          activeTab: 'preview',
+        }),
+      )
+    })
+    await legacy.goto(`${base}/`, { waitUntil: 'domcontentloaded' })
+    await waitReady(legacy)
+    const upgraded = await legacy.evaluate(() => ({
+      theme: document.documentElement.dataset.theme,
+      lang: document.documentElement.lang,
+      run: document
+        .querySelector('[data-testid="compile"]')
+        ?.textContent?.trim(),
+      selects: [...document.querySelectorAll('.pg-popover select')].map(
+        select => (select as HTMLSelectElement).dataset.testid,
+      ),
+    }))
+    check(
+      `${name} legacy v1 dark is not inherited`,
+      upgraded.theme === 'light',
+      JSON.stringify(upgraded),
+    )
+    check(
+      `${name} legacy visitor gets English and the language switch`,
+      upgraded.lang === 'en' &&
+        upgraded.run === 'Run' &&
+        upgraded.selects.includes('locale-select'),
+      JSON.stringify(upgraded),
+    )
+    await legacyContext.close()
+
     check(
       `${name} no page errors`,
       pageErrors.length === 0,

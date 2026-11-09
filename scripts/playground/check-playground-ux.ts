@@ -101,7 +101,7 @@ async function runChecks(page: Page, browserName: string): Promise<void> {
     throw new Error(`split did not move: ${splitBefore} -> ${splitAfter}`)
   }
   const storedSplit = await page.evaluate(() => {
-    const raw = localStorage.getItem('zeus-playground.settings.v1')
+    const raw = localStorage.getItem('zeus-playground.settings.v2')
     return raw ? (JSON.parse(raw) as { splitPercent?: number }).splitPercent : 0
   })
   if (Math.abs((storedSplit ?? 0) - splitAfter) > 1) {

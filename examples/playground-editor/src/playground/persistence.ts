@@ -7,7 +7,10 @@ import type {
 const DB_NAME = 'zeus-playground'
 const DB_VERSION = 1
 const STORE = 'workspaces'
-const SETTINGS_KEY = 'zeus-playground.settings.v1'
+// v2 starts from the light/English defaults. v1 stored an implicit `dark`
+// for every visitor, so reusing that key would keep returning users on the old
+// theme even though they never chose it.
+export const SETTINGS_KEY = 'zeus-playground.settings.v2'
 const MAX_PROJECT_BYTES = 1_500_000
 const MAX_FILES = 32
 const TABS = [

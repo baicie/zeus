@@ -44,7 +44,7 @@ navigation predictable across product switches instead of changing the tab set.
 
 Persisted settings: theme, language, font size, auto-run, split percentage and
 active result tab. They live in `localStorage` under
-`zeus-playground.settings.v1`.
+`zeus-playground.settings.v2`.
 Projects live in IndexedDB (`zeus-playground`, schema version 1) with a 1.5 MB
 budget, 32-file limit, safe-path validation and a memory fallback. Corrupt or
 version-mismatched records are ignored rather than crashing the shell.
