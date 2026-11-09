@@ -66,3 +66,22 @@ deploy ── environment: production（可配置 required reviewer）
 
 旧的 compose 项目名为 `zeus-playground`，部署脚本带 `--remove-orphans`，
 切换时不会留下同名残留容器。
+
+## 生产环境才会暴露的坑（已修）
+
+这三类问题在本地门禁里都看不出来，首次上线时才依次出现，排查顺序值得记住：
+
+1. **构建变量为空 → 页面白屏。** `production` environment 创建晚于当次
+   workflow 运行，`vars.*` 全部解析为空，`VITE_ZEUS_SANDBOX_URL` 没有写进产物，
+   `resolveSandboxUrl` 因此在公网域名上直接抛错。现在部署前会先校验变量非空。
+2. **沙箱资源绝对路径 → 预览永远"未就绪"。** `sandbox.html` 生成的是
+   `/assets/...`，而生产把它挂在 `/zeus-sandbox/` 下，请求会越出前缀。
+   `vite.config.ts` 的 `relativeSandboxAssets` 插件把它改写成 `./assets/...`，
+   根路径与前缀路径都能工作。
+3. **内联脚本被 CSP 拦截 → 主题闪烁。** 主机 CSP 是
+   `script-src 'self' 'wasm-unsafe-eval'`，内联的预加载脚本被拒绝。现在按
+   hash 放行，`pnpm check:playground-theme-i18n` 会从构建产物重新计算 hash，
+   与 `deploy/nginx.conf` 声明值不一致时直接失败。
+
+另外 `nginx.conf` 由容器 bind mount，改文件后必须重建容器才生效；workflow 在
+检测到内容变化时写入标记，下一次 `up -d` 才带 `--force-recreate`。
