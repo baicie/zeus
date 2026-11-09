@@ -7,6 +7,7 @@ import {
   firefox,
   webkit,
   type Browser,
+  type Dialog,
   type Page,
 } from '@playwright/test'
 
@@ -212,6 +213,54 @@ async function runChecks(page: Page, browserName: string): Promise<void> {
     .getByText('ux-console-marker 42')
     .waitFor({ timeout: 10_000 })
 
+  // Native modals stay disabled (untrusted preview code must not block the
+  // editor), but the sandbox reports each suppressed call to the Console.
+  const dialogs: string[] = []
+  const onDialog = (dialog: Dialog) => {
+    dialogs.push(`${dialog.type()}:${dialog.message()}`)
+    void dialog.dismiss()
+  }
+  page.on('dialog', onDialog)
+  await setSource(
+    page,
+    `import { render } from '@zeus-js/zeus'
+const confirmed = confirm('blocked confirm?')
+const named = prompt('blocked prompt?', 'default')
+console.log('modal-results', confirmed, named)
+render(
+  () => <button onClick={() => alert('blocked alert?')}>Open modal</button>,
+  document.querySelector('#root')!,
+)
+`,
+  )
+  await run(page)
+  await page
+    .frameLocator('[data-testid="preview-frame"]')
+    .getByRole('button', { name: 'Open modal' })
+    .click()
+  await page
+    .getByTestId('console')
+    .getByText('ZEUS_PLAYGROUND_NO_MODALS')
+    .first()
+    .waitFor({ timeout: 10_000 })
+  const consoleText = (await page.getByTestId('console').textContent()) ?? ''
+  for (const call of [
+    'confirm("blocked confirm?")',
+    'prompt("blocked prompt?", "default")',
+    'alert("blocked alert?")',
+  ]) {
+    if (!consoleText.includes(call)) {
+      throw new Error(`suppressed modal was not reported: ${call}`)
+    }
+  }
+  if (!consoleText.includes('modal-results false null')) {
+    throw new Error('suppressed modals must return the browser-blocked values')
+  }
+  if (dialogs.length > 0) {
+    throw new Error(`preview opened a native dialog: ${dialogs.join('; ')}`)
+  }
+  page.off('dialog', onDialog)
+
   // Diagnostics, stale preview and recovery.
   await setSource(page, 'export const App = () => <div>\n')
   await run(page, false)
@@ -381,6 +430,15 @@ async function runChecks(page: Page, browserName: string): Promise<void> {
         throw new Error(
           `example ${id} failed: ${JSON.stringify(exampleState.diagnostics)}`,
         )
+      }
+      if (id === 'native-hello') {
+        // The first example must demonstrate a signal without a native modal:
+        // clicking its button increments the count rendered in the preview.
+        const helloFrame = page.frameLocator('[data-testid="preview-frame"]')
+        const helloButton = helloFrame.getByRole('button')
+        await helloButton.getByText('Signals clicked 0 times').waitFor()
+        await helloButton.click()
+        await helloButton.getByText('Signals clicked 1 times').waitFor()
       }
       if (id.startsWith('webc-')) {
         await page.getByTestId('tab-inspector').click()

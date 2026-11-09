@@ -10,6 +10,8 @@ import { createApp, defineComponent, h } from 'vue'
 import {
   PLAYGROUND_SANDBOX_CHANNEL,
   PLAYGROUND_SANDBOX_MESSAGE_VERSION,
+  formatPlaygroundModalCall,
+  installPlaygroundModalGuard,
   isLoopbackSandboxHostname,
   isTrustedSandboxParentOrigin,
   parseSandboxMessage,
@@ -115,6 +117,13 @@ for (const level of ['log', 'info', 'warn', 'error'] as const) {
     queueConsole(level, args)
   }
 }
+// The iframe is `sandbox="allow-scripts"` without `allow-modals`, so the
+// browser silently ignores alert/confirm/prompt/print. Keep the sandbox flag
+// set as-is (preview code is untrusted and must not be able to block the
+// editor) and report each suppressed call through the Console bridge instead.
+installPlaygroundModalGuard({
+  onCall: call => console.warn(formatPlaygroundModalCall(call)),
+})
 function queueConsole(
   level: SandboxConsoleEntry['level'],
   args: unknown[],

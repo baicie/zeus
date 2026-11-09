@@ -69,6 +69,14 @@ Accepted sandbox responses must have origin `"null"`. Hosts must also compare
 `MessageEvent.source` with the exact iframe window and enforce the session ID.
 The iframe should use `sandbox="allow-scripts"` without `allow-same-origin`.
 
+`sandbox="allow-scripts"` also omits `allow-modals`, so preview code cannot open
+`alert`, `confirm`, `prompt`, or `print` dialogs. That is deliberate: a shared
+link must not be able to block the editor. `installPlaygroundModalGuard`
+replaces those APIs inside the sandbox so each suppressed call is reported
+through the Console bridge (`formatPlaygroundModalCall` builds the message) and
+returns the same values the browser returns when it blocks the dialog: `false`
+for `confirm` and `null` for `prompt`.
+
 ## Export
 
 `exportProject` returns a deterministic `.tar.gz` containing:

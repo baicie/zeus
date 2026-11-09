@@ -178,7 +178,7 @@ const messages = {
     'title.webcStudio': 'WebC Studio',
     'example.nativeHello.title': 'Hello Zeus',
     'example.nativeHello.description':
-      'Minimal Native app with a render call and JSX.',
+      'Minimal Native app with render, JSX and one signal.',
     'example.nativeCounter.title': 'Signals Counter',
     'example.nativeCounter.description':
       'Signals, derived state and event handlers.',
@@ -381,7 +381,7 @@ const messages = {
     'title.webcStudio': 'WebC Studio',
     'example.nativeHello.title': 'Hello Zeus',
     'example.nativeHello.description':
-      '最小的 Native 应用，包含 render 调用与 JSX。',
+      '最小的 Native 应用，包含 render 调用、JSX 与一个 signal。',
     'example.nativeCounter.title': 'Signal 计数器',
     'example.nativeCounter.description': 'Signal、派生状态与事件处理。',
     'example.nativeShowFor.title': 'Show + For',

@@ -60,6 +60,15 @@ export {
   type SandboxUrlOptions,
 } from './sandbox-url'
 export {
+  PLAYGROUND_MODAL_NAMES,
+  formatPlaygroundModalCall,
+  installPlaygroundModalGuard,
+  type PlaygroundModalCall,
+  type PlaygroundModalGuard,
+  type PlaygroundModalGuardOptions,
+  type PlaygroundModalName,
+} from './modals'
+export {
   MAX_PLAYGROUND_SANDBOX_MESSAGE_BYTES,
   PLAYGROUND_CHANNEL,
   PLAYGROUND_MESSAGE_VERSION,

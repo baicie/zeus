@@ -2,7 +2,11 @@ import type { PlaygroundProduct } from '../products'
 import { templates } from '../webc-project'
 import type { PlaygroundExample } from './model'
 
-const nativeHello = `import { render } from '@zeus-js/zeus'
+// Preview code runs in an opaque sandbox without native modals, so examples
+// must show state in the DOM instead of calling alert/confirm/prompt.
+const nativeHello = `import { createSignal, render } from '@zeus-js/zeus'
+
+const [clicks, setClicks] = createSignal(0)
 
 render(
   () => (
@@ -10,9 +14,10 @@ render(
       <p class="eyebrow">Your first Zeus app</p>
       <h1>Hello, Zeus.</h1>
       <p>Edit this file and the preview updates automatically.</p>
-      <button onClick={() => alert('Signals make this interactive.')}>
-        Try a signal
+      <button onClick={() => setClicks(clicks() + 1)}>
+        Signals clicked {clicks()} times
       </button>
+      <p>Only this text node is patched; the component never re-renders.</p>
     </main>
   ),
   document.querySelector('#root')!,
