@@ -84,6 +84,73 @@ pnpm exec vitest --run --project unit scripts/release/__tests__
 `pnpm --filter @zeus-js/compiler-native build:native`（约 54s）生成
 `zeus-compiler-native.darwin-arm64.node`，再用仓库原生配置运行，未使用隔离配置。
 
+## 4.1 隔离环境真实 RC 演练（Phase 4）
+
+在干净 worktree（`/tmp/zeus-rehearsal`，`origin/main` `d93b4a0c`，无未提交改动）上执行：
+
+```
+node scripts/release/build-native-platform.ts --target aarch64-apple-darwin
+tsx scripts/release/rc-rehearsal.ts --version 0.2.0-rc.0 \
+  --expect-head d93b4a0c3a346d51ae515286dea28158bfe0b643 \
+  --ui-root <zeus-ui checkout>
+```
+
+结果：**REHEARSAL_PASS，17/17 步**。
+
+| 步骤                                                | 结果 | 证据                                                                  |
+| --------------------------------------------------- | ---- | --------------------------------------------------------------------- |
+| preflight-clean / head / version                    | PASS | HEAD 与 `--expect-head` 一致，版本为合法 RC                           |
+| version-rewrite                                     | PASS | 37 个文件、46 处编辑，演练后完整恢复                                  |
+| ui-pin-sync                                         | PASS | 1 个模板文件同步到配对 UI `0.1.0-beta.35`                             |
+| install / build / build-dts                         | PASS | 真实 `pnpm install --frozen-lockfile`、`pnpm build`、`pnpm build-dts` |
+| check-package-versions / check-create-zeus-versions | PASS |                                                                       |
+| candidate-prepare                                   | PASS | 32 个 Core 候选包全部打包                                             |
+| ui-install / ui-build-button                        | PASS | UI 用 Core 候选 tarball 真实安装并构建                                |
+| candidate-matrix                                    | PASS |                                                                       |
+| tarball-validation                                  | PASS | **32/32 tarball 均为 `0.2.0-rc.0`**                                   |
+| restore / verify-clean                              | PASS | 工作区恢复干净                                                        |
+
+`temp/release/rc-rehearsal.json` 记录：`version=0.2.0-rc.0`、
+`uiVersion=0.1.0-beta.35`、`coverage.mode=all-six-templates`、
+`environment={platform:darwin,arch:arm64,node:v24.16.0}`。
+
+### 4.2 create-zeus 六模板（真实安装 + 构建）
+
+| 模板                   | 结果 | 安装版本                                                                                      |
+| ---------------------- | ---- | --------------------------------------------------------------------------------------------- |
+| `basic-ts`             | PASS | `@zeus-js/zeus 0.2.0-rc.0`                                                                    |
+| `application-ts`       | PASS | `@zeus-js/zeus 0.2.0-rc.0`                                                                    |
+| `admin-ts`             | PASS | `@zeus-js/zeus 0.2.0-rc.0`                                                                    |
+| `web-component-ts`     | PASS | `@zeus-js/zeus 0.2.0-rc.0`                                                                    |
+| `component-library-ts` | PASS | 产出 `custom-elements.json`、`zeus.components.json`、`wc/*`、`react/index.js`、`vue/index.js` |
+| `webc-consumer-ts`     | PASS | `@zeus-web/button 0.1.0-beta.35`                                                              |
+
+全部从隔离的候选 tarball 安装并构建，不是 mock。
+
+### 4.3 隔离 npm Registry 发布演练（Verdaccio 6.11.1）
+
+`docker run verdaccio/verdaccio:6` 于 `127.0.0.1:4873`，独立存储目录，无 uplink，
+**与 registry.npmjs.org 完全隔离**。用真实候选 tarball 发布：
+
+| 场景                                | 结果                                              |
+| ----------------------------------- | ------------------------------------------------- |
+| 首次 `npm publish --tag rc`         | 成功，`rc` dist-tag 指向 `0.2.0-rc.0`             |
+| 重复发布同一版本                    | `EPUBLISHCONFLICT`（npm 拒绝覆盖）                |
+| 不可达 registry（`127.0.0.1:4999`） | 预检 46/46 包 `FAILED`，整体 FAIL，未产生任何发布 |
+
+**关键实证**：首次发布时 npm 即使收到显式 `--tag rc`，也会把 `latest` 一并
+指向 `0.2.0-rc.0`。四个被测包的 `dist-tags` 都是
+`{"latest":"0.2.0-rc.0","rc":"0.2.0-rc.0"}`。这**证实了 RC-07 的根因**，也说明
+“RC 发布绝不意外修改 npm latest”必须依赖发布后的 `repair:latest-tags`，
+或对首次发布额外处理，而不能只靠 `--tag`。
+
+`scripts/release/isolated-registry-drill.ts`（本轮新增）把该演练固化为可复现脚本：
+拒绝在生产 registry 上运行、校验 tarball 版本、记录每个包的发布退出码 /
+dist-tags / 重复发布结果 / 故障状态，并把“首次发布污染 latest”作为 finding 输出。
+
+对该脚本与 UI 新增的 `check-publish-preflight.ts` 都做了真实 registry 验证：
+可达时 46 个包报 `ABSENT`、预检 PASS；registry 宕机时 46 个包全部 `FAILED`、预检 FAIL。
+
 ## 5. 未执行测试及原因
 
 | 项目                                       | 原因                                                                              |
@@ -126,6 +193,26 @@ UI 侧 `@zeus-js/vite-plugin` 固定 `0.0.5` 属于独立版本例外，不在�
 - 触发 Core release workflow、创建 `v0.2.0-rc.0` tag：禁止，需维护者授权。
 - 执行 `repair:latest-tags --apply`：禁止，需 npm 授权。
 - 生产部署与在线验收：禁止，需维护者授权。
+
+## 8.1 四产品联合验收（Phase 5）
+
+状态标签严格区分。全部为**在 `d93b4a0c` 上本机真实执行**，不是 mock，也不是
+把历史报告里的 PASS 直接搬过来。
+
+| 产品                      | 检查                            | 状态                | 说明                                                                                                                                                                                                                                |
+| ------------------------- | ------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Admin                     | `check:admin`（真实浏览器）     | **LOCAL_VALIDATED** | chromium / firefox / webkit 三引擎全部 passed：query、filtering、pagination、selection、UI components、navigation、permissions；三引擎 DevTools graph / timeline / refresh / cleanup 也全部 passed，dev 导航返回 200 且建立 session |
+| Native Lab / Playground   | `check:playground-editor`       | 见下                | 需要 wasm 编译器构建，另有一次独立运行                                                                                                                                                                                              |
+| AI Workbench              | `check:ai-workbench`（zeus-ui） | **LOCAL_VALIDATED** | chromium / firefox / webkit 全部 passed：chat、SSE、approval、write                                                                                                                                                                 |
+| WebC Studio               | 同一 Playground 应用            | 见下                | 与 Native Lab 共用 Playground 证据                                                                                                                                                                                                  |
+| 可访问性（自动）          | `check:a11y-browser`            | **LOCAL_VALIDATED** | 自动 axe 扫描通过（3 项 passed）                                                                                                                                                                                                    |
+| 可访问性（人工）          | VoiceOver / NVDA                | **NOT_RUN**         | 需要真实人工执行与录音证据；未伪造                                                                                                                                                                                                  |
+| 在线四产品                | Stage 2 部署验收                | **NOT_RUN**         | 需要生产环境与部署授权，`BLOCKED_BY_ENVIRONMENT`                                                                                                                                                                                    |
+| Linux / Windows 矩阵      | Product Acceptance workflow     | **NOT_RUN**         | 需要 GitHub Actions 运行；本机仅 macOS arm64                                                                                                                                                                                        |
+| 移动端 / 200% Zoom / 键盘 | 人工验收                        | **NOT_RUN**         | 需要真实人工执行                                                                                                                                                                                                                    |
+
+没有把 `LOCAL_VALIDATED` 记为 `ONLINE_ACCEPTED`，也没有把自动 a11y 结果记为
+人工屏幕阅读器验收。
 
 ## 9. 下一阶段建议
 
