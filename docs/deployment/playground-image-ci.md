@@ -85,3 +85,42 @@ deploy ── environment: production（可配置 required reviewer）
 
 另外 `nginx.conf` 由容器 bind mount，改文件后必须重建容器才生效；workflow 在
 检测到内容变化时写入标记，下一次 `up -d` 才带 `--force-recreate`。
+
+## GitHub Pages 部署
+
+除 Docker 生产环境外，Playground 也发布到 GitHub Pages：
+
+- 站点：<https://baicie.github.io/zeus-playground/>
+- workflow：`.github/workflows/playground-pages.yml`
+- 站点仓库：`baicie/zeus-playground`（只存构建产物，内容每次 force-push 覆盖）
+
+### 为什么宿主和沙箱同源
+
+GitHub Pages 对一个账号只提供一个源（`<owner>.github.io`），所有项目站点都
+共用它，因此没办法像 Docker 那样让沙箱跑在第二个端口上。Pages 构建因此显式
+打开 `VITE_ZEUS_SANDBOX_SAME_ORIGIN=true`。
+
+隔离**没有因此减弱**：iframe 始终是 `sandbox="allow-scripts"`，从不授予
+`allow-same-origin`，浏览器会强制给它一个不透明源。`sandbox.ts` 在
+`globalThis.origin !== 'null'` 时直接拒绝启动，配错就失败关闭。
+`resolveSandboxUrl` 的同源检查保留为纵深防御，只有显式开启时才放行。
+
+三条引擎验证都确认了 `sandbox reports opaque origin = null`。
+
+### 一次性配置
+
+| 项目     | 值                                                                                                         |
+| -------- | ---------------------------------------------------------------------------------------------------------- |
+| 部署密钥 | `baicie/zeus-playground` 的 Deploy key（read-write），私钥存为 `zeus` 仓库 secret `PLAYGROUND_PAGES_TOKEN` |
+| Pages 源 | `baicie/zeus-playground` → Settings → Pages → main / `/`                                                   |
+
+用 SSH deploy key 而不是 PAT：`GITHUB_TOKEN` 无法写别的仓库，PAT 权限更大、
+有效期更长，都与这个 job 的实际需要不匹配。
+
+### 与 Docker 生产的差异
+
+|        | GitHub Pages           | Docker 生产               |
+| ------ | ---------------------- | ------------------------- |
+| 沙箱源 | 同源 + iframe 不透明源 | 独立源（`:18081`）        |
+| 编译   | CI 构建后发布静态文件  | 镜像内构建                |
+| 部署   | force-push 到站点仓库  | 拉镜像 + compose 滚动更新 |
