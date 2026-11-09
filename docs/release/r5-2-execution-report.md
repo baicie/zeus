@@ -172,6 +172,21 @@ dist-tags / 重复发布结果 / 故障状态，并把“首次发布污染 late
 Core 固定发布组为 31 个包（`scripts/release.config.ts` `zeusFixedPackages`）。
 UI 侧 `@zeus-js/vite-plugin` 固定 `0.0.5` 属于独立版本例外，不在该组内。
 
+## 6.1 RC-07 的新证据（P1，未关闭）
+
+隔离 registry 演练给出了 RC-07 的具体机制：**npm 在发布某包的第一个版本时，
+即使显式传 `--tag rc`，也会把 `latest` 一并指向该版本**。实测四个候选包发布后
+`dist-tags` 均为 `{"latest":"0.2.0-rc.0","rc":"0.2.0-rc.0"}`。
+
+这意味着 RC cut 的放行条件必须包含：
+
+1. 首次 RC 发布后，`check:latest-tags` 会因为 `latest` 指向 prerelease 而失败；
+2. 必须用受保护的 `repair:latest-tags --apply` 把 `latest` 修回上一个稳定版本；
+3. 该修复需要 npm 写权限与维护者授权，本轮**未执行**。
+
+`isolated-registry-drill.ts` 把该行为记录为 finding，避免下一位执行者把它当成
+“`--tag` 写错了”。
+
 ## 7. 剩余问题
 
 - **P0**：无。
