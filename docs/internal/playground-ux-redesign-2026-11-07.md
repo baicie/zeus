@@ -132,6 +132,9 @@ Added in a follow-up change:
   `pnpm check:playground-editor` also pass in all three engines with the
   language-independent readiness signal.
 
+![Default light and English](./playground-ux-redesign-2026-11-07/01-default-light-en.png)
+![Dark and Chinese](./playground-ux-redesign-2026-11-07/03-dark-zh.png)
+
 ## Performance
 
 Measured locally on macOS arm64, Chromium (Playwright `channel: chromium`),
