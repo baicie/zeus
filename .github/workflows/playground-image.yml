@@ -190,8 +190,6 @@ jobs:
       HEALTH_URL: http://127.0.0.1:18080/build-info.json
       GHCR_MIRRORS: ${{ vars.GHCR_MIRRORS || 'ghcr.nju.edu.cn' }}
       SSH_KEY: ${{ secrets.ZEUS_PLAYGROUND_DEPLOY_SSH_KEY }}
-      REGISTRY_TOKEN: ${{ github.token }}
-      REGISTRY_USER: ${{ github.actor }}
       SSH_PASSWORD: ${{ secrets.ZEUS_PLAYGROUND_DEPLOY_SSH_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
@@ -213,18 +211,6 @@ jobs:
             exit 1
           fi
 
-      - name: Read the registry credential for the host pull
-        id: registry
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          # The package inherits the repository's visibility, but GHCR can still
-          # require auth. Hand the host a short-lived token instead of a PAT so
-          # nothing long-lived leaves the runner.
-          echo "token=${GH_TOKEN}" >> "$GITHUB_OUTPUT"
-          echo "user=${GITHUB_ACTOR}" >> "$GITHUB_OUTPUT"
-
       - name: Install SSH client
         run: |
           sudo apt-get update -qq
@@ -245,12 +231,26 @@ jobs:
           fi
           SSH+=(-o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 -p "${DEPLOY_PORT}")
           COMPOSE_B64="$(base64 < examples/playground-editor/deploy/docker-compose.deploy.yml | tr -d '\n')"
-          "${SSH[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" 'bash -s' -- "${DEPLOY_DIR}" "${COMPOSE_B64}" <<'REMOTE'
+          NGINX_B64="$(base64 < examples/playground-editor/deploy/nginx.conf | tr -d '\n')"
+          "${SSH[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" 'bash -s' -- "${DEPLOY_DIR}" "${COMPOSE_B64}" "${NGINX_B64}" <<'REMOTE'
           set -euo pipefail
-          DIR="$1"; B64="$2"
+          DIR="$1"; COMPOSE="$2"; NGINX_B64="$3"
           mkdir -p "$DIR"
-          printf '%s' "$B64" | base64 -d > "$DIR/docker-compose.deploy.yml"
+          printf '%s' "$COMPOSE" | base64 -d > "$DIR/docker-compose.deploy.yml"
           chmod 644 "$DIR/docker-compose.deploy.yml"
+          # The container mounts this file, so a stale copy silently weakens the
+          # CSP (or drops the bootstrap hash). Ship it with every deploy.
+          printf '%s' "$NGINX_B64" | base64 -d > "$DIR/nginx.conf.new"
+          if sudo -n cmp -s "$DIR/nginx.conf.new" "$DIR/nginx.conf"; then
+            rm -f "$DIR/nginx.conf.new"
+            echo "nginx.conf unchanged"
+          else
+            sudo -n install -o root -g root -m 644 "$DIR/nginx.conf.new" "$DIR/nginx.conf"
+            rm -f "$DIR/nginx.conf.new"
+            # Bind mounts are read at container start, so flag a recreate.
+            touch "$DIR/.nginx-changed"
+            echo "nginx.conf updated"
+          fi
           echo "compose 已就绪: $DIR/docker-compose.deploy.yml"
           REMOTE
 
@@ -268,11 +268,12 @@ jobs:
             SSH=(sshpass -f ~/.ssh/pass ssh)
           fi
           SSH+=(-o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 -p "${DEPLOY_PORT}")
-          # The registry token travels on stdin (first line) so it never shows up
-          # in the host process table; everything else goes through argv.
-          { printf '%s\n' "${REGISTRY_TOKEN}"; cat <<'REMOTE'
+          # The package is publicly readable (verified by the build job), so the
+          # host pulls anonymously. No registry credential leaves the runner.
+          "${SSH[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" 'bash -s' -- \
+            "${IMAGE_REF}" "${DEPLOY_TAG}" "${IMAGE_DIGEST}" "${CONTAINER}" \
+            "${DEPLOY_DIR}" "${HEALTH_URL}" "${GHCR_MIRRORS}" <<'REMOTE'
           set -euo pipefail
-          IFS= read -r REG_TOKEN
           IMAGE="$1"; TAG="$2"; DIGEST="$3"; CONTAINER="$4"
           DIR="$5"; HEALTH="$6"; MIRRORS="$7"
           CANONICAL="${IMAGE}:${TAG}"
@@ -292,13 +293,6 @@ jobs:
             RUN=(sudo -n env "IMAGE_REPO=${IMAGE}" "IMAGE_TAG=${TAG}" "CONTAINER_NAME=${CONTAINER}" "COMPOSE_PROJECT_NAME=${CONTAINER}" docker)
           else
             RUN=(env "IMAGE_REPO=${IMAGE}" "IMAGE_TAG=${TAG}" "CONTAINER_NAME=${CONTAINER}" "COMPOSE_PROJECT_NAME=${CONTAINER}" docker)
-          fi
-
-          # Authenticate only for the canonical registry. Mirrors stay anonymous
-          # because they must serve public content to be useful as accelerators.
-          if [[ -n "${REG_TOKEN}" ]]; then
-            printf '%s' "${REG_TOKEN}" | "${RUN[@]}" login ghcr.io -u "${REGISTRY_USER}" --password-stdin >/dev/null 2>&1 \
-              && echo "==> ghcr login ok" || echo "==> ghcr login skipped (anonymous)"
           fi
 
           # Pull by digest: content-addressed, so a mirror cannot substitute the
@@ -330,8 +324,15 @@ jobs:
           echo "==> rolling update"
           # --pull never: the image was pulled by digest above and retagged.
           # --remove-orphans drops the container left behind by the previous
-          # single-service compose project.
-          "${RUN[@]}" compose -f docker-compose.deploy.yml up -d --pull never --remove-orphans
+          # compose project. The nginx.conf is a bind mount read at container
+          # start, so recreate only when it actually changed; the marker file
+          # lets the next run notice a swap without restarting every deploy.
+          RECREATE=""
+          if [[ -f "${DIR}/.nginx-changed" ]]; then
+            RECREATE="--force-recreate"
+            rm -f "${DIR}/.nginx-changed"
+          fi
+          "${RUN[@]}" compose -f docker-compose.deploy.yml up -d --pull never --remove-orphans ${RECREATE}
 
           "${RUN[@]}" ps --filter "name=${CONTAINER}" --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}'
 
@@ -353,9 +354,6 @@ jobs:
           "${RUN[@]}" image prune -f >/dev/null 2>&1 || true
           echo "deployed ${CANONICAL}"
           REMOTE
-          } | "${SSH[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" 'bash -s' -- \
-            "${IMAGE_REF}" "${DEPLOY_TAG}" "${IMAGE_DIGEST}" "${CONTAINER}" \
-            "${DEPLOY_DIR}" "${HEALTH_URL}" "${GHCR_MIRRORS}"
 
       - name: Cleanup credentials
         if: always()
