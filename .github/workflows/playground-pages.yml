@@ -1,0 +1,151 @@
+name: Playground Pages
+
+# Publishes the Playground to GitHub Pages.
+#
+# GitHub Pages gives an account one origin (`<owner>.github.io`) for every
+# project site, so the host and its preview sandbox cannot be split across two
+# sites the way the Docker deployment splits them across two ports. The
+# same-origin path is therefore enabled explicitly for this build
+# (`VITE_ZEUS_SANDBOX_SAME_ORIGIN`), and isolation relies on the iframe
+# attribute instead of the URL origin: the sandbox is always embedded with
+# `sandbox="allow-scripts"` and never `allow-same-origin`, which forces the
+# browser to give it an opaque origin. `sandbox.ts` refuses to run unless
+# `globalThis.origin === 'null'`, so a misconfigured embed fails closed.
+#
+# The site lives in its own repository so it never fights with the docs Pages
+# deployment in this repository (one Pages site per repository).
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'examples/playground-editor/**'
+      - 'packages/**'
+      - 'crates/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/playground-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: playground-pages
+  cancel-in-progress: true
+
+env:
+  PAGES_REPO: ${{ github.repository_owner }}/zeus-playground
+  # Pages serves a project site under /<repo>/, so the host build uses that as
+  # its base and emits sandbox.html beside index.html.
+  SITE_BASE: /zeus-playground/
+
+jobs:
+  build:
+    name: Build the Pages site
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build the compiler (WASM + native helper)
+        run: |
+          pnpm --filter @zeus-js/compiler-wasm build:wasm
+          pnpm --filter @zeus-js/compiler-native build:native
+
+      - name: Build workspace packages
+        run: pnpm build
+
+      - name: Build the Playground for the Pages base path
+        env:
+          # Same-origin sandbox: the document sits next to index.html.
+          VITE_ZEUS_SANDBOX_URL: ${{ env.SITE_BASE }}sandbox.html
+          VITE_ZEUS_SANDBOX_SAME_ORIGIN: 'true'
+          # The sandbox only accepts messages from this parent origin.
+          VITE_ZEUS_PLAYGROUND_HOST_ORIGINS: https://${{ github.repository_owner }}.github.io
+          BASE: ${{ env.SITE_BASE }}
+        run: |
+          set -euo pipefail
+          pnpm --filter @zeus-js/example-playground-editor exec \
+            vite build --base "${BASE}"
+          version=$(node -p 'require("./package.json").version')
+          built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          node --import tsx scripts/release/build-info.ts \
+            --product webc-studio,native-lab \
+            --dist examples/playground-editor/dist \
+            --core-commit "${GITHUB_SHA}" \
+            --ui-commit "${GITHUB_SHA}" \
+            --version "${version}" \
+            --built-at "${built_at}"
+
+      - name: Assemble the site
+        run: |
+          set -euo pipefail
+          mkdir -p site
+          cp -R examples/playground-editor/dist/. site/
+          # Pages must not run Jekyll over the hashed asset names.
+          touch site/.nojekyll
+          find site -maxdepth 1 -type f -printf '%f\n' | sort | head -15
+          echo "--- sandbox present? ---"
+          test -f site/sandbox.html
+          echo "--- host references sandbox relatively? ---"
+          node -e "
+            const html = require('node:fs').readFileSync('site/sandbox.html','utf8');
+            if (!/src=\"\.\/assets\//.test(html)) {
+              console.error('sandbox.html must use relative asset URLs');
+              process.exit(1);
+            }
+            console.log('sandbox assets are relative');
+          "
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: playground-pages-site
+          path: site
+          retention-days: 7
+
+  publish:
+    name: Push the site to its Pages repository
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: playground-pages-site
+          path: site
+
+      - name: Push to the Pages repository
+        env:
+          PAGES_TOKEN: ${{ secrets.PLAYGROUND_PAGES_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${PAGES_TOKEN:-}" ]]; then
+            echo "::error::PLAYGROUND_PAGES_TOKEN is not set"
+            exit 1
+          fi
+          cd site
+          git init -q -b main
+          git config user.name 'zeus-pages-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git commit -q -m "playground: ${GITHUB_SHA}"
+          git push -q --force \
+            "https://x-access-token:${PAGES_TOKEN}@github.com/${PAGES_REPO}.git" main
+          echo "pushed ${GITHUB_SHA} to ${PAGES_REPO}"

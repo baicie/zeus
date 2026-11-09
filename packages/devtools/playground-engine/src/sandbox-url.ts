@@ -18,6 +18,17 @@ export interface SandboxUrlOptions {
   readonly sandboxUrl?: string | undefined
   /** Legacy origin-only configuration. Its path, query and hash are discarded. */
   readonly sandboxOrigin?: string | undefined
+  /**
+   * Allow a sandbox document served from the host's own origin.
+   *
+   * This is opt-in for static hosts that cannot provide a second origin, such
+   * as GitHub Pages (one origin per account). Isolation still holds because the
+   * iframe is always created with `sandbox="allow-scripts"` and never
+   * `allow-same-origin`, which forces the browser to give it an opaque origin
+   * (`globalThis.origin === 'null'`) regardless of the document's URL. The
+   * same-origin check is defence in depth, not the boundary itself.
+   */
+  readonly allowSameOrigin?: boolean | undefined
 }
 
 export interface SandboxParentPolicyOptions {
@@ -42,7 +53,9 @@ export function resolveSandboxUrl(options: SandboxUrlOptions): string {
   let sandbox: URL
 
   if (options.sandboxUrl?.trim()) {
-    sandbox = parseHttpUrl(options.sandboxUrl.trim(), 'sandboxUrl')
+    // A root-relative path is resolved against the host document so static
+    // hosts can ship both halves from one site without knowing the deploy URL.
+    sandbox = parseHttpUrl(options.sandboxUrl.trim(), 'sandboxUrl', host)
   } else if (options.sandboxOrigin?.trim()) {
     const origin = parseHttpUrl(options.sandboxOrigin.trim(), 'sandboxOrigin')
     sandbox = new URL('/sandbox.html', origin.origin)
@@ -53,7 +66,7 @@ export function resolveSandboxUrl(options: SandboxUrlOptions): string {
   if (sandbox.pathname.endsWith('/')) {
     sandbox.pathname = `${sandbox.pathname}sandbox.html`
   }
-  if (sandbox.origin === host.origin) {
+  if (sandbox.origin === host.origin && !options.allowSameOrigin) {
     throw new Error(
       'VITE_ZEUS_SANDBOX_URL must use a different origin from the playground host.',
     )
@@ -147,10 +160,10 @@ function alternateLoopbackOrigin(host: URL): string {
   return `${host.protocol}//${alternate}${host.port ? `:${host.port}` : ''}`
 }
 
-function parseHttpUrl(value: string, label: string): URL {
+function parseHttpUrl(value: string, label: string, base?: URL): URL {
   let url: URL
   try {
-    url = new URL(value)
+    url = base ? new URL(value, base) : new URL(value)
   } catch {
     throw new Error(`${label} is not a valid URL.`)
   }

@@ -48,6 +48,28 @@ describe('resolveSandboxUrl', () => {
     )
   })
 
+  it('allows a same-origin sandbox only when explicitly opted in', () => {
+    // Static hosts such as GitHub Pages expose one origin per account. The
+    // iframe still gets an opaque origin because it is embedded without
+    // allow-same-origin, so the escape hatch is safe when asked for.
+    expect(
+      resolveSandboxUrl({
+        hostUrl: 'https://baicie.github.io/zeus-playground/',
+        sandboxUrl: '/zeus-playground/sandbox.html',
+        allowSameOrigin: true,
+      }),
+    ).toBe('https://baicie.github.io/zeus-playground/sandbox.html')
+  })
+
+  it('still enforces the origin check for a root-relative path', () => {
+    expect(() =>
+      resolveSandboxUrl({
+        hostUrl: 'https://baicie.github.io/zeus-playground/',
+        sandboxUrl: '/zeus-playground/sandbox.html',
+      }),
+    ).toThrow(/different origin/)
+  })
+
   it('rejects sharing the host origin', () => {
     expect(() =>
       resolveSandboxUrl({

@@ -170,6 +170,11 @@ function resolveSandboxDocumentUrl(): string {
     hostUrl: location.href,
     sandboxUrl: import.meta.env.VITE_ZEUS_SANDBOX_URL,
     sandboxOrigin: import.meta.env.VITE_ZEUS_SANDBOX_ORIGIN,
+    // Static hosts such as GitHub Pages expose a single origin per account, so
+    // the sandbox document is served beside the host. Isolation is unchanged:
+    // the iframe below is always `sandbox="allow-scripts"` with no
+    // `allow-same-origin`, which makes the browser hand it an opaque origin.
+    allowSameOrigin: import.meta.env.VITE_ZEUS_SANDBOX_SAME_ORIGIN === 'true',
   })
 }
 
