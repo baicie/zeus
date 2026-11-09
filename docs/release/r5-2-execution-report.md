@@ -170,7 +170,13 @@ dist-tags / 重复发布结果 / 故障状态，并把“首次发布污染 late
 | `0.2.0`         | `0.2.0`         | `latest` | UI 侧必需 | 契约已实现                                      |
 
 Core 固定发布组为 31 个包（`scripts/release.config.ts` `zeusFixedPackages`）。
-UI 侧 `@zeus-js/vite-plugin` 固定 `0.0.5` 属于独立版本例外，不在该组内。
+`@zeus-js/eslint-plugin` 与 `@zeus-js/playground-engine` 已在该组内，
+`@zeus-js/vite-plugin` **不在**该组，独立维持 `0.0.5`。
+
+UI 侧的配对门禁据此把 `@zeus-js/vite-plugin` 作为唯一的独立版本例外（固定
+`0.0.5`，漂移同样失败），其余 `@zeus-js/*` pin 必须等于 Core 版本。两边规则
+一致，已由 Core 侧 `cross-repo-release.spec.ts` 与 UI 侧
+`check-release-pairing.spec.ts` 各自断言。
 
 ## 6.1 RC-07 的新证据（P1，未关闭）
 
