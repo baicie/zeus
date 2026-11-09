@@ -93,6 +93,40 @@ async function runChecks(page: Page, browserName: string): Promise<void> {
     throw new Error('restore did not show the editor pane')
   }
 
+  // Draggable split follows the pointer. Regression guard: a clamp written as
+  // `Math.max(30, Math.min(70), value)` evaluates to 70 for every input, which
+  // pinned the divider to one side while the stored value still looked fine.
+  const trackBefore = await splitValue(page)
+  const trackBox = await page.locator('.pg-split').boundingBox()
+  if (!trackBox) throw new Error('split divider is not visible')
+  const trackX = trackBox.x + trackBox.width / 2
+  const trackY = trackBox.y + trackBox.height / 2
+  await page.mouse.move(trackX, trackY)
+  await page.mouse.down()
+  await page.mouse.move(trackX - 60, trackY, { steps: 6 })
+  await page.waitForTimeout(120)
+  const draggingLeft = await splitValue(page)
+  await page.mouse.move(trackX + 60, trackY, { steps: 6 })
+  await page.waitForTimeout(120)
+  const draggingRight = await splitValue(page)
+  await page.mouse.up()
+  await page.waitForTimeout(120)
+  if (draggingLeft >= trackBefore) {
+    throw new Error(
+      `dragging left did not shrink the editor pane: ${trackBefore} -> ${draggingLeft}`,
+    )
+  }
+  if (draggingRight <= draggingLeft) {
+    throw new Error(
+      `dragging right did not widen the editor pane: ${draggingLeft} -> ${draggingRight}`,
+    )
+  }
+  await page.evaluate(() =>
+    localStorage.removeItem('zeus-playground.settings.v2'),
+  )
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await waitReady(page)
+
   // Draggable split with a persisted width.
   const splitBefore = await splitValue(page)
   // Count storage writes during the drag: persisting per pointermove used to

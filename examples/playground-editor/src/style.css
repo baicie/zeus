@@ -388,9 +388,8 @@ textarea:focus-visible {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  /* Each pane sizes and paints independently: dragging the splitter then only
-     re-lays-out the two columns instead of the whole page, which removes the
-     visible repaint stutter. */
+  /* Each pane sizes and paints independently, so resizing repaints the two
+     columns instead of the whole page. */
   contain: layout paint style;
 }
 

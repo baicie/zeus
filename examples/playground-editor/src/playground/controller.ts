@@ -420,7 +420,7 @@ export function setFontSize(value: number): void {
  * pointerup via `commitSplit`.
  */
 export function setSplit(value: number): void {
-  splitPercent.set(Math.max(30, Math.min(70), Math.round(value)))
+  splitPercent.set(Math.max(30, Math.min(70, Math.round(value))))
 }
 
 export function commitSplit(): void {
