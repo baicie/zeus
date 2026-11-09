@@ -133,19 +133,27 @@ jobs:
 
       - name: Push to the Pages repository
         env:
-          PAGES_TOKEN: ${{ secrets.PLAYGROUND_PAGES_TOKEN }}
+          # An SSH deploy key limited to this one repository. `GITHUB_TOKEN`
+          # cannot write to another repository, and a PAT would be broader and
+          # long-lived than the job needs.
+          PAGES_DEPLOY_KEY: ${{ secrets.PLAYGROUND_PAGES_TOKEN }}
         run: |
           set -euo pipefail
-          if [[ -z "${PAGES_TOKEN:-}" ]]; then
+          if [[ -z "${PAGES_DEPLOY_KEY:-}" ]]; then
             echo "::error::PLAYGROUND_PAGES_TOKEN is not set"
             exit 1
           fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "${PAGES_DEPLOY_KEY}" > ~/.ssh/pages_key
+          chmod 600 ~/.ssh/pages_key
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
           cd site
           git init -q -b main
           git config user.name 'zeus-pages-bot'
           git config user.email 'actions@users.noreply.github.com'
           git add -A
           git commit -q -m "playground: ${GITHUB_SHA}"
-          git push -q --force \
-            "https://x-access-token:${PAGES_TOKEN}@github.com/${PAGES_REPO}.git" main
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/pages_key -o IdentitiesOnly=yes" \
+            git push -q --force "git@github.com:${PAGES_REPO}.git" main
+          rm -f ~/.ssh/pages_key
           echo "pushed ${GITHUB_SHA} to ${PAGES_REPO}"
