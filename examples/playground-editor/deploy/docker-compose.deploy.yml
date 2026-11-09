@@ -1,0 +1,44 @@
+# Server-side compose for the Playground. This is a *release artifact*: it never
+# builds anything, it only pulls the image CI published to GHCR.
+#
+# `.github/workflows/playground-image.yml` uploads this file to
+#   ${DEPLOY_DIR}/docker-compose.deploy.yml      (default /home/ubuntu/zeus-playground)
+# and then runs `docker compose -f docker-compose.deploy.yml up -d --pull never`
+# with IMAGE_REPO / IMAGE_TAG in the environment.
+#
+# The repo-root compose (`examples/playground-editor/docker-compose.yml`) is the
+# local build variant; keep the two in sync when ports or limits change.
+services:
+  playground:
+    image: ${IMAGE_REPO:-ghcr.io/baicie/zeus-playground}:${IMAGE_TAG:-main}
+    container_name: ${CONTAINER_NAME:-zeus-playground}
+    restart: unless-stopped
+    # Host origin on 18080, sandbox origin on 18081; Caddy fronts both.
+    ports:
+      - '127.0.0.1:18080:80'
+      - '127.0.0.1:18081:81'
+    read_only: true
+    volumes:
+      # Keep the host's verified nginx.conf mounted. The copy baked into the
+      # image is the generic one (`sandbox allow-scripts`, no frame-ancestors);
+      # the production file pins frame-ancestors to the public Playground
+      # origin. Dropping this mount would silently weaken the sandbox CSP.
+      - /home/ubuntu/zeus-playground/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    # The base image rewrites its config into /etc/nginx/conf.d on start; the
+    # renderer needs a writable temp dir, hence the tmpfs entries below.
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
+    cpus: 0.50
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1/']
+      interval: 10s
+      timeout: 3s
+      retries: 3

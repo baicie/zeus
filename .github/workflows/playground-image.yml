@@ -1,0 +1,314 @@
+name: Playground Image
+
+# Builds the Playground image on every push to main and publishes it to GHCR,
+# then rolls the production container onto the new image.
+#
+# Two-stage shape, mirroring the operator's existing panel deployment:
+#   1. build-and-publish: build linux/amd64, tag with `main` / `sha-*` /
+#      `<date>`, push to ghcr.io, and verify the tag really landed.
+#   2. deploy: pull the exact digest on the host and recreate the container,
+#      then fail the run unless the container is running and serving.
+#
+# Credentials live only in repository secrets; this workflow never writes a
+# key to disk outside the runner's own temporary homedir and removes it in an
+# `always()` step.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'examples/playground-editor/**'
+      - 'packages/**'
+      - 'crates/**'
+      - 'scripts/release/build-info.ts'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/playground-image.yml'
+  pull_request:
+    paths:
+      - 'examples/playground-editor/**'
+      - '.github/workflows/playground-image.yml'
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Roll the production container onto the built image
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: playground-image-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ghcr.io/${{ github.repository_owner }}/zeus-playground
+
+jobs:
+  build-and-publish:
+    name: Build and publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      tag: ${{ steps.vars.outputs.tag }}
+      image: ${{ steps.vars.outputs.image }}
+      digest: ${{ steps.build.outputs.digest }}
+      version: ${{ steps.vars.outputs.version }}
+      should_deploy: ${{ steps.vars.outputs.should_deploy }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve tag and version
+        id: vars
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_DEPLOY: ${{ inputs.deploy }}
+        run: |
+          set -euo pipefail
+          # main / sha-<short> plus a date tag that matches the panel convention.
+          version="$(node -p "require('./package.json').version")"
+          date_tag="$(TZ=Asia/Shanghai date +%Y.%-m.%-d.%-H%M)"
+          {
+            echo "version=${version}"
+            echo "date_tag=${date_tag}"
+            echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "image=${IMAGE}"
+          } >> "$GITHUB_OUTPUT"
+
+          # A pull request only proves the image builds; it never publishes.
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+            echo "tag=pr-${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          {
+            echo "tag=main"
+          } >> "$GITHUB_OUTPUT"
+          # Manual dispatch deploys only when the operator asked for it; a plain
+          # push to main always rolls forward.
+          if [[ "$EVENT_NAME" == "workflow_dispatch" && "$INPUT_DEPLOY" != "true" ]]; then
+            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: examples/playground-editor/Dockerfile
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          # Every tag the deployment may reference. `main` is the moving tag for
+          # operators, `sha-*` and the date tag are immutable audit points.
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.vars.outputs.tag }}
+            ${{ env.IMAGE }}:sha-${{ github.sha }}
+            ${{ env.IMAGE }}:${{ steps.vars.outputs.date_tag }}
+          build-args: |
+            ZEUS_CORE_COMMIT=${{ github.sha }}
+            ZEUS_UI_COMMIT=${{ vars.ZEUS_UI_COMMIT || 'main' }}
+            ZEUS_VERSION=${{ steps.vars.outputs.version }}
+            ZEUS_BUILD_TIME=${{ steps.vars.outputs.build_time }}
+            VITE_ZEUS_SANDBOX_URL=${{ vars.ZEUS_PLAYGROUND_SANDBOX_URL }}
+            VITE_ZEUS_PLAYGROUND_HOST_ORIGINS=${{ vars.ZEUS_PLAYGROUND_HOST_ORIGINS }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.vars.outputs.version }}
+          cache-from: type=gha,scope=playground-image
+          cache-to: type=gha,mode=max,scope=playground-image
+          # Keep the digest stable and avoid unknown/unknown platform entries.
+          provenance: false
+
+      - name: Verify the pushed tags
+        if: github.event_name != 'pull_request'
+        run: |
+          set -euo pipefail
+          docker buildx imagetools inspect "${IMAGE}:main"
+          docker buildx imagetools inspect "${IMAGE}:sha-${{ github.sha }}"
+
+  deploy:
+    name: Deploy
+    needs: build-and-publish
+    if: needs.build-and-publish.outputs.should_deploy == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # The production environment can carry a required reviewer, so an automatic
+    # main push still needs one human approval before it touches the host.
+    environment: production
+    permissions:
+      contents: read
+    env:
+      DEPLOY_TAG: ${{ needs.build-and-publish.outputs.tag }}
+      IMAGE_REF: ${{ needs.build-and-publish.outputs.image }}
+      IMAGE_DIGEST: ${{ needs.build-and-publish.outputs.digest }}
+      DEPLOY_HOST: ${{ vars.ZEUS_PLAYGROUND_DEPLOY_HOST }}
+      DEPLOY_USER: ${{ vars.ZEUS_PLAYGROUND_DEPLOY_USER || 'ubuntu' }}
+      DEPLOY_PORT: ${{ vars.ZEUS_PLAYGROUND_DEPLOY_PORT || '22' }}
+      DEPLOY_DIR: ${{ vars.ZEUS_PLAYGROUND_DEPLOY_DIR || '/home/ubuntu/zeus-playground' }}
+      CONTAINER: ${{ vars.ZEUS_PLAYGROUND_CONTAINER || 'zeus-playground' }}
+      HEALTH_URL: http://127.0.0.1:18080/build-info.json
+      GHCR_MIRRORS: ${{ vars.GHCR_MIRRORS || 'ghcr.nju.edu.cn' }}
+      SSH_KEY: ${{ secrets.ZEUS_PLAYGROUND_DEPLOY_SSH_KEY }}
+      SSH_PASSWORD: ${{ secrets.ZEUS_PLAYGROUND_DEPLOY_SSH_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check deploy credentials
+        id: cred
+        run: |
+          set -euo pipefail
+          if [[ -z "${DEPLOY_HOST:-}" ]]; then
+            echo "::error::ZEUS_PLAYGROUND_DEPLOY_HOST is not set (repository variable)"
+            exit 1
+          fi
+          if [[ -n "${SSH_KEY:-}" ]]; then
+            echo "method=key" >> "$GITHUB_OUTPUT"
+          elif [[ -n "${SSH_PASSWORD:-}" ]]; then
+            echo "method=password" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Set ZEUS_PLAYGROUND_DEPLOY_SSH_KEY (preferred) or ZEUS_PLAYGROUND_DEPLOY_SSH_PASSWORD"
+            exit 1
+          fi
+
+      - name: Install SSH client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq openssh-client sshpass
+
+      - name: Upload deploy compose
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          if [[ "${{ steps.cred.outputs.method }}" == "key" ]]; then
+            printf '%s\n' "${SSH_KEY}" > ~/.ssh/deploy_key
+            chmod 600 ~/.ssh/deploy_key
+            SSH=(ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes)
+          else
+            printf '%s' "${SSH_PASSWORD}" > ~/.ssh/pass
+            chmod 600 ~/.ssh/pass
+            SSH=(sshpass -f ~/.ssh/pass ssh)
+          fi
+          SSH+=(-o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 -p "${DEPLOY_PORT}")
+          COMPOSE_B64="$(base64 < examples/playground-editor/deploy/docker-compose.deploy.yml | tr -d '\n')"
+          "${SSH[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" 'bash -s' -- "${DEPLOY_DIR}" "${COMPOSE_B64}" <<'REMOTE'
+          set -euo pipefail
+          DIR="$1"; B64="$2"
+          mkdir -p "$DIR"
+          printf '%s' "$B64" | base64 -d > "$DIR/docker-compose.deploy.yml"
+          chmod 644 "$DIR/docker-compose.deploy.yml"
+          echo "compose 已就绪: $DIR/docker-compose.deploy.yml"
+          REMOTE
+
+      - name: Rolling update container
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          if [[ "${{ steps.cred.outputs.method }}" == "key" ]]; then
+            printf '%s\n' "${SSH_KEY}" > ~/.ssh/deploy_key
+            chmod 600 ~/.ssh/deploy_key
+            SSH=(ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes)
+          else
+            printf '%s' "${SSH_PASSWORD}" > ~/.ssh/pass
+            chmod 600 ~/.ssh/pass
+            SSH=(sshpass -f ~/.ssh/pass ssh)
+          fi
+          SSH+=(-o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 -p "${DEPLOY_PORT}")
+          "${SSH[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" 'bash -s' -- \
+            "${IMAGE_REF}" "${DEPLOY_TAG}" "${IMAGE_DIGEST}" "${CONTAINER}" \
+            "${DEPLOY_DIR}" "${HEALTH_URL}" "${GHCR_MIRRORS}" <<'REMOTE'
+          set -euo pipefail
+          IMAGE="$1"; TAG="$2"; DIGEST="$3"; CONTAINER="$4"
+          DIR="$5"; HEALTH="$6"; MIRRORS="$7"
+          CANONICAL="${IMAGE}:${TAG}"
+          REPO_PATH="${IMAGE#ghcr.io/}"
+
+          # The host user is often in the sudo group but not the docker group.
+          if docker info >/dev/null 2>&1; then
+            DOCKER=(docker); echo "==> docker: direct"
+          elif sudo -n true >/dev/null 2>&1; then
+            DOCKER=(sudo -n docker); echo "==> docker: via sudo"
+          else
+            echo "::error::No docker access and no passwordless sudo on the host"
+            exit 1
+          fi
+
+          if [[ "${DOCKER[0]}" == "sudo" ]]; then
+            RUN=(sudo -n env "IMAGE_REPO=${IMAGE}" "IMAGE_TAG=${TAG}" "CONTAINER_NAME=${CONTAINER}" "COMPOSE_PROJECT_NAME=${CONTAINER}" docker)
+          else
+            RUN=(env "IMAGE_REPO=${IMAGE}" "IMAGE_TAG=${TAG}" "CONTAINER_NAME=${CONTAINER}" "COMPOSE_PROJECT_NAME=${CONTAINER}" docker)
+          fi
+
+          # Pull by digest: content-addressed, so a mirror cannot substitute the
+          # image, and the deployment is pinned to what CI actually built.
+          candidates=()
+          if [[ -n "${MIRRORS}" ]]; then
+            IFS=',' read -r -a mirror_list <<< "${MIRRORS}"
+            for m in "${mirror_list[@]}"; do
+              m="$(printf '%s' "$m" | tr -d '[:space:]')"
+              [[ -n "$m" ]] && candidates+=("${m}/${REPO_PATH}@${DIGEST}")
+            done
+          fi
+          candidates+=("${IMAGE}@${DIGEST}")
+
+          PULLED=""
+          for ref in "${candidates[@]}"; do
+            echo "==> docker pull ${ref}"
+            if timeout 600 "${RUN[@]}" pull "${ref}"; then PULLED="${ref}"; break; fi
+            echo "    (source failed, trying next)"
+          done
+          if [[ -z "${PULLED}" ]]; then
+            echo "::error::Every image source failed: ${candidates[*]}"
+            exit 1
+          fi
+          "${RUN[@]}" tag "${PULLED}" "${CANONICAL}"
+          echo "==> image ready: ${CANONICAL} (from ${PULLED})"
+
+          cd "${DIR}"
+          echo "==> rolling update"
+          # --pull never: the image was pulled by digest above and retagged.
+          # --remove-orphans drops the container left behind by the previous
+          # single-service compose project.
+          "${RUN[@]}" compose -f docker-compose.deploy.yml up -d --pull never --remove-orphans
+
+          "${RUN[@]}" ps --filter "name=${CONTAINER}" --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}'
+
+          state="$("${RUN[@]}" inspect -f '{{.State.Status}}' "${CONTAINER}" 2>/dev/null || echo missing)"
+          if [[ "${state}" != "running" ]]; then
+            echo "::error::Container ${CONTAINER} is ${state}"
+            "${RUN[@]}" logs --tail 80 "${CONTAINER}" 2>&1 || true
+            exit 1
+          fi
+
+          code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "${HEALTH}" || echo 000)"
+          echo "==> health ${HEALTH} -> HTTP ${code}"
+          if [[ "${code}" != "200" ]]; then
+            echo "::error::Health check failed (HTTP ${code})"
+            "${RUN[@]}" logs --tail 80 "${CONTAINER}" 2>&1 || true
+            exit 1
+          fi
+
+          "${RUN[@]}" image prune -f >/dev/null 2>&1 || true
+          echo "deployed ${CANONICAL}"
+          REMOTE
+
+      - name: Cleanup credentials
+        if: always()
+        run: rm -f ~/.ssh/deploy_key ~/.ssh/pass
