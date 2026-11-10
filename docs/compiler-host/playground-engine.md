@@ -17,6 +17,9 @@ There are two security domains:
 Never execute project modules in the editor document. The preview iframe must:
 
 - use `sandbox="allow-scripts"` without `allow-same-origin`;
+- leave `allow-modals` off, and install `installPlaygroundModalGuard` so
+  suppressed `alert`/`confirm`/`prompt`/`print` calls are reported instead of
+  failing silently;
 - live on a distinct origin from the editor;
 - check `event.origin === "null"` for child messages;
 - compare `event.source` with the exact iframe window;
@@ -27,6 +30,18 @@ The reference implementation also instruments every JavaScript loop with a
 1-second deadline. This prevents common infinite loops from wedging the iframe
 and keeps the host responsive. The hard timeout remains the final guard for
 recursion, memory pressure, and other runtime failures.
+
+### Native modals
+
+The sandbox attribute intentionally omits `allow-modals`. Preview code is
+untrusted and may arrive through a share link, so it must not be able to open
+dialogs that block the editor. The sandbox still reports what it suppressed:
+`installPlaygroundModalGuard` replaces `alert`, `confirm`, `prompt`, and
+`print`, forwards a `[ZEUS_PLAYGROUND_NO_MODALS]` entry over the Console
+bridge, and returns the browser's blocked-dialog values (`false` for
+`confirm`, `null` for `prompt`). Do not add `allow-modals` to the iframe or the
+CSP `sandbox` directive to "fix" a preview that calls these APIs; render the
+message in the preview instead.
 
 ## Project and build contract
 

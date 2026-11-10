@@ -4,6 +4,7 @@ import path from 'node:path'
 
 import {
   chromium,
+  expect,
   firefox,
   webkit,
   type Browser,
@@ -234,16 +235,25 @@ render(
 `,
   )
   await run(page)
+  // The Console tab replaces the preview pane, so switch back before clicking
+  // the preview button; hidden tabs are not actionable.
+  await page.getByTestId('tab-preview').click()
   await page
     .frameLocator('[data-testid="preview-frame"]')
     .getByRole('button', { name: 'Open modal' })
     .click()
-  await page
-    .getByTestId('console')
+  await page.getByTestId('tab-console').click()
+  const consolePanel = page.getByTestId('console')
+  await consolePanel
     .getByText('ZEUS_PLAYGROUND_NO_MODALS')
     .first()
     .waitFor({ timeout: 10_000 })
-  const consoleText = (await page.getByTestId('console').textContent()) ?? ''
+  // Entries arrive through the bounded, batched console bridge, so wait for
+  // the click-triggered report instead of reading the panel once.
+  await consolePanel
+    .getByText('alert("blocked alert?")', { exact: false })
+    .waitFor({ timeout: 10_000 })
+  const consoleText = (await consolePanel.textContent()) ?? ''
   for (const call of [
     'confirm("blocked confirm?")',
     'prompt("blocked prompt?", "default")',
@@ -434,11 +444,12 @@ render(
       if (id === 'native-hello') {
         // The first example must demonstrate a signal without a native modal:
         // clicking its button increments the count rendered in the preview.
+        await page.getByTestId('tab-preview').click()
         const helloFrame = page.frameLocator('[data-testid="preview-frame"]')
-        const helloButton = helloFrame.getByRole('button')
-        await helloButton.getByText('Signals clicked 0 times').waitFor()
+        const helloButton = helloFrame.locator('button')
+        await expect(helloButton).toHaveText('Signals clicked 0 times')
         await helloButton.click()
-        await helloButton.getByText('Signals clicked 1 times').waitFor()
+        await expect(helloButton).toHaveText('Signals clicked 1 times')
       }
       if (id.startsWith('webc-')) {
         await page.getByTestId('tab-inspector').click()

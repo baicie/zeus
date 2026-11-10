@@ -258,6 +258,17 @@ export interface SandboxUrlOptions {
   readonly sandboxUrl?: string | undefined
   /** Legacy origin-only configuration. Its path, query and hash are discarded. */
   readonly sandboxOrigin?: string | undefined
+  /**
+   * Allow a sandbox document served from the host's own origin.
+   *
+   * This is opt-in for static hosts that cannot provide a second origin, such
+   * as GitHub Pages (one origin per account). Isolation still holds because the
+   * iframe is always created with `sandbox="allow-scripts"` and never
+   * `allow-same-origin`, which forces the browser to give it an opaque origin
+   * (`globalThis.origin === 'null'`) regardless of the document's URL. The
+   * same-origin check is defence in depth, not the boundary itself.
+   */
+  readonly allowSameOrigin?: boolean | undefined
 }
 export interface SandboxParentPolicyOptions {
   /** Local development may use loopback hosts without an explicit allowlist. */
@@ -298,6 +309,59 @@ export declare function isTrustedSandboxParentOrigin(
   options?: SandboxParentPolicyOptions,
 ): boolean
 export declare function isLoopbackSandboxHostname(hostname: string): boolean
+
+/**
+ * Native modal APIs are unavailable in the preview.
+ *
+ * The preview iframe is embedded with `sandbox="allow-scripts"` and the
+ * sandbox document is served with `Content-Security-Policy: sandbox
+ * allow-scripts`; neither grants `allow-modals`, so the browser silently
+ * ignores `alert`, `confirm`, `prompt`, and `print`. The grant stays off on
+ * purpose: preview code is untrusted, and a shared link that loops a modal
+ * could otherwise block the editor UI or trap the user in a dialog storm.
+ *
+ * Silence is not an acceptable contract, though. The sandbox installs this
+ * guard so every suppressed call is reported once through the Console bridge
+ * and returns exactly what the browser returns when a modal is suppressed:
+ * `false` for `confirm`, `null` for `prompt`, and `undefined` for `alert` and
+ * `print`.
+ */
+export declare const PLAYGROUND_MODAL_NAMES: readonly [
+  'alert',
+  'confirm',
+  'prompt',
+  'print',
+]
+export type PlaygroundModalName = (typeof PLAYGROUND_MODAL_NAMES)[number]
+export interface PlaygroundModalCall {
+  readonly name: PlaygroundModalName
+  readonly args: readonly unknown[]
+}
+export interface PlaygroundModalGuardOptions {
+  /** Receives one record for every suppressed modal call. */
+  readonly onCall: (call: PlaygroundModalCall) => void
+  /**
+   * Object that owns the modal methods. Defaults to the current global
+   * object so the sandbox realm is patched in place.
+   */
+  readonly target?: Partial<Record<PlaygroundModalName, unknown>> | undefined
+}
+export interface PlaygroundModalGuard {
+  /** Restores the original methods when the sandbox realm is torn down. */
+  dispose(): void
+}
+/** Builds the one-line diagnostic a host forwards to its Console panel. */
+export declare function formatPlaygroundModalCall(
+  call: PlaygroundModalCall,
+): string
+/**
+ * Replaces the modal entry points on `target` (the sandbox window by default).
+ * Safe to call once per realm; disposing restores the previous values only if
+ * the guard's replacement is still installed.
+ */
+export declare function installPlaygroundModalGuard(
+  options: PlaygroundModalGuardOptions,
+): PlaygroundModalGuard
 
 export declare const PLAYGROUND_CHANNEL: 'zeus-playground'
 export declare const PLAYGROUND_MESSAGE_VERSION: 1
