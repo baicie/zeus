@@ -1,0 +1,57 @@
+# Server-side compose for Zeus Admin. This is a *release artifact*: it never
+# builds anything, it only pulls the image CI published to GHCR.
+#
+# `.github/workflows/admin-image.yml` uploads this file to
+#   ${DEPLOY_DIR}/docker-compose.deploy.yml      (default /home/ubuntu/zeus-admin)
+# and then runs `docker compose -f docker-compose.deploy.yml up -d --pull never`
+# with IMAGE_REPO / IMAGE_TAG in the environment.
+#
+# The repo-root compose (`examples/admin/docker-compose.yml`) is the local build
+# variant; keep the two in sync when ports, volumes or limits change.
+services:
+  admin:
+    image: ${IMAGE_REPO:-ghcr.io/baicie/zeus-admin}:${IMAGE_TAG:-main}
+    container_name: ${CONTAINER_NAME:-zeus-admin}
+    restart: unless-stopped
+    # Loopback-only; TLS and authentication terminate at the trusted ingress.
+    ports:
+      - '127.0.0.1:8080:8080'
+    environment:
+      # Credentials come from the server-side env file, never from this file.
+      # The deploy workflow reads ${DEPLOY_DIR}/.env, which already exists on the
+      # host; it is created with placeholders only when absent, so a rotation is
+      # an explicit act and never a side effect of a release.
+      ZEUS_ADMIN_EMAIL: ${ZEUS_ADMIN_EMAIL:?Set ZEUS_ADMIN_EMAIL in .env}
+      ZEUS_ADMIN_PASSWORD: ${ZEUS_ADMIN_PASSWORD:?Set ZEUS_ADMIN_PASSWORD in .env}
+      ZEUS_ADMIN_SEED_DEMO: 'false'
+      ZEUS_ADMIN_SECURE_COOKIES: 'true'
+      ZEUS_ADMIN_TRUST_PROXY: 'true'
+      ZEUS_ADMIN_ORIGINS: ${ZEUS_ADMIN_ORIGINS:-https://admin.moonbyte.top:8443}
+      ZEUS_ADMIN_DB: /data/admin.sqlite
+      ZEUS_ADMIN_HOST: 0.0.0.0
+      ZEUS_ADMIN_UPLOAD_BYTES: '65536'
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      # The SQLite database and uploads live here. This must survive a deploy.
+      - ${DATA_DIR:-/home/ubuntu/zeus-admin/data}:/data
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 384m
+    cpus: 0.50
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:8080/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

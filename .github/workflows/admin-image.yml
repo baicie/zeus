@@ -1,0 +1,322 @@
+name: Admin Image
+
+# Builds the Zeus Admin image on every push to main that can change it, then
+# rolls production onto the new digest.
+#
+# Shape mirrors `playground-image.yml`:
+#   1. build-and-publish: build linux/amd64, tag with `main` / `sha-*` / date,
+#      push to GHCR, verify the tags landed.
+#   2. deploy: pull that exact digest on the host and recreate the container,
+#      then fail unless it is running and serving.
+#
+# The deploy keeps the host's `admin.env` untouched. Credentials are not in this
+# repository and must not be — the first deploy writes a template the operator
+# fills in, and later deploys only replace the image.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'examples/admin/**'
+      - 'packages/**'
+      - 'crates/**'
+      - 'scripts/release/build-info.ts'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/admin-image.yml'
+  pull_request:
+    paths:
+      - 'examples/admin/**'
+      - '.github/workflows/admin-image.yml'
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Roll the production container onto the built image
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: admin-image-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ghcr.io/${{ github.repository_owner }}/zeus-admin
+
+jobs:
+  build-and-publish:
+    name: Build and publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      tag: ${{ steps.vars.outputs.tag }}
+      image: ${{ steps.vars.outputs.image }}
+      digest: ${{ steps.build.outputs.digest }}
+      version: ${{ steps.vars.outputs.version }}
+      should_deploy: ${{ steps.vars.outputs.should_deploy }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Resolve build variables
+        id: vars
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          sha="${GITHUB_SHA}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          # `main` is the moving tag; the sha tag is an immutable audit point.
+          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
+            echo "tag=main" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=sha-${sha}" >> "$GITHUB_OUTPUT"
+          fi
+          echo "date_tag=$(date -u +%Y.%m.%d-%H%M)" >> "$GITHUB_OUTPUT"
+          echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          # Deploy only from main, and only when the run was not a PR.
+          if [[ "${GITHUB_REF}" == "refs/heads/main" && "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${{ inputs.deploy }}" == "true" ]]; then
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Resolve the paired zeus-ui commit
+        id: ui
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CONFIGURED: ${{ vars.ZEUS_UI_COMMIT }}
+        run: |
+          set -euo pipefail
+          # build-info.ts rejects anything that is not a full 40-character
+          # commit, so a branch name is resolved to its current SHA.
+          sha="${CONFIGURED:-}"
+          case "$sha" in
+            *[!0-9a-f]* | '')
+              sha="$(gh api "repos/${{ github.repository_owner }}/zeus-ui/commits/${sha:-main}" --jq '.sha')"
+              ;;
+          esac
+          if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Could not resolve a 40-character zeus-ui commit (got '$sha')"
+            exit 1
+          fi
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: examples/admin/Dockerfile
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.vars.outputs.tag }}
+            ${{ env.IMAGE }}:sha-${{ github.sha }}
+            ${{ env.IMAGE }}:${{ steps.vars.outputs.date_tag }}
+          build-args: |
+            ZEUS_CORE_COMMIT=${{ github.sha }}
+            ZEUS_UI_COMMIT=${{ steps.ui.outputs.sha }}
+            ZEUS_VERSION=${{ steps.vars.outputs.version }}
+            ZEUS_BUILD_TIME=${{ steps.vars.outputs.build_time }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.vars.outputs.version }}
+          cache-from: type=gha,scope=admin-image
+          cache-to: type=gha,mode=max,scope=admin-image
+          provenance: false
+
+      - name: Verify the pushed tags
+        if: github.event_name != 'pull_request'
+        run: |
+          set -euo pipefail
+          docker buildx imagetools inspect "${IMAGE}:main"
+          docker buildx imagetools inspect "${IMAGE}:sha-${{ github.sha }}"
+
+  deploy:
+    name: Deploy
+    needs: build-and-publish
+    if: needs.build-and-publish.outputs.should_deploy == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    permissions:
+      contents: read
+    env:
+      DEPLOY_TAG: ${{ needs.build-and-publish.outputs.tag }}
+      IMAGE_REF: ${{ needs.build-and-publish.outputs.image }}
+      IMAGE_DIGEST: ${{ needs.build-and-publish.outputs.digest }}
+      DEPLOY_HOST: ${{ vars.ZEUS_ADMIN_DEPLOY_HOST || vars.ZEUS_PLAYGROUND_DEPLOY_HOST }}
+      DEPLOY_USER: ${{ vars.ZEUS_ADMIN_DEPLOY_USER || vars.ZEUS_PLAYGROUND_DEPLOY_USER || 'ubuntu' }}
+      DEPLOY_PORT: ${{ vars.ZEUS_ADMIN_DEPLOY_PORT || vars.ZEUS_PLAYGROUND_DEPLOY_PORT || '22' }}
+      DEPLOY_DIR: ${{ vars.ZEUS_ADMIN_DEPLOY_DIR || '/home/ubuntu/zeus-admin' }}
+      CONTAINER: ${{ vars.ZEUS_ADMIN_CONTAINER || 'zeus-admin' }}
+      HEALTH_URL: http://127.0.0.1:8080/api/health
+      GHCR_MIRRORS: ${{ vars.GHCR_MIRRORS || 'ghcr.nju.edu.cn' }}
+      SSH_KEY: ${{ secrets.ZEUS_PLAYGROUND_DEPLOY_SSH_KEY }}
+      SSH_PASSWORD: ${{ secrets.ZEUS_PLAYGROUND_DEPLOY_SSH_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check deploy credentials
+        id: cred
+        run: |
+          set -euo pipefail
+          if [[ -z "${DEPLOY_HOST:-}" ]]; then
+            echo "::error::ZEUS_ADMIN_DEPLOY_HOST (or ZEUS_PLAYGROUND_DEPLOY_HOST) is not set"
+            exit 1
+          fi
+          if [[ -n "${SSH_KEY:-}" ]]; then
+            echo "method=key" >> "$GITHUB_OUTPUT"
+          elif [[ -n "${SSH_PASSWORD:-}" ]]; then
+            echo "method=password" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::No SSH credential available"
+            exit 1
+          fi
+
+      - name: Install SSH client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq openssh-client sshpass
+
+      - name: Upload deploy compose
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          if [[ "${{ steps.cred.outputs.method }}" == "key" ]]; then
+            printf '%s\n' "${SSH_KEY}" > ~/.ssh/deploy_key
+            chmod 600 ~/.ssh/deploy_key
+            SSH=(ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes)
+          else
+            printf '%s' "${SSH_PASSWORD}" > ~/.ssh/pass
+            chmod 600 ~/.ssh/pass
+            SSH=(sshpass -f ~/.ssh/pass ssh)
+          fi
+          SSH+=(-o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 -p "${DEPLOY_PORT}")
+          COMPOSE_B64="$(base64 < examples/admin/deploy/docker-compose.deploy.yml | tr -d '\n')"
+          "${SSH[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" 'bash -s' -- "${DEPLOY_DIR}" "${COMPOSE_B64}" <<'REMOTE'
+          set -euo pipefail
+          DIR="$1"; COMPOSE="$2"
+          mkdir -p "$DIR"
+          printf '%s' "$COMPOSE" | base64 -d > "$DIR/docker-compose.deploy.yml"
+          chmod 644 "$DIR/docker-compose.deploy.yml"
+          # Credentials are the operator's and already exist on this host.
+          # Requiring the file keeps a release from inventing or overwriting it:
+          # rotating a password stays a deliberate act.
+          if [[ ! -f "$DIR/.env" ]]; then
+            echo "::error::$DIR/.env is missing. Create it before deploying."
+            exit 1
+          fi
+          echo "credentials present: .env"
+          echo "compose 已就绪: $DIR/docker-compose.deploy.yml"
+          REMOTE
+
+      - name: Rolling update container
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          if [[ "${{ steps.cred.outputs.method }}" == "key" ]]; then
+            printf '%s\n' "${SSH_KEY}" > ~/.ssh/deploy_key
+            chmod 600 ~/.ssh/deploy_key
+            SSH=(ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes)
+          else
+            printf '%s' "${SSH_PASSWORD}" > ~/.ssh/pass
+            chmod 600 ~/.ssh/pass
+            SSH=(sshpass -f ~/.ssh/pass ssh)
+          fi
+          SSH+=(-o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 -p "${DEPLOY_PORT}")
+          "${SSH[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" 'bash -s' -- \
+            "${IMAGE_REF}" "${DEPLOY_TAG}" "${IMAGE_DIGEST}" "${CONTAINER}" \
+            "${DEPLOY_DIR}" "${HEALTH_URL}" "${GHCR_MIRRORS}" <<'REMOTE'
+          set -euo pipefail
+          IMAGE="$1"; TAG="$2"; DIGEST="$3"; CONTAINER="$4"
+          DIR="$5"; HEALTH="$6"; MIRRORS="$7"
+          CANONICAL="${IMAGE}:${TAG}"
+          REPO_PATH="${IMAGE#ghcr.io/}"
+
+          if docker info >/dev/null 2>&1; then
+            DOCKER=(docker); echo "==> docker: direct"
+          elif sudo -n true >/dev/null 2>&1; then
+            DOCKER=(sudo -n docker); echo "==> docker: via sudo"
+          else
+            echo "::error::No docker access and no passwordless sudo on the host"
+            exit 1
+          fi
+
+          if [[ "${DOCKER[0]}" == "sudo" ]]; then
+            RUN=(sudo -n env "IMAGE_REPO=${IMAGE}" "IMAGE_TAG=${TAG}" "CONTAINER_NAME=${CONTAINER}" "COMPOSE_PROJECT_NAME=${CONTAINER}" "DATA_DIR=${DIR}/data" docker)
+          else
+            RUN=(env "IMAGE_REPO=${IMAGE}" "IMAGE_TAG=${TAG}" "CONTAINER_NAME=${CONTAINER}" "COMPOSE_PROJECT_NAME=${CONTAINER}" "DATA_DIR=${DIR}/data" docker)
+          fi
+
+          # Pull by digest: content-addressed, so a mirror cannot substitute the
+          # image, and the deployment is pinned to what CI actually built.
+          candidates=()
+          if [[ -n "${DIGEST}" ]]; then
+            candidates+=("${IMAGE}@${DIGEST}")
+          fi
+          candidates+=("${CANONICAL}")
+          for mirror in ${MIRRORS}; do
+            [[ -n "${DIGEST}" ]] && candidates+=("${mirror}/${REPO_PATH}@${DIGEST}")
+            candidates+=("${mirror}/${REPO_PATH}:${TAG}")
+          done
+
+          pulled=""
+          for candidate in "${candidates[@]}"; do
+            echo "==> pulling ${candidate}"
+            if "${DOCKER[@]}" pull "${candidate}" >/dev/null 2>&1; then
+              pulled="${candidate}"; break
+            fi
+            echo "    failed, trying the next candidate"
+          done
+          if [[ -z "${pulled}" ]]; then
+            echo "::error::Could not pull the image from any candidate"
+            exit 1
+          fi
+          # Retag the pulled reference to the canonical name the compose file
+          # expects, so `--pull never` uses exactly what was verified.
+          "${DOCKER[@]}" tag "${pulled}" "${CANONICAL}"
+
+          cd "$DIR"
+          set -a
+          # shellcheck disable=SC1091
+          . ./.env
+          set +a
+          "${RUN[@]}" compose -f docker-compose.deploy.yml up -d --pull never --remove-orphans --force-recreate
+
+          # Wait for the health endpoint before declaring success.
+          for attempt in $(seq 1 30); do
+            sleep 2
+            if curl -fsS "${HEALTH}" >/dev/null 2>&1; then
+              echo "==> healthy after $((attempt * 2))s"
+              "${DOCKER[@]}" ps --filter "name=${CONTAINER}" --format '{{.Names}} {{.Image}} {{.Status}}'
+              exit 0
+            fi
+          done
+          echo "::error::Container did not become healthy"
+          "${DOCKER[@]}" logs --tail 50 "${CONTAINER}" || true
+          exit 1
+          REMOTE
+
+      - name: Cleanup credentials
+        if: always()
+        run: rm -f ~/.ssh/deploy_key ~/.ssh/pass

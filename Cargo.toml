@@ -50,3 +50,10 @@ codegen-units = 1
 lto = "thin"
 opt-level = 3
 strip = "symbols"
+
+# 第三方依赖不带调试信息以减小 target 体积（自家 crate 保留调试信息）
+[profile.dev.package."*"]
+debug = false
+
+[profile.test.package."*"]
+debug = false
