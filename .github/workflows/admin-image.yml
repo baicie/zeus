@@ -303,10 +303,10 @@ jobs:
           # commit hash landed where the TCR repository path belonged — docker
           # tried to log in to a registry named after a commit. Assigning them
           # here keeps each one attached to its own name, empty or not.
-          REMOTE_ENV="ZEUS_TCR_IMAGE=$(quote "${TCR_IMAGE}")"
-          REMOTE_ENV+=" ZEUS_TCR_USER=$(quote "${TCR_USERNAME}")"
-          REMOTE_ENV+=" ZEUS_TCR_PASS=$(quote "${TCR_PASSWORD}")"
-          REMOTE_ENV+=" ZEUS_EXPECTED_REVISION=$(quote "${EXPECTED_REVISION}")"
+          REMOTE_ENV="ZEUS_TCR_IMAGE=$(q "${TCR_IMAGE}")"
+          REMOTE_ENV+=" ZEUS_TCR_USER=$(q "${TCR_USERNAME}")"
+          REMOTE_ENV+=" ZEUS_TCR_PASS=$(q "${TCR_PASSWORD}")"
+          REMOTE_ENV+=" ZEUS_EXPECTED_REVISION=$(q "${EXPECTED_REVISION}")"
           # shellcheck disable=SC2029
           "${SSH[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
             "${REMOTE_ENV} bash -s" -- \
