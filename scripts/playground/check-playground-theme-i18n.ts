@@ -511,14 +511,19 @@ async function checkBootstrapHash(): Promise<void> {
       path.join(root, 'examples/playground-editor/dist', file),
       'utf8',
     )
-    const body = /<script>\n([\s\S]*?)\n\s*<\/script>/.exec(html)?.[1]
+    // A CSP hash covers every byte between `<script>` and `</script>`, leading
+    // newline and trailing indentation included. Trimming them here would
+    // produce a hash the browser never accepts, and because nginx.conf was
+    // generated from the same trimmed string the two agreed with each other
+    // while the deployed page was blocked.
+    const body = /<script>([\s\S]*?)<\/script>/.exec(html)?.[1]
     check(
       `${file} has an inline bootstrap`,
       body !== undefined,
       'no <script> block',
     )
     if (body === undefined) continue
-    const actual = createHash('sha256').update(body).digest('base64')
+    const actual = createHash('sha256').update(body, 'utf8').digest('base64')
     check(
       `${file} bootstrap hash matches nginx.conf`,
       actual === declared,
