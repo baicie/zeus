@@ -292,18 +292,36 @@ jobs:
             SSH=(sshpass -f ~/.ssh/pass ssh)
           fi
           SSH+=(-o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 -p "${DEPLOY_PORT}")
-          "${SSH[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" 'bash -s' -- \
+          # `printf %q` quotes a value so the remote shell receives it verbatim
+          # — empty strings, spaces, `$`, quotes. A password must never be
+          # expanded by either shell on the way through.
+          q() { printf '%q' "$1"; }
+          # Only the required values travel as positionals. The optional ones
+          # (TCR path, credentials, expected revision) are assigned on the
+          # remote command line, because `ssh host bash -s -- a "" b` drops the
+          # empty argument: every later positional then shifts left, and the
+          # commit hash landed where the TCR repository path belonged — docker
+          # tried to log in to a registry named after a commit. Assigning them
+          # here keeps each one attached to its own name, empty or not.
+          REMOTE_ENV="ZEUS_TCR_IMAGE=$(quote "${TCR_IMAGE}")"
+          REMOTE_ENV+=" ZEUS_TCR_USER=$(quote "${TCR_USERNAME}")"
+          REMOTE_ENV+=" ZEUS_TCR_PASS=$(quote "${TCR_PASSWORD}")"
+          REMOTE_ENV+=" ZEUS_EXPECTED_REVISION=$(quote "${EXPECTED_REVISION}")"
+          # shellcheck disable=SC2029
+          "${SSH[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "${REMOTE_ENV} bash -s" -- \
             "${IMAGE_REF}" "${DEPLOY_TAG}" "${IMAGE_DIGEST}" "${CONTAINER}" \
-            "${DEPLOY_DIR}" "${HEALTH_URL}" "${GHCR_MIRRORS}" \
-            "${TCR_IMAGE}" "${TCR_USERNAME}" "${TCR_PASSWORD}" \
-            "${EXPECTED_REVISION}" <<'REMOTE'
+            "${DEPLOY_DIR}" "${HEALTH_URL}" "${GHCR_MIRRORS}" <<'REMOTE'
           set -euo pipefail
           IMAGE="$1"; TAG="$2"; DIGEST="$3"; CONTAINER="$4"
           DIR="$5"; HEALTH="$6"; MIRRORS="$7"
-          # Optional: unset when TCR is not configured. `set -u` would abort
-          # the whole script on an unbound positional, so default each to empty.
-          TCR="${8:-}"; TCR_USER="${9:-}"; TCR_PASS="${10:-}"
-          EXPECTED_REVISION="${11:-}"
+          # Optional values arrive as environment variables so that an empty
+          # one cannot shift the positionals. Default each: `set -u` would
+          # abort on an unset name.
+          TCR="${ZEUS_TCR_IMAGE:-}"
+          TCR_USER="${ZEUS_TCR_USER:-}"
+          TCR_PASS="${ZEUS_TCR_PASS:-}"
+          EXPECTED_REVISION="${ZEUS_EXPECTED_REVISION:-}"
           CANONICAL="${IMAGE}:${TAG}"
           REPO_PATH="${IMAGE#ghcr.io/}"
 
