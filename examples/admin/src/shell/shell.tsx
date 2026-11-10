@@ -121,7 +121,7 @@ export function AdminShell(props: AdminShellProps) {
   const [collapsed, setCollapsed] = createSignal(readCollapsed())
   const [drawerOpen, setDrawerOpen] = createSignal(false)
   const [userMenuOpen, setUserMenuOpen] = createSignal(false)
-  const [diagnosticsOpen, setDiagnosticsOpen] = createSignal(true)
+  const [diagnosticsOpen, setDiagnosticsOpen] = createSignal(false)
   const [themePreference, setThemePreference] = createSignal<ThemePreference>(
     readThemePreference(),
   )
@@ -380,8 +380,8 @@ export function AdminShell(props: AdminShellProps) {
  * history controls and a loader preload probe.
  *
  * Product UI does not show these. The panel is mounted only when the shell is
- * given `diagnostics`, and it starts expanded because this example's
- * acceptance gate drives the history and preload controls that live inside it.
+ * given `diagnostics`, and it starts collapsed: a person who wants the router
+ * internals opens it, and the acceptance gate does the same.
  */
 function DiagnosticsPanel(props: { open: boolean; onToggle: () => void }) {
   return (
