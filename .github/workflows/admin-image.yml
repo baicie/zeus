@@ -276,7 +276,9 @@ jobs:
           set -euo pipefail
           IMAGE="$1"; TAG="$2"; DIGEST="$3"; CONTAINER="$4"
           DIR="$5"; HEALTH="$6"; MIRRORS="$7"
-          TCR="$8"; TCR_USER="$9"; TCR_PASS="${10}"
+          # Optional: unset when TCR is not configured. `set -u` would abort
+          # the whole script on an unbound positional, so default each to empty.
+          TCR="${8:-}"; TCR_USER="${9:-}"; TCR_PASS="${10:-}"
           CANONICAL="${IMAGE}:${TAG}"
           REPO_PATH="${IMAGE#ghcr.io/}"
 
