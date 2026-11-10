@@ -1,0 +1,703 @@
+/**
+ * Admin primitives: reset, typography, and the small set of atoms every page
+ * composes from — button, input, select, card, badge, table, empty/loading
+ * states.
+ *
+ * These exist so pages describe intent (`class="btn btn-primary"`) instead of
+ * restating colours and paddings. Anything page-specific belongs next to the
+ * page, not here.
+ *
+ * Accessibility notes:
+ * - `:focus-visible` is the only focus treatment; it uses the accent ring at
+ *   3px so it survives a 200% zoom and a low-contrast display.
+ * - Touch targets are at least 36px tall on the base control height.
+ */
+
+/* ---------------------------------------------------------------- reset */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--admin-color-surface-sunken);
+  color: var(--admin-color-text-primary);
+  font-family: var(--admin-font-sans);
+  font-size: var(--admin-font-size-base);
+  line-height: var(--admin-line-base);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+a {
+  color: var(--admin-color-accent-default);
+  text-decoration: none;
+  text-underline-offset: 3px;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+:focus-visible {
+  outline: 2px solid var(--admin-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--admin-radius-sm);
+}
+
+/* Visually hidden but available to assistive technology. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ----------------------------------------------------------- typography */
+h1,
+h2,
+h3,
+h4 {
+  line-height: var(--admin-line-tight);
+  font-weight: var(--admin-weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+h1 {
+  font-size: var(--admin-font-size-2xl);
+}
+h2 {
+  font-size: var(--admin-font-size-xl);
+}
+h3 {
+  font-size: var(--admin-font-size-lg);
+}
+h4 {
+  font-size: var(--admin-font-size-base);
+}
+
+code,
+kbd,
+pre {
+  font-family: var(--admin-font-mono);
+  font-size: 0.92em;
+}
+
+/* --------------------------------------------------------------- layout */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-space-4);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--admin-space-2);
+}
+
+.row-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--admin-space-2);
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+/* -------------------------------------------------------------- buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--admin-space-2);
+  height: var(--admin-control-height);
+  padding: 0 var(--admin-space-4);
+  border: 1px solid var(--admin-color-border-default);
+  border-radius: var(--admin-radius-md);
+  background: var(--admin-color-surface-base);
+  color: var(--admin-color-text-primary);
+  font-size: var(--admin-font-size-sm);
+  font-weight: var(--admin-weight-medium);
+  white-space: nowrap;
+  transition:
+    background-color var(--admin-duration-fast) var(--admin-ease),
+    border-color var(--admin-duration-fast) var(--admin-ease),
+    color var(--admin-duration-fast) var(--admin-ease);
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--admin-color-surface-hover);
+  border-color: var(--admin-color-border-strong);
+}
+
+.btn:active:not(:disabled) {
+  background: var(--admin-color-surface-active);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+}
+
+.btn-primary {
+  background: var(--admin-color-accent-default);
+  border-color: var(--admin-color-accent-default);
+  color: var(--admin-color-accent-contrast);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--admin-color-accent-strong);
+  border-color: var(--admin-color-accent-strong);
+}
+
+.btn-primary:active:not(:disabled) {
+  background: var(--admin-color-accent-strong);
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--admin-color-surface-hover);
+  border-color: transparent;
+}
+
+.btn-danger {
+  color: var(--admin-color-danger-default);
+  border-color: var(--admin-color-border-default);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--admin-color-danger-subtle);
+  border-color: var(--admin-color-danger-default);
+}
+
+.btn-sm {
+  height: var(--admin-control-height-sm);
+  padding: 0 var(--admin-space-3);
+  font-size: var(--admin-font-size-xs);
+}
+
+/* Square button for a single icon. */
+.btn-icon {
+  width: var(--admin-control-height);
+  padding: 0;
+}
+
+.btn-icon.btn-sm {
+  width: var(--admin-control-height-sm);
+}
+
+/* --------------------------------------------------------------- inputs */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-space-2);
+}
+
+.field-label {
+  font-size: var(--admin-font-size-sm);
+  font-weight: var(--admin-weight-medium);
+  color: var(--admin-color-text-secondary);
+}
+
+.field-hint {
+  font-size: var(--admin-font-size-xs);
+  color: var(--admin-color-text-muted);
+}
+
+.input,
+.select {
+  height: var(--admin-control-height);
+  width: 100%;
+  padding: 0 var(--admin-space-3);
+  border: 1px solid var(--admin-color-border-default);
+  border-radius: var(--admin-radius-md);
+  background: var(--admin-color-surface-base);
+  color: var(--admin-color-text-primary);
+  font-size: var(--admin-font-size-sm);
+  transition: border-color var(--admin-duration-fast) var(--admin-ease);
+}
+
+.select {
+  /* Room for the native arrow on the right. */
+  padding-right: var(--admin-space-8);
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--admin-color-text-muted) 50%),
+    linear-gradient(135deg, var(--admin-color-text-muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 15px) calc(50% + 1px),
+    calc(100% - 10px) calc(50% + 1px);
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.input:hover:not(:disabled),
+.select:hover:not(:disabled) {
+  border-color: var(--admin-color-border-strong);
+}
+
+.input:disabled,
+.select:disabled {
+  background: var(--admin-color-surface-inset);
+  color: var(--admin-color-text-muted);
+}
+
+.input[aria-invalid='true'] {
+  border-color: var(--admin-color-danger-default);
+}
+
+/* Native file input needs its own height handling. */
+.input[type='file'] {
+  height: auto;
+  padding: var(--admin-space-2) var(--admin-space-3);
+  font-size: var(--admin-font-size-sm);
+}
+
+/* ---------------------------------------------------------------- cards */
+.card {
+  background: var(--admin-color-surface-base);
+  border: 1px solid var(--admin-color-border-default);
+  border-radius: var(--admin-radius-lg);
+  box-shadow: var(--admin-shadow-sm);
+}
+
+.card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--admin-space-4);
+  padding: var(--admin-space-4) var(--admin-space-5);
+  border-bottom: 1px solid var(--admin-color-border-subtle);
+}
+
+.card-title {
+  font-size: var(--admin-font-size-base);
+  font-weight: var(--admin-weight-semibold);
+}
+
+.card-description {
+  margin-top: var(--admin-space-1);
+  font-size: var(--admin-font-size-sm);
+  color: var(--admin-color-text-secondary);
+}
+
+.card-body {
+  padding: var(--admin-space-5);
+}
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--admin-space-2);
+  padding: var(--admin-space-3) var(--admin-space-5);
+  border-top: 1px solid var(--admin-color-border-subtle);
+  background: var(--admin-color-surface-inset);
+  border-radius: 0 0 var(--admin-radius-lg) var(--admin-radius-lg);
+}
+
+/* --------------------------------------------------------------- badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--admin-space-1);
+  height: 22px;
+  padding: 0 var(--admin-space-2);
+  border-radius: var(--admin-radius-full);
+  background: var(--admin-color-surface-active);
+  color: var(--admin-color-text-secondary);
+  font-size: var(--admin-font-size-xs);
+  font-weight: var(--admin-weight-medium);
+  white-space: nowrap;
+}
+
+.badge-success {
+  background: var(--admin-color-success-subtle);
+  color: var(--admin-color-success-default);
+}
+.badge-warning {
+  background: var(--admin-color-warning-subtle);
+  color: var(--admin-color-warning-default);
+}
+.badge-danger {
+  background: var(--admin-color-danger-subtle);
+  color: var(--admin-color-danger-default);
+}
+.badge-info {
+  background: var(--admin-color-info-subtle);
+  color: var(--admin-color-info-default);
+}
+.badge-accent {
+  background: var(--admin-color-accent-subtle);
+  color: var(--admin-color-accent-default);
+}
+
+/* A dot prefix for status badges; the colour carries meaning, the text
+   repeats it so colour is never the only signal. */
+.badge-dot::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: var(--admin-radius-full);
+  background: currentColor;
+}
+
+/* ---------------------------------------------------------------- tables */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--admin-font-size-sm);
+}
+
+.table th {
+  padding: var(--admin-space-3) var(--admin-space-4);
+  border-bottom: 1px solid var(--admin-color-border-default);
+  color: var(--admin-color-text-muted);
+  font-size: var(--admin-font-size-xs);
+  font-weight: var(--admin-weight-medium);
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: var(--admin-space-3) var(--admin-space-4);
+  border-bottom: 1px solid var(--admin-color-border-subtle);
+  vertical-align: middle;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table tbody tr:hover {
+  background: var(--admin-color-surface-hover);
+}
+
+.table-mono {
+  font-family: var(--admin-font-mono);
+  font-size: var(--admin-font-size-xs);
+}
+
+/* ------------------------------------------------------- state surfaces */
+/* Empty, loading and error share one frame so a page never jumps when a
+   request resolves into a different state. */
+.state-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--admin-space-3);
+  padding: var(--admin-space-10) var(--admin-space-6);
+  text-align: center;
+  color: var(--admin-color-text-secondary);
+}
+
+.state-title {
+  font-size: var(--admin-font-size-base);
+  font-weight: var(--admin-weight-medium);
+  color: var(--admin-color-text-primary);
+}
+
+.state-description {
+  max-width: 46ch;
+  font-size: var(--admin-font-size-sm);
+  color: var(--admin-color-text-muted);
+}
+
+.state-block-error .state-title {
+  color: var(--admin-color-danger-default);
+}
+
+/* Skeleton: a calm pulse, disabled under reduced motion. */
+.skeleton {
+  border-radius: var(--admin-radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--admin-color-surface-active) 25%,
+    var(--admin-color-surface-hover) 37%,
+    var(--admin-color-surface-active) 63%
+  );
+  background-size: 400% 100%;
+  animation: admin-skeleton 1.4s ease infinite;
+}
+
+@keyframes admin-skeleton {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+.skeleton-line {
+  height: 12px;
+}
+
+.skeleton-line + .skeleton-line {
+  margin-top: var(--admin-space-2);
+}
+
+/* Inline spinner for buttons and status rows. */
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: var(--admin-radius-full);
+  animation: admin-spin 0.7s linear infinite;
+}
+
+@keyframes admin-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2s;
+  }
+}
+
+/* ------------------------------------------------------------- utility */
+.muted {
+  color: var(--admin-color-text-muted);
+}
+.secondary {
+  color: var(--admin-color-text-secondary);
+}
+.mono {
+  font-family: var(--admin-font-mono);
+}
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------- web components */
+/*
+ * The `zw-*` elements used here render into light DOM, so a global stylesheet
+ * reaches their internals through `data-slot` hooks. These rules adapt the
+ * published components to the admin tokens without forking them.
+ */
+zw-input,
+zw-data-grid,
+zw-dialog,
+zw-dialog-content,
+zw-dialog-title,
+zw-dialog-description {
+  display: block;
+}
+
+/* Input: let the component fill the field column and adopt the control skin. */
+zw-input {
+  width: 100%;
+}
+
+zw-input input {
+  width: 100%;
+  height: var(--admin-control-height);
+  padding: 0 var(--admin-space-3);
+  border: 1px solid var(--admin-color-border-default);
+  border-radius: var(--admin-radius-md);
+  background: var(--admin-color-surface-base);
+  color: var(--admin-color-text-primary);
+  font: inherit;
+  font-size: var(--admin-font-size-sm);
+  transition: border-color var(--admin-duration-fast) var(--admin-ease);
+}
+
+zw-input input:hover:not(:disabled) {
+  border-color: var(--admin-color-border-strong);
+}
+
+zw-input input:focus-visible {
+  outline: 2px solid var(--admin-focus-ring);
+  outline-offset: 1px;
+}
+
+zw-input input::placeholder {
+  color: var(--admin-color-text-muted);
+}
+
+/* The component renders its own <label>, which is empty when the consumer
+   supplies one. Hide only the empty case so the field label is not doubled. */
+zw-input label:empty {
+  display: none;
+}
+
+/* Data grid: the component owns structure, the admin owns the skin. */
+zw-data-grid {
+  width: 100%;
+  color: var(--admin-color-text-primary);
+  font-size: var(--admin-font-size-sm);
+}
+
+/*
+ * The grid sizes columns from the `width` given per column, which leaves the
+ * table narrower than its frame. Stretching the row and header templates to
+ * 100% keeps short tables edge-to-edge without dropping the column widths,
+ * and the viewport still scrolls once the sum exceeds the frame.
+ */
+zw-data-grid [data-slot='data-grid-viewport'] {
+  width: 100%;
+  min-width: 0;
+}
+
+zw-data-grid [data-slot='data-grid-header'],
+zw-data-grid [data-slot='data-grid-row'] {
+  width: 100% !important;
+}
+
+zw-data-grid [data-slot='data-grid-header'] {
+  border-bottom: 1px solid var(--admin-color-border-default);
+  background: var(--admin-color-surface-inset);
+}
+
+zw-data-grid [data-slot='data-grid-header-cell'] {
+  padding: var(--admin-space-2) var(--admin-space-4);
+  color: var(--admin-color-text-muted);
+  font-size: var(--admin-font-size-xs);
+  font-weight: var(--admin-weight-medium);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+zw-data-grid [data-slot='data-grid-row'] {
+  border-bottom: 1px solid var(--admin-color-border-subtle);
+  transition: background-color var(--admin-duration-fast) var(--admin-ease);
+}
+
+zw-data-grid [data-slot='data-grid-row']:last-child {
+  border-bottom: 0;
+}
+
+zw-data-grid [data-slot='data-grid-row']:hover {
+  background: var(--admin-color-surface-hover);
+}
+
+zw-data-grid [data-slot='data-grid-row'][data-selected],
+zw-data-grid [data-slot='data-grid-row'][aria-selected='true'] {
+  background: var(--admin-color-accent-subtle);
+}
+
+zw-data-grid [data-slot='data-grid-cell'] {
+  padding: var(--admin-space-3) var(--admin-space-4);
+  border-right: 0;
+}
+
+zw-data-grid [data-slot='data-grid-cell'][data-active] {
+  outline: 2px solid var(--admin-focus-ring);
+  outline-offset: -2px;
+  border-radius: var(--admin-radius-sm);
+}
+
+zw-data-grid [data-slot='data-grid-empty'] {
+  padding: var(--admin-space-10);
+  color: var(--admin-color-text-muted);
+  text-align: center;
+}
+
+/* Dialog: `data-state` is set by the component and is the stable hook. */
+zw-dialog[data-state='open'] {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: var(--admin-space-4);
+  background: var(--admin-overlay-scrim);
+}
+
+zw-dialog[data-state='closed'],
+zw-dialog-content[data-state='closed'] {
+  display: none;
+}
+
+zw-dialog-content > div {
+  width: min(480px, 100%);
+  padding: var(--admin-space-6);
+  border: 1px solid var(--admin-color-border-default);
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-color-surface-overlay);
+  box-shadow: var(--admin-shadow-lg);
+}
+
+zw-dialog-title {
+  margin-bottom: var(--admin-space-1);
+  font-size: var(--admin-font-size-lg);
+  font-weight: var(--admin-weight-semibold);
+  color: var(--admin-color-text-primary);
+}
+
+zw-dialog-description {
+  margin-bottom: var(--admin-space-4);
+  color: var(--admin-color-text-secondary);
+  font-size: var(--admin-font-size-sm);
+}
+
+/* Status column: the grid renders the raw value, so the cell is tinted by a
+   data attribute the row carries. The text stays the source of truth. */
+zw-data-grid [data-slot='data-grid-cell'][data-column-id='status'] {
+  font-weight: var(--admin-weight-medium);
+  text-transform: capitalize;
+}
+
+/* Member rows always carry the raw status; colour it without changing text. */
+zw-data-grid [data-slot='data-grid-row'] [data-column-id='status'] {
+  color: var(--admin-color-text-secondary);
+}

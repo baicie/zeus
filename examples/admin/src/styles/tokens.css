@@ -1,0 +1,211 @@
+/**
+ * Zeus Admin design tokens.
+ *
+ * Every colour, space, radius, shadow and type ramp the admin UI uses is
+ * declared once here. Pages reference `var(--admin-*)` and never a literal
+ * colour, which is what makes light/dark one toggle instead of two rule sets
+ * and keeps a palette change from touching thirty selectors.
+ *
+ * The palette is a neutral developer-tool scheme: a cool grey surface ramp, a
+ * single teal accent, and status colours reserved for state. Accent is used for
+ * navigation selection, primary actions and focus — nowhere else — so "this is
+ * interactive" reads consistently.
+ *
+ * Naming:
+ *   --admin-color-surface-{sunken|base|raised|overlay}  background ramp
+ *   --admin-color-border-{subtle|default|strong}        hairlines
+ *   --admin-color-text-{primary|secondary|muted|inverse}
+ *   --admin-color-accent-{subtle|default|strong|contrast}
+ *   --admin-color-{danger|success|warning|info}-{subtle|default|strong}
+ *   --admin-space-{0..16}                               4px grid
+ *   --admin-radius-{sm|md|lg|full}
+ *   --admin-shadow-{sm|md|lg}
+ *   --admin-font-{size|weight|line}-*
+ */
+
+/* ------------------------------------------------------------------ *
+ * Light theme (default)
+ * ------------------------------------------------------------------ */
+:root,
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  /* Surfaces — cool grey, four steps of depth. */
+  --admin-color-surface-sunken: #f4f6f8;
+  --admin-color-surface-base: #ffffff;
+  --admin-color-surface-raised: #ffffff;
+  --admin-color-surface-overlay: #ffffff;
+  --admin-color-surface-hover: #f1f4f6;
+  --admin-color-surface-active: #e9eef1;
+  --admin-color-surface-inset: #f7f9fa;
+
+  /* Borders — hairlines, not decoration. */
+  --admin-color-border-subtle: #edf0f2;
+  --admin-color-border-default: #dde3e7;
+  --admin-color-border-strong: #c3cdd4;
+
+  /* Text */
+  --admin-color-text-primary: #14191d;
+  --admin-color-text-secondary: #4a5560;
+  --admin-color-text-muted: #75808a;
+  --admin-color-text-inverse: #ffffff;
+
+  /* Accent — one hue, used for interactivity only. */
+  --admin-color-accent-subtle: #e6f4f3;
+  --admin-color-accent-default: #0f766e;
+  --admin-color-accent-strong: #0b5d57;
+  --admin-color-accent-contrast: #ffffff;
+
+  /* Status */
+  --admin-color-danger-subtle: #fdecec;
+  --admin-color-danger-default: #c0392b;
+  --admin-color-danger-strong: #992d22;
+  --admin-color-success-subtle: #e8f6ee;
+  --admin-color-success-default: #1a7f4b;
+  --admin-color-success-strong: #145f39;
+  --admin-color-warning-subtle: #fdf3e2;
+  --admin-color-warning-default: #9a6208;
+  --admin-color-warning-strong: #7a4d06;
+  --admin-color-info-subtle: #eaf2fb;
+  --admin-color-info-default: #2563a8;
+  --admin-color-info-strong: #1d4e85;
+
+  /* Sidebar is a distinct surface in both themes. */
+  --admin-color-nav-surface: #10202c;
+  --admin-color-nav-text: #c8d6e0;
+  --admin-color-nav-text-strong: #ffffff;
+  --admin-color-nav-hover: #1a2f3e;
+  --admin-color-nav-active: #16394a;
+
+  --admin-focus-ring: #0f766e;
+
+  --admin-shadow-sm: 0 1px 2px rgba(16, 32, 44, 0.06);
+  --admin-shadow-md: 0 4px 12px rgba(16, 32, 44, 0.08);
+  --admin-shadow-lg: 0 12px 32px rgba(16, 32, 44, 0.12);
+
+  --admin-overlay-scrim: rgba(16, 32, 44, 0.45);
+}
+
+/* ------------------------------------------------------------------ *
+ * Dark theme
+ * ------------------------------------------------------------------ */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --admin-color-surface-sunken: #0b1014;
+  --admin-color-surface-base: #12181d;
+  --admin-color-surface-raised: #171f25;
+  --admin-color-surface-overlay: #1b242b;
+  --admin-color-surface-hover: #1d262d;
+  --admin-color-surface-active: #232e36;
+  --admin-color-surface-inset: #0e1418;
+
+  --admin-color-border-subtle: #1e272e;
+  --admin-color-border-default: #2a353d;
+  --admin-color-border-strong: #3a4852;
+
+  --admin-color-text-primary: #e8edf1;
+  --admin-color-text-secondary: #a9b6c0;
+  --admin-color-text-muted: #7b8892;
+  --admin-color-text-inverse: #0b1014;
+
+  --admin-color-accent-subtle: #10312e;
+  --admin-color-accent-default: #4fd1c5;
+  --admin-color-accent-strong: #6fe0d5;
+  --admin-color-accent-contrast: #06211f;
+
+  --admin-color-danger-subtle: #3a1a18;
+  --admin-color-danger-default: #f08b80;
+  --admin-color-danger-strong: #f7a89f;
+  --admin-color-success-subtle: #12301f;
+  --admin-color-success-default: #5ec98d;
+  --admin-color-success-strong: #7bd8a3;
+  --admin-color-warning-subtle: #33260f;
+  --admin-color-warning-default: #e0aa4e;
+  --admin-color-warning-strong: #edc273;
+  --admin-color-info-subtle: #12283d;
+  --admin-color-info-default: #74aee8;
+  --admin-color-info-strong: #93c2f0;
+
+  --admin-color-nav-surface: #0d1418;
+  --admin-color-nav-text: #a5b3bd;
+  --admin-color-nav-text-strong: #ffffff;
+  --admin-color-nav-hover: #17222a;
+  --admin-color-nav-active: #14303a;
+
+  --admin-focus-ring: #4fd1c5;
+
+  --admin-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --admin-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45);
+  --admin-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.55);
+
+  --admin-overlay-scrim: rgba(0, 0, 0, 0.6);
+}
+
+/* ------------------------------------------------------------------ *
+ * Theme-independent scales
+ * ------------------------------------------------------------------ */
+:root {
+  /* 4px grid. `--admin-space-4` is the usual gutter, `8` a section gap. */
+  --admin-space-0: 0;
+  --admin-space-1: 4px;
+  --admin-space-2: 8px;
+  --admin-space-3: 12px;
+  --admin-space-4: 16px;
+  --admin-space-5: 20px;
+  --admin-space-6: 24px;
+  --admin-space-8: 32px;
+  --admin-space-10: 40px;
+  --admin-space-12: 48px;
+  --admin-space-16: 64px;
+
+  --admin-radius-sm: 4px;
+  --admin-radius-md: 6px;
+  --admin-radius-lg: 10px;
+  --admin-radius-full: 999px;
+
+  /* Controls share a height so a row of different controls lines up. */
+  --admin-control-height-sm: 30px;
+  --admin-control-height: 36px;
+  --admin-control-height-lg: 42px;
+
+  --admin-font-sans:
+    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC',
+    'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --admin-font-mono:
+    ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+
+  --admin-font-size-xs: 12px;
+  --admin-font-size-sm: 13px;
+  --admin-font-size-base: 14px;
+  --admin-font-size-lg: 16px;
+  --admin-font-size-xl: 20px;
+  --admin-font-size-2xl: 24px;
+  --admin-font-size-3xl: 30px;
+
+  --admin-line-tight: 1.25;
+  --admin-line-base: 1.5;
+  --admin-line-relaxed: 1.65;
+
+  --admin-weight-normal: 400;
+  --admin-weight-medium: 500;
+  --admin-weight-semibold: 600;
+
+  /* Layout */
+  --admin-sidebar-width: 244px;
+  --admin-sidebar-width-collapsed: 60px;
+  --admin-toolbar-height: 56px;
+  --admin-content-max: 1240px;
+
+  --admin-duration-fast: 110ms;
+  --admin-duration-base: 170ms;
+  --admin-ease: cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+/* Honour a reduced-motion preference rather than shipping parallax. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --admin-duration-fast: 0ms;
+    --admin-duration-base: 0ms;
+  }
+}

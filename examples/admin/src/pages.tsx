@@ -1,14 +1,4 @@
-import {
-  Link,
-  Outlet,
-  useLocation,
-  useMatches,
-  useNavigation,
-  useParams,
-  usePathname,
-  useRouteError,
-  useRouter,
-} from '@zeus-js/router'
+import { Link, useParams, useRouteError, useRouter } from '@zeus-js/router'
 import { useMutation, useQuery, useQueryClient } from '@zeus-js/query'
 import {
   createEffect,
@@ -17,7 +7,6 @@ import {
   For,
   onCleanup,
   Show,
-  type Accessor,
 } from '@zeus-js/zeus'
 import type { DataGridElement } from '@zeus-web/data-grid/wc'
 import type { InputElement } from '@zeus-web/input/wc'
@@ -38,200 +27,87 @@ import {
 } from './routes'
 import { createHttpAdminApi } from './api'
 import type { WorkspaceSettings } from './api'
+import { Icon } from './shell/icon'
+import { useSession } from './session'
 
 export const adminApi = createHttpAdminApi(
   import.meta.env.VITE_ZEUS_ADMIN_API ?? '',
 )
 
-/** The application shell; it stays mounted across route changes. */
-export function AdminShell(props: {
-  role: Accessor<Role>
-  onRoleChange: (role: Role) => void
-  session?: Accessor<SessionUser | undefined>
-  onLogout?: () => Promise<void>
-}) {
-  const router = useRouter()
-  const location = useLocation()
-  const pathname = usePathname()
-  const matches = useMatches()
-  const navigation = useNavigation()
-  const [preloadStatus, setPreloadStatus] = createSignal('尚未预加载')
-
-  async function preloadAda(): Promise<void> {
-    setPreloadStatus('预加载中…')
-    try {
-      await router.preload('/admin/users/ada')
-      setPreloadStatus('ready')
-    } catch (error) {
-      setPreloadStatus(`预加载失败：${errorMessage(error)}`)
-    }
-  }
-
-  return (
-    <div class="admin-shell" data-testid="admin-layout">
-      <aside class="sidebar">
-        <Link class="brand" to="/admin" aria-label="Zeus Admin 首页">
-          Z<span>Zeus Admin</span>
-        </Link>
-        <p class="sidebar-label">工作空间</p>
-        <nav aria-label="主导航">
-          <Link
-            to="/admin"
-            aria-current={pathname() === '/admin' ? 'page' : undefined}
-          >
-            概览
-          </Link>
-          <Link
-            to="/admin/users"
-            aria-current={
-              pathname().startsWith('/admin/users') ? 'page' : undefined
-            }
-          >
-            用户管理
-          </Link>
-          <Show when={props.role() === 'admin'}>
-            <Link
-              to="/admin/roles"
-              aria-current={pathname() === '/admin/roles' ? 'page' : undefined}
-            >
-              角色管理
-            </Link>
-            <Link
-              to="/admin/audit"
-              aria-current={pathname() === '/admin/audit' ? 'page' : undefined}
-            >
-              审计日志
-            </Link>
-          </Show>
-          <Link
-            to="/admin/reports"
-            aria-current={pathname() === '/admin/reports' ? 'page' : undefined}
-          >
-            管理报表
-          </Link>
-          <Link
-            to="/admin/settings"
-            aria-current={pathname() === '/admin/settings' ? 'page' : undefined}
-          >
-            设置
-          </Link>
-          <Show when={props.role() === 'admin'}>
-            <Link
-              to="/admin/upload"
-              aria-current={pathname() === '/admin/upload' ? 'page' : undefined}
-            >
-              文件上传
-            </Link>
-          </Show>
-        </nav>
-        <div class="session">
-          <p class="session-user" data-testid="session-user">
-            {props.session?.()?.name ?? '未登录'}
-          </p>
-          <p>{props.role() === 'admin' ? '管理员' : '只读成员'} · 服务端会话</p>
-          <button
-            type="button"
-            class="logout-button"
-            data-testid="logout"
-            onClick={() =>
-              void props.onLogout?.().then(() => window.location.reload())
-            }
-          >
-            退出登录
-          </button>
-        </div>
-      </aside>
-
-      <div class="workspace">
-        <header class="toolbar">
-          <div>
-            <span class="eyebrow">Zeus Native · Router</span>
-            <p class="current-path" data-testid="current-path">
-              {location().pathname}
-              {location().search}
-              {location().hash}
-            </p>
-          </div>
-          <div class="history-controls" aria-label="历史导航">
-            <button
-              data-testid="history-back"
-              prop:onclick={() => void router.navigate(-1)}
-            >
-              后退
-            </button>
-            <button
-              data-testid="history-forward"
-              prop:onclick={() => void router.navigate(1)}
-            >
-              前进
-            </button>
-          </div>
-        </header>
-
-        <main
-          id="main-content"
-          aria-busy={String(navigation().state !== 'idle')}
-        >
-          <div class="route-status">
-            <span data-testid="route-matches">
-              {matches()
-                .map(match => match.route.id)
-                .join(' / ')}
-            </span>
-            <span role="status" data-testid="navigation-status">
-              {navigation().state === 'idle' ? '就绪' : '正在加载…'}
-            </span>
-          </div>
-          <Outlet />
-
-          <section class="preload-panel" aria-label="路由预加载">
-            <div>
-              <h2>提前准备下一页</h2>
-              <p>预加载会执行详情 loader，并保持当前 URL。</p>
-            </div>
-            <button
-              data-testid="preload-ada"
-              prop:onclick={() => void preloadAda()}
-            >
-              预加载 Ada 详情
-            </button>
-            <p role="status" data-testid="preload-status">
-              {preloadStatus()}
-            </p>
-          </section>
-        </main>
-        <footer>通过公开 Router / Signal API 构建 · 无页面刷新导航</footer>
-      </div>
-    </div>
-  )
-}
-
 export function OverviewPage() {
   const summary = useSummaryQuery()
+  const session = useSession()
 
   return (
     <section class="page" data-testid="overview-page">
-      <p class="eyebrow">工作空间概览</p>
-      <h1>欢迎回来</h1>
-      <p class="page-intro">
-        从用户列表开始，查看成员信息、访问权限与路由错误处理。
-      </p>
-      <div class="overview-grid">
-        <Link class="overview-card" to="/admin/users">
-          <span>团队成员</span>
-          <strong data-testid="summary-user-count">
-            {summary.data()?.totalUsers ?? '…'}
+      <header class="page-header">
+        <div class="page-heading">
+          <h2 class="page-title">工作空间概览</h2>
+          <p class="page-description">
+            成员与团队的实时摘要，数据由服务端会话校验后返回。
+          </p>
+        </div>
+      </header>
+
+      <div class="stat-grid">
+        <article class="stat">
+          <span class="stat-label">
+            <Icon name="users" /> 团队成员
+          </span>
+          <strong class="stat-value" data-testid="summary-user-count">
+            {summary.data()?.totalUsers ?? '—'}
           </strong>
-          <span>查看用户列表 →</span>
-        </Link>
-        <Link class="overview-card" to="/admin/reports">
-          <span>管理报表</span>
-          <strong data-testid="summary-team-count">
-            {summary.data()?.teams ?? '…'}
+          <span class="stat-foot">当前工作空间内的全部成员</span>
+        </article>
+        <article class="stat">
+          <span class="stat-label">
+            <Icon name="team" /> 团队总数
+          </span>
+          <strong class="stat-value" data-testid="summary-team-count">
+            {summary.data()?.teams ?? '—'}
           </strong>
-          <span>检查访问权限 →</span>
-        </Link>
+          <span class="stat-foot">成员所属的不同团队</span>
+        </article>
       </div>
+
+      <section class="stack">
+        <h3>快捷操作</h3>
+        <div class="quick-actions">
+          <Link class="quick-action" to="/admin/users">
+            <span class="quick-action-icon">
+              <Icon name="users" />
+            </span>
+            <span class="quick-action-copy">
+              <span class="quick-action-title">管理成员</span>
+              <span class="quick-action-description">
+                搜索、筛选并编辑成员资料
+              </span>
+            </span>
+          </Link>
+          <Show when={session.role === 'admin'}>
+            <Link class="quick-action" to="/admin/audit">
+              <span class="quick-action-icon">
+                <Icon name="list" />
+              </span>
+              <span class="quick-action-copy">
+                <span class="quick-action-title">审计日志</span>
+                <span class="quick-action-description">
+                  查看登录与写操作的服务端记录
+                </span>
+              </span>
+            </Link>
+            <Link class="quick-action" to="/admin/reports">
+              <span class="quick-action-icon">
+                <Icon name="chart" />
+              </span>
+              <span class="quick-action-copy">
+                <span class="quick-action-title">管理报表</span>
+                <span class="quick-action-description">汇总成员与团队数据</span>
+              </span>
+            </Link>
+          </Show>
+        </div>
+      </section>
     </section>
   )
 }
@@ -335,14 +211,25 @@ export function UsersPage() {
 
   return (
     <section class="page" data-testid="users-page">
-      <p class="eyebrow">成员目录</p>
-      <h1>用户管理</h1>
-      <p class="page-intro">
-        通过 Query adapter 读取成员目录，输入搜索词或状态筛选会取消旧请求。
-      </p>
+      <header class="page-header">
+        <div class="page-heading">
+          <h2 class="page-title">成员目录</h2>
+          <p class="page-description">
+            搜索或按状态筛选成员，选中后可进入详情编辑。
+          </p>
+        </div>
+        <div class="page-actions">
+          <Link class="btn" to="/admin/users/error">
+            <Icon name="alert" /> 体验加载失败
+          </Link>
+        </div>
+      </header>
+
       <div class="filter-bar" aria-label="用户筛选">
-        <div class="search-field">
-          <label for="user-search">搜索用户</label>
+        <div class="field search-field">
+          <label class="field-label" for="user-search">
+            搜索成员
+          </label>
           <zw-input
             id="user-search"
             aria-label="搜索用户"
@@ -352,102 +239,118 @@ export function UsersPage() {
             data-testid="user-search"
           />
         </div>
-        <label class="status-field" for="user-status">
-          状态
+        <div class="field status-field">
+          <label class="field-label" for="user-status">
+            状态
+          </label>
           <select
             id="user-status"
+            class="select"
             data-testid="user-status"
             prop:onchange={updateStatus}
           >
-            <option value="all">全部</option>
+            <option value="all">全部状态</option>
             <option value="active">活跃</option>
             <option value="invited">待邀请</option>
             <option value="suspended">已暂停</option>
           </select>
-        </label>
+        </div>
       </div>
-      <Show when={query.pending()}>
-        <p role="status" data-testid="users-loading">
-          加载中…
-        </p>
-      </Show>
+
       <Show when={query.errorState()}>
-        <p role="alert">{String(query.error())}</p>
+        <div class="state-block state-block-error" role="alert">
+          <Icon name="alert" />
+          <p class="state-title">无法加载成员目录</p>
+          <p class="state-description">{String(query.error())}</p>
+        </div>
       </Show>
-      <zw-data-grid
-        data-testid="user-grid"
-        aria-label="工作空间成员"
-        selection-mode="single"
-        prop:columns={[
-          {
-            id: 'name',
-            header: '姓名',
-            field: 'name',
-            width: 220,
-            sortable: true,
-          },
-          {
-            id: 'email',
-            header: '邮箱',
-            field: 'email',
-            width: 260,
-            sortable: true,
-          },
-          {
-            id: 'team',
-            header: '团队',
-            field: 'team',
-            width: 160,
-            sortable: true,
-          },
-          {
-            id: 'status',
-            header: '状态',
-            field: 'status',
-            width: 120,
-            sortable: true,
-          },
-        ]}
-        prop:selectedKeys={[...selectedKeys()]}
-        ref={bindGrid}
-      />
-      <div class="grid-actions">
-        <span data-testid="selection-status">
-          {selectedUser()
-            ? `已选择：${selectedUser()?.name}`
-            : '请选择一位成员'}
-        </span>
-        <button
-          data-testid="open-selected-user"
-          disabled={!selectedUser()}
-          prop:onclick={openSelectedUser}
-        >
-          查看详情
-        </button>
+
+      <div class="grid-frame">
+        <div class="grid-toolbar">
+          <span class="muted" data-testid="selection-status">
+            {selectedUser()
+              ? `已选择：${selectedUser()?.name}`
+              : `${result()?.total ?? 0} 位成员`}
+          </span>
+          <span class="spacer" />
+          <Show when={query.pending()}>
+            <span class="row" role="status" data-testid="users-loading">
+              <span class="spinner" aria-hidden="true" /> 加载中…
+            </span>
+          </Show>
+          <button
+            type="button"
+            class="btn btn-sm btn-primary"
+            data-testid="open-selected-user"
+            disabled={!selectedUser()}
+            prop:onclick={openSelectedUser}
+          >
+            查看详情
+          </button>
+        </div>
+
+        <zw-data-grid
+          data-testid="user-grid"
+          aria-label="工作空间成员"
+          selection-mode="single"
+          prop:columns={[
+            {
+              id: 'name',
+              header: '姓名',
+              field: 'name',
+              width: 220,
+              sortable: true,
+            },
+            {
+              id: 'email',
+              header: '邮箱',
+              field: 'email',
+              width: 260,
+              sortable: true,
+            },
+            {
+              id: 'team',
+              header: '团队',
+              field: 'team',
+              width: 160,
+              sortable: true,
+            },
+            {
+              id: 'status',
+              header: '状态',
+              field: 'status',
+              width: 120,
+              sortable: true,
+            },
+          ]}
+          prop:selectedKeys={[...selectedKeys()]}
+          ref={bindGrid}
+        />
+
+        <div class="pagination">
+          <button
+            type="button"
+            class="btn btn-sm"
+            data-testid="page-prev"
+            disabled={page() <= 1}
+            prop:onclick={() => setPage(Math.max(1, page() - 1))}
+          >
+            <Icon name="arrowLeft" /> 上一页
+          </button>
+          <span class="page-indicator" data-testid="page-indicator">
+            第 {page()} / {pageCount()} 页
+          </span>
+          <button
+            type="button"
+            class="btn btn-sm"
+            data-testid="page-next"
+            disabled={page() >= pageCount()}
+            prop:onclick={() => setPage(Math.min(pageCount(), page() + 1))}
+          >
+            下一页 <Icon name="arrowRight" />
+          </button>
+        </div>
       </div>
-      <div class="pagination" aria-label="用户分页">
-        <button
-          data-testid="page-prev"
-          disabled={page() <= 1}
-          prop:onclick={() => setPage(Math.max(1, page() - 1))}
-        >
-          上一页
-        </button>
-        <span data-testid="page-indicator">
-          第 {page()} / {pageCount()} 页
-        </span>
-        <button
-          data-testid="page-next"
-          disabled={page() >= pageCount()}
-          prop:onclick={() => setPage(Math.min(pageCount(), page() + 1))}
-        >
-          下一页
-        </button>
-      </div>
-      <p class="example-links">
-        <Link to="/admin/users/error">体验 loader 失败</Link>
-        <Link to="/admin/users/missing">访问不存在的用户</Link>
-      </p>
     </section>
   )
 }
@@ -538,46 +441,93 @@ export function UserPage() {
   return (
     <section class="page" data-testid="user-detail">
       <Link class="back-link" to="/admin/users">
-        ← 返回用户列表
+        <Icon name="arrowLeft" /> 返回用户列表
       </Link>
-      <p class="eyebrow">成员详情</p>
+
+      <header class="page-header">
+        <div class="page-heading">
+          <Show
+            when={user()}
+            fallback={
+              <div class="stack">
+                <div
+                  class="skeleton skeleton-line"
+                  style={{ width: '180px', height: '24px' }}
+                />
+                <div
+                  class="skeleton skeleton-line"
+                  style={{ width: '260px' }}
+                />
+              </div>
+            }
+          >
+            <h2 class="page-title">{user()?.name}</h2>
+            <p class="page-description">{user()?.email}</p>
+          </Show>
+        </div>
+        <div class="page-actions">
+          <button
+            type="button"
+            class="btn btn-primary"
+            data-testid="edit-user"
+            disabled={!user()}
+            prop:onclick={openEditor}
+          >
+            <Icon name="edit" /> 编辑成员
+          </button>
+        </div>
+      </header>
+
       <Show when={query.pending()}>
-        <p role="status">加载详情中…</p>
+        <p class="row muted" role="status">
+          <span class="spinner" aria-hidden="true" /> 加载详情中…
+        </p>
       </Show>
-      <h1>{user()?.name ?? ''}</h1>
-      <dl class="detail-grid">
-        <div>
-          <dt>用户 ID</dt>
-          <dd data-testid="detail-id">{params().id}</dd>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title">成员资料</h3>
+            <p class="card-description">
+              数据来自 route loader，与列表共享同一份查询缓存。
+            </p>
+          </div>
+          <span class="save-status" role="status" data-testid="save-status">
+            {mutation.pending()
+              ? '保存中…'
+              : mutation.success()
+                ? '已保存'
+                : mutation.errorState()
+                  ? '保存失败'
+                  : ''}
+          </span>
         </div>
-        <div>
-          <dt>邮箱</dt>
-          <dd>{user()?.email ?? ''}</dd>
+        <div class="card-body">
+          <dl class="detail-grid">
+            <div>
+              <dt>用户 ID</dt>
+              <dd class="mono" data-testid="detail-id">
+                {params().id}
+              </dd>
+            </div>
+            <div>
+              <dt>邮箱</dt>
+              <dd>{user()?.email ?? ''}</dd>
+            </div>
+            <div>
+              <dt>团队</dt>
+              <dd>{user()?.team ?? ''}</dd>
+            </div>
+            <div>
+              <dt>状态</dt>
+              <dd>
+                <StatusBadge status={user()?.status} />
+              </dd>
+            </div>
+          </dl>
         </div>
-        <div>
-          <dt>团队</dt>
-          <dd>{user()?.team ?? ''}</dd>
-        </div>
-      </dl>
-      <p class="page-intro">
-        详情数据来自 route loader；地址可直接打开、刷新或使用历史导航返回。
-      </p>
-      <button
-        data-testid="edit-user"
-        disabled={!user()}
-        prop:onclick={openEditor}
-      >
-        编辑成员
-      </button>
-      <span class="save-status" role="status" data-testid="save-status">
-        {mutation.pending()
-          ? '保存中…'
-          : mutation.success()
-            ? '已保存'
-            : mutation.errorState()
-              ? '保存失败'
-              : ''}
-      </span>
+      </div>
+
       <Show when={editing()}>
         <zw-dialog
           data-testid="user-dialog"
@@ -587,23 +537,35 @@ export function UserPage() {
           <zw-dialog-content>
             <zw-dialog-title>编辑成员</zw-dialog-title>
             <zw-dialog-description>
-              更新邮箱后保存，详情缓存会先乐观更新，失败时回滚，列表查询随后失效。
+              更新邮箱后保存。详情缓存先乐观更新，失败时回滚，列表查询随后失效。
             </zw-dialog-description>
-            <form prop:onsubmit={saveUser} data-testid="user-form">
-              <label for="user-email">邮箱</label>
-              <zw-input
-                id="user-email"
-                type="email"
-                required
-                prop:value={draftEmail()}
-                ref={bindUserInput}
-              />
-              <div class="dialog-actions">
-                <button type="button" prop:onclick={closeEditor}>
+            <form
+              prop:onsubmit={saveUser}
+              data-testid="user-form"
+              class="settings-form"
+            >
+              <div class="field">
+                <label class="field-label" for="user-email">
+                  邮箱
+                </label>
+                <zw-input
+                  id="user-email"
+                  type="email"
+                  required
+                  prop:value={draftEmail()}
+                  ref={bindUserInput}
+                />
+              </div>
+              <div class="row" style={{ 'justify-content': 'flex-end' }}>
+                <button type="button" class="btn" prop:onclick={closeEditor}>
                   取消
                 </button>
-                <button type="submit" disabled={mutation.pending()}>
-                  保存
+                <button
+                  type="submit"
+                  class="btn btn-primary"
+                  disabled={mutation.pending()}
+                >
+                  {mutation.pending() ? '保存中…' : '保存'}
                 </button>
               </div>
             </form>
@@ -619,21 +581,32 @@ export function ReportsPage() {
 
   return (
     <section class="page" data-testid="reports-page">
-      <p class="eyebrow">访问权限 · 管理员</p>
-      <h1>管理报表</h1>
-      <p class="page-intro">当前演示身份已通过 route loader 权限检查。</p>
-      <div class="overview-grid">
-        <article class="overview-card">
-          <span>成员总数</span>
-          <strong data-testid="reports-user-count">
-            {summary.data()?.totalUsers ?? '…'}
+      <header class="page-header">
+        <div class="page-heading">
+          <h2 class="page-title">管理报表</h2>
+          <p class="page-description">
+            汇总当前工作空间的成员与团队规模。数据由服务端在通过角色校验后返回。
+          </p>
+        </div>
+      </header>
+      <div class="stat-grid">
+        <article class="stat">
+          <span class="stat-label">
+            <Icon name="users" /> 成员总数
+          </span>
+          <strong class="stat-value" data-testid="reports-user-count">
+            {summary.data()?.totalUsers ?? '—'}
           </strong>
+          <span class="stat-foot">跨全部团队</span>
         </article>
-        <article class="overview-card">
-          <span>团队总数</span>
-          <strong data-testid="reports-team-count">
-            {summary.data()?.teams ?? '…'}
+        <article class="stat">
+          <span class="stat-label">
+            <Icon name="team" /> 团队总数
+          </span>
+          <strong class="stat-value" data-testid="reports-team-count">
+            {summary.data()?.teams ?? '—'}
           </strong>
+          <span class="stat-foot">已建立的团队</span>
         </article>
       </div>
     </section>
@@ -642,28 +615,27 @@ export function ReportsPage() {
 
 export function ErrorPage() {
   const error = useRouteError()
+  const status = () => errorStatus(error())
 
   return (
     <section class="page error-page" data-testid="route-error" role="alert">
-      <p class="eyebrow">路由未能完成</p>
-      <h1 data-testid="error-status">{errorStatus(error())}</h1>
-      <p class="page-intro" data-testid="error-message">
+      <p class="error-status" data-testid="error-status">
+        {status()}
+      </p>
+      <h2 class="page-title">{errorHeading(status())}</h2>
+      <p class="page-description" data-testid="error-message">
         {errorMessage(error())}
       </p>
-      <Link class="primary-link" to="/admin/users">
-        返回用户列表
-      </Link>
+      <div class="page-actions">
+        <Link class="btn btn-primary" to="/admin/users">
+          <Icon name="arrowLeft" /> 返回用户列表
+        </Link>
+        <Link class="btn" to="/admin">
+          回到概览
+        </Link>
+      </div>
     </section>
   )
-}
-
-function useSummaryQuery() {
-  return useQuery<AdminSummary>({
-    queryKey: adminSummaryQueryKey,
-    queryFn: ({ signal }) => adminApi.getSummary(signal),
-    staleTime: 5_000,
-    retry: false,
-  })
 }
 
 export function AuditPage() {
@@ -695,65 +667,101 @@ export function AuditPage() {
 
   return (
     <section class="page" data-testid="audit-page">
-      <p class="eyebrow">管理员 · 服务端审计</p>
-      <h1>审计日志</h1>
-      <p class="page-intro">
-        登录、越权尝试与写操作由服务端记录。日志来自 SQLite，而非浏览器内存。
-      </p>
-      <div class="audit-actions">
-        <button
-          data-testid="audit-refresh"
-          onClick={() => setAuditVersion(v => v + 1)}
-        >
-          刷新
-        </button>
-      </div>
+      <header class="page-header">
+        <div class="page-heading">
+          <h2 class="page-title">审计日志</h2>
+          <p class="page-description">
+            登录、越权尝试与写操作由服务端记录在 SQLite 中，并非浏览器内存。
+          </p>
+        </div>
+        <div class="page-actions">
+          <button
+            type="button"
+            class="btn"
+            data-testid="audit-refresh"
+            onClick={() => setAuditVersion(v => v + 1)}
+          >
+            <Icon name="refresh" /> 刷新
+          </button>
+        </div>
+      </header>
+
       <Show when={auditError()}>
-        <p role="alert" data-testid="audit-error">
-          {auditError()}
-        </p>
+        <div class="state-block state-block-error" role="alert">
+          <Icon name="alert" />
+          <p class="state-title">无法加载审计日志</p>
+          <p class="state-description" data-testid="audit-error">
+            {auditError()}
+          </p>
+        </div>
       </Show>
-      <table class="audit-table" data-testid="audit-table">
-        <thead>
-          <tr>
-            <th scope="col">时间</th>
-            <th scope="col">操作</th>
-            <th scope="col">对象</th>
-            <th scope="col">结果</th>
-          </tr>
-        </thead>
-        <tbody>
-          <For each={events()}>
-            {event => (
-              <tr>
-                <td>{new Date(event.created_at).toLocaleString('zh-CN')}</td>
-                <td>{event.action}</td>
-                <td>{event.target ?? '—'}</td>
-                <td>{event.outcome}</td>
-              </tr>
-            )}
-          </For>
-        </tbody>
-      </table>
-      <div class="pagination">
-        <button
-          data-testid="audit-prev"
-          disabled={page() <= 1}
-          onClick={() => setPage(Math.max(1, page() - 1))}
-        >
-          上一页
-        </button>
-        <span data-testid="audit-page-indicator">
-          第 {page()} / {pageCount()} 页
-        </span>
-        <button
-          data-testid="audit-next"
-          disabled={page() >= pageCount()}
-          onClick={() => setPage(Math.min(pageCount(), page() + 1))}
-        >
-          下一页
-        </button>
-      </div>
+
+      <Show when={!auditError()}>
+        <div class="card">
+          <div style={{ overflow: 'auto' }}>
+            <table class="table" data-testid="audit-table">
+              <thead>
+                <tr>
+                  <th scope="col">时间</th>
+                  <th scope="col">操作</th>
+                  <th scope="col">对象</th>
+                  <th scope="col">结果</th>
+                </tr>
+              </thead>
+              <tbody>
+                <For each={events()}>
+                  {event => (
+                    <tr>
+                      <td class="audit-time">
+                        {new Date(event.created_at).toLocaleString('zh-CN')}
+                      </td>
+                      <td>
+                        <span class="audit-action">{event.action}</span>
+                      </td>
+                      <td class="mono">{event.target ?? '—'}</td>
+                      <td>
+                        <OutcomeBadge outcome={event.outcome} />
+                      </td>
+                    </tr>
+                  )}
+                </For>
+              </tbody>
+            </table>
+            <Show when={events().length === 0}>
+              <div class="state-block">
+                <Icon name="inbox" />
+                <p class="state-title">暂无审计记录</p>
+                <p class="state-description">
+                  一旦发生登录、写操作或越权尝试，记录会出现在这里。
+                </p>
+              </div>
+            </Show>
+          </div>
+          <div class="pagination">
+            <button
+              type="button"
+              class="btn btn-sm"
+              data-testid="audit-prev"
+              disabled={page() <= 1}
+              onClick={() => setPage(Math.max(1, page() - 1))}
+            >
+              <Icon name="arrowLeft" /> 上一页
+            </button>
+            <span class="page-indicator" data-testid="audit-page-indicator">
+              第 {page()} / {pageCount()} 页
+            </span>
+            <button
+              type="button"
+              class="btn btn-sm"
+              data-testid="audit-next"
+              disabled={page() >= pageCount()}
+              onClick={() => setPage(Math.min(pageCount(), page() + 1))}
+            >
+              下一页 <Icon name="arrowRight" />
+            </button>
+          </div>
+        </div>
+      </Show>
     </section>
   )
 }
@@ -776,28 +784,39 @@ export function RolesPage() {
 
   return (
     <section class="page" data-testid="roles-page">
-      <p class="eyebrow">管理员 · 权限模型</p>
-      <h1>角色与权限</h1>
-      <p class="page-intro">
-        浏览器中的角色只用于 UX；每次读写都由服务端 session 重新校验角色。
-      </p>
+      <header class="page-header">
+        <div class="page-heading">
+          <h2 class="page-title">角色与权限</h2>
+          <p class="page-description">
+            浏览器的角色只用于界面呈现。每次读写都由服务端 session 重新校验。
+          </p>
+        </div>
+      </header>
       <div class="role-grid">
         <For each={roles}>
           {record => (
             <article class="role-card" data-testid={`role-${record.role}`}>
-              <h2>{record.role === 'admin' ? '管理员' : '只读成员'}</h2>
-              <p>{record.description}</p>
-              <dl>
-                <div>
-                  <dt>成员</dt>
-                  <dd>{record.members}</dd>
-                </div>
-              </dl>
-              <ul>
-                <For each={record.capabilities}>
-                  {capability => <li>{capability}</li>}
-                </For>
-              </ul>
+              <div class="role-card-header">
+                <h3 class="role-card-title">
+                  {record.role === 'admin' ? '管理员' : '只读成员'}
+                </h3>
+                <span class="badge badge-accent">{record.members} 位成员</span>
+              </div>
+              <p class="role-card-description">{record.description}</p>
+              <div>
+                <p class="field-label" style={{ 'margin-bottom': '8px' }}>
+                  能力
+                </p>
+                <ul class="capability-list">
+                  <For each={record.capabilities}>
+                    {capability => (
+                      <li class="capability">
+                        <Icon name="check" /> {capability}
+                      </li>
+                    )}
+                  </For>
+                </ul>
+              </div>
             </article>
           )}
         </For>
@@ -857,73 +876,113 @@ export function SettingsPage() {
 
   return (
     <section class="page" data-testid="settings-page">
-      <p class="eyebrow">管理员 · 工作空间</p>
-      <h1>设置</h1>
-      <p class="page-intro">
-        名称、语言与主题持久化在 SQLite；刷新或重启服务后仍会保留。
-      </p>
-      <Show when={settings()}>
-        <form class="settings-form" onSubmit={save}>
-          <label for="workspace-name">
-            工作空间名称
-            <input
-              id="workspace-name"
-              value={settings()!.workspaceName}
-              onInput={event =>
-                patch(
-                  'workspaceName',
-                  (event.currentTarget as HTMLInputElement).value,
-                )
-              }
-            />
-          </label>
-          <label for="workspace-locale">
-            语言
-            <select
-              id="workspace-locale"
-              value={settings()!.locale}
-              onChange={event =>
-                patch(
-                  'locale',
-                  (event.currentTarget as HTMLSelectElement)
-                    .value as WorkspaceSettings['locale'],
-                )
-              }
-            >
-              <option value="zh-CN">简体中文</option>
-              <option value="en">English</option>
-            </select>
-          </label>
-          <label for="workspace-theme">
-            主题
-            <select
-              id="workspace-theme"
-              value={settings()!.theme}
-              onChange={event =>
-                patch(
-                  'theme',
-                  (event.currentTarget as HTMLSelectElement)
-                    .value as WorkspaceSettings['theme'],
-                )
-              }
-            >
-              <option value="light">浅色</option>
-              <option value="dark">深色</option>
-            </select>
-          </label>
-          <button type="submit" disabled={saving()}>
-            {saving() ? '保存中…' : '保存设置'}
-          </button>
-          <Show when={status()}>
-            <p role="status" data-testid="settings-status">
-              {status()}
-            </p>
-          </Show>
-          <Show when={error()}>
-            <p role="alert" data-testid="settings-error">
-              {error()}
-            </p>
-          </Show>
+      <header class="page-header">
+        <div class="page-heading">
+          <h2 class="page-title">工作空间设置</h2>
+          <p class="page-description">
+            名称、语言与主题持久化在服务端 SQLite，刷新或重启服务后仍然保留。
+          </p>
+        </div>
+      </header>
+
+      <Show
+        when={settings()}
+        fallback={
+          <div class="settings-layout">
+            <div class="skeleton skeleton-line" style={{ height: '36px' }} />
+            <div class="skeleton skeleton-line" style={{ height: '36px' }} />
+            <div class="skeleton skeleton-line" style={{ height: '36px' }} />
+          </div>
+        }
+      >
+        <form class="settings-layout" onSubmit={save}>
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h3 class="card-title">常规</h3>
+                <p class="card-description">工作空间名称与界面语言。</p>
+              </div>
+            </div>
+            <div class="card-body settings-form">
+              <div class="field">
+                <label class="field-label" for="workspace-name">
+                  工作空间名称
+                </label>
+                <input
+                  id="workspace-name"
+                  class="input"
+                  value={settings()!.workspaceName}
+                  onInput={event =>
+                    patch(
+                      'workspaceName',
+                      (event.currentTarget as HTMLInputElement).value,
+                    )
+                  }
+                />
+              </div>
+              <div class="field-row">
+                <div class="field">
+                  <label class="field-label" for="workspace-locale">
+                    语言
+                  </label>
+                  <select
+                    id="workspace-locale"
+                    class="select"
+                    value={settings()!.locale}
+                    onChange={event =>
+                      patch(
+                        'locale',
+                        (event.currentTarget as HTMLSelectElement)
+                          .value as WorkspaceSettings['locale'],
+                      )
+                    }
+                  >
+                    <option value="zh-CN">简体中文</option>
+                    <option value="en">English</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label class="field-label" for="workspace-theme">
+                    主题
+                  </label>
+                  <select
+                    id="workspace-theme"
+                    class="select"
+                    value={settings()!.theme}
+                    onChange={event =>
+                      patch(
+                        'theme',
+                        (event.currentTarget as HTMLSelectElement)
+                          .value as WorkspaceSettings['theme'],
+                      )
+                    }
+                  >
+                    <option value="light">浅色</option>
+                    <option value="dark">深色</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="card-footer settings-actions">
+              <button type="submit" class="btn btn-primary" disabled={saving()}>
+                {saving() ? '保存中…' : '保存设置'}
+              </button>
+              <Show when={status()}>
+                <span class="row" role="status" data-testid="settings-status">
+                  <Icon name="check" /> {status()}
+                </span>
+              </Show>
+              <Show when={error()}>
+                <span
+                  class="row state-block-error"
+                  role="alert"
+                  data-testid="settings-error"
+                >
+                  <Icon name="alert" /> {error()}
+                </span>
+              </Show>
+            </div>
+          </div>
         </form>
       </Show>
     </section>
@@ -961,48 +1020,86 @@ export function UploadPage() {
 
   return (
     <section class="page" data-testid="upload-page">
-      <p class="eyebrow">管理员 · 上传</p>
-      <h1>文件上传</h1>
-      <p class="page-intro">
-        服务端只接受文本、Markdown、JSON 与 PNG，限制 64
-        KiB，拒绝路径分隔符与隐藏文件名。
-      </p>
-      <form class="settings-form" onSubmit={submit} data-testid="upload-form">
-        <label for="upload-file">
-          文件
-          <input id="upload-file" type="file" accept=".txt,.md,.json,.png" />
-        </label>
-        <button type="submit" disabled={busy()}>
-          {busy() ? '上传中…' : '上传'}
-        </button>
-        <Show when={error()}>
-          <p role="alert" data-testid="upload-error">
-            {error()}
+      <header class="page-header">
+        <div class="page-heading">
+          <h2 class="page-title">文件上传</h2>
+          <p class="page-description">
+            仅接受文本、Markdown、JSON 与 PNG，上限 64
+            KiB。服务端拒绝路径分隔符与隐藏文件名。
           </p>
-        </Show>
-        <Show when={upload()}>
-          <dl class="detail-grid" data-testid="upload-result">
+        </div>
+      </header>
+
+      <form class="settings-layout" onSubmit={submit} data-testid="upload-form">
+        <div class="card">
+          <div class="card-header">
             <div>
-              <dt>文件</dt>
-              <dd>{upload()!.filename}</dd>
+              <h3 class="card-title">选择文件</h3>
+              <p class="card-description">
+                上传后服务端会返回文件摘要与 SHA-256。
+              </p>
             </div>
-            <div>
-              <dt>大小</dt>
-              <dd>{upload()!.bytes} bytes</dd>
+          </div>
+          <div class="card-body settings-form">
+            <div class="field">
+              <label class="field-label" for="upload-file">
+                文件
+              </label>
+              <input
+                id="upload-file"
+                class="input"
+                type="file"
+                accept=".txt,.md,.json,.png"
+              />
             </div>
-            <div>
-              <dt>SHA-256</dt>
-              <dd>
-                <code>{upload()!.sha256}</code>
-              </dd>
-            </div>
-          </dl>
-        </Show>
+            <Show when={error()}>
+              <p class="form-error" role="alert" data-testid="upload-error">
+                <Icon name="alert" /> {error()}
+              </p>
+            </Show>
+            <Show when={upload()}>
+              <div class="upload-result" data-testid="upload-result">
+                <p class="row">
+                  <Icon name="check" /> 上传成功
+                </p>
+                <dl class="detail-grid">
+                  <div>
+                    <dt>文件</dt>
+                    <dd>{upload()!.filename}</dd>
+                  </div>
+                  <div>
+                    <dt>大小</dt>
+                    <dd>{upload()!.bytes} bytes</dd>
+                  </div>
+                  <div>
+                    <dt>SHA-256</dt>
+                    <dd
+                      class="mono"
+                      style={{ 'font-size': '12px', 'word-break': 'break-all' }}
+                    >
+                      {upload()!.sha256}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            </Show>
+          </div>
+          <div class="card-footer">
+            <button type="submit" class="btn btn-primary" disabled={busy()}>
+              {busy() ? '上传中…' : '上传'}
+            </button>
+          </div>
+        </div>
       </form>
     </section>
   )
 }
 
+/**
+ * Writes the server-persisted theme onto the document. The settings page owns
+ * this because the value lives in SQLite; the shell's toggle owns only the
+ * local preview preference.
+ */
 function applyTheme(theme: WorkspaceSettings['theme']): void {
   document.documentElement.dataset.theme = theme
 }
@@ -1018,4 +1115,73 @@ function errorMessage(error: unknown): string {
   if (error && typeof error === 'object' && 'data' in error)
     return String(error.data)
   return '加载出现异常，请返回用户列表重试。'
+}
+
+function useSummaryQuery() {
+  return useQuery<AdminSummary>({
+    queryKey: adminSummaryQueryKey,
+    queryFn: ({ signal }) => adminApi.getSummary(signal),
+    staleTime: 5_000,
+    retry: false,
+  })
+}
+
+/** Human-readable heading for a loader error status. */
+function errorHeading(status: string): string {
+  switch (status) {
+    case '403':
+      return '没有访问权限'
+    case '404':
+      return '页面不存在'
+    case '500':
+      return '服务端出现错误'
+    default:
+      return '页面加载失败'
+  }
+}
+
+/**
+ * Audit outcome pill. Only three outcomes exist in the schema; anything else
+ * is rendered as-is so a new server value is still visible.
+ */
+function OutcomeBadge(props: { outcome: string }) {
+  const tone = () =>
+    props.outcome === 'success'
+      ? 'audit-outcome-success'
+      : props.outcome === 'denied' || props.outcome === 'failure'
+        ? 'audit-outcome-denied'
+        : 'audit-outcome-neutral'
+  const icon = () =>
+    props.outcome === 'success'
+      ? 'check'
+      : props.outcome === 'denied' || props.outcome === 'failure'
+        ? 'alert'
+        : 'clock'
+  return (
+    <span class={`audit-outcome ${tone()}`}>
+      <Icon name={icon()} /> {props.outcome}
+    </span>
+  )
+}
+
+/**
+ * Status pill for a member. The label carries the meaning and the colour
+ * reinforces it, so the state is never conveyed by colour alone.
+ */
+function StatusBadge(props: { status: UserStatus | undefined }) {
+  const meta = () => {
+    switch (props.status) {
+      case 'active':
+        return { label: '活跃', tone: 'badge-success' }
+      case 'invited':
+        return { label: '待邀请', tone: 'badge-warning' }
+      case 'suspended':
+        return { label: '已暂停', tone: 'badge-danger' }
+      default:
+        return { label: '未知', tone: '' }
+    }
+  }
+  return (
+    <span class={`badge badge-dot ${meta().tone}`.trim()}>{meta().label}</span>
+  )
 }
