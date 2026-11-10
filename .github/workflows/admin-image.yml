@@ -268,12 +268,11 @@ jobs:
             RUN=(env "IMAGE_REPO=${IMAGE}" "IMAGE_TAG=${TAG}" "CONTAINER_NAME=${CONTAINER}" "COMPOSE_PROJECT_NAME=${CONTAINER}" "DATA_DIR=${DIR}/data" docker)
           fi
 
-          # Pull by digest: content-addressed, so a mirror cannot substitute the
-          # image, and the deployment is pinned to what CI actually built.
-          # Mirrors first: from mainland China a ghcr.io blob download routinely
-          # takes longer than the SSH session tolerates, while the mirror serves
-          # the same digest from cache. The digest is what makes this safe — a
-          # mirror cannot substitute different content for it.
+          # Pull by digest: content-addressed, so the deployment is pinned to
+          # what CI actually built and a mirror cannot substitute other content.
+          # Mirrors come first because from mainland China a ghcr.io blob
+          # download routinely outlasts the SSH session, while the mirror serves
+          # the same digest from cache.
           candidates=()
           if [[ -n "${MIRRORS}" ]]; then
             IFS=',' read -r -a mirror_list <<< "${MIRRORS}"
