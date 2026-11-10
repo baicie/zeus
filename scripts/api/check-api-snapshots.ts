@@ -58,6 +58,11 @@ try {
     process.exit(1)
   }
 
+  // The Playground editor's API completion table is generated from these same
+  // declarations. Checking it here means a public signature change cannot land
+  // without the editor following, in the command CI already runs.
+  execSync('pnpm playground:api --check', { stdio: 'inherit' })
+
   console.log('API snapshots are up to date.')
 } catch (err) {
   console.error(err)

@@ -16,6 +16,14 @@ export use the same `@zeus-js/playground-engine` build contract.
 - CodeMirror 6 editor with TypeScript/TSX/JavaScript/CSS highlighting, line
   numbers, undo/redo, `Cmd/Ctrl+Enter` to run and `Cmd/Ctrl+S` to save. The
   editor is a lazy chunk so the shell stays small.
+- Zeus API completion: typing a public name (`createSig…`) suggests it with its
+  real signature and inserts the call with the caret inside the parentheses.
+  Nothing is hand listed — `pnpm playground:api` reads the value exports of the
+  `@zeus-js/zeus` entry through the TypeScript compiler, so a new export, a
+  changed overload or an edited doc comment reaches the editor on the next run.
+  `pnpm api:check` runs it in `--check` mode, so a public API change fails CI
+  until the table is regenerated. It is name and signature only — there is no
+  type checker, so no type errors.
 - Adjustable editor/preview split, persisted result tab, persisted split width,
   theme, language and font size, and preview maximize.
 - Light and dark themes follow VS Code's Light Modern / Dark Modern palettes,

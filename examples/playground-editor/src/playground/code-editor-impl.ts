@@ -20,6 +20,7 @@ import type { Extension } from '@codemirror/state'
 import { tags } from '@lezer/highlight'
 
 import type { ThemeName } from './persistence'
+import { zeusApiCompletionSource } from './zeus-api-completion'
 
 export interface CodeEditorOptions {
   readonly parent: HTMLElement
@@ -86,6 +87,20 @@ export function mountCodeEditor(options: CodeEditorOptions): CodeEditorHandle {
   // the first fallback per tag wins, so ours must come before `basicSetup`.
   const extensions = (language: 'ts' | 'css') => [
     appearanceCompartment.of(appearance(currentTheme, currentFontSize)),
+    // Zeus API names are added through `languageData`, which appends to the
+    // sources `basicSetup` already collects. `autocompletion({ override })`
+    // would replace them and lose the language's own completions.
+    //
+    // Only for TypeScript: a stylesheet has no place for `createSignal`, and
+    // the CSS language would still offer it because this data is not scoped to
+    // the JS grammar.
+    ...(language === 'ts'
+      ? [
+          EditorState.languageData.of(() => [
+            { autocomplete: zeusApiCompletionSource },
+          ]),
+        ]
+      : []),
     basicSetup,
     keymap.of([
       indentWithTab,
