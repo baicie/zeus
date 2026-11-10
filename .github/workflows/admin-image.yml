@@ -270,26 +270,33 @@ jobs:
 
           # Pull by digest: content-addressed, so a mirror cannot substitute the
           # image, and the deployment is pinned to what CI actually built.
+          # Mirrors first: from mainland China a ghcr.io blob download routinely
+          # takes longer than the SSH session tolerates, while the mirror serves
+          # the same digest from cache. The digest is what makes this safe — a
+          # mirror cannot substitute different content for it.
           candidates=()
-          if [[ -n "${DIGEST}" ]]; then
-            candidates+=("${IMAGE}@${DIGEST}")
+          if [[ -n "${MIRRORS}" ]]; then
+            IFS=',' read -r -a mirror_list <<< "${MIRRORS}"
+            for m in "${mirror_list[@]}"; do
+              m="${m// /}"
+              [[ -n "$m" ]] && [[ -n "${DIGEST}" ]] && candidates+=("${m}/${REPO_PATH}@${DIGEST}")
+              [[ -n "$m" ]] && candidates+=("${m}/${REPO_PATH}:${TAG}")
+            done
           fi
+          [[ -n "${DIGEST}" ]] && candidates+=("${IMAGE}@${DIGEST}")
           candidates+=("${CANONICAL}")
-          for mirror in ${MIRRORS}; do
-            [[ -n "${DIGEST}" ]] && candidates+=("${mirror}/${REPO_PATH}@${DIGEST}")
-            candidates+=("${mirror}/${REPO_PATH}:${TAG}")
-          done
 
           pulled=""
           for candidate in "${candidates[@]}"; do
             echo "==> pulling ${candidate}"
-            if "${DOCKER[@]}" pull "${candidate}" >/dev/null 2>&1; then
+            # Bound each attempt: an unbounded pull is what killed the session.
+            if timeout 300 "${DOCKER[@]}" pull "${candidate}"; then
               pulled="${candidate}"; break
             fi
-            echo "    failed, trying the next candidate"
+            echo "    (source failed or timed out, trying next)"
           done
           if [[ -z "${pulled}" ]]; then
-            echo "::error::Could not pull the image from any candidate"
+            echo "::error::Every image source failed: ${candidates[*]}"
             exit 1
           fi
           # Retag the pulled reference to the canonical name the compose file
