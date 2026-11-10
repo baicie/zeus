@@ -8,7 +8,6 @@ import type { Accessor } from '@zeus-js/zeus'
 import type { SessionUser } from './routes'
 
 import {
-  AdminShell,
   AuditPage,
   ErrorPage,
   OverviewPage,
@@ -19,6 +18,7 @@ import {
   UserPage,
   UsersPage,
 } from './pages'
+import { AdminShell } from './shell/shell'
 import {
   adminSummaryQueryKey,
   adminUserQueryKey,
@@ -32,6 +32,7 @@ import {
   type UserListResult,
 } from './routes'
 import { adminApi } from './pages'
+import { SessionContext } from './session'
 
 export interface AdminRouterOptions {
   /** Shared cache: route loaders and components use the same client. */
@@ -41,6 +42,8 @@ export interface AdminRouterOptions {
   /** Updates the session role; the shell re-navigates to apply it. */
   onRoleChange: (role: Role) => void
   session?: Accessor<SessionUser | undefined>
+  /** Shows the Developer Diagnostics panel. Off by default. */
+  diagnostics?: boolean
   onLogin?: (user: SessionUser) => void
   onLogout?: () => Promise<void>
   api?: AdminApi
@@ -61,12 +64,15 @@ export function createAdminRouter(options: AdminRouterOptions): ZeusRouter {
       id: 'root',
       path: '/',
       element: () => (
-        <AdminShell
-          role={options.role}
-          onRoleChange={options.onRoleChange}
-          session={options.session}
-          onLogout={options.onLogout}
-        />
+        <SessionContext.Provider value={{ role: options.role() }}>
+          <AdminShell
+            role={options.role}
+            onRoleChange={options.onRoleChange}
+            session={options.session}
+            onLogout={options.onLogout}
+            diagnostics={options.diagnostics}
+          />
+        </SessionContext.Provider>
       ),
       children: [
         {

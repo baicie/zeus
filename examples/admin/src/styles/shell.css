@@ -1,0 +1,564 @@
+/**
+ * Shell layout: sidebar, toolbar, content column, diagnostics.
+ *
+ * The layout is a CSS grid whose first column is driven by
+ * `--admin-sidebar-current`, so collapsing the sidebar animates one variable
+ * instead of re-laying-out each child. Below 1024px the sidebar leaves the
+ * grid entirely and becomes a fixed drawer.
+ */
+
+.admin-shell {
+  --admin-sidebar-current: var(--admin-sidebar-width);
+  display: grid;
+  grid-template-columns: var(--admin-sidebar-current) minmax(0, 1fr);
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--admin-color-surface-sunken);
+}
+
+.admin-shell.is-collapsed {
+  --admin-sidebar-current: var(--admin-sidebar-width-collapsed);
+}
+
+/* ------------------------------------------------------------ skip link */
+.skip-link {
+  position: absolute;
+  top: var(--admin-space-2);
+  left: var(--admin-space-2);
+  z-index: 200;
+  padding: var(--admin-space-2) var(--admin-space-4);
+  border-radius: var(--admin-radius-md);
+  background: var(--admin-color-accent-default);
+  color: var(--admin-color-accent-contrast);
+  font-size: var(--admin-font-size-sm);
+  font-weight: var(--admin-weight-medium);
+  transform: translateY(-200%);
+  transition: transform var(--admin-duration-fast) var(--admin-ease);
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+/* --------------------------------------------------------------- sidebar */
+.sidebar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--admin-color-nav-surface);
+  color: var(--admin-color-nav-text);
+  /* A hairline keeps the dark sidebar from bleeding into a light page. */
+  border-right: 1px solid var(--admin-color-border-subtle);
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--admin-space-2);
+  height: var(--admin-toolbar-height);
+  padding: 0 var(--admin-space-3);
+  flex: 0 0 auto;
+}
+
+.brand-mark {
+  display: flex;
+  align-items: center;
+  gap: var(--admin-space-2);
+  min-width: 0;
+  color: var(--admin-color-nav-text-strong);
+  text-decoration: none;
+}
+
+.brand-mark:hover {
+  text-decoration: none;
+}
+
+.brand-glyph {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  border-radius: var(--admin-radius-md);
+  background: var(--admin-color-accent-default);
+  color: var(--admin-color-accent-contrast);
+  font-size: var(--admin-font-size-sm);
+  font-weight: var(--admin-weight-semibold);
+}
+
+.brand-text {
+  font-size: var(--admin-font-size-sm);
+  font-weight: var(--admin-weight-semibold);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.sidebar-collapse {
+  color: var(--admin-color-nav-text);
+  flex: 0 0 auto;
+}
+
+.sidebar-collapse:hover {
+  background: var(--admin-color-nav-hover) !important;
+  color: var(--admin-color-nav-text-strong);
+}
+
+.sidebar-nav {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--admin-space-2) var(--admin-space-2) var(--admin-space-4);
+  scrollbar-width: thin;
+}
+
+.nav-group + .nav-group {
+  margin-top: var(--admin-space-4);
+}
+
+.nav-group-label {
+  padding: 0 var(--admin-space-2) var(--admin-space-1);
+  color: var(--admin-color-nav-text);
+  opacity: 0.65;
+  font-size: 11px;
+  font-weight: var(--admin-weight-medium);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: var(--admin-space-2);
+  height: 34px;
+  padding: 0 var(--admin-space-2);
+  border-radius: var(--admin-radius-md);
+  color: var(--admin-color-nav-text);
+  font-size: var(--admin-font-size-sm);
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color var(--admin-duration-fast) var(--admin-ease),
+    color var(--admin-duration-fast) var(--admin-ease);
+}
+
+.nav-link:hover {
+  background: var(--admin-color-nav-hover);
+  color: var(--admin-color-nav-text-strong);
+  text-decoration: none;
+}
+
+/* Selection is carried by an accent bar *and* a tinted row so it survives
+   both high-contrast mode and a colour-blind viewer. */
+.nav-link.is-active {
+  background: var(--admin-color-nav-active);
+  color: var(--admin-color-nav-text-strong);
+  box-shadow: inset 2px 0 0 var(--admin-color-accent-default);
+}
+
+.nav-icon {
+  flex: 0 0 auto;
+  opacity: 0.85;
+}
+
+.nav-link.is-active .nav-icon {
+  opacity: 1;
+}
+
+.nav-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Collapsed: icons only, labels hidden but still announced. */
+.admin-shell.is-collapsed .nav-label,
+.admin-shell.is-collapsed .nav-group-label,
+.admin-shell.is-collapsed .brand-text,
+.admin-shell.is-collapsed .account-copy,
+.admin-shell.is-collapsed .sidebar-collapse {
+  display: none;
+}
+
+.admin-shell.is-collapsed .nav-link,
+.admin-shell.is-collapsed .sidebar-account {
+  justify-content: center;
+  padding: 0;
+}
+
+.admin-shell.is-collapsed .sidebar-brand {
+  justify-content: center;
+  padding: 0;
+}
+
+/* --------------------------------------------------------- sidebar footer */
+.sidebar-footer {
+  position: relative;
+  flex: 0 0 auto;
+  padding: var(--admin-space-2);
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.sidebar-account {
+  width: 100%;
+  height: auto;
+  min-height: 44px;
+  padding: var(--admin-space-2);
+  text-align: left;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  border-radius: var(--admin-radius-full);
+  background: var(--admin-color-nav-active);
+  color: var(--admin-color-nav-text-strong);
+  font-size: 11px;
+  font-weight: var(--admin-weight-semibold);
+  letter-spacing: 0.02em;
+}
+
+.account-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.account-name {
+  color: var(--admin-color-nav-text-strong);
+  font-size: var(--admin-font-size-sm);
+  font-weight: var(--admin-weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account-role {
+  color: var(--admin-color-nav-text);
+  opacity: 0.7;
+  font-size: var(--admin-font-size-xs);
+}
+
+.account-menu {
+  position: absolute;
+  left: var(--admin-space-2);
+  right: var(--admin-space-2);
+  bottom: calc(100% - var(--admin-space-1));
+  z-index: 60;
+  padding: var(--admin-space-1);
+  border: 1px solid var(--admin-color-border-default);
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-color-surface-overlay);
+  box-shadow: var(--admin-shadow-lg);
+}
+
+.account-menu-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--admin-space-2) var(--admin-space-3);
+  border-bottom: 1px solid var(--admin-color-border-subtle);
+  margin-bottom: var(--admin-space-1);
+}
+
+.account-menu-name {
+  font-size: var(--admin-font-size-sm);
+  font-weight: var(--admin-weight-medium);
+  color: var(--admin-color-text-primary);
+}
+
+.account-menu-email {
+  font-size: var(--admin-font-size-xs);
+  color: var(--admin-color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--admin-space-2);
+  width: 100%;
+  min-height: 32px;
+  padding: 0 var(--admin-space-3);
+  border-radius: var(--admin-radius-md);
+  color: var(--admin-color-text-secondary);
+  font-size: var(--admin-font-size-sm);
+  text-align: left;
+  text-decoration: none;
+}
+
+.account-menu-item:hover {
+  background: var(--admin-color-surface-hover);
+  color: var(--admin-color-text-primary);
+  text-decoration: none;
+}
+
+.account-menu-danger {
+  color: var(--admin-color-danger-default);
+}
+
+.account-menu-danger:hover {
+  background: var(--admin-color-danger-subtle);
+  color: var(--admin-color-danger-default);
+}
+
+/* -------------------------------------------------------------- workspace */
+.workspace {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: var(--admin-space-3);
+  height: var(--admin-toolbar-height);
+  padding: 0 var(--admin-space-6);
+  border-bottom: 1px solid var(--admin-color-border-default);
+  background: color-mix(
+    in srgb,
+    var(--admin-color-surface-base) 88%,
+    transparent
+  );
+  backdrop-filter: blur(8px);
+}
+
+.toolbar-drawer {
+  display: none;
+}
+
+.toolbar-heading {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  gap: 0;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--admin-space-1);
+  color: var(--admin-color-text-muted);
+  font-size: var(--admin-font-size-xs);
+  line-height: 1.2;
+}
+
+.breadcrumb a {
+  color: var(--admin-color-text-muted);
+}
+
+.breadcrumb a:hover {
+  color: var(--admin-color-text-secondary);
+}
+
+.breadcrumb-sep {
+  opacity: 0.6;
+}
+
+/* The visible page heading lives in the toolbar; page bodies start at h2 so
+   the document keeps exactly one h1. */
+.toolbar-title {
+  font-size: var(--admin-font-size-base);
+  font-weight: var(--admin-weight-semibold);
+  line-height: 1.3;
+  color: var(--admin-color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--admin-space-1);
+  margin-left: auto;
+}
+
+.route-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--admin-space-2);
+  min-height: 20px;
+  color: var(--admin-color-text-muted);
+  font-size: var(--admin-font-size-xs);
+}
+
+.content {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: var(--admin-content-max);
+  margin: 0 auto;
+  padding: var(--admin-space-6);
+  /* Filling the column keeps a short page from leaving a gap before the
+     diagnostics panel, which is pinned to the bottom of the workspace. */
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The routed page is the only growing child, so it absorbs the slack. */
+.content > .page,
+.content > .error-page {
+  flex: 1 1 auto;
+}
+
+/* ------------------------------------------------------------- diagnostics */
+.diagnostics {
+  margin: 0 var(--admin-space-6) var(--admin-space-6);
+  border: 1px dashed var(--admin-color-border-strong);
+  border-radius: var(--admin-radius-lg);
+  background: var(--admin-color-surface-inset);
+}
+
+.diagnostics-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--admin-space-2);
+  width: 100%;
+  padding: var(--admin-space-2) var(--admin-space-4);
+  color: var(--admin-color-text-muted);
+  font-size: var(--admin-font-size-xs);
+  font-weight: var(--admin-weight-medium);
+  text-align: left;
+}
+
+.diagnostics-toggle .icon:last-child {
+  margin-left: auto;
+}
+
+.diagnostics-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-space-3);
+  padding: 0 var(--admin-space-4) var(--admin-space-4);
+}
+
+.diagnostics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--admin-space-3);
+  margin: 0;
+}
+
+.diagnostics-grid dt {
+  color: var(--admin-color-text-muted);
+  font-size: var(--admin-font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.diagnostics-grid dd {
+  margin: 2px 0 0;
+  font-family: var(--admin-font-mono);
+  font-size: var(--admin-font-size-xs);
+  color: var(--admin-color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------- responsive */
+.shell-scrim {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .admin-shell,
+  .admin-shell.is-collapsed {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(272px, 82vw);
+    transform: translateX(-100%);
+    transition: transform var(--admin-duration-base) var(--admin-ease);
+    box-shadow: var(--admin-shadow-lg);
+  }
+
+  .admin-shell.is-drawer-open .sidebar {
+    transform: translateX(0);
+  }
+
+  /* Labels stay visible in the drawer even if the desktop sidebar was
+     collapsed; an icon-only drawer would be unusable on a phone. */
+  .admin-shell.is-collapsed .nav-label,
+  .admin-shell.is-collapsed .nav-group-label,
+  .admin-shell.is-collapsed .brand-text,
+  .admin-shell.is-collapsed .account-copy {
+    display: revert;
+  }
+
+  .admin-shell.is-collapsed .nav-link,
+  .admin-shell.is-collapsed .sidebar-account {
+    justify-content: flex-start;
+    padding: 0 var(--admin-space-2);
+  }
+
+  .admin-shell.is-collapsed .sidebar-brand {
+    justify-content: space-between;
+    padding: 0 var(--admin-space-3);
+  }
+
+  .admin-shell.is-collapsed .sidebar-collapse {
+    display: none;
+  }
+
+  .admin-shell.is-drawer-open .shell-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 35;
+    background: var(--admin-overlay-scrim);
+  }
+
+  .toolbar {
+    padding: 0 var(--admin-space-4);
+  }
+
+  .toolbar-drawer {
+    display: inline-flex;
+  }
+
+  .content {
+    padding: var(--admin-space-4);
+  }
+
+  .diagnostics {
+    margin: 0 var(--admin-space-4) var(--admin-space-4);
+  }
+}
+
+@media (max-width: 480px) {
+  .content {
+    padding: var(--admin-space-3);
+  }
+
+  .toolbar-actions .route-status {
+    display: none;
+  }
+}

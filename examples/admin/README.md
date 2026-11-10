@@ -57,6 +57,21 @@ ZEUS_ADMIN_PASSWORD=... ZEUS_ADMIN_VIEWER_PASSWORD=... \
 Native DevTools 面板，显示 owner 树、binding/effect/signal 图、timeline、Custom
 Element 生命周期和手动刷新。生产构建会移除这条开发分支。
 
+## 视觉系统
+
+界面建立在一层 token 上（`src/styles/tokens.css`）：颜色、间距、圆角、阴影、字号与
+控件高度都在 light / dark 两套里声明一次。`tokens.css` 之后的样式只引用
+`var(--admin-*)`，新增一个界面时选 token 而不是挑一个十六进制色值。
+
+- 布局三段：可折叠侧栏、带面包屑与页面标题的固定工具栏、有最大宽度的内容列。
+  1024px 以下侧栏变为抽屉，按 Escape 或切换路由时关闭。
+- 主题为浅色 / 深色 / 跟随系统三态，侧栏折叠状态与主题偏好保存在本机；
+  `system` 通过 `prefers-color-scheme` 保持实时。
+- 路由内部信息（匹配链、历史按钮、预加载探针）移入 Developer Diagnostics 面板，
+  不再占据产品界面。
+- `zw-input`、`zw-data-grid`、`zw-dialog` 通过 `data-slot` 钩子接入同一套 token，
+  不修改已发布的组件。
+
 ## 页面与交互
 
 | 地址                                       | 行为                                                            |
@@ -70,7 +85,7 @@ Element 生命周期和手动刷新。生产构建会移除这条开发分支。
 | `/admin/audit`                             | 服务端审计日志（登录、越权拒绝、CRUD、设置与上传）              |
 | `/admin/settings`                          | 工作空间名称、zh-CN/en、light/dark；持久化到 SQLite             |
 | `/admin/upload`                            | 受限文件上传，校验类型/大小/文件名并记录 SHA-256                |
-| `/admin/users/error`                       | loader 返回 500 和可恢复的错误页面                              |
+| `/admin/users/error`                       | 走真实 API，服务端以 404 表达该用户不存在                       |
 | `/admin/users/missing`、其他未知地址       | 返回 404 错误页面                                               |
 
 链接保留真实 `href`。同源、无修饰的左键点击由 `router.navigate()` 接管；新标签页、

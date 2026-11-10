@@ -252,6 +252,8 @@ for (const [name, engine] of selectedBrowsers) {
       ),
     ).toBe('same-document')
 
+    // Router internals live in a collapsed panel; open it like a user would.
+    await page.getByTestId('diagnostics-toggle').click()
     await page.getByTestId('history-back').click()
     await expect(page).toHaveURL(`${origin}/admin/users`)
     await expect(page.getByTestId('users-page')).toBeVisible()

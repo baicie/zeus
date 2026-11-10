@@ -4,6 +4,7 @@ import { createEffect, createSignal, onCleanup, Show } from '@zeus-js/zeus'
 import { createResource } from '@zeus-js/resource'
 
 import { createAdminRouter } from './router'
+import { Icon } from './shell/icon'
 import { adminApi } from './pages'
 import type { Role, SessionUser } from './routes'
 
@@ -48,6 +49,8 @@ function AuthenticatedApp(props: { user: SessionUser }) {
   const router = createAdminRouter({
     queryClient,
     role,
+    // Router internals live in a diagnostics panel rather than the product UI.
+    diagnostics: true,
     onRoleChange: next => setRole(next),
     session: () => props.user,
     onLogout: async () => {
@@ -93,58 +96,97 @@ function LoginPage(props: { onLogin: (user: SessionUser) => void }) {
 
   return (
     <main class="login-page">
-      <section
-        class="login-card"
-        aria-labelledby="login-title"
-        data-testid="login-card"
-      >
-        <p class="eyebrow">Zeus Admin · 受保护工作空间</p>
-        <h1 id="login-title">登录管理后台</h1>
-        <p class="page-intro">
-          会话由服务端 HttpOnly Cookie 管理。演示账号只在本机
-          seed，不包含默认弱口令。
-        </p>
-        <form class="login-form" onSubmit={submit}>
-          <label for="login-email">
-            邮箱
-            <input
-              id="login-email"
-              type="email"
-              autocomplete="username"
-              prop:value={email()}
-              onInput={event =>
-                setEmail((event.currentTarget as HTMLInputElement).value)
-              }
-              required
-            />
-          </label>
-          <label for="login-password">
-            密码
-            <input
-              id="login-password"
-              type="password"
-              autocomplete="current-password"
-              prop:value={password()}
-              onInput={event =>
-                setPassword((event.currentTarget as HTMLInputElement).value)
-              }
-              required
-            />
-          </label>
-          <Show when={error()}>
-            <p role="alert" class="form-error" data-testid="login-error">
-              {error()}
+      <div class="login-shell">
+        <aside class="login-aside" aria-hidden="true">
+          <div class="login-aside-brand">
+            <span class="brand-glyph">Z</span>
+            Zeus Admin
+          </div>
+          <ul class="login-aside-list">
+            <li>
+              <Icon name="shield" />
+              <span>服务端 HttpOnly 会话与 CSRF 校验</span>
+            </li>
+            <li>
+              <Icon name="list" />
+              <span>登录、越权与写操作全部进入审计日志</span>
+            </li>
+            <li>
+              <Icon name="users" />
+              <span>按角色区分管理员与只读成员</span>
+            </li>
+          </ul>
+          <p class="login-aside-foot">Zeus Native · Router · Query</p>
+        </aside>
+
+        <section
+          class="login-card"
+          aria-labelledby="login-title"
+          data-testid="login-card"
+        >
+          <div class="login-brand">
+            <span class="brand-glyph" aria-hidden="true">
+              Z
+            </span>
+            Zeus Admin
+          </div>
+          <div>
+            <h1 id="login-title" class="login-title">
+              登录管理后台
+            </h1>
+            <p class="login-description">
+              使用工作空间凭据登录。会话由服务端 HttpOnly Cookie
+              管理，不包含默认弱口令。
             </p>
-          </Show>
-          <button type="submit" disabled={busy()}>
-            {busy() ? '登录中…' : '登录'}
-          </button>
-        </form>
-        <p class="login-hint">
-          本地首次运行请设置 <code>ZEUS_ADMIN_PASSWORD</code> 与
-          <code>ZEUS_ADMIN_VIEWER_PASSWORD</code>。
-        </p>
-      </section>
+          </div>
+          <form class="login-form" onSubmit={submit}>
+            <div class="field">
+              <label class="field-label" for="login-email">
+                邮箱
+              </label>
+              <input
+                id="login-email"
+                class="input"
+                type="email"
+                autocomplete="username"
+                prop:value={email()}
+                onInput={event =>
+                  setEmail((event.currentTarget as HTMLInputElement).value)
+                }
+                required
+              />
+            </div>
+            <div class="field">
+              <label class="field-label" for="login-password">
+                密码
+              </label>
+              <input
+                id="login-password"
+                class="input"
+                type="password"
+                autocomplete="current-password"
+                prop:value={password()}
+                onInput={event =>
+                  setPassword((event.currentTarget as HTMLInputElement).value)
+                }
+                required
+              />
+            </div>
+            <Show when={error()}>
+              <p role="alert" class="form-error" data-testid="login-error">
+                <Icon name="alert" /> {error()}
+              </p>
+            </Show>
+            <button type="submit" class="btn btn-primary" disabled={busy()}>
+              {busy() ? '登录中…' : '登录'}
+            </button>
+          </form>
+          <p class="login-hint">
+            本地首次运行请设置 <code>ZEUS_ADMIN_PASSWORD</code> 与{' '}
+            <code>ZEUS_ADMIN_VIEWER_PASSWORD</code>。
+          </p>
+        </section>
+      </div>
     </main>
   )
 }
