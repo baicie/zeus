@@ -124,11 +124,31 @@ jobs:
       # while they happen to have the blob. Pushing to TCR moves the cross-border
       # transfer into the publish step, where a failure retries without
       # rebuilding, and the host then pulls over the cloud's own network.
+      #
+      # TCR_IMAGE is a full repository path (`host/namespace/repository`), the
+      # same string the `tags:` list appends `:tag` to. `docker login` wants
+      # only the host, so it is split here rather than asking operators to
+      # keep two variables in step.
+      - name: Resolve the TCR registry host
+        id: tcr
+        if: github.event_name != 'pull_request' && vars.TCR_IMAGE != ''
+        env:
+          TCR_IMAGE: ${{ vars.TCR_IMAGE }}
+        run: |
+          set -euo pipefail
+          host="${TCR_IMAGE%%/*}"
+          if [[ ! "$host" =~ ^[A-Za-z0-9.-]+$ ]]; then
+            echo "::error::TCR_IMAGE does not start with a registry host: '$TCR_IMAGE'"
+            exit 1
+          fi
+          echo "host=${host}" >> "$GITHUB_OUTPUT"
+          echo "TCR: registry ${host}, repository ${TCR_IMAGE}"
+
       - name: Login to TCR
         if: github.event_name != 'pull_request' && vars.TCR_IMAGE != ''
         uses: docker/login-action@v3
         with:
-          registry: ${{ vars.TCR_IMAGE }}
+          registry: ${{ steps.tcr.outputs.host }}
           username: ${{ secrets.TCR_USERNAME }}
           password: ${{ secrets.TCR_PASSWORD }}
 
@@ -304,17 +324,21 @@ jobs:
           # TCR does.
           candidates=()
           if [[ -n "${TCR}" ]]; then
+            # TCR points at a repository, but docker authenticates a registry.
+            # Logging in to the full path asks the daemon for
+            # `<path>/v2/` and answers 404, so only the host is used here.
+            TCR_HOST="${TCR%%/*}"
             if [[ -n "${TCR_USER}" && -n "${TCR_PASS}" ]]; then
               # A private repository needs the credential under the same docker
               # identity the pull will use.
               if [[ "${DOCKER[0]}" == "sudo" ]]; then
                 printf '%s' "${TCR_PASS}" |
-                  sudo -n docker login "${TCR}" -u "${TCR_USER}" --password-stdin >/dev/null
+                  sudo -n docker login "${TCR_HOST}" -u "${TCR_USER}" --password-stdin >/dev/null
               else
                 printf '%s' "${TCR_PASS}" |
-                  docker login "${TCR}" -u "${TCR_USER}" --password-stdin >/dev/null
+                  docker login "${TCR_HOST}" -u "${TCR_USER}" --password-stdin >/dev/null
               fi
-              echo "==> logged in to ${TCR}"
+              echo "==> logged in to ${TCR_HOST}"
             fi
             candidates+=("${TCR}:${TAG}")
           fi
