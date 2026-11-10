@@ -219,22 +219,14 @@ jobs:
           mkdir -p "$DIR"
           printf '%s' "$COMPOSE" | base64 -d > "$DIR/docker-compose.deploy.yml"
           chmod 644 "$DIR/docker-compose.deploy.yml"
-          # Credentials are the operator's. Create the file once, never overwrite
-          # it: a deploy must not silently reset a rotated password.
-          if [[ ! -f "$DIR/admin.env" ]]; then
-            umask 077
-            cat > "$DIR/admin.env" <<'ENV'
-          # Zeus Admin deployment credentials.
-          # Fill these in, then re-run the deploy. The service will not start
-          # with the placeholders below.
-          ZEUS_ADMIN_EMAIL=admin@example.com
-          ZEUS_ADMIN_PASSWORD=CHANGE_ME_at_least_12_chars
-          ZEUS_ADMIN_ORIGINS=https://admin.moonbyte.top:8443
-          ENV
-            echo "::warning::Created $DIR/admin.env with placeholders. Fill it in and re-run the deploy."
-          else
-            echo "admin.env already present; leaving it untouched"
+          # Credentials are the operator's and already exist on this host.
+          # Requiring the file keeps a release from inventing or overwriting it:
+          # rotating a password stays a deliberate act.
+          if [[ ! -f "$DIR/.env" ]]; then
+            echo "::error::$DIR/.env is missing. Create it before deploying."
+            exit 1
           fi
+          echo "credentials present: .env"
           echo "compose 已就绪: $DIR/docker-compose.deploy.yml"
           REMOTE
 
@@ -307,7 +299,7 @@ jobs:
           cd "$DIR"
           set -a
           # shellcheck disable=SC1091
-          . ./admin.env
+          . ./.env
           set +a
           "${RUN[@]}" compose -f docker-compose.deploy.yml up -d --pull never --remove-orphans --force-recreate
 

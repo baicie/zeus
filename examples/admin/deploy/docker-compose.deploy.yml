@@ -18,10 +18,11 @@ services:
       - '127.0.0.1:8080:8080'
     environment:
       # Credentials come from the server-side env file, never from this file.
-      # The deploy workflow writes them to ${DEPLOY_DIR}/admin.env on first run
-      # and leaves them alone afterwards, so a rotation is an explicit act.
-      ZEUS_ADMIN_EMAIL: ${ZEUS_ADMIN_EMAIL:?Set ZEUS_ADMIN_EMAIL in admin.env}
-      ZEUS_ADMIN_PASSWORD: ${ZEUS_ADMIN_PASSWORD:?Set ZEUS_ADMIN_PASSWORD in admin.env}
+      # The deploy workflow reads ${DEPLOY_DIR}/.env, which already exists on the
+      # host; it is created with placeholders only when absent, so a rotation is
+      # an explicit act and never a side effect of a release.
+      ZEUS_ADMIN_EMAIL: ${ZEUS_ADMIN_EMAIL:?Set ZEUS_ADMIN_EMAIL in .env}
+      ZEUS_ADMIN_PASSWORD: ${ZEUS_ADMIN_PASSWORD:?Set ZEUS_ADMIN_PASSWORD in .env}
       ZEUS_ADMIN_SEED_DEMO: 'false'
       ZEUS_ADMIN_SECURE_COOKIES: 'true'
       ZEUS_ADMIN_TRUST_PROXY: 'true'
