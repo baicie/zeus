@@ -35,18 +35,11 @@ LABEL org.opencontainers.image.revision=$ZEUS_CORE_COMMIT \
 WORKDIR /app
 ENV NODE_ENV=production
 RUN useradd --system --uid 10001 --create-home zeus
-# The server imports only Node builtins and its own siblings — no workspace
-# package, no third-party dependency. Copying the monorepo's whole node_modules
-# and every package source put over 200 MB into the image for nothing, which is
-# what pushed it past what the deployment host can pull.
 COPY --from=build /app/examples/admin/dist ./dist
 COPY --from=build /app/examples/admin/server ./server
 COPY --from=build /app/examples/admin/package.json ./package.json
-# `tsx` runs the TypeScript server directly. It is the one runtime dependency,
-# so it is installed on its own rather than lifted from the build tree.
-RUN npm install --no-save --omit=dev tsx@4.22.4 \
-  && npm cache clean --force \
-  && rm -rf /root/.npm
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/packages ./packages
 RUN mkdir -p /data && chown -R zeus:zeus /data /app
 USER zeus
 ENV ZEUS_ADMIN_DB=/data/admin.sqlite
