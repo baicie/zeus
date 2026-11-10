@@ -124,11 +124,31 @@ jobs:
       # while they happen to have the blob. Pushing to TCR moves the cross-border
       # transfer into the publish step, where a failure retries without
       # rebuilding, and the host then pulls over the cloud's own network.
+      #
+      # TCR_IMAGE is a full repository path (`host/namespace/repository`), the
+      # same string the `tags:` list appends `:tag` to. `docker login` wants
+      # only the host, so it is split here rather than asking operators to
+      # keep two variables in step.
+      - name: Resolve the TCR registry host
+        id: tcr
+        if: github.event_name != 'pull_request' && vars.TCR_IMAGE != ''
+        env:
+          TCR_IMAGE: ${{ vars.TCR_IMAGE }}
+        run: |
+          set -euo pipefail
+          host="${TCR_IMAGE%%/*}"
+          if [[ ! "$host" =~ ^[A-Za-z0-9.-]+$ ]]; then
+            echo "::error::TCR_IMAGE does not start with a registry host: '$TCR_IMAGE'"
+            exit 1
+          fi
+          echo "host=${host}" >> "$GITHUB_OUTPUT"
+          echo "TCR: registry ${host}, repository ${TCR_IMAGE}"
+
       - name: Login to TCR
         if: github.event_name != 'pull_request' && vars.TCR_IMAGE != ''
         uses: docker/login-action@v3
         with:
-          registry: ${{ vars.TCR_IMAGE }}
+          registry: ${{ steps.tcr.outputs.host }}
           username: ${{ secrets.TCR_USERNAME }}
           password: ${{ secrets.TCR_PASSWORD }}
 
@@ -195,6 +215,9 @@ jobs:
       DEPLOY_DIR: ${{ vars.ZEUS_ADMIN_DEPLOY_DIR || '/home/ubuntu/zeus-admin' }}
       CONTAINER: ${{ vars.ZEUS_ADMIN_CONTAINER || 'zeus-admin' }}
       HEALTH_URL: http://127.0.0.1:8080/api/health
+      # The commit the image must carry. A tag can point at an older build after
+      # an interrupted publish, so identity is read from the OCI label.
+      EXPECTED_REVISION: ${{ github.sha }}
       GHCR_MIRRORS: ${{ vars.GHCR_MIRRORS || 'ghcr.nju.edu.cn' }}
       SSH_KEY: ${{ secrets.ZEUS_PLAYGROUND_DEPLOY_SSH_KEY }}
       SSH_PASSWORD: ${{ secrets.ZEUS_PLAYGROUND_DEPLOY_SSH_PASSWORD }}
@@ -272,13 +295,15 @@ jobs:
           "${SSH[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" 'bash -s' -- \
             "${IMAGE_REF}" "${DEPLOY_TAG}" "${IMAGE_DIGEST}" "${CONTAINER}" \
             "${DEPLOY_DIR}" "${HEALTH_URL}" "${GHCR_MIRRORS}" \
-            "${TCR_IMAGE}" "${TCR_USERNAME}" "${TCR_PASSWORD}" <<'REMOTE'
+            "${TCR_IMAGE}" "${TCR_USERNAME}" "${TCR_PASSWORD}" \
+            "${EXPECTED_REVISION}" <<'REMOTE'
           set -euo pipefail
           IMAGE="$1"; TAG="$2"; DIGEST="$3"; CONTAINER="$4"
           DIR="$5"; HEALTH="$6"; MIRRORS="$7"
           # Optional: unset when TCR is not configured. `set -u` would abort
           # the whole script on an unbound positional, so default each to empty.
           TCR="${8:-}"; TCR_USER="${9:-}"; TCR_PASS="${10:-}"
+          EXPECTED_REVISION="${11:-}"
           CANONICAL="${IMAGE}:${TAG}"
           REPO_PATH="${IMAGE#ghcr.io/}"
 
@@ -304,17 +329,21 @@ jobs:
           # TCR does.
           candidates=()
           if [[ -n "${TCR}" ]]; then
+            # TCR points at a repository, but docker authenticates a registry.
+            # Logging in to the full path asks the daemon for
+            # `<path>/v2/` and answers 404, so only the host is used here.
+            TCR_HOST="${TCR%%/*}"
             if [[ -n "${TCR_USER}" && -n "${TCR_PASS}" ]]; then
               # A private repository needs the credential under the same docker
               # identity the pull will use.
               if [[ "${DOCKER[0]}" == "sudo" ]]; then
                 printf '%s' "${TCR_PASS}" |
-                  sudo -n docker login "${TCR}" -u "${TCR_USER}" --password-stdin >/dev/null
+                  sudo -n docker login "${TCR_HOST}" -u "${TCR_USER}" --password-stdin >/dev/null
               else
                 printf '%s' "${TCR_PASS}" |
-                  docker login "${TCR}" -u "${TCR_USER}" --password-stdin >/dev/null
+                  docker login "${TCR_HOST}" -u "${TCR_USER}" --password-stdin >/dev/null
               fi
-              echo "==> logged in to ${TCR}"
+              echo "==> logged in to ${TCR_HOST}"
             fi
             candidates+=("${TCR}:${TAG}")
           fi
@@ -347,12 +376,41 @@ jobs:
           # expects, so `--pull never` uses exactly what was verified.
           "${DOCKER[@]}" tag "${pulled}" "${CANONICAL}"
 
+          # A tag is not an identity. When TCR is configured the image comes
+          # from there, and a stalled publish can leave that tag pointing at the
+          # previous commit — this deploy would then "succeed" while rolling
+          # production back. The build stamps the commit into a label.
+          if [[ -n "${EXPECTED_REVISION:-}" ]]; then
+            got="$("${DOCKER[@]}" inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "${CANONICAL}" 2>/dev/null || true)"
+            if [[ "${got}" != "${EXPECTED_REVISION}" ]]; then
+              echo "::error::${CANONICAL} is revision '${got}', expected '${EXPECTED_REVISION}'"
+              exit 1
+            fi
+            echo "==> ${CANONICAL} @ ${got:0:8}"
+          fi
+
           cd "$DIR"
           set -a
           # shellcheck disable=SC1091
           . ./.env
           set +a
           "${RUN[@]}" compose -f docker-compose.deploy.yml up -d --pull never --remove-orphans --force-recreate
+
+          # The compose file names the container, so `up` replaces it in place.
+          # An older copy started with `docker run` under a different name has
+          # no compose labels and would survive `--remove-orphans` while still
+          # holding the same SQLite file. Retire by hazard: any other running
+          # container mounting this deployment's data directory is a second
+          # writer of the same database.
+          data_dir="${DIR}/data"
+          for other in $("${DOCKER[@]}" ps -q 2>/dev/null || true); do
+            name="$("${DOCKER[@]}" inspect --format '{{.Name}}' "${other}" 2>/dev/null | sed 's#^/##')" || continue
+            [[ -z "${name}" || "${name}" == "${CONTAINER}" ]] && continue
+            mounts="$("${DOCKER[@]}" inspect --format '{{range .Mounts}}{{.Source}} {{end}}' "${name}" 2>/dev/null || true)"
+            [[ "${mounts}" != *"${data_dir}"* ]] && continue
+            echo "==> retiring ${name}: another writer of ${data_dir}"
+            "${DOCKER[@]}" rm -f "${name}" >/dev/null 2>&1 || true
+          done
 
           # Wait for the health endpoint before declaring success.
           for attempt in $(seq 1 30); do
@@ -367,6 +425,34 @@ jobs:
           "${DOCKER[@]}" logs --tail 50 "${CONTAINER}" || true
           exit 1
           REMOTE
+
+      # A container swap is not a deployment. The ingress decides what the
+      # public actually gets, and it is operator-owned configuration that CI
+      # must not rewrite. So instead of assuming, ask the public URL which
+      # commit it serves and fail when it is not this one.
+      - name: Verify the public site serves this commit
+        if: vars.ZEUS_PUBLIC_SITE_URL != ''
+        env:
+          ZEUS_PUBLIC_SITE_URL: ${{ vars.ZEUS_PUBLIC_SITE_URL }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          url="${ZEUS_PUBLIC_SITE_URL%/}/build-info.json"
+          for attempt in $(seq 1 10); do
+            if body="$(curl -fsS --max-time 15 "${url}" 2>/dev/null)"; then
+              served="$(printf '%s' "${body}" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{process.stdout.write(JSON.parse(s).coreCommit||'')}catch{}})")"
+              if [[ "${served}" == "${GITHUB_SHA}" ]]; then
+                echo "==> ${ZEUS_PUBLIC_SITE_URL} serves ${served}"
+                exit 0
+              fi
+              echo "    ${url} serves '${served:-<unknown>}', waiting for ${GITHUB_SHA:0:8}"
+            else
+              echo "    ${url} not reachable yet"
+            fi
+            sleep 6
+          done
+          echo "::error::The public site does not serve ${GITHUB_SHA}; the ingress still points at an older build"
+          exit 1
 
       - name: Cleanup credentials
         if: always()
