@@ -182,10 +182,30 @@ jobs:
           set -euo pipefail
           docker buildx imagetools inspect "${IMAGE}:main"
           docker buildx imagetools inspect "${IMAGE}:sha-${{ github.sha }}"
-          # Record the size: it is the number that decides whether the host can
-          # pull the image at all, so it belongs in the run log.
+          # Record the size and enforce the budget. Size is not cosmetic: the
+          # host pulls this image from TCR, and a 312 MB image is what made a
+          # single cross-border copy unable to finish inside any sane timeout.
+          # The budget is a repository variable so a deliberate growth is one
+          # settings change, while an accidental regression fails the build.
           docker buildx imagetools inspect "${IMAGE}:main" --format '{{json .Manifest}}' \
-            | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const m=JSON.parse(s);const bytes=(m.layers||[]).reduce((a,l)=>a+l.size,0);console.log('image size:',(bytes/1024/1024).toFixed(1),'MB')})"
+            > /tmp/manifest.json
+          node -e '
+            const m = require("/tmp/manifest.json")
+            const bytes = (m.layers || []).reduce((a, l) => a + l.size, 0)
+            const mb = bytes / 1024 / 1024
+            const budget = Number(process.env.BUDGET_MB)
+            console.log(`image size: ${mb.toFixed(1)} MB (budget ${budget} MB)`)
+            require("node:fs").appendFileSync(
+              process.env.GITHUB_STEP_SUMMARY,
+              `\n| image size | ${mb.toFixed(1)} MB |\n| budget | ${budget} MB |\n`,
+            )
+            if (mb > budget) {
+              console.error(`::error::image is ${mb.toFixed(1)} MB, over the ${budget} MB budget`)
+              process.exit(1)
+            }
+          '
+        env:
+          BUDGET_MB: ${{ vars.ADMIN_IMAGE_MAX_MB || '120' }}
 
   mirror-tcr:
     name: Mirror to TCR
