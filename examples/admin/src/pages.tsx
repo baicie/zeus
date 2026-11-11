@@ -1092,12 +1092,13 @@ export function UserPage() {
               class="settings-form"
             >
               {/*
-                Fields are seeded once from the draft and then left
-                uncontrolled. A `prop:value` binding writes the last rendered
-                draft back into the input, which can overwrite what the user
-                just typed when a render lands between the keystroke and the
-                submit (reproduced in CI's slower chromium). The submit handler
-                reads the form, so the form is the source of truth.
+                Truly uncontrolled. Zeus compiles `value={expr}` — and
+                `prop:value={expr}` — into a reactive binding (`bindAttr` /
+                `bindProp`), so a render landing between the keystroke and the
+                submit can write the older draft back into the field. CI's
+                slower chromium hit exactly that. Seeding through `ref` runs
+                once on mount and creates no binding; the submit handler reads
+                the form, which is the single source of truth.
               */}
               <div class="field">
                 <label class="field-label" for="user-name">
@@ -1106,7 +1107,9 @@ export function UserPage() {
                 <input
                   id="user-name"
                   class="input"
-                  value={draft().name ?? ''}
+                  ref={(element: HTMLInputElement | null) => {
+                    seedValue(element, draft().name ?? '')
+                  }}
                 />
               </div>
               <div class="field">
@@ -1118,7 +1121,9 @@ export function UserPage() {
                   class="input"
                   type="email"
                   required
-                  value={draft().email ?? ''}
+                  ref={(element: HTMLInputElement | null) => {
+                    seedValue(element, draft().email ?? '')
+                  }}
                 />
               </div>
               <div class="field-row">
@@ -1129,7 +1134,9 @@ export function UserPage() {
                   <input
                     id="user-team"
                     class="input"
-                    value={draft().team ?? ''}
+                    ref={(element: HTMLInputElement | null) => {
+                      seedValue(element, draft().team ?? '')
+                    }}
                   />
                 </div>
                 <div class="field">
@@ -1139,7 +1146,9 @@ export function UserPage() {
                   <select
                     id="user-status-field"
                     class="select"
-                    prop:value={draft().status ?? 'active'}
+                    ref={(element: HTMLSelectElement | null) => {
+                      seedValue(element, draft().status ?? 'active')
+                    }}
                   >
                     <option value="active">活跃</option>
                     <option value="invited">待邀请</option>
@@ -1154,7 +1163,9 @@ export function UserPage() {
                 <select
                   id="user-role"
                   class="select"
-                  prop:value={draft().role ?? 'viewer'}
+                  ref={(element: HTMLSelectElement | null) => {
+                    seedValue(element, draft().role ?? 'viewer')
+                  }}
                 >
                   <option value="viewer">只读成员</option>
                   <option value="admin">管理员</option>
@@ -1928,6 +1939,24 @@ function StatusBadge(props: { status: UserStatus | undefined }) {
     }
   }
   return <span class={`badge ${meta().tone}`}>{meta().label}</span>
+}
+
+/**
+ * Writes a field's initial value exactly once, on mount.
+ *
+ * `ref` callbacks run after the element exists and, unlike a `value={…}` JSX
+ * binding, create no reactive dependency: later renders never overwrite what
+ * the user typed. The element is marked so a re-run of the callback (defensive
+ * unmount/remount of the same node) cannot clobber user input either.
+ */
+function seedValue(
+  element: HTMLInputElement | HTMLSelectElement | null,
+  value: string,
+): void {
+  if (!element) return
+  if (element.dataset.seeded === 'true') return
+  element.value = value
+  element.dataset.seeded = 'true'
 }
 
 /** Keeps only the fields whose value differs from the loaded user. */
