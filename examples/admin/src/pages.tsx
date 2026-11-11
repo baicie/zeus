@@ -937,8 +937,30 @@ export function UserPage() {
 
   async function saveUser(event: Event): Promise<void> {
     event.preventDefault()
+    // Read the fields at submit time. `draft()` is the last rendered value and
+    // can lag one input event behind what the user (or a test) just typed; the
+    // form is the source of truth for what is being saved.
+    const form = event.currentTarget as HTMLFormElement
+    const value = (selector: string): string =>
+      (
+        form.querySelector<HTMLInputElement | HTMLSelectElement>(selector)
+          ?.value ?? ''
+      ).trim()
+    const current = user()
+    const patch: UserPatch = {
+      email: value('#user-email'),
+      name: value('#user-name'),
+      team: value('#user-team'),
+      status: value('#user-status-field') as UserStatus,
+      role: value('#user-role') as Role,
+    }
     try {
-      await mutation.mutateAsync({ id: userId(), patch: draft() })
+      await mutation.mutateAsync({
+        id: userId(),
+        // Send only what changed, so an untouched field cannot overwrite a
+        // newer server value with a stale one.
+        patch: changedFields(current, patch),
+      })
       setEditing(false)
     } catch {
       // The mutation state drives the save status; the dialog stays open.
@@ -1952,6 +1974,23 @@ function StatusBadge(props: { status: UserStatus | undefined }) {
     }
   }
   return <span class={`badge ${meta().tone}`}>{meta().label}</span>
+}
+
+/** Keeps only the fields whose value differs from the loaded user. */
+function changedFields(current: User | undefined, next: UserPatch): UserPatch {
+  const patch: Record<string, string> = {}
+  if (!current) return next
+  if (next.email !== undefined && next.email !== current.email)
+    patch.email = next.email
+  if (next.name !== undefined && next.name !== current.name)
+    patch.name = next.name
+  if (next.team !== undefined && next.team !== current.team)
+    patch.team = next.team
+  if (next.status !== undefined && next.status !== current.status)
+    patch.status = next.status
+  if (next.role !== undefined && next.role !== current.role)
+    patch.role = next.role
+  return patch as UserPatch
 }
 
 function initials(name: string): string {
