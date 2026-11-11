@@ -1,0 +1,68 @@
+{
+  "schema": "zeus-design-reference/v1",
+  "createdAt": "2026-11-11",
+  "reference": {
+    "admin": {
+      "name": "satnaing/shadcn-admin",
+      "gitUrl": "https://github.com/satnaing/shadcn-admin",
+      "commit": "e16c87f213a5ba5e45964e9b67c792105ec74d26",
+      "commitDate": "2026-06-11T17:08:35+07:00",
+      "version": "2.2.1",
+      "runCommand": "pnpm install && pnpm build && npx vite preview --port 5311",
+      "capturedAt": "2026-11-11",
+      "browser": "Chromium 1248 (Playwright build, Google Chrome for Testing)",
+      "variant": "inset sidebar, collapsible=icon, theme=light/dark",
+      "note": "Signed in with the reference's mock form, which accepts any credentials."
+    },
+    "chatgpt": {
+      "url": "https://chatgpt.com/",
+      "capturedAt": "2026-11-11",
+      "viewportState": "1440x900 signed-out, sidebar expanded; 390x844 signed-out mobile",
+      "browser": "Google Chrome (installed app), headed, persistent profile, en-US",
+      "referenceStatus": "CAPTURED_SIGNED_OUT",
+      "limitations": [
+        "Signed-in ChatGPT was not accessible from this environment, so no signed-in reference was captured: no account history sidebar, no signed-in account menu, no model menu contents, no streaming-with-tools state.",
+        "C04 is a mid-generation frame of the signed-out anonymous chat, not a signed-in streaming state.",
+        "C05 (model menu) could not be captured: the visible picker on the signed-out page is the plan/app menu, not a model list. No substitute was fabricated.",
+        "Settings (C06) is the signed-out settings page; the signed-in provider/model sections described in spec 03 are Zeus's own design and are not claimed to match ChatGPT pixel-for-pixel."
+      ],
+      "note": "Reference screenshots are stored verbatim; nothing was generated or edited."
+    }
+  },
+  "defaultViewport": { "width": 1440, "height": 900, "deviceScaleFactor": 1 },
+  "scenarios": {
+    "admin": {
+      "A01": "reference/admin/A01.png / implementation/admin/A01.png",
+      "A02": "reference/admin/A02.png / implementation/admin/A02.png",
+      "A03": "reference/admin/A03.png / implementation/admin/A03.png",
+      "A04": "reference/admin/A04.png / implementation/admin/A04.png",
+      "A05": "reference/admin/A05.png / implementation/admin/A05.png",
+      "A06": "reference/admin/A06.png / implementation/admin/A06.png",
+      "A07": "reference/admin/A07.png / implementation/admin/A07.png",
+      "A08": "reference/admin/A08.png / implementation/admin/A08.png"
+    },
+    "chatgpt": {
+      "C01": "reference/chatgpt/C01.png / implementation/workbench/C01.png",
+      "C02": "reference/chatgpt/C02.png / implementation/workbench/C02.png",
+      "C03": "reference/chatgpt/C03.png / implementation/workbench/C03.png",
+      "C04": "reference/chatgpt/C04.png / implementation/workbench/C04.png",
+      "C05": "REFERENCE_NOT_CAPTURED (no model menu on the signed-out page)",
+      "C06": "reference/chatgpt/C06.png / implementation/workbench/C06.png",
+      "C07": "reference/chatgpt/C07.png / implementation/workbench/C07.png",
+      "C08": "reference/chatgpt/C08.png / implementation/workbench/C08.png"
+    }
+  },
+  "derived": {
+    "overlay": "overlay/<scenario>.png (50% blend of reference and implementation)",
+    "diff": "diff/<scenario>.png (per-pixel difference thresholded at 40/255)"
+  },
+  "validation": {
+    "visual": "CANDIDATE (pending human side-by-side review; not ACCEPTED)",
+    "adminFunctional": "PASS (chromium, firefox, webkit)",
+    "hostRegression": "PASS (chromium, firefox, webkit)",
+    "byokProtocol": "PASS (chromium, mock gateway)",
+    "liveProviderSmoke": "NOT_RUN (requires a real gateway key; run manually, redact evidence)",
+    "security": "PASS (existing gates; plus password_hash leak fixed in GET/PATCH/POST /api/users/:id)",
+    "accessibility": "PASS (axe via the workbench gate; ke/zoom checks in both gates)"
+  }
+}

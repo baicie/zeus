@@ -14,6 +14,17 @@ export interface AdminHttpApi extends AdminApi {
   login(email: string, password: string): Promise<SessionUser>
   session(signal: AbortSignal): Promise<SessionUser>
   logout(signal: AbortSignal): Promise<void>
+  createUser(
+    input: {
+      id: string
+      name: string
+      email: string
+      team: string
+      role: Role
+    },
+    signal: AbortSignal,
+  ): Promise<User>
+  deleteUser(id: string, signal: AbortSignal): Promise<void>
   listAudit(
     page: number,
     pageSize: number,
@@ -121,6 +132,21 @@ export function createHttpAdminApi(baseUrl = ''): AdminHttpApi {
         signal,
       )
       return body.user
+    },
+    async createUser(input, signal) {
+      const body = await request<{ user: User }>(
+        '/api/users',
+        { method: 'POST', body: JSON.stringify(input) },
+        signal,
+      )
+      return body.user
+    },
+    async deleteUser(id, signal) {
+      await request<void>(
+        `/api/users/${encodeURIComponent(id)}`,
+        { method: 'DELETE' },
+        signal,
+      )
     },
     async listAudit(page, pageSize, signal) {
       return request(

@@ -418,7 +418,11 @@ export function createAdminServer(options: AdminServerOptions): AdminServer {
         'success',
         JSON.stringify({ email, role }),
       )
-      sendJson(response, { status: 201, body: { user: readUser(id) }, headers })
+      sendJson(response, {
+        status: 201,
+        body: { user: publicUser(readUser(id)) },
+        headers,
+      })
       return
     }
 
@@ -429,7 +433,7 @@ export function createAdminServer(options: AdminServerOptions): AdminServer {
         requireRole(user, 'viewer')
         sendJson(response, {
           status: 200,
-          body: { user: readUser(id) },
+          body: { user: publicUser(readUser(id)) },
           headers,
         })
         return
@@ -488,7 +492,7 @@ export function createAdminServer(options: AdminServerOptions): AdminServer {
         )
         sendJson(response, {
           status: 200,
-          body: { user: readUser(id) },
+          body: { user: publicUser(readUser(id)) },
           headers,
         })
         return

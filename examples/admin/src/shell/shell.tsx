@@ -1,18 +1,25 @@
 /**
- * Admin application shell.
+ * Admin application shell — shadcn-admin's inset sidebar layout.
  *
- * Three-zone layout: a collapsible sidebar, a sticky toolbar, and a bounded
- * content column. The shell stays mounted for the whole session, so navigating
- * never rebuilds it — only the `<Outlet />` region changes.
+ * Structure mirrors the reference's `AuthenticatedLayout`:
  *
- * Responsive behaviour:
- * - ≥1024px: sidebar docked, toggle switches between full and icon-only.
- * - <1024px: sidebar leaves the flow and becomes a drawer over a scrim; the
- *   toolbar's menu button opens it. Focus is trapped while open and Escape
- *   closes it.
+ *   SidebarProvider
+ *     ├─ AppSidebar   (header: brand, content: nav groups, footer: account)
+ *     └─ SidebarInset (Header: trigger + breadcrumb + search + theme + user)
+ *                      (Main: page content)
  *
- * The `<Outlet />` is rendered inside `<main id="main-content">`, which the
- * skip link targets.
+ * The shell stays mounted for the whole session; navigation only swaps the
+ * `<Outlet />`, so the sidebar never rebuilds.
+ *
+ * Responsive behaviour, as in the reference:
+ * - ≥768px: the sidebar is docked and the main surface is an inset card.
+ *   The trigger collapses it to icon width (3rem rail + inset padding).
+ * - <768px: the sidebar leaves the flow and slides in as a drawer. Focus is
+ *   trapped while open and Escape closes it.
+ *
+ * Developer diagnostics (router matches, history probes, loader preload) live
+ * behind a header icon and render into a fixed panel; the reference has no
+ * debug strip in the product UI.
  */
 
 import {
@@ -48,6 +55,7 @@ interface NavItem {
   /** Match the whole path rather than a prefix. */
   readonly exact?: boolean
   readonly adminOnly?: boolean
+  readonly badge?: string
 }
 
 interface NavGroup {
@@ -55,41 +63,47 @@ interface NavGroup {
   readonly items: readonly NavItem[]
 }
 
+/**
+ * Navigation groups follow the reference's "General / Pages / Other" rhythm:
+ * a small muted label above a list of 32px rows.
+ */
 const NAV_GROUPS: readonly NavGroup[] = [
   {
-    label: '工作空间',
+    label: 'General',
     items: [
       { to: '/admin', label: '概览', icon: 'overview', exact: true },
       { to: '/admin/users', label: '用户管理', icon: 'users' },
+    ],
+  },
+  {
+    label: 'Administration',
+    items: [
       {
         to: '/admin/roles',
         label: '角色权限',
         icon: 'shield',
         adminOnly: true,
       },
-    ],
-  },
-  {
-    label: '运营',
-    items: [
+      { to: '/admin/audit', label: '审计日志', icon: 'list', adminOnly: true },
       {
         to: '/admin/reports',
         label: '管理报表',
         icon: 'chart',
         adminOnly: true,
       },
-      { to: '/admin/audit', label: '审计日志', icon: 'list', adminOnly: true },
+    ],
+  },
+  {
+    label: 'Workspace',
+    items: [
       {
         to: '/admin/upload',
         label: '文件上传',
         icon: 'upload',
         adminOnly: true,
       },
+      { to: '/admin/settings', label: '设置', icon: 'settings' },
     ],
-  },
-  {
-    label: '配置',
-    items: [{ to: '/admin/settings', label: '设置', icon: 'settings' }],
   },
 ]
 
@@ -121,7 +135,11 @@ export function AdminShell(props: AdminShellProps) {
   const [collapsed, setCollapsed] = createSignal(readCollapsed())
   const [drawerOpen, setDrawerOpen] = createSignal(false)
   const [userMenuOpen, setUserMenuOpen] = createSignal(false)
+  const [brandMenuOpen, setBrandMenuOpen] = createSignal(false)
+  const [themeMenuOpen, setThemeMenuOpen] = createSignal(false)
   const [diagnosticsOpen, setDiagnosticsOpen] = createSignal(false)
+  const [commandOpen, setCommandOpen] = createSignal(false)
+  const [commandQuery, setCommandQuery] = createSignal('')
   const [themePreference, setThemePreference] = createSignal<ThemePreference>(
     readThemePreference(),
   )
@@ -132,6 +150,9 @@ export function AdminShell(props: AdminShellProps) {
     void pathname()
     setDrawerOpen(false)
     setUserMenuOpen(false)
+    setBrandMenuOpen(false)
+    setThemeMenuOpen(false)
+    setCommandOpen(false)
   })
 
   createEffect(() => {
@@ -139,11 +160,28 @@ export function AdminShell(props: AdminShellProps) {
   })
 
   createEffect(() => {
-    if (!drawerOpen() && !userMenuOpen()) return
+    if (!drawerOpen() && !userMenuOpen() && !themeMenuOpen() && !commandOpen())
+      return
     function onKeydown(event: KeyboardEvent): void {
       if (event.key !== 'Escape') return
       setDrawerOpen(false)
       setUserMenuOpen(false)
+      setBrandMenuOpen(false)
+      setThemeMenuOpen(false)
+      setCommandOpen(false)
+    }
+    document.addEventListener('keydown', onKeydown)
+    onCleanup(() => document.removeEventListener('keydown', onKeydown))
+  })
+
+  // ⌘K / Ctrl+K opens the route palette, exactly like the reference's search.
+  createEffect(() => {
+    function onKeydown(event: KeyboardEvent): void {
+      if (event.key.toLowerCase() !== 'k') return
+      if (!event.metaKey && !event.ctrlKey) return
+      event.preventDefault()
+      setCommandQuery('')
+      setCommandOpen(open => !open)
     }
     document.addEventListener('keydown', onKeydown)
     onCleanup(() => document.removeEventListener('keydown', onKeydown))
@@ -156,6 +194,23 @@ export function AdminShell(props: AdminShellProps) {
         item => !item.adminOnly || props.role() === 'admin',
       ),
     })).filter(group => group.items.length > 0)
+
+  const allRoutes = () =>
+    NAV_GROUPS.flatMap(group =>
+      group.items
+        .filter(item => !item.adminOnly || props.role() === 'admin')
+        .map(item => ({ ...item, group: group.label })),
+    )
+
+  const commandResults = () => {
+    const query = commandQuery().trim().toLowerCase()
+    if (!query) return allRoutes()
+    return allRoutes().filter(
+      item =>
+        item.label.toLowerCase().includes(query) ||
+        item.to.toLowerCase().includes(query),
+    )
+  }
 
   const currentSection = () => pageSection(pathname())
   const pageTitle = () => PAGE_TITLES[currentSection()] ?? '页面'
@@ -170,11 +225,10 @@ export function AdminShell(props: AdminShellProps) {
     writeCollapsed(next)
   }
 
-  function cycleTheme(): void {
-    const order: readonly ThemePreference[] = ['light', 'dark', 'system']
-    const next = order[(order.indexOf(themePreference()) + 1) % order.length]!
+  function setTheme(next: ThemePreference): void {
     setThemePreference(next)
     writeThemePreference(next)
+    setThemeMenuOpen(false)
   }
 
   async function logout(): Promise<void> {
@@ -183,129 +237,169 @@ export function AdminShell(props: AdminShellProps) {
     window.location.reload()
   }
 
+  function runCommand(to: string): void {
+    setCommandOpen(false)
+    void router.navigate(to)
+  }
+
   return (
     <div
       class={[
         'admin-shell',
         collapsed() ? 'is-collapsed' : '',
         drawerOpen() ? 'is-drawer-open' : '',
-      ]}
+      ]
+        .filter(Boolean)
+        .join(' ')}
       data-testid="admin-layout"
     >
       <a class="skip-link" href="#main-content">
         跳到主内容
       </a>
 
+      <div class="sidebar-slot" aria-hidden="true" />
+
       <div
-        class="shell-scrim"
+        class="sidebar-scrim"
         onClick={() => setDrawerOpen(false)}
         aria-hidden="true"
       />
 
       <aside class="sidebar" aria-label="主导航">
-        <div class="sidebar-brand">
-          <Link to="/admin" aria-label="Zeus Admin 首页" class="brand-mark">
-            <span class="brand-glyph" aria-hidden="true">
-              Z
-            </span>
-            <span class="brand-text">Zeus Admin</span>
-          </Link>
-          <button
-            type="button"
-            class="btn btn-ghost btn-icon btn-sm sidebar-collapse"
-            onClick={toggleCollapsed}
-            aria-label={collapsed() ? '展开侧边栏' : '收起侧边栏'}
-            aria-expanded={!collapsed()}
-            data-testid="sidebar-toggle"
-          >
-            <Icon name={collapsed() ? 'chevrons-right' : 'chevrons-left'} />
-          </button>
-        </div>
-
-        <nav class="sidebar-nav">
-          <For each={visibleGroups()}>
-            {group => (
-              <div class="nav-group">
-                <p class="nav-group-label">{group.label}</p>
-                <ul class="nav-list">
-                  <For each={group.items}>
-                    {item => (
-                      <li>
-                        <Link
-                          to={item.to}
-                          class={
-                            isActive(item) ? 'nav-link is-active' : 'nav-link'
-                          }
-                          aria-current={isActive(item) ? 'page' : undefined}
-                          title={collapsed() ? item.label : undefined}
-                        >
-                          <Icon name={item.icon} class="nav-icon" />
-                          <span class="nav-label">{item.label}</span>
-                        </Link>
-                      </li>
-                    )}
-                  </For>
-                </ul>
-              </div>
-            )}
-          </For>
-        </nav>
-
-        <div class="sidebar-footer">
-          <button
-            type="button"
-            class="nav-link sidebar-account"
-            onClick={() => setUserMenuOpen(open => !open)}
-            aria-haspopup="menu"
-            aria-expanded={userMenuOpen()}
-            data-testid="account-menu-trigger"
-          >
-            <span class="avatar" aria-hidden="true">
-              {initials(props.session?.()?.name)}
-            </span>
-            <span class="account-copy">
-              <span class="account-name" data-testid="session-user">
-                {props.session?.()?.name ?? '未登录'}
-              </span>
-              <span class="account-role">
-                {props.role() === 'admin' ? '管理员' : '只读成员'}
-              </span>
-            </span>
-          </button>
-          <Show when={userMenuOpen()}>
-            <div class="account-menu" role="menu" data-testid="account-menu">
-              <p class="account-menu-header">
-                <span class="account-menu-name">{props.session?.()?.name}</span>
-                <span class="account-menu-email">
-                  {props.session?.()?.email}
+        <div class="sidebar-inner">
+          <div class="sidebar-header">
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                class="sidebar-menu-button is-large"
+                onClick={() => setBrandMenuOpen(open => !open)}
+                aria-haspopup="menu"
+                aria-expanded={brandMenuOpen()}
+                data-testid="brand-menu-trigger"
+              >
+                <span class="sidebar-brand-logo" aria-hidden="true">
+                  Z
                 </span>
-              </p>
-              <Link
-                to="/admin/settings"
-                class="account-menu-item"
-                role="menuitem"
-              >
-                <Icon name="settings" /> 工作空间设置
-              </Link>
-              <button
-                type="button"
-                class="account-menu-item"
-                role="menuitem"
-                onClick={cycleTheme}
-              >
-                <Icon name="theme" /> 主题：{themeLabel(themePreference())}
+                <span class="sidebar-brand-copy">
+                  <span class="sidebar-brand-name">Zeus Admin</span>
+                  <span class="sidebar-brand-plan">
+                    Native · Router · Query
+                  </span>
+                </span>
+                <Icon name="chevrons-up-down" class="menu-caret" />
               </button>
-              <button
-                type="button"
-                class="account-menu-item account-menu-danger"
-                role="menuitem"
-                data-testid="logout"
-                onClick={() => void logout()}
-              >
-                <Icon name="logout" /> 退出登录
-              </button>
+              <Show when={brandMenuOpen()}>
+                <div
+                  class="menu menu-sidebar menu-sidebar-down"
+                  role="menu"
+                  data-testid="brand-menu"
+                >
+                  <p class="menu-label">工作空间</p>
+                  <Link to="/admin" class="menu-item" role="menuitem">
+                    <Icon name="overview" /> 概览
+                  </Link>
+                  <Show when={props.role() === 'admin'}>
+                    <Link
+                      to="/admin/settings"
+                      class="menu-item"
+                      role="menuitem"
+                    >
+                      <Icon name="settings" /> 工作空间设置
+                    </Link>
+                  </Show>
+                  <div class="menu-separator" role="separator" />
+                  <p class="menu-label">
+                    {props.role() === 'admin' ? '管理员' : '只读成员'}
+                  </p>
+                </div>
+              </Show>
             </div>
-          </Show>
+          </div>
+
+          <nav class="sidebar-content">
+            <For each={visibleGroups()}>
+              {group => (
+                <div class="sidebar-group">
+                  <p class="sidebar-group-label">{group.label}</p>
+                  <ul class="sidebar-menu">
+                    <For each={group.items}>
+                      {item => (
+                        <li>
+                          <Link
+                            to={item.to}
+                            class={
+                              isActive(item)
+                                ? 'sidebar-menu-button is-active'
+                                : 'sidebar-menu-button'
+                            }
+                            aria-current={isActive(item) ? 'page' : undefined}
+                            title={collapsed() ? item.label : undefined}
+                          >
+                            <Icon name={item.icon} />
+                            <span>{item.label}</span>
+                            <Show when={item.badge}>
+                              <span class="menu-badge">{item.badge}</span>
+                            </Show>
+                          </Link>
+                        </li>
+                      )}
+                    </For>
+                  </ul>
+                </div>
+              )}
+            </For>
+          </nav>
+
+          <div class="sidebar-footer">
+            <button
+              type="button"
+              class="sidebar-menu-button is-large"
+              onClick={() => setUserMenuOpen(open => !open)}
+              aria-haspopup="menu"
+              aria-expanded={userMenuOpen()}
+              data-testid="account-menu-trigger"
+            >
+              <span class="sidebar-avatar" aria-hidden="true">
+                {initials(props.session?.()?.name)}
+              </span>
+              <span class="sidebar-account-copy">
+                <span class="sidebar-account-name" data-testid="session-user">
+                  {props.session?.()?.name ?? '未登录'}
+                </span>
+                <span class="sidebar-account-email">
+                  {props.session?.()?.email ?? '—'}
+                </span>
+              </span>
+              <Icon name="chevrons-up-down" class="menu-caret" />
+            </button>
+            <Show when={userMenuOpen()}>
+              <div
+                class="menu menu-sidebar menu-sidebar-up"
+                role="menu"
+                data-testid="account-menu"
+              >
+                <p class="menu-label">
+                  {props.role() === 'admin' ? '管理员' : '只读成员'}
+                </p>
+                <Link to="/admin/settings" class="menu-item" role="menuitem">
+                  <Icon name="settings" /> 工作空间设置
+                </Link>
+                <Link to="/admin/users" class="menu-item" role="menuitem">
+                  <Icon name="users" /> 成员目录
+                </Link>
+                <div class="menu-separator" role="separator" />
+                <button
+                  type="button"
+                  class="menu-item menu-item-danger"
+                  role="menuitem"
+                  data-testid="logout"
+                  onClick={() => void logout()}
+                >
+                  <Icon name="logout" /> 退出登录
+                </button>
+              </div>
+            </Show>
+          </div>
         </div>
       </aside>
 
@@ -321,13 +415,63 @@ export function AdminShell(props: AdminShellProps) {
             <Icon name="menu" />
           </button>
 
+          <button
+            type="button"
+            class="btn btn-ghost btn-icon"
+            onClick={toggleCollapsed}
+            aria-label={collapsed() ? '展开侧边栏' : '收起侧边栏'}
+            aria-expanded={!collapsed()}
+            data-testid="sidebar-toggle"
+          >
+            <Icon name="panel-left" />
+          </button>
+
+          <span class="separator separator-vertical" aria-hidden="true" />
+
+          {/* The reference's dashboard header carries an inline top nav; the
+              other pages show a breadcrumb. Both live in the same 64px row. */}
+          <nav class="top-nav" aria-label="页面导航">
+            <For
+              each={[
+                { to: '/admin', label: '概览', exact: true },
+                { to: '/admin/users', label: '用户', exact: false },
+                {
+                  to: '/admin/reports',
+                  label: '报表',
+                  exact: false,
+                  adminOnly: true,
+                },
+                { to: '/admin/settings', label: '设置', exact: false },
+              ].filter(item => !item.adminOnly || props.role() === 'admin')}
+            >
+              {item => (
+                <Link
+                  to={item.to}
+                  class={
+                    (
+                      item.exact
+                        ? pathname() === item.to
+                        : pathname().startsWith(item.to)
+                    )
+                      ? 'top-nav-link is-active'
+                      : 'top-nav-link'
+                  }
+                >
+                  {item.label}
+                </Link>
+              )}
+            </For>
+          </nav>
+
           <div class="toolbar-heading">
             <nav class="breadcrumb" aria-label="面包屑">
               <Link to="/admin">Zeus Admin</Link>
               <span class="breadcrumb-sep" aria-hidden="true">
                 /
               </span>
-              <span aria-current="page">{pageTitle()}</span>
+              <span class="breadcrumb-current" aria-current="page">
+                {pageTitle()}
+              </span>
             </nav>
             <h1 class="toolbar-title">{pageTitle()}</h1>
           </div>
@@ -343,16 +487,98 @@ export function AdminShell(props: AdminShellProps) {
               </Show>
               {navigation().state === 'idle' ? '' : '正在加载…'}
             </span>
+
             <button
               type="button"
-              class="btn btn-ghost btn-icon"
-              onClick={cycleTheme}
-              aria-label={`外观模式：${themeLabel(themePreference())}`}
-              title={`外观模式：${themeLabel(themePreference())}`}
-              data-testid="theme-toggle"
+              class="btn header-search"
+              aria-keyshortcuts="Meta+K Control+K"
+              onClick={() => {
+                setCommandQuery('')
+                setCommandOpen(true)
+              }}
+              data-testid="search-trigger"
             >
-              <Icon name={themePreference() === 'dark' ? 'moon' : 'sun'} />
+              <Icon name="search" />
+              <span class="header-search-label">搜索</span>
+              <kbd>
+                <span>⌘</span>K
+              </kbd>
             </button>
+
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                class="btn btn-ghost header-icon"
+                onClick={() => setThemeMenuOpen(open => !open)}
+                aria-label={`外观模式：${themeLabel(themePreference())}`}
+                aria-haspopup="menu"
+                aria-expanded={themeMenuOpen()}
+                data-testid="theme-toggle"
+              >
+                <Icon name={themePreference() === 'dark' ? 'moon' : 'sun'} />
+              </button>
+              <Show when={themeMenuOpen()}>
+                <div
+                  class="menu"
+                  role="menu"
+                  style={{ right: '0', top: '40px', minWidth: '8rem' }}
+                >
+                  <For
+                    each={
+                      [
+                        { value: 'light', label: '浅色' },
+                        { value: 'dark', label: '深色' },
+                        { value: 'system', label: '跟随系统' },
+                      ] as const
+                    }
+                  >
+                    {option => (
+                      <button
+                        type="button"
+                        class="menu-item"
+                        role="menuitemradio"
+                        aria-checked={themePreference() === option.value}
+                        onClick={() => setTheme(option.value)}
+                      >
+                        {option.label}
+                        <Show when={themePreference() === option.value}>
+                          <Icon name="check" class="menu-check" />
+                        </Show>
+                      </button>
+                    )}
+                  </For>
+                </div>
+              </Show>
+            </div>
+
+            <Show when={props.diagnostics}>
+              <button
+                type="button"
+                class="btn btn-ghost header-icon"
+                onClick={() => setDiagnosticsOpen(open => !open)}
+                aria-label="开发诊断"
+                aria-expanded={diagnosticsOpen()}
+                data-testid="diagnostics-toggle"
+              >
+                <Icon name="terminal" />
+              </button>
+            </Show>
+
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                class="btn btn-ghost btn-icon"
+                onClick={() => setUserMenuOpen(open => !open)}
+                aria-label="账户菜单"
+                aria-haspopup="menu"
+                aria-expanded={userMenuOpen()}
+                data-testid="header-account-trigger"
+              >
+                <span class="header-avatar" aria-hidden="true">
+                  {initials(props.session?.()?.name)}
+                </span>
+              </button>
+            </div>
           </div>
         </header>
 
@@ -364,12 +590,98 @@ export function AdminShell(props: AdminShellProps) {
           <Outlet />
         </main>
 
-        <Show when={props.diagnostics}>
+        <Show when={props.diagnostics && diagnosticsOpen()}>
           <DiagnosticsPanel
             open={diagnosticsOpen()}
             onToggle={() => setDiagnosticsOpen(v => !v)}
           />
         </Show>
+      </div>
+
+      <Show when={commandOpen()}>
+        <CommandPalette
+          query={commandQuery()}
+          onQuery={setCommandQuery}
+          results={commandResults()}
+          onSelect={runCommand}
+          onClose={() => setCommandOpen(false)}
+        />
+      </Show>
+    </div>
+  )
+}
+
+/**
+ * The ⌘K route palette. It searches the routes this session can actually
+ * reach; the reference lists pages, and this lists the same set of real pages.
+ */
+function CommandPalette(props: {
+  query: string
+  onQuery: (value: string) => void
+  results: ReadonlyArray<NavItem & { group: string }>
+  onSelect: (to: string) => void
+  onClose: () => void
+}) {
+  return (
+    <div
+      class="dialog-overlay"
+      style={{
+        display: 'grid',
+        placeItems: 'start center',
+        paddingTop: '12vh',
+      }}
+      onClick={() => props.onClose()}
+    >
+      <div
+        class="card command-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label="搜索页面"
+        onClick={(event: Event) => event.stopPropagation()}
+        data-testid="command-palette"
+      >
+        <div class="command-search">
+          <Icon name="search" />
+          <input
+            autofocus
+            aria-label="搜索页面"
+            placeholder="搜索页面…"
+            prop:value={props.query}
+            onInput={(event: Event) =>
+              props.onQuery((event.currentTarget as HTMLInputElement).value)
+            }
+            onKeyDown={(event: KeyboardEvent) => {
+              if (event.key === 'Enter') {
+                const first = props.results[0]
+                if (first) props.onSelect(first.to)
+              }
+            }}
+          />
+        </div>
+        <ul class="command-list">
+          <Show
+            when={props.results.length > 0}
+            fallback={<li class="command-empty">没有匹配的页面。</li>}
+          >
+            <For each={props.results}>
+              {item => (
+                <li>
+                  <button
+                    type="button"
+                    class="command-item"
+                    onClick={() => props.onSelect(item.to)}
+                  >
+                    <Icon name={item.icon} />
+                    <span>{item.label}</span>
+                    <span class="muted" style={{ marginLeft: 'auto' }}>
+                      {item.group}
+                    </span>
+                  </button>
+                </li>
+              )}
+            </For>
+          </Show>
+        </ul>
       </div>
     </div>
   )
@@ -377,29 +689,28 @@ export function AdminShell(props: AdminShellProps) {
 
 /**
  * Router internals used while developing this example: current match ids,
- * history controls and a loader preload probe.
- *
- * Product UI does not show these. The panel is mounted only when the shell is
- * given `diagnostics`, and it starts collapsed: a person who wants the router
- * internals opens it, and the acceptance gate does the same.
+ * history controls and a loader preload probe. Mounted only when the shell is
+ * given `diagnostics`, and only after the header icon opens it.
  */
 function DiagnosticsPanel(props: { open: boolean; onToggle: () => void }) {
   return (
     <section
-      class="diagnostics"
+      class="diagnostics-panel"
       data-testid="diagnostics"
       aria-label="开发诊断"
     >
-      <button
-        type="button"
-        class="diagnostics-toggle"
-        onClick={props.onToggle}
-        aria-expanded={props.open}
-        data-testid="diagnostics-toggle"
-      >
-        <Icon name="terminal" /> Developer Diagnostics
-        <Icon name={props.open ? 'chevron-down' : 'chevron-up'} />
-      </button>
+      <div class="diagnostics-head">
+        <Icon name="terminal" /> Developer diagnostics
+        <button
+          type="button"
+          class="btn btn-ghost btn-icon btn-sm"
+          style={{ marginLeft: 'auto' }}
+          onClick={props.onToggle}
+          aria-label="关闭开发诊断"
+        >
+          <Icon name="x" />
+        </button>
+      </div>
       <Show when={props.open}>
         <div class="diagnostics-body">
           <DiagnosticsBody />
@@ -447,7 +758,7 @@ function DiagnosticsBody() {
       <div class="row-wrap">
         <button
           type="button"
-          class="btn btn-sm"
+          class="btn btn-outline btn-sm"
           data-testid="history-back"
           onClick={() => void router.navigate(-1)}
         >
@@ -455,7 +766,7 @@ function DiagnosticsBody() {
         </button>
         <button
           type="button"
-          class="btn btn-sm"
+          class="btn btn-outline btn-sm"
           data-testid="history-forward"
           onClick={() => void router.navigate(1)}
         >
@@ -463,7 +774,7 @@ function DiagnosticsBody() {
         </button>
         <button
           type="button"
-          class="btn btn-sm"
+          class="btn btn-outline btn-sm"
           data-testid="preload-ada"
           onClick={() => void preloadAda()}
         >
@@ -529,14 +840,6 @@ function writeCollapsed(value: boolean): void {
   } catch {
     // Storage can be unavailable in private mode; the toggle still works for
     // the session.
-  }
-}
-
-function readThemePreferenceRaw(): string | null {
-  try {
-    return localStorage.getItem(THEME_KEY)
-  } catch {
-    return null
   }
 }
 

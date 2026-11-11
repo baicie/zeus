@@ -74,6 +74,12 @@ function AuthenticatedApp(props: { user: SessionUser }) {
   )
 }
 
+/**
+ * Sign-in, matching the reference's `features/auth/sign-in` card: a centred
+ * 384px card on the page background, a brand row above it, and a compact form.
+ * The reference's social buttons and "forgot password" are omitted because this
+ * deployment has neither — an empty control would be a lie.
+ */
 function LoginPage(props: { onLogin: (user: SessionUser) => void }) {
   const [email, setEmail] = createSignal('admin@zeus.local')
   const [password, setPassword] = createSignal('')
@@ -97,48 +103,27 @@ function LoginPage(props: { onLogin: (user: SessionUser) => void }) {
   return (
     <main class="login-page">
       <div class="login-shell">
-        <aside class="login-aside" aria-hidden="true">
-          <div class="login-aside-brand">
-            <span class="brand-glyph">Z</span>
-            Zeus Admin
-          </div>
-          <ul class="login-aside-list">
-            <li>
-              <Icon name="shield" />
-              <span>服务端 HttpOnly 会话与 CSRF 校验</span>
-            </li>
-            <li>
-              <Icon name="list" />
-              <span>登录、越权与写操作全部进入审计日志</span>
-            </li>
-            <li>
-              <Icon name="users" />
-              <span>按角色区分管理员与只读成员</span>
-            </li>
-          </ul>
-          <p class="login-aside-foot">Zeus Native · Router · Query</p>
-        </aside>
+        <div class="login-brand">
+          <span class="brand-glyph" aria-hidden="true">
+            Z
+          </span>
+          Zeus Admin
+        </div>
 
         <section
           class="login-card"
           aria-labelledby="login-title"
           data-testid="login-card"
         >
-          <div class="login-brand">
-            <span class="brand-glyph" aria-hidden="true">
-              Z
-            </span>
-            Zeus Admin
-          </div>
-          <div>
+          <div class="login-card-header">
             <h1 id="login-title" class="login-title">
-              登录管理后台
+              登录
             </h1>
             <p class="login-description">
-              使用工作空间凭据登录。会话由服务端 HttpOnly Cookie
-              管理，不包含默认弱口令。
+              在下方输入邮箱与密码以登录你的工作空间。
             </p>
           </div>
+
           <form class="login-form" onSubmit={submit}>
             <div class="field">
               <label class="field-label" for="login-email">
@@ -149,6 +134,7 @@ function LoginPage(props: { onLogin: (user: SessionUser) => void }) {
                 class="input"
                 type="email"
                 autocomplete="username"
+                placeholder="name@example.com"
                 prop:value={email()}
                 onInput={event =>
                   setEmail((event.currentTarget as HTMLInputElement).value)
@@ -165,6 +151,7 @@ function LoginPage(props: { onLogin: (user: SessionUser) => void }) {
                 class="input"
                 type="password"
                 autocomplete="current-password"
+                placeholder="********"
                 prop:value={password()}
                 onInput={event =>
                   setPassword((event.currentTarget as HTMLInputElement).value)
@@ -177,11 +164,13 @@ function LoginPage(props: { onLogin: (user: SessionUser) => void }) {
                 <Icon name="alert" /> {error()}
               </p>
             </Show>
-            <button type="submit" class="btn btn-primary" disabled={busy()}>
+            <button type="submit" class="btn" disabled={busy()}>
               {busy() ? '登录中…' : '登录'}
+              <Icon name="logout" />
             </button>
           </form>
-          <p class="login-hint">
+
+          <p class="login-footer">
             本地首次运行请设置 <code>ZEUS_ADMIN_PASSWORD</code> 与{' '}
             <code>ZEUS_ADMIN_VIEWER_PASSWORD</code>。
           </p>

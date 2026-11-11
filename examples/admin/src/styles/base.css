@@ -1,19 +1,20 @@
 /**
- * Admin primitives: reset, typography, and the small set of atoms every page
- * composes from — button, input, select, card, badge, table, empty/loading
- * states.
+ * Admin primitives — the shadcn-admin atom layer.
  *
- * These exist so pages describe intent (`class="btn btn-primary"`) instead of
- * restating colours and paddings. Anything page-specific belongs next to the
- * page, not here.
+ * The reference builds every control from shadcn/ui utility classes. This file
+ * reproduces those classes as plain CSS against the same tokens: button
+ * variants, input, card, badge, table, separator, dialog, dropdown, tabs,
+ * skeleton and the empty/error states. Pages compose these names
+ * (`btn`, `btn-outline`, `card`, `badge`) instead of restating colours.
  *
- * Accessibility notes:
- * - `:focus-visible` is the only focus treatment; it uses the accent ring at
- *   3px so it survives a 200% zoom and a low-contrast display.
- * - Touch targets are at least 36px tall on the base control height.
+ * Values come from the reference's component classes:
+ *   button  h-9 px-4 rounded-md text-sm font-medium, variants default /
+ *           outline / ghost / secondary / destructive / link
+ *   input   h-9 rounded-md border border-input px-3 text-sm
+ *   card    rounded-xl border bg-card py-6 shadow-sm
+ *   table   text-sm, th h-10 px-2 font-medium, td p-2, rows border-b
  */
 
-/* ---------------------------------------------------------------- reset */
 *,
 *::before,
 *::after {
@@ -22,19 +23,26 @@
 
 * {
   margin: 0;
+  border-color: var(--border);
+}
+
+html {
+  overflow-x: hidden;
 }
 
 html,
-body {
+body,
+#root {
   height: 100%;
 }
 
 body {
-  background: var(--admin-color-surface-sunken);
-  color: var(--admin-color-text-primary);
-  font-family: var(--admin-font-sans);
-  font-size: var(--admin-font-size-base);
-  line-height: var(--admin-line-base);
+  width: 100%;
+  background: var(--sidebar);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -55,8 +63,8 @@ textarea {
 
 button {
   cursor: pointer;
-  background: none;
   border: 0;
+  background: none;
   padding: 0;
 }
 
@@ -64,23 +72,30 @@ button:disabled {
   cursor: not-allowed;
 }
 
-a {
-  color: var(--admin-color-accent-default);
-  text-decoration: none;
-  text-underline-offset: 3px;
+button:not(:disabled),
+[role='button']:not(:disabled) {
+  cursor: pointer;
 }
 
-a:hover {
-  text-decoration: underline;
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-weight: 600;
+  line-height: 1.25;
 }
 
 :focus-visible {
-  outline: 2px solid var(--admin-focus-ring);
-  outline-offset: 2px;
-  border-radius: var(--admin-radius-sm);
+  outline: none;
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 50%, transparent);
 }
 
-/* Visually hidden but available to assistive technology. */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -92,382 +107,648 @@ a:hover {
   white-space: nowrap;
 }
 
-/* ----------------------------------------------------------- typography */
-h1,
-h2,
-h3,
-h4 {
-  line-height: var(--admin-line-tight);
-  font-weight: var(--admin-weight-semibold);
-  letter-spacing: -0.01em;
-}
-
-h1 {
-  font-size: var(--admin-font-size-2xl);
-}
-h2 {
-  font-size: var(--admin-font-size-xl);
-}
-h3 {
-  font-size: var(--admin-font-size-lg);
-}
-h4 {
-  font-size: var(--admin-font-size-base);
-}
-
-code,
-kbd,
-pre {
-  font-family: var(--admin-font-mono);
-  font-size: 0.92em;
-}
-
-/* --------------------------------------------------------------- layout */
-.stack {
-  display: flex;
-  flex-direction: column;
-  gap: var(--admin-space-4);
-}
-
-.row {
-  display: flex;
-  align-items: center;
-  gap: var(--admin-space-2);
-}
-
-.row-wrap {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--admin-space-2);
-}
-
-.spacer {
-  flex: 1 1 auto;
-}
-
-/* -------------------------------------------------------------- buttons */
+/* ------------------------------------------------------------- buttons */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--admin-space-2);
-  height: var(--admin-control-height);
-  padding: 0 var(--admin-space-4);
-  border: 1px solid var(--admin-color-border-default);
-  border-radius: var(--admin-radius-md);
-  background: var(--admin-color-surface-base);
-  color: var(--admin-color-text-primary);
-  font-size: var(--admin-font-size-sm);
-  font-weight: var(--admin-weight-medium);
+  flex-shrink: 0;
+  gap: 8px;
+  height: 36px;
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: var(--shadow-xs);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
   white-space: nowrap;
   transition:
-    background-color var(--admin-duration-fast) var(--admin-ease),
-    border-color var(--admin-duration-fast) var(--admin-ease),
-    color var(--admin-duration-fast) var(--admin-ease);
+    background-color var(--duration) var(--ease),
+    color var(--duration) var(--ease),
+    box-shadow var(--duration) var(--ease),
+    border-color var(--duration) var(--ease),
+    opacity var(--duration) var(--ease);
+}
+
+.btn > svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
 }
 
 .btn:hover:not(:disabled) {
-  background: var(--admin-color-surface-hover);
-  border-color: var(--admin-color-border-strong);
-}
-
-.btn:active:not(:disabled) {
-  background: var(--admin-color-surface-active);
+  background: color-mix(in oklch, var(--primary) 90%, transparent);
 }
 
 .btn:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
+  pointer-events: none;
 }
 
-.btn-primary {
-  background: var(--admin-color-accent-default);
-  border-color: var(--admin-color-accent-default);
-  color: var(--admin-color-accent-contrast);
+.btn-outline {
+  border-color: var(--border);
+  background: var(--background);
+  color: var(--foreground);
+  box-shadow: var(--shadow-xs);
 }
 
-.btn-primary:hover:not(:disabled) {
-  background: var(--admin-color-accent-strong);
-  border-color: var(--admin-color-accent-strong);
+.btn-outline:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--accent-foreground);
 }
 
-.btn-primary:active:not(:disabled) {
-  background: var(--admin-color-accent-strong);
+.btn-secondary {
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--secondary) 80%, transparent);
 }
 
 .btn-ghost {
   background: transparent;
-  border-color: transparent;
+  color: var(--foreground);
+  box-shadow: none;
 }
 
 .btn-ghost:hover:not(:disabled) {
-  background: var(--admin-color-surface-hover);
-  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-foreground);
 }
 
-.btn-danger {
-  color: var(--admin-color-danger-default);
-  border-color: var(--admin-color-border-default);
+.btn-destructive {
+  background: var(--destructive);
+  color: #fff;
 }
 
-.btn-danger:hover:not(:disabled) {
-  background: var(--admin-color-danger-subtle);
-  border-color: var(--admin-color-danger-default);
+.btn-destructive:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--destructive) 90%, transparent);
+}
+
+.btn-link {
+  height: auto;
+  padding: 0;
+  background: none;
+  color: var(--primary);
+  box-shadow: none;
+  text-underline-offset: 4px;
+}
+
+.btn-link:hover:not(:disabled) {
+  text-decoration: underline;
+  background: none;
 }
 
 .btn-sm {
-  height: var(--admin-control-height-sm);
-  padding: 0 var(--admin-space-3);
-  font-size: var(--admin-font-size-xs);
+  height: 32px;
+  padding: 0 10px;
+  gap: 6px;
+  font-size: 14px;
 }
 
-/* Square button for a single icon. */
+.btn-sm > svg {
+  width: 16px;
+  height: 16px;
+}
+
+.btn-lg {
+  height: 40px;
+  padding: 0 24px;
+}
+
 .btn-icon {
-  width: var(--admin-control-height);
+  width: 36px;
   padding: 0;
 }
 
-.btn-icon.btn-sm {
-  width: var(--admin-control-height-sm);
+.btn-sm.btn-icon {
+  width: 32px;
 }
 
-/* --------------------------------------------------------------- inputs */
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--admin-space-2);
+.btn-xs {
+  height: 24px;
+  padding: 0 8px;
+  font-size: 12px;
+  border-radius: var(--radius-sm);
 }
 
-.field-label {
-  font-size: var(--admin-font-size-sm);
-  font-weight: var(--admin-weight-medium);
-  color: var(--admin-color-text-secondary);
+/* A dashed outline filter chip, as used by the data-table toolbar. */
+.btn-dashed {
+  border-style: dashed;
 }
 
-.field-hint {
-  font-size: var(--admin-font-size-xs);
-  color: var(--admin-color-text-muted);
-}
-
+/* -------------------------------------------------------------- inputs */
 .input,
-.select {
-  height: var(--admin-control-height);
+.select,
+.textarea {
+  display: flex;
   width: 100%;
-  padding: 0 var(--admin-space-3);
-  border: 1px solid var(--admin-color-border-default);
-  border-radius: var(--admin-radius-md);
-  background: var(--admin-color-surface-base);
-  color: var(--admin-color-text-primary);
-  font-size: var(--admin-font-size-sm);
-  transition: border-color var(--admin-duration-fast) var(--admin-ease);
+  min-width: 0;
+  height: 36px;
+  padding: 4px 12px;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--foreground);
+  font-size: 14px;
+  line-height: 20px;
+  box-shadow: var(--shadow-xs);
+  transition:
+    border-color var(--duration) var(--ease),
+    box-shadow var(--duration) var(--ease);
 }
 
-.select {
-  /* Room for the native arrow on the right. */
-  padding-right: var(--admin-space-8);
-  appearance: none;
-  background-image:
-    linear-gradient(45deg, transparent 50%, var(--admin-color-text-muted) 50%),
-    linear-gradient(135deg, var(--admin-color-text-muted) 50%, transparent 50%);
-  background-position:
-    calc(100% - 15px) calc(50% + 1px),
-    calc(100% - 10px) calc(50% + 1px);
-  background-size: 5px 5px;
-  background-repeat: no-repeat;
+.textarea {
+  height: auto;
+  min-height: 80px;
+  padding: 8px 12px;
+  resize: vertical;
 }
 
-.input:hover:not(:disabled),
-.select:hover:not(:disabled) {
-  border-color: var(--admin-color-border-strong);
+.input::placeholder,
+.textarea::placeholder {
+  color: var(--muted-foreground);
+}
+
+.input:hover,
+.select:hover,
+.textarea:hover {
+  border-color: color-mix(in oklch, var(--input) 60%, var(--ring));
+}
+
+.input:focus-visible,
+.select:focus-visible,
+.textarea:focus-visible {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 50%, transparent);
+  outline: none;
 }
 
 .input:disabled,
-.select:disabled {
-  background: var(--admin-color-surface-inset);
-  color: var(--admin-color-text-muted);
+.select:disabled,
+.textarea:disabled {
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 .input[aria-invalid='true'] {
-  border-color: var(--admin-color-danger-default);
+  border-color: var(--destructive);
 }
 
-/* Native file input needs its own height handling. */
+.select {
+  appearance: none;
+  padding-right: 32px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
 .input[type='file'] {
   height: auto;
-  padding: var(--admin-space-2) var(--admin-space-3);
-  font-size: var(--admin-font-size-sm);
+  padding: 8px 12px;
+  font-size: 14px;
 }
 
-/* ---------------------------------------------------------------- cards */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label,
+.label {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--foreground);
+}
+
+.field-hint {
+  color: var(--muted-foreground);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.form-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--destructive);
+  font-size: 14px;
+}
+
+.form-error svg {
+  flex: 0 0 auto;
+  margin-top: 3px;
+  width: 16px;
+  height: 16px;
+}
+
+.required-mark {
+  color: var(--destructive);
+}
+
+/* --------------------------------------------------------------- cards */
 .card {
-  background: var(--admin-color-surface-base);
-  border: 1px solid var(--admin-color-border-default);
-  border-radius: var(--admin-radius-lg);
-  box-shadow: var(--admin-shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--card);
+  color: var(--card-foreground);
+  box-shadow: var(--shadow-xs);
 }
 
 .card-header {
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 24px;
+}
+
+.card-header-row {
+  flex-direction: row;
+  align-items: center;
   justify-content: space-between;
-  gap: var(--admin-space-4);
-  padding: var(--admin-space-4) var(--admin-space-5);
-  border-bottom: 1px solid var(--admin-color-border-subtle);
 }
 
 .card-title {
-  font-size: var(--admin-font-size-base);
-  font-weight: var(--admin-weight-semibold);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
 }
 
 .card-description {
-  margin-top: var(--admin-space-1);
-  font-size: var(--admin-font-size-sm);
-  color: var(--admin-color-text-secondary);
+  color: var(--muted-foreground);
+  font-size: 14px;
+  line-height: 20px;
 }
 
-.card-body {
-  padding: var(--admin-space-5);
+.card-content {
+  padding: 0 24px;
 }
 
 .card-footer {
   display: flex;
   align-items: center;
-  gap: var(--admin-space-2);
-  padding: var(--admin-space-3) var(--admin-space-5);
-  border-top: 1px solid var(--admin-color-border-subtle);
-  background: var(--admin-color-surface-inset);
-  border-radius: 0 0 var(--admin-radius-lg) var(--admin-radius-lg);
+  gap: 8px;
+  padding: 0 24px;
 }
 
-/* --------------------------------------------------------------- badges */
+.card-accent {
+  padding: 20px;
+}
+
+/* -------------------------------------------------------------- badges */
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: var(--admin-space-1);
-  height: 22px;
-  padding: 0 var(--admin-space-2);
-  border-radius: var(--admin-radius-full);
-  background: var(--admin-color-surface-active);
-  color: var(--admin-color-text-secondary);
-  font-size: var(--admin-font-size-xs);
-  font-weight: var(--admin-weight-medium);
+  justify-content: center;
+  gap: 4px;
+  width: fit-content;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
   white-space: nowrap;
+  overflow: hidden;
 }
 
-.badge-success {
-  background: var(--admin-color-success-subtle);
-  color: var(--admin-color-success-default);
-}
-.badge-warning {
-  background: var(--admin-color-warning-subtle);
-  color: var(--admin-color-warning-default);
-}
-.badge-danger {
-  background: var(--admin-color-danger-subtle);
-  color: var(--admin-color-danger-default);
-}
-.badge-info {
-  background: var(--admin-color-info-subtle);
-  color: var(--admin-color-info-default);
-}
-.badge-accent {
-  background: var(--admin-color-accent-subtle);
-  color: var(--admin-color-accent-default);
+.badge-outline {
+  border-color: var(--border);
+  color: var(--foreground);
 }
 
-/* A dot prefix for status badges; the colour carries meaning, the text
-   repeats it so colour is never the only signal. */
+.badge-secondary {
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+}
+
+.badge-default {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.badge-destructive {
+  background: var(--destructive);
+  color: #fff;
+}
+
+.badge-status-active {
+  border-color: var(--status-active-border);
+  background: var(--status-active-bg);
+  color: var(--status-active-fg);
+}
+
+.badge-status-invited {
+  border-color: var(--status-invited-border);
+  background: var(--status-invited-bg);
+  color: var(--status-invited-fg);
+}
+
+.badge-status-suspended {
+  border-color: var(--status-suspended-border);
+  background: var(--status-suspended-bg);
+  color: var(--status-suspended-fg);
+}
+
 .badge-dot::before {
   content: '';
   width: 6px;
   height: 6px;
-  border-radius: var(--admin-radius-full);
+  border-radius: var(--radius-full);
   background: currentColor;
 }
 
-/* ---------------------------------------------------------------- tables */
+/* --------------------------------------------------------------- table */
+.table-frame {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.table-scroll {
+  position: relative;
+  width: 100%;
+  overflow-x: auto;
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--admin-font-size-sm);
+  caption-side: bottom;
+  font-size: 14px;
+}
+
+.table thead tr {
+  border-bottom: 1px solid var(--border);
 }
 
 .table th {
-  padding: var(--admin-space-3) var(--admin-space-4);
-  border-bottom: 1px solid var(--admin-color-border-default);
-  color: var(--admin-color-text-muted);
-  font-size: var(--admin-font-size-xs);
-  font-weight: var(--admin-weight-medium);
-  text-align: left;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  height: 40px;
+  padding: 0 8px;
+  color: var(--foreground);
+  font-weight: 500;
+  text-align: start;
+  vertical-align: middle;
   white-space: nowrap;
 }
 
-.table td {
-  padding: var(--admin-space-3) var(--admin-space-4);
-  border-bottom: 1px solid var(--admin-color-border-subtle);
-  vertical-align: middle;
+.table tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background-color var(--duration) var(--ease);
 }
 
-.table tbody tr:last-child td {
+.table tbody tr:last-child {
   border-bottom: 0;
 }
 
 .table tbody tr:hover {
-  background: var(--admin-color-surface-hover);
+  background: color-mix(in oklch, var(--muted) 50%, transparent);
 }
 
-.table-mono {
-  font-family: var(--admin-font-mono);
-  font-size: var(--admin-font-size-xs);
+.table td {
+  padding: 8px;
+  vertical-align: middle;
+  white-space: nowrap;
 }
 
-/* ------------------------------------------------------- state surfaces */
-/* Empty, loading and error share one frame so a page never jumps when a
-   request resolves into a different state. */
-.state-block {
+.table .align-end {
+  text-align: end;
+}
+
+.table .cell-muted {
+  color: var(--muted-foreground);
+}
+
+.table .cell-mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+/* ----------------------------------------------------------- separator */
+.separator {
+  flex-shrink: 0;
+  height: 1px;
+  width: 100%;
+  background: var(--border);
+}
+
+.separator-vertical {
+  width: 1px;
+  height: 24px;
+}
+
+/* -------------------------------------------------------------- dialog */
+.dialog-root[hidden] {
+  display: none;
+}
+
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgb(0 0 0 / 0.5);
+  animation: overlay-in var(--duration) var(--ease);
+}
+
+.dialog-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 101;
   display: flex;
   flex-direction: column;
+  gap: 16px;
+  width: calc(100% - 32px);
+  max-width: 512px;
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--background);
+  box-shadow: 0 10px 38px -10px rgb(0 0 0 / 0.35);
+  transform: translate(-50%, -50%);
+  animation: dialog-in var(--duration) var(--ease);
+}
+
+.dialog-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 24px;
+}
+
+.dialog-title {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.dialog-description {
+  color: var(--muted-foreground);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.dialog-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.97);
+  }
+}
+
+/* ---------------------------------------------------------- dropdowns */
+.menu {
+  position: absolute;
+  z-index: 60;
+  min-width: 8rem;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.12);
+}
+
+.menu-label {
+  padding: 6px 8px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--popover-foreground);
+  font-size: 14px;
+  text-align: start;
+  text-decoration: none;
+}
+
+.menu-item svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.menu-item:hover,
+.menu-item:focus-visible {
+  background: var(--accent);
+  color: var(--accent-foreground);
+  box-shadow: none;
+  outline: none;
+}
+
+.menu-item[data-active='true'] {
+  background: var(--accent);
+}
+
+.menu-item-danger {
+  color: var(--destructive);
+}
+
+.menu-item-danger:hover {
+  background: color-mix(in oklch, var(--destructive) 10%, transparent);
+  color: var(--destructive);
+}
+
+.menu-separator {
+  height: 1px;
+  margin: 4px -4px;
+  background: var(--border);
+}
+
+.menu-check {
+  margin-left: auto;
+  width: 14px;
+  height: 14px;
+}
+
+/* ---------------------------------------------------------------- tabs */
+.tabs-list {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--admin-space-3);
-  padding: var(--admin-space-10) var(--admin-space-6);
-  text-align: center;
-  color: var(--admin-color-text-secondary);
+  width: fit-content;
+  height: 36px;
+  padding: 3px;
+  border-radius: var(--radius-lg);
+  background: var(--muted);
+  color: var(--muted-foreground);
 }
 
-.state-title {
-  font-size: var(--admin-font-size-base);
-  font-weight: var(--admin-weight-medium);
-  color: var(--admin-color-text-primary);
+.tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(100% - 1px);
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
-.state-description {
-  max-width: 46ch;
-  font-size: var(--admin-font-size-sm);
-  color: var(--admin-color-text-muted);
+.tab[aria-selected='true'] {
+  background: var(--background);
+  color: var(--foreground);
+  box-shadow: var(--shadow-xs);
 }
 
-.state-block-error .state-title {
-  color: var(--admin-color-danger-default);
+.tab:disabled {
+  opacity: 0.5;
 }
 
-/* Skeleton: a calm pulse, disabled under reduced motion. */
+/* ------------------------------------------------------------ feedback */
 .skeleton {
-  border-radius: var(--admin-radius-sm);
+  border-radius: var(--radius-md);
   background: linear-gradient(
     90deg,
-    var(--admin-color-surface-active) 25%,
-    var(--admin-color-surface-hover) 37%,
-    var(--admin-color-surface-active) 63%
+    var(--muted) 25%,
+    color-mix(in oklch, var(--muted) 55%, var(--background)) 37%,
+    var(--muted) 63%
   );
   background-size: 400% 100%;
-  animation: admin-skeleton 1.4s ease infinite;
+  animation: skeleton 1.4s ease infinite;
 }
 
-@keyframes admin-skeleton {
+@keyframes skeleton {
   0% {
     background-position: 100% 50%;
   }
@@ -477,190 +758,166 @@ pre {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .skeleton {
+  .skeleton,
+  .dialog-panel,
+  .dialog-overlay {
     animation: none;
   }
 }
 
-.skeleton-line {
-  height: 12px;
-}
-
-.skeleton-line + .skeleton-line {
-  margin-top: var(--admin-space-2);
-}
-
-/* Inline spinner for buttons and status rows. */
 .spinner {
   width: 14px;
   height: 14px;
   border: 2px solid currentColor;
   border-right-color: transparent;
-  border-radius: var(--admin-radius-full);
-  animation: admin-spin 0.7s linear infinite;
+  border-radius: var(--radius-full);
+  animation: spin 0.7s linear infinite;
 }
 
-@keyframes admin-spin {
+@keyframes spin {
   to {
     transform: rotate(360deg);
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .spinner {
-    animation-duration: 2s;
-  }
+.state-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--muted-foreground);
 }
 
-/* ------------------------------------------------------------- utility */
+.state-block svg {
+  width: 24px;
+  height: 24px;
+}
+
+.state-title {
+  color: var(--foreground);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.state-description {
+  max-width: 46ch;
+  font-size: 14px;
+  color: var(--muted-foreground);
+}
+
+.state-block-error .state-title {
+  color: var(--destructive);
+}
+
+/* -------------------------------------------------------------- utility */
 .muted {
-  color: var(--admin-color-text-muted);
+  color: var(--muted-foreground);
 }
-.secondary {
-  color: var(--admin-color-text-secondary);
-}
+
 .mono {
-  font-family: var(--admin-font-mono);
+  font-family: var(--font-mono);
 }
+
 .truncate {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* ------------------------------------------------------- web components */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.row-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* ------------------------------------------------------ web components */
 /*
- * The `zw-*` elements used here render into light DOM, so a global stylesheet
- * reaches their internals through `data-slot` hooks. These rules adapt the
- * published components to the admin tokens without forking them.
+ * `zw-*` renders into light DOM, so these rules reach its internals through
+ * `data-slot` hooks and give the published components the shadcn skin without
+ * forking them.
  */
 zw-input,
-zw-data-grid,
 zw-dialog,
 zw-dialog-content,
-zw-dialog-title,
-zw-dialog-description {
+zw-data-grid {
   display: block;
 }
 
-/* Input: let the component fill the field column and adopt the control skin. */
 zw-input {
+  width: 100%;
+}
+
+zw-input label {
+  display: block;
   width: 100%;
 }
 
 zw-input input {
   width: 100%;
-  height: var(--admin-control-height);
-  padding: 0 var(--admin-space-3);
-  border: 1px solid var(--admin-color-border-default);
-  border-radius: var(--admin-radius-md);
-  background: var(--admin-color-surface-base);
-  color: var(--admin-color-text-primary);
+  height: 36px;
+  padding: 4px 12px;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--foreground);
   font: inherit;
-  font-size: var(--admin-font-size-sm);
-  transition: border-color var(--admin-duration-fast) var(--admin-ease);
-}
-
-zw-input input:hover:not(:disabled) {
-  border-color: var(--admin-color-border-strong);
+  font-size: 14px;
+  line-height: 20px;
+  box-shadow: var(--shadow-xs);
 }
 
 zw-input input:focus-visible {
-  outline: 2px solid var(--admin-focus-ring);
-  outline-offset: 1px;
+  border-color: var(--ring);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 50%, transparent);
 }
 
 zw-input input::placeholder {
-  color: var(--admin-color-text-muted);
+  color: var(--muted-foreground);
 }
 
-/* The component renders its own <label>, which is empty when the consumer
-   supplies one. Hide only the empty case so the field label is not doubled. */
-zw-input label:empty {
+zw-input label:empty,
+zw-input [data-slot='input-prefix']:empty,
+zw-input [data-slot='input-suffix']:empty,
+zw-input [data-slot='input-message']:empty {
   display: none;
 }
 
-/* Data grid: the component owns structure, the admin owns the skin. */
-zw-data-grid {
-  width: 100%;
-  color: var(--admin-color-text-primary);
-  font-size: var(--admin-font-size-sm);
-}
-
-/*
- * The grid sizes columns from the `width` given per column, which leaves the
- * table narrower than its frame. Stretching the row and header templates to
- * 100% keeps short tables edge-to-edge without dropping the column widths,
- * and the viewport still scrolls once the sum exceeds the frame.
- */
-zw-data-grid [data-slot='data-grid-viewport'] {
-  width: 100%;
-  min-width: 0;
-}
-
-zw-data-grid [data-slot='data-grid-header'],
-zw-data-grid [data-slot='data-grid-row'] {
-  width: 100% !important;
-}
-
-zw-data-grid [data-slot='data-grid-header'] {
-  border-bottom: 1px solid var(--admin-color-border-default);
-  background: var(--admin-color-surface-inset);
-}
-
-zw-data-grid [data-slot='data-grid-header-cell'] {
-  padding: var(--admin-space-2) var(--admin-space-4);
-  color: var(--admin-color-text-muted);
-  font-size: var(--admin-font-size-xs);
-  font-weight: var(--admin-weight-medium);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-zw-data-grid [data-slot='data-grid-row'] {
-  border-bottom: 1px solid var(--admin-color-border-subtle);
-  transition: background-color var(--admin-duration-fast) var(--admin-ease);
-}
-
-zw-data-grid [data-slot='data-grid-row']:last-child {
-  border-bottom: 0;
-}
-
-zw-data-grid [data-slot='data-grid-row']:hover {
-  background: var(--admin-color-surface-hover);
-}
-
-zw-data-grid [data-slot='data-grid-row'][data-selected],
-zw-data-grid [data-slot='data-grid-row'][aria-selected='true'] {
-  background: var(--admin-color-accent-subtle);
-}
-
-zw-data-grid [data-slot='data-grid-cell'] {
-  padding: var(--admin-space-3) var(--admin-space-4);
-  border-right: 0;
-}
-
-zw-data-grid [data-slot='data-grid-cell'][data-active] {
-  outline: 2px solid var(--admin-focus-ring);
-  outline-offset: -2px;
-  border-radius: var(--admin-radius-sm);
-}
-
-zw-data-grid [data-slot='data-grid-empty'] {
-  padding: var(--admin-space-10);
-  color: var(--admin-color-text-muted);
-  text-align: center;
-}
-
-/* Dialog: `data-state` is set by the component and is the stable hook. */
+/* Dialog: `data-state` is the component's stable hook. */
 zw-dialog[data-state='open'] {
   position: fixed;
   inset: 0;
   z-index: 100;
   display: grid;
   place-items: center;
-  padding: var(--admin-space-4);
-  background: var(--admin-overlay-scrim);
+  padding: 16px;
+  background: rgb(0 0 0 / 0.5);
 }
 
 zw-dialog[data-state='closed'],
@@ -669,35 +926,170 @@ zw-dialog-content[data-state='closed'] {
 }
 
 zw-dialog-content > div {
-  width: min(480px, 100%);
-  padding: var(--admin-space-6);
-  border: 1px solid var(--admin-color-border-default);
-  border-radius: var(--admin-radius-lg);
-  background: var(--admin-color-surface-overlay);
-  box-shadow: var(--admin-shadow-lg);
+  width: min(512px, 100%);
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--background);
+  box-shadow: 0 10px 38px -10px rgb(0 0 0 / 0.35);
 }
 
 zw-dialog-title {
-  margin-bottom: var(--admin-space-1);
-  font-size: var(--admin-font-size-lg);
-  font-weight: var(--admin-weight-semibold);
-  color: var(--admin-color-text-primary);
+  display: block;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 zw-dialog-description {
-  margin-bottom: var(--admin-space-4);
-  color: var(--admin-color-text-secondary);
-  font-size: var(--admin-font-size-sm);
+  display: block;
+  margin: 6px 0 16px;
+  color: var(--muted-foreground);
+  font-size: 14px;
+  line-height: 20px;
 }
 
-/* Status column: the grid renders the raw value, so the cell is tinted by a
-   data attribute the row carries. The text stays the source of truth. */
+zw-dialog [part='close'],
+zw-dialog-content [part='close'] {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+}
+
+/* ------------------------------------------------- data-grid (beta.33) */
+/*
+ * The published grid renders light-DOM rows, so the table skin is applied
+ * here by `data-slot`. Geometry follows the reference table: 40px header row,
+ * 8px cell padding, hairline row separators, hover tint and a right-aligned
+ * action column.
+ */
+zw-data-grid {
+  width: 100%;
+  color: var(--foreground);
+  font-size: 14px;
+}
+
+zw-data-grid [data-slot='data-grid-viewport'] {
+  width: 100%;
+  min-width: 0;
+  outline: none;
+}
+
+zw-data-grid [data-slot='data-grid-header'],
+zw-data-grid [data-slot='data-grid-row'] {
+  width: 100% !important;
+}
+
+zw-data-grid [data-slot='data-grid-header'] {
+  border-bottom: 1px solid var(--border);
+}
+
+zw-data-grid [data-slot='data-grid-header-cell'] {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 8px;
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+zw-data-grid [data-slot='data-grid-header-cell']:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--ring);
+  border-radius: var(--radius-sm);
+}
+
+zw-data-grid [data-slot='data-grid-header-cell'][data-sortable] {
+  cursor: pointer;
+  user-select: none;
+}
+
+zw-data-grid [data-slot='data-grid-header-label'] {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+zw-data-grid
+  [data-slot='data-grid-header-cell'][data-sort-direction='asc']
+  [data-slot='data-grid-header-label']::after {
+  content: '↑';
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+
+zw-data-grid
+  [data-slot='data-grid-header-cell'][data-sort-direction='desc']
+  [data-slot='data-grid-header-label']::after {
+  content: '↓';
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+
+zw-data-grid [data-slot='data-grid-row'] {
+  border-bottom: 1px solid var(--border);
+  transition: background-color var(--duration) var(--ease);
+}
+
+zw-data-grid [data-slot='data-grid-row']:last-child {
+  border-bottom: 0;
+}
+
+zw-data-grid [data-slot='data-grid-row']:hover {
+  background: color-mix(in oklch, var(--muted) 50%, transparent);
+}
+
+zw-data-grid [data-slot='data-grid-row'][aria-selected='true'] {
+  background: var(--muted);
+}
+
+zw-data-grid [data-slot='data-grid-cell'] {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+zw-data-grid [data-slot='data-grid-cell']:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--ring);
+  border-radius: var(--radius-sm);
+}
+
+zw-data-grid [data-slot='data-grid-cell'][data-align='end'] {
+  justify-content: flex-end;
+}
+
+zw-data-grid
+  [data-slot='data-grid-cell'][data-column-id='name']
+  [data-slot='data-grid-cell-content'],
+zw-data-grid [data-slot='data-grid-cell'][data-column-id='name'] {
+  font-weight: 400;
+}
+
+zw-data-grid [data-slot='data-grid-cell'][data-column-id='email'] {
+  color: var(--muted-foreground);
+}
+
 zw-data-grid [data-slot='data-grid-cell'][data-column-id='status'] {
-  font-weight: var(--admin-weight-medium);
-  text-transform: capitalize;
+  font-size: 12px;
 }
 
-/* Member rows always carry the raw status; colour it without changing text. */
-zw-data-grid [data-slot='data-grid-row'] [data-column-id='status'] {
-  color: var(--admin-color-text-secondary);
+zw-data-grid [data-slot='data-grid-empty']:empty {
+  display: none;
+}
+
+.row-action {
+  width: 28px;
+  height: 28px;
+  color: var(--muted-foreground);
+}
+
+.row-action:hover {
+  background: var(--accent);
+  color: var(--accent-foreground);
 }
