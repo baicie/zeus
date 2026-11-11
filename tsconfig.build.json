@@ -16,6 +16,7 @@
     "packages/core/router/src",
     "packages/core/resource/src",
     "packages/core/query/src",
+    "packages/core/i18n/src",
     "packages/core/compiler/src",
     "packages/core/zeus/src",
     "packages/core/testing/src",
