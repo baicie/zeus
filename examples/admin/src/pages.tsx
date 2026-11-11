@@ -1091,6 +1091,14 @@ export function UserPage() {
               data-testid="user-form"
               class="settings-form"
             >
+              {/*
+                Fields are seeded once from the draft and then left
+                uncontrolled. A `prop:value` binding writes the last rendered
+                draft back into the input, which can overwrite what the user
+                just typed when a render lands between the keystroke and the
+                submit (reproduced in CI's slower chromium). The submit handler
+                reads the form, so the form is the source of truth.
+              */}
               <div class="field">
                 <label class="field-label" for="user-name">
                   姓名
@@ -1098,37 +1106,19 @@ export function UserPage() {
                 <input
                   id="user-name"
                   class="input"
-                  prop:value={draft().name ?? ''}
-                  onInput={(event: Event) =>
-                    patch(
-                      'name',
-                      (event.currentTarget as HTMLInputElement).value,
-                    )
-                  }
+                  value={draft().name ?? ''}
                 />
               </div>
               <div class="field">
                 <label class="field-label" for="user-email">
                   邮箱
                 </label>
-                {/*
-                  Native input, not `zw-input`: the dialog is unmounted by
-                  `Show` on save, and an imperative `value-change` listener on
-                  a light-DOM element outlives that scope. The published input
-                  is still exercised by the search field on the list page.
-                */}
                 <input
                   id="user-email"
                   class="input"
                   type="email"
                   required
-                  prop:value={draft().email ?? ''}
-                  onInput={(event: Event) =>
-                    patch(
-                      'email',
-                      (event.currentTarget as HTMLInputElement).value,
-                    )
-                  }
+                  value={draft().email ?? ''}
                 />
               </div>
               <div class="field-row">
@@ -1139,13 +1129,7 @@ export function UserPage() {
                   <input
                     id="user-team"
                     class="input"
-                    prop:value={draft().team ?? ''}
-                    onInput={(event: Event) =>
-                      patch(
-                        'team',
-                        (event.currentTarget as HTMLInputElement).value,
-                      )
-                    }
+                    value={draft().team ?? ''}
                   />
                 </div>
                 <div class="field">
@@ -1155,32 +1139,11 @@ export function UserPage() {
                   <select
                     id="user-status-field"
                     class="select"
-                    onChange={(event: Event) =>
-                      patch(
-                        'status',
-                        (event.currentTarget as HTMLSelectElement)
-                          .value as UserStatus,
-                      )
-                    }
+                    prop:value={draft().status ?? 'active'}
                   >
-                    <option
-                      value="active"
-                      selected={draft().status === 'active'}
-                    >
-                      活跃
-                    </option>
-                    <option
-                      value="invited"
-                      selected={draft().status === 'invited'}
-                    >
-                      待邀请
-                    </option>
-                    <option
-                      value="suspended"
-                      selected={draft().status === 'suspended'}
-                    >
-                      已暂停
-                    </option>
+                    <option value="active">活跃</option>
+                    <option value="invited">待邀请</option>
+                    <option value="suspended">已暂停</option>
                   </select>
                 </div>
               </div>
@@ -1191,19 +1154,10 @@ export function UserPage() {
                 <select
                   id="user-role"
                   class="select"
-                  onChange={(event: Event) =>
-                    patch(
-                      'role',
-                      (event.currentTarget as HTMLSelectElement).value as Role,
-                    )
-                  }
+                  prop:value={draft().role ?? 'viewer'}
                 >
-                  <option value="viewer" selected={draft().role !== 'admin'}>
-                    只读成员
-                  </option>
-                  <option value="admin" selected={draft().role === 'admin'}>
-                    管理员
-                  </option>
+                  <option value="viewer">只读成员</option>
+                  <option value="admin">管理员</option>
                 </select>
               </div>
               <div class="row" style={{ 'justify-content': 'flex-end' }}>
