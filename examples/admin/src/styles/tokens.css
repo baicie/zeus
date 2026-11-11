@@ -139,6 +139,13 @@
 
   --duration: 150ms;
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /*
+   * Space reserved above the shell for the demo's read-only banner. Zero in
+   * every production build; `app.tsx` raises it only when the banner is
+   * rendered, so nothing in the real console changes size.
+   */
+  --demo-banner-height: 0px;
 }
 
 @media (prefers-reduced-motion: reduce) {

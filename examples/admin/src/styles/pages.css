@@ -847,11 +847,21 @@
  * visitor needs to reach.
  */
 .demo-banner {
+  /*
+   * Sits in the flow above the shell, and the shell shrinks by exactly its
+   * height (`--demo-banner-height`, set in `shell.css`).
+   *
+   * The alternative — overlaying the top of the console — hid the toolbar,
+   * and a banner in flow without the shell accounting for it pushed the
+   * viewport-sized sidebar and workspace down, which added a scrollbar with no
+   * content to scroll to.
+   */
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 4px 12px;
-  padding: 10px 16px;
+  min-height: var(--demo-banner-height);
+  padding: 8px 16px;
   border-bottom: 1px solid var(--status-invited-border);
   background: var(--status-invited-bg);
   color: var(--foreground);

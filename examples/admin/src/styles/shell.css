@@ -15,7 +15,18 @@
 .admin-shell {
   display: flex;
   width: 100%;
-  min-height: 100svh;
+  /*
+   * The shell owns the viewport, minus the demo banner when one is present.
+   *
+   * The sidebar and workspace are sized against `100svh` and position
+   * themselves from the top of the document, so anything above the shell in
+   * normal flow has to be subtracted here — otherwise the page grows a
+   * scrollbar by exactly the banner's height while showing nothing extra.
+   *
+   * `--demo-banner-height` is 0 in a normal build (see `app.tsx`: the banner
+   * element is not rendered at all), so this is `100svh` in production.
+   */
+  min-height: calc(100svh - var(--demo-banner-height, 0px));
   background: var(--sidebar);
   color: var(--sidebar-foreground);
 }
@@ -52,7 +63,7 @@
 
 .sidebar {
   position: fixed;
-  inset-block: 0;
+  inset-block: var(--demo-banner-height, 0px) 0;
   inset-inline-start: 0;
   z-index: 20;
   display: flex;
@@ -311,7 +322,7 @@
   flex: 1 1 auto;
   flex-direction: column;
   min-width: 0;
-  height: calc(100svh - 16px);
+  height: calc(100svh - var(--demo-banner-height, 0px) - 16px);
   margin: 8px 8px 8px 0;
   border-radius: var(--radius-xl);
   background: var(--background);
@@ -649,7 +660,7 @@
   }
 
   .workspace {
-    height: 100svh;
+    height: calc(100svh - var(--demo-banner-height, 0px));
     margin: 0;
     border-radius: 0;
     box-shadow: none;

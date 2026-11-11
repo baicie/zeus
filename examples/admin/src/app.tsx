@@ -57,8 +57,42 @@ export function App() {
  * the page look like the real console after one click.
  */
 function DemoBanner() {
+  /*
+   * The shell sizes itself against the viewport and positions the sidebar from
+   * the document top, so it has to know how much room the banner takes. The
+   * height is measured rather than hard-coded: the line wraps to two rows on a
+   * narrow screen, and a fixed value would then leave either a scrollbar or a
+   * gap. A ResizeObserver keeps it right across resizes.
+   */
+  let banner: HTMLDivElement | undefined
+  const write = (): void => {
+    if (!banner) return
+    document.documentElement.style.setProperty(
+      '--demo-banner-height',
+      `${banner.getBoundingClientRect().height}px`,
+    )
+  }
+  const observer =
+    typeof ResizeObserver === 'undefined'
+      ? undefined
+      : new ResizeObserver(write)
+  onCleanup(() => {
+    observer?.disconnect()
+    document.documentElement.style.removeProperty('--demo-banner-height')
+  })
+
   return (
-    <div class="demo-banner" role="status" data-testid="demo-banner">
+    <div
+      class="demo-banner"
+      role="status"
+      data-testid="demo-banner"
+      ref={(element: HTMLDivElement | null) => {
+        if (!element || element === banner) return
+        banner = element
+        observer?.observe(element)
+        write()
+      }}
+    >
       <strong>只读演示</strong>
       <span>
         数据为构建时的真实 API 快照，修改类操作已禁用。完整功能见 Docker
