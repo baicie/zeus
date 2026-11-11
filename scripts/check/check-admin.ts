@@ -231,7 +231,7 @@ for (const [name, engine] of selectedBrowsers) {
     await expect(page.getByTestId('user-dialog')).toBeVisible()
     await page
       .getByTestId('user-form')
-      .locator('input')
+      .locator('#user-email')
       .fill('ada.updated@example.test')
     await page
       .getByTestId('user-form')

@@ -1,39 +1,37 @@
 /**
- * Shell layout: sidebar, toolbar, content column, diagnostics.
+ * Shell layout — a structural port of shadcn-admin's inset sidebar.
  *
- * The layout is a CSS grid whose first column is driven by
- * `--admin-sidebar-current`, so collapsing the sidebar animates one variable
- * instead of re-laying-out each child. Below 1024px the sidebar leaves the
- * grid entirely and becomes a fixed drawer.
+ * Reference geometry (satnaing/shadcn-admin, `src/components/ui/sidebar.tsx`):
+ * - expanded sidebar 16rem (256px), icon-only 3rem (48px), mobile drawer 18rem
+ * - inset variant adds 8px padding around the sidebar and an 8px inset for the
+ *   main surface, which is a rounded (14px) card with a soft shadow
+ * - header h-16 (64px) with 16px padding
+ * - main px-4 py-6 (16px / 24px)
+ *
+ * Below 768px the sidebar leaves the flow and becomes a drawer; the inset loses
+ * its margin and radius so the chat-like content gets the full width.
  */
 
 .admin-shell {
-  --admin-sidebar-current: var(--admin-sidebar-width);
-  display: grid;
-  grid-template-columns: var(--admin-sidebar-current) minmax(0, 1fr);
-  min-height: 100vh;
-  min-height: 100dvh;
-  background: var(--admin-color-surface-sunken);
+  display: flex;
+  width: 100%;
+  min-height: 100svh;
+  background: var(--sidebar);
+  color: var(--sidebar-foreground);
 }
 
-.admin-shell.is-collapsed {
-  --admin-sidebar-current: var(--admin-sidebar-width-collapsed);
-}
-
-/* ------------------------------------------------------------ skip link */
 .skip-link {
   position: absolute;
-  top: var(--admin-space-2);
-  left: var(--admin-space-2);
+  top: 8px;
+  left: 8px;
   z-index: 200;
-  padding: var(--admin-space-2) var(--admin-space-4);
-  border-radius: var(--admin-radius-md);
-  background: var(--admin-color-accent-default);
-  color: var(--admin-color-accent-contrast);
-  font-size: var(--admin-font-size-sm);
-  font-weight: var(--admin-weight-medium);
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 14px;
   transform: translateY(-200%);
-  transition: transform var(--admin-duration-fast) var(--admin-ease);
+  transition: transform var(--duration) var(--ease);
 }
 
 .skip-link:focus-visible {
@@ -41,524 +39,699 @@
 }
 
 /* --------------------------------------------------------------- sidebar */
+.sidebar-slot {
+  position: relative;
+  flex: 0 0 auto;
+  width: var(--sidebar-width);
+  transition: width 200ms linear;
+}
+
+.admin-shell.is-collapsed .sidebar-slot {
+  width: calc(var(--sidebar-width-icon) + 18px);
+}
+
 .sidebar {
-  position: sticky;
-  top: 0;
-  z-index: 40;
+  position: fixed;
+  inset-block: 0;
+  inset-inline-start: 0;
+  z-index: 20;
+  display: flex;
+  width: var(--sidebar-width);
+  padding: 8px;
+  transition: width 200ms linear;
+}
+
+.admin-shell.is-collapsed .sidebar {
+  width: calc(var(--sidebar-width-icon) + 18px);
+}
+
+.sidebar-inner {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  height: 100dvh;
-  overflow: hidden;
-  background: var(--admin-color-nav-surface);
-  color: var(--admin-color-nav-text);
-  /* A hairline keeps the dark sidebar from bleeding into a light page. */
-  border-right: 1px solid var(--admin-color-border-subtle);
+  width: 100%;
+  height: 100%;
+  background: var(--sidebar);
+  color: var(--sidebar-foreground);
 }
 
-.sidebar-brand {
+.sidebar-header,
+.sidebar-footer {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--admin-space-2);
-  height: var(--admin-toolbar-height);
-  padding: 0 var(--admin-space-3);
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
   flex: 0 0 auto;
 }
 
-.brand-mark {
+.sidebar-content {
   display: flex;
-  align-items: center;
-  gap: var(--admin-space-2);
-  min-width: 0;
-  color: var(--admin-color-nav-text-strong);
-  text-decoration: none;
-}
-
-.brand-mark:hover {
-  text-decoration: none;
-}
-
-.brand-glyph {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  flex: 0 0 auto;
-  border-radius: var(--admin-radius-md);
-  background: var(--admin-color-accent-default);
-  color: var(--admin-color-accent-contrast);
-  font-size: var(--admin-font-size-sm);
-  font-weight: var(--admin-weight-semibold);
-}
-
-.brand-text {
-  font-size: var(--admin-font-size-sm);
-  font-weight: var(--admin-weight-semibold);
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-}
-
-.sidebar-collapse {
-  color: var(--admin-color-nav-text);
-  flex: 0 0 auto;
-}
-
-.sidebar-collapse:hover {
-  background: var(--admin-color-nav-hover) !important;
-  color: var(--admin-color-nav-text-strong);
-}
-
-.sidebar-nav {
   flex: 1 1 auto;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: var(--admin-space-2) var(--admin-space-2) var(--admin-space-4);
   scrollbar-width: thin;
 }
 
-.nav-group + .nav-group {
-  margin-top: var(--admin-space-4);
+.sidebar-group {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
 }
 
-.nav-group-label {
-  padding: 0 var(--admin-space-2) var(--admin-space-1);
-  color: var(--admin-color-nav-text);
-  opacity: 0.65;
-  font-size: 11px;
-  font-weight: var(--admin-weight-medium);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+.sidebar-group-label {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  flex-shrink: 0;
+  padding: 0 8px;
+  border-radius: var(--radius-md);
+  color: color-mix(in oklch, var(--sidebar-foreground) 70%, transparent);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
   white-space: nowrap;
 }
 
-.nav-list {
+.sidebar-menu {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
+  width: 100%;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.nav-link {
+.sidebar-menu-button {
   display: flex;
   align-items: center;
-  gap: var(--admin-space-2);
-  height: 34px;
-  padding: 0 var(--admin-space-2);
-  border-radius: var(--admin-radius-md);
-  color: var(--admin-color-nav-text);
-  font-size: var(--admin-font-size-sm);
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  color: var(--sidebar-foreground);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  text-align: start;
   text-decoration: none;
+  overflow: hidden;
   white-space: nowrap;
   transition:
-    background-color var(--admin-duration-fast) var(--admin-ease),
-    color var(--admin-duration-fast) var(--admin-ease);
+    background-color var(--duration) var(--ease),
+    color var(--duration) var(--ease);
 }
 
-.nav-link:hover {
-  background: var(--admin-color-nav-hover);
-  color: var(--admin-color-nav-text-strong);
-  text-decoration: none;
+.sidebar-menu-button > svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
-/* Selection is carried by an accent bar *and* a tinted row so it survives
-   both high-contrast mode and a colour-blind viewer. */
-.nav-link.is-active {
-  background: var(--admin-color-nav-active);
-  color: var(--admin-color-nav-text-strong);
-  box-shadow: inset 2px 0 0 var(--admin-color-accent-default);
+.sidebar-menu-button:hover {
+  background: var(--sidebar-accent);
+  color: var(--sidebar-accent-foreground);
 }
 
-.nav-icon {
-  flex: 0 0 auto;
-  opacity: 0.85;
+.sidebar-menu-button[aria-current='page'],
+.sidebar-menu-button.is-active {
+  background: var(--sidebar-accent);
+  color: var(--sidebar-accent-foreground);
+  font-weight: 500;
 }
 
-.nav-link.is-active .nav-icon {
-  opacity: 1;
+.sidebar-menu-button.is-active {
+  /* The active row is the only filled row; hovering it keeps the fill. */
+  background: var(--sidebar-accent);
 }
 
-.nav-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
+.sidebar-menu-button .menu-caret {
+  margin-left: auto;
+  width: 16px;
+  height: 16px;
+  color: var(--muted-foreground);
 }
 
-/* Collapsed: icons only, labels hidden but still announced. */
-.admin-shell.is-collapsed .nav-label,
-.admin-shell.is-collapsed .nav-group-label,
-.admin-shell.is-collapsed .brand-text,
-.admin-shell.is-collapsed .account-copy,
-.admin-shell.is-collapsed .sidebar-collapse {
-  display: none;
+.sidebar-menu-button .menu-badge {
+  margin-left: auto;
+  padding: 0 4px;
+  border-radius: var(--radius-full);
+  background: var(--sidebar-primary);
+  color: var(--sidebar-primary-foreground);
+  font-size: 12px;
+  line-height: 16px;
 }
 
-.admin-shell.is-collapsed .nav-link,
-.admin-shell.is-collapsed .sidebar-account {
-  justify-content: center;
-  padding: 0;
+/* Large variant: the brand row and the account row. */
+.sidebar-menu-button.is-large {
+  height: 48px;
+  padding: 8px;
 }
 
-.admin-shell.is-collapsed .sidebar-brand {
-  justify-content: center;
-  padding: 0;
-}
-
-/* --------------------------------------------------------- sidebar footer */
-.sidebar-footer {
-  position: relative;
-  flex: 0 0 auto;
-  padding: var(--admin-space-2);
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
-}
-
-.sidebar-account {
-  width: 100%;
-  height: auto;
-  min-height: 44px;
-  padding: var(--admin-space-2);
-  text-align: left;
-}
-
-.avatar {
+.sidebar-brand-logo {
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
-  flex: 0 0 auto;
-  border-radius: var(--admin-radius-full);
-  background: var(--admin-color-nav-active);
-  color: var(--admin-color-nav-text-strong);
-  font-size: 11px;
-  font-weight: var(--admin-weight-semibold);
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: var(--radius-lg);
+  background: var(--sidebar-primary);
+  color: var(--sidebar-primary-foreground);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.sidebar-brand-copy,
+.sidebar-account-copy {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: start;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.sidebar-brand-name,
+.sidebar-account-name {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-brand-plan,
+.sidebar-account-email {
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-avatar {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: var(--radius-lg);
+  background: var(--sidebar-accent);
+  color: var(--sidebar-accent-foreground);
+  font-size: 12px;
+  font-weight: 600;
   letter-spacing: 0.02em;
 }
 
-.account-copy {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  line-height: 1.3;
+.sidebar-footer {
+  position: relative;
+  margin-top: auto;
 }
 
-.account-name {
-  color: var(--admin-color-nav-text-strong);
-  font-size: var(--admin-font-size-sm);
-  font-weight: var(--admin-weight-medium);
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* Collapsed (icon-only) state: labels, group titles and the caret vanish. */
+.is-collapsed .sidebar-group-label {
+  margin-top: -32px;
+  opacity: 0;
+  pointer-events: none;
 }
 
-.account-role {
-  color: var(--admin-color-nav-text);
-  opacity: 0.7;
-  font-size: var(--admin-font-size-xs);
+.is-collapsed .sidebar-menu-button > span:not(.sidebar-brand-logo) {
+  display: none;
 }
 
-.account-menu {
+.is-collapsed .sidebar-menu-button .menu-caret,
+.is-collapsed .sidebar-menu-button .menu-badge {
+  display: none;
+}
+
+.is-collapsed .sidebar-brand-logo,
+.is-collapsed .sidebar-avatar {
+  margin: 0 auto;
+}
+
+.is-collapsed .sidebar-menu-button {
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.is-collapsed .sidebar-group {
+  padding: 8px 6px;
+}
+
+/* Dropdown anchored to the account / brand rows. */
+.menu-sidebar {
   position: absolute;
-  left: var(--admin-space-2);
-  right: var(--admin-space-2);
-  bottom: calc(100% - var(--admin-space-1));
+  left: 8px;
+  width: 232px;
   z-index: 60;
-  padding: var(--admin-space-1);
-  border: 1px solid var(--admin-color-border-default);
-  border-radius: var(--admin-radius-lg);
-  background: var(--admin-color-surface-overlay);
-  box-shadow: var(--admin-shadow-lg);
 }
 
-.account-menu-header {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: var(--admin-space-2) var(--admin-space-3);
-  border-bottom: 1px solid var(--admin-color-border-subtle);
-  margin-bottom: var(--admin-space-1);
+.menu-sidebar-up {
+  bottom: calc(100% + 4px);
 }
 
-.account-menu-name {
-  font-size: var(--admin-font-size-sm);
-  font-weight: var(--admin-weight-medium);
-  color: var(--admin-color-text-primary);
+.menu-sidebar-down {
+  top: calc(100% + 4px);
 }
 
-.account-menu-email {
-  font-size: var(--admin-font-size-xs);
-  color: var(--admin-color-text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
+.sidebar-scrim {
+  display: none;
 }
 
-.account-menu-item {
-  display: flex;
-  align-items: center;
-  gap: var(--admin-space-2);
-  width: 100%;
-  min-height: 32px;
-  padding: 0 var(--admin-space-3);
-  border-radius: var(--admin-radius-md);
-  color: var(--admin-color-text-secondary);
-  font-size: var(--admin-font-size-sm);
-  text-align: left;
-  text-decoration: none;
-}
-
-.account-menu-item:hover {
-  background: var(--admin-color-surface-hover);
-  color: var(--admin-color-text-primary);
-  text-decoration: none;
-}
-
-.account-menu-danger {
-  color: var(--admin-color-danger-default);
-}
-
-.account-menu-danger:hover {
-  background: var(--admin-color-danger-subtle);
-  color: var(--admin-color-danger-default);
-}
-
-/* -------------------------------------------------------------- workspace */
+/* ------------------------------------------------------------- workspace */
 .workspace {
+  position: relative;
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   min-width: 0;
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: calc(100svh - 16px);
+  margin: 8px 8px 8px 0;
+  border-radius: var(--radius-xl);
+  background: var(--background);
+  color: var(--foreground);
+  box-shadow:
+    0 1px 3px 0 rgb(0 0 0 / 0.1),
+    0 1px 2px -1px rgb(0 0 0 / 0.1);
+  overflow: hidden;
 }
 
 .toolbar {
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 30;
   display: flex;
   align-items: center;
-  gap: var(--admin-space-3);
-  height: var(--admin-toolbar-height);
-  padding: 0 var(--admin-space-6);
-  border-bottom: 1px solid var(--admin-color-border-default);
-  background: color-mix(
-    in srgb,
-    var(--admin-color-surface-base) 88%,
-    transparent
-  );
-  backdrop-filter: blur(8px);
+  gap: 12px;
+  height: var(--header-height);
+  flex: 0 0 auto;
+  padding: 16px;
+  background: var(--background);
 }
 
-.toolbar-drawer {
+.toolbar-drawer,
+.toolbar-separator-mobile {
   display: none;
+}
+
+.top-nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-right: auto;
+  min-width: 0;
+}
+
+.top-nav-link {
+  color: var(--muted-foreground);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: color var(--duration) var(--ease);
+}
+
+.top-nav-link:hover {
+  color: var(--primary);
+}
+
+.top-nav-link.is-active {
+  color: var(--foreground);
 }
 
 .toolbar-heading {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  align-items: center;
+  gap: 16px;
   min-width: 0;
-  gap: 0;
+}
+
+@media (max-width: 1279px) {
+  .top-nav {
+    display: none;
+  }
 }
 
 .breadcrumb {
   display: flex;
   align-items: center;
-  gap: var(--admin-space-1);
-  color: var(--admin-color-text-muted);
-  font-size: var(--admin-font-size-xs);
-  line-height: 1.2;
+  gap: 6px;
+  min-width: 0;
+  color: var(--muted-foreground);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .breadcrumb a {
-  color: var(--admin-color-text-muted);
+  color: var(--muted-foreground);
 }
 
 .breadcrumb a:hover {
-  color: var(--admin-color-text-secondary);
+  color: var(--foreground);
+}
+
+.breadcrumb-current {
+  color: var(--foreground);
 }
 
 .breadcrumb-sep {
+  color: var(--muted-foreground);
   opacity: 0.6;
 }
 
-/* The visible page heading lives in the toolbar; page bodies start at h2 so
-   the document keeps exactly one h1. */
 .toolbar-title {
-  font-size: var(--admin-font-size-base);
-  font-weight: var(--admin-weight-semibold);
-  line-height: 1.3;
-  color: var(--admin-color-text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: none;
 }
 
 .toolbar-actions {
   display: flex;
   align-items: center;
-  gap: var(--admin-space-1);
+  gap: 8px;
   margin-left: auto;
 }
 
 .route-status {
   display: inline-flex;
   align-items: center;
-  gap: var(--admin-space-2);
-  min-height: 20px;
-  color: var(--admin-color-text-muted);
-  font-size: var(--admin-font-size-xs);
+  gap: 6px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+/* The header search button, matching the reference's ⌘K control. */
+.header-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 208px;
+  height: 32px;
+  padding: 0 8px 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--muted) 25%, transparent);
+  color: var(--muted-foreground);
+  font-size: 14px;
+  font-weight: 400;
+  box-shadow: none;
+}
+
+.header-search:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.header-search svg {
+  width: 16px;
+  height: 16px;
+}
+
+.header-search .header-search-label {
+  margin-left: 8px;
+}
+
+.header-search kbd {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 20px;
+  margin-left: auto;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.header-icon {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: var(--radius-full);
+  color: var(--foreground);
+}
+
+.header-icon:hover:not(:disabled) {
+  background: var(--accent);
+}
+
+.header-avatar {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .content {
-  flex: 1 1 auto;
-  width: 100%;
-  max-width: var(--admin-content-max);
-  margin: 0 auto;
-  padding: var(--admin-space-6);
-  /* Filling the column keeps a short page from leaving a gap before the
-     diagnostics panel, which is pinned to the bottom of the workspace. */
-  min-height: 0;
   display: flex;
-  flex-direction: column;
-}
-
-/* The routed page is the only growing child, so it absorbs the slack. */
-.content > .page,
-.content > .error-page {
   flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  padding: 24px 16px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
 }
 
-/* ------------------------------------------------------------- diagnostics */
-.diagnostics {
-  margin: 0 var(--admin-space-6) var(--admin-space-6);
-  border: 1px dashed var(--admin-color-border-strong);
-  border-radius: var(--admin-radius-lg);
-  background: var(--admin-color-surface-inset);
+.content > * {
+  width: 100%;
+  max-width: 1280px;
+  margin-inline: auto;
 }
 
-.diagnostics-toggle {
+/* ------------------------------------------------------------- commands */
+.command-panel {
+  max-width: 560px;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
+.command-search {
   display: flex;
   align-items: center;
-  gap: var(--admin-space-2);
-  width: 100%;
-  padding: var(--admin-space-2) var(--admin-space-4);
-  color: var(--admin-color-text-muted);
-  font-size: var(--admin-font-size-xs);
-  font-weight: var(--admin-weight-medium);
-  text-align: left;
+  gap: 8px;
+  height: 48px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
 }
 
-.diagnostics-toggle .icon:last-child {
-  margin-left: auto;
+.command-search svg {
+  width: 16px;
+  height: 16px;
+  color: var(--muted-foreground);
+}
+
+.command-search input {
+  flex: 1 1 auto;
+  height: 100%;
+  border: 0;
+  background: none;
+  font-size: 14px;
+  outline: none;
+}
+
+.command-list {
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 8px;
+  margin: 0;
+  list-style: none;
+}
+
+.command-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  text-align: start;
+}
+
+.command-item svg {
+  width: 16px;
+  height: 16px;
+  color: var(--muted-foreground);
+}
+
+.command-item:hover,
+.command-item[data-active='true'] {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.command-empty {
+  padding: 24px 16px;
+  color: var(--muted-foreground);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* ---------------------------------------------------------- diagnostics */
+/*
+ * Developer diagnostics: a header icon opens a fixed panel. Router internals
+ * used to sit in the top bar; the reference has no such bar, so the equivalent
+ * lives behind an explicit toggle and costs the page nothing when closed.
+ */
+.diagnostics-panel {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 80;
+  width: min(420px, calc(100vw - 32px));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.18);
+  overflow: hidden;
+}
+
+.diagnostics-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.diagnostics-head svg {
+  width: 14px;
+  height: 14px;
 }
 
 .diagnostics-body {
   display: flex;
   flex-direction: column;
-  gap: var(--admin-space-3);
-  padding: 0 var(--admin-space-4) var(--admin-space-4);
+  gap: 12px;
+  padding: 12px;
+  font-size: 12px;
 }
 
 .diagnostics-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: var(--admin-space-3);
-  margin: 0;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
 }
 
 .diagnostics-grid dt {
-  color: var(--admin-color-text-muted);
-  font-size: var(--admin-font-size-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+  font-size: 11px;
 }
 
 .diagnostics-grid dd {
   margin: 2px 0 0;
-  font-family: var(--admin-font-mono);
-  font-size: var(--admin-font-size-xs);
-  color: var(--admin-color-text-secondary);
   overflow-wrap: anywhere;
+  font-family: var(--font-mono);
 }
 
-/* ------------------------------------------------------------- responsive */
-.shell-scrim {
-  display: none;
-}
+/* -------------------------------------------------------------- mobile */
+@media (max-width: 767px) {
+  .sidebar-slot {
+    display: none;
+  }
 
-@media (max-width: 1023px) {
-  .admin-shell,
-  .admin-shell.is-collapsed {
-    grid-template-columns: minmax(0, 1fr);
+  .workspace {
+    height: 100svh;
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
   }
 
   .sidebar {
-    position: fixed;
-    inset: 0 auto 0 0;
-    width: min(272px, 82vw);
+    width: var(--sidebar-width-mobile);
+    padding: 0;
     transform: translateX(-100%);
-    transition: transform var(--admin-duration-base) var(--admin-ease);
-    box-shadow: var(--admin-shadow-lg);
+    transition: transform 200ms var(--ease);
   }
 
   .admin-shell.is-drawer-open .sidebar {
     transform: translateX(0);
   }
 
-  /* Labels stay visible in the drawer even if the desktop sidebar was
-     collapsed; an icon-only drawer would be unusable on a phone. */
-  .admin-shell.is-collapsed .nav-label,
-  .admin-shell.is-collapsed .nav-group-label,
-  .admin-shell.is-collapsed .brand-text,
-  .admin-shell.is-collapsed .account-copy {
-    display: revert;
+  .sidebar-inner {
+    border-right: 1px solid var(--border);
+    box-shadow: 0 10px 40px rgb(0 0 0 / 0.2);
   }
 
-  .admin-shell.is-collapsed .nav-link,
-  .admin-shell.is-collapsed .sidebar-account {
-    justify-content: flex-start;
-    padding: 0 var(--admin-space-2);
-  }
-
-  .admin-shell.is-collapsed .sidebar-brand {
-    justify-content: space-between;
-    padding: 0 var(--admin-space-3);
-  }
-
-  .admin-shell.is-collapsed .sidebar-collapse {
-    display: none;
-  }
-
-  .admin-shell.is-drawer-open .shell-scrim {
-    display: block;
+  .admin-shell.is-drawer-open .sidebar-scrim {
     position: fixed;
     inset: 0;
-    z-index: 35;
-    background: var(--admin-overlay-scrim);
+    z-index: 19;
+    display: block;
+    background: rgb(0 0 0 / 0.5);
   }
 
   .toolbar {
-    padding: 0 var(--admin-space-4);
+    gap: 8px;
+    padding: 12px 16px;
   }
 
-  .toolbar-drawer {
+  .toolbar-drawer,
+  .toolbar-separator-mobile {
     display: inline-flex;
   }
 
-  .content {
-    padding: var(--admin-space-4);
+  .toolbar-title {
+    display: block;
+    overflow: hidden;
+    font-size: 14px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .diagnostics {
-    margin: 0 var(--admin-space-4) var(--admin-space-4);
+  .breadcrumb {
+    display: none;
+  }
+
+  .header-search {
+    width: auto;
+    padding: 0 8px;
+  }
+
+  .header-search .header-search-label,
+  .header-search kbd {
+    display: none;
+  }
+
+  .content {
+    padding: 16px;
   }
 }
 
-@media (max-width: 480px) {
-  .content {
-    padding: var(--admin-space-3);
+@media (min-width: 1280px) {
+  .header-search {
+    width: 256px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .header-search {
+    width: 40px;
+    justify-content: center;
+    padding: 0;
   }
 
-  .toolbar-actions .route-status {
+  .header-search .header-search-label,
+  .header-search kbd {
     display: none;
   }
 }

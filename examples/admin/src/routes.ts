@@ -7,6 +7,8 @@ export interface User {
   readonly email: string
   readonly team: string
   readonly status: UserStatus
+  /** Present on API payloads; kept optional so fixtures stay small. */
+  readonly role?: Role
 }
 
 export interface UserQuery {
@@ -57,11 +59,16 @@ export interface AdminApi {
   getSummary(signal: AbortSignal): Promise<AdminSummary>
   listUsers(query: UserQuery, signal: AbortSignal): Promise<UserListResult>
   getUser(id: string, signal: AbortSignal): Promise<User>
-  updateUser(
-    id: string,
-    patch: { email: string },
-    signal: AbortSignal,
-  ): Promise<User>
+  updateUser(id: string, patch: UserPatch, signal: AbortSignal): Promise<User>
+}
+
+/** Every field the server accepts on `PATCH /api/users/:id`. */
+export interface UserPatch {
+  readonly email?: string
+  readonly name?: string
+  readonly team?: string
+  readonly status?: UserStatus
+  readonly role?: Role
 }
 
 /** Rows per users page; shared by the route loader and the page query. */
@@ -83,8 +90,9 @@ export function userListQueryKey(
   search: string,
   status: UserStatus | 'all',
   page: number,
+  pageSize: number = USER_PAGE_SIZE,
 ): readonly unknown[] {
-  return ['admin-users', search, status, page, USER_PAGE_SIZE]
+  return ['admin-users', search, status, page, pageSize]
 }
 
 export function adminUserQueryKey(id: string): readonly unknown[] {
