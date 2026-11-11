@@ -76,6 +76,7 @@ const expectedDevelopmentTargets: Record<string, string> = {
   '@zeus-js/router': './dist/router.cjs',
   '@zeus-js/resource': './dist/resource.cjs',
   '@zeus-js/query': './dist/query.cjs',
+  '@zeus-js/i18n': './dist/i18n.cjs',
   '@zeus-js/shared': './dist/shared.cjs',
   '@zeus-js/signal': './dist/signal.cjs',
   '@zeus-js/signal/diagnostics': './dist/diagnostics.cjs',
