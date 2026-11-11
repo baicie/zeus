@@ -58,11 +58,14 @@ jobs:
         with:
           path: zeus
 
+      # The UI lives in another repository. `GITHUB_TOKEN` is scoped to this
+      # one and cannot read it, and a PAT would be broader than this job needs.
+      # `zeus-ui` is public, so an anonymous HTTPS clone is enough.
       - name: Checkout UI
-        uses: actions/checkout@v5
-        with:
-          repository: ${{ github.repository_owner }}/zeus-ui
-          path: zeus-ui
+        run: |
+          set -euo pipefail
+          git clone --depth 1 \
+            "https://github.com/${{ github.repository_owner }}/zeus-ui.git" zeus-ui
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
