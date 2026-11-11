@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f2439" />
+    <title>Zeus 演示</title>
+    <style>
+      /*
+       * The landing page carries no framework: it only routes a visitor to one
+       * of two builds. Keeping it dependency-free means publishing it never
+       * needs a build step or a toolchain version to match.
+       */
+      :root {
+        color-scheme: light dark;
+        --bg: #fcfcfc;
+        --fg: #0f172a;
+        --muted: #64748b;
+        --card: #ffffff;
+        --border: #e2e2e2;
+        --accent: #2451da;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #000000;
+          --fg: #f4f4f5;
+          --muted: #a1a1aa;
+          --card: #161616;
+          --border: #2a2a2a;
+          --accent: #6b8cff;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 48px 24px;
+        background: var(--bg);
+        color: var(--fg);
+        font: 15px/1.6 'Inter', ui-sans-serif, system-ui, -apple-system,
+          'PingFang SC', 'Microsoft YaHei', sans-serif;
+      }
+      main { max-width: 880px; margin: 0 auto; }
+      h1 { margin: 0 0 8px; font-size: 28px; letter-spacing: -0.01em; }
+      .lede { margin: 0 0 32px; color: var(--muted); }
+      .grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
+      @media (min-width: 720px) { .grid { grid-template-columns: 1fr 1fr; } }
+      a.card {
+        display: block;
+        padding: 20px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--card);
+        color: inherit;
+        text-decoration: none;
+        transition: border-color 150ms, transform 150ms;
+      }
+      a.card:hover { border-color: var(--accent); transform: translateY(-1px); }
+      .card h2 { margin: 0 0 6px; font-size: 17px; }
+      .card p { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+      .tag {
+        display: inline-block;
+        margin-bottom: 10px;
+        padding: 1px 8px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--accent) 12%, transparent);
+        color: var(--accent);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+      footer {
+        margin-top: 32px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border);
+        color: var(--muted);
+        font-size: 12px;
+      }
+      code {
+        padding: 1px 5px;
+        border-radius: 5px;
+        background: color-mix(in srgb, var(--fg) 6%, transparent);
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Zeus 演示</h1>
+      <p class="lede">
+        两个只读演示，由真实的 Zeus 应用构建同一个仓库产出。数据来自构建时的
+        真实 API 快照与 Host 录制，不是手写的假数据。
+      </p>
+
+      <div class="grid">
+        <a class="card" href="./admin/">
+          <span class="tag">只读</span>
+          <h2>Zeus Admin</h2>
+          <p>
+            基于 shadcn-admin 视觉规格的运营控制台：概览、用户管理、角色、审计、
+            设置。Zeus 框架 + 真实后端 API 快照。
+          </p>
+        </a>
+        <a class="card" href="./ai/">
+          <span class="tag">只读</span>
+          <h2>AI Workbench</h2>
+          <p>
+            ChatGPT 风格的对话界面，回放真实 Agent Host 录制的事件流：消息、
+            审批、变更集。
+          </p>
+        </a>
+      </div>
+
+      <footer>
+        修改类操作在两个演示中都被禁用。完整功能请使用 Docker 部署版本
+        （<code>admin.moonbyte.top:8443</code> / <code>ai.moonbyte.top:8443</code>）。
+      </footer>
+    </main>
+  </body>
+</html>

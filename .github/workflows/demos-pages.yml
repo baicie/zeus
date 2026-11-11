@@ -1,0 +1,196 @@
+name: Demos Pages
+
+# Publishes the read-only Admin and AI Workbench demos to one GitHub Pages site.
+#
+# Why a separate repository: GitHub Pages gives an account one origin and each
+# repository exactly one site. `baicie/zeus` and `baicie/zeus-ui` already use
+# theirs for documentation, so the demos need a third site — the same reason
+# `playground-pages.yml` pushes to `zeus-playground`.
+#
+# Why two builds instead of one: the demos are not a fork of the products. They
+# are the same sources built with a flag:
+#
+#   zeus      ZEUS_ADMIN_DEMO=1  -> base /zeus-demos/admin/, data layer swapped
+#                                  for a build-time snapshot of the real API
+#   zeus-ui   ZEUS_AI_DEMO=1     -> base /zeus-demos/ai/, Hosts replaced by a
+#                                  replay of a recording made from the real Host
+#
+# Both snapshots are produced from live servers during this job, so a demo can
+# never show data the real API would not return. Nothing here touches the
+# Docker images or the production deployment.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'examples/admin/src/**'
+      - 'examples/admin/server/**'
+      - 'examples/admin/deploy/demo-*.html'
+      - 'examples/admin/vite.config.ts'
+      - 'packages/**'
+      - 'crates/**'
+      - 'scripts/release/admin-demo-snapshot.ts'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/demos-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demos-pages
+  cancel-in-progress: true
+
+env:
+  PAGES_REPO: ${{ github.repository_owner }}/zeus-demos
+  # The demo site's own origin, so the built apps fetch their data from the
+  # right place no matter which repository produced them.
+  SITE_BASE: /zeus-demos/
+
+jobs:
+  build:
+    name: Build both demos
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout Core
+        uses: actions/checkout@v5
+        with:
+          path: zeus
+
+      - name: Checkout UI
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ github.repository_owner }}/zeus-ui
+          path: zeus-ui
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: zeus/package.json
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: zeus/.node-version
+          cache: 'pnpm'
+          cache-dependency-path: |
+            zeus/pnpm-lock.yaml
+            zeus-ui/pnpm-lock.yaml
+
+      - name: Install Core dependencies
+        working-directory: zeus
+        run: pnpm install --frozen-lockfile
+
+      - name: Install UI dependencies
+        working-directory: zeus-ui
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the Core packages the Admin app consumes
+        working-directory: zeus
+        # The Rust/native compiler is a build-time dependency of `pnpm build`;
+        # it never reaches the published demo, which is static files only.
+        run: |
+          pnpm --filter @zeus-js/compiler-native build:native
+          pnpm build
+
+      - name: Build the UI packages the Workbench consumes
+        working-directory: zeus-ui
+        run: pnpm build
+
+      - name: Record the Admin demo snapshot from the real server
+        working-directory: zeus
+        run: |
+          node --import tsx scripts/release/admin-demo-snapshot.ts \
+            --out "${RUNNER_TEMP}/admin-demo-snapshot.json" \
+            --core-commit "${GITHUB_SHA}"
+
+      - name: Record the AI demo stream from the real Host
+        working-directory: zeus-ui
+        run: |
+          node --import tsx scripts/release/ai-demo-recording.ts \
+            --out "${RUNNER_TEMP}/ai-demo-recording.json" \
+            --ui-commit "${GITHUB_SHA}"
+
+      - name: Build the Admin demo
+        working-directory: zeus/examples/admin
+        env:
+          ZEUS_ADMIN_DEMO: '1'
+          ZEUS_ADMIN_DEMO_BASE: ${{ env.SITE_BASE }}admin/
+        run: |
+          pnpm exec vite build --outDir "${RUNNER_TEMP}/site/admin"
+          cp "${RUNNER_TEMP}/admin-demo-snapshot.json" \
+             "${RUNNER_TEMP}/site/admin/demo-snapshot.json"
+
+      - name: Build the AI Workbench demo
+        working-directory: zeus-ui/examples/ai-workbench
+        env:
+          ZEUS_AI_DEMO: '1'
+          ZEUS_AI_DEMO_BASE: ${{ env.SITE_BASE }}ai/
+        run: |
+          pnpm exec vite build --outDir "${RUNNER_TEMP}/site/ai"
+          cp "${RUNNER_TEMP}/ai-demo-recording.json" \
+             "${RUNNER_TEMP}/site/ai/ai-demo-recording.json"
+
+      - name: Assemble the site
+        env:
+          SNAPSHOT: ${{ runner.temp }}/admin-demo-snapshot.json
+          RECORDING: ${{ runner.temp }}/ai-demo-recording.json
+        run: |
+          set -euo pipefail
+          site="${RUNNER_TEMP}/site"
+          # The landing page and the 404 dispatcher live with the Admin example
+          # because that is where the shared deploy assets already are. They are
+          # plain HTML: no build step, nothing to keep in sync with a toolchain.
+          cp zeus/examples/admin/deploy/demo-index.html "${site}/index.html"
+          cp zeus/examples/admin/deploy/demo-404.html "${site}/404.html"
+          # Fail loudly if either app produced no entry point: a silent empty
+          # demo is worse than a failed publish.
+          test -f "${site}/admin/index.html"
+          test -f "${site}/ai/index.html"
+          test -f "${site}/admin/demo-snapshot.json"
+          test -f "${site}/ai/ai-demo-recording.json"
+          echo "site assembled:" && find "${site}" -maxdepth 2 -type f | sort
+
+      - name: Upload the site
+        uses: actions/upload-artifact@v4
+        with:
+          name: demos-pages-site
+          path: ${{ runner.temp }}/site
+          retention-days: 7
+
+  publish:
+    name: Push the site to its Pages repository
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: demos-pages-site
+          path: site
+
+      - name: Push to the Pages repository
+        env:
+          PAGES_DEPLOY_KEY: ${{ secrets.DEMOS_PAGES_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${PAGES_DEPLOY_KEY:-}" ]]; then
+            echo "::error::DEMOS_PAGES_TOKEN is not set (an SSH deploy key for ${PAGES_REPO})"
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "${PAGES_DEPLOY_KEY}" > ~/.ssh/pages_key
+          chmod 600 ~/.ssh/pages_key
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          cd site
+          git init -q -b main
+          git config user.name 'zeus-pages-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git commit -q -m "demos: ${GITHUB_SHA}"
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/pages_key -o IdentitiesOnly=yes" \
+            git push -q --force "git@github.com:${PAGES_REPO}.git" main
+          rm -f ~/.ssh/pages_key
+          echo "pushed ${GITHUB_SHA} to ${PAGES_REPO}"
+          echo "site: https://${GITHUB_REPOSITORY_OWNER}.github.io/zeus-demos/"

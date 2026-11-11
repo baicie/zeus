@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zeus Demos</title>
+    <script>
+      /*
+       * GitHub Pages serves exactly one 404.html per site, at the repository
+       * root — never one inside a sub-directory. Deep links into either demo
+       * (`/zeus-demos/admin/users/grace`) therefore land here instead of in the
+       * app.
+       *
+       * This dispatcher fetches that app's own index.html and writes it into
+       * the current document, leaving the address bar untouched so the router
+       * can resolve the deep link itself. Anything unrecognised goes to the
+       * landing page.
+       *
+       * The script is inline: a 404 response cannot reliably resolve same-origin
+       * module assets from an unknown path.
+       */
+      ;(function () {
+        var APPS = ['/zeus-demos/admin/', '/zeus-demos/ai/']
+        var here = location.pathname
+        var target = null
+        for (var i = 0; i < APPS.length; i += 1) {
+          var base = APPS[i]
+          if (here === base || here.indexOf(base) === 0) {
+            target = base
+            break
+          }
+        }
+        if (!target) {
+          location.replace('/zeus-demos/')
+          return
+        }
+        if (here === target) {
+          location.replace(target)
+          return
+        }
+        fetch(target + 'index.html', { cache: 'no-store' })
+          .then(function (response) {
+            if (!response.ok) throw new Error(String(response.status))
+            return response.text()
+          })
+          .then(function (html) {
+            document.open()
+            document.write(html)
+            document.close()
+          })
+          .catch(function () {
+            location.replace(target)
+          })
+      })()
+    </script>
+  </head>
+  <body>
+    <p>正在加载演示…</p>
+  </body>
+</html>

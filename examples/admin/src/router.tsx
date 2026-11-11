@@ -31,7 +31,7 @@ import {
   type User,
   type UserListResult,
 } from './routes'
-import { adminApi } from './pages'
+import { adminApi } from './admin-api'
 import { SessionContext } from './session'
 
 export interface AdminRouterOptions {
@@ -198,7 +198,17 @@ export function createAdminRouter(options: AdminRouterOptions): ZeusRouter {
     },
   ]
 
-  return createRouter({ routes })
+  // On a sub-path deployment (the Pages demo) the router must know where its
+  // root is, or every URL is parsed as relative to the site root and the whole
+  // tree falls through to `not-found`.
+  const basename = trimBase(import.meta.env.BASE_URL)
+  return createRouter({ routes, ...(basename ? { basename } : {}) })
+}
+
+/** `/zeus-demos/admin/` -> `/zeus-demos/admin`; `/` means "no basename". */
+function trimBase(base: string): string {
+  const trimmed = base.replace(/\/+$/, '')
+  return trimmed === '' ? '' : trimmed
 }
 
 function redirect(to: string): Response {
