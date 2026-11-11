@@ -62,6 +62,13 @@ jobs:
       - name: Type check
         run: pnpm check
 
+      # Key parity, ICU syntax and placeholder sets across every
+      # `locales/en.*` + `locales/zh-CN.*` pair. A missing translation, a
+      # Chinese message that drops `{count}`, or an unparseable plural all
+      # render as plausible text, so they need a machine check.
+      - name: i18n catalogs
+        run: pnpm check:i18n
+
   rust-compiler:
     runs-on: ubuntu-latest
     steps:

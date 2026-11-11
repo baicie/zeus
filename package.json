@@ -151,7 +151,8 @@
     "deploy:stage1": "tsx scripts/release/deployment-stage1.ts",
     "deploy:stage2": "tsx scripts/release/deployment-stage2.ts",
     "check:sbom:write": "tsx scripts/check/check-sbom.ts",
-    "check:sbom": "tsx scripts/check/check-sbom.ts --check"
+    "check:sbom": "tsx scripts/check/check-sbom.ts --check",
+    "check:i18n": "tsx scripts/check/check-i18n.ts"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged && pnpm check",
