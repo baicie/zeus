@@ -262,23 +262,50 @@ jobs:
           rm -f "$HOME/.docker/config.json.tmp"
 
           start=$(date +%s)
-          # Bounded retry. Each attempt is itself capped, so a registry that
-          # accepts the connection and then stalls costs at most 5 minutes,
-          # and three attempts at most 15 — the job timeout. A retry re-copies
-          # the same digest; it never rebuilds anything.
+          # Bounded retry inside a single overall deadline. The budget is
+          # sized to end *before* the job timeout so the failure is an explicit
+          # error with the attempt log, not a cancelled job: the first version
+          # allowed 3x300s + sleeps (920s) under a 900s job limit and was
+          # cancelled mid-attempt, which is exactly the silent hang this change
+          # is meant to remove.
+          #
+          # COPY_DEADLINE=780s leaves ~2 minutes for the digest read-back and
+          # the job's own teardown. A retry re-copies the same digest; it never
+          # rebuilds anything.
+          COPY_DEADLINE=780
+          COPY_ATTEMPT_TIMEOUT=300
+          COPY_MAX_ATTEMPTS=3
           output=""
           attempt=0
-          until output="$(timeout 300 crane copy --platform linux/amd64 \
-            "${SOURCE}@${DIGEST}" "${TCR_IMAGE}:sha-${GITHUB_SHA}")"; do
-            status=$?
+          while :; do
             attempt=$((attempt + 1))
-            # 124 is `timeout`; anything else is the registry or crane.
-            echo "::warning::TCR copy attempt ${attempt} failed (exit ${status})"
-            if [[ ${attempt} -ge 3 ]]; then
-              echo "::error::TCR copy failed after ${attempt} attempts"
+            remaining=$(( COPY_DEADLINE - ($(date +%s) - start) ))
+            # Refuse to start an attempt that cannot finish inside the budget.
+            # `min(${COPY_ATTEMPT_TIMEOUT}, …)` would otherwise hand `timeout`
+            # a near-zero value and burn an attempt on an instant kill.
+            if [[ ${attempt} -gt ${COPY_MAX_ATTEMPTS} ]]; then
+              echo "::error::TCR copy gave up after ${COPY_MAX_ATTEMPTS} attempts"
               exit 1
             fi
-            sleep 10
+            if [[ ${attempt} -gt 1 && ${remaining} -lt 30 ]]; then
+              echo "::error::TCR copy gave up: ${attempt} attempts, deadline ${COPY_DEADLINE}s exhausted"
+              exit 1
+            fi
+            attempt_timeout=${COPY_ATTEMPT_TIMEOUT}
+            if [[ ${remaining} -lt ${attempt_timeout} ]]; then
+              attempt_timeout=${remaining}
+            fi
+            echo "==> TCR copy attempt ${attempt} (timeout ${attempt_timeout}s, ${remaining}s of budget left)"
+            # `timeout` exits 124 when it had to kill the copy. The status is
+            # captured inside the branch: after `fi` it would be the `if`
+            # statement's own status, not the copy's.
+            status=0
+            output="$(timeout "${attempt_timeout}" crane copy --platform linux/amd64 \
+              "${SOURCE}@${DIGEST}" "${TCR_IMAGE}:sha-${GITHUB_SHA}")" || status=$?
+            if [[ ${status} -eq 0 ]]; then
+              break
+            fi
+            echo "::warning::TCR copy attempt ${attempt} failed (exit ${status})"
           done
           elapsed=$(( $(date +%s) - start ))
 
@@ -287,7 +314,7 @@ jobs:
           # own digest is the identity to record and to deploy by. This is the
           # verification gate: the tag must resolve, and when both sides report
           # a digest they must agree.
-          dest_digest="$(timeout 120 crane digest "${TCR_IMAGE}:sha-${GITHUB_SHA}" || true)"
+          dest_digest="$(timeout 90 crane digest "${TCR_IMAGE}:sha-${GITHUB_SHA}" || true)"
           if [[ -z "${dest_digest}" ]]; then
             echo "::error::could not read back the mirrored digest"
             exit 1
