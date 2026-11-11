@@ -5,7 +5,7 @@ import { createResource } from '@zeus-js/resource'
 
 import { createAdminRouter } from './router'
 import { Icon } from './shell/icon'
-import { adminApi } from './pages'
+import { adminApi, isDemoBuild } from './admin-api'
 import type { Role, SessionUser } from './routes'
 
 /**
@@ -22,24 +22,49 @@ export function App() {
   const [signedIn, setSignedIn] = createSignal(false)
 
   return (
-    <Show
-      when={!session.pending() || signedIn()}
-      fallback={<p class="boot-status">正在验证会话…</p>}
-    >
-      <Show
-        when={session.data()}
-        fallback={
-          <LoginPage
-            onLogin={user => {
-              setSignedIn(true)
-              void session.refetch().catch(() => setSignedIn(false))
-            }}
-          />
-        }
-      >
-        <AuthenticatedApp user={session.data()!} />
+    <>
+      <Show when={isDemoBuild}>
+        <DemoBanner />
       </Show>
-    </Show>
+      <Show
+        when={!session.pending() || signedIn()}
+        fallback={<p class="boot-status">正在验证会话…</p>}
+      >
+        <Show
+          when={session.data()}
+          fallback={
+            <LoginPage
+              onLogin={user => {
+                setSignedIn(true)
+                void session.refetch().catch(() => setSignedIn(false))
+              }}
+            />
+          }
+        >
+          <AuthenticatedApp user={session.data()!} />
+        </Show>
+      </Show>
+    </>
+  )
+}
+
+/**
+ * The demo runs on GitHub Pages against a build-time snapshot, so it cannot
+ * save anything. Saying so up front is the point: a visitor must never mistake
+ * the demo for the deployment that actually holds their data.
+ *
+ * The banner is permanent and non-dismissible. A dismissible notice would let
+ * the page look like the real console after one click.
+ */
+function DemoBanner() {
+  return (
+    <div class="demo-banner" role="status" data-testid="demo-banner">
+      <strong>只读演示</strong>
+      <span>
+        数据为构建时的真实 API 快照，修改类操作已禁用。完整功能见 Docker
+        部署版本。
+      </span>
+    </div>
   )
 }
 

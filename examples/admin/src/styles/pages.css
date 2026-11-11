@@ -839,3 +839,37 @@
     font-size: 56px;
   }
 }
+
+/* ------------------------------------------------------------ demo banner */
+/*
+ * Only rendered in the read-only GitHub Pages build. It sits above the app in
+ * the document flow rather than floating, so it can never cover a control the
+ * visitor needs to reach.
+ */
+.demo-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--status-invited-border);
+  background: var(--status-invited-bg);
+  color: var(--foreground);
+  font-size: 13px;
+}
+
+.demo-banner strong {
+  flex: 0 0 auto;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  background: var(--status-invited-fg);
+  color: var(--background);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.demo-banner span {
+  min-width: 0;
+  color: var(--muted-foreground);
+}

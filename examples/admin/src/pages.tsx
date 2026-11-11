@@ -51,15 +51,11 @@ import {
   type UserPatch,
   type UserStatus,
 } from './routes'
-import { createHttpAdminApi } from './api'
 import type { WorkspaceSettings } from './api'
+import { adminApi, isDemoBuild } from './admin-api'
 import { Icon } from './shell/icon'
 import { decorateUserGrid } from './shell/grid-decorations'
 import { useSession } from './session'
-
-export const adminApi = createHttpAdminApi(
-  import.meta.env.VITE_ZEUS_ADMIN_API ?? '',
-)
 
 /* --------------------------------------------------------------- dashboard */
 
