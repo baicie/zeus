@@ -1,18 +1,22 @@
 name: CI
 
 on:
+  # Push builds `main`; pull requests build every branch that has one open.
+  #
+  # This used to also list nine branch prefixes under `push`, which made every
+  # commit on a PR branch run the entire suite twice — once for the push and
+  # once for the pull_request — against the identical tree. On `847b43d1` that
+  # cost 43.0 runner minutes for 21.8 minutes of work: 49.4% of the spend was
+  # duplicate. See docs/ci-optimization-baseline.md.
+  #
+  # The `pull_request` event fires on `synchronize` as well, so pushing to a
+  # branch that has an open PR still triggers exactly one full run — the PR's.
+  # Only a branch with no open PR stops being validated, which is deliberate:
+  # push-only branches should not consume nine runners. `workflow_dispatch`
+  # remains for a deliberate full run on any branch.
   push:
     branches:
       - main
-      - codex/**
-      - feat/**
-      - fix/**
-      - refactor/**
-      - chore/**
-      - docs/**
-      - test/**
-      - release/**
-      - hotfix/**
   pull_request:
     branches:
       - main
@@ -31,6 +35,7 @@ env:
 jobs:
   lint-and-check:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
 
@@ -41,6 +46,11 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version-file: '.node-version'
+          # This was the only job without a pnpm cache. It looked fast because
+          # the runner it landed on already had a warm store (`reused 898,
+          # downloaded 0`); on a cold runner the same step downloads the
+          # lockfile's dependencies. See docs/ci-optimization-baseline.md §3.
+          cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile
 
@@ -69,8 +79,25 @@ jobs:
       - name: i18n catalogs
         run: pnpm check:i18n
 
+      # The release contract, checked on the PR instead of after the merge.
+      #
+      # `@zeus-js/i18n` shipped in #234 without being registered in
+      # `zeusFixedPackages` or the Changesets `fixed` group. Every PR check
+      # passed; `Release Canary` failed on main afterwards. The cost of closing
+      # that gap here is ~8s: this script reads package.json files and the
+      # release config, and the consistency test below is already in the repo.
+      - name: Release package registration
+        run: pnpm check:package-versions
+
+      - name: Release config consistency
+        run: >-
+          pnpm exec vitest run
+          scripts/release/__tests__/release-config.spec.ts
+          --reporter=dot
+
   rust-compiler:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
 
@@ -121,6 +148,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
 
@@ -167,6 +195,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
 
@@ -360,9 +389,15 @@ jobs:
             temp/create-zeus-candidate/prepare.json
 
   cross-platform-evidence:
-    if: github.repository == 'baicie/zeus'
+    # Release evidence only ever describes a `main` commit. `release.yml` and
+    # `rc-approval.yml` name the run they trust by `evidence_run_id`, and that
+    # run is a main push. Collecting the same document on a pull_request run
+    # produced an artifact nothing consumed — it cost an install and a 26s job
+    # per PR, and a PR artifact is never the one a release points at.
+    if: github.repository == 'baicie/zeus' && github.event_name != 'pull_request'
     needs: [lint-and-check, packed-consumers, create-zeus-candidates]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       actions: read
@@ -401,6 +436,7 @@ jobs:
 
   docs-build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
 
@@ -415,3 +451,58 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm docs:build
+
+  ci-gate:
+    # The one check a branch protection rule should require.
+    #
+    # `main` currently has no protection and no required checks, so a merge
+    # depends on someone reading the list. This job gives that decision a
+    # single stable name: it runs with `always()`, looks at every job it
+    # depends on, and fails unless each one is either `success` or a skip it
+    # was told to expect.
+    #
+    # The rule that matters is the default: an unrecognised result — a
+    # `cancelled`, a `failure`, a `skipped` that is not in the allow list — is
+    # a failure. Adding a job to this workflow without adding it to `needs`
+    # does NOT silently pass; it is caught by the `expected` list below, which
+    # must name every dependency.
+    if: always()
+    needs:
+      - lint-and-check
+      - rust-compiler
+      - build
+      - test
+      - packed-consumers
+      - create-zeus-candidates
+      - cross-platform-evidence
+      - docs-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.node-version'
+          cache: 'pnpm'
+
+      # The gate is ~40 lines of TypeScript. It runs through the repo's own
+      # toolchain rather than Node's experimental type stripping, because the
+      # one job whose failure blocks a merge should not depend on a flag.
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Verify every required job
+        env:
+          # A JSON object of `<job name>: <result>` for everything in `needs`.
+          NEEDS: ${{ toJSON(needs) }}
+          # Skips this gate accepts, and why. Anything not listed here and not
+          # `success` fails the gate.
+          ALLOWED_SKIPS: >-
+            cross-platform-evidence
+        run: |
+          set -euo pipefail
+          pnpm exec tsx scripts/ci/ci-gate.ts
