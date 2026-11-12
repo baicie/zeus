@@ -166,6 +166,43 @@ code defect. Evidence from the Actions API:
 Classification: **QUEUED / RUNNER_NOT_ASSIGNED**, not `EXECUTION_FAILED`,
 `TIMED_OUT` or `UNKNOWN`.
 
+### 6.1 A fourth occurrence, and what it narrows to
+
+Run 43268897138 (this branch, `597178f2`) shows the same pattern once more, and
+this one isolates the cause usefully:
+
+| Platform                    | Runner label       | Result        | `runner_name` |
+| --------------------------- | ------------------ | ------------- | ------------- |
+| `aarch64-unknown-linux-gnu` | `ubuntu-24.04-arm` | success       | assigned      |
+| `x86_64-apple-darwin`       | `macos-15-intel`   | success       | assigned      |
+| `x86_64-unknown-linux-gnu`  | `ubuntu-24.04`     | success       | assigned      |
+| `x86_64-unknown-linux-musl` | `ubuntu-24.04`     | success       | assigned      |
+| `aarch64-pc-windows-msvc`   | `windows-11-arm`   | success       | assigned      |
+| `x86_64-pc-windows-msvc`    | `windows-2025`     | success       | assigned      |
+| **`aarch64-apple-darwin`**  | **`macos-15`**     | **cancelled** | **empty**     |
+
+Every other platform — including the _other_ macOS label, `macos-15-intel` —
+got a runner. The failure is specific to the `macos-15` label, not to macOS, not
+to ARM, and not to this workflow's logic. Four sightings now:
+
+| Run         | Workflow               | `macos-15` job       | Other platforms |
+| ----------- | ---------------------- | -------------------- | --------------- |
+| 43249739185 | Compiler Native Matrix | **success**, 1m47s   | all success     |
+| 43249739170 | Release Canary         | cancelled, no runner | —               |
+| 43252159090 | Compiler Native Matrix | cancelled, no runner | six success     |
+| 43268897138 | Compiler Native Matrix | cancelled, no runner | six success     |
+
+The first row is the counter-example that rules out "the job is misconfigured":
+the identical job, on the identical label, built successfully in under two
+minutes. What remains is capacity: the pool for that label was exhausted or
+unavailable during those three windows. Whether it was this account's
+concurrency limit or a GitHub-side shortage is not determinable from the data
+available here.
+
+Action taken: none in code. The platform stays in the matrix. Re-running the
+workflow is the correct response to this class of failure, and it is the only
+one that is — nothing in the repository can make a runner appear.
+
 The reasoning, kept deliberately narrow:
 
 - the job object reports `steps: []` — no step ever started;
