@@ -1,0 +1,50 @@
+/**
+ * Type-level consumer for the packed `@zeus-js/i18n`.
+ *
+ * Compiled with `--strict` against the declarations inside the installed
+ * tarball, not the workspace source. A package whose `types` condition points
+ * at a file the tarball omits fails here and nowhere else.
+ */
+import {
+  createI18n,
+  type I18n,
+  type Locale,
+  type MessageCatalog,
+  type MessageDescriptor,
+  type MessageParams,
+} from '@zeus-js/i18n'
+
+const en = {
+  'common.save': 'Save',
+  'common.items': '{count, plural, one {# item} other {# items}}',
+} as const
+
+type Key = keyof typeof en
+
+const zhCN = {
+  'common.save': '保存',
+  'common.items': '{count} 个项目',
+} satisfies Record<Key, string>
+
+const i18n: I18n<Key> = createI18n({
+  messages: { en, 'zh-CN': zhCN },
+  initialLocale: 'en',
+})
+
+// The declared API is usable with no casts.
+const locale: Locale = i18n.locale()
+const params: MessageParams = { count: 2 }
+const text: string = i18n.t('common.items', params)
+const descriptor: MessageDescriptor<Key> = i18n.message('common.save')
+const rendered: string = i18n.resolve(descriptor)
+const catalog: MessageCatalog<Key> = en
+void [locale, text, rendered, catalog]
+
+// A catalog missing a key must not satisfy the reference type.
+// @ts-expect-error zh-CN must cover every English key
+const incomplete: Record<Key, string> = { 'common.save': '保存' }
+void incomplete
+
+// A key outside the catalog must not be accepted.
+// @ts-expect-error unknown keys are rejected
+i18n.t('common.unknown')

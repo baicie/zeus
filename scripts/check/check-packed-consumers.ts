@@ -31,6 +31,7 @@ const selected = [
   'core/runtime-dom',
   'core/runtime-ssr',
   'core/zeus',
+  'core/i18n',
   'core/compiler',
   'core/compiler-native',
   `core/compiler-native-${platformPackage()}`,
@@ -241,6 +242,40 @@ window.packedResult = (async () => {
         ),
       )
   }
+
+  // The i18n runtime has no framework or DOM dependency, so it gets its own
+  // consumer: installing the tarball and importing it from Node is the
+  // strictest proof that it works as published. It is deliberately outside the
+  // per-mode loop — running it four times would prove nothing new.
+  const i18nProject = prepareProject('i18n', '19')
+  for (const file of ['i18n-consumer.mjs', 'i18n-consumer.ts']) {
+    fs.copyFileSync(
+      path.join(root, 'scripts/testing/packed-consumers', `${file}.fixture`),
+      path.join(i18nProject, file),
+    )
+  }
+  step('i18n:runtime', () =>
+    run(process.execPath, ['i18n-consumer.mjs'], i18nProject),
+  )
+  step('i18n:types', () =>
+    run(
+      path.join(i18nProject, 'node_modules/.bin/tsc'),
+      [
+        '--noEmit',
+        '--strict',
+        '--skipLibCheck',
+        '--module',
+        'esnext',
+        '--moduleResolution',
+        'bundler',
+        '--target',
+        'es2022',
+        'i18n-consumer.ts',
+      ],
+      i18nProject,
+    ),
+  )
+  step('i18n:tarball', () => inspectI18nTarball(archives))
 } catch (error) {
   results.push({
     name: 'pipeline',
@@ -292,6 +327,61 @@ interface ConsumerBundle {
  * The rendered button's implementation must be present, so an empty bundle
  * cannot pass.
  */
+/**
+ * Verifies the packed i18n tarball actually contains what it advertises.
+ *
+ * The install step catches a missing entry only if something imports it; this
+ * checks the archive itself, so a package that resolves during the consumer run
+ * but ships without its declaration file, or with its source tree, is caught
+ * here instead of at a user's first `tsc`.
+ */
+function inspectI18nTarball(archives: string): void {
+  const manifest = JSON.parse(
+    fs.readFileSync(path.join(root, 'packages/core/i18n/package.json'), 'utf8'),
+  ) as { name: string; version: string; exports: Record<string, unknown> }
+
+  const archive = path.join(
+    archives,
+    `${manifest.name.replace('@', '').replace('/', '-')}-${manifest.version}.tgz`,
+  )
+  assertFile(archive, 'i18n tarball missing')
+
+  const listing = execFileSync('tar', ['-tzf', archive], { encoding: 'utf8' })
+    .split('\n')
+    .filter(Boolean)
+    .map(entry => entry.replace(/^package\//, ''))
+
+  const has = (file: string) => listing.includes(file)
+
+  // Every path the public conditions point at must exist in the archive.
+  const files = [
+    'package.json',
+    'index.cjs',
+    'dist/i18n.esm-bundler.js',
+    'dist/i18n.cjs',
+    'dist/i18n.prod.cjs',
+    'dist/i18n.d.ts',
+  ]
+  for (const file of files) {
+    if (!has(file)) {
+      throw new Error(
+        `i18n tarball is missing ${file}; exports would resolve to nothing. Found: ${listing.join(', ')}`,
+      )
+    }
+  }
+
+  // The published artifact must not carry the TypeScript sources: shipping
+  // them would hide a broken `types` path behind a working source read.
+  const leaked = listing.filter(entry => entry.startsWith('src/'))
+  if (leaked.length > 0) {
+    throw new Error(`i18n tarball ships sources: ${leaked.join(', ')}`)
+  }
+}
+
+function assertFile(file: string, message: string): void {
+  if (!fs.existsSync(file)) throw new Error(`${message}: ${file}`)
+}
+
 function inspectConsumerBundle(project: string): ConsumerBundle {
   const dist = path.join(project, 'dist')
   const manifest = JSON.parse(
@@ -373,13 +463,15 @@ function prepareProject(name: string, reactVersion: string): string {
             '@zeus-js/vite-plugin',
             `@zeus-js/compiler-native-${platformPackage()}`,
           ]
-        : [
-            '@zeus-test/components',
-            '@zeus-js/web-c-runtime',
-            ...(name.startsWith('react')
-              ? ['@zeus-js/output-react-wrapper']
-              : ['@zeus-js/output-vue-wrapper']),
-          ]
+        : name === 'i18n'
+          ? ['@zeus-js/i18n']
+          : [
+              '@zeus-test/components',
+              '@zeus-js/web-c-runtime',
+              ...(name.startsWith('react')
+                ? ['@zeus-js/output-react-wrapper']
+                : ['@zeus-js/output-vue-wrapper']),
+            ]
   fs.mkdirSync(directory)
   fs.writeFileSync(
     path.join(directory, 'package.json'),
@@ -389,14 +481,21 @@ function prepareProject(name: string, reactVersion: string): string {
         type: 'module',
         dependencies: {
           ...Object.fromEntries(entries.map(entry => [entry, packages[entry]])),
-          react: reactVersion,
-          'react-dom': reactVersion,
-          vue: '^3.5.0',
-          vite: '^8.0.0',
-          rollup: '^4.0.0',
-          typescript: '^6.0.0',
-          '@types/react': reactVersion,
-          '@types/react-dom': reactVersion,
+          // The i18n consumer is deliberately framework-free: installing
+          // React or Vue there would weaken the claim that the package is
+          // neutral, so it gets only what it imports.
+          ...(name === 'i18n'
+            ? { typescript: '^6.0.0' }
+            : {
+                react: reactVersion,
+                'react-dom': reactVersion,
+                vue: '^3.5.0',
+                vite: '^8.0.0',
+                rollup: '^4.0.0',
+                typescript: '^6.0.0',
+                '@types/react': reactVersion,
+                '@types/react-dom': reactVersion,
+              }),
         },
         overrides: packages,
       },

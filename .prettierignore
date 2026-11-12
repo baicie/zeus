@@ -10,5 +10,6 @@ packages/core/compiler-native/index.js
 packages/core/compiler-native/index.d.ts
 docs/.vitepress/.temp
 pnpm-lock.yaml
+scripts/testing/packed-consumers/*.fixture
 .agents
 vendor

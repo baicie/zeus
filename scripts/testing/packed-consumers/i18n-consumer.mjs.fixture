@@ -1,0 +1,123 @@
+/**
+ * Runtime consumer for the packed `@zeus-js/i18n`.
+ *
+ * Runs inside an installed project where `@zeus-js/i18n` is the published
+ * tarball and `intl-messageformat` came from the registry — no workspace links,
+ * no source paths. A package whose `exports` or `files` are wrong still works
+ * inside the repository, because the link resolves files the tarball omits;
+ * only this run shows the difference.
+ *
+ * Node-only on purpose: the package claims to be framework- and DOM-neutral,
+ * and a consumer with no browser, no React and no Vue is the strictest proof.
+ */
+import assert from 'node:assert/strict'
+
+const {
+  createI18n,
+  resolveLocale,
+  normalizeLocale,
+  negotiateLocale,
+  checkCatalog,
+  checkMessageSyntax,
+  messageArgumentNames,
+  SUPPORTED_LOCALES,
+} = await import('@zeus-js/i18n')
+
+// 1. The public entry resolves and exposes the declared API.
+for (const [name, value] of Object.entries({
+  createI18n,
+  resolveLocale,
+  normalizeLocale,
+  negotiateLocale,
+  checkCatalog,
+  checkMessageSyntax,
+  messageArgumentNames,
+})) {
+  assert.equal(
+    typeof value,
+    'function',
+    `${name} is not exported from the packed entry`,
+  )
+}
+assert.deepEqual([...SUPPORTED_LOCALES], ['en', 'zh-CN'])
+
+// 2. Locale negotiation, including the value the Playground persisted.
+assert.equal(resolveLocale('zh'), 'zh-CN')
+assert.equal(resolveLocale('en-US'), 'en')
+assert.equal(resolveLocale('zh-TW'), undefined)
+assert.equal(normalizeLocale('ja'), 'en')
+assert.equal(negotiateLocale(['ja', 'zh-CN']), 'zh-CN')
+
+// 3. A real instance built the way an application builds one.
+const en = {
+  'common.save': 'Save',
+  'common.items': '{count, plural, one {# item} other {# items}}',
+  'common.role': '{role, select, admin {Administrator} other {Member}}',
+  'common.hello': 'Hello {name}',
+}
+const zhCN = {
+  'common.save': '保存',
+  'common.items': '{count} 个项目',
+  'common.role': '{role, select, admin {管理员} other {成员}}',
+  'common.hello': '你好 {name}',
+}
+const i18n = createI18n({
+  messages: { en, 'zh-CN': zhCN },
+  initialLocale: 'en',
+  syncDocumentLang: false,
+})
+
+// Interpolation, ICU plural and select, through the packed code path.
+assert.equal(i18n.t('common.hello', { name: 'Ada' }), 'Hello Ada')
+assert.equal(i18n.t('common.items', { count: 1 }), '1 item')
+assert.equal(i18n.t('common.items', { count: 4 }), '4 items')
+assert.equal(i18n.t('common.role', { role: 'admin' }), 'Administrator')
+
+// 4. A descriptor created before the switch must render in the new language.
+//    This is what makes a stored toast or error correct after switching; a
+//    package that returned strings here would pass every other assertion.
+const toast = i18n.message('common.items', { count: 2 })
+assert.equal(i18n.resolve(toast), '2 items')
+
+await i18n.setLocale('zh-CN')
+assert.equal(i18n.locale(), 'zh-CN')
+assert.equal(i18n.status(), 'ready')
+assert.equal(i18n.t('common.save'), '保存')
+assert.equal(i18n.t('common.items', { count: 2 }), '2 个项目')
+assert.equal(i18n.resolve(toast), '2 个项目')
+assert.equal(i18n.t('common.role', { role: 'admin' }), '管理员')
+
+// 5. Fallback: a key only the reference catalog has still renders, and the
+//    miss is reported rather than silently showing the key.
+const missing = []
+const partialZh = { ...zhCN }
+delete partialZh['common.only-en']
+const fallback = createI18n({
+  messages: {
+    en: { ...en, 'common.only-en': 'English only' },
+    'zh-CN': partialZh,
+  },
+  initialLocale: 'zh-CN',
+  syncDocumentLang: false,
+  strictCatalogs: false,
+  onMissingKey: (_locale, key) => missing.push(key),
+})
+assert.equal(fallback.t('common.only-en'), 'English only')
+assert.deepEqual(missing, ['common.only-en'])
+
+// 6. Formatters are the instance's, not re-implemented per call site.
+assert.equal(i18n.formatNumber(1234567.89), '1,234,567.89')
+assert.equal(i18n.formatDate(new Date('not a date')), '')
+
+// 7. The validation helpers a consumer's own CI would call.
+assert.deepEqual(checkCatalog(en, 'zh-CN', zhCN), [])
+assert.equal(
+  checkMessageSyntax('en', '{count, plural, one {# item}}') instanceof Error,
+  true,
+)
+assert.deepEqual(
+  messageArgumentNames('en', '{count, plural, one {# item} other {# items}}'),
+  ['count'],
+)
+
+console.info('packed i18n consumer: import, switch, plural, select, fallback OK')
