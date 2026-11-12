@@ -182,30 +182,39 @@ jobs:
           set -euo pipefail
           docker buildx imagetools inspect "${IMAGE}:main"
           docker buildx imagetools inspect "${IMAGE}:sha-${{ github.sha }}"
-          # Record the size and enforce the budget. Size is not cosmetic: the
-          # host pulls this image from TCR, and a 312 MB image is what made a
-          # single cross-border copy unable to finish inside any sane timeout.
-          # The budget is a repository variable so a deliberate growth is one
-          # settings change, while an accidental regression fails the build.
-          docker buildx imagetools inspect "${IMAGE}:main" --format '{{json .Manifest}}' \
-            > /tmp/manifest.json
-          node -e '
-            const m = require("/tmp/manifest.json")
-            const bytes = (m.layers || []).reduce((a, l) => a + l.size, 0)
-            const mb = bytes / 1024 / 1024
-            const budget = Number(process.env.BUDGET_MB)
-            console.log(`image size: ${mb.toFixed(1)} MB (budget ${budget} MB)`)
-            require("node:fs").appendFileSync(
-              process.env.GITHUB_STEP_SUMMARY,
-              `\n| image size | ${mb.toFixed(1)} MB |\n| budget | ${budget} MB |\n`,
-            )
-            if (mb > budget) {
-              console.error(`::error::image is ${mb.toFixed(1)} MB, over the ${budget} MB budget`)
-              process.exit(1)
-            }
-          '
+
+      # Record the size and enforce the budget. Size is not cosmetic: the host
+      # pulls this image from TCR, and a 312 MB image is what made a single
+      # cross-border copy unable to finish inside any sane timeout. The budget
+      # is a repository variable so a deliberate growth is one settings change,
+      # while an accidental regression fails the build.
+      #
+      # This used to be an inline `node -e` reading
+      # `imagetools inspect --format '{{json .Manifest}}'`. That template
+      # returns the *descriptor* `{mediaType, digest, size}` of the manifest —
+      # it has no `layers` array — so `(m.layers || [])` was always empty,
+      # every build computed 0.0 MB, and the gate passed unconditionally. The
+      # `image size: 0.0 MB (budget 120 MB)` line in CI was that defect.
+      #
+      # `scripts/release/image-size-gate.ts` replaces it with a resolver that
+      # fetches the real manifest with `--raw`, resolves a multi-platform index
+      # to exactly one platform, validates the media type and every layer
+      # digest and size, records the manifest digest, and treats anything it
+      # cannot measure as a FAILURE. Cases are covered by
+      # `scripts/release/__tests__/image-size-gate.spec.ts`.
+      - name: Enforce the image size budget
+        if: github.event_name != 'pull_request'
         env:
           BUDGET_MB: ${{ vars.ADMIN_IMAGE_MAX_MB || '120' }}
+          PLATFORM: linux/amd64
+        run: |
+          set -euo pipefail
+          node --import tsx scripts/release/image-size-gate-cli.ts \
+            --reference "${IMAGE}:main" \
+            --platform "${PLATFORM}" \
+            --budget-mb "${BUDGET_MB}" \
+            --summary-file /tmp/size-summary.md
+          cat /tmp/size-summary.md >> "${GITHUB_STEP_SUMMARY}"
 
   mirror-tcr:
     name: Mirror to TCR

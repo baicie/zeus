@@ -74,7 +74,6 @@ import {
 import type { ConsoleEntry, DiagnosticItem } from './model'
 import { examples as allExamples } from './examples'
 import { productHref } from '../products'
-import { highlightCode } from './highlight'
 import { formatMessage, locale, t, type MessageKey } from './i18n'
 
 export function PlaygroundShell() {
@@ -603,6 +602,20 @@ function PreviewPanel() {
  * the Output tab reads like the editor. `innerHTML` is safe here because the
  * only source is the compiler's own module code, and every token is escaped by
  * `highlightCode`.
+ *
+ * The highlighter is imported lazily, on the first frame that actually has code
+ * to colour. It pulls in `@codemirror/lang-javascript`, which drags
+ * `@codemirror/view`, `@codemirror/state`, `@codemirror/language`,
+ * `@codemirror/autocomplete` and `@lezer/javascript` — about 370 KB of
+ * minified JavaScript, or 120 KB compressed. None of that is needed to show
+ * the shell, the editor, or the preview, and the Output tab is not the initial
+ * tab. Importing it statically put all of it on the critical path of a page
+ * whose first paint is the editor; the editor's own CodeMirror instance lives
+ * in `code-editor-impl`, which is already a separate chunk.
+ *
+ * Until the chunk arrives the code is shown as escaped plain text, which is
+ * exactly what an empty or unavailable highlighter falls back to anyway, so a
+ * slow network degrades to the uncoloured output rather than to a blank panel.
  */
 function HighlightedCode(props: {
   testId: string
@@ -621,9 +634,16 @@ function HighlightedCode(props: {
     }
     // Highlighting is a pure function of the code string, so only recompute
     // when it actually changes; tab switches re-read the same string.
-    const html = highlightCode(code)
-    if (target.innerHTML !== html) target.innerHTML = html
-    target.dataset.highlighted = 'true'
+    void import('./highlight').then(module => {
+      // The element can be gone (tab closed, product switched) or the code can
+      // have changed while the chunk was in flight; either way this result is
+      // stale and must not be written.
+      if (!element || element !== target) return
+      if (props.code !== code) return
+      const html = module.highlightCode(code)
+      if (target.innerHTML !== html) target.innerHTML = html
+      target.dataset.highlighted = 'true'
+    })
   })
   return (
     <code

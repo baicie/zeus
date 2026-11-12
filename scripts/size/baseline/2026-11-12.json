@@ -1,0 +1,2024 @@
+{
+  "schema": "zeus.build-size-report/v1",
+  "commit": "1804b20dbf90194613b10cce239bf2befe7642c4",
+  "measuredAt": "2026-11-12",
+  "note": "First structured baseline at main 11a7bbfc (11a7bbfc65bae848b84a68ce8172dea786f8adb0). Measured on macOS arm64, Node 24.16.0, after building every package and its declarations. Native .node binaries and the eight compiler-native* packages are excluded: their filenames and bytes are platform-specific, and the seven platform packages are installed by optionalDependencies so only one exists on any host. They are governed by absolute ceilings in size-budget.json. The scaffolding CLIs are excluded because the CI build job does not run their package scripts.",
+  "artifacts": [
+    {
+      "packageName": "@zeus-js/bundler-plugin",
+      "file": "dist/bundler-plugin.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 36959,
+      "gzipBytes": 9365,
+      "brotliBytes": 8362
+    },
+    {
+      "packageName": "@zeus-js/bundler-plugin",
+      "file": "dist/bundler-plugin.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 7430,
+      "gzipBytes": 2335,
+      "brotliBytes": 2006
+    },
+    {
+      "packageName": "@zeus-js/bundler-plugin",
+      "file": "dist/bundler-plugin.esm-bundler.js",
+      "format": "esm-bundler",
+      "production": false,
+      "rawBytes": 40689,
+      "gzipBytes": 10117,
+      "brotliBytes": 9056
+    },
+    {
+      "packageName": "@zeus-js/bundler-plugin",
+      "file": "dist/bundler-plugin.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 36959,
+      "gzipBytes": 9365,
+      "brotliBytes": 8362
+    },
+    {
+      "packageName": "@zeus-js/bundler-plugin",
+      "file": "dist/outputPlugins/manifest.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 871,
+      "gzipBytes": 489,
+      "brotliBytes": 398
+    },
+    {
+      "packageName": "@zeus-js/bundler-plugin",
+      "file": "dist/outputPlugins/manifest.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 3758,
+      "gzipBytes": 1381,
+      "brotliBytes": 1178
+    },
+    {
+      "packageName": "@zeus-js/bundler-plugin",
+      "file": "dist/outputPlugins/manifest.js",
+      "format": "other",
+      "production": false,
+      "rawBytes": 763,
+      "gzipBytes": 425,
+      "brotliBytes": 345
+    },
+    {
+      "packageName": "@zeus-js/bundler-plugin",
+      "file": "dist/outputPlugins/manifest.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 871,
+      "gzipBytes": 489,
+      "brotliBytes": 398
+    },
+    {
+      "packageName": "@zeus-js/bundler-plugin",
+      "file": "dist/outputPlugins/manifest.prod.js",
+      "format": "esm-bundler",
+      "production": true,
+      "rawBytes": 763,
+      "gzipBytes": 425,
+      "brotliBytes": 345
+    },
+    {
+      "packageName": "@zeus-js/bundler-plugin",
+      "file": "dist/rolldown.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 32404,
+      "gzipBytes": 8558,
+      "brotliBytes": 7634
+    },
+    {
+      "packageName": "@zeus-js/bundler-plugin",
+      "file": "dist/rolldown.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 5902,
+      "gzipBytes": 2039,
+      "brotliBytes": 1738
+    },
+    {
+      "packageName": "@zeus-js/bundler-plugin",
+      "file": "dist/rolldown.js",
+      "format": "other",
+      "production": false,
+      "rawBytes": 35927,
+      "gzipBytes": 9297,
+      "brotliBytes": 8314
+    },
+    {
+      "packageName": "@zeus-js/bundler-plugin",
+      "file": "dist/rolldown.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 32404,
+      "gzipBytes": 8558,
+      "brotliBytes": 7634
+    },
+    {
+      "packageName": "@zeus-js/bundler-plugin",
+      "file": "dist/rolldown.prod.js",
+      "format": "esm-bundler",
+      "production": true,
+      "rawBytes": 35927,
+      "gzipBytes": 9297,
+      "brotliBytes": 8314
+    },
+    {
+      "packageName": "@zeus-js/bundler-plugin",
+      "file": "dist/rollup.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 32325,
+      "gzipBytes": 8542,
+      "brotliBytes": 7614
+    },
+    {
+      "packageName": "@zeus-js/bundler-plugin",
+      "file": "dist/rollup.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 5886,
+      "gzipBytes": 2036,
+      "brotliBytes": 1739
+    },
+    {
+      "packageName": "@zeus-js/bundler-plugin",
+      "file": "dist/rollup.js",
+      "format": "other",
+      "production": false,
+      "rawBytes": 35831,
+      "gzipBytes": 9279,
+      "brotliBytes": 8297
+    },
+    {
+      "packageName": "@zeus-js/bundler-plugin",
+      "file": "dist/rollup.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 32325,
+      "gzipBytes": 8542,
+      "brotliBytes": 7614
+    },
+    {
+      "packageName": "@zeus-js/bundler-plugin",
+      "file": "dist/rollup.prod.js",
+      "format": "esm-bundler",
+      "production": true,
+      "rawBytes": 35831,
+      "gzipBytes": 9279,
+      "brotliBytes": 8297
+    },
+    {
+      "packageName": "@zeus-js/bundler-plugin",
+      "file": "dist/vite.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 34073,
+      "gzipBytes": 8896,
+      "brotliBytes": 7950
+    },
+    {
+      "packageName": "@zeus-js/bundler-plugin",
+      "file": "dist/vite.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 5670,
+      "gzipBytes": 1988,
+      "brotliBytes": 1686
+    },
+    {
+      "packageName": "@zeus-js/bundler-plugin",
+      "file": "dist/vite.js",
+      "format": "other",
+      "production": false,
+      "rawBytes": 37016,
+      "gzipBytes": 9462,
+      "brotliBytes": 8472
+    },
+    {
+      "packageName": "@zeus-js/bundler-plugin",
+      "file": "dist/vite.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 34073,
+      "gzipBytes": 8896,
+      "brotliBytes": 7950
+    },
+    {
+      "packageName": "@zeus-js/bundler-plugin",
+      "file": "dist/vite.prod.js",
+      "format": "esm-bundler",
+      "production": true,
+      "rawBytes": 37016,
+      "gzipBytes": 9462,
+      "brotliBytes": 8472
+    },
+    {
+      "packageName": "@zeus-js/compiler",
+      "file": "dist/compiler.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 447,
+      "gzipBytes": 304,
+      "brotliBytes": 267
+    },
+    {
+      "packageName": "@zeus-js/compiler",
+      "file": "dist/compiler.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 1929,
+      "gzipBytes": 627,
+      "brotliBytes": 543
+    },
+    {
+      "packageName": "@zeus-js/compiler",
+      "file": "dist/compiler.esm-bundler.js",
+      "format": "esm-bundler",
+      "production": false,
+      "rawBytes": 300,
+      "gzipBytes": 218,
+      "brotliBytes": 167
+    },
+    {
+      "packageName": "@zeus-js/compiler",
+      "file": "dist/compiler.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 447,
+      "gzipBytes": 304,
+      "brotliBytes": 267
+    },
+    {
+      "packageName": "@zeus-js/compiler-native",
+      "file": "index.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 1762,
+      "gzipBytes": 593,
+      "brotliBytes": 509
+    },
+    {
+      "packageName": "@zeus-js/compiler-native",
+      "file": "index.js",
+      "format": "other",
+      "production": false,
+      "rawBytes": 25332,
+      "gzipBytes": 2229,
+      "brotliBytes": 1870
+    },
+    {
+      "packageName": "@zeus-js/compiler-shared",
+      "file": "dist/compiler-shared.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 6163,
+      "gzipBytes": 1713,
+      "brotliBytes": 1485
+    },
+    {
+      "packageName": "@zeus-js/compiler-shared",
+      "file": "dist/compiler-shared.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 8407,
+      "gzipBytes": 1571,
+      "brotliBytes": 1414
+    },
+    {
+      "packageName": "@zeus-js/compiler-shared",
+      "file": "dist/compiler-shared.esm-bundler.js",
+      "format": "esm-bundler",
+      "production": false,
+      "rawBytes": 7666,
+      "gzipBytes": 2199,
+      "brotliBytes": 1955
+    },
+    {
+      "packageName": "@zeus-js/compiler-shared",
+      "file": "dist/compiler-shared.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 6163,
+      "gzipBytes": 1713,
+      "brotliBytes": 1485
+    },
+    {
+      "packageName": "@zeus-js/component-analyzer",
+      "file": "dist/browser.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 74152,
+      "gzipBytes": 15114,
+      "brotliBytes": 12909
+    },
+    {
+      "packageName": "@zeus-js/component-analyzer",
+      "file": "dist/browser.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 4643,
+      "gzipBytes": 1571,
+      "brotliBytes": 1306
+    },
+    {
+      "packageName": "@zeus-js/component-analyzer",
+      "file": "dist/browser.js",
+      "format": "other",
+      "production": false,
+      "rawBytes": 72142,
+      "gzipBytes": 15179,
+      "brotliBytes": 12973
+    },
+    {
+      "packageName": "@zeus-js/component-analyzer",
+      "file": "dist/browser.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 74152,
+      "gzipBytes": 15114,
+      "brotliBytes": 12909
+    },
+    {
+      "packageName": "@zeus-js/component-analyzer",
+      "file": "dist/browser.prod.js",
+      "format": "esm-bundler",
+      "production": true,
+      "rawBytes": 72142,
+      "gzipBytes": 15179,
+      "brotliBytes": 12973
+    },
+    {
+      "packageName": "@zeus-js/component-analyzer",
+      "file": "dist/component-analyzer.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 83661,
+      "gzipBytes": 16972,
+      "brotliBytes": 14522
+    },
+    {
+      "packageName": "@zeus-js/component-analyzer",
+      "file": "dist/component-analyzer.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 4985,
+      "gzipBytes": 1631,
+      "brotliBytes": 1368
+    },
+    {
+      "packageName": "@zeus-js/component-analyzer",
+      "file": "dist/component-analyzer.esm-bundler.js",
+      "format": "esm-bundler",
+      "production": false,
+      "rawBytes": 83185,
+      "gzipBytes": 17434,
+      "brotliBytes": 14930
+    },
+    {
+      "packageName": "@zeus-js/component-analyzer",
+      "file": "dist/component-analyzer.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 83661,
+      "gzipBytes": 16972,
+      "brotliBytes": 14522
+    },
+    {
+      "packageName": "@zeus-js/component-dts",
+      "file": "dist/browser.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 21586,
+      "gzipBytes": 4362,
+      "brotliBytes": 3868
+    },
+    {
+      "packageName": "@zeus-js/component-dts",
+      "file": "dist/browser.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 1856,
+      "gzipBytes": 591,
+      "brotliBytes": 513
+    },
+    {
+      "packageName": "@zeus-js/component-dts",
+      "file": "dist/browser.js",
+      "format": "other",
+      "production": false,
+      "rawBytes": 23339,
+      "gzipBytes": 4872,
+      "brotliBytes": 4353
+    },
+    {
+      "packageName": "@zeus-js/component-dts",
+      "file": "dist/browser.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 21586,
+      "gzipBytes": 4362,
+      "brotliBytes": 3868
+    },
+    {
+      "packageName": "@zeus-js/component-dts",
+      "file": "dist/browser.prod.js",
+      "format": "esm-bundler",
+      "production": true,
+      "rawBytes": 23339,
+      "gzipBytes": 4872,
+      "brotliBytes": 4353
+    },
+    {
+      "packageName": "@zeus-js/component-dts",
+      "file": "dist/component-dts.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 26708,
+      "gzipBytes": 5421,
+      "brotliBytes": 4828
+    },
+    {
+      "packageName": "@zeus-js/component-dts",
+      "file": "dist/component-dts.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 2059,
+      "gzipBytes": 619,
+      "brotliBytes": 540
+    },
+    {
+      "packageName": "@zeus-js/component-dts",
+      "file": "dist/component-dts.esm-bundler.js",
+      "format": "esm-bundler",
+      "production": false,
+      "rawBytes": 27341,
+      "gzipBytes": 5534,
+      "brotliBytes": 4974
+    },
+    {
+      "packageName": "@zeus-js/component-dts",
+      "file": "dist/component-dts.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 26708,
+      "gzipBytes": 5421,
+      "brotliBytes": 4828
+    },
+    {
+      "packageName": "@zeus-js/eslint-plugin",
+      "file": "dist/eslint-plugin.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 6662,
+      "gzipBytes": 2137,
+      "brotliBytes": 1822
+    },
+    {
+      "packageName": "@zeus-js/eslint-plugin",
+      "file": "dist/eslint-plugin.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 790,
+      "gzipBytes": 325,
+      "brotliBytes": 275
+    },
+    {
+      "packageName": "@zeus-js/eslint-plugin",
+      "file": "dist/eslint-plugin.esm-bundler.js",
+      "format": "esm-bundler",
+      "production": false,
+      "rawBytes": 6465,
+      "gzipBytes": 2062,
+      "brotliBytes": 1764
+    },
+    {
+      "packageName": "@zeus-js/eslint-plugin",
+      "file": "dist/eslint-plugin.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 6662,
+      "gzipBytes": 2137,
+      "brotliBytes": 1822
+    },
+    {
+      "packageName": "@zeus-js/i18n",
+      "file": "dist/i18n.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 21140,
+      "gzipBytes": 6722,
+      "brotliBytes": 5700
+    },
+    {
+      "packageName": "@zeus-js/i18n",
+      "file": "dist/i18n.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 13651,
+      "gzipBytes": 4689,
+      "brotliBytes": 3900
+    },
+    {
+      "packageName": "@zeus-js/i18n",
+      "file": "dist/i18n.esm-bundler.js",
+      "format": "esm-bundler",
+      "production": false,
+      "rawBytes": 23583,
+      "gzipBytes": 7434,
+      "brotliBytes": 6390
+    },
+    {
+      "packageName": "@zeus-js/i18n",
+      "file": "dist/i18n.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 21140,
+      "gzipBytes": 6722,
+      "brotliBytes": 5700
+    },
+    {
+      "packageName": "@zeus-js/output-css",
+      "file": "dist/output-css.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 7876,
+      "gzipBytes": 2374,
+      "brotliBytes": 2094
+    },
+    {
+      "packageName": "@zeus-js/output-css",
+      "file": "dist/output-css.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 1065,
+      "gzipBytes": 410,
+      "brotliBytes": 359
+    },
+    {
+      "packageName": "@zeus-js/output-css",
+      "file": "dist/output-css.esm-bundler.js",
+      "format": "esm-bundler",
+      "production": false,
+      "rawBytes": 9354,
+      "gzipBytes": 2455,
+      "brotliBytes": 2152
+    },
+    {
+      "packageName": "@zeus-js/output-css",
+      "file": "dist/output-css.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 7876,
+      "gzipBytes": 2374,
+      "brotliBytes": 2094
+    },
+    {
+      "packageName": "@zeus-js/output-icons",
+      "file": "dist/output-icons.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 14006,
+      "gzipBytes": 3752,
+      "brotliBytes": 3304
+    },
+    {
+      "packageName": "@zeus-js/output-icons",
+      "file": "dist/output-icons.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 1649,
+      "gzipBytes": 590,
+      "brotliBytes": 500
+    },
+    {
+      "packageName": "@zeus-js/output-icons",
+      "file": "dist/output-icons.esm-bundler.js",
+      "format": "esm-bundler",
+      "production": false,
+      "rawBytes": 12744,
+      "gzipBytes": 3269,
+      "brotliBytes": 2881
+    },
+    {
+      "packageName": "@zeus-js/output-icons",
+      "file": "dist/output-icons.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 14006,
+      "gzipBytes": 3752,
+      "brotliBytes": 3304
+    },
+    {
+      "packageName": "@zeus-js/output-react-wrapper",
+      "file": "dist/output-react-wrapper.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 23432,
+      "gzipBytes": 5770,
+      "brotliBytes": 5126
+    },
+    {
+      "packageName": "@zeus-js/output-react-wrapper",
+      "file": "dist/output-react-wrapper.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 3233,
+      "gzipBytes": 1209,
+      "brotliBytes": 1018
+    },
+    {
+      "packageName": "@zeus-js/output-react-wrapper",
+      "file": "dist/output-react-wrapper.esm-bundler.js",
+      "format": "esm-bundler",
+      "production": false,
+      "rawBytes": 23147,
+      "gzipBytes": 5678,
+      "brotliBytes": 5047
+    },
+    {
+      "packageName": "@zeus-js/output-react-wrapper",
+      "file": "dist/output-react-wrapper.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 23432,
+      "gzipBytes": 5770,
+      "brotliBytes": 5126
+    },
+    {
+      "packageName": "@zeus-js/output-react-wrapper",
+      "file": "dist/renderer/index.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 4711,
+      "gzipBytes": 1691,
+      "brotliBytes": 1446
+    },
+    {
+      "packageName": "@zeus-js/output-react-wrapper",
+      "file": "dist/renderer/index.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 1862,
+      "gzipBytes": 882,
+      "brotliBytes": 728
+    },
+    {
+      "packageName": "@zeus-js/output-react-wrapper",
+      "file": "dist/renderer/index.js",
+      "format": "other",
+      "production": false,
+      "rawBytes": 4536,
+      "gzipBytes": 1604,
+      "brotliBytes": 1390
+    },
+    {
+      "packageName": "@zeus-js/output-react-wrapper",
+      "file": "dist/renderer/index.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 4711,
+      "gzipBytes": 1691,
+      "brotliBytes": 1446
+    },
+    {
+      "packageName": "@zeus-js/output-react-wrapper",
+      "file": "dist/renderer/index.prod.js",
+      "format": "esm-bundler",
+      "production": true,
+      "rawBytes": 4536,
+      "gzipBytes": 1604,
+      "brotliBytes": 1390
+    },
+    {
+      "packageName": "@zeus-js/output-react-wrapper",
+      "file": "dist/runtime/index.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 5564,
+      "gzipBytes": 1812,
+      "brotliBytes": 1545
+    },
+    {
+      "packageName": "@zeus-js/output-react-wrapper",
+      "file": "dist/runtime/index.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 1633,
+      "gzipBytes": 646,
+      "brotliBytes": 572
+    },
+    {
+      "packageName": "@zeus-js/output-react-wrapper",
+      "file": "dist/runtime/index.js",
+      "format": "other",
+      "production": false,
+      "rawBytes": 5437,
+      "gzipBytes": 1749,
+      "brotliBytes": 1501
+    },
+    {
+      "packageName": "@zeus-js/output-react-wrapper",
+      "file": "dist/runtime/index.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 5564,
+      "gzipBytes": 1812,
+      "brotliBytes": 1545
+    },
+    {
+      "packageName": "@zeus-js/output-react-wrapper",
+      "file": "dist/runtime/index.prod.js",
+      "format": "esm-bundler",
+      "production": true,
+      "rawBytes": 5437,
+      "gzipBytes": 1749,
+      "brotliBytes": 1501
+    },
+    {
+      "packageName": "@zeus-js/output-vue-wrapper",
+      "file": "dist/output-vue-wrapper.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 21701,
+      "gzipBytes": 5562,
+      "brotliBytes": 4930
+    },
+    {
+      "packageName": "@zeus-js/output-vue-wrapper",
+      "file": "dist/output-vue-wrapper.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 2149,
+      "gzipBytes": 843,
+      "brotliBytes": 706
+    },
+    {
+      "packageName": "@zeus-js/output-vue-wrapper",
+      "file": "dist/output-vue-wrapper.esm-bundler.js",
+      "format": "esm-bundler",
+      "production": false,
+      "rawBytes": 21398,
+      "gzipBytes": 5467,
+      "brotliBytes": 4851
+    },
+    {
+      "packageName": "@zeus-js/output-vue-wrapper",
+      "file": "dist/output-vue-wrapper.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 21701,
+      "gzipBytes": 5562,
+      "brotliBytes": 4930
+    },
+    {
+      "packageName": "@zeus-js/output-vue-wrapper",
+      "file": "dist/renderer/index.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 4103,
+      "gzipBytes": 1494,
+      "brotliBytes": 1294
+    },
+    {
+      "packageName": "@zeus-js/output-vue-wrapper",
+      "file": "dist/renderer/index.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 1227,
+      "gzipBytes": 607,
+      "brotliBytes": 502
+    },
+    {
+      "packageName": "@zeus-js/output-vue-wrapper",
+      "file": "dist/renderer/index.js",
+      "format": "other",
+      "production": false,
+      "rawBytes": 3975,
+      "gzipBytes": 1431,
+      "brotliBytes": 1218
+    },
+    {
+      "packageName": "@zeus-js/output-vue-wrapper",
+      "file": "dist/renderer/index.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 4103,
+      "gzipBytes": 1494,
+      "brotliBytes": 1294
+    },
+    {
+      "packageName": "@zeus-js/output-vue-wrapper",
+      "file": "dist/renderer/index.prod.js",
+      "format": "esm-bundler",
+      "production": true,
+      "rawBytes": 3975,
+      "gzipBytes": 1431,
+      "brotliBytes": 1218
+    },
+    {
+      "packageName": "@zeus-js/output-vue-wrapper",
+      "file": "dist/runtime/index.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 5422,
+      "gzipBytes": 1797,
+      "brotliBytes": 1567
+    },
+    {
+      "packageName": "@zeus-js/output-vue-wrapper",
+      "file": "dist/runtime/index.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 764,
+      "gzipBytes": 374,
+      "brotliBytes": 305
+    },
+    {
+      "packageName": "@zeus-js/output-vue-wrapper",
+      "file": "dist/runtime/index.js",
+      "format": "other",
+      "production": false,
+      "rawBytes": 5314,
+      "gzipBytes": 1731,
+      "brotliBytes": 1522
+    },
+    {
+      "packageName": "@zeus-js/output-vue-wrapper",
+      "file": "dist/runtime/index.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 5422,
+      "gzipBytes": 1797,
+      "brotliBytes": 1567
+    },
+    {
+      "packageName": "@zeus-js/output-vue-wrapper",
+      "file": "dist/runtime/index.prod.js",
+      "format": "esm-bundler",
+      "production": true,
+      "rawBytes": 5314,
+      "gzipBytes": 1731,
+      "brotliBytes": 1522
+    },
+    {
+      "packageName": "@zeus-js/output-wc",
+      "file": "dist/capabilities.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 739,
+      "gzipBytes": 412,
+      "brotliBytes": 315
+    },
+    {
+      "packageName": "@zeus-js/output-wc",
+      "file": "dist/capabilities.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 885,
+      "gzipBytes": 307,
+      "brotliBytes": 241
+    },
+    {
+      "packageName": "@zeus-js/output-wc",
+      "file": "dist/capabilities.js",
+      "format": "other",
+      "production": false,
+      "rawBytes": 513,
+      "gzipBytes": 287,
+      "brotliBytes": 240
+    },
+    {
+      "packageName": "@zeus-js/output-wc",
+      "file": "dist/capabilities.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 739,
+      "gzipBytes": 412,
+      "brotliBytes": 315
+    },
+    {
+      "packageName": "@zeus-js/output-wc",
+      "file": "dist/capabilities.prod.js",
+      "format": "esm-bundler",
+      "production": true,
+      "rawBytes": 513,
+      "gzipBytes": 287,
+      "brotliBytes": 240
+    },
+    {
+      "packageName": "@zeus-js/output-wc",
+      "file": "dist/output-wc.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 39591,
+      "gzipBytes": 9601,
+      "brotliBytes": 8484
+    },
+    {
+      "packageName": "@zeus-js/output-wc",
+      "file": "dist/output-wc.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 2107,
+      "gzipBytes": 771,
+      "brotliBytes": 668
+    },
+    {
+      "packageName": "@zeus-js/output-wc",
+      "file": "dist/output-wc.esm-bundler.js",
+      "format": "esm-bundler",
+      "production": false,
+      "rawBytes": 40098,
+      "gzipBytes": 9729,
+      "brotliBytes": 8603
+    },
+    {
+      "packageName": "@zeus-js/output-wc",
+      "file": "dist/output-wc.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 39591,
+      "gzipBytes": 9601,
+      "brotliBytes": 8484
+    },
+    {
+      "packageName": "@zeus-js/playground-engine",
+      "file": "dist/hmr.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 5718,
+      "gzipBytes": 2124,
+      "brotliBytes": 1803
+    },
+    {
+      "packageName": "@zeus-js/playground-engine",
+      "file": "dist/hmr.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 723,
+      "gzipBytes": 392,
+      "brotliBytes": 310
+    },
+    {
+      "packageName": "@zeus-js/playground-engine",
+      "file": "dist/hmr.js",
+      "format": "other",
+      "production": false,
+      "rawBytes": 5555,
+      "gzipBytes": 2055,
+      "brotliBytes": 1751
+    },
+    {
+      "packageName": "@zeus-js/playground-engine",
+      "file": "dist/hmr.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 5718,
+      "gzipBytes": 2124,
+      "brotliBytes": 1803
+    },
+    {
+      "packageName": "@zeus-js/playground-engine",
+      "file": "dist/hmr.prod.js",
+      "format": "esm-bundler",
+      "production": true,
+      "rawBytes": 5555,
+      "gzipBytes": 2055,
+      "brotliBytes": 1751
+    },
+    {
+      "packageName": "@zeus-js/playground-engine",
+      "file": "dist/playground-engine.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 74173,
+      "gzipBytes": 19140,
+      "brotliBytes": 16441
+    },
+    {
+      "packageName": "@zeus-js/playground-engine",
+      "file": "dist/playground-engine.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 18826,
+      "gzipBytes": 4840,
+      "brotliBytes": 4128
+    },
+    {
+      "packageName": "@zeus-js/playground-engine",
+      "file": "dist/playground-engine.esm-bundler.js",
+      "format": "esm-bundler",
+      "production": false,
+      "rawBytes": 77317,
+      "gzipBytes": 20036,
+      "brotliBytes": 17222
+    },
+    {
+      "packageName": "@zeus-js/playground-engine",
+      "file": "dist/playground-engine.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 74173,
+      "gzipBytes": 19140,
+      "brotliBytes": 16441
+    },
+    {
+      "packageName": "@zeus-js/query",
+      "file": "dist/query.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 15519,
+      "gzipBytes": 3512,
+      "brotliBytes": 3029
+    },
+    {
+      "packageName": "@zeus-js/query",
+      "file": "dist/query.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 9979,
+      "gzipBytes": 2523,
+      "brotliBytes": 2181
+    },
+    {
+      "packageName": "@zeus-js/query",
+      "file": "dist/query.esm-bundler.js",
+      "format": "esm-bundler",
+      "production": false,
+      "rawBytes": 15686,
+      "gzipBytes": 3711,
+      "brotliBytes": 3248
+    },
+    {
+      "packageName": "@zeus-js/query",
+      "file": "dist/query.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 15519,
+      "gzipBytes": 3512,
+      "brotliBytes": 3029
+    },
+    {
+      "packageName": "@zeus-js/resource",
+      "file": "dist/resource.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 4414,
+      "gzipBytes": 1441,
+      "brotliBytes": 1259
+    },
+    {
+      "packageName": "@zeus-js/resource",
+      "file": "dist/resource.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 1715,
+      "gzipBytes": 698,
+      "brotliBytes": 561
+    },
+    {
+      "packageName": "@zeus-js/resource",
+      "file": "dist/resource.esm-bundler.js",
+      "format": "esm-bundler",
+      "production": false,
+      "rawBytes": 6884,
+      "gzipBytes": 2184,
+      "brotliBytes": 1942
+    },
+    {
+      "packageName": "@zeus-js/resource",
+      "file": "dist/resource.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 4414,
+      "gzipBytes": 1441,
+      "brotliBytes": 1259
+    },
+    {
+      "packageName": "@zeus-js/router",
+      "file": "dist/router.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 26363,
+      "gzipBytes": 7134,
+      "brotliBytes": 6184
+    },
+    {
+      "packageName": "@zeus-js/router",
+      "file": "dist/router.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 12677,
+      "gzipBytes": 3479,
+      "brotliBytes": 2954
+    },
+    {
+      "packageName": "@zeus-js/router",
+      "file": "dist/router.esm-browser.js",
+      "format": "esm-browser",
+      "production": false,
+      "rawBytes": 224212,
+      "gzipBytes": 53424,
+      "brotliBytes": 45399
+    },
+    {
+      "packageName": "@zeus-js/router",
+      "file": "dist/router.esm-browser.prod.js",
+      "format": "esm-browser",
+      "production": true,
+      "rawBytes": 90751,
+      "gzipBytes": 30250,
+      "brotliBytes": 27065
+    },
+    {
+      "packageName": "@zeus-js/router",
+      "file": "dist/router.esm-bundler.js",
+      "format": "esm-bundler",
+      "production": false,
+      "rawBytes": 28393,
+      "gzipBytes": 7877,
+      "brotliBytes": 6877
+    },
+    {
+      "packageName": "@zeus-js/router",
+      "file": "dist/router.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 26363,
+      "gzipBytes": 7134,
+      "brotliBytes": 6184
+    },
+    {
+      "packageName": "@zeus-js/runtime-dom",
+      "file": "dist/runtime-dom.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 153535,
+      "gzipBytes": 35617,
+      "brotliBytes": 29919
+    },
+    {
+      "packageName": "@zeus-js/runtime-dom",
+      "file": "dist/runtime-dom.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 32520,
+      "gzipBytes": 8059,
+      "brotliBytes": 7069
+    },
+    {
+      "packageName": "@zeus-js/runtime-dom",
+      "file": "dist/runtime-dom.esm-browser.js",
+      "format": "esm-browser",
+      "production": false,
+      "rawBytes": 204177,
+      "gzipBytes": 48169,
+      "brotliBytes": 40813
+    },
+    {
+      "packageName": "@zeus-js/runtime-dom",
+      "file": "dist/runtime-dom.esm-browser.prod.js",
+      "format": "esm-browser",
+      "production": true,
+      "rawBytes": 80232,
+      "gzipBytes": 26090,
+      "brotliBytes": 23446
+    },
+    {
+      "packageName": "@zeus-js/runtime-dom",
+      "file": "dist/runtime-dom.esm-bundler.js",
+      "format": "esm-bundler",
+      "production": false,
+      "rawBytes": 153104,
+      "gzipBytes": 36185,
+      "brotliBytes": 30367
+    },
+    {
+      "packageName": "@zeus-js/runtime-dom",
+      "file": "dist/runtime-dom.global.js",
+      "format": "global",
+      "production": false,
+      "rawBytes": 212210,
+      "gzipBytes": 48764,
+      "brotliBytes": 41292
+    },
+    {
+      "packageName": "@zeus-js/runtime-dom",
+      "file": "dist/runtime-dom.global.prod.js",
+      "format": "global",
+      "production": true,
+      "rawBytes": 80176,
+      "gzipBytes": 26095,
+      "brotliBytes": 23496
+    },
+    {
+      "packageName": "@zeus-js/runtime-dom",
+      "file": "dist/runtime-dom.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 147182,
+      "gzipBytes": 33999,
+      "brotliBytes": 28710
+    },
+    {
+      "packageName": "@zeus-js/runtime-ssr",
+      "file": "dist/runtime-ssr.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 39714,
+      "gzipBytes": 10920,
+      "brotliBytes": 9445
+    },
+    {
+      "packageName": "@zeus-js/runtime-ssr",
+      "file": "dist/runtime-ssr.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 14101,
+      "gzipBytes": 4118,
+      "brotliBytes": 3559
+    },
+    {
+      "packageName": "@zeus-js/runtime-ssr",
+      "file": "dist/runtime-ssr.esm-bundler.js",
+      "format": "esm-bundler",
+      "production": false,
+      "rawBytes": 38726,
+      "gzipBytes": 10751,
+      "brotliBytes": 9272
+    },
+    {
+      "packageName": "@zeus-js/runtime-ssr",
+      "file": "dist/runtime-ssr.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 39592,
+      "gzipBytes": 10876,
+      "brotliBytes": 9396
+    },
+    {
+      "packageName": "@zeus-js/shared",
+      "file": "dist/shared.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 8972,
+      "gzipBytes": 3011,
+      "brotliBytes": 2580
+    },
+    {
+      "packageName": "@zeus-js/shared",
+      "file": "dist/shared.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 5542,
+      "gzipBytes": 1873,
+      "brotliBytes": 1609
+    },
+    {
+      "packageName": "@zeus-js/shared",
+      "file": "dist/shared.esm-bundler.js",
+      "format": "esm-bundler",
+      "production": false,
+      "rawBytes": 7885,
+      "gzipBytes": 2822,
+      "brotliBytes": 2427
+    },
+    {
+      "packageName": "@zeus-js/shared",
+      "file": "dist/shared.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 8942,
+      "gzipBytes": 3005,
+      "brotliBytes": 2575
+    },
+    {
+      "packageName": "@zeus-js/signal",
+      "file": "dist/diagnostics.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 364,
+      "gzipBytes": 258,
+      "brotliBytes": 210
+    },
+    {
+      "packageName": "@zeus-js/signal",
+      "file": "dist/diagnostics.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 131,
+      "gzipBytes": 108,
+      "brotliBytes": 91
+    },
+    {
+      "packageName": "@zeus-js/signal",
+      "file": "dist/diagnostics.js",
+      "format": "other",
+      "production": false,
+      "rawBytes": 204,
+      "gzipBytes": 165,
+      "brotliBytes": 143
+    },
+    {
+      "packageName": "@zeus-js/signal",
+      "file": "dist/diagnostics.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 364,
+      "gzipBytes": 258,
+      "brotliBytes": 210
+    },
+    {
+      "packageName": "@zeus-js/signal",
+      "file": "dist/diagnostics.prod.js",
+      "format": "esm-bundler",
+      "production": true,
+      "rawBytes": 204,
+      "gzipBytes": 165,
+      "brotliBytes": 143
+    },
+    {
+      "packageName": "@zeus-js/signal",
+      "file": "dist/internal.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 66405,
+      "gzipBytes": 16174,
+      "brotliBytes": 14051
+    },
+    {
+      "packageName": "@zeus-js/signal",
+      "file": "dist/internal.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 14762,
+      "gzipBytes": 4319,
+      "brotliBytes": 3769
+    },
+    {
+      "packageName": "@zeus-js/signal",
+      "file": "dist/internal.js",
+      "format": "other",
+      "production": false,
+      "rawBytes": 64287,
+      "gzipBytes": 15949,
+      "brotliBytes": 13869
+    },
+    {
+      "packageName": "@zeus-js/signal",
+      "file": "dist/internal.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 63076,
+      "gzipBytes": 15245,
+      "brotliBytes": 13277
+    },
+    {
+      "packageName": "@zeus-js/signal",
+      "file": "dist/internal.prod.js",
+      "format": "esm-bundler",
+      "production": true,
+      "rawBytes": 64287,
+      "gzipBytes": 15949,
+      "brotliBytes": 13869
+    },
+    {
+      "packageName": "@zeus-js/signal",
+      "file": "dist/signal.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 608,
+      "gzipBytes": 293,
+      "brotliBytes": 256
+    },
+    {
+      "packageName": "@zeus-js/signal",
+      "file": "dist/signal.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 131,
+      "gzipBytes": 124,
+      "brotliBytes": 107
+    },
+    {
+      "packageName": "@zeus-js/signal",
+      "file": "dist/signal.esm-browser.js",
+      "format": "esm-browser",
+      "production": false,
+      "rawBytes": 51494,
+      "gzipBytes": 12806,
+      "brotliBytes": 11273
+    },
+    {
+      "packageName": "@zeus-js/signal",
+      "file": "dist/signal.esm-browser.prod.js",
+      "format": "esm-browser",
+      "production": true,
+      "rawBytes": 17642,
+      "gzipBytes": 6320,
+      "brotliBytes": 5816
+    },
+    {
+      "packageName": "@zeus-js/signal",
+      "file": "dist/signal.esm-bundler.js",
+      "format": "esm-bundler",
+      "production": false,
+      "rawBytes": 278,
+      "gzipBytes": 181,
+      "brotliBytes": 140
+    },
+    {
+      "packageName": "@zeus-js/signal",
+      "file": "dist/signal.global.js",
+      "format": "global",
+      "production": false,
+      "rawBytes": 53448,
+      "gzipBytes": 12962,
+      "brotliBytes": 11388
+    },
+    {
+      "packageName": "@zeus-js/signal",
+      "file": "dist/signal.global.prod.js",
+      "format": "global",
+      "production": true,
+      "rawBytes": 17702,
+      "gzipBytes": 6355,
+      "brotliBytes": 5844
+    },
+    {
+      "packageName": "@zeus-js/signal",
+      "file": "dist/signal.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 608,
+      "gzipBytes": 293,
+      "brotliBytes": 256
+    },
+    {
+      "packageName": "@zeus-js/testing",
+      "file": "dist/testing.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 10702,
+      "gzipBytes": 3376,
+      "brotliBytes": 2910
+    },
+    {
+      "packageName": "@zeus-js/testing",
+      "file": "dist/testing.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 3575,
+      "gzipBytes": 1144,
+      "brotliBytes": 954
+    },
+    {
+      "packageName": "@zeus-js/testing",
+      "file": "dist/testing.esm-bundler.js",
+      "format": "esm-bundler",
+      "production": false,
+      "rawBytes": 10195,
+      "gzipBytes": 3234,
+      "brotliBytes": 2787
+    },
+    {
+      "packageName": "@zeus-js/testing",
+      "file": "dist/testing.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 10702,
+      "gzipBytes": 3376,
+      "brotliBytes": 2910
+    },
+    {
+      "packageName": "@zeus-js/vite-plugin",
+      "file": "dist/vite-plugin.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 19253,
+      "gzipBytes": 6001,
+      "brotliBytes": 5287
+    },
+    {
+      "packageName": "@zeus-js/vite-plugin",
+      "file": "dist/vite-plugin.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 1524,
+      "gzipBytes": 621,
+      "brotliBytes": 517
+    },
+    {
+      "packageName": "@zeus-js/vite-plugin",
+      "file": "dist/vite-plugin.esm-bundler.js",
+      "format": "esm-bundler",
+      "production": false,
+      "rawBytes": 17829,
+      "gzipBytes": 5488,
+      "brotliBytes": 4838
+    },
+    {
+      "packageName": "@zeus-js/vite-plugin",
+      "file": "dist/vite-plugin.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 19253,
+      "gzipBytes": 6001,
+      "brotliBytes": 5287
+    },
+    {
+      "packageName": "@zeus-js/web-c",
+      "file": "dist/rolldown.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 5460,
+      "gzipBytes": 1593,
+      "brotliBytes": 1394
+    },
+    {
+      "packageName": "@zeus-js/web-c",
+      "file": "dist/rolldown.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 2650,
+      "gzipBytes": 933,
+      "brotliBytes": 790
+    },
+    {
+      "packageName": "@zeus-js/web-c",
+      "file": "dist/rolldown.js",
+      "format": "other",
+      "production": false,
+      "rawBytes": 3330,
+      "gzipBytes": 1026,
+      "brotliBytes": 884
+    },
+    {
+      "packageName": "@zeus-js/web-c",
+      "file": "dist/rolldown.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 5460,
+      "gzipBytes": 1593,
+      "brotliBytes": 1394
+    },
+    {
+      "packageName": "@zeus-js/web-c",
+      "file": "dist/rolldown.prod.js",
+      "format": "esm-bundler",
+      "production": true,
+      "rawBytes": 3330,
+      "gzipBytes": 1026,
+      "brotliBytes": 884
+    },
+    {
+      "packageName": "@zeus-js/web-c",
+      "file": "dist/rollup.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 5446,
+      "gzipBytes": 1594,
+      "brotliBytes": 1396
+    },
+    {
+      "packageName": "@zeus-js/web-c",
+      "file": "dist/rollup.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 2640,
+      "gzipBytes": 931,
+      "brotliBytes": 791
+    },
+    {
+      "packageName": "@zeus-js/web-c",
+      "file": "dist/rollup.js",
+      "format": "other",
+      "production": false,
+      "rawBytes": 3314,
+      "gzipBytes": 1023,
+      "brotliBytes": 879
+    },
+    {
+      "packageName": "@zeus-js/web-c",
+      "file": "dist/rollup.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 5446,
+      "gzipBytes": 1594,
+      "brotliBytes": 1396
+    },
+    {
+      "packageName": "@zeus-js/web-c",
+      "file": "dist/rollup.prod.js",
+      "format": "esm-bundler",
+      "production": true,
+      "rawBytes": 3314,
+      "gzipBytes": 1023,
+      "brotliBytes": 879
+    },
+    {
+      "packageName": "@zeus-js/web-c",
+      "file": "dist/vite.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 5432,
+      "gzipBytes": 1584,
+      "brotliBytes": 1391
+    },
+    {
+      "packageName": "@zeus-js/web-c",
+      "file": "dist/vite.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 2607,
+      "gzipBytes": 916,
+      "brotliBytes": 780
+    },
+    {
+      "packageName": "@zeus-js/web-c",
+      "file": "dist/vite.js",
+      "format": "other",
+      "production": false,
+      "rawBytes": 3276,
+      "gzipBytes": 1010,
+      "brotliBytes": 864
+    },
+    {
+      "packageName": "@zeus-js/web-c",
+      "file": "dist/vite.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 5432,
+      "gzipBytes": 1584,
+      "brotliBytes": 1391
+    },
+    {
+      "packageName": "@zeus-js/web-c",
+      "file": "dist/vite.prod.js",
+      "format": "esm-bundler",
+      "production": true,
+      "rawBytes": 3276,
+      "gzipBytes": 1010,
+      "brotliBytes": 864
+    },
+    {
+      "packageName": "@zeus-js/web-c",
+      "file": "dist/web-c.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 6018,
+      "gzipBytes": 1685,
+      "brotliBytes": 1473
+    },
+    {
+      "packageName": "@zeus-js/web-c",
+      "file": "dist/web-c.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 3543,
+      "gzipBytes": 1082,
+      "brotliBytes": 930
+    },
+    {
+      "packageName": "@zeus-js/web-c",
+      "file": "dist/web-c.esm-bundler.js",
+      "format": "esm-bundler",
+      "production": false,
+      "rawBytes": 3387,
+      "gzipBytes": 1049,
+      "brotliBytes": 897
+    },
+    {
+      "packageName": "@zeus-js/web-c",
+      "file": "dist/web-c.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 6018,
+      "gzipBytes": 1685,
+      "brotliBytes": 1473
+    },
+    {
+      "packageName": "@zeus-js/web-c-runtime",
+      "file": "dist/web-c-runtime.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 6108,
+      "gzipBytes": 2200,
+      "brotliBytes": 1841
+    },
+    {
+      "packageName": "@zeus-js/web-c-runtime",
+      "file": "dist/web-c-runtime.esm-bundler.js",
+      "format": "esm-bundler",
+      "production": false,
+      "rawBytes": 30235,
+      "gzipBytes": 7231,
+      "brotliBytes": 6345
+    },
+    {
+      "packageName": "@zeus-js/zeus",
+      "file": "dist/capabilities.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 993,
+      "gzipBytes": 506,
+      "brotliBytes": 411
+    },
+    {
+      "packageName": "@zeus-js/zeus",
+      "file": "dist/capabilities.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 1372,
+      "gzipBytes": 405,
+      "brotliBytes": 327
+    },
+    {
+      "packageName": "@zeus-js/zeus",
+      "file": "dist/capabilities.js",
+      "format": "other",
+      "production": false,
+      "rawBytes": 782,
+      "gzipBytes": 384,
+      "brotliBytes": 313
+    },
+    {
+      "packageName": "@zeus-js/zeus",
+      "file": "dist/capabilities.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 993,
+      "gzipBytes": 506,
+      "brotliBytes": 411
+    },
+    {
+      "packageName": "@zeus-js/zeus",
+      "file": "dist/capabilities.prod.js",
+      "format": "esm-bundler",
+      "production": true,
+      "rawBytes": 782,
+      "gzipBytes": 384,
+      "brotliBytes": 313
+    },
+    {
+      "packageName": "@zeus-js/zeus",
+      "file": "dist/server.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 1718,
+      "gzipBytes": 539,
+      "brotliBytes": 471
+    },
+    {
+      "packageName": "@zeus-js/zeus",
+      "file": "dist/server.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 913,
+      "gzipBytes": 439,
+      "brotliBytes": 373
+    },
+    {
+      "packageName": "@zeus-js/zeus",
+      "file": "dist/server.js",
+      "format": "other",
+      "production": false,
+      "rawBytes": 830,
+      "gzipBytes": 366,
+      "brotliBytes": 310
+    },
+    {
+      "packageName": "@zeus-js/zeus",
+      "file": "dist/server.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 1718,
+      "gzipBytes": 539,
+      "brotliBytes": 471
+    },
+    {
+      "packageName": "@zeus-js/zeus",
+      "file": "dist/server.prod.js",
+      "format": "esm-bundler",
+      "production": true,
+      "rawBytes": 830,
+      "gzipBytes": 366,
+      "brotliBytes": 310
+    },
+    {
+      "packageName": "@zeus-js/zeus",
+      "file": "dist/zeus.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 1852,
+      "gzipBytes": 535,
+      "brotliBytes": 460
+    },
+    {
+      "packageName": "@zeus-js/zeus",
+      "file": "dist/zeus.d.mts",
+      "format": "other",
+      "production": false,
+      "rawBytes": 1516,
+      "gzipBytes": 581,
+      "brotliBytes": 495
+    },
+    {
+      "packageName": "@zeus-js/zeus",
+      "file": "dist/zeus.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 1516,
+      "gzipBytes": 581,
+      "brotliBytes": 495
+    },
+    {
+      "packageName": "@zeus-js/zeus",
+      "file": "dist/zeus.esm-browser.js",
+      "format": "esm-browser",
+      "production": false,
+      "rawBytes": 171835,
+      "gzipBytes": 41184,
+      "brotliBytes": 35035
+    },
+    {
+      "packageName": "@zeus-js/zeus",
+      "file": "dist/zeus.esm-browser.prod.js",
+      "format": "esm-browser",
+      "production": true,
+      "rawBytes": 67401,
+      "gzipBytes": 21881,
+      "brotliBytes": 19821
+    },
+    {
+      "packageName": "@zeus-js/zeus",
+      "file": "dist/zeus.esm-bundler.js",
+      "format": "esm-bundler",
+      "production": false,
+      "rawBytes": 844,
+      "gzipBytes": 350,
+      "brotliBytes": 299
+    },
+    {
+      "packageName": "@zeus-js/zeus",
+      "file": "dist/zeus.global.js",
+      "format": "global",
+      "production": false,
+      "rawBytes": 177738,
+      "gzipBytes": 41567,
+      "brotliBytes": 35325
+    },
+    {
+      "packageName": "@zeus-js/zeus",
+      "file": "dist/zeus.global.prod.js",
+      "format": "global",
+      "production": true,
+      "rawBytes": 67385,
+      "gzipBytes": 21894,
+      "brotliBytes": 19822
+    },
+    {
+      "packageName": "@zeus-js/zeus",
+      "file": "dist/zeus.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 1852,
+      "gzipBytes": 535,
+      "brotliBytes": 460
+    },
+    {
+      "packageName": "@zeus-ui/registry",
+      "file": "dist/registry.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 26397,
+      "gzipBytes": 4278,
+      "brotliBytes": 3693
+    },
+    {
+      "packageName": "@zeus-ui/registry",
+      "file": "dist/registry.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 1873,
+      "gzipBytes": 617,
+      "brotliBytes": 517
+    },
+    {
+      "packageName": "@zeus-ui/registry",
+      "file": "dist/registry.esm-bundler.js",
+      "format": "esm-bundler",
+      "production": false,
+      "rawBytes": 26194,
+      "gzipBytes": 4195,
+      "brotliBytes": 3630
+    },
+    {
+      "packageName": "@zeus-ui/registry",
+      "file": "dist/registry.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 26397,
+      "gzipBytes": 4278,
+      "brotliBytes": 3693
+    },
+    {
+      "packageName": "@zeus-ui/registry",
+      "file": "dist/shared/cn.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 489,
+      "gzipBytes": 338,
+      "brotliBytes": 267
+    },
+    {
+      "packageName": "@zeus-ui/registry",
+      "file": "dist/shared/cn.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 42,
+      "gzipBytes": 62,
+      "brotliBytes": 42
+    },
+    {
+      "packageName": "@zeus-ui/registry",
+      "file": "dist/shared/cn.js",
+      "format": "other",
+      "production": false,
+      "rawBytes": 367,
+      "gzipBytes": 267,
+      "brotliBytes": 216
+    },
+    {
+      "packageName": "@zeus-ui/registry",
+      "file": "dist/shared/cn.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 489,
+      "gzipBytes": 338,
+      "brotliBytes": 267
+    },
+    {
+      "packageName": "@zeus-ui/registry",
+      "file": "dist/shared/cn.prod.js",
+      "format": "esm-bundler",
+      "production": true,
+      "rawBytes": 367,
+      "gzipBytes": 267,
+      "brotliBytes": 216
+    },
+    {
+      "packageName": "@zeus-ui/registry",
+      "file": "dist/shared/theme.cjs",
+      "format": "cjs",
+      "production": false,
+      "rawBytes": 1304,
+      "gzipBytes": 529,
+      "brotliBytes": 429
+    },
+    {
+      "packageName": "@zeus-ui/registry",
+      "file": "dist/shared/theme.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 1061,
+      "gzipBytes": 354,
+      "brotliBytes": 294
+    },
+    {
+      "packageName": "@zeus-ui/registry",
+      "file": "dist/shared/theme.js",
+      "format": "other",
+      "production": false,
+      "rawBytes": 1176,
+      "gzipBytes": 451,
+      "brotliBytes": 371
+    },
+    {
+      "packageName": "@zeus-ui/registry",
+      "file": "dist/shared/theme.prod.cjs",
+      "format": "cjs",
+      "production": true,
+      "rawBytes": 1304,
+      "gzipBytes": 529,
+      "brotliBytes": 429
+    },
+    {
+      "packageName": "@zeus-ui/registry",
+      "file": "dist/shared/theme.prod.js",
+      "format": "esm-bundler",
+      "production": true,
+      "rawBytes": 1176,
+      "gzipBytes": 451,
+      "brotliBytes": 371
+    }
+  ]
+}
