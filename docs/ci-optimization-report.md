@@ -162,3 +162,7 @@ never fired.
 It is **not part of these commits**. It was stashed and restored around each
 commit so the type-check hook would not fail on unrelated files. Whoever owns
 branch `perf/build-size-audit` should land it separately.
+
+## Branch protection is on
+
+Verified by `gh api repos/baicie/zeus/rules/branches/main`: deletion, non-fast-forward and a required `ci-gate` status check.
