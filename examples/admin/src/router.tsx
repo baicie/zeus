@@ -18,6 +18,7 @@ import {
   UserPage,
   UsersPage,
 } from './pages'
+import { ComponentsPage } from './gallery'
 import { AdminShell } from './shell/shell'
 import {
   adminSummaryQueryKey,
@@ -109,6 +110,12 @@ export function createAdminRouter(options: AdminRouterOptions): ZeusRouter {
                 return null
               },
               element: () => <RolesPage />,
+              errorElement: () => <ErrorPage />,
+            },
+            {
+              id: 'components',
+              path: 'components',
+              element: () => <ComponentsPage />,
               errorElement: () => <ErrorPage />,
             },
             {

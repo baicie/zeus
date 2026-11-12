@@ -340,9 +340,94 @@ for (const [name, engine] of selectedBrowsers) {
     await page.goto(`${origin}/admin/audit`)
     await expect(page.getByTestId('audit-page')).toBeVisible()
     await expect(page.getByTestId('audit-table')).toContainText('login')
+    /*
+     * Component gallery. The point is not that elements exist: every example
+     * has to react. Dialogs open and confirm, validation rejects a bad email,
+     * tabs and accordions switch, and the switch flips its own state.
+     */
+    await page.goto(`${origin}/admin/components`)
+    await expect(page.getByTestId('components-page')).toBeVisible()
+    for (const section of [
+      'actions',
+      'forms',
+      'data',
+      'navigation',
+      'states',
+    ]) {
+      await expect(page.getByTestId(`gallery-${section}`)).toBeVisible()
+    }
+    await page.getByTestId('gallery-open-dialog').click()
+    await expect(page.getByTestId('gallery-dialog')).toBeVisible()
+    await page.getByTestId('gallery-confirm-dialog').click()
+    await expect(page.getByTestId('gallery-dialog')).toHaveCount(0)
+    await expect(page.getByTestId('gallery-toast')).toContainText('Confirmed.')
+    await page.getByTestId('gallery-email').fill('not-an-email')
+    await page.getByTestId('gallery-submit').click()
+    await expect(page.getByTestId('gallery-email-error')).toBeVisible()
+    await page.getByTestId('gallery-email').fill('ada@example.test')
+    await page.getByTestId('gallery-submit').click()
+    await expect(page.getByTestId('gallery-form-ok')).toBeVisible()
+    await page.getByTestId('gallery-tab-two').click()
+    await expect(page.getByTestId('gallery-tab-panel')).toHaveText(
+      'The second panel.',
+    )
+    await page.getByTestId('gallery-accordion-b').click()
+    await expect(page.getByTestId('gallery-accordion-b')).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
+    await page.getByTestId('gallery-switch').click()
+    await expect(page.getByTestId('gallery-switch')).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    await expect(page.getByTestId('gallery-progress')).toHaveAttribute(
+      'aria-valuenow',
+      '40',
+    )
+    await expect(page.getByTestId('gallery-empty')).toBeVisible()
+    await expect(page.getByTestId('gallery-error')).toBeVisible()
+    await expect(page.getByTestId('gallery-success')).toBeVisible()
+
     await page.goto(`${origin}/admin/roles`)
     await expect(page.getByTestId('roles-page')).toBeVisible()
-    await expect(page.getByTestId('role-admin')).toContainText('role changes')
+    // Member counts come from the directory, not from literals: the seeded
+    // admin has one administrator (the signed-in user) and the rest are
+    // viewers. The matrix answers capabilities; the cards answer membership.
+    await expect(page.getByTestId('role-admin-count')).toContainText('1 member')
+    await expect(page.getByTestId('role-matrix')).toContainText(
+      'Create and edit members',
+    )
+    // Each cell carries its answer as an accessible name ("Allowed" /
+    // "Not allowed"), so the matrix is readable without seeing the icon.
+    // Both roles delete members? No: admin may, viewer may not. The row has
+    // one cell per role, so there is exactly one "Allowed" and one "Not
+    // allowed" in this row — the assertion proves the matrix is not uniform.
+    await expect(
+      page
+        .getByTestId('capability-users.delete')
+        .getByLabel('Allowed', { exact: true }),
+    ).toHaveCount(1)
+    await expect(
+      page.getByTestId('capability-users.delete').getByLabel('Not allowed', {
+        exact: true,
+      }),
+    ).toHaveCount(1)
+    // Assigning a role goes through the real PATCH and is reflected in the
+    // counts without a reload.
+    await page.getByTestId('role-assignee').selectOption('grace')
+    await page.getByTestId('role-target').selectOption('admin')
+    await page.getByTestId('role-assign').click()
+    await expect(page.getByTestId('role-assign-status')).toContainText(
+      'Grace Hopper is now Administrator',
+    )
+    await expect(page.getByTestId('role-admin-count')).toContainText(
+      '2 members',
+    )
+    // Put it back so later assertions see the seeded distribution.
+    await page.getByTestId('role-target').selectOption('viewer')
+    await page.getByTestId('role-assign').click()
+    await expect(page.getByTestId('role-admin-count')).toContainText('1 member')
     await page.goto(`${origin}/admin/settings`)
     await expect(page.getByTestId('settings-page')).toBeVisible()
     await page.getByLabel('Workspace name').fill('Operations Console')
