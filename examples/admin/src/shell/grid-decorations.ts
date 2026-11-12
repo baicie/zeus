@@ -23,12 +23,14 @@ interface DecorateOptions {
   readonly onAction: (rowKey: string, point: { x: number; y: number }) => void
   /** Viewers never get the destructive action, so the button is hidden. */
   readonly isAdmin: () => boolean
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  active: '活跃',
-  invited: '待邀请',
-  suspended: '已暂停',
+  /**
+   * Localized status labels.
+   *
+   * Passed in rather than imported so this module stays a DOM decorator with no
+   * dependency on the i18n instance — and so a language switch can hand it a
+   * new map and re-decorate without rebuilding the grid.
+   */
+  readonly statusLabels: () => Readonly<Record<string, string>>
 }
 
 const STATUS_CLASSES: Record<string, string> = {
@@ -68,7 +70,7 @@ export function decorateUserGrid(
   function decorateStatus(cell: HTMLElement): void {
     const raw = (cell.textContent ?? '').trim()
     if (!raw) return
-    const wanted = STATUS_LABELS[raw] ?? raw
+    const wanted = options.statusLabels()[raw] ?? raw
     const existing = cell.querySelector<HTMLElement>(':scope > .badge')
     if (existing) {
       if (existing.textContent !== wanted) existing.textContent = wanted

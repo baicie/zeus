@@ -20,7 +20,7 @@ import { createI18n, negotiateLocale, type Locale } from '@zeus-js/i18n'
 import { en, type AdminMessageKey } from './locales/en'
 import { zhCN } from './locales/zh-CN'
 
-export const i18n = createI18n({
+export const i18n = createI18n<AdminMessageKey>({
   messages: { en, 'zh-CN': zhCN },
   initialLocale: 'en',
   // Set explicitly by `applyDocumentLang`, which also runs before the first
@@ -122,6 +122,13 @@ export async function changePersonalLocale(
   applyDocumentLang(locale)
 }
 
-export function t(key: AdminMessageKey, params?: Parameters<typeof i18n.t>[1]) {
+/**
+ * Typed shorthand. The key is `AdminMessageKey`, so a typo — or a key that was
+ * removed from the catalog — is a compile error rather than a rendered key.
+ */
+export function t(
+  key: AdminMessageKey,
+  params?: Parameters<typeof i18n.t>[1],
+): string {
   return i18n.t(key, params)
 }
