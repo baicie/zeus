@@ -52,7 +52,8 @@ import {
 
 interface NavItem {
   readonly to: string
-  readonly label: string
+  /** A catalog key, not display text: the nav re-renders on a locale switch. */
+  readonly label: AdminMessageKey
   readonly icon: IconName
   /** Match the whole path rather than a prefix. */
   readonly exact?: boolean
@@ -453,7 +454,16 @@ export function AdminShell(props: AdminShellProps) {
                   adminOnly: true,
                 },
                 { to: '/admin/settings', label: 'nav.settings', exact: false },
-              ].filter(item => !item.adminOnly || props.role() === 'admin')}
+              ].filter(
+                (
+                  item,
+                ): item is {
+                  to: string
+                  label: AdminMessageKey
+                  exact: boolean
+                  adminOnly?: boolean
+                } => !item.adminOnly || props.role() === 'admin',
+              )}
             >
               {item => (
                 <Link
@@ -631,7 +641,7 @@ export function AdminShell(props: AdminShellProps) {
 function CommandPalette(props: {
   query: string
   onQuery: (value: string) => void
-  results: ReadonlyArray<NavItem & { group: string }>
+  results: ReadonlyArray<NavItem & { group: AdminMessageKey }>
   onSelect: (to: string) => void
   onClose: () => void
 }) {
@@ -687,7 +697,7 @@ function CommandPalette(props: {
                     <Icon name={item.icon} />
                     <span>{t(item.label)}</span>
                     <span class="muted" style={{ marginLeft: 'auto' }}>
-                      {item.group}
+                      {t(item.group)}
                     </span>
                   </button>
                 </li>
