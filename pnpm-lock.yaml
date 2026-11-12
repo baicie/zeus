@@ -209,6 +209,9 @@ importers:
 
   examples/admin:
     dependencies:
+      '@zeus-js/i18n':
+        specifier: workspace:*
+        version: link:../../packages/core/i18n
       '@zeus-js/query':
         specifier: workspace:*
         version: link:../../packages/core/query

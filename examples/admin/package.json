@@ -12,6 +12,7 @@
     "test:server": "vitest --run --project unit server/__tests__"
   },
   "dependencies": {
+    "@zeus-js/i18n": "workspace:*",
     "@zeus-js/query": "workspace:*",
     "@zeus-js/resource": "workspace:*",
     "@zeus-js/router": "workspace:*",

@@ -3,6 +3,14 @@ import { RouterProvider } from '@zeus-js/router'
 import { createEffect, createSignal, onCleanup, Show } from '@zeus-js/zeus'
 import { createResource } from '@zeus-js/resource'
 
+import {
+  applyDocumentLang,
+  i18n,
+  readPersonalLocale,
+  readStoredLocaleForAnyAccount,
+  resolveInitialLocale,
+  t,
+} from './i18n'
 import { createAdminRouter } from './router'
 import { Icon } from './shell/icon'
 import { adminApi, isDemoBuild } from './admin-api'
@@ -13,6 +21,28 @@ import type { Role, SessionUser } from './routes'
  * context. It initializes once: route changes only update bindings inside the
  * provider tree.
  */
+/**
+ * Resolves the first-paint language before anything renders.
+ *
+ * Called once at module load, not from inside the component: writing the locale
+ * signal during a render would re-enter the effect graph that is currently
+ * being built.
+ *
+ * Order: this account's stored choice, then the browser's own languages, then
+ * the workspace default, then English. Doing it here — rather than after the
+ * session resolves — is what avoids a flash of the wrong language: the login
+ * card is already on screen before any authenticated call can return.
+ */
+function bootstrapLocale(): void {
+  const stored = isDemoBuild ? undefined : readStoredLocaleForAnyAccount()
+  const locale =
+    stored ?? resolveInitialLocale(undefined, navigator.languages) ?? 'en'
+  applyDocumentLang(locale)
+  void i18n.setLocale(locale)
+}
+
+bootstrapLocale()
+
 export function App() {
   const session = createResource<SessionUser, void>(
     undefined,
@@ -21,6 +51,19 @@ export function App() {
 
   const [signedIn, setSignedIn] = createSignal(false)
 
+  // Once the session resolves, this account's own choice takes over from the
+  // pre-login guess. Without this a user who picked English would see it flip
+  // back to the workspace default every time the session refreshed.
+  createEffect(() => {
+    const user = session.data()
+    if (!user) return
+    const personal = readPersonalLocale(user.id)
+    if (personal && personal !== i18n.locale()) {
+      void i18n.setLocale(personal)
+      applyDocumentLang(personal)
+    }
+  })
+
   return (
     <>
       <Show when={isDemoBuild}>
@@ -28,7 +71,7 @@ export function App() {
       </Show>
       <Show
         when={!session.pending() || signedIn()}
-        fallback={<p class="boot-status">正在验证会话…</p>}
+        fallback={<p class="boot-status">{t('auth.verifyingSession')}</p>}
       >
         <Show
           when={session.data()}
@@ -93,11 +136,8 @@ function DemoBanner() {
         write()
       }}
     >
-      <strong>只读演示</strong>
-      <span>
-        数据为构建时的真实 API 快照，修改类操作已禁用。完整功能见 Docker
-        部署版本。
-      </span>
+      <strong>{t('demo.badge')}</strong>
+      <span>{t('demo.body')}</span>
     </div>
   )
 }
@@ -176,17 +216,15 @@ function LoginPage(props: { onLogin: (user: SessionUser) => void }) {
         >
           <div class="login-card-header">
             <h1 id="login-title" class="login-title">
-              登录
+              {t('auth.signIn')}
             </h1>
-            <p class="login-description">
-              在下方输入邮箱与密码以登录你的工作空间。
-            </p>
+            <p class="login-description">{t('auth.signInDescription')}</p>
           </div>
 
           <form class="login-form" onSubmit={submit}>
             <div class="field">
               <label class="field-label" for="login-email">
-                邮箱
+                {t('auth.email')}
               </label>
               <input
                 id="login-email"
@@ -203,7 +241,7 @@ function LoginPage(props: { onLogin: (user: SessionUser) => void }) {
             </div>
             <div class="field">
               <label class="field-label" for="login-password">
-                密码
+                {t('auth.password')}
               </label>
               <input
                 id="login-password"
@@ -224,13 +262,14 @@ function LoginPage(props: { onLogin: (user: SessionUser) => void }) {
               </p>
             </Show>
             <button type="submit" class="btn" disabled={busy()}>
-              {busy() ? '登录中…' : '登录'}
+              {busy() ? t('auth.signingIn') : t('auth.signIn')}
               <Icon name="logout" />
             </button>
           </form>
 
           <p class="login-footer">
-            本地首次运行请设置 <code>ZEUS_ADMIN_PASSWORD</code> 与{' '}
+            {t('auth.firstRunHint')} <code>ZEUS_ADMIN_PASSWORD</code>
+            {' / '}
             <code>ZEUS_ADMIN_VIEWER_PASSWORD</code>。
           </p>
         </section>

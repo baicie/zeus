@@ -55,6 +55,7 @@ import type { WorkspaceSettings } from './api'
 import { adminApi, isDemoBuild } from './admin-api'
 import { Icon } from './shell/icon'
 import { decorateUserGrid } from './shell/grid-decorations'
+import { changePersonalLocale, i18n, t, type Locale } from './i18n'
 import { useSession } from './session'
 
 /* --------------------------------------------------------------- dashboard */
@@ -1531,6 +1532,7 @@ export function RolesPage() {
 /* --------------------------------------------------------------- settings */
 
 export function SettingsPage() {
+  const session = useSession()
   const [settings, setSettings] = createSignal<WorkspaceSettings | undefined>(
     undefined,
   )
@@ -1670,12 +1672,39 @@ export function SettingsPage() {
                 </p>
               </div>
               <div class="settings-field-group">
+                <label class="field-label" for="personal-locale">
+                  {t('settings.personalLanguage')}
+                </label>
+                <select
+                  id="personal-locale"
+                  class="select"
+                  data-testid="personal-locale"
+                  prop:value={i18n.locale()}
+                  onChange={event => {
+                    const value = (event.currentTarget as HTMLSelectElement)
+                      .value as Locale
+                    // Personal only: this must never reach
+                    // `adminApi.updateSettings`, or a private display choice
+                    // would silently change what every member sees.
+                    void changePersonalLocale(
+                      session.user?.id ?? 'anonymous',
+                      value,
+                    )
+                  }}
+                >
+                  <option value="zh-CN">简体中文</option>
+                  <option value="en">English</option>
+                </select>
+                <p class="field-hint">{t('settings.personalLanguageHint')}</p>
+              </div>
+              <div class="settings-field-group">
                 <label class="field-label" for="workspace-locale">
-                  语言
+                  {t('settings.workspaceLanguage')}
                 </label>
                 <select
                   id="workspace-locale"
                   class="select"
+                  data-testid="workspace-locale"
                   prop:value={locale()}
                   onChange={event => {
                     const value = (event.currentTarget as HTMLSelectElement)
@@ -1687,7 +1716,7 @@ export function SettingsPage() {
                   <option value="zh-CN">简体中文</option>
                   <option value="en">English</option>
                 </select>
-                <p class="field-hint">服务端偏好与前端文案的默认语言。</p>
+                <p class="field-hint">{t('settings.workspaceLanguageHint')}</p>
               </div>
               <div class="settings-field-group" id="appearance">
                 <label class="field-label" for="workspace-theme">

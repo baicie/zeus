@@ -40,6 +40,8 @@ import {
   type Accessor,
 } from '@zeus-js/zeus'
 
+import { t } from '../i18n'
+import type { AdminMessageKey } from '../locales/en'
 import type { Role, SessionUser } from '../routes'
 import { Icon, type IconName } from './icon'
 import {
@@ -59,7 +61,7 @@ interface NavItem {
 }
 
 interface NavGroup {
-  readonly label: string
+  readonly label: AdminMessageKey
   readonly items: readonly NavItem[]
 }
 
@@ -69,53 +71,53 @@ interface NavGroup {
  */
 const NAV_GROUPS: readonly NavGroup[] = [
   {
-    label: 'General',
+    label: 'nav.group.general',
     items: [
-      { to: '/admin', label: '概览', icon: 'overview', exact: true },
-      { to: '/admin/users', label: '用户管理', icon: 'users' },
+      { to: '/admin', label: 'nav.overview', icon: 'overview', exact: true },
+      { to: '/admin/users', label: 'nav.users', icon: 'users' },
     ],
   },
   {
-    label: 'Administration',
+    label: 'nav.group.administration',
     items: [
       {
         to: '/admin/roles',
-        label: '角色权限',
+        label: 'nav.roles',
         icon: 'shield',
         adminOnly: true,
       },
-      { to: '/admin/audit', label: '审计日志', icon: 'list', adminOnly: true },
+      { to: '/admin/audit', label: 'nav.audit', icon: 'list', adminOnly: true },
       {
         to: '/admin/reports',
-        label: '管理报表',
+        label: 'nav.reports',
         icon: 'chart',
         adminOnly: true,
       },
     ],
   },
   {
-    label: 'Workspace',
+    label: 'nav.group.workspace',
     items: [
       {
         to: '/admin/upload',
-        label: '文件上传',
+        label: 'nav.upload',
         icon: 'upload',
         adminOnly: true,
       },
-      { to: '/admin/settings', label: '设置', icon: 'settings' },
+      { to: '/admin/settings', label: 'nav.settings', icon: 'settings' },
     ],
   },
 ]
 
 /** Page titles keyed by the route segment after `/admin`. */
-const PAGE_TITLES: Record<string, string> = {
-  '': '概览',
-  users: '用户管理',
-  roles: '角色权限',
-  reports: '管理报表',
-  audit: '审计日志',
-  upload: '文件上传',
-  settings: '设置',
+const PAGE_TITLES: Record<string, AdminMessageKey> = {
+  '': 'nav.overview',
+  users: 'nav.users',
+  roles: 'nav.roles',
+  reports: 'nav.reports',
+  audit: 'nav.audit',
+  upload: 'nav.upload',
+  settings: 'nav.settings',
 }
 
 export interface AdminShellProps {
@@ -213,7 +215,10 @@ export function AdminShell(props: AdminShellProps) {
   }
 
   const currentSection = () => pageSection(pathname())
-  const pageTitle = () => PAGE_TITLES[currentSection()] ?? '页面'
+  const pageTitle = () => {
+    const key = PAGE_TITLES[currentSection()]
+    return key ? t(key) : t('nav.pages')
+  }
 
   function isActive(item: NavItem): boolean {
     return item.exact ? pathname() === item.to : pathname().startsWith(item.to)
@@ -254,7 +259,7 @@ export function AdminShell(props: AdminShellProps) {
       data-testid="admin-layout"
     >
       <a class="skip-link" href="#main-content">
-        跳到主内容
+        {t('nav.skipToContent')}
       </a>
 
       <div class="sidebar-slot" aria-hidden="true" />
@@ -265,7 +270,7 @@ export function AdminShell(props: AdminShellProps) {
         aria-hidden="true"
       />
 
-      <aside class="sidebar" aria-label="主导航">
+      <aside class="sidebar" aria-label={t('nav.main')}>
         <div class="sidebar-inner">
           <div class="sidebar-header">
             <div style={{ position: 'relative' }}>
@@ -294,9 +299,9 @@ export function AdminShell(props: AdminShellProps) {
                   role="menu"
                   data-testid="brand-menu"
                 >
-                  <p class="menu-label">工作空间</p>
+                  <p class="menu-label">{t('nav.workspace')}</p>
                   <Link to="/admin" class="menu-item" role="menuitem">
-                    <Icon name="overview" /> 概览
+                    <Icon name="overview" /> {t('nav.overview')}
                   </Link>
                   <Show when={props.role() === 'admin'}>
                     <Link
@@ -304,12 +309,14 @@ export function AdminShell(props: AdminShellProps) {
                       class="menu-item"
                       role="menuitem"
                     >
-                      <Icon name="settings" /> 工作空间设置
+                      <Icon name="settings" /> {t('nav.workspaceSettings')}
                     </Link>
                   </Show>
                   <div class="menu-separator" role="separator" />
                   <p class="menu-label">
-                    {props.role() === 'admin' ? '管理员' : '只读成员'}
+                    {props.role() === 'admin'
+                      ? t('role.admin')
+                      : t('role.member')}
                   </p>
                 </div>
               </Show>
@@ -320,7 +327,7 @@ export function AdminShell(props: AdminShellProps) {
             <For each={visibleGroups()}>
               {group => (
                 <div class="sidebar-group">
-                  <p class="sidebar-group-label">{group.label}</p>
+                  <p class="sidebar-group-label">{t(group.label)}</p>
                   <ul class="sidebar-menu">
                     <For each={group.items}>
                       {item => (
@@ -333,10 +340,10 @@ export function AdminShell(props: AdminShellProps) {
                                 : 'sidebar-menu-button'
                             }
                             aria-current={isActive(item) ? 'page' : undefined}
-                            title={collapsed() ? item.label : undefined}
+                            title={collapsed() ? t(item.label) : undefined}
                           >
                             <Icon name={item.icon} />
-                            <span>{item.label}</span>
+                            <span>{t(item.label)}</span>
                             <Show when={item.badge}>
                               <span class="menu-badge">{item.badge}</span>
                             </Show>
@@ -364,7 +371,7 @@ export function AdminShell(props: AdminShellProps) {
               </span>
               <span class="sidebar-account-copy">
                 <span class="sidebar-account-name" data-testid="session-user">
-                  {props.session?.()?.name ?? '未登录'}
+                  {props.session?.()?.name ?? t('role.signedOut')}
                 </span>
                 <span class="sidebar-account-email">
                   {props.session?.()?.email ?? '—'}
@@ -379,13 +386,15 @@ export function AdminShell(props: AdminShellProps) {
                 data-testid="account-menu"
               >
                 <p class="menu-label">
-                  {props.role() === 'admin' ? '管理员' : '只读成员'}
+                  {props.role() === 'admin'
+                    ? t('role.admin')
+                    : t('role.member')}
                 </p>
                 <Link to="/admin/settings" class="menu-item" role="menuitem">
-                  <Icon name="settings" /> 工作空间设置
+                  <Icon name="settings" /> {t('nav.workspaceSettings')}
                 </Link>
                 <Link to="/admin/users" class="menu-item" role="menuitem">
-                  <Icon name="users" /> 成员目录
+                  <Icon name="users" /> {t('nav.memberDirectory')}
                 </Link>
                 <div class="menu-separator" role="separator" />
                 <button
@@ -395,7 +404,7 @@ export function AdminShell(props: AdminShellProps) {
                   data-testid="logout"
                   onClick={() => void logout()}
                 >
-                  <Icon name="logout" /> 退出登录
+                  <Icon name="logout" /> {t('nav.logout')}
                 </button>
               </div>
             </Show>
@@ -409,7 +418,7 @@ export function AdminShell(props: AdminShellProps) {
             type="button"
             class="btn btn-ghost btn-icon toolbar-drawer"
             onClick={() => setDrawerOpen(true)}
-            aria-label="打开导航"
+            aria-label={t('nav.open')}
             data-testid="drawer-open"
           >
             <Icon name="menu" />
@@ -419,7 +428,9 @@ export function AdminShell(props: AdminShellProps) {
             type="button"
             class="btn btn-ghost btn-icon"
             onClick={toggleCollapsed}
-            aria-label={collapsed() ? '展开侧边栏' : '收起侧边栏'}
+            aria-label={
+              collapsed() ? t('nav.expandSidebar') : t('nav.collapseSidebar')
+            }
             aria-expanded={!collapsed()}
             data-testid="sidebar-toggle"
           >
@@ -430,18 +441,18 @@ export function AdminShell(props: AdminShellProps) {
 
           {/* The reference's dashboard header carries an inline top nav; the
               other pages show a breadcrumb. Both live in the same 64px row. */}
-          <nav class="top-nav" aria-label="页面导航">
+          <nav class="top-nav" aria-label={t('nav.pageNavigation')}>
             <For
               each={[
-                { to: '/admin', label: '概览', exact: true },
-                { to: '/admin/users', label: '用户', exact: false },
+                { to: '/admin', label: 'nav.overview', exact: true },
+                { to: '/admin/users', label: 'nav.users.short', exact: false },
                 {
                   to: '/admin/reports',
-                  label: '报表',
+                  label: 'nav.reports.short',
                   exact: false,
                   adminOnly: true,
                 },
-                { to: '/admin/settings', label: '设置', exact: false },
+                { to: '/admin/settings', label: 'nav.settings', exact: false },
               ].filter(item => !item.adminOnly || props.role() === 'admin')}
             >
               {item => (
@@ -457,14 +468,14 @@ export function AdminShell(props: AdminShellProps) {
                       : 'top-nav-link'
                   }
                 >
-                  {item.label}
+                  {t(item.label)}
                 </Link>
               )}
             </For>
           </nav>
 
           <div class="toolbar-heading">
-            <nav class="breadcrumb" aria-label="面包屑">
+            <nav class="breadcrumb" aria-label={t('nav.breadcrumb')}>
               <Link to="/admin">Zeus Admin</Link>
               <span class="breadcrumb-sep" aria-hidden="true">
                 /
@@ -485,7 +496,7 @@ export function AdminShell(props: AdminShellProps) {
               <Show when={navigation().state !== 'idle'}>
                 <span class="spinner" aria-hidden="true" />
               </Show>
-              {navigation().state === 'idle' ? '' : '正在加载…'}
+              {navigation().state === 'idle' ? '' : t('common.loading')}
             </span>
 
             <button
@@ -499,7 +510,7 @@ export function AdminShell(props: AdminShellProps) {
               data-testid="search-trigger"
             >
               <Icon name="search" />
-              <span class="header-search-label">搜索</span>
+              <span class="header-search-label">{t('common.search')}</span>
               <kbd>
                 <span>⌘</span>K
               </kbd>
@@ -510,7 +521,9 @@ export function AdminShell(props: AdminShellProps) {
                 type="button"
                 class="btn btn-ghost header-icon"
                 onClick={() => setThemeMenuOpen(open => !open)}
-                aria-label={`外观模式：${themeLabel(themePreference())}`}
+                aria-label={t('nav.appearance', {
+                  mode: themeLabel(themePreference()),
+                })}
                 aria-haspopup="menu"
                 aria-expanded={themeMenuOpen()}
                 data-testid="theme-toggle"
@@ -526,9 +539,9 @@ export function AdminShell(props: AdminShellProps) {
                   <For
                     each={
                       [
-                        { value: 'light', label: '浅色' },
-                        { value: 'dark', label: '深色' },
-                        { value: 'system', label: '跟随系统' },
+                        { value: 'light', label: t('theme.light') },
+                        { value: 'dark', label: t('theme.dark') },
+                        { value: 'system', label: t('theme.system') },
                       ] as const
                     }
                   >
@@ -556,7 +569,7 @@ export function AdminShell(props: AdminShellProps) {
                 type="button"
                 class="btn btn-ghost header-icon"
                 onClick={() => setDiagnosticsOpen(open => !open)}
-                aria-label="开发诊断"
+                aria-label={t('diagnostics.open')}
                 aria-expanded={diagnosticsOpen()}
                 data-testid="diagnostics-toggle"
               >
@@ -569,7 +582,7 @@ export function AdminShell(props: AdminShellProps) {
                 type="button"
                 class="btn btn-ghost btn-icon"
                 onClick={() => setUserMenuOpen(open => !open)}
-                aria-label="账户菜单"
+                aria-label={t('nav.accountMenu')}
                 aria-haspopup="menu"
                 aria-expanded={userMenuOpen()}
                 data-testid="header-account-trigger"
@@ -636,7 +649,7 @@ function CommandPalette(props: {
         class="card command-panel"
         role="dialog"
         aria-modal="true"
-        aria-label="搜索页面"
+        aria-label={t('nav.searchPages')}
         onClick={(event: Event) => event.stopPropagation()}
         data-testid="command-palette"
       >
@@ -644,8 +657,8 @@ function CommandPalette(props: {
           <Icon name="search" />
           <input
             autofocus
-            aria-label="搜索页面"
-            placeholder="搜索页面…"
+            aria-label={t('nav.searchPages')}
+            placeholder={t('nav.searchPlaceholder')}
             prop:value={props.query}
             onInput={(event: Event) =>
               props.onQuery((event.currentTarget as HTMLInputElement).value)
@@ -661,7 +674,7 @@ function CommandPalette(props: {
         <ul class="command-list">
           <Show
             when={props.results.length > 0}
-            fallback={<li class="command-empty">没有匹配的页面。</li>}
+            fallback={<li class="command-empty">{t('nav.noMatch')}</li>}
           >
             <For each={props.results}>
               {item => (
@@ -672,7 +685,7 @@ function CommandPalette(props: {
                     onClick={() => props.onSelect(item.to)}
                   >
                     <Icon name={item.icon} />
-                    <span>{item.label}</span>
+                    <span>{t(item.label)}</span>
                     <span class="muted" style={{ marginLeft: 'auto' }}>
                       {item.group}
                     </span>
@@ -697,7 +710,7 @@ function DiagnosticsPanel(props: { open: boolean; onToggle: () => void }) {
     <section
       class="diagnostics-panel"
       data-testid="diagnostics"
-      aria-label="开发诊断"
+      aria-label={t('diagnostics.open')}
     >
       <div class="diagnostics-head">
         <Icon name="terminal" /> Developer diagnostics
@@ -706,7 +719,7 @@ function DiagnosticsPanel(props: { open: boolean; onToggle: () => void }) {
           class="btn btn-ghost btn-icon btn-sm"
           style={{ marginLeft: 'auto' }}
           onClick={props.onToggle}
-          aria-label="关闭开发诊断"
+          aria-label={t('diagnostics.close')}
         >
           <Icon name="x" />
         </button>
@@ -723,16 +736,18 @@ function DiagnosticsPanel(props: { open: boolean; onToggle: () => void }) {
 function DiagnosticsBody() {
   const router = useRouter()
   const location = useLocation()
-  const [preloadStatus, setPreloadStatus] = createSignal('尚未预加载')
+  const [preloadStatus, setPreloadStatus] = createSignal(t('nav.notPreloaded'))
 
   async function preloadAda(): Promise<void> {
-    setPreloadStatus('预加载中…')
+    setPreloadStatus(t('nav.preloading'))
     try {
       await router.preload('/admin/users/ada')
       setPreloadStatus('ready')
     } catch (error) {
       setPreloadStatus(
-        `预加载失败：${error instanceof Error ? error.message : String(error)}`,
+        t('nav.preloadFailed', {
+          reason: error instanceof Error ? error.message : String(error),
+        }),
       )
     }
   }
@@ -741,7 +756,7 @@ function DiagnosticsBody() {
     <>
       <dl class="diagnostics-grid">
         <div>
-          <dt>路径</dt>
+          <dt>{t('common.path')}</dt>
           <dd data-testid="current-path">
             {location().pathname}
             {location().search}
@@ -749,7 +764,7 @@ function DiagnosticsBody() {
           </dd>
         </div>
         <div>
-          <dt>匹配</dt>
+          <dt>{t('common.match')}</dt>
           <dd data-testid="route-matches">
             <RouteMatchList />
           </dd>
@@ -762,7 +777,7 @@ function DiagnosticsBody() {
           data-testid="history-back"
           onClick={() => void router.navigate(-1)}
         >
-          后退
+          {t('nav.back')}
         </button>
         <button
           type="button"
@@ -770,7 +785,7 @@ function DiagnosticsBody() {
           data-testid="history-forward"
           onClick={() => void router.navigate(1)}
         >
-          前进
+          {t('nav.forward')}
         </button>
         <button
           type="button"
@@ -778,7 +793,7 @@ function DiagnosticsBody() {
           data-testid="preload-ada"
           onClick={() => void preloadAda()}
         >
-          预加载 Ada 详情
+          {t('nav.preloadAda')}
         </button>
         <span class="muted" role="status" data-testid="preload-status">
           {preloadStatus()}
@@ -817,10 +832,10 @@ function initials(name: string | undefined): string {
 
 function themeLabel(preference: ThemePreference): string {
   return preference === 'dark'
-    ? '深色'
+    ? t('theme.dark')
     : preference === 'light'
-      ? '浅色'
-      : '跟随系统'
+      ? t('theme.light')
+      : t('theme.system')
 }
 
 const COLLAPSED_KEY = 'zeus-admin.sidebar-collapsed'
