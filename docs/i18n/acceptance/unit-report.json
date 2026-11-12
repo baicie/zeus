@@ -1,0 +1,608 @@
+{
+  "numTotalTestSuites": 16,
+  "numPassedTestSuites": 16,
+  "numFailedTestSuites": 0,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 55,
+  "numPassedTests": 55,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1794466071916,
+  "success": true,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": ["createI18n"],
+          "fullName": "createI18n starts on the initial locale and renders its messages",
+          "status": "passed",
+          "title": "starts on the initial locale and renders its messages",
+          "duration": 13.90620800000005,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["createI18n"],
+          "fullName": "createI18n switches locale without recreating the instance",
+          "status": "passed",
+          "title": "switches locale without recreating the instance",
+          "duration": 0.5751250000000141,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["createI18n"],
+          "fullName": "createI18n keeps two instances independent",
+          "status": "passed",
+          "title": "keeps two instances independent",
+          "duration": 0.511792000000014,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["createI18n"],
+          "fullName": "createI18n applies locale-specific plural rules, not an English one/other test",
+          "status": "passed",
+          "title": "applies locale-specific plural rules, not an English one/other test",
+          "duration": 6.596375000000023,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["createI18n"],
+          "fullName": "createI18n renders select branches",
+          "status": "passed",
+          "title": "renders select branches",
+          "duration": 0.6618339999999989,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["createI18n"],
+          "fullName": "createI18n interpolates named parameters",
+          "status": "passed",
+          "title": "interpolates named parameters",
+          "duration": 0.3714999999999691,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["createI18n"],
+          "fullName": "createI18n escapes interpolated values as text, never HTML",
+          "status": "passed",
+          "title": "escapes interpolated values as text, never HTML",
+          "duration": 0.2230000000000132,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["createI18n"],
+          "fullName": "createI18n returns the key when it is missing everywhere, and reports it",
+          "status": "passed",
+          "title": "returns the key when it is missing everywhere, and reports it",
+          "duration": 0.6379590000000235,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["createI18n"],
+          "fullName": "createI18n falls back to the reference text for a key missing in the active locale",
+          "status": "passed",
+          "title": "falls back to the reference text for a key missing in the active locale",
+          "duration": 0.7725419999999872,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["createI18n"],
+          "fullName": "createI18n formats numbers and dates per locale",
+          "status": "passed",
+          "title": "formats numbers and dates per locale",
+          "duration": 7.978624999999965,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["createI18n"],
+          "fullName": "createI18n returns an empty string for an invalid date instead of \"Invalid Date\"",
+          "status": "passed",
+          "title": "returns an empty string for an invalid date instead of \"Invalid Date\"",
+          "duration": 0.26458399999995663,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["createI18n"],
+          "fullName": "createI18n keeps message descriptors language-neutral until resolved",
+          "status": "passed",
+          "title": "keeps message descriptors language-neutral until resolved",
+          "duration": 0.34670799999997826,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["createI18n"],
+          "fullName": "createI18n renders raw text unchanged across a switch",
+          "status": "passed",
+          "title": "renders raw text unchanged across a switch",
+          "duration": 0.0949579999999628,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["createI18n"],
+          "fullName": "createI18n survives an invalid ICU message by showing the template",
+          "status": "passed",
+          "title": "survives an invalid ICU message by showing the template",
+          "duration": 0.5328340000000367,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["createI18n async loading"],
+          "fullName": "createI18n async loading loads a catalog on demand and switches to it",
+          "status": "passed",
+          "title": "loads a catalog on demand and switches to it",
+          "duration": 0.162666999999999,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["createI18n async loading"],
+          "fullName": "createI18n async loading keeps the previous locale when a load fails, and allows a retry",
+          "status": "passed",
+          "title": "keeps the previous locale when a load fails, and allows a retry",
+          "duration": 0.6783750000000168,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["createI18n async loading"],
+          "fullName": "createI18n async loading commits only the last of several rapid switches",
+          "status": "passed",
+          "title": "commits only the last of several rapid switches",
+          "duration": 0.13129199999997354,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["createI18n async loading"],
+          "fullName": "createI18n async loading shares one load between concurrent requests for the same locale",
+          "status": "passed",
+          "title": "shares one load between concurrent requests for the same locale",
+          "duration": 0.09270799999995916,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["createI18n async loading"],
+          "fullName": "createI18n async loading preloads without switching",
+          "status": "passed",
+          "title": "preloads without switching",
+          "duration": 0.07279199999999264,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["createI18n async loading"],
+          "fullName": "createI18n async loading rejects an unsupported locale",
+          "status": "passed",
+          "title": "rejects an unsupported locale",
+          "duration": 0.16124999999999545,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["createI18n async loading"],
+          "fullName": "createI18n async loading stops committing after dispose",
+          "status": "passed",
+          "title": "stops committing after dispose",
+          "duration": 0.08749999999997726,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["createI18n catalog validation"],
+          "fullName": "createI18n catalog validation rejects a catalog missing a key in strict mode",
+          "status": "passed",
+          "title": "rejects a catalog missing a key in strict mode",
+          "duration": 0.1302909999999997,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["createI18n catalog validation"],
+          "fullName": "createI18n catalog validation accepts an incomplete catalog in permissive mode",
+          "status": "passed",
+          "title": "accepts an incomplete catalog in permissive mode",
+          "duration": 0.09379200000000765,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        }
+      ],
+      "startTime": 1794466072436,
+      "endTime": 1794466072472.1611,
+      "status": "passed",
+      "message": "",
+      "name": "/Users/liuzhiwei/Desktop/workspace/git-code/zeus/packages/core/i18n/__tests__/create-i18n.spec.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": ["resolveLocale"],
+          "fullName": "resolveLocale resolves the supported locales and their common regional forms",
+          "status": "passed",
+          "title": "resolves the supported locales and their common regional forms",
+          "duration": 1.6019580000000246,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["resolveLocale"],
+          "fullName": "resolveLocale maps the Playground legacy \"zh\" to zh-CN",
+          "status": "passed",
+          "title": "maps the Playground legacy \"zh\" to zh-CN",
+          "duration": 0.3089999999999975,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["resolveLocale"],
+          "fullName": "resolveLocale maps Simplified regional tags to zh-CN",
+          "status": "passed",
+          "title": "maps Simplified regional tags to zh-CN",
+          "duration": 0.38341700000000856,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["resolveLocale"],
+          "fullName": "resolveLocale does not treat Traditional Chinese as Simplified",
+          "status": "passed",
+          "title": "does not treat Traditional Chinese as Simplified",
+          "duration": 0.21637499999999932,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["resolveLocale"],
+          "fullName": "resolveLocale returns undefined for unknown or empty input",
+          "status": "passed",
+          "title": "returns undefined for unknown or empty input",
+          "duration": 0.14179200000000947,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["resolveLocale"],
+          "fullName": "resolveLocale is case and separator insensitive",
+          "status": "passed",
+          "title": "is case and separator insensitive",
+          "duration": 0.2601669999999956,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["normalizeLocale"],
+          "fullName": "normalizeLocale falls back to the default for unsupported input",
+          "status": "passed",
+          "title": "falls back to the default for unsupported input",
+          "duration": 0.19683299999999804,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["negotiateLocale"],
+          "fullName": "negotiateLocale honours candidate order",
+          "status": "passed",
+          "title": "honours candidate order",
+          "duration": 0.1263749999999959,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["negotiateLocale"],
+          "fullName": "negotiateLocale skips Traditional Chinese rather than coercing it",
+          "status": "passed",
+          "title": "skips Traditional Chinese rather than coercing it",
+          "duration": 0.5941249999999911,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["negotiateLocale"],
+          "fullName": "negotiateLocale returns undefined for an empty or absent list",
+          "status": "passed",
+          "title": "returns undefined for an empty or absent list",
+          "duration": 0.1531659999999988,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["isSupportedLocale"],
+          "fullName": "isSupportedLocale accepts exactly the bundled locales",
+          "status": "passed",
+          "title": "accepts exactly the bundled locales",
+          "duration": 0.19225000000000136,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        }
+      ],
+      "startTime": 1794466072245,
+      "endTime": 1794466072250.1921,
+      "status": "passed",
+      "message": "",
+      "name": "/Users/liuzhiwei/Desktop/workspace/git-code/zeus/packages/core/i18n/__tests__/locale.spec.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": ["checkCatalog"],
+          "fullName": "checkCatalog reports nothing for a complete, translated catalog",
+          "status": "passed",
+          "title": "reports nothing for a complete, translated catalog",
+          "duration": 1.6609170000000404,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["checkCatalog"],
+          "fullName": "checkCatalog reports a missing key",
+          "status": "passed",
+          "title": "reports a missing key",
+          "duration": 0.35433300000005374,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["checkCatalog"],
+          "fullName": "checkCatalog reports an extra key that the reference does not have",
+          "status": "passed",
+          "title": "reports an extra key that the reference does not have",
+          "duration": 0.35208299999999326,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["checkCatalog"],
+          "fullName": "checkCatalog reports an empty translation",
+          "status": "passed",
+          "title": "reports an empty translation",
+          "duration": 0.26054199999998673,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["checkCatalog"],
+          "fullName": "checkCatalog flags a value copied verbatim from the reference",
+          "status": "passed",
+          "title": "flags a value copied verbatim from the reference",
+          "duration": 0.2317499999999768,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["checkCatalog"],
+          "fullName": "checkCatalog accepts an identical value that is explicitly allowed",
+          "status": "passed",
+          "title": "accepts an identical value that is explicitly allowed",
+          "duration": 0.120666999999969,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["assertCatalog"],
+          "fullName": "assertCatalog does not throw for text that is identical by design",
+          "status": "passed",
+          "title": "does not throw for text that is identical by design",
+          "duration": 0.5285829999999692,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["assertCatalog"],
+          "fullName": "assertCatalog reports identical text through the callback instead of throwing",
+          "status": "passed",
+          "title": "reports identical text through the callback instead of throwing",
+          "duration": 0.12016699999998082,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["assertCatalog"],
+          "fullName": "assertCatalog still throws for a structurally broken catalog",
+          "status": "passed",
+          "title": "still throws for a structurally broken catalog",
+          "duration": 0.7456250000000182,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["assertCatalog"],
+          "fullName": "assertCatalog throws with every issue listed",
+          "status": "passed",
+          "title": "throws with every issue listed",
+          "duration": 0.241958000000011,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["assertCatalog"],
+          "fullName": "assertCatalog does not throw for a complete catalog",
+          "status": "passed",
+          "title": "does not throw for a complete catalog",
+          "duration": 0.1927919999999972,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["checkMessageSyntax"],
+          "fullName": "checkMessageSyntax accepts valid ICU, including plural and select",
+          "status": "passed",
+          "title": "accepts valid ICU, including plural and select",
+          "duration": 12.299209000000019,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["checkMessageSyntax"],
+          "fullName": "checkMessageSyntax rejects a plural without an other branch",
+          "status": "passed",
+          "title": "rejects a plural without an other branch",
+          "duration": 0.18920800000000781,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["checkMessageSyntax"],
+          "fullName": "checkMessageSyntax rejects unbalanced braces",
+          "status": "passed",
+          "title": "rejects unbalanced braces",
+          "duration": 0.3819159999999897,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["messageArgumentNames"],
+          "fullName": "messageArgumentNames extracts the placeholder names a message requires",
+          "status": "passed",
+          "title": "extracts the placeholder names a message requires",
+          "duration": 0.2803750000000491,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["messageArgumentNames"],
+          "fullName": "messageArgumentNames reports the same argument for a Chinese message with no plural form",
+          "status": "passed",
+          "title": "reports the same argument for a Chinese message with no plural form",
+          "duration": 0.8668329999999855,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["messageArgumentNames"],
+          "fullName": "messageArgumentNames returns an empty list for an unparseable message",
+          "status": "passed",
+          "title": "returns an empty list for an unparseable message",
+          "duration": 0.132583000000011,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["reportCatalog"],
+          "fullName": "reportCatalog collects each key across every locale with its arguments",
+          "status": "passed",
+          "title": "collects each key across every locale with its arguments",
+          "duration": 0.5272499999999809,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["reportCatalog"],
+          "fullName": "reportCatalog returns an empty report when the reference locale is absent",
+          "status": "passed",
+          "title": "returns an empty report when the reference locale is absent",
+          "duration": 0.07408299999997325,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["interpolate"],
+          "fullName": "interpolate substitutes known names and leaves unknown ones untouched",
+          "status": "passed",
+          "title": "substitutes known names and leaves unknown ones untouched",
+          "duration": 0.12020799999999099,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["interpolate"],
+          "fullName": "interpolate returns the template when there are no parameters",
+          "status": "passed",
+          "title": "returns the template when there are no parameters",
+          "duration": 0.05658299999998917,
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        }
+      ],
+      "startTime": 1794466072437,
+      "endTime": 1794466072457.12,
+      "status": "passed",
+      "message": "",
+      "name": "/Users/liuzhiwei/Desktop/workspace/git-code/zeus/packages/core/i18n/__tests__/message.spec.ts"
+    }
+  ]
+}

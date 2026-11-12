@@ -1,0 +1,40 @@
+{
+  "schema": "zeus.i18n-e2e-evidence/v1",
+  "note": "Collected from local runs. The authoritative three-engine matrix is the packed-consumers job in CI; this file records what was actually executed locally and on which engine.",
+  "generatedAt": "2026-11-12T06:51:36.760Z",
+  "runs": [
+    {
+      "gate": "check:admin",
+      "engines": ["chromium"],
+      "locale": "en-US pinned",
+      "result": "passed",
+      "report": "e2e-admin-report.json",
+      "commit": "f00cebb8ae8a186c607f77be589366962a942746"
+    },
+    {
+      "gate": "check:playground-theme-i18n",
+      "engines": ["chromium", "firefox", "webkit"],
+      "result": "passed in CI on d8d7e07c; not re-run locally (playwright firefox/webkit not installed on this machine)",
+      "authoritative": true
+    },
+    {
+      "gate": "check:playground-browser",
+      "engines": ["chromium", "firefox", "webkit"],
+      "result": "passed in CI on d8d7e07c"
+    },
+    {
+      "gate": "check:playground-ux",
+      "engines": ["chromium", "firefox", "webkit"],
+      "result": "passed in CI on d8d7e07c"
+    },
+    {
+      "gate": "check-i18n",
+      "result": "passed locally"
+    },
+    {
+      "gate": "vitest packages/core/i18n",
+      "result": "55 passed",
+      "report": "unit-report.json"
+    }
+  ]
+}

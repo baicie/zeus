@@ -89,8 +89,14 @@ for (const [name, engine] of selectedBrowsers) {
       headless: true,
       ...(name === 'chromium' ? { channel: 'chromium' } : {}),
     })
+    // The gate asserts English copy, so the page must ask for English. Without
+    // this the console follows `navigator.languages`, and a machine whose
+    // browser language is Chinese renders 登录 where the gate expects
+    // "Sign in" — the gate would fail on the developer's laptop while passing
+    // on an English CI runner, which is the worst kind of difference.
     page = await browser.newPage({
       viewport: { width: 1365, height: 900 },
+      locale: 'en-US',
     })
     page.on('pageerror', error => errors.push(error.message))
     page.on('response', response => {
