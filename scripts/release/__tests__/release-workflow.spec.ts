@@ -257,9 +257,22 @@ describe('release workflows', () => {
     )
 
     expect(workflow).toContain('cross-platform-evidence:')
-    expect(workflow).toContain(
-      'needs: [lint-and-check, packed-consumers, create-zeus-candidates]',
+    // The collector requires these three jobs by name; evidence describing
+    // checks that did not run would be a lie. `impact` was added when change
+    // impact analysis arrived, so the assertion checks the required three are
+    // still present rather than pinning the whole list.
+    const evidenceJob = workflow.slice(
+      workflow.indexOf('\n  cross-platform-evidence:\n'),
+      workflow.indexOf('\n  docs-build:\n'),
     )
+    for (const required of [
+      'lint-and-check',
+      'packed-consumers',
+      'create-zeus-candidates',
+    ]) {
+      expect(evidenceJob).toContain(required)
+    }
+    expect(evidenceJob).toMatch(/needs: \[.*impact.*\]/)
     expect(workflow).toContain('collect-cross-platform-evidence.ts')
     expect(workflow).toContain('name: cross-platform-evidence')
   })
@@ -377,9 +390,14 @@ describe('release workflows', () => {
       resolve(root, 'scripts/release.config.ts'),
       'utf8',
     )
+    // Anchored to the job key (`\n  name:\n`), not a bare `name:` search.
+    // `lint-and-check` now also appears as an `outputs:` entry in the `impact`
+    // job, and an unanchored search found that line first — the slice then ran
+    // from the outputs block and the audit assertions failed for a reason that
+    // had nothing to do with the audit.
     const ciGate = ciWorkflow.slice(
-      ciWorkflow.indexOf('lint-and-check:'),
-      ciWorkflow.indexOf('rust-compiler:'),
+      ciWorkflow.indexOf('\n  lint-and-check:\n'),
+      ciWorkflow.indexOf('\n  rust-compiler:\n'),
     )
     const canaryGate = canaryWorkflow.slice(
       canaryWorkflow.indexOf('release-preflight:'),
