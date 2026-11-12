@@ -304,9 +304,31 @@ export interface JobNeed {
 }
 
 /**
+ * The areas that make the browser gates necessary.
+ *
+ * `packed-consumers`, `browser-web-components` and `browser-playground` were
+ * one job. They are three now for wall clock, but their *scope* is identical:
+ * every one of them builds the same package tarballs, compiles the same native
+ * compiler and drives the same three engines. Sharing one constant is what
+ * keeps a future edit from quietly letting one of them skip a change the
+ * others run for — the failure mode a split introduces.
+ */
+const BROWSER_GATE_AREAS: readonly Area[] = [
+  'core-runtime',
+  'compiler',
+  'wasm',
+  'admin',
+  'playground',
+  'framework-adapters',
+  'consumers',
+  'tooling',
+  'shared-infrastructure',
+]
+
+/**
  * The dependency of every `ci.yml` job on the classification.
  *
- * `lint-and-check`, `build`, `test` and `packed-consumers` cover code that any
+ * `lint-and-check`, `build`, `test` and the browser gates cover code that any
  * package change can break, so they list the areas that imply code. They are
  * deliberately broad: the goal is to skip them only for genuinely inert
  * changes, not to find the narrowest possible set.
@@ -351,31 +373,25 @@ export const JOB_NEEDS: readonly JobNeed[] = [
   },
   {
     name: 'test',
-    areas: [
-      'core-runtime',
-      'compiler',
-      'wasm',
-      'admin',
-      'playground',
-      'framework-adapters',
-      'consumers',
-      'tooling',
-      'shared-infrastructure',
-    ],
+    areas: BROWSER_GATE_AREAS,
   },
+  // `packed-consumers` keeps the release-evidence contract, the packed
+  // consumer tarballs and the RC readiness report; the two browser jobs carry
+  // the gates that moved out. All three share the trigger exactly: they build
+  // the same artifacts and drive the same engines, so a split that let one of
+  // them skip a change the others run for would be a coverage hole, not an
+  // optimisation. They are separate jobs for wall clock only.
   {
     name: 'packed-consumers',
-    areas: [
-      'core-runtime',
-      'compiler',
-      'wasm',
-      'admin',
-      'playground',
-      'framework-adapters',
-      'consumers',
-      'tooling',
-      'shared-infrastructure',
-    ],
+    areas: BROWSER_GATE_AREAS,
+  },
+  {
+    name: 'browser-web-components',
+    areas: BROWSER_GATE_AREAS,
+  },
+  {
+    name: 'browser-playground',
+    areas: BROWSER_GATE_AREAS,
   },
   {
     name: 'create-zeus-candidates',

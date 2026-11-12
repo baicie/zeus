@@ -10,10 +10,19 @@ import { describe, expect, it } from 'vitest'
 import {
   AREAS,
   classifyChanges,
+  JOB_NEEDS,
   parseNameStatus,
   planJobs,
   type Plan,
 } from '../impact-analysis'
+
+/**
+ * Every job currently declared. Asserting against this instead of a literal
+ * means adding a job to `JOB_NEEDS` does not require editing the tests that
+ * say "everything runs" — those tests are about the escalation rule, not
+ * about how many jobs exist.
+ */
+const ALL_JOBS = JOB_NEEDS.length
 
 function planFor(changed: string[], options: { fullRun?: boolean } = {}): Plan {
   return planJobs({
@@ -144,9 +153,39 @@ describe('planJobs', () => {
     expect(running(planFor(['docs/guide/state.md']))).toEqual(['docs-build'])
   })
 
+  it('keeps the three browser jobs on exactly the same trigger', () => {
+    // `browser-web-components` and `browser-playground` were steps inside
+    // `packed-consumers`. Splitting them for wall clock must not give any of
+    // them a narrower trigger than the job it left: that would be a coverage
+    // hole that reports green. They share `BROWSER_GATE_AREAS`, and this test
+    // is what stops a future edit from breaking that.
+    const browserJobs = [
+      'packed-consumers',
+      'browser-web-components',
+      'browser-playground',
+    ]
+    const changes: string[][] = [
+      ['examples/admin/src/pages.tsx'],
+      ['examples/playground/src/app.tsx'],
+      ['packages/core/runtime-dom/src/insert.ts'],
+      ['packages/core/compiler/src/index.ts'],
+      ['scripts/check/check-admin.ts'],
+      ['crates/compiler/src/lib.rs'],
+      ['docs/guide/state.md'],
+      ['pnpm-lock.yaml'],
+    ]
+    for (const changed of changes) {
+      const plan = planFor(changed)
+      const decision = browserJobs.map(
+        name => plan.jobs.find(job => job.name === name)?.run,
+      )
+      expect(new Set(decision).size, `${changed.join(', ')}`).toBe(1)
+    }
+  })
+
   it('runs everything on a full run regardless of paths', () => {
     const plan = planFor(['docs/guide/state.md'], { fullRun: true })
-    expect(running(plan)).toHaveLength(7)
+    expect(running(plan)).toHaveLength(ALL_JOBS)
     for (const job of plan.jobs) expect(job.reason).toBe('full run')
   })
 
@@ -159,7 +198,7 @@ describe('planJobs', () => {
 
   it('runs every code job when the lockfile changes', () => {
     const plan = planFor(['pnpm-lock.yaml'])
-    expect(running(plan)).toHaveLength(7)
+    expect(running(plan)).toHaveLength(ALL_JOBS)
   })
 
   it('records why each job ran or did not', () => {
@@ -186,7 +225,7 @@ describe('planJobs', () => {
       'packages/core/runtime-dom/src/insert.ts',
       'examples/admin/src/pages.tsx',
     ])
-    expect(running(plan)).toHaveLength(7)
+    expect(running(plan)).toHaveLength(ALL_JOBS)
   })
 })
 
