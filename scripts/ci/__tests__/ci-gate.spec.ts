@@ -47,22 +47,51 @@ describe('ci-gate', () => {
     expect(evaluation.problems).toContain('packed-consumers: cancelled')
   })
 
-  it('accepts a skip that is on the allow list', () => {
-    // cross-platform-evidence only runs outside pull_request events.
+  it('accepts an evidence skip, which is absent on pull requests by design', () => {
     const evaluation = evaluateGate(
       allGreen({ 'cross-platform-evidence': { result: 'skipped' } }),
     )
     expect(evaluation.ok).toBe(true)
   })
 
-  it('fails on a skip that is not on the allow list', () => {
-    // The whole point of the allow list: a job that silently skips is a job
-    // that silently stopped checking.
+  it('accepts a skip the impact plan made', () => {
+    const evaluation = evaluateGate(
+      allGreen({
+        'packed-consumers': { result: 'skipped' },
+        'rust-compiler': { result: 'skipped' },
+      }),
+      { plannedSkips: ['packed-consumers', 'rust-compiler'] },
+    )
+    expect(evaluation.ok).toBe(true)
+  })
+
+  it('fails on a skip the impact plan did not make', () => {
+    // The dangerous case: a job that stops itself for its own reasons. It must
+    // not be able to hide behind a gate that only looks at "skipped".
     const evaluation = evaluateGate(
       allGreen({ 'packed-consumers': { result: 'skipped' } }),
+      { plannedSkips: ['docs-build'] },
     )
     expect(evaluation.ok).toBe(false)
-    expect(evaluation.problems).toContain('packed-consumers: skipped')
+    expect(evaluation.problems).toContain(
+      'packed-consumers: skipped, but the impact plan did not skip it',
+    )
+  })
+
+  it('fails when impact analysis itself failed, even if every job succeeded', () => {
+    // Without a plan there is no basis for calling anything checked.
+    const evaluation = evaluateGate(allGreen({ impact: { result: 'failure' } }))
+    expect(evaluation.ok).toBe(false)
+    expect(evaluation.problems.join(' ')).toContain(
+      'impact analysis did not run',
+    )
+  })
+
+  it('reports impact failure once, not twice', () => {
+    const evaluation = evaluateGate(allGreen({ impact: { result: 'failure' } }))
+    expect(
+      evaluation.problems.filter(p => p.startsWith('impact:')),
+    ).toHaveLength(1)
   })
 
   it('fails when a required dependency is missing from the map', () => {

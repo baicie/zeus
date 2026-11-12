@@ -73,10 +73,15 @@ describe('ci-gate workflow wiring', () => {
     expect(job).toContain('if: always()')
   })
 
-  it('passes the needs map and the allow list to the script', () => {
+  it('passes the needs map and the planned skips to the script', () => {
     const job = gateJob()
     expect(job).toContain('NEEDS: ${{ toJSON(needs) }}')
-    expect(job).toContain('ALLOWED_SKIPS:')
+    // The skip list is computed by the impact job, not hardcoded here. That is
+    // the difference between "this job may skip" and "this job was planned to
+    // skip": only the second is a reason to accept it.
+    expect(job).toContain(
+      'PLANNED_SKIPS: ${{ needs.impact.outputs.planned-skips }}',
+    )
     expect(job).toContain('scripts/ci/ci-gate.ts')
   })
 

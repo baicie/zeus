@@ -30,9 +30,10 @@ const DEFAULT_ALLOWED_SKIPS = ['cross-platform-evidence']
  * Kept here rather than derived so that a workflow edit which drops a job from
  * the `needs` block fails loudly instead of quietly narrowing the gate. The
  * two lists — this one and `jobs.ci-gate.needs` — must agree, and
- * `scripts/ci/__tests__/ci-gate.spec.ts` checks the workflow file itself.
+ * `scripts/ci/__tests__/ci-gate-workflow.spec.ts` checks the workflow file.
  */
 export const REQUIRED_DEPENDENCIES = [
+  'impact',
   'lint-and-check',
   'rust-compiler',
   'build',
@@ -40,6 +41,23 @@ export const REQUIRED_DEPENDENCIES = [
   'packed-consumers',
   'create-zeus-candidates',
   'cross-platform-evidence',
+  'docs-build',
+] as const
+
+/**
+ * Jobs whose skip is legitimate only when impact analysis planned it.
+ *
+ * These are the jobs carrying their own `if:` guard. `impact` and
+ * `cross-platform-evidence` are handled separately: `impact` must succeed,
+ * and evidence is skipped on pull requests by design.
+ */
+export const PLANNED_SKIP_JOBS = [
+  'lint-and-check',
+  'rust-compiler',
+  'build',
+  'test',
+  'packed-consumers',
+  'create-zeus-candidates',
   'docs-build',
 ] as const
 
@@ -61,28 +79,57 @@ export interface GateEvaluation {
 /**
  * Decides whether the gate passes.
  *
- * A `skipped` dependency is only acceptable when it is on the allow list. A
- * missing dependency is always a problem: it means the workflow stopped
+ * A job that carries its own `if:` may skip — but only when impact analysis
+ * planned that skip, which is what `plannedSkips` carries from the `impact`
+ * job. A skip outside that set is a job that decided on its own not to run,
+ * and that is exactly the case the gate exists to catch.
+ *
+ * A missing dependency is always a problem: it means the workflow stopped
  * waiting for something the gate claims to cover.
  */
 export function evaluateGate(
   needs: Readonly<Record<string, NeedsEntry>>,
   options: {
     readonly allowedSkips?: readonly string[]
+    readonly plannedSkips?: readonly string[]
     readonly required?: readonly string[]
   } = {},
 ): GateEvaluation {
   const allowed = new Set(options.allowedSkips ?? DEFAULT_ALLOWED_SKIPS)
+  const planned = new Set(options.plannedSkips ?? [])
   const required = options.required ?? REQUIRED_DEPENDENCIES
   const rows: string[] = []
   const problems: string[] = []
+
+  // The analysis itself cannot be skipped, and a failed analysis is reported
+  // with its own wording so the operator sees the cause rather than a list of
+  // unexplained skips.
+  const impact = needs['impact']
+  const impactFailed = impact !== undefined && impact.result !== 'success'
+  if (impactFailed) {
+    problems.push(
+      `impact: ${String(impact?.result ?? 'unknown')} — impact analysis did not run, so no skip is justified`,
+    )
+  }
 
   for (const [name, job] of Object.entries(needs)) {
     const result = String(job?.result ?? 'unknown')
     rows.push(`${result.padEnd(10)} ${name}`)
     if (result === 'success') continue
+    // A skip is acceptable only when it was planned. This is stricter than an
+    // allow list of job names: the same job skipping for its own reasons is a
+    // failure.
+    if (result === 'skipped' && planned.has(name)) continue
+    // Evidence collection is absent on pull requests by design; it is not
+    // governed by the impact plan.
     if (result === 'skipped' && allowed.has(name)) continue
-    problems.push(`${name}: ${result}`)
+    // `impact` already reported above; do not report it twice.
+    if (name === 'impact' && impactFailed) continue
+    problems.push(
+      result === 'skipped'
+        ? `${name}: skipped, but the impact plan did not skip it`
+        : `${name}: ${result}`,
+    )
   }
 
   for (const name of required) {
@@ -96,7 +143,6 @@ function main(): void {
   const { values } = parseArgs({
     options: {
       json: { type: 'string' },
-      'allowed-skips': { type: 'string' },
       required: { type: 'string' },
     },
   })
@@ -114,17 +160,17 @@ function main(): void {
     return
   }
 
-  const allowedSkips = (
-    values['allowed-skips'] ??
-    process.env.ALLOWED_SKIPS ??
-    ''
-  )
+  const allowedSkips = (process.env.ALLOWED_SKIPS ?? '')
+    .split(/[\s,]+/)
+    .filter(Boolean)
+  const plannedSkips = (process.env.PLANNED_SKIPS ?? '')
     .split(/[\s,]+/)
     .filter(Boolean)
   const required = (values.required ?? '').split(/[\s,]+/).filter(Boolean)
 
   const evaluation = evaluateGate(needs, {
     ...(allowedSkips.length > 0 ? { allowedSkips } : {}),
+    ...(plannedSkips.length > 0 ? { plannedSkips } : {}),
     ...(required.length > 0 ? { required } : {}),
   })
 

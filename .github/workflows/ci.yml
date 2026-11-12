@@ -33,7 +33,95 @@ env:
   PUPPETEER_SKIP_DOWNLOAD: 'true'
 
 jobs:
+  # Runs first and always. Everything else keys off its output.
+  #
+  # A failure here is not "skip everything" — it is a hard stop. An impact
+  # analysis that cannot answer must not be interpreted as "nothing to check".
+  impact:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      lint-and-check: ${{ steps.plan.outputs.lint-and-check }}
+      rust-compiler: ${{ steps.plan.outputs.rust-compiler }}
+      build: ${{ steps.plan.outputs.build }}
+      test: ${{ steps.plan.outputs.test }}
+      packed-consumers: ${{ steps.plan.outputs.packed-consumers }}
+      create-zeus-candidates: ${{ steps.plan.outputs.create-zeus-candidates }}
+      docs-build: ${{ steps.plan.outputs.docs-build }}
+      full-run: ${{ steps.plan.outputs.full-run }}
+      planned-skips: ${{ steps.plan.outputs.planned-skips }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # `git diff base...head` needs both endpoints. A shallow clone of
+          # depth 1 has neither history nor the merge base.
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.node-version'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Classify the change
+        id: plan
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          pnpm exec tsx scripts/ci/impact-analysis.ts \
+            --base "${BASE_SHA:-}" \
+            --head HEAD \
+            --event "$EVENT" \
+            --json temp/ci/impact.json > temp/ci/impact.stdout.json
+          node --input-type=module -e "
+            import { readFileSync, appendFileSync } from 'node:fs'
+            const plan = JSON.parse(readFileSync('temp/ci/impact.json', 'utf8'))
+            const skips = []
+            for (const job of plan.jobs) {
+              appendFileSync(process.env.GITHUB_OUTPUT, job.name + '=' + job.run + '\n')
+              if (!job.run) skips.push(job.name)
+            }
+            appendFileSync(process.env.GITHUB_OUTPUT, 'full-run=' + plan.fullRun + '\n')
+            appendFileSync(process.env.GITHUB_OUTPUT, 'planned-skips=' + skips.join(' ') + '\n')
+          "
+
+      - name: Summarize the decision
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -f temp/ci/impact.json ]; then
+            node --input-type=module -e "
+              import { readFileSync } from 'node:fs'
+              const plan = JSON.parse(readFileSync('temp/ci/impact.json', 'utf8'))
+              const lines = [
+                '### Change impact',
+                '',
+                'Event: \`' + plan.event + '\` — full run: \`' + plan.fullRun + '\`',
+                'Areas: ' + (plan.areas.length ? plan.areas.map(a => '\`' + a + '\`').join(', ') : '_none_'),
+                '',
+                '| Job | Runs | Why |',
+                '| --- | --- | --- |',
+                ...plan.jobs.map(j => '| ' + j.name + ' | ' + (j.run ? 'yes' : 'no') + ' | ' + j.reason + ' |'),
+              ]
+              if (plan.escalated.length) {
+                lines.push('', '**Escalated:**', ...plan.escalated.map(e => '- ' + e))
+              }
+              console.log(lines.join('\n'))
+            " >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Impact analysis produced no plan." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   lint-and-check:
+    needs: impact
+    if: needs.impact.outputs.lint-and-check == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -96,6 +184,8 @@ jobs:
           --reporter=dot
 
   rust-compiler:
+    needs: impact
+    if: needs.impact.outputs.rust-compiler == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -147,6 +237,8 @@ jobs:
         run: pnpm bench:compiler-optimization
 
   build:
+    needs: impact
+    if: needs.impact.outputs.build == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -194,6 +286,8 @@ jobs:
         run: pnpm check:release-artifacts
 
   test:
+    needs: impact
+    if: needs.impact.outputs.test == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -216,6 +310,8 @@ jobs:
         run: pnpm check:devtools-gc
 
   packed-consumers:
+    needs: impact
+    if: needs.impact.outputs.packed-consumers == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -312,6 +408,8 @@ jobs:
             temp/hmr-packed
 
   create-zeus-candidates:
+    needs: impact
+    if: needs.impact.outputs.create-zeus-candidates == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -394,8 +492,19 @@ jobs:
     # run is a main push. Collecting the same document on a pull_request run
     # produced an artifact nothing consumed — it cost an install and a 26s job
     # per PR, and a PR artifact is never the one a release points at.
-    if: github.repository == 'baicie/zeus' && github.event_name != 'pull_request'
-    needs: [lint-and-check, packed-consumers, create-zeus-candidates]
+    #
+    # `needs.impact.outputs.full-run == 'true'` is redundant given the event
+    # filter — push and workflow_dispatch both force a full run — and that is
+    # exactly why it is written down. The collector requires three specific
+    # jobs to have run and passed (`PLATFORM_JOBS` in
+    # collect-cross-platform-evidence.ts); if a future change ever lets impact
+    # analysis skip one of them on a main push, this job must not silently
+    # collect a document describing checks that never happened.
+    if: >-
+      github.repository == 'baicie/zeus' &&
+      github.event_name != 'pull_request' &&
+      needs.impact.outputs.full-run == 'true'
+    needs: [impact, lint-and-check, packed-consumers, create-zeus-candidates]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -435,6 +544,8 @@ jobs:
           path: temp/cross-platform/evidence.json
 
   docs-build:
+    needs: impact
+    if: needs.impact.outputs.docs-build == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -466,8 +577,14 @@ jobs:
     # a failure. Adding a job to this workflow without adding it to `needs`
     # does NOT silently pass; it is caught by the `expected` list below, which
     # must name every dependency.
+    #
+    # The skip allow list is computed, not fixed: it is exactly the set of jobs
+    # impact analysis decided not to run, plus `cross-platform-evidence` on a
+    # pull request. A skipped job that is not in that set still fails, so a job
+    # which stops itself for any other reason cannot hide behind this gate.
     if: always()
     needs:
+      - impact
       - lint-and-check
       - rust-compiler
       - build
@@ -499,10 +616,11 @@ jobs:
         env:
           # A JSON object of `<job name>: <result>` for everything in `needs`.
           NEEDS: ${{ toJSON(needs) }}
-          # Skips this gate accepts, and why. Anything not listed here and not
-          # `success` fails the gate.
-          ALLOWED_SKIPS: >-
-            cross-platform-evidence
+          # The jobs impact analysis decided to skip, space separated. A skip
+          # outside this set is a failure even if it is skipped, so a job
+          # cannot quietly opt out for its own reasons.
+          PLANNED_SKIPS: ${{ needs.impact.outputs.planned-skips }}
+          IMPACT_RESULT: ${{ needs.impact.result }}
         run: |
           set -euo pipefail
           pnpm exec tsx scripts/ci/ci-gate.ts
