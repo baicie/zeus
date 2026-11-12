@@ -75,6 +75,9 @@ jobs:
           EVENT: ${{ github.event_name }}
         run: |
           set -euo pipefail
+          # `temp/` does not exist in a fresh checkout, and a shell redirect
+          # cannot create it — the redirect is opened before the command runs.
+          mkdir -p temp/ci
           pnpm exec tsx scripts/ci/impact-analysis.ts \
             --base "${BASE_SHA:-}" \
             --head HEAD \
