@@ -61,6 +61,23 @@ export interface BudgetRule {
   readonly metric?: 'raw' | 'gzip' | 'brotli'
   /** Why this ceiling exists; required for a non-baseline rule. */
   readonly reason?: string
+  /**
+   * The rule applies to an artifact whose identity is platform-specific.
+   *
+   * A napi `.node` binary's *filename* carries the platform
+   * (`zeus-compiler-native.linux-x64-gnu.node`), and the published platform
+   * packages are installed by `optionalDependencies` — a Linux runner installs
+   * only the linux package. Comparing such an artifact to a baseline recorded on
+   * a different OS, or expecting the other platforms' packages to be present, is
+   * meaningless: the bytes are for different code, and the absence is correct.
+   *
+   * A `platformSpecific` rule therefore:
+   *   - must use an absolute limit, never a baseline tolerance (a relative
+   *     comparison across platforms is not a comparison);
+   *   - excuses the package from the missing-artifact check, because a build on
+   *     one platform legitimately produces only its own binary.
+   */
+  readonly platformSpecific?: boolean
 }
 
 export interface BudgetFile {
@@ -215,11 +232,17 @@ export function collectArtifacts(
     if (pkg.packageJson.private === true) continue
     const dist = path.join(pkg.dir, 'dist')
     if (!fs.existsSync(dist)) {
-      // Native platform packages ship the `.node` binary at the package root
-      // rather than in `dist`.
-      const native = readNativeArtifacts(pkg.dir, pkg.name)
-      if (native.length > 0) artifacts.push(...native)
-      else missing.push(pkg.name)
+      // A package with no `dist` publishes files at its root: the napi platform
+      // packages ship a `.node`, and the loader ships `index.js`. Both are
+      // measured from the manifest's own `files` list so that "what is
+      // published" — not "what happens to exist in the working tree" — is what
+      // gets measured.
+      const published = readPublishedRootArtifacts(pkg.dir, pkg.name)
+      if (published.complete && published.artifacts.length > 0) {
+        artifacts.push(...published.artifacts)
+      } else {
+        missing.push(pkg.name)
+      }
       continue
     }
     for (const file of walk(dist)) {
@@ -257,25 +280,123 @@ function measureFile(
   }
 }
 
-function readNativeArtifacts(
+/**
+ * Measures the files a package publishes from its root, using the manifest's
+ * own `files` list.
+ *
+ * Reading the manifest rather than walking the directory matters three ways:
+ *
+ *   - the loader package `@zeus-js/compiler-native` lists `index.js`,
+ *     `index.d.ts`, README and LICENSE. The `.node` that `build:native` writes
+ *     beside them is a build intermediate and is never published from there, so
+ *     walking the directory would measure a platform-specific binary under a
+ *     name that does not ship it;
+ *   - a platform package that is not installed on this OS has no file at all,
+ *     and is reported as missing rather than as zero;
+ *   - a package whose `dist` was not built but whose `templates` directory
+ *     happens to exist (this is `create-zeus` in the CI build job) must not be
+ *     half-measured. A partial measurement reads as "this package is small",
+ *     which is the same class of fail-open as reporting an unreadable image as
+ *     0 MB. If any declared entry is absent, the package is treated as having
+ *     produced nothing and lands in `missing`.
+ */
+function readPublishedRootArtifacts(
   packageDir: string,
   packageName: string,
-): ArtifactMeasurement[] {
-  const results: ArtifactMeasurement[] = []
-  for (const file of walk(packageDir)) {
-    if (!file.endsWith('.node')) continue
-    const buffer = fs.readFileSync(file)
-    results.push({
-      packageName,
-      file: path.relative(packageDir, file).split(path.sep).join('/'),
-      format: 'native',
-      production: true,
-      rawBytes: buffer.length,
-      gzipBytes: gzipSync(buffer, { level: 9 }).length,
-      brotliBytes: brotliCompressSync(buffer).length,
-    })
+): { artifacts: ArtifactMeasurement[]; complete: boolean } {
+  const manifestPath = path.join(packageDir, 'package.json')
+  if (!fs.existsSync(manifestPath)) {
+    return { artifacts: [], complete: false }
   }
-  return results
+  let declared: unknown
+  try {
+    declared = (
+      JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as {
+        files?: unknown
+      }
+    ).files
+  } catch {
+    return { artifacts: [], complete: false }
+  }
+  if (!Array.isArray(declared)) {
+    return { artifacts: [], complete: false }
+  }
+
+  const results: ArtifactMeasurement[] = []
+  const seen = new Set<string>()
+  const add = (file: string): void => {
+    const relative = path.relative(packageDir, file).split(path.sep).join('/')
+    if (seen.has(relative) || relative.endsWith('.map')) return
+    seen.add(relative)
+    results.push(measureFile(packageName, file, relative))
+  }
+
+  let complete = true
+  for (const entry of declared) {
+    if (typeof entry !== 'string') continue
+    // README and LICENSE are documentation, not code the report budgets.
+    if (entry === 'README.md' || entry === 'LICENSE') continue
+    const resolved = path.join(packageDir, entry)
+    if (fs.existsSync(resolved) && fs.statSync(resolved).isDirectory()) {
+      for (const file of walk(resolved)) add(file)
+      continue
+    }
+    if (fs.existsSync(resolved) && fs.statSync(resolved).isFile()) {
+      add(resolved)
+      continue
+    }
+    complete = false
+  }
+  return { artifacts: results, complete }
+}
+
+/**
+ * True when a package's own `files` entry declares an artifact of one of the
+ * given formats, and nothing else it publishes would be a regular build output.
+ *
+ * This is only consulted for a package that produced no artifact at all — a
+ * napi platform package shipped as `files: ["index.js", "*.node", ...]` on a
+ * runner for another OS. Reading the manifest is what lets the report tell
+ * "this platform's package is not installed here" apart from "this package
+ * failed to build".
+ */
+function declaresOnlyFormat(
+  packageDir: string,
+  formats: ReadonlySet<string>,
+): boolean {
+  const manifestPath = path.join(packageDir, 'package.json')
+  if (!fs.existsSync(manifestPath)) return false
+  let files: unknown
+  try {
+    files = (
+      JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as { files?: unknown }
+    ).files
+  } catch {
+    return false
+  }
+  if (!Array.isArray(files)) return false
+  let matched = false
+  for (const entry of files) {
+    if (typeof entry !== 'string') continue
+    const { format } = classify(entry)
+    if (formats.has(format)) {
+      matched = true
+      continue
+    }
+    // `.d.ts` and `index.js` are shims that accompany a native binary; a `dist`
+    // directory or a source file would mean the package publishes more than a
+    // platform binary, so the format rule alone should not excuse it.
+    if (
+      format === 'dts' ||
+      entry.endsWith('.js') ||
+      entry.endsWith('.md') ||
+      entry === 'LICENSE'
+    ) {
+      continue
+    }
+    return false
+  }
+  return matched
 }
 
 export function artifactKey(artifact: {
@@ -378,7 +499,14 @@ export function evaluateArtifact(
       )
     }
   } else if (rule.tolerancePercent !== undefined) {
-    if (baselineBytes === undefined) {
+    if (rule.platformSpecific) {
+      // A baseline recorded on another platform is not a baseline for this
+      // artifact. Reporting a regression here would be a false positive every
+      // time CI runs on a different OS than the one that wrote the baseline.
+      problems.push(
+        'the rule is platform-specific and baseline-relative; it must state an absolute limit instead',
+      )
+    } else if (baselineBytes === undefined) {
       problems.push(
         'the rule is baseline-relative but this artifact has no baseline entry',
       )
@@ -458,6 +586,62 @@ export function buildReport(options: BuildReportOptions): SizeReport {
       entry.reason,
     ]),
   )
+
+  // A package can be excused for having no artifact when a platform-specific
+  // rule covers it. Without this, a Linux runner — which installs only the
+  // linux napi package — reports the other seven as unexpected, even though
+  // their absence is exactly how `optionalDependencies` works.
+  //
+  // Three ways a platform-specific rule can name its coverage:
+  //   - `package`: one package;
+  //   - `artifact`: one artifact, whose package is the part before the slash;
+  //   - `format`: every package that contains that format. This is the case
+  //     that matters here: the shipped napi packages have no `dist` and no other
+  //     artifact, so the `native` format rule covers all eight of them.
+  //
+  // For a `format` rule the coverage is derived from the packages present on
+  // this machine plus the packages named by the other rules, so a package that
+  // publishes only a `.node` and is absent from a run is still recognised.
+  const platformSpecificRules = rules.filter(rule => rule.platformSpecific)
+  const platformNamedPackages = new Set<string>()
+  for (const rule of platformSpecificRules) {
+    if (rule.package) platformNamedPackages.add(rule.package)
+    if (rule.artifact) {
+      platformNamedPackages.add(
+        rule.artifact.slice(0, rule.artifact.indexOf('/')),
+      )
+    }
+  }
+  const platformFormats = new Set(
+    platformSpecificRules.flatMap(rule => (rule.format ? [rule.format] : [])),
+  )
+  const packagesWithFormat = new Set(
+    artifacts
+      .filter(item => platformFormats.has(item.format))
+      .map(item => item.packageName),
+  )
+  const excusesPlatformPackage = (name: string): boolean => {
+    if (platformNamedPackages.has(name)) return true
+    if (platformFormats.size === 0) return false
+    if (packagesWithFormat.has(name)) return true
+    // A package that produced nothing is not represented in `artifacts`, so
+    // fall back to whether its own declared files would be that format. The
+    // shipped napi packages declare exactly one `.node`.
+    const pkg = options.packages.find(
+      candidate => candidate.name === name && candidate.dir,
+    )
+    if (!pkg) return false
+    return declaresOnlyFormat(pkg.dir, platformFormats)
+  }
+  for (const name of missing) {
+    if (excusesPlatformPackage(name) && !expectations.has(name)) {
+      expectations.set(
+        name,
+        'installed by optionalDependencies for one platform only; a build on another platform has no artifact for it',
+      )
+    }
+  }
+
   const expectedMissing = missing
     .filter(name => expectations.has(name))
     .map(name => ({ package: name, reason: expectations.get(name)! }))

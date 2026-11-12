@@ -147,6 +147,12 @@ jobs:
       # reported NO_BUDGET rather than passing, and a published package that
       # produced no artifact is UNMEASURED — never zero, which is how the old
       # image-size gate failed open.
+      #
+      # The napi `.node` binaries are governed by an absolute ceiling rather
+      # than by the baseline: their filenames and bytes are platform-specific,
+      # and this runner builds a linux-x64-gnu binary where the baseline was
+      # recorded on darwin-arm64. The other seven platform packages are absent
+      # by design (optionalDependencies), which the report marks as expected.
       - name: Build size report
         run: pnpm size:report:ci
       - name: Preserve the size report

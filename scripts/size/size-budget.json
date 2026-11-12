@@ -88,8 +88,9 @@
     {
       "format": "native",
       "metric": "raw",
-      "tolerancePercent": 10,
-      "reason": "The seven napi platform binaries. They are installed, not downloaded by a browser, but they are the largest npm payload a consumer receives. Rust release profile changes move these by a few percent; 10% catches an accidental debug build."
+      "reason": "A napi platform binary. Its filename and its bytes are platform-specific, so a baseline recorded on one OS cannot be compared against a build on another; the rule is an absolute ceiling instead. 2300 KiB is above the largest measured binary (linux-x64-gnu at 2125.5 KiB raw on the CI runner) with room for a dependency bump, and well below an accidental debug build, which roughly doubles the size because the release profile strips symbols.",
+      "platformSpecific": true,
+      "limitKiB": 2300
     },
     {
       "package": "@zeus-js/component-analyzer",
@@ -186,6 +187,67 @@
       "metric": "gzip",
       "tolerancePercent": 20,
       "reason": "The companion CLI entry."
+    },
+    {
+      "package": "@zeus-js/compiler-native",
+      "metric": "gzip",
+      "tolerancePercent": 15,
+      "reason": "The loader that resolves and loads the platform binary. It publishes index.js and index.d.ts at the package root; the .node beside them is a build intermediate and is deliberately not measured here. A 15% drift means the platform resolution table grew."
+    },
+    {
+      "format": "dts",
+      "metric": "gzip",
+      "reason": "Declaration files. They ship to consumers and affect install size, but they are generated from source types and their absolute size is small (the largest single file measured is a few KiB). A flat 64 KiB ceiling per file catches a runaway export surface without needing a baseline entry for every one of them, which also keeps the rule working for a package whose binaries are excluded from the baseline.",
+      "limitKiB": 64
+    },
+    {
+      "artifact": "@zeus-js/compiler-native-darwin-arm64/index.js",
+      "metric": "gzip",
+      "platformSpecific": true,
+      "limitKiB": 2,
+      "reason": "The binding shim each napi package ships beside its platform binary: a few hundred bytes mapping the package to its loader. Platform-named, so an absolute ceiling rather than a baseline entry; 2 KiB is roughly ten times the measured size, which still catches a real addition."
+    },
+    {
+      "artifact": "@zeus-js/compiler-native-darwin-x64/index.js",
+      "metric": "gzip",
+      "platformSpecific": true,
+      "limitKiB": 2,
+      "reason": "The binding shim each napi package ships beside its platform binary: a few hundred bytes mapping the package to its loader. Platform-named, so an absolute ceiling rather than a baseline entry; 2 KiB is roughly ten times the measured size, which still catches a real addition."
+    },
+    {
+      "artifact": "@zeus-js/compiler-native-linux-arm64-gnu/index.js",
+      "metric": "gzip",
+      "platformSpecific": true,
+      "limitKiB": 2,
+      "reason": "The binding shim each napi package ships beside its platform binary: a few hundred bytes mapping the package to its loader. Platform-named, so an absolute ceiling rather than a baseline entry; 2 KiB is roughly ten times the measured size, which still catches a real addition."
+    },
+    {
+      "artifact": "@zeus-js/compiler-native-linux-x64-gnu/index.js",
+      "metric": "gzip",
+      "platformSpecific": true,
+      "limitKiB": 2,
+      "reason": "The binding shim each napi package ships beside its platform binary: a few hundred bytes mapping the package to its loader. Platform-named, so an absolute ceiling rather than a baseline entry; 2 KiB is roughly ten times the measured size, which still catches a real addition."
+    },
+    {
+      "artifact": "@zeus-js/compiler-native-linux-x64-musl/index.js",
+      "metric": "gzip",
+      "platformSpecific": true,
+      "limitKiB": 2,
+      "reason": "The binding shim each napi package ships beside its platform binary: a few hundred bytes mapping the package to its loader. Platform-named, so an absolute ceiling rather than a baseline entry; 2 KiB is roughly ten times the measured size, which still catches a real addition."
+    },
+    {
+      "artifact": "@zeus-js/compiler-native-win32-arm64-msvc/index.js",
+      "metric": "gzip",
+      "platformSpecific": true,
+      "limitKiB": 2,
+      "reason": "The binding shim each napi package ships beside its platform binary: a few hundred bytes mapping the package to its loader. Platform-named, so an absolute ceiling rather than a baseline entry; 2 KiB is roughly ten times the measured size, which still catches a real addition."
+    },
+    {
+      "artifact": "@zeus-js/compiler-native-win32-x64-msvc/index.js",
+      "metric": "gzip",
+      "platformSpecific": true,
+      "limitKiB": 2,
+      "reason": "The binding shim each napi package ships beside its platform binary: a few hundred bytes mapping the package to its loader. Platform-named, so an absolute ceiling rather than a baseline entry; 2 KiB is roughly ten times the measured size, which still catches a real addition."
     }
   ],
   "expectedUnmeasured": [

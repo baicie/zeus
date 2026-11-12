@@ -1,8 +1,8 @@
 {
   "schema": "zeus.build-size-report/v1",
-  "commit": "11a7bbfc65bae848b84a68ce8172dea786f8adb0",
-  "measuredAt": "2026-11-12T09:41:19.993Z",
-  "note": "First structured baseline at main 11a7bbfc (11a7bbfc65bae848b84a68ce8172dea786f8adb0). Measured on macOS arm64, Node 24.16.0, after building every package and its declarations (pnpm build + pnpm build-dts equivalent). The two scaffolding CLIs (create-zeus, zeus-ui) need their own node_modules and were not built; they are recorded as missing, not as zero.",
+  "commit": "1804b20dbf90194613b10cce239bf2befe7642c4",
+  "measuredAt": "2026-11-12",
+  "note": "First structured baseline at main 11a7bbfc (11a7bbfc65bae848b84a68ce8172dea786f8adb0). Measured on macOS arm64, Node 24.16.0, after building every package and its declarations. Native .node binaries and the eight compiler-native* packages are excluded: their filenames and bytes are platform-specific, and the seven platform packages are installed by optionalDependencies so only one exists on any host. They are governed by absolute ceilings in size-budget.json. The scaffolding CLIs are excluded because the CI build job does not run their package scripts.",
   "artifacts": [
     {
       "packageName": "@zeus-js/bundler-plugin",
@@ -258,75 +258,21 @@
     },
     {
       "packageName": "@zeus-js/compiler-native",
-      "file": "zeus-compiler-native.darwin-arm64.node",
-      "format": "native",
-      "production": true,
-      "rawBytes": 1911056,
-      "gzipBytes": 855244,
-      "brotliBytes": 619837
+      "file": "index.d.ts",
+      "format": "dts",
+      "production": false,
+      "rawBytes": 1762,
+      "gzipBytes": 593,
+      "brotliBytes": 509
     },
     {
-      "packageName": "@zeus-js/compiler-native-darwin-arm64",
-      "file": "zeus-compiler-native.darwin-arm64.node",
-      "format": "native",
-      "production": true,
-      "rawBytes": 1911056,
-      "gzipBytes": 855244,
-      "brotliBytes": 619837
-    },
-    {
-      "packageName": "@zeus-js/compiler-native-darwin-x64",
-      "file": "zeus-compiler-native.darwin-x64.node",
-      "format": "native",
-      "production": true,
-      "rawBytes": 1682304,
-      "gzipBytes": 757728,
-      "brotliBytes": 591781
-    },
-    {
-      "packageName": "@zeus-js/compiler-native-linux-arm64-gnu",
-      "file": "zeus-compiler-native.linux-arm64-gnu.node",
-      "format": "native",
-      "production": true,
-      "rawBytes": 1708776,
-      "gzipBytes": 770882,
-      "brotliBytes": 564395
-    },
-    {
-      "packageName": "@zeus-js/compiler-native-linux-x64-gnu",
-      "file": "zeus-compiler-native.linux-x64-gnu.node",
-      "format": "native",
-      "production": true,
-      "rawBytes": 1876088,
-      "gzipBytes": 808242,
-      "brotliBytes": 627928
-    },
-    {
-      "packageName": "@zeus-js/compiler-native-linux-x64-musl",
-      "file": "zeus-compiler-native.linux-x64-musl.node",
-      "format": "native",
-      "production": true,
-      "rawBytes": 1899040,
-      "gzipBytes": 819831,
-      "brotliBytes": 637362
-    },
-    {
-      "packageName": "@zeus-js/compiler-native-win32-arm64-msvc",
-      "file": "zeus-compiler-native.win32-arm64-msvc.node",
-      "format": "native",
-      "production": true,
-      "rawBytes": 1603584,
-      "gzipBytes": 693932,
-      "brotliBytes": 505393
-    },
-    {
-      "packageName": "@zeus-js/compiler-native-win32-x64-msvc",
-      "file": "zeus-compiler-native.win32-x64-msvc.node",
-      "format": "native",
-      "production": true,
-      "rawBytes": 1760256,
-      "gzipBytes": 729817,
-      "brotliBytes": 556951
+      "packageName": "@zeus-js/compiler-native",
+      "file": "index.js",
+      "format": "other",
+      "production": false,
+      "rawBytes": 25332,
+      "gzipBytes": 2229,
+      "brotliBytes": 1870
     },
     {
       "packageName": "@zeus-js/compiler-shared",

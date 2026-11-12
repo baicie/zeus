@@ -24,6 +24,8 @@ function workspace(
   packages: Array<{
     name: string
     files: Record<string, string>
+    /** Entries for the manifest's `files` list; omit to publish everything. */
+    manifestFiles?: string[]
     private?: boolean
   }>,
 ): Array<{ name: string; dir: string; packageJson: Record<string, unknown> }> {
@@ -34,7 +36,11 @@ function workspace(
     fs.mkdirSync(dir, { recursive: true })
     fs.writeFileSync(
       path.join(dir, 'package.json'),
-      JSON.stringify({ name: pkg.name, version: '0.0.0' }),
+      JSON.stringify({
+        name: pkg.name,
+        version: '0.0.0',
+        ...(pkg.manifestFiles ? { files: pkg.manifestFiles } : {}),
+      }),
     )
     for (const [relative, content] of Object.entries(pkg.files)) {
       const file = path.join(dir, relative)
@@ -172,17 +178,66 @@ describe('collectArtifacts', () => {
     expect(missing).toEqual(['@zeus-js/signal'])
   })
 
-  it('measures a native package whose binary sits at the package root', () => {
+  it('measures a native package that publishes its binary', () => {
     const packages = workspace([
       {
         name: '@zeus-js/compiler-native-linux-x64-gnu',
-        files: { 'zeus-compiler-native.linux-x64-gnu.node': 'binary' },
+        files: {
+          'index.js': 'shim',
+          'index.d.ts': 'types',
+          'zeus-compiler-native.linux-x64-gnu.node': 'binary',
+        },
+        manifestFiles: [
+          'index.js',
+          'index.d.ts',
+          'zeus-compiler-native.linux-x64-gnu.node',
+        ],
       },
     ])
     const { artifacts, missing } = collectArtifacts(packages)
     expect(missing).toHaveLength(0)
-    expect(artifacts[0]!.format).toBe('native')
-    expect(artifacts[0]!.production).toBe(true)
+    const binary = artifacts.find(item => item.file.endsWith('.node'))
+    expect(binary?.format).toBe('native')
+    expect(binary?.production).toBe(true)
+  })
+
+  it('does not measure a .node a package never publishes', () => {
+    // `@zeus-js/compiler-native` writes its binary beside `index.js` during
+    // `build:native` but lists only `index.js`, `index.d.ts`, README and
+    // LICENSE in `files`. Measuring the binary under the loader's name would
+    // report a platform-specific artifact it does not ship.
+    const packages = workspace([
+      {
+        name: '@zeus-js/compiler-native',
+        files: {
+          'index.js': 'loader',
+          'index.d.ts': 'types',
+          'zeus-compiler-native.darwin-arm64.node': 'binary',
+        },
+        manifestFiles: ['index.js', 'index.d.ts', 'README.md', 'LICENSE'],
+      },
+    ])
+    const { artifacts } = collectArtifacts(packages)
+    expect(artifacts.map(item => item.file).sort()).toEqual([
+      'index.d.ts',
+      'index.js',
+    ])
+  })
+
+  it('refuses to half-measure a package whose declared output is incomplete', () => {
+    // `create-zeus` publishes `dist` and `templates`. In the CI build job the
+    // package script does not run, so `templates` exists but `dist` does not.
+    // Measuring only `templates` would read as "this package is small".
+    const packages = workspace([
+      {
+        name: 'create-zeus',
+        files: { 'templates/app/index.html': '<html></html>' },
+        manifestFiles: ['dist', 'templates'],
+      },
+    ])
+    const { artifacts, missing } = collectArtifacts(packages)
+    expect(artifacts).toHaveLength(0)
+    expect(missing).toEqual(['create-zeus'])
   })
 })
 
@@ -282,6 +337,67 @@ describe('evaluateArtifact', () => {
     expect(report.detail).toContain('neither a limit nor a tolerance')
   })
 
+  it('rejects a platform-specific rule that is baseline-relative', () => {
+    // A .node binary built on another OS is different code, so its baseline is
+    // not a baseline. The rule must be an absolute ceiling.
+    const report = evaluateArtifact(
+      artifact({
+        packageName: '@zeus-js/compiler-native-linux-x64-gnu',
+        file: 'x.node',
+        format: 'native',
+      }),
+      { format: 'native', platformSpecific: true, tolerancePercent: 10 },
+      artifact({
+        packageName: '@zeus-js/compiler-native-linux-x64-gnu',
+        file: 'x.node',
+      }),
+    )
+    expect(report.result).toBe('REGRESSION')
+    expect(report.detail).toContain('platform-specific')
+  })
+
+  it('passes a platform-specific rule with an absolute limit and no baseline', () => {
+    const report = evaluateArtifact(
+      artifact({
+        packageName: '@zeus-js/compiler-native-linux-x64-gnu',
+        file: 'zeus-compiler-native.linux-x64-gnu.node',
+        format: 'native',
+        rawBytes: 1_900_000,
+        gzipBytes: 800_000,
+        brotliBytes: 600_000,
+      }),
+      {
+        format: 'native',
+        metric: 'raw',
+        platformSpecific: true,
+        limitKiB: 2300,
+      },
+      undefined,
+    )
+    expect(report.result).toBe('PASS')
+    expect(report.baselineBytes).toBeUndefined()
+  })
+
+  it('fails a platform-specific rule when the limit is exceeded', () => {
+    const report = evaluateArtifact(
+      artifact({
+        packageName: '@zeus-js/compiler-native-linux-x64-gnu',
+        file: 'zeus-compiler-native.linux-x64-gnu.node',
+        format: 'native',
+        rawBytes: 4_000_000,
+      }),
+      {
+        format: 'native',
+        metric: 'raw',
+        platformSpecific: true,
+        limitKiB: 2300,
+      },
+      undefined,
+    )
+    expect(report.result).toBe('REGRESSION')
+    expect(report.detail).toContain('exceeds the')
+  })
+
   it('compares against raw bytes when the rule asks for raw', () => {
     const report = evaluateArtifact(
       artifact({ rawBytes: 30_000 }),
@@ -377,6 +493,63 @@ describe('buildReport', () => {
     // explains one of them.
     expect(report.missing).toEqual(['create-zeus', '@zeus-js/surprise'])
     expect(report.summary.unmeasured).toBe(2)
+  })
+
+  it('excuses a platform-specific package for having no artifact, and only that one', () => {
+    // A Linux runner installs only the linux napi package; the darwin one is
+    // absent by design. A package with no such rule is still a hard gap.
+    const packages = workspace([
+      {
+        name: '@zeus-js/compiler-native-linux-x64-gnu',
+        files: {
+          'index.js': 'shim',
+          'zeus-compiler-native.linux-x64-gnu.node': 'binary',
+        },
+        manifestFiles: ['index.js', 'zeus-compiler-native.linux-x64-gnu.node'],
+      },
+      {
+        name: '@zeus-js/compiler-native-darwin-arm64',
+        files: {},
+        manifestFiles: ['index.js', 'zeus-compiler-native.darwin-arm64.node'],
+      },
+      { name: '@zeus-js/surprise', files: {} },
+    ])
+    const report = buildReport({
+      packages,
+      currentSha: 'abc',
+      budget: {
+        schema: REPORT_SCHEMA,
+        baseline: { commit: 'b', measuredAt: 'x' },
+        rules: [
+          {
+            package: '@zeus-js/compiler-native-darwin-arm64',
+            platformSpecific: true,
+            metric: 'raw',
+            limitKiB: 2300,
+          },
+          {
+            format: 'native',
+            platformSpecific: true,
+            metric: 'raw',
+            limitKiB: 2300,
+          },
+          { format: 'dts', metric: 'gzip', limitKiB: 64 },
+          {
+            package: '@zeus-js/compiler-native-linux-x64-gnu',
+            metric: 'gzip',
+            limitKiB: 4,
+          },
+        ],
+      },
+    })
+    expect(report.expectedMissing.map(entry => entry.package)).toEqual([
+      '@zeus-js/compiler-native-darwin-arm64',
+    ])
+    expect(report.expectedMissing[0]!.reason).toContain('optionalDependencies')
+    expect(report.unexpectedMissing).toEqual(['@zeus-js/surprise'])
+    // The present binary is measured, not excused.
+    expect(report.artifacts).toHaveLength(2)
+    for (const item of report.artifacts) expect(item.result).toBe('PASS')
   })
 })
 

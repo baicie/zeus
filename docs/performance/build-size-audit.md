@@ -23,7 +23,7 @@ Chromium（Playwright `channel: chromium`）headless 1440×900。
 | 重复代码        | 已确证：`@babel/standalone`（2.1 MB）与 `@babel/parser`（287 KB）对同一批源码做重复解析。                                                               |
 | 误命名          | 已确证：252 KB 的 `runtime-dom.esm-bundler-*.js` 实为 React 19 + Vue 3，不是 Zeus runtime。**已修复命名**。                                             |
 | Docker 门禁     | 已复现并修复：门禁读的字段根本不存在，**每次都算出 0.0 MB 并放行**。修复后真实值 **76.7 MB**。                                                          |
-| 体积预算        | 此前只有 5 个硬编码目标。**已新增** 182 个产物的结构化报告与回归门禁。                                                                                  |
+| 体积预算        | 此前只有 5 个硬编码目标。**已新增** 194 个产物的结构化报告与回归门禁。                                                                                  |
 | Admin           | 340.5 KB / gzip 98.4 KB 单 chunk，九个页面无路由级拆分。`pages.tsx` 单文件 50.2 KB 全量进首屏。                                                         |
 
 ---
@@ -434,8 +434,8 @@ CI 里那行 `image size: 0.0 MB (budget 120 MB)` 就是这个缺陷，
 | -------------------------------------------------- | -------------------------------------------------------------------- |
 | `scripts/size/build-size-report.ts`                | 扫描全部公共包产物，测 raw/gzip/Brotli，按规则与基线评估             |
 | `scripts/size/build-size-report-cli.ts`            | CLI，输出 JSON + Markdown，`--ci` 决定退出码                         |
-| `scripts/size/size-budget.json`                    | 27 条规则，**每条都写明理由**，均为"基线 + 容忍度"而非"当前值即上限" |
-| `scripts/size/baseline/2026-11-12.json`            | 230 个产物在 `11a7bbfc` 的实测值                                     |
+| `scripts/size/size-budget.json`                    | 39 条规则，**每条都写明理由**，均为"基线 + 容忍度"而非"当前值即上限" |
+| `scripts/size/baseline/2026-11-12.json`            | 222 个平台无关产物在 `11a7bbfc` 的实测值                             |
 | `scripts/size/__tests__/build-size-report.spec.ts` | 29 个单测                                                            |
 
 规则的形式是明确的两种，不会混淆：
@@ -456,12 +456,36 @@ CI 里那行 `image size: 0.0 MB (budget 120 MB)` 就是这个缺陷，
 | 已发布包没有产物             | `UNMEASURED`，`--ci` 下 exit 1                   |
 | 规则既无上限也无容忍度       | `REGRESSION`（配置错误）                         |
 
+**平台相关产物单独处理。** 首版基线把本机测得的 8 个 `.node` 全部记了进去，
+于是 CI 立刻失败 —— 这是设计缺陷被门禁自己抓到的实例，值得记录：
+
+- napi 二进制的**文件名与字节都随平台变化**。本机 darwin-arm64 是 1866.3 KiB，
+  CI 的 linux-x64-gnu 是 2125.5 KiB。拿一个平台的基线去比另一个平台的产物，
+  报出的"回归"是假的。
+- 七个 `@zeus-js/compiler-native-<platform>` 包通过 `optionalDependencies`
+  条件安装，**任何一个宿主上只有 1 个存在**。其余 6 个"缺失"是设计，不是故障。
+- `@zeus-js/compiler-native` 本身是 loader，`files` 只列
+  `index.js`/`index.d.ts`/README/LICENSE；`build:native` 写在它旁边的 `.node`
+  是构建中间物，**从不从该包发布**。按目录遍历会把一个它并不发布的
+  平台二进制记在它名下。
+
+因此规则新增了 `platformSpecific` 标记，它有两项强制语义：
+
+1. 必须使用**绝对上限**，不得使用基线容忍度（跨平台的相对比较不是比较）；
+2. 覆盖到的包从"缺失即失败"中豁免，并注明原因是 `optionalDependencies`。
+
+同时，从包根发布的产物改为**按 manifest 的 `files` 列表测量**，而不是遍历目录。
+这带来一个必要的严格性：只要 `files` 里任一条目不存在，整包判为未产出，
+而不是只测存在的部分 —— 例如 `create-zeus` 的 `templates` 存在但 `dist`
+未构建时，只测 `templates` 会读成"这个包很小"，与此前把不可读镜像报成
+0 MB 是同一类 fail-open。
+
 ### 5.4 验证（MEASURED）
 
 | 验证                                                   | 结果                                                                                             |
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| 29 个报告单测 + 29 个门禁单测                          | 58 passed                                                                                        |
-| 对当前 HEAD 全量报告                                   | 230 measured / 230 pass / 0 regression / 0 NO_BUDGET                                             |
+| 30 个报告单测 + 34 个门禁单测                          | 64 passed                                                                                        |
+| 对当前 HEAD 全量报告                                   | 194 measured / 194 pass / 0 regression / 0 NO_BUDGET                                             |
 | 人为给 `signal.esm-browser.prod.js` 追加 4 KB 随机字节 | 正确报 `gzip 11045 B exceeds the baseline 6320 B by 74.8% (tolerance 15%)`，exit 1，并指名该产物 |
 | 2 个脚手架 CLI（`create-zeus`、`zeus-ui`）无产物       | 正确报 `UNMEASURED` 并标注为"已声明豁免"；删除 `resource/dist` 后正确报"意外缺失"并 exit 1       |
 
@@ -490,7 +514,7 @@ CI 里那行 `image size: 0.0 MB (budget 120 MB)` 就是这个缺陷，
 | `highlight.ts` 改为动态导入      | main chunk 586,516 → **138,132 B（−76.5%）**；首屏传输 637.4 → 610.6 KB                  | Chromium UX 门禁 103 项 PASS；Playground editor 门禁 PASS |
 | Playground vendor chunk 显式命名 | `runtime-dom-*` 252 KB 拆为 `vendor-react` 189 KB + `vendor-vue` 62.8 KB；**总字节不变** | 加载瀑布图逐请求一致                                      |
 | Docker 体积门禁重写              | 0.0 MB → 真实 76.7 MB；10 类失败模式全部拦截                                             | 34 个单测 + 真实镜像                                      |
-| 结构化体积报告                   | 5 → 230 个产物；基线 + 理由化预算                                                        | 58 个单测 + 端到端回归注入                                |
+| 结构化体积报告                   | 5 → 194 个产物；基线 + 理由化预算                                                        | 64 个单测 + 端到端回归注入                                |
 
 ### 6.2 可优化但本轮未做（需独立验证）
 
@@ -535,7 +559,7 @@ CI 里那行 `image size: 0.0 MB (budget 120 MB)` 就是这个缺陷，
    若未来 Rust 侧增加类型剥离，必须保证两边的循环预算注入完全一致，
    否则沙箱的循环保护会被绕过。
 3. **Admin 主 chunk 随页面数线性增长。** 新增页面会直接加剧首屏体积。
-4. **体积预算的容忍度是人工判断。** 27 条规则的理由已写进文件，
+4. **体积预算的容忍度是人工判断。** 39 条规则的理由已写进文件，
    但"10% 是否合适"需要维护者在真实迭代中校准。
 5. **wasm 与 native 的优化空间未知。** 未安装 binaryen 意味着本轮无法给出结论；
    任何"wasm 可再省 20%"的推断都缺乏依据。
