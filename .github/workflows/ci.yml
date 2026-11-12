@@ -420,6 +420,17 @@ jobs:
         run: |
           pnpm --filter @zeus-js/example-playground-editor build
           pnpm exec tsx scripts/playground/check-playground-ux.ts
+      # The loop budget, on every pull request.
+      #
+      # `check:playground-editor` covers the same ground but runs only from
+      # `product-acceptance.yml` on a release branch or a manual dispatch, so a
+      # regression in the budget could ship and only be noticed at release time.
+      #
+      # The gate itself cannot hang: each phase races a 90 s deadline, the
+      # browser is closed in a `finally`, and this job declares
+      # `timeout-minutes`. A deadline hit fails the step rather than passing it.
+      - name: Playground loop budget in Chromium, Firefox and WebKit
+        run: pnpm check:playground-loop-budget
       - name: Playground theme and language switching in Chromium, Firefox and WebKit
         run: pnpm check:playground-theme-i18n
       - name: DevTools click-to-binding panel in Chromium, Firefox and WebKit

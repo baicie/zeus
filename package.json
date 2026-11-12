@@ -79,6 +79,7 @@
     "check:editor-consumer": "pnpm build && pnpm --filter @zeus-js/example-web-component build && tsx scripts/check/check-editor-consumer.ts",
     "check:playground-editor": "pnpm --filter @zeus-js/compiler-wasm build:wasm && pnpm build playground-engine zeus runtime-dom signal shared vite-plugin && pnpm build-dts && pnpm --filter @zeus-js/example-playground-editor check && pnpm --filter @zeus-js/example-playground-editor build && tsx scripts/playground/check-playground-editor.ts",
     "check:playground-ux": "pnpm --filter @zeus-js/example-playground-editor build && tsx scripts/playground/check-playground-ux.ts",
+    "check:playground-loop-budget": "tsx scripts/playground/check-playground-loop-budget.ts",
     "check:playground-theme-i18n": "tsx scripts/playground/check-playground-i18n-keys.ts && pnpm --filter @zeus-js/example-playground-editor build && tsx scripts/playground/check-playground-theme-i18n.ts",
     "check:playground-api": "pnpm build zeus signal runtime-dom && pnpm build-dts && tsx scripts/playground/generate-api-completions.ts --check",
     "measure:playground-performance": "pnpm --filter @zeus-js/example-playground-editor build && tsx scripts/playground/check-playground-performance.ts",

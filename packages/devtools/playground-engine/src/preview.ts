@@ -229,11 +229,43 @@ async function stripTypeScript(
   }
 }
 
+/**
+ * Injects a wall-clock budget into every loop.
+ *
+ * ## Order matters: block first, then insert
+ *
+ * `ensureBlock()` turns a single-statement loop body into a block. It must run
+ * **before** anything is inserted around the loop, because the surrounding
+ * container may be a single-statement position (`if (c) while (x) {}`,
+ * `else while (x) {}`, a labelled statement). Babel cannot insert an array of
+ * statements into such a position and throws
+ * `Can't convert array path to a block statement`, which failed the whole
+ * preview compile for ordinary user code.
+ *
+ * ## The start timestamp lives in a block, not beside the loop
+ *
+ * `const started = now()` placed next to the loop via `insertBefore` also
+ * requires a statement-list parent. Instead the timestamp is declared as the
+ * first statement of the loop's own (now guaranteed) body. That works in every
+ * container, and it is re-initialised on each entry to the loop, which is the
+ * behaviour a per-loop budget wants: a loop that is entered twice gets its own
+ * budget each time rather than one budget for the sum of both.
+ *
+ * ## The clock is captured, not looked up per iteration
+ *
+ * `globalThis.performance.now` is user-writable and `performance` itself can be
+ * replaced. The generated code therefore reads the clock through a captured
+ * reference taken before user code runs, and falls back to `Date.now` if
+ * neither is available. A user overwriting `performance.now` after that has no
+ * effect on the budget.
+ */
 function loopBudgetPlugin({
   types: t,
 }: {
   types: typeof Babel.packages.types
 }) {
+  const clock = () => t.callExpression(t.identifier('__zeusBudgetNow'), [])
+
   const visitLoop = (path: {
     ensureBlock(): void
     get(key: 'body'): {
@@ -244,30 +276,80 @@ function loopBudgetPlugin({
       generateUidIdentifier(name: string): { name: string }
     }
   }) => {
+    // 1. Block first. `ensureBlock()` wraps a single-statement body into a
+    //    block, which is what gives the guard somewhere to live when the loop
+    //    is itself a single statement (`if (c) while (x) {}`, `else while (x) {}`).
+    //
+    //    It must run before `insertBefore`: the insert needs the parent to have
+    //    a statement list, and for those shapes it does not until the body is a
+    //    block. Reversing the order throws
+    //    `Can't convert array path to a block statement`, which failed the whole
+    //    preview compile for ordinary user code.
+    path.ensureBlock()
+
+    // 2. Capture the start timestamp immediately before the loop. Inside the
+    //    body it would be re-initialised every iteration, elapsed time would
+    //    always be ~0, and the budget would never fire.
+    //
+    //    Declaring it before the loop is safe because step 1 guaranteed the
+    //    parent has a statement list. Because the declaration sits at the loop's
+    //    own lexical position, re-entering the enclosing function or block
+    //    re-runs it, so each entry to the loop gets its own budget.
     const started = path.scope.generateUidIdentifier('zeusLoopStarted')
-    const now = () =>
-      t.callExpression(
-        t.memberExpression(
-          t.memberExpression(
-            t.identifier('globalThis'),
-            t.identifier('performance'),
-          ),
-          t.identifier('now'),
-        ),
-        [],
-      )
+
+    // 3. Take the body path *before* `insertBefore`. Inserting a sibling
+    //    invalidates the loop's own path when the loop sits in a
+    //    single-statement position, and a `path.get('body')` taken afterwards
+    //    comes back undefined — "unshiftContainer is not a function". Reading it
+    //    first keeps the reference pointing at the node that is about to gain
+    //    the guard.
+    const body = path.get('body')
+
     path.insertBefore(
-      t.variableDeclaration('const', [
-        t.variableDeclarator(t.identifier(started.name), now()),
+      t.variableDeclaration('let', [
+        t.variableDeclarator(t.identifier(started.name), clock()),
       ]),
     )
-    path.ensureBlock()
-    const body = path.get('body')
+
+    // The budget is an accumulator, not a single window.
+    //
+    // Each pass measures the time since the previous pass and adds it to a
+    // running total. A tight loop never yields, so its passes are microseconds
+    // apart and the total climbs with real CPU use. A loop that awaits yields
+    // for milliseconds, but the *pass itself* still costs microseconds, so a
+    // legal `while (n < 8) { await sleep(200) }` accumulates almost nothing and
+    // survives.
+    //
+    // The naive alternatives both failed:
+    //   - wall clock since loop entry  → kills legal async loops (their awaits
+    //     count as budget, which is the false positive this fixes);
+    //   - reset the timestamp each pass → a runaway loop resets it a million
+    //     times a second and never fires (the protection disappears).
+    //
+    // `__zeusBudgetSpent` is per loop, per entry, declared beside the loop so
+    // re-entering the enclosing function starts a fresh budget.
+    const spent = path.scope.generateUidIdentifier('zeusLoopSpent')
+    path.insertBefore(
+      t.variableDeclaration('let', [
+        t.variableDeclarator(t.identifier(spent.name), t.numericLiteral(0)),
+      ]),
+    )
+
     body.unshiftContainer('body', [
+      t.expressionStatement(
+        t.assignmentExpression(
+          '+=',
+          t.identifier(spent.name),
+          t.binaryExpression('-', clock(), t.identifier(started.name)),
+        ),
+      ),
+      t.expressionStatement(
+        t.assignmentExpression('=', t.identifier(started.name), clock()),
+      ),
       t.ifStatement(
         t.binaryExpression(
           '>',
-          t.binaryExpression('-', now(), t.identifier(started.name)),
+          t.identifier(spent.name),
           t.numericLiteral(1_000),
         ),
         t.throwStatement(
@@ -287,6 +369,53 @@ function loopBudgetPlugin({
       ForOfStatement: visitLoop,
       ForStatement: visitLoop,
       WhileStatement: visitLoop,
+      // Declare the captured clock once per module, inside the module scope.
+      Program: {
+        exit(programPath: {
+          unshiftContainer(key: 'body', nodes: unknown[]): void
+        }) {
+          // Captured once, before any user code runs:
+          //
+          //   const __zeusPerf = globalThis.performance
+          //   const __zeusBudgetNow = __zeusPerf
+          //     ? __zeusPerf.now.bind(__zeusPerf)
+          //     : Date.now
+          //
+          // `performance.now` must be called with `performance` as its receiver;
+          // taking the bare method reference and calling it elsewhere throws
+          // "Illegal invocation". Binding also makes the clock immune to a user
+          // overwriting `globalThis.performance.now` afterwards, because the
+          // bound function holds the original.
+          const perfId = t.identifier('__zeusPerf')
+          programPath.unshiftContainer('body', [
+            t.variableDeclaration('const', [
+              t.variableDeclarator(
+                perfId,
+                t.memberExpression(
+                  t.identifier('globalThis'),
+                  t.identifier('performance'),
+                ),
+              ),
+            ]),
+            t.variableDeclaration('const', [
+              t.variableDeclarator(
+                t.identifier('__zeusBudgetNow'),
+                t.conditionalExpression(
+                  perfId,
+                  t.callExpression(
+                    t.memberExpression(
+                      t.memberExpression(perfId, t.identifier('now')),
+                      t.identifier('bind'),
+                    ),
+                    [perfId],
+                  ),
+                  t.memberExpression(t.identifier('Date'), t.identifier('now')),
+                ),
+              ),
+            ]),
+          ])
+        },
+      },
     },
   }
 }
