@@ -7,17 +7,27 @@ import type { ZeusQueryClient } from '@zeus-js/query'
 import type { Accessor } from '@zeus-js/zeus'
 import type { SessionUser } from './routes'
 
-import {
-  AuditPage,
-  ErrorPage,
-  OverviewPage,
-  ReportsPage,
-  RolesPage,
-  SettingsPage,
-  UploadPage,
-  UserPage,
-  UsersPage,
-} from './pages'
+import { ErrorPage } from './pages/error'
+
+/**
+ * Lazy page loaders.
+ *
+ * The router passes `lazy` straight through to `@remix-run/router`, which
+ * awaits it before navigating. Two shapes matter:
+ *
+ *   - the resolved object must carry `element` (a `() => JSXValue`), because
+ *     that is what Zeus's Outlet renders. A React-Router-style `{ Component }`
+ *     is accepted by the type (`lazy?: () => Promise<unknown>`) and then
+ *     silently ignored — the page renders nothing, with no warning and no
+ *     error. Verified experimentally before writing this.
+ *   - `ErrorPage` stays a static import. An error boundary that itself has to
+ *     be downloaded before it can report a failure is not a boundary.
+ *
+ * Each loader returns only `element`; the `loader` and `errorElement` on the
+ * route stay static, so data loading and permission checks keep their current
+ * timing and a rejected lazy chunk lands in the same boundary as before.
+ */
+
 import { AdminShell } from './shell/shell'
 import {
   adminSummaryQueryKey,
@@ -96,7 +106,9 @@ export function createAdminRouter(options: AdminRouterOptions): ZeusRouter {
                 }
                 return null
               },
-              element: () => <UploadPage />,
+              lazy: async () => ({
+                element: (await import('./pages/upload')).UploadPage,
+              }),
               errorElement: () => <ErrorPage />,
             },
             {
@@ -108,13 +120,17 @@ export function createAdminRouter(options: AdminRouterOptions): ZeusRouter {
                 }
                 return null
               },
-              element: () => <RolesPage />,
+              lazy: async () => ({
+                element: (await import('./pages/roles')).RolesPage,
+              }),
               errorElement: () => <ErrorPage />,
             },
             {
               id: 'settings',
               path: 'settings',
-              element: () => <SettingsPage />,
+              lazy: async () => ({
+                element: (await import('./pages/settings')).SettingsPage,
+              }),
               errorElement: () => <ErrorPage />,
             },
             {
@@ -126,13 +142,17 @@ export function createAdminRouter(options: AdminRouterOptions): ZeusRouter {
                 }
                 return null
               },
-              element: () => <AuditPage />,
+              lazy: async () => ({
+                element: (await import('./pages/audit')).AuditPage,
+              }),
               errorElement: () => <ErrorPage />,
             },
             {
               id: 'overview',
               index: true,
-              element: () => <OverviewPage />,
+              lazy: async () => ({
+                element: (await import('./pages/overview')).OverviewPage,
+              }),
             },
             {
               id: 'users',
@@ -153,7 +173,9 @@ export function createAdminRouter(options: AdminRouterOptions): ZeusRouter {
                   staleTime: USER_LIST_STALE_TIME,
                   signal: request.signal,
                 }),
-              element: () => <UsersPage />,
+              lazy: async () => ({
+                element: (await import('./pages/users')).UsersPage,
+              }),
               errorElement: () => <ErrorPage />,
             },
             {
@@ -166,7 +188,9 @@ export function createAdminRouter(options: AdminRouterOptions): ZeusRouter {
                   staleTime: 1_000,
                   signal: request.signal,
                 }),
-              element: () => <UserPage />,
+              lazy: async () => ({
+                element: (await import('./pages/user')).UserPage,
+              }),
               errorElement: () => <ErrorPage />,
             },
             {
@@ -183,7 +207,9 @@ export function createAdminRouter(options: AdminRouterOptions): ZeusRouter {
                   signal: request.signal,
                 })
               },
-              element: () => <ReportsPage />,
+              lazy: async () => ({
+                element: (await import('./pages/reports')).ReportsPage,
+              }),
               errorElement: () => <ErrorPage />,
             },
           ],
