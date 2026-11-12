@@ -480,12 +480,30 @@ CI 里那行 `image size: 0.0 MB (budget 120 MB)` 就是这个缺陷，
 未构建时，只测 `templates` 会读成"这个包很小"，与此前把不可读镜像报成
 0 MB 是同一类 fail-open。
 
+**"声明豁免"必须同时覆盖存在的情况。** 合入后在本机复现了第二个缺陷：
+`create-zeus` 与 `zeus-ui` 已在 `expectedUnmeasured` 里声明（CI 不跑它们的
+package 脚本），但这只豁免了**缺失**。在跑过 `pnpm -F create-zeus build` 的
+机器上，`dist/index.js` 存在、基线里没有，于是基线相对规则报回归 ——
+而那个"回归"只是多跑了一条构建命令的产物。
+
+修法是让这两个包用绝对上限（16 KiB，约实测 2.6 / 2.4 KiB gzip 的两倍），
+同时保留 `expectedUnmeasured` 处理缺失。两条路径因此一致：
+
+| 情形   | 结果                                |
+| ------ | ----------------------------------- |
+| 未构建 | `UNMEASURED` + 声明的理由，门禁通过 |
+| 已构建 | 按绝对上限测量，门禁通过            |
+
+一般化的教训：**一个包若"可能不存在"，它的规则就不能依赖基线。** 否则门禁的
+结果会随本机跑过哪些构建命令而变，而随环境漂移的门禁比没有门禁更糟。
+
 ### 5.4 验证（MEASURED）
 
 | 验证                                                   | 结果                                                                                             |
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| 30 个报告单测 + 34 个门禁单测                          | 64 passed                                                                                        |
-| 对当前 HEAD 全量报告                                   | 194 measured / 194 pass / 0 regression / 0 NO_BUDGET                                             |
+| 31 个报告单测 + 34 个门禁单测                          | 65 passed                                                                                        |
+| 对当前 HEAD 全量报告（CI 形状：CLI 未构建）            | 197 measured / 197 pass / 0 regression / 0 NO_BUDGET / 2 声明豁免                                |
+| 同上，但本机已构建两个 CLI                             | 199 measured / 199 pass / 0 regression / 0 NO_BUDGET / 0 声明豁免                                |
 | 人为给 `signal.esm-browser.prod.js` 追加 4 KB 随机字节 | 正确报 `gzip 11045 B exceeds the baseline 6320 B by 74.8% (tolerance 15%)`，exit 1，并指名该产物 |
 | 2 个脚手架 CLI（`create-zeus`、`zeus-ui`）无产物       | 正确报 `UNMEASURED` 并标注为"已声明豁免"；删除 `resource/dist` 后正确报"意外缺失"并 exit 1       |
 

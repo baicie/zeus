@@ -551,6 +551,35 @@ describe('buildReport', () => {
     expect(report.artifacts).toHaveLength(2)
     for (const item of report.artifacts) expect(item.result).toBe('PASS')
   })
+
+  it('bounded a package that may be absent but is present this run', () => {
+    // `create-zeus` is listed in expectedUnmeasured because the CI build job
+    // does not run its package script. When a developer has built it locally
+    // the artifact exists and has no baseline entry, so its rule must be an
+    // absolute ceiling — a baseline-relative rule would report a regression
+    // that is only an artefact of having run one more build command.
+    const packages = workspace([
+      {
+        name: 'create-zeus',
+        files: { 'dist/index.js': incompressible(8_000) },
+        manifestFiles: ['dist'],
+      },
+    ])
+    const report = buildReport({
+      packages,
+      currentSha: 'abc',
+      budget: {
+        schema: REPORT_SCHEMA,
+        baseline: { commit: 'b', measuredAt: 'x' },
+        rules: [{ package: 'create-zeus', metric: 'gzip', limitKiB: 16 }],
+        expectedUnmeasured: [{ package: 'create-zeus', reason: 'own script' }],
+      },
+    })
+    expect(report.artifacts).toHaveLength(1)
+    expect(report.artifacts[0]!.result).toBe('PASS')
+    expect(report.expectedMissing).toHaveLength(0)
+    expect(report.unexpectedMissing).toHaveLength(0)
+  })
 })
 
 describe('toBaseline', () => {
