@@ -1,141 +1,198 @@
-# CI optimization — Phase 3A: native matrix deduplication
+# CI optimization Phase 3A: the native matrix
 
-Branch `perf/ci-phase3a-native-dedup`. Baseline: `main` at `7d1031e4`.
+Scope: `.github/workflows/compiler-native.yml`.
+Baseline: `origin/main` @ `7d1031e4`.
+Supersedes the dedupe design in the earlier revision of this file.
 
-Every number below was read from the GitHub API for the named run. Where a
-claim could not be verified in real Actions it says so.
+---
 
-## 1. What was duplicated, measured
+## 1. What changed, and what deliberately did not
 
-### Feature branches: push and pull_request built the same tree
+Two duplicates existed. Only one of them is removed here.
 
-`compiler-native.yml` listed `feat/**`, `fix/**` and `refactor/**` under `push`
-_and_ ran on `pull_request`. A commit on a branch with an open PR therefore
-built all seven platforms twice, in two independent runs, for the identical
-tree:
+| Duplicate                                                                                                                                                 | Evidence                                                                         | Status      |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ----------- |
+| A feature branch built all seven platforms twice — once on `push` (`feat/**`, `fix/**`, `refactor/**`) and once on `pull_request`, for the identical tree | 43216543074 / 43216552540 at `179779a4`; 43216215063 / 43216281805 at `6d71343f` | **Removed** |
+| `main` builds all seven platforms twice — once standalone, once as `release-canary.yml`'s `native-prebuild`                                               | 43221565275 (14.7 runner minutes) and 43221565365 (~20), same commit `8f8f5256`  | **Kept**    |
 
-| Commit     | push run    | pull_request run | Jobs each | Runner min (push) | Runner min (PR) |
-| ---------- | ----------- | ---------------- | --------- | ----------------- | --------------- |
-| `179779a4` | 43216543074 | 43216552540      | 7         | 9.5               | 10.6            |
-| `6d71343f` | 43216215063 | 43216281805      | 7         | 9.8               | 11.4            |
+The first is removed by narrowing `push` to `main`. `pull_request` fires on
+`synchronize`, so an open PR still gets exactly one matrix per commit.
 
-Both pairs have identical `head_sha` and identical seven-job lists. The two
-runs for `179779a4` overlapped in time (12:17:25 and 12:17:28), so they also
-competed for the same macOS and Windows runners.
+The second is **not** removed. It is real, measured, and worth roughly 15–20
+runner minutes per main merge — but removing it safely is a different problem
+from the one it first appears to be. See `docs/ci-native-matrix-dedup-rfc.md`.
 
-### `main`: the standalone matrix and Release Canary built the same tree
+---
 
-`release-canary.yml` has a `native-prebuild` job that calls
-`compiler-native.yml` via `workflow_call` on every push to main. The standalone
-`push: main` trigger ran the same matrix for the same commit:
+## 2. Why the cross-workflow dedupe was withdrawn
 
-| Run         | Workflow                  | Seven-platform builds | Runner min |
-| ----------- | ------------------------- | --------------------- | ---------- |
-| 43221565275 | Compiler Native Matrix    | yes                   | 14.7       |
-| 43221565365 | Release Canary (prebuild) | yes                   | ~20.0      |
+An earlier revision of this branch implemented it: on main, query
+`release-canary.yml`'s runs for the same SHA, and skip the standalone matrix if
+one exists.
 
-Same tree (`8f8f5256`), started three seconds apart. 14.7 runner minutes per
-main merge were pure duplicate.
+Four reasons that is not sufficient.
 
-## 2. The change
+### 2.1 "A run exists" is not "the matrix succeeded"
 
-Two separate mechanisms, because the two duplicates have different shapes.
+`7d1031e4` is the counter-example, from this repository, on the day of writing:
 
-### Feature branches — the trigger, not a guard
+| Run                                                | Workflow               | Result                                          |
+| -------------------------------------------------- | ---------------------- | ----------------------------------------------- |
+| 43249739170                                        | Release Canary         | `conclusion: failure`                           |
+| └ `native-prebuild / build (aarch64-apple-darwin)` |                        | **`cancelled`**, `runner_name: ""`, `steps: []` |
+| 43249739185                                        | Compiler Native Matrix | `success`, all seven platforms                  |
 
-`push` now lists `main` only. `pull_request` is unchanged, including its
-`paths:` filter. `pull_request` fires on `synchronize`, so a branch with an
-open PR still gets exactly one matrix per commit.
+The canary run **existed**. One of its seven builds never ran. A guard keyed on
+existence would have skipped the standalone matrix and left that change with no
+`darwin-arm64` validation at all — while reporting green.
 
-This mirrors what Phase 1 did to `ci.yml` for the same reason and with the
-same measured shape.
+### 2.2 The job lacked the permission to ask
 
-**What stops being validated:** a feature branch with _no open PR_ no longer
-runs the native matrix on push. `workflow_dispatch` remains for a deliberate
-run, and opening the PR runs it. This is the identical trade Phase 1 made for
-`ci.yml`, and it is stated here rather than left implicit.
+`compiler-native.yml` declares `permissions: contents: read`. The dedupe step
+queried the Actions API with `gh api`. Every other Actions-API query in this
+repository declares `actions: read` explicitly:
 
-### `main` — a guard, because the trigger cannot express it
+```
+component-host-bench.yml:35   actions: read
+ci.yml:550                    actions: read
+host-deployment-stage2.yml:101 actions: read
+release.yml:27                actions: read
+rc-approval.yml:44            actions: read
+```
 
-Removing `push: main` is not possible: a main merge must still be validated
-when Release Canary does not build it. Adding a second trigger is not possible
-either: the duplicate _is_ the two triggers.
+The step wrapped the call in `2>/dev/null || echo ""`, so a permission failure
+became "no canary run found" and the matrix built anyway. That reads as safe —
+and it is, in the sense that nothing is skipped — but it also means the
+optimization was never actually running, and the log line looked like a
+transient network problem rather than a misconfiguration.
 
-So the standalone run decides whether its work is already being done:
+### 2.3 `native-prebuild` is conditional, and downstream of a gate
 
-1. A `dedupe-against-canary` job queries the Release Canary runs for this
-   commit. If one exists, and it is not this run, the canary prebuild will
-   build the same tree, and `build` skips.
-2. Every uncertain case builds: the query fails, no canary run exists, the
-   canary is disabled, the repository is a fork.
+`release-canary.yml`:
 
-The guard is written against **this workflow identifying itself**, which is
-load-bearing rather than defensive:
+```yaml
+native-prebuild:
+  if: >-
+    github.repository == 'baicie/zeus' &&
+    (github.ref == 'refs/heads/main' || ...)
+  needs: release-preflight
+```
 
-- Inside `workflow_call`, the `github` context belongs to the _caller_.
-  `Release Canary` runs on `push` to `refs/heads/main` — exactly the event and
-  ref the guard keys on. Without `github.workflow == 'Compiler Native Matrix'`
-  the reused workflow would suppress the build that the release then downloads.
-- The query excludes `github.run_id`, so the canary call cannot find the
-  standalone push run for the same commit and conclude it is a duplicate of
-  itself.
+The run can exist while `native-prebuild` has not started, is waiting on
+`release-preflight`, or was skipped. None of those states means the seven
+platforms were built.
 
-`build` carries `always() && !(<guard>)` rather than a bare `if:` because a
-reused workflow and a pull request have no `dedupe-against-canary` result at
-all. A skip must come from a _successful_ dedupe decision, never from an
-absent one.
+### 2.4 Attempts and history are not distinguished
 
-### What did not change
+The query matched any run with the SHA, at any attempt. A re-run, a cancelled
+first attempt, or a run from a different event all satisfy it.
 
-- The seven-platform matrix, targets, runner images and musl/Zig path.
+---
+
+## 3. What a safe implementation must prove
+
+Recorded in full in `docs/ci-native-matrix-dedup-rfc.md`. In short, it needs
+all of:
+
+1. exact identity — full 40-character SHA, event, workflow id, run attempt;
+2. seven per-platform job conclusions, each `success` **and** with a non-empty
+   `runner_name` (a cancelled job has `runner_name: ""` and `steps: []`);
+3. an artifact per platform, present, unexpired, and attributable to the SHA;
+4. query failure treated as "build", with "no run" and "cannot tell"
+   distinguished in the log;
+5. `cancelled` / `failure` / `timed_out` canary results leaving `main` to build;
+6. `workflow_call`, `workflow_dispatch` and tag releases never inheriting a skip;
+7. no cross-workflow wait, so nothing can deadlock against the canary that
+   needs these artifacts;
+8. `actions: read` added **and observed working** in a real run.
+
+Until every one of those is demonstrated against real Actions runs, `main`
+keeps its own matrix. A duplicate costs runner minutes; a silently missing one
+costs a release.
+
+---
+
+## 4. What did not change
+
+- The seven-platform matrix: targets, runner images, the musl/Zig path.
 - NAPI package names, artifact names (`compiler-native-<target>`) and upload
   shape — `release.yml` and `release-canary.yml` both download
   `compiler-native-*` unchanged.
 - The `workflow_call` contract: no inputs, `secrets: inherit`.
 - The `pull_request` `paths:` filter, byte for byte.
+- `permissions: contents: read` — no Actions API query remains.
 
-## 3. Verification
+---
+
+## 5. Verification
 
 ### Static, executed
 
-| Check                                                           | Result            |
-| --------------------------------------------------------------- | ----------------- |
-| `actionlint .github/workflows/compiler-native.yml`              | clean             |
-| `actionlint` with shellcheck, same file                         | clean             |
-| `vitest run scripts/release/__tests__/release-workflow.spec.ts` | 27 passed (6 new) |
-| `prettier --check` on every changed file                        | clean             |
+| Check                                                | Result   |
+| ---------------------------------------------------- | -------- |
+| `actionlint .github/workflows/compiler-native.yml`   | see §5.1 |
+| YAML parses; one job (`build`), seven matrix entries | verified |
+| `grep -c dedupe` on the workflow                     | 0        |
+| `push.branches`                                      | `[main]` |
 
-The new tests pin, as text, the four triggers, the seven targets, the
-self-identification guard and the `always()` build condition. They do not
-prove GitHub's scheduling behaviour — that needs real runs, below.
+### 5.1 Real Actions
 
-### Real Actions
+The branch's own runs are the evidence for the trigger change; the rows that
+depend on a merge to `main` cannot be produced from a pull request.
 
-The end-to-end matrix must be executed on the branch, not asserted. The
-scenarios and what each proves:
+| #   | Scenario                                         | Expected                                                          | Status                |
+| --- | ------------------------------------------------ | ----------------------------------------------------------------- | --------------------- |
+| 1   | Push to this PR branch                           | one matrix (`pull_request`) for the commit; no second `push` run  | see §6                |
+| 2   | `workflow_dispatch` of the matrix on a branch    | seven platforms build; no job skipped                             | NOT_RUN               |
+| 3   | Merge to main                                    | standalone matrix builds seven; canary prebuild also builds seven | NOT_RUN (needs merge) |
+| 4   | Tag release (`workflow_call` from `release.yml`) | seven platforms build                                             | NOT_RUN               |
 
-| #   | Scenario                                       | Expected                                                     | Status  |
-| --- | ---------------------------------------------- | ------------------------------------------------------------ | ------- |
-| 1   | Push to this PR branch                         | one native matrix (pull_request); no second push run         | NOT_RUN |
-| 2   | Merge to main, canary healthy                  | canary prebuild builds 7; standalone `build` reports skipped | NOT_RUN |
-| 3   | `workflow_dispatch` of the matrix              | 7 platforms build; dedupe job skipped, build not suppressed  | NOT_RUN |
-| 4   | Tag release (`workflow_call` from release.yml) | 7 platforms build; the guard cannot fire                     | NOT_RUN |
-| 5   | Canary disabled or failing before prebuild     | standalone matrix builds 7; no silent gap                    | NOT_RUN |
+Row 3 is the duplication this PR keeps on purpose; it is listed so the cost is
+visible rather than assumed away.
 
-Scenarios 3 and 4 exercise exactly the paths the `github.workflow` guard
-protects, and scenario 2 is the only one that can observe the saving. They are
-listed as NOT_RUN until the runs exist; the numbers will be appended to this
-document with run ids.
+---
 
-## 4. Risk and rollback
+## 6. The macOS ARM64 cancellations
 
-| Risk                                                            | Bound                                                                                                                    |
-| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| A main commit gets no native matrix because the query was wrong | Only a _successful_ query with a matching canary run suppresses it; the canary run must exist before the guard can match |
-| A release gets no artifacts                                     | The guard cannot fire inside `workflow_call` (caller context ≠ this workflow)                                            |
-| A feature branch without a PR loses push validation             | Accepted, deliberate, `workflow_dispatch` remains; identical to the Phase 1 `ci.yml` trade                               |
-| Query API hiccup causes a duplicate build                       | Costs runner minutes, which is the failure direction we chose                                                            |
+Both cancelled jobs in this work are the same class of event, and neither is a
+code defect. Evidence from the Actions API:
 
-Rollback is a single file: restore `feat/**`, `fix/**`, `refactor/**` under
-`push:` and delete the two guard blocks. No artifact contract, package name or
-release workflow references the guard.
+| Run         | Workflow               | Job                                      | Result      | `runner_name`               | Window              |
+| ----------- | ---------------------- | ---------------------------------------- | ----------- | --------------------------- | ------------------- |
+| 43249739185 | Compiler Native Matrix | `aarch64-apple-darwin`                   | `success`   | `GitHub Actions 1000079652` | 15:37:10 → 15:38:57 |
+| 43249739170 | Release Canary         | `native-prebuild / aarch64-apple-darwin` | `cancelled` | **empty**                   | 15:39:16 → 15:54:47 |
+| 43252159090 | Compiler Native Matrix | `aarch64-apple-darwin`                   | `cancelled` | **empty**                   | 15:50:38 → 16:05:41 |
+
+Classification: **QUEUED / RUNNER_NOT_ASSIGNED**, not `EXECUTION_FAILED`,
+`TIMED_OUT` or `UNKNOWN`.
+
+The reasoning, kept deliberately narrow:
+
+- the job object reports `steps: []` — no step ever started;
+- `runner_name` is empty — no runner was ever assigned;
+- the elapsed window is ~15 minutes, which is the queue, not a build;
+- a `macos-15` runner **was** available two minutes earlier for the standalone
+  matrix (1000079652) and built the same target in 1m47s.
+
+What this does **not** establish: whether the `macos-15` pool was saturated by
+the two runs competing (the standalone and the canary were both in flight),
+whether it was an account-level concurrency limit, or whether it was a
+transient GitHub capacity event. Those need GitHub status history or support
+data that is not in this repository. Recorded as unknown rather than guessed.
+
+Consequence for this PR: nothing. The seven platforms stay; the trigger change
+reduces the number of concurrent macOS ARM64 requests rather than increasing
+them.
+
+---
+
+## 7. Risk and rollback
+
+| Risk                                                                   | Mitigation                                                                     |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| A PR branch that never opens a PR no longer runs the matrix on push    | `workflow_dispatch` covers it; the `pull_request` `paths:` filter is unchanged |
+| `main` still builds twice                                              | accepted and documented; the safe removal is an RFC                            |
+| The trigger change hides a regression that only a push run would catch | `pull_request` runs the same workflow with identical inputs                    |
+
+Rollback is a single revert: restore `feat/**`, `fix/**`, `refactor/**` under
+`push.branches`. No artifact names, cache keys or call contracts are involved.

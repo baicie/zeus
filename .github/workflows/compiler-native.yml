@@ -3,24 +3,29 @@ name: Compiler Native Matrix
 # Who runs this matrix, and why each trigger exists.
 #
 # `pull_request` — the validation path for a change to the compiler, the Rust
-# workspace or the release smoke contract. It is the *only* push-triggered
-# path for feature branches: before this change `push` also listed
-# `feat/**`, `fix/**` and `refactor/**`, so every commit on a branch with an
-# open PR built all seven platforms twice. Runs 43216543074 (push) and
-# 43216552540 (pull_request) are the same tree `179779a4`; 43216215063 and
-# 43216281805 are the same tree `6d71343f`. `pull_request` fires on
-# `synchronize`, so an open PR still gets exactly one matrix per commit.
+# workspace or the release smoke contract. It is the *only* push path for
+# feature branches: `push` used to also list `feat/**`, `fix/**` and
+# `refactor/**`, so every commit on a branch with an open PR built all seven
+# platforms twice. Runs 43216543074 (push) and 43216552540 (pull_request) are
+# the same tree `179779a4`; 43216215063 and 43216281805 are the same tree
+# `6d71343f`. `pull_request` fires on `synchronize`, so an open PR still gets
+# exactly one matrix per commit.
 #
-# `push` on `main` — the post-merge validation of what landed. It used to be
-# the second of two matrices built for the same commit, because
-# `release-canary.yml` calls this workflow as `native-prebuild` on every main
-# push. The standalone job now *skips* when that caller is going to build the
-# same commit, and runs when it will not (a fork, a disabled canary, or a
-# canary that failed before its prebuild). See the `build` job's `if:`.
+# `push` on `main` — the post-merge validation of what landed. On `main` this
+# workflow and `release-canary.yml`'s `native-prebuild` both build the same
+# seven platforms for the same commit; that duplication is real (run
+# 43221565275: 14.7 runner minutes; run 43221565365: ~20). It is deliberately
+# **not** removed here. Deciding "the canary already built this" from another
+# workflow's run requires proving seven per-platform conclusions, artifact
+# ownership and run attempts; a wrong answer silently removes the only
+# post-merge validation of a release artifact. The design and its proof
+# obligations are in `docs/ci-native-matrix-dedup-rfc.md`. Until that is
+# proven against real Actions runs, `main` keeps its own matrix — a duplicate
+# costs runner minutes, a silently missing one costs a release.
 #
 # `workflow_call` — `release.yml` (tag push) and `release-canary.yml` (main
 # push, and manual dispatch) use this to produce the platform artifacts they
-# publish. Nothing about the call contract changed.
+# publish. Nothing about the call contract changes.
 #
 # `workflow_dispatch` — a manual full matrix on any branch, including a
 # release/hotfix branch that never opens a PR.
@@ -51,76 +56,7 @@ permissions:
   contents: read
 
 jobs:
-  # The duplicate this guard removes was measured, not assumed: on `main` at
-  # `8f8f5256` the standalone matrix (run 43221565275, 14.7 runner minutes)
-  # and `Release Canary`'s `native-prebuild` (run 43221565365, ~20 runner
-  # minutes of seven-platform builds) compiled the identical tree.
-  #
-  # Two guards, deliberately redundant, because suppressing the build in a
-  # `workflow_call` would starve the release of its artifacts:
-  #
-  #   1. `github.workflow` must be this workflow. When called, the `github`
-  #      context belongs to the caller (`Release Canary`), so a call is never
-  #      a candidate for deduplication.
-  #   2. The canary run must not be this run. `github` is the caller's context
-  #      inside a call, so without this the query would find the calling run
-  #      itself and report "already built by canary" while running as canary.
-  #
-  # Every uncertain case builds: a failed query, a disabled canary, a fork. A
-  # duplicate matrix costs runner minutes; a silently missing one costs a
-  # release.
-  dedupe-against-canary:
-    if: >-
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/main' &&
-      github.workflow == 'Compiler Native Matrix'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      canary-builds-this-commit: ${{ steps.canary.outputs.builds }}
-    steps:
-      - name: Will Release Canary build this commit?
-        id: canary
-        env:
-          GH_TOKEN: ${{ github.token }}
-          COMMIT: ${{ github.sha }}
-          RUN_ID: ${{ github.run_id }}
-        run: |
-          set -euo pipefail
-          # `release-canary.yml` runs `native-prebuild` on every push to main,
-          # unconditionally once `release-preflight` succeeds. A disabled
-          # workflow returns no run, and no run means the standalone matrix
-          # must build.
-          # `github.sha` is the full 40-character commit; the API returns the
-          # same, so this is an exact match. A prefix match would pair a
-          # short SHA with whatever run happened to start with those
-          # characters.
-          jq_filter="[.workflow_runs[] | select(.head_sha == \"${COMMIT}\" and .id != ${RUN_ID})] | length"
-          count=$(gh api \
-            "repos/${GITHUB_REPOSITORY}/actions/workflows/release-canary.yml/runs?per_page=20" \
-            --jq "$jq_filter" 2>/dev/null || echo "")
-          if [ -z "$count" ]; then
-            echo "Could not query Release Canary; building the matrix." >&2
-            echo "builds=false" >> "$GITHUB_OUTPUT"
-          elif [ "$count" -gt 0 ]; then
-            echo "Release Canary builds ${COMMIT} in its own run; skipping the duplicate matrix."
-            echo "builds=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "No Release Canary run for ${COMMIT}; building the matrix."
-            echo "builds=false" >> "$GITHUB_OUTPUT"
-          fi
-
   build:
-    needs: dedupe-against-canary
-    # `always()` is deliberate: a caller (`workflow_call`), a pull request and
-    # a manual dispatch all reach this job without a dedupe decision, and none
-    # of them may inherit a skip. Only a *successful* dedupe makes it skip.
-    if: >-
-      always() &&
-      !(github.event_name == 'push' &&
-        github.ref == 'refs/heads/main' &&
-        github.workflow == 'Compiler Native Matrix' &&
-        needs.dedupe-against-canary.outputs.canary-builds-this-commit == 'true')
     strategy:
       fail-fast: false
       matrix:

@@ -494,26 +494,40 @@ describe('release workflows', () => {
       expect(dispatchBlock).toBeDefined()
     })
 
-    it('never deduplicates a call, a PR or a manual run', () => {
-      // The dedupe guard must name its own workflow: inside `workflow_call`
-      // the `github` context is the caller's, and `Release Canary` on main
-      // has the same event and ref as the standalone run. Without the
-      // self-identification the reused workflow would suppress the very
-      // build the release downloads.
-      const dedupeStart = native.indexOf('\n  dedupe-against-canary:\n')
-      expect(dedupeStart).toBeGreaterThan(-1)
-      const dedupe = native.slice(dedupeStart, native.indexOf('\n  build:\n'))
-      expect(dedupe).toContain("github.workflow == 'Compiler Native Matrix'")
-      expect(dedupe).toContain('.id != ${RUN_ID}')
+    it('keeps main building its own matrix rather than trusting the canary', () => {
+      // A cross-workflow dedupe existed here and was withdrawn. It skipped
+      // `main`'s matrix when *any* `release-canary.yml` run existed for the
+      // SHA, which is not the same as seven successful platform builds.
+      //
+      // `7d1031e4` is the counter-example: Release Canary 43249739170 existed
+      // and was `failure`, its `native-prebuild / build (aarch64-apple-darwin)`
+      // having been `cancelled` with an empty `runner_name` and no steps.
+      // Trusting existence would have left that commit with no darwin-arm64
+      // validation while reporting green.
+      //
+      // The safe design and its proof obligations are in
+      // `docs/ci-native-matrix-dedup-rfc.md`. This test keeps the guard from
+      // coming back without them.
+      expect(native).not.toContain('dedupe-against-canary')
+      expect(native).not.toContain('canary-builds-this-commit')
 
-      const buildGuard = native.slice(
-        native.indexOf('\n  build:\n'),
-        native.indexOf('\n    strategy:\n'),
-      )
-      expect(buildGuard).toContain('always()')
-      expect(buildGuard).toContain(
-        "github.workflow == 'Compiler Native Matrix'",
-      )
+      // No job may be gated on another workflow's state, and the matrix must
+      // run for every trigger without a `needs:` on a conditional gate.
+      const buildJob = native.slice(native.indexOf('\n  build:\n'))
+      expect(buildJob).not.toMatch(/^ {4}needs:/m)
+      expect(buildJob).not.toMatch(/^ {4}if:/m)
+    })
+
+    it('does not query the Actions API, so it needs no extra permission', () => {
+      // The withdrawn guard called `gh api .../actions/workflows/...`. This
+      // workflow declares only `contents: read`, and every other Actions-API
+      // query in the repository declares `actions: read` explicitly
+      // (component-host-bench.yml:35, ci.yml:550, host-deployment-stage2.yml:101,
+      // release.yml:27, rc-approval.yml:44). The query failed and was swallowed
+      // by `|| echo ""`, so the optimization never ran.
+      expect(native).not.toContain('gh api')
+      expect(native).toContain('permissions:\n  contents: read')
+      expect(native).not.toContain('actions: read')
     })
 
     it('keeps all seven platform targets', () => {
