@@ -179,14 +179,14 @@
     {
       "package": "create-zeus",
       "metric": "gzip",
-      "tolerancePercent": 20,
-      "reason": "The scaffolding CLI. Templates are copied rather than bundled, so the published entry is small and stable."
+      "reason": "The scaffolding CLI entry. It is built by its own package script, which the CI build job does not run, so the package may legitimately be absent from a report run — that is why it is also listed in expectedUnmeasured. When it IS present it must still be bounded, and an absolute ceiling is the only form that works for an artifact with no baseline entry: 16 KiB is roughly twice the measured size, which catches a bundled dependency leaking into the CLI without tripping on a small edit.",
+      "limitKiB": 16
     },
     {
       "package": "zeus-ui",
       "metric": "gzip",
-      "tolerancePercent": 20,
-      "reason": "The companion CLI entry."
+      "reason": "The scaffolding CLI entry. It is built by its own package script, which the CI build job does not run, so the package may legitimately be absent from a report run — that is why it is also listed in expectedUnmeasured. When it IS present it must still be bounded, and an absolute ceiling is the only form that works for an artifact with no baseline entry: 16 KiB is roughly twice the measured size, which catches a bundled dependency leaking into the CLI without tripping on a small edit.",
+      "limitKiB": 16
     },
     {
       "package": "@zeus-js/compiler-native",
