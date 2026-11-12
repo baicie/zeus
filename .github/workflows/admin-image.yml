@@ -208,6 +208,35 @@ jobs:
       # step just produced. The gate resolves the tag too and fails if the two
       # disagree, so a tag repointed mid-run cannot be measured as if it were the
       # image that was built.
+      # Prove the gate can start before it is relied on for a release.
+      #
+      # The enforcement step below is skipped on a pull request (nothing was
+      # pushed, so there is no digest to measure), which means a broken gate —
+      # a bad import, a missing bundle — would only be discovered on `main`,
+      # after the merge, exactly as run 43205273467 discovered it. This step
+      # runs the same committed bundle on the same runner for every PR that
+      # touches this workflow or the admin app: no arguments, so it prints its
+      # usage message and exits non-zero, which is the proof that Node resolved
+      # every import and reached `main()`. It measures nothing and needs no
+      # credentials.
+      - name: Smoke-test that the size gate starts
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          # A usage error is the expected outcome: exit 1 plus the help text.
+          status=0
+          output="$(node scripts/release/dist/image-size-gate.mjs 2>&1)" || status=$?
+          echo "${output}"
+          if [[ ${status} -eq 0 ]]; then
+            echo "::error::the gate exited 0 with no arguments; it should refuse to run without a target"
+            exit 1
+          fi
+          if [[ "${output}" != *"--manifest"* && "${output}" != *"--reference"* ]]; then
+            echo "::error::the gate did not print its usage message; it may have failed before reaching main()"
+            exit 1
+          fi
+          echo "gate started and refused an empty invocation, as expected"
+
       - name: Enforce the image size budget
         if: github.event_name != 'pull_request'
         env:
