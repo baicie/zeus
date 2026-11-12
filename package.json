@@ -46,6 +46,7 @@
     "size:report": "tsx scripts/size/build-size-report-cli.ts",
     "size:report:ci": "tsx scripts/size/build-size-report-cli.ts --ci",
     "size:baseline": "tsx scripts/size/build-size-report-cli.ts --write-baseline",
+    "build:image-gate": "node scripts/release/build-image-size-gate.mjs",
     "docs:dev": "pnpm -C docs dev",
     "docs:build": "pnpm -C docs build",
     "docs:preview": "pnpm -C docs preview",

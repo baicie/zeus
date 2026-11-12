@@ -253,12 +253,12 @@ describe('findRule', () => {
     expect(rule?.limitKiB).toBe(20)
   })
 
-  it('falls back to a package rule', () => {
-    const rule = findRule(artifact(), rules)
+  it('falls back to a package rule when the artifact has a baseline entry', () => {
+    const rule = findRule(artifact(), rules, { hasBaseline: true })
     expect(rule?.package).toBe('@zeus-js/signal')
   })
 
-  it('falls back to a format rule', () => {
+  it('falls back to a format rule when the artifact has a baseline entry', () => {
     const rule = findRule(
       artifact({
         packageName: '@zeus-js/compiler-native-linux-x64-gnu',
@@ -266,6 +266,7 @@ describe('findRule', () => {
         format: 'native',
       }),
       rules,
+      { hasBaseline: true },
     )
     expect(rule?.format).toBe('native')
   })
@@ -274,6 +275,72 @@ describe('findRule', () => {
     expect(
       findRule(artifact({ packageName: '@zeus-js/other' }), rules),
     ).toBeUndefined()
+  })
+
+  // A new file must not inherit a rule that cannot describe it. These cases are
+  // the difference between "the gate noticed a new artifact" and "the gate let
+  // a new artifact through under someone else's budget".
+  describe('when the artifact has no baseline entry', () => {
+    it('rejects a baseline-relative package rule', () => {
+      const newFile = artifact({ file: 'dist/runtime-dom.extra.js' })
+      expect(findRule(newFile, rules, { hasBaseline: false })).toBeUndefined()
+    })
+
+    it('accepts an absolute-limit package rule', () => {
+      const absolute: BudgetRule[] = [
+        { package: '@zeus-js/signal', metric: 'raw', limitKiB: 64 },
+      ]
+      const found = findRule(artifact(), absolute, { hasBaseline: false })
+      expect(found?.limitKiB).toBe(64)
+    })
+
+    it('rejects a baseline-relative format rule', () => {
+      const formatOnly: BudgetRule[] = [
+        { format: 'esm-browser', tolerancePercent: 15 },
+      ]
+      expect(
+        findRule(artifact(), formatOnly, { hasBaseline: false }),
+      ).toBeUndefined()
+    })
+
+    it('accepts an absolute-limit format rule', () => {
+      const formatOnly: BudgetRule[] = [
+        {
+          format: 'native',
+          metric: 'raw',
+          limitKiB: 2300,
+          platformSpecific: true,
+        },
+      ]
+      const native = artifact({ format: 'native', file: 'x.node' })
+      expect(
+        findRule(native, formatOnly, { hasBaseline: false })?.limitKiB,
+      ).toBe(2300)
+    })
+
+    it('accepts an exact artifact rule whatever its shape', () => {
+      const exactOnly: BudgetRule[] = [
+        {
+          artifact: '@zeus-js/signal/dist/signal.esm-browser.prod.js',
+          tolerancePercent: 10,
+        },
+      ]
+      const found = findRule(artifact(), exactOnly, { hasBaseline: false })
+      expect(found?.tolerancePercent).toBe(10)
+    })
+
+    it('still prefers the exact rule when a baseline exists', () => {
+      const exact: BudgetRule[] = [
+        {
+          artifact: '@zeus-js/signal/dist/signal.esm-browser.prod.js',
+          limitKiB: 8,
+        },
+        { package: '@zeus-js/signal', tolerancePercent: 15 },
+      ]
+      expect(findRule(artifact(), exact, { hasBaseline: true })?.limitKiB).toBe(
+        8,
+      )
+    })
   })
 })
 

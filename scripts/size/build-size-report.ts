@@ -409,19 +409,53 @@ export function artifactKey(artifact: {
 /**
  * Resolves the rule that governs one artifact.
  *
- * Precedence is exact artifact, then package, then format. A rule with no limit
- * and no tolerance is ignored rather than treated as "unlimited", so a typo in
- * a package name cannot disable a check silently.
+ * ## Why a new artifact only accepts a rule that can stand without a baseline
+ *
+ * Package and format rules exist so a stable artifact does not need its own
+ * line: `@zeus-js/runtime-dom` has one rule covering its eight builds. That
+ * convenience has a failure mode, and it is the one that matters most for a
+ * size gate: a **new** file inherits the package rule and is compared to a
+ * baseline it was never in — reported as "no baseline entry", which reads as a
+ * regression even though nothing grew.
+ *
+ * So for an artifact with no baseline entry, a package or format rule only
+ * qualifies when it is **self-sufficient**: it states an absolute limit, and is
+ * not baseline-relative. Those are the rules that were written to describe an
+ * artifact on its own terms — the native binaries (platform-specific, so an
+ * absolute ceiling by construction), the platform shims, the scaffolding CLIs.
+ * A baseline-relative rule cannot describe a new file, because there is no
+ * "before" to compare against.
+ *
+ * Without a qualifying rule the artifact is `NO_BUDGET`, which fails CI and
+ * asks for a one-line decision: give this artifact a budget, with a reason.
+ * That is the difference between "the gate noticed a new file" and "the gate let
+ * a new file through under someone else's budget".
  */
 export function findRule(
   artifact: ArtifactMeasurement,
   rules: readonly BudgetRule[],
+  options: { readonly hasBaseline: boolean } = { hasBaseline: false },
 ): BudgetRule | undefined {
   const key = artifactKey(artifact)
+  const exact = rules.find(rule => rule.artifact === key)
+  if (exact) return exact
+  if (options.hasBaseline) {
+    return (
+      rules.find(rule => rule.package === artifact.packageName) ??
+      rules.find(rule => rule.format === artifact.format)
+    )
+  }
+  // No baseline: only a rule that does not need one can apply.
+  const isSelfSufficient = (rule: BudgetRule): boolean =>
+    rule.tolerancePercent === undefined &&
+    (rule.limitBytes !== undefined || rule.limitKiB !== undefined)
   return (
-    rules.find(rule => rule.artifact === key) ??
-    rules.find(rule => rule.package === artifact.packageName) ??
-    rules.find(rule => rule.format === artifact.format)
+    rules.find(
+      rule => rule.package === artifact.packageName && isSelfSufficient(rule),
+    ) ??
+    rules.find(
+      rule => rule.format === artifact.format && isSelfSufficient(rule),
+    )
   )
 }
 
@@ -564,10 +598,11 @@ export function buildReport(options: BuildReportOptions): SizeReport {
 
   const reports = artifacts.map(artifact => {
     const key = artifactKey(artifact)
+    const baseline = baselineByKey.get(key)
     return evaluateArtifact(
       artifact,
-      findRule(artifact, rules),
-      baselineByKey.get(key),
+      findRule(artifact, rules, { hasBaseline: baseline !== undefined }),
+      baseline,
     )
   })
 

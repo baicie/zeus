@@ -16,8 +16,10 @@
  * `--ci` does not change the evaluation; it only decides whether a regression
  * sets the exit code. A local run should still print the finding.
  */
+import { realpathSync } from 'node:fs'
 import fs from 'node:fs'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
 
 import {
@@ -37,6 +39,47 @@ function readJson<T>(file: string, what: string): T {
     throw new Error(
       `Could not read the ${what} at ${file}: ${error instanceof Error ? error.message : String(error)}`,
     )
+  }
+}
+
+export interface GateDecision {
+  readonly pass: boolean
+  readonly regressions: number
+  readonly unbudgeted: number
+  readonly unexpectedMissing: number
+  readonly expectedMissing: number
+}
+
+/**
+ * Decides whether the gate fails.
+ *
+ * Pure so the policy is testable without running a build. The three failure
+ * classes are counted separately: a report is most useful when it says *why*
+ * the gate stopped, and "3 problems" hides whether the fix is shrink, budget or
+ * build.
+ *
+ * `ci` is false for a local `pnpm size:report`, which prints the same findings
+ * and exits 0 so an author can read the report mid-work. CI never runs that
+ * mode.
+ */
+export function decideGate(
+  summary: { readonly regressions: number; readonly noBudget: number },
+  missing: {
+    readonly unexpectedMissing: number
+    readonly expectedMissing: number
+  },
+  options: { readonly ci: boolean },
+): GateDecision {
+  return {
+    pass:
+      !options.ci ||
+      (summary.regressions === 0 &&
+        summary.noBudget === 0 &&
+        missing.unexpectedMissing === 0),
+    regressions: summary.regressions,
+    unbudgeted: summary.noBudget,
+    unexpectedMissing: missing.unexpectedMissing,
+    expectedMissing: missing.expectedMissing,
   }
 }
 
@@ -128,22 +171,59 @@ function main(): void {
     console.log(markdown)
   }
 
-  const fail =
-    report.summary.regressions > 0 ||
-    (values.ci === true && report.unexpectedMissing.length > 0)
-  if (report.summary.regressions > 0) {
-    console.error(
-      `\nsize regression: ${report.summary.regressions} artifact(s) over budget`,
-    )
+  // Three conditions fail CI, and they are reported separately because they
+  // call for different fixes:
+  //
+  //   REGRESSION   an artifact grew past its budget        → shrink it, or get
+  //                                                          the growth reviewed
+  //   NO_BUDGET    an artifact nobody has decided a budget for → add a rule
+  //   UNMEASURED   a published package produced no artifact and has no declared
+  //                expectation                                 → build it, or
+  //                                                          declare why not
+  //
+  // NO_BUDGET is in this list on purpose. It used to be reported and ignored,
+  // which meant a brand-new artifact shipped with no ceiling at all and the
+  // gate stayed green: the exact fail-open the report exists to prevent. A new
+  // file only needs a `size-budget.json` rule with a reason, which is a
+  // five-minute decision — far cheaper than discovering the growth later.
+  //
+  // A local `pnpm size:report` (no `--ci`) still prints every finding but leaves
+  // the exit code at 0, so an author can inspect a report while working.
+  const decision = decideGate(
+    report.summary,
+    {
+      unexpectedMissing: report.unexpectedMissing.length,
+      expectedMissing: report.expectedMissing.length,
+    },
+    { ci: values.ci === true },
+  )
+  const regressions = decision.regressions
+  const unbudgeted = decision.unbudgeted
+  const unexpected = decision.unexpectedMissing
+
+  if (regressions > 0) {
+    console.error(`\nsize regression: ${regressions} artifact(s) over budget`)
     for (const artifact of report.artifacts.filter(
       item => item.result === 'REGRESSION',
     )) {
       console.error(`  - ${artifact.key}: ${artifact.detail}`)
     }
   }
-  if (values.ci === true && report.unexpectedMissing.length > 0) {
+  if (unbudgeted > 0) {
     console.error(
-      `\nsize report: ${report.unexpectedMissing.length} published package(s) produced no artifact and have no declared expectation: ${report.unexpectedMissing.join(', ')}`,
+      `\nsize report: ${unbudgeted} artifact(s) have no budget rule`,
+    )
+    for (const artifact of report.artifacts.filter(
+      item => item.result === 'NO_BUDGET',
+    )) {
+      console.error(
+        `  - ${artifact.key} (${artifact.format}, gzip ${(artifact.gzipBytes / 1024).toFixed(2)} KiB): add a rule to scripts/size/size-budget.json with a reason`,
+      )
+    }
+  }
+  if (unexpected > 0) {
+    console.error(
+      `\nsize report: ${unexpected} published package(s) produced no artifact and have no declared expectation: ${report.unexpectedMissing.join(', ')}`,
     )
   }
   if (report.expectedMissing.length > 0) {
@@ -151,7 +231,26 @@ function main(): void {
       `\nsize report: ${report.expectedMissing.length} package(s) are UNMEASURED by design: ${report.expectedMissing.map(entry => `${entry.package} (${entry.reason})`).join(', ')}`,
     )
   }
-  if (fail) process.exitCode = 1
+  if (!decision.pass) {
+    console.error(
+      `\nsize gate failed: ${regressions} regression(s), ${unbudgeted} without a budget, ${unexpected} unexpected missing.`,
+    )
+    process.exitCode = 1
+  }
 }
 
-main()
+/**
+ * Runs only when this file is the process entry point, so importing it from a
+ * test does not execute a report.
+ */
+function isMain(): boolean {
+  const entry = process.argv[1]
+  if (!entry) return false
+  try {
+    return import.meta.url === pathToFileURL(realpathSync(entry)).href
+  } catch {
+    return false
+  }
+}
+
+if (isMain()) main()

@@ -8,6 +8,14 @@ build
 target
 *.node
 examples/stencil-wrapper/.stencil
+# The image size gate bundle is committed on purpose: the Admin Image job runs
+# it with the Node already on the runner and never installs dependencies, so the
+# file must be in the checkout. `pnpm build:image-gate` regenerates it, and
+# scripts/release/__tests__/image-size-gate-bundle.spec.ts fails if it is stale.
+# The directory itself must be un-ignored first: git does not descend into an
+# ignored directory, so a file-level `!` rule alone has no effect.
+!scripts/release/dist/
+!scripts/release/dist/image-size-gate.mjs
 examples/stencil-wrapper/loader
 docs/.vitepress/.temp
 

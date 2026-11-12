@@ -74,6 +74,10 @@ import {
 import type { ConsoleEntry, DiagnosticItem } from './model'
 import { examples as allExamples } from './examples'
 import { productHref } from '../products'
+import {
+  createHighlightScheduler,
+  type HighlightOutcome,
+} from './highlight-scheduler'
 import { formatMessage, locale, t, type MessageKey } from './i18n'
 
 export function PlaygroundShell() {
@@ -600,22 +604,20 @@ function PreviewPanel() {
 /**
  * Compiler output is plain text; render it through the shared token palette so
  * the Output tab reads like the editor. `innerHTML` is safe here because the
- * only source is the compiler's own module code, and every token is escaped by
- * `highlightCode`.
+ * only source is the compiler's own module code, and every token is escaped
+ * before it is inserted.
  *
- * The highlighter is imported lazily, on the first frame that actually has code
- * to colour. It pulls in `@codemirror/lang-javascript`, which drags
- * `@codemirror/view`, `@codemirror/state`, `@codemirror/language`,
- * `@codemirror/autocomplete` and `@lezer/javascript` — about 370 KB of
- * minified JavaScript, or 120 KB compressed. None of that is needed to show
- * the shell, the editor, or the preview, and the Output tab is not the initial
- * tab. Importing it statically put all of it on the critical path of a page
- * whose first paint is the editor; the editor's own CodeMirror instance lives
- * in `code-editor-impl`, which is already a separate chunk.
+ * The highlighter is loaded on demand: it pulls in `@codemirror/lang-javascript`
+ * and, transitively, `@codemirror/view`, `state`, `language`, `autocomplete` and
+ * `@lezer/javascript` — about 370 KB of minified code that the shell, the editor
+ * and the preview never touch. None of it belongs on the critical path of a page
+ * whose first paint is the editor.
  *
- * Until the chunk arrives the code is shown as escaped plain text, which is
- * exactly what an empty or unavailable highlighter falls back to anyway, so a
- * slow network degrades to the uncoloured output rather than to a blank panel.
+ * The three load states live in `highlight-scheduler.ts`: while the chunk is in
+ * flight, and if it fails to load, the panel shows escaped plain text — readable,
+ * and exactly what the highlighter falls back to on its own. It is never blank,
+ * a failed load never becomes an unhandled rejection, and a result that arrives
+ * after the code changed (or after the element was removed) is discarded.
  */
 function HighlightedCode(props: {
   testId: string
@@ -623,28 +625,38 @@ function HighlightedCode(props: {
   empty: string
 }) {
   let element: HTMLElement | undefined
-  createEffect(() => {
-    const code = props.code
+  // One scheduler per mounted element, so two Output panels cannot interleave
+  // their results.
+  let schedule: ((code: string) => void) | undefined
+
+  const write = (outcome: HighlightOutcome): void => {
     const target = element
     if (!target) return
-    if (!code) {
-      target.textContent = props.empty
+    if (target.innerHTML !== outcome.html) target.innerHTML = outcome.html
+    if (outcome.state === 'ready') {
+      target.dataset.highlighted = 'true'
+    } else {
       delete target.dataset.highlighted
+    }
+    if (outcome.state === 'failed' && outcome.error) {
+      console.warn(
+        `[playground] syntax highlighting unavailable: ${outcome.error}`,
+      )
+    }
+  }
+
+  createEffect(() => {
+    const code = props.code
+    if (!element) return
+    if (!code) {
+      element.textContent = props.empty
+      delete element.dataset.highlighted
       return
     }
-    // Highlighting is a pure function of the code string, so only recompute
-    // when it actually changes; tab switches re-read the same string.
-    void import('./highlight').then(module => {
-      // The element can be gone (tab closed, product switched) or the code can
-      // have changed while the chunk was in flight; either way this result is
-      // stale and must not be written.
-      if (!element || element !== target) return
-      if (props.code !== code) return
-      const html = module.highlightCode(code)
-      if (target.innerHTML !== html) target.innerHTML = html
-      target.dataset.highlighted = 'true'
-    })
+    schedule ??= createHighlightScheduler({ onOutcome: write })
+    schedule(code)
   })
+
   return (
     <code
       data-testid={props.testId}
