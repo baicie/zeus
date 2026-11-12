@@ -205,10 +205,12 @@ export function messageArgumentNames(
 ): readonly string[] {
   try {
     const formatter = new IntlMessageFormat(template, locale)
-    // Top-level AST nodes are always argument nodes (simple, plural, select,
-    // selectordinal, tag); `#` and literal text only occur inside a branch.
+    // AST node types: 0 is literal text, 7 is `#` inside a plural branch.
+    // Everything else names an argument. Filtering on `'value' in node` alone
+    // would treat a plain sentence as one argument whose name is the sentence.
     return formatter
       .getAst()
+      .filter(node => node.type !== 0 && node.type !== 7)
       .map(node => ('value' in node ? String(node.value) : ''))
       .filter(name => name.length > 0)
   } catch {

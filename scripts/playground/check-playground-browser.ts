@@ -110,6 +110,16 @@ try {
     const newPage = async () => {
       const page = await browser.newPage()
       page.setDefaultTimeout(10_000)
+      // This gate asserts Chinese copy. The Playground's default locale follows
+      // `navigator.languages`, so it asks for Chinese explicitly rather than
+      // depending on the runner's language — and every page it opens gets the
+      // same seed, including the failure and clipboard variants below.
+      await page.addInitScript(() => {
+        localStorage.setItem(
+          'zeus-playground.settings.v2',
+          JSON.stringify({ locale: 'zh-CN' }),
+        )
+      })
       page.on('pageerror', error => errors.push(error.message))
       return page
     }

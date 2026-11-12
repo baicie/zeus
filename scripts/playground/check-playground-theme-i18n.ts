@@ -126,7 +126,7 @@ async function runChecks(browser: Browser, name: string): Promise<void> {
 
     // 2. Language switch re-renders live state, not just static labels.
     await page.getByTestId('settings').click()
-    await page.locator('[data-testid="locale-select"]').selectOption('zh')
+    await page.locator('[data-testid="locale-select"]').selectOption('zh-CN')
     await page.waitForTimeout(200)
     const zh = await page.evaluate(() => ({
       lang: document.documentElement.lang,
@@ -257,7 +257,7 @@ async function runChecks(browser: Browser, name: string): Promise<void> {
     })
     check(
       `${name} zh persisted`,
-      persisted.locale === 'zh' && persisted.run === '运行',
+      persisted.locale === 'zh-CN' && persisted.run === '运行',
       JSON.stringify(persisted),
     )
     check(`${name} dark persisted`, persisted.theme === 'dark', persisted.theme)
@@ -293,7 +293,7 @@ async function runChecks(browser: Browser, name: string): Promise<void> {
     )
     await page.locator('.pg-drawer-footer button').last().click()
     await page.getByTestId('settings').click()
-    await page.locator('[data-testid="locale-select"]').selectOption('zh')
+    await page.locator('[data-testid="locale-select"]').selectOption('zh-CN')
     await page.getByTestId('settings').click()
     await page.getByTestId('examples').click()
     const drawerZh =
@@ -438,7 +438,7 @@ async function runChecks(browser: Browser, name: string): Promise<void> {
       await page.screenshot({ path: path.join(output, 'light-en.png') })
       await page.getByTestId('settings').click()
       await page.locator('[data-testid="theme-select"]').selectOption('dark')
-      await page.locator('[data-testid="locale-select"]').selectOption('zh')
+      await page.locator('[data-testid="locale-select"]').selectOption('zh-CN')
       await page.getByTestId('settings').click()
       await page.waitForTimeout(300)
       await page.screenshot({ path: path.join(output, 'dark-zh.png') })

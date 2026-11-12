@@ -74,6 +74,11 @@ export interface CatalogCheckOptions {
  *
  * Returns issues rather than throwing so a CI check can report all of them;
  * `assertCatalog` is the fail-fast variant for call sites that want it.
+ *
+ * `same-as-reference` is reported but is not a structural defect: "WebC" and
+ * "Shadow DOM" are correct in both languages, and a runtime that refused to
+ * start over them would take the page down for a translation-review question.
+ * Callers that want only structural problems filter on `blocking`.
  */
 export function checkCatalog<K extends string>(
   reference: MessageCatalog<K>,
@@ -119,14 +124,37 @@ export function checkCatalog<K extends string>(
   return issues
 }
 
-/** Throws listing every issue; used by tests and by `createI18n` in dev. */
+/**
+ * True for issues that mean the catalog cannot be used at all.
+ *
+ * A missing key renders the reference text; an empty value renders nothing; an
+ * extra key is dead weight. A value identical to the reference renders correct
+ * text — it is a review question, not a startup failure.
+ */
+export function isBlockingCatalogIssue(issue: CatalogIssue): boolean {
+  return issue.kind !== 'same-as-reference'
+}
+
+/**
+ * Throws listing every structural issue.
+ *
+ * Identical-to-reference values are reported through `onIdenticalText` instead
+ * of throwing: a runtime must not refuse to boot because a translator left
+ * "WebC" as "WebC".
+ */
 export function assertCatalog<K extends string>(
   reference: MessageCatalog<K>,
   locale: string,
   candidate: MessageCatalog<string>,
-  options: CatalogCheckOptions = {},
+  options: CatalogCheckOptions & {
+    readonly onIdenticalText?: (key: string) => void
+  } = {},
 ): void {
-  const issues = checkCatalog(reference, locale, candidate, options)
+  const allIssues = checkCatalog(reference, locale, candidate, options)
+  for (const issue of allIssues) {
+    if (!isBlockingCatalogIssue(issue)) options.onIdenticalText?.(issue.key)
+  }
+  const issues = allIssues.filter(isBlockingCatalogIssue)
   if (issues.length === 0) return
   const summary = issues.map(issue => `${issue.kind}: ${issue.key}`).join(', ')
   throw new Error(

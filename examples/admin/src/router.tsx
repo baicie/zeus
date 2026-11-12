@@ -64,7 +64,9 @@ export function createAdminRouter(options: AdminRouterOptions): ZeusRouter {
       id: 'root',
       path: '/',
       element: () => (
-        <SessionContext.Provider value={{ role: options.role() }}>
+        <SessionContext.Provider
+          value={{ role: options.role(), user: options.session?.() }}
+        >
           <AdminShell
             role={options.role}
             onRoleChange={options.onRoleChange}

@@ -55,6 +55,7 @@ import type { WorkspaceSettings } from './api'
 import { adminApi, isDemoBuild } from './admin-api'
 import { Icon } from './shell/icon'
 import { decorateUserGrid } from './shell/grid-decorations'
+import { changePersonalLocale, i18n, t, type Locale } from './i18n'
 import { useSession } from './session'
 
 /* --------------------------------------------------------------- dashboard */
@@ -95,19 +96,21 @@ export function OverviewPage() {
     <section class="page" data-testid="overview-page">
       <header class="page-header">
         <div class="page-heading">
-          <h2 class="page-title">概览</h2>
-          <p class="page-description">
-            工作空间的成员、团队与审计摘要，数据由服务端会话校验后返回。
-          </p>
+          <h2 class="page-title">{t('overview.title')}</h2>
+          <p class="page-description">{t('overview.description')}</p>
         </div>
         <div class="page-actions">
           <Link class="btn" to="/admin/reports">
-            查看报表
+            {t('overview.viewReports')}
           </Link>
         </div>
       </header>
 
-      <div class="tabs-list" role="tablist" aria-label="概览视图">
+      <div
+        class="tabs-list"
+        role="tablist"
+        aria-label={t('overview.viewLabel')}
+      >
         <button
           type="button"
           role="tab"
@@ -115,7 +118,7 @@ export function OverviewPage() {
           aria-selected={tab() === 'overview'}
           onClick={() => setTab('overview')}
         >
-          概览
+          {t('overview.tabOverview')}
         </button>
         <button
           type="button"
@@ -124,7 +127,7 @@ export function OverviewPage() {
           aria-selected={tab() === 'members'}
           onClick={() => setTab('members')}
         >
-          成员
+          {t('overview.tabMembers')}
         </button>
       </div>
 
@@ -132,42 +135,44 @@ export function OverviewPage() {
         <div class="stat-grid">
           <article class="card stat-card">
             <div class="card-header">
-              <h3 class="card-title">团队成员</h3>
+              <h3 class="card-title">{t('overview.totalMembers')}</h3>
               <Icon name="users" />
             </div>
             <div class="card-content">
               <div class="stat-value" data-testid="summary-user-count">
                 {summary.data()?.totalUsers ?? '—'}
               </div>
-              <p class="stat-foot">当前工作空间内的全部成员</p>
+              <p class="stat-foot">{t('overview.totalMembersHint')}</p>
             </div>
           </article>
           <article class="card stat-card">
             <div class="card-header">
-              <h3 class="card-title">团队总数</h3>
+              <h3 class="card-title">{t('overview.totalTeams')}</h3>
               <Icon name="team" />
             </div>
             <div class="card-content">
               <div class="stat-value" data-testid="summary-team-count">
                 {summary.data()?.teams ?? '—'}
               </div>
-              <p class="stat-foot">成员所属的不同团队</p>
+              <p class="stat-foot">{t('overview.totalTeamsHint')}</p>
             </div>
           </article>
           <article class="card stat-card">
             <div class="card-header">
-              <h3 class="card-title">活跃成员</h3>
+              <h3 class="card-title">{t('overview.activeMembers')}</h3>
               <Icon name="check" />
             </div>
             <div class="card-content">
               <div class="stat-value">{activeCount() || '—'}</div>
-              <p class="stat-foot">状态为 active 的成员</p>
+              <p class="stat-foot">{t('overview.activeMembersHint')}</p>
             </div>
           </article>
           <article class="card stat-card">
             <div class="card-header">
               <h3 class="card-title">
-                {session.role === 'admin' ? '审计事件' : '待邀请'}
+                {session.role === 'admin'
+                  ? t('overview.auditEvents')
+                  : t('overview.pendingInvites')}
               </h3>
               <Icon name={session.role === 'admin' ? 'list' : 'mail'} />
             </div>
@@ -179,8 +184,8 @@ export function OverviewPage() {
               </div>
               <p class="stat-foot">
                 {session.role === 'admin'
-                  ? '服务端记录的登录与写操作'
-                  : '尚未激活的邀请'}
+                  ? t('overview.auditEventsHint')
+                  : t('overview.pendingInvitesHint')}
               </p>
             </div>
           </article>
@@ -189,8 +194,10 @@ export function OverviewPage() {
         <div class="dashboard-grid">
           <article class="card chart-card span-4">
             <div class="card-header">
-              <h3 class="card-title">团队分布</h3>
-              <p class="card-description">按成员数排序，数据来自成员目录。</p>
+              <h3 class="card-title">{t('overview.teamDistribution')}</h3>
+              <p class="card-description">
+                {t('overview.teamDistributionHint')}
+              </p>
             </div>
             <div class="card-content">
               <Show
@@ -198,11 +205,15 @@ export function OverviewPage() {
                 fallback={
                   <div class="state-block">
                     <Icon name="inbox" />
-                    <p class="state-title">暂无团队数据</p>
+                    <p class="state-title">{t('overview.noTeamData')}</p>
                   </div>
                 }
               >
-                <div class="chart" role="img" aria-label="团队成员按团队分布">
+                <div
+                  class="chart"
+                  role="img"
+                  aria-label={t('overview.teamChartLabel')}
+                >
                   <div class="chart-plot">
                     <div class="chart-gridlines" aria-hidden="true">
                       <span class="chart-gridline">{maxTeam()}</span>
@@ -237,8 +248,8 @@ export function OverviewPage() {
 
           <article class="card span-3">
             <div class="card-header">
-              <h3 class="card-title">最新成员</h3>
-              <p class="card-description">成员目录中按姓名排序的前几位成员。</p>
+              <h3 class="card-title">{t('overview.recentMembers')}</h3>
+              <p class="card-description">{t('overview.recentMembersHint')}</p>
             </div>
             <div class="card-content">
               <div class="recent-list">
@@ -259,7 +270,7 @@ export function OverviewPage() {
                   )}
                 </For>
                 <Show when={rows().length === 0}>
-                  <p class="muted">成员目录为空。</p>
+                  <p class="muted">{t('overview.emptyDirectory')}</p>
                 </Show>
               </div>
             </div>
@@ -270,10 +281,8 @@ export function OverviewPage() {
       <Show when={tab() === 'members'}>
         <article class="card">
           <div class="card-header">
-            <h3 class="card-title">成员</h3>
-            <p class="card-description">
-              全部成员的团队与状态；完整筛选在用户管理页。
-            </p>
+            <h3 class="card-title">{t('overview.tabMembers')}</h3>
+            <p class="card-description">{t('overview.allMembersHint')}</p>
           </div>
           <div class="card-content" style={{ padding: '0 24px' }}>
             <div class="table-frame">
@@ -281,10 +290,10 @@ export function OverviewPage() {
                 <table class="table">
                   <thead>
                     <tr>
-                      <th scope="col">姓名</th>
-                      <th scope="col">邮箱</th>
-                      <th scope="col">团队</th>
-                      <th scope="col">状态</th>
+                      <th scope="col">{t('overview.colName')}</th>
+                      <th scope="col">{t('overview.colEmail')}</th>
+                      <th scope="col">{t('overview.colTeam')}</th>
+                      <th scope="col">{t('overview.colStatus')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -402,6 +411,13 @@ export function UsersPage() {
         setRowMenu({ key, x: point.x, y: point.y })
       },
       isAdmin: () => session.role === 'admin',
+      // Recomputed on each decorate() call, so a language switch re-labels the
+      // rows the observer touches next without rebuilding the grid.
+      statusLabels: () => ({
+        active: t('status.active'),
+        invited: t('status.invited'),
+        suspended: t('status.suspended'),
+      }),
     })
     onCleanup(() => stopDecorations?.())
   }
@@ -456,8 +472,8 @@ export function UsersPage() {
     <section class="page" data-testid="users-page">
       <header class="page-header">
         <div class="page-heading">
-          <h2 class="page-title">用户列表</h2>
-          <p class="page-description">在这里管理成员以及他们的角色。</p>
+          <h2 class="page-title">{t('users.title')}</h2>
+          <p class="page-description">{t('users.description')}</p>
         </div>
         <div class="page-actions">
           <button
@@ -467,11 +483,11 @@ export function UsersPage() {
             disabled={!selectedUser()}
             onClick={openSelectedUser}
           >
-            查看详情
+            {t('users.viewDetails')}
           </button>
           <Show when={session.role === 'admin'}>
             <Link class="btn btn-outline" to="/admin/users/error">
-              体验加载失败
+              {t('users.loadFailed')}
             </Link>
             <button
               type="button"
@@ -479,7 +495,7 @@ export function UsersPage() {
               data-testid="invite-user"
               onClick={() => setInviteOpen(true)}
             >
-              添加成员
+              {t('users.addMember')}
               <Icon name="user-plus" />
             </button>
           </Show>
@@ -490,8 +506,8 @@ export function UsersPage() {
         <div class="users-toolbar-filters">
           <zw-input
             id="user-search"
-            aria-label="搜索用户"
-            placeholder="搜索成员…"
+            aria-label={t('users.searchLabel')}
+            placeholder={t('users.searchPlaceholder')}
             prop:value={search()}
             ref={bindSearchInput}
             data-testid="user-search"
@@ -500,14 +516,14 @@ export function UsersPage() {
           <select
             id="user-status"
             class="select users-filter"
-            aria-label="按状态筛选"
+            aria-label={t('users.filterLabel')}
             data-testid="user-status"
             prop:onchange={updateStatus}
           >
-            <option value="all">状态</option>
-            <option value="active">活跃</option>
-            <option value="invited">待邀请</option>
-            <option value="suspended">已暂停</option>
+            <option value="all">{t('users.statusFilter')}</option>
+            <option value="active">{t('users.statusActive')}</option>
+            <option value="invited">{t('users.statusInvited')}</option>
+            <option value="suspended">{t('users.statusSuspended')}</option>
           </select>
           <Show when={filtersActive()}>
             <button
@@ -519,27 +535,27 @@ export function UsersPage() {
                 setPage(1)
               }}
             >
-              重置
+              {t('users.reset')}
               <Icon name="x" />
             </button>
           </Show>
           <Show when={query.pending()}>
             <span class="users-toolbar-status" role="status">
-              <span class="spinner" aria-hidden="true" /> 加载中…
+              <span class="spinner" aria-hidden="true" /> {t('users.loading')}
             </span>
           </Show>
         </div>
         <span class="users-toolbar-status" data-testid="selection-status">
           {selectedUser()
-            ? `已选择：${selectedUser()?.name}`
-            : `${result()?.total ?? 0} 位成员`}
+            ? t('users.selected', { name: selectedUser()?.name ?? '' })
+            : t('users.memberCount', { count: result()?.total ?? 0 })}
         </span>
       </div>
 
       <Show when={query.errorState()}>
         <div class="state-block state-block-error" role="alert">
           <Icon name="alert" />
-          <p class="state-title">无法加载成员目录</p>
+          <p class="state-title">{t('users.directoryUnavailable')}</p>
           <p class="state-description">{String(query.error())}</p>
         </div>
       </Show>
@@ -547,34 +563,34 @@ export function UsersPage() {
       <div class="table-frame">
         <zw-data-grid
           data-testid="user-grid"
-          aria-label="工作空间成员"
+          aria-label={t('users.membersLabel')}
           selection-mode="single"
           row-height="48"
           prop:columns={[
             {
               id: 'name',
-              header: '姓名',
+              header: t('users.colName'),
               field: 'name',
               width: 220,
               sortable: true,
             },
             {
               id: 'email',
-              header: '邮箱',
+              header: t('users.colEmail'),
               field: 'email',
               width: 260,
               sortable: true,
             },
             {
               id: 'team',
-              header: '团队',
+              header: t('users.colTeam'),
               field: 'team',
               width: 160,
               sortable: true,
             },
             {
               id: 'status',
-              header: '状态',
+              header: t('users.colStatus'),
               field: 'status',
               width: 140,
               sortable: true,
@@ -594,18 +610,18 @@ export function UsersPage() {
 
       <div class="table-pagination">
         <span class="muted" style={{ fontSize: '14px' }}>
-          {result()?.total ?? 0} 位成员
+          {t('users.memberCount', { count: result()?.total ?? 0 })}
         </span>
         <div class="table-pagination-group">
           <span class="muted" style={{ fontSize: '14px' }}>
-            第 {page()} / {pageCount()} 页
+            {t('users.pageOf', { page: page(), count: pageCount() })}
           </span>
           <div class="table-pagination-pages">
             <button
               type="button"
               class="btn btn-outline btn-sm btn-icon"
               data-testid="page-prev"
-              aria-label="上一页"
+              aria-label={t('users.prevPage')}
               disabled={page() <= 1}
               onClick={() => setPage(Math.max(1, page() - 1))}
             >
@@ -617,7 +633,7 @@ export function UsersPage() {
                   type="button"
                   class="page-number"
                   aria-current={page() === number ? 'page' : undefined}
-                  aria-label={`第 ${number} 页`}
+                  aria-label={t('users.goToPage', { number })}
                   onClick={() => setPage(number)}
                 >
                   {number}
@@ -628,7 +644,7 @@ export function UsersPage() {
               type="button"
               class="btn btn-outline btn-sm btn-icon"
               data-testid="page-next"
-              aria-label="下一页"
+              aria-label={t('users.nextPage')}
               disabled={page() >= pageCount()}
               onClick={() => setPage(Math.min(pageCount(), page() + 1))}
             >
@@ -637,7 +653,7 @@ export function UsersPage() {
           </div>
         </div>
         <span class="sr-only" data-testid="page-indicator">
-          第 {page()} / {pageCount()} 页
+          {t('users.pageOf', { page: page(), count: pageCount() })}
         </span>
       </div>
 
@@ -664,7 +680,7 @@ export function UsersPage() {
               void router.navigate(`/admin/users/${key}`)
             }}
           >
-            <Icon name="edit" /> 查看详情
+            <Icon name="edit" /> {t('users.viewDetails')}
           </button>
           <Show when={session.role === 'admin'}>
             <button
@@ -678,7 +694,7 @@ export function UsersPage() {
                 setDeleteTarget(user)
               }}
             >
-              <Icon name="trash" /> 删除成员
+              <Icon name="trash" /> {t('users.deleteMember')}
             </button>
           </Show>
         </div>
@@ -696,11 +712,13 @@ export function UsersPage() {
           >
             <div class="dialog-header">
               <h3 class="dialog-title" id="delete-title">
-                删除成员？
+                {t('users.deleteTitle')}
               </h3>
               <p class="dialog-description">
-                将删除 {deleteTarget()?.name}（{deleteTarget()?.email}
-                ）。该操作会写入审计日志，且无法撤销。
+                {t('users.deleteBody', {
+                  name: deleteTarget()?.name ?? '',
+                  email: deleteTarget()?.email ?? '',
+                })}
               </p>
             </div>
             <div class="dialog-footer">
@@ -709,14 +727,14 @@ export function UsersPage() {
                 class="btn btn-outline"
                 onClick={() => setDeleteTarget(undefined)}
               >
-                取消
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
                 class="btn btn-destructive"
                 onClick={() => void removeUser(deleteTarget()!)}
               >
-                删除
+                {t('common.delete')}
               </button>
             </div>
           </div>
@@ -778,16 +796,14 @@ function InviteUserDialog(props: {
       >
         <div class="dialog-header">
           <h3 class="dialog-title" id="invite-title">
-            添加成员
+            {t('users.addMember')}
           </h3>
-          <p class="dialog-description">
-            新成员以 invited 状态创建，密码由服务端生成占位哈希。
-          </p>
+          <p class="dialog-description">{t('users.inviteHint')}</p>
         </div>
         <form class="settings-form" onSubmit={submit} data-testid="invite-form">
           <div class="field">
             <label class="field-label" for="invite-name">
-              姓名
+              {t('users.colName')}
             </label>
             <input
               id="invite-name"
@@ -802,7 +818,7 @@ function InviteUserDialog(props: {
           </div>
           <div class="field">
             <label class="field-label" for="invite-email">
-              邮箱
+              {t('users.colEmail')}
             </label>
             <input
               id="invite-email"
@@ -818,7 +834,7 @@ function InviteUserDialog(props: {
           <div class="field-row">
             <div class="field">
               <label class="field-label" for="invite-team">
-                团队
+                {t('users.colTeam')}
               </label>
               <input
                 id="invite-team"
@@ -832,7 +848,7 @@ function InviteUserDialog(props: {
             </div>
             <div class="field">
               <label class="field-label" for="invite-role">
-                角色
+                {t('users.role')}
               </label>
               <select
                 id="invite-role"
@@ -843,8 +859,8 @@ function InviteUserDialog(props: {
                   )
                 }
               >
-                <option value="viewer">只读成员</option>
-                <option value="admin">管理员</option>
+                <option value="viewer">{t('users.roleViewer')}</option>
+                <option value="admin">{t('users.roleAdmin')}</option>
               </select>
             </div>
           </div>
@@ -859,10 +875,10 @@ function InviteUserDialog(props: {
               class="btn btn-outline"
               onClick={props.onClose}
             >
-              取消
+              {t('common.cancel')}
             </button>
             <button type="submit" class="btn" disabled={busy()}>
-              {busy() ? '创建中…' : '创建成员'}
+              {busy() ? t('users.creating') : t('users.createMember')}
             </button>
           </div>
         </form>
@@ -982,7 +998,7 @@ export function UserPage() {
   return (
     <section class="page" data-testid="user-detail">
       <Link class="back-link" to="/admin/users">
-        <Icon name="arrowLeft" /> 返回用户列表
+        <Icon name="arrowLeft" /> {t('users.backToList')}
       </Link>
 
       <header class="page-header">
@@ -1015,7 +1031,7 @@ export function UserPage() {
               disabled={!user()}
               onClick={openEditor}
             >
-              <Icon name="edit" /> 编辑成员
+              <Icon name="edit" /> {t('users.editMember')}
             </button>
           </Show>
         </div>
@@ -1023,46 +1039,45 @@ export function UserPage() {
 
       <Show when={query.pending()}>
         <p class="row muted" role="status">
-          <span class="spinner" aria-hidden="true" /> 加载详情中…
+          <span class="spinner" aria-hidden="true" />{' '}
+          {t('users.loadingDetails')}
         </p>
       </Show>
 
       <div class="card">
         <div class="card-header card-header-row">
           <div>
-            <h3 class="card-title">成员资料</h3>
-            <p class="card-description">
-              数据来自 route loader，与列表共享同一份查询缓存。
-            </p>
+            <h3 class="card-title">{t('users.profile')}</h3>
+            <p class="card-description">{t('users.profileHint')}</p>
           </div>
           <span class="settings-saved" role="status" data-testid="save-status">
             {mutation.pending()
-              ? '保存中…'
+              ? t('users.saving')
               : mutation.success()
-                ? '已保存'
+                ? t('users.saved')
                 : mutation.errorState()
-                  ? '保存失败'
+                  ? t('users.saveFailed')
                   : ''}
           </span>
         </div>
         <div class="card-content">
           <dl class="detail-grid">
             <div>
-              <dt>用户 ID</dt>
+              <dt>{t('users.userId')}</dt>
               <dd class="mono" data-testid="detail-id">
                 {params().id}
               </dd>
             </div>
             <div>
-              <dt>邮箱</dt>
+              <dt>{t('users.colEmail')}</dt>
               <dd>{user()?.email ?? ''}</dd>
             </div>
             <div>
-              <dt>团队</dt>
+              <dt>{t('users.colTeam')}</dt>
               <dd>{user()?.team ?? ''}</dd>
             </div>
             <div>
-              <dt>状态</dt>
+              <dt>{t('users.colStatus')}</dt>
               <dd>
                 <StatusBadge status={user()?.status} />
               </dd>
@@ -1078,10 +1093,8 @@ export function UserPage() {
           ref={bindDialog}
         >
           <zw-dialog-content>
-            <zw-dialog-title>编辑成员</zw-dialog-title>
-            <zw-dialog-description>
-              更新资料后保存。详情缓存先乐观更新，失败时回滚，列表查询随后失效。
-            </zw-dialog-description>
+            <zw-dialog-title>{t('users.editMember')}</zw-dialog-title>
+            <zw-dialog-description>{t('users.editHint')}</zw-dialog-description>
             <form
               prop:onsubmit={saveUser}
               data-testid="user-form"
@@ -1098,7 +1111,7 @@ export function UserPage() {
               */}
               <div class="field">
                 <label class="field-label" for="user-name">
-                  姓名
+                  {t('users.colName')}
                 </label>
                 <input
                   id="user-name"
@@ -1110,7 +1123,7 @@ export function UserPage() {
               </div>
               <div class="field">
                 <label class="field-label" for="user-email">
-                  邮箱
+                  {t('users.colEmail')}
                 </label>
                 <input
                   id="user-email"
@@ -1125,7 +1138,7 @@ export function UserPage() {
               <div class="field-row">
                 <div class="field">
                   <label class="field-label" for="user-team">
-                    团队
+                    {t('users.colTeam')}
                   </label>
                   <input
                     id="user-team"
@@ -1137,7 +1150,7 @@ export function UserPage() {
                 </div>
                 <div class="field">
                   <label class="field-label" for="user-status-field">
-                    状态
+                    {t('users.colStatus')}
                   </label>
                   <select
                     id="user-status-field"
@@ -1146,15 +1159,15 @@ export function UserPage() {
                       seedValue(element, draft().status ?? 'active')
                     }}
                   >
-                    <option value="active">活跃</option>
-                    <option value="invited">待邀请</option>
-                    <option value="suspended">已暂停</option>
+                    <option value="active">{t('status.active')}</option>
+                    <option value="invited">{t('status.invited')}</option>
+                    <option value="suspended">{t('status.suspended')}</option>
                   </select>
                 </div>
               </div>
               <div class="field">
                 <label class="field-label" for="user-role">
-                  角色
+                  {t('users.role')}
                 </label>
                 <select
                   id="user-role"
@@ -1163,8 +1176,8 @@ export function UserPage() {
                     seedValue(element, draft().role ?? 'viewer')
                   }}
                 >
-                  <option value="viewer">只读成员</option>
-                  <option value="admin">管理员</option>
+                  <option value="viewer">{t('users.roleViewer')}</option>
+                  <option value="admin">{t('users.roleAdmin')}</option>
                 </select>
               </div>
               <div class="row" style={{ 'justify-content': 'flex-end' }}>
@@ -1173,10 +1186,10 @@ export function UserPage() {
                   class="btn btn-outline"
                   onClick={closeEditor}
                 >
-                  取消
+                  {t('common.cancel')}
                 </button>
                 <button type="submit" class="btn" disabled={mutation.pending()}>
-                  {mutation.pending() ? '保存中…' : '保存'}
+                  {mutation.pending() ? t('users.saving') : t('common.save')}
                 </button>
               </div>
             </form>
@@ -1215,57 +1228,59 @@ export function ReportsPage() {
     <section class="page" data-testid="reports-page">
       <header class="page-header">
         <div class="page-heading">
-          <h2 class="page-title">管理报表</h2>
-          <p class="page-description">
-            汇总当前工作空间的成员与团队规模。数据由服务端在通过角色校验后返回。
-          </p>
+          <h2 class="page-title">{t('reports.title')}</h2>
+          <p class="page-description">{t('reports.description')}</p>
         </div>
       </header>
 
       <div class="stat-grid">
         <article class="card stat-card">
           <div class="card-header">
-            <h3 class="card-title">成员总数</h3>
+            <h3 class="card-title">{t('reports.totalMembers')}</h3>
             <Icon name="users" />
           </div>
           <div class="card-content">
             <div class="stat-value" data-testid="reports-user-count">
               {summary.data()?.totalUsers ?? '—'}
             </div>
-            <p class="stat-foot">跨全部团队</p>
+            <p class="stat-foot">{t('reports.acrossTeams')}</p>
           </div>
         </article>
         <article class="card stat-card">
           <div class="card-header">
-            <h3 class="card-title">团队总数</h3>
+            <h3 class="card-title">{t('reports.totalTeams')}</h3>
             <Icon name="team" />
           </div>
           <div class="card-content">
             <div class="stat-value" data-testid="reports-team-count">
               {summary.data()?.teams ?? '—'}
             </div>
-            <p class="stat-foot">已建立的团队</p>
+            <p class="stat-foot">{t('reports.establishedTeams')}</p>
           </div>
         </article>
         <article class="card stat-card">
           <div class="card-header">
-            <h3 class="card-title">审计事件</h3>
+            <h3 class="card-title">{t('reports.auditEvents')}</h3>
             <Icon name="list" />
           </div>
           <div class="card-content">
             <div class="stat-value">{summary.data()?.auditEvents ?? '—'}</div>
-            <p class="stat-foot">服务端记录的操作</p>
+            <p class="stat-foot">{t('reports.serverRecorded')}</p>
           </div>
         </article>
       </div>
 
       <article class="card chart-card">
         <div class="card-header">
-          <h3 class="card-title">团队分布</h3>
-          <p class="card-description">按成员数排序。</p>
+          <h3 class="card-title">{t('reports.teamDistribution')}</h3>
+          <p class="card-description">{t('reports.teamDistributionHint')}</p>
         </div>
         <div class="card-content">
-          <div class="chart" role="img" aria-label="团队成员按团队分布">
+          <div
+            class="chart"
+            role="img"
+            aria-label={t('reports.teamChartLabel')}
+          >
             <div class="chart-plot">
               <div class="chart-gridlines" aria-hidden="true">
                 <span class="chart-gridline">{maxTeam()}</span>
@@ -1315,10 +1330,10 @@ export function ErrorPage() {
       </p>
       <div class="page-actions">
         <Link class="btn" to="/admin/users">
-          <Icon name="arrowLeft" /> 返回用户列表
+          <Icon name="arrowLeft" /> {t('users.backToList')}
         </Link>
         <Link class="btn btn-outline" to="/admin">
-          回到概览
+          {t('reports.backToOverview')}
         </Link>
       </div>
     </section>
@@ -1358,10 +1373,8 @@ export function AuditPage() {
     <section class="page" data-testid="audit-page">
       <header class="page-header">
         <div class="page-heading">
-          <h2 class="page-title">审计日志</h2>
-          <p class="page-description">
-            登录、越权尝试与写操作由服务端记录在 SQLite 中，并非浏览器内存。
-          </p>
+          <h2 class="page-title">{t('audit.title')}</h2>
+          <p class="page-description">{t('audit.description')}</p>
         </div>
         <div class="page-actions">
           <button
@@ -1370,7 +1383,7 @@ export function AuditPage() {
             data-testid="audit-refresh"
             onClick={() => setAuditVersion(v => v + 1)}
           >
-            <Icon name="refresh" /> 刷新
+            <Icon name="refresh" /> {t('audit.refresh')}
           </button>
         </div>
       </header>
@@ -1378,7 +1391,7 @@ export function AuditPage() {
       <Show when={auditError()}>
         <div class="state-block state-block-error" role="alert">
           <Icon name="alert" />
-          <p class="state-title">无法加载审计日志</p>
+          <p class="state-title">{t('audit.unavailable')}</p>
           <p class="state-description" data-testid="audit-error">
             {auditError()}
           </p>
@@ -1391,10 +1404,10 @@ export function AuditPage() {
             <table class="table" data-testid="audit-table">
               <thead>
                 <tr>
-                  <th scope="col">时间</th>
-                  <th scope="col">操作</th>
-                  <th scope="col">对象</th>
-                  <th scope="col">结果</th>
+                  <th scope="col">{t('audit.colTime')}</th>
+                  <th scope="col">{t('audit.colAction')}</th>
+                  <th scope="col">{t('audit.colTarget')}</th>
+                  <th scope="col">{t('audit.colOutcome')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1419,28 +1432,26 @@ export function AuditPage() {
             <Show when={events().length === 0}>
               <div class="state-block">
                 <Icon name="inbox" />
-                <p class="state-title">暂无审计记录</p>
-                <p class="state-description">
-                  一旦发生登录、写操作或越权尝试，记录会出现在这里。
-                </p>
+                <p class="state-title">{t('audit.empty')}</p>
+                <p class="state-description">{t('audit.emptyHint')}</p>
               </div>
             </Show>
           </div>
         </div>
         <div class="table-pagination">
           <span class="muted" style={{ fontSize: '14px' }}>
-            共 {total()} 条
+            {t('audit.total', { count: total() })}
           </span>
           <div class="table-pagination-group">
             <span class="muted" style={{ fontSize: '14px' }}>
-              第 {page()} / {pageCount()} 页
+              {t('users.pageOf', { page: page(), count: pageCount() })}
             </span>
             <div class="table-pagination-pages">
               <button
                 type="button"
                 class="btn btn-outline btn-sm btn-icon"
                 data-testid="audit-prev"
-                aria-label="上一页"
+                aria-label={t('users.prevPage')}
                 disabled={page() <= 1}
                 onClick={() => setPage(Math.max(1, page() - 1))}
               >
@@ -1450,7 +1461,7 @@ export function AuditPage() {
                 type="button"
                 class="btn btn-outline btn-sm btn-icon"
                 data-testid="audit-next"
-                aria-label="下一页"
+                aria-label={t('users.nextPage')}
                 disabled={page() >= pageCount()}
                 onClick={() => setPage(Math.min(pageCount(), page() + 1))}
               >
@@ -1459,7 +1470,7 @@ export function AuditPage() {
             </div>
           </div>
           <span class="sr-only" data-testid="audit-page-indicator">
-            第 {page()} / {pageCount()} 页
+            {t('users.pageOf', { page: page(), count: pageCount() })}
           </span>
         </div>
       </Show>
@@ -1473,15 +1484,15 @@ export function RolesPage() {
   const roles: readonly AdminRoleRecord[] = [
     {
       role: 'admin',
-      description: '管理成员、角色、设置与审计记录。',
+      description: t('roles.adminDescription'),
       members: 1,
-      capabilities: ['用户 CRUD', '角色变更', '审计读取', '上传', '设置写入'],
+      capabilities: [t('roles.adminCapabilities')],
     },
     {
       role: 'viewer',
-      description: '只读访问用户、报表与设置。',
+      description: t('roles.viewerDescription'),
       members: 7,
-      capabilities: ['用户读取', '报表读取', '设置读取'],
+      capabilities: [t('roles.viewerCapabilities')],
     },
   ]
 
@@ -1489,10 +1500,8 @@ export function RolesPage() {
     <section class="page" data-testid="roles-page">
       <header class="page-header">
         <div class="page-heading">
-          <h2 class="page-title">角色与权限</h2>
-          <p class="page-description">
-            浏览器的角色只用于界面呈现。每次读写都由服务端 session 重新校验。
-          </p>
+          <h2 class="page-title">{t('roles.title')}</h2>
+          <p class="page-description">{t('roles.description')}</p>
         </div>
       </header>
       <div class="role-grid">
@@ -1501,14 +1510,18 @@ export function RolesPage() {
             <article class="card role-card" data-testid={`role-${record.role}`}>
               <div class="role-card-header">
                 <h3 class="role-card-title">
-                  {record.role === 'admin' ? '管理员' : '只读成员'}
+                  {record.role === 'admin'
+                    ? t('users.roleAdmin')
+                    : t('users.roleViewer')}
                 </h3>
-                <span class="badge badge-outline">{record.members} 位成员</span>
+                <span class="badge badge-outline">
+                  {t('users.memberCount', { count: record.members })}
+                </span>
               </div>
               <p class="role-card-description">{record.description}</p>
               <div>
                 <p class="field-label" style={{ 'margin-bottom': '8px' }}>
-                  能力
+                  {t('roles.capabilities')}
                 </p>
                 <ul class="capability-list">
                   <For each={record.capabilities}>
@@ -1531,6 +1544,7 @@ export function RolesPage() {
 /* --------------------------------------------------------------- settings */
 
 export function SettingsPage() {
+  const session = useSession()
   const [settings, setSettings] = createSignal<WorkspaceSettings | undefined>(
     undefined,
   )
@@ -1573,7 +1587,7 @@ export function SettingsPage() {
       setLocale(next.locale)
       setTheme(next.theme)
       applyTheme(next.theme)
-      setStatus('设置已保存')
+      setStatus(t('settings.saved'))
     } catch (cause) {
       setError(errorMessage(cause))
     } finally {
@@ -1591,10 +1605,8 @@ export function SettingsPage() {
   return (
     <section class="page" data-testid="settings-page">
       <div class="settings-intro">
-        <h2 class="settings-title">设置</h2>
-        <p class="settings-description">
-          管理工作空间的名称、语言与主题；保存后写入服务端 SQLite。
-        </p>
+        <h2 class="settings-title">{t('settings.title')}</h2>
+        <p class="settings-description">{t('settings.description')}</p>
       </div>
       <div class="separator" role="separator" />
 
@@ -1617,7 +1629,7 @@ export function SettingsPage() {
                   aria-current="page"
                   href="#workspace"
                 >
-                  <Icon name="settings" /> 工作空间
+                  <Icon name="settings" /> {t('settings.sectionWorkspace')}
                 </a>
               </li>
               <li>
@@ -1625,7 +1637,7 @@ export function SettingsPage() {
                   class="btn btn-ghost btn-sm settings-nav-link"
                   href="#appearance"
                 >
-                  <Icon name="theme" /> 外观
+                  <Icon name="theme" /> {t('settings.sectionAppearance')}
                 </a>
               </li>
               <li>
@@ -1633,7 +1645,7 @@ export function SettingsPage() {
                   class="btn btn-ghost btn-sm settings-nav-link"
                   to="/admin/upload"
                 >
-                  <Icon name="upload" /> 上传
+                  <Icon name="upload" /> {t('settings.sectionUpload')}
                 </Link>
               </li>
             </ul>
@@ -1642,17 +1654,15 @@ export function SettingsPage() {
           <div class="settings-content">
             <div>
               <h3 class="settings-section-title" id="workspace">
-                工作空间
+                {t('settings.sectionWorkspace')}
               </h3>
-              <p class="settings-section-desc">
-                更新工作空间名称与界面语言。这些设置对所有成员生效。
-              </p>
+              <p class="settings-section-desc">{t('settings.allMembers')}</p>
             </div>
             <div class="separator" role="separator" />
             <form class="settings-form" onSubmit={save} id="workspace-form">
               <div class="settings-field-group">
                 <label class="field-label" for="workspace-name">
-                  工作空间名称
+                  {t('settings.workspaceName')}
                 </label>
                 <input
                   id="workspace-name"
@@ -1665,17 +1675,42 @@ export function SettingsPage() {
                     )
                   }
                 />
-                <p class="field-hint">
-                  显示在侧栏与登录页的名称，最长 80 个字符。
-                </p>
+                <p class="field-hint">{t('settings.workspaceNameHint')}</p>
+              </div>
+              <div class="settings-field-group">
+                <label class="field-label" for="personal-locale">
+                  {t('settings.personalLanguage')}
+                </label>
+                <select
+                  id="personal-locale"
+                  class="select"
+                  data-testid="personal-locale"
+                  prop:value={i18n.locale()}
+                  onChange={event => {
+                    const value = (event.currentTarget as HTMLSelectElement)
+                      .value as Locale
+                    // Personal only: this must never reach
+                    // `adminApi.updateSettings`, or a private display choice
+                    // would silently change what every member sees.
+                    void changePersonalLocale(
+                      session.user?.id ?? 'anonymous',
+                      value,
+                    )
+                  }}
+                >
+                  <option value="zh-CN">简体中文</option>
+                  <option value="en">English</option>
+                </select>
+                <p class="field-hint">{t('settings.personalLanguageHint')}</p>
               </div>
               <div class="settings-field-group">
                 <label class="field-label" for="workspace-locale">
-                  语言
+                  {t('settings.workspaceLanguage')}
                 </label>
                 <select
                   id="workspace-locale"
                   class="select"
+                  data-testid="workspace-locale"
                   prop:value={locale()}
                   onChange={event => {
                     const value = (event.currentTarget as HTMLSelectElement)
@@ -1687,11 +1722,11 @@ export function SettingsPage() {
                   <option value="zh-CN">简体中文</option>
                   <option value="en">English</option>
                 </select>
-                <p class="field-hint">服务端偏好与前端文案的默认语言。</p>
+                <p class="field-hint">{t('settings.workspaceLanguageHint')}</p>
               </div>
               <div class="settings-field-group" id="appearance">
                 <label class="field-label" for="workspace-theme">
-                  主题
+                  {t('settings.theme')}
                 </label>
                 <select
                   id="workspace-theme"
@@ -1704,16 +1739,14 @@ export function SettingsPage() {
                     patch('theme', value)
                   }}
                 >
-                  <option value="light">浅色</option>
-                  <option value="dark">深色</option>
+                  <option value="light">{t('settings.themeLight')}</option>
+                  <option value="dark">{t('settings.themeDark')}</option>
                 </select>
-                <p class="field-hint">
-                  保存后写入服务端，刷新或重启后仍然保留。
-                </p>
+                <p class="field-hint">{t('settings.themeHint')}</p>
               </div>
               <div class="settings-actions">
                 <button type="submit" class="btn" disabled={saving()}>
-                  {saving() ? '保存中…' : '保存设置'}
+                  {saving() ? t('users.saving') : t('settings.saveSettings')}
                 </button>
                 <Show when={status()}>
                   <span
@@ -1758,7 +1791,7 @@ export function UploadPage() {
     ) as HTMLInputElement | null
     const file = input?.files?.[0]
     if (!file) {
-      setError('请选择文件。')
+      setError(t('upload.noFile'))
       return
     }
     setBusy(true)
@@ -1777,26 +1810,21 @@ export function UploadPage() {
     <section class="page" data-testid="upload-page">
       <header class="page-header">
         <div class="page-heading">
-          <h2 class="page-title">文件上传</h2>
-          <p class="page-description">
-            仅接受文本、Markdown、JSON 与 PNG，上限 64
-            KiB。服务端拒绝路径分隔符与隐藏文件名。
-          </p>
+          <h2 class="page-title">{t('upload.title')}</h2>
+          <p class="page-description">{t('upload.description')}</p>
         </div>
       </header>
 
       <form onSubmit={submit} data-testid="upload-form" class="settings-form">
         <article class="card">
           <div class="card-header">
-            <h3 class="card-title">选择文件</h3>
-            <p class="card-description">
-              上传后服务端会返回文件摘要与 SHA-256。
-            </p>
+            <h3 class="card-title">{t('upload.chooseFile')}</h3>
+            <p class="card-description">{t('upload.chooseFileHint')}</p>
           </div>
           <div class="card-content settings-form">
             <div class="field">
               <label class="field-label" for="upload-file">
-                文件
+                {t('upload.file')}
               </label>
               <input
                 id="upload-file"
@@ -1813,15 +1841,15 @@ export function UploadPage() {
             <Show when={upload()}>
               <div class="upload-result" data-testid="upload-result">
                 <p class="row">
-                  <Icon name="check" /> 上传成功
+                  <Icon name="check" /> {t('upload.success')}
                 </p>
                 <dl class="detail-grid">
                   <div>
-                    <dt>文件</dt>
+                    <dt>{t('upload.file')}</dt>
                     <dd>{upload()!.filename}</dd>
                   </div>
                   <div>
-                    <dt>大小</dt>
+                    <dt>{t('upload.size')}</dt>
                     <dd>{upload()!.bytes} bytes</dd>
                   </div>
                   <div>
@@ -1839,7 +1867,7 @@ export function UploadPage() {
           </div>
           <div class="card-footer">
             <button type="submit" class="btn" disabled={busy()}>
-              {busy() ? '上传中…' : '上传'}
+              {busy() ? t('upload.uploading') : t('upload.submit')}
             </button>
           </div>
         </article>
@@ -1860,14 +1888,14 @@ function applyTheme(theme: WorkspaceSettings['theme']): void {
 function errorStatus(error: unknown): string {
   if (error && typeof error === 'object' && 'status' in error)
     return String(error.status)
-  return '页面加载失败'
+  return t('error.loadFailed')
 }
 
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message
   if (error && typeof error === 'object' && 'data' in error)
     return String(error.data)
-  return '加载出现异常，请返回用户列表重试。'
+  return t('error.loadFailedHint')
 }
 
 function useSummaryQuery() {
@@ -1883,13 +1911,13 @@ function useSummaryQuery() {
 function errorHeading(status: string): string {
   switch (status) {
     case '403':
-      return '没有访问权限'
+      return t('error.forbidden')
     case '404':
-      return '页面不存在'
+      return t('error.notFound')
     case '500':
-      return '服务端出现错误'
+      return t('error.serverError')
     default:
-      return '页面加载失败'
+      return t('error.loadFailed')
   }
 }
 
@@ -1925,13 +1953,13 @@ function StatusBadge(props: { status: UserStatus | undefined }) {
   const meta = () => {
     switch (props.status) {
       case 'active':
-        return { label: '活跃', tone: 'badge-status-active' }
+        return { label: t('status.active'), tone: 'badge-status-active' }
       case 'invited':
-        return { label: '待邀请', tone: 'badge-status-invited' }
+        return { label: t('status.invited'), tone: 'badge-status-invited' }
       case 'suspended':
-        return { label: '已暂停', tone: 'badge-status-suspended' }
+        return { label: t('status.suspended'), tone: 'badge-status-suspended' }
       default:
-        return { label: '未知', tone: 'badge-outline' }
+        return { label: t('status.unknown'), tone: 'badge-outline' }
     }
   }
   return <span class={`badge ${meta().tone}`}>{meta().label}</span>

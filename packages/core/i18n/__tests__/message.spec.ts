@@ -92,6 +92,35 @@ describe('checkCatalog', () => {
 })
 
 describe('assertCatalog', () => {
+  it('does not throw for text that is identical by design', () => {
+    // "WebC" is correct in both languages. A catalog containing it must not
+    // stop an application from starting; it is a review question.
+    expect(() =>
+      assertCatalog(
+        { 'product.webc': 'WebC', 'common.save': 'Save' },
+        'zh-CN',
+        { 'product.webc': 'WebC', 'common.save': '保存' },
+      ),
+    ).not.toThrow()
+  })
+
+  it('reports identical text through the callback instead of throwing', () => {
+    const identical: string[] = []
+    assertCatalog(
+      { 'product.webc': 'WebC', 'common.save': 'Save' },
+      'zh-CN',
+      { 'product.webc': 'WebC', 'common.save': '保存' },
+      { onIdenticalText: key => identical.push(key) },
+    )
+    expect(identical).toEqual(['product.webc'])
+  })
+
+  it('still throws for a structurally broken catalog', () => {
+    expect(() => assertCatalog(en, 'zh-CN', { 'common.save': '保存' })).toThrow(
+      /missing-key/,
+    )
+  })
+
   it('throws with every issue listed', () => {
     expect(() => assertCatalog(en, 'zh-CN', { 'common.save': '保存' })).toThrow(
       /missing-key: common.items.*missing-key: common.hello/,

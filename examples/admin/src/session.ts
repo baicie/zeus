@@ -12,11 +12,18 @@
 
 import { createContext, useContext } from '@zeus-js/zeus'
 
-import type { Role } from './routes'
+import type { Role, SessionUser } from './routes'
 
 export interface SessionContextValue {
   /** Current role as the server reported it at sign-in. */
   readonly role: Role
+  /**
+   * The signed-in account, for presentation only.
+   *
+   * Used to key a personal display preference on the account id; it is never
+   * an authorization input, and the server still re-checks every request.
+   */
+  readonly user?: SessionUser
 }
 
 export const SessionContext = createContext<SessionContextValue>({

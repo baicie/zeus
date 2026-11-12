@@ -81,6 +81,14 @@ export interface CreateI18nOptions<K extends string> extends I18nEvents {
    * content mistake degrades instead of blanking the page.
    */
   readonly strictCatalogs?: boolean
+  /**
+   * Keys whose translation legitimately equals the reference text.
+   *
+   * "WebC" and "Shadow DOM" are correct in every language. Listing them here
+   * keeps them out of the identical-text review list; a key not listed still
+   * renders correctly — being identical is a review signal, not a fault.
+   */
+  readonly allowIdenticalKeys?: readonly string[]
 }
 
 export interface I18n<K extends string> {
@@ -144,7 +152,9 @@ export function createI18n<K extends string>(
     const catalog = options.messages[locale]
     if (!catalog) continue
     if (locale !== 'en' && strictCatalogs) {
-      assertCatalog(reference, locale, catalog)
+      assertCatalog(reference, locale, catalog, {
+        allowIdenticalKeys: options.allowIdenticalKeys ?? [],
+      })
     }
     catalogs.set(locale, catalog)
   }
@@ -187,7 +197,9 @@ export function createI18n<K extends string>(
       .loadCatalog(locale)
       .then(catalog => {
         if (strictCatalogs && locale !== 'en') {
-          assertCatalog(reference, locale, catalog)
+          assertCatalog(reference, locale, catalog, {
+            allowIdenticalKeys: options.allowIdenticalKeys ?? [],
+          })
         }
         catalogs.set(locale, catalog)
         return catalog
