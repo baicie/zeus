@@ -1,18 +1,22 @@
 name: CI
 
 on:
+  # Push builds `main`; pull requests build every branch that has one open.
+  #
+  # This used to also list nine branch prefixes under `push`, which made every
+  # commit on a PR branch run the entire suite twice — once for the push and
+  # once for the pull_request — against the identical tree. On `847b43d1` that
+  # cost 43.0 runner minutes for 21.8 minutes of work: 49.4% of the spend was
+  # duplicate. See docs/ci-optimization-baseline.md.
+  #
+  # The `pull_request` event fires on `synchronize` as well, so pushing to a
+  # branch that has an open PR still triggers exactly one full run — the PR's.
+  # Only a branch with no open PR stops being validated, which is deliberate:
+  # push-only branches should not consume nine runners. `workflow_dispatch`
+  # remains for a deliberate full run on any branch.
   push:
     branches:
       - main
-      - codex/**
-      - feat/**
-      - fix/**
-      - refactor/**
-      - chore/**
-      - docs/**
-      - test/**
-      - release/**
-      - hotfix/**
   pull_request:
     branches:
       - main
@@ -29,8 +33,100 @@ env:
   PUPPETEER_SKIP_DOWNLOAD: 'true'
 
 jobs:
-  lint-and-check:
+  # Runs first and always. Everything else keys off its output.
+  #
+  # A failure here is not "skip everything" — it is a hard stop. An impact
+  # analysis that cannot answer must not be interpreted as "nothing to check".
+  impact:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      lint-and-check: ${{ steps.plan.outputs.lint-and-check }}
+      rust-compiler: ${{ steps.plan.outputs.rust-compiler }}
+      build: ${{ steps.plan.outputs.build }}
+      test: ${{ steps.plan.outputs.test }}
+      packed-consumers: ${{ steps.plan.outputs.packed-consumers }}
+      create-zeus-candidates: ${{ steps.plan.outputs.create-zeus-candidates }}
+      docs-build: ${{ steps.plan.outputs.docs-build }}
+      full-run: ${{ steps.plan.outputs.full-run }}
+      planned-skips: ${{ steps.plan.outputs.planned-skips }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # `git diff base...head` needs both endpoints. A shallow clone of
+          # depth 1 has neither history nor the merge base.
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.node-version'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Classify the change
+        id: plan
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          # `temp/` does not exist in a fresh checkout, and a shell redirect
+          # cannot create it — the redirect is opened before the command runs.
+          mkdir -p temp/ci
+          pnpm exec tsx scripts/ci/impact-analysis.ts \
+            --base "${BASE_SHA:-}" \
+            --head HEAD \
+            --event "$EVENT" \
+            --json temp/ci/impact.json > temp/ci/impact.stdout.json
+          node --input-type=module -e "
+            import { readFileSync, appendFileSync } from 'node:fs'
+            const plan = JSON.parse(readFileSync('temp/ci/impact.json', 'utf8'))
+            const skips = []
+            for (const job of plan.jobs) {
+              appendFileSync(process.env.GITHUB_OUTPUT, job.name + '=' + job.run + '\n')
+              if (!job.run) skips.push(job.name)
+            }
+            appendFileSync(process.env.GITHUB_OUTPUT, 'full-run=' + plan.fullRun + '\n')
+            appendFileSync(process.env.GITHUB_OUTPUT, 'planned-skips=' + skips.join(' ') + '\n')
+          "
+
+      - name: Summarize the decision
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -f temp/ci/impact.json ]; then
+            node --input-type=module -e "
+              import { readFileSync } from 'node:fs'
+              const plan = JSON.parse(readFileSync('temp/ci/impact.json', 'utf8'))
+              const lines = [
+                '### Change impact',
+                '',
+                'Event: \`' + plan.event + '\` — full run: \`' + plan.fullRun + '\`',
+                'Areas: ' + (plan.areas.length ? plan.areas.map(a => '\`' + a + '\`').join(', ') : '_none_'),
+                '',
+                '| Job | Runs | Why |',
+                '| --- | --- | --- |',
+                ...plan.jobs.map(j => '| ' + j.name + ' | ' + (j.run ? 'yes' : 'no') + ' | ' + j.reason + ' |'),
+              ]
+              if (plan.escalated.length) {
+                lines.push('', '**Escalated:**', ...plan.escalated.map(e => '- ' + e))
+              }
+              console.log(lines.join('\n'))
+            " >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Impact analysis produced no plan." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  lint-and-check:
+    needs: impact
+    if: needs.impact.outputs.lint-and-check == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
 
@@ -41,6 +137,11 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version-file: '.node-version'
+          # This was the only job without a pnpm cache. It looked fast because
+          # the runner it landed on already had a warm store (`reused 898,
+          # downloaded 0`); on a cold runner the same step downloads the
+          # lockfile's dependencies. See docs/ci-optimization-baseline.md §3.
+          cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile
 
@@ -69,8 +170,31 @@ jobs:
       - name: i18n catalogs
         run: pnpm check:i18n
 
+      # The release contract, checked on the PR instead of after the merge.
+      #
+      # `@zeus-js/i18n` shipped in #234 without being registered in
+      # `zeusFixedPackages`, so a new workspace package that nobody registered
+      # is caught here rather than by `Release Canary` after the merge.
+      - name: Release package registration
+        run: pnpm check:package-versions
+
+      # The Changesets `fixed` list duplicates `zeusFixedPackages`, and the two
+      # are compared by `scripts/release/__tests__/release-config.spec.ts`.
+      # That test runs under the shared vitest config, whose top-level import
+      # of `compile-test-views.ts` loads the native compiler — a build product
+      # this job deliberately does not produce. Rather than pull a Rust build
+      # into a lint job, the same invariants are checked here without vitest:
+      #   - every fixed package exists and is public
+      #   - both lists agree, in order
+      # If the comparison ever moves into its own script, delete this step.
+      - name: Release config consistency
+        run: pnpm exec tsx scripts/ci/check-release-config.ts
+
   rust-compiler:
+    needs: impact
+    if: needs.impact.outputs.rust-compiler == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
 
@@ -120,7 +244,10 @@ jobs:
         run: pnpm bench:compiler-optimization
 
   build:
+    needs: impact
+    if: needs.impact.outputs.build == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
 
@@ -166,7 +293,10 @@ jobs:
         run: pnpm check:release-artifacts
 
   test:
+    needs: impact
+    if: needs.impact.outputs.test == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
 
@@ -187,6 +317,8 @@ jobs:
         run: pnpm check:devtools-gc
 
   packed-consumers:
+    needs: impact
+    if: needs.impact.outputs.packed-consumers == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -283,6 +415,8 @@ jobs:
             temp/hmr-packed
 
   create-zeus-candidates:
+    needs: impact
+    if: needs.impact.outputs.create-zeus-candidates == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -360,9 +494,26 @@ jobs:
             temp/create-zeus-candidate/prepare.json
 
   cross-platform-evidence:
-    if: github.repository == 'baicie/zeus'
-    needs: [lint-and-check, packed-consumers, create-zeus-candidates]
+    # Release evidence only ever describes a `main` commit. `release.yml` and
+    # `rc-approval.yml` name the run they trust by `evidence_run_id`, and that
+    # run is a main push. Collecting the same document on a pull_request run
+    # produced an artifact nothing consumed — it cost an install and a 26s job
+    # per PR, and a PR artifact is never the one a release points at.
+    #
+    # `needs.impact.outputs.full-run == 'true'` is redundant given the event
+    # filter — push and workflow_dispatch both force a full run — and that is
+    # exactly why it is written down. The collector requires three specific
+    # jobs to have run and passed (`PLATFORM_JOBS` in
+    # collect-cross-platform-evidence.ts); if a future change ever lets impact
+    # analysis skip one of them on a main push, this job must not silently
+    # collect a document describing checks that never happened.
+    if: >-
+      github.repository == 'baicie/zeus' &&
+      github.event_name != 'pull_request' &&
+      needs.impact.outputs.full-run == 'true'
+    needs: [impact, lint-and-check, packed-consumers, create-zeus-candidates]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       actions: read
@@ -400,7 +551,10 @@ jobs:
           path: temp/cross-platform/evidence.json
 
   docs-build:
+    needs: impact
+    if: needs.impact.outputs.docs-build == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
 
@@ -415,3 +569,65 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm docs:build
+
+  ci-gate:
+    # The one check a branch protection rule should require.
+    #
+    # `main` currently has no protection and no required checks, so a merge
+    # depends on someone reading the list. This job gives that decision a
+    # single stable name: it runs with `always()`, looks at every job it
+    # depends on, and fails unless each one is either `success` or a skip it
+    # was told to expect.
+    #
+    # The rule that matters is the default: an unrecognised result — a
+    # `cancelled`, a `failure`, a `skipped` that is not in the allow list — is
+    # a failure. Adding a job to this workflow without adding it to `needs`
+    # does NOT silently pass; it is caught by the `expected` list below, which
+    # must name every dependency.
+    #
+    # The skip allow list is computed, not fixed: it is exactly the set of jobs
+    # impact analysis decided not to run, plus `cross-platform-evidence` on a
+    # pull request. A skipped job that is not in that set still fails, so a job
+    # which stops itself for any other reason cannot hide behind this gate.
+    if: always()
+    needs:
+      - impact
+      - lint-and-check
+      - rust-compiler
+      - build
+      - test
+      - packed-consumers
+      - create-zeus-candidates
+      - cross-platform-evidence
+      - docs-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.node-version'
+          cache: 'pnpm'
+
+      # The gate is ~40 lines of TypeScript. It runs through the repo's own
+      # toolchain rather than Node's experimental type stripping, because the
+      # one job whose failure blocks a merge should not depend on a flag.
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Verify every required job
+        env:
+          # A JSON object of `<job name>: <result>` for everything in `needs`.
+          NEEDS: ${{ toJSON(needs) }}
+          # The jobs impact analysis decided to skip, space separated. A skip
+          # outside this set is a failure even if it is skipped, so a job
+          # cannot quietly opt out for its own reasons.
+          PLANNED_SKIPS: ${{ needs.impact.outputs.planned-skips }}
+          IMPACT_RESULT: ${{ needs.impact.result }}
+        run: |
+          set -euo pipefail
+          pnpm exec tsx scripts/ci/ci-gate.ts
