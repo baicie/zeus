@@ -11,6 +11,12 @@ const testProjects = [
       'packages/**/*.{test,spec}.{ts,tsx}',
       'examples/headless/**/*.{test,spec}.{ts,tsx}',
       'examples/admin/server/**/*.{test,spec}.{ts,tsx}',
+      // Pure modules of the Playground editor. The browser behaviour is covered
+      // by `check:playground-ux` and `check:playground-editor`, which need real
+      // engines; these tests cover the logic those gates cannot reach —
+      // specifically the async highlighter's loading, failure and staleness
+      // states, which a happy-path browser check never exercises.
+      'examples/playground-editor/src/playground/__tests__/**/*.{test,spec}.{ts,tsx}',
       'scripts/**/*.{test,spec}.{ts,tsx}',
     ],
   },
