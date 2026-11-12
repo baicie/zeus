@@ -173,18 +173,22 @@ jobs:
       # The release contract, checked on the PR instead of after the merge.
       #
       # `@zeus-js/i18n` shipped in #234 without being registered in
-      # `zeusFixedPackages` or the Changesets `fixed` group. Every PR check
-      # passed; `Release Canary` failed on main afterwards. The cost of closing
-      # that gap here is ~8s: this script reads package.json files and the
-      # release config, and the consistency test below is already in the repo.
+      # `zeusFixedPackages`, so a new workspace package that nobody registered
+      # is caught here rather than by `Release Canary` after the merge.
       - name: Release package registration
         run: pnpm check:package-versions
 
+      # The Changesets `fixed` list duplicates `zeusFixedPackages`, and the two
+      # are compared by `scripts/release/__tests__/release-config.spec.ts`.
+      # That test runs under the shared vitest config, whose top-level import
+      # of `compile-test-views.ts` loads the native compiler — a build product
+      # this job deliberately does not produce. Rather than pull a Rust build
+      # into a lint job, the same invariants are checked here without vitest:
+      #   - every fixed package exists and is public
+      #   - both lists agree, in order
+      # If the comparison ever moves into its own script, delete this step.
       - name: Release config consistency
-        run: >-
-          pnpm exec vitest run
-          scripts/release/__tests__/release-config.spec.ts
-          --reporter=dot
+        run: pnpm exec tsx scripts/ci/check-release-config.ts
 
   rust-compiler:
     needs: impact
