@@ -64,7 +64,7 @@ async function startRegistry(
 }
 
 describe('dist-tag gate against an isolated registry', () => {
-  it('classifies all 31 fixed packages and fails on a prerelease latest', async () => {
+  it('classifies every fixed package and fails on a prerelease latest', async () => {
     const packages: Record<string, unknown> = {}
     zeusFixedPackages.forEach((name, index) => {
       if (name === '@zeus-js/query') {
@@ -88,7 +88,10 @@ describe('dist-tag gate against an isolated registry', () => {
         })
       }
       const evaluation = evaluateLatestTags(records)
-      expect(records).toHaveLength(31)
+      // Derived, not hardcoded: adding a package to the fixed group should not
+      // require editing an assertion, and a count that silently drifts with the
+      // list it is meant to check is not a check.
+      expect(records).toHaveLength(zeusFixedPackages.length)
       expect(evaluation.prerelease).toEqual(['@zeus-js/query'])
       expect(evaluation.errors).toContain(
         '@zeus-js/query: latest points at prerelease 0.1.1-beta.20; run pnpm repair:latest-tags',

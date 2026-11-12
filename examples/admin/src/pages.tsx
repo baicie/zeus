@@ -1101,13 +1101,22 @@ export function UserPage() {
               class="settings-form"
             >
               {/*
-                Truly uncontrolled. Zeus compiles `value={expr}` — and
+                Seeded, not bound. Zeus compiles `value={expr}` — and
                 `prop:value={expr}` — into a reactive binding (`bindAttr` /
                 `bindProp`), so a render landing between the keystroke and the
-                submit can write the older draft back into the field. CI's
-                slower chromium hit exactly that. Seeding through `ref` runs
-                once on mount and creates no binding; the submit handler reads
-                the form, which is the single source of truth.
+                submit can write an older value back into the field. Writing
+                the DOM from `ref` runs once on mount and creates no binding.
+
+                The draft is still updated on every keystroke, and that part is
+                not optional. A `ref`-seeded field holds the user's text in the
+                DOM only; if this subtree is ever rebuilt — the dialog's `Show`
+                toggling, a remount — the field is recreated from `draft()`,
+                which would still be the value the form opened with. That is
+                exactly what happened on CI: the PATCH went out as `{}` because
+                `changedFields` compared the new text against a draft that had
+                never received it. Keeping the draft current makes a rebuild
+                harmless, and `saveUser` still reads the form so a stale draft
+                can never beat what is on screen.
               */}
               <div class="field">
                 <label class="field-label" for="user-name">
@@ -1119,6 +1128,12 @@ export function UserPage() {
                   ref={(element: HTMLInputElement | null) => {
                     seedValue(element, draft().name ?? '')
                   }}
+                  onInput={(event: Event) =>
+                    patch(
+                      'name',
+                      (event.currentTarget as HTMLInputElement).value,
+                    )
+                  }
                 />
               </div>
               <div class="field">
@@ -1133,6 +1148,12 @@ export function UserPage() {
                   ref={(element: HTMLInputElement | null) => {
                     seedValue(element, draft().email ?? '')
                   }}
+                  onInput={(event: Event) =>
+                    patch(
+                      'email',
+                      (event.currentTarget as HTMLInputElement).value,
+                    )
+                  }
                 />
               </div>
               <div class="field-row">
@@ -1146,6 +1167,12 @@ export function UserPage() {
                     ref={(element: HTMLInputElement | null) => {
                       seedValue(element, draft().team ?? '')
                     }}
+                    onInput={(event: Event) =>
+                      patch(
+                        'team',
+                        (event.currentTarget as HTMLInputElement).value,
+                      )
+                    }
                   />
                 </div>
                 <div class="field">
@@ -1158,6 +1185,13 @@ export function UserPage() {
                     ref={(element: HTMLSelectElement | null) => {
                       seedValue(element, draft().status ?? 'active')
                     }}
+                    onChange={(event: Event) =>
+                      patch(
+                        'status',
+                        (event.currentTarget as HTMLSelectElement)
+                          .value as UserStatus,
+                      )
+                    }
                   >
                     <option value="active">{t('status.active')}</option>
                     <option value="invited">{t('status.invited')}</option>
@@ -1175,6 +1209,12 @@ export function UserPage() {
                   ref={(element: HTMLSelectElement | null) => {
                     seedValue(element, draft().role ?? 'viewer')
                   }}
+                  onChange={(event: Event) =>
+                    patch(
+                      'role',
+                      (event.currentTarget as HTMLSelectElement).value as Role,
+                    )
+                  }
                 >
                   <option value="viewer">{t('users.roleViewer')}</option>
                   <option value="admin">{t('users.roleAdmin')}</option>
