@@ -82,6 +82,7 @@
     "check:playground-theme-i18n": "tsx scripts/playground/check-playground-i18n-keys.ts && pnpm --filter @zeus-js/example-playground-editor build && tsx scripts/playground/check-playground-theme-i18n.ts",
     "check:playground-api": "pnpm build zeus signal runtime-dom && pnpm build-dts && tsx scripts/playground/generate-api-completions.ts --check",
     "measure:playground-performance": "pnpm --filter @zeus-js/example-playground-editor build && tsx scripts/playground/check-playground-performance.ts",
+    "measure:frontend-baseline": "tsx scripts/perf/measure-frontend-baseline.ts",
     "accept:playground-online": "tsx scripts/release/playground-online-acceptance.ts",
     "playground:check": "tsx scripts/playground/check-playground.ts",
     "playground:smoke": "tsx scripts/playground/check-playground-browser.ts",

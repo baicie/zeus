@@ -1,0 +1,3630 @@
+{
+  "schema": "zeus.frontend-baseline/v1",
+  "generatedFor": "8f8f52565eb9b83b0a9f5c8a3917e77d10b3a9ed",
+  "reports": [
+    {
+      "product": "playground",
+      "commit": "8f8f52565eb9b83b0a9f5c8a3917e77d10b3a9ed",
+      "browser": "chromium 156.0.8078.4",
+      "viewport": "1440x900",
+      "samples": [
+        {
+          "scenario": "cold/unthrottled",
+          "ms": 0,
+          "metrics": {
+            "firstEditableMs": 11194,
+            "firstPreviewMs": 11242,
+            "firstOutputMs": 11402,
+            "domContentLoadedMs": 1762,
+            "loadMs": 10964.800000011921,
+            "editToPreviewMs": 12191
+          },
+          "resources": [
+            {
+              "name": "/assets/rolldown-runtime-XKyaHtl9.js",
+              "transfer": 682,
+              "encoded": 382,
+              "decoded": 726,
+              "durationMs": 13.700000017881393,
+              "startMs": 70
+            },
+            {
+              "name": "/assets/runtime-dom.esm-bundler-CY9v_j9-.js",
+              "transfer": 25298,
+              "encoded": 24998,
+              "decoded": 84135,
+              "durationMs": 272.39999997615814,
+              "startMs": 70.2000000178814
+            },
+            {
+              "name": "/assets/playground-engine.esm-bundler-BBUq5TUt.js",
+              "transfer": 92389,
+              "encoded": 92089,
+              "decoded": 455217,
+              "durationMs": 1376.199999988079,
+              "startMs": 70.2000000178814
+            },
+            {
+              "name": "/assets/main-CGmt2ubs.js",
+              "transfer": 33492,
+              "encoded": 33192,
+              "decoded": 138839,
+              "durationMs": 1632.199999988079,
+              "startMs": 70.30000001192093
+            },
+            {
+              "name": "/assets/main-CuwJKVTp.css",
+              "transfer": 4145,
+              "encoded": 3845,
+              "decoded": 19139,
+              "durationMs": 1407.800000011921,
+              "startMs": 70.5
+            },
+            {
+              "name": "/assets/code-editor-impl-DluZGpVt.js",
+              "transfer": 30275,
+              "encoded": 29975,
+              "decoded": 92209,
+              "durationMs": 233.2999999821186,
+              "startMs": 1748.300000011921
+            },
+            {
+              "name": "/assets/dist-s2YT2TF6.js",
+              "transfer": 126551,
+              "encoded": 126251,
+              "decoded": 446799,
+              "durationMs": 1419.4000000059605,
+              "startMs": 1748.5999999940395
+            },
+            {
+              "name": "/assets/zeus-compiler-B6TcquRO.wasm",
+              "transfer": 339445,
+              "encoded": 339145,
+              "decoded": 1545997,
+              "durationMs": 5661.5999999940395,
+              "startMs": 2018.7000000178814
+            },
+            {
+              "name": "/assets/worker-DvqwLtpD.js",
+              "transfer": 940,
+              "encoded": 640,
+              "decoded": 1397,
+              "durationMs": -17.299999982118607,
+              "startMs": 7722.0999999940395
+            },
+            {
+              "name": "/assets/highlight-Dnf__d43.js",
+              "transfer": 904,
+              "encoded": 604,
+              "decoded": 1529,
+              "durationMs": 157.2999999821186,
+              "startMs": 7748.700000017881
+            },
+            {
+              "name": "/assets/babel-BNS_LnEj.js",
+              "transfer": 377802,
+              "encoded": 377502,
+              "decoded": 2207248,
+              "durationMs": 3070.0999999940395,
+              "startMs": 7751
+            },
+            {
+              "name": "/favicon.ico",
+              "transfer": 849,
+              "encoded": 549,
+              "decoded": 1635,
+              "durationMs": 122.39999997615814,
+              "startMs": 10977.700000017881
+            }
+          ],
+          "totals": {
+            "transfer": 1032772,
+            "encoded": 1029172,
+            "decoded": 4994870
+          }
+        },
+        {
+          "scenario": "cold/unthrottled",
+          "ms": 1,
+          "metrics": {
+            "firstEditableMs": 240,
+            "firstPreviewMs": 461,
+            "firstOutputMs": 509,
+            "domContentLoadedMs": 86.59999999403954,
+            "loadMs": 179.09999999403954,
+            "editToPreviewMs": 1361
+          },
+          "resources": [
+            {
+              "name": "/assets/rolldown-runtime-XKyaHtl9.js",
+              "transfer": 682,
+              "encoded": 382,
+              "decoded": 726,
+              "durationMs": 8.400000005960464,
+              "startMs": 7.199999988079071
+            },
+            {
+              "name": "/assets/runtime-dom.esm-bundler-CY9v_j9-.js",
+              "transfer": 25298,
+              "encoded": 24998,
+              "decoded": 84135,
+              "durationMs": 10.099999994039536,
+              "startMs": 7.300000011920929
+            },
+            {
+              "name": "/assets/main-CuwJKVTp.css",
+              "transfer": 4145,
+              "encoded": 3845,
+              "decoded": 19139,
+              "durationMs": 12.199999988079071,
+              "startMs": 7.4000000059604645
+            },
+            {
+              "name": "/assets/main-CGmt2ubs.js",
+              "transfer": 33492,
+              "encoded": 33192,
+              "decoded": 138839,
+              "durationMs": 13.900000005960464,
+              "startMs": 7.4000000059604645
+            },
+            {
+              "name": "/assets/playground-engine.esm-bundler-BBUq5TUt.js",
+              "transfer": 92389,
+              "encoded": 92089,
+              "decoded": 455217,
+              "durationMs": 11.599999994039536,
+              "startMs": 7.4000000059604645
+            },
+            {
+              "name": "/assets/code-editor-impl-DluZGpVt.js",
+              "transfer": 30275,
+              "encoded": 29975,
+              "decoded": 92209,
+              "durationMs": 2.5,
+              "startMs": 81.69999998807907
+            },
+            {
+              "name": "/assets/dist-s2YT2TF6.js",
+              "transfer": 126551,
+              "encoded": 126251,
+              "decoded": 446799,
+              "durationMs": 5.5999999940395355,
+              "startMs": 81.90000000596046
+            },
+            {
+              "name": "/favicon.ico",
+              "transfer": 849,
+              "encoded": 549,
+              "decoded": 1635,
+              "durationMs": 2,
+              "startMs": 223.90000000596046
+            },
+            {
+              "name": "/assets/zeus-compiler-B6TcquRO.wasm",
+              "transfer": 339445,
+              "encoded": 339145,
+              "decoded": 1545997,
+              "durationMs": 7.799999982118607,
+              "startMs": 227.90000000596046
+            },
+            {
+              "name": "/assets/worker-DvqwLtpD.js",
+              "transfer": 940,
+              "encoded": 640,
+              "decoded": 1397,
+              "durationMs": -14,
+              "startMs": 254.90000000596046
+            },
+            {
+              "name": "/assets/highlight-Dnf__d43.js",
+              "transfer": 904,
+              "encoded": 604,
+              "decoded": 1529,
+              "durationMs": 3,
+              "startMs": 270.09999999403954
+            },
+            {
+              "name": "/assets/babel-BNS_LnEj.js",
+              "transfer": 377802,
+              "encoded": 377502,
+              "decoded": 2207248,
+              "durationMs": 14.199999988079071,
+              "startMs": 271.5
+            }
+          ],
+          "totals": {
+            "transfer": 1032772,
+            "encoded": 1029172,
+            "decoded": 4994870
+          }
+        },
+        {
+          "scenario": "cold/unthrottled",
+          "ms": 2,
+          "metrics": {
+            "firstEditableMs": 169,
+            "firstPreviewMs": 399,
+            "firstOutputMs": 521,
+            "domContentLoadedMs": 59,
+            "loadMs": 117.7999999821186,
+            "editToPreviewMs": 1315
+          },
+          "resources": [
+            {
+              "name": "/assets/rolldown-runtime-XKyaHtl9.js",
+              "transfer": 682,
+              "encoded": 382,
+              "decoded": 726,
+              "durationMs": 6.100000023841858,
+              "startMs": 5.399999976158142
+            },
+            {
+              "name": "/assets/runtime-dom.esm-bundler-CY9v_j9-.js",
+              "transfer": 25298,
+              "encoded": 24998,
+              "decoded": 84135,
+              "durationMs": 7.4000000059604645,
+              "startMs": 5.399999976158142
+            },
+            {
+              "name": "/assets/playground-engine.esm-bundler-BBUq5TUt.js",
+              "transfer": 92389,
+              "encoded": 92089,
+              "decoded": 455217,
+              "durationMs": 10.100000023841858,
+              "startMs": 5.399999976158142
+            },
+            {
+              "name": "/assets/main-CuwJKVTp.css",
+              "transfer": 4145,
+              "encoded": 3845,
+              "decoded": 19139,
+              "durationMs": 11.299999982118607,
+              "startMs": 5.5
+            },
+            {
+              "name": "/assets/main-CGmt2ubs.js",
+              "transfer": 33492,
+              "encoded": 33192,
+              "decoded": 138839,
+              "durationMs": 11.899999976158142,
+              "startMs": 5.5
+            },
+            {
+              "name": "/assets/code-editor-impl-DluZGpVt.js",
+              "transfer": 30275,
+              "encoded": 29975,
+              "decoded": 92209,
+              "durationMs": 2.800000011920929,
+              "startMs": 54.89999997615814
+            },
+            {
+              "name": "/assets/dist-s2YT2TF6.js",
+              "transfer": 126551,
+              "encoded": 126251,
+              "decoded": 446799,
+              "durationMs": 5.5999999940395355,
+              "startMs": 55
+            },
+            {
+              "name": "/favicon.ico",
+              "transfer": 849,
+              "encoded": 549,
+              "decoded": 1635,
+              "durationMs": 3.4000000059604645,
+              "startMs": 157.09999999403954
+            },
+            {
+              "name": "/assets/zeus-compiler-B6TcquRO.wasm",
+              "transfer": 339445,
+              "encoded": 339145,
+              "decoded": 1545997,
+              "durationMs": 7.200000017881393,
+              "startMs": 161.2999999821186
+            },
+            {
+              "name": "/assets/worker-DvqwLtpD.js",
+              "transfer": 940,
+              "encoded": 640,
+              "decoded": 1397,
+              "durationMs": -14.599999994039536,
+              "startMs": 187.39999997615814
+            },
+            {
+              "name": "/assets/highlight-Dnf__d43.js",
+              "transfer": 904,
+              "encoded": 604,
+              "decoded": 1529,
+              "durationMs": 2.4000000059604645,
+              "startMs": 204.19999998807907
+            },
+            {
+              "name": "/assets/babel-BNS_LnEj.js",
+              "transfer": 377802,
+              "encoded": 377502,
+              "decoded": 2207248,
+              "durationMs": 13.5,
+              "startMs": 205.7999999821186
+            }
+          ],
+          "totals": {
+            "transfer": 1032772,
+            "encoded": 1029172,
+            "decoded": 4994870
+          }
+        },
+        {
+          "scenario": "cold/unthrottled",
+          "ms": 3,
+          "metrics": {
+            "firstEditableMs": 240,
+            "firstPreviewMs": 510,
+            "firstOutputMs": 640,
+            "domContentLoadedMs": 71.90000000596046,
+            "loadMs": 143.7999999821186,
+            "editToPreviewMs": 1426
+          },
+          "resources": [
+            {
+              "name": "/assets/rolldown-runtime-XKyaHtl9.js",
+              "transfer": 682,
+              "encoded": 382,
+              "decoded": 726,
+              "durationMs": 9.699999988079071,
+              "startMs": 12.599999994039536
+            },
+            {
+              "name": "/assets/runtime-dom.esm-bundler-CY9v_j9-.js",
+              "transfer": 25298,
+              "encoded": 24998,
+              "decoded": 84135,
+              "durationMs": 12.699999988079071,
+              "startMs": 12.599999994039536
+            },
+            {
+              "name": "/assets/main-CuwJKVTp.css",
+              "transfer": 4145,
+              "encoded": 3845,
+              "decoded": 19139,
+              "durationMs": 20.80000001192093,
+              "startMs": 12.799999982118607
+            },
+            {
+              "name": "/assets/main-CGmt2ubs.js",
+              "transfer": 33492,
+              "encoded": 33192,
+              "decoded": 138839,
+              "durationMs": 24.400000005960464,
+              "startMs": 12.799999982118607
+            },
+            {
+              "name": "/assets/playground-engine.esm-bundler-BBUq5TUt.js",
+              "transfer": 92389,
+              "encoded": 92089,
+              "decoded": 455217,
+              "durationMs": 15.400000005960464,
+              "startMs": 12.799999982118607
+            },
+            {
+              "name": "/assets/code-editor-impl-DluZGpVt.js",
+              "transfer": 30275,
+              "encoded": 29975,
+              "decoded": 92209,
+              "durationMs": 3.2000000178813934,
+              "startMs": 67.19999998807907
+            },
+            {
+              "name": "/assets/dist-s2YT2TF6.js",
+              "transfer": 126551,
+              "encoded": 126251,
+              "decoded": 446799,
+              "durationMs": 8.199999988079071,
+              "startMs": 67.40000000596046
+            },
+            {
+              "name": "/favicon.ico",
+              "transfer": 849,
+              "encoded": 549,
+              "decoded": 1635,
+              "durationMs": 4.5,
+              "startMs": 191.2999999821186
+            },
+            {
+              "name": "/assets/zeus-compiler-B6TcquRO.wasm",
+              "transfer": 339445,
+              "encoded": 339145,
+              "decoded": 1545997,
+              "durationMs": 19.400000005960464,
+              "startMs": 193.09999999403954
+            },
+            {
+              "name": "/assets/worker-DvqwLtpD.js",
+              "transfer": 940,
+              "encoded": 640,
+              "decoded": 1397,
+              "durationMs": -8.299999982118607,
+              "startMs": 228.19999998807907
+            },
+            {
+              "name": "/assets/highlight-Dnf__d43.js",
+              "transfer": 904,
+              "encoded": 604,
+              "decoded": 1529,
+              "durationMs": 3.2999999821186066,
+              "startMs": 244.90000000596046
+            },
+            {
+              "name": "/assets/babel-BNS_LnEj.js",
+              "transfer": 377802,
+              "encoded": 377502,
+              "decoded": 2207248,
+              "durationMs": 20,
+              "startMs": 246.40000000596046
+            }
+          ],
+          "totals": {
+            "transfer": 1032772,
+            "encoded": 1029172,
+            "decoded": 4994870
+          }
+        },
+        {
+          "scenario": "warm/unthrottled",
+          "ms": 0,
+          "metrics": {
+            "firstEditableMs": 136,
+            "firstPreviewMs": 480,
+            "firstOutputMs": 579,
+            "domContentLoadedMs": 57.099999994039536,
+            "loadMs": 156.5,
+            "editToPreviewMs": 1349
+          },
+          "resources": [
+            {
+              "name": "/assets/rolldown-runtime-XKyaHtl9.js",
+              "transfer": 0,
+              "encoded": 382,
+              "decoded": 726,
+              "durationMs": 0,
+              "startMs": 7
+            },
+            {
+              "name": "/assets/runtime-dom.esm-bundler-CY9v_j9-.js",
+              "transfer": 0,
+              "encoded": 24998,
+              "decoded": 84135,
+              "durationMs": 0,
+              "startMs": 7.100000023841858
+            },
+            {
+              "name": "/assets/playground-engine.esm-bundler-BBUq5TUt.js",
+              "transfer": 0,
+              "encoded": 92089,
+              "decoded": 455217,
+              "durationMs": 0,
+              "startMs": 7.200000017881393
+            },
+            {
+              "name": "/assets/main-CGmt2ubs.js",
+              "transfer": 0,
+              "encoded": 33192,
+              "decoded": 138839,
+              "durationMs": 0,
+              "startMs": 7.200000017881393
+            },
+            {
+              "name": "/assets/main-CuwJKVTp.css",
+              "transfer": 0,
+              "encoded": 3845,
+              "decoded": 19139,
+              "durationMs": 0,
+              "startMs": 7.200000017881393
+            },
+            {
+              "name": "/assets/code-editor-impl-DluZGpVt.js",
+              "transfer": 0,
+              "encoded": 29975,
+              "decoded": 92209,
+              "durationMs": 0,
+              "startMs": 15.900000005960464
+            },
+            {
+              "name": "/assets/dist-s2YT2TF6.js",
+              "transfer": 0,
+              "encoded": 126251,
+              "decoded": 446799,
+              "durationMs": 0,
+              "startMs": 15.900000005960464
+            },
+            {
+              "name": "/assets/zeus-compiler-B6TcquRO.wasm",
+              "transfer": 0,
+              "encoded": 339145,
+              "decoded": 1545997,
+              "durationMs": 5.200000017881393,
+              "startMs": 64.90000000596046
+            },
+            {
+              "name": "/assets/worker-DvqwLtpD.js",
+              "transfer": 0,
+              "encoded": 640,
+              "decoded": 1397,
+              "durationMs": -3.300000011920929,
+              "startMs": 91.80000001192093
+            },
+            {
+              "name": "/assets/highlight-Dnf__d43.js",
+              "transfer": 0,
+              "encoded": 604,
+              "decoded": 1529,
+              "durationMs": 0,
+              "startMs": 94.10000002384186
+            },
+            {
+              "name": "/assets/babel-BNS_LnEj.js",
+              "transfer": 0,
+              "encoded": 377502,
+              "decoded": 2207248,
+              "durationMs": 0,
+              "startMs": 94.90000000596046
+            },
+            {
+              "name": "/favicon.ico",
+              "transfer": 0,
+              "encoded": 549,
+              "decoded": 1635,
+              "durationMs": 0.4000000059604645,
+              "startMs": 96
+            }
+          ],
+          "totals": {
+            "transfer": 0,
+            "encoded": 1029172,
+            "decoded": 4994870
+          }
+        },
+        {
+          "scenario": "warm/unthrottled",
+          "ms": 1,
+          "metrics": {
+            "firstEditableMs": 77,
+            "firstPreviewMs": 448,
+            "firstOutputMs": 564,
+            "domContentLoadedMs": 67.2000000178814,
+            "loadMs": 131.10000002384186,
+            "editToPreviewMs": 1348
+          },
+          "resources": [
+            {
+              "name": "/assets/rolldown-runtime-XKyaHtl9.js",
+              "transfer": 0,
+              "encoded": 382,
+              "decoded": 726,
+              "durationMs": 0,
+              "startMs": 6.200000017881393
+            },
+            {
+              "name": "/assets/runtime-dom.esm-bundler-CY9v_j9-.js",
+              "transfer": 0,
+              "encoded": 24998,
+              "decoded": 84135,
+              "durationMs": 0,
+              "startMs": 6.200000017881393
+            },
+            {
+              "name": "/assets/playground-engine.esm-bundler-BBUq5TUt.js",
+              "transfer": 0,
+              "encoded": 92089,
+              "decoded": 455217,
+              "durationMs": 0,
+              "startMs": 6.200000017881393
+            },
+            {
+              "name": "/assets/main-CGmt2ubs.js",
+              "transfer": 0,
+              "encoded": 33192,
+              "decoded": 138839,
+              "durationMs": 0,
+              "startMs": 6.200000017881393
+            },
+            {
+              "name": "/assets/main-CuwJKVTp.css",
+              "transfer": 0,
+              "encoded": 3845,
+              "decoded": 19139,
+              "durationMs": 0,
+              "startMs": 6.300000011920929
+            },
+            {
+              "name": "/assets/code-editor-impl-DluZGpVt.js",
+              "transfer": 0,
+              "encoded": 29975,
+              "decoded": 92209,
+              "durationMs": 0,
+              "startMs": 13.700000017881393
+            },
+            {
+              "name": "/assets/dist-s2YT2TF6.js",
+              "transfer": 0,
+              "encoded": 126251,
+              "decoded": 446799,
+              "durationMs": 0,
+              "startMs": 13.800000011920929
+            },
+            {
+              "name": "/assets/zeus-compiler-B6TcquRO.wasm",
+              "transfer": 0,
+              "encoded": 339145,
+              "decoded": 1545997,
+              "durationMs": 10,
+              "startMs": 53.30000001192093
+            },
+            {
+              "name": "/assets/worker-DvqwLtpD.js",
+              "transfer": 0,
+              "encoded": 640,
+              "decoded": 1397,
+              "durationMs": -3,
+              "startMs": 69.90000000596046
+            },
+            {
+              "name": "/assets/highlight-Dnf__d43.js",
+              "transfer": 0,
+              "encoded": 604,
+              "decoded": 1529,
+              "durationMs": 0,
+              "startMs": 71.40000000596046
+            },
+            {
+              "name": "/assets/babel-BNS_LnEj.js",
+              "transfer": 0,
+              "encoded": 377502,
+              "decoded": 2207248,
+              "durationMs": 0,
+              "startMs": 72
+            },
+            {
+              "name": "/favicon.ico",
+              "transfer": 0,
+              "encoded": 549,
+              "decoded": 1635,
+              "durationMs": 0.5999999940395355,
+              "startMs": 72.90000000596046
+            }
+          ],
+          "totals": {
+            "transfer": 0,
+            "encoded": 1029172,
+            "decoded": 4994870
+          }
+        },
+        {
+          "scenario": "warm/unthrottled",
+          "ms": 2,
+          "metrics": {
+            "firstEditableMs": 106,
+            "firstPreviewMs": 451,
+            "firstOutputMs": 560,
+            "domContentLoadedMs": 62.5,
+            "loadMs": 120.09999999403954,
+            "editToPreviewMs": 1334
+          },
+          "resources": [
+            {
+              "name": "/assets/rolldown-runtime-XKyaHtl9.js",
+              "transfer": 0,
+              "encoded": 382,
+              "decoded": 726,
+              "durationMs": 0,
+              "startMs": 8.5
+            },
+            {
+              "name": "/assets/runtime-dom.esm-bundler-CY9v_j9-.js",
+              "transfer": 0,
+              "encoded": 24998,
+              "decoded": 84135,
+              "durationMs": 0,
+              "startMs": 8.5
+            },
+            {
+              "name": "/assets/playground-engine.esm-bundler-BBUq5TUt.js",
+              "transfer": 0,
+              "encoded": 92089,
+              "decoded": 455217,
+              "durationMs": 0,
+              "startMs": 8.599999994039536
+            },
+            {
+              "name": "/assets/main-CGmt2ubs.js",
+              "transfer": 0,
+              "encoded": 33192,
+              "decoded": 138839,
+              "durationMs": 0,
+              "startMs": 8.599999994039536
+            },
+            {
+              "name": "/assets/main-CuwJKVTp.css",
+              "transfer": 0,
+              "encoded": 3845,
+              "decoded": 19139,
+              "durationMs": 0,
+              "startMs": 8.599999994039536
+            },
+            {
+              "name": "/assets/code-editor-impl-DluZGpVt.js",
+              "transfer": 0,
+              "encoded": 29975,
+              "decoded": 92209,
+              "durationMs": 0,
+              "startMs": 16.19999998807907
+            },
+            {
+              "name": "/assets/dist-s2YT2TF6.js",
+              "transfer": 0,
+              "encoded": 126251,
+              "decoded": 446799,
+              "durationMs": 0,
+              "startMs": 16.19999998807907
+            },
+            {
+              "name": "/assets/zeus-compiler-B6TcquRO.wasm",
+              "transfer": 0,
+              "encoded": 339145,
+              "decoded": 1545997,
+              "durationMs": 10.300000011920929,
+              "startMs": 60.29999998211861
+            },
+            {
+              "name": "/favicon.ico",
+              "transfer": 0,
+              "encoded": 549,
+              "decoded": 1635,
+              "durationMs": 0.5999999940395355,
+              "startMs": 92.5
+            },
+            {
+              "name": "/assets/worker-DvqwLtpD.js",
+              "transfer": 0,
+              "encoded": 640,
+              "decoded": 1397,
+              "durationMs": -5.0999999940395355,
+              "startMs": 98.69999998807907
+            },
+            {
+              "name": "/assets/highlight-Dnf__d43.js",
+              "transfer": 0,
+              "encoded": 604,
+              "decoded": 1529,
+              "durationMs": 0,
+              "startMs": 100.7999999821186
+            },
+            {
+              "name": "/assets/babel-BNS_LnEj.js",
+              "transfer": 0,
+              "encoded": 377502,
+              "decoded": 2207248,
+              "durationMs": 0,
+              "startMs": 101.5
+            }
+          ],
+          "totals": {
+            "transfer": 0,
+            "encoded": 1029172,
+            "decoded": 4994870
+          }
+        },
+        {
+          "scenario": "warm/unthrottled",
+          "ms": 3,
+          "metrics": {
+            "firstEditableMs": 89,
+            "firstPreviewMs": 523,
+            "firstOutputMs": 640,
+            "domContentLoadedMs": 67.40000000596046,
+            "loadMs": 151.90000000596046,
+            "editToPreviewMs": 1408
+          },
+          "resources": [
+            {
+              "name": "/assets/rolldown-runtime-XKyaHtl9.js",
+              "transfer": 0,
+              "encoded": 382,
+              "decoded": 726,
+              "durationMs": 0,
+              "startMs": 6.199999988079071
+            },
+            {
+              "name": "/assets/runtime-dom.esm-bundler-CY9v_j9-.js",
+              "transfer": 0,
+              "encoded": 24998,
+              "decoded": 84135,
+              "durationMs": 0,
+              "startMs": 6.199999988079071
+            },
+            {
+              "name": "/assets/playground-engine.esm-bundler-BBUq5TUt.js",
+              "transfer": 0,
+              "encoded": 92089,
+              "decoded": 455217,
+              "durationMs": 0,
+              "startMs": 6.199999988079071
+            },
+            {
+              "name": "/assets/main-CGmt2ubs.js",
+              "transfer": 0,
+              "encoded": 33192,
+              "decoded": 138839,
+              "durationMs": 0,
+              "startMs": 6.299999982118607
+            },
+            {
+              "name": "/assets/main-CuwJKVTp.css",
+              "transfer": 0,
+              "encoded": 3845,
+              "decoded": 19139,
+              "durationMs": 0,
+              "startMs": 6.299999982118607
+            },
+            {
+              "name": "/assets/code-editor-impl-DluZGpVt.js",
+              "transfer": 0,
+              "encoded": 29975,
+              "decoded": 92209,
+              "durationMs": 0,
+              "startMs": 13.400000005960464
+            },
+            {
+              "name": "/assets/dist-s2YT2TF6.js",
+              "transfer": 0,
+              "encoded": 126251,
+              "decoded": 446799,
+              "durationMs": 0,
+              "startMs": 13.5
+            },
+            {
+              "name": "/assets/zeus-compiler-B6TcquRO.wasm",
+              "transfer": 0,
+              "encoded": 339145,
+              "decoded": 1545997,
+              "durationMs": 11.599999994039536,
+              "startMs": 56.5
+            },
+            {
+              "name": "/assets/worker-DvqwLtpD.js",
+              "transfer": 0,
+              "encoded": 640,
+              "decoded": 1397,
+              "durationMs": -3.399999976158142,
+              "startMs": 79.2999999821186
+            },
+            {
+              "name": "/assets/highlight-Dnf__d43.js",
+              "transfer": 0,
+              "encoded": 604,
+              "decoded": 1529,
+              "durationMs": 0,
+              "startMs": 83.59999999403954
+            },
+            {
+              "name": "/assets/babel-BNS_LnEj.js",
+              "transfer": 0,
+              "encoded": 377502,
+              "decoded": 2207248,
+              "durationMs": 0,
+              "startMs": 84.5
+            }
+          ],
+          "totals": {
+            "transfer": 0,
+            "encoded": 1028623,
+            "decoded": 4993235
+          }
+        },
+        {
+          "scenario": "cold/slow4g",
+          "ms": 0,
+          "metrics": {
+            "firstEditableMs": 3004,
+            "firstPreviewMs": 6164,
+            "firstOutputMs": 6307,
+            "domContentLoadedMs": 1117.5,
+            "loadMs": 1331.0999999940395,
+            "editToPreviewMs": 7247
+          },
+          "resources": [
+            {
+              "name": "/assets/rolldown-runtime-XKyaHtl9.js",
+              "transfer": 682,
+              "encoded": 382,
+              "decoded": 726,
+              "durationMs": 168.40000000596046,
+              "startMs": 167.09999999403954
+            },
+            {
+              "name": "/assets/runtime-dom.esm-bundler-CY9v_j9-.js",
+              "transfer": 25298,
+              "encoded": 24998,
+              "decoded": 84135,
+              "durationMs": 539.9000000059605,
+              "startMs": 167.2999999821186
+            },
+            {
+              "name": "/assets/playground-engine.esm-bundler-BBUq5TUt.js",
+              "transfer": 92389,
+              "encoded": 92089,
+              "decoded": 455217,
+              "durationMs": 919.4000000059605,
+              "startMs": 167.2999999821186
+            },
+            {
+              "name": "/assets/main-CuwJKVTp.css",
+              "transfer": 4145,
+              "encoded": 3845,
+              "decoded": 19139,
+              "durationMs": 247.2000000178814,
+              "startMs": 167.39999997615814
+            },
+            {
+              "name": "/assets/main-CGmt2ubs.js",
+              "transfer": 33492,
+              "encoded": 33192,
+              "decoded": 138839,
+              "durationMs": 640.3000000119209,
+              "startMs": 167.39999997615814
+            },
+            {
+              "name": "/assets/code-editor-impl-DluZGpVt.js",
+              "transfer": 30275,
+              "encoded": 29975,
+              "decoded": 92209,
+              "durationMs": 561.1999999880791,
+              "startMs": 1113
+            },
+            {
+              "name": "/assets/dist-s2YT2TF6.js",
+              "transfer": 126551,
+              "encoded": 126251,
+              "decoded": 446799,
+              "durationMs": 1488.0999999940395,
+              "startMs": 1113.2999999821186
+            },
+            {
+              "name": "/assets/zeus-compiler-B6TcquRO.wasm",
+              "transfer": 339445,
+              "encoded": 339145,
+              "decoded": 1545997,
+              "durationMs": 2452.5,
+              "startMs": 1206.8999999761581
+            },
+            {
+              "name": "/favicon.ico",
+              "transfer": 849,
+              "encoded": 549,
+              "decoded": 1635,
+              "durationMs": 176.7000000178814,
+              "startMs": 1332.3999999761581
+            },
+            {
+              "name": "/assets/worker-DvqwLtpD.js",
+              "transfer": 940,
+              "encoded": 640,
+              "decoded": 1397,
+              "durationMs": -2.0999999940395355,
+              "startMs": 3826.699999988079
+            },
+            {
+              "name": "/assets/highlight-Dnf__d43.js",
+              "transfer": 904,
+              "encoded": 604,
+              "decoded": 1529,
+              "durationMs": 160.2999999821186,
+              "startMs": 3843.0999999940395
+            },
+            {
+              "name": "/assets/babel-BNS_LnEj.js",
+              "transfer": 377802,
+              "encoded": 377502,
+              "decoded": 2207248,
+              "durationMs": 1961.0999999940395,
+              "startMs": 3845.199999988079
+            }
+          ],
+          "totals": {
+            "transfer": 1032772,
+            "encoded": 1029172,
+            "decoded": 4994870
+          }
+        },
+        {
+          "scenario": "cold/slow4g",
+          "ms": 1,
+          "metrics": {
+            "firstEditableMs": 3083,
+            "firstPreviewMs": 6218,
+            "firstOutputMs": 6359,
+            "domContentLoadedMs": 1123.6000000238419,
+            "loadMs": 1369.300000011921,
+            "editToPreviewMs": 7302
+          },
+          "resources": [
+            {
+              "name": "/assets/rolldown-runtime-XKyaHtl9.js",
+              "transfer": 682,
+              "encoded": 382,
+              "decoded": 726,
+              "durationMs": 161.30000001192093,
+              "startMs": 171
+            },
+            {
+              "name": "/assets/runtime-dom.esm-bundler-CY9v_j9-.js",
+              "transfer": 25298,
+              "encoded": 24998,
+              "decoded": 84135,
+              "durationMs": 533.6999999880791,
+              "startMs": 171.10000002384186
+            },
+            {
+              "name": "/assets/playground-engine.esm-bundler-BBUq5TUt.js",
+              "transfer": 92389,
+              "encoded": 92089,
+              "decoded": 455217,
+              "durationMs": 911.5,
+              "startMs": 171.10000002384186
+            },
+            {
+              "name": "/assets/main-CuwJKVTp.css",
+              "transfer": 4145,
+              "encoded": 3845,
+              "decoded": 19139,
+              "durationMs": 234.7999999821186,
+              "startMs": 171.2000000178814
+            },
+            {
+              "name": "/assets/main-CGmt2ubs.js",
+              "transfer": 33492,
+              "encoded": 33192,
+              "decoded": 138839,
+              "durationMs": 634.0999999940395,
+              "startMs": 171.2000000178814
+            },
+            {
+              "name": "/assets/code-editor-impl-DluZGpVt.js",
+              "transfer": 30275,
+              "encoded": 29975,
+              "decoded": 92209,
+              "durationMs": 528.9000000059605,
+              "startMs": 1119.2000000178814
+            },
+            {
+              "name": "/assets/dist-s2YT2TF6.js",
+              "transfer": 126551,
+              "encoded": 126251,
+              "decoded": 446799,
+              "durationMs": 1459.4000000059605,
+              "startMs": 1119.5
+            },
+            {
+              "name": "/assets/zeus-compiler-B6TcquRO.wasm",
+              "transfer": 339445,
+              "encoded": 339145,
+              "decoded": 1545997,
+              "durationMs": 2403.199999988079,
+              "startMs": 1262.7000000178814
+            },
+            {
+              "name": "/favicon.ico",
+              "transfer": 849,
+              "encoded": 549,
+              "decoded": 1635,
+              "durationMs": 177.59999999403954,
+              "startMs": 1371.9000000059605
+            },
+            {
+              "name": "/assets/worker-DvqwLtpD.js",
+              "transfer": 940,
+              "encoded": 640,
+              "decoded": 1397,
+              "durationMs": -2.699999988079071,
+              "startMs": 3840.4000000059605
+            },
+            {
+              "name": "/assets/highlight-Dnf__d43.js",
+              "transfer": 904,
+              "encoded": 604,
+              "decoded": 1529,
+              "durationMs": 164.2999999821186,
+              "startMs": 3858.100000023842
+            },
+            {
+              "name": "/assets/babel-BNS_LnEj.js",
+              "transfer": 377802,
+              "encoded": 377502,
+              "decoded": 2207248,
+              "durationMs": 1964.5999999940395,
+              "startMs": 3860.100000023842
+            }
+          ],
+          "totals": {
+            "transfer": 1032772,
+            "encoded": 1029172,
+            "decoded": 4994870
+          }
+        },
+        {
+          "scenario": "cold/slow4g",
+          "ms": 2,
+          "metrics": {
+            "firstEditableMs": 3052,
+            "firstPreviewMs": 6680,
+            "firstOutputMs": 6959,
+            "domContentLoadedMs": 1115.800000011921,
+            "loadMs": 1337,
+            "editToPreviewMs": 7897
+          },
+          "resources": [
+            {
+              "name": "/assets/rolldown-runtime-XKyaHtl9.js",
+              "transfer": 682,
+              "encoded": 382,
+              "decoded": 726,
+              "durationMs": 162.80000001192093,
+              "startMs": 170.69999998807907
+            },
+            {
+              "name": "/assets/runtime-dom.esm-bundler-CY9v_j9-.js",
+              "transfer": 25298,
+              "encoded": 24998,
+              "decoded": 84135,
+              "durationMs": 535.5,
+              "startMs": 170.80000001192093
+            },
+            {
+              "name": "/assets/main-CGmt2ubs.js",
+              "transfer": 33492,
+              "encoded": 33192,
+              "decoded": 138839,
+              "durationMs": 634.5999999940395,
+              "startMs": 170.90000000596046
+            },
+            {
+              "name": "/assets/playground-engine.esm-bundler-BBUq5TUt.js",
+              "transfer": 92389,
+              "encoded": 92089,
+              "decoded": 455217,
+              "durationMs": 913.9000000059605,
+              "startMs": 170.90000000596046
+            },
+            {
+              "name": "/assets/main-CuwJKVTp.css",
+              "transfer": 4145,
+              "encoded": 3845,
+              "decoded": 19139,
+              "durationMs": 239.30000001192093,
+              "startMs": 171
+            },
+            {
+              "name": "/assets/code-editor-impl-DluZGpVt.js",
+              "transfer": 30275,
+              "encoded": 29975,
+              "decoded": 92209,
+              "durationMs": 545.7999999821186,
+              "startMs": 1110.300000011921
+            },
+            {
+              "name": "/assets/dist-s2YT2TF6.js",
+              "transfer": 126551,
+              "encoded": 126251,
+              "decoded": 446799,
+              "durationMs": 1475.4000000059605,
+              "startMs": 1110.4000000059605
+            },
+            {
+              "name": "/assets/zeus-compiler-B6TcquRO.wasm",
+              "transfer": 339445,
+              "encoded": 339145,
+              "decoded": 1545997,
+              "durationMs": 2429.800000011921,
+              "startMs": 1230.199999988079
+            },
+            {
+              "name": "/favicon.ico",
+              "transfer": 849,
+              "encoded": 549,
+              "decoded": 1635,
+              "durationMs": 175.5,
+              "startMs": 1338.4000000059605
+            },
+            {
+              "name": "/assets/worker-DvqwLtpD.js",
+              "transfer": 940,
+              "encoded": 640,
+              "decoded": 1397,
+              "durationMs": -17.19999998807907,
+              "startMs": 3854
+            },
+            {
+              "name": "/assets/highlight-Dnf__d43.js",
+              "transfer": 904,
+              "encoded": 604,
+              "decoded": 1529,
+              "durationMs": 162.90000000596046,
+              "startMs": 3874.5
+            },
+            {
+              "name": "/assets/babel-BNS_LnEj.js",
+              "transfer": 377802,
+              "encoded": 377502,
+              "decoded": 2207248,
+              "durationMs": 1962.4000000059605,
+              "startMs": 3877.4000000059605
+            }
+          ],
+          "totals": {
+            "transfer": 1032772,
+            "encoded": 1029172,
+            "decoded": 4994870
+          }
+        },
+        {
+          "scenario": "cold/slow4g",
+          "ms": 3,
+          "metrics": {
+            "firstEditableMs": 2744,
+            "firstPreviewMs": 6241,
+            "firstOutputMs": 6420,
+            "domContentLoadedMs": 1151.1000000238419,
+            "loadMs": 1473.4000000059605,
+            "editToPreviewMs": 7396
+          },
+          "resources": [
+            {
+              "name": "/assets/rolldown-runtime-XKyaHtl9.js",
+              "transfer": 682,
+              "encoded": 382,
+              "decoded": 726,
+              "durationMs": 171.09999999403954,
+              "startMs": 171.90000000596046
+            },
+            {
+              "name": "/assets/runtime-dom.esm-bundler-CY9v_j9-.js",
+              "transfer": 25298,
+              "encoded": 24998,
+              "decoded": 84135,
+              "durationMs": 541.7000000178814,
+              "startMs": 172
+            },
+            {
+              "name": "/assets/main-CGmt2ubs.js",
+              "transfer": 33492,
+              "encoded": 33192,
+              "decoded": 138839,
+              "durationMs": 643.2999999821186,
+              "startMs": 172.10000002384186
+            },
+            {
+              "name": "/assets/playground-engine.esm-bundler-BBUq5TUt.js",
+              "transfer": 92389,
+              "encoded": 92089,
+              "decoded": 455217,
+              "durationMs": 922.5999999940395,
+              "startMs": 172.10000002384186
+            },
+            {
+              "name": "/assets/main-CuwJKVTp.css",
+              "transfer": 4145,
+              "encoded": 3845,
+              "decoded": 19139,
+              "durationMs": 249.19999998807907,
+              "startMs": 172.2000000178814
+            },
+            {
+              "name": "/assets/code-editor-impl-DluZGpVt.js",
+              "transfer": 30275,
+              "encoded": 29975,
+              "decoded": 92209,
+              "durationMs": 473.40000000596046,
+              "startMs": 1144.2000000178814
+            },
+            {
+              "name": "/assets/dist-s2YT2TF6.js",
+              "transfer": 126551,
+              "encoded": 126251,
+              "decoded": 446799,
+              "durationMs": 1402.2000000178814,
+              "startMs": 1144.5
+            },
+            {
+              "name": "/assets/zeus-compiler-B6TcquRO.wasm",
+              "transfer": 339445,
+              "encoded": 339145,
+              "decoded": 1545997,
+              "durationMs": 2281.5999999940395,
+              "startMs": 1417.1000000238419
+            },
+            {
+              "name": "/favicon.ico",
+              "transfer": 849,
+              "encoded": 549,
+              "decoded": 1635,
+              "durationMs": 167.40000000596046,
+              "startMs": 1477.9000000059605
+            },
+            {
+              "name": "/assets/worker-DvqwLtpD.js",
+              "transfer": 940,
+              "encoded": 640,
+              "decoded": 1397,
+              "durationMs": -3.5,
+              "startMs": 3878.4000000059605
+            },
+            {
+              "name": "/assets/highlight-Dnf__d43.js",
+              "transfer": 904,
+              "encoded": 604,
+              "decoded": 1529,
+              "durationMs": 166.40000000596046,
+              "startMs": 3895.5
+            },
+            {
+              "name": "/assets/babel-BNS_LnEj.js",
+              "transfer": 377802,
+              "encoded": 377502,
+              "decoded": 2207248,
+              "durationMs": 1967.5,
+              "startMs": 3897.100000023842
+            }
+          ],
+          "totals": {
+            "transfer": 1032772,
+            "encoded": 1029172,
+            "decoded": 4994870
+          }
+        },
+        {
+          "scenario": "cold/fast3g",
+          "ms": 0,
+          "metrics": {
+            "firstEditableMs": 7523,
+            "firstPreviewMs": 16520,
+            "firstOutputMs": 17734,
+            "domContentLoadedMs": 3116.5,
+            "loadMs": 3788.5999999940395,
+            "editToPreviewMs": 19653
+          },
+          "resources": [
+            {
+              "name": "/assets/rolldown-runtime-XKyaHtl9.js",
+              "transfer": 682,
+              "encoded": 382,
+              "decoded": 726,
+              "durationMs": 585.4000000059605,
+              "startMs": 595.5
+            },
+            {
+              "name": "/assets/runtime-dom.esm-bundler-CY9v_j9-.js",
+              "transfer": 25298,
+              "encoded": 24998,
+              "decoded": 84135,
+              "durationMs": 1518,
+              "startMs": 595.7000000178814
+            },
+            {
+              "name": "/assets/playground-engine.esm-bundler-BBUq5TUt.js",
+              "transfer": 92389,
+              "encoded": 92089,
+              "decoded": 455217,
+              "durationMs": 2461.2999999821186,
+              "startMs": 595.8000000119209
+            },
+            {
+              "name": "/assets/main-CGmt2ubs.js",
+              "transfer": 33492,
+              "encoded": 33192,
+              "decoded": 138839,
+              "durationMs": 1763.800000011921,
+              "startMs": 596
+            },
+            {
+              "name": "/assets/main-CuwJKVTp.css",
+              "transfer": 4145,
+              "encoded": 3845,
+              "decoded": 19139,
+              "durationMs": 784,
+              "startMs": 596.0999999940395
+            },
+            {
+              "name": "/assets/code-editor-impl-DluZGpVt.js",
+              "transfer": 30275,
+              "encoded": 29975,
+              "decoded": 92209,
+              "durationMs": 1667,
+              "startMs": 3111.0999999940395
+            },
+            {
+              "name": "/assets/dist-s2YT2TF6.js",
+              "transfer": 126551,
+              "encoded": 126251,
+              "decoded": 446799,
+              "durationMs": 3988.7999999821186,
+              "startMs": 3111.2000000178814
+            },
+            {
+              "name": "/assets/zeus-compiler-B6TcquRO.wasm",
+              "transfer": 339445,
+              "encoded": 339145,
+              "decoded": 1545997,
+              "durationMs": 6459.9000000059605,
+              "startMs": 3211.0999999940395
+            },
+            {
+              "name": "/favicon.ico",
+              "transfer": 849,
+              "encoded": 549,
+              "decoded": 1635,
+              "durationMs": 627.2999999821186,
+              "startMs": 3790.300000011921
+            },
+            {
+              "name": "/assets/worker-DvqwLtpD.js",
+              "transfer": 940,
+              "encoded": 640,
+              "decoded": 1397,
+              "durationMs": -4.4000000059604645,
+              "startMs": 10271.200000017881
+            },
+            {
+              "name": "/assets/highlight-Dnf__d43.js",
+              "transfer": 904,
+              "encoded": 604,
+              "decoded": 1529,
+              "durationMs": 581.0999999940395,
+              "startMs": 10289.90000000596
+            },
+            {
+              "name": "/assets/babel-BNS_LnEj.js",
+              "transfer": 377802,
+              "encoded": 377502,
+              "decoded": 2207248,
+              "durationMs": 5083.800000011921,
+              "startMs": 10292
+            }
+          ],
+          "totals": {
+            "transfer": 1032772,
+            "encoded": 1029172,
+            "decoded": 4994870
+          }
+        },
+        {
+          "scenario": "cold/fast3g",
+          "ms": 1,
+          "metrics": {
+            "firstEditableMs": 7134,
+            "firstPreviewMs": 16256,
+            "firstOutputMs": 16557,
+            "domContentLoadedMs": 3102.9000000059605,
+            "loadMs": 3783.600000023842,
+            "editToPreviewMs": 17924
+          },
+          "resources": [
+            {
+              "name": "/assets/rolldown-runtime-XKyaHtl9.js",
+              "transfer": 682,
+              "encoded": 382,
+              "decoded": 726,
+              "durationMs": 578.7000000178814,
+              "startMs": 597.9000000059605
+            },
+            {
+              "name": "/assets/runtime-dom.esm-bundler-CY9v_j9-.js",
+              "transfer": 25298,
+              "encoded": 24998,
+              "decoded": 84135,
+              "durationMs": 1509.1000000238419,
+              "startMs": 598
+            },
+            {
+              "name": "/assets/playground-engine.esm-bundler-BBUq5TUt.js",
+              "transfer": 92389,
+              "encoded": 92089,
+              "decoded": 455217,
+              "durationMs": 2458.9000000059605,
+              "startMs": 598
+            },
+            {
+              "name": "/assets/main-CGmt2ubs.js",
+              "transfer": 33492,
+              "encoded": 33192,
+              "decoded": 138839,
+              "durationMs": 1763.3999999761581,
+              "startMs": 598.1000000238419
+            },
+            {
+              "name": "/assets/main-CuwJKVTp.css",
+              "transfer": 4145,
+              "encoded": 3845,
+              "decoded": 19139,
+              "durationMs": 779.6999999880791,
+              "startMs": 598.2000000178814
+            },
+            {
+              "name": "/assets/code-editor-impl-DluZGpVt.js",
+              "transfer": 30275,
+              "encoded": 29975,
+              "decoded": 92209,
+              "durationMs": 1623.5,
+              "startMs": 3096.100000023842
+            },
+            {
+              "name": "/assets/dist-s2YT2TF6.js",
+              "transfer": 126551,
+              "encoded": 126251,
+              "decoded": 446799,
+              "durationMs": 3948.5999999940395,
+              "startMs": 3096.300000011921
+            },
+            {
+              "name": "/assets/zeus-compiler-B6TcquRO.wasm",
+              "transfer": 339445,
+              "encoded": 339145,
+              "decoded": 1545997,
+              "durationMs": 6399.300000011921,
+              "startMs": 3257.4000000059605
+            },
+            {
+              "name": "/favicon.ico",
+              "transfer": 849,
+              "encoded": 549,
+              "decoded": 1635,
+              "durationMs": 634.1999999880791,
+              "startMs": 3784.800000011921
+            },
+            {
+              "name": "/assets/worker-DvqwLtpD.js",
+              "transfer": 940,
+              "encoded": 640,
+              "decoded": 1397,
+              "durationMs": -14.5,
+              "startMs": 10261.800000011921
+            },
+            {
+              "name": "/assets/highlight-Dnf__d43.js",
+              "transfer": 904,
+              "encoded": 604,
+              "decoded": 1529,
+              "durationMs": 594.3000000119209,
+              "startMs": 10295.300000011921
+            },
+            {
+              "name": "/assets/babel-BNS_LnEj.js",
+              "transfer": 377802,
+              "encoded": 377502,
+              "decoded": 2207248,
+              "durationMs": 5095.5,
+              "startMs": 10297.5
+            }
+          ],
+          "totals": {
+            "transfer": 1032772,
+            "encoded": 1029172,
+            "decoded": 4994870
+          }
+        },
+        {
+          "scenario": "cold/fast3g",
+          "ms": 2,
+          "metrics": {
+            "firstEditableMs": 7145,
+            "firstPreviewMs": 16233,
+            "firstOutputMs": 16424,
+            "domContentLoadedMs": 3103.800000011921,
+            "loadMs": 3794.2000000178814,
+            "editToPreviewMs": 17797
+          },
+          "resources": [
+            {
+              "name": "/assets/rolldown-runtime-XKyaHtl9.js",
+              "transfer": 682,
+              "encoded": 382,
+              "decoded": 726,
+              "durationMs": 589.4000000059605,
+              "startMs": 592.4000000059605
+            },
+            {
+              "name": "/assets/runtime-dom.esm-bundler-CY9v_j9-.js",
+              "transfer": 25298,
+              "encoded": 24998,
+              "decoded": 84135,
+              "durationMs": 1518,
+              "startMs": 592.5
+            },
+            {
+              "name": "/assets/playground-engine.esm-bundler-BBUq5TUt.js",
+              "transfer": 92389,
+              "encoded": 92089,
+              "decoded": 455217,
+              "durationMs": 2465.2000000178814,
+              "startMs": 592.5
+            },
+            {
+              "name": "/assets/main-CuwJKVTp.css",
+              "transfer": 4145,
+              "encoded": 3845,
+              "decoded": 19139,
+              "durationMs": 783.2999999821186,
+              "startMs": 592.6000000238419
+            },
+            {
+              "name": "/assets/main-CGmt2ubs.js",
+              "transfer": 33492,
+              "encoded": 33192,
+              "decoded": 138839,
+              "durationMs": 1771.5999999940395,
+              "startMs": 592.6000000238419
+            },
+            {
+              "name": "/assets/code-editor-impl-DluZGpVt.js",
+              "transfer": 30275,
+              "encoded": 29975,
+              "decoded": 92209,
+              "durationMs": 1629.4000000059605,
+              "startMs": 3093.300000011921
+            },
+            {
+              "name": "/assets/dist-s2YT2TF6.js",
+              "transfer": 126551,
+              "encoded": 126251,
+              "decoded": 446799,
+              "durationMs": 3954.4000000059605,
+              "startMs": 3093.7000000178814
+            },
+            {
+              "name": "/assets/zeus-compiler-B6TcquRO.wasm",
+              "transfer": 339445,
+              "encoded": 339145,
+              "decoded": 1545997,
+              "durationMs": 6403.4000000059605,
+              "startMs": 3249.800000011921
+            },
+            {
+              "name": "/favicon.ico",
+              "transfer": 849,
+              "encoded": 549,
+              "decoded": 1635,
+              "durationMs": 622.3999999761581,
+              "startMs": 3795.600000023842
+            },
+            {
+              "name": "/assets/worker-DvqwLtpD.js",
+              "transfer": 940,
+              "encoded": 640,
+              "decoded": 1397,
+              "durationMs": -22.30000001192093,
+              "startMs": 10269.600000023842
+            },
+            {
+              "name": "/assets/highlight-Dnf__d43.js",
+              "transfer": 904,
+              "encoded": 604,
+              "decoded": 1529,
+              "durationMs": 584,
+              "startMs": 10304.200000017881
+            },
+            {
+              "name": "/assets/babel-BNS_LnEj.js",
+              "transfer": 377802,
+              "encoded": 377502,
+              "decoded": 2207248,
+              "durationMs": 5090.799999982119,
+              "startMs": 10306.700000017881
+            }
+          ],
+          "totals": {
+            "transfer": 1032772,
+            "encoded": 1029172,
+            "decoded": 4994870
+          }
+        },
+        {
+          "scenario": "cold/fast3g",
+          "ms": 3,
+          "metrics": {
+            "firstEditableMs": 7094,
+            "firstPreviewMs": 16175,
+            "firstOutputMs": 16356,
+            "domContentLoadedMs": 3096.4000000059605,
+            "loadMs": 3776.800000011921,
+            "editToPreviewMs": 17746
+          },
+          "resources": [
+            {
+              "name": "/assets/rolldown-runtime-XKyaHtl9.js",
+              "transfer": 682,
+              "encoded": 382,
+              "decoded": 726,
+              "durationMs": 578.4000000059605,
+              "startMs": 581.4000000059605
+            },
+            {
+              "name": "/assets/runtime-dom.esm-bundler-CY9v_j9-.js",
+              "transfer": 25298,
+              "encoded": 24998,
+              "decoded": 84135,
+              "durationMs": 1510.9000000059605,
+              "startMs": 581.6999999880791
+            },
+            {
+              "name": "/assets/playground-engine.esm-bundler-BBUq5TUt.js",
+              "transfer": 92389,
+              "encoded": 92089,
+              "decoded": 455217,
+              "durationMs": 2461.2000000178814,
+              "startMs": 581.6999999880791
+            },
+            {
+              "name": "/assets/main-CGmt2ubs.js",
+              "transfer": 33492,
+              "encoded": 33192,
+              "decoded": 138839,
+              "durationMs": 1764.2999999821186,
+              "startMs": 581.9000000059605
+            },
+            {
+              "name": "/assets/main-CuwJKVTp.css",
+              "transfer": 4145,
+              "encoded": 3845,
+              "decoded": 19139,
+              "durationMs": 778.1999999880791,
+              "startMs": 582
+            },
+            {
+              "name": "/assets/code-editor-impl-DluZGpVt.js",
+              "transfer": 30275,
+              "encoded": 29975,
+              "decoded": 92209,
+              "durationMs": 1611.300000011921,
+              "startMs": 3090.699999988079
+            },
+            {
+              "name": "/assets/dist-s2YT2TF6.js",
+              "transfer": 126551,
+              "encoded": 126251,
+              "decoded": 446799,
+              "durationMs": 3921.5,
+              "startMs": 3090.800000011921
+            },
+            {
+              "name": "/assets/zeus-compiler-B6TcquRO.wasm",
+              "transfer": 339445,
+              "encoded": 339145,
+              "decoded": 1545997,
+              "durationMs": 6387.800000011921,
+              "startMs": 3252.5
+            },
+            {
+              "name": "/favicon.ico",
+              "transfer": 849,
+              "encoded": 549,
+              "decoded": 1635,
+              "durationMs": 622.2999999821186,
+              "startMs": 3778.300000011921
+            },
+            {
+              "name": "/assets/worker-DvqwLtpD.js",
+              "transfer": 940,
+              "encoded": 640,
+              "decoded": 1397,
+              "durationMs": -3.5999999940395355,
+              "startMs": 10232
+            },
+            {
+              "name": "/assets/highlight-Dnf__d43.js",
+              "transfer": 904,
+              "encoded": 604,
+              "decoded": 1529,
+              "durationMs": 591,
+              "startMs": 10248.5
+            },
+            {
+              "name": "/assets/babel-BNS_LnEj.js",
+              "transfer": 377802,
+              "encoded": 377502,
+              "decoded": 2207248,
+              "durationMs": 5094.5,
+              "startMs": 10250.5
+            }
+          ],
+          "totals": {
+            "transfer": 1032772,
+            "encoded": 1029172,
+            "decoded": 4994870
+          }
+        }
+      ],
+      "medians": {
+        "cold/unthrottled": {
+          "firstEditableMs": 240,
+          "firstPreviewMs": 461,
+          "firstOutputMs": 521,
+          "domContentLoadedMs": 72,
+          "loadMs": 144,
+          "editToPreviewMs": 1361
+        },
+        "warm/unthrottled": {
+          "firstEditableMs": 89,
+          "firstPreviewMs": 451,
+          "firstOutputMs": 564,
+          "domContentLoadedMs": 67,
+          "loadMs": 131,
+          "editToPreviewMs": 1348
+        },
+        "cold/slow4g": {
+          "firstEditableMs": 3052,
+          "firstPreviewMs": 6241,
+          "firstOutputMs": 6420,
+          "domContentLoadedMs": 1124,
+          "loadMs": 1369,
+          "editToPreviewMs": 7396
+        },
+        "cold/fast3g": {
+          "firstEditableMs": 7134,
+          "firstPreviewMs": 16233,
+          "firstOutputMs": 16424,
+          "domContentLoadedMs": 3103,
+          "loadMs": 3784,
+          "editToPreviewMs": 17797
+        }
+      },
+      "stability": {
+        "cold/unthrottled": "stable",
+        "warm/unthrottled": "stable",
+        "cold/slow4g": "stable",
+        "cold/fast3g": "stable"
+      }
+    },
+    {
+      "product": "admin",
+      "commit": "8f8f52565eb9b83b0a9f5c8a3917e77d10b3a9ed",
+      "browser": "chromium 156.0.8078.4",
+      "viewport": "1440x900",
+      "samples": [
+        {
+          "scenario": "cold/unthrottled",
+          "ms": 0,
+          "metrics": {
+            "loginInteractiveMs": 218,
+            "dashboardMs": 560,
+            "usersPageMs": 698,
+            "dataGridInteractiveMs": 713,
+            "navigateBackMs": 780,
+            "loginTransferBytes": 325710,
+            "navigationTransferBytes": 76749,
+            "allTransferBytes": 402844
+          },
+          "resources": [
+            {
+              "name": "/assets/index-DcVW-G3G.js",
+              "transfer": 285047,
+              "encoded": 284747,
+              "decoded": 284747,
+              "durationMs": 26,
+              "startMs": 47
+            },
+            {
+              "name": "/assets/index-G4m2dnWD.css",
+              "transfer": 39976,
+              "encoded": 39676,
+              "decoded": 39676,
+              "durationMs": 26.099999994039536,
+              "startMs": 47.19999998807907
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 378,
+              "encoded": 78,
+              "decoded": 78,
+              "durationMs": 4.300000011920929,
+              "startMs": 119.69999998807907
+            },
+            {
+              "name": "/favicon.ico",
+              "transfer": 309,
+              "encoded": 9,
+              "decoded": 9,
+              "durationMs": 1.800000011920929,
+              "startMs": 146.2999999821186
+            },
+            {
+              "name": "/api/auth/login",
+              "transfer": 458,
+              "encoded": 158,
+              "decoded": 158,
+              "durationMs": 70.30000001192093,
+              "startMs": 379.2999999821186
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 385,
+              "encoded": 85,
+              "decoded": 85,
+              "durationMs": 6.899999976158142,
+              "startMs": 454.90000000596046
+            },
+            {
+              "name": "/assets/overview-DmiIc5lc.js",
+              "transfer": 10355,
+              "encoded": 10055,
+              "decoded": 10055,
+              "durationMs": 6.9000000059604645,
+              "startMs": 482.69999998807907
+            },
+            {
+              "name": "/api/summary",
+              "transfer": 343,
+              "encoded": 43,
+              "decoded": 43,
+              "durationMs": 3.300000011920929,
+              "startMs": 498.59999999403954
+            },
+            {
+              "name": "/api/users",
+              "transfer": 1329,
+              "encoded": 1029,
+              "decoded": 1029,
+              "durationMs": 5.200000017881393,
+              "startMs": 498.7999999821186
+            },
+            {
+              "name": "/assets/users-Bf8eIzRE.js",
+              "transfer": 17496,
+              "encoded": 17196,
+              "decoded": 17196,
+              "durationMs": 4.699999988079071,
+              "startMs": 608
+            },
+            {
+              "name": "/api/users",
+              "transfer": 698,
+              "encoded": 398,
+              "decoded": 398,
+              "durationMs": 3.5,
+              "startMs": 608.5
+            },
+            {
+              "name": "/assets/zw-input.entry-B6rVgmHQ.js",
+              "transfer": 3858,
+              "encoded": 3558,
+              "decoded": 3558,
+              "durationMs": 4.700000017881393,
+              "startMs": 645.7999999821186
+            },
+            {
+              "name": "/assets/zw-data-grid.entry-CIMvg20y.js",
+              "transfer": 42212,
+              "encoded": 41912,
+              "decoded": 41912,
+              "durationMs": 10.099999994039536,
+              "startMs": 645.9000000059605
+            }
+          ],
+          "totals": {
+            "transfer": 402844,
+            "encoded": 398944,
+            "decoded": 398944
+          }
+        },
+        {
+          "scenario": "cold/unthrottled",
+          "ms": 1,
+          "metrics": {
+            "loginInteractiveMs": 108,
+            "dashboardMs": 350,
+            "usersPageMs": 442,
+            "dataGridInteractiveMs": 447,
+            "navigateBackMs": 512,
+            "loginTransferBytes": 325401,
+            "navigationTransferBytes": 76749,
+            "allTransferBytes": 402535
+          },
+          "resources": [
+            {
+              "name": "/assets/index-DcVW-G3G.js",
+              "transfer": 285047,
+              "encoded": 284747,
+              "decoded": 284747,
+              "durationMs": 6.299999982118607,
+              "startMs": 11.800000011920929
+            },
+            {
+              "name": "/assets/index-G4m2dnWD.css",
+              "transfer": 39976,
+              "encoded": 39676,
+              "decoded": 39676,
+              "durationMs": 8.599999994039536,
+              "startMs": 11.900000005960464
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 378,
+              "encoded": 78,
+              "decoded": 78,
+              "durationMs": 1.7999999821186066,
+              "startMs": 41.30000001192093
+            },
+            {
+              "name": "/api/auth/login",
+              "transfer": 458,
+              "encoded": 158,
+              "decoded": 158,
+              "durationMs": 45.5,
+              "startMs": 230.5
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 385,
+              "encoded": 85,
+              "decoded": 85,
+              "durationMs": 1.2999999821186066,
+              "startMs": 277.40000000596046
+            },
+            {
+              "name": "/assets/overview-DmiIc5lc.js",
+              "transfer": 10355,
+              "encoded": 10055,
+              "decoded": 10055,
+              "durationMs": 6.200000017881393,
+              "startMs": 292.19999998807907
+            },
+            {
+              "name": "/api/summary",
+              "transfer": 343,
+              "encoded": 43,
+              "decoded": 43,
+              "durationMs": 3.9000000059604645,
+              "startMs": 304.40000000596046
+            },
+            {
+              "name": "/api/users",
+              "transfer": 1329,
+              "encoded": 1029,
+              "decoded": 1029,
+              "durationMs": 6.9000000059604645,
+              "startMs": 304.90000000596046
+            },
+            {
+              "name": "/assets/users-Bf8eIzRE.js",
+              "transfer": 17496,
+              "encoded": 17196,
+              "decoded": 17196,
+              "durationMs": 4.799999982118607,
+              "startMs": 376.80000001192093
+            },
+            {
+              "name": "/api/users",
+              "transfer": 698,
+              "encoded": 398,
+              "decoded": 398,
+              "durationMs": 3.0999999940395355,
+              "startMs": 376.90000000596046
+            },
+            {
+              "name": "/assets/zw-input.entry-B6rVgmHQ.js",
+              "transfer": 3858,
+              "encoded": 3558,
+              "decoded": 3558,
+              "durationMs": 14.5,
+              "startMs": 395.59999999403954
+            },
+            {
+              "name": "/assets/zw-data-grid.entry-CIMvg20y.js",
+              "transfer": 42212,
+              "encoded": 41912,
+              "decoded": 41912,
+              "durationMs": 15.800000011920929,
+              "startMs": 395.69999998807907
+            }
+          ],
+          "totals": {
+            "transfer": 402535,
+            "encoded": 398935,
+            "decoded": 398935
+          }
+        },
+        {
+          "scenario": "cold/unthrottled",
+          "ms": 2,
+          "metrics": {
+            "loginInteractiveMs": 119,
+            "dashboardMs": 350,
+            "usersPageMs": 439,
+            "dataGridInteractiveMs": 444,
+            "navigateBackMs": 510,
+            "loginTransferBytes": 325401,
+            "navigationTransferBytes": 76749,
+            "allTransferBytes": 402535
+          },
+          "resources": [
+            {
+              "name": "/assets/index-G4m2dnWD.css",
+              "transfer": 39976,
+              "encoded": 39676,
+              "decoded": 39676,
+              "durationMs": 19.799999982118607,
+              "startMs": 13.900000005960464
+            },
+            {
+              "name": "/assets/index-DcVW-G3G.js",
+              "transfer": 285047,
+              "encoded": 284747,
+              "decoded": 284747,
+              "durationMs": 20.69999998807907,
+              "startMs": 13.900000005960464
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 378,
+              "encoded": 78,
+              "decoded": 78,
+              "durationMs": 2.199999988079071,
+              "startMs": 60.099999994039536
+            },
+            {
+              "name": "/api/auth/login",
+              "transfer": 458,
+              "encoded": 158,
+              "decoded": 158,
+              "durationMs": 48.900000005960464,
+              "startMs": 246.19999998807907
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 385,
+              "encoded": 85,
+              "decoded": 85,
+              "durationMs": 1.399999976158142,
+              "startMs": 296.40000000596046
+            },
+            {
+              "name": "/assets/overview-DmiIc5lc.js",
+              "transfer": 10355,
+              "encoded": 10055,
+              "decoded": 10055,
+              "durationMs": 2.5,
+              "startMs": 310.19999998807907
+            },
+            {
+              "name": "/api/summary",
+              "transfer": 343,
+              "encoded": 43,
+              "decoded": 43,
+              "durationMs": 3.7000000178813934,
+              "startMs": 321.69999998807907
+            },
+            {
+              "name": "/api/users",
+              "transfer": 1329,
+              "encoded": 1029,
+              "decoded": 1029,
+              "durationMs": 4.5999999940395355,
+              "startMs": 321.90000000596046
+            },
+            {
+              "name": "/assets/users-Bf8eIzRE.js",
+              "transfer": 17496,
+              "encoded": 17196,
+              "decoded": 17196,
+              "durationMs": 3.4000000059604645,
+              "startMs": 380.5
+            },
+            {
+              "name": "/api/users",
+              "transfer": 698,
+              "encoded": 398,
+              "decoded": 398,
+              "durationMs": 1.699999988079071,
+              "startMs": 380.59999999403954
+            },
+            {
+              "name": "/assets/zw-input.entry-B6rVgmHQ.js",
+              "transfer": 3858,
+              "encoded": 3558,
+              "decoded": 3558,
+              "durationMs": 7.5,
+              "startMs": 405.09999999403954
+            },
+            {
+              "name": "/assets/zw-data-grid.entry-CIMvg20y.js",
+              "transfer": 42212,
+              "encoded": 41912,
+              "decoded": 41912,
+              "durationMs": 7.800000011920929,
+              "startMs": 405.09999999403954
+            }
+          ],
+          "totals": {
+            "transfer": 402535,
+            "encoded": 398935,
+            "decoded": 398935
+          }
+        },
+        {
+          "scenario": "cold/unthrottled",
+          "ms": 3,
+          "metrics": {
+            "loginInteractiveMs": 145,
+            "dashboardMs": 424,
+            "usersPageMs": 507,
+            "dataGridInteractiveMs": 511,
+            "navigateBackMs": 579,
+            "loginTransferBytes": 325401,
+            "navigationTransferBytes": 76749,
+            "allTransferBytes": 402535
+          },
+          "resources": [
+            {
+              "name": "/assets/index-DcVW-G3G.js",
+              "transfer": 285047,
+              "encoded": 284747,
+              "decoded": 284747,
+              "durationMs": 15.5,
+              "startMs": 32.80000001192093
+            },
+            {
+              "name": "/assets/index-G4m2dnWD.css",
+              "transfer": 39976,
+              "encoded": 39676,
+              "decoded": 39676,
+              "durationMs": 14.5,
+              "startMs": 33.10000002384186
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 378,
+              "encoded": 78,
+              "decoded": 78,
+              "durationMs": 4.5,
+              "startMs": 73.90000000596046
+            },
+            {
+              "name": "/api/auth/login",
+              "transfer": 458,
+              "encoded": 158,
+              "decoded": 158,
+              "durationMs": 55.69999998807907,
+              "startMs": 296.2000000178814
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 385,
+              "encoded": 85,
+              "decoded": 85,
+              "durationMs": 1.699999988079071,
+              "startMs": 353.30000001192093
+            },
+            {
+              "name": "/assets/overview-DmiIc5lc.js",
+              "transfer": 10355,
+              "encoded": 10055,
+              "decoded": 10055,
+              "durationMs": 2.5999999940395355,
+              "startMs": 368.10000002384186
+            },
+            {
+              "name": "/api/summary",
+              "transfer": 343,
+              "encoded": 43,
+              "decoded": 43,
+              "durationMs": 1.9000000059604645,
+              "startMs": 379.7000000178814
+            },
+            {
+              "name": "/api/users",
+              "transfer": 1329,
+              "encoded": 1029,
+              "decoded": 1029,
+              "durationMs": 3.699999988079071,
+              "startMs": 379.80000001192093
+            },
+            {
+              "name": "/assets/users-Bf8eIzRE.js",
+              "transfer": 17496,
+              "encoded": 17196,
+              "decoded": 17196,
+              "durationMs": 3.4000000059604645,
+              "startMs": 445.90000000596046
+            },
+            {
+              "name": "/api/users",
+              "transfer": 698,
+              "encoded": 398,
+              "decoded": 398,
+              "durationMs": 2.0999999940395355,
+              "startMs": 446.10000002384186
+            },
+            {
+              "name": "/assets/zw-input.entry-B6rVgmHQ.js",
+              "transfer": 3858,
+              "encoded": 3558,
+              "decoded": 3558,
+              "durationMs": 3.800000011920929,
+              "startMs": 467.40000000596046
+            },
+            {
+              "name": "/assets/zw-data-grid.entry-CIMvg20y.js",
+              "transfer": 42212,
+              "encoded": 41912,
+              "decoded": 41912,
+              "durationMs": 2.800000011920929,
+              "startMs": 467.5
+            }
+          ],
+          "totals": {
+            "transfer": 402535,
+            "encoded": 398935,
+            "decoded": 398935
+          }
+        },
+        {
+          "scenario": "warm/unthrottled",
+          "ms": 0,
+          "metrics": {
+            "loginInteractiveMs": 110,
+            "dashboardMs": 430,
+            "usersPageMs": 555,
+            "dataGridInteractiveMs": 563,
+            "navigateBackMs": 608,
+            "loginTransferBytes": 325401,
+            "navigationTransferBytes": 76749,
+            "allTransferBytes": 402535
+          },
+          "resources": [
+            {
+              "name": "/assets/index-DcVW-G3G.js",
+              "transfer": 285047,
+              "encoded": 284747,
+              "decoded": 284747,
+              "durationMs": 5.799999982118607,
+              "startMs": 11.5
+            },
+            {
+              "name": "/assets/index-G4m2dnWD.css",
+              "transfer": 39976,
+              "encoded": 39676,
+              "decoded": 39676,
+              "durationMs": 5.4000000059604645,
+              "startMs": 11.599999994039536
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 385,
+              "encoded": 85,
+              "decoded": 85,
+              "durationMs": 2.0999999940395355,
+              "startMs": 28.19999998807907
+            },
+            {
+              "name": "/assets/overview-DmiIc5lc.js",
+              "transfer": 10355,
+              "encoded": 10055,
+              "decoded": 10055,
+              "durationMs": 8.900000005960464,
+              "startMs": 39.79999998211861
+            },
+            {
+              "name": "/api/summary",
+              "transfer": 343,
+              "encoded": 43,
+              "decoded": 43,
+              "durationMs": 2.399999976158142,
+              "startMs": 59
+            },
+            {
+              "name": "/api/users",
+              "transfer": 1329,
+              "encoded": 1029,
+              "decoded": 1029,
+              "durationMs": 2.7999999821186066,
+              "startMs": 59
+            }
+          ],
+          "totals": {
+            "transfer": 337435,
+            "encoded": 335635,
+            "decoded": 335635
+          }
+        },
+        {
+          "scenario": "warm/unthrottled",
+          "ms": 1,
+          "metrics": {
+            "loginInteractiveMs": 115,
+            "dashboardMs": 454,
+            "usersPageMs": 578,
+            "dataGridInteractiveMs": 584,
+            "navigateBackMs": 683,
+            "loginTransferBytes": 325401,
+            "navigationTransferBytes": 76749,
+            "allTransferBytes": 402535
+          },
+          "resources": [
+            {
+              "name": "/assets/index-DcVW-G3G.js",
+              "transfer": 285047,
+              "encoded": 284747,
+              "decoded": 284747,
+              "durationMs": 8.800000011920929,
+              "startMs": 14.799999982118607
+            },
+            {
+              "name": "/assets/index-G4m2dnWD.css",
+              "transfer": 39976,
+              "encoded": 39676,
+              "decoded": 39676,
+              "durationMs": 8,
+              "startMs": 15.099999994039536
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 385,
+              "encoded": 85,
+              "decoded": 85,
+              "durationMs": 3,
+              "startMs": 42.5
+            },
+            {
+              "name": "/assets/overview-DmiIc5lc.js",
+              "transfer": 10355,
+              "encoded": 10055,
+              "decoded": 10055,
+              "durationMs": 9.199999988079071,
+              "startMs": 56.69999998807907
+            },
+            {
+              "name": "/api/summary",
+              "transfer": 343,
+              "encoded": 43,
+              "decoded": 43,
+              "durationMs": 2.0999999940395355,
+              "startMs": 79.2999999821186
+            },
+            {
+              "name": "/api/users",
+              "transfer": 1329,
+              "encoded": 1029,
+              "decoded": 1029,
+              "durationMs": 3.5,
+              "startMs": 79.39999997615814
+            }
+          ],
+          "totals": {
+            "transfer": 337435,
+            "encoded": 335635,
+            "decoded": 335635
+          }
+        },
+        {
+          "scenario": "warm/unthrottled",
+          "ms": 2,
+          "metrics": {
+            "loginInteractiveMs": 124,
+            "dashboardMs": 528,
+            "usersPageMs": 629,
+            "dataGridInteractiveMs": 634,
+            "navigateBackMs": 691,
+            "loginTransferBytes": 325401,
+            "navigationTransferBytes": 76749,
+            "allTransferBytes": 402535
+          },
+          "resources": [
+            {
+              "name": "/assets/index-DcVW-G3G.js",
+              "transfer": 285047,
+              "encoded": 284747,
+              "decoded": 284747,
+              "durationMs": 9.199999988079071,
+              "startMs": 16.700000017881393
+            },
+            {
+              "name": "/assets/index-G4m2dnWD.css",
+              "transfer": 39976,
+              "encoded": 39676,
+              "decoded": 39676,
+              "durationMs": 8.800000011920929,
+              "startMs": 16.80000001192093
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 385,
+              "encoded": 85,
+              "decoded": 85,
+              "durationMs": 3,
+              "startMs": 43.70000001788139
+            },
+            {
+              "name": "/assets/overview-DmiIc5lc.js",
+              "transfer": 10355,
+              "encoded": 10055,
+              "decoded": 10055,
+              "durationMs": 5.5999999940395355,
+              "startMs": 55.10000002384186
+            },
+            {
+              "name": "/api/summary",
+              "transfer": 343,
+              "encoded": 43,
+              "decoded": 43,
+              "durationMs": 1.399999976158142,
+              "startMs": 80.60000002384186
+            },
+            {
+              "name": "/api/users",
+              "transfer": 1329,
+              "encoded": 1029,
+              "decoded": 1029,
+              "durationMs": 4.199999988079071,
+              "startMs": 80.60000002384186
+            }
+          ],
+          "totals": {
+            "transfer": 337435,
+            "encoded": 335635,
+            "decoded": 335635
+          }
+        },
+        {
+          "scenario": "warm/unthrottled",
+          "ms": 3,
+          "metrics": {
+            "loginInteractiveMs": 108,
+            "dashboardMs": 347,
+            "usersPageMs": 432,
+            "dataGridInteractiveMs": 435,
+            "navigateBackMs": 495,
+            "loginTransferBytes": 325401,
+            "navigationTransferBytes": 76749,
+            "allTransferBytes": 402535
+          },
+          "resources": [
+            {
+              "name": "/assets/index-DcVW-G3G.js",
+              "transfer": 285047,
+              "encoded": 284747,
+              "decoded": 284747,
+              "durationMs": 4.199999988079071,
+              "startMs": 14.5
+            },
+            {
+              "name": "/assets/index-G4m2dnWD.css",
+              "transfer": 39976,
+              "encoded": 39676,
+              "decoded": 39676,
+              "durationMs": 2.800000011920929,
+              "startMs": 14.699999988079071
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 385,
+              "encoded": 85,
+              "decoded": 85,
+              "durationMs": 2.4000000059604645,
+              "startMs": 36.29999998211861
+            },
+            {
+              "name": "/assets/overview-DmiIc5lc.js",
+              "transfer": 10355,
+              "encoded": 10055,
+              "decoded": 10055,
+              "durationMs": 8.5,
+              "startMs": 47.79999998211861
+            },
+            {
+              "name": "/api/summary",
+              "transfer": 343,
+              "encoded": 43,
+              "decoded": 43,
+              "durationMs": 5.699999988079071,
+              "startMs": 71
+            },
+            {
+              "name": "/api/users",
+              "transfer": 1329,
+              "encoded": 1029,
+              "decoded": 1029,
+              "durationMs": 7.200000017881393,
+              "startMs": 71.19999998807907
+            }
+          ],
+          "totals": {
+            "transfer": 337435,
+            "encoded": 335635,
+            "decoded": 335635
+          }
+        },
+        {
+          "scenario": "cold/slow4g",
+          "ms": 0,
+          "metrics": {
+            "loginInteractiveMs": 2185,
+            "dashboardMs": 3138,
+            "usersPageMs": 3503,
+            "dataGridInteractiveMs": 4304,
+            "navigateBackMs": 4369,
+            "loginTransferBytes": 325401,
+            "navigationTransferBytes": 76749,
+            "allTransferBytes": 402535
+          },
+          "resources": [
+            {
+              "name": "/assets/index-DcVW-G3G.js",
+              "transfer": 285047,
+              "encoded": 284747,
+              "decoded": 284747,
+              "durationMs": 1719.9000000059605,
+              "startMs": 170.2999999821186
+            },
+            {
+              "name": "/assets/index-G4m2dnWD.css",
+              "transfer": 39976,
+              "encoded": 39676,
+              "decoded": 39676,
+              "durationMs": 546.8999999761581,
+              "startMs": 170.40000000596046
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 378,
+              "encoded": 78,
+              "decoded": 78,
+              "durationMs": 165.5,
+              "startMs": 1910.5999999940395
+            },
+            {
+              "name": "/api/auth/login",
+              "transfer": 458,
+              "encoded": 158,
+              "decoded": 158,
+              "durationMs": 173.19999998807907,
+              "startMs": 2290.9000000059605
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 385,
+              "encoded": 85,
+              "decoded": 85,
+              "durationMs": 169.7000000178814,
+              "startMs": 2465.7999999821186
+            },
+            {
+              "name": "/assets/overview-DmiIc5lc.js",
+              "transfer": 10355,
+              "encoded": 10055,
+              "decoded": 10055,
+              "durationMs": 208.30000001192093,
+              "startMs": 2661.7999999821186
+            },
+            {
+              "name": "/api/summary",
+              "transfer": 343,
+              "encoded": 43,
+              "decoded": 43,
+              "durationMs": 163.09999999403954,
+              "startMs": 2877.5
+            },
+            {
+              "name": "/api/users",
+              "transfer": 1329,
+              "encoded": 1029,
+              "decoded": 1029,
+              "durationMs": 172.09999999403954,
+              "startMs": 2877.5999999940395
+            },
+            {
+              "name": "/assets/users-Bf8eIzRE.js",
+              "transfer": 17496,
+              "encoded": 17196,
+              "decoded": 17196,
+              "durationMs": 247.30000001192093,
+              "startMs": 3158.2999999821186
+            },
+            {
+              "name": "/api/users",
+              "transfer": 698,
+              "encoded": 398,
+              "decoded": 398,
+              "durationMs": 163.09999999403954,
+              "startMs": 3158.4000000059605
+            },
+            {
+              "name": "/assets/zw-input.entry-B6rVgmHQ.js",
+              "transfer": 3858,
+              "encoded": 3558,
+              "decoded": 3558,
+              "durationMs": 193.7000000178814,
+              "startMs": 3411.699999988079
+            },
+            {
+              "name": "/assets/zw-data-grid.entry-CIMvg20y.js",
+              "transfer": 42212,
+              "encoded": 41912,
+              "decoded": 41912,
+              "durationMs": 386.59999999403954,
+              "startMs": 3411.699999988079
+            }
+          ],
+          "totals": {
+            "transfer": 402535,
+            "encoded": 398935,
+            "decoded": 398935
+          }
+        },
+        {
+          "scenario": "cold/slow4g",
+          "ms": 1,
+          "metrics": {
+            "loginInteractiveMs": 2195,
+            "dashboardMs": 3053,
+            "usersPageMs": 3411,
+            "dataGridInteractiveMs": 4205,
+            "navigateBackMs": 4242,
+            "loginTransferBytes": 325401,
+            "navigationTransferBytes": 76749,
+            "allTransferBytes": 402535
+          },
+          "resources": [
+            {
+              "name": "/assets/index-DcVW-G3G.js",
+              "transfer": 285047,
+              "encoded": 284747,
+              "decoded": 284747,
+              "durationMs": 1724,
+              "startMs": 186.09999999403954
+            },
+            {
+              "name": "/assets/index-G4m2dnWD.css",
+              "transfer": 39976,
+              "encoded": 39676,
+              "decoded": 39676,
+              "durationMs": 541.3000000119209,
+              "startMs": 186.2999999821186
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 378,
+              "encoded": 78,
+              "decoded": 78,
+              "durationMs": 164.59999999403954,
+              "startMs": 1966.0999999940395
+            },
+            {
+              "name": "/api/auth/login",
+              "transfer": 458,
+              "encoded": 158,
+              "decoded": 158,
+              "durationMs": 165.69999998807907,
+              "startMs": 2386.0999999940395
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 385,
+              "encoded": 85,
+              "decoded": 85,
+              "durationMs": 162.5,
+              "startMs": 2553.7999999821186
+            },
+            {
+              "name": "/assets/overview-DmiIc5lc.js",
+              "transfer": 10355,
+              "encoded": 10055,
+              "decoded": 10055,
+              "durationMs": 212.5,
+              "startMs": 2734.0999999940395
+            },
+            {
+              "name": "/api/summary",
+              "transfer": 343,
+              "encoded": 43,
+              "decoded": 43,
+              "durationMs": 161.5,
+              "startMs": 2954.7999999821186
+            },
+            {
+              "name": "/api/users",
+              "transfer": 1329,
+              "encoded": 1029,
+              "decoded": 1029,
+              "durationMs": 168.5,
+              "startMs": 2955
+            },
+            {
+              "name": "/assets/users-Bf8eIzRE.js",
+              "transfer": 17496,
+              "encoded": 17196,
+              "decoded": 17196,
+              "durationMs": 253.09999999403954,
+              "startMs": 3079.5
+            },
+            {
+              "name": "/api/users",
+              "transfer": 698,
+              "encoded": 398,
+              "decoded": 398,
+              "durationMs": 168.19999998807907,
+              "startMs": 3079.5999999940395
+            },
+            {
+              "name": "/assets/zw-input.entry-B6rVgmHQ.js",
+              "transfer": 3858,
+              "encoded": 3558,
+              "decoded": 3558,
+              "durationMs": 193.60000002384186,
+              "startMs": 3338.899999976158
+            },
+            {
+              "name": "/assets/zw-data-grid.entry-CIMvg20y.js",
+              "transfer": 42212,
+              "encoded": 41912,
+              "decoded": 41912,
+              "durationMs": 387.7000000178814,
+              "startMs": 3338.899999976158
+            }
+          ],
+          "totals": {
+            "transfer": 402535,
+            "encoded": 398935,
+            "decoded": 398935
+          }
+        },
+        {
+          "scenario": "cold/slow4g",
+          "ms": 2,
+          "metrics": {
+            "loginInteractiveMs": 2139,
+            "dashboardMs": 3094,
+            "usersPageMs": 3435,
+            "dataGridInteractiveMs": 4227,
+            "navigateBackMs": 4276,
+            "loginTransferBytes": 325401,
+            "navigationTransferBytes": 76749,
+            "allTransferBytes": 402535
+          },
+          "resources": [
+            {
+              "name": "/assets/index-DcVW-G3G.js",
+              "transfer": 285047,
+              "encoded": 284747,
+              "decoded": 284747,
+              "durationMs": 1718.5999999940395,
+              "startMs": 167.30000001192093
+            },
+            {
+              "name": "/assets/index-G4m2dnWD.css",
+              "transfer": 39976,
+              "encoded": 39676,
+              "decoded": 39676,
+              "durationMs": 545.9000000059605,
+              "startMs": 167.40000000596046
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 378,
+              "encoded": 78,
+              "decoded": 78,
+              "durationMs": 160,
+              "startMs": 1905.300000011921
+            },
+            {
+              "name": "/api/auth/login",
+              "transfer": 458,
+              "encoded": 158,
+              "decoded": 158,
+              "durationMs": 177,
+              "startMs": 2251.5999999940395
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 385,
+              "encoded": 85,
+              "decoded": 85,
+              "durationMs": 163.59999999403954,
+              "startMs": 2430.4000000059605
+            },
+            {
+              "name": "/assets/overview-DmiIc5lc.js",
+              "transfer": 10355,
+              "encoded": 10055,
+              "decoded": 10055,
+              "durationMs": 213.2999999821186,
+              "startMs": 2610.800000011921
+            },
+            {
+              "name": "/api/summary",
+              "transfer": 343,
+              "encoded": 43,
+              "decoded": 43,
+              "durationMs": 163.2999999821186,
+              "startMs": 2830.800000011921
+            },
+            {
+              "name": "/api/users",
+              "transfer": 1329,
+              "encoded": 1029,
+              "decoded": 1029,
+              "durationMs": 170.80000001192093,
+              "startMs": 2830.9000000059605
+            },
+            {
+              "name": "/assets/users-Bf8eIzRE.js",
+              "transfer": 17496,
+              "encoded": 17196,
+              "decoded": 17196,
+              "durationMs": 251.59999999403954,
+              "startMs": 3117.2000000178814
+            },
+            {
+              "name": "/api/users",
+              "transfer": 698,
+              "encoded": 398,
+              "decoded": 398,
+              "durationMs": 162.69999998807907,
+              "startMs": 3117.4000000059605
+            },
+            {
+              "name": "/assets/zw-input.entry-B6rVgmHQ.js",
+              "transfer": 3858,
+              "encoded": 3558,
+              "decoded": 3558,
+              "durationMs": 184.19999998807907,
+              "startMs": 3376.300000011921
+            },
+            {
+              "name": "/assets/zw-data-grid.entry-CIMvg20y.js",
+              "transfer": 42212,
+              "encoded": 41912,
+              "decoded": 41912,
+              "durationMs": 377.09999999403954,
+              "startMs": 3376.4000000059605
+            }
+          ],
+          "totals": {
+            "transfer": 402535,
+            "encoded": 398935,
+            "decoded": 398935
+          }
+        },
+        {
+          "scenario": "cold/slow4g",
+          "ms": 3,
+          "metrics": {
+            "loginInteractiveMs": 2165,
+            "dashboardMs": 3149,
+            "usersPageMs": 3549,
+            "dataGridInteractiveMs": 4344,
+            "navigateBackMs": 4406,
+            "loginTransferBytes": 325401,
+            "navigationTransferBytes": 76749,
+            "allTransferBytes": 402535
+          },
+          "resources": [
+            {
+              "name": "/assets/index-G4m2dnWD.css",
+              "transfer": 39976,
+              "encoded": 39676,
+              "decoded": 39676,
+              "durationMs": 544.6999999880791,
+              "startMs": 174
+            },
+            {
+              "name": "/assets/index-DcVW-G3G.js",
+              "transfer": 285047,
+              "encoded": 284747,
+              "decoded": 284747,
+              "durationMs": 1724,
+              "startMs": 174
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 378,
+              "encoded": 78,
+              "decoded": 78,
+              "durationMs": 162.2999999821186,
+              "startMs": 1928.800000011921
+            },
+            {
+              "name": "/api/auth/login",
+              "transfer": 458,
+              "encoded": 158,
+              "decoded": 158,
+              "durationMs": 171.09999999403954,
+              "startMs": 2447.9000000059605
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 385,
+              "encoded": 85,
+              "decoded": 85,
+              "durationMs": 162.69999998807907,
+              "startMs": 2621.5
+            },
+            {
+              "name": "/assets/overview-DmiIc5lc.js",
+              "transfer": 10355,
+              "encoded": 10055,
+              "decoded": 10055,
+              "durationMs": 212.09999999403954,
+              "startMs": 2801.9000000059605
+            },
+            {
+              "name": "/api/summary",
+              "transfer": 343,
+              "encoded": 43,
+              "decoded": 43,
+              "durationMs": 161.69999998807907,
+              "startMs": 3023
+            },
+            {
+              "name": "/api/users",
+              "transfer": 1329,
+              "encoded": 1029,
+              "decoded": 1029,
+              "durationMs": 169.7999999821186,
+              "startMs": 3023.4000000059605
+            },
+            {
+              "name": "/assets/users-Bf8eIzRE.js",
+              "transfer": 17496,
+              "encoded": 17196,
+              "decoded": 17196,
+              "durationMs": 253.09999999403954,
+              "startMs": 3197.5999999940395
+            },
+            {
+              "name": "/api/users",
+              "transfer": 698,
+              "encoded": 398,
+              "decoded": 398,
+              "durationMs": 166.40000000596046,
+              "startMs": 3197.699999988079
+            },
+            {
+              "name": "/assets/zw-input.entry-B6rVgmHQ.js",
+              "transfer": 3858,
+              "encoded": 3558,
+              "decoded": 3558,
+              "durationMs": 186.09999999403954,
+              "startMs": 3457.9000000059605
+            },
+            {
+              "name": "/assets/zw-data-grid.entry-CIMvg20y.js",
+              "transfer": 42212,
+              "encoded": 41912,
+              "decoded": 41912,
+              "durationMs": 378.40000000596046,
+              "startMs": 3458
+            }
+          ],
+          "totals": {
+            "transfer": 402535,
+            "encoded": 398935,
+            "decoded": 398935
+          }
+        },
+        {
+          "scenario": "cold/fast3g",
+          "ms": 0,
+          "metrics": {
+            "loginInteractiveMs": 5962,
+            "dashboardMs": 8289,
+            "usersPageMs": 9124,
+            "dataGridInteractiveMs": 10419,
+            "navigateBackMs": 10437,
+            "loginTransferBytes": 325401,
+            "navigationTransferBytes": 76749,
+            "allTransferBytes": 402535
+          },
+          "resources": [
+            {
+              "name": "/assets/index-DcVW-G3G.js",
+              "transfer": 285047,
+              "encoded": 284747,
+              "decoded": 284747,
+              "durationMs": 4460.0999999940395,
+              "startMs": 595.2999999821186
+            },
+            {
+              "name": "/assets/index-G4m2dnWD.css",
+              "transfer": 39976,
+              "encoded": 39676,
+              "decoded": 39676,
+              "durationMs": 1529.5,
+              "startMs": 595.3999999761581
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 378,
+              "encoded": 78,
+              "decoded": 78,
+              "durationMs": 575.2999999821186,
+              "startMs": 5087
+            },
+            {
+              "name": "/api/auth/login",
+              "transfer": 458,
+              "encoded": 158,
+              "decoded": 158,
+              "durationMs": 590.3999999761581,
+              "startMs": 6148
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 385,
+              "encoded": 85,
+              "decoded": 85,
+              "durationMs": 565.9000000059605,
+              "startMs": 6740.899999976158
+            },
+            {
+              "name": "/assets/overview-DmiIc5lc.js",
+              "transfer": 10355,
+              "encoded": 10055,
+              "decoded": 10055,
+              "durationMs": 717.0999999940395,
+              "startMs": 7324.799999982119
+            },
+            {
+              "name": "/api/summary",
+              "transfer": 343,
+              "encoded": 43,
+              "decoded": 43,
+              "durationMs": 584.0999999940395,
+              "startMs": 8047.299999982119
+            },
+            {
+              "name": "/api/users",
+              "transfer": 1329,
+              "encoded": 1029,
+              "decoded": 1029,
+              "durationMs": 606.2999999821186,
+              "startMs": 8047.5
+            },
+            {
+              "name": "/assets/users-Bf8eIzRE.js",
+              "transfer": 17496,
+              "encoded": 17196,
+              "decoded": 17196,
+              "durationMs": 792,
+              "startMs": 8309.09999999404
+            },
+            {
+              "name": "/api/users",
+              "transfer": 698,
+              "encoded": 398,
+              "decoded": 398,
+              "durationMs": 571.5999999940395,
+              "startMs": 8309.299999982119
+            },
+            {
+              "name": "/assets/zw-input.entry-B6rVgmHQ.js",
+              "transfer": 3858,
+              "encoded": 3558,
+              "decoded": 3558,
+              "durationMs": 653.9000000059605,
+              "startMs": 9109.09999999404
+            },
+            {
+              "name": "/assets/zw-data-grid.entry-CIMvg20y.js",
+              "transfer": 42212,
+              "encoded": 41912,
+              "decoded": 41912,
+              "durationMs": 1134,
+              "startMs": 9109.199999988079
+            }
+          ],
+          "totals": {
+            "transfer": 402535,
+            "encoded": 398935,
+            "decoded": 398935
+          }
+        },
+        {
+          "scenario": "cold/fast3g",
+          "ms": 1,
+          "metrics": {
+            "loginInteractiveMs": 5970,
+            "dashboardMs": 8223,
+            "usersPageMs": 9093,
+            "dataGridInteractiveMs": 10391,
+            "navigateBackMs": 10436,
+            "loginTransferBytes": 325401,
+            "navigationTransferBytes": 76749,
+            "allTransferBytes": 402535
+          },
+          "resources": [
+            {
+              "name": "/assets/index-DcVW-G3G.js",
+              "transfer": 285047,
+              "encoded": 284747,
+              "decoded": 284747,
+              "durationMs": 4467.800000011921,
+              "startMs": 592.9000000059605
+            },
+            {
+              "name": "/assets/index-G4m2dnWD.css",
+              "transfer": 39976,
+              "encoded": 39676,
+              "decoded": 39676,
+              "durationMs": 1534.2999999821186,
+              "startMs": 593.1000000238419
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 378,
+              "encoded": 78,
+              "decoded": 78,
+              "durationMs": 585.7000000178814,
+              "startMs": 5100.4000000059605
+            },
+            {
+              "name": "/api/auth/login",
+              "transfer": 458,
+              "encoded": 158,
+              "decoded": 158,
+              "durationMs": 594,
+              "startMs": 6110.600000023842
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 385,
+              "encoded": 85,
+              "decoded": 85,
+              "durationMs": 586.6999999880791,
+              "startMs": 6707.700000017881
+            },
+            {
+              "name": "/assets/overview-DmiIc5lc.js",
+              "transfer": 10355,
+              "encoded": 10055,
+              "decoded": 10055,
+              "durationMs": 703.8000000119209,
+              "startMs": 7324.800000011921
+            },
+            {
+              "name": "/api/summary",
+              "transfer": 343,
+              "encoded": 43,
+              "decoded": 43,
+              "durationMs": 572.1999999880791,
+              "startMs": 8042.200000017881
+            },
+            {
+              "name": "/api/users",
+              "transfer": 1329,
+              "encoded": 1029,
+              "decoded": 1029,
+              "durationMs": 598.1000000238419,
+              "startMs": 8042.5
+            },
+            {
+              "name": "/assets/users-Bf8eIzRE.js",
+              "transfer": 17496,
+              "encoded": 17196,
+              "decoded": 17196,
+              "durationMs": 801.7000000178814,
+              "startMs": 8264.90000000596
+            },
+            {
+              "name": "/api/users",
+              "transfer": 698,
+              "encoded": 398,
+              "decoded": 398,
+              "durationMs": 585.2999999821186,
+              "startMs": 8265.100000023842
+            },
+            {
+              "name": "/assets/zw-input.entry-B6rVgmHQ.js",
+              "transfer": 3858,
+              "encoded": 3558,
+              "decoded": 3558,
+              "durationMs": 663.6999999880791,
+              "startMs": 9080.100000023842
+            },
+            {
+              "name": "/assets/zw-data-grid.entry-CIMvg20y.js",
+              "transfer": 42212,
+              "encoded": 41912,
+              "decoded": 41912,
+              "durationMs": 1130.300000011921,
+              "startMs": 9080.300000011921
+            }
+          ],
+          "totals": {
+            "transfer": 402535,
+            "encoded": 398935,
+            "decoded": 398935
+          }
+        },
+        {
+          "scenario": "cold/fast3g",
+          "ms": 2,
+          "metrics": {
+            "loginInteractiveMs": 5914,
+            "dashboardMs": 8126,
+            "usersPageMs": 8989,
+            "dataGridInteractiveMs": 10284,
+            "navigateBackMs": 10335,
+            "loginTransferBytes": 325401,
+            "navigationTransferBytes": 76749,
+            "allTransferBytes": 402535
+          },
+          "resources": [
+            {
+              "name": "/assets/index-DcVW-G3G.js",
+              "transfer": 285047,
+              "encoded": 284747,
+              "decoded": 284747,
+              "durationMs": 4479.0999999940395,
+              "startMs": 582
+            },
+            {
+              "name": "/assets/index-G4m2dnWD.css",
+              "transfer": 39976,
+              "encoded": 39676,
+              "decoded": 39676,
+              "durationMs": 1549.7999999821186,
+              "startMs": 582.3000000119209
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 378,
+              "encoded": 78,
+              "decoded": 78,
+              "durationMs": 591.5999999940395,
+              "startMs": 5080.700000017881
+            },
+            {
+              "name": "/api/auth/login",
+              "transfer": 458,
+              "encoded": 158,
+              "decoded": 158,
+              "durationMs": 593.7000000178814,
+              "startMs": 6038.5999999940395
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 385,
+              "encoded": 85,
+              "decoded": 85,
+              "durationMs": 592.4000000059605,
+              "startMs": 6635.9000000059605
+            },
+            {
+              "name": "/assets/overview-DmiIc5lc.js",
+              "transfer": 10355,
+              "encoded": 10055,
+              "decoded": 10055,
+              "durationMs": 701.1999999880791,
+              "startMs": 7257.700000017881
+            },
+            {
+              "name": "/api/summary",
+              "transfer": 343,
+              "encoded": 43,
+              "decoded": 43,
+              "durationMs": 570.1999999880791,
+              "startMs": 7975.300000011921
+            },
+            {
+              "name": "/api/users",
+              "transfer": 1329,
+              "encoded": 1029,
+              "decoded": 1029,
+              "durationMs": 593.2999999821186,
+              "startMs": 7975.700000017881
+            },
+            {
+              "name": "/assets/users-Bf8eIzRE.js",
+              "transfer": 17496,
+              "encoded": 17196,
+              "decoded": 17196,
+              "durationMs": 802.5,
+              "startMs": 8158.5
+            },
+            {
+              "name": "/api/users",
+              "transfer": 698,
+              "encoded": 398,
+              "decoded": 398,
+              "durationMs": 587.3999999761581,
+              "startMs": 8158.700000017881
+            },
+            {
+              "name": "/assets/zw-input.entry-B6rVgmHQ.js",
+              "transfer": 3858,
+              "encoded": 3558,
+              "decoded": 3558,
+              "durationMs": 663.1999999880791,
+              "startMs": 8976.40000000596
+            },
+            {
+              "name": "/assets/zw-data-grid.entry-CIMvg20y.js",
+              "transfer": 42212,
+              "encoded": 41912,
+              "decoded": 41912,
+              "durationMs": 1143.5,
+              "startMs": 8976.59999999404
+            }
+          ],
+          "totals": {
+            "transfer": 402535,
+            "encoded": 398935,
+            "decoded": 398935
+          }
+        },
+        {
+          "scenario": "cold/fast3g",
+          "ms": 3,
+          "metrics": {
+            "loginInteractiveMs": 5987,
+            "dashboardMs": 8205,
+            "usersPageMs": 9056,
+            "dataGridInteractiveMs": 10348,
+            "navigateBackMs": 10379,
+            "loginTransferBytes": 325401,
+            "navigationTransferBytes": 76749,
+            "allTransferBytes": 402535
+          },
+          "resources": [
+            {
+              "name": "/assets/index-DcVW-G3G.js",
+              "transfer": 285047,
+              "encoded": 284747,
+              "decoded": 284747,
+              "durationMs": 4484,
+              "startMs": 599.6000000238419
+            },
+            {
+              "name": "/assets/index-G4m2dnWD.css",
+              "transfer": 39976,
+              "encoded": 39676,
+              "decoded": 39676,
+              "durationMs": 1547.5,
+              "startMs": 599.8000000119209
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 378,
+              "encoded": 78,
+              "decoded": 78,
+              "durationMs": 598.4000000059605,
+              "startMs": 5110.300000011921
+            },
+            {
+              "name": "/api/auth/login",
+              "transfer": 458,
+              "encoded": 158,
+              "decoded": 158,
+              "durationMs": 609.8000000119209,
+              "startMs": 6095.4000000059605
+            },
+            {
+              "name": "/api/auth/session",
+              "transfer": 385,
+              "encoded": 85,
+              "decoded": 85,
+              "durationMs": 571.1999999880791,
+              "startMs": 6706.600000023842
+            },
+            {
+              "name": "/assets/overview-DmiIc5lc.js",
+              "transfer": 10355,
+              "encoded": 10055,
+              "decoded": 10055,
+              "durationMs": 714.5999999940395,
+              "startMs": 7296.100000023842
+            },
+            {
+              "name": "/api/summary",
+              "transfer": 343,
+              "encoded": 43,
+              "decoded": 43,
+              "durationMs": 587.2000000178814,
+              "startMs": 8016.4000000059605
+            },
+            {
+              "name": "/api/users",
+              "transfer": 1329,
+              "encoded": 1029,
+              "decoded": 1029,
+              "durationMs": 606.2999999821186,
+              "startMs": 8016.600000023842
+            },
+            {
+              "name": "/assets/users-Bf8eIzRE.js",
+              "transfer": 17496,
+              "encoded": 17196,
+              "decoded": 17196,
+              "durationMs": 791.9000000059605,
+              "startMs": 8242.800000011921
+            },
+            {
+              "name": "/api/users",
+              "transfer": 698,
+              "encoded": 398,
+              "decoded": 398,
+              "durationMs": 573,
+              "startMs": 8242.90000000596
+            },
+            {
+              "name": "/assets/zw-input.entry-B6rVgmHQ.js",
+              "transfer": 3858,
+              "encoded": 3558,
+              "decoded": 3558,
+              "durationMs": 651.7000000178814,
+              "startMs": 9041.90000000596
+            },
+            {
+              "name": "/assets/zw-data-grid.entry-CIMvg20y.js",
+              "transfer": 42212,
+              "encoded": 41912,
+              "decoded": 41912,
+              "durationMs": 1131.5,
+              "startMs": 9042.100000023842
+            }
+          ],
+          "totals": {
+            "transfer": 402535,
+            "encoded": 398935,
+            "decoded": 398935
+          }
+        }
+      ],
+      "medians": {
+        "cold/unthrottled": {
+          "loginInteractiveMs": 119,
+          "dashboardMs": 350,
+          "usersPageMs": 442,
+          "dataGridInteractiveMs": 447,
+          "navigateBackMs": 512,
+          "loginTransferBytes": 325401,
+          "navigationTransferBytes": 76749,
+          "allTransferBytes": 402535
+        },
+        "warm/unthrottled": {
+          "loginInteractiveMs": 115,
+          "dashboardMs": 454,
+          "usersPageMs": 578,
+          "dataGridInteractiveMs": 584,
+          "navigateBackMs": 683,
+          "loginTransferBytes": 325401,
+          "navigationTransferBytes": 76749,
+          "allTransferBytes": 402535
+        },
+        "cold/slow4g": {
+          "loginInteractiveMs": 2165,
+          "dashboardMs": 3094,
+          "usersPageMs": 3435,
+          "dataGridInteractiveMs": 4227,
+          "navigateBackMs": 4276,
+          "loginTransferBytes": 325401,
+          "navigationTransferBytes": 76749,
+          "allTransferBytes": 402535
+        },
+        "cold/fast3g": {
+          "loginInteractiveMs": 5970,
+          "dashboardMs": 8205,
+          "usersPageMs": 9056,
+          "dataGridInteractiveMs": 10348,
+          "navigateBackMs": 10379,
+          "loginTransferBytes": 325401,
+          "navigationTransferBytes": 76749,
+          "allTransferBytes": 402535
+        }
+      },
+      "stability": {
+        "cold/unthrottled": "stable",
+        "warm/unthrottled": "stable",
+        "cold/slow4g": "stable",
+        "cold/fast3g": "stable"
+      }
+    }
+  ]
+}
