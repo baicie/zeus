@@ -1,0 +1,50 @@
+{
+  "name": "@zeus-js/i18n",
+  "type": "module",
+  "version": "0.1.1-beta.20",
+  "description": "Typed, reactive, ICU-based internationalization for Zeus applications",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baicie/zeus.git",
+    "directory": "packages/core/i18n"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/i18n.d.ts",
+      "module": "./dist/i18n.esm-bundler.js",
+      "import": "./dist/i18n.esm-bundler.js",
+      "require": {
+        "production": "./dist/i18n.prod.cjs",
+        "development": "./dist/i18n.cjs",
+        "default": "./index.cjs"
+      }
+    }
+  },
+  "files": [
+    "index.cjs",
+    "dist"
+  ],
+  "dependencies": {
+    "@zeus-js/signal": "workspace:*",
+    "intl-messageformat": "^10.7.18"
+  },
+  "buildOptions": {
+    "name": "ZeusI18n",
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ],
+    "external": [
+      "intl-messageformat"
+    ]
+  },
+  "main": "index.cjs",
+  "module": "dist/i18n.esm-bundler.js",
+  "types": "dist/i18n.d.ts"
+}

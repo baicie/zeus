@@ -25,6 +25,7 @@
 | `@zeus-js/router`                           | `packages/core/router`                           | 0.1.1-beta.20 | core     | 基于 data-router core 的细粒度路由适配器      |
 | `@zeus-js/resource`                         | `packages/core/resource`                         | 0.1.1-beta.20 | core     | 异步资源、取消与 stale cache 原语             |
 | `@zeus-js/query`                            | `packages/core/query`                            | 0.1.1-beta.20 | core     | @tanstack/query-core 细粒度适配器             |
+| `@zeus-js/i18n`                             | `packages/core/i18n`                             | 0.1.1-beta.20 | core     | 类型安全、响应式、ICU 国际化运行时（opt-in）  |
 | `@zeus-js/zeus`                             | `packages/core/zeus`                             | 0.1.1-beta.20 | core     | 统一入口，导出所有公共 API                    |
 | `@zeus-js/testing`                          | `packages/core/testing`                          | 0.1.1-beta.20 | core     | 官方测试工具：渲染、事件、查询与 effect 刷新  |
 | `@zeus-js/signal`                           | `packages/core/signal`                           | 0.1.1-beta.20 | core     | 响应式核心，Zeus 自有 signal/effect 引擎      |
