@@ -1026,16 +1026,16 @@ Git hooks（在 `package.json` 中配置）：
 
 ## 9. GitHub Actions 工作流汇总
 
-| Workflow                 | 文件                       | 触发                              | 用途                                      |
-| ------------------------ | -------------------------- | --------------------------------- | ----------------------------------------- |
-| `CI`                     | `ci.yml`                   | PR / push 到 main 和特征分支      | 基础 CI（lint, build, test, docs）        |
-| `Compiler Native Matrix` | `compiler-native.yml`      | PR / 指定分支 push / 被发布流调用 | 多平台 native 构建与本地 tarball smoke    |
-| `Release`                | `release.yml`              | Git tag `v*`                      | alpha/beta/rc/stable 发布与 registry 验证 |
-| `Release Canary`         | `release-canary.yml`       | Push 到 main，或在 main 手动触发  | Canary 发布、registry 验证与下游 dispatch |
-| `Repair Native Latest`   | `repair-native-latest.yml` | 仅在 main 手动触发                | 一次性受控删除污染的 native `latest`      |
-| `Component Host RC`      | `component-host-rc.yml`    | PR 改动 core/web-c/create 包      | RC 验证 + benchmark                       |
-| `Component Host Bench`   | `component-host-bench.yml` | PR 改动 core/web-c                | 性能回归检查                              |
-| `Docs`                   | `docs.yml`                 | Push 到 main（docs 目录变更）     | 部署文档到 GitHub Pages                   |
+| Workflow                 | 文件                       | 触发                                    | 用途                                      |
+| ------------------------ | -------------------------- | --------------------------------------- | ----------------------------------------- |
+| `CI`                     | `ci.yml`                   | PR / push 到 main                       | 基础 CI（lint, build, test, docs）        |
+| `Compiler Native Matrix` | `compiler-native.yml`      | PR / push 到 main / 手动 / 被发布流调用 | 多平台 native 构建与本地 tarball smoke    |
+| `Release`                | `release.yml`              | Git tag `v*`                            | alpha/beta/rc/stable 发布与 registry 验证 |
+| `Release Canary`         | `release-canary.yml`       | Push 到 main，或在 main 手动触发        | Canary 发布、registry 验证与下游 dispatch |
+| `Repair Native Latest`   | `repair-native-latest.yml` | 仅在 main 手动触发                      | 一次性受控删除污染的 native `latest`      |
+| `Component Host RC`      | `component-host-rc.yml`    | PR 改动 core/web-c/create 包            | RC 验证 + benchmark                       |
+| `Component Host Bench`   | `component-host-bench.yml` | PR 改动 core/web-c                      | 性能回归检查                              |
+| `Docs`                   | `docs.yml`                 | Push 到 main（docs 目录变更）           | 部署文档到 GitHub Pages                   |
 
 ## 10. 日常发版操作
 

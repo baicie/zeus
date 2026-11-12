@@ -442,4 +442,93 @@ describe('release workflows', () => {
     expect(cleanupStep).toContain('continue-on-error: true')
     expect(cleanupStep).toContain('pnpm release:cleanup:canary-staging')
   })
+
+  describe('native matrix triggers', () => {
+    const native = readFileSync(
+      resolve(root, '.github/workflows/compiler-native.yml'),
+      'utf8',
+    )
+    const triggers = native.slice(0, native.indexOf('\npermissions:'))
+    const pushBlock = /^ {2}push:\n((?: {4}.*\n)+)/m.exec(triggers)?.[1]
+    const pullBlock = /^ {2}pull_request:\n((?: {4}.*\n)+)/m.exec(triggers)?.[1]
+    const callBlock = /^ {2}workflow_call:\n/m.exec(triggers)?.[0]
+    const dispatchBlock = /^ {2}workflow_dispatch:\n/m.exec(triggers)?.[0]
+
+    it('pushes main only, so a PR branch builds one matrix per commit', () => {
+      // Measured duplicate: 43216543074 (push) and 43216552540 (pull_request)
+      // are the same tree `179779a4`; so are 43216215063 / 43216281805 at
+      // `6d71343f`. `pull_request` fires on synchronize, so an open PR is
+      // still covered exactly once.
+      expect(pushBlock).toBeDefined()
+      const branches = pushBlock!.split('\n').map(line => line.trim())
+      expect(branches.filter(Boolean)).toEqual(['branches:', '- main'])
+    })
+
+    it('keeps the validation paths a PR needs', () => {
+      expect(pullBlock).toBeDefined()
+      for (const path of [
+        'crates/**',
+        'packages/core/compiler/**',
+        'packages/core/compiler-native/**',
+        'scripts/release.config.ts',
+        'pnpm-lock.yaml',
+      ]) {
+        expect(pullBlock).toContain(`- '${path}'`)
+      }
+    })
+
+    it('keeps workflow_call for release and canary', () => {
+      expect(callBlock).toBeDefined()
+      for (const file of ['release.yml', 'release-canary.yml']) {
+        const caller = readFileSync(
+          resolve(root, `.github/workflows/${file}`),
+          'utf8',
+        )
+        expect(caller).toContain(
+          'uses: ./.github/workflows/compiler-native.yml',
+        )
+      }
+    })
+
+    it('keeps manual dispatch on any branch', () => {
+      expect(dispatchBlock).toBeDefined()
+    })
+
+    it('never deduplicates a call, a PR or a manual run', () => {
+      // The dedupe guard must name its own workflow: inside `workflow_call`
+      // the `github` context is the caller's, and `Release Canary` on main
+      // has the same event and ref as the standalone run. Without the
+      // self-identification the reused workflow would suppress the very
+      // build the release downloads.
+      const dedupeStart = native.indexOf('\n  dedupe-against-canary:\n')
+      expect(dedupeStart).toBeGreaterThan(-1)
+      const dedupe = native.slice(dedupeStart, native.indexOf('\n  build:\n'))
+      expect(dedupe).toContain("github.workflow == 'Compiler Native Matrix'")
+      expect(dedupe).toContain('.id != ${RUN_ID}')
+
+      const buildGuard = native.slice(
+        native.indexOf('\n  build:\n'),
+        native.indexOf('\n    strategy:\n'),
+      )
+      expect(buildGuard).toContain('always()')
+      expect(buildGuard).toContain(
+        "github.workflow == 'Compiler Native Matrix'",
+      )
+    })
+
+    it('keeps all seven platform targets', () => {
+      const targets = [...native.matchAll(/^ {10}- target: (\S+)$/gm)].map(
+        m => m[1],
+      )
+      expect(targets).toEqual([
+        'aarch64-apple-darwin',
+        'x86_64-apple-darwin',
+        'aarch64-unknown-linux-gnu',
+        'x86_64-unknown-linux-gnu',
+        'x86_64-unknown-linux-musl',
+        'aarch64-pc-windows-msvc',
+        'x86_64-pc-windows-msvc',
+      ])
+    })
+  })
 })
