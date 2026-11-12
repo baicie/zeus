@@ -1,0 +1,9 @@
+{
+  "schema": "zeus.i18n-gate/v1",
+  "generatedAt": "2026-11-12T06:47:33.926Z",
+  "catalogs": [
+    "examples/admin/src/locales",
+    "examples/playground-editor/src/playground/locales"
+  ],
+  "findings": []
+}

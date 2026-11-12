@@ -1,0 +1,51 @@
+{
+  "measuredAt": "2026-11-12T06:47:09.811Z",
+  "environment": {
+    "os": "darwin 24.6.0",
+    "cpu": "Apple M1",
+    "cores": 8,
+    "node": "v22.12.0",
+    "browser": "chromium (playwright, headless)",
+    "machine": "local development machine, not CI"
+  },
+  "playground": {
+    "switchSyncMs": [
+      2.9, 1.3, 1.2, 1.7, 1.2, 1.1, 1.2, 1.4, 0.7, 1.3, 0.6, 1.4, 0.8, 0.8, 0.7,
+      0.6, 0.7, 0.7, 0.8, 0.6
+    ],
+    "switchSyncP50Ms": 0.8,
+    "switchSyncP95Ms": 1.7,
+    "switchToPaintedMs": [
+      39.2, 30.4, 31.5, 27.6, 30.5, 28.6, 31.9, 31, 32.4, 31.7, 33.4, 30.7,
+      32.7, 31.4, 32.7, 31.4, 33, 31.5, 30.5, 33.2
+    ],
+    "switchToPaintedP50Ms": 31.5,
+    "switchToPaintedP95Ms": 33.4,
+    "note": "switchSync is the locale commit plus every reactive text rebind, measured synchronously. switchToPainted adds two animation frames, so its floor is ~33ms on a 60Hz display and it measures paint, not i18n work.",
+    "firstInteractiveMs": 39
+  },
+  "bundles": {
+    "note": "gzip of every emitted .js chunk, measured with zlib.gzipSync at default level. Baseline is commit fae50a96 (the last main before any i18n work).",
+    "admin": {
+      "baselineGzipBytes": 98626,
+      "withI18nGzipBytes": 118769,
+      "deltaGzipBytes": 20143,
+      "preI18nCommit": "fae50a96"
+    },
+    "workbench": {
+      "withI18nGzipBytes": 55881,
+      "note": "single chunk; the workbench predates the i18n work in this repo and its baseline is not comparable across the repo boundary"
+    },
+    "i18nPackage": {
+      "esmBundlerRawBytes": 23583,
+      "esmBundlerGzipBytes": 7435,
+      "cjsRawBytes": 21140,
+      "cjsGzipBytes": 6723
+    },
+    "catalogs": {
+      "adminEnGzipBytes": 3460,
+      "adminZhCnGzipBytes": 3976,
+      "note": "source-file gzip; both catalogs ship in the bundle because the Playground and Admin switch languages at runtime with no network fetch"
+    }
+  }
+}

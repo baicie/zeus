@@ -1,0 +1,3202 @@
+{
+  "schema": "zeus.i18n-icu-audit/v1",
+  "generatedAt": "2026-11-12T06:47:41.565Z",
+  "catalogs": [
+    {
+      "catalog": "examples/admin/src/locales",
+      "locales": ["en", "zh-CN"],
+      "messageCount": 209,
+      "pluralMessages": 1,
+      "selectMessages": 0,
+      "failures": [],
+      "entries": [
+        {
+          "key": "common.loading",
+          "en": "Loading…",
+          "zh-CN": "正在加载…",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "common.search",
+          "en": "Search",
+          "zh-CN": "搜索",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "common.save",
+          "en": "Save",
+          "zh-CN": "保存",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "common.cancel",
+          "en": "Cancel",
+          "zh-CN": "取消",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "common.delete",
+          "en": "Delete",
+          "zh-CN": "删除",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "common.edit",
+          "en": "Edit",
+          "zh-CN": "编辑",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "common.close",
+          "en": "Close",
+          "zh-CN": "关闭",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "common.retry",
+          "en": "Retry",
+          "zh-CN": "重试",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "common.back",
+          "en": "Back",
+          "zh-CN": "返回",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "common.confirm",
+          "en": "Confirm",
+          "zh-CN": "确认",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "common.path",
+          "en": "Path",
+          "zh-CN": "路径",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "common.match",
+          "en": "Match",
+          "zh-CN": "匹配",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.main",
+          "en": "Main navigation",
+          "zh-CN": "主导航",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.open",
+          "en": "Open navigation",
+          "zh-CN": "打开导航",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.close",
+          "en": "Close navigation",
+          "zh-CN": "关闭导航",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.expandSidebar",
+          "en": "Expand sidebar",
+          "zh-CN": "展开侧边栏",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.collapseSidebar",
+          "en": "Collapse sidebar",
+          "zh-CN": "收起侧边栏",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.accountMenu",
+          "en": "Account menu",
+          "zh-CN": "账户菜单",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.breadcrumb",
+          "en": "Breadcrumb",
+          "zh-CN": "面包屑",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.pageNavigation",
+          "en": "Page navigation",
+          "zh-CN": "页面导航",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.searchPages",
+          "en": "Search pages",
+          "zh-CN": "搜索页面",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.searchPlaceholder",
+          "en": "Search pages…",
+          "zh-CN": "搜索页面…",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.noMatch",
+          "en": "No matching page.",
+          "zh-CN": "没有匹配的页面。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.preloading",
+          "en": "Preloading…",
+          "zh-CN": "预加载中…",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.notPreloaded",
+          "en": "Not preloaded",
+          "zh-CN": "尚未预加载",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.group.general",
+          "en": "General",
+          "zh-CN": "常规",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.group.administration",
+          "en": "Administration",
+          "zh-CN": "管理",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.group.workspace",
+          "en": "Workspace",
+          "zh-CN": "工作空间",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.overview",
+          "en": "Overview",
+          "zh-CN": "概览",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.users",
+          "en": "Users",
+          "zh-CN": "用户管理",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.roles",
+          "en": "Roles & permissions",
+          "zh-CN": "角色权限",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.audit",
+          "en": "Audit log",
+          "zh-CN": "审计日志",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.reports",
+          "en": "Reports",
+          "zh-CN": "管理报表",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.upload",
+          "en": "File upload",
+          "zh-CN": "文件上传",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.settings",
+          "en": "Settings",
+          "zh-CN": "设置",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.pages",
+          "en": "Pages",
+          "zh-CN": "页面",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.users.short",
+          "en": "Users",
+          "zh-CN": "用户",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.reports.short",
+          "en": "Reports",
+          "zh-CN": "报表",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "role.admin",
+          "en": "Administrator",
+          "zh-CN": "管理员",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "role.member",
+          "en": "Read-only member",
+          "zh-CN": "只读成员",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "role.signedOut",
+          "en": "Signed out",
+          "zh-CN": "未登录",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "theme.light",
+          "en": "Light",
+          "zh-CN": "浅色",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "theme.dark",
+          "en": "Dark",
+          "zh-CN": "深色",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "theme.system",
+          "en": "Follow system",
+          "zh-CN": "跟随系统",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "theme.toggle",
+          "en": "Toggle theme",
+          "zh-CN": "切换主题",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.skipToContent",
+          "en": "Skip to main content",
+          "zh-CN": "跳到主内容",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.workspace",
+          "en": "Workspace",
+          "zh-CN": "工作空间",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.workspaceSettings",
+          "en": "Workspace settings",
+          "zh-CN": "工作空间设置",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.memberDirectory",
+          "en": "Member directory",
+          "zh-CN": "成员目录",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.logout",
+          "en": "Sign out",
+          "zh-CN": "退出登录",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.appearance",
+          "en": "Appearance: {mode}",
+          "zh-CN": "外观模式：{mode}",
+          "argumentNames": ["mode"],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.back",
+          "en": "Back",
+          "zh-CN": "后退",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.forward",
+          "en": "Forward",
+          "zh-CN": "前进",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.preloadAda",
+          "en": "Preload Ada details",
+          "zh-CN": "预加载 Ada 详情",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "nav.preloadFailed",
+          "en": "Preload failed: {reason}",
+          "zh-CN": "预加载失败：{reason}",
+          "argumentNames": ["reason"],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "diagnostics.group",
+          "en": "Diagnostics",
+          "zh-CN": "诊断",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "auth.verifyingSession",
+          "en": "Verifying your session…",
+          "zh-CN": "正在验证会话…",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "auth.signIn",
+          "en": "Sign in",
+          "zh-CN": "登录",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "auth.signInDescription",
+          "en": "Enter your email and password to sign in to your workspace.",
+          "zh-CN": "在下方输入邮箱与密码以登录你的工作空间。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "auth.email",
+          "en": "Email",
+          "zh-CN": "邮箱",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "auth.password",
+          "en": "Password",
+          "zh-CN": "密码",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "auth.signingIn",
+          "en": "Signing in…",
+          "zh-CN": "登录中…",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "auth.firstRunHint",
+          "en": "For a first local run, set ZEUS_ADMIN_PASSWORD and",
+          "zh-CN": "本地首次运行请设置 ZEUS_ADMIN_PASSWORD 与",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "demo.badge",
+          "en": "Read-only demo",
+          "zh-CN": "只读演示",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "demo.body",
+          "en": "Data is a build-time snapshot of the real API; changes are disabled. Use the Docker deployment for the full console.",
+          "zh-CN": "数据为构建时的真实 API 快照，修改类操作已禁用。完整功能见 Docker 部署版本。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "settings.personalLanguage",
+          "en": "My display language",
+          "zh-CN": "我的显示语言",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "settings.personalLanguageHint",
+          "en": "Only changes what you see. It does not change the workspace default.",
+          "zh-CN": "只影响你自己的界面，不会改动工作区默认语言。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "settings.workspaceLanguage",
+          "en": "Workspace default language",
+          "zh-CN": "工作区默认语言",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "settings.workspaceLanguageHint",
+          "en": "The starting language for members who have not chosen one. Saving this affects everyone.",
+          "zh-CN": "未做选择的成员会以这个语言开始。保存会影响所有成员。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.title",
+          "en": "Overview",
+          "zh-CN": "概览",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.description",
+          "en": "Members, teams and audit activity for this workspace, returned by the server after the session is verified.",
+          "zh-CN": "工作空间的成员、团队与审计摘要，数据由服务端会话校验后返回。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.viewReports",
+          "en": "View reports",
+          "zh-CN": "查看报表",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.tabOverview",
+          "en": "Overview",
+          "zh-CN": "概览",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.tabMembers",
+          "en": "Members",
+          "zh-CN": "成员",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.viewLabel",
+          "en": "Overview view",
+          "zh-CN": "概览视图",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.totalMembers",
+          "en": "Team members",
+          "zh-CN": "团队成员",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.totalMembersHint",
+          "en": "Everyone in this workspace",
+          "zh-CN": "当前工作空间内的全部成员",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.totalTeams",
+          "en": "Teams",
+          "zh-CN": "团队总数",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.totalTeamsHint",
+          "en": "Distinct teams members belong to",
+          "zh-CN": "成员所属的不同团队",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.activeMembers",
+          "en": "Active members",
+          "zh-CN": "活跃成员",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.activeMembersHint",
+          "en": "Members with status active",
+          "zh-CN": "状态为 active 的成员",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.auditEvents",
+          "en": "Audit events",
+          "zh-CN": "审计事件",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.pendingInvites",
+          "en": "Pending invites",
+          "zh-CN": "待邀请",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.auditEventsHint",
+          "en": "Sign-ins and writes recorded by the server",
+          "zh-CN": "服务端记录的登录与写操作",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.pendingInvitesHint",
+          "en": "Invitations not yet accepted",
+          "zh-CN": "尚未激活的邀请",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.teamDistribution",
+          "en": "Team distribution",
+          "zh-CN": "团队分布",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.teamDistributionHint",
+          "en": "Sorted by member count, from the member directory.",
+          "zh-CN": "按成员数排序，数据来自成员目录。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.noTeamData",
+          "en": "No team data yet",
+          "zh-CN": "暂无团队数据",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.teamChartLabel",
+          "en": "Members by team",
+          "zh-CN": "团队成员按团队分布",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.recentMembers",
+          "en": "Recent members",
+          "zh-CN": "最新成员",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.recentMembersHint",
+          "en": "First few members from the directory, sorted by name.",
+          "zh-CN": "成员目录中按姓名排序的前几位成员。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.emptyDirectory",
+          "en": "The member directory is empty.",
+          "zh-CN": "成员目录为空。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.allMembersHint",
+          "en": "Team and status for every member; full filtering lives in Users.",
+          "zh-CN": "全部成员的团队与状态；完整筛选在用户管理页。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.colName",
+          "en": "Name",
+          "zh-CN": "姓名",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.colEmail",
+          "en": "Email",
+          "zh-CN": "邮箱",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.colTeam",
+          "en": "Team",
+          "zh-CN": "团队",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "overview.colStatus",
+          "en": "Status",
+          "zh-CN": "状态",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.title",
+          "en": "User list",
+          "zh-CN": "用户列表",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.description",
+          "en": "Manage members and their roles here.",
+          "zh-CN": "在这里管理成员以及他们的角色。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.viewDetails",
+          "en": "View details",
+          "zh-CN": "查看详情",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.loadFailed",
+          "en": "Failed to load this view",
+          "zh-CN": "体验加载失败",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.addMember",
+          "en": "Add member",
+          "zh-CN": "添加成员",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.searchLabel",
+          "en": "Search users",
+          "zh-CN": "搜索用户",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.searchPlaceholder",
+          "en": "Search members…",
+          "zh-CN": "搜索成员…",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.filterLabel",
+          "en": "Filter by status",
+          "zh-CN": "按状态筛选",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.statusFilter",
+          "en": "Status",
+          "zh-CN": "状态",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.statusActive",
+          "en": "Active",
+          "zh-CN": "活跃",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.statusInvited",
+          "en": "Invited",
+          "zh-CN": "待邀请",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.statusSuspended",
+          "en": "Suspended",
+          "zh-CN": "已暂停",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.reset",
+          "en": "Reset",
+          "zh-CN": "重置",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.loading",
+          "en": "Loading…",
+          "zh-CN": "加载中…",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.selected",
+          "en": "Selected: {name}",
+          "zh-CN": "已选择：{name}",
+          "argumentNames": ["name"],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.memberCount",
+          "en": "{count, plural, one {# member} other {# members}}",
+          "zh-CN": "{count} 位成员",
+          "argumentNames": ["count"],
+          "hasPlural": true,
+          "hasSelect": false
+        },
+        {
+          "key": "users.directoryUnavailable",
+          "en": "Could not load the member directory",
+          "zh-CN": "无法加载成员目录",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.membersLabel",
+          "en": "Workspace members",
+          "zh-CN": "工作空间成员",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.colName",
+          "en": "Name",
+          "zh-CN": "姓名",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.colEmail",
+          "en": "Email",
+          "zh-CN": "邮箱",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.colTeam",
+          "en": "Team",
+          "zh-CN": "团队",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.colStatus",
+          "en": "Status",
+          "zh-CN": "状态",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.pageOf",
+          "en": "Page {page} of {count}",
+          "zh-CN": "第 {page} / {count} 页",
+          "argumentNames": ["page", "count"],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.prevPage",
+          "en": "Previous page",
+          "zh-CN": "上一页",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.nextPage",
+          "en": "Next page",
+          "zh-CN": "下一页",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.goToPage",
+          "en": "Page {number}",
+          "zh-CN": "第 {number} 页",
+          "argumentNames": ["number"],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.deleteMember",
+          "en": "Delete member",
+          "zh-CN": "删除成员",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.deleteTitle",
+          "en": "Delete member?",
+          "zh-CN": "删除成员？",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.deleteBody",
+          "en": "Deletes {name} ({email}). This writes to the audit log and cannot be undone.",
+          "zh-CN": "将删除 {name}（{email}）。该操作会写入审计日志，且无法撤销。",
+          "argumentNames": ["name", "email"],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.deleteConfirm",
+          "en": "Delete",
+          "zh-CN": "删除",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.inviteHint",
+          "en": "New members are created with status invited; the server generates a placeholder password hash.",
+          "zh-CN": "新成员以 invited 状态创建，密码由服务端生成占位哈希。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.role",
+          "en": "Role",
+          "zh-CN": "角色",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.roleViewer",
+          "en": "Read-only member",
+          "zh-CN": "只读成员",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.roleAdmin",
+          "en": "Administrator",
+          "zh-CN": "管理员",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.creating",
+          "en": "Creating…",
+          "zh-CN": "创建中…",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.createMember",
+          "en": "Create member",
+          "zh-CN": "创建成员",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.backToList",
+          "en": "Back to user list",
+          "zh-CN": "返回用户列表",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.editMember",
+          "en": "Edit member",
+          "zh-CN": "编辑成员",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.loadingDetails",
+          "en": "Loading details…",
+          "zh-CN": "加载详情中…",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.profile",
+          "en": "Member profile",
+          "zh-CN": "成员资料",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.profileHint",
+          "en": "Data comes from the route loader and shares the list query cache.",
+          "zh-CN": "数据来自 route loader，与列表共享同一份查询缓存。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.saving",
+          "en": "Saving…",
+          "zh-CN": "保存中…",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.saved",
+          "en": "Saved",
+          "zh-CN": "已保存",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.saveFailed",
+          "en": "Save failed",
+          "zh-CN": "保存失败",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.userId",
+          "en": "User ID",
+          "zh-CN": "用户 ID",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "users.editHint",
+          "en": "Saves after updating. The detail cache updates optimistically, rolls back on failure, and the list query is invalidated afterwards.",
+          "zh-CN": "更新资料后保存。详情缓存先乐观更新，失败时回滚，列表查询随后失效。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "reports.title",
+          "en": "Reports",
+          "zh-CN": "管理报表",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "reports.description",
+          "en": "Member and team totals for this workspace, returned by the server after the role check.",
+          "zh-CN": "汇总当前工作空间的成员与团队规模。数据由服务端在通过角色校验后返回。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "reports.totalMembers",
+          "en": "Total members",
+          "zh-CN": "成员总数",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "reports.acrossTeams",
+          "en": "Across all teams",
+          "zh-CN": "跨全部团队",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "reports.totalTeams",
+          "en": "Teams",
+          "zh-CN": "团队总数",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "reports.establishedTeams",
+          "en": "Teams created",
+          "zh-CN": "已建立的团队",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "reports.auditEvents",
+          "en": "Audit events",
+          "zh-CN": "审计事件",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "reports.serverRecorded",
+          "en": "Operations recorded by the server",
+          "zh-CN": "服务端记录的操作",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "reports.teamDistribution",
+          "en": "Team distribution",
+          "zh-CN": "团队分布",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "reports.teamDistributionHint",
+          "en": "Sorted by member count.",
+          "zh-CN": "按成员数排序。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "reports.teamChartLabel",
+          "en": "Members by team",
+          "zh-CN": "团队成员按团队分布",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "reports.backToOverview",
+          "en": "Back to overview",
+          "zh-CN": "回到概览",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "audit.title",
+          "en": "Audit log",
+          "zh-CN": "审计日志",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "audit.description",
+          "en": "Sign-ins, authorization failures and writes are recorded by the server in SQLite, not in browser memory.",
+          "zh-CN": "登录、越权尝试与写操作由服务端记录在 SQLite 中，并非浏览器内存。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "audit.refresh",
+          "en": "Refresh",
+          "zh-CN": "刷新",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "audit.unavailable",
+          "en": "Could not load the audit log",
+          "zh-CN": "无法加载审计日志",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "audit.colTime",
+          "en": "Time",
+          "zh-CN": "时间",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "audit.colAction",
+          "en": "Action",
+          "zh-CN": "操作",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "audit.colTarget",
+          "en": "Target",
+          "zh-CN": "对象",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "audit.colOutcome",
+          "en": "Outcome",
+          "zh-CN": "结果",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "audit.empty",
+          "en": "No audit records yet",
+          "zh-CN": "暂无审计记录",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "audit.emptyHint",
+          "en": "Records appear here once a sign-in, write or authorization failure happens.",
+          "zh-CN": "一旦发生登录、写操作或越权尝试，记录会出现在这里。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "audit.total",
+          "en": "{count} records",
+          "zh-CN": "共 {count} 条",
+          "argumentNames": ["count"],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "roles.title",
+          "en": "Roles & permissions",
+          "zh-CN": "角色与权限",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "roles.description",
+          "en": "The browser role only shapes the interface. Every read and write is re-checked by the server session.",
+          "zh-CN": "浏览器的角色只用于界面呈现。每次读写都由服务端 session 重新校验。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "roles.capabilities",
+          "en": "Capabilities",
+          "zh-CN": "能力",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "roles.adminDescription",
+          "en": "Manage members, roles, settings and audit records.",
+          "zh-CN": "管理成员、角色、设置与审计记录。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "roles.adminCapabilities",
+          "en": "User CRUD, role changes, audit reads, uploads, settings writes",
+          "zh-CN": "用户 CRUD、角色变更、审计读取、上传、设置写入",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "roles.viewerDescription",
+          "en": "Read-only access to users, reports and settings.",
+          "zh-CN": "只读访问用户、报表与设置。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "roles.viewerCapabilities",
+          "en": "User reads, report reads, settings reads",
+          "zh-CN": "用户读取、报表读取、设置读取",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "settings.title",
+          "en": "Settings",
+          "zh-CN": "设置",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "settings.description",
+          "en": "Manage the workspace name, language and theme; saving writes to the server SQLite.",
+          "zh-CN": "管理工作空间的名称、语言与主题；保存后写入服务端 SQLite。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "settings.sectionWorkspace",
+          "en": "Workspace",
+          "zh-CN": "工作空间",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "settings.sectionAppearance",
+          "en": "Appearance",
+          "zh-CN": "外观",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "settings.sectionUpload",
+          "en": "Upload",
+          "zh-CN": "上传",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "settings.workspaceName",
+          "en": "Workspace name",
+          "zh-CN": "工作空间名称",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "settings.workspaceNameHint",
+          "en": "Shown in the sidebar and on the sign-in page, up to 80 characters.",
+          "zh-CN": "显示在侧栏与登录页的名称，最长 80 个字符。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "settings.theme",
+          "en": "Theme",
+          "zh-CN": "主题",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "settings.themeLight",
+          "en": "Light",
+          "zh-CN": "浅色",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "settings.themeDark",
+          "en": "Dark",
+          "zh-CN": "深色",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "settings.themeHint",
+          "en": "Saved to the server, so it survives a refresh or restart.",
+          "zh-CN": "保存后写入服务端，刷新或重启后仍然保留。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "settings.saveSettings",
+          "en": "Save settings",
+          "zh-CN": "保存设置",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "settings.allMembers",
+          "en": "These settings apply to every member.",
+          "zh-CN": "这些设置对所有成员生效。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "settings.saved",
+          "en": "Settings saved",
+          "zh-CN": "设置已保存",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "upload.title",
+          "en": "File upload",
+          "zh-CN": "文件上传",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "upload.description",
+          "en": "Text, Markdown, JSON and PNG only, up to 64 KiB. The server rejects path separators and hidden filenames.",
+          "zh-CN": "仅接受文本、Markdown、JSON 与 PNG，上限 64 KiB。服务端拒绝路径分隔符与隐藏文件名。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "upload.chooseFile",
+          "en": "Choose a file",
+          "zh-CN": "选择文件",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "upload.chooseFileHint",
+          "en": "The server returns the file digest and SHA-256 after upload.",
+          "zh-CN": "上传后服务端会返回文件摘要与 SHA-256。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "upload.file",
+          "en": "File",
+          "zh-CN": "文件",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "upload.success",
+          "en": "Upload succeeded",
+          "zh-CN": "上传成功",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "upload.size",
+          "en": "Size",
+          "zh-CN": "大小",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "upload.uploading",
+          "en": "Uploading…",
+          "zh-CN": "上传中…",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "upload.submit",
+          "en": "Upload",
+          "zh-CN": "上传",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "upload.noFile",
+          "en": "Please choose a file.",
+          "zh-CN": "请选择文件。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "error.loadFailed",
+          "en": "Page failed to load",
+          "zh-CN": "页面加载失败",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "error.loadFailedHint",
+          "en": "Something went wrong while loading. Go back to the user list and retry.",
+          "zh-CN": "加载出现异常，请返回用户列表重试。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "error.forbidden",
+          "en": "No access",
+          "zh-CN": "没有访问权限",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "error.notFound",
+          "en": "Page not found",
+          "zh-CN": "页面不存在",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "error.serverError",
+          "en": "Server error",
+          "zh-CN": "服务端出现错误",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "status.active",
+          "en": "Active",
+          "zh-CN": "活跃",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "status.invited",
+          "en": "Invited",
+          "zh-CN": "待邀请",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "status.suspended",
+          "en": "Suspended",
+          "zh-CN": "已暂停",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "status.unknown",
+          "en": "Unknown",
+          "zh-CN": "未知",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "diagnostics.open",
+          "en": "Open developer diagnostics",
+          "zh-CN": "打开开发诊断",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "diagnostics.close",
+          "en": "Close developer diagnostics",
+          "zh-CN": "关闭开发诊断",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "diagnostics.title",
+          "en": "Developer diagnostics",
+          "zh-CN": "开发诊断",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        }
+      ]
+    },
+    {
+      "catalog": "examples/playground-editor/src/playground/locales",
+      "locales": ["en", "zh-CN"],
+      "messageCount": 188,
+      "pluralMessages": 1,
+      "selectMessages": 0,
+      "failures": [],
+      "entries": [
+        {
+          "key": "brand.tagline",
+          "en": "Native TSX · Web Components",
+          "zh-CN": "原生 TSX · Web Components",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "products.label",
+          "en": "Playground products",
+          "zh-CN": "Playground 产品",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "product.native",
+          "en": "Native",
+          "zh-CN": "Native",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "product.webc",
+          "en": "WebC",
+          "zh-CN": "WebC",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "toolbar.examples",
+          "en": "Examples",
+          "zh-CN": "示例",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "toolbar.autoRun",
+          "en": "Auto",
+          "zh-CN": "自动",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "toolbar.autoRunTitle",
+          "en": "Compile after a short typing pause",
+          "zh-CN": "停止输入片刻后自动编译",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "toolbar.run",
+          "en": "Run",
+          "zh-CN": "运行",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "toolbar.stop",
+          "en": "Stop",
+          "zh-CN": "停止",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "toolbar.share",
+          "en": "Share",
+          "zh-CN": "分享",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "toolbar.export",
+          "en": "Export",
+          "zh-CN": "导出",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "toolbar.settings",
+          "en": "Settings",
+          "zh-CN": "设置",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "settings.theme",
+          "en": "Theme",
+          "zh-CN": "主题",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "settings.themeLight",
+          "en": "Light",
+          "zh-CN": "亮色",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "settings.themeDark",
+          "en": "Dark",
+          "zh-CN": "暗色",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "settings.language",
+          "en": "Language",
+          "zh-CN": "语言",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "settings.fontSize",
+          "en": "Font size",
+          "zh-CN": "字号",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "settings.autoRun",
+          "en": "Auto Run",
+          "zh-CN": "自动运行",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "settings.reset",
+          "en": "Reset workspace",
+          "zh-CN": "重置工作区",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "settings.import",
+          "en": "Import JSON",
+          "zh-CN": "导入 JSON",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "editor.aria",
+          "en": "Editor",
+          "zh-CN": "编辑器",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "results.files",
+          "en": "Project files",
+          "zh-CN": "工程文件",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "editor.codeAria",
+          "en": "Code editor",
+          "zh-CN": "代码编辑器",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "editor.addFile",
+          "en": "Add file",
+          "zh-CN": "新增文件",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "editor.removeFile",
+          "en": "Remove file",
+          "zh-CN": "删除文件",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "editor.activePath",
+          "en": "Active file path; edit to rename",
+          "zh-CN": "当前文件路径，编辑可重命名",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "editor.unsaved",
+          "en": "unsaved",
+          "zh-CN": "未保存",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "editor.unsavedTitle",
+          "en": "Draft is being saved locally",
+          "zh-CN": "草稿正在保存到本地",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "results.aria",
+          "en": "Results",
+          "zh-CN": "运行结果",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "workspace.resize",
+          "en": "Resize editor and preview",
+          "zh-CN": "调整编辑器与预览的宽度",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "tab.preview",
+          "en": "Preview",
+          "zh-CN": "预览",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "tab.output",
+          "en": "Output",
+          "zh-CN": "编译输出",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "tab.console",
+          "en": "Console",
+          "zh-CN": "控制台",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "tab.problems",
+          "en": "Problems",
+          "zh-CN": "问题",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "tab.inspector",
+          "en": "Inspector",
+          "zh-CN": "组件检查",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "tab.devtools",
+          "en": "DevTools",
+          "zh-CN": "调试",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "preview.title",
+          "en": "Preview",
+          "zh-CN": "预览",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "preview.frameTitle",
+          "en": "Zeus playground sandbox",
+          "zh-CN": "Zeus Playground 沙箱",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "preview.opaque",
+          "en": "opaque origin",
+          "zh-CN": "不透明源",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "preview.stale",
+          "en": "Preview is stale",
+          "zh-CN": "预览已过期",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "preview.maximize",
+          "en": "Maximize preview",
+          "zh-CN": "最大化预览",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "preview.restore",
+          "en": "Restore editor",
+          "zh-CN": "还原编辑器",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "output.title",
+          "en": "Compiler output",
+          "zh-CN": "编译器输出",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "output.pill",
+          "en": "DOM + SSR",
+          "zh-CN": "DOM + SSR",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "output.dom",
+          "en": "DOM module",
+          "zh-CN": "DOM 模块",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "output.ssr",
+          "en": "SSR module",
+          "zh-CN": "SSR 模块",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "output.domEmpty",
+          "en": "Run the project to inspect DOM output.",
+          "zh-CN": "运行工程后可查看 DOM 输出。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "output.ssrEmpty",
+          "en": "Run the project to inspect SSR output.",
+          "zh-CN": "运行工程后可查看 SSR 输出。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "output.raw",
+          "en": "Source maps and raw diagnostics",
+          "zh-CN": "Source map 与原始诊断",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "console.title",
+          "en": "Console",
+          "zh-CN": "控制台",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "console.subtitle",
+          "en": "Isolated sandbox output",
+          "zh-CN": "隔离沙箱输出",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "console.errorsOnly",
+          "en": "Errors only",
+          "zh-CN": "仅错误",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "console.showAll",
+          "en": "Show all",
+          "zh-CN": "显示全部",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "console.copy",
+          "en": "Copy",
+          "zh-CN": "复制",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "console.clear",
+          "en": "Clear",
+          "zh-CN": "清空",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "console.empty",
+          "en": "Console output from the preview appears here.",
+          "zh-CN": "预览沙箱的控制台输出会显示在这里。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "problems.title",
+          "en": "Problems",
+          "zh-CN": "问题",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "problems.summary",
+          "en": "{count} diagnostics from the current build",
+          "zh-CN": "当前构建共有 {count} 条诊断",
+          "argumentNames": ["count"],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "problems.empty",
+          "en": "No problems. Your preview is up to date.",
+          "zh-CN": "没有发现问题，预览已是最新。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "inspector.title",
+          "en": "Component inspector",
+          "zh-CN": "组件检查器",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "inspector.subtitle",
+          "en": "Manifest, declarations and framework consumption",
+          "zh-CN": "Manifest、声明文件与框架消费方式",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "inspector.previewFrameworks",
+          "en": "Preview React + Vue",
+          "zh-CN": "在 React + Vue 中预览",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "inspector.manifestEmpty",
+          "en": "Run a WebC project to generate the manifest.",
+          "zh-CN": "运行 WebC 工程后可生成 manifest。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "inspector.declarationsEmpty",
+          "en": "Per-tag DTS appears after a successful compile.",
+          "zh-CN": "编译成功后会生成每个标签的 DTS。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "inspector.onlyWebc",
+          "en": "Inspector is available in WebC Studio.",
+          "zh-CN": "组件检查器仅在 WebC Studio 中可用。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "inspector.shadow",
+          "en": "Shadow DOM",
+          "zh-CN": "Shadow DOM",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "inspector.light",
+          "en": "Light DOM",
+          "zh-CN": "Light DOM",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "inspector.formAssociated",
+          "en": "form-associated",
+          "zh-CN": "表单关联",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "inspector.props",
+          "en": "Props",
+          "zh-CN": "属性",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "inspector.events",
+          "en": "Events",
+          "zh-CN": "事件",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "inspector.slots",
+          "en": "Slots",
+          "zh-CN": "插槽",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "inspector.defaultSlot",
+          "en": "default",
+          "zh-CN": "默认",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "inspector.manifest",
+          "en": "Manifest",
+          "zh-CN": "Manifest",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "inspector.declarations",
+          "en": "Declarations",
+          "zh-CN": "声明文件",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "inspector.hostNote",
+          "en": "The same Custom Element implementation is mounted in real React 19 and Vue 3 hosts.",
+          "zh-CN": "同一个 Custom Element 实现会挂载到真实的 React 19 与 Vue 3 宿主中。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "inspector.openHost",
+          "en": "Open reference host",
+          "zh-CN": "打开参考宿主",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "devtools.title",
+          "en": "Runtime DevTools",
+          "zh-CN": "运行时调试",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "devtools.subtitle",
+          "en": "Signals, bindings and sandbox inspection",
+          "zh-CN": "Signal、绑定与沙箱检查",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "devtools.hmrCount",
+          "en": "{count} HMR modules",
+          "zh-CN": "{count} 个 HMR 模块",
+          "argumentNames": ["count"],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "devtools.hmr",
+          "en": "HMR classification",
+          "zh-CN": "HMR 分类",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "devtools.hmrEmpty",
+          "en": "Run the project to inspect HMR plans.",
+          "zh-CN": "运行工程后可查看 HMR 计划。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "devtools.bindings",
+          "en": "{count} bindings",
+          "zh-CN": "{count} 个绑定",
+          "argumentNames": ["count"],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "devtools.noLiteralPlan",
+          "en": "no literal plan",
+          "zh-CN": "无字面量计划",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "devtools.performance",
+          "en": "Build performance",
+          "zh-CN": "构建性能",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "devtools.metricCompile",
+          "en": "WASM compile",
+          "zh-CN": "WASM 编译",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "devtools.metricRun",
+          "en": "Sandbox run",
+          "zh-CN": "沙箱运行",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "devtools.metricRuns",
+          "en": "Runs",
+          "zh-CN": "运行次数",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "devtools.metricDomBytes",
+          "en": "DOM bytes",
+          "zh-CN": "DOM 字节数",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "devtools.metricSsrBytes",
+          "en": "SSR bytes",
+          "zh-CN": "SSR 字节数",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "devtools.mode",
+          "en": "Mode",
+          "zh-CN": "模式",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "devtools.events",
+          "en": "Events",
+          "zh-CN": "事件",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "devtools.owners",
+          "en": "Owners",
+          "zh-CN": "Owner 数",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "devtools.bindingsLabel",
+          "en": "Bindings",
+          "zh-CN": "绑定数",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "devtools.effects",
+          "en": "Effects",
+          "zh-CN": "Effect 数",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "devtools.signals",
+          "en": "Signals",
+          "zh-CN": "Signal 数",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "devtools.domNodes",
+          "en": "DOM nodes",
+          "zh-CN": "DOM 节点",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "devtools.textNodes",
+          "en": "Text nodes",
+          "zh-CN": "文本节点",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "devtools.onlyNative",
+          "en": "DevTools are available in Native Lab.",
+          "zh-CN": "调试面板仅在 Native Lab 中可用。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "hmr.firstBuild",
+          "en": "first-build",
+          "zh-CN": "首次构建",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "hmr.unchanged",
+          "en": "unchanged",
+          "zh-CN": "未变化",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "hmr.classification.template-structure",
+          "en": "template-structure",
+          "zh-CN": "模板结构",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "hmr.classification.script-body",
+          "en": "script-body",
+          "zh-CN": "脚本主体",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "hmr.classification.style-only",
+          "en": "style-only",
+          "zh-CN": "仅样式",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "hmr.classification.unknown",
+          "en": "unknown",
+          "zh-CN": "未知",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "mobile.label",
+          "en": "Mobile view",
+          "zh-CN": "移动视图",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "mobile.editor",
+          "en": "Editor",
+          "zh-CN": "编辑器",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "mobile.preview",
+          "en": "Preview",
+          "zh-CN": "预览",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "status.problems",
+          "en": "{count} problems",
+          "zh-CN": "{count} 个问题",
+          "argumentNames": ["count"],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "status.compile",
+          "en": "{ms} ms compile",
+          "zh-CN": "编译 {ms} ms",
+          "argumentNames": ["ms"],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "status.sandbox",
+          "en": "{ms} ms sandbox",
+          "zh-CN": "沙箱 {ms} ms",
+          "argumentNames": ["ms"],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "status.saving",
+          "en": "Saving…",
+          "zh-CN": "保存中…",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "status.saved",
+          "en": "Saved locally",
+          "zh-CN": "已保存到本地",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "status.notSaved",
+          "en": "Not saved yet",
+          "zh-CN": "尚未保存",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "status.opaque",
+          "en": "opaque sandbox",
+          "zh-CN": "不透明沙箱",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "status.ready",
+          "en": "Ready",
+          "zh-CN": "就绪",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "status.compiling",
+          "en": "Compiling…",
+          "zh-CN": "正在编译…",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "status.autoRunning",
+          "en": "Auto-running…",
+          "zh-CN": "正在自动运行…",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "status.compiled",
+          "en": "Compiled {count} modules · {ms} ms",
+          "zh-CN": "已编译 {count} 个模块 · {ms} ms",
+          "argumentNames": ["count", "ms"],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "status.compileFailedCount",
+          "en": "Compile failed · {count, plural, one {# problem} other {# problems}}",
+          "zh-CN": "编译失败 · {count} 个问题",
+          "argumentNames": ["count"],
+          "hasPlural": true,
+          "hasSelect": false
+        },
+        {
+          "key": "status.compileFailed",
+          "en": "Compile failed.",
+          "zh-CN": "编译失败。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "status.stopped",
+          "en": "Stopped",
+          "zh-CN": "已停止",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "status.exporting",
+          "en": "Preparing project archive…",
+          "zh-CN": "正在生成工程压缩包…",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "status.exported",
+          "en": "Exported {count} files as ZIP.",
+          "zh-CN": "已导出 {count} 个文件为 ZIP。",
+          "argumentNames": ["count"],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "status.exportFailed",
+          "en": "Export failed.",
+          "zh-CN": "导出失败。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "preview.idle",
+          "en": "Preview will appear after the first run.",
+          "zh-CN": "首次运行后将在这里显示预览。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "preview.compiling",
+          "en": "Compiling project…",
+          "zh-CN": "正在编译工程…",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "preview.rebuilding",
+          "en": "Rebuilding preview…",
+          "zh-CN": "正在重建预览…",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "preview.running",
+          "en": "Running in the opaque sandbox…",
+          "zh-CN": "正在不透明沙箱中运行…",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "preview.ready",
+          "en": "Preview ready · {ms} ms",
+          "zh-CN": "预览就绪 · {ms} ms",
+          "argumentNames": ["ms"],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "preview.readyWithExports",
+          "en": "Preview ready · {ms} ms · {names}",
+          "zh-CN": "预览就绪 · {ms} ms · {names}",
+          "argumentNames": ["ms", "names"],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "preview.staleFix",
+          "en": "Preview is stale — fix the reported problems.",
+          "zh-CN": "预览已过期 —— 请修复报告的问题。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "preview.staleRejected",
+          "en": "Preview is stale — the compiler rejected this project.",
+          "zh-CN": "预览已过期 —— 编译器拒绝了该工程。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "preview.stopped",
+          "en": "Preview stopped. Run again when ready.",
+          "zh-CN": "预览已停止。准备好后再次运行。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "frameworks.idle",
+          "en": "Compile a WebC project, then preview it in isolated React and Vue hosts.",
+          "zh-CN": "编译 WebC 工程后，可在隔离的 React 与 Vue 宿主中预览。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "frameworks.needCompile",
+          "en": "Compile a WebC project first.",
+          "zh-CN": "请先编译 WebC 工程。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "frameworks.mounting",
+          "en": "Mounting React and Vue in the opaque sandbox…",
+          "zh-CN": "正在不透明沙箱中挂载 React 与 Vue…",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "frameworks.mounted",
+          "en": "React and Vue hosts mounted in the opaque sandbox.",
+          "zh-CN": "React 与 Vue 宿主已在不透明沙箱中挂载。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "drawer.aria",
+          "en": "Examples",
+          "zh-CN": "示例",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "drawer.title",
+          "en": "Examples",
+          "zh-CN": "示例",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "drawer.subtitle",
+          "en": "Start from a working project.",
+          "zh-CN": "从一个可运行的工程开始。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "drawer.close",
+          "en": "Close",
+          "zh-CN": "关闭",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "drawer.reset",
+          "en": "Reset example",
+          "zh-CN": "重置示例",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "toast.consoleCopied",
+          "en": "Console copied.",
+          "zh-CN": "控制台内容已复制。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "toast.clipboardUnavailable",
+          "en": "Clipboard is unavailable.",
+          "zh-CN": "剪贴板不可用。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "toast.saveFailed",
+          "en": "Draft could not be saved in this browser mode.",
+          "zh-CN": "当前浏览器模式下无法保存草稿。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "toast.workspaceReset",
+          "en": "Workspace reset.",
+          "zh-CN": "工作区已重置。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "toast.projectImported",
+          "en": "Project imported.",
+          "zh-CN": "工程已导入。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "toast.exportDownloaded",
+          "en": "Project ZIP downloaded.",
+          "zh-CN": "工程 ZIP 已下载。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "toast.importTooLarge",
+          "en": "Project JSON is larger than 1.5 MB.",
+          "zh-CN": "工程 JSON 超过 1.5 MB。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "toast.importInvalid",
+          "en": "Invalid project file.",
+          "zh-CN": "工程文件无效。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "toast.importFailed",
+          "en": "Import failed.",
+          "zh-CN": "导入失败。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "toast.shareCopied",
+          "en": "Share link copied to clipboard.",
+          "zh-CN": "分享链接已复制到剪贴板。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "toast.shareDownloaded",
+          "en": "Project too large for a URL — JSON downloaded instead.",
+          "zh-CN": "工程过大无法放进 URL —— 已改为下载 JSON。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "share.prompt",
+          "en": "Copy this share link:",
+          "zh-CN": "复制此分享链接：",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "file.invalidPath",
+          "en": "Use a unique relative path such as src/panel.tsx.",
+          "zh-CN": "请使用唯一的相对路径，例如 src/panel.tsx。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "example.native",
+          "en": "Native",
+          "zh-CN": "Native",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "example.webc",
+          "en": "WebC",
+          "zh-CN": "WebC",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "product.nativeLab.description",
+          "en": "Edit Zeus Native TSX, run Signal / Show / For with Router / Query, and export an installable SPA.",
+          "zh-CN": "编辑 Zeus Native TSX，运行 Signal / Show / For 与 Router / Query，再导出可安装 SPA。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "product.webcStudio.description",
+          "en": "Edit component TSX to generate CE / Manifest / CEM / DTS live, consumed by React and Vue.",
+          "zh-CN": "编辑组件 TSX，实时生成 CE/Manifest/CEM/DTS，并由 React 与 Vue 消费同一个 Custom Element。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "title.nativeLab",
+          "en": "Native Lab",
+          "zh-CN": "Native Lab",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "title.webcStudio",
+          "en": "WebC Studio",
+          "zh-CN": "WebC Studio",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "example.nativeHello.title",
+          "en": "Hello Zeus",
+          "zh-CN": "Hello Zeus",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "example.nativeHello.description",
+          "en": "Minimal Native app with render, JSX and one signal.",
+          "zh-CN": "最小的 Native 应用，包含 render 调用、JSX 与一个 signal。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "example.nativeCounter.title",
+          "en": "Signals Counter",
+          "zh-CN": "Signal 计数器",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "example.nativeCounter.description",
+          "en": "Signals, derived state and event handlers.",
+          "zh-CN": "Signal、派生状态与事件处理。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "example.nativeShowFor.title",
+          "en": "Show + For",
+          "zh-CN": "Show + For",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "example.nativeShowFor.description",
+          "en": "Conditional rendering and keyed list updates.",
+          "zh-CN": "条件渲染与带 key 的列表更新。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "example.nativeProps.title",
+          "en": "Component Props",
+          "zh-CN": "组件属性",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "example.nativeProps.description",
+          "en": "A small component tree with typed props.",
+          "zh-CN": "带类型属性的小型组件树。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "example.nativeTodo.title",
+          "en": "Todo List",
+          "zh-CN": "待办列表",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "example.nativeTodo.description",
+          "en": "Forms, local state and list interactions.",
+          "zh-CN": "表单、本地状态与列表交互。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "example.nativeLifecycle.title",
+          "en": "Lifecycle + Cleanup",
+          "zh-CN": "生命周期与清理",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "example.nativeLifecycle.description",
+          "en": "Effects, cleanup and disposal.",
+          "zh-CN": "Effect、清理与销毁。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "example.nativeRouterQuery.title",
+          "en": "Router + Query",
+          "zh-CN": "Router + Query",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "example.nativeRouterQuery.description",
+          "en": "The full Native Lab reference project.",
+          "zh-CN": "Native Lab 的完整参考工程。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "example.webcBasic.title",
+          "en": "Basic Custom Element",
+          "zh-CN": "基础 Custom Element",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "example.webcBasic.description",
+          "en": "Define a real custom element in one file.",
+          "zh-CN": "在单个文件中定义一个真正的自定义元素。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "example.webcCounterSlots.title",
+          "en": "Counter + Slots",
+          "zh-CN": "计数器 + 插槽",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "example.webcCounterSlots.description",
+          "en": "The WebC Studio reference project.",
+          "zh-CN": "WebC Studio 的参考工程。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "example.webcPropsEvents.title",
+          "en": "Props + Events",
+          "zh-CN": "属性 + 事件",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "example.webcPropsEvents.description",
+          "en": "Typed attributes and a custom event contract.",
+          "zh-CN": "带类型的 attribute 与自定义事件契约。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "example.webcShadow.title",
+          "en": "Shadow DOM",
+          "zh-CN": "Shadow DOM",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "example.webcShadow.description",
+          "en": "Encapsulated styles in a shadow root.",
+          "zh-CN": "在 shadow root 中隔离样式。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "example.webcSlots.title",
+          "en": "Light DOM Slots",
+          "zh-CN": "Light DOM 插槽",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "example.webcSlots.description",
+          "en": "Native slot composition for a panel element.",
+          "zh-CN": "为 panel 元素提供原生插槽组合。",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "html.title",
+          "en": "Zeus Playground",
+          "zh-CN": "Zeus Playground",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "html.titleNative",
+          "en": "Zeus Native Lab",
+          "zh-CN": "Zeus Native Lab",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        },
+        {
+          "key": "html.titleWebc",
+          "en": "Zeus WebC Studio",
+          "zh-CN": "Zeus WebC Studio",
+          "argumentNames": [],
+          "hasPlural": false,
+          "hasSelect": false
+        }
+      ]
+    }
+  ]
+}
