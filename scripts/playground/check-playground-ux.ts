@@ -181,7 +181,9 @@ async function runChecks(page: Page, browserName: string): Promise<void> {
   ) {
     throw new Error('light theme was not applied')
   }
-  await page.locator('[data-testid="locale-select"]').selectOption('zh')
+  // The select's value is the BCP 47 identity the catalogs use; the previous
+  // `zh` was the stored preference, not an option value.
+  await page.locator('[data-testid="locale-select"]').selectOption('zh-CN')
   if ((await page.evaluate(() => document.documentElement.lang)) !== 'zh-CN') {
     throw new Error('Chinese locale was not applied')
   }
