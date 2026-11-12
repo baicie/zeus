@@ -1,0 +1,201 @@
+{
+  "schema": "zeus.build-size-report/v1",
+  "baseline": {
+    "commit": "11a7bbfc65bae848b84a68ce8172dea786f8adb0",
+    "measuredAt": "2026-11-12",
+    "note": "The first structured baseline. Every rule below is relative to this commit and states why it exists. A limit is a deliberate ceiling chosen from the product requirement, not a copy of the measured value; where no such ceiling could be justified, the rule is a tolerance on the baseline instead."
+  },
+  "rules": [
+    {
+      "package": "@zeus-js/signal",
+      "metric": "gzip",
+      "tolerancePercent": 15,
+      "reason": "The reactive core. It is the base every consumer pays for, so a 15% drift is a real change in the floor, while a smaller move is optimisation noise across compilers and zlib versions."
+    },
+    {
+      "package": "@zeus-js/runtime-dom",
+      "metric": "gzip",
+      "tolerancePercent": 10,
+      "reason": "The DOM runtime is the largest framework download for a typical app. It changes only when a runtime capability is added; 10% is roughly one medium feature. Any larger jump must be accompanied by a measurement of the consumer scenarios in docs/performance/build-size-audit.md."
+    },
+    {
+      "package": "@zeus-js/zeus",
+      "metric": "gzip",
+      "tolerancePercent": 10,
+      "reason": "The public entry point. It re-exports runtime-dom, so it moves with it; the tighter-looking tolerance is equivalent once the shared code is accounted for."
+    },
+    {
+      "package": "@zeus-js/shared",
+      "metric": "gzip",
+      "tolerancePercent": 20,
+      "reason": "Tiny shared helpers (7.7 KiB). A 20% tolerance avoids failing on a 1.5 KiB helper while still catching a whole new module appearing."
+    },
+    {
+      "package": "@zeus-js/router",
+      "metric": "gzip",
+      "tolerancePercent": 15,
+      "reason": "Routing is optional but always on the critical path when used. The browser build bundles the resolver; growth there is a consumer cost."
+    },
+    {
+      "package": "@zeus-js/query",
+      "metric": "gzip",
+      "tolerancePercent": 20,
+      "reason": "A thin wrapper over @tanstack/query-core. The wrapper itself is 15 KiB; a 20% move means a new export surface."
+    },
+    {
+      "package": "@zeus-js/resource",
+      "metric": "gzip",
+      "tolerancePercent": 20,
+      "reason": "4-7 KiB. Same reasoning as shared: small absolute numbers need a wider relative band to be meaningful."
+    },
+    {
+      "package": "@zeus-js/i18n",
+      "metric": "gzip",
+      "tolerancePercent": 15,
+      "reason": "The ICU runtime and its parser. Locale data is not bundled here, so the runtime itself should be stable."
+    },
+    {
+      "package": "@zeus-js/runtime-ssr",
+      "metric": "gzip",
+      "tolerancePercent": 15,
+      "reason": "Server rendering is not on the browser critical path, but it is published and its size is a deployment cost."
+    },
+    {
+      "package": "@zeus-js/compiler",
+      "metric": "gzip",
+      "tolerancePercent": 20,
+      "reason": "The compiler entry is a thin re-export; the Rust binary does the work. A large jump here means JS logic leaked into the wrapper."
+    },
+    {
+      "package": "@zeus-js/vite-plugin",
+      "metric": "gzip",
+      "tolerancePercent": 15,
+      "reason": "Build-time only, but it is loaded by every consumer's dev server, so its install and start cost is real."
+    },
+    {
+      "package": "@zeus-js/playground-engine",
+      "metric": "gzip",
+      "tolerancePercent": 15,
+      "reason": "The Playground's shared bridge. @babel/parser is external to it, so the published size is the engine and not the parser."
+    },
+    {
+      "package": "@zeus-js/compiler-wasm",
+      "format": "wasm",
+      "metric": "raw",
+      "tolerancePercent": 15,
+      "reason": "The browser compiler. Raw bytes matter because the browser downloads the .wasm body; 15% is one dependency bump in the oxc/parser stack. A larger change must come with a wasm-opt measurement."
+    },
+    {
+      "format": "native",
+      "metric": "raw",
+      "tolerancePercent": 10,
+      "reason": "The seven napi platform binaries. They are installed, not downloaded by a browser, but they are the largest npm payload a consumer receives. Rust release profile changes move these by a few percent; 10% catches an accidental debug build."
+    },
+    {
+      "package": "@zeus-js/component-analyzer",
+      "metric": "gzip",
+      "tolerancePercent": 15,
+      "reason": "Build-time analysis that also ships a browser entry used by the WebC Studio."
+    },
+    {
+      "package": "@zeus-js/component-dts",
+      "metric": "gzip",
+      "tolerancePercent": 15,
+      "reason": "Build-time declaration generation."
+    },
+    {
+      "package": "@zeus-js/bundler-plugin",
+      "metric": "gzip",
+      "tolerancePercent": 15,
+      "reason": "Build-time integration for the WebC pipeline."
+    },
+    {
+      "package": "@zeus-js/output-wc",
+      "metric": "gzip",
+      "tolerancePercent": 15,
+      "reason": "WebC output emitters."
+    },
+    {
+      "package": "@zeus-js/output-css",
+      "metric": "gzip",
+      "tolerancePercent": 20,
+      "reason": "Small output emitter; wider band for the same reason as shared."
+    },
+    {
+      "package": "@zeus-js/output-icons",
+      "metric": "gzip",
+      "tolerancePercent": 20,
+      "reason": "Small output emitter."
+    },
+    {
+      "package": "@zeus-js/output-react-wrapper",
+      "metric": "gzip",
+      "tolerancePercent": 15,
+      "reason": "Wrapper generator; its output is what a consumer ships, so a drift here multiplies."
+    },
+    {
+      "package": "@zeus-js/output-vue-wrapper",
+      "metric": "gzip",
+      "tolerancePercent": 15,
+      "reason": "Wrapper generator."
+    },
+    {
+      "package": "@zeus-js/web-c",
+      "metric": "gzip",
+      "tolerancePercent": 15,
+      "reason": "The WebC pipeline entry."
+    },
+    {
+      "package": "@zeus-js/web-c-runtime",
+      "metric": "gzip",
+      "tolerancePercent": 15,
+      "reason": "The WebC runtime bridge, loaded by every generated custom element."
+    },
+    {
+      "package": "@zeus-js/eslint-plugin",
+      "metric": "gzip",
+      "tolerancePercent": 20,
+      "reason": "Developer tooling; not shipped to users."
+    },
+    {
+      "package": "@zeus-js/testing",
+      "metric": "gzip",
+      "tolerancePercent": 20,
+      "reason": "Test helpers; not shipped to users."
+    },
+    {
+      "package": "@zeus-js/compiler-shared",
+      "metric": "gzip",
+      "tolerancePercent": 20,
+      "reason": "Shared compiler model types."
+    },
+    {
+      "package": "@zeus-ui/registry",
+      "metric": "gzip",
+      "tolerancePercent": 20,
+      "reason": "The component registry shipped to consumers of create-zeus. It is a data-plus-lookup module, so a wider band keeps registry entries from failing the build while still catching a runaway import."
+    },
+    {
+      "package": "create-zeus",
+      "metric": "gzip",
+      "tolerancePercent": 20,
+      "reason": "The scaffolding CLI. Templates are copied rather than bundled, so the published entry is small and stable."
+    },
+    {
+      "package": "zeus-ui",
+      "metric": "gzip",
+      "tolerancePercent": 20,
+      "reason": "The companion CLI entry."
+    }
+  ],
+  "expectedUnmeasured": [
+    {
+      "package": "create-zeus",
+      "reason": "the scaffolding CLI is built by 'pnpm -F create-zeus build', which needs its own node_modules; the package build and the size report do not build it"
+    },
+    {
+      "package": "zeus-ui",
+      "reason": "same as create-zeus: a scaffolding CLI built by its own package script"
+    }
+  ]
+}

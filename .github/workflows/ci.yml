@@ -137,6 +137,31 @@ jobs:
       - name: Build host native compiler
         run: pnpm --filter @zeus-js/compiler-native build:native
       - run: pnpm build
+      # The structured size report: every published artifact with raw, gzip and
+      # Brotli bytes, compared against the committed baseline with the reviewed
+      # per-package budget in `scripts/size/size-budget.json`. It runs here
+      # because this is the one job that builds every package without also
+      # rebuilding them for a consumer test.
+      #
+      # A regression fails the build. An artifact with no matching budget is
+      # reported NO_BUDGET rather than passing, and a published package that
+      # produced no artifact is UNMEASURED — never zero, which is how the old
+      # image-size gate failed open.
+      - name: Build size report
+        run: pnpm size:report:ci
+      - name: Preserve the size report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-size-report
+          path: temp/size
+          retention-days: 30
+      - name: Publish the size report to the job summary
+        if: always()
+        run: |
+          if [ -f temp/size/size-report.md ]; then
+            cat temp/size/size-report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Compiler cache benchmark
         run: pnpm bench:compiler-cache
       - run: pnpm check:runtime-interop
