@@ -217,11 +217,11 @@ function TopBar() {
                 prop:value={locale()}
                 onChange={event => {
                   const select = event.currentTarget as HTMLSelectElement
-                  setPlaygroundLocale(select.value === 'zh' ? 'zh' : 'en')
+                  setPlaygroundLocale(select.value === 'zh-CN' ? 'zh-CN' : 'en')
                 }}
               >
                 <option value="en">English</option>
-                <option value="zh">中文</option>
+                <option value="zh-CN">中文</option>
               </select>
             </label>
             <label class="pg-field">

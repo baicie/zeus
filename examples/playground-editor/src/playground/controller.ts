@@ -33,9 +33,11 @@ import {
   isPlaygroundLocale,
   locale,
   msg,
+  normalizePlaygroundLocale,
   raw,
   setLocale,
   t,
+  type PlaygroundLocale,
   type UiMessage,
 } from './i18n'
 import type {
@@ -406,9 +408,11 @@ export function setTheme(value: 'light' | 'dark'): void {
   persistSettings()
 }
 
-export function setPlaygroundLocale(value: 'en' | 'zh'): void {
+export function setPlaygroundLocale(value: PlaygroundLocale): void {
   if (!isPlaygroundLocale(value)) return
-  setLocale(value)
+  // `zh` is the value older builds stored; normalize so the switch lands on
+  // zh-CN rather than being rejected.
+  setLocale(normalizePlaygroundLocale(value))
   applyLocale()
   persistSettings()
 }
@@ -1005,7 +1009,7 @@ function applyTheme(): void {
 }
 
 function applyLocale(): void {
-  document.documentElement.lang = locale() === 'zh' ? 'zh-CN' : 'en'
+  document.documentElement.lang = locale()
   document.title = t(
     product() === 'webc-studio' ? 'html.titleWebc' : 'html.titleNative',
   )

@@ -12,14 +12,16 @@ const root = path.resolve(import.meta.dirname, '../..')
 const playground = path.join(root, 'examples/playground-editor/src')
 
 async function main(): Promise<void> {
-  const source = await fs.readFile(
-    path.join(playground, 'playground/i18n.ts'),
-    'utf8',
+  // The catalogs moved out of `i18n.ts` when the Playground adopted
+  // `@zeus-js/i18n`; the tables now live beside it. Reading the catalog files
+  // directly is also stricter than the old string match: any key the parser
+  // cannot see is a key the check would silently skip.
+  const englishKeys = await readCatalogKeys(
+    path.join(playground, 'playground/locales/en.ts'),
   )
-  const englishKeys = extractKeys(source, 'en')
-  const chineseKeys = extractKeys(source, 'zh')
-  // English plural forms live in a separate table; they are still keys.
-  for (const key of extractPluralKeys(source)) englishKeys.add(key)
+  const chineseKeys = await readCatalogKeys(
+    path.join(playground, 'playground/locales/zh-CN.ts'),
+  )
 
   const sources = await collect(path.join(playground, 'playground'))
   sources.push(path.join(playground, 'webc-project.ts'))
@@ -73,23 +75,11 @@ async function main(): Promise<void> {
   )
 }
 
-function extractPluralKeys(source: string): Set<string> {
-  const start = source.indexOf('const englishPlurals = {')
-  if (start === -1) return new Set()
-  const end = source.indexOf('\n} as const', start)
-  const block = source.slice(start, end)
+/** Keys of a flat catalog object (`export const x = { 'a.b': '...' }`). */
+async function readCatalogKeys(file: string): Promise<Set<string>> {
+  const source = await fs.readFile(file, 'utf8')
   return new Set(
-    [...block.matchAll(/^  '([^']+)': \{/gm)].map(match => match[1]!),
-  )
-}
-
-function extractKeys(source: string, locale: 'en' | 'zh'): Set<string> {
-  const start = source.indexOf(`  ${locale}: {`)
-  if (start === -1) throw new Error(`Missing ${locale} message table.`)
-  const end = source.indexOf('\n  },', start)
-  const block = source.slice(start, end === -1 ? undefined : end)
-  return new Set(
-    [...block.matchAll(/^\s{4}'([^']+)':/gm)].map(match => match[1]!),
+    [...source.matchAll(/^\s+'([^']+)':/gm)].map(match => match[1]!),
   )
 }
 

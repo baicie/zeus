@@ -13,7 +13,10 @@
         )
         var dark = saved.theme === 'dark'
         document.documentElement.dataset.theme = dark ? 'dark' : 'light'
-        document.documentElement.lang = saved.locale === 'zh' ? 'zh-CN' : 'en'
+        // `zh` is what earlier builds stored; both values select Chinese, so a
+        // returning user sees no flash of the wrong language.
+        document.documentElement.lang =
+          saved.locale === 'zh-CN' || saved.locale === 'zh' ? 'zh-CN' : 'en'
         var meta = document.querySelector('meta[name="theme-color"]')
         if (meta) meta.content = dark ? '#1f1f1f' : '#f3f3f3'
       } catch (error) {

@@ -29,7 +29,7 @@ export type ThemeName = 'light' | 'dark'
 
 export interface PlaygroundSettings {
   readonly theme: ThemeName
-  readonly locale: 'en' | 'zh'
+  readonly locale: 'en' | 'zh-CN'
   readonly fontSize: number
   readonly autoRun: boolean
   readonly splitPercent: number
@@ -95,10 +95,21 @@ export function readSettings(): PlaygroundSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY)
     if (!raw) return DEFAULT_SETTINGS
-    const value = JSON.parse(raw) as Partial<PlaygroundSettings>
+    // Parsed data is untrusted: the stored value may predate the current
+    // schema — `locale` was `'en' | 'zh'` before the migration, so the type
+    // annotation is widened here rather than pretending the old value cannot
+    // appear.
+    const value = JSON.parse(raw) as Omit<
+      Partial<PlaygroundSettings>,
+      'locale'
+    > & { locale?: unknown }
     return {
       theme: value.theme === 'dark' ? 'dark' : 'light',
-      locale: value.locale === 'zh' ? 'zh' : 'en',
+      // `zh` is what earlier builds wrote. Mapping it here upgrades a stored
+      // preference to the BCP 47 identity the catalogs use, so an existing
+      // user keeps Chinese instead of reverting to English on upgrade.
+      locale:
+        value.locale === 'zh-CN' || value.locale === 'zh' ? 'zh-CN' : 'en',
       fontSize:
         typeof value.fontSize === 'number' &&
         value.fontSize >= 12 &&

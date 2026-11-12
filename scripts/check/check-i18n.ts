@@ -48,6 +48,40 @@ interface CatalogPair {
   readonly zhPath: string
 }
 
+/**
+ * Keys whose Chinese text is deliberately identical to English.
+ *
+ * These are product names and protocol terms: translating "WebC" or "Shadow"
+ * would invent a Chinese word for a term the documentation, the code and the
+ * browser all call by its English name. Each entry is a claim that the two
+ * languages genuinely agree here — not a way to silence a missing translation.
+ */
+const IDENTICAL_BY_DESIGN: Readonly<Record<string, readonly string[]>> = {
+  'examples/playground-editor/src/playground/locales': [
+    // Product names.
+    'html.title',
+    'html.titleNative',
+    'html.titleWebc',
+    'title.nativeLab',
+    'title.webcStudio',
+    // Product and technology identifiers shown as labels.
+    'product.native',
+    'product.webc',
+    'example.native',
+    'example.webc',
+    // DOM and build terms with no accepted Chinese equivalent.
+    'inspector.light',
+    'inspector.shadow',
+    'inspector.manifest',
+    'output.pill',
+    // Example titles that are code identifiers.
+    'example.nativeHello.title',
+    'example.nativeShowFor.title',
+    'example.nativeRouterQuery.title',
+    'example.webcShadow.title',
+  ],
+}
+
 function findCatalogPairs(): readonly CatalogPair[] {
   const pairs: CatalogPair[] = []
   const extensions = ['.ts', '.mts', '.js', '.mjs']
@@ -173,6 +207,7 @@ async function checkPair(pair: CatalogPair): Promise<void> {
     reference,
     'zh-CN',
     zh.catalog,
+    { allowIdenticalKeys: IDENTICAL_BY_DESIGN[pair.name] ?? [] },
   )
   for (const issue of keyIssues) {
     report({

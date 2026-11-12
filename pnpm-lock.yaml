@@ -475,6 +475,9 @@ importers:
       '@zeus-js/compiler-wasm':
         specifier: workspace:*
         version: link:../../packages/core/compiler-wasm
+      '@zeus-js/i18n':
+        specifier: workspace:*
+        version: link:../../packages/core/i18n
       '@zeus-js/playground-engine':
         specifier: workspace:*
         version: link:../../packages/devtools/playground-engine

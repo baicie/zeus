@@ -641,7 +641,7 @@ declare global {
       shareUrl(): Promise<string | undefined>
       getState(): {
         previewReady: boolean
-        locale: 'en' | 'zh'
+        locale: 'en' | 'zh-CN'
         theme: 'light' | 'dark'
         product: 'native-lab' | 'webc-studio'
         files: readonly { path: string; content: string }[]
