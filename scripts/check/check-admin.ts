@@ -99,9 +99,9 @@ for (const [name, engine] of selectedBrowsers) {
     })
 
     await page.goto(`${origin}/admin/users`)
-    await page.getByLabel('邮箱').fill('ada@example.test')
-    await page.getByLabel('密码').fill(ADMIN_PASSWORD)
-    await page.getByRole('button', { name: '登录', exact: true }).click()
+    await page.getByLabel('Email').fill('ada@example.test')
+    await page.getByLabel('Password').fill(ADMIN_PASSWORD)
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
     await expect(page.getByTestId('login-card')).toHaveCount(0)
     await expect(page.getByTestId('users-page')).toBeVisible()
     await expect(page.getByTestId('admin-layout')).toBeVisible()
@@ -174,7 +174,7 @@ for (const [name, engine] of selectedBrowsers) {
     })
 
     await page.getByTestId('page-next').click()
-    await expect(page.getByTestId('page-indicator')).toHaveText('第 2 / 3 页')
+    await expect(page.getByTestId('page-indicator')).toHaveText('Page 2 of 3')
     await expect(row('margaret')).toBeVisible()
     await row('margaret').click()
     await expect(row('margaret')).toHaveAttribute('aria-selected', 'true')
@@ -196,7 +196,7 @@ for (const [name, engine] of selectedBrowsers) {
     await expect(row('margaret')).toHaveCount(0)
     await expect(row('guido')).toHaveCount(0)
     await expect(row('ada')).toHaveCount(0)
-    await expect(page.getByTestId('page-indicator')).toHaveText('第 1 / 1 页')
+    await expect(page.getByTestId('page-indicator')).toHaveText('Page 1 of 1')
     await page.locator('#user-search input').fill('')
     await page.getByTestId('user-status').selectOption('suspended')
     await expect(row('guido')).toBeVisible()
@@ -235,9 +235,9 @@ for (const [name, engine] of selectedBrowsers) {
       .fill('ada.updated@example.test')
     await page
       .getByTestId('user-form')
-      .getByRole('button', { name: '保存' })
+      .getByRole('button', { name: 'Save', exact: true })
       .click()
-    await expect(page.getByTestId('save-status')).toHaveText('已保存')
+    await expect(page.getByTestId('save-status')).toHaveText('Saved')
     await expect(page.getByTestId('user-dialog')).toHaveCount(0)
     await expect(page.getByTestId('user-detail')).toContainText(
       'ada.updated@example.test',
@@ -286,25 +286,32 @@ for (const [name, engine] of selectedBrowsers) {
     await expect(page.getByTestId('audit-table')).toContainText('login')
     await page.goto(`${origin}/admin/roles`)
     await expect(page.getByTestId('roles-page')).toBeVisible()
-    await expect(page.getByTestId('role-admin')).toContainText('用户 CRUD')
+    await expect(page.getByTestId('role-admin')).toContainText('role changes')
     await page.goto(`${origin}/admin/settings`)
     await expect(page.getByTestId('settings-page')).toBeVisible()
-    await page.getByLabel('工作空间名称').fill('Operations Console')
-    await page.getByLabel('主题').selectOption('dark')
-    await page.getByRole('button', { name: '保存设置' }).click()
-    await expect(page.getByTestId('settings-status')).toHaveText('设置已保存')
+    await page.getByLabel('Workspace name').fill('Operations Console')
+    await page.getByLabel('Theme').selectOption('dark')
+    await page.getByRole('button', { name: 'Save settings' }).click()
+    await expect(page.getByTestId('settings-status')).toHaveText(
+      'Settings saved',
+    )
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
     await page.reload()
-    await expect(page.getByLabel('工作空间名称')).toHaveValue(
+    await expect(page.getByLabel('Workspace name')).toHaveValue(
       'Operations Console',
     )
 
-    const viewerContext = await browser.newContext()
+    // The gate asserts English copy, so the browser must ask for English:
+    // without this the console follows `navigator.languages`, and a runner
+    // with a Chinese locale would see 登录 where the gate expects "Sign in".
+    const viewerContext = await browser.newContext({ locale: 'en-US' })
     const viewerPage = await viewerContext.newPage()
     await viewerPage.goto(`${origin}/admin/reports`)
-    await viewerPage.getByLabel('邮箱').fill('grace@example.test')
-    await viewerPage.getByLabel('密码').fill(VIEWER_PASSWORD)
-    await viewerPage.getByRole('button', { name: '登录', exact: true }).click()
+    await viewerPage.getByLabel('Email').fill('grace@example.test')
+    await viewerPage.getByLabel('Password').fill(VIEWER_PASSWORD)
+    await viewerPage
+      .getByRole('button', { name: 'Sign in', exact: true })
+      .click()
     await expect(viewerPage.getByTestId('login-card')).toHaveCount(0)
     await viewerPage.goto(`${origin}/admin/reports`)
     await expect(viewerPage.getByTestId('route-error')).toBeVisible()
@@ -393,6 +400,7 @@ for (const name of browserNames) {
         })
         context = await browser.newContext({
           viewport: { width: 1365, height: 900 },
+          locale: 'en-US',
         })
         const session = sessions.get(devName)
         expect(
@@ -439,7 +447,7 @@ for (const name of browserNames) {
 
         await page.getByTestId('page-next').click()
         await expect(page.getByTestId('page-indicator')).toHaveText(
-          '第 2 / 3 页',
+          'Page 2 of 3',
         )
         expect(
           await page.evaluate(() => {
