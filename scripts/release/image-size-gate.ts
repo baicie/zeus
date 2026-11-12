@@ -29,6 +29,8 @@
  * never as zero.
  */
 
+import { parseImageReference, pinToDigest } from './image-reference'
+
 /** OCI image manifest media type. */
 export const OCI_IMAGE_MANIFEST =
   'application/vnd.oci.image.manifest.v1+json' as const
@@ -427,7 +429,15 @@ export function formatPlatformForReport(platform: TargetPlatform): string {
 export function renderSummary(
   result: ImageSizeResult,
   evaluation: BudgetEvaluation,
-  options: { readonly reference?: string } = {},
+  options: {
+    readonly reference?: string
+    /** The platform manifest digest that was actually measured. */
+    readonly digest?: string
+    /** The index digest, when the reference resolved to a multi-platform index. */
+    readonly indexDigest?: string
+    /** Whether an index was resolved to reach the measured manifest. */
+    readonly indexResolved?: boolean
+  } = {},
 ): string {
   const lines: string[] = []
   lines.push('### Image size')
@@ -437,7 +447,14 @@ export function renderSummary(
   if (options.reference) lines.push(`| image | \`${options.reference}\` |`)
   if (result.ok) {
     lines.push(`| platform | ${formatPlatform(result.platform)} |`)
-    lines.push(`| digest | \`${result.digest || 'unknown'}\` |`)
+    // A digest read from a tag can describe a different image by the time
+    // anyone reads the report, so the exact manifest is named, not just the tag.
+    lines.push(
+      `| platform manifest digest | \`${options.digest || result.digest || 'unknown'}\` |`,
+    )
+    if (options.indexResolved && options.indexDigest) {
+      lines.push(`| index digest | \`${options.indexDigest}\` |`)
+    }
     lines.push(`| layers | ${result.layerCount} |`)
     lines.push(
       `| size | ${evaluation.mb.toFixed(1)} MB (${evaluation.bytes} B) |`,
@@ -458,4 +475,99 @@ export function renderSummary(
     for (const problem of evaluation.problems) lines.push(`- ${problem}`)
   }
   return `${lines.join('\n')}\n`
+}
+
+interface PinnedMeasurement {
+  readonly result: ImageSizeResult
+  /** The digest actually measured: the platform manifest, not the index. */
+  readonly measuredDigest: string
+  /** The digest the reference resolved to (equal to `measuredDigest` unless an index was resolved). */
+  readonly referenceDigest: string
+  /** True when the reference resolved to a multi-platform index. */
+  readonly indexResolved: boolean
+}
+
+/**
+ * Measures an image, pinning every fetch to a digest.
+ *
+ * Separated from `main` so the pinning rules are testable without a registry:
+ * the function takes the two registry operations as arguments.
+ */
+export async function measurePinned(options: {
+  /** The reference as given, e.g. `ghcr.io/team/app:main`. */
+  readonly reference: string
+  /** A digest the caller already knows, from the build step. */
+  readonly knownDigest?: string
+  readonly platform: ReturnType<typeof parsePlatform>
+  readonly fetchRaw: (reference: string) => unknown
+  readonly resolveDigest: (reference: string) => string
+}): Promise<PinnedMeasurement> {
+  const parsed = parseImageReference(options.reference)
+
+  // 1. Establish the digest to pin to.
+  //
+  // When the reference itself names a digest, that is the identity and the
+  // caller's digest must either match or be absent. When it does not, the
+  // caller's digest (from the build step) is *not* trusted on its own: the tag
+  // is resolved and the two are compared. Comparing without resolving would be
+  // a comparison of the known digest against itself, which always agrees and
+  // would let a moved tag through.
+  if (
+    parsed.digest &&
+    options.knownDigest &&
+    parsed.digest !== options.knownDigest
+  ) {
+    throw new Error(
+      `The reference names digest ${parsed.digest} but the caller supplied ${options.knownDigest}; refusing to measure either.`,
+    )
+  }
+
+  let referenceDigest: string
+  if (parsed.digest) {
+    referenceDigest = parsed.digest
+  } else {
+    // The reference carries no digest, so resolve the tag exactly once. This is
+    // the only point where a tag is trusted, and the resolved digest is what
+    // every fetch below uses.
+    const resolved = options.resolveDigest(options.reference)
+    if (resolved === '') {
+      throw new Error(
+        `Could not resolve "${options.reference}" to a digest; refusing to measure a moving tag.`,
+      )
+    }
+    if (options.knownDigest && resolved !== options.knownDigest) {
+      // The tag points at a different manifest than the one that was just
+      // built. Measuring either would describe the wrong image; stop.
+      throw new Error(
+        `"${options.reference}" resolves to ${resolved}, but the build produced ${options.knownDigest}. The tag moved between the build and the measurement.`,
+      )
+    }
+    referenceDigest = resolved
+  }
+
+  const pinned = pinToDigest(parsed, referenceDigest)
+  const document = options.fetchRaw(pinned)
+
+  let indexDigest: string | undefined
+  const result = await measureImageSize(document, {
+    platform: options.platform,
+    digest: referenceDigest,
+    resolveIndex: (descriptor: Descriptor) => {
+      if (!descriptor.digest) {
+        throw new Error('Index entry has no digest, so it cannot be resolved.')
+      }
+      indexDigest = referenceDigest
+      // Pin to the platform manifest by digest, which is what makes the
+      // measurement describe one architecture rather than "whatever the index
+      // picked at this moment".
+      return options.fetchRaw(pinToDigest(parsed, descriptor.digest))
+    },
+  })
+
+  return {
+    result,
+    measuredDigest: result.ok ? result.digest : referenceDigest,
+    referenceDigest,
+    indexResolved: indexDigest !== undefined,
+  }
 }

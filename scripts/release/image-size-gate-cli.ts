@@ -1,31 +1,62 @@
 /**
  * CLI for the image size gate.
  *
- * Two input modes:
+ * ## Why this file is bundled before CI runs it
+ *
+ * The first version was invoked as `node --import tsx scripts/…-cli.ts` from
+ * `admin-image.yml`. That job never runs `pnpm install` — it builds an image,
+ * not the repository — so `tsx` was not resolvable and the gate died with
+ * `ERR_MODULE_NOT_FOUND: Cannot find package 'tsx'` before measuring anything.
+ * A gate that cannot start is a gate that does not run, which is the same
+ * outcome as the `0.0 MB` bug it replaced.
+ *
+ * The fix keeps the TypeScript source (typed, unit-tested) and adds a build
+ * step that bundles it into `scripts/release/image-size-gate.mjs`: a single
+ * file whose only imports are `node:` builtins. `admin-image.yml` runs that
+ * file with the Node already on the runner. No package install, no version
+ * drift, no download at run time.
+ *
+ *   pnpm build:image-gate     # regenerate the bundle after editing this file
+ *
+ * `scripts/release/__tests__/image-size-gate-bundle.spec.ts` asserts the
+ * bundle exists, imports nothing but `node:`, and matches the current source,
+ * so a stale bundle fails the test suite rather than production.
+ *
+ * ## Input modes
  *
  *   --manifest <path>   a local JSON file already fetched from the registry
- *                       (used by the tests and by a dry run)
  *   --reference <ref>   a registry reference; the manifest is fetched with
  *                       `docker buildx imagetools inspect --raw`, which returns
  *                       the real manifest body rather than a descriptor.
+ *   --digest <sha256:…> the digest the caller already knows (the build job has
+ *                       it in `steps.build.outputs.digest`). Strongly preferred:
+ *                       it pins the measurement to the bytes that were built.
  *
- * `--raw` is the load-bearing flag: the previous implementation used
- * `--format '{{json .Manifest}}'`, whose output is a descriptor
- * (`{mediaType, digest, size}`) with no `layers` array. That is how the gate
- * came to report 0.0 MB and pass every build.
+ * ## Pinning
  *
- * When the reference resolves to an index, the per-platform manifest is fetched
- * by digest through the same command, so no HTTP client is needed here.
+ * A tag can be repointed between the build and the measurement, so a report
+ * that only names a tag can describe a different image than the one measured.
+ * With `--reference`, the flow is:
+ *
+ *   1. resolve the tag to a digest once;
+ *   2. when `--digest` is also given, require the two to agree — a mismatch is
+ *      a failure, never a silent fallback to either one;
+ *   3. fetch and measure `name@digest` from then on.
+ *
+ * An index is resolved by selecting exactly one platform, and both the index
+ * digest and the platform manifest digest are reported.
  */
 import { execFileSync } from 'node:child_process'
+import { realpathSync } from 'node:fs'
 import fs from 'node:fs'
+import { pathToFileURL } from 'node:url'
 
 import {
   evaluateBudget,
   measureImageSize,
+  measurePinned,
   parsePlatform,
   renderSummary,
-  type Descriptor,
   type ImageSizeResult,
 } from './image-size-gate'
 
@@ -88,14 +119,11 @@ function inspectRaw(reference: string): unknown {
 }
 
 /**
- * Reads the digest of the manifest a reference resolves to.
+ * Reads the digest a reference currently resolves to.
  *
- * `--raw` returns the manifest body, which carries no digest of itself: a
- * registry addresses a manifest *by* its digest, so the body cannot contain
- * one. The digest is therefore read from the non-raw inspection, whose first
- * `Digest:` line is the resolved manifest. Recording it matters because a
- * report that names only a tag can describe a different image than the one
- * that was measured.
+ * `--raw` returns the manifest body, which cannot contain its own digest: a
+ * registry addresses a manifest *by* that digest. The digest therefore comes
+ * from the non-raw inspection, whose `Digest:` line is the resolved manifest.
  */
 function resolveDigest(reference: string): string {
   const output = execFileSync(
@@ -107,18 +135,6 @@ function resolveDigest(reference: string): string {
   return match?.[1] ?? ''
 }
 
-function resolveIndexByDigest(
-  reference: string,
-  descriptor: Descriptor,
-): unknown {
-  if (!descriptor.digest) {
-    throw new Error('Index entry has no digest, so it cannot be resolved.')
-  }
-  // `<repo>@sha256:…` pins the exact manifest the index selected.
-  const repository = reference.split(':')[0]!.split('@')[0]!
-  return inspectRaw(`${repository}@${descriptor.digest}`)
-}
-
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2))
   if (!options.manifest && !options.reference) {
@@ -126,28 +142,37 @@ async function main(): Promise<void> {
   }
 
   const platform = parsePlatform(options.platform)
-  const document = options.manifest
-    ? JSON.parse(fs.readFileSync(options.manifest, 'utf8'))
-    : inspectRaw(options.reference!)
-
-  // A tag can be repointed between the measurement and the report, so the
-  // digest of the manifest actually measured is recorded and printed.
-  const digest =
-    options.digest ??
-    (options.reference ? resolveDigest(options.reference) : '')
 
   let result: ImageSizeResult
+  let measuredDigest = ''
+  let referenceDigest = ''
+  let indexResolved = false
+  let referenceLabel = ''
+
   try {
-    result = await measureImageSize(document, {
-      platform,
-      ...(digest ? { digest } : {}),
-      ...(options.reference
-        ? {
-            resolveIndex: (descriptor: Descriptor) =>
-              resolveIndexByDigest(options.reference!, descriptor),
-          }
-        : {}),
-    })
+    if (options.manifest) {
+      const document = JSON.parse(fs.readFileSync(options.manifest, 'utf8'))
+      result = await measureImageSize(document, {
+        platform,
+        ...(options.digest ? { digest: options.digest } : {}),
+      })
+      measuredDigest = options.digest ?? (result.ok ? result.digest : '')
+      referenceDigest = measuredDigest
+    } else {
+      const reference = options.reference!
+      const pinned = await measurePinned({
+        reference,
+        ...(options.digest ? { knownDigest: options.digest } : {}),
+        platform,
+        fetchRaw: inspectRaw,
+        resolveDigest,
+      })
+      result = pinned.result
+      measuredDigest = pinned.measuredDigest
+      referenceDigest = pinned.referenceDigest
+      indexResolved = pinned.indexResolved
+      referenceLabel = reference
+    }
   } catch (error) {
     result = {
       ok: false,
@@ -158,17 +183,40 @@ async function main(): Promise<void> {
 
   const evaluation = evaluateBudget(result, options.budgetMb)
   const summary = renderSummary(result, evaluation, {
-    ...(options.reference ? { reference: options.reference } : {}),
+    ...(referenceLabel ? { reference: referenceLabel } : {}),
+    ...(measuredDigest ? { digest: measuredDigest } : {}),
+    ...(referenceDigest && referenceDigest !== measuredDigest
+      ? { indexDigest: referenceDigest }
+      : {}),
+    indexResolved,
   })
 
   if (options.json) {
-    console.log(JSON.stringify({ measurement: result, evaluation }, null, 2))
+    console.log(
+      JSON.stringify(
+        {
+          measurement: result,
+          evaluation,
+          digest: { measured: measuredDigest, reference: referenceDigest },
+          indexResolved,
+        },
+        null,
+        2,
+      ),
+    )
   } else {
     console.log(
       result.ok
         ? `image size: ${evaluation.mb.toFixed(1)} MB (budget ${evaluation.budgetMb} MB)`
         : `image size: UNMEASURED — ${result.reason}`,
     )
+    if (measuredDigest) {
+      console.log(
+        indexResolved
+          ? `index digest: ${referenceDigest}\nplatform digest: ${measuredDigest}`
+          : `digest: ${measuredDigest}`,
+      )
+    }
     for (const problem of evaluation.problems) console.error(problem)
   }
 
@@ -190,9 +238,29 @@ async function main(): Promise<void> {
   }
 }
 
-void main().catch(error => {
-  console.error(
-    `image-size-gate: ${error instanceof Error ? error.message : String(error)}`,
-  )
-  process.exitCode = 1
-})
+/**
+ * Runs only when this file is the process entry point.
+ *
+ * The bundle is a CLI, but it is still a module: importing it must not start a
+ * measurement. The test suite imports the source and the bundle checks import
+ * the built file, so a bare `void main()` would make an import exit the process
+ * with a usage error.
+ */
+function isMain(): boolean {
+  const entry = process.argv[1]
+  if (!entry) return false
+  try {
+    return import.meta.url === pathToFileURL(realpathSync(entry)).href
+  } catch {
+    return false
+  }
+}
+
+if (isMain()) {
+  void main().catch(error => {
+    console.error(
+      `image-size-gate: ${error instanceof Error ? error.message : String(error)}`,
+    )
+    process.exitCode = 1
+  })
+}

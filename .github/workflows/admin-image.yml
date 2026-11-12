@@ -183,34 +183,75 @@ jobs:
           docker buildx imagetools inspect "${IMAGE}:main"
           docker buildx imagetools inspect "${IMAGE}:sha-${{ github.sha }}"
 
-      # Record the size and enforce the budget. Size is not cosmetic: the host
-      # pulls this image from TCR, and a 312 MB image is what made a single
-      # cross-border copy unable to finish inside any sane timeout. The budget
-      # is a repository variable so a deliberate growth is one settings change,
-      # while an accidental regression fails the build.
+      # Record the size and enforce the budget.
       #
-      # This used to be an inline `node -e` reading
-      # `imagetools inspect --format '{{json .Manifest}}'`. That template
-      # returns the *descriptor* `{mediaType, digest, size}` of the manifest —
-      # it has no `layers` array — so `(m.layers || [])` was always empty,
-      # every build computed 0.0 MB, and the gate passed unconditionally. The
-      # `image size: 0.0 MB (budget 120 MB)` line in CI was that defect.
+      # Two bugs lived in this step before it was rewritten:
       #
-      # `scripts/release/image-size-gate.ts` replaces it with a resolver that
-      # fetches the real manifest with `--raw`, resolves a multi-platform index
-      # to exactly one platform, validates the media type and every layer
-      # digest and size, records the manifest digest, and treats anything it
-      # cannot measure as a FAILURE. Cases are covered by
-      # `scripts/release/__tests__/image-size-gate.spec.ts`.
+      #   1. It read `imagetools inspect --format '{{json .Manifest}}'` and summed
+      #      `(m.layers || [])`. That template returns the manifest's *descriptor*
+      #      (`{mediaType, digest, size}`), which has no layers array, so the sum
+      #      was always zero and every build reported "0.0 MB (budget 120 MB)" and
+      #      passed.
+      #   2. The replacement was invoked as `node --import tsx …cli.ts`, but this
+      #      job never runs `pnpm install` — it builds an image, not the
+      #      repository — so `tsx` did not resolve and the gate died with
+      #      ERR_MODULE_NOT_FOUND before measuring anything (run 43205273467). A
+      #      gate that cannot start does not protect anything.
+      #
+      # The gate is now a committed bundle, `scripts/release/dist/image-size-gate.mjs`,
+      # whose only imports are `node:` builtins: the Node already on the runner
+      # runs it with no install and no downloaded tool. `pnpm build:image-gate`
+      # regenerates it, and `__tests__/image-size-gate-bundle.spec.ts` fails if the
+      # committed bundle is stale or grows a non-builtin import.
+      #
+      # `--digest` pins the measurement to the immutable digest that the build
+      # step just produced. The gate resolves the tag too and fails if the two
+      # disagree, so a tag repointed mid-run cannot be measured as if it were the
+      # image that was built.
+      # Prove the gate can start before it is relied on for a release.
+      #
+      # The enforcement step below is skipped on a pull request (nothing was
+      # pushed, so there is no digest to measure), which means a broken gate —
+      # a bad import, a missing bundle — would only be discovered on `main`,
+      # after the merge, exactly as run 43205273467 discovered it. This step
+      # runs the same committed bundle on the same runner for every PR that
+      # touches this workflow or the admin app: no arguments, so it prints its
+      # usage message and exits non-zero, which is the proof that Node resolved
+      # every import and reached `main()`. It measures nothing and needs no
+      # credentials.
+      - name: Smoke-test that the size gate starts
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          # A usage error is the expected outcome: exit 1 plus the help text.
+          status=0
+          output="$(node scripts/release/dist/image-size-gate.mjs 2>&1)" || status=$?
+          echo "${output}"
+          if [[ ${status} -eq 0 ]]; then
+            echo "::error::the gate exited 0 with no arguments; it should refuse to run without a target"
+            exit 1
+          fi
+          if [[ "${output}" != *"--manifest"* && "${output}" != *"--reference"* ]]; then
+            echo "::error::the gate did not print its usage message; it may have failed before reaching main()"
+            exit 1
+          fi
+          echo "gate started and refused an empty invocation, as expected"
+
       - name: Enforce the image size budget
         if: github.event_name != 'pull_request'
         env:
           BUDGET_MB: ${{ vars.ADMIN_IMAGE_MAX_MB || '120' }}
           PLATFORM: linux/amd64
+          BUILT_DIGEST: ${{ steps.build.outputs.digest }}
         run: |
           set -euo pipefail
-          node --import tsx scripts/release/image-size-gate-cli.ts \
+          if [[ ! "${BUILT_DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::the build step reported no usable digest ('${BUILT_DIGEST}'); refusing to measure a moving tag"
+            exit 1
+          fi
+          node scripts/release/dist/image-size-gate.mjs \
             --reference "${IMAGE}:main" \
+            --digest "${BUILT_DIGEST}" \
             --platform "${PLATFORM}" \
             --budget-mb "${BUDGET_MB}" \
             --summary-file /tmp/size-summary.md
