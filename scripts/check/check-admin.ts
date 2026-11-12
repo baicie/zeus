@@ -32,6 +32,8 @@ const results: Array<{
   failedResponses?: string[]
   bodyText?: string
   gridHtml?: string
+  /** User-resource traffic, kept because the save race only shows on CI. */
+  userRequests?: string[]
   devtools?: 'passed' | 'failed'
 }> = []
 const sessions = new Map<string, { cookie: string }>()
@@ -84,6 +86,7 @@ for (const [name, engine] of selectedBrowsers) {
   let page: Page | undefined
   const errors: string[] = []
   const failedResponses: string[] = []
+  const userRequests: string[] = []
   try {
     browser = await engine.launch({
       headless: true,
@@ -102,6 +105,37 @@ for (const [name, engine] of selectedBrowsers) {
     page.on('response', response => {
       if (response.status() >= 400)
         failedResponses.push(`${response.status()} ${response.url()}`)
+    })
+
+    /*
+     * Records every request and response that touches `/api/users/`.
+     *
+     * A save that reports "Saved" while the detail still shows the old email
+     * has exactly two possible explanations — the PATCH never landed, or it
+     * landed and something wrote the old value back — and the difference is
+     * invisible in a DOM snapshot. The gate fails on CI's timing and not on a
+     * laptop's, so a failure has to carry its own evidence; guessing at it from
+     * here costs another ten-minute round trip.
+     */
+    page.on('request', request => {
+      const url = request.url()
+      if (!url.includes('/api/users/')) return
+      userRequests.push(
+        `-> ${request.method()} ${url.replace(origin, '')} ${request.postData() ?? ''}`,
+      )
+    })
+    page.on('response', async response => {
+      const url = response.url()
+      if (!url.includes('/api/users/')) return
+      let body = ''
+      try {
+        body = (await response.text()).replace(/\s+/g, ' ').slice(0, 160)
+      } catch {
+        body = '<unreadable>'
+      }
+      userRequests.push(
+        `<- ${response.status()} ${response.request().method()} ${url.replace(origin, '')} ${body}`,
+      )
     })
 
     await page.goto(`${origin}/admin/users`)
@@ -245,9 +279,25 @@ for (const [name, engine] of selectedBrowsers) {
       .click()
     await expect(page.getByTestId('save-status')).toHaveText('Saved')
     await expect(page.getByTestId('user-dialog')).toHaveCount(0)
-    await expect(page.getByTestId('user-detail')).toContainText(
-      'ada.updated@example.test',
-    )
+    /*
+     * The saved email must reach the detail view. On CI this has failed twice
+     * in a row on chromium only, always with "Saved" already on screen and the
+     * old address still rendered, and never on a local machine in 40 attempts
+     * including an 8x CPU throttle. Rather than sleep and hope, attach what the
+     * network actually did at the moment of failure: whether the PATCH landed
+     * and what it returned separates "the server did not save" from "the client
+     * rendered a stale value", which are different bugs.
+     */
+    try {
+      await expect(page.getByTestId('user-detail')).toContainText(
+        'ada.updated@example.test',
+        { timeout: 5_000 },
+      )
+    } catch (error) {
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}\n\nuser requests:\n${userRequests.join('\n')}`,
+      )
+    }
     await expect(page.getByTestId('admin-layout')).toHaveAttribute(
       'data-smoke',
       'persistent-layout',
@@ -370,6 +420,7 @@ for (const [name, engine] of selectedBrowsers) {
         ? (await page.locator('body').innerText()).slice(0, 2000)
         : '',
       gridHtml,
+      userRequests,
     })
   } finally {
     await browser?.close()
