@@ -2,7 +2,7 @@
 
 - 仓库：`baicie/zeus`（`examples/admin`）
 - 分支：`feat/admin-component-gallery`
-- 基线：`70210620`（`main`，2026-11-12）
+- 基线：`70210620`（`main`，2026-11-12）；已合入 `origin/main` 的 `7d1031e4`（#244 路由懒加载），本轮的 Roles / Audit / 画廊改动随之迁到 `src/pages/*` 模块结构
 - 环境：macOS arm64，Node 24.16.0，Chromium / Firefox / WebKit（Playwright 1.61）
 
 本轮的输入是 `zeus-ui/docs/acceptance/pr-a-admin-gap-matrix.md` 的覆盖矩阵（36 行页面/行为 + 30 个组件族）。按矩阵实施，不重写 React、不动 Router / Query / Session / CSRF / RBAC。
@@ -87,3 +87,13 @@ pnpm -F @zeus-js/example-admin check
 ADMIN_BROWSERS=chromium,firefox,webkit pnpm check:admin
 pnpm exec vitest --run examples/admin/server/__tests__
 ```
+
+## 5. 合入 main 后的调整
+
+`origin/main` 的 #244 把 `examples/admin/src/pages.tsx` 拆成了 `src/pages/*` 模块并改为懒加载路由。本轮改动按新结构落地：
+
+- `RolesPage` 迁入 `src/pages/roles.tsx`，只保留它真正需要的 import；
+- 审计时间修复迁入 `src/pages/audit.tsx`；
+- 画廊独立成 `src/gallery.tsx`，路由同样走 `lazy: async () => ({ element })`，不增加首屏 chunk。
+
+合入后重新构建（首屏 chunk 232.42 kB / gzip 71.01 kB）并在 Chromium 上重跑 `check:admin`，通过。
