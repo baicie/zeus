@@ -112,17 +112,24 @@ try {
     if (input) tracked.add(input)
     ;(window as unknown as { __probeStart?: WeakSet<Element> }).__probeStart =
       tracked
-    // Count every node that ever exists at `#user-email`, so a rebuild is
-    // visible even when the replacement is instantaneous.
+    // Count every *distinct* node that ever exists at `#user-email`, so a
+    // rebuild is visible even when the replacement is instantaneous.
+    //
+    // The seen-set is what makes this a node count rather than a callback
+    // count: a MutationObserver callback fires once per batch of records, and
+    // the framework produces several batches per keystroke. Without recording
+    // each element after counting it, the same node is counted again on every
+    // later callback and the number inflates — that is how an earlier version
+    // of this probe reported "4 rebuilds per keystroke" when the truth was
+    // "at least one, and one is enough to lose the caret".
     ;(window as unknown as { __probeSeen: number }).__probeSeen = 1
+    const seen = new WeakSet<Element>()
+    if (input) seen.add(input)
     const observer = new MutationObserver(() => {
       const now = document.querySelector('#user-email')
-      if (!now) return
-      const w = window as unknown as {
-        __probeStart?: WeakSet<Element>
-        __probeSeen: number
-      }
-      if (w.__probeStart && !w.__probeStart.has(now)) w.__probeSeen += 1
+      if (!now || seen.has(now)) return
+      seen.add(now)
+      ;(window as unknown as { __probeSeen: number }).__probeSeen += 1
     })
     observer.observe(document.body, {
       childList: true,

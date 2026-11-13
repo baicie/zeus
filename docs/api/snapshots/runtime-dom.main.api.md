@@ -675,9 +675,19 @@ export declare function delegateEvents(events: readonly string[]): void
  * seeded again from the stale value the render started with — the user's text
  * is lost, and a submit compares against the old value and sends `{}`.
  *
+ * This is the same rule `spread.ts` already states and enforces ("Committing
+ * user refs … must happen after the effect has exited"); the `bindRef` path
+ * had simply missed it. `docs/rfcs/RFC-008` records it for spread, but the ref
+ * guides are silent on the tracking boundary — until this comment, nothing a
+ * user would read said which side of it a ref callback runs on.
+ *
  * `untrack` rather than a manual flag: the read is a genuine read, it just must
  * not become an edge. Values the callback wants to publish must go through
- * signals it writes, which is unaffected.
+ * signals it writes, which is unaffected — `untrack` pauses tracking only.
+ *
+ * The whole dispatch is wrapped, not just the function case: `'value' in
+ * target` on a reactive container runs the `has` trap and would otherwise
+ * create a dependency of its own.
  */
 export declare function setRef<T>(
   target: RefTarget<T> | null | undefined,
