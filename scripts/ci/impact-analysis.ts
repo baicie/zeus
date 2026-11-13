@@ -178,6 +178,20 @@ export const PATH_RULES: readonly PathRule[] = [
     reason: 'security and ownership metadata',
   },
   {
+    // Toolchain pins. `.nvmrc` selects the Node version the whole suite runs
+    // on — the same class of fact as `.node-version`, which escalates above.
+    // `.babelrc` / `.swcrc` / `babel.config.*` configure the transform every
+    // package is built through.
+    //
+    // Must come before the `rc` rule below: that one matches
+    // `^\.[a-z]+rc$`, which is true for `.nvmrc`, and classified it as
+    // `tooling` — no Rust build, and the browser gates still ran. Found by
+    // running the verification matrix, not by reading the regex.
+    pattern: /^(\.nvmrc|\.babelrc(\.json)?|\.swcrc|babel\.config\.[cm]?[jt]s)$/,
+    areas: ['shared-infrastructure'],
+    reason: 'toolchain or transform configuration affects every job',
+  },
+  {
     pattern: /^\.[a-z]+rc(\.|$)|^\.prettierignore$|^eslint\.config/,
     areas: ['tooling'],
     reason: 'lint and format configuration',
@@ -496,6 +510,30 @@ export function parseNameStatus(
   return { files, deleted, renamed, incomplete }
 }
 
+/**
+ * Events allowed to run partial analysis.
+ *
+ * Exactly one. Written as an allow list rather than "everything except push
+ * and workflow_dispatch", because the negated form silently gave the narrow
+ * path to any event added later — `merge_group`, `schedule`, `release`, a
+ * repository_dispatch. An event nobody reasoned about is not evidence that
+ * the change is small.
+ */
+export const PARTIAL_ANALYSIS_EVENTS: readonly string[] = ['pull_request']
+
+/**
+ * Whether this run must validate everything.
+ *
+ * Default is yes. `pull_request` is the only event that opts into the narrow
+ * path, and even then the classification can escalate on its own.
+ */
+export function requiresFullRun(input: {
+  readonly event: string
+  readonly forced?: boolean
+}): boolean {
+  return input.forced === true || !PARTIAL_ANALYSIS_EVENTS.includes(input.event)
+}
+
 function main(): void {
   const { values } = parseArgs({
     options: {
@@ -507,14 +545,14 @@ function main(): void {
     },
   })
 
-  // Only pull_request gets partial analysis. A push to main or a manual run
-  // validates everything, because those are the runs release evidence and
-  // merges depend on.
+  // Only `pull_request` gets partial analysis. A push, a manual run and any
+  // event this file has never heard of validate everything, because those are
+  // the runs release evidence and merges depend on.
   const event = values.event ?? process.env.GITHUB_EVENT_NAME ?? ''
-  const fullRun =
-    values['full-run'] === true ||
-    event === 'push' ||
-    event === 'workflow_dispatch'
+  const fullRun = requiresFullRun({
+    event,
+    forced: values['full-run'] === true,
+  })
 
   let diff: DiffResult = {
     files: [],

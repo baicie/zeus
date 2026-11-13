@@ -122,6 +122,25 @@ jobs:
             echo "Impact analysis produced no plan." >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      # The plan as a file, not just a rendered summary.
+      #
+      # A job summary is not readable through the API, so until now the only
+      # way to check what impact analysis actually decided was to read the
+      # step log of a passing `impact` job — and a summary that has scrolled
+      # away is not evidence. This artifact is the record: for every job, the
+      # reason it ran or skipped, and what escalated the analysis.
+      #
+      # Uploaded with `if: always()` because the interesting case is exactly
+      # the one where the classification is surprising.
+      - name: Preserve the impact plan
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: impact-plan
+          path: temp/ci/impact.json
+          if-no-files-found: warn
+          retention-days: 14
+
   lint-and-check:
     needs: impact
     if: needs.impact.outputs.lint-and-check == 'true'

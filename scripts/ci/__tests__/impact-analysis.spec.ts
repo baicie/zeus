@@ -12,6 +12,7 @@ import {
   classifyChanges,
   parseNameStatus,
   planJobs,
+  requiresFullRun,
   type Plan,
 } from '../impact-analysis'
 
@@ -99,6 +100,31 @@ describe('classifyChanges — named scenarios', () => {
 })
 
 describe('classifyChanges — failure modes', () => {
+  it('treats a toolchain file as a full-suite change', () => {
+    // `.nvmrc` selects the Node version every job runs on. It used to match
+    // the `^\.[a-z]+rc$` lint rule and land on `tooling`, which skips
+    // rust-compiler and still runs the browser gates — the wrong direction.
+    // The verification matrix found it; this test keeps it fixed.
+    for (const file of ['.nvmrc', '.babelrc', '.swcrc', 'babel.config.cjs']) {
+      const result = classifyChanges({ changedFiles: [file] })
+      expect(result.areas, file).toContain('shared-infrastructure')
+      expect(result.fullSuite, file).toBe(true)
+    }
+  })
+
+  it('still classifies lint configuration as tooling, not full suite', () => {
+    for (const file of [
+      '.eslintrc.json',
+      '.prettierrc.json',
+      '.prettierignore',
+      'eslint.config.js',
+    ]) {
+      const result = classifyChanges({ changedFiles: [file] })
+      expect(result.areas, file).toContain('tooling')
+      expect(result.fullSuite, file).toBe(false)
+    }
+  })
+
   it('an unrecognised path escalates rather than guessing', () => {
     const result = classifyChanges({
       changedFiles: ['some-new-directory/thing.txt'],
@@ -210,5 +236,33 @@ describe('parseNameStatus', () => {
 
   it('marks a truncated diff incomplete', () => {
     expect(parseNameStatus('M\ta.ts', true).incomplete).toBe(true)
+  })
+})
+
+describe('requiresFullRun', () => {
+  it('analyses only pull requests narrowly', () => {
+    expect(requiresFullRun({ event: 'pull_request' })).toBe(false)
+  })
+
+  it('runs everything on push, dispatch and every unknown event', () => {
+    for (const event of [
+      'push',
+      'workflow_dispatch',
+      // Events this file has never reasoned about. The negated form of this
+      // check ("not push, not dispatch") used to give all of these the narrow
+      // path by accident.
+      'merge_group',
+      'schedule',
+      'release',
+      'repository_dispatch',
+      'workflow_run',
+      '',
+    ]) {
+      expect(requiresFullRun({ event }), `${event || '(empty)'}`).toBe(true)
+    }
+  })
+
+  it('honours an explicit override from the caller', () => {
+    expect(requiresFullRun({ event: 'pull_request', forced: true })).toBe(true)
   })
 })
