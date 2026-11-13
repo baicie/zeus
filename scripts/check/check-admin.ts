@@ -413,7 +413,28 @@ for (const [name, engine] of selectedBrowsers) {
         return Boolean(content && content.contains(document.activeElement))
       })()`)
 
+    /*
+     * Fail at the assertion that names the real cause.
+     *
+     * The installed `@zeus-web/dialog` records its mode under a symbol
+     * (`@zeus-web/dialog/state`). A build without the fix has no such symbol,
+     * so this check distinguishes "the reader's interaction is broken" from
+     * "the version this repository installs predates the fix" — and the second
+     * one is the only reason this gate can be red on this branch.
+     */
     await page.getByTestId('gallery-open-dialog').click()
+    const carriesFix = await page.evaluate(`(() => {
+      const root = document.querySelector('[data-testid="gallery-dialog"]')
+      if (!root) return false
+      return Object.getOwnPropertySymbols(root).some(
+        (symbol) => symbol.toString().includes('@zeus-web/dialog/state'),
+      )
+    })()`)
+    expect(
+      carriesFix,
+      '@zeus-web/dialog in examples/admin must contain the state fix; run `pnpm admin:link-dialog` locally, or install a published version that carries it',
+    ).toBe(true)
+
     await expect(page.getByTestId('gallery-dialog-content')).toBeVisible()
     await expect(page.getByTestId('gallery-dialog')).toHaveAttribute(
       'data-state',

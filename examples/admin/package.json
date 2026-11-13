@@ -26,7 +26,7 @@
     "@zeus-web/checkbox": "0.1.0-beta.34",
     "@zeus-web/collapsible": "0.1.0-beta.34",
     "@zeus-web/data-grid": "0.1.0-beta.34",
-    "@zeus-web/dialog": "file:../../vendor/zeus-web-dialog",
+    "@zeus-web/dialog": "0.1.0-beta.34",
     "@zeus-web/dropdown-menu": "0.1.0-beta.34",
     "@zeus-web/form-field": "0.1.0-beta.34",
     "@zeus-web/input": "0.1.0-beta.34",
