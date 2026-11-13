@@ -442,4 +442,107 @@ describe('release workflows', () => {
     expect(cleanupStep).toContain('continue-on-error: true')
     expect(cleanupStep).toContain('pnpm release:cleanup:canary-staging')
   })
+
+  describe('native matrix triggers', () => {
+    const native = readFileSync(
+      resolve(root, '.github/workflows/compiler-native.yml'),
+      'utf8',
+    )
+    const triggers = native.slice(0, native.indexOf('\npermissions:'))
+    const pushBlock = /^ {2}push:\n((?: {4}.*\n)+)/m.exec(triggers)?.[1]
+    const pullBlock = /^ {2}pull_request:\n((?: {4}.*\n)+)/m.exec(triggers)?.[1]
+    const callBlock = /^ {2}workflow_call:\n/m.exec(triggers)?.[0]
+    const dispatchBlock = /^ {2}workflow_dispatch:\n/m.exec(triggers)?.[0]
+
+    it('pushes main only, so a PR branch builds one matrix per commit', () => {
+      // Measured duplicate: 43216543074 (push) and 43216552540 (pull_request)
+      // are the same tree `179779a4`; so are 43216215063 / 43216281805 at
+      // `6d71343f`. `pull_request` fires on synchronize, so an open PR is
+      // still covered exactly once.
+      expect(pushBlock).toBeDefined()
+      const branches = pushBlock!.split('\n').map(line => line.trim())
+      expect(branches.filter(Boolean)).toEqual(['branches:', '- main'])
+    })
+
+    it('keeps the validation paths a PR needs', () => {
+      expect(pullBlock).toBeDefined()
+      for (const path of [
+        'crates/**',
+        'packages/core/compiler/**',
+        'packages/core/compiler-native/**',
+        'scripts/release.config.ts',
+        'pnpm-lock.yaml',
+      ]) {
+        expect(pullBlock).toContain(`- '${path}'`)
+      }
+    })
+
+    it('keeps workflow_call for release and canary', () => {
+      expect(callBlock).toBeDefined()
+      for (const file of ['release.yml', 'release-canary.yml']) {
+        const caller = readFileSync(
+          resolve(root, `.github/workflows/${file}`),
+          'utf8',
+        )
+        expect(caller).toContain(
+          'uses: ./.github/workflows/compiler-native.yml',
+        )
+      }
+    })
+
+    it('keeps manual dispatch on any branch', () => {
+      expect(dispatchBlock).toBeDefined()
+    })
+
+    it('keeps main building its own matrix rather than trusting the canary', () => {
+      // A cross-workflow dedupe existed here and was withdrawn. It skipped
+      // `main`'s matrix when *any* `release-canary.yml` run existed for the
+      // SHA, which is not the same as seven successful platform builds.
+      //
+      // `7d1031e4` is the counter-example: Release Canary 43249739170 existed
+      // and was `failure`, its `native-prebuild / build (aarch64-apple-darwin)`
+      // having been `cancelled` with an empty `runner_name` and no steps.
+      // Trusting existence would have left that commit with no darwin-arm64
+      // validation while reporting green.
+      //
+      // The safe design and its proof obligations are in
+      // `docs/ci-native-matrix-dedup-rfc.md`. This test keeps the guard from
+      // coming back without them.
+      expect(native).not.toContain('dedupe-against-canary')
+      expect(native).not.toContain('canary-builds-this-commit')
+
+      // No job may be gated on another workflow's state, and the matrix must
+      // run for every trigger without a `needs:` on a conditional gate.
+      const buildJob = native.slice(native.indexOf('\n  build:\n'))
+      expect(buildJob).not.toMatch(/^ {4}needs:/m)
+      expect(buildJob).not.toMatch(/^ {4}if:/m)
+    })
+
+    it('does not query the Actions API, so it needs no extra permission', () => {
+      // The withdrawn guard called `gh api .../actions/workflows/...`. This
+      // workflow declares only `contents: read`, and every other Actions-API
+      // query in the repository declares `actions: read` explicitly
+      // (component-host-bench.yml:35, ci.yml:550, host-deployment-stage2.yml:101,
+      // release.yml:27, rc-approval.yml:44). The query failed and was swallowed
+      // by `|| echo ""`, so the optimization never ran.
+      expect(native).not.toContain('gh api')
+      expect(native).toContain('permissions:\n  contents: read')
+      expect(native).not.toContain('actions: read')
+    })
+
+    it('keeps all seven platform targets', () => {
+      const targets = [...native.matchAll(/^ {10}- target: (\S+)$/gm)].map(
+        m => m[1],
+      )
+      expect(targets).toEqual([
+        'aarch64-apple-darwin',
+        'x86_64-apple-darwin',
+        'aarch64-unknown-linux-gnu',
+        'x86_64-unknown-linux-gnu',
+        'x86_64-unknown-linux-musl',
+        'aarch64-pc-windows-msvc',
+        'x86_64-pc-windows-msvc',
+      ])
+    })
+  })
 })
