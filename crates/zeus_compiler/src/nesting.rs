@@ -166,9 +166,33 @@ pub fn exceeds_nesting_cost_with_jsx(source: &str, jsx_enabled: bool) -> bool {
         expression_expected: true,
         boundary: Boundary::None,
         exceeded: false,
+        #[cfg(test)]
+        peak: 0,
     };
 
     scanner.run()
+}
+
+/// Test-only: the highest cost the scan reached, in weight units.
+///
+/// Tests assert that this does not grow with input width, which is independent
+/// of which weight table is compiled in.
+#[cfg(test)]
+pub fn peak_nesting_cost(source: &str) -> u64 {
+    let mut scanner = Scanner {
+        bytes: source.as_bytes(),
+        index: 0,
+        frames: Vec::new(),
+        cost: 0,
+        mode: Mode::Code,
+        jsx_enabled: true,
+        expression_expected: true,
+        boundary: Boundary::None,
+        exceeded: false,
+        peak: 0,
+    };
+    scanner.run();
+    scanner.peak
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -214,6 +238,8 @@ struct Scanner<'a> {
     index: usize,
     frames: Vec<Frame>,
     cost: u64,
+    #[cfg(test)]
+    peak: u64,
     mode: Mode,
     /// TSX/JSX files may contain JSX elements; `.ts` files cannot.
     jsx_enabled: bool,
@@ -271,6 +297,10 @@ impl Scanner<'_> {
     /// exhausted.
     fn charge(&mut self, weight: u64) {
         self.cost = self.cost.saturating_add(weight);
+        #[cfg(test)]
+        {
+            self.peak = self.peak.max(self.cost);
+        }
         if self.cost > MAX_NESTING_COST {
             self.exceeded = true;
         }
@@ -571,7 +601,14 @@ impl Scanner<'_> {
                 b'<' => depth += 1,
                 b'>' if depth > 0 => depth -= 1,
                 b'>' => return false,
-                b',' | b'=' if depth == 0 => return true,
+                b',' if depth == 0 => return true,
+                // `<T = Default>` is a type parameter list, but `attr="value"`
+                // is a JSX attribute: a type parameter's default never starts
+                // with a quote. Reading `a="b"` as type parameters left the
+                // tag without its own frame, so its children accumulated.
+                b'=' if depth == 0 => {
+                    return !matches!(self.bytes.get(index + 1), Some(b'\'' | b'"'));
+                }
                 // `<T extends U>` and `<T extends { a: string }>` are type
                 // parameters, not JSX tags.
                 b'e' if depth == 0 && self.word_at(index) == Some(b"extends") => return true,
@@ -603,10 +640,21 @@ impl Scanner<'_> {
                 if self_closing {
                     self.pop_jsx_element();
                 } else {
+                    // The first child starts at the element's own cost. Without
+                    // this reset it inherits whatever the last attribute left
+                    // on the spine, so every child element of a tag carrying an
+                    // attribute value accumulated.
+                    self.start_sibling();
                     self.mode = Mode::JsxChildren;
                 }
             }
             b'{' => {
+                // Sibling attributes are siblings, exactly like `,`-separated
+                // arguments: each starts a new spine at the tag's cost. Without
+                // this every `={…}` in a file added its weight for good, so a
+                // wide component hit the budget its nesting depth never
+                // approached.
+                self.start_sibling();
                 self.push(
                     FrameKind::JsxExpression { in_tag: true },
                     W_JSX_EXPR,
@@ -629,6 +677,11 @@ impl Scanner<'_> {
     fn scan_jsx_children(&mut self) {
         match self.byte() {
             b'{' => {
+                // A child expression is a sibling of the text and elements
+                // around it, so it starts at the enclosing element's cost.
+                // Charging it on top of the previous sibling made every
+                // `{expr}` in a file accumulate; see the module docs.
+                self.start_sibling();
                 self.push(
                     FrameKind::JsxExpression { in_tag: false },
                     W_JSX_EXPR,
@@ -700,8 +753,11 @@ impl Scanner<'_> {
     fn close_brace_in_code(&mut self) {
         match self.frames.last().map(|frame| frame.kind) {
             Some(FrameKind::JsxExpression { in_tag }) => {
+                // The expression is complete. Its own cost already counted the
+                // depth it reached, and a following sibling resets the spine,
+                // so charging here would only inflate every later sibling of
+                // the enclosing element.
                 self.pop();
-                self.charge(W_JSX_EXPR);
                 self.mode = if in_tag {
                     Mode::JsxTag
                 } else {
@@ -1303,6 +1359,87 @@ mod tests {
 
         assert!(!exceeds_nesting_cost(&jsx(8_000)));
         assert!(exceeds_nesting_cost(&jsx(8_200)));
+    }
+
+    /// Width is not depth.
+    ///
+    /// Every sibling expression used to leave its weight on the enclosing
+    /// spine for good, so a wide-but-shallow component eventually reported
+    /// "Input nesting exceeds the supported limit of 506 levels" while its
+    /// real JSX depth was eight. `examples/admin/src/gallery.tsx` is such a
+    /// component and the WebAssembly compiler rejected it.
+    #[test]
+    fn sibling_expressions_do_not_accumulate() {
+        let children = |count: usize| {
+            format!(
+                "export const App = () => (\n  <main>\n{}\n  </main>\n)\n",
+                repeat("    {t('key')}\n", count)
+            )
+        };
+        let attributes = |count: usize| {
+            format!(
+                "export const App = () => (\n  <button\n{}\n  >go</button>\n)\n",
+                repeat("    title={t('key')}\n", count)
+            )
+        };
+
+        for count in [500usize, 5_000] {
+            assert!(
+                !exceeds_nesting_cost(&children(count)),
+                "{count} sibling child expressions must not read as depth"
+            );
+            assert!(
+                !exceeds_nesting_cost(&attributes(count)),
+                "{count} sibling attributes must not read as depth"
+            );
+        }
+
+        // They still add to a spine that is genuinely deep, so the guard is
+        // not merely ignoring them: the same file at a depth that is over the
+        // budget is still rejected.
+        let deep_with_siblings = format!(
+            "export const App = () => {}<b>{{t('a')}}{{t('b')}}</b>{}\n",
+            repeat("<div>", 8_400),
+            repeat("</div>", 8_400)
+        );
+        assert!(exceeds_nesting_cost(&deep_with_siblings));
+    }
+
+    /// A JSX expression's own depth still counts, however many siblings
+    /// surround it.
+    #[test]
+    fn a_deep_jsx_expression_is_still_rejected() {
+        let source = format!(
+            "export const App = () => <main>{{t('a')}}{{ {} }}{{t('b')}}</main>\n",
+            repeat("(", 900_000)
+        );
+        assert!(exceeds_nesting_cost(&source));
+    }
+
+    /// An opening tag's attributes must not leak onto its children.
+    ///
+    /// Until this was fixed, a tag with *any* attribute value left its weight
+    /// on the spine, and every following child added to it: a page of ordinary
+    /// markup was rejected for a nesting depth it never had. The assertion is
+    /// scale-free on purpose — the two weight tables differ by two orders of
+    /// magnitude, so a fixed count would only test one of them.
+    #[test]
+    fn attributes_do_not_leak_onto_children() {
+        let peak = |count: usize| {
+            let source = format!(
+                "export const A = () => (\n  <section a=\"b\">\n{}\n  </section>\n)\n",
+                repeat("<i class=\"x\">y</i>\n", count)
+            );
+            super::peak_nesting_cost(&source)
+        };
+
+        let one = peak(1);
+        assert_eq!(peak(200), one, "children accumulated onto the parent spine");
+        assert_eq!(
+            peak(2_000),
+            one,
+            "children accumulated onto the parent spine"
+        );
     }
 
     #[test]
