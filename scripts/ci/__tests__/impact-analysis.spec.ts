@@ -13,6 +13,7 @@ import {
   JOB_NEEDS,
   parseNameStatus,
   planJobs,
+  requiresFullRun,
   type Plan,
 } from '../impact-analysis'
 
@@ -108,6 +109,31 @@ describe('classifyChanges — named scenarios', () => {
 })
 
 describe('classifyChanges — failure modes', () => {
+  it('treats a toolchain file as a full-suite change', () => {
+    // `.nvmrc` selects the Node version every job runs on. It used to match
+    // the `^\.[a-z]+rc$` lint rule and land on `tooling`, which skips
+    // rust-compiler and still runs the browser gates — the wrong direction.
+    // The verification matrix found it; this test keeps it fixed.
+    for (const file of ['.nvmrc', '.babelrc', '.swcrc', 'babel.config.cjs']) {
+      const result = classifyChanges({ changedFiles: [file] })
+      expect(result.areas, file).toContain('shared-infrastructure')
+      expect(result.fullSuite, file).toBe(true)
+    }
+  })
+
+  it('still classifies lint configuration as tooling, not full suite', () => {
+    for (const file of [
+      '.eslintrc.json',
+      '.prettierrc.json',
+      '.prettierignore',
+      'eslint.config.js',
+    ]) {
+      const result = classifyChanges({ changedFiles: [file] })
+      expect(result.areas, file).toContain('tooling')
+      expect(result.fullSuite, file).toBe(false)
+    }
+  })
+
   it('an unrecognised path escalates rather than guessing', () => {
     const result = classifyChanges({
       changedFiles: ['some-new-directory/thing.txt'],
@@ -189,11 +215,27 @@ describe('planJobs', () => {
     for (const job of plan.jobs) expect(job.reason).toBe('full run')
   })
 
-  it('runs rust-compiler only when the compiler or native areas changed', () => {
-    expect(running(planFor(['examples/admin/src/pages.tsx']))).not.toContain(
+  it('runs rust-compiler when the compiler, native or parity corpus changed', () => {
+    expect(running(planFor(['crates/x/src/lib.rs']))).toContain('rust-compiler')
+
+    // The parity test compiles every `.tsx` in these trees with both
+    // compilers, so an example can break it without any Rust change. It did:
+    // #250 shipped `gallery.tsx` with `rust-compiler` skipped and main went
+    // red on the first full run.
+    for (const file of [
+      'examples/admin/src/pages.tsx',
+      'examples/playground-editor/src/App.tsx',
+      'benchmarks/rendering/list.tsx',
+      'scripts/playground/fixtures/counter.tsx',
+    ]) {
+      expect(running(planFor([file])), file).toContain('rust-compiler')
+    }
+  })
+
+  it('does not run rust-compiler for a docs-only change', () => {
+    expect(running(planFor(['docs/guide/state.md']))).not.toContain(
       'rust-compiler',
     )
-    expect(running(planFor(['crates/x/src/lib.rs']))).toContain('rust-compiler')
   })
 
   it('runs every code job when the lockfile changes', () => {
@@ -249,5 +291,33 @@ describe('parseNameStatus', () => {
 
   it('marks a truncated diff incomplete', () => {
     expect(parseNameStatus('M\ta.ts', true).incomplete).toBe(true)
+  })
+})
+
+describe('requiresFullRun', () => {
+  it('analyses only pull requests narrowly', () => {
+    expect(requiresFullRun({ event: 'pull_request' })).toBe(false)
+  })
+
+  it('runs everything on push, dispatch and every unknown event', () => {
+    for (const event of [
+      'push',
+      'workflow_dispatch',
+      // Events this file has never reasoned about. The negated form of this
+      // check ("not push, not dispatch") used to give all of these the narrow
+      // path by accident.
+      'merge_group',
+      'schedule',
+      'release',
+      'repository_dispatch',
+      'workflow_run',
+      '',
+    ]) {
+      expect(requiresFullRun({ event }), `${event || '(empty)'}`).toBe(true)
+    }
+  })
+
+  it('honours an explicit override from the caller', () => {
+    expect(requiresFullRun({ event: 'pull_request', forced: true })).toBe(true)
   })
 })
