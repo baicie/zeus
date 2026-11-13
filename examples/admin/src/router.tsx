@@ -26,8 +26,10 @@ import { ErrorPage } from './pages/error'
  * Each loader returns only `element`; the `loader` and `errorElement` on the
  * route stay static, so data loading and permission checks keep their current
  * timing and a rejected lazy chunk lands in the same boundary as before.
+ *
+ * The component gallery is small and shares no data, so it loads lazily like
+ * every other page rather than inflating the first chunk.
  */
-
 import { AdminShell } from './shell/shell'
 import {
   adminSummaryQueryKey,
@@ -122,6 +124,14 @@ export function createAdminRouter(options: AdminRouterOptions): ZeusRouter {
               },
               lazy: async () => ({
                 element: (await import('./pages/roles')).RolesPage,
+              }),
+              errorElement: () => <ErrorPage />,
+            },
+            {
+              id: 'components',
+              path: 'components',
+              lazy: async () => ({
+                element: (await import('./gallery')).ComponentsPage,
               }),
               errorElement: () => <ErrorPage />,
             },

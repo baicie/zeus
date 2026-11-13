@@ -39,6 +39,25 @@ import { changePersonalLocale, i18n, t, type Locale } from '../i18n'
 import { useSession } from '../session'
 import { OutcomeBadge, errorMessage } from './shared'
 
+/**
+ * Audit timestamps follow the page's language.
+ *
+ * They used to be formatted with a hard-coded `'zh-CN'`, so an English console
+ * showed Chinese dates — a visible i18n leak in exactly the page a reviewer
+ * opens to check who did what.
+ */
+function formatAuditTime(iso: string, locale: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return iso
+  return date.toLocaleString(locale, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 export function AuditPage() {
   const [page, setPage] = createSignal(1)
   const [auditError, setAuditError] = createSignal('')
@@ -112,7 +131,7 @@ export function AuditPage() {
                   {event => (
                     <tr>
                       <td class="audit-time">
-                        {new Date(event.created_at).toLocaleString('zh-CN')}
+                        {formatAuditTime(event.created_at, i18n.locale())}
                       </td>
                       <td>
                         <span class="audit-action">{event.action}</span>
