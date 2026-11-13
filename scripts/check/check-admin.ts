@@ -628,6 +628,48 @@ for (const [name, engine] of selectedBrowsers) {
       'Operations Console',
     )
 
+    /*
+     * Language: switching relabels the console live, and the choice survives a
+     * reload. Both halves matter and they can fail separately — a switch that
+     * re-renders nothing leaves the page half-translated, and a switch that is
+     * not stored reverts the moment the page loads again. The personal
+     * preference is per account in `localStorage`, so the reload is the real
+     * test of it.
+     */
+    const copyBefore = await page.getByTestId('settings-page').innerText()
+    expect(
+      /[\u4e00-\u9fff]/.test(copyBefore),
+      'the console starts in English, so the switch below is measurable',
+    ).toBe(false)
+    await page.getByTestId('personal-locale').selectOption('zh-CN')
+    // Wait for the copy to actually change, rather than reading immediately: a
+    // switch that does nothing would otherwise pass on whatever was there.
+    const settingsPage = page
+    await expect
+      .poll(
+        () =>
+          settingsPage
+            .getByTestId('settings-page')
+            .innerText()
+            .then(text => /[\u4e00-\u9fff]/.test(text)),
+        { message: 'switching to zh-CN must render Chinese copy' },
+      )
+      .toBe(true)
+
+    await page.reload()
+    await expect(page.getByTestId('settings-page')).toBeVisible()
+    expect(
+      /[\u4e00-\u9fff]/.test(
+        await page.getByTestId('settings-page').innerText(),
+      ),
+      'the language choice must survive a reload',
+    ).toBe(true)
+
+    // Put the console back to English for the assertions that follow, which
+    // read English copy.
+    await page.getByTestId('personal-locale').selectOption('en')
+    await expect(page.getByTestId('personal-locale')).toHaveValue('en')
+
     // The gate asserts English copy, so the browser must ask for English:
     // without this the console follows `navigator.languages`, and a runner
     // with a Chinese locale would see 登录 where the gate expects "Sign in".
