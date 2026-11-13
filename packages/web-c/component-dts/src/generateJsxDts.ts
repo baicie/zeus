@@ -98,7 +98,12 @@ function generateComponentJsxProps(component: ComponentRecord): string {
     role: 'string',
     part: 'string',
     slot: 'string',
-    ref: 'import("@zeus-js/runtime-dom").RefTarget<HTMLElement>',
+    // Written inline rather than as `RefTarget` from another package: these
+    // declarations are consumed by projects that do not depend on
+    // `@zeus-js/runtime-dom`, and a generated file that imports it does not
+    // resolve for them. The shape is what the compiler accepts — a callback
+    // receiving the element — and it is the same shape `RefTarget` describes.
+    ref: '((element: HTMLElement | null) => void) | null',
   }
   for (const [name, type] of Object.entries(commonProps)) {
     // Component schemas can refine common attributes, including requiredness.
