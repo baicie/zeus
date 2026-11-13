@@ -168,10 +168,11 @@ Playwright 的 50s 里：**apt 依赖 41.4s，浏览器下载仅 8.6s**。这决
 | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | 3A 重命名后 CI              | **success**（[43272772347](https://github.com/baicie/zeus/actions/runs/43272772347)）                                                          |
 | 3A Native Matrix 七平台     | 7/7 构建，PR run 只有 1 套（MEASURED）                                                                                                         |
-| 3B `browser-web-components` | success（194s）                                                                                                                                |
-| 3B `browser-playground`     | success（245s）                                                                                                                                |
-| 3B `packed-consumers`       | **failure** —— `check:admin` chromium 空 PATCH（见下）                                                                                         |
-| 3B `ci-gate`                | failure（因上一行，**判定正确**）                                                                                                              |
+| 3B `browser-web-components` | success（195s，attempt 2）                                                                                                                     |
+| 3B `browser-playground`     | success（231s，attempt 2）                                                                                                                     |
+| 3B 首跑 `packed-consumers`  | **failure** —— `check:admin` chromium 空 PATCH（见下）                                                                                         |
+| 3B 首跑 `ci-gate`           | failure（因上一行，**判定正确**）                                                                                                              |
+| 3B 重跑（attempt 2）        | 全部 11 个 Job **success**，含 `check:admin` 与 `ci-gate`                                                                                      |
 | 3C CI                       | 运行中 / 见 PR                                                                                                                                 |
 | 3D CI                       | success（[43258225442](https://github.com/baicie/zeus/actions/runs/43258225442)）                                                              |
 | `ci-gate` 逻辑              | 56 个单测通过；docs-only 真实 run 43200924859 六 Job skip + gate success                                                                       |
