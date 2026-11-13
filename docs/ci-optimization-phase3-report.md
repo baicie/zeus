@@ -127,7 +127,7 @@ Playwright 的 50s 里：**apt 依赖 41.4s，浏览器下载仅 8.6s**。这决
 | 原 `packed-consumers` | 403s |            235s |     −41.7% |
 | 三个浏览器 Job 的极差 |    — | 195–235s（40s） |   相对均衡 |
 
-**Runner 分钟代价（MEASURED，attempt 2 的 11 个 Job）**：约 1565s ≈ **26.1 runner min**，基线同口径为 23.2（run 43246592042）。**+2.9 runner min**，与 MODELLED 的 +3.3 相符。
+**Runner 分钟代价（MEASURED，attempt 2 的 11 个 Job）**：约 1553s ≈ **25.9 runner min**，基线同口径为 23.2（run 43246592042）。**+2.7 runner min**（25.9 vs 23.2），与 MODELLED 的 +3.3 同量级。
 
 ### 3.3 PR 全量 CI 墙钟
 
@@ -221,5 +221,6 @@ Playwright 的 50s 里：**apt 依赖 41.4s，浏览器下载仅 8.6s**。这决
 
 - 3C 场景 2–10 未做端到端（本分支改 `.github/**` 必然全量）。
 - Firefox / WebKit 的字节与 timing 未单独采，只在 Chromium 上测；分包图与引擎无关，timing 有关。
-- `pnpm size:report:ci`、`pnpm lint` / `format-check` / `check` 的全仓版本未在本机完整复跑（只跑了改动文件与 `tsc --noEmit`）。
+- **全仓门禁已在本地补跑**：`pnpm lint`、`pnpm check` 通过；`pnpm format-check` 报 5 个文件，全部位于 `.claude/worktrees/<另一个会话>/` —— 该目录只在本地 `.git/info/exclude` 里排除，prettier 看不到，CI 中也不存在。**本轮改动的文件逐一通过 prettier 检查**。若这类 worktree 常见，应把 `.claude` 加入 `.prettierignore`；本轮不擅自扩大范围。
+- `pnpm size:report:ci` 未在本地复跑（它需要完整构建全部包，且已在 `build` Job 中由 CI 执行）。
 - 三个 PR 均未合并、未发布、未部署。
