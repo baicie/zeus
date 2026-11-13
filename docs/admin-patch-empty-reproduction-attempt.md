@@ -50,19 +50,29 @@ dispose() {
 
 ## 2. 真正观测到的异常：每次按键重建整个子树
 
-同一个探针给 `#user-email` 计数（`MutationObserver` + `WeakSet`，节点对象首次出现即 +1）：
+同一个探针给 `#user-email` 计数。
 
-| 时刻         | 值                          | `seeded` | 元素对象被替换次数 |
-| ------------ | --------------------------- | -------- | -----------------: |
-| 打开编辑器   | `ada@example.test`          | `true`   |                  1 |
-| 按一次 `r`   | `ada@example.testr`         | `true`   |              **5** |
-| 按 `e`       | `ada@example.testre`        | `true`   |              **9** |
-| 按 `o`       | `ada@example.testreo`       | `true`   |             **13** |
-| `.fill()` 后 | `reopen.probe@example.test` | `true`   |             **17** |
+> **更正（2026-11-13）。** 下面这张表原本标为"元素对象被替换次数"，但它当时**不是**
+> 节点计数：探针在 `MutationObserver` 回调里只要当前元素不属于初始 WeakSet 就 `+1`，
+> 却从不把该元素记进集合。一次按键会触发多批 mutation 记录，于是同一个元素被重复计数。
+> 修正后的探针（每个元素先 `seen.add` 再计数）在**修复前后都得到 1**：每个按键期间
+> `#user-email` 一次都没被替换。真正的缺陷不是"重建 4 次"，而是**是否重建**——
+> 修复前的逐字符输入会让字段变成 `ada@example.testa`，前 15 次击键连同落到的节点一起
+> 被丢弃；这一点由 `check-admin.ts` 的 MutationObserver 断言稳定复现。
+> 表格保留为历史记录，但"4 次"这个数字不可引用。
 
-每按一个键，节点被替换 4 次。`<Show when={editing()}>` 的 `editing` 在输入期间不变，所以重建来自 `Show` 内部——`prop:open={editing()}` 所在的 `zw-dialog` 子树。
+| 时刻         | 值                          | `seeded` | 计数（**错误**，见上） |
+| ------------ | --------------------------- | -------- | ---------------------: |
+| 打开编辑器   | `ada@example.test`          | `true`   |                      1 |
+| 按一次 `r`   | `ada@example.testr`         | `true`   |                  **5** |
+| 按 `e`       | `ada@example.testre`        | `true`   |                  **9** |
+| 按 `o`       | `ada@example.testreo`       | `true`   |                 **13** |
+| `.fill()` 后 | `reopen.probe@example.test` | `true`   |                 **17** |
 
-**值没有丢**，因为每次重建时 `draft()` 已经包含最新字符（`onInput` 先写回）。这就是为什么今天保存正确：**是 `onInput` 写回在兜底，不是 `seedValue`。**
+原结论"每按一个键节点被替换 4 次"因此不成立；可靠的结论是**逐字符输入会让用户文本丢失**，
+而修复后不再丢失。
+
+**值没有丢**（在 `.fill()` 那条路径上），因为每次重建时 `draft()` 已经包含最新字符（`onInput` 先写回）。这也是为什么 `fill()` 测不出问题：它只派发一次 input 事件。逐字符输入才暴露——前 15 个字符连同它们落到的节点一起消失。
 
 ## 3. 为什么这仍然危险（CI 为什么会红）
 
