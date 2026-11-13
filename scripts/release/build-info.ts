@@ -82,7 +82,16 @@ export function collectArtifactFiles(
     }
   }
   walk(distDir, '')
-  return files.sort((left, right) => left.path.localeCompare(right.path))
+  /*
+   * Byte order, not `localeCompare`. The digest is over this sequence, and
+   * `localeCompare` resolves according to the host's locale — two machines with
+   * different `LANG` would order `a-b.js` and `a/b.js` differently and compute
+   * different digests for the same tree. A digest that depends on who ran it
+   * cannot bind an artifact.
+   */
+  return files.sort((left, right) =>
+    left.path < right.path ? -1 : left.path > right.path ? 1 : 0,
+  )
 }
 
 export function computeArtifactDigest(files: readonly BuildInfoFile[]): string {
