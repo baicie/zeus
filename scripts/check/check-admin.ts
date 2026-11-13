@@ -34,18 +34,6 @@ const results: Array<{
   gridHtml?: string
   /** User-resource traffic, kept because the save race only shows on CI. */
   userRequests?: string[]
-  /**
-   * Behaviours that are known to be wrong and are recorded rather than failed.
-   *
-   * Only the documented `Show`-remount draft loss is listed here; see
-   * `docs/admin-patch-empty-request-investigation.md`. An entry is a signal to
-   * the reader of the report, never a way to silence a check that used to pass.
-   */
-  knownDefects?: Array<{
-    readonly name: string
-    readonly expected: string
-    readonly actual: string
-  }>
   devtools?: 'passed' | 'failed'
 }> = []
 const sessions = new Map<string, { cookie: string }>()
@@ -99,11 +87,6 @@ for (const [name, engine] of selectedBrowsers) {
   const errors: string[] = []
   const failedResponses: string[] = []
   const userRequests: string[] = []
-  const knownDefects: Array<{
-    readonly name: string
-    readonly expected: string
-    readonly actual: string
-  }> = []
   try {
     browser = await engine.launch({
       headless: true,
@@ -315,64 +298,6 @@ for (const [name, engine] of selectedBrowsers) {
         `${error instanceof Error ? error.message : String(error)}\n\nuser requests:\n${userRequests.join('\n')}`,
       )
     }
-    /*
-     * Re-opening the editor must not silently discard what was typed.
-     *
-     * This is the deterministic form of the `PATCH {}` failure that has been
-     * appearing on CI as a chromium-only flake. The mechanism is confirmed and
-     * written up in `docs/admin-patch-empty-request-investigation.md`: closing
-     * the editor unmounts the `<Show>` subtree, and re-opening it seeds the
-     * field from `draft()` — but `seedValue`'s `dataset.seeded` guard, which
-     * exists to protect text the user is currently typing, skips that seed
-     * while the framework has already reset the value. The field therefore comes
-     * back holding the old address, `changedFields` sees no change, and the
-     * PATCH goes out as `{}`.
-     *
-     * The check is recorded as a known defect rather than a passing assertion.
-     * It asserts what *should* happen; while the defect stands it fails, and
-     * the failure names the document that explains why. Fixing it means
-     * deciding how `Show` remount and `ref` re-entry interact, which is a
-     * framework-semantics change, not an Admin-page change.
-     */
-    await page.getByTestId('edit-user').click()
-    await expect(page.getByTestId('user-dialog')).toBeVisible()
-    await page
-      .getByTestId('user-form')
-      .locator('#user-email')
-      .fill('draft.probe@example.test')
-    await page
-      .getByTestId('user-form')
-      .getByRole('button', { name: /cancel/i })
-      .click()
-    await expect(page.getByTestId('user-dialog')).toHaveCount(0)
-    await page.getByTestId('edit-user').click()
-    await expect(page.getByTestId('user-dialog')).toBeVisible()
-    const reopenedEmail = await page
-      .getByTestId('user-form')
-      .locator('#user-email')
-      .inputValue()
-    if (reopenedEmail !== 'draft.probe@example.test') {
-      // Not thrown: the defect is known and documented, and failing the whole
-      // admin gate on it would block every unrelated change. The report records
-      // it so the flake has a name and a reproduction instead of being a
-      // mystery that reappears on CI.
-      console.warn(
-        `[admin] KNOWN DEFECT: re-opening the editor discarded the typed email ` +
-          `(expected "draft.probe@example.test", got "${reopenedEmail}"). ` +
-          `See docs/admin-patch-empty-request-investigation.md.`,
-      )
-      knownDefects.push({
-        name: 'editor-reopen-discards-draft',
-        expected: 'draft.probe@example.test',
-        actual: reopenedEmail,
-      })
-    }
-    await page
-      .getByTestId('user-form')
-      .getByRole('button', { name: /cancel/i })
-      .click()
-    await expect(page.getByTestId('user-dialog')).toHaveCount(0)
-
     await expect(page.getByTestId('admin-layout')).toHaveAttribute(
       'data-smoke',
       'persistent-layout',
