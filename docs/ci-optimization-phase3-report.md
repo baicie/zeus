@@ -73,14 +73,14 @@ Playwright 的 50s 里：**apt 依赖 41.4s，浏览器下载仅 8.6s**。这决
 
 ### PR [#253](https://github.com/baicie/zeus/pull/253) — impact 可靠性（Phase 3C）
 
-| 项     | 内容                                                                                                                                                                                  |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 文件   | `.github/workflows/ci.yml`、`scripts/ci/impact-analysis.ts`、`scripts/ci/__tests__/impact-analysis.spec.ts`、`docs/ci-optimization-phase3c.md`                                        |
-| 改动 1 | `impact` 上传 `impact-plan` artifact（`if: always()`）。此前计划只渲染进 `$GITHUB_STEP_SUMMARY`，而该 summary **无法通过 API 读取**，所以"impact 决定了什么"没有任何可审计记录        |
-| 改动 2 | 部分分析改为事件白名单（仅 `pull_request`）。原写法是"非 push 且非 dispatch"，于是 `merge_group` / `schedule` / `release` / `repository_dispatch` / `workflow_run` 全部默认拿到窄路径 |
-| 改动 3 | **真实 fail-open**：`^\.[a-z]+rc$` 匹配 `.nvmrc`，Node 版本变更被归为 `tooling` —— 不跑 `rust-compiler`，浏览器 gate 照跑。新增工具链规则置于其前                                     |
-| 风险   | 低；三条都是收紧默认值                                                                                                                                                                |
-| 回滚   | 删除 artifact 步骤、删除工具链规则、`requiresFullRun` 还原为内联表达式                                                                                                                |
+| 项     | 内容                                                                                                                                                                                                                                                                                                         |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 文件   | `.github/workflows/ci.yml`、`scripts/ci/impact-analysis.ts`、`scripts/ci/__tests__/impact-analysis.spec.ts`、`docs/ci-optimization-phase3c.md`                                                                                                                                                               |
+| 改动 1 | `impact` 上传 `impact-plan` artifact（`if: always()`）。此前计划只渲染进 `$GITHUB_STEP_SUMMARY`，而该 summary **无法通过 API 读取**，所以"impact 决定了什么"没有任何可审计记录。**已在真实 run 43343499297 验证**：artifact 624 B，含逐 job 的 `run` / `reason`，并如实记录该分支因 `.github/**` 而 escalate |
+| 改动 2 | 部分分析改为事件白名单（仅 `pull_request`）。原写法是"非 push 且非 dispatch"，于是 `merge_group` / `schedule` / `release` / `repository_dispatch` / `workflow_run` 全部默认拿到窄路径                                                                                                                        |
+| 改动 3 | **真实 fail-open**：`^\.[a-z]+rc$` 匹配 `.nvmrc`，Node 版本变更被归为 `tooling` —— 不跑 `rust-compiler`，浏览器 gate 照跑。新增工具链规则置于其前                                                                                                                                                            |
+| 风险   | 低；三条都是收紧默认值                                                                                                                                                                                                                                                                                       |
+| 回滚   | 删除 artifact 步骤、删除工具链规则、`requiresFullRun` 还原为内联表达式                                                                                                                                                                                                                                       |
 
 ### PR [#249](https://github.com/baicie/zeus/pull/249) — Admin 首屏验收（Phase 3D）
 
