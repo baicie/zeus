@@ -77,6 +77,18 @@ function generateComponentJsxProps(component: ComponentRecord): string {
   }
 
   lines.push('')
+  /*
+   * Props every Zeus element accepts, whatever its own schema says.
+   *
+   * `ref` belongs here for the same reason `class` does: it is a binding the
+   * compiler understands on any element, not a property of one component. It
+   * was missing until R6-C, which meant every `ref={...}` on a `zw-*` element
+   * was a type error — invisible as long as no consumer ran `tsc` over those
+   * call sites, and a blocker the moment one did.
+   *
+   * The type is Zeus's own `RefTarget`, resolved through the JSX runtime rather
+   * than restated here, so it cannot drift from what the compiler accepts.
+   */
   const commonProps = {
     children: 'unknown',
     class: 'string',
@@ -86,6 +98,7 @@ function generateComponentJsxProps(component: ComponentRecord): string {
     role: 'string',
     part: 'string',
     slot: 'string',
+    ref: 'import("@zeus-js/runtime-dom").RefTarget<HTMLElement>',
   }
   for (const [name, type] of Object.entries(commonProps)) {
     // Component schemas can refine common attributes, including requiredness.

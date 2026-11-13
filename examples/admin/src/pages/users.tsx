@@ -16,6 +16,8 @@ import {
 import type { DataGridElement } from '@zeus-web/data-grid/wc'
 import type { InputElement } from '@zeus-web/input/wc'
 
+import { withProp, withRef } from '../zw-jsx'
+
 import {
   adminSummaryQueryKey,
   adminUserQueryKey,
@@ -225,8 +227,8 @@ export function UsersPage() {
             id="user-search"
             aria-label={t('users.searchLabel')}
             placeholder={t('users.searchPlaceholder')}
-            prop:value={search()}
-            ref={bindSearchInput}
+            value={search()}
+            {...withRef<InputElement>(bindSearchInput)}
             data-testid="user-search"
             class="users-search"
           />
@@ -235,7 +237,7 @@ export function UsersPage() {
             class="select users-filter"
             aria-label={t('users.filterLabel')}
             data-testid="user-status"
-            prop:onchange={updateStatus}
+            onChange={updateStatus}
           >
             <option value="all">{t('users.statusFilter')}</option>
             <option value="active">{t('users.statusActive')}</option>
@@ -283,7 +285,7 @@ export function UsersPage() {
           aria-label={t('users.membersLabel')}
           selection-mode="single"
           row-height="48"
-          prop:columns={[
+          {...withProp('columns', [
             {
               id: 'name',
               header: t('users.colName'),
@@ -319,9 +321,9 @@ export function UsersPage() {
               width: 64,
               align: 'end' as const,
             },
-          ]}
-          prop:selectedKeys={[...selectedKeys()]}
-          ref={bindGrid}
+          ])}
+          {...withProp('selectedKeys', [...selectedKeys()])}
+          {...withRef<DataGridElement>(bindGrid)}
         />
       </div>
 
@@ -527,7 +529,7 @@ function InviteUserDialog(props: {
               class="input"
               required
               minlength={2}
-              prop:value={name()}
+              value={name()}
               onInput={(event: Event) =>
                 setName((event.currentTarget as HTMLInputElement).value)
               }
@@ -542,7 +544,7 @@ function InviteUserDialog(props: {
               class="input"
               type="email"
               required
-              prop:value={email()}
+              value={email()}
               onInput={(event: Event) =>
                 setEmail((event.currentTarget as HTMLInputElement).value)
               }
@@ -557,7 +559,7 @@ function InviteUserDialog(props: {
                 id="invite-team"
                 class="input"
                 required
-                prop:value={team()}
+                value={team()}
                 onInput={(event: Event) =>
                   setTeam((event.currentTarget as HTMLInputElement).value)
                 }

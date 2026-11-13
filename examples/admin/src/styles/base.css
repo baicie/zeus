@@ -920,7 +920,16 @@ zw-dialog[data-state='open'] {
   background: rgb(0 0 0 / 0.5);
 }
 
-zw-dialog[data-state='closed'],
+/*
+ * Only the *content* is hidden while closed. Hiding `zw-dialog` itself was a
+ * bug: the trigger lives inside the dialog element, so `display: none` on the
+ * root removed the very button that opens it. The dialog then could not be
+ * opened at all — the gallery found it because a person cannot click a 0×0
+ * element.
+ *
+ * `zw-dialog[data-state='open']` above restores the fixed backdrop when open,
+ * and that rule wins on specificity for the open case.
+ */
 zw-dialog-content[data-state='closed'] {
   display: none;
 }
