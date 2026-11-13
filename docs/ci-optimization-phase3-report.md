@@ -104,27 +104,40 @@ Playwright 的 50s 里：**apt 依赖 41.4s，浏览器下载仅 8.6s**。这决
 | feature 分支每个提交    | 2 套 7 平台矩阵（约 9.5 + 10.6 runner min） | **1 套**               |
 | PR run 43252159090 实测 | —                                           | 1 个 Native Matrix run |
 
-### 3.2 packed-consumers 最长 Job（MEASURED + MODELLED）
+### 3.2 packed-consumers 最长 Job（MEASURED）
 
-| 指标               | 当前 | 3B 实测                                                  |
-| ------------------ | ---- | -------------------------------------------------------- |
-| `packed-consumers` | 403s | 240s（拆分后完整 run：见下）                             |
-| 最长 Job           | 403s | **231s**（`browser-playground`）                         |
-| 新增 Job           | —    | `browser-web-components` 194s、`browser-playground` 231s |
+3B 重跑（run [43258160559 attempt 2](https://github.com/baicie/zeus/actions/runs/43258160559)，全部 Job 通过）：
 
-run 43256102857 的实测：`packed-consumers` 240s、`browser-web-components` 194s、`browser-playground` 245s，三者并行。**最长 Job 从 403s 降到 ~245s（−39%）**。
+| Job                                |     耗时 |
+| ---------------------------------- | -------: |
+| `packed-consumers`                 | **235s** |
+| `browser-playground`               |     231s |
+| `browser-web-components`           |     195s |
+| `create-zeus-candidates (windows)` |     233s |
+| `build`                            |     145s |
+| `rust-compiler`                    |     137s |
+| `test`                             |     131s |
+| `create-zeus-candidates (ubuntu)`  |     123s |
+| `lint-and-check`                   |      63s |
+| `docs-build`                       |      36s |
 
-**Runner 分钟代价（MODELLED）**：三份 104s 预热使该子树从 6.8 增至 10.2 runner min，全 run 从 23.2 增至约 26.5。这是为墙钟付的价，已在 `docs/ci-optimization-phase3b.md` 的候选对比里列明（A′ 单 Job 只能到 373s；C 双 Job 264s / 24.8 min）。
+| 指标                  | 基线 |              3B |       变化 |
+| --------------------- | ---: | --------------: | ---------: |
+| 最长 Job              | 403s |        **235s** | **−41.7%** |
+| 原 `packed-consumers` | 403s |            235s |     −41.7% |
+| 三个浏览器 Job 的极差 |    — | 195–235s（40s） |   相对均衡 |
+
+**Runner 分钟代价（MEASURED，attempt 2 的 11 个 Job）**：约 1565s ≈ **26.1 runner min**，基线同口径为 23.2（run 43246592042）。**+2.9 runner min**，与 MODELLED 的 +3.3 相符。
 
 ### 3.3 PR 全量 CI 墙钟
 
-| 来源                    | 数值                  | 标注                                                                            |
-| ----------------------- | --------------------- | ------------------------------------------------------------------------------- |
-| 基线（run 43246592042） | 618s（10.3 min）      | MEASURED                                                                        |
-| 3B 模型预测             | 457s                  | MODELLED                                                                        |
-| 3B run 43256102857 实际 | 413s created→last end | MEASURED（但 `packed-consumers` 在 admin 步骤失败，路径提前结束，不可直接对比） |
+| 来源                    | 数值             | 标注                                     |
+| ----------------------- | ---------------- | ---------------------------------------- |
+| 基线（run 43246592042） | 618s（10.3 min） | MEASURED                                 |
+| 3B attempt 2            | 见下             | MEASURED（含一次 rerun，排队时间不可比） |
+| 3B 模型预测             | 457s             | MODELLED                                 |
 
-**结论：20% 墙钟目标的证据尚不完整。** 拆分本身把最长 Job 降低了 39%，这足以支撑目标，但需要一次**无失败**的完整 run 才能给出可比的墙钟数字。当前不能声称达标。
+**结论：20% 墙钟目标仍缺可比证据。** 最长 Job 已降 41.7%，这是关键路径改善的直接证据；但 attempt 2 是隔夜 rerun，GitHub 排队延迟与首跑不可比，因此不能用它的 created→last-end 断言墙钟改善幅度。要给出该数字，需要一次正常的、无失败的完整 run。
 
 ### 3.4 Admin 首屏（MEASURED）
 
@@ -167,13 +180,13 @@ run 43256102857 的实测：`packed-consumers` 240s、`browser-web-components` 1
 | actionlint                  | `ci.yml`、`compiler-native.yml` 均 clean                                                                                                       |
 | 本机浏览器验收              | a11y / form-associated / runtime-cleanup / DevTools / Playground smoke / Playground UX / theme-i18n(122/122) / Next.js boundary，三引擎全 PASS |
 
-### 3B 的失败是既有缺陷，不是拆分引入
+### 3B 首跑的失败是既有缺陷，不是拆分引入
 
 `check:admin` 在 chromium 上发出 `PATCH /api/users/ada {}` 空 body，导致邮箱断言失败；firefox / webkit 同 run 通过。这与 `docs/admin-patch-race-investigation.md`（另一会话，PR #252）根因定位的现象一致：`seedValue` 的 `dataset.seeded` 守卫在 `<Show>` 卸载重挂后阻止重播种，DOM 值回退成旧值，`changedFields` 返回 `{}`。
 
 判断依据：该缺陷有 100% 确定性复现路径（打开编辑 → 输入 → Cancel → 重开 → Save），与我的 CI 拆分无因果关系；`packed-consumers` 里的 `check:admin` 步骤本身未被我改动（我只删了 playground 的重复 build）。
 
-**这不因重跑而消失**，重跑只能说明概率。修复需要框架层 `Show` / `ref` 语义决策（见 PR #252），不在本轮范围。
+**重跑已通过**（attempt 2 的 `check:admin` success），这恰好证实了判断：它是概率性出现的确定性缺陷，重跑只降低复现概率、不修复它。修复需要框架层 `Show` / `ref` 语义决策（见 PR #252），不在本轮范围。
 
 ---
 
@@ -182,7 +195,7 @@ run 43256102857 的实测：`packed-consumers` 240s、`browser-web-components` 1
 ### 5.1 阻断项
 
 1. **`check:admin` 空 PATCH 是真实产品缺陷**，不是 flake。它会周期性把 `packed-consumers` 判红。修复需在 `Show` 卸载重挂时明确"元素复用 vs 新建"与幂等初始化键（PR #252 有完整分析）。
-2. **3B 缺一次无失败的完整 run** 来给出可比墙钟数字。当前只能声称最长 Job −39%。
+2. **3B 缺一次正常排队下的无失败 run** 来给出可比墙钟数字。attempt 2 全绿，但它是隔夜 rerun，排队不可比；当前只能声称最长 Job −41.7%（MEASURED）。
 
 ### 5.2 未做的优化及理由
 
