@@ -445,6 +445,19 @@ export function verifyDemoPairing(
         )
       }
       const metadata = readDemoMetadata(site, raw.product)
+      /*
+       * The schema is part of the contract, not decoration: the demo apps
+       * refuse a recording whose schema they do not recognise (`isAdminDemoSnapshot`,
+       * `isAiDemoRecording`), so a manifest that blesses an unknown one describes
+       * a site nobody can use. `createDemoPairing` checks it; verification has
+       * to as well, or a hand-edited site passes `--verify` and breaks in the
+       * browser.
+       */
+      if (metadata.schema !== DEMO_PRODUCTS[raw.product].schema) {
+        errors.push(
+          `demo ${raw.product}: metadata schema ${String(metadata.schema)} != ${DEMO_PRODUCTS[raw.product].schema}`,
+        )
+      }
       if (metadata.digest !== raw.metadata.digest) {
         errors.push(
           `demo ${raw.product}: metadata digest ${metadata.digest} does not match manifest ${raw.metadata.digest}`,

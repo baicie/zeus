@@ -403,6 +403,25 @@ describe('demo pairing', () => {
     )
   })
 
+  it('rejects metadata whose schema the demo app would refuse to load', () => {
+    // `--verify` used to check only the digest and the commits, so a site whose
+    // recording carried an unknown schema passed while the browser refused it.
+    const root = site()
+    const record = pairing(root)
+    writeDemoPairing(record, root)
+    writeFileSync(
+      path.join(root, 'ai/ai-demo-recording.json'),
+      `${JSON.stringify({ schema: 'zeus.ai-demo/v0', uiCommit: UI, coreCommit: CORE, events: [] })}\n`,
+    )
+
+    const errors = verifyDemoPairing(record, {}, root)
+    expect(
+      errors.some(error =>
+        error.startsWith('demo ai: metadata schema zeus.ai-demo/v0'),
+      ),
+    ).toBe(true)
+  })
+
   it('writes the manifest at the site root so it is published with the site', () => {
     const root = site()
     const output = writeDemoPairing(pairing(root), root)
