@@ -97,3 +97,26 @@ pnpm exec vitest --run examples/admin/server/__tests__
 - 画廊独立成 `src/gallery.tsx`，路由同样走 `lazy: async () => ({ element })`，不增加首屏 chunk。
 
 合入后重新构建（首屏 chunk 232.42 kB / gzip 71.01 kB）并在 Chromium 上重跑 `check:admin`，通过。
+
+## 6. CI 反馈
+
+`lint-and-check` 首次失败于 i18n 门禁：
+
+```
+same-as-reference gallery.namePlaceholder — zh-CN text equals en
+```
+
+`Ada Lovelace` 是人名占位示例，翻译成中文会误导字段期望值，因此把它加入 `IDENTICAL_BY_DESIGN` 的显式允许列表（与既有产品名、技术术语的处理一致），而不是改原文。修后本地按 CI 的同一组步骤复验：
+
+| 步骤                                 | 结果                                   |
+| ------------------------------------ | -------------------------------------- |
+| `pnpm check:branch`                  | PASS（`feat/admin-component-gallery`） |
+| `pnpm lint`                          | PASS                                   |
+| `pnpm format-check`                  | PASS                                   |
+| `pnpm check`                         | PASS                                   |
+| `pnpm check:i18n`                    | PASS（2 个 catalog 干净）              |
+| `pnpm check:package-versions`        | PASS                                   |
+| `scripts/ci/check-release-config.ts` | PASS                                   |
+| `check:admin`（Chromium）            | PASS                                   |
+
+`ci-gate` 是聚合门禁，只反映上述 job 的结果；`lint-and-check` 转绿后随之通过。
