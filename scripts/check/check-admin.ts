@@ -269,10 +269,50 @@ for (const [name, engine] of selectedBrowsers) {
     )
     await page.getByTestId('edit-user').click()
     await expect(page.getByTestId('user-dialog')).toBeVisible()
-    await page
-      .getByTestId('user-form')
-      .locator('#user-email')
-      .fill('ada.updated@example.test')
+    /*
+     * Typing must not replace the field.
+     *
+     * The form seeds each input from a `ref` that reads `draft()`. A `ref`
+     * callback is a mount hook, so reading a signal there must not make the
+     * enclosing `<Show>` region depend on it. When it did, every keystroke
+     * rebuilt the dialog: the new input carried no `dataset` marker, was
+     * reseeded from the draft the render opened with, and the user's text was
+     * gone — the submit then found nothing changed and sent `PATCH {}`.
+     *
+     * Count node replacements directly, so the check names the mechanism
+     * instead of only noticing the symptom on whichever engine loses the race.
+     */
+    await page.getByTestId('user-form').evaluate(form => {
+      const input = form.querySelector('#user-email')!
+      ;(window as unknown as Record<string, number>).adminEmailRebuilds = 0
+      new MutationObserver(records => {
+        for (const record of records) {
+          for (const node of record.addedNodes) {
+            if (node === input) continue
+            if ((node as Element).id === 'user-email') {
+              ;(window as unknown as Record<string, number>)
+                .adminEmailRebuilds++ as unknown as number
+            }
+          }
+        }
+      }).observe(form, { childList: true, subtree: true })
+    })
+    // Type rather than fill: `fill` dispatches one input event, which a single
+    // render can absorb. Real typing is one input event per character, and the
+    // rebuild race needs more than one.
+    await page.getByTestId('user-form').locator('#user-email').click()
+    await page.keyboard.press('ControlOrMeta+a')
+    await page.keyboard.type('ada.updated@example.test', { delay: 20 })
+    await expect(
+      page.getByTestId('user-form').locator('#user-email'),
+    ).toHaveValue('ada.updated@example.test')
+    expect(
+      await page.evaluate(
+        () =>
+          (window as unknown as Record<string, number>).adminEmailRebuilds ?? 0,
+      ),
+      'typing must not rebuild the email field',
+    ).toBe(0)
     await page
       .getByTestId('user-form')
       .getByRole('button', { name: 'Save', exact: true })
