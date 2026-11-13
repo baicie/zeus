@@ -108,6 +108,12 @@ const NAV_GROUPS: readonly NavGroup[] = [
       { to: '/admin/settings', label: 'nav.settings', icon: 'settings' },
     ],
   },
+  {
+    label: 'nav.group.reference',
+    items: [
+      { to: '/admin/components', label: 'nav.components', icon: 'terminal' },
+    ],
+  },
 ]
 
 /** Page titles keyed by the route segment after `/admin`. */

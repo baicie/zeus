@@ -80,6 +80,11 @@ const IDENTICAL_BY_DESIGN: Readonly<Record<string, readonly string[]>> = {
     'example.nativeRouterQuery.title',
     'example.webcShadow.title',
   ],
+  'examples/admin/src/locales': [
+    // A person's name used as a placeholder example. Names are not translated;
+    // a Chinese "艾达·洛夫莱斯" would misrepresent what the field expects.
+    'gallery.namePlaceholder',
+  ],
 }
 
 function findCatalogPairs(): readonly CatalogPair[] {
