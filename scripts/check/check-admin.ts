@@ -419,9 +419,8 @@ for (const [name, engine] of selectedBrowsers) {
       'data-state',
       'open',
     )
-    // Both Escape and the trap are handled by `keydown` on the panel, so the
-    // interaction starts from the state a person reaches: the dialog focuses
-    // its content on open.
+    // The component moves focus into the panel when it opens; the trap and
+    // Escape both build on that, so it is asserted before them.
     await expect
       .poll(focusInsideDialog, {
         message: 'opening the dialog moves focus into it',
@@ -429,18 +428,19 @@ for (const [name, engine] of selectedBrowsers) {
       .toBe(true)
     /*
      * Tab around the content. This is the assertion that matters for a modal,
-     * and it is the one that found a real defect: on WebKit the shipped
-     * `zw-dialog` lets focus leave the panel, because its trap only listens for
-     * `keydown` on the panel and Safari does not deliver that event there once
-     * the panel has focus.
+     * and it runs on every engine — there is no exemption.
      *
-     * The fix (`focusin` backstop, in `packages/primitives/dialog/src/
-     * dialog.tsx`, zeus-ui) is written and unit-tested, but Admin consumes the
-     * *published* beta.34, so the browser gate still sees the old behaviour
-     * until a release carries it. Asserting the trap everywhere would turn a
-     * known, tracked defect into a red gate nobody can fix from this repo;
-     * asserting it nowhere would hide it. So it is asserted where it holds and
-     * reported where it does not, and the report names it.
+     * The real component's trap works from a `document` listener. A
+     * panel-scoped listener cannot hold here: on WebKit a Tab from the panel
+     * (which carries `tabindex="-1"`) is delivered to the next element in the
+     * document, so the panel never sees the key that let focus escape. That
+     * was a real defect, it is fixed in `fix/dialog-state-and-focus`
+     * (zeus-ui), and this repository consumes the build that contains it —
+     * `examples/admin/package.json` points `@zeus-web/dialog` at that build.
+     *
+     * If this fails, the fix has not reached the version Admin installs. The
+     * answer is to align the version, never to exempt an engine: a trap that
+     * holds on two of three is broken for a third of readers.
      */
     for (let step = 0; step < 6; step += 1) {
       await page.keyboard.press('Tab')
@@ -449,57 +449,71 @@ for (const [name, engine] of selectedBrowsers) {
       const content = document.querySelector('[data-testid="gallery-dialog-content"]')
       return Boolean(content && content.contains(document.activeElement))
     })()`)
-    /*
-     * The trap holds on Chromium and Firefox and fails on WebKit, for two
-     * stacked reasons, both real:
-     *
-     * 1. macOS Safari does not put buttons in the tab order unless the system
-     *    preference is changed, so Tab from the panel lands on the next form
-     *    control in the document rather than on the dialog's own buttons.
-     * 2. The shipped `zw-dialog` traps focus from a `keydown` listener on the
-     *    panel; once focus is outside, that listener never sees the next Tab,
-     *    so nothing pulls it back.
-     *
-     * The `focusin` backstop in `packages/primitives/dialog/src/dialog.tsx`
-     * (zeus-ui) addresses (2) and is unit-tested. Admin consumes the published
-     * beta.34, so this gate still exercises the old build. The finding is
-     * recorded in the R6-C report rather than turned into a red gate that this
-     * repository cannot fix.
-     */
-    if (name === 'webkit') {
-      // Not asserted: see above. Recorded, not passed silently.
-      await expect(page.getByTestId('gallery-dialog')).toHaveAttribute(
-        'data-state',
-        'open',
-      )
-    } else {
-      await expect(trapped, 'Tab stays trapped inside the open dialog').toBe(
-        true,
-      )
-    }
+    await expect(trapped, 'Tab stays trapped inside the open dialog').toBe(true)
 
     /*
-     * Escape is *not* asserted here. The published `zw-dialog` reflects `open`
-     * onto the host as a boolean attribute; once present, the attribute stays,
-     * and the component reads `props.open` as true regardless of what the
-     * owner does. Pressing Escape therefore leaves `data-state="open"`.
-     *
-     * That is a defect in the component, not in this page: a modal a person
-     * cannot dismiss with Escape. It is reported (R6-C §7) rather than papered
-     * over with a weaker assertion. Closing through the component's own close
-     * control still works and is asserted next.
+     * Escape closes the dialog, and it does so from wherever focus is: the
+     * handler is on `document`, so it does not depend on the panel holding
+     * focus. Both halves are asserted because the old failure mode was
+     * specifically "Escape works only while focus is still inside".
      */
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('gallery-dialog')).toHaveAttribute(
+      'data-state',
+      'closed',
+    )
+    await expect(page.getByTestId('gallery-dialog-content')).toBeHidden()
 
     /*
-     * No reopen step. The published `zw-dialog` cannot be opened a second time
-     * after it closes: the host keeps `open` as an attribute, so `data-state`
-     * stays closed and `zw-dialog-content` stays `hidden`. That is a defect in
-     * the component (R6-C §7), and the honest thing is to assert the one open
-     * that works and leave the second to the report rather than to a retry
-     * loop.
+     * And it opens again. A dialog a person can close exactly once is the
+     * defect the review recorded as "cannot be reopened"; the component's
+     * state now lives in a signal rather than being re-derived from a
+     * reflected attribute the component itself wrote.
      */
+    await page.getByTestId('gallery-open-dialog').click()
+    await expect(page.getByTestId('gallery-dialog')).toHaveAttribute(
+      'data-state',
+      'open',
+    )
+    await expect(page.getByTestId('gallery-dialog-content')).toBeVisible()
+
+    /*
+     * Focus returns to the trigger on close. Without this, closing a modal
+     * drops the reader at the top of the document and the next Tab starts the
+     * page over.
+     */
+    await page.keyboard.press('Escape')
+    const dialogPageForFocus = page
+    await expect
+      .poll(
+        () =>
+          dialogPageForFocus.evaluate(`(() => {
+            const trigger = document.querySelector('[data-testid="gallery-open-dialog"]')
+            return Boolean(trigger && trigger.contains(document.activeElement))
+          })()`),
+        { message: 'closing the dialog returns focus to its trigger' },
+      )
+      .toBe(true)
+
+    /*
+     * The confirm control lives inside the dialog, so the dialog has to be
+     * open for it to be reachable. That is the ordinary path a person takes
+     * and it also proves the third open after two closes works.
+     */
+    await page.getByTestId('gallery-open-dialog').click()
+    await expect(page.getByTestId('gallery-dialog-content')).toBeVisible()
+    // Evidence for the gallery itself: the open dialog on every engine, so a
+    // reviewer can see the real component rather than a claim that it rendered.
+    await page.screenshot({
+      path: path.join(root, `temp/admin/gallery-${name}.png`),
+      fullPage: true,
+    })
     await page.getByTestId('gallery-confirm-dialog').click()
     await expect(page.getByTestId('gallery-toast')).toContainText('Confirmed.')
+    await expect(page.getByTestId('gallery-dialog')).toHaveAttribute(
+      'data-state',
+      'closed',
+    )
     /*
      * `zw-input` is a wrapper: the editable control is the `<input>` it renders
      * inside its light DOM. Typing goes through that control, which is also how
