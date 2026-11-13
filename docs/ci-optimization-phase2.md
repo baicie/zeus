@@ -10,6 +10,9 @@ impact  ──┬── lint-and-check      (if: needs.impact.outputs.lint-and-c
           ├── build               (…)
           ├── test                (…)
           ├── packed-consumers    (…)
+          ├── browser-web-        (Phase 3B; same trigger as
+          │   components           packed-consumers)
+          ├── browser-playground  (Phase 3B; same trigger)
           ├── create-zeus-       (…)
           │   candidates
           ├── docs-build          (…)
@@ -21,6 +24,12 @@ impact  ──┬── lint-and-check      (if: needs.impact.outputs.lint-and-c
 
 `impact` runs first and always. Every other job is guarded by one output. The
 gate runs regardless of what happened and decides.
+
+Phase 3B split the browser gates out of `packed-consumers` into the two
+`browser-*` jobs. They are separate jobs for wall clock only, and
+`BROWSER_GATE_AREAS` in `scripts/ci/impact-analysis.ts` is shared by all three
+so no split can narrow one job's trigger below another's. See
+`docs/ci-optimization-phase3b.md`.
 
 ## Why a script rather than paths-filter
 

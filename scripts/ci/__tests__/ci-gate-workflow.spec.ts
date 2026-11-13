@@ -18,7 +18,7 @@ import path from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import { REQUIRED_DEPENDENCIES } from '../ci-gate'
+import { PLANNED_SKIP_JOBS, REQUIRED_DEPENDENCIES } from '../ci-gate'
 
 const root = path.resolve(import.meta.dirname, '../../..')
 const workflow = readFileSync(
@@ -88,5 +88,45 @@ describe('ci-gate workflow wiring', () => {
   it('does not use continue-on-error anywhere in the gate', () => {
     const job = gateJob()
     expect(job).not.toContain('continue-on-error')
+  })
+
+  it('wires every planned-skip job into the workflow', () => {
+    // The two halves of the split are easy to get wrong in one direction:
+    // a job added to the script but not to the workflow would be reported
+    // "not in needs" — loud. The dangerous direction is a workflow job whose
+    // result the gate never reads, because the browser gates would then be
+    // advisory while `ci-gate` stayed green. This checks the plan, the
+    // `impact` outputs and the job guards all name the same set.
+    const impactBlock = workflow.slice(
+      workflow.indexOf('\n  impact:\n'),
+      workflow.indexOf('\n  lint-and-check:\n'),
+    )
+    for (const name of PLANNED_SKIP_JOBS) {
+      expect(impactBlock, `impact output for ${name}`).toContain(
+        `${name}: \${{ steps.plan.outputs.${name} }}`,
+      )
+      expect(workflow, `job ${name}`).toMatch(new RegExp(`^ {2}${name}:$`, 'm'))
+      expect(workflow, `guard for ${name}`).toContain(
+        `needs.impact.outputs.${name} == 'true'`,
+      )
+    }
+  })
+
+  it('never lets a browser gate become non-blocking', () => {
+    for (const name of [
+      'packed-consumers',
+      'browser-web-components',
+      'browser-playground',
+    ]) {
+      const start = workflow.indexOf(`\n  ${name}:\n`)
+      expect(start, `${name} job exists`).toBeGreaterThan(-1)
+      const rest = workflow.slice(start + 1)
+      const next = /^ {2}[a-z][a-z-]*:[ \t]*$/m.exec(rest)
+      const block = next ? rest.slice(0, next.index) : rest
+      expect(block, `${name} must block`).not.toContain('continue-on-error')
+      expect(block, `${name} must not be optional`).not.toContain(
+        'if: always()',
+      )
+    }
   })
 })

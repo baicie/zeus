@@ -39,6 +39,8 @@ export const REQUIRED_DEPENDENCIES = [
   'build',
   'test',
   'packed-consumers',
+  'browser-web-components',
+  'browser-playground',
   'create-zeus-candidates',
   'cross-platform-evidence',
   'docs-build',
@@ -50,6 +52,10 @@ export const REQUIRED_DEPENDENCIES = [
  * These are the jobs carrying their own `if:` guard. `impact` and
  * `cross-platform-evidence` are handled separately: `impact` must succeed,
  * and evidence is skipped on pull requests by design.
+ *
+ * The two browser jobs are guarded by `packed-consumers`' output, so their
+ * skips are planned skips in exactly the same sense — impact analysis decided
+ * they were unnecessary, not the job itself.
  */
 export const PLANNED_SKIP_JOBS = [
   'lint-and-check',
@@ -57,6 +63,8 @@ export const PLANNED_SKIP_JOBS = [
   'build',
   'test',
   'packed-consumers',
+  'browser-web-components',
+  'browser-playground',
   'create-zeus-candidates',
   'docs-build',
 ] as const
