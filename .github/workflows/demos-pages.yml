@@ -128,11 +128,28 @@ jobs:
           done
           core_version="$(node -p "require('./zeus/package.json').version")"
           ui_version="$(node -p "require('./zeus-ui/package.json').version")"
+          # The Workbench does not build against this Core checkout: it depends
+          # on @zeus-js/zeus and @zeus-js/runtime-dom as *published versions*.
+          # Recording the checkout SHA as its coreCommit would repeat the defect
+          # this workflow exists to fix — metadata naming a commit that did not
+          # build the bundle. Read the pin it really uses, and resolve the tag
+          # when the repository has it.
+          ai_runtime_version="$(node -p "
+            const pkg = require('./zeus-ui/examples/ai-workbench/package.json')
+            pkg.dependencies['@zeus-js/zeus'] ?? pkg.devDependencies?.['@zeus-js/zeus'] ?? ''
+          ")"
+          ai_runtime_commit="$(git -C zeus rev-parse --verify --quiet "refs/tags/v${ai_runtime_version}^{commit}" || true)"
+          if [[ -z "${ai_runtime_version}" ]]; then
+            echo "::error::the Workbench has no @zeus-js/zeus pin; its demo cannot state which runtime it bundles"
+            exit 1
+          fi
           {
             echo "core=${core}"
             echo "ui=${ui}"
             echo "core_version=${core_version}"
             echo "ui_version=${ui_version}"
+            echo "ai_runtime_version=${ai_runtime_version}"
+            echo "ai_runtime_commit=${ai_runtime_commit}"
           } >> "$GITHUB_OUTPUT"
           {
             echo "### Demo pair"
@@ -249,6 +266,8 @@ jobs:
             --ui-commit "${{ steps.pair.outputs.ui }}" \
             --core-version "${{ steps.pair.outputs.core_version }}" \
             --ui-version "${{ steps.pair.outputs.ui_version }}" \
+            --ai-runtime-version "${{ steps.pair.outputs.ai_runtime_version }}" \
+            ${{ steps.pair.outputs.ai_runtime_commit != '' && format('--ai-runtime-commit {0}', steps.pair.outputs.ai_runtime_commit) || '' }} \
             --workflow "Demos Pages" \
             --run-id "${GITHUB_RUN_ID}" \
             --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"

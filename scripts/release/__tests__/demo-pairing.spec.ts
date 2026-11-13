@@ -318,6 +318,91 @@ describe('demo pairing', () => {
     ).toEqual([])
   })
 
+  it('records the runtime the Workbench bundles, separately from the Core checkout', () => {
+    // The Workbench depends on @zeus-js/zeus as a published version and never
+    // sees the Core checkout. Recording the checkout SHA as its coreCommit
+    // would be the R6-A defect one field over, so the manifest carries the pin
+    // it really uses.
+    const root = site()
+    const record = createDemoPairing({
+      siteDir: root,
+      coreCommit: CORE,
+      uiCommit: UI,
+      coreVersion: '0.1.1-beta.20',
+      uiVersion: '0.1.0-beta.35',
+      aiRuntime: {
+        package: '@zeus-js/zeus',
+        version: '0.1.1-beta.20',
+        commit: 'c'.repeat(40),
+      },
+      createdAt: CREATED,
+      workflow: 'Demos Pages',
+    })
+
+    expect(record.aiRuntime).toEqual({
+      package: '@zeus-js/zeus',
+      version: '0.1.1-beta.20',
+      commit: 'c'.repeat(40),
+    })
+    expect(verifyDemoPairing(record, {}, root)).toEqual([])
+  })
+
+  it('rejects an aiRuntime record with a missing package or a bad commit', () => {
+    const root = site()
+    const record = createDemoPairing({
+      siteDir: root,
+      coreCommit: CORE,
+      uiCommit: UI,
+      coreVersion: '0.1.1-beta.20',
+      uiVersion: '0.1.0-beta.35',
+      aiRuntime: { package: '@zeus-js/zeus', version: '0.1.1-beta.20' },
+      createdAt: CREATED,
+      workflow: 'Demos Pages',
+    })
+
+    const cases: Array<[string, unknown]> = [
+      ['no package', { version: '0.1.1-beta.20' }],
+      ['no version', { package: '@zeus-js/zeus' }],
+      [
+        'short commit',
+        { package: '@zeus-js/zeus', version: 'x', commit: 'abc' },
+      ],
+    ]
+    for (const [label, aiRuntime] of cases) {
+      const errors = verifyDemoPairing({ ...record, aiRuntime })
+      expect(errors.length, label).toBeGreaterThan(0)
+    }
+  })
+
+  it('rejects a prototype-chain key posing as a product', () => {
+    const root = site()
+    const record = pairing(root)
+    const errors = verifyDemoPairing({
+      ...record,
+      products: [
+        ...record.products,
+        {
+          product: 'toString',
+          artifactDigest: `sha256:${'0'.repeat(64)}`,
+          files: 1,
+          bytes: 1,
+          metadata: { file: 'x', digest: `sha256:${'0'.repeat(64)}` },
+        },
+      ],
+    })
+    expect(errors).toContain('demo pairing products[2].product is not known')
+  })
+
+  it('rejects a manifest that names one commit for both repositories', () => {
+    const root = site()
+    const record = pairing(root)
+    expect(
+      verifyDemoPairing({ ...record, uiCommit: record.coreCommit }),
+    ).toContain(
+      'demo pairing coreCommit and uiCommit are the same commit; they belong to different repositories',
+    )
+  })
+
   it('writes the manifest at the site root so it is published with the site', () => {
     const root = site()
     const output = writeDemoPairing(pairing(root), root)

@@ -80,6 +80,25 @@ export interface DemoPairing {
   readonly uiCommit: string
   readonly coreVersion: string
   readonly uiVersion: string
+  /**
+   * The Zeus runtime the Workbench half actually bundles.
+   *
+   * The two halves do not consume Core the same way, and saying so is the point
+   * of this field. Admin is built from the Core checkout in this job, so its
+   * `coreCommit` is literal. The Workbench depends on `@zeus-js/zeus` and
+   * `@zeus-js/runtime-dom` as *published versions*, resolved from the registry —
+   * it never sees this checkout. Recording `coreCommit` for both would repeat
+   * the exact defect R6-A exists to fix, one field over: a metadata file
+   * claiming a commit that did not build it.
+   *
+   * Absent when the Workbench's pins cannot be read.
+   */
+  readonly aiRuntime?: {
+    readonly package: string
+    readonly version: string
+    /** The Core commit `v<version>` resolves to, when the tag was checked. */
+    readonly commit?: string
+  }
   /** Where the pair was produced, so a published site can be traced back. */
   readonly build: {
     readonly workflow: string
@@ -96,6 +115,7 @@ export interface DemoPairingExpectation {
   readonly uiCommit?: string
   readonly coreVersion?: string
   readonly uiVersion?: string
+  readonly aiRuntimeVersion?: string
   readonly products?: readonly string[]
 }
 
@@ -162,6 +182,11 @@ export function createDemoPairing(options: {
   readonly uiCommit: string
   readonly coreVersion: string
   readonly uiVersion: string
+  readonly aiRuntime?: {
+    readonly package: string
+    readonly version: string
+    readonly commit?: string
+  }
   readonly createdAt: string
   readonly workflow: string
   readonly runId?: string
@@ -220,6 +245,7 @@ export function createDemoPairing(options: {
     uiCommit: options.uiCommit,
     coreVersion: options.coreVersion,
     uiVersion: options.uiVersion,
+    ...(options.aiRuntime ? { aiRuntime: options.aiRuntime } : {}),
     build: {
       workflow: options.workflow,
       ...(options.runId ? { runId: options.runId } : {}),
@@ -284,6 +310,52 @@ export function verifyDemoPairing(
     errors.push('demo pairing build.workflow is missing')
   }
 
+  /*
+   * The two repositories cannot be the same commit. They are different
+   * histories; a manifest that names one SHA for both is the shape of the
+   * original defect — a single `GITHUB_SHA` standing in for two products — so
+   * it is rejected rather than reported as a pair.
+   */
+  if (
+    typeof value.coreCommit === 'string' &&
+    typeof value.uiCommit === 'string' &&
+    FULL_SHA.test(value.coreCommit) &&
+    value.coreCommit === value.uiCommit
+  ) {
+    errors.push(
+      'demo pairing coreCommit and uiCommit are the same commit; they belong to different repositories',
+    )
+  }
+
+  /*
+   * The Workbench's runtime, when recorded. Checked for internal consistency
+   * only: whether `v<version>` really resolves to `commit` needs git, and a
+   * verifier that runs against an assembled site has no repository to ask. The
+   * workflow resolves it and writes it; this rejects a hand-edited or truncated
+   * record.
+   */
+  if (value.aiRuntime !== undefined) {
+    const runtime = value.aiRuntime
+    if (!isRecord(runtime)) {
+      errors.push('demo pairing aiRuntime must be an object')
+    } else {
+      if (typeof runtime.package !== 'string' || runtime.package === '') {
+        errors.push('demo pairing aiRuntime.package is missing')
+      }
+      if (typeof runtime.version !== 'string' || runtime.version === '') {
+        errors.push('demo pairing aiRuntime.version is missing')
+      }
+      if (
+        runtime.commit !== undefined &&
+        (typeof runtime.commit !== 'string' || !FULL_SHA.test(runtime.commit))
+      ) {
+        errors.push(
+          'demo pairing aiRuntime.commit must be a full 40-character lowercase SHA',
+        )
+      }
+    }
+  }
+
   const products = value.products
   if (!Array.isArray(products)) {
     errors.push('demo pairing products is missing')
@@ -297,7 +369,13 @@ export function verifyDemoPairing(
       continue
     }
     const product = raw.product
-    if (typeof product !== 'string' || !(product in DEMO_PRODUCTS)) {
+    // `in` walks the prototype chain, so `product: 'toString'` would pass an
+    // unknown-product check and then fail later with a TypeError instead of an
+    // error string.
+    if (
+      typeof product !== 'string' ||
+      !Object.prototype.hasOwnProperty.call(DEMO_PRODUCTS, product)
+    ) {
       errors.push(`demo pairing products[${index}].product is not known`)
       continue
     }
@@ -434,6 +512,17 @@ export function verifyDemoPairingReproducible(
     ...(typeof (value.build as Record<string, unknown>).runUrl === 'string'
       ? { runUrl: (value.build as Record<string, unknown>).runUrl as string }
       : {}),
+    ...(isRecord(value.aiRuntime)
+      ? {
+          aiRuntime: {
+            package: value.aiRuntime.package as string,
+            version: value.aiRuntime.version as string,
+            ...(typeof value.aiRuntime.commit === 'string'
+              ? { commit: value.aiRuntime.commit }
+              : {}),
+          },
+        }
+      : {}),
   }
   let first: DemoPairing
   let second: DemoPairing
@@ -454,6 +543,7 @@ export function verifyDemoPairingReproducible(
     'uiCommit',
     'coreVersion',
     'uiVersion',
+    'aiRuntime',
     'build',
     'products',
     'siteDigest',
@@ -493,6 +583,8 @@ function main(): void {
       'ui-commit': { type: 'string' },
       'core-version': { type: 'string' },
       'ui-version': { type: 'string' },
+      'ai-runtime-version': { type: 'string' },
+      'ai-runtime-commit': { type: 'string' },
       workflow: { type: 'string', default: 'Demos Pages' },
       'run-id': { type: 'string' },
       'run-url': { type: 'string' },
@@ -527,6 +619,17 @@ function main(): void {
       uiCommit: values['ui-commit']!,
       coreVersion: values['core-version']!,
       uiVersion: values['ui-version']!,
+      ...(values['ai-runtime-version']
+        ? {
+            aiRuntime: {
+              package: '@zeus-js/zeus',
+              version: values['ai-runtime-version'],
+              ...(values['ai-runtime-commit']
+                ? { commit: values['ai-runtime-commit'] }
+                : {}),
+            },
+          }
+        : {}),
       createdAt: new Date().toISOString(),
       workflow: values.workflow!,
       ...(values['run-id'] ? { runId: values['run-id'] } : {}),

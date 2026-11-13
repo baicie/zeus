@@ -62,6 +62,25 @@ GET https://baicie.github.io/zeus-demos/ai/ai-demo-recording.json
 }
 ```
 
+**`aiRuntime`：AI Demo 实际打包的 Zeus 运行时。**
+
+两个产品消费 Core 的方式不同，这一点必须写清楚，而不是用一个字段含糊过去：
+Admin 由本次 job 检出的 Core 直接构建，`coreCommit` 是字面意义上的；Workbench
+依赖的是 npm 上的 `@zeus-js/zeus` 与 `@zeus-js/runtime-dom` 版本，从不接触本次检出。
+
+```json
+"aiRuntime": {
+  "package": "@zeus-js/zeus",
+  "version": "0.1.1-beta.20",
+  "commit": "<v0.1.1-beta.20 指向的 Core 提交>"
+}
+```
+
+如果把检出的 Core SHA 记成 Workbench 的 `coreCommit`，那就把 R6-A 要消灭的缺陷
+原样搬到了另一个字段上——元数据声称一个并未构建它的提交。工作流从
+`zeus-ui/examples/ai-workbench/package.json` 读真实 pin，并在 Core 仓库里把
+`v<version>` 解析成 commit。
+
 设计约束：
 
 - **digest 算法与 `build-info.ts` 完全一致**（对 `path\0sha256\n` 逐文件哈希）。没有第二套哈希规则，因此 CI 里已有的 provenance 校验与 Demo 校验可以互相印证。
