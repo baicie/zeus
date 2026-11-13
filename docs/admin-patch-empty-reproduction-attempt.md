@@ -85,6 +85,35 @@ CI 的日志与此一致：`-> PATCH /api/users/ada {}`，且 `firefox`/`webkit`
 
 所以第 3 节是**推断**（INFERRED），不是实测（MEASURED）。要把它变成实测，需要能在重建与 `setDraft` 之间插入一次强制调度——那是下一轮的事，不是这一轮能声称的。
 
+## 3.5 已合并进 main 的那条"回归测试"期望是错的
+
+`main` @ `224e3aec`（#252）在 `scripts/check/check-admin.ts` 里加了一段，期望：
+
+> 打开编辑 → 输入 `draft.probe@example.test` → **Cancel** → 重开 → 字段应仍是 `draft.probe@example.test`
+
+实测三个引擎全部报 KNOWN DEFECT：
+
+```
+[admin] KNOWN DEFECT: re-opening the editor discarded the typed email
+  (expected "draft.probe@example.test", got "ada.updated@example.test")
+```
+
+`ada.updated@example.test` 是**上一步保存后的服务端值**。也就是说重开时字段被正确地从服务端重新播种了。
+
+而 `openEditor()` 的实现就是每次打开都从 `user()` 重置：
+
+```ts
+function openEditor(): void {
+  const current = user()
+  setDraft({ email: current?.email ?? '', ... })
+  setEditing(true)
+}
+```
+
+**Cancel 丢弃草稿是对话框的正确语义。** 把"重开后看到的是服务端值"当作缺陷，等于要求 Cancel 保留未提交的编辑——那是另一个产品决定，不是 bug。
+
+所以在当前代码上，这条检查既不会失败（它只 `console.warn`），也无法作为缺陷存在的证据。它标记的是一个预期行为。
+
 ## 4. 因此：不改框架语义
 
 原诊断建议动 `Show`/`ref` 的语义。基于 §1，这个前提不成立：
