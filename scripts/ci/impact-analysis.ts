@@ -35,6 +35,7 @@ export const AREAS = [
   'playground',
   'framework-adapters',
   'consumers',
+  'parity-corpus',
   'release',
   'security',
   'shared-infrastructure',
@@ -113,28 +114,39 @@ export const PATH_RULES: readonly PathRule[] = [
   },
   {
     pattern: /^examples\/admin\//,
-    areas: ['admin', 'consumers'],
-    reason: 'Admin application',
+    areas: ['admin', 'consumers', 'parity-corpus'],
+    reason: 'Admin application; also part of the compiler parity corpus',
   },
   {
     pattern: /^examples\/playground/,
-    areas: ['playground', 'consumers'],
-    reason: 'Playground',
+    areas: ['playground', 'consumers', 'parity-corpus'],
+    reason: 'Playground; also part of the compiler parity corpus',
   },
   {
     pattern: /^examples\/ai-/,
-    areas: ['consumers', 'framework-adapters'],
+    areas: ['consumers', 'framework-adapters', 'parity-corpus'],
     reason: 'AI shell examples',
   },
   {
     pattern: /^examples\/(react|vue|registry|headless|next-boundary)/,
-    areas: ['framework-adapters', 'consumers'],
+    areas: ['framework-adapters', 'consumers', 'parity-corpus'],
     reason: 'framework adapter examples',
   },
   {
     pattern: /^examples\//,
-    areas: ['consumers'],
-    reason: 'any example is a packed consumer',
+    areas: ['consumers', 'parity-corpus'],
+    reason:
+      'any example is a packed consumer and part of the compiler parity corpus',
+  },
+  {
+    pattern: /^benchmarks\//,
+    areas: ['parity-corpus'],
+    reason: 'benchmarks are part of the compiler parity corpus',
+  },
+  {
+    pattern: /^scripts\/playground\/fixtures\//,
+    areas: ['parity-corpus'],
+    reason: 'playground fixtures are part of the compiler parity corpus',
   },
   {
     pattern: /^scripts\/check\//,
@@ -345,7 +357,13 @@ export const JOB_NEEDS: readonly JobNeed[] = [
   },
   {
     name: 'rust-compiler',
-    areas: ['compiler', 'native', 'shared-infrastructure'],
+    // `parity-corpus` is not optional: `parity.test.mjs` compiles every `.tsx`
+    // under `examples/`, `benchmarks/` and `scripts/playground/fixtures/` with
+    // both compilers and requires identical output. Changing one of those
+    // files can break parity without touching any Rust source, which is
+    // exactly what happened in #250: the PR ran with `rust-compiler` skipped
+    // and main went red on the first full run.
+    areas: ['compiler', 'native', 'parity-corpus', 'shared-infrastructure'],
   },
   {
     name: 'build',

@@ -176,11 +176,27 @@ describe('planJobs', () => {
     for (const job of plan.jobs) expect(job.reason).toBe('full run')
   })
 
-  it('runs rust-compiler only when the compiler or native areas changed', () => {
-    expect(running(planFor(['examples/admin/src/pages.tsx']))).not.toContain(
+  it('runs rust-compiler when the compiler, native or parity corpus changed', () => {
+    expect(running(planFor(['crates/x/src/lib.rs']))).toContain('rust-compiler')
+
+    // The parity test compiles every `.tsx` in these trees with both
+    // compilers, so an example can break it without any Rust change. It did:
+    // #250 shipped `gallery.tsx` with `rust-compiler` skipped and main went
+    // red on the first full run.
+    for (const file of [
+      'examples/admin/src/pages.tsx',
+      'examples/playground-editor/src/App.tsx',
+      'benchmarks/rendering/list.tsx',
+      'scripts/playground/fixtures/counter.tsx',
+    ]) {
+      expect(running(planFor([file])), file).toContain('rust-compiler')
+    }
+  })
+
+  it('does not run rust-compiler for a docs-only change', () => {
+    expect(running(planFor(['docs/guide/state.md']))).not.toContain(
       'rust-compiler',
     )
-    expect(running(planFor(['crates/x/src/lib.rs']))).toContain('rust-compiler')
   })
 
   it('runs every code job when the lockfile changes', () => {
