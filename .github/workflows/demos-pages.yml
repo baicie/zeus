@@ -18,6 +18,19 @@ name: Demos Pages
 # Both snapshots are produced from live servers during this job, so a demo can
 # never show data the real API would not return. Nothing here touches the
 # Docker images or the production deployment.
+#
+# Pairing (R6-A). A demo is the product of two repositories, so the job resolves
+# both to full 40-character SHAs *once*, checks the UI out at that SHA, records
+# both in the two metadata files, and writes `demo-pairing.json` with the pair,
+# a timestamp, each product's artifact digest and a site digest. The manifest is
+# verified against the assembled site before anything is published. Before R6
+# the UI was cloned from a moving branch and `--ui-commit` was passed
+# `GITHUB_SHA` — the *Core* SHA — so the published recording named a commit that
+# never built it.
+#
+# `workflow_dispatch` with `publish: false` runs the whole build and the same
+# verification but never touches the Pages repository: that is how the pairing
+# is tested without deploying.
 on:
   push:
     branches: [main]
@@ -29,10 +42,21 @@ on:
       - 'packages/**'
       - 'crates/**'
       - 'scripts/release/admin-demo-snapshot.ts'
+      - 'scripts/release/demo-pairing.ts'
+      - 'scripts/release/build-info.ts'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - '.github/workflows/demos-pages.yml'
   workflow_dispatch:
+    inputs:
+      ui-ref:
+        description: zeus-ui ref to pair with this Core commit (branch, tag or full SHA)
+        required: false
+        default: main
+      publish:
+        description: Push the assembled site to the Pages repository
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -51,7 +75,13 @@ jobs:
   build:
     name: Build both demos
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
+    outputs:
+      core-commit: ${{ steps.pair.outputs.core }}
+      ui-commit: ${{ steps.pair.outputs.ui }}
+      core-version: ${{ steps.pair.outputs.core_version }}
+      ui-version: ${{ steps.pair.outputs.ui_version }}
+      site-digest: ${{ steps.pairing.outputs.site_digest }}
     steps:
       - name: Checkout Core
         uses: actions/checkout@v5
@@ -61,11 +91,57 @@ jobs:
       # The UI lives in another repository. `GITHUB_TOKEN` is scoped to this
       # one and cannot read it, and a PAT would be broader than this job needs.
       # `zeus-ui` is public, so an anonymous HTTPS clone is enough.
+      #
+      # `--no-checkout` plus an explicit fetch: the branch is resolved to a
+      # full SHA first, and the checkout is that SHA. A moving `main` must not
+      # be able to change between the resolution and the build.
       - name: Checkout UI
+        env:
+          UI_REF: ${{ inputs.ui-ref || 'main' }}
         run: |
           set -euo pipefail
-          git clone --depth 1 \
-            "https://github.com/${{ github.repository_owner }}/zeus-ui.git" zeus-ui
+          git init -q zeus-ui
+          cd zeus-ui
+          git remote add origin "https://github.com/${{ github.repository_owner }}/zeus-ui.git"
+          git fetch -q --depth 1 origin "${UI_REF}"
+          git checkout -q --detach FETCH_HEAD
+
+      - name: Resolve and record the pair
+        id: pair
+        run: |
+          set -euo pipefail
+          # Core: the workflow SHA must be the checked-out commit. A dispatch
+          # from a stale ref would otherwise record a commit the build did not
+          # use.
+          core="$(git -C zeus rev-parse HEAD)"
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${core}" != "${GITHUB_SHA}" ]]; then
+            echo "::error::checked-out Core HEAD ${core} does not match GITHUB_SHA ${GITHUB_SHA}"
+            exit 1
+          fi
+          ui="$(git -C zeus-ui rev-parse HEAD)"
+          for name in core ui; do
+            value="${!name}"
+            if [[ ! "${value}" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error::${name} commit is not a full 40-character SHA: ${value}"
+              exit 1
+            fi
+          done
+          core_version="$(node -p "require('./zeus/package.json').version")"
+          ui_version="$(node -p "require('./zeus-ui/package.json').version")"
+          {
+            echo "core=${core}"
+            echo "ui=${ui}"
+            echo "core_version=${core_version}"
+            echo "ui_version=${ui_version}"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### Demo pair"
+            echo ""
+            echo "| side | commit | version |"
+            echo "| --- | --- | --- |"
+            echo "| zeus (Core) | \`${core}\` | ${core_version} |"
+            echo "| zeus-ui | \`${ui}\` | ${ui_version} |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -106,14 +182,19 @@ jobs:
         run: |
           node --import tsx scripts/release/admin-demo-snapshot.ts \
             --out "${RUNNER_TEMP}/admin-demo-snapshot.json" \
-            --core-commit "${GITHUB_SHA}"
+            --core-commit "${{ steps.pair.outputs.core }}" \
+            --ui-commit "${{ steps.pair.outputs.ui }}"
 
       - name: Record the AI demo stream from the real Host
         working-directory: zeus-ui
+        # The recording is the Workbench demo's own statement of provenance, so
+        # it names the UI commit that built the bundle — not the Core SHA that
+        # happens to identify the workflow run.
         run: |
           node --import tsx scripts/release/ai-demo-recording.ts \
             --out "${RUNNER_TEMP}/ai-demo-recording.json" \
-            --ui-commit "${GITHUB_SHA}"
+            --ui-commit "${{ steps.pair.outputs.ui }}" \
+            --core-commit "${{ steps.pair.outputs.core }}"
 
       - name: Build the Admin demo
         working-directory: zeus/examples/admin
@@ -155,6 +236,45 @@ jobs:
           test -f "${site}/ai/ai-demo-recording.json"
           echo "site assembled:" && find "${site}" -maxdepth 2 -type f | sort
 
+      - name: Write the demo pairing manifest
+        id: pairing
+        working-directory: zeus
+        env:
+          SITE: ${{ runner.temp }}/site
+        run: |
+          set -euo pipefail
+          node --import tsx scripts/release/demo-pairing.ts \
+            --site "${SITE}" --write \
+            --core-commit "${{ steps.pair.outputs.core }}" \
+            --ui-commit "${{ steps.pair.outputs.ui }}" \
+            --core-version "${{ steps.pair.outputs.core_version }}" \
+            --ui-version "${{ steps.pair.outputs.ui_version }}" \
+            --workflow "Demos Pages" \
+            --run-id "${GITHUB_RUN_ID}" \
+            --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          digest="$(node -p "require(process.env.SITE + '/demo-pairing.json').siteDigest")"
+          echo "site_digest=${digest}" >> "$GITHUB_OUTPUT"
+          echo "site digest: ${digest}" >> "$GITHUB_STEP_SUMMARY"
+
+      # The gate that would have caught R6-A. `--verify` compares the manifest
+      # against the site's actual bytes, both products' metadata and the pair
+      # resolved above; `--reproducible` additionally regenerates the manifest
+      # from the site and the recorded pair and requires an exact match, so a
+      # field written by anything other than `createDemoPairing` fails here.
+      # Nothing is published until this passes.
+      - name: Verify the demo pairing
+        working-directory: zeus
+        env:
+          SITE: ${{ runner.temp }}/site
+        run: |
+          set -euo pipefail
+          node --import tsx scripts/release/demo-pairing.ts \
+            --site "${SITE}" --verify --reproducible \
+            --core-commit "${{ steps.pair.outputs.core }}" \
+            --ui-commit "${{ steps.pair.outputs.ui }}" \
+            --core-version "${{ steps.pair.outputs.core_version }}" \
+            --ui-version "${{ steps.pair.outputs.ui_version }}"
+
       - name: Upload the site
         uses: actions/upload-artifact@v4
         with:
@@ -162,20 +282,58 @@ jobs:
           path: ${{ runner.temp }}/site
           retention-days: 7
 
+      - name: Upload the pairing record
+        uses: actions/upload-artifact@v4
+        with:
+          name: demos-pages-pairing
+          path: ${{ runner.temp }}/site/demo-pairing.json
+          retention-days: 30
+
   publish:
     name: Push the site to its Pages repository
     needs: build
+    # A dispatch defaults to `publish: false`: the build and its verification can
+    # be exercised without deploying. A push to main publishes, as before.
+    if: ${{ github.event_name == 'push' || inputs.publish == true }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    environment:
+      name: demos-pages
     steps:
       - uses: actions/download-artifact@v4
         with:
           name: demos-pages-site
           path: site
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: demos-pages-pairing
+          path: pairing
+
+      - name: Re-verify the pair before publishing
+        env:
+          CORE: ${{ needs.build.outputs.core-commit }}
+          UI: ${{ needs.build.outputs.ui-commit }}
+        run: |
+          set -euo pipefail
+          # The artifact is what was verified in `build`, but it crossed a job
+          # boundary. Re-check the immutable fields rather than trusting it.
+          node -e '
+            const fs = require("node:fs")
+            const record = JSON.parse(fs.readFileSync("pairing/demo-pairing.json", "utf8"))
+            const site = JSON.parse(fs.readFileSync("site/demo-pairing.json", "utf8"))
+            if (record.schema !== "zeus.demo-pairing/v1") throw new Error("bad schema")
+            if (record.coreCommit !== process.env.CORE) throw new Error("core commit changed in transit")
+            if (record.uiCommit !== process.env.UI) throw new Error("ui commit changed in transit")
+            if (record.siteDigest !== site.siteDigest) throw new Error("pairing manifest changed in transit")
+            console.log(`pair ${record.coreCommit.slice(0, 12)} + ${record.uiCommit.slice(0, 12)} -> ${record.siteDigest}`)
+          '
+
       - name: Push to the Pages repository
         env:
           PAGES_DEPLOY_KEY: ${{ secrets.DEMOS_PAGES_TOKEN }}
+          CORE: ${{ needs.build.outputs.core-commit }}
+          UI: ${{ needs.build.outputs.ui-commit }}
         run: |
           set -euo pipefail
           if [[ -z "${PAGES_DEPLOY_KEY:-}" ]]; then
@@ -191,9 +349,9 @@ jobs:
           git config user.name 'zeus-pages-bot'
           git config user.email 'actions@users.noreply.github.com'
           git add -A
-          git commit -q -m "demos: ${GITHUB_SHA}"
+          git commit -q -m "demos: core ${CORE} + ui ${UI}"
           GIT_SSH_COMMAND="ssh -i ~/.ssh/pages_key -o IdentitiesOnly=yes" \
             git push -q --force "git@github.com:${PAGES_REPO}.git" main
           rm -f ~/.ssh/pages_key
-          echo "pushed ${GITHUB_SHA} to ${PAGES_REPO}"
+          echo "pushed core ${CORE} + ui ${UI} to ${PAGES_REPO}"
           echo "site: https://${GITHUB_REPOSITORY_OWNER}.github.io/zeus-demos/"
