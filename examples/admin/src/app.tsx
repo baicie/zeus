@@ -51,17 +51,41 @@ export function App() {
 
   const [signedIn, setSignedIn] = createSignal(false)
 
-  // Once the session resolves, this account's own choice takes over from the
-  // pre-login guess. Without this a user who picked English would see it flip
-  // back to the workspace default every time the session refreshed.
+  /*
+   * Once the session resolves, this account's own choice takes over from the
+   * pre-login guess. Without this a user who picked English would see it flip
+   * back to the workspace default every time the session refreshed.
+   *
+   * The effect must not write a dependency it read. It used to compare against
+   * `i18n.locale()` — making the locale a dependency — and then call
+   * `setLocale`, i.e. an effect synchronously updating its own dependency. Zeus
+   * rejects that by throwing
+   *
+   *   A reactive effect cannot synchronously update its own dependencies.
+   *
+   * and the throw landed on the settings page's language switch, which is
+   * exactly where a person changes the preference: the write re-ran this
+   * effect, which saw the mismatch again and wrote again.
+   *
+   * The fix is ordering, not suppression: the comparison stays (it is what
+   * avoids a redundant write on every session refresh), but the write is
+   * scheduled after the effect returns, so it can no longer run inside its own
+   * tracking pass. `queueMicrotask` runs before paint, so the interface does
+   * not flicker.
+   */
   createEffect(() => {
     const user = session.data()
     if (!user) return
     const personal = readPersonalLocale(user.id)
-    if (personal && personal !== i18n.locale()) {
+    if (!personal || personal === i18n.locale()) return
+    queueMicrotask(() => {
+      // Re-checked when it runs: a later session update may have changed what
+      // the account wants, and this must not overwrite it with a stale read.
+      if (readPersonalLocale(user.id) !== personal) return
+      if (i18n.locale() === personal) return
       void i18n.setLocale(personal)
       applyDocumentLang(personal)
-    }
+    })
   })
 
   return (

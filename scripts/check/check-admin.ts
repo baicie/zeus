@@ -636,31 +636,37 @@ for (const [name, engine] of selectedBrowsers) {
      * preference is per account in `localStorage`, so the reload is the real
      * test of it.
      */
-    const copyBefore = await page.getByTestId('settings-page').innerText()
-    expect(
-      /[\u4e00-\u9fff]/.test(copyBefore),
-      'the console starts in English, so the switch below is measurable',
-    ).toBe(false)
+    /*
+     * The language <select> lists both languages by their own names, so the
+     * page text always contains 简体中文 — searching the whole page for CJK
+     * characters measures the option labels, not the interface. The heading is
+     * the thing that actually relabels.
+     */
+    const heading = page.locator(
+      '[data-testid="settings-page"] .settings-title',
+    )
+    const headingBefore = (await heading.innerText()).trim()
     await page.getByTestId('personal-locale').selectOption('zh-CN')
-    // Wait for the copy to actually change, rather than reading immediately: a
-    // switch that does nothing would otherwise pass on whatever was there.
-    const settingsPage = page
     await expect
-      .poll(
-        () =>
-          settingsPage
-            .getByTestId('settings-page')
-            .innerText()
-            .then(text => /[\u4e00-\u9fff]/.test(text)),
-        { message: 'switching to zh-CN must render Chinese copy' },
-      )
-      .toBe(true)
+      .poll(async () => (await heading.innerText()).trim(), {
+        message: 'switching to zh-CN relabels the page heading',
+        timeout: 10_000,
+      })
+      .not.toBe(headingBefore)
+    expect(
+      /[\u4e00-\u9fff]/.test((await heading.innerText()).trim()),
+      'the relabelled heading is Chinese',
+    ).toBe(true)
 
     await page.reload()
     await expect(page.getByTestId('settings-page')).toBeVisible()
     expect(
       /[\u4e00-\u9fff]/.test(
-        await page.getByTestId('settings-page').innerText(),
+        (
+          await page
+            .locator('[data-testid="settings-page"] .settings-title')
+            .innerText()
+        ).trim(),
       ),
       'the language choice must survive a reload',
     ).toBe(true)
