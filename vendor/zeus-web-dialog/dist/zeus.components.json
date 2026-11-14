@@ -1,0 +1,409 @@
+{
+  "schemaVersion": 1,
+  "components": [
+    {
+      "tag": "zw-dialog",
+      "name": "Dialog",
+      "exportName": "Dialog",
+      "source": "src/dialog.tsx",
+      "props": {
+        "closeOnOutsideClick": {
+          "type": "boolean",
+          "declaration": {
+            "type": "boolean"
+          },
+          "required": false,
+          "default": true,
+          "hasDefault": true,
+          "defaultStrategy": "static",
+          "reflect": true,
+          "attr": "close-on-outside-click"
+        },
+        "defaultOpen": {
+          "type": "boolean",
+          "declaration": {
+            "type": "boolean"
+          },
+          "required": false,
+          "default": false,
+          "hasDefault": true,
+          "defaultStrategy": "static",
+          "reflect": true,
+          "attr": "default-open"
+        },
+        "modal": {
+          "type": "boolean",
+          "declaration": {
+            "type": "boolean"
+          },
+          "required": false,
+          "default": true,
+          "hasDefault": true,
+          "defaultStrategy": "static",
+          "reflect": true
+        },
+        "open": {
+          "type": "boolean",
+          "declaration": {
+            "type": "boolean"
+          },
+          "required": false,
+          "hasDefault": true,
+          "defaultStrategy": "factory",
+          "reflect": true
+        }
+      },
+      "runtimeProps": {
+        "open": {
+          "type": "boolean",
+          "reflect": true,
+          "hasDefault": true,
+          "defaultStrategy": "factory"
+        },
+        "defaultOpen": {
+          "type": "boolean",
+          "attr": "default-open",
+          "default": false,
+          "hasDefault": true,
+          "defaultStrategy": "static",
+          "reflect": true
+        },
+        "modal": {
+          "type": "boolean",
+          "reflect": true,
+          "hasDefault": true,
+          "defaultStrategy": "static",
+          "default": true
+        },
+        "closeOnOutsideClick": {
+          "type": "boolean",
+          "attr": "close-on-outside-click",
+          "hasDefault": true,
+          "defaultStrategy": "static",
+          "default": true,
+          "reflect": true
+        }
+      },
+      "events": {
+        "openChange": {
+          "key": "openChange",
+          "name": "open-change",
+          "reactName": "onOpenChange",
+          "detail": {
+            "open": "boolean",
+            "nativeEvent": "Event"
+          },
+          "detailOptional": [
+            "nativeEvent"
+          ],
+          "bubbles": true,
+          "composed": true,
+          "cancelable": false
+        }
+      },
+      "methods": {
+        "show": {
+          "name": "show",
+          "parameters": [],
+          "returns": "void",
+          "async": false
+        },
+        "close": {
+          "name": "close",
+          "parameters": [],
+          "returns": "void",
+          "async": false
+        }
+      },
+      "models": [
+        {
+          "prop": "open",
+          "event": "open-change",
+          "eventPath": "detail.open"
+        }
+      ],
+      "slots": {
+        "default": {
+          "name": "default"
+        }
+      },
+      "hostAttributes": [
+        "data-modal",
+        "data-slot",
+        "data-state"
+      ],
+      "cssParts": [],
+      "cssVars": {},
+      "description": "Headless dialog root primitive.",
+      "meta": {
+        "shadow": false
+      }
+    },
+    {
+      "tag": "zw-dialog-trigger",
+      "name": "DialogTrigger",
+      "exportName": "DialogTrigger",
+      "source": "src/dialog.tsx",
+      "props": {
+        "disabled": {
+          "type": "boolean",
+          "declaration": {
+            "type": "boolean"
+          },
+          "required": false,
+          "default": false,
+          "hasDefault": true,
+          "defaultStrategy": "static",
+          "reflect": true
+        }
+      },
+      "runtimeProps": {
+        "disabled": {
+          "type": "boolean",
+          "default": false,
+          "hasDefault": true,
+          "defaultStrategy": "static",
+          "reflect": true
+        }
+      },
+      "events": {},
+      "methods": {
+        "focus": {
+          "name": "focus",
+          "parameters": [],
+          "returns": "void",
+          "async": false
+        }
+      },
+      "slots": {
+        "default": {
+          "name": "default"
+        }
+      },
+      "hostAttributes": [
+        "data-disabled",
+        "data-slot"
+      ],
+      "cssParts": [
+        "trigger"
+      ],
+      "cssVars": {},
+      "description": "Headless dialog trigger primitive.",
+      "meta": {
+        "shadow": false
+      }
+    },
+    {
+      "tag": "zw-dialog-content",
+      "name": "DialogContent",
+      "exportName": "DialogContent",
+      "source": "src/dialog.tsx",
+      "props": {
+        "forceMount": {
+          "type": "boolean",
+          "declaration": {
+            "type": "boolean"
+          },
+          "required": false,
+          "default": false,
+          "hasDefault": true,
+          "defaultStrategy": "static",
+          "reflect": true,
+          "attr": "force-mount"
+        }
+      },
+      "runtimeProps": {
+        "forceMount": {
+          "type": "boolean",
+          "attr": "force-mount",
+          "default": false,
+          "hasDefault": true,
+          "defaultStrategy": "static",
+          "reflect": true
+        }
+      },
+      "events": {},
+      "methods": {
+        "focus": {
+          "name": "focus",
+          "parameters": [],
+          "returns": "void",
+          "async": false
+        }
+      },
+      "slots": {
+        "default": {
+          "name": "default"
+        }
+      },
+      "hostAttributes": [
+        "data-slot",
+        "data-state"
+      ],
+      "cssParts": [
+        "content"
+      ],
+      "cssVars": {},
+      "description": "Headless dialog content primitive.",
+      "meta": {
+        "shadow": false
+      }
+    },
+    {
+      "tag": "zw-dialog-overlay",
+      "name": "DialogOverlay",
+      "exportName": "DialogOverlay",
+      "source": "src/dialog.tsx",
+      "props": {
+        "forceMount": {
+          "type": "boolean",
+          "default": false,
+          "hasDefault": true,
+          "defaultStrategy": "static",
+          "reflect": true,
+          "attr": "force-mount"
+        }
+      },
+      "runtimeProps": {
+        "forceMount": {
+          "type": "boolean",
+          "attr": "force-mount",
+          "default": false,
+          "hasDefault": true,
+          "defaultStrategy": "static",
+          "reflect": true
+        }
+      },
+      "events": {},
+      "methods": {},
+      "slots": {
+        "default": {
+          "name": "default"
+        }
+      },
+      "hostAttributes": [
+        "data-slot",
+        "data-state",
+        "part"
+      ],
+      "cssParts": [
+        "overlay"
+      ],
+      "cssVars": {},
+      "description": "Dialog backdrop primitive.",
+      "meta": {
+        "shadow": false
+      }
+    },
+    {
+      "tag": "zw-dialog-close",
+      "name": "DialogClose",
+      "exportName": "DialogClose",
+      "source": "src/dialog.tsx",
+      "props": {
+        "disabled": {
+          "type": "boolean",
+          "declaration": {
+            "type": "boolean"
+          },
+          "required": false,
+          "default": false,
+          "hasDefault": true,
+          "defaultStrategy": "static",
+          "reflect": true
+        }
+      },
+      "runtimeProps": {
+        "disabled": {
+          "type": "boolean",
+          "default": false,
+          "hasDefault": true,
+          "defaultStrategy": "static",
+          "reflect": true
+        }
+      },
+      "events": {},
+      "methods": {
+        "focus": {
+          "name": "focus",
+          "parameters": [],
+          "returns": "void",
+          "async": false
+        }
+      },
+      "slots": {
+        "default": {
+          "name": "default"
+        }
+      },
+      "hostAttributes": [
+        "data-disabled",
+        "data-slot"
+      ],
+      "cssParts": [
+        "close"
+      ],
+      "cssVars": {},
+      "description": "Headless dialog close primitive.",
+      "meta": {
+        "shadow": false
+      }
+    },
+    {
+      "tag": "zw-dialog-title",
+      "name": "DialogTitle",
+      "exportName": "DialogTitle",
+      "source": "src/dialog.tsx",
+      "props": {},
+      "runtimeProps": {},
+      "events": {},
+      "methods": {},
+      "slots": {
+        "default": {
+          "name": "default"
+        }
+      },
+      "hostAttributes": [
+        "data-slot",
+        "id",
+        "part"
+      ],
+      "cssParts": [
+        "title"
+      ],
+      "cssVars": {},
+      "description": "Headless dialog title primitive.",
+      "meta": {
+        "shadow": false
+      }
+    },
+    {
+      "tag": "zw-dialog-description",
+      "name": "DialogDescription",
+      "exportName": "DialogDescription",
+      "source": "src/dialog.tsx",
+      "props": {},
+      "runtimeProps": {},
+      "events": {},
+      "methods": {},
+      "slots": {
+        "default": {
+          "name": "default"
+        }
+      },
+      "hostAttributes": [
+        "data-slot",
+        "id",
+        "part"
+      ],
+      "cssParts": [
+        "description"
+      ],
+      "cssVars": {},
+      "description": "Headless dialog description primitive.",
+      "meta": {
+        "shadow": false
+      }
+    }
+  ]
+}

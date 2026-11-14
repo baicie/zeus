@@ -49,6 +49,16 @@ for (const name of selectedBrowsers.map(([name]) => name)) {
     await fs.rm(`${databaseFile}.${name}${suffix}`, { force: true })
   }
 }
+/*
+ * Before anything builds or launches: prove the dialog Admin installs is the
+ * build this repository vendored. The browser assertions below are only
+ * meaningful on that build, and a re-install can quietly swap it back.
+ */
+execFileSync('pnpm', ['check:vendored-dialog'], {
+  cwd: root,
+  stdio: 'inherit',
+  shell: process.platform === 'win32',
+})
 execFileSync('pnpm', ['-F', '@zeus-js/example-admin', 'check'], {
   cwd: root,
   stdio: 'inherit',
