@@ -16,18 +16,34 @@ on:
   push:
     branches: [main]
     paths:
+      # Mirrors `examples/playground-editor/Dockerfile`. The Dockerfile copies
+      # `scripts` wholesale and the build scripts import `scripts/shared/**`,
+      # so the directory is an input rather than just the entry points.
       - 'examples/playground-editor/**'
       - 'packages/**'
       - 'crates/**'
-      - 'scripts/release/build-info.ts'
+      - 'scripts/**'
       - 'package.json'
+      - 'pnpm-workspace.yaml'
       - 'pnpm-lock.yaml'
+      - 'tsconfig.json'
       - 'Cargo.toml'
       - 'Cargo.lock'
+      - '.dockerignore'
       - '.github/workflows/playground-image.yml'
   pull_request:
     paths:
       - 'examples/playground-editor/**'
+      - 'packages/**'
+      - 'crates/**'
+      - 'scripts/**'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
+      - 'pnpm-lock.yaml'
+      - 'tsconfig.json'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.dockerignore'
       - '.github/workflows/playground-image.yml'
   workflow_dispatch:
     inputs:
