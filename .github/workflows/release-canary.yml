@@ -49,6 +49,9 @@ jobs:
        (github.event_name == 'workflow_dispatch' && inputs.mode == 'dry-run'))
     runs-on: ubuntu-latest
     steps:
+      # `fetch-depth: 0` so the check below can compare against origin; a
+      # shallow clone still has the ref, but a full one removes any doubt about
+      # which commit `rev-parse HEAD` names.
       - name: Checkout
         uses: actions/checkout@v5
 
@@ -63,6 +66,25 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # Fail a stale commit here, not after seven native builds.
+      #
+      # `canary-dry-run` already performs this check, but it `needs:
+      # native-prebuild`. Nine consecutive merges in one evening therefore ran
+      # the full matrix — every build succeeding — and only then discovered the
+      # commit was no longer `origin/main`.
+      #
+      # It sits after `pnpm install` because the check runs through `tsx`,
+      # which is a dev dependency; the setup action's pnpm cache carries the
+      # store, not a `node_modules` tree. What it avoids is the ~16 minutes of
+      # seven-platform compilation, not the install.
+      #
+      # The late check stays: this one cannot see a push that lands while the
+      # native matrix is still running, and that window is exactly what the
+      # late check closes.
+      - name: Verify main source head
+        if: github.ref == 'refs/heads/main'
+        run: pnpm release:verify:main-head
 
       - name: Production dependency audit
         run: pnpm audit:prod
