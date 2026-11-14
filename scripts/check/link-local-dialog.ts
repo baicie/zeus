@@ -3,24 +3,27 @@
  *
  * Why this exists: the R6-C gate asserts that the dialog can be closed and
  * reopened, and those assertions only hold on a build that contains
- * `fix/dialog-state-and-focus`. The published `beta.34` does not. Verifying
- * the integration therefore needs *a build*, and the options are:
+ * `fix/dialog-state-and-focus`. No published version does. Verifying the
+ * integration therefore needs *a build*, and the options were:
  *
  * - publish a new `@zeus-web/dialog` — correct, but a release is not something
  *   a pull request may do;
- * - commit the built package under `vendor/` — does not work: the repository
- *   ignores `dist`, so the committed copy has a manifest and no code, and the
- *   failure only shows up in CI (it did);
+ * - commit the built package under `vendor/` — this is the option the
+ *   repository took, after the first attempt failed. The failure was
+ *   `.gitignore`: a bare `dist` rule dropped the build output, so the committed
+ *   copy had a manifest and no code and CI failed on a missing module. The
+ *   exception in `.gitignore` and `.dockerignore` fixes that, and
+ *   `pnpm check:vendored-dialog` now proves the result byte for byte;
  * - build it here, from the sibling checkout, for the duration of a local run.
  *
- * This is the third option. It writes the package into `node_modules` the way
- * a published install would look, and records what it replaced so
- * `--restore` puts the published version back. Nothing it writes is
- * committed.
+ * **The vendored build is what Admin ships**, in CI and in the image. This
+ * script is the third option kept for a different job: trying an uncommitted
+ * zeus-ui change against Admin without touching `vendor/`.
  *
- * **It is not a substitute for a release.** `check:admin` in CI runs against
- * the published version; this script is for proving the integration locally
- * and before a release is tagged.
+ * What `--restore` does is therefore *not* "put the published version back".
+ * Admin's dependency is `file:../../vendor/zeus-web-dialog`, so reinstalling
+ * restores the vendored beta.35 — the same package `check:admin` runs against.
+ * Nothing this script writes is committed.
  *
  * Usage:
  *
@@ -155,7 +158,7 @@ function buildAndInstall(): void {
       {
         source: built,
         builtAt: new Date().toISOString(),
-        note: 'local build; pnpm admin:link-dialog --restore puts the published version back',
+        note: 'local build; pnpm admin:link-dialog --restore reinstalls the vendored build',
       },
       null,
       2,
