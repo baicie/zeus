@@ -177,7 +177,48 @@ RC 的 6 项外部阻塞全部仍然存在：dialog 未发布、版本未切、�
 5. 产品签核
 6. 上轮遗留的 16 个未跟踪 RC 文档是否提交
 
-## G. Git 清理
+## G. CI 结果
+
+| PR   | 通过 | 失败 | 跳过 |
+| ---- | ---- | ---- | ---- |
+| #262 | 17   | 0    | 4    |
+| #263 | 17   | 0    | 4    |
+| #264 | 17   | 0    | 4    |
+| #265 | 14   | 0    | 2    |
+| #266 | 13   | 0    | 5    |
+| #267 | 见下 | 2    | 2    |
+| #268 | 14   | 0    | 2    |
+| #269 | 22   | 0    | 2    |
+| #270 | 16   | 0    | 3    |
+
+跳过项是 `Deploy` / `Mirror to TCR` / `publish`，由 `should_deploy` 与 `publish` 输入 gate，属预期。
+
+### #267 的失败与修复无关
+
+失败点是 `scripts/playground/check-playground-ux.ts:250` 的 `ZEUS_PLAYGROUND_NO_MODALS` 断言：
+
+```
+[playground-ux] webkit: FAIL locator.waitFor: Timeout 10000ms exceeded.
+  24 × locator resolved to hidden <code>[ZEUS_PLAYGROUND_NO_MODALS] ...
+```
+
+注意 `resolved to hidden`——元素存在但不可见，不是找不到。该分支只改了文档与一个单元测试文件，
+不碰 Playground 浏览器路径。同一 job 在 #262 / #264 / #270 上均通过，因此判定为 WebKit 偶发。
+已 `--failed` 重跑。
+
+### #262 的端到端证据
+
+该分支的 `Admin Image` PR run（`43600318038`）：
+
+| Job                       | 结果    |
+| ------------------------- | ------- |
+| Build and publish to GHCR | success |
+| Mirror to TCR             | skipped |
+| Deploy                    | skipped |
+
+改 `scripts/**` 现在会触发镜像构建（修复前不会），且 PR 路径下不推送、不部署。
+
+## H. Git 清理
 
 **未执行任何清理。** 理由：
 
