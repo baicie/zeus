@@ -1,0 +1,712 @@
+{
+  "schema": "zeus.rc-manifest/v1",
+  "generatedAt": "2026-11-14T19:45:44.120Z",
+  "repositories": {
+    "core": {
+      "commit": "7bc850b7aa5451b2b1da36ecfa798f5183a2c45c",
+      "version": "0.1.1-beta.20"
+    },
+    "ui": {
+      "commit": "89fc93cac5b97f29f48deb64964886476c5d7aac",
+      "version": "0.1.0-beta.35"
+    }
+  },
+  "toolchain": {
+    "node": "24.16.0",
+    "pnpm": "10.33.4",
+    "rust": "1.95.0",
+    "nativeTargets": [
+      "@zeus-js/compiler-native-darwin-arm64 darwin/arm64",
+      "@zeus-js/compiler-native-darwin-x64 darwin/x64",
+      "@zeus-js/compiler-native-linux-arm64-gnu linux/arm64",
+      "@zeus-js/compiler-native-linux-x64-gnu linux/x64",
+      "@zeus-js/compiler-native-linux-x64-musl linux/x64",
+      "@zeus-js/compiler-native-win32-arm64-msvc win32/arm64",
+      "@zeus-js/compiler-native-win32-x64-msvc win32/x64"
+    ]
+  },
+  "lockfiles": {
+    "core": "98b44a0b1f0b02f3e7517910a22b1f65acd64acb0d9f6924f9d75717849a61ac",
+    "ui": "450f3d02e5e4866e452202f08b95d5c33afb3c65952694a74a05a9b6e2ffde7c"
+  },
+  "releaseSet": {
+    "core": [
+      {
+        "name": "@zeus-js/bundler-plugin",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/web-c/bundler-plugin"
+      },
+      {
+        "name": "@zeus-js/compiler",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/core/compiler"
+      },
+      {
+        "name": "@zeus-js/compiler-native",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/core/compiler-native"
+      },
+      {
+        "name": "@zeus-js/compiler-native-darwin-arm64",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/core/compiler-native-darwin-arm64"
+      },
+      {
+        "name": "@zeus-js/compiler-native-darwin-x64",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/core/compiler-native-darwin-x64"
+      },
+      {
+        "name": "@zeus-js/compiler-native-linux-arm64-gnu",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/core/compiler-native-linux-arm64-gnu"
+      },
+      {
+        "name": "@zeus-js/compiler-native-linux-x64-gnu",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/core/compiler-native-linux-x64-gnu"
+      },
+      {
+        "name": "@zeus-js/compiler-native-linux-x64-musl",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/core/compiler-native-linux-x64-musl"
+      },
+      {
+        "name": "@zeus-js/compiler-native-win32-arm64-msvc",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/core/compiler-native-win32-arm64-msvc"
+      },
+      {
+        "name": "@zeus-js/compiler-native-win32-x64-msvc",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/core/compiler-native-win32-x64-msvc"
+      },
+      {
+        "name": "@zeus-js/compiler-shared",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/core/compiler-shared"
+      },
+      {
+        "name": "@zeus-js/component-analyzer",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/web-c/component-analyzer"
+      },
+      {
+        "name": "@zeus-js/component-dts",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/web-c/component-dts"
+      },
+      {
+        "name": "@zeus-js/eslint-plugin",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/devtools/eslint-plugin"
+      },
+      {
+        "name": "@zeus-js/i18n",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/core/i18n"
+      },
+      {
+        "name": "@zeus-js/output-css",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/web-c/output-css"
+      },
+      {
+        "name": "@zeus-js/output-icons",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/web-c/output-icons"
+      },
+      {
+        "name": "@zeus-js/output-react-wrapper",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/web-c/output-react-wrapper"
+      },
+      {
+        "name": "@zeus-js/output-vue-wrapper",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/web-c/output-vue-wrapper"
+      },
+      {
+        "name": "@zeus-js/output-wc",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/web-c/output-wc"
+      },
+      {
+        "name": "@zeus-js/playground-engine",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/devtools/playground-engine"
+      },
+      {
+        "name": "@zeus-js/query",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/core/query"
+      },
+      {
+        "name": "@zeus-js/resource",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/core/resource"
+      },
+      {
+        "name": "@zeus-js/router",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/core/router"
+      },
+      {
+        "name": "@zeus-js/runtime-dom",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/core/runtime-dom"
+      },
+      {
+        "name": "@zeus-js/runtime-ssr",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/core/runtime-ssr"
+      },
+      {
+        "name": "@zeus-js/shared",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/core/shared"
+      },
+      {
+        "name": "@zeus-js/signal",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/core/signal"
+      },
+      {
+        "name": "@zeus-js/testing",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/core/testing"
+      },
+      {
+        "name": "@zeus-js/web-c",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/web-c/web-c"
+      },
+      {
+        "name": "@zeus-js/web-c-runtime",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/web-c/web-c-runtime"
+      },
+      {
+        "name": "@zeus-js/zeus",
+        "version": "0.1.1-beta.20",
+        "dir": "packages/core/zeus"
+      }
+    ],
+    "ui": [
+      {
+        "name": "@zeus-web/accordion",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/primitives/accordion"
+      },
+      {
+        "name": "@zeus-web/agent-console",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/advanced/agent-console"
+      },
+      {
+        "name": "@zeus-web/ai",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/ai"
+      },
+      {
+        "name": "@zeus-web/ai-adapters",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/ai-adapters"
+      },
+      {
+        "name": "@zeus-web/ai-core",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/ai-core"
+      },
+      {
+        "name": "@zeus-web/ai-primitives",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/ai-primitives"
+      },
+      {
+        "name": "@zeus-web/ai-react",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/ai-react"
+      },
+      {
+        "name": "@zeus-web/ai-vue",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/ai-vue"
+      },
+      {
+        "name": "@zeus-web/ai-wc",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/ai-wc"
+      },
+      {
+        "name": "@zeus-web/alert",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/primitives/alert"
+      },
+      {
+        "name": "@zeus-web/avatar",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/primitives/avatar"
+      },
+      {
+        "name": "@zeus-web/badge",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/primitives/badge"
+      },
+      {
+        "name": "@zeus-web/button",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/primitives/button"
+      },
+      {
+        "name": "@zeus-web/card",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/primitives/card"
+      },
+      {
+        "name": "@zeus-web/chat",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/advanced/chat"
+      },
+      {
+        "name": "@zeus-web/checkbox",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/primitives/checkbox"
+      },
+      {
+        "name": "@zeus-web/cli",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/cli"
+      },
+      {
+        "name": "@zeus-web/collapsible",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/primitives/collapsible"
+      },
+      {
+        "name": "@zeus-web/data-grid",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/advanced/data-grid"
+      },
+      {
+        "name": "@zeus-web/dialog",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/primitives/dialog"
+      },
+      {
+        "name": "@zeus-web/dropdown-menu",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/primitives/dropdown-menu"
+      },
+      {
+        "name": "@zeus-web/form-field",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/primitives/form-field"
+      },
+      {
+        "name": "@zeus-web/headless",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/headless"
+      },
+      {
+        "name": "@zeus-web/icons",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/icons"
+      },
+      {
+        "name": "@zeus-web/input",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/primitives/input"
+      },
+      {
+        "name": "@zeus-web/label",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/primitives/label"
+      },
+      {
+        "name": "@zeus-web/popover",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/primitives/popover"
+      },
+      {
+        "name": "@zeus-web/progress",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/primitives/progress"
+      },
+      {
+        "name": "@zeus-web/radio-group",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/primitives/radio-group"
+      },
+      {
+        "name": "@zeus-web/react",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/react"
+      },
+      {
+        "name": "@zeus-web/registry",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/registry"
+      },
+      {
+        "name": "@zeus-web/revogrid-adapter",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/advanced/revogrid-adapter"
+      },
+      {
+        "name": "@zeus-web/select",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/primitives/select"
+      },
+      {
+        "name": "@zeus-web/separator",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/primitives/separator"
+      },
+      {
+        "name": "@zeus-web/skeleton",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/primitives/skeleton"
+      },
+      {
+        "name": "@zeus-web/switch",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/primitives/switch"
+      },
+      {
+        "name": "@zeus-web/tabs",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/primitives/tabs"
+      },
+      {
+        "name": "@zeus-web/textarea",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/primitives/textarea"
+      },
+      {
+        "name": "@zeus-web/themes",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/themes"
+      },
+      {
+        "name": "@zeus-web/toast",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/primitives/toast"
+      },
+      {
+        "name": "@zeus-web/tooltip",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/primitives/tooltip"
+      },
+      {
+        "name": "@zeus-web/ui",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/ui"
+      },
+      {
+        "name": "@zeus-web/utils",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/utils"
+      },
+      {
+        "name": "@zeus-web/virtual",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/advanced/virtual"
+      },
+      {
+        "name": "@zeus-web/vue",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/vue"
+      },
+      {
+        "name": "@zeus-web/zeus-compat",
+        "version": "0.1.0-beta.35",
+        "dir": "../zeus-ui/packages/zeus-compat"
+      }
+    ],
+    "excluded": [
+      {
+        "name": "@zeus-js/vite-plugin",
+        "version": "0.0.5",
+        "reason": "not listed in zeusFixedPackages, so outside the publish set"
+      },
+      {
+        "name": "create-zeus",
+        "version": "0.1.5",
+        "reason": "not listed in zeusFixedPackages, so outside the publish set"
+      },
+      {
+        "name": "zeus-ui",
+        "version": "0.0.1",
+        "reason": "not listed in zeusFixedPackages, so outside the publish set"
+      },
+      {
+        "name": "@zeus-ui/registry",
+        "version": "0.0.1",
+        "reason": "not listed in zeusFixedPackages, so outside the publish set"
+      },
+      {
+        "name": "@zeus-js/devtools-consumer",
+        "version": "0.1.1-beta.14",
+        "reason": "private: true"
+      },
+      {
+        "name": "@zeus-js/compiler-wasm",
+        "version": "0.1.1-beta.20",
+        "reason": "private: true"
+      }
+    ],
+    "privateExamples": [
+      "@zeus-js/example-admin",
+      "@zeus-js/example-context",
+      "@zeus-js/example-counter",
+      "@zeus-js/example-devtools-panel",
+      "@zeus-js/example-headless-demo",
+      "@zeus-js/example-light-dom-slots",
+      "@zeus-js/example-next-boundary",
+      "@zeus-js/example-playground-editor",
+      "@zeus-js/example-project-board",
+      "@zeus-js/example-react-wrapper",
+      "@zeus-js/example-registry-react",
+      "@zeus-js/example-registry-vue",
+      "@zeus-js/example-stencil-wrapper",
+      "@zeus-js/example-todo",
+      "@zeus-js/example-use-headless-cli",
+      "@zeus-js/example-use-headless-react",
+      "@zeus-js/example-use-headless-vue",
+      "@zeus-js/example-vue-wrapper",
+      "@zeus-js/example-web-component",
+      "@zeus-ui/headless"
+    ]
+  },
+  "peers": [
+    {
+      "package": "@zeus-web/accordion",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/agent-console",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/alert",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/avatar",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/badge",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/button",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/card",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/chat",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/checkbox",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/collapsible",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/data-grid",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/dialog",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/dropdown-menu",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/form-field",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/input",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/label",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/popover",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/progress",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/radio-group",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/revogrid-adapter",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/select",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/separator",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/skeleton",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/switch",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/tabs",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/textarea",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/toast",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/tooltip",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/virtual",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    },
+    {
+      "package": "@zeus-web/zeus-compat",
+      "peer": "@zeus-js/zeus",
+      "requirement": "0.1.1-beta.20"
+    }
+  ],
+  "order": [
+    "core: replace the Cargo workspace version, then all 32 fixed packages",
+    "core: publish first — every UI component pins an exact @zeus-js/zeus version",
+    "ui: 46 packages at one version",
+    "ui: replace vendor/zeus-web-dialog with the published version",
+    "consumers: update @zeus-web/* to the RC version"
+  ],
+  "artifacts": {
+    "demoPairing": {
+      "coreCommit": "69f494f270c8fb501b34759dc22d2a9de7aee951",
+      "uiCommit": "89fc93cac5b97f29f48deb64964886476c5d7aac"
+    },
+    "sbomComponents": 60,
+    "releaseTarballs": null,
+    "imageDigest": null
+  },
+  "tests": [
+    {
+      "check": "packed-consumers",
+      "status": "PASS",
+      "source": "temp/packed-consumers/report.json",
+      "detail": "38 consumer runs, 0 failed"
+    },
+    {
+      "check": "sbom",
+      "status": "PASS",
+      "source": "temp/sbom/zeus.cdx.json",
+      "detail": "60 components"
+    },
+    {
+      "check": "rc-readiness",
+      "status": "FAIL",
+      "source": "temp/release/rc-readiness.json",
+      "detail": "NOT_READY; not passing: clean-worktree, cross-platform, release-approval, online-products"
+    },
+    {
+      "check": "cross-platform-evidence",
+      "status": "FAIL",
+      "source": "temp/cross-platform/evidence.json",
+      "detail": "cross-platform commit does not match the Core commit; cross-platform linux sourceSha does not match; cross-platform linux headSha does not match; cross-platform win32 sourceSha does not match; cross-platform win32 headSha does not match"
+    },
+    {
+      "check": "release-approval",
+      "status": "NOT_RUN",
+      "source": ".github/workflows/rc-approval.yml",
+      "detail": "maintainer-only; the workflow has no runs, so no approval exists"
+    },
+    {
+      "check": "online-products",
+      "status": "NOT_RUN",
+      "source": "deployment acceptance + transaction records",
+      "detail": "four products need a real Stage 2 deployment and ONLINE_ACCEPTED"
+    },
+    {
+      "check": "product-signoff",
+      "status": "NOT_RUN",
+      "source": "docs/release/0.2.0-rc-readiness.md §7",
+      "detail": "manual acceptance cannot be performed by an agent"
+    },
+    {
+      "check": "byok-live-gateway",
+      "status": "NOT_RUN",
+      "source": "ai-workbench-live environment",
+      "detail": "needs environment secrets and a manual dispatch"
+    }
+  ],
+  "blockers": [
+    "demo pairing names 69f494f2+89fc93ca, tree is 7bc850b7+89fc93ca",
+    "rc-readiness: NOT_READY; not passing: clean-worktree, cross-platform, release-approval, online-products",
+    "cross-platform-evidence: cross-platform commit does not match the Core commit; cross-platform linux sourceSha does not match; cross-platform linux headSha does not match; cross-platform win32 sourceSha does not match; cross-platform win32 headSha does not match",
+    "versions are core 0.1.1-beta.20 / ui 0.1.0-beta.35, not 0.2.0-rc.0",
+    "admin build-info names ui ffde5592, frozen ui is 89fc93ca",
+    "native-lab build-info names ui ffde5592, frozen ui is 89fc93ca",
+    "webc-studio build-info names ui ffde5592, frozen ui is 89fc93ca",
+    "evidence not produced: release-approval, online-products, product-signoff, byok-live-gateway",
+    "never published on npm, so the RC creates their first latest tag: @zeus-js/i18n, @zeus-js/eslint-plugin, @zeus-js/playground-engine"
+  ],
+  "verdict": "NO_GO"
+}
