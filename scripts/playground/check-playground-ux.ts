@@ -245,16 +245,27 @@ render(
     .getByRole('button', { name: 'Open modal' })
     .click()
   await page.getByTestId('tab-console').click()
+  /*
+   * The console is a scrollable `<ol>` (`overflow: auto` plus a `max-height`),
+   * so an entry that exists and is correct can still be outside the visible
+   * area — and Playwright treats that as hidden. Waiting on visibility made
+   * this whole check flake on WebKit whenever earlier entries filled the
+   * panel: `locator resolved to hidden <code>[ZEUS_PLAYGROUND_NO_MODALS]…`.
+   *
+   * What the assertion is about is *presence and content*, not whether the
+   * row happens to be scrolled into view. `toContainText` on the panel waits
+   * for the text to appear without requiring it to be visible, which is the
+   * property this test actually cares about.
+   */
   const consolePanel = page.getByTestId('console')
-  await consolePanel
-    .getByText('ZEUS_PLAYGROUND_NO_MODALS')
-    .first()
-    .waitFor({ timeout: 10_000 })
+  await expect(consolePanel).toContainText('ZEUS_PLAYGROUND_NO_MODALS', {
+    timeout: 10_000,
+  })
   // Entries arrive through the bounded, batched console bridge, so wait for
   // the click-triggered report instead of reading the panel once.
-  await consolePanel
-    .getByText('alert("blocked alert?")', { exact: false })
-    .waitFor({ timeout: 10_000 })
+  await expect(consolePanel).toContainText('alert("blocked alert?")', {
+    timeout: 10_000,
+  })
   const consoleText = (await consolePanel.textContent()) ?? ''
   for (const call of [
     'confirm("blocked confirm?")',
