@@ -185,6 +185,21 @@ jobs:
       - name: Branch name
         run: pnpm check:branch
 
+      # Generate the SBOM so a broken generator or an unparseable lockfile fails
+      # here rather than during a release.
+      #
+      # Deliberately *not* followed by `check:sbom`. That compares against the
+      # document on disk, and `temp/` is gitignored — a fresh checkout has no
+      # document, so `--check` would compare the write against itself and pass
+      # unconditionally. A gate that cannot fail is worse than no gate.
+      #
+      # What this step does verify: the generator runs, every published
+      # package's importer resolves, and the lockfile yields a runtime
+      # dependency set. The staleness check belongs to the release precheck,
+      # where the document is written and compared within one run.
+      - name: Generate SBOM
+        run: pnpm check:sbom:write
+
       - name: ESLint
         run: pnpm lint
 
