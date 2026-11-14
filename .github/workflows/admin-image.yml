@@ -24,18 +24,49 @@ on:
   push:
     branches: [main]
     paths:
+      # `examples/admin/Dockerfile` copies these; a change to any of them
+      # changes the image, so each must be able to start the build.
       - 'examples/admin/**'
       - 'packages/**'
       - 'crates/**'
-      - 'scripts/release/build-info.ts'
+      - 'vendor/**'
+      # The Dockerfile runs `COPY scripts ./scripts`; the build scripts import
+      # `scripts/shared/**` and `scripts/bundler/**`, so the whole directory is
+      # an input. Narrowing this to the two entry points would let a shared
+      # helper change without rebuilding the image.
+      - 'scripts/**'
       - 'package.json'
+      - 'pnpm-workspace.yaml'
       - 'pnpm-lock.yaml'
+      - 'tsconfig.json'
+      - 'tsconfig.build.json'
       - 'Cargo.toml'
       - 'Cargo.lock'
+      - '.dockerignore'
       - '.github/workflows/admin-image.yml'
   pull_request:
+    # Mirror the push inputs: a pull request that changes anything the image is
+    # built from has to build the image, or the first time it is compiled is on
+    # main, after merge. `should_deploy` keeps every PR run from pushing to a
+    # registry or touching production.
     paths:
       - 'examples/admin/**'
+      - 'packages/**'
+      - 'crates/**'
+      - 'vendor/**'
+      # The Dockerfile runs `COPY scripts ./scripts`; the build scripts import
+      # `scripts/shared/**` and `scripts/bundler/**`, so the whole directory is
+      # an input. Narrowing this to the two entry points would let a shared
+      # helper change without rebuilding the image.
+      - 'scripts/**'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
+      - 'pnpm-lock.yaml'
+      - 'tsconfig.json'
+      - 'tsconfig.build.json'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.dockerignore'
       - '.github/workflows/admin-image.yml'
   workflow_dispatch:
     inputs:
