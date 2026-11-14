@@ -36,10 +36,7 @@ import { parseArgs } from 'node:util'
 
 const root = path.resolve(import.meta.dirname, '../..')
 const adminDirectory = path.join(root, 'examples/admin')
-const installTarget = path.join(
-  adminDirectory,
-  'node_modules/@zeus-web/dialog',
-)
+const installTarget = path.join(adminDirectory, 'node_modules/@zeus-web/dialog')
 const marker = path.join(installTarget, '.zeus-local-build.json')
 
 /** The marker the fixed build writes: one of its state symbols. */
