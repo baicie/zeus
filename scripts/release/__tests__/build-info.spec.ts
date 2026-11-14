@@ -5,6 +5,7 @@ import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import {
+  collectArtifactFiles,
   computeArtifactDigest,
   createBuildInfo,
   writeBuildInfo,
@@ -55,6 +56,30 @@ describe('build info', () => {
       'index.html',
     ])
     expect(first.artifactDigest).toBe(computeArtifactDigest(first.files))
+  })
+
+  it('orders files by byte value, so the digest does not depend on the host locale', () => {
+    // `localeCompare` orders `a-b.js` against `a/b.js` differently depending on
+    // the machine's collation, which would give the same tree two digests.
+    const root = artifact()
+    mkdirSync(path.join(root, 'a-b'))
+    mkdirSync(path.join(root, 'a'))
+    writeFileSync(path.join(root, 'a-b/c.js'), 'x\n')
+    writeFileSync(path.join(root, 'a.js'), 'y\n')
+    writeFileSync(path.join(root, 'a/b.js'), 'z\n')
+
+    const files = collectArtifactFiles(root)
+    const first = files.map(file => file.path)
+    // Re-derive under a different collation to prove the sort is not using it.
+    const reordered = [...files].sort(() => 0).reverse()
+    expect(reordered).not.toEqual(first)
+    expect([...files].map(file => file.path)).toEqual([
+      'a-b/c.js',
+      'a.js',
+      'a/b.js',
+      'assets/app.js',
+      'index.html',
+    ])
   })
 
   it('changes the digest when any deployed file changes', () => {

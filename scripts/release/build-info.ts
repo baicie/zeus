@@ -50,12 +50,24 @@ export interface ProvenanceRecord {
   readonly products: readonly ProvenanceProduct[]
 }
 
-export function collectArtifactFiles(distDir: string): BuildInfoFile[] {
+/**
+ * Lists every deployed file under `distDir` with its digest.
+ *
+ * `build-info.json` is always excluded: it carries the digest, so including it
+ * would make the value depend on itself. Callers may exclude further paths
+ * (the demo pairing manifest is the other self-describing file), expressed as
+ * paths relative to `distDir` with `/` separators.
+ */
+export function collectArtifactFiles(
+  distDir: string,
+  options: { readonly exclude?: readonly string[] } = {},
+): BuildInfoFile[] {
+  const excluded = new Set(['build-info.json', ...(options.exclude ?? [])])
   const files: BuildInfoFile[] = []
   const walk = (directory: string, prefix: string): void => {
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
       const relative = prefix ? `${prefix}/${entry.name}` : entry.name
-      if (relative === 'build-info.json') continue
+      if (excluded.has(relative)) continue
       const absolute = path.join(directory, entry.name)
       if (entry.isDirectory()) {
         walk(absolute, relative)
@@ -70,7 +82,16 @@ export function collectArtifactFiles(distDir: string): BuildInfoFile[] {
     }
   }
   walk(distDir, '')
-  return files.sort((left, right) => left.path.localeCompare(right.path))
+  /*
+   * Byte order, not `localeCompare`. The digest is over this sequence, and
+   * `localeCompare` resolves according to the host's locale — two machines with
+   * different `LANG` would order `a-b.js` and `a/b.js` differently and compute
+   * different digests for the same tree. A digest that depends on who ran it
+   * cannot bind an artifact.
+   */
+  return files.sort((left, right) =>
+    left.path < right.path ? -1 : left.path > right.path ? 1 : 0,
+  )
 }
 
 export function computeArtifactDigest(files: readonly BuildInfoFile[]): string {

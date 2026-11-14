@@ -11,7 +11,12 @@
  * real requests, so the snapshot exercises the same code path production does.
  *
  * Usage:
- *   node --import tsx scripts/release/admin-demo-snapshot.ts --out <file>
+ *   node --import tsx scripts/release/admin-demo-snapshot.ts \
+ *     --out <file> --core-commit <40-hex> --ui-commit <40-hex>
+ *
+ * Both commits are required and recorded. The Admin demo ships as one half of
+ * the published pair (see `demo-pairing.ts`), and a snapshot that names only
+ * its own repository cannot be checked against the Workbench built beside it.
  */
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -32,6 +37,7 @@ interface Snapshot {
   readonly schema: 'zeus.admin-demo/v1'
   readonly generatedAt: string
   readonly coreCommit: string
+  readonly uiCommit: string
   readonly session: SessionUser
   readonly summary: AdminSummary
   readonly users: readonly User[]
@@ -39,14 +45,26 @@ interface Snapshot {
   readonly settings: WorkspaceSettings
 }
 
+const FULL_SHA = /^[0-9a-f]{40}$/
+
 const { values } = parseArgs({
   options: {
     out: { type: 'string' },
-    'core-commit': { type: 'string', default: 'unknown' },
+    'core-commit': { type: 'string' },
+    'ui-commit': { type: 'string' },
   },
 })
 
 if (!values.out) throw new Error('--out is required')
+for (const name of ['core-commit', 'ui-commit'] as const) {
+  const value = values[name]
+  if (!value) throw new Error(`--${name} is required`)
+  if (!FULL_SHA.test(value)) {
+    throw new Error(
+      `--${name} must be a full 40-character lowercase SHA (got ${JSON.stringify(value)})`,
+    )
+  }
+}
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'zeus-admin-demo-'))
 const databaseFile = path.join(scratch, 'demo.sqlite')
@@ -135,7 +153,8 @@ try {
   const snapshot: Snapshot = {
     schema: 'zeus.admin-demo/v1',
     generatedAt: new Date().toISOString(),
-    coreCommit: values['core-commit'] ?? 'unknown',
+    coreCommit: values['core-commit']!,
+    uiCommit: values['ui-commit']!,
     session: login.user,
     summary: summary,
     users: users.rows,
