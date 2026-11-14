@@ -17,9 +17,19 @@ on:
   push:
     branches:
       - main
+  # Any base, not just `main`.
+  #
+  # Limiting this to `main` meant a stacked pull request — one whose base is
+  # another feature branch — ran no CI at all. R6-C is exactly that shape: it
+  # targets R6-A's branch, and its `packed-consumers` gate (which is where
+  # `check:admin` lives) therefore never executed on a pull request. The gap
+  # was invisible because `workflow_dispatch` does run on any branch: a
+  # deliberate run passed, and nothing said the ordinary path was skipping it.
+  #
+  # Cost is bounded by the impact classifier, which already decides job by job
+  # whether a change can matter. A stacked PR that touches one package runs
+  # what that package needs, not the suite.
   pull_request:
-    branches:
-      - main
   workflow_dispatch:
 
 concurrency:
