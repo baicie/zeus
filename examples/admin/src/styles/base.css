@@ -1102,3 +1102,31 @@ zw-data-grid [data-slot='data-grid-empty']:empty {
   background: var(--accent);
   color: var(--accent-foreground);
 }
+
+/*
+ * Windows high-contrast / forced-colors.
+ *
+ * The browser replaces author colours with system colours, but it does not
+ * replace `transparent`. Controls drawn with `border: 1px solid transparent`
+ * therefore lost their outline entirely, and a focused button was
+ * indistinguishable from an idle one. Re-state the border with a system colour
+ * so the shape survives.
+ */
+@media (forced-colors: active) {
+  button,
+  [role='button'],
+  input,
+  select,
+  textarea,
+  .state-block,
+  .table-shell {
+    border-color: ButtonBorder;
+    forced-color-adjust: auto;
+  }
+
+  /* A focus ring must not rely on a background colour that is now overridden. */
+  :focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+}
