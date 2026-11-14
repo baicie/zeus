@@ -16,6 +16,8 @@ import {
 import type { DataGridElement } from '@zeus-web/data-grid/wc'
 import type { InputElement } from '@zeus-web/input/wc'
 
+import { withRef } from '../zw-jsx'
+
 import {
   adminSummaryQueryKey,
   adminUserQueryKey,
@@ -239,20 +241,20 @@ export function UserPage() {
       <Show when={editing()}>
         <zw-dialog
           data-testid="user-dialog"
-          prop:open={editing()}
-          ref={bindDialog}
+          open={editing()}
+          {...withRef<HTMLElement>(bindDialog)}
         >
           <zw-dialog-content>
             <zw-dialog-title>{t('users.editMember')}</zw-dialog-title>
             <zw-dialog-description>{t('users.editHint')}</zw-dialog-description>
             <form
-              prop:onsubmit={saveUser}
+              onSubmit={saveUser}
               data-testid="user-form"
               class="settings-form"
             >
               {/*
                 Seeded, not bound. Zeus compiles `value={expr}` — and
-                `prop:value={expr}` — into a reactive binding (`bindAttr` /
+                `value={expr}` — into a reactive binding (`bindAttr` /
                 `bindProp`), so a render landing between the keystroke and the
                 submit can write an older value back into the field. Writing
                 the DOM from `ref` runs once on mount and creates no binding.

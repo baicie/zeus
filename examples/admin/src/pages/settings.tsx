@@ -163,7 +163,7 @@ export function SettingsPage() {
                 <input
                   id="workspace-name"
                   class="input"
-                  prop:value={settings()!.workspaceName}
+                  value={settings()!.workspaceName}
                   onInput={event =>
                     patch(
                       'workspaceName',
@@ -181,7 +181,7 @@ export function SettingsPage() {
                   id="personal-locale"
                   class="select"
                   data-testid="personal-locale"
-                  prop:value={i18n.locale()}
+                  value={i18n.locale()}
                   onChange={event => {
                     const value = (event.currentTarget as HTMLSelectElement)
                       .value as Locale
@@ -207,7 +207,7 @@ export function SettingsPage() {
                   id="workspace-locale"
                   class="select"
                   data-testid="workspace-locale"
-                  prop:value={locale()}
+                  value={locale()}
                   onChange={event => {
                     const value = (event.currentTarget as HTMLSelectElement)
                       .value as WorkspaceSettings['locale']
@@ -227,7 +227,7 @@ export function SettingsPage() {
                 <select
                   id="workspace-theme"
                   class="select"
-                  prop:value={theme()}
+                  value={theme()}
                   onChange={event => {
                     const value = (event.currentTarget as HTMLSelectElement)
                       .value as WorkspaceSettings['theme']

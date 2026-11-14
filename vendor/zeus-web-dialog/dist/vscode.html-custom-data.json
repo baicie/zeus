@@ -1,0 +1,67 @@
+{
+  "version": 1.1,
+  "tags": [
+    {
+      "name": "zw-dialog",
+      "description": "Headless dialog root primitive.",
+      "attributes": [
+        {
+          "name": "close-on-outside-click"
+        },
+        {
+          "name": "default-open"
+        },
+        {
+          "name": "modal"
+        },
+        {
+          "name": "open"
+        }
+      ]
+    },
+    {
+      "name": "zw-dialog-trigger",
+      "description": "Headless dialog trigger primitive.",
+      "attributes": [
+        {
+          "name": "disabled"
+        }
+      ]
+    },
+    {
+      "name": "zw-dialog-content",
+      "description": "Headless dialog content primitive.",
+      "attributes": [
+        {
+          "name": "force-mount"
+        }
+      ]
+    },
+    {
+      "name": "zw-dialog-overlay",
+      "description": "Dialog backdrop primitive.",
+      "attributes": [
+        {
+          "name": "force-mount"
+        }
+      ]
+    },
+    {
+      "name": "zw-dialog-close",
+      "description": "Headless dialog close primitive.",
+      "attributes": [
+        {
+          "name": "disabled"
+        }
+      ]
+    },
+    {
+      "name": "zw-dialog-title",
+      "description": "Headless dialog title primitive."
+    },
+    {
+      "name": "zw-dialog-description",
+      "description": "Headless dialog description primitive."
+    }
+  ]
+}

@@ -42,6 +42,12 @@ export const en = {
   'nav.group.reference': 'Reference',
 
   /* ----------------------------------------------------------------- pages */
+  'gallery.packages': 'Real components rendered on this page',
+  'gallery.enterprise': 'Enterprise',
+  'gallery.notifications': 'Email notifications',
+  'gallery.avatarAlt': 'Member avatar',
+  'gallery.dataTable': 'Data table',
+  'gallery.nativeBadge': 'Admin markup',
   'gallery.title': 'Component gallery',
   'gallery.description':
     'Every control Admin ships, with its states side by side. The examples are live: click, type and tab through them.',

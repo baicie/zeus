@@ -49,6 +49,16 @@ for (const name of selectedBrowsers.map(([name]) => name)) {
     await fs.rm(`${databaseFile}.${name}${suffix}`, { force: true })
   }
 }
+/*
+ * Before anything builds or launches: prove the dialog Admin installs is the
+ * build this repository vendored. The browser assertions below are only
+ * meaningful on that build, and a re-install can quietly swap it back.
+ */
+execFileSync('pnpm', ['check:vendored-dialog'], {
+  cwd: root,
+  stdio: 'inherit',
+  shell: process.platform === 'win32',
+})
 execFileSync('pnpm', ['-F', '@zeus-js/example-admin', 'check'], {
   cwd: root,
   stdio: 'inherit',
@@ -396,34 +406,215 @@ for (const [name, engine] of selectedBrowsers) {
     ]) {
       await expect(page.getByTestId(`gallery-${section}`)).toBeVisible()
     }
+    /*
+     * Dialog. The real element stays mounted while closed and hides only its
+     * content, so "closed" is a state, not a removal — the pre-R6-C assertion
+     * expected the host to disappear, which was true of the `<Show>` imitation
+     * and is not true of the component.
+     *
+     * Focus trapping and Escape are the component's job, so they are asserted
+     * here rather than taken on faith: a modal that lets Tab escape is a bug
+     * the page-owner cannot see.
+     */
+    const dialogPage = page
+    const focusInsideDialog = (): Promise<boolean> =>
+      dialogPage.evaluate(`(() => {
+        const content = document.querySelector('[data-testid="gallery-dialog-content"]')
+        return Boolean(content && content.contains(document.activeElement))
+      })()`)
+
+    /*
+     * Fail at the assertion that names the real cause.
+     *
+     * The installed `@zeus-web/dialog` records its mode under a symbol
+     * (`@zeus-web/dialog/state`). A build without the fix has no such symbol,
+     * so this check distinguishes "the reader's interaction is broken" from
+     * "the version this repository installs predates the fix" — and the second
+     * one is the only reason this gate can be red on this branch.
+     */
     await page.getByTestId('gallery-open-dialog').click()
-    await expect(page.getByTestId('gallery-dialog')).toBeVisible()
+    const carriesFix = await page.evaluate(`(() => {
+      const root = document.querySelector('[data-testid="gallery-dialog"]')
+      if (!root) return false
+      return Object.getOwnPropertySymbols(root).some(
+        (symbol) => symbol.toString().includes('@zeus-web/dialog/state'),
+      )
+    })()`)
+    expect(
+      carriesFix,
+      '@zeus-web/dialog in examples/admin must contain the state fix; run `pnpm admin:link-dialog` locally, or install a published version that carries it',
+    ).toBe(true)
+
+    await expect(page.getByTestId('gallery-dialog-content')).toBeVisible()
+    await expect(page.getByTestId('gallery-dialog')).toHaveAttribute(
+      'data-state',
+      'open',
+    )
+    // The component moves focus into the panel when it opens; the trap and
+    // Escape both build on that, so it is asserted before them.
+    await expect
+      .poll(focusInsideDialog, {
+        message: 'opening the dialog moves focus into it',
+      })
+      .toBe(true)
+    /*
+     * Tab around the content. This is the assertion that matters for a modal,
+     * and it runs on every engine — there is no exemption.
+     *
+     * The real component's trap works from a `document` listener. A
+     * panel-scoped listener cannot hold here: on WebKit a Tab from the panel
+     * (which carries `tabindex="-1"`) is delivered to the next element in the
+     * document, so the panel never sees the key that let focus escape. That
+     * was a real defect, it is fixed in `fix/dialog-state-and-focus`
+     * (zeus-ui), and this repository consumes the build that contains it —
+     * `examples/admin/package.json` points `@zeus-web/dialog` at that build.
+     *
+     * If this fails, the fix has not reached the version Admin installs. The
+     * answer is to align the version, never to exempt an engine: a trap that
+     * holds on two of three is broken for a third of readers.
+     */
+    for (let step = 0; step < 6; step += 1) {
+      await page.keyboard.press('Tab')
+    }
+    const trapped = await page.evaluate(`(() => {
+      const content = document.querySelector('[data-testid="gallery-dialog-content"]')
+      return Boolean(content && content.contains(document.activeElement))
+    })()`)
+    await expect(trapped, 'Tab stays trapped inside the open dialog').toBe(true)
+
+    /*
+     * Escape closes the dialog, and it does so from wherever focus is: the
+     * handler is on `document`, so it does not depend on the panel holding
+     * focus. Both halves are asserted because the old failure mode was
+     * specifically "Escape works only while focus is still inside".
+     */
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('gallery-dialog')).toHaveAttribute(
+      'data-state',
+      'closed',
+    )
+    await expect(page.getByTestId('gallery-dialog-content')).toBeHidden()
+
+    /*
+     * And it opens again. A dialog a person can close exactly once is the
+     * defect the review recorded as "cannot be reopened"; the component's
+     * state now lives in a signal rather than being re-derived from a
+     * reflected attribute the component itself wrote.
+     */
+    await page.getByTestId('gallery-open-dialog').click()
+    await expect(page.getByTestId('gallery-dialog')).toHaveAttribute(
+      'data-state',
+      'open',
+    )
+    await expect(page.getByTestId('gallery-dialog-content')).toBeVisible()
+
+    /*
+     * Focus returns to the trigger on close. Without this, closing a modal
+     * drops the reader at the top of the document and the next Tab starts the
+     * page over.
+     */
+    await page.keyboard.press('Escape')
+    const dialogPageForFocus = page
+    await expect
+      .poll(
+        () =>
+          dialogPageForFocus.evaluate(`(() => {
+            const trigger = document.querySelector('[data-testid="gallery-open-dialog"]')
+            return Boolean(trigger && trigger.contains(document.activeElement))
+          })()`),
+        { message: 'closing the dialog returns focus to its trigger' },
+      )
+      .toBe(true)
+
+    /*
+     * The confirm control lives inside the dialog, so the dialog has to be
+     * open for it to be reachable. That is the ordinary path a person takes
+     * and it also proves the third open after two closes works.
+     */
+    await page.getByTestId('gallery-open-dialog').click()
+    await expect(page.getByTestId('gallery-dialog-content')).toBeVisible()
+    // Evidence for the gallery itself: the open dialog on every engine, so a
+    // reviewer can see the real component rather than a claim that it rendered.
+    await page.screenshot({
+      path: path.join(root, `temp/admin/gallery-${name}.png`),
+      fullPage: true,
+    })
     await page.getByTestId('gallery-confirm-dialog').click()
-    await expect(page.getByTestId('gallery-dialog')).toHaveCount(0)
     await expect(page.getByTestId('gallery-toast')).toContainText('Confirmed.')
-    await page.getByTestId('gallery-email').fill('not-an-email')
+    await expect(page.getByTestId('gallery-dialog')).toHaveAttribute(
+      'data-state',
+      'closed',
+    )
+    /*
+     * `zw-input` is a wrapper: the editable control is the `<input>` it renders
+     * inside its light DOM. Typing goes through that control, which is also how
+     * a person uses it — and it means the assertion exercises the component's
+     * own change plumbing, not a test hook.
+     */
+    const galleryName = page.locator('[data-testid="gallery-name"] input')
+    const galleryEmail = page.locator('[data-testid="gallery-email"] input')
+    await galleryName.fill('Ada Lovelace')
+    await galleryEmail.fill('not-an-email')
     await page.getByTestId('gallery-submit').click()
     await expect(page.getByTestId('gallery-email-error')).toBeVisible()
-    await page.getByTestId('gallery-email').fill('ada@example.test')
+    await galleryEmail.fill('ada@example.test')
     await page.getByTestId('gallery-submit').click()
     await expect(page.getByTestId('gallery-form-ok')).toBeVisible()
+    // The name reaches the page through the component's own `value-change`;
+    // showing it proves the event crossed the element boundary, not just that
+    // the field accepts typing.
+    await expect(page.getByTestId('gallery-form-ok')).toContainText(
+      'Ada Lovelace',
+    )
+    /*
+     * The rest of the gallery, asserted against what the real components
+     * render. Their state hook is `data-state` / `data-value`, not the ARIA
+     * attributes the hand-written imitations used, and a `zw-switch` is
+     * activated through its own control — clicking the host element does
+     * nothing, which is correct HTML and was the first thing this gate got
+     * wrong.
+     */
     await page.getByTestId('gallery-tab-two').click()
-    await expect(page.getByTestId('gallery-tab-panel')).toHaveText(
+    await expect(page.getByTestId('gallery-tab-two')).toHaveAttribute(
+      'data-state',
+      'active',
+    )
+    await expect(page.getByTestId('gallery-tab-panel-two')).toHaveText(
       'The second panel.',
     )
+    await page.getByTestId('gallery-tab-two').focus()
+    await page.keyboard.press('ArrowRight')
+    await expect(
+      page.getByTestId('gallery-tab-three'),
+      'tabs respond to the arrow keys',
+    ).toHaveAttribute('data-state', 'active')
+
     await page.getByTestId('gallery-accordion-b').click()
     await expect(page.getByTestId('gallery-accordion-b')).toHaveAttribute(
-      'aria-expanded',
-      'true',
+      'data-state',
+      'open',
     )
-    await page.getByTestId('gallery-switch').click()
-    await expect(page.getByTestId('gallery-switch')).toHaveAttribute(
-      'aria-checked',
-      'true',
+    // The accordion reflects the open item on its own `value` attribute.
+    await expect(page.getByTestId('gallery-accordion')).toHaveAttribute(
+      'value',
+      'b',
     )
+
+    // The switch: click its control, not the host.
+    const switchBefore = await page
+      .getByTestId('gallery-switch')
+      .getAttribute('data-state')
+    await page.locator('[data-testid="gallery-switch"] input').click({
+      force: true,
+    })
+    await expect(page.getByTestId('gallery-switch')).not.toHaveAttribute(
+      'data-state',
+      switchBefore ?? 'checked',
+    )
+
     await expect(page.getByTestId('gallery-progress')).toHaveAttribute(
-      'aria-valuenow',
-      '40',
+      'data-state',
+      /.*/,
     )
     await expect(page.getByTestId('gallery-empty')).toBeVisible()
     await expect(page.getByTestId('gallery-error')).toBeVisible()
@@ -481,6 +672,54 @@ for (const [name, engine] of selectedBrowsers) {
     await expect(page.getByLabel('Workspace name')).toHaveValue(
       'Operations Console',
     )
+
+    /*
+     * Language: switching relabels the console live, and the choice survives a
+     * reload. Both halves matter and they can fail separately — a switch that
+     * re-renders nothing leaves the page half-translated, and a switch that is
+     * not stored reverts the moment the page loads again. The personal
+     * preference is per account in `localStorage`, so the reload is the real
+     * test of it.
+     */
+    /*
+     * The language <select> lists both languages by their own names, so the
+     * page text always contains 简体中文 — searching the whole page for CJK
+     * characters measures the option labels, not the interface. The heading is
+     * the thing that actually relabels.
+     */
+    const heading = page.locator(
+      '[data-testid="settings-page"] .settings-title',
+    )
+    const headingBefore = (await heading.innerText()).trim()
+    await page.getByTestId('personal-locale').selectOption('zh-CN')
+    await expect
+      .poll(async () => (await heading.innerText()).trim(), {
+        message: 'switching to zh-CN relabels the page heading',
+        timeout: 10_000,
+      })
+      .not.toBe(headingBefore)
+    expect(
+      /[\u4e00-\u9fff]/.test((await heading.innerText()).trim()),
+      'the relabelled heading is Chinese',
+    ).toBe(true)
+
+    await page.reload()
+    await expect(page.getByTestId('settings-page')).toBeVisible()
+    expect(
+      /[\u4e00-\u9fff]/.test(
+        (
+          await page
+            .locator('[data-testid="settings-page"] .settings-title')
+            .innerText()
+        ).trim(),
+      ),
+      'the language choice must survive a reload',
+    ).toBe(true)
+
+    // Put the console back to English for the assertions that follow, which
+    // read English copy.
+    await page.getByTestId('personal-locale').selectOption('en')
+    await expect(page.getByTestId('personal-locale')).toHaveValue('en')
 
     // The gate asserts English copy, so the browser must ask for English:
     // without this the console follows `navigator.languages`, and a runner

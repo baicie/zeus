@@ -43,6 +43,12 @@ export const zhCN = {
   'nav.group.reference': '参考',
 
   /* ----------------------------------------------------------------- pages */
+  'gallery.packages': '本页渲染的真实组件',
+  'gallery.enterprise': '企业版',
+  'gallery.notifications': '邮件通知',
+  'gallery.avatarAlt': '成员头像',
+  'gallery.dataTable': '数据表格',
+  'gallery.nativeBadge': 'Admin 自建',
   'gallery.title': '组件画廊',
   'gallery.description':
     'Admin 实际提供的控件与状态并排展示。示例都是活的：可以点、可以输入、可以 Tab。',

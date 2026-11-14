@@ -1,0 +1,445 @@
+{
+  "schemaVersion": "1.0.0",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "wc/zw-dialog.entry.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "DialogElement",
+          "tagName": "zw-dialog",
+          "customElement": true,
+          "description": "Headless dialog root primitive.",
+          "attributes": [
+            {
+              "name": "close-on-outside-click",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "true"
+            },
+            {
+              "name": "default-open",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "modal",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "true"
+            },
+            {
+              "name": "open",
+              "type": {
+                "text": "boolean"
+              }
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "closeOnOutsideClick",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "true"
+            },
+            {
+              "kind": "field",
+              "name": "defaultOpen",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "modal",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "true"
+            },
+            {
+              "kind": "field",
+              "name": "open",
+              "type": {
+                "text": "boolean"
+              }
+            },
+            {
+              "kind": "method",
+              "name": "show",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": []
+            },
+            {
+              "kind": "method",
+              "name": "close",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": []
+            }
+          ],
+          "events": [
+            {
+              "name": "open-change",
+              "type": {
+                "text": "CustomEvent<{ open: boolean; nativeEvent?: Event }>"
+              }
+            }
+          ],
+          "slots": [
+            {
+              "name": ""
+            }
+          ],
+          "cssParts": [],
+          "cssProperties": []
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "Dialog",
+          "declaration": {
+            "name": "DialogElement",
+            "module": "wc/zw-dialog.entry.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "wc/zw-dialog-trigger.entry.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "DialogTriggerElement",
+          "tagName": "zw-dialog-trigger",
+          "customElement": true,
+          "description": "Headless dialog trigger primitive.",
+          "attributes": [
+            {
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "kind": "method",
+              "name": "focus",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": []
+            }
+          ],
+          "events": [],
+          "slots": [
+            {
+              "name": ""
+            }
+          ],
+          "cssParts": [
+            {
+              "name": "trigger"
+            }
+          ],
+          "cssProperties": []
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "DialogTrigger",
+          "declaration": {
+            "name": "DialogTriggerElement",
+            "module": "wc/zw-dialog-trigger.entry.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "wc/zw-dialog-content.entry.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "DialogContentElement",
+          "tagName": "zw-dialog-content",
+          "customElement": true,
+          "description": "Headless dialog content primitive.",
+          "attributes": [
+            {
+              "name": "force-mount",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "forceMount",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "kind": "method",
+              "name": "focus",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": []
+            }
+          ],
+          "events": [],
+          "slots": [
+            {
+              "name": ""
+            }
+          ],
+          "cssParts": [
+            {
+              "name": "content"
+            }
+          ],
+          "cssProperties": []
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "DialogContent",
+          "declaration": {
+            "name": "DialogContentElement",
+            "module": "wc/zw-dialog-content.entry.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "wc/zw-dialog-overlay.entry.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "DialogOverlayElement",
+          "tagName": "zw-dialog-overlay",
+          "customElement": true,
+          "description": "Dialog backdrop primitive.",
+          "attributes": [
+            {
+              "name": "force-mount",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "forceMount",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            }
+          ],
+          "events": [],
+          "slots": [
+            {
+              "name": ""
+            }
+          ],
+          "cssParts": [
+            {
+              "name": "overlay"
+            }
+          ],
+          "cssProperties": []
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "DialogOverlay",
+          "declaration": {
+            "name": "DialogOverlayElement",
+            "module": "wc/zw-dialog-overlay.entry.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "wc/zw-dialog-close.entry.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "DialogCloseElement",
+          "tagName": "zw-dialog-close",
+          "customElement": true,
+          "description": "Headless dialog close primitive.",
+          "attributes": [
+            {
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "kind": "method",
+              "name": "focus",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": []
+            }
+          ],
+          "events": [],
+          "slots": [
+            {
+              "name": ""
+            }
+          ],
+          "cssParts": [
+            {
+              "name": "close"
+            }
+          ],
+          "cssProperties": []
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "DialogClose",
+          "declaration": {
+            "name": "DialogCloseElement",
+            "module": "wc/zw-dialog-close.entry.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "wc/zw-dialog-title.entry.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "DialogTitleElement",
+          "tagName": "zw-dialog-title",
+          "customElement": true,
+          "description": "Headless dialog title primitive.",
+          "attributes": [],
+          "members": [],
+          "events": [],
+          "slots": [
+            {
+              "name": ""
+            }
+          ],
+          "cssParts": [
+            {
+              "name": "title"
+            }
+          ],
+          "cssProperties": []
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "DialogTitle",
+          "declaration": {
+            "name": "DialogTitleElement",
+            "module": "wc/zw-dialog-title.entry.js"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "wc/zw-dialog-description.entry.js",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "DialogDescriptionElement",
+          "tagName": "zw-dialog-description",
+          "customElement": true,
+          "description": "Headless dialog description primitive.",
+          "attributes": [],
+          "members": [],
+          "events": [],
+          "slots": [
+            {
+              "name": ""
+            }
+          ],
+          "cssParts": [
+            {
+              "name": "description"
+            }
+          ],
+          "cssProperties": []
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "DialogDescription",
+          "declaration": {
+            "name": "DialogDescriptionElement",
+            "module": "wc/zw-dialog-description.entry.js"
+          }
+        }
+      ]
+    }
+  ]
+}

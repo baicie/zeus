@@ -158,4 +158,35 @@ describe('generateWCJsxDts', () => {
 
     expect(code).toContain('"z-my-button": ZMyButtonProps')
   })
+
+  it('emits `ref` among the common props, without importing another package', () => {
+    // `ref` is a compiler binding on every element, not a component prop, so it
+    // is not in a schema's prop list — but without it here every `ref={...}` on
+    // a `zw-*` element is a type error in a consumer that runs `tsc`.
+    const output = generateWCJsxDts({
+      schemaVersion: 1,
+      components: [
+        {
+          tag: 'z-example',
+          name: 'ZExample',
+          exportName: 'ZExample',
+          source: 'src/example.tsx',
+          props: {},
+          events: {},
+          slots: {},
+          hostAttributes: [],
+          cssParts: [],
+          cssVars: {},
+        },
+      ],
+    })
+
+    expect(output).toContain(
+      'ref?: ((element: HTMLElement | null) => void) | null',
+    )
+    // These declarations are consumed by projects that do not depend on
+    // `@zeus-js/runtime-dom`. A generated file that imports it fails to resolve
+    // there, so the type has to be written inline.
+    expect(output).not.toMatch(/import\(["']@zeus-js\//)
+  })
 })

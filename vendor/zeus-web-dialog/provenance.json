@@ -1,0 +1,358 @@
+{
+  "schema": "zeus-web.vendored-build/v1",
+  "package": "@zeus-web/dialog",
+  "version": "0.1.0-beta.35",
+  "commit": "74662b614e209e38a7b2b4557aa28df01141be25",
+  "contentDigest": "sha256:a45c32735de9ea988ed9833e4abce41197c0e5877b41f5ad4915be08a3197063",
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "65c018ba33cf8825752bb7f11806db620a63ef9be08b249efdc366b7931ec740",
+      "bytes": 390
+    },
+    {
+      "path": "dist/chunks/_zeus_wc_components-CBl5E_aY.js",
+      "sha256": "ff7f20e6eb879125929cdaa1e83f83e18a0c46d90459947f10f90af483aee2c0",
+      "bytes": 729
+    },
+    {
+      "path": "dist/chunks/_zeus_wc_zw-dialog-close-VM_zCKjH.js",
+      "sha256": "b93e89ec34d5e56ab655bf68086455a8537e9a0c27e6a558bbfc3738e663f161",
+      "bytes": 552
+    },
+    {
+      "path": "dist/chunks/_zeus_wc_zw-dialog-content-w25RQFpY.js",
+      "sha256": "1092b00ba4a6ca20e8cb66945b416f16a389bc29ce05532a22597f3e37082cba",
+      "bytes": 560
+    },
+    {
+      "path": "dist/chunks/_zeus_wc_zw-dialog-description-BwSSmlVg.js",
+      "sha256": "2ac3266e705c7a30b8b5071a8959faf774f2e306aa6bd423384b7443f8d17978",
+      "bytes": 472
+    },
+    {
+      "path": "dist/chunks/_zeus_wc_zw-dialog-overlay-CzxRxi5r.js",
+      "sha256": "83811adf53bc120312152eb3ec8117ef0a5f4f3059476b647e437ca9e06937a6",
+      "bytes": 539
+    },
+    {
+      "path": "dist/chunks/_zeus_wc_zw-dialog-pgS6hUDe.js",
+      "sha256": "0a0c94b807c4abbf8fe67d44b1adc02ebeafb90a6303746c45fef9fed01a0af1",
+      "bytes": 796
+    },
+    {
+      "path": "dist/chunks/_zeus_wc_zw-dialog-title-BlRgh6Hi.js",
+      "sha256": "0d4ba38eb073085e0a500a214a796b3b88f1262457f66b6e4d3b39bd20b50120",
+      "bytes": 454
+    },
+    {
+      "path": "dist/chunks/_zeus_wc_zw-dialog-trigger-7oDWiQZZ.js",
+      "sha256": "9eead3928669f1b826bbb3587a63d63e49ec8316da30942c0856c3a517bced20",
+      "bytes": 558
+    },
+    {
+      "path": "dist/custom-elements.json",
+      "sha256": "1022ccb19bd602da9dc11dd82832ffd761613251912d9e7ba22a83e3731c2ed6",
+      "bytes": 10594
+    },
+    {
+      "path": "dist/index.js",
+      "sha256": "3be8342c74c4763e22f5727b36afaeeb84287283871889b199262274b67b98fc",
+      "bytes": 17562
+    },
+    {
+      "path": "dist/index.js.map",
+      "sha256": "21969fee82a55b47e419f453b884d62c1d8c80be6e48c1f959b3f8912ddba7e6",
+      "bytes": 29132
+    },
+    {
+      "path": "dist/react/dialog-close.js",
+      "sha256": "81ffa91e487f619b655bc0253b26468d44a47258c41610996d17b7e8eebec027",
+      "bytes": 464
+    },
+    {
+      "path": "dist/react/dialog-content.js",
+      "sha256": "a5fe1a388d581a4c9fdebd22c8f593332ba90e31d20f590fc3bdec4e6a45ee6e",
+      "bytes": 481
+    },
+    {
+      "path": "dist/react/dialog-description.js",
+      "sha256": "ca7efae527f1c38d26c8b053624363cb2c32fad64e4c506dd2c976c01831a744",
+      "bytes": 476
+    },
+    {
+      "path": "dist/react/dialog-overlay.js",
+      "sha256": "24785ec1b404e0e86ee8c9b6ad663bdeba9675c37cf7770689ed7a40e6a2fbd6",
+      "bytes": 481
+    },
+    {
+      "path": "dist/react/dialog-title.js",
+      "sha256": "7c7feef65782571c1bd4588a0d32efe0e6a56012dfa2d03364d93461c8cc08b3",
+      "bytes": 440
+    },
+    {
+      "path": "dist/react/dialog-trigger.js",
+      "sha256": "ec8663aa439142f828b524aff9bf64f4277a9d5073b19c341a0234833f5e1dd9",
+      "bytes": 476
+    },
+    {
+      "path": "dist/react/dialog.js",
+      "sha256": "d83e58143c257932ae38770565349778e9d55eefa93f93403ba0484195e9f7ec",
+      "bytes": 561
+    },
+    {
+      "path": "dist/react/index.d.ts",
+      "sha256": "4974aac81cbc9819785a81dff45184062d82e75a35d05086146fbb4635d2e973",
+      "bytes": 3876
+    },
+    {
+      "path": "dist/react/index.js",
+      "sha256": "e33c5367d231904228124ca7afff7f4672e40bdcf61b5f1e8181d7de2e33ba49",
+      "bytes": 465
+    },
+    {
+      "path": "dist/vscode.html-custom-data.json",
+      "sha256": "e2b9f4712e5e9a21df9cc45f01620e14975c1eeb315a05d15f91314659695162",
+      "bytes": 1327
+    },
+    {
+      "path": "dist/vue/dialog-close.js",
+      "sha256": "ccf39ea117f3f7afe5040d91b88b8bdd9c0aaafc26dc3c9d3b66432b8b86f370",
+      "bytes": 463
+    },
+    {
+      "path": "dist/vue/dialog-content.js",
+      "sha256": "563d5d269d900115210534a6c153db94382cbd8099bf179b0142948fd7d671db",
+      "bytes": 482
+    },
+    {
+      "path": "dist/vue/dialog-description.js",
+      "sha256": "70012822c09d19239670510076379a6b770aaf4406be52a8fb2378078d2b077e",
+      "bytes": 465
+    },
+    {
+      "path": "dist/vue/dialog-overlay.js",
+      "sha256": "d3e9eba2e767a1d9ed8fb8ef2d75f3ccc8395d72e95a002b22c98bf733d51965",
+      "bytes": 482
+    },
+    {
+      "path": "dist/vue/dialog-title.js",
+      "sha256": "fd8e902c0db8f037ec3a03c36a9e383150c900e8e95921956c39b304a93c1551",
+      "bytes": 429
+    },
+    {
+      "path": "dist/vue/dialog-trigger.js",
+      "sha256": "f39e2847838770554ae49fcf665a7bfe2c50a3e62e62b70fc60b1eefa323fbf5",
+      "bytes": 475
+    },
+    {
+      "path": "dist/vue/dialog.js",
+      "sha256": "dc128b169b264d397dc803d235902d747fb0ac86aeedbc4dad01de4c870e5d89",
+      "bytes": 661
+    },
+    {
+      "path": "dist/vue/global.d.ts",
+      "sha256": "eabbb859ca468883528ecdf741e72e9452f347735a1c9a43d35564742766a5c6",
+      "bytes": 550
+    },
+    {
+      "path": "dist/vue/index.d.ts",
+      "sha256": "becfa37c3be92c1612c07aa13e9d353e279f2a34f5cf7dd5de6331ee16fb0d84",
+      "bytes": 2416
+    },
+    {
+      "path": "dist/vue/index.js",
+      "sha256": "e33c5367d231904228124ca7afff7f4672e40bdcf61b5f1e8181d7de2e33ba49",
+      "bytes": 465
+    },
+    {
+      "path": "dist/wc/auto.js",
+      "sha256": "ea74ae17bc79113701e720bc1ee04d7d72f999c372c359d09ea9d620f1dfd388",
+      "bytes": 114
+    },
+    {
+      "path": "dist/wc/components.manifest.js",
+      "sha256": "62271db7d585eb5f6d67b38b80d98351693de94fe2370f3d59185920b2e99acd",
+      "bytes": 77
+    },
+    {
+      "path": "dist/wc/dialog-close.d.ts",
+      "sha256": "cc082c24802632e7a257ad6189351907a6a53ec5e2d7b73b2265acd15b3839f7",
+      "bytes": 98
+    },
+    {
+      "path": "dist/wc/dialog-close.js",
+      "sha256": "211ef82e7b046c1b4ece8defcfce5abc079202bba6d39dc816e537c223b65503",
+      "bytes": 124
+    },
+    {
+      "path": "dist/wc/dialog-content.d.ts",
+      "sha256": "cc082c24802632e7a257ad6189351907a6a53ec5e2d7b73b2265acd15b3839f7",
+      "bytes": 98
+    },
+    {
+      "path": "dist/wc/dialog-content.js",
+      "sha256": "a1a64ffdd16014519fe97312db33e3f873a86772c7596a33eba5902d311639b9",
+      "bytes": 126
+    },
+    {
+      "path": "dist/wc/dialog-description.d.ts",
+      "sha256": "cc082c24802632e7a257ad6189351907a6a53ec5e2d7b73b2265acd15b3839f7",
+      "bytes": 98
+    },
+    {
+      "path": "dist/wc/dialog-description.js",
+      "sha256": "9b8e73aea299a7487d1c246bb32a196f60666e12d67704a4e44fa317db10238f",
+      "bytes": 130
+    },
+    {
+      "path": "dist/wc/dialog-overlay.d.ts",
+      "sha256": "cc082c24802632e7a257ad6189351907a6a53ec5e2d7b73b2265acd15b3839f7",
+      "bytes": 98
+    },
+    {
+      "path": "dist/wc/dialog-overlay.js",
+      "sha256": "6eb3ae4bf99df5ee3f267edbd21c7311bed5283bd7f86199687ff8a8259ca932",
+      "bytes": 126
+    },
+    {
+      "path": "dist/wc/dialog-title.d.ts",
+      "sha256": "cc082c24802632e7a257ad6189351907a6a53ec5e2d7b73b2265acd15b3839f7",
+      "bytes": 98
+    },
+    {
+      "path": "dist/wc/dialog-title.js",
+      "sha256": "2ca2a871d51ea90fa8eef5a3ce2e58b65c90d21c15b7713db5ce3c6afe6307d5",
+      "bytes": 124
+    },
+    {
+      "path": "dist/wc/dialog-trigger.d.ts",
+      "sha256": "cc082c24802632e7a257ad6189351907a6a53ec5e2d7b73b2265acd15b3839f7",
+      "bytes": 98
+    },
+    {
+      "path": "dist/wc/dialog-trigger.js",
+      "sha256": "5f9015485dba415800f9da2e54b97fab37aab69152276e9d6eef4d7a18c1b16d",
+      "bytes": 126
+    },
+    {
+      "path": "dist/wc/dialog.d.ts",
+      "sha256": "cc082c24802632e7a257ad6189351907a6a53ec5e2d7b73b2265acd15b3839f7",
+      "bytes": 98
+    },
+    {
+      "path": "dist/wc/dialog.js",
+      "sha256": "5407ba35b073a282ef6ddc94720aadbb5b6614d236c3f6b2ead47667fcb52c64",
+      "bytes": 118
+    },
+    {
+      "path": "dist/wc/index.d.ts",
+      "sha256": "1c9d812f528da4a9ecee4dd0fcb8ffb037e435176e73910149ff201019a01168",
+      "bytes": 6780
+    },
+    {
+      "path": "dist/wc/index.js",
+      "sha256": "4cb0e8045d0bdf179ec7d15b28adb94821fa02ed9359e09613bbe501595909a7",
+      "bytes": 73
+    },
+    {
+      "path": "dist/wc/loader.d.ts",
+      "sha256": "1c9d812f528da4a9ecee4dd0fcb8ffb037e435176e73910149ff201019a01168",
+      "bytes": 6780
+    },
+    {
+      "path": "dist/wc/loader.js",
+      "sha256": "d5ff09f13950a947821d1c18be7899f46288deac1bf1078c8d59628a73c1096a",
+      "bytes": 1006
+    },
+    {
+      "path": "dist/wc/types/jsx.d.ts",
+      "sha256": "5ee1f3cf0d733fb21c138d1df8f9183be5efabb37911936674e8eca5d90eb1cf",
+      "bytes": 2846
+    },
+    {
+      "path": "dist/wc/zw-dialog-close.entry.js",
+      "sha256": "16b57db1f4f73c888ca4ac802c1446ee49a0e77dd8bfc9940a1297fff0868e8b",
+      "bytes": 5297
+    },
+    {
+      "path": "dist/wc/zw-dialog-close.entry.js.map",
+      "sha256": "20f6eb801b0426f22a3fcb4ffaf8681c338da89dd9d2aa4c382b48c100b8e7ca",
+      "bytes": 26912
+    },
+    {
+      "path": "dist/wc/zw-dialog-content.entry.js",
+      "sha256": "855c7919bb815cc523814e7f314454420bb65cae5e7762f6fdcd6b1b1a2c576c",
+      "bytes": 5893
+    },
+    {
+      "path": "dist/wc/zw-dialog-content.entry.js.map",
+      "sha256": "746aca4a8f87945bc87600d39cdf31b93ea8ab45ce9d47b0877ffd3b091aa2a0",
+      "bytes": 27215
+    },
+    {
+      "path": "dist/wc/zw-dialog-description.entry.js",
+      "sha256": "11b4b4339a7eeee6861bdd43f70e1285fd1542eb512471b04a69c04fa37b1026",
+      "bytes": 4333
+    },
+    {
+      "path": "dist/wc/zw-dialog-description.entry.js.map",
+      "sha256": "c55436e326e84b17e513456365d18dd5948769e405498ff54bfe94e3ad1d2f57",
+      "bytes": 26799
+    },
+    {
+      "path": "dist/wc/zw-dialog-overlay.entry.js",
+      "sha256": "2db42dab926a4ccf1dbf4355621e0efdf71059c7dedda16c0cef4fd934766a6a",
+      "bytes": 4475
+    },
+    {
+      "path": "dist/wc/zw-dialog-overlay.entry.js.map",
+      "sha256": "124d651fb05b1354554e4dc0e86f51f56203d7270b2be4b2796838c7dda69f53",
+      "bytes": 26812
+    },
+    {
+      "path": "dist/wc/zw-dialog-title.entry.js",
+      "sha256": "6ef8f4e9a0d6c594ca71988f9fb2186bb450ced865ff0bb2883d8ca7eca3ffeb",
+      "bytes": 4255
+    },
+    {
+      "path": "dist/wc/zw-dialog-title.entry.js.map",
+      "sha256": "187005ff039945092c91c016eb7b0326c535d95771e16a024d4810dc1c30a900",
+      "bytes": 26786
+    },
+    {
+      "path": "dist/wc/zw-dialog-trigger.entry.js",
+      "sha256": "94ef19dda0694912b8f93d9e02bd41b6278aaca90888c5ca943ec845e2548b04",
+      "bytes": 5700
+    },
+    {
+      "path": "dist/wc/zw-dialog-trigger.entry.js.map",
+      "sha256": "3e936fc3fb1efae739af3e6e2198189c89fae5b7f13f37f8b286d9f89da1312b",
+      "bytes": 27132
+    },
+    {
+      "path": "dist/wc/zw-dialog.entry.js",
+      "sha256": "d4cfb93f2b63f1e60d35fa0e9071f49eb18df7b414c40030f66f5001967e83aa",
+      "bytes": 12099
+    },
+    {
+      "path": "dist/wc/zw-dialog.entry.js.map",
+      "sha256": "78ee09166f9efea3f9c281fb393cb42d16b2007cfc1d100f9fba4d8baee24418",
+      "bytes": 27089
+    },
+    {
+      "path": "dist/zeus.components.json",
+      "sha256": "511cc11f1f6b0f720f8405544f4e2a69959377155092a884ff6c15cfc507719b",
+      "bytes": 9278
+    },
+    {
+      "path": "package.json",
+      "sha256": "9c2719bdba712cbc74067fdacd55752f5c19d1cdcdadf9fcdd363868422c3ff6",
+      "bytes": 2061
+    }
+  ],
+  "rewrites": [
+    "dependencies[\"@zeus-web/zeus-compat\"]: workspace:* -> 0.1.0-beta.34"
+  ],
+  "note": "Built from the commit above, which is the main branch after #147 merged. Vendored so Admin can consume a version npm does not have yet. Not published."
+}

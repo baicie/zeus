@@ -5,6 +5,13 @@ node_modules
 # Build outputs
 dist
 build
+# A vendored build is committed on purpose, so the Admin gateway can consume a
+# component version that npm does not have yet. The rule has to come *after*
+# `dist`: git applies the last matching pattern, so an exception above it is
+# ignored. That ordering mistake is why a vendored package once reached CI with
+# a manifest and no code. See docs/release/0.2.0-r6-final-acceptance.md.
+!vendor/zeus-web-dialog/dist/
+!vendor/zeus-web-dialog/dist/**
 target
 *.node
 examples/stencil-wrapper/.stencil

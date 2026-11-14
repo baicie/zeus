@@ -159,7 +159,9 @@
     "deploy:stage2": "tsx scripts/release/deployment-stage2.ts",
     "check:sbom:write": "tsx scripts/check/check-sbom.ts",
     "check:sbom": "tsx scripts/check/check-sbom.ts --check",
-    "check:i18n": "tsx scripts/check/check-i18n.ts"
+    "check:i18n": "tsx scripts/check/check-i18n.ts",
+    "admin:link-dialog": "tsx scripts/check/link-local-dialog.ts",
+    "check:vendored-dialog": "tsx scripts/check/verify-vendored-dialog.ts"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged && pnpm check",
