@@ -20,6 +20,8 @@ export interface BuildInfoFile {
   readonly bytes: number
 }
 
+import { collectUiSources, type UiSources } from './ui-sources'
+
 export interface BuildInfo {
   readonly schema: typeof BUILD_INFO_SCHEMA
   readonly products: readonly string[]
@@ -30,6 +32,19 @@ export interface BuildInfo {
   readonly builtAt: string
   readonly artifactDigest: string
   readonly files: readonly BuildInfoFile[]
+  /**
+   * What the build actually installed from the UI repository.
+   *
+   * `uiCommit` above records the *declared pairing* — the commit the release
+   * intends to ship alongside. It is not the source of these bytes: Admin
+   * installs registry packages and one vendored build, and Playground installs
+   * nothing from `@zeus-web/*` at all. This field records the real inputs so a
+   * reader can tell the claim from the observation.
+   *
+   * Optional: older build-info documents predate it, and a product with no UI
+   * inputs simply omits it.
+   */
+  readonly uiSources?: UiSources
 }
 
 export interface ProvenanceProduct {
@@ -110,6 +125,7 @@ export function createBuildInfo(options: {
   readonly sourceTree?: string
   readonly version: string
   readonly builtAt: string
+  readonly uiSources?: UiSources
 }): BuildInfo {
   if (!/^[0-9a-f]{40}$/i.test(options.coreCommit)) {
     throw new Error('coreCommit must be a full 40-character commit')
@@ -136,6 +152,7 @@ export function createBuildInfo(options: {
     builtAt: options.builtAt,
     artifactDigest: computeArtifactDigest(files),
     files,
+    ...(options.uiSources ? { uiSources: options.uiSources } : {}),
   }
 }
 
@@ -273,6 +290,9 @@ function main(): void {
       dist: { type: 'string' },
       'core-commit': { type: 'string' },
       'ui-commit': { type: 'string' },
+      // The example package whose UI inputs should be recorded. Omitted means
+      // the build-info carries no `uiSources`, which is the pre-existing shape.
+      'ui-manifest': { type: 'string' },
       'source-tree': { type: 'string' },
       version: { type: 'string' },
       'built-at': { type: 'string' },
@@ -288,6 +308,20 @@ function main(): void {
   if (!values['core-commit']) throw new Error('--core-commit is required')
   if (!values['ui-commit']) throw new Error('--ui-commit is required')
   if (!values.version) throw new Error('--version is required')
+  /*
+   * Record what the build actually installs from the UI.
+   *
+   * `--ui-commit` states the pairing the release intends; it is not the source
+   * of these bytes. Passing `--ui-manifest` makes the document carry both, so
+   * a reader can see the difference instead of inferring it.
+   */
+  const uiSources = values['ui-manifest']
+    ? collectUiSources({
+        manifestPath: path.resolve(values['ui-manifest']),
+        root: process.cwd(),
+        declaredPairingCommit: values['ui-commit'],
+      })
+    : undefined
   const info = createBuildInfo({
     distDir: path.resolve(values.dist),
     products,
@@ -296,6 +330,7 @@ function main(): void {
     ...(values['source-tree'] ? { sourceTree: values['source-tree'] } : {}),
     version: values.version,
     builtAt: values['built-at'] ?? new Date().toISOString(),
+    ...(uiSources ? { uiSources } : {}),
   })
   const written = writeBuildInfo(info, path.resolve(values.dist))
   if (values.output) {

@@ -33,6 +33,7 @@ RUN node --import tsx scripts/release/build-info.ts \
   --dist examples/playground-editor/dist \
   --core-commit "$ZEUS_CORE_COMMIT" \
   --ui-commit "$ZEUS_UI_COMMIT" \
+  --ui-manifest examples/playground-editor/package.json \
   ${ZEUS_SOURCE_TREE:+--source-tree "$ZEUS_SOURCE_TREE"} \
   --version "$ZEUS_VERSION" \
   --built-at "$ZEUS_BUILD_TIME"
