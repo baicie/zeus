@@ -16,6 +16,11 @@ COPY crates ./crates
 COPY packages ./packages
 COPY scripts ./scripts
 COPY examples/admin ./examples/admin
+# `@zeus-web/dialog` is a vendored build (see examples/admin/package.json and
+# vendor/zeus-web-dialog/provenance.json), so the install step below resolves it
+# from the repository rather than from the registry. Without this line the
+# frozen install fails on a missing `file:` target.
+COPY vendor ./vendor
 ARG ZEUS_CORE_COMMIT
 ARG ZEUS_UI_COMMIT
 ARG ZEUS_VERSION

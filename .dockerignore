@@ -5,6 +5,11 @@
 node_modules
 **/node_modules
 **/dist
+# ...except the vendored dialog build, which is a committed input, not an
+# output. `**/dist` above would drop it and the frozen install would then fail
+# on a missing `file:` target — the same ordering trap as `.gitignore`.
+!vendor/zeus-web-dialog/dist
+!vendor/zeus-web-dialog/dist/**
 **/temp
 temp
 target
