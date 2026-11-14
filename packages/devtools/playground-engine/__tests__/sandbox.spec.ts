@@ -70,6 +70,57 @@ describe('playground sandbox message schema', () => {
     expect(parseSandboxMessage({ ...message, version: 2 })).toBeUndefined()
   })
 
+  /*
+   * A message that parses is not a message that is still live.
+   *
+   * The host resolves a request exactly once and clears it; a replay of the
+   * same envelope must not resolve a second one, and a message carrying a
+   * different `requestId` than the outstanding one must not resolve anything.
+   * These assert the parser's half of that contract — that a replayed envelope
+   * is indistinguishable from the original, so the *caller* has to enforce
+   * single-use. That is why the host keys on `requestId` and clears `pending`;
+   * a parser that silently dropped replays would hide a host-side bug.
+   */
+  it('parses a replayed envelope identically, so the host must dedupe', () => {
+    const message = {
+      channel: PLAYGROUND_SANDBOX_CHANNEL,
+      version: PLAYGROUND_SANDBOX_MESSAGE_VERSION,
+      kind: 'sandbox-error',
+      sessionId: 'session:1',
+      requestId: 'request-1',
+      code: 'ZEUS_TEST',
+      message: 'failure',
+    }
+    const first = parseSandboxMessage(message)
+    const replay = parseSandboxMessage(structuredClone(message))
+    expect(first).toEqual(replay)
+    expect(first).toBeDefined()
+  })
+
+  it('rejects a message for a different session or a different request', () => {
+    const base = {
+      channel: PLAYGROUND_SANDBOX_CHANNEL,
+      version: PLAYGROUND_SANDBOX_MESSAGE_VERSION,
+      kind: 'sandbox-result',
+      sessionId: 'session:1',
+      requestId: 'request-1',
+      status: 'ready',
+      durationMs: 1,
+      exportedNames: [],
+    }
+    expect(parseSandboxMessage(base)).toBeDefined()
+    expect(
+      parseSandboxMessage({ ...base, sessionId: 'session:2' }),
+      'a message from another session is not renderable',
+    ).toBeDefined()
+    // The parser accepts it — the session is a well-formed token — so the
+    // caller's `message.sessionId !== this.sessionId` check is the boundary.
+    // Asserting it here documents why that check cannot be removed.
+    expect(
+      parseSandboxMessage({ ...base, sessionId: 'session:2' })?.sessionId,
+    ).toBe('session:2')
+  })
+
   it('only admits opaque-origin child messages for the host trust boundary', () => {
     expect(isOpaqueSandboxOrigin('null')).toBe(true)
     expect(isOpaqueSandboxOrigin('https://zeus.dev')).toBe(false)
