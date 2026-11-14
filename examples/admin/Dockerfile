@@ -37,6 +37,7 @@ RUN node --import tsx scripts/release/build-info.ts \
   --dist examples/admin/dist \
   --core-commit "$ZEUS_CORE_COMMIT" \
   --ui-commit "$ZEUS_UI_COMMIT" \
+  --ui-manifest examples/admin/package.json \
   --version "$ZEUS_VERSION" \
   --built-at "$ZEUS_BUILD_TIME"
 # Server -> one ESM file. Only `node:*` stays external, so the runtime needs no
