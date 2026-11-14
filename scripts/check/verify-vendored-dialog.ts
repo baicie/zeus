@@ -20,7 +20,10 @@ import process from 'node:process'
 
 const root = path.resolve(import.meta.dirname, '../..')
 const vendored = path.join(root, 'vendor/zeus-web-dialog')
-const installed = path.join(root, 'examples/admin/node_modules/@zeus-web/dialog')
+const installed = path.join(
+  root,
+  'examples/admin/node_modules/@zeus-web/dialog',
+)
 
 interface Provenance {
   readonly package: string
@@ -84,12 +87,13 @@ const provenance = JSON.parse(
 
 // 1. The vendored directory still is the build the provenance describes.
 const vendoredDigests = digestOf(vendored)
-const missing = provenance.files.filter(
-  file => !vendoredDigests.has(file.path),
-)
+const missing = provenance.files.filter(file => !vendoredDigests.has(file.path))
 if (missing.length > 0) {
   fail(
-    `vendored files are missing: ${missing.map(file => file.path).slice(0, 5).join(', ')}. ` +
+    `vendored files are missing: ${missing
+      .map(file => file.path)
+      .slice(0, 5)
+      .join(', ')}. ` +
       'The commit shipped a manifest without its code once; this is that shape.',
   )
 }
@@ -98,7 +102,10 @@ const changed = provenance.files.filter(
 )
 if (changed.length > 0) {
   fail(
-    `vendored files changed since provenance: ${changed.map(file => file.path).slice(0, 5).join(', ')}`,
+    `vendored files changed since provenance: ${changed
+      .map(file => file.path)
+      .slice(0, 5)
+      .join(', ')}`,
   )
 }
 
