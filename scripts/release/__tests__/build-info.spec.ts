@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import fs, { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
@@ -205,5 +205,63 @@ describe('build info', () => {
     ).toEqual([
       'provenance native-lab artifactDigest does not match the manifest',
     ])
+  })
+})
+
+/**
+ * The digest has to be recomputed from the artifact, not compared to itself.
+ *
+ * `verifyBuildInfo` checks the recorded digest against an `expected` digest the
+ * caller supplies. If the caller derives that expectation from the same
+ * document it is verifying, two hand-edited files that agree with each other
+ * pass. The missing link is a recomputation from the bytes on disk, which is
+ * what these cases pin.
+ */
+describe('artifact digest is recomputed from deployed bytes', () => {
+  it('rejects a build-info whose files were edited after it was written', () => {
+    const root = artifact()
+    const buildInfo = info(root)
+    // Rewrite a deployed file; the recorded digest now describes something the
+    // directory no longer contains.
+    const target = fs
+      .readdirSync(root, { recursive: true })
+      .map(entry => String(entry))
+      .find(entry => entry.endsWith('.js'))
+    expect(target, 'the fixture must contain a deployed script').toBeDefined()
+    fs.writeFileSync(path.join(root, target!), 'console.log("tampered")\n')
+
+    const recomputed = computeArtifactDigest(collectArtifactFiles(root))
+    expect(
+      recomputed,
+      'a digest recomputed from disk must not equal the one recorded before the edit',
+    ).not.toBe(buildInfo.artifactDigest)
+  })
+
+  it('rejects an extra file the build-info never listed', () => {
+    const root = artifact()
+    const buildInfo = info(root)
+    fs.writeFileSync(path.join(root, 'injected.js'), 'alert(1)\n')
+    const recomputed = computeArtifactDigest(collectArtifactFiles(root))
+    expect(recomputed).not.toBe(buildInfo.artifactDigest)
+  })
+
+  it('rejects a deleted file the build-info still lists', () => {
+    const root = artifact()
+    const buildInfo = info(root)
+    const target = fs
+      .readdirSync(root, { recursive: true })
+      .map(entry => String(entry))
+      .find(entry => entry.endsWith('.js'))
+    fs.rmSync(path.join(root, target!))
+    const recomputed = computeArtifactDigest(collectArtifactFiles(root))
+    expect(recomputed).not.toBe(buildInfo.artifactDigest)
+  })
+
+  it('recomputes the same digest for the untouched artifact', () => {
+    const root = artifact()
+    const buildInfo = info(root)
+    expect(computeArtifactDigest(collectArtifactFiles(root))).toBe(
+      buildInfo.artifactDigest,
+    )
   })
 })
