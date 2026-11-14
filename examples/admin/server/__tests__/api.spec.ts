@@ -541,3 +541,104 @@ describe('Admin session, CSRF and login protection', () => {
     ).toBe(401)
   })
 })
+
+/**
+ * A cross-origin request must be refused even when no CORS allow-list is set.
+ *
+ * The CORS branch only rejects an `Origin` when `allowedOrigins.size > 0`, so a
+ * deployment that never sets `ZEUS_ADMIN_ORIGINS` accepted every origin. The
+ * session cookie is `SameSite=Lax`, which stops a cross-site form POST but not
+ * a same-site sibling origin — and not a browser that ignores the attribute.
+ *
+ * The rule these cases pin: a state-changing request that carries an `Origin`
+ * must carry one the server was told to trust. Absence of an allow-list is not
+ * permission.
+ */
+describe('Zeus Admin cross-origin protections', () => {
+  it('rejects a cross-origin mutation when no allow-list is configured', async () => {
+    const harness = await start()
+    const { cookie, csrf } = await login(
+      harness.origin,
+      'ada@example.test',
+      ADMIN_PASSWORD,
+    )
+    expect(cookie).toBeTruthy()
+
+    const response = await fetch(`${harness.origin}/api/settings`, {
+      method: 'PATCH',
+      headers: {
+        ...mutationHeaders(cookie, csrf),
+        Origin: 'https://evil.example.test',
+      },
+      body: JSON.stringify({ workspaceName: 'hijacked' }),
+    })
+    expect(
+      response.status,
+      'an untrusted Origin must be refused, not silently accepted because no allow-list exists',
+    ).toBe(403)
+  })
+
+  it('rejects a cross-origin mutation even with a valid CSRF token', async () => {
+    // The token is read from a response header an attacker cannot see, but a
+    // same-site sibling origin can read a non-HttpOnly CSRF cookie. The Origin
+    // check is the layer that does not depend on the token staying secret.
+    const harness = await start()
+    const { cookie, csrf } = await login(
+      harness.origin,
+      'ada@example.test',
+      ADMIN_PASSWORD,
+    )
+    const response = await fetch(`${harness.origin}/api/users/ada`, {
+      method: 'PATCH',
+      headers: {
+        ...mutationHeaders(cookie, csrf),
+        Origin: 'https://sibling.example.test',
+      },
+      body: JSON.stringify({ name: 'Renamed By Sibling' }),
+    })
+    expect(response.status).toBe(403)
+  })
+
+  it('allows a mutation from an explicitly allowed origin', async () => {
+    const harness = await start(':memory:', {
+      allowedOrigins: ['https://panel.example.test'],
+    })
+    const { cookie, csrf } = await login(
+      harness.origin,
+      'ada@example.test',
+      ADMIN_PASSWORD,
+    )
+    const response = await fetch(`${harness.origin}/api/settings`, {
+      method: 'PATCH',
+      headers: {
+        ...mutationHeaders(cookie, csrf),
+        Origin: 'https://panel.example.test',
+      },
+      body: JSON.stringify({ workspaceName: 'Allowed Update' }),
+    })
+    expect(response.status).toBe(200)
+    expect(response.headers.get('access-control-allow-origin')).toBe(
+      'https://panel.example.test',
+    )
+  })
+
+  it('allows a same-origin request that carries the serving origin', async () => {
+    // Same-origin requests from the app's own fetch also send `Origin` for
+    // non-GET methods; refusing those would break the app.
+    const harness = await start()
+    const { cookie, csrf } = await login(
+      harness.origin,
+      'ada@example.test',
+      ADMIN_PASSWORD,
+    )
+    const response = await fetch(`${harness.origin}/api/settings`, {
+      method: 'PATCH',
+      headers: {
+        ...mutationHeaders(cookie, csrf),
+        Origin: harness.origin,
+      },
+      body: JSON.stringify({ workspaceName: 'Same Origin' }),
+    })
+    expect(response.status).toBe(200)
+  })
+})
