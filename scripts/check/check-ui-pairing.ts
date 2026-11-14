@@ -98,6 +98,10 @@ export function checkUiPairing(input: UiPairingInput): UiPairingResult {
       'dependencies',
       'devDependencies',
       'peerDependencies',
+      // An optional dependency is still installed and still resolves at
+      // runtime when present, so a drifting pin is a pairing mismatch. It is
+      // the field most likely to be forgotten because it is the rarest.
+      'optionalDependencies',
     ] as const) {
       const dependencies = manifest[field]
       if (!dependencies) continue
@@ -128,6 +132,7 @@ function readManifest(file: string):
       dependencies?: Record<string, unknown>
       devDependencies?: Record<string, unknown>
       peerDependencies?: Record<string, unknown>
+      optionalDependencies?: Record<string, unknown>
     }
   | undefined {
   try {
@@ -160,7 +165,16 @@ function readGitState(root: string): {
   }
   const commit = git(['rev-parse', 'HEAD'])
   const sourceTreeSha = git(['rev-parse', 'HEAD^{tree}'])
-  const status = git(['status', '--porcelain', '--untracked-files=no'])
+  /*
+   * `--untracked-files=normal` rather than `=no`.
+   *
+   * A file that exists on disk and in no commit is exactly the case a release
+   * checkout must not carry: the build reads it, the approved SHA does not
+   * contain it, and `=no` reported the tree clean. `=normal` still omits
+   * ignored paths, so build output does not fail every release — the
+   * distinction is `--ignored` vs not, not tracked vs untracked.
+   */
+  const status = git(['status', '--porcelain', '--untracked-files=normal'])
   return {
     ...(commit ? { commit } : {}),
     ...(sourceTreeSha ? { sourceTreeSha } : {}),
