@@ -23,7 +23,22 @@ export const RC_MANIFEST_SCHEMA = 'zeus.rc-manifest/v1'
 
 const root = path.resolve(import.meta.dirname, '../..')
 const uiRoot = path.resolve(root, '../zeus-ui')
-const output = path.join(root, 'docs/release/0.2.0-rc-manifest.json')
+/*
+ * Two files, two jobs.
+ *
+ * `HISTORICAL` records the tree an audit was performed against and never
+ * changes: rewriting it would turn "this commit was not releasable" into "a
+ * later commit was", which is not what a snapshot means.
+ * `CANDIDATE` records whatever HEAD is now. Regenerating it is the normal
+ * operation; the historical file is read-only by convention and by the guard
+ * below.
+ */
+const HISTORICAL = path.join(root, 'docs/release/0.2.0-rc-manifest.json')
+const CANDIDATE = path.join(
+  root,
+  'docs/release/0.2.0-rc-manifest-candidate.json',
+)
+const output = CANDIDATE
 
 interface PackageRef {
   readonly name: string
@@ -86,6 +101,20 @@ export interface RcManifest {
   }
   readonly tests: readonly TestEvidence[]
   readonly blockers: readonly string[]
+  /**
+   * A blocker's owner, so "what can this repository fix" is answerable without
+   * reading every line of the list.
+   *
+   * - `code`             — a defect this repository can fix in a commit.
+   * - `release-process`  — a step a maintainer performs (version cut, publish).
+   * - `environment`      — needs a deployment, a secret, or an approval.
+   * - `evidence`         — a document that has not been produced yet.
+   *
+   * The distinction matters because the verdict is NO_GO either way: a
+   * `code`-only list means "fix and retry", an `environment` list means "no
+   * amount of code changes this".
+   */
+  readonly blockerCategories?: Readonly<Record<string, readonly string[]>>
   readonly verdict: 'GO' | 'CONDITIONAL_GO' | 'NO_GO'
 }
 
@@ -541,6 +570,7 @@ function build(): RcManifest {
   return {
     schema: RC_MANIFEST_SCHEMA,
     generatedAt: new Date().toISOString(),
+    blockerCategories: categoriseBlockers(blockers),
     repositories: {
       core: { commit: coreCommit, version: coreVersion },
       ui: { commit: uiCommit, version: uiVersion },
@@ -586,6 +616,41 @@ function build(): RcManifest {
   }
 }
 
+/**
+ * Splits blockers by who can clear them.
+ *
+ * Prefixes are stable so a reader can grep: every blocker this script emits
+ * starts with a recognisable phrase.
+ */
+function categoriseBlockers(
+  blockers: readonly string[],
+): Record<string, string[]> {
+  const categories: Record<string, string[]> = {
+    code: [],
+    'release-process': [],
+    environment: [],
+    evidence: [],
+  }
+  for (const blocker of blockers) {
+    if (blocker.startsWith('versions are')) {
+      categories['release-process']!.push(blocker)
+    } else if (blocker.startsWith('never published on npm')) {
+      categories['release-process']!.push(blocker)
+    } else if (blocker.startsWith('evidence not produced')) {
+      categories.evidence!.push(blocker)
+    } else if (blocker.startsWith('rc-readiness')) {
+      categories.evidence!.push(blocker)
+    } else if (blocker.startsWith('demo pairing names')) {
+      categories.evidence!.push(blocker)
+    } else if (blocker.includes('build-info names ui')) {
+      categories.environment!.push(blocker)
+    } else {
+      categories.code!.push(blocker)
+    }
+  }
+  return categories
+}
+
 const { values } = parseArgs({
   options: { verify: { type: 'boolean', default: false } },
 })
@@ -628,9 +693,20 @@ if (values.verify) {
     `RC manifest verified: ${manifest.repositories.core.commit.slice(0, 8)} + ${manifest.repositories.ui.commit.slice(0, 8)}`,
   )
 } else {
+  if (path.resolve(output) === path.resolve(HISTORICAL)) {
+    throw new Error(
+      'refusing to overwrite the historical RC snapshot; regenerate the candidate instead',
+    )
+  }
   fs.mkdirSync(path.dirname(output), { recursive: true })
   fs.writeFileSync(output, `${JSON.stringify(manifest, null, 2)}\n`)
   console.log(`RC manifest written: ${path.relative(root, output)}`)
+  const historical = readJson<RcManifest>(HISTORICAL)
+  if (historical) {
+    console.log(
+      `  historical snapshot kept: ${historical.repositories.core.commit.slice(0, 8)} (${historical.verdict})`,
+    )
+  }
   console.log(`  verdict: ${manifest.verdict}`)
   console.log(`  core packages: ${manifest.releaseSet.core.length}`)
   console.log(`  ui packages: ${manifest.releaseSet.ui.length}`)
