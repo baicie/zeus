@@ -34,7 +34,20 @@ import { AttemptLimiter, type AttemptLimiterOptions } from './rate-limit'
 
 export interface AdminServerOptions {
   readonly database: AdminDatabase
+  /**
+   * Extra origins allowed to call the API cross-origin.
+   *
+   * This is not "the origins to check": every state-changing request carrying
+   * an `Origin` must be same-origin or listed here. An empty list means only
+   * the serving origin is accepted — absence of configuration is not
+   * permission.
+   */
   readonly allowedOrigins?: readonly string[]
+  /**
+   * The origin this server is reachable at, used to recognise same-origin
+   * requests. Defaults to comparing against the request's `Host`.
+   */
+  readonly publicOrigin?: string
   readonly maxUploadBytes?: number
   readonly staticDir?: string
   readonly now?: () => Date
@@ -109,16 +122,31 @@ export function createAdminServer(options: AdminServerOptions): AdminServer {
     const url = new URL(request.url ?? '/', 'http://localhost')
     const origin = request.headers.origin
     const headers: Record<string, string> = {}
-    if (origin && allowedOrigins.has(origin)) {
-      headers['Access-Control-Allow-Origin'] = origin
-      headers['Access-Control-Allow-Credentials'] = 'true'
-      headers['Vary'] = 'Origin'
-    } else if (origin && allowedOrigins.size > 0) {
+    /*
+     * A state-changing request that carries `Origin` must come from an origin
+     * this server trusts.
+     *
+     * The session cookie is `SameSite=Lax`, which stops a cross-site form POST
+     * but not a same-site sibling origin, and not a client that ignores the
+     * attribute. The CSRF token is not a substitute either: the CSRF cookie is
+     * readable by any script on a sibling origin. This check is the layer that
+     * does not depend on either.
+     *
+     * Previously the branch below only refused an unknown origin when an
+     * allow-list happened to exist, so a deployment that never set
+     * `ZEUS_ADMIN_ORIGINS` accepted every origin.
+     */
+    if (origin && !isTrustedOrigin(origin, request, allowedOrigins)) {
       throw new ApiError(
         403,
         'ZEUS_ADMIN_ORIGIN',
         'Cross-origin request is not allowed.',
       )
+    }
+    if (origin) {
+      headers['Access-Control-Allow-Origin'] = origin
+      headers['Access-Control-Allow-Credentials'] = 'true'
+      headers['Vary'] = 'Origin'
     }
     if (method === 'OPTIONS') {
       response.writeHead(204, {
@@ -784,6 +812,62 @@ function clearAuthCookies(secure: boolean): string[] {
     `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${suffix}`,
     `${CSRF_COOKIE}=; Path=/; SameSite=Lax; Max-Age=0${suffix}`,
   ]
+}
+
+/**
+ * Whether an `Origin` header names an origin this server accepts.
+ *
+ * Same-origin is derived from the request's `Host` unless the deployment told
+ * us its public origin, because a request to `https://admin.example` carries
+ * `Host: admin.example` and `Origin: https://admin.example` while the socket
+ * is `127.0.0.1:8080`. With `trustProxy`, `X-Forwarded-Host` and
+ * `X-Forwarded-Proto` describe the origin the client actually addressed.
+ */
+function isTrustedOrigin(
+  origin: string,
+  request: IncomingMessage,
+  allowedOrigins: ReadonlySet<string>,
+): boolean {
+  if (allowedOrigins.has(origin)) return true
+  let parsed: URL
+  try {
+    parsed = new URL(origin)
+  } catch {
+    return false
+  }
+  // `null` is what a sandboxed document sends; it is never same-origin.
+  if (parsed.origin === 'null') return false
+  return parsed.origin === requestOrigin(request, allowedOrigins)
+}
+
+/** The origin the client addressed, as far as the request says. */
+function requestOrigin(
+  request: IncomingMessage,
+  allowedOrigins: ReadonlySet<string>,
+): string | undefined {
+  const host =
+    firstHeader(request.headers['x-forwarded-host']) ??
+    firstHeader(request.headers.host)
+  if (!host) return undefined
+  const forwardedProto = firstHeader(request.headers['x-forwarded-proto'])
+  const proto = forwardedProto === 'https' ? 'https' : 'http'
+  // An allow-list entry for the same host is authoritative about the scheme:
+  // a deployment behind TLS termination lists `https://host` while the socket
+  // sees `http`.
+  for (const candidate of allowedOrigins) {
+    try {
+      if (new URL(candidate).host === host)
+        return `${new URL(candidate).protocol}//${host}`
+    } catch {
+      continue
+    }
+  }
+  return `${proto}://${host}`
+}
+
+function firstHeader(value: string | string[] | undefined): string | undefined {
+  if (Array.isArray(value)) return value[0]
+  return value
 }
 
 function requireCsrf(
