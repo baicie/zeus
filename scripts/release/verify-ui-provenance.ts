@@ -219,7 +219,8 @@ function main(): void {
      * check silently passing on a document that never looked.
      */
     let attestationSources:
-      Record<string, { commit: string; repository: string }> | undefined
+      | Record<string, { commit: string; repository: string }>
+      | undefined
     if (values['read-attestations']) {
       const sources = (buildInfo as { uiSources?: UiSources }).uiSources
       const registry = (sources?.sources ?? []).filter(
