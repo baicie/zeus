@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 
+import { collectRuntimeDependencies as collectSbomRuntimeDependencies } from './check-sbom'
 import { scanSecrets } from './check-secrets'
 import {
   validateCrossPlatformEvidence,
@@ -100,6 +101,15 @@ export interface RcReadinessInput {
   readonly dirty: boolean
   readonly frameworkVersion: string
   readonly sbomComponents: number
+  /**
+   * The SBOM validated as a document.
+   *
+   * `sbomComponents` alone is a count, and a count cannot distinguish a real
+   * bill of materials from a file with one invented entry. When this is
+   * present the check uses it; when absent the check reports `not_run` rather
+   * than trusting the count.
+   */
+  readonly sbomValidation?: { readonly errors: readonly string[] }
   readonly trackedFiles: number
   readonly secretFindings: number
   readonly packedConsumers: ReadinessEvidence
@@ -131,12 +141,7 @@ export function evaluateRcReadiness(
         ? 'working tree has uncommitted changes'
         : 'working tree is clean',
     ),
-    checkBoolean(
-      'sbom',
-      input.sbomComponents > 0,
-      `${input.sbomComponents} SBOM components`,
-      'not_run',
-    ),
+    checkSbom(input.sbomComponents, input.sbomValidation),
     checkBoolean(
       'secret-scan',
       input.secretFindings === 0,
@@ -462,6 +467,39 @@ function checkBoolean(
   return { id, status: passed ? 'pass' : failedStatus, evidence }
 }
 
+/**
+ * The SBOM check.
+ *
+ * A count above zero proves a file was parsed. It does not prove the file is a
+ * bill of materials: one invented component, no graph and a version nobody
+ * published all satisfy `components.length > 0`. When a validated result is
+ * supplied the check reflects it; without one the honest status is `not_run`.
+ */
+function checkSbom(
+  components: number,
+  validation: { readonly errors: readonly string[] } | undefined,
+): ReadinessCheck {
+  if (!validation) {
+    return {
+      id: 'sbom',
+      status: 'not_run',
+      evidence: `${components} components parsed, but the document was not validated`,
+    }
+  }
+  if (validation.errors.length > 0) {
+    return {
+      id: 'sbom',
+      status: 'fail',
+      evidence: validation.errors.slice(0, 3).join('; '),
+    }
+  }
+  return {
+    id: 'sbom',
+    status: 'pass',
+    evidence: `${components} components, dependency graph validated`,
+  }
+}
+
 function checkEvidence(id: string, result: ReadinessEvidence): ReadinessCheck {
   return { id, status: result.status, evidence: result.evidence }
 }
@@ -546,6 +584,129 @@ function reportPassed(report: Report): boolean {
   )
 }
 
+/**
+ * Validates an SBOM document as a document, not as a count.
+ *
+ * The readiness check used to pass on `components.length > 0`. A file with one
+ * invented component and no graph satisfied that, so `pass` meant both
+ * "validated" and "parsed" depending on who wrote the file last.
+ *
+ * What is required here:
+ *
+ * - it parses to an object with CycloneDX 1.5 shape;
+ * - every component has a unique `bom-ref`;
+ * - a `dependencies` graph exists and every edge names a component present;
+ * - the component set matches what the lockfile implies — every workspace
+ *   package expected is there, and no third-party component appears that the
+ *   lockfile does not list.
+ *
+ * Schema validation against the official document happens in
+ * `check-sbom.spec.ts`; this function is the readiness gate's own view, kept
+ * dependency-free so it can run wherever readiness runs.
+ */
+export function evaluateSbom(
+  document: unknown,
+  expected: {
+    readonly workspace: readonly string[]
+    readonly runtime: readonly { name: string; version: string }[]
+  },
+): { errors: readonly string[] } {
+  const errors: string[] = []
+  const fail = (message: string): void => {
+    errors.push(message)
+  }
+  if (!isRecord(document)) return { errors: ['SBOM must be a JSON object'] }
+  if (document.bomFormat !== 'CycloneDX')
+    fail('SBOM bomFormat must be CycloneDX')
+  if (document.specVersion !== '1.5') fail('SBOM specVersion must be 1.5')
+
+  const components = Array.isArray(document.components)
+    ? document.components
+    : undefined
+  if (!components || components.length === 0) {
+    return { errors: [...errors, 'SBOM has no components'] }
+  }
+
+  const refs = new Map<string, { name?: string; version?: string }>()
+  for (const [index, component] of components.entries()) {
+    if (!isRecord(component)) {
+      fail(`components[${index}] is not an object`)
+      continue
+    }
+    const ref = component['bom-ref']
+    if (typeof ref !== 'string' || ref === '') {
+      fail(`components[${index}] has no bom-ref`)
+      continue
+    }
+    if (refs.has(ref)) {
+      fail(`duplicate bom-ref: ${ref}`)
+      continue
+    }
+    /*
+     * The ref must agree with the name and version.
+     *
+     * A component whose `bom-ref` says one version while its `version` field
+     * says another is internally inconsistent, and every edge that targets it
+     * then points at the wrong thing. The graph is only as trustworthy as this
+     * invariant.
+     */
+    if (
+      typeof component.name === 'string' &&
+      typeof component.version === 'string' &&
+      ref !== `${component.name}@${component.version}`
+    ) {
+      fail(
+        `bom-ref ${ref} does not match name@version ${component.name}@${component.version}`,
+      )
+    }
+    refs.set(ref, {
+      ...(typeof component.name === 'string' ? { name: component.name } : {}),
+      ...(typeof component.version === 'string'
+        ? { version: component.version }
+        : {}),
+    })
+  }
+
+  // Every expected workspace package must be present at some version.
+  for (const name of expected.workspace) {
+    const present = [...refs.values()].some(entry => entry.name === name)
+    if (!present) fail(`missing workspace component: ${name}`)
+  }
+  // Every runtime dependency must be present at the locked version.
+  for (const dependency of expected.runtime) {
+    if (!refs.has(`${dependency.name}@${dependency.version}`)) {
+      fail(
+        `missing runtime component: ${dependency.name}@${dependency.version}`,
+      )
+    }
+  }
+
+  const dependencies = Array.isArray(document.dependencies)
+    ? document.dependencies
+    : undefined
+  if (!dependencies || dependencies.length === 0) {
+    fail('SBOM has no dependencies graph')
+  } else {
+    for (const [index, node] of dependencies.entries()) {
+      if (!isRecord(node) || typeof node.ref !== 'string') {
+        fail(`dependencies[${index}] has no ref`)
+        continue
+      }
+      if (!refs.has(node.ref)) {
+        fail(`dependencies[${index}] names a missing component: ${node.ref}`)
+      }
+      const targets = Array.isArray(node.dependsOn) ? node.dependsOn : []
+      for (const target of targets) {
+        if (typeof target === 'string' && !refs.has(target)) {
+          fail(`dangling edge: ${node.ref} -> ${target}`)
+        }
+      }
+    }
+  }
+
+  return { errors }
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -620,6 +781,13 @@ export function readRcReadinessInput(
       isRecord(sbomResult.value) && Array.isArray(sbomResult.value.components)
         ? sbomResult.value.components.length
         : 0,
+    /*
+     * Validate the document, not just count it.
+     *
+     * The expectation is derived from the repository rather than from the
+     * document: a document that agrees only with itself proves nothing.
+     */
+    sbomValidation: evaluateSbom(sbomResult.value, sbomExpectation(root)),
     trackedFiles: trackedFiles.length,
     secretFindings: scanSecrets(trackedFiles, file =>
       fs.readFileSync(path.join(root, file), 'utf8'),
@@ -630,6 +798,79 @@ export function readRcReadinessInput(
     crossPlatform: evidenceStatuses.crossPlatform,
     releaseApproval: evidenceStatuses.releaseApproval,
   }
+}
+
+/**
+ * What the SBOM must contain, derived from the repository.
+ *
+ * `workspace` is every package this repository builds; `runtime` is every
+ * third-party library the published packages install, read from the lockfile.
+ * Both come from the tree under test, so a document written for a different
+ * commit fails rather than agreeing with itself.
+ */
+function sbomExpectation(root: string): {
+  workspace: string[]
+  runtime: { name: string; version: string }[]
+} {
+  /*
+   * The same definition the SBOM generator uses.
+   *
+   * A filesystem walk is not the workspace: it also finds create-zeus templates
+   * and fixtures, which are packages with a `package.json` but are not pnpm
+   * workspace members and never appear in a generated SBOM. Expecting them made
+   * a correct document fail.
+   */
+  const cwd = process.cwd()
+  process.chdir(root)
+  let workspace: string[]
+  try {
+    workspace = findWorkspacePackages().map(pkg => pkg.name)
+  } finally {
+    process.chdir(cwd)
+  }
+
+  const runtime: { name: string; version: string }[] = []
+  const lockfilePath = path.join(root, 'pnpm-lock.yaml')
+  if (fs.existsSync(lockfilePath)) {
+    const lockfile = fs.readFileSync(lockfilePath, 'utf8')
+    const configPath = path.join(root, 'scripts/release.config.ts')
+    const published = new Set<string>()
+    if (fs.existsSync(configPath)) {
+      const config = fs.readFileSync(configPath, 'utf8')
+      const block = /export const zeusFixedPackages = \[([\s\S]*?)\]/.exec(
+        config,
+      )
+      for (const match of (block?.[1] ?? '').matchAll(
+        /@(zeus-js\/[a-z0-9-]+)/g,
+      )) {
+        published.add(`@${match[1]}`)
+      }
+    }
+    const importers: Record<string, string> = {}
+    for (const match of lockfile.matchAll(/^ {2}(packages\/[^:]+):\s*$/gm)) {
+      const relative = match[1] as string
+      const manifestPath = path.join(root, relative, 'package.json')
+      if (!fs.existsSync(manifestPath)) continue
+      try {
+        const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as {
+          name?: string
+        }
+        if (manifest.name && published.has(manifest.name)) {
+          importers[relative] = manifest.name
+        }
+      } catch {
+        continue
+      }
+    }
+    for (const dependency of collectSbomRuntimeDependencies(
+      lockfile,
+      importers,
+    )) {
+      runtime.push({ name: dependency.name, version: dependency.version })
+    }
+  }
+
+  return { workspace: [...new Set(workspace)].sort(), runtime }
 }
 
 function isDirtyForRelease(root: string, useSnapshot: boolean): boolean {

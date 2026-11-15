@@ -11,11 +11,12 @@ import {
   sha,
 } from '../../release/__tests__/rc-evidence-fixtures'
 import {
+  RC_EVIDENCE_SCHEMA,
+  REQUIRED_ONLINE_PRODUCTS,
   evaluateRcEvidence,
   evaluateRcReadiness,
   evaluateReportEvidence,
-  RC_EVIDENCE_SCHEMA,
-  REQUIRED_ONLINE_PRODUCTS,
+  evaluateSbom,
   type RcReadinessInput,
 } from '../rc-readiness'
 
@@ -29,6 +30,9 @@ const ready: RcReadinessInput = {
   dirty: false,
   frameworkVersion: VERSION,
   sbomComponents: 59,
+  // A validated document: the `sbom` check now reflects validation, not a
+  // count. A fixture without this reports `not_run`, which is the point.
+  sbomValidation: { errors: [] },
   trackedFiles: 1400,
   secretFindings: 0,
   packedConsumers: pass('packed consumer report passed for current HEAD'),
@@ -74,6 +78,10 @@ describe('evaluateRcReadiness', () => {
       ...ready,
       secretFindings: 2,
       sbomComponents: 0,
+      // No validated document, so the check is `not_run` rather than a
+      // count-based pass or fail. This is the behaviour change: an SBOM that
+      // was never validated cannot be reported as either.
+      sbomValidation: undefined,
       packedConsumers: {
         status: 'fail',
         evidence:
@@ -82,7 +90,7 @@ describe('evaluateRcReadiness', () => {
     })
 
     expect(report.blockers).toEqual([
-      'sbom: 0 SBOM components',
+      'sbom: 0 components parsed, but the document was not validated',
       'secret-scan: 2 findings across 1400 tracked files',
       'packed-consumers: packed consumer report is bound to old-commit, expected abc123',
     ])
@@ -497,5 +505,100 @@ describe('evaluateReportEvidence', () => {
       status: 'fail',
       evidence: 'create-zeus report is missing sourceCommit',
     })
+  })
+})
+
+/**
+ * Counting components is not validating an SBOM.
+ *
+ * `sbom` passed on `components.length > 0`. A document with a single invented
+ * component, no dependency graph, and a version nobody published satisfied it —
+ * so the gate reported the same `pass` as a fully validated document.
+ *
+ * The strict evaluation below checks what the field is supposed to mean: the
+ * document parses, every component has a unique `bom-ref`, the graph is
+ * present and internally consistent, and the component set matches the
+ * lockfile.
+ */
+describe('SBOM validation beyond a component count', () => {
+  const validSbom = (): Record<string, unknown> => ({
+    bomFormat: 'CycloneDX',
+    specVersion: '1.5',
+    version: 1,
+    metadata: { timestamp: '1970-01-01T00:00:00.000Z', tools: [] },
+    components: [
+      {
+        type: 'library',
+        name: '@zeus-js/zeus',
+        version: '0.1.1-beta.20',
+        'bom-ref': '@zeus-js/zeus@0.1.1-beta.20',
+      },
+      {
+        type: 'library',
+        name: 'picocolors',
+        version: '1.1.1',
+        'bom-ref': 'picocolors@1.1.1',
+      },
+    ],
+    dependencies: [
+      {
+        ref: '@zeus-js/zeus@0.1.1-beta.20',
+        dependsOn: ['picocolors@1.1.1'],
+      },
+      { ref: 'picocolors@1.1.1', dependsOn: [] },
+    ],
+  })
+
+  const expected = {
+    workspace: ['@zeus-js/zeus'],
+    runtime: [{ name: 'picocolors', version: '1.1.1' }],
+  }
+
+  it('accepts a well formed document', () => {
+    const result = evaluateSbom(validSbom(), expected)
+    expect(result.errors).toEqual([])
+  })
+
+  it('rejects a document with one invented component', () => {
+    const forged = validSbom()
+    forged.components = [
+      {
+        type: 'library',
+        name: 'fake',
+        version: '1.0.0',
+        'bom-ref': 'fake@1.0.0',
+      },
+    ]
+    const result = evaluateSbom(forged, expected)
+    expect(result.errors.join('\n')).toMatch(/lockfile|missing/)
+  })
+
+  it('rejects an empty dependency graph', () => {
+    const doc = validSbom()
+    doc.dependencies = []
+    expect(evaluateSbom(doc, expected).errors.join('\n')).toMatch(/dependenc/i)
+  })
+
+  it('rejects a wrong package version', () => {
+    const doc = validSbom()
+    ;(doc.components as { version: string }[])[0]!.version = '9.9.9'
+    expect(evaluateSbom(doc, expected).errors.join('\n')).toMatch(
+      /version|missing/,
+    )
+  })
+
+  it('rejects duplicate bom-refs', () => {
+    const doc = validSbom()
+    ;(doc.components as unknown[]).push({
+      type: 'library',
+      name: 'picocolors',
+      version: '1.1.1',
+      'bom-ref': 'picocolors@1.1.1',
+    })
+    expect(evaluateSbom(doc, expected).errors.join('\n')).toMatch(/duplicate/)
+  })
+
+  it('rejects a document that is not an object', () => {
+    expect(evaluateSbom('not an object', expected).errors).not.toEqual([])
   })
 })
