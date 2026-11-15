@@ -400,9 +400,45 @@ export function verifyUiSources(options: {
     }
   }
 
-  const recorded = new Map(
-    options.sources.sources.map(source => [source.package, source]),
-  )
+  /*
+   * `sources` is unvalidated JSON from a build artifact. A document written by
+   * an older or broken build can carry `sources: 5`, an object, or entries
+   * without a `package` — and `.map` on any of those throws a TypeError out of
+   * a function whose contract is to return errors.
+   */
+  const rawSources = Array.isArray(options.sources.sources)
+    ? options.sources.sources
+    : undefined
+  if (!rawSources) {
+    fail('uiSources.sources must be an array')
+    return { errors }
+  }
+
+  /*
+   * A Map keyed by package name silently keeps the last entry, so a wrong
+   * source can be overwritten by a right one — or the reverse, depending on
+   * order — and the document still passes. Duplicates are reported, and the
+   * first entry is kept so the comparison below is against something stable.
+   */
+  const recorded = new Map<string, (typeof rawSources)[number]>()
+  for (const [index, source] of rawSources.entries()) {
+    if (
+      typeof source !== 'object' ||
+      source === null ||
+      typeof (source as { package?: unknown }).package !== 'string'
+    ) {
+      fail(`uiSources.sources[${index}] has no package name`)
+      continue
+    }
+    const name = (source as { package: string }).package
+    if (recorded.has(name)) {
+      fail(
+        `uiSources.sources declares ${name} more than once; a duplicate can hide a wrong entry`,
+      )
+      continue
+    }
+    recorded.set(name, source)
+  }
 
   /*
    * Re-derive the expected set with the same inputs as the document under

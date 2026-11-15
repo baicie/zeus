@@ -27,7 +27,12 @@ import {
   lockfileIntegrity,
   verifyUiSources,
 } from '../ui-sources'
-import { fetchAttestationSources } from '../verify-ui-provenance'
+import {
+  fetchAttestationSources,
+  verifyUiProvenance,
+} from '../verify-ui-provenance'
+
+import type { verifyAttestation } from '../ui-attestation'
 
 const root = path.resolve(import.meta.dirname, '../../..')
 
@@ -709,6 +714,98 @@ describe('strict verification accepts an exact document', () => {
  * written before the fields existed. It is wrong for a release: the same green
  * result then means both "checked and clean" and "nothing was checked".
  */
+/**
+ * A malformed document must fail, not throw.
+ *
+ * `verifyUiProvenance` is called on a `build-info.json` read from disk, which
+ * may have been written by an older build, hand-edited, or truncated. Returning
+ * a TypeError out of it turns "this artifact is corrupt" into a stack trace that
+ * says nothing about the artifact.
+ */
+describe('malformed input returns errors rather than throwing', () => {
+  const base = {
+    manifestPath: path.join(root, 'examples/admin/package.json'),
+    lockfile: 'lockfileVersion: "9.0"\n',
+    root,
+  }
+  const cases: [string, unknown][] = [
+    ['null', null],
+    ['undefined', undefined],
+    ['an array', []],
+    ['an empty object', {}],
+    ['a number', 42],
+    ['a string', 'nope'],
+    ['uiSources that is not an object', { uiSources: 'nope' }],
+    ['uiSources with no sources', { uiSources: {}, uiCommit: 'a'.repeat(40) }],
+    [
+      'uiSources.sources that is not an array',
+      { uiSources: { sources: 5 }, uiCommit: 'a'.repeat(40) },
+    ],
+    [
+      'sources containing a non-object',
+      {
+        uiSources: { sources: [5], declaredPairingCommit: 'a'.repeat(40) },
+        uiCommit: 'a'.repeat(40),
+      },
+    ],
+  ]
+
+  for (const [label, buildInfo] of cases) {
+    it(`reports ${label} as a failure`, () => {
+      const result = verifyUiProvenance({ ...base, buildInfo })
+      expect(result.ok).toBe(false)
+      expect(result.errors.length).toBeGreaterThan(0)
+    })
+  }
+})
+
+/**
+ * A duplicate package entry must not let one source hide another.
+ *
+ * The recorded set was a `Map` keyed by package name, so a second entry for the
+ * same package silently replaced the first. A document with one wrong entry and
+ * one right entry then passed or failed depending on their order — the check
+ * was over whichever happened to be last.
+ */
+describe('duplicate package entries', () => {
+  const base = {
+    manifestPath: path.join(root, 'examples/admin/package.json'),
+    lockfile: 'lockfileVersion: "9.0"\n',
+    root,
+    level: 'legacy-compatible' as const,
+  }
+  it('reports a package declared twice', () => {
+    const uiCommit = 'a'.repeat(40)
+    const result = verifyUiProvenance({
+      ...base,
+      buildInfo: {
+        uiCommit,
+        uiSources: {
+          declaredPairingCommit: uiCommit,
+          sources: [
+            {
+              kind: 'registry',
+              package: '@zeus-web/button',
+              version: '0.1.0-beta.34',
+              integrity: 'sha512-x',
+              sourceCommit: 'UNVERIFIED',
+            },
+            {
+              kind: 'registry',
+              package: '@zeus-web/button',
+              version: '0.1.0-beta.34',
+              integrity: 'sha512-x',
+              sourceCommit: 'UNVERIFIED',
+            },
+          ],
+        },
+      },
+    })
+    expect(result.ok).toBe(false)
+    expect(result.errors.join('\n')).toMatch(/more than once/)
+  })
+})
+
 describe('verification levels', () => {
   const rootPath = path.resolve(import.meta.dirname, '../../..')
   const lockfile = fs.readFileSync(
@@ -1015,18 +1112,22 @@ describe('attested source commits', () => {
 })
 
 /**
- * Reading the commits is a network path, so it is tested without one.
+ * Reading provenance is a network path, so its behaviour is pinned without one.
  *
  * `fetchAttestationSources` is what makes the strict check actionable: the
  * document is written inside an offline Docker build and records `UNVERIFIED`,
- * and only a verify step that actually fetches can turn that into evidence.
- * A test that reached the real registry would be slow and would fail offline,
- * so the transport is injected.
+ * and only a verifier that actually fetches can turn that into evidence.
+ *
+ * The transport, the clock and the signature verifier are all injected. That
+ * lets these tests describe outages, slow registries and retry timing exactly,
+ * which is not possible against the real npm registry.
  */
 describe('fetchAttestationSources', () => {
   const attested = 'a8826dd1f81560aaf6459d8d40a3e599f705f6e0'
+  const pkg = { name: '@zeus-web/button', version: '0.1.0-beta.34' }
 
-  function attestationResponse(commit: string): unknown {
+  /** A registry response carrying a SLSA v1 bundle. */
+  function attestationResponse(): unknown {
     const payload = Buffer.from(
       JSON.stringify({
         predicateType: 'https://slsa.dev/provenance/v1',
@@ -1035,7 +1136,7 @@ describe('fetchAttestationSources', () => {
             resolvedDependencies: [
               {
                 uri: 'git+https://github.com/baicie/zeus-ui@refs/tags/v0.1.0-beta.34',
-                digest: { gitCommit: commit },
+                digest: { gitCommit: attested },
               },
             ],
           },
@@ -1052,24 +1153,40 @@ describe('fetchAttestationSources', () => {
     }
   }
 
-  it('reads the commit out of each package response', async () => {
-    const sources = await fetchAttestationSources({
-      packages: [{ name: '@zeus-web/button', version: '0.1.0-beta.34' }],
-      fetch: (async () =>
-        new Response(JSON.stringify(attestationResponse(attested)), {
-          status: 200,
-        })) as typeof globalThis.fetch,
-    })
-    expect(sources['@zeus-web/button@0.1.0-beta.34']).toEqual({
+  /** Accepts whatever bundle it is given, for tests about transport. */
+  const acceptingVerify = (async () => ({
+    ok: true as const,
+    attestation: {
+      verified: true as const,
       commit: attested,
       repository: 'baicie/zeus-ui',
+      ref: 'refs/tags/v0.1.0-beta.34',
+      signerIdentity: 'stub',
+      signerIssuer: 'https://token.actions.githubusercontent.com',
+      tlogEntries: 1,
+    },
+  })) as unknown as typeof verifyAttestation
+
+  const okFetch = (async () =>
+    new Response(JSON.stringify(attestationResponse()), {
+      status: 200,
+    })) as typeof globalThis.fetch
+
+  it('reads the commit out of each package response', async () => {
+    const { verified, failures } = await fetchAttestationSources({
+      packages: [pkg],
+      fetch: okFetch,
+      verify: acceptingVerify,
     })
+    expect(verified['@zeus-web/button@0.1.0-beta.34']?.commit).toBe(attested)
+    expect(failures).toEqual({})
   })
 
   it('builds a URL the registry routes', async () => {
     const seen: string[] = []
     await fetchAttestationSources({
-      packages: [{ name: '@zeus-web/button', version: '0.1.0-beta.34' }],
+      packages: [pkg],
+      verify: acceptingVerify,
       fetch: (async (url: string | URL | Request) => {
         seen.push(String(url))
         return new Response('{}', { status: 404 })
@@ -1087,107 +1204,190 @@ describe('fetchAttestationSources', () => {
     )
   })
 
-  it('leaves a package unattested when the registry has no answer', async () => {
-    const sources = await fetchAttestationSources({
-      packages: [
-        { name: '@zeus-web/button', version: '0.1.0-beta.34' },
-        { name: '@zeus-web/gone', version: '9.9.9' },
-      ],
-      fetch: (async (url: string | URL | Request) =>
-        String(url).includes('gone')
-          ? new Response('not found', { status: 404 })
-          : new Response(JSON.stringify(attestationResponse(attested)), {
-              status: 200,
-            })) as typeof globalThis.fetch,
-    })
-    expect(Object.keys(sources)).toEqual(['@zeus-web/button@0.1.0-beta.34'])
-  })
-
-  it('survives a registry that throws', async () => {
-    const sources = await fetchAttestationSources({
-      packages: [{ name: '@zeus-web/button', version: '0.1.0-beta.34' }],
-      fetch: (async () => {
-        throw new Error('ECONNREFUSED')
-      }) as typeof globalThis.fetch,
-    })
-    expect(sources).toEqual({})
-  })
-})
-
-describe('fetchAttestationSources retries', () => {
-  const attested = 'a8826dd1f81560aaf6459d8d40a3e599f705f6e0'
-  const pkg = [{ name: '@zeus-web/button', version: '0.1.0-beta.34' }]
-
-  function ok(): Response {
-    const payload = Buffer.from(
-      JSON.stringify({
-        predicate: {
-          buildDefinition: {
-            resolvedDependencies: [
-              {
-                uri: 'git+https://github.com/baicie/zeus-ui@refs/tags/v0.1.0-beta.34',
-                digest: { gitCommit: attested },
-              },
-            ],
-          },
-        },
-      }),
-    ).toString('base64')
-    return new Response(
-      JSON.stringify({
-        attestations: [
-          {
-            predicateType: 'https://slsa.dev/provenance/v1',
-            bundle: { dsseEnvelope: { payload } },
-          },
-        ],
-      }),
-      { status: 200 },
-    )
-  }
-
   /*
-   * A 5xx is not an answer about the package. Failing the gate on one would
-   * report a missing attestation that is in fact present — and the fix a
-   * maintainer would reach for (loosening the check) is the wrong one.
+   * The four outcomes below are the reason the return type is not a map of
+   * commits. "Not published with provenance", "published but the signature is
+   * wrong", "the registry said 503" and "the connection died" call for
+   * different responses, and the previous version collapsed all four into an
+   * absent key — which the gate then reported as a missing attestation.
    */
-  it('retries a 5xx and succeeds when the registry recovers', async () => {
+  it('reports 404 as missing, without retrying', async () => {
     let calls = 0
-    const sources = await fetchAttestationSources({
-      packages: pkg,
-      fetch: (async () => {
-        calls += 1
-        return calls < 3 ? new Response('busy', { status: 503 }) : ok()
-      }) as typeof globalThis.fetch,
-    })
-    expect(calls).toBe(3)
-    expect(sources['@zeus-web/button@0.1.0-beta.34']?.commit).toBe(attested)
-  })
-
-  /* A 404 *is* an answer, so it must not be retried. */
-  it('does not retry a 404', async () => {
-    let calls = 0
-    const sources = await fetchAttestationSources({
-      packages: pkg,
+    const { verified, failures } = await fetchAttestationSources({
+      packages: [pkg],
+      verify: acceptingVerify,
       fetch: (async () => {
         calls += 1
         return new Response('not found', { status: 404 })
       }) as typeof globalThis.fetch,
     })
-    expect(calls).toBe(1)
-    expect(sources).toEqual({})
+    expect(calls, 'a 404 is an answer; retrying it wastes the budget').toBe(1)
+    expect(verified).toEqual({})
+    expect(failures['@zeus-web/button@0.1.0-beta.34']?.state).toBe('missing')
   })
 
-  it('gives up after three failures and leaves the package unattested', async () => {
+  it('reports persistent 503 as retryable, after the configured attempts', async () => {
     let calls = 0
-    const sources = await fetchAttestationSources({
-      packages: pkg,
+    const { failures } = await fetchAttestationSources({
+      packages: [pkg],
+      verify: acceptingVerify,
+      attempts: 3,
+      baseDelayMs: 1,
       fetch: (async () => {
         calls += 1
-        return new Response('busy', { status: 500 })
+        return new Response('busy', { status: 503 })
       }) as typeof globalThis.fetch,
     })
     expect(calls).toBe(3)
-    expect(sources).toEqual({})
+    expect(failures['@zeus-web/button@0.1.0-beta.34']?.state).toBe('retryable')
+  })
+
+  it('reports a dropped connection as an infrastructure failure', async () => {
+    const { failures } = await fetchAttestationSources({
+      packages: [pkg],
+      verify: acceptingVerify,
+      attempts: 2,
+      baseDelayMs: 1,
+      fetch: (async () => {
+        throw new Error('ECONNREFUSED')
+      }) as typeof globalThis.fetch,
+    })
+    expect(failures['@zeus-web/button@0.1.0-beta.34']?.state).toBe(
+      'infrastructure',
+    )
+  })
+
+  it('reports a signature failure as invalid, not as missing', async () => {
+    const { verified, failures } = await fetchAttestationSources({
+      packages: [pkg],
+      fetch: okFetch,
+      verify: (async () => ({
+        ok: false as const,
+        failure: {
+          kind: 'invalid' as const,
+          detail: 'Sigstore did not verify the signature',
+          errors: ['VerificationError: DSSE payload hash mismatch'],
+        },
+      })) as unknown as typeof verifyAttestation,
+    })
+    expect(verified).toEqual({})
+    const status = failures['@zeus-web/button@0.1.0-beta.34']
+    expect(status?.state).toBe('invalid')
+    expect(JSON.stringify(status)).toMatch(/Sigstore did not verify/)
+  })
+
+  it('reports a package with no SLSA entry as missing', async () => {
+    const { failures } = await fetchAttestationSources({
+      packages: [pkg],
+      verify: acceptingVerify,
+      fetch: (async () =>
+        new Response(
+          JSON.stringify({
+            attestations: [
+              {
+                predicateType:
+                  'https://github.com/npm/attestation/tree/main/specs/publish/v0.1',
+              },
+            ],
+          }),
+          { status: 200 },
+        )) as typeof globalThis.fetch,
+    })
+    expect(failures['@zeus-web/button@0.1.0-beta.34']?.state).toBe('missing')
+    expect(JSON.stringify(failures)).toMatch(/no SLSA v1/)
+  })
+
+  it('retries a 5xx and succeeds when the registry recovers', async () => {
+    let calls = 0
+    const { verified } = await fetchAttestationSources({
+      packages: [pkg],
+      verify: acceptingVerify,
+      baseDelayMs: 1,
+      fetch: (async () => {
+        calls += 1
+        return calls < 3
+          ? new Response('busy', { status: 503 })
+          : new Response(JSON.stringify(attestationResponse()), { status: 200 })
+      }) as typeof globalThis.fetch,
+    })
+    expect(calls).toBe(3)
+    expect(verified['@zeus-web/button@0.1.0-beta.34']?.commit).toBe(attested)
+  })
+
+  /*
+   * Without a total budget, a registry that accepts connections and never
+   * answers hangs the job until GitHub's own timeout kills it — with no report.
+   */
+  it('stops at the total budget instead of running forever', async () => {
+    let clock = 0
+    const { failures } = await fetchAttestationSources({
+      packages: Array.from({ length: 5 }, (_, index) => ({
+        name: `@zeus-web/pkg${index}`,
+        version: '1.0.0',
+      })),
+      verify: acceptingVerify,
+      concurrency: 1,
+      attempts: 1,
+      baseDelayMs: 1,
+      totalTimeoutMs: 10,
+      now: () => {
+        // Each read advances 5ms, so the deadline is crossed after two reads.
+        clock += 5
+        return clock
+      },
+      fetch: (async () =>
+        new Response(JSON.stringify(attestationResponse()), {
+          status: 200,
+        })) as typeof globalThis.fetch,
+    })
+    const states = Object.values(failures).map(status => status.state)
+    expect(states).toContain('infrastructure')
+    expect(JSON.stringify(failures)).toMatch(/total budget exhausted/)
+  })
+
+  it('records one result per package for an audit trail', async () => {
+    const lines: string[] = []
+    await fetchAttestationSources({
+      packages: [pkg, { name: '@zeus-web/gone', version: '9.9.9' }],
+      verify: acceptingVerify,
+      fetch: (async (url: string | URL | Request) =>
+        String(url).includes('gone')
+          ? new Response('nope', { status: 404 })
+          : new Response(JSON.stringify(attestationResponse()), {
+              status: 200,
+            })) as typeof globalThis.fetch,
+      onResult: (name, detail) => lines.push(`${name}: ${detail}`),
+    })
+    expect(lines).toHaveLength(2)
+    expect(lines.join('\n')).toMatch(
+      /@zeus-web\/button@0\.1\.0-beta\.34: verified/,
+    )
+    expect(lines.join('\n')).toMatch(/@zeus-web\/gone@9\.9\.9: missing/)
+  })
+
+  it('passes the lockfile integrity so the subject binds to real bytes', async () => {
+    const seen: { expectedSha512?: string }[] = []
+    await fetchAttestationSources({
+      packages: [{ ...pkg, integrity: 'sha512-abc=' }],
+      fetch: okFetch,
+      verify: (async (
+        _bundle: unknown,
+        options: { expectedSha512?: string },
+      ) => {
+        seen.push(options)
+        return {
+          ok: true as const,
+          attestation: {
+            verified: true as const,
+            commit: attested,
+            repository: 'baicie/zeus-ui',
+            signerIdentity: 'stub',
+            signerIssuer: 'https://token.actions.githubusercontent.com',
+            tlogEntries: 1,
+          },
+        }
+      }) as unknown as typeof verifyAttestation,
+    })
+    expect(seen[0]?.expectedSha512).toBe('sha512-abc=')
   })
 })
