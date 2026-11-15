@@ -372,3 +372,125 @@ describe('verifyUiSources', () => {
     expect(result.errors.join('\n')).toMatch(/@zeus-web\/button/)
   })
 })
+
+/**
+ * `readsUiRepository` conflated four facts. v2 separates them.
+ *
+ * The v1 field was documented as "does this build read the UI repository" but
+ * computed `sources.length > 0`, which answers "does it install any
+ * `@zeus-web/*` package". For Playground both are false, so one boolean stood
+ * for two unrelated facts and a reader could not tell which one it meant.
+ */
+describe('ui-sources v2 relationship', () => {
+  const rootPath = path.resolve(import.meta.dirname, '../../..')
+
+  it('reports Admin as using packages without checking out the repository', () => {
+    const sources = collectUiSources({
+      manifestPath: path.join(rootPath, 'examples/admin/package.json'),
+      root: rootPath,
+      declaredPairingCommit: 'ffde55920fe9beab52dfe67bdca6d2e4023f28df',
+    })
+    expect(sources.relationship).toEqual({
+      usesWebPackages: true,
+      checksOutUiRepository: false,
+      consumesRegistryPackages: true,
+      consumesVendoredBuild: true,
+    })
+  })
+
+  it('reports Playground as using nothing at all', () => {
+    const sources = collectUiSources({
+      manifestPath: path.join(
+        rootPath,
+        'examples/playground-editor/package.json',
+      ),
+      root: rootPath,
+      declaredPairingCommit: 'ffde55920fe9beab52dfe67bdca6d2e4023f28df',
+    })
+    expect(sources.relationship).toEqual({
+      usesWebPackages: false,
+      checksOutUiRepository: false,
+      consumesRegistryPackages: false,
+      consumesVendoredBuild: false,
+    })
+  })
+
+  it('keeps the v1 boolean equal to usesWebPackages', () => {
+    // Compatibility: an older reader still gets the value it always got.
+    for (const manifestPath of [
+      'examples/admin/package.json',
+      'examples/playground-editor/package.json',
+    ]) {
+      const sources = collectUiSources({
+        manifestPath: path.join(rootPath, manifestPath),
+        root: rootPath,
+        declaredPairingCommit: 'a'.repeat(40),
+      })
+      expect(sources.readsUiRepository).toBe(
+        sources.relationship.usesWebPackages,
+      )
+    }
+  })
+
+  it('rejects a claim that the UI repository was checked out', () => {
+    const sources = collectUiSources({
+      manifestPath: path.join(rootPath, 'examples/admin/package.json'),
+      root: rootPath,
+      declaredPairingCommit: 'ffde55920fe9beab52dfe67bdca6d2e4023f28df',
+    })
+    const lying = {
+      ...sources,
+      relationship: { ...sources.relationship, checksOutUiRepository: true },
+    }
+    const result = verifyUiSources({
+      sources: lying,
+      manifestPath: path.join(rootPath, 'examples/admin/package.json'),
+      root: rootPath,
+    })
+    expect(result.errors.join('\n')).toMatch(/checksOutUiRepository/)
+  })
+
+  it('rejects a relationship that contradicts the source list', () => {
+    const sources = collectUiSources({
+      manifestPath: path.join(rootPath, 'examples/admin/package.json'),
+      root: rootPath,
+      declaredPairingCommit: 'ffde55920fe9beab52dfe67bdca6d2e4023f28df',
+    })
+    for (const [field, wrong] of [
+      ['usesWebPackages', false],
+      ['consumesRegistryPackages', false],
+      ['consumesVendoredBuild', false],
+    ] as const) {
+      const tampered = {
+        ...sources,
+        relationship: { ...sources.relationship, [field]: wrong },
+      }
+      const result = verifyUiSources({
+        sources: tampered,
+        manifestPath: path.join(rootPath, 'examples/admin/package.json'),
+        root: rootPath,
+      })
+      expect(
+        result.errors.join('\n'),
+        `${field} set to ${String(wrong)} must be rejected`,
+      ).toMatch(new RegExp(field))
+    }
+  })
+
+  it('accepts a v1 document with no relationship field', () => {
+    // Older build-info documents predate v2. They must keep verifying.
+    const sources = collectUiSources({
+      manifestPath: path.join(rootPath, 'examples/admin/package.json'),
+      root: rootPath,
+      declaredPairingCommit: 'ffde55920fe9beab52dfe67bdca6d2e4023f28df',
+    })
+    const v1 = { ...sources }
+    delete (v1 as { relationship?: unknown }).relationship
+    const result = verifyUiSources({
+      sources: v1,
+      manifestPath: path.join(rootPath, 'examples/admin/package.json'),
+      root: rootPath,
+    })
+    expect(result.errors).toEqual([])
+  })
+})
