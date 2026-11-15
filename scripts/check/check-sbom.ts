@@ -22,8 +22,14 @@ export interface SbomRuntimeDependency {
   readonly requiredBy: readonly string[]
 }
 
+export interface SbomDependencyNode {
+  readonly ref: string
+  readonly dependsOn: readonly string[]
+}
+
 export interface SbomComponent {
   readonly type: 'library'
+  readonly scope?: 'required' | 'optional' | 'excluded'
   readonly name: string
   readonly version: string
   readonly 'bom-ref': string
@@ -43,18 +49,66 @@ export async function createSbom(
   }
   components: readonly SbomComponent[]
   /**
-   * Registry dependencies of the published packages.
+   * The dependency graph, in CycloneDX form.
    *
-   * Absent means the document only describes what this repository built.
-   * `check:sbom` rejects a document whose list does not match the lockfile, so
-   * a stale or hand-edited set fails rather than being trusted.
+   * Each entry names a component by `ref` and lists the `dependsOn` refs it
+   * requires. The published packages appear here with an edge to every
+   * third-party library they install, which is what makes the document a graph
+   * rather than a list.
    */
-  'zeus:runtimeDependencies'?: readonly SbomRuntimeDependency[]
+  dependencies?: readonly SbomDependencyNode[]
 }> {
   const timestamp =
     process.env.SOURCE_DATE_EPOCH === undefined
       ? new Date(0).toISOString()
       : new Date(Number(process.env.SOURCE_DATE_EPOCH) * 1000).toISOString()
+
+  const workspaceComponents: SbomComponent[] = packages.map(pkg => ({
+    type: 'library' as const,
+    name: pkg.name,
+    version: String(pkg.packageJson.version ?? '0.0.0'),
+    'bom-ref': `${pkg.name}@${String(pkg.packageJson.version ?? '0.0.0')}`,
+    ...(pkg.packageJson.license === 'MIT'
+      ? { licenses: [{ license: { id: 'MIT' as const } }] }
+      : {}),
+  }))
+
+  /*
+   * Third-party libraries become real components.
+   *
+   * They used to live in a custom top-level key, which the 1.5 schema rejects
+   * as an additional property — the document could not be read by anything
+   * that actually consumes the standard. A library a consumer will install
+   * belongs in `components` alongside the packages this repository publishes.
+   */
+  const thirdParty = new Map<string, SbomComponent>()
+  for (const dependency of runtimeDependencies) {
+    const ref = `${dependency.name}@${dependency.version}`
+    if (thirdParty.has(ref)) continue
+    thirdParty.set(ref, {
+      type: 'library' as const,
+      name: dependency.name,
+      version: dependency.version,
+      'bom-ref': ref,
+      scope: 'required' as const,
+    })
+  }
+
+  // A ref collision between a workspace package and a third-party library
+  // would make the graph ambiguous; the identity includes the version, so this
+  // can only happen if a workspace package shares a name with a registry one.
+  for (const ref of thirdParty.keys()) {
+    if (workspaceComponents.some(component => component['bom-ref'] === ref)) {
+      throw new Error(
+        `bom-ref collision: ${ref} is both a workspace package and a registry dependency`,
+      )
+    }
+  }
+
+  const components = [...workspaceComponents, ...thirdParty.values()].sort(
+    (left, right) => left['bom-ref'].localeCompare(right['bom-ref']),
+  )
+
   return {
     bomFormat: 'CycloneDX',
     specVersion: '1.5',
@@ -63,25 +117,54 @@ export async function createSbom(
       timestamp,
       tools: [{ vendor: 'Zeus', name: 'check-sbom', version: '1' }],
     },
-    components: packages
-      .map(pkg => ({
-        type: 'library' as const,
-        name: pkg.name,
-        version: String(pkg.packageJson.version ?? '0.0.0'),
-        'bom-ref': `${pkg.name}@${String(pkg.packageJson.version ?? '0.0.0')}`,
-        ...(pkg.packageJson.license === 'MIT'
-          ? { licenses: [{ license: { id: 'MIT' as const } }] }
-          : {}),
-      }))
-      .sort((left, right) => left['bom-ref'].localeCompare(right['bom-ref'])),
+    components,
     ...(runtimeDependencies.length > 0
       ? {
-          'zeus:runtimeDependencies': [...runtimeDependencies].sort(
-            (left, right) => (left.name < right.name ? -1 : 1),
+          dependencies: buildDependencyGraph(
+            workspaceComponents,
+            runtimeDependencies,
           ),
         }
       : {}),
   }
+}
+
+/**
+ * CycloneDX `dependencies`: one node per component that has edges.
+ *
+ * A published package gets an edge to every library it installs. Each library
+ * gets a node with no `dependsOn` — transitive edges are not modelled, which is
+ * stated as a coverage limit rather than implied to be complete.
+ */
+export function buildDependencyGraph(
+  workspaceComponents: readonly SbomComponent[],
+  runtimeDependencies: readonly SbomRuntimeDependency[],
+): SbomDependencyNode[] {
+  const byPackage = new Map<string, string[]>()
+  const libraryRefs = new Set<string>()
+  for (const dependency of runtimeDependencies) {
+    const ref = `${dependency.name}@${dependency.version}`
+    libraryRefs.add(ref)
+    for (const owner of dependency.requiredBy) {
+      const list = byPackage.get(owner) ?? []
+      list.push(ref)
+      byPackage.set(owner, list)
+    }
+  }
+
+  const nodes: SbomDependencyNode[] = []
+  for (const component of workspaceComponents) {
+    const dependsOn = byPackage.get(component.name)
+    if (!dependsOn) continue
+    nodes.push({
+      ref: component['bom-ref'],
+      dependsOn: [...new Set(dependsOn)].sort(),
+    })
+  }
+  for (const ref of [...libraryRefs].sort()) {
+    nodes.push({ ref, dependsOn: [] })
+  }
+  return nodes.sort((left, right) => (left.ref < right.ref ? -1 : 1))
 }
 
 /**
@@ -99,7 +182,18 @@ export function collectRuntimeDependencies(
    */
   publishedByPath: Readonly<Record<string, string>>,
 ): SbomRuntimeDependency[] {
-  const byName = new Map<string, { version: string; requiredBy: Set<string> }>()
+  /*
+   * Keyed by `name@version`, not by name.
+   *
+   * Two published packages can depend on different versions of the same
+   * library. Keying by name merges them: one component is reported where there
+   * are two, which hides a version — the direction of error that matters for a
+   * bill of materials.
+   */
+  const byIdentity = new Map<
+    string,
+    { name: string; version: string; requiredBy: Set<string> }
+  >()
   // `importers:` entries are two-space indented keys ending in a colon.
   const lines = lockfile.split('\n')
   let inImporters = false
@@ -154,17 +248,19 @@ export function collectRuntimeDependencies(
     const importerName = publishedByPath[importerPath]
     if (importerName && !currentDependency.startsWith('@zeus-js/')) {
       const version = (resolved[1] ?? '').trim().replace(/\(.*\)$/, '')
-      const existing = byName.get(currentDependency) ?? {
+      const identity = `${currentDependency}@${version}`
+      const existing = byIdentity.get(identity) ?? {
+        name: currentDependency,
         version,
         requiredBy: new Set<string>(),
       }
       existing.requiredBy.add(importerName)
-      byName.set(currentDependency, existing)
+      byIdentity.set(identity, existing)
     }
     currentDependency = undefined
   }
-  return [...byName.entries()].map(([name, entry]) => ({
-    name,
+  return [...byIdentity.values()].map(entry => ({
+    name: entry.name,
     version: entry.version,
     requiredBy: [...entry.requiredBy].sort(),
   }))
@@ -203,25 +299,145 @@ export function sbomComponentsMatch(
  * are what a consumer will install. A document can be right about one and
  * stale about the other.
  */
+/**
+ * Compares a document's dependency graph with the one the lockfile implies.
+ *
+ * The previous version compared only `name@version` from a custom field. That
+ * left three things unverifiable:
+ *
+ * - **who requires what.** Moving a dependency from one published package to
+ *   another kept the same `name@version` set and passed, even though the graph
+ *   had changed.
+ * - **duplicate refs.** Two components with one `bom-ref` make the graph
+ *   ambiguous and were counted as one entry.
+ * - **edges naming a component that is not in the document.** A `dependsOn`
+ *   pointing at a missing ref is a dangling edge, and nothing checked it.
+ *
+ * Returns the list of problems rather than a boolean so a failure says what is
+ * wrong instead of only that something is.
+ */
+export function dependencyGraphProblems(
+  existing: unknown,
+  expected: readonly SbomRuntimeDependency[],
+  workspaceNames: readonly string[],
+): string[] {
+  const problems: string[] = []
+  if (!isRecord(existing)) return ['document must be an object']
+  const components = Array.isArray(existing.components)
+    ? existing.components
+    : []
+  const dependencies = Array.isArray(existing.dependencies)
+    ? existing.dependencies
+    : []
+
+  // 1. Every bom-ref is unique and well formed.
+  const refs = new Map<string, number>()
+  for (const component of components) {
+    if (!isRecord(component)) continue
+    const ref = component['bom-ref']
+    if (typeof ref !== 'string' || ref === '') {
+      problems.push('a component has no bom-ref')
+      continue
+    }
+    refs.set(ref, (refs.get(ref) ?? 0) + 1)
+  }
+  for (const [ref, count] of refs) {
+    if (count > 1) problems.push(`duplicate bom-ref: ${ref}`)
+  }
+
+  // 2. The dependency set matches the lockfile, by identity.
+  const expectedRefs = new Set(
+    expected.map(entry => `${entry.name}@${entry.version}`),
+  )
+  for (const ref of expectedRefs) {
+    if (!refs.has(ref)) {
+      problems.push(`missing component for a locked dependency: ${ref}`)
+    }
+  }
+  /*
+   * A workspace package is not "implied by the lockfile" — it is one of the
+   * things the lockfile describes. Deciding by name prefix would miss
+   * `create-zeus` and `zeus-ui`, which are workspace packages without the
+   * `@zeus-*` scope.
+   */
+  const workspaceSet = new Set(workspaceNames)
+  for (const ref of refs.keys()) {
+    if (workspaceSet.has(ref.slice(0, ref.lastIndexOf('@')))) continue
+    if (!expectedRefs.has(ref)) {
+      problems.push(`component not implied by the lockfile: ${ref}`)
+    }
+  }
+
+  // 3. Ownership: every published package's edges are exactly what the
+  //    lockfile says it requires.
+  const edges = new Map<string, Set<string>>()
+  for (const node of dependencies) {
+    if (!isRecord(node) || typeof node.ref !== 'string') continue
+    const dependsOn = Array.isArray(node.dependsOn)
+      ? node.dependsOn.filter(
+          (value): value is string => typeof value === 'string',
+        )
+      : []
+    edges.set(node.ref, new Set(dependsOn))
+  }
+  const expectedEdges = new Map<string, Set<string>>()
+  for (const entry of expected) {
+    const ref = `${entry.name}@${entry.version}`
+    for (const owner of entry.requiredBy) {
+      const set = expectedEdges.get(owner) ?? new Set<string>()
+      set.add(ref)
+      expectedEdges.set(owner, set)
+    }
+  }
+  for (const name of workspaceNames) {
+    const want = expectedEdges.get(name) ?? new Set<string>()
+    if (want.size === 0) continue
+    const found = [...edges.entries()].find(([ref]) =>
+      ref.startsWith(`${name}@`),
+    )
+    if (!found) {
+      problems.push(`${name} has no dependency node`)
+      continue
+    }
+    const actual = found[1]
+    for (const ref of want) {
+      if (!actual.has(ref)) {
+        problems.push(`${name} is missing an edge to ${ref}`)
+      }
+    }
+    for (const ref of actual) {
+      if (!want.has(ref)) {
+        problems.push(
+          `${name} has an edge to ${ref} that the lockfile does not imply`,
+        )
+      }
+    }
+  }
+
+  // 4. No dangling edges: every dependsOn must name a component present here.
+  for (const [ref, targets] of edges) {
+    if (!refs.has(ref)) {
+      problems.push(`dependency node names a missing component: ${ref}`)
+    }
+    for (const target of targets) {
+      if (!refs.has(target)) {
+        problems.push(`dangling edge: ${ref} -> ${target}`)
+      }
+    }
+  }
+
+  return problems
+}
+
+/** Backwards-compatible boolean wrapper over `dependencyGraphProblems`. */
 export function runtimeDependenciesMatch(
   existing: unknown,
   expected: readonly SbomRuntimeDependency[],
+  workspaceNames: readonly string[] = [],
 ): boolean {
-  if (!isRecord(existing)) return false
-  const recorded = existing['zeus:runtimeDependencies']
-  if (!Array.isArray(recorded)) return expected.length === 0
-  if (recorded.length !== expected.length) return false
-  const key = (entry: { name: string; version: string }): string =>
-    `${entry.name}@${entry.version}`
-  const actual = recorded
-    .map(entry =>
-      isRecord(entry) && typeof entry.name === 'string'
-        ? `${entry.name}@${String(entry.version)}`
-        : '',
-    )
-    .sort()
-  const want = expected.map(key).sort()
-  return actual.every((value, index) => value === want[index])
+  return (
+    dependencyGraphProblems(existing, expected, workspaceNames).length === 0
+  )
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -271,9 +487,19 @@ async function main(): Promise<void> {
     if (!sbomComponentsMatch(existing, sbom)) {
       throw new Error('SBOM is stale; run `pnpm check:sbom:write`.')
     }
-    if (!runtimeDependenciesMatch(existing, runtimeDependencies)) {
+    /*
+     * The full workspace list, not just the published subset: `components`
+     * contains every workspace package, and the "not implied by the lockfile"
+     * rule must not flag the ones this repository merely builds.
+     */
+    const graphProblems = dependencyGraphProblems(
+      existing,
+      runtimeDependencies,
+      findWorkspacePackages().map(pkg => pkg.name),
+    )
+    if (graphProblems.length > 0) {
       throw new Error(
-        'SBOM runtime dependencies are stale; run `pnpm check:sbom:write`.',
+        `SBOM dependency graph is stale; run \`pnpm check:sbom:write\`.\n  ${graphProblems.slice(0, 10).join('\n  ')}`,
       )
     }
     console.log(
