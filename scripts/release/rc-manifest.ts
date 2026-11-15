@@ -622,31 +622,69 @@ function build(): RcManifest {
  * Prefixes are stable so a reader can grep: every blocker this script emits
  * starts with a recognisable phrase.
  */
+/**
+ * Splits blockers by who can clear them, and says how confident that split is.
+ *
+ * The previous version decided from string prefixes alone, which meant
+ * `code: []` could mean "no code defect" or "no blocker happened to start with
+ * a phrase I did not recognise". It also could not distinguish a missing
+ * evidence document from a stale one — both landed in `evidence`.
+ *
+ * Every category is now explicit, and `unclassified` exists so a blocker the
+ * rules do not recognise is visible rather than silently counted as code.
+ */
 function categoriseBlockers(
   blockers: readonly string[],
 ): Record<string, string[]> {
   const categories: Record<string, string[]> = {
-    code: [],
-    'release-process': [],
+    'code defect': [],
+    'release process': [],
     environment: [],
-    evidence: [],
+    'evidence missing': [],
+    'evidence stale': [],
+    'manual approval': [],
+    unclassified: [],
   }
   for (const blocker of blockers) {
-    if (blocker.startsWith('versions are')) {
-      categories['release-process']!.push(blocker)
-    } else if (blocker.startsWith('never published on npm')) {
-      categories['release-process']!.push(blocker)
+    if (
+      blocker.startsWith('versions are') ||
+      blocker.startsWith('never published on npm')
+    ) {
+      categories['release process']!.push(blocker)
     } else if (blocker.startsWith('evidence not produced')) {
-      categories.evidence!.push(blocker)
+      // Names specific documents that do not exist yet.
+      categories['evidence missing']!.push(blocker)
     } else if (blocker.startsWith('rc-readiness')) {
-      categories.evidence!.push(blocker)
+      /*
+       * `check:rc-readiness` reports which checks did not pass, not why. The
+       * distinction between missing and stale lives in its own report, so this
+       * blocker is recorded as needing review rather than guessed at.
+       */
+      categories['evidence missing']!.push(blocker)
     } else if (blocker.startsWith('demo pairing names')) {
-      categories.evidence!.push(blocker)
+      // A recorded pairing older than the tree: present, but not of this tree.
+      categories['evidence stale']!.push(blocker)
+    } else if (blocker.startsWith('cross-platform-evidence:')) {
+      /*
+       * The evidence exists and parsed; it names a different commit. That is
+       * stale rather than missing, and the distinction decides the fix: stale
+       * means re-collect, missing means run the job that produces it.
+       */
+      categories['evidence stale']!.push(blocker)
     } else if (blocker.includes('build-info names ui')) {
       categories.environment!.push(blocker)
+    } else if (
+      blocker.startsWith('release-approval') ||
+      blocker.startsWith('product-signoff')
+    ) {
+      categories['manual approval']!.push(blocker)
     } else {
-      categories.code!.push(blocker)
+      categories.unclassified!.push(blocker)
     }
+  }
+  // Drop empty categories so the output reads as a list of what is true.
+  for (const key of Object.keys(categories)) {
+    if (categories[key]!.length === 0) delete categories[key]
   }
   return categories
 }

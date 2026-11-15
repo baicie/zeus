@@ -1,9 +1,8 @@
 {
   "schema": "zeus.rc-manifest/v1",
-  "generatedAt": "2026-11-15T00:41:26.800Z",
+  "generatedAt": "2026-11-15T05:36:58.149Z",
   "blockerCategories": {
-    "code": [],
-    "release-process": [
+    "release process": [
       "versions are core 0.1.1-beta.20 / ui 0.1.0-beta.35, not 0.2.0-rc.0",
       "never published on npm, so the RC creates their first latest tag: @zeus-js/i18n, @zeus-js/eslint-plugin, @zeus-js/playground-engine"
     ],
@@ -12,15 +11,18 @@
       "native-lab build-info names ui ffde5592, frozen ui is 89fc93ca",
       "webc-studio build-info names ui ffde5592, frozen ui is 89fc93ca"
     ],
-    "evidence": [
-      "demo pairing names 69f494f2+89fc93ca, tree is 49e8446c+89fc93ca",
-      "rc-readiness: NOT_READY; not passing: packed-consumers, create-zeus, cross-platform, release-approval, online-products",
+    "evidence missing": [
+      "rc-readiness: NOT_READY; not passing: clean-worktree, sbom, packed-consumers, create-zeus, cross-platform, release-approval, online-products",
       "evidence not produced: release-approval, online-products, product-signoff, byok-live-gateway"
+    ],
+    "evidence stale": [
+      "demo pairing names 69f494f2+89fc93ca, tree is 97a3e626+89fc93ca",
+      "cross-platform-evidence: cross-platform commit does not match the Core commit; cross-platform linux sourceSha does not match; cross-platform linux headSha does not match; cross-platform win32 sourceSha does not match; cross-platform win32 headSha does not match"
     ]
   },
   "repositories": {
     "core": {
-      "commit": "49e8446cd328eaec77d03aee799d878ac337c8b1",
+      "commit": "97a3e62655520906ec52881ef4ca077d5c2b701b",
       "version": "0.1.1-beta.20"
     },
     "ui": {
@@ -43,7 +45,7 @@
     ]
   },
   "lockfiles": {
-    "core": "98b44a0b1f0b02f3e7517910a22b1f65acd64acb0d9f6924f9d75717849a61ac",
+    "core": "2d09fecb80e292e57072c53ef0647db7ad1c08c9bb2db934706fbb5b15ead66e",
     "ui": "450f3d02e5e4866e452202f08b95d5c33afb3c65952694a74a05a9b6e2ffde7c"
   },
   "releaseSet": {
@@ -660,7 +662,7 @@
       "coreCommit": "69f494f270c8fb501b34759dc22d2a9de7aee951",
       "uiCommit": "89fc93cac5b97f29f48deb64964886476c5d7aac"
     },
-    "sbomComponents": 60,
+    "sbomComponents": 85,
     "releaseTarballs": null,
     "imageDigest": null
   },
@@ -675,19 +677,19 @@
       "check": "sbom",
       "status": "PASS",
       "source": "temp/sbom/zeus.cdx.json",
-      "detail": "60 components"
+      "detail": "85 components"
     },
     {
       "check": "rc-readiness",
       "status": "FAIL",
       "source": "temp/release/rc-readiness.json",
-      "detail": "NOT_READY; not passing: packed-consumers, create-zeus, cross-platform, release-approval, online-products"
+      "detail": "NOT_READY; not passing: clean-worktree, sbom, packed-consumers, create-zeus, cross-platform, release-approval, online-products"
     },
     {
       "check": "cross-platform-evidence",
-      "status": "PASS",
+      "status": "FAIL",
       "source": "temp/cross-platform/evidence.json",
-      "detail": "validated artifact, digest sha256:ee76208e18c30dfe1cdfe0bac9ff2ceafc72f327a16cac194f06ec01bd3a7bc7"
+      "detail": "cross-platform commit does not match the Core commit; cross-platform linux sourceSha does not match; cross-platform linux headSha does not match; cross-platform win32 sourceSha does not match; cross-platform win32 headSha does not match"
     },
     {
       "check": "release-approval",
@@ -715,8 +717,9 @@
     }
   ],
   "blockers": [
-    "demo pairing names 69f494f2+89fc93ca, tree is 49e8446c+89fc93ca",
-    "rc-readiness: NOT_READY; not passing: packed-consumers, create-zeus, cross-platform, release-approval, online-products",
+    "demo pairing names 69f494f2+89fc93ca, tree is 97a3e626+89fc93ca",
+    "rc-readiness: NOT_READY; not passing: clean-worktree, sbom, packed-consumers, create-zeus, cross-platform, release-approval, online-products",
+    "cross-platform-evidence: cross-platform commit does not match the Core commit; cross-platform linux sourceSha does not match; cross-platform linux headSha does not match; cross-platform win32 sourceSha does not match; cross-platform win32 headSha does not match",
     "versions are core 0.1.1-beta.20 / ui 0.1.0-beta.35, not 0.2.0-rc.0",
     "admin build-info names ui ffde5592, frozen ui is 89fc93ca",
     "native-lab build-info names ui ffde5592, frozen ui is 89fc93ca",
