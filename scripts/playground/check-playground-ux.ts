@@ -289,9 +289,9 @@ render(
   try {
     await expect(page.getByTestId('console')).toBeVisible({ timeout: 10_000 })
   } catch (error) {
-    const state = await state(page).catch(() => undefined)
+    const snapshot = await state(page).catch(() => undefined)
     throw new Error(
-      `console panel did not become visible; activeTab=${String(state?.activeTab)} buildSequence=${String(state?.buildSequence)} lastCompileKind=${String(state?.lastCompileKind)} autoRun=${String(state?.autoRun)}\n${String(error)}`,
+      `console panel did not become visible; activeTab=${String(snapshot?.activeTab)} buildSequence=${String(snapshot?.buildSequence)} lastCompileKind=${String(snapshot?.lastCompileKind)} autoRun=${String(snapshot?.autoRun)}\n${String(error)}`,
     )
   }
   const consolePanel = page.getByTestId('console')
