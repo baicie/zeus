@@ -278,13 +278,36 @@ render(
    * not remove any check of the product's behaviour.
    */
   /*
-   * If the panel is hidden, say *why*. Three failures have now been observed
-   * on WebKit (#267, #273, and this one), all `resolved to hidden`, none
-   * reproducible locally, and each rerun passed with no code change. A bare
-   * timeout discards the one fact that would distinguish the candidate causes:
-   * which tab the product thinks is active. `selectTab('preview')` runs from
-   * `compile`'s tail — `if (errors.length === 0 && activeTab() === 'problems')`
-   * — so a late compile that lands after the click would show exactly this.
+   * If the panel is hidden, say *why*. Bare `toBeVisible` timeouts reported
+   * `resolved to hidden` four times on WebKit (#267, #273, #277, and the R11
+   * run) and never said which tab the product believed was active — the one
+   * fact that separates the candidate causes.
+   *
+   * It has now fired, on R11's `browser-playground` job:
+   *
+   *   console panel did not become visible; activeTab=preview
+   *   buildSequence=3 lastCompileKind=manual autoRun=false
+   *
+   * `activeTab=preview` after a click on `tab-console` is the observation the
+   * original hypothesis predicted: something set the tab back to `preview`
+   * after the click. `autoRun=false` rules out the auto-run timer, and
+   * `lastCompileKind=manual` says the compile in play was the explicit one.
+   *
+   * `compile()`'s tail has exactly one such assignment:
+   *
+   *   if (errors.length === 0 && activeTab() === 'problems') selectTab('preview')
+   *
+   * It only fires when the active tab is `problems`, so for it to explain this
+   * the tab must have been `problems` at the moment that line ran, and the test
+   * must then have moved it to `console` and back. The step immediately before
+   * switches to `tab-preview` to click a button inside the preview frame — so
+   * the plausible sequence is preview → (compile tail sees `problems`?) — which
+   * does not fit, and this comment does not claim it does.
+   *
+   * What the data does establish: the tab was `preview` when the assertion
+   * failed, not `console`. That is a different starting point than the four
+   * earlier failures offered, and it is recorded here rather than lost with the
+   * job log.
    */
   try {
     await expect(page.getByTestId('console')).toBeVisible({ timeout: 10_000 })
