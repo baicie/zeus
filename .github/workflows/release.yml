@@ -192,6 +192,19 @@ jobs:
           --out temp/release
 
       - name: Release precheck
+        env:
+          # The release job runs *inside* the Release environment, so the
+          # protection has already applied to it — but `check:rc-readiness`
+          # still tries to read the rules to confirm they exist, and a
+          # `GITHUB_TOKEN` cannot: the environments endpoint needs
+          # Administration permission, which no workflow `permissions` key
+          # grants. The probe reports `unauthorized` and the check stays
+          # `not_run` unless a capable token is supplied.
+          #
+          # That is the intended behaviour. A release whose only evidence of
+          # protection is "we were inside the environment" is assuming what it
+          # should verify; `not_run` says so instead of passing.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: pnpm release:precheck
 
       - name: Prepare Core candidate tarballs and UI overrides

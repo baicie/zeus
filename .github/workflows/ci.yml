@@ -413,6 +413,8 @@ jobs:
   # the per-job setup amortised over several gates.
   packed-consumers:
     needs: impact
+    permissions:
+      contents: read
     if: needs.impact.outputs.packed-consumers == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -460,6 +462,25 @@ jobs:
 
       - name: RC readiness report
         if: always()
+        env:
+          # `GET /repos/{owner}/{repo}/environments` needs Administration
+          # permission, and `GITHUB_TOKEN` has no scope that grants it — there
+          # is no `administration` key in a workflow's `permissions` block, and
+          # adding one makes the whole workflow file invalid (measured: the run
+          # fails in 0s with no jobs).
+          #
+          # So this job cannot read the protection rules with its own token.
+          # The probe reports `unauthorized` and the check stays `not_run`,
+          # which is the honest answer: the claim of protection was not
+          # confirmed. Reading it in CI would require a PAT with
+          # `administration: read`, and putting a PAT in ordinary CI is exactly
+          # what this task forbids.
+          #
+          # The token is still passed so a caller that *does* have a capable
+          # token (a local run, or a dedicated release-check job) works without
+          # a code change. It is never a PAT here, and `gh` takes it from the
+          # environment — the probe logs state names only.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: pnpm check:create-zeus && pnpm check:create-zeus-packed && pnpm check:rc-readiness
         continue-on-error: true
       - name: Preserve RC readiness report
