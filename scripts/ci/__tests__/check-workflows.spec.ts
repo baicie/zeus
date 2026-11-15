@@ -51,25 +51,29 @@ describe('the regression fixture', () => {
     expect(text).toContain('name: Regression Fixture Invalid Permission')
   })
 
-  it('is rejected by actionlint as an unknown permission scope', () => {
-    if (!hasActionlint()) {
-      console.warn('skipping: actionlint not installed')
-      return
-    }
-    let output = ''
-    try {
-      execFileSync('actionlint', ['-no-color', fixture], { encoding: 'utf8' })
-    } catch (error) {
-      output = (error as { stdout?: string }).stdout ?? ''
-    }
-    expect(output).toMatch(/unknown permission scope "administration"/)
-    /*
-     * The tool also names the complete legal set, which is the knowledge that
-     * was missing when the key was written.
-     */
-    expect(output).toMatch(/all available permission scopes are/)
-    expect(output).toMatch(/"contents"/)
-  })
+  /*
+   * The fixture's value is the rejection, so this test skips — visibly — when
+   * the binary is absent rather than passing on nothing. Vitest's
+   * `skipIf` reports it as skipped, which is not the same as green.
+   */
+  it.skipIf(!hasActionlint())(
+    'is rejected by actionlint as an unknown permission scope',
+    () => {
+      let output = ''
+      try {
+        execFileSync('actionlint', ['-no-color', fixture], { encoding: 'utf8' })
+      } catch (error) {
+        output = (error as { stdout?: string }).stdout ?? ''
+      }
+      expect(output).toMatch(/unknown permission scope "administration"/)
+      /*
+       * The tool also names the complete legal set, which is the knowledge that
+       * was missing when the key was written.
+       */
+      expect(output).toMatch(/all available permission scopes are/)
+      expect(output).toMatch(/"contents"/)
+    },
+  )
 })
 
 describe('parseActionlintOutput', () => {
@@ -185,12 +189,26 @@ describe('evaluateWorkflowProblems', () => {
   })
 })
 
-describe('the repository as it is', () => {
-  it('has no blocking structural findings', () => {
-    if (!hasActionlint()) {
-      console.warn('skipping: actionlint not installed')
-      return
+describe('a missing binary', () => {
+  /*
+   * `runActionlint` must not return an empty list when the tool is absent —
+   * "no findings" and "no tool" are different answers, and the gate exists to
+   * distinguish them. The CI test jobs that do not install actionlint skip on
+   * `hasActionlint()`, so this contract is what keeps those skips honest.
+   */
+  it('throws rather than reporting no findings', () => {
+    const original = process.env.PATH
+    process.env.PATH = '/nonexistent-path-for-test'
+    try {
+      expect(() => runActionlint(root)).toThrow(/actionlint is not installed/)
+    } finally {
+      process.env.PATH = original
     }
+  })
+})
+
+describe('the repository as it is', () => {
+  it.skipIf(!hasActionlint())('has no blocking structural findings', () => {
     const result = evaluateWorkflowProblems(runActionlint(root))
     if (!result.ok) {
       console.error(JSON.stringify(result.problems, null, 2))
