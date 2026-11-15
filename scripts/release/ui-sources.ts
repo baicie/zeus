@@ -31,6 +31,23 @@ export interface RegistryUiSource {
   readonly kind: 'registry'
   readonly package: string
   readonly version: string
+  /**
+   * The `integrity` the lockfile resolves for this exact version.
+   *
+   * This binds the recorded version to the bytes pnpm will install. Without it
+   * "registry 0.1.0-beta.34" says what was asked for, not what was fetched.
+   * `null` means the lockfile has no entry, which is itself a finding.
+   */
+  readonly integrity: string | null
+  /**
+   * The UI commit this package was built from.
+   *
+   * npm provenance attests *which workflow published it*, not which commit was
+   * built, and nothing in this repository ties `0.1.0-beta.34` to a zeus-ui
+   * SHA. Recorded as `UNVERIFIED` rather than guessed, and never as the
+   * declared pairing commit — that is a different fact.
+   */
+  readonly sourceCommit: 'UNVERIFIED' | string
 }
 
 export interface VendoredUiSource {
@@ -123,6 +140,34 @@ function readManifest(file: string): {
  * the directory it points at. Only the dialog is vendored today; the map keeps
  * the shape honest if a second package ever is.
  */
+/**
+ * The `integrity` pnpm records for a package at an exact version.
+ *
+ * Read from the `packages:` section, which is keyed `name@version`. The
+ * importer section names a version but not its bytes; only this section binds
+ * them.
+ */
+export function lockfileIntegrity(
+  lockfile: string,
+  name: string,
+  version: string,
+): string | null {
+  // Keys may be quoted: `'@zeus-web/button@0.1.0-beta.34':`.
+  const key = `${name}@${version}`
+  const lines = lockfile.split('\n')
+  for (const [index, line] of lines.entries()) {
+    const header = /^ {2}'?([^':]+)'?:\s*$/.exec(line)
+    if (!header || header[1] !== key) continue
+    for (const next of lines.slice(index + 1, index + 6)) {
+      const resolution = /^ {4}resolution:\s*\{integrity:\s*(\S+?)\}/.exec(next)
+      if (resolution)
+        return (resolution[1] ?? '').replace(/^sha512-/, 'sha512-')
+      if (/^ {2}\S/.test(next)) break
+    }
+  }
+  return null
+}
+
 export function collectUiSources(options: {
   readonly manifestPath: string
   readonly root: string
@@ -132,6 +177,8 @@ export function collectUiSources(options: {
    * examples establish it by not cloning the repository.
    */
   readonly checksOutUiRepository?: boolean
+  /** Contents of `pnpm-lock.yaml`, used to bind registry versions to bytes. */
+  readonly lockfile?: string
   readonly vendoredProvenance?: Readonly<
     Record<string, { commit: string; contentDigest: string; version: string }>
   >
@@ -178,7 +225,16 @@ export function collectUiSources(options: {
         sources.push({ kind: 'workspace', package: name, version })
         continue
       }
-      sources.push({ kind: 'registry', package: name, version })
+      sources.push({
+        kind: 'registry',
+        package: name,
+        version,
+        integrity: options.lockfile
+          ? lockfileIntegrity(options.lockfile, name, version)
+          : null,
+        // Not knowable from this repository; see the field's comment.
+        sourceCommit: 'UNVERIFIED',
+      })
     }
   }
   sources.sort((left, right) => (left.package < right.package ? -1 : 1))
@@ -246,6 +302,8 @@ export function verifyUiSources(options: {
   readonly manifestPath: string
   readonly root: string
   readonly expectedPairingCommit?: string
+  /** Contents of `pnpm-lock.yaml`; required to verify registry integrity. */
+  readonly lockfile?: string
 }): VerifyUiSourcesResult {
   const errors: string[] = []
   const fail = (message: string): void => {
@@ -280,6 +338,34 @@ export function verifyUiSources(options: {
       fail(
         `${name}: recorded version ${got.version}, manifest pins ${want.version}`,
       )
+    }
+    if (got.kind === 'registry' && want.kind === 'registry') {
+      /*
+       * The recorded integrity must be the one the lockfile resolves for this
+       * exact version. A registry entry without it says what was asked for,
+       * not what was fetched. Skipped when no lockfile was supplied, so a v1
+       * document — which has no `integrity` field — still verifies.
+       */
+      if (options.lockfile) {
+        if (want.integrity === null) {
+          fail(
+            `${name}: the lockfile has no integrity for ${want.version}; the version cannot be bound to bytes`,
+          )
+        } else if (got.integrity !== want.integrity) {
+          fail(
+            `${name}: recorded integrity ${String(got.integrity)} does not match the lockfile ${want.integrity}`,
+          )
+        }
+      }
+      /*
+       * No mechanism ties a published version to a zeus-ui commit. A document
+       * that names one is asserting something this repository cannot know.
+       */
+      if (got.sourceCommit !== 'UNVERIFIED') {
+        fail(
+          `${name}: sourceCommit ${String(got.sourceCommit)} claims a specific UI commit, but nothing in this repository ties ${want.version} to one; record UNVERIFIED`,
+        )
+      }
     }
     if (got.kind === 'vendored' && want.kind === 'vendored') {
       if (got.commit !== want.commit) {
