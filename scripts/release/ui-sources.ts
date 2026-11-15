@@ -42,12 +42,18 @@ export interface RegistryUiSource {
   /**
    * The UI commit this package was built from.
    *
-   * npm provenance attests *which workflow published it*, not which commit was
-   * built, and nothing in this repository ties `0.1.0-beta.34` to a zeus-ui
-   * SHA. Recorded as `UNVERIFIED` rather than guessed, and never as the
-   * declared pairing commit — that is a different fact.
+   * A published package carries a SLSA v1 attestation whose
+   * `resolvedDependencies` names this commit; `readAttestationSource` extracts
+   * it. Supply the result through `attestationSources` when collecting, and
+   * the value becomes checkable rather than asserted.
+   *
+   * `UNVERIFIED` means no attestation was available for this package. It is
+   * never the declared pairing commit — that is a different fact, and putting
+   * it here is the mistake this field exists to prevent.
    */
   readonly sourceCommit: 'UNVERIFIED' | string
+  /** Where `sourceCommit` came from, when it came from somewhere. */
+  readonly sourceCommitProvenance?: 'attestation'
 }
 
 export interface VendoredUiSource {
@@ -111,6 +117,26 @@ export interface UiSources {
    */
   readonly readsUiRepository: boolean
   readonly sources: readonly UiSource[]
+}
+
+/**
+ * The `sourceCommit` fields for a registry package.
+ *
+ * When an attestation was read for this exact `name@version`, the commit is
+ * checkable and `sourceCommitProvenance` says so. When none was read, the field
+ * stays `UNVERIFIED` — that records what this run knows, and must not be read
+ * as a claim that no attestation exists.
+ */
+function sourceCommitFields(
+  name: string,
+  version: string,
+  attested: Readonly<Record<string, { readonly commit: string }>> | undefined,
+): { sourceCommit: string; sourceCommitProvenance?: 'attestation' } {
+  const entry = attested?.[`${name}@${version}`]
+  if (entry && /^[0-9a-f]{40}$/.test(entry.commit)) {
+    return { sourceCommit: entry.commit, sourceCommitProvenance: 'attestation' }
+  }
+  return { sourceCommit: 'UNVERIFIED' }
 }
 
 function readManifest(file: string): {
@@ -179,6 +205,14 @@ export function collectUiSources(options: {
   readonly checksOutUiRepository?: boolean
   /** Contents of `pnpm-lock.yaml`, used to bind registry versions to bytes. */
   readonly lockfile?: string
+  /**
+   * Source commits read from each package's SLSA attestation, keyed
+   * `name@version`. Absent means nothing was read — the commit stays
+   * `UNVERIFIED`, which is a statement about this run, not about the package.
+   */
+  readonly attestationSources?: Readonly<
+    Record<string, { readonly commit: string }>
+  >
   readonly vendoredProvenance?: Readonly<
     Record<string, { commit: string; contentDigest: string; version: string }>
   >
@@ -232,8 +266,7 @@ export function collectUiSources(options: {
         integrity: options.lockfile
           ? lockfileIntegrity(options.lockfile, name, version)
           : null,
-        // Not knowable from this repository; see the field's comment.
-        sourceCommit: 'UNVERIFIED',
+        ...sourceCommitFields(name, version, options.attestationSources),
       })
     }
   }
@@ -301,10 +334,14 @@ export interface VerifyUiSourcesResult {
  * How strict a verification is.
  *
  * `legacy-compatible` exists so a build-info written before `integrity` and
- * `relationship` were recorded still verifies — those documents cannot be
- * checked for things they do not contain. It is not a mode a release may use.
+ * `relationship` were recorded still verifies. It is not a mode a release may
+ * use.
  *
  * `release-strict` is what a release gate must pass: the lockfile is required,
+ * every registry package must resolve to bytes, and a v2 document must carry
+ * `relationship`. A gate that can be satisfied by omitting its inputs is not a
+ * `relationship` were recorded still verifies — those documents cannot be
+ * checked for things they do not contain. It is not a mode a release may use.
  * every registry package must resolve to bytes, and the document must agree
  * with all of it. A gate that can be satisfied by omitting its inputs is not a
  * gate, which is why the level is explicit rather than inferred from whether a
@@ -319,6 +356,10 @@ export function verifyUiSources(options: {
   readonly expectedPairingCommit?: string
   /** Contents of `pnpm-lock.yaml`; required for `release-strict`. */
   readonly lockfile?: string
+  /** Source commits read from SLSA attestations, keyed `name@version`. */
+  readonly attestationSources?: Readonly<
+    Record<string, { readonly commit: string }>
+  >
   /**
    * Defaults to `legacy-compatible` so existing callers keep their behaviour.
    * Any release or RC gate must pass `release-strict`.
@@ -333,6 +374,10 @@ export function verifyUiSources(options: {
 
   if (level === 'release-strict') {
     /*
+     * Each of these is something strict mode cannot check without. Failing
+     * here rather than silently skipping is the point of the mode: a strict run
+     * that quietly omits a check reports the same green as one that performed
+     * it.
      * Each of these is something strict mode cannot check without it. Failing
      * here rather than silently skipping is the whole point of the mode: a
      * strict run that quietly omits a check reports the same green as one that
@@ -359,14 +404,23 @@ export function verifyUiSources(options: {
     options.sources.sources.map(source => [source.package, source]),
   )
 
+  /*
+   * Re-derive the expected set with the same inputs as the document under
+   * test. Omitting either of these makes the comparison reject a correct
+   * document: without the lockfile every `want.integrity` is null, and without
+   * the attestation sources every attested commit looks unbacked.
+   */
   const expected = collectUiSources({
     manifestPath: options.manifestPath,
     root: options.root,
     declaredPairingCommit: options.sources.declaredPairingCommit,
+    ...(options.lockfile ? { lockfile: options.lockfile } : {}),
+    ...(options.attestationSources
+      ? { attestationSources: options.attestationSources }
+      : {}),
     // Without this every `want.integrity` is null and the comparison below
     // rejects a document that is exactly right. The lockfile is the only
     // source of the expected bytes; re-deriving without it is not a check.
-    ...(options.lockfile ? { lockfile: options.lockfile } : {}),
   })
   const declared = new Map(
     expected.sources.map(source => [source.package, source]),
@@ -410,10 +464,27 @@ export function verifyUiSources(options: {
        * No mechanism ties a published version to a zeus-ui commit. A document
        * that names one is asserting something this repository cannot know.
        */
-      if (got.sourceCommit !== 'UNVERIFIED') {
-        fail(
-          `${name}: sourceCommit ${String(got.sourceCommit)} claims a specific UI commit, but nothing in this repository ties ${want.version} to one; record UNVERIFIED`,
+      /*
+       * A specific commit is allowed only when this run actually read it from
+       * an attestation. Anything else is an assertion with nothing behind it —
+       * the failure this rule exists to stop is a document naming the declared
+       * pairing commit as if it were the source.
+       */
+      const claimed = got.sourceCommit
+      if (claimed !== 'UNVERIFIED') {
+        const attested = sourceCommitFields(
+          name,
+          want.version,
+          options.attestationSources,
         )
+        if (
+          attested.sourceCommit !== claimed ||
+          attested.sourceCommit === 'UNVERIFIED'
+        ) {
+          fail(
+            `${name}: sourceCommit ${String(claimed)} is not backed by an attestation read in this run; record UNVERIFIED or supply attestationSources`,
+          )
+        }
       }
     }
     if (got.kind === 'vendored' && want.kind === 'vendored') {
