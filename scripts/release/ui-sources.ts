@@ -340,6 +340,10 @@ export interface VerifyUiSourcesResult {
  * `release-strict` is what a release gate must pass: the lockfile is required,
  * every registry package must resolve to bytes, and a v2 document must carry
  * `relationship`. A gate that can be satisfied by omitting its inputs is not a
+ * `relationship` were recorded still verifies — those documents cannot be
+ * checked for things they do not contain. It is not a mode a release may use.
+ * every registry package must resolve to bytes, and the document must agree
+ * with all of it. A gate that can be satisfied by omitting its inputs is not a
  * gate, which is why the level is explicit rather than inferred from whether a
  * lockfile happened to be passed.
  */
@@ -350,7 +354,7 @@ export function verifyUiSources(options: {
   readonly manifestPath: string
   readonly root: string
   readonly expectedPairingCommit?: string
-  /** Contents of `pnpm-lock.yaml`; required to verify registry integrity. */
+  /** Contents of `pnpm-lock.yaml`; required for `release-strict`. */
   readonly lockfile?: string
   /** Source commits read from SLSA attestations, keyed `name@version`. */
   readonly attestationSources?: Readonly<
@@ -374,6 +378,10 @@ export function verifyUiSources(options: {
      * here rather than silently skipping is the point of the mode: a strict run
      * that quietly omits a check reports the same green as one that performed
      * it.
+     * Each of these is something strict mode cannot check without it. Failing
+     * here rather than silently skipping is the whole point of the mode: a
+     * strict run that quietly omits a check reports the same green as one that
+     * performed it.
      */
     if (!options.lockfile) {
       fail(
@@ -410,6 +418,9 @@ export function verifyUiSources(options: {
     ...(options.attestationSources
       ? { attestationSources: options.attestationSources }
       : {}),
+    // Without this every `want.integrity` is null and the comparison below
+    // rejects a document that is exactly right. The lockfile is the only
+    // source of the expected bytes; re-deriving without it is not a check.
   })
   const declared = new Map(
     expected.sources.map(source => [source.package, source]),

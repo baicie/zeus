@@ -619,6 +619,215 @@ describe('npm package integrity', () => {
 })
 
 /**
+ * A correct document must pass strict verification.
+ *
+ * `verifyUiSources` re-derives the expected set with `collectUiSources`. If it
+ * forgets to pass the lockfile, every `want.integrity` is `null` while the
+ * recorded values are real — so a document that is exactly right fails on all
+ * 24 registry packages with "the lockfile has no integrity for …".
+ *
+ * That is the worst shape a bug can take here: strict mode rejects the truth,
+ * and the only way to make it green is to stop supplying the lockfile, which
+ * is also the way to stop checking anything.
+ */
+describe('strict verification accepts an exact document', () => {
+  const rootPath = path.resolve(import.meta.dirname, '../../..')
+  const lockfile = fs.readFileSync(
+    path.join(rootPath, 'pnpm-lock.yaml'),
+    'utf8',
+  )
+  const adminManifest = path.join(rootPath, 'examples/admin/package.json')
+
+  it('passes a document built from the same lockfile', () => {
+    const sources = collectUiSources({
+      manifestPath: adminManifest,
+      root: rootPath,
+      declaredPairingCommit: 'ffde55920fe9beab52dfe67bdca6d2e4023f28df',
+      lockfile,
+    })
+    const result = verifyUiSources({
+      sources,
+      manifestPath: adminManifest,
+      root: rootPath,
+      lockfile,
+    })
+    expect(
+      result.errors,
+      'a document derived from this lockfile must verify against it',
+    ).toEqual([])
+  })
+
+  it('reports no integrity complaint for any of the 24 registry packages', () => {
+    const sources = collectUiSources({
+      manifestPath: adminManifest,
+      root: rootPath,
+      declaredPairingCommit: 'ffde55920fe9beab52dfe67bdca6d2e4023f28df',
+      lockfile,
+    })
+    const result = verifyUiSources({
+      sources,
+      manifestPath: adminManifest,
+      root: rootPath,
+      lockfile,
+    })
+    expect(
+      result.errors.filter(error => /lockfile has no integrity/.test(error)),
+    ).toEqual([])
+  })
+
+  it('fails the same document when a single integrity is altered', () => {
+    const sources = collectUiSources({
+      manifestPath: adminManifest,
+      root: rootPath,
+      declaredPairingCommit: 'ffde55920fe9beab52dfe67bdca6d2e4023f28df',
+      lockfile,
+    })
+    const tampered = {
+      ...sources,
+      sources: sources.sources.map(source =>
+        source.kind === 'registry' && source.package === '@zeus-web/input'
+          ? { ...source, integrity: `sha512-${'B'.repeat(64)}` }
+          : source,
+      ),
+    }
+    const result = verifyUiSources({
+      sources: tampered,
+      manifestPath: adminManifest,
+      root: rootPath,
+      lockfile,
+    })
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0]).toMatch(/@zeus-web\/input.*integrity/)
+  })
+})
+
+/**
+ * A strict gate that can be satisfied by omitting its inputs is not a gate.
+ *
+ * The v1 behaviour — skip what you cannot check — is right for a document
+ * written before the fields existed. It is wrong for a release: the same green
+ * result then means both "checked and clean" and "nothing was checked".
+ */
+describe('verification levels', () => {
+  const rootPath = path.resolve(import.meta.dirname, '../../..')
+  const lockfile = fs.readFileSync(
+    path.join(rootPath, 'pnpm-lock.yaml'),
+    'utf8',
+  )
+  const adminManifest = path.join(rootPath, 'examples/admin/package.json')
+  const pairing = 'ffde55920fe9beab52dfe67bdca6d2e4023f28df'
+
+  function adminSources() {
+    return collectUiSources({
+      manifestPath: adminManifest,
+      root: rootPath,
+      declaredPairingCommit: pairing,
+      lockfile,
+    })
+  }
+
+  it('legacy-compatible verifies a v1 document without a lockfile', () => {
+    const sources = adminSources()
+    const v1 = { ...sources }
+    delete (v1 as { relationship?: unknown }).relationship
+    const result = verifyUiSources({
+      sources: v1,
+      manifestPath: adminManifest,
+      root: rootPath,
+    })
+    expect(result.errors).toEqual([])
+  })
+
+  it('release-strict rejects a run with no lockfile', () => {
+    const result = verifyUiSources({
+      sources: adminSources(),
+      manifestPath: adminManifest,
+      root: rootPath,
+      expectedPairingCommit: pairing,
+      level: 'release-strict',
+    })
+    expect(result.errors.join('\n')).toMatch(
+      /release-strict requires the lockfile/,
+    )
+  })
+
+  it('release-strict rejects a run with no expected pairing commit', () => {
+    const result = verifyUiSources({
+      sources: adminSources(),
+      manifestPath: adminManifest,
+      root: rootPath,
+      lockfile,
+      level: 'release-strict',
+    })
+    expect(result.errors.join('\n')).toMatch(
+      /requires the declared pairing commit/,
+    )
+  })
+
+  it('release-strict rejects a v1 document', () => {
+    const sources = adminSources()
+    const v1 = { ...sources }
+    delete (v1 as { relationship?: unknown }).relationship
+    const result = verifyUiSources({
+      sources: v1,
+      manifestPath: adminManifest,
+      root: rootPath,
+      lockfile,
+      expectedPairingCommit: pairing,
+      level: 'release-strict',
+    })
+    expect(result.errors.join('\n')).toMatch(
+      /requires a ui-sources v2 document/,
+    )
+  })
+
+  it('release-strict accepts a complete, correct document', () => {
+    const result = verifyUiSources({
+      sources: adminSources(),
+      manifestPath: adminManifest,
+      root: rootPath,
+      lockfile,
+      expectedPairingCommit: pairing,
+      level: 'release-strict',
+    })
+    expect(result.errors).toEqual([])
+  })
+
+  it('release-strict still rejects a tampered integrity', () => {
+    const sources = adminSources()
+    const tampered = {
+      ...sources,
+      sources: sources.sources.map(source =>
+        source.kind === 'registry' && source.package === '@zeus-web/tabs'
+          ? { ...source, integrity: `sha512-${'Z'.repeat(64)}` }
+          : source,
+      ),
+    }
+    const result = verifyUiSources({
+      sources: tampered,
+      manifestPath: adminManifest,
+      root: rootPath,
+      lockfile,
+      expectedPairingCommit: pairing,
+      level: 'release-strict',
+    })
+    expect(result.errors.join('\n')).toMatch(/@zeus-web\/tabs.*integrity/)
+  })
+
+  it('release-strict still rejects a wrong pairing commit', () => {
+    const result = verifyUiSources({
+      sources: adminSources(),
+      manifestPath: adminManifest,
+      root: rootPath,
+      lockfile,
+      expectedPairingCommit: 'a'.repeat(40),
+      level: 'release-strict',
+    })
+    expect(result.errors.join('\n')).toMatch(/declared pairing commit/)
+  })
+})
+
+/**
  * A source commit backed by an attestation is allowed; an unbacked one is not.
  *
  * The rule against naming a specific commit exists because the tempting value
@@ -636,24 +845,21 @@ describe('attested source commits', () => {
   const pairing = 'ffde55920fe9beab52dfe67bdca6d2e4023f28df'
   const attested = 'a8826dd1f81560aaf6459d8d40a3e599f705f6e0'
 
+  function registryNames(): string[] {
+    const manifest = JSON.parse(fs.readFileSync(adminManifest, 'utf8')) as {
+      dependencies: Record<string, string>
+    }
+    return Object.entries(manifest.dependencies)
+      .filter(([name]) => name.startsWith('@zeus-web/'))
+      .filter(([, version]) => !version.startsWith('file:'))
+      .map(([name]) => name)
+  }
+
   const attestationSources = Object.fromEntries(
-    Object.keys(
-      (
-        JSON.parse(fs.readFileSync(adminManifest, 'utf8')) as {
-          dependencies: Record<string, string>
-        }
-      ).dependencies,
-    )
-      .filter(name => name.startsWith('@zeus-web/'))
-      .filter(
-        name =>
-          !(
-            JSON.parse(fs.readFileSync(adminManifest, 'utf8')) as {
-              dependencies: Record<string, string>
-            }
-          ).dependencies[name]!.startsWith('file:'),
-      )
-      .map(name => [`${name}@0.1.0-beta.34`, { commit: attested }]),
+    registryNames().map(name => [
+      `${name}@0.1.0-beta.34`,
+      { commit: attested },
+    ]),
   )
 
   it('records the attested commit and its provenance', () => {
@@ -702,7 +908,6 @@ describe('attested source commits', () => {
       lockfile,
       attestationSources,
     })
-    // Same shape, no attestation supplied at verification time.
     const result = verifyUiSources({
       sources,
       manifestPath: adminManifest,
