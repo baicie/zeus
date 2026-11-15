@@ -491,7 +491,8 @@ jobs:
             --built-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           pnpm check:ui-provenance \
             --build-info examples/admin/dist/build-info.json \
-            --manifest examples/admin/package.json
+            --manifest examples/admin/package.json \
+            --read-attestations
 
       - name: Admin navigation in Chromium, Firefox and WebKit
         run: pnpm check:admin

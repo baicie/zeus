@@ -15,6 +15,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { parseArgs } from 'node:util'
 
+import { readAttestationSource, type AttestationSource } from './ui-attestation'
 import { verifyUiSources, type UiSources } from './ui-sources'
 
 export interface VerifyUiProvenanceInput {
@@ -23,6 +24,10 @@ export interface VerifyUiProvenanceInput {
   readonly lockfile: string
   readonly root: string
   readonly level?: 'legacy-compatible' | 'release-strict'
+  /** Commits read from SLSA attestations, keyed `name@version`. */
+  readonly attestationSources?: Readonly<
+    Record<string, { readonly commit: string }>
+  >
 }
 
 export interface VerifyUiProvenanceResult {
@@ -97,10 +102,68 @@ export function verifyUiProvenance(
     ...(typeof buildInfo.uiCommit === 'string'
       ? { expectedPairingCommit: buildInfo.uiCommit }
       : {}),
+    ...(input.attestationSources
+      ? { attestationSources: input.attestationSources }
+      : {}),
     level,
   })
   errors.push(...result.errors)
   return { errors, ok: errors.length === 0 }
+}
+
+/**
+ * Reads the SLSA source commit for every registry package the document names.
+ *
+ * Without this the strict check has nothing to compare against, and the only
+ * document the pipeline can produce records `UNVERIFIED` for every package.
+ * A missing or unreadable attestation is not an error here — the package simply
+ * has no answer, and strict mode reports that as a failed check rather than
+ * pretending the commit was verified.
+ */
+export async function fetchAttestationSources(options: {
+  readonly packages: readonly {
+    readonly name: string
+    readonly version: string
+  }[]
+  readonly fetch?: typeof globalThis.fetch
+  readonly registry?: string
+}): Promise<Record<string, { commit: string; repository: string }>> {
+  const doFetch = options.fetch ?? globalThis.fetch
+  const registry = options.registry ?? 'https://registry.npmjs.org'
+  const found: Record<string, { commit: string; repository: string }> = {}
+  for (const { name, version } of options.packages) {
+    /*
+     * The registry route wants the scope slash encoded (`@scope%2fpkg`) but the
+     * `@` between package and version left alone. Encoding the whole
+     * `name@version` turns that `@` into `%40`, which the registry does not
+     * route — the request 404s and every package looks unattested.
+     */
+    const url = `${registry}/-/npm/v1/attestations/${encodeURIComponent(
+      name,
+    ).replace('%40', '@')}@${version}`
+    try {
+      const response = await doFetch(url, {
+        headers: { accept: 'application/json' },
+      })
+      if (!response.ok) continue
+      const source: AttestationSource | undefined = readAttestationSource(
+        (await response.json()) as unknown,
+      )
+      if (source) {
+        found[`${name}@${version}`] = {
+          commit: source.commit,
+          repository: source.repository,
+        }
+      }
+    } catch {
+      // A registry that cannot be reached leaves the package unattested. Strict
+      // mode turns that into a named failure; it must not be swallowed here
+      // into a green run, which is why the caller passes the result through
+      // rather than defaulting it.
+      continue
+    }
+  }
+  return found
 }
 
 function main(): void {
@@ -110,6 +173,7 @@ function main(): void {
       manifest: { type: 'string' },
       lockfile: { type: 'string' },
       level: { type: 'string', default: 'release-strict' },
+      'read-attestations': { type: 'boolean', default: false },
     },
   })
   if (!values['build-info']) throw new Error('--build-info is required')
@@ -131,24 +195,62 @@ function main(): void {
       ? 'legacy-compatible'
       : 'release-strict'
 
-  const result = verifyUiProvenance({
-    buildInfo: JSON.parse(fs.readFileSync(buildInfoPath, 'utf8')) as unknown,
-    manifestPath: path.resolve(values.manifest),
-    lockfile: fs.readFileSync(lockfilePath, 'utf8'),
-    root,
-    level,
-  })
-  if (!result.ok) {
-    console.error(`ui provenance (${level}) FAILED:`)
-    for (const error of result.errors.slice(0, 20)) console.error(`  ${error}`)
-    if (result.errors.length > 20) {
-      console.error(`  … ${result.errors.length - 20} more`)
+  const buildInfo = JSON.parse(
+    fs.readFileSync(buildInfoPath, 'utf8'),
+  ) as unknown
+  /*
+   * Narrowed before the async closure. Keeping `values.manifest` inside it
+   * loses the check above, because the closure can run after `values` is no
+   * longer narrowed.
+   */
+  const manifestPath = path.resolve(values.manifest)
+
+  void (async () => {
+    /*
+     * Strict mode requires an attested commit for every registry package. The
+     * only way to have one is to read it, so the flag exists rather than the
+     * check silently passing on a document that never looked.
+     */
+    let attestationSources:
+      | Record<string, { commit: string; repository: string }>
+      | undefined
+    if (values['read-attestations']) {
+      const sources = (buildInfo as { uiSources?: UiSources }).uiSources
+      const registry = (sources?.sources ?? []).filter(
+        source => source.kind === 'registry',
+      )
+      attestationSources = await fetchAttestationSources({
+        packages: registry.map(source => ({
+          name: source.package,
+          version: source.version,
+        })),
+      })
+      console.error(
+        `ui provenance: read ${Object.keys(attestationSources).length}/${registry.length} attestations`,
+      )
     }
-    process.exit(1)
-  }
-  console.log(
-    `ui provenance (${level}) ok: ${path.relative(root, buildInfoPath)}`,
-  )
+
+    const result = verifyUiProvenance({
+      buildInfo,
+      manifestPath,
+      lockfile: fs.readFileSync(lockfilePath, 'utf8'),
+      root,
+      level,
+      ...(attestationSources ? { attestationSources } : {}),
+    })
+    if (!result.ok) {
+      console.error(`ui provenance (${level}) FAILED:`)
+      for (const error of result.errors.slice(0, 20))
+        console.error(`  ${error}`)
+      if (result.errors.length > 20) {
+        console.error(`  … ${result.errors.length - 20} more`)
+      }
+      process.exit(1)
+    }
+    console.log(
+      `ui provenance (${level}) ok: ${path.relative(root, buildInfoPath)}`,
+    )
+  })()
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
