@@ -246,17 +246,38 @@ render(
     .click()
   await page.getByTestId('tab-console').click()
   /*
-   * The console is a scrollable `<ol>` (`overflow: auto` plus a `max-height`),
-   * so an entry that exists and is correct can still be outside the visible
-   * area — and Playwright treats that as hidden. Waiting on visibility made
-   * this whole check flake on WebKit whenever earlier entries filled the
-   * panel: `locator resolved to hidden <code>[ZEUS_PLAYGROUND_NO_MODALS]…`.
+   * Assert on the panel's text rather than on a row's visibility.
    *
-   * What the assertion is about is *presence and content*, not whether the
-   * row happens to be scrolled into view. `toContainText` on the panel waits
-   * for the text to appear without requiring it to be visible, which is the
-   * property this test actually cares about.
+   * The failure this replaced was:
+   *
+   *   [playground-ux] webkit: FAIL locator.waitFor: Timeout 10000ms exceeded.
+   *     24 × locator resolved to hidden <code>[ZEUS_PLAYGROUND_NO_MODALS] …
+   *
+   * A row is not hidden by its position inside a scroll container:
+   * Playwright's `visible` means a non-empty bounding box and no
+   * `visibility: hidden`, and a row outside the scrollport satisfies both
+   * (measured: a 30px row at `y=578` inside a 60px-tall `overflow: auto` box
+   * reports `visible=true`).
+   *
+   * What can hide it is the tab container: `.pg-result-panel` is
+   * `display: none` unless it carries `[data-active]`, and a row inside an
+   * inactive panel is `visible=false`.
+   *
+   * **Root cause: UNVERIFIED.** Tab selection is synchronous
+   * (`onClick={() => selectTab(tab.id)}` sets a signal the panel's
+   * `data-active` binds to), so there should be no window in which the panel
+   * is still hidden after the click resolves. Two failures were observed on
+   * WebKit (#267, #273), both `resolved to hidden`, both passing on rerun with
+   * no code change, and neither reproduced locally. The panel-not-yet-active
+   * theory explains the *shape* of the error but not why it was intermittent,
+   * and this comment does not claim otherwise.
+   *
+   * `toContainText` waits for the panel's text, so it is insensitive to that
+   * transition. It is not a weaker assertion: the panel must exist, be a
+   * rendered element, and contain the text. Removing the visibility wait does
+   * not remove any check of the product's behaviour.
    */
+  await expect(page.getByTestId('console')).toBeVisible({ timeout: 10_000 })
   const consolePanel = page.getByTestId('console')
   await expect(consolePanel).toContainText('ZEUS_PLAYGROUND_NO_MODALS', {
     timeout: 10_000,
