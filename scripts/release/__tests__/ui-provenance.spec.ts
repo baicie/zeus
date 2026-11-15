@@ -22,7 +22,11 @@ import path from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import { collectUiSources, verifyUiSources } from '../ui-sources'
+import {
+  collectUiSources,
+  lockfileIntegrity,
+  verifyUiSources,
+} from '../ui-sources'
 
 const root = path.resolve(import.meta.dirname, '../../..')
 
@@ -330,6 +334,8 @@ describe('verifyUiSources', () => {
           kind: 'registry' as const,
           package: '@zeus-web/injected',
           version: '1.0.0',
+          integrity: null,
+          sourceCommit: 'UNVERIFIED' as const,
         },
       ],
     }
@@ -358,6 +364,8 @@ describe('verifyUiSources', () => {
           kind: 'registry' as const,
           package: '@zeus-web/button',
           version: '1.0.0',
+          integrity: null,
+          sourceCommit: 'UNVERIFIED' as const,
         },
       ],
     }
@@ -492,5 +500,120 @@ describe('ui-sources v2 relationship', () => {
       root: rootPath,
     })
     expect(result.errors).toEqual([])
+  })
+})
+
+/**
+ * A registry version without its bytes is half a provenance record.
+ *
+ * "registry @zeus-web/button 0.1.0-beta.34" says what was asked for. The
+ * lockfile's `integrity` says which bytes pnpm will install. Recording only the
+ * first lets a tampered registry entry pass as the version it claims to be.
+ */
+describe('npm package integrity', () => {
+  const rootPath = path.resolve(import.meta.dirname, '../../..')
+  const lockfile = fs.readFileSync(
+    path.join(rootPath, 'pnpm-lock.yaml'),
+    'utf8',
+  )
+  const adminManifest = path.join(rootPath, 'examples/admin/package.json')
+
+  function adminSources() {
+    return collectUiSources({
+      manifestPath: adminManifest,
+      root: rootPath,
+      declaredPairingCommit: 'ffde55920fe9beab52dfe67bdca6d2e4023f28df',
+      lockfile,
+    })
+  }
+
+  it('records an integrity for every registry package', () => {
+    const registry = adminSources().sources.filter(
+      source => source.kind === 'registry',
+    )
+    expect(registry.length).toBe(24)
+    expect(
+      registry.filter(source => source.integrity !== null).length,
+      'every pinned version must resolve to bytes in the lockfile',
+    ).toBe(24)
+  })
+
+  it('records integrity in the sha512 form pnpm uses', () => {
+    for (const source of adminSources().sources) {
+      if (source.kind !== 'registry') continue
+      expect(source.integrity, source.package).toMatch(
+        /^sha512-[A-Za-z0-9+/=]+$/,
+      )
+    }
+  })
+
+  it('marks the source commit UNVERIFIED rather than guessing', () => {
+    for (const source of adminSources().sources) {
+      if (source.kind !== 'registry') continue
+      expect(source.sourceCommit).toBe('UNVERIFIED')
+    }
+  })
+
+  it('returns null for a version the lockfile does not contain', () => {
+    expect(
+      lockfileIntegrity(lockfile, '@zeus-web/button', '9.9.9-beta.1'),
+    ).toBeNull()
+  })
+
+  it('rejects a tampered integrity that differs from the lockfile', () => {
+    const sources = adminSources()
+    const tampered = {
+      ...sources,
+      sources: sources.sources.map(source =>
+        source.kind === 'registry' && source.package === '@zeus-web/button'
+          ? { ...source, integrity: `sha512-${'A'.repeat(64)}` }
+          : source,
+      ),
+    }
+    const result = verifyUiSources({
+      sources: tampered,
+      manifestPath: adminManifest,
+      root: rootPath,
+      lockfile,
+    })
+    expect(result.errors.join('\n')).toMatch(/@zeus-web\/button.*integrity/i)
+  })
+
+  it('rejects a dropped integrity', () => {
+    const sources = adminSources()
+    const tampered = {
+      ...sources,
+      sources: sources.sources.map(source =>
+        source.kind === 'registry' ? { ...source, integrity: null } : source,
+      ),
+    }
+    const result = verifyUiSources({
+      sources: tampered,
+      manifestPath: adminManifest,
+      root: rootPath,
+      lockfile,
+    })
+    expect(result.errors.join('\n')).toMatch(/integrity/)
+  })
+
+  it('rejects a sourceCommit that claims a specific SHA', () => {
+    // No mechanism in this repository ties a published version to a zeus-ui
+    // commit. A document naming one is asserting something it cannot know.
+    const sources = adminSources()
+    const tampered = {
+      ...sources,
+      sources: sources.sources.map(source =>
+        source.kind === 'registry'
+          ? { ...source, sourceCommit: 'f'.repeat(40) }
+          : source,
+      ),
+    }
+    const result = verifyUiSources({
+      sources: tampered,
+      manifestPath: adminManifest,
+      root: rootPath,
+      lockfile,
+    })
+    expect(result.errors.join('\n')).toMatch(/sourceCommit/)
   })
 })

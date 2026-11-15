@@ -320,6 +320,13 @@ function main(): void {
         manifestPath: path.resolve(values['ui-manifest']),
         root: process.cwd(),
         declaredPairingCommit: values['ui-commit'],
+        // Bind each registry version to the bytes pnpm will install. Without
+        // this the record says what was asked for, not what was fetched.
+        ...(fs.existsSync(path.resolve('pnpm-lock.yaml'))
+          ? {
+              lockfile: fs.readFileSync(path.resolve('pnpm-lock.yaml'), 'utf8'),
+            }
+          : {}),
       })
     : undefined
   const info = createBuildInfo({
