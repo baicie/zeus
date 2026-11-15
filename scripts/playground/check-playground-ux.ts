@@ -277,7 +277,23 @@ render(
    * rendered element, and contain the text. Removing the visibility wait does
    * not remove any check of the product's behaviour.
    */
-  await expect(page.getByTestId('console')).toBeVisible({ timeout: 10_000 })
+  /*
+   * If the panel is hidden, say *why*. Three failures have now been observed
+   * on WebKit (#267, #273, and this one), all `resolved to hidden`, none
+   * reproducible locally, and each rerun passed with no code change. A bare
+   * timeout discards the one fact that would distinguish the candidate causes:
+   * which tab the product thinks is active. `selectTab('preview')` runs from
+   * `compile`'s tail — `if (errors.length === 0 && activeTab() === 'problems')`
+   * — so a late compile that lands after the click would show exactly this.
+   */
+  try {
+    await expect(page.getByTestId('console')).toBeVisible({ timeout: 10_000 })
+  } catch (error) {
+    const snapshot = await state(page).catch(() => undefined)
+    throw new Error(
+      `console panel did not become visible; activeTab=${String(snapshot?.activeTab)} buildSequence=${String(snapshot?.buildSequence)} lastCompileKind=${String(snapshot?.lastCompileKind)} autoRun=${String(snapshot?.autoRun)}\n${String(error)}`,
+    )
+  }
   const consolePanel = page.getByTestId('console')
   await expect(consolePanel).toContainText('ZEUS_PLAYGROUND_NO_MODALS', {
     timeout: 10_000,

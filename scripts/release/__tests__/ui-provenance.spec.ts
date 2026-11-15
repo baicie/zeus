@@ -27,6 +27,7 @@ import {
   lockfileIntegrity,
   verifyUiSources,
 } from '../ui-sources'
+import { fetchAttestationSources } from '../verify-ui-provenance'
 
 const root = path.resolve(import.meta.dirname, '../../..')
 
@@ -726,6 +727,22 @@ describe('verification levels', () => {
     })
   }
 
+  /** Every registry package resolved to one commit, as a real read would be. */
+  function attestationSources(): Record<string, { commit: string }> {
+    const manifest = JSON.parse(fs.readFileSync(adminManifest, 'utf8')) as {
+      dependencies: Record<string, string>
+    }
+    return Object.fromEntries(
+      Object.entries(manifest.dependencies)
+        .filter(([name]) => name.startsWith('@zeus-web/'))
+        .filter(([, version]) => !version.startsWith('file:'))
+        .map(([name, version]) => [
+          `${name}@${version}`,
+          { commit: 'a8826dd1f81560aaf6459d8d40a3e599f705f6e0' },
+        ]),
+    )
+  }
+
   it('legacy-compatible verifies a v1 document without a lockfile', () => {
     const sources = adminSources()
     const v1 = { ...sources }
@@ -782,12 +799,74 @@ describe('verification levels', () => {
   })
 
   it('release-strict accepts a complete, correct document', () => {
+    /*
+     * The document has to carry attested commits: strict mode no longer accepts
+     * `UNVERIFIED` as a pass. Everything else here — integrity against the
+     * lockfile, the pairing commit, the v2 relationship — is what this case is
+     * actually pinning.
+     */
+    const attested = attestationSources()
+    const sources = collectUiSources({
+      manifestPath: adminManifest,
+      root: rootPath,
+      declaredPairingCommit: pairing,
+      lockfile,
+      attestationSources: attested,
+    })
+    const result = verifyUiSources({
+      sources,
+      manifestPath: adminManifest,
+      root: rootPath,
+      lockfile,
+      expectedPairingCommit: pairing,
+      attestationSources: attested,
+      level: 'release-strict',
+    })
+    expect(result.errors).toEqual([])
+  })
+
+  /*
+   * `UNVERIFIED` used to pass strict mode silently.
+   *
+   * The rule was "a claimed commit must be backed by an attestation"; a package
+   * that claimed nothing was skipped. So the one document a release gate is
+   * guaranteed to see — the one `build-info.ts` writes, which never supplies
+   * `attestationSources` — passed by recording that nothing was known, and the
+   * gate reported the same green as a fully attested one.
+   *
+   * Strict mode is where that has to stop: it must either verify the commit or
+   * say the evidence is missing. Recording ignorance is not verification.
+   */
+  it('release-strict rejects a registry package with no attested source commit', () => {
     const result = verifyUiSources({
       sources: adminSources(),
       manifestPath: adminManifest,
       root: rootPath,
       lockfile,
       expectedPairingCommit: pairing,
+      level: 'release-strict',
+    })
+    expect(result.errors.join('\n')).toMatch(
+      /sourceCommit is UNVERIFIED and no attestation was read for it/,
+    )
+  })
+
+  it('release-strict accepts the same document once attestations are supplied', () => {
+    const attested = attestationSources()
+    const sources = collectUiSources({
+      manifestPath: adminManifest,
+      root: rootPath,
+      declaredPairingCommit: pairing,
+      lockfile,
+      attestationSources: attested,
+    })
+    const result = verifyUiSources({
+      sources,
+      manifestPath: adminManifest,
+      root: rootPath,
+      lockfile,
+      expectedPairingCommit: pairing,
+      attestationSources: attested,
       level: 'release-strict',
     })
     expect(result.errors).toEqual([])
@@ -932,5 +1011,183 @@ describe('attested source commits', () => {
     expect(registry.every(source => source.sourceCommit === 'UNVERIFIED')).toBe(
       true,
     )
+  })
+})
+
+/**
+ * Reading the commits is a network path, so it is tested without one.
+ *
+ * `fetchAttestationSources` is what makes the strict check actionable: the
+ * document is written inside an offline Docker build and records `UNVERIFIED`,
+ * and only a verify step that actually fetches can turn that into evidence.
+ * A test that reached the real registry would be slow and would fail offline,
+ * so the transport is injected.
+ */
+describe('fetchAttestationSources', () => {
+  const attested = 'a8826dd1f81560aaf6459d8d40a3e599f705f6e0'
+
+  function attestationResponse(commit: string): unknown {
+    const payload = Buffer.from(
+      JSON.stringify({
+        predicateType: 'https://slsa.dev/provenance/v1',
+        predicate: {
+          buildDefinition: {
+            resolvedDependencies: [
+              {
+                uri: 'git+https://github.com/baicie/zeus-ui@refs/tags/v0.1.0-beta.34',
+                digest: { gitCommit: commit },
+              },
+            ],
+          },
+        },
+      }),
+    ).toString('base64')
+    return {
+      attestations: [
+        {
+          predicateType: 'https://slsa.dev/provenance/v1',
+          bundle: { dsseEnvelope: { payload } },
+        },
+      ],
+    }
+  }
+
+  it('reads the commit out of each package response', async () => {
+    const sources = await fetchAttestationSources({
+      packages: [{ name: '@zeus-web/button', version: '0.1.0-beta.34' }],
+      fetch: (async () =>
+        new Response(JSON.stringify(attestationResponse(attested)), {
+          status: 200,
+        })) as typeof globalThis.fetch,
+    })
+    expect(sources['@zeus-web/button@0.1.0-beta.34']).toEqual({
+      commit: attested,
+      repository: 'baicie/zeus-ui',
+    })
+  })
+
+  it('builds a URL the registry routes', async () => {
+    const seen: string[] = []
+    await fetchAttestationSources({
+      packages: [{ name: '@zeus-web/button', version: '0.1.0-beta.34' }],
+      fetch: (async (url: string | URL | Request) => {
+        seen.push(String(url))
+        return new Response('{}', { status: 404 })
+      }) as typeof globalThis.fetch,
+    })
+    /*
+     * The version separator must stay a literal `@`. Encoding the whole
+     * `name@version` turns it into `%40`, which the registry does not route —
+     * every package then 404s and looks unattested while the run reports
+     * "0/24 read", which reads like missing provenance rather than a broken
+     * URL.
+     */
+    expect(seen[0]).toBe(
+      'https://registry.npmjs.org/-/npm/v1/attestations/@zeus-web%2Fbutton@0.1.0-beta.34',
+    )
+  })
+
+  it('leaves a package unattested when the registry has no answer', async () => {
+    const sources = await fetchAttestationSources({
+      packages: [
+        { name: '@zeus-web/button', version: '0.1.0-beta.34' },
+        { name: '@zeus-web/gone', version: '9.9.9' },
+      ],
+      fetch: (async (url: string | URL | Request) =>
+        String(url).includes('gone')
+          ? new Response('not found', { status: 404 })
+          : new Response(JSON.stringify(attestationResponse(attested)), {
+              status: 200,
+            })) as typeof globalThis.fetch,
+    })
+    expect(Object.keys(sources)).toEqual(['@zeus-web/button@0.1.0-beta.34'])
+  })
+
+  it('survives a registry that throws', async () => {
+    const sources = await fetchAttestationSources({
+      packages: [{ name: '@zeus-web/button', version: '0.1.0-beta.34' }],
+      fetch: (async () => {
+        throw new Error('ECONNREFUSED')
+      }) as typeof globalThis.fetch,
+    })
+    expect(sources).toEqual({})
+  })
+})
+
+describe('fetchAttestationSources retries', () => {
+  const attested = 'a8826dd1f81560aaf6459d8d40a3e599f705f6e0'
+  const pkg = [{ name: '@zeus-web/button', version: '0.1.0-beta.34' }]
+
+  function ok(): Response {
+    const payload = Buffer.from(
+      JSON.stringify({
+        predicate: {
+          buildDefinition: {
+            resolvedDependencies: [
+              {
+                uri: 'git+https://github.com/baicie/zeus-ui@refs/tags/v0.1.0-beta.34',
+                digest: { gitCommit: attested },
+              },
+            ],
+          },
+        },
+      }),
+    ).toString('base64')
+    return new Response(
+      JSON.stringify({
+        attestations: [
+          {
+            predicateType: 'https://slsa.dev/provenance/v1',
+            bundle: { dsseEnvelope: { payload } },
+          },
+        ],
+      }),
+      { status: 200 },
+    )
+  }
+
+  /*
+   * A 5xx is not an answer about the package. Failing the gate on one would
+   * report a missing attestation that is in fact present — and the fix a
+   * maintainer would reach for (loosening the check) is the wrong one.
+   */
+  it('retries a 5xx and succeeds when the registry recovers', async () => {
+    let calls = 0
+    const sources = await fetchAttestationSources({
+      packages: pkg,
+      fetch: (async () => {
+        calls += 1
+        return calls < 3 ? new Response('busy', { status: 503 }) : ok()
+      }) as typeof globalThis.fetch,
+    })
+    expect(calls).toBe(3)
+    expect(sources['@zeus-web/button@0.1.0-beta.34']?.commit).toBe(attested)
+  })
+
+  /* A 404 *is* an answer, so it must not be retried. */
+  it('does not retry a 404', async () => {
+    let calls = 0
+    const sources = await fetchAttestationSources({
+      packages: pkg,
+      fetch: (async () => {
+        calls += 1
+        return new Response('not found', { status: 404 })
+      }) as typeof globalThis.fetch,
+    })
+    expect(calls).toBe(1)
+    expect(sources).toEqual({})
+  })
+
+  it('gives up after three failures and leaves the package unattested', async () => {
+    let calls = 0
+    const sources = await fetchAttestationSources({
+      packages: pkg,
+      fetch: (async () => {
+        calls += 1
+        return new Response('busy', { status: 500 })
+      }) as typeof globalThis.fetch,
+    })
+    expect(calls).toBe(3)
+    expect(sources).toEqual({})
   })
 })

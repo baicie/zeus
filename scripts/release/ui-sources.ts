@@ -485,6 +485,32 @@ export function verifyUiSources(options: {
             `${name}: sourceCommit ${String(claimed)} is not backed by an attestation read in this run; record UNVERIFIED or supply attestationSources`,
           )
         }
+      } else if (level === 'release-strict') {
+        /*
+         * `UNVERIFIED` used to pass here, and it was the only value the real
+         * pipeline ever produced: `build-info.ts` never supplies
+         * `attestationSources`, so every release document recorded that nothing
+         * was known and the strict gate reported the same green as a fully
+         * attested one. The rule was "a claimed commit must be backed"; a
+         * package that claimed nothing was skipped entirely.
+         *
+         * The document is written inside a Docker build, which has no network
+         * and must not gain one, so `UNVERIFIED` there is honest: the build
+         * genuinely does not know. Strict mode is where the gap closes — the
+         * verify step runs where the registry is reachable, so it must resolve
+         * the commit itself. A document that recorded ignorance is accepted
+         * only when this run actually read the attestation for it.
+         */
+        const attested = sourceCommitFields(
+          name,
+          want.version,
+          options.attestationSources,
+        )
+        if (attested.sourceCommit === 'UNVERIFIED') {
+          fail(
+            `${name}: sourceCommit is UNVERIFIED and no attestation was read for it in this run, so the published bytes are not bound to a zeus-ui commit`,
+          )
+        }
       }
     }
     if (got.kind === 'vendored' && want.kind === 'vendored') {
