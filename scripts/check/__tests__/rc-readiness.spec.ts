@@ -59,6 +59,12 @@ const ready: RcReadinessInput = {
     preventsSelfReview: true,
     adminsCanBypass: false,
     branchPolicy: 'custom',
+    /*
+     * The patterns, not just the mode. A `custom` policy whose contents were
+     * not read is a POLICY_LIMITATION under the rules, not a pass — the
+     * restriction exists and nobody has confirmed it covers releases.
+     */
+    allowedBranches: ['refs/tags/v*'],
   },
 }
 
@@ -109,7 +115,7 @@ describe('evaluateRcReadiness', () => {
       },
     })
     expect(report.blockers.join('\n')).toMatch(
-      /release-environment: the Release environment requires no reviewer/,
+      /release-environment: \[FAIL\] the Release environment requires no reviewer/,
     )
     expect(report.decision).toBe('NOT_READY')
   })
@@ -134,13 +140,15 @@ describe('evaluateRcReadiness', () => {
         preventsSelfReview: true,
         adminsCanBypass: false,
         branchPolicy: 'custom',
+        allowedBranches: ['refs/tags/v*'],
       },
     })
     expect(report.checks).toContainEqual({
       id: 'release-environment',
       status: 'pass',
       evidence:
-        'the Release environment requires approval from minato and prevents self-review',
+        'the Release environment requires approval from minato; the Release environment prevents self-review; repository admins cannot bypass the Release environment protection; the Release environment allows deployment from refs/tags/v*',
+      policyVersion: 'zeus.release-policy/v1',
     })
   })
 
