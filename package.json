@@ -198,6 +198,8 @@
     "@typescript/native-preview": "7.0.0-dev.20260621.1",
     "@vitest/coverage-v8": "^4.1.9",
     "@vitest/eslint-plugin": "^1.6.20",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
     "dts-bundle-generator": "^9.5.1",
     "enquirer": "^2.4.1",
     "eslint": "^10.5.0",

@@ -78,44 +78,32 @@ describe('SBOM scope', () => {
     ).toBeGreaterThan(0)
   })
 
-  it('the committed SBOM lists no third-party runtime dependency', () => {
+  it('the committed SBOM now includes third-party components', () => {
+    /*
+     * This test used to assert the opposite: that the document listed no
+     * third-party dependency. That was a description of the defect — the SBOM
+     * only covered workspace packages and could not answer "what will a
+     * consumer install". Vendored libraries are now standard components, so the
+     * assertion is inverted to match the contract the SBOM is supposed to meet.
+     */
     const sbomPath = path.join(root, 'temp/sbom/zeus.cdx.json')
     if (!fs.existsSync(sbomPath)) return
     const sbom = JSON.parse(fs.readFileSync(sbomPath, 'utf8')) as {
       components?: { name?: string }[]
     }
     const names = (sbom.components ?? []).map(component => component.name ?? '')
-    /*
-     * Everything in the document today is a workspace package, whatever its
-     * namespace: `@zeus-js/*`, `@zeus-bench/*`, `@zeus-ui/*`, `create-zeus`,
-     * `zeus-ui`. None of the 11 third-party dependencies the published
-     * packages declare appear.
-     */
-    const workspace = new Set<string>()
-    const collect = (directory: string): void => {
-      for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-        if (entry.name === 'node_modules') continue
-        const absolute = path.join(directory, entry.name)
-        if (entry.isDirectory()) {
-          collect(absolute)
-          continue
-        }
-        if (entry.name !== 'package.json') continue
-        const manifest = JSON.parse(fs.readFileSync(absolute, 'utf8')) as {
-          name?: string
-        }
-        if (manifest.name) workspace.add(manifest.name)
-      }
-    }
-    for (const base of ['packages', 'benchmarks', 'examples', 'docs']) {
-      const directory = path.join(root, base)
-      if (fs.existsSync(directory)) collect(directory)
-    }
-    const notWorkspace = names.filter(name => !workspace.has(name))
+    const thirdParty = names.filter(
+      name =>
+        !name.startsWith('@zeus-js/') &&
+        !name.startsWith('@zeus-bench/') &&
+        !name.startsWith('@zeus-ui/') &&
+        name !== 'create-zeus' &&
+        name !== 'zeus-ui',
+    )
     expect(
-      notWorkspace,
-      'the SBOM only covers workspace packages; a third-party name here would mean the gap closed',
-    ).toEqual([])
+      thirdParty.length,
+      'third-party libraries must appear as components; the SBOM is not a bill of materials without them',
+    ).toBeGreaterThan(0)
   })
 })
 
@@ -124,7 +112,7 @@ describe('SBOM scope', () => {
  */
 import {
   collectRuntimeDependencies,
-  runtimeDependenciesMatch,
+  dependencyGraphProblems,
 } from '../check-sbom'
 
 describe('collectRuntimeDependencies', () => {
@@ -204,68 +192,103 @@ importers:
   })
 })
 
-describe('runtimeDependenciesMatch', () => {
+describe('dependency graph equivalence', () => {
+  /*
+   * These replaced a matcher over a custom `zeus:runtimeDependencies` field,
+   * which the CycloneDX schema rejects. The property under test is the same —
+   * a document must list exactly the libraries the lockfile implies — but it is
+   * now read from standard `components` and `dependencies`.
+   */
+  const workspace = [
+    {
+      type: 'library' as const,
+      name: '@zeus-js/zeus',
+      version: '1.0.0',
+      'bom-ref': '@zeus-js/zeus@1.0.0',
+    },
+    {
+      type: 'library' as const,
+      name: '@zeus-js/i18n',
+      version: '1.0.0',
+      'bom-ref': '@zeus-js/i18n@1.0.0',
+    },
+  ]
   const expected = [
     { name: 'a', version: '1.0.0', requiredBy: ['@zeus-js/zeus'] },
     { name: 'b', version: '2.0.0', requiredBy: ['@zeus-js/i18n'] },
   ]
+  const names = ['@zeus-js/zeus', '@zeus-js/i18n']
+
+  function document(
+    overrides: {
+      components?: unknown[]
+      dependencies?: unknown[]
+    } = {},
+  ) {
+    return {
+      bomFormat: 'CycloneDX',
+      specVersion: '1.5',
+      version: 1,
+      metadata: { timestamp: '1970-01-01T00:00:00.000Z', tools: [] },
+      components: overrides.components ?? [
+        ...workspace,
+        ...expected.map(entry => ({
+          type: 'library' as const,
+          name: entry.name,
+          version: entry.version,
+          'bom-ref': `${entry.name}@${entry.version}`,
+        })),
+      ],
+      dependencies: overrides.dependencies ?? [
+        { ref: '@zeus-js/zeus@1.0.0', dependsOn: ['a@1.0.0'] },
+        { ref: '@zeus-js/i18n@1.0.0', dependsOn: ['b@2.0.0'] },
+        { ref: 'a@1.0.0', dependsOn: [] },
+        { ref: 'b@2.0.0', dependsOn: [] },
+      ],
+    }
+  }
 
   it('accepts a document that lists exactly the lockfile set', () => {
-    expect(
-      runtimeDependenciesMatch(
-        { 'zeus:runtimeDependencies': expected },
-        expected,
-      ),
-    ).toBe(true)
-  })
-
-  it('is order-independent', () => {
-    expect(
-      runtimeDependenciesMatch(
-        { 'zeus:runtimeDependencies': [...expected].reverse() },
-        expected,
-      ),
-    ).toBe(true)
+    expect(dependencyGraphProblems(document(), expected, names)).toEqual([])
   })
 
   it('rejects a missing dependency', () => {
-    expect(
-      runtimeDependenciesMatch(
-        { 'zeus:runtimeDependencies': expected.slice(0, 1) },
-        expected,
-      ),
-    ).toBe(false)
+    const doc = document({
+      components: [
+        ...workspace,
+        { type: 'library', name: 'a', version: '1.0.0', 'bom-ref': 'a@1.0.0' },
+      ],
+      dependencies: [
+        { ref: '@zeus-js/zeus@1.0.0', dependsOn: ['a@1.0.0'] },
+        { ref: '@zeus-js/i18n@1.0.0', dependsOn: [] },
+        { ref: 'a@1.0.0', dependsOn: [] },
+      ],
+    })
+    expect(dependencyGraphProblems(doc, expected, names).join('\n')).toMatch(
+      /b@2\.0\.0/,
+    )
   })
 
   it('rejects an extra dependency', () => {
-    expect(
-      runtimeDependenciesMatch(
-        {
-          'zeus:runtimeDependencies': [
-            ...expected,
-            { name: 'c', version: '3.0.0', requiredBy: [] },
-          ],
-        },
-        expected,
-      ),
-    ).toBe(false)
+    const doc = document()
+    doc.components.push({
+      type: 'library' as const,
+      name: 'c',
+      version: '3.0.0',
+      'bom-ref': 'c@3.0.0',
+    })
+    expect(dependencyGraphProblems(doc, expected, names).join('\n')).toMatch(
+      /not implied by the lockfile/,
+    )
   })
 
   it('rejects a version that drifted', () => {
+    const drifted = [
+      { name: 'a', version: '9.9.9', requiredBy: ['@zeus-js/zeus'] },
+      expected[1]!,
+    ]
     expect(
-      runtimeDependenciesMatch(
-        {
-          'zeus:runtimeDependencies': [
-            { name: 'a', version: '9.9.9', requiredBy: [] },
-            expected[1]!,
-          ],
-        },
-        expected,
-      ),
-    ).toBe(false)
-  })
-
-  it('rejects a document with no runtime section when one is expected', () => {
-    expect(runtimeDependenciesMatch({}, expected)).toBe(false)
+      dependencyGraphProblems(document(), drifted, names).join('\n'),
+    ).toMatch(/missing component.*a@9\.9\.9/)
   })
 })
