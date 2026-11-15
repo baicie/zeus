@@ -1,6 +1,6 @@
 {
   "schema": "zeus.rc-manifest/v1",
-  "generatedAt": "2026-11-14T21:57:55.745Z",
+  "generatedAt": "2026-11-15T00:41:26.800Z",
   "blockerCategories": {
     "code": [],
     "release-process": [
@@ -13,14 +13,14 @@
       "webc-studio build-info names ui ffde5592, frozen ui is 89fc93ca"
     ],
     "evidence": [
-      "demo pairing names 69f494f2+89fc93ca, tree is 96ceb447+89fc93ca",
+      "demo pairing names 69f494f2+89fc93ca, tree is 49e8446c+89fc93ca",
       "rc-readiness: NOT_READY; not passing: packed-consumers, create-zeus, cross-platform, release-approval, online-products",
       "evidence not produced: release-approval, online-products, product-signoff, byok-live-gateway"
     ]
   },
   "repositories": {
     "core": {
-      "commit": "96ceb447b92be66ed35152d72d2a5681438e6211",
+      "commit": "49e8446cd328eaec77d03aee799d878ac337c8b1",
       "version": "0.1.1-beta.20"
     },
     "ui": {
@@ -687,7 +687,7 @@
       "check": "cross-platform-evidence",
       "status": "PASS",
       "source": "temp/cross-platform/evidence.json",
-      "detail": "validated artifact, digest sha256:f02c7e5343b1470ba8058a9ad5871c457d97057967705f4150d9eba0002544a2"
+      "detail": "validated artifact, digest sha256:ee76208e18c30dfe1cdfe0bac9ff2ceafc72f327a16cac194f06ec01bd3a7bc7"
     },
     {
       "check": "release-approval",
@@ -715,7 +715,7 @@
     }
   ],
   "blockers": [
-    "demo pairing names 69f494f2+89fc93ca, tree is 96ceb447+89fc93ca",
+    "demo pairing names 69f494f2+89fc93ca, tree is 49e8446c+89fc93ca",
     "rc-readiness: NOT_READY; not passing: packed-consumers, create-zeus, cross-platform, release-approval, online-products",
     "versions are core 0.1.1-beta.20 / ui 0.1.0-beta.35, not 0.2.0-rc.0",
     "admin build-info names ui ffde5592, frozen ui is 89fc93ca",
