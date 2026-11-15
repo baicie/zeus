@@ -1,0 +1,20 @@
+# actionlint configuration for this repository.
+#
+# The gate exists because of #292: an invented `permissions` key
+# (`administration: read`) made GitHub reject two workflow files outright. The
+# runs concluded `failure` in 0s with zero jobs and appeared in the runs list
+# under their file path rather than their `name` — and `gh pr checks` showed no
+# failure at all, so the branch looked blocked for a different reason.
+#
+# Everything configured here is a verified false positive of actionlint 1.7.12,
+# not a relaxation of a real rule:
+#
+# - `zeus-host` is a self-hosted runner label. actionlint cannot enumerate
+#   self-hosted labels, so they must be declared.
+# - `concurrency.queue` is accepted by GitHub: `release-canary.yml` uses it and
+#   runs to success with 12 jobs. A genuinely invalid key in that section fails
+#   the workflow before any job is created, which is exactly what does not
+#   happen here.
+self-hosted-runner:
+  labels:
+    - zeus-host

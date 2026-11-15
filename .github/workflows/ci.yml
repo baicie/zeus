@@ -200,6 +200,36 @@ jobs:
       - name: Generate SBOM
         run: pnpm check:sbom:write
 
+      # Structure of every workflow file, as GitHub's own schema sees it.
+      #
+      # #292 added `administration: read` to a `permissions` block. The YAML
+      # parsed, so nothing here caught it; GitHub rejected both files before
+      # creating a job, the runs failed in 0s with zero jobs, and `gh pr checks`
+      # reported no failure at all. `actionlint` is the only check that sees
+      # this class, and it runs before the expensive jobs rather than after.
+      - name: Install actionlint
+        run: |
+          # Pinned: a new actionlint release can add rules, and an unrelated
+          # rule appearing should be a deliberate upgrade, not a surprise red.
+          #
+          # Downloaded directly with a checksum rather than through rhysd's
+          # install script, whose argument handling printed usage and exited
+          # instead of installing. The checksums file ships with the release, so
+          # a tampered archive fails here rather than running.
+          VERSION=1.7.12
+          ARCHIVE="actionlint_${VERSION}_linux_amd64.tar.gz"
+          BASE="https://github.com/rhysd/actionlint/releases/download/v${VERSION}"
+          mkdir -p "$RUNNER_TEMP/actionlint"
+          curl -fsSL "${BASE}/${ARCHIVE}" -o "$RUNNER_TEMP/${ARCHIVE}"
+          curl -fsSL "${BASE}/actionlint_${VERSION}_checksums.txt" -o "$RUNNER_TEMP/checksums.txt"
+          ( cd "$RUNNER_TEMP" && grep " ${ARCHIVE}\$" checksums.txt | sha256sum -c - )
+          tar -xzf "$RUNNER_TEMP/${ARCHIVE}" -C "$RUNNER_TEMP/actionlint" actionlint
+          echo "$RUNNER_TEMP/actionlint" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/actionlint/actionlint" --version
+
+      - name: Workflow structure
+        run: pnpm check:workflows
+
       - name: ESLint
         run: pnpm lint
 
