@@ -413,6 +413,12 @@ jobs:
   # the per-job setup amortised over several gates.
   packed-consumers:
     needs: impact
+    permissions:
+      contents: read
+      # The RC readiness report reads the Release environment's protection
+      # rules. That endpoint requires `administration: read`, which the global
+      # `contents: read` does not grant. Read-only, and only on this job.
+      administration: read
     if: needs.impact.outputs.packed-consumers == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -460,6 +466,17 @@ jobs:
 
       - name: RC readiness report
         if: always()
+        env:
+          # Reading the Release environment needs `administration: read`; the
+          # workflow's default token has `contents: read` only, so without an
+          # explicit token the probe fails and the check reports `not_run` —
+          # which is correct but tells a maintainer nothing about the policy.
+          #
+          # The token is the workflow's own, scoped at the job level to the one
+          # extra read permission. It is never a PAT, never has write access,
+          # and never reaches a log: `gh` reads it from the environment and the
+          # probe never prints it.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: pnpm check:create-zeus && pnpm check:create-zeus-packed && pnpm check:rc-readiness
         continue-on-error: true
       - name: Preserve RC readiness report

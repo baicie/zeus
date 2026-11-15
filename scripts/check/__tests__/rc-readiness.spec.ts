@@ -17,8 +17,11 @@ import {
   evaluateRcReadiness,
   evaluateReportEvidence,
   evaluateSbom,
+  readReleaseEnvironment,
   type RcReadinessInput,
 } from '../rc-readiness'
+
+import type { execFileSync } from 'node:child_process'
 
 const pass = (evidence: string) => ({ status: 'pass' as const, evidence })
 
@@ -50,8 +53,12 @@ const ready: RcReadinessInput = {
    * that check, which is the behaviour under test elsewhere.
    */
   releaseEnvironment: {
+    state: 'read',
     hasRequiredReviewers: true,
     reviewers: ['minato'],
+    preventsSelfReview: true,
+    adminsCanBypass: false,
+    branchPolicy: 'custom',
   },
 }
 
@@ -92,7 +99,14 @@ describe('evaluateRcReadiness', () => {
   it('fails when the Release environment requires no reviewer', () => {
     const report = evaluateRcReadiness({
       ...ready,
-      releaseEnvironment: { hasRequiredReviewers: false },
+      releaseEnvironment: {
+        state: 'read',
+        hasRequiredReviewers: false,
+        reviewers: [],
+        preventsSelfReview: false,
+        adminsCanBypass: true,
+        branchPolicy: 'none',
+      },
     })
     expect(report.blockers.join('\n')).toMatch(
       /release-environment: the Release environment requires no reviewer/,
@@ -114,16 +128,70 @@ describe('evaluateRcReadiness', () => {
     const report = evaluateRcReadiness({
       ...ready,
       releaseEnvironment: {
+        state: 'read',
         hasRequiredReviewers: true,
         reviewers: ['minato'],
+        preventsSelfReview: true,
+        adminsCanBypass: false,
+        branchPolicy: 'custom',
       },
     })
     expect(report.checks).toContainEqual({
       id: 'release-environment',
       status: 'pass',
-      evidence: 'the Release environment requires approval from minato',
+      evidence:
+        'the Release environment requires approval from minato and prevents self-review',
     })
   })
+
+  /*
+   * Required reviewers alone do not make a gate. If the person who triggered
+   * the run can approve it, the "second person" is the first; if admins bypass
+   * the rules, the gate binds only those who did not need it.
+   */
+  it('fails when the requester can approve their own run', () => {
+    const report = evaluateRcReadiness({
+      ...ready,
+      releaseEnvironment: {
+        state: 'read',
+        hasRequiredReviewers: true,
+        reviewers: ['minato'],
+        preventsSelfReview: false,
+        adminsCanBypass: false,
+        branchPolicy: 'custom',
+      },
+    })
+    expect(report.blockers.join('\n')).toMatch(
+      /allows the requester to approve their own run/,
+    )
+  })
+
+  /*
+   * Every way of not knowing must stay `not_run`. Collapsing them into one
+   * value — which the previous version did — makes a missing credential look
+   * like a policy decision.
+   */
+  const unreadStates = [
+    'not_configured',
+    'unauthorized',
+    'network_error',
+    'tool_missing',
+    'skipped',
+  ] as const
+  for (const state of unreadStates) {
+    it(`reports ${state} as not_run, never pass`, () => {
+      const report = evaluateRcReadiness({
+        ...ready,
+        releaseEnvironment: { state, detail: `probe said ${state}` },
+      })
+      const check = report.checks.find(
+        entry => entry.id === 'release-environment',
+      )
+      expect(check?.status).toBe('not_run')
+      expect(check?.evidence).toContain(state)
+      expect(report.decision).toBe('NOT_READY')
+    })
+  }
 
   it('reports stale evidence and secrets independently', () => {
     const report = evaluateRcReadiness({
@@ -772,5 +840,148 @@ describe('SBOM validation beyond a component count', () => {
     expect(evaluateSbom(doc, expected).errors.join('\n')).toMatch(
       /dangling|missing component/,
     )
+  })
+})
+
+/**
+ * The probe itself, not just what the readiness gate does with its result.
+ *
+ * `readReleaseEnvironment` shells out to `gh`. The previous version wrapped
+ * that in a bare `catch { return undefined }`, so a missing token, a 403, a
+ * timeout and a genuinely unprotected environment all looked identical. These
+ * tests drive the real function with an injected `gh` and assert each case is
+ * distinguishable.
+ */
+describe('readReleaseEnvironment', () => {
+  const tokenEnv = { GH_TOKEN: 'test-token' } as NodeJS.ProcessEnv
+
+  function ghReturning(body: unknown) {
+    return (() => JSON.stringify(body)) as unknown as typeof execFileSync
+  }
+
+  function ghFailing(message: string, code?: string) {
+    return (() => {
+      const error = new Error(message) as Error & {
+        stderr?: string
+        code?: string
+      }
+      error.stderr = message
+      if (code) error.code = code
+      throw error
+    }) as unknown as typeof execFileSync
+  }
+
+  it('reads required reviewers, self-review and bypass from the API', () => {
+    const probe = readReleaseEnvironment(
+      tokenEnv,
+      ghReturning({
+        can_admins_bypass: true,
+        protection_rules: [
+          {
+            type: 'required_reviewers',
+            prevent_self_review: true,
+            reviewers: [{ reviewer: { login: 'minato' } }],
+          },
+          { type: 'branch_policy' },
+        ],
+        deployment_branch_policy: { custom_branch_policies: true },
+      }),
+    )
+    expect(probe).toMatchObject({
+      state: 'read',
+      hasRequiredReviewers: true,
+      reviewers: ['minato'],
+      preventsSelfReview: true,
+      adminsCanBypass: true,
+      branchPolicy: 'custom',
+    })
+  })
+
+  it('treats a missing prevent_self_review as allowing self-review', () => {
+    const probe = readReleaseEnvironment(
+      tokenEnv,
+      ghReturning({
+        protection_rules: [
+          {
+            type: 'required_reviewers',
+            reviewers: [{ reviewer: { login: 'minato' } }],
+          },
+        ],
+      }),
+    )
+    expect(probe.state).toBe('read')
+    if (probe.state !== 'read') return
+    expect(probe.preventsSelfReview).toBe(false)
+  })
+
+  it('distinguishes an unprotected environment from an unreadable one', () => {
+    const probe = readReleaseEnvironment(
+      tokenEnv,
+      ghReturning({ protection_rules: [] }),
+    )
+    expect(probe).toMatchObject({
+      state: 'read',
+      hasRequiredReviewers: false,
+    })
+  })
+
+  it('reports a missing token as unauthorized, not as missing protection', () => {
+    const probe = readReleaseEnvironment({} as NodeJS.ProcessEnv)
+    expect(probe.state).toBe('unauthorized')
+    expect('GH_TOKEN' in probe || JSON.stringify(probe)).toMatch(/GH_TOKEN/)
+  })
+
+  it('reports a 404 as not_configured', () => {
+    const probe = readReleaseEnvironment(
+      tokenEnv,
+      ghFailing('gh: Not Found (HTTP 404)'),
+    )
+    expect(probe.state).toBe('not_configured')
+  })
+
+  it('reports a 403 as unauthorized', () => {
+    const probe = readReleaseEnvironment(
+      tokenEnv,
+      ghFailing('gh: Forbidden (HTTP 403)'),
+    )
+    expect(probe.state).toBe('unauthorized')
+  })
+
+  it('reports a missing gh binary as tool_missing', () => {
+    const probe = readReleaseEnvironment(
+      tokenEnv,
+      ghFailing('spawn gh ENOENT', 'ENOENT'),
+    )
+    expect(probe.state).toBe('tool_missing')
+  })
+
+  it('reports an unparseable body as a network error', () => {
+    const probe = readReleaseEnvironment(
+      tokenEnv,
+      (() => '<html>gateway timeout</html>') as unknown as typeof execFileSync,
+    )
+    expect(probe.state).toBe('network_error')
+  })
+
+  it('passes the token to gh explicitly rather than inheriting it', () => {
+    let seen: NodeJS.ProcessEnv | undefined
+    const run = ((
+      _cmd: string,
+      _args: string[],
+      options: { env: NodeJS.ProcessEnv },
+    ) => {
+      seen = options.env
+      return JSON.stringify({ protection_rules: [] })
+    }) as unknown as typeof execFileSync
+    readReleaseEnvironment(tokenEnv, run)
+    expect(seen?.GH_TOKEN).toBe('test-token')
+  })
+
+  it('honours an explicit skip without pretending protection exists', () => {
+    const probe = readReleaseEnvironment(
+      { ZEUS_SKIP_ENVIRONMENT_PROBE: '1' } as NodeJS.ProcessEnv,
+      ghReturning({ protection_rules: [] }),
+    )
+    expect(probe.state).toBe('skipped')
   })
 })

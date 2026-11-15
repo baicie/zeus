@@ -101,16 +101,178 @@ export interface RcEvidenceStatuses {
 }
 
 /**
+ * What the environment probe found, and why it matters.
+ *
+ * The previous version collapsed every failure into `undefined`: a missing
+ * `gh`, an expired token, a 403, a network timeout and a genuinely unprotected
+ * environment all produced the same value, and the only thing a caller could
+ * say was "not read". Those are four different problems with four different
+ * fixes, and reporting them as one is how a missing credential gets mistaken
+ * for a policy decision.
+ */
+export type ReleaseEnvironmentProbe =
+  | {
+      readonly state: 'read'
+      readonly hasRequiredReviewers: boolean
+      readonly reviewers: readonly string[]
+      /**
+       * Whether GitHub will let the same person who triggered the run approve
+       * it. `true` means required reviewers can be satisfied by the requester.
+       */
+      readonly preventsSelfReview: boolean
+      /** Whether repository admins can deploy without satisfying the rules. */
+      readonly adminsCanBypass: boolean
+      /** Branch policy attached to the environment, if any. */
+      readonly branchPolicy: 'protected' | 'custom' | 'none'
+    }
+  | { readonly state: 'not_configured'; readonly detail: string }
+  | { readonly state: 'unauthorized'; readonly detail: string }
+  | { readonly state: 'network_error'; readonly detail: string }
+  | { readonly state: 'tool_missing'; readonly detail: string }
+  | { readonly state: 'skipped'; readonly detail: string }
+
+/**
+ * Reads the `Release` environment's protection, distinguishing why it failed.
+ *
+ * `gh` needs a token to read environments; without one it reports an
+ * authentication error, which is not the same as "no protection". The caller
+ * passes `GH_TOKEN` explicitly rather than relying on whatever `gh` happens to
+ * have inherited — a CI job that forgets to pass it must produce
+ * `unauthorized`, not a silent `undefined`.
+ */
+export function readReleaseEnvironment(
+  env: NodeJS.ProcessEnv,
+  run: typeof execFileSync = execFileSync,
+): ReleaseEnvironmentProbe {
+  if (env.ZEUS_SKIP_ENVIRONMENT_PROBE === '1') {
+    return {
+      state: 'skipped',
+      detail: 'ZEUS_SKIP_ENVIRONMENT_PROBE=1 was set by the caller',
+    }
+  }
+  const repository = env.ZEUS_REPOSITORY ?? 'baicie/zeus'
+  const token = env.GH_TOKEN ?? env.GITHUB_TOKEN
+  if (!token) {
+    /*
+     * `gh` would fall back to its own keyring, which exists on a developer
+     * machine and does not in CI. Saying so explicitly means a local run
+     * without credentials reports a reason rather than looking like a policy
+     * result.
+     */
+    return {
+      state: 'unauthorized',
+      detail:
+        'no GH_TOKEN or GITHUB_TOKEN in the environment; gh cannot read environment protection',
+    }
+  }
+
+  let raw: string
+  try {
+    raw = run('gh', ['api', `repos/${repository}/environments/Release`], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 15_000,
+      env: { ...env, GH_TOKEN: token, GITHUB_TOKEN: token },
+    }) as string
+  } catch (error) {
+    const failure = error as {
+      code?: unknown
+      stderr?: unknown
+      message?: string
+    }
+    const stderr = typeof failure.stderr === 'string' ? failure.stderr : ''
+    const message = failure.message ?? ''
+    if ((failure.code as string) === 'ENOENT') {
+      return { state: 'tool_missing', detail: 'gh is not installed' }
+    }
+    // gh surfaces HTTP status in its stderr; 404 is "no such environment".
+    if (/HTTP 404|Not Found/i.test(stderr)) {
+      return {
+        state: 'not_configured',
+        detail: `environment Release does not exist in ${repository}`,
+      }
+    }
+    if (/HTTP 40[13]|Bad credentials|authentication|forbidden/i.test(stderr)) {
+      return {
+        state: 'unauthorized',
+        detail: `gh could not read ${repository} environments: ${stderr.trim().slice(0, 200)}`,
+      }
+    }
+    return {
+      state: 'network_error',
+      detail: `gh failed: ${(stderr || message).trim().slice(0, 200)}`,
+    }
+  }
+
+  let parsed: Record<string, unknown>
+  try {
+    parsed = JSON.parse(raw) as Record<string, unknown>
+  } catch {
+    return {
+      state: 'network_error',
+      detail: 'gh returned a body that is not JSON',
+    }
+  }
+
+  const rules = Array.isArray(parsed.protection_rules)
+    ? parsed.protection_rules
+    : []
+  const reviewers: string[] = []
+  let hasRequiredReviewers = false
+  let preventsSelfReview = false
+  for (const rule of rules) {
+    if (!isRecord(rule)) continue
+    if (rule.type !== 'required_reviewers') continue
+    hasRequiredReviewers = true
+    /*
+     * Absent means GitHub's default, which is to allow self-review. Reading it
+     * as "prevented" because the field is missing would report a protection
+     * that is not there.
+     */
+    preventsSelfReview = rule.prevent_self_review === true
+    const entries = Array.isArray(rule.reviewers) ? rule.reviewers : []
+    for (const entry of entries) {
+      if (isRecord(entry) && isRecord(entry.reviewer)) {
+        const login = entry.reviewer.login
+        if (typeof login === 'string') reviewers.push(login)
+      }
+    }
+  }
+
+  const policy = parsed.deployment_branch_policy
+  const branchPolicy: 'protected' | 'custom' | 'none' = !isRecord(policy)
+    ? 'none'
+    : policy.custom_branch_policies === true
+      ? 'custom'
+      : policy.protected_branches === true
+        ? 'protected'
+        : 'none'
+
+  return {
+    state: 'read',
+    hasRequiredReviewers,
+    reviewers,
+    preventsSelfReview,
+    adminsCanBypass: parsed.can_admins_bypass !== false,
+    branchPolicy,
+  }
+}
+
+/**
  * The `Release` environment must require a reviewer, not merely be named.
  *
  * Naming an environment in a workflow does nothing on its own. The protection
  * lives on the environment's configuration, and a workflow that references an
  * unprotected one runs without anyone approving it.
+ *
+ * Required reviewers alone are not enough: if the requester can approve their
+ * own run, the "second person" is the same person, and if admins bypass the
+ * rules then the gate holds only for people who did not need it.
  */
 function checkReleaseEnvironment(
-  input: RcReadinessInput['releaseEnvironment'],
+  probe: ReleaseEnvironmentProbe | undefined,
 ): ReadinessCheck {
-  if (!input) {
+  if (!probe) {
     return {
       id: 'release-environment',
       status: 'not_run',
@@ -118,7 +280,23 @@ function checkReleaseEnvironment(
         'the Release environment protection was not read; the approval claim is unverified',
     }
   }
-  if (!input.hasRequiredReviewers) {
+  if (probe.state !== 'read') {
+    /*
+     * Every non-`read` state stays `not_run`. An unreadable environment is not
+     * evidence of protection, and it is not evidence of its absence either —
+     * it is an unanswered question, and a release cannot proceed on one.
+     */
+    const detail =
+      probe.state === 'skipped'
+        ? probe.detail
+        : `${probe.state}: ${probe.detail}`
+    return {
+      id: 'release-environment',
+      status: 'not_run',
+      evidence: `the Release environment protection could not be read (${detail})`,
+    }
+  }
+  if (!probe.hasRequiredReviewers) {
     return {
       id: 'release-environment',
       status: 'fail',
@@ -126,10 +304,21 @@ function checkReleaseEnvironment(
         'the Release environment requires no reviewer, so an approval artifact can be produced without a second person',
     }
   }
+  if (!probe.preventsSelfReview) {
+    return {
+      id: 'release-environment',
+      status: 'fail',
+      evidence:
+        'the Release environment allows the requester to approve their own run, so the second person can be the first',
+    }
+  }
+  const who = probe.reviewers.join(', ') || 'a reviewer'
   return {
     id: 'release-environment',
     status: 'pass',
-    evidence: `the Release environment requires approval from ${(input.reviewers ?? []).join(', ') || 'a reviewer'}`,
+    evidence:
+      `the Release environment requires approval from ${who} and prevents self-review` +
+      (probe.adminsCanBypass ? ' (repository admins can bypass)' : ''),
   }
 }
 
@@ -168,10 +357,7 @@ export interface RcReadinessInput {
    * Absent means the check was not run and reports `not_run`, which is not a
    * pass: a release whose only protection is a claim about protection has none.
    */
-  readonly releaseEnvironment?: {
-    readonly hasRequiredReviewers: boolean
-    readonly reviewers?: readonly string[]
-  }
+  readonly releaseEnvironment?: ReleaseEnvironmentProbe
 }
 
 export interface RcReadinessReport {
@@ -890,60 +1076,6 @@ export function readRcReadinessInput(
     crossPlatform: evidenceStatuses.crossPlatform,
     releaseApproval: evidenceStatuses.releaseApproval,
     releaseEnvironment: readReleaseEnvironment(env),
-  }
-}
-
-/**
- * Reads whether the `Release` environment is actually protected.
- *
- * `gh api repos/{owner}/{repo}/environments/Release` reports `protection_rules`.
- * An empty array means the environment exists and gates nothing: the workflows
- * that name it start immediately, and `rc-approval.yml`'s "runs behind the
- * protected environment (required reviewers)" is a description of an intent
- * rather than of the configuration.
- *
- * Returns `undefined` when the answer cannot be obtained — no `gh`, no
- * network, no permission. That is `not_run`, not a pass, because the whole
- * point of the check is that a claim of protection must be confirmed.
- */
-function readReleaseEnvironment(
-  env: NodeJS.ProcessEnv,
-): RcReadinessInput['releaseEnvironment'] {
-  if (env.ZEUS_SKIP_ENVIRONMENT_PROBE === '1') return undefined
-  try {
-    const raw = execFileSync(
-      'gh',
-      [
-        'api',
-        `repos/${env.ZEUS_REPOSITORY ?? 'baicie/zeus'}/environments/Release`,
-      ],
-      {
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-        timeout: 15_000,
-      },
-    )
-    const parsed = JSON.parse(raw) as { protection_rules?: unknown }
-    const rules = Array.isArray(parsed.protection_rules)
-      ? parsed.protection_rules
-      : []
-    const reviewers: string[] = []
-    let hasRequiredReviewers = false
-    for (const rule of rules) {
-      if (!isRecord(rule)) continue
-      if (rule.type !== 'required_reviewers') continue
-      hasRequiredReviewers = true
-      const entries = Array.isArray(rule.reviewers) ? rule.reviewers : []
-      for (const entry of entries) {
-        if (isRecord(entry) && isRecord(entry.reviewer)) {
-          const login = entry.reviewer.login
-          if (typeof login === 'string') reviewers.push(login)
-        }
-      }
-    }
-    return { hasRequiredReviewers, ...(reviewers.length ? { reviewers } : {}) }
-  } catch {
-    return undefined
   }
 }
 

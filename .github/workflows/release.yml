@@ -26,6 +26,10 @@ jobs:
       contents: write
       actions: read
       id-token: write
+      # `release:precheck` runs `check:rc-readiness`, which reads the Release
+      # environment's protection rules to confirm the approval gate it just
+      # passed through actually exists. That read needs `administration: read`.
+      administration: read
     environment: Release
     outputs:
       version: ${{ steps.release-version.outputs.version }}
@@ -192,6 +196,11 @@ jobs:
           --out temp/release
 
       - name: Release precheck
+        env:
+          # The same token the release job already holds, passed to `gh` so the
+          # environment probe can read protection rules. `gh` takes it from the
+          # environment; nothing prints it.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: pnpm release:precheck
 
       - name: Prepare Core candidate tarballs and UI overrides
