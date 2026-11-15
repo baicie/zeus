@@ -6,6 +6,13 @@
  * caller — it reads a `build-info.json`, a `package.json` and `pnpm-lock.yaml`,
  * and fails the process rather than printing a report nobody reads.
  *
+ * It also has to *read* what it verifies. The document is written inside a
+ * Docker build with no network, so it records `sourceCommit: UNVERIFIED` for
+ * every registry package — honest there, but `UNVERIFIED` also used to satisfy
+ * strict mode, which made the gate green for a document that bound nothing.
+ * `--read-attestations` fetches the SLSA v1 commit for each package so the
+ * strict check has evidence to compare rather than a record of ignorance.
+ *
  * It deliberately re-reads the lockfile instead of trusting one recorded in the
  * document. Verifying a build against a lockfile other than the one it was
  * built from would pass a document whose bytes came from somewhere else.
@@ -212,8 +219,7 @@ function main(): void {
      * check silently passing on a document that never looked.
      */
     let attestationSources:
-      | Record<string, { commit: string; repository: string }>
-      | undefined
+      Record<string, { commit: string; repository: string }> | undefined
     if (values['read-attestations']) {
       const sources = (buildInfo as { uiSources?: UiSources }).uiSources
       const registry = (sources?.sources ?? []).filter(
