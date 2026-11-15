@@ -106,12 +106,12 @@ ui provenance (release-strict) ok
 
 ### 3.2 仍未验证
 
-| 关系                                                            | 状态                                                                                   |
-| --------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| Contract 里说的是「发布 workflow 签的」到「这个 commit 构建的」 | 已验证（`resolvedDependencies`）                                                       |
-| 该 commit 在 UI 仓确实存在且是 `v0.1.0-beta.34`                 | 已在上一轮核实（本地 `git rev-parse`），本轮未重复                                     |
-| UI 仓 `0.1.0-beta.35` 与 registry `beta.34` 的关系              | **UNVERIFIED** — 本地 main 是 beta.35，registry 最高 beta.34，Admin 依赖 registry 版本 |
-| `ZEUS_UI_COMMIT` = `ffde5592` 的正确性                          | **UNVERIFIED** — 与包实际来源 `a8826dd1` 不一致（ffde5592 更新 14 个提交）             |
+| 关系                                                            | 状态                                                                                                                                                                                        |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Contract 里说的是「发布 workflow 签的」到「这个 commit 构建的」 | 已验证（`resolvedDependencies`）                                                                                                                                                            |
+| 该 commit 在 UI 仓确实存在且是 `v0.1.0-beta.34`                 | 已在上一轮核实（本地 `git rev-parse`），本轮未重复                                                                                                                                          |
+| UI 仓 `0.1.0-beta.35` 与 registry `beta.34` 的关系              | **CONFIRMED** — UI 仓 46 个包的 `version` 已是 `0.1.0-beta.35`，但 `git tag` 里**没有 `v0.1.0-beta.35`**；HEAD 领先 `v0.1.0-beta.34`（`a8826dd1`）29 个提交。版本号改了，未打 tag，未发布。 |
+| `ZEUS_UI_COMMIT` = `ffde5592` 的正确性                          | **UNVERIFIED** — 与包实际来源 `a8826dd1` 不一致（ffde5592 更新 14 个提交）                                                                                                                  |
 
 ---
 
@@ -172,20 +172,26 @@ zeus:sbom:transitive-dependencies = not-modelled
 
 **不能。**
 
-新增的 `release-environment` 检查给出决定性证据：审批保护不存在。在这个前提下，`rc-approval` 产物是自证，任何依赖它的 GO 判定都不成立。
+两条独立理由，任一条都足以否决：
+
+1. **审批保护不存在。** 新增的 `release-environment` 检查给出决定性证据：`protection.rules` 为空。`rc-approval` 产物是自证，任何依赖它的 GO 判定都不成立。
+
+2. **UI 版本状态不一致。** UI 仓 46 个包的 `version` 是 `0.1.0-beta.35`，但没有 `v0.1.0-beta.35` tag，registry 上也没有该版本。Admin 实际安装的是 registry 的 `0.1.0-beta.34`，而 UI main 已领先它 **29 个提交**。也就是说：Admin 构建所用 UI 与 UI 仓当前状态之间隔着 29 个未发布的提交，而 `build-info` 里记录的 `uiCommit`（`ffde5592`）既不是这两者中的任何一个。
+
+RC 前必须先决定 UI 的发布状态，否则「配对」这个词没有确定含义。
 
 ---
 
 ## 7. 维护者需要做的动作
 
-| 优先级 | 动作                                                                  | 为什么不能由我代做       |
-| ------ | --------------------------------------------------------------------- | ------------------------ |
-| P0     | 给 `Release` environment 加 required reviewers                        | 修改环境保护属于禁止操作 |
-| P0     | 决定 UI 是否发布 `0.1.0-beta.35`（本地）                              | 发布 npm，需授权         |
-| P0     | 更新 `ZEUS_UI_COMMIT`                                                 | 任务明确禁止             |
-| P1     | 决定 3 个首次发布包的 dist-tag 策略                                   | 影响 latest 污染         |
-| P1     | 提供 release-approval / online-products / product-signoff / byok 证据 | 需真实人工审批与线上验证 |
-| P2     | 合并 #288/#289/#290（会触发生产部署）                                 | 合并需授权               |
+| 优先级 | 动作                                                                  | 为什么不能由我代做                                                                        |
+| ------ | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| P0     | 给 `Release` environment 加 required reviewers                        | 修改环境保护属于禁止操作                                                                  |
+| P0     | 澄清 UI `0.1.0-beta.35`：补 tag 并发布，或回退版本号                  | 版本号已改但无 tag、未发布；Admin 装的是 registry 的 `beta.34`，与 UI main 相差 29 个提交 |
+| P0     | 更新 `ZEUS_UI_COMMIT`                                                 | 任务明确禁止                                                                              |
+| P1     | 决定 3 个首次发布包的 dist-tag 策略                                   | 影响 latest 污染                                                                          |
+| P1     | 提供 release-approval / online-products / product-signoff / byok 证据 | 需真实人工审批与线上验证                                                                  |
+| P2     | 合并 #288/#289/#290（会触发生产部署）                                 | 合并需授权                                                                                |
 
 ---
 
