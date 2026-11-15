@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
 import { validatePersistedWorkspace } from '../../../examples/playground-editor/src/playground/persistence'
@@ -94,5 +97,47 @@ describe('Playground share links', () => {
     const encoded = `g.${Buffer.from(compressed).toString('base64url')}`
     expect(encoded.length).toBeLessThan(18_000)
     expect(await decodeShare(encoded)).toBeUndefined()
+  })
+})
+
+/**
+ * The browser gate must not encode a root cause it has not established.
+ *
+ * `check-playground-ux.ts` waits on console text with `toContainText` instead
+ * of waiting for a row to be visible. That change was made against a
+ * `resolved to hidden` failure, and the comment first explained it as "the row
+ * scrolled out of the viewport" — which is wrong: Playwright's `visible` means
+ * a non-empty bounding box and no `visibility: hidden`, and a row below the
+ * scrollport satisfies both.
+ *
+ * These assertions read the gate as text. They are a guard against the comment
+ * drifting back into a claim the code cannot support, and against the wait
+ * being replaced by a weaker one.
+ */
+describe('playground browser gate assertions', () => {
+  const source = readFileSync(
+    path.resolve(import.meta.dirname, '../check-playground-ux.ts'),
+    'utf8',
+  )
+
+  it('waits on console text rather than row visibility', () => {
+    expect(source).toContain("toContainText('ZEUS_PLAYGROUND_NO_MODALS'")
+  })
+
+  it('still asserts the console panel itself is visible', () => {
+    // The panel is `display: none` unless its tab is active, so its visibility
+    // is a real property to check — unlike a scrolled row's.
+    expect(source).toMatch(/toBeVisible\(\{\s*timeout:\s*10_000\s*\}\)/)
+  })
+
+  it('does not claim the row scrolled out of view', () => {
+    expect(
+      source,
+      'a scrolled row is still visible to Playwright; do not restore that explanation',
+    ).not.toMatch(/scrolled (out of|into) (the )?view/)
+  })
+
+  it('marks the root cause UNVERIFIED rather than asserting it', () => {
+    expect(source).toMatch(/Root cause: UNVERIFIED/)
   })
 })
