@@ -8,6 +8,10 @@ import {
   dependencyGraphProblems,
 } from './check-sbom'
 import { scanSecrets } from './check-secrets'
+import {
+  evaluateReleaseEnvironmentPolicy,
+  RELEASE_ENVIRONMENT_POLICY_VERSION,
+} from './release-environment-policy'
 import { validateCycloneDxSchema } from './sbom-schema'
 import {
   validateCrossPlatformEvidence,
@@ -15,6 +19,7 @@ import {
   type AttestationVerification,
   type TrustedApprovalRun,
 } from '../release/rc-approval'
+import { verifyReleaseEnvironmentEvidence } from '../release/release-environment-evidence'
 import {
   findUnexpectedReleaseWorktreeChanges,
   loadReleaseWorktreeSnapshot,
@@ -27,6 +32,14 @@ export interface ReadinessCheck {
   readonly id: string
   readonly status: ReadinessStatus
   readonly evidence: string
+  /**
+   * Which policy produced this verdict, when one did.
+   *
+   * A verdict without its policy version cannot be re-read a month later: the
+   * rules may have changed, and "the environment was fine in November" is not
+   * an answer without saying what was required in November.
+   */
+  readonly policyVersion?: string
 }
 
 export interface ReadinessEvidence {
@@ -124,6 +137,16 @@ export type ReleaseEnvironmentProbe =
       readonly adminsCanBypass: boolean
       /** Branch policy attached to the environment, if any. */
       readonly branchPolicy: 'protected' | 'custom' | 'none'
+      /**
+       * The custom ref patterns, when they could be read.
+       *
+       * GitHub keeps these on a separate endpoint
+       * (`/environments/{name}/deployment-branch-policies`), so a `custom`
+       * policy arrives here without patterns unless that second call
+       * succeeded. Policy treats "exists but unreadable" as a limitation, not a
+       * pass.
+       */
+      readonly allowedBranches?: readonly string[]
     }
   | { readonly state: 'not_configured'; readonly detail: string }
   | { readonly state: 'unauthorized'; readonly detail: string }
@@ -248,6 +271,46 @@ export function readReleaseEnvironment(
         ? 'protected'
         : 'none'
 
+  /*
+   * A custom branch policy's patterns live on a second endpoint. Reading them
+   * is what turns "a restriction exists" into "this ref is allowed"; without
+   * it the environment is inspectable only as far as its mode, and policy
+   * reports that as a limitation rather than assuming the patterns are right.
+   */
+  let allowedBranches: string[] | undefined
+  if (branchPolicy === 'custom') {
+    try {
+      const rawPolicies = run(
+        'gh',
+        [
+          'api',
+          `repos/${repository}/environments/Release/deployment-branch-policies`,
+        ],
+        {
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'pipe'],
+          timeout: 15_000,
+          env: { ...env, GH_TOKEN: token, GITHUB_TOKEN: token },
+        },
+      ) as string
+      const parsedPolicies = JSON.parse(rawPolicies) as {
+        branch_policies?: unknown
+      }
+      const entries = Array.isArray(parsedPolicies.branch_policies)
+        ? parsedPolicies.branch_policies
+        : []
+      const names: string[] = []
+      for (const entry of entries) {
+        if (!isRecord(entry)) continue
+        if (typeof entry.name === 'string') names.push(entry.name)
+      }
+      allowedBranches = names
+    } catch {
+      // Left undefined: the policy exists, its contents were not read.
+      allowedBranches = undefined
+    }
+  }
+
   return {
     state: 'read',
     hasRequiredReviewers,
@@ -255,19 +318,22 @@ export function readReleaseEnvironment(
     preventsSelfReview,
     adminsCanBypass: parsed.can_admins_bypass !== false,
     branchPolicy,
+    ...(allowedBranches ? { allowedBranches } : {}),
   }
 }
 
 /**
- * The `Release` environment must require a reviewer, not merely be named.
+ * The `Release` environment must satisfy the release policy, not merely exist.
  *
- * Naming an environment in a workflow does nothing on its own. The protection
- * lives on the environment's configuration, and a workflow that references an
- * unprotected one runs without anyone approving it.
+ * Naming an environment in a workflow does nothing on its own; the protection
+ * lives in its configuration. Required reviewers alone are not enough either:
+ * if the requester can approve their own run the "second person" is the first,
+ * and if admins bypass the rules the gate binds only those who did not need it.
  *
- * Required reviewers alone are not enough: if the requester can approve their
- * own run, the "second person" is the same person, and if admins bypass the
- * rules then the gate holds only for people who did not need it.
+ * The rules themselves live in `release-environment-policy.ts`, away from the
+ * GitHub API shape, so they can be tested against environments GitHub cannot
+ * currently produce and so a rule the API cannot express is reported as a
+ * limitation rather than quietly dropped.
  */
 function checkReleaseEnvironment(
   probe: ReleaseEnvironmentProbe | undefined,
@@ -296,29 +362,38 @@ function checkReleaseEnvironment(
       evidence: `the Release environment protection could not be read (${detail})`,
     }
   }
-  if (!probe.hasRequiredReviewers) {
+
+  const result = evaluateReleaseEnvironmentPolicy({
+    hasRequiredReviewers: probe.hasRequiredReviewers,
+    reviewers: probe.reviewers,
+    preventsSelfReview: probe.preventsSelfReview,
+    adminsCanBypass: probe.adminsCanBypass,
+    branchPolicy: probe.branchPolicy,
+    ...(probe.allowedBranches
+      ? { allowedBranches: probe.allowedBranches }
+      : {}),
+  })
+
+  if (result.verdict === 'PASS') {
     return {
       id: 'release-environment',
-      status: 'fail',
-      evidence:
-        'the Release environment requires no reviewer, so an approval artifact can be produced without a second person',
+      status: 'pass',
+      evidence: result.findings.map(entry => entry.detail).join('; '),
+      policyVersion: result.version,
     }
   }
-  if (!probe.preventsSelfReview) {
-    return {
-      id: 'release-environment',
-      status: 'fail',
-      evidence:
-        'the Release environment allows the requester to approve their own run, so the second person can be the first',
-    }
-  }
-  const who = probe.reviewers.join(', ') || 'a reviewer'
+  /*
+   * `POLICY_LIMITATION` and `FAIL` are both non-passing. A limitation says the
+   * rule could not be verified with the evidence at hand, which is not the same
+   * as satisfying it — a release that proceeds on one is assuming what it
+   * should prove.
+   */
+  const blocking = result.findings.filter(entry => entry.verdict !== 'PASS')
   return {
     id: 'release-environment',
-    status: 'pass',
-    evidence:
-      `the Release environment requires approval from ${who} and prevents self-review` +
-      (probe.adminsCanBypass ? ' (repository admins can bypass)' : ''),
+    status: 'fail',
+    evidence: `${blocking.map(entry => `[${entry.verdict}] ${entry.detail}`).join('; ')} (policy ${result.version})`,
+    policyVersion: result.version,
   }
 }
 
@@ -996,6 +1071,86 @@ function evidenceFile(root: string, env: NodeJS.ProcessEnv): string {
     : path.join(root, 'temp/release/rc-evidence.json')
 }
 
+/**
+ * The environment verdict for a release, from governance evidence when present.
+ *
+ * The record is produced by `.github/workflows/release-governance.yml` for one
+ * commit and one run. Accepting it means checking that it is about *this*
+ * release: same repository and environment, the candidate's Core commit, the
+ * current policy version, and recent enough that the environment may still be
+ * configured that way.
+ *
+ * A record that fails a binding produces a `unauthorized`-style state with the
+ * reason, so the check reads `not_run` and the blocker names the mismatch —
+ * rather than falling back to a live probe that would report `unauthorized` and
+ * hide that a record was supplied and rejected.
+ */
+function readReleaseEnvironmentFromRecord(
+  root: string,
+  coreCommit: string,
+  env: NodeJS.ProcessEnv,
+): ReleaseEnvironmentProbe {
+  const configured = env.ZEUS_RELEASE_ENVIRONMENT_EVIDENCE?.trim()
+  const recordPath = configured
+    ? path.resolve(root, configured)
+    : path.join(root, 'temp/release/release-environment.json')
+  if (!fs.existsSync(recordPath)) {
+    return readReleaseEnvironment(env)
+  }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(fs.readFileSync(recordPath, 'utf8'))
+  } catch {
+    return {
+      state: 'network_error',
+      detail: `release environment evidence at ${recordPath} is not JSON`,
+    }
+  }
+
+  const maxAgeHours = Number(env.ZEUS_RELEASE_ENVIRONMENT_MAX_AGE_HOURS ?? '24')
+  const verification = verifyReleaseEnvironmentEvidence(parsed, {
+    repository: env.ZEUS_REPOSITORY ?? 'baicie/zeus',
+    environment: 'Release',
+    coreCommit,
+    workflowPath: '.github/workflows/release-governance.yml',
+    policyVersion: RELEASE_ENVIRONMENT_POLICY_VERSION,
+    maxAgeHours: Number.isFinite(maxAgeHours) ? maxAgeHours : 24,
+  })
+
+  if (!verification.ok) {
+    return {
+      state: 'unauthorized',
+      detail: `release environment evidence rejected: ${verification.problems
+        .map(problem => `${problem.field}: ${problem.message}`)
+        .join('; ')}`,
+    }
+  }
+
+  const record = parsed as {
+    observed: {
+      hasRequiredReviewers?: boolean
+      reviewers?: readonly string[]
+      preventsSelfReview?: boolean
+      adminsCanBypass?: boolean
+      branchPolicy?: 'protected' | 'custom' | 'none'
+      allowedBranches?: readonly string[]
+    }
+  }
+  const observed = record.observed
+  return {
+    state: 'read',
+    hasRequiredReviewers: observed.hasRequiredReviewers === true,
+    reviewers: observed.reviewers ?? [],
+    preventsSelfReview: observed.preventsSelfReview === true,
+    adminsCanBypass: observed.adminsCanBypass !== false,
+    branchPolicy: observed.branchPolicy ?? 'none',
+    ...(observed.allowedBranches
+      ? { allowedBranches: observed.allowedBranches }
+      : {}),
+  }
+}
+
 export function readRcReadinessInput(
   root = process.cwd(),
   env: NodeJS.ProcessEnv = process.env,
@@ -1075,7 +1230,17 @@ export function readRcReadinessInput(
     onlineProducts: evidenceStatuses.onlineProducts,
     crossPlatform: evidenceStatuses.crossPlatform,
     releaseApproval: evidenceStatuses.releaseApproval,
-    releaseEnvironment: readReleaseEnvironment(env),
+    /*
+     * Governance evidence first, live probe second.
+     *
+     * The probe can only run where a token with Administration (read) exists,
+     * which ordinary CI does not have. A release run uses the record a
+     * dedicated governance workflow produced, verified against this candidate:
+     * same repository, same environment, same Core commit, same policy, still
+     * inside its age bound. A record that fails any binding is reported as
+     * such, not silently replaced by a live read that would have worked.
+     */
+    releaseEnvironment: readReleaseEnvironmentFromRecord(root, commit, env),
   }
 }
 
