@@ -1113,3 +1113,81 @@ describe('fetchAttestationSources', () => {
     expect(sources).toEqual({})
   })
 })
+
+describe('fetchAttestationSources retries', () => {
+  const attested = 'a8826dd1f81560aaf6459d8d40a3e599f705f6e0'
+  const pkg = [{ name: '@zeus-web/button', version: '0.1.0-beta.34' }]
+
+  function ok(): Response {
+    const payload = Buffer.from(
+      JSON.stringify({
+        predicate: {
+          buildDefinition: {
+            resolvedDependencies: [
+              {
+                uri: 'git+https://github.com/baicie/zeus-ui@refs/tags/v0.1.0-beta.34',
+                digest: { gitCommit: attested },
+              },
+            ],
+          },
+        },
+      }),
+    ).toString('base64')
+    return new Response(
+      JSON.stringify({
+        attestations: [
+          {
+            predicateType: 'https://slsa.dev/provenance/v1',
+            bundle: { dsseEnvelope: { payload } },
+          },
+        ],
+      }),
+      { status: 200 },
+    )
+  }
+
+  /*
+   * A 5xx is not an answer about the package. Failing the gate on one would
+   * report a missing attestation that is in fact present — and the fix a
+   * maintainer would reach for (loosening the check) is the wrong one.
+   */
+  it('retries a 5xx and succeeds when the registry recovers', async () => {
+    let calls = 0
+    const sources = await fetchAttestationSources({
+      packages: pkg,
+      fetch: (async () => {
+        calls += 1
+        return calls < 3 ? new Response('busy', { status: 503 }) : ok()
+      }) as typeof globalThis.fetch,
+    })
+    expect(calls).toBe(3)
+    expect(sources['@zeus-web/button@0.1.0-beta.34']?.commit).toBe(attested)
+  })
+
+  /* A 404 *is* an answer, so it must not be retried. */
+  it('does not retry a 404', async () => {
+    let calls = 0
+    const sources = await fetchAttestationSources({
+      packages: pkg,
+      fetch: (async () => {
+        calls += 1
+        return new Response('not found', { status: 404 })
+      }) as typeof globalThis.fetch,
+    })
+    expect(calls).toBe(1)
+    expect(sources).toEqual({})
+  })
+
+  it('gives up after three failures and leaves the package unattested', async () => {
+    let calls = 0
+    const sources = await fetchAttestationSources({
+      packages: pkg,
+      fetch: (async () => {
+        calls += 1
+        return new Response('busy', { status: 500 })
+      }) as typeof globalThis.fetch,
+    })
+    expect(calls).toBe(3)
+    expect(sources).toEqual({})
+  })
+})

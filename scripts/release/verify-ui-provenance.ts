@@ -148,26 +148,43 @@ export async function fetchAttestationSources(options: {
     const url = `${registry}/-/npm/v1/attestations/${encodeURIComponent(
       name,
     ).replace('%40', '@')}@${version}`
-    try {
-      const response = await doFetch(url, {
-        headers: { accept: 'application/json' },
-      })
-      if (!response.ok) continue
-      const source: AttestationSource | undefined = readAttestationSource(
-        (await response.json()) as unknown,
-      )
-      if (source) {
-        found[`${name}@${version}`] = {
-          commit: source.commit,
-          repository: source.repository,
+    /*
+     * A registry that returns 5xx or drops the connection is a different fact
+     * from a package that was published without provenance: the first says
+     * nothing about the package, the second says it is unattested. Retrying
+     * keeps a transient outage from failing a gate over a package whose
+     * attestation is present and correct.
+     */
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        const response = await doFetch(url, {
+          headers: { accept: 'application/json' },
+        })
+        // A 404 is an answer: this version has no attestation to read.
+        if (response.status === 404) break
+        if (!response.ok) {
+          if (attempt === 3) break
+          continue
         }
+        const source: AttestationSource | undefined = readAttestationSource(
+          (await response.json()) as unknown,
+        )
+        if (source) {
+          found[`${name}@${version}`] = {
+            commit: source.commit,
+            repository: source.repository,
+          }
+        }
+        break
+      } catch {
+        /*
+         * Left unattested after the final attempt. Strict mode turns that into
+         * a named failure; it must not be swallowed here into a green run,
+         * which is why the caller passes this result through rather than
+         * defaulting it.
+         */
+        if (attempt === 3) break
       }
-    } catch {
-      // A registry that cannot be reached leaves the package unattested. Strict
-      // mode turns that into a named failure; it must not be swallowed here
-      // into a green run, which is why the caller passes the result through
-      // rather than defaulting it.
-      continue
     }
   }
   return found
