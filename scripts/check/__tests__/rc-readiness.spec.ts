@@ -549,9 +549,16 @@ describe('SBOM validation beyond a component count', () => {
     ],
   })
 
+  /*
+   * `requiredBy` is what makes the edge checks meaningful: without it the
+   * expected edge map is empty, every ownership comparison is skipped, and a
+   * document with a deleted or moved edge passes.
+   */
   const expected = {
-    workspace: ['@zeus-js/zeus'],
-    runtime: [{ name: 'picocolors', version: '1.1.1' }],
+    workspace: [{ name: '@zeus-js/zeus', version: '0.1.1-beta.20' }],
+    runtime: [
+      { name: 'picocolors', version: '1.1.1', requiredBy: ['@zeus-js/zeus'] },
+    ],
   }
 
   it('accepts a well formed document', () => {
@@ -600,5 +607,118 @@ describe('SBOM validation beyond a component count', () => {
 
   it('rejects a document that is not an object', () => {
     expect(evaluateSbom('not an object', expected).errors).not.toEqual([])
+  })
+
+  /*
+   * The official schema, not an impression of it.
+   *
+   * This function used to compare `bomFormat` and `specVersion` strings and
+   * call that validation, while `check:sbom` compiled the real CycloneDX 1.5
+   * schema in a test. A document `check:sbom` rejected as malformed was a pass
+   * here. Both now go through `validateCycloneDxSchema`.
+   */
+  it('rejects a document the official schema rejects', () => {
+    const doc = validSbom()
+    // `type` is required by the schema for every component.
+    delete (doc.components as Record<string, unknown>[])[0]!.type
+    const errors = evaluateSbom(doc, expected).errors.join('\n')
+    expect(errors).toMatch(/CycloneDX 1\.5 schema/)
+  })
+
+  it('rejects an unknown top-level property', () => {
+    const doc = validSbom()
+    doc['zeus:runtimeDependencies'] = []
+    expect(evaluateSbom(doc, expected).errors.join('\n')).toMatch(
+      /CycloneDX 1\.5 schema/,
+    )
+  })
+
+  /* C2 — name alone is not enough; the version must be the one we built. */
+  it('rejects a workspace component at the wrong version', () => {
+    const doc = validSbom()
+    const component = (doc.components as Record<string, unknown>[])[0]!
+    component.version = '9.9.9'
+    component['bom-ref'] = '@zeus-js/zeus@9.9.9'
+    ;(doc.dependencies as Record<string, unknown>[])[0]!.ref =
+      '@zeus-js/zeus@9.9.9'
+    expect(evaluateSbom(doc, expected).errors.join('\n')).toMatch(
+      /recorded at 9\.9\.9, expected 0\.1\.1-beta\.20/,
+    )
+  })
+
+  it('rejects a forged extra workspace package', () => {
+    const doc = validSbom()
+    ;(doc.components as unknown[]).push({
+      type: 'library',
+      name: '@zeus-js/invented',
+      version: '1.0.0',
+      'bom-ref': '@zeus-js/invented@1.0.0',
+    })
+    expect(evaluateSbom(doc, expected).errors.join('\n')).toMatch(
+      /not implied by the lockfile/,
+    )
+  })
+
+  /* C3 — the graph must match the lockfile, not merely be well formed. */
+  it('rejects a deleted dependency edge', () => {
+    const doc = validSbom()
+    ;(doc.dependencies as Record<string, unknown>[])[0]!.dependsOn = []
+    expect(evaluateSbom(doc, expected).errors.join('\n')).toMatch(
+      /missing an edge|does not imply/,
+    )
+  })
+
+  it('rejects an edge moved to the wrong package', () => {
+    const doc = validSbom()
+    const dependencies = doc.dependencies as Record<string, unknown>[]
+    dependencies[0]!.dependsOn = []
+    dependencies[1]!.dependsOn = ['@zeus-js/zeus@0.1.1-beta.20']
+    expect(evaluateSbom(doc, expected).errors.join('\n')).toMatch(
+      /missing an edge|does not imply|edge to/,
+    )
+  })
+
+  it('rejects an invented dependency edge', () => {
+    /*
+     * A workspace package depends on `picocolors`. Claiming it also depends on
+     * `@zeus-js/zeus` is a real change in what installs what — the lockfile
+     * says otherwise, so the extra edge must be reported. (Adding the edge to
+     * the third-party node instead would prove nothing: ownership is only
+     * checked for workspace packages.)
+     */
+    const doc = validSbom()
+    ;(doc.components as unknown[]).push({
+      type: 'library',
+      name: 'left-pad',
+      version: '1.3.0',
+      'bom-ref': 'left-pad@1.3.0',
+    })
+    const deps = doc.dependencies as Record<string, unknown>[]
+    deps[0]!.dependsOn = ['picocolors@1.1.1', 'left-pad@1.3.0']
+    deps.push({ ref: 'left-pad@1.3.0', dependsOn: [] })
+    const errors = evaluateSbom(doc, expected).errors.join('\n')
+    /* The invented component trips the lockfile comparison first. */
+    expect(errors).toMatch(/not implied by the lockfile|does not imply|edge to/)
+  })
+
+  it('rejects a duplicate dependency node', () => {
+    const doc = validSbom()
+    ;(doc.dependencies as unknown[]).push({
+      ref: 'picocolors@1.1.1',
+      dependsOn: [],
+    })
+    expect(evaluateSbom(doc, expected).errors.join('\n')).toMatch(
+      /duplicate|dependenc/i,
+    )
+  })
+
+  it('rejects a dangling reference', () => {
+    const doc = validSbom()
+    ;(doc.dependencies as Record<string, unknown>[])[0]!.dependsOn = [
+      'ghost@0.0.0',
+    ]
+    expect(evaluateSbom(doc, expected).errors.join('\n')).toMatch(
+      /dangling|missing component/,
+    )
   })
 })

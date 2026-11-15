@@ -4,6 +4,7 @@ import path from 'node:path'
 
 import pico from 'picocolors'
 
+import { validateCycloneDxSchema } from './sbom-schema'
 import { findWorkspacePackages } from '../shared/utils'
 
 /**
@@ -27,6 +28,16 @@ export interface SbomDependencyNode {
   readonly dependsOn: readonly string[]
 }
 
+/**
+ * The version recorded for a workspace package that declares none.
+ *
+ * Several `examples/*` manifests carry a name and no version. The SBOM still
+ * has to record something, and both the generator and the readiness gate must
+ * agree on what — a validator expecting an empty string while the generator
+ * writes `0.0.0` fails every run for a difference that means nothing.
+ */
+export const DEFAULT_WORKSPACE_VERSION = '0.0.0'
+
 export interface SbomComponent {
   readonly type: 'library'
   readonly scope?: 'required' | 'optional' | 'excluded'
@@ -46,6 +57,7 @@ export async function createSbom(
   metadata: {
     timestamp: string
     tools: readonly { vendor: string; name: string; version: string }[]
+    properties?: readonly { name: string; value: string }[]
   }
   components: readonly SbomComponent[]
   /**
@@ -66,8 +78,8 @@ export async function createSbom(
   const workspaceComponents: SbomComponent[] = packages.map(pkg => ({
     type: 'library' as const,
     name: pkg.name,
-    version: String(pkg.packageJson.version ?? '0.0.0'),
-    'bom-ref': `${pkg.name}@${String(pkg.packageJson.version ?? '0.0.0')}`,
+    version: String(pkg.packageJson.version ?? DEFAULT_WORKSPACE_VERSION),
+    'bom-ref': `${pkg.name}@${String(pkg.packageJson.version ?? DEFAULT_WORKSPACE_VERSION)}`,
     ...(pkg.packageJson.license === 'MIT'
       ? { licenses: [{ license: { id: 'MIT' as const } }] }
       : {}),
@@ -116,6 +128,30 @@ export async function createSbom(
     metadata: {
       timestamp,
       tools: [{ vendor: 'Zeus', name: 'check-sbom', version: '1' }],
+      /*
+       * What this document covers, stated in the document.
+       *
+       * It lists every workspace package and the third-party libraries those
+       * packages depend on *directly*. Transitive dependencies are not
+       * modelled: the lockfile resolves roughly 490 package names for this
+       * repository and this document carries about 83. A reader who assumes a
+       * CycloneDX file is a complete bill of materials would be wrong here, and
+       * the file has to say so rather than leave it to a code comment.
+       *
+       * `metadata.properties` is part of the 1.5 schema, so this does not
+       * reintroduce the custom-key problem the old `zeus:runtimeDependencies`
+       * field had.
+       */
+      properties: [
+        {
+          name: 'zeus:sbom:coverage',
+          value: 'workspace-and-direct-runtime',
+        },
+        {
+          name: 'zeus:sbom:transitive-dependencies',
+          value: 'not-modelled',
+        },
+      ],
     },
     components,
     ...(runtimeDependencies.length > 0
@@ -482,8 +518,40 @@ async function main(): Promise<void> {
     importers,
   )
   const sbom = await createSbom(findWorkspacePackages(), runtimeDependencies)
+
+  /*
+   * The document the generator just produced must satisfy the official schema.
+   * Without this, `check:sbom` verified that the committed file matched what
+   * the generator emits — useful, but it says nothing about whether either one
+   * is a valid CycloneDX document. A generator bug that emitted a malformed
+   * file would have been checked in and reported current.
+   */
+  const generatedSchema = validateCycloneDxSchema(
+    JSON.parse(JSON.stringify(sbom)),
+  )
+  if (!generatedSchema.valid) {
+    throw new Error(
+      `generated SBOM does not validate against CycloneDX 1.5: ${generatedSchema.errors
+        .slice(0, 5)
+        .join('; ')}`,
+    )
+  }
+
   if (check) {
     const existing = JSON.parse(await fs.readFile(output, 'utf8')) as unknown
+    /*
+     * And the committed one, through the same validator `check:rc-readiness`
+     * uses. Two entry points disagreeing about whether a file is valid is how
+     * a gate stops meaning anything.
+     */
+    const committedSchema = validateCycloneDxSchema(existing)
+    if (!committedSchema.valid) {
+      throw new Error(
+        `committed SBOM does not validate against CycloneDX 1.5: ${committedSchema.errors
+          .slice(0, 5)
+          .join('; ')}`,
+      )
+    }
     if (!sbomComponentsMatch(existing, sbom)) {
       throw new Error('SBOM is stale; run `pnpm check:sbom:write`.')
     }

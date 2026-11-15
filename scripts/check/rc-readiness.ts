@@ -3,7 +3,12 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { collectRuntimeDependencies as collectSbomRuntimeDependencies } from './check-sbom'
+import {
+  DEFAULT_WORKSPACE_VERSION,
+  dependencyGraphProblems,
+} from './check-sbom'
 import { scanSecrets } from './check-secrets'
+import { validateCycloneDxSchema } from './sbom-schema'
 import {
   validateCrossPlatformEvidence,
   validateRcApproval,
@@ -600,15 +605,22 @@ function reportPassed(report: Report): boolean {
  *   package expected is there, and no third-party component appears that the
  *   lockfile does not list.
  *
- * Schema validation against the official document happens in
- * `check-sbom.spec.ts`; this function is the readiness gate's own view, kept
- * dependency-free so it can run wherever readiness runs.
+ * The document is *also* validated against the official CycloneDX 1.5 schema,
+ * through the same function `check:sbom` uses. Keeping the readiness gate on a
+ * hand-written impression of the schema meant the two could disagree: a file
+ * `check:sbom` rejected as malformed passed here, because this function only
+ * compared `bomFormat` and `specVersion` strings. Two validators for one
+ * artifact is one too many, and the official schema is the one that counts.
  */
 export function evaluateSbom(
   document: unknown,
   expected: {
-    readonly workspace: readonly string[]
-    readonly runtime: readonly { name: string; version: string }[]
+    readonly workspace: readonly { name: string; version: string }[]
+    readonly runtime: readonly {
+      name: string
+      version: string
+      requiredBy?: readonly string[]
+    }[]
   },
 ): { errors: readonly string[] } {
   const errors: string[] = []
@@ -616,9 +628,23 @@ export function evaluateSbom(
     errors.push(message)
   }
   if (!isRecord(document)) return { errors: ['SBOM must be a JSON object'] }
-  if (document.bomFormat !== 'CycloneDX')
-    fail('SBOM bomFormat must be CycloneDX')
-  if (document.specVersion !== '1.5') fail('SBOM specVersion must be 1.5')
+
+  /*
+   * The official schema first. Everything below reads fields the schema has
+   * already type-checked, so a document that fails here would make the rest of
+   * this function's assertions meaningless rather than merely wrong.
+   */
+  const schema = validateCycloneDxSchema(document)
+  if (!schema.valid) {
+    return {
+      errors: [
+        ...errors,
+        `SBOM does not validate against the CycloneDX 1.5 schema: ${schema.errors
+          .slice(0, 5)
+          .join('; ')}`,
+      ],
+    }
+  }
 
   const components = Array.isArray(document.components)
     ? document.components
@@ -668,9 +694,25 @@ export function evaluateSbom(
   }
 
   // Every expected workspace package must be present at some version.
-  for (const name of expected.workspace) {
-    const present = [...refs.values()].some(entry => entry.name === name)
-    if (!present) fail(`missing workspace component: ${name}`)
+  /*
+   * Name *and* exact version. Checking only the name let a document list
+   * `@zeus-js/zeus` at any version it liked — including one this repository
+   * never built — and still pass, because the assertion was "a component with
+   * this name exists somewhere". A bill of materials that cannot be wrong about
+   * a version cannot be right about one either.
+   */
+  for (const pkg of expected.workspace) {
+    const matches = [...refs.values()].filter(entry => entry.name === pkg.name)
+    if (matches.length === 0) {
+      fail(`missing workspace component: ${pkg.name}`)
+      continue
+    }
+    const versions = new Set(matches.map(entry => entry.version))
+    if (!versions.has(pkg.version)) {
+      fail(
+        `workspace component ${pkg.name} is recorded at ${[...versions].join(', ')}, expected ${pkg.version}`,
+      )
+    }
   }
   // Every runtime dependency must be present at the locked version.
   for (const dependency of expected.runtime) {
@@ -681,28 +723,27 @@ export function evaluateSbom(
     }
   }
 
-  const dependencies = Array.isArray(document.dependencies)
-    ? document.dependencies
-    : undefined
-  if (!dependencies || dependencies.length === 0) {
-    fail('SBOM has no dependencies graph')
-  } else {
-    for (const [index, node] of dependencies.entries()) {
-      if (!isRecord(node) || typeof node.ref !== 'string') {
-        fail(`dependencies[${index}] has no ref`)
-        continue
-      }
-      if (!refs.has(node.ref)) {
-        fail(`dependencies[${index}] names a missing component: ${node.ref}`)
-      }
-      const targets = Array.isArray(node.dependsOn) ? node.dependsOn : []
-      for (const target of targets) {
-        if (typeof target === 'string' && !refs.has(target)) {
-          fail(`dangling edge: ${node.ref} -> ${target}`)
-        }
-      }
-    }
-  }
+  /*
+   * The graph, compared against what the lockfile actually resolves.
+   *
+   * Checking only that every edge points at a component that exists is a
+   * well-formedness test, not a correctness one: a graph with an edge deleted,
+   * an edge moved to the wrong package, or an invented edge is internally
+   * consistent and passes. `dependencyGraphProblems` compares the document's
+   * edges to the lockfile's, which is the only version of this check that can
+   * catch a document describing a different dependency set than the one being
+   * built.
+   */
+  const graphProblems = dependencyGraphProblems(
+    document,
+    expected.runtime.map(entry => ({
+      name: entry.name,
+      version: entry.version,
+      requiredBy: entry.requiredBy ?? [],
+    })),
+    [...new Set(expected.workspace.map(pkg => pkg.name))],
+  )
+  for (const problem of graphProblems) fail(problem)
 
   return { errors }
 }
@@ -809,8 +850,8 @@ export function readRcReadinessInput(
  * commit fails rather than agreeing with itself.
  */
 function sbomExpectation(root: string): {
-  workspace: string[]
-  runtime: { name: string; version: string }[]
+  workspace: { name: string; version: string }[]
+  runtime: { name: string; version: string; requiredBy?: string[] }[]
 } {
   /*
    * The same definition the SBOM generator uses.
@@ -822,14 +863,25 @@ function sbomExpectation(root: string): {
    */
   const cwd = process.cwd()
   process.chdir(root)
-  let workspace: string[]
+  let workspace: { name: string; version: string }[]
   try {
-    workspace = findWorkspacePackages().map(pkg => pkg.name)
+    /*
+     * Name and version, because the SBOM has to record the version this
+     * repository actually built. A name-only expectation accepts a document
+     * that lists `@zeus-js/zeus` at a version nobody published.
+     */
+    workspace = findWorkspacePackages().map(pkg => ({
+      name: pkg.name,
+      version: String(
+        (pkg.packageJson as { version?: unknown }).version ??
+          DEFAULT_WORKSPACE_VERSION,
+      ),
+    }))
   } finally {
     process.chdir(cwd)
   }
 
-  const runtime: { name: string; version: string }[] = []
+  const runtime: { name: string; version: string; requiredBy?: string[] }[] = []
   const lockfilePath = path.join(root, 'pnpm-lock.yaml')
   if (fs.existsSync(lockfilePath)) {
     const lockfile = fs.readFileSync(lockfilePath, 'utf8')
@@ -866,7 +918,18 @@ function sbomExpectation(root: string): {
       lockfile,
       importers,
     )) {
-      runtime.push({ name: dependency.name, version: dependency.version })
+      /*
+       * `requiredBy` is carried through, not dropped. The graph check needs to
+       * know which published package requires each dependency to tell "this
+       * edge has the wrong owner" from "this edge is fine"; without it, every
+       * expected edge set is empty and the ownership comparison is skipped —
+       * a check that silently never ran.
+       */
+      runtime.push({
+        name: dependency.name,
+        version: dependency.version,
+        requiredBy: [...dependency.requiredBy],
+      })
     }
   }
 

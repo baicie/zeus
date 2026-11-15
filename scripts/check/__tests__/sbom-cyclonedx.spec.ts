@@ -136,6 +136,29 @@ describe('CycloneDX conformance', () => {
     expect((dependencies ?? []).length).toBeGreaterThan(0)
   })
 
+  /*
+   * The document is a workspace-and-direct-runtime inventory, not a complete
+   * transitive bill of materials. Measured on this repository: the lockfile
+   * resolves ~490 package names, the SBOM carries ~83. A reader who assumes
+   * completeness would be wrong, so the document states its own scope.
+   */
+  it('states its coverage scope in standard metadata', async () => {
+    const { bom } = await buildSbom()
+    const properties = (
+      bom as {
+        metadata?: { properties?: { name: string; value: string }[] }
+      }
+    ).metadata?.properties
+    expect(properties).toBeDefined()
+    const byName = new Map(
+      (properties ?? []).map(entry => [entry.name, entry.value]),
+    )
+    expect(byName.get('zeus:sbom:coverage')).toBe(
+      'workspace-and-direct-runtime',
+    )
+    expect(byName.get('zeus:sbom:transitive-dependencies')).toBe('not-modelled')
+  })
+
   it('gives every component a unique bom-ref', async () => {
     const { bom } = await buildSbom()
     const refs = (bom.components ?? []).map(component => component['bom-ref'])
