@@ -489,10 +489,16 @@ jobs:
             --ui-manifest examples/admin/package.json \
             --version "$(node -p "require('./package.json').version")" \
             --built-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          # The manifest pins every @zeus-web package to one exact version, and
+          # the attestation's source ref is that version's tag in zeus-ui.
+          # Passing it pins the *release* the bytes came from, not just the
+          # repository — a package republished from a branch would fail here.
+          UI_VERSION="$(node -p "Object.entries(require('./examples/admin/package.json').dependencies).find(([n]) => n === '@zeus-web/button')[1]")"
           pnpm check:ui-provenance \
             --build-info examples/admin/dist/build-info.json \
             --manifest examples/admin/package.json \
-            --read-attestations
+            --read-attestations \
+            --expected-ref "refs/tags/v$UI_VERSION"
 
       - name: Admin navigation in Chromium, Firefox and WebKit
         run: pnpm check:admin
