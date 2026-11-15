@@ -51,6 +51,31 @@ export interface WorkspaceUiSource {
 
 export type UiSource = RegistryUiSource | VendoredUiSource | WorkspaceUiSource
 
+/**
+ * The four questions a single `readsUiRepository` boolean conflated.
+ *
+ * v1 set `readsUiRepository = sources.length > 0`, which answers "does this
+ * build install any `@zeus-web/*` package" — not "does it check out the UI
+ * repository". For Admin both happen to be false-ish and true-ish in ways that
+ * made the field look right, and for Playground the name was simply wrong: it
+ * never reads the repository *and* installs no packages, so one `false` stood
+ * for two different facts.
+ */
+export interface UiRepositoryRelationship {
+  /** Installs at least one `@zeus-web/*` package, from any source. */
+  readonly usesWebPackages: boolean
+  /**
+   * Checks out `baicie/zeus-ui` in this build. Neither example does: Admin
+   * installs from the registry plus a vendored directory, Playground installs
+   * nothing.
+   */
+  readonly checksOutUiRepository: boolean
+  /** Installs at least one `@zeus-web/*` package from the npm registry. */
+  readonly consumesRegistryPackages: boolean
+  /** Installs at least one `@zeus-web/*` package from `vendor/`. */
+  readonly consumesVendoredBuild: boolean
+}
+
 export interface UiSources {
   readonly schema: typeof UI_SOURCES_SCHEMA
   /**
@@ -58,10 +83,14 @@ export interface UiSources {
    * Naming it here makes explicit that it is a claim, not an observation.
    */
   readonly declaredPairingCommit: string
+  /** The four facts the v1 boolean conflated. */
+  readonly relationship: UiRepositoryRelationship
   /**
-   * True when no `@zeus-web/*` package is installed at all. Then
-   * `declaredPairingCommit` describes nothing about the build and consumers
-   * must not read it as provenance.
+   * @deprecated v1 field, kept so an older reader does not break.
+   *
+   * It equals `relationship.usesWebPackages`. It never meant "checks out the
+   * UI repository" — see `relationship.checksOutUiRepository`, which is false
+   * for every product in this repository.
    */
   readonly readsUiRepository: boolean
   readonly sources: readonly UiSource[]
@@ -98,6 +127,11 @@ export function collectUiSources(options: {
   readonly manifestPath: string
   readonly root: string
   readonly declaredPairingCommit: string
+  /**
+   * Whether this build checks out `baicie/zeus-ui`. Defaults to false; the
+   * examples establish it by not cloning the repository.
+   */
+  readonly checksOutUiRepository?: boolean
   readonly vendoredProvenance?: Readonly<
     Record<string, { commit: string; contentDigest: string; version: string }>
   >
@@ -148,10 +182,23 @@ export function collectUiSources(options: {
     }
   }
   sources.sort((left, right) => (left.package < right.package ? -1 : 1))
+  const usesWebPackages = sources.length > 0
   return {
     schema: UI_SOURCES_SCHEMA,
     declaredPairingCommit: options.declaredPairingCommit,
-    readsUiRepository: sources.length > 0,
+    relationship: {
+      usesWebPackages,
+      // No build in this repository checks out the UI repository. If one ever
+      // does, it must set this from an observed fact, not from a manifest scan.
+      checksOutUiRepository: options.checksOutUiRepository ?? false,
+      consumesRegistryPackages: sources.some(
+        source => source.kind === 'registry',
+      ),
+      consumesVendoredBuild: sources.some(source => source.kind === 'vendored'),
+    },
+    // Kept equal to `usesWebPackages` so v1 readers see the same value they
+    // always did, with the deprecation note explaining what it never meant.
+    readsUiRepository: usesWebPackages,
     sources,
   }
 }
@@ -266,6 +313,41 @@ export function verifyUiSources(options: {
     fail(
       `readsUiRepository is ${String(options.sources.readsUiRepository)} but ${recorded.size} sources are recorded`,
     )
+  }
+
+  /*
+   * v2: the four explicit facts must agree with the source list, and a
+   * document that claims to check out the UI repository must say which commit
+   * it actually checked out — the declared pairing is not that answer.
+   */
+  const relationship = options.sources.relationship
+  if (relationship) {
+    if (relationship.usesWebPackages !== recorded.size > 0) {
+      fail(
+        `relationship.usesWebPackages is ${String(relationship.usesWebPackages)} but ${recorded.size} sources are recorded`,
+      )
+    }
+    const hasRegistry = [...recorded.values()].some(
+      source => source.kind === 'registry',
+    )
+    const hasVendored = [...recorded.values()].some(
+      source => source.kind === 'vendored',
+    )
+    if (relationship.consumesRegistryPackages !== hasRegistry) {
+      fail(
+        `relationship.consumesRegistryPackages is ${String(relationship.consumesRegistryPackages)} but ${hasRegistry ? 'registry' : 'no registry'} sources are recorded`,
+      )
+    }
+    if (relationship.consumesVendoredBuild !== hasVendored) {
+      fail(
+        `relationship.consumesVendoredBuild is ${String(relationship.consumesVendoredBuild)} but ${hasVendored ? 'a vendored' : 'no vendored'} source is recorded`,
+      )
+    }
+    if (relationship.checksOutUiRepository) {
+      fail(
+        'relationship.checksOutUiRepository is true, but no ui-sources field records the checked-out commit; a build that clones baicie/zeus-ui must record that SHA',
+      )
+    }
   }
 
   return { errors }
