@@ -468,6 +468,31 @@ jobs:
         with:
           name: rc-readiness
           path: temp/release/rc-readiness.json
+      # Strict UI provenance over a real build-info.
+      #
+      # `verifyUiSources` had no caller outside its tests, so the strict checks
+      # were never run against an artifact. This builds the Admin example's
+      # build-info and verifies it at `release-strict`: the lockfile must be the
+      # one in this checkout, every registry package must resolve to bytes, and
+      # the document's declared pairing must match its own `uiCommit`.
+      #
+      # A tampered integrity, a document verified against a different lockfile,
+      # or a stale build-info all fail here rather than at release time.
+      - name: Verify UI provenance against the lockfile
+        run: |
+          pnpm --filter @zeus-js/example-admin build
+          node --import tsx scripts/release/build-info.ts \
+            --product admin \
+            --dist examples/admin/dist \
+            --core-commit "$GITHUB_SHA" \
+            --ui-commit "${ZEUS_UI_COMMIT:-$(git rev-parse HEAD)}" \
+            --ui-manifest examples/admin/package.json \
+            --version "$(node -p "require('./package.json').version")" \
+            --built-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          pnpm check:ui-provenance \
+            --build-info examples/admin/dist/build-info.json \
+            --manifest examples/admin/package.json
+
       - name: Admin navigation in Chromium, Firefox and WebKit
         run: pnpm check:admin
       - name: Candidate packed HMR in Chromium, Firefox and WebKit
