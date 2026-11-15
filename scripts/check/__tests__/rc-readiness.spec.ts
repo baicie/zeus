@@ -44,6 +44,15 @@ const ready: RcReadinessInput = {
     'Linux and Windows evidence is bound to the current HEAD',
   ),
   releaseApproval: pass('release approval is bound to the current HEAD'),
+  /*
+   * A ready repository must have a protected Release environment. The fixture
+   * says so explicitly: leaving it out now makes the document `not_run` for
+   * that check, which is the behaviour under test elsewhere.
+   */
+  releaseEnvironment: {
+    hasRequiredReviewers: true,
+    reviewers: ['minato'],
+  },
 }
 
 describe('evaluateRcReadiness', () => {
@@ -53,7 +62,7 @@ describe('evaluateRcReadiness', () => {
     expect(report.decision).toBe('READY_FOR_RELEASE_REVIEW')
     expect(report.readyForReview).toBe(true)
     expect(report.blockers).toEqual([])
-    expect(report.checks).toHaveLength(8)
+    expect(report.checks).toHaveLength(9)
   })
 
   it('reports a dirty worktree and missing online evidence', () => {
@@ -71,6 +80,49 @@ describe('evaluateRcReadiness', () => {
       'clean-worktree: working tree has uncommitted changes',
       'online-products: evidence file missing: temp/release/rc-evidence.json',
     ])
+  })
+
+  /*
+   * The `Release` environment is named by `rc-approval.yml` and `release.yml`,
+   * and `rc-approval.yml`'s own comment says it runs "behind the protected
+   * `Release` environment (required reviewers)". Measured on this repository,
+   * `protection_rules` is `[]`. Naming an environment protects nothing; the
+   * protection is configuration, and it is absent.
+   */
+  it('fails when the Release environment requires no reviewer', () => {
+    const report = evaluateRcReadiness({
+      ...ready,
+      releaseEnvironment: { hasRequiredReviewers: false },
+    })
+    expect(report.blockers.join('\n')).toMatch(
+      /release-environment: the Release environment requires no reviewer/,
+    )
+    expect(report.decision).toBe('NOT_READY')
+  })
+
+  it('reports the check as not_run when protection was not read', () => {
+    const report = evaluateRcReadiness({
+      ...ready,
+      releaseEnvironment: undefined,
+    })
+    expect(report.blockers.join('\n')).toMatch(
+      /release-environment: .*protection was not read/,
+    )
+  })
+
+  it('passes when the environment names its reviewers', () => {
+    const report = evaluateRcReadiness({
+      ...ready,
+      releaseEnvironment: {
+        hasRequiredReviewers: true,
+        reviewers: ['minato'],
+      },
+    })
+    expect(report.checks).toContainEqual({
+      id: 'release-environment',
+      status: 'pass',
+      evidence: 'the Release environment requires approval from minato',
+    })
   })
 
   it('reports stale evidence and secrets independently', () => {

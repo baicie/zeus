@@ -100,6 +100,39 @@ export interface RcEvidenceStatuses {
   readonly releaseApproval: ReadinessEvidence
 }
 
+/**
+ * The `Release` environment must require a reviewer, not merely be named.
+ *
+ * Naming an environment in a workflow does nothing on its own. The protection
+ * lives on the environment's configuration, and a workflow that references an
+ * unprotected one runs without anyone approving it.
+ */
+function checkReleaseEnvironment(
+  input: RcReadinessInput['releaseEnvironment'],
+): ReadinessCheck {
+  if (!input) {
+    return {
+      id: 'release-environment',
+      status: 'not_run',
+      evidence:
+        'the Release environment protection was not read; the approval claim is unverified',
+    }
+  }
+  if (!input.hasRequiredReviewers) {
+    return {
+      id: 'release-environment',
+      status: 'fail',
+      evidence:
+        'the Release environment requires no reviewer, so an approval artifact can be produced without a second person',
+    }
+  }
+  return {
+    id: 'release-environment',
+    status: 'pass',
+    evidence: `the Release environment requires approval from ${(input.reviewers ?? []).join(', ') || 'a reviewer'}`,
+  }
+}
+
 export interface RcReadinessInput {
   readonly commit: string
   readonly branch: string
@@ -122,6 +155,23 @@ export interface RcReadinessInput {
   readonly onlineProducts: ReadinessEvidence
   readonly crossPlatform: ReadinessEvidence
   readonly releaseApproval: ReadinessEvidence
+  /**
+   * Whether the `Release` environment actually gates anything.
+   *
+   * `rc-approval.yml` says it "runs behind the protected `Release` environment
+   * (required reviewers)". Measured on this repository, that environment has
+   * `protection_rules: []` — no required reviewers, no branch restriction, no
+   * wait timer. Any collaborator with workflow dispatch rights can produce an
+   * approval artifact, and the binding the release then relies on is a
+   * self-certification.
+   *
+   * Absent means the check was not run and reports `not_run`, which is not a
+   * pass: a release whose only protection is a claim about protection has none.
+   */
+  readonly releaseEnvironment?: {
+    readonly hasRequiredReviewers: boolean
+    readonly reviewers?: readonly string[]
+  }
 }
 
 export interface RcReadinessReport {
@@ -156,6 +206,7 @@ export function evaluateRcReadiness(
     checkEvidence('create-zeus', input.createZeus),
     checkEvidence('cross-platform', input.crossPlatform),
     checkEvidence('release-approval', input.releaseApproval),
+    checkReleaseEnvironment(input.releaseEnvironment),
     checkEvidence('online-products', input.onlineProducts),
   ]
 
@@ -838,6 +889,61 @@ export function readRcReadinessInput(
     onlineProducts: evidenceStatuses.onlineProducts,
     crossPlatform: evidenceStatuses.crossPlatform,
     releaseApproval: evidenceStatuses.releaseApproval,
+    releaseEnvironment: readReleaseEnvironment(env),
+  }
+}
+
+/**
+ * Reads whether the `Release` environment is actually protected.
+ *
+ * `gh api repos/{owner}/{repo}/environments/Release` reports `protection_rules`.
+ * An empty array means the environment exists and gates nothing: the workflows
+ * that name it start immediately, and `rc-approval.yml`'s "runs behind the
+ * protected environment (required reviewers)" is a description of an intent
+ * rather than of the configuration.
+ *
+ * Returns `undefined` when the answer cannot be obtained — no `gh`, no
+ * network, no permission. That is `not_run`, not a pass, because the whole
+ * point of the check is that a claim of protection must be confirmed.
+ */
+function readReleaseEnvironment(
+  env: NodeJS.ProcessEnv,
+): RcReadinessInput['releaseEnvironment'] {
+  if (env.ZEUS_SKIP_ENVIRONMENT_PROBE === '1') return undefined
+  try {
+    const raw = execFileSync(
+      'gh',
+      [
+        'api',
+        `repos/${env.ZEUS_REPOSITORY ?? 'baicie/zeus'}/environments/Release`,
+      ],
+      {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+        timeout: 15_000,
+      },
+    )
+    const parsed = JSON.parse(raw) as { protection_rules?: unknown }
+    const rules = Array.isArray(parsed.protection_rules)
+      ? parsed.protection_rules
+      : []
+    const reviewers: string[] = []
+    let hasRequiredReviewers = false
+    for (const rule of rules) {
+      if (!isRecord(rule)) continue
+      if (rule.type !== 'required_reviewers') continue
+      hasRequiredReviewers = true
+      const entries = Array.isArray(rule.reviewers) ? rule.reviewers : []
+      for (const entry of entries) {
+        if (isRecord(entry) && isRecord(entry.reviewer)) {
+          const login = entry.reviewer.login
+          if (typeof login === 'string') reviewers.push(login)
+        }
+      }
+    }
+    return { hasRequiredReviewers, ...(reviewers.length ? { reviewers } : {}) }
+  } catch {
+    return undefined
   }
 }
 

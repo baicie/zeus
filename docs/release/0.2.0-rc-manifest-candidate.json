@@ -1,6 +1,6 @@
 {
   "schema": "zeus.rc-manifest/v1",
-  "generatedAt": "2026-11-15T05:36:58.149Z",
+  "generatedAt": "2026-11-15T08:59:17.359Z",
   "blockerCategories": {
     "release process": [
       "versions are core 0.1.1-beta.20 / ui 0.1.0-beta.35, not 0.2.0-rc.0",
@@ -12,17 +12,17 @@
       "webc-studio build-info names ui ffde5592, frozen ui is 89fc93ca"
     ],
     "evidence missing": [
-      "rc-readiness: NOT_READY; not passing: clean-worktree, sbom, packed-consumers, create-zeus, cross-platform, release-approval, online-products",
+      "rc-readiness: NOT_READY; not passing: clean-worktree, packed-consumers, create-zeus, cross-platform, release-approval, release-environment, online-products",
       "evidence not produced: release-approval, online-products, product-signoff, byok-live-gateway"
     ],
     "evidence stale": [
-      "demo pairing names 69f494f2+89fc93ca, tree is 97a3e626+89fc93ca",
+      "demo pairing names 69f494f2+89fc93ca, tree is 50c69ee8+89fc93ca",
       "cross-platform-evidence: cross-platform commit does not match the Core commit; cross-platform linux sourceSha does not match; cross-platform linux headSha does not match; cross-platform win32 sourceSha does not match; cross-platform win32 headSha does not match"
     ]
   },
   "repositories": {
     "core": {
-      "commit": "97a3e62655520906ec52881ef4ca077d5c2b701b",
+      "commit": "50c69ee89e47b90f18ab073ea37c1c6922e32433",
       "version": "0.1.1-beta.20"
     },
     "ui": {
@@ -683,7 +683,7 @@
       "check": "rc-readiness",
       "status": "FAIL",
       "source": "temp/release/rc-readiness.json",
-      "detail": "NOT_READY; not passing: clean-worktree, sbom, packed-consumers, create-zeus, cross-platform, release-approval, online-products"
+      "detail": "NOT_READY; not passing: clean-worktree, packed-consumers, create-zeus, cross-platform, release-approval, release-environment, online-products"
     },
     {
       "check": "cross-platform-evidence",
@@ -717,8 +717,8 @@
     }
   ],
   "blockers": [
-    "demo pairing names 69f494f2+89fc93ca, tree is 97a3e626+89fc93ca",
-    "rc-readiness: NOT_READY; not passing: clean-worktree, sbom, packed-consumers, create-zeus, cross-platform, release-approval, online-products",
+    "demo pairing names 69f494f2+89fc93ca, tree is 50c69ee8+89fc93ca",
+    "rc-readiness: NOT_READY; not passing: clean-worktree, packed-consumers, create-zeus, cross-platform, release-approval, release-environment, online-products",
     "cross-platform-evidence: cross-platform commit does not match the Core commit; cross-platform linux sourceSha does not match; cross-platform linux headSha does not match; cross-platform win32 sourceSha does not match; cross-platform win32 headSha does not match",
     "versions are core 0.1.1-beta.20 / ui 0.1.0-beta.35, not 0.2.0-rc.0",
     "admin build-info names ui ffde5592, frozen ui is 89fc93ca",
