@@ -1,0 +1,25 @@
+# Regression fixture for #292.
+#
+# `administration` is not a GitHub Actions permission key. Its presence makes
+# GitHub reject the whole file before creating any job: the run concludes
+# `failure` in 0s, has zero jobs, and is listed under the file path rather than
+# the workflow `name` — and `gh pr checks` shows nothing, because no check run
+# is created.
+#
+# The YAML below is syntactically valid. Only a schema check catches it, which
+# is why `scripts/ci/check-workflows.ts` exists.
+name: Regression Fixture Invalid Permission
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      administration: read
+    steps:
+      - run: echo "this file must be rejected structurally"

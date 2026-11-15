@@ -200,6 +200,23 @@ jobs:
       - name: Generate SBOM
         run: pnpm check:sbom:write
 
+      # Structure of every workflow file, as GitHub's own schema sees it.
+      #
+      # #292 added `administration: read` to a `permissions` block. The YAML
+      # parsed, so nothing here caught it; GitHub rejected both files before
+      # creating a job, the runs failed in 0s with zero jobs, and `gh pr checks`
+      # reported no failure at all. `actionlint` is the only check that sees
+      # this class, and it runs before the expensive jobs rather than after.
+      - name: Install actionlint
+        run: |
+          # Pinned: a new actionlint release can add rules, and an unrelated
+          # rule appearing should be a deliberate upgrade, not a surprise red.
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.12/scripts/download-actionlint.bash) v1.7.12
+          echo "$PWD" >> "$GITHUB_PATH"
+
+      - name: Workflow structure
+        run: pnpm check:workflows
+
       - name: ESLint
         run: pnpm lint
 

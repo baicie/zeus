@@ -19,6 +19,7 @@
     "check:release-artifacts": "tsx scripts/check/check-release-artifacts.ts",
     "check:ssr-safe-import": "tsx scripts/check/check-ssr-safe-import.ts",
     "lint": "eslint --cache .",
+    "check:workflows": "tsx scripts/ci/check-workflows.ts",
     "lint-fix": "eslint --fix .",
     "format": "prettier --write --cache .",
     "format-check": "prettier --check --cache .",
