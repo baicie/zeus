@@ -450,6 +450,14 @@ jobs:
         # Run after the frozen registry contract is updated to published artifacts.
         if: github.event_name == 'workflow_dispatch'
         run: pnpm check:golden-components
+      # Jobs run on separate runners and do not share `temp/`. The SBOM is
+      # written in `lint-and-check`, whose filesystem this job never sees, so
+      # `check:rc-readiness` reported `sbom: not_run` on every run — the check
+      # was present but starved of its input.
+      - name: Generate SBOM for the readiness report
+        if: always()
+        run: pnpm check:sbom:write
+
       - name: RC readiness report
         if: always()
         run: pnpm check:create-zeus && pnpm check:create-zeus-packed && pnpm check:rc-readiness
