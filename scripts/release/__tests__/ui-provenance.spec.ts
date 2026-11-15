@@ -617,3 +617,115 @@ describe('npm package integrity', () => {
     expect(result.errors.join('\n')).toMatch(/sourceCommit/)
   })
 })
+
+/**
+ * A source commit backed by an attestation is allowed; an unbacked one is not.
+ *
+ * The rule against naming a specific commit exists because the tempting value
+ * is the declared pairing commit — a different fact wearing the right shape.
+ * When this run actually read the commit out of SLSA provenance, the value is
+ * checkable and belongs in the document.
+ */
+describe('attested source commits', () => {
+  const rootPath = path.resolve(import.meta.dirname, '../../..')
+  const lockfile = fs.readFileSync(
+    path.join(rootPath, 'pnpm-lock.yaml'),
+    'utf8',
+  )
+  const adminManifest = path.join(rootPath, 'examples/admin/package.json')
+  const pairing = 'ffde55920fe9beab52dfe67bdca6d2e4023f28df'
+  const attested = 'a8826dd1f81560aaf6459d8d40a3e599f705f6e0'
+
+  const attestationSources = Object.fromEntries(
+    Object.keys(
+      (
+        JSON.parse(fs.readFileSync(adminManifest, 'utf8')) as {
+          dependencies: Record<string, string>
+        }
+      ).dependencies,
+    )
+      .filter(name => name.startsWith('@zeus-web/'))
+      .filter(
+        name =>
+          !(
+            JSON.parse(fs.readFileSync(adminManifest, 'utf8')) as {
+              dependencies: Record<string, string>
+            }
+          ).dependencies[name]!.startsWith('file:'),
+      )
+      .map(name => [`${name}@0.1.0-beta.34`, { commit: attested }]),
+  )
+
+  it('records the attested commit and its provenance', () => {
+    const sources = collectUiSources({
+      manifestPath: adminManifest,
+      root: rootPath,
+      declaredPairingCommit: pairing,
+      lockfile,
+      attestationSources,
+    })
+    const registry = sources.sources.filter(
+      source => source.kind === 'registry',
+    )
+    expect(registry.length).toBe(24)
+    for (const source of registry) {
+      expect(source.sourceCommit).toBe(attested)
+      expect(source.sourceCommitProvenance).toBe('attestation')
+    }
+  })
+
+  it('verifies a document whose commits are backed by attestations', () => {
+    const sources = collectUiSources({
+      manifestPath: adminManifest,
+      root: rootPath,
+      declaredPairingCommit: pairing,
+      lockfile,
+      attestationSources,
+    })
+    const result = verifyUiSources({
+      sources,
+      manifestPath: adminManifest,
+      root: rootPath,
+      lockfile,
+      expectedPairingCommit: pairing,
+      attestationSources,
+      level: 'release-strict',
+    })
+    expect(result.errors).toEqual([])
+  })
+
+  it('rejects a commit this run did not read from an attestation', () => {
+    const sources = collectUiSources({
+      manifestPath: adminManifest,
+      root: rootPath,
+      declaredPairingCommit: pairing,
+      lockfile,
+      attestationSources,
+    })
+    // Same shape, no attestation supplied at verification time.
+    const result = verifyUiSources({
+      sources,
+      manifestPath: adminManifest,
+      root: rootPath,
+      lockfile,
+      expectedPairingCommit: pairing,
+      level: 'release-strict',
+    })
+    expect(result.errors.join('\n')).toMatch(/not backed by an attestation/)
+  })
+
+  it('keeps UNVERIFIED when no attestation was read', () => {
+    const sources = collectUiSources({
+      manifestPath: adminManifest,
+      root: rootPath,
+      declaredPairingCommit: pairing,
+      lockfile,
+    })
+    const registry = sources.sources.filter(
+      source => source.kind === 'registry',
+    )
+    expect(registry.every(source => source.sourceCommit === 'UNVERIFIED')).toBe(
+      true,
+    )
+  })
+})
