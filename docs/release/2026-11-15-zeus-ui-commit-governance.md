@@ -121,8 +121,18 @@ curl -s https://baicie.github.io/zeus-demos/demo-pairing.json | jq -r .uiCommit
 {
   "declaredPairingCommit": "ffde5592…",
   "relationship": { "usesWebPackages": true, "checksOutUiRepository": false, … },
-  "sources": [ { "kind": "registry", "integrity": "sha512-…", "sourceCommit": "UNVERIFIED" } ]
+  "sources": [
+    {
+      "kind": "registry",
+      "integrity": "sha512-…",
+      "sourceCommit": "a8826dd1…",
+      "sourceCommitProvenance": "attestation"
+    }
+  ]
 }
 ```
+
+> 注：`sourceCommit` 不再是 `UNVERIFIED`——SLSA attestation 给出了真实提交（R9 #284），
+> 见 `2026-11-15-ui-provenance.md` §2.2。
 
 **这才是修复「虚假 uiCommit」的正确位置**——不是改那个变量的值。

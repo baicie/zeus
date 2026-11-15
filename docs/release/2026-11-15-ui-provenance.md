@@ -32,22 +32,42 @@
 
 | 输入                | 来源                         | 可证明的提交                                             |
 | ------------------- | ---------------------------- | -------------------------------------------------------- |
-| 24 个 `@zeus-web/*` | npm registry `0.1.0-beta.34` | **`UNVERIFIED`** — 见 §2.2                               |
+| 24 个 `@zeus-web/*` | npm registry `0.1.0-beta.34` | **`a8826dd1`** — 见 §2.2（SLSA attestation）             |
 | `@zeus-web/dialog`  | `vendor/zeus-web-dialog`     | **`74662b61`**（`provenance.json` 记录，且可逐文件校验） |
 
-### 2.2 为什么 npm 包的提交是 UNVERIFIED
+### 2.2 npm 包的提交由 SLSA attestation 证明
 
-`0.1.0-beta.34` 发布于 2026-10-26T13:03:41Z，带 npm provenance attestation。
-但**那个版本对应 UI 仓的哪个提交，本仓库无法证明**：
+> **更正（2026-11-15）**：本节原来写「npm 只绑定发布 workflow，不绑定源码提交，
+> 所以标 `UNVERIFIED`」。**该结论错误**，原因是只读了两个 attestation 里的
+> `publish/v0.1`，漏掉了同包的 `slsa.dev/provenance/v1`。
 
-- `pnpm-lock.yaml` 记录的是 tarball integrity，不是 UI 提交；
-- npm 的 provenance attestation 绑定的是发布时的 workflow，不是源码提交；
-- 本仓库没有 UI 仓在 `0.1.0-beta.34` 发布时刻的 SHA 记录。
+`0.1.0-beta.34` 发布于 2026-10-26T13:03:41Z。每个包带**两个** attestation：
 
-**我不猜。这条标 `UNVERIFIED`。**
+| predicateType                    | 内容                         |
+| -------------------------------- | ---------------------------- |
+| `…/specs/publish/v0.1`           | 发布 workflow 身份、registry |
+| `https://slsa.dev/provenance/v1` | **`resolvedDependencies`**   |
 
-要闭合它，需要在 UI 仓发布时写入一个 `sourceCommit` 字段到包的 metadata，或让 Admin 记录
-`pnpm-lock.yaml` 里这些包的 integrity 值——后者本轮已能做但未做（见 §6）。
+后者含：
+
+```json
+{
+  "uri": "git+https://github.com/baicie/zeus-ui@refs/tags/v0.1.0-beta.34",
+  "digest": { "gitCommit": "a8826dd1f81560aaf6459d8d40a3e599f705f6e0" }
+}
+```
+
+由 GitHub Actions 签发（`buildType: …/github-actions-buildtypes/workflow/v1`），
+Sigstore 签名，消费者可用 `npm audit signatures` 独立验证。
+
+**全量核实（25 个真实 UI 包，非抽样）**：25/25 有 SLSA v1，全部指向
+`a8826dd1f81560aaf6459d8d40a3e599f705f6e0`，只有一个不同值。
+
+所以这一行**不再是 `UNVERIFIED`**。Core 侧的读取实现在
+`scripts/release/ui-attestation.ts`（R9 #284）。
+
+原先提出的两条闭合路径（UI 仓写 `sourceCommit`、Admin 记录 integrity）仍然有价值——
+它们让不校验 SLSA 的工具也能读到提交——但**不再是证据缺口的必需条件**。
 
 ### 2.3 vendored dialog 的来源是完整的
 
@@ -184,7 +204,6 @@ sources:           []
 | 项                                    | 原因                                                  |
 | ------------------------------------- | ----------------------------------------------------- |
 | 改 `ZEUS_UI_COMMIT`                   | **任务明确禁止**                                      |
-| 让 npm 包的 `sourceCommit` 可证明     | 需要 UI 仓在发布时写入，跨仓库变更                    |
 | 记录 24 个 npm 包的 tarball integrity | 需要读 `pnpm-lock.yaml` 并接进 schema，可做但本轮未做 |
 | 实际构建镜像验证                      | 需 Docker，且合并会自动部署                           |
 
@@ -193,8 +212,12 @@ sources:           []
 | 优先级 | 动作                                                           | 说明                                              |
 | ------ | -------------------------------------------------------------- | ------------------------------------------------- |
 | P0     | 更新 `ZEUS_UI_COMMIT` 到当前配对值                             | 不是改成 UI main 最新，而是改成**配对记录里的值** |
-| P1     | UI 仓在发布时写入 `sourceCommit`                               | 让 24 个 npm 包的来源可证                         |
 | P2     | Admin 记录各 npm 包的 tarball integrity                        | 从 `pnpm-lock.yaml` 读，接进 `uiSources`          |
 | P2     | Playground 的 build-info 省略 `uiCommit`，或标 `notApplicable` | 现在它记录的是一个无意义的仓库                    |
+
+> **已撤销的 P1**：「UI 仓在发布时写入 `sourceCommit`，让 24 个 npm 包的来源可证」。
+> 来源**已经可证**——SLSA attestation 提供了源码 commit（见 §2.2），Core 侧的
+> `scripts/release/ui-attestation.ts` 已经在读它（R9 #284 已合入 main）。
+> 那条建议基于只读 `publish/v0.1` 的错误结论，不再成立。
 
 **注意**：第 4 条需要改 `build-info.ts` 的必填校验，会影响既有消费者。本轮未做，留作决策。
