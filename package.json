@@ -121,6 +121,7 @@
     "release:plan": "tsx scripts/release/release-plan.ts",
     "release:verify": "tsx scripts/release/check-release-readiness.ts",
     "release:dry": "tsx scripts/release/release.ts --dry --skipGit",
+    "release:rc-dry-run": "tsx scripts/release/rc-dry-run.ts",
     "release:canary": "tsx scripts/release/release-canary.ts",
     "release:promote:canary": "tsx scripts/release/promote-canary.ts",
     "release:cleanup:canary-staging": "tsx scripts/release/promote-canary.ts --cleanup",
