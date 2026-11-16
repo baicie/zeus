@@ -146,6 +146,7 @@ jobs:
           --ui-commit "${{ steps.pairing.outputs.ui-commit }}"
           --ui-version "${{ steps.pairing.outputs.ui-version }}"
           --dist-tag "${{ steps.release-version.outputs.dist-tag }}"
+          --require-sbom
           --out temp/release/release-authorization.json
 
       - name: Preserve the authorisation record

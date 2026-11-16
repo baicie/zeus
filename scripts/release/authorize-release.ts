@@ -27,6 +27,7 @@ import { parseArgs } from 'node:util'
 
 import { zeusFixedPackages } from '../release.config'
 import { findSupportingRuns, isAncestorOfMain } from './find-release-evidence'
+import { queryNpmJson } from './npm-registry'
 import {
   RELEASE_AUTHORIZATION_SCHEMA,
   evaluateReleaseAuthorization,
@@ -170,7 +171,79 @@ export interface ReleaseAuthorizationRecord {
   readonly generatedAt: string
 }
 
-function main(): void {
+/**
+ * Queries the registry for the version, per package.
+ *
+ * Returns `undefined` when the registry could not be asked — which the policy
+ * refuses, because "no collision found" and "no query answered" look identical
+ * from here and only one of them is safe.
+ */
+async function readRegistryState(version: string): Promise<{
+  reachable: boolean
+  collisions: string[]
+  firstPublish: string[]
+}> {
+  const collisions: string[] = []
+  const firstPublish: string[] = []
+  const names = [...zeusFixedPackages, '@zeus-js/vite-plugin']
+  for (const name of names) {
+    const result = await queryNpmJson<{ versions?: Record<string, unknown> }>([
+      'view',
+      name,
+      'versions',
+      '--json',
+    ])
+    if (result.status === 'not-found') {
+      /* Never published: its first publication would bind `latest`. */
+      firstPublish.push(name)
+      continue
+    }
+    if (result.status === 'failed') {
+      /*
+       * One unanswered query makes the whole answer unknown. Counting it as
+       * "no collision" would publish over an existing version; counting it as
+       * a collision would block a release for a network blip. Neither is a
+       * fact, so the caller is told the state is unreadable.
+       */
+      return { reachable: false, collisions, firstPublish }
+    }
+    if (result.value.versions && version in result.value.versions) {
+      collisions.push(name)
+    }
+  }
+  return { reachable: true, collisions, firstPublish }
+}
+
+/**
+ * Whether an SBOM for this tree exists and validates.
+ *
+ * The release precheck writes and checks it before this step runs, so the
+ * answer is read from the report rather than recomputed here.
+ */
+function readSbomOk(root: string): boolean | undefined {
+  for (const candidate of [
+    'temp/sbom/zeus.cdx.json',
+    'temp/release/sbom.json',
+  ]) {
+    const absolute = path.join(root, candidate)
+    if (!fs.existsSync(absolute)) continue
+    try {
+      const parsed = JSON.parse(fs.readFileSync(absolute, 'utf8')) as {
+        bomFormat?: unknown
+        components?: unknown
+      }
+      const components: unknown[] = Array.isArray(parsed.components)
+        ? parsed.components
+        : []
+      return typeof parsed.bomFormat === 'string' && components.length > 0
+    } catch {
+      return false
+    }
+  }
+  return undefined
+}
+
+async function main(): Promise<void> {
   const { values } = parseArgs({
     options: {
       root: { type: 'string', default: process.cwd() },
@@ -182,6 +255,13 @@ function main(): void {
       'ui-version': { type: 'string' },
       'dist-tag': { type: 'string' },
       'bundle-report': { type: 'string' },
+      /*
+       * Opt-in because the SBOM is produced by the release precheck, which
+       * runs before this step. Requiring it unconditionally would make the
+       * CLI unusable for a dry run, and defaulting it to `true` would claim a
+       * document had been checked when none was read.
+       */
+      'require-sbom': { type: 'boolean', default: false },
       out: {
         type: 'string',
         default: 'temp/release/release-authorization.json',
@@ -224,6 +304,8 @@ function main(): void {
       ? { '@zeus-web/(root)': values['ui-version'] }
       : {}
 
+  const registry = await readRegistryState(values.version)
+
   const { result, runs, lookupProblems } = collectReleaseAuthorization({
     root,
     repository: values.repository,
@@ -234,11 +316,11 @@ function main(): void {
     uiCommit: values['ui-commit'] ?? '',
     uiVersions,
     distTag: values['dist-tag'],
-    sbomOk: undefined,
+    sbomOk: values['require-sbom'] ? readSbomOk(root) : undefined,
     tarballOk,
-    registryCollisions: [],
-    registryReachable: false,
-    firstPublishPackages: [],
+    registryCollisions: registry.collisions,
+    registryReachable: registry.reachable,
+    firstPublishPackages: registry.firstPublish,
   })
 
   const record: ReleaseAuthorizationRecord = {
@@ -288,5 +370,8 @@ function main(): void {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  main()
+  main().catch(error => {
+    console.error(error instanceof Error ? error.message : String(error))
+    process.exitCode = 1
+  })
 }
