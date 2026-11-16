@@ -95,8 +95,8 @@ describe('zeus release config', () => {
       ['pnpm', 'check:exports'],
       ['pnpm', 'check:repository'],
       ['pnpm', 'check:environment-topology'],
+      ['pnpm', 'check:release-pairing'],
       ['pnpm', 'check:packed-consumers'],
-      ['pnpm', 'check:rc-readiness', '--release-snapshot'],
       ['pnpm', 'check:release-worktree', '--verify'],
     ])
   })

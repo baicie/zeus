@@ -84,63 +84,43 @@ jobs:
       - name: Verify release tag source
         run: pnpm release:verify:tag-source --version "${{ steps.release-version.outputs.version }}"
 
-      - name: Require approved deployment and approval evidence
-        env:
-          DEPLOYMENT_RUN_ID: ${{ vars.ZEUS_DEPLOYMENT_EVIDENCE_RUN_ID }}
-          APPROVAL_RUN_ID: ${{ vars.ZEUS_RC_APPROVAL_RUN_ID }}
-          APPROVERS: ${{ vars.ZEUS_RC_APPROVERS }}
+      # The UI commit this release pairs with. A tag names a Core commit; the
+      # UI half of the pair is a separate immutable SHA, recorded in the
+      # repository so it is reviewable rather than typed at release time.
+      - name: Read the paired UI commit
+        id: pairing
         run: |
-          test -n "$DEPLOYMENT_RUN_ID"
-          test -n "$APPROVAL_RUN_ID"
-          test -n "$APPROVERS"
-
-      - name: Download attested RC approval evidence
-        uses: actions/download-artifact@v4
-        with:
-          name: rc-approval
-          run-id: ${{ vars.ZEUS_RC_APPROVAL_RUN_ID }}
-          github-token: ${{ github.token }}
-          path: temp/rc-approval
-
-      # The UI commit is an immutable, approved SHA from the approval
-      # document. A moving branch name is never a valid release identity.
-      - name: Read the approved UI commit
-        run: |
-          UI_COMMIT=$(node -p "require('./temp/rc-approval/rc-approval.json').uiCommit")
-          UI_VERSION=$(node -p "require('./temp/rc-approval/rc-approval.json').uiVersion")
-          APPROVAL_VERSION=$(node -p "require('./temp/rc-approval/rc-approval.json').version")
+          FILE="release-pairing/v${{ steps.release-version.outputs.version }}.json"
+          if [ ! -f "$FILE" ]; then
+            echo "::error::no pairing record at $FILE; a release needs the UI commit it was verified against"
+            exit 1
+          fi
+          UI_COMMIT=$(node -p "require('./$FILE').uiCommit")
+          UI_VERSION=$(node -p "require('./$FILE').uiVersion")
           if ! [[ "$UI_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "::error::approved uiCommit is not a full SHA"
+            echo "::error::pairing uiCommit is not a full SHA"
             exit 1
           fi
-          if [ -z "$UI_VERSION" ]; then
-            echo "::error::approval does not record a paired UI version"
-            exit 1
-          fi
-          if [ "$APPROVAL_VERSION" != "${{ steps.release-version.outputs.version }}" ]; then
-            echo "::error::approval version does not match the release tag"
-            exit 1
-          fi
-          echo "ZEUS_UI_COMMIT=$UI_COMMIT" >> "$GITHUB_ENV"
-          echo "ZEUS_UI_VERSION=$UI_VERSION" >> "$GITHUB_ENV"
+          echo "ui-commit=$UI_COMMIT" >> "$GITHUB_OUTPUT"
+          echo "ui-version=$UI_VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout the approved UI commit
+      - name: Checkout the paired UI commit
         uses: actions/checkout@v5
         with:
           repository: baicie/zeus-ui
-          ref: ${{ env.ZEUS_UI_COMMIT }}
+          ref: ${{ steps.pairing.outputs.ui-commit }}
           path: temp/zeus-ui
           fetch-depth: 1
           persist-credentials: false
 
       - name: Verify Core/UI exact pairing
         run: |
-          test "$(git -C temp/zeus-ui rev-parse HEAD)" = "$ZEUS_UI_COMMIT"
+          test "$(git -C temp/zeus-ui rev-parse HEAD)" = "${{ steps.pairing.outputs.ui-commit }}"
           pnpm check:ui-pairing \
             --ui-root temp/zeus-ui \
             --core-version "${{ steps.release-version.outputs.version }}" \
-            --ui-commit "$ZEUS_UI_COMMIT" \
-            --ui-version "$ZEUS_UI_VERSION" \
+            --ui-commit "${{ steps.pairing.outputs.ui-commit }}" \
+            --ui-version "${{ steps.pairing.outputs.ui-version }}" \
             --require-commit \
             --out temp/release/ui-pairing.json
 
@@ -150,46 +130,31 @@ jobs:
           name: ui-pairing
           path: temp/release/ui-pairing.json
 
-      - name: Download approved deployment evidence
-        uses: actions/download-artifact@v4
-        with:
-          name: host-deployment-stage2-evidence
-          run-id: ${{ vars.ZEUS_DEPLOYMENT_EVIDENCE_RUN_ID }}
-          github-token: ${{ github.token }}
-          path: temp/deployment-evidence
-
-      - name: Verify approval identity, run metadata and attestation
+      # The release authorisation. No approver, no run id, no allow-list: it
+      # finds the CI evidence for this commit itself and refuses on any clause
+      # it cannot prove. A non-zero exit here stops the workflow before any
+      # publish step exists to run.
+      - name: Authorise the release
         env:
           GH_TOKEN: ${{ github.token }}
-          APPROVERS: ${{ vars.ZEUS_RC_APPROVERS }}
         run: >-
-          pnpm exec tsx scripts/release/verify-rc-approval.ts
-          --approval temp/rc-approval/rc-approval.json
-          --payload temp/rc-approval/rc-approval-payload.json
-          --cross-platform temp/rc-approval/cross-platform.json
-          --core-commit "$GITHUB_SHA"
-          --ui-commit "$ZEUS_UI_COMMIT"
+          pnpm exec tsx scripts/release/authorize-release.ts
+          --repository "${{ github.repository }}"
           --version "${{ steps.release-version.outputs.version }}"
-          --repo "${{ github.repository }}"
-          --run-id "${{ vars.ZEUS_RC_APPROVAL_RUN_ID }}"
-          --approvers "$APPROVERS"
-          --out temp/release/approval-trust.json
+          --tag-ref "$GITHUB_REF"
+          --workflow-sha "$GITHUB_SHA"
+          --ui-commit "${{ steps.pairing.outputs.ui-commit }}"
+          --ui-version "${{ steps.pairing.outputs.ui-version }}"
+          --dist-tag "${{ steps.release-version.outputs.dist-tag }}"
+          --out temp/release/release-authorization.json
 
-      - name: Assemble deployment-bound RC evidence
-        run: >-
-          pnpm exec tsx scripts/release/assemble-rc-evidence.ts
-          --acceptance temp/deployment-evidence/deployment-acceptance.json
-          --transaction temp/deployment-evidence/deployment-transaction.json
-          --provenance temp/deployment-evidence/deployment.online.provenance.json
-          --pair temp/deployment-evidence/pair.json
-          --approval temp/rc-approval/rc-approval.json
-          --cross-platform temp/rc-approval/cross-platform.json
-          --trust temp/release/approval-trust.json
-          --version "${{ steps.release-version.outputs.version }}"
-          --approvers "${{ vars.ZEUS_RC_APPROVERS }}"
-          --source temp/deployment-evidence/evidence-source.json
-          --run-id "${{ vars.ZEUS_DEPLOYMENT_EVIDENCE_RUN_ID }}"
-          --out temp/release
+      - name: Preserve the authorisation record
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-authorization
+          path: temp/release/release-authorization.json
+          if-no-files-found: warn
 
       - name: Release precheck
         env:

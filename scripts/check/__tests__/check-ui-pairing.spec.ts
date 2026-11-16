@@ -330,22 +330,31 @@ describe('release.yml pins the approved UI commit', () => {
     'utf8',
   )
 
-  it('takes the UI commit from the approval document, not from a branch', () => {
+  /*
+   * The UI commit comes from a committed pairing record, not from an approval
+   * document and not from a branch. A record in the repository at a known path
+   * is reviewable in the pull request that adds it; a document produced at
+   * release time is reviewable by nobody.
+   */
+  it('takes the UI commit from the committed pairing record', () => {
+    expect(workflow).toMatch(/release-pairing\/v\$\{\{/)
     expect(workflow).toMatch(
-      /UI_COMMIT=\$\(node -p "require\('\.\/temp\/rc-approval\/rc-approval\.json'\)\.uiCommit"\)/,
+      /UI_COMMIT=\$\(node -p "require\('\.\/\$FILE'\)\.uiCommit"\)/,
     )
   })
 
-  it('rejects an approved commit that is not a full SHA', () => {
+  it('rejects a paired commit that is not a full SHA', () => {
     expect(workflow).toMatch(
       /if ! \[\[ "\$UI_COMMIT" =~ \^\[0-9a-f\]\{40\}\$ \]\]/,
     )
   })
 
   it('checks out that exact ref and re-verifies HEAD after checkout', () => {
-    expect(workflow).toMatch(/ref: \$\{\{ env\.ZEUS_UI_COMMIT \}\}/)
     expect(workflow).toMatch(
-      /test "\$\(git -C temp\/zeus-ui rev-parse HEAD\)" = "\$ZEUS_UI_COMMIT"/,
+      /ref: \$\{\{ steps\.pairing\.outputs\.ui-commit \}\}/,
+    )
+    expect(workflow).toMatch(
+      /test "\$\(git -C temp\/zeus-ui rev-parse HEAD\)" = "\$\{\{ steps\.pairing\.outputs\.ui-commit \}\}"/,
     )
   })
 
