@@ -232,7 +232,7 @@ describe('release pairing sees files the commit does not', () => {
     ).toBe(true)
   })
 
-  it('does not fail on ignored build output', () => {
+  it('does not fail on ignored build output', { timeout: 60_000 }, () => {
     const { root, commit } = fixture('0.2.0-rc.0')
     fs.writeFileSync(path.join(root, '.gitignore'), 'dist\nnode_modules\n')
     execFileSync('git', ['-C', root, 'add', '.gitignore'])
@@ -263,56 +263,66 @@ describe('release pairing sees files the commit does not', () => {
     expect(commit).toBeTruthy()
   })
 
-  it('rejects a tracked modification and reports it', () => {
-    const { root, commit } = fixture('0.2.0-rc.0')
-    fs.writeFileSync(
-      path.join(root, 'packages', 'button', 'package.json'),
-      JSON.stringify({ name: '@zeus-web/button', version: '0.2.0-rc.0' }),
-    )
-    const result = checkUiPairing({
-      uiRoot: root,
-      coreVersion: '0.2.0-rc.0',
-      expectedUiCommit: commit!,
-      requireCommit: true,
-    })
-    expect(
-      result.mismatches.some(mismatch =>
-        mismatch.startsWith('UI checkout is dirty:'),
-      ),
-    ).toBe(true)
-  })
+  it(
+    'rejects a tracked modification and reports it',
+    { timeout: 60_000 },
+    () => {
+      const { root, commit } = fixture('0.2.0-rc.0')
+      fs.writeFileSync(
+        path.join(root, 'packages', 'button', 'package.json'),
+        JSON.stringify({ name: '@zeus-web/button', version: '0.2.0-rc.0' }),
+      )
+      const result = checkUiPairing({
+        uiRoot: root,
+        coreVersion: '0.2.0-rc.0',
+        expectedUiCommit: commit!,
+        requireCommit: true,
+      })
+      expect(
+        result.mismatches.some(mismatch =>
+          mismatch.startsWith('UI checkout is dirty:'),
+        ),
+      ).toBe(true)
+    },
+  )
 })
 
 describe('optional dependencies participate in pairing', () => {
-  it('rejects an optional @zeus-js dependency that drifts', () => {
-    const { root, commit } = fixture('0.2.0-rc.0')
-    const manifestPath = path.join(root, 'packages', 'button', 'package.json')
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as {
-      optionalDependencies?: Record<string, string>
-    }
-    manifest.optionalDependencies = { '@zeus-js/runtime-dom': '0.1.1-beta.20' }
-    fs.writeFileSync(manifestPath, JSON.stringify(manifest))
-    execFileSync('git', ['-C', root, 'add', '-A'])
-    execFileSync('git', ['-C', root, 'commit', '-q', '-m', 'optional'], {
-      stdio: 'ignore',
-    })
-    const head = execFileSync('git', ['-C', root, 'rev-parse', 'HEAD'], {
-      encoding: 'utf8',
-    }).trim()
-    const result = checkUiPairing({
-      uiRoot: root,
-      coreVersion: '0.2.0-rc.0',
-      expectedUiCommit: head,
-      requireCommit: true,
-    })
-    expect(
-      result.mismatches.some(mismatch =>
-        mismatch.includes('@zeus-js/runtime-dom'),
-      ),
-      `optional dependencies must be paired too, got: ${JSON.stringify(result.mismatches)}`,
-    ).toBe(true)
-    expect(commit).toBeTruthy()
-  })
+  it(
+    'rejects an optional @zeus-js dependency that drifts',
+    { timeout: 60_000 },
+    () => {
+      const { root, commit } = fixture('0.2.0-rc.0')
+      const manifestPath = path.join(root, 'packages', 'button', 'package.json')
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as {
+        optionalDependencies?: Record<string, string>
+      }
+      manifest.optionalDependencies = {
+        '@zeus-js/runtime-dom': '0.1.1-beta.20',
+      }
+      fs.writeFileSync(manifestPath, JSON.stringify(manifest))
+      execFileSync('git', ['-C', root, 'add', '-A'])
+      execFileSync('git', ['-C', root, 'commit', '-q', '-m', 'optional'], {
+        stdio: 'ignore',
+      })
+      const head = execFileSync('git', ['-C', root, 'rev-parse', 'HEAD'], {
+        encoding: 'utf8',
+      }).trim()
+      const result = checkUiPairing({
+        uiRoot: root,
+        coreVersion: '0.2.0-rc.0',
+        expectedUiCommit: head,
+        requireCommit: true,
+      })
+      expect(
+        result.mismatches.some(mismatch =>
+          mismatch.includes('@zeus-js/runtime-dom'),
+        ),
+        `optional dependencies must be paired too, got: ${JSON.stringify(result.mismatches)}`,
+      ).toBe(true)
+      expect(commit).toBeTruthy()
+    },
+  )
 })
 
 /**

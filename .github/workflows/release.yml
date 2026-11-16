@@ -130,6 +130,15 @@ jobs:
           name: ui-pairing
           path: temp/release/ui-pairing.json
 
+      # Everything that can be checked without publishing, including the SBOM
+      # the authorisation reads next. Order matters: `check:sbom:write` is a
+      # precheck command, so authorising before this step would look for a
+      # document that does not exist yet and refuse on "no SBOM was produced".
+      - name: Release precheck
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm release:precheck
+
       # The release authorisation. No approver, no run id, no allow-list: it
       # finds the CI evidence for this commit itself and refuses on any clause
       # it cannot prove. A non-zero exit here stops the workflow before any
@@ -156,22 +165,6 @@ jobs:
           name: release-authorization
           path: temp/release/release-authorization.json
           if-no-files-found: warn
-
-      - name: Release precheck
-        env:
-          # The release job runs *inside* the Release environment, so the
-          # protection has already applied to it — but `check:rc-readiness`
-          # still tries to read the rules to confirm they exist, and a
-          # `GITHUB_TOKEN` cannot: the environments endpoint needs
-          # Administration permission, which no workflow `permissions` key
-          # grants. The probe reports `unauthorized` and the check stays
-          # `not_run` unless a capable token is supplied.
-          #
-          # That is the intended behaviour. A release whose only evidence of
-          # protection is "we were inside the environment" is assuming what it
-          # should verify; `not_run` says so instead of passing.
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: pnpm release:precheck
 
       - name: Prepare Core candidate tarballs and UI overrides
         run: pnpm check:create-zeus-candidate:prepare --ui-root temp/zeus-ui
