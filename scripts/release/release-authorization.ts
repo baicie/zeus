@@ -132,6 +132,14 @@ export interface AuthorizationInput {
   readonly registryReachable?: boolean
   /** First-publish packages that would bind `latest` if published without one. */
   readonly firstPublishPackages?: readonly string[]
+  /**
+   * First-publish packages the maintainer has accepted.
+   *
+   * Read from the pairing record at the tagged commit, so accepting the risk
+   * of binding `latest` is a reviewed decision rather than a flag someone
+   * flips at release time.
+   */
+  readonly acknowledgedFirstPublish?: readonly string[]
   /** The dist-tag the workflow computed from the tag. */
   readonly distTag?: string
   /**
@@ -175,6 +183,21 @@ function finding(
   detail: string,
 ): AuthorizationFinding {
   return { rule, verdict, detail }
+}
+
+/**
+ * Whether every never-published package has been explicitly accepted.
+ *
+ * Exact names, one per package. A prefix or a wildcard would make "accept
+ * these three" indistinguishable from "accept whatever shows up next release",
+ * and the whole point is that the maintainer saw the list.
+ */
+function firstPublishAcknowledged(
+  firstPublish: readonly string[],
+  acknowledged: readonly string[],
+): boolean {
+  if (acknowledged.length === 0) return false
+  return firstPublish.every(name => acknowledged.includes(name))
 }
 
 /**
@@ -533,7 +556,11 @@ export function evaluateReleaseAuthorization(
     )
   } else if (
     expectedDistTag !== 'latest' &&
-    (input.firstPublishPackages ?? []).length > 0
+    (input.firstPublishPackages ?? []).length > 0 &&
+    !firstPublishAcknowledged(
+      input.firstPublishPackages ?? [],
+      input.acknowledgedFirstPublish ?? [],
+    )
   ) {
     /*
      * npm binds `latest` to a package's first publish regardless of `--tag`.
@@ -541,20 +568,31 @@ export function evaluateReleaseAuthorization(
      * `latest` no matter what the workflow passes, and the repair is a
      * separate protected operation. Refusing here is the difference between a
      * planned repair and a surprise.
+     *
+     * The maintainer can accept it explicitly by listing each package in the
+     * pairing record's `firstPublish` field. That is not an override flag —
+     * it is a list of names, committed at the tagged commit, so accepting the
+     * risk is a reviewed decision rather than a variable someone sets.
      */
     findings.push(
       finding(
         AUTHORIZATION_RULES.distTag,
         'REFUSED',
-        `${(input.firstPublishPackages ?? []).length} package(s) have never been published; their first publish would bind latest to ${version} even under --tag ${expectedDistTag}`,
+        `${(input.firstPublishPackages ?? []).length} package(s) have never been published; their first publish would bind latest to ${version} even under --tag ${expectedDistTag}. To accept this, list them in the pairing record's firstPublish field`,
       ),
     )
   } else {
+    const acknowledged = firstPublishAcknowledged(
+      input.firstPublishPackages ?? [],
+      input.acknowledgedFirstPublish ?? [],
+    )
     findings.push(
       finding(
         AUTHORIZATION_RULES.distTag,
         'AUTHORIZED',
-        `${version} publishes under ${expectedDistTag}`,
+        acknowledged && expectedDistTag !== 'latest'
+          ? `${version} publishes under ${expectedDistTag}; ${(input.firstPublishPackages ?? []).length} first publish(es) accepted in the pairing record`
+          : `${version} publishes under ${expectedDistTag}`,
       ),
     )
   }

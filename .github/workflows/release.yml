@@ -162,6 +162,7 @@ jobs:
           --ui-version "${{ steps.pairing.outputs.ui-version }}"
           --dist-tag "${{ steps.release-version.outputs.dist-tag }}"
           --require-sbom
+          --bundle-report temp/release/tarballs.json
           --out temp/release/release-authorization.json
 
       - name: Preserve the authorisation record

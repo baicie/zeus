@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import fs, { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 
 import pico from 'picocolors'
@@ -89,6 +89,33 @@ function main(): void {
         ),
       )
     }
+  }
+
+  /*
+   * A machine-readable verdict, because the release authorisation reads it.
+   *
+   * Without this, `tarball-integrity` had no producer: the workflow never
+   * passed `--bundle-report` and nothing wrote a report, so every release
+   * would have been REFUSED for "tarball integrity was not checked" — a gate
+   * that blocks forever because its input does not exist.
+   */
+  const outFile = readOption('--out')
+  if (outFile) {
+    fs.mkdirSync(path.dirname(path.resolve(outFile)), { recursive: true })
+    fs.writeFileSync(
+      path.resolve(outFile),
+      `${JSON.stringify(
+        {
+          schema: 'zeus.release-artifacts/v1',
+          ok: !hasError,
+          packages: packages.length,
+          requireBinaries,
+          generatedAt: new Date().toISOString(),
+        },
+        null,
+        2,
+      )}\n`,
+    )
   }
 
   if (hasError) process.exit(1)

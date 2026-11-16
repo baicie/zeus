@@ -206,7 +206,24 @@ export function readCurrentTagSha(
     const object = parsed.object
     if (!isRecord(object)) return undefined
     const sha = object.sha
-    return typeof sha === 'string' ? sha : undefined
+    if (typeof sha !== 'string') return undefined
+    /*
+     * An **annotated** tag's ref points at a tag object, not at a commit:
+     * `object.type` is `tag`, and comparing that SHA against `GITHUB_SHA`
+     * (always a commit) would report every annotated tag as "moved during the
+     * run". Two of the last three release tags here are annotated.
+     *
+     * `object.type === 'commit'` is a lightweight tag and its SHA is already
+     * the commit. Anything else is dereferenced through the tags endpoint.
+     */
+    if (object.type === 'commit') return sha
+    const tagObject = JSON.parse(
+      run(['api', `repos/${repository}/git/tags/${sha}`]),
+    ) as unknown
+    if (!isRecord(tagObject)) return undefined
+    const target = tagObject.object
+    if (!isRecord(target) || typeof target.sha !== 'string') return undefined
+    return target.sha
   } catch {
     return undefined
   }

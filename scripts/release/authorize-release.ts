@@ -33,6 +33,7 @@ import {
 } from './find-release-evidence'
 import { queryNpmJson } from './npm-registry'
 import {
+  AUTHORIZATION_RULES,
   RELEASE_AUTHORIZATION_SCHEMA,
   evaluateReleaseAuthorization,
   type SupportingRun,
@@ -65,6 +66,8 @@ export interface CollectAuthorizationInput {
   readonly registryCollisions: readonly string[]
   readonly registryReachable: boolean
   readonly firstPublishPackages: readonly string[]
+  /** First-publish packages the pairing record accepts. */
+  readonly acknowledgedFirstPublish?: readonly string[]
   /** Injectable for tests: returns runs for a workflow at a commit. */
   readonly findRuns?: typeof findSupportingRuns
   /** Injectable for tests. */
@@ -145,6 +148,7 @@ export function collectReleaseAuthorization(input: CollectAuthorizationInput): {
     registryCollisions: input.registryCollisions,
     registryReachable: input.registryReachable,
     firstPublishPackages: input.firstPublishPackages,
+    acknowledgedFirstPublish: input.acknowledgedFirstPublish,
     distTag: input.distTag,
     currentTagSha: input.currentTagSha,
   })
@@ -179,13 +183,43 @@ export interface ReleaseAuthorizationRecord {
 }
 
 /**
+ * The published version list, whatever shape `npm view` returned.
+ *
+ * Three shapes occur in practice: an array, a single string for a package with
+ * one version, and — from some proxies — the `{ versions: {...} }` document.
+ * `undefined` means the shape was none of them, which the caller treats as
+ * "registry state unknown" rather than "no versions".
+ */
+export function normalizeVersions(value: unknown): string[] | undefined {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === 'string')
+  }
+  if (typeof value === 'string') return [value]
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    'versions' in value &&
+    typeof (value as { versions?: unknown }).versions === 'object' &&
+    (value as { versions?: unknown }).versions !== null
+  ) {
+    return Object.keys(
+      (value as { versions: Record<string, unknown> }).versions,
+    )
+  }
+  return undefined
+}
+
+/**
  * Queries the registry for the version, per package.
  *
  * Returns `undefined` when the registry could not be asked — which the policy
  * refuses, because "no collision found" and "no query answered" look identical
  * from here and only one of them is safe.
  */
-async function readRegistryState(version: string): Promise<{
+export async function readRegistryState(
+  version: string,
+  query: typeof queryNpmJson = queryNpmJson,
+): Promise<{
   reachable: boolean
   collisions: string[]
   firstPublish: string[]
@@ -194,12 +228,16 @@ async function readRegistryState(version: string): Promise<{
   const firstPublish: string[] = []
   const names = [...zeusFixedPackages, '@zeus-js/vite-plugin']
   for (const name of names) {
-    const result = await queryNpmJson<{ versions?: Record<string, unknown> }>([
-      'view',
-      name,
-      'versions',
-      '--json',
-    ])
+    /*
+     * `npm view <pkg> versions --json` returns an **array** of version
+     * strings — or a bare string when the package has exactly one version.
+     * Reading it as `{ versions: {...} }` and testing membership with `in`
+     * meant every version tested as absent: `in` on an array checks index
+     * keys, and a string has no such property. Measured against the live
+     * registry, `'0.1.1-beta.20' in v === false` while `v.includes(...)` is
+     * true, with 180 versions returned.
+     */
+    const result = await query<unknown>(['view', name, 'versions', '--json'])
     if (result.status === 'not-found') {
       /* Never published: its first publication would bind `latest`. */
       firstPublish.push(name)
@@ -214,9 +252,16 @@ async function readRegistryState(version: string): Promise<{
        */
       return { reachable: false, collisions, firstPublish }
     }
-    if (result.value.versions && version in result.value.versions) {
-      collisions.push(name)
+    const published = normalizeVersions(result.value)
+    if (published === undefined) {
+      /*
+       * A shape this code does not understand is not evidence of absence.
+       * Treating it as "no collision" is how a release publishes over a
+       * version npm already has.
+       */
+      return { reachable: false, collisions, firstPublish }
     }
+    if (published.includes(version)) collisions.push(name)
   }
   return { reachable: true, collisions, firstPublish }
 }
@@ -269,6 +314,8 @@ async function main(): Promise<void> {
        * document had been checked when none was read.
        */
       'require-sbom': { type: 'boolean', default: false },
+      /** The pairing record, whose `firstPublish` list is read here. */
+      'pairing-record': { type: 'string' },
       out: {
         type: 'string',
         default: 'temp/release/release-authorization.json',
@@ -313,6 +360,27 @@ async function main(): Promise<void> {
 
   const registry = await readRegistryState(values.version)
 
+  /*
+   * The pairing record carries the accepted first publications. Read from the
+   * tagged commit's own file, so accepting the risk was reviewed in the PR
+   * that added it.
+   */
+  let acknowledgedFirstPublish: string[] = []
+  if (values['pairing-record'] && fs.existsSync(values['pairing-record'])) {
+    try {
+      const record = JSON.parse(
+        fs.readFileSync(values['pairing-record'], 'utf8'),
+      ) as { firstPublish?: unknown }
+      if (Array.isArray(record.firstPublish)) {
+        acknowledgedFirstPublish = record.firstPublish.filter(
+          (entry): entry is string => typeof entry === 'string',
+        )
+      }
+    } catch {
+      acknowledgedFirstPublish = []
+    }
+  }
+
   const { result, runs, lookupProblems } = collectReleaseAuthorization({
     root,
     repository: values.repository,
@@ -328,6 +396,7 @@ async function main(): Promise<void> {
     registryCollisions: registry.collisions,
     registryReachable: registry.reachable,
     firstPublishPackages: registry.firstPublish,
+    acknowledgedFirstPublish,
     /*
      * Read live: `GITHUB_SHA` is frozen at run start, so a tag moved during
      * the run leaves every other clause satisfied while the artifact no
@@ -383,7 +452,23 @@ async function main(): Promise<void> {
    * read. Every other rule is either AUTHORIZED or REFUSED, and a refusal
    * blocks.
    */
-  if (result.verdict === 'REFUSED') {
+  /*
+   * `tag-unmoved` is a limitation when the tag could not be re-read, and that
+   * is not the same as "the tag is fine". A tag moved during the run leaves
+   * every other clause satisfied while the artifact stops matching the tag —
+   * so an unverified answer to this rule must block, even though the rule
+   * itself cannot return REFUSED on a failed read.
+   *
+   * `tag-immutability` is different: it can never be verified from here, and
+   * blocking on it would stop every release forever. The distinction is
+   * "could not read this time" versus "this code can never read it".
+   */
+  const blockingLimitation = result.findings.some(
+    entry =>
+      entry.verdict === 'POLICY_LIMITATION' &&
+      entry.rule === AUTHORIZATION_RULES.tagUnmoved,
+  )
+  if (result.verdict === 'REFUSED' || blockingLimitation) {
     process.exitCode = 1
   }
 }

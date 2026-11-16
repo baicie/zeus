@@ -19,6 +19,15 @@ export interface ReleasePairing {
   readonly uiCommit: string
   readonly uiVersion: string
   readonly verifiedAt: string
+  /**
+   * Packages whose first publication this release accepts.
+   *
+   * npm binds `latest` to a package's first publish regardless of `--tag`, so
+   * a prerelease that is a first publication pollutes `latest`. Listing a
+   * package here says the maintainer knows and accepts that; the release
+   * refuses otherwise.
+   */
+  readonly firstPublish?: readonly string[]
 }
 
 export interface PairingProblem {
@@ -89,6 +98,14 @@ export function validatePairingRecord(
   }
   if (typeof value.verifiedAt !== 'string' || !ISO_UTC.test(value.verifiedAt)) {
     push('verifiedAt must be an ISO-8601 UTC timestamp')
+  }
+  if (value.firstPublish !== undefined) {
+    if (
+      !Array.isArray(value.firstPublish) ||
+      value.firstPublish.some(entry => typeof entry !== 'string')
+    ) {
+      push('firstPublish must be an array of package names')
+    }
   }
   return problems
 }
