@@ -147,9 +147,23 @@ flag: an override that exists is an override that gets used at 3am.
 
 ## What still needs a human, once
 
-1. Create the `Release` environment, tag policy `v*`, `create-zeus@*`,
-   `vite-plugin@*`, branch policy `main`; no required reviewers.
-2. Add `NPM_TOKEN` to it.
-3. Create a tag ruleset blocking deletion and non-fast-forward on `v*`,
-   `create-zeus@*`, `vite-plugin@*`.
-4. (Optional, later) switch npm to Trusted Publishing and delete `NPM_TOKEN`.
+Exactly one thing:
+
+**A tag ruleset** blocking deletion and non-fast-forward on `v*`,
+`create-zeus@*`, `vite-plugin@*`. This is the only mechanism that makes a tag
+immutable, and it is the only piece this code cannot read. `tag-unmoved`
+notices a move after the fact; the ruleset prevents it.
+
+Everything else already exists and needs no action:
+
+- `NPM_TOKEN` is a repository secret, present since 2026-10-09;
+- the `Release` and `Canary` environments exist with no protection rules;
+- `v0.1.1-beta.18`, `.19` and `.20` published successfully with no approval —
+  the `rc-approval` gate was added _after_ the last successful release and
+  never ran successfully.
+
+That history is worth stating plainly: this project's releases were always
+zero-approval. The approval gate was an insertion that never worked, and
+removing it restores a path that was already in use.
+
+(Optional, later) switch npm to Trusted Publishing and delete `NPM_TOKEN`.

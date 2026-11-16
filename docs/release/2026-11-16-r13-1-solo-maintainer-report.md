@@ -94,24 +94,41 @@
 
 ---
 
-## 4. 维护者配置清单（一次性）
+## 4. 维护者配置清单
 
-1. **创建 `Release` 环境**
-   - Settings → Environments → New environment → `Release`
-   - Deployment branches and tags → 添加四条：`v*`、`create-zeus@*`、`vite-plugin@*`、`main`
-   - **不要**勾选 Required reviewers
-2. **添加 secret**：`Release` 环境 → `NPM_TOKEN`（npm Automation token）
-3. **创建 tag ruleset**（这是唯一让 tag 不可变的机制）
-   - Settings → Rules → Rulesets → New tag ruleset
-   - Target: `v*`, `create-zeus@*`, `vite-plugin@*`
-   - 勾选 **Restrict deletions** 与 **Block force pushes**
-4. **创建 `Canary` 环境**：准入 `main`，加 `NPM_TOKEN` 与 `ZEUS_UI_DISPATCH_TOKEN`
-5. **首个 RC 前**：提交 `release-pairing/v0.2.0-rc.0.json`（格式见该目录 README）
-6. **清理**（可选）：删除 repository variables `ZEUS_RC_APPROVAL_RUN_ID`、`ZEUS_RC_APPROVERS`、`ZEUS_DEPLOYMENT_EVIDENCE_RUN_ID`；删除 `ZEUS_GOVERNANCE_TOKEN` secret
+### 实际需要的：只有一条
 
-完成第 1–3 项后，每次发布只需推 tag。
+**创建 tag ruleset**：对 `v*`、`create-zeus@*`、`vite-plugin@*` 阻止删除与非快进移动。
 
----
+这是唯一让 tag 不可变的机制，也是唯一代码读不到、只能由人配置的东西。`tag-unmoved` 规则会在 tag 被移动时拒绝发布，但它是发现，不是预防。
+
+### 已经具备的（无需操作）
+
+| 项             | 状态                                         |
+| -------------- | -------------------------------------------- |
+| `NPM_TOKEN`    | **仓库级 secret，2026-10-09 已存在**         |
+| `Release` 环境 | **已存在**，无 protection rules，无 ref 策略 |
+| `Canary` 环境  | 已存在                                       |
+| 历史发布       | `v0.1.1-beta.18/19/20` 三次成功，均未走审批  |
+
+`v0.1.1-beta.20`（2026-10-26，31 分钟成功）所在的提交里，`release.yml` 里 `rc-approval` 与 `APPROVERS` 的出现次数是 **0**。审批门是之后加的，加上之后 `release.yml` 没有任何一次成功运行——最近一次是 2026-11-15 的 `0s failure`（`administration: read` 那个非法 permissions 键）。
+
+也就是说：**这个项目的发布一直是零审批的，审批门是一段从未成功运行过的插入。**
+
+### 可选清理
+
+这些因审批门而存在的配置现在没有消费者：
+
+- repository variable `ZEUS_RC_APPROVAL_RUN_ID`
+- repository variable `ZEUS_RC_APPROVERS`
+- repository variable `ZEUS_DEPLOYMENT_EVIDENCE_RUN_ID`
+- secret `ZEUS_GOVERNANCE_TOKEN`（如果创建过）
+
+留着不会出错——没有 workflow 读它们了。删掉只是避免下次有人以为它们还有用。
+
+### 首个 RC 前仍需提交
+
+`release-pairing/v0.2.0-rc.0.json`，格式见该目录 README。这是新流程唯一的额外前置文件。
 
 ## 5. 自动发布验收
 
