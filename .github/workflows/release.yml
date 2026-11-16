@@ -224,6 +224,18 @@ jobs:
           --ref "$GITHUB_REF"
           --require-provenance
 
+      # `check:latest-tags` runs in the precheck, which is *before* anything is
+      # published. For a package whose RC is its first publication, `latest`
+      # only starts pointing at the prerelease once this job publishes — so the
+      # precheck cannot see it, and the pollution would be discovered by the
+      # next release or by a user.
+      #
+      # This is the post-publish half. It does not block the publish (which has
+      # already happened), it makes the state visible in the run that caused it,
+      # with the repair command in the message.
+      - name: Check npm latest after publishing
+        run: pnpm check:latest-tags --version "${{ steps.release-version.outputs.version }}"
+
   compiler-registry-smoke:
     if: github.repository == 'baicie/zeus'
     needs: release

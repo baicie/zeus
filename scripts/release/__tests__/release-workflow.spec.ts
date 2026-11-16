@@ -252,6 +252,24 @@ describe('release workflows', () => {
     expect(workflow).toContain('environment: Release')
   })
 
+  /*
+   * A first publication's `latest` only starts pointing at the prerelease
+   * *after* the publish step. The precheck's `check:latest-tags` runs before
+   * it, so nothing in the workflow used to observe the state the release
+   * created. This step does, in the run that caused it.
+   */
+  it('checks npm latest after publishing, not only before', () => {
+    const workflow = readFileSync(
+      resolve(root, '.github/workflows/release.yml'),
+      'utf8',
+    )
+    const publish = workflow.indexOf('pnpm release --publishOnly')
+    const postCheck = workflow.indexOf('Check npm latest after publishing')
+    expect(publish).toBeGreaterThan(-1)
+    expect(postCheck).toBeGreaterThan(publish)
+    expect(workflow).toContain('pnpm check:latest-tags --version')
+  })
+
   it('collects cross-platform evidence from real CI job metadata', () => {
     const workflow = readFileSync(
       resolve(root, '.github/workflows/ci.yml'),
