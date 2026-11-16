@@ -219,11 +219,45 @@ runtime 包可正常 `createComponent()`。27 MB 是 React + Vite 本身的成�
 
 ---
 
-## 8. `version-rehearsal.ts` 漏改根与 Cargo
+## 8. `version-rehearsal.ts` 漏改根与 Cargo，且修法本身带一个写坏文件的缺陷
+
+### 8.1 漏改（已修，PR #303）
 
 既有脚本只改包版本与模板 pin，**不改根 `package.json` 与 `Cargo.toml`**。跑完后根仍是 `0.1.1-beta.20`，Cargo 仍是 `0.1.1-beta.0`，而脚本报告成功——因为它检查的每个版本都匹配。
 
-已修（PR #303）：新增根 manifest 与 Cargo workspace 两处编辑，测试从 7 项扩到 11 项，`scripts/release/` 601 项通过。
+已修：新增根 manifest 与 Cargo workspace 两处编辑。在真实仓库副本上实测 49 处编辑 / 40 个文件，根、Cargo、32 包、模板 pin 全部到 `0.2.0-rc.0`；二次运行 0 编辑（幂等）。
+
+### 8.2 第一版修法会静默改错文件（PR #303 合并前发现并修）
+
+第一版用 `/\[workspace\.package\][\s\S]*?\nversion = "([^"]+)"/` 扫描 Cargo。`[\s\S]*?` **不会在下一个表头停下**。
+
+构造：删掉 `[workspace.package]` 的 version 行，在文件下方加
+
+```toml
+[package]
+name = "later"
+version = "9.9.9"
+```
+
+实测输出：
+
+```
+rewrote 40 file(s) to 0.2.0-rc.0: 1 edit(s)
+  Cargo.toml (1)
+→ 第 62 行 version = "0.2.0-rc.0"     ← [package] 段被改
+→ [workspace.package] 完全没动
+```
+
+**记了 1 处编辑、报告成功、文件被写坏。** 这是本轮最危险的一处：它不是漏改，是改错。
+
+修法两条：
+
+1. 扫描边界收到下一个 `[`：`/\[workspace\.package\][^\[]*?\nversion = "([^"]+)(")/`
+2. 找不到 version 行时**抛错**而不是跳过。跳过正是这个函数存在的理由要消灭的行为——它会改完 40 个文件、留下 Cargo、然后报告成功。
+
+新增 3 个测试，全部在上一版实现下失败、修复后通过：报错、不改后续段、失败时一个文件都不写（`collectVersionRehearsal` 在写盘前抛出，所以是原子的）。
+
+`scripts/release/` 604 项通过。
 
 顺带确认：Cargo workspace 版本（`0.1.1-beta.0`）与 npm 版本（`0.1.1-beta.20`）**本来就不同步**，是既有漂移，不是本轮引入。
 
@@ -295,15 +329,16 @@ $ gh api repos/baicie/zeus/environments/Release
 
 **NO_GO。**
 
-| ID     | 严重性 | 状态                     | 说明                                                      |
-| ------ | ------ | ------------------------ | --------------------------------------------------------- |
-| ENV-1  | P0     | BLOCKED_BY_AUTHORIZATION | Release environment 四项保护全缺                          |
-| DEP-1  | **P0** | OPEN                     | 29 个 `@zeus-web/*` 消费者被迫安装 24 MB TypeScript（§7） |
-| VER-1  | P0     | BLOCKED_BY_AUTHORIZATION | Core/UI 仍在 beta，RC 只在隔离 worktree 验证              |
-| VER-2  | P1     | OPEN                     | UI `0.1.0-beta.35` 有版本无 tag                           |
-| EVID-1 | P1     | NOT_RUN                  | cross-platform / stage-2 / approval / rollback 证据缺失   |
-| CONS-1 | P2     | NOT_RUN                  | Chromium、Node 22、React 18 未测                          |
-| REL-2  | P2     | 已修                     | Cargo 与 npm 版本漂移（PR #303）                          |
+| ID     | 严重性 | 状态                     | 说明                                                           |
+| ------ | ------ | ------------------------ | -------------------------------------------------------------- |
+| ENV-1  | P0     | BLOCKED_BY_AUTHORIZATION | Release environment 四项保护全缺                               |
+| DEP-1  | **P0** | OPEN                     | 29 个 `@zeus-web/*` 消费者被迫安装 24 MB TypeScript（§7）      |
+| VER-1  | P0     | BLOCKED_BY_AUTHORIZATION | Core/UI 仍在 beta，RC 只在隔离 worktree 验证                   |
+| VER-2  | P1     | OPEN                     | UI `0.1.0-beta.35` 有版本无 tag                                |
+| EVID-1 | P1     | NOT_RUN                  | cross-platform / stage-2 / approval / rollback 证据缺失        |
+| CONS-1 | P2     | NOT_RUN                  | Chromium、Node 22、React 18 未测                               |
+| REL-2  | P2     | 已修                     | Cargo 与 npm 版本漂移（PR #303）                               |
+| VER-3  | P1     | 已修                     | rehearsal 的 Cargo 正则会写错段（PR #303 合并前发现，见 §8.2） |
 
 已撤销的 blocker：**REL-1**（误报，见 §6）。
 
