@@ -80,6 +80,8 @@ export const AUTHORIZATION_RULES = {
   distTag: 'dist-tag',
   /** Tag protection is repository configuration this code cannot read. */
   tagImmutability: 'tag-immutability',
+  /** The tag still points where this run started, checked against the API. */
+  tagUnmoved: 'tag-unmoved',
 } as const
 
 /** One CI run this release relies on, bound to the release commit. */
@@ -132,6 +134,19 @@ export interface AuthorizationInput {
   readonly firstPublishPackages?: readonly string[]
   /** The dist-tag the workflow computed from the tag. */
   readonly distTag?: string
+  /**
+   * Where the tag points **now**, read from the API during the run.
+   *
+   * `workflowSha` is where it pointed when the run started — GitHub fixes it at
+   * that moment. If the two disagree, the tag was moved while this run was in
+   * flight, and the artifact about to be published is not the one the tag
+   * names any more.
+   *
+   * `undefined` means the tag was not re-read, which is not a pass: a ruleset
+   * is supposed to make this impossible, and this is the check that notices
+   * when it does not.
+   */
+  readonly currentTagSha?: string
 }
 
 export interface AuthorizationResult {
@@ -545,7 +560,52 @@ export function evaluateReleaseAuthorization(
   }
 
   /*
-   * 12. Tag protection.
+   * 12. The tag has not moved since this run started.
+   *
+   * Checked against a live read because `GITHUB_SHA` is frozen at run start:
+   * a forced tag move during the run leaves every other clause satisfied while
+   * the published artifact no longer corresponds to the tag. This is the
+   * code-side answer to the ruleset being unverifiable — the ruleset prevents
+   * the move, this notices when it happened anyway.
+   */
+  if (input.currentTagSha === undefined) {
+    findings.push(
+      finding(
+        AUTHORIZATION_RULES.tagUnmoved,
+        'POLICY_LIMITATION',
+        'the tag was not re-read during the run, so a move during the run cannot be ruled out',
+      ),
+    )
+  } else if (!input.workflowSha) {
+    findings.push(
+      finding(
+        AUTHORIZATION_RULES.tagUnmoved,
+        'REFUSED',
+        'the tag target at run start is unknown, so a move cannot be ruled out',
+      ),
+    )
+  } else if (
+    input.currentTagSha.toLowerCase() !== input.workflowSha.toLowerCase()
+  ) {
+    findings.push(
+      finding(
+        AUTHORIZATION_RULES.tagUnmoved,
+        'REFUSED',
+        `the tag now points at ${input.currentTagSha}, but this run started on ${input.workflowSha}; it was moved while the release was in flight`,
+      ),
+    )
+  } else {
+    findings.push(
+      finding(
+        AUTHORIZATION_RULES.tagUnmoved,
+        'AUTHORIZED',
+        `the tag still points at ${input.workflowSha}`,
+      ),
+    )
+  }
+
+  /*
+   * 13. Tag protection.
    *
    * This rule never passes and never fails the release. It is recorded because
    * the rest of the policy assumes the tag cannot move, and the one thing that

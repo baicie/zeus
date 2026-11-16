@@ -131,6 +131,8 @@ function input(
     registryReachable: true,
     firstPublishPackages: [],
     ancestorOfMain: () => true,
+    /* The tag still points where the run started. */
+    currentTagSha: CORE_SHA,
     findRuns: stubRunsByPath({
       '.github/workflows/ci.yml': runList([
         { id: 100, path: '.github/workflows/ci.yml', headSha: CORE_SHA },
@@ -211,9 +213,16 @@ describe('a simulated release', () => {
      * The only limitation is tag immutability, which is repository
      * configuration. Nothing else was unresolved.
      */
+    /*
+     * One limitation: tag immutability is a repository ruleset, which no
+     * workflow token can read. The simulation supplies `currentTagSha`, so the
+     * live re-read that would otherwise also be a limitation is answered.
+     */
     expect(
-      result.findings.filter(f => f.verdict === 'POLICY_LIMITATION'),
-    ).toHaveLength(1)
+      result.findings
+        .filter(f => f.verdict === 'POLICY_LIMITATION')
+        .map(f => f.rule),
+    ).toEqual(['tag-immutability'])
     expect(lookupProblems).toEqual([])
   })
 

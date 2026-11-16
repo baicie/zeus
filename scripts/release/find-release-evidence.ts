@@ -181,3 +181,33 @@ export function isAncestorOfMain(
     return false
   }
 }
+
+/**
+ * Where a tag points right now.
+ *
+ * `GITHUB_SHA` is frozen when the run starts, so it cannot answer this. The
+ * API can, and the difference is how a tag moved mid-release is detected.
+ * Returns `undefined` when the read fails — the policy treats that as a
+ * limitation rather than a pass, because "I could not check" and "I checked
+ * and it is fine" are different answers.
+ */
+export function readCurrentTagSha(
+  repository: string,
+  tag: string,
+  run: (args: readonly string[]) => string = gh,
+): string | undefined {
+  try {
+    const raw = run([
+      'api',
+      `repos/${repository}/git/ref/tags/${encodeURIComponent(tag)}`,
+    ])
+    const parsed: unknown = JSON.parse(raw)
+    if (!isRecord(parsed)) return undefined
+    const object = parsed.object
+    if (!isRecord(object)) return undefined
+    const sha = object.sha
+    return typeof sha === 'string' ? sha : undefined
+  } catch {
+    return undefined
+  }
+}

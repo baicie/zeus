@@ -75,6 +75,7 @@ function authorized(
     registryCollisions: [],
     firstPublishPackages: [],
     distTag: 'rc',
+    currentTagSha: CORE_SHA,
     ...overrides,
   }
 }
@@ -378,6 +379,48 @@ describe('refusals', () => {
       })
       expect(verdictOf(input, AUTHORIZATION_RULES.distTag)).toBe('AUTHORIZED')
     })
+  })
+})
+
+/*
+ * A tag moved while the run is in flight.
+ *
+ * `GITHUB_SHA` is frozen when the run starts, so the checkout/tag comparison
+ * cannot see this: every other clause still passes while the artifact no
+ * longer corresponds to the tag. The ruleset is supposed to make the move
+ * impossible; this rule notices when it happened anyway.
+ */
+describe('a tag that moved', () => {
+  it('is authorised when it still points where the run started', () => {
+    expect(verdictOf(authorized(), AUTHORIZATION_RULES.tagUnmoved)).toBe(
+      'AUTHORIZED',
+    )
+  })
+
+  it('is refused when it now points elsewhere', () => {
+    const input = authorized({ currentTagSha: 'e'.repeat(40) })
+    expect(verdictOf(input, AUTHORIZATION_RULES.tagUnmoved)).toBe('REFUSED')
+    expect(evaluateReleaseAuthorization(input).verdict).toBe('REFUSED')
+  })
+
+  it('is a limitation, not a pass, when the tag was not re-read', () => {
+    /*
+     * "I could not check" and "I checked and it is fine" are different
+     * answers. Reporting the first as the second is how a rule that never ran
+     * looks satisfied.
+     */
+    const input = authorized({ currentTagSha: undefined })
+    expect(verdictOf(input, AUTHORIZATION_RULES.tagUnmoved)).toBe(
+      'POLICY_LIMITATION',
+    )
+  })
+
+  it('is refused when the run start SHA is unknown', () => {
+    const input = authorized({
+      workflowSha: undefined,
+      currentTagSha: CORE_SHA,
+    })
+    expect(verdictOf(input, AUTHORIZATION_RULES.tagUnmoved)).toBe('REFUSED')
   })
 })
 

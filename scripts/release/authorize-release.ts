@@ -26,7 +26,11 @@ import process from 'node:process'
 import { parseArgs } from 'node:util'
 
 import { zeusFixedPackages } from '../release.config'
-import { findSupportingRuns, isAncestorOfMain } from './find-release-evidence'
+import {
+  findSupportingRuns,
+  isAncestorOfMain,
+  readCurrentTagSha,
+} from './find-release-evidence'
 import { queryNpmJson } from './npm-registry'
 import {
   RELEASE_AUTHORIZATION_SCHEMA,
@@ -65,6 +69,8 @@ export interface CollectAuthorizationInput {
   readonly findRuns?: typeof findSupportingRuns
   /** Injectable for tests. */
   readonly ancestorOfMain?: (sha: string) => boolean | undefined
+  /** Injectable for tests: where the tag points now. */
+  readonly currentTagSha?: string | undefined
 }
 
 function readCoreVersions(root: string): Record<string, string> {
@@ -140,6 +146,7 @@ export function collectReleaseAuthorization(input: CollectAuthorizationInput): {
     registryReachable: input.registryReachable,
     firstPublishPackages: input.firstPublishPackages,
     distTag: input.distTag,
+    currentTagSha: input.currentTagSha,
   })
 
   return { result, runs, lookupProblems }
@@ -321,6 +328,18 @@ async function main(): Promise<void> {
     registryCollisions: registry.collisions,
     registryReachable: registry.reachable,
     firstPublishPackages: registry.firstPublish,
+    /*
+     * Read live: `GITHUB_SHA` is frozen at run start, so a tag moved during
+     * the run leaves every other clause satisfied while the artifact no
+     * longer corresponds to the tag.
+     */
+    currentTagSha:
+      values['tag-ref'] !== undefined
+        ? readCurrentTagSha(
+            values.repository,
+            values['tag-ref'].replace(/^refs\/tags\//, ''),
+          )
+        : undefined,
   })
 
   const record: ReleaseAuthorizationRecord = {
