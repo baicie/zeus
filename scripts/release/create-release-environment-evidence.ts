@@ -83,8 +83,8 @@ export function createReleaseEnvironmentEvidence(
     preventsSelfReview: probe.preventsSelfReview,
     adminsCanBypass: probe.adminsCanBypass,
     branchPolicy: probe.branchPolicy,
-    ...(probe.allowedBranches
-      ? { allowedBranches: probe.allowedBranches }
+    ...(probe.deploymentPolicies
+      ? { deploymentPolicies: probe.deploymentPolicies }
       : {}),
   })
 
@@ -111,8 +111,8 @@ export function createReleaseEnvironmentEvidence(
       preventsSelfReview: probe.preventsSelfReview,
       adminsCanBypass: probe.adminsCanBypass,
       branchPolicy: probe.branchPolicy,
-      ...(probe.allowedBranches
-        ? { allowedBranches: probe.allowedBranches }
+      ...(probe.deploymentPolicies
+        ? { deploymentPolicies: probe.deploymentPolicies }
         : {}),
     },
     verdict: policy.verdict,

@@ -13,6 +13,9 @@ export const UI = 'b'.repeat(40)
 export const VERSION = '0.2.0-rc.0'
 export const APPROVER = 'release-owner'
 
+/** The person who requested the release, distinct from the approver. */
+export const REQUESTER = 'requester'
+
 export const sha = (value: string) =>
   `sha256:${createHash('sha256').update(value).digest('hex')}`
 
@@ -117,7 +120,7 @@ export function trustedRun(): Record<string, unknown> {
       conclusion: 'success',
       headSha: CORE,
       actor: APPROVER,
-      environment: 'Release',
+      environment: 'RC Approval',
       artifact: {
         id: '31',
         name: 'rc-approval',
@@ -164,13 +167,14 @@ export function approvalDocument(
       runId: '300',
       runAttempt: '1',
       event: 'workflow_dispatch',
-      environment: 'Release',
+      environment: 'RC Approval',
       headSha: CORE,
       conclusion: 'success',
       artifactName: 'rc-approval',
       payloadArtifactName: 'rc-approval-payload',
       artifactDigest: sha('payload-artifact'),
       payloadDigest,
+      requester: REQUESTER,
     },
   }
 }

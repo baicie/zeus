@@ -64,7 +64,7 @@ const ready: RcReadinessInput = {
      * not read is a POLICY_LIMITATION under the rules, not a pass — the
      * restriction exists and nobody has confirmed it covers releases.
      */
-    allowedBranches: ['refs/tags/v*'],
+    deploymentPolicies: [{ name: 'v*', type: 'tag' }],
   },
 }
 
@@ -140,15 +140,15 @@ describe('evaluateRcReadiness', () => {
         preventsSelfReview: true,
         adminsCanBypass: false,
         branchPolicy: 'custom',
-        allowedBranches: ['refs/tags/v*'],
+        deploymentPolicies: [{ name: 'v*', type: 'tag' }],
       },
     })
     expect(report.checks).toContainEqual({
       id: 'release-environment',
       status: 'pass',
       evidence:
-        'the Release environment requires approval from minato; the Release environment prevents self-review; repository admins cannot bypass the Release environment protection; the Release environment allows deployment from refs/tags/v*',
-      policyVersion: 'zeus.release-policy/v1',
+        'the Release environment requires approval from minato; the Release environment prevents self-review; repository admins cannot bypass the Release environment protection; every deployment pattern stays within refs/tags/v* ("v*" (tag)); "v*" admits refs under refs/tags/v…',
+      policyVersion: 'zeus.release-policy/v2',
     })
   })
 
@@ -460,7 +460,7 @@ describe('evaluateRcEvidence', () => {
       ],
       [
         { ...run, environment: 'staging' },
-        'approval run is not protected by the Release environment',
+        'approval run is not protected by the RC Approval environment',
       ],
       [
         { ...run, conclusion: 'failure' },

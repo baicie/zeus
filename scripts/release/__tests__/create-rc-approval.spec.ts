@@ -16,6 +16,7 @@ import {
 import {
   APPROVER,
   CORE,
+  REQUESTER,
   UI,
   VERSION,
   crossPlatformEvidence,
@@ -74,6 +75,7 @@ function payloadInput(root: string) {
     repository: 'baicie/zeus',
     actor: APPROVER,
     actorId: 42,
+    requester: REQUESTER,
     outFile: path.join(root, 'payload.json'),
     fetchPermission: permission,
     fetchRun: run,
@@ -198,7 +200,7 @@ describe('create RC approval envelope', () => {
       conclusion: 'success',
       headSha: CORE,
       actor: APPROVER,
-      environment: 'Release',
+      environment: 'RC Approval',
       artifact: {
         id: '31',
         name: 'rc-approval',

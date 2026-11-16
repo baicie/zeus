@@ -10,6 +10,7 @@ import {
 import { scanSecrets } from './check-secrets'
 import {
   evaluateReleaseEnvironmentPolicy,
+  type DeploymentPolicyEntry,
   RELEASE_ENVIRONMENT_POLICY_VERSION,
 } from './release-environment-policy'
 import { validateCycloneDxSchema } from './sbom-schema'
@@ -138,15 +139,18 @@ export type ReleaseEnvironmentProbe =
       /** Branch policy attached to the environment, if any. */
       readonly branchPolicy: 'protected' | 'custom' | 'none'
       /**
-       * The custom ref patterns, when they could be read.
+       * The custom deployment policy entries, when they could be read.
        *
        * GitHub keeps these on a separate endpoint
        * (`/environments/{name}/deployment-branch-policies`), so a `custom`
-       * policy arrives here without patterns unless that second call
-       * succeeded. Policy treats "exists but unreadable" as a limitation, not a
-       * pass.
+       * policy arrives here without entries unless that second call
+       * succeeded. Each entry carries the `type` GitHub reports (`branch` or
+       * `tag`) because that is the only thing that says which namespace the
+       * pattern lives in; dropping it made `v*` as a branch and `v*` as a tag
+       * indistinguishable. Policy treats "exists but unreadable" as a
+       * limitation, not a pass.
        */
-      readonly allowedBranches?: readonly string[]
+      readonly deploymentPolicies?: readonly DeploymentPolicyEntry[]
     }
   | { readonly state: 'not_configured'; readonly detail: string }
   | { readonly state: 'unauthorized'; readonly detail: string }
@@ -272,12 +276,17 @@ export function readReleaseEnvironment(
         : 'none'
 
   /*
-   * A custom branch policy's patterns live on a second endpoint. Reading them
-   * is what turns "a restriction exists" into "this ref is allowed"; without
+   * A custom branch policy's entries live on a second endpoint. Reading them
+   * is what turns "a restriction exists" into "these refs are allowed"; without
    * it the environment is inspectable only as far as its mode, and policy
-   * reports that as a limitation rather than assuming the patterns are right.
+   * reports that as a limitation rather than assuming the entries are right.
+   *
+   * `type` is kept. GitHub reports it as `branch` or `tag` and it is the only
+   * field that anchors the pattern to a namespace — `v*` as a branch pattern
+   * and `v*` as a tag pattern are different grants, and reading only `name`
+   * collapsed them.
    */
-  let allowedBranches: string[] | undefined
+  let deploymentPolicies: DeploymentPolicyEntry[] | undefined
   if (branchPolicy === 'custom') {
     try {
       const rawPolicies = run(
@@ -299,15 +308,22 @@ export function readReleaseEnvironment(
       const entries = Array.isArray(parsedPolicies.branch_policies)
         ? parsedPolicies.branch_policies
         : []
-      const names: string[] = []
+      const collected: DeploymentPolicyEntry[] = []
       for (const entry of entries) {
         if (!isRecord(entry)) continue
-        if (typeof entry.name === 'string') names.push(entry.name)
+        if (typeof entry.name !== 'string') continue
+        collected.push({
+          name: entry.name,
+          type:
+            entry.type === 'branch' || entry.type === 'tag'
+              ? entry.type
+              : 'unknown',
+        })
       }
-      allowedBranches = names
+      deploymentPolicies = collected
     } catch {
-      // Left undefined: the policy exists, its contents were not read.
-      allowedBranches = undefined
+      // Left undefined: the policy exists, its entries were not read.
+      deploymentPolicies = undefined
     }
   }
 
@@ -318,7 +334,7 @@ export function readReleaseEnvironment(
     preventsSelfReview,
     adminsCanBypass: parsed.can_admins_bypass !== false,
     branchPolicy,
-    ...(allowedBranches ? { allowedBranches } : {}),
+    ...(deploymentPolicies ? { deploymentPolicies } : {}),
   }
 }
 
@@ -369,8 +385,8 @@ function checkReleaseEnvironment(
     preventsSelfReview: probe.preventsSelfReview,
     adminsCanBypass: probe.adminsCanBypass,
     branchPolicy: probe.branchPolicy,
-    ...(probe.allowedBranches
-      ? { allowedBranches: probe.allowedBranches }
+    ...(probe.deploymentPolicies
+      ? { deploymentPolicies: probe.deploymentPolicies }
       : {}),
   })
 
@@ -1134,7 +1150,7 @@ function readReleaseEnvironmentFromRecord(
       preventsSelfReview?: boolean
       adminsCanBypass?: boolean
       branchPolicy?: 'protected' | 'custom' | 'none'
-      allowedBranches?: readonly string[]
+      deploymentPolicies?: readonly DeploymentPolicyEntry[]
     }
   }
   const observed = record.observed
@@ -1145,8 +1161,8 @@ function readReleaseEnvironmentFromRecord(
     preventsSelfReview: observed.preventsSelfReview === true,
     adminsCanBypass: observed.adminsCanBypass !== false,
     branchPolicy: observed.branchPolicy ?? 'none',
-    ...(observed.allowedBranches
-      ? { allowedBranches: observed.allowedBranches }
+    ...(observed.deploymentPolicies
+      ? { deploymentPolicies: observed.deploymentPolicies }
       : {}),
   }
 }

@@ -47,6 +47,40 @@ describe('validateRcApproval', () => {
     expect(result.approved).toBe(true)
   })
 
+  /*
+   * The self-approval rule. The approval document is produced by the same
+   * dispatch the approver triggers, so "the approver signed it" is true by
+   * construction. What makes it a second signature is that the approver is not
+   * the person who requested the release, and that fact has to be recorded.
+   */
+  it('rejects an approval the requester signed themselves', () => {
+    const approval = approvalDocument(fixtureCrossPlatform)
+    const source = approval.source as Record<string, unknown>
+    const approver = approval.approver as Record<string, unknown>
+    const result = validateRcApproval(
+      {
+        ...approval,
+        source: { ...source, requester: approver.login },
+      },
+      context(),
+    )
+    expect(result.approved).toBe(false)
+    expect(result.errors).toContain(
+      `approver ${approver.login} is the release requester, so the approval is the requester approving their own release`,
+    )
+  })
+
+  it('rejects an approval that does not record the requester', () => {
+    const approval = approvalDocument(fixtureCrossPlatform)
+    const source = { ...(approval.source as Record<string, unknown>) }
+    delete source.requester
+    const result = validateRcApproval({ ...approval, source }, context())
+    expect(result.approved).toBe(false)
+    expect(result.errors).toContain(
+      'approval source does not record the requester, so self-approval cannot be ruled out',
+    )
+  })
+
   it('rejects a NOT_RUN approver string', () => {
     const approval = approvalDocument()
     const result = validateRcApproval(
@@ -179,7 +213,7 @@ describe('validateRcApproval', () => {
     )
   })
 
-  it('rejects a source that is not the protected Release environment', () => {
+  it('rejects a source that is not the protected RC Approval environment', () => {
     const approval = approvalDocument()
     const result = validateRcApproval(
       {
@@ -194,7 +228,7 @@ describe('validateRcApproval', () => {
       context(),
     )
     expect(result.errors).toContain(
-      'release approval source.environment must be Release',
+      'release approval source.environment must be RC Approval',
     )
     expect(result.errors).toContain(
       'release approval source.workflow must be RC Approval',

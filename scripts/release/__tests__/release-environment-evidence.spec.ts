@@ -48,7 +48,7 @@ function record(
       preventsSelfReview: true,
       adminsCanBypass: false,
       branchPolicy: 'custom',
-      allowedBranches: ['refs/tags/v*'],
+      deploymentPolicies: [{ name: 'v*', type: 'tag' }],
     },
     verdict: 'PASS',
     ...overrides,
@@ -223,7 +223,7 @@ describe('createReleaseEnvironmentEvidence', () => {
         preventsSelfReview: true,
         adminsCanBypass: false,
         branchPolicy: 'custom',
-        allowedBranches: ['refs/tags/v*'],
+        deploymentPolicies: [{ name: 'v*', type: 'tag' }],
       },
     })
     expect(result.errors).toEqual([])
