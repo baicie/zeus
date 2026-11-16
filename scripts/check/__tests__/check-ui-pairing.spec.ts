@@ -183,94 +183,20 @@ describe('Core/UI pairing', { timeout: 30000 }, () => {
  * the distinction between "ignored build output" (expected, must not fail) and
  * "untracked source" (must fail).
  */
-describe('release pairing sees files the commit does not', () => {
-  it('rejects an untracked source file', () => {
-    const { root, commit } = fixture('0.2.0-rc.0')
-    fs.writeFileSync(
-      path.join(root, 'packages', 'button', 'unreleased.ts'),
-      'export const smuggled = true\n',
-    )
-    const result = checkUiPairing({
-      uiRoot: root,
-      coreVersion: '0.2.0-rc.0',
-      expectedUiCommit: commit!,
-      requireCommit: true,
-    })
-    expect(
-      result.mismatches.some(mismatch => mismatch.includes('unreleased.ts')),
-      `an untracked source file must fail the pairing, got: ${JSON.stringify(result.mismatches)}`,
-    ).toBe(true)
-  })
-
-  it('rejects an untracked file in a nested package directory', () => {
-    const { root, commit } = fixture('0.2.0-rc.0')
-    fs.mkdirSync(path.join(root, 'packages', 'primitives', 'dialog'), {
-      recursive: true,
-    })
-    fs.writeFileSync(
-      path.join(root, 'packages', 'primitives', 'dialog', 'package.json'),
-      JSON.stringify({ name: '@zeus-web/dialog', version: '0.2.0-rc.0' }),
-    )
-    const result = checkUiPairing({
-      uiRoot: root,
-      coreVersion: '0.2.0-rc.0',
-      expectedUiCommit: commit!,
-      requireCommit: true,
-    })
-    /*
-     * Git collapses an entirely untracked directory into one `?? packages/`
-     * entry, so the mismatch names the directory rather than the file. What
-     * matters is that the pairing noticed there is uncommitted code at all.
-     */
-    expect(
-      result.mismatches.some(
-        mismatch =>
-          mismatch.startsWith('UI checkout is dirty:') &&
-          mismatch.includes('packages'),
-      ),
-      `a nested untracked package must fail the pairing, got: ${JSON.stringify(result.mismatches)}`,
-    ).toBe(true)
-  })
-
-  it('does not fail on ignored build output', { timeout: 60_000 }, () => {
-    const { root, commit } = fixture('0.2.0-rc.0')
-    fs.writeFileSync(path.join(root, '.gitignore'), 'dist\nnode_modules\n')
-    execFileSync('git', ['-C', root, 'add', '.gitignore'])
-    execFileSync('git', ['-C', root, 'commit', '-q', '-m', 'ignore'], {
-      stdio: 'ignore',
-    })
-    const head = execFileSync('git', ['-C', root, 'rev-parse', 'HEAD'], {
-      encoding: 'utf8',
-    }).trim()
-    // Build output that is correctly ignored must not be mistaken for smuggled
-    // source; otherwise every release checkout fails after a local build.
-    fs.mkdirSync(path.join(root, 'packages', 'button', 'dist'), {
-      recursive: true,
-    })
-    fs.writeFileSync(
-      path.join(root, 'packages', 'button', 'dist', 'index.js'),
-      'built\n',
-    )
-    const result = checkUiPairing({
-      uiRoot: root,
-      coreVersion: '0.2.0-rc.0',
-      expectedUiCommit: head,
-      requireCommit: true,
-    })
-    expect(
-      result.mismatches.filter(mismatch => mismatch.includes('dist/index.js')),
-    ).toEqual([])
-    expect(commit).toBeTruthy()
-  })
-
-  it(
-    'rejects a tracked modification and reports it',
-    { timeout: 60_000 },
-    () => {
+/*
+ * These tests shell out to git and to the pairing CLI. The default 5s timeout
+ * is enough alone and not enough under the parallel suite, which is how two of
+ * them came to fail intermittently.
+ */
+describe(
+  'release pairing sees files the commit does not',
+  { timeout: 60_000 },
+  () => {
+    it('rejects an untracked source file', () => {
       const { root, commit } = fixture('0.2.0-rc.0')
       fs.writeFileSync(
-        path.join(root, 'packages', 'button', 'package.json'),
-        JSON.stringify({ name: '@zeus-web/button', version: '0.2.0-rc.0' }),
+        path.join(root, 'packages', 'button', 'unreleased.ts'),
+        'export const smuggled = true\n',
       )
       const result = checkUiPairing({
         uiRoot: root,
@@ -279,13 +205,98 @@ describe('release pairing sees files the commit does not', () => {
         requireCommit: true,
       })
       expect(
-        result.mismatches.some(mismatch =>
-          mismatch.startsWith('UI checkout is dirty:'),
-        ),
+        result.mismatches.some(mismatch => mismatch.includes('unreleased.ts')),
+        `an untracked source file must fail the pairing, got: ${JSON.stringify(result.mismatches)}`,
       ).toBe(true)
-    },
-  )
-})
+    })
+
+    it('rejects an untracked file in a nested package directory', () => {
+      const { root, commit } = fixture('0.2.0-rc.0')
+      fs.mkdirSync(path.join(root, 'packages', 'primitives', 'dialog'), {
+        recursive: true,
+      })
+      fs.writeFileSync(
+        path.join(root, 'packages', 'primitives', 'dialog', 'package.json'),
+        JSON.stringify({ name: '@zeus-web/dialog', version: '0.2.0-rc.0' }),
+      )
+      const result = checkUiPairing({
+        uiRoot: root,
+        coreVersion: '0.2.0-rc.0',
+        expectedUiCommit: commit!,
+        requireCommit: true,
+      })
+      /*
+       * Git collapses an entirely untracked directory into one `?? packages/`
+       * entry, so the mismatch names the directory rather than the file. What
+       * matters is that the pairing noticed there is uncommitted code at all.
+       */
+      expect(
+        result.mismatches.some(
+          mismatch =>
+            mismatch.startsWith('UI checkout is dirty:') &&
+            mismatch.includes('packages'),
+        ),
+        `a nested untracked package must fail the pairing, got: ${JSON.stringify(result.mismatches)}`,
+      ).toBe(true)
+    })
+
+    it('does not fail on ignored build output', { timeout: 60_000 }, () => {
+      const { root, commit } = fixture('0.2.0-rc.0')
+      fs.writeFileSync(path.join(root, '.gitignore'), 'dist\nnode_modules\n')
+      execFileSync('git', ['-C', root, 'add', '.gitignore'])
+      execFileSync('git', ['-C', root, 'commit', '-q', '-m', 'ignore'], {
+        stdio: 'ignore',
+      })
+      const head = execFileSync('git', ['-C', root, 'rev-parse', 'HEAD'], {
+        encoding: 'utf8',
+      }).trim()
+      // Build output that is correctly ignored must not be mistaken for smuggled
+      // source; otherwise every release checkout fails after a local build.
+      fs.mkdirSync(path.join(root, 'packages', 'button', 'dist'), {
+        recursive: true,
+      })
+      fs.writeFileSync(
+        path.join(root, 'packages', 'button', 'dist', 'index.js'),
+        'built\n',
+      )
+      const result = checkUiPairing({
+        uiRoot: root,
+        coreVersion: '0.2.0-rc.0',
+        expectedUiCommit: head,
+        requireCommit: true,
+      })
+      expect(
+        result.mismatches.filter(mismatch =>
+          mismatch.includes('dist/index.js'),
+        ),
+      ).toEqual([])
+      expect(commit).toBeTruthy()
+    })
+
+    it(
+      'rejects a tracked modification and reports it',
+      { timeout: 60_000 },
+      () => {
+        const { root, commit } = fixture('0.2.0-rc.0')
+        fs.writeFileSync(
+          path.join(root, 'packages', 'button', 'package.json'),
+          JSON.stringify({ name: '@zeus-web/button', version: '0.2.0-rc.0' }),
+        )
+        const result = checkUiPairing({
+          uiRoot: root,
+          coreVersion: '0.2.0-rc.0',
+          expectedUiCommit: commit!,
+          requireCommit: true,
+        })
+        expect(
+          result.mismatches.some(mismatch =>
+            mismatch.startsWith('UI checkout is dirty:'),
+          ),
+        ).toBe(true)
+      },
+    )
+  },
+)
 
 describe('optional dependencies participate in pairing', () => {
   it(

@@ -364,21 +364,64 @@ async function main(): Promise<void> {
    * The pairing record carries the accepted first publications. Read from the
    * tagged commit's own file, so accepting the risk was reviewed in the PR
    * that added it.
+   *
+   * A missing or malformed record is `[]`, which refuses — never "accept
+   * everything". The record is the only place this list may come from, so a
+   * broken one must not silently widen the grant.
    */
   let acknowledgedFirstPublish: string[] = []
-  if (values['pairing-record'] && fs.existsSync(values['pairing-record'])) {
+  let pairingProblem: string | undefined
+  if (values['pairing-record'] === undefined) {
+    /*
+     * Not passing the flag at all is a wiring bug rather than a maintainer
+     * decision, and it is indistinguishable from "nothing accepted". It is
+     * reported so the failure names the cause instead of telling the
+     * maintainer to add names to a file nobody read.
+     */
+    pairingProblem = 'no --pairing-record was passed'
+  } else if (!fs.existsSync(values['pairing-record'])) {
+    pairingProblem = `${values['pairing-record']} does not exist`
+  } else {
     try {
       const record = JSON.parse(
         fs.readFileSync(values['pairing-record'], 'utf8'),
       ) as { firstPublish?: unknown }
-      if (Array.isArray(record.firstPublish)) {
-        acknowledgedFirstPublish = record.firstPublish.filter(
-          (entry): entry is string => typeof entry === 'string',
-        )
+      if (record.firstPublish !== undefined) {
+        if (
+          !Array.isArray(record.firstPublish) ||
+          record.firstPublish.some(entry => typeof entry !== 'string')
+        ) {
+          pairingProblem = 'firstPublish is not an array of package names'
+        } else {
+          /*
+           * Only packages this repository actually publishes.
+           *
+           * Without this, the acknowledgement list is a place to name
+           * anything — including a package that does not exist, which would
+           * make an exhausted list look satisfied while the real first
+           * publication went unacknowledged. A name outside the published set
+           * is a typo or an attempt, and both should fail.
+           */
+          const published = new Set([
+            ...zeusFixedPackages,
+            '@zeus-js/vite-plugin',
+          ])
+          const unknown = record.firstPublish.filter(
+            entry => !published.has(entry),
+          )
+          if (unknown.length > 0) {
+            pairingProblem = `firstPublish names packages this repository does not publish: ${unknown.join(', ')}`
+          } else {
+            acknowledgedFirstPublish = record.firstPublish
+          }
+        }
       }
-    } catch {
-      acknowledgedFirstPublish = []
+    } catch (error) {
+      pairingProblem = error instanceof Error ? error.message : String(error)
     }
+  }
+  if (pairingProblem !== undefined) {
+    console.error(`  note: pairing record: ${pairingProblem}`)
   }
 
   const { result, runs, lookupProblems } = collectReleaseAuthorization({

@@ -163,6 +163,7 @@ jobs:
           --dist-tag "${{ steps.release-version.outputs.dist-tag }}"
           --require-sbom
           --bundle-report temp/release/tarballs.json
+          --pairing-record "release-pairing/v${{ steps.release-version.outputs.version }}.json"
           --out temp/release/release-authorization.json
 
       - name: Preserve the authorisation record
