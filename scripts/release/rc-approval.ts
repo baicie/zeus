@@ -642,15 +642,28 @@ function validateRunMetadata(
   /*
    * The approver must not be the person whose candidate is being approved.
    *
-   * `run.actor` is whoever dispensed the workflow, and the approval document
+   * `run.actor` is whoever dispatched the workflow, and the approval document
    * is produced by that same run — so an actor who is also the release
-   * requester writes their own second signature. The environment's required
-   * reviewers are a separate control, and this check is what makes the
-   * document's own claim meaningful rather than contingent on it.
+   * requester writes their own second signature.
    *
-   * `requester` is read when the source records it. When it is absent the
-   * check cannot run, and that is reported rather than skipped: an approval
-   * whose self-review status is unknown is not a verified one.
+   * ## What this check can and cannot do
+   *
+   * `requester` is **self-declared**: it is an input the approver supplies, and
+   * nothing in the GitHub API independently attests to who asked for a
+   * release, because the approval precedes the tag. An approver determined to
+   * bypass this check can name someone else.
+   *
+   * So it is a guard against mistakes and against a second signature being
+   * signed by the first by accident — not a cryptographic separation. The
+   * protection against a determined insider is the environment's required
+   * reviewers, which bind a *different GitHub identity* to the deployment.
+   *
+   * Recording the limitation here rather than implying more: a check whose
+   * comment claims more than it enforces is how the next reader stops looking.
+   *
+   * When `requester` is absent the check cannot run, and that is reported
+   * rather than skipped — an approval whose self-review status is unknown is
+   * not a verified one.
    */
   const requester = typeof source.requester === 'string' ? source.requester : ''
   if (requester.length === 0) {
