@@ -167,6 +167,80 @@ export function collectVersionRehearsal(
     planned.updated = serialize(manifest, planned.original)
   }
 
+  /*
+   * The root manifest and the Cargo workspace carry the version too.
+   *
+   * Measured while rehearsing 0.2.0-rc.0: this function moved all 32 published
+   * packages to the target version and left the root `package.json` at
+   * `0.1.1-beta.20` and `Cargo.toml`'s `[workspace.package] version` at
+   * `0.1.1-beta.0`. The rehearsal then reported success, because "every version
+   * it looked at" matched — it just did not look at those two.
+   *
+   * A release that ships 32 packages at one version while the repository claims
+   * another produces artifacts nobody can trace back to a single tree.
+   */
+  const rootManifestFile = loadPlannedFile(
+    files,
+    root,
+    path.join(root, 'package.json'),
+  )
+  const rootManifest = parseManifest(
+    rootManifestFile.original,
+    rootManifestFile.file,
+  )
+  const rootBefore =
+    typeof rootManifest.version === 'string'
+      ? rootManifest.version
+      : '(missing)'
+  if (rootBefore !== options.version) {
+    rootManifest.version = options.version
+    const edit: VersionRehearsalEdit = {
+      file: rootManifestFile.file,
+      kind: 'package-version',
+      packageName: '(root)',
+      before: rootBefore,
+      after: options.version,
+    }
+    rootManifestFile.edits.push(edit)
+    edits.push(edit)
+    rootManifestFile.updated = serialize(
+      rootManifest,
+      rootManifestFile.original,
+    )
+  }
+
+  /*
+   * `Cargo.toml` has no JSON manifest, so it is edited as text. The version
+   * lives under `[workspace.package]` and every crate inherits it through
+   * `version.workspace = true`.
+   */
+  const cargoPath = path.join(root, 'Cargo.toml')
+  if (fs.existsSync(cargoPath)) {
+    const cargoFile = loadPlannedFile(files, root, cargoPath)
+    const cargoMatch =
+      /(\[workspace\.package\][\s\S]*?\nversion = ")([^"]+)(")/.exec(
+        cargoFile.original,
+      )
+    if (cargoMatch) {
+      const before = cargoMatch[2] as string
+      if (before !== options.version) {
+        cargoFile.updated = cargoFile.original.replace(
+          cargoMatch[0],
+          `${cargoMatch[1]}${options.version}${cargoMatch[3]}`,
+        )
+        const edit: VersionRehearsalEdit = {
+          file: cargoFile.file,
+          kind: 'package-version',
+          packageName: '(cargo workspace)',
+          before,
+          after: options.version,
+        }
+        cargoFile.edits.push(edit)
+        edits.push(edit)
+      }
+    }
+  }
+
   for (const templateFile of templateFiles(templatesRoot)) {
     const planned = loadPlannedFile(files, root, templateFile)
     const manifest = parseManifest(planned.original, planned.file)
