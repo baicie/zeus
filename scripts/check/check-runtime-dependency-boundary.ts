@@ -236,6 +236,93 @@ console.log('ok')
   fs.rmSync(work, { recursive: true, force: true })
 }
 
+/*
+ * The install above proves one package. This proves the rest: no published
+ * package may declare a build tool as a runtime dependency unless it *is* one.
+ *
+ * The distinction matters and cannot be mechanical. `bundler-plugin` really
+ * does need `typescript` — it is a build tool, and everything that installs it
+ * is already a build. `output-react-wrapper` does not, because its runtime
+ * entry has zero imports. A package is allowed to ship the toolchain only if
+ * its own purpose is to run the toolchain.
+ */
+{
+  const BUILD_TOOLS = new Set([
+    'typescript',
+    '@babel/parser',
+    '@babel/types',
+    '@babel/standalone',
+    'fast-glob',
+    'picomatch',
+    '@jridgewell/gen-mapping',
+    '@jridgewell/trace-mapping',
+    '@zeus-js/compiler-native',
+    '@zeus-js/compiler',
+    /*
+     * The monorepo's own build tools. These are what the wrappers pulled in,
+     * and leaving them out of this set made the static check miss exactly the
+     * case it was written for — verified by restoring the old manifest and
+     * watching it still pass.
+     */
+    '@zeus-js/bundler-plugin',
+    '@zeus-js/component-analyzer',
+    '@zeus-js/component-dts',
+    '@zeus-js/vite-plugin',
+  ])
+  /*
+   * Packages whose job is to build. Each is a plugin or the compiler itself;
+   * a consumer installs one deliberately, as part of a build chain.
+   */
+  const IS_BUILD_TOOL = new Set([
+    '@zeus-js/bundler-plugin',
+    '@zeus-js/component-analyzer',
+    '@zeus-js/component-dts',
+    '@zeus-js/compiler',
+    '@zeus-js/vite-plugin',
+    '@zeus-js/playground-engine',
+    '@zeus-js/web-c',
+    '@zeus-js/output-wc',
+    '@zeus-js/output-icons',
+    '@zeus-js/output-css',
+  ])
+
+  const offenders: string[] = []
+  const walk = (directory: string): void => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      if (entry.name === 'node_modules' || entry.name === 'dist') continue
+      const absolute = path.join(directory, entry.name)
+      if (entry.isDirectory()) {
+        walk(absolute)
+        continue
+      }
+      if (entry.name !== 'package.json') continue
+      let manifest: { name?: string; dependencies?: Record<string, string> }
+      try {
+        manifest = JSON.parse(fs.readFileSync(absolute, 'utf8'))
+      } catch {
+        continue
+      }
+      const name = manifest.name
+      if (!name || !name.startsWith('@zeus-js/')) continue
+      if (IS_BUILD_TOOL.has(name)) continue
+      const tools = Object.keys(manifest.dependencies ?? {}).filter(tool =>
+        BUILD_TOOLS.has(tool),
+      )
+      if (tools.length > 0) offenders.push(`${name} -> ${tools.join(', ')}`)
+    }
+  }
+  walk(path.join(root, 'packages'))
+
+  findings.push({
+    check: 'no runtime package declares a build tool',
+    ok: offenders.length === 0,
+    detail:
+      offenders.length === 0
+        ? 'every @zeus-js package with a build tool in dependencies is itself a build tool'
+        : `runtime packages declaring build tools: ${offenders.join('; ')}`,
+  })
+}
+
 const failed = findings.filter(finding => !finding.ok)
 for (const finding of findings) {
   console.log(`  ${finding.ok ? 'ok  ' : 'FAIL'} ${finding.check}`)
