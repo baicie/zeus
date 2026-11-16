@@ -50,7 +50,10 @@
   ],
   "peerDependencies": {
     "vue": ">=3",
-    "@zeus-js/web-c-runtime": "workspace:*"
+    "@zeus-js/web-c-runtime": "workspace:*",
+    "@zeus-js/bundler-plugin": "workspace:*",
+    "@zeus-js/component-analyzer": "workspace:*",
+    "@zeus-js/component-dts": "workspace:*"
   },
   "peerDependenciesMeta": {
     "vue": {
@@ -58,12 +61,16 @@
     },
     "@zeus-js/web-c-runtime": {
       "optional": true
+    },
+    "@zeus-js/bundler-plugin": {
+      "optional": true
+    },
+    "@zeus-js/component-analyzer": {
+      "optional": true
+    },
+    "@zeus-js/component-dts": {
+      "optional": true
     }
-  },
-  "dependencies": {
-    "@zeus-js/bundler-plugin": "workspace:*",
-    "@zeus-js/component-analyzer": "workspace:*",
-    "@zeus-js/component-dts": "workspace:*"
   },
   "devDependencies": {
     "@zeus-js/web-c-runtime": "workspace:*"
