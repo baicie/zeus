@@ -142,7 +142,24 @@ tag-only 策略会让五个无法部署，而「为了让它们能跑就放宽�
 
 CLI 此前无条件调用 `applyVersionRehearsal`——这正是误改真实 `main` checkout 的方式。现在 `--apply` 必须显式给出；不给出时收集计划、打印每处编辑、**不写树**。
 
-`--apply` 先过三道守卫：必须是 git worktree、分支不是 `main`、工作区干净。dry-run 跳过三者（否则迭代时安全模式不可用）。
+`--apply` 先过守卫：必须是 git worktree、**不能是 detached HEAD**、分支不是 `main`、工作区干净。dry-run 跳过全部（否则迭代时安全模式不可用）。
+
+**detached HEAD 这条是我在自查时补上的。** 第一版守卫用 `git rev-parse --abbrev-ref HEAD` 取分支名再比对 `main`，但这个命令在 detached checkout 上返回字面量 `HEAD`——它不等于任何分支名，于是**放行**。而 `git checkout <sha>` 正是发布演练的起点。
+
+实测：
+
+```
+cd /tmp/gh1 && git checkout --detach HEAD
+reviewApplyGuard('/tmp/gh1')  ->  undefined   (放行)
+```
+
+补上后的行为：
+
+```
+reviewApplyGuard('/tmp/gh1')  ->  "has a detached HEAD; a version switch must land on a named branch"
+```
+
+新增测试在旧守卫下失败、新守卫下通过。
 
 ### 4.2 原子写入
 
@@ -168,8 +185,9 @@ CLI 此前无条件调用 `applyVersionRehearsal`——这正是误改真实 `ma
 | `--apply` 到干净候选分支      | 写入；第二次运行 0 编辑                    |
 | 提升中途失败                  | 已落地文件全部恢复                         |
 | 回滚失败                      | `rolledBack: false` + `rollback failed`    |
+| detached HEAD                 | 拒绝                                       |
 
-27 项演练测试（14 原有 + 13 新增）。
+28 项演练测试（14 原有 + 14 新增）。
 
 ---
 
