@@ -59,6 +59,15 @@ function fixture(): string {
     name: '@zeus-js/not-fixed',
     version: '0.1.1-beta.20',
   })
+  /*
+   * The Cargo workspace carries its own version, and it drifted from the npm
+   * one in practice: measured `0.1.1-beta.0` against packages at
+   * `0.1.1-beta.20`. The rehearsal now moves it with everything else.
+   */
+  fs.writeFileSync(
+    path.join(root, 'Cargo.toml'),
+    '[workspace]\nmembers = ["crates/a"]\n\n[workspace.package]\nversion = "0.1.1-beta.0"\nedition = "2024"\n',
+  )
   writeJson(root, 'packages/devtools/vite-plugin/package.json', {
     name: '@zeus-js/vite-plugin',
     version: '0.0.5',
@@ -129,20 +138,37 @@ describe('version rehearsal', () => {
     expect(readJson(root, 'packages/core/not-fixed/package.json').version).toBe(
       '0.1.1-beta.20',
     )
-    expect(readJson(root, 'package.json').version).toBe('0.1.1-beta.20')
+    /*
+     * The root manifest moves too. Leaving it behind produced a tree whose 32
+     * packages claimed one version and whose repository claimed another, and
+     * the rehearsal reported success because it never looked at the root.
+     */
+    expect(readJson(root, 'package.json').version).toBe('0.2.0-rc.0')
 
     const versionEdits = report.edits.filter(
       edit => edit.kind === 'package-version',
     )
     expect(versionEdits.map(edit => edit.packageName).sort()).toEqual([
+      '(cargo workspace)',
+      '(root)',
       '@zeus-js/signal',
       '@zeus-js/vite-plugin',
       '@zeus-js/zeus',
     ])
     for (const edit of versionEdits) {
-      expect(edit.before).toBe(
-        edit.packageName === '@zeus-js/vite-plugin' ? '0.0.5' : '0.1.1-beta.20',
-      )
+      /*
+       * Cargo's workspace version is `0.1.1-beta.0` while the npm packages are
+       * `0.1.1-beta.20` — the drift that made 0.2.0-rc.0 rehearsal produce a
+       * tree claiming two different versions. The `before` for that edit is
+       * therefore its own value, not the packages'.
+       */
+      const expected =
+        edit.packageName === '@zeus-js/vite-plugin'
+          ? '0.0.5'
+          : edit.packageName === '(cargo workspace)'
+            ? '0.1.1-beta.0'
+            : '0.1.1-beta.20'
+      expect(edit.before).toBe(expected)
       expect(edit.after).toBe('0.2.0-rc.0')
     }
   })
@@ -183,6 +209,8 @@ describe('version rehearsal', () => {
     expect(report.schema).toBe('zeus.version-rehearsal/v1')
     expect(report.version).toBe('0.2.0-rc.0')
     expect(report.modifiedFiles.map(file => file.file).sort()).toEqual([
+      'Cargo.toml',
+      'package.json',
       'packages/core/signal/package.json',
       'packages/core/zeus/package.json',
       'packages/devtools/create-zeus/templates/basic-ts/package.json',
@@ -270,5 +298,134 @@ describe('version rehearsal', () => {
       before: 'workspace:*',
       reason: 'not an exact version pin; left unchanged',
     })
+  })
+})
+
+describe('root and Cargo versions', () => {
+  /*
+   * Measured while rehearsing 0.2.0-rc.0: the function moved all 32 published
+   * packages and left the root `package.json` at `0.1.1-beta.20` and
+   * `Cargo.toml`'s `[workspace.package] version` at `0.1.1-beta.0`. It reported
+   * success, because every version it *looked at* matched.
+   *
+   * A release that ships 32 packages at one version while the repository claims
+   * another produces artifacts nobody can trace to a single tree.
+   */
+  it('moves the root manifest with the packages', () => {
+    const root = fixture()
+    applyVersionRehearsal({ root, version: '0.2.0-rc.0', fixedPackages: FIXED })
+    expect(readJson(root, 'package.json').version).toBe('0.2.0-rc.0')
+  })
+
+  it('moves the Cargo workspace version', () => {
+    const root = fixture()
+    const report = applyVersionRehearsal({
+      root,
+      version: '0.2.0-rc.0',
+      fixedPackages: FIXED,
+    })
+    const cargo = fs.readFileSync(path.join(root, 'Cargo.toml'), 'utf8')
+    expect(cargo).toContain('version = "0.2.0-rc.0"')
+    expect(cargo).not.toContain('0.1.1-beta.0')
+    expect(
+      report.edits.some(edit => edit.packageName === '(cargo workspace)'),
+    ).toBe(true)
+  })
+
+  it('records the root edit so a report can name it', () => {
+    const root = fixture()
+    const report = applyVersionRehearsal({
+      root,
+      version: '0.2.0-rc.0',
+      fixedPackages: FIXED,
+    })
+    const rootEdit = report.edits.find(edit => edit.packageName === '(root)')
+    expect(rootEdit).toMatchObject({
+      before: '0.1.1-beta.20',
+      after: '0.2.0-rc.0',
+    })
+  })
+
+  it('tolerates a tree with no Cargo manifest', () => {
+    const root = fixture()
+    fs.rmSync(path.join(root, 'Cargo.toml'))
+    const report = applyVersionRehearsal({
+      root,
+      version: '0.2.0-rc.0',
+      fixedPackages: FIXED,
+    })
+    expect(
+      report.edits.some(edit => edit.packageName === '(cargo workspace)'),
+    ).toBe(false)
+    expect(readJson(root, 'package.json').version).toBe('0.2.0-rc.0')
+  })
+
+  /*
+   * A `[workspace.package]` with no version line is not a reason to skip — it
+   * is the exact failure this function was written to remove. The run would
+   * rewrite every package, leave Cargo behind, and report success because
+   * every version it looked at matched.
+   */
+  it('fails loudly when [workspace.package] has no version line', () => {
+    const root = fixture()
+    fs.writeFileSync(
+      path.join(root, 'Cargo.toml'),
+      '[workspace.package]\nedition = "2024"\n',
+    )
+    expect(() =>
+      applyVersionRehearsal({
+        root,
+        version: '0.2.0-rc.0',
+        fixedPackages: FIXED,
+      }),
+    ).toThrow(/no "version" line under \[workspace\.package\]/)
+  })
+
+  /*
+   * Measured: `[\s\S]*?` does not stop at the next table header, so a
+   * `[workspace.package]` without a version line let the lazy match walk into
+   * the section below and rewrite *that* version. One edit was recorded and
+   * the run reported success, with the file now claiming the RC version in a
+   * section that must not carry it.
+   */
+  it('does not rewrite a later section when [workspace.package] has no version line', () => {
+    const root = fixture()
+    fs.writeFileSync(
+      path.join(root, 'Cargo.toml'),
+      '[workspace.package]\nedition = "2024"\n\n[package]\nname = "later"\nversion = "9.9.9"\n',
+    )
+    expect(() =>
+      applyVersionRehearsal({
+        root,
+        version: '0.2.0-rc.0',
+        fixedPackages: FIXED,
+      }),
+    ).toThrow()
+    const cargo = fs.readFileSync(path.join(root, 'Cargo.toml'), 'utf8')
+    expect(cargo).toContain('version = "9.9.9"')
+    expect(cargo).not.toContain('0.2.0-rc.0')
+  })
+
+  /*
+   * Collecting the plan must not write anything, so a malformed Cargo.toml
+   * leaves the tree exactly as it was rather than half-bumped.
+   */
+  it('writes no file at all when the plan cannot be collected', () => {
+    const root = fixture()
+    fs.writeFileSync(
+      path.join(root, 'Cargo.toml'),
+      '[workspace.package]\nedition = "2024"\n',
+    )
+    expect(() =>
+      applyVersionRehearsal({
+        root,
+        version: '0.2.0-rc.0',
+        fixedPackages: FIXED,
+      }),
+    ).toThrow()
+    expect(readJson(root, 'package.json').version).toBe('0.1.1-beta.20')
+    expect(readJson(root, 'packages/core/zeus/package.json').version).toBe(
+      '0.1.1-beta.20',
+    )
   })
 })
