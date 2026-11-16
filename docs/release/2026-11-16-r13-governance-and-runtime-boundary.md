@@ -87,7 +87,7 @@ tag-only 策略会让五个无法部署，而「为了让它们能跑就放宽�
 
 ---
 
-## 3. R13-2：运行时依赖边界
+## 3. R13-2：运行时依赖边界（结论已修正）
 
 ### 3.1 实测证据
 
@@ -99,42 +99,57 @@ tag-only 策略会让五个无法部署，而「为了让它们能跑就放宽�
 | `output-react-wrapper/runtime`  | 1      | 0.01 MB  | 否         |
 | `output-react-wrapper/renderer` | 9      | 1.10 MB  | 否         |
 
-三个构建工具只被 `.` 入口 import，而 `.` 是**构建期插件**。`/runtime` 零 import。
+三个构建工具只被 `.` 入口 import，而 `.` 是构建期插件。
 
-### 3.2 修法
+### 3.2 我最初的做法，以及它为什么被撤回
 
-三个构建工具从 `dependencies` 移到 optional `peerDependencies`（该包本来就这样处理 `react`、`react-dom`、`@zeus-js/web-c-runtime`）。
+第一版把三个构建工具从 `dependencies` 移到 optional `peerDependencies`。实测消费者从 42 包 / 31 MB 降到 4 包 / 8.3 MB，看起来很成功。
 
-**没有拆包**。我先验证了拆包方案（runtime-only 包），但改动更小、风险更低的方案已能达到同样效果：`/runtime` 本来就不 import 构建工具，问题只在依赖声明。拆包会新增一个发布包和一条 UI 依赖规则，收益不抵成本。
+**对抗审查推翻了它。** 消费者视角的审查实际跑了一个项目：
 
-### 3.3 量化对比
+```ts
+// vite.config.ts
+import react from '@zeus-js/output-react-wrapper'
+```
 
-装**一个** `@zeus-web/button`（真实 registry tarball）：
+旧 manifest 下 `vite build` 成功；新 manifest 下：
 
-| 指标                         | Before                           | After  |
-| ---------------------------- | -------------------------------- | ------ |
-| 包数量（pnpm store）         | 42                               | 12     |
-| `node_modules` 体积          | 31 MB                            | 2.3 MB |
-| tarball 数量（wrapper 自身） | 1                                | 1      |
-| 浏览器 JS bundle             | 59.2 kB + 2.8 kB（Vite 7，未变） | 同左   |
-| TypeScript 进入依赖树        | **是（24 MB）**                  | **否** |
-| compiler-native 进入依赖树   | 是                               | **否** |
+```
+failed to load config ... ERR_MODULE_NOT_FOUND:
+Cannot find package '@zeus-js/component-dts'
+```
 
-纯 wrapper 消费者（不装 UI 包）：**42 包 / 31 MB → 4 包 / 8.3 MB**。
+**这是比大依赖树更糟的失败。** 用 `.` 插件的人本就要构建工具，我移走依赖却没给他们任何路径，也没写文档。
 
-### 3.4 兼容性
+已恢复 `dependencies`。
 
-| 项                     | 结果                                                                      |
-| ---------------------- | ------------------------------------------------------------------------- |
-| `.` 入口（构建期插件） | 声明 peer 后可用；未声明时 `ERR_MODULE_NOT_FOUND`，**不静默产出错误结果** |
-| `/runtime`             | 零 import，无构建工具时正常创建组件                                       |
-| `/renderer`            | 未改                                                                      |
-| 导出路径 / 公开类型    | 未改                                                                      |
-| Vite 7                 | `<zw-button>` 在 Firefox 与 WebKit 挂载成功，零页面错误                   |
-| Vue 消费者             | 零 TypeScript                                                             |
-| peer 警告              | 无（只有 esbuild 自己的构建脚本警告）                                     |
+### 3.3 仍然成立的部分
 
----
+| 事实                                  | 状态                 |
+| ------------------------------------- | -------------------- |
+| `/runtime` 零 import、d.ts 只引 react | 断言并测试           |
+| `/renderer` 只用 react / react-dom    | 未改                 |
+| UI 产物只 import `/runtime`           | 已验证               |
+| `.` 插件入口加载正常                  | 断言并测试           |
+| 装 wrapper 会带入 5 个构建工具        | **已知成本，未消除** |
+
+### 3.4 为什么没拆包
+
+拆包（新建 runtime-only 包，让 46 个 `@zeus-web/*` 依赖它）是真正的解法。但它要新增一个发布包，牵动 32 包计数门禁、SBOM、版本演练、打包门禁，还要跨 UI 仓改依赖规则。
+
+本轮时间已用于发现并修复 20 条审查问题；仓促拆一个发布包比留着已知成本更危险。**记为 R14 的首项。**
+
+### 3.5 量化对比（撤回后）
+
+| 装一个 `@zeus-web/button` | 修复前 | 现在               |
+| ------------------------- | ------ | ------------------ |
+| 包数量                    | 42     | 42                 |
+| `node_modules`            | 31 MB  | 31 MB              |
+| TypeScript                | 是     | 是                 |
+| `/runtime` 零 import      | 是     | **是（新增断言）** |
+| `.` 插件加载              | 是     | **是（新增断言）** |
+
+数字没有改善。**这一节现在记录的是一个被撤回的改动，而不是一个已实现的修复。**
 
 ## 4. R13-3：安全版本演练
 

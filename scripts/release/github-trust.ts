@@ -143,16 +143,30 @@ export function fetchApprovalRun(
   }
 }
 
+/**
+ * The single environment every job of a run was deployed into.
+ *
+ * Returns `undefined` when the jobs disagree, and that is deliberate: the
+ * first-job answer let a workflow put its approval job in one environment and
+ * a second job — holding a publish token — in another, while the caller
+ * verified the first and believed the whole run was protected by it.
+ *
+ * A run that spans two environments is not a run any single protection claim
+ * describes.
+ */
 export function selectJobEnvironment(
   jobs: readonly unknown[],
 ): string | undefined {
+  const environments = new Set<string>()
   for (const job of jobs) {
     if (!isRecord(job)) continue
     if (typeof job.environment === 'string' && job.environment.length > 0) {
-      return job.environment
+      environments.add(job.environment)
     }
   }
-  return undefined
+  if (environments.size === 0) return undefined
+  if (environments.size > 1) return undefined
+  return [...environments][0]
 }
 
 export function selectArtifact(

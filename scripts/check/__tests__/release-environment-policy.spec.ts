@@ -269,7 +269,7 @@ describe('allowed refs: data the read could not establish', () => {
     )
     expect(result.verdict).toBe('FAIL')
     expect(JSON.stringify(result.findings)).toMatch(
-      /admits protected branches, which this policy does not grant/,
+      /admits protected branches, which the tag grant does not cover/,
     )
     expect(JSON.stringify(result.findings)).toMatch(/admits no tag/)
   })

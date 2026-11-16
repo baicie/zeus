@@ -436,8 +436,19 @@ export function evaluateCandidateReachability(
  */
 export function evaluateReleaseEnvironmentPolicy(
   observed: ObservedEnvironment,
+  options: { readonly grant?: RefGrant } = {},
 ): PolicyResult {
   const findings: PolicyFinding[] = []
+  /*
+   * Which ref grant this environment is expected to hold.
+   *
+   * Defaults to the release tag grant. The approval environment is a branch
+   * grant — it is dispatched from `main` and publishes nothing — so evaluating
+   * it against `v*` would report a correctly configured environment as
+   * failing. The grant is what the environment is *for*; the rules about
+   * reviewers and bypass are identical either way.
+   */
+  const grant = options.grant ?? RELEASE_TAG_POLICY
 
   // 1. A second person must be required.
   if (observed.hasRequiredReviewers === undefined) {
@@ -569,14 +580,14 @@ export function evaluateReleaseEnvironmentPolicy(
       finding(
         RELEASE_ENVIRONMENT_RULES.allowedRefs,
         'FAIL',
-        'the Release environment admits protected branches, which this policy does not grant; a release deploys a tag',
+        `the environment admits protected branches, which the ${grant.type} grant does not cover`,
       ),
     )
     findings.push(
       finding(
         RELEASE_ENVIRONMENT_RULES.releaseRefReachable,
         'FAIL',
-        'a protected-branches policy admits no tag, so a release tag could not deploy',
+        `a protected-branches policy admits no ${grant.type}, so a ${grant.type} ref could not deploy`,
       ),
     )
   } else if (observed.branchPolicy !== 'custom') {
@@ -616,11 +627,8 @@ export function evaluateReleaseEnvironmentPolicy(
       ),
     )
   } else {
-    const tag = evaluateRefGrant(
-      RELEASE_TAG_POLICY,
-      observed.deploymentPolicies,
-    )
-    findings.push(tag.security, tag.availability)
+    const evaluated = evaluateRefGrant(grant, observed.deploymentPolicies)
+    findings.push(evaluated.security, evaluated.availability)
   }
 
   /*

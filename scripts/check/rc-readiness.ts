@@ -170,6 +170,7 @@ export type ReleaseEnvironmentProbe =
 export function readReleaseEnvironment(
   env: NodeJS.ProcessEnv,
   run: typeof execFileSync = execFileSync,
+  environmentName = 'Release',
 ): ReleaseEnvironmentProbe {
   if (env.ZEUS_SKIP_ENVIRONMENT_PROBE === '1') {
     return {
@@ -195,12 +196,16 @@ export function readReleaseEnvironment(
 
   let raw: string
   try {
-    raw = run('gh', ['api', `repos/${repository}/environments/Release`], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: 15_000,
-      env: { ...env, GH_TOKEN: token, GITHUB_TOKEN: token },
-    }) as string
+    raw = run(
+      'gh',
+      ['api', `repos/${repository}/environments/${environmentName}`],
+      {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: 15_000,
+        env: { ...env, GH_TOKEN: token, GITHUB_TOKEN: token },
+      },
+    ) as string
   } catch (error) {
     const failure = error as {
       code?: unknown
@@ -307,7 +312,7 @@ export function readReleaseEnvironment(
         [
           'api',
           '--paginate',
-          `repos/${repository}/environments/Release/deployment-branch-policies`,
+          `repos/${repository}/environments/${environmentName}/deployment-branch-policies`,
         ],
         {
           encoding: 'utf8',
@@ -401,13 +406,16 @@ export function readReleaseEnvironment(
  */
 function checkReleaseEnvironment(
   probe: ReleaseEnvironmentProbe | undefined,
+  target: { readonly id: string; readonly environment: string } = {
+    id: 'release-environment',
+    environment: 'Release',
+  },
 ): ReadinessCheck {
   if (!probe) {
     return {
-      id: 'release-environment',
+      id: target.id,
       status: 'not_run',
-      evidence:
-        'the Release environment protection was not read; the approval claim is unverified',
+      evidence: `the ${target.environment} environment protection was not read; any claim about it is unverified`,
     }
   }
   if (probe.state !== 'read') {
@@ -421,26 +429,43 @@ function checkReleaseEnvironment(
         ? probe.detail
         : `${probe.state}: ${probe.detail}`
     return {
-      id: 'release-environment',
+      id: target.id,
       status: 'not_run',
-      evidence: `the Release environment protection could not be read (${detail})`,
+      evidence: `the ${target.environment} environment protection could not be read (${detail})`,
     }
   }
 
-  const result = evaluateReleaseEnvironmentPolicy({
-    hasRequiredReviewers: probe.hasRequiredReviewers,
-    reviewers: probe.reviewers,
-    preventsSelfReview: probe.preventsSelfReview,
-    adminsCanBypass: probe.adminsCanBypass,
-    branchPolicy: probe.branchPolicy,
-    ...(probe.deploymentPolicies
-      ? { deploymentPolicies: probe.deploymentPolicies }
-      : {}),
-  })
+  const result = evaluateReleaseEnvironmentPolicy(
+    {
+      hasRequiredReviewers: probe.hasRequiredReviewers,
+      reviewers: probe.reviewers,
+      preventsSelfReview: probe.preventsSelfReview,
+      adminsCanBypass: probe.adminsCanBypass,
+      branchPolicy: probe.branchPolicy,
+      ...(probe.deploymentPolicies
+        ? { deploymentPolicies: probe.deploymentPolicies }
+        : {}),
+    },
+    /*
+     * The approval environment is a branch grant: it is dispatched from `main`
+     * and publishes nothing. Evaluating it against the tag grant would report
+     * a correctly configured environment as failing.
+     */
+    target.id === 'approval-environment'
+      ? {
+          grant: {
+            type: 'branch',
+            refPrefix: 'refs/heads/',
+            pattern: 'main',
+            literalPrefix: 'main',
+          },
+        }
+      : {},
+  )
 
   if (result.verdict === 'PASS') {
     return {
-      id: 'release-environment',
+      id: target.id,
       status: 'pass',
       evidence: result.findings.map(entry => entry.detail).join('; '),
       policyVersion: result.version,
@@ -454,7 +479,7 @@ function checkReleaseEnvironment(
    */
   const blocking = result.findings.filter(entry => entry.verdict !== 'PASS')
   return {
-    id: 'release-environment',
+    id: target.id,
     status: 'fail',
     evidence: `${blocking.map(entry => `[${entry.verdict}] ${entry.detail}`).join('; ')} (policy ${result.version})`,
     policyVersion: result.version,
@@ -497,6 +522,18 @@ export interface RcReadinessInput {
    * pass: a release whose only protection is a claim about protection has none.
    */
   readonly releaseEnvironment?: ReleaseEnvironmentProbe
+  /**
+   * The environment that protects the approval document.
+   *
+   * Separate from `releaseEnvironment` because the approval job publishes
+   * nothing and runs from `main`; it cannot use the tag-only publish grant.
+   * Splitting the environments moved that job out of the one whose protection
+   * was being verified, so without this probe the approval runs in an
+   * environment nobody checks — and the self-approval check's stated
+   * backstop ("required reviewers bind a different identity") is then a claim
+   * about an unverified configuration.
+   */
+  readonly approvalEnvironment?: ReleaseEnvironmentProbe
 }
 
 export interface RcReadinessReport {
@@ -532,6 +569,10 @@ export function evaluateRcReadiness(
     checkEvidence('cross-platform', input.crossPlatform),
     checkEvidence('release-approval', input.releaseApproval),
     checkReleaseEnvironment(input.releaseEnvironment),
+    checkReleaseEnvironment(input.approvalEnvironment, {
+      id: 'approval-environment',
+      environment: 'RC Approval',
+    }),
     checkEvidence('online-products', input.onlineProducts),
   ]
 
@@ -1312,6 +1353,17 @@ export function readRcReadinessInput(
      * such, not silently replaced by a live read that would have worked.
      */
     releaseEnvironment: readReleaseEnvironmentFromRecord(root, commit, env),
+    /*
+     * Probed directly rather than from a record: the approval environment has
+     * no governance workflow of its own, and the point of this check is that
+     * the split moved a job out of the environment whose protection was
+     * verified.
+     */
+    approvalEnvironment: readReleaseEnvironment(
+      env,
+      execFileSync,
+      'RC Approval',
+    ),
   }
 }
 

@@ -66,6 +66,21 @@ const ready: RcReadinessInput = {
      */
     deploymentPolicies: [{ name: 'v*', type: 'tag' }],
   },
+  /*
+   * The approval job lives in its own environment now, and the split moved it
+   * out of the one whose protection was being verified. A ready repository has
+   * to show that environment is protected too, or the self-approval check's
+   * stated backstop is a claim about an unverified configuration.
+   */
+  approvalEnvironment: {
+    state: 'read',
+    hasRequiredReviewers: true,
+    reviewers: ['minato'],
+    preventsSelfReview: true,
+    adminsCanBypass: false,
+    branchPolicy: 'custom',
+    deploymentPolicies: [{ name: 'main', type: 'branch' }],
+  },
 }
 
 describe('evaluateRcReadiness', () => {
@@ -75,7 +90,7 @@ describe('evaluateRcReadiness', () => {
     expect(report.decision).toBe('READY_FOR_RELEASE_REVIEW')
     expect(report.readyForReview).toBe(true)
     expect(report.blockers).toEqual([])
-    expect(report.checks).toHaveLength(9)
+    expect(report.checks).toHaveLength(10)
   })
 
   it('reports a dirty worktree and missing online evidence', () => {

@@ -52,10 +52,7 @@
     "@types/react": "17 || 18 || 19",
     "react": ">=18",
     "react-dom": ">=18",
-    "@zeus-js/web-c-runtime": "workspace:*",
-    "@zeus-js/bundler-plugin": "workspace:*",
-    "@zeus-js/component-analyzer": "workspace:*",
-    "@zeus-js/component-dts": "workspace:*"
+    "@zeus-js/web-c-runtime": "workspace:*"
   },
   "peerDependenciesMeta": {
     "@types/react": {
@@ -68,15 +65,6 @@
       "optional": true
     },
     "@zeus-js/web-c-runtime": {
-      "optional": true
-    },
-    "@zeus-js/bundler-plugin": {
-      "optional": true
-    },
-    "@zeus-js/component-analyzer": {
-      "optional": true
-    },
-    "@zeus-js/component-dts": {
       "optional": true
     }
   },
@@ -110,5 +98,10 @@
     "react-dom": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@zeus-js/web-c-runtime": "workspace:*"
+  },
+  "dependencies": {
+    "@zeus-js/bundler-plugin": "workspace:*",
+    "@zeus-js/component-analyzer": "workspace:*",
+    "@zeus-js/component-dts": "workspace:*"
   }
 }

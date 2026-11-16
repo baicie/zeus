@@ -171,6 +171,15 @@ export interface RcApprovalDocument {
     readonly artifactDigest: string
     /** SHA-256 of the raw payload file bytes. */
     readonly payloadDigest: string
+    /**
+     * Login of the person who requested the release.
+     *
+     * Required by the verifier — an approval that omits it cannot be checked
+     * for self-review — so it is part of the public contract too. Leaving it
+     * out of this type meant code rebuilding a document from it produced one
+     * the verifier rejects, with no compile error to say why.
+     */
+    readonly requester: string
   }
 }
 
