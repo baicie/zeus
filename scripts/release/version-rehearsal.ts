@@ -213,31 +213,46 @@ export function collectVersionRehearsal(
    * `Cargo.toml` has no JSON manifest, so it is edited as text. The version
    * lives under `[workspace.package]` and every crate inherits it through
    * `version.workspace = true`.
+   *
+   * The section body is bounded at the next table header. A bare
+   * `[\s\S]*?` search does not stop there: when `[workspace.package]` has no
+   * version line, the lazy match walks into whatever section follows and
+   * rewrites that section's version instead — silently, since the rewrite
+   * still counts as one edit. Measured: a `[package] version = "9.9.9"`
+   * further down became the target and `[workspace.package]` was untouched.
+   *
+   * A malformed section is a hard failure rather than a skip. Skipping is the
+   * bug this whole function exists to remove: the run then rewrites 39 files,
+   * leaves Cargo behind, and reports success because every version it looked
+   * at matched.
    */
   const cargoPath = path.join(root, 'Cargo.toml')
   if (fs.existsSync(cargoPath)) {
     const cargoFile = loadPlannedFile(files, root, cargoPath)
     const cargoMatch =
-      /(\[workspace\.package\][\s\S]*?\nversion = ")([^"]+)(")/.exec(
+      /(\[workspace\.package\][^\[]*?\nversion = ")([^"]+)(")/.exec(
         cargoFile.original,
       )
-    if (cargoMatch) {
-      const before = cargoMatch[2] as string
-      if (before !== options.version) {
-        cargoFile.updated = cargoFile.original.replace(
-          cargoMatch[0],
-          `${cargoMatch[1]}${options.version}${cargoMatch[3]}`,
-        )
-        const edit: VersionRehearsalEdit = {
-          file: cargoFile.file,
-          kind: 'package-version',
-          packageName: '(cargo workspace)',
-          before,
-          after: options.version,
-        }
-        cargoFile.edits.push(edit)
-        edits.push(edit)
+    if (!cargoMatch) {
+      throw new Error(
+        `${cargoFile.file} has no "version" line under [workspace.package]; the workspace version cannot be moved with the packages`,
+      )
+    }
+    const before = cargoMatch[2] as string
+    if (before !== options.version) {
+      cargoFile.updated = cargoFile.original.replace(
+        cargoMatch[0],
+        `${cargoMatch[1]}${options.version}${cargoMatch[3]}`,
+      )
+      const edit: VersionRehearsalEdit = {
+        file: cargoFile.file,
+        kind: 'package-version',
+        packageName: '(cargo workspace)',
+        before,
+        after: options.version,
       }
+      cargoFile.edits.push(edit)
+      edits.push(edit)
     }
   }
 

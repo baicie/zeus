@@ -359,4 +359,73 @@ describe('root and Cargo versions', () => {
     ).toBe(false)
     expect(readJson(root, 'package.json').version).toBe('0.2.0-rc.0')
   })
+
+  /*
+   * A `[workspace.package]` with no version line is not a reason to skip — it
+   * is the exact failure this function was written to remove. The run would
+   * rewrite every package, leave Cargo behind, and report success because
+   * every version it looked at matched.
+   */
+  it('fails loudly when [workspace.package] has no version line', () => {
+    const root = fixture()
+    fs.writeFileSync(
+      path.join(root, 'Cargo.toml'),
+      '[workspace.package]\nedition = "2024"\n',
+    )
+    expect(() =>
+      applyVersionRehearsal({
+        root,
+        version: '0.2.0-rc.0',
+        fixedPackages: FIXED,
+      }),
+    ).toThrow(/no "version" line under \[workspace\.package\]/)
+  })
+
+  /*
+   * Measured: `[\s\S]*?` does not stop at the next table header, so a
+   * `[workspace.package]` without a version line let the lazy match walk into
+   * the section below and rewrite *that* version. One edit was recorded and
+   * the run reported success, with the file now claiming the RC version in a
+   * section that must not carry it.
+   */
+  it('does not rewrite a later section when [workspace.package] has no version line', () => {
+    const root = fixture()
+    fs.writeFileSync(
+      path.join(root, 'Cargo.toml'),
+      '[workspace.package]\nedition = "2024"\n\n[package]\nname = "later"\nversion = "9.9.9"\n',
+    )
+    expect(() =>
+      applyVersionRehearsal({
+        root,
+        version: '0.2.0-rc.0',
+        fixedPackages: FIXED,
+      }),
+    ).toThrow()
+    const cargo = fs.readFileSync(path.join(root, 'Cargo.toml'), 'utf8')
+    expect(cargo).toContain('version = "9.9.9"')
+    expect(cargo).not.toContain('0.2.0-rc.0')
+  })
+
+  /*
+   * Collecting the plan must not write anything, so a malformed Cargo.toml
+   * leaves the tree exactly as it was rather than half-bumped.
+   */
+  it('writes no file at all when the plan cannot be collected', () => {
+    const root = fixture()
+    fs.writeFileSync(
+      path.join(root, 'Cargo.toml'),
+      '[workspace.package]\nedition = "2024"\n',
+    )
+    expect(() =>
+      applyVersionRehearsal({
+        root,
+        version: '0.2.0-rc.0',
+        fixedPackages: FIXED,
+      }),
+    ).toThrow()
+    expect(readJson(root, 'package.json').version).toBe('0.1.1-beta.20')
+    expect(readJson(root, 'packages/core/zeus/package.json').version).toBe(
+      '0.1.1-beta.20',
+    )
+  })
 })
