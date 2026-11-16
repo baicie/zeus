@@ -695,9 +695,22 @@ export function reviewApplyGuard(root: string): string | undefined {
   if (inside !== 'true') {
     return `${root} is not a git worktree; a version switch must be revertible with git`
   }
+  /*
+   * `--abbrev-ref HEAD` prints the literal string `HEAD` on a detached
+   * checkout, which is not a branch name and compares equal to nothing — so a
+   * detached worktree pointing at a `main` commit passed the guard. That is
+   * precisely the state a rehearsal starts from (`git checkout <sha>`), and
+   * it is the one where "which branch am I on" has no answer to trust.
+   *
+   * A detached HEAD is refused outright: a version bump must land on a named
+   * branch, or the commit that carries it has nowhere to go.
+   */
   const branch = run(['rev-parse', '--abbrev-ref', 'HEAD'])
   if (branch === undefined) {
     return `cannot determine the branch of ${root}`
+  }
+  if (branch === 'HEAD') {
+    return `the worktree at ${root} has a detached HEAD; a version switch must land on a named branch`
   }
   if (branch === 'main' || branch === 'master') {
     return `refusing to rewrite versions on ${branch}; run the rehearsal on a candidate branch`

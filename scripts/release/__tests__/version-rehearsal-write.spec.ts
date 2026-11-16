@@ -330,6 +330,20 @@ describe('the apply guard', () => {
     )
   })
 
+  /*
+   * `--abbrev-ref HEAD` prints `HEAD` on a detached checkout, which equals no
+   * branch name. A detached worktree on a `main` commit therefore passed the
+   * guard, and `git checkout <sha>` is exactly how a rehearsal starts.
+   */
+  it('refuses a detached HEAD', { timeout: 30_000 }, () => {
+    const root = gitRepo()
+    execFileSync('git', ['checkout', '-q', '--detach', 'HEAD'], {
+      cwd: root,
+      stdio: 'ignore',
+    })
+    expect(reviewApplyGuard(root)).toMatch(/detached HEAD/)
+  })
+
   it('refuses a dirty worktree', { timeout: 30_000 }, () => {
     const root = gitRepo()
     execFileSync('git', ['checkout', '-q', '-b', 'candidate'], {
