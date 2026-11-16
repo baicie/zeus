@@ -119,6 +119,10 @@ export default defineReleaseConfig({
       ['pnpm', 'size:ci'],
       ['pnpm', 'check:exports'],
       ['pnpm', 'check:repository'],
+      // A release runs inside the `Release` environment; a workflow bound to
+      // the wrong one would be refused at deploy time, which is a late and
+      // confusing way to find out.
+      ['pnpm', 'check:environment-topology'],
       // RC readiness validates the packed consumer report; generate it in the
       // same precheck so a stale or missing report cannot pass the gate.
       ['pnpm', 'check:packed-consumers'],

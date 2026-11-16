@@ -398,6 +398,18 @@ jobs:
       - run: pnpm check:repository
       - name: Verify release tarballs
         run: pnpm check:release-artifacts
+      # A workflow must run in the environment its trigger can reach. A job
+      # bound to a tag-only environment but dispatched from `main` is
+      # undeployable, and the usual fix is to widen the environment rather than
+      # move the job — which is the bypass the rule exists to prevent.
+      - name: Check the workflow → environment topology
+        run: pnpm check:environment-topology
+      # A UI consumer must not install the compiler. This packs the wrappers
+      # and asserts the build toolchain stays out of a runtime-only tree; the
+      # cost was invisible to per-package size gates because every package was
+      # individually fine.
+      - name: Check the runtime dependency boundary
+        run: pnpm check:runtime-boundary
 
   test:
     needs: impact

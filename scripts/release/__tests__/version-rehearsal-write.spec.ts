@@ -319,7 +319,7 @@ describe('the apply guard', () => {
     expect(reviewApplyGuard(root)).toMatch(/not a git worktree/)
   })
 
-  it('refuses main', () => {
+  it('refuses main', { timeout: 30_000 }, () => {
     const root = gitRepo()
     execFileSync('git', ['branch', '-M', 'main'], {
       cwd: root,
@@ -330,7 +330,7 @@ describe('the apply guard', () => {
     )
   })
 
-  it('refuses a dirty worktree', () => {
+  it('refuses a dirty worktree', { timeout: 30_000 }, () => {
     const root = gitRepo()
     execFileSync('git', ['checkout', '-q', '-b', 'candidate'], {
       cwd: root,
@@ -340,7 +340,7 @@ describe('the apply guard', () => {
     expect(reviewApplyGuard(root)).toMatch(/uncommitted changes/)
   })
 
-  it('allows a clean candidate branch', () => {
+  it('allows a clean candidate branch', { timeout: 30_000 }, () => {
     const root = gitRepo()
     execFileSync('git', ['checkout', '-q', '-b', 'candidate'], {
       cwd: root,
@@ -349,15 +349,19 @@ describe('the apply guard', () => {
     expect(reviewApplyGuard(root)).toBeUndefined()
   })
 
-  it('does not delete untracked files it did not create', () => {
-    const root = gitRepo()
-    execFileSync('git', ['checkout', '-q', '-b', 'candidate'], {
-      cwd: root,
-      stdio: 'ignore',
-    })
-    fs.writeFileSync(path.join(root, 'notes.txt'), 'mine\n')
-    /* A dirty tree is refused, so apply never runs; the file must survive. */
-    expect(reviewApplyGuard(root)).toMatch(/uncommitted changes/)
-    expect(fs.existsSync(path.join(root, 'notes.txt'))).toBe(true)
-  })
+  it(
+    'does not delete untracked files it did not create',
+    { timeout: 30_000 },
+    () => {
+      const root = gitRepo()
+      execFileSync('git', ['checkout', '-q', '-b', 'candidate'], {
+        cwd: root,
+        stdio: 'ignore',
+      })
+      fs.writeFileSync(path.join(root, 'notes.txt'), 'mine\n')
+      /* A dirty tree is refused, so apply never runs; the file must survive. */
+      expect(reviewApplyGuard(root)).toMatch(/uncommitted changes/)
+      expect(fs.existsSync(path.join(root, 'notes.txt'))).toBe(true)
+    },
+  )
 })

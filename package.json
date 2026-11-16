@@ -33,6 +33,7 @@
     "check:native-packages": "tsx scripts/check/check-native-packages.ts",
     "check:native-binaries": "tsx scripts/check/check-native-packages.ts --require-binaries",
     "check:environment-topology": "tsx scripts/check/check-environment-topology.ts",
+    "check:runtime-boundary": "tsx scripts/check/check-runtime-dependency-boundary.ts",
     "test-coverage": "vitest run --project 'unit*' --coverage",
     "test:benchs": "vitest bench --project bench",
     "bench:compiler-cache": "node --expose-gc --import tsx scripts/bench/compiler-cache.ts",
