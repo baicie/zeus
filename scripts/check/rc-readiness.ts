@@ -289,35 +289,83 @@ export function readReleaseEnvironment(
   let deploymentPolicies: DeploymentPolicyEntry[] | undefined
   if (branchPolicy === 'custom') {
     try {
+      /*
+       * Every page, not just the first.
+       *
+       * GitHub paginates this endpoint (per_page defaults to 30). The first
+       * version read exactly one page and silently dropped the rest, so an
+       * overbroad entry sitting on page 2 was never evaluated — the evaluator
+       * saw a shorter, cleaner list than GitHub returned and could PASS an
+       * environment that admits `*`.
+       *
+       * `--paginate` makes gh follow the `Link` header. The response is then
+       * a bare array of the entries, not the `{ branch_policies }` envelope,
+       * so both shapes are accepted here rather than assuming one.
+       */
       const rawPolicies = run(
         'gh',
         [
           'api',
+          '--paginate',
           `repos/${repository}/environments/Release/deployment-branch-policies`,
         ],
         {
           encoding: 'utf8',
           stdio: ['ignore', 'pipe', 'pipe'],
-          timeout: 15_000,
+          timeout: 30_000,
           env: { ...env, GH_TOKEN: token, GITHUB_TOKEN: token },
         },
       ) as string
-      const parsedPolicies = JSON.parse(rawPolicies) as {
-        branch_policies?: unknown
+      const entries: unknown[] = []
+      for (const chunk of rawPolicies
+        .split(/(?<=}]})\s*(?={)/)
+        .map(part => part.trim())
+        .filter(Boolean)) {
+        let parsed: unknown
+        try {
+          parsed = JSON.parse(chunk)
+        } catch {
+          continue
+        }
+        if (Array.isArray(parsed)) {
+          entries.push(...parsed)
+        } else if (isRecord(parsed) && Array.isArray(parsed.branch_policies)) {
+          entries.push(...parsed.branch_policies)
+        }
       }
-      const entries = Array.isArray(parsedPolicies.branch_policies)
-        ? parsedPolicies.branch_policies
-        : []
       const collected: DeploymentPolicyEntry[] = []
+      let unreadable = 0
       for (const entry of entries) {
-        if (!isRecord(entry)) continue
-        if (typeof entry.name !== 'string') continue
+        if (!isRecord(entry)) {
+          unreadable += 1
+          continue
+        }
+        /*
+         * An entry with no readable name is a failure, not a skip. Dropping it
+         * makes the list look cleaner than it is — the opposite of how an
+         * unreadable `type` is treated, and the wrong direction for a gate
+         * whose job is to prove nothing overbroad is admitted.
+         */
+        if (typeof entry.name !== 'string') {
+          unreadable += 1
+          continue
+        }
         collected.push({
           name: entry.name,
           type:
             entry.type === 'branch' || entry.type === 'tag'
               ? entry.type
               : 'unknown',
+        })
+      }
+      /*
+       * Any unreadable entry is reported by pushing a placeholder that fails
+       * the type check, rather than by silently shortening the list.
+       */
+      for (let index = 0; index < unreadable; index += 1) {
+        collected.push({
+          name: '(entry with no readable name)',
+          type: 'unknown',
         })
       }
       deploymentPolicies = collected
@@ -1125,6 +1173,7 @@ function readReleaseEnvironmentFromRecord(
   }
 
   const maxAgeHours = Number(env.ZEUS_RELEASE_ENVIRONMENT_MAX_AGE_HOURS ?? '24')
+  const runId = env.ZEUS_RELEASE_ENVIRONMENT_RUN_ID?.trim()
   const verification = verifyReleaseEnvironmentEvidence(parsed, {
     repository: env.ZEUS_REPOSITORY ?? 'baicie/zeus',
     environment: 'Release',
@@ -1132,6 +1181,12 @@ function readReleaseEnvironmentFromRecord(
     workflowPath: '.github/workflows/release-governance.yml',
     policyVersion: RELEASE_ENVIRONMENT_POLICY_VERSION,
     maxAgeHours: Number.isFinite(maxAgeHours) ? maxAgeHours : 24,
+    /*
+     * The release names the governance run it downloaded the artifact from, so
+     * the record has to come from that run. Without this, a hand-written file
+     * with any `runId` satisfied every other binding.
+     */
+    ...(runId ? { expectedRunId: runId } : {}),
   })
 
   if (!verification.ok) {

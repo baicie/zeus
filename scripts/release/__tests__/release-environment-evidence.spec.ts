@@ -187,6 +187,36 @@ describe('structure', () => {
     expect(isReleaseEnvironmentEvidence({ schema: 'other' })).toBe(false)
   })
 
+  /*
+   * Every other binding is a string the author of a hand-written record can
+   * copy from the repository: repository, environment, workflow path, commit,
+   * policy version. The run id is the one field that has to match something
+   * the release already committed to, so it is checked when the caller knows
+   * which run it downloaded from.
+   */
+  it('rejects a record from a run the release did not name', () => {
+    const result = verifyReleaseEnvironmentEvidence(
+      record({ runId: '99999999999' }),
+      { ...context, expectedRunId: '43700000000' },
+    )
+    expect(result.ok).toBe(false)
+    expect(
+      result.problems.some(
+        problem =>
+          problem.field === 'runId' &&
+          /consumes the artifact from run/.test(problem.message),
+      ),
+    ).toBe(true)
+  })
+
+  it('accepts a record from the named run', () => {
+    const result = verifyReleaseEnvironmentEvidence(record(), {
+      ...context,
+      expectedRunId: '43700000000',
+    })
+    expect(result.problems.filter(p => p.field === 'runId')).toEqual([])
+  })
+
   it('rejects a record with a non-UTC timestamp', () => {
     expect(
       isReleaseEnvironmentEvidence(

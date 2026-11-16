@@ -222,7 +222,16 @@ export function patternAdmitsRef(
   const name = ref.slice(refPrefix.length)
   const range = parsePattern(pattern)
   if (range.kind === 'unbounded') return true
-  return name === range.literal || name.startsWith(range.literal)
+  /*
+   * A wildcard-free pattern names exactly one ref. Treating it as a prefix
+   * made `v0.2.0` admit `v0.2.0-rc.1` and `v` admit `v0.2.0` — both of which
+   * `File.fnmatch` rejects. That over-admission is in the *availability*
+   * direction, so it cannot let an insecure environment pass; it does let a
+   * candidate be reported as deployable when it is not, which is the failure
+   * this rule is supposed to catch.
+   */
+  const hadWildcard = pattern !== range.literal
+  return hadWildcard ? name.startsWith(range.literal) : name === range.literal
 }
 
 /**
@@ -568,6 +577,27 @@ export function evaluateReleaseEnvironmentPolicy(
         RELEASE_ENVIRONMENT_RULES.releaseRefReachable,
         'FAIL',
         'a protected-branches policy admits no tag, so a release tag could not deploy',
+      ),
+    )
+  } else if (observed.branchPolicy !== 'custom') {
+    /*
+     * Every value outside the three-string union lands here. Treating it as
+     * `custom` would evaluate an unrecognised mode against the tag grant and
+     * let it PASS — reachable through the evidence-record path, where
+     * `rc-readiness` reads the value straight out of an unvalidated JSON file.
+     */
+    findings.push(
+      finding(
+        RELEASE_ENVIRONMENT_RULES.allowedRefs,
+        'FAIL',
+        `the deployment branch policy mode is ${JSON.stringify(observed.branchPolicy)}, which this policy does not recognise; an unknown mode is not a satisfied rule`,
+      ),
+    )
+    findings.push(
+      finding(
+        RELEASE_ENVIRONMENT_RULES.releaseRefReachable,
+        'FAIL',
+        `the deployment branch policy mode ${JSON.stringify(observed.branchPolicy)} is unknown, so nothing can be shown to admit a release tag`,
       ),
     )
   } else if (observed.deploymentPolicies === undefined) {

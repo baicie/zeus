@@ -201,7 +201,7 @@ describe('the write pass', () => {
     })
     expect(outcome.failures.length).toBe(1)
     expect(outcome.failures[0]?.message).toMatch(/simulated rename failure/)
-    expect(outcome.rolledBack).toBe(true)
+    expect(outcome.consistent).toBe(true)
     /*
      * Two files had landed before the third failed; both must be back to the
      * old version, and the ones after it were never touched.
@@ -219,8 +219,13 @@ describe('the write pass', () => {
       version: '0.2.0-rc.0',
       fixedPackages: FIXED,
     })
+    /*
+     * The rollback now stages the original and renames it into place, so a
+     * rollback failure is a staging failure on a `.rollback` temporary. That
+     * is what this injects, which is a real failure mode (disk full) rather
+     * than a synthetic one.
+     */
     let renames = 0
-    let rollbackWrites = 0
     const outcome = writeVersionRehearsalPlan(plan, {
       rmSync: file => fs.rmSync(file, { force: true }),
       renameSync: (from, to) => {
@@ -229,23 +234,17 @@ describe('the write pass', () => {
         fs.renameSync(from, to)
       },
       writeFileSync: (file, data) => {
-        /*
-         * Staging writes go to a `.zeus-rehearsal-` temporary; the rollback
-         * writes the original back to the target path. Only the second kind
-         * fails here.
-         */
-        if (!file.includes('.zeus-rehearsal-') && renames >= 3) {
-          rollbackWrites += 1
+        if (file.includes('.rollback')) {
           throw new Error('simulated rollback failure')
         }
         fs.writeFileSync(file, data)
       },
     })
-    expect(rollbackWrites).toBeGreaterThan(0)
     expect(
       outcome.failures.some(failure => /rollback failed/.test(failure.message)),
     ).toBe(true)
-    expect(outcome.rolledBack).toBe(false)
+    expect(outcome.consistent).toBe(false)
+    expect(outcome.restoredAny).toBe(false)
   })
 })
 
@@ -361,6 +360,32 @@ describe('the apply guard', () => {
       stdio: 'ignore',
     })
     expect(reviewApplyGuard(root)).toBeUndefined()
+  })
+
+  /*
+   * `--allow-non-git` exists for a scratch directory that is not a checkout.
+   * Gating the whole guard on it also skipped the main and cleanliness checks,
+   * so `--apply --allow-non-git` rewrote a clean `main` checkout.
+   */
+  it(
+    'keeps the branch check when the worktree check is waived',
+    { timeout: 30_000 },
+    () => {
+      const root = gitRepo()
+      execFileSync('git', ['branch', '-M', 'main'], {
+        cwd: root,
+        stdio: 'ignore',
+      })
+      expect(reviewApplyGuard(root, { allowNonGit: true })).toMatch(
+        /refusing to rewrite versions on main/,
+      )
+    },
+  )
+
+  it('waives only the worktree check', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'zeus-nogit2-'))
+    roots.push(root)
+    expect(reviewApplyGuard(root, { allowNonGit: true })).toBeUndefined()
   })
 
   it(

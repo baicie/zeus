@@ -80,6 +80,21 @@ export interface EvidenceVerificationContext {
   readonly policyVersion: string
   /** How old a record may be before it must be re-read. */
   readonly maxAgeHours: number
+  /**
+   * The governance run whose record this release will accept.
+   *
+   * The record carries `runId` and `runAttempt`, but nothing in the file can
+   * prove the run happened: anyone able to write `temp/` during a release can
+   * fabricate a record with the right repository, environment, commit and
+   * policy version, and every other binding would match.
+   *
+   * The release knows which run it downloaded the artifact from — it names it
+   * by `ZEUS_RELEASE_ENVIRONMENT_RUN_ID` — so that id is checked here. This
+   * does not authenticate the record cryptographically; it does mean a
+   * hand-written file has to guess a run id the release already committed to,
+   * rather than picking any number.
+   */
+  readonly expectedRunId?: string
   /** Injectable clock, so ageing is testable. */
   readonly now?: () => number
 }
@@ -179,6 +194,15 @@ export function verifyReleaseEnvironmentEvidence(
     problems.push({
       field: 'workflowPath',
       message: `record was produced by ${value.workflowPath}, expected ${context.workflowPath}`,
+    })
+  }
+  if (
+    context.expectedRunId !== undefined &&
+    value.runId !== context.expectedRunId
+  ) {
+    problems.push({
+      field: 'runId',
+      message: `record was produced by run ${value.runId}, but this release consumes the artifact from run ${context.expectedRunId}`,
     })
   }
   if (value.policyVersion !== context.policyVersion) {

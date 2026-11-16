@@ -317,6 +317,19 @@ export function validateWorkflowBindings(
         message: `declares ${declared.join(', ')} but the contract says ${binding.environment}`,
       })
     }
+    /*
+     * Naming the contract environment is not enough — a workflow can name it
+     * in one job and `Release` in another, and rules combine additively across
+     * jobs, so the publish grant reaches the workflow either way. Everything a
+     * bound workflow names must be the environment its trigger can reach.
+     */
+    const extra = declared.filter(name => name !== binding.environment)
+    if (extra.length > 0) {
+      problems.push({
+        workflow: binding.workflow,
+        message: `also names ${extra.join(', ')}; a workflow must not hold a second environment's grant beside its own`,
+      })
+    }
     const contract = ENVIRONMENT_CONTRACTS[binding.environment]
     if (!triggerFitsEnvironment(binding, contract)) {
       problems.push({
@@ -325,6 +338,34 @@ export function validateWorkflowBindings(
       })
     }
   }
+  /*
+   * A workflow that is not in the table at all is unchecked, which is how one
+   * could acquire the publish grant while this gate stays green. Every
+   * workflow that names an environment must be bound.
+   */
+  const bound = new Set(bindings.map(binding => binding.workflow))
+  const workflowsDir = path.join(root, '.github/workflows')
+  if (fs.existsSync(workflowsDir)) {
+    for (const entry of fs.readdirSync(workflowsDir)) {
+      if (!entry.endsWith('.yml') && !entry.endsWith('.yaml')) continue
+      const relative = `.github/workflows/${entry}`
+      if (bound.has(relative)) continue
+      const source = fs.readFileSync(path.join(workflowsDir, entry), 'utf8')
+      const declared = readWorkflowEnvironments(source)
+      const managed = declared.filter(name =>
+        Object.values(RELEASE_ENVIRONMENTS).includes(
+          name as ReleaseEnvironmentName,
+        ),
+      )
+      if (managed.length > 0) {
+        problems.push({
+          workflow: relative,
+          message: `names ${managed.join(', ')} but is not bound in WORKFLOW_BINDINGS, so nothing checks whether its trigger can reach that environment`,
+        })
+      }
+    }
+  }
+
   return problems
 }
 
