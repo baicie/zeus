@@ -305,7 +305,7 @@ describe('RC evidence assembly', () => {
       outDir: wrongEnvironment.root,
     })
     expect(environmentResult.errors).toContain(
-      'approval run is not protected by the Release environment',
+      'approval run is not protected by the RC Approval environment',
     )
   })
 

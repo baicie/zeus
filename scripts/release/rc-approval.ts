@@ -20,6 +20,22 @@ export const CROSS_PLATFORM_SCHEMA = 'zeus.cross-platform-evidence/v1' as const
 export const APPROVAL_WORKFLOW_PATH =
   '.github/workflows/rc-approval.yml' as const
 export const APPROVAL_WORKFLOW_NAME = 'RC Approval' as const
+/**
+ * The environment that protects the approval document.
+ *
+ * It is not `Release`: the approval job publishes nothing, so giving it the
+ * publish environment would let it reach the npm token and would require a
+ * tag-only ref it cannot produce. `Release` is where the released artifact is
+ * published, and that is a separate grant.
+ */
+export const APPROVAL_ENVIRONMENT = 'RC Approval' as const
+/**
+ * The environment that protects the released artifact.
+ *
+ * Still read by `check:rc-readiness` as the environment whose configuration a
+ * release is gated on — that rule is about the publish grant, not about where
+ * the approval document was produced.
+ */
 export const RELEASE_ENVIRONMENT = 'Release' as const
 export const APPROVAL_ARTIFACT_NAME = 'rc-approval' as const
 export const APPROVAL_PAYLOAD_ARTIFACT_NAME = 'rc-approval-payload' as const
@@ -155,6 +171,15 @@ export interface RcApprovalDocument {
     readonly artifactDigest: string
     /** SHA-256 of the raw payload file bytes. */
     readonly payloadDigest: string
+    /**
+     * Login of the person who requested the release.
+     *
+     * Required by the verifier — an approval that omits it cannot be checked
+     * for self-review — so it is part of the public contract too. Leaving it
+     * out of this type meant code rebuilding a document from it produced one
+     * the verifier rejects, with no compile error to say why.
+     */
+    readonly requester: string
   }
 }
 
@@ -543,9 +568,9 @@ function validateApprovalSource(
   if (value.event !== 'workflow_dispatch') {
     errors.push('release approval source.event must be workflow_dispatch')
   }
-  if (value.environment !== RELEASE_ENVIRONMENT) {
+  if (value.environment !== APPROVAL_ENVIRONMENT) {
     errors.push(
-      `release approval source.environment must be ${RELEASE_ENVIRONMENT}`,
+      `release approval source.environment must be ${APPROVAL_ENVIRONMENT}`,
     )
   }
   if (value.headSha !== context.coreCommit) {
@@ -623,9 +648,45 @@ function validateRunMetadata(
   if (login.length === 0 || run.actor !== login) {
     errors.push('approval run actor does not match the approver identity')
   }
-  if (run.environment !== RELEASE_ENVIRONMENT) {
+  /*
+   * The approver must not be the person whose candidate is being approved.
+   *
+   * `run.actor` is whoever dispatched the workflow, and the approval document
+   * is produced by that same run — so an actor who is also the release
+   * requester writes their own second signature.
+   *
+   * ## What this check can and cannot do
+   *
+   * `requester` is **self-declared**: it is an input the approver supplies, and
+   * nothing in the GitHub API independently attests to who asked for a
+   * release, because the approval precedes the tag. An approver determined to
+   * bypass this check can name someone else.
+   *
+   * So it is a guard against mistakes and against a second signature being
+   * signed by the first by accident — not a cryptographic separation. The
+   * protection against a determined insider is the environment's required
+   * reviewers, which bind a *different GitHub identity* to the deployment.
+   *
+   * Recording the limitation here rather than implying more: a check whose
+   * comment claims more than it enforces is how the next reader stops looking.
+   *
+   * When `requester` is absent the check cannot run, and that is reported
+   * rather than skipped — an approval whose self-review status is unknown is
+   * not a verified one.
+   */
+  const requester = typeof source.requester === 'string' ? source.requester : ''
+  if (requester.length === 0) {
     errors.push(
-      `approval run is not protected by the ${RELEASE_ENVIRONMENT} environment`,
+      'approval source does not record the requester, so self-approval cannot be ruled out',
+    )
+  } else if (requester === login) {
+    errors.push(
+      `approver ${login} is the release requester, so the approval is the requester approving their own release`,
+    )
+  }
+  if (run.environment !== APPROVAL_ENVIRONMENT) {
+    errors.push(
+      `approval run is not protected by the ${APPROVAL_ENVIRONMENT} environment`,
     )
   }
   if (!run.artifact) {

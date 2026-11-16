@@ -29,6 +29,13 @@ on:
         required: false
         default: '1'
         type: string
+      requester:
+        description: >-
+          Login of the person who requested this release. Must differ from the
+          approver: the approval is the second signature, and the verifier
+          rejects the document when the two are the same or this is empty.
+        required: true
+        type: string
       confirm:
         description: 'Type APPROVE to record a release approval'
         required: true
@@ -53,7 +60,7 @@ jobs:
   approve:
     if: github.repository == 'baicie/zeus'
     runs-on: ubuntu-latest
-    environment: Release
+    environment: RC Approval
     steps:
       - name: Require explicit confirmation
         run: |
@@ -117,6 +124,7 @@ jobs:
           --repo "${{ github.repository }}"
           --actor "$ACTOR"
           --actor-id "$ACTOR_ID"
+          --requester "${{ inputs.requester }}"
           --ttl-hours "${{ inputs.ttl_hours }}"
           --out temp/rc-approval/rc-approval-payload.json
 

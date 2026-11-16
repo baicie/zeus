@@ -60,11 +60,6 @@
       "optional": true
     }
   },
-  "dependencies": {
-    "@zeus-js/bundler-plugin": "workspace:*",
-    "@zeus-js/component-analyzer": "workspace:*",
-    "@zeus-js/component-dts": "workspace:*"
-  },
   "devDependencies": {
     "@zeus-js/web-c-runtime": "workspace:*"
   },
@@ -93,5 +88,10 @@
   ],
   "main": "index.cjs",
   "module": "dist/output-vue-wrapper.esm-bundler.js",
-  "types": "dist/output-vue-wrapper.d.ts"
+  "types": "dist/output-vue-wrapper.d.ts",
+  "dependencies": {
+    "@zeus-js/bundler-plugin": "workspace:*",
+    "@zeus-js/component-analyzer": "workspace:*",
+    "@zeus-js/component-dts": "workspace:*"
+  }
 }

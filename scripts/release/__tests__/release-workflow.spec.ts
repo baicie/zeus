@@ -73,7 +73,12 @@ describe('release workflows', () => {
 
     expect(workflow).toContain('workflow_dispatch:')
     expect(workflow).toContain('default: dry-run')
-    expect(workflow).toContain('environment: Release')
+    /*
+     * Maintenance has its own environment. It writes dist-tags but cannot
+     * publish a new version, so it must not sit in the publish grant — and it
+     * runs from main, which a tag-only environment cannot admit.
+     */
+    expect(workflow).toContain('environment: Release Maintenance')
     expect(workflow).toContain('group: npm-release')
     expect(workflow).not.toContain('\n  push:')
     expect(workflow).not.toContain('\n  pull_request:')
@@ -239,7 +244,11 @@ describe('release workflows', () => {
     expect(workflow).toContain('workflow_dispatch:')
     expect(workflow).not.toContain('push:')
     expect(workflow).not.toContain('pull_request:')
-    expect(workflow).toContain('environment: Release')
+    /*
+     * The approval job publishes nothing and is dispatched from main, so it
+     * lives in its own environment rather than in the tag-only publish grant.
+     */
+    expect(workflow).toContain('environment: RC Approval')
     expect(workflow).toContain('attestations: write')
     expect(workflow).toContain('id-token: write')
     expect(workflow).toContain('actions/attest-build-provenance@v2')

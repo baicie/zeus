@@ -10,6 +10,7 @@ import {
 import { scanSecrets } from './check-secrets'
 import {
   evaluateReleaseEnvironmentPolicy,
+  type DeploymentPolicyEntry,
   RELEASE_ENVIRONMENT_POLICY_VERSION,
 } from './release-environment-policy'
 import { validateCycloneDxSchema } from './sbom-schema'
@@ -138,15 +139,18 @@ export type ReleaseEnvironmentProbe =
       /** Branch policy attached to the environment, if any. */
       readonly branchPolicy: 'protected' | 'custom' | 'none'
       /**
-       * The custom ref patterns, when they could be read.
+       * The custom deployment policy entries, when they could be read.
        *
        * GitHub keeps these on a separate endpoint
        * (`/environments/{name}/deployment-branch-policies`), so a `custom`
-       * policy arrives here without patterns unless that second call
-       * succeeded. Policy treats "exists but unreadable" as a limitation, not a
-       * pass.
+       * policy arrives here without entries unless that second call
+       * succeeded. Each entry carries the `type` GitHub reports (`branch` or
+       * `tag`) because that is the only thing that says which namespace the
+       * pattern lives in; dropping it made `v*` as a branch and `v*` as a tag
+       * indistinguishable. Policy treats "exists but unreadable" as a
+       * limitation, not a pass.
        */
-      readonly allowedBranches?: readonly string[]
+      readonly deploymentPolicies?: readonly DeploymentPolicyEntry[]
     }
   | { readonly state: 'not_configured'; readonly detail: string }
   | { readonly state: 'unauthorized'; readonly detail: string }
@@ -166,6 +170,7 @@ export type ReleaseEnvironmentProbe =
 export function readReleaseEnvironment(
   env: NodeJS.ProcessEnv,
   run: typeof execFileSync = execFileSync,
+  environmentName = 'Release',
 ): ReleaseEnvironmentProbe {
   if (env.ZEUS_SKIP_ENVIRONMENT_PROBE === '1') {
     return {
@@ -191,12 +196,16 @@ export function readReleaseEnvironment(
 
   let raw: string
   try {
-    raw = run('gh', ['api', `repos/${repository}/environments/Release`], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: 15_000,
-      env: { ...env, GH_TOKEN: token, GITHUB_TOKEN: token },
-    }) as string
+    raw = run(
+      'gh',
+      ['api', `repos/${repository}/environments/${environmentName}`],
+      {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: 15_000,
+        env: { ...env, GH_TOKEN: token, GITHUB_TOKEN: token },
+      },
+    ) as string
   } catch (error) {
     const failure = error as {
       code?: unknown
@@ -272,42 +281,102 @@ export function readReleaseEnvironment(
         : 'none'
 
   /*
-   * A custom branch policy's patterns live on a second endpoint. Reading them
-   * is what turns "a restriction exists" into "this ref is allowed"; without
+   * A custom branch policy's entries live on a second endpoint. Reading them
+   * is what turns "a restriction exists" into "these refs are allowed"; without
    * it the environment is inspectable only as far as its mode, and policy
-   * reports that as a limitation rather than assuming the patterns are right.
+   * reports that as a limitation rather than assuming the entries are right.
+   *
+   * `type` is kept. GitHub reports it as `branch` or `tag` and it is the only
+   * field that anchors the pattern to a namespace — `v*` as a branch pattern
+   * and `v*` as a tag pattern are different grants, and reading only `name`
+   * collapsed them.
    */
-  let allowedBranches: string[] | undefined
+  let deploymentPolicies: DeploymentPolicyEntry[] | undefined
   if (branchPolicy === 'custom') {
     try {
+      /*
+       * Every page, not just the first.
+       *
+       * GitHub paginates this endpoint (per_page defaults to 30). The first
+       * version read exactly one page and silently dropped the rest, so an
+       * overbroad entry sitting on page 2 was never evaluated — the evaluator
+       * saw a shorter, cleaner list than GitHub returned and could PASS an
+       * environment that admits `*`.
+       *
+       * `--paginate` makes gh follow the `Link` header. The response is then
+       * a bare array of the entries, not the `{ branch_policies }` envelope,
+       * so both shapes are accepted here rather than assuming one.
+       */
       const rawPolicies = run(
         'gh',
         [
           'api',
-          `repos/${repository}/environments/Release/deployment-branch-policies`,
+          '--paginate',
+          `repos/${repository}/environments/${environmentName}/deployment-branch-policies`,
         ],
         {
           encoding: 'utf8',
           stdio: ['ignore', 'pipe', 'pipe'],
-          timeout: 15_000,
+          timeout: 30_000,
           env: { ...env, GH_TOKEN: token, GITHUB_TOKEN: token },
         },
       ) as string
-      const parsedPolicies = JSON.parse(rawPolicies) as {
-        branch_policies?: unknown
+      const entries: unknown[] = []
+      for (const chunk of rawPolicies
+        .split(/(?<=}]})\s*(?={)/)
+        .map(part => part.trim())
+        .filter(Boolean)) {
+        let parsed: unknown
+        try {
+          parsed = JSON.parse(chunk)
+        } catch {
+          continue
+        }
+        if (Array.isArray(parsed)) {
+          entries.push(...parsed)
+        } else if (isRecord(parsed) && Array.isArray(parsed.branch_policies)) {
+          entries.push(...parsed.branch_policies)
+        }
       }
-      const entries = Array.isArray(parsedPolicies.branch_policies)
-        ? parsedPolicies.branch_policies
-        : []
-      const names: string[] = []
+      const collected: DeploymentPolicyEntry[] = []
+      let unreadable = 0
       for (const entry of entries) {
-        if (!isRecord(entry)) continue
-        if (typeof entry.name === 'string') names.push(entry.name)
+        if (!isRecord(entry)) {
+          unreadable += 1
+          continue
+        }
+        /*
+         * An entry with no readable name is a failure, not a skip. Dropping it
+         * makes the list look cleaner than it is — the opposite of how an
+         * unreadable `type` is treated, and the wrong direction for a gate
+         * whose job is to prove nothing overbroad is admitted.
+         */
+        if (typeof entry.name !== 'string') {
+          unreadable += 1
+          continue
+        }
+        collected.push({
+          name: entry.name,
+          type:
+            entry.type === 'branch' || entry.type === 'tag'
+              ? entry.type
+              : 'unknown',
+        })
       }
-      allowedBranches = names
+      /*
+       * Any unreadable entry is reported by pushing a placeholder that fails
+       * the type check, rather than by silently shortening the list.
+       */
+      for (let index = 0; index < unreadable; index += 1) {
+        collected.push({
+          name: '(entry with no readable name)',
+          type: 'unknown',
+        })
+      }
+      deploymentPolicies = collected
     } catch {
-      // Left undefined: the policy exists, its contents were not read.
-      allowedBranches = undefined
+      // Left undefined: the policy exists, its entries were not read.
+      deploymentPolicies = undefined
     }
   }
 
@@ -318,7 +387,7 @@ export function readReleaseEnvironment(
     preventsSelfReview,
     adminsCanBypass: parsed.can_admins_bypass !== false,
     branchPolicy,
-    ...(allowedBranches ? { allowedBranches } : {}),
+    ...(deploymentPolicies ? { deploymentPolicies } : {}),
   }
 }
 
@@ -337,13 +406,16 @@ export function readReleaseEnvironment(
  */
 function checkReleaseEnvironment(
   probe: ReleaseEnvironmentProbe | undefined,
+  target: { readonly id: string; readonly environment: string } = {
+    id: 'release-environment',
+    environment: 'Release',
+  },
 ): ReadinessCheck {
   if (!probe) {
     return {
-      id: 'release-environment',
+      id: target.id,
       status: 'not_run',
-      evidence:
-        'the Release environment protection was not read; the approval claim is unverified',
+      evidence: `the ${target.environment} environment protection was not read; any claim about it is unverified`,
     }
   }
   if (probe.state !== 'read') {
@@ -357,26 +429,43 @@ function checkReleaseEnvironment(
         ? probe.detail
         : `${probe.state}: ${probe.detail}`
     return {
-      id: 'release-environment',
+      id: target.id,
       status: 'not_run',
-      evidence: `the Release environment protection could not be read (${detail})`,
+      evidence: `the ${target.environment} environment protection could not be read (${detail})`,
     }
   }
 
-  const result = evaluateReleaseEnvironmentPolicy({
-    hasRequiredReviewers: probe.hasRequiredReviewers,
-    reviewers: probe.reviewers,
-    preventsSelfReview: probe.preventsSelfReview,
-    adminsCanBypass: probe.adminsCanBypass,
-    branchPolicy: probe.branchPolicy,
-    ...(probe.allowedBranches
-      ? { allowedBranches: probe.allowedBranches }
-      : {}),
-  })
+  const result = evaluateReleaseEnvironmentPolicy(
+    {
+      hasRequiredReviewers: probe.hasRequiredReviewers,
+      reviewers: probe.reviewers,
+      preventsSelfReview: probe.preventsSelfReview,
+      adminsCanBypass: probe.adminsCanBypass,
+      branchPolicy: probe.branchPolicy,
+      ...(probe.deploymentPolicies
+        ? { deploymentPolicies: probe.deploymentPolicies }
+        : {}),
+    },
+    /*
+     * The approval environment is a branch grant: it is dispatched from `main`
+     * and publishes nothing. Evaluating it against the tag grant would report
+     * a correctly configured environment as failing.
+     */
+    target.id === 'approval-environment'
+      ? {
+          grant: {
+            type: 'branch',
+            refPrefix: 'refs/heads/',
+            pattern: 'main',
+            literalPrefix: 'main',
+          },
+        }
+      : {},
+  )
 
   if (result.verdict === 'PASS') {
     return {
-      id: 'release-environment',
+      id: target.id,
       status: 'pass',
       evidence: result.findings.map(entry => entry.detail).join('; '),
       policyVersion: result.version,
@@ -390,7 +479,7 @@ function checkReleaseEnvironment(
    */
   const blocking = result.findings.filter(entry => entry.verdict !== 'PASS')
   return {
-    id: 'release-environment',
+    id: target.id,
     status: 'fail',
     evidence: `${blocking.map(entry => `[${entry.verdict}] ${entry.detail}`).join('; ')} (policy ${result.version})`,
     policyVersion: result.version,
@@ -433,6 +522,18 @@ export interface RcReadinessInput {
    * pass: a release whose only protection is a claim about protection has none.
    */
   readonly releaseEnvironment?: ReleaseEnvironmentProbe
+  /**
+   * The environment that protects the approval document.
+   *
+   * Separate from `releaseEnvironment` because the approval job publishes
+   * nothing and runs from `main`; it cannot use the tag-only publish grant.
+   * Splitting the environments moved that job out of the one whose protection
+   * was being verified, so without this probe the approval runs in an
+   * environment nobody checks — and the self-approval check's stated
+   * backstop ("required reviewers bind a different identity") is then a claim
+   * about an unverified configuration.
+   */
+  readonly approvalEnvironment?: ReleaseEnvironmentProbe
 }
 
 export interface RcReadinessReport {
@@ -468,6 +569,10 @@ export function evaluateRcReadiness(
     checkEvidence('cross-platform', input.crossPlatform),
     checkEvidence('release-approval', input.releaseApproval),
     checkReleaseEnvironment(input.releaseEnvironment),
+    checkReleaseEnvironment(input.approvalEnvironment, {
+      id: 'approval-environment',
+      environment: 'RC Approval',
+    }),
     checkEvidence('online-products', input.onlineProducts),
   ]
 
@@ -1109,6 +1214,7 @@ function readReleaseEnvironmentFromRecord(
   }
 
   const maxAgeHours = Number(env.ZEUS_RELEASE_ENVIRONMENT_MAX_AGE_HOURS ?? '24')
+  const runId = env.ZEUS_RELEASE_ENVIRONMENT_RUN_ID?.trim()
   const verification = verifyReleaseEnvironmentEvidence(parsed, {
     repository: env.ZEUS_REPOSITORY ?? 'baicie/zeus',
     environment: 'Release',
@@ -1116,6 +1222,12 @@ function readReleaseEnvironmentFromRecord(
     workflowPath: '.github/workflows/release-governance.yml',
     policyVersion: RELEASE_ENVIRONMENT_POLICY_VERSION,
     maxAgeHours: Number.isFinite(maxAgeHours) ? maxAgeHours : 24,
+    /*
+     * The release names the governance run it downloaded the artifact from, so
+     * the record has to come from that run. Without this, a hand-written file
+     * with any `runId` satisfied every other binding.
+     */
+    ...(runId ? { expectedRunId: runId } : {}),
   })
 
   if (!verification.ok) {
@@ -1134,7 +1246,7 @@ function readReleaseEnvironmentFromRecord(
       preventsSelfReview?: boolean
       adminsCanBypass?: boolean
       branchPolicy?: 'protected' | 'custom' | 'none'
-      allowedBranches?: readonly string[]
+      deploymentPolicies?: readonly DeploymentPolicyEntry[]
     }
   }
   const observed = record.observed
@@ -1145,8 +1257,8 @@ function readReleaseEnvironmentFromRecord(
     preventsSelfReview: observed.preventsSelfReview === true,
     adminsCanBypass: observed.adminsCanBypass !== false,
     branchPolicy: observed.branchPolicy ?? 'none',
-    ...(observed.allowedBranches
-      ? { allowedBranches: observed.allowedBranches }
+    ...(observed.deploymentPolicies
+      ? { deploymentPolicies: observed.deploymentPolicies }
       : {}),
   }
 }
@@ -1241,6 +1353,17 @@ export function readRcReadinessInput(
      * such, not silently replaced by a live read that would have worked.
      */
     releaseEnvironment: readReleaseEnvironmentFromRecord(root, commit, env),
+    /*
+     * Probed directly rather than from a record: the approval environment has
+     * no governance workflow of its own, and the point of this check is that
+     * the split moved a job out of the environment whose protection was
+     * verified.
+     */
+    approvalEnvironment: readReleaseEnvironment(
+      env,
+      execFileSync,
+      'RC Approval',
+    ),
   }
 }
 

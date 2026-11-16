@@ -37,7 +37,7 @@ jobs:
   observe:
     if: github.repository == 'baicie/zeus'
     runs-on: ubuntu-latest
-    environment: Release
+    environment: Release Governance
     timeout-minutes: 10
     steps:
       - name: Require a full commit SHA

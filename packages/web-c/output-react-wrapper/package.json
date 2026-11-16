@@ -68,11 +68,6 @@
       "optional": true
     }
   },
-  "dependencies": {
-    "@zeus-js/bundler-plugin": "workspace:*",
-    "@zeus-js/component-analyzer": "workspace:*",
-    "@zeus-js/component-dts": "workspace:*"
-  },
   "author": "Baicie",
   "buildOptions": {
     "name": "ZeusOutputReactWrapper",
@@ -103,5 +98,10 @@
     "react-dom": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@zeus-js/web-c-runtime": "workspace:*"
+  },
+  "dependencies": {
+    "@zeus-js/bundler-plugin": "workspace:*",
+    "@zeus-js/component-analyzer": "workspace:*",
+    "@zeus-js/component-dts": "workspace:*"
   }
 }

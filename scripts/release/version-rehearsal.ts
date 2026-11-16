@@ -7,7 +7,9 @@
  * `@zeus-js/*` pin in the create-zeus templates follows the same version.
  * The caller is responsible for restoring the worktree afterwards.
  */
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
@@ -317,13 +319,234 @@ export function collectVersionRehearsal(
   }
 }
 
-/** Applies the planned rewrites and returns the report payload. */
+/** A file the write pass could not replace, and whether its original survived. */
+export interface WriteFailure {
+  readonly file: string
+  readonly message: string
+  /** Whether the original bytes were restored. */
+  readonly rolledBack: boolean
+}
+
+export interface WriteOutcome {
+  /** Files whose new contents are on disk after the pass finished. */
+  readonly written: readonly string[]
+  /** Files whose write failed. Empty on success. */
+  readonly failures: readonly WriteFailure[]
+  /**
+   * Whether the tree ended in a consistent state.
+   *
+   * `true` on success (every file landed) and on a clean rollback (nothing
+   * changed). `false` means some files are at the new version and others at
+   * the old, and a human must look at it.
+   *
+   * This used to be documented as "every file either landed or was restored"
+   * and returned `false` on the success path, so a caller reading the field
+   * alone would treat a clean run as a mixed tree. The success path and the
+   * rolled-back path are the same property — the tree is consistent — and the
+   * field now says that.
+   */
+  readonly consistent: boolean
+  /** Whether any file was restored to its original contents. */
+  readonly restoredAny: boolean
+}
+
+/**
+ * Writes every planned file, or none of them.
+ *
+ * The previous version looped `writeFileSync` over the plan. A failure partway
+ * through left the tree half-bumped: some packages at the new version, others
+ * at the old, with nothing recording which. That is worse than not starting,
+ * because the tree still builds and the mismatch surfaces much later.
+ *
+ * Three properties, each of which the loop did not have:
+ *
+ * 1. **Stage before writing.** Every new payload is written to a sibling
+ *    temporary file first. A failure while staging touches no target file.
+ * 2. **Rename, not truncate.** `rename` is atomic within a filesystem, so a
+ *    reader never sees a partial file. The original bytes are kept in memory
+ *    so a later failure can put them back.
+ * 3. **Roll back on failure, and say so when the rollback itself fails.**
+ *    A silent restore attempt is how a half-written tree gets reported as
+ *    clean; `rolledBack: false` is a state the caller must surface.
+ */
+/**
+ * The filesystem operations the write pass uses.
+ *
+ * Narrow on purpose: the pass needs exactly these three, and a seam this small
+ * is what lets the rollback paths be tested by making a real operation fail
+ * instead of asserting on a mock's call count.
+ */
+export interface RehearsalFileSystem {
+  writeFileSync(file: string, data: string): void
+  renameSync(from: string, to: string): void
+  rmSync(file: string): void
+}
+
+const nodeFileSystem: RehearsalFileSystem = {
+  writeFileSync: (file, data) => fs.writeFileSync(file, data),
+  renameSync: (from, to) => fs.renameSync(from, to),
+  rmSync: file => fs.rmSync(file, { force: true }),
+}
+
+export function writeVersionRehearsalPlan(
+  plan: VersionRehearsalPlan,
+  io: RehearsalFileSystem = nodeFileSystem,
+): WriteOutcome {
+  const staged: { file: PlannedFile; temporary: string }[] = []
+  const written: string[] = []
+  const failures: WriteFailure[] = []
+
+  const suffix = typeof process.pid === 'number' ? process.pid : 'tmp'
+  const temporaryFor = (file: string): string =>
+    `${file}.zeus-rehearsal-${suffix}.tmp`
+
+  /*
+   * Stage everything first. A staging failure costs nothing to undo: the
+   * targets are untouched, so the only cleanup is removing temporaries.
+   *
+   * The temporary for the file that *fails* is removed too. An earlier
+   * version only cleaned up temporaries for files whose write had already
+   * returned, so a partially-written temporary for the failing file survived
+   * — an untracked file that no .gitignore rule covers, left in a tree that
+   * the caller believes was not touched.
+   */
+  for (const file of plan.files) {
+    const temporary = temporaryFor(file.absoluteFile)
+    try {
+      io.writeFileSync(temporary, file.updated)
+      staged.push({ file, temporary })
+    } catch (error) {
+      for (const candidate of [
+        ...staged.map(entry => entry.temporary),
+        temporary,
+      ]) {
+        try {
+          io.rmSync(candidate)
+        } catch {
+          // A leftover temporary file is not a version change; it is noise in
+          // a directory listing, and reporting it would bury the real error.
+        }
+      }
+      return {
+        written: [],
+        failures: [
+          {
+            file: file.file,
+            message: `could not stage: ${error instanceof Error ? error.message : String(error)}`,
+            rolledBack: true,
+          },
+        ],
+        consistent: true,
+        restoredAny: false,
+      }
+    }
+  }
+
+  /*
+   * Promote. From here a failure leaves earlier files already replaced, so the
+   * originals kept in `Plan` are the only way back.
+   */
+  for (const entry of staged) {
+    try {
+      io.renameSync(entry.temporary, entry.file.absoluteFile)
+      written.push(entry.file.file)
+    } catch (error) {
+      failures.push({
+        file: entry.file.file,
+        message: error instanceof Error ? error.message : String(error),
+        rolledBack: false,
+      })
+      break
+    }
+  }
+
+  if (failures.length === 0) {
+    return {
+      written,
+      failures: [],
+      consistent: true,
+      restoredAny: false,
+    }
+  }
+
+  /*
+   * Roll back what landed.
+   *
+   * The restore goes through a temporary and a `rename` for the same reason
+   * the promotion does: a rollback write that fails partway through truncates
+   * the file to a prefix, which is neither the original nor the new content.
+   * Restoring by rename means the file is always one or the other.
+   */
+  const restored: string[] = []
+  const unrestored: WriteFailure[] = []
+  for (const name of written) {
+    const entry = staged.find(item => item.file.file === name)
+    if (!entry) continue
+    const rollbackTemp = temporaryFor(`${entry.file.absoluteFile}.rollback`)
+    try {
+      io.writeFileSync(rollbackTemp, entry.file.original)
+      io.renameSync(rollbackTemp, entry.file.absoluteFile)
+      restored.push(name)
+    } catch (error) {
+      try {
+        io.rmSync(rollbackTemp)
+      } catch {
+        // Same reasoning as above.
+      }
+      unrestored.push({
+        file: name,
+        message: `rollback failed: ${error instanceof Error ? error.message : String(error)}`,
+        rolledBack: false,
+      })
+    }
+  }
+
+  /* Temporaries for entries that never landed are still on disk. */
+  for (const entry of staged) {
+    if (written.includes(entry.file.file)) continue
+    try {
+      io.rmSync(entry.temporary)
+    } catch {
+      // Same reasoning as above: a stray temp file does not change a version.
+    }
+  }
+
+  const consistent = unrestored.length === 0
+  return {
+    written: restored,
+    failures: [
+      ...failures.map(failure => ({
+        ...failure,
+        rolledBack: restored.includes(failure.file),
+      })),
+      ...unrestored,
+    ],
+    consistent,
+    restoredAny: restored.length > 0,
+  }
+}
+
+/**
+ * Applies the planned rewrites and returns the report payload.
+ *
+ * Throws rather than returning a partial report. A caller that cannot tell
+ * "wrote everything" from "wrote some of it" will treat both as success.
+ */
 export function applyVersionRehearsal(
   options: VersionRehearsalOptions,
 ): VersionRehearsalReport {
   const plan = collectVersionRehearsal(options)
-  for (const file of plan.files) {
-    fs.writeFileSync(file.absoluteFile, file.updated)
+  const outcome = writeVersionRehearsalPlan(plan)
+  if (outcome.failures.length > 0) {
+    const detail = outcome.failures
+      .map(failure => `${failure.file}: ${failure.message}`)
+      .join('; ')
+    const state = outcome.consistent
+      ? outcome.restoredAny
+        ? 'every file was restored'
+        : 'no file was changed'
+      : 'the tree is in a MIXED state and needs manual repair'
+    throw new Error(`version rehearsal write failed (${state}): ${detail}`)
   }
   return {
     schema: VERSION_REHEARSAL_SCHEMA,
@@ -481,23 +704,184 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+/**
+ * Why `--apply` is refused, or `undefined` when it may proceed.
+ *
+ * The CLI used to write unconditionally, which is how a rehearsal run against
+ * the wrong directory rewrote a real `main` checkout. Three guards, each
+ * closing a different way of being in the wrong place:
+ *
+ * - the root must be a git repository, so "the tree I am about to change" is
+ *   something a person can inspect and revert;
+ * - the branch must not be `main`, because a version bump belongs on a
+ *   candidate branch and a detached HEAD on `main` is exactly the state a
+ *   release rehearsal starts from;
+ * - the worktree must be clean, so the write is attributable and revertible.
+ *
+ * A dry run skips all three: it writes nothing, and refusing to *show* a plan
+ * because the tree is dirty would make the safe mode the one that cannot be
+ * used while iterating.
+ */
+export function reviewApplyGuard(
+  root: string,
+  options: { readonly allowNonGit?: boolean } = {},
+): string | undefined {
+  const run = (args: string[]): string | undefined => {
+    try {
+      return execFileSync('git', args, {
+        cwd: root,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }).trim()
+    } catch {
+      return undefined
+    }
+  }
+  const inside = run(['rev-parse', '--is-inside-work-tree'])
+  if (inside !== 'true') {
+    /*
+     * `allowNonGit` skips exactly this check and nothing else. Gating the
+     * whole guard on the flag let `--apply --allow-non-git` rewrite a clean
+     * `main` checkout, because the branch and cleanliness checks were skipped
+     * along with the one that was meant to be relaxed.
+     */
+    if (options.allowNonGit) return undefined
+    return `${root} is not a git worktree; a version switch must be revertible with git`
+  }
+  /*
+   * `--abbrev-ref HEAD` prints the literal string `HEAD` on a detached
+   * checkout, which is not a branch name and compares equal to nothing — so a
+   * detached worktree pointing at a `main` commit passed the guard. That is
+   * precisely the state a rehearsal starts from (`git checkout <sha>`), and
+   * it is the one where "which branch am I on" has no answer to trust.
+   *
+   * A detached HEAD is refused outright: a version bump must land on a named
+   * branch, or the commit that carries it has nowhere to go.
+   */
+  const branch = run(['rev-parse', '--abbrev-ref', 'HEAD'])
+  if (branch === undefined) {
+    return `cannot determine the branch of ${root}`
+  }
+  if (branch === 'HEAD') {
+    return `the worktree at ${root} has a detached HEAD; a version switch must land on a named branch`
+  }
+  if (branch === 'main' || branch === 'master') {
+    return `refusing to rewrite versions on ${branch}; run the rehearsal on a candidate branch`
+  }
+  const status = run(['status', '--porcelain'])
+  if (status === undefined) {
+    return `cannot read the worktree status of ${root}`
+  }
+  if (status.length > 0) {
+    return `the worktree at ${root} has uncommitted changes; a version switch on top of them could not be attributed or reverted`
+  }
+  return undefined
+}
+
+/**
+ * Where `--apply` writes its report, relative to the rehearsed root.
+ *
+ * The dry run uses the system temporary directory instead: see the note at its
+ * call site.
+ */
+const DEFAULT_OUT = 'temp/release/version-rehearsal.json'
+
 function main(): void {
   const { values } = parseArgs({
     options: {
       version: { type: 'string' },
       root: { type: 'string' },
-      out: { type: 'string', default: 'temp/release/version-rehearsal.json' },
+      out: { type: 'string', default: DEFAULT_OUT },
+      /**
+       * Write the plan. Absent means dry run, which is the default because a
+       * rehearsal that writes by default is one mistyped path away from
+       * bumping the wrong tree.
+       */
+      apply: { type: 'boolean', default: false },
+      /**
+       * Skip the git guards. Only for a directory that is not a checkout but
+       * is still disposable, such as an extracted archive in a scratch dir.
+       */
+      'allow-non-git': { type: 'boolean', default: false },
     },
   })
   if (!values.version) {
     console.error(
-      'usage: tsx scripts/release/version-rehearsal.ts --version <X.Y.Z-rc.N> [--root <path>] [--out <file>]',
+      'usage: tsx scripts/release/version-rehearsal.ts --version <X.Y.Z-rc.N> [--root <path>] [--out <file>] [--apply]',
     )
     process.exitCode = 2
     return
   }
   try {
     const root = path.resolve(values.root ?? process.cwd())
+    /*
+     * The dry run's report must not land inside the rehearsed tree.
+     *
+     * It defaults to `<root>/temp/release/…`, which is untracked in a checkout
+     * without a `temp` ignore rule — so the dry run dirties the worktree and
+     * the very next `--apply` is refused for uncommitted changes. The run
+     * would tell the operator to re-run with `--apply` and then block it.
+     *
+     * When `--out` was not given explicitly, the dry run writes beside the
+     * tree instead, under the system temporary directory.
+     */
+    if (!values.apply) {
+      /*
+       * Dry run: collect the plan, print it, write nothing. The report file is
+       * still written because it is evidence of what *would* change, and it is
+       * outside the tree being rehearsed when `--out` points elsewhere.
+       */
+      const plan = collectVersionRehearsal({ root, version: values.version })
+      const explicitOut = values.out !== undefined && values.out !== DEFAULT_OUT
+      const outFile = explicitOut
+        ? path.resolve(root, values.out!)
+        : path.join(
+            os.tmpdir(),
+            `zeus-version-rehearsal-${path.basename(root)}.json`,
+          )
+      writeVersionRehearsalReport(
+        {
+          schema: VERSION_REHEARSAL_SCHEMA,
+          version: plan.version,
+          root,
+          generatedAt: new Date().toISOString(),
+          edits: plan.edits,
+          modifiedFiles: plan.modifiedFiles,
+          skippedPins: plan.skippedPins,
+        },
+        outFile,
+      )
+      console.log(
+        `dry run: would rewrite ${plan.modifiedFiles.length} file(s) to ${plan.version}: ${plan.edits.length} edit(s)`,
+      )
+      for (const file of plan.modifiedFiles) {
+        console.log(`  ${file.file} (${file.edits})`)
+      }
+      for (const edit of plan.edits) {
+        console.log(
+          `  ${edit.file}${edit.field ? `:${edit.field}` : ''} ${edit.packageName}: ${edit.before} -> ${edit.after}`,
+        )
+      }
+      if (plan.skippedPins.length > 0) {
+        console.log(
+          `left ${plan.skippedPins.length} non-exact pin(s) unchanged`,
+        )
+      }
+      console.log(`\nnothing was written to ${root}. Re-run with --apply.`)
+      return
+    }
+
+    {
+      const refusal = reviewApplyGuard(root, {
+        allowNonGit: values['allow-non-git'],
+      })
+      if (refusal) {
+        console.error(`refusing --apply: ${refusal}`)
+        process.exitCode = 1
+        return
+      }
+    }
+
     const report = applyVersionRehearsal({
       root,
       version: values.version,

@@ -889,12 +889,22 @@ async function runRehearsal(state: RehearsalState): Promise<void> {
       root: state.root,
       version: state.version,
     })
+    state.versionRewrite = report
+    /*
+     * Recorded before the report is written, not after.
+     *
+     * The files are already rewritten at this point. If writing the report
+     * throws — a `temp` path that is a file rather than a directory, a full
+     * disk — the restore step is the only thing that puts the tree back, and
+     * it reads this list. Assigning it afterwards left the list empty, so
+     * restore reported "no version rewrites were applied" and passed while 35
+     * files sat at the new version.
+     */
+    state.rewrittenFiles = report.modifiedFiles.map(file => file.file)
     writeVersionRehearsalReport(
       report,
       path.join(state.root, 'temp', 'release', 'version-rehearsal.json'),
     )
-    state.versionRewrite = report
-    state.rewrittenFiles = report.modifiedFiles.map(file => file.file)
     state.steps.push({
       id: 'version-rewrite',
       title: 'rewrite release group versions',

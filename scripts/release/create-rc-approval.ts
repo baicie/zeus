@@ -30,7 +30,7 @@ import {
   MAX_APPROVAL_TTL_HOURS,
   RC_APPROVAL_PAYLOAD_SCHEMA,
   RC_APPROVAL_SCHEMA,
-  RELEASE_ENVIRONMENT,
+  APPROVAL_ENVIRONMENT,
   RC_REPOSITORY,
   crossPlatformDigest,
   isRecord,
@@ -51,6 +51,18 @@ export interface BuildApprovalPayloadInput {
   readonly repository: string
   readonly actor: string
   readonly actorId: number
+  /**
+   * Who requested the release this approval covers.
+   *
+   * Distinct from `actor`, which is the approver: the RC Approval workflow is
+   * dispatched by the person signing off, so `actor` is always the approver.
+   * The requester is the person who proposed the candidate, and it must be
+   * recorded for the self-approval check in `validateRunMetadata` to be able
+   * to rule anything out. When it is absent the approval is recorded with
+   * `requester: ''` and the verifier rejects it rather than assuming the two
+   * are different.
+   */
+  readonly requester: string
   readonly ttlHours?: number
   readonly now?: number
   readonly outFile: string
@@ -175,6 +187,12 @@ export function buildApprovalPayload(
     },
     approvedAt: new Date(now).toISOString(),
     expiresAt: new Date(now + ttlHours * 60 * 60 * 1000).toISOString(),
+    /*
+     * Who asked for this release. The approver is `input.actor`; this is the
+     * other party, and the verifier rejects the approval when the two are the
+     * same or when this is absent.
+     */
+    requester: input.requester,
     evidence: {
       schema: CROSS_PLATFORM_SCHEMA,
       digest: evidence.digest ?? crossPlatformDigest(crossPlatform),
@@ -255,13 +273,22 @@ export function buildApprovalEnvelope(
       runId: input.runId,
       runAttempt: input.runAttempt,
       event: 'workflow_dispatch',
-      environment: RELEASE_ENVIRONMENT,
+      environment: APPROVAL_ENVIRONMENT,
       headSha: payload.coreCommit,
       conclusion: 'success',
       artifactName: APPROVAL_ARTIFACT_NAME,
       payloadArtifactName: APPROVAL_PAYLOAD_ARTIFACT_NAME,
       artifactDigest: input.payloadArtifactDigest,
       payloadDigest,
+      /*
+       * Carried from the payload rather than taken as a second flag, so the
+       * envelope cannot record a different requester than the one the payload
+       * was built with. Absent when the payload did not record it, and the
+       * verifier rejects that rather than assuming the two differ.
+       */
+      ...(typeof payload.requester === 'string' && payload.requester.length > 0
+        ? { requester: payload.requester }
+        : {}),
     },
   }
   fs.mkdirSync(path.dirname(path.resolve(input.outFile)), { recursive: true })
@@ -285,6 +312,7 @@ function main(): void {
       repo: { type: 'string', default: RC_REPOSITORY },
       actor: { type: 'string' },
       'actor-id': { type: 'string' },
+      requester: { type: 'string' },
       'ttl-hours': { type: 'string' },
       payload: { type: 'string' },
       'payload-artifact-digest': { type: 'string' },
@@ -303,6 +331,7 @@ function main(): void {
       'ui-repo',
       'actor',
       'actor-id',
+      'requester',
       'out',
     ] as const) {
       if (!values[key]) throw new Error(`--${key} is required`)
@@ -317,6 +346,7 @@ function main(): void {
       repository: values.repo!,
       actor: values.actor!,
       actorId: Number(values['actor-id']),
+      requester: values.requester!,
       ...(values['ttl-hours'] ? { ttlHours: Number(values['ttl-hours']) } : {}),
       outFile: path.resolve(values.out!),
     })
