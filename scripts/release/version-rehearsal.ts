@@ -268,6 +268,13 @@ export function collectVersionRehearsal(
       for (const [packageName, raw] of Object.entries(dependencies)) {
         if (!packageName.startsWith('@zeus-js/')) continue
         if (typeof raw !== 'string') continue
+        /*
+         * The vite-plugin pin is not a Core-version pin. `create-zeus-versions`
+         * reconciles it against that package's own manifest, so rewriting it
+         * here would make the two disagree and the precheck would fail on a
+         * template this function had just written.
+         */
+        if (packageName === VITE_PLUGIN_PACKAGE) continue
         const displayField = `${field}.${packageName}`
         if (!EXACT_VERSION_PATTERN.test(raw)) {
           skippedPins.push({
@@ -567,12 +574,26 @@ export function writeVersionRehearsalReport(
   fs.writeFileSync(file, `${JSON.stringify(report, null, 2)}\n`)
 }
 
+/*
+ * The release group. `@zeus-js/vite-plugin` is deliberately NOT included: it
+ * is published from its own version line (`vite-plugin@*` tags,
+ * `devtools-release.yml`), and `docs/release/0.2.0-rc-version-matrix.md` says
+ * to keep it at `0.0.5`.
+ *
+ * Including it here rewrote the package version to the Core RC version, which
+ * put the two halves of the repo out of step: `create-zeus-versions.ts` derives
+ * each template's vite-plugin pin from that package's own version, so four
+ * create-zeus templates followed it to `0.2.0-rc.0`, while every `@zeus-web/*`
+ * package still pinned `0.0.5`. Publishing would then have shipped
+ * `@zeus-js/vite-plugin@0.2.0-rc.0` — a version that belongs to no tag, no
+ * release line, and nothing on npm.
+ */
 function collectTargetPackages(
   fixedPackages: readonly string[],
 ): readonly string[] {
   const names: string[] = []
   const seen = new Set<string>()
-  for (const name of [...fixedPackages, VITE_PLUGIN_PACKAGE]) {
+  for (const name of fixedPackages) {
     if (seen.has(name)) continue
     seen.add(name)
     names.push(name)
