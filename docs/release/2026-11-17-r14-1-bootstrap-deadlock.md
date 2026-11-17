@@ -99,13 +99,63 @@ ERR_PNPM_FETCH_404  GET https://registry.npmjs.org/@zeus-js/compiler-native/-/co
 
 失败干净、指向明确，没有静默降级到别的版本。这正是期望行为：锁文件在包真正发布前不可用，发布后即可用。
 
-## 4. 结论：预生成锁文件可行，但有一个前提
+### 3.7 闭环：用真实发布路径产出的包验证锁文件
 
-技术上可行，前提是 tarball 必须由 `pnpm publish` 产出，而不是 `pnpm pack`。这带来一个新的约束：
+前几节各自验证了一半。完整的闭环是把它们接起来，用的是**已提交的修复代码**（`28f5648a`）：
 
-**预生成锁文件所用的 tarball，必须与真实发布产生的 tarball 逐字节相同。** 而 `pnpm publish` 的确定性只在同一份源码、同一个 pnpm 版本、同一组依赖解析结果下成立。版本切换会改变源码，所以锁文件只能在版本切换**之后**、发布**之前**由同一个 commit 生成。
+1. `version-rehearsal --apply --version 0.2.0-rc.0` 切版本
+2. `sync-native-loader.ts 0.2.0-rc.0` 同步 52 处硬编码版本
+3. `create-zeus-versions.ts --check` 通过
+4. `pnpm build`
+5. **`pnpm publish`**（真实发布路径，不是 `pnpm pack`）发布 33 个包到隔离 registry
+6. UI 对隔离 registry 生成 `pnpm-lock.yaml`
+7. 逐条比对锁文件 integrity 与 registry 存储
 
-这使 Bootstrap 阶段仍然必需：锁文件不能先于发布存在，而配对记录不能后于 tag 存在。
+结果：
+
+| 检查项                                     | 结果                       |
+| ------------------------------------------ | -------------------------- |
+| registry URL 泄漏（`grep -c "127.0.0.1"`） | **0**                      |
+| `@zeus-js/*@0.2.0-rc.0` integrity 条目     | 15 条                      |
+| 与 registry 存储不一致的条目               | **0**                      |
+| 干净消费者安装并运行                       | `signal→memo→effect: 6,21` |
+
+这一步证明 bootstrap 阶段可以产出**真实可用**的锁文件：不是占位符、不含临时地址、integrity 与真实发布产物逐条相等。
+
+### 3.8 一个会误导排查的环境陷阱
+
+排查过程中反复出现两个错误：
+
+```
+ERR_PNPM_SPEC_NOT_SUPPORTED_BY_ANY_RESOLVER  "@babel/parser@catalog:" isn't supported
+ERR_PNPM_WORKSPACE_PKG_NOT_FOUND  "@zeus-js/compiler-native@workspace:*" is in the dependencies
+```
+
+这两个错误都指向 `@zeus-js/vite-plugin@0.0.5`，但该包的 tarball、registry metadata、`pnpm view` 输出**全部正确**（`^8.0.0`）。根因是 **`~/Library/Caches/pnpm` 的 metadata 缓存**保留了旧的坏记录，而它不受 `--store-dir` 影响。
+
+加 `--cache-dir <新目录>` 后立刻成功：
+
+```
+$ pnpm install --cache-dir /tmp/fresh-cache
++ @zeus-js/vite-plugin 0.0.5
++ @zeus-js/zeus 0.2.0-rc.0
+Done in 53.8s
+```
+
+**记录此点是因为它极易被误判为协议缺陷。** 一个只验证 registry 内容、不验证安装路径的排查会得出错误结论。反过来也成立：CI 上如果出现这两个错误，先清 `--cache-dir`，不要改代码。
+
+## 4. 结论：技术上可行，但不改变协议的必要性
+
+§3.7 证明了一件重要的事：**锁文件可以在包真正发布之前生成，且生成后依然有效**。条件是 tarball 由 `pnpm publish` 产出——它既正确重写 `workspace:*`/`catalog:`，又是字节确定的。
+
+但这不消除 Bootstrap 阶段。原因不是锁文件，而是记录位置的约束：
+
+- 锁文件要求 Core 先发布；
+- 配对记录必须在 tag 指向的 commit 内，且 workflow 在发布前读它。
+
+即使锁文件能提前生成，**记录里要写的 UI commit 仍然必须先在某个 commit 存在**，而那个 commit 的锁文件依赖已发布的 Core。环没有解开，只是被看清了。
+
+顺带一提，用一个会迷惑后来者的表达：预生成的锁文件**不是**"假锁文件"。§3.7 里它的 integrity 与真实发布逐条相等，干净消费者能装能跑。真正不能做的是让锁文件先于 Core 发布存在于 `main`——`pnpm install --frozen-lockfile` 会失败，而这是正确行为。
 
 ## 5. 顺带发现的三个缺陷
 
@@ -142,28 +192,41 @@ This error happened while installing the dependencies of @zeus-js/zeus@0.1.1-bet
 
 ## 6. 未验证项
 
-- 真实 npmjs 上的首次发布（禁止 npm publish）
-- Tag ruleset 在真实 tag 推送时的行为（已用测试 ref 验证，但未在真实发布路径验证）
-- 7 个平台包的跨平台安装
-- Node 22.18 / 24.11 双版本（本地是 22.12）
+- 真实 npmjs 上的首次发布（本轮禁止 npm publish）
+- 真实 tag 推送触发 `release.yml` 的完整运行
+- 7 个平台包的跨平台安装（只验证了 darwin-arm64 所在的主机）
+- Node 22.18 / 24.11 双版本（本地是 22.12，低于 `engines` 要求）
+- `check:latest-tags` 对三个首发包的实际修复效果（需要真实发布后才有 `latest` 可修）
 
 ## 7. 复现方式
 
 ```bash
-# 隔离 registry
-npx verdaccio@6 --config /tmp/verdaccio.yaml
+# 隔离 registry（必须用 6.x：7.x 要求 Node 24）
+pnpm add -D verdaccio@6
+./node_modules/.bin/verdaccio --config ./verdaccio.yaml &
 
 # Core 切版本并发布到隔离 registry
-git worktree add /tmp/core-rc origin/main
-cd /tmp/core-rc && git checkout -b rc-lab
+git worktree add /tmp/core-rc <core-main-sha>
+cd /tmp/core-rc && git checkout -b rc-boot
+pnpm install --frozen-lockfile --ignore-scripts
 pnpm exec tsx scripts/release/version-rehearsal.ts --version 0.2.0-rc.0 --apply
 pnpm exec tsx scripts/release/sync-native-loader.ts 0.2.0-rc.0
+pnpm exec tsx scripts/release/create-zeus-versions.ts --check
 pnpm build
-for d in packages/*/*/; do (cd "$d" && pnpm publish --no-git-checks --tag rc --registry http://127.0.0.1:4874 --provenance=false); done
+# 用 pnpm publish，不是 pnpm pack —— 见 §3.2
+for d in packages/*/*/; do
+  (cd "$d" && pnpm publish --no-git-checks --access public --tag rc \
+    --registry http://127.0.0.1:4874 --provenance=false)
+done
 
 # UI 对着隔离 registry 生成锁文件
 git worktree add /tmp/ui-cand ca8cf2c8
-cd /tmp/ui-cand && echo 'registry=http://127.0.0.1:4874/' > .npmrc
+cd /tmp/ui-cand
+printf 'registry=http://127.0.0.1:4874/\ncache-dir=/tmp/fresh-cache\n' > .npmrc
 pnpm install --lockfile-only --no-frozen-lockfile
 grep -c "127.0.0.1" pnpm-lock.yaml   # 必须是 0
 ```
+
+`cache-dir` 不是可选项。默认缓存里若有一条该包的坏记录，
+安装会以一个指向 `workspace:*` / `catalog:` 的错误失败，而 registry
+内容是好的——见 §3.8。
