@@ -248,16 +248,48 @@ release tag 事后        69c871c9  ✓ 未移动
 
 ## 7. CI 状态
 
-### Core #313
+最终 PR：**Core #314**、**UI #152**（都是 Draft）。
 
-15 通过、5 跳过、0 失败，含 `ci-gate`。
+### Core #314
 
-### UI #151
+替换 #313 / #312。三次重建都因为分支名。
 
-修正后才完整。三轮修正：
+### UI #152
 
-1. `d756d1d`：`release-scripts.spec.ts` 中两处遗漏的断言（`dispatch-publish` env、dispatch inputs）
-2. `455e27a`：`ai-demo-provenance.spec.ts` 的超时——它跑两次完整 Host 录制，5 秒不够。该测试与本分支改动无任何 import 关系，是慢 runner 上的时序问题，非回归
+替换 #151 / #150。
+
+### 分支名的两个陷阱（值得单独记）
+
+`check:branch` 的白名单里有 `release/<version>`，但 `<version>` 只接受裸版本号
+（`release/0.2.0-rc.0`）。协议改动不是版本号，所以 `release/r14-2-...` 被拒。
+
+改到 `feat/release-bootstrap-pair` 后 check 通过，但 `.github/workflows/product-acceptance.yml` 有
+
+```yaml
+push:
+  branches: ['feat/release-*']
+  paths-ignore: ['docs/**', '**/*.md']
+```
+
+它 checkout **上游 `baicie/zeus-ui` 的 main**，跑 Admin/Playground/AI Workbench 的真实浏览器验收。
+于是这个 PR 的 CI 里出现了两个必然失败项，失败内容是 UI 的
+`getByTestId('inspector-toggle') … element is not visible` —— 与本 PR 改动零关系，
+因为本 PR 只改 Core 的发布脚本和文档。
+
+最终用 `feat/core-bootstrap-pair` / `feat/ui-pair-protocol`：`feat/<scope>-<topic>` 成立，
+且 scope 不是 `release`，不触发那个 workflow。
+
+**教训**：在 Zeus 里，分支名同时受两条规则约束，而它们的方向相反——
+check 只要求"合法"，workflow 还要求"不撞发布分支模式"。
+
+### 三轮 CI 修正（都是我的疏漏）
+
+1. **`d756d1d`**：`release-scripts.spec.ts` 中另外两处断言了 workflow 结构
+   （`dispatch-publish` env、dispatch inputs），我只改了契约检查那一份
+2. **`455e27a`**：`ai-demo-provenance.spec.ts` 超时。它跑两次完整 Host 录制，
+   5 秒默认超时不够。该测试与本分支改动无任何 import 关系，是慢 runner 上的
+   时序问题，非回归；断言本身未改动
+3. 分支名两次（见上）
 
 ### 我用错的方法（记录）
 
