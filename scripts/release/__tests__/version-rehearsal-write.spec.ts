@@ -398,9 +398,18 @@ describe('the apply guard', () => {
         stdio: 'ignore',
       })
       fs.writeFileSync(path.join(root, 'notes.txt'), 'mine\n')
-      /* A dirty tree is refused, so apply never runs; the file must survive. */
-      expect(reviewApplyGuard(root)).toMatch(/uncommitted changes/)
+      /*
+       * An untracked file does not block the switch — the rehearsal never
+       * writes to it, and reverting the bump leaves it where it was. What
+       * matters is that the guard does not remove it, which is asserted by
+       * its continued existence rather than by a refusal.
+       */
+      expect(reviewApplyGuard(root)).toBeUndefined()
       expect(fs.existsSync(path.join(root, 'notes.txt'))).toBe(true)
+
+      /* A tracked modification is a different matter: reverting would lose it. */
+      fs.writeFileSync(path.join(root, 'a.txt'), 'modified\n')
+      expect(reviewApplyGuard(root)).toMatch(/tracked files/)
     },
   )
 })
